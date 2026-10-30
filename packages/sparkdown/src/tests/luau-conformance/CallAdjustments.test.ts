@@ -40,8 +40,10 @@ function compileAndCapture(source: string): {
 describe("method-call receiver single evaluation", () => {
   test("chained colon calls and trailing property access", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local a = {x=0}
@@ -61,8 +63,10 @@ end
 describe("multi-return adjustment", () => {
   test("no-value tails pack to zero values; non-last adjust to nil", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local pack = table.pack
@@ -83,8 +87,10 @@ end
 
   test("zero-arg calls don't spread the caller's pending multi-return", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local function g() return 7, 8 end
@@ -100,8 +106,10 @@ end
 
   test("parens adjust to one value; extra native args are discarded", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local function f() return 1, 2, 30, 4 end
@@ -121,8 +129,10 @@ end
 describe("operator results adjust to one value", () => {
   test("and/or results truncate a multi-return RHS", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local function f() return 1, 2, 3 end
@@ -140,8 +150,10 @@ end
 
   test("table constructor entries lower whole node groups", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local function f (i) return i end
@@ -162,8 +174,10 @@ end
 describe("self as a plain variable outside methods", () => {
   test("chunk-level self assignment is readable from dot-form functions", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local a = {i = 10}

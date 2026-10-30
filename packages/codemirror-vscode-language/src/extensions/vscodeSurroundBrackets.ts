@@ -32,20 +32,9 @@ export const vscodeSurroundBracketsConfig = Facet.define<
   },
 });
 
-/// Configures bracket closing behavior for a syntax (via
-/// [language data](#state.EditorState.languageDataAt)) using the `"surroundBrackets"`
-/// identifier.
 export interface SurroundBracketConfig {
-  /// The opening brackets to surround. Defaults to `["(", "[", "{", "'",
-  /// '"']`. Brackets may be single characters or a triple of quotes
-  /// (as in `"''''"`).
   brackets?: string[];
-  /// Characters in front of which newly opened brackets are
-  /// automatically surrounded. Closing always happens in front of
-  /// whitespace. Defaults to `")]}:;>"`.
   before?: string;
-  /// When determining whether a given node may be a string, recognize
-  /// these prefixes before the opening quote.
   stringPrefixes?: string[];
 }
 
@@ -89,11 +78,6 @@ const bracketState = StateField.define<RangeSet<typeof surroundedBracket>>({
   },
 });
 
-/// Extension to enable bracket-closing behavior. When a surroundable
-/// bracket is typed, its closing bracket is immediately inserted
-/// after the cursor. When closing a bracket directly in front of a
-/// closing bracket inserted by the extension, the cursor moves over
-/// that bracket.
 export function vscodeSurroundBrackets(
   config: VSCodeSurroundBracketsConfig,
 ): Extension {
@@ -140,15 +124,6 @@ const inputHandler = EditorView.inputHandler.of((view, from, to, insert) => {
   return true;
 });
 
-/// Implements the extension's behavior on text insertion. If the
-/// given string counts as a bracket in the language around the
-/// selection, and replacing the selection with it requires custom
-/// behavior (inserting a closing version or skipping past a
-/// previously-surrounded bracket), this function returns a transaction
-/// representing that custom behavior. (You only need this if you want
-/// to programmatically insert brackets—the
-/// [`surroundBrackets`](#autocomplete.surroundBrackets) extension will
-/// take care of running this for user input.)
 export function insertBracket(
   state: EditorState,
   bracket: string,
@@ -242,8 +217,6 @@ function handleSurround(state: EditorState, _open: string, surround: string) {
       });
 }
 
-// Handles cases where the open and surround token are the same, and
-// possibly triple quotes (as in `"""abc"""`-style quoting).
 function handleSame(
   state: EditorState,
   token: string,

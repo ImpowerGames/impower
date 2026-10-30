@@ -9,13 +9,13 @@ export function functionScreenplay(scenes = 3): string {
     "  end",
     "end",
     "",
-    "do",
-    "  function twice(n)",
-    "    return n * 2",
-    "  end",
+    "function twice(n)",
+    "  return n * 2",
     "end",
     "",
-    "Before any scene {describe(1)} {twice(2)}.",
+    "scene start",
+    "  Before any scene {describe(1)} {twice(2)}.",
+    "end",
     "",
   ];
   for (let s = 0; s < scenes; s++) {

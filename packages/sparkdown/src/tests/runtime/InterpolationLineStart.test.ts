@@ -3,7 +3,13 @@ import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, storyBeats } from "../program/programHarness";
 
 const script = (lines: string[]) =>
-  ['store x = "Hi"', ...lines, "After.", ""].join("\n");
+  [
+    'store x = "Hi"',
+    "scene start",
+    ...[...lines, "After."].map((line) => `  ${line}`),
+    "end",
+    "",
+  ].join("\n");
 
 const beats = (lines: string[]) => {
   const { program } = compileScript(script(lines));

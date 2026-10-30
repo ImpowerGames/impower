@@ -50,7 +50,7 @@ describe("a divert target misused as a value", () => {
   it.each([
     [
       "in a scene",
-      "-> start\n\nscene start\n  local r = (-> other) + 1\n  Hello.\nend\n\nscene other\n  Hi.\nend\n",
+      "\n\nscene start\n  local r = (-> other) + 1\n  Hello.\nend\n\nscene other\n  Hi.\nend\n",
       3,
     ],
     [
@@ -70,7 +70,7 @@ describe("a variable preceded by '->'", () => {
     ["at the top level", "store x = 1\nstore r = -> x\n\nHello.\n", 1],
     [
       "in a scene",
-      "-> start\n\nscene start\n  store x = 1\n  local r = -> x\n  Hello.\nend\n",
+      "\n\nscene start\n  store x = 1\n  local r = -> x\n  Hello.\nend\n",
       4,
     ],
   ])("%s is reported on the variable's name", (_name, text, line) => {

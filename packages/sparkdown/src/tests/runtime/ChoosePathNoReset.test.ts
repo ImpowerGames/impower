@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 import type { TestStory } from "../engineUnderTest";
 
-const SCRIPT = ["scene main", "  Visits {main}.", "  Waiting.", "  done", "end", ""].join("\n");
+const SCRIPT = ["scene start", "end", "scene main", "  Visits {main}.", "  Waiting.", "  done", "end", ""].join("\n");
 
 function drain(story: TestStory): string[] {
   const lines: string[] = [];

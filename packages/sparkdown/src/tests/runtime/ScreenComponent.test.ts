@@ -55,6 +55,8 @@ describe("screen · named-element tree", () => {
     }
   }
 end
+scene start
+end
 `);
     expect(r.errors).toEqual([]);
     expect(r.layout["main"]).toEqual({
@@ -82,6 +84,8 @@ describe("screen · classed element with content", () => {
     image
   }
 end
+scene start
+end
 `);
     expect(r.errors).toEqual([]);
     expect(r.layout["main"]).toEqual({
@@ -103,6 +107,8 @@ end
     button.primary "Go" @click=noop
   }
 end
+scene start
+end
 `);
     expect(r.errors).toEqual([]);
     expect(r.layout["main"]!["column"]).toEqual({
@@ -119,6 +125,8 @@ store max_hp = 100
 layout hud with
   text = "HP: {hp} / {max_hp + 0}"
 end
+scene start
+end
 `);
     expect(r.errors).toEqual([]);
     expect(r.layout["hud"]["text"]).toBe("HP: {hp} / {max_hp + 0}");
@@ -133,6 +141,8 @@ describe("screen · adjacency content", () => {
       image "black"
     }
   }
+end
+scene start
 end
 `);
     expect(r.errors).toEqual([]);
@@ -153,6 +163,8 @@ layout hud with
     button "Hit" @click=take_damage(10)
   }
 end
+scene start
+end
 `);
     expect(r.errors).toEqual([]);
     expect(r.layout["hud"]["row"]).toEqual({
@@ -168,6 +180,8 @@ describe("screen · classes", () => {
     mask.shadow_1
     text.title "Inventory"
   }
+end
+scene start
 end
 `);
     expect(r.errors).toEqual([]);
@@ -191,6 +205,8 @@ layout hud with
     text "ok"
   end
 end
+scene start
+end
 `);
     expect(r.errors).toEqual([]);
   });
@@ -208,6 +224,8 @@ layout bag with
     text "empty"
   end
 end
+scene start
+end
 `);
     expect(r.errors).toEqual([]);
   });
@@ -224,6 +242,8 @@ layout sheet with
     text "Other"
   end
 end
+scene start
+end
 `);
     expect(r.errors).toEqual([]);
   });
@@ -238,6 +258,8 @@ describe("component", () => {
     }
   }
 end
+scene start
+end
 `);
     expect(r.errors).toEqual([]);
     const c = r.component["card"];
@@ -251,6 +273,8 @@ end
   label {
     text
   }
+end
+scene start
 end
 `);
     expect(r.errors).toEqual([]);
@@ -270,8 +294,7 @@ layout s with
     }
   }
 end
--> main
-scene main
+scene start
   Hi.
   done
 end

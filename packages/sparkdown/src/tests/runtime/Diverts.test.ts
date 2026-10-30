@@ -28,14 +28,14 @@ describe("Diverts (ported from inkjs)", () => {
 
   test("divert not found surfaces as a compile-time error", () => {
     const { errorMessages } = collectDiagnostics(
-      `-> main\nscene main\n  -> nowhere\n`,
+      `\nscene start\n  -> nowhere\n`,
     );
     expect(errorMessages.some((m) => m.includes("not found"))).toBe(true);
   });
 
   test("empty divert outside a choice emits a warning", () => {
     const { warningMessages } = collectDiagnostics(
-      `-> main\nscene main\n  text\n  ->\n  more\n`,
+      `\nscene start\n  text\n  ->\n  more\n`,
     );
     expect(warningMessages.some((m) => /Empty diverts/.test(m))).toBe(true);
   });

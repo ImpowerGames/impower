@@ -5,6 +5,7 @@ import {
 } from "../../compiler/lint/collectLuauLints";
 import { TYPE_ERROR_KINDS } from "../../compiler/typecheck/Error";
 import type { SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
+import { NO_START_SCENE_MESSAGE } from "../../compiler/utils/startScene";
 import { testCompiler } from "../engineUnderTest";
 import { namesRun, onlyRunIsWrapper } from "./wrapperRun";
 
@@ -71,6 +72,7 @@ function diagnoseScripts(
     for (const d of ds) {
       if (d.code !== "SyntaxError" && TYPE_ERROR_KINDS.has(String(d.code))) continue;
       if (isWrapperWarning(d) || isWrappers(d)) continue;
+      if (diagnosticMessage(d) === NO_START_SCENE_MESSAGE) continue;
       out.push({
         file: uri.replace("inmemory:///", ""),
         message: diagnosticMessage(d),

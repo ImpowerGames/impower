@@ -40,8 +40,10 @@ function compileAndCapture(source: string): {
 describe("identity-based table keys", () => {
   test("self-referential and chained table keys", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local a = {}
@@ -63,8 +65,10 @@ end
 
   test("stdlib builtins as keys and equality by tag", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function nothing() end
 
@@ -85,8 +89,10 @@ end
 describe("call-rooted assignment targets", () => {
   test("f(a)[k] = v in single and multi-target assignments", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function ident(x) return x end
 
@@ -110,8 +116,10 @@ end
 describe("semicolon statement separators", () => {
   test("one-line local; for; return parses as three statements", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local unpack = table.unpack

@@ -4,7 +4,7 @@ import { checkLuau } from "./typecheckTestHarness";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
 const inFunction = (body: string) =>
-  `Value {f()}.\nfunction f()\n${body
+  `scene start\n  Value {f()}.\nend\nfunction f()\n${body
     .split("\n")
     .map((line) => (line ? `  ${line}` : line))
     .join("\n")}\nend\n`;
@@ -258,7 +258,7 @@ test("a type cast line after `end` reports its qualified type continuation", () 
   compiler.configure({ files: [{ uri, type: "script", name: "main", ext: "sd", text: source, version: 1, languageId: "sparkdown" }] });
   const program = compiler.compile({ textDocument: { uri } }).program;
   expect(program.diagnostics?.[uri]?.filter((diagnostic) => diagnostic.severity === 1).map((diagnostic) => diagnostic.range)).toEqual([
-    { start: { line: 4, character: 4 }, end: { line: 5, character: 6 } },
+    { start: { line: 6, character: 4 }, end: { line: 7, character: 6 } },
   ]);
 });
 
@@ -285,7 +285,7 @@ test.each([
 
 test("a line starting with a dot after a statement in a scene is prose", () => {
   const ctx = makeRuntimeStoryFromSource(
-    "-> start\nscene start\n  local y = 1\n  .hello there\nend\n",
+    "scene start\n  local y = 1\n  .hello there\nend\n",
   );
   expect(ctx.errorMessages).toEqual([]);
   expect(ctx.story.ContinueMaximally()).toBe(".hello there\n");
@@ -356,7 +356,7 @@ test.each([
 
 test("a line starting with a minus after a statement in a scene is prose", () => {
   const ctx = makeRuntimeStoryFromSource(
-    "-> start\nscene start\n  local y = 1\n  - hello there\nend\n",
+    "scene start\n  local y = 1\n  - hello there\nend\n",
   );
   expect(ctx.errorMessages).toEqual([]);
   expect(ctx.story.ContinueMaximally()).toBe("- hello there\n");

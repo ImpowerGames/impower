@@ -14,8 +14,10 @@ describe("whitespace around `{...}` interpolation in display bodies", () => {
     expect(
       render(`const LIMIT = 5
 
-ALICE:
-  The limit is {LIMIT} tonight.
+scene start
+  ALICE:
+    The limit is {LIMIT} tonight.
+end
 `),
     ).toBe("The limit is 5 tonight.\n");
   });
@@ -24,8 +26,10 @@ ALICE:
     expect(
       render(`const LIMIT = 5
 
-$:
-  The limit is {LIMIT} tonight.
+scene start
+  $:
+    The limit is {LIMIT} tonight.
+end
 `),
     ).toBe("The limit is 5 tonight.\n");
   });
@@ -34,8 +38,10 @@ $:
     expect(
       render(`const LIMIT = 5
 
-ALICE:
-  {LIMIT} is the limit.
+scene start
+  ALICE:
+    {LIMIT} is the limit.
+end
 `),
     ).toBe("5 is the limit.\n");
   });
@@ -44,8 +50,10 @@ ALICE:
     expect(
       render(`const LIMIT = 5
 
-ALICE:
-  a {LIMIT} b {LIMIT} c
+scene start
+  ALICE:
+    a {LIMIT} b {LIMIT} c
+end
 `),
     ).toBe("a 5 b 5 c\n");
   });
@@ -54,8 +62,10 @@ ALICE:
     expect(
       render(`const LIMIT = 5
 
-ALICE:
-  The limit is {LIMIT}  tonight.
+scene start
+  ALICE:
+    The limit is {LIMIT}  tonight.
+end
 `),
     ).toBe("The limit is 5  tonight.\n");
   });
@@ -64,8 +74,10 @@ ALICE:
     expect(
       render(`const LIMIT = 5
 
-ALICE:
-  The limit is {LIMIT + 1} tonight.
+scene start
+  ALICE:
+    The limit is {LIMIT + 1} tonight.
+end
 `),
     ).toBe("The limit is 6 tonight.\n");
   });
@@ -74,8 +86,10 @@ ALICE:
     expect(
       render(`const N = "Bo"
 
-ALICE:
-  Hello {N} there.
+scene start
+  ALICE:
+    Hello {N} there.
+end
 `),
     ).toBe("Hello Bo there.\n");
   });
@@ -83,13 +97,17 @@ ALICE:
   test("a segment spanning two lines keeps line one's spacing and strips line two's indent", () => {
     const interpolated = render(`const LIMIT = 5
 
-ALICE:
-  The limit is {LIMIT} tonight
-  and it holds all night.
+scene start
+  ALICE:
+    The limit is {LIMIT} tonight
+    and it holds all night.
+end
 `);
-    const literal = render(`ALICE:
-  The limit is 5 tonight
-  and it holds all night.
+    const literal = render(`scene start
+  ALICE:
+    The limit is 5 tonight
+    and it holds all night.
+end
 `);
     expect(interpolated).toBe(literal);
     expect(interpolated).toContain("The limit is 5 tonight");
@@ -98,21 +116,27 @@ ALICE:
 
   test("text after an inline-glued alternator keeps its leading space", () => {
     expect(
-      render(`ALICE:
-  Before .. queue|A|B|C .. After.
+      render(`scene start
+  ALICE:
+    Before .. queue|A|B|C .. After.
+end
 `),
     ).toBe("Before A After.\n");
   });
 
   test("an inline asset directive reaches the engine with its spacing intact", () => {
     expect(
-      render(`ALICE:
-  The car ((sfx_vroom)) drove as he ((sfx_screech)) slammed.
+      render(`scene start
+  ALICE:
+    The car ((sfx_vroom)) drove as he ((sfx_screech)) slammed.
+end
 `),
     ).toBe("The car ((sfx_vroom)) drove as he ((sfx_screech)) slammed.\n");
     expect(
-      render(`ALICE:
-  The car [[img_car]] drove.
+      render(`scene start
+  ALICE:
+    The car [[img_car]] drove.
+end
 `),
     ).toBe("The car [[img_car]] drove.\n");
   });
@@ -121,8 +145,10 @@ ALICE:
     const uri = "inmemory:///main.sd";
     const before = `const LIMIT = 5
 
-ALICE:
-  The limit is {LIMIT} tonight.
+scene start
+  ALICE:
+    The limit is {LIMIT} tonight.
+end
 `;
     const compiler = testCompiler();
     compiler.configure({
@@ -141,8 +167,8 @@ ALICE:
     const cold = compiler.compile({ textDocument: { uri } }).program;
     expect(cold.chunks).toBeTruthy();
 
-    const line = 3;
-    const character = "  The limit is {LIMIT} tonight".length;
+    const line = 4;
+    const character = "    The limit is {LIMIT} tonight".length;
     compiler.updateDocument({
       textDocument: { uri, version: 2 },
       contentChanges: [
@@ -167,25 +193,31 @@ ALICE:
     expect(
       render(`const LIMIT = 5
 
-ALICE:
-  The limit is {LIMIT}, tonight.
+scene start
+  ALICE:
+    The limit is {LIMIT}, tonight.
+end
 `),
     ).toBe("The limit is 5, tonight.\n");
   });
 
   test("a dialogue line with no interpolation is unaffected", () => {
     expect(
-      render(`ALICE:
-  The limit is 5 tonight.
+      render(`scene start
+  ALICE:
+    The limit is 5 tonight.
+end
 `),
     ).toBe("The limit is 5 tonight.\n");
   });
 
-  test("a top-level line with an interpolation is unaffected", () => {
+  test("a scene-level line with an interpolation is unaffected", () => {
     expect(
       render(`const LIMIT = 5
 
-The limit is {LIMIT} tonight.
+scene start
+  The limit is {LIMIT} tonight.
+end
 `),
     ).toBe("The limit is 5 tonight.\n");
   });

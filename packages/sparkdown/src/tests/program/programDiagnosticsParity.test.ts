@@ -29,7 +29,10 @@ interface Recorded {
 }
 
 const unsupportedConstructOf = (message: string): string | null => {
-  if (message === unsupportedConstructMessage(FUNCTION_DIVERT)) {
+  if (
+    message === unsupportedConstructMessage(FUNCTION_DIVERT) ||
+    message.startsWith("A function can't be diverted to: call `")
+  ) {
     return "Divert";
   }
   for (const construct of ["external", "list"]) {

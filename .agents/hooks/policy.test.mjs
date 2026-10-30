@@ -48,7 +48,7 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(added("// workaround(idiomorph): a nested lockfile entry is a dependency too"), null);
     assert.equal(added("// SPDX-License-Identifier: MPL-2.0"), null, "adding a licence notice is never refused");
     assert.equal(added("/* Copyright (c) 2024 Example Holder. Released under the MIT License. */"), null);
-    assert.match(added("// Copyright handling must stay centralized because the generator depends on it") ?? "", /neither a directive/, "prose that mentions copyright is refused on the edit route");
+    assert.match(added("// keeps the copyright header because the generator depends on it") ?? "", /neither a directive/, "prose that mentions copyright is refused on the edit route");
     for (const name of ["sparkle", "spark-engine", "@impower/sparkle"]) assert.match(added(`// workaround(${name}): the reset forces column`) ?? "", /is a package of this repository/, name);
     assert.match(added("// workaround(left-pad): not installed") ?? "", /neither a dependency in a package-lock\.json nor a platform/);
     assert.match(added("// workaround: no name") ?? "", /takes the form/);
@@ -230,42 +230,33 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(kind("// prose", "README.md"), "exempt");
     assert.equal(kind("// SPDX-License-Identifier: MIT"), "licence");
     assert.equal(kind("# SPDX-License-Identifier: Apache-2.0", "scripts/a.sh"), "licence");
-    assert.equal(kind("/**\n * Based on rainbowBrackets <https://github.com/eriknewland/rainbowbrackets>\n *\n * Copyright (c) 2023 eriknewland\n * Released under the MIT License.\n */"), "licence");
-    assert.equal(kind("/* © Example Holder */", "a.css"), "licence");
-    assert.equal(kind("// Copyright 2021 Matthijs Steen"), "licence");
-    assert.equal(kind("/* This Source Code Form is subject to the terms of the Mozilla Public\n * License, v. 2.0. If a copy of the MPL was not distributed with this\n * file, You can obtain one at https://mozilla.org/MPL/2.0/. */"), "licence", "the Exhibit A opening is recognised across a line break");
-    assert.equal(kind("/**\n * Based on awesome-line-wrapping.js by dralletje\n * <https://gist.github.com/dralletje/058fe51415fe7dbac4709a65c615b52e>\n */"), "refused", "an attribution with no licence identifier or copyright statement is prose");
-    assert.equal(kind("// copyright notices are kept"), "refused");
-    assert.equal(kind("// Copyright"), "refused");
-    assert.equal(kind("/* Released under the Apache-2.0 license. */"), "licence");
-    assert.equal(kind("// This software is released under the MIT License."), "licence");
-    assert.equal(kind("// Luau is MIT-licensed"), "licence");
-    assert.equal(kind("// code licensed under the BSD terms"), "licence");
-    write("src/LICENSE-luau.txt", "MIT\n");
-    write("LICENSE.md", "MIT\n");
-    assert.equal(kind("// see `LICENSE-luau.txt`"), "licence");
-    assert.equal(kind("# terms: see LICENSE.md", "scripts/a.py"), "licence", "a reference reaches a licence file in an ancestor directory");
-    assert.equal(kind("// see LICENSE-missing.txt"), "refused", "a reference to a file that does not exist is prose");
-    assert.equal(kind("// Copyright Microsoft Corporation"), "licence", "a copyright line may name its holder alone");
-    assert.equal(kind("// Neither the name of the cache nor its key may change during this loop."), "refused");
-    assert.equal(kind("// The generator reads its defaults in LICENSE.md because the cache needs it."), "refused");
-    assert.equal(kind("// the license check runs before the build"), "refused", "the word license without a named licence is prose");
-    assert.equal(kind("// MIT"), "refused");
-    assert.equal(kind("// LICENSED_FEATURES gates the menu"), "refused");
-    assert.equal(kind("// ©2024 Example Holder"), "licence");
     assert.equal(kind("// SPDX-FileCopyrightText: 2024 Example Holder"), "licence");
-    assert.equal(kind("// Copyright (C) Microsoft Corporation. All rights reserved."), "licence");
-    assert.equal(kind("// MIT License"), "licence", "a licence title on its own is a notice");
+    assert.equal(kind("/**\n * Based on rainbowBrackets <https://github.com/eriknewland/rainbowbrackets>\n *\n * Copyright (c) 2023 eriknewland\n * Released under the MIT License.\n */"), "licence", "the whole comment around a copyright line is the notice");
+    for (const line of ["// Copyright 2021 Matthijs Steen", "// Copyright (C) Microsoft Corporation. All rights reserved.", "// Copyright Microsoft Corporation", "// ©2024 Example Holder", "/* © Example Holder */", "/* © example.org */"]) {
+      assert.equal(kind(line, line.startsWith("/*") ? "a.css" : "src/a.ts"), "licence", `${line} begins with a copyright statement`);
+    }
+    assert.equal(kind("/* This Source Code Form is subject to the terms of the Mozilla Public\n * License, v. 2.0. If a copy of the MPL was not distributed with this\n * file, You can obtain one at https://mozilla.org/MPL/2.0/. */"), "licence", "the Exhibit A opening is recognised across a line break");
+    assert.equal(kind("// Licensed under the Apache License, Version 2.0 (the \"License\");"), "licence");
     assert.equal(kind("// Permission is hereby granted, free of charge, to any person obtaining a copy"), "licence");
-    assert.equal(kind("// covered by the MPL 2.0 License"), "licence");
+    assert.equal(kind("// Redistribution and use in source and binary forms, with or without"), "licence");
+    for (const reference of ["// see `LICENSE-luau.txt`", "// terms in LICENSE.md", "// see LICENSE", "// packages/sparkdown/LICENSE.md"]) {
+      assert.equal(kind(reference), "licence", `${reference} names a licence file as its own token`);
+    }
     for (const prose of [
-      "// Copyright handling must stay centralized because the generator depends on it",
-      "// MIT license detection runs before the build because the cache needs it",
-      "// LICENSE checks must stay before the build because the cache needs it",
-      "// the MIT License text is read from the package",
-      "// The generator throws when LICENSE.md is missing because the cache needs it",
-    ]) assert.equal(kind(prose), "refused", `${prose} discusses licences without being a notice`);
-    assert.equal(kind("// see LICENSE.md"), "licence");
+      "/**\n * Based on awesome-line-wrapping.js by dralletje\n * <https://gist.github.com/dralletje/058fe51415fe7dbac4709a65c615b52e>\n */",
+      "// copyright notices are kept",
+      "// Copyright",
+      "// keeps the copyright header because the generator depends on it",
+      "// Released under the Apache-2.0 license.",
+      "// Luau is MIT-licensed",
+      "// the license check runs before the build",
+      "// MIT",
+      "// MIT License",
+      "// LICENSED_FEATURES gates the menu",
+      "// See LICENSED_FEATURES before the build",
+      "// read the licenses/ directory",
+      "// Neither the name of the cache nor its key may change during this loop.",
+    ]) assert.equal(kind(prose), "refused", `${prose} is none of the notice forms`);
     assert.equal(kind("/** @type BuildOptions */", "src/a.js"), "directive", "TypeScript reads a type name without braces");
     assert.equal(kind("/** @type BuildOptions */"), "refused");
 
@@ -273,9 +264,9 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.deepEqual(refusedLines("// workaround(webkit): first line\n// continues the note\n// still the note\nx();\n// @ts-ignore\n// not a continuation\n  // indented differently"), [6, 7]);
     assert.deepEqual(refusedLines("// workaround(webkit): note\nx(); // not a continuation"), [2]);
     const luau = "// Copying types, ported from Luau's `Clone.cpp`; Luau is MIT-licensed (see\n// `LICENSE-luau.txt`).\n//\n// The clone walks each type once.\nexport {};\n";
-    assert.deepEqual(refusedLines(luau), [3, 4], "a paragraph of line comments holding a licence notice is kept whole, and the paragraph after it is judged alone");
-    assert.deepEqual(refusedLines("// Constraints, ported from Luau's `Constraint.h`; Luau is\n// MIT-licensed (see `LICENSE-luau.txt`). The generator emits\n// one per relationship.\nexport {};\n"), [], "a licence named across a line break is recognised");
-    assert.deepEqual(refusedLines("// prose\n  // Luau is MIT-licensed\nexport {};\n"), [1], "a line comment at another column is a separate paragraph");
+    assert.deepEqual(refusedLines(luau), [3, 4], "a paragraph of line comments holding a notice form is kept whole, and the paragraph after an empty comment line is judged alone");
+    assert.deepEqual(refusedLines("// Constraints, ported from Luau's `Constraint.h`; Luau is\n// MIT-licensed (see `LICENSE-luau.txt`). The generator emits\n// one per relationship.\nexport {};\n"), [], "a licence file token on a later line covers its paragraph");
+    assert.deepEqual(refusedLines("// prose\n  // see `LICENSE-luau.txt`\nexport {};\n"), [1], "a line comment at another column is a separate paragraph");
 
     const strip = (text, file) => {
       const fallback = stripComments(text, file, { root: checkout, scanner: "fallback" });
@@ -350,81 +341,46 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     const mpl = "/* This Source Code Form is subject to the terms of the Mozilla Public\n * License, v. 2.0. If a copy of the MPL was not distributed with this\n * file, You can obtain one at https://mozilla.org/MPL/2.0/. */\n";
     const mit = "/**\n * Based on rainbowBrackets <https://github.com/eriknewland/rainbowbrackets>\n *\n * Copyright (c) 2023 eriknewland\n * Released under the MIT License.\n */\n";
     const ported = "// Copying types, ported from Luau's `Clone.cpp`; Luau is MIT-licensed (see\n// `LICENSE-luau.txt`).\n";
-    const fullMit = [
-      "// MIT License",
-      "//",
-      "// Copyright (c) 2024 Example Holder",
-      "//",
-      "// Permission is hereby granted, free of charge, to any person obtaining a copy",
-      "// of this software and associated documentation files (the \"Software\"), to deal",
-      "// in the Software without restriction.",
-      "//",
-      "// The above copyright notice and this permission notice shall be included in all",
-      "// copies or substantial portions of the Software.",
-      "//",
-      "// THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR",
-      "// IMPLIED.",
-      "",
-    ].join("\n");
     const symbols = "// ©2024 Example Holder\n// SPDX-FileCopyrightText: 2024 Example Holder\n";
-    const apache = [
-      "// Copyright 2024 Example Holder",
-      "//",
-      "// Licensed under the Apache License, Version 2.0 (the \"License\");",
-      "// you may not use this file except in compliance with the License.",
-      "// You may obtain a copy of the License at",
-      "//",
-      "//     http://www.apache.org/licenses/LICENSE-2.0",
-      "//",
-      "// Unless required by applicable law or agreed to in writing, software",
-      "// distributed under the License is distributed on an \"AS IS\" BASIS,",
-      "// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",
-      "// See the License for the specific language governing permissions and",
-      "// limitations under the License.",
-      "",
-    ].join("\n");
-    const bsd = [
-      "// Copyright (c) 2024 Example Holder",
-      "//",
-      "// Redistribution and use in source and binary forms, with or without",
-      "// modification, are permitted provided that the following conditions are met:",
-      "//",
-      "// 1. Redistributions of source code must retain the above copyright notice,",
-      "//    this list of conditions and the following disclaimer.",
-      "//",
-      "// 2. Redistributions in binary form must reproduce the above copyright notice,",
-      "//    this list of conditions and the following disclaimer in the documentation",
-      "//    and/or other materials provided with the distribution.",
-      "//",
-      "// 3. Neither the name of the copyright holder nor the names of its",
-      "//    contributors may be used to endorse or promote products derived from",
-      "//    this software without specific prior written permission.",
-      "//",
-      "// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\"",
-      "// AND ANY EXPRESS OR IMPLIED WARRANTIES ARE DISCLAIMED.",
-      "",
-    ].join("\n");
-    for (const notice of [mpl, mit, ported, fullMit, symbols, apache, bsd]) {
+    const fullMit = "/*\n * MIT License\n *\n * Copyright (c) 2024 Example Holder\n *\n * Permission is hereby granted, free of charge, to any person obtaining a copy\n * of this software.\n *\n * THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND.\n */\n";
+    const apache = "/*\n * Copyright 2024 Example Holder\n *\n * Licensed under the Apache License, Version 2.0 (the \"License\");\n * you may not use this file except in compliance with the License.\n *\n *     http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS.\n */\n";
+    const bsd = "/*\n * Copyright (c) 2024 Example Holder\n *\n * Redistribution and use in source and binary forms, with or without\n * modification, are permitted provided that the following conditions are met:\n *\n * 1. Redistributions of source code must retain the above copyright notice.\n * 2. Redistributions in binary form must reproduce the above copyright notice.\n * 3. All advertising materials mentioning features or use of this software\n *    must display the following acknowledgement.\n *\n * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS \"AS IS\".\n */\n";
+    for (const notice of [mpl, mit, ported, symbols, fullMit, apache, bsd]) {
       assert.equal(strip(`${notice}\n// prose\nexport const n = 1;\n`, "src/a.ts"), `${notice}\nexport const n = 1;\n`, "a licence notice is kept verbatim while the prose beside it goes");
     }
-    assert.equal(strip(`${fullMit.trimEnd()}\n//\n// The parser reads the header first.\nexport const n = 1;\n`, "src/a.ts"), `${fullMit}export const n = 1;\n`, "an empty comment line joins two notice paragraphs, not a notice and the prose after it");
-    assert.equal(strip("// Copyright handling must stay centralized because the generator depends on it\nexport const n = 1;\n", "src/a.ts"), "export const n = 1;\n");
+    assert.equal(strip("// Copyright (c) 2024 Example Holder\n//\n// SPDX-License-Identifier: MIT\n//\n// The parser reads the header first.\nexport const n = 1;\n", "src/a.ts"), "// Copyright (c) 2024 Example Holder\n//\n// SPDX-License-Identifier: MIT\nexport const n = 1;\n", "an empty comment line between two notice paragraphs belongs to the notice, and a prose paragraph after one is removed");
+    assert.equal(strip("// keeps the copyright header because the generator depends on it\nexport const n = 1;\n", "src/a.ts"), "export const n = 1;\n");
     const mixedDoc = "/**\n * Loads raw files.\n * @type {import('esbuild').Plugin}\n */\nconst p = {};\n";
-    assert.equal(strip(mixedDoc, "src/a.js"), "/** @type {import('esbuild').Plugin} */\nconst p = {};\n", "a JavaScript doc comment keeps the type tags TypeScript reads and loses its prose");
     assert.equal(strip(mixedDoc, "src/a.ts"), "const p = {};\n", "TypeScript reads no JSDoc types in a TypeScript file");
-    assert.equal(strip("  /**\n   * Adds.\n   * @param {number} a the left side\n   * @returns {number}\n   */\n  function f(a) { return a; }\n", "src/a.mjs"), "  /**\n   * @param {number} a the left side\n   * @returns {number}\n   */\n  function f(a) { return a; }\n");
-    assert.equal(strip("/** Prose. @type is described here **/\nconst q = 1;\n", "src/a.js"), "const q = 1;\n");
-    assert.equal(strip("/**\n * The options.\n * @typedef {Object} Options\n * @property {string} name the label\n */\n", "src/a.js"), "/**\n * @typedef {Object} Options\n * @property {string} name the label\n */\n", "a typedef keeps its property tags");
-    const asiDoc = "function f() { return /** Counter.\n * @type {number}\n */ 1; }";
-    const asiDocStripped = strip(asiDoc, "src/a.js");
-    assert.equal(asiDocStripped, "function f() { return /**\n * @type {number}\n */ 1; }", "a rewritten doc comment after code keeps the line break automatic semicolon insertion reads");
-    assert.equal(new Function(`${asiDocStripped}; return f();`)(), undefined);
-    assert.equal(strip("/** Counter. @type {number} */\nlet value;\n", "src/a.js"), "/** @type {number} */\nlet value;\n", "a tag after prose on the same line is kept");
-    const objectType = "/** Counter.\n * @type {{\n * answer: number\n * }}\n */\nlet value;\n";
-    const objectTypeStripped = strip(objectType, "src/a.js");
-    assert.equal(objectTypeStripped, "/**\n * @type {{\n * answer: number\n * }}\n */\nlet value;\n", "a type expression spanning lines is kept whole");
-    assert.deepEqual(refusedComments(objectTypeStripped, "src/a.js", { root: checkout }), [], "the rewritten comment is a directive");
-    assert.equal(strip("/** See {@link Other} and @example usage. */\nlet value;\n", "src/a.js"), "let value;\n", "tags TypeScript does not read for types are prose");
+    assert.equal(stripComments(mixedDoc, "src/a.js", { root: checkout, scanner: "fallback" }), mixedDoc, "without TypeScript's JSDoc parser a JavaScript doc comment holding a tag is kept whole");
+    assert.equal(stripComments("/** Loads raw files. */\nconst p = {};\n", "src/a.js", { root: checkout, scanner: "fallback" }), "const p = {};\n", "without TypeScript a JavaScript doc comment holding no tag is still removed");
+    if (typescript) {
+      const jsStrip = (text, file = "src/a.js") => stripComments(text, file);
+      assert.equal(jsStrip(mixedDoc), "/** @type {import('esbuild').Plugin} */\nconst p = {};\n", "a JavaScript doc comment keeps the tags TypeScript reads and loses its prose");
+      assert.equal(jsStrip("  /**\n   * Adds.\n   * @param {number} a the left side\n   * @returns {number}\n   */\n  function f(a) { return a; }\n", "src/a.mjs"), "  /**\n   * @param {number} a the left side\n   * @returns {number}\n   */\n  function f(a) { return a; }\n");
+      assert.equal(jsStrip("/** Prose. @example is described here **/\nconst q = 1;\n"), "const q = 1;\n", "a tag TypeScript does not read is prose");
+      assert.equal(jsStrip("/** See {@link Other} and @example usage. */\nlet value;\n"), "let value;\n");
+      assert.equal(jsStrip("/** See {@link Other @type {number}}. */\nlet value;\n"), "let value;\n", "text inside an inline link is never a tag");
+      assert.equal(jsStrip("/** The value.\n * @type string | number\n */\nlet value;\n"), "/** @type string | number */\nlet value;\n", "an unbraced type is the whole type TypeScript parses after @type");
+      assert.equal(jsStrip("/** Accepts a literal { character.\n * @type {number}\n */\nlet value;\n"), "/** @type {number} */\nlet value;\n", "a brace in the prose does not hide the tags after it");
+      assert.equal(jsStrip("/**\n * @example {\n * @type {number}\n */\nlet value;\n"), "/** @type {number} */\nlet value;\n", "a brace in a tag TypeScript does not read does not hide the tags after it");
+      assert.equal(jsStrip("/** Counter.\n * @type\n * {{ a: number,\n *   b: { c: string } }}\n */\nlet value;\n"), "/**\n * @type\n * {{ a: number,\n *   b: { c: string } }}\n */\nlet value;\n", "a type expression may start on the line after its tag");
+      assert.equal(jsStrip("/**\n * @param {{ a: { b: number } }} o the options @ the edge\n * @returns {number}\n */\nfunction g(o) { return 1; }\n"), "/**\n * @param {{ a: { b: number } }} o the options @ the edge\n * @returns {number}\n */\nfunction g(o) { return 1; }\n", "a comment of tags TypeScript reads is a directive and stays as written");
+      assert.equal(jsStrip("/**\n * The options.\n * @typedef {Object} Options\n * @property {string} name the label\n */\n"), "/**\n * @typedef {Object} Options\n * @property {string} name the label\n */\n", "a typedef keeps its property tags");
+      assert.equal(jsStrip("/** Prose.\n * @param value {number}\n */\nfunction f(value) { return value; }\n"), "/** @param value {number} */\nfunction f(value) { return value; }\n", "a name-first parameter type is a tag TypeScript reads");
+      for (const tag of ["@this Number", "@enum {number}", "@extends Base", "@implements Disposable", "@private", "@readonly", "@type *", "@type {'} @example hi'}"]) {
+        assert.equal(jsStrip(`/** Prose.\n * ${tag}\n */\nlet value;\n`), `/** ${tag} */\nlet value;\n`, `${tag} is kept as TypeScript reads it`);
+      }
+      const asiDoc = "function f() { return /** Counter.\n * @type {number}\n */ 1; }";
+      const asiDocStripped = jsStrip(asiDoc);
+      assert.equal(asiDocStripped, "function f() { return /**\n * @type {number}\n */ 1; }", "a rewritten doc comment after code keeps the line break automatic semicolon insertion reads");
+      assert.equal(new Function(`${asiDocStripped}; return f();`)(), undefined);
+      assert.equal(jsStrip("/** Counter. @type {number} */\nlet value;\n"), "/** @type {number} */\nlet value;\n", "a tag after prose on the same line is kept");
+      const objectTypeStripped = jsStrip("/** Counter.\n * @type {{\n * answer: number\n * }}\n */\nlet value;\n");
+      assert.equal(objectTypeStripped, "/**\n * @type {{\n * answer: number\n * }}\n */\nlet value;\n", "a type expression spanning lines is kept whole");
+      assert.deepEqual(refusedComments(objectTypeStripped, "src/a.js"), [], "the rewritten comment is a directive");
+      assert.equal(jsStrip(jsStrip(mixedDoc)), jsStrip(mixedDoc), "stripping a rewritten doc comment again changes nothing");
+    }
   } finally {
     fs.rmSync(checkout, { recursive: true, force: true });
     fs.rmSync(outside, { recursive: true, force: true });

@@ -13,9 +13,9 @@ function runSavingEachStep(story: TestStory): string {
   return out;
 }
 
-function inScene(body: string): string {
+function inScene(body: string, top = ""): string {
   const lines = body.replace(/\n$/, "").split("\n");
-  return `-> start\nscene start\n${lines.map((l) => `  ${l}`).join("\n")}\nend\n`;
+  return `${top}scene start\n${lines.map((l) => `  ${l}`).join("\n")}\nend\n`;
 }
 
 function savedGlobals(story: TestStory): Record<string, unknown> {
@@ -24,10 +24,10 @@ function savedGlobals(story: TestStory): Record<string, unknown> {
 
 describe("an unfinished assignment", () => {
   test.each([
-    ["`& x =`", `store x = 0\n& x =\n${TAIL}`],
-    ["`& x +=`", `store x = 0\n& x +=\n${TAIL}`],
-    ["`& x ..=`", `store x = "a"\n& x ..=\n${TAIL}`],
-    ["`& x = )`", `store x = 0\n& x = )\n${TAIL}`],
+    ["`& x =`", inScene(`& x =\n${TAIL}`, `store x = 0\n`)],
+    ["`& x +=`", inScene(`& x +=\n${TAIL}`, `store x = 0\n`)],
+    ["`& x ..=`", inScene(`& x ..=\n${TAIL}`, `store x = "a"\n`)],
+    ["`& x = )`", inScene(`& x = )\n${TAIL}`, `store x = 0\n`)],
   ])(
     "%s reports one error, leaves the store as it was and saves",
     (_name, src) => {
@@ -44,7 +44,7 @@ describe("an unfinished assignment", () => {
   );
 
   test("the statements after it still run and assign", () => {
-    const src = `store x = 0\n& x =\n& x = 5\nx is {x}.\n`;
+    const src = inScene(`& x =\n& x = 5\nx is {x}.\n`, `store x = 0\n`);
     const { story, errorMessages } = makeRuntimeStoryFromSource(src);
     expect(errorMessages).toHaveLength(1);
     expect(runSavingEachStep(story)).toBe("x is 5.\n");
@@ -78,9 +78,10 @@ describe("an unfinished `local`", () => {
   });
 
   test("an unfinished local in a function leaves its caller's values alone", () => {
-    const src =
-      "function f()\n  local z =\n  return 1\nend\n" +
-      "Sum is {10 + f()}.\n";
+    const src = inScene(
+      "Sum is {10 + f()}.\n",
+      "function f()\n  local z =\n  return 1\nend\n",
+    );
     const { story, errorMessages } = makeRuntimeStoryFromSource(src);
     expect(errorMessages).toHaveLength(1);
     expect(runSavingEachStep(story)).toBe("Sum is 11.\n");

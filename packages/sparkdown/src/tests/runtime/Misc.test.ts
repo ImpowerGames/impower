@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   makeRuntimeStoryFromDirectory,
   makeRuntimeStoryFromFile,
+  makeRuntimeStoryFromSource,
   runToEnd,
 } from "./runtimeTestHarness";
 
@@ -37,10 +38,17 @@ describe("Misc — multi-file fixtures", () => {
 });
 
 describe("Misc — ported from ink fixture rewrites", () => {
-  test("empty source compiles and produces empty output", () => {
-    const ctx = makeRuntimeStoryFromFile("misc", "empty");
+  test("an empty scene start compiles and produces empty output", () => {
+    const ctx = makeRuntimeStoryFromSource("scene start\nend\n");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("");
+  });
+
+  test("empty source reports the missing scene start", () => {
+    const ctx = makeRuntimeStoryFromFile("misc", "empty");
+    expect(ctx.errorMessages).toEqual([
+      "no scene named start; the story starts in a scene named start",
+    ]);
   });
 
   test("escape characters inside alternator arms (rewrite of inkjs `escape_character.ink`)", () => {

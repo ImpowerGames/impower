@@ -5,7 +5,6 @@ import { diagnoseDetailed } from "../luau-conformance/diagnosticTestHarness";
 describe("a scene named after a builtin function", () => {
   test("is diverted to, and calls still reach the builtin", () => {
     const ctx = makeRuntimeStoryFromSource(`store t = { 5 }
--> start
 
 scene start
   {next(t)}
@@ -22,12 +21,12 @@ end
   });
 
   test("a divert to a builtin's name with no such scene is an error on the name", () => {
-    const source = `-> start\n\nscene start\n  -> next\nend\n`;
+    const source = `scene start\n  -> next\nend\n`;
     const errors = diagnoseDetailed(source).filter((d) => d.severity === 1);
     expect(errors.map((d) => [d.message, d.range])).toEqual([
       [
         "next must be called as a function: ~ next()",
-        { start: { line: 3, character: 5 }, end: { line: 3, character: 9 } },
+        { start: { line: 1, character: 5 }, end: { line: 1, character: 9 } },
       ],
     ]);
   });
@@ -37,7 +36,9 @@ end
   return 1
 end
 
-Hello.
+scene start
+  Hello.
+end
 `);
     expect(ctx.errorMessages).toEqual([
       "`next` cannot be used for the name of a function because it's a built in function",
@@ -47,7 +48,9 @@ Hello.
 
 describe("a parameter diverted to", () => {
   test("needs no divert-target annotation", () => {
-    const ctx = makeRuntimeStoryFromSource(`-> go(-> there)
+    const ctx = makeRuntimeStoryFromSource(`scene start
+  -> go(-> there)
+end
 
 scene go(target)
   -> target
@@ -69,7 +72,9 @@ describe("repeated parameter names", () => {
   return b
 end
 
-{f(1, 2, 3)}
+scene start
+  {f(1, 2, 3)}
+end
 `);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("3\n");
@@ -80,7 +85,9 @@ end
   return a
 end
 
-Hello.
+scene start
+  Hello.
+end
 `);
     expect(ctx.errorMessages).toEqual([
       "Multiple arguments with the same name: `a`",

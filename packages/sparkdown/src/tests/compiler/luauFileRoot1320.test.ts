@@ -53,9 +53,9 @@ describe("a .luau file's top level is Luau (I-732)", () => {
     }
   });
 
-  test("a marked return at a .sd script's top level is still reported", () => {
-    expect(collectDiagnostics("& return 1\n", "inmemory:///main.sd").errorMessages).toEqual([
-      "Return statements can only be used inside a function body — found one at file scope.",
+  test("a marked return in a scene of a .sd script is still reported", () => {
+    expect(collectDiagnostics("scene start\n  & return 1\nend\n", "inmemory:///main.sd").errorMessages).toEqual([
+      "Return statements can only be used inside a function body — found one in scene 'start'.",
     ]);
   });
 

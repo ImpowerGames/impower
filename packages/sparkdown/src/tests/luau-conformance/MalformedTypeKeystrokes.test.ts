@@ -49,14 +49,14 @@ function keystrokes(from: string, to: string): { at: number; remove: number; ins
   return steps;
 }
 
-const BEFORE = "scene a\n  Hello.\nend\n\n";
+const BEFORE = "scene start\n  Hello.\nend\n\n";
 
 const cases: [string, string, string, string[], boolean][] = [
   ["a missing local type in a scene", `${BEFORE}scene s\n  local x: number = 1\nend\n`, `${BEFORE}scene s\n  local x: = 1\nend\n`, ["5:10-5:12 Expected type, got '='"], true],
   ["a `::` for a local's `:`", `${BEFORE}scene s\n  local x: number = 1\nend\n`, `${BEFORE}scene s\n  local x :: number = 1\nend\n`, ["5:10-5:12 Expected identifier when parsing expression, got '::'"], true],
   ["a table type's field with no name", `${BEFORE}scene s\n  local t: { a: number } = nil\nend\n`, `${BEFORE}scene s\n  local t: { a: number, : string } = nil\nend\n`, ["5:24-5:25 Expected identifier when parsing table field, got ':'"], true],
   ["a parameter with no name", `${BEFORE}function f(a: number) end\n`, `${BEFORE}function f(: number) end\n`, ["4:11-4:12 Expected identifier when parsing variable name, got ':'"], false],
-  ["a store type before story", `${BEFORE}store x: number = 1\nStory.\n`, `${BEFORE}store x:\nStory.\n`, ["4:8-5:0 Expected type, got <eof>"], true],
+  ["a store type before story", `${BEFORE}store x: number = 1\nStory.\n`, `${BEFORE}store x:\nStory.\n`, ["5:0-5:6 statement must be inside a scene or branch; the top level holds declarations only", "4:8-5:0 Expected type, got <eof>"], true],
   ["a scene parameter's `::`", `${BEFORE}scene s(a: number)\nend\n`, `${BEFORE}scene s(a :: number)\nend\n`, ["4:10-4:12 Expected ')' (to close '(' at column 8), got '::'"], true],
 ];
 

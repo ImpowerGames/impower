@@ -1,10 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { formatSource } from "./formatSource";
 
-// #1224 reads brace blocks in `layout` and `component` bodies, and #1227
-// formats them by brace depth. The formatter must not change what such a body
-// means.
-
 describe("formatting a layout body written with brace blocks", () => {
   test("well-formed source round-trips unchanged", () => {
     const source = `component card(title) with
@@ -40,7 +36,6 @@ end
   });
 
   test("an element whose parts go on over later lines round-trips unchanged", () => {
-    // #1225; #1227 indents a continuation line one level past its element.
     const source = `layout popup with
   button
     .fancy
@@ -67,10 +62,6 @@ end
   });
 
   test("a handler that spans lines is formatted as the Luau code it is", () => {
-    // #1225, round 1 (comment 5940793507, finding 3): the statements of a
-    // closure that spans lines are Luau, so they take Luau's spacing, as a
-    // one-line closure's do; before #1225 they were struct body lines. The
-    // continuation lines around them keep their place.
     const source = `layout popup with
   button
     .fancy
@@ -114,9 +105,6 @@ text.title "Inventory"
     }
 end
 `;
-    // The block's header line sits among the body's indented lines and takes
-    // its level from them; the lines inside it take their depth from its
-    // braces (#1227). `stage` stays a sibling of `column.panel`.
     expect(formatSource(source)).toBe(`layout hud with
   column.panel {
     text.title "Inventory"

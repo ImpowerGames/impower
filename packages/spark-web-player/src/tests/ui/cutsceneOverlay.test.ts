@@ -34,7 +34,7 @@ define movie as channel with
   mixer = "film"
 end
 
--> start
+
 
 scene start
   [[play intro]]

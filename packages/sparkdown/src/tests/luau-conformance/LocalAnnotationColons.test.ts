@@ -85,19 +85,19 @@ describe("an annotation written with two separate colons (#1168)", () => {
 
 describe("in a narrative body", () => {
   test.each([
-    ["scene S\n  local :: number\nend", ["Expected identifier when parsing variable name, got '::'", "Incomplete statement: expected assignment or a function call"]],
-    ["scene S\n  local : number\nend", ["Expected identifier when parsing variable name, got ':'"]],
-    ["scene S\n  local a, :: number\nend", ["Expected identifier when parsing variable name, got '::'", "Incomplete statement: expected assignment or a function call"]],
-    ["store : number", ["Expected identifier when parsing variable name, got ':'"]],
+    ["scene start\n  local :: number\nend", ["Expected identifier when parsing variable name, got '::'", "Incomplete statement: expected assignment or a function call"]],
+    ["scene start\n  local : number\nend", ["Expected identifier when parsing variable name, got ':'"]],
+    ["scene start\n  local a, :: number\nend", ["Expected identifier when parsing variable name, got '::'", "Incomplete statement: expected assignment or a function call"]],
+    ["store : number\nscene start\nend", ["Expected identifier when parsing variable name, got ':'"]],
     [
-      "scene S\n  local c: : number = 1\nend",
+      "scene start\n  local c: : number = 1\nend",
       ["Expected type, got ':'", "Expected identifier when parsing expression, got ':'", "Expected '(', '{' or <string> when parsing function call, got '='"],
     ],
   ])("%j reports Luau's errors", (source, messages) => {
     expect(collectDiagnostics(`${source}\n`).errorMessages).toEqual(messages);
   });
 
-  test.each(["scene S\n  local c : : number\nend"])("%j reports Luau's first two errors and the reading's third", (source) => {
+  test.each(["scene start\n  local c : : number\nend"])("%j reports Luau's first two errors and the reading's third", (source) => {
     expect(collectDiagnostics(`${source}\n`).errorMessages).toEqual([
       "Expected type, got ':'",
       "Expected identifier when parsing expression, got ':'",
@@ -106,13 +106,13 @@ describe("in a narrative body", () => {
   });
 
   test("in a function, the comma continues the list", () => {
-    expect(collectDiagnostics("function f()\n  local a,\n    b :: number\nend\n").errorMessages).toEqual([
+    expect(collectDiagnostics("scene start\nend\nfunction f()\n  local a,\n    b :: number\nend\n").errorMessages).toEqual([
       "Expected identifier when parsing expression, got '::'",
       "Incomplete statement: expected assignment or a function call",
     ]);
   });
 
-  test.each(["scene S\n  local a,\n  b :: number\nend", "scene S\n  local a,\n  b: number\nend"])(
+  test.each(["scene start\n  local a,\n  b :: number\nend", "scene start\n  local a,\n  b: number\nend"])(
     "%j reports only the trailing comma",
     (source) => {
       expect(collectDiagnostics(`${source}\n`).errorMessages).toEqual([
@@ -122,10 +122,10 @@ describe("in a narrative body", () => {
   );
 
   test.each([
-    "scene S\n  local x: number\nend",
-    "scene S\n  local x: {a: number}\nend",
-    "scene S\n  local f: (a: number) -> ()\nend",
-    "scene S\n  local x = 1\n  local y = x :: number\nend",
+    "scene start\n  local x: number\nend",
+    "scene start\n  local x: {a: number}\nend",
+    "scene start\n  local f: (a: number) -> ()\nend",
+    "scene start\n  local x = 1\n  local y = x :: number\nend",
   ])(
     "%j stays free of errors",
     (source) => {

@@ -1,10 +1,3 @@
-// The editor context menu's Cut, Copy and Paste (#805) share an in-memory
-// buffer, so menu Paste never reads the system clipboard and never makes the
-// browser ask for clipboard access. Menu Copy and Cut still write the system
-// clipboard, and the editor's native copy and cut events fill the buffer too.
-//
-// The buffer lives at module level for the whole page, so every test imports a
-// fresh copy of the editor modules.
 import type {
   EditorSelection as EditorSelectionType,
   EditorState as EditorStateType,
@@ -27,7 +20,6 @@ beforeEach(async () => {
   ({ EditorSelection, EditorState } = await import("@codemirror/state"));
   ({ EditorView } = await import("@codemirror/view"));
   lsp = await import("@impower/codemirror-vscode-lsp-client/src");
-  // jsdom has no layout; CodeMirror measures text through these.
   Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
   Range.prototype.getBoundingClientRect = () => new DOMRect();
   writeText = vi.fn(async () => {});
@@ -88,11 +80,9 @@ function menuItem(label: string) {
   return item;
 }
 
-/** Opens the menu for the current selection and picks an item from it. */
 async function pick(v: EditorViewType, label: string) {
   openMenu(v);
   menuItem(label).click();
-  // Let the system-clipboard write settle.
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
@@ -185,9 +175,6 @@ describe("menu Copy and Paste", () => {
 
 describe("native copy and cut", () => {
   function fire(v: EditorViewType, type: "copy" | "cut") {
-    // A keyboard copy happens in a focused editor. jsdom's events carry no
-    // clipboardData, so CodeMirror takes its fallback path; either way the
-    // selection is what it copies.
     v.focus();
     v.contentDOM.dispatchEvent(
       new Event(type, { bubbles: true, cancelable: true }),
@@ -205,8 +192,6 @@ describe("native copy and cut", () => {
   });
 
   it("a native copy carrying clipboardData fills the buffer and still reaches the system clipboard", async () => {
-    // A real browser's copy event carries clipboardData, and CodeMirror then
-    // writes the text there itself and ends the event.
     const v = mount("hello world");
     select(v, [6, 11]);
     v.focus();
@@ -346,7 +331,6 @@ describe("the Paste item", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(v.state.doc.toString()).toBe("hello world");
     expect(readText).not.toHaveBeenCalled();
-    // A click on a disabled item leaves the menu open, as a native menu does.
     expect(lsp.isContextMenuOpen(v)).toBe(true);
 
     select(v, [0, 5]);

@@ -1,78 +1,89 @@
-text.source.sparkdown [0..78]
- ├─ string.display.text.chunk.sd [0..14]
- │   ├─ markup.raw.text.sd [0..3]: "You"
- │   ├─ markup.raw.space.sd [3..4]: " "
- │   ├─ markup.raw.text.sd [4..7]: "see"
- │   ├─ markup.raw.space.sd [7..8]: " "
- │   ├─ markup.raw.text.sd [8..9]: "a"
- │   ├─ markup.raw.space.sd [9..10]: " "
- │   └─ markup.raw.text.sd [10..14]: "door"
- ├─ comment.line.sd [14..17]
- │   └─ entity.tag.sd [14..17]
- │       └─ comment.line.sd [14..17]
- │           └─ entity.tag.sd [14..17]
- │               ├─ punctuation.definition.comment.sd [14..15]
- │               │   └─ comment.line.sd [14..15]
- │               │       └─ entity.tag.begin.sd [14..15]: "#"
- │               └─ punctuation.definition.comment.content.sd [15..17]
- │                   └─ punctuation.definition.comment.content.sd [15..17]: " t"
- ├─ Newline [17..18]: "\n"
- ├─ string.display.text.chunk.sd [18..30]
- │   ├─ markup.raw.text.sd [18..21]: "You"
+text.source.sparkdown [0..104]
+ ├─ keyword.control.scene.sd [0..5]: "scene"
+ ├─ punctuation.whitespace.required.sd [5..6]: " "
+ ├─ keyword.control.section.sd [6..11]: "start"
+ ├─ Newline [11..12]: "\n"
+ ├─ punctuation.whitespace.optional.sd [12..14]: "  "
+ ├─ string.display.text.chunk.sd [14..28]
+ │   ├─ markup.raw.text.sd [14..17]: "You"
+ │   ├─ markup.raw.space.sd [17..18]: " "
+ │   ├─ markup.raw.text.sd [18..21]: "see"
  │   ├─ markup.raw.space.sd [21..22]: " "
- │   ├─ markup.raw.text.sd [22..25]: "see"
- │   ├─ markup.raw.space.sd [25..26]: " "
- │   ├─ markup.raw.text.sd [26..27]: "a"
- │   └─ meta.glue.sd [27..30]
- │       ├─ punctuation.whitespace.sd [27..28]: " "
- │       └─ keyword.other.glue.sd [28..30]: ".."
- ├─ Newline [30..31]: "\n"
- ├─ meta.glue.leading.sd [31..33]
- │   └─ keyword.other.glue.sd [31..33]: ".."
- ├─ punctuation.whitespace.optional.sd [33..34]: " "
- ├─ string.display.text.chunk.sd [34..40]
- │   └─ markup.raw.text.sd [34..40]: "window"
- ├─ comment.line.sd [40..47]
- │   └─ entity.tag.sd [40..47]
- │       └─ comment.line.sd [40..47]
- │           └─ entity.tag.sd [40..47]
- │               ├─ punctuation.definition.comment.sd [40..41]
- │               │   └─ comment.line.sd [40..41]
- │               │       └─ entity.tag.begin.sd [40..41]: "#"
- │               ├─ punctuation.definition.comment.content.sd [41..44]
- │               │   └─ punctuation.definition.comment.content.sd [41..44]: " w "
- │               ├─ punctuation.definition.comment.sd [44..45]
- │               │   └─ comment.line.sd [44..45]
- │               │       └─ entity.tag.begin.sd [44..45]: "#"
- │               └─ punctuation.definition.comment.content.sd [45..47]
- │                   └─ punctuation.definition.comment.content.sd [45..47]: " x"
- ├─ Newline [47..48]: "\n"
- ├─ string.display.heading.inline.sd [48..60]
- │   ├─ punctuation.heading.mark.sd [48..49]: "$"
- │   ├─ meta.template.expression.operator.colon.sd [49..50]: ":"
- │   ├─ punctuation.whitespace.required.sd [50..51]: " "
- │   ├─ string.display.text.chunk.sd [51..57]
- │   │   ├─ markup.raw.text.sd [51..52]: "A"
- │   │   ├─ markup.raw.space.sd [52..53]: " "
- │   │   └─ markup.raw.text.sd [53..57]: "HALL"
- │   └─ comment.line.sd [57..60]
- │       └─ entity.tag.sd [57..60]
- │           └─ comment.line.sd [57..60]
- │               └─ entity.tag.sd [57..60]
- │                   ├─ punctuation.definition.comment.sd [57..58]
- │                   │   └─ comment.line.sd [57..58]
- │                   │       └─ entity.tag.begin.sd [57..58]: "#"
- │                   └─ punctuation.definition.comment.content.sd [58..60]
- │                       └─ punctuation.definition.comment.content.sd [58..60]: " h"
- ├─ Newline [60..61]: "\n"
- ├─ string.display.text.chunk.sd [61..77]
- │   ├─ markup.raw.text.sd [61..65]: "Room"
- │   ├─ markup.raw.space.sd [65..66]: " "
- │   ├─ markup.raw.punctuation.sd [66..67]: "#"
- │   ├─ markup.raw.text.sd [67..68]: "1"
- │   ├─ markup.raw.space.sd [68..69]: " "
- │   ├─ markup.raw.text.sd [69..71]: "is"
- │   ├─ markup.raw.space.sd [71..72]: " "
- │   ├─ markup.raw.text.sd [72..76]: "here"
- │   └─ markup.raw.punctuation.sd [76..77]: "."
- └─ Newline [77..78]: "\n"
+ │   ├─ markup.raw.text.sd [22..23]: "a"
+ │   ├─ markup.raw.space.sd [23..24]: " "
+ │   └─ markup.raw.text.sd [24..28]: "door"
+ ├─ comment.line.sd [28..31]
+ │   └─ entity.tag.sd [28..31]
+ │       └─ comment.line.sd [28..31]
+ │           └─ entity.tag.sd [28..31]
+ │               ├─ punctuation.definition.comment.sd [28..29]
+ │               │   └─ comment.line.sd [28..29]
+ │               │       └─ entity.tag.begin.sd [28..29]: "#"
+ │               └─ punctuation.definition.comment.content.sd [29..31]
+ │                   └─ punctuation.definition.comment.content.sd [29..31]: " t"
+ ├─ Newline [31..32]: "\n"
+ ├─ punctuation.whitespace.optional.sd [32..34]: "  "
+ ├─ string.display.text.chunk.sd [34..46]
+ │   ├─ markup.raw.text.sd [34..37]: "You"
+ │   ├─ markup.raw.space.sd [37..38]: " "
+ │   ├─ markup.raw.text.sd [38..41]: "see"
+ │   ├─ markup.raw.space.sd [41..42]: " "
+ │   ├─ markup.raw.text.sd [42..43]: "a"
+ │   └─ meta.glue.sd [43..46]
+ │       ├─ punctuation.whitespace.sd [43..44]: " "
+ │       └─ keyword.other.glue.sd [44..46]: ".."
+ ├─ Newline [46..47]: "\n"
+ ├─ punctuation.whitespace.optional.sd [47..49]: "  "
+ ├─ meta.glue.leading.sd [49..51]
+ │   └─ keyword.other.glue.sd [49..51]: ".."
+ ├─ punctuation.whitespace.optional.sd [51..52]: " "
+ ├─ string.display.text.chunk.sd [52..58]
+ │   └─ markup.raw.text.sd [52..58]: "window"
+ ├─ comment.line.sd [58..65]
+ │   └─ entity.tag.sd [58..65]
+ │       └─ comment.line.sd [58..65]
+ │           └─ entity.tag.sd [58..65]
+ │               ├─ punctuation.definition.comment.sd [58..59]
+ │               │   └─ comment.line.sd [58..59]
+ │               │       └─ entity.tag.begin.sd [58..59]: "#"
+ │               ├─ punctuation.definition.comment.content.sd [59..62]
+ │               │   └─ punctuation.definition.comment.content.sd [59..62]: " w "
+ │               ├─ punctuation.definition.comment.sd [62..63]
+ │               │   └─ comment.line.sd [62..63]
+ │               │       └─ entity.tag.begin.sd [62..63]: "#"
+ │               └─ punctuation.definition.comment.content.sd [63..65]
+ │                   └─ punctuation.definition.comment.content.sd [63..65]: " x"
+ ├─ Newline [65..66]: "\n"
+ ├─ string.display.heading.inline.sd [66..80]
+ │   ├─ punctuation.whitespace.optional.sd [66..68]: "  "
+ │   ├─ punctuation.heading.mark.sd [68..69]: "$"
+ │   ├─ meta.template.expression.operator.colon.sd [69..70]: ":"
+ │   ├─ punctuation.whitespace.required.sd [70..71]: " "
+ │   ├─ string.display.text.chunk.sd [71..77]
+ │   │   ├─ markup.raw.text.sd [71..72]: "A"
+ │   │   ├─ markup.raw.space.sd [72..73]: " "
+ │   │   └─ markup.raw.text.sd [73..77]: "HALL"
+ │   └─ comment.line.sd [77..80]
+ │       └─ entity.tag.sd [77..80]
+ │           └─ comment.line.sd [77..80]
+ │               └─ entity.tag.sd [77..80]
+ │                   ├─ punctuation.definition.comment.sd [77..78]
+ │                   │   └─ comment.line.sd [77..78]
+ │                   │       └─ entity.tag.begin.sd [77..78]: "#"
+ │                   └─ punctuation.definition.comment.content.sd [78..80]
+ │                       └─ punctuation.definition.comment.content.sd [78..80]: " h"
+ ├─ Newline [80..81]: "\n"
+ ├─ punctuation.whitespace.optional.sd [81..83]: "  "
+ ├─ string.display.text.chunk.sd [83..99]
+ │   ├─ markup.raw.text.sd [83..87]: "Room"
+ │   ├─ markup.raw.space.sd [87..88]: " "
+ │   ├─ markup.raw.punctuation.sd [88..89]: "#"
+ │   ├─ markup.raw.text.sd [89..90]: "1"
+ │   ├─ markup.raw.space.sd [90..91]: " "
+ │   ├─ markup.raw.text.sd [91..93]: "is"
+ │   ├─ markup.raw.space.sd [93..94]: " "
+ │   ├─ markup.raw.text.sd [94..98]: "here"
+ │   └─ markup.raw.punctuation.sd [98..99]: "."
+ ├─ Newline [99..100]: "\n"
+ ├─ keyword.control.end.luau [100..103]: "end"
+ └─ Newline [103..104]: "\n"

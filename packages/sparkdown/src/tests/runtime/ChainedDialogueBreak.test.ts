@@ -25,9 +25,11 @@ function continueBeats(
 describe("chained dialogue `>` break", () => {
   test("a mid-line break splits dialogue into two separate beats, each re-cued", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `RAFFLES:
-  Different rope! >
-  ...I think.
+      `scene start
+  RAFFLES:
+    Different rope! >
+    ...I think.
+end
 `,
     );
     expect(ctx.errorMessages).toEqual([]);
@@ -45,9 +47,11 @@ describe("chained dialogue `>` break", () => {
 
   test("a non-chained multi-line dialogue block stays a single beat", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `O:
-  A meteor.
-  Make a wish.
+      `scene start
+  O:
+    A meteor.
+    Make a wish.
+end
 `,
     );
     expect(ctx.errorMessages).toEqual([]);
@@ -61,10 +65,12 @@ describe("chained dialogue `>` break", () => {
 
   test("three-way chain produces three beats", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `BUNNY:
-  One. >
-  Two. >
-  Three.
+      `scene start
+  BUNNY:
+    One. >
+    Two. >
+    Three.
+end
 `,
     );
     expect(ctx.errorMessages).toEqual([]);
@@ -77,7 +83,7 @@ describe("chained dialogue `>` break", () => {
   });
 
   test("a trailing break (no content after) stays one beat", () => {
-    const ctx = makeRuntimeStoryFromSource(`N: one line >\n`);
+    const ctx = makeRuntimeStoryFromSource(`scene start\n  N: one line >\nend\n`);
     expect(ctx.errorMessages).toEqual([]);
     const beats = continueBeats(ctx.story);
     expect(beats.length).toBe(1);

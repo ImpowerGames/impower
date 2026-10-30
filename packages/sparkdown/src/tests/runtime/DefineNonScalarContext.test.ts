@@ -68,16 +68,14 @@ end
   });
 
   test("a define whose table holds DOTTED struct refs still compiles to a runnable story", () => {
-    const result = compile(`-> main
-
-define mus_a_group as layered_audio with
+    const result = compile(`define mus_a_group as layered_audio with
   assets = {
     audio.mus_a_bass,
     audio.mus_a_flute,
   }
 end
 
-scene main
+scene start
   Hello.
   done
 end

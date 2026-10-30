@@ -9,7 +9,7 @@ import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 const URI = "inmemory:///main.sd";
 const HEADER = "function run()\n  ";
 const FOOTER = "\nend\n";
-const STORY = "After {run()}.\n";
+const STORY = "scene start\n  After {run()}.\nend\n";
 
 function sparkdownErrors(text: string): string[] {
   const compiler = new SparkdownCompiler();

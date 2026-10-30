@@ -1,3 +1,4 @@
+
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { createHash } from "node:crypto";
 import { expect, vi } from "vitest";
@@ -252,7 +253,7 @@ function compileSource(source: string) {
         type: "script",
         name: "main",
         ext: "sd",
-        text: `run "${SNIPPET_NAME}"\n`,
+        text: `scene start\n  run "${SNIPPET_NAME}"\nend\n`,
         version: 1,
         languageId: "sparkdown",
       },

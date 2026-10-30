@@ -21,7 +21,9 @@ const story = (body: string[]) =>
     "  end",
     ...body.map((line) => `  ${line}`),
     "end",
-    "Got {run()}.",
+    "scene start",
+    "  Got {run()}.",
+    "end",
   ].join("\n");
 
 describe("a closure that calls a variadic function of the same function", () => {
@@ -91,7 +93,9 @@ describe("a closure that calls a variadic function of the same function", () => 
       "  bar()",
       "  return base",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     ].join("\n");
     expect(run(source)).toEqual({ text: "Got 12.\n", errors: [] });
   });
@@ -120,7 +124,9 @@ describe("a closure that calls a variadic function of the same function", () => 
       "  end",
       "  return bar()",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     ].join("\n");
     expect(run(source)).toEqual({ text: "Got 10.\n", errors: [] });
   });
@@ -158,7 +164,9 @@ describe("an edit to the body of a variadic function a closure calls", () => {
       "  end",
       "  return bar()",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     ].join("\n");
     const session = programSession(source);
     expect(texts(session.root)).toEqual(["Got 10.\n"]);

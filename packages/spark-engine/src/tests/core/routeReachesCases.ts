@@ -63,7 +63,7 @@ export function preview(
 }
 
 const scene = (...body: string[]) => [
-  "-> start",
+  "",
   "scene start",
   ...body,
   "end",

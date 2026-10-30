@@ -14,7 +14,6 @@ const scriptOverriding = (root: string) => `define ${root} with
   probe_field = 1
 end
 
--> start
 scene start
   choose
     * A
@@ -97,7 +96,6 @@ define mine as color with
   value = "rgb(1,2,3)"
 end
 
--> start
 scene start
   G {game.probe_field} {game.loading.percent}
   C {color.probe_field} {color.red.value} {color.mine.value}
@@ -123,7 +121,6 @@ end
   probe_field = 2
 end
 
--> start
 scene start
   {color.red.probe_field} {color.red.value}
   fin
@@ -148,7 +145,6 @@ define game with
   probe_field = custom
 end
 
--> start
 scene start
   {game.probe_field}
   fin
@@ -176,7 +172,6 @@ define rock with
   hardness = 5
 end
 
--> start
 scene start
   {rock.pebble.size} {rock.pebble.hardness}
   fin
@@ -198,7 +193,6 @@ end
   loading = { percent = 5 }
 end
 
--> start
 scene start
   {game.loading.percent}
   fin
@@ -215,8 +209,7 @@ end
   test("an override in another script of the project applies too", () => {
     const program = compileWith(
       {
-        [MAIN]: `-> start
-scene start
+        [MAIN]: `scene start
   {game.probe_field} {game.loading.percent}
   fin
 
@@ -238,7 +231,6 @@ end
   probe_field = 1
 end
 
--> start
 scene start
   {game.probe_field} {game.loading.percent} {type(color.red)}
   fin
@@ -265,7 +257,7 @@ end
     ).toEqual({ output: "nil 0 table\n", errors: [] });
     expect(
       output(
-        s.edit("-> start", "define game with\n  probe_field = 3\nend\n\n-> start"),
+        s.edit("scene start", "define game with\n  probe_field = 3\nend\n\nscene start"),
       ),
     ).toEqual({ output: "3 0 table\n", errors: [] });
   });
@@ -283,7 +275,6 @@ define game with
   probe_field = 2
 end
 
--> start
 scene start
   Hi.
   fin
@@ -310,7 +301,6 @@ describe("the edges of a root override", () => {
     const program = compileWith(
       {
         [MAIN]: `${declarations}
--> start
 scene start
   ${line}
   fin
@@ -367,7 +357,6 @@ define ${type} with
   probe_field = 2
 end
 
--> start
 scene start
   Hi.
   fin

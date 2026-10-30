@@ -22,7 +22,7 @@ const NO_SUCH_ADDRESS: ProgramAddress = 2 ** 40;
 
 const SRC = `store score = 0
 
--> start
+
 
 scene start
   First line here.

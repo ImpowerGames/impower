@@ -3,6 +3,7 @@ import { findOwnDeclarationName } from "../lower/utils/findOwnDeclarationName";
 import {
   EXPLICIT,
   FLOWS,
+  TOP_LEVEL_STATEMENT_MESSAGE,
   childEndingWith,
   findWithin,
   scopeOf,
@@ -26,6 +27,7 @@ export const hoistedInsideFlowMessage = (keyword: string): string =>
     : `${keyword} declaration must be at the top level`;
 
 export const isPlacementMessage = (message: string): boolean =>
+  message === TOP_LEVEL_STATEMENT_MESSAGE ||
   message === LOCAL_OUTSIDE_FLOW_MESSAGE ||
   message === STORE_INSIDE_FLOW_MESSAGE ||
   / must be at the top level$/.test(message);

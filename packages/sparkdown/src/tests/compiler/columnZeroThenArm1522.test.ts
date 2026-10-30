@@ -21,7 +21,8 @@ const fixture = readFileSync(FIXTURE, "utf8").replace(/\r\n?/g, "\n");
 
 const URI = "inmemory:///main.sd";
 
-function readings(text: string) {
+function readings(functions: string) {
+  const text = `${functions}\nscene start\nend\n`;
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
@@ -90,7 +91,7 @@ describe("an if expression's then-arm value at column 0 after a `then` that ends
     ["true", "Hello a there.\n"],
     ["false", "Hello b there.\n"],
   ])("is the value a story brace shows when the condition is %s", (value, text) => {
-    const { program } = compileScript(`store c = ${value}\nHello {if c then\n"a"\nelse "b"} there.\n`);
+    const { program } = compileScript(`store c = ${value}\nscene start\n  Hello {if c then\n"a"\nelse "b"} there.\nend\n`);
     expect(storyBeats(new ProgramStory(program.chunks!)).beats.map((beat) => beat.text)).toEqual([text]);
   });
 

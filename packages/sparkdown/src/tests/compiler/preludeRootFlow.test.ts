@@ -39,13 +39,13 @@ const compileScript = (text: string, seedBuiltinsIntoStory: boolean) => {
   return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
 };
 
-const rootFlowContent = (program: any): string[] => {
+const startFlowContent = (program: any): string[] => {
   expect(program.chunks, "the compile built statement chunks").toBeDefined();
-  return flowListings(program.chunks).get("") ?? [];
+  return flowListings(program.chunks).get("start") ?? [];
 };
 
-const rootFlowText = (program: any): string[] => {
-  const listing = rootFlowContent(program);
+const startFlowText = (program: any): string[] => {
+  const listing = startFlowContent(program);
   return listing.flatMap((line, i) => {
     const text =
       /^Text (".*")$/.exec(line) ??
@@ -67,27 +67,18 @@ const errors = (program: any): string[] => {
 };
 
 describe("the builtins prelude's top level", () => {
-  test("carries no text", () => {
+  test("compiles cleanly and declares no scene the story could start in", () => {
     const program = compilePrelude(BUILTINS_PRELUDE);
     expect(errors(program)).toEqual([]);
-    expect(rootFlowText(program)).toEqual([]);
+    expect(flowListings(program.chunks).has("start")).toBe(false);
   });
 
-  test("would report a top-level `--` line, which is display text", () => {
-    const program = compilePrelude(
-      `-- a comment at column 0 is display text\n${BUILTINS_PRELUDE}`
-    );
-    expect(rootFlowText(program)).toContain(
-      "-- a comment at column 0 is display text"
-    );
-  });
-
-  test("adds nothing to a program's own top level when it is seeded", () => {
-    const SRC = "Hello from the script.\n";
+  test("adds nothing to the scene the story starts in when it is seeded", () => {
+    const SRC = "scene start\n  Hello from the script.\nend\n";
     const seeded = compileScript(SRC, true);
     const unseeded = compileScript(SRC, false);
-    expect(rootFlowText(unseeded)).toContain("Hello from the script.");
-    expect(rootFlowText(seeded)).toEqual(rootFlowText(unseeded));
-    expect(rootFlowContent(seeded)).toEqual(rootFlowContent(unseeded));
+    expect(startFlowText(unseeded)).toContain("Hello from the script.");
+    expect(startFlowText(seeded)).toEqual(startFlowText(unseeded));
+    expect(startFlowContent(seeded)).toEqual(startFlowContent(unseeded));
   });
 });

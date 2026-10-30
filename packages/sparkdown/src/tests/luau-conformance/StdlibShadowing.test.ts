@@ -39,8 +39,10 @@ function compileAndCapture(source: string): {
 
 describe("local declarations can shadow built-in stdlib names", () => {
   test("local unpack = table.unpack does not error at compile time", () => {
-    const { errors } = compileAndCapture(`& run()
-done
+    const { errors } = compileAndCapture(`scene start
+  & run()
+  done
+end
 
 function run()
 local unpack = table.unpack
@@ -58,8 +60,11 @@ external host_record(v)
 
   test("local count can be reassigned from inside a closure body", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local count = 0
@@ -76,8 +81,11 @@ end
 
   test("function parameter can shadow a stdlib name", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function f(print)

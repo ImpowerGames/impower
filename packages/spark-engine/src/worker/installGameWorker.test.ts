@@ -15,7 +15,7 @@ import { installGameWorker, PAGE_FRAME_TIMEOUT_MS } from "./installGameWorker";
 
 afterEach(() => vi.unstubAllGlobals());
 
-const SOURCE = `-> start
+const SOURCE = `
 
 scene start
   HERO:
@@ -81,7 +81,7 @@ describe("a request for a game's temporaries", () => {
       clearTimeout: () => {},
     });
     const source = [
-      "-> main",
+      "",
       "scene main",
       "  local mainLoc = 111",
       "  Main here.",
@@ -93,6 +93,10 @@ describe("a request for a game's temporaries", () => {
       "  Sub here.",
       "  More sub.",
       "  ->->",
+      "end",
+      "",
+      "scene start",
+      "  -> main",
       "end",
       "",
     ].join("\n");

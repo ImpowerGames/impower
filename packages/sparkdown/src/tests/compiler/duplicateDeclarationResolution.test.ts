@@ -35,7 +35,7 @@ const listed = (program: any): string[] =>
 
 const DEFINE = ["define thing with", "  x = 1", "end", ""];
 const STORE = ["store thing = 1", ""];
-const SCENE = ["scene s0", "  Hi.", "  -> nowhere", "end", ""];
+const SCENE = ["scene start","  Hi.", "  -> nowhere", "end", ""];
 
 const duplicate = (at: string, kind: string) =>
   `${at} Duplicate identifier \`thing\`. A ${kind} named \`thing\` already exists`;

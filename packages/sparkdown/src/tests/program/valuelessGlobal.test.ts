@@ -29,7 +29,7 @@ describe("a global declaration with no value", () => {
       },
     );
 
-    const { program } = compileScript("\n\nstore x = 1\n");
+    const { program } = compileScript("\n\nstore x = 1\n\nscene start\nend\n");
 
     expect(program.chunks).toBeTruthy();
     const errors = errorsOf(program);

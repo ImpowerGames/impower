@@ -16,6 +16,7 @@ import { exportCount, exportSymbol } from "../../program/ProgramChunk";
 import {
   compileScript,
   describeRoot,
+  errorsOf,
   MAIN_URI,
   programCompiler,
   storyBeats,
@@ -101,7 +102,7 @@ const cold = (text: string): ProgramRoot =>
     .program.chunks!;
 
 const entryOf = (root: ProgramRoot, entry: number) =>
-  root.flowNamed("")!.arrays.chunks[entry]!;
+  root.flowNamed("start")!.arrays.chunks[entry]!;
 const functionOf = (root: ProgramRoot, entry: number) => {
   const chunk = entryOf(root, entry);
   expect(exportCount(chunk)).toBeGreaterThan(0);
@@ -121,9 +122,11 @@ describe("functions on the program engine", () => {
         "end",
         "",
         "store r = 0",
-        "r = run(3)",
-        "The result is {r}.",
-        "done",
+        "scene start",
+        "  r = run(3)",
+        "  The result is {r}.",
+        "  done",
+        "end",
         "",
         "function run(n)",
         "  local total = 0",
@@ -143,9 +146,11 @@ describe("functions on the program engine", () => {
     const { actual } = programBeats(
       [
         "store s = \"\"",
-        "s = run()",
-        "Got {s}.",
-        "done",
+        "scene start",
+        "  s = run()",
+        "  Got {s}.",
+        "  done",
+        "end",
         "",
         "function pair()",
         "  return 1, 2",
@@ -165,68 +170,39 @@ describe("functions on the program engine", () => {
     expect(texts(actual.beats)).toEqual(["Got 1,2,2,3,2.\n"]);
   });
 
-  it("runs a function defined inside a block where the story places it", () => {
-    const cases: { text: string; beats: string[]; errors: string[]; defined: boolean }[] = [
+  it("reports a function defined inside a block and defines no function", () => {
+    const cases: { text: string; errors: [number, string][] }[] = [
       {
-        text: [
-          "do",
-          "  function run(n)",
-          "    if n > 0 then",
-          "      return n + run(n - 1)",
-          "    end",
-          "    return 0",
-          "  end",
-          "  function walk()",
-          "    return run(3)",
-          "  end",
-          "end",
-          "Hello {walk()} {run(2)}.",
-        ].join("\n"),
-        beats: ["Hello 6 3.\n"],
-        errors: [],
-        defined: true,
+        text: "do\n  function run(n)\n    return n * 2\n  end\nend\nscene start\n  Hello.\nend\n",
+        errors: [[0, "statement must be inside a scene or branch; the top level holds declarations only"]],
       },
       {
-        text: "do\n  do\n    function run(n)\n      return n * 2\n    end\n  end\n  local x = 1\nend\nHello {run(2)}.\n",
-        beats: ["Hello 4.\n"],
-        errors: [],
-        defined: true,
+        text: "scene start\n  do\n    function run(n)\n      return n * 2\n    end\n  end\n  Hello.\nend\n",
+        errors: [[2, "function declaration must be at the top level"]],
       },
       {
-        text: "store y = 0\nif true then\n  function run()\n    y = 5\n  end\nend\nHello {y}.\n",
-        beats: ["Hello 5.\n"],
-        errors: [],
-        defined: false,
+        text: "store y = 0\nscene start\n  if true then\n    function run()\n      y = 5\n    end\n  end\n  Hello {y}.\nend\n",
+        errors: [[3, "function declaration must be at the top level"]],
       },
       {
-        text: "store n = 0\nfor i = 1, 2 do\n  function run()\n    n = n + i\n  end\nend\nHello {n}.\n",
-        beats: ["Hello 3.\n"],
-        errors: [],
-        defined: false,
-      },
-      {
-        text: "if true then\n  function run(a)\n    return a\n  end\nend\nHello.\n",
-        beats: [],
-        errors: [
-          "1: RUNTIME ERROR: 'main' line 3: Found function return statement (return), when expected end of flow (-> END or choice)",
-        ],
-        defined: false,
+        text: "store n = 0\nscene start\n  for i = 1, 2 do\n    function run()\n      n = n + i\n    end\n  end\n  Hello {n}.\nend\n",
+        errors: [[3, "function declaration must be at the top level"]],
       },
     ];
-    for (const { text, beats, errors, defined } of cases) {
-      const { actual } = programBeats(text);
-      expect(texts(actual.beats)).toEqual(beats);
-      expect(actual.errors).toEqual(errors);
+    for (const { text, errors } of cases) {
       const { program } = compileScript(text);
-      expect(new ProgramStory(program.chunks!).HasFunction("run")).toBe(defined);
+      expect(errorsOf(program)).toEqual(errors);
+      expect(new ProgramStory(program.chunks!).HasFunction("run")).toBe(false);
     }
   });
 
   it("runs a scene a host evaluates as a function", () => {
     const text = [
       "store visits = 0",
-      "Start.",
-      "done",
+      "scene start",
+      "  Start.",
+      "  done",
+      "end",
       "",
       "scene intro",
       "  Hello.",
@@ -328,13 +304,15 @@ describe("a function value", () => {
     "    return self.count",
     "  end",
     "end",
-    "byName = double",
-    "made = adder(3)",
-    "sorted = sortDescending()",
-    "proxied = viaIndex()",
-    "guarded = viaPcall()",
-    "Values {byName(2)} {made(1)} {sorted} {proxied} {guarded} {counter:bump(5)}.",
-    "done",
+    "scene start",
+    "  byName = double",
+    "  made = adder(3)",
+    "  sorted = sortDescending()",
+    "  proxied = viaIndex()",
+    "  guarded = viaPcall()",
+    "  Values {byName(2)} {made(1)} {sorted} {proxied} {guarded} {counter:bump(5)}.",
+    "  done",
+    "end",
     "",
     "function double(x) return x * 2 end",
     "function adder(n) return function(x) return x + n end end",
@@ -388,9 +366,11 @@ describe("a function value", () => {
     };
     const saving = run([
       "store held = 0",
-      "held = second",
-      "Saved.",
-      "done",
+      "scene start",
+      "  held = second",
+      "  Saved.",
+      "  done",
+      "end",
       "",
       "function first()",
       "  return 1",
@@ -405,8 +385,10 @@ describe("a function value", () => {
 
     const loading = run([
       "store held = 0",
-      "Loaded.",
-      "done",
+      "scene start",
+      "  Loaded.",
+      "  done",
+      "end",
       "",
       "function first()",
       "  return 1",
@@ -455,26 +437,28 @@ describe("the write barrier", () => {
     "store m = 0",
     "store count = 0",
     "store counter = makeCounter()",
-    "One.",
-    "& table.insert(t, 3)",
-    "& table.insert(positioned, 1, 0)",
-    "& table.remove(removed)",
-    "& table.sort(sorted)",
-    "& table.move(sorted, 1, 2, 1, moved)",
-    "& rawset(raw, \"k\", 1)",
-    "stored.k = 1",
-    "proxied.k = 1",
-    "& table.freeze(frozen)",
-    "& setmetatable(shaped, { __index = { x = 1 } })",
-    "& table.clear(cleared)",
-    "n = #hinted",
-    "m = #pairOf(hintedThroughCall)",
-    "& rawlen(rawLengthed)",
-    "& it()",
-    "& holder.step()",
-    "& counter()",
-    "Two {#t} {count} {n}.",
-    "done",
+    "scene start",
+    "  One.",
+    "  & table.insert(t, 3)",
+    "  & table.insert(positioned, 1, 0)",
+    "  & table.remove(removed)",
+    "  & table.sort(sorted)",
+    "  & table.move(sorted, 1, 2, 1, moved)",
+    "  & rawset(raw, \"k\", 1)",
+    "  stored.k = 1",
+    "  proxied.k = 1",
+    "  & table.freeze(frozen)",
+    "  & setmetatable(shaped, { __index = { x = 1 } })",
+    "  & table.clear(cleared)",
+    "  n = #hinted",
+    "  m = #pairOf(hintedThroughCall)",
+    "  & rawlen(rawLengthed)",
+    "  & it()",
+    "  & holder.step()",
+    "  & counter()",
+    "  Two {#t} {count} {n}.",
+    "  done",
+    "end",
     "",
     "function makeCounter()",
     "  local c = 0",
@@ -599,11 +583,13 @@ describe("the write barrier", () => {
     const text = [
       "store shown = { parts = { \"Hello \", { tag = \"wave\" }, \"there\" } }",
       "store unjoined = { text = \"Again\", continues = true }",
-      "One.",
-      "& display(shown)",
-      "& display(unjoined)",
-      "Two.",
-      "done",
+      "scene start",
+      "  One.",
+      "  & display(shown)",
+      "  & display(unjoined)",
+      "  Two.",
+      "  done",
+      "end",
     ].join("\n");
     const { actual } = programBeats(text);
     expect(texts(actual.beats)).toEqual([
@@ -650,8 +636,10 @@ describe("the write barrier", () => {
       "animation parent with",
       "  duration = 2",
       "end",
-      "One.",
-      "done",
+      "scene start",
+      "  One.",
+      "  done",
+      "end",
     ].join("\n");
     const { program } = compileScript(text);
     expect(program.chunks).toBeDefined();
@@ -685,10 +673,12 @@ describe("upvalues", () => {
   const text = [
     "store shared = 0",
     "store looped = \"\"",
-    "shared = sharedCount()",
-    "looped = eachPass()",
-    "Shared {shared}, looped {looped}.",
-    "done",
+    "scene start",
+    "  shared = sharedCount()",
+    "  looped = eachPass()",
+    "  Shared {shared}, looped {looped}.",
+    "  done",
+    "end",
     "",
     "function make()",
     "  local n = 0",
@@ -766,11 +756,13 @@ describe("a stack trace", () => {
       [
         "store trace = \"\"",
         "store names = \"\"",
-        "trace = outer()",
-        "names = frames()",
-        "{trace}",
-        "Names {names}.",
-        "done",
+        "scene start",
+        "  trace = outer()",
+        "  names = frames()",
+        "  {trace}",
+        "  Names {names}.",
+        "  done",
+        "end",
         "",
         "function outer()",
         "  return inner()",
@@ -789,10 +781,10 @@ describe("a stack trace", () => {
       ].join("\n"),
     );
     const shown = texts(actual.beats).join("");
-    expect(shown).toContain("<SOMEWHERE IN 0>");
+    expect(shown).toContain("<SOMEWHERE IN start>");
     expect(shown).toContain("<SOMEWHERE IN outer>");
     expect(shown).toContain("<SOMEWHERE IN inner>");
-    expect(shown).toContain("Names <anonymous>/frames/0.");
+    expect(shown).toContain("Names <anonymous>/frames/start.");
   });
 
   it("names a frame inside a block by its function's symbol", () => {
@@ -800,11 +792,13 @@ describe("a stack trace", () => {
       "store trace = \"\"",
       "store name = \"\"",
       "store looped = \"\"",
-      "name = outer()",
-      "looped = loop()",
-      "{trace}",
-      "Named {name} {looped}.",
-      "done",
+      "scene start",
+      "  name = outer()",
+      "  looped = loop()",
+      "  {trace}",
+      "  Named {name} {looped}.",
+      "  done",
+      "end",
       "",
       "function outer()",
       "  if true then",
@@ -822,21 +816,23 @@ describe("a stack trace", () => {
     const { program } = compileScript(text);
     expect(program.chunks).toBeDefined();
     expect(texts(storyBeats(new ProgramStory(program.chunks!)).beats)).toEqual([
-      "here\nstack traceback:\n=== THREAD 1/1 (current) ===\n[TUNNEL] <SOMEWHERE IN 0>\n[FUNCTION] <SOMEWHERE IN outer>\n\n",
+      "here\nstack traceback:\n=== THREAD 1/1 (current) ===\n[TUNNEL] <SOMEWHERE IN start>\n[FUNCTION] <SOMEWHERE IN outer>\n\n",
       "Named outer loop.\n",
     ]);
   });
 });
 
 describe("a function's symbol", () => {
-  const inserted = "local other = function() return \"other\" end\n";
+  const inserted = "local other = function() return \"other\" end\n  ";
 
   it("stays with its function, and its statement's chunk too, when another statement writing a function is inserted above", () => {
     const s = session(
       [
         "store keep = nil",
-        "keep = function() return \"kept\" end",
-        "Kept {keep()}.",
+        "scene start",
+        "  keep = function() return \"kept\" end",
+        "  Kept {keep()}.",
+        "end",
         "",
       ].join("\n"),
     );
@@ -867,9 +863,11 @@ describe("a function's symbol", () => {
       [
         "store fns = nil",
         "store keep = nil",
-        "fns = { function() return \"first\" end }",
-        "First {fns[1]()}.",
-        "done",
+        "scene start",
+        "  fns = { function() return \"first\" end }",
+        "  First {fns[1]()}.",
+        "  done",
+        "end",
         "",
         "function call_keep()",
         "  return keep()",
@@ -899,8 +897,10 @@ describe("a function's symbol", () => {
   it("is not kept by a function an edit moves inside another function", () => {
     const s = session(
       [
-        "Before {describe(1)} {inner()}.",
-        "done",
+        "scene start",
+        "  Before {describe(1)} {inner()}.",
+        "  done",
+        "end",
         "",
         "function describe(n)",
         "  return \"#\" .. n",
@@ -921,12 +921,14 @@ describe("a function's symbol", () => {
     const s = session(
       [
         "store r = 0",
-        "r = first(1)",
-        "Line one {r}.",
-        "Line two.",
-        "r = first(2) + 1",
-        "Line three {r}.",
-        "done",
+        "scene start",
+        "  r = first(1)",
+        "  Line one {r}.",
+        "  Line two.",
+        "  r = first(2) + 1",
+        "  Line three {r}.",
+        "  done",
+        "end",
         "",
         "function first(a, ...)",
         "  return a * 10",
@@ -938,11 +940,11 @@ describe("a function's symbol", () => {
         "",
       ].join("\n"),
     );
-    const flow = s.root.flowNamed("")!.arrays.chunks;
+    const flow = s.root.flowNamed("start")!.arrays.chunks;
     const otherChunks = s.root.flowNamed("other")!.arrays.chunks;
     const root = s.edit("function first(a, ...)", "function first(a)");
     expect(s.store.emittedLastBuild).toBe(3);
-    const after = root.flowNamed("")!.arrays.chunks;
+    const after = root.flowNamed("start")!.arrays.chunks;
     expect(after[0]).not.toBe(flow[0]);
     expect(after[1]).toBe(flow[1]);
     expect(after[2]).toBe(flow[2]);
@@ -961,9 +963,11 @@ describe("a function's symbol", () => {
     const s = session(
       [
         "store r = 0",
-        "r = bottom()",
-        "Result {r}.",
-        "done",
+        "scene start",
+        "  r = bottom()",
+        "  Result {r}.",
+        "  done",
+        "end",
         "",
         "function bottom()",
         "  local g = function() return helper() end",
@@ -1002,16 +1006,18 @@ describe("a function's symbol", () => {
   it("keeps the chunk of a statement whose closure runs on below its first line when a line is inserted in the body", () => {
     const s = session(
       [
-        "local ok, message = pcall(function() local a = 1",
-        "  local b = 2",
-        "  error(\"no\", 0)",
-        "end)",
-        "Guarded {ok} {message}.",
+        "scene start",
+        "  local ok, message = pcall(function() local a = 1",
+        "    local b = 2",
+        "    error(\"no\", 0)",
+        "  end)",
+        "  Guarded {ok} {message}.",
+        "end",
         "",
       ].join("\n"),
     );
     const owner = entryOf(s.root, 0);
-    const root = s.edit("  local b = 2\n", "  local b = 2\n  local c = 3\n");
+    const root = s.edit("  local b = 2\n", "  local b = 2\n    local c = 3\n");
     expect(s.store.emittedLastBuild).toBe(1);
     expect(entryOf(root, 0)).toBe(owner);
     expect(describeRoot(root)).toEqual(describeRoot(cold(s.text)));
@@ -1023,7 +1029,6 @@ describe("a function's symbol", () => {
   it("keeps the chunk of every statement an edit to another line leaves, whatever functions it writes or runs", () => {
     const s = session(
       [
-        "Before.",
         "store total = 0",
         "define counter with",
         "  count = 0",
@@ -1033,28 +1038,30 @@ describe("a function's symbol", () => {
         "    return self.count",
         "  end",
         "end",
-        "local a, b = pair(1)",
-        "for k, v in pairs({ 1 }) do",
-        "  total = total + v",
+        "",
+        "function twice(n)",
+        "  function half() return n / 2 end",
+        "  return n * 2 + half()",
         "end",
-        "local make = function()",
-        "  function inner() return 2 end",
-        "  return inner()",
+        "",
+        "function reset()",
+        "  function again() return 0 end",
+        "  total = again()",
         "end",
-        "do",
-        "  function twice(n)",
-        "    function half() return n / 2 end",
-        "    return n * 2 + half()",
+        "",
+        "scene start",
+        "  Before.",
+        "  local a, b = pair(1)",
+        "  for k, v in pairs({ 1 }) do",
+        "    total = total + v",
         "  end",
-        "end",
-        "if total < 0 then",
-        "  function reset()",
-        "    function again() return 0 end",
-        "    total = again()",
+        "  local make = function()",
+        "    function inner() return 2 end",
+        "    return inner()",
         "  end",
+        "  Got {a} {b} {make()} {twice(2)} {counter:bump(1)} {total}.",
+        "  done",
         "end",
-        "Got {a} {b} {make()} {twice(2)} {counter:bump(1)} {total}.",
-        "done",
         "",
         "function pair(n)",
         "  function one() return 1 end",
@@ -1071,17 +1078,18 @@ describe("a function's symbol", () => {
     ]);
   });
 
-  it("keeps the chunk of a function run in place whose body passes a closure, when an edit to the next line lowers it again", () => {
+  it("keeps the chunk of a function whose body passes a closure, when an edit to a line below it lowers it again", () => {
     const s = session(
       [
-        "Before.",
-        "if false then",
-        "  function sortDescending(t)",
-        "    table.sort(t, function(x, y) return x > y end)",
-        "    return table.concat(t, \",\")",
-        "  end",
+        "function sortDescending(t)",
+        "  table.sort(t, function(x, y) return x > y end)",
+        "  return table.concat(t, \",\")",
         "end",
-        "After.",
+        "",
+        "scene start",
+        "  Before.",
+        "  After.",
+        "end",
         "",
       ].join("\n"),
     );
@@ -1094,9 +1102,11 @@ describe("a function's symbol", () => {
     const s = session(
       [
         "store keep = nil",
-        "keep = function() return \"kept\" end",
-        "Kept {keep()}.",
-        "done",
+        "scene start",
+        "  keep = function() return \"kept\" end",
+        "  Kept {keep()}.",
+        "  done",
+        "end",
         "",
         "function call_keep()",
         "  return keep()",
@@ -1124,7 +1134,9 @@ describe("a call to a function a top-level assignment names too", () => {
   it("calls the function after an edit to another scene, as a cold compile does", () => {
     const s = session(
       [
-        "Before any scene.",
+        "scene start",
+        "  Before any scene.",
+        "end",
         "",
         "scene FN_0",
         "  The room is quiet.",
@@ -1140,7 +1152,7 @@ describe("a call to a function a top-level assignment names too", () => {
         "",
       ].join("\n"),
     );
-    s.edit("Before any scene.", "count = 0\nBefore any scene.");
+    s.edit("Before any scene.", "count = 0\n  Before any scene.");
     expect(describeRoot(s.root)).toEqual(describeRoot(cold(s.text)));
     const root = s.edit("The room is quiet.", "The room is quiet!");
     expect(describeRoot(root)).toEqual(describeRoot(cold(s.text)));
@@ -1150,8 +1162,6 @@ describe("a call to a function a top-level assignment names too", () => {
 describe("a function value as a table key", () => {
   const script = [
     "store t = nil",
-    "",
-    "-> start",
     "",
     "scene start",
     "  & t = { [f] = 42, [tostring(f)] = 99 }",

@@ -135,6 +135,8 @@ const script = (line: string) =>
     "    ->->",
     "  end",
     "end",
+    "scene start",
+    "end",
     "",
   ].join("\n");
 

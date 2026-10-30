@@ -58,7 +58,7 @@ function plan(
 
 describe("knot-exit guard with tunnels and threads", () => {
   const FIXTURE = `\
--> A
+
 
 scene A
   First line in A.
@@ -77,6 +77,10 @@ end
 scene C
   Inside C, the thread callee.
   done
+end
+
+scene start
+  -> A
 end
 `;
 
@@ -128,7 +132,7 @@ end
 
 describe("knot-exit guard prunes one-way diverts", () => {
   const FIXTURE_ONEWAY = `\
--> A
+
 
 scene A
   Line in A before the divert.
@@ -146,6 +150,10 @@ scene B
   Line eight in B.
   Line nine in B.
   Line ten in B.
+end
+
+scene start
+  -> A
 end
 `;
 
@@ -176,7 +184,7 @@ end
 describe("exitedKnot guard unit behavior", () => {
   test("guard returns true for a foreign knot with empty call stack (one-way divert)", () => {
     const FIXTURE = `\
--> X
+
 
 scene X
   Line in X.
@@ -185,6 +193,10 @@ end
 
 scene Y
   Line in Y.
+end
+
+scene start
+  -> X
 end
 `;
     const { story, root, program } = compile(FIXTURE);
@@ -202,7 +214,7 @@ end
 
   test("guard returns false while the starting knot is on the call stack via tunnel", () => {
     const FIXTURE = `\
--> main
+
 
 scene main
   Before tunnel.
@@ -213,6 +225,10 @@ end
 scene helper
   Inside helper.
   ->->
+end
+
+scene start
+  -> main
 end
 `;
     const { story, root, program } = compile(FIXTURE);

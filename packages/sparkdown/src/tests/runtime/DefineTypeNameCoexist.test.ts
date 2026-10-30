@@ -10,7 +10,7 @@ function compile(src: string) {
         type: "script",
         name: "main",
         ext: "sd",
-        text: src,
+        text: `${src}\nscene start\nend\n`,
         version: 1,
         languageId: "sparkdown",
       } as any,

@@ -241,7 +241,7 @@ describe("an edit inside one beat", () => {
 describe("the bookkeeping of a build over an edit", () => {
   const scenes = (count: number) =>
     [
-      ...Array.from({ length: count }, (_, i) => `-> S${i} ->`),
+      ...Array.from({ length: count }, () => ""),
       "",
       ...Array.from({ length: count }, (_, i) => [
         `scene S${i}`,
@@ -253,6 +253,10 @@ describe("the bookkeeping of a build over an edit", () => {
         "end",
         "",
       ]).flat(),
+      "scene start",
+      ...Array.from({ length: count }, (_, i) => `  -> S${i} ->`),
+      "end",
+      "",
     ].join("\n");
   const beats = (lines: number) => {
     const { files } = buildBeatsFixture({ lines });
@@ -973,11 +977,15 @@ describe("a construct the program cannot compile, written and removed by edits",
       "",
     ];
     const text = [
-      "-> FIRST",
+      "",
       "",
       ...scene("FIRST", "SECOND"),
       ...scene("SECOND", "THIRD"),
       ...scene("THIRD", "FIRST"),
+      "scene start",
+      "  -> FIRST",
+      "end",
+      "",
     ].join("\n");
     const FALL = "\n  Rolled {LIST_RANDOM(knock)}.";
     const s = session({ [MAIN_URI]: text });
@@ -1047,8 +1055,7 @@ describe("a construct the program cannot compile, written and removed by edits",
 
   it("reads a label's count above an assignment below that makes the name a global", () => {
     const text = [
-      "-> MAIN",
-      "scene MAIN",
+      "scene start",
       "  label knock",
       "  Count {knock}.",
       "  & knock = 5",
@@ -1068,7 +1075,7 @@ describe("a construct the program cannot compile, written and removed by edits",
       programCompiler({ [MAIN_URI]: `${text}\n${unused}` }, { seedBuiltinsIntoStory: true }).compile(),
     ).program;
     expect(listed.chunks).toBeUndefined();
-    expect(errorsOf(listed)).toContainEqual([9, unsupportedConstructMessage("list")]);
+    expect(errorsOf(listed)).toContainEqual([8, unsupportedConstructMessage("list")]);
   });
 });
 

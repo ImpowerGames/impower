@@ -1,1 +1,3 @@
-value :: number
+scene start
+  value :: number
+end

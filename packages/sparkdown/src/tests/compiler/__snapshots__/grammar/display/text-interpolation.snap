@@ -1,48 +1,66 @@
-sparkdown [0..33]
- └─ ImplicitAction [0..33]
-     ├─ ImplicitAction_begin 0
-     │   └─ ImplicitAction_begin_c1 0
-     │       └─ OptionalWhitespace 0
-     └─ ImplicitAction_content [0..33]
-         └─ ActionLineEnd [0..33]
-             ├─ ActionLineEnd_begin 0
-             │   └─ ActionLineEnd_begin_c1 0
-             │       └─ OptionalWhitespace 0
-             ├─ ActionLineEnd_content [0..33]
-             │   └─ TextChunk [0..33]
-             │       ├─ TextChunk_begin 0
-             │       ├─ TextChunk_content [0..33]
-             │       │   ├─ Word [0..3]: "You"
-             │       │   ├─ Space [3..4]: " "
-             │       │   ├─ Word [4..8]: "have"
-             │       │   ├─ Space [8..9]: " "
-             │       │   ├─ LuauInterpolatedStringExpression [9..26]
-             │       │   │   ├─ LuauInterpolatedStringExpression_begin [9..10]
-             │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [9..10]
-             │       │   │   │       └─ PunctuationBraceOpen [9..10]: "{"
-             │       │   │   ├─ LuauInterpolatedStringExpression_content [10..25]
-             │       │   │   │   └─ LuauAccessPath [10..25]
-             │       │   │   │       ├─ LuauAccessPath_begin 10
-             │       │   │   │       ├─ LuauAccessPath_content [10..25]
-             │       │   │   │       │   ├─ LuauAccessPart [10..19]
-             │       │   │   │       │   │   └─ LuauVariable [10..19]
-             │       │   │   │       │   │       └─ LuauVariable_c1 [10..19]
-             │       │   │   │       │   │           └─ LuauVariableName [10..19]: "inventory"
-             │       │   │   │       │   └─ LuauAccessPart [19..25]
-             │       │   │   │       │       └─ LuauPropertyAccessor [19..25]
-             │       │   │   │       │           ├─ LuauPropertyAccessor_c1 19
-             │       │   │   │       │           ├─ LuauPropertyAccessor_c2 [19..20]
-             │       │   │   │       │           │   └─ LuauAccessorOperator [19..20]: "."
-             │       │   │   │       │           ├─ LuauPropertyAccessor_c3 20
-             │       │   │   │       │           └─ LuauPropertyAccessor_c4 [20..25]
-             │       │   │   │       │               └─ LuauPropertyName [20..25]: "stars"
-             │       │   │   │       └─ LuauAccessPath_end 25
-             │       │   │   │           └─ LuauAccessPath_end_c1 25
-             │       │   │   └─ LuauInterpolatedStringExpression_end [25..26]
-             │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [25..26]
-             │       │   │           └─ PunctuationBraceClose [25..26]: "}"
-             │       │   ├─ Space [26..27]: " "
-             │       │   ├─ Word [27..32]: "stars"
-             │       │   └─ Punctuation [32..33]: "."
-             │       └─ TextChunk_end 33
-             └─ ActionLineEnd_end 33
+sparkdown [0..51]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ ImplicitAction [12..47]
+ │   ├─ ImplicitAction_begin [12..14]
+ │   │   └─ ImplicitAction_begin_c1 [12..14]
+ │   │       └─ OptionalWhitespace [12..14]: "  "
+ │   ├─ ImplicitAction_content [14..47]
+ │   │   └─ ActionLineEnd [14..47]
+ │   │       ├─ ActionLineEnd_begin 14
+ │   │       │   └─ ActionLineEnd_begin_c1 14
+ │   │       │       └─ OptionalWhitespace 14
+ │   │       ├─ ActionLineEnd_content [14..47]
+ │   │       │   └─ TextChunk [14..47]
+ │   │       │       ├─ TextChunk_begin 14
+ │   │       │       ├─ TextChunk_content [14..47]
+ │   │       │       │   ├─ Word [14..17]: "You"
+ │   │       │       │   ├─ Space [17..18]: " "
+ │   │       │       │   ├─ Word [18..22]: "have"
+ │   │       │       │   ├─ Space [22..23]: " "
+ │   │       │       │   ├─ LuauInterpolatedStringExpression [23..40]
+ │   │       │       │   │   ├─ LuauInterpolatedStringExpression_begin [23..24]
+ │   │       │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [23..24]
+ │   │       │       │   │   │       └─ PunctuationBraceOpen [23..24]: "{"
+ │   │       │       │   │   ├─ LuauInterpolatedStringExpression_content [24..39]
+ │   │       │       │   │   │   └─ LuauAccessPath [24..39]
+ │   │       │       │   │   │       ├─ LuauAccessPath_begin 24
+ │   │       │       │   │   │       ├─ LuauAccessPath_content [24..39]
+ │   │       │       │   │   │       │   ├─ LuauAccessPart [24..33]
+ │   │       │       │   │   │       │   │   └─ LuauVariable [24..33]
+ │   │       │       │   │   │       │   │       └─ LuauVariable_c1 [24..33]
+ │   │       │       │   │   │       │   │           └─ LuauVariableName [24..33]: "inventory"
+ │   │       │       │   │   │       │   └─ LuauAccessPart [33..39]
+ │   │       │       │   │   │       │       └─ LuauPropertyAccessor [33..39]
+ │   │       │       │   │   │       │           ├─ LuauPropertyAccessor_c1 33
+ │   │       │       │   │   │       │           ├─ LuauPropertyAccessor_c2 [33..34]
+ │   │       │       │   │   │       │           │   └─ LuauAccessorOperator [33..34]: "."
+ │   │       │       │   │   │       │           ├─ LuauPropertyAccessor_c3 34
+ │   │       │       │   │   │       │           └─ LuauPropertyAccessor_c4 [34..39]
+ │   │       │       │   │   │       │               └─ LuauPropertyName [34..39]: "stars"
+ │   │       │       │   │   │       └─ LuauAccessPath_end 39
+ │   │       │       │   │   │           └─ LuauAccessPath_end_c1 39
+ │   │       │       │   │   └─ LuauInterpolatedStringExpression_end [39..40]
+ │   │       │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [39..40]
+ │   │       │       │   │           └─ PunctuationBraceClose [39..40]: "}"
+ │   │       │       │   ├─ Space [40..41]: " "
+ │   │       │       │   ├─ Word [41..46]: "stars"
+ │   │       │       │   └─ Punctuation [46..47]: "."
+ │   │       │       └─ TextChunk_end 47
+ │   │       └─ ActionLineEnd_end 47
+ │   └─ ImplicitAction_end 47
+ ├─ Newline [47..48]: "\n"
+ └─ LuauEndKeyword [48..51]: "end"

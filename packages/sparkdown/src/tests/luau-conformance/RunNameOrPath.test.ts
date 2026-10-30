@@ -48,11 +48,11 @@ function recorded(chunks: unknown) {
 }
 
 const mainRunning = (operand: string) =>
-  `external harness_record(v)\nrun ${operand}\ndone\n`;
+  `external harness_record(v)\nscene start\n  run ${operand}\n  done\nend\n`;
 
 const operandRange = (operand: string) => ({
-  start: { line: 1, character: 4 },
-  end: { line: 1, character: 4 + operand.length },
+  start: { line: 2, character: 6 },
+  end: { line: 2, character: 6 + operand.length },
 });
 
 describe("run by name", () => {
@@ -111,7 +111,7 @@ describe("run by name", () => {
     const { result, errors } = compileProject({
       "main.sd": mainRunning("helpers"),
       "lib/helpers.luau": "harness_record(1)\n",
-      "other/main.sd": "done\n",
+      "other/main.sd": "scene start\n  done\nend\n",
       "other/helpers.luau": "harness_record(2)\n",
       ".hidden/helpers.luau": "harness_record(3)\n",
       "node_modules/helpers.luau": "harness_record(4)\n",
@@ -166,7 +166,7 @@ describe("run by name", () => {
   test("offers each candidate's path relative to the script the run is in", () => {
     const CHAPTER = "inmemory:///chapters/chapter.sd";
     const { result, errors } = compileProject({
-      "main.sd": "-> chapter\n",
+      "main.sd": "scene start\n  -> chapter\nend\n",
       "chapters/chapter.sd": "scene chapter\n  run util\n  done\nend\n",
       "lib/O'Brien/util.luau": "harness_record(1)\n",
       "scripts/util.luau": "harness_record(2)\n",
@@ -189,7 +189,7 @@ describe("run by name", () => {
     });
     for (const fix of diagnostic!.data.runFixes) {
       const fixed = compileProject({
-        "main.sd": "-> chapter\n",
+        "main.sd": "scene start\n  -> chapter\nend\n",
         "chapters/chapter.sd": `scene chapter\n  run ${fix.newText}\n  done\nend\n`,
         "lib/O'Brien/util.luau": "harness_record(1)\n",
         "scripts/util.luau": "harness_record(2)\n",
@@ -306,7 +306,7 @@ describe("run by quoted path", () => {
 
   test("says the spelling of a path into another project", () => {
     const files = {
-      "other/main.sd": "done\n",
+      "other/main.sd": "scene start\n  done\nend\n",
       "other/helpers.luau": "harness_record(1)\n",
     };
     const { result, diagnostics } = compileProject({

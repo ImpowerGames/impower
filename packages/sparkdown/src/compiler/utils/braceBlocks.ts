@@ -187,6 +187,8 @@ const ENTRY_SEPARATOR_NAMES = nodeNameSet([
   "LuauStructBlockOpen",
   "LuauStructBlockClose",
   "LuauStructBlockSeparator",
+  "LuauStructBlockEntryComma",
+  "LuauStructBlockTrailingComma",
 ]);
 
 const UNCLOSED_QUOTE_TOKEN_NAMES = nodeNameSet([

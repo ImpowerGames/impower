@@ -61,7 +61,7 @@ describe("a value where a type is expected", () => {
   });
 
   test("local x:", () => {
-    expect(diagnose("-> s\nscene s\n  local x:\nend\n")).toEqual(["Expected type, got <eof>"]);
+    expect(diagnose("scene start\n  local x:\nend\n")).toEqual(["Expected type, got <eof>"]);
   });
 });
 

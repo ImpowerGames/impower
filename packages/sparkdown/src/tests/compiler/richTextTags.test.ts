@@ -20,7 +20,7 @@ function diagnose(source: string): string[] {
         type: "script",
         name: "main",
         ext: "sd",
-        text: source,
+        text: `${source}scene start\nend\n`,
         version: 1,
         languageId: "sparkdown",
       },

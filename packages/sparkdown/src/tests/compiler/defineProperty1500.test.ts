@@ -26,7 +26,7 @@ const errors = (text: string) => errorsOf(newCompiler(text));
 
 const official = (body: string) => officialErrorList(`do\n${body}end\n`);
 
-const define = (body: string) => `define X with\n${body}end\n`;
+const define = (body: string) => `define X with\n${body}end\nscene start\nend\n`;
 
 function positionAt(text: string, offset: number) {
   const lines = text.slice(0, offset).split("\n");

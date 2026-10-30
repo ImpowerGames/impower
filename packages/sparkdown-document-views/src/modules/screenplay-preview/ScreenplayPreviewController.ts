@@ -106,7 +106,6 @@ export class ScreenplayPreviewController {
     right?: number;
   } = { top: 0, bottom: 0, left: 0, right: 0 };
   protected _scrollTarget?: Range;
-  // Owns every protocol-bus subscription; `dispose()` detaches them all.
   protected _protocols = new ProtocolObserver();
 
   constructor(
@@ -156,14 +155,9 @@ export class ScreenplayPreviewController {
     }
   }
 
-  // Wire every protocol message to its handler through the ProtocolObserver:
-  // `onNotification` for notifications, `onRequest` for requests (the handler's
-  // return type is the message's Response, so a forgotten `return` is a compile
-  // error). Replies dispatch on `this.host`.
   protected registerProtocolHandlers(): void {
     const p = this._protocols;
 
-    // Handled without a reply.
     p.onNotification(DidChangeTextDocumentMessage.type, (m) =>
       this.handleDidChangeTextDocument(m),
     );
@@ -183,7 +177,6 @@ export class ScreenplayPreviewController {
       this.handleSelectedEditor(m),
     );
 
-    // Requests (handler must return the message's Response; replied on host).
     p.onRequest(
       LoadPreviewMessage.type,
       (m) => this.handleLoadPreview(m),
@@ -275,8 +268,6 @@ export class ScreenplayPreviewController {
           contentChanges,
         );
         for (const change of changes) {
-          // Apply each change individually — positions are relative to the
-          // previous change, not the start document.
           view.dispatch({ changes: [change] });
         }
       }
@@ -293,11 +284,6 @@ export class ScreenplayPreviewController {
       const range = params.visibleRange;
       const target = params.target;
       if (textDocument.uri === this._textDocument?.uri) {
-        // Always cache the editor's visible range so handleDidExpandPreviewPane
-        // can restore it when the preview is revealed on mobile toggle. When
-        // the preview pane is currently hidden (display:none), the immediate
-        // scrollToRange below has no visual effect — without the cache, the
-        // range would be lost and the reveal would land at scrollTop=0.
         this.cacheVisibleRange(range);
         if (target === "element") {
           this.scrollToRange(range);
@@ -329,8 +315,6 @@ export class ScreenplayPreviewController {
     preserveEditor: boolean | undefined,
   ) {
     if (preserveEditor && this._view) {
-      // Loading a new text document but the editor is preserved (used when
-      // renaming a file).
       this._textDocument = textDocument;
     } else {
       this.refs.preview.style.visibility = "hidden";
@@ -476,7 +460,6 @@ export class ScreenplayPreviewController {
         this.selectRange(initialSelectedRange, scrollStrategy ?? false);
       }
       if (this._textDocument && this._loadingRequest != null) {
-        // Fade in once formatting is applied and height is stable.
         this.refs.loading.style.opacity = "0";
         this.refs.preview.style.visibility = "visible";
         this.refs.preview.style.opacity = "1";

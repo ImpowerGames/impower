@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { labelsAt } from "./completionHarness";
 
-// `[[play NAME]]` plays the video NAME as a full-screen cutscene (I-1379):
-// inside `[[ ]]` the name after `play` is a video, and the clauses a cutscene
-// takes are `loop`, `mute` and `with`. Inside `(( ))` `play` stays the audio
-// verb, whose target is a channel and whose names are sounds.
-
 const program = {
   context: {
     video: { intro: { $type: "video", $name: "intro" } },
@@ -37,7 +32,6 @@ describe("[[play NAME]] completions", () => {
   });
 
   it("offers the cutscene clauses, not image names, for a clause being typed", () => {
-    // A clause the command already has is not offered again (I-1597).
     for (const [source, offered] of [
       ["[[play intro l@0]]", ["loop", "mute", "with"]],
       ["[[play intro m@0]]", ["loop", "mute", "with"]],

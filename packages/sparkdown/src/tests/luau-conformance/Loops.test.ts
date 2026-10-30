@@ -40,8 +40,11 @@ function compileAndCapture(source: string): {
 describe("while loop", () => {
   test("counter mutation reaches outer scope", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 0
@@ -57,8 +60,11 @@ end
 
   test("body fires for each iteration", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 0
@@ -74,8 +80,11 @@ end
 
   test("zero iterations — condition false from start", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 100
@@ -91,8 +100,11 @@ end
 
   test("loop body can read AND mutate multiple outer locals", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local i = 0
@@ -111,8 +123,11 @@ end
 
   test("loops nest — inner while inside outer while", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local i = 0
@@ -136,8 +151,11 @@ end
 describe("numeric for loop", () => {
   test("for i = 1, 3 do — counts 1 through 3", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 for i = 1, 3 do
@@ -151,8 +169,11 @@ end
 
   test("for i = 1, 10, 2 do — explicit step of 2", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 for i = 1, 10, 2 do
@@ -166,8 +187,11 @@ end
 
   test("descending: for i = 5, 1, -1 do", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 for i = 5, 1, -1 do
@@ -181,8 +205,11 @@ end
 
   test("zero iterations when start > stop with positive step", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 for i = 10, 1 do
@@ -197,8 +224,11 @@ end
 
   test("loop variable doesn't leak past the loop", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local i = 100
@@ -213,8 +243,11 @@ end
 
   test("stop expression is snapshot at entry (mutating outer stop doesn't extend the loop)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local stop = 3
@@ -232,8 +265,11 @@ end
 describe("repeat ... until loop", () => {
   test("body runs at least once even when condition is true on entry", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 0
@@ -249,8 +285,11 @@ end
 
   test("counts up until condition becomes true", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 0
@@ -266,8 +305,11 @@ end
 
   test("until condition sees body locals (Luau scope rule)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local i = 0
@@ -286,8 +328,11 @@ end
 describe("break and continue", () => {
   test("break exits the innermost while loop", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local i = 0
@@ -307,8 +352,11 @@ end
 
   test("continue skips to next iteration of a while loop", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local i = 0
@@ -327,8 +375,11 @@ end
 
   test("break exits a numeric for loop", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 for i = 1, 10 do
@@ -345,8 +396,11 @@ end
 
   test("continue in numeric for still applies the step", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 for i = 1, 6 do
@@ -363,8 +417,11 @@ end
 
   test("break exits a repeat-until loop", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 0
@@ -384,8 +441,11 @@ end
 
   test("nested loops — break exits only the innermost", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 for i = 1, 3 do
@@ -407,8 +467,11 @@ end
 describe("do ... end block", () => {
   test("body runs once", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 1
@@ -424,8 +487,11 @@ end
 
   test("inner local shadows outer for the block's duration", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local x = 1
@@ -442,8 +508,11 @@ end
 
   test("outer reassignment from inside the block propagates", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local x = 1
@@ -461,8 +530,11 @@ end
 describe("generic for-in loop (iterator protocol)", () => {
   test("iterates a closure-based user iterator (range)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function range(start, stop)
 local i = start - 1
@@ -486,8 +558,11 @@ end
 
   test("zero iterations — iterator returns nil on first call", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function empty_iter()
 return function()
@@ -508,8 +583,11 @@ end
 
   test("break exits the for-in loop", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function range(start, stop)
 local i = start - 1
@@ -536,8 +614,11 @@ end
 
   test("continue skips to next iteration of the for-in loop", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function range(start, stop)
 local i = start - 1
@@ -564,8 +645,11 @@ end
 
   test("iterator yielding 0 does NOT terminate (nil != 0)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function countdown(start)
 local i = start + 1

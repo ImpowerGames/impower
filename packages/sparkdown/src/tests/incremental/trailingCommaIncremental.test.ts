@@ -61,8 +61,8 @@ const REASSIGNMENT_SOURCE = `function f(ok)
   return a + g
 end
 store hp, mp = 100, 50
--> one
-scene one
+
+scene start
   hp, mp = 90, 40
   The hero has {hp} health.
 end

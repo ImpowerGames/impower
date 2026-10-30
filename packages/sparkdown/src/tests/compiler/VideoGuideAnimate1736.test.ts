@@ -25,7 +25,7 @@ describe("video guide animate example (I-1736)", () => {
 
   it("compiles after a movie on the same layer without naming a missing image", () => {
     const [example] = guideAnimateExamples();
-    const text = `[[show portrait bunny_idle]]\n${example}\n`;
+    const text = `scene start\n  [[show portrait bunny_idle]]\n  ${example}\nend\n`;
     const compiler = new SparkdownCompiler();
     compiler.configure({
       files: [

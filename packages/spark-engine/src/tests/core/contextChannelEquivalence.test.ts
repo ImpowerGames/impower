@@ -46,7 +46,7 @@ define narrator as typewriter with
   letter_pause = 0.05
 end
 
--> start
+
 scene start
   Hello.
 end

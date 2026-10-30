@@ -9,7 +9,9 @@ test("a store below a closed define stays global", () => {
     "",
     "store trust = 5",
     "",
-    "Trust is {trust}.",
+    "scene start",
+    "  Trust is {trust}.",
+    "end",
     "",
   ].join("\n");
   const ctx = makeRuntimeStoryFromSource(source);

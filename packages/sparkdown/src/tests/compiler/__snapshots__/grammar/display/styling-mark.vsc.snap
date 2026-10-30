@@ -1,118 +1,132 @@
-text.source.sparkdown [0..184]
- ├─ string.display.text.chunk.sd [0..16]
- │   ├─ markup.raw.text.sd [0..2]: "Go"
- │   ├─ markup.raw.space.sd [2..3]: " "
- │   ├─ markup.other.bold.sd [3..11]
- │   │   ├─ markup.raw.text.sd [3..5]: "**"
- │   │   ├─ markup.raw.text.sd [5..9]: "bold"
- │   │   └─ markup.raw.text.sd [9..11]: "**"
- │   ├─ markup.raw.space.sd [11..12]: " "
- │   ├─ markup.raw.text.sd [12..15]: "now"
- │   └─ markup.raw.punctuation.sd [15..16]: "."
- ├─ Newline [16..17]: "\n"
- ├─ string.display.text.chunk.sd [17..33]
- │   ├─ markup.raw.text.sd [17..19]: "Go"
- │   ├─ markup.raw.space.sd [19..20]: " "
- │   ├─ markup.other.italic.sd [20..28]
- │   │   ├─ markup.raw.text.sd [20..21]: "*"
- │   │   ├─ markup.raw.text.sd [21..27]: "italic"
- │   │   └─ markup.raw.text.sd [27..28]: "*"
- │   ├─ markup.raw.space.sd [28..29]: " "
- │   ├─ markup.raw.text.sd [29..32]: "now"
- │   └─ markup.raw.punctuation.sd [32..33]: "."
- ├─ Newline [33..34]: "\n"
- ├─ string.display.text.chunk.sd [34..52]
- │   ├─ markup.raw.text.sd [34..36]: "Go"
- │   ├─ markup.raw.space.sd [36..37]: " "
- │   ├─ markup.other.bold.sd [37..47]
- │   │   ├─ markup.raw.text.sd [37..39]: "**"
- │   │   ├─ markup.other.italic.sd [39..45]
- │   │   │   ├─ markup.raw.text.sd [39..40]: "*"
- │   │   │   ├─ markup.raw.text.sd [40..44]: "both"
- │   │   │   └─ markup.raw.text.sd [44..45]: "*"
- │   │   └─ markup.raw.text.sd [45..47]: "**"
- │   ├─ markup.raw.space.sd [47..48]: " "
- │   ├─ markup.raw.text.sd [48..51]: "now"
- │   └─ markup.raw.punctuation.sd [51..52]: "."
- ├─ Newline [52..53]: "\n"
- ├─ string.display.text.chunk.sd [53..74]
- │   ├─ markup.raw.text.sd [53..55]: "Go"
- │   ├─ markup.raw.space.sd [55..56]: " "
- │   ├─ markup.other.underline.sd [56..69]
- │   │   ├─ markup.raw.text.sd [56..58]: "__"
- │   │   ├─ markup.raw.text.sd [58..67]: "underline"
- │   │   └─ markup.raw.text.sd [67..69]: "__"
- │   ├─ markup.raw.space.sd [69..70]: " "
- │   ├─ markup.raw.text.sd [70..73]: "now"
- │   └─ markup.raw.punctuation.sd [73..74]: "."
- ├─ Newline [74..75]: "\n"
- ├─ string.display.text.chunk.sd [75..88]
- │   ├─ markup.raw.text.sd [75..77]: "Go"
- │   ├─ markup.raw.space.sd [77..78]: " "
- │   ├─ markup.raw.text.sd [78..83]
- │   │   ├─ markup.raw.text.sd [78..79]: "`"
- │   │   ├─ markup.raw.text.sd [79..82]: "raw"
- │   │   └─ markup.raw.text.sd [82..83]: "`"
- │   ├─ markup.raw.space.sd [83..84]: " "
- │   ├─ markup.raw.text.sd [84..87]: "now"
- │   └─ markup.raw.punctuation.sd [87..88]: "."
- ├─ Newline [88..89]: "\n"
- ├─ string.display.dialogue.inline.sd [89..121]
- │   ├─ entity.name.type.dialogue.character.name.sd [89..93]
- │   │   └─ markup.raw.text.sd [89..93]: "HERO"
- │   ├─ meta.template.expression.operator.colon.sd [93..94]: ":"
- │   ├─ punctuation.whitespace.required.sd [94..95]: " "
- │   └─ string.display.text.chunk.sd [95..121]
- │       ├─ markup.raw.text.sd [95..97]: "Go"
- │       ├─ markup.raw.space.sd [97..98]: " "
- │       ├─ markup.other.bold.sd [98..106]
- │       │   ├─ markup.raw.text.sd [98..100]: "**"
- │       │   ├─ markup.raw.text.sd [100..104]: "bold"
- │       │   └─ markup.raw.text.sd [104..106]: "**"
- │       ├─ markup.raw.space.sd [106..107]: " "
- │       ├─ markup.raw.text.sd [107..110]: "and"
- │       ├─ markup.raw.space.sd [110..111]: " "
- │       ├─ markup.raw.text.sd [111..116]
- │       │   ├─ markup.raw.text.sd [111..112]: "`"
- │       │   ├─ markup.raw.text.sd [112..115]: "raw"
- │       │   └─ markup.raw.text.sd [115..116]: "`"
- │       ├─ markup.raw.space.sd [116..117]: " "
- │       ├─ markup.raw.text.sd [117..120]: "now"
- │       └─ markup.raw.punctuation.sd [120..121]: "."
- ├─ Newline [121..122]: "\n"
- ├─ string.display.dialogue.block.sd [122..127]
- │   ├─ entity.name.type.dialogue.character.name.sd [122..126]
- │   │   └─ markup.raw.text.sd [122..126]: "HERO"
- │   └─ meta.template.expression.operator.colon.sd [126..127]: ":"
- ├─ Newline [127..128]: "\n"
- ├─ string.display.dialogue.block.sd [128..164]
- │   ├─ punctuation.whitespace.optional.sd [128..130]: "  "
- │   └─ string.display.text.chunk.sd [130..164]
- │       ├─ markup.raw.text.sd [130..132]: "Go"
- │       ├─ markup.raw.space.sd [132..133]: " "
- │       ├─ markup.other.italic.sd [133..141]
- │       │   ├─ markup.raw.text.sd [133..134]: "*"
- │       │   ├─ markup.raw.text.sd [134..140]: "italic"
- │       │   └─ markup.raw.text.sd [140..141]: "*"
- │       ├─ markup.raw.space.sd [141..142]: " "
- │       ├─ markup.raw.text.sd [142..145]: "and"
- │       ├─ markup.raw.space.sd [145..146]: " "
- │       ├─ markup.other.underline.sd [146..159]
- │       │   ├─ markup.raw.text.sd [146..148]: "__"
- │       │   ├─ markup.raw.text.sd [148..157]: "underline"
- │       │   └─ markup.raw.text.sd [157..159]: "__"
- │       ├─ markup.raw.space.sd [159..160]: " "
- │       ├─ markup.raw.text.sd [160..163]: "now"
- │       └─ markup.raw.punctuation.sd [163..164]: "."
- ├─ Newline [164..165]: "\n"
- ├─ string.display.text.chunk.sd [165..183]
- │   ├─ markup.raw.text.sd [165..167]: "Go"
- │   ├─ markup.raw.space.sd [167..168]: " "
- │   ├─ constant.character.escape.centered.sd [168..178]
- │   │   ├─ markup.raw.text.sd [168..169]: "^"
- │   │   ├─ markup.raw.text.sd [169..177]: "centered"
- │   │   └─ markup.raw.text.sd [177..178]: "^"
- │   ├─ markup.raw.space.sd [178..179]: " "
- │   ├─ markup.raw.text.sd [179..182]: "now"
- │   └─ markup.raw.punctuation.sd [182..183]: "."
- └─ Newline [183..184]: "\n"
+text.source.sparkdown [0..218]
+ ├─ keyword.control.scene.sd [0..5]: "scene"
+ ├─ punctuation.whitespace.required.sd [5..6]: " "
+ ├─ keyword.control.section.sd [6..11]: "start"
+ ├─ Newline [11..12]: "\n"
+ ├─ punctuation.whitespace.optional.sd [12..14]: "  "
+ ├─ string.display.text.chunk.sd [14..30]
+ │   ├─ markup.raw.text.sd [14..16]: "Go"
+ │   ├─ markup.raw.space.sd [16..17]: " "
+ │   ├─ markup.other.bold.sd [17..25]
+ │   │   ├─ markup.raw.text.sd [17..19]: "**"
+ │   │   ├─ markup.raw.text.sd [19..23]: "bold"
+ │   │   └─ markup.raw.text.sd [23..25]: "**"
+ │   ├─ markup.raw.space.sd [25..26]: " "
+ │   ├─ markup.raw.text.sd [26..29]: "now"
+ │   └─ markup.raw.punctuation.sd [29..30]: "."
+ ├─ Newline [30..31]: "\n"
+ ├─ punctuation.whitespace.optional.sd [31..33]: "  "
+ ├─ string.display.text.chunk.sd [33..49]
+ │   ├─ markup.raw.text.sd [33..35]: "Go"
+ │   ├─ markup.raw.space.sd [35..36]: " "
+ │   ├─ markup.other.italic.sd [36..44]
+ │   │   ├─ markup.raw.text.sd [36..37]: "*"
+ │   │   ├─ markup.raw.text.sd [37..43]: "italic"
+ │   │   └─ markup.raw.text.sd [43..44]: "*"
+ │   ├─ markup.raw.space.sd [44..45]: " "
+ │   ├─ markup.raw.text.sd [45..48]: "now"
+ │   └─ markup.raw.punctuation.sd [48..49]: "."
+ ├─ Newline [49..50]: "\n"
+ ├─ punctuation.whitespace.optional.sd [50..52]: "  "
+ ├─ string.display.text.chunk.sd [52..70]
+ │   ├─ markup.raw.text.sd [52..54]: "Go"
+ │   ├─ markup.raw.space.sd [54..55]: " "
+ │   ├─ markup.other.bold.sd [55..65]
+ │   │   ├─ markup.raw.text.sd [55..57]: "**"
+ │   │   ├─ markup.other.italic.sd [57..63]
+ │   │   │   ├─ markup.raw.text.sd [57..58]: "*"
+ │   │   │   ├─ markup.raw.text.sd [58..62]: "both"
+ │   │   │   └─ markup.raw.text.sd [62..63]: "*"
+ │   │   └─ markup.raw.text.sd [63..65]: "**"
+ │   ├─ markup.raw.space.sd [65..66]: " "
+ │   ├─ markup.raw.text.sd [66..69]: "now"
+ │   └─ markup.raw.punctuation.sd [69..70]: "."
+ ├─ Newline [70..71]: "\n"
+ ├─ punctuation.whitespace.optional.sd [71..73]: "  "
+ ├─ string.display.text.chunk.sd [73..94]
+ │   ├─ markup.raw.text.sd [73..75]: "Go"
+ │   ├─ markup.raw.space.sd [75..76]: " "
+ │   ├─ markup.other.underline.sd [76..89]
+ │   │   ├─ markup.raw.text.sd [76..78]: "__"
+ │   │   ├─ markup.raw.text.sd [78..87]: "underline"
+ │   │   └─ markup.raw.text.sd [87..89]: "__"
+ │   ├─ markup.raw.space.sd [89..90]: " "
+ │   ├─ markup.raw.text.sd [90..93]: "now"
+ │   └─ markup.raw.punctuation.sd [93..94]: "."
+ ├─ Newline [94..95]: "\n"
+ ├─ punctuation.whitespace.optional.sd [95..97]: "  "
+ ├─ string.display.text.chunk.sd [97..110]
+ │   ├─ markup.raw.text.sd [97..99]: "Go"
+ │   ├─ markup.raw.space.sd [99..100]: " "
+ │   ├─ markup.raw.text.sd [100..105]
+ │   │   ├─ markup.raw.text.sd [100..101]: "`"
+ │   │   ├─ markup.raw.text.sd [101..104]: "raw"
+ │   │   └─ markup.raw.text.sd [104..105]: "`"
+ │   ├─ markup.raw.space.sd [105..106]: " "
+ │   ├─ markup.raw.text.sd [106..109]: "now"
+ │   └─ markup.raw.punctuation.sd [109..110]: "."
+ ├─ Newline [110..111]: "\n"
+ ├─ string.display.dialogue.inline.sd [111..145]
+ │   ├─ punctuation.whitespace.optional.sd [111..113]: "  "
+ │   ├─ entity.name.type.dialogue.character.name.sd [113..117]
+ │   │   └─ markup.raw.text.sd [113..117]: "HERO"
+ │   ├─ meta.template.expression.operator.colon.sd [117..118]: ":"
+ │   ├─ punctuation.whitespace.required.sd [118..119]: " "
+ │   └─ string.display.text.chunk.sd [119..145]
+ │       ├─ markup.raw.text.sd [119..121]: "Go"
+ │       ├─ markup.raw.space.sd [121..122]: " "
+ │       ├─ markup.other.bold.sd [122..130]
+ │       │   ├─ markup.raw.text.sd [122..124]: "**"
+ │       │   ├─ markup.raw.text.sd [124..128]: "bold"
+ │       │   └─ markup.raw.text.sd [128..130]: "**"
+ │       ├─ markup.raw.space.sd [130..131]: " "
+ │       ├─ markup.raw.text.sd [131..134]: "and"
+ │       ├─ markup.raw.space.sd [134..135]: " "
+ │       ├─ markup.raw.text.sd [135..140]
+ │       │   ├─ markup.raw.text.sd [135..136]: "`"
+ │       │   ├─ markup.raw.text.sd [136..139]: "raw"
+ │       │   └─ markup.raw.text.sd [139..140]: "`"
+ │       ├─ markup.raw.space.sd [140..141]: " "
+ │       ├─ markup.raw.text.sd [141..144]: "now"
+ │       └─ markup.raw.punctuation.sd [144..145]: "."
+ ├─ Newline [145..146]: "\n"
+ ├─ string.display.dialogue.block.sd [146..153]
+ │   ├─ punctuation.whitespace.optional.sd [146..148]: "  "
+ │   ├─ entity.name.type.dialogue.character.name.sd [148..152]
+ │   │   └─ markup.raw.text.sd [148..152]: "HERO"
+ │   └─ meta.template.expression.operator.colon.sd [152..153]: ":"
+ ├─ Newline [153..154]: "\n"
+ ├─ string.display.dialogue.block.sd [154..192]
+ │   ├─ punctuation.whitespace.optional.sd [154..158]: "    "
+ │   └─ string.display.text.chunk.sd [158..192]
+ │       ├─ markup.raw.text.sd [158..160]: "Go"
+ │       ├─ markup.raw.space.sd [160..161]: " "
+ │       ├─ markup.other.italic.sd [161..169]
+ │       │   ├─ markup.raw.text.sd [161..162]: "*"
+ │       │   ├─ markup.raw.text.sd [162..168]: "italic"
+ │       │   └─ markup.raw.text.sd [168..169]: "*"
+ │       ├─ markup.raw.space.sd [169..170]: " "
+ │       ├─ markup.raw.text.sd [170..173]: "and"
+ │       ├─ markup.raw.space.sd [173..174]: " "
+ │       ├─ markup.other.underline.sd [174..187]
+ │       │   ├─ markup.raw.text.sd [174..176]: "__"
+ │       │   ├─ markup.raw.text.sd [176..185]: "underline"
+ │       │   └─ markup.raw.text.sd [185..187]: "__"
+ │       ├─ markup.raw.space.sd [187..188]: " "
+ │       ├─ markup.raw.text.sd [188..191]: "now"
+ │       └─ markup.raw.punctuation.sd [191..192]: "."
+ ├─ Newline [192..193]: "\n"
+ ├─ punctuation.whitespace.optional.sd [193..195]: "  "
+ ├─ string.display.text.chunk.sd [195..213]
+ │   ├─ markup.raw.text.sd [195..197]: "Go"
+ │   ├─ markup.raw.space.sd [197..198]: " "
+ │   ├─ constant.character.escape.centered.sd [198..208]
+ │   │   ├─ markup.raw.text.sd [198..199]: "^"
+ │   │   ├─ markup.raw.text.sd [199..207]: "centered"
+ │   │   └─ markup.raw.text.sd [207..208]: "^"
+ │   ├─ markup.raw.space.sd [208..209]: " "
+ │   ├─ markup.raw.text.sd [209..212]: "now"
+ │   └─ markup.raw.punctuation.sd [212..213]: "."
+ ├─ Newline [213..214]: "\n"
+ ├─ keyword.control.end.luau [214..217]: "end"
+ └─ Newline [217..218]: "\n"

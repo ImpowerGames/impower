@@ -1,6 +1,8 @@
 external myAction()
 
-One ..
-& myAction()
-.. Two
-done
+scene start
+  One ..
+  & myAction()
+  .. Two
+  done
+end

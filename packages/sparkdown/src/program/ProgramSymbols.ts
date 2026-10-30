@@ -16,6 +16,8 @@ export const UNDEFINED_KIND = -1;
 
 export const ROOT_FLOW_NAME = "";
 
+export const START_FLOW_NAME = "start";
+
 export const ANONYMOUS_FUNCTION_LABEL = "<anonymous>";
 
 export const NUMBERED_SYNTHETIC_NAME = /^__synth\$[^$]*\$\d+$/;

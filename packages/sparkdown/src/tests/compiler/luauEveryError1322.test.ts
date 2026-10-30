@@ -10,7 +10,7 @@ import { diagnoseFilesDetailed } from "../luau-conformance/diagnosticTestHarness
 const URI = "inmemory:///main.sd";
 const HEADER = "function run()\n  ";
 const FOOTER = "\nend\n";
-const STORY = "After {run()}.\n";
+const STORY = "scene start\n  After {run()}.\nend\n";
 
 function compile(text: string) {
   const compiler = new SparkdownCompiler();
@@ -148,7 +148,7 @@ describe("every syntax error Luau reports inside a function is reported (I-1322)
     }
 
     test("the control without the colon still plays", () => {
-      const ctx = makeRuntimeStoryFromSource("function f(flag)\n  if flag\n  then return 1 end\nend\nBefore {f(true)}.\n");
+      const ctx = makeRuntimeStoryFromSource("function f(flag)\n  if flag\n  then return 1 end\nend\nscene start\n  Before {f(true)}.\nend\n");
       expect(ctx.errorMessages).toEqual([]);
       expect(ctx.story.ContinueMaximally()).toBe("Before 1.\n");
     });
@@ -163,18 +163,19 @@ function errorsMatching(text: string, pattern: RegExp): string[] {
 
 describe("an end at the script root that closes nothing is reported (I-774)", () => {
   const EOF = /^Expected <eof>, got 'end'$/;
+  const VALUE = "scene start\n  Value {f(true)}.\nend\n";
   test.each([
-    ["an extra end after a function", "Value {f(true)}.\nfunction f(c)\n  return 1\nend\n  return 2\nend\n", 5],
-    ["a one-line if expression written as a statement", "Value {f(true)}.\nfunction f(c)\n  local g = if c then 2 else 3 end\n  return g\nend\n", 4],
+    ["an extra end after a function", `${VALUE}function f(c)\n  return 1\nend\n  return 2\nend\n`, 7],
+    ["a one-line if expression written as a statement", `${VALUE}function f(c)\n  local g = if c then 2 else 3 end\n  return g\nend\n`, 6],
     [
       "an indented if expression written as a statement",
-      "Value {f(true)}.\nfunction f(c)\n  local a, g = 1,\n    if c then\n      2\n    else\n      3\n    end\n  return g\nend\n",
-      9,
+      `${VALUE}function f(c)\n  local a, g = 1,\n    if c then\n      2\n    else\n      3\n    end\n  return g\nend\n`,
+      11,
     ],
     [
       "an unindented if expression written as a statement",
-      "Value {f(true)}.\nfunction f(c)\n  local a, g = 1,\nif c then\n  2\nelse\n  3\nend\n  return g\nend\n",
-      9,
+      `${VALUE}function f(c)\n  local a, g = 1,\nif c then\n  2\nelse\n  3\nend\n  return g\nend\n`,
+      11,
     ],
   ])("%s", (_name, text, line) => {
     expect(errorsMatching(text, EOF)).toEqual([`${line}:0-${line}:3 Expected <eof>, got 'end'`]);
@@ -221,7 +222,7 @@ describe("an end at the script root that closes nothing is reported (I-774)", ()
 });
 
 describe("text after a scene or branch header is reported on the header line (I-674)", () => {
-  const scene = (header: string) => `Hi.\n${header}\n  Hello.\nend\n`;
+  const scene = (header: string) => `// Hi.\n${header}\n  Hello.\nend\nscene start\nend\n`;
   const branch = (header: string) => `scene start\n${header}\n    Hello.\n  end\nend\n`;
   const onHeaderLine = (source: string) =>
     compile(source)
@@ -229,8 +230,8 @@ describe("text after a scene or branch header is reported on the header line (I-
       .map((d) => `${d.range.start.character}-${d.range.end.character} ${messageOf(d)}`);
 
   test.each([
-    ["a word after a scene's parameters", scene("scene start(n: number) oops"), "23-27 Unexpected text after the scene's header: `oops`. Only tags (`# name`) and a `--` comment can follow a scene's name and parameters on its line."],
-    ["a word after a scene's name", scene("scene start oops"), "12-16 Unexpected text after the scene's header: `oops`. Only tags (`# name`) and a `--` comment can follow a scene's name and parameters on its line."],
+    ["a word after a scene's parameters", scene("scene intro(n: number) oops"), "23-27 Unexpected text after the scene's header: `oops`. Only tags (`# name`) and a `--` comment can follow a scene's name and parameters on its line."],
+    ["a word after a scene's name", scene("scene intro oops"), "12-16 Unexpected text after the scene's header: `oops`. Only tags (`# name`) and a `--` comment can follow a scene's name and parameters on its line."],
     ["a word after a branch's name", branch("  branch side oops"), "14-18 Unexpected text after the branch's header: `oops`. Only tags (`# name`) and a `--` comment can follow a branch's name and parameters on its line."],
     ["a word after a branch's parameters", branch("  branch side(k) oops"), "17-21 Unexpected text after the branch's header: `oops`. Only tags (`# name`) and a `--` comment can follow a branch's name and parameters on its line."],
     ["a word after a scene named `scene`", scene("scene scene oops"), "12-16 Unexpected text after the scene's header: `oops`. Only tags (`# name`) and a `--` comment can follow a scene's name and parameters on its line."],
@@ -240,12 +241,12 @@ describe("text after a scene or branch header is reported on the header line (I-
   });
 
   test.each([
-    ["a comment after a scene's parameters", scene("scene start(n: number) -- a note")],
-    ["a comment after a scene's name", scene("scene start -- a note")],
+    ["a comment after a scene's parameters", scene("scene intro(n: number) -- a note")],
+    ["a comment after a scene's name", scene("scene intro -- a note")],
     ["a comment after a branch's name", branch("  branch side -- a note")],
     ["a comment after a branch's parameters", branch("  branch side(k) --[[ a note ]]")],
-    ["a header alone", scene("scene start(n: number)")],
-    ["tags after a scene's name", scene("scene start # arc")],
+    ["a header alone", scene("scene intro(n: number)")],
+    ["tags after a scene's name", scene("scene intro # arc")],
     ["tags and a comment after a branch's parameters", branch("  branch side(k) # arc -- a note")],
     ["a scene named `scene`", scene("scene scene")],
     ["a branch named `branch`", branch("  branch branch")],

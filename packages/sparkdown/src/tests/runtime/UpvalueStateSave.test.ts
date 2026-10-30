@@ -85,8 +85,7 @@ const counter = `function make()
   end
 end
 
--> s
-scene s
+scene start
   & local inc = make()
   & local a = inc()
   First {a}.
@@ -98,8 +97,7 @@ end
 
 function blockLocal(open: string, close: string): string {
   return `store out = ""
--> s
-scene s
+scene start
   & local x = "outer"
   & local f = nil
   ${open}
@@ -141,8 +139,7 @@ describe("closures across a save and load", () => {
 
   test("two closures sharing an open upvalue still share it after the load", () => {
     const source = `store out = ""
--> s
-scene s
+scene start
   & local inc = nil
   & local get = nil
   do
@@ -171,8 +168,7 @@ function make()
   return function() n = n + 1 end, function() return n end
 end
 
--> s
-scene s
+scene start
   & local inc, get = make()
   & inc()
   First line.
@@ -199,8 +195,7 @@ end
   return fact
 end
 
--> s
-scene s
+scene start
   & local fact = make()
   First {fact(3)}.
   Second {fact(4)}.
@@ -216,8 +211,7 @@ end
 
   test("an upvalue open in the scene frame still reads the live variable after the load", () => {
     const source = `store out = ""
--> s
-scene s
+scene start
   & local x = 1
   & local get = function() return x end
   First line.
@@ -235,8 +229,7 @@ end
 
   test("an upvalue open in a block stays open across a choice and closes at the block end, with and without a save at the choice", () => {
     const source = `store out = ""
--> s
-scene s
+scene start
   & local x = "outer"
   & local f = nil
   do
@@ -271,8 +264,7 @@ end
   });
 
   test("a `<-` thread's own local does not close the cell its parent thread still binds", () => {
-    const source = `-> main
-scene main
+    const source = `scene start
   & local x = 1
   & local get = function() return x end
   <- side
@@ -300,8 +292,7 @@ end
 end
 store inc = make()
 
--> s
-scene s
+scene start
   First {inc()}.
   Second {inc()}.
   fin
@@ -320,8 +311,7 @@ end
 end
 store inc = make()
 
--> s
-scene s
+scene start
   & local alias = inc
   First.
   A {inc()}.
@@ -344,8 +334,7 @@ end
 
 store get = make()
 
--> s
-scene s
+scene start
   First.
   & local got = get()
   Result {got.title} {rawequal(got, Hero)}.
@@ -366,8 +355,7 @@ end
 define Holder with
   pair = make()
 end
--> main
-scene main
+scene start
   & local inc = Holder.pair.inc
   First {inc()}.
   Second {inc()} {Holder.pair.get()}.
@@ -379,8 +367,7 @@ end
 
   test("a save written without upvalue cells still loads", () => {
     const source = `store out = ""
--> s
-scene s
+scene start
   & local x = 1
   & local get = function() return x end
   First line.

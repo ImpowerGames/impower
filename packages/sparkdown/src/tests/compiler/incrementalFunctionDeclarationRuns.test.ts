@@ -132,7 +132,7 @@ const editLast = (find: string, replace: string): Edit => ({
 
 describe("incremental compile with story lines after a function declaration", () => {
   it("a line added after a function that ends a scene joins the scene", () => {
-    const base = `-> one\n\nscene one\nA\n${LOCAL_LESS}\n${FILLER}scene last\nL\n-> DONE\nend\n`;
+    const base = `scene start\nA\n${LOCAL_LESS}\n${FILLER}scene last\nL\n-> DONE\nend\n`;
     expectIncrementalMatchesCold(base, [
       editLast("L\n", "L1\n"),
       editLast("L1\n", "L2\n"),
@@ -141,14 +141,14 @@ describe("incremental compile with story lines after a function declaration", ()
         find: "end\n\n",
         replace: "end\nA2\n\n",
         after: "return",
-        places: [{ text: "A2", in: "one" }],
+        places: [{ text: "A2", in: "start" }],
       },
       editLast("L2\n", "L3\n"),
       {
         name: "edit the line after the function",
         find: "A2\n",
         replace: "A3\n",
-        places: [{ text: "A3", in: "one" }],
+        places: [{ text: "A3", in: "start" }],
       },
       editLast("L3\n", "L4\n"),
       { name: "remove the line after the function", find: "A3\n", replace: "" },
@@ -157,14 +157,14 @@ describe("incremental compile with story lines after a function declaration", ()
   });
 
   it("a function added inside a scene leaves the lines after it in the scene", () => {
-    const base = `-> one\n\nscene one\nA\nC\n-> DONE\nend\n\n${FILLER}scene last\nL\n-> DONE\nend\n`;
+    const base = `scene start\nA\nC\n-> DONE\nend\n\n${FILLER}scene last\nL\n-> DONE\nend\n`;
     expectIncrementalMatchesCold(base, [
       editLast("L\n", "L1\n"),
       {
         name: "add a function between two lines",
         find: "A\nC\n",
         replace: `A\n${LOCAL_LESS}C\n`,
-        places: [{ text: "C", in: "one" }],
+        places: [{ text: "C", in: "start" }],
       },
       editLast("L1\n", "L2\n"),
       {
@@ -172,7 +172,7 @@ describe("incremental compile with story lines after a function declaration", ()
         find: "C\n",
         replace: "Cee\n",
         after: "return",
-        places: [{ text: "Cee", in: "one" }],
+        places: [{ text: "Cee", in: "start" }],
       },
       editLast("L2\n", "L3\n"),
       { name: "remove the function", find: LOCAL_LESS, replace: "" },
@@ -180,33 +180,33 @@ describe("incremental compile with story lines after a function declaration", ()
     ]);
   });
 
-  it("lines after a function declared first stay in the root flow across edits", () => {
-    const base = `${LESS}\nA\nB\n\n${FILLER}scene last\nL\n-> DONE\nend\n`;
+  it("lines of a scene that follows a function declared first stay in the scene across edits", () => {
+    const base = `${LESS}\nscene start\nA\nB\nend\n\n${FILLER}scene last\nL\n-> DONE\nend\n`;
     expectIncrementalMatchesCold(base, [
       editLast("L\n", "L1\n"),
       {
-        name: "edit a root line",
+        name: "edit a scene line",
         find: "A\n",
         replace: "Aye\n",
         after: "return",
         places: [
-          { text: "Aye", in: "root" },
-          { text: "B", in: "root" },
+          { text: "Aye", in: "start" },
+          { text: "B", in: "start" },
         ],
       },
       { name: "edit the function body", find: "a < b", replace: "a <= b" },
       editLast("L1\n", "L2\n"),
       {
         name: "add a second function",
-        find: "Aye\n",
-        replace: `function more(a, b)\n  return a > b\nend\nAye\n`,
-        places: [{ text: "Aye", in: "root" }],
+        find: "scene start\n",
+        replace: `function more(a, b)\n  return a > b\nend\nscene start\n`,
+        places: [{ text: "Aye", in: "start" }],
       },
       {
-        name: "add a root line after the second function",
+        name: "add a scene line after the second function",
         find: "Aye\n",
         replace: "Aye\nZ\n",
-        places: [{ text: "Z", in: "root" }],
+        places: [{ text: "Z", in: "start" }],
       },
       editLast("L2\n", "L3\n"),
     ]);

@@ -1,8 +1,11 @@
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource, runToEnd } from "./runtimeTestHarness";
 
-function render(source: string): string {
-  const ctx = makeRuntimeStoryFromSource(source);
+function render(body: string, declarations = ""): string {
+  const lines = body.trimEnd().split("\n").map((line) => `  ${line}`);
+  const ctx = makeRuntimeStoryFromSource(
+    `${declarations}scene start\n${lines.join("\n")}\nend\n`,
+  );
   expect(ctx.errorMessages).toEqual([]);
   ctx.story.collapseWhitespace = false;
   return runToEnd(ctx.story);
@@ -29,7 +32,7 @@ describe("display line-break whitespace", () => {
 
   test("a break and an interpolation each keep their own spacing", () => {
     expect(
-      render("store n = 5\nALICE:\n  The limit is {n} tonight.\n  Sleep well.\n"),
+      render("ALICE:\n  The limit is {n} tonight.\n  Sleep well.\n", "store n = 5\n"),
     ).toBe("The limit is 5 tonight.\nSleep well.\n");
   });
 
@@ -46,13 +49,13 @@ describe("display line-break whitespace", () => {
   });
 
   test("an escaped break before an interpolation in a block body", () => {
-    expect(render("store n = 5\nALICE:\n  hello\\ {n} world\n")).toBe(
+    expect(render("ALICE:\n  hello\\ {n} world\n", "store n = 5\n")).toBe(
       "hello\n5 world\n",
     );
   });
 
   test("an escaped break after an interpolation in a block body", () => {
-    expect(render("store n = 5\nALICE:\n  hello {n}\\ world\n")).toBe(
+    expect(render("ALICE:\n  hello {n}\\ world\n", "store n = 5\n")).toBe(
       "hello 5\nworld\n",
     );
   });

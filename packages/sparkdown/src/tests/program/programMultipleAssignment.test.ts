@@ -12,7 +12,9 @@ const script = (assignment: string, result = 'tostring(a) .. "/" .. tostring(t.x
     `  ${assignment}`,
     `  return ${result}`,
     "end",
-    "Got {run()}.",
+    "scene start",
+    "  Got {run()}.",
+    "end",
     "",
   ].join("\n");
 

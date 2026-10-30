@@ -3,10 +3,10 @@ import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 const run = (body: string) => {
   const ctx = makeRuntimeStoryFromSource(
-    `Value {f()}.\nfunction f()\n${body
+    `function f()\n${body
       .split("\n")
       .map((line) => `  ${line}`)
-      .join("\n")}\nend\n`,
+      .join("\n")}\nend\nscene start\n  Value {f()}.\nend\n`,
   );
   return { errors: ctx.errorMessages, output: ctx.story.ContinueMaximally() };
 };
@@ -85,28 +85,28 @@ describe("a local's value list", () => {
   });
 
   test("a store reads its value past its table type", () => {
-    const ctx = makeRuntimeStoryFromSource("store S: typeof({ k = 1 }) = 9\nValue {S}.\n");
+    const ctx = makeRuntimeStoryFromSource("store S: typeof({ k = 1 }) = 9\nscene start\n  Value {S}.\nend\n");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 9.\n");
   });
 
   test("a store takes later booleans as values", () => {
     const ctx = makeRuntimeStoryFromSource(
-      "store a, b, c = 1, true, false\nValue {a} {b} {c}.\n",
+      "store a, b, c = 1, true, false\nscene start\n  Value {a} {b} {c}.\nend\n",
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 1 true false.\n");
   });
 
   test("a store takes a later constant as a value", () => {
-    const ctx = makeRuntimeStoryFromSource("const K = 3\nstore a, b = 1, K\nValue {a} {b}.\n");
+    const ctx = makeRuntimeStoryFromSource("const K = 3\nstore a, b = 1, K\nscene start\n  Value {a} {b}.\nend\n");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 1 3.\n");
   });
 
   test("a local outside a function takes a later name as a value", () => {
     const ctx = makeRuntimeStoryFromSource(
-      "-> start\nscene start\n  local x = 5\n  local a, b = 1, x\n  Value {b}.\nend\n",
+      "scene start\n  local x = 5\n  local a, b = 1, x\n  Value {b}.\nend\n",
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
@@ -114,7 +114,7 @@ describe("a local's value list", () => {
 
   test("a store still reads a typed name after a string-typed name", () => {
     const ctx = makeRuntimeStoryFromSource(
-      'store a: "p" | "q", b: number = "p", 5\nValue {a} {b}.\n',
+      'store a: "p" | "q", b: number = "p", 5\nscene start\n  Value {a} {b}.\nend\n',
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value p 5.\n");

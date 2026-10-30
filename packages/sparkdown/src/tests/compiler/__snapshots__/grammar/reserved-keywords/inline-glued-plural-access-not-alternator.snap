@@ -1,33 +1,50 @@
-sparkdown [0..27]
- ├─ ImplicitAction [0..26]
- │   ├─ ImplicitAction_begin 0
- │   │   └─ ImplicitAction_begin_c1 0
- │   │       └─ OptionalWhitespace 0
- │   ├─ ImplicitAction_content [0..26]
- │   │   └─ ActionLineEnd [0..26]
- │   │       ├─ ActionLineEnd_begin 0
- │   │       │   └─ ActionLineEnd_begin_c1 0
- │   │       │       └─ OptionalWhitespace 0
- │   │       ├─ ActionLineEnd_content [0..26]
- │   │       │   └─ TextChunk [0..26]
- │   │       │       ├─ TextChunk_begin 0
- │   │       │       ├─ TextChunk_content [0..26]
- │   │       │       │   ├─ Word [0..1]: "x"
- │   │       │       │   ├─ Space [1..2]: " "
- │   │       │       │   ├─ Punctuation [2..3]: "."
- │   │       │       │   ├─ Punctuation [3..4]: "."
- │   │       │       │   ├─ Space [4..5]: " "
- │   │       │       │   ├─ Word [5..11]: "plural"
- │   │       │       │   ├─ Punctuation [11..12]: "."
- │   │       │       │   ├─ Word [12..20]: "category"
- │   │       │       │   ├─ Punctuation [20..21]: "("
- │   │       │       │   ├─ Word [21..22]: "n"
- │   │       │       │   ├─ Punctuation [22..23]: ")"
- │   │       │       │   └─ Glue [23..26]
- │   │       │       │       ├─ Glue_c1 [23..24]
- │   │       │       │       │   └─ Whitespace [23..24]: " "
- │   │       │       │       └─ Glue_c2 [24..26]: ".."
- │   │       │       └─ TextChunk_end 26
- │   │       └─ ActionLineEnd_end 26
- │   └─ ImplicitAction_end 26
- └─ Newline [26..27]: "\n"
+sparkdown [0..45]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ ImplicitAction [12..40]
+ │   ├─ ImplicitAction_begin [12..14]
+ │   │   └─ ImplicitAction_begin_c1 [12..14]
+ │   │       └─ OptionalWhitespace [12..14]: "  "
+ │   ├─ ImplicitAction_content [14..40]
+ │   │   └─ ActionLineEnd [14..40]
+ │   │       ├─ ActionLineEnd_begin 14
+ │   │       │   └─ ActionLineEnd_begin_c1 14
+ │   │       │       └─ OptionalWhitespace 14
+ │   │       ├─ ActionLineEnd_content [14..40]
+ │   │       │   └─ TextChunk [14..40]
+ │   │       │       ├─ TextChunk_begin 14
+ │   │       │       ├─ TextChunk_content [14..40]
+ │   │       │       │   ├─ Word [14..15]: "x"
+ │   │       │       │   ├─ Space [15..16]: " "
+ │   │       │       │   ├─ Punctuation [16..17]: "."
+ │   │       │       │   ├─ Punctuation [17..18]: "."
+ │   │       │       │   ├─ Space [18..19]: " "
+ │   │       │       │   ├─ Word [19..25]: "plural"
+ │   │       │       │   ├─ Punctuation [25..26]: "."
+ │   │       │       │   ├─ Word [26..34]: "category"
+ │   │       │       │   ├─ Punctuation [34..35]: "("
+ │   │       │       │   ├─ Word [35..36]: "n"
+ │   │       │       │   ├─ Punctuation [36..37]: ")"
+ │   │       │       │   └─ Glue [37..40]
+ │   │       │       │       ├─ Glue_c1 [37..38]
+ │   │       │       │       │   └─ Whitespace [37..38]: " "
+ │   │       │       │       └─ Glue_c2 [38..40]: ".."
+ │   │       │       └─ TextChunk_end 40
+ │   │       └─ ActionLineEnd_end 40
+ │   └─ ImplicitAction_end 40
+ ├─ Newline [40..41]: "\n"
+ ├─ LuauEndKeyword [41..44]: "end"
+ └─ Newline [44..45]: "\n"

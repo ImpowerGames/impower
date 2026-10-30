@@ -9,8 +9,7 @@ describe("a match", () => {
     const { program } = compileScript(
       [
         "store k = 1",
-        "-> main",
-        "scene main",
+        "scene start",
         "  match k",
         "    case 1",
         "      One.",
@@ -20,30 +19,30 @@ describe("a match", () => {
       ].join("\n"),
     );
     expect(errorsOf(program)).toEqual([
+      [3, NO_ARM],
       [4, NO_ARM],
-      [5, NO_ARM],
     ]);
   });
 
   it("reports a match with no arm", () => {
-    const { program } = compileScript("store k = 1\nmatch (k)\nend\n");
+    const { program } = compileScript("store k = 1\nscene start\n  match (k)\n  end\nend\n");
     expect(errorsOf(program)).toEqual([
-      [1, "A `match` needs at least one arm, written `| value = ...`"],
+      [2, "A `match` needs at least one arm, written `| value = ...`"],
     ]);
   });
 
   it("reports an inline match with no arm in a display line as the call it is", () => {
-    const noArm: [number, string] = [1, "A `match` needs at least one arm, written `| value = ...`"];
-    const { program } = compileScript("store k = 1\nBefore {match (k) end} After.\n");
-    expect(errorsOf(program)).toEqual(errorsOf(compileScript("store k = 1\nBefore {foo (k) end} After.\n").program));
+    const noArm: [number, string] = [2, "A `match` needs at least one arm, written `| value = ...`"];
+    const { program } = compileScript("store k = 1\nscene start\n  Before {match (k) end} After.\nend\n");
+    expect(errorsOf(program)).toEqual(errorsOf(compileScript("store k = 1\nscene start\n  Before {foo (k) end} After.\nend\n").program));
     expect(errorsOf(program)).not.toEqual([]);
-    const glued = compileScript("store k = 1\nBefore .. match (k) .. After.\n").program;
+    const glued = compileScript("store k = 1\nscene start\n  Before .. match (k) .. After.\nend\n").program;
     expect(errorsOf(glued)).toContainEqual(noArm);
   });
 
   it("still plays a match whose arms are `|` arms, a comment before them", () => {
     const { program } = compileScript(
-      'store k = "b"\nmatch (k)\n// the key\n| a = Ay.\n| b = Bee.\nend\n',
+      'store k = "b"\nscene start\n  match (k)\n  // the key\n  | a = Ay.\n  | b = Bee.\n  end\nend\n',
     );
     expect(errorsOf(program)).toEqual([]);
     expect(storyBeats(new ProgramStory(program.chunks!)).beats.map((b) => b.text)).toEqual([

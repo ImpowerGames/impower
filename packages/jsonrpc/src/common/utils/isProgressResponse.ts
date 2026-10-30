@@ -1,7 +1,6 @@
 import type { ProgressResponseMessage } from "../types/ProgressResponseMessage";
 import { isMessage } from "./isMessage";
 
-/** Accept canonical /progress and compatible bare-method progress envelopes. */
 export const isProgressResponse = <M extends string = string>(
   obj: unknown,
   method?: M,

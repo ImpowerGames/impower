@@ -6,7 +6,7 @@ const URI = "inmemory:///main.sd";
 
 function errors(text: string) {
   const compiler = new SparkdownCompiler();
-  compiler.configure({ files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }] });
+  compiler.configure({ files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: `${text}scene start\nend\n`, version: 1, languageId: "sparkdown" }] });
   const { program } = compiler.compile({ textDocument: { uri: URI } });
   return (program.diagnostics?.[URI] ?? [])
     .filter((d) => d.severity === 1)

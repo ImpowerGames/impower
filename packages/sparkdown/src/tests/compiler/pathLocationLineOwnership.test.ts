@@ -24,16 +24,27 @@ function compile(text: string) {
   return (c.compile({ textDocument: { uri: URI } } as never) as any).program;
 }
 
-const FLAT = `RAFFLES:
+const inStart = (body: string): string =>
+  [
+    "scene start",
+    ...body
+      .trimEnd()
+      .split("\n")
+      .map((line) => (line === "" ? line : `  ${line}`)),
+    "end",
+    "",
+  ].join("\n");
+
+const FLAT = inStart(`RAFFLES:
   Wow.
 
 With an indignant pivot, Raffles glides briskly ahead.
 
 BUNNY:
   Okay, okay!
-`;
+`);
 
-const NESTED = `RAFFLES:
+const NESTED = inStart(`RAFFLES:
   Wow.
 
 choose
@@ -50,9 +61,9 @@ then
 
   RAFFLES:
     Fine.
-`;
+`);
 
-const TIGHT = `RAFFLES:
+const TIGHT = inStart(`RAFFLES:
   Wow.
 Raffles turns on his heel.
 $:
@@ -60,7 +71,7 @@ $:
 > CUT TO:
 BUNNY:
   Wait!
-`;
+`);
 
 const rangesOf = (program: any, source: string): [number, SourceLocation][] => {
   const root = program.chunks;
@@ -163,7 +174,7 @@ describe("addresses own only their own lines (#490)", () => {
   it("an incremental compile records the same ranges as a cold one", () => {
     const before = FLAT;
     const find = "With an indignant pivot, Raffles glides briskly ahead.";
-    const replace = "With an indignant pivot, Raffles glides briskly away.\n\nHe does not look back.";
+    const replace = "With an indignant pivot, Raffles glides briskly away.\n\n  He does not look back.";
     const offset = before.indexOf(find);
     expect(offset).toBeGreaterThanOrEqual(0);
     const posAt = (text: string, at: number) => {

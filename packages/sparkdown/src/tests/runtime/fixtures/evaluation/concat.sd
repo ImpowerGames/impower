@@ -1,7 +1,9 @@
 store a = "Hello"
 store b = "World"
 store greeting = a .. ", " .. b .. "!"
--> main
+scene start
+  -> main
+end
 scene main
   {greeting}
   done

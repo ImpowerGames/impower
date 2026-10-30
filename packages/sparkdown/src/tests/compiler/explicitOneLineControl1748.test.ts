@@ -28,16 +28,11 @@ function run(text: string) {
   return { total: story.variablesState.$("total"), output, errors };
 }
 
-const atTopLevel = (line: string) =>
-  ["store total = 0", "", line, "", "after", ""].join("\n");
-
 const inScene = (line: string) =>
   [
     "store total = 0",
     "",
-    "-> main",
-    "",
-    "scene main",
+    "scene start",
     `  ${line}`,
     "  after",
     "end",
@@ -60,13 +55,6 @@ const CASES: [string, number][] = [
 ];
 
 describe("a one-line marked control statement runs", () => {
-  it.each(CASES)("at the top level: %s", (line, expected) => {
-    const { total, output, errors } = run(atTopLevel(line));
-    expect(errors).toEqual([]);
-    expect(total).toBe(expected);
-    expect(output).toContain("after");
-  });
-
   it.each(CASES)("in a scene: %s", (line, expected) => {
     const { total, output, errors } = run(inScene(line));
     expect(errors).toEqual([]);

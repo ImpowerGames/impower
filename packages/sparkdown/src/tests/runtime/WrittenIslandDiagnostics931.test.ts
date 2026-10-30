@@ -69,7 +69,7 @@ describe("written island syntax diagnostics own authored tokens", () => {
   });
 
   test("closed semicolon expression and genuine following function execute", () => {
-    const ctx = makeRuntimeStoryFromSource("store x = 0\n-> a\nscene a\n& local n = 1; x = math.abs(2)\nThe village waits.\nValue {x} and {f()}.\ndone\nend\nfunction f()\n return 5\nend\n");
+    const ctx = makeRuntimeStoryFromSource("store x = 0\nscene start\n& local n = 1; x = math.abs(2)\nThe village waits.\nValue {x} and {f()}.\ndone\nend\nfunction f()\n return 5\nend\n");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("The village waits.\nValue 2 and 5.\n");
   });
@@ -81,7 +81,7 @@ describe("written island syntax diagnostics own authored tokens", () => {
   });
 
   test("return after a marked semicolon remains a misplaced function return", () => {
-    const source = "& local n = 1; return 5\nThe village waits.\n";
+    const source = "scene start\n& local n = 1; return 5\nThe village waits.\nend\n";
     expect(publishedErrors(source).map(message).join("\n")).toContain("function body");
   });
 
@@ -99,7 +99,7 @@ describe("written island syntax diagnostics own authored tokens", () => {
     const own = published.find(d => message(d) === native.message)!;
     expect(own.range.start).toEqual({ line: prefix.split("\n").length - 1, character: island.length });
     expect(published.every(d => d.range.end.line === prefix.split("\n").length && d.range.end.character === 0)).toBe(true);
-    expect(publishedErrors(source).every(d => d.range.start.line <= prefix.split("\n").length - 1)).toBe(true);
+    expect(publishedErrors(source).filter(d => !message(d).startsWith("statement must be inside a scene or branch")).every(d => d.range.start.line <= prefix.split("\n").length - 1)).toBe(true);
     expect(treeScopeStackAt(parseSource(source), source.indexOf("The village"))).toContain("string.display.text.chunk.sd");
   });
 
@@ -123,7 +123,7 @@ describe("written island syntax diagnostics own authored tokens", () => {
   });
 
   test("semicolon-separated marked statements preserve their effects and following prose", async () => {
-    const source = "store x = 0\n-> a\nscene a\n& local voice = { say = function(self) return 5 end }; x = voice:say()\nThe village waits.\nValue {x}.\ndone\nend\n";
+    const source = "store x = 0\nscene start\n& local voice = { say = function(self) return 5 end }; x = voice:say()\nThe village waits.\nValue {x}.\ndone\nend\n";
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("The village waits.\nValue 5.\n");
@@ -158,7 +158,7 @@ describe("written island syntax diagnostics own authored tokens", () => {
     "do local n = {1} end",
   ])("complete punctuation control %s has zero syntax diagnostics", body => {
     expect(parseOfficialTree(`  ${body}`).errors).toEqual([]);
-    expect(publishedErrors(`store t = {1}\nscene a\n& ${body}\nThe village waits.\nend\n`)).toEqual([]);
+    expect(publishedErrors(`store t = {1}\nscene start\n& ${body}\nThe village waits.\nend\n`)).toEqual([]);
   });
 
   test.each([
@@ -180,19 +180,19 @@ describe("written island syntax diagnostics own authored tokens", () => {
   test.each([[true, 1], [false, 5]])("else if remains a valid nested if with outer condition %s", (condition, value) => {
     const body = `do if ${condition} then x = 1 else if true then x = 5 end end end`;
     expect(parseOfficialTree(`  ${body}`).errors).toEqual([]);
-    const source = `store x = 0\n& ${body}\nThe village waits.\nValue {x}.\ndone\n`;
+    const source = `store x = 0\nscene start\n& ${body}\nThe village waits.\nValue {x}.\ndone\nend\n`;
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe(`The village waits.\nValue ${value}.\n`);
   });
 
   test.each([
-    ["function f(t)\n return t:\n method()\nend\n", ""],
-    ["& local f = function(t)\n return t:\n method()\nend\n", "scene a\n"],
-  ])("genuine function retains multiline method-name ownership: %s", (code, prefix) => {
+    ["function f(t)\n return t:\n method()\nend\n", "", "scene start\nend\n"],
+    ["& local f = function(t)\n return t:\n method()\nend\n", "scene start\n", "end\n"],
+  ])("genuine function retains multiline method-name ownership: %s", (code, prefix, suffix) => {
     const native = code.startsWith("&") ? ` ${code.slice(1)}` : code;
     expect(parseOfficialTree(native).errors).toEqual([]);
-    expect(publishedErrors(`${prefix}${code}${prefix ? "end\n" : ""}`)).toEqual([]);
+    expect(publishedErrors(`${prefix}${code}${suffix}`)).toEqual([]);
   });
 
   test.each([

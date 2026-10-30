@@ -31,8 +31,10 @@ function compileAndRun(source: string) {
 
 describe("native assert(cond [, message])", () => {
   test("truthy condition: no error", () => {
-    const { errors } = compileAndRun(`& run()
-done
+    const { errors } = compileAndRun(`scene start
+  & run()
+  done
+end
 
 function run()
 assert(true)
@@ -44,8 +46,10 @@ end
   });
 
   test("falsy condition (false): default message", () => {
-    const { errors } = compileAndRun(`& run()
-done
+    const { errors } = compileAndRun(`scene start
+  & run()
+  done
+end
 
 function run()
 assert(false)
@@ -56,8 +60,10 @@ end
   });
 
   test("falsy condition with custom message", () => {
-    const { errors } = compileAndRun(`& run()
-done
+    const { errors } = compileAndRun(`scene start
+  & run()
+  done
+end
 
 function run()
 assert(false, "custom failure")
@@ -69,8 +75,10 @@ end
 
   test("returns its arguments; zero args raises missing-argument", () => {
     // Luau: `assert(v, ...)` returns ALL its arguments on success
-    const { errors } = compileAndRun(`& run()
-done
+    const { errors } = compileAndRun(`scene start
+  & run()
+  done
+end
 
 function run()
 assert(assert(1) == 1)
@@ -89,8 +97,10 @@ end
   });
 
   test("assert(0) and assert('') pass under Lua truthiness", () => {
-    const { errors } = compileAndRun(`& run()
-done
+    const { errors } = compileAndRun(`scene start
+  & run()
+  done
+end
 
 function run()
 assert(0)

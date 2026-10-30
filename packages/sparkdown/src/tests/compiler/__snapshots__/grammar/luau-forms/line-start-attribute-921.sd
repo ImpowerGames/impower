@@ -1,2 +1,4 @@
 @native function f() return 7 end
-Value {f()}.
+scene start
+  Value {f()}.
+end

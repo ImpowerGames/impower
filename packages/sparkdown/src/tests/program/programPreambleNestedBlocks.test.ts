@@ -11,8 +11,7 @@ import { run, silence } from "./programScopes";
 
 const scene = (preamble: readonly string[]) =>
   [
-    "-> main",
-    "scene main",
+    "scene start",
     "  choose",
     ...preamble,
     "    * Outer",

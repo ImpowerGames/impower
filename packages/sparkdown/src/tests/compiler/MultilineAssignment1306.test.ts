@@ -5,6 +5,8 @@ import { officialSyntaxErrors } from "./officialSyntax";
 
 const URI = "inmemory:///main.sd";
 
+const NO_START = "no scene named start; the story starts in a scene named start";
+
 const crlf = (text: string) => text.replaceAll("\n", "\r\n");
 
 function compile(text: string) {
@@ -13,6 +15,7 @@ function compile(text: string) {
   const { program } = compiler.compile({ textDocument: { uri: URI } });
   const errors = (program.diagnostics?.[URI] ?? [])
     .filter((d) => d.severity === 1)
+    .filter((d) => (typeof d.message === "string" ? d.message : d.message.value) !== NO_START)
     .map((d) => ({ message: typeof d.message === "string" ? d.message : d.message.value, line: d.range.start.line, column: d.range.start.character }));
   return { errors, program };
 }
@@ -30,8 +33,7 @@ function officialErrors(text: string) {
   return officialSyntaxErrors(text).map((e) => ({ message: e.message, line: e.location.begin.line, column: e.location.begin.column }));
 }
 
-const EIGHT_CALLS = `Value {f()}.
-function f()
+const EIGHT_CALLS = `function f()
   local calls = 0
   local order = ""
   local function read(value)
@@ -50,18 +52,22 @@ function f()
     read(8)
   return tostring(x0) .. tostring(x1) .. tostring(x2) .. tostring(x3) .. tostring(x4) .. tostring(x5) .. tostring(x6) .. tostring(x7) .. ":" .. order .. ":" .. tostring(calls)
 end
+
+scene start
+  Value {f()}.
+end
 `;
 
 describe("next-line values", () => {
   test.each([
-    ["a local", "function f()\n  local a =\n    1\n  return a\nend\n\n{f()}\n", "1\n"],
-    ["a reassignment", "function f()\n  local a = 0\n  a =\n    1\n  return a\nend\n\n{f()}\n", "1\n"],
-    ["two locals", "function f()\n  local a, b =\n    1, 2\n  return b\nend\n\n{f()}\n", "2\n"],
-    ["a table at column zero", "function f()\nlocal t =\n{\n  1\n}\nreturn t[1]\nend\n\n{f()}\n", "1\n"],
-    ["names on comma-ended lines", "function f()\n  local x, y = 1, 2\n  local a, b =\n    y,\n    x\n  return a .. b\nend\n\n{f()}\n", "21\n"],
-    ["a reassignment of comma-ended lines", "function f()\n  local a, b = 0, 0\n  a, b =\n    tostring(3),\n    tostring(4)\n  return a .. b\nend\n\n{f()}\n", "34\n"],
-    ["comma-ended lines after a comment ending in then", "function f()\n  local x, y = -- then\n    tostring(1),\n    tostring(2)\n  return x .. y\nend\n\n{f()}\n", "12\n"],
-    ["comma-ended lines after a comment ending in else", "function f()\n  local x, y = -- else\n    tostring(1),\n    tostring(2)\n  return x .. y\nend\n\n{f()}\n", "12\n"],
+    ["a local", "function f()\n  local a =\n    1\n  return a\nend\n\nscene start\n  {f()}\nend\n", "1\n"],
+    ["a reassignment", "function f()\n  local a = 0\n  a =\n    1\n  return a\nend\n\nscene start\n  {f()}\nend\n", "1\n"],
+    ["two locals", "function f()\n  local a, b =\n    1, 2\n  return b\nend\n\nscene start\n  {f()}\nend\n", "2\n"],
+    ["a table at column zero", "function f()\nlocal t =\n{\n  1\n}\nreturn t[1]\nend\n\nscene start\n  {f()}\nend\n", "1\n"],
+    ["names on comma-ended lines", "function f()\n  local x, y = 1, 2\n  local a, b =\n    y,\n    x\n  return a .. b\nend\n\nscene start\n  {f()}\nend\n", "21\n"],
+    ["a reassignment of comma-ended lines", "function f()\n  local a, b = 0, 0\n  a, b =\n    tostring(3),\n    tostring(4)\n  return a .. b\nend\n\nscene start\n  {f()}\nend\n", "34\n"],
+    ["comma-ended lines after a comment ending in then", "function f()\n  local x, y = -- then\n    tostring(1),\n    tostring(2)\n  return x .. y\nend\n\nscene start\n  {f()}\nend\n", "12\n"],
+    ["comma-ended lines after a comment ending in else", "function f()\n  local x, y = -- else\n    tostring(1),\n    tostring(2)\n  return x .. y\nend\n\nscene start\n  {f()}\nend\n", "12\n"],
   ])("reads %s", (_name, source, output) => {
     for (const text of [source, crlf(source)]) {
       expect(execute(text)).toEqual({ errors: [], runtimeErrors: [], output });
@@ -113,12 +119,12 @@ describe.each(["LF", "CRLF"])("Luau's errors after a line-ending operator (%s)",
 describe.each(["LF", "CRLF"])("story after an unfinished marked statement (%s)", (ending) => {
   const lines = (text: string) => (ending === "CRLF" ? crlf(text) : text);
   test.each([
-    ["prose", "store x = 0\n& x =\nStory follows.\n", 1, "Story follows.\n"],
-    ["a value-looking line", "store x = 0\n& x =\n2\nStory follows.\n", 1, "2\nStory follows.\n"],
-    ["comma-ended prose", "store x = 0\n& x =\nWell, then,\nStory follows.\n", 1, "Well, then,\nStory follows.\n"],
-    ["a reassignment", "store x = 0\nstore y = 0\n& x =\ny, x = 1, 2\nValue {x}{y}.\n", 2, "Value 21.\n"],
-    ["a scene's prose", "-> one\nscene one\n  & local x =\n  Story follows.\nend\n", 2, "Story follows.\n"],
-    ["a scene's comma-ended prose", "-> one\nscene one\n  & local x =\n  a, b,\n  Story follows.\nend\n", 2, "a, b,\nStory follows.\n"],
+    ["prose", "store x = 0\nscene start\n  & x =\n  Story follows.\nend\n", 2, "Story follows.\n"],
+    ["a value-looking line", "store x = 0\nscene start\n  & x =\n  2\n  Story follows.\nend\n", 2, "2\nStory follows.\n"],
+    ["comma-ended prose", "store x = 0\nscene start\n  & x =\n  Well, then,\n  Story follows.\nend\n", 2, "Well, then,\nStory follows.\n"],
+    ["a reassignment", "store x = 0\nstore y = 0\nscene start\n  & x =\n  y, x = 1, 2\n  Value {x}{y}.\nend\n", 3, "Value 21.\n"],
+    ["a scene's prose", "scene start\n  & local x =\n  Story follows.\nend\n", 1, "Story follows.\n"],
+    ["a scene's comma-ended prose", "scene start\n  & local x =\n  a, b,\n  Story follows.\nend\n", 1, "a, b,\nStory follows.\n"],
   ])("keeps %s out of the value", (_name, source, line, output) => {
     const result = execute(lines(source));
     expect(result.errors.map((e) => [e.message, e.line])).toEqual([["Expected identifier when parsing expression, got <eof>", line]]);
@@ -127,6 +133,6 @@ describe.each(["LF", "CRLF"])("story after an unfinished marked statement (%s)",
   });
 
   test("runs a complete marked assignment", () => {
-    expect(execute(lines("store x = 0\n& x = 2\nValue {x}.\n"))).toEqual({ errors: [], runtimeErrors: [], output: "Value 2.\n" });
+    expect(execute(lines("store x = 0\nscene start\n  & x = 2\n  Value {x}.\nend\n"))).toEqual({ errors: [], runtimeErrors: [], output: "Value 2.\n" });
   });
 });

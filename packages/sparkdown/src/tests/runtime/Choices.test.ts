@@ -218,7 +218,7 @@ describe("Choices (ported from inkjs)", () => {
   });
   test("blank-bracket choice (`* []`) emits a warning", () => {
     const { warningMessages } = collectDiagnostics(
-      `-> main\nscene main\n  choose\n    * []\n  end\n`,
+      `\nscene start\n  choose\n    * []\n  end\n`,
     );
     expect(warningMessages.some((m) => /Blank choice/.test(m))).toBe(true);
   });

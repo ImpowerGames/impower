@@ -148,8 +148,11 @@ describe("names numbered within their flow (#851)", () => {
     ].join("\n");
     const main = [
       "store top = function() return 1 end",
+      "",
+      "scene start",
       "HERO: Top glue ..",
       ".. top tail.",
+      "end",
       "",
       "scene first",
       "  local f = function() return 1 end",
@@ -176,7 +179,7 @@ describe("names numbered within their flow (#851)", () => {
       expect(numbered.some((name) => name.startsWith("__synth$shared$"))).toBe(true);
       const names = groups(s.root);
       expect(names.filter((name) => name === "")).toEqual([]);
-      expect(new Set(names.filter((name) => name.startsWith("__group$$"))).size).toBeGreaterThan(0);
+      expect(names.some((name) => name.startsWith("__group$start$"))).toBe(true);
       expect(names.some((name) => name.startsWith("__group$first$"))).toBe(true);
       expect(names.some((name) => name.startsWith("__group$second$"))).toBe(true);
       expect(names.some((name) => name.startsWith("__group$shared$"))).toBe(true);

@@ -30,7 +30,7 @@ const READ_X = ["function readX()", "  return tostring(x)", "end", ""].join("\n"
 
 describe("a multiple declaration binds after its values", () => {
   it("for a store", () => {
-    expect(play(`${READ_X}store x, y = 1, readX()\n\nValue {y} then {x}.\n`)).toEqual([
+    expect(play(`${READ_X}store x, y = 1, readX()\n\nscene start\n  Value {y} then {x}.\nend\n`)).toEqual([
       "Value nil then 1.\n",
     ]);
   });
@@ -44,7 +44,9 @@ describe("a multiple declaration binds after its values", () => {
       "",
       "store x, y, z = 1, g()",
       "",
-      "Value {x}, {y} and {z}.",
+      "scene start",
+      "  Value {x}, {y} and {z}.",
+      "end",
       "",
     ].join("\n");
     expect(play(script)).toEqual(["Value 1, nil and 7.\n"]);
@@ -59,7 +61,9 @@ describe("a multiple declaration binds after its values", () => {
       "",
       "store x, y, z = pair(), 1, readX()",
       "",
-      "Value {x}, {y} and {z}.",
+      "scene start",
+      "  Value {x}, {y} and {z}.",
+      "end",
       "",
     ].join("\n");
     expect(play(script)).toEqual(["Value 2, 1 and nil.\n"]);
@@ -68,8 +72,8 @@ describe("a multiple declaration binds after its values", () => {
   it("keeps the order when an edit adds a name to the list", () => {
     const beats = (root: ProgramRoot) =>
       storyBeats(new ProgramStory(root)).beats.map((b) => b.text);
-    const before = `${READ_X}store x = 1\n\nValue {x}.\n`;
-    const after = `${READ_X}store x, y = 1, readX()\n\nValue {y} then {x}.\n`;
+    const before = `${READ_X}store x = 1\n\nscene start\n  Value {x}.\nend\n`;
+    const after = `${READ_X}store x, y = 1, readX()\n\nscene start\n  Value {y} then {x}.\nend\n`;
     const session = programSession(before);
     expect(beats(session.root)).toEqual(["Value 1.\n"]);
     session.edit("store x = 1", "store x, y = 1, readX()");
@@ -80,8 +84,8 @@ describe("a multiple declaration binds after its values", () => {
   });
 
   it("loads a save taken before an edit adds a name to the list", () => {
-    const before = `${READ_X}store x = 1\n\nValue {x}.\n\nMore {x}.\n`;
-    const after = `${READ_X}store x, y = 1, readX()\n\nValue {x}.\n\nMore {x} {y}.\n`;
+    const before = `${READ_X}store x = 1\n\nscene start\n  Value {x}.\n\n  More {x}.\nend\n`;
+    const after = `${READ_X}store x, y = 1, readX()\n\nscene start\n  Value {x}.\n\n  More {x} {y}.\nend\n`;
     const old = new ProgramStory(compileScript(before).program.chunks!);
     expect(old.Continue()).toBe("Value 1.\n");
     const save = old.state.toJson();
@@ -95,17 +99,17 @@ describe("a multiple declaration binds after its values", () => {
   it.each([
     [
       "a scene's local list",
-      "-> start\nscene start\n  local a, b = 1, a\n\n  Value {b}.\nend\n",
+      "scene start\n  local a, b = 1, a\n\n  Value {b}.\nend\n",
       "Value nil.\n",
     ],
     [
       "a local list in a function",
-      "function f()\n  local a = 0\n  local a, b = 1, a\n  return b\nend\nValue {f()}.\n",
+      "function f()\n  local a = 0\n  local a, b = 1, a\n  return b\nend\nscene start\n  Value {f()}.\nend\n",
       "Value 0.\n",
     ],
     [
       "a const list in a function",
-      "function f()\n  const a, b = 1, a\n  return b\nend\nValue {f()}.\n",
+      "function f()\n  const a, b = 1, a\n  return b\nend\nscene start\n  Value {f()}.\nend\n",
       "Value nil.\n",
     ],
   ])("for %s", (_, script, expected) => {
@@ -114,8 +118,8 @@ describe("a multiple declaration binds after its values", () => {
 });
 
 it.each([
-  ["a spread call", "function pair()\n  return 3, 4\nend\nstore a = 1\nstore b, a = pair()\n\nValue {a} {b}.\n", 4, "Value 1 3.\n"],
-  ["its own value", "store a = 1\nstore b, a = 5, 6\n\nValue {a} {b}.\n", 1, "Value 1 5.\n"],
+  ["a spread call", "function pair()\n  return 3, 4\nend\nstore a = 1\nstore b, a = pair()\n\nscene start\n  Value {a} {b}.\nend\n", 4, "Value 1 3.\n"],
+  ["its own value", "store a = 1\nstore b, a = 5, 6\n\nscene start\n  Value {a} {b}.\nend\n", 1, "Value 1 5.\n"],
 ])("drops the value of a duplicate name given by %s", (_, script, line, expected) => {
   const { program } = compileScript(script);
   expect(errorsOf(program)).toEqual([
@@ -130,17 +134,12 @@ describe("separate declarations bind one after another", () => {
   it.each([
     [
       "stores in a function",
-      "function holder()\n  store c = 1\n  store d = c + 1\n  return 0\nend\nValue {d}.\n",
-      "Value 2.\n",
-    ],
-    [
-      "a block's constant and store",
-      "if true then\n  const X = 1\n  store y = X + 1\nend\nValue {y}.\n",
+      "function holder()\n  store c = 1\n  store d = c + 1\n  return 0\nend\nscene start\n  Value {d}.\nend\n",
       "Value 2.\n",
     ],
     [
       "a store after a store of several names",
-      "function holder()\n  store a, b = 1, 2\n  store c = a + b\n  return 0\nend\nValue {c}.\n",
+      "function holder()\n  store a, b = 1, 2\n  store c = a + b\n  return 0\nend\nscene start\n  Value {c}.\nend\n",
       "Value 3.\n",
     ],
   ])("for %s", (_, script, expected) => {
@@ -150,13 +149,13 @@ describe("separate declarations bind one after another", () => {
 
 describe("the declaration code", () => {
   it("is unchanged for declarations of one name", () => {
-    expect(declarationCode(compileScript("store x = 1\nconst Y = 2\n\nHello.\n").program.chunks!)).toEqual([
+    expect(declarationCode(compileScript("store x = 1\nconst Y = 2\n\nscene start\n  Hello.\nend\n").program.chunks!)).toEqual([
       ["Int 1", "SetVar x flags 3"],
       ["Int 2", "SetVar Y flags 3"],
     ]);
     expect(
       declarationCode(
-        compileScript("function holder()\n  store a = 1\n  store b = 2\n  return 0\nend\nHello.\n")
+        compileScript("function holder()\n  store a = 1\n  store b = 2\n  return 0\nend\nscene start\n  Hello.\nend\n")
           .program.chunks!,
       ),
     ).toEqual([["Int 1", "SetVar a flags 3", "Int 2", "SetVar b flags 3"]]);
@@ -166,7 +165,7 @@ describe("the declaration code", () => {
     expect(
       declarationCode(
         compileScript(
-          "function holder()\n  store c = 0\n  store a, b = 1, 2\n  store d = 3\n  return 0\nend\nHello.\n",
+          "function holder()\n  store c = 0\n  store a, b = 1, 2\n  store d = 3\n  return 0\nend\nscene start\n  Hello.\nend\n",
         ).program.chunks!,
       ),
     ).toEqual([
@@ -203,7 +202,7 @@ describe("an issue a store's value raises", () => {
   const TRIGGER = 'function trigger()\n  display({text = "A", continues = true})\n  return 0\nend\n';
 
   const holder = (values: string, after = "2") =>
-    `${TRIGGER}function holder()\n  store c = 1\n  store a, b, e = ${values}\n  store d = ${after}\n  return 0\nend\nHello.\n`;
+    `${TRIGGER}function holder()\n  store c = 1\n  store a, b, e = ${values}\n  store d = ${after}\n  return 0\nend\nscene start\n  Hello.\nend\n`;
 
   it.each([
     ["an error in the first value", `${FAIL}, 2, 3`],
@@ -227,7 +226,7 @@ describe("an issue a store's value raises", () => {
   it("reports an error in a spread call's values at that store, and in the store after it there", () => {
     const pair = "function pair()\n  return 3, 4\nend\n";
     const script = (values: string, after: string) =>
-      `${pair}function holder()\n  store c = 1\n  store a, b, e = ${values}\n  store d = ${after}\n  return 0\nend\nHello.\n`;
+      `${pair}function holder()\n  store c = 1\n  store a, b, e = ${values}\n  store d = ${after}\n  return 0\nend\nscene start\n  Hello.\nend\n`;
     expect(linesOf(script(`${FAIL}, pair()`, "2"))).toEqual([5]);
     expect(linesOf(script(`1, pair()`, FAIL))).toEqual([6]);
   });

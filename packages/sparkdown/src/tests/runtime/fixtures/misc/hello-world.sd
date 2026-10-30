@@ -1,2 +1,4 @@
-Hello world
-done
+scene start
+  Hello world
+  done
+end

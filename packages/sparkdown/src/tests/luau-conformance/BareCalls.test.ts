@@ -1,3 +1,4 @@
+
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -35,8 +36,10 @@ describe("bare statement-level calls inside function bodies", () => {
   test("bare call fires the bound external", () => {
     const src = `external host_record(v)
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(42)
@@ -57,8 +60,10 @@ end
   test("prefixed call still works (regression guard)", () => {
     const src = `external host_record(v)
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(99)
@@ -79,8 +84,10 @@ end
   test("bare DOTTED stdlib call fires (table.insert without `&`)", () => {
     const src = `external host_record(v)
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 1, 2, 3 }

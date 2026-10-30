@@ -1,4 +1,4 @@
-export const MORPH_BAKE_FORMAT = 14;
+export const MORPH_BAKE_FORMAT = 15;
 
 export type MorphBlend = "morph" | "fade" | "cut" | "scale";
 export type MorphFallback = "fade" | "cut" | "scale";
@@ -9,6 +9,7 @@ export interface MorphPolicy {
   method?: MorphMethodName;
   fallback?: MorphFallback;
   depth?: string;
+  partner?: string[];
 }
 
 export interface MorphRecipe {
@@ -75,7 +76,8 @@ export type MorphDiagnosticCode =
   | "source-unreadable"
   | "inactive-variant"
   | "depth-ignored"
-  | "paint-target-missing";
+  | "paint-target-missing"
+  | "partner-missing";
 
 export interface MorphBakeDiagnostic {
   code: MorphDiagnosticCode;
@@ -116,6 +118,7 @@ export type MorphTransition =
       frames: MorphGeometryRef;
       paint?: MorphPaint;
       gradients?: { fill?: MorphGradientBlend; stroke?: MorphGradientBlend };
+      partner?: true;
     }
   | { kind: "fade"; from?: string; to?: string }
   | { kind: "cut"; from?: string; to?: string }
@@ -173,6 +176,8 @@ export interface MorphSegment {
   to: { offset: number; state: string };
   transitions: MorphTransition[];
   clips: MorphClipFrames[];
+  shapes?: Record<string, string>;
+  carry?: { from?: Record<string, string>; to?: Record<string, string> };
 }
 
 export interface MorphClipTarget {

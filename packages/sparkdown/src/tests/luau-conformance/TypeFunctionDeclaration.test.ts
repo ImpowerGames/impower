@@ -72,7 +72,7 @@ describe("type function declaration", () => {
 
   test("code after it in a run file stays in the file's function", () => {
     const { errors, warnings, recorded } = run([
-      { uri: "inmemory:///main.sd", text: `external harness_record(v)\nrun "helpers"\ndone\n` },
+      { uri: "inmemory:///main.sd", text: `external harness_record(v)\n\nscene start\n  run "helpers"\n  done\nend\n` },
       {
         uri: "inmemory:///helpers.luau",
         text: `local a = 5\nharness_record(a)\ntype function F(t)\n    return t\nend\nharness_record(a)\n`,
@@ -88,9 +88,12 @@ describe("type function declaration", () => {
       {
         uri: "inmemory:///main.sd",
         text: `external harness_record(v)
-& f()
-& harness_record(3)
-done
+
+scene start
+  & f()
+  & harness_record(3)
+  done
+end
 
 function f()
   local a = 1
@@ -230,8 +233,11 @@ end
       {
         uri: "inmemory:///main.sd",
         text: `external harness_record(v)
-& harness_record(type(1))
-done
+
+scene start
+  & harness_record(type(1))
+  done
+end
 `,
       },
     ]);
@@ -381,6 +387,9 @@ type U = F<string>
 function _f()
   local _x: U = 1
 end
+
+scene start
+end
 `;
     expect(scriptDiagnostics(text)).toEqual([
       `7:9-7:18 ${CANNOT_EVALUATE}`,
@@ -440,8 +449,10 @@ function f()
   return g()
 end
 
-& f()
-done
+scene start
+  & f()
+  done
+end
 `;
     expect(scriptDiagnostics(text).filter((d) => d.includes(CANNOT_EVALUATE))).toEqual([`8:22-8:31 ${CANNOT_EVALUATE}`]);
   });
@@ -453,6 +464,9 @@ end
 type U = F<string>
 function _f()
   local _x: U = 1
+end
+
+scene start
 end
 `;
     expect(scriptDiagnostics(text)).toEqual([]);
@@ -468,6 +482,9 @@ type function F(t)
 end
 function _f()
   local _x: number = 1
+end
+
+scene start
 end
 `;
     expect(scriptDiagnostics(text)).toEqual([]);

@@ -104,7 +104,7 @@ describe("shared AST name facts", () => {
     expect(index([{ uri: "second", names: names(edited) }]).uncertainNames.size).toBe(0);
   });
   test("embedded stores publish explicit global writes", () => {
-    const source = "define hero as character with\n callback = function() store saved = 1; return saved end\nend\nHi.\n";
+    const source = "define hero as character with\n callback = function() store saved = 1; return saved end\nend\nscene start\n  Hi.\nend\n";
     expect(diagnoseDetailed(source).filter(d => d.severity === 1)).toEqual([]);
     const value = script(source);
     const facts = names(value);
@@ -118,7 +118,7 @@ describe("shared AST name facts", () => {
   });
 
   test("embedded function-valued stores retain explicit kind and function identity", () => {
-    const source = "define hero as character with\n callback = function() store storedCallback = function() return 1 end; return storedCallback end\nend\nHi.\n";
+    const source = "define hero as character with\n callback = function() store storedCallback = function() return 1 end; return storedCallback end\nend\nscene start\n  Hi.\nend\n";
     expect(diagnoseDetailed(source).filter(d => d.severity === 1)).toEqual([]);
     const value = script(source);
     const facts = names(value);
@@ -137,7 +137,7 @@ describe("shared AST name facts", () => {
     ["closure", "function inspect() local n = 1; const n = 2; return (function() return n end)() end", "inspect()", 2, true],
     ["outer block", "function inspect() local n = 1; do const n = 2 end; return n end", "inspect()", 1, false],
   ])("a const in a function shadows the %s as a local", (_label, body, call, expected, readsConst) => {
-    const source = `Value {${call}}.\n${body}\n`;
+    const source = `scene start\n  Value {${call}}.\nend\n${body}\n`;
     const runtime = makeRuntimeStoryFromSource(source);
     expect(runtime.errorMessages).toEqual([]);
     expect(runtime.story.ContinueMaximally()).toBe(`Value ${expected}.\n`);
@@ -151,7 +151,7 @@ describe("shared AST name facts", () => {
   });
 
   test("a rejected store/local collision still identifies the explicit global target", () => {
-    const source = "Value {inspect()} {saved}.\nfunction inspect() local saved = 7; store saved = 1; return saved end\n";
+    const source = "scene start\n  Value {inspect()} {saved}.\nend\nfunction inspect() local saved = 7; store saved = 1; return saved end\n";
     const runtime = makeRuntimeStoryFromSource(source);
     expect(runtime.errorMessages).toHaveLength(1);
     expect(runtime.errorMessages[0]).toContain("Duplicate identifier `saved`");
@@ -164,7 +164,7 @@ describe("shared AST name facts", () => {
   });
 
   test.each([["=", "write"], ["+=", "readwrite"]])("a rejected %s to a const in a function names the const's local", (operator, access) => {
-    const source = `Value {inspect()}.\nfunction inspect() local n = 1; const n = 2; n ${operator} 3; return n end\n`;
+    const source = `scene start\n  Value {inspect()}.\nend\nfunction inspect() local n = 1; const n = 2; n ${operator} 3; return n end\n`;
     const runtime = makeRuntimeStoryFromSource(source);
     expect(runtime.errorMessages).toEqual(["Variable 'n' is constant and may not be reassigned"]);
     const facts = names(script(source));
@@ -194,7 +194,7 @@ describe("shared AST name facts", () => {
   });
 
   test("chained consts in a function each shadow the one before", () => {
-    const source = "Value {inspect()}.\nfunction inspect() local n = 1; const n = 2; const n = 3; return n end\n";
+    const source = "scene start\n  Value {inspect()}.\nend\nfunction inspect() local n = 1; const n = 2; const n = 3; return n end\n";
     const runtime = makeRuntimeStoryFromSource(source);
     expect(runtime.errorMessages).toEqual([]);
     expect(runtime.story.ContinueMaximally()).toBe("Value 3.\n");
@@ -207,7 +207,7 @@ describe("shared AST name facts", () => {
   });
 
   test("a const table in a function stays mutable and its member function names its local", () => {
-    const source = "Value {inspect()}.\nfunction inspect() const T = {}; function T.x() return 3 end; return T.x() end\n";
+    const source = "scene start\n  Value {inspect()}.\nend\nfunction inspect() const T = {}; function T.x() return 3 end; return T.x() end\n";
     const runtime = makeRuntimeStoryFromSource(source);
     expect(runtime.errorMessages).toEqual([]);
     expect(runtime.story.ContinueMaximally()).toBe("Value 3.\n");
@@ -450,7 +450,7 @@ describe("shared AST name facts", () => {
   test("compiler recombination uses the program's current scripts and cached untouched trees", () => {
     const compiler = testCompiler();
     const files = [
-      { uri: "inmemory:///main.sd", text: "function target() end\nReady.\n", name: "main" },
+      { uri: "inmemory:///main.sd", text: "function target() end\nscene start\n  Ready.\nend\n", name: "main" },
       { uri: "inmemory:///use.sd", text: "scene greeting\n  Hi {target()}.\nend\n", name: "use" },
     ].map(f => ({ ...f, type: "script" as const, ext: "sd", version: 1, languageId: "sparkdown" }));
     compiler.configure({ files });

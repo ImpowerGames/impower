@@ -13,7 +13,7 @@ function nodeNames(text: string): string[] {
   return names;
 }
 
-const STORY = "Hello.\n";
+const STORY = "scene start\n  Hello.\nend\n";
 
 const MALFORMED = [
   "  y =\n    print(1 2)\n",

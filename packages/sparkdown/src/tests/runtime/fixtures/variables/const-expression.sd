@@ -1,3 +1,5 @@
 const AREA = 2 + 3
 store x = AREA
-{x}
+scene start
+  {x}
+end

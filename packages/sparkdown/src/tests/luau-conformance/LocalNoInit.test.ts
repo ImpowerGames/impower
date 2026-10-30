@@ -40,8 +40,11 @@ function compileAndCapture(source: string): {
 describe("`local x` bare declaration (no init)", () => {
   test("declares variable initialized to nil", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local x
@@ -54,8 +57,11 @@ end
 
   test("subsequent re-assignment writes to the local, not a new global", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function inner()
@@ -72,8 +78,11 @@ end
 
   test("bare local doesn't leak to enclosing scope", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function inner()

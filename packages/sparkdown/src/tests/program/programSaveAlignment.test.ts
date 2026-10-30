@@ -60,7 +60,14 @@ const play = (story: ProgramStory, picks: number[] = []): { beats: string[]; men
 };
 
 const scene = (lines: string[], name = "start", header: string[] = []) =>
-  [...header, `-> ${name}`, "", `scene ${name}`, ...lines.map((l) => `  ${l}`), "end", ""].join("\n");
+  [
+    ...header,
+    ...(name === "start" ? [] : ["scene start", `  -> ${name}`, "end", ""]),
+    `scene ${name}`,
+    ...lines.map((l) => `  ${l}`),
+    "end",
+    "",
+  ].join("\n");
 
 const placed = (story: ProgramStory) => {
   const position = story.state.position!;
@@ -207,8 +214,6 @@ describe("a save taken below an edit loads at the same statement", () => {
       ),
       [
         ...header,
-        "-> start",
-        "",
         "scene start",
         "  A.",
         "  B.",
@@ -306,7 +311,9 @@ describe("a save inside a flow that was renamed", () => {
       "store target = nil",
       "store hops = 0",
       "",
-      `-> ${name}`,
+      "scene start",
+      `  -> ${name}`,
+      "end",
       "",
       `scene ${name}`,
       `  -> ${name}.first`,
@@ -361,7 +368,9 @@ describe("a save inside a flow that was renamed", () => {
 
   it("rewrites only its own name when its branch moved under a scene that still exists", () => {
     const before = [
-      "-> A",
+      "scene start",
+      "  -> A",
+      "end",
       "",
       "scene A",
       "  A starts.",
@@ -385,7 +394,9 @@ describe("a save inside a flow that was renamed", () => {
       "",
     ].join("\n");
     const after = [
-      "-> A",
+      "scene start",
+      "  -> A",
+      "end",
       "",
       "scene A",
       "  A starts.",
@@ -422,7 +433,9 @@ describe("the beats of a save loaded into a release that differs", () => {
   it("rename a flow that only an older beat stands in, before the counts are read", () => {
     const ACT = (name: string) =>
       [
-        `-> ${name}`,
+        "scene start",
+        `  -> ${name}`,
+        "end",
         "",
         `scene ${name}`,
         `  -> ${name}.b`,
@@ -457,8 +470,6 @@ describe("the beats of a save loaded into a release that differs", () => {
   it("keep a tunnel's frame into a renamed flow, whose function is read by its new name", () => {
     const TUNNEL = (name: string) =>
       [
-        "-> start",
-        "",
         "scene start",
         "  Before.",
         `  -> ${name}.b ->`,
@@ -743,8 +754,6 @@ describe("a save that cannot be placed at its newest beat", () => {
       "  return 0",
       "end",
       "",
-      "-> start",
-      "",
       "scene start",
       "  One {n}.",
       "  & n = n + 1",
@@ -893,8 +902,7 @@ describe("a save at a menu", () => {
   it("holding a choice a thread raised before its beat, places that choice by its part after its text was edited and a choice was added above it", () => {
     const THREADS = (edited: boolean) =>
       [
-        "-> hub",
-        "scene hub",
+        "scene start",
         "  You arrive.",
         "  <- merchant",
         "  <- guard",

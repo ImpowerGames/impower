@@ -21,7 +21,19 @@ const outcome = ({ program }: { program: SparkProgram }) => {
   };
 };
 
-const run = (text: string) => outcome(compileScript(text));
+const inScene = (text: string): string => {
+  const lines = text.trimEnd().split("\n");
+  const story = lines.findIndex((line) => !line.startsWith("function "));
+  return [
+    ...lines.slice(0, story),
+    "scene start",
+    ...lines.slice(story).map((line) => `  ${line}`),
+    "end",
+    "",
+  ].join("\n");
+};
+
+const run = (text: string) => outcome(compileScript(inScene(text)));
 
 const cases: [string, string, string][] = [
   [
@@ -83,8 +95,8 @@ describe("rebinding a top-level function through _G (I-1091)", () => {
 
   it("a write through _G past a local of the name rebinds the global", () => {
     const text =
-      "function f() return 7 end\nfunction swap()\n  local f = 3\n  _G.f = function() return f end\nend\n& swap()\nf is {f()}.\n";
-    expect(run(text)).toEqual({
+      "function f() return 7 end\nfunction swap()\n  local f = 3\n  _G.f = function() return f end\nend\nscene start\n  & swap()\n  f is {f()}.\nend\n";
+    expect(outcome(compileScript(text))).toEqual({
       text: "f is 3.\n",
       errors: [
         expect.objectContaining({
@@ -94,9 +106,10 @@ describe("rebinding a top-level function through _G (I-1091)", () => {
     });
   });
 
-  const fixed = "function f() return 7 end\n& x = 1\nf is {f()}.\n";
-  const rebound =
-    "function f() return 7 end\n& _G.f = function() return 2 end\nf is {f()}.\n";
+  const fixed = inScene("function f() return 7 end\n& x = 1\nf is {f()}.\n");
+  const rebound = inScene(
+    "function f() return 7 end\n& _G.f = function() return 2 end\nf is {f()}.\n",
+  );
   it("an edit that adds the _G write rebinds the call", () => {
     expect(
       runAfterEdit(fixed, "& x = 1", "& _G.f = function() return 2 end"),

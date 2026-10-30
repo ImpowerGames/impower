@@ -23,18 +23,18 @@ const spans = (source: string) =>
   ]);
 
 describe("calling a missing stdlib member", () => {
-  test("names the member at top level", () => {
-    expect(spans("& print(table.nogetn())\n")).toEqual([
+  test("names the member in a scene", () => {
+    expect(spans(inScene("& print(table.nogetn())"))).toEqual([
       [
         "Cannot find item or path named `table.nogetn`",
-        { line: 0, character: 8 },
-        { line: 0, character: 20 },
+        { line: 1, character: 10 },
+        { line: 1, character: 22 },
       ],
     ]);
   });
 
   test("names the member of another library", () => {
-    expect(diagnoseWithLints("& print(math.nosuch(1))\n")).toEqual([
+    expect(diagnoseWithLints(inScene("& print(math.nosuch(1))"))).toEqual([
       "Cannot find item or path named `math.nosuch`",
     ]);
   });
@@ -48,23 +48,23 @@ describe("calling a missing stdlib member", () => {
   });
 
   test("an existing member reports nothing", () => {
-    expect(diagnoseWithLints('& print(table.concat({"a"}))\n')).toEqual([]);
+    expect(diagnoseWithLints(inScene('& print(table.concat({"a"}))'))).toEqual([]);
   });
 
   test("a deprecated member keeps its deprecation", () => {
-    expect(diagnoseWithLints("& print(table.getn({}))\n")).toEqual([
+    expect(diagnoseWithLints(inScene("& print(table.getn({}))"))).toEqual([
       "`table.getn(t)` is deprecated in Luau. Use the length operator `#t` instead.",
     ]);
   });
 
   test("an unknown global keeps its message", () => {
-    expect(diagnoseWithLints("& print(foo.bar())\n")).toEqual([
+    expect(diagnoseWithLints(inScene("& print(foo.bar())"))).toEqual([
       "Cannot find variable named `foo`",
     ]);
   });
 
   test("calling a stdlib constant reports nothing at compile time", () => {
-    expect(diagnoseWithLints("& print(math.pi())\n")).toEqual([]);
+    expect(diagnoseWithLints(inScene("& print(math.pi())"))).toEqual([]);
   });
 });
 
@@ -351,33 +351,41 @@ describe("a local named like a library in a project of several scripts", () => {
     diagnoseFilesDetailed(sources)
       .filter((d) => d.message.startsWith("Cannot find item or path named"))
       .map((d) => `${d.file}:${d.range!.start.line + 1}`);
+  const refused = (sources: Record<string, string>) =>
+    diagnoseFilesDetailed(sources)
+      .filter((d) => d.message.startsWith("local declaration must be inside a scene"))
+      .map((d) => `${d.file}:${d.range!.start.line + 1}`);
 
-  test("is out of scope before it in its own script", () => {
+  test("is out of scope outside its scene in its own script", () => {
     expect(
       missing({
-        "main.sd": `function early()\n    print(table.nogetn())\nend\n${SHADOW}\ndo\n    function late()\n        print(table.nogetn())\n    end\nend\n`,
+        "main.sd": `function early()\n    print(table.nogetn())\nend\n${inScene(SHADOW)}`,
         "scripts/chapter.sd": `scene chap_scene\n    Hello.\nend\n`,
       }),
     ).toEqual(["main.sd:2"]);
   });
 
-  test("is in scope in another script of the project, which comes after main", () => {
-    const chapter = `scene chap_scene\n    & print(table.nogetn)\nend\nfunction chap()\n    print(table.nogetn())\nend\n`;
-    expect(missing({ "main.sd": `${SHADOW}\n`, "scripts/chapter.sd": chapter })).toEqual([]);
-    expect(missing({ "main.sd": "Main.\n", "scripts/chapter.sd": chapter })).toEqual([
-      "scripts/chapter.sd:2",
-      "scripts/chapter.sd:5",
-    ]);
+  const chapter = `scene chap_scene\n    & print(table.nogetn)\nend\nfunction chap()\n    print(table.nogetn())\nend\n`;
+  const named = ["scripts/chapter.sd:2", "scripts/chapter.sd:5"];
+
+  test("stays in its scene, so another script of the project names the missing member", () => {
+    expect(missing({ "main.sd": inScene(SHADOW), "scripts/chapter.sd": chapter })).toEqual(named);
+  });
+
+  test("at the top level of main is refused and hides nothing in another script", () => {
+    const sources = { "main.sd": `${SHADOW}\nscene start\nend\n`, "scripts/chapter.sd": chapter };
+    expect(refused(sources)).toEqual(["main.sd:1"]);
+    expect(missing(sources)).toEqual(named);
   });
 });
 
 describe("calling a missing stdlib member with a colon", () => {
-  test("names the member at top level", () => {
-    expect(spans("& print(table:nogetn())\n")).toEqual([
+  test("names the member in a scene", () => {
+    expect(spans(inScene("& print(table:nogetn())"))).toEqual([
       [
         "Cannot find item or path named `table.nogetn`",
-        { line: 0, character: 8 },
-        { line: 0, character: 20 },
+        { line: 1, character: 10 },
+        { line: 1, character: 22 },
       ],
     ]);
   });
@@ -403,7 +411,7 @@ describe("calling a missing stdlib member with a colon", () => {
   });
 
   test("an existing member reports nothing", () => {
-    expect(diagnoseWithLints('& print(table:concat({"a"}))\n')).toEqual([]);
+    expect(diagnoseWithLints(inScene('& print(table:concat({"a"}))'))).toEqual([]);
   });
 
   test("the call fails at run time and pcall catches it", () => {
@@ -443,11 +451,11 @@ assert(string:padstart(4, "-") == "--ab", "padstart got " .. tostring(string:pad
   });
 
   test("calling a stdlib constant reports nothing at compile time", () => {
-    expect(diagnoseWithLints("& print(math:pi())\n")).toEqual([]);
+    expect(diagnoseWithLints(inScene("& print(math:pi())"))).toEqual([]);
   });
 
   test("a builtin method name on an unshadowed library names the member", () => {
-    expect(diagnoseWithLints("& print(table:len())\n")).toEqual([
+    expect(diagnoseWithLints(inScene("& print(table:len())"))).toEqual([
       "Cannot find item or path named `table.len`",
     ]);
   });
@@ -576,22 +584,30 @@ describe("a colon call on a library and a local named like it in a project of se
     diagnoseFilesDetailed(sources)
       .filter((d) => d.message.startsWith("Cannot find item or path named"))
       .map((d) => `${d.file}:${d.range!.start.line + 1}`);
+  const refused = (sources: Record<string, string>) =>
+    diagnoseFilesDetailed(sources)
+      .filter((d) => d.message.startsWith("local declaration must be inside a scene"))
+      .map((d) => `${d.file}:${d.range!.start.line + 1}`);
 
-  test("is out of scope before it in its own script", () => {
+  test("is out of scope outside its scene in its own script", () => {
     expect(
       missing({
-        "main.sd": `function early()\n    print(table:nogetn())\nend\n${SHADOW}\ndo\n    function late()\n        print(table:nogetn())\n    end\nend\n`,
+        "main.sd": `function early()\n    print(table:nogetn())\nend\n${inScene(SHADOW)}`,
         "scripts/chapter.sd": `scene chap_scene\n    Hello.\nend\n`,
       }),
     ).toEqual(["main.sd:2"]);
   });
 
-  test("is in scope in another script of the project, which comes after main", () => {
-    const chapter = `scene chap_scene\n    & print(table:nogetn())\nend\nfunction chap()\n    print(table:nogetn())\nend\n`;
-    expect(missing({ "main.sd": `${SHADOW}\n`, "scripts/chapter.sd": chapter })).toEqual([]);
-    expect(missing({ "main.sd": "Main.\n", "scripts/chapter.sd": chapter })).toEqual([
-      "scripts/chapter.sd:2",
-      "scripts/chapter.sd:5",
-    ]);
+  const chapter = `scene chap_scene\n    & print(table:nogetn())\nend\nfunction chap()\n    print(table:nogetn())\nend\n`;
+  const named = ["scripts/chapter.sd:2", "scripts/chapter.sd:5"];
+
+  test("stays in its scene, so another script of the project names the missing member", () => {
+    expect(missing({ "main.sd": inScene(SHADOW), "scripts/chapter.sd": chapter })).toEqual(named);
+  });
+
+  test("at the top level of main is refused and hides nothing in another script", () => {
+    const sources = { "main.sd": `${SHADOW}\nscene start\nend\n`, "scripts/chapter.sd": chapter };
+    expect(refused(sources)).toEqual(["main.sd:1"]);
+    expect(missing(sources)).toEqual(named);
   });
 });

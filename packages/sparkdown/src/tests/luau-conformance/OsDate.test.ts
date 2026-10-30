@@ -42,8 +42,10 @@ function compileAndCapture(source: string): {
 describe("os.date — format strings", () => {
   test("%Y-%m-%d format", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(os.date("!%Y-%m-%d", ${FIXED_EPOCH}))
@@ -55,8 +57,10 @@ end
 
   test("time-only %H:%M:%S", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(os.date("!%H:%M:%S", ${FIXED_EPOCH}))
@@ -68,8 +72,10 @@ end
 
   test("12-hour clock with %I and %p", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(os.date("!%I:%M %p", ${FIXED_EPOCH}))
@@ -81,8 +87,10 @@ end
 
   test("named weekday + month: %A %B", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(os.date("!%A, %B %d, %Y", ${FIXED_EPOCH}))
@@ -94,8 +102,10 @@ end
 
   test("abbreviated %a %b", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(os.date("!%a %b %d", ${FIXED_EPOCH}))
@@ -107,8 +117,10 @@ end
 
   test("%%  produces literal percent", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(os.date("!%d%% done", ${FIXED_EPOCH}))
@@ -120,8 +132,10 @@ end
 
   test("day-of-year %j", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(os.date("!%j", ${FIXED_EPOCH}))
@@ -135,8 +149,10 @@ end
 describe("os.date — table form (*t)", () => {
   test("returns a table with all fields", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = os.date("!*t", ${FIXED_EPOCH})
@@ -158,8 +174,10 @@ end
 describe("os.date — error paths", () => {
   test("unknown conversion errors", () => {
     const { errors } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(os.date("!%Q", ${FIXED_EPOCH}))
@@ -171,8 +189,10 @@ end
 
   test("dangling % errors", () => {
     const { errors } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(os.date("!%Y-%", ${FIXED_EPOCH}))

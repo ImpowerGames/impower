@@ -8,7 +8,7 @@ import {
 // Luau: recovery_error_limit_1
 describe("an assignment with no value", () => {
   test("local a = ", () => {
-    const msgs = diagnose("-> s\nscene s\n  local a = \nend\n");
+    const msgs = diagnose("scene start\n  local a = \nend\n");
     expect(msgs).toEqual([
       "Expected identifier when parsing expression, got <eof>",
     ]);

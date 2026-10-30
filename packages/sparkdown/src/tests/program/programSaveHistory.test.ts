@@ -173,7 +173,7 @@ describe("a beat's delta", () => {
     const text = [
       'store t = { a = "b=StringValue:c" }',
       "",
-      "-> start",
+      "",
       "",
       "scene start",
       "  One.",
@@ -202,7 +202,7 @@ describe("a beat's delta of a define", () => {
       '  store mood = "calm"',
       "end",
       "",
-      "-> start",
+      "",
       "",
       "scene start",
       '  & character.hero.mood = "glad"',
@@ -227,7 +227,7 @@ describe("what the rewind Feature reads at each beat", () => {
   const TEXT = [
     "store pool = { \"a\", \"b\", \"c\", \"d\", \"e\", \"f\", \"g\", \"h\" }",
     "",
-    "-> start",
+    "",
     "",
     "scene start",
     "  First.",
@@ -596,7 +596,7 @@ describe("what the rewind Feature reads at each beat", () => {
       "  return gold",
       "end",
       "",
-      "-> start",
+      "",
       "",
       "scene start",
       "  One.",
@@ -705,7 +705,7 @@ describe("a save's listings", () => {
     const { files } = buildPreviewFixture();
     const text = files
       .get("main.sd")!
-      .replace("scene MAIN\n", 'store mark = nil\n\n-> MAIN\n\nscene MAIN\n  & mark = function() return 1 end\n  Start {cycle|"a"|"b"}.\n');
+      .replace("scene MAIN\n", 'store mark = nil\n\nscene start\n  -> MAIN\nend\n\nscene MAIN\n  & mark = function() return 1 end\n  Start {cycle|"a"|"b"}.\n');
     const story = engine(rootOf(text));
     const beats = silence(() => play(story, [0]));
     expect(beats.length).toBeGreaterThan(700);
@@ -744,8 +744,7 @@ describe("a save's listings", () => {
 
   it("give a waiting choice, a decision and a count their windows", () => {
     const THREADS = [
-      "-> hub",
-      "scene hub",
+      "scene start",
       "  You arrive.",
       "  <- merchant",
       "  <- guard",

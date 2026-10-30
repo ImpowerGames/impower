@@ -21,6 +21,17 @@
 {
   "content": [
     {
+      "type": "Knot",
+      "name": "start",
+      "args": [],
+      "isFunction": false
+    }
+  ]
+}
+
+{
+  "content": [
+    {
       "type": "Weave",
       "content": [
         {
@@ -87,3 +98,5 @@
     }
   ]
 }
+
+{}

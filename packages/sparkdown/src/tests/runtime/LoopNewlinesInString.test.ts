@@ -37,8 +37,10 @@ const loopThen = (passes: number, after: string) => `function f()
 ${after}  return n
 end
 
-BOB:
-  Spinning {f()}.
+scene start
+  BOB:
+    Spinning {f()}.
+end
 `;
 
 describe("loop newlines inside a function called from an interpolation", () => {
@@ -63,8 +65,10 @@ describe("loop newlines inside a function called from an interpolation", () => {
   return n
 end
 
-BOB:
-  Spinning {f()}.
+scene start
+  BOB:
+    Spinning {f()}.
+end
 `);
       expect(ctx.errorMessages).toEqual([]);
       ctx.story.collapseWhitespace = false;
@@ -97,8 +101,10 @@ BOB:
   end
 ${body}end
 
-BOB:
-  Got {g()}.
+scene start
+  BOB:
+    Got {g()}.
+end
 `).text;
 
   test("a lone newline string built inside the function keeps its newline", () => {
@@ -125,8 +131,10 @@ BOB:
   return n
 end
 
-BOB:
-  Spinning {f()}.
+scene start
+  BOB:
+    Spinning {f()}.
+end
 `).text,
     ).toBe("Spinning hi3.\n");
   });

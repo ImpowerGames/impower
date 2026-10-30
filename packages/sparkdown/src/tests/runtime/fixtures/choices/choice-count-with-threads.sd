@@ -1,4 +1,6 @@
--> hub
+scene start
+  -> hub
+end
 scene hub
   {count.choices()}
   <- side

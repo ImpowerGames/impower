@@ -48,6 +48,8 @@ return {}
 end
 store count = 0
 store s: number
-& s = 2
-& count += 1
-The count is {count}.
+scene start
+  & s = 2
+  & count += 1
+  The count is {count}.
+end

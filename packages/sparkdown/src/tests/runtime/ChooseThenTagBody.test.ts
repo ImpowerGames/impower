@@ -2,9 +2,7 @@ import { describe, expect, test } from "vitest";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { testCompiler, testStory } from "../engineUnderTest";
 
-const SRC = `-> main
-
-scene main
+const SRC = `scene start
   choose
   + [A]
     Body A.

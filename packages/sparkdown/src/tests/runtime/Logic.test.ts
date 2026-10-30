@@ -8,8 +8,8 @@ import {
 describe("Logic (ported from inkjs)", () => {
   test("bare function-call statement (`& func()`)", () => {
     const src = `store counter = 0
--> main
-scene main
+
+scene start
   & inc()
   & inc()
   & inc()

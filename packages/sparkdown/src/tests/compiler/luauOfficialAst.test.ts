@@ -186,7 +186,7 @@ describe.skipIf(!officialLuauAvailable)(
       const ours = readLuauUnits(tree, input.text);
       mutate?.(ours);
       if (expectedIntegerErrors) {
-        expect(ours.flows).toEqual([]);
+        expect(ours.flows.flatMap((flow) => flow.errors)).toEqual([]);
         expect(ours.prelude.errors.map(({ location, message }) =>
           `${location.begin.line}:${location.begin.column}-${location.end.line}:${location.end.column} ${message}`,
         )).toEqual(expectedIntegerErrors);

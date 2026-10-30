@@ -3,7 +3,12 @@ import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, storyRun } from "./programHarness";
 
 const run = (text: string) => {
-  const { program } = compileScript(text);
+  const { program } = compileScript(
+    `scene start\n${text
+      .split("\n")
+      .map((line) => (line ? `  ${line}` : line))
+      .join("\n")}end\n`,
+  );
   const story = new ProgramStory(program.chunks!);
   return storyRun(story);
 };

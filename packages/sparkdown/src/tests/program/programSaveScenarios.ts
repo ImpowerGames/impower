@@ -20,7 +20,7 @@ export const SAVE_SCENARIOS: Record<string, SaveScenario> = {
       "store x = 0",
       "store keep = nil",
       "",
-      "-> start",
+      "",
       "",
       "scene start",
       "  Before.",
@@ -41,7 +41,7 @@ export const SAVE_SCENARIOS: Record<string, SaveScenario> = {
       "const K = 1",
       "store total = 0",
       "",
-      "-> start",
+      "",
       "",
       "scene start",
       "  First.",
@@ -56,7 +56,7 @@ export const SAVE_SCENARIOS: Record<string, SaveScenario> = {
     script: [
       "store n = 0",
       "",
-      "-> start",
+      "",
       "",
       "scene start",
       "  Begin.",
@@ -76,7 +76,7 @@ export const SAVE_SCENARIOS: Record<string, SaveScenario> = {
     script: [
       "store k = 0",
       "",
-      "-> start",
+      "",
       "",
       "scene start",
       "  Intro.",
@@ -93,7 +93,7 @@ export const SAVE_SCENARIOS: Record<string, SaveScenario> = {
   },
   last: {
     script: [
-      "-> start",
+      "",
       "",
       "scene start",
       "  for i = 1, 3 do",
@@ -113,7 +113,7 @@ export const SAVE_SCENARIOS: Record<string, SaveScenario> = {
   },
   variadic: {
     script: [
-      "-> start",
+      "",
       "",
       "scene start",
       "  Before.",
@@ -135,7 +135,7 @@ export const SAVE_SCENARIOS: Record<string, SaveScenario> = {
     script: [
       "store fns = {}",
       "",
-      "-> start",
+      "",
       "",
       "scene start",
       "  for i = 1, 2 do",
@@ -159,7 +159,7 @@ export const SAVE_SCENARIOS: Record<string, SaveScenario> = {
       "store inc = nil",
       "store get = nil",
       "",
-      "-> start",
+      "",
       "",
       "scene start",
       "  & alias = t",
@@ -197,7 +197,7 @@ export const SAVE_SCENARIOS: Record<string, SaveScenario> = {
 
 SAVE_SCENARIOS["long"] = {
   script: [
-    "-> start",
+    "",
     "",
     "scene start",
     ...Array.from({ length: 30 }, (_, i) => `  Line ${i + 1}.`),

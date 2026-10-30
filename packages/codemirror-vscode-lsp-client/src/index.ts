@@ -138,10 +138,6 @@ import { serverSignatureHelp } from "./signature";
 import { serverDocumentSymbols } from "./symbols";
 import { serverAutoSync } from "./sync";
 
-/// This function bundles all the extensions defined in this package,
-/// in a way that can be passed to the
-/// [`extensions`](#lsp-client.LSPClientConfig.extensions) option to
-/// `LSPClient`.
 export function languageServerExtensions(): readonly (
   | Extension
   | LSPClientExtension

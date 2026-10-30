@@ -4,7 +4,6 @@ import { getHover } from "../../utils/providers/getHover";
 
 let version = 0;
 
-// The hover's text, or null, with the cursor on the `..` at `index` in `text`.
 const hoverAt = async (text: string, index: number) => {
   const uri = `file:///glue${++version}.sd`;
   const documents = new SparkdownDocumentRegistry(["references"]);

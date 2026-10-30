@@ -1,29 +1,36 @@
-text.source.sparkdown [0..41]
- ├─ keyword.other.statement.explicit.luau.mark.sd [0..1]: "&"
- ├─ punctuation.whitespace.required.sd [1..2]: " "
- ├─ entity.name.function.luau [2..5]: "log"
- └─ meta.parameter.luau [5..41]
-     ├─ punctuation.definition.template-expression.begin.sd [5..6]: "("
-     ├─ string.interpolated.luau [6..40]
-     │   ├─ punctuation.definition.string.backtick.begin.sd [6..7]: "`"
-     │   ├─ markup.raw.text.sd [7..12]: "reset"
-     │   ├─ markup.raw.space.sd [12..13]: " "
-     │   ├─ markup.raw.text.sd [13..22]: "companion"
-     │   ├─ markup.raw.space.sd [22..23]: " "
-     │   ├─ meta.template.expression.luau [23..28]
-     │   │   ├─ punctuation.definition.template-expression.begin.sd [23..24]: "{"
-     │   │   ├─ meta.embedded.line.luau [24..27]
-     │   │   │   └─ variable.other.readwrite.luau [24..27]: "key"
-     │   │   └─ punctuation.definition.template-expression.end.sd [27..28]: "}"
-     │   ├─ markup.raw.space.sd [28..29]: " "
-     │   ├─ markup.raw.punctuation.sd [29..30]: "("
-     │   ├─ meta.template.expression.luau [30..38]
-     │   │   ├─ punctuation.definition.template-expression.begin.sd [30..31]: "{"
-     │   │   ├─ meta.embedded.line.luau [31..37]
-     │   │   │   ├─ variable.other.readwrite.luau [31..32]: "v"
-     │   │   │   ├─ meta.template.expression.accessor.sd [32..33]: "."
-     │   │   │   └─ variable.other.property.luau [33..37]: "name"
-     │   │   └─ punctuation.definition.template-expression.end.sd [37..38]: "}"
-     │   ├─ markup.raw.punctuation.sd [38..39]: ")"
-     │   └─ punctuation.definition.string.backtick.end.sd [39..40]: "`"
-     └─ punctuation.definition.template-expression.end.sd [40..41]: ")"
+text.source.sparkdown [0..59]
+ ├─ keyword.control.scene.sd [0..5]: "scene"
+ ├─ punctuation.whitespace.required.sd [5..6]: " "
+ ├─ keyword.control.section.sd [6..11]: "start"
+ ├─ Newline [11..12]: "\n"
+ ├─ punctuation.whitespace.optional.sd [12..14]: "  "
+ ├─ keyword.other.statement.explicit.luau.mark.sd [14..15]: "&"
+ ├─ punctuation.whitespace.required.sd [15..16]: " "
+ ├─ entity.name.function.luau [16..19]: "log"
+ ├─ meta.parameter.luau [19..55]
+ │   ├─ punctuation.definition.template-expression.begin.sd [19..20]: "("
+ │   ├─ string.interpolated.luau [20..54]
+ │   │   ├─ punctuation.definition.string.backtick.begin.sd [20..21]: "`"
+ │   │   ├─ markup.raw.text.sd [21..26]: "reset"
+ │   │   ├─ markup.raw.space.sd [26..27]: " "
+ │   │   ├─ markup.raw.text.sd [27..36]: "companion"
+ │   │   ├─ markup.raw.space.sd [36..37]: " "
+ │   │   ├─ meta.template.expression.luau [37..42]
+ │   │   │   ├─ punctuation.definition.template-expression.begin.sd [37..38]: "{"
+ │   │   │   ├─ meta.embedded.line.luau [38..41]
+ │   │   │   │   └─ variable.other.readwrite.luau [38..41]: "key"
+ │   │   │   └─ punctuation.definition.template-expression.end.sd [41..42]: "}"
+ │   │   ├─ markup.raw.space.sd [42..43]: " "
+ │   │   ├─ markup.raw.punctuation.sd [43..44]: "("
+ │   │   ├─ meta.template.expression.luau [44..52]
+ │   │   │   ├─ punctuation.definition.template-expression.begin.sd [44..45]: "{"
+ │   │   │   ├─ meta.embedded.line.luau [45..51]
+ │   │   │   │   ├─ variable.other.readwrite.luau [45..46]: "v"
+ │   │   │   │   ├─ meta.template.expression.accessor.sd [46..47]: "."
+ │   │   │   │   └─ variable.other.property.luau [47..51]: "name"
+ │   │   │   └─ punctuation.definition.template-expression.end.sd [51..52]: "}"
+ │   │   ├─ markup.raw.punctuation.sd [52..53]: ")"
+ │   │   └─ punctuation.definition.string.backtick.end.sd [53..54]: "`"
+ │   └─ punctuation.definition.template-expression.end.sd [54..55]: ")"
+ ├─ Newline [55..56]: "\n"
+ └─ keyword.control.end.luau [56..59]: "end"

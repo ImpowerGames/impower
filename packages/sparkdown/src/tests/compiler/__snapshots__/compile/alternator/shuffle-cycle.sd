@@ -1,5 +1,7 @@
-shuffle cycle
-  | -> A
-  | -> B
-  | -> C
+scene start
+  shuffle cycle
+    | -> A
+    | -> B
+    | -> C
+  end
 end

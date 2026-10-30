@@ -39,7 +39,7 @@ function compile(src: string) {
 describe("front matter vs luau comment context", () => {
   test("`---` opens front matter, not a `---` doc comment", () => {
     const { tree, warnings } = compile(
-      `---\ntitle: My Title\ncredit: Written by\nauthor: Someone\n---\n\n-> main\n\nscene main\n  Hi.\n  done\nend\n`,
+      `---\ntitle: My Title\ncredit: Written by\nauthor: Someone\n---\n\n\n\nscene start\n  Hi.\n  done\nend\n`,
     );
     expect(tree).toContain("FrontMatter");
     expect(tree).toContain("FrontMatterFieldKeyword");
@@ -49,7 +49,7 @@ describe("front matter vs luau comment context", () => {
 
   test("`--` in prose / dialogue is an em-dash, not a comment", () => {
     const { tree } = compile(
-      `-> main\n\nscene main\n  He turned -- slowly -- and left.\n  BUNNY:\n    Wait --\n  done\nend\n`,
+      `\n\nscene start\n  He turned -- slowly -- and left.\n  BUNNY:\n    Wait --\n  done\nend\n`,
     );
     expect(tree).not.toContain("LuauLineComment");
     expect(tree).not.toContain("LuauCommentMark");
@@ -57,7 +57,7 @@ describe("front matter vs luau comment context", () => {
 
   test("an action line that STARTS with `--` is an em-dash, not a comment", () => {
     const { tree } = compile(
-      `-> main\n\nscene main\n  -- He closes the app.   Pockets the smartphone. --\n  done\nend\n`,
+      `\n\nscene start\n  -- He closes the app.   Pockets the smartphone. --\n  done\nend\n`,
     );
     expect(tree).not.toContain("LuauLineComment");
     expect(tree).not.toContain("LuauCommentMark");
@@ -66,7 +66,7 @@ describe("front matter vs luau comment context", () => {
 
   test("a `--`-led line inside a sparkdown `if` block is still prose", () => {
     const { tree } = compile(
-      `-> main\n\nscene main\n  if true then\n    -- Reaches toward it --\n  end\n  done\nend\n`,
+      `\n\nscene start\n  if true then\n    -- Reaches toward it --\n  end\n  done\nend\n`,
     );
     expect(tree).not.toContain("LuauLineComment");
     expect(tree).not.toContain("LuauCommentMark");
@@ -90,7 +90,7 @@ describe("front matter vs luau comment context", () => {
 describe("typed OOP define registers in the struct registry", () => {
   test("`define X as character` resolves a dialogue cue by name", () => {
     const { warnings, program } = compile(
-      `define raffles as character with\n  name = "RAFFLES"\nend\n\n-> main\n\nscene main\n  RAFFLES:\n    Hello.\n  done\nend\n`,
+      `define raffles as character with\n  name = "RAFFLES"\nend\n\n\n\nscene start\n  RAFFLES:\n    Hello.\n  done\nend\n`,
     );
     expect(warnings.filter((w) => /Cannot find character/.test(w))).toEqual([]);
     expect(program.context?.["character"]?.["raffles"]).toMatchObject({

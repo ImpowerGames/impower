@@ -23,8 +23,10 @@ function compileAndCapture(source: string): { errors: string[]; recorded: unknow
 describe("stdlib constants", () => {
   test("math.pi evaluates to Math.PI", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(math.pi)
@@ -36,8 +38,10 @@ end
 
   test("math.huge evaluates to true Infinity", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(math.huge)
@@ -49,8 +53,10 @@ end
 
   test("_VERSION evaluates to 'Luau'", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(_VERSION)

@@ -1,8 +1,3 @@
-/* Custom-element host box — only present when this component is consumed
-   via its <sparkdown-screenplay-preview> custom-element wrapper (e.g.
-   vscode-sparkdown). When rendered directly as a Preact component (e.g.
-   impower-dev), the `.sparkdown-screenplay-preview-root` element below is
-   the box instead, so every other rule is keyed on that class. */
 sparkdown-screenplay-preview {
   display: flex;
   flex: 1;

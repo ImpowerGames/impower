@@ -27,8 +27,7 @@ function compileStory(source: string): ProgramRoot {
 function storySource(setupBody: string, checkBody: string, prelude = ""): string {
   return `external host_record(v)
 ${prelude}
--> main
-scene main
+scene start
   & setup()
   choose
     * [go]

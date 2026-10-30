@@ -1,5 +1,11 @@
 export function displayScreenplay(): string {
-  const L: string[] = ["# opening tag", "Before any scene.", ""];
+  const L: string[] = [
+    "scene start",
+    "  # opening tag",
+    "  Before any scene.",
+    "end",
+    "",
+  ];
   for (let s = 0; s < 6; s++) {
     L.push(`scene SCENE_${s}`);
     L.push(`  The room ${s} is quiet.`);

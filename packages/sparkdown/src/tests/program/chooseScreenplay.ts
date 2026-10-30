@@ -4,7 +4,9 @@ export function chooseScreenplay(scenes = 3): string {
     "store has_key = true",
     "store passes = 0",
     "",
-    "Before any scene.",
+    "scene start",
+    "  Before any scene.",
+    "end",
     "",
   ];
   for (let s = 0; s < scenes; s++) {

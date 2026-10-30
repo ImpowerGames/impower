@@ -11,7 +11,9 @@ export function autoGlobalScreenplay(scenes = 4): string {
     "  return bumped",
     "end",
     "",
-    "Before any scene {tally} {bumped}.",
+    "scene start",
+    "  Before any scene {tally} {bumped}.",
+    "end",
     "",
   ];
   for (let s = 0; s < scenes; s++) {

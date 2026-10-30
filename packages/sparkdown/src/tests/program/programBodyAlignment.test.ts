@@ -90,8 +90,7 @@ const ids = (root: ProgramRoot, markers: readonly string[]) =>
 
 describe("the then clauses of a choose block emitted again in place", () => {
   const text = [
-    "-> main",
-    "scene main",
+    "scene start",
     "  label top",
     "  choose",
     "    Caption {top}.",
@@ -166,8 +165,7 @@ describe("the then clauses of a choose block emitted again in place", () => {
 describe("the branches of an if emitted again in place", () => {
   const text = [
     "store n = 2",
-    "-> main",
-    "scene main",
+    "scene start",
     "  Before.",
     "  if n == 1 then",
     "    One.",
@@ -237,8 +235,7 @@ describe("a loop and a function emitted again in place", () => {
   it("keeps a loop's body id when its header is edited", () => {
     const s = session(
       [
-        "-> main",
-        "scene main",
+        "scene start",
         "  Before.",
         "  for i = 1, 2 do",
         "    Loop {i}.",
@@ -259,7 +256,7 @@ describe("a loop and a function emitted again in place", () => {
   ] as const) {
     it(`keeps ${kind}'s body id when its header is edited`, () => {
       const s = session(
-        ["-> main", "scene main", "  Before.", ...loop, "  After.", "end", ""].join("\n"),
+        ["scene start", "  Before.", ...loop, "  After.", "end", ""].join("\n"),
       );
       const id = bodyWith(s.first, "Loop")!.id;
       expect(bodyWith(s.edit(before, after), "Loop")!.id).toBe(id);
@@ -270,8 +267,7 @@ describe("a loop and a function emitted again in place", () => {
     const s = session(
       [
         "store n = 1",
-        "-> main",
-        "scene main",
+        "scene start",
         "  Before.",
         "  if n == 1 then",
         "    do",
@@ -292,8 +288,7 @@ describe("a loop and a function emitted again in place", () => {
   it("keeps the body id of a function written inside a statement when the statement is edited", () => {
     const s = session(
       [
-        "-> main",
-        "scene main",
+        "scene start",
         "  Before.",
         "  local f, x = function()",
         "    return 4242",
@@ -314,8 +309,7 @@ describe("the record of how each body id was handed on", () => {
     const s = session(
       [
         "store n = 2",
-        "-> main",
-        "scene main",
+        "scene start",
         "  Before.",
         "  if n == 1 then",
         "    One.",

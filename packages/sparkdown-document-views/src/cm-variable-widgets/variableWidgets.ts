@@ -41,20 +41,11 @@ interface FileSystemReader {
   url: (uri: string | undefined) => string | undefined;
 }
 
-/**
- * The per-variable detail these widgets render.
- *
- * `SparkProgram` stopped carrying a `variables` map when the compiler moved
- * struct data into `context`, so nothing populates this today and the widgets
- * below never render. The shape is written out rather than left as `any` so
- * the gap stays visible.
- */
 interface SparkVariableField {
   from: number;
   to: number;
   key?: string;
   path?: string;
-  /** Compiled value; its shape depends on the field's declared type. */
   compiled?: any;
   ranges?: Record<string, { from: number; to: number }>;
 }
@@ -64,13 +55,11 @@ interface SparkVariable {
   to: number;
   type?: string;
   implicit?: boolean;
-  /** Compiled struct; its shape depends on the variable's declared type. */
   compiled?: any;
   ranges?: Record<string, { from: number; to: number }>;
   fields?: SparkVariableField[];
 }
 
-/** A program as these widgets expect it. See `SparkVariable`. */
 type VariableProgram = SparkProgram & {
   variables?: Record<string, SparkVariable>;
 };
@@ -151,7 +140,6 @@ const playAudio = async (
   offset: number = 0,
   pitchBend: number = 0,
 ) => {
-  // TODO: Retain play button state even on editor teardown.
   context.audioContext ??= new AudioContext();
   const playButton = getPlayButton(dom, playId);
   const isPlaying = playButton?.dataset["action"] === "stop";
@@ -179,7 +167,6 @@ const playAudio = async (
     context.audioPlayerGroups[playId] = null;
     const players = await loadPlayers();
     if (context.audioPlayerGroups[playId] === null) {
-      // Loading wasn't interrupted, so we should play
       context.audioPlayerGroups[playId] = players;
       if (playButton) {
         playButton.dataset["action"] = "stop";
@@ -380,7 +367,6 @@ const getNextUnindentedLine = (
 };
 
 const getStructValueRange = (view: EditorView, structWidgetPos: number) => {
-  // Use latest view state
   const state = view.state;
   const widgetLine = state.doc.lineAt(structWidgetPos);
   const indentCols =
@@ -406,7 +392,6 @@ const getStructValueChanges = (
   structWidgetPos: number,
   structObj: unknown,
 ) => {
-  // Use latest view state
   const state = view.state;
   const structValueRange = getStructValueRange(view, structWidgetPos);
   if (structValueRange) {
@@ -619,7 +604,6 @@ const getAudioVariableWidgets = (
   const config = state.facet(variableWidgetsConfig);
   const context = VARIABLE_WIDGET_CONTEXT;
   const widgetRanges: Range<Decoration>[] = [];
-  // TODO: Allow editing cues with visual waveform sliders
   const playWidget = Decoration.widget({
     side: 1,
     id: variableId,
@@ -653,7 +637,6 @@ const getLayeredAudioVariableWidgets = (
   const config = state.facet(variableWidgetsConfig);
   const context = VARIABLE_WIDGET_CONTEXT;
   const widgetRanges: Range<Decoration>[] = [];
-  // TODO: Allow editing cues with visual waveform sliders
   const playWidget = Decoration.widget({
     side: 1,
     id: variableId,

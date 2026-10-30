@@ -124,7 +124,6 @@ describe("a flow's parameters on the program engine", () => {
   it("binds them for a divert, a tunnel and a thread to the flow, and not for a jump into its middle", () => {
     const { actual } = runOf(
       [
-        "-> start",
         "scene start",
         "  -> visit(\"tunnel\") ->",
         "  <- forked(\"thread\")",
@@ -167,7 +166,9 @@ describe("a flow's parameters on the program engine", () => {
   it("binds a branch's parameters, and a scene's before it enters its first branch", () => {
     const { actual } = runOf(
       [
-        "-> outer(1)",
+        "scene start",
+        "  -> outer(1)",
+        "end",
         "scene outer(a)",
         "  branch inner",
         "    Inner {a}.",
@@ -187,7 +188,9 @@ describe("a flow's parameters on the program engine", () => {
   it("packs a variadic flow's arguments, padding a missing parameter with nil", () => {
     const { actual } = runOf(
       [
-        "-> many(1, 2, 3)",
+        "scene start",
+        "  -> many(1, 2, 3)",
+        "end",
         "scene many(a, ...)",
         "  Many {a} {select(\"#\", ...)}.",
         "  -> few",
@@ -209,7 +212,6 @@ describe("a flow's parameters on the program engine", () => {
   it("passes an onward return's arguments to the flow it goes on to", () => {
     const { actual } = runOf(
       [
-        "-> start",
         "scene start",
         "  -> tunnel ->",
         "end",
@@ -232,7 +234,6 @@ describe("an onward return to a variable target", () => {
   it("passes its arguments to the flow the variable holds", () => {
     const text = [
       "store goal = -> after",
-      "-> start",
       "scene start",
       "  -> tunnel ->",
       "end",
@@ -256,6 +257,8 @@ describe("an onward return to a variable target", () => {
 
 describe("a host entering a scene that takes parameters", () => {
   const text = [
+    "scene start",
+    "end",
     "scene pair(a, b)",
     "  Pair {a} {b}.",
     "  done",
@@ -297,7 +300,9 @@ describe("a flow's entry", () => {
   it("keeps its chunk when its header is lowered again and reads the same", () => {
     const s = session(
       [
-        "-> outer(1)",
+        "scene start",
+        "  -> outer(1)",
+        "end",
         "scene outer(a)",
         "  branch inner",
         "    Inner {a}.",
@@ -335,7 +340,6 @@ describe("a compile whose builtin call reports its arguments", () => {
 
 describe("a flow's parameter list", () => {
   const text = [
-    "-> start",
     "scene start",
     "  Start.",
     "  -> target(1) ->",
@@ -390,7 +394,6 @@ describe("a flow's parameter list", () => {
     }
     const source = [
       "store held = 1",
-      "-> start",
       "scene start",
       "  -> target(held) ->",
       "  Between.",

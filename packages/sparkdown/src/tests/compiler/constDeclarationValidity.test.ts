@@ -28,14 +28,14 @@ const errorsOf = (p: any) =>
     : Object.values(p.diagnostics ?? {}).flat()
   ).filter((d: any) => d.severity === 1);
 
-function check(body: string) {
+function check(body: string, story = "") {
   const realWarn = console.warn;
   const realError = console.error;
   console.warn = () => {};
   console.error = () => {};
   try {
     const p = compile(
-      body + "\nscene main\n:\n  Value {SHOW}.\n-> DONE\nend\n",
+      body + "\nscene start\n" + (story ? `  ${story}\n` : "") + ":\n  Value {SHOW}.\n-> DONE\nend\n",
     );
     const constants = [...(p.chunks?.tables?.constantNames ?? [])];
     return {
@@ -94,7 +94,7 @@ describe("const declaration validity", () => {
   });
 
   it("assigning to a const is an error", () => {
-    const r = check("const SHOW = 5\n& SHOW = 6");
+    const r = check("const SHOW = 5", "& SHOW = 6");
     expect(r.hasProgram).toBe(true);
     expect(r.errors).toBeGreaterThan(0);
   });
@@ -118,7 +118,7 @@ describe("const declaration validity", () => {
 
   it("a shadowing local is read inside its function, and the const outside it", () => {
     const ctx = makeRuntimeStoryFromSource(
-      "const SHOW = 5\nValue {f(2)} {SHOW}.\nfunction f(n)\n  local SHOW = n\n  return SHOW\nend\n",
+      "const SHOW = 5\nfunction f(n)\n  local SHOW = n\n  return SHOW\nend\n\nscene start\n  Value {f(2)} {SHOW}.\nend\n",
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 2 5.\n");

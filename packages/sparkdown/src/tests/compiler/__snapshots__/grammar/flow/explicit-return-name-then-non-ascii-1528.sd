@@ -1,4 +1,6 @@
-& return x名
+scene start
+  & return x名
+end
 scene main
   & return x名
   Hello 名.

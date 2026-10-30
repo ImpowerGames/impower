@@ -8,7 +8,7 @@ function run(source: string) {
 }
 
 function body(lines: string[]): string {
-  return `Value {f()}.\nfunction f()\n${lines.map((l) => `  ${l}\n`).join("")}end\n`;
+  return `function f()\n${lines.map((l) => `  ${l}\n`).join("")}end\nscene start\n  Value {f()}.\nend\n`;
 }
 
 describe("a block comment spanning lines after a type, with a call after its close", () => {
@@ -16,7 +16,7 @@ describe("a block comment spanning lines after a type, with a call after its clo
     ["typed local", body(["local w: number --[[a", "b]] print(1)", "w = 5", "return w"])],
     [
       "return type",
-      `Value {f()}.\nfunction f(): number --[[a\n  b]] print(1)\n  return 5\nend\n`,
+      `function f(): number --[[a\n  b]] print(1)\n  return 5\nend\nscene start\n  Value {f()}.\nend\n`,
     ],
     ["optional type", body(["local w: number? --[[a", "b]] print(1)", "w = 5", "return w"])],
     ["table type", body(["local w: {number} --[[a", "b]] print(1)", "w = {5}", "return w[1]"])],
@@ -32,7 +32,7 @@ describe("a block comment spanning lines after a type, with a call after its clo
     ["typed local, comment on one line", body(["local w: number --[[a b]] print(1)", "w = 5", "return w"])],
     [
       "return type, comment on one line",
-      `Value {f()}.\nfunction f(): number --[[a b]] print(1)\n  return 5\nend\n`,
+      `function f(): number --[[a b]] print(1)\n  return 5\nend\nscene start\n  Value {f()}.\nend\n`,
     ],
   ])("control: %s", (_name, source) => {
     expect(run(source)).toEqual({ errors: [], output: "Value 15.\n" });
@@ -44,7 +44,7 @@ describe("a block comment spanning lines after a type, with code right after its
     ["typed local", body(["local w: number --[[a", "b]]print(1)", "w = 5", "return w"])],
     [
       "return type",
-      `Value {f()}.\nfunction f(): number --[[a\n  b]]print(1)\n  return 5\nend\n`,
+      `function f(): number --[[a\n  b]]print(1)\n  return 5\nend\nscene start\n  Value {f()}.\nend\n`,
     ],
     ["optional type", body(["local w: number? --[[a", "b]]print(1)", "w = 5", "return w"])],
     ["table type", body(["local w: {number} --[[a", "b]]print(1)", "w = {5}", "return w[1]"])],
@@ -75,7 +75,7 @@ describe("a block comment spanning lines after a type, with the type or declarat
     ["a line comment after the close", body(["local w: number --[[a", "b]] -- c", "w = 5", "return w"]), "Value 5.\n"],
     [
       "a parameter after the close",
-      `Value {f(2, 3)}.\nfunction f(a: number --[[a\n  b]], c: number)\n  return a + c\nend\n`,
+      `function f(a: number --[[a\n  b]], c: number)\n  return a + c\nend\nscene start\n  Value {f(2, 3)}.\nend\n`,
       "Value 5.\n",
     ],
   ])("%s", (_name, source, output) => {
@@ -97,7 +97,7 @@ describe("a block comment spanning lines after an operator or comma", () => {
 });
 
 test("a type name continued on the line after the close keeps its qualifier", () => {
-  const source = `function f(): types --[[a\nb]]\n.Button\n  return 15\nend\nQualifier {f()}.\n`;
+  const source = `function f(): types --[[a\nb]]\n.Button\n  return 15\nend\nscene start\n  Qualifier {f()}.\nend\n`;
   expect(run(source)).toEqual({ errors: [], output: "Qualifier 15.\n" });
 });
 

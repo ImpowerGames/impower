@@ -50,17 +50,12 @@ function diagnostics(program: any): string[] {
 const counter = "store a = { n = 1, add = function(self, k) self.n = self.n + k; return self end }";
 
 describe("colon call receiver temp", () => {
-  it("a colon call at top level raises no diagnostic", () => {
-    const program = compileOnce([counter, "store r = 0", "& r = a:add(3)", ""].join("\n"));
+  it("a colon call in a scene raises no diagnostic", () => {
+    const program = compileOnce([counter, "store r = 0", "", "scene start", "  & r = a:add(3)", "end", ""].join("\n"));
     expect(diagnostics(program)).toEqual([]);
   });
 
   it("a chained colon call raises no diagnostic", () => {
-    const program = compileOnce([counter, "store r = 0", "& r = a:add(10):add(20)", ""].join("\n"));
-    expect(diagnostics(program)).toEqual([]);
-  });
-
-  it("a colon call inside a scene raises no diagnostic", () => {
     const program = compileOnce(
       [counter, "store r = 0", "", "scene start", "  & r = a:add(10):add(20)", "end", ""].join("\n"),
     );
@@ -68,7 +63,7 @@ describe("colon call receiver temp", () => {
   });
 
   it("a colon call in another script of the project raises no diagnostic", () => {
-    const program = compileOnce("", {
+    const program = compileOnce("scene start\nend\n", {
       shared: [counter, "store r = 0", "", "scene shared_start", "  & r = a:add(10):add(20)", "end", ""].join("\n"),
     });
     expect(Object.keys(program.scripts)).toEqual([MAIN_URI, uriOf("shared")]);

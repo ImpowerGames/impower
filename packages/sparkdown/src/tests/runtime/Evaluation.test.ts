@@ -79,8 +79,7 @@ describe("Evaluation (ported from inkjs)", () => {
   });
 
   test("EvaluateFunction returning a divert target", () => {
-    const src = `-> main
-scene main
+    const src = `scene start
   Top level content
   -> DONE
 end
@@ -101,8 +100,7 @@ end
   });
 
   test("EvaluateFunction with args + capture", () => {
-    const src = `-> main
-scene main
+    const src = `scene start
   -> DONE
 end
 

@@ -40,8 +40,10 @@ function compileAndCapture(source: string): {
 describe("string.pack — integers", () => {
   test("packs a single byte", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local s = string.pack("B", 42)
@@ -55,8 +57,10 @@ end
 
   test("packs little-endian uint32 by default", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local s = string.pack("I4", 0x01020304)
@@ -72,8 +76,10 @@ end
 
   test("big-endian via `>` prefix", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local s = string.pack(">I4", 0x01020304)
@@ -87,8 +93,10 @@ end
 
   test("signed byte handles negative", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local s = string.pack("b", -1)
@@ -103,8 +111,10 @@ end
 describe("string.unpack — round-trip", () => {
   test("unpacks what pack wrote (uint16)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local s = string.pack("H", 0xABCD)
@@ -119,8 +129,10 @@ end
 
   test("unpacks signed int with negative round-trip", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local s = string.pack("i4", -42)
@@ -134,8 +146,10 @@ end
 
   test("multiple values in one format", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local s = string.pack("BHB", 1, 2, 3)
@@ -153,8 +167,10 @@ end
 describe("string.pack — strings", () => {
   test("null-terminated `z` string", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local s = string.pack("z", "hi")
@@ -170,8 +186,10 @@ end
 
   test("fixed-size `c4` string pads with zeros", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local s = string.pack("c4", "hi")
@@ -185,8 +203,10 @@ end
 
   test("length-prefixed `s1` (1-byte length)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local s = string.pack("s1", "hello")
@@ -203,8 +223,10 @@ end
 describe("string.pack — floats", () => {
   test("float64 round-trip", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local s = string.pack("d", 3.14)
@@ -219,8 +241,10 @@ end
 
   test("float32 has reduced precision", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local s = string.pack("f", 1.5)
@@ -237,8 +261,10 @@ end
 describe("string.packsize", () => {
   test("computes fixed-size format length", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.packsize("BHI4d"))
@@ -250,8 +276,10 @@ end
 
   test("errors on variable-width specs", () => {
     const { errors } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.packsize("s"))
@@ -265,8 +293,10 @@ end
 describe("string.pack — error paths", () => {
   test("not enough args", () => {
     const { errors } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local s = string.pack("BB", 1)
@@ -278,8 +308,10 @@ end
 
   test("unknown format char", () => {
     const { errors } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local s = string.pack("Q", 42)

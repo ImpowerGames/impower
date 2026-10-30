@@ -50,7 +50,7 @@ describe("Weaves (ported from inkjs)", () => {
 
   test("duplicate label anchor names emit a compile-time error", () => {
     const { errorMessages } = collectDiagnostics(
-      `-> main\nscene main\n  label x\n  one\n  label x\n  two\n`,
+      `\nscene start\n  label x\n  one\n  label x\n  two\n`,
     );
     expect(errorMessages.some((m) => /same label name `x`/.test(m))).toBe(
       true,

@@ -1,1 +1,3 @@
-{not 1}
+scene start
+  {not 1}
+end

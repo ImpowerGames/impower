@@ -10,7 +10,7 @@ const run = (source: string) => {
 describe("a repeat loop whose body ends with a local declaration", () => {
   test("a function runs the loop and returns after it", () => {
     const r = run(
-      "function f()\n  local n = 0\n  repeat n = n + 1 local z = 1 until true\n  return n\nend\n\nResult {f()}.\n",
+      "function f()\n  local n = 0\n  repeat n = n + 1 local z = 1 until true\n  return n\nend\n\nscene start\n  Result {f()}.\nend\n",
     );
     expect(r.errors).toEqual([]);
     expect(r.output).toBe("Result 1.\n");
@@ -18,7 +18,7 @@ describe("a repeat loop whose body ends with a local declaration", () => {
 
   test("a body of only the declaration still runs its loop", () => {
     const r = run(
-      "function g()\n  local n = 0\n  repeat local z = 1 n = n + 1 until true\n  repeat local z = 1 until true\n  return n\nend\n\nResult {g()}.\n",
+      "function g()\n  local n = 0\n  repeat local z = 1 n = n + 1 until true\n  repeat local z = 1 until true\n  return n\nend\n\nscene start\n  Result {g()}.\nend\n",
     );
     expect(r.errors).toEqual([]);
     expect(r.output).toBe("Result 1.\n");
@@ -26,7 +26,7 @@ describe("a repeat loop whose body ends with a local declaration", () => {
 
   test("the upstream conformance line keeps the return after it", () => {
     const r = run(
-      "function h()\n  repeat local a = 5 until a - 4 < 0 or a - 4 >= 0\n  return 7\nend\n\nValue {h()}.\n",
+      "function h()\n  repeat local a = 5 until a - 4 < 0 or a - 4 >= 0\n  return 7\nend\n\nscene start\n  Value {h()}.\nend\n",
     );
     expect(r.errors).toEqual([]);
     expect(r.output).toBe("Value 7.\n");
@@ -34,7 +34,7 @@ describe("a repeat loop whose body ends with a local declaration", () => {
 
   test("the loop repeats until the condition reads the declared local", () => {
     const r = run(
-      "function k()\n  local n = 0\n  repeat n = n + 1 local done = n >= 3 until done\n  return n\nend\n\nResult {k()}.\n",
+      "function k()\n  local n = 0\n  repeat n = n + 1 local done = n >= 3 until done\n  return n\nend\n\nscene start\n  Result {k()}.\nend\n",
     );
     expect(r.errors).toEqual([]);
     expect(r.output).toBe("Result 3.\n");
@@ -42,7 +42,7 @@ describe("a repeat loop whose body ends with a local declaration", () => {
 
   test("a loop nested in a block inside another loop runs without an error", () => {
     const r = run(
-      "function f()\n  local n = 0\n  repeat\n    do repeat n = n + 1 local z = 1 until true end\n  until true\n  return n\nend\n\nResult {f()}.\n",
+      "function f()\n  local n = 0\n  repeat\n    do repeat n = n + 1 local z = 1 until true end\n  until true\n  return n\nend\n\nscene start\n  Result {f()}.\nend\n",
     );
     expect(r.errors).toEqual([]);
     expect(r.output).toBe("Result 1.\n");
@@ -50,7 +50,7 @@ describe("a repeat loop whose body ends with a local declaration", () => {
 
   test("a scene shows the line after the loop", () => {
     const r = run(
-      "store n = 0\n-> start\nscene start\n  repeat n = n + 1 local z = 1 until true\n  Count {n}.\nend\n",
+      "store n = 0\nscene start\n  repeat n = n + 1 local z = 1 until true\n  Count {n}.\nend\n",
     );
     expect(r.errors).toEqual([]);
     expect(r.output).toBe("Count 1.\n");
@@ -70,7 +70,7 @@ describe("a repeat loop whose body ends with a local declaration", () => {
 describe("a repeat loop whose until follows a statement on its line", () => {
   test("inside a block left without its end, reports Luau's error at the until", () => {
     const ctx = makeRuntimeStoryFromSource(
-      "function f()\n  repeat\n    if true then\n      local z = 1 until true\n    end\nend\n",
+      "function f()\n  repeat\n    if true then\n      local z = 1 until true\n    end\nend\n\nscene start\nend\n",
     );
     expect([...ctx.errorMessages].sort()).toEqual([
       "Expected 'end' (to close 'then' at line 3), got 'until'",
@@ -78,8 +78,8 @@ describe("a repeat loop whose until follows a statement on its line", () => {
     ]);
   });
 
-  test("at the top level, runs the loop", () => {
-    const r = run("store n = 0\nrepeat & n = n + 1 until n >= 3\nCount {n}.\n");
+  test("in a scene, runs the loop", () => {
+    const r = run("store n = 0\nscene start\n  repeat & n = n + 1 until n >= 3\n  Count {n}.\nend\n");
     expect(r.errors).toEqual([]);
     expect(r.output).toBe("Count 3.\n");
   });

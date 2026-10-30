@@ -35,8 +35,10 @@ function field(obj: ObjectValue, key: string): unknown {
 
 describe("SPIKE: display() Luau-call transport", () => {
   test("a display({...}) call carries a structured table, not text", () => {
-    const { story, errors } = compile(`& display({ kind = "text", body = "Hi." })
-done
+    const { story, errors } = compile(`scene start
+  & display({ kind = "text", body = "Hi." })
+  done
+end
 `);
     story.Continue();
     expect(errors).toEqual([]);
@@ -53,8 +55,10 @@ done
 
   test("{interp} holes are evaluated to LIVE values at call time", () => {
     const { story, errors } = compile(`store score = 5
-& display({ kind = "text", value = score })
-done
+scene start
+  & display({ kind = "text", value = score })
+  done
+end
 `);
     story.Continue();
     expect(errors).toEqual([]);
@@ -65,9 +69,11 @@ done
   });
 
   test("the beat closes (Continue completes) at the display call", () => {
-    const { story, errors } = compile(`& display({ body = "first" })
-& display({ body = "second" })
-done
+    const { story, errors } = compile(`scene start
+  & display({ body = "first" })
+  & display({ body = "second" })
+  done
+end
 `);
     story.Continue();
     expect(errors).toEqual([]);

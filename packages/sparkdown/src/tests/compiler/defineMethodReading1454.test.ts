@@ -56,7 +56,7 @@ const METHODS: [body: string, readings: string[]][] = [
   ['  fly()\nprint("x")\nself.y = 1\n  end\n', ["fly:method"]],
 ];
 
-const STORY = "Hello.\n";
+const STORY = "scene start\n  Hello.\nend\n";
 
 describe("a define's method left open reports Luau's error for its function (I-1402)", () => {
   for (const [before, method, after, readings] of OPEN_METHODS) {
@@ -130,7 +130,7 @@ describe("a well-formed define's methods read as before", () => {
 
 describe("a define that is really unclosed keeps its missing end", () => {
   for (const body of ["  f()\n    x = 1\n  end\n", "  print(1)\n", "  x = 1\n"]) {
-    const text = `define X with\n${body}`;
+    const text = `define X with\n${body}${STORY}`;
     test(`${JSON.stringify(body)}: reports the define's missing end alone`, () => {
       expect(errors(text).map((e) => e.replace(/^\S+ /, ""))).toEqual([
         expect.stringMatching(/^Define is missing its closing `end` keyword/),

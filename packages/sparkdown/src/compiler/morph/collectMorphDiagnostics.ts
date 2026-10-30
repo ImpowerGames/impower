@@ -344,7 +344,17 @@ function coverageIssues(
   if (images.length > 0) {
     const layers = own.struct["layers"];
     if (isRecord(layers)) {
-      for (const key of Object.keys(layers)) checkLabel(key, src(layers)?.keys.get(key));
+      for (const key of Object.keys(layers)) {
+        checkLabel(key, src(layers)?.keys.get(key));
+        const policy = layers[key];
+        const partner = isRecord(policy) ? policy["partner"] : undefined;
+        if (typeof partner === "string" && partner) checkLabel(partner, src(policy)?.values.get("partner"));
+        if (Array.isArray(partner)) {
+          partner.forEach((value, i) => {
+            if (typeof value === "string" && value) checkLabel(value, src(partner)?.itemValues[i] ?? src(partner)?.items[i]);
+          });
+        }
+      }
     }
     const clips = own.struct["clips"];
     if (Array.isArray(clips)) {

@@ -106,7 +106,9 @@ describe("a block without `end`", () => {
       "  }",
       "end",
       "",
-      "Hi.",
+      "scene start",
+      "  Hi.",
+      "end",
       "",
     ].join("\n");
     const layout = errors(source).filter((e) =>
@@ -139,7 +141,7 @@ describe("text a block header cannot read", () => {
       ["a name that starts with a digit", `${form.keyword} 2x with`, form.keyword],
     ] as const) {
       test(`${label} on ${article(form.keyword)} ${form.keyword} is an error on the readable header`, () => {
-        const source = lines(header, form.body, "end", "", "Hi.", "");
+        const source = lines(header, form.body, "end", "", "scene start", "  Hi.", "end", "");
         const unreadable = errors(source).filter((e) =>
           e.message.includes(UNREADABLE),
         );
@@ -159,7 +161,7 @@ describe("text a block header cannot read", () => {
   }
 
   test("a morph name that starts with a digit is an error on the readable header", () => {
-    const unreadable = errors("morph 2m with\n  x = 1\nend\n\nHi.\n").filter((e) =>
+    const unreadable = errors("morph 2m with\n  x = 1\nend\n\nscene start\n  Hi.\nend\n").filter((e) =>
       e.message.includes(UNREADABLE),
     );
     expect(unreadable).toHaveLength(1);
@@ -168,7 +170,7 @@ describe("text a block header cannot read", () => {
   });
 
   test("a dotted style name is an error on the readable header", () => {
-    const unreadable = errors("style s.t with\n  color = red\nend\n\nHi.\n").filter(
+    const unreadable = errors("style s.t with\n  color = red\nend\n\nscene start\n  Hi.\nend\n").filter(
       (e) => e.message.includes(UNREADABLE),
     );
     expect(unreadable).toHaveLength(1);
@@ -178,7 +180,7 @@ describe("text a block header cannot read", () => {
 
 describe("text after `with` on a define header", () => {
   test("a word after `with` is an error at the word", () => {
-    const source = 'define hero as character with junk\n  name = "Hero"\nend\n\nHi.\n';
+    const source = 'define hero as character with junk\n  name = "Hero"\nend\n\nscene start\n  Hi.\nend\n';
     const errs = errors(source);
     expect(errs).toHaveLength(1);
     expect(errs[0]!.message).toContain("Unexpected `junk` after `with`");
@@ -191,7 +193,7 @@ describe("text after `with` on a define header", () => {
   });
 
   test("a `:` after `with` is an error at the colon", () => {
-    const source = 'define hero as character with:\n  name = "Hero"\nend\n\nHi.\n';
+    const source = 'define hero as character with:\n  name = "Hero"\nend\n\nscene start\n  Hi.\nend\n';
     const errs = errors(source);
     expect(errs).toHaveLength(1);
     expect(errs[0]!.message).toContain("Unexpected `:` after `with`");
@@ -205,26 +207,28 @@ describe("text after `with` on a define header", () => {
 
 describe("valid blocks report nothing new", () => {
   const cases: Record<string, string> = {
-    "the builtins prelude": "Hi.\n",
+    "the builtins prelude": "scene start\n  Hi.\nend\n",
     "a define with a member after `with`":
-      'define hero as character with name = "Hero"\nend\nHi.\n',
+      'define hero as character with name = "Hero"\nend\nscene start\n  Hi.\nend\n',
     "a define with a comment after `with`":
-      "define hero as character with -- the lead\nend\nHi.\n",
+      "define hero as character with -- the lead\nend\nscene start\n  Hi.\nend\n",
     "a style with a comment after `with`":
-      "style s with -- note\n  color = red\nend\nHi.\n",
+      "style s with -- note\n  color = red\nend\nscene start\n  Hi.\nend\n",
     "a style with a nested block":
-      "style s with\n  &.a {\n    color = red\n  }\nend\nHi.\n",
+      "style s with\n  &.a {\n    color = red\n  }\nend\nscene start\n  Hi.\nend\n",
     "a layout in a screen":
-      "screen hud with\nend\nlayout main as base in hud with\n  box {\n  }\nend\nlayout base with\nend\nHi.\n",
+      "screen hud with\nend\nlayout main as base in hud with\n  box {\n  }\nend\nlayout base with\nend\nscene start\n  Hi.\nend\n",
   };
   for (const form of FORMS) {
-    cases[`a one-line ${form.keyword}`] = `${form.header} with end\nHi.\n`;
-    cases[`a body-less ${form.keyword}`] = `${form.header} with\nend\nHi.\n`;
+    cases[`a one-line ${form.keyword}`] = `${form.header} with end\nscene start\n  Hi.\nend\n`;
+    cases[`a body-less ${form.keyword}`] = `${form.header} with\nend\nscene start\n  Hi.\nend\n`;
     cases[`a multi-line ${form.keyword}`] = lines(
       `${form.header} with`,
       form.body || "  -- nothing yet",
       "end",
-      "Hi.",
+      "scene start",
+      "  Hi.",
+      "end",
       "",
     );
   }
@@ -283,9 +287,8 @@ describe("block diagnostics across incremental edits", () => {
         "",
         "store trust = 5",
         "",
-        "-> s1",
-        "scene s1",
-        "Trust is {trust}.",
+        "scene start",
+        "  Trust is {trust}.",
         "end",
         "",
       ].join("\n"),
@@ -312,7 +315,9 @@ describe("block diagnostics across incremental edits", () => {
         "",
         "store trust = 5",
         "",
-        "Trust is {trust}.",
+        "scene start",
+        "  Trust is {trust}.",
+        "end",
         "",
       ].join("\n"),
       [

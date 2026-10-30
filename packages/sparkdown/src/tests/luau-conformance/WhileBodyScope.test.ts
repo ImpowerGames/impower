@@ -15,12 +15,16 @@ const indent = (text: string, by: string) =>
     .map((line) => `${by}${line}`)
     .join("\n");
 const places: Record<string, string> = {
-  "in a scene": `-> s
+  "in a scene": `scene start
+  -> s
+end
 scene s
 ${indent(WHILE_IN_FLOW, "  ")}
 end
 `,
-  "in a branch": `-> s.b
+  "in a branch": `scene start
+  -> s.b
+end
 scene s
   branch b
 ${indent(WHILE_IN_FLOW, "    ")}

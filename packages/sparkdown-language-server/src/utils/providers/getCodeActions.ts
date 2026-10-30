@@ -18,18 +18,14 @@ import {
 } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
-/** A diagnostic as a client sends it back, whose message can be markup. */
 export type ActionableDiagnostic = Omit<Diagnostic, "message"> & {
   message: string | MarkupContent;
 };
 
-/** The quick fixes for the diagnostics that have one, each by the message the
- *  compiler reports. */
 const QUICK_FIXES = new Map<
   string,
   (document: TextDocument, diagnostic: ActionableDiagnostic) => CodeAction[]
 >([
-  // Every script under the project's folder is part of the story (#1387).
   [
     INCLUDE_LINE_MESSAGE,
     (document, diagnostic) => [
@@ -38,10 +34,6 @@ const QUICK_FIXES = new Map<
       ]),
     ],
   ],
-  // A `store` inside a flow is hoisted to the story's start, so the line is
-  // meant as an assignment (I-1673). The compiler gives the assignment's
-  // text in the diagnostic's data (`AssignmentFixData`), and none for a
-  // `store` an assignment would not do the same as.
   [
     STORE_INSIDE_FLOW_MESSAGE,
     (document, diagnostic) => {
@@ -57,10 +49,6 @@ const QUICK_FIXES = new Map<
   ],
 ]);
 
-/**
- * The code actions for `diagnostics` in `document`: the quick fixes of each
- * diagnostic whose message has one, in the order the diagnostics are given.
- */
 export const getCodeActions = (
   document: TextDocument | undefined,
   diagnostics: readonly ActionableDiagnostic[],
@@ -75,11 +63,6 @@ export const getCodeActions = (
   );
 };
 
-/**
- * The quick fixes of `diagnostic` as the editor's own diagnostics carry
- * them in their `data` (the web editor's client, which asks for no code
- * actions): each fix's title and its edits to `document`, by offset.
- */
 export const getDiagnosticActions = (
   document: TextDocument,
   diagnostic: ActionableDiagnostic,
@@ -112,16 +95,6 @@ const quickFix = (
   edit: { changes: { [document.uri]: edits } },
 });
 
-/**
- * The quick fixes of a diagnostic on a `run` statement's operand, which is
- * the diagnostic's range (#1389): an unquoted path takes its quotes, an
- * operand whose quote is never closed takes its closing quote, and the fixes
- * the compiler computed travel in the diagnostic's data (`RunFixData`): the
- * quoted path of each file a shared name names, relative to the script, and
- * the spelling of each file an operand differs from only by case (#1334).
- * When there is more than one fix none is preferred, since which file is
- * meant is the author's call.
- */
 const runQuickFixes = (
   document: TextDocument,
   diagnostic: ActionableDiagnostic,
@@ -147,8 +120,6 @@ const runQuickFixes = (
   return fixes(runFixesOf(diagnostic.data));
 };
 
-/** The edit that deletes `line` with its line break; the last line, which
- *  has none, takes the break before it. */
 const deleteLine = (document: TextDocument, line: number): TextEdit => {
   const start = document.offsetAt({ line, character: 0 });
   const next = document.offsetAt({ line: line + 1, character: 0 });

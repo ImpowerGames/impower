@@ -14,7 +14,7 @@ function nodeNames(text: string): string[] {
   return names;
 }
 
-const STORY = "Hello.\n";
+const STORY = "scene start\n  Hello.\nend\n";
 
 const FORMS: [statements: string, methods: string, readings: string[]][] = [
   ["  y = 1; print(1 2 3)\n", "", []],
@@ -83,7 +83,7 @@ const HEADER_LINE_METHODS: [text: string, readings: string[]][] = [
   ["define X with f() return 1 end\n  g()\n    return 2\n  end\nend\n", ["f:method", "g:method"]],
   ["define --[[a]] X with f() return 1 end end\n", ["f:method"]],
   ["define X as Y as Z with f() return 1 end end\n", ["f:method"]],
-  ["if true then define X with f() return 1 end end end\n", ["f:method"]],
+  ["function outer() if true then define X with f() return 1 end end end end\n", ["f:method"]],
   ["function outer() define X with f() return 1 end end end\n", ["f:method"]],
 ];
 

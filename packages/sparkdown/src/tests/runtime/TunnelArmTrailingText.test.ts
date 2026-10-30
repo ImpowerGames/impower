@@ -4,8 +4,7 @@ import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 const story = (line: string) =>
   makeRuntimeStoryFromSource(
     [
-      "-> main",
-      "scene main",
+      "scene start",
       `  ${line.replace(/\n/g, "\n  ")}`,
       "  done",
       "",

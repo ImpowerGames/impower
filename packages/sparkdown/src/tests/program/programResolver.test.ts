@@ -219,7 +219,7 @@ describe("a compile with statement chunks on", () => {
     expect(s.program.chunks).toBeDefined();
     s.edit("The clause runs on, line 27.", "The clause runs on, line 27, slowly.");
     expect(s.program.chunks).toBeDefined();
-    const external = cold({ [MAIN_URI]: "external ext(a)\nscene MAIN\n  ~ ext(1)\n  Line.\nend\n" });
+    const external = cold({ [MAIN_URI]: "external ext(a)\nscene start\n  ~ ext(1)\n  Line.\nend\n" });
     expect(external.chunks).toBeUndefined();
     expect(errorsOf(external)).toContainEqual([0, unsupportedConstructMessage("external")]);
   });
@@ -278,24 +278,28 @@ describe("a statement the resolver kept resolved", () => {
   it("keeps back a diagnostic of a source an earlier statement reported, as a cold compile does", () => {
     const text = [
       "store tally = 1",
-      "local tally = 0",
+      "",
+      "function tally()",
+      "  return 1",
+      "end",
+      "",
+      "scene start",
+      "  Line.",
+      "end",
       "",
       ...Array.from({ length: 10 }, (_, i) => [`scene S${i}`, `  Line of S${i}.`, "end", ""]).flat(),
       "function later()",
-      "  local tally = 2",
-      "  return tally",
+      "  return tally() + 1",
       "end",
       "",
-      "scene MAIN",
-      "  Line.",
-      "end",
+      "store tally = 2",
       "",
     ].join("\n");
     const s = session({ [MAIN_URI]: text });
     const collisions = (program: SparkProgram) =>
       diagnostics(program).filter((d) => d.includes("Duplicate identifier `tally`"));
     expect(collisions(s.program)).toHaveLength(2);
-    s.edit("  return tally", "  return tally + 1");
+    s.edit("  return tally() + 1", "  return tally() + 2");
     expect(s.resolver.passesLastResolve.cold).toBe(false);
     expect(s.resolver.passesLastResolve.replayed).toBeGreaterThan(0);
     expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
@@ -309,7 +313,7 @@ describe("a statement the resolver kept resolved", () => {
       "  Line two of TOP.",
       "end",
       "",
-      "scene MAIN",
+      "scene start",
       "  -> MISSING",
       "end",
       "",
@@ -340,7 +344,7 @@ describe("a constant", () => {
     ]).flat(),
     "const B = A + 1",
     "",
-    "scene MAIN",
+    "scene start",
     "  Line {B}.",
     "end",
     "",
@@ -397,7 +401,7 @@ describe("a statement resolved anew", () => {
     const text = [
       "local table = { value = 1 }",
       "",
-      "scene MAIN",
+      "scene start",
       "  local table = { value = 2 }",
       ...filler,
       "  Value {table.value}.",
@@ -429,7 +433,7 @@ describe("a statement resolved anew", () => {
     const beats = (from: number) =>
       Array.from({ length: 30 }, (_, i) => [`  Beat ${from + i}.`, ""]).flat();
     const text = [
-      "scene MAIN",
+      "scene start",
       ...beats(0),
       "  local table = { value = 1 }",
       "",
@@ -455,7 +459,7 @@ describe("a statement resolved anew", () => {
 
   it("finds the story's assignments for a divert to a builtin's global from what each statement holds, and reads none of them", () => {
     const text = [
-      "scene MAIN",
+      "scene start",
       "  Line.",
       ...filler,
       "  -> game",
@@ -489,7 +493,7 @@ describe("a statement resolved anew", () => {
   });
 
   const rebound = [
-    "scene MAIN",
+    "scene start",
     "  Line.",
     ...filler,
     "  f is {f()}.",
@@ -529,7 +533,7 @@ describe("a statement resolved anew", () => {
 
   it("decides whether an assignment after carried scene statements writes a local from what each statement declares, and reads none of them", () => {
     const text = [
-      "scene MAIN",
+      "scene start",
       "  local y = 0",
       ...filler,
       "  & x = 1",
@@ -579,7 +583,7 @@ describe("a statement resolved anew", () => {
 
 describe("a naming collision", () => {
   const text = [
-    "scene MAIN",
+    "scene start",
     "  -> TARGET",
     "end",
     "",
@@ -595,7 +599,7 @@ describe("a naming collision", () => {
   it("is found through the symbol table, keeps both places, and clears when the declaration goes", () => {
     const s = session({ [MAIN_URI]: text });
     expect(collisions(s.program)).toEqual([]);
-    s.edit("scene MAIN", "store TARGET = 1\nscene MAIN");
+    s.edit("scene start", "store TARGET = 1\nscene start");
     const reported = collisions(s.program);
     expect(reported).toHaveLength(1);
     const sceneLine = s.text.split("\n").indexOf("scene TARGET");

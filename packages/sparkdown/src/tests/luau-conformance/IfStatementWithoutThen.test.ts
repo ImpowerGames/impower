@@ -66,11 +66,11 @@ describe("an if statement without `then`", () => {
   });
 
   const STORY =
-    "store flag = true\n\n-> start\n\nscene start\n  Opening beat.\n  if flag\n    Went down the true side.\n  else\n    Went down the false side.\n  end\n  Shared beat after the branch.\nend\n";
+    "store flag = true\n\nscene start\n  Opening beat.\n  if flag\n    Went down the true side.\n  else\n    Went down the false side.\n  end\n  Shared beat after the branch.\nend\n";
 
   test("in a story, is an error at the end of the `if` line", () => {
     expect(diagnosticsOf(compile(STORY)).map(describeLsp)).toEqual([
-      "6:9-7:0 error: Expected 'then' when parsing if statement, got <eof>",
+      "4:9-5:0 error: Expected 'then' when parsing if statement, got <eof>",
     ]);
   });
 
@@ -81,9 +81,9 @@ describe("an if statement without `then`", () => {
   });
 
   test.each([
-    ["whose `then` is on a later line", "  if flag\n    and flag ~= false\n    then\n", "6:9-7:0 error: Expected 'then' when parsing if statement, got <eof>"],
-    ["that begins on the line after `if`", "  if\n    flag\n  then\n", "6:4-7:0 error: Expected identifier when parsing expression, got <eof>"],
-    ["that begins after a comment-only line", "  if\n    -- note\n    flag\n  then\n", "6:4-7:0 error: Expected identifier when parsing expression, got <eof>"],
+    ["whose `then` is on a later line", "  if flag\n    and flag ~= false\n    then\n", "4:9-5:0 error: Expected 'then' when parsing if statement, got <eof>"],
+    ["that begins on the line after `if`", "  if\n    flag\n  then\n", "4:4-5:0 error: Expected identifier when parsing expression, got <eof>"],
+    ["that begins after a comment-only line", "  if\n    -- note\n    flag\n  then\n", "4:4-5:0 error: Expected identifier when parsing expression, got <eof>"],
   ])("in a story, a condition %s is missing on the `if` line, and both branches stay", (_, header, error) => {
     const program = compile(STORY.replace("  if flag\n", header));
     expect(diagnosticsOf(program).filter((d) => d.severity === 1).map(describeLsp)).toEqual([error]);

@@ -10,7 +10,7 @@ const HEADER = "define X with";
 function newCompiler(text: string): SparkdownCompiler {
   const compiler = new SparkdownCompiler();
   compiler.configure({
-    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: `${text}scene start\nend\n`, version: 1, languageId: "sparkdown" }],
   } as never);
   return compiler;
 }

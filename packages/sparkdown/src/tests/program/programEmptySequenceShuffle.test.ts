@@ -25,7 +25,7 @@ vi.mock(
 
 describe("a shuffle over a sequence of no elements (#1617)", () => {
   it("is a story error at run, not a throw out of Continue", () => {
-    const { program } = compileScript("shuffle done\n");
+    const { program } = compileScript("scene start\n  shuffle done\n  end\nend\n");
     expect(errorsOf(program)).toEqual([]);
     let result: ReturnType<typeof storyRun> | undefined;
     expect(() => {

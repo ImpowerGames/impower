@@ -37,7 +37,7 @@ describe("random draws read the state an image holds", () => {
   const RANDOM = [
     "store pool = { \"a\", \"b\", \"c\", \"d\", \"e\", \"f\", \"g\", \"h\", \"i\", \"j\" }",
     "",
-    "-> start",
+    "",
     "",
     "scene start",
     "  First.",
@@ -77,7 +77,7 @@ describe("a save shares a closed cell between the closures that share it", () =>
       "store inc = nil",
       "store get = nil",
       "",
-      "-> start",
+      "",
       "",
       "scene start",
       "  local function make()",
@@ -113,7 +113,7 @@ const WRITES = [
   "store bump = nil",
   "store peek = nil",
   "",
-  "-> start",
+  "",
   "",
   "scene start",
   "  & other = shared",
@@ -246,7 +246,7 @@ describe("a checkpoint within a session", () => {
   const TEXT = [
     "store seen = 0",
     "",
-    "-> start",
+    "",
     "",
     "scene start",
     "  One.",
@@ -289,7 +289,7 @@ describe("a checkpoint within a session", () => {
       "  Elsewhere.",
     );
     const b = programSession(
-      ["store x = 1", "", "-> start", "", "scene start", "  if x == 1 then", "    One.", "    Two.", "    Three.", "  end", "  After.", "end", ""].join("\n"),
+      ["store x = 1", "", "", "", "scene start", "  if x == 1 then", "    One.", "    Two.", "    Three.", "  end", "  After.", "end", ""].join("\n"),
     );
     const inBody = sharing(b.root);
     expect(next(inBody, 1)).toEqual(["One."]);
@@ -317,7 +317,9 @@ describe("a reseed of the program table", () => {
     "",
     "store target = -> there",
     "",
-    "-> here",
+    "scene start",
+    "  -> here",
+    "end",
     "",
     "scene here",
     '  Here {here} {cycle|"a"|"b"}.',
@@ -389,7 +391,7 @@ describe("a route search on the program engine", () => {
     "store a = 0",
     "store t = { x = 0 }",
     "",
-    "-> start",
+    "",
     "",
     "scene start",
     "  Begin.",
@@ -487,7 +489,7 @@ describe("the digest and restores a route search reads", () => {
     "store b = { x = 0 }",
     "store pick = 0",
     "",
-    "-> start",
+    "",
     "",
     "scene start",
     "  Begin.",
@@ -577,7 +579,9 @@ describe("images across engines, aliases and keyframes", () => {
       "  Early.",
       "end",
       "",
-      "-> here",
+      "scene start",
+      "  -> here",
+      "end",
       "",
       "scene here",
       "  Here {here}.",
@@ -615,7 +619,7 @@ describe("images across engines, aliases and keyframes", () => {
       "store a = nil",
       "store b = nil",
       "",
-      "-> start",
+      "",
       "",
       "scene start",
       "  Begin.",
@@ -708,7 +712,7 @@ describe("the digest of two arrivals from one keyframe", () => {
         "store t = { a = 1, b = 2 }",
         "store k = nil",
         "",
-        "-> start",
+        "",
         "",
         "scene start",
         "  Begin.",
@@ -736,7 +740,7 @@ describe("the digest of two arrivals from one keyframe", () => {
       [
         "store t = nil",
         "",
-        "-> start",
+        "",
         "",
         "scene start",
         "  Begin.",
@@ -761,7 +765,7 @@ describe("the digest of two arrivals from one keyframe", () => {
         "store left = { x = 0 }",
         "store right = { x = 0 }",
         "",
-        "-> start",
+        "",
         "",
         "scene start",
         "  Begin.",
@@ -787,7 +791,7 @@ describe("the digest of two arrivals from one keyframe", () => {
   });
 
   it("reads tuples whose strings would join to the same text apart", () => {
-    const s = story(["-> start", "", "scene start", "  Begin.", "  End.", "end", ""].join("\n"));
+    const s = story(["", "", "scene start", "  Begin.", "  End.", "end", ""].join("\n"));
     expect(next(s, 1)).toEqual(["Begin."]);
     s.capture(true);
     const digestWith = (values: string[]) => {
@@ -805,7 +809,7 @@ describe("the digest of two arrivals from one keyframe", () => {
       [
         "store t = nil",
         "",
-        "-> start",
+        "",
         "",
         "scene start",
         "  Begin.",

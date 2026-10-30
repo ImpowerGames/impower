@@ -1,7 +1,3 @@
-// Luau-conformance test harness — runs Luau's official conformance
-// suite (https://github.com/luau-lang/luau/tree/master/tests/conformance,
-// MIT-licensed; vendored under `upstream/conformance/`) against
-// sparkdown's Luau-superset implementation.
 
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -14,9 +10,11 @@ export interface ConformanceResult {
 
 const OK_MARKER = "__LUAU_CONFORMANCE_OK__";
 
-const PREAMBLE = `& run()
-: ${OK_MARKER}
-done
+const PREAMBLE = `scene start
+  & run()
+  : ${OK_MARKER}
+  done
+end
 
 function run()
 `;

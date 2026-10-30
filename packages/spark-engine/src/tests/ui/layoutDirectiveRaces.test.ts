@@ -31,7 +31,7 @@ end
 layout menu with
   text "Menu"
 end
--> start
+
 scene start
   [[navigate to menu]]
   Hello.
@@ -76,7 +76,7 @@ end
 layout hud with
   text "HUD"
 end
--> start
+
 scene start
   [[open hud]]
   Hello.
@@ -121,7 +121,7 @@ end
 layout menu with
   text "Menu"
 end
--> start
+
 scene start
   [[open hud with fade over 0.5s]] [[navigate to menu]]
   Hello.

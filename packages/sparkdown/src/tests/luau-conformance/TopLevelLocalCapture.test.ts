@@ -22,7 +22,7 @@ const shown = (root: ProgramRoot) => {
 const run = (lines: string[]) =>
   quiet(() => shown(compileScript([...lines, ""].join("\n")).program.chunks!));
 
-const inScene = (lines: string[]) => ["-> S", "scene S", ...lines.map((line) => `  ${line}`), "end"];
+const inScene = (lines: string[]) => ["scene start", ...lines.map((line) => `  ${line}`), "end"];
 
 const reads = ["local f = function()", "  return a", "end", "Got {tostring(f())}."];
 
@@ -63,8 +63,7 @@ describe("a closure and a plain local in a scene", () => {
   test("reads it", () => {
     expect(
       run([
-        "-> S",
-        "scene S",
+        "scene start",
         "  local n = 5",
         "  local get = function() return n + 1 end",
         "  local r = get()",
@@ -77,8 +76,7 @@ describe("a closure and a plain local in a scene", () => {
   test("writes it", () => {
     expect(
       run([
-        "-> S",
-        "scene S",
+        "scene start",
         "  local n = 0",
         "  local inc = function() n = n + 1 return n end",
         "  local r = inc()",
@@ -91,10 +89,10 @@ describe("a closure and a plain local in a scene", () => {
 
 describe("an incremental compile of a closure over a declaration", () => {
   test.each([
-    ["a store turned into a scene's local", "store a = 1\n-> S\nscene S", "-> S\nscene S\n  local a = 1"],
-    ["a scene's local turned into a store", "-> S\nscene S\n  local a = 1", "store a = 1\n-> S\nscene S"],
-    ["a local added", "store b = 0\n-> S\nscene S", "store b = 0\n-> S\nscene S\n  local a = 1"],
-    ["a local removed", "store b = 0\n-> S\nscene S\n  local a = 1", "store b = 0\n-> S\nscene S"],
+    ["a store turned into a scene's local", "store a = 1\nscene start", "scene start\n  local a = 1"],
+    ["a scene's local turned into a store", "scene start\n  local a = 1", "store a = 1\nscene start"],
+    ["a local added", "store b = 0\nscene start", "store b = 0\nscene start\n  local a = 1"],
+    ["a local removed", "store b = 0\nscene start\n  local a = 1", "store b = 0\nscene start"],
   ])("shows what a cold compile shows after %s", (_, before, after) => {
     const lines = [before, "  local f = function()", "    return a", "  end", "  Got {tostring(f())}.", "end", ""];
     const session = programSession(lines.join("\n"));

@@ -57,15 +57,15 @@ describe("a local or parameter that shares a store's name", () => {
   it.each([
     [
       "a local in a scene",
-      ["store health = 100", "", "scene main", "  local health = 10", "  Hi.", "end"],
+      ["store health = 100", "", "scene start", "  local health = 10", "  Hi.", "end"],
     ],
     [
       "a local in a function",
-      ["store health = 100", "", "function f()", "  local health = 10", "  return health", "end"],
+      ["store health = 100", "", "function f()", "  local health = 10", "  return health", "end", "", "scene start", "end"],
     ],
     [
       "a parameter",
-      ["store health = 100", "", "function f(health)", "  return health", "end"],
+      ["store health = 100", "", "function f(health)", "  return health", "end", "", "scene start", "end"],
     ],
   ])("%s shadows it without an error", (_name, lines) => {
     expect(errors(lines.join("\n"))).toEqual([]);
@@ -74,7 +74,7 @@ describe("a local or parameter that shares a store's name", () => {
   it("a local in a scene shadows a store declared in another file", () => {
     expect(
       errors(
-        ["scene main", "  local health = 10", "  Hi.", "end"].join("\n"),
+        ["scene start", "  local health = 10", "  Hi.", "end"].join("\n"),
         "store health = 100\n",
       ),
     ).toEqual([]);
@@ -82,7 +82,7 @@ describe("a local or parameter that shares a store's name", () => {
 
   it("reads the local inside its function and the store outside it", () => {
     const ctx = makeRuntimeStoryFromSource(
-      "store health = 5\nValue {f(2)} {health}.\nfunction f(n)\n  local health = n\n  return health\nend\n",
+      "store health = 5\nscene start\n  Value {f(2)} {health}.\nend\nfunction f(n)\n  local health = n\n  return health\nend\n",
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 2 5.\n");
@@ -90,7 +90,9 @@ describe("a local or parameter that shares a store's name", () => {
 
   it("refuses a local at the top level next to it, as any top-level local (I-1673)", () => {
     expect(
-      errors(["store health = 100", "local health = 10", "Hi."].join("\n")),
+      errors(
+        ["store health = 100", "local health = 10", "", "scene start", "end"].join("\n"),
+      ),
     ).toContain(
       "L1:0 local declaration must be inside a scene, branch or function; use store or const at the top level",
     );
@@ -105,6 +107,9 @@ describe("a local or parameter that shares a store's name", () => {
           "  store health = 100",
           "  return health",
           "end",
+          "",
+          "scene start",
+          "end",
         ].join("\n"),
       ),
     ).toEqual([
@@ -114,7 +119,16 @@ describe("a local or parameter that shares a store's name", () => {
 
   it("still reports two stores of one name", () => {
     expect(
-      errors(["store health = 100", "store health = 10", "Hi."].join("\n")),
+      errors(
+        [
+          "store health = 100",
+          "store health = 10",
+          "",
+          "scene start",
+          "  Hi.",
+          "end",
+        ].join("\n"),
+      ),
     ).toEqual([
       "L1:6 Duplicate identifier `health`. A var named `health` already exists",
     ]);
@@ -122,7 +136,7 @@ describe("a local or parameter that shares a store's name", () => {
 
   it("treats two locals of one name in one scene as it does without the store", () => {
     const scene = [
-      "scene main",
+      "scene start",
       "  local health = 10",
       "  local health = 20",
       "  Hi.",

@@ -11,7 +11,9 @@ function run(expr: string): { text: string; errors: string[] } {
     "function run()",
     `  return ${expr}`,
     "end",
-    "Got {run()}.",
+    "scene start",
+    "  Got {run()}.",
+    "end",
   ].join("\n");
   const ctx = makeRuntimeStoryFromSource(source);
   const errors: string[] = [];

@@ -28,18 +28,18 @@ describe("a call with a syntax error in its arguments reports Luau's error (I-14
         const body = `function g()\nend\nfunction f()\nlocal t = ${callee}(${args})\nend\n`;
         const official = luauErrors(body);
         expect(official.length, "the official parser reports the form").toBeGreaterThan(0);
-        expect(sparkdownErrors(`${body}Go {f()}.\n`)).toEqual(official);
+        expect(sparkdownErrors(`${body}scene start\n  Go {f()}.\nend\n`)).toEqual(official);
       });
     }
   }
 
   test("a well-formed self-call with the wrong arity still reports the arity error", () => {
-    expect(sparkdownErrors("function f()\nlocal t = f(1)\nend\nGo {f()}.\n")).toEqual([
+    expect(sparkdownErrors("function f()\nlocal t = f(1)\nend\nscene start\n  Go {f()}.\nend\n")).toEqual([
       "1:0-1:14 Function call to `f` requires 0 arguments, but got 1",
     ]);
   });
 
   test("a well-formed self-call with the right arity reports nothing", () => {
-    expect(sparkdownErrors("function f(a)\nlocal _t = f(1)\nend\nGo {f(1)}.\n")).toEqual([]);
+    expect(sparkdownErrors("function f(a)\nlocal _t = f(1)\nend\nscene start\n  Go {f(1)}.\nend\n")).toEqual([]);
   });
 });

@@ -19,7 +19,6 @@ const completeItems = (source: string, contextProgram = program, trigger?: strin
 const complete = (source: string, contextProgram = program, trigger?: string) =>
   completeItems(source, contextProgram, trigger).map((item) => item.label).sort();
 type Edit = { newText: string; range: { start: { line: number; character: number }; end: { line: number; character: number } } };
-/** The document after accepting `label`, its text edit applied to the cursor's line. */
 const accept = (source: string, label: string, trigger?: string) => {
   const item = completeItems(source, program, trigger).find((candidate) => candidate.label === label);
   expect(item, label).toBeDefined();

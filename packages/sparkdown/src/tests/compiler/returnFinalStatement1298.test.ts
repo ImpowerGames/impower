@@ -20,6 +20,7 @@ function inOrder(diagnostics: Located[]): Located[] {
   return [...diagnostics].sort((a, b) => a.range.start.line - b.range.start.line || a.range.start.character - b.range.start.character);
 }
 
+const after = "\nscene start\n  BOB:\n    Hello after.\nend\n";
 const cases = [
   ["function", "function f()\n  return 1\n  print(2)\nend\n", 3],
   ["multiline return", "function f()\n  return\n    1\n  local y = 2\nend\n", 4],
@@ -34,14 +35,14 @@ const cases = [
 describe("return is the final Luau statement in its block (#1298)", () => {
   it("clears a cached follower error after a trailing line comment replaces it", () => {
     const compiler = new SparkdownCompiler();
-    const source = (suffix: string) => `-> a\n\nscene a\n  & return 5; ${suffix}\nend\n`;
+    const source = (suffix: string) => `scene start\n  & return 5; ${suffix}\nend\n`;
     const errors = (program: any) => (Object.values(program.diagnostics ?? {}) as any[]).flat().filter((d: any) => d.code === "SyntaxError").map((d: any) => ({ message: d.message, range: d.range }));
     expect(errors(compile(source("print(2)"), compiler, 1))).toHaveLength(1);
     expect(errors(compile(source("-- done"), compiler, 2))).toEqual([]);
   });
   it("reuses the checked unit when only following story prose changes", () => {
     const compiler = new SparkdownCompiler();
-    const source = (prose: string) => `-> a\n\nscene a\n  & return 5; -- done\n  ${prose}\n  & local x = 1\nend\n`;
+    const source = (prose: string) => `scene start\n  & return 5; -- done\n  ${prose}\n  & local x = 1\nend\n`;
     const first = compile(source("Hello there."), compiler, 1);
     const second = compile(source("A different story line."), compiler, 2);
     const syntax = (program: any) => (Object.values(program.diagnostics ?? {}) as any[]).flat().filter((d: any) => d.code === "SyntaxError");
@@ -55,7 +56,7 @@ describe("return is the final Luau statement in its block (#1298)", () => {
     const nested = prefix.startsWith("do");
     const suffixes = ["--[[done]]", "print(2)", "other(2)", " print(2)", "--[[done]]", "print(2)"];
     for (const [index, suffix] of suffixes.entries()) {
-      const text = `-> a\n\nscene a\n  & ${prefix}${suffix}${nested ? " end" : ""}\nend\n`;
+      const text = `scene start\n  & ${prefix}${suffix}${nested ? " end" : ""}\nend\n`;
       compiler.configure({ files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: index + 1, languageId: "sparkdown" }] } as never);
       const program = (compiler.compile({ textDocument: { uri: URI } } as never) as any).program;
       const errors = (Object.values(program.diagnostics ?? {}) as any[]).flat().filter((d: any) => d.code === "SyntaxError");
@@ -65,18 +66,18 @@ describe("return is the final Luau statement in its block (#1298)", () => {
         const word = suffix.trimStart().split("(")[0]!;
         const from = 4 + prefix.length + (suffix.startsWith(" ") ? 1 : 0);
         expect(errors.map((d: any) => ({ message: d.message, range: d.range }))).toEqual([
-          { message: nested ? `Expected 'end' (to close 'do' at column 5), got '${word}'` : `Expected <eof>, got '${word}'`, range: { start: { line: 3, character: from }, end: { line: 3, character: from + word.length } } },
+          { message: nested ? `Expected 'end' (to close 'do' at column 5), got '${word}'` : `Expected <eof>, got '${word}'`, range: { start: { line: 1, character: from }, end: { line: 1, character: from + word.length } } },
         ]);
       }
     }
   });
-  it("publishes the same-line error in the live story with an entry divert", () => {
-    const source = "-> a\n\nscene a\n  & return 5; print(2)\n  Hello after the marked line.\nend\n";
+  it("publishes the same-line error in the live story", () => {
+    const source = "scene start\n  & return 5; print(2)\n  Hello after the marked line.\nend\n";
     const units = readLuauUnits(parseSource(source), source);
     expect(units.flows[0]!.errors[0]?.message).toBe("Expected <eof>, got 'print'");
     const errors = (Object.values(compile(source).diagnostics ?? {}) as any[]).flat().filter((d: any) => d.code === "SyntaxError");
     expect(errors.map((d: any) => ({ message: d.message, range: d.range }))).toEqual([
-      { message: "Expected <eof>, got 'print'", range: { start: { line: 3, character: 14 }, end: { line: 3, character: 19 } } },
+      { message: "Expected <eof>, got 'print'", range: { start: { line: 1, character: 14 }, end: { line: 1, character: 19 } } },
     ]);
   });
   it.each(["return 5 f()", "return 5; f()", "do return 5 f() end", "do return 5; f() end", "return 5 end", "return 5 else", "return 5 until true", "return 5 --[[comment]] f()"])("requires a story return to finish its marked Luau line: %s", (line) => {
@@ -108,13 +109,13 @@ describe("return is the final Luau statement in its block (#1298)", () => {
   it.each(cases)("reports Luau's syntax errors for %s", (_name, source) => {
     const oracle = officialSyntaxErrors(source.replaceAll("&", " "));
     expect(oracle.length).toBeGreaterThan(0);
-    const program = compile(source + "\nBOB:\n  Hello after.\n");
+    const program = compile(source + after);
     const errors = (Object.values(program.diagnostics ?? {}) as any[]).flat().filter((d: any) => d.severity === 1);
     expect(inOrder(errors.map((d: any) => ({ message: typeof d.message === "string" ? d.message : d.message?.value, range: d.range })))).toEqual(inOrder(oracle.map(asDiagnostic)));
   });
 
   it.each(cases)("preserves the function's own end for %s", (_name, source, endLine) => {
-    const program = compile(source + "\nBOB:\n  Hello after.\n");
+    const program = compile(source + after);
     expect(functionSpans(program)).toEqual([{ path: "f", lines: [0, 0, endLine] }]);
   });
 
@@ -127,7 +128,7 @@ describe("return is the final Luau statement in its block (#1298)", () => {
     "function f()\n  return 1,\n  print(2)\nend\n",
     "function f()\n  return 1 +\n  print(2)\nend\n",
   ])("accepts final Luau returns and multiline return values: %s", (source) => {
-    const program = compile(source + "\nBOB:\n  Hello after.\n");
+    const program = compile(source + after);
     const errors = (Object.values(program.diagnostics ?? {}) as any[]).flat().filter((d: any) => d.severity === 1);
     expect(errors.map((d: any) => typeof d.message === "string" ? d.message : d.message?.value)).toEqual([]);
   });
@@ -156,7 +157,7 @@ describe("return is the final Luau statement in its block (#1298)", () => {
       const header = block === "do" ? "  do\n" : block === "if" ? "  if x then\n" : "";
       const source = `function f()\n${header}  return\n  ${follower}\n${header ? "  end\n" : ""}end\n`;
       const oracle = officialSyntaxErrors(source);
-      const program = compile(source);
+      const program = compile(source + "scene start\nend\n");
       const errors = (Object.values(program.diagnostics ?? {}) as any[]).flat().filter((d: any) => d.severity === 1);
       expect(inOrder(errors.map((d: any) => ({ message: d.message, range: d.range })))).toEqual(inOrder(oracle.map(asDiagnostic)));
     }

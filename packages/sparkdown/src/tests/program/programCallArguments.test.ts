@@ -54,12 +54,34 @@ const inRun = (body: string[], result = T3): string =>
     ...body.map((line) => `  ${line}`),
     `  return ${result}`,
     "end",
-    "Got {run()}.",
+    "scene start",
+    "  Got {run()}.",
+    "end",
     "",
   ].join("\n");
 
-const topLevel = (body: string[], result = T3): string =>
-  [...FUNCTIONS, ...body, `Got {${result}}.`, ""].join("\n");
+const topLevel = (body: string[], result = T3): string => {
+  const declarations: string[] = [];
+  const statements: string[] = [];
+  let inFunction = false;
+  for (const line of body) {
+    if (inFunction || line.startsWith("store ") || line.startsWith("function ")) {
+      declarations.push(line);
+      inFunction = line.startsWith("function ") ? true : inFunction && line !== "end";
+    } else {
+      statements.push(`  ${line}`);
+    }
+  }
+  return [
+    ...FUNCTIONS,
+    ...declarations,
+    "scene start",
+    ...statements,
+    `  Got {${result}}.`,
+    "end",
+    "",
+  ].join("\n");
+};
 
 function shown(text: string) {
   const lines = ({ beats, errors }: ReturnType<typeof storyBeats>) => [
@@ -184,7 +206,9 @@ describe("a local that a block declares with the name of a variadic function of 
         "  end",
         "  return a .. \",\" .. b .. \",\" .. d",
         "end",
-        "Got {run()}.",
+        "scene start",
+        "  Got {run()}.",
+        "end",
         "",
       ].join("\n"),
       "Got 13,5,8.",
@@ -198,7 +222,9 @@ describe("a local that a block declares with the name of a variadic function of 
       "  function foo(n, ...) return base + n end",
       ...lines.map((line) => `  ${line}`),
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
       "",
     ].join("\n");
   it.each([
@@ -350,9 +376,9 @@ describe("a call, an index or a method chained on a call", () => {
     "end",
   ];
   it.each([
-    ["indexes the instance `new` builds", [...POINT, "Got {new Point(1, 2).s}.", ""].join("\n"), "Got 1/2."],
-    ["calls a method of the instance `new` builds", [...POINT, "Got {new Point(3, 4):get()}.", ""].join("\n"), "Got 3/4."],
-    ["indexes the instance `new` builds from a call that returns two", [...FUNCTIONS, ...POINT, "Got {new Point(g2()).s}.", ""].join("\n"), "Got 1/2."],
+    ["indexes the instance `new` builds", [...POINT, "scene start", "  Got {new Point(1, 2).s}.", "end", ""].join("\n"), "Got 1/2."],
+    ["calls a method of the instance `new` builds", [...POINT, "scene start", "  Got {new Point(3, 4):get()}.", "end", ""].join("\n"), "Got 3/4."],
+    ["indexes the instance `new` builds from a call that returns two", [...FUNCTIONS, ...POINT, "scene start", "  Got {new Point(g2()).s}.", "end", ""].join("\n"), "Got 1/2."],
   ])("%s", (_name, text, line) => {
     expectShows(text, line);
   });
@@ -425,8 +451,10 @@ describe("a function a host evaluates (`EvaluateFunction`)", () => {
     "end",
     "function noop()",
     "end",
-    "Hello.",
-    "done",
+    "scene start",
+    "  Hello.",
+    "  done",
+    "end",
     "",
     "scene quiet",
     "end",

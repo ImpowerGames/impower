@@ -17,7 +17,6 @@ export const getDocumentLinks = (
   const result: DocumentLink[] = [];
 
   if (document && annotations) {
-    // Each link is a `run` operand, opening the `.luau` file it names.
     const cur = annotations.links.iter();
     while (cur.value) {
       const range = document.range(cur.from, cur.to);

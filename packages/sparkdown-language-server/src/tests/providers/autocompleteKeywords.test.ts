@@ -2,19 +2,6 @@ import { describe, expect, test } from "vitest";
 import { BUG } from "./autocompleteBugs";
 import { labelsAt, upstreamCase } from "./completionHarness";
 
-// Keyword and statement-start cases from Luau's Autocomplete.test.cpp. Inside
-// a function body sparkdown's statement keywords are Luau's, so those cases
-// keep their upstream expectations with the snippet moved into a function
-// body. At the top level the narrative grammar differs: a line starts prose,
-// and the statement keywords it offers are sparkdown's own (`scene`,
-// `branch`, `define`, `include`, the Luau blocks), filtered by what has been
-// typed.
-//
-// Upstream writes most of these snippets unclosed, and its expectations
-// depend on it: a closing keyword (`end`, `until`) is offered while its block
-// is still open and not once the block is closed. `openMain` keeps a snippet
-// unclosed to the end of the file; `inMain` closes the function after it.
-
 const indent = (body: string) =>
   body
     .split("\n")
@@ -41,8 +28,6 @@ describe("autocomplete · keywords and statement starts", () => {
   });
 
   upstreamCase("do_not_overwrite_context_sensitive_kws", "a function named like a keyword is offered as a name", () => {
-    // Upstream declares `local function continue()`; `continue` is a keyword
-    // only inside a loop, so the name is still a binding.
     const labels = labelsAt(inMain("local function continue()\nend\nc@1"));
     expect(labels).toContain("continue");
   });
@@ -53,8 +38,6 @@ describe("autocomplete · keywords and statement starts", () => {
       expect(labels, header).not.toContain("do");
       expect(labels, header).not.toContain("end");
     }
-    // Upstream types `f` after the bounds and expects only `do`, leaving the
-    // filtering to the client; sparkdown filters keywords by the typed word.
     expect(labelsAt(openMain("for x = 1, 2, 5 d@1"))).toEqual(["do"]);
   });
 
@@ -63,11 +46,6 @@ describe("autocomplete · keywords and statement starts", () => {
   });
 
   upstreamCase.bug([BUG.emptySlot, BUG.keywordPosition], "autocomplete_for_middle_keywords", "a numeric for's bounds offer the names in scope and not `do`", () => {
-    // Upstream expects only `do` at `for x = 1,@1 2`: Luau reads the finished
-    // bounds `1, 2` and treats the cursor after the comma as keyword context.
-    // The cursor sits in front of the upper bound, where `do` would break the
-    // line, so sparkdown holds it to the bound-slot expectation upstream uses
-    // for `for x = 1, @22`.
     for (const header of ["for x = @11, @22, @35", "for x = @11, @22", "for x = 1, 2, @35", "for x = 1,@2 2"]) {
       const source = "store Foo = 1\n" + openMain(header);
       for (const at of ["1", "2", "3"].filter((n) => header.includes(`@${n}`))) {
@@ -100,8 +78,6 @@ describe("autocomplete · keywords and statement starts", () => {
   });
 
   upstreamCase.bug(BUG.keywordPrefix, "autocomplete_for_in_middle_keywords", "a word typed in an open generic for's body offers `end`", () => {
-    // Upstream also expects `function` here, unfiltered by the typed `e`;
-    // sparkdown filters keywords by the typed word.
     const labels = labelsAt(openMain("for x in y do e@1"));
     expect(labels).toContain("end");
     expect(labels).not.toContain("in");
@@ -153,8 +129,6 @@ describe("autocomplete · keywords and statement starts", () => {
   });
 
   upstreamCase.bug(BUG.keywordPrefix, "autocomplete_if_middle_keywords", "a word typed in an if's body offers `else` and `elseif`", () => {
-    // Upstream types `t` and expects every keyword, leaving the filtering to
-    // the client; sparkdown filters keywords by the typed word, so it types `e`.
     const labels = labelsAt(inMain("if x then\n  e@1\nend"));
     expect(labels).toContain("else");
     expect(labels).toContain("elseif");
@@ -197,10 +171,6 @@ describe("autocomplete · keywords and statement starts", () => {
   });
 
   upstreamCase.bug(BUG.keywordPosition, "local_names", "a new local's name offers only `function`", () => {
-    // Luau offers `function` in a new local's name slot, whatever has been
-    // typed there, as the way to turn `local ab` into `local function`. The
-    // offer belongs to the slot, so unlike the keyword cases elsewhere in this
-    // file it is not filtered by the typed word.
     expect(labelsAt(openMain("local ab@1"))).toEqual(["function"]);
     expect(labelsAt(openMain("local ab, cd@1"))).toEqual([]);
   });
@@ -233,8 +203,6 @@ describe("autocomplete · keywords and statement starts", () => {
   });
 
   upstreamCase.bug(BUG.keywordPrefix, "autocomplete_repeat_middle_keyword", "a word typed in an open repeat's body offers `function` and `until`", () => {
-    // Upstream types `f` and expects `until` too, leaving the filtering to the
-    // client; sparkdown filters keywords by the typed word.
     expect(labelsAt(openMain("repeat f f@1"))).toContain("function");
     expect(labelsAt(openMain("repeat\n  u@1"))).toContain("until");
   });
@@ -260,9 +228,6 @@ describe("autocomplete · keywords and statement starts", () => {
     expect(labelsAt(source, { at: "1" })).toEqual(["then"]);
     expect(labelsAt(source, { at: "2" })).toEqual(expect.arrayContaining(["else", "elseif"]));
     expect(labelsAt(source, { at: "3" })).toContain("do");
-    // Upstream expects `do` at `repeat@4`, under a FIXME that the start and
-    // end of every statement should be handled; the keyword being typed there
-    // is `repeat`, and sparkdown completes it to itself.
     expect(labelsAt(source, { at: "4" })).toContain("repeat");
   });
 
@@ -285,7 +250,6 @@ describe("autocomplete · keywords and statement starts", () => {
   });
 
   upstreamCase.bug(BUG.keywordPrefix, "if_then_else_elseif_completions", "`el` after a misspelt `elif` offers `else`, `elseif` and the local", () => {
-    // `elif` is not a keyword, so the if has had no else yet.
     const labels = labelsAt(
       openMain('local elsewhere = false\n\nif true then\n  print("1")\nelif true then\n  print("2")\nel@1\nend'),
     );
@@ -295,12 +259,6 @@ describe("autocomplete · keywords and statement starts", () => {
   });
 
   upstreamCase.bug([BUG.keywordPosition, BUG.ifExpressionParse, BUG.keywordPrefix], "autocomplete_ifelse_expressions", "an if-expression offers `then`, `else` and `elseif` in turn", () => {
-    // Upstream's first cursor sits inside the word (`t@1emp`). Sparkdown
-    // completes a word from its end and deliberately offers nothing with text
-    // after the cursor, so the cursor moves to the end of `t`. The lines are
-    // unfinished if-expressions, as upstream writes them, so `@3` and `@4`
-    // also need the grammar to keep a half-typed if-expression in Luau code,
-    // and `@8` needs a typed word to offer keywords.
     const source = openMain(
       [
         "local temp = false",
@@ -318,7 +276,6 @@ describe("autocomplete · keywords and statement starts", () => {
       ].join("\n"),
     );
     const at = (marker: string) => labelsAt(source, { at: marker });
-    // Positions in an expression: the names and `true`, no branch keyword.
     for (const marker of ["1", "5", "7"]) {
       const labels = at(marker);
       expect(labels, `@${marker}`).toContain("temp");
@@ -327,7 +284,6 @@ describe("autocomplete · keywords and statement starts", () => {
       expect(labels, `@${marker}`).not.toContain("else");
       expect(labels, `@${marker}`).not.toContain("elseif");
     }
-    // After a condition: `then` and no names.
     for (const marker of ["2", "6"]) {
       const labels = at(marker);
       expect(labels, `@${marker}`).toContain("then");
@@ -336,13 +292,11 @@ describe("autocomplete · keywords and statement starts", () => {
       expect(labels, `@${marker}`).not.toContain("else");
       expect(labels, `@${marker}`).not.toContain("elseif");
     }
-    // The start of a branch's value: the names and no branch keyword.
     const three = at("3");
     expect(three).toContain("even");
     expect(three).not.toContain("then");
     expect(three).not.toContain("else");
     expect(three).not.toContain("elseif");
-    // After a branch's value: `else` and `elseif`, no names, no `then`.
     for (const marker of ["4", "8"]) {
       const labels = at(marker);
       expect(labels, `@${marker}`).toContain("else");
@@ -350,7 +304,6 @@ describe("autocomplete · keywords and statement starts", () => {
       expect(labels, `@${marker}`).not.toContain("even");
       expect(labels, `@${marker}`).not.toContain("then");
     }
-    // The else branch's value: no branch keyword.
     const nine = at("9");
     expect(nine).not.toContain("then");
     expect(nine).not.toContain("else");
@@ -382,7 +335,6 @@ describe("autocomplete · keywords and statement starts", () => {
       expect(labels).not.toContain("break");
       expect(labels).not.toContain("continue");
     }
-    // The if body offers keywords, so its absence of `break` is a real check.
     expect(labelsAt(source, { at: "2" })).toContain("if");
   });
 
@@ -434,9 +386,6 @@ describe("autocomplete · keywords and statement starts", () => {
   });
 
   upstreamCase("autocomplete_exclude_break_continue_in_incomplete_loop", "an unclosed loop's body offers `break` and `continue`", () => {
-    // Upstream excludes them only because Luau's parser ends the incomplete
-    // loop at once, and notes that including them is what it would like.
-    // Sparkdown's grammar keeps the unclosed body open, so they are offered.
     const labels = labelsAt(openMain("while foo() do\n  @1"));
     expect(labels).toContain("break");
     expect(labels).toContain("continue");
@@ -448,8 +397,6 @@ describe("autocomplete · keywords and statement starts", () => {
   });
 });
 
-// A story `for` header reads its condition with the bounded rule it shares
-// with a story `while` (#1907); its names still offer `in`, as a function's do.
 describe("autocomplete · story loop headers", () => {
   test.each([
     ["at the top level", "store t = {}\nfor k, v @1"],
@@ -460,7 +407,6 @@ describe("autocomplete · story loop headers", () => {
 
   test.each([
     ["on its own", "store x = true\nwhile x @1"],
-    // The `for` around it does not own its condition (#2062 round 3).
     ["inside a story `for`", "store t = {1}\nfor k, v in pairs(t) do\n  while true @1\n  The hero waits.\nend\n"],
     ["marked, inside a story `for`", "for k, v in pairs({1}) do\n  & while true @1\nend\n"],
     ["in a marked block, inside a story `for`", "for k, v in pairs({1}) do\n  & do while true @1\nend\n"],

@@ -81,7 +81,7 @@ function incrementalAndCold(project: Project, name: string, insert: string): [an
 
 function expectCopiedCodeMatchesCold(main: string[], body: (name: string) => string) {
   const project: Project = {
-    main: [...main, ""].join("\n"),
+    main: [...main, "scene start", "end", ""].join("\n"),
     pre: ["scene pre_one", "  Before.", "end", ""].join("\n"),
     shared: body("sf"),
   };
@@ -98,7 +98,7 @@ function expectCopiedCodeMatchesCold(main: string[], body: (name: string) => str
 describe("synthetic names in two files", () => {
   it("two anonymous functions at the same offset of their files compile", () => {
     const program = compileOnce({
-      main: ["store x = 0", "& x = fa_f() + fb_f()", ""].join("\n"),
+      main: ["store x = 0", "scene start", "  & x = fa_f() + fb_f()", "end", ""].join("\n"),
       fa: ["store fa_f = function() return 1 end", ""].join("\n"),
       fb: ["store fb_f = function() return 2 end", ""].join("\n"),
     });
@@ -110,7 +110,7 @@ describe("synthetic names in two files", () => {
     const defineIn = (name: string) =>
       [`define ${name} with`, "  function get()", `    return ${name === "ca" ? 1 : 2}`, "  end", "end", ""].join("\n");
     const program = compileOnce({
-      main: ["store x = 0", "& x = ca:get() + cb:get()", ""].join("\n"),
+      main: ["store x = 0", "scene start", "  & x = ca:get() + cb:get()", "end", ""].join("\n"),
       fa: defineIn("ca"),
       fb: defineIn("cb"),
     });
@@ -180,7 +180,7 @@ function evaluate(program: any, fn: string): unknown {
 
 describe("assignment temps in a carried chunk", () => {
   it("compound and multi-target assignment temps keep the cold names after an edit above them", () => {
-    const scenes = [0, 1, 2, 3, 4, 5].flatMap((i) => [`scene s${i}`, `  Line ${i}.`, "end", ""]);
+    const scenes = [0, 1, 2, 3, 4, 5].flatMap((i) => [`scene ${i === 0 ? "start" : `s${i}`}`,`  Line ${i}.`, "end", ""]);
     const text = [
       "store t = { a = 0, b = 0 }",
       "",
@@ -209,7 +209,7 @@ describe("assignment temps in a carried chunk", () => {
     const text = [
       "store u = { a = 0 }",
       "",
-      "scene s0",
+      "scene start",
       "  Line 0.",
       "end",
       "",
@@ -223,7 +223,7 @@ describe("assignment temps in a carried chunk", () => {
       "end",
       "",
     ].join("\n");
-    const [incremental, cold] = editMain(text, 6, "& h = function() return 9 end\n\n");
+    const [incremental, cold] = editMain(text, 6, "store h = function() return 9 end\n\n");
     expect(errors(incremental)).toEqual([]);
     expect(programContent(incremental.chunks)).toEqual(programContent(cold.chunks));
     expect(evaluate(incremental, "g")).toBe(3);
@@ -240,6 +240,9 @@ describe("authored names shaped like synthetic ones", () => {
         "",
         "function f__redef_x__1()",
         "  return 7",
+        "end",
+        "",
+        "scene start",
         "end",
         "",
       ].join("\n"),
@@ -273,7 +276,9 @@ describe("authored names shaped like synthetic ones", () => {
         '  name = "Bob"',
         "end",
         "",
-        "-> __synth_6",
+        "scene start",
+        "  -> __synth_6",
+        "end",
         "",
         "scene __synth_6",
         "  & g = __synth_0",
@@ -301,9 +306,12 @@ describe("authored names shaped like synthetic ones", () => {
         "store f = function() return 1 end",
         'store x = "__synth_0"',
         'store y = ""',
-        "match (x)",
-        '  | __synth_0 = y = "matched"',
-        '  | other = y = "unmatched"',
+        "",
+        "scene start",
+        "  match (x)",
+        '    | __synth_0 = y = "matched"',
+        '    | other = y = "unmatched"',
+        "  end",
         "end",
         "",
         "layout __synth_6 with",
@@ -321,7 +329,7 @@ describe("authored names shaped like synthetic ones", () => {
 
   it("keep their names when only the prefix matches", () => {
     const program = compileOnce({
-      main: ["store f = function() return 1 end", "store __synth_x = 9", ""].join("\n"),
+      main: ["store f = function() return 1 end", "store __synth_x = 9", "", "scene start", "end", ""].join("\n"),
     });
     expect(errors(program)).toEqual([]);
     expect(globalAfterRun(program, "__synth_x")).toBe(9);

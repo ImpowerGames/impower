@@ -2,7 +2,9 @@ import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 const story = (line: string) =>
-  makeRuntimeStoryFromSource(`${line}\nscene later\n  Later.\n  fin\n\nend\n`);
+  makeRuntimeStoryFromSource(
+    `scene start\n  ${line}\nend\n\nscene later\n  Later.\n  fin\n\nend\n`,
+  );
 
 describe("text after a divert on the same line", () => {
   test.each([

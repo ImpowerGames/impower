@@ -20,16 +20,19 @@ describe("mixed-type operators in story expressions", () => {
   test("a condition compares values of different types as unequal", () => {
     const r = run(`store n = 1
 store s = "1"
-if n == s then
-  {"equal"}
-else
-  {"unequal"}
-end
-if n ~= s then
-  {"differ"}
-end
-if n == 1 then
-  {"same type"}
+
+scene start
+  if n == s then
+    {"equal"}
+  else
+    {"unequal"}
+  end
+  if n ~= s then
+    {"differ"}
+  end
+  if n == 1 then
+    {"same type"}
+  end
 end`);
     expect(r.runtimeErrors).toEqual([]);
     expect(r.lines).toEqual(["unequal", "differ", "same type"]);
@@ -37,15 +40,21 @@ end`);
 
   test("an interpolation of a mixed-type equality shows false", () => {
     const r = run(`store b = true
-{b == 1}
-{b == true}`);
+
+scene start
+  {b == 1}
+  {b == true}
+end`);
     expect(r.runtimeErrors).toEqual([]);
     expect(r.lines).toEqual(["false", "true"]);
   });
 
   test("an interpolation of arithmetic on a boolean raises", () => {
     const r = run(`store b = true
-{b + 1}`);
+
+scene start
+  {b + 1}
+end`);
     expect(r.runtimeErrors.join("\n")).toContain(
       "attempt to perform arithmetic (add) on boolean and number",
     );
@@ -54,8 +63,11 @@ end`);
   test("a condition ordering a number with a string raises", () => {
     const r = run(`store n = 1
 store s = "a"
-if n < s then
-  {"less"}
+
+scene start
+  if n < s then
+    {"less"}
+  end
 end`);
     expect(r.runtimeErrors.join("\n")).toContain(
       "attempt to compare number < string",
@@ -64,8 +76,8 @@ end`);
 
   test("a choice condition with a mixed-type equality hides the choice", () => {
     const r = run(`store n = 1
--> main
-scene main
+
+scene start
   choose
     * if (n == "1") coerced
     * if (n == 1) numeric
@@ -78,8 +90,8 @@ end`);
 
   test("a choice condition ordering two booleans raises", () => {
     const r = run(`store b = true
--> main
-scene main
+
+scene start
   choose
     * if (b < false) never
     * fallback

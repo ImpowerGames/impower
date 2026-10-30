@@ -50,4 +50,6 @@ function strayCloser()
   for k, v in pairs(t ] do end
   repeat until (x ]
 end
-After {paren()}.
+scene start
+  After {paren()}.
+end

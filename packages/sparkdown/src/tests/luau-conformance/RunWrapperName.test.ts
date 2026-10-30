@@ -77,7 +77,7 @@ describe("a run file's wrapper is shown by the file's name (I-1266)", () => {
     { spelling: "a quoted path without its extension", line: 'run "helper"' },
   ])("shows helper.luau as helper when run by $spelling", ({ line }) => {
     const { recorded, paths, frames, traces } = probe([
-      { uri: "file:///C:/proj/main.sd", text: `${EXTERNALS}${line}\ndone\n` },
+      { uri: "file:///C:/proj/main.sd", text: `${EXTERNALS}scene start\n  ${line}\n  done\nend\n` },
       { uri: "file:///C:/proj/helper.luau", text: BODY },
     ]);
     expect(recorded[0]).toBe("helper");
@@ -95,7 +95,7 @@ describe("a run file's wrapper is shown by the file's name (I-1266)", () => {
     const { recorded, paths, frames } = probe([
       {
         uri: "file:///C:/proj/main.sd",
-        text: `${EXTERNALS}run "my helper"\ndone\n`,
+        text: `${EXTERNALS}scene start\n  run "my helper"\n  done\nend\n`,
       },
       { uri: "file:///C:/proj/my%20helper.luau", text: BODY },
     ]);
@@ -108,7 +108,7 @@ describe("a run file's wrapper is shown by the file's name (I-1266)", () => {
     const { recorded, paths, frames, traces } = probe([
       {
         uri: "file:///C:/proj/main.sd",
-        text: `${EXTERNALS}run "a/helper"\nrun "b dir/helper"\ndone\n`,
+        text: `${EXTERNALS}scene start\n  run "a/helper"\n  run "b dir/helper"\n  done\nend\n`,
       },
       { uri: "file:///C:/proj/a/helper.luau", text: BODY },
       { uri: "file:///C:/proj/b%20dir/helper.luau", text: BODY },
@@ -125,9 +125,9 @@ describe("a run file's wrapper is shown by the file's name (I-1266)", () => {
 
   test("names the files anew when an incremental compile adds or removes a file of one name", () => {
     const mainWith = (lines: string) =>
-      `external harness_record(v)\n${lines}done\n`;
+      `external harness_record(v)\nscene start\n${lines}  done\nend\n`;
     const files = [
-      { uri: "file:///C:/proj/main.sd", text: mainWith('run "a/helper"\n') },
+      { uri: "file:///C:/proj/main.sd", text: mainWith('  run "a/helper"\n') },
       {
         uri: "file:///C:/proj/a/helper.luau",
         text: `harness_record(debug.info(1, "n"))\n`,
@@ -161,20 +161,22 @@ describe("a run file's wrapper is shown by the file's name (I-1266)", () => {
           .program.chunks,
       );
     };
-    expect(recompile(mainWith('run "a/helper"\nrun "b/helper"\n'))).toEqual([
+    expect(recompile(mainWith('  run "a/helper"\n  run "b/helper"\n'))).toEqual([
       "a/helper",
       "b/helper",
     ]);
-    expect(recompile(mainWith('run "b/helper"\n'))).toEqual(["helper"]);
+    expect(recompile(mainWith('  run "b/helper"\n'))).toEqual(["helper"]);
   });
 
   test("prints the wrapper's function value by the file's name, before and after a save", () => {
     const wrapper = "__run_file_3a_2f_2f_2fC_3a_2fproj_2fhelper_2eluau__";
-    const main = `${EXTERNALS}run hold
-First line.
-run show
-run helper
-done
+    const main = `${EXTERNALS}scene start
+  run hold
+  First line.
+  run show
+  run helper
+  done
+end
 `;
     const { result, errs } = compileWithFiles([
       { uri: "file:///C:/proj/main.sd", text: main },
@@ -234,7 +236,7 @@ done
       const { recorded, paths, frames, traces } = probe([
         {
           uri: "file:///C:/proj/main.sd",
-          text: `${EXTERNALS}run "my helper"\ndone\n`,
+          text: `${EXTERNALS}scene start\n  run "my helper"\n  done\nend\n`,
         },
         {
           uri: "file:///C:/proj/my%20helper.luau",
@@ -269,7 +271,7 @@ done
       const { recorded, paths } = probe([
         {
           uri: "file:///C:/proj/main.sd",
-          text: `${EXTERNALS}run helper\nrun shadow\ndone\n`,
+          text: `${EXTERNALS}scene start\n  run helper\n  run shadow\n  done\nend\n`,
         },
         { uri: "file:///C:/proj/helper.luau", text: `harness_record(1)\n` },
         {
@@ -302,7 +304,7 @@ done
         [
           {
             uri: "file:///C:/proj/main.sd",
-            text: `${EXTERNALS}run "${asWritten ? "my%20helper" : "my helper"}"\ndone\n`,
+            text: `${EXTERNALS}scene start\n  run "${asWritten ? "my%20helper" : "my helper"}"\n  done\nend\n`,
           },
           { uri: "file:///C:/proj/my%20helper.luau", text: BODY },
         ],
@@ -318,9 +320,9 @@ done
     (carrier) => {
       const wrapper = "__run_file_3a_2f_2f_2fC_3a_2fproj_2fa_2fhelper_2eluau__";
       const mainWith = (runs: string) =>
-        `${EXTERNALS}run hold\nFirst line.\nrun show\n${runs}done\n`;
+        `${EXTERNALS}scene start\n  run hold\n  First line.\n  run show\n${runs}  done\nend\n`;
       const files = [
-        { uri: "file:///C:/proj/main.sd", text: mainWith('run "a/helper"\n') },
+        { uri: "file:///C:/proj/main.sd", text: mainWith('  run "a/helper"\n') },
         { uri: "file:///C:/proj/hold.luau", text: `held = ${wrapper}\n` },
         {
           uri: "file:///C:/proj/show.luau",
@@ -355,7 +357,7 @@ done
         contentChanges: [
           {
             text: withTestExternals(
-              mainWith('run "a/helper"\nrun "b/helper"\n'),
+              mainWith('  run "a/helper"\n  run "b/helper"\n'),
             ),
           },
         ],
@@ -382,7 +384,7 @@ done
     const { recorded, paths } = probe([
       {
         uri: "file:///C:/proj/main.sd",
-        text: `${EXTERNALS}run "my.helper.luau"\ndone\n`,
+        text: `${EXTERNALS}scene start\n  run "my.helper.luau"\n  done\nend\n`,
       },
       { uri: "file:///C:/proj/my.helper.luau", text: BODY },
     ]);
@@ -391,10 +393,12 @@ done
   });
 
   test("never renames an author's function named like a wrapper", () => {
-    const main = `${EXTERNALS}run helper
-& __run_helper__()
-& __run__uffffff__()
-done
+    const main = `${EXTERNALS}scene start
+  run helper
+  & __run_helper__()
+  & __run__uffffff__()
+  done
+end
 function __run_helper__()
   harness_record(debug.info(1, "n"))
 end
@@ -429,9 +433,11 @@ harness_record(t[__run_helper])
 harness_record(t[helper])
 harness_record(t[${wrapper}])
 `;
-    const main = `${EXTERNALS}run keys
-run helper
-done
+    const main = `${EXTERNALS}scene start
+  run keys
+  run helper
+  done
+end
 function helper()
   return 0
 end

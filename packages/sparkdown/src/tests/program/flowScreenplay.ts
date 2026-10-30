@@ -3,7 +3,9 @@ export function flowScreenplay(scenes = 3): string {
     "store passes = 0",
     "store route = -> ENDING",
     "",
-    "Before any scene.",
+    "scene start",
+    "  Before any scene.",
+    "end",
     "",
   ];
   for (let s = 0; s < scenes; s++) {

@@ -77,7 +77,7 @@ describe("Sequences — inline-glued form (`..keyword|a|b|c..`)", () => {
   test("a glued keyword with no `|` separator stays text instead of opening an alternator (#1706)", () => {
     for (const head of ["shuffle,A,B,C", "queue,A,B"]) {
       const ctx = makeRuntimeStoryFromSource(
-        ["-> main", "scene main", `  Before .. ${head} .. After.`, "  done", "end", ""].join("\n"),
+        ["scene start", `  Before .. ${head} .. After.`, "  done", "end", ""].join("\n"),
       );
       expect(ctx.errorMessages).toEqual([]);
       expect(ctx.story.Continue()).toBe(`Before .. ${head} .. After.\n`);

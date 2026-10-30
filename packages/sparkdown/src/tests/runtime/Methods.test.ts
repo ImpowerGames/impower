@@ -89,7 +89,7 @@ describe("Builtin methods (tables)", () => {
   });
 
   test(":random() returns an element from the array portion", () => {
-    const src = `store t = {10, 20, 30, 40, 50}\n{t:random()}\n`;
+    const src = `store t = {10, 20, 30, 40, 50}\nscene start\n  {t:random()}\nend\n`;
     const valid = new Set([10, 20, 30, 40, 50]);
     for (let i = 0; i < 50; i++) {
       const ctx = makeRuntimeStoryFromSource(src);
@@ -121,7 +121,7 @@ describe("Builtin methods (tables)", () => {
 describe("String library methods (I-856)", () => {
   const run = (expr: string) => {
     const ctx = makeRuntimeStoryFromSource(
-      `function run() return ${expr} end\n\nGot {run()}.\n`,
+      `function run() return ${expr} end\n\nscene start\n  Got {run()}.\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
     return ctx.story.ContinueMaximally();
@@ -148,7 +148,6 @@ describe("String library methods (I-856)", () => {
         `  end`,
         `  return table.concat(parts, ",")`,
         `end`,
-        `-> start`,
         `scene start`,
         `  local a, b = ("abc"):byte(1, 2)`,
         `  {a} {b} {("%d-%s"):format(5, "x")} {("abc"):contains("b")} {("i4"):packsize()} {words()}`,
@@ -163,7 +162,6 @@ describe("String library methods (I-856)", () => {
   test("a string's member is its string library function", () => {
     const ctx = makeRuntimeStoryFromSource(
       [
-        `-> start`,
         `scene start`,
         `  local s = "abc"`,
         `  {s:byte(1)} {s.byte(s, 2)} {type(s.byte)} {type(("x").format)} {type(s.nope)}`,
@@ -184,7 +182,9 @@ describe("String library methods (I-856)", () => {
         `function t:format(x) return "own " .. x end`,
         `function t:byte() return "own byte" end`,
         ``,
-        `{t:format("f")} / {t:byte()}`,
+        `scene start`,
+        `  {t:format("f")} / {t:byte()}`,
+        `end`,
         ``,
       ].join("\n"),
     );

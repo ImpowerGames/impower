@@ -130,19 +130,9 @@ export interface ScreenState {
 
 export interface DebugState {
   breakpoints?: Record<string, number[]>;
-  /** By script, the pins on the options the Game Preview takes, each its
-   *  line, counting from 0, and which time the route is offered the option,
-   *  from 1. Kept for the author in this project and never in its files. */
   routePins?: Record<string, { line: number; offer: number }[]>;
   pinpoints?: Record<string, number[]>;
   highlights?: Record<string, number[]>;
-  /**
-   * Per-file diagnostic counts by severity — enough to color file rows/tabs
-   * (error = red, warning = yellow). The diagnostics themselves are NOT kept
-   * on the main thread; editor views get them via publishDiagnostics.
-   * (Structurally matches sparkdown's DiagnosticsSummary — kept as a plain
-   * shape here to avoid a cross-package type dependency.)
-   */
   diagnosticsSummary?: Record<
     string,
     { errors: number; warnings: number; infos: number }

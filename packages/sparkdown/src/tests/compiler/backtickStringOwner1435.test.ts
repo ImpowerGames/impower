@@ -430,7 +430,7 @@ describe("the round-4 ownership probes (I-1419)", () => {
   for (const body of bodies) {
     test(`a function's ${JSON.stringify(body)}`, () => {
       const luau = `function f()\n${body}\nend\n`;
-      expect(sparkdownErrors(`${luau}Go {f()}.\n`)).toEqual(official(luau));
+      expect(sparkdownErrors(`${luau}scene start\n  Go {f()}.\nend\n`)).toEqual(official(luau));
     });
     if (!body.includes("\n")) continue;
     test(`a define's method ${JSON.stringify(body)}`, () => {
@@ -439,7 +439,7 @@ describe("the round-4 ownership probes (I-1419)", () => {
   }
 
   test("for i `a {x} b {} c` do end reports both errors", () => {
-    expect(sparkdownErrors("function f()\nfor i `a {x} b {} c` do end\nend\nGo {f()}.\n")).toEqual(
+    expect(sparkdownErrors("function f()\nfor i `a {x} b {} c` do end\nend\nscene start\n  Go {f()}.\nend\n")).toEqual(
       [
         "1:6-1:10 Expected 'in' when parsing for loop, got `a {",
         "1:11-1:16 Malformed interpolated string, expected expression inside '{}'",

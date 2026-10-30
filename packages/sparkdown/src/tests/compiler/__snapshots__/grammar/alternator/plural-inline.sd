@@ -1,2 +1,4 @@
 store inventory = {coins=1}
-{plural(inventory.coins) | one="coin" | other="coins" end}
+scene start
+  {plural(inventory.coins) | one="coin" | other="coins" end}
+end

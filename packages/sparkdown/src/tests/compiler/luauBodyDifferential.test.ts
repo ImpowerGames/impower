@@ -185,7 +185,7 @@ function generate(seed: number) {
     "end",
     "",
   ].join("\n");
-  return { luau, source: `${luau}After it.\n`, closesEarly: statements.some((s) => CLOSING.includes(s)), random };
+  return { luau, source: `${luau}\nscene start\n  After it.\nend\n`, closesEarly: statements.some((s) => CLOSING.includes(s)), random };
 }
 
 const SEEDS = Array.from({ length: 300 }, (_, i) => i + 1);
@@ -219,12 +219,12 @@ describe("a function body read as Luau reads it (#1158)", () => {
   it.each(SEEDS.filter((seed) => seed % 6 === 0))(
     "compiles edits inside body %i incrementally as a cold compile does",
     (seed) => {
-      const { source, random } = generate(seed);
+      const { luau, source, random } = generate(seed);
       const c = compiler(source);
       compile(c);
       let text = source;
       const start = text.indexOf("local x, t");
-      const end = text.lastIndexOf("end\n");
+      const end = luau.lastIndexOf("end\n");
       const position = (offset: number) => {
         const before = text.slice(0, offset).split("\n");
         return { line: before.length - 1, character: before[before.length - 1]!.length };

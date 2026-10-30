@@ -69,7 +69,6 @@ layout main with
   }
 end
 
--> start
 
 scene start
   Reactive smoke test — click buttons, type in the field, toggle the checkbox.

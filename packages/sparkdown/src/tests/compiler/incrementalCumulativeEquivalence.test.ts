@@ -144,6 +144,9 @@ describe("compiler cumulative incremental equivalence", () => {
         const L: string[] = [];
         L.push("title: T");
         L.push("");
+        L.push("scene start");
+        L.push("end");
+        L.push("");
         L.push("scene intro");
         L.push("= INT. A - DAY");
         L.push(":");
@@ -151,7 +154,7 @@ describe("compiler cumulative incremental equivalence", () => {
         L.push("end");
         L.push("");
         if (withF1) {
-          L.push("& f1 = function() return 1 end");
+          L.push("& store f1 = function() return 1 end");
           L.push("");
         }
         L.push("scene mid");
@@ -160,7 +163,7 @@ describe("compiler cumulative incremental equivalence", () => {
         L.push("  More action.");
         L.push("end");
         L.push("");
-        L.push("& f2 = function() return 2 end");
+        L.push("& store f2 = function() return 2 end");
         L.push("");
         L.push("scene outro");
         L.push("= INT. C - DAY");
@@ -177,7 +180,7 @@ describe("compiler cumulative incremental equivalence", () => {
       });
       incr.compile({ textDocument: { uri: URI } });
 
-      const f1Line = before.split("\n").findIndex((l) => l.startsWith("& f1"));
+      const f1Line = before.split("\n").findIndex((l) => l.startsWith("& store f1"));
       incr.updateDocument({
         textDocument: { uri: URI, version: 2 },
         contentChanges: [

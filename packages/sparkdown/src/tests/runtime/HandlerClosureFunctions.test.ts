@@ -7,7 +7,10 @@ describe("a function in a handler of a layout in a function", () => {
     ["a local function", "local function h() a = 2 end h()"],
     ["a const function", "const function h() a = 2 end h()"],
   ])("%s fails nothing but the layout's own placement", (_label, handler) => {
-    const ctx = makeRuntimeStoryFromSource(`Go {f()}.
+    const ctx = makeRuntimeStoryFromSource(`scene start
+  Go {f()}.
+end
+
 function f()
   local a = 1
   layout form with

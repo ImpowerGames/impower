@@ -4,9 +4,8 @@ export function constructs(p = ""): string[] {
     `store ${p}acc = { n = 0, add = function(self, n) return self end }`,
     `store ${p}thing = 1`,
     "",
-    `# ${p}chapter marker`,
-    "",
     `scene ${p}deep_choice # arc`,
+    `  # ${p}chapter marker`,
     "  Beat before the choice.",
     "  choose",
     "  + [Press on]",
@@ -45,8 +44,10 @@ export function constructs(p = ""): string[] {
 
 export function coupledScreenplay(): string {
   const L: string[] = [];
+  L.push("---");
   L.push("title: Incr Fixture");
   L.push("author: Anonymous");
+  L.push("---");
   L.push("");
   L.push("define hero as character with");
   L.push(`  name = "Hero"`);
@@ -63,6 +64,10 @@ export function coupledScreenplay(): string {
   L.push("");
   L.push("function bonus(x):");
   L.push("  return x * 2 + 1");
+  L.push("");
+  L.push("scene start");
+  L.push("  -> scene_0");
+  L.push("end");
   L.push("");
   const SC = 14;
   for (let s = 0; s < SC; s++) {
@@ -91,8 +96,10 @@ export function coupledScreenplay(): string {
 
 export function cumulativeScreenplay(): string {
   const L: string[] = [];
+  L.push("---");
   L.push("title: Incr Fixture");
   L.push("author: Anonymous");
+  L.push("---");
   L.push("");
   L.push("define hero as character with");
   L.push(`  name = "Hero"`);
@@ -104,6 +111,10 @@ export function cumulativeScreenplay(): string {
   L.push("");
   L.push("function bonus(x):");
   L.push("  return x * 2 + 1");
+  L.push("");
+  L.push("scene start");
+  L.push("  -> scene_0");
+  L.push("end");
   L.push("");
   const SC = 14;
   for (let s = 0; s < SC; s++) {

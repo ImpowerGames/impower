@@ -135,7 +135,7 @@ column #child-gap=8 {
 
 The braces alone decide what belongs to what. Indentation is only layout: it makes the tree easy to read, and the formatter sets it for you, but moving a line left or right never moves it into or out of a block. In the editor, a block folds from its first line to its `}`.
 
-Inside a block, entries are separated by a new line or a `;`. A comma at the end of an entry is accepted and ignored, so a line `text "Line one",` reads as `text "Line one"`. A comma between two entries on one line is an error: `row { text "A", text "B" }` is reported, and `row { text "A"; text "B" }` is what you meant.
+Inside a block, entries are separated by a new line, a `;` or a `,`, as in a Lua table: `row { text "A", text "B" }` and `row { text "A"; text "B" }` mean the same thing. A comma at the end of an entry is accepted and ignored, so a line `text "Line one",` reads as `text "Line one"`. A comma inside a value stays part of it, as in `#font=a,b` or `rgb(1, 2, 3)`.
 
 Leave a space before a block's `{`. Glued to a prop's value, as in `#child-gap=8{`, it is read as part of the value. You may also write `=` before the `{` (`row = { … }`); it means the same thing, and this guide leaves it out.
 
@@ -316,7 +316,7 @@ A **project** is a folder: the folder of its `main.sd`. Every `.sd` script under
 
 ```
 my-game/
-  main.sd             -- the story starts here
+  main.sd             -- the project's main script
   scripts/
     defs.sd           -- part of the story
     chapters/
@@ -326,17 +326,18 @@ my-game/
     forest.png        -- the asset `forest`
 ```
 
-**Only `main.sd` runs lines outside a scene.** Every other script holds declarations: `scene`, `branch`, `function`, `define`, `const`, `store`, `external` and `type`. A scene declared in `act1.sd` is reachable from `main.sd` with nothing written there:
+**The story starts in the scene named `start`.** Any script of the project may declare it, as a scene may be declared in any script, and a scene declared in `act1.sd` is reachable from every other script with nothing written there:
 
 ```sparkdown
--- main.sd
+// main.sd
+
 scene start
   -> act1
 end
 ```
 
 ```sparkdown
--- scripts/chapters/act1.sd
+// scripts/chapters/act1.sd
 store visited_forest = false
 
 scene act1
@@ -345,7 +346,9 @@ scene act1
 end
 ```
 
-A display line, a choice, a divert, an assignment, a call or a `run` at the top of any other script is an error: _Only main.sd runs lines outside a scene. Move this into a scene or into main.sd._ An `include` line is an error too, since the script it would name is already part of the story: _Scripts in the project folder are part of the story. Delete this line._
+A project with no `start` scene is an error on the first line of `main.sd`: _no scene named start; the story starts in a scene named start_. The story enters `start` with no arguments, so a `start` that declares parameters is an error on its header: _scene start cannot take parameters; the story starts there with none_. Otherwise `start` is an ordinary scene: it can be diverted to, it ends at its `end`, and it is counted and saved like any other. Two scenes named `start` are the duplicate any two scenes of one name are.
+
+**A script's top level holds declarations.** In every script, `main.sd` included, the top level holds `scene`, `branch`, `function`, `define` (and the definitions written like one), `const`, `store`, `external`, `type` and `run` lines, a `---` title page and comments. A display line, a choice, a divert, an assignment, a call, an `if`, `for`, `while` or `do` block, or a marked line that runs (`& x = 1`, `& f()`) at the top level is an error: _statement must be inside a scene or branch; the top level holds declarations only_. Move it into a scene, `start` or another. An `include` line is an error too, since the script it would name is already part of the story: _Scripts in the project folder are part of the story. Delete this line._
 
 **Declarations go at the top level; locals go inside a flow.** A `store`, `const`, `define` (and `style`, `layout`, `screen`, `component`, `animation`, `theme` and `morph`), `function`, `type` or `external` takes effect when the story starts, wherever it is written, so it is written at a script's top level. Inside a scene or a branch, at any depth, each one is an error, such as _store declaration must be at the top level; assign it here with & name = value instead_. A scene changes a store where it runs by assigning it, and the editor's quick fix _Change to an assignment_ turns `store visited = true` into `& visited = true`:
 
@@ -361,7 +364,7 @@ end
 
 A `local` belongs to a scene, a branch, a choice's body or a function. At the top level of any script, `main.sd` included, or in an `if` or loop written at the top level, it is an error: _local declaration must be inside a scene, branch or function; use store or const at the top level_. Inside a function, a `const` or a `define` is the function's own and is allowed.
 
-**`run` calls a Luau file** where its line stands, as often as the line is written. It takes either form:
+**`run` calls a Luau file.** At a script's top level, `run` runs the file once each time the story starts, with the declarations and before the story's first line, after every `store` and `const` of the project has its value; the scripts' `run` lines run in the order the scripts are read, `main.sd` first and the others by path. The globals the file defines therefore exist in every scene, one a preview starts in included. An error the file raises there is an error on its `run` line, as an error a `store`'s value raises is on the `store`'s. Inside a scene or a branch, `run` runs the file where its line stands, as often as the line runs. It takes either form:
 
 ```sparkdown
 run helpers -- the one helpers.luau anywhere in the project

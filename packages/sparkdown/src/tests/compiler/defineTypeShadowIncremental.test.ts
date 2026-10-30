@@ -69,10 +69,14 @@ function diagList(program: any): string[] {
 const shadowWarnings = (list: string[]) => list.filter((d) => d.includes("shadows the define type"));
 
 const BASE = [
-  "-> s0",
+  "",
   "",
   ...[0, 1, 2, 3, 4, 5, 6].flatMap((i) => [`scene s${i}`, `  Line ${i}.`, "end", ""]),
   "store thing = 1",
+  "",
+  "scene start",
+  "  -> s0",
+  "end",
   "",
 ].join("\n");
 

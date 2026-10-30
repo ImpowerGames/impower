@@ -62,8 +62,10 @@ define Penguin as Bird with
   end
 end
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local bird = new Bird()
@@ -104,8 +106,10 @@ define Penguin as Bird with
   end
 end
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local b1 = new Bird()
@@ -143,8 +147,10 @@ define Penguin as Bird with
   noise = "honk"
 end
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local p = new Penguin()
@@ -172,8 +178,10 @@ define Critter with
   end
 end
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local c = new Critter("Maw", 12)
@@ -195,8 +203,10 @@ define Hero with
   end
 end
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local h = new Hero()
@@ -230,8 +240,10 @@ define Counter with
   end
 end
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local c = new Counter()
@@ -250,8 +262,10 @@ define Settings with
   difficulty = "normal"
 end
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(Settings.difficulty)

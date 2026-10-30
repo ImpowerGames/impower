@@ -43,9 +43,7 @@ define raffles as synth with
   }
 end
 
--> main
-
-scene main
+scene start
   RAFFLES:
     Hello.
   choose
@@ -74,8 +72,10 @@ define raffles as synth with
   frequency = 340
 end
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(character.raffles.name)

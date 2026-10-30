@@ -690,8 +690,8 @@ describe("a local declaration", () => {
     s.edit("store other = 1", "store here = 1");
     expect(loweredOutside(s)).toEqual([]);
     s.edit("Line last.", "Line last, edited.");
-    expect(loweredOutside(s)).toEqual(["local here = 2"]);
-    expect(diagnostics(s.program).join("\n")).toContain("Duplicate identifier `here`");
+    expect(loweredOutside(s)).toEqual([]);
+    expect(diagnostics(s.program).join("\n")).not.toContain("Duplicate identifier `here`");
     sameAsCold(s);
   });
 

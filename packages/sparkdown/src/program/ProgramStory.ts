@@ -105,6 +105,7 @@ import {
 import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
 import {
   ROOT_FLOW_NAME,
+  START_FLOW_NAME,
   SymbolKind,
   UNDEFINED_KIND,
   countIdOf,
@@ -942,8 +943,16 @@ export class ProgramStory implements StoryEngine {
     variablesState.ObserveVariableChange(() => {
       this._stateIsPristine = false;
     });
-    const start = this.root.flowNamed(ROOT_FLOW_NAME);
-    this._state.position = start ? { sequence: start, entry: 0, offset: 0 } : null;
+    const start = this.startSymbol();
+    const place = start === undefined ? undefined : this.root.place(start);
+    if (place) {
+      this.land(place, [], 0);
+      this._start = { symbol: start!, ...place };
+    } else {
+      const root = this.root.flowNamed(ROOT_FLOW_NAME);
+      this._state.position = root ? { sequence: root, entry: 0, offset: 0 } : null;
+      this._start = null;
+    }
     if (this._imagesOn) {
       this.attachImages();
     }
@@ -1836,6 +1845,19 @@ export class ProgramStory implements StoryEngine {
 
   Step(): void {
     const state = this._state;
+    const start = this._start;
+    const at = state.position;
+    if (
+      start &&
+      at &&
+      at.sequence === start.sequence &&
+      at.entry === start.entry &&
+      at.offset === start.offset &&
+      state.VisitCount(this.countId(start.symbol)) === 0
+    ) {
+      this.countEntered(at.sequence, -1);
+      this.enterStart(start.symbol, at.sequence);
+    }
     const position = state.position;
     if (!position) {
       return;
@@ -3130,10 +3152,28 @@ export class ProgramStory implements StoryEngine {
 
   endedAt: number | null = null;
 
+  protected startSymbol(): number | undefined {
+    const symbol = this.root.table.symbolIds.get(START_FLOW_NAME);
+    return symbol !== undefined && this.root.kindOf(symbol) === SymbolKind.Scene
+      ? symbol
+      : undefined;
+  }
+
+  protected startName(): string {
+    return this.startSymbol() === undefined ? ROOT_FLOW_NAME : START_FLOW_NAME;
+  }
+
+  protected _start: {
+    symbol: number;
+    sequence: SequenceRow;
+    entry: number;
+    offset: number;
+  } | null = null;
+
   protected placeName(
     path: string,
   ): { position: ProgramPosition; symbol?: number } | undefined {
-    const name = path === "0" ? ROOT_FLOW_NAME : path;
+    const name = path === "0" ? this.startName() : path;
     const symbol = this.root.table.symbolIds.get(name);
     const kind = symbol === undefined ? UNDEFINED_KIND : this.root.kindOf(symbol);
     if (

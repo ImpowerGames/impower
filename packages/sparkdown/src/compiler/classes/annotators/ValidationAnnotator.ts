@@ -139,8 +139,6 @@ const LINE_BREAK_BINARY_OPERATORS = new Set(
 );
 const UNCLOSED_STRUCT_BLOCK =
   "This block is missing its closing `}`. Without it, every line up to the declaration's `end`, the next `scene` or `branch`, or the end of the file is read as part of this block.";
-const STRUCT_ENTRY_COMMA =
-  "Separate entries on one line with `;`, not `,`.";
 const INVALID_STRUCT_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
   "LuauStructStrayBlockClose",
   "LuauStructInvalidColon",
@@ -633,10 +631,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
     if (INVALID_STRUCT_BLOCK_TOKENS.has(nodeRef.name)) {
       this.error(annotations, "Invalid syntax", nodeRef.from, nodeRef.to);
-      return true;
-    }
-    if (nodeRef.name === "LuauStructBlockEntryComma") {
-      this.error(annotations, STRUCT_ENTRY_COMMA, nodeRef.from, nodeRef.to);
       return true;
     }
     return false;

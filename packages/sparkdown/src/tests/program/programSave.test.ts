@@ -216,8 +216,6 @@ describe("a save holds the values of its state", () => {
       "  store wings = 2",
       "end",
       "",
-      "-> start",
-      "",
       "scene start",
       "  & second = first",
       "  & pet = new Bird()",
@@ -258,8 +256,6 @@ describe("a save holds the values of its state", () => {
         `const LIMIT = ${limit}`,
         "store count = 1",
         "",
-        "-> start",
-        "",
         "scene start",
         "  First {count} of {LIMIT}.",
         "  & count = count + 1",
@@ -287,8 +283,6 @@ const MENU_TEXT = [
   "  drawn = math.random(1, 1000)",
   "  return true",
   "end",
-  "",
-  "-> start",
   "",
   "scene start",
   "  Before the menu.",
@@ -337,8 +331,7 @@ describe("a save taken while choices are waiting", () => {
 
   const THREADS = (guardSpeaks: boolean) =>
     [
-      "-> hub",
-      "scene hub",
+      "scene start",
       "  You arrive at the town square.",
       "  <- merchant",
       "  <- guard",
@@ -407,7 +400,6 @@ describe("a save taken while choices are waiting", () => {
 
   it("loads each of two menus in a row with no beat between them", () => {
     const text = [
-      "-> start",
       "scene start",
       "  Before.",
       "  choose",
@@ -478,7 +470,6 @@ describe("a save taken while choices are waiting", () => {
 
 describe("a save at the end", () => {
   const ENDS = [
-    "-> start",
     "scene start",
     "  First.",
     "  -> other",
@@ -514,7 +505,7 @@ describe("a save at the end", () => {
 });
 
 describe("a save's header", () => {
-  const TEXT = "-> start\nscene start\n  One.\n  Two.\nend\n";
+  const TEXT = "scene start\n  One.\n  Two.\nend\n";
 
   it("names the format's version, the engine's and the game's, empty when the game sets none", () => {
     const story = engine(rootOf(TEXT)!);
@@ -560,8 +551,6 @@ describe("a save's header", () => {
       "store alias = nil",
       "store bump = nil",
       "store peek = nil",
-      "",
-      "-> start",
       "",
       "scene start",
       "  & alias = shared",
@@ -702,8 +691,7 @@ describe("a save at the boundaries the first review found", () => {
     const text = [
       "store f = nil",
       "",
-      "-> hub",
-      "scene hub",
+      "scene start",
       "  You arrive.",
       "  <- merchant",
       "  <- guard",
@@ -754,7 +742,6 @@ describe("a save at the boundaries the first review found", () => {
   it("restores an image taken before a load after the load wrote into a table the program initialized", () => {
     const text = [
       "store t = { 1 }",
-      "-> start",
       "scene start",
       "  & t[1] = 2",
       "  Changed {t[1]}.",

@@ -36,19 +36,19 @@ test.each([
 
 test.each([
   [
-    "Value {f()}.\nfunction f()\n  local x: types.Button = 1\n  return x\nend\n",
+    "scene start\n  Value {f()}.\nend\nfunction f()\n  local x: types.Button = 1\n  return x\nend\n",
     "Value 1.\n",
   ],
   [
-    "Value {f()}.\nfunction f()\n  local function g(self: types.Button)\n    return 3\n  end\n  return g(1)\nend\n",
+    "scene start\n  Value {f()}.\nend\nfunction f()\n  local function g(self: types.Button)\n    return 3\n  end\n  return g(1)\nend\n",
     "Value 3.\n",
   ],
   [
-    "Value {f()}.\nfunction f()\n  local t: { types.Button } = { 5 }\n  return t[1]\nend\n",
+    "scene start\n  Value {f()}.\nend\nfunction f()\n  local t: { types.Button } = { 5 }\n  return t[1]\nend\n",
     "Value 5.\n",
   ],
   [
-    "Value {f()}.\nfunction f()\n  local x: string.Button = 6\n  local y: types .Button = 1\n  return x + y\nend\n",
+    "scene start\n  Value {f()}.\nend\nfunction f()\n  local x: string.Button = 6\n  local y: types .Button = 1\n  return x + y\nend\n",
     "Value 7.\n",
   ],
 ])("%j runs", (source, expected) => {
@@ -77,7 +77,7 @@ test.each([
 
 test("a two-dot type name is an error and keeps the function whole", () => {
   const { errorMessages } = collectDiagnostics(
-    "Value {f()}.\nfunction f()\n  local z: types.ui.Button = 3\n  return z\nend\n",
+    "scene start\n  Value {f()}.\nend\nfunction f()\n  local z: types.ui.Button = 3\n  return z\nend\n",
   );
   expect(errorMessages).toEqual([
     expect.stringContaining("takes at most one module prefix"),

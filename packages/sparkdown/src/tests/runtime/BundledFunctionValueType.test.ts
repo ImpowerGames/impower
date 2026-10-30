@@ -78,7 +78,9 @@ describe("a function value in the bundled runtime", () => {
       "function sort_items()",
       "  table.sort(items, compare)",
       "end",
-      "{sort_items()}",
+      "scene start",
+      "  {sort_items()}",
+      "end",
     ]);
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain("table.sort: comparator threw: bad compare");
@@ -95,7 +97,9 @@ describe("a function value in the bundled runtime", () => {
       "  table.sort(items, greater)",
       '  return table.concat(items, ",")',
       "end",
-      "{sorted()}",
+      "scene start",
+      "  {sorted()}",
+      "end",
     ]);
     expect(errors).toEqual([]);
     expect(text).toBe("3,2,1");
@@ -110,7 +114,9 @@ describe("a function value in the bundled runtime", () => {
       "  local g = f",
       '  return type(f) .. " " .. type(g) .. " " .. tostring(f)',
       "end",
-      "{describe()}",
+      "scene start",
+      "  {describe()}",
+      "end",
     ]);
     expect(errors).toEqual([]);
     expect(text).toBe("function function function: f");
@@ -124,7 +130,9 @@ describe("a function value in the bundled runtime", () => {
       "function replaced()",
       '  return (string.gsub("abc", "b", shout))',
       "end",
-      "{replaced()}",
+      "scene start",
+      "  {replaced()}",
+      "end",
     ]);
     expect(errors).toEqual([]);
     expect(text).toBe("aBc");

@@ -269,6 +269,12 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
     hidden.delete(node);
     shown.add(node);
   };
+  const showShapes = (carried: Record<string, string> | undefined) => {
+    for (const [node, d] of Object.entries(carried ?? {})) {
+      show(node);
+      geometry.set(node, d);
+    }
+  };
   const writeClip = (clip: number, loops: MorphGeometryRef, p: number, reachable: MorphClipFrames["reach"] = []) => {
     const samples = artifact.apertures[loops.index]!;
     const edges = artifact.apertureEdges[loops.index];
@@ -293,7 +299,10 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
       const all = new Set(Object.values(states).flat());
       for (const node of all) (own(states, held ?? "")?.includes(node) ? shown : hidden).add(node);
       const last = pose && "state" in pose ? pose.last : undefined;
-      if (last !== undefined) holdApertures(artifact, group, last + 1, writeClip);
+      if (last !== undefined) {
+        holdApertures(artifact, group, last + 1, writeClip);
+        showShapes(artifact.segments[last]?.carry?.to);
+      }
       continue;
     }
     const p = clamp01(pose.progress);
@@ -358,6 +367,16 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
           break;
       }
     }
+    for (const [node, d] of Object.entries(segment.shapes ?? {})) {
+      if (p <= 0 || p >= 1) {
+        shown.delete(node);
+        hidden.add(node);
+      } else if (shown.has(node) && !geometry.has(node)) {
+        geometry.set(node, d);
+      }
+    }
+    if (p <= 0) showShapes(segment.carry?.from);
+    if (p >= 1) showShapes(segment.carry?.to);
     holdApertures(artifact, group, pose.segment, writeClip);
     for (const clip of segment.clips) writeClip(clip.clip, clip.loops, p, clip.reach);
   }

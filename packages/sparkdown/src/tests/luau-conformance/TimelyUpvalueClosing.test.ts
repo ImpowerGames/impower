@@ -40,8 +40,11 @@ function compileAndCapture(source: string): {
 describe("timely upvalue closing across loop iterations", () => {
   test("numeric for: each closure keeps its iteration's loop var", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local res = {}
@@ -59,8 +62,11 @@ end
 
   test("generic for: each closure keeps its iteration's control var", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local res = {}
@@ -78,8 +84,11 @@ end
 
   test("while body local: fresh cell per iteration", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local res = {}
@@ -100,8 +109,11 @@ end
 
   test("repeat body local: fresh cell per iteration", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local res = {}
@@ -122,8 +134,11 @@ end
 
   test("break inside an if-arm unwinds the arm's scope", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local res = {}
@@ -145,8 +160,11 @@ end
 
   test("do-block local closes when the block exits", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local f = nil
@@ -160,8 +178,11 @@ end
 
   test("intra-iteration mutation stays visible (cell shared until redeclare)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local res = {}
@@ -181,8 +202,11 @@ end
 
   test("reassigning counter upvalues still shares one cell", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 0

@@ -43,14 +43,14 @@ describe("an unrecognized rich text tag", () => {
 
 describe("a misspelled asset command control", () => {
   test("[[shoe x]]", () => {
-    expect(diagnoseWithLints("[[shoe x]]\n")).toEqual([
+    expect(diagnoseWithLints("scene start\n  [[shoe x]]\nend\n")).toEqual([
       "Cannot find image named `shoe`",
       "Cannot find image named `x`",
     ]);
   });
 
   test("((pley x))", () => {
-    expect(diagnoseWithLints("((pley x))\n")).toEqual([
+    expect(diagnoseWithLints("scene start\n  ((pley x))\nend\n")).toEqual([
       "Cannot find audio named `pley`",
       "Cannot find audio named `x`",
     ]);
@@ -60,7 +60,7 @@ describe("a misspelled asset command control", () => {
 describe("an empty choice", () => {
   test("* []", () => {
     const messages = diagnoseWithLints(
-      "-> main\nscene main\n  choose\n    * []\n  end\nend\n",
+      "scene start\n  choose\n    * []\n  end\nend\n",
     );
     expect(messages).toContain(
       "Blank choice - if you intended a default fallback choice, use the `* ->` syntax",
@@ -70,7 +70,7 @@ describe("an empty choice", () => {
 
 describe("varargs outside a vararg function", () => {
   test("the warning names the internal variable", () => {
-    expect(diagnoseWithLints("function add(x, y) return ... end\n& add(1, 2)\n")).toEqual([
+    expect(diagnoseWithLints("function add(x, y) return ... end\nscene start\n  & add(1, 2)\nend\n")).toEqual([
       "Cannot find variable named `__varargs$`",
       "Cannot use '...' outside of a vararg function",
     ]);

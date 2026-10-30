@@ -57,8 +57,10 @@ end
 describe("define type/instance/namespace model", () => {
   test("members are accessed through their type (companion.O)", () => {
     const { errors, recorded } = compileAndCapture(`${COMPANION_PRELUDE}
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(companion.O.name)
@@ -72,8 +74,10 @@ end
 
   test("members are also reachable through the grandparent type", () => {
     const { errors, recorded } = compileAndCapture(`${COMPANION_PRELUDE}
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(character.O.name)
@@ -87,8 +91,10 @@ end
 
   test("store props are inherited as own keys; mutation is per-instance", () => {
     const { errors, recorded } = compileAndCapture(`${COMPANION_PRELUDE}
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(companion.O.trust)
@@ -113,8 +119,10 @@ define P as companion with
   name = "Pax"
 end
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local count = 0
@@ -141,8 +149,10 @@ end
 
   test("iinstances(T) yields ordinals", () => {
     const { errors, recorded } = compileAndCapture(`${COMPANION_PRELUDE}
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 for i, v in iinstances(character) do
@@ -157,8 +167,10 @@ end
 
   test("the reset loop: mutate every member through instances()", () => {
     const { errors, recorded } = compileAndCapture(`${COMPANION_PRELUDE}
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 companion.O.trust = 5
@@ -174,8 +186,10 @@ end
 
   test("new T() mints fresh anonymous instances of a define-type", () => {
     const { errors, recorded } = compileAndCapture(`${COMPANION_PRELUDE}
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local c = new companion()
@@ -204,8 +218,10 @@ define Hero as Actor with
   name = "Knight"
 end
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local seen = {}
@@ -238,8 +254,10 @@ define Hero as Actor with
   name = "Knight"
 end
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(Actor.Hero.name)

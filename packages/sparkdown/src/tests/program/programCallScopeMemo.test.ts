@@ -33,7 +33,9 @@ const script = (block: string) =>
     "  end",
     "  return g()",
     "end",
-    "Got {run()}.",
+    "scene start",
+    "  Got {run()}.",
+    "end",
     "",
   ].join("\n");
 

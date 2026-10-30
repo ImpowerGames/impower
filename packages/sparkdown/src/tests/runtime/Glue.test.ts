@@ -78,19 +78,25 @@ describe("Glue - across all display statement types", () => {
   ];
   const JOINED = "first second.\n";
   const ALICE: Routing = { target: "dialogue", character: "ALICE" };
+  const inStart = (body: string) =>
+    `scene start\n${body.replace(/^(?=.)/gm, "  ")}end\n`;
 
   for (const { label, prefix, routing } of TYPES) {
     const p = prefix ? `${prefix} ` : "";
     const own = label === "action" ? {} : routing;
 
     test(`trailing \`..\` joins two ${label} lines into one beat`, () => {
-      const ctx = makeRuntimeStoryFromSource(`${p}first ..\n${p}.. second.\n`);
+      const ctx = makeRuntimeStoryFromSource(
+        inStart(`${p}first ..\n${p}.. second.\n`),
+      );
       expect(ctx.errorMessages).toEqual([]);
       expect(beatsWithRouting(ctx.story)).toEqual([[JOINED, [routing, own]]]);
     });
 
     test(`touching \`..\` joins two ${label} lines with no space`, () => {
-      const ctx = makeRuntimeStoryFromSource(`${p}first..\n${p}..second.\n`);
+      const ctx = makeRuntimeStoryFromSource(
+        inStart(`${p}first..\n${p}..second.\n`),
+      );
       expect(ctx.errorMessages).toEqual([]);
       expect(beatsWithRouting(ctx.story)).toEqual([
         ["firstsecond.\n", [routing, own]],
@@ -98,7 +104,9 @@ describe("Glue - across all display statement types", () => {
     });
 
     test(`a \`..\` on one side only leaves two ${label} lines apart`, () => {
-      const ctx = makeRuntimeStoryFromSource(`${p}first ..\n${p}second.\n`);
+      const ctx = makeRuntimeStoryFromSource(
+        inStart(`${p}first ..\n${p}second.\n`),
+      );
       expect(ctx.errorMessages).toEqual([]);
       expect(beatsWithRouting(ctx.story)).toEqual([
         ["first\n", [routing]],
@@ -109,7 +117,7 @@ describe("Glue - across all display statement types", () => {
 
   test("a chain of trailing `..` joins three dialogue lines into one beat", () => {
     const ctx = makeRuntimeStoryFromSource(
-      "ALICE: a ..\nALICE: .. b ..\nALICE: .. c.\n",
+      inStart("ALICE: a ..\nALICE: .. b ..\nALICE: .. c.\n"),
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(beatsWithRouting(ctx.story)).toEqual([
@@ -118,13 +126,17 @@ describe("Glue - across all display statement types", () => {
   });
 
   test("trailing `..` joins mid-body lines within a block dialogue", () => {
-    const ctx = makeRuntimeStoryFromSource("ALICE:\n  first ..\n  .. second.\n");
+    const ctx = makeRuntimeStoryFromSource(
+      inStart("ALICE:\n  first ..\n  .. second.\n"),
+    );
     expect(ctx.errorMessages).toEqual([]);
     expect(beatsWithRouting(ctx.story)).toEqual([[JOINED, [ALICE]]]);
   });
 
   test("touching `..` joins mid-body lines within a block dialogue", () => {
-    const ctx = makeRuntimeStoryFromSource("ALICE:\n  first..\n  ..second.\n");
+    const ctx = makeRuntimeStoryFromSource(
+      inStart("ALICE:\n  first..\n  ..second.\n"),
+    );
     expect(ctx.errorMessages).toEqual([]);
     expect(beatsWithRouting(ctx.story)).toEqual([
       ["firstsecond.\n", [ALICE]],
@@ -132,7 +144,9 @@ describe("Glue - across all display statement types", () => {
   });
 
   test("a non-glued multi-line block dialogue still keeps its line breaks", () => {
-    const ctx = makeRuntimeStoryFromSource("ALICE:\n  one.\n  two.\n");
+    const ctx = makeRuntimeStoryFromSource(
+      inStart("ALICE:\n  one.\n  two.\n"),
+    );
     expect(ctx.errorMessages).toEqual([]);
     expect(beatsWithRouting(ctx.story)).toEqual([["one.\ntwo.\n", [ALICE]]]);
   });

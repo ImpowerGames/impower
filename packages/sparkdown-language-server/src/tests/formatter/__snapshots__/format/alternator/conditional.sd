@@ -1,4 +1,6 @@
-plural(count)
-| one  = "is one apple"
-| other = "are many apples"
+scene start
+  plural(count)
+  | one  = "is one apple"
+  | other = "are many apples"
+  end
 end

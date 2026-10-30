@@ -69,7 +69,7 @@ end
 layout hud with
   text "HUD"
 end
--> start
+
 scene start
   [[open hud]]
   Hello.

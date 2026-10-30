@@ -1,1 +1,3 @@
-& opts = {color = "red", count = 3}
+scene start
+  & opts = {color = "red", count = 3}
+end

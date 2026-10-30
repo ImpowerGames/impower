@@ -21,7 +21,7 @@ describe("runtime test harness smoke", () => {
 
   test("scenes without explicit `-> DONE` auto-terminate cleanly", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `-> main\nscene main\n  Hello world.\nend\n`,
+      `scene start\n  Hello world.\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.warningMessages).toEqual([]);
@@ -31,7 +31,7 @@ describe("runtime test harness smoke", () => {
 
   test("branches without explicit `-> DONE` auto-terminate cleanly", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `-> main.opener\nscene main\n  branch opener\n    Greetings.\n  end\nend\n`,
+      `scene start\n  -> main.opener\nend\nscene main\n  branch opener\n    Greetings.\n  end\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.warningMessages).toEqual([]);
@@ -40,7 +40,9 @@ describe("runtime test harness smoke", () => {
   });
 
   test("`->` is accepted as a divert-target type annotation", () => {
-    const ctx = makeRuntimeStoryFromSource(`-> outer ->
+    const ctx = makeRuntimeStoryFromSource(`scene start
+  -> outer ->
+end
 
 scene outer
   This is outer
@@ -64,10 +66,12 @@ end
 
   test("table-typed store: read + property-access via dotted name", () => {
     const ctx = makeRuntimeStoryFromSource(`store t = { value = 10 }
-{t.value}
-& mutate(t)
-{t.value}
--> DONE
+scene start
+  {t.value}
+  & mutate(t)
+  {t.value}
+  -> DONE
+end
 function mutate(x)
   x.value = 99
 end
@@ -78,10 +82,12 @@ end
 
   test("a property write between two lines is applied once", () => {
     const ctx = makeRuntimeStoryFromSource(`store t = { value = 5 }
-{t.value}
-& t.value = t.value * t.value
-{t.value}
--> DONE
+scene start
+  {t.value}
+  & t.value = t.value * t.value
+  {t.value}
+  -> DONE
+end
 `);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.Continue()).toBe("5\n");
@@ -91,8 +97,7 @@ end
 
   test("diverts inside alternator arms route through `lower()` dispatch", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `-> main
-scene main
+      `scene start
   start
   {chain | -> next | second visit end}
   -> DONE
@@ -109,7 +114,9 @@ end
   });
 
   test("divert to a label inside a branch resolves (cross-stitch path lookup)", () => {
-    const ctxGather = makeRuntimeStoryFromSource(`-> main.sub.hello_label
+    const ctxGather = makeRuntimeStoryFromSource(`scene start
+  -> main.sub.hello_label
+end
 scene main
   branch sub
     label hello_label
@@ -119,7 +126,9 @@ end
 `);
     expect(ctxGather.errorMessages).toEqual([]);
 
-    const ctxChoice = makeRuntimeStoryFromSource(`-> main.sub.target
+    const ctxChoice = makeRuntimeStoryFromSource(`scene start
+  -> main.sub.target
+end
 scene main
   branch sub
     choose

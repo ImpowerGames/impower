@@ -4,10 +4,12 @@ import { NullValue } from "../../runtime/Value";
 import { VariablesState } from "../../runtime/VariablesState";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
+const START = "\n\nscene start\n  Hello there.\n  done\nend\n";
+
 const NIL_STORES = [
-  ["store trust", "store trust\n\nHello there.\ndone\n"],
-  ["store number", "store number\n\nHello there.\ndone\n"],
-  ["store number trust = 1", "store number trust = 1\n\nHello there.\ndone\n"],
+  ["store trust", `store trust${START}`],
+  ["store number", `store number${START}`],
+  ["store number, store trust = 1", `store number\nstore trust = 1${START}`],
 ] as const;
 
 describe("a story state holding a nil store", () => {
@@ -18,7 +20,7 @@ describe("a story state holding a nil store", () => {
   });
 
   test("a nil store reloads as nil", () => {
-    const src = "store trust\n\nHello there.\ndone\n";
+    const src = `store trust${START}`;
     const { story, root } = makeRuntimeStoryFromSource(src);
     const saved = story.state.toJson();
 
@@ -31,7 +33,8 @@ describe("a story state holding a nil store", () => {
   });
 
   test("a nil written over a non-nil default saves and loads as nil", () => {
-    const src = "store trust = 1\n\ntrust = nil\nHello there.\ndone\n";
+    const src =
+      "store trust = 1\n\nscene start\n  trust = nil\n  Hello there.\n  done\nend\n";
     const { story, root } = makeRuntimeStoryFromSource(src);
     story.ContinueMaximally();
     const saved = story.state.toJson();
@@ -46,7 +49,8 @@ describe("a story state holding a nil store", () => {
     const previous = VariablesState.dontSaveDefaultValues;
     VariablesState.dontSaveDefaultValues = true;
     try {
-      const src = "store nilstore\nstore kept = 1\nstore changed = 1\n\nchanged = 2\nHello there.\ndone\n";
+      const src =
+        "store nilstore\nstore kept = 1\nstore changed = 1\n\nscene start\n  changed = 2\n  Hello there.\n  done\nend\n";
       const { story } = makeRuntimeStoryFromSource(src);
       story.ContinueMaximally();
       const saved = JSON.parse(story.state.toJson());

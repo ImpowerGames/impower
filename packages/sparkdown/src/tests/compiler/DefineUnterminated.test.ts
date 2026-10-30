@@ -67,7 +67,9 @@ describe("define without `end`", () => {
       "",
       "store trust = 5",
       "",
-      "Trust is {trust}.",
+      "scene start",
+      "  Trust is {trust}.",
+      "end",
       "",
     ].join("\n");
     const errs = errors(source);
@@ -84,9 +86,8 @@ describe("define without `end`", () => {
       "define hero as character with",
       '  name = "Hero"',
       "",
-      "-> s",
-      "scene s",
-      "Hi.",
+      "scene start",
+      "  Hi.",
       "end",
       "",
     ].join("\n");
@@ -98,7 +99,7 @@ describe("define without `end`", () => {
   });
 
   test("a body-less define with no `end` is an error", () => {
-    const errs = errors("define X as character\n\nHi.\n");
+    const errs = errors("define X as character\n\nHi.\nscene start\nend\n");
     expect(errs.map((e) => e.message).join("\n")).toContain(MISSING_END);
   });
 });
@@ -110,7 +111,9 @@ describe("define header", () => {
       '  name = "Hero"',
       "end",
       "",
-      "Hi.",
+      "scene start",
+      "  Hi.",
+      "end",
       "",
     ].join("\n");
     const errs = errors(source);
@@ -131,7 +134,9 @@ describe("define header", () => {
       "",
       "store trust = 5",
       "",
-      "Trust is {trust}.",
+      "scene start",
+      "  Trust is {trust}.",
+      "end",
       "",
     ].join("\n");
     const messages = errors(source).map((e) => e.message);
@@ -158,6 +163,8 @@ describe("define header", () => {
       "define hero as character",
       '  name = "Hero"',
       "end",
+      "scene start",
+      "end",
       "",
     ].join("\n");
     const errs = errors(source);
@@ -173,6 +180,8 @@ describe("define header", () => {
       "with",
       '  name = "Hero"',
       "end",
+      "scene start",
+      "end",
       "",
     ].join("\n");
     const errs = errors(source);
@@ -184,33 +193,35 @@ describe("define header", () => {
 
   test("a `:` header inside another block is still reported", () => {
     const source = [
-      "if true then",
-      "  define X as character:",
-      "    a = 1",
+      "scene start",
+      "  if true then",
+      "    define X as character:",
+      "      a = 1",
+      "    end",
       "  end",
+      "  Hi.",
       "end",
-      "Hi.",
       "",
     ].join("\n");
     const header = errors(source).filter((e) => e.message.includes(HEADER));
     expect(header).toHaveLength(1);
     expect(header[0]!.message).toContain("`:`");
-    expect(header[0]!.startLine).toBe(1);
+    expect(header[0]!.startLine).toBe(2);
   });
 });
 
 describe("define header the grammar cannot read", () => {
   const cases: Record<string, [string, string]> = {
     "a dotted name": [
-      "define config.thing with\n  value = 1\nend\nHi.\n",
+      "define config.thing with\n  value = 1\nend\nscene start\n  Hi.\nend\n",
       "define config",
     ],
     "a dotted parent": [
-      "define thing as config.sub with\n  value = 1\nend\nHi.\n",
+      "define thing as config.sub with\n  value = 1\nend\nscene start\n  Hi.\nend\n",
       "define thing as config",
     ],
     "a name with a letter outside A-Z": [
-      'define héro as character with\n  name = "H"\nend\nHi.\n',
+      'define héro as character with\n  name = "H"\nend\nscene start\n  Hi.\nend\n',
       "define h",
     ],
   };
@@ -227,7 +238,7 @@ describe("define header the grammar cannot read", () => {
   }
 
   test("text the header cannot read after `with` is not blamed on the name", () => {
-    const errs = errors("define X with )\nHi.\n");
+    const errs = errors("define X with )\nHi.\nscene start\nend\n");
     expect(errs.map((e) => [e.startLine, e.startCharacter])).toEqual([[0, 0], [1, 0], [1, 2]]);
     expect(errs[1]!.message).toContain("Incomplete statement");
     expect(officialErrorList("do\nHi.\n").map((e) => e.split(" ", 1)[0]!.split("-", 1)[0])).toContain("1:0");
@@ -240,8 +251,8 @@ describe("define header the grammar cannot read", () => {
 describe("define name", () => {
   test("a define with no name is reported, with or without `end`", () => {
     for (const source of [
-      "define\n\nstore trust = 5\n",
-      "define\nend\nHi.\n",
+      "define\n\nstore trust = 5\nscene start\nend\n",
+      "define\nend\nscene start\n  Hi.\nend\n",
     ]) {
       const errs = errors(source);
       expect(errs).toHaveLength(1);
@@ -252,10 +263,10 @@ describe("define name", () => {
 
   const unreadable: Record<string, [string, string]> = {
     "a name starting with a digit": [
-      'define 2hero as character with\n  name = "H"\nend\nHi.\n',
+      'define 2hero as character with\n  name = "H"\nend\nscene start\n  Hi.\nend\n',
       "2",
     ],
-    "a quoted name": ['define "hero" with\nend\nHi.\n', '"hero"'],
+    "a quoted name": ['define "hero" with\nend\nscene start\n  Hi.\nend\n', '"hero"'],
   };
   for (const [label, [source, token]] of Object.entries(unreadable)) {
     test(`${label} is reported at the token, not as a missing name`, () => {
@@ -278,9 +289,9 @@ describe("define name", () => {
 describe("a script with a define error still compiles", () => {
   const cases: Record<string, string> = {
     "no `end`":
-      'define hero as character with\n  name = "Hero"\n\nstore trust = 5\n\nTrust is {trust}.\n',
+      'define hero as character with\n  name = "Hero"\n\nstore trust = 5\n\nscene start\n  Trust is {trust}.\nend\n',
     "`:` header":
-      'define hero as character:\n  name = "Hero"\nend\n\nstore trust = 5\n\nTrust is {trust}.\n',
+      'define hero as character:\n  name = "Hero"\nend\n\nstore trust = 5\n\nscene start\n  Trust is {trust}.\nend\n',
   };
   for (const [label, source] of Object.entries(cases)) {
     test(label, () => {
@@ -293,18 +304,18 @@ describe("a script with a define error still compiles", () => {
 
 describe("valid define forms stay clean", () => {
   const cases: Record<string, string> = {
-    "one-line define": 'define red as color with value = "#13171f" end\nHi.\n',
-    "body-less define": "define X as character\nend\nHi.\n",
-    "one-line body-less define": "define X as character end\nHi.\n",
-    "root define": "define thing with\n  size = 1\nend\nHi.\n",
+    "one-line define": 'define red as color with value = "#13171f" end\nscene start\n  Hi.\nend\n',
+    "body-less define": "define X as character\nend\nscene start\n  Hi.\nend\n",
+    "one-line body-less define": "define X as character end\nscene start\n  Hi.\nend\n",
+    "root define": "define thing with\n  size = 1\nend\nscene start\n  Hi.\nend\n",
     "comment after `with`":
-      'define hero as character with -- the lead\n  name = "Hero"\nend\nHi.\n',
+      'define hero as character with -- the lead\n  name = "Hero"\nend\nscene start\n  Hi.\nend\n',
     "comment on a body-less header":
-      "define X as character -- note\nend\nHi.\n",
+      "define X as character -- note\nend\nscene start\n  Hi.\nend\n",
     "comment line in the body":
-      'define hero as character with\n  -- the lead\n  name = "Hero"\nend\nHi.\n',
+      'define hero as character with\n  -- the lead\n  name = "Hero"\nend\nscene start\n  Hi.\nend\n',
     "method in the body":
-      "define hero as character with\n  greet()\n    return 1\n  end\nend\nHi.\n",
+      "define hero as character with\n  greet()\n    return 1\n  end\nend\nscene start\n  Hi.\nend\n",
   };
   for (const [label, source] of Object.entries(cases)) {
     test(label, () => {
@@ -323,8 +334,7 @@ describe("define diagnostics across incremental edits", () => {
       "",
       "store trust = 5",
       "",
-      "-> s",
-      "scene s",
+      "scene start",
       "hero:",
       "  Trust is {trust}.",
       "end",

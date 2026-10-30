@@ -71,18 +71,20 @@ describe("statements an edit swaps in the statement list", () => {
 });
 
 describe("a function an edit changes, beside a lookalike the edit deletes", () => {
-  const other = "f = function()\n  function g() return 7 end\n  return 2\nend\n";
+  const other = "  f = function()\n    function g() return 7 end\n    return 2\n  end\n";
   const text = [
     "store f = nil",
     "store keep = nil",
-    "f = function()",
-    "  return 1",
-    "end",
-    "keep = f",
-    other.trimEnd(),
-    "done",
     "function call_keep()",
     "  return keep()",
+    "end",
+    "scene start",
+    "  f = function()",
+    "    return 1",
+    "  end",
+    "  keep = f",
+    other.trimEnd(),
+    "  done",
     "end",
     "",
   ].join("\n");
@@ -91,7 +93,7 @@ describe("a function an edit changes, beside a lookalike the edit deletes", () =
     const c = programCompiler({ [MAIN_URI]: text });
     const before = c.compile().program;
     expect(before.chunks).toBeDefined();
-    const first = before.chunks!.flowNamed("")!.arrays.chunks[0]!;
+    const first = before.chunks!.flowNamed("start")!.arrays.chunks[0]!;
     const story = new ProgramStory(before.chunks!);
     while (story.canContinue) {
       story.Continue();
@@ -99,20 +101,20 @@ describe("a function an edit changes, beside a lookalike the edit deletes", () =
     const saved = story.variablesState.GetVariableWithName("keep");
     expect(story.EvaluateFunction("call_keep")).toBe(1);
     const document = c.compiler.documents.get(MAIN_URI)!;
-    const from = text.indexOf("  return 1\n");
+    const from = text.indexOf("    return 1\n");
     const to = text.indexOf(other) + other.length;
     c.compiler.updateDocument({
       textDocument: { uri: MAIN_URI, version: 2 },
       contentChanges: [
         {
           range: { start: document.positionAt(from), end: document.positionAt(to) },
-          text: "  function g() return 7 end\n  return 2\nend\nkeep = f\n",
+          text: "    function g() return 7 end\n    return 2\n  end\n  keep = f\n",
         },
       ],
     });
     const after = c.compile().program;
     expect(after.chunks).toBeDefined();
-    const edited = after.chunks!.flowNamed("")!.arrays.chunks[0]!;
+    const edited = after.chunks!.flowNamed("start")!.arrays.chunks[0]!;
     expect(exportSymbol(edited, 0)).toBe(exportSymbol(first, 0));
     const resumed = new ProgramStory(after.chunks!);
     resumed.variablesState.SetGlobal("keep", saved as never);
@@ -177,10 +179,12 @@ describe("statements whose recorded facts an edit invalidates", () => {
     const n = 128;
     const text = [
       "store r = 0",
-      ...Array(n).fill("r = first(1)"),
-      "done",
       "function first(a, ...)",
       "  return a * 10",
+      "end",
+      "scene start",
+      ...Array(n).fill("  r = first(1)"),
+      "  done",
       "end",
       "",
     ].join("\n");
@@ -198,7 +202,7 @@ describe("statements whose recorded facts an edit invalidates", () => {
       textDocument: { uri: MAIN_URI, version: 2 },
       contentChanges: [
         {
-          range: { start: { line: n + 2, character: 0 }, end: { line: n + 2, character: 22 } },
+          range: { start: { line: 1, character: 0 }, end: { line: 1, character: 22 } },
           text: "function first(a)",
         },
       ],
@@ -421,20 +425,24 @@ describe.each([
 describe("an edited function beside an inserted copy of its old version", () => {
   it("keeps the edited function's symbol for a saved closure", () => {
     const text = [
-      "f = function()",
-      "  return 1",
-      "end",
-      "keep = f",
-      "done",
+      "store f = nil",
+      "store keep = nil",
       "function call_keep()",
       "  return keep()",
+      "end",
+      "scene start",
+      "  f = function()",
+      "    return 1",
+      "  end",
+      "  keep = f",
+      "  done",
       "end",
       "",
     ].join("\n");
     const c = programCompiler({ [MAIN_URI]: text });
     const before = c.compile().program;
     expect(before.chunks).toBeDefined();
-    const first = before.chunks!.flowNamed("")!.arrays.chunks[0]!;
+    const first = before.chunks!.flowNamed("start")!.arrays.chunks[0]!;
     const story = new ProgramStory(before.chunks!);
     while (story.canContinue) {
       story.Continue();
@@ -445,14 +453,14 @@ describe("an edited function beside an inserted copy of its old version", () => 
       textDocument: { uri: MAIN_URI, version: 2 },
       contentChanges: [
         {
-          range: { start: { line: 1, character: 0 }, end: { line: 4, character: 0 } },
-          text: "  function g() return 7 end\n  return 2\nend\nkeep = f\nf = function()\n  return 1\nend\n",
+          range: { start: { line: 7, character: 0 }, end: { line: 10, character: 0 } },
+          text: "    function g() return 7 end\n    return 2\n  end\n  keep = f\n  f = function()\n    return 1\n  end\n",
         },
       ],
     });
     const after = c.compile().program;
     expect(after.chunks).toBeDefined();
-    const edited = after.chunks!.flowNamed("")!.arrays.chunks[0]!;
+    const edited = after.chunks!.flowNamed("start")!.arrays.chunks[0]!;
     expect(exportSymbol(edited, 0)).toBe(exportSymbol(first, 0));
     const resumed = new ProgramStory(after.chunks!);
     resumed.variablesState.SetGlobal("keep", saved as never);
@@ -519,7 +527,7 @@ describe("statements whose recorded values an edit changes", () => {
 
   it("are emitted again in lookups linear in their number when a scene changes what a name reads", () => {
     const n = 256;
-    const text = [...Array(n).fill("Seen {extra}."), ""].join("\n");
+    const text = ["scene start", ...Array(n).fill("  Seen {extra}."), "end", ""].join("\n");
     const c = programCompiler({ [MAIN_URI]: text });
     expect(c.compile().program.chunks).toBeDefined();
     const count = counted(c);
@@ -527,7 +535,7 @@ describe("statements whose recorded values an edit changes", () => {
     c.compiler.updateDocument({
       textDocument: { uri: MAIN_URI, version: 2 },
       contentChanges: [
-        { range: { start: { line: n, character: 0 }, end: { line: n, character: 0 } }, text: added },
+        { range: { start: { line: n + 2, character: 0 }, end: { line: n + 2, character: 0 } }, text: added },
       ],
     });
     const after = c.compile().program;
@@ -540,7 +548,7 @@ describe("statements whose recorded values an edit changes", () => {
 
   it("build no identity during alignment for an inserted statement no old chunk reads as", () => {
     const n = 512;
-    const text = "Anchor.\n";
+    const text = "scene start\n  Anchor.\nend\n";
     const c = programCompiler({ [MAIN_URI]: text });
     expect(c.compile().program.chunks).toBeDefined();
     const names = Array.from({ length: n }, (_, k) => `v${String((k * 7919) % n).padStart(6, "0")}`);
@@ -570,8 +578,8 @@ describe("statements whose recorded values an edit changes", () => {
         textDocument: { uri: MAIN_URI, version: 2 },
         contentChanges: [
           {
-            range: { start: { line: 1, character: 0 }, end: { line: 1, character: 0 } },
-            text: `items = {${names.join(", ")}}\n`,
+            range: { start: { line: 2, character: 0 }, end: { line: 2, character: 0 } },
+            text: `  items = {${names.join(", ")}}\n`,
           },
         ],
       });
@@ -587,8 +595,8 @@ describe("statements whose recorded values an edit changes", () => {
   it("are emitted again in lookups linear in their number when their functions' hoisted locals change", () => {
     const lookupsFor = (n: number) => {
       const section = (name: string) =>
-        ["f = function()", `  function ${name}() return 7 end`, "  return 2", "end"].join("\n");
-      const text = ["store f = nil", ...Array(n).fill(section("g")), "done", ""].join("\n");
+        ["  f = function()", `    function ${name}() return 7 end`, "    return 2", "  end"].join("\n");
+      const text = ["store f = nil", "scene start", ...Array(n).fill(section("g")), "  done", "end", ""].join("\n");
       const c = programCompiler({ [MAIN_URI]: text });
       expect(c.compile().program.chunks).toBeDefined();
       const count = counted(c);
@@ -598,8 +606,8 @@ describe("statements whose recorded values an edit changes", () => {
         contentChanges: [
           {
             range: {
-              start: document.positionAt(text.indexOf("f = function()")),
-              end: document.positionAt(text.lastIndexOf("done")),
+              start: document.positionAt(text.indexOf("  f = function()")),
+              end: document.positionAt(text.lastIndexOf("  done")),
             },
             text: Array(n).fill(section("h")).join("\n") + "\n",
           },

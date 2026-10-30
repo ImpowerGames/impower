@@ -30,7 +30,7 @@ const compileDiagnostics = (text: string) => {
 };
 
 describe("divert to a function (#1708)", () => {
-  const text = 'function greet()\n  return "Hello"\nend\n\n-> greet\n';
+  const text = 'function greet()\n  return "Hello"\nend\n\nscene start\n  -> greet\nend\n';
 
   it("places the error on the divert's line", () => {
     const ds = compileDiagnostics(text);
@@ -38,32 +38,34 @@ describe("divert to a function (#1708)", () => {
     expect(d, JSON.stringify(ds)).toBeDefined();
     expect(d!.severity).toBe(1);
     expect(d!.message).toBe(GREET_MESSAGE);
-    expect(d!.range.start.line).toBe(4);
-    expect(d!.range.end.line).toBe(4);
+    expect(d!.range.start.line).toBe(5);
+    expect(d!.range.end.line).toBe(5);
   });
 
   it("reports exactly one error on the divert's line", () => {
     const ds = compileDiagnostics(text);
     const onLine = ds.filter(
-      (x) => x.severity === 1 && x.range.start.line === 4,
+      (x) => x.severity === 1 && x.range.start.line === 5,
     );
     expect(onLine, JSON.stringify(ds)).toHaveLength(1);
   });
 
   it("reports only the divert error when the divert passes arguments", () => {
     const ds = compileDiagnostics(
-      'function greet()\n  return "Hello"\nend\n\n-> greet(1)\n',
+      'function greet()\n  return "Hello"\nend\n\nscene start\n  -> greet(1)\nend\n',
     );
     const errors = ds.filter((x) => x.severity === 1);
     expect(errors, JSON.stringify(ds)).toHaveLength(1);
     expect(errors[0]!.message).toBe(GREET_MESSAGE);
-    expect(errors[0]!.range.start.line).toBe(4);
+    expect(errors[0]!.range.start.line).toBe(5);
   });
 
   it("still checks arguments of a function called as one", () => {
-    const ds = compileDiagnostics("function f(x)\n  return x\nend\n\n{f()}\n");
+    const ds = compileDiagnostics(
+      "function f(x)\n  return x\nend\n\nscene start\n  {f()}\nend\n",
+    );
     const d = ds.find((x) => x.message.includes("requires 1 argument"));
     expect(d, JSON.stringify(ds)).toBeDefined();
-    expect(d!.range.start.line).toBe(4);
+    expect(d!.range.start.line).toBe(5);
   });
 });

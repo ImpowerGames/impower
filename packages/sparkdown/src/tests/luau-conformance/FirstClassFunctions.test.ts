@@ -43,8 +43,10 @@ function compileAndCapture(source: string): {
 describe("anonymous function literals", () => {
   test("local f = function(x) return x * 2 end", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local f = function(x) return x * 2 end
@@ -57,8 +59,10 @@ end
 
   test("pass anonymous fn as call arg", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function call_with_5(fn)
 return fn(5)
@@ -74,8 +78,10 @@ end
 
   test("anonymous fn returning multi-value composes with multi-target", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local f = function() return 1, 2, 3 end
@@ -91,8 +97,10 @@ end
 
   test("named knot called via stored value (existing -> divert literal)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function double(x)
 return x * 2
@@ -109,8 +117,10 @@ end
 
   test("anonymous fn with two parameters", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local add = function(a, b) return a + b end
@@ -123,8 +133,10 @@ end
 
   test("multiple anonymous fns in same scope get unique names", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local doubler = function(x) return x * 2 end
@@ -141,8 +153,10 @@ end
 describe("bare knot names as values", () => {
   test("local f = double — bare function-knot reference works as value", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function double(x)
 return x * 2
@@ -159,8 +173,10 @@ end
 
   test("pass bare knot name as a function argument", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function double(x)
 return x * 2
@@ -180,8 +196,10 @@ end
 
   test("multiple bare knot references in scope", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function double(x)
 return x * 2
@@ -212,8 +230,10 @@ end
 describe("closures (capture-by-value)", () => {
   test("simple capture: function() return n + 1 end", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 10
@@ -227,8 +247,10 @@ end
 
   test("closure with user arg AND captured upval", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 10
@@ -242,8 +264,10 @@ end
 
   test("two captures", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local a = 3
@@ -258,8 +282,10 @@ end
 
   test("live capture: closure sees outer mutations", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 10
@@ -274,8 +300,10 @@ end
 
   test("only locally-bound names ARE bound (params + locals don't capture)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local f = function(x)
@@ -293,8 +321,10 @@ end
 describe("true lexical closures (open/close upvalues)", () => {
   test("closure mutation propagates to outer scope", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 0
@@ -313,8 +343,10 @@ end
 
   test("two closures sharing the same upval see each other's writes", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 0
@@ -335,8 +367,10 @@ end
 
   test("closure outlives its lexical parent (close-on-pop)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& driver()
-done
+scene start
+  & driver()
+  done
+end
 
 function driver()
 local g = make()
@@ -360,8 +394,10 @@ end
 
   test("two closures share state via closed upval (table-routed)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& driver()
-done
+scene start
+  & driver()
+  done
+end
 
 function driver()
 local pair = make_totaler()
@@ -391,8 +427,10 @@ end
 describe("nested named function definitions", () => {
   test("function defined inside another function is callable from its body", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 function helper()
@@ -407,8 +445,10 @@ end
 
   test("nested function takes args and returns a computed value", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 function double(n)
@@ -423,9 +463,11 @@ end
 
   test("nested function with the same name in two different functions does not collide", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& a()
-& b()
-done
+scene start
+  & a()
+  & b()
+  done
+end
 
 function a()
 function helper()
@@ -447,8 +489,10 @@ end
 
   test("three-level nesting: function inside function inside function", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& outer()
-done
+scene start
+  & outer()
+  done
+end
 
 function outer()
 function middle()

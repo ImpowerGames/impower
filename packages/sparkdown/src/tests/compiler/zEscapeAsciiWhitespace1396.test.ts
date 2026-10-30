@@ -28,19 +28,19 @@ describe("compiled strings keep a Unicode space after the z escape", () => {
   const nbsp = UNICODE_SPACES[0]!;
 
   test("a quoted string in a story line's interpolation", () => {
-    const { errors, output } = run(`Value is {"a${bs}z${nbsp}b"}\n`);
+    const { errors, output } = run(`scene start\n  Value is {"a${bs}z${nbsp}b"}\nend\n`);
     expect(errors).toEqual([]);
     expect(output).toBe(`Value is a${nbsp}b\n`);
   });
 
   test("an interpolated string's text", () => {
-    const { errors, output } = run("Value is {`a" + bs + "z" + nbsp + "b{1}`}\n");
+    const { errors, output } = run("scene start\n  Value is {`a" + bs + "z" + nbsp + "b{1}`}\nend\n");
     expect(errors).toEqual([]);
     expect(output).toBe(`Value is a${nbsp}b1\n`);
   });
 
   test("a print", () => {
-    const { output } = run(`& print("a${bs}z${nbsp}b")\n`);
+    const { output } = run(`scene start\n  & print("a${bs}z${nbsp}b")\nend\n`);
     expect(output).toContain(`a${nbsp}b`);
   });
 });

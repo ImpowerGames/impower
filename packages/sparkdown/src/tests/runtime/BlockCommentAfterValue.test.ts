@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 function run(body: string) {
-  const source = `Value {f()}.\nfunction f()\n${body}\n  return w\nend\n`;
+  const source = `function f()\n${body}\n  return w\nend\nscene start\n  Value {f()}.\nend\n`;
   const ctx = makeRuntimeStoryFromSource(source);
   return ctx.story.Continue();
 }
@@ -89,7 +89,7 @@ describe("a statement after a same-line block comment after a value runs", () =>
     ["spaced", "  local w = ... --[[c]] print(1)"],
     ["no space before", "  local w = ...--[[c]] print(1)"],
   ])("vararg value, %s", (_name, body) => {
-    const source = `Value {f(5)}.\nfunction f(...)\n${body}\n  return w\nend\n`;
+    const source = `function f(...)\n${body}\n  return w\nend\nscene start\n  Value {f(5)}.\nend\n`;
     expect(makeRuntimeStoryFromSource(source).story.Continue()).toBe(
       "Value 15.\n",
     );

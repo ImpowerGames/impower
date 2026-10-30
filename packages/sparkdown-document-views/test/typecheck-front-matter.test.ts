@@ -1,9 +1,3 @@
-// A `.sd` file's `typecheck:` front matter field tells the compiler how
-// strictly to type check the file's Luau. It says nothing about the script,
-// so it never reaches the title page: not the parser's metadata tokens that
-// the PDF, HTML and preview title pages are laid out from, and not the
-// front matter of the reading copy.
-
 import { describe, expect, it } from "vitest";
 import ScreenplayParser from "../../sparkdown-screenplay/src/classes/ScreenplayParser";
 import { generateScreenplayReadingCopy } from "../../sparkdown-screenplay/src/utils/generateScreenplayReadingCopy";

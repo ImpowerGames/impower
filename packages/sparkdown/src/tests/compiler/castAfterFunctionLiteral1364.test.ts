@@ -9,7 +9,7 @@ import { dumpTree, parseSource, stripAnsi } from "./grammarSnapshot";
 import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 
 const URI = "inmemory:///main.sd";
-const SCENE = "-> start\nscene start\n";
+const SCENE = "scene start\n";
 const NEXT = "\nlocal w = 5\n";
 
 function inScene(form: string): string {
@@ -178,7 +178,7 @@ function sparkdownSyntaxErrors(text: string): string[] {
 describe("a function's end before a `::` in a function body", () => {
   for (const form of BODY_FORMS) {
     const luau = `${HEADER}${form}${FOOTER}`;
-    const text = `${luau}After {run()}.\n`;
+    const text = `${luau}scene start\n  After {run()}.\nend\n`;
     test(`${JSON.stringify(form)}: engines agree`, async () => {
       const result = await compareEnginesFull(text);
       expect(result.divergences, formatDivergences(text, result.divergences)).toEqual([]);

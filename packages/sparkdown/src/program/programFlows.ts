@@ -60,6 +60,7 @@ export interface ProgramFlowsInput {
   story: Story;
   uri: string;
   preludeUri?: string;
+  topLevelFlow?: boolean;
   blockOf(obj: ParsedObject): object | undefined;
   record(block: object): StatementRecord | undefined;
   lineCount(uri: string): number;
@@ -94,6 +95,7 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     content: readonly ParsedObject[],
     uri: string,
     flowLine: number,
+    found?: (statement: StatementSource) => void,
   ): StatementSource[] => {
     const statements: StatementSource[] = [];
     let block: object | undefined;
@@ -109,7 +111,12 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       } else if (record.uri !== uri) {
         fail("a statement of another script", record.uri, record.line);
       } else {
-        statements.push(topLevelStatement(block, objects, record));
+        const statement = topLevelStatement(block, objects, record);
+        if (found) {
+          found(statement);
+        } else {
+          statements.push(statement);
+        }
       }
       block = undefined;
       objects = [];
@@ -146,12 +153,12 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
 
   const memberWrites = (weave: Weave) => {
     const uri = scriptOf(weave.content, input);
-    if (uri === undefined) {
-      return;
+    if (uri !== undefined) {
+      statementsOf(weave.content, uri, 0, (statement) => write(statement, uri));
     }
-    for (const statement of statementsOf(weave.content, uri, 0)) {
-      writes.push({ ...statement, block: writeKey(statement.block), uri, globals: [] });
-    }
+  };
+  const write = (statement: StatementSource, uri: string) => {
+    writes.push({ ...statement, block: writeKey(statement.block), uri, globals: [] });
   };
 
   const visitFunction = (flow: FlowBase, header: object | undefined) => {
@@ -272,13 +279,17 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     }
   };
 
+  const rootContent = input.story._rootWeave?.content ?? [];
+  const rootStatements = input.topLevelFlow
+    ? statementsOf(rootContent, input.uri, 0)
+    : statementsOf(rootContent, input.uri, 0, (statement) => write(statement, input.uri));
   flows.push({
     name: ROOT_FLOW_NAME,
     kind: SymbolKind.Root,
     uri: input.uri,
     firstLine: 0,
     span: 0,
-    statements: statementsOf(input.story._rootWeave?.content ?? [], input.uri, 0),
+    statements: rootStatements,
   });
   for (const flow of input.story.subFlowsByName.values()) {
     visitFlow(flow, "");

@@ -10,7 +10,7 @@ export interface ShiftCase {
 export const lines = (...l: string[]) => [...l, ""].join("\n");
 
 const copiedIntoTwoFiles = (main: string[], body: (name: string) => string): Project => ({
-  main: lines(...main),
+  main: lines(...main, "scene start", "end"),
   pre: body("pf"),
   shared: body("sf"),
 });
@@ -25,7 +25,7 @@ export const SHIFT_CASES: ShiftCase[] = [
         "store a = { add = function(self, n) return self end }",
         "store r = 0",
         "",
-        "scene one",
+        "scene start",
         "HERO: A ..",
         ".. B > C",
         "& r = a:add(1):add(2)",
@@ -41,7 +41,7 @@ export const SHIFT_CASES: ShiftCase[] = [
   },
   {
     name: "#845: a continuation group below a scene",
-    project: { main: lines("scene one", "  Short.", "-> two", "end", "", "scene two", "HERO: A ..", "B > C", "end") },
+    project: { main: lines("scene start", "  Short.", "-> two", "end", "", "scene two", "HERO: A ..", "B > C", "end") },
   },
   {
     name: "#848: method-call temps in several scripts",
@@ -50,7 +50,7 @@ export const SHIFT_CASES: ShiftCase[] = [
         "store a = { add = function(self, n) return self end }",
         "store r = 0",
         "",
-        "scene main_one",
+        "scene start",
         "  Opening line.",
         "& r = a:add(3):add(4)",
         "end",
@@ -66,7 +66,7 @@ export const SHIFT_CASES: ShiftCase[] = [
       main: lines(
         "store a = 1",
         "",
-        "scene one",
+        "scene start",
         "  First line.",
         "end",
         "",
@@ -79,7 +79,7 @@ export const SHIFT_CASES: ShiftCase[] = [
   {
     name: "#870: anonymous functions at the same offset of two files",
     project: {
-      main: lines("store x = 0", "& x = fa_f() + fb_f()"),
+      main: lines("store x = 0", "scene start", "  & x = fa_f() + fb_f()", "end"),
       fa: lines("store fa_f = function() return 1 end"),
       fb: lines("store fb_f = function() return 2 end"),
     },
@@ -87,7 +87,7 @@ export const SHIFT_CASES: ShiftCase[] = [
   {
     name: "#870: define methods at the same offset of two files",
     project: {
-      main: lines("store x = 0", "& x = ca:get() + cb:get()"),
+      main: lines("store x = 0", "scene start", "  & x = ca:get() + cb:get()", "end"),
       fa: lines("define ca with", "  function get()", "    return 1", "  end", "end"),
       fb: lines("define cb with", "  function get()", "    return 2", "  end", "end"),
     },
@@ -129,7 +129,7 @@ export const SHIFT_CASES: ShiftCase[] = [
       main: lines(
         "store t = { a = 0, b = 0 }",
         "",
-        "scene s0",
+        "scene start",
         "  Line 0.",
         "end",
         "",

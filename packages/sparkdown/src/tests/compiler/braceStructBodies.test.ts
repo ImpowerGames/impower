@@ -13,6 +13,8 @@ function structOf(source: string, type: StructType, name: string): any {
 
 const URI = "file:///main.sd";
 
+const NO_START = "no scene named start; the story starts in a scene named start";
+
 interface Found {
   message: string;
   severity: number | undefined;
@@ -38,7 +40,7 @@ function diagnosticsOf(text: string): Found[] {
   } as any);
   const program = compiler.compile({ textDocument: { uri: URI } }).program;
   const lines = text.split("\n");
-  return (program.diagnostics?.[URI] ?? []).map((d) => {
+  return (program.diagnostics?.[URI] ?? []).filter((d) => (typeof d.message === "string" ? d.message : d.message.value) !== NO_START).map((d) => {
     const { start, end } = d.range;
     return {
       message: typeof d.message === "string" ? d.message : d.message.value,
@@ -663,41 +665,35 @@ end
     });
   });
 
-  test("a comma between two properties on one line is one error that names `;`", () => {
+  test("a comma between two properties on one line separates them, as `;` does", () => {
     const text = `animation a with
   timing { duration = 1, delay = 2 }
 end
 `;
-    const errors = errorsOf(text);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toMatchObject({ line: 1, text: "," });
-    expect(errors[0]!.message).toContain("`;`");
+    expect(errorsOf(text)).toEqual([]);
     expect(structOf(text, "animation", "a").timing).toEqual({
       duration: 1,
       delay: 2,
     });
     for (const key of ['"b"', "$b", '["b"]', "2"]) {
-      const keyed = `theme t with
-  g { a = 1, ${key} = 2 }
+      const keyed = (sep: string) => `theme t with
+  g { a = 1${sep} ${key} = 2 }
 end
 `;
-      const keyedErrors = errorsOf(keyed);
-      expect(keyedErrors, key).toHaveLength(1);
-      expect(keyedErrors[0], key).toMatchObject({ line: 1, text: "," });
-      expect(keyedErrors[0]!.message, key).toContain("`;`");
-      expect(structOf(keyed, "theme", "t").g.a, key).toBe(1);
+      expect(errorsOf(keyed(",")), key).toEqual([]);
+      expect(structOf(keyed(","), "theme", "t"), key).toEqual(
+        structOf(keyed(";"), "theme", "t"),
+      );
     }
     const unicode = `theme t with
-  g { a = 1, 名 = 2; tail = 3 }
+  g { a = 1, 名 = 2, tail = 3 }
 end
 `;
-    const unicodeErrors = errorsOf(unicode);
-    expect(unicodeErrors).toHaveLength(1);
-    expect(unicodeErrors[0]).toMatchObject({ line: 1, text: "," });
+    expect(errorsOf(unicode)).toEqual([]);
     expect(structOf(unicode, "theme", "t").g).toMatchObject({ a: 1, tail: 3 });
   });
 
-  test("a comma between two list values on one line is one error that names `;`", () => {
+  test("a comma between two list values on one line separates them, as `;` does", () => {
     const text = `morph m with
   method = match
   keyframes {
@@ -705,13 +701,11 @@ end
     to { eyes { state = closed } }
   }
   clips {
-    { between { a }; targets { b, c } }
+    { between { a }, targets { b, c } }
   }
 end
 `;
-    const errors = errorsOf(text).filter((d) => d.message.includes("`;`"));
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toMatchObject({ line: 7, text: "," });
+    expect(errorsOf(text)).toEqual([]);
     expect(structOf(text, "morph", "m").clips).toEqual([
       { between: ["a"], targets: ["b", "c"] },
     ]);
@@ -720,10 +714,7 @@ end
   entries { ${value}, { v = 1 } }
 end
 `;
-      const objectErrors = errorsOf(beforeObject);
-      expect(objectErrors, value).toHaveLength(1);
-      expect(objectErrors[0], value).toMatchObject({ line: 1, text: "," });
-      expect(objectErrors[0]!.message, value).toContain("`;`");
+      expect(errorsOf(beforeObject), value).toEqual([]);
       expect(structOf(beforeObject, "theme", "t").entries, value).toEqual([
         "a",
         { v: 1 },
@@ -731,15 +722,12 @@ end
     }
   });
 
-  test("a comma between a property and a nested block is one error that names `;`, and the block keeps its own header", () => {
+  test("a comma between a property and a nested block separates them, and the block keeps its own header", () => {
     const style = `style banner with
   &.card { opacity = 0.5, > text { text-color = red } }
 end
 `;
-    const styleErrors = errorsOf(style);
-    expect(styleErrors).toHaveLength(1);
-    expect(styleErrors[0]).toMatchObject({ line: 1, text: "," });
-    expect(styleErrors[0]!.message).toContain("`;`");
+    expect(errorsOf(style)).toEqual([]);
     expect(structOf(style, "style", "banner")["&.card"]).toEqual({
       opacity: "0.5",
       "> text": { "text-color": "red" },
@@ -749,13 +737,41 @@ end
   timing { duration = 1, nested { delay = 2 } }
 end
 `;
-    const animationErrors = errorsOf(animation);
-    expect(animationErrors).toHaveLength(1);
-    expect(animationErrors[0]).toMatchObject({ line: 1, text: "," });
+    expect(errorsOf(animation)).toEqual([]);
     expect(structOf(animation, "animation", "a").timing).toEqual({
       duration: 1,
       nested: { delay: 2 },
     });
+  });
+
+  test("one-line blocks with commas lower to the struct of their `;` forms in a morph body and a style body", () => {
+    const morph = (sep: string) => `morph m with
+  method = bend
+  keyframes {
+    from { eyes { state = open } }
+    to { eyes { state = closed } }
+  }
+  clips { { between { eyelash-right${sep} eyelash-top-right }${sep} targets { a${sep} b } } }
+  paints = { { targets { a }${sep} state = eyes.closed${sep} fill = red }${sep} { targets { b }${sep} state = eyes.closed${sep} fill = blue } }
+end
+`;
+    expect(errorsOf(morph(","))).toEqual([]);
+    expect(structOf(morph(","), "morph", "m")).toEqual(
+      structOf(morph(";"), "morph", "m"),
+    );
+    expect(structOf(morph(","), "morph", "m").paints).toEqual([
+      { targets: ["a"], state: "eyes.closed", fill: "red" },
+      { targets: ["b"], state: "eyes.closed", fill: "blue" },
+    ]);
+
+    const style = (sep: string) => `style s with
+  &.a { opacity = 1${sep} text-color = red${sep} > text { margin = 2${sep} padding = 3 } }
+end
+`;
+    expect(errorsOf(style(","))).toEqual([]);
+    expect(structOf(style(","), "style", "s")).toEqual(
+      structOf(style(";"), "style", "s"),
+    );
   });
 
   test("a comma inside a property's value stays part of the value", () => {

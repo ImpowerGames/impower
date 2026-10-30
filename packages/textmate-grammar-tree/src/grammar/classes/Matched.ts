@@ -10,14 +10,12 @@ import type { GrammarToken } from "../../core";
 import { Wrapping } from "../enums/Wrapping";
 import { GrammarNode } from "./GrammarNode";
 
-/** Represents a leaf or branch of a tree of matches found by a grammar. */
 export class Matched {
   static create(...args: ConstructorParameters<typeof Matched>): Matched {
     const matched = new Matched(...args);
     if (matched.length > 0) {
       return matched;
     } else {
-      // Empty matches must have at least one capture to prevent nesting issues
       const node = matched.node;
       matched.node = GrammarNode.None;
       const emptyMatched = matched.wrap(node);
@@ -26,25 +24,13 @@ export class Matched {
   }
 
   constructor(
-    /** The match's {@link GrammarNode} type. */
     public node: GrammarNode,
-    /** The start of the match. */
     public from: number,
-    /** The length of the match. */
     public length: number,
-    /** The children contained by this match's {@link GrammarNode}. */
     public children?: Matched[],
-    /**
-     * The wrapping mode of the match. There are three modes:
-     *
-     * - FULL: The {@link GrammarNode} in this match contains the entirety of the branch.
-     * - BEGIN: The {@link GrammarNode} in this match begins the branch.
-     * - END: The {@link GrammarNode} in this match ends the branch.
-     */
     public wrapping: Wrapping = Wrapping.FULL,
   ) {}
 
-  /** Changes the starting offset of the match. */
   offset(offset: number) {
     if (this.children) {
       for (let i = 0; i < this.children.length; i++) {
@@ -56,35 +42,24 @@ export class Matched {
     return this;
   }
 
-  /**
-   * Wraps this `Matched` with another one.
-   *
-   * @param node - The node of the `Matched` to wrap with.
-   * @param wrap - The wrapping mode, if different.
-   */
   wrap(node: GrammarNode, wrap = this.wrapping) {
     return new Matched(node, this.from, this.length, [this], wrap);
   }
 
-  /** Internal method for compiling. */
   private _compile() {
     if (!this.children) {
       return compileLeaf(this);
     }
 
-    // verbose approach for performance
     const tokens: GrammarToken[] = [];
     for (let i = 0; i < this.children!.length; i++) {
       const compiled = this.children![i]!._compile();
-      // wasn't emitted
       if (!compiled) {
         continue;
       }
-      // leaf
       if (!isGrammarTokenList(compiled)) {
         tokens.push(compiled);
       }
-      // branch
       else {
         for (let i = 0; i < compiled.length; i++) {
           tokens.push(compiled[i]!);
@@ -95,10 +70,6 @@ export class Matched {
     return compileTree(this, tokens);
   }
 
-  /**
-   * Compiles this match into a list of tokens. Always returns a list, even
-   * if this match represents a leaf.
-   */
   compile() {
     const compiled = this._compile();
     if (isGrammarTokenList(compiled)) {
@@ -120,7 +91,6 @@ const isGrammarTokenList = (
   return Array.isArray(token[0]);
 };
 
-/** Compiles a {@link Matched} as a leaf. */
 const compileLeaf = (match: Matched): GrammarToken => {
   if (match.wrapping !== Wrapping.FULL && match.node === GrammarNode.None) {
     throw new Error("Cannot compile a null leaf with a non-full wrapping");
@@ -156,10 +126,6 @@ const compileLeaf = (match: Matched): GrammarToken => {
   }
 };
 
-/**
- * Compiles a {@link Matched} as a tree, with the given token list being its
- * already compiled children.
- */
 const compileTree = (match: Matched, tokens: GrammarToken[]) => {
   if (match.node === GrammarNode.None) {
     return tokens;

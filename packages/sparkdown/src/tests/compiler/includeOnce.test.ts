@@ -81,7 +81,7 @@ function play(program: any, scene?: string): string {
 const count = (text: string, part: string) => text.split(part).length - 1;
 
 const threeScripts = (shared: string, mainBody: string[] = ["  Main."]): Project => ({
-  main: ["scene main_one", ...mainBody, "end", ""].join("\n"),
+  main: ["scene start", "end", "", "scene main_one", ...mainBody, "end", ""].join("\n"),
   chapter: ["scene chapter_one", "  Chapter.", "end", ""].join("\n"),
   shared,
 });
@@ -182,7 +182,7 @@ describe("a Luau file that main runs twice", () => {
 
   it("is declared once and runs once for each of its lines", () => {
     const program = compileWithLuau(
-      { main: ["store n = 0", "run bump", "run bump", "Main {n}.", ""].join("\n") },
+      { main: ["store n = 0", "run bump", "run bump", "scene start", "  Main {n}.", "end", ""].join("\n") },
       [luau("bump", "n += 1\n")],
     );
     expect(errors(program)).toEqual([]);
@@ -195,9 +195,8 @@ describe("a Luau file that main runs twice", () => {
         main: [
           "store n = 0",
           "run bump",
-          "-> main_one",
           "",
-          "scene main_one",
+          "scene start",
           "  run bump",
           "  Scene {n}.",
           "end",
@@ -213,7 +212,16 @@ describe("a Luau file that main runs twice", () => {
   it("runs where each of its lines stands", () => {
     const program = compileWithLuau(
       {
-        main: ["store n = 0", "run bump", "After one {n}.", "run bump", "After two {n}.", ""].join("\n"),
+        main: [
+          "store n = 0",
+          "scene start",
+          "  run bump",
+          "  After one {n}.",
+          "  run bump",
+          "  After two {n}.",
+          "end",
+          "",
+        ].join("\n"),
       },
       [luau("bump", "n += 1\n")],
     );
@@ -227,8 +235,11 @@ describe("a Luau file that main runs twice", () => {
         main: [
           "store n = 0",
           "run bump",
-          "Top {n}.",
-          "-> main_one",
+          "",
+          "scene start",
+          "  Top {n}.",
+          "  -> main_one",
+          "end",
           "",
           "scene main_one",
           "  run bump",
@@ -256,7 +267,7 @@ const errorLines = (program: any): [string, number, string][] =>
 describe("a script with an include line of the script that would include it", () => {
   it("reports the include line, and each script's scene is declared once", () => {
     const program = compileOnce({
-      main: ["include chapter.sd", "", "scene main_one", "  Main.", "end", ""].join("\n"),
+      main: ["include chapter.sd", "", "scene start", "end", "", "scene main_one", "  Main.", "end", ""].join("\n"),
       chapter: ["include main.sd", "", "scene chapter_one", "  Chapter.", "end", ""].join("\n"),
     });
     expect(errorLines(program)).toEqual([
@@ -269,8 +280,10 @@ describe("a script with an include line of the script that would include it", ()
 });
 
 describe("an include line", () => {
-  const main = ["Opening.", "include nope.sd", "", "scene main_one", "  Main.", "end", ""].join("\n");
-  const atInclude: [string, number, string] = [MAIN_URI, 1, INCLUDE_LINE];
+  const main = ["scene start", "  Opening.", "end", "include nope.sd", "", "scene main_one", "  Main.", "end", ""].join(
+    "\n",
+  );
+  const atInclude: [string, number, string] = [MAIN_URI, 3, INCLUDE_LINE];
 
   it("is an error at the include", () => {
     expect(errorLines(compileOnce({ main }))).toEqual([atInclude]);

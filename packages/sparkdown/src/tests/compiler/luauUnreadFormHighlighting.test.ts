@@ -398,7 +398,7 @@ const FORMS: Record<string, Form> = {
       "theme t with\n  colors { primary = red }\nend\n" +
       "morph m with\n  method = bend\n  keyframes {\n    { offset = 0; eyes { state = eyes.open } }\n    { offset = 0.4; eyes { state = eyes.closed } }\n  }\nend\n" +
       "screen hud with\nend\n" +
-      "external message(x)\nHi.\n",
+      "external message(x)\nscene start\n  Hi.\nend\n",
     scopes: [
       ["Person", DEFINE_NAME],
       ["with", WITH],
@@ -475,7 +475,8 @@ const FORMS: Record<string, Form> = {
   },
 };
 
-function compile(text: string) {
+function compile(source: string) {
+  const text = /^scene start\b/m.test(source) ? source : `scene start\nend\n${source}`;
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
@@ -554,7 +555,7 @@ describe("valid Luau forms the grammar reads with their usual scopes (#1924)", (
 });
 
 test("an invalid attribute list before a top-level function reports Luau's error (#1924)", () => {
-  expect(compile("@[native; deprecated] function first()\n  return 7\nend\nValue: {first()}.\n")).toContain(
+  expect(compile("@[native; deprecated] function first()\n  return 7\nend\nscene start\n  Value: {first()}.\nend\n")).toContain(
     "Expected ']' (to close '[' at column 2), got ';'",
   );
 });
@@ -569,7 +570,7 @@ const LEXICAL_LINES = [
   "@[deprecated{reason = [========[a]=========]b]========]}] function f() return 7 end",
 ];
 test.each(LEXICAL_LINES)("an attribute line's arguments and comments leave it with its function (#1924): %j", (lines) => {
-  const ctx = makeRuntimeStoryFromSource(`${lines}\nThe answer is {f()}.\n`);
+  const ctx = makeRuntimeStoryFromSource(`${lines}\nscene start\n  The answer is {f()}.\nend\n`);
   expect(ctx.errorMessages).toEqual([]);
   expect(ctx.story.ContinueMaximally()).toBe("The answer is 7.\n");
 });
@@ -582,12 +583,12 @@ test.each([...LEXICAL_LINES, "@[deprecated{reason = `] function`}] function f() 
 );
 
 test.each([
-  ["@native function a() return 1 end @native function b() return 2 end\nValues {a()} {b()}.\n"],
-  ["@native --[[c]] function a() return 1 end\n@native --[[c]] @checked function b() return 2 end\nValues {a()} {b()}.\n"],
-  ["@native -- a note that ends with end\nfunction a() return 1 end\n@native function b() return 2 end\nValues {a()} {b()}.\n"],
-  ['@native function a() local s = "--" return 1 end\n@native function b() return 2 end\nValues {a()} {b()}.\n'],
-  ["@native --[[ -- note ]] function a() return 1 end\n@native function b() return 2 end\nValues {a()} {b()}.\n"],
-  ['store a = @native function() local s = "--" return 1 end\n@native function b() return 2 end\nValues {a()} {b()}.\n'],
+  ["@native function a() return 1 end @native function b() return 2 end\nscene start\n  Values {a()} {b()}.\nend\n"],
+  ["@native --[[c]] function a() return 1 end\n@native --[[c]] @checked function b() return 2 end\nscene start\n  Values {a()} {b()}.\nend\n"],
+  ["@native -- a note that ends with end\nfunction a() return 1 end\n@native function b() return 2 end\nscene start\n  Values {a()} {b()}.\nend\n"],
+  ['@native function a() local s = "--" return 1 end\n@native function b() return 2 end\nscene start\n  Values {a()} {b()}.\nend\n'],
+  ["@native --[[ -- note ]] function a() return 1 end\n@native function b() return 2 end\nscene start\n  Values {a()} {b()}.\nend\n"],
+  ['store a = @native function() local s = "--" return 1 end\n@native function b() return 2 end\nscene start\n  Values {a()} {b()}.\nend\n'],
 ])("attributed functions in a row are each their own statement (#1924): %j", (source) => {
   expect(holders(source, [["return 2 end", "LuauFunctionAttributes"]])).toEqual([["return 2 end", "LuauFunctionAttributes"]]);
   const ctx = makeRuntimeStoryFromSource(source);
@@ -596,9 +597,9 @@ test.each([
 });
 
 test.each([
-  ["@native\n---@param x number\nfunction f(x) return x end\nValue {f(3)}.\n", "Value 3.\n"],
-  ["function m()\n  local f = @native\n    ---@param x number\n    function(x) return x end\n  return f(4)\nend\nValue {m()}.\n", "Value 4.\n"],
-  ["@native --- doc ending with end\nfunction f(x) return x end\nValue {f(5)}.\n", "Value 5.\n"],
+  ["@native\n---@param x number\nfunction f(x) return x end\nscene start\n  Value {f(3)}.\nend\n", "Value 3.\n"],
+  ["function m()\n  local f = @native\n    ---@param x number\n    function(x) return x end\n  return f(4)\nend\nscene start\n  Value {m()}.\nend\n", "Value 4.\n"],
+  ["@native --- doc ending with end\nfunction f(x) return x end\nscene start\n  Value {f(5)}.\nend\n", "Value 5.\n"],
 ])("a documentation comment between attributes and their function (#1924): %j", async (source, output) => {
   const doc: [string, string][] = [["---", "comment.luau"]];
   if (source.includes("@param")) doc.push(["@param", "storage.type.class.luadoc.luau"]);
@@ -618,7 +619,7 @@ test.each([
 });
 
 test("attributes before a local declaration report the missing function (#1924)", () => {
-  expect(compile("-> start\nscene start\n  @native\n  local answer = 42\n  The story continues.\nend\n")).toContain(
+  expect(compile("scene start\n  @native\n  local answer = 42\n  The story continues.\nend\n")).toContain(
     "Expected 'function' after local declaration with attribute, but got 'answer' instead",
   );
 });
@@ -626,14 +627,14 @@ test("attributes before a local declaration report the missing function (#1924)"
 test("an attribute line with no function reports Luau's error (#1924)", () => {
   const missing = "Expected 'function', 'local function', 'const function', 'declare function' or a function type declaration after attribute, but got <eof> instead";
   expect(compile(readFileSync(join(FORMS_DIR, "line-start-attribute-alone-921.sd"), "utf8"))).toContain(missing);
-  expect(compile('@[deprecated{reason = "] function"}]\nHello.\n')).toContain(missing);
+  expect(compile('@[deprecated{reason = "] function"}]\nscene start\n  Hello.\nend\n')).toContain(missing);
 });
 
 test.each([
-  ["@[deprecated{reason = [====[a]=====]b]====]}] function first() return 7 end\nThe answer is {first()}.\n"],
-  ["@[deprecated{reason = [=======[a]=====]b]=======]}] function first() return 7 end\nThe answer is {first()}.\n"],
-  ["@[deprecated{reason = [========[a]=========]b]========]}] function first() return 7 end\nThe answer is {first()}.\n"],
-  ["@[deprecated{reason = [=[a]]=]}] function first() return 7 end\nThe answer is {first()}.\n"],
+  ["@[deprecated{reason = [====[a]=====]b]====]}] function first() return 7 end\nscene start\n  The answer is {first()}.\nend\n"],
+  ["@[deprecated{reason = [=======[a]=====]b]=======]}] function first() return 7 end\nscene start\n  The answer is {first()}.\nend\n"],
+  ["@[deprecated{reason = [========[a]=========]b]========]}] function first() return 7 end\nscene start\n  The answer is {first()}.\nend\n"],
+  ["@[deprecated{reason = [=[a]]=]}] function first() return 7 end\nscene start\n  The answer is {first()}.\nend\n"],
 ])("a long string holding a close of another level keeps its function (#1924): %j", (source) => {
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);
@@ -641,9 +642,9 @@ test.each([
 });
 
 test.each([
-  ["@[native deprecated] function first() return 7 end\nThe answer is {first()}.\n", "Expected ']' (to close '[' at column 2), got 'deprecated'"],
-  ["store f = @[nativ] function() return 7 end\nThe answer is {f()}.\n", "Invalid attribute '@nativ'"],
-  ["store missing = @[native]\n() return 7 end\nProse.\n", "Expected 'function' declaration after attribute, but got <eof> instead"],
+  ["@[native deprecated] function first() return 7 end\nscene start\n  The answer is {first()}.\nend\n", "Expected ']' (to close '[' at column 2), got 'deprecated'"],
+  ["store f = @[nativ] function() return 7 end\nscene start\n  The answer is {f()}.\nend\n", "Invalid attribute '@nativ'"],
+  ["store missing = @[native]\n() return 7 end\nscene start\n  Prose.\nend\n", "Expected 'function' declaration after attribute, but got <eof> instead"],
 ])("an attribute list's error is reported (#1924): %j", (source, message) => {
   expect(compile(source)).toContain(message);
 });
@@ -656,7 +657,7 @@ test("a line of many attribute lists parses at once (#1924)", () => {
 });
 
 test("an attribute argument that is not a literal reports Luau's errors (#1924)", () => {
-  const source = 'function main()\n  local reason = "why"\n  @[deprecated{reason=reason}]\n  function f() end\nend\nHello.\n';
+  const source = 'function main()\n  local reason = "why"\n  @[deprecated{reason=reason}]\n  function f() end\nend\nscene start\n  Hello.\nend\n';
   const expected = ["Only literals can be passed as arguments for attributes", "Only constant string allowed as value for 'reason'"];
   expect(compile(source)).toEqual(expected);
   expect(checkLuau('local reason = "why"\n@[deprecated{reason=reason}]\nfunction f() end\n').syntaxDiagnostics.map((d) => d.message)).toEqual(expected);

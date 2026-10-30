@@ -2,10 +2,11 @@ import type { SyntaxNode } from "@lezer/common";
 import { nodeNameSet } from "./nodeNameSet";
 import { VARIABLE_DEFINITION_NAMES } from "./variableDefinitionNames";
 
-export const CONTENT_OUTSIDE_SCENE_MESSAGE =
-  "Only main.sd runs lines outside a scene. Move this into a scene or into main.sd.";
+export const TOP_LEVEL_STATEMENT_MESSAGE =
+  "statement must be inside a scene or branch; the top level holds declarations only";
 
 const DECLARATIONS = nodeNameSet([
+  "Run",
   "LuauDefine",
   "LuauStyle",
   "LuauLayout",

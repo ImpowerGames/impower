@@ -3,10 +3,13 @@ import { testCompiler, testStory } from "../engineUnderTest";
 
 const URI = "inmemory:///main.sd";
 
-const script = (global: string, call: string, fn: string[], start = "") =>
+const script = (global: string, call: string, fn: string[], divert = "", declared = false) =>
   [
-    global,
-    start,
+    ...(declared ? [global] : []),
+    "scene start",
+    ...(declared ? [] : [`  ${global}`]),
+    ...(divert ? [`  ${divert}`] : []),
+    "end",
     "",
     "scene A",
     "  First line.",
@@ -111,7 +114,7 @@ describe("incremental call resolution", () => {
 
   it("calls a declared global that a function is named after, as a cold compile does", () => {
     const { incremental, cold } = afterEditingSceneA(
-      script("store count = 0", "count(a, b, 1)", COUNT),
+      script("store count = 0", "count(a, b, 1)", COUNT, "", true),
     );
     expect(cold.errors).toHaveLength(1);
     expect(incremental).toEqual(cold);

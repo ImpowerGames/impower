@@ -1,3 +1,4 @@
+
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,9 +8,6 @@ import type { ProgramRoot } from "../../program/ProgramRoot";
 import { compileScript, errorsOf, programSession, storyBeats } from "../program/programHarness";
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
-
-const LOCAL_PLACEMENT =
-  "local declaration must be inside a scene, branch or function; use store or const at the top level";
 
 const quiet = <T>(run: () => T): T => {
   const { warn, error } = console;
@@ -34,35 +32,30 @@ const rootOf = (lines: string[]) =>
     return program.chunks!;
   });
 
-const legacyRootOf = (text: string) =>
-  quiet(() => {
-    const { program } = compileScript(`${text.trimEnd()}\n`);
-    expect(errorsOf(program).filter(([, message]) => message !== LOCAL_PLACEMENT)).toEqual([]);
-    return program.chunks!;
-  });
-
 const run = (lines: string[]) => quiet(() => shown(rootOf(lines)));
 
 const got = (...texts: string[]) => ({ texts, errors: [] });
 
-const inScene = (lines: string[]) => ["-> S", "scene S", ...lines.map((line) => `  ${line}`), "end"];
+const inScene = (lines: string[]) => ["scene start", ...lines.map((line) => `  ${line}`), "end"];
+
+const withStart = (declarations: string[], story: string[]) => [...declarations, ...inScene(story)];
 
 describe("a function written at the top level", () => {
   test.each([
     ["a store", "store a = 1"],
     ["a const", "const a = 1"],
   ])("reads %s", (_, decl) => {
-    expect(run([decl, "function g()", "  return a", "end", "Got {tostring(g())}."])).toEqual(got("Got 1."));
+    expect(run(withStart([decl, "function g()", "  return a", "end"], ["Got {tostring(g())}."]))).toEqual(got("Got 1."));
   });
 
   test("reads and writes a global", () => {
     expect(
-      run(["count = 0", "function inc()", "  count = count + 1", "end", "& inc()", "& inc()", "Got {count}."]),
+      run(withStart(["function inc()", "  count = count + 1", "end"], ["count = 0", "& inc()", "& inc()", "Got {count}."])),
     ).toEqual(got("Got 2."));
   });
 
   test("reads the builtin where no local takes its name", () => {
-    expect(run(["function lib()", "  return math.abs(-3)", "end", "Got {lib()}."])).toEqual(
+    expect(run(withStart(["function lib()", "  return math.abs(-3)", "end"], ["Got {lib()}."]))).toEqual(
       got("Got 3."),
     );
   });
@@ -198,15 +191,12 @@ describe("a local function written in a scene and the scene's local", () => {
 describe("a define's method written at the top level", () => {
   test("reads a store", () => {
     expect(
-      run([
-        "store a = 1",
-        "define thing with",
-        "  function get()",
-        "    return a",
-        "  end",
-        "end",
-        "Got {tostring(thing.get())}.",
-      ]),
+      run(
+        withStart(
+          ["store a = 1", "define thing with", "  function get()", "    return a", "  end", "end"],
+          ["Got {tostring(thing.get())}."],
+        ),
+      ),
     ).toEqual(got("Got 1."));
   });
 });
@@ -228,50 +218,53 @@ describe("a define written in a function", () => {
   ];
 
   test("has methods that read the function's local", () => {
-    expect(run([...outer(["return a"]), "Got {outer(7)}."])).toEqual(got("Got 7."));
+    expect(run(withStart(outer(["return a"]), ["Got {outer(7)}."]))).toEqual(got("Got 7."));
   });
 
   test("has methods that reach the function's local through a call", () => {
-    expect(run([...outer(["return foo()"]), "Got {outer(7)}."])).toEqual(got("Got 7."));
+    expect(run(withStart(outer(["return foo()"]), ["Got {outer(7)}."]))).toEqual(got("Got 7."));
   });
 
   test("gives its methods the locals of each call", () => {
-    expect(run([...outer(["return a"]), "Got {outer(1)} {outer(2)} {thing.get()}."])).toEqual(
+    expect(run(withStart(outer(["return a"]), ["Got {outer(1)} {outer(2)} {thing.get()}."]))).toEqual(
       got("Got 1 2 2."),
     );
   });
 
   test("has methods that read nil before the function runs", () => {
-    expect(run([...outer(["return a"]), "Got {tostring(thing.get())} {outer(7)}."])).toEqual(
+    expect(run(withStart(outer(["return a"]), ["Got {tostring(thing.get())} {outer(7)}."]))).toEqual(
       got("Got nil 7."),
     );
   });
 
   test("leaves the methods of another define of its name alone", () => {
     expect(
-      run([
-        "define thing as kind with",
-        "  function get()",
-        "    return 3",
-        "  end",
-        "end",
-        "function outer(v)",
-        "  local a = v",
-        "  define thing with",
-        "    function get()",
-        "      return a",
-        "    end",
-        "  end",
-        "  return new thing():get()",
-        "end",
-        "Before {kind.thing.get()}.",
-        "Got {outer(7)} {kind.thing.get()}.",
-      ]),
+      run(
+        withStart(
+          [
+            "define thing as kind with",
+            "  function get()",
+            "    return 3",
+            "  end",
+            "end",
+            "function outer(v)",
+            "  local a = v",
+            "  define thing with",
+            "    function get()",
+            "      return a",
+            "    end",
+            "  end",
+            "  return new thing():get()",
+            "end",
+          ],
+          ["Before {kind.thing.get()}.", "Got {outer(7)} {kind.thing.get()}."],
+        ),
+      ),
     ).toEqual(got("Before 3.", "Got 3 3."));
   });
 
   test("has methods that keep the function's local across a save and a load", () => {
-    const lines = [...outer(["return a"]), "First {outer(7)}.", "Second {tostring(thing.get())}."];
+    const lines = withStart(outer(["return a"]), ["First {outer(7)}.", "Second {tostring(thing.get())}."]);
     const story = new ProgramStory(rootOf(lines));
     story.onError = () => {};
     expect(story.Continue()?.trim()).toBe("First 7.");
@@ -284,10 +277,13 @@ describe("a define written in a function", () => {
 });
 
 describe("a save holding a top-level method value", () => {
-  test("loads, and a method whose define reads a top-level local passes its parameters", () => {
-    const text = readFileSync(join(FIXTURES, "nested-define-method-value.sd"), "utf-8");
-    const save = readFileSync(join(FIXTURES, "nested-define-method-value-save-569cfe902.json"), "utf-8");
-    const loaded = new ProgramStory(legacyRootOf(text));
+  test("loads, and a method whose define reads a scene's local passes its parameters", () => {
+    const text = readFileSync(join(FIXTURES, "nested-define-method-value.sd"), "utf-8").trimEnd();
+    const story = new ProgramStory(rootOf([text]));
+    story.onError = () => {};
+    expect(story.Continue()?.trim()).toBe("First.");
+    const save = story.toSave();
+    const loaded = new ProgramStory(rootOf([text]));
     loaded.loadSave(save);
     const { beats, errors } = storyBeats(loaded);
     expect({ texts: beats.map((b) => b.text.trim()), errors }).toEqual(got("Got 7."));
@@ -325,8 +321,7 @@ describe("an incremental compile of a scene's local function", () => {
     ["the local removed", "  local b = 0\n  local a = 1", "  local b = 0", "Got nil."],
   ])("shows what a cold compile shows after %s", (_, before, after, expected) => {
     const lines = [
-      "-> S",
-      "scene S",
+      "scene start",
       before.startsWith("    ") ? "  local a = 1" : before,
       "  local function g()",
       before.startsWith("    ") ? before : "    return a",

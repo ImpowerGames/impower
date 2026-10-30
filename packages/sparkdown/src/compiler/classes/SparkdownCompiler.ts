@@ -188,9 +188,14 @@ import {
 } from "../../program/StatementWatch";
 import { debugFileName } from "../utils/debugFileName";
 import {
-  CONTENT_OUTSIDE_SCENE_MESSAGE,
+  TOP_LEVEL_STATEMENT_MESSAGE,
   topLevelStatements,
 } from "../utils/declarationOnly";
+import {
+  isStartSceneMessage,
+  startSceneProblems,
+  type StartSceneScript,
+} from "../utils/startScene";
 import {
   isPlacementMessage,
   misplacedDeclarations,
@@ -1293,6 +1298,7 @@ export class SparkdownCompiler {
 
     try {
       profile("start", this._profilerId, "ink/parse", uri);
+      const story = uri !== BUILTINS_PRELUDE_URI && !hasLuauExtension(uri);
       const parsedStory = this.parseIncrementally(
         uri,
         fileHandler,
@@ -1300,7 +1306,11 @@ export class SparkdownCompiler {
         state,
         program,
         onDiagnostic,
+        story,
       );
+      if (story) {
+        this.validateStartScene(uri, state.projectScripts ?? [], onDiagnostic);
+      }
       profile("end", this._profilerId, "ink/parse", uri);
       profile("start", this._profilerId, "scopeDefineInstances", uri);
       const collectTypeNamesFor = (uris: Iterable<string>): Set<string> => {
@@ -1995,7 +2005,7 @@ export class SparkdownCompiler {
           return undefined;
         }
         const cb = chunkRecords[j]!.block as any;
-        if (cb.run) {
+        if (cb.run || refused(chunkRecords[j]!)) {
           return undefined;
         }
         if (!cb.content || (k > 0 && isClosedFunctionChunk(cb))) {
@@ -2014,7 +2024,7 @@ export class SparkdownCompiler {
         if (cb.run) {
           return undefined;
         }
-        if (!cb.content || isClosedFunctionChunk(cb)) {
+        if (!cb.content || isClosedFunctionChunk(cb) || refused(chunkRecords[m]!)) {
           continue;
         }
         const kind = chunkFlowKind(cb);
@@ -2038,6 +2048,13 @@ export class SparkdownCompiler {
             document.read(from, to),
           )
         : undefined;
+    const refused = (rec: { block: any; from: number }): boolean => {
+      const declares = topLevel?.get(rec.from);
+      return (
+        declares === false ||
+        (declares === true && !onlyDeclares(rec.block.content))
+      );
+    };
     const misplacedLocals = new Set<number>();
     const placementTree =
       this._injectingPrelude || hasLuauExtension(uri)
@@ -2127,10 +2144,10 @@ export class SparkdownCompiler {
       let content = rec.block.content;
       const lineNumberOffset = document?.lineAt(rec.from) ?? 0;
       const declares = topLevel?.get(rec.from);
-      if (declares === false || (declares === true && !onlyDeclares(content))) {
+      if (refused(rec)) {
         if (!misplacedLocals.has(rec.from)) {
           onDiagnostic(
-            CONTENT_OUTSIDE_SCENE_MESSAGE,
+            TOP_LEVEL_STATEMENT_MESSAGE,
             ErrorType.Error,
             firstLineSource(rec.from),
           );
@@ -2138,6 +2155,7 @@ export class SparkdownCompiler {
         forwardDiagnostics(diagnostics, lineNumberOffset);
         continue;
       }
+      const hoisted = declares === true;
       const sparkleCollides =
         !!sparkle &&
         !this._injectingPrelude &&
@@ -2413,7 +2431,9 @@ export class SparkdownCompiler {
               for (const placed of flowContent) {
                 this._placedBy.set(placed, compiledBlock);
               }
-              const closestWeave = getClosestWeave(topLevelContent);
+              const closestWeave = hoisted
+                ? undefined
+                : getClosestWeave(topLevelContent);
               if (closestWeave) {
                 const lastContent = closestWeave.content.at(-1);
                 if (
@@ -2427,7 +2447,9 @@ export class SparkdownCompiler {
               } else {
                 const weave = new Weave(flowContent);
                 topLevelWeaveObjs.push(weave);
-                topLevelContent.push(weave);
+                if (!hoisted) {
+                  topLevelContent.push(weave);
+                }
               }
             }
           }
@@ -2859,6 +2881,45 @@ export class SparkdownCompiler {
     emit(validateOpenBlocks(tree.topNode, ctx));
   }
 
+  protected validateStartScene(
+    uri: string,
+    scripts: readonly string[],
+    onDiagnostic: (
+      message: string,
+      type: ErrorType,
+      source: SourceMetadata | null,
+    ) => void,
+  ) {
+    const read: StartSceneScript[] = [];
+    for (const scriptUri of [uri, ...scripts]) {
+      const tree = this.documents.tree(scriptUri);
+      const doc = this.documents.get(scriptUri);
+      if (tree && doc) {
+        read.push({
+          uri: scriptUri,
+          top: tree.topNode,
+          read: (from, to) => doc.read(from, to),
+        });
+      }
+    }
+    for (const problem of startSceneProblems(read)) {
+      const doc = this.documents.get(problem.uri)!;
+      const text = doc.getText();
+      const lineEnd = text.indexOf("\n", problem.from);
+      const line = text.slice(problem.from, lineEnd < 0 ? text.length : lineEnd);
+      const indent = line.length - line.trimStart().length;
+      const start = doc.positionAt(problem.from + indent);
+      onDiagnostic(problem.message, ErrorType.Error, {
+        fileName: debugFileName(problem.uri),
+        filePath: problem.uri,
+        startLineNumber: start.line + 1,
+        endLineNumber: start.line + 1,
+        startCharacterNumber: start.character + 1,
+        endCharacterNumber: start.character + line.trim().length + 1,
+      });
+    }
+  }
+
   protected maybeReseedBinaryTable(): void {
     const size = this._binaryTable.strings.length;
     if (this._binaryTableBaseline === 0) {
@@ -3134,6 +3195,7 @@ export class SparkdownCompiler {
       story: parsedStory,
       uri,
       preludeUri: BUILTINS_PRELUDE_URI,
+      topLevelFlow: hasLuauExtension(uri),
       blockOf: (obj) => this._placedBy.get(obj),
       record: (block) =>
         this._statementRecords.get(block) ??
@@ -4618,7 +4680,10 @@ export class SparkdownCompiler {
       const diagnostics = ((program.diagnostics ??= {})[scriptUri] ??= []);
       const wordsOf = (d: SparkDiagnostic) => (typeof d.message === "string" ? d.message : d.message.value);
       const existing = diagnostics.filter(
-        (d) => d.severity === DiagnosticSeverity.Error && !isPlacementMessage(wordsOf(d)),
+        (d) =>
+          d.severity === DiagnosticSeverity.Error &&
+          !isPlacementMessage(wordsOf(d)) &&
+          !isStartSceneMessage(wordsOf(d)),
       );
       const offsetOf = (position: Range["start"]) => doc.offsetAt(position);
       for (const { declaration, found, reported } of declarations) {
@@ -4735,7 +4800,13 @@ export class SparkdownCompiler {
         const message = typeof d.message === "string" ? d.message : d.message.value;
         const path = /Cannot find (?:variable|item or path) named `([^`]+)`/.exec(message)?.[1];
         if (path) unresolved.push({ name: path.split(".")[0]!, range: d.range });
-        if (d.severity === DiagnosticSeverity.Error && !isPlacementMessage(message)) errors.push(d);
+        if (
+          d.severity === DiagnosticSeverity.Error &&
+          !isPlacementMessage(message) &&
+          !isStartSceneMessage(message)
+        ) {
+          errors.push(d);
+        }
       }
       const checked = this._typechecker.checkDocument(scriptUri, doc.read(0, doc.length), tree, mode);
       const tokenOf = (d: { end: { line: number; character: number } }) => ({ line: d.end.line, character: Math.max(d.end.character - 1, 0) });

@@ -2,11 +2,6 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { formatSource } from "./formatSource";
 
-// I-1104: a story line after an unfinished `if` expression is indented to
-// the scene body when formatted. That indent must not make the line the
-// expression's then arm: the line stays story text and the diagnostics
-// stay the same.
-
 const URI = "file:///main.sd";
 
 const SOURCE = [
@@ -46,7 +41,6 @@ describe("formatting a story line after an unfinished if expression", () => {
     const formatted = formatSource(SOURCE);
     const after = diagnostics(formatted);
     expect(after).toEqual(diagnostics(SOURCE));
-    // Read as Luau, the story line's words become names.
     for (const d of after) {
       expect(d.message).not.toMatch(/Hello|there/);
     }

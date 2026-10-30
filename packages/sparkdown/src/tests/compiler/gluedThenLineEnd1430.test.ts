@@ -5,6 +5,8 @@ import { checkerTextUnits } from "./luauCheckerText";
 import { officialSyntaxErrors } from "./officialSyntax";
 
 const URI = "inmemory:///main.sd";
+const START = "scene start\nend\n";
+const START_LINES = 2;
 
 function readings(text: string) {
   const warn = vi.spyOn(console, "warn");
@@ -18,7 +20,8 @@ function readings(text: string) {
   }
 }
 
-function compile(text: string) {
+function compile(source: string) {
+  const text = START + source;
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
@@ -30,7 +33,10 @@ function compile(text: string) {
   const errors = diagnostics.map((diagnostic) =>
     typeof diagnostic.message === "string" ? diagnostic.message : diagnostic.message.value,
   );
-  const starts = diagnostics.map((diagnostic) => diagnostic.range.start);
+  const starts = diagnostics.map((diagnostic) => ({
+    line: diagnostic.range.start.line - START_LINES,
+    character: diagnostic.range.start.character,
+  }));
   const tree = compiler.documents.tree(URI);
   if (!tree) throw new Error("Compiler kept no syntax tree");
   const units = checkerTextUnits(tree, text);
@@ -119,7 +125,10 @@ describe("an if expression whose then is glued to its condition and ends its lin
     ["whose next line ends the function", (opening) => `function f(c)\n  local s = ${opening}\nend\n`],
     ["before a column-0 line", (opening) => `store c = true\nstore s = ${opening}\nstore t = 1\n`],
     ["before a column-0 call", (opening) => `store c = true\nstore s = ${opening}\nprint(c)\n`],
-    ["in a reassignment before a column-0 call", (opening) => `store c = true\nstore s = 0\ns = ${opening}\nprint(s)\n`],
+    [
+      "in a reassignment before a call",
+      (opening) => `store c = true\nstore s = 0\nscene go\n  s = ${opening}\n  print(s)\nend\n`,
+    ],
   ];
   describe.each(missingValue)("an arm with no value %s", (_, script) => {
     test.each([

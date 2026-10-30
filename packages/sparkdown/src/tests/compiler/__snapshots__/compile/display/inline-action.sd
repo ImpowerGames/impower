@@ -1,1 +1,3 @@
-: Some action text.
+scene start
+  : Some action text.
+end

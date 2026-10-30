@@ -23,6 +23,10 @@ function readings(text: string) {
   return { errors, official };
 }
 
+function withStart(text: string) {
+  return `${text}scene start\nend\n`;
+}
+
 function expectAccepted(text: string) {
   const result = readings(text);
   expect(result.official, "official Luau parser of projected checker text").toEqual([]);
@@ -31,7 +35,7 @@ function expectAccepted(text: string) {
 
 describe("a multiline if expression after a keyword that begins a condition (#1495)", () => {
   test.each(["if c then", "if (c)then", "if (c) then"])("accepts a while condition opening %s", (open) => {
-    expectAccepted(`function f(c)\n  while ${open}\n    false\n  else true do\n    return 1\n  end\nend\n`);
+    expectAccepted(withStart(`function f(c)\n  while ${open}\n    false\n  else true do\n    return 1\n  end\nend\n`));
   });
 
   test.each([
@@ -39,11 +43,11 @@ describe("a multiline if expression after a keyword that begins a condition (#14
     "if c then\n    false else true do",
     "if c\n    then false else true do",
   ])("accepts a while condition broken as %j", (condition) => {
-    expectAccepted(`function f(c)\n  while ${condition}\n    return 1\n  end\nend\n`);
+    expectAccepted(withStart(`function f(c)\n  while ${condition}\n    return 1\n  end\nend\n`));
   });
 
   test("control: a one-line if expression as a while condition is accepted", () => {
-    expectAccepted(`function f(c)\n  while if c then false else true do\n    return 1\n  end\nend\n`);
+    expectAccepted(withStart(`function f(c)\n  while if c then false else true do\n    return 1\n  end\nend\n`));
   });
 
   test.each([
@@ -55,19 +59,19 @@ describe("a multiline if expression after a keyword that begins a condition (#14
     ["an until condition", `function f(c)\n  repeat\n    c = 1\n  until if c then\n    false\n  else true\nend\n`],
     ["the value a for loop iterates", `function f(c)\n  for x in if c then\n    {}\n  else {} do\n    return 1\n  end\nend\n`],
   ])("accepts a multiline if expression as %s", (_, text) => {
-    expectAccepted(text);
+    expectAccepted(withStart(text));
   });
 
   test.each([
-    ["a story-level while loop", `store c = true\nwhile if c then\n  false\nelse true do\n  Hello\nend\n`],
-    ["a story-level if statement", `store c = true\nif if c then\n  false\nelse true then\n  Hello\nend\n`],
+    ["a story-level while loop", `store c = true\nscene start\n  while if c then\n    false\n  else true do\n    Hello\n  end\nend\n`],
+    ["a story-level if statement", `store c = true\nscene start\n  if if c then\n    false\n  else true then\n    Hello\n  end\nend\n`],
   ])("a multiline if expression as the condition of %s ends at the header's line", (_, text) => {
     expect(readings(text).errors).toContain("Expected identifier when parsing expression, got <eof>");
   });
 
   test.each([
-    ["a story-level while loop", `store c = true\nwhile if c then false else true do\n  Hello\nend\n`],
-    ["a story-level if statement", `store c = true\nif if c then false else true then\n  Hello\nend\n`],
+    ["a story-level while loop", `store c = true\nscene start\n  while if c then false else true do\n    Hello\n  end\nend\n`],
+    ["a story-level if statement", `store c = true\nscene start\n  if if c then false else true then\n    Hello\n  end\nend\n`],
   ])("control: a one-line if expression as the condition of %s is accepted", (_, text) => {
     expectAccepted(text);
   });

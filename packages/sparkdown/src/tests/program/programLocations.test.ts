@@ -107,7 +107,7 @@ describe("a compile with statement chunks", () => {
 
   it("reads a choice's entry and its body before the next choice's, in document order", () => {
     const text = [
-      "-> MAIN",
+      "",
       "",
       "scene MAIN",
       "  [[intro]] Intro.",
@@ -118,6 +118,9 @@ describe("a compile with statement chunks", () => {
       "      [[body_b]] Body B.",
       "  end",
       "  [[outro]] Outro.",
+      "end",
+      "scene start",
+      "  -> MAIN",
       "end",
       "",
     ].join("\n");
@@ -133,7 +136,7 @@ describe("a compile with statement chunks", () => {
 
   it("reads a nested choose block's then clause before the next choice of the block around it", () => {
     const text = [
-      "-> MAIN",
+      "",
       "",
       "scene MAIN",
       "  choose",
@@ -148,6 +151,9 @@ describe("a compile with statement chunks", () => {
       "  then",
       "    [[finished]] Finished.",
       "  end",
+      "end",
+      "scene start",
+      "  -> MAIN",
       "end",
       "",
     ].join("\n");
@@ -172,7 +178,7 @@ describe("a compile with statement chunks", () => {
 
   it("reads a choose block's bodies, its then clause and the content after it in document order", () => {
     const text = [
-      "-> MAIN",
+      "",
       "",
       "scene MAIN",
       "  [[intro]] Intro.",
@@ -185,6 +191,9 @@ describe("a compile with statement chunks", () => {
       "    [[joined]] Joined.",
       "  end",
       "  [[outro]] Outro.",
+      "end",
+      "scene start",
+      "  -> MAIN",
       "end",
       "",
     ].join("\n");
@@ -207,7 +216,7 @@ describe("a compile with statement chunks", () => {
 
   it("reads a choose block nested in a choice's body before the next choice", () => {
     const text = [
-      "-> MAIN",
+      "",
       "",
       "scene MAIN",
       "  [[intro]] Intro.",
@@ -222,6 +231,9 @@ describe("a compile with statement chunks", () => {
       "    + [B] [[option_b]] B.",
       "  end",
       "  [[outro]] Outro.",
+      "end",
+      "scene start",
+      "  -> MAIN",
       "end",
       "",
     ].join("\n");
@@ -247,11 +259,14 @@ describe("a compile with statement chunks", () => {
     const text = [
       "store score = 0",
       "",
-      "-> MAIN",
+      "",
       "",
       "scene MAIN",
       "  [[room]] Hello {score} [[portrait]] and [[room]] again.",
       "  [[street]] Later.",
+      "end",
+      "scene start",
+      "  -> MAIN",
       "end",
       "",
     ].join("\n");

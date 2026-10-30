@@ -40,8 +40,11 @@ function compileAndCapture(source: string): {
 describe("nested-function siblings capture each other as upvalues", () => {
   test("function checkmessage() calls function doit() declared earlier in the same scope", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function doit(s)
@@ -59,8 +62,11 @@ end
 
   test("external declarations are NOT wrongly captured as upvals", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function inner()
@@ -75,8 +81,11 @@ end
 
   test("stdlib calls inside nested function bodies stay routed to stdlib", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function inner(s)
