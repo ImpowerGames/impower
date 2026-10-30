@@ -223,7 +223,12 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(kind("// Sparkdown-specific", "src/tests/a.test.ts"), "directive", "packages/sparkdown/src/tests/compiler/luauPortCapture.ts ends a Luau case group at it");
     assert.equal(kind("// Sparkdown-specific: the rules about loop ranges", "src/tests/a.test.ts"), "refused");
     assert.equal(kind("# lookaround: Luau owns the suffix", "definitions/yaml/g.yaml"), "directive");
-    assert.equal(kind("// agent-tooling-timeout-ms: 600000", "scripts/x.test.mjs"), "directive");
+    assert.equal(kind("// agent-tooling-timeout-ms: 600000", "scripts/x.test.mjs"), "directive", "scripts/check-agent-tooling.mjs reads the timeout header");
+    assert.equal(kind("// agent-tooling-serial: holds a machine-wide fixture lock", "scripts/x.test.mjs"), "directive", "scripts/check-agent-tooling.mjs reads the serial header");
+    assert.equal(kind("/* agent-tooling-timeout-ms: 600000 */", "scripts/x.test.mjs"), "refused", "scripts/check-agent-tooling.mjs reads the header only as a // line");
+    assert.equal(kind("//agent-tooling-timeout-ms: 600000", "scripts/x.test.mjs"), "refused");
+    assert.equal(kind("// agent-tooling-timeout-ms: soon", "scripts/x.test.mjs"), "refused", "the timeout header takes a whole number of milliseconds");
+    assert.equal(kind("// agent-tooling-serial:", "scripts/x.test.mjs"), "refused", "the serial header takes a reason");
     assert.equal(kind("/* windows-hide: caller */", "scripts/x.mjs"), "directive", "scripts/windows-hide.test.mjs skips a launch whose options come from the caller at it");
     assert.equal(kind("/* windows-hide: caller, which hides it */", "scripts/x.mjs"), "refused");
     assert.equal(kind("/* windows-hide: caller */", "src/a.ts"), "refused", "scripts/windows-hide.test.mjs scans only JavaScript files");
@@ -285,6 +290,9 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(kind("/** @type BuildOptions */"), "refused");
 
     const refusedLines = (text, file = "src/a.ts") => refusedComments(text, file, { root: checkout }).map((c) => c.line);
+    const header = (line) => `${"x();\n".repeat(line - 1)}// agent-tooling-timeout-ms: 600000\n`;
+    assert.deepEqual(refusedLines(header(10), "scripts/x.test.mjs"), [], "scripts/check-agent-tooling.mjs reads a header in a check's first ten lines");
+    assert.deepEqual(refusedLines(header(11), "scripts/x.test.mjs"), [11], "a header below the tenth line is never read");
     assert.deepEqual(refusedLines("// workaround(webkit): first line\n// continues the note\n// still the note\nx();\n// @ts-ignore\n// not a continuation\n  // indented differently"), [6, 7]);
     assert.deepEqual(refusedLines("// workaround(webkit): note\nx(); // not a continuation"), [2]);
     const luau = "// Copying types, ported from Luau's `Clone.cpp`; Luau is MIT-licensed (see\n// `LICENSE-luau.txt`).\n//\n// The clone walks each type once.\nexport {};\n";

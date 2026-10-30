@@ -8,7 +8,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const configFile = "comment-policy.json";
 const config = JSON.parse(fs.readFileSync(path.join(here, configFile), "utf8"));
 const directives = config.directives.filter((d) => d.form).map((d) => ({ form: new RegExp(d.form), extensions: d.extensions }));
-const commentDirectives = config.directives.filter((d) => d.comment).map((d) => ({ form: new RegExp(d.comment), extensions: d.extensions }));
+const commentDirectives = config.directives.filter((d) => d.comment).map((d) => ({ form: new RegExp(d.comment), extensions: d.extensions, firstLines: d.firstLines }));
 const licences = config.licences.map((l) => ({ form: new RegExp(l.form, "m"), file: l.file }));
 const platforms = new Set(config.platforms);
 
@@ -868,7 +868,8 @@ export function classifyComment(text, file, options = {}) {
     if (parsed?.tags.length && !parsed.prose && parsed.tags.every((t) => t.read)) return { kind: "directive", reason: "JSDoc tags TypeScript reads" };
   }
   if (extension === ".ps1" && powershellHelp(text)) return { kind: "directive", reason: POWERSHELL_HELP };
-  if (commentDirectives.some((d) => (!d.extensions || d.extensions.includes(extension)) && d.form.test(text))) return { kind: "directive", reason: "a directive a tool reads" };
+  const commentDirective = commentDirectives.find((d) => (!d.extensions || d.extensions.includes(extension)) && d.form.test(text));
+  if (commentDirective) return { kind: "directive", reason: "a directive a tool reads", ...(commentDirective.firstLines && { firstLines: commentDirective.firstLines }) };
   if (lines.every((line) => directiveLine(line, extension))) return { kind: "directive", reason: "a directive a tool reads" };
   return { kind: "refused", reason: "neither a directive a tool reads nor a `workaround(<name>):` note" };
 }
@@ -884,6 +885,7 @@ export function judgeComments(text, file, options = {}) {
   for (const comment of comments) {
     Object.assign(comment, classifyComment(comment.text, file, options));
     if (comment.reason === POWERSHELL_HELP && !powershellHelpPlaced(text, comment, comments)) Object.assign(comment, { kind: "refused", reason: "comment-based help where Get-Help does not read it" });
+    if (comment.firstLines && comment.line > comment.firstLines) Object.assign(comment, { kind: "refused", reason: `a directive its tool reads only in a file's first ${comment.firstLines} lines` });
     if (comment.kind === "refused" && previous?.kind === "workaround" && single(comment) && single(previous) && comment.line === previous.endLine + 1 && comment.column === previous.column) {
       comment.kind = "workaround";
       comment.reason = `continues the workaround note on line ${previous.line}`;
