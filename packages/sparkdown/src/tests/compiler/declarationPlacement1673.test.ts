@@ -18,7 +18,7 @@ const LOCAL =
 const STORE =
   "store declaration must be at the top level; assign it here with & name = value instead";
 const OUTSIDE_SCENE =
-  "Only main.sd runs lines outside a scene. Move this into a scene or into main.sd.";
+  "statement must be inside a scene or branch; the top level holds declarations only";
 
 const file = (uri: string, text: string): File => ({
   uri,
@@ -116,7 +116,7 @@ describe("a local outside a flow", () => {
   });
 
   it("keeps the misplaced line's own syntax errors beside it", () => {
-    expect(diagnose(lines("local a = {1 ? 2}", "Hello."))).toEqual([
+    expect(diagnose(lines("local a = {1 ? 2}", "scene start", "end"))).toEqual([
       { message: LOCAL, text: "local a = {1 ? 2}" },
       { message: "Expected '}' (to close '{' at column 11), got '?'", text: "?" },
       { message: "Expected identifier when parsing expression, got '2'", text: "2" },
@@ -124,7 +124,7 @@ describe("a local outside a flow", () => {
     ]);
   });
 
-  it("keeps the outside-scene message for another script's other top-level lines", () => {
+  it("reports the outside-scene message for another script's other top-level lines", () => {
     expect(
       diagnose(lines("Hello."), lines("Hello there."), OTHER).map((d) => d.message),
     ).toEqual([OUTSIDE_SCENE]);
@@ -151,14 +151,14 @@ describe("a hoisted declaration inside a flow", () => {
 
   it.each(cases)("refuses a %s inside a scene", (_, body, message, text) => {
     expect(
-      placementErrors(lines("-> s", "scene s", ...indent(body, "  "), "  Hi.", "end")),
+      placementErrors(lines("", "scene start", ...indent(body, "  "), "  Hi.", "end")),
     ).toEqual([{ message, text }]);
   });
 
   it.each(cases)("refuses a %s inside a branch", (_, body, message, text) => {
     expect(
       placementErrors(
-        lines("-> s", "scene s", "  -> b", "  branch b", ...indent(body, "    "), "    Hi.", "  end", "end"),
+        lines("", "scene start", "  -> b", "  branch b", ...indent(body, "    "), "    Hi.", "  end", "end"),
       ),
     ).toEqual([{ message, text }]);
   });
@@ -167,8 +167,8 @@ describe("a hoisted declaration inside a flow", () => {
     expect(
       placementErrors(
         lines(
-          "-> s",
-          "scene s",
+          "",
+          "scene start",
           "  if true then",
           "    store a = 1",
           "  end",
@@ -190,7 +190,7 @@ describe("a hoisted declaration inside a flow", () => {
   it("refuses a function Luau reads after a scene's local on its line, past a block comment", () => {
     expect(
       placementErrors(
-        lines("-> s", "scene s", "  local x = 1 --[[c]] function f() return x end", "  Value {x}.", "end"),
+        lines("", "scene start", "  local x = 1 --[[c]] function f() return x end", "  Value {x}.", "end"),
       ),
     ).toEqual([
       {
@@ -203,7 +203,7 @@ describe("a hoisted declaration inside a flow", () => {
   it("refuses a function written with a scope inside a scene, and a marked store", () => {
     expect(
       placementErrors(
-        lines("-> s", "scene s", "  store function g() end", "  & store x = 1", "end"),
+        lines("", "scene start", "  store function g() end", "  & store x = 1", "end"),
       ),
     ).toEqual([
       { message: "function declaration must be at the top level", text: "store function g() end" },
@@ -226,8 +226,8 @@ describe("the placements that stay allowed", () => {
           "  local n = 1",
           "  hp = math.min(hp + n, MAX)",
           "end",
-          "-> s",
-          "scene s",
+          "",
+          "scene start",
           "  local greeting = \"Hello\"",
           "  & hp = hp - 1",
           "  local function twice(x) return x * 2 end",
@@ -274,7 +274,7 @@ describe("the placements that stay allowed", () => {
   it("compiles an anonymous function written inside a scene", () => {
     expect(
       placementErrors(
-        lines("-> s", "scene s", "  local f = function() return 1 end", "  {f()}", "end"),
+        lines("", "scene start", "  local f = function() return 1 end", "  {f()}", "end"),
       ),
     ).toEqual([]);
   });

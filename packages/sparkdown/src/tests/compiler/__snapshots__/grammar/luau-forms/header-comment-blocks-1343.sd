@@ -10,4 +10,6 @@ component --[[ note ]] card with
   text "card"
 end
 
-The rain stops on the rooftop.
+scene start
+  The rain stops on the rooftop.
+end

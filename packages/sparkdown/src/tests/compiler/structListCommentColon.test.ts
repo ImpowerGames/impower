@@ -15,6 +15,8 @@ true // note:
 "hi" // note:
 }
 end
+scene start
+end
 `;
   const uri = "file:///main.sd";
   const compiler = new SparkdownCompiler();

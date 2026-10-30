@@ -4,7 +4,9 @@ import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarn
 
 /** Branches only a divert from outside their scene enters, each with
  *  parameters (dotted-divert-targets-with-arguments.sd). */
-export const BRANCHES = `-> outer.inner(1)
+export const BRANCHES = `scene start
+  -> outer.inner(1)
+end
 scene outer
   branch inner(a)
     Inner {a}.

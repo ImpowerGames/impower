@@ -68,8 +68,10 @@ end
       {
         rel: "main.sd",
         text: `external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 function run()
   local h = new Hero()
   host_record(h.hp)
@@ -108,8 +110,10 @@ end
 define Actor as character with
   store hp = 7
 end
-& run()
-done
+scene start
+  & run()
+  done
+end
 `,
       },
     ]);
@@ -137,8 +141,10 @@ end
         rel: "main.sd",
         text: `external host_record(v)
 store Orion = 42
-& run()
-done
+scene start
+  & run()
+  done
+end
 function run()
   host_record(Orion)
   host_record(companion.Orion.name)

@@ -1,1 +1,3 @@
-& x = a == b and c == d
+scene start
+  & x = a == b and c == d
+end

@@ -1,1 +1,3 @@
-& x = not foundTheAlley
+scene start
+  & x = not foundTheAlley
+end

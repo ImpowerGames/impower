@@ -1,1 +1,3 @@
-not true
+scene start
+  not true
+end

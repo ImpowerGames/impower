@@ -1,4 +1,4 @@
-text.source.sparkdown [0..223]
+text.source.sparkdown [0..241]
  ├─ meta.function.luau [0..12]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
@@ -124,7 +124,14 @@ text.source.sparkdown [0..223]
  ├─ variable.parameter.function.varargs.luau [206..209]: "..."
  ├─ support.type.primitive.luau [209..215]: "number"
  ├─ Newline [215..216]: "\n"
- ├─ string.display.text.chunk.sd [216..222]
- │   ├─ markup.raw.text.sd [216..221]: "Hello"
- │   └─ markup.raw.punctuation.sd [221..222]: "."
- └─ Newline [222..223]: "\n"
+ ├─ keyword.control.scene.sd [216..221]: "scene"
+ ├─ punctuation.whitespace.required.sd [221..222]: " "
+ ├─ keyword.control.section.sd [222..227]: "start"
+ ├─ Newline [227..228]: "\n"
+ ├─ punctuation.whitespace.optional.sd [228..230]: "  "
+ ├─ string.display.text.chunk.sd [230..236]
+ │   ├─ markup.raw.text.sd [230..235]: "Hello"
+ │   └─ markup.raw.punctuation.sd [235..236]: "."
+ ├─ Newline [236..237]: "\n"
+ ├─ keyword.control.end.luau [237..240]: "end"
+ └─ Newline [240..241]: "\n"

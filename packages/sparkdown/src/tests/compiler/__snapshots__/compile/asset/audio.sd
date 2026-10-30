@@ -1,1 +1,3 @@
-((play music stars))
+scene start
+  ((play music stars))
+end

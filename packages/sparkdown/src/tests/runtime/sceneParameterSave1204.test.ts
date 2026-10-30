@@ -5,7 +5,7 @@
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
-const source = "-> s(10)\n\nscene s(a)\n  First {a}.\n  Second {a}.\nend\n";
+const source = "scene start\n  -> s(10)\nend\n\nscene s(a)\n  First {a}.\n  Second {a}.\nend\n";
 
 const start = () => {
   const ctx = makeRuntimeStoryFromSource(source);

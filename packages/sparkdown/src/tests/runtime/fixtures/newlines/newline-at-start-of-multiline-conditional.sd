@@ -1,4 +1,6 @@
--> main
+scene start
+  -> main
+end
 scene main
   -> emitX ->
   if true then

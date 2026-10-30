@@ -1,4 +1,3 @@
--> start
 scene start
   local x = 1
   if false then

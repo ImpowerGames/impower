@@ -1,7 +1,9 @@
-& myFunc()
-& aKnot()
--> myFunc
-done
+scene start
+  & myFunc()
+  & aKnot()
+  -> myFunc
+  done
+end
 
 function myFunc() return end
 

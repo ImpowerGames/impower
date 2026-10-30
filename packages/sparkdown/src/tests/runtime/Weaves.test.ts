@@ -84,7 +84,7 @@ describe("Weaves (ported from inkjs)", () => {
     // `CheckForWeavePointNamingCollisions` check during `ExportRuntime`.
     // The diagnostic surfaces via sparkdown's compile pipeline.
     const { errorMessages } = collectDiagnostics(
-      `-> main\nscene main\n  label x\n  one\n  label x\n  two\n`,
+      `\nscene start\n  label x\n  one\n  label x\n  two\n`,
     );
     expect(errorMessages.some((m) => /same label name `x`/.test(m))).toBe(
       true,

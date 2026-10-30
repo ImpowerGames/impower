@@ -101,12 +101,12 @@ describe("an annotation written with two separate colons (#1168)", () => {
 // (I-1515). A local belongs in a scene, so each local is written in one.
 describe("in a narrative body", () => {
   test.each([
-    ["scene S\n  local :: number\nend", ["Expected identifier when parsing variable name, got '::'", "Incomplete statement: expected assignment or a function call"]],
-    ["scene S\n  local : number\nend", ["Expected identifier when parsing variable name, got ':'"]],
-    ["scene S\n  local a, :: number\nend", ["Expected identifier when parsing variable name, got '::'", "Incomplete statement: expected assignment or a function call"]],
-    ["store : number", ["Expected identifier when parsing variable name, got ':'"]],
+    ["scene start\n  local :: number\nend", ["Expected identifier when parsing variable name, got '::'", "Incomplete statement: expected assignment or a function call"]],
+    ["scene start\n  local : number\nend", ["Expected identifier when parsing variable name, got ':'"]],
+    ["scene start\n  local a, :: number\nend", ["Expected identifier when parsing variable name, got '::'", "Incomplete statement: expected assignment or a function call"]],
+    ["store : number\nscene start\nend", ["Expected identifier when parsing variable name, got ':'"]],
     [
-      "scene S\n  local c: : number = 1\nend",
+      "scene start\n  local c: : number = 1\nend",
       ["Expected type, got ':'", "Expected identifier when parsing expression, got ':'", "Expected '(', '{' or <string> when parsing function call, got '='"],
     ],
   ])("%j reports Luau's errors", (source, messages) => {
@@ -116,7 +116,7 @@ describe("in a narrative body", () => {
   // Luau ends `local c : : number`'s method call at `number` with `Expected
   // function call arguments after '('`; the reading meets the line's end
   // there and words it as a call with no arguments at <eof> (I-1551).
-  test.each(["scene S\n  local c : : number\nend"])("%j reports Luau's first two errors and the reading's third", (source) => {
+  test.each(["scene start\n  local c : : number\nend"])("%j reports Luau's first two errors and the reading's third", (source) => {
     expect(collectDiagnostics(`${source}\n`).errorMessages).toEqual([
       "Expected type, got ':'",
       "Expected identifier when parsing expression, got ':'",
@@ -127,7 +127,7 @@ describe("in a narrative body", () => {
   // A function in the script is Luau code, where the comma continues the
   // list, and every error of Luau's reading is reported (I-1322).
   test("in a function, the comma continues the list", () => {
-    expect(collectDiagnostics("function f()\n  local a,\n    b :: number\nend\n").errorMessages).toEqual([
+    expect(collectDiagnostics("scene start\nend\nfunction f()\n  local a,\n    b :: number\nend\n").errorMessages).toEqual([
       "Expected identifier when parsing expression, got '::'",
       "Incomplete statement: expected assignment or a function call",
     ]);
@@ -136,7 +136,7 @@ describe("in a narrative body", () => {
   // The next line is story, so a trailing comma is the only error, as it is
   // before a target with a valid annotation (`TrailingCommaValueList`). The
   // declaration's Luau meets its end of input at the line's end (#1907).
-  test.each(["scene S\n  local a,\n  b :: number\nend", "scene S\n  local a,\n  b: number\nend"])(
+  test.each(["scene start\n  local a,\n  b :: number\nend", "scene start\n  local a,\n  b: number\nend"])(
     "%j reports only the trailing comma",
     (source) => {
       expect(collectDiagnostics(`${source}\n`).errorMessages).toEqual([
@@ -146,10 +146,10 @@ describe("in a narrative body", () => {
   );
 
   test.each([
-    "scene S\n  local x: number\nend",
-    "scene S\n  local x: {a: number}\nend",
-    "scene S\n  local f: (a: number) -> ()\nend",
-    "scene S\n  local x = 1\n  local y = x :: number\nend",
+    "scene start\n  local x: number\nend",
+    "scene start\n  local x: {a: number}\nend",
+    "scene start\n  local f: (a: number) -> ()\nend",
+    "scene start\n  local x = 1\n  local y = x :: number\nend",
   ])(
     "%j stays free of errors",
     (source) => {

@@ -1,1 +1,3 @@
-# pic{amount}{color}.jpg
+scene start
+  # pic{amount}{color}.jpg
+end

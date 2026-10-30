@@ -189,7 +189,7 @@ describe("the preview displayed from the worker's game", () => {
       `  src = "https://example.com/b.png"`,
       `end`,
       ``,
-      `-> start`,
+      ``,
       ``,
       `scene start`,
       `  HERO:`,
@@ -242,7 +242,7 @@ describe("the preview displayed from the worker's game", () => {
     // `greeting` from `bridge`: the call resolves through `bridge`'s parents
     // to the function of whichever story they lead to.
     const text = [
-      "-> bridge",
+      "",
       "",
       "function greeting()",
       `  return "the real greeting"`,
@@ -250,6 +250,10 @@ describe("the preview displayed from the worker's game", () => {
       "",
       "scene bridge",
       "  The bridge says {greeting()}.",
+      "end",
+      "",
+      "scene start",
+      "  -> bridge",
       "end",
       "",
     ].join("\n");
@@ -281,11 +285,8 @@ describe("the preview displayed from the worker's game", () => {
     }));
     const on = await frames(text, steps);
     expect(on).toHaveLength(steps.length + 1);
-    // The showcase has no scene: past its stores and functions it is one
-    // layout, and a function's lines are never where a preview starts, so no
-    // line is one the toolbar names as the launch, and each frame draws the
-    // layout's controls.
-    expect(on.launches.slice(1)).toEqual(steps.map(() => ""));
+    const startEnd = lines.indexOf("scene start") + 2;
+    expect(on.launches.slice(1)).toEqual(steps.map(() => `main : ${startEnd}`));
     for (const frame of on.slice(1)) {
       for (const text of ["Pico", "Preview", "Subscribe", "Privacy Policy"]) {
         expect(shows(frame, text)).toBe(true);

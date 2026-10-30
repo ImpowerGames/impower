@@ -1,4 +1,4 @@
-sparkdown [0..402]
+sparkdown [0..420]
  ├─ LuauFunctionDefinition [0..391]
  │   ├─ LuauFunctionDefinition_begin [0..9]
  │   │   ├─ LuauFunctionDefinition_begin_c1 0
@@ -833,24 +833,41 @@ sparkdown [0..402]
  │       ├─ LuauFunctionDefinition_end_c3 391
  │       └─ LuauFunctionDefinition_end_c5 391
  ├─ Newline [391..392]: "\n"
- ├─ ImplicitAction [392..401]
- │   ├─ ImplicitAction_begin 392
- │   │   └─ ImplicitAction_begin_c1 392
- │   │       └─ OptionalWhitespace 392
- │   ├─ ImplicitAction_content [392..401]
- │   │   └─ ActionLineEnd [392..401]
- │   │       ├─ ActionLineEnd_begin 392
- │   │       │   └─ ActionLineEnd_begin_c1 392
- │   │       │       └─ OptionalWhitespace 392
- │   │       ├─ ActionLineEnd_content [392..401]
- │   │       │   └─ TextChunk [392..401]
- │   │       │       ├─ TextChunk_begin 392
- │   │       │       ├─ TextChunk_content [392..401]
- │   │       │       │   ├─ Word [392..397]: "After"
- │   │       │       │   ├─ Space [397..398]: " "
- │   │       │       │   ├─ Word [398..400]: "it"
- │   │       │       │   └─ Punctuation [400..401]: "."
- │   │       │       └─ TextChunk_end 401
- │   │       └─ ActionLineEnd_end 401
- │   └─ ImplicitAction_end 401
- └─ Newline [401..402]: "\n"
+ ├─ Scene [392..403]
+ │   ├─ Scene_begin [392..398]
+ │   │   ├─ Scene_begin_c1 392
+ │   │   │   └─ OptionalWhitespace 392
+ │   │   ├─ Scene_begin_c2 [392..397]
+ │   │   │   └─ SceneKeyword [392..397]: "scene"
+ │   │   └─ Scene_begin_c3 [397..398]
+ │   │       └─ RequiredWhitespace [397..398]: " "
+ │   ├─ Scene_content [398..403]
+ │   │   └─ SceneWithoutParametersDeclaration [398..403]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [398..403]
+ │   │       │   └─ SceneDeclarationName [398..403]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 403
+ │   └─ Scene_end 403
+ ├─ Newline [403..404]: "\n"
+ ├─ ImplicitAction [404..415]
+ │   ├─ ImplicitAction_begin [404..406]
+ │   │   └─ ImplicitAction_begin_c1 [404..406]
+ │   │       └─ OptionalWhitespace [404..406]: "  "
+ │   ├─ ImplicitAction_content [406..415]
+ │   │   └─ ActionLineEnd [406..415]
+ │   │       ├─ ActionLineEnd_begin 406
+ │   │       │   └─ ActionLineEnd_begin_c1 406
+ │   │       │       └─ OptionalWhitespace 406
+ │   │       ├─ ActionLineEnd_content [406..415]
+ │   │       │   └─ TextChunk [406..415]
+ │   │       │       ├─ TextChunk_begin 406
+ │   │       │       ├─ TextChunk_content [406..415]
+ │   │       │       │   ├─ Word [406..411]: "After"
+ │   │       │       │   ├─ Space [411..412]: " "
+ │   │       │       │   ├─ Word [412..414]: "it"
+ │   │       │       │   └─ Punctuation [414..415]: "."
+ │   │       │       └─ TextChunk_end 415
+ │   │       └─ ActionLineEnd_end 415
+ │   └─ ImplicitAction_end 415
+ ├─ Newline [415..416]: "\n"
+ ├─ LuauEndKeyword [416..419]: "end"
+ └─ Newline [419..420]: "\n"

@@ -34,6 +34,8 @@ export const UNDEFINED_KIND = -1;
 /** The name the flow of the top-level content is registered under. */
 export const ROOT_FLOW_NAME = "";
 
+export const START_FLOW_NAME = "start";
+
 /** How a function the compiler named is shown to an author. */
 export const ANONYMOUS_FUNCTION_LABEL = "<anonymous>";
 

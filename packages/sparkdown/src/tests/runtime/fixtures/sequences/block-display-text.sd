@@ -1,6 +1,8 @@
--> main
+scene start
+  -> main
+end
 scene main
-  label start
+  label again
   queue
     | apple
     | banana
@@ -8,7 +10,7 @@ scene main
   end
   & i = i + 1
   if i < 5 then
-    -> start
+    -> again
   end
   fin
 

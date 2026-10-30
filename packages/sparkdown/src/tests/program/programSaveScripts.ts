@@ -9,8 +9,6 @@ export const LOOP_TUNNEL_SCRIPT = [
   "store total = 0",
   "store fns = {}",
   "",
-  "-> start",
-  "",
   "scene early",
   "  Early.",
   "end",

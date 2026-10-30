@@ -3,7 +3,7 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { compileSource } from "./compileSnapshot";
 
 function struct(type: "layout" | "component", body: string): any {
-  const source = `${type} hud with\nrow {\n${body}\n}\nend\n`;
+  const source = `${type} hud with\nrow {\n${body}\n}\nend\n\nscene start\nend\n`;
   const uri = "file:///main.sd";
   const compiler = new SparkdownCompiler();
   compiler.configure({ files: [{

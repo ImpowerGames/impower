@@ -38,8 +38,9 @@ function expectLuauReading(body: string): void {
 describe("casts read their targets as types (#877)", () => {
   test.each(["", "  "].flatMap((indent) => ["", " --[[c]]", " --[====[long\ncomment]====]", " -- line"].map((comment) => [indent, comment])))
     ("recovers an unfinished extra qualifier before %s return with %s", async (indent, comment) => {
-      const source = `Value {f()}.\nfunction f()\n  local a = 55 :: types.Number.${comment}\n${indent}return 55\nend\n`;
-      expect(official(source.slice(source.indexOf("function"))).errors).toBeGreaterThan(0);
+      const declaration = `function f()\n  local a = 55 :: types.Number.${comment}\n${indent}return 55\nend\n`;
+      const source = `${declaration}\nscene start\n  Value {f()}.\nend\n`;
+      expect(official(declaration).errors).toBeGreaterThan(0);
       const tree = parseSource(source);
       expect(treeScopeStackAt(tree, source.indexOf("return"))).toContain("keyword.control.luau");
       const result = await compareEnginesFull(source);
@@ -53,7 +54,7 @@ describe("casts read their targets as types (#877)", () => {
       expect(diagnostics?.[0]?.message).toEqual({ kind: "markdown", value: "A type name takes at most one module prefix\n> e.g. `types.Button`, not `types.ui.Button`" });
       const qualifierEnd = source.indexOf(`\n${indent}return`);
       const endLines = source.slice(0, qualifierEnd).split("\n");
-      expect(diagnostics?.[0]?.range).toEqual({ start: { line: 2, character: 30 }, end: { line: endLines.length - 1, character: endLines.at(-1)!.length } });
+      expect(diagnostics?.[0]?.range).toEqual({ start: { line: 1, character: 30 }, end: { line: endLines.length - 1, character: endLines.at(-1)!.length } });
       const runtime = makeRuntimeStoryFromSource(source);
       expect(runtime.errorMessages[0]).toEqual(expect.stringContaining("takes at most one module prefix"));
       expect(runtime.story.ContinueMaximally()).toBe("Value 55.\n");
@@ -98,7 +99,7 @@ describe("casts read their targets as types (#877)", () => {
       const end = start + extra.length;
       const position = (offset: number) => { const lines = source.slice(0, offset).split("\n"); return { line: lines.length - 1, column: lines.at(-1)!.length }; };
       expect(diagnostics[0]).toMatchObject({ ...position(start), endLine: position(end).line, endColumn: position(end).column });
-      const runtime = makeRuntimeStoryFromSource(`Value {f()}.\nfunction f()\n  local a = 55 :: ${target}\n  return 55\nend\n`);
+      const runtime = makeRuntimeStoryFromSource(`function f()\n  local a = 55 :: ${target}\n  return 55\nend\n\nscene start\n  Value {f()}.\nend\n`);
       expect(runtime.errorMessages).toEqual([expect.stringContaining("takes at most one module prefix")]);
       expect(runtime.story.ContinueMaximally()).toBe("Value 55.\n");
     });
@@ -117,19 +118,19 @@ describe("casts read their targets as types (#877)", () => {
       const units = readLuauUnits(parseSource(source), source);
       expect(units.prelude.errors.map((error) => error.message)).toEqual([expect.stringContaining(readerMessage)]);
       expect(stripAnsi(dumpTree(source))).not.toContain("ERROR_INCOMPLETE");
-      const runtime = makeRuntimeStoryFromSource(`Value {f(0)}.\n${source}\n`);
+      const runtime = makeRuntimeStoryFromSource(`${source}\n\nscene start\n  Value {f(0)}.\nend\n`);
       expect(runtime.errorMessages).toEqual([expect.stringContaining(compilerMessage)]);
       expect(runtime.story.ContinueMaximally()).toBe("Value 55.\n");
     });
   test.each(["  .a   ", "  :: number\n  .a   "])("reports meaningful continuation range for %s", (continuation) => {
-    const source = `Value {f()}.\nfunction f()\n  if true then\n  end\n${continuation}\n  return 55\nend\n`;
+    const source = `function f()\n  if true then\n  end\n${continuation}\n  return 55\nend\n\nscene start\n  Value {f()}.\nend\n`;
     const uri = "inmemory:///main.sd";
     const compiler = new SparkdownCompiler();
     compiler.configure({ files: [{ uri, type: "script", name: "main", ext: "sd", text: source, version: 1, languageId: "sparkdown" }] });
     const diagnostics = compiler.compile({ textDocument: { uri } }).program.diagnostics?.[uri]?.filter((diagnostic) => diagnostic.severity === 1);
     const to = source.indexOf(continuation) + continuation.trimEnd().length;
     const lines = source.slice(0, to).split("\n");
-    expect(diagnostics?.map((diagnostic) => diagnostic.range)).toEqual([{ start: { line: 4, character: 2 }, end: { line: lines.length - 1, character: lines.at(-1)!.length } }]);
+    expect(diagnostics?.map((diagnostic) => diagnostic.range)).toEqual([{ start: { line: 3, character: 2 }, end: { line: lines.length - 1, character: lines.at(-1)!.length } }]);
     const runtime = makeRuntimeStoryFromSource(source);
     expect(runtime.errorMessages).toEqual([`\`${continuation.trim()}\` continues the line before it, which does not end in a value it can continue. Join it to the value it continues.`]);
     expect(runtime.story.ContinueMaximally()).toBe("Value 55.\n");

@@ -20,7 +20,7 @@ const LUAU = {
   "lib/helpers.luau": "local a = 1",
   "lib/util.luau": "local b = 2",
   "scripts/util.luau": "local c = 3",
-  "other/main.sd": "done",
+  "other/main.sd": lines("scene start", "  done", "end"),
   "other/elsewhere.luau": "local d = 4",
 };
 
@@ -72,18 +72,18 @@ const fixesIn = (uri: string, text: string, program: SparkProgram) => {
 
 describe("the run operand's quick fixes", () => {
   test("quotes an unquoted path, and the quoted path runs the file", () => {
-    const fixes = fixesOf(lines("run lib/helpers", "done", ""));
+    const fixes = fixesOf(lines("run lib/helpers", "scene start", "  done", "end", ""));
     expect(fixes).toEqual([
-      { title: "Quote the path", preferred: true, text: lines('run "lib/helpers"', "done", "") },
+      { title: "Quote the path", preferred: true, text: lines('run "lib/helpers"', "scene start", "  done", "end", "") },
     ]);
     expect(errorsOf(compile(fixes[0]!.text))).toEqual([]);
   });
 
   test("offers the quoted path of each file a shared name names, none preferred", () => {
-    const fixes = fixesOf(lines("run util  # tag", "done", ""));
+    const fixes = fixesOf(lines("run util  # tag", "scene start", "  done", "end", ""));
     expect(fixes).toEqual([
-      { title: 'Use "lib/util"', preferred: false, text: lines('run "lib/util"  # tag', "done", "") },
-      { title: 'Use "scripts/util"', preferred: false, text: lines('run "scripts/util"  # tag', "done", "") },
+      { title: 'Use "lib/util"', preferred: false, text: lines('run "lib/util"  # tag', "scene start", "  done", "end", "") },
+      { title: 'Use "scripts/util"', preferred: false, text: lines('run "scripts/util"  # tag', "scene start", "  done", "end", "") },
     ]);
     for (const fix of fixes) {
       expect(errorsOf(compile(fix.text))).toEqual([]);
@@ -96,8 +96,8 @@ describe("the run operand's quick fixes", () => {
     ['"Lib/Helpers"', "Change to 'lib/helpers'", 'run "lib/helpers"'],
     ["'./lib/helpers.LUAU'", "Change to './lib/helpers.luau'", "run './lib/helpers.luau'"],
   ])("corrects an operand that differs only by case in its own form: run %s", (operand, title, fixed) => {
-    const fixes = fixesOf(lines(`run ${operand}`, "done", ""));
-    expect(fixes).toEqual([{ title, preferred: true, text: lines(fixed, "done", "") }]);
+    const fixes = fixesOf(lines(`run ${operand}`, "scene start", "  done", "end", ""));
+    expect(fixes).toEqual([{ title, preferred: true, text: lines(fixed, "scene start", "  done", "end", "") }]);
     expect(errorsOf(compile(fixes[0]!.text))).toEqual([]);
   });
 
@@ -105,9 +105,9 @@ describe("the run operand's quick fixes", () => {
     ['run "./lib/helpers', 'run "./lib/helpers"'],
     ["run 'lib/helpers", "run 'lib/helpers'"],
   ])("closes a quote the line never closes: %s", (line, fixed) => {
-    const fixes = fixesOf(lines(line, "done", ""));
+    const fixes = fixesOf(lines(line, "scene start", "  done", "end", ""));
     expect(fixes).toEqual([
-      { title: "Close the quote", preferred: true, text: lines(fixed, "done", "") },
+      { title: "Close the quote", preferred: true, text: lines(fixed, "scene start", "  done", "end", "") },
     ]);
     expect(errorsOf(compile(fixes[0]!.text))).toEqual([]);
   });
@@ -121,7 +121,7 @@ describe("the run operand's quick fixes", () => {
       "lib/O'Brien/util.luau": "local a = 1",
       "scripts/util.luau": "local b = 2",
     };
-    const fixes = fixesIn(CHAPTER, chapter("util"), compile("-> chapter", files));
+    const fixes = fixesIn(CHAPTER, chapter("util"), compile(lines("scene start", "  -> chapter", "end", ""), files));
     expect(fixes).toEqual([
       {
         title: `Use "../lib/O'Brien/util"`,
@@ -131,14 +131,14 @@ describe("the run operand's quick fixes", () => {
       { title: 'Use "../scripts/util"', preferred: false, text: chapter('"../scripts/util"') },
     ]);
     for (const fix of fixes) {
-      const program = compile("-> chapter", { ...files, "chapters/chapter.sd": fix.text });
+      const program = compile(lines("scene start", "  -> chapter", "end", ""), { ...files, "chapters/chapter.sd": fix.text });
       expect(errorsOf(program, CHAPTER)).toEqual([]);
     }
   });
 
   test("offers nothing for an operand no file is near", () => {
-    expect(fixesOf(lines("run missing", "done", ""))).toEqual([]);
-    expect(fixesOf(lines('run "missing"', "done", ""))).toEqual([]);
+    expect(fixesOf(lines("run missing", "scene start", "  done", "end", ""))).toEqual([]);
+    expect(fixesOf(lines('run "missing"', "scene start", "  done", "end", ""))).toEqual([]);
   });
 });
 
@@ -215,7 +215,7 @@ describe("the run operand's rename and link", () => {
     ['run "lib/helpers"', 'run "lib/tools"'],
     ["run './lib/helpers.luau'  # tag", "run './lib/tools.luau'  # tag"],
   ])("renames the file it names with it: %s", (line, renamed) => {
-    const text = lines(line, "done", "");
+    const text = lines(line, "scene start", "  done", "end", "");
     const { workspace, documents, document } = workspaceWith(text);
     const edit = getRenameEdits(
       undefined,
@@ -236,12 +236,12 @@ describe("the run operand's rename and link", () => {
         TextDocument.create(MAIN, "sparkdown", 1, text),
         edit!.changes![MAIN]!,
       ),
-    ).toBe(lines(renamed, "done", ""));
+    ).toBe(lines(renamed, "scene start", "  done", "end", ""));
   });
 
   test("renames every run operand that names the file, and none that does not", () => {
     const CHAPTER = `${ROOT}chapters/chapter.sd`;
-    const main = lines("run helpers", 'run "./lib/helpers.luau"', "run util", "done", "");
+    const main = lines("run helpers", 'run "./lib/helpers.luau"', "run util", "scene start", "  done", "end", "");
     const chapter = lines("scene chapter", '  run "../lib/helpers"', "  run helpers", "end", "");
     const { workspace, documents, document } = workspaceWith(main, { [CHAPTER]: chapter });
     const edit = getRenameEdits(
@@ -259,7 +259,7 @@ describe("the run operand's rename and link", () => {
         edit!.changes![uri] ?? [],
       );
     expect(applied(MAIN, main)).toBe(
-      lines("run tools", 'run "./lib/tools.luau"', "run util", "done", ""),
+      lines("run tools", 'run "./lib/tools.luau"', "run util", "scene start", "  done", "end", ""),
     );
     expect(applied(CHAPTER, chapter)).toBe(
       lines("scene chapter", '  run "../lib/tools"', "  run tools", "end", ""),
@@ -277,7 +277,7 @@ describe("the run operand's rename and link", () => {
     ["run util", "util", undefined],
     ["run elsewhere", "elsewhere", undefined],
   ])("links the operand to the file it names: %s", (line, operand, target) => {
-    const text = lines(line, "done", "");
+    const text = lines(line, "scene start", "  done", "end", "");
     const { workspace, documents, document } = workspaceWith(text);
     const links = getDocumentLinks(
       document,
@@ -301,7 +301,7 @@ describe("the run operand's rename and link", () => {
     [true, `${ROOT}lib space/helpers.luau`],
     [false, `${ROOT}lib%20space/helpers.luau`],
   ])("links a quoted path through a folder with a space (as written: %s)", (asWritten, target) => {
-    const text = lines('run "lib space/helpers"', "done", "");
+    const text = lines('run "lib space/helpers"', "scene start", "  done", "end", "");
     const { workspace, documents, document } = workspaceWith(text);
     Object.assign(workspace, {
       _compilerConfig: { uriPathsAsWritten: asWritten },
@@ -319,7 +319,7 @@ describe("the run operand's rename and link", () => {
 
 describe("an edit to a Luau file a run reads", () => {
   test("compiles its project's main script", async () => {
-    const { workspace } = workspaceWith(lines("run helpers", "done", ""));
+    const { workspace } = workspaceWith(lines("run helpers", "scene start", "  done", "end", ""));
     const compiled: [string, boolean][] = [];
     const base = Object.getPrototypeOf(SparkdownLanguageServerWorkspace.prototype);
     const spy = vi
@@ -341,7 +341,7 @@ describe("an edit to a Luau file a run reads", () => {
   });
 
   test("compiles every entry whose program read the file", async () => {
-    const { workspace } = workspaceWith(lines('run "other/elsewhere"', "done", ""));
+    const { workspace } = workspaceWith(lines('run "other/elsewhere"', "scene start", "  done", "end", ""));
     const LUAU_URI = `${ROOT}other/elsewhere.luau`;
     const OTHER = `${ROOT}other/main.sd`;
     const program = (uri: string, read: number) =>

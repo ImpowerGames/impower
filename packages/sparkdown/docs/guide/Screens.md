@@ -113,9 +113,11 @@ fade, slide, and time their entrance:
 | `wait`             | block the story until the transition finishes |
 
 ```sparkdown
-[[open inventory with fade over 0.3s]]
-[[close inventory with fade over 0.2s wait]]
-[[navigate menu to settings with slide over 0.25s ease ease_out]]
+scene start
+  [[open inventory with fade over 0.3s]]
+  [[close inventory with fade over 0.2s wait]]
+  [[navigate menu to settings with slide over 0.25s ease ease_out]]
+end
 ```
 
 Next up: [Styling](./StyleProps.md) — making it all look the way you want.

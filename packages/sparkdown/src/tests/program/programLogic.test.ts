@@ -56,24 +56,25 @@ const instructionsOf = (root: ProgramRoot, chunk: ProgramChunk): string[] =>
     describeInstruction(chunk, offset, root.table),
   );
 
-/** The code of each statement of a script's top-level flow. */
-const code = (text: string): string[][] => {
-  const root = chunked(text);
+const start = (body: string, declarations = ""): string =>
+  `${declarations}scene start\n${body.replace(/^(?=.)/gm, "  ")}end\n`;
+
+const code = (body: string, declarations = ""): string[][] => {
+  const root = chunked(start(body, declarations));
   return root
-    .flowNamed("")!
-    .arrays.chunks.map((chunk) => instructionsOf(root, chunk));
+    .flowNamed("start")!
+    .arrays.chunks.slice(0, -1)
+    .map((chunk) => instructionsOf(root, chunk));
 };
 
-/** The code of each statement of body `k` of top-level statement `entry`. */
-const bodyCode = (text: string, entry: number, k = 0): string[][] => {
-  const root = chunked(text);
-  const owner = root.flowNamed("")!.arrays.chunks[entry]!;
+const bodyCode = (body: string, entry: number, k = 0, declarations = ""): string[][] => {
+  const root = chunked(start(body, declarations));
+  const owner = root.flowNamed("start")!.arrays.chunks[entry]!;
   return root.body(owner, k)!.arrays.chunks.map((chunk) => instructionsOf(root, chunk));
 };
 
-/** Every instruction a script runs from its top, with the state it left. */
-const trace = (text: string): TracedStep[] =>
-  traceSteps(new ProgramStory(chunked(text)));
+const trace = (body: string, declarations = ""): TracedStep[] =>
+  traceSteps(new ProgramStory(chunked(start(body, declarations))));
 
 const START: TracedStep = { op: "", stack: [], output: [], scopes: [{}], blocks: 0 };
 
@@ -256,8 +257,9 @@ describe("the writer", () => {
   });
 
   it("emits an `if` as one chunk whose branches enter blocks, each test a decision", () => {
-    const text = "store x = 2\nif x > 1 then\n  Big.\nelseif x == 1 then\n  One.\nelse\n  Small.\nend\n";
-    expect(code(text)).toEqual([
+    const text = "if x > 1 then\n  Big.\nelseif x == 1 then\n  One.\nelse\n  Small.\nend\n";
+    const declarations = "store x = 2\n";
+    expect(code(text, declarations)).toEqual([
       [
         "GetVar x",
         "Int 1",
@@ -283,7 +285,7 @@ describe("the writer", () => {
         "Jump 44",
       ],
     ]);
-    expect(bodyCode(text, 0, 2)).toEqual([
+    expect(bodyCode(text, 0, 2, declarations)).toEqual([
       [
         "LineStart",
         'Str "target"',
@@ -299,7 +301,7 @@ describe("the writer", () => {
   // A `match` compares its value with each arm's key, keeping a copy for the
   // next arm, and pops the copy in the arm it takes.
   it("emits a match as its value duplicated for each arm's test", () => {
-    const [match] = code('store x = "b"\nmatch (x)\n| a = Ay.\n| b = Bee.\nend\n');
+    const [match] = code("match (x)\n| a = Ay.\n| b = Bee.\nend\n", 'store x = "b"\n');
     expect(match!.slice(0, 7)).toEqual([
       "GetVar x",
       "Dup",
@@ -328,8 +330,8 @@ describe("the writer", () => {
       "until n <= 0",
       "",
     ].join("\n");
-    const root = chunked(text);
-    const chunks = root.flowNamed("")!.arrays.chunks;
+    const root = chunked(start(text));
+    const chunks = root.flowNamed("start")!.arrays.chunks;
     const [whileLoop, forLoop, forIn, repeat] = chunks.slice(1).map((chunk) => ({
       code: instructionsOf(root, chunk),
       blocks: blockCount(chunk),
@@ -418,8 +420,8 @@ describe("the writer", () => {
       "end",
       "",
     ].join("\n");
-    const root = chunked(text);
-    const loop = root.flowNamed("")!.arrays.chunks[0]!;
+    const root = chunked(start(text));
+    const loop = root.flowNamed("start")!.arrays.chunks[0]!;
     const body = root.body(loop, 0)!.arrays.chunks;
     const ifBody = root.body(body[0]!, 0)!.arrays.chunks;
     const doBody = root.body(body[1]!, 0)!.arrays.chunks;
@@ -496,20 +498,20 @@ describe("one instruction at a time", () => {
   });
 
   it("GetVar pushes a temporary's or a global's value", () => {
-    const steps = trace("store g = 7\nlocal a = 5\nlocal f = a + g\n");
+    const steps = trace("local a = 5\nlocal f = a + g\n", "store g = 7\n");
     expect(around(steps, "GetVar a").after.stack).toEqual(["5"]);
     expect(around(steps, "GetVar g").after.stack).toEqual(["5", "7"]);
   });
 
   it("SetVar declares a temporary in the innermost scope, and assigns a global through the globals", () => {
-    const text = "store g = 7\nlocal a = 5\ndo\n  local b = 6\n  g = 8\nend\n";
-    const story = new ProgramStory(chunked(text));
+    const text = "local a = 5\ndo\n  local b = 6\n  g = 8\nend\n";
+    const story = new ProgramStory(chunked(start(text, "store g = 7\n")));
     const steps = traceSteps(story);
-    expect(around(steps, "SetVar a flags 1").after.scopes).toEqual([{ a: "5" }]);
-    expect(around(steps, "SetVar b flags 1").after.scopes).toEqual([{ a: "5" }, { b: "6" }]);
+    expect(around(steps, "SetVar a flags 1").after.scopes).toEqual([{}, { a: "5" }]);
+    expect(around(steps, "SetVar b flags 1").after.scopes).toEqual([{}, { a: "5" }, { b: "6" }]);
     const global = around(steps, "SetVar g");
     expect([global.before.stack, global.after.stack]).toEqual([["8"], []]);
-    expect(global.after.scopes).toEqual([{ a: "5" }, { b: "6" }]);
+    expect(global.after.scopes).toEqual([{}, { a: "5" }, { b: "6" }]);
     expect(story.variablesState.$("g")).toBe(8);
   });
 
@@ -521,7 +523,7 @@ describe("one instruction at a time", () => {
   it("StoreIndex pops a value, a key and a base and stores the member", () => {
     const { before, after } = around(trace("local t = { x = 1 }\nt.x = 5\n"), "StoreIndex");
     expect([before.stack, after.stack]).toEqual([['{x=1}', '"x"', "5"], []]);
-    expect(after.scopes).toEqual([{ t: "{x=5}" }]);
+    expect(after.scopes).toEqual([{}, { t: "{x=5}" }]);
   });
 
   it("MakeTable pops its pairs, a computed key's value as the key, and pushes the table", () => {
@@ -555,7 +557,7 @@ describe("one instruction at a time", () => {
   });
 
   it("Dup pushes the top again, and Pop pops it", () => {
-    const steps = trace('store x = "b"\nmatch (x)\n| a = Ay.\n| b = Bee.\nend\n');
+    const steps = trace("match (x)\n| a = Ay.\n| b = Bee.\nend\n", 'store x = "b"\n');
     const dup = around(steps, "Dup");
     expect([dup.before.stack, dup.after.stack]).toEqual([['"b"'], ['"b"', '"b"']]);
     const pop = around(steps, "Pop");
@@ -565,9 +567,9 @@ describe("one instruction at a time", () => {
   it("BeginScope opens a scope on the frame and EndScope closes it with its temporaries", () => {
     const steps = trace("local a = 1\ndo\n  local b = 2\nend\n");
     const begin = around(steps, "BeginScope");
-    expect([begin.before.scopes, begin.after.scopes]).toEqual([[{ a: "1" }], [{ a: "1" }, {}]]);
+    expect([begin.before.scopes, begin.after.scopes]).toEqual([[{}, { a: "1" }], [{}, { a: "1" }, {}]]);
     const end = around(steps, "EndScope");
-    expect([end.before.scopes, end.after.scopes]).toEqual([[{ a: "1" }, { b: "2" }], [{ a: "1" }]]);
+    expect([end.before.scopes, end.after.scopes]).toEqual([[{}, { a: "1" }, { b: "2" }], [{}, { a: "1" }]]);
   });
 
   it("EnterBlock enters a body, which resumes its owner when it runs out", () => {
@@ -594,13 +596,13 @@ describe("one instruction at a time", () => {
       "end",
       "",
     ].join("\n");
-    const story = new ProgramStory(chunked(text));
+    const story = new ProgramStory(chunked(start(text)));
     const steps = traceSteps(story);
     const again = around(steps, "Leave continue");
     expect([again.before.blocks, again.after.blocks, again.next]).toEqual([2, 0, "GetVar __forIdx$"]);
     const out = around(steps, "Leave");
     expect([out.before.blocks, out.after.blocks, out.next]).toEqual([2, 0, "EndScope"]);
-    expect(steps.at(-1)!.scopes).toEqual([{ n: "2" }]);
+    expect(steps.at(-1)!.scopes).toEqual([{}, { n: "2" }]);
   });
 });
 
@@ -620,7 +622,7 @@ describe("a break from inside nested scoped blocks", () => {
       "After {n}.",
       "",
     ].join("\n");
-    const story = new ProgramStory(chunked(text));
+    const story = new ProgramStory(chunked(start(text)));
     const steps = traceSteps(story);
     const found = around(steps, "SetVar n flags 1").after.scopes.length;
     // Inside the `while` body's pass scope, the `if` branch's scope and the
@@ -629,14 +631,14 @@ describe("a break from inside nested scoped blocks", () => {
     const leave = around(steps, "Leave");
     expect(leave.after.scopes).toHaveLength(found);
     expect(leave.after.blocks).toBe(0);
-    expect(steps.at(-1)!.scopes).toEqual([{ n: "2" }]);
+    expect(steps.at(-1)!.scopes).toEqual([{}, { n: "2" }]);
     expect(story.state.frame!.temporaryScopes).toHaveLength(found);
   });
 });
 
 describe("a jump and a save inside a body", () => {
   const text = [
-    "scene MAIN",
+    "scene start",
     "  local a = 1",
     "  for i = 1, 3 do",
     "    local d = i * 2",
@@ -657,10 +659,10 @@ describe("a jump and a save inside a body", () => {
   // flow chosen after another holds none of its temporaries.
   it("starts a jump that resets the call stack with a fresh frame", () => {
     const story = new ProgramStory(chunked(text));
-    story.ChoosePathString("MAIN");
+    story.ChoosePathString("start");
     storyBeats(story);
     expect(scopeNames(story)).toEqual([[], ["a"]]);
-    story.ChoosePathString("MAIN");
+    story.ChoosePathString("start");
     expect(scopeNames(story)).toEqual([[], []]);
   });
 
@@ -684,14 +686,14 @@ describe("a jump and a save inside a body", () => {
   // story loaded from it shows what the saving story shows next.
   it("restores a state saved inside nested bodies, with its temporaries by scope", () => {
     const root = chunked(text);
-    const whole = storyBeats(new ProgramStory(root), "MAIN").beats;
+    const whole = storyBeats(new ProgramStory(root), "start").beats;
     expect(whole.map((b) => b.text)).toEqual([
       "Pass 2 4 1.\n",
       "Pass 3 6 1.\n",
       "After 1.\n",
     ]);
     const story = new ProgramStory(root);
-    story.ChoosePathString("MAIN");
+    story.ChoosePathString("start");
     story.Continue();
     expect(story.state.blockStack).toHaveLength(2);
     expect(scopeNames(story)).toEqual([[], ["a"], ["__forIdx$", "__forStop$", "__forStep$", "i", "d"], []]);
@@ -708,7 +710,7 @@ describe("a jump and a save inside a body", () => {
   // it, which its block row counts, so a jump or a load into the body opens
   // it, and the pass that runs out closes it.
   const whileText = [
-    "scene MAIN",
+    "scene start",
     "  local a = 1",
     "  local i = 0",
     "  while i < 3 do",
@@ -739,14 +741,14 @@ describe("a jump and a save inside a body", () => {
 
   it("restores a state saved inside a while body, and closes the pass scope after it", () => {
     const root = chunked(whileText);
-    const whole = storyBeats(new ProgramStory(root), "MAIN").beats;
+    const whole = storyBeats(new ProgramStory(root), "start").beats;
     expect(whole.map((b) => b.text)).toEqual([
       "Pass 2 4 1.\n",
       "Pass 3 6 1.\n",
       "After 1 3.\n",
     ]);
     const story = new ProgramStory(root);
-    story.ChoosePathString("MAIN");
+    story.ChoosePathString("start");
     story.Continue();
     expect(story.state.blockStack).toHaveLength(2);
     expect(scopeNames(story)).toEqual([[], ["a", "i"], ["d"], []]);
@@ -766,7 +768,7 @@ describe("a continue that returns between two lines", () => {
   // the assignment after it, and the next continue runs it once.
   it("leaves a variable assigned between them as it was until the next continue", () => {
     const root = chunked(
-      "store count = 0\nFirst {count}.\ncount = count + 1\nSecond {count}.\n",
+      start("First {count}.\ncount = count + 1\nSecond {count}.\n", "store count = 0\n"),
     );
     const story = new ProgramStory(root);
     // The steps the declarations took when the story was made.
@@ -777,21 +779,20 @@ describe("a continue that returns between two lines", () => {
     expect(story.variablesState.$("count")).toBe(1);
     story.Continue();
     expect(story.canContinue).toBe(false);
-    // Each instruction ran once: one step per instruction of the flow, and
-    // the step that finds it over.
     const reader = new BinaryProgramReader(root);
     const instructions = root
-      .flowNamed("")!
-      .arrays.chunks.reduce((n, chunk) => n + [...reader.instructions(chunk)].length, 0);
+      .flowNamed("start")!
+      .arrays.chunks.slice(0, -1)
+      .reduce((n, chunk) => n + [...reader.instructions(chunk)].length, 0);
     expect(story.stepCount - declared).toBe(instructions + 1);
   });
 
   it("consumes a verdict the route simulator forces once, on the continue that reaches the decision", () => {
     const root = chunked(
-      "store flag = true\nFirst.\nif flag then\n  Yes.\nelse\n  No.\nend\nLast.\n",
+      start("First.\nif flag then\n  Yes.\nelse\n  No.\nend\nLast.\n", "store flag = true\n"),
     );
     const reader = new BinaryProgramReader(root);
-    const conditional = root.flowNamed("")!.arrays.chunks[1]!;
+    const conditional = root.flowNamed("start")!.arrays.chunks[1]!;
     const decisions = [...reader.instructions(conditional)]
       .filter(
         ({ op, offset }) =>
@@ -817,10 +818,10 @@ describe("a continue that returns between two lines", () => {
 
   it("names a decision site by its numeric address from the story through the plan to the replay (#1739)", () => {
     const root = chunked(
-      "store flag = true\nFirst.\nif flag then\n  Yes.\nelse\n  No.\nend\nLast.\n",
+      start("First.\nif flag then\n  Yes.\nelse\n  No.\nend\nLast.\n", "store flag = true\n"),
     );
     const reader = new BinaryProgramReader(root);
-    const conditional = root.flowNamed("")!.arrays.chunks[1]!;
+    const conditional = root.flowNamed("start")!.arrays.chunks[1]!;
     const decision = [...reader.instructions(conditional)].find(
       ({ op, offset }) =>
         op === Op.JumpIfFalse &&
@@ -852,7 +853,7 @@ describe("a continue that returns between two lines", () => {
     const target = forced.executed.find((address) => !taken.includes(address));
     expect(target).toBeDefined();
 
-    const plan = planRoute(new ProgramStory(root), "", target!);
+    const plan = planRoute(new ProgramStory(root), "start", target!);
     // `flag` is true, so the plan forces the verdict against the program.
     expect(plan?.decisions).toEqual([
       { kind: "condition", site, value: false, departs: true },
@@ -862,10 +863,8 @@ describe("a continue that returns between two lines", () => {
   });
 });
 
-// Each script runs from its top (from MAIN when it has one) and shows the
-// lines `SHOWS` names for it.
 const SCRIPTS: Record<string, string> = {
-  "nested scopes that shadow a name": [
+  "nested scopes that shadow a name": start([
     "local n = 1",
     "do",
     "  local n = 2",
@@ -877,8 +876,8 @@ const SCRIPTS: Record<string, string> = {
     "end",
     "Outer {n}.",
     "",
-  ].join("\n"),
-  "a loop that breaks from inside a nested if": [
+  ].join("\n")),
+  "a loop that breaks from inside a nested if": start([
     "local n = 0",
     "while true do",
     "  n = n + 1",
@@ -891,10 +890,10 @@ const SCRIPTS: Record<string, string> = {
     "end",
     "After {n}.",
     "",
-  ].join("\n"),
+  ].join("\n")),
   // A `while` body runs each pass in a scope of its own (#1064): its locals
   // end with the pass, however the pass ends.
-  "a while body's local that shadows an outer one": [
+  "a while body's local that shadows an outer one": start([
     "local x = \"outer\"",
     "local i = 0",
     "while i < 3 do",
@@ -904,8 +903,8 @@ const SCRIPTS: Record<string, string> = {
     "end",
     "Outer {x} after {i}.",
     "",
-  ].join("\n"),
-  "a while body's local across a continue": [
+  ].join("\n")),
+  "a while body's local across a continue": start([
     "local v = \"outer\"",
     "local i = 0",
     "local sum = 0",
@@ -919,8 +918,8 @@ const SCRIPTS: Record<string, string> = {
     "end",
     "Sum {sum} and {v}.",
     "",
-  ].join("\n"),
-  "a while body's local across a break from a nested block": [
+  ].join("\n")),
+  "a while body's local across a break from a nested block": start([
     "local x = \"outer\"",
     "while true do",
     "  local x = \"inner\"",
@@ -931,8 +930,8 @@ const SCRIPTS: Record<string, string> = {
     "end",
     "After {x}.",
     "",
-  ].join("\n"),
-  "nested while loops that each shadow a name": [
+  ].join("\n")),
+  "nested while loops that each shadow a name": start([
     "local x = \"outer\"",
     "local i = 0",
     "local seen = \"\"",
@@ -949,8 +948,8 @@ const SCRIPTS: Record<string, string> = {
     "end",
     "Seen {seen} and {x}.",
     "",
-  ].join("\n"),
-  "a loop that continues from inside a nested if": [
+  ].join("\n")),
+  "a loop that continues from inside a nested if": start([
     "for i = 1, 4 do",
     "  if i % 2 == 0 then",
     "    if i > 0 then",
@@ -968,13 +967,12 @@ const SCRIPTS: Record<string, string> = {
     "  Repeat {k}.",
     "until k >= 3",
     "",
-  ].join("\n"),
-  "interpolation of every value type": [
-    "store t = { x = 1 }",
+  ].join("\n")),
+  "interpolation of every value type": start([
     'Values {5} {2.5} {3.0} {"s"} {true} {false} {nil} {t.x} {1 / 0} {-0.5} {10 // 3} {2 ^ 10} {"a" .. "b"}.',
     "",
-  ].join("\n"),
-  "operators and coercion": [
+  ].join("\n"), "store t = { x = 1 }\n"),
+  "operators and coercion": start([
     "local a = 7",
     "local b = 2",
     "Math {a + b} {a - b} {a * b} {a / b} {a % b} {a // b} {-a} {a ^ b}.",
@@ -982,8 +980,8 @@ const SCRIPTS: Record<string, string> = {
     'Logic {a and b} {nil or b} {not a} {false and a} {nil and a or "d"}.',
     'Strings {"n" .. a} {#"four"} {a .. b}.',
     "",
-  ].join("\n"),
-  "tables and properties": [
+  ].join("\n")),
+  "tables and properties": start([
     "local t = { 10, 20, x = { y = 1 }, [2 + 1] = 30 }",
     "t.x.y = t.x.y + 1",
     't["z"] = "zed"',
@@ -992,20 +990,21 @@ const SCRIPTS: Record<string, string> = {
     "a, b = b, a",
     "Table {#t} {t[3]} {t.x.y} {t.z} {a} {b}.",
     "",
-  ].join("\n"),
-  "globals of every kind": [
-    "store count = 1",
-    "store name = \"Ann\"",
-    "const LIMIT = 3",
-    "const DOUBLE = LIMIT * 2",
-    "define hero as character with",
-    '  name = "Hero"',
-    "end",
-    "count += LIMIT",
-    "Globals {count} {name} {DOUBLE} {character.hero.name}.",
-    "",
-  ].join("\n"),
-  "a generic for over a table": [
+  ].join("\n")),
+  "globals of every kind": start(
+    ["count += LIMIT", "Globals {count} {name} {DOUBLE} {character.hero.name}.", ""].join("\n"),
+    [
+      "store count = 1",
+      "store name = \"Ann\"",
+      "const LIMIT = 3",
+      "const DOUBLE = LIMIT * 2",
+      "define hero as character with",
+      '  name = "Hero"',
+      "end",
+      "",
+    ].join("\n"),
+  ),
+  "a generic for over a table": start([
     "local total = 0",
     "for k, v in { a = 1, b = 2 } do",
     "  total = total + v",
@@ -1015,24 +1014,25 @@ const SCRIPTS: Record<string, string> = {
     "end",
     "Total {total}.",
     "",
-  ].join("\n"),
-  "a match with keyed and keyless arms": [
-    'store x = "b"',
-    "match (x)",
-    "| a = Ay.",
-    "| b = Bee.",
-    "| other = Else.",
-    "end",
-    "store n = 2",
-    "match (n)",
-    "| 1 = Uno.",
-    "| 2 = Dos.",
-    "end",
-    "",
-  ].join("\n"),
+  ].join("\n")),
+  "a match with keyed and keyless arms": start(
+    [
+      "match (x)",
+      "| a = Ay.",
+      "| b = Bee.",
+      "| other = Else.",
+      "end",
+      "match (n)",
+      "| 1 = Uno.",
+      "| 2 = Dos.",
+      "end",
+      "",
+    ].join("\n"),
+    'store x = "b"\nstore n = 2\n',
+  ),
   "a scene with logic": [
     "store visits = 0",
-    "scene MAIN",
+    "scene start",
     "  visits += 1",
     "  if visits > 0 then",
     "    HERO: Visit {visits}.",
@@ -1073,8 +1073,7 @@ const SHOWS: Record<keyof typeof SCRIPTS, string[]> = {
 describe("the engine", () => {
   for (const [name, text] of Object.entries(SCRIPTS)) {
     it(`shows ${name}`, () => {
-      const from = text.includes("scene MAIN") ? "MAIN" : undefined;
-      const actual = storyBeats(new ProgramStory(chunked(text)), from);
+      const actual = storyBeats(new ProgramStory(chunked(text)));
       expect(actual.beats.map((beat) => beat.text.trim())).toEqual(SHOWS[name]);
       expect(actual.errors).toEqual([]);
     });
@@ -1093,11 +1092,11 @@ describe("the engine", () => {
 
   // The engine names the line of its line table row.
   it("raises a runtime error in an expression, with its line", () => {
-    const text = "local z = nil\nBefore.\nlocal w = z + 1\nAfter.\n";
+    const text = start("local z = nil\nBefore.\nlocal w = z + 1\nAfter.\n");
     const actual = storyBeats(new ProgramStory(chunked(text)));
     expect(actual.beats.map((beat) => beat.text)).toEqual(["Before.\n"]);
     expect(actual.errors).toEqual([
-      "1: RUNTIME ERROR: 'main' line 3: attempt to perform arithmetic (add) on nil and number",
+      "1: RUNTIME ERROR: 'main' line 4: attempt to perform arithmetic (add) on nil and number",
     ]);
   });
 });
@@ -1105,29 +1104,29 @@ describe("the engine", () => {
 // Each construct of this slice, in a script that holds nothing the writer
 // does not emit: a compile builds its chunks, and no construct is named.
 const CONSTRUCTS: Record<string, string> = {
-  "an expression and an operator": "local a = 1 + 2 * 3\n",
-  "a comparison and a logical operator": "local a = 1 < 2 and not false or nil\n",
-  "an `if` expression": "local a = if true then 1 else 2\n",
-  "interpolation in display text": "local a = 1\nShown {a}.\n",
-  "interpolation in a string": 'local a = 1\nlocal s = "a is {a}"\n',
-  "a table with computed keys": "local t = { 1, x = 2, [1 + 2] = 3 }\n",
-  "an index and a property store": "local t = { x = 1 }\nt.x = t[1]\n",
-  "a local": "local a = 1\n",
-  "an assignment to a temporary": "local a = 1\na = 2\n",
-  "a global": "store g = 1\ng = 2\n",
-  "a constant": "const C = 2\nlocal a = C\n",
-  "a define": 'define hero as character with\n  name = "Hero"\nend\n',
-  "a multiple assignment": "local a, b = 1, 2\na, b = b, a\n",
-  "a compound assignment": "local t = { p = { q = 1 } }\nt.p.q += 1\n",
-  "an `if` block": "if true then\n  A.\nelseif false then\n  B.\nelse\n  C.\nend\n",
-  "a match": 'store x = 1\nmatch (x)\n| a = A.\n| other = B.\nend\n',
-  "a `while` loop": "local n = 0\nwhile n < 2 do\n  n = n + 1\nend\n",
-  "a numeric `for` loop": "for i = 1, 2 do\n  A {i}.\nend\n",
-  "a generic `for` loop": "for k, v in { 1 } do\n  A {v}.\nend\n",
-  "a `repeat` loop": "local n = 0\nrepeat\n  n = n + 1\nuntil n > 1\n",
-  "a `break`": "while true do\n  break\nend\n",
-  "a `continue`": "for i = 1, 2 do\n  continue\nend\n",
-  "a `do` block": "do\n  local a = 1\nend\n",
+  "an expression and an operator": start("local a = 1 + 2 * 3\n"),
+  "a comparison and a logical operator": start("local a = 1 < 2 and not false or nil\n"),
+  "an `if` expression": start("local a = if true then 1 else 2\n"),
+  "interpolation in display text": start("local a = 1\nShown {a}.\n"),
+  "interpolation in a string": start('local a = 1\nlocal s = "a is {a}"\n'),
+  "a table with computed keys": start("local t = { 1, x = 2, [1 + 2] = 3 }\n"),
+  "an index and a property store": start("local t = { x = 1 }\nt.x = t[1]\n"),
+  "a local": start("local a = 1\n"),
+  "an assignment to a temporary": start("local a = 1\na = 2\n"),
+  "a global": start("g = 2\n", "store g = 1\n"),
+  "a constant": start("local a = C\n", "const C = 2\n"),
+  "a define": start("", 'define hero as character with\n  name = "Hero"\nend\n'),
+  "a multiple assignment": start("local a, b = 1, 2\na, b = b, a\n"),
+  "a compound assignment": start("local t = { p = { q = 1 } }\nt.p.q += 1\n"),
+  "an `if` block": start("if true then\n  A.\nelseif false then\n  B.\nelse\n  C.\nend\n"),
+  "a match": start("match (x)\n| a = A.\n| other = B.\nend\n", "store x = 1\n"),
+  "a `while` loop": start("local n = 0\nwhile n < 2 do\n  n = n + 1\nend\n"),
+  "a numeric `for` loop": start("for i = 1, 2 do\n  A {i}.\nend\n"),
+  "a generic `for` loop": start("for k, v in { 1 } do\n  A {v}.\nend\n"),
+  "a `repeat` loop": start("local n = 0\nrepeat\n  n = n + 1\nuntil n > 1\n"),
+  "a `break`": start("while true do\n  break\nend\n"),
+  "a `continue`": start("for i = 1, 2 do\n  continue\nend\n"),
+  "a `do` block": start("do\n  local a = 1\nend\n"),
 };
 
 describe("the constructs a compile builds", () => {
@@ -1138,14 +1137,11 @@ describe("the constructs a compile builds", () => {
     });
   }
 
-  // The story takes a function out of a `do` block written at the top level,
-  // and leaves one in any other block, where its body runs; both are emitted
-  // (programFunctions.test.ts runs them).
   it("names no construct for a function defined inside a block", () => {
     for (const text of [
-      "do\n  function run()\n    return 1\n  end\nend\nHello.\n",
-      "store x = true\nif x then\n  function run()\n    return 1\n  end\nend\nHello.\n",
-      "while false do\n  function run()\n    return 1\n  end\nend\nHello.\n",
+      start("do\n  function run()\n    return 1\n  end\nend\nHello.\n"),
+      start("if x then\n  function run()\n    return 1\n  end\nend\nHello.\n", "store x = true\n"),
+      start("while false do\n  function run()\n    return 1\n  end\nend\nHello.\n"),
     ]) {
       const { program } = compileScript(text);
       expect(program.chunks).toBeDefined();
@@ -1156,21 +1152,21 @@ describe("the constructs a compile builds", () => {
   // assignment assigns nothing and the local is declared nil, so the program
   // emits the story and runs it as the current engine does (#1433).
   it.each([
-    ["an assignment", "store x = 0\n& x =\nx is {x}.\n", ["x is 0.\n"]],
-    ["a compound assignment", "store x = 1\n& x +=\nx is {x}.\n", ["x is 1.\n"]],
-    ["a local", "local a = \nHello {a == nil}.\n", ["Hello true.\n"]],
-    ["several locals", "local a, b =\nb = 2\nHello {a == nil} {b}.\n", ["Hello true 2.\n"]],
-  ])("emits and runs %s the parser left without its value", (_name, text, beats) => {
-    expect(storyBeats(new ProgramStory(chunked(text))).beats.map((b) => b.text)).toEqual(beats);
+    ["an assignment", "store x = 0\n", "& x =\nx is {x}.\n", ["x is 0.\n"]],
+    ["a compound assignment", "store x = 1\n", "& x +=\nx is {x}.\n", ["x is 1.\n"]],
+    ["a local", "", "local a = \nHello {a == nil}.\n", ["Hello true.\n"]],
+    ["several locals", "", "local a, b =\nb = 2\nHello {a == nil} {b}.\n", ["Hello true 2.\n"]],
+  ])("emits and runs %s the parser left without its value", (_name, declarations, body, beats) => {
+    expect(storyBeats(new ProgramStory(chunked(start(body, declarations)))).beats.map((b) => b.text)).toEqual(beats);
   });
 
   // `MakeTable`'s pair count is the instruction's 32-bit operand.
   it("emits a table literal of more than 65,535 pairs", () => {
     const pairs = 70_000;
     const values = Array.from({ length: pairs }, (_, i) => String(i + 1)).join(", ");
-    const root = chunked(`local t = { ${values} }\nSize {#t} last {t[${pairs}]}.\n`);
+    const root = chunked(start(`local t = { ${values} }\nSize {#t} last {t[${pairs}]}.\n`));
     const reader = new BinaryProgramReader(root);
-    const table = root.flowNamed("")!.arrays.chunks[0]!;
+    const table = root.flowNamed("start")!.arrays.chunks[0]!;
     const makes = [...reader.instructions(table)].filter(({ op }) => op === Op.MakeTable);
     expect(makes.map(({ offset }) => describeInstruction(table, offset, root.table))).toEqual([
       `MakeTable ${pairs}`,
@@ -1203,10 +1199,10 @@ describe("the constructs a compile builds", () => {
   // error at its statement, and the compile makes no program (#705).
   it("reports an operand wider than its field", () => {
     const args = Array.from({ length: 70_000 }, () => "1").join(", ");
-    const { program } = compileScript(`-> start\nscene start\n  local n = tonumber(${args})\nend\n`);
+    const { program } = compileScript(`scene start\n  local n = tonumber(${args})\nend\n`);
     expect(program.chunks).toBeUndefined();
     expect(errorsOf(program)).toContainEqual([
-      2,
+      1,
       unsupportedConstructMessage("an operand of CallStd"),
     ]);
   }, 60_000);

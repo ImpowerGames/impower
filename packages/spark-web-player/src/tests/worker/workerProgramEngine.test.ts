@@ -9,9 +9,7 @@ import { unsupportedConstructMessage } from "@impower/sparkdown/src/compiler/uti
 import { describe, expect, it } from "vitest";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
-const SOURCE = `-> start
-
-scene start
+const SOURCE = `scene start
   HERO:
     The first line.
 
@@ -35,8 +33,6 @@ const framesForStop = (h: { overlay: HTMLElement }) => {
 const SCENES = `define theme as audio with
   src = "https://example.com/theme.wav"
 end
-
--> start
 
 scene start
   ((play music theme))

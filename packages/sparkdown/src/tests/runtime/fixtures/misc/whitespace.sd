@@ -1,4 +1,6 @@
--> firstKnot
+scene start
+  -> firstKnot
+end
 scene firstKnot
   Hello!
   -> secondKnot

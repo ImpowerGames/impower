@@ -40,8 +40,11 @@ function compileAndCapture(source: string): {
 describe("nested-function siblings capture each other as upvalues", () => {
   test("function checkmessage() calls function doit() declared earlier in the same scope", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function doit(s)
@@ -72,8 +75,11 @@ end
     // would fail to resolve at runtime since host_record isn't a
     // sparkdown variable).
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function inner()
@@ -91,8 +97,11 @@ end
     // `LuauFunctionCall`. The scanner only walks `LuauFunctionCall`
     // for the new call-site capture, so stdlib refs are untouched.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function inner(s)

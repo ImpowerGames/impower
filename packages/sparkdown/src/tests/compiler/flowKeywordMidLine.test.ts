@@ -71,7 +71,7 @@ describe("scene and branch as names inside a define", () => {
   it("a define directly followed by a scene declaration still ends there", () => {
     const program = compile(
       [
-        "-> start",
+        "",
         "define settings with",
         "  t = { x = 1 }",
         "scene start",
@@ -90,7 +90,7 @@ describe("scene and branch as names inside a function", () => {
   it("a parameter and a local with those names stay in the function body", () => {
     const program = compile(
       [
-        "-> start",
+        "",
         "function echo(scene)",
         "  local branch = scene",
         "  return branch",
@@ -110,7 +110,7 @@ describe("scene and branch as names inside a function", () => {
   it("assignments to a parameter named scene or branch stay in the function body", () => {
     const program = compile(
       [
-        "-> start",
+        "",
         "function pick(scene, branch)",
         '  scene = "left"',
         "  branch += 1",

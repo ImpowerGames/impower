@@ -1,4 +1,6 @@
--> knot
+scene start
+  -> knot
+end
 
 scene knot
   choose

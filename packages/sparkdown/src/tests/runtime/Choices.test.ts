@@ -369,7 +369,7 @@ describe("Choices (ported from inkjs)", () => {
     // divert — inkjs's `InkParser` flags this with "Blank choice ...".
     // Sparkdown's `lowerChoice` mirrors the check.
     const { warningMessages } = collectDiagnostics(
-      `-> main\nscene main\n  choose\n    * []\n  end\n`,
+      `\nscene start\n  choose\n    * []\n  end\n`,
     );
     expect(warningMessages.some((m) => /Blank choice/.test(m))).toBe(true);
   });

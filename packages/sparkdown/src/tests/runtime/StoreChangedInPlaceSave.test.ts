@@ -44,8 +44,7 @@ function saveAfterFirstLine(source: string): {
 describe("a store table changed in place", () => {
   test("a field set on a store's default table survives a save and load", () => {
     const run = saveAfterFirstLine(`store t = { n = 1 }
--> s
-scene s
+scene start
   & t.n = 2
   First {t.n}.
   Second {t.n}.
@@ -60,8 +59,7 @@ end
 
   test("a store table a saved closure shares stays one table after a load", () => {
     const run = saveAfterFirstLine(`store t = { n = 1 }
--> s
-scene s
+scene start
   & local alias = t
   & local get = function() return alias.n end
   First {t.n}.
@@ -80,8 +78,7 @@ end
   name = "Bird"
 end
 store state = { bird = Bird }
--> main
-scene main
+scene start
   First.
   Second {state.bird.name} {rawequal(state.bird, Bird)}.
   fin
@@ -96,8 +93,7 @@ end
 define Holder with
   alias = t
 end
--> main
-scene main
+scene start
   First.
   & t.n = 2
   Second {Holder.alias.n} {rawequal(Holder.alias, t)}.
@@ -117,8 +113,7 @@ end
   end
 end
 store t = table.freeze({ inc = make() })
--> main
-scene main
+scene start
   First {t.inc()}.
   Second {t.inc()}.
   fin
@@ -130,8 +125,7 @@ end
 
   test("a table inside a frozen store table keeps its changes after a load", () => {
     const run = saveAfterFirstLine(`store t = table.freeze({ inner = { n = 0 } })
--> main
-scene main
+scene start
   & t.inner.n = 4
   First.
   Second {t.inner.n}.
@@ -147,8 +141,7 @@ end
     VariablesState.dontSaveDefaultValues = true;
     try {
       const { story, errorMessages } = makeRuntimeStoryFromSource(`store t = { n = 1 }
--> main
-scene main
+scene start
   First.
   & t.n = 2
   & table.freeze(t)
@@ -171,8 +164,7 @@ end
 
   test("a saved local holding a constant's nested table is that table after a load", () => {
     const run = saveAfterFirstLine(`const C = { sub = { n = 1 } }
--> main
-scene main
+scene start
   & local alias = C.sub
   First.
   Second {alias.n} {rawequal(alias, C.sub)}.
@@ -185,8 +177,7 @@ end
 
   test("a constant table keeps its compiled contents when a save holds other contents", () => {
     const source = `const CONFIG = { n = 1 }
--> main
-scene main
+scene start
   & local alias = CONFIG
   First.
   Second {CONFIG.n} {alias.n} {rawequal(alias, CONFIG)}.
@@ -225,8 +216,7 @@ end
   store n = 1
 end
 store box = new Box()
--> main
-scene main
+scene start
   & table.freeze(box)
   First.
   Second {table.isfrozen(box)}.
@@ -241,8 +231,7 @@ end
     const scene = `define Holder with
   alias = b
 end
--> main
-scene main
+scene start
   & a = b
   First.
   & b.n = 2
@@ -268,8 +257,7 @@ end
 
   test("a key that looks like a metatable edge stays its own table after a load", () => {
     const run = saveAfterFirstLine(`store t = setmetatable({ ["#mt"] = { n = 1 }, ["@mt"] = { n = 3 } }, { n = 2 })
--> main
-scene main
+scene start
   First.
   Second {t["#mt"].n} {t["@mt"].n} {getmetatable(t).n} {rawequal(t["#mt"], getmetatable(t))}.
   fin
@@ -280,8 +268,7 @@ end
   });
 
   test("a store that holds a constant's table keeps the edited program's constant", () => {
-    const scene = `-> main
-scene main
+    const scene = `scene start
   First.
   Second {C.n} {rawequal(alias, C)}.
   fin
@@ -308,8 +295,7 @@ end
 define Holder with
   alias = a
 end
--> main
-scene main
+scene start
   First.
   & a.n = 2
   Second {Holder.alias.n} {rawequal(Holder.alias, a)}.
@@ -340,8 +326,7 @@ end
   n = 1
 end
 store box = new Box()
--> main
-scene main
+scene start
   & local alias = box
   & local get = function() return alias.n end
   First.

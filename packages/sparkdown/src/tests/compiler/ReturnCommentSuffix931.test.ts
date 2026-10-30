@@ -75,7 +75,7 @@ describe("return suffix comments retain native diagnostics and incremental posit
       "--[=[ finished\n]=] f()",
     ];
     states.forEach((suffix, i) => {
-      const source = `-> a\nscene a\n  & return 5; ${suffix}\n  Prose.\nend\n`;
+      const source = `scene start\n  & return 5; ${suffix}\n  Prose.\nend\n`;
       const warm = compile(source, compiler, i + 1);
       expect(warm).toEqual(compile(source));
       const units = readLuauUnits(parseSource(source), source);
@@ -95,7 +95,7 @@ describe("return suffix comments retain native diagnostics and incremental posit
   });
   test("unrelated following prose still reuses the checked unit", () => {
     const compiler = new SparkdownCompiler();
-    const source = (prose: string) => `-> a\nscene a\n  & return 5; --[[ é😀\nb ]] -- ok\n  ${prose}\nend\n`;
+    const source = (prose: string) => `scene start\n  & return 5; --[[ é😀\nb ]] -- ok\n  ${prose}\nend\n`;
     expect(compile(source("First."), compiler, 1)).toEqual([]);
     expect(compile(source("Different prose."), compiler, 2)).toEqual([]);
     expect(compiler.typecheckStats.checked).toBe(0);

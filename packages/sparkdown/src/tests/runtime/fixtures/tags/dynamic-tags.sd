@@ -1,4 +1,6 @@
 store hue = "red"
 store amount = 8
-tag # pic{amount}{hue}.jpg
-done
+scene start
+  tag # pic{amount}{hue}.jpg
+  done
+end

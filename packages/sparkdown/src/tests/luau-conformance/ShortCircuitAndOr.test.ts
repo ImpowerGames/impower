@@ -53,8 +53,11 @@ function compileAndCapture(source: string): {
 describe("short-circuit and/or", () => {
   test("operand-returning semantics are preserved", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(1 and 2)
@@ -71,8 +74,11 @@ end
 
   test("untaken branch is never evaluated", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 0
@@ -95,8 +101,11 @@ end
 
   test("guarded nil indexing does not error", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = nil
@@ -111,8 +120,11 @@ end
 
   test("cond-and-a-or-b ternary idiom picks one branch", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 0
@@ -131,8 +143,11 @@ end
 
   test("chained and/or evaluate left to right with early exit", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local log = ""
@@ -154,8 +169,11 @@ end
 describe("one-line statement boundaries around constructors", () => {
   test("call statement after a table-constructor assignment runs", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local a = {}
@@ -169,8 +187,11 @@ end
 
   test("constructor entries holding functions still split correctly", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local a = {}
@@ -186,8 +207,11 @@ end
 
   test("parenthesized operand after `and` is not truncated", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local b = 5
@@ -203,8 +227,11 @@ end
 
   test("call statement after a one-line repeat/until condition runs", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local b = 0

@@ -45,8 +45,11 @@ function compileAndCapture(source: string): {
 describe("table.sort — default comparator", () => {
   test("sorts an array of numbers ascending", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 3, 1, 4, 1, 5, 9, 2, 6 }
@@ -62,8 +65,11 @@ end
 
   test("sorts an array of strings lexicographically", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { "banana", "apple", "cherry" }
@@ -79,8 +85,11 @@ end
 
   test("preserves ties (stable sort)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 3, 1, 2, 3, 1, 2 }
@@ -98,8 +107,11 @@ end
 describe("table.sort — user comparator", () => {
   test("descending sort via custom comparator", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 1, 4, 2, 3 }
@@ -115,8 +127,11 @@ end
 
   test("comparator can be a bare-named function", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function desc(a, b)
 return a > b
@@ -136,8 +151,11 @@ end
 
   test("comparator with closure capture", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local pivot = 5
@@ -163,8 +181,11 @@ end
 describe("table.sort — error paths", () => {
   test("refuses a frozen table", () => {
     const { errors } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 3, 1, 2 }
@@ -178,8 +199,11 @@ end
 
   test("default comparator errors on mismatched types", () => {
     const { errors } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 1, "two", 3 }

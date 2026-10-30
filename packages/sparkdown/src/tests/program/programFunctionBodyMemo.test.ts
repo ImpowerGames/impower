@@ -43,7 +43,9 @@ const script = (ending: readonly string[]) =>
     "  end",
     "  return g()",
     "end",
-    "Got {run()}.",
+    "scene start",
+    "  Got {run()}.",
+    "end",
     "",
   ].join("\n");
 
@@ -95,7 +97,7 @@ describe("a return in a function's body (I-1423)", () => {
 describe("a return outside a function's body (I-1423)", () => {
   it("is still reported after an edit elsewhere in its scene", () => {
     const s = programSession(
-      ["-> a", "scene a", "  & local x = 1", ...padding("  & "), "  if true then", "    & return 5", "  end", "end", ""].join("\n"),
+      ["scene start", "  & local x = 1", ...padding("  & "), "  if true then", "    & return 5", "  end", "end", ""].join("\n"),
     );
     const reported = messages(s).filter((m) => /Return statements can only/.test(m));
     expect(reported).toHaveLength(1);

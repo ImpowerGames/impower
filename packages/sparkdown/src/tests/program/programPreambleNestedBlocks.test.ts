@@ -22,8 +22,7 @@ import { run, silence } from "./programScopes";
  *  its last choice, `Outer`, and a line after the block. */
 const scene = (preamble: readonly string[]) =>
   [
-    "-> main",
-    "scene main",
+    "scene start",
     "  choose",
     ...preamble,
     "    * Outer",

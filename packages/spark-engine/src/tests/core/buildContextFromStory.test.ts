@@ -39,7 +39,7 @@ define stack as layered_image with
   assets = { pan_right, O }
 end
 
--> start
+
 scene start
   Hello.
 end

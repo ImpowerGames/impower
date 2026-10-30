@@ -93,7 +93,7 @@ describe("same-TYPE builtin override with a choice in the story", () => {
   loop = true
 end
 
--> start
+
 scene start
   Hello.
   choose
@@ -124,7 +124,7 @@ describe("as-parent resolution for a dual-defined type name", () => {
   letter_pause = 0.05
 end
 
--> start
+
 scene start
   Hello.
 end
@@ -161,7 +161,7 @@ describe("override back-fill for a dual-defined builtin instance", () => {
   loop = true
 end
 
--> start
+
 scene start
   Hello.
 end

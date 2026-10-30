@@ -1,4 +1,6 @@
-I have {five()} eggs.
-done
+scene start
+  I have {five()} eggs.
+  done
+end
 
 function five() return "five" end

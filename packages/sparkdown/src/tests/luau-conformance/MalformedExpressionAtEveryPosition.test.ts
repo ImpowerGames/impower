@@ -61,12 +61,18 @@ function expectReports(source: string, errors: readonly string[], messages: read
 }
 
 const URI = "inmemory:///main.sd";
+const START_URI = "inmemory:///start.sd";
 
 /** A `.sd` document's errors, as `line:character-line:character message`, and its functions' spans. */
 function compileDocument(text: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
-    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+    files: [
+      { uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" },
+      ...(/^scene start\b/m.test(text)
+        ? []
+        : [{ uri: START_URI, type: "script", name: "start", ext: "sd", text: "scene start\nend\n", version: 1, languageId: "sparkdown" } as any]),
+    ],
   });
   const program = compiler.compile({ textDocument: { uri: URI } }).program;
   // In the order of where they begin: Sparkdown's own errors and the type
@@ -260,10 +266,10 @@ describe("the reported layouts", () => {
   // reading added a token the author never wrote.
   test.each([
     // A `;` the grammar reads as story in a narrative body: Sparkdown reports it.
-    ["-> s\nscene s\n  local a = ;\n  Hello.\nend", ["2:12-2:13 Expected identifier when parsing expression, got ';'"]],
-    ["-> s\nscene s\n  local a = 1 +;\n  Hello.\nend", ["2:15-2:16 Expected identifier when parsing expression, got ';'"]],
-    ["-> s\nscene s\n  local a, b = 1, ;\n  Hello.\nend", ["2:16-2:17 Expected identifier when parsing expression, got ';'"]],
-    ["-> s\nscene s\n  local a = ;\nend", ["2:12-2:13 Expected identifier when parsing expression, got ';'"]],
+    ["scene start\n  local a = ;\n  Hello.\nend", ["1:12-1:13 Expected identifier when parsing expression, got ';'"]],
+    ["scene start\n  local a = 1 +;\n  Hello.\nend", ["1:15-1:16 Expected identifier when parsing expression, got ';'"]],
+    ["scene start\n  local a, b = 1, ;\n  Hello.\nend", ["1:16-1:17 Expected identifier when parsing expression, got ';'"]],
+    ["scene start\n  local a = ;\nend", ["1:12-1:13 Expected identifier when parsing expression, got ';'"]],
     // Whitespace after a header with no parameter list.
     ["function f   \n  local a = ;\nend", ["1:12-1:13 Expected identifier when parsing expression, got ';'"]],
     // Two mistakes on one line, a `;` apart.
@@ -281,7 +287,7 @@ describe("the reported layouts", () => {
     // The checker's statement after a narrative line is never named: the
     // declaration ends at its line, so the call is missing its arguments at
     // the line's end (#1907).
-    ["-> s\nscene s\n  local x = t:m\n  Hello.\nend", ["2:12-3:0 Expected '(', '{' or <string> when parsing function call, got <eof>"]],
+    ["scene start\n  local x = t:m\n  Hello.\nend", ["1:12-2:0 Expected '(', '{' or <string> when parsing function call, got <eof>"]],
     // Round 1's undirected review: an error on the line before that leaves
     // nothing open hides no later mistake.
     ["function f()\n  local x = 0xZ\n  2\nend", ["1:12-1:15 Malformed number", "2:2-2:3 Expected identifier when parsing expression, got '2'"]],
@@ -460,15 +466,22 @@ describe("the reported layouts", () => {
   // not read the story after it: what the statement is missing is missing
   // at the end of its line, `<eof>` to Luau's reading of it (#1907), once.
   test.each([
-    ["-> s\nscene s\n  local y = 1 +\n  local z = 2\nend", ["2:15-3:0 Expected identifier when parsing expression, got <eof>"]],
-    ["-> s\nscene s\n  local y = 1 +\nend", ["2:15-3:0 Expected identifier when parsing expression, got <eof>"]],
-    ["-> s\nscene s\n  local a, b = 1,\n  Hello there.\n  local c = 3\nend", ["2:17-3:0 Expected identifier when parsing expression, got <eof>"]],
+    ["scene start\n  local y = 1 +\n  local z = 2\nend", ["1:15-2:0 Expected identifier when parsing expression, got <eof>"]],
+    ["scene start\n  local y = 1 +\nend", ["1:15-2:0 Expected identifier when parsing expression, got <eof>"]],
+    ["scene start\n  local a, b = 1,\n  Hello there.\n  local c = 3\nend", ["1:17-2:0 Expected identifier when parsing expression, got <eof>"]],
     ["store hp = 100,\nThe hero has {hp} health.\nstore mp = 50,\nscene s\n  Hi.\nend", [
       "0:14-0:15 Expected identifier when parsing expression, got <eof>",
+      "1:0-1:25 statement must be inside a scene or branch; the top level holds declarations only",
       "2:13-2:14 Expected identifier when parsing expression, got <eof>",
     ]],
-    ["store a, b = 1,\n  2", ["0:14-0:15 Expected identifier when parsing expression, got <eof>"]],
-    ["store x = 1 +;", ["0:13-0:14 Expected identifier when parsing expression, got ';'"]],
+    ["store a, b = 1,\n  2", [
+      "0:14-0:15 Expected identifier when parsing expression, got <eof>",
+      "1:2-1:3 statement must be inside a scene or branch; the top level holds declarations only",
+    ]],
+    ["store x = 1 +;", [
+      "0:13-0:14 statement must be inside a scene or branch; the top level holds declarations only",
+      "0:13-0:14 Expected identifier when parsing expression, got ';'",
+    ]],
     ["store x = 1 +\nstore z = 2", ["0:13-1:0 Expected identifier when parsing expression, got <eof>"]],
     // Round 2: a `store` declaration's complete value ends its statement.
     ["function f(t)\n  store x = 0xZ\n  2\nend", ["1:12-1:15 Malformed number", "2:2-2:3 Expected identifier when parsing expression, got '2'"]],
@@ -491,7 +504,7 @@ describe("the reported layouts", () => {
       "2:2-2:7 Expected identifier when parsing expression, got 'local'",
       "2:15-2:16 Expected identifier when parsing expression, got ';'",
     ]],
-    ["-> s\nscene s\n  if then\n    Hi.\n  end\nend", ["2:5-2:9 Expected identifier when parsing expression, got 'then'"]],
+    ["scene start\n  if then\n    Hi.\n  end\nend", ["1:5-1:9 Expected identifier when parsing expression, got 'then'"]],
   ])("in a Sparkdown document, %j reports %j", (source, messages) => {
     expect(compileDocument(`${source}\n`).errors).toEqual(messages);
     if (source.startsWith("function")) expectLuauReports(source, messages);
@@ -500,7 +513,7 @@ describe("the reported layouts", () => {
   // #1144 and #1148 at runtime: the story reports the error and a named
   // function value still fills its slot.
   test("#1144: a value on the line after a list that lacks its comma is an error", () => {
-    const ctx = makeRuntimeStoryFromSource("Value {f()}.\nfunction f()\n  local a, b = 1\n    2\n  return b\nend\n");
+    const ctx = makeRuntimeStoryFromSource("scene start\n  Value {f()}.\nend\nfunction f()\n  local a, b = 1\n    2\n  return b\nend\n");
     expect(ctx.errorMessages).toEqual(["Expected identifier when parsing expression, got '2'"]);
   });
 });

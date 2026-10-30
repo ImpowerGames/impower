@@ -1,60 +1,67 @@
-text.source.sparkdown [0..69]
- ├─ comment.line.sd [0..68]
- │   └─ entity.tag.sd [0..68]
- │       └─ comment.line.sd [0..68]
- │           └─ entity.tag.sd [0..68]
- │               ├─ punctuation.definition.comment.sd [0..1]
- │               │   └─ comment.line.sd [0..1]
- │               │       └─ entity.tag.begin.sd [0..1]: "#"
- │               └─ punctuation.definition.comment.content.sd [1..68]
- │                   ├─ punctuation.definition.comment.content.sd [1..2]: " "
- │                   ├─ meta.template.expression.luau [2..10]
- │                   │   ├─ punctuation.definition.template-expression.begin.sd [2..3]: "{"
- │                   │   ├─ meta.embedded.line.luau [3..9]
- │                   │   │   └─ variable.other.readwrite.luau [3..9]: "amount"
- │                   │   └─ punctuation.definition.template-expression.end.sd [9..10]: "}"
- │                   ├─ punctuation.definition.comment.content.sd [10..11]: " "
- │                   ├─ meta.template.expression.luau [11..21]
- │                   │   ├─ punctuation.definition.template-expression.begin.sd [11..12]: "{"
- │                   │   ├─ meta.embedded.line.luau [12..20]
- │                   │   │   ├─ punctuation.whitespace.extra.sd [12..13]: " "
- │                   │   │   ├─ variable.other.readwrite.luau [13..19]: "amount"
- │                   │   │   └─ punctuation.whitespace.extra.sd [19..20]: " "
- │                   │   └─ punctuation.definition.template-expression.end.sd [20..21]: "}"
- │                   ├─ punctuation.definition.comment.content.sd [21..22]: " "
- │                   ├─ meta.template.expression.luau [22..34]
- │                   │   ├─ punctuation.definition.template-expression.begin.sd [22..23]: "{"
- │                   │   ├─ meta.embedded.line.luau [23..33]
- │                   │   │   ├─ variable.other.readwrite.luau [23..29]: "amount"
- │                   │   │   ├─ punctuation.whitespace.optional.sd [29..30]: " "
- │                   │   │   ├─ keyword.operator.arithmetic.luau [30..31]: "+"
- │                   │   │   ├─ punctuation.whitespace.optional.sd [31..32]: " "
- │                   │   │   └─ constant.numeric.decimal.luau [32..33]: "1"
- │                   │   └─ punctuation.definition.template-expression.end.sd [33..34]: "}"
- │                   ├─ punctuation.definition.comment.content.sd [34..35]: " "
- │                   ├─ meta.template.expression.luau [35..49]
- │                   │   ├─ punctuation.definition.template-expression.begin.sd [35..36]: "{"
- │                   │   ├─ meta.embedded.line.luau [36..48]
- │                   │   │   ├─ variable.other.readwrite.luau [36..42]: "amount"
- │                   │   │   ├─ meta.template.expression.accessor.sd [42..43]: "."
- │                   │   │   └─ variable.other.property.luau [43..48]: "value"
- │                   │   └─ punctuation.definition.template-expression.end.sd [48..49]: "}"
- │                   ├─ punctuation.definition.comment.content.sd [49..50]: " "
- │                   ├─ meta.template.expression.luau [50..61]
- │                   │   ├─ punctuation.definition.template-expression.begin.sd [50..51]: "{"
- │                   │   ├─ meta.embedded.line.luau [51..60]
- │                   │   │   ├─ variable.other.readwrite.luau [51..57]: "amount"
- │                   │   │   ├─ punctuation.definition.template-expression.begin.sd [57..58]: "["
- │                   │   │   ├─ constant.numeric.decimal.luau [58..59]: "1"
- │                   │   │   └─ punctuation.definition.template-expression.end.sd [59..60]: "]"
- │                   │   └─ punctuation.definition.template-expression.end.sd [60..61]: "}"
- │                   ├─ punctuation.definition.comment.content.sd [61..62]: " "
- │                   └─ meta.template.expression.luau [62..68]
- │                       ├─ punctuation.definition.template-expression.begin.sd [62..63]: "{"
- │                       ├─ meta.embedded.line.luau [63..67]
- │                       │   ├─ entity.name.function.luau [63..65]: "fn"
- │                       │   └─ meta.parameter.luau [65..67]
- │                       │       ├─ punctuation.definition.template-expression.begin.sd [65..66]: "("
- │                       │       └─ punctuation.definition.template-expression.end.sd [66..67]: ")"
- │                       └─ punctuation.definition.template-expression.end.sd [67..68]: "}"
- └─ Newline [68..69]: "\n"
+text.source.sparkdown [0..87]
+ ├─ keyword.control.scene.sd [0..5]: "scene"
+ ├─ punctuation.whitespace.required.sd [5..6]: " "
+ ├─ keyword.control.section.sd [6..11]: "start"
+ ├─ Newline [11..12]: "\n"
+ ├─ comment.line.sd [12..82]
+ │   └─ entity.tag.sd [12..82]
+ │       ├─ punctuation.whitespace.required.sd [12..14]: "  "
+ │       └─ comment.line.sd [14..82]
+ │           └─ entity.tag.sd [14..82]
+ │               ├─ punctuation.definition.comment.sd [14..15]
+ │               │   └─ comment.line.sd [14..15]
+ │               │       └─ entity.tag.begin.sd [14..15]: "#"
+ │               └─ punctuation.definition.comment.content.sd [15..82]
+ │                   ├─ punctuation.definition.comment.content.sd [15..16]: " "
+ │                   ├─ meta.template.expression.luau [16..24]
+ │                   │   ├─ punctuation.definition.template-expression.begin.sd [16..17]: "{"
+ │                   │   ├─ meta.embedded.line.luau [17..23]
+ │                   │   │   └─ variable.other.readwrite.luau [17..23]: "amount"
+ │                   │   └─ punctuation.definition.template-expression.end.sd [23..24]: "}"
+ │                   ├─ punctuation.definition.comment.content.sd [24..25]: " "
+ │                   ├─ meta.template.expression.luau [25..35]
+ │                   │   ├─ punctuation.definition.template-expression.begin.sd [25..26]: "{"
+ │                   │   ├─ meta.embedded.line.luau [26..34]
+ │                   │   │   ├─ punctuation.whitespace.extra.sd [26..27]: " "
+ │                   │   │   ├─ variable.other.readwrite.luau [27..33]: "amount"
+ │                   │   │   └─ punctuation.whitespace.extra.sd [33..34]: " "
+ │                   │   └─ punctuation.definition.template-expression.end.sd [34..35]: "}"
+ │                   ├─ punctuation.definition.comment.content.sd [35..36]: " "
+ │                   ├─ meta.template.expression.luau [36..48]
+ │                   │   ├─ punctuation.definition.template-expression.begin.sd [36..37]: "{"
+ │                   │   ├─ meta.embedded.line.luau [37..47]
+ │                   │   │   ├─ variable.other.readwrite.luau [37..43]: "amount"
+ │                   │   │   ├─ punctuation.whitespace.optional.sd [43..44]: " "
+ │                   │   │   ├─ keyword.operator.arithmetic.luau [44..45]: "+"
+ │                   │   │   ├─ punctuation.whitespace.optional.sd [45..46]: " "
+ │                   │   │   └─ constant.numeric.decimal.luau [46..47]: "1"
+ │                   │   └─ punctuation.definition.template-expression.end.sd [47..48]: "}"
+ │                   ├─ punctuation.definition.comment.content.sd [48..49]: " "
+ │                   ├─ meta.template.expression.luau [49..63]
+ │                   │   ├─ punctuation.definition.template-expression.begin.sd [49..50]: "{"
+ │                   │   ├─ meta.embedded.line.luau [50..62]
+ │                   │   │   ├─ variable.other.readwrite.luau [50..56]: "amount"
+ │                   │   │   ├─ meta.template.expression.accessor.sd [56..57]: "."
+ │                   │   │   └─ variable.other.property.luau [57..62]: "value"
+ │                   │   └─ punctuation.definition.template-expression.end.sd [62..63]: "}"
+ │                   ├─ punctuation.definition.comment.content.sd [63..64]: " "
+ │                   ├─ meta.template.expression.luau [64..75]
+ │                   │   ├─ punctuation.definition.template-expression.begin.sd [64..65]: "{"
+ │                   │   ├─ meta.embedded.line.luau [65..74]
+ │                   │   │   ├─ variable.other.readwrite.luau [65..71]: "amount"
+ │                   │   │   ├─ punctuation.definition.template-expression.begin.sd [71..72]: "["
+ │                   │   │   ├─ constant.numeric.decimal.luau [72..73]: "1"
+ │                   │   │   └─ punctuation.definition.template-expression.end.sd [73..74]: "]"
+ │                   │   └─ punctuation.definition.template-expression.end.sd [74..75]: "}"
+ │                   ├─ punctuation.definition.comment.content.sd [75..76]: " "
+ │                   └─ meta.template.expression.luau [76..82]
+ │                       ├─ punctuation.definition.template-expression.begin.sd [76..77]: "{"
+ │                       ├─ meta.embedded.line.luau [77..81]
+ │                       │   ├─ entity.name.function.luau [77..79]: "fn"
+ │                       │   └─ meta.parameter.luau [79..81]
+ │                       │       ├─ punctuation.definition.template-expression.begin.sd [79..80]: "("
+ │                       │       └─ punctuation.definition.template-expression.end.sd [80..81]: ")"
+ │                       └─ punctuation.definition.template-expression.end.sd [81..82]: "}"
+ ├─ Newline [82..83]: "\n"
+ ├─ keyword.control.end.luau [83..86]: "end"
+ └─ Newline [86..87]: "\n"

@@ -57,9 +57,7 @@ function drive(source: string, ...picks: string[]) {
 describe("a choose block's end", () => {
   test("a scene with no choose block ends cleanly", () => {
     const result = drive(`
--> main
-
-scene main
+scene start
   The end.
 end
 `);
@@ -70,9 +68,7 @@ end
   test("content after a choose block with no then clause runs, and the scene ends cleanly", () => {
     const result = drive(
       `
--> main
-
-scene main
+scene start
   choose
     * Up
   end
@@ -89,9 +85,7 @@ end
 
   test("content after a choose block runs after whichever choice was taken", () => {
     const source = `
--> main
-
-scene main
+scene start
   choose
     * Up
       Going up.
@@ -112,9 +106,7 @@ end
   test("a scene that ends with a choose block ends cleanly after its choice", () => {
     const result = drive(
       `
--> main
-
-scene main
+scene start
   choose
     * Up
   end
@@ -129,9 +121,7 @@ end
   test("a then clause still runs after the choice, before content after the block", () => {
     const result = drive(
       `
--> main
-
-scene main
+scene start
   choose
     * Up
   then
@@ -148,9 +138,7 @@ end
 
   test("a choice offered from an if continues after its choose block", () => {
     const source = `
--> main
-
-scene main
+scene start
   choose
     if true then
       * Unlock
@@ -172,9 +160,7 @@ end
 
   test("a label after a choose block runs once, whether reached by divert or by falling through", () => {
     const source = `
--> main
-
-scene main
+scene start
   choose
     * Jump
       -> here
@@ -196,9 +182,7 @@ end
   test("two choose blocks in a row each run once", () => {
     const result = drive(
       `
--> main
-
-scene main
+scene start
   choose
     * A
   then
@@ -221,9 +205,7 @@ end
   test("choosing inside a choose nested in an if ends cleanly", () => {
     const result = drive(
       `
--> main
-
-scene main
+scene start
   choose
     Outer.
     if true then
@@ -249,9 +231,7 @@ end
   test("content after a block in another block's preamble runs with that preamble, before the choices", () => {
     const result = drive(
       `
--> main
-
-scene main
+scene start
   choose
     if true then
       choose
@@ -277,9 +257,7 @@ end
 
   test("a block inside an if holds the flow: what follows the if runs after the choice", () => {
     const source = `
--> cellar
-
-scene cellar
+scene start
   A heavy door blocks the stairs.
   if has_key then
     choose
@@ -322,9 +300,7 @@ end
   test("a block inside an if in a choice's content holds the flow, and nothing replays", () => {
     const result = drive(
       `
--> main
-
-scene main
+scene start
   choose
     * Search the desk
       if true then
@@ -358,9 +334,7 @@ end
   test("a choice from a block inside an if continues when the scene ends in a divert", () => {
     const result = drive(
       `
--> main
-
-scene main
+scene start
   if true then
     choose
       * A
@@ -382,9 +356,7 @@ end
   test("a block that offers no choice holds nothing: the flow runs on past it", () => {
     const result = drive(`
 store has_key = false
--> main
-
-scene main
+scene start
   Door.
   choose
     if has_key then
@@ -402,9 +374,7 @@ end
   test("a block that offers no choice runs on after a thread offered a choice", () => {
     const result = drive(`
 store has_key = false
--> hub
-
-scene hub
+scene start
   <- side
   choose
     if has_key then
@@ -430,9 +400,7 @@ end
   test("a divert to a label inside a block holds at the block's choices", () => {
     const result = drive(
       `
--> main
-
-scene main
+scene start
   -> mark
   choose
     label mark
@@ -452,9 +420,7 @@ end
   test("a block that offers no choice runs on when entered past its start after an earlier choice", () => {
     const result = drive(`
 store has_key = false
--> hub
-
-scene hub
+scene start
   <- side
   -> mark
   choose
@@ -482,9 +448,7 @@ end
   test("a thread's choices are not the block's: a block whose own choices are gated off runs on", () => {
     const result = drive(`
 store has_key = false
--> hub
-
-scene hub
+scene start
   choose
     <- side
     if has_key then
@@ -510,9 +474,7 @@ end
   test("a fallback choice fires when every other choice in the block is unavailable", () => {
     const result = drive(`
 store has_key = false
--> main
-
-scene main
+scene start
   choose
     if has_key then
       * Unlock
@@ -531,9 +493,7 @@ end
   test("a choice inside two ifs in a block continues after the block", () => {
     const result = drive(
       `
--> main
-
-scene main
+scene start
   choose
     if true then
       if true then
@@ -555,9 +515,7 @@ end
   test("choosing inside a choose nested in an if continues after the outer choose block", () => {
     const result = drive(
       `
--> main
-
-scene main
+scene start
   choose
     if true then
       choose
