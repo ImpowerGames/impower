@@ -1,4 +1,4 @@
-export const NAME_CHAR = /[\p{L}\p{N}_]/u;
+const NAME_CHAR = /[\p{L}\p{N}_]/u;
 
 export const JOINING_PAIRS: ReadonlySet<string> = new Set([
   "--",

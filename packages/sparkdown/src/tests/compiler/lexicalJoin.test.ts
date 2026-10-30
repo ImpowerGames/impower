@@ -4,6 +4,7 @@ import {
   JOINING_PAIRS,
   joinsAcrossSpace,
 } from "../../compiler/utils/lexicalJoin";
+import { normalizeSource } from "../../compiler/utils/fingerprintSource";
 
 const EXPECTED_PAIRS = [
   "--",
@@ -61,4 +62,23 @@ describe("lexicalJoin", () => {
       expect(isNameChar(char)).toBe(false);
     },
   );
+});
+
+describe("the program normalizer keeps the space only where removing it joins two tokens", () => {
+  const NORMALIZER_ONLY = ["]]", "=]", "<-", "=>", "!=", "&&", "||", "<<", ">>"];
+
+  test.each([...EXPECTED_PAIRS, ...NORMALIZER_ONLY])(
+    "%s keeps its space",
+    (pair) => {
+      expect(normalizeSource(`& x = y ${pair[0]} ${pair[1]} z`)).toBe(
+        `&x=y${pair[0]} ${pair[1]}z`,
+      );
+    },
+  );
+
+  test.each([".=", "((", "))", ",,"])("%s loses its space", (pair) => {
+    expect(normalizeSource(`& x = y ${pair[0]} ${pair[1]} z`)).toBe(
+      `&x=y${pair}z`,
+    );
+  });
 });
