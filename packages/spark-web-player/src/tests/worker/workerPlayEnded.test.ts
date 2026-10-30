@@ -1,4 +1,5 @@
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
+import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PlayMessage } from "../../main/workers/messages/PlayMessage";
 import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarness";
@@ -121,6 +122,46 @@ describe("PLAY in the worker reaching the end of the story", () => {
       }
     }, 120_000);
   }
+
+  it("answers a pause on the ended frame without pausing it", async () => {
+    const { h } = await start(FIN, HELLO);
+    try {
+      await click(h);
+      expect(launchStates(h).at(-1)).toBe("ended");
+      const answer = await h.controller.handlePauseGame(
+        PauseGameMessage.type.request({}),
+      );
+      expect(answer).not.toHaveProperty("error");
+      await settle(20);
+      expect(h.controller._app.paused).toBe(false);
+      expect(h.workerState.gameState.running!.paused).toBe(false);
+      expect(launchStates(h).at(-1)).toBe("ended");
+    } finally {
+      await h.controller.destroyGameAndApp();
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("undoes a pause that reached the game just before the run ended", async () => {
+    const { h } = await start(FIN, HELLO);
+    try {
+      await h.controller.handlePauseGame(PauseGameMessage.type.request({}));
+      await settle(20);
+      expect(h.controller._app.paused).toBe(true);
+      expect(h.workerState.gameState.running!.paused).toBe(true);
+      h.controller.holdEndedPlay(h.controller._workerPlay, {
+        kind: "fin",
+        location: null,
+      });
+      await settle(20);
+      expect(launchStates(h).at(-1)).toBe("ended");
+      expect(h.controller._app.paused).toBe(false);
+      expect(h.workerState.gameState.running!.paused).toBe(false);
+    } finally {
+      await h.controller.destroyGameAndApp();
+      h.dispose();
+    }
+  }, 120_000);
 
   it("clears the ended run's badge when a newer PLAY takes over", async () => {
     const { h } = await start(RAN_OUT, HELLO);

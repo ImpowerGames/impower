@@ -153,10 +153,13 @@ describe("the debug adapter at the end of the story", () => {
     expect(sent.map((m) => m.method)).toEqual(["game/threads"]);
   });
 
-  it("undoes a pause the run ended during and reports the end, not a pause", async () => {
-    let s: Awaited<ReturnType<typeof session>>;
+  it("reports the end, not a pause, when the run ends while the pause is forwarded", async () => {
+    let s: ReturnType<typeof session>;
     s = session(async (method) => {
       if (method === "game/pause") {
+        await s.notify(
+          GameEndedMessage.type.notification({ kind: "fin", location: location(1) }),
+        );
         await s.notify(launch("ended"));
       }
     });
@@ -164,13 +167,71 @@ describe("the debug adapter at the end of the story", () => {
     await s.request("pauseRequest");
     expect(s.sent.map((m) => m.method)).toEqual([
       "game/pause",
-      "game/unpause",
+      "game/threads",
+      "game/threads",
+    ]);
+    expect(s.events.map((e) => [e.event, e.body?.reason ?? null])).toEqual([
+      ["stopped", "end"],
+      ["response", null],
+    ]);
+  });
+
+  it("publishes no pause stop whose thread lookup returns after the run ended", async () => {
+    let s: ReturnType<typeof session>;
+    let hold = true;
+    s = session(async (method) => {
+      if (method === "game/threads" && hold) {
+        hold = false;
+        await s.notify(launch("ended"));
+        await s.notify(
+          GameEndedMessage.type.notification({ kind: "fin", location: location(1) }),
+        );
+      }
+    });
+    await s.notify(launch("play"));
+    await s.request("pauseRequest");
+    expect(s.sent.map((m) => m.method)).toEqual([
+      "game/pause",
+      "game/threads",
       "game/threads",
     ]);
     expect(s.events.map((e) => [e.event, e.body?.reason ?? null])).toEqual([
       ["response", null],
       ["stopped", "end"],
     ]);
+  });
+
+  it("publishes no end stop whose thread lookup returns after the run left the end", async () => {
+    let s: ReturnType<typeof session>;
+    let hold = false;
+    s = session(async (method) => {
+      if (method === "game/threads" && hold) {
+        hold = false;
+        await s.notify(launch("play"));
+      }
+    });
+    await s.notify(launch("ended"));
+    hold = true;
+    await s.request("nextRequest");
+    expect(s.events.map((e) => [e.event, e.body?.reason ?? null])).toEqual([
+      ["response", null],
+      ["continued", null],
+    ]);
+  });
+
+  it("treats game/ended alone as the end of the run", async () => {
+    const { notify, events, sent, request } = session();
+    await notify(launch("play"));
+    await notify(
+      GameEndedMessage.type.notification({ kind: "out", location: location(3) }),
+    );
+    events.length = 0;
+    await request("nextRequest");
+    expect(events.map((e) => [e.event, e.body?.reason ?? null])).toEqual([
+      ["response", null],
+      ["stopped", "end"],
+    ]);
+    expect(sent.map((m) => m.method)).not.toContain("game/step");
   });
 
   it("sends no continued event while launch states change without leaving an ended run", async () => {

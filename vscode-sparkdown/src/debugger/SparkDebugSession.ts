@@ -155,6 +155,7 @@ export class SparkDebugSession extends LoggingDebugSession {
       if (error) {
         this.sendErrorOutputEvent(error.message, error.location);
       }
+      this._launchState = "ended";
       await this.sendStoppedEvent("end");
     }
     if (GameStartedThreadMessage.type.isNotification(message)) {
@@ -221,6 +222,9 @@ export class SparkDebugSession extends LoggingDebugSession {
     const { threads } = await this._connection.emit(
       GetGameThreadsMessage.type.request({}),
     );
+    if ((reason === "end") !== (this._launchState === "ended")) {
+      return;
+    }
     for (const thread of threads) {
       this._stoppedReason.set(thread.id, reason);
       this.sendEvent(new StoppedEvent(reason, thread.id));
@@ -365,14 +369,8 @@ export class SparkDebugSession extends LoggingDebugSession {
       return;
     }
     await this._connection.emit(PauseGameMessage.type.request({}));
-    if (this._launchState === "ended") {
-      await this._connection.emit(UnpauseGameMessage.type.request({}));
-      this.sendResponse(response);
-      await this.sendStoppedEvent("end");
-      return;
-    }
     this.sendResponse(response);
-    this.sendStoppedEvent("pause");
+    await this.sendStoppedEvent("pause");
   }
 
   protected override async continueRequest(

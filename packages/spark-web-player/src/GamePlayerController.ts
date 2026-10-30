@@ -1831,6 +1831,9 @@ export class GamePlayerController {
 
   protected handlePauseGame = async (message: PauseGameMessage.Request) => {
     const app = this.controlledApp;
+    if (app && this._workerPlay?.ended) {
+      return PauseGameMessage.type.response(message.id, {});
+    }
     app?.pause();
     const told = app && (await this.tellWorkerPlay(PauseGameMessage.type, {}));
     this.updateLaunchStateIcon();
@@ -2385,6 +2388,11 @@ export class GamePlayerController {
       ...(params.error ? { error: params.error } : {}),
     };
     play.ended = ending;
+    const app = this.controlledApp;
+    if (app?.paused) {
+      app.unpause();
+      void this.tellWorkerPlay(UnpauseGameMessage.type, {});
+    }
     this.updateLaunchStateIcon();
     this.setEndingStatus(ending);
     sendProtocolMessage(GameEndedMessage.type.notification(ending), this.host);
