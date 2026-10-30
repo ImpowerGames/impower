@@ -12,9 +12,6 @@ const root = path.resolve(here, "../../..");
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-interface-exercise-"));
 console.log(`Scratch directory: ${scratch}`);
 
-// The four items, four tasks and three columns are restated by the skill and
-// the publishing reference; pinning them here keeps the record and the prose
-// that describes it saying the same thing.
 assert.deepEqual(REQUIRED_ITEMS, ["Location", "Trigger", "States", "Failure view"]);
 assert.deepEqual(REQUIRED_TASKS, ["First use", "Everyday repeated use", "Recovering from a mistake", "Undoing or removing what the feature added"]);
 assert.deepEqual(COLUMNS, ["What the author sees", "What the author does", "What the tickets leave unspecified"]);
@@ -93,9 +90,6 @@ assert.equal((record.match(/^\| Step \| What the author sees \| What the author 
 assert.equal((record.match(/^\| 1 \|  \|  \|  \|$/gm) || []).length, 4, "each task starts with one empty row of the same width");
 assert.match(record, /third column is a finding/);
 
-// Live issues are read through an injected fetch here; the command line uses gh.
-// The default repository follows the repos file: the committed file, and a
-// copy of the helper beside a repos file with each switch position.
 assert.deepEqual(ghIssueCommand(565), ["api", `repos/${ticketsRepo()}/issues/565`]);
 {
   const repos = readRepos();

@@ -51,16 +51,12 @@ def style_titlebar():
     enabled = ctypes.c_int(1)
     if dwm.DwmSetWindowAttribute(window, 20, ctypes.byref(enabled), ctypes.sizeof(enabled)) != 0:
         dwm.DwmSetWindowAttribute(window, 19, ctypes.byref(enabled), ctypes.sizeof(enabled))
-    # Windows 11 caption/background colors are COLORREF (BGR).
     for attribute, color in [(35, 0x181311), (36, 0xf7f4f4)]:
         value = wintypes.DWORD(color)
         dwm.DwmSetWindowAttribute(window, attribute, ctypes.byref(value), ctypes.sizeof(value))
 
 root.after(100, style_titlebar)
 
-# A plain fixed-height frame clipped whatever grew past the window's bottom
-# edge (the Discord card's added fields did). Scrolling keeps the window
-# usable at any height instead of guessing a tall-enough fixed size.
 style = ttk.Style(root)
 style.theme_use('clam')
 style.configure('Dark.Vertical.TScrollbar', gripcount=0, background='#30333d', darkcolor='#30333d', lightcolor='#30333d', troughcolor='#111318', bordercolor='#111318', arrowcolor='#a4a7b2', relief='flat')
@@ -87,8 +83,6 @@ canvas.bind('<Configure>', _fit_shell_to_canvas)
 def _on_mousewheel(event):
     canvas.yview_scroll(int(-1 * (event.delta / 120)), 'units')
 
-# Scoped to while the pointer is over this window, so it never fights a
-# combobox dropdown's own scrolling elsewhere.
 canvas.bind('<Enter>', lambda event: canvas.bind_all('<MouseWheel>', _on_mousewheel))
 canvas.bind('<Leave>', lambda event: canvas.unbind_all('<MouseWheel>'))
 tk.Label(shell, text='YOUR WORK, AT YOUR PACE', font=('Segoe UI', 9, 'bold'), fg='#a99ef5', bg='#111318', anchor='w').pack(fill='x')
@@ -105,8 +99,6 @@ dismiss_all_button.pack(side='right')
 alerts_list = tk.Frame(shell, bg='#111318')
 alerts_list.pack(fill='x', pady=(6, 6))
 CATEGORY_COLORS = {'done': '#41d67c', 'user_input_needed': '#eac889', 'blocked': '#f4726b'}
-# None, never a real list, so the first render_alerts([]) call (below) is
-# never mistaken for "unchanged from last time" and actually draws once.
 current_alerts = None
 
 def render_alerts(alerts):
@@ -133,9 +125,6 @@ def render_alerts(alerts):
         tk.Label(row, text=entry.get('alert', {}).get('message', ''), font=('Segoe UI', 9), fg='#d8d8de', bg='#1d2028', anchor='w', justify='left', wraplength=380).pack(fill='x', pady=(5, 0))
 
 def dismiss_one_alert(entry):
-    # Off the main thread: a slow or auto-spawning broker must not freeze
-    # the window. render_alerts only ever runs back on the main thread, via
-    # the same thread-safe queue the alert-list poller already uses.
     def worker():
         acknowledge_alert(args.state_dir, entry['notificationId'], entry.get('app', 'other'))
         commands.put(('alerts', read_pending_alerts(args.state_dir)))
@@ -179,9 +168,6 @@ def refresh():
     discord_button.config(text='Off' if discord_off else 'On', bg='#30333d' if discord_off else '#b8adff', fg='#bec1cc' if discord_off else '#191329', state='disabled' if paused else 'normal')
     discord_report = read_discord_status(args.state_dir)
     discord_status_label.config(text=discord_status_text(discord_report))
-    # Show the button whenever a connection isn't already established or in
-    # progress — including when nothing is configured yet, so there is
-    # always a visible next step rather than an empty card.
     if (discord_report or {}).get('phase') not in ('ready', 'connecting', 'authorizing', 'authenticating'):
         discord_connect_button.pack(anchor='e', pady=(6, 0))
     else:
@@ -374,7 +360,6 @@ def show_window():
     root.focus_force()
 
 def hide_window():
-    # Never hide the only controls until the tray icon actually exists.
     if tray_ready.is_set():
         root.withdraw()
 

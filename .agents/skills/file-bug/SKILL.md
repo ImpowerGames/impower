@@ -29,7 +29,7 @@ Tell the user what was tried, where, and what happened instead; ask for the miss
 
 Before writing the ticket, read [Bug body requirements](references/publishing.md), [shared publishing rules](../references/publishing.md), and [Effort and issue-field publishing](../references/issue-fields.md). Estimate the complete work, including reproduction, implementation, regression coverage and platform verification; retain a concise rationale and any uncertainty. Use the Bug template in order, confirmed evidence, expected/actual behavior, environment, and bounded analysis with commit-specific source references.
 
-Create with type Bug and current area labels in one call, then assign and read back Effort on the created issue using the shared procedure. Read the body and type back too. The ticket is fully filed only when all three persisted values are verified. If Effort assignment fails after creation, preserve the issue URL and pending estimate, report the incomplete metadata step, and repair the same issue after access recovers; do not create a duplicate.
+Create with type Bug and current area labels in one call, then assign and read back Effort on the created issue using the shared procedure. Read the body and type back too. Then [place the ticket](../references/publishing.md#place-a-filed-ticket) under its parent with the parent's milestone, reading the parent and milestone back. The ticket is fully filed only when all five persisted values are verified. If Effort assignment fails after creation, preserve the issue URL and pending estimate, report the incomplete metadata step, and repair the same issue after access recovers; do not create a duplicate.
 
 ## 5. Hand off
 

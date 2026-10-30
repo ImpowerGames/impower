@@ -315,7 +315,30 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(kind("# lookaround: Luau owns the suffix", "definitions/yaml/g.yaml"), "directive", "packages/eslint-plugin-sparkdown-grammar/src/rules/lookaround-needs-rival-comment.ts reads the justification");
     assert.equal(kind("# referenced-from: packages/a/src/b.ts", "definitions/yaml/g.yaml"), "directive", "packages/eslint-plugin-sparkdown-grammar/src/rules/no-unreferenced-rule.ts and no-unreferenced-variable.ts read the marker");
     assert.equal(kind("# referenced-from:", "definitions/yaml/g.yaml"), "refused");
-    assert.equal(kind("// agent-tooling-timeout-ms: 600000", "scripts/x.test.mjs"), "directive");
+    assert.equal(kind("// agent-tooling-timeout-ms: 600000", "scripts/x.test.mjs"), "directive", "scripts/check-agent-tooling.mjs reads the timeout header");
+    assert.equal(kind("// agent-tooling-serial: holds a machine-wide fixture lock", "scripts/x.test.mjs"), "directive", "scripts/check-agent-tooling.mjs reads the serial header");
+    assert.equal(kind("/* agent-tooling-timeout-ms: 600000 */", "scripts/x.test.mjs"), "refused", "scripts/check-agent-tooling.mjs reads the header only as a // line");
+    assert.equal(kind("//agent-tooling-timeout-ms: 600000", "scripts/x.test.mjs"), "refused");
+    assert.equal(kind("// agent-tooling-timeout-ms: soon", "scripts/x.test.mjs"), "refused", "the timeout header takes a whole number of milliseconds");
+    assert.equal(kind("// agent-tooling-serial:", "scripts/x.test.mjs"), "refused", "the serial header takes a reason");
+    assert.equal(kind("/* windows-hide: caller */", "scripts/x.mjs"), "directive", "scripts/windows-hide.test.mjs skips a launch whose options come from the caller at it");
+    assert.equal(kind("/* windows-hide: caller, which hides it */", "scripts/x.mjs"), "refused");
+    assert.equal(kind("/* windows-hide: caller */", "src/a.ts"), "refused", "scripts/windows-hide.test.mjs scans only JavaScript files");
+    assert.equal(kind("/*windows-hide: caller*/", "scripts/x.mjs"), "refused", "scripts/windows-hide.test.mjs reads only the exact spelling `/* windows-hide: caller */`");
+    assert.equal(kind("// windows-hide: caller", "scripts/x.mjs"), "refused");
+    assert.equal(kind("/**\n * windows-hide: caller\n */", "scripts/x.mjs"), "refused");
+    assert.equal(kind("<#\n.SYNOPSIS\nMerges the session folders.\n\n.PARAMETER Source\nThe folder to copy from.\n.EXAMPLE\n./merge.ps1 -WhatIf\n#>", "scripts/merge.ps1"), "directive", "Get-Help reads a comment-based help block, its prose included");
+    assert.equal(kind("<#\n.parameter Source\nThe folder to copy from.\n#>", "scripts/merge.ps1"), "directive", "Get-Help reads help keywords in any case");
+    assert.equal(kind("<#\nMerges the session folders.\n.SYNOPSIS\nMerges.\n#>", "scripts/merge.ps1"), "refused", "a block that does not open with a help keyword is not help");
+    assert.equal(kind("<#\n.SYNOPSISES\n#>", "scripts/merge.ps1"), "refused");
+    assert.equal(kind("# .SYNOPSIS", "scripts/merge.ps1"), "refused");
+    assert.equal(kind("/*\n.SYNOPSIS\nMerges.\n*/", "src/a.ts"), "refused", "only PowerShell reads comment-based help");
+    assert.equal(kind("<#\n.SYNOPSIS because the old code needs this\nignored\n#>", "scripts/merge.ps1"), "refused", "Get-Help reads no block whose .SYNOPSIS line carries text");
+    assert.equal(kind("<#\n * .SYNOPSIS\n * Merges.\n#>", "scripts/merge.ps1"), "refused", "a keyword behind a star is no keyword to Get-Help");
+    assert.equal(kind("<#\n.SYNOPSIS\nMerges.\n.RATIONALE\nbecause\n#>", "scripts/merge.ps1"), "refused", "an unknown keyword anywhere makes Get-Help drop the block");
+    assert.equal(kind("<#\n.PARAMETER\nThe folder.\n#>", "scripts/merge.ps1"), "refused", ".PARAMETER takes a parameter name");
+    assert.equal(kind("<#\n.EXTERNALHELP\n#>", "scripts/merge.ps1"), "refused");
+    assert.equal(kind("<#\n.FORWARDHELPTARGETNAME Get-Item\n#>", "scripts/merge.ps1"), "directive");
     assert.equal(kind("<!-- prettier-ignore -->", "a.html"), "directive");
     assert.equal(kind("// @vitest-environment jsdom", "src/a.test.ts"), "directive");
     assert.equal(kind("/* @vite-ignore */"), "directive");
@@ -359,6 +382,12 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(kind("/** @type BuildOptions */"), "refused");
 
     const refusedLines = (text, file = "src/a.ts") => refusedComments(text, file, { root: checkout }).map((c) => c.line);
+    const header = (line) => `${"x();\n".repeat(line - 1)}// agent-tooling-timeout-ms: 600000\n`;
+    assert.deepEqual(refusedLines(header(10), "scripts/x.test.mjs"), [], "scripts/check-agent-tooling.mjs reads a header in a check's first ten lines");
+    assert.deepEqual(refusedLines(header(11), "scripts/x.test.mjs"), [11], "a header below the tenth line is never read");
+    assert.deepEqual(refusedLines("  // agent-tooling-timeout-ms: 600000\n", "scripts/x.test.mjs"), [1], "scripts/check-agent-tooling.mjs reads a header only at the start of its line");
+    assert.deepEqual(refusedLines("\t// agent-tooling-serial: holds a lock\n", "scripts/x.test.mjs"), [1]);
+    assert.deepEqual(refusedLines("x(); // agent-tooling-timeout-ms: 600000\n", "scripts/x.test.mjs"), [1]);
     assert.deepEqual(refusedLines("// workaround(webkit): first line\n// continues the note\n// still the note\nx();\n// @ts-ignore\n// not a continuation\n  // indented differently"), [6, 7]);
     assert.deepEqual(refusedLines("// workaround(webkit): note\nx(); // not a continuation"), [2]);
     const grammar = "# prose above\n# lookaround: steps aside for\n  # LuauRival, since it\n#\n# owns the suffix\nA:\n  match: x # trailing\n# lookaround: Rival\nB: 1\n# after code\n# lookaround: inside a comment\n";
@@ -421,6 +450,35 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.deepEqual(codeTokens(stripped), codeTokens(source), "stripping leaves the non-comment token stream identical");
     assert.equal(strip("a();\r\n// note\r\nb();\r\n", "src/a.ts"), "a();\r\nb();\r\n");
     assert.equal(strip("if (receiver.name === \"_G\") return; // not a node name\n", "src/a.ts"), "if (receiver.name === \"_G\") return; // not a node name\n", "the opt-out scripts/check-node-names.mjs reads survives the strip");
+    assert.equal(strip("const child = /* windows-hide: caller */ spawn(exe, args, options);\n", "scripts/a.mjs"), "const child = /* windows-hide: caller */ spawn(exe, args, options);\n", "the marker scripts/windows-hide.test.mjs reads survives the strip");
+    assert.equal(strip("<#\n.SYNOPSIS\nMerges the session folders.\n#>\n# prose\nparam([string]$Source)\n", "scripts/merge.ps1"), "<#\n.SYNOPSIS\nMerges the session folders.\n#>\nparam([string]$Source)\n", "comment-based help survives the strip and the prose beside it goes");
+    const help = "<#\n.SYNOPSIS\nMerges.\n#>";
+    assert.equal(strip(`param()\n${help}\n$x = 1\n`, "scripts/merge.ps1"), "param()\n$x = 1\n", "help between statements is not where Get-Help reads it");
+    assert.equal(strip(`param()\n$x = 1\n${help}\n`, "scripts/merge.ps1"), `param()\n$x = 1\n${help}\n`, "Get-Help reads script help at the end of the script");
+    assert.equal(strip(`$x = 1\n${help}\n\nfunction Merge-Folder {\n}\n`, "scripts/merge.ps1"), `$x = 1\n${help}\n\nfunction Merge-Folder {\n}\n`, "Get-Help reads function help one blank line above the function");
+    assert.equal(strip(`$x = 1\n${help}\n\n\nfunction Merge-Folder {\n}\n`, "scripts/merge.ps1"), "$x = 1\n\n\nfunction Merge-Folder {\n}\n", "two blank lines separate help from the function below it");
+    assert.equal(strip(`$x = 1\nfunction Merge-Folder {\n  ${help}\n  param()\n}\n`, "scripts/merge.ps1"), `$x = 1\nfunction Merge-Folder {\n  ${help}\n  param()\n}\n`, "Get-Help reads function help at the start of the function body");
+    assert.equal(strip(`$x = 1\nfunction Merge-Folder {\n  param()\n  'merged'\n  ${help}\n}\n$y = 2\n`, "scripts/merge.ps1"), `$x = 1\nfunction Merge-Folder {\n  param()\n  'merged'\n  ${help}\n}\n$y = 2\n`, "Get-Help reads function help at the end of the function body");
+    assert.equal(strip(`$x = 1\nfunction Merge-Folder (\n  [string]$Source\n) {\n  ${help}\n}\n$y = 2\n`, "scripts/merge.ps1"), `$x = 1\nfunction Merge-Folder (\n  [string]$Source\n) {\n  ${help}\n}\n$y = 2\n`, "a function head may spread its parameters over several lines");
+    assert.equal(strip(`$x = 1\nfunction Merge-Folder {\n  if ($x) {\n    'merged'\n    ${help}\n  }\n}\n$y = 2\n`, "scripts/merge.ps1"), `$x = 1\nfunction Merge-Folder {\n  if ($x) {\n    'merged'\n  }\n}\n$y = 2\n`, "help closing an if block is not function help");
+    const fnEnd = (inner) => `$x = 1\nfunction Merge-Folder {\n${inner}\n  ${help}\n}\n$y = 2\n`;
+    for (const inner of ["  '{'", "  \"}\"", "  $s = @'\n}\n'@", "  $h = @{ a = '}' }", "  Write-Output `{", "  \"$('}')\""]) {
+      assert.equal(strip(fnEnd(inner), "scripts/merge.ps1"), fnEnd(inner), `a brace inside ${JSON.stringify(inner.trim())} does not move the function body that holds the help`);
+    }
+    const ifEnd = `$x = 1\nfunction Merge-Folder {\n  if ($x) {\n    '}'\n    ${help}\n  }\n}\n$y = 2\n`;
+    assert.equal(strip(ifEnd, "scripts/merge.ps1"), "$x = 1\nfunction Merge-Folder {\n  if ($x) {\n    '}'\n  }\n}\n$y = 2\n", "a quoted brace does not turn help closing an if block into function help");
+    for (const [source, where] of [
+      [`'before'\n${help}\n$x = 1\n`, "after a string at the start of the script"],
+      [`$x = 1\n${help}\n'after'\n`, "before a string at the end of the script"],
+      [`\`$x = 1\n${help}\n$y = 2\n`, "after an escaped statement at the start of the script"],
+      [`$x = 1\nfunction Merge-Folder {\n  'first'\n  ${help}\n  'last'\n}\n`, "between strings in a function body"],
+    ]) {
+      assert.equal(strip(source, "scripts/merge.ps1").includes(".SYNOPSIS"), false, `help ${where} is not where Get-Help reads it`);
+    }
+    for (const head of ["($n = (1 + 2))", "($n = ')')", "($n = '{')"]) {
+      const source = `$x = 1\nfunction Merge-Folder ${head} {\n  ${help}\n}\n$y = 2\n`;
+      assert.equal(strip(source, "scripts/merge.ps1"), source, `a function head ${head} still opens a function body`);
+    }
     assert.equal(strip("describe(\"x\", () => {\n  // note\n\n  test();\n});\n", "src/a.ts"), "describe(\"x\", () => {\n  test();\n});\n", "a removed run directly after an opening bracket takes the blank line below it");
     assert.equal(strip("if (a) {\n  b();\n\n  // note\n}\n", "src/a.ts"), "if (a) {\n  b();\n}\n", "a removed run directly before a closing bracket takes the blank line above it");
     assert.equal(strip("f({\n  // one\n\n  // two\n});\n", "src/a.ts"), "f({\n});\n", "removals that meet across a blank line keep neither the blank nor any code between them");
@@ -495,8 +553,6 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
   }
   console.log("PASS: comment policy classifier, scanner, strip function and edit route");
 }
-// Control bytes are built from their code points so that no tool writing this
-// file can decode an escape into the byte itself.
 const nul = String.fromCharCode(0), esc = String.fromCharCode(0x1b), bs = String.fromCharCode(92);
 const writeHazards = [
   [event("Write", { file_path: "src/key.ts", content: `const SEP = "${nul}";\n` }), true],
@@ -510,7 +566,6 @@ const writeHazards = [
   [event("Bash", { command: `[IO.File]::WriteAllText('C:${bs}w${bs}a.ts', $t); [IO.File]::ReadAllText("/tmp/a")` }), false],
   [event("Bash", { command: `$w = "C:/w"; [System.IO.File]::WriteAllText("$w/a.ts", $t); [IO.File]::ReadAllText((Join-Path $PWD 'a'))` }), false],
   [event("Bash", { command: `Get-ChildItem | % { [IO.File]::ReadAllText($_.FullName) }` }), false],
-  // Review round 1 (PR #754): expression arguments, text that only looks like a call, variable roots.
   [event("Bash", { command: `[IO.File]::WriteAllText((Join-Path 'packages' 'a.ts'), $t)` }), true],
   [event("Bash", { command: `[IO.File]::WriteAllText(('packages/a.ts'), $t)` }), true],
   [event("Bash", { command: "[IO.File]::WriteAllText( `\n  'packages/a.ts', $t)" }), true],
@@ -520,7 +575,6 @@ const writeHazards = [
   [event("Bash", { command: `$w = "$env:TEMP/x.ts"; [IO.File]::WriteAllText($w, $t)` }), false],
   [event("Bash", { command: `$r = "C:/w"; $w = "$r/a.ts"; [IO.File]::WriteAllText($w, $t)` }), false],
   [event("Bash", { command: `$r = "src"; $w = "$r/a.ts"; [IO.File]::WriteAllText($w, $t)` }), true],
-  // Review round 2 (PR #754): compact assignments, named Join-Path parameters, subexpressions.
   [event("Bash", { command: `$p='packages/a.ts'; [IO.File]::WriteAllText($p, $t)` }), true],
   [event("Bash", { command: `[IO.File]::WriteAllText((Join-Path -ChildPath 'a.ts' -Path 'packages'), $t)` }), true],
   [event("Bash", { command: `[IO.File]::WriteAllText((Join-Path -Path:packages -ChildPath:a.ts), $t)` }), true],
@@ -528,7 +582,6 @@ const writeHazards = [
   [event("Bash", { command: `[IO.File]::WriteAllText((Join-Path -Path $($PWD) -ChildPath 'a.ts'), $t)` }), false],
   [event("Bash", { command: `[IO.File]::WriteAllText((Join-Path (Get-Location) 'a.ts'), $t)` }), false],
   [event("Bash", { command: `[IO.File]::WriteAllText((Join-Path -ChildPath 'a.ts' -Path $PWD), $t)` }), false],
-  // Review round 3 (PR #754): a $() subexpression in a double-quoted string runs; common switches take no value.
   [event("Bash", { command: `Write-Output "$([IO.File]::WriteAllText('packages/a.ts', 'x'))"` }), true],
   [event("Bash", { command: `Write-Output "$([IO.File]::WriteAllText('C:/w/a.ts', 'x'))"` }), false],
   [event("Bash", { command: `$r = "C:/w"; Write-Output "$([IO.File]::WriteAllText("$r/a.ts", 'x'))"` }), false],
@@ -554,7 +607,6 @@ const checks = [
   [event("apply_patch", { command: "*** Begin Patch\n*** Delete File: packages/sparkdown/language/sparkdown.language-grammar.json\n*** End Patch" }), true],
   [event("apply_patch", { command: "*** Begin Patch\n*** Add File: docs/example.txt\n+*** Update File: packages/sparkdown/language/sparkdown.language-grammar.json\n*** End Patch" }), false],
   ...writeHazards,
-  // Codex's shell tool may be bash, where the quotes survive and no other tool exists (PR #803 round 1).
   [event("Bash", { command: `gh pr checks 1 --jq '.[] | select(.name == "test-suite")'` }), false],
 ];
 const config = JSON.parse(fs.readFileSync(path.join(root, ".codex/hooks.json"), "utf8"));
@@ -575,7 +627,6 @@ assert.throws(() => normalize(event("apply_patch", {}), "codex"), /missing/);
 assert.throws(() => normalize(event("Bash", {}), "codex"), /missing/);
 assert.throws(() => normalize({}, "unknown"), /adapter/);
 
-// The portable command is also checked explicitly with Git for Windows bash.
 const bash = process.platform === "win32" ? testShell() : "bash";
 const portable = spawnSync(bash, ["-c", hook.command], { cwd: path.join(root, "scripts"), input: JSON.stringify(checks[0][0]), encoding: "utf8", windowsHide: true });
 assert.equal(portable.status, 0, portable.stderr);
@@ -591,8 +642,6 @@ if (process.platform === "win32") {
   assert.equal(result.status, 2, "a missing Windows runtime must block, not report a non-blocking hook failure");
   assert.match(result.stderr, /Repository hook|node|runtime/i);
 }
-// Claude-only tool shapes: MultiEdit content, the PowerShell dialect, and the
-// PowerShell hook that .claude/settings.json ships, run under bash.
 assert.ok(decide(normalize(event("MultiEdit", { file_path: "src/key.ts", edits: [{ old_string: "a", new_string: "b" }, { old_string: "c", new_string: `d${nul}` }] }), "claude")));
 assert.equal(decide(normalize(event("Bash", { command: `[IO.File]::ReadAllText('a.ts')` }), "claude")), null, "bash has no .NET calls");
 const dotnetHook = settings.hooks.PreToolUse.find((g) => g.matcher === "PowerShell").hooks[0].command;
@@ -603,7 +652,6 @@ for (const [command, blocked] of [[`$p = 'packages/a.ts'; [IO.File]::WriteAllTex
   assert.equal(run.status, 0, run.stderr);
   assert.equal(/permissionDecision.*deny/.test(run.stdout), blocked, command + " through the shipped hook");
 }
-// gh --jq filters holding a double quote reach jq damaged through Windows PowerShell 5.1 (#798).
 const jqHook = settings.hooks.PreToolUse.find((g) => g.matcher === "PowerShell").hooks[1].command;
 const listing = `gh api repos/o/r/issues/1/comments --paginate --jq '.[] | [.id, (.body | split("${bs}n")[0])] | @tsv'`;
 assert.equal(decide(normalize(event("Bash", { command: listing }), "claude")), null, "bash passes embedded double quotes intact");
@@ -611,7 +659,6 @@ for (const [command, blocked] of [
   [listing, true],
   [`gh run list -q '.[] | select(.name | test("ubuntu"))'`, true],
   ['gh pr view 1 --jq=".title + `"x`""', true],
-  // Review round 1 (PR #803): an attached -q value, and gh after an assignment or a wrapper.
   [`gh api rate_limit -q'.rate.limit | tostring == "5000"'`, true],
   [`$out = gh api x --jq '.a == "b"'`, true],
   [`env gh api x --jq '.a == "b"'`, true],

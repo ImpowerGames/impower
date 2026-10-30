@@ -7,15 +7,12 @@ import { spawn, spawnSync } from "node:child_process";
 import { testShell } from "../skills/drive-web-editor/redgreen.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-// The machine's temp directory, which a run under check-agent-tooling has
-// redirected into this checkout (.agents/skills/drive-web-editor/worktree-temp.mjs).
 const tmp = process.env.IMPOWER_SYSTEM_TMPDIR || os.tmpdir();
 const stateDir = fs.mkdtempSync(path.join(tmp, "impower-title-test-"));
 console.log("state directory: " + stateDir);
 process.env.IMPOWER_SESSION_TITLE_DIR = stateDir;
 const { deriveTitle, deriveWorktree, afterTool, gate, statePath, sessionKey, ackCommand, worktreeId }= await import("./session-title.mjs");
 
-// A disposable checkout whose worktrees sit where the test commands point, standing in for the ones those commands create.
 const fixture = fs.mkdtempSync(path.join(tmp, "impower-title-repo-"));
 const repo = path.join(fixture, "checkout");
 fs.mkdirSync(repo);
@@ -45,33 +42,27 @@ assert.equal(deriveTitle(`if true; then ${create}; fi`), "FIX #302: filterimage 
 assert.equal(deriveTitle(`# set up\n${create}`), "FIX #302: filterimage layers", "a comment ends at the line break");
 assert.equal(deriveTitle(`${create} # new worktree`), "FIX #302: filterimage layers");
 assert.equal(deriveTitle(`git worktree add -b fix/302-filterimage-layers ../a#b origin/main`), "FIX #302: filterimage layers", "# inside a word is not a comment");
-// Separators and keywords inside quotes do not start a command.
 for (const quoted of [`echo 'note; ${create}'`, `echo "note && ${create}"`, `echo note\\; ${create}`, `git commit -m "then ${create}"`, `Write-Output note\`; ${create}`, `Write-Output no-op #; ${create}`, `# ${create}`, `echo "a\`"; ${create}"`]) {
   assert.equal(deriveTitle(quoted), null, quoted);
 }
 assert.deepEqual(deriveWorktree("git worktree add --lock --reason 'x y' -b docs/5-two-words C:\\work\\wt HEAD"), { branch: "docs/5-two-words", target: "C:\\work\\wt", title: "DOCS #5: two words" }, "Windows paths keep their backslashes");
 
 const shell = (session_id, command, tool_name = "Bash") => ({ session_id, cwd: repo, tool_name, tool_input: { command } });
-// A shell command run from inside a worktree, where the session-title gate applies.
 const inWt = (session_id, command, tool_name = "Bash", cwd = wt302) => ({ ...shell(session_id, command, tool_name), cwd });
 const rename = (session_id, title, tool_name = "mcp__ccd_session_mgmt__set_session_title", target = "self") => ({ session_id, tool_name, tool_input: tool_name.endsWith("set_thread_title") ? { title } : { session_id: target, title } });
 
-// A worktree command that created nothing (it failed, or its branch has no worktree) records nothing.
 assert.equal(afterTool(shell("failed", "git worktree add -b fix/303-never-created ../z origin/main"), "codex"), null);
 assert.equal(gate(inWt("failed", "git status"), "codex"), null);
 assert.equal(afterTool({ ...shell("failed", create), cwd: tmp }, "codex"), null, "outside the repository no worktree is listed");
-// A failed add for a branch that already has a worktree elsewhere records nothing either.
 const duplicate = "git worktree add -b fix/302-filterimage-layers ../second-copy origin/main";
 assert.notEqual(git(...duplicate.split(" ").slice(1)).status, 0, "git refuses the duplicate branch");
 assert.equal(afterTool(shell("failed", duplicate), "codex"), null);
 assert.equal(gate(inWt("failed", "git status"), "codex"), null);
 
-// Unrelated sessions and commands record nothing and are never gated.
 assert.equal(afterTool(shell("a", "git status"), "claude"), null);
 assert.equal(fs.existsSync(statePath("a")), false);
 assert.equal(gate(inWt("a", "git status"), "claude"), null);
 
-// Creating the worktree records a pending title and names the exact rename call.
 const context = afterTool(shell("a", create), "claude");
 assert.match(context, /FIX #302: filterimage layers/);
 assert.match(context, /set_session_title/);
@@ -80,15 +71,12 @@ assert.ok(statePath("a").startsWith(stateDir), "state lives in the private direc
 const fromRoot = path.relative(root, statePath("a"));
 assert.ok(fromRoot.startsWith("..") || path.isAbsolute(fromRoot), "state is never inside the checkout: " + fromRoot);
 
-// The next shell command is denied until the rename happens.
 const denied = gate(inWt("a", "git status"), "claude");
 assert.match(denied, /FIX #302: filterimage layers/);
 assert.match(gate(inWt("a", "Get-ChildItem", "PowerShell"), "claude"), /set_session_title/);
 
-// A second session in another worktree is unaffected.
 assert.equal(gate(inWt("b", "git status"), "claude"), null);
 
-// A rename with a different title does not confirm; the exact title does.
 assert.match(afterTool(rename("a", "Something else"), "claude"), /FIX #302: filterimage layers/);
 assert.ok(gate(inWt("a", "git status"), "claude"));
 assert.match(afterTool(rename("a", "FIX #302: filterimage layers", undefined, "local_other"), "claude"), /FIX #302/, "renaming another session does not confirm");
@@ -96,7 +84,6 @@ assert.ok(gate(inWt("a", "git status"), "claude"));
 assert.equal(afterTool(rename("a", "FIX #302: filterimage layers"), "claude"), null);
 assert.equal(gate(inWt("a", "git status"), "claude"), null);
 
-// A working directory given by its Windows 8.3 short name still matches Git's long-form paths.
 if (process.platform === "win32") {
   const short = spawnSync("cmd.exe", ["/d", "/c", `for %I in ("${repo}") do @echo %~sI`], { encoding: "utf8", windowsHide: true, windowsVerbatimArguments: true }).stdout.trim();
   if (short && short.toLowerCase() !== repo.toLowerCase()) {
@@ -105,11 +92,9 @@ if (process.platform === "win32") {
   } else console.log("SKIP: 8.3 short names are unavailable for " + repo);
 }
 
-// A later worktree in the same session asks again.
 afterTool(shell("a", "git worktree add -b feat/9-second-thing ../y origin/main"), "claude");
 assert.match(gate(inWt("a", "ls", "Bash", wtY), "claude"), /FEAT #9: second thing/);
 
-// Codex names its own tool and offers the acknowledgement fallback, which the gate lets through.
 const codexContext = afterTool(shell("c", create), "codex");
 assert.match(codexContext, /set_thread_title/);
 const ack = codexContext.match(/`(node [^`]+ confirm [^`]+)`/)?.[1];
@@ -126,7 +111,6 @@ for (const other of [`node "C:/elsewhere/session-title.mjs" confirm ${keyC} ${id
 assert.equal(afterTool(rename("c", "FIX #302: filterimage layers", "set_thread_title"), "codex"), null);
 assert.equal(gate(inWt("c", "git status"), "codex"), null);
 
-// The acknowledgement command confirms only the named session.
 afterTool(shell("d", create), "codex");
 afterTool(shell("e", create), "codex");
 const cli = path.join(root, ".agents/hooks/session-title.mjs");
@@ -141,7 +125,6 @@ assert.equal(confirm(sessionKey("unknown")).status, 1);
 assert.equal(confirm("d").status, 2, "only a session key is accepted");
 assert.equal(spawnSync(process.execPath, [cli, "confirm", sessionKey("e")], { encoding: "utf8", env: process.env, windowsHide: true }).status, 2, "a worktree id is required");
 
-// Session ids with spaces or shell syntax get a usable acknowledgement that contains neither.
 const bashShell = process.platform === "win32" ? testShell() : "bash";
 for (const odd of ["space id", "x;echo${IFS}INJECTED", "q'uote\"d"]) {
   const message = afterTool(shell(odd, create), "codex");
@@ -155,10 +138,8 @@ for (const odd of ["space id", "x;echo${IFS}INJECTED", "q'uote\"d"]) {
   assert.equal(gate(inWt(odd, "git status"), "codex"), null, "the prescribed command clears the gate for " + odd);
 }
 
-// Session ids cannot escape the state directory.
 assert.equal(path.dirname(statePath("../../evil")), stateDir);
 
-// Distinct ids never share state, including ids that differ only in case or punctuation.
 afterTool(shell("x/y", create), "claude");
 afterTool(shell("x?y", "git worktree add -b feat/9-second-thing ../y origin/main"), "claude");
 afterTool(shell("X/Y", create), "claude");
@@ -170,8 +151,6 @@ afterTool(rename("x?y", "FEAT #9: second thing"), "claude");
 assert.match(gate(inWt("x/y", "ls"), "claude"), /FIX #302/);
 assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
 
-// Sibling writers that share one session id (subagents of one orchestrator) each own a worktree; a pending title
-// gates only the shell commands that run in or name its own worktree, and each is cleared on its own.
 {
   const wt9 = wtY;
   const at = (cwd, command) => ({ ...shell("shared", command), cwd });
@@ -185,11 +164,9 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
   assert.equal(gate(at(tmp, "git status"), "claude"), null);
   assert.match(gate(at(repo, `cd ${wt9.replaceAll("\\", "/")} && git status`), "claude"), /FEAT #9/, "entering a pending worktree from elsewhere is gated");
   assert.equal(gate(at(repo, "git -C ../y-other status"), "claude"), null, "a sibling directory with a longer name is not the worktree");
-  // The rename of one title clears only that worktree.
   assert.equal(afterTool(rename("shared", "FIX #302: filterimage layers"), "claude"), null);
   assert.equal(gate(at(wt302, "git status"), "claude"), null);
   assert.match(gate(at(wt9, "git status"), "claude"), /FEAT #9/);
-  // A rename issued from inside the sibling's worktree does not acknowledge this worktree's title.
   afterTool(shell("shared", create), "claude");
   const siblingRename = afterTool({ ...rename("shared", "FIX #302: filterimage layers"), cwd: wt9 }, "claude");
   assert.match(siblingRename, /FEAT #9: second thing/, "the sibling is told its own title");
@@ -197,12 +174,10 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
   assert.equal(afterTool({ ...rename("shared", "FIX #302: filterimage layers"), cwd: wt302 }, "claude"), null);
   assert.equal(gate(at(wt302, "git status"), "claude"), null, "a rename from its own worktree acknowledges it");
   afterTool(shell("shared", create), "claude");
-  // The event names no writer, so a rename from outside every pending worktree acknowledges the entry with that exact title and no other.
   assert.equal(afterTool({ ...rename("shared", "FEAT #9: second thing"), cwd: repo }, "claude"), null);
   assert.equal(gate(at(wt9, "git status"), "claude"), null);
   assert.match(gate(at(wt302, "git status"), "claude"), /FIX #302/, "the other worktree stays pending");
   afterTool(shell("shared", "git worktree add -b feat/9-second-thing ../y origin/main"), "claude");
-  // The acknowledgement command clears only the worktree it names.
   afterTool(shell("shared", create), "claude");
   assert.equal(gate(at(wt9, ackCommand("shared", wt302)), "claude") === null, false, "the sibling's acknowledgement does not clear this worktree");
   const ackWt9 = ackCommand("shared", wt9);
@@ -214,7 +189,6 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
   afterTool(rename("shared", "FIX #302: filterimage layers"), "claude");
 }
 
-// Sibling writers' hooks are separate processes: updates to one session's record are serialised, so none is lost.
 {
   const post = path.join(root, ".agents/hooks/post-tool-use.mjs");
   const runPost = (payload) => new Promise((resolve, reject) => {
@@ -232,7 +206,6 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
     return { target, title: `FIX #${600 + i}: race ${i}`, payload: shell("race", `git worktree add -b ${branch} ../race/${i} origin/main`) };
   };
   const [first, second, ...rest] = [0, 1, 2, 3, 4, 5, 6, 7].map(creation);
-  // While another hook holds the session's lock, an update waits for it rather than overwriting the record.
   const lock = statePath("race") + ".lock";
   fs.mkdirSync(stateDir, { recursive: true });
   fs.writeFileSync(lock, "held");
@@ -242,12 +215,10 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
   fs.rmSync(lock);
   await waiting;
   assert.match(gate(inWt("race", "ls", "Bash", first.target), "claude"), new RegExp(first.title));
-  // Concurrent hook processes each keep their own entry.
   await Promise.all([second, ...rest].map((created) => runPost(created.payload)));
   for (const created of [first, second, ...rest]) assert.match(gate(inWt("race", "ls", "Bash", created.target), "claude"), new RegExp(created.title), created.title);
 }
 
-// A command that names the worktree through a different spelling of its path is still gated.
 {
   const wt = path.join(fixture, "spelling");
   ok(git("worktree", "add", "-q", "-b", "docs/700-spelled-path", wt));
@@ -262,9 +233,6 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
   }
 }
 
-// A Feature's coordinator: the init or takeover that writes its run record records the title the record holds,
-// every shell command of that session is refused until the rename, and a coordinator resumed on a session that
-// already carries the title is not gated again.
 {
   const records = fs.mkdtempSync(path.join(tmp, "impower-title-orch-"));
   const record = path.join(records, "run.json");
@@ -287,16 +255,13 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
   assert.equal(gate(at("orch", "git status"), "claude"), null, "the rename clears the gate");
   assert.equal(afterTool(at("orch", init), "claude"), null, "a resumed coordinator on the titled session is not asked again");
   assert.equal(gate(at("orch", "git status", tmp), "claude"), null);
-  // Renaming the session away forgets the title, so resuming the coordinator there asks again.
   assert.equal(afterTool(rename("orch", "Something unrelated"), "claude"), null);
   assert.match(afterTool(at("orch", init), "claude"), new RegExp(title), "a session no longer carrying the title is asked again");
   assert.match(gate(at("orch", "git status"), "claude"), new RegExp(title));
   assert.equal(afterTool(rename("orch", title), "claude"), null);
   assert.equal(gate(at("orch", "git status"), "claude"), null);
-  // A rename of another session leaves this session's acknowledgement in place.
   afterTool(rename("orch", "Another session's name", undefined, "local_other"), "claude");
   assert.equal(afterTool(at("orch", init), "claude"), null);
-  // A takeover in a new session records the carried title; without a rename tool the acknowledgement clears it.
   const resume = `node .agents/skills/orchestrate-issues/checkpoint.mjs resume --record ${record.replaceAll("\\", "/")} --checkout C:/work/impower --repo acme/widgets --issue 1775`;
   const codexTold = afterTool(at("orch-next", resume), "codex");
   assert.match(codexTold, new RegExp(title));
@@ -308,13 +273,11 @@ assert.match(gate(inWt("X/Y", "ls"), "claude"), /FIX #302/);
   assert.equal(acked.status, 0, acked.stderr);
   assert.equal(gate(at("orch-next", "git status"), "codex"), null);
   assert.equal(afterTool(at("orch-next", resume), "codex"), null, "an acknowledged title is not asked again");
-  // A record without an orchestration title records nothing.
   fs.writeFileSync(record, JSON.stringify({ version: 2, revision: 1, issue: 1775, coordinator: { session: "x" } }));
   assert.equal(afterTool(at("orch-plain", init), "claude"), null);
   fs.rmSync(records, { recursive: true, force: true });
 }
 
-// Native hook configuration reaches the shared source on both runners.
 const bash = process.platform === "win32" ? testShell() : "bash";
 const settings = JSON.parse(fs.readFileSync(path.join(root, ".claude/settings.json"), "utf8"));
 const run = (command, payload) => spawnSync(bash, ["-c", command], { cwd: path.join(root, "scripts"), input: typeof payload === "string" ? payload : JSON.stringify(payload), env: { ...process.env, CLAUDE_PROJECT_DIR: root }, encoding: "utf8", windowsHide: true });
@@ -336,8 +299,6 @@ out = run(claudePre.hooks[0].command, inWt("f", "git status"));
 assert.equal(out.status, 0, out.stderr);
 assert.equal(out.stdout.trim(), "");
 assert.equal(run(claudePre.hooks[0].command, "{broken").status, 2, "a broken gate blocks");
-// The coordinator's init, from the main checkout with a private record path, reaches the hook through the configured
-// command, which no path named "worktree" carries.
 {
   const records = fs.mkdtempSync(path.join(tmp, "impower-title-native-"));
   const record = path.join(records, "run.json");
@@ -363,7 +324,6 @@ assert.ok(new RegExp(codexPost.matcher).test("Bash") && new RegExp(codexPost.mat
 const codexPre = codex.hooks.PreToolUse[0].hooks[0];
 const native = process.platform === "win32" ? ["powershell.exe", (c) => ["-NoProfile", "-NonInteractive", "-Command", c], "commandWindows"] : ["bash", (c) => ["-c", c], "command"];
 const runCodex = (hook, payload) => spawnSync(native[0], native[1](hook[native[2]]), { cwd: path.join(root, "scripts"), input: JSON.stringify(payload), encoding: "utf8", env: process.env, windowsHide: true });
-// Codex runs PostToolUse after a failed command too, with only the output text as tool_response.
 out = runCodex(codexPost.hooks[0], { ...shell("h", "git worktree add -b fix/1-probe-failure Z:/none/probe no-such-ref"), hook_event_name: "PostToolUse", tool_response: "Preparing worktree (new branch 'fix/1-probe-failure')\nfatal: not a valid object name: 'no-such-ref'\n" });
 assert.equal(out.status, 0, out.stderr);
 assert.equal(out.stdout.trim(), "");

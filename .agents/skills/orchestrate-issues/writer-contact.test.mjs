@@ -1,14 +1,3 @@
-// Exercises how the coordinator and its writers stay in contact: every
-// route's brief carries the coordinator's recorded session id and its report
-// mechanism from the runner configuration, the coordinator id is a session id
-// or nothing, the writer's acknowledgement confirms the model, effort and
-// permission mode, an unacknowledged brief becomes a delivery to settle after
-// one check-in interval, the periodic check-in is recorded and recreated on
-// takeover, the wake sweep reads only idle writers and flags dead reviewer
-// launches, an idle CLI writer can be opened in the app, and the retired Claude routes are refused. Each
-// scenario reports on its own, so a run shows every one that fails. Runs in
-// a scratch repository under the system temp directory and launches only a
-// stand-in writer.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -65,8 +54,6 @@ try {
     'const wait = () => { if (fs.existsSync(stop) || Date.now() > end) process.exit(0); setTimeout(wait, 100); };',
     "wait();",
   ].join("\n"));
-  // A claude-cli writer claimed from a plan, briefed and launched as the
-  // stand-in, once its stream has started.
   const cliWriter = (name, number) => {
     const f = fresh(name);
     const snap = snapshotOf([ticket(number)]);
@@ -87,15 +74,12 @@ try {
     const end = (owner) => { fs.writeFileSync(stop, ""); waitFor(() => run.ownerStatus(owner).status === "exited", "the stand-in writer to exit"); };
     return { f, snap, pre, planFile, prompt, args, launch, end, number };
   };
-  // A takeover of a run, as another coordinator session on this machine.
   const NEXT = "local_4d5e6f7a-8b9c-4d0e-8f1a-2b3c4d5e6f7a";
   const takeOver = (w) => {
     const file = path.join(w.f.artifacts, "takeover.json");
     run.initRecord({ record: file, checkout: w.f.dir, repository: "acme/widgets", issue: 300, coordinator: NEXT, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #300.", takeover: true, observations: { sessions: { [COORDINATOR]: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
     return { file, change: (fn) => run.updateRecord(file, { expectRevision: run.readRecord(file).revision, coordinator: NEXT }, fn).output, plan: (n, now) => entryOf(run.planDispatch({ record: run.readRecord(file), snapshot: w.snap, preflights: w.pre, freeBytes: 100 * GB, defaults, census: () => [], ...(now && { now }) }), n) };
   };
-
-  // --- Routes ---------------------------------------------------------------
 
   scenario("claude-cli is the only Claude dispatch route; retired routes are refused with their reasons", () => {
     assert.deepEqual(defaults.routes.claude.map((r) => r.route), ["claude-cli"]);
@@ -113,8 +97,6 @@ try {
     assert.match(entryOf(p, 301).reason, /claude-adopted is retired as a dispatch route: the app resumes an adopted session/);
     assert.match(entryOf(p, 301).reason, /claude-desktop is retired as a dispatch route: a desktop session starts only/);
   });
-
-  // --- The coordinator's id, mode and title -----------------------------------
 
   scenario("init refuses a coordinator id that is not a session id, naming the expected shape", () => {
     run.checkCoordinatorId("claude", COORDINATOR);
@@ -159,8 +141,6 @@ try {
     assert.equal(again("another-title").record.title, "ORCH #300: later title", "the parent issue keeps the title it was given");
   });
 
-  // --- Briefs on every route ------------------------------------------------
-
   scenario("every route's brief carries the recorded coordinator id, its report mechanism or fallback, the verbatim self-check and the dead-launch rule", () => {
     for (const [harness, coordinator] of [["claude", COORDINATOR], ["codex", CODEX_THREAD]]) {
       for (const [vendor, routes] of Object.entries(defaults.routes)) {
@@ -192,8 +172,6 @@ try {
       }
     }
   });
-
-  // --- A CLI writer from launch to acknowledgement -----------------------------
 
   scenario("a CLI dispatch records the permission mode it requests, launches only at that mode and keeps the brief it sent", () => {
     const w = cliWriter("cli-mode", 331);
@@ -266,20 +244,15 @@ try {
     const open = (runner = (o) => { handed = o.sessionId; return { requested: true, pid: 1 }; }) => run.openWriter(w.f.file, { coordinator: w.f.coordinator, expectRevision: run.readRecord(w.f.file).revision, ticket: 335, executable: process.execPath, runner });
     assert.throws(() => open(), /is live .*; only an idle writer/);
     w.end(owner);
-    // An open whose outcome was lost is settled from the app's session list,
-    // never run again.
     open(() => { throw new Error("the reply was lost"); });
     assert.match(entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 335).reason, /uncertain outcome \(the reply was lost\); look for local_.* and never run open again/);
     assert.throws(() => open(), /already opened \(open uncertain\)/);
     assert.equal(handed, null);
     assert.throws(() => w.f.change((r) => run.opened(r, { ticket: 335, session: "local_00000000-0000-4000-8000-000000000000" })), new RegExp(`local_${WRITER_SESSION}`), "the app session is the one the writer's stream names");
     w.f.change((r) => run.opened(r, { ticket: 335, session: `local_${WRITER_SESSION}` }));
-    // The record keeps the CLI process as the writer: its transcript is still
-    // its stream, and its ended turn is still read as the CLI writer's.
     const after = planOf(w.f, w.snap, { preflights: w.pre, observations: { sessions: { [`local_${WRITER_SESSION}`]: { state: "running" } } } });
     assert.deepEqual([entryOf(after, 335).action, entryOf(after, 335).owner.handle.kind, entryOf(after, 335).transcript.from], ["collect-report", "process", out]);
     assert.equal(run.readRecord(w.f.file).tickets[335].owner.opened.session, `local_${WRITER_SESSION}`);
-    // A second writer's open runs the handoff with the session its stream names.
     const v = cliWriter("cli-open-2", 336);
     const second = v.launch();
     v.end(second.owner);
@@ -302,7 +275,6 @@ try {
     const resumeIt = (args, spawner) => run.resumeWriter(w.f.file, { coordinator: w.f.coordinator, expectRevision: run.readRecord(w.f.file).revision, ticket: 371, executable: process.execPath, args, prompt: answerFile, ...(spawner && { spawner }) });
     assert.throws(() => resumeIt(resumeArgs("00000000-0000-4000-8000-000000000000")), new RegExp(`exactly one --resume ${WRITER_SESSION}`), "only the session the writer's stream names is resumed");
     assert.throws(() => resumeIt(resumeArgs(WRITER_SESSION, "high")), /--effort must be medium/, "the writer resumes at its own effort");
-    // A resume whose outcome was lost is settled by reconcile, never run again.
     assert.equal(resumeIt(resumeArgs(WRITER_SESSION), () => { throw new Error("the host lost the reply"); }).uncertain, true);
     assert.match(entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 371).reason, /resume .* has no recorded outcome \(the host lost the reply\); run reconcile/);
     assert.throws(() => resumeIt(resumeArgs(WRITER_SESSION)), /no recorded outcome; settle it with reconcile/);
@@ -332,7 +304,6 @@ try {
     const w = cliWriter("cli-stalled", 375);
     const { owner, out } = w.launch();
     w.f.change((r) => run.acknowledged(r, { ticket: 375, model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", evidence: "message from the writer" }));
-    // The writer ended its turn on a wait ("I'll pick up when the reviewer exits").
     w.end(owner);
     const stalled = entryOf(planOf(w.f, w.snap, { preflights: w.pre }), 375);
     assert.equal(stalled.action, "collect-report");
@@ -352,7 +323,6 @@ try {
     const w = cliWriter("cli-closed", 376);
     const { owner, out } = w.launch();
     w.end(owner);
-    // The ticket closed with its deliverable merged while the writer's last message was lost.
     const closed = snapshotOf([ticket(376, { state: "closed", delivered: true }), ticket(377, { prs: [{ number: 977, state: "OPEN", isDraft: true, branch: "fix/377-thing", head: "h", rounds: 2 }] })]);
     const jobs = path.join(tmp, "cli-closed.review-jobs");
     const dir = path.join(jobs, "pr-977", "round-3");
@@ -369,7 +339,6 @@ try {
 
   scenario("a launch whose outcome was lost and whose writer then ended keeps that writer, so its request is answered by resume", () => {
     const w = cliWriter("cli-lost-launch", 378);
-    // The writer ran and ended its turn, but the launch outcome was never recorded.
     const launchDir = run.launchDirOf(run.readRecord(w.f.file).tickets[378].pending, 378);
     fs.mkdirSync(launchDir, { recursive: true });
     fs.copyFileSync(w.prompt, path.join(launchDir, "prompt.txt"));
@@ -392,7 +361,6 @@ try {
     const w = cliWriter("cli-takeover-resume", 379);
     const { owner } = w.launch();
     w.end(owner);
-    // A record written before stored briefs kept their own coordinator.
     w.f.change((r) => { delete r.tickets[379].owner.brief.coordinator; });
     const t = takeOver(w);
     assert.equal(t.plan(379).action, "collect-report");
@@ -455,7 +423,6 @@ try {
     fs.mkdirSync(state, { recursive: true });
     const plan = path.join(round, "review.plan");
     fs.writeFileSync(plan, JSON.stringify({ worktree: f.dir, pr: 984, journal: path.join(state, "journal.jsonl"), steps: { review: {} }, first: "review" }));
-    // start-coordinator was given the launch-state directory as its job directory.
     fs.writeFileSync(path.join(state, "review.coordinator.out.log"), "");
     fs.writeFileSync(path.join(state, "review.coordinator.err.log"), "Supply reviewedHead from the journal\n");
     const dead = run.deadLaunches(path.join(tmp, "dead-launch-state-dir.review-jobs"), [{ ticket: 384, pr: 984 }], () => []);
@@ -494,8 +461,6 @@ try {
     const w = cliWriter("cli-takeover-brief", 373);
     const { owner } = w.launch();
     const t = takeOver(w);
-    // The contact notice comes first and on its own: a resent brief's header
-    // tells a writer that already has its assignment to ignore the copy.
     assert.equal(t.plan(373, Date.now() + 31 * MINUTE).action, "update-contact");
     const resentFirst = t.change((r) => run.deliver(r, { ticket: 373, retry: true })).message;
     assert.match(resentFirst, /ignore this copy/);
@@ -523,7 +488,6 @@ try {
     const { owner } = w.launch();
     w.f.change((r) => run.acknowledged(r, { ticket: 386, model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", evidence: "message from the writer" }));
     const { id } = w.f.change((r) => run.request(r, { ticket: 386, text: "Round 3 complete; may I start round 4?", source: "message from the writer" }));
-    // The writer received the first copy and carried on; its outcome was lost.
     w.f.change((r) => run.answer(r, { ticket: 386, request: id, text: "Round 4 is authorized." }));
     const t = takeOver(w);
     assert.equal(t.plan(386).action, "answer-request");
@@ -542,7 +506,6 @@ try {
     const w = cliWriter("cli-takeover-contact", 374);
     const { owner } = w.launch();
     w.f.change((r) => run.acknowledged(r, { ticket: 374, model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", evidence: "message from the writer" }));
-    // A record written before stored briefs kept their own coordinator.
     w.f.change((r) => { delete r.tickets[374].owner.brief.coordinator; });
     const t = takeOver(w);
     const due = t.plan(374);
@@ -550,9 +513,6 @@ try {
     assert.match(due.reason, new RegExp(`briefed to report to ${COORDINATOR}, not this coordinator ${NEXT}`));
     assert.throws(() => t.change((r) => run.deliver(r, { ticket: 374, retry: true })), /acknowledged its brief/);
     const notice = t.change((r) => run.contact(r, { ticket: 374, defaults })).message;
-    // A coordinator can take the run back after another took it over, so a
-    // notice never asks the writer to skip one that names a coordinator it
-    // has heard of before.
     assert.doesNotMatch(notice, /ignore/i, "a contact notice is never one the writer is told to ignore");
     assert.match(notice, new RegExp(`your coordinator is now session ${NEXT} .*took over from ${COORDINATOR}\\. Send every further report, blocker and question to ${NEXT} as a cross-session message \\(SendMessage`));
     const queued = t.plan(374);
@@ -561,8 +521,6 @@ try {
     assert.throws(() => t.change((r) => run.contact(r, { ticket: 374, defaults })), /--retry/);
     t.change((r) => run.contacted(r, { ticket: 374, evidence: "sent" }));
     assert.equal(t.plan(374).action, "observe");
-    // The stored brief keeps naming whoever coordinates now, after the contact
-    // and after a second takeover.
     const named = (file, id) => { const text = run.brief(run.readRecord(file), null, 374, [], defaults); return text.includes(`coordinator session ${id}`) && !text.includes(COORDINATOR); };
     assert.ok(named(t.file, NEXT), "after the contact the brief names the new coordinator");
     const THIRD = "local_5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a8b";
@@ -585,8 +543,6 @@ try {
     assert.throws(() => run.scheduleCommand("C:/it's here/run.json"), /single quote/);
   });
 
-  // --- The wake sweep flags a reviewer launch that died before its journal ---
-
   scenario("the wake sweep flags a reviewer plan with no journal and no live process, with its error log", () => {
     const f = fresh("dead-launch");
     const jobs = path.join(tmp, "dead-launch.review-jobs");
@@ -598,7 +554,6 @@ try {
     fs.writeFileSync(path.join(round(4), "plan.journal.jsonl"), `${JSON.stringify({ event: "coordinator", processIdentity: { pid: 1, start: "1" } })}\n`);
     const live = planIn(round(6), "plan");
     fs.writeFileSync(path.join(round(6), "plan.coordinator.err.log"), "");
-    // A plan still being written has no launcher logs: nothing was launched.
     const authored = planIn(round(7), "plan");
     const session = "local_9f8e7d6c-5b4a-4392-8170-6f5e4d3c2b1a";
     const snap = snapshotOf([ticket(351, { prs: [{ number: 951, state: "OPEN", isDraft: true, branch: "fix/351-thing", head: "h", rounds: 4 }] })]);
@@ -611,8 +566,6 @@ try {
     assert.ok(!p.sweep.deadLaunches.some((d) => [journaled, live, authored].includes(d.plan)));
     assert.deepEqual(run.deadLaunches(jobs, [{ ticket: 351, pr: 951 }], () => null), [], "a failed census proves no launch dead");
   });
-
-  // --- The periodic check-in --------------------------------------------------
 
   scenario("the check-in job is scheduled at 30 minutes, recorded with the command that recreates it, and expires after seven days", () => {
     const f = fresh("check-in", { issue: 1775 });
@@ -627,7 +580,6 @@ try {
     assert.equal(b - a, 30, "the job fires every 30 minutes");
     assert.ok(spec.prompt.includes(f.file) && spec.prompt.includes("references/writer-reports.md"), "the job's prompt names the record and the wake routine");
     assert.equal(spec.command, `node .agents/skills/orchestrate-issues/issue-run.mjs schedule --record '${f.file}'`);
-    // One identified runner process arms the job and plans against it.
     const steady = { env: { CLAUDE_PID: "4100" }, identify: (pid) => ({ pid, start: "100" }) };
     assert.ok(spec.capability.includes("CronCreate"), "the capability comes from the runner configuration");
     f.change((r) => run.recordCheckIn(r, { job: "cron-1", file: f.file, defaults, ...steady }));
@@ -663,12 +615,6 @@ try {
     assert.deepEqual([run.readRecord(takeoverFile).checkIn.job, run.readRecord(takeoverFile).checkIn.state, scheduled.length], ["cron-2", "scheduled", 1]);
   });
 
-  // The runner process is named by an environment variable from the runner
-  // configuration and identified by its start time; the tracking log lives
-  // under an environment-relative path, so a scratch directory stands in.
-  // The fixtures name the Claude desktop runner's facts as literals, so they
-  // still build against a configuration that lacks them; the helper itself
-  // reads them only from the configuration.
   const runner = defaults.orchestrators.claude.checkIn;
   const TRACKED_DAYS = 2;
   const instanceEnv = (pid, extra = {}) => ({ CLAUDE_PID: String(pid), ...extra });
@@ -753,8 +699,6 @@ try {
     f.change((r) => run.recordCheckIn(r, { none: "Codex offers no scheduling capability", file: f.file, defaults, env: {} }));
     assert.match(planOf(f, snapshotOf([ticket(371)])).checkIn.next, /wake routine at the start of every turn/);
   });
-
-  // --- Shared skill text names no harness tool -----------------------------------
 
   scenario("the shared skill text names no harness tool", () => {
     const tools = ["SendMessage", "CronCreate", "CronDelete", "ListAgents", "get_session", "list_sessions", "start_session", "list_events", "export_transcript", "set_session_title", "set_session_effort", "set_thread_title", "Agent tool", "Skill tool"];

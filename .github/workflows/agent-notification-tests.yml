@@ -1,12 +1,5 @@
 name: Agent Notification Tests
 
-# The `notifier-tests` job at the end is the required status check. It always
-# runs, so it always reports; the workflow has no trigger path filter, because
-# a filtered-out workflow reports nothing and leaves the pull request blocked.
-# The `changes` job decides whether the notifier tests need to run, and the
-# gate passes when both platform legs passed or were skipped as irrelevant,
-# and fails when any failed or when detection itself failed.
-
 on:
   pull_request:
   push:
@@ -48,8 +41,6 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm test
 
-  # The required status check. `always()` keeps it reporting when the tests
-  # were skipped or when detection failed; the step then decides.
   notifier-tests:
     needs: [changes, notifier]
     if: always()

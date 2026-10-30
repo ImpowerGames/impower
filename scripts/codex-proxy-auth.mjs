@@ -1,11 +1,3 @@
-// A Codex ChatGPT login for a cloud container whose network proxy adds the
-// access token to requests for chatgpt.com. The container receives only a
-// template: the auth.json shape with the account ID, the identity token's
-// claims without its signature, and placeholders in place of every token.
-// Run it where `codex login` wrote auth.json:
-//   node scripts/codex-proxy-auth.mjs template [auth.json]      (for the environment variable)
-//   node scripts/codex-proxy-auth.mjs access-token [auth.json]  (for the proxy's Bearer credential)
-// It imports nothing from the repository, so it also runs as a lone copy.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -22,8 +14,6 @@ const loginTokens=auth=>{
   return tokens;
 };
 
-// Only the fields Codex reads for a ChatGPT login are kept, so a field a later
-// release adds cannot carry a credential into the container unnoticed.
 export function proxyAuthTemplate(auth) {
   const tokens=loginTokens(auth);
   const [header,payload]=tokens.id_token.split('.');
@@ -35,8 +25,6 @@ export function proxyAuthTemplate(auth) {
   };
 }
 
-// The launcher accepts a template only when it can authenticate nothing by
-// itself. Messages name fields, never values.
 export function checkProxyAuthTemplate(template) {
   const problems=[];
   if(!template||typeof template!=='object'||Array.isArray(template))throw new Error('Codex proxy authentication template must be a JSON object');

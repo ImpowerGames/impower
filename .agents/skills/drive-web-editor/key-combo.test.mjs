@@ -1,18 +1,4 @@
 #!/usr/bin/env node
-// Pins normalizeKeyCombo and pressKey, which rewrite a shifted lowercase
-// letter before the driver presses it (#423). Run:
-//   node .agents/skills/drive-web-editor/key-combo.test.mjs
-//
-// Playwright's key strings are case-sensitive for a single character, so
-// `Control+Shift+g` delivers `key: "g"` with Shift held, which no keyboard
-// produces and which CodeMirror resolves to the unshifted binding. Measured
-// in the live editor on 2026-09-04 (playwright 1.61): the uppercase form and
-// the `KeyG` form both deliver `key: "G"`. The rewrite exists so a session
-// that writes the shortcut the natural way gets the shortcut it meant, and
-// pressKey is what `--press` and every panel shortcut go through, so it is
-// pinned here too against a fake keyboard.
-//
-// Pure functions, no browser. Node's built-in assert only.
 
 import assert from "node:assert/strict";
 import { normalizeKeyCombo, pressKey } from "./driver.mjs";

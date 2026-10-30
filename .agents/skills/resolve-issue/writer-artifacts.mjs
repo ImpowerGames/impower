@@ -39,17 +39,13 @@ function recognizableAdmin(directory, env) {
   const objects = metadataEntry(path.join(directory, 'objects'));
   const refs = metadataEntry(path.join(directory, 'refs'));
   if (!objects?.isDirectory() && !refs?.isDirectory()) return false;
-  // Corroborate damaged/missing config with the canonical Git storage layout;
-  // generic objects/refs/config names alone do not identify a repository.
   if (['objects/info', 'objects/pack', 'refs/heads', 'refs/tags'].every(name => metadataEntry(path.join(directory, name))?.isDirectory())) return true;
   if (configStat) {
     if (!configStat.isFile()) throw new Error(`Cannot verify artifact parent metadata: ${config}`);
-    // Establish readability separately: a Git parse error is not proof of absence.
     fs.readFileSync(config);
     const read = (type, key) => {
       const result = spawnSync('git', ['config', '--file', config, '--no-includes', `--type=${type}`, '--get', key], { encoding: 'utf8', windowsHide: true, env });
       if (result.error || result.signal || ![0, 1].includes(result.status) || (result.status === 1 && (result.stdout || result.stderr))) throw new Error(`Cannot verify artifact parent metadata: ${config}`, { cause: result.error });
-      // --get returns 1 for an absent key. Every other failed read is uncertain.
       return result.status === 0 ? result.stdout.trim() : null;
     };
     if (read('int', 'core.repositoryformatversion') !== null && read('bool', 'core.bare') !== null) return true;
@@ -63,8 +59,6 @@ export function allocateWriterArtifacts({ parent, issue, writer, session, worktr
     if (typeof value !== 'string' || !value.trim() || value.length > 256 || /[\u0000-\u001f\u007f]/.test(value)) throw new Error(`A nonempty ${name} identity without control characters is required`);
   }
   const directory = physicalDirectory(parent);
-  // Check physical repository discovery, independent of ambient Git routing,
-  // config injection, ceilings or mount boundaries. Keep ordinary PATH/auth.
   const gitEnv = Object.fromEntries(Object.entries(process.env).filter(([name]) => !/^(?:GIT_.*|LC_ALL|LANG|LANGUAGE)$/i.test(name)));
   Object.assign(gitEnv, { LC_ALL: 'C', LANG: 'C', LANGUAGE: 'C', GIT_DISCOVERY_ACROSS_FILESYSTEM: '1' });
   const git = (args) => execFileSync('git', ['-C', worktree, ...args], { encoding: 'utf8', windowsHide: true, env: gitEnv });
@@ -72,12 +66,9 @@ export function allocateWriterArtifacts({ parent, issue, writer, session, worktr
   for (const root of roots) {
     if (fs.existsSync(root) && within(fs.realpathSync.native(root), directory)) throw new Error(`Artifact parent is inside a checkout: ${root}`);
   }
-  // Also reject an unrelated repository, not only this repository's worktrees.
   const probe = spawnSync('git', ['-C', directory, 'rev-parse', '--is-inside-work-tree'], { encoding: 'utf8', windowsHide: true, env: gitEnv });
   if (probe.status === 0) throw new Error(`Artifact parent is inside a Git repository: ${directory}`);
   if (probe.error || probe.status !== 128 || probe.stderr.trim() !== 'fatal: not a git repository (or any of the parent directories): .git') throw new Error(`Cannot verify artifact parent is outside Git repositories: ${directory}`);
-  // Git can emit the ordinary no-repository diagnostic for incomplete .git
-  // metadata. Its physical presence still makes this ancestor unverifiable.
   for (let ancestor = directory; ; ancestor = path.dirname(ancestor)) {
     const metadata = path.join(ancestor, '.git');
     if (metadataEntry(metadata) || recognizableAdmin(ancestor, gitEnv)) throw new Error(`Cannot verify artifact parent with repository metadata: ${ancestor}`);

@@ -17,8 +17,6 @@ const sha = data => createHash("sha256").update(data).digest("hex");
 const readJson = file => { try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return null; } };
 const files = dir => fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? files(path.join(dir, e.name)) : [path.join(dir, e.name)]) : [];
 
-// These exact messages come from VS Code's bundled Copilot proposal metadata,
-// even with Copilot disabled. A changed message/version remains a failure.
 export function classifyRuntimeErrors(errors, version) {
   const known = new Set([
     "31c71b74177b9336e5e354733a837c043e8a6ff2607ceb05e8baeb4a57952493",
@@ -72,8 +70,6 @@ export function scriptProvenance(url, source, checkout, io = fs) {
   const loadedPath = decodeURIComponent(new URL(url).pathname);
   const fromCheckout = normalizePath(loadedPath) === normalizePath(expectedPath.startsWith("/") ? expectedPath : "/" + expectedPath);
   const disk = io.readFileSync(artifact, "utf8");
-  // VS Code's web worker host loads CommonJS through new Function. CDP
-  // includes this exact host wrapper and sourceURL around the original bytes.
   const wrapped = `(function anonymous(module,exports,require\n) {\n${disk}\n//# sourceURL=${url}\n})`;
   return { url, artifact, sha256: loaded, artifactSha256: sha(disk), bytes: Buffer.byteLength(source), matches: fromCheckout && (loaded === sha(disk) || relative === "extension.js" && loaded === sha(wrapped)) };
 }
@@ -131,8 +127,6 @@ export async function command(page, title, id) {
   const deadline = Date.now() + 60000;
   for (;;) {
     await page.keyboard.press("Escape");
-    // Reopen the palette while extensions register their commands: an already
-    // open command list is a snapshot and does not gain late contributions.
     await page.locator(".part.statusbar").click({ position: { x: 200, y: 10 }, timeout: 10000 });
     await page.keyboard.press("F1");
     await page.locator(".quick-input-widget input").fill(">" + title);
@@ -147,14 +141,10 @@ export async function command(page, title, id) {
 export async function ensurePreviewVisible(page, reveal = () => command(page, "Sparkdown: Preview Game", "sparkdown.previewGame")) {
   const frame = page.locator("iframe.webview");
   const tab = page.getByRole("tab", { name: /^Game Preview/ }).first();
-  // Debugger navigation into an included script can cover the preview tab.
-  // Revealing the existing panel preserves its running game and context.
   if (await tab.getAttribute("aria-selected") !== "true" || !await frame.isVisible()) await reveal();
   return await tab.getAttribute("aria-selected") === "true" && await frame.isVisible();
 }
 
-// Runs in the webview's outer document. Its active frame owns the actual
-// extension content; never count hidden text or a mounted empty panel as ready.
 export function previewRead(step) {
   const frame = document.getElementById("active-frame");
   const d = frame?.contentDocument;
@@ -257,7 +247,7 @@ export async function desktop(args) {
         } catch (error) {
           const current = await wire.send("Target.getTargets");
           if (current.targetInfos.some(t => t.targetId === target.targetId)) throw error;
-          targets.delete(target.targetId); // A short-lived worker ended during attachment.
+          targets.delete(target.targetId);
         }
       }
     };
@@ -275,8 +265,6 @@ export async function desktop(args) {
     if (mode === "f5") {
       await command(page, "View: Run and Debug", "workbench.view.debug");
       await page.getByText("Launch vscode-sparkdown", { exact: true }).waitFor({ timeout: 30000 });
-      // Invoke F5's command after command registration; an early synthetic
-      // key can be consumed while the Run and Debug view is still loading.
       await command(page, "Debug: Start Debugging", "workbench.action.debug.start");
       console.log("desktop: waiting for the F5 task and development host");
       page = await wait(async () => {
@@ -397,7 +385,6 @@ export async function desktop(args) {
         for (const [index, page] of browser.contexts().flatMap(c => c.pages()).entries()) await page.screenshot({ path: path.join(evidence, `final-${index}.png`), timeout: 5000 }).catch(() => {});
       }
     } catch (error) { report.failed.push(`Desktop evidence collection failed: ${error.message}`); }
-    // Evidence I/O failure must not bypass shutdown of the owned host.
     if (browser) await browser.close().catch(error => report.failed.push(`Desktop browser disconnect failed: ${error.message}`));
     try { wire?.close(); } catch (error) { report.failed.push(`Desktop observer disconnect failed: ${error.message}`); }
     if (child) {

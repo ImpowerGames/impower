@@ -5,8 +5,6 @@ import { fileURLToPath } from "node:url";
 export const toolDirectories = [".claude", ".codex", ".github"];
 export const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-// Inspect every destination before changing any of them. Existing links are
-// accepted only when they already resolve to this checkout's shared source.
 export function linkAgentSkills(root = repositoryRoot, { repairLinks = false, reportPlan = () => {} } = {}) {
   root = fs.realpathSync(root);
   const source = path.join(root, ".agents", "skills");
@@ -33,11 +31,6 @@ export function linkAgentSkills(root = repositoryRoot, { repairLinks = false, re
     if (stat && !stat.isDirectory()) throw populated();
     const entries = stat ? fs.readdirSync(destination) : [];
     if (entries.length) {
-      // A real directory holding nothing but links, one per skill and some of
-      // them dangling once a skill was renamed, holds no data of its own: the
-      // explicit repair unlinks each entry and puts the shared link in the
-      // directory's place. Anything else beside the links is preserved and
-      // refused, as any populated directory is.
       const links = entries.filter((name) => fs.lstatSync(path.join(destination, name)).isSymbolicLink());
       if (links.length !== entries.length) throw populated();
       if (!repairLinks) throw new Error(`Refusing directory of links: ${destination} holds only links (${entries.join(", ")}) in place of this checkout's shared link. To replace those link entries with the shared link while preserving their targets, run node scripts/link-agent-skills.mjs --repair-links from this checkout. See .agents/skills/RUNNERS.md, Migration and recovery.`);
@@ -45,8 +38,6 @@ export function linkAgentSkills(root = repositoryRoot, { repairLinks = false, re
     }
     return { destination, action: stat ? "empty" : "create" };
   });
-  // Emit recovery information before any unlink, including when a later create
-  // fails. The CLI persists these records in its captured stdout.
   reportPlan(plans.map((plan) => ({ ...plan, target: source })));
   for (const plan of plans) {
     if (plan.action === "exists") continue;

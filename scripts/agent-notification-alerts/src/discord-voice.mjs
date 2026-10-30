@@ -1,6 +1,3 @@
-// Optional Discord voice-call detection over Discord's local RPC named pipe.
-// Every failure here is fail-open: a missing/unreachable/unauthorized Discord
-// never throws out of this module and never blocks normal alert delivery.
 import { createConnection } from 'node:net';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -19,14 +16,6 @@ const OP_HANDSHAKE = 0;
 const OP_FRAME = 1;
 const OP_CLOSE = 2;
 const PIPE_COUNT = 10;
-// Confirmed against a real Discord client: the local AUTHORIZE step rejects
-// a missing redirect_uri key ("Missing redirect_uri in request") and a real
-// URL alike ("Redirect URI cannot be used in the RPC OAuth2 Authorization
-// flow") -- it wants the key present and explicitly null, since the code is
-// delivered locally over IPC. The token exchange against Discord's actual
-// HTTPS endpoint is a separate, real OAuth2 authorization_code grant, which
-// does need a real redirect_uri matching one registered under the
-// application's OAuth2 settings even though it's never actually visited.
 const REDIRECT_URI = process.env.AGENT_ALERT_DISCORD_REDIRECT_URI || 'http://localhost';
 
 function encodeFrame(opcode, payload) {
@@ -37,8 +26,6 @@ function encodeFrame(opcode, payload) {
   return Buffer.concat([header, body]);
 }
 
-// Splits a byte stream into complete Discord IPC frames, tolerating chunks
-// that split a frame's header or body across separate 'data' events.
 function frameSplitter(onFrame) {
   let buffer = Buffer.alloc(0);
   return (chunk) => {
@@ -90,15 +77,11 @@ async function clearToken() {
     if (error.code !== 'ENOENT') throw error;
   });
 }
-// The saved credentials file (written by the desktop app's Discord card)
-// takes priority over the environment variables, matching the existing
-// precedent where a saved voice.json overrides the launcher's default voice.
 export async function readDiscordCredentials() {
   try {
     const saved = JSON.parse(await readFile(discordCredentialsPath(), 'utf8'));
     if (saved?.clientId) return { clientId: saved.clientId, clientSecret: saved.clientSecret || '' };
   } catch {
-    // Missing or corrupt: fall through to the environment-variable default.
   }
   if (process.env.AGENT_ALERT_DISCORD_CLIENT_ID) {
     return {
@@ -117,8 +100,6 @@ async function ensureMarker(path, present) {
   }
 }
 
-// Starts a persistent, self-healing watcher. Never throws: connection and
-// authorization problems are reported through the status file instead.
 export function startDiscordVoiceWatcher({
   clientId,
   clientSecret,
@@ -138,9 +119,6 @@ export function startDiscordVoiceWatcher({
     const target = discordStatusPath();
     await mkdir(target.replace(/[^/\\]+$/, ''), { recursive: true }).catch(() => {});
     try {
-      // Write-then-rename so a concurrent reader (this watcher's own next
-      // tick, or the desktop app polling the same file) never sees a
-      // truncated or partially written file.
       await writeFile(
         target + '.tmp',
         JSON.stringify({
@@ -154,7 +132,6 @@ export function startDiscordVoiceWatcher({
       );
       await rename(target + '.tmp', target);
     } catch {
-      // Fail-open: a status-file write failure never affects mute delivery.
     }
   }
 
@@ -205,16 +182,8 @@ export function startDiscordVoiceWatcher({
   async function onFrame(target, payload) {
     if (process.env.AGENT_ALERT_DISCORD_DEBUG) console.error('[discord frame]', JSON.stringify(payload));
     if (!payload) return;
-    // Only a genuine DISPATCH frame carries an unsolicited event; a SUBSCRIBE
-    // command's own reply also echoes back the same evt name and must not be
-    // mistaken for one (it briefly reported an empty channel on every
-    // reconnect, which momentarily un-muted a live call).
     if (payload.cmd === 'DISPATCH' && payload.evt === 'READY') return onReady(target);
     if (payload.evt === 'ERROR') {
-      // 4009/4006 are Discord's expired/invalid-token codes for this RPC;
-      // only those invalidate a stored token. Any other error (a bad
-      // AUTHORIZE request, for instance) still must not leave the watcher
-      // silently stuck in 'authorizing' or 'authenticating' forever.
       if (payload.data?.code === 4009 || payload.data?.code === 4006) await clearToken();
       await applyEvent({ type: 'auth-failed', reason: payload.data?.message || `Discord reported error ${payload.data?.code}.` });
       return;
@@ -267,10 +236,6 @@ export function startDiscordVoiceWatcher({
       }),
     );
     attempt.on('error', () => {
-      // Already deciding the outcome here: clear the reference first so the
-      // 'close' handler below (which can fire synchronously or later, after
-      // socket has moved on to a different attempt) never schedules a second,
-      // redundant reconnect for the same failure.
       if (socket === attempt) socket = undefined;
       attempt.destroy();
       if (!handshakeSent) tryPipes(index + 1);

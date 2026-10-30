@@ -1,8 +1,3 @@
-// Scratch-folder cleanup for the standalone checks. On Windows a scanner or
-// indexer can briefly hold a freshly written file, and fs.rmSync's own
-// maxRetries never retries the EACCES that produces. Cleanup runs in a finally,
-// where a throw would replace the check's own verdict, so an exhausted retry
-// warns with the leftover path and returns false.
 import fs from 'node:fs';
 
 const TRANSIENT=['EACCES','EBUSY','ENOTEMPTY','EPERM'];

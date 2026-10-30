@@ -2,18 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Default writer-to-reviewer routes live in repository configuration, not in
-// the shared skills. A row is keyed by writer route, writer effort and ticket
-// effort; each column is an ordered list of serial reviewers.
 export const reviewerDefaultsFile = ".claude/reviewer-defaults.json";
 export const reviewerModelsFile = ".claude/reviewer-models.json";
 export const efforts = ["low", "medium", "high", "xhigh", "max"];
 export const ticketEfforts = ["low", "medium", "high", "correctness-critical"];
 const stripContext = (value) => value.replace(/\[[^\]]+\]$/, "");
 const isClaude = (route) => route.startsWith("claude-");
-// The vendor a route belongs to, or null for a route of neither known vendor.
 export const routeVendor = (route) => { const bare = stripContext(route); return isClaude(bare) ? "claude" : bare.startsWith("gpt-") ? "codex" : null; };
-// Codex also accepts an ultra reasoning effort; Claude stops at max.
 export const writerEfforts = (writer) => isClaude(stripContext(writer)) ? efforts : [...efforts, "ultra"];
 
 export function checkWriterEffort(writer, writerEffort) {
@@ -48,8 +43,6 @@ export function validateReviewerDefaults(defaults, models) {
     if (row.primary.some(({ route }) => isClaude(route) === isClaude(row.writer))) throw new Error(`Row ${key} primary must use the other vendor`);
     if (row.fallback.some(({ route }) => isClaude(route) !== isClaude(row.writer))) throw new Error(`Row ${key} fallback must stay with the writer's vendor`);
   }
-  // A writer in the table resolves at every effort its runner accepts, so a
-  // session never meets a gap at an effort it was allowed to choose.
   for (const writer of new Set(defaults.rows.map((row) => row.writer))) {
     for (const writerEffort of writerEfforts(writer)) {
       if (!defaults.rows.some((row) => row.writer === writer && row.writerEffort === writerEffort)) throw new Error(`No reviewer default row for ${writer} at ${writerEffort} effort`);
@@ -64,8 +57,6 @@ export function readReviewerDefaults(root) {
   return { defaults, agents: validateReviewerDefaults(defaults, models) };
 }
 
-// Returns the reviewer a plan selects: its explicit route unchanged, or the
-// default resolved from writer, writerEffort and optional ticketEffort.
 export function resolveReviewer(config, root) {
   checkWriterEffort(config.writer, config.writerEffort);
   if (config.reviewer === null) throw new Error("Omit reviewer to use the defaults, or supply an explicit reviewer route");
@@ -81,9 +72,6 @@ export function resolveReviewer(config, root) {
   const writer = stripContext(config.writer);
   let rows = defaults.rows.filter((row) => row.writer === writer && row.writerEffort === config.writerEffort && (config.ticketEffort === undefined || row.ticketEffort === config.ticketEffort));
   let matchedOn = "writerEffort";
-  // Runner effort is chosen per session and the ticket tier per ticket, so a
-  // supplied tier with no row at this effort takes that tier's row at the
-  // nearest writer effort, the higher one on a tie.
   if (!rows.length && config.ticketEffort !== undefined) {
     const order = writerEfforts(writer), distance = (row) => Math.abs(order.indexOf(row.writerEffort) - order.indexOf(config.writerEffort));
     const tier = defaults.rows.filter((row) => row.writer === writer && row.ticketEffort === config.ticketEffort).sort((a, b) => distance(a) - distance(b) || order.indexOf(b.writerEffort) - order.indexOf(a.writerEffort));
@@ -98,15 +86,8 @@ export function resolveReviewer(config, root) {
   return { reviewer: route, reviewerEffort: effort, agent: agents.get(route), resolved: true, ticketEffort: rows[0].ticketEffort, rowWriterEffort: rows[0].writerEffort, matchedOn, fallback: config.reviewerFallback === true, index };
 }
 
-// Adds the resolved route and effort to a review step whose plan left both to
-// the defaults. Claude steps select the pinned definition; Codex steps take
-// the model and reasoning effort as exec arguments.
 export function applyResolvedReviewer(step, selection) {
   if (step.model !== undefined) throw new Error("A review step resolved from defaults must not declare its own model");
-  // Covers separated, joined and attached flag forms and config overrides of
-  // either key (`-c key=v`, `-ckey=v`, `-c=key=v`, `--config=key=v`).
-  // Codex accepts leading whitespace in a config key, so match on the trimmed,
-  // lowercased argument.
   const selects = (raw) => {
     const arg = raw.trim().toLowerCase();
     return /^(?:--model|--agent|--effort)(?:=|$)|^-m/.test(arg) || /^(?:--config=|-c=?)?\s*(?:model|model_reasoning_effort)\s*=/.test(arg);
@@ -121,8 +102,6 @@ export function applyResolvedReviewer(step, selection) {
   return { ...step, model: selection.reviewer, effort: selection.reviewerEffort, args: ["exec", "--model", selection.reviewer, "-c", `model_reasoning_effort=${JSON.stringify(selection.reviewerEffort)}`, ...step.args.slice(1)] };
 }
 
-// Prints the reviewer a plan resolves to, so the coordinator can fill the
-// reviewer prompt with the same route the launcher will select.
 if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const plan = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));

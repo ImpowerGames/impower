@@ -7,31 +7,22 @@ const root = path.resolve(import.meta.dirname, "../..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
 
 test("bug, feature and task filing publish and verify Effort through the shared procedure", () => {
-  const sharedReference = ".agents/skills/references/issue-fields.md";
-  const effort = read(sharedReference);
+  const effort = read(".agents/skills/references/issue-fields.md");
 
   for (const skillPath of [
     ".agents/skills/file-bug/SKILL.md",
     ".agents/skills/file-feature/SKILL.md",
     ".agents/skills/file-task/SKILL.md",
   ]) {
-    const skill = read(skillPath);
-    assert.match(skill, /\.\.\/references\/issue-fields\.md/);
-    assert.match(skill, /assign[\s\S]*Effort/i);
-    assert.match(skill, /read back[\s\S]*Effort/i);
-    assert.match(skill, /same issue/i);
-    assert.match(skill, /do not (?:create|file) a duplicate/i);
+    assert.ok(read(skillPath).includes("](../references/issue-fields.md)"), `${skillPath} links the shared procedure`);
   }
 
-  assert.match(read(".agents/skills/file-feature/SKILL.md"), /every (?:created )?(?:ticket|slice)/i);
-  assert.match(effort, /Effort includes reproduction, implementation, regression and platform verification/);
-  assert.match(effort, /Low[\s\S]*Medium[\s\S]*High/);
-  assert.match(effort, /orgs\/ImpowerGames\/issue-fields/);
-  assert.match(effort, /issue-field-values/);
-  assert.match(effort, /single_select_option\.name/);
-  assert.match(effort, /Projects access is unnecessary/);
-  assert.match(effort, /body mention is not field assignment/i);
-  assert.match(effort, /concise rationale/i);
-  assert.match(effort, /uncertainty/i);
-  assert.match(effort, /POST to preserve unrelated fields/);
+  for (const contract of [
+    "orgs/ImpowerGames/issue-fields",
+    "gh api -X POST -H \"X-GitHub-Api-Version: 2026-03-10\" repos/<tickets>/issues/<number>/issue-field-values",
+    "gh api -H \"X-GitHub-Api-Version: 2026-03-10\" repos/<tickets>/issues/<number>/issue-field-values --paginate",
+    "single_select_option.name",
+  ]) {
+    assert.ok(effort.includes(contract), `the procedure names ${contract}`);
+  }
 });

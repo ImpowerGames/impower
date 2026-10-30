@@ -1,8 +1,5 @@
 import crypto from "node:crypto";
 
-// A nested CDP session reads the installed worker's script, independent of
-// the server's current bytes. Requests and listeners are bounded and closed
-// with the browser run.
 export async function workerSession(cdp, targetId, timeout = 15_000) {
   const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: false });
   let next = 0;

@@ -1,21 +1,12 @@
-// Refuses every launch of a Fable subagent or session. Agents may start
-// Opus and below only; the maintainer chooses Fable for their own sessions.
-// A launch that names no model inherits the launcher's, so subagents and
-// fresh sessions must name one, and a Fable launcher may not fork itself.
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const FABLE = /fable/i;
-// A model field naming Fable inside a workflow script.
 const MODEL_TEXT = /\bmodel["']?\s*[:=]\s*["'`]?[^\s"'`,}]*fable/i;
-// A launch argument naming Fable inside a shell command. Arguments and
-// fields that describe the running session itself, such as feature-run's
-// --coordinator-model or a report's "model" field, are not launches.
 const LAUNCH_ARG = /(?:--model|--writer-model)(?:\s+|\s*=\s*)["'`]?[^\s"'`,}]*fable/i;
 const NAME_A_MODEL = "Pass an explicit model (opus, sonnet or haiku) so the launch cannot inherit a Fable model";
 
-// The model a repository agent definition pins in its frontmatter.
 function pinnedModel(type, projectDir) {
   if (typeof type !== "string" || !/^[\w.-]+$/.test(type)) return null;
   try {
@@ -24,7 +15,6 @@ function pinnedModel(type, projectDir) {
   } catch { return null; }
 }
 
-// The launcher's own model, read from the last assistant turn of its transcript.
 export function launcherModel(transcriptPath) {
   try {
     const lines = fs.readFileSync(transcriptPath, "utf8").trimEnd().split("\n");
@@ -48,13 +38,10 @@ export function decide(payload, { projectDir = process.env.CLAUDE_PROJECT_DIR ??
     if (pinned && pinned !== "inherit") return hit(pinned) ? "uses an agent definition pinned to Fable" : null;
     return `names no model. ${NAME_A_MODEL}`;
   }
-  // A handoff is a fork of this conversation, so it keeps the launcher's model.
   if (/hand_off_to_session$/.test(tool)) return parentIsFable() ? "hands a Fable session's task to a fork, which keeps its model. Start a fresh session with an explicit model instead" : null;
   if (/start_session$/.test(tool)) {
     if (hit(input.model) || hit(input.preset)) return "names a Fable model";
-    // An offer is a title alone; its brief follows with proposal_id and a model.
     if (input.initiation === "offer") return null;
-    // Starting a stored proposal as proposed: the model was checked when it was proposed.
     if (input.proposal_id && !input.prompt) return null;
     if (input.context === "fork")return parentIsFable() ? "forks a Fable session, and a fork always inherits its model. Start a fresh session with an explicit model instead" : null;
     return input.model ? null : `names no model. ${NAME_A_MODEL}`;

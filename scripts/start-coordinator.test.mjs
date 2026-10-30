@@ -1,6 +1,3 @@
-// The coordinator launcher starts agent-handoff.mjs through spawnDetached: on
-// Windows a hidden detached node wrapper whose pid it prints, elsewhere the
-// handoff itself detached. A fake spawn records the call, so no process starts.
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
