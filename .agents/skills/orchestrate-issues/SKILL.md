@@ -60,7 +60,7 @@ At every check-in, on the first wake after you restart, and before acting on any
 
 ## 6. Cleanup and disk recovery
 
-When disk headroom blocks a writer or reviewer, or the plan admits none for free disk, run the [clean-worktrees](../clean-worktrees/SKILL.md) dry run from the main checkout, then apply it; it removes only merged, removable entries. Record each removal with `disk-recovery --removed <path> --branch <branch> --classifier "<its row>"`. Clean up after each merge and release per [cleanup](references/cleanup.md). No other cleanup is authorized.
+Clean up after each merge and release per [cleanup](references/cleanup.md), without asking the maintainer: the worktrees, branches, review jobs, driver directories and writer artifact directories the run's writers, filers and reviewers made are the run's to remove once their ticket is done, and the maintainer never approves them one by one. When disk headroom blocks a writer or reviewer, or the plan admits none for free disk, run the [clean-worktrees](../clean-worktrees/SKILL.md) dry run from the main checkout, then apply it; it removes only merged, removable entries. Record each removal with `disk-recovery --removed <path> --branch <branch> --classifier "<its row>"`. Then run `clean-artifacts` for every ticket the run has finished, and read the size of the run's artifact parent, since what writers keep there (rendered assets, copied installs, snapshots) is outside clean-worktrees' reach. No other cleanup is authorized.
 
 ## 7. Integrate and finish
 

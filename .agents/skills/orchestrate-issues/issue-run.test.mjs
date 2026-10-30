@@ -364,6 +364,28 @@ try {
   rev = mutate(rev, (r) => run.diskRecovery(r, { removed: path.join(tmp, "old"), branch: "fix/1-old", classifier: "remove: merged into origin/main, clean, idle" }));
   assert.equal(run.readRecord(record).diskRecoveries.length, 1);
 
+  const artifactDir = (issue, name, owner = { issue }) => {
+    const dir = path.join(artifacts, `writer-${issue}-${name}`);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "owner.json"), JSON.stringify(owner));
+    fs.writeFileSync(path.join(dir, "evidence.png"), "bytes");
+    return dir;
+  };
+  const gone101 = artifactDir(101, "a"), busy101 = artifactDir(101, "b"), mislabelled101 = artifactDir(101, "c", { issue: 7 }), other = artifactDir(777, "d");
+  assert.throws(() => mutate(rev, (r) => run.cleanArtifacts(r, { ticket: 104 })), /still has a writer/, "a ticket with a writer keeps its artifacts");
+  assert.throws(() => mutate(rev, (r) => run.cleanArtifacts(r, { ticket: 101 })), /pending start/, "a ticket with a pending start keeps its artifacts");
+  rev = mutate(rev, (r) => run.withdraw(r, { ticket: 101, evidence: "the brief's claim started no writer" }));
+  const cleaned = run.updateRecord(record, { expectRevision: rev, coordinator: "local_a" }, (r) => run.cleanArtifacts(r, { ticket: 101, processes: () => ({ ok: true, list: [{ pid: 4242, name: "node.exe", cmd: `node probe.mjs "${busy101}"` }] }) }));
+  rev = cleaned.record.revision;
+  assert.ok(cleaned.output.removed.includes(gone101), JSON.stringify(cleaned.output));
+  assert.ok(cleaned.output.removed.filter((d) => d !== gone101).every((d) => path.basename(d).startsWith("launch-101-")), "clean-artifacts removed more than the ticket's writer and launch directories");
+  assert.ok(!fs.readdirSync(artifacts).some((name) => name.startsWith("launch-101-")), "a launch directory of the released ticket survived");
+  assert.deepEqual(cleaned.output.kept.map((k) => [path.basename(k.dir), k.reason.split(" ").slice(0, 3).join(" ")]).sort(), [["writer-101-b", "its path is"], ["writer-101-c", "its owner.json names"]]);
+  assert.ok(!fs.existsSync(gone101) && fs.existsSync(busy101) && fs.existsSync(mislabelled101) && fs.existsSync(other), "clean-artifacts removed the wrong directories");
+  assert.equal(run.readRecord(record).log.filter((e) => e.event === "artifacts-cleaned").length, 1);
+  rev = mutate(rev, (r) => run.claim(r, { plan: write("plan6b.json", plan()), ticket: 101, worktree: wt101, branch: "fix/101-thing", artifactParent: artifacts }));
+  assert.equal(run.readRecord(record).tickets[101].pending.operation, "dispatch", "the brief's claim is restored for the checks below");
+
   // The record lock: a live holder refuses, an exited holder is reported and
   // removed only by recover-lock.
   const lock = `${record}.lock`;

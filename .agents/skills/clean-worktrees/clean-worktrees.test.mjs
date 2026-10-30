@@ -56,7 +56,7 @@ import { CHECKOUT_OWNER_FILE, PROFILE_CLAIM_FILE, checkoutDir, recordCheckoutOwn
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = path.join(here, "clean-worktrees.mjs");
-const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME, jobRootOf, journalProcesses, recordedProcessAlive, removeWorktree, gatherFacts, detachedHistory, cleanJobs, classifyJob, removeJobDir, liveDeps, cleanScratch, classifyRedgreen, classifyTestRun, parseProcesses, cleanFilerJobs } = await import(pathToFileURL(SCRIPT));
+const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME, jobRootOf, journalProcesses, recordedProcessAlive, removeWorktree, gatherFacts, detachedHistory, cleanJobs, classifyJob, removeJobDir, liveDeps, cleanScratch, classifyRedgreen, classifyTestRun, parseProcesses, cleanFilerJobs, cleanWriterArtifacts, sessionScratchRoot, classifyBranch, classifyRootFile, embeddedRepoDependency } = await import(pathToFileURL(SCRIPT));
 const liveDepsListDirs = liveDeps.listDirs;
 const WIN = process.platform === "win32";
 // A case that can only hold where Windows itself supplies the behavior it
@@ -1418,6 +1418,8 @@ const control = async (label, cuts, names) => {
     // The copy runs from another directory, so its relative imports are
     // pointed at the modules they name from beside this check.
     let text = source.replace('"../drive-web-editor/session-dir.mjs"', () => JSON.stringify(pathToFileURL(path.join(here, "..", "drive-web-editor", "session-dir.mjs")).href));
+    text = text.replace('"../drive-web-editor/worktree-temp.mjs"', () => JSON.stringify(pathToFileURL(path.join(here, "..", "drive-web-editor", "worktree-temp.mjs")).href));
+    text = text.replace('"../../repos.mjs"', () => JSON.stringify(pathToFileURL(path.join(here, "..", "..", "repos.mjs")).href));
     text = text.replace('"../../../scripts/review-job-root.mjs"', () => JSON.stringify(pathToFileURL(path.join(here, "..", "..", "..", "scripts", "review-job-root.mjs")).href));
     text = text.replace('"../../../scripts/reviewer-slots.mjs"', () => JSON.stringify(pathToFileURL(path.join(here, "..", "..", "..", "scripts", "reviewer-slots.mjs")).href));
     for (const [needle, replacement] of cuts) {
@@ -1460,7 +1462,7 @@ try {
   await control("the run does not fetch first", [['gitOrDie(deps, ["fetch", "--prune", "origin"], mainRoot);', ""]], ["it did not fetch with --prune first"]);
   await control("a held directory is not probed before git worktree remove", [["deps.rename(abs, probe);", ""]], ["fix/9-held: expected kept, got failed"]);
   await control("the probe name is not checked before use", [["if (deps.exists(probe)) return kept(", "if (false) return kept("]], ["row for fix/32-probe-taken does not say"]);
-  await control("the branch is deleted without reading its commits again", [["if (own.status !== 0 || Number(own.out) > 0) return kept(", "if (false) return kept("]], ["fix/22-commits-late: expected kept, got removed"]);
+  await control("the branch is deleted without reading its commits again", [["if (own.status !== 0 || (Number(own.out) > 0 && !mergedPr)) return kept(", "if (false) return kept("], ["if (Number(own.out) > 0) {", "if (false) {"]], ["fix/22-commits-late: expected kept, got removed"]);
   await control("the checked-out branch is not read again", [["if (head.status !== 0 || head.out !== ref) return kept(", "if (false) return kept("]], ["fix/33-switched-late: expected kept, got removed"]);
   await control("a refusal that kept git's record is removed directly", [["    if (reg.registered) {", "    if (false) {"]], ["fix/35-refuses-late: expected kept, got removed"]);
   await control("a registration that could not be read is read as dropped", [["if (!reg.known) return failed(", "if (false) return failed("]], ["fix/42-list-fails: expected failed, got removed"]);
@@ -1474,7 +1476,7 @@ try {
   await control("directories that are not worktrees are not listed", [["const strayPaths = strayDirs(entries, ctx.root, deps.listDirs);", "const strayPaths = [];"]], ["no row for impower.worktrees"]);
   await control("the rows are not recorded for the next run", [["if (!row.stray) record({ decision: row.decision, path: path.resolve(row.entry.path), branch: row.entry.branch, why: row.why });", ""]], [`row for ${rel(R("impower.worktrees/fix/14-grabbed"))} does not say`]);
   await control("a stray row is recorded over the removal it reports", [["if (!row.stray) record({ decision: row.decision,", "record({ decision: row.decision,"]], ["the log does not hold every worktree row, or holds a stray one", `row for ${rel(R("impower.worktrees/fix/14-grabbed"))} does not say '; its branch fix/14-grabbed is still local'`]);
-  await control("a failed removal exits 0", [["return failed || drivers.failed || jobs.failed || filerJobs.failed || scratch.failed ? 1 : 0;", "return drivers.failed || jobs.failed || filerJobs.failed || scratch.failed ? 1 : 0;"]], ["exit code 0 though a removal failed"]);
+  await control("a failed removal exits 0", [["return failed || branches.failed || rootFiles.failed || drivers.failed || jobs.failed || filerJobs.failed || scratch.failed || artifacts.failed ? 1 : 0;", "return branches.failed || rootFiles.failed || drivers.failed || jobs.failed || filerJobs.failed || scratch.failed || artifacts.failed ? 1 : 0;"]], ["exit code 0 though a removal failed"]);
   await control("a tree that turned dirty after classification is removed", [["if (dirty > 0) return kept(", "if (false) return kept("]], ["fix/25-dirty-late: expected kept, got removed"]);
   await control("the older driver location is not looked at", [['".agents/skills/resolve-issue/driver.mjs"', '".agents/skills/resolve-issue/driver-elsewhere.mjs"']], ["fix/26-old-driver-up: expected keep, got remove"]);
   await control("the VS Code driver is not asked", [['  { driver: ".agents/skills/drive-vscode-web/driver.mjs", states: [".agents/skills/drive-vscode-web/.state.json", ".claude/skills/drive-vscode-web/.state.json"] },\n', ""]], ["row for fix/47-two-servers does not say 'dev servers up at http://localhost:6 (pid 1) through drive-vscode-web'"]);
@@ -1703,7 +1705,8 @@ try {
   const staleLock = path.join(extra("fix/1-merged-gone", "lockstale"), `${PROFILE_CLAIM_FILE}.lock`);
   fs.writeFileSync(staleLock, "123-dead");
   fs.utimesSync(staleLock, new Date(Date.now() - 60 * 60_000), new Date(Date.now() - 60 * 60_000));
-  fs.writeFileSync(path.join(extra("fix/12-ff-merged", "lockfresh"), `${PROFILE_CLAIM_FILE}.lock`), "456-live");
+  const freshLock = path.join(extra("fix/12-ff-merged", "lockfresh"), `${PROFILE_CLAIM_FILE}.lock`);
+  fs.writeFileSync(freshLock, "456-live");
   fs.writeFileSync(path.join(extra("fix/12-ff-merged", "badclaim"), PROFILE_CLAIM_FILE), '{"session":');
   extra("fix/12-ff-merged", "linkrecord");
   let linked = true;
@@ -1769,6 +1772,7 @@ try {
   });
 
   await check("as a command, the dry run on a real repository classifies and removes nothing", () => {
+    fs.utimesSync(freshLock, new Date(), new Date());
     const r = cli(mainRoot);
     assert.equal(r.status, 0, r.out);
     expectRows(r.out, [
@@ -1796,14 +1800,14 @@ try {
     assert.ok(!fs.existsSync(path.join(mainRoot, ".git", LOG_NAME)), "the dry run wrote the log");
     assert.match(r.out, new RegExp(`web editor driver directories under ${driverHome.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:`));
     assert.match(driverRow(r.out, driverDir("fix/1-merged-gone")) ?? "", /^remove\s+\S+\s+4\.0 KB\s+the driver directory of .*fix.1-merged-gone, which would be removed; no session in it is in use$/);
-    assert.match(driverRow(r.out, driverDir("fix/12-ff-merged")) ?? "", /^keep\s.*session abc123: its profile was claimed 1 min ago, under the driver's 30 min/);
+    assert.match(driverRow(r.out, driverDir("fix/12-ff-merged")) ?? "", /^keep\s.*session abc123: its profile was claimed \d+ min ago, under the driver's 30 min/);
     const kept12 = driverRow(r.out, driverDir("fix/12-ff-merged")) ?? "";
     assert.match(kept12, /session lockfresh: a launch holds its profile claim lock/);
     assert.match(kept12, /session badclaim: its profile claim could not be read/);
     if (linked) assert.match(kept12, /session linkrecord: its server record is a link/);
     else console.log("SKIP: a dangling server record link (creating a symlink needs a privilege this account lacks)");
     assert.match(driverRow(r.out, driverDir("fix/14-base")) ?? "", new RegExp(`^keep\\s.*session abc123: its server record names pid ${process.pid}, still running.*its path is on the command line of pid ${profileUser.pid} \\(`));
-    assert.match(driverRow(r.out, orphan) ?? "", /^keep\s.*matches no worktree and holds no owner record/);
+    assert.match(driverRow(r.out, orphan) ?? "", /^remove\s.*it matches no worktree and holds no owner record, which every driver launch writes, so no driver has run in it since records began; no session in it is in use$/);
     assert.match(driverRow(r.out, ownerGone) ?? "", /^remove\s.*its recorded checkout .*99-gone-. no longer exists; no session in it is in use$/);
     assert.match(driverRow(r.out, ownerLive) ?? "", new RegExp(`^keep\\s.*99-gone-. no longer exists; session s1: its server record names pid ${process.pid}, still running`));
     assert.match(driverRow(r.out, ownerClaimed) ?? "", /^keep\s.*99-gone-. no longer exists; session s1: its profile was claimed 0 min ago/);
@@ -1849,7 +1853,7 @@ try {
     assert.match(driverRow(r.out, driverDir("fix/1-merged-gone")) ?? "", /^removed\s/);
     assert.equal(fs.existsSync(driverDir("fix/1-merged-gone")), false, "the removed worktree's driver directory is still there");
     for (const b of ["fix/12-ff-merged", "fix/14-base", "fix/3-dirty"]) assert.ok(fs.existsSync(path.join(driverDir(b), "abc123", "profile", "Default", "cache.bin")), `the driver directory of ${b} lost its profile`);
-    assert.ok(fs.existsSync(orphan), "the unmatched driver directory was removed");
+    assert.equal(fs.existsSync(orphan), false, "the unattributed driver directory no session uses is still there");
     assert.match(driverRow(r.out, ownerGone) ?? "", /^removed\s/);
     assert.equal(fs.existsSync(ownerGone), false, "the directory whose recorded checkout is gone is still there");
     for (const d of [ownerLive, ownerClaimed, ownerPresent]) assert.ok(fs.existsSync(d), `--apply removed the retained driver directory ${d}`);
@@ -2480,6 +2484,61 @@ await check("a merged review job whose recorded pid was recycled is removed; one
   }
 }
 
+{
+  const scratch = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "impower-clean-artifacts-")));
+  console.log(`Scratch writer artifact root parent: ${scratch}`);
+  const mainRoot = path.join(scratch, "repo");
+  fs.mkdirSync(mainRoot);
+  const root = sessionScratchRoot(mainRoot, scratch);
+  const artifact = (parent, name, owner) => {
+    const dir = path.join(root, "session-1", "scratchpad", parent, name);
+    fs.mkdirSync(dir, { recursive: true });
+    if (owner) fs.writeFileSync(path.join(dir, "owner.json"), JSON.stringify(owner));
+    fs.writeFileSync(path.join(dir, "evidence.bin"), "bytes");
+    return dir;
+  };
+  const gone = artifact("", "writer-1-a", { issue: 1, worktree: path.join(scratch, "gone-worktree") });
+  const present = artifact("", "writer-2-b", { issue: 2, worktree: mainRoot });
+  const nested = artifact("orch-9", "writer-3-c", { issue: 3, worktree: path.join(scratch, "gone-too") });
+  const unowned = artifact("", "writer-4-d", null);
+  const busy = artifact("", "writer-5-e", { issue: 5, worktree: path.join(scratch, "gone-three") });
+  const closed = artifact("", "writer-6-f", { issue: 6, worktree: mainRoot });
+  const unknown = artifact("", "writer-7-g", { issue: 7, worktree: mainRoot });
+  const recorded = [];
+  try {
+    await check("writer artifact directories whose worktree is gone or whose issue is closed go under --apply, and one whose worktree stands on an open or unreadable issue, whose owner is unreadable or that a process names stays", async () => {
+      const ctx = { mainRoot, processes: { ok: true, list: [{ pid: 777, name: "node.exe", cmd: `node probe.mjs "${busy}"` }] } };
+      const states = { 2: "open", 6: "closed" };
+      const deps = { ...liveDeps, tmpdir: () => scratch, log: () => {}, pid: () => 1, exec: (cmd, args, cwd, timeout) => {
+        if (cmd !== "gh") return liveDeps.exec(cmd, args, cwd, timeout);
+        const issue = /\/issues\/(\d+)$/.exec(args[1])?.[1];
+        return states[issue] ? { status: 0, out: states[issue], err: "" } : { status: 1, out: "", err: "not found" };
+      } };
+      const dry = await cleanWriterArtifacts(ctx, deps, false, (r) => recorded.push(r));
+      assert.deepEqual(dry.rows.map((r) => [path.basename(r.path), r.decision]).sort(), [["writer-1-a", "remove"], ["writer-2-b", "keep"], ["writer-3-c", "remove"], ["writer-4-d", "keep"], ["writer-5-e", "keep"], ["writer-6-f", "remove"], ["writer-7-g", "keep"]]);
+      assert.match(dry.rows.find((r) => path.basename(r.path) === "writer-2-b").why, /its worktree .* is still there and its issue \S+#2 is open/);
+      assert.match(dry.rows.find((r) => path.basename(r.path) === "writer-7-g").why, /the state of its issue #7 could not be read/);
+      assert.match(dry.rows.find((r) => path.basename(r.path) === "writer-6-f").why, /whose issue \S+#6 is closed/);
+      assert.equal(recorded.length, 0, "a dry run recorded rows");
+      assert.ok(fs.existsSync(gone) && fs.existsSync(nested), "the dry run removed a directory");
+      const run = await cleanWriterArtifacts(ctx, deps, true, (r) => recorded.push(r));
+      assert.equal(run.failed, 0);
+      const row = (name) => run.rows.find((r) => path.basename(r.path) === name);
+      assert.equal(row("writer-1-a").decision, "removed");
+      assert.equal(row("writer-3-c").decision, "removed");
+      assert.equal(row("writer-6-f").decision, "removed");
+      assert.match(row("writer-2-b").why, /its worktree .* is still there/);
+      assert.match(row("writer-4-d").why, /holds no owner.json/);
+      assert.match(row("writer-5-e").why, /its path is on the command line of pid 777/);
+      assert.ok(!fs.existsSync(gone) && !fs.existsSync(nested) && !fs.existsSync(closed), "a removable directory survived apply");
+      assert.ok(fs.existsSync(present) && fs.existsSync(unowned) && fs.existsSync(busy) && fs.existsSync(unknown), "a kept directory was removed");
+      assert.ok(recorded.some((r) => r.decision === "removing" && r.path === gone) && recorded.some((r) => r.decision === "removed" && r.path === gone));
+    });
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
 // ------------------------------------------------ detached worktrees, real git ---
 
 {
@@ -2598,6 +2657,26 @@ await check("a merged review job whose recorded pid was recycled is removed; one
         assert.ok(dgit(dmain, "worktree", "list", "--porcelain").replaceAll("\\", "/").includes(`${droot.replaceAll("\\", "/")}/${name}`), `${name} lost its worktree record`);
       }
       assert.equal(dgit(dmain, "for-each-ref", "--format=%(refname)", "refs/heads/"), before, "a branch was deleted");
+    });
+
+    await check("removeWorktree removes a squash-merged tree only while its tip is still the head of the merged pull request", async () => {
+      const ctxS = { root: droot, mainRoot: dmain, defaultBranches: new Set(["main"]), github: { owner: "o", name: "r" } };
+      const squashed = path.join(droot, "squashed");
+      dgit(dmain, "worktree", "add", "-q", "-b", "fix/9-squashed", squashed, "origin/main");
+      oldGit(squashed, "commit", "-q", "--allow-empty", "-m", "squashed elsewhere");
+      const tip = dgit(squashed, "rev-parse", "HEAD");
+      const entry = { path: squashed, head: tip, branch: "fix/9-squashed", detached: false };
+      const withGh = (reply) => ({ ...liveDeps, exec: (cmd, args, cwd, timeout) => cmd === "gh" ? { status: 0, out: reply, err: "" } : liveDeps.exec(cmd, args, cwd, timeout) });
+      const unmerged = await removeWorktree(entry, ctxS, withGh(`9 ${"0".repeat(40)}`), { mergedPr: { number: 9 } });
+      assert.equal(unmerged.outcome, "kept", unmerged.note);
+      assert.match(unmerged.note, /1 commit not on origin\/main and the tip is no longer the head pull request #9 merged/);
+      assert.ok(fs.existsSync(squashed));
+      const plain = await removeWorktree(entry, ctxS, withGh(`9 ${tip}`));
+      assert.equal(plain.outcome, "kept", "a squash-merged tree was removed without the classification's merged pull request");
+      const removed = await removeWorktree(entry, ctxS, withGh(`9 ${tip}`), { mergedPr: { number: 9 } });
+      assert.equal(removed.outcome, "removed", removed.note);
+      assert.equal(fs.existsSync(squashed), false);
+      assert.equal(dgit(dmain, "for-each-ref", "refs/heads/fix/9-squashed"), "", "the squash-merged branch stayed");
     });
 
     await check("removeWorktree re-verifies a detached tree at removal: one that became dirty, mid-rebase, branched, moved or freshly used since it was classified is kept, an unchanged one removed", async () => {

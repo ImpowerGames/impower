@@ -38,7 +38,7 @@ export function testScratch(prefix, from) {
 // enters one. Each file comes with its size from a single stat, sorted by
 // name within its directory. An entry removed while the walk reads it (a
 // reviewer deleting its probe) is skipped.
-const NOT_JOB_STATE = /^(?:reviewer-.*|codex-home-.*|gh-config-.*|\.git|node_modules|npm-cache|\.npm|_cacache)$/;
+export const NOT_JOB_STATE = /^(?:reviewer-.*|codex-home-.*|gh-config-.*|\.git|node_modules|npm-cache|\.npm|_cacache)$/;
 const vanished = (error) => error.code === "ENOENT" || error.code === "ENOTDIR";
 export function reviewJobFiles(jobDir) {
   const files = [];

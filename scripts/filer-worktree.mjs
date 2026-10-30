@@ -134,19 +134,43 @@ async function installOwned(recordPath, owner) {
 export async function remove(recordPath, owner) {
   return exclusive(recordPath, owner, () => removeOwned(recordPath, owner));
 }
+function statusLines(tree) {
+  const status = spawnSync("git", ["status", "--porcelain", "--untracked-files=all"], { cwd: tree, env: gitEnvironment(), encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+  if (status.error || status.status !== 0) throw new Error(`git status failed in ${tree}: ${status.error?.message ?? status.stderr}`);
+  return status.stdout.split(/\r?\n/).filter(Boolean);
+}
+function saveLeftovers(r, recordPath) {
+  const changed = statusLines(r.tree);
+  if (!changed.length) return null;
+  const leftovers = path.join(path.dirname(recordPath), "leftovers");
+  fs.mkdirSync(leftovers, { recursive: true });
+  const patch = path.join(leftovers, `${new Date().toISOString().replace(/[:.]/g, "-")}.patch`);
+  git(r.tree, ["add", "-A"]);
+  const diff = spawnSync("git", ["diff", "--cached", "--binary", "HEAD"], { cwd: r.tree, env: gitEnvironment(), windowsHide: true, maxBuffer: 256 * 1024 * 1024 });
+  if (diff.error || diff.status !== 0) throw new Error(`Leftover changes could not be captured (${diff.error?.message ?? diff.stderr}); preserve owned tree ${r.tree}`);
+  fs.writeFileSync(patch, diff.stdout, { flag: "wx" });
+  git(r.tree, ["reset", "-q", "--hard", "HEAD"]);
+  git(r.tree, ["clean", "-q", "-fd"]);
+  if (statusLines(r.tree).length) throw new Error(`Leftover changes remain after being saved to ${patch}; preserve owned tree ${r.tree}`);
+  const saved = read(recordPath);
+  saved.leftovers = [...(saved.leftovers ?? []), { patch, files: changed }];
+  fs.writeFileSync(recordPath, JSON.stringify(saved, null, 2) + "\n");
+  return patch;
+}
 async function removeOwned(recordPath, owner) {
   const r = owned(recordPath, owner);
   if (git(r.tree, ["rev-parse", "HEAD"]) !== r.head) throw new Error("Filer has committed work; preserve it for a person");
   await checkLinks(r.tree);
+  const leftovers = saveLeftovers(r, recordPath);
   const result = spawnSync(process.execPath, [guard, "--apply", "--root", r.root, "--remove", r.tree], { cwd: r.root, env: gitEnvironment(), encoding: "utf8", windowsHide: true });
-  if (result.error || result.status !== 0) throw new Error(`Guarded cleanup refused or failed; preserve ownership and artifacts: ${result.error?.message ?? result.stdout + result.stderr}`);
+  if (result.error || result.status !== 0) throw new Error(`Guarded cleanup refused or failed; preserve ownership and artifacts${leftovers ? ` (leftover changes were saved to ${leftovers})` : ""}: ${result.error?.message ?? result.stdout + result.stderr}`);
   if (fs.existsSync(r.tree) || entries(r.root).some(e => same(e.path, r.tree))) throw new Error("Cleanup result could not be verified; preserve ownership and artifacts");
   // Delete only the unchanged owned branch, after verifying no other checkout holds it.
   if (git(r.root, ["rev-parse", `refs/heads/${r.branch}`]) !== r.head) throw new Error("Owned branch moved; preserve it");
   git(r.root, ["branch", "-D", r.branch]);
   const saved = read(recordPath); saved.state = "removed";
   fs.writeFileSync(recordPath, JSON.stringify(saved, null, 2) + "\n");
-  return result.stdout.trim();
+  return leftovers ? `${result.stdout.trim()}\nleftover changes saved to ${leftovers}` : result.stdout.trim();
 }
 export async function main(argv) {
   const command = argv.shift(), options = {};

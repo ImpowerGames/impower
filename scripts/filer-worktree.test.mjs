@@ -1107,7 +1107,6 @@ fs.symlinkSync(external, path.join(owned.tree, "node_modules", "borrowed"), proc
 await assert.rejects(install(owned.record, owner), /outside|External/);
 await assert.rejects(remove(owned.record, owner), /outside|External/); preserved();
 fs.unlinkSync(path.join(owned.tree, "node_modules", "borrowed"));
-await assert.rejects(remove(owned.record, owner), /uncommitted/); preserved();
 fs.unlinkSync(path.join(owned.tree, "package-lock.json"));
 git(["worktree", "lock", owned.tree]);
 await assert.rejects(remove(owned.record, owner), /ownership/); preserved();
@@ -1138,6 +1137,28 @@ assert.ok(!fs.existsSync(owned.tree));
 assert.ok(fs.existsSync(owned.artifacts));
 assert.equal(JSON.parse(fs.readFileSync(owned.record)).state, "removed");
 await assert.rejects(remove(owned.record, owner), /inactive/); preserved();
+{
+  const leftoverOwner = "leftover-session", left = await create({ root: main, owner: leftoverOwner, toolingOnly: true });
+  fs.writeFileSync(path.join(left.tree, "probe.mts"), "console.log('probe');\n");
+  fs.mkdirSync(path.join(left.tree, "repro", "nested"), { recursive: true });
+  fs.writeFileSync(path.join(left.tree, "repro", "nested", "case.sd"), "nested repro\n");
+  fs.appendFileSync(path.join(left.tree, "tracked.txt"), "filer edit\n");
+  fs.writeFileSync(path.join(left.tree, "ignored.txt"), "ignored scratch\n");
+  const report = await remove(left.record, leftoverOwner); preserved();
+  assert.ok(!fs.existsSync(left.tree), "the tree with leftovers stayed");
+  const saved = JSON.parse(fs.readFileSync(left.record));
+  assert.equal(saved.state, "removed");
+  assert.equal(saved.leftovers.length, 1);
+  assert.deepEqual(saved.leftovers[0].files.sort(), ["?? probe.mts", "?? repro/nested/case.sd", " M tracked.txt"].sort());
+  assert.ok(saved.leftovers[0].patch.startsWith(path.join(left.artifacts, "leftovers")), saved.leftovers[0].patch);
+  assert.match(report, /leftover changes saved to /);
+  const patch = fs.readFileSync(saved.leftovers[0].patch, "utf8");
+  for (const name of ["probe.mts", "repro/nested/case.sd", "tracked.txt"]) assert.ok(patch.includes(`b/${name}`), `${name} is missing from the leftover patch`);
+  assert.ok(patch.includes("filer edit"));
+  assert.ok(!patch.includes("ignored scratch"), "an ignored file was captured");
+  assert.notEqual(spawnSync("git", ["rev-parse", "--verify", "-q", `refs/heads/${saved.branch}`], { cwd: main, windowsHide: true }).status, 0, "the owned branch stayed");
+}
+console.log("PASS: leftover changes are saved to the artifacts directory before removal");
 const overrideMain = path.join(scratch, "override-main"); fs.mkdirSync(overrideMain);
 for (const args of [["init", "-b", "main"], ["config", "user.name", "Fixture"], ["config", "user.email", "fixture@example.invalid"]]) git(args, overrideMain);
 fs.writeFileSync(path.join(overrideMain, "tracked.txt"), "main marker control\n");
