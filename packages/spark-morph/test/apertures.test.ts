@@ -14,6 +14,8 @@ import {
   splitClosedTopShortOfOuterTip,
   splitOpeningBottom,
   splitOpeningTop,
+  touchingClosedBottom,
+  touchingClosedTopShortOfOuterTip,
   upperOpen,
 } from "./fixtures";
 
@@ -288,7 +290,17 @@ describe("buildApertures", () => {
     expect(ap.area(1)).toBeLessThan(AREA_ZERO);
   });
 
-  test("tip ribs alone never open an aperture; one open interior rib does", () => {
+  test("split closed lashes whose facing edges touch close to zero area", () => {
+    const r = buildApertures([
+      edge("top", upperOpen, touchingClosedTopShortOfOuterTip, "eyelash-top-left"),
+      edge("bottom", lowerOpen, touchingClosedBottom, "eyelash-bottom-left"),
+    ]);
+    expect(r.diagnostics).toEqual([]);
+    expect(r.apertures[0]!.area(0)).toBeGreaterThan(1000);
+    expect(r.apertures[0]!.area(1)).toBeLessThan(AREA_ZERO);
+  });
+
+  test("tip ribs alone never open an aperture; one open interior rib does, one touching rib does not", () => {
     const points = 24;
     const flat = (sign: number, closedY: (i: number) => number): BendTrack => ({
       from: [],
@@ -309,16 +321,17 @@ describe("buildApertures", () => {
       },
     });
     const tip = (i: number) => i === 0 || i === points - 1;
-    const pair = (opened: (i: number) => boolean) =>
+    const pair = (opened: (i: number) => boolean, touching: (i: number) => boolean = () => false) =>
       buildApertures(
         [
-          { id: "u", label: "l", track: flat(-1, (i) => (opened(i) ? 48 : 51)) },
-          { id: "l", label: "l", track: flat(1, (i) => (opened(i) ? 52 : 49)) },
+          { id: "u", label: "l", track: flat(-1, (i) => (opened(i) ? 48 : touching(i) ? 50 : 51)) },
+          { id: "l", label: "l", track: flat(1, (i) => (opened(i) ? 52 : touching(i) ? 50 : 49)) },
         ],
         { points },
       ).apertures[0]!;
     expect(pair(tip).area(1)).toBeLessThan(AREA_ZERO);
     expect(pair((i) => tip(i) || i === 12).area(1)).toBeGreaterThan(1);
+    expect(pair(tip, (i) => i === 12).area(1)).toBeLessThan(AREA_ZERO);
   });
 
   test("results are deterministic across input order", () => {

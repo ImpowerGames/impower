@@ -300,13 +300,16 @@ function makeAperture(A: EdgeTrack, B: EdgeTrack, flipB: boolean, points: number
     const cx = a[points - 1]![0] - a[0]![0],
       cy = a[points - 1]![1] - a[0]![1];
     const facing = Math.sign(cx * dir[1] - cy * dir[0]) || 1;
-    const gaps = a.map((p, i) => {
+    const measured = a.map((p, i) => {
       const q = b[i]!;
       const qSide = sideOf(a, q),
         pSide = sideOf(b, p);
-      return closed ? 0 : Math.min(qSide === undefined ? 0 : facing * qSide, pSide === undefined ? 0 : -facing * pSide);
+      return [qSide === undefined ? undefined : facing * qSide, pSide === undefined ? undefined : -facing * pSide];
     });
-    const open = !closed && gaps.some((gap, i) => i > 0 && i < points - 1 && gap >= 0);
+    const gaps = measured.map((sides) => (closed ? 0 : Math.min(...sides.map((side) => side ?? 0))));
+    const touching = 1e-9 * extent * extent;
+    const ribOpens = (sides: (number | undefined)[]) => sides.every((side) => side === undefined || side > touching);
+    const open = !closed && measured.some((sides, i) => i > 0 && i < points - 1 && ribOpens(sides));
     return { a, b, gaps, open, facing, extent };
   };
   const openRestGaps = [0, 1].map((t) => {
