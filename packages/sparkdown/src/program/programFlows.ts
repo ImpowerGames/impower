@@ -75,8 +75,6 @@ export interface StatementRecord {
 export interface ProgramFlowsInput {
   /** The assembled parsed story of the compile. */
   story: Story;
-  /** The script the compile started from, whose top-level content is the
-   *  program's top-level flow. */
   uri: string;
   /** The script the compiler seeds the builtins from, whose top-level
    *  content holds declarations alone. */
@@ -792,9 +790,6 @@ const holdsDivertTarget = (obj: ParsedObject): boolean => {
 
 const divertTargetHolders = new WeakMap<ParsedObject, boolean>();
 
-// The keys of the runs after the first of a statement's declarations.
-// The key of a member function's write, by its statement's block
-// (`memberWrites`).
 const writeKeys = new WeakMap<object, object>();
 
 const writeKey = (block: object): object => {

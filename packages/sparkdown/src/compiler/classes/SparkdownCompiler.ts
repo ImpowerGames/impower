@@ -3483,14 +3483,6 @@ export class SparkdownCompiler {
       }
     }
 
-    // The project's other scripts, after the entry's own statements, so that
-    // their declarations register after main's and in path order: the story
-    // places each one's top level after the entry's
-    // (`Story.PreProcessTopLevelObjects`), where its globals initialize after
-    // main's. A member function's write (`function api.f()` writes the
-    // function into `api`) stays in its script's top level, and runs with the
-    // declarations, after every global initializes and before the entry's
-    // top level runs (`programFlows`).
     if (!isInclude) {
       for (const member of state.projectScripts ?? []) {
         const memberStory = this.parseIncrementally(

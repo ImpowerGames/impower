@@ -304,10 +304,6 @@ const merged = (ranges: [number, number][]): [number, number][] => {
   return out;
 };
 
-/** Whether a declaration chunk declares a global: a `SetVar` with the
- *  declare and global flags, which every global's declaration ends with and
- *  a member function's write, which declares none, never holds
- *  (`BinaryProgramWriter.writeDeclaration`). */
 const declaresGlobal = (chunk: ProgramChunk): boolean => {
   for (let at = 0; at < codeWords(chunk); at += 2) {
     const w0 = chunk[HEADER_WORDS + at]!;
@@ -318,16 +314,6 @@ const declaresGlobal = (chunk: ProgramChunk): boolean => {
   return false;
 };
 
-/** One role's chunks of a declaration sequence as a sequence of their own,
- *  with the entry of each in the declaration sequence: the member functions'
- *  writes (`writes`), its chunks that declare no global, or the globals'
- *  declarations, the chunks that declare one. A save names a position in a
- *  declaration sequence among the chunks of its role alone, a write under its
- *  script's writes' name (`writesName`) and a global's declaration under its
- *  script's uri, as a save taken before I-1438 named them when the writes
- *  were a flow of their own (`FormWriter.statementForm`, `FormPlacer.topOf`),
- *  so that a write and a global, whose chunks can share a source and so a
- *  fingerprint, never pair. */
 const roleView = (
   declarations: SequenceRow,
   writes: boolean,
@@ -672,8 +658,6 @@ class FormWriter {
     let e = entry;
     for (;;) {
       if (at.owner < 0 && at.flow < 0) {
-        // A declaration sequence: a member function's write among its
-        // script's writes alone, a global's declaration among its globals.
         const writes = !declaresGlobal(at.arrays.chunks[e]!);
         const role = roleView(at, writes);
         const r = role.entries.indexOf(e);
@@ -854,8 +838,6 @@ interface Placed {
 const SEARCH_SIDE = 8;
 const SEARCH_NEIGHBOURS = 2;
 
-/** How a save starts the name of a script's member functions' writes, the
- *  name of the flow that held them before I-1438 (`writesName`). */
 const SAVED_INCLUDED_FLOW_PREFIX = "$include:";
 
 /** The longest run of `a[alo..ahi)` that `b[blo..bhi)` holds, the first of
@@ -977,8 +959,6 @@ class FormPlacer {
       for (const sequence of this.root.sequences()) {
         const declarations = sequence.flow < 0 && sequence.owner < 0;
         this.printsOf(sequence).forEach((print, entry) => {
-          // A member function's write is looked for among writes alone
-          // (`roleIndex`).
           if (declarations && !declaresGlobal(sequence.arrays.chunks[entry]!)) {
             return;
           }
@@ -1106,9 +1086,6 @@ class FormPlacer {
     return declarations ? this.roleOf(declarations, false) : undefined;
   }
 
-  // The member functions' writes of a declaration sequence, its chunks that
-  // declare no global, as a sequence of their own whose entries stand for
-  // theirs in the declaration sequence (`placeLevels`, `roleView`).
   protected roleOf(declarations: SequenceRow, writes: boolean): SequenceRow {
     const key = `${declarations.id}:${writes}`;
     let role = this._roles.get(key);
