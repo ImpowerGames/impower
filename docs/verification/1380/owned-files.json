@@ -1,0 +1,10 @@
+{
+  "source": [
+    "packages/sparkdown/src/tests/luau-conformance/asymmetricRwExternFixture.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/asymmetricRwExternFixture.ts",
+    "packages/sparkdown/src/tests/luau-conformance/nativeAsymmetricAcceptance.test.ts"
+  ],
+  "archivedNativeProbes": [
+    "packages/sparkdown/src/tests/luau-conformance/nativeAsymmetricAcceptance.test.ts"
+  ]
+}
