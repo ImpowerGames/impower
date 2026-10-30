@@ -656,7 +656,7 @@ export function verificationGaps(record, snapshot, { running = null } = {}) {
   for (const t of slices) if (!(t.state === "closed" && t.delivered) && !closedBeforeRun(record, t)) gaps.push(`#${t.number} is no longer closed with its deliverable on main`);
   const open = (record.operations ?? []).filter((o) => o.id !== running && OPEN_OPERATION.has(o.state));
   if (open.length) gaps.push(`${open.map((o) => (o.kind === "close" ? `closing issue #${o.pr} (${o.id})` : `${o.kind} ${o.id} of PR #${o.pr}`)).join(", ")} ${open.length > 1 ? "are" : "is"} unsettled; settle it with checkpoint.mjs reconcile-operations`);
-  gaps.push(...filedActions(record).map((f) => `#${f.number} ${f.action === "triage-filed" ? "was filed during the run and has no triage outcome; triage it with issue-run.mjs triage" : `is named as filed in #${f.from}'s writer's report but not recorded; confirm it with issue-run.mjs filed and triage it, or dismiss it with GitHub's evidence`}`));
+  gaps.push(...filedActions(record).map((f) => `#${f.number} ${f.unplaced ? "was triaged separate with no umbrella it was attached under; triage it again with issue-run.mjs triage --under, or record maintainer" : f.action === "triage-filed" ? "was filed during the run and has no triage outcome; triage it with issue-run.mjs triage" : `is named as filed in #${f.from}'s writer's report but not recorded; confirm it with issue-run.mjs filed and triage it, or dismiss it with GitHub's evidence`}`));
   return gaps;
 }
 export const verificationHolds = (record, snapshot) => verificationGaps(record, snapshot).length === 0;
@@ -1272,9 +1272,8 @@ export function triage(record, { filed: number, outcome: kind, slice, under, rea
     if (!Number.isSafeInteger(under) || !reason) throw new Error("--under must name the issue in the parent's tree it was attached under, and --reason what of the parent's goal or criteria needs it");
     outcome = { kind, under, reason };
   } else if (kind === "separate") {
-    if (!reason) throw new Error("--reason must say why the ticket is separate work");
-    if (under !== undefined && !Number.isSafeInteger(under)) throw new Error("--under must be an issue number");
-    outcome = { kind, reason, ...(under !== undefined && { under }) };
+    if (!Number.isSafeInteger(under) || !reason) throw new Error("--under must name the umbrella outside the parent's tree it was attached under, and --reason say why the ticket is separate work; when no umbrella exists, record maintainer instead");
+    outcome = { kind, under, reason };
   } else {
     if (!question) throw new Error("--question must give the question raised with the maintainer");
     if (slice !== undefined && !Number.isSafeInteger(slice)) throw new Error("--slice must be the number of the slice whose PR holds on the answer");
@@ -1298,7 +1297,10 @@ export const completingTickets = (record, slice) => Object.values(record.filed ?
 
 export function filedActions(record) {
   const out = [];
-  for (const e of Object.values(record.filed ?? {})) if (!e.outcome) out.push({ number: e.number, action: "triage-filed", reason: `filed during the run${e.from ? ` from #${e.from}'s fix${e.pr ? ` (PR #${e.pr})` : ""}` : " by the coordinator"}, with no triage outcome; read it against the PR it came from and record triage`, ...(e.from && { from: e.from }) });
+  for (const e of Object.values(record.filed ?? {})) {
+    if (!e.outcome) out.push({ number: e.number, action: "triage-filed", reason: `filed during the run${e.from ? ` from #${e.from}'s fix${e.pr ? ` (PR #${e.pr})` : ""}` : " by the coordinator"}, with no triage outcome; read it against the PR it came from and record triage`, ...(e.from && { from: e.from }) });
+    else if (e.outcome.kind === "separate" && !isTicketNumber(e.outcome.under)) out.push({ number: e.number, action: "triage-filed", unplaced: true, reason: "triaged separate with no umbrella it was attached under; attach it under the open umbrella whose Scope covers it and record triage again with --under, or record maintainer when no umbrella exists", ...(e.from && { from: e.from }) });
+  }
   const named = new Map();
   for (const [n, t] of Object.entries(record.tickets ?? {})) for (const r of t.results ?? []) for (const f of filedNumbers(r.report?.filed)) if (!record.filed?.[f] && !record.filedDismissed?.[f] && !named.has(f)) named.set(f, Number(n));
   for (const [f, from] of named) out.push({ number: f, action: "confirm-filed", reason: `#${from}'s writer reports it filed it; confirm on GitHub that it was filed during the run, then record it with filed and triage it, or, when GitHub shows the writer neither filed nor reused it, record dismiss with that evidence`, from });

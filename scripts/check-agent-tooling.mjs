@@ -16,7 +16,7 @@ const unlinked = toolDirectories.map((tool) => `${tool}/skills`).filter((link) =
 });
 if (unlinked.length) throw new Error(`Skill discovery links missing or foreign: ${unlinked.join(", ")}; run node scripts/link-agent-skills.mjs from this checkout, then rerun`);
 const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8", windowsHide: true }).split("\0").filter(Boolean).filter((f) => !f.startsWith("scripts/agent-notification-alerts/"));
-const EXPECTED_CHECKS = 80;
+const EXPECTED_CHECKS = 81;
 const FULL_TREE_CHECKS = ["scripts/check-node-names.test.mjs", "scripts/check-lowerer-conventions.test.mjs"];
 const checks = files.filter((f) => /^(?:\.agents\/|\.claude\/hooks\/|\.github\/scripts\/|scripts\/)/.test(f) && /\.test\./.test(f) && !FULL_TREE_CHECKS.includes(f));
 const runnable = checks.filter((f) => /\.test\.(?:mjs|sh)$/.test(f));
