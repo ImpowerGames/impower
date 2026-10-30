@@ -47,7 +47,6 @@ import {
   lowerInlineTitle,
   lowerInlineTransitional,
   lowerInlineWrite,
-  lowerLuauInterpolatedStringExpression,
 } from "./lowerers/lowerDisplay";
 import { lowerDivert } from "./lowerers/lowerDivert";
 import {
@@ -184,11 +183,6 @@ function lowerNode(
       return lowerInlineDialogue(nodeRef, ctx);
     case "ImplicitAction":
       return lowerImplicitAction(nodeRef, ctx);
-    case "LuauInterpolatedStringExpression":
-    case "LuauSparkdownExplicitInterpolatedStringExpression":
-    case "LuauFunctionCallShorthand":
-    case "LuauSparkdownExplicitFunctionCallShorthand":
-      return lowerLuauInterpolatedStringExpression(nodeRef, ctx);
     case "InlineAction":
       return lowerInlineAction(nodeRef, ctx);
     case "InlineHeading":
