@@ -57,10 +57,24 @@ import {
   getCssVisible,
   getCssZ,
 } from "../utils/transformers.js";
+import { getCssWideKeyword } from "../utils/getCssWideKeyword.js";
 
 const get = (v: string) => v;
 
-export const STYLE_TRANSFORMERS = {
+const keepCssWideKeywords = <
+  T extends Record<string, (value: any, ...rest: any[]) => string>,
+>(
+  transformers: T,
+): T =>
+  Object.fromEntries(
+    Object.entries(transformers).map(([name, transform]) => [
+      name,
+      (value: any, ...rest: any[]) =>
+        getCssWideKeyword(value) ?? transform(value, ...rest),
+    ]),
+  ) as T;
+
+export const STYLE_TRANSFORMERS = keepCssWideKeywords({
   displayed: getCssDisplay,
 
   position: getCssPosition,
@@ -234,4 +248,4 @@ export const STYLE_TRANSFORMERS = {
   "caret-color": getCssColor,
 
   "spinner-color": getCssColor,
-} as const;
+} as const);

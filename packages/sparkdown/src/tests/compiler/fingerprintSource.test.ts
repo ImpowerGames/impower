@@ -15,9 +15,6 @@ const kindsOf = (scope: "comment" | "string"): string[] =>
     .map((node) => node.typeId);
 
 const UNREAD = [
-  "LuauStylePropertyValue",
-  "LuauUIAttributeValue",
-  "LuauUIContentText",
   "SparkdownExplicitTag",
   "SparkdownExplicitTag_c2",
   "SparkdownExplicitTags",

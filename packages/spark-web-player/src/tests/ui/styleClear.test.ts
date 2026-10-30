@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, test } from "vitest";
-import { getCSSPropertyKeyValue } from "../../../../spark-dom/src/utils/getCSSPropertyKeyValue";
+import { getCssTokenValue } from "../../../../spark-dom/src/utils/getCssTokenValue";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
 
@@ -10,13 +10,15 @@ const applyUpdateStyle = (
   style: Record<string, string | number | null>,
 ) => {
   Object.entries(style).forEach(([k, v]) => {
-    const [prop, value] = getCSSPropertyKeyValue(k, v);
     if (v == null) {
-      for (const cssProp of getCssPropertyNames(prop)) {
+      for (const cssProp of getCssPropertyNames(k)) {
         element.style.removeProperty(cssProp);
       }
     } else {
-      for (const [cssProp, cssValue] of getCssEquivalent(prop, value)) {
+      for (const [cssProp, cssValue] of getCssEquivalent(
+        k,
+        getCssTokenValue(v),
+      )) {
         element.style.setProperty(cssProp, cssValue);
       }
     }

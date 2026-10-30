@@ -16,13 +16,6 @@ export const DEFAULT_ATTR_ALIASES = {
   "focus-order": "tab-index",
 };
 
-export const DEFAULT_CSS_ALIASES = {
-  easing: "animation-timing-function",
-  iterations: "animation-iteration-count",
-  duration: "animation-duration",
-  delay: "animation-delay",
-};
-
 const EMPTY_OBJ = {};
 
 export interface RenderContext {
@@ -71,7 +64,7 @@ export function renderVNode(
   const { type, args, children } = el;
   const components = ctx.components;
   const breakpoints = ctx.options?.breakpoints ?? DEFAULT_BREAKPOINTS;
-  const cssAliases = ctx.options?.cssAliases ?? DEFAULT_CSS_ALIASES;
+  const cssAliases = ctx.options?.cssAliases;
   const evaluate = ctx.options?.evaluate ?? defaultEvaluate;
   const interpolate = ctx.options?.interpolate ?? defaultInterpolate;
 

@@ -672,7 +672,10 @@ export default class WorkspaceWindow {
     takeFocus?: boolean,
   ): Promise<ShowDocumentResult> {
     return new Promise((resolve) => {
-      const filename = Workspace.fs.getFilename(uri);
+      const filename = Workspace.fs.getRelativePath(
+        this.store.project.id ?? "",
+        uri,
+      );
       const pane = this.getPaneType(filename);
       const panel = this.getPanelType(filename);
       if (pane && panel) {

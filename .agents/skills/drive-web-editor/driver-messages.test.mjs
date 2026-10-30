@@ -300,7 +300,12 @@ check("a captured console line carries the resource a failed request names nowhe
   const handlers = new Map();
   const page = { on: (event, handler) => handlers.set(event, handler) };
   let closed = false;
-  const ctx = { pages: () => [page], newPage: async () => page, close: async () => { closed = true; } };
+  const ctx = {
+    pages: () => [page],
+    newPage: async () => page,
+    newCDPSession: async () => ({ send: async () => {} }),
+    close: async () => { closed = true; },
+  };
   try {
     const captured = await withEditor(({ consoleLines }) => {
       for (const resource of ["/api/auth/account", "/missing.png"]) {

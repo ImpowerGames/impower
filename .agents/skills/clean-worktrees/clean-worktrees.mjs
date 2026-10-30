@@ -5,7 +5,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { CHECKOUT_OWNER_FILE, PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, checkoutDir, checkoutStateFiles, driverHome } from "../drive-web-editor/session-dir.mjs";
-import { jobRootOf } from "../../../scripts/review-job-root.mjs";
+import { systemTemp } from "../drive-web-editor/worktree-temp.mjs";
+import { ticketsRepo } from "../../repos.mjs";
+import { NOT_JOB_STATE, jobRootOf } from "../../../scripts/review-job-root.mjs";
 import { processIdentity } from "../../../scripts/reviewer-slots.mjs";
 
 const norm = (p) => {
@@ -132,6 +134,17 @@ export const liveDeps = {
   rename: (from, to) => fs.renameSync(from, to),
   removeDir: (p) => fs.rmSync(p, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 }),
   removeEmptyDir: (p) => fs.rmdirSync(p),
+  listFiles: (p) => {
+    try {
+      return fs
+        .readdirSync(p, { withFileTypes: true })
+        .filter((d) => d.isFile())
+        .map((d) => d.name);
+    } catch {
+      return [];
+    }
+  },
+  removeFile: (p) => fs.unlinkSync(p),
   scan: scanTree,
   freeSpace(dir) {
     try {
@@ -150,6 +163,7 @@ export const liveDeps = {
     };
   })(),
   driverHome: () => driverHome(),
+  tmpdir: () => systemTemp(),
   readEntries: (p) => fs.readdirSync(p, { withFileTypes: true }),
   lstat: (p) => fs.lstatSync(p),
   realpath: (p) => fs.realpathSync.native(p),
@@ -246,13 +260,16 @@ export function classify(entry, facts) {
   if ((entry.branch || facts.headOnMain) && !facts.isMain && !facts.isDefault && !entry.prunable && !facts.missing && !facts.unborn) {
     const remoteState = facts.remoteExists ? `${remote} exists` : `no ${remote}`;
     if (facts.dirty > 0) keep.push(`uncommitted changes (${n(facts.dirty, "file")})`);
+    const freshIdle = !facts.committed && (facts.onFirstParent || facts.created) && facts.dirty === 0 && !facts.remoteExists && facts.headIdleMs != null && facts.headIdleMs >= DETACHED_IDLE_MS;
     if (!entry.branch) keep.push(...detachedKeeps(facts));
-    else if (facts.unpushed > 0) keep.push(facts.remoteExists ? `${n(facts.unpushed, "commit")} on neither origin/main nor ${remote}` : `${n(facts.unpushed, "commit")} not on origin/main, and no ${remote} holds them`);
-    else if (facts.ownCommits > 0) keep.push(`${n(facts.ownCommits, "commit")} not on origin/main (all on ${remote}; a pull request may be open)`);
-    else if (facts.remoteAhead > 0) keep.push(`${remote} has ${n(facts.remoteAhead, "commit")} not on origin/main and this branch is behind it; a pull request may be open`);
-    else if (!facts.committed && facts.onFirstParent) keep.push(`no commit was made on the branch: its tip is on origin/main's first-parent line and its reflog records none (${remoteState}); a fresh worktree a session may be working in, so remove it by hand when it is done`);
-    else if (!facts.committed && facts.created) keep.push(`no commit was made on the branch: its reflog holds its creation and no commit since (${remoteState}); a fresh worktree a session may be working in, so remove it by hand when it is done`);
-    else if (!facts.committed) keep.push(`its reflog records neither a commit nor its creation, so whether a commit was made on it cannot be told, and its tip is off origin/main's first-parent line (${remoteState}); left for a person, and \`git worktree remove\` plus \`git branch -D\` by hand once its commits are checked`);
+    else if (!facts.mergedPr && !freshIdle) {
+      if (facts.unpushed > 0) keep.push(facts.remoteExists ? `${n(facts.unpushed, "commit")} on neither origin/main nor ${remote}` : `${n(facts.unpushed, "commit")} not on origin/main, and no ${remote} holds them`);
+      else if (facts.ownCommits > 0) keep.push(`${n(facts.ownCommits, "commit")} not on origin/main (all on ${remote}; a pull request may be open)`);
+      else if (facts.remoteAhead > 0) keep.push(`${remote} has ${n(facts.remoteAhead, "commit")} not on origin/main and this branch is behind it; a pull request may be open`);
+      else if (!facts.committed && facts.onFirstParent) keep.push(`no commit was made on the branch: its tip is on origin/main's first-parent line and its reflog records none (${remoteState}); a fresh worktree a session may be working in, so remove it by hand when it is done`);
+      else if (!facts.committed && facts.created) keep.push(`no commit was made on the branch: its reflog holds its creation and no commit since (${remoteState}); a fresh worktree a session may be working in, so remove it by hand when it is done`);
+      else if (!facts.committed) keep.push(`its reflog records neither a commit nor its creation, so whether a commit was made on it cannot be told, and its tip is off origin/main's first-parent line (${remoteState}); left for a person, and \`git worktree remove\` plus \`git branch -D\` by hand once its commits are checked`);
+    }
     for (const s of serverRows(facts.servers)) {
       const via = s.driver ? ` through ${s.driver}` : "";
       if (s.state === "up") keep.push(`dev servers up at ${s.url} (pid ${s.pid})${via}`);
@@ -266,7 +283,46 @@ export function classify(entry, facts) {
   if (keep.length) return { remove: false, reasons: keep };
   const ignored = facts.ignored.length ? `; takes ${n(facts.ignored.length, "ignored path")} with it (${facts.ignored.join(", ")})` : "";
   if (entry.detached) return { remove: true, reasons: [`detached head at a commit already on origin/main${ignored}`] };
-  return { remove: true, reasons: [`merged into origin/main; ${facts.remoteExists ? `${remote} still exists` : `no ${remote}`}${ignored}`] };
+  const remoteState = facts.remoteExists ? `${remote} still exists` : `no ${remote}`;
+  if (facts.mergedPr) return { remove: true, reasons: [`merged by pull request #${facts.mergedPr.number}, squashed or rebased onto origin/main at this tip; ${remoteState}${ignored}`] };
+  if (!facts.committed && (facts.onFirstParent || facts.created)) return { remove: true, reasons: [`no commit was made on the branch and nothing changed in it, and its HEAD last moved ${hours(facts.headIdleMs)} ago, over ${DETACHED_IDLE_MS / 3600000} hours; ${remoteState}${ignored}`] };
+  return { remove: true, reasons: [`merged into origin/main; ${remoteState}${ignored}`] };
+}
+
+const tryExec = (deps, cmd, args, cwd, timeout) => {
+  try {
+    return deps.exec(cmd, args, cwd, timeout);
+  } catch (err) {
+    return { status: null, out: "", err: String(err?.message ?? err).split("\n")[0] };
+  }
+};
+
+function githubRepo(ctx, deps) {
+  if (ctx.github === undefined) {
+    const url = tryExec(deps, "git", ["config", "--get", "remote.origin.url"], ctx.mainRoot);
+    const m = url.status === 0 ? /github\.com[:/]([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/.exec(url.out) : null;
+    ctx.github = m ? { owner: m[1], name: m[2] } : false;
+  }
+  return ctx.github;
+}
+
+export function mergedPullRequest(branch, tip, ctx, deps) {
+  const repo = githubRepo(ctx, deps);
+  if (!repo || !tip) return null;
+  const query = `repos/{owner}/{repo}/pulls?state=closed&per_page=30&head=${encodeURIComponent(`${repo.owner}:${branch}`)}`;
+  const r = tryExec(deps, "gh", ["api", query, "--jq", '.[] | select(.merged_at != null) | "\\(.number) \\(.head.sha)"'], ctx.mainRoot, 60_000);
+  if (r.status !== 0) return null;
+  for (const line of r.out.split(/\r?\n/)) {
+    const m = /^(\d+) ([0-9a-f]{40})$/.exec(line.trim());
+    if (m && m[2] === tip) return { number: Number(m[1]) };
+  }
+  return null;
+}
+
+export function headIdle(abs, deps) {
+  const log = tryExec(deps, "git", ["reflog", "show", "--date=unix", "--format=%gd", "-n", "1", "HEAD"], abs);
+  const at = log.status === 0 ? /@\{(\d+)\}/.exec(log.out)?.[1] : null;
+  return at ? Date.parse(deps.now()) - Number(at) * 1000 : null;
 }
 
 const gitOrDie = (deps, args, cwd) => {
@@ -406,6 +462,8 @@ export function gatherFacts(entry, ctx, deps) {
     unpushed: 0,
     remoteExists: false,
     remoteAhead: 0,
+    mergedPr: null,
+    headIdleMs: null,
     headOnMain: false,
     onFirstParent: false,
     committed: false,
@@ -434,9 +492,11 @@ export function gatherFacts(entry, ctx, deps) {
     ? Number(gitOrDie(deps, ["rev-list", "--count", ref, "^refs/remotes/origin/main", `^${remoteRef}`], ctx.mainRoot))
     : facts.ownCommits;
   facts.remoteAhead = facts.remoteExists ? Number(gitOrDie(deps, ["rev-list", "--count", remoteRef, "^refs/remotes/origin/main"], ctx.mainRoot)) : 0;
+  facts.mergedPr = facts.ownCommits > 0 ? mergedPullRequest(entry.branch, entry.head, ctx, deps) : null;
   facts.onFirstParent = ctx.firstParent.has(entry.head);
   const reflog = deps.exec("git", ["reflog", "show", "--format=%H%x09%gs", ref], ctx.mainRoot);
   Object.assign(facts, readReflog(reflog.status === 0 ? reflog.out : ""));
+  if (!facts.committed && facts.dirty === 0) facts.headIdleMs = headIdle(abs, deps);
   facts.servers = probeServers(abs, deps);
   facts.users = ctx.processes.ok ? usersOf(abs, ctx.processes.list, deps.pid()) : null;
   return facts;
@@ -588,7 +648,7 @@ function removeEmptyParent(abs, ctx, deps, notes) {
   }
 }
 
-export async function removeWorktree(entry, ctx, deps) {
+export async function removeWorktree(entry, ctx, deps, { mergedPr = null } = {}) {
   const abs = path.resolve(entry.path);
   const kept = (note) => ({ outcome: "kept", note, remaining: null });
   const failed = (note, remaining) => ({ outcome: "failed", note, remaining });
@@ -611,7 +671,12 @@ export async function removeWorktree(entry, ctx, deps) {
   } else {
     if (head.status !== 0 || head.out !== ref) return kept(`changed since it was classified: ${head.status === 0 && head.out ? `now on ${head.out.replace(/^refs\/heads\//, "")}` : "detached head"}; the tree is untouched`);
     const own = deps.exec("git", ["rev-list", "--count", ref, "^refs/remotes/origin/main"], ctx.mainRoot);
-    if (own.status !== 0 || Number(own.out) > 0) return kept(`changed since it was classified: ${own.status === 0 ? `${n(Number(own.out), "commit")} not on origin/main` : own.err || own.out}; the tree is untouched`);
+    if (own.status !== 0 || (Number(own.out) > 0 && !mergedPr)) return kept(`changed since it was classified: ${own.status === 0 ? `${n(Number(own.out), "commit")} not on origin/main` : own.err || own.out}; the tree is untouched`);
+    if (Number(own.out) > 0) {
+      const tip = tryExec(deps, "git", ["rev-parse", ref], ctx.mainRoot);
+      const still = tip.status === 0 && tip.out === entry.head ? mergedPullRequest(entry.branch, tip.out, ctx, deps) : null;
+      if (still?.number !== mergedPr.number) return kept(`changed since it was classified: ${n(Number(own.out), "commit")} not on origin/main and the tip is no longer the head pull request #${mergedPr.number} merged; the tree is untouched`);
+    }
   }
   const held = await probeHeld(abs, deps);
   if (held) return held;
@@ -821,7 +886,7 @@ export function recordedCheckout(dir, deps) {
   try {
     st = deps.lstat(file);
   } catch (err) {
-    if (err?.code === "ENOENT") return { keep: "matches no worktree and holds no owner record, so which checkout it served cannot be told; delete it by hand once no session uses it" };
+    if (err?.code === "ENOENT") return { legacy: "it matches no worktree and holds no owner record, which every driver launch writes, so no driver has run in it since records began" };
     return { keep: `its owner record could not be inspected (${why(err)})` };
   }
   if (!st.isFile()) return { keep: "its owner record is not a file" };
@@ -865,7 +930,7 @@ export async function cleanDriverDirs(ctx, deps, apply, record, rows) {
     let decision;
     let why;
     const recorded = worktree === undefined ? recordedCheckout(dir, deps) : null;
-    const subject = recorded ? `its recorded checkout ${recorded.checkout} no longer exists` : `the driver directory of ${rel(worktree)}, which ${apply ? "was" : "would be"} removed`;
+    const subject = recorded ? recorded.legacy ?? `its recorded checkout ${recorded.checkout} no longer exists` : `the driver directory of ${rel(worktree)}, which ${apply ? "was" : "would be"} removed`;
     if (recorded?.keep) {
       decision = apply ? "kept" : "keep";
       why = recorded.keep;
@@ -919,11 +984,12 @@ export function jobJournals(dir) {
       unreadable.push(`${d}: ${err.code ?? err.message}`);
       continue;
     }
+    if (d !== dir && items.some((it) => it.name.toLowerCase() === ".git")) continue;
     for (const it of items) {
       const p = path.join(d, it.name);
       if (it.isSymbolicLink()) continue;
       if (it.isDirectory()) {
-        if (it.name !== "node_modules" && it.name !== ".git") pending.push(p);
+        if (!NOT_JOB_STATE.test(it.name)) pending.push(p);
       } else if (it.isFile() && it.name.endsWith(".jsonl")) journals.push(p);
     }
   }
@@ -993,57 +1059,38 @@ function physicalPath(value, deps) {
   }
 }
 
-function embeddedCloneReason(clone, deps, ctx) {
-  const kept = (why) => `protected embedded Git repository ${clone} (${why})`;
-  const git = (args, cwd = clone) => {
-    try { return deps.exec("git", args, cwd, 60_000); }
-    catch (err) { return { status: null, out: "", err: err.message }; }
-  };
-  const top = git(["rev-parse", "--show-toplevel"]);
-  let own = false;
-  if (top.status === 0) {
-    try { own = samePath(physicalPath(top.out, deps), physicalPath(clone, deps)); } catch {}
+export function embeddedRepoDependency(repo, kind, jobDir, deps) {
+  const why = (err) => String(err?.code ?? err?.message ?? err).split("\n")[0];
+  const readFile = deps.readFile ?? liveDeps.readFile;
+  const readEntries = deps.readEntries ?? liveDeps.readEntries;
+  const outside = (p) => !samePath(p, jobDir) && !isUnder(p, jobDir);
+  if (kind === "file") {
+    let text;
+    try { text = readFile(path.join(repo, ".git")); }
+    catch (err) { return `its .git file could not be read (${why(err)})`; }
+    const m = /^gitdir:\s*(.+?)\s*$/m.exec(text);
+    if (!m) return "its .git file names no gitdir";
+    const gitDir = path.resolve(repo, m[1]);
+    return outside(gitDir) ? `it is a worktree of a repository outside the job directory (${gitDir})` : null;
   }
-  if (!own) return kept(`it does not answer as its own repository${top.err ? `: ${top.err}` : ""}`);
-  const status = git(["status", "--porcelain", "--untracked-files=all"]);
-  if (status.status !== 0) return kept(`git status could not be read${status.err ? `: ${status.err}` : ""}`);
-  if (status.out) return kept("it has uncommitted or untracked files");
-  const flagged = git(["ls-files", "-v"]);
-  if (flagged.status !== 0) return kept(`its index could not be read${flagged.err ? `: ${flagged.err}` : ""}`);
-  if (flagged.out.split("\n").some((line) => /^[a-zS] /.test(line))) return kept("it has files marked assume-unchanged or skip-worktree, whose changes status does not show");
-  for (const name of [...IN_PROGRESS, "sequencer"]) {
-    const where = git(["rev-parse", "--git-path", name]);
-    if (where.status !== 0 || !where.out) return kept(`git could not locate its ${name} state${where.err ? `: ${where.err}` : ""}`);
-    if ((deps.exists ?? liveDeps.exists)(path.resolve(clone, where.out))) return kept(`a git operation is unfinished in it (${name})`);
-  }
-  const linked = git(["worktree", "list", "--porcelain"]);
-  if (linked.status !== 0) return kept(`its worktrees could not be listed${linked.err ? `: ${linked.err}` : ""}`);
-  const others = parseWorktreeList(linked.out).filter((entry) => { try { return !samePath(physicalPath(entry.path, deps), physicalPath(clone, deps)); } catch { return true; } });
-  if (others.length) return kept(`it has linked worktrees: ${others.map((entry) => entry.path).join(", ")}`);
-  const head = git(["rev-parse", "--verify", "-q", "HEAD^{commit}"]);
-  if (head.status !== 0 || !head.out) return kept(`its HEAD could not be read${head.err ? `: ${head.err}` : ""}`);
-  const refs = git(["for-each-ref", "--format=%(objectname) %(*objectname) %(refname)"]);
-  if (refs.status !== 0) return kept(`its refs could not be listed${refs.err ? `: ${refs.err}` : ""}`);
-  const tips = new Set([head.out]);
-  for (const line of refs.out.split("\n").filter(Boolean)) {
-    const [object, peeled, name] = line.split(" ");
-    if (!name || name.startsWith("refs/remotes/")) continue;
-    if (name.startsWith("refs/tags/") && git(["rev-parse", "-q", "--verify", name], ctx.mainRoot).out === object) continue;
-    tips.add(peeled || object);
-  }
-  const reflogs = git(["log", "-g", "--format=%H", "--exclude=refs/remotes/*", "--all", "HEAD"]);
-  if (reflogs.status !== 0) return kept(`its reflogs could not be read${reflogs.err ? `: ${reflogs.err}` : ""}`);
-  for (const commit of reflogs.out.split(/\s+/).filter(Boolean)) tips.add(commit);
-  for (const tip of tips) {
-    if (git(["cat-file", "-e", `${tip}^{commit}`], ctx.mainRoot).status !== 0) return kept(`commit ${tip.slice(0, 12)} is not on origin/main`);
-    const on = git(["merge-base", "--is-ancestor", tip, "refs/remotes/origin/main"], ctx.mainRoot);
-    if (on.status === 1) return kept(`commit ${tip.slice(0, 12)} is not on origin/main`);
-    if (on.status !== 0) return kept(`whether commit ${tip.slice(0, 12)} is on origin/main could not be told${on.err ? `: ${on.err}` : ""}`);
+  const gitDir = kind === "dir" ? path.join(repo, ".git") : repo;
+  const worktrees = path.join(gitDir, "worktrees");
+  let entries;
+  try { entries = readEntries(worktrees); }
+  catch (err) { return err?.code === "ENOENT" ? null : `its linked worktrees could not be listed (${why(err)})`; }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const file = path.join(worktrees, entry.name, "gitdir");
+    let text;
+    try { text = readFile(file); }
+    catch (err) { return `its linked worktree record ${file} could not be read (${why(err)})`; }
+    const linked = path.dirname(path.resolve(gitDir, text.trim()));
+    if (outside(linked)) return `its linked worktree ${linked} is outside the job directory`;
   }
   return null;
 }
 
-function jobProtection(dir, deps, ctx, { judgeClones = false, approved, trusted } = {}) {
+function jobProtection(dir, deps, ctx, { judgeClones = false } = {}) {
   const reasons = [];
   const { entries, reason } = registeredWorktrees(ctx, deps);
   if (reason) reasons.push(reason);
@@ -1067,16 +1114,14 @@ function jobProtection(dir, deps, ctx, { judgeClones = false, approved, trusted 
       }
       const children = (deps.readEntries ?? liveDeps.readEntries)(current);
       const names = new Set(children.map((entry) => entry.name.toLowerCase()));
-      if (names.has("head") && names.has("objects") && names.has("refs")) reasons.push(`protected embedded Git repository ${current}`);
+      const protect = (kind) => {
+        const why = judgeClones ? kind === "link" ? "its .git is a link" : embeddedRepoDependency(current, kind, dir, deps) : "";
+        if (why !== null) reasons.push(`protected embedded Git repository ${current}${why ? ` (${why})` : ""}`);
+      };
+      if (names.has("head") && names.has("objects") && names.has("refs")) protect("bare");
       for (const entry of children) {
         const child = path.join(current, entry.name);
-        if (entry.name.toLowerCase() === ".git") {
-          const clone = judgeClones && entry.isDirectory() && !entry.isSymbolicLink();
-          const key = path.resolve(current);
-          const why = !clone ? `protected embedded Git repository ${current}` : trusted?.has(key) ? null : embeddedCloneReason(current, deps, ctx);
-          if (why) reasons.push(why);
-          else approved?.add(key);
-        }
+        if (entry.name.toLowerCase() === ".git") protect(entry.isSymbolicLink() ? "link" : entry.isDirectory() ? "dir" : "file");
         else if (entry.isDirectory() && !entry.isSymbolicLink()) pending.push(child);
       }
     } catch (err) {
@@ -1097,9 +1142,8 @@ export function classifyJob(name, dir, deps, ctx) {
     if (github.state === null) keep.push(`the state of #${m[1]} could not be read (${github.err})`);
     else if (github.state === "open") keep.push(`${github.kind} #${m[1]} is open`);
   }
-  const judgeClones = github?.state === "closed";
-  const approvedClones = new Set();
-  const protection = jobProtection(dir, deps, ctx, { judgeClones, approved: approvedClones });
+  const judgeClones = test || github?.state === "closed";
+  const protection = jobProtection(dir, deps, ctx, { judgeClones });
   if (protection) keep.unshift(protection);
   const { journals, unreadable } = jobJournals(dir);
   if (unreadable.length) keep.push(`${n(unreadable.length, "directory", "directories")} inside it could not be read (${listSome(unreadable, 2)})`);
@@ -1129,7 +1173,7 @@ export function classifyJob(name, dir, deps, ctx) {
   if (test && !journals.length) keep.push("a test directory with no journal naming its process; left for a person");
   if (keep.length) return { remove: false, reason: keep.join("; ") };
   const why = m ? `${github.kind} #${m[1]} is closed and` : "a test's scratch directory, and";
-  return { remove: true, judgeClones, approvedClones, reason: `${why} no process its journals record is running; ${n(journals.length, "journal")}` };
+  return { remove: true, judgeClones, reason: `${why} no process its journals record is running; ${n(journals.length, "journal")}` };
 }
 
 export function removeJobDir(dir, guard = () => {}) {
@@ -1193,7 +1237,7 @@ export function cleanJobs(ctx, deps, apply, record) {
         record({ decision: "removing", path: dir, why });
         try {
           const unlinked = removeJobDir(dir, () => {
-            const protection = jobProtection(dir, deps, ctx, { judgeClones: verdict.judgeClones, trusted: verdict.approvedClones });
+            const protection = jobProtection(dir, deps, ctx, { judgeClones: verdict.judgeClones });
             if (protection) throw new Refusal(protection);
           });
           decision = "removed";
@@ -1399,6 +1443,223 @@ export async function cleanScratch(ctx, deps, apply, record) {
   return { failed, rows };
 }
 
+export function classifyBranch(branch, tip, ctx, deps) {
+  const remote = `origin/${branch}`;
+  const remoteExists = tryExec(deps, "git", ["rev-parse", "--verify", "-q", `refs/remotes/${remote}`], ctx.mainRoot).status === 0;
+  const remoteState = remoteExists ? `${remote} still exists` : `no ${remote}`;
+  const own = tryExec(deps, "git", ["rev-list", "--count", `refs/heads/${branch}`, "^refs/remotes/origin/main"], ctx.mainRoot);
+  if (own.status !== 0) return { remove: false, reason: `whether its commits are on origin/main could not be read (${own.err || own.out}); left for a person` };
+  const count = Number(own.out);
+  if (count === 0) return { remove: true, reason: `every commit on it is on origin/main and no worktree holds it; ${remoteState}` };
+  const pr = mergedPullRequest(branch, tip, ctx, deps);
+  if (pr) return { remove: true, reason: `merged by pull request #${pr.number}, squashed or rebased onto origin/main at this tip, and no worktree holds it; ${remoteState}` };
+  const unpushed = remoteExists ? tryExec(deps, "git", ["rev-list", "--count", `refs/heads/${branch}`, "^refs/remotes/origin/main", `^refs/remotes/${remote}`], ctx.mainRoot) : own;
+  const pushed = unpushed.status === 0 && Number(unpushed.out) === 0;
+  return { remove: false, reason: `${n(count, "commit")} not on origin/main${remoteExists ? pushed ? ` (all on ${remote}; a pull request may be open)` : ` (${unpushed.status === 0 ? n(Number(unpushed.out), "commit") : "some"} on neither origin/main nor ${remote})` : `, and no ${remote} holds them`}; no worktree holds it; left for a person` };
+}
+
+export function cleanBranches(ctx, deps, apply, record, entries, stranded = []) {
+  const log = deps.log;
+  const list = tryExec(deps, "git", ["for-each-ref", "--format=%(refname:short)%09%(objectname)", "refs/heads"], ctx.mainRoot);
+  if (list.status !== 0) {
+    log("");
+    log(`local branches could not be listed (${list.err || list.out}); none was judged`);
+    return { failed: 0, rows: [] };
+  }
+  const held = new Set([...entries.map((e) => e.branch), ...stranded].filter(Boolean));
+  const rows = [];
+  for (const line of list.out.split(/\r?\n/)) {
+    const [branch, tip] = line.split("\t");
+    if (!branch || ctx.defaultBranches.has(branch) || held.has(branch)) continue;
+    rows.push({ branch, tip, ...classifyBranch(branch, tip, ctx, deps) });
+  }
+  if (!rows.length) return { failed: 0, rows: [] };
+  log("");
+  log(`local branches no worktree holds in ${ctx.mainRoot}:`);
+  const width = Math.max(...rows.map((r) => r.branch.length));
+  let failed = 0;
+  for (const r of rows) {
+    r.decision = r.remove ? "remove" : "keep";
+    if (apply) {
+      if (!r.remove) r.decision = "kept";
+      else {
+        record({ decision: "removing", branch: r.branch, why: r.reason });
+        const again = classifyBranch(r.branch, r.tip, ctx, deps);
+        if (!again.remove) {
+          r.decision = "kept";
+          r.reason = `changed since it was classified: ${again.reason}`;
+        } else {
+          const del = deps.exec("git", ["branch", "-D", r.branch], ctx.mainRoot);
+          r.decision = del.status === 0 ? "removed" : "failed";
+          if (del.status !== 0) {
+            failed++;
+            r.reason = `git branch -D ${r.branch} failed (${del.err || del.out}); ${r.reason}`;
+          }
+        }
+      }
+      record({ decision: r.decision, branch: r.branch, why: r.reason });
+    }
+    log(`${r.decision.padEnd(DECISION_WIDTH)}  ${r.branch.padEnd(width)}  ${r.reason}`);
+  }
+  const gone = rows.filter((r) => r.decision === "remove" || r.decision === "removed").length;
+  log(`${n(rows.length, "local branch", "local branches")} no worktree holds: ${gone} ${apply ? "removed" : "to remove"}, ${rows.length - gone} kept${failed ? `, ${failed} failed` : ""}.`);
+  return { failed, rows };
+}
+
+const ROOT_FILE_AGE_MS = 24 * 60 * 60 * 1000;
+
+export function classifyRootFile(file, deps, ctx) {
+  const keep = [];
+  const mtime = deps.mtimeMs(file);
+  const age = mtime == null ? null : Date.parse(deps.now()) - mtime;
+  if (age == null) keep.push("its age could not be read");
+  else if (age < ROOT_FILE_AGE_MS) keep.push(`written ${hours(age)} ago, under the ${hours(ROOT_FILE_AGE_MS)} threshold; a session may still be writing it`);
+  const using = commandLineReason(file, deps, ctx);
+  if (using) keep.push(using);
+  if (keep.length) return { remove: false, reason: keep.join("; ") };
+  return { remove: true, reason: `a file under the worktrees root, where only worktrees live, last written ${hours(age)} ago` };
+}
+
+export function cleanRootFiles(ctx, deps, apply, record) {
+  const names = deps.listFiles?.(ctx.root) ?? [];
+  if (!names.length) return { failed: 0, rows: [] };
+  const log = deps.log;
+  log("");
+  log(`files under ${ctx.root}:`);
+  const rows = [];
+  let failed = 0;
+  let removable = 0;
+  let bytes = 0;
+  for (const name of names) {
+    const file = path.join(ctx.root, name);
+    const verdict = classifyRootFile(file, deps, ctx);
+    let size = null;
+    try { size = deps.lstat(file).size; } catch { size = null; }
+    let decision = verdict.remove ? "remove" : "keep";
+    let why = verdict.reason;
+    if (verdict.remove) {
+      removable++;
+      bytes += size ?? 0;
+    }
+    if (apply) {
+      if (!verdict.remove) decision = "kept";
+      else {
+        record({ decision: "removing", path: file, why });
+        try {
+          deps.removeFile(file);
+          decision = "removed";
+        } catch (err) {
+          failed++;
+          decision = "failed";
+          why = `${err.code ?? err.message}; the file is ${deps.exists(file) ? "still there" : "gone"}; ${why}`;
+        }
+      }
+      record({ decision, path: file, why });
+    }
+    rows.push({ name, decision, why, size });
+    log(`${decision.padEnd(DECISION_WIDTH)}  ${name}  ${formatBytes(size).padEnd(SIZE_WIDTH)}  ${why}`);
+  }
+  log(`${n(names.length, "file")} under the worktrees root: ${removable} ${apply ? "removable" : "to remove"} (${formatBytes(bytes)}), ${names.length - removable} kept.`);
+  return { failed, rows };
+}
+
+export const sessionScratchRoot = (mainRoot, tmpdir) => path.join(tmpdir, "claude", path.resolve(mainRoot).replace(/[^A-Za-z0-9]/g, "-"));
+
+function ticketState(issue, ctx, deps) {
+  ctx.ticketStates ??= new Map();
+  if (!ctx.ticketStates.has(issue)) {
+    let repo = null;
+    try { repo = ticketsRepo(); } catch { repo = null; }
+    const r = repo ? tryExec(deps, "gh", ["api", `repos/${repo}/issues/${issue}`, "--jq", ".state"], ctx.mainRoot, 60_000) : { status: null, err: "the tickets repository could not be read from .agents/repos.json" };
+    ctx.ticketStates.set(issue, /^(open|closed)$/.test(r.out) && r.status === 0 ? { repo, state: r.out } : { repo, err: r.err || `unexpected output ${JSON.stringify(r.out)}` });
+  }
+  return ctx.ticketStates.get(issue);
+}
+
+export function classifyWriterArtifacts(dir, deps, ctx) {
+  const why = (err) => String(err?.code ?? err?.message ?? err).split("\n")[0];
+  let owner;
+  try { owner = JSON.parse(deps.readFile(path.join(dir, "owner.json"))); }
+  catch (err) { return { remove: false, reason: err?.code === "ENOENT" ? "holds no owner.json, so whose it was cannot be told; left for a person" : `its owner.json could not be read (${why(err)})` }; }
+  const keep = [];
+  let finished = null;
+  if (typeof owner?.worktree !== "string" || !path.isAbsolute(owner.worktree)) keep.push("its owner.json names no absolute worktree");
+  else {
+    let present = false;
+    try {
+      deps.lstat(owner.worktree);
+      present = true;
+    } catch (err) {
+      if (err?.code !== "ENOENT") keep.push(`whether its worktree ${owner.worktree} still exists could not be told (${why(err)})`);
+      else finished = `whose worktree ${owner.worktree} is gone`;
+    }
+    if (present) {
+      if (!Number.isSafeInteger(owner.issue) || owner.issue < 1) keep.push(`its worktree ${owner.worktree} is still there and its owner.json names no issue`);
+      else {
+        const ticket = ticketState(owner.issue, ctx, deps);
+        if (ticket.state === "closed") finished = `whose issue ${ticket.repo}#${owner.issue} is closed`;
+        else keep.push(`its worktree ${owner.worktree} is still there and ${ticket.state === "open" ? `its issue ${ticket.repo}#${owner.issue} is open` : `the state of its issue #${owner.issue} could not be read (${ticket.err})`}`);
+      }
+    }
+  }
+  const using = commandLineReason(dir, deps, ctx);
+  if (using) keep.push(using);
+  if (keep.length) return { remove: false, reason: keep.join("; ") };
+  return { remove: true, reason: `a writer's private artifacts for #${owner.issue}, ${finished}` };
+}
+
+export async function cleanWriterArtifacts(ctx, deps, apply, record) {
+  const tmpdir = deps.tmpdir?.();
+  if (!tmpdir) return { failed: 0, rows: [] };
+  const root = sessionScratchRoot(ctx.mainRoot, tmpdir);
+  const dirs = [];
+  for (const session of deps.listDirs(root)) {
+    const scratch = path.join(root, session, "scratchpad");
+    const parents = [scratch, ...deps.listDirs(scratch).filter((name) => !/^writer-\d+-/.test(name)).map((name) => path.join(scratch, name))];
+    for (const parent of parents) for (const name of deps.listDirs(parent)) if (/^writer-\d+-/.test(name)) dirs.push(path.join(parent, name));
+  }
+  if (!dirs.length) return { failed: 0, rows: [] };
+  const log = deps.log;
+  log("");
+  log(`writer artifact directories under ${root}:`);
+  const rows = [];
+  let failed = 0;
+  let removable = 0;
+  let bytes = 0;
+  for (const dir of dirs) {
+    const verdict = classifyWriterArtifacts(dir, deps, ctx);
+    const size = await deps.scan(dir).then((s) => s.bytes, () => null);
+    let decision = verdict.remove ? "remove" : "keep";
+    let why = verdict.reason;
+    if (verdict.remove) {
+      removable++;
+      bytes += size ?? 0;
+    }
+    if (apply) {
+      if (!verdict.remove) decision = "kept";
+      else {
+        record({ decision: "removing", path: dir, why });
+        try {
+          removeJobDir(dir, () => {
+            const again = classifyWriterArtifacts(dir, deps, ctx);
+            if (!again.remove) throw new Refusal(again.reason);
+          });
+          decision = "removed";
+        } catch (err) {
+          if (err instanceof Refusal) decision = "kept";
+          else { failed++; decision = "failed"; }
+          why = `${err.message}; the directory is ${deps.exists(dir) ? "still there" : "gone"}; ${why}`;
+        }
+      }
+      record({ decision, path: dir, why });
+    }
+    rows.push({ path: dir, decision, why, size });
+    log(`${decision.padEnd(DECISION_WIDTH)}  ${path.relative(root, dir)}  ${formatBytes(size).padEnd(SIZE_WIDTH)}  ${why}`);
+  }
+  log(`${n(dirs.length, "writer artifact directory", "writer artifact directories")}: ${removable} ${apply ? "removable" : "to remove"} (${formatBytes(bytes)}), ${dirs.length - removable} kept.`);
+  return { failed, rows };
+}
+
 const DECISION_WIDTH = "removed".length;
 const SIZE_WIDTH = "1023.9 MB".length;
 function rowPrinter(rows, ctx, log) {
@@ -1495,7 +1756,7 @@ export async function main(argv, deps = liveDeps) {
       if (!(err instanceof Refusal)) throw err;
       verdict = { remove: false, reasons: [`git could not judge it (${err.message}); left for a person`] };
     }
-    rows.push({ entry, verdict, stray: false, sized: verdict.remove || Boolean(entry.prunable && facts && !facts.missing), size: null, decision: verdict.remove ? "remove" : "keep", why: verdict.reasons.join("; ") });
+    rows.push({ entry, verdict, facts, stray: false, sized: verdict.remove || Boolean(entry.prunable && facts && !facts.missing), size: null, decision: verdict.remove ? "remove" : "keep", why: verdict.reasons.join("; ") });
   }
   const earlier = deps.readLog(logPath);
   const strayPaths = strayDirs(entries, ctx.root, deps.listDirs);
@@ -1530,7 +1791,7 @@ export async function main(argv, deps = liveDeps) {
     if (!row.verdict.remove) return { outcome: "kept", note: row.sizeNote ?? "", remaining: null };
     if (row.sizeNote) return { outcome: "kept", note: `${row.sizeNote}; the tree is untouched`, remaining: null };
     record({ decision: "removing", path: path.resolve(row.entry.path), branch: row.entry.branch, why: row.why });
-    return removeWorktree(row.entry, ctx, deps);
+    return removeWorktree(row.entry, ctx, deps, { mergedPr: row.facts?.mergedPr ?? null });
   };
   for (const row of rows) {
     const r = await settle(row).catch(rowError(row));
@@ -1568,11 +1829,14 @@ export async function main(argv, deps = liveDeps) {
     log(summary);
     record({ summary });
   }
+  const branches = cleanBranches(ctx, deps, apply, record, apply ? parseWorktreeList(gitOrDie(deps, ["worktree", "list", "--porcelain"], cwd)) : entries, [...unfinishedRemovals(deps.readLog(logPath)), ...strandedBranches(deps.readLog(logPath))].map((r) => r.branch));
+  const rootFiles = cleanRootFiles(ctx, deps, apply, record);
   const drivers = await cleanDriverDirs(ctx, deps, apply, record, rows);
   const jobs = cleanJobs(ctx, deps, apply, record);
   const filerJobs = await cleanFilerJobs(ctx, deps, apply, record);
   const scratch = await cleanScratch(ctx, deps, apply, record);
-  return failed || drivers.failed || jobs.failed || filerJobs.failed || scratch.failed ? 1 : 0;
+  const artifacts = await cleanWriterArtifacts(ctx, deps, apply, record);
+  return failed || branches.failed || rootFiles.failed || drivers.failed || jobs.failed || filerJobs.failed || scratch.failed || artifacts.failed ? 1 : 0;
 }
 
 if (process.argv[1] && samePath(fs.realpathSync(fileURLToPath(import.meta.url)), fs.realpathSync(process.argv[1]))) {
