@@ -76,7 +76,7 @@ export function runnableTopLevelRuns(
       node.name.endsWith("Comment")
     ) {
       continue;
-    } else if (STRUCTURE.has(node.name) || declares(node, read)) {
+    } else if (STRUCTURE.has(node.name) || !runsWholly(node, read)) {
       run = undefined;
     } else if (run) {
       run.to = node.to;
@@ -87,6 +87,18 @@ export function runnableTopLevelRuns(
   }
   return runs;
 }
+
+const runsWholly = (
+  node: SyntaxNode,
+  read: (from: number, to: number) => string,
+): boolean => {
+  if (EXPLICIT.has(node.name)) {
+    const content = childEndingWith(node, "_content");
+    const marked = content ? statementsOf(content) : [];
+    return marked.every((statement) => runsWholly(statement, read));
+  }
+  return !declares(node, read);
+};
 
 const declares = (
   node: SyntaxNode,

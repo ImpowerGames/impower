@@ -2,6 +2,7 @@ import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/Spark
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { TOP_LEVEL_STATEMENT_MESSAGE } from "@impower/sparkdown/src/compiler/utils/declarationOnly";
+import { STORE_INSIDE_FLOW_MESSAGE } from "@impower/sparkdown/src/compiler/utils/declarationPlacement";
 import { describe, expect, test, vi } from "vitest";
 import { TextDocument } from "vscode-languageserver-textdocument";
 vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }));
@@ -190,6 +191,21 @@ describe("the Wrap in scene start quick fix", { timeout: 60000 }, () => {
         "",
       ),
     ]);
+  });
+
+  test("leaves a marked line that declares as well as runs at the top level, and wraps what runs after it", () => {
+    const main = lines("& store gold = 1; gold = 2", "Hello.", "");
+    expect(actionsOn(main, 0)).toEqual([]);
+    const [action] = actionsOn(main, 1);
+    expect(action?.text).toBe(
+      lines("& store gold = 1; gold = 2", "scene start", "  Hello.", "end", ""),
+    );
+    const { program } = project(action!.text);
+    expect(
+      Object.values(program.diagnostics ?? {})
+        .flat()
+        .map(messageOf),
+    ).not.toContain(STORE_INSIDE_FLOW_MESSAGE);
   });
 
   test("is not offered once a script declares a start scene", () => {

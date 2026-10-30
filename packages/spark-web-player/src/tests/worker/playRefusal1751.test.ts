@@ -296,3 +296,41 @@ describe("the start's own check of the refusal", { timeout: 120000 }, () => {
     }
   });
 });
+
+describe("the play button after a refused start", { timeout: 120000 }, () => {
+  it("stays hidden for a newer PLAY that started while the refused one recovered", async () => {
+    const h = await harness();
+    try {
+      await h.compile();
+      await settle(20);
+      let recover!: () => void;
+      const recovering = new Promise<void>((resolve) => (recover = resolve));
+      const showPreview = h.controller.showPreviewAfterRefusal.bind(h.controller);
+      let calls = 0;
+      h.controller.showPreviewAfterRefusal = async () => {
+        if (++calls === 1) {
+          await recovering;
+        }
+        return showPreview();
+      };
+      const { release } = holdFirstInit(h);
+      const refused = within(h.controller.handleStartGame({ id: 20, params: {} }));
+      await settle(40);
+      await h.edit([{ text: NO_STORY }]);
+      await h.compile();
+      release();
+      await vi.waitFor(() => expect(calls).toBe(1), { timeout: 15000 });
+      await h.edit([{ text: START }]);
+      await h.compile();
+      const newer = within(h.controller.handleStartGame({ id: 21, params: {} }));
+      expect(await newer).toMatchObject({ result: { success: true } });
+      recover();
+      expect(await refused).toMatchObject({ error: { message: NO_START_SCENE_MESSAGE } });
+      await settle(60);
+      expect(h.controller.playing).toBe(true);
+      expect(h.refs.playButton.style.display).toBe("none");
+    } finally {
+      h.dispose();
+    }
+  });
+});

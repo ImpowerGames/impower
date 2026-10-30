@@ -186,6 +186,7 @@ interface PlayOutcome {
   started: boolean;
   refusal?: string;
   previewShown?: boolean;
+  owned?: boolean;
 }
 
 interface WorkerPlay {
@@ -1602,8 +1603,8 @@ export class GamePlayerController {
     if (hid) {
       this.hidePlayButton();
     }
-    const { started: success, refusal } = await this.startPlay();
-    if (!success && refusal && hid) {
+    const { started: success, refusal, owned } = await this.startPlay();
+    if (!success && refusal && hid && owned) {
       this.showPlayButton();
     }
     this.updateLaunchStateIcon();
@@ -2093,9 +2094,14 @@ export class GamePlayerController {
       return { started: false };
     }
     if (this._playRefusal) {
-      return { started: false, refusal: this._playRefusal };
+      return {
+        started: false,
+        refusal: this._playRefusal,
+        owned: this._mounted && !this.playing,
+      };
     }
     const plays = ++this._plays;
+    const owned = () => plays === this._plays && this._mounted && !this.playing;
     const stops = this._stops;
     this.endCompletionPreview();
     if (!this._program) {
@@ -2122,7 +2128,7 @@ export class GamePlayerController {
       }
     }
     if (this._playRefusal) {
-      return { started: false, refusal: this._playRefusal };
+      return { started: false, refusal: this._playRefusal, owned: owned() };
     }
     const link = workspace?.gameLink;
     if (!this._program || !link) {
@@ -2139,7 +2145,12 @@ export class GamePlayerController {
       if (plays === this._plays) {
         await this.showPreviewAfterRefusal();
       }
-      return { started: false, refusal: refused.refusal, previewShown: true };
+      return {
+        started: false,
+        refusal: refused.refusal,
+        previewShown: true,
+        owned: owned(),
+      };
     }
     return { started };
   }
@@ -2530,12 +2541,7 @@ export class GamePlayerController {
     ) {
       return { started: true };
     }
-    if (
-      outcome.refusal &&
-      stops === this._stops &&
-      this._mounted &&
-      !this.playing
-    ) {
+    if (outcome.refusal && outcome.owned && stops === this._stops) {
       const ended = this._lastStartedRun;
       if (ended && !ended.exitClaimed) {
         ended.exitClaimed = true;
