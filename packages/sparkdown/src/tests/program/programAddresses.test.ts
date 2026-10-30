@@ -1,11 +1,3 @@
-// Addresses and source locations on the binary program (#700): the root's two
-// lookups, `addressAt` and `locationOf` (docs/engine/binary-program.md,
-// section 8). A beat is known by the offset of its `LineStart`, so every line
-// of one beat gives one address and the lines of two beats give two; a
-// chunk's line rows count from its statement's first line, or from the end of
-// the body they stand below, and where a body starts is the root's to derive,
-// so an edit above a statement changes neither its chunk nor its line table
-// and `locationOf` of its address moves with the lines inserted.
 import { describe, expect, it } from "vitest";
 import { programLocator } from "../../compiler/utils/programLocator";
 import { ProgramStory } from "../../program/ProgramStory";
@@ -47,7 +39,6 @@ const rootOf = (text: string): ProgramRoot => {
   return program.chunks;
 };
 
-/** The line of `text` that holds `needle`, counting from 0. */
 const lineOf = (text: string, needle: string): number => {
   const line = text.split("\n").findIndex((l) => l.includes(needle));
   if (line < 0) {
@@ -56,7 +47,6 @@ const lineOf = (text: string, needle: string): number => {
   return line;
 };
 
-/** The chunk an address names, with the instruction at its offset. */
 const at = (root: ProgramRoot, address: number) => {
   const position = root.position(chunkOfAddress(address))!;
   const chunk = position.sequence.arrays.chunks[position.entry]!;
@@ -68,7 +58,6 @@ const at = (root: ProgramRoot, address: number) => {
   };
 };
 
-/** Every chunk a root holds, flow after flow, bodies after their owner. */
 const chunksOf = (root: ProgramRoot): ProgramChunk[] => {
   const out: ProgramChunk[] = [];
   const walk = (row: SequenceRow | undefined) => {
@@ -108,7 +97,6 @@ describe("the address of a beat", () => {
     expect(new Set(lines).size).toBe(1);
     const address = lines[0]!;
     expect(at(root, address).op).toBe(Op.LineStart);
-    // What a story stopped at that address shows is that beat.
     const story = new ProgramStory(root);
     story.ChooseAddress(address);
     expect(story.Continue()).toContain("Do you understand");
@@ -124,7 +112,6 @@ describe("the address of a beat", () => {
     for (const address of [bunny, first, last]) {
       expect(at(root, address).op).toBe(Op.LineStart);
     }
-    // The two beats of one line are one statement's.
     expect(chunkOfAddress(first)).toBe(chunkOfAddress(last));
     expect(offsetOfAddress(first)).toBeLessThan(offsetOfAddress(last));
     expect(root.locationOf(first)).toMatchObject({ uri: MAIN_URI, startLine: three });
@@ -150,11 +137,6 @@ describe("the address of a beat", () => {
     expect(root.locationOf(address + 2 ** 21 * 1000)).toBeUndefined();
   });
 
-  // A dialogue block's range takes its last line's break, so it ends at the
-  // start of the line below. Its location ends with the line before, on the
-  // line the current engine's ends on, which is the line a reader of a
-  // location's end (the preview's executed-line label and ranges, the
-  // editor's selection after STOP) shows (#703).
   it("ends on the line the current engine's location of the line ends on", () => {
     const current = programLocator(quiet(() => compileScript(text)).program);
     const lines = text.split("\n").length;
@@ -167,15 +149,11 @@ describe("the address of a beat", () => {
       });
     const first = lineOf(text, "RAFFLES:");
     const last = lineOf(text, "Three > Four.");
-    // The scene's header is the program engine's first beat (section 8),
-    // so the lines compared are the beats'.
     expect(ends(program).slice(first, last + 1)).toEqual(ends(current).slice(first, last + 1));
     const dialogue = root.addressAt(MAIN_URI, lineOf(text, "_Do you understand_?"))!;
     expect(root.locationOf(dialogue)?.endLine).toBe(lineOf(text, "_Do you understand_?") + 1);
   });
 
-  // The same inside the bodies of a block statement and after them, whose
-  // source has its bodies cut out, with the script's lines ended by CRLF.
   it("ends on the current engine's line inside and after a block's bodies", () => {
     const blockText = [
       "store x = true",
@@ -235,10 +213,6 @@ describe("an edit above a statement", () => {
     "",
   ].join("\n");
 
-  // Inserting `inserted` lines with the edit leaves every chunk of the root
-  // before it, and every line table with it, the same object beside the new
-  // ones, and moves the location of each address below the edit by the
-  // lines inserted.
   const expectMoved = (
     edit: (s: ReturnType<typeof programSession>) => ProgramRoot,
     watched: string[],
@@ -251,7 +225,6 @@ describe("an edit above a statement", () => {
     const after = edit(s);
     const kept = new Set(chunksOf(after));
     const added = chunksOf(after).filter((chunk) => !chunksOf(before).includes(chunk));
-    // Each inserted line is a statement of its own.
     expect(added).toHaveLength(inserted);
     for (const chunk of chunksOf(before)) {
       expect(kept.has(chunk), `chunk ${chunkId(chunk)} is kept`).toBe(true);
@@ -293,7 +266,6 @@ describe("an edit above a statement", () => {
     expect(now).toBe(was);
     expect(now.arrays).toBe(was.arrays);
     expect(after.sequence(was.id)).toBe(before.sequence(was.id));
-    // The owner is the same chunk, and its line table the same words.
     const owner = (root: ProgramRoot) => {
       const position = root.position(was.owner)!;
       return position.sequence.arrays.chunks[position.entry]!;
@@ -326,8 +298,6 @@ describe("a part of a block statement below one of its bodies", () => {
     "",
   ].join("\n");
 
-  // Each part's address before and after an edit inside the body above it:
-  // the owner's chunk is the same object, and the part reports its new line.
   const cases: { part: string; edit: [string, string] }[] = [
     { part: "elseif x == 2 then", edit: ["    One.", "    One.\n    One more."] },
     { part: "+ B", edit: ["      a.", "      a.\n      a again."] },
@@ -342,7 +312,6 @@ describe("a part of a block statement below one of its bodies", () => {
       const address = before.addressAt(MAIN_URI, line)!;
       expect(before.locationOf(address)).toMatchObject({ uri: MAIN_URI, startLine: line });
       const owner = at(before, address).chunk;
-      // An address inside the owner's own code, not one of its bodies'.
       expect(blockCount(owner)).toBeGreaterThan(0);
       const after = s.edit(...edit);
       expect(at(after, address).chunk).toBe(owner);
@@ -418,10 +387,6 @@ describe("two scripts with a statement on the same line", () => {
   });
 });
 
-// Round 1 of the review of #1618 (report 6026971997): a suspended thread's
-// frames return too. A tunnel into B forks C, which leaves its inherited
-// tunnel onward into D; D's `done` resumes B, which returns through the
-// tunnel into A, so while D runs, A's return is one the story comes back to.
 describe("the addresses a story will come back to", () => {
   const TEXT = [
     "",
@@ -475,8 +440,6 @@ describe("the addresses a story will come back to", () => {
       "In D.",
       "After the tunnel.",
     ]);
-    // While D runs, the suspended thread stands in B and its tunnel frame
-    // returns into A.
     expect(scenesBack["In D."]).toEqual(expect.arrayContaining(["A", "B"]));
   });
 });

@@ -1,11 +1,3 @@
-// The workspace worker keeps one game across compiles, and after an edit the
-// route search resumes from a checkpoint the previous program's replay took
-// before the edited line. That checkpoint has to put the story back where it
-// was taken. An edit that grows the scene below it must not move it: a
-// checkpoint taken inside the scene's first display call once resumed inside
-// a later line's string, still marked as mid-expression, and the engine's
-// "Already in expression evaluation?" assert then escaped every search on that
-// game (#751). A kept game and a fresh one must reach the same verdict.
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { lastSearchStats } from "@impower/sparkdown/src/compiler/utils/planRoute";
@@ -15,8 +7,6 @@ import { searchRouteTo } from "../main/workers/searchRouteTo";
 
 const URI = "file:///local/main.sd";
 
-// The edit turns `if` into `i1f`, so the conditional becomes a line of action
-// and the scene gains a whole display call below the line of dialogue.
 const SOURCE = [
   "scene scene_0",
   "= INT. ROOM 0 - DAY",
@@ -54,8 +44,6 @@ const newGame = (program: any) =>
     }) as never,
   } as never);
 
-// Each search targets the edited line: the conditional before the edit, the
-// line of action after it.
 const search = (game: Game, compiler: SparkdownCompiler) => {
   const log = new RouteSearchLog();
   game.setStartFrom({ file: URI, line: 5 });
@@ -82,26 +70,17 @@ describe("a route search after an edit below the resumed checkpoint", () => {
       ],
     } as never);
     const edited = compile(compiler);
-    // The incremental compile says what it changed, which is what lets the
-    // search resume from the previous program's checkpoints at all.
     expect(edited.program.changes).toBeDefined();
     game.updateProgram(edited.program);
 
     const searches = watchSearches();
     expect(search(game, compiler)).toEqual(expected);
     expect(search(game, compiler)).toEqual(expected);
-    // A resumed search that broke on its first node still ends in the verdict
-    // above, because the scene is then searched from the top. It must not
-    // break: that is the misplaced checkpoint, whatever the verdict says.
     expect(searches.filter((s) => s.endReason === "errored")).toEqual([]);
-    // The premise of the whole test: a search DID resume from the previous
-    // program's checkpoint. Without this, a change that answered correctly by
-    // never resuming — paying a full search every edit — would pass.
     expect(searches.filter((s) => s.resumed).length).toBeGreaterThan(0);
   }, 120_000);
 });
 
-/** How each search the planner ran ended, kept without the story it ran on. */
 function watchSearches() {
   const searches: { resumed: boolean; endReason: string }[] = [];
   const planRoute = Game.planRoute.bind(Game);

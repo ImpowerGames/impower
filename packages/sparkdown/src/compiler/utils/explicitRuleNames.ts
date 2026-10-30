@@ -1,5 +1,3 @@
-// Narrative expression twins preserve the original rule's scopes and captures.
-// Consumers use both identities; genuine Luau/function contexts keep originals.
 import type { SparkdownNodeName } from "../types/SparkdownNodeName";
 
 const EXPLICIT_RULE_NAMES: Partial<Record<SparkdownNodeName, SparkdownNodeName>> = {
@@ -77,7 +75,6 @@ const EXPLICIT_RULE_NAMES: Partial<Record<SparkdownNodeName, SparkdownNodeName>>
   "LuauDivertTargetLiteral": "LuauSparkdownExplicitDivertTargetLiteral"
 };
 
-/** The bounded counterpart of a rule or its generated capture/content node. */
 export function explicitRuleName(name: string): string | undefined {
   const separator = name.indexOf("_");
   const root = separator < 0 ? name : name.slice(0, separator);
@@ -85,15 +82,11 @@ export function explicitRuleName(name: string): string | undefined {
   return twin ? twin + (separator < 0 ? "" : name.slice(separator)) : undefined;
 }
 
-// The narrative declaration's and reassignment's own assignment rules: the
-// Luau ones without the line break after an `=`, so a narrative statement
-// ends at its line (#1906). Consumers read them as the Luau ones.
 const NARRATIVE_RULE_NAMES: Partial<Record<SparkdownNodeName, SparkdownNodeName>> = {
   "LuauVariableAssignment": "LuauSparkdownVariableAssignment",
   "LuauAssignmentOperation": "LuauSparkdownAssignmentOperation",
 };
 
-/** The narrative counterpart of a rule or its generated capture/content node. */
 export function narrativeRuleName(name: string): string | undefined {
   const separator = name.indexOf("_");
   const root = separator < 0 ? name : name.slice(0, separator);
@@ -101,12 +94,10 @@ export function narrativeRuleName(name: string): string | undefined {
   return twin ? twin + (separator < 0 ? "" : name.slice(separator)) : undefined;
 }
 
-/** Every grammar identity of the same expression/declaration construct. */
 export function explicitRuleNames(name: string): string[] {
   return [name, explicitRuleName(name), narrativeRuleName(name)].filter((n): n is string => n !== undefined);
 }
 
-/** A comparison which retains the normal, bounded and narrative grammar identities. */
 export function isExplicitRuleName(actual: string | undefined | null, original: string): boolean {
   return actual != null && (actual === original || actual === explicitRuleName(original) || actual === narrativeRuleName(original));
 }

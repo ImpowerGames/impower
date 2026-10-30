@@ -1,17 +1,6 @@
 // Luau's type checker for non-strict mode, ported from Luau's
 // `NonStrictTypeChecker.h`/`NonStrictTypeChecker.cpp`; Luau is MIT-licensed
 // (see `LICENSE-luau.txt`).
-//
-// Besides unknown globals and malformed type annotations, non-strict mode
-// reports only code that is certain to fail at runtime. The failures come
-// from calls to checked functions (declared `@checked`), which raise an error
-// when an argument does not have the parameter's type. The checker walks each
-// block backwards and builds a context that maps each def to the type of the
-// values that make the code fail: statements in sequence join their contexts
-// by union, and the branches of a conditional by intersection, because only a
-// failure on every path is certain. An argument whose type is a subtype of its
-// def's type in the context fails at runtime, and so does a function parameter
-// whose type in the context is `unknown`, which no value escapes.
 
 import {
   AstExprBinary,
@@ -111,15 +100,9 @@ import {
 } from "./Type";
 import { reduceTypeFunctions, TypeFunctionContext, type TypeCheckLimits, type TypeFunctionRuntime } from "./TypeFunction";
 
-// Luau's `LuauNonStrictTypeCheckerRecursionLimit`.
 const NON_STRICT_TYPE_CHECKER_RECURSION_LIMIT = 300;
 
 
-/**
- * Pushes a scope onto the end of a stack until `pop` is called, which stands
- * for the end of the lifetime of Luau's `StackPusher`. The checker uses it to
- * know which scope encloses every node it visits.
- */
 class StackPusher {
   constructor(
     readonly stack: Scope[],
@@ -133,15 +116,9 @@ class StackPusher {
   }
 }
 
-/**
- * For each def, the type of the values that make the code fail at runtime: a
- * value whose type is a subtype of it is certain to raise an error. A def the
- * context lacks stands for `never`.
- */
 class NonStrictContext {
   private readonly context = new Map<DefId, TypeId>();
 
-  /** The union over the domain of keys: a def one side lacks is `never` there, and `never | T` is `T`. */
   static disjunction(builtinTypes: BuiltinTypes, arena: TypeArena, left: NonStrictContext, right: NonStrictContext): NonStrictContext {
     const disj = new NonStrictContext();
 
@@ -158,7 +135,6 @@ class NonStrictContext {
     return disj;
   }
 
-  /** The intersection over the defs both contexts have. */
   static conjunction(builtins: BuiltinTypes, arena: TypeArena, left: NonStrictContext, right: NonStrictContext): NonStrictContext {
     const conj = new NonStrictContext();
 
@@ -170,7 +146,6 @@ class NonStrictContext {
     return conj;
   }
 
-  /** Removes the cells a def stands for, and returns whether the removal was successful. */
   remove(def: DefId): boolean {
     const defs: DefId[] = [];
     collectOperands(def, defs);
@@ -219,13 +194,12 @@ class NonStrictTypeChecker {
     this.typeFunctionRuntime = typeFunctionRuntime;
     this.arena = arena;
     this.module = module;
-    this.normalizer = new Normalizer(arena, builtinTypes, unifierState, /* cacheInhabitance */ true);
+    this.normalizer = new Normalizer(arena, builtinTypes, unifierState, true);
     this.subtyping = new Subtyping(builtinTypes, arena, this.normalizer, typeFunctionRuntime);
     this.dfg = dfg;
     this.limits = limits;
   }
 
-  /** Pushes the scope a node creates, when it creates one; the caller pops it once it is done with the node. */
   pushStack(node: AstNode): StackPusher | undefined {
     const scope = this.module.astScopes.get(node);
     if (scope) return new StackPusher(this.stack, scope);
@@ -242,7 +216,7 @@ class NonStrictTypeChecker {
   flattenPack(pack: TypePackId): TypeId {
     pack = followPack(pack);
 
-    const fst = first(pack, /* ignoreHiddenVariadics */ false);
+    const fst = first(pack, false);
     if (fst) return fst;
     const ftp = getPack(pack, "FreeTypePack");
     if (ftp) {
@@ -253,12 +227,10 @@ class NonStrictTypeChecker {
 
       return result;
     } else if (getPack(pack, "ErrorTypePack")) return this.builtinTypes.errorType;
-    // `(f())` where `f()` returns no values is coerced into `nil`.
     else if (finite(pack) && packSize(pack) === 0) return this.builtinTypes.nilType;
     else throw new InternalCompilerError("flattenPack got a weird pack!");
   }
 
-  /** Reduces the type functions under a type; the reduction binds the instances it reduces, and its errors are not reported. */
   checkForTypeFunctionInhabitance(instance: TypeId, location: Location): TypeId {
     if (this.noTypeFunctionErrors.has(instance)) return instance;
 
@@ -286,10 +258,6 @@ class NonStrictTypeChecker {
     return this.builtinTypes.anyType;
   }
 
-  // -------------------------------------------------------------------------
-  // Statements
-  // -------------------------------------------------------------------------
-
   visitStat(stat: AstStat): NonStrictContext {
     const pusher = this.pushStack(stat);
     try {
@@ -309,7 +277,6 @@ class NonStrictTypeChecker {
       else if (stat instanceof AstStatFunction) return this.visitStatFunction(stat);
       else if (stat instanceof AstStatLocalFunction) return this.visitStatLocalFunction(stat);
       else if (stat instanceof AstStatTypeAlias) return this.visitStatTypeAlias(stat);
-      // Non-strict mode leaves a type function's body unchecked.
       else if (stat instanceof AstStatTypeFunction) return new NonStrictContext();
       else if (stat instanceof AstStatDeclareFunction) return this.visitStatDeclareFunction(stat);
       else if (stat instanceof AstStatDeclareGlobal) return this.visitStatDeclareGlobal(stat);
@@ -322,7 +289,6 @@ class NonStrictTypeChecker {
   }
 
   visitStatBlock(block: AstStatBlock): NonStrictContext {
-    // Luau's `RecursionCounter`: the count rises on entry and falls on exit.
     this.nonStrictRecursionCount++;
     try {
       if (NON_STRICT_TYPE_CHECKER_RECURSION_LIMIT > 0 && this.nonStrictRecursionCount >= NON_STRICT_TYPE_CHECKER_RECURSION_LIMIT) {
@@ -336,7 +302,6 @@ class NonStrictTypeChecker {
         for (let i = block.body.length - 1; i >= 0; i--) {
           const stat = block.body[i]!;
           if (stat instanceof AstStatLocal) {
-            // Iterating in reverse order, `local x; B` generates the context of B without x.
             this.visitStatLocal(stat);
             for (const local of stat.vars) {
               ctx.remove(this.dfg.getLocalDef(local));
@@ -388,7 +353,6 @@ class NonStrictTypeChecker {
   }
 
   visitStatReturn(returnStatement: AstStatReturn): NonStrictContext {
-    // The returned expressions are checked, and their contexts are discarded.
     for (const expr of returnStatement.list) this.visitExpr(expr, ValueContext.RValue);
 
     return new NonStrictContext();
@@ -406,7 +370,6 @@ class NonStrictTypeChecker {
   visitStatFor(forStatement: AstStatFor): NonStrictContext {
     this.visitType(forStatement.variable.annotation);
 
-    // The contexts of the loop's bounds are discarded.
     if (forStatement.from) this.visitExpr(forStatement.from, ValueContext.RValue);
     if (forStatement.to) this.visitExpr(forStatement.to, ValueContext.RValue);
     if (forStatement.step) this.visitExpr(forStatement.step, ValueContext.RValue);
@@ -481,12 +444,7 @@ class NonStrictTypeChecker {
     return new NonStrictContext();
   }
 
-  // -------------------------------------------------------------------------
-  // Expressions
-  // -------------------------------------------------------------------------
-
   visitExpr(expr: AstExpr, context: ValueContext): NonStrictContext {
-    // Luau's `RecursionCounter`: the count rises on entry and falls on exit.
     this.nonStrictRecursionCount++;
     try {
       if (NON_STRICT_TYPE_CHECKER_RECURSION_LIMIT > 0 && this.nonStrictRecursionCount >= NON_STRICT_TYPE_CHECKER_RECURSION_LIMIT) {
@@ -515,7 +473,6 @@ class NonStrictTypeChecker {
         else if (expr instanceof AstExprInterpString) return this.visitExprInterpString(expr);
         else if (expr instanceof AstExprError) return this.visitExprError(expr);
         else if (expr instanceof AstExprInstantiate) return this.visitExprInstantiate(expr);
-        // Not part of Luau: one of Sparkdown's own expressions (`SparkdownReading.ts`).
         else if (sparkdownValue(expr)) {
           for (const operand of sparkdownValue(expr)!.operands) this.visitExpr(operand, ValueContext.RValue);
           return new NonStrictContext();
@@ -553,7 +510,6 @@ class NonStrictTypeChecker {
   }
 
   visitExprGlobal(global: AstExprGlobal, context: ValueContext): NonStrictContext {
-    // Unknown symbols are not reported for lvalues.
     if (context === ValueContext.LValue) return new NonStrictContext();
 
     const scope = this.stack[this.stack.length - 1]!;
@@ -580,12 +536,6 @@ class NonStrictTypeChecker {
     const fnTy = originalCallTy;
     const fn = get(follow(fnTy), "FunctionType");
     if (fn && fn.isCheckedFunction) {
-      // The type of a checked function reads as
-      //   (S1, ..., SN) -> T &
-      //   (~S1, unknown^N-1) -> error &
-      //   (unknown, ~S2, unknown^N-2) -> error &
-      //   ... &
-      //   (unknown^N-1, ~S_N) -> error
       const argExprs: AstExpr[] = [];
       if (call.self) {
         if (call.func instanceof AstExprIndexName) argExprs.push(call.func.expr);
@@ -595,11 +545,9 @@ class NonStrictTypeChecker {
 
       const argTypes: TypeId[] = [];
 
-      // Move all the types over from the argument pack of `fn`.
       const { head, tail: argTail } = flatten(fn.argTypes);
       for (const ty of head) argTypes.push(ty);
 
-      // Pad out the rest with the variadic as needed.
       if (argTail) {
         const vtp = getPack(followPack(argTail), "VariadicTypePack");
         if (vtp) {
@@ -611,21 +559,16 @@ class NonStrictTypeChecker {
 
       const functionName = getFunctionNameAsString(call.func) ?? "";
       if (argExprs.length > argTypes.length) {
-        // More arguments are passed than the function expects, which is an error.
         this.reportError({ kind: "CheckedFunctionIncorrectArgs", functionName, expected: argTypes.length, actual: argExprs.length }, call.location);
         return fresh;
       }
 
       for (let i = 0; i < argExprs.length; i++) {
-        // For example, when the argument is "hi", its actual type is string; when the expected type is number, the
-        // type of the argument in the overload that errors is ~number, and string is compared with ~number.
         const arg = argExprs[i]!;
         const expectedArgType = argTypes[i]!;
         const norm = this.normalizer.normalize(expectedArgType);
         const def = this.dfg.getDef(arg);
         let runTimeErrorTy: TypeId;
-        // Negating any would make every subtype test fail, yet a function that takes any accepts anything, so never
-        // goes into the context and the runtime test always passes.
         if (!norm) this.reportError({ kind: "NormalizationTooComplex" }, arg.location);
 
         if (norm && get(norm.tops, "AnyType")) runTimeErrorTy = this.builtinTypes.neverType;
@@ -633,7 +576,6 @@ class NonStrictTypeChecker {
         fresh.addContext(def, runTimeErrorTy);
       }
 
-      // With the context populated, test each argument of the call against it.
       const scope = this.findInnermostScope(call.location);
       for (let i = 0; i < argExprs.length; i++) {
         const arg = argExprs[i]!;
@@ -652,7 +594,6 @@ class NonStrictTypeChecker {
         }
       }
       if (argExprs.length < argTypes.length) {
-        // Fewer arguments are passed than the function expects, so the remaining parameters must be optional.
         let remainingArgsOptional = true;
         for (let i = argExprs.length; i < argTypes.length; i++) remainingArgsOptional = remainingArgsOptional && isOptional(argTypes[i]!);
 
@@ -710,7 +651,6 @@ class NonStrictTypeChecker {
   }
 
   visitExprTable(table: AstExprTable): NonStrictContext {
-    // Luau's `RecursionCounter`: the count rises on entry and falls on exit.
     this.nonStrictRecursionCount++;
     try {
       if (NON_STRICT_TYPE_CHECKER_RECURSION_LIMIT > 0 && this.nonStrictRecursionCount >= NON_STRICT_TYPE_CHECKER_RECURSION_LIMIT) {
@@ -774,12 +714,7 @@ class NonStrictTypeChecker {
     return this.visitExpr(instantiate.expr, ValueContext.RValue);
   }
 
-  // -------------------------------------------------------------------------
-  // Type annotations
-  // -------------------------------------------------------------------------
-
   visitType(ty: AstType | undefined): void {
-    // A missing node is skipped.
     if (!ty) return;
 
     if (ty instanceof AstTypeReference) this.visitTypeReference(ty);
@@ -802,9 +737,6 @@ class NonStrictTypeChecker {
     const alias = ty.prefix !== undefined ? scope.lookupImportedType(ty.prefix, ty.name) : scope.lookupType(ty.name);
 
     if (alias) {
-      // A generic default is resolved before its type parameter is added to the alias's scope, but the constraint
-      // generator has already added the parameter here, so a scope lookup would find the parameter and accept a
-      // self-reference as a default. The lookup failures the constraint generator recorded decide instead.
       if (ty.prefix === undefined && this.module.astTypeReferenceLookupFailures.has(ty)) {
         this.reportError({ kind: "UnknownSymbol", name: ty.name, context: UnknownSymbolContext.Type }, ty.location);
         return;
@@ -846,7 +778,6 @@ class NonStrictTypeChecker {
       }
 
       if (extraTypes !== 0 && packsProvided === 0) {
-        // Extra types are only collected into a pack if a pack is expected.
         if (packsRequired !== 0) packsProvided += 1;
         else typesProvided += extraTypes;
       }
@@ -921,7 +852,6 @@ class NonStrictTypeChecker {
   }
 
   visitTypePack(pack: AstTypePack | undefined): void {
-    // A missing node is skipped.
     if (!pack) return;
 
     if (pack instanceof AstTypePackExplicit) this.visitTypePackExplicit(pack);
@@ -944,8 +874,6 @@ class NonStrictTypeChecker {
 
     const alias = scope.lookupPack(tp.genericName);
     if (alias) {
-      // As for a type reference, the scope already holds the generic pack being defined, so the lookup failures
-      // the constraint generator recorded decide whether the name is unknown.
       if (this.module.astTypePackReferenceLookupFailures.has(tp)) {
         this.reportError({ kind: "UnknownSymbol", name: tp.genericName, context: UnknownSymbolContext.Type }, tp.location);
         return;
@@ -980,10 +908,6 @@ class NonStrictTypeChecker {
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Helpers
-  // -------------------------------------------------------------------------
-
   findInnermostScope(location: Location): Scope {
     let bestScope = this.module.getModuleScope();
 
@@ -1012,7 +936,6 @@ class NonStrictTypeChecker {
     this.module.errors.push(new LuauTypeError(location, data, this.module.name));
   }
 
-  /** The type of an expression when the context makes it certain to fail at runtime. */
   willRunTimeError(fragment: AstExpr, context: NonStrictContext, scope: Scope): TypeId | undefined {
     const def = this.dfg.getDef(fragment);
     const defs: DefId[] = [];
@@ -1024,7 +947,6 @@ class NonStrictTypeChecker {
         if (this.shouldSkipRuntimeErrorTesting(actualType)) continue;
         const r = this.subtyping.isSubtype(actualType, contextTy, scope);
         if (r.normalizationTooComplex) this.reportError({ kind: "NormalizationTooComplex" }, fragment.location);
-        // A subtype test that passes without an error-suppressing type gives the type that errors at runtime.
         if (r.isSubtype && !r.isErrorSuppressing) return actualType;
       }
     }
@@ -1032,7 +954,6 @@ class NonStrictTypeChecker {
     return undefined;
   }
 
-  /** `unknown` when the context makes every value of a function parameter fail at runtime. */
   willRunTimeErrorFunctionDefinition(fragment: AstLocal, scope: Scope, context: NonStrictContext): TypeId | undefined {
     const def = this.dfg.getLocalDef(fragment);
     const defs: DefId[] = [];
@@ -1078,7 +999,6 @@ export function checkNonStrict(
   typeChecker.visitStatBlock(sourceModule.root);
   copyErrors(module.errors, module.interfaceTypes, builtinTypes);
 
-  // Non-strict mode does not report unknown requires.
   const errors = module.errors;
   let kept = 0;
   for (const err of errors) {

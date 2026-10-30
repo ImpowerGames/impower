@@ -89,7 +89,6 @@ export function componentsEqual(a: Component, b: Component): boolean {
     case "Property":
       return b.kind === "Property" && a.name === b.name && a.isRead === b.isRead;
     case "Index":
-      // As in Luau, an index compares by position only.
       return b.kind === "Index" && a.index === b.index;
     case "TypeField":
       return b.kind === "TypeField" && a.field === b.field;
@@ -136,7 +135,6 @@ export class Path {
     return this.components.length === other.components.length && this.components.every((c, i) => componentsEqual(c, other.components[i]!));
   }
 
-  /** A key equal for equal paths. */
   key(): string {
     return this.components
       .map((c) => {
@@ -251,7 +249,6 @@ export class PathBuilder {
   }
 }
 
-// Luau's `LuauTypePathMaximumTraverseSteps`.
 const MAXIMUM_TRAVERSE_STEPS = 100;
 
 function isSingletonTypePack(pack: TypePackId | undefined): boolean {
@@ -340,7 +337,6 @@ class TraversalState {
     if (t) prop = t.props.get(name);
     else if (c) prop = lookupExternTypeProp(c, name);
     else if (m) {
-      // A metatable type's table takes priority over its metatable.
       const pinned = this.current;
       this.updateCurrent(m.table);
       if (this.traverseProperty(name, isRead)) return true;
@@ -377,7 +373,6 @@ class TraversalState {
       const i = get(current, "IntersectionType");
       const members = u ? flatOptions(u) : i ? flatOptions(i) : undefined;
       if (members) {
-        // Every member is checked for an error type, whatever the index.
         members.forEach((m, idx) => {
           if (get(m, "ErrorType")) this.encounteredErrorSuppression = true;
           if (idx === index) {
@@ -537,7 +532,6 @@ export function deriveRenderMetadata(root: TypeOrPack, path: Path, builtinTypes:
   return options;
 }
 
-/** The type or pack a path reaches from a root, as Luau's `traverse`; error suppression yields the error type for a pack root. */
 export function traverse(
   root: TypeOrPack,
   path: Path,
@@ -566,7 +560,6 @@ export function traverseForPack(root: TypeOrPack, path: Path, builtinTypes: Buil
   return isTypeId(state.current) ? undefined : state.current;
 }
 
-/** The pack index a path names when it is only pack slices followed by an index. */
 export function traverseForIndex(path: Path): number | undefined {
   const components = path.components;
   if (components.length === 0) return undefined;
@@ -625,7 +618,6 @@ export function matchesPrefix(prefix: Path, full: Path): boolean {
   return prefix.components.every((c, i) => componentsEqual(c, full.components[i]!));
 }
 
-/** The path in Luau's compact notation, as `[read "x"].returns()`. */
 export function pathToString(path: Path, prefixDot = false): string {
   let result = "";
   let firstComponent = true;
@@ -660,10 +652,6 @@ export function pathToString(path: Path, prefixDot = false): string {
   return result;
 }
 
-// ---------------------------------------------------------------------------
-// Rendering a path in words
-// ---------------------------------------------------------------------------
-
 export interface RenderedTypePath {
   subject: string;
   prefix: string;
@@ -694,7 +682,6 @@ const enum Kind {
 interface Phrase {
   kind: Kind;
   text: string;
-  /** A write property's alternate form, for a phrase built on top of it. */
   nestedText: string;
   propertyIsRead: boolean;
   propertyPrefix: string;

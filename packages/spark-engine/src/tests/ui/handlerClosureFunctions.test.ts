@@ -1,7 +1,3 @@
-// A handler's closure (`@click={ ... }`) is a function body, as in Luau
-// (I-1332): a `local function` or `const function` declared in it compiles
-// and a click runs it, as the same declaration does in a plain function body.
-
 import { describe, expect, test } from "vitest";
 import { createHarness } from "./harness/uiTestHarness";
 

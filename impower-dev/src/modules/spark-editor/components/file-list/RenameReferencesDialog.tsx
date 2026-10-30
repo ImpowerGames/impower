@@ -5,27 +5,15 @@ import { useMountTransition } from "../../hooks/useMountTransition";
 
 export type RenameReferencesDialogProps = {
   open: boolean;
-  /** Current name (no extension). */
   fromName: string;
-  /** Proposed new name (no extension). */
   toName: string;
-  /** How many references across how many scripts point at this asset. */
   referenceCount: number;
   scriptCount: number;
-  /** Rename AND rewrite every reference. */
   onUpdateAndRename: () => void;
-  /** Rename only — leave references pointing at the old name (they break). */
   onRenameOnly: () => void;
-  /** Dismiss without renaming. */
   onCancel: () => void;
 };
 
-/**
- * Shown after the user commits a new name for an asset that IS referenced by
- * scripts: offers to rewrite those references along with the rename (the
- * default), rename anyway (breaking them), or cancel. Portaled to <body> so the
- * virtualized row beneath can't clip it.
- */
 export default function RenameReferencesDialog({
   open,
   fromName,

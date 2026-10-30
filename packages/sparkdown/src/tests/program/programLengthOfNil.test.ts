@@ -1,12 +1,3 @@
-/**
- * The length operator on nil (I-1083).
- *
- * Luau raises `attempt to get length of a nil value` for `#nil`. The program
- * engine reports it as a story runtime error on its line, as it does for the
- * binary operators on nil, rather than throwing out of `Continue` or storing a
- * null that a later line trips over. Unary minus on nil raises Luau's
- * arithmetic error the same way; `not nil` stays valid and gives true.
- */
 import { describe, expect, it } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, storyRun } from "./programHarness";

@@ -77,10 +77,6 @@ end
   });
 
   test("bare local doesn't leak to enclosing scope", () => {
-    // After inner() returns, y is out of scope. Reading it falls
-    // through to the "variable not found" warning path (IntValue 0
-    // fallback), but the key thing is y is NOT a global with the
-    // assigned value 42 — host_record sees `false`.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 
 scene start
@@ -97,8 +93,6 @@ inner()
 host_record(y == 42)
 end
 `);
-    // The "variable not found" warning is expected — what we're
-    // verifying is the value comparison, not the absence of warnings.
     const realErrors = errors.filter((e) => !e.includes("Variable not found"));
     expect(realErrors).toEqual([]);
     expect(recorded).toEqual([false]);

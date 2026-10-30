@@ -23,12 +23,6 @@ import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { statementNodeAt, unreadStatement, type StatementSite } from "./lowerLuauStatement";
 
-// An `if` statement: `LuauSparkdownIfBlock` in a scene or at the top level,
-// whose arms also hold display lines, and `LuauIfBlock` in Luau code. The
-// two differ only in node names. The conditions are the AST's (`AstStatIf`,
-// whose `elseif` arms nest as its `elsebody`); each arm's body is lowered
-// from its own syntax node, which holds the Sparkdown lines among its Luau.
-
 const IF_NODES = nodeNameSet(["LuauSparkdownIfBlock", "LuauIfBlock", "LuauSparkdownExplicitIfBlock"]);
 
 export function lowerLuauIfBlock(
@@ -43,8 +37,6 @@ export function lowerLuauIfBlock(
   const elseNodeName = prefix.replace("IfBlock", "ElseBlock");
 
   const content = findChildByName(node, `${prefix}_content`);
-  // Two of the members are computed from the variant, so this set cannot be
-  // declared with the union; the check script covers the literal.
   const ifBodySkip = new Set<string>([
     "LuauIfBlockCondition",
     "LuauSparkdownExplicitIfCondition",
@@ -52,7 +44,6 @@ export function lowerLuauIfBlock(
     elseNodeName,
   ]);
 
-  // The `elseif` arms, which the AST nests in the `else` of the arm before.
   const elseifArms: AstStatIf[] = [];
   let next = stat.elsebody;
   while (next instanceof AstStatIf) {
@@ -62,9 +53,6 @@ export function lowerLuauIfBlock(
 
   const branches: ConditionalSingleBranch[] = [];
 
-  // The parts of the statement in order, which head its bodies: the `if`
-  // condition, each `elseif`, the `else`, and then `end`, where the content
-  // node ends. A body runs from the part that heads it to the next part.
   const elseifNodes = findDirectChildren(content, elseifNodeName);
   const elseNode = content ? findChildByName(content, elseNodeName) : null;
   const endStart = content?.to ?? node.to;
@@ -74,19 +62,10 @@ export function lowerLuauIfBlock(
     endStart,
   ];
 
-  // ----- Main `if` branch -----
   const condNode = content
     ? findChildByName(content, "LuauIfBlockCondition") ?? findChildByName(content, "LuauSparkdownExplicitIfCondition")
     : null;
   const condExpr = lowerExpression(stat.condition, site.source, ctx);
-  // Each branch body gets its own scope frame so `local x` follows
-  // Luau's block-scoping rules — an `if`-arm's `local` doesn't leak to
-  // the `else`-arm and vice versa, and neither leaks to the enclosing
-  // function. The runtime pushes / pops a frame on the call-stack
-  // element when it sees the BeginScope / EndScope markers.
-  // `ctx.scopeDepth` is bumped around each arm's body lowering so a
-  // `break`/`continue` inside the arm knows it must emit an EndScope
-  // for this frame before diverting out of the enclosing loop.
   const mainShape = openBody(
     ctx,
     condNode?.from ?? content?.from ?? node.from,
@@ -100,7 +79,6 @@ export function lowerLuauIfBlock(
   ctx.scopeDepth--;
   branches.push(buildBranch(condExpr, mainBody, false, mainShape));
 
-  // ----- Any `elseif` branches -----
   elseifNodes.forEach((elseifNode, i) => {
     const elseifContent = findChildByName(
       elseifNode,
@@ -111,9 +89,6 @@ export function lowerLuauIfBlock(
       : null;
     const arm = elseifArms[i];
     const ecExpr = arm ? lowerExpression(arm.condition, site.source, ctx) : null;
-    // `lower()` gives the whole statement the `if` header's position, so the
-    // condition carries its own `elseif` line: a diagnostic about it, such as
-    // an unknown name, is then reported where it is written.
     if (ecExpr && arm) {
       const range = rangeOf(arm.location, ctx);
       const header = headerLineRange(range.from, range.to, ctx);
@@ -133,7 +108,6 @@ export function lowerLuauIfBlock(
     branches.push(buildBranch(ecExpr, body, false, shape));
   });
 
-  // ----- Optional `else` branch -----
   if (elseNode) {
     const elseContent = findChildByName(elseNode, `${elseNodeName}_content`);
     const shape = openBody(
@@ -168,22 +142,12 @@ function buildBranch(
     bodyOfBlock.set(branch, shape);
   }
   if (condition) {
-    // Normalize the condition to a real boolean under LUA truthiness
-    // (only nil and false are falsy — `if 0 then` / `if "" then` /
-    // `if {} then` all take the then-branch, basic.luau line 86). The
-    // runtime branch test (`Story.IsTruthy` on the conditional divert)
-    // keeps ink truthiness for narrative constructs, so Luau `if`
-    // conditions must arrive as a BoolValue. The `TRUTHY` native op
-    // pops the value and pushes `BoolValue(isLuauTruthy(v))`.
     branch.ownExpression = new UnaryExpression(
       condition,
       NativeFunctionCall.LuauTruthy,
     );
   }
   branch.isElse = isElse;
-  // Every display line closes its own line, so a branch needs no newline of
-  // its own to start one. A newline there would end the line a trailing `..`
-  // holds open before the branch (`You see a ..` then `if`).
   branch.isInline = true;
   return branch;
 }

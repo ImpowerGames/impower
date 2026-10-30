@@ -7,13 +7,6 @@ import type { LowerContext } from "../context";
 import { lowerArguments } from "../utils/lowerArguments";
 import { markRootParameters } from "../utils/rootLocalReads";
 
-// `Scene` is a boundary-only Scoped rule (see docs/compiler/GRAMMAR.md) — it
-// covers the declaration line only. The scene's body lives at root,
-// so this lowerer just builds the Knot from the declaration. The
-// scene/`end` pairing check is NOT done here: it depends on LATER
-// root-level siblings (the matching `end`), so per-chunk lowering would
-// go stale when only the `end` chunk is edited. It runs as a fresh
-// whole-document pass each compile — see `SparkdownCompiler.validateSceneStructure`.
 export function lowerScene(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,

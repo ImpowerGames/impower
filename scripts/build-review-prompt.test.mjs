@@ -8,8 +8,6 @@ import { readRepos } from "../.agents/repos.mjs";
 
 const scratch = testScratch("review-prompt", process.cwd());
 console.log(`Review prompt fixtures: ${scratch}`);
-// Each cutover position is read from its own copy of the repos file, so the
-// committed switch never decides what these cases expect.
 const committed = readRepos();
 const pinRepos = (cutover) => { const file = path.join(scratch, `repos-${cutover ? "on" : "off"}.json`); fs.writeFileSync(file, JSON.stringify({ ...committed, cutover })); return readRepos(file); };
 const OFF = pinRepos(false), ON = pinRepos(true);
@@ -24,8 +22,6 @@ fs.symlinkSync(process.cwd(), linkedOut, "junction");
 assert.throws(() => buildReviewPrompt({ ...context, reviewDir: linkedOut }), /Review job paths must lie under .*reviewDir .*unsafe-reviewer/);
 assert.throws(() => buildReviewPrompt({ ...context, diff: path.join(linkedOut, "AGENTS.md") }), /Review job paths must lie under .*diff .*unsafe-reviewer/);
 assert.equal(fs.existsSync(path.join(process.cwd(), "AGENTS.md")), true, "unsafe-path refusal preserves its external target");
-// The diff and reviewer directory reach a reviewer only through the prompt, so
-// the builder refuses them outside the job root, naming each.
 assert.throws(() => buildReviewPrompt({ ...context, diff: path.resolve("diff.patch") }), (error) => /Review job paths must lie under .*: diff /.test(error.message) && !/reviewDir/.test(error.message));
 assert.throws(() => buildReviewPrompt({ ...context, reviewDir: path.resolve("private") }), /Review job paths must lie under .*: reviewDir /);
 const unlinked = buildReviewPrompt({ ...context, issue: null });
@@ -36,13 +32,11 @@ for (const issue of [undefined, 0, -1, "none"]) assert.throws(() => buildReviewP
 assert.match(prompt, /writer model is `writer-1`/);
 assert.match(prompt, /reviewer model is `reviewer-2`/);
 assert.doesNotMatch(prompt, /runtime identity|self-report|route mismatch|check the pin/i);
-// Before the cutover the review thread is the pull request in the code repository.
 assert.ok(prompt.includes(`reviewing a fix for issue ${OFF.code}#496 in the Impower monorepo, round 1 on PR #521`));
 assert.ok(prompt.includes(`post it as a comment on ${OFF.code}#521,`));
 assert.ok(prompt.includes(`gh issue comment 521 --repo ${OFF.code} --body-file`));
 assert.ok(prompt.includes(`gh api repos/${OFF.code}/issues/521/comments --paginate`));
 assert.throws(() => buildReviewPrompt({ ...context, ticket: 12 }), /ticket applies once the cutover switch/, "a ticket is refused before the cutover");
-// After it the thread is the internal ticket, and nothing names the public pull request's comments.
 const internal = buildReviewPrompt({ ...context, issue: 12, ticket: 12 }, undefined, ON);
 assert.ok(internal.includes(`reviewing a fix for issue ${ON.internal}#12 in the Impower monorepo, round 1 on PR #521`));
 assert.ok(internal.includes(`post it as a comment on ${ON.internal}#12,`));
@@ -57,8 +51,6 @@ for (const key of ["writer", "reviewer", "invocation"]) {
 }
 assert.throws(() => buildReviewPrompt({ ...context, reviewer: "writer-1[1m]" }), /must differ/);
 const template = fs.readFileSync(new URL("../.agents/skills/review-pr/references/reviewer-prompt.md", import.meta.url), "utf8");
-// Only the delimited block reaches reviewers; prose outside it is coordinator
-// context. The wording inside the block is free to change.
 assert.ok(!prompt.includes("All commands run from the worktree root"), "text outside the delimited block must not reach reviewers");
 
 assert.match(prompt, /is: Authors can blink a portrait's eyes\./);
@@ -85,7 +77,6 @@ assert.ok(literalPrompt.includes("Your lens is " + literal + ";"), "lens dollar 
 assert.ok(literalPrompt.includes(path.join(round, "folder P", "HEAD.patch")), "paths must remain literal");
 assert.doesNotThrow(() => buildReviewPrompt({ ...context, writer: "o3", reviewer: "provider/model-2" }), "route validation must not assume one naming family");
 
-// Inputs fail on the foreground builder command, before a detached launcher.
 const failures = [];
 const refuses = (label, changed, expected) => {
   try { assert.throws(() => buildReviewPrompt({ ...context, ...changed }), expected, label); }
@@ -112,8 +103,6 @@ for (const [name, bytes] of [
   fs.writeFileSync(diff, bytes);
   refuses(name, { diff }, /diff.*UTF-8.*git diff.*--output/i);
 }
-// Textual patches have no raw NUL bytes, including Git's binary patch format.
-// Empty patches, a UTF-8 BOM, Unicode and an unterminated final line stay valid.
 for (const [name, bytes] of [
   ["empty", Buffer.alloc(0)],
   ["utf8-bom", Buffer.from("\uFEFFdiff --git a/caf\u00e9 b/caf\u00e9\n+\u2728\u{1F680}\n")],

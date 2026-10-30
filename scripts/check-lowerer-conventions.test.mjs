@@ -1,8 +1,3 @@
-// Pins what scripts/check-lowerer-conventions.mjs flags and what it lets
-// through, so a change to its patterns shows up as a failing expectation.
-//
-//   node --test scripts/check-lowerer-conventions.test.mjs
-
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { compare, lowererFiles, markedLines, scanSource } from "./check-lowerer-conventions.mjs";

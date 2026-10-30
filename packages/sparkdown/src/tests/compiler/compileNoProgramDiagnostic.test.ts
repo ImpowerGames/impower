@@ -1,7 +1,3 @@
-// A compile that makes no program says why with an error (#1895): every
-// fixture of the compile snapshots, compiled whole, either makes a program or
-// reports at least one error. The program harness's compiles hold the same
-// (`assertNoSilentNoProgram` in `programCompiler`).
 import { readFileSync, readdirSync, statSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
@@ -34,7 +30,6 @@ describe("a compile snapshot fixture compiled whole", () => {
       const { error } = console;
       console.error = () => {};
       try {
-        // `compile` asserts it, as every compile of the harness does.
         const { program } = programCompiler({
           "inmemory:///main.sd": source,
         }).compile();

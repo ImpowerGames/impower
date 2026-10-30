@@ -48,7 +48,6 @@ function chunkPayload(comment, hash, part) {
   return payload;
 }
 
-// comments must be the complete paginated list from this same inbox.
 export function inspectReportsArchive(body, comments, isFenced = () => false) {
   const prior = locate(body, isFenced);
   if (prior?.pointer) {
@@ -69,7 +68,6 @@ export function inspectReportsArchive(body, comments, isFenced = () => false) {
     return chunkPayload(matches[0], chunk.hash, part);
   }).join('');
   if (digest(text) !== prior.manifest.hash) throw new Error('Reports archive complete-ledger hash mismatch.');
-  // Reuse the inline format validator, including duplicate JSON key checks.
   return { ...metadata, problems: readReports(`<!-- skill-feedback-reports:v1 ${Buffer.from(text, 'utf8').toString('base64')} -->`) };
 }
 
@@ -99,13 +97,11 @@ export function prepareReports(ledger) {
   return { text, chunks };
 }
 
-// api.comments() lists this inbox; api.postComment(body) posts only to this inbox.
-// Returns a body for the caller to persist; never writes the body or deletes comments.
 export async function persistReports(body, ledger, api, isFenced = () => false) {
   const prior = locate(body, isFenced);
   let comments = await api.comments();
   const old = hydrateReports(body, comments, isFenced);
-  writeReports(inline(old), ledger); // Validate and enforce append-only IDs/sessions before posting.
+  writeReports(inline(old), ledger);
   if (!prior && Object.keys(ledger).length === 0) return body;
   const { text, chunks } = prepareReports(ledger);
   const references = [];

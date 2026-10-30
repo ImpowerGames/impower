@@ -4,9 +4,6 @@ import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/Noti
 export type GameExitedThreadMethod = typeof GameExitedThreadMessage.method;
 
 export interface GameExitedThreadParams {
-  /**
-   * The identifier of the thread.
-   */
   threadId: number;
 }
 

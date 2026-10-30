@@ -1,21 +1,9 @@
-// #1614's string case (the #1590 sweep's capture screenplay, seed 7): a line
-// that starts with `#x` (a `#` run that is not a tag) after `t("end`. The
-// line's rules ended at such a run where they began, so nothing matched the
-// line's start and the tokenizer went through its empty-match backstop,
-// which left zero-width nodes in the tree. An edit two lines below restarted
-// the incremental parse at that line and kept the old parse's zero-width
-// nodes beside its own, so the incremental tree held them twice. Each edit
-// here goes through one compiler and is compared with a cold compile of the
-// same text: the parse tree, the program's chunks by content and its
-// diagnostics, with no backstop warning from either parse.
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { describe, expect, it } from "vitest";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { describeRoot, MAIN_URI, programCompiler } from "./programHarness";
 
-/** Runs `fn` with console output held back, returning its result and the
- *  warnings it logged. */
 function quiet<T>(fn: () => T): { result: T; warnings: string[] } {
   const { warn, error } = console;
   const warnings: string[] = [];
@@ -47,7 +35,6 @@ function offsetAt(text: string, line: number, character: number) {
 
 const loops = (warnings: string[]) => warnings.filter((w) => /Possible infinite loop/.test(w));
 
-/** Every node of the document's tree as `name from-to`, in tree order. */
 function treeNodes(compiler: SparkdownCompiler): string[] {
   const nodes: string[] = [];
   compiler.documents.tree(MAIN_URI)!.iterate({
@@ -58,7 +45,6 @@ function treeNodes(compiler: SparkdownCompiler): string[] {
   return nodes;
 }
 
-/** What an incremental and a cold compile of the same text must agree on. */
 const surface = (compiler: SparkdownCompiler, program: SparkProgram) => ({
   tree: treeNodes(compiler),
   chunks: program.chunks ? describeRoot(program.chunks) : null,
@@ -72,9 +58,6 @@ const surface = (compiler: SparkdownCompiler, program: SparkProgram) => ({
     .sort(),
 });
 
-/** Compiles `start`, inserts `insert` at `line`:`character` through
- *  `updateDocument` and compiles again, beside a cold compile of the edited
- *  text. */
 function editAndCompile(start: string, line: number, character: number, insert: string) {
   const incremental = quiet(() => {
     const compiler = programCompiler({ [MAIN_URI]: start });

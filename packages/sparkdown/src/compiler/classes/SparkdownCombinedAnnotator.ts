@@ -40,19 +40,9 @@ import {
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 
-/**
- * Stable identity for an annotation's payload, used to match a re-emitted
- * annotation against the copy it supersedes. String and `undefined` payloads
- * compare directly; object payloads are freshly allocated on every pass, so
- * they only match by value. A payload that cannot be serialized gets a key
- * that matches nothing, which keeps the caller conservative — it declines to
- * delete rather than risk dropping a distinct annotation.
- */
 let uncomparableCounter = 0;
 function annotationValueKey(value: SparkdownAnnotation<any>): string {
   const type = value?.type;
-  // `p:` / `o:` keep a string payload from ever colliding with the
-  // serialization of an object payload that happens to spell the same thing.
   if (type == null || typeof type !== "object") {
     return `p:${String(type)}`;
   }
@@ -62,16 +52,11 @@ function annotationValueKey(value: SparkdownAnnotation<any>): string {
       return `o:${key}`;
     }
   } catch {
-    // Cyclic or otherwise unserializable - fall through.
   }
-  // Unique per call, so it matches nothing and the caller declines to delete
-  // rather than risk dropping a distinct annotation.
   uncomparableCounter += 1;
   return `!:${uncomparableCounter}`;
 }
 
-// Values whose delimiters close them off: an edit strictly inside one leaves
-// everything outside it as it was.
 const DELIMITED_VALUE_NAMES = nodeNameSet([
   "LuauTable",
   "LuauFunctionDefinition",
@@ -80,34 +65,16 @@ const DELIMITED_VALUE_NAMES = nodeNameSet([
   "LuauFunctionCallParameters",
 ]);
 
-// Where a name in a declaration's content ends: an assignment's name, or a
-// bare access path (`DeclarationAnnotator`'s bare targets). Null for anything
-// else.
 function listNameEnd(child: SyntaxNode): number | null {
   if (isExplicitRuleName(child.name, "LuauAccessPath")) return child.to;
   return assignmentListName(child)?.to ?? null;
 }
 
-// A line whose Luau goes on into the next line: it ends in a word or an
-// operator a value must follow, or in a `.` or `,` (`U.S.`, `Hi,`).
 const ENDS_GOING_ON =
   /(?:(?<![A-Za-z0-9_])(?:then|else|elseif|and|or|not|in|return)|[=,(\[{+\-*\/%^#:<>.])$/;
 
-// A line that goes on from the line before it: it begins with a call's
-// argument or brackets, an access, or an operator.
 const BEGINS_GOING_ON = /^\s*(?:["'`{(\[.:]|(?:and|or)\b|[+\-*\/%^<>=~])/;
 
-/**
- * `to`, moved past the last name in the list of each `local`/`store`/`const`
- * declaration the window `[from, to]` stops inside. Whether a name in the
- * list is a target or a value depends on an earlier name's `=`
- * (`valueListAssignmentName`, `DeclarationAnnotator`'s bare targets), so an
- * edit to the list can change names past the reparsed range. Only the names
- * change, not their values, so the window stops at the last name's end. A
- * window strictly inside a delimited value (a table, a function, parentheses)
- * changes no `=` and no name in the lists around it, so those declarations add
- * nothing. `undefined` (the end of the document) is kept.
- */
 function extendToValueListEnd(
   tree: Tree,
   from: number,
@@ -146,15 +113,6 @@ function extendToValueListEnd(
   return end;
 }
 
-/**
- * `from`, moved back to the word of each structural word's rule (a candidate
- * alternator) the window starts inside or right after. Whether that word is a
- * name or an alternator's depends on the arms the rule holds after it
- * (`opensAlternator`, I-1310), so an edit that adds or removes the arms
- * changes the word's annotations before the reparsed range. A line-start
- * candidate whose arms an edit removes ends where they began, so the window
- * also reaches back into a rule that ends at `from`.
- */
 function extendToAlternatorWord(tree: Tree, from: number): number {
   let start = from;
   for (
@@ -199,10 +157,6 @@ export interface SparkdownAnnotators {
   semantics: SemanticAnnotator;
 }
 
-/**
- * Everything the annotators of one document carry across updates: each
- * annotator's own state, and the define-type-name set they share.
- */
 export interface SparkdownCombinedAnnotatorSnapshot {
   annotators: Map<string, SparkdownAnnotatorSnapshot>;
   defineTypeNames: DefineTypeNameIndexSnapshot;
@@ -215,25 +169,11 @@ export class SparkdownCombinedAnnotator {
 
   protected _currentEntries: [string, SparkdownAnnotator][];
 
-  /**
-   * The document's define TYPE names, maintained across edits only while this
-   * instance runs the compilation annotator. The names steer lowering and
-   * nothing else, so a registry that annotates for editor features alone —
-   * the language server's and the VS Code document manager's both do — would
-   * otherwise walk the reparsed region on every keystroke to fill in a set
-   * nobody reads. `undefined` means no index is kept, and the registry's
-   * accessor walks the tree itself for a caller that asks anyway.
-   */
   protected _defineTypeNames = new DefineTypeNameIndex();
   get defineTypeNames(): ReadonlySet<string> | undefined {
     return this._defineTypeNames.names;
   }
 
-  /**
-   * Whether an update with this `annotate` set runs the compilation
-   * annotator. The define-type-name index and the re-lowering of chunks whose
-   * callable-name or define-type-name reads went stale are kept only then.
-   */
   protected runsCompilations(annotate?: Set<keyof SparkdownAnnotators>): boolean {
     return !annotate || annotate.has("compilations");
   }
@@ -262,14 +202,6 @@ export class SparkdownCombinedAnnotator {
     ][];
   }
 
-  /**
-   * Save what the annotators hold now, so a hypothetical edit can be undone by
-   * putting it back rather than by annotating the edit's inverse.
-   *
-   * Only the annotators `annotate` selects are saved, because they are the
-   * only ones an update touches; the others are left out of the snapshot and
-   * untouched by the restore.
-   */
   snapshot(
     annotate?: Set<keyof SparkdownAnnotators>,
   ): SparkdownCombinedAnnotatorSnapshot {
@@ -285,7 +217,6 @@ export class SparkdownCombinedAnnotator {
     };
   }
 
-  /** Take back the state `snapshot` recorded. */
   restore(snapshot: SparkdownCombinedAnnotatorSnapshot) {
     for (const [key, annotator] of this._currentEntries) {
       const saved = snapshot.annotators.get(key);
@@ -371,46 +302,6 @@ export class SparkdownCombinedAnnotator {
     return ranges;
   }
 
-  /**
-   * Drop re-emissions the delete-filter would not have removed.
-   *
-   * The filter only deletes what overlaps the re-annotated window, which is
-   * exact for an annotation carrying its entered node's own `[from, to]`:
-   * Lezer only enters a node overlapping the window, so such an annotation
-   * overlaps it too and is always removed before it is re-added.
-   *
-   * An annotator may anchor elsewhere, though — a zero-width mark at a node's
-   * edge, `ReferenceAnnotator`'s quote-stripped `[from + 1, to - 1]`, or
-   * `ValidationAnnotator`'s diagnostics anchored on a *sibling* node. Lezer
-   * still enters the node, so the pass re-emits while the filter keeps the old
-   * copy: one duplicate per keystroke, unbounded (#322).
-   *
-   * So for a candidate outside the window, keep it only to the extent the
-   * survivors do not already account for it. Two properties matter:
-   *
-   * - By COUNT, not presence. A cold parse really does emit identical
-   *   duplicate marks at one offset, so collapsing K down to 1 would lose one.
-   * - Drop the NEW copy rather than deleting the old one. They are
-   *   interchangeable in content, but deleting and re-adding moves the
-   *   annotation to the end of its position's insertion order, and zero-width
-   *   marks share offsets — `top_level_begin` and `indent` both sit at a
-   *   block's first column, and the formatter consumes them in order.
-   *
-   * Identity is the SERIALIZED payload, not `===`. Most annotators allocate a
-   * fresh object per pass (`semantics`, `references`, `validations`, …), so a
-   * reference comparison silently never matches and leaves them accumulating.
-   * Serialization only runs for candidates already matched on position, so it
-   * stays off the hot path, and a payload that cannot be serialized gets a key
-   * that matches nothing — declining to prune rather than risking a drop.
-   *
-   * `CompilationAnnotator.end` pairs `added[i]` with `removed[i]` POSITIONALLY
-   * to carry `uuid` forward, so a shortened `add` would misalign it. That is
-   * safe only because compilation annotations carry their node's own
-   * `[from, to]` and therefore always hit the in-window `continue` below —
-   * never reaching the serialization, which on a `CompiledBlock` would also be
-   * expensive. Anything that gives compilations an off-node anchor has to
-   * revisit this.
-   */
   protected pruneRedundant<T extends SparkdownAnnotation<any>>(
     add: Range<T>[],
     current: RangeSet<T>,
@@ -418,14 +309,10 @@ export class SparkdownCombinedAnnotator {
     windowTo: number,
   ): Range<T>[] {
     let redundant: Set<number> | undefined;
-    // How many identical copies this pass has already pruned, so a second
-    // identical candidate is measured against the survivors the first one did
-    // not already account for.
     let prunedSoFar: Map<string, number> | undefined;
     for (let i = 0; i < add.length; i++) {
       const candidate = add[i]!;
       if (candidate.to >= windowFrom && candidate.from <= windowTo) {
-        // Inside the window: the old copy is deleted, so this is the only one.
         continue;
       }
       const valueKey = annotationValueKey(candidate.value);
@@ -479,11 +366,6 @@ export class SparkdownCombinedAnnotator {
     return this.update(tree, text, undefined, undefined, annotate, uri);
   }
 
-  /** `uri` identifies the document being annotated. Forwarded to every
-   *  sub-annotator so anything deriving identity from the document (binding
-   *  evaluator names, diagnostic routing) can. It used to stop here, leaving
-   *  `SparkdownAnnotator.uri` — and therefore `LowerContext.filePath` —
-   *  undefined on the production path. */
   update(
     tree: Tree,
     text: Text,
@@ -509,8 +391,6 @@ export class SparkdownCombinedAnnotator {
       } else {
         this._defineTypeNames.invalidate();
       }
-      // Rebuild all annotations from scratch. The parse rebuilt every node,
-      // so no statement is served from a memo.
       this.current.compilations.rebuilt = { from: 0, to: text.length };
       const rebuiltAll = this.annotate(tree, undefined, undefined, annotate);
       this.current.compilations.settle();
@@ -525,7 +405,6 @@ export class SparkdownCombinedAnnotator {
         }
       }
       if (runsCompilations) {
-        // Every chunk was just lowered against the current document.
         this.current.compilations.markDocumentNamesChecked();
       }
       return this.current;
@@ -534,19 +413,6 @@ export class SparkdownCombinedAnnotator {
       changes,
       Math.max(tree.length, length),
     ).desc;
-    // The re-annotation lower bound must cover not only `reparsedFrom` (the
-    // parser's reuse split-point) but also the START of the edit itself.
-    // `reparsedFrom` is a CHUNK boundary the tokenizer can restart from; it can
-    // legitimately land AFTER the edit's first changed character when the edit
-    // sits inside a chunk that the reuse logic kept behind the split. In that
-    // case the nodes between [editStart, reparsedFrom) are byte-identical in the
-    // new tree (so the parse tree matches a cold parse) but their OLD
-    // annotations were just deleted by `map(changeDesc)` (their source text was
-    // replaced by the edit). If we only re-annotate from `reparsedFrom` onward,
-    // those nodes get NEITHER a fresh annotation NOR a valid carried-forward one
-    // — silently dropping e.g. a trailing `-> divert` chunk and shortening the
-    // compiled output by a scene. Clamp the window down to the edit's new-doc
-    // start so every node overlapping replaced text is re-annotated.
     let editStart = reparsedFrom;
     changeDesc.iterChangedRanges((_fromA, _toA, fromB) => {
       if (fromB < editStart) {
@@ -554,11 +420,6 @@ export class SparkdownCombinedAnnotator {
       }
     });
     editStart = extendToAlternatorWord(tree, editStart);
-    // Carry the define-type-name set through the edit over the parser's
-    // window. The annotators' window below can run further, to the last name
-    // of a `local`/`store`/`const` list, which holds no define type. It has to
-    // be complete before `annotate` starts, because the first chunk
-    // `CompilationAnnotator` lowers already reads it.
     if (runsCompilations) {
       this._defineTypeNames.update(
         tree,
@@ -568,45 +429,18 @@ export class SparkdownCombinedAnnotator {
         reparsedTo ?? text.length,
       );
     } else {
-      // The positions this edit moved were never recorded, so a later
-      // maintained pass must start from a full walk rather than map them.
       this._defineTypeNames.invalidate();
     }
-    // Shift position-keyed annotator state through the edit before anything
-    // reads it. `begin` runs inside `annotate` below and consults offsets
-    // (`SemanticAnnotator`'s cached symbol table), so they must already be in
-    // new-document coordinates by then.
     for (const [key, annotator] of this._currentEntries) {
       if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
         annotator.mapState(changeDesc);
       }
     }
-    // The delete window and the annotate window must stay identical, or the
-    // reconciliation loses or duplicates annotations.
-    //
-    // Widening this window out to whole top-level nodes would ALSO give the
-    // annotators the state a cold parse has at the boundary — but measured at
-    // 7x the per-keystroke cost inside a large top-level Luau block (13.9ms ->
-    // 97.2ms per edit event on a 21KB script), because it re-annotates the
-    // whole block on every keystroke. Annotators that depend on preceding
-    // context rebuild it in `begin()` instead; see `SemanticAnnotator`.
-    // Without `reparsedTo` the window runs to the end of the document.
-    //
-    // The one widening kept is past the last name in the list of a
-    // `local`/`store`/`const` declaration the window stops inside: whether a
-    // later name in its list is a target or a value depends on an earlier
-    // name (`valueListAssignmentName`), so an edit to the list's `=` changes
-    // names past the reparsed range. It stops at the last name's end, and an
-    // edit inside a table, function or parentheses does not widen it, so a
-    // large value costs nothing extra.
     const windowTo = extendToValueListEnd(
       tree,
       editStart,
       reparsedTo ?? undefined,
     );
-    // The statements the parse rebuilt are lowered whatever their memos say
-    // (`StatementMemoSession`); the others of a block lowered again may be
-    // served from them.
     if (runsCompilations) {
       this.current.compilations.rebuilt = {
         from: editStart,
@@ -636,6 +470,8 @@ export class SparkdownCombinedAnnotator {
           iteratingFrom,
           iteratingTo,
           new Set<keyof SparkdownAnnotators>(["validations"]),
+          undefined,
+          wide.from > 0 ? text.lineAt(wide.from - 1).from : 0,
         );
       }
     }
@@ -645,24 +481,6 @@ export class SparkdownCombinedAnnotator {
     return this.current;
   }
 
-  /**
-   * The window the validations are run over again after an edit whose own
-   * window is `[from, to]`. Some checks read past their node to the next
-   * token, across blank and comment lines, and name that token or report at
-   * it: a line in a Luau body that is not a statement (`luauStatementErrors`),
-   * a `.` that no name follows, and an if condition that no `then` follows.
-   * Such a statement takes the lines that go on from it (a line that ends
-   * in a `.`, `,` or operator, or a next line that begins with a string, a
-   * bracket, a `.`, `:` or operator), so its report can stand several code
-   * lines below it (`U.S.` then `Hi, Bob` then `got 'Another'`).
-   *
-   * So the window starts at the code line before the last one before the
-   * edit, whose statement may report at that last line's first token, and
-   * goes back further while the lines go on from one another. It ends with
-   * the line of the first token after the edit's window, and goes on while
-   * the lines before it go on into it, so a report the edit moves is
-   * replaced. Without `to` it runs to the end of the document.
-   */
   protected validationWindow(
     tree: Tree,
     text: Text,
@@ -671,8 +489,6 @@ export class SparkdownCombinedAnnotator {
   ): { from: number; to: number | undefined } {
     const read = (a: number, b: number) =>
       text.sliceString(a, Math.min(b, text.length));
-    // All trivia probes in this window share the same immutable document.
-    // Materialize it only when a probe needs token lookahead.
     const document = () => documentString(text);
     type Line = ReturnType<Text["line"]>;
     const isCode = (line: Line) => !this.holdsOnlyTrivia(tree, line, read, document);
@@ -722,7 +538,6 @@ export class SparkdownCombinedAnnotator {
     return { from: windowFrom, to: end.to };
   }
 
-  /** The text of `line` before a comment that ends it. */
   protected codeOf(tree: Tree, line: { from: number; to: number; text: string }): string {
     let comment: SyntaxNode | null = tree.resolveInner(line.to, -1);
     while (comment && !comment.name.endsWith("Comment")) {
@@ -732,7 +547,6 @@ export class SparkdownCombinedAnnotator {
     return line.text.slice(0, cut).trimEnd();
   }
 
-  /** Whether `line` holds nothing but whitespace and comments. */
   protected holdsOnlyTrivia(
     tree: Tree,
     line: { from: number; to: number; text: string },
@@ -754,12 +568,6 @@ export class SparkdownCombinedAnnotator {
     return next == null || next.from > line.to;
   }
 
-  /**
-   * Lowers again the top-level nodes over each of `ranges`, for the
-   * compilation annotator only: the compiler's way to lower again the blocks
-   * holding a statement served from a memo it could not compile from
-   * (`StatementMemoRetry`), once it has marked those memos stale.
-   */
   relowerCompilations(tree: Tree, ranges: readonly { from: number; to: number }[]) {
     const compilationsOnly = new Set<keyof SparkdownAnnotators>([
       "compilations",
@@ -770,12 +578,6 @@ export class SparkdownCombinedAnnotator {
     }
   }
 
-  /**
-   * Lower again every chunk outside the edit's window whose lowering read a
-   * document-wide answer the edit changed (see
-   * `CompilationAnnotator.staleRanges`). Each is re-annotated as a window of
-   * its own, for the compilation annotator only.
-   */
   protected relowerStaleCompilations(tree: Tree) {
     const compilations = this.current.compilations;
     const compilationsOnly = new Set<keyof SparkdownAnnotators>([
@@ -787,14 +589,6 @@ export class SparkdownCombinedAnnotator {
     compilations.markDocumentNamesChecked();
   }
 
-  /**
-   * Re-run the annotators over `[windowFrom, windowTo]` (to the end of the
-   * document when `windowTo` is undefined) and replace the annotations that
-   * window overlaps. `iteratingFrom` and `iteratingTo` are only reported to
-   * each annotator's `end`; the window alone bounds the walk. `changes`, when
-   * given, first maps the carried annotations through the edit; it is applied
-   * once per update.
-   */
   protected reannotate(
     tree: Tree,
     windowFrom: number,
@@ -803,10 +597,11 @@ export class SparkdownCombinedAnnotator {
     iteratingTo: number,
     annotate?: Set<keyof SparkdownAnnotators>,
     changes?: ChangeDesc,
+    walkFrom: number = windowFrom,
   ) {
     const filterTo = windowTo ?? Infinity;
     for (const [key, add] of Object.entries(
-      this.annotate(tree, windowFrom, windowTo, annotate),
+      this.annotate(tree, walkFrom, windowTo, annotate),
     )) {
       if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
         const annotator: SparkdownAnnotator<SparkdownAnnotation<any>> =

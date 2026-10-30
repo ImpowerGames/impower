@@ -1,10 +1,3 @@
-// textmate-grammar-tree tokenizes a capture's patterns as vscode-textmate does
-// (I-1568): a rule written inline in a capture's patterns has a node type and
-// its scope (I-1565), and the patterns read the line before the capture, so a
-// lookbehind, `^` or `\b` sees what vscode-textmate sees (I-1566). Each
-// grammar here runs through both engines, and the scope stack of every
-// character must agree. Each case also states the scopes vscode-textmate
-// gives, so a case whose rule never matches cannot pass unnoticed.
 import { describe, expect, test } from "vitest";
 import { treeScopes, vscodeScopes } from "./engineScopes";
 
@@ -14,7 +7,6 @@ const grammarOf = (rule: object, repository: object = {}) => ({
   repository,
 });
 
-/** `(x)(y)` whose `y` is read by the repository rule `afterX`. */
 const afterX = (match: string) =>
   grammarOf(
     {
@@ -76,9 +68,6 @@ describe("a capture's inline patterns have node types (I-1565)", () => {
       expected: ["t block", "t block a", "t block"],
     },
     {
-      // Resolving every pattern list before the node set is built must not
-      // stop a grammar loading over a rule the tree does not support, in a
-      // list its input never reaches.
       name: "an unsupported rule in a capture's patterns that nothing reaches",
       grammar: {
         scopeName: "t",

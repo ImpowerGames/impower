@@ -8,9 +8,6 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readRepos } from '../../repos.mjs';
 
-// The script reads .agents/repos.json when it loads, so each switch position is
-// a copy of it beside its own repos file. The tests use the off copy with the
-// public inbox number, whatever the committed file says.
 const committed = readRepos();
 const OFF = { ...committed, cutover: false, feedbackInbox: 510 };
 const modules = mkdtempSync(resolve(tmpdir(), 'triage-modules-'));
@@ -457,7 +454,6 @@ await test('every write-side guard refuses with intake intact', async () => {
     const plan = await readPlan(context.api);
     arrange(context, plan);
     await assert.rejects(applyPlan(plan, context.api), pattern, name);
-    // The summary is read back after intake deletion, once everything else is persisted.
     if (!name.startsWith('summary')) assert.ok(context.state.comments.some(comment => comment.id === 1), `${name}: intake kept`);
   }
 });
@@ -539,15 +535,11 @@ await test('preview marks a reopen only where apply will reopen', async () => {
 await test('tickets and the inbox follow the repos file in both positions while pull requests stay in the code repository', async () => {
   const scratch = mkdtempSync(resolve(tmpdir(), 'triage-repos-'));
   try {
-    // The switch on, with a migrated inbox.
     const on = await loadTriage('on', { ...committed, cutover: true, feedbackInbox: 777 });
     for (const [label, module, tickets, inbox, pr] of [['off', triage, OFF.code, OFF.feedbackInbox, '#503'], ['on', on, committed.internal, 777, `${committed.code}#503`]]) {
-      // Ticket text names a pull request with its repository once tickets live apart from the code.
       const recurring = fixture([reported(20, 'codex:beta', 'F-5', 'Still happens')], withLedger(body, [problem('F-5', 'applied in PR #503')]));
       const merged = module.preview(await module.readPlan(recurring.api))[0];
       assert.ok(merged.body.includes(`Earlier feedback (applied in PR ${pr}; context only):`) && merged.body.includes(`Previous reference for F-5: applied in PR ${pr}.`), `switch ${label}: the Task names PR ${pr}: ${merged.body}`);
-      // History written before the cutover: an applied problem whose stored text already
-      // carries the prefix, as an earlier recurrence re-applied to the same PR leaves it.
       const prefixed = { ...problem('F-5', 'applied in PR #503'), friction: 'Earlier feedback (applied in PR #503; context only):\nFriction F-5', edit: 'Earlier feedback (applied in PR #503; context only):\nEdit F-5' };
       const legacy = fixture([reported(20, 'codex:beta', 'F-5', 'Still happens')], withLedger(body, [prefixed]));
       const legacyPlan = await module.readPlan(legacy.api);
@@ -578,7 +570,6 @@ await test('tickets and the inbox follow the repos file in both positions while 
 });
 
 await test('CLI rejects inside ..prefix paths and accepts outside siblings', () => {
-  // Outside every checkout: a run under check-agent-tooling redirects tmpdir() into this one.
   const outside = process.env.IMPOWER_SYSTEM_TMPDIR || tmpdir();
   const scratch = mkdtempSync(resolve(outside, 'triage-path-check-'));
   try {

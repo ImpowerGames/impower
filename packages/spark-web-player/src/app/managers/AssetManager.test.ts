@@ -1,12 +1,7 @@
-// The page's side of the `assets/*` protocol: every load request is answered,
-// progress comes back as notifications, and the page's own pins (what is on
-// screen, what is playing) reach the cache.
-
 import { describe, expect, it } from "vitest";
 import { AssetCache, type ImageTarget } from "../assets/AssetCache";
 import AssetManager from "./AssetManager";
 
-/** An image that loads on the next microtask, like a cached response. */
 const instantImage = (): ImageTarget => {
   const target: ImageTarget = {
     src: "",

@@ -1,25 +1,3 @@
-// The `npm run web:dev` launcher, scripts/dev-preview.mjs, never leaves its
-// editor and player servers running after it ends. On Windows it joins a
-// kill-on-close job object before starting them, so however it ends, the
-// system ends every process it started. Here it is killed outright, its
-// terminal (a pseudo-console) is closed, and the drive-web-editor driver's
-// detached wrapper around it is killed without its tree; each time no process
-// of the tree may remain. Closing the terminal must also run the launcher's
-// own stop, which its exit code shows: Windows ends a process that ignores
-// the close with 0xC000013A. On POSIX, which has no job objects, SIGHUP must
-// run that stop.
-// Run:
-//   node scripts/dev-preview.test.mjs
-//
-// The launcher and the driver are copied into a scratch repository whose
-// impower-dev and sparkdown-player-app packages have `dev` scripts that start
-// a stand-in server. Each server starts a worker, the way tsx and vite start
-// esbuild, and the editor's answers HTTP so the launcher reports ready; every
-// process checked belongs to this test. A tree is the root's descendants in a
-// process census taken before it ends, matched afterwards by pid and creation
-// time (the driver's treeSurvivors), so a reused pid is never a survivor.
-// Node's built-in assert only.
-
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -46,7 +24,6 @@ copy(path.join(here, "dev-preview.mjs"), launcher);
 copy(path.join(here, "detached-launch.mjs"), path.join(repo, "scripts", "detached-launch.mjs"));
 const driver = path.join(repo, ".agents", "skills", "drive-web-editor", "driver.mjs");
 for (const name of ["driver.mjs", "redgreen.mjs", "session-dir.mjs", "worktree-temp.mjs"]) copy(path.join(skill, name), path.join(path.dirname(driver), name));
-// As in the repository, so a driver that still runs npm reaches the launcher.
 fs.writeFileSync(path.join(repo, "package.json"), JSON.stringify({ private: true, scripts: { "web:dev": "node scripts/dev-preview.mjs --mode same-origin" } }));
 fs.writeFileSync(path.join(repo, "server.mjs"), [
   'import fs from "node:fs";',
@@ -72,7 +49,6 @@ for (const name of ["EDITOR_PORT", "PLAYER_PORT", "HMR_PORT", "CLAUDE_CODE_SESSI
 let runs = 0;
 const rowsFile = () => path.join(scratch, `rows-${++runs}.jsonl`);
 const rows = (file) => (fs.existsSync(file) ? fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse) : []);
-// Both servers and both workers are up, so every process of the tree is too.
 async function serving(file, output = () => "", needReady = false) {
   for (let i = 0; i < 1800; i++) {
     if (rows(file).length === 4 && (!needReady || /Live preview ready/.test(output()))) return;
@@ -99,9 +75,6 @@ function startLauncher(file) {
   return { child, output: collect(child), exited: exitOf(child) };
 }
 
-// Every tree a case censused, so the cleanup stops whatever a failure left. A
-// case that fails before its census stops its tree whole while the root
-// still runs, since that is what taskkill /T can still reach.
 const trees = [];
 async function census(root) {
   const before = await windowsProcessTable();
@@ -127,11 +100,6 @@ const check = async (name, fn) => {
   }
 };
 
-// Closes a pseudo-console with the launcher attached, as Windows Terminal,
-// VS Code and other terminals do when their tab closes: conhost sends the
-// launcher CTRL_CLOSE_EVENT, which Node delivers as SIGHUP. The helper prints
-// the launcher's pid, waits for a line on stdin, closes the console and
-// prints the launcher's exit code.
 const ptyScript = path.join(scratch, "pty.ps1");
 fs.writeFileSync(ptyScript, [
   "param([string]$Command, [string]$Log)",
@@ -207,7 +175,6 @@ try {
       try {
         await serving(file, run.output, true);
         const before = await census(run.child.pid);
-        // TerminateProcess: no handler of the launcher runs.
         process.kill(run.child.pid);
         await run.exited;
         await assertTreeGone(before, run.child.pid, run.output());
@@ -227,8 +194,6 @@ try {
       });
       const output = collect(helper);
       const helperExit = exitOf(helper);
-      // The helper holds the launcher's process handle until it exits, so
-      // this pid names the launcher for as long as the helper runs.
       const launcherPid = () => Number(output().match(/^pid (\d+)/m)?.[1]);
       try {
         await serving(file, output);
@@ -259,12 +224,9 @@ try {
       const out = `${up.stdout ?? ""}${up.stderr ?? ""}`;
       const pid = Number(out.match(/launching dev servers \(same-origin\) pid (\d+)/)?.[1]);
       assert.ok(pid > 0, `up named no launcher pid:\n${out}`);
-      // Taken at once, so a failure below still leaves the tree to clean up;
-      // a process started later by a member is still found as one.
       const before = await census(pid);
       assert.match(out, /READY/, out);
       await serving(file);
-      // TerminateProcess on the wrapper alone, not the taskkill /T `down` runs.
       process.kill(pid);
       await assertTreeGone(before, pid, out);
     });

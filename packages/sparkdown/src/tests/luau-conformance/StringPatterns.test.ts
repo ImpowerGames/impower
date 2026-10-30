@@ -1,9 +1,3 @@
-// Phase 1 of Lua-pattern support: `string.find` and `string.match`.
-// Patterns are translated to JS regex via `luaPatternToJs` in
-// `runtime/LuaPatterns.ts`. Phase 1 omits `%b{}` balanced
-// match, `%f[]` frontier, and `()` position captures — those
-// throw a runtime story.Error pointing at the unsupported feature.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -63,8 +57,6 @@ end
   });
 
   test("plain mode treats pattern chars literally", () => {
-    // Without plain=true, `.+` would be a pattern; with it, we want
-    // the literal three chars `.`, `+`, `?`.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 
 scene start
@@ -446,7 +438,6 @@ end
   });
 
   test("invalid pattern errors at the gmatch call site", () => {
-    // `%b` without delimiters is malformed.
     const { errors } = compileAndCapture(`external host_record(v)
 
 scene start
@@ -607,8 +598,6 @@ host_record(count)
 end
 `);
     expect(errors).toEqual([]);
-    // Both `$x` matches replace; `$y` keeps the original literal.
-    // Count is total matches attempted, including kept-original ones.
     expect(recorded).toEqual(["ONE $y ONE", 3]);
   });
 
@@ -627,7 +616,6 @@ host_record(result)
 end
 `);
     expect(errors).toEqual([]);
-    // First capture is "apples" / "oranges" so the lookup keys match.
     expect(recorded).toEqual(["3, 7"]);
   });
 });
@@ -685,7 +673,6 @@ host_record(count)
 end
 `);
     expect(errors).toEqual([]);
-    // 'a' doubled, 'b' kept, 'c' doubled. count counts all matches (3).
     expect(recorded).toEqual(["aabcc", 3]);
   });
 

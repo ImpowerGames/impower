@@ -1,8 +1,3 @@
-// Every body of a statement emitted again in place takes its sequence id
-// through the one source alignment, by the part that heads it (#1574,
-// docs/engine/binary-program.md, section 2): a branch's condition or its
-// `else`, a loop's header, a choice's line, a `then` clause, a function's own
-// source. Never by position.
 import { describe, expect, it } from "vitest";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import type { ProgramRoot } from "../../program/ProgramRoot";
@@ -37,8 +32,6 @@ function posAt(text: string, offset: number) {
   return { line, character: offset - lineStart };
 }
 
-/** A compiler over one script that an edit replaces `before` with `after`
- *  in, one occurrence, and compiles again. */
 const session = (text: string) => {
   const c = programCompiler({ [MAIN_URI]: text });
   let current = text;
@@ -72,8 +65,6 @@ const session = (text: string) => {
   };
 };
 
-/** The sequence id and arrays of the body whose own listing shows `marker`
- *  (the innermost such body), or nothing. */
 const bodyWith = (root: ProgramRoot, marker: string) => {
   const reader = new BinaryProgramReader(root);
   let found: { id: number; arrays: unknown; size: number } | undefined;
@@ -123,7 +114,6 @@ describe("the then clauses of a choose block emitted again in place", () => {
     const s = session(text);
     const before = bodyWith(s.first, "Outer then.")!;
     expect(before).toBeDefined();
-    // A checkpoint image taken inside the outer clause.
     const story = new ProgramStory(s.first);
     while (story.canContinue) story.Continue();
     story.ChooseChoiceIndex(
@@ -155,7 +145,6 @@ describe("the then clauses of a choose block emitted again in place", () => {
     const restored = new ProgramStory(edited);
     restored.state.LoadJson(image);
     expect(restored.Continue()).toBe("Outer then second.\n");
-    // And back: the inner clause's id is given up, the outer one kept.
     const removed = s.edit(
       [
         "    choose",

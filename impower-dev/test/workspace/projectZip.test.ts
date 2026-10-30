@@ -8,20 +8,6 @@ import {
 
 import WorkspaceFileSystem from "../../src/modules/spark-editor/workspace/WorkspaceFileSystem";
 
-// AREAS 2 & 3: project zip + asset bundle round-trip, exercised through the
-// REAL WorkspaceFileSystem.readProjectZip / writeProjectZip /
-// readProjectAssetBundle / writeProjectAssetBundle (and their delete-set
-// logic), with the OPFS worker replaced by an in-memory fake that mirrors the
-// worker's zip/unzip strategy via the REAL opfs-workspace assetArchive helpers
-// (buildZippable / parseUnzipEntries), i.e. PROJECT-RELATIVE-PATH keying.
-// createFiles / deleteFiles mutate the same in-memory OPFS map.
-//
-// This lets us assert the export->import contract (content + folder path intact,
-// nested dirs preserved, import deletes files absent from the zip) against the
-// genuine class behavior. The "known gaps on main" nested-path specs FAIL on
-// main (basename keying flattens folders) and PASS here (the worker now keys by
-// the relative path — commit 2f79eb510).
-
 const PROJECT = "proj1";
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -30,8 +16,8 @@ const basename = (uri: string) => uri.split("/").slice(-1).join("");
 
 interface Harness {
   fs: WorkspaceFileSystem;
-  opfs: Map<string, Uint8Array>; // uri -> bytes
-  files: Record<string, FileData>; // FileData cache the class reads via getFiles
+  opfs: Map<string, Uint8Array>;
+  files: Record<string, FileData>;
 }
 
 function makeFileData(uri: string, bytes: Uint8Array): FileData {
@@ -39,7 +25,6 @@ function makeFileData(uri: string, bytes: Uint8Array): FileData {
   const dot = fn.lastIndexOf(".");
   const name = dot >= 0 ? fn.slice(0, dot) : fn;
   const ext = dot >= 0 ? fn.slice(dot + 1) : "";
-  // text vs binary: treat .sd / .txt as text, everything else binary.
   const isText = ext === "sd" || ext === "txt";
   return {
     uri,
@@ -66,9 +51,6 @@ function makeHarness(initial: Record<string, Uint8Array>): Harness {
     _scheme: "file://",
     getFiles: async () => files,
 
-    // --- in-memory replicas of the OPFS worker, mirroring the FIXED worker via
-    // the REAL assetArchive helpers (project-relative-path keying). readProjectZip
-    // now supplies a `path` per file. ---
     zipFiles: async ({
       files: list,
     }: {
@@ -127,7 +109,6 @@ describe("project zip round-trip (readProjectZip <-> writeProjectZip)", () => {
     });
     const zip = await readProjectZip(src);
 
-    // Import into a fresh empty project.
     const dst = makeHarness({});
     await writeProjectZip(dst, zip);
 
@@ -136,12 +117,10 @@ describe("project zip round-trip (readProjectZip <-> writeProjectZip)", () => {
   });
 
   it("import DELETES files not present in the imported zip", async () => {
-    // Existing project has an extra stale file.
     const dst = makeHarness({
       [u("main.sd")]: enc.encode("OLD"),
       [u("stale.sd")]: enc.encode("REMOVE ME"),
     });
-    // Build a zip that only contains main.sd (+new content).
     const src = makeHarness({ [u("main.sd")]: enc.encode("NEW") });
     const zip = await readProjectZip(src);
 
@@ -160,9 +139,6 @@ describe("project zip round-trip (readProjectZip <-> writeProjectZip)", () => {
       const zip = await readProjectZip(src);
       const dst = makeHarness({});
       await writeProjectZip(dst, zip);
-      // DESIRED: the nested asset lands back at its nested uri. On main the
-      // worker keys the zip by basename, so it round-trips to
-      // file://proj1/btn.png (folder lost).
       expect(dst.opfs.has(u("images/ui/btn.png"))).toBe(true);
       expect(Array.from(dst.opfs.get(u("images/ui/btn.png"))!)).toEqual([
         9, 8, 7,
@@ -178,8 +154,6 @@ describe("project zip round-trip (readProjectZip <-> writeProjectZip)", () => {
       const zip = await readProjectZip(src);
       const dst = makeHarness({});
       await writeProjectZip(dst, zip);
-      // DESIRED: both nested logos survive. On main both zip under "logo.png"
-      // and one overwrites the other.
       expect(dst.opfs.has(u("images/logo.png"))).toBe(true);
       expect(dst.opfs.has(u("icons/logo.png"))).toBe(true);
     });
@@ -189,12 +163,11 @@ describe("project zip round-trip (readProjectZip <-> writeProjectZip)", () => {
 describe("asset bundle round-trip (readProjectAssetBundle <-> writeProjectAssetBundle)", () => {
   it("bundles ONLY binary assets (skips scripts/text)", async () => {
     const src = makeHarness({
-      [u("main.sd")]: enc.encode("MAIN"), // text -> excluded
+      [u("main.sd")]: enc.encode("MAIN"),
       [u("logo.png")]: new Uint8Array([1, 2, 3]),
     });
     const zip = await readAssetBundle(src);
     const entries = unzipSync(new Uint8Array(zip));
-    // Asset bundle filters file.text == null (binary only).
     expect(Object.keys(entries)).toEqual(["logo.png"]);
   });
 
@@ -208,7 +181,6 @@ describe("asset bundle round-trip (readProjectAssetBundle <-> writeProjectAssetB
     expect(Array.from(dst.opfs.get(u("logo.png"))!)).toEqual([
       5, 6, 7, 200, 0,
     ]);
-    // Asset import must NOT delete the script (it only reconciles binary assets).
     expect(dst.opfs.has(u("main.sd"))).toBe(true);
   });
 
@@ -233,7 +205,6 @@ describe("asset bundle round-trip (readProjectAssetBundle <-> writeProjectAssetB
       const zip = await readAssetBundle(src);
       const dst = makeHarness({});
       await writeAssetBundle(dst, zip);
-      // DESIRED: nested asset round-trips to its nested uri.
       expect(dst.opfs.has(u("audio/music/theme.mp3"))).toBe(true);
     });
   });

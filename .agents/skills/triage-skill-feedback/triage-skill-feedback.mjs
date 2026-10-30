@@ -8,19 +8,12 @@ import { readReports } from './feedback-reports.mjs';
 import { hydrateReports, persistReports, prepareReports, inspectReportsArchive } from './feedback-archive.mjs';
 import { readRepos, ticketsRepo } from '../../repos.mjs';
 
-// The inbox and its tickets live in the tickets repository the repos file
-// names; pull requests stay in the code repository.
 const REPOS = readRepos();
 const REPO = ticketsRepo(REPOS);
 const CODE = REPOS.code;
 const INBOX = REPOS.feedbackInbox;
-// A pull request as written in ticket text: once tickets live apart from the
-// code, a bare #N would name a ticket, so it names the code repository. The
-// ledger keeps its `applied in PR #N` grammar; only rendered text changes.
 const prRef = number => `${REPOS.cutover ? CODE : ''}#${number}`;
 const displayStatus = status => status.replace(/^applied in PR #(\d+)$/, (_, number) => `applied in PR ${prRef(number)}`);
-// The ledger stores the earlier-feedback prefix in that grammar too, whichever
-// position wrote it, so rendering qualifies it rather than the stored text.
 const displayContext = text => text.replace(/^Earlier feedback \(applied in PR #(\d+); context only\):$/gm, (_, number) => `Earlier feedback (applied in PR ${prRef(number)}; context only):`);
 const PLAN_VERSION = 4;
 const hash = value => createHash('sha256').update(value).digest('hex').slice(0, 20);
@@ -38,7 +31,6 @@ const taskOf = status => Number(status?.match(/^ticketed #(\d+)$/)?.[1]) || null
 const reportCount = row => `${row.sessions.length} recorded${row.historyIncomplete ? '; history incomplete' : ''}`;
 const reportExcerpt = text => { const points = Array.from(text); return points.length > 300 ? points.slice(0, 300).join('') + '\n[Full history in Reports archive.]' : text; };
 const groupMarker = rows => `Feedback group: ${hash(JSON.stringify(canonicalRows(rows)))}`;
-// A row needs a group when it has no Task yet or carries a new observation for its Task.
 const needsGroup = row => row.status === 'open' || Boolean(row.observations?.length);
 const DEFER_REMOVED = `The defer action was removed by #947: every counted problem is filed as a workflow: skills Task attached to #${INBOX}. Group the problem as ticket, existing or applied; close an unwanted Task as not planned.`;
 
@@ -80,12 +72,10 @@ export function keyOf(skill) {
   return numbered ? `${numbered[1]}, section ${numbered[2]}` : value.replace(/\.$/, '');
 }
 
-// A repeat names its problem by ID, so its target only has to name the same skill; section and wording may differ.
 function skillNameOf(skill) {
   return keyOf(skill).match(/^[^\s,]+/)?.[0] ?? '';
 }
 
-// Targets whose reports predate problem IDs; a counted problem at one of them has an incomplete count.
 function historicalTargets(body) {
   body = body.replace(/\r\n/g, '\n');
   const matches = [...body.matchAll(/^<!-- skill-feedback-history:v1 ([A-Za-z0-9+/=]+) -->$/gm)].filter(match => !fencedAt(body, match.index));
@@ -106,8 +96,6 @@ function cells(line) {
   return line.trim().slice(1, -1).split(/(?<!\\)\|/).map(s => decode(s.trim().replace(/\\\|/g, '|')));
 }
 
-// Reads the table an inbox body carries before its first triage under the sub-issue model.
-// Every row must name an archived problem; apply retires the rows into the archive and removes the table.
 export function parseLegacyTable(body, savedLedger) {
   const normalized = body.replace(/\r\n/g, '\n');
   const lines = normalized.split('\n');
@@ -176,7 +164,6 @@ export function fold(body, comments, references = { prs: {}, issues: {} }, saved
   const byId = new Map();
   const track = row => { rows.push(row); byId.set(row.problemId, row); return row; };
   for (const row of table?.rows || []) track(row);
-  // An archived problem still marked open, or applied in a pull request that closed unmerged, has no Task, so this triage files one.
   for (const [id, saved] of Object.entries(ledger)) if ((saved.status === 'open' || appliedUnmerged(saved.status, references)) && !byId.has(id)) track({ ...structuredClone(saved) });
   const folded = [];
   const ignored = [];
@@ -195,7 +182,6 @@ export function fold(body, comments, references = { prs: {}, issues: {} }, saved
         track({ skill: report.skill, friction: report.friction, edit: report.edit, status: 'open', problemId: report.problemId, sessions: [report.session], historyIncomplete: false });
       } else {
         const row = byId.get(report.problemId) || track({ ...structuredClone(saved) });
-        // A merged edit that did not stop the problem needs a new Task; an unmerged one still carries its proposal.
         if (row.status.startsWith('applied in PR #') && !row.previousStatus) {
           row.previousStatus = row.status;
           const prefix = `Earlier feedback (${row.status}; context only):\n`;
@@ -251,8 +237,6 @@ export async function readPlan(api) {
   const ledger = archive.problems;
   refusePendingFoldedIntake(body, comments);
   const references = { prs: {}, issues: {} };
-  // Every applied problem's pull request is read so one that closed unmerged is filed even without new intake.
-  // Other archived Tasks stay out of the references, so their state changes cannot invalidate the plan.
   const statuses = [...Object.values(ledger).map(row => row.status).filter(status => status.startsWith('applied in PR #')), ...fold(body, comments, undefined, ledger).rows.filter(needsGroup).flatMap(row => [row.status, row.previousStatus])];
   for (const status of statuses) {
     const match = status?.match(/^(ticketed|applied in PR) #(\d+)$/);
@@ -284,7 +268,6 @@ export async function lookupReports(api, problemId) {
   return { reports, pending, archive: { index: archive.index, chunks: archive.chunks, superseded: archive.superseded } };
 }
 
-// A recurrence posted to its recorded Task carries only the new observations; a new Task carries the whole record.
 const onlyObservations = row => Boolean(row.observations?.length && taskOf(row.status));
 function description(rows) {
   return rows.map(row => `### ${row.skill} (${row.problemId}; ${reportCount(row)})\n\n` + (onlyObservations(row)
@@ -326,8 +309,6 @@ function summaryText(plan, marker, rows, filed, applied, elsewhere = []) {
   return `${marker}\nFolded ${plan.comments.length} intake comments (${plan.comments.map(c => c.id).join(', ') || 'none'}); filed or linked ${filed.join(', ') || 'none'}; applied ${applied.join(', ') || 'none'}; left unparsed comments ${(plan.ignored || []).map(c => c.id).join(', ') || 'none'} intact (reasons in the plan); left marker-prefixed comments ${(plan.skipped || []).map(c => c.id).join(', ') || 'none'} intact (inspect skipped IDs and bodies in the plan).${plan.migrated ? ` Retired ${plan.migrated} table rows into the archive.` : ''}${elsewhere.length ? ` Left under another parent: ${elsewhere.join(', ')}.` : ''} Problems: ${mapped.join('; ') || 'none'}.${history.length ? `\n<!-- skill-feedback-history:v1 ${Buffer.from(JSON.stringify(history)).toString('base64')} -->` : ''}`;
 }
 
-// Attaches every open Task the triaged problems map to, then confirms the inbox's sub-issue list.
-// An issue can have one parent, so an issue under another parent stays there and is reported instead of moved.
 async function attachToInbox(api, rows) {
   const numbers = [...new Set(rows.map(row => taskOf(row.status)).filter(Boolean))];
   const listed = async () => new Set((await api.subIssues()).map(issue => issue.number));
@@ -349,10 +330,8 @@ async function attachToInbox(api, rows) {
   return [...elsewhere.values()];
 }
 
-// A closed Task is reopened only for the problems it already records.
 const reopensOwnTask = (group, rows) => group.action === 'existing' && rows.filter(row => group.keys.includes(row.problemId)).every(row => taskOf(row.status) === group.number);
 
-// The adapter makes persistence ordering testable without touching GitHub.
 export async function applyPlan(plan, api) {
   if (plan.groups?.some(group => group.action === 'defer')) throw new Error(DEFER_REMOVED);
   if (plan.version !== PLAN_VERSION || plan.repo !== REPO || plan.inbox !== INBOX) throw new Error('Wrong plan version or inbox; retain the original script for interrupted plans.');
@@ -366,7 +345,6 @@ export async function applyPlan(plan, api) {
   const run = hash(JSON.stringify({ body: plan.body, comments: plan.comments, groups: plan.groups }));
   const marker = `<!-- skill-feedback-triage:${run} -->`;
   let current = await api.inbox();
-  // A completed body's marker allows retries to finish cleanup after interruption.
   const latestSummary = [...current.body.matchAll(/^<!-- skill-feedback-triage:[a-f0-9]{20} -->\r?\nFolded /gm)].findLast(match => !fencedAt(current.body, match.index));
   const resumed = Boolean(latestSummary?.[0].startsWith(marker));
   if (resumed) {
@@ -374,7 +352,6 @@ export async function applyPlan(plan, api) {
     if (!integrity || hash(current.body.slice(0, integrity.index)) !== integrity[1]) throw new Error('Persisted inbox changed after folding; inspect it before deleting intake.');
   }
   if (!resumed && current.body !== plan.body) throw new Error('Inbox body changed since planning; create a fresh plan before writing.');
-  // A Task this plan reopens may already be open when an interrupted apply is retried.
   const reopened = new Set(plan.groups.filter(group => reopensOwnTask(group, plan.rows)).map(group => String(group.number)));
   if (!resumed) for (const [kind, refs] of Object.entries(plan.references || {})) for (const [number, saved] of Object.entries(refs)) {
     const item = await (kind === 'prs' ? api.pr(Number(number)) : api.issue(Number(number)));
@@ -397,8 +374,6 @@ export async function applyPlan(plan, api) {
     const largest = `#${Number.MAX_SAFE_INTEGER}`;
     const projectedRows = rows.map(row => ({ ...row, status: `ticketed ${largest}` }));
     prepareReports({ ...liveLedger, ...Object.fromEntries(canonicalRows(projectedRows).map(row => [row.problemId, row])) });
-    // The body carries prose, the archive pointer and one summary; GitHub refuses an issue body or comment over 65,536 characters.
-    // Every Task number, reopen note and foreign parent is counted at its largest so the refusal comes before any write.
     const appliedContext = group => literalDisplay(referenceContext(rows.filter(row => group.keys.includes(row.problemId)), ''));
     const projectedSummary = summaryText(plan, marker, projectedRows.map(row => ({ ...row, status: `applied in PR ${largest}` })), plan.groups.map(() => `${largest} (existing, reopened)`), plan.groups.map(group => `${prRef(Number.MAX_SAFE_INTEGER)} (${appliedContext(group)})`), projectedRows.map(() => `${largest} (parent ${REPO}${largest})`));
     const projectedBody = removeLegacyTable(stripSummaryBlocks(plan.body), liveLedger).trimEnd().length + projectedSummary.length + 512;
@@ -444,7 +419,6 @@ export async function applyPlan(plan, api) {
       }
       for (const row of grouped) row.status = group.action === 'applied' ? `applied in PR #${number}` : `ticketed #${number}`;
     }
-    // Attaching before the body is written keeps a failed attachment recoverable by retrying the same plan.
     const elsewhere = await attachToInbox(api, rows);
     summary = summaryText(plan, marker, rows, filed, applied, elsewhere);
     const prior = removeLegacyTable(stripSummaryBlocks(plan.body), liveLedger).trimEnd();
@@ -456,12 +430,10 @@ export async function applyPlan(plan, api) {
     if (current.body !== plan.body) throw new Error('Inbox changed during triage; tickets are recoverable by marker. Re-plan before overwriting it.');
     await api.updateBody(updated);
     if ((await api.inbox()).body !== updated) throw new Error('Inbox body read-back differs; no intake deleted.');
-    // Re-reads the archive through the new body pointer; a failure here stops before any intake is deleted.
     hydrateReports(updated, await api.comments(), fencedAt);
   } else {
     summary = current.body.slice(latestSummary.index, current.body.lastIndexOf('\n<!-- skill-feedback-state:'));
   }
-  // Never delete a comment until its complete content and status are persisted.
   for (const comment of plan.comments) {
     const live = (await api.comments()).find(c => c.id === comment.id);
     if (live) {
@@ -478,7 +450,6 @@ export async function applyPlan(plan, api) {
   return { summary, url: readback.html_url, run };
 }
 
-// The GitHub adapter; `run` takes the gh arguments and returns its stdout.
 export function github(scratch, run = args => execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024, windowsHide: true })) {
   let sequence = 0;
   let directory;

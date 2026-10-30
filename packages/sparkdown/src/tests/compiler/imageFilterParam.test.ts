@@ -1,5 +1,3 @@
-// The canonical on-demand attribute selection must preserve layer visibility
-// through both a JSON and a URL round trip, including the empty resting look.
 import { describe, expect, it } from "vitest";
 import {
   buildAttributeVocabulary,

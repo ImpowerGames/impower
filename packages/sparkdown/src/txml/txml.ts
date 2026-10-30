@@ -18,6 +18,10 @@ export type Node =
 
 export type Document = Node | Node[];
 
+const RENDERED_TEXT_ROOTS = new Set(["text", "foreignObject"]);
+
+const localName = (tagName: string) => tagName.slice(tagName.indexOf(":") + 1);
+
 export function parse(
   S: string,
   options?: {
@@ -36,6 +40,7 @@ export function parse(
   var pos = options.pos || 0;
   var keepComments = !!options.keepComments;
   var keepWhitespace = !!options.keepWhitespace;
+  var renderedTextDepth = 0;
 
   var openBracket = "<";
   var openBracketCC = "<".charCodeAt(0);
@@ -144,12 +149,12 @@ export function parse(
         }
       } else {
         var text = parseText();
-        if (keepWhitespace) {
+        if (keepWhitespace || renderedTextDepth > 0) {
           if (text.length > 0) {
             children.push(text);
           }
         } else {
-          var trimmed = text.trim();
+          var trimmed = trimXML(text);
           if (trimmed.length > 0) {
             children.push(trimmed);
           }
@@ -253,7 +258,10 @@ export function parse(
         pos += 8;
       } else if (NoChildNodes.indexOf(tagName) === -1) {
         pos++;
+        var rendersText = RENDERED_TEXT_ROOTS.has(localName(tagName));
+        if (rendersText) renderedTextDepth++;
         children = parseChildren(tagName);
+        if (rendersText) renderedTextDepth--;
       } else {
         pos++;
       }
@@ -382,7 +390,7 @@ export function stringify(
         for (var i = 0; i < O.length; i++) {
           const c = O[i]!;
           if (typeof c == "string") {
-            out += c!.trim();
+            out += c;
           } else {
             writeNode(c);
           }

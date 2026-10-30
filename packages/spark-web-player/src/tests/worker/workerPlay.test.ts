@@ -1,9 +1,3 @@
-// PLAY runs in the player's worker (#682): the worker builds PLAY's game
-// beside the game that previews, from its own story, and the page only shows
-// it. The page builds no game at any point, an edit restarts the run, STOP
-// returns the cursor, the worker's thread is not spent on a route search
-// while the game runs, and the controls that move time move it on both
-// sides.
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
@@ -33,7 +27,6 @@ const FIRST = lineOf("The first line.");
 const SECOND = lineOf("The second line.");
 const THIRD = lineOf("The third line.");
 
-/** Replace the text of the third line. */
 const editThird = (text: string) => [
   {
     range: {
@@ -44,21 +37,16 @@ const editThird = (text: string) => [
   },
 ];
 
-/** STOP waits a frame between its steps, which this page does not draw. */
 const framesForStop = (h: { overlay: HTMLElement }) => {
   const win = h.overlay.ownerDocument.defaultView as any;
   win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
 };
 
-/** Every game built from now on, and whether the page built it: a game on
- *  the page is built by the controller, and the worker's are built in tasks
- *  that begin in the worker's connection. */
 const recordGameBuilds = () => {
   const builds: { page: boolean; program: unknown }[] = [];
   const proto = Game.prototype as any;
   const updateProgram = proto.updateProgram;
   proto.updateProgram = function (this: any, ...args: any[]) {
-    // The constructor gives the game its program before it has a connection.
     if (!this._connection) {
       const stack = new Error().stack ?? "";
       builds.push({
@@ -76,7 +64,6 @@ const recordGameBuilds = () => {
   };
 };
 
-/** Wait until the editor has been told the game restarted after an edit. */
 const reloaded = async (h: { toEditor: any[] }) => {
   for (let i = 0; i < 200; i++) {
     if (h.toEditor.some((m) => m.method === GameReloadedMessage.method)) {
@@ -87,14 +74,11 @@ const reloaded = async (h: { toEditor: any[] }) => {
   throw new Error("The game never restarted");
 };
 
-/** Stopped preview, PLAY, an edit during PLAY with its restart, and STOP, as
- *  the author does them. Answers what each step showed. */
 const session = async () => {
   const gameBuilds = recordGameBuilds();
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text: SOURCE }],
     startFrom: { file: MAIN_URI, line: SECOND },
-    // Each side ticks the frames the test gives it, and no others.
     manualClock: true,
   });
   framesForStop(h);
@@ -106,7 +90,6 @@ const session = async () => {
 
     expect(await h.controller.startGameAndApp()).toBe(true);
     await settle(40);
-    // Two seconds of frames: the line is typed out.
     await h.tick(1000 / 60, 120);
     const played = h.overlay.textContent;
     const playedProgram = h.playing()?.program;
@@ -147,13 +130,9 @@ describe("PLAY", () => {
   it("builds no game on the page, restarts on an edit and returns on STOP", async () => {
     const on = await session();
 
-    // Every game is the worker's: the preview's, PLAY's, and the one the
-    // restart built.
     expect(on.builds.filter((b) => b.page)).toEqual([]);
     expect(on.builds.length).toBeGreaterThanOrEqual(3);
 
-    // PLAY showed the line it started from, the restart ran the edited
-    // program, and STOP asked the editor to select where the game was.
     expect(on.previewed).toContain("The second line.");
     expect(on.played).toContain("The second line.");
     expect(on.restarted).toContain("The second line.");
@@ -176,8 +155,6 @@ describe("a selection while PLAY runs in the worker", () => {
       await h.compile();
       await h.select(FIRST);
       const game = h.workerState.gameState.game!;
-      // The worker replays a route through the form that answers its
-      // checkpoint as a value (#1758).
       const replay = game.replayPatchedRoute.bind(game);
       let replays = 0;
       game.replayPatchedRoute = (...args: Parameters<Game["replayPatchedRoute"]>) => {
@@ -191,7 +168,6 @@ describe("a selection while PLAY runs in the worker", () => {
       await h.select(THIRD);
       await h.select(SECOND);
       expect(replays).toBe(before);
-      // The line is still where the next compile starts from.
       expect(h.workerState.compilerState.compiler.config.startFrom).toEqual({
         file: MAIN_URI,
         line: SECOND,
@@ -219,9 +195,6 @@ describe("the game that previews while PLAY runs in the worker", () => {
       await h.select(FIRST);
       expect(await h.controller.startGameAndApp()).toBe(true);
       await settle(40);
-      // Anything the game that previews sends, which is still connected to
-      // the page from the last display: here a notification of its own, on
-      // a stream newer than PLAY's.
       const previewing = h.workerState.gameState.game!;
       previewing.connection.beginEpoch();
       previewing.connection.beginEpoch();
@@ -232,8 +205,6 @@ describe("the game that previews while PLAY runs in the worker", () => {
       } as any);
       await settle(20);
       expect(h.toRouter.some((m) => m.method === "test/fromPreview")).toBe(false);
-      // A request it makes is answered, so whatever it was doing, such as a
-      // display PLAY took over, does not wait for ever.
       const asked = previewing.connection
         .emit({ jsonrpc: "2.0", id: "from-preview", method: "test/askPreview", params: {} } as any)
         .then(
@@ -246,7 +217,6 @@ describe("the game that previews while PLAY runs in the worker", () => {
       ]);
       expect(outcome).toBe("refused");
       expect(h.toRouter.some((m) => m.method === "test/askPreview")).toBe(false);
-      // PLAY's game still reaches the page afterwards.
       const before = h.toRouter.length;
       await h.controller.handlePauseGame(PauseGameMessage.type.request({}));
       await h.controller.handleUnpauseGame(UnpauseGameMessage.type.request({}));
@@ -278,8 +248,6 @@ describe("the controls that move time", () => {
     return h;
   };
 
-  /** Where each side's clock stands: whether it runs, and how far it has
-   *  been moved from the time it reads. */
   const clocks = (h: any) => {
     const game = h.workerState.gameState.running!;
     const app = h.controller._app;

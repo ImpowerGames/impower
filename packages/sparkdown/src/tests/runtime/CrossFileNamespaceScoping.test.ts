@@ -1,17 +1,3 @@
-// Cross-file namespace scoping (P1, whole-program post-pass). Leaf-vs-type
-// classification is a whole-PROGRAM property: a `define X` in one file whose
-// name is used as a TYPE (`new X()` / `as X`) only in a DIFFERENT script of the
-// project folder must stay on its bare global. Per-document lowering can't see
-// across files;
-// the `scopeDefineInstances` post-pass in SparkdownCompiler runs after the whole
-// program is assembled, over the union of type names from every file, so it can.
-//
-// Without the cross-file pass, `X` looks like a leaf in its own file, gets
-// scoped to `$Type_X`, and the `new X()` / `as X` site in the other file
-// resolves the bare `X` to nil — a crash / "cannot find" error. These tests
-// would fail on the old per-document classification. See
-// project_define_namespace_scoping.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -51,9 +37,6 @@ function compileMultiFile(
 
 describe("cross-file namespace scoping", () => {
   test("`new X()` in main resolves an X defined (as a leaf) in another script", () => {
-    // `Hero` is `as Base` in the other script with no local type use → looks like a
-    // leaf there. `new Hero()` in main makes it a TYPE program-wide, so it must
-    // keep its bare global.
     const { errors, recorded } = compileMultiFile([
       {
         rel: "includes/defs.sd",
@@ -81,17 +64,10 @@ end
       },
     ]);
     expect(errors).toEqual([]);
-    // hp inherited from Base, name is Hero's own — proves `new Hero()` found
-    // the bare `Hero` type and minted a fresh instance.
     expect(recorded).toEqual([10, "Knight"]);
   });
 
   test("`as X` in another script resolves an X defined (as a leaf) in main", () => {
-    // `Actor` is `as character` in main with no local type use → looks like a
-    // leaf. The other script uses it as a parent (`as Actor`) AND as a member
-    // root (`Actor.Hero`), both of which need the bare `Actor` global. Main's
-    // declarations register before the other script's (#1387), so the
-    // parent is the one main declares.
     const { errors, recorded } = compileMultiFile([
       {
         rel: "includes/defs.sd",
@@ -118,14 +94,10 @@ end
       },
     ]);
     expect(errors).toEqual([]);
-    // `Actor.Hero` resolves through the bare `Actor` type table; hp inherited.
     expect(recorded).toEqual(["Knight", 7]);
   });
 
   test("a leaf with NO cross-file type use is still scoped (bare name stays free)", () => {
-    // `Orion` is `as companion` and never used as a type in ANY file → leaf →
-    // scoped `$companion_Orion`, so the bare name `Orion` is free for a user
-    // var. `companion.Orion` still resolves (that goes through the type table).
     const { errors, recorded } = compileMultiFile([
       {
         rel: "includes/defs.sd",
@@ -153,7 +125,6 @@ end
       },
     ]);
     expect(errors).toEqual([]);
-    // Bare `Orion` is the user's store var (42); the define is reached longform.
     expect(recorded).toEqual([42, "Orion"]);
   });
 });

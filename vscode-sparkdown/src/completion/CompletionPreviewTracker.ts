@@ -8,41 +8,18 @@ import {
   TextChange,
 } from "./completionEdits";
 
-/**
- * Follows VS Code's suggestion list in one window and turns what it reports
- * into `textDocument/previewCompletion` notifications: one for every newly
- * highlighted suggestion (the first, a change, a return to an earlier one, and
- * the same one after the document changed under it) and one when the list
- * closes.
- *
- * VS Code has no public event for the suggestion list. It does tell inline
- * completion providers which suggestion is highlighted while the inline
- * completion model is active, and asks them again with nothing highlighted
- * once the list closes. The extension activates that model whenever it
- * answers a request for suggestions (see `activateCompletionPreview`), and
- * feeds each answer, each highlight report, each document change and each
- * change of editor here.
- *
- * Nothing here imports `vscode`, so the tests drive it with plain values.
- */
 export class CompletionPreviewTracker {
-  /** Whether a list is open, as far as the reports so far say. */
   protected _open = false;
   get open() {
     return this._open;
   }
 
-  /** Increases each time a list opens. */
   protected _session = 0;
 
-  /** Increases with every notification, across sessions. */
   protected _request = 0;
 
-  /** The document the open list is in. */
   protected _uri: string | null = null;
 
-  /** The last highlight reported: its document version, where it would be
-   *  accepted, and the edit. */
   protected _focused: {
     version: number;
     placement: Placement;
@@ -50,7 +27,6 @@ export class CompletionPreviewTracker {
     changes: TextChange[] | null;
   } | null = null;
 
-  /** The language server's items for the latest request, by document. */
   protected _candidates: {
     uri: string;
     items: readonly CompletionCandidate[];
@@ -60,13 +36,10 @@ export class CompletionPreviewTracker {
     protected readonly send: (params: PreviewCompletionParams) => void,
   ) {}
 
-  /** The language server answered a request for suggestions in `uri`. */
   offered(uri: string, items: readonly CompletionCandidate[]) {
     this._candidates = { uri, items };
     const focused = this._focused;
     if (this._open && this._uri === uri && focused) {
-      // A fresh answer while the list is open replaces the items the
-      // highlight was matched against; report it again if its edit changed.
       const changes = this.changesFor(uri, focused.selected, focused.placement);
       if (!sameNullableChanges(changes, focused.changes)) {
         this.focus(uri, { ...focused, changes });
@@ -74,11 +47,6 @@ export class CompletionPreviewTracker {
     }
   }
 
-  /**
-   * VS Code asked the inline provider for `uri` at `version`, with the
-   * editor's cursors and lines as `placement`, reporting `selected` as
-   * highlighted in the suggestion list, or nothing.
-   */
   observed(
     uri: string,
     version: number,
@@ -107,7 +75,6 @@ export class CompletionPreviewTracker {
       sameSelection(focused.selected, selected) &&
       sameCursors(focused.placement, placement)
     ) {
-      // Asked again about the highlight already reported.
       return;
     }
     this.focus(uri, {
@@ -118,17 +85,8 @@ export class CompletionPreviewTracker {
     });
   }
 
-  /**
-   * `uri` changed to `version` by `changes`. When a list is open there and the
-   * change is exactly the edit of the highlighted suggestion, the suggestion
-   * was accepted and the list closed with it. Any other change is an edit made
-   * while browsing: the list stays open, and the next report of the highlight
-   * is a new one, since its edit is now against another version.
-   */
   changed(uri: string, version: number, changes: readonly TextChange[]) {
     if (!this._open || this._uri !== uri || changes.length === 0) {
-      // No change to the text: VS Code reports saves and changes of the
-      // unsaved marker this way.
       return;
     }
     const focused = this._focused;
@@ -146,28 +104,18 @@ export class CompletionPreviewTracker {
     this._focused = null;
   }
 
-  /**
-   * The author left the editor holding the open list: another editor became
-   * active, the document closed, or the cursor was moved with the mouse. The
-   * list does not survive any of them.
-   */
   left(uri: string, version: number | null) {
     if (this._open && this._uri === uri) {
       this.close(uri, version);
     }
   }
 
-  /** Forget any open list without reporting it, as when the preview it
-   *  would be reported to is gone. */
   reset() {
     this._open = false;
     this._uri = null;
     this._focused = null;
   }
 
-  /** Report the highlight of the open list again, as to a preview that
-   *  reloaded and has seen nothing of it. VS Code will not report it again
-   *  while it stays highlighted. */
   resend() {
     const focused = this._focused;
     if (this._open && this._uri && focused) {
@@ -232,7 +180,6 @@ const sameSelection = (a: SelectedCompletion, b: SelectedCompletion) =>
 const sameNullableChanges = (a: TextChange[] | null, b: TextChange[] | null) =>
   a && b ? sameChanges(a, b) : a === b;
 
-/** Whether two placements have the same cursors. */
 const sameCursors = (a: Placement, b: Placement) =>
   JSON.stringify([a.primary, a.others]) ===
   JSON.stringify([b.primary, b.others]);

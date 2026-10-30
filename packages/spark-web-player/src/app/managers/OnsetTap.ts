@@ -1,15 +1,7 @@
-/** The name the tap's processor registers under in an audio worklet. */
 export const ONSET_TAP_PROCESSOR = "impower-onset-tap";
 
 export interface OnsetTapOptions {
-  /** A sample louder than this, in either direction, is sound. */
   threshold: number;
-  /**
-   * Frames of silence that must come before a sound for its first frame to
-   * count as an onset. A click's own waveform crosses zero many times, so
-   * without it every crossing back above the threshold would read as a new
-   * click.
-   */
   gapFrames: number;
 }
 
@@ -18,24 +10,12 @@ export const DEFAULT_ONSET_TAP_OPTIONS: OnsetTapOptions = {
   gapFrames: 2400,
 };
 
-/** The first frame of one sound, as the audio context rendered it. */
 export interface Onset {
-  /** The frame's index in the context's render stream. */
   frame: number;
-  /** The same frame on the context's clock, in seconds. */
   contextTime: number;
-  /** How loud that first sample was. */
   peak: number;
 }
 
-/**
- * The tap's processor, as the source an audio worklet loads. It runs on the
- * audio rendering thread and reads every sample of its input, so the frame it
- * reports is exact: `currentFrame` is the index of the first frame of each
- * render quantum, and the sample's position in the quantum is added to it.
- * It reports an onset as a message, and nothing else, so it costs the page
- * one message per sound.
- */
 export const onsetTapSource = (name: string = ONSET_TAP_PROCESSOR): string => `
 class OnsetTapProcessor extends AudioWorkletProcessor {
   constructor(options) {
@@ -75,8 +55,6 @@ class OnsetTapProcessor extends AudioWorkletProcessor {
 registerProcessor(${JSON.stringify(name)}, OnsetTapProcessor);
 `;
 
-/** The worklet registrations under way or done, one per context: a
- *  processor name can be registered only once in a context's worklet. */
 const registrations = new WeakMap<BaseAudioContext, Promise<void>>();
 
 const register = (context: BaseAudioContext): Promise<void> => {
@@ -94,16 +72,6 @@ const register = (context: BaseAudioContext): Promise<void> => {
   return registered;
 };
 
-/**
- * A sample-accurate tap on an audio node: it reports the frame index of the
- * first audible sample of every sound that passes through the node, on the
- * node's context clock (#683). `AudioProbe` samples its mixers once per
- * animation frame, which places a sound within about 16 ms; this places it
- * within one sample.
- *
- * The tap observes and outputs nothing. It is for development builds, where
- * the driver's timing measurements read it (`AudioProbe.startOnsetTap`).
- */
 export class OnsetTap {
   protected _context: BaseAudioContext;
 
@@ -131,7 +99,6 @@ export class OnsetTap {
     };
   }
 
-  /** Taps `source`, whose context must allow audio worklets. */
   static async create(
     context: BaseAudioContext,
     source: AudioNode,
@@ -147,12 +114,10 @@ export class OnsetTap {
     return new OnsetTap(context, source, node);
   }
 
-  /** Every onset reported so far, oldest first. */
   get onsets(): readonly Onset[] {
     return this._onsets;
   }
 
-  /** Forget the onsets reported so far. */
   clear(): void {
     this._onsets = [];
   }
@@ -161,7 +126,6 @@ export class OnsetTap {
     try {
       this._source.disconnect(this._node);
     } catch {
-      // Already disconnected, or the context has closed.
     }
     this._node.port.onmessage = null;
     this._node.port.close();

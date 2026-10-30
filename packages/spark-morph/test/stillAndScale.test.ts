@@ -25,7 +25,6 @@ describe("identical drawings", () => {
   });
 
   test("the still tolerance is a fraction of the drawing's size", () => {
-    // Half a unit on a hundred-unit lash is within the default half-percent.
     const nudged = upperOpen.replace("C30,5", "C30.4,5.3");
     const r = morphSubpaths(parsePathData(upperOpen), parsePathData(nudged), { method: "trace" });
     expect(r.ok && r.morph.method).toBe("still");

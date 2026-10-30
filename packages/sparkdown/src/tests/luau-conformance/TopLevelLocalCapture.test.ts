@@ -1,11 +1,3 @@
-// A closure captures a plain `local` declared in a scene body, reading and
-// writing it as Luau does (I-822). Such a line parses as a
-// `LuauSparkdownVariableDefinition`, the node `store` and `const` lines parse
-// as, and `collectGlobalNameAt` listed its name among the global callable
-// names `scanFreeVariables` leaves uncaptured, so the closure read and wrote
-// an unassigned global instead. `store` and `const` stay globals, and a
-// top-level function's name stays uncaptured.
-
 import { describe, expect, test } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import type { ProgramRoot } from "../../program/ProgramRoot";

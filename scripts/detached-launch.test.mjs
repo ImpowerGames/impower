@@ -1,5 +1,3 @@
-// spawnDetached starts a process that outlives its launcher and, on Windows,
-// shows no window even when a console program it starts does not hide itself.
 import assert from "node:assert/strict";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -27,7 +25,6 @@ const recorder = () => {
   console.log("PASS: Windows detaches a node wrapper that carries the command");
 }
 {
-  // `linger` reaches the wrapper and never the spawn options.
   const io = { ...recorder(), platform: "win32" };
   spawnDetached("npm", [], { stdio: "ignore", linger: true }, io);
   assert.equal(io.calls[0][1][1], JSON.stringify({ command: "npm", args: [], shell: false, linger: true }));
@@ -50,8 +47,6 @@ try {
   assert.equal(fs.readFileSync(log, "utf8").trim(), "through the wrapper");
   console.log("PASS: the exit code, environment and log file pass through");
 
-  // The command runs in the directory the caller asked for, which on Windows
-  // it inherits from the wrapper rather than being told directly.
   const here = path.join(scratch, "cwd");
   fs.mkdirSync(here);
   const cwdLog = path.join(scratch, "cwd.log");
@@ -63,9 +58,6 @@ try {
   console.log("PASS: the command runs in the caller's cwd");
 
   if (process.platform === "win32") {
-    // The drivers stop a launch with taskkill /T from the recorded pid, which
-    // is the wrapper's, so that has to reach the whole tree: here a node and
-    // its node children, each recording its pid.
     const pids = path.join(scratch, "pids.txt");
     const record = "require('fs').appendFileSync(process.env.PIDS,process.pid+' ')";
     const leaf = `require('child_process').spawn(process.execPath,['-e',"${record};setInterval(()=>{},1000)"],{stdio:'ignore',windowsHide:true})`;
@@ -81,15 +73,7 @@ try {
     console.log("PASS: taskkill /T from the wrapper's pid stops the whole tree");
   }
 
-  // The window count itself, the behaviour the issue reports, runs on every
-  // Windows check. Only the control launch is opt-in through
-  // DETACHED_LAUNCH_WINDOW_PROBE=1: it opens the real focus-stealing window, to
-  // show the probe can see one. A wrapper that stopped hiding its command's
-  // console would fail the count below without it.
   if (process.platform === "win32") {
-    // A shell whose node grandchild titles its console and does not hide
-    // itself, which is what npm.cmd and vitest's workers do. The window count
-    // comes from EnumWindows, so it sees conhost and Windows Terminal alike.
     const probe = path.join(scratch, "windows.ps1");
     fs.writeFileSync(probe, [
       "param([string]$Marker)",
@@ -112,16 +96,9 @@ try {
       const child = launch(titled(marker));
       await new Promise((resolve) => setTimeout(resolve, 3000));
       const seen = windows(marker);
-      // The tree ends on its own after six seconds; one already gone is fine.
       try { execFileSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true }); } catch {}
       return seen;
     };
-    // The control, a direct detached launch, opens the real focus-stealing
-    // window, so it runs where nobody is at the keyboard: in CI, or on request.
-    // It is what tells a working probe from a blind one. Some Windows hosts
-    // give a descendant console no window of its own at all (a pseudo-console
-    // terminal is one), and there the count below would pass whatever the
-    // wrapper did, so a blind probe is reported as skipped rather than passed.
     const control = process.env.DETACHED_LAUNCH_WINDOW_PROBE === "1" || process.env.CI === "true"
       ? await count((command) => spawn(command, { shell: true, stdio: "ignore", windowsHide: true, detached: true }))
       : null;

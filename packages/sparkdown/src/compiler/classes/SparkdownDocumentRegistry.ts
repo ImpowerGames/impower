@@ -29,10 +29,6 @@ const NEWLINE_REGEX = /\r\n|\r|\n/g;
 
 const LANGUAGE_ID = "sparkdown";
 
-// How many characters a parse of a snapshot's edit may reparse before the
-// registry parses the text as it is there first (`mintSplitPoints`). A parse
-// that restarts at the split points an incremental parse mints reparses a few
-// lines; one in a block a from-scratch parse left whole reparses the block.
 const MINT_SPAN = 4096;
 
 export type SparkdownDocumentContentChangeEvent =
@@ -42,23 +38,10 @@ interface TextDocumentState {
   tree?: Tree;
   treeFragments?: readonly TreeFragment[];
   treeVersion?: number;
-  /** The text the annotators were last given, which the next change is applied to. */
   text?: Text;
   annotators: SparkdownCombinedAnnotator;
 }
 
-/**
- * One document's parse, as it stood before an edit: the document itself, the
- * tree and fragments the edit will build on, the text the annotators were
- * given, what the annotators held, and the parser's compiler, which journals
- * the edit's reparse.
- *
- * The tree, its fragments and each annotator's ranges are persistent values —
- * an edit builds new ones and leaves the old ones alone — so a snapshot is a
- * handful of references rather than a copy of the parse. The compiler is the
- * one piece an incremental parse mutates in place, so it records what the
- * parse changes as it changes it (`Compiler.beginJournal`).
- */
 export interface SparkdownDocumentSnapshot {
   uri: string;
   document: SparkdownDocument;
@@ -67,24 +50,18 @@ export interface SparkdownDocumentSnapshot {
   treeVersion?: number;
   text?: Text;
   annotators: SparkdownCombinedAnnotatorSnapshot;
-  /** The compiler the tree was built by, when it journals the edits made
-   *  while the snapshot is held. */
   compiler?: Compiler;
-  /** Where the text the edits since the snapshot led to differs from the
-   *  snapshot's: from `from`, up to its last `suffix` characters. */
   edited?: { from: number; suffix: number };
 }
 
 export class SparkdownDocumentRegistry {
   protected _parser: TextmateGrammarParser = createSparkdownParser();
-  /** The parser of a `.sd` script's grammar root. */
   get parser() {
     return this._parser;
   }
 
   protected _luauFileParser?: TextmateGrammarParser;
 
-  /** The parser a document is read with: the `.luau` root for a `.luau` file, the `.sd` root for every other (`createSparkdownParser`). */
   parserFor(uri: string): TextmateGrammarParser {
     if (!isLuauFile(uri)) {
       return this._parser;
@@ -136,7 +113,6 @@ export class SparkdownDocumentRegistry {
   ): Tree {
     const state = this.getDocumentState(afterDocument.uri);
     if (state.tree && state.treeVersion === afterDocument.version) {
-      // Return cached tree if up to date
       return state.tree;
     }
     if (changes && state.treeFragments) {
@@ -146,7 +122,6 @@ export class SparkdownDocumentRegistry {
         "incrementalParse",
         beforeDocument.uri,
       );
-      // Incremental parse
       let changeDocument = new SparkdownDocument(
         beforeDocument.uri,
         beforeDocument.languageId,
@@ -186,9 +161,6 @@ export class SparkdownDocumentRegistry {
           to: toA,
           insert: change.text,
         };
-        // We must apply these changes to the tree one at a time because
-        // TextDocumentContentChangeEvent[] positions are relative to the doc after each change,
-        // and ChangedRange[] positions are relative to the starting doc.
         state.treeFragments = TreeFragment.applyChanges(state.treeFragments, [
           treeChange,
         ]);
@@ -200,15 +172,10 @@ export class SparkdownDocumentRegistry {
         );
         changeDocument.update([change], changeDocument.version + 1);
         const documentLengthAfterChange = changeDocument.length;
-        // Apply the change to the text before it rather than split the
-        // whole document again; a text that does not match the document
-        // before the change is rebuilt from scratch.
         const text =
           state.text && state.text.length === documentLengthBeforeChange
             ? editedDocumentText(state.text, fromA, toA, change.text, changeDocument.getText())
             : documentText(changeDocument.getText());
-        // The Luau readers carry what they read of the text before over to
-        // this one outside the change, rather than compare the two.
         if (state.text) {
           noteLuauDocumentEdit(documentString(state.text), documentString(text), fromA, toA, toB);
         }
@@ -239,7 +206,6 @@ export class SparkdownDocumentRegistry {
       }
       return state.tree!;
     } else {
-      // First full parse
       profile("start", this._profilerId, "fullParse", beforeDocument.uri);
       this.noteSnapshotEdit(afterDocument.uri, 0, 0);
       const text = documentText(afterDocument.getText());
@@ -256,12 +222,6 @@ export class SparkdownDocumentRegistry {
     }
   }
 
-  /**
-   * Parse (or re-parse) a document whose parse was deferred by
-   * `set(..., { defer: true })` -- or whose tree is stale -- so accessors
-   * always observe an up-to-date tree without every bulk-loaded document
-   * paying a full parse up front.
-   */
   protected ensureParsed(uri: string) {
     const syncedDocument = this._syncedDocuments.get(uri);
     if (!syncedDocument) {
@@ -285,15 +245,10 @@ export class SparkdownDocumentRegistry {
     return state.annotators.get();
   }
 
-  /** How many statements of blocks' bodies the last update of `uri` lowered,
-   *  and how many it served from their memos (`statementMemo.ts`). */
   memoStats(uri: string) {
     return this._documentStates.get(uri)?.annotators.current.compilations.memoStats;
   }
 
-  /** Lowers again the top-level nodes of `uri` over each of `ranges`, for
-   *  the compilation annotator only
-   *  (`SparkdownCombinedAnnotator.relowerCompilations`). */
   relowerCompilations(
     uri: string,
     ranges: readonly { from: number; to: number }[],
@@ -305,17 +260,6 @@ export class SparkdownDocumentRegistry {
     }
   }
 
-  /**
-   * The names this document uses as a define TYPE (`define D as X`, `new X()`).
-   * The compiler's whole-program scoping pass unions these across a program's
-   * scripts rather than walking every script's tree again.
-   *
-   * A registry that runs the compilation annotator keeps the set current across
-   * edits by re-walking only the region each reparse rebuilt. One that does not
-   * keeps no index, because nothing it annotates reads these names, so the
-   * answer is walked here instead: correct for any caller, at the cost such a
-   * walk has always had.
-   */
   defineTypeNames(uri: string): ReadonlySet<string> {
     this.ensureParsed(uri);
     const state = this.getDocumentState(uri);
@@ -394,9 +338,6 @@ export class SparkdownDocumentRegistry {
     );
     this._syncedDocuments.set(td.uri, syncedDocument);
     if (options?.defer) {
-      // Defer the (expensive) parse until something actually reads this
-      // document's tree/annotations. Drop stale parse state so ensureParsed
-      // re-parses the new content.
       const state = this.getDocumentState(td.uri);
       state.tree = undefined;
       state.treeFragments = undefined;
@@ -466,24 +407,6 @@ export class SparkdownDocumentRegistry {
     return true;
   }
 
-  /**
-   * Save the parse of one document, so an edit applied next can be undone by
-   * putting the saved parse back rather than by parsing the edit's inverse.
-   *
-   * The synced document is swapped for a copy, which is what the edit then
-   * mutates, leaving the original to be handed back untouched. A document the
-   * registry does not hold has no parse to save and returns `undefined`.
-   *
-   * A caller that takes a snapshot must always restore it: the swap has
-   * already happened when this returns.
-   *
-   * `editedFrom` is where the edits the snapshot is taken for begin. When a
-   * parse of an edit there would reparse a long stretch of the text (a block
-   * a from-scratch parse left whole, which an incremental parse splits), the
-   * text as it is is parsed there once first, and kept, so that the edit's
-   * own parse, and every later one there, reparses a few lines
-   * (`mintSplitPoints`).
-   */
   snapshot(
     uri: string,
     editedFrom?: number,
@@ -512,23 +435,12 @@ export class SparkdownDocumentRegistry {
     return snapshot;
   }
 
-  /**
-   * Put back the parse `snapshot` saved, discarding whatever the edits since
-   * built. Nothing is parsed and nothing is annotated: the registry's values
-   * are references put back, and the parser's compiler undoes what its
-   * journal recorded, in time proportional to what the edits' reparse
-   * touched.
-   */
   restore(snapshot: SparkdownDocumentSnapshot) {
     this._snapshots.delete(snapshot.uri);
     this._syncedDocuments.set(snapshot.uri, snapshot.document);
     const state = this.getDocumentState(snapshot.uri);
     const edited = snapshot.edited;
     if (edited && state.text && snapshot.text) {
-      // The Luau readers carry what they read of one text over to the next
-      // through the edits the registry notes, and the text they last read
-      // can be the edited one: note the way back, as an edit putting the
-      // text back would have.
       noteLuauDocumentEdit(
         documentString(state.text),
         documentString(snapshot.text),
@@ -545,23 +457,6 @@ export class SparkdownDocumentRegistry {
     state.annotators.restore(snapshot.annotators);
   }
 
-  /**
-   * Parse `document` as it is around `pos`, keeping the result, when an edit
-   * there would make the parser reparse more than `MINT_SPAN` characters.
-   *
-   * A from-scratch parse mints no split points inside a block, so the first
-   * incremental parse inside a long block reparses all of it and mints them
-   * as it goes. A snapshot's edit is rolled back with everything its parse
-   * minted, so without this every one of them would reparse the whole block
-   * again; putting the text back by parsing the inverse edit used to mint
-   * them as a side effect. The parse replaces one character with itself, so
-   * the tree it builds describes the text the registry's tree does, and the
-   * registry keeps its own tree (and with it the annotators' state), stamped
-   * with the epoch the parse left the compiler in. Each long stretch is split
-   * the first time an edit lands in it; a stretch the parse leaves long all
-   * the same (`_unsplit`) is not parsed again until a real edit changes the
-   * text.
-   */
   protected mintSplitPoints(
     uri: string,
     document: SparkdownDocument,
@@ -605,8 +500,6 @@ export class SparkdownDocumentRegistry {
     if (minted.prop(cachedCompilerProp) === compiler) {
       (tree as { __compilerEpoch?: number }).__compilerEpoch =
         compiler.reuseEpoch;
-      // The text is unchanged, so the stretches recorded before this parse
-      // stand where they stood.
       const after = compiler.reparseRange(pos);
       this._unsplit.set(compiler, {
         epoch: compiler.reuseEpoch,
@@ -614,7 +507,6 @@ export class SparkdownDocumentRegistry {
           after.to - after.from > MINT_SPAN ? [...unsplit, after] : unsplit,
       });
     } else {
-      // The parse did not reuse the compiler, which is as it was.
       this._unsplit.set(compiler, {
         epoch: compiler.reuseEpoch,
         ranges: [...unsplit, range],
@@ -623,20 +515,13 @@ export class SparkdownDocumentRegistry {
     profile("end", this._profilerId, "mintSplitPoints", uri);
   }
 
-  /** The stretches of each compiler's text that `mintSplitPoints` parsed and
-   *  left long, at the epoch they were recorded at: a real edit moves the
-   *  epoch on and so forgets them. */
   protected _unsplit = new WeakMap<
     Compiler,
     { epoch: number; ranges: { from: number; to: number }[] }
   >();
 
-  /** The snapshots held, by document: the edits made to one meanwhile are
-   *  folded into its `edited`. */
   protected _snapshots = new Map<string, SparkdownDocumentSnapshot>();
 
-  /** Fold a change `uri`'s text took from `from` up to its last `suffix`
-   *  characters into the snapshot held of it, if one is. */
   protected noteSnapshotEdit(uri: string, from: number, suffix: number) {
     const snapshot = this._snapshots.get(uri);
     if (!snapshot) {

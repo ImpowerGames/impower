@@ -1,18 +1,3 @@
-// #302: filtering a `layered_image` root must consider EVERY layer. The result
-// was built inside the per-asset loop, so each iteration discarded the previous
-// one and `filtered_layers` ended up holding at most one layer — or none at
-// all, when the final layer didn't decide it.
-//
-// `filtered_layers` is the set of layers to DRAW. Each conditional layer
-// survives when every group condition is satisfied by the selected attributes.
-//
-// These compile real `.sd` source rather than hand-building a context, so the
-// selection runs against the reference shapes the compiler actually emits
-// (bare references carry `$type: ""`, and `assets` keys survive verbatim).
-// Positional entries are matched on the layer's `$name`, which is a sparkdown
-// identifier and so can never contain a standalone `filter`; the keyed form is
-// the shape that reaches the selection.
-
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
@@ -49,7 +34,6 @@ const compile = (text: string, assets: string[]) => {
   return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
 };
 
-/** `.sd` source for a layered image, explicitly turning named switches off. */
 const source = (
   layers: Record<string, string>,
   excludes: string[],
@@ -94,8 +78,6 @@ describe("filterImage over a layered_image root", () => {
         "portrait__shoes",
       ],
     );
-    // Two survivors, non-adjacent, spanning the first and last iterations —
-    // the shape the per-iteration overwrite could not produce.
     expect(drawnLayers(program)).toEqual([
       "portrait__body",
       "portrait__shoes",
@@ -117,7 +99,6 @@ describe("filterImage over a layered_image root", () => {
   });
 
   it("draws every default layer when the filter removes nothing", () => {
-    // A filter-less filtered_image shows exactly the default layers.
     const program = compile(
       `define portrait as layered_image with
   assets = {
@@ -136,8 +117,6 @@ end
   });
 
   it("previews the same layers the game draws", () => {
-    // resolveImageLayers feeds hover previews and thumbnails. Descending into
-    // the unfiltered root would show the author layers the game drops.
     const program = compile(
       source(
         {
@@ -157,9 +136,6 @@ end
   });
 
   it("hovers the surviving layer, not the one the filter removed", () => {
-    // getImagePreviewSrc is what hover falls back to whenever fewer than two
-    // layers survive -- i.e. the usual case, since a filter normally leaves
-    // one variant. Descending into the root would preview the removed layer.
     const program = compile(
       source(
         {
@@ -183,8 +159,6 @@ end
   });
 
   it("survives a layered_image that has no assets yet", () => {
-    // Reached on every hover and preview, so a half-typed define must not
-    // throw `Object.entries(undefined)` out of the compile.
     const program = compile(
       `define portrait as layered_image with
   scale = 1
@@ -197,18 +171,10 @@ end
       [],
     );
     expect(() => drawnLayers(program)).not.toThrow();
-    // The `layered_image` type's `$default` declares `assets = { image.none }`,
-    // so a define that authors no assets inherits the empty `none` layer —
-    // which is what survives filtering here. The point stays the same: the
-    // half-typed define must not throw the compile.
     expect(drawnLayers(program)).toEqual(["none"]);
   });
 
   it("survives a HAND-BUILT layered_image with no assets at all", () => {
-    // A compiled define always inherits `assets` from the type's `$default`,
-    // so the case above can no longer reach the `assets ?? {}` guard in
-    // `filterImage`. The LSP hover/preview paths still hand it partial,
-    // hand-built structs mid-keystroke — this pins the guard directly.
     const context: any = {
       layered_image: {
         portrait: { $type: "layered_image", $name: "portrait" },
@@ -227,9 +193,6 @@ end
   });
 
   it("re-derives the same set when called again on the same struct", () => {
-    // A layered root never sets `filtered_src`, so the early-out in filterImage
-    // never latches and the loop re-runs on every hover, preview and image
-    // lookup. Accumulating INTO the existing array would grow it each time.
     const program = compile(
       source(
         {

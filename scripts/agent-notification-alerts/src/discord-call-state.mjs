@@ -1,6 +1,3 @@
-// Pure reducer for Discord voice-call detection: no sockets, no filesystem.
-// The IO shell in discord-voice.mjs feeds it events and reacts to the result,
-// which keeps the actual call-detection rules unit-testable on their own.
 export function initialCallState() {
   return {
     phase: 'disconnected',
@@ -18,8 +15,6 @@ export function reduceCallState(state, event) {
   switch (event.type) {
     case 'connecting':
       return { ...state, phase: 'connecting', error: null };
-    // Any selected voice channel counts as a call: self-muted, deafened,
-    // alone, or listening-only connections are all still a channel selection.
     case 'voice-channel':
       return { ...state, channelId: event.channelId, inCall: event.channelId != null };
     case 'handshake':
@@ -41,8 +36,6 @@ export function reduceCallState(state, event) {
       };
     case 'disconnected':
       return { ...state, phase: 'disconnected', inCall: false, channelId: null };
-    // Fail-open: an unavailable Discord (not installed, not running, RPC
-    // failure) never reports a call and backs off before retrying.
     case 'unavailable':
       return {
         ...initialCallState(),

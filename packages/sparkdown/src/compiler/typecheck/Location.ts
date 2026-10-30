@@ -1,7 +1,3 @@
-// Source positions for the type checker, counted from 0 as Luau's
-// `Location.h` counts them: a position is a line and a column, and a
-// location runs from a begin position to an end position.
-
 export class Position {
   constructor(
     public line: number,

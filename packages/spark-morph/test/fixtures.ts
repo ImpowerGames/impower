@@ -2,39 +2,24 @@ import { ArcLoop, isLine } from "../src/geometry/cubic";
 import { parsePathData, serializePathData } from "../src/index";
 import type { Cubic, Point } from "../src/index";
 
-// Synthetic art at roughly portrait scale (a lash about 100 units wide).
-// Every lash is a thin closed loop with two tips at its ends.
-
-/** Upper lash, eye open: bows upward, sharp tips. */
 export const upperOpen = "M0,50 C30,5 70,5 100,50 C70,25 30,25 0,50Z";
-/** Lower lash, eye open: bows downward, sharp tips. */
 export const lowerOpen = "M0,50 C30,75 70,75 100,50 C70,85 30,85 0,50Z";
-/** The single closed lash both open lashes converge onto. */
 export const closedLash = "M0,50 C30,44 70,44 100,50 C70,50 30,50 0,50Z";
-/** The closed lash drawn in the opposite winding and starting elsewhere. */
 export const closedLashReversed = "M100,50 C70,44 30,44 0,50 C30,50 70,50 100,50Z";
-/** A lash tilted about 30 degrees, for the correspondence search. */
+export const splitClosedTopShortOfOuterTip = "M0,50 C30,43 70,43 92,45 C75,54 30,54 0,50Z";
+export const splitClosedBottomOverlappingTop = "M0,50 C30,45 70,45 100,47 C70,54 30,54 0,50Z";
+export const splitOpeningTop = "M0,50 C30,44 70,44 96,47 C70,52 30,52 0,50Z";
+export const splitOpeningBottom = "M0,50 C30,46 70,46 100,49 C70,53 30,53 0,50Z";
+export const touchingClosedTopShortOfOuterTip = "M0,50 C30,40 60,40 90,50 L0,50Z";
+export const touchingClosedBottom = "M0,50 L100,50 C70,60 30,60 0,50Z";
+export const roundEyeUpperOpen = "M0,50 C0,-17 100,-17 100,50 C95,0 5,0 0,50Z";
+export const roundEyeLowerOpen = "M0,50 C0,117 100,117 100,50 C95,100 5,100 0,50Z";
 export const tiltedOpen = "M0,80 C25,25 60,0 100,20 C65,15 35,40 0,80Z";
 export const tiltedClosed = "M0,80 C30,55 65,35 100,20 C65,38 30,58 0,80Z";
-/**
- * A crease that rotates past vertical: its open pose runs bottom-left to
- * top-right, its closed pose leans the other way, so sorting tips by x pairs
- * the wrong ends and only the correspondence search keeps the edges from
- * trading sides.
- */
 export const rotatingOpen = "M20,80 C35,50 60,30 80,20 C60,38 40,60 20,80Z";
 export const rotatingClosed = "M54,90 C50,60 50,40 50,10 C56,40 57,60 54,90Z";
-/**
- * Lashes with blunt, rounded tips: a short curve wraps each end instead of
- * a cusp. These show whether the tip's roundness survives the morph.
- */
 export const roundedOpen = "M4,52 C2,48 4,44 8,42 C35,15 65,15 92,42 C96,44 98,48 96,52 C70,32 30,32 4,52Z";
 export const roundedClosed = "M4,52 C2,50 4,47 8,46 C35,40 65,40 92,46 C96,47 98,50 96,52 C70,50 30,50 4,52Z";
-/**
- * A lash shaped like the portrait art: a thin bowed ribbon `length` long with
- * a sharp tip at (0, 0) and a rounded far end, `thickness` across, its far
- * end lifted by `bow`. Its taper is only a few units long beside its span.
- */
 export const ribbonLash = (length: number, bow: number, thickness: number): string => {
   const r = thickness / 2,
     e = length - r;
@@ -45,10 +30,8 @@ export const ribbonLash = (length: number, bow: number, thickness: number): stri
     ` C${p(e * 0.7, -bow + r)} ${p(e * 0.3, -bow * 0.4)} 0,0Z`
   );
 };
-/** An open and a closed ribbon lash of the same side, as a blink pairs them. */
 export const ribbonOpen = ribbonLash(160, 14, 14);
 export const ribbonClosed = ribbonLash(168, 1, 6.3);
-/** A loop with only one cusp: not a taper. */
 export const oneCusp = "M0,0 C100,0 100,100 0,0Z";
 export const oneCuspNarrow = "M0,0 C60,0 60,100 0,0Z";
 
@@ -58,20 +41,13 @@ export const offKilterQuad = "M5,15L95,5L85,90L15,80Z";
 export const triangle = "M10,90L90,90L50,10Z";
 export const pentagon = "M50,5L95,38L78,92L22,92L5,38Z";
 export const star = "M50,5L61,38L96,38L68,59L79,92L50,72L21,92L32,59L4,38L39,38Z";
-/** An off-centre blob whose bounding-box centre differs from its anchor mean. */
 export const blob = "M10,10 C60,0 90,20 90,40 C90,60 80,70 60,70 C40,70 10,60 10,40 C10,30 10,20 10,10Z";
-/** A C-shaped hook and its mirror image: the two fold through each other. */
 export const hook = "M0,0L100,0L100,20L20,20L20,80L100,80L100,100L0,100Z";
 export const hookMirrored = "M100,0L0,0L0,20L80,20L80,80L0,80L0,100L100,100Z";
 
 const NUMBER_PAIR = /(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g;
-/** The same drawing moved by `dx`, `dy`. */
 export const shift = (d: string, dx: number, dy: number): string =>
   d.replace(NUMBER_PAIR, (_, x, y) => `${Number(x) + dx},${Number(y) + dy}`);
-/**
- * The same drawing scaled about the origin by `k`, through the parser so
- * every command form (`H`, `V`, arcs) scales, not only `x,y` pairs.
- */
 export const scaled = (d: string, k: number): string =>
   serializePathData(
     parsePathData(d).map((s) => ({
@@ -87,7 +63,6 @@ export const scaled = (d: string, k: number): string =>
 
 export const loop = (d: string, i = 0): Cubic[] => parsePathData(d)[i]!.segments;
 
-/** Largest distance from any point of `pts` to the outline of `target`. */
 export function maxDistanceToLoop(pts: Point[], target: Cubic[], samples = 720): number {
   const arc = new ArcLoop(target);
   const ring: Point[] = [];
@@ -106,13 +81,8 @@ export function maxDistanceToLoop(pts: Point[], target: Cubic[], samples = 720):
 
 export const anchors = (segs: Cubic[]): Point[] => segs.map((s) => s.p0);
 
-/** Whether every segment is a straight line. */
 export const allStraight = (segs: Cubic[]): boolean => segs.every((s) => isLine(s));
 
-/**
- * The number of anchors where the outline turns by more than `degrees`;
- * a dissolved node on a straight edge does not count.
- */
 export function sharpCorners(segs: Cubic[], degrees = 1): number {
   const pts = anchors(segs);
   const n = pts.length;
@@ -134,5 +104,4 @@ export function sharpCorners(segs: Cubic[], degrees = 1): number {
   return count;
 }
 
-/** Progress values a player would reach between eight bake samples. */
 export const runtimeProgress = Array.from({ length: 21 }, (_, i) => i / 20);

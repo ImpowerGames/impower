@@ -1,11 +1,3 @@
-// Expressions, variables, conditionals and loops compiled to statement chunks
-// and run by the program engine (#695, docs/engine/binary-program.md): what
-// the writer emits for each class of the parsed hierarchy, what each
-// instruction does to the eval stack, the output and the frame, a block
-// statement's bodies and the scopes around them, a continue that returns
-// between two lines, a decision the route simulator forces, the beats each
-// script shows (literals read from the script), and the constructs a compile
-// builds or reports.
 import { describe, expect, it } from "vitest";
 import { buildRouteSimulator, planRoute } from "../../compiler/utils/planRoute";
 import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
@@ -78,7 +70,6 @@ const trace = (body: string, declarations = ""): TracedStep[] =>
 
 const START: TracedStep = { op: "", stack: [], output: [], scopes: [{}], blocks: 0 };
 
-/** The `nth` step that ran `op`, the step before it and the op after it. */
 const around = (steps: TracedStep[], op: string, nth = 0) => {
   const at = steps.flatMap((step, i) => (step.op === op ? [i] : []))[nth];
   if (at === undefined) {
@@ -113,10 +104,6 @@ describe("the writer", () => {
     ]);
   });
 
-  // A self-recursive local function in a function's body declares its name,
-  // then assigns its closure as the declaration's initializer (#1720); a
-  // local function that does not call itself is one declaring SetVar, with
-  // no initializer.
   it("marks a self-recursive local function's closure assignment as its declaration's initializer", () => {
     const root = chunked(
       [
@@ -135,8 +122,6 @@ describe("the writer", () => {
         "",
       ].join("\n"),
     );
-    // Each definition's statement code ends at the jump over the function's
-    // own code, whose entry binds the closure's captured `f` again.
     const setVars = [...root.sequences()].flatMap((sequence) =>
       sequence.arrays.chunks.flatMap((chunk) => {
         const code = instructionsOf(root, chunk);
@@ -148,7 +133,6 @@ describe("the writer", () => {
     );
     expect(setVars).toEqual([
       "SetVar f flags 1",
-      // SET_INITIALIZE
       "SetVar f flags 8",
       "SetVar g flags 1",
     ]);
@@ -174,8 +158,6 @@ describe("the writer", () => {
     expect(sum).toEqual(["GetVar a", "Int 1", "Native +/2", "SetVar f flags 1"]);
     expect(negate).toEqual(["GetVar a", "Native _/1", "SetVar u flags 1"]);
     expect(not).toEqual(["GetVar a", "Native not/1", "SetVar w flags 1"]);
-    // The jump's target is the SetVar: the right side is not evaluated when
-    // the left decides.
     expect(or).toEqual(["Const false", "JumpIfKeep 8 flags 1", "Int 3", "Unpack 1", "SetVar g flags 1"]);
     expect(and).toEqual(["GetVar a", "JumpIfKeep 8", "Const nil", "Unpack 1", "SetVar h flags 1"]);
   });
@@ -214,8 +196,6 @@ describe("the writer", () => {
     ]);
   });
 
-  // A compound assignment to a property stashes its base and key in names
-  // the compiler generates, which the chunk names by their order in it.
   it("gives the names the compiler generates for a statement names of the chunk's own", () => {
     expect(code("local t = { p = { q = 1 } }\nt.p.q += 1\n")[1]).toEqual([
       "GetVar t",
@@ -235,11 +215,10 @@ describe("the writer", () => {
     ]);
   });
 
-  // No lowering makes these two, which the parsed hierarchy still defines.
   it("emits an increment and a chain of conditions", () => {
     const written = (emit: Parameters<typeof handWrittenProgram>[0]) => {
       const root = handWrittenProgram(emit);
-      return instructionsOf(root, root.flowNamed("")!.arrays.chunks[0]!);
+      return instructionsOf(root, root.flowNamed("start")!.arrays.chunks[0]!);
     };
     expect(
       written((e) => e.emitObject(new IncDecExpression(new Identifier("n"), true))),
@@ -298,8 +277,6 @@ describe("the writer", () => {
     ]);
   });
 
-  // A `match` compares its value with each arm's key, keeping a copy for the
-  // next arm, and pops the copy in the arm it takes.
   it("emits a match as its value duplicated for each arm's test", () => {
     const [match] = code("match (x)\n| a = Ay.\n| b = Bee.\nend\n", 'store x = "b"\n');
     expect(match!.slice(0, 7)).toEqual([
@@ -341,11 +318,6 @@ describe("the writer", () => {
       break: blockField(chunk, 0, B_BREAK),
       scopes: blockScopes(chunk, 0),
     }));
-    // The test is a decision; each pass opens the body's scope, which the
-    // engine closes when the body runs out; the body resumes at the test and
-    // breaks past the loop. The `EndScope` after the body's `EnterBlock`
-    // never runs and makes the count read in order the depth at the exit
-    // (#1575).
     expect(whileLoop).toEqual({
       code: ["GetVar n", "Int 3", "Native </2", "Native TRUTHY/1", "JumpIfFalse 18 flags 2", "Newline", "BeginScope", "EnterBlock 0", "EndScope"],
       blocks: 1,
@@ -355,8 +327,6 @@ describe("the writer", () => {
       break: 18,
       scopes: 1,
     });
-    // The hidden index, stop and step have the chunk's names; the body
-    // resumes at the step, inside the loop's scope.
     expect(forLoop!.code.slice(0, 7)).toEqual([
       "BeginScope",
       "Int 1",
@@ -377,7 +347,6 @@ describe("the writer", () => {
       "EndScope",
     ]);
     expect(forLoop).toMatchObject({ blocks: 1, loop: true, passScope: false, resume: 62, break: 72, scopes: 1 });
-    // The iterator is called as a value with the state and the control.
     expect(forIn!.code).toContain("CallStd __adjust_iter/3");
     expect(forIn!.code).toContain("CallValue 2");
     expect(forIn!.code.filter((op) => op.startsWith("SetVar __forIn_"))).toEqual([
@@ -390,7 +359,6 @@ describe("the writer", () => {
       "SetVar __forIn_ctrl$",
     ]);
     expect(forIn).toMatchObject({ blocks: 1, loop: true, passScope: false, scopes: 1 });
-    // The body runs first and resumes at the test.
     expect(repeat!.code).toEqual([
       "BeginScope",
       "EnterBlock 0",
@@ -406,8 +374,6 @@ describe("the writer", () => {
     expect(repeat).toMatchObject({ blocks: 1, loop: true, resume: 4, break: 18, scopes: 1 });
   });
 
-  // A `break` or `continue` closes the scopes opened inside the loop's body
-  // before it leaves.
   it("emits break and continue as Leave, after the scopes they close", () => {
     const text = [
       "for i = 1, 3 do",
@@ -537,8 +503,6 @@ describe("one instruction at a time", () => {
     ]);
   });
 
-  // No construct of this slice packs a multiple value as a table's last
-  // value (a call does), so the statement is written by hand.
   it("MakeTable spreads a multiple value in the last pair over the keys that follow", () => {
     const steps = traceHandWritten((e) => {
       e.emit(Op.Int, 1);
@@ -576,8 +540,6 @@ describe("one instruction at a time", () => {
     const steps = trace("do\n  local b = 2\nend\n");
     const enter = around(steps, "EnterBlock 0");
     expect([enter.before.blocks, enter.after.blocks, enter.next]).toEqual([0, 1, "Int 2"]);
-    // The body's last statement ran inside the block; the owner's EndScope
-    // runs outside it.
     const end = around(steps, "EndScope");
     expect([end.before.blocks, end.after.blocks]).toEqual([1, 0]);
   });
@@ -625,8 +587,6 @@ describe("a break from inside nested scoped blocks", () => {
     const story = new ProgramStory(chunked(start(text)));
     const steps = traceSteps(story);
     const found = around(steps, "SetVar n flags 1").after.scopes.length;
-    // Inside the `while` body's pass scope, the `if` branch's scope and the
-    // `do` block's.
     expect(around(steps, "SetVar inner flags 1").after.scopes).toHaveLength(found + 3);
     const leave = around(steps, "Leave");
     expect(leave.after.scopes).toHaveLength(found);
@@ -650,13 +610,10 @@ describe("a jump and a save inside a body", () => {
     "end",
     "",
   ].join("\n");
-  // The line of `Pass`, counting from 0, whose address the game jumps to.
   const PASS_LINE = 5;
   const scopeNames = (story: ProgramStory) =>
     story.state.frame!.temporaryScopes.map((scope) => [...scope.keys()]);
 
-  // The current engine's `ChoosePathString` resets its call stack, so a
-  // flow chosen after another holds none of its temporaries.
   it("starts a jump that resets the call stack with a fresh frame", () => {
     const story = new ProgramStory(chunked(text));
     story.ChoosePathString("start");
@@ -666,9 +623,6 @@ describe("a jump and a save inside a body", () => {
     expect(scopeNames(story)).toEqual([[], []]);
   });
 
-  // A jump to a line inside the `if` inside the loop enters both bodies,
-  // with the scene's scope, the loop's and the branch's open, however often
-  // it is made.
   it("opens the scopes of the bodies a jump enters, the same on every jump", () => {
     const root = chunked(text);
     const story = new ProgramStory(root);
@@ -681,9 +635,6 @@ describe("a jump and a save inside a body", () => {
     expect(story.state.frame!.temporaryScopes).toHaveLength(4);
   });
 
-  // A save inside the loop's `if` holds temporaries in four scopes (the
-  // frame's own, the scene's, the loop's and the branch's) and two blocks; a
-  // story loaded from it shows what the saving story shows next.
   it("restores a state saved inside nested bodies, with its temporaries by scope", () => {
     const root = chunked(text);
     const whole = storyBeats(new ProgramStory(root), "start").beats;
@@ -706,9 +657,6 @@ describe("a jump and a save inside a body", () => {
     expect(storyBeats(resumed).beats).toEqual(whole.slice(1));
   });
 
-  // A `while` body runs each pass in a scope its owner opens before entering
-  // it, which its block row counts, so a jump or a load into the body opens
-  // it, and the pass that runs out closes it.
   const whileText = [
     "scene start",
     "  local a = 1",
@@ -732,7 +680,6 @@ describe("a jump and a save inside a body", () => {
     const pass = root.addressAt(MAIN_URI, WHILE_PASS_LINE)!;
     story.ChooseAddress(pass);
     expect(story.state.blockStack).toHaveLength(2);
-    // The frame's own scope, the scene's, the pass scope and the branch's.
     expect(story.state.frame!.temporaryScopes).toHaveLength(4);
     story.ChooseAddress(pass);
     expect(story.state.blockStack).toHaveLength(2);
@@ -764,14 +711,11 @@ describe("a jump and a save inside a body", () => {
 });
 
 describe("a continue that returns between two lines", () => {
-  // #779: the continue returns at the first line's newline without running
-  // the assignment after it, and the next continue runs it once.
   it("leaves a variable assigned between them as it was until the next continue", () => {
     const root = chunked(
       start("First {count}.\ncount = count + 1\nSecond {count}.\n", "store count = 0\n"),
     );
     const story = new ProgramStory(root);
-    // The steps the declarations took when the story was made.
     const declared = story.stepCount;
     expect(story.Continue()).toBe("First 0.\n");
     expect(story.variablesState.$("count")).toBe(0);
@@ -811,7 +755,6 @@ describe("a continue that returns between two lines", () => {
       lines.push(story.Continue() ?? "");
       cursors.push(simulator.saveSnapshot().conditionPointer[site]);
     }
-    // The plan takes the `else` branch although `flag` is true.
     expect(lines).toEqual(["First.\n", "No.\n", "Last.\n", ""]);
     expect(cursors).toEqual([undefined, 1, 1, 1]);
   });
@@ -828,7 +771,6 @@ describe("a continue that returns between two lines", () => {
         (flagsOf(conditional[HEADER_WORDS + offset]!) & JUMP_DECISION) !== 0,
     )!;
     const site = addressOf(chunkId(conditional), decision.offset);
-    // The story names the site by the number itself, not its text.
     expect(ProgramStory.addressOf(conditional, decision.offset)).toBe(site);
     const paused = new ProgramStory(root);
     paused.pauseBeforeEvaluatingConditions = true;
@@ -837,8 +779,6 @@ describe("a continue that returns between two lines", () => {
     }
     expect(paused.pausedBeforeCondition).toBe(site);
 
-    // A target only the `else` branch runs, so a plan to it must force the
-    // decision false at that site.
     const run = (simulator: ReturnType<typeof buildRouteSimulator> | null) => {
       const story = new ProgramStory(root);
       story.simulator = simulator;
@@ -854,11 +794,9 @@ describe("a continue that returns between two lines", () => {
     expect(target).toBeDefined();
 
     const plan = planRoute(new ProgramStory(root), "start", target!);
-    // `flag` is true, so the plan forces the verdict against the program.
     expect(plan?.decisions).toEqual([
       { kind: "condition", site, value: false, departs: true },
     ]);
-    // The plan replays through the simulator the engine asks by the same number.
     expect(run(buildRouteSimulator(plan!.decisions)).lines).toEqual(forced.lines);
   });
 });
@@ -891,8 +829,6 @@ const SCRIPTS: Record<string, string> = {
     "After {n}.",
     "",
   ].join("\n")),
-  // A `while` body runs each pass in a scope of its own (#1064): its locals
-  // end with the pass, however the pass ends.
   "a while body's local that shadows an outer one": start([
     "local x = \"outer\"",
     "local i = 0",
@@ -1049,7 +985,6 @@ const SHOWS: Record<keyof typeof SCRIPTS, string[]> = {
   "nested scopes that shadow a name": ["Inner 3.", "Middle 2.", "Outer 1."],
   "a loop that breaks from inside a nested if": ["Pass 1.", "Pass 2.", "After 3."],
   "a while body's local that shadows an outer one": ["Inner 1.", "Inner 2.", "Inner 3.", "Outer outer after 3."],
-  // 10 + 20 + 40 + 50: the pass that continues adds nothing.
   "a while body's local across a continue": ["Sum 120 and outer."],
   "a while body's local across a break from a nested block": ["After outer."],
   "nested while loops that each shadow a name": ["Seen b1b2a1b1b2a2 and outer."],
@@ -1064,8 +999,6 @@ const SHOWS: Record<keyof typeof SCRIPTS, string[]> = {
   "tables and properties": ["Table 3 30 7 zed 2 1."],
   "globals of every kind": ["Globals 4 Ann 6 Hero."],
   "a generic for over a table": ["Item 1 5.", "Item 2 6.", "Total 3."],
-  // A number is no key: `1 = Uno.` is the text of a keyless arm, which the
-  // second match takes.
   "a match with keyed and keyless arms": ["Bee.", "1 = Uno."],
   "a scene with logic": ["Visit 1.", "Step 1.", "Step 2."],
 };
@@ -1090,7 +1023,6 @@ describe("the engine", () => {
     ]);
   });
 
-  // The engine names the line of its line table row.
   it("raises a runtime error in an expression, with its line", () => {
     const text = start("local z = nil\nBefore.\nlocal w = z + 1\nAfter.\n");
     const actual = storyBeats(new ProgramStory(chunked(text)));
@@ -1101,8 +1033,6 @@ describe("the engine", () => {
   });
 });
 
-// Each construct of this slice, in a script that holds nothing the writer
-// does not emit: a compile builds its chunks, and no construct is named.
 const CONSTRUCTS: Record<string, string> = {
   "an expression and an operator": start("local a = 1 + 2 * 3\n"),
   "a comparison and a logical operator": start("local a = 1 < 2 and not false or nil\n"),
@@ -1148,9 +1078,6 @@ describe("the constructs a compile builds", () => {
     }
   });
 
-  // A value the parser could not read is reported once by the compiler; the
-  // assignment assigns nothing and the local is declared nil, so the program
-  // emits the story and runs it as the current engine does (#1433).
   it.each([
     ["an assignment", "store x = 0\n", "& x =\nx is {x}.\n", ["x is 0.\n"]],
     ["a compound assignment", "store x = 1\n", "& x +=\nx is {x}.\n", ["x is 1.\n"]],
@@ -1160,7 +1087,6 @@ describe("the constructs a compile builds", () => {
     expect(storyBeats(new ProgramStory(chunked(start(body, declarations)))).beats.map((b) => b.text)).toEqual(beats);
   });
 
-  // `MakeTable`'s pair count is the instruction's 32-bit operand.
   it("emits a table literal of more than 65,535 pairs", () => {
     const pairs = 70_000;
     const values = Array.from({ length: pairs }, (_, i) => String(i + 1)).join(", ");
@@ -1176,8 +1102,6 @@ describe("the constructs a compile builds", () => {
     ]);
   }, 60_000);
 
-  // An address is a chunk id times 2 ** 21 plus an offset, so a chunk of
-  // that many code words would name the next chunk's instructions.
   it("names a statement too long for an address", () => {
     expect(() =>
       handWrittenProgram((e) => {
@@ -1195,8 +1119,6 @@ describe("the constructs a compile builds", () => {
     ).not.toThrow();
   }, 60_000);
 
-  // A builtin's argument count is a 16-bit operand: a call of more is an
-  // error at its statement, and the compile makes no program (#705).
   it("reports an operand wider than its field", () => {
     const args = Array.from({ length: 70_000 }, () => "1").join(", ");
     const { program } = compileScript(`scene start\n  local n = tonumber(${args})\nend\n`);

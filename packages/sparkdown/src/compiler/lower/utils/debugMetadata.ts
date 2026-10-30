@@ -3,38 +3,14 @@ import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Ident
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { LowerContext } from "../context";
 
-// Builds a `DebugMetadata` populated with chunk-relative line/character
-// positions derived from the absolute byte offsets `from` / `to`. The
-// caller is responsible for attaching it to a ParsedObject — typically via
-// `stampDebugMetadata`.
-//
-// The compiler's post-lowering `offsetDebugMetadata` pass (in
-// SparkdownCompiler.remapContent) saves these chunk-relative numbers into
-// `sourceStartLineNumber` / `sourceEndLineNumber` on first encounter and
-// rebases `startLineNumber` / `endLineNumber` to absolute lines by adding
-// the chunk's start-line offset. Incremental updates re-apply the offset
-// against the saved chunk-relative number, so the same `DebugMetadata`
-// stays valid across edits.
 export function buildDebugMetadata(
   from: number,
   to: number,
   ctx: LowerContext,
 ): DebugMetadata {
   const dm = new DebugMetadata();
-  // `DebugMetadata.startLineNumber` is **1-based** by the compiler's
-  // convention: the diagnostics path builds it as `lineNumberOffset + 1`,
-  // the `offsetSource` rebase treats `diagnostic.source.startLineNumber` as
-  // 1-based, and its readers convert back to 0-based with
-  // `startLineNumber - 1`. `ctx.lineNumber` is 0-based (chunk-relative in the
-  // annotator, absolute in the snapshot context), so `+ 1` lifts it into that
-  // 1-based convention. Without it, every lowerer-stamped entry lands one line
-  // earlier than its true source line (e.g. pathLocations / runtime error
-  // positions were systematically off by one vs the legacy compiler).
   dm.startLineNumber = ctx.lineNumber(from) + 1;
   dm.endLineNumber = ctx.lineNumber(to) + 1;
-  // Character numbers are 1-based too: every consumer subtracts 1, and
-  // `getDiagnostic` drops a diagnostic whose start character comes out
-  // negative, since only a node the compiler synthesized has one.
   dm.startCharacterNumber = ctx.characterNumber(from) + 1;
   dm.endCharacterNumber = ctx.characterNumber(to) + 1;
   if (ctx.filePath) {
@@ -43,8 +19,6 @@ export function buildDebugMetadata(
   return dm;
 }
 
-// An Identifier holding the source text of `node`, positioned at it, so a
-// diagnostic about the name points at the name.
 export function identifierAt(
   node: { from: number; to: number },
   ctx: LowerContext,
@@ -54,9 +28,6 @@ export function identifierAt(
   return identifier;
 }
 
-// The range of the first line of the source in `[from, to)`, from its first
-// character to its last: the header line of a block statement such as `if`,
-// `elseif` or `match`, the line its condition or subject is on.
 export function headerLineRange(
   from: number,
   to: number,
@@ -70,9 +41,6 @@ export function headerLineRange(
   return { from: from + start, to: from + line.trimEnd().length };
 }
 
-// The range a statement's objects are stamped with (`stampStatement`), and
-// a statement served from its memo is placed at (#656): the statement's
-// source range without its indentation and its trailing whitespace.
 export function statementBounds(
   rangeFrom: number,
   rangeTo: number,
@@ -85,12 +53,6 @@ export function statementBounds(
   return { from: rangeFrom + indentation, to: rangeFrom + text.length };
 }
 
-// Stamps the given ParsedObjects with debug metadata derived from the
-// absolute byte range `[from, to]`. Existing metadata on a child is left
-// alone so a more-specific lowerer can override the dispatcher-level
-// fallback. Nested children without their own metadata inherit via
-// `ParsedObject.get debugMetadata()` which walks the parent chain — so the
-// dispatcher only needs to stamp the top-level returned objects.
 export function stampDebugMetadata(
   objects: ParsedObject[] | undefined,
   from: number,

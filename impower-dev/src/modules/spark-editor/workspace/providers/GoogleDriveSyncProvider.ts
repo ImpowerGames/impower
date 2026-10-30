@@ -6,49 +6,30 @@ import { RemoteStorage } from "../types/RemoteStorageTypes";
 import { ResponseTypeMap } from "../types/ResponseTypeMap";
 import sendServerRequest from "../utils/sendServerRequest";
 
-// setQuery is missing from DocsView definition. Must be declared manually
-// https://developers.google.com/drive/picker/reference#view
+// workaround(@types/google.picker): DocsView typings omit setQuery, so it is declared here; see https://developers.google.com/drive/picker/reference#view
 type DocsView = google.picker.DocsView & {
   setQuery(query: string): google.picker.DocsView;
 };
 
-// Browser env is injected at build time via Vite's `define` (see impower-dev/
-// vite.config.ts `browserEnvDefine`, which replaces `import.meta.env.BROWSER_*`).
-// `process` is NOT defined in regular browser page modules — the old per-module
-// `var process = {...}` banner was retired in favor of this — so reading
-// `process.env` here throws `ReferenceError: process is not defined` at import
-// time (optional chaining can't guard an *undeclared* identifier). Falls back to
-// undefined when the var isn't set (fine for local dev without Google sync).
 const BROWSER_GOOGLE_API_KEY = import.meta.env.BROWSER_GOOGLE_API_KEY!;
 const BROWSER_GOOGLE_OAUTH_CLIENT_ID = import.meta.env
   .BROWSER_GOOGLE_OAUTH_CLIENT_ID!;
 
-// App Id must match first part of OAuth Client Id
-// https://stackoverflow.com/a/17204637
-// https://stackoverflow.com/a/26285995
 const BROWSER_GOOGLE_APP_ID = BROWSER_GOOGLE_OAUTH_CLIENT_ID?.split("-")[0]!;
 
-// Authorization scopes required to sync files to a google drive folder
 const SCOPES = [
   "https://www.googleapis.com/auth/drive.file",
   "https://www.googleapis.com/auth/drive.resource",
   "https://www.googleapis.com/auth/userinfo.profile",
   "https://www.googleapis.com/auth/userinfo.email",
 ];
-// ux_mode "popup" allows user to authenticate without being redirected away from the current page
 const UX_MODE = "popup";
-// redirect_uri must be "postmessage" for ux_mode "popup"
-// https://stackoverflow.com/questions/55222501/google-oauth-redirect-uri-mismatch-when-exchanging-one-time-code-for-refresh-tok
 const REDIRECT_URI = "postmessage";
 
-// Google Identity Services Client Library
-// https://developers.google.com/identity/gsi/web/guides/client-library
 const GSI_SRC = "https://accounts.google.com/gsi/client";
 
-// Google API Client Library
 const GAPI_SRC = "https://apis.google.com/js/api.js";
 
-// Discovery doc URL for APIs
 const DISCOVERY_DOC =
   "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest";
 
@@ -93,9 +74,6 @@ export default class GoogleDriveSyncProvider {
     } catch (err: any) {
       if (err.error === "invalid_grant") {
         console.warn("access was revoked");
-        // Push the revocation straight into the workspace store so the UI
-        // reacts (Account flips back to signed-out). Dynamic import avoids a
-        // static cycle: Workspace -> WorkspaceSync -> this provider -> Workspace.
         const { Workspace } = await import("../Workspace");
         Workspace.window.clearAccount();
       }
@@ -277,9 +255,7 @@ export default class GoogleDriveSyncProvider {
       redirect_uri: REDIRECT_URI,
       login_hint: account?.email,
     });
-    // Show a popup asking the user for consent to access their data
-    // (This must be executed synchronously at the same time as a user interaction,
-    // or else iOS Safari will block the popup)
+    // workaround(ios): iOS Safari blocks a popup not opened synchronously within the user gesture, so the consent popup opens in the click
     authClient.requestCode();
     return new Promise<AccountInfo | null>((resolve, reject) => {
       const bindableAuthClient =

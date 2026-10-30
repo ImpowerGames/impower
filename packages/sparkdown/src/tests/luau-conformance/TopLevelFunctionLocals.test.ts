@@ -25,8 +25,6 @@ const shown = (root: ProgramRoot) => {
   return { texts: beats.map((b) => b.text.trim()), errors };
 };
 
-// The root of a script that compiles with no error, so a case never runs
-// what a compile reported.
 const rootOf = (lines: string[]) =>
   quiet(() => {
     const { program } = compileScript([...lines, ""].join("\n"));
@@ -155,8 +153,6 @@ describe("a local function written in a scene and the scene's local", () => {
     ).toEqual(got("Got 4."));
   });
 
-  // A stdlib name read in a function names the builtin unless a local of
-  // the name is in scope, as the scene's is here.
   test.each([
     ["a function", ["local count = 0", "local function inc()", "  count = count + 1", "  return count", "end", "Got {inc()} {count}."]],
     ["a closure", ["local count = 0", "local inc = function() count = count + 1 return count end", "Got {inc()} {count}."]],
@@ -171,8 +167,6 @@ describe("a local function written in a scene and the scene's local", () => {
     );
   });
 
-  // At run time, a method call on such a local reaches the local's member
-  // (StdLibMissingMemberCall.test.ts checks what a compile reports of it).
   test("calls a method of a local that takes a stdlib namespace's name", () => {
     expect(
       run(

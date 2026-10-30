@@ -1,21 +1,3 @@
-// Regression coverage for two coupled grammar/lowering fixes driven by the
-// real production screenplay port:
-//
-// 1. Luau comments (`--`, `---`) are recognized ONLY in Luau-code contexts
-//    (function/closure/define bodies, expressions) — never in display/prose.
-//    Display uses `--` for em-dashes and `---` for the title-page fence, so
-//    the old `Annotation → #LuauComment` include wrongly (a) ate the opening
-//    `---` as a `---` doc comment, making the title page parse as dialogue
-//    (`title:` → character cue "title"), and (b) turned every prose em-dash
-//    into a line comment. Fixed by dropping `#LuauComment` from `Annotation`.
-//
-// 2. A typed OOP define (`define X as character`) now registers its scalar
-//    properties into the compile-time struct registry (program.context +
-//    contextPropertyRegistry), so the engine's reference resolver can match
-//    a dialogue cue (`RAFFLES:`) to its character by `name`. Previously the
-//    OOP-define StructDefinition serialized empty, so every cue warned and
-//    no portrait rendered.
-
 import { describe, expect, test } from "vitest";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -62,7 +44,6 @@ describe("front matter vs luau comment context", () => {
     expect(tree).toContain("FrontMatter");
     expect(tree).toContain("FrontMatterFieldKeyword");
     expect(tree).not.toContain("LuauDocLineComment");
-    // No "Cannot find character named `title`" etc.
     expect(warnings.filter((w) => /Cannot find character/.test(w))).toEqual([]);
   });
 
@@ -75,11 +56,6 @@ describe("front matter vs luau comment context", () => {
   });
 
   test("an action line that STARTS with `--` is an em-dash, not a comment", () => {
-    // Real R&B screenplay case: action lines routinely open (and close) with
-    // `--` em-dashes, e.g. `-- He closes the app.   Pockets the smartphone. --`.
-    // These live at the scene body (which parses at root), where the
-    // `LuauDeclarations → LuauComment` include used to eat the whole line as a
-    // `LuauLineComment`, so it vanished from the preview.
     const { tree } = compile(
       `\n\nscene start\n  -- He closes the app.   Pockets the smartphone. --\n  done\nend\n`,
     );

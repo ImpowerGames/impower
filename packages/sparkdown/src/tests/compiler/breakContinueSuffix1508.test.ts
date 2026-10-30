@@ -1,9 +1,3 @@
-// A written function whose loop holds a `break` or `continue` followed by
-// tokens on its line ends that loop's block where Luau's parser ends it, as
-// at a `return` (I-1430): the first following token gets the error for the
-// block's missing closer, and the closers after it follow Luau's block
-// stack, every error Luau reports reported once in Luau's words at Luau's
-// range (I-1508).
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity } from "../../compiler/types/SparkDiagnostic";
@@ -19,7 +13,6 @@ function errorsOf(compiler: SparkdownCompiler): string[] {
     .sort();
 }
 
-/** Sparkdown's syntax errors, as `start-end message` in 0-based lines and characters, in position order. */
 function sparkdownErrors(text: string): string[] {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -30,9 +23,6 @@ function sparkdownErrors(text: string): string[] {
 
 const SUFFIXES = ["break x", "break x y", "break x y z", "break 1 x", "continue x", "continue x y", "continue x y z"];
 
-// Each script's Luau is all of its lines but the story line after it. A form
-// that declares a local sits in a function `o`, where a `local` may be
-// written.
 const FORMS: [string, (line: string) => string][] = [
   ["a while loop", (line) => `function f()\nwhile true do\n${line}\nend\nend\n`],
   ["a repeat loop", (line) => `function f()\nrepeat\n${line}\nuntil true\nend\n`],
@@ -72,8 +62,6 @@ describe("a loop's break or continue followed by tokens reports Luau's errors (I
     expect(sparkdownErrors(text)).toEqual([...luau].sort());
   });
 
-  // A bare break or continue, and one closed on its own line, end nothing
-  // early.
   for (const text of [
     "function f()\nwhile true do\nbreak\nend\nend\n",
     "function f()\nwhile true do\ncontinue\nend\nend\n",

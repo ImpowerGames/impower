@@ -1,8 +1,3 @@
-// #637 — a route that forces a verdict the program does not reach, because
-// the line it shows needs it, follows the program everywhere else: a loop
-// inside the forced branch runs its passes, and a loop the program never
-// leaves inside one forced branch leaves the line to another forced route.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "../../game/core/classes/Game";
@@ -41,8 +36,6 @@ const newGame = (program: unknown) =>
     }) as any,
   } as any);
 
-/** The value the store `name` holds once the preview's replay has reached
- *  the 1-based `line`, as the preview displays that line with it. */
 function previewedStore(
   src: string,
   line: number,
@@ -55,7 +48,6 @@ function previewedStore(
   return game.story.variablesState[name];
 }
 
-/** The route a search with `options` finds to the line holding `label`. */
 function routeTo(lines: string[], label: string, options?: object) {
   const program = compileSrc(lines.join("\n"));
   const game: any = newGame(program);
@@ -95,8 +87,6 @@ describe("a route that forces a verdict follows the program everywhere else", ()
   }, 120_000);
 
   test("a loop the program never leaves inside a forced branch leaves the line to another forced route", () => {
-    // Forcing `flag` runs a loop that never ends; the line needs `a` and `b`
-    // forced instead, two verdicts to the loop's one.
     const lines = [
       "store flag = false",
       "store a = false",
@@ -127,8 +117,6 @@ describe("a route that forces a verdict follows the program everywhere else", ()
   }, 120_000);
 
   test("a line inside a skipped branch after a long loop with a branch in its body is reached", () => {
-    // Every pass of the loop is two conditions whose verdicts not taken wait
-    // for the next level, and the loop outlasts level zero's bound.
     const lines = [
       "store flag = false",
       "store total = 0",
@@ -151,8 +139,6 @@ describe("a route that forces a verdict follows the program everywhere else", ()
 });
 
 describe("a verdict kept for a later level belongs to the route that kept it", () => {
-  // Two choices reach the same condition with different state; forcing it
-  // after one of them is the way to the line, after the other it is not.
   const MENU = [
     "store total = 0",
     "",

@@ -1,11 +1,6 @@
 import type { SourceMetadata } from "../../../runtime/Error";
 import type { LowerContext } from "../context";
 
-// The source of a diagnostic reported on a whole statement. A statement's
-// node starts at the beginning of its line, indentation included, so the
-// leading spaces and tabs are skipped: the range starts at the statement's
-// first character, and an editor underlines the statement rather than its
-// indentation.
 export function statementSource(
   node: { from: number; to: number },
   ctx: LowerContext,

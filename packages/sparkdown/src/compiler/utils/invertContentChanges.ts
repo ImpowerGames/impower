@@ -6,7 +6,6 @@ import {
 
 const NEWLINE_REGEX = /\r\n|\r|\n/g;
 
-/** Where the end of `text` lands when it is inserted at `start`. */
 const endOfInsertion = (start: Position, text: string): Position => {
   const lines = text.split("\n");
   if (lines.length === 1) {
@@ -18,16 +17,6 @@ const endOfInsertion = (start: Position, text: string): Position => {
   };
 };
 
-/**
- * The changes that undo `changes` applied to `text`, in the order to apply
- * them.
- *
- * `changes` are sequential, as `textDocument/didChange` delivers them: each is
- * relative to the text the previous one left. Every inverse is a ranged change
- * covering only what its change inserted, so undoing an edit reparses as
- * little as making it did. Inserted text is measured the way
- * `SparkdownDocumentRegistry.update` stores it, with line breaks normalized.
- */
 export const invertContentChanges = (
   text: string,
   changes: readonly TextDocumentContentChangeEvent[],

@@ -9,13 +9,6 @@ import { rangeOf } from "../utils/luauAst";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import type { StatementSite } from "./lowerLuauStatement";
 
-// `return X`          (single)   → ReturnType { expr }
-// `return X, Y, Z`    (multi)    → MultiReturnType { [X, Y, Z] } — packs
-//                                   the N values into a MultiValue at runtime
-// `return`            (no value) → ReturnType { null } — produces Void
-//
-// Luau returns occur in function bodies or explicit code islands. Unmarked
-// story lines beginning with `return` are display text, not statements.
 export function lowerLuauReturnStatement(
   stat: AstStatReturn,
   site: StatementSite,
@@ -25,9 +18,6 @@ export function lowerLuauReturnStatement(
   const returned = expressions.length > 1
     ? new MultiReturnType(expressions)
     : new ReturnType(expressions[0] ?? null);
-  // Assembly places statement weaves and unwraps their children. The return
-  // needs its own range so a misplaced return points at its written tokens
-  // after it is reparented into the story, scene or branch weave.
   const range = rangeOf(stat.location, ctx);
   stampDebugMetadata([returned], range.from, range.to, ctx);
   return wrapInWeave([returned]);

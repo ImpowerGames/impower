@@ -3,14 +3,6 @@ import { createDomAssetCacheDeps } from "../../app/assets/domAssetCacheDeps";
 
 let shared: AssetCache | undefined;
 
-/**
- * The one asset cache of this page, shared by every `Application` it builds.
- *
- * The Application is rebuilt on every PLAY and STOP (and preserved across
- * preview edits), so a cache that lived inside it would re-fetch a whole
- * scene on each press of PLAY. The editor's file watcher evicts through the
- * same instance when an asset file changes.
- */
 export const getSharedAssetCache = (): AssetCache => {
   if (!shared) {
     shared = new AssetCache({

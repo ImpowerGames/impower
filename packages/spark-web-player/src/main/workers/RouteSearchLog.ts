@@ -7,80 +7,25 @@ import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/Progr
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 
-/** What the last route search established about a start point, and the rule for
- *  when that is safe to hand to a client that will skip its own search on the
- *  strength of it.
- *
- *  This lives on its own because the rule is not obvious and getting it wrong is
- *  silent. Two things that look like evidence are not:
- *
- *    - `Game.patchAndSimulateRoute` returns the newest checkpoint at every exit,
- *      whether or not the replay reached the target. A checkpoint existing does
- *      not mean the story got where it was asked to go; it can be a state from
- *      partway along the route.
- *    - The checkpoint store is only truncated when a route is actually replayed
- *      (`Game.simulateRoute`). A search that finds NO route leaves the previous
- *      start point's checkpoints in place, so the newest one then describes a
- *      different line entirely.
- *
- *  So the address that was searched for, and whether the replay reached it, are
- *  recorded explicitly rather than inferred after the fact.
- */
 export interface RouteSearchOutcome {
-  /** The address the search was for (`ProgramLocator.addressAt`). */
   address: ProgramAddress;
-  /** Identity of the program the search ran against, so a client can confirm it
-   *  is holding the same one before reusing the result. See `programIdentity`. */
   programId?: string;
-  /** Did the replay actually reach that address? */
   reachedTarget: boolean;
-  /** The newest checkpoint the replay produced, if it produced one. Present
-   *  does not imply `reachedTarget`. The worker's searches record it as the
-   *  value the game holds (`searchRouteFor`), which its display loads in
-   *  place, and whose full save is written only for a reader that needs the
-   *  string (#1758). */
   checkpoint?: string | StoredCheckpoint;
-  /** Why the search did not get there, when it did not. Kept apart from
-   *  `reachedTarget` because that answers whether the result is REUSABLE, while
-   *  this answers what to tell the author — and the two do not always agree: a
-   *  route found but not replayed to the end is not reusable and is still worth
-   *  explaining (#379). */
   simulationFailure?: SimulationFailure;
-  /** The runtime errors and warnings the replay raised on its way, whether or
-   *  not it reached the address; for a search that found no route, which
-   *  replayed nothing, the errors that stopped it. */
   errors?: SimulationError[];
-  /** Whether a run from the address's checkpoint displays a beat before the
-   *  story ends, the beat on screen there included (`Game.routeTargetShows`);
-   *  known when the replay reached it. */
   shows?: boolean;
-  /** The route the replay followed, as the preview reports it
-   *  (`Game.previewRouteOf`); known when the replay reached the address. */
   route?: PreviewRoute;
   menus?: RunMenu[];
-  /** A route from the story's start has been searched for: this search ran
-   *  from it, or one that did found no route and this one stands. */
   fromStart?: boolean;
-  /** For an address no route reaches: whether a run jumped to it displays a
-   *  beat, once that has been asked. */
   jumpShows?: boolean;
-  /** For an address no route reaches whose jumped run displays nothing: the
-   *  nearest line above it whose jumped run shows a beat, and what the search
-   *  for that line established, which the display and PLAY take (#1606). */
   shown?: {
     point: { file: string; line: number };
     outcome: RouteSearchOutcome;
   };
 }
 
-/** Params a route-search outcome can be reported on. Structural, so both
- *  `CompiledProgramParams` and `SelectedCompilerDocumentParams` satisfy it. */
 export interface RouteSearchReportTarget {
-  /** The checkpoint, as a full save, when the search recorded one as a
-   *  string. One recorded as a value is not written here: the worker's
-   *  compile, preview compile and selection answers leave the checkpoint
-   *  out of what they send the page (`installSparkdownWorker`), and its
-   *  display and PLAY read the value (`checkpointFor`). */
   checkpoint?: string;
   simulatedAddress?: ProgramAddress | null;
   simulatedProgramId?: string;
@@ -95,9 +40,6 @@ export class RouteSearchLog {
     return this._last;
   }
 
-  /** Drop what was established. Whatever a search proved, it proved about the
-   *  program and story it ran against; a recompile replaces both, so nothing
-   *  from before one may be reported for what comes after it. */
   forget(): void {
     this._last = null;
   }
@@ -106,12 +48,6 @@ export class RouteSearchLog {
     this._last = outcome;
   }
 
-  /** Whether the last search was run for `address` in the program
-   *  `programId` names, so that it still describes a route there. What a
-   *  search was asked for is the only evidence: a point that resolves to the
-   *  same address needs no second search, and a point on the same line can
-   *  resolve to another address (a line that `>` breaks holds several
-   *  beats). */
   holds(address: ProgramAddress, programId: string | undefined): boolean {
     const last = this._last;
     return (
@@ -119,7 +55,6 @@ export class RouteSearchLog {
     );
   }
 
-  /** What the last search established, when it was for `address`. */
   outcomeFor(
     address: ProgramAddress | null | undefined,
   ): RouteSearchOutcome | undefined {
@@ -127,9 +62,6 @@ export class RouteSearchLog {
     return last && last.address === address ? last : undefined;
   }
 
-  /** The checkpoint the last search produced for `startAddress`, in the
-   *  form it was recorded in, under the rule `report` passes one on by:
-   *  whenever one was produced for this address. */
   checkpointFor(
     startAddress: ProgramAddress | null | undefined,
   ): string | StoredCheckpoint | undefined {
@@ -140,28 +72,6 @@ export class RouteSearchLog {
     return last.checkpoint || undefined;
   }
 
-  /** Tell the client what is known about `startAddress`.
-   *
-   *  The checkpoint is passed on whenever one was produced for this address — the
-   *  preview has always been given it, and a state partway along the route is
-   *  still the best thing to show.
-   *
-   *  `simulatedAddress` is set only when the search is a DEFINITE answer about this
-   *  address: the replay reached it, so the checkpoint is the story state there; or
-   *  no route to it exists. A route that was found but whose replay fell short
-   *  is neither, and saying nothing there leaves the client to run its own
-   *  search — which is safe, because a route existing means that search
-   *  terminates rather than running to the work ceiling.
-   *
-   *  The program identity travels with it, always as a pair. A client is meant
-   *  to reuse the answer only while holding the same program, and it cannot tell
-   *  that from the address alone — an address survives edits that change what
-   *  the story does before it.
-   *
-   *  The failure reason is passed on whenever there is one, under none of those
-   *  conditions: it is not an answer a client reuses, it is what the status bar
-   *  says to the author, and the case with the least to reuse (a route that
-   *  would not replay) is one of the cases with the most to explain (#379). */
   report(
     params: RouteSearchReportTarget,
     startAddress: ProgramAddress | null | undefined,
@@ -178,8 +88,6 @@ export class RouteSearchLog {
       params.simulatedProgramId = last.programId;
     }
     params.simulationFailure = last.simulationFailure;
-    // What the replay raised is the author's to see wherever the start point
-    // is shown, whether the replay got there or stopped short of it.
     params.simulationErrors = last.errors ?? [];
   }
 }

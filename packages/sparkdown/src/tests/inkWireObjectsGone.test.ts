@@ -1,11 +1,3 @@
-// The ink wire objects the program engine never makes are deleted (#1753): a
-// function value is a `SymbolValue`, so no file under `packages/*/src` names
-// the divert-target value class (`DivertTargetValue`), in code or in a
-// comment, or imports the runtime's `Path` that backed it; and the control
-// commands are the five the program engine and the lowerers make. The one
-// exception is the text a function value prints and keys a table under,
-// which a save holds (`SymbolValue.toString`): the string literal that opens
-// it, the class name followed by a parenthesis, is passed over.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, normalize, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,25 +9,15 @@ import { scanOf, sourcesUnder } from "./repositoryScan";
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 const PACKAGES = "@impower/";
 
-/** The deleted value class, as a whole word. */
 const NAMES = /\b(DivertTargetValue)\b/g;
 
-/** The saved form of a function value's text, which is not a reference to
- *  the class: the double-quoted literal of the name and an opening
- *  parenthesis. */
 const SAVED_TEXT = /"DivertTargetValue\("/g;
 
-/** The deleted module, relative to the repository. */
 const PATH_MODULE = "packages/sparkdown/src/runtime/Path";
 
-/** Every module specifier a file names, as TypeScript reads them past any
- *  comment. */
 const specifiersOf = (text: string): string[] =>
   ts.preProcessFile(text, true, true).importedFiles.map((f) => f.fileName);
 
-/** Each name of the deleted class a file under the `src` of a package of
- *  `repo` holds, as `<file> names <name>`, and each import of the deleted
- *  module, as `<file> -> <module>`, relative to `repo`, this file aside. */
 const whatRemains = (repo: string): string[] => {
   const found = new Set<string>();
   const packages = join(repo, "packages");
@@ -75,7 +57,6 @@ test("the control commands are the five the program engine and the lowerers make
 });
 
 describe("the scan the check is held to", () => {
-  // A repository of its own, written to a temporary directory.
   const withRepo = (files: Record<string, string>): string[] =>
     scanOf("ink-wire-objects-gone-", files, whatRemains);
 

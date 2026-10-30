@@ -1,12 +1,3 @@
-// Statements whose order an edit swaps in the program's statement list keep
-// their chunks (#1496). Turning the text after an earlier `end` into `return `
-// moves `function bump(by)` into an earlier body, so it now comes before
-// `function twice(n`, which the edit did not touch. The script is a reduction
-// of a case from the cumulative fuzz in programChunkIdentity.test.ts. The
-// other cases hold the alignment to its rule when statements cross: a
-// statement keeps the old chunk it can keep where that leaves nothing
-// behind, a statement edited in place keeps the parts of its old self, and
-// the work stays linear in the number of statements.
 import { describe, expect, it } from "vitest";
 import { bodyOfBlock } from "../../compiler/lower/utils/statementShape";
 import { wrapInScope } from "../../compiler/lower/utils/wrapInScope";
@@ -80,10 +71,6 @@ describe("statements an edit swaps in the statement list", () => {
 });
 
 describe("a function an edit changes, beside a lookalike the edit deletes", () => {
-  // The first assignment's function gains `g` and returns 2, which makes it
-  // read as the second's, and the edit deletes the second. The first is
-  // edited in place and keeps its function's symbol, so a closure saved
-  // before the edit still calls it; it does not take the deleted one's chunk.
   const other = "  f = function()\n    function g() return 7 end\n    return 2\n  end\n";
   const text = [
     "store f = nil",
@@ -136,7 +123,6 @@ describe("a function an edit changes, beside a lookalike the edit deletes", () =
 });
 
 describe("statements whose recorded facts an edit invalidates", () => {
-  // A statement that refers to a symbol, as a divert does.
   class RefersTo extends ParsedObject {
     constructor(readonly symbol: number) {
       super();
@@ -173,8 +159,8 @@ describe("statements whose recorded facts an edit invalidates", () => {
     });
     const flows = (kind: typeof SymbolKind.Scene | typeof SymbolKind.Branch) => [
       {
-        name: "",
-        kind: SymbolKind.Root,
+        name: "start",
+        kind: SymbolKind.Scene,
         uri: MAIN_URI,
         firstLine: 0,
         span: n,
@@ -228,11 +214,6 @@ describe("statements whose recorded facts an edit invalidates", () => {
   });
 });
 
-// The same alignment, through the store directly, for the statements of a
-// flow and for the declarations, which the store aligns separately. Each
-// statement is a line of text whose syntax and recorded reads are given; a
-// statement re-lowered by a compile has a new block, and the anchor keeps
-// its block, so it keeps its chunk first.
 describe.each([
   ["flow statements", false],
   ["declarations", true],
@@ -261,8 +242,8 @@ describe.each([
               }
             : [
                 {
-                  name: "",
-                  kind: SymbolKind.Root,
+                  name: "start",
+                  kind: SymbolKind.Scene,
                   uri: MAIN_URI,
                   firstLine: 0,
                   span: 1,
@@ -271,7 +252,7 @@ describe.each([
               ],
           true,
         ).root!;
-        return declarations ? root.initialization : root.flowNamed("")!.arrays.chunks;
+        return declarations ? root.initialization : root.flowNamed("start")!.arrays.chunks;
       },
     };
   };
@@ -332,9 +313,6 @@ describe.each([
     expect(after[4] === before[4]).toBe(true);
   });
 
-  // What the store looks up per statement stays bounded however the
-  // statements of a long run are reordered or changed: a lookup count, not a
-  // time, so the bound holds on any machine.
   it.each([
     ["reversed", (n: number) => [...Array(n).keys()].reverse().map((k) => statement(`s${k}`))],
     ["swapped in pairs", (n: number) => [...Array(n).keys()].map((k) => statement(`s${k ^ 1}`))],
@@ -363,7 +341,7 @@ describe.each([
               (s) => ({ ...s, uri: MAIN_URI, globals: [] }) as DeclarationSource,
             ),
           }
-        : [{ name: "", kind: SymbolKind.Root, uri: MAIN_URI, firstLine: 0, span: 1, statements }];
+        : [{ name: "start", kind: SymbolKind.Scene, uri: MAIN_URI, firstLine: 0, span: 1, statements }];
     const before = [...Array(n).keys()].map((k) =>
       shape.startsWith("of one syntax") ? statement("x", `r${k}`) : statement(`s${k}`),
     );
@@ -435,7 +413,7 @@ describe.each([
               (s) => ({ ...s, uri: MAIN_URI, globals: [] }) as DeclarationSource,
             ),
           }
-        : [{ name: "", kind: SymbolKind.Root, uri: MAIN_URI, firstLine: 0, span: 1, statements }];
+        : [{ name: "start", kind: SymbolKind.Scene, uri: MAIN_URI, firstLine: 0, span: 1, statements }];
     store.build(source(Array.from({ length: n }, () => defining("before"))), true);
     store.lookups = 0;
     store.build(source(Array.from({ length: n }, () => defining("after"))), true);
@@ -445,11 +423,6 @@ describe.each([
 });
 
 describe("an edited function beside an inserted copy of its old version", () => {
-  // The edit gives the function `g` and a new return value, and inserts a
-  // copy of the function as it was after `keep = f`. The edited function is
-  // edited in place and keeps its symbol, so a closure saved before the edit
-  // calls its new code; the copy, which could keep the old chunk, takes a new
-  // one.
   it("keeps the edited function's symbol for a saved closure", () => {
     const text = [
       "store f = nil",
@@ -496,11 +469,6 @@ describe("an edited function beside an inserted copy of its old version", () => 
 });
 
 describe("a block statement that can keep an old chunk another one was paired with", () => {
-  // Old `[x, anchor, y]` becomes `[z, anchor, x]`, each but the anchor a
-  // block statement with one body. By position `z` is edited in place from
-  // `x` and the new `x` from `y`; the new `x` keeps its own old chunk by
-  // exchange, `z` is edited in place from `y`, and no old chunk or body
-  // sequence is left behind.
   it("keeps every old body sequence and leaves no old chunk unused", () => {
     const store = new ChunkStore();
     const owner = (syntax: string, reads: string): StatementSource => {
@@ -528,14 +496,14 @@ describe("a block statement that can keep an old chunk another one was paired wi
       reads: "[]",
     };
     const flow = (statements: StatementSource[]) => [
-      { name: "", kind: SymbolKind.Root, uri: MAIN_URI, firstLine: 0, span: 1, statements },
+      { name: "start", kind: SymbolKind.Scene, uri: MAIN_URI, firstLine: 0, span: 1, statements },
     ];
     const old = store
       .build(flow([owner("x", "r0"), anchor, owner("y", "r0")]), true)
-      .root!.flowNamed("")!.arrays.chunks;
+      .root!.flowNamed("start")!.arrays.chunks;
     const now = store
       .build(flow([owner("z", "r1"), anchor, owner("x", "r0")]), true)
-      .root!.flowNamed("")!.arrays.chunks;
+      .root!.flowNamed("start")!.arrays.chunks;
     expect(store.emittedLastBuild).toBe(1);
     expect(now[2] === old[0]).toBe(true);
     const sequences = (chunks: readonly Int32Array[]) =>
@@ -572,8 +540,6 @@ describe("statements whose recorded values an edit changes", () => {
     });
     const after = c.compile().program;
     expect(after.chunks).toBeDefined();
-    // The `n` lines that read `extra`, and the added scene's line and its
-    // end (`flowEnd`).
     expect(c.compiler.chunkStore!.emittedLastBuild).toBe(n + 2);
     expect(count.lookups).toBeLessThan(20 * n);
     const cold = programCompiler({ [MAIN_URI]: text + added });
@@ -581,9 +547,6 @@ describe("statements whose recorded values an edit changes", () => {
   });
 
   it("build no identity during alignment for an inserted statement no old chunk reads as", () => {
-    // `Anchor.` keeps its chunk, and the inserted assignment reads `n`
-    // names, which building its identity would sort; no old chunk has its
-    // syntax, so alignment builds none.
     const n = 512;
     const text = "scene start\n  Anchor.\nend\n";
     const c = programCompiler({ [MAIN_URI]: text });
@@ -630,8 +593,6 @@ describe("statements whose recorded values an edit changes", () => {
   });
 
   it("are emitted again in lookups linear in their number when their functions' hoisted locals change", () => {
-    // The lookups of the whole compile, at n and 2n assignments: doubling
-    // the assignments at most doubles them, with room for constant work.
     const lookupsFor = (n: number) => {
       const section = (name: string) =>
         ["  f = function()", `    function ${name}() return 7 end`, "    return 2", "  end"].join("\n");
@@ -682,7 +643,7 @@ describe("block statements an edit reorders", () => {
     } as unknown as StatementSource;
   };
   const flow = (statements: StatementSource[]) => [
-    { name: "", kind: SymbolKind.Root, uri: MAIN_URI, firstLine: 0, span: 1, statements },
+    { name: "start", kind: SymbolKind.Scene, uri: MAIN_URI, firstLine: 0, span: 1, statements },
   ];
   class CountingStore extends ChunkStore {
     lookups = 0;
@@ -699,7 +660,7 @@ describe("block statements an edit reorders", () => {
   it("keep their chunks and body sequences through a three-way rotation", () => {
     const store = new ChunkStore();
     const build = (reads: string[]) =>
-      store.build(flow(reads.map((r) => owner("x", r))), true).root!.flowNamed("")!.arrays.chunks;
+      store.build(flow(reads.map((r) => owner("x", r))), true).root!.flowNamed("start")!.arrays.chunks;
     const before = build(["a", "b", "c"]);
     const after = build(["b", "c", "a"]);
     expect(store.emittedLastBuild).toBe(0);
@@ -707,11 +668,6 @@ describe("block statements an edit reorders", () => {
   });
 
   it("read a large owner's body a bounded number of times when it is exchanged repeatedly", () => {
-    // Old `[x0, anchor0, …, xN, anchorN]` becomes `[changed, anchor0, x0,
-    // anchor1, …]`: the changed owner, which holds N body statements, is
-    // paired with each old `xK` in turn as every requester keeps its own by
-    // exchange. Its body is read a bounded number of times, not once per
-    // exchange.
     const n = 128;
     let aligning = false;
     let reads = 0;
@@ -761,18 +717,12 @@ describe("block statements an edit reorders", () => {
     }
     const built = store.build(flow(now), true);
     expect(built.unsupported).toBeUndefined();
-    const chunks = built.root!.flowNamed("")!.arrays.chunks;
+    const chunks = built.root!.flowNamed("start")!.arrays.chunks;
     expect(new Set(chunks).size).toBe(chunks.length);
     expect(reads).toBeLessThan(20 * n);
   });
 
   it("build a repeatedly exchanged owner's identity once", () => {
-    // Old `[x0, anchor0, …, xN, anchorN, big]` becomes `[big, anchor0, x0,
-    // anchor1, …]`, where `big` owns N bodies: the new `big` is paired with
-    // each old `xK` in turn and visited again after every exchange, beside a
-    // free old `big` it reads as but does not take. Its identity, whose
-    // length grows with its bodies, is built once, so each visit is
-    // constant work; `reads` is read when the identity is built.
     const n = 128;
     const store = new ChunkStore();
     const anchors = Array.from({ length: n + 1 }, (_, k) => plain(`anchor${k}`));
@@ -813,11 +763,6 @@ describe("block statements an edit reorders", () => {
   });
 
   it("screen a repeatedly exchanged owner that keeps no old chunk once", () => {
-    // As above, but the free old `big` owns one body fewer, so it reads as
-    // the new `big` in its syntax and reads but not in its identity, which
-    // has no old chunk. The new `big` is visited again after every
-    // exchange; it is screened and its identity looked up once, and
-    // `reads`, which the screen reads, is read a bounded number of times.
     const n = 128;
     const store = new ChunkStore();
     const anchors = Array.from({ length: n + 1 }, (_, k) => plain(`anchor${k}`));
@@ -847,7 +792,7 @@ describe("block statements an edit reorders", () => {
       old.push(owner(`x${k}`), anchors[k]!);
     }
     old.push(big(n - 1, false));
-    const before = store.build(flow(old), true).root!.flowNamed("")!.arrays.chunks;
+    const before = store.build(flow(old), true).root!.flowNamed("start")!.arrays.chunks;
     const now: StatementSource[] = [big(n, true), anchors[0]!];
     for (let k = 0; k < n; k += 1) {
       now.push(owner(`x${k}`), anchors[k + 1]!);
@@ -855,7 +800,7 @@ describe("block statements an edit reorders", () => {
     screens = 0;
     const built = store.build(flow(now), true);
     expect(built.unsupported).toBeUndefined();
-    const after = built.root!.flowNamed("")!.arrays.chunks;
+    const after = built.root!.flowNamed("start")!.arrays.chunks;
     for (let k = 0; k < n; k += 1) {
       expect(after[2 + 2 * k] === before[2 * k]).toBe(true);
     }
@@ -865,12 +810,6 @@ describe("block statements an edit reorders", () => {
   it.each([1, 2])(
     "classify the ancestry of changed leaves under nested kept owners in owner queries linear in their number (%i per owner)",
     (perOwner) => {
-      // Old `[o0, a0…, o1, a1…, …]`, where each `oK` owns the next owner and
-      // its own leaves, becomes the same owners with every leaf changed: the
-      // owners keep their chunks, so each run between two of them holds the
-      // owner's changed leaves, each of whose owner chain is N deep. Which
-      // of the leaves a run leaves contain one another is found in owner
-      // queries linear in N, not once per leaf per owner above it.
       const n = 256;
       class Measured extends ChunkStore {
         make(syntax: string) {
@@ -951,11 +890,6 @@ describe("block statements an edit reorders", () => {
   );
 
   it("look up a large old chunk's identity once while exchanges pass it on", () => {
-    // Old `[big, anchor0, x0, anchor1, …, x(N-1), anchorN, bigCopy]` and new
-    // `[x0, anchor0, x1, …, changed, anchorN]`, aligned directly: `big`, whose
-    // N bodies make its identity long, is paired with `x0` by position and
-    // passed on by each exchange in which a requester keeps its own `xK`.
-    // The identity of `big` is looked up once, not once per exchange.
     const n = 1024;
     class Measured extends ChunkStore {
       longKeys = 0;
@@ -1041,10 +975,6 @@ describe("block statements an edit reorders", () => {
   });
 
   it("are aligned in lookups linear in their number when no exchange can be made", () => {
-    // N plain statements take the syntax of N old block statements, and N
-    // block statements of that syntax, each alone between two anchors, are
-    // paired with other old blocks; every one of them can keep an old `x`
-    // block, but its plain holder cannot take the block it would leave.
     const n = 128;
     const store = new CountingStore();
     const anchors = Array.from({ length: n + 1 }, (_, k) => plain(`anchor${k}`));

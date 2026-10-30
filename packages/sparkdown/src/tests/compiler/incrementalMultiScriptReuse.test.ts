@@ -4,22 +4,6 @@ import { File } from "../../compiler/types/File";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { describeRoot } from "../program/describeRoot";
 
-// An incremental compile decides which scenes an edit touched by comparing
-// line ranges. Line numbers only mean something inside one script, so both
-// sides of that comparison have to be scoped to a script: a project has
-// several scripts whose line numbers overlap freely.
-//
-// The fixture below is the shape that breaks a script-blind comparison. One
-// script holds a single scene that runs for dozens of lines; the other holds a
-// dozen scenes five lines apart. Sorting every start into one list makes the
-// long scene look five lines long, so an edit deep inside it falls outside the
-// span and the scene is wrongly treated as untouched — its code and its asset
-// list are then served from the previous compile. Both arrangements are
-// exercised, since either script can be the one holding the long scene.
-//
-// The oracle in every case is a cold compile of the edited text: its chunks
-// by content (`describeRoot`) and its scene assets.
-
 const MAIN_URI = "file://proj/main.sd";
 const CHAPTER_URI = "file://proj/chapter.sd";
 
@@ -39,7 +23,6 @@ const file = (uri: string, text: string, version: number): File => {
 const SHORT_SCENES = 12;
 const LONG_SCENE_FILLER = 60;
 
-/** Twelve five-line scenes: `<p>0` at line 0, `<p>1` at line 5, and so on. */
 function shortScenes(prefix: string): string[] {
   const L: string[] = [];
   for (let s = 0; s < SHORT_SCENES; s++) {
@@ -52,7 +35,6 @@ function shortScenes(prefix: string): string[] {
   return L;
 }
 
-/** One scene whose interesting lines sit ~60 lines past its own start. */
 function longScene(name: string, portrait: string, target: string): string[] {
   const L: string[] = [];
   L.push(`scene ${name}`);
@@ -91,7 +73,6 @@ function quiet<T>(fn: () => T): T {
   }
 }
 
-/** The player worker's configuration, which is where the bug was observed. */
 function newCompiler(main: string, chapter: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -108,14 +89,8 @@ function cold(main: string, chapter: string) {
   }).program;
 }
 
-/** A compile's chunks by content and its scene assets, with each beat's
- *  address read as where it stands: an address counts the chunks the
- *  compiler has made, so an incremental compile's differs from a cold
- *  compile's for the same beat. */
 function outcome(program: SparkProgram) {
   expect(program.chunks, "the compile built statement chunks").toBeDefined();
-  // Both scripts are part of every program compared, so an edit in one is
-  // compared with the other's flows present.
   expect(Object.keys(program.scripts), "the program's scripts").toEqual([MAIN_URI, CHAPTER_URI]);
   return {
     chunks: describeRoot(program.chunks!),
@@ -129,7 +104,6 @@ function outcome(program: SparkProgram) {
   };
 }
 
-/** Replace the first occurrence of `find` in `uri`'s text, incrementally. */
 function edit(
   compiler: SparkdownCompiler,
   uri: string,
@@ -154,11 +128,6 @@ function edit(
   return text.slice(0, offset) + replace + text.slice(offset + find.length);
 }
 
-/**
- * `longIn` names the script that holds the long scene; the other holds the
- * twelve short ones. `main.sd` opens with an empty line, where a test can
- * write a line above its first flow.
- */
 function fixture(longIn: "main" | "chapter", portrait: string, target: string) {
   const longLines = longScene("alpha", portrait, target);
   const shortLines = shortScenes("c");
@@ -186,9 +155,6 @@ describe("incremental compiles across more than one script", () => {
         const first = compiler.compile({ textDocument: { uri: MAIN_URI } })
           .program;
 
-        // Positive control: the fixture really does start out holding the
-        // pre-edit asset, so a red run below is the defect and not a fixture
-        // that never had the asset in the first place.
         expect(first.sceneAssets?.["alpha"]?.image).toContain("face_old");
 
         const editedText = edit(
@@ -244,8 +210,6 @@ describe("incremental compiles across more than one script", () => {
   }
 
   it("a short scene deep in another script is still recompiled", () => {
-    // The short-scene side of the same fixture: `c9` starts at line 45 of
-    // `chapter.sd`, which is past every one of `main.sd`'s flow starts.
     quiet(() => {
       const before = fixture("main", "face_old", "c0");
       const compiler = newCompiler(before.main, before.chapter);
@@ -270,12 +234,6 @@ describe("incremental compiles across more than one script", () => {
     });
   });
 
-  // Content above a script's first flow lives outside every flow: a
-  // constant's value, and a declared NAME entering the program, which can
-  // change how call sites in flows whose own source never changed compile.
-  // The other script opens with a scene on line 0, so a comparison that
-  // ignores which script a line belongs to never registers these edits as
-  // preceding a flow.
   it("retyping a constant above every flow of its own script compiles as a cold compile does", () => {
     quiet(() => {
       const base = fixture("main", "face_old", "c0");

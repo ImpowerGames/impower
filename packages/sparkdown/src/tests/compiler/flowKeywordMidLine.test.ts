@@ -1,7 +1,3 @@
-// #401: a Luau block inside a define ends when the next line declares a scene
-// or branch. Only a line that starts with `scene` or `branch` declares one, so
-// a table key, a parameter or a variable with that name leaves the block open
-// and keeps every value where it was written.
 import { describe, expect, it } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 

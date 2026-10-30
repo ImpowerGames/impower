@@ -1,8 +1,5 @@
 import { DebugMetadata } from "./DebugMetadata";
 
-/** The base of the runtime's values and of the few runtime objects the
- *  program engine still makes (`ControlCommand`, `Tag`, `Void`, `Choice`,
- *  `VariableAssignment`, `NativeFunctionCall`). */
 export class InkObject {
   public parent: InkObject | null = null;
 

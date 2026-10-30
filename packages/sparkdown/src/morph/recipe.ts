@@ -49,10 +49,6 @@ const partnerOf = (label: string, entry: Record<string, unknown>, edges: Readonl
 const labels = (list: unknown): string[] =>
   Array.isArray(list) ? list.filter((v): v is string => typeof v === "string" && v !== "") : [];
 
-/**
- * A `paints` entry's bake inputs, its colours written as `formatColor`
- * writes them; undefined for an entry with a value the checks reject.
- */
 const paintEntryOf = (entry: Record<string, unknown>): MorphPaintEntry | undefined => {
   const targets = labels(entry["targets"]);
   const state = entry["state"];
@@ -67,14 +63,14 @@ const paintEntryOf = (entry: Record<string, unknown>): MorphPaintEntry | undefin
     if (!color) return undefined;
     out[name] = formatColor(color);
   }
-  return out.fill || out.stroke ? out : undefined;
+  if (entry["opacity"] !== undefined) {
+    const opacity = parseMorphSpan(entry["opacity"]);
+    if (opacity === undefined) return undefined;
+    out.opacity = opacity;
+  }
+  return out.fill || out.stroke || out.opacity !== undefined ? out : undefined;
 };
 
-/**
- * The bake inputs of an effective morph (the builtin defaults, then every
- * ancestor, then its own body). Values the declaration checks reject are
- * dropped here rather than guessed at; the block already reports them.
- */
 export function buildMorphRecipe(name: string, morph: Record<string, unknown>): MorphRecipe {
   const root = policyOf(morph);
   const edges = new Set<string>();
@@ -121,9 +117,6 @@ export function buildMorphRecipe(name: string, morph: Record<string, unknown>): 
       if (between.length && targets.length) clips.push({ between, targets });
     }
   }
-  // An entry's pose is a state the keyframes name for a group they drive,
-  // other than the one it starts from, and its condition is on a group they
-  // do not drive.
   const named = new Map<string, Set<string>>();
   for (const keyframe of keyframes) {
     for (const [group, state] of Object.entries(keyframe.states)) named.set(group, (named.get(group) ?? new Set()).add(state));
@@ -144,18 +137,14 @@ export function buildMorphRecipe(name: string, morph: Record<string, unknown>): 
     blend: root.blend ?? "morph",
     ...(root.method ? { method: root.method } : {}),
     fallback: root.fallback ?? "fade",
-    // The default is left out, so a morph that keeps it bakes under the
-    // recipe text it had before `depth` existed.
     ...(root.depth && root.depth !== MORPH_DEPTH_REST ? { depth: root.depth } : {}),
     layers,
     keyframes,
     clips,
-    // Left out when empty, as `depth` is at its default.
     ...(paints.length ? { paints } : {}),
   };
 }
 
-/** The groups a recipe drives, in first-mention order. */
 export function recipeGroups(recipe: MorphRecipe): string[] {
   const groups: string[] = [];
   for (const keyframe of recipe.keyframes) {
@@ -166,10 +155,6 @@ export function recipeGroups(recipe: MorphRecipe): string[] {
   return groups;
 }
 
-/**
- * The recipe in the shape `morphRequirements` and `bindMorph` read, so binding
- * during a bake applies exactly the rules compilation applied.
- */
 export function recipeAsMorph(recipe: MorphRecipe): Record<string, unknown> {
   return {
     keyframes: recipe.keyframes.map((k) => {
@@ -182,15 +167,10 @@ export function recipeAsMorph(recipe: MorphRecipe): Record<string, unknown> {
   };
 }
 
-/**
- * Canonical JSON: the same recipe always serializes to the same text, so the
- * text can key caches and travel in URLs.
- */
 export function serializeMorphRecipe(recipe: MorphRecipe): string {
   return JSON.stringify(recipe);
 }
 
-/** Parses recipe text, or returns undefined when it is not a recipe. */
 export function parseMorphRecipe(text: string): MorphRecipe | undefined {
   let value: unknown;
   try {
@@ -212,7 +192,5 @@ export function parseMorphRecipe(text: string): MorphRecipe | undefined {
         })
       : [],
   });
-  // Text that does not survive a round trip unchanged was not written by
-  // `serializeMorphRecipe`; refusing it keeps one recipe to one cache key.
   return serializeMorphRecipe(recipe) === text ? recipe : undefined;
 }

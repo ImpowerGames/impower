@@ -7,21 +7,8 @@ import {
   type PinnedOptions,
 } from "./routePins";
 
-/**
- * What the route did at a decision, as the preview reports it:
- * - `pinned`: the option the author pinned at that offer, which the route
- *   took;
- * - `auto`: an option the route took at a menu with no pin it followed;
- * - `forced`: a verdict the program does not reach there, which the route
- *   forced to reach its target;
- * - `clipped`: a loop the route left before the program would, by whatever
- *   verdict it forced to leave it.
- */
 export type RouteDecisionKind = "pinned" | "auto" | "forced" | "clipped";
 
-/** An option a menu offered: its address (`Choice.sourcePath`), its text,
- *  which time the route was offered it there, from 1, and whether that
- *  offer is pinned. */
 export interface RouteOption {
   site: ProgramAddress;
   text: string;
@@ -31,95 +18,43 @@ export interface RouteOption {
 
 export interface RouteDecision {
   kind: RouteDecisionKind;
-  /** For a choice, the address of the option taken (`Choice.sourcePath`);
-   *  for a verdict, the address of the decision it is for. */
   site: ProgramAddress;
-  /** The text of the option taken. */
   option?: string;
-  /** Which time the route is offered the option it took, from 1. */
   meeting?: number;
-  /** For a choice, the site its menu is met at, which stays the menu's
-   *  whichever options it offers. */
   menu?: ProgramAddress;
-  /** The options the menu offered, in the order it lists them. */
   options?: RouteOption[];
-  /** Set on a choice where a pin was not followed: the route took another
-   *  option than a pinned one the menu offered, or the menu did not offer a
-   *  pinned option of its own (a once-only option the route already took,
-   *  or a gated one whose gate the route left false). */
   notFollowed?: true;
-  /** For a choice, the pinned offers of the menu's own options it did not
-   *  offer, reported here as not followed (`notFollowed`): pins of this stop
-   *  that its options list does not show. */
   unoffered?: { site: ProgramAddress; offer: number }[];
-  /** The verdict the route forced. */
   verdict?: boolean;
-  /** The passes a clipped loop ran: the times its body began, the pass it
-   *  left part way through included. */
   passes?: number;
-  /** The script and first line, counting from 0, of a clipped loop. */
   loop?: { script: number; line: number };
 }
 
-/** A loop of a script, counting lines from 0: its first line, the line of
- *  its `end` (or its `until`), and whether it is a `repeat` loop, whose body
- *  runs before its test. */
 export interface ScriptLoop {
   header: number;
   end: number;
   repeat: boolean;
 }
 
-/** The first and last line of a function's body, counting from 0. */
 export interface ScriptBody {
   start: number;
   end: number;
 }
 
-/** A script's loops and function bodies (`SparkdownCompiler.structureOf`). */
 export interface ScriptStructure {
   loops: readonly ScriptLoop[];
   bodies: readonly ScriptBody[];
 }
 
-/** The script and the line, counting from 0, an address stands on. */
 export type LineOf = (
   address: ProgramAddress,
 ) => { script: number; line: number } | undefined;
 
-/** The loops and function bodies of the script with index `script`. */
 export type StructureOf = (script: number) => ScriptStructure;
 
-/** How many steps before the route's next decision in a loop's scope are
- *  read to find where it stood, and how many decisions after a verdict are
- *  read to find that decision. */
 const STEPS_READ = 4096;
 const DECISIONS_READ = 100_000;
 
-/**
- * The decisions `route` made, in route order: one per menu it met, and one
- * per verdict it forced against the program (`ConditionOverride.departs`).
- * A verdict the program reaches is the program's, and is not listed.
- *
- * A forced verdict is a clipped loop when it left the innermost loop around
- * its line: it is that loop's test found false (every loop's test continues
- * on true, a `repeat` loop's too, which the compile turns into a test to go
- * round again), or the route stood outside the loop's lines when it next
- * decided in the loop's scope or reached its target (a forced branch that
- * breaks out). The loop's scope is its script outside any function body
- * that does not hold the loop: a function the route calls from the loop
- * runs elsewhere and returns to it, and where the route stands inside one
- * says nothing about the loop. Any other forced verdict, a branch inside a
- * loop that stays in it included, is forced. The passes are the times the
- * loop's test was met true since the route last met it false, and one more
- * for a `repeat` loop, whose body ran before its first test. Without
- * `structureOf`, every forced verdict is forced.
- *
- * A choice is pinned when the option taken is pinned at that offer
- * (`pinned`), and not followed when the menu offered another pinned option,
- * or did not offer a pinned option of its own, which is reported at the
- * first meeting it was not offered.
- */
 export const routeDecisions = (
   route: RoutePlan,
   lineOf: LineOf,
@@ -128,9 +63,7 @@ export const routeDecisions = (
 ): RouteDecision[] => {
   const decisions: RouteDecision[] = [];
   const offers = new Map<string, number>();
-  // The pinned offers already reported not offered.
   const missed = new Set<string>();
-  // The options each menu, by the site it is met at, has offered so far.
   const offeredAt = new Map<ProgramAddress, Set<string>>();
   let menus = 0;
   route.decisions.forEach((decision, index) => {
@@ -202,8 +135,6 @@ export const routeDecisions = (
   return decisions;
 };
 
-/** The loop the forced verdict at `index` left and the passes it ran, or
- *  nothing when it left none (see {@link routeDecisions}). */
 const clippedLoop = (
   route: RoutePlan,
   index: number,
@@ -216,7 +147,6 @@ const clippedLoop = (
     return undefined;
   }
   const structure = structureOf(at.script);
-  // The innermost loop whose lines hold the verdict's.
   let loop: ScriptLoop | undefined;
   for (const candidate of structure.loops) {
     if (
@@ -240,8 +170,6 @@ const clippedLoop = (
   if (!leaves) {
     return undefined;
   }
-  // The test met true since the route last met it false, which it does only
-  // when it leaves the loop.
   let passes = loop.repeat ? 1 : 0;
   for (let i = index - 1; i >= 0; i -= 1) {
     const earlier = route.decisions[i]!;
@@ -256,11 +184,6 @@ const clippedLoop = (
   return { passes, loop: { script: at.script, line: loop.header } };
 };
 
-/** Whether the route, where it stood last in `loop`'s scope before its
- *  next decision there after the verdict at `index` (or at its target, when
- *  it made none), stood outside the loop's lines: the verdict took it out of
- *  the loop, through a `break` or past the loop's end, rather than on
- *  through the loop's body. */
 const leftLoop = (
   route: RoutePlan,
   index: number,
@@ -301,9 +224,6 @@ const leftLoop = (
   return false;
 };
 
-/** The index of the first step recorded after decision `decision` was made:
- *  a step records the latest decision made before it, which never falls
- *  along a route. */
 const firstStepAfter = (steps: RouteStep[], decision: number): number => {
   let lo = 0;
   let hi = steps.length;

@@ -1,31 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// Lua arithmetic semantics (basic.luau lines 93-161):
-//
-//   - `/` is ALWAYS true float division (`1 / 2` is 0.5); `//` is the
-//     separate floor-division op (rounds toward -infinity).
-//   - `%` is floor-mod (`a - floor(a/b)*b`), not JS truncated
-//     remainder — they differ for negative operands.
-//   - NaN and -0 are first-class: `Value.Create` maps NaN to
-//     FloatValue (it formerly returned null and corrupted the eval
-//     stack), and the Int/Float constructors use `?? 0` instead of
-//     `|| 0` (NaN and -0 are falsy in JS, so `|| 0` silently
-//     normalized both to +0 — `inf - inf` came out 0).
-//   - tostring formats Lua-style: "nan" / "inf" / "-inf" / "-0".
-//   - `..` is a first-class concat op (formerly aliased to `+`, which
-//     ADDED numbers: `1 .. 2` was 3). Numbers stringify; nil /
-//     boolean / table operands raise "attempt to concatenate <type>
-//     with <type>" (pcall fixtures pattern-match it).
-//   - Arithmetic coerces numeric STRINGS (`1 + "2"` is 3, `2 * "0xa"`
-//     is 20), including hex; string+string `+` keeps ink concat.
-//   - `#t` is the ARRAY-PORTION length (consecutive int keys from 1),
-//     so `#_G` and `#{a=1}` are 0; `__len` metamethods fire.
-//   - JS-driven Lua calls (metamethods, sort comparators, pcall)
-//     normalize arg counts: extras discarded, missing padded with
-//     nil — a zero-param `__len` handler no longer strands its
-//     receiver on the eval stack.
-
 describe("division and modulo", () => {
   test("/ is float division; // floors toward -infinity (lines 93, 106-111)", () => {
     const r = runConformanceSource(
@@ -157,10 +132,6 @@ assert(#t == 0)`,
   });
 
   test("__len metamethod fires, zero-param handler safe (line 161)", () => {
-    // The zero-param handler exercises the arg-count normalization in
-    // CallLuauFunction — the table operand Lua passes to __len must
-    // be DISCARDED, not stranded on the eval stack (where it was
-    // mis-collected as the return value).
     const r = runConformanceSource(
       `local t = {}
 setmetatable(t, { __len = function() return 42 end })

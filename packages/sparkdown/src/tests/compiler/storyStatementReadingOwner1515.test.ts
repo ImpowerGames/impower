@@ -1,11 +1,3 @@
-// A story statement's Luau reading is the one owner of its syntax errors
-// (I-1515): every error Luau's parser reports is reported once, in Luau's
-// words at Luau's range, with no filter, as I-1322 does for a function's
-// own Luau and I-1435 for a backtick string's. A story `if` whose condition
-// holds two juxtaposed values (I-1472), a story `local` with two errors at
-// one token (I-1492), a top-level call whose argument is a function with a
-// return suffix (I-1509) and a stray closer after a top-level function
-// (I-1514), with their neighbours.
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity, type SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
@@ -14,7 +6,6 @@ import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 
 const URI = "inmemory:///main.sd";
 
-/** Syntax errors, as `start-end message` in 0-based lines and characters, sorted. */
 function errorsOf(diagnostics: readonly SparkDiagnostic[]): string[] {
   return diagnostics
     .filter((d) => d.severity === DiagnosticSeverity.Error && !NOT_SYNTAX.some((pattern) => pattern.test(messageOf(d))))
@@ -34,17 +25,10 @@ function compileErrors(compiler: SparkdownCompiler): string[] {
   return errorsOf(compiler.compile({ textDocument: { uri: URI } } as never).program.diagnostics?.[URI] ?? []);
 }
 
-/** A cold compile's syntax errors. */
 function sparkdownErrors(text: string): string[] {
   return compileErrors(newCompiler(text));
 }
 
-/**
- * The Luau of a script, line for line: a scene's header and its `end`, and
- * each line of story (`Hi.`), are blank, and a `&` mark is a space, so the
- * official parser reads the statements alone at the lines and columns they
- * stand on.
- */
 function luauOf(text: string): string {
   const lines = text.split("\n");
   const sceneEnd = lines[0]?.startsWith("scene ") ? lines.lastIndexOf("end") : -1;
@@ -55,16 +39,12 @@ function luauOf(text: string): string {
     .join("\n");
 }
 
-/** The official parser's errors for a script's Luau (`luauOf`), sorted. */
 function official(text: string): string[] {
   return officialErrorList(luauOf(text)).sort();
 }
 
-// A function ahead of the form, whose `0` an edit makes longer: the edit is
-// away from the form, on a line before it, and changes no line count.
 const PADDING = "function padding()\n  local p = 0\nend\n";
 
-/** Asserts that an edit in `PADDING` ahead of `text` reports what a cold compile of the edited text does. */
 function expectIncrementalEqualsCold(text: string): void {
   const padded = PADDING + text;
   const offset = padded.indexOf("0");
@@ -78,7 +58,6 @@ function expectIncrementalEqualsCold(text: string): void {
   expect(compileErrors(compiler)).toEqual(sparkdownErrors(edited));
 }
 
-/** Asserts that a script reports the official parser's errors for its Luau, cold and incrementally. */
 function expectOfficial(text: string): void {
   const expected = official(text);
   expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
@@ -87,14 +66,8 @@ function expectOfficial(text: string): void {
 }
 
 const CONDITIONS = ["(1 2)", "1 2", "(1 2) == 3", "x (1 2)"];
-// A loop's header whose `)` Luau's recovery misses (`while (1 2) do`)
-// leaves the loop open in Luau's reading, which names its opener by the
-// token it recovered at (`to close number`); the reading names it by its
-// text and, in a scene, as the flow's function's, so those are left out.
 const LOOP_CONDITIONS = ["1 2", "x (1 2)"];
 
-// Story statements whose condition the reading reads, in a scene and at the
-// top level of the script.
 const CONDITION_FORMS: [string, (condition: string) => string, string[]][] = [
   ["an if", (c) => `  if ${c} then\n    Hi.\n  end\n`, CONDITIONS],
   ["an elseif", (c) => `  if true then\n    Hi.\n  elseif ${c} then\n    Ho.\n  end\n`, CONDITIONS],
@@ -147,8 +120,6 @@ describe("a story statement's reading reports Luau's errors once (I-1515)", () =
     expect(errors).toEqual(official(text));
   });
 
-  // A `store` at the top level, whose value Luau reads as a `local`'s, and a
-  // `local` in a scene.
   for (const value of DECLARATIONS) {
     test(`a store of ${JSON.stringify(value)} at the top level`, () => {
       const text = `store a = ${value}\n`;
@@ -163,8 +134,6 @@ describe("a story statement's reading reports Luau's errors once (I-1515)", () =
     });
   }
 
-  // A line that begins with a call is a line of story in a `.sd` script; a
-  // call is Luau on a `&` line or as a value.
   const CALLS = [
     "& print(function() return 1 x y end)\nGo.\n",
     "& print(function() return 1 x end)\nGo.\n",
@@ -199,9 +168,6 @@ describe("a story statement's reading reports Luau's errors once (I-1515)", () =
     "function f()\nrepeat\nreturn 1 x y\nend\nuntil true\nend\nGo.\n",
   ];
 
-  // A story block's missing closer is Sparkdown's block checks' to name
-  // (I-1322), and the reading, whose input ends with the block's Luau, does
-  // not name it again.
   for (const text of [
     "if true then\n  Hi.\n",
     "while true do\n  Hi.\n",

@@ -1,26 +1,11 @@
-// Incremental-reuse harness for textmate-grammar-tree, driven through the real
-// sparkdown grammar. Two guarantees we care about:
-//   1. CORRECTNESS — an incremental reparse after an edit must produce a tree
-//      byte-identical to a from-scratch parse of the edited source.
-//   2. BOUNDEDNESS — the re-tokenized span should be ~the edited construct, not
-//      the whole enclosing block. (Today, editing inside a then/choose/if/for/
-//      while block re-tokenizes the entire block — the perf bug we're fixing.)
-//
-// Mirrors the incremental driver in SparkdownDocumentRegistry: full parse ->
-// addTree -> on edit, applyChanges(fragments, [changedRange]) -> parse(newText,
-// fragments).
-
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { type Tree, TreeFragment } from "@lezer/common";
 import { getParser } from "../compiler/grammarSnapshot";
 
 export interface Edit {
-  /** Start offset of the replaced range. */
   from: number;
-  /** End offset of the replaced range (== from for pure insertion). */
   to: number;
-  /** Replacement text. */
   insert: string;
 }
 
@@ -40,15 +25,11 @@ export interface IncResult {
   newText: string;
   incTree: Tree;
   scratchTree: Tree;
-  /** True if the incremental tree is byte-identical to a from-scratch parse. */
   identical: boolean;
-  /** Structural diff (empty when identical). */
   diff: string;
-  /** The span the engine actually re-tokenized, or null if a full reparse. */
   reparsed: { from: number; to: number } | null;
 }
 
-/** Reads the re-tokenized span recorded on the tree's cached compiler. */
 export function reparsedSpan(tree: Tree): { from: number; to: number } | null {
   const c: any = tree.prop(cachedCompilerProp as any);
   if (!c) return null;
@@ -70,10 +51,6 @@ function firstDiff(a: string, b: string): string {
   return "";
 }
 
-/**
- * Full-parse `text`, apply `edit`, incrementally reparse, and compare against a
- * from-scratch parse of the edited text.
- */
 export function editAndReparse(text: string, edit: Edit): IncResult {
   const parser = getParser();
   const fullTree = parser.parse(text);
@@ -105,7 +82,6 @@ export function editAndReparse(text: string, edit: Edit): IncResult {
   };
 }
 
-/** Convenience: build an edit that replaces the first occurrence of `find`. */
 export function replaceEdit(text: string, find: string, insert: string): Edit {
   const from = text.indexOf(find);
   if (from < 0) throw new Error(`replaceEdit: ${JSON.stringify(find)} not found`);

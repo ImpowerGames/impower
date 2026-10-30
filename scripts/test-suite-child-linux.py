@@ -71,14 +71,11 @@ def capability():
         signal.pidfd_send_signal(fd, 0)
     finally:
         os.close(fd)
-    # This fresh helper has not launched any children. The same required
-    # interface must be usable before admission, not first discovered at cleanup.
     if child_pids():
         raise RuntimeError("Fresh supervisor unexpectedly already owns children")
 
 
 def publish_proof(proof):
-    # Same-directory hard-link publication is atomic and cannot overwrite a proof.
     destination = request["proofFile"]
     fd, temporary = tempfile.mkstemp(prefix="tree-proof-", suffix=".tmp", dir=os.path.dirname(destination))
     with os.fdopen(fd, "w", encoding="utf-8") as output:
@@ -100,15 +97,11 @@ def main():
     admission_started = time.monotonic()
     capability()
     if sys.argv[1:] == ["--check"]:
-        # Standalone CI prerequisite diagnostic; invocation admission uses the
-        # identity acknowledgement mode below. Neither mode can fork an engine.
         emit("capable", mechanism="linux-subreaper", helper=identity(os.getpid()))
         return 0
     if len(sys.argv) == 4 and sys.argv[1] == "--check":
         nonce = sys.argv[2]
         emit("capable", mechanism="linux-subreaper", helper=identity(os.getpid()), probeNonce=nonce)
-        # Stay inspectable until the coordinator acknowledges the exact probe.
-        # This branch cannot fork an engine, including on valid acknowledgement.
         deadline = admission_started + min(int(sys.argv[3]), 60000) / 1000
         acknowledgement = b""
         os.set_blocking(0, False)
@@ -140,7 +133,6 @@ def main():
     signal.signal(signal.SIGTERM, lambda *_: disconnected.set())
     signal.signal(signal.SIGINT, lambda *_: disconnected.set())
     emit("ready", helper=helper, mechanism="linux-subreaper")
-    # Remain single-threaded until fork. Partial input cannot block past admission.
     authorization = b""
     admission_deadline = admission_started + min(request["startupMs"], 60000) / 1000
     os.set_blocking(0, False)
@@ -165,16 +157,12 @@ def main():
     if (authorization != (request["launchNonce"] + "\n").encode("ascii")
             or disconnected.is_set() or time.monotonic() >= admission_deadline):
         return refuse_launch()
-    # The sole waiter is this main loop. No handler/thread or subprocess destructor
-    # may reap a child. Reset SIGCHLD above; fork before starting the reader thread.
     started_at = timestamp()
     deadline = time.monotonic() + request["timeoutMs"] / 1000
     error_read, error_write = os.pipe2(os.O_CLOEXEC | os.O_NONBLOCK)
     try:
         output = open(request["logFile"], "xb", buffering=0)
     except OSError as error:
-        # No fork has occurred. Only this pre-root open boundary may claim
-        # no-launch; later parent/close failures retain their real ancestry.
         os.close(error_read)
         os.close(error_write)
         base["launchError"] = str(error)
@@ -212,7 +200,6 @@ def main():
                 finally:
                     os._exit(127)
     os.close(error_write)
-    # Until this single waiter reaps it, even a fast-exiting root stays identifiable.
     root = None
     identity_error = None
     try:
@@ -238,8 +225,6 @@ def main():
             except ChildProcessError:
                 if root_exit is None or root is None:
                     raise RuntimeError(identity_error or "Root outcome unavailable after ECHILD")
-                # Re-read the nonblocking exec channel after root reap: its final
-                # failure write may have happened between the earlier read and wait.
                 try:
                     exec_error += os.read(error_read, 4096)
                 except BlockingIOError:
@@ -278,9 +263,6 @@ def main():
                 except ProcessLookupError:
                     continue
                 try:
-                    # No concurrent reap between numeric selection and pidfd open.
-                    # Open first, then check actual direct-child ownership; signal
-                    # only the pinned handle, never an unowned/reused numeric PID.
                     with open(f"/proc/{pid}/stat", encoding="ascii") as source:
                         stat = source.read()
                     fields = stat[stat.rfind(")") + 2:].split()
@@ -303,5 +285,4 @@ if __name__ == "__main__":
         if isinstance(error, SystemExit):
             raise
         emit("unknown", reason=str(error))
-        # Missing final proof remains unknown even if this helper subsequently dies.
         raise

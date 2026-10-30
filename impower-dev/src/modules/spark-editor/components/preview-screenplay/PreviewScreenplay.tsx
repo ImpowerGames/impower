@@ -6,25 +6,11 @@ import PreviewScreenplayToolbar from "../preview-screenplay-toolbar/PreviewScree
 export const propDefaults = {};
 export type PreviewScreenplayProps = Partial<typeof propDefaults>;
 
-/**
- * Right-pane Screenplay preview. Renders the toolbar + the
- * SparkdownScreenplayPreview viewer (a Preact component imported directly
- * from sparkdown-document-views), and dispatches LoadPreviewMessage whenever
- * the active editor's file changes or the cache shifts.
- *
- * Mirrors the legacy <se-preview-screenplay> behavior: subscribes to
- * MessageProtocol for DidOpenTextDocument / DidWriteFiles / DidDeleteFiles
- * / ConnectedPreview, dedupes loads by (uri, version, text), and only
- * emits when something actually changed.
- */
 export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
-  // Dedupe state — mirrors the legacy class's _uri/_version/_text fields.
-  // Kept in refs because changes shouldn't trigger Preact re-renders.
   const lastUri = useRef<string | undefined>(undefined);
   const lastVersion = useRef<number | undefined>(undefined);
   const lastText = useRef<string | undefined>(undefined);
 
-  // Subscribe to textPulledAt signal so we reload on sync pull.
   const textPulledAt = workspace.state.value.sync?.textPulledAt || "";
 
   useEffect(() => {
@@ -120,10 +106,6 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
             }
           }),
           onProtocolMessage(ConnectedPreviewMessage.type, () => {
-            // The inner screenplay-preview attaches its window listener
-            // asynchronously (Preact mount + dynamic import), so it may
-            // miss our startup LoadPreviewMessage. Replay on ready —
-            // reset the dedupe guard first so the resend goes through.
             lastUri.current = undefined;
             lastVersion.current = undefined;
             lastText.current = undefined;
@@ -131,7 +113,6 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
           }),
         ];
         disposeProtocol = () => disposers.forEach((d) => d());
-        // Initial load
         loadFile();
       },
     );
@@ -142,15 +123,11 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
     };
   }, []);
 
-  // Reload when textPulledAt changes (sync pulled new content from remote).
   useEffect(() => {
     if (!textPulledAt) return;
-    // Reset dedupe to force a re-emit.
     lastUri.current = undefined;
     lastVersion.current = undefined;
     lastText.current = undefined;
-    // Defer to next microtask so the handler in the other useEffect is
-    // already wired.
     queueMicrotask(async () => {
       const { Workspace } = await import("../../workspace/Workspace");
       const { sendProtocolMessage } = await import(

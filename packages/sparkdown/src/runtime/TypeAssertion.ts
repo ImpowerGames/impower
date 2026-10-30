@@ -38,9 +38,6 @@ export function asBooleanOrThrows(obj: any) {
   }
 }
 
-// So here, in the reference implementation, contentObj is casted to an INamedContent
-// but here we use js-style duck typing: if it implements the same props as the interface,
-// we treat it as valid.
 export function asINamedContentOrNull(obj: any): INamedContent | null {
   if (obj.hasValidName && obj.name) {
     return obj as INamedContent;

@@ -44,11 +44,8 @@ const TRIGGER = "editor.action.inlineSuggest.trigger";
 const URI = "file:///project/main.sd";
 const TEXT = ["scene START", "  [[mia_]]", "  [[mia_]]", "end"].join("\n");
 
-/** Loads a fresh copy of the module and activates it, as the extension does. */
 const activate = async () => {
   vi.resetModules();
-  // The stand-ins outlive `resetModules`; start each test from nothing, so no
-  // copy of the module loaded by an earlier test hears anything.
   await import("vscode");
   await import("../src/managers/SparkdownPreviewGamePanelManager");
   for (const emitter of Object.values(state.vscode.emitters)) {
@@ -76,14 +73,12 @@ const activate = async () => {
   vscode.window.activeTextEditor = mainEditor;
   vscode.window.visibleTextEditors = [mainEditor];
   const provider = vscode.registered.inlineProviders[0]!.provider;
-  /** An item as the language client converts it: replaces `mia_`. */
   const item = (insertText: string, extra: object = {}) => ({
     label: insertText,
     insertText,
     range: new vscode.Range(at(1, 4), at(1, 8)),
     ...extra,
   });
-  /** VS Code asks the inline provider, with `text` highlighted or nothing. */
   const report = (text?: string, position = at(1, 6)) =>
     provider.provideInlineCompletionItems(doc, position, {
       selectedCompletionInfo: text
@@ -137,8 +132,6 @@ describe("the completion preview in the extension", () => {
     const { module, doc, item, triggers, manager } = await activate();
     module.offerCompletions(doc as never, [item("mia_sad")] as never);
     expect(triggers()).toBe(1);
-    // An empty answer puts nothing in a list; other inline providers are
-    // not asked for nothing.
     module.offerCompletions(doc as never, [] as never);
     expect(triggers()).toBe(1);
     manager.canPreviewCompletions = false;
@@ -311,13 +304,11 @@ describe("the completion preview in the extension", () => {
     };
     module.offerCompletions(doc as never, [item("mia:\n\t\t- sad")] as never);
     report("mia:\n\t\t- sad");
-    // Line 1 is indented two spaces; two tabs at an indent size of 2 add four.
     expect(summary(manager.sent)).toEqual(["focus 1 1:4-6=mia:\n      - sad"]);
   });
 
   it("inserts an as-is item's lines unchanged and re-indents any other item's", async () => {
     const { module, doc, item, report, manager } = await activate();
-    // The language client marks an `InsertTextMode.asIs` item keepWhitespace.
     module.offerCompletions(
       doc as never,
       [item("mia:\n- sad", { keepWhitespace: true })] as never,

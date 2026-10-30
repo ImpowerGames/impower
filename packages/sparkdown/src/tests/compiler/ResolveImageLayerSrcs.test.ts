@@ -1,10 +1,3 @@
-// Compositing a layered preview (#292) needs the layers flattened in the same
-// order the game paints them. `UIModule.createImage` REVERSES the asset list
-// before joining it into CSS `background-image` (whose first entry paints on
-// top), so `assets[0]` is the BOTTOM layer. A compositor drawing in array order
-// therefore matches the running game; drawing reversed would silently invert
-// every layered image.
-
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
@@ -135,7 +128,6 @@ end
   });
 
   it("keeps a layer that reuses an asset an earlier layer already used", () => {
-    // The cycle guard must be per-path, not global, or the repeat vanishes.
     const program = compile(
       `define bg as layered_image with
   assets = {

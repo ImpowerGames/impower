@@ -1,7 +1,3 @@
-// The converter's tokenizer reads Luau's attribute lexemes as Luau's lexer
-// does (`Lexer.cpp`, #1977): `@[` is one token, `@` with a name written right
-// after it is one token carrying the name, and a bare `@` is an attribute
-// with no name.
 import { expect, it } from "vitest";
 import { lexLuauDocumentForTesting } from "../../compiler/typecheck/readLuauAst";
 

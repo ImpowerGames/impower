@@ -22,18 +22,6 @@ import {
   type UpdateAudioPlayersMessageMap,
 } from "./messages/UpdateAudioPlayersMessage";
 
-/**
- * A context entry is a synth if it says so, if it was looked up under the
- * `synth` type, or if it carries synth tone data. The `$type`/`type` checks
- * are the reliable ones; the `shape` fallback covers synth-shaped entries
- * that answer a different `$type` — `typewriter.*` defs carry the full synth
- * prop set (the prelude's `typewriter` synth instance resolves through the
- * runtime `__index` chain) while their `$type` is `"typewriter"`. The shape
- * check is safe as a fallback because defines reach the context complete
- * (compile-time `$default` merge on the LSP channel; the `__def` chain on the
- * runtime channel) — a partially-authored `synth` is caught by the type
- * checks even before its props are considered.
- */
 const isSynth = (asset: object, type: string): boolean =>
   ("$type" in asset && asset.$type === "synth") ||
   type === "synth" ||
@@ -59,8 +47,6 @@ export class AudioModule extends Module<
   > = new Map();
 
   protected _outputLatency = 0;
-  /** Seconds sound takes to reach the speakers, from the page's latest
-   *  audio clock reading (`audio/clock`). */
   get outputLatency() {
     return this._outputLatency;
   }
@@ -83,15 +69,8 @@ export class AudioModule extends Module<
     this._channelsCurrentlyPlaying = new Map();
   }
 
-  /** What the page was playing when the current route replay began. A
-   *  replay plays nothing on the page, so this is what the page is playing
-   *  again once the replay ends. */
   protected _pagePlaying?: Map<string, Map<string, LoadAudioPlayerParams>>;
 
-  /** During a replay, the record of what is playing is the one the saved
-   *  state describes: every looping sound on each channel. A channel-wide
-   *  event saves its state through this record, so it has to match the state
-   *  the replay starts from or loads, whichever route led the game there. */
   protected playingFromState(): Map<
     string,
     Map<string, LoadAudioPlayerParams>
@@ -134,7 +113,6 @@ export class AudioModule extends Module<
 
   override async onRestore() {
     if (this.context.mixer) {
-      // TODO: retrieve saved mixer gain from preferences instead
       for (const [k, v] of Object.entries(this.context.mixer)) {
         this.configure(k, v.gain);
       }
@@ -176,21 +154,15 @@ export class AudioModule extends Module<
             }
           }
           audioToLoad.push(d);
-          // The sound is playing again from here on, so a channel-wide event
-          // (a `stop`, a cutscene's music stop) reaches it, even one that
-          // comes while it loads.
           this.setCurrentlyPlaying(channel, update, d);
         }
         restored.push({ update, data: dataArray });
       }
     }
     await this.loadAllAudio(audioToLoad);
-    // A newer connect began meanwhile and resumes the channel itself.
     if (this.superseded(epoch)) {
       return;
     }
-    // A sound stopped while it loaded stays stopped: its start would reach
-    // the page after the stop did.
     const playing = this._channelsCurrentlyPlaying.get(channel);
     this.update(
       channel,
@@ -217,8 +189,6 @@ export class AudioModule extends Module<
     );
   }
 
-  /** The mixer a channel plays through: the one it names, or the mixer
-   *  named after the channel itself. */
   protected getMixerName(channel: string | undefined): string {
     const mixer = this.context?.channel?.[channel || "sound"]?.mixer;
     const mixerName = (typeof mixer === "string" ? mixer : mixer?.$name) || "";
@@ -226,8 +196,6 @@ export class AudioModule extends Module<
   }
 
   protected async loadAudio(data: LoadAudioPlayerParams): Promise<void> {
-    // The page routes the player through its mixer, creating the mixer at
-    // this gain when it is the first to need it.
     const mixer = this.getMixerName(data.channel);
     const mixerGain = this.context?.mixer?.[mixer]?.gain ?? 1;
     await this.emitSettled(
@@ -317,16 +285,6 @@ export class AudioModule extends Module<
           d.loopEnd = resolvedAsset.loop_end;
         }
         if (isSynth(resolvedAsset, d.type ?? "")) {
-          // This used to gate on `"shape" in resolvedAsset` ALONE, which
-          // silently dropped every partially-authored synth: `d.synth` was
-          // never set, so the tone events played nothing at all (#268).
-          // Whether a thing is a synth is first a question about its type;
-          // the shape fallback only widens it to synth-shaped subtypes.
-          //
-          // The struct is already complete by this point -- defines arrive
-          // merged with their type's defaults (the compiler merges `$default`
-          // into `program.context`; the runtime channel resolves the same
-          // data through the `__def` inheritance chain).
           d.synth = resolvedAsset as Synth;
         }
         d.tones = this.parseTones(d.key);
@@ -403,9 +361,6 @@ export class AudioModule extends Module<
     return keys.flatMap((n) => this.getAudioData(channel, n));
   }
 
-  /** The load parameters `schedule` would build for these names, without
-   *  scheduling anything: what the asset module hands the page to preload.
-   *  The page caches by `key`, which does not depend on the channel. */
   resolveLoadParams(channel: string, names: string[]): LoadAudioPlayerParams[] {
     return this.getAllAudioData(channel, names);
   }
@@ -539,8 +494,6 @@ export class AudioModule extends Module<
     for (const e of sequence) {
       const event = { ...e };
       if (event.control === "queue") {
-        // 'queue' is equivalent to calling 'await' on a channel,
-        // and then calling 'start' on the new audio
         const awaitUpdate: AudioPlayerUpdate = {
           control: "await",
           after: event.after,
@@ -557,9 +510,6 @@ export class AudioModule extends Module<
         const playBehavior =
           this.context?.channel?.[channel]?.play_behavior || "replace";
         if (playBehavior === "replace") {
-          // When 'play_behavior' is "replace",
-          // 'play' is equivalent to calling 'stop' on all audio playing on a channel,
-          // and then calling 'start' on the new audio
           const stopUpdate: AudioPlayerUpdate = {
             control: "stop",
             after: event.after,

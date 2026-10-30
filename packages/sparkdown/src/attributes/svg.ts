@@ -20,8 +20,6 @@ export const decodeSVGSource = (source: string): string => {
       Uint8Array.from(atob(payload), (char) => char.charCodeAt(0)),
     );
   }
-  // buildSVGSource historically only escaped '#' and allowed literal '%'
-  // (e.g. width='100%'), so decode valid runs without rejecting those files.
   return payload.replace(/(?:%[a-f0-9]{2})+/gi, (encoded) => {
     try {
       return decodeURIComponent(encoded);
@@ -33,8 +31,6 @@ export const decodeSVGSource = (source: string): string => {
 
 export { normalizeSVGAttributeNames } from "./normalizeSVGAttributeNames";
 
-// Definitions are referenced resources, not conditional artwork. Their IDs
-// must survive even when they resemble a group.option name.
 export const SVG_RESOURCE_TAGS: ReadonlySet<string> = new Set([
   "defs",
   "clippath",
@@ -88,11 +84,6 @@ export const buildSVGAttributeVocabulary = (svg: string): AttributeVocabulary =>
     readDocumentLayers(parse(decodeSVGSource(svg))).inputs,
   );
 
-/**
- * A parsed SVG with its attribute layers: `nodes` maps each vocabulary layer
- * key to its element, so callers that need geometry address layers by the
- * same keys visibility is evaluated with.
- */
 export interface SVGAttributeDocument {
   roots: Node[];
   nodes: Map<string, Element>;

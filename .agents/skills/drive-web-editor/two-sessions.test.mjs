@@ -1,19 +1,4 @@
 #!/usr/bin/env node
-// Pins that two agent sessions driving one checkout keep separate server
-// records: session B's `status` does not report session A's servers as its
-// own, B's `down` leaves A's server tree running, `status --all` still shows
-// A's servers to a caller that asks for every session, and A's own `down`
-// stops them.
-// Run:
-//   node .agents/skills/drive-web-editor/two-sessions.test.mjs
-//
-// The driver is copied into a scratch repository whose scripts/dev-preview.mjs,
-// the launcher `npm run web:dev` runs, starts a fixture of three process
-// generations holding TCP listeners, so every process signalled belongs to
-// this check. The sessions
-// differ only in IMPOWER_DRIVER_SESSION, with IMPOWER_DRIVER_HOME inside the
-// scratch directory. This file imports nothing from the driver, so a red run
-// can substitute an older driver. Node's built-in assert only.
 
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
@@ -30,7 +15,6 @@ const copyDir = path.join(scratch, "repo", ".agents", "skills", "drive-web-edito
 fs.mkdirSync(copyDir, { recursive: true });
 fs.mkdirSync(path.join(scratch, "repo", ".agents", "skills", "resolve-issue"), { recursive: true });
 for (const name of fs.readdirSync(here).filter((n) => n.endsWith(".mjs") && !n.includes(".test."))) fs.copyFileSync(path.join(here, name), path.join(copyDir, name));
-// The driver imports the repository's detached launcher.
 fs.mkdirSync(path.join(scratch, "repo", "scripts"));
 fs.copyFileSync(path.join(here, "..", "..", "..", "scripts", "detached-launch.mjs"), path.join(scratch, "repo", "scripts", "detached-launch.mjs"));
 const driver = path.join(copyDir, "driver.mjs");
@@ -47,8 +31,6 @@ fs.writeFileSync(fixture, [
   "const server = net.createServer();",
   'server.listen(0, "127.0.0.1", () => fs.appendFileSync(file, JSON.stringify({ pid: process.pid }) + "\\n"));',
 ].join("\n"));
-// The driver runs the launcher with node; package.json names it as the
-// repository's does, so a driver that still runs npm reaches the same tree.
 fs.writeFileSync(path.join(scratch, "repo", "scripts", "dev-preview.mjs"), [
   'import { spawn } from "node:child_process";',
   `const child = spawn(process.execPath, [${JSON.stringify(fixture)}, ${JSON.stringify(rowsFile)}, "root"], { stdio: "ignore", windowsHide: true });`,
@@ -89,8 +71,6 @@ const check = async (name, fn) => {
   }
 };
 
-// Session A launches. `up` then waits for a URL the fixture never serves, so
-// it is stopped once its record is written; the tree it launched stays up.
 const up = spawn(process.execPath, [driver, "up"], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true, env: envOf("session-a") });
 let upOut = "";
 up.stdout.on("data", (d) => (upOut += d));

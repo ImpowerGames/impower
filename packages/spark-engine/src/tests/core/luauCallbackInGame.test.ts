@@ -1,7 +1,3 @@
-// #828 — a story line whose Luau code makes the runtime call back into a Luau
-// function (a sort comparator, a gsub replacement, pcall, table.foreach or a
-// metamethod) runs in a running game as it does under a synchronous continue.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import {
@@ -40,8 +36,6 @@ const runtimeErrors = (messages: any[]) =>
     .filter((m) => m.method === "game/runtimeError")
     .map((m) => m.params.message);
 
-/** The text the story's last completed continue produced, or a marker when
- *  the step threw out part way through a continue. */
 const shownText = (game: Game) => {
   try {
     return String(game.story.currentText ?? "").trim();
@@ -50,9 +44,6 @@ const shownText = (game: Game) => {
   }
 };
 
-/** Play from `A`, the story's first line, then run the beat after it. The
- *  fixtures declare functions above the story, so their line 0 is not a line
- *  of story flow. */
 const playSecondBeat = async (source: string) => {
   const h = createHarness(source, source.split("\n").indexOf("  A"));
   await h.ready;
@@ -151,14 +142,8 @@ describe("a Luau callback run from a story line in a running game", () => {
   });
 });
 
-// A callback runs all of its steps inside the one step of the story line that
-// called it. Those steps still count: against the callback's own limit, which
-// includes the callbacks nested inside it, and against the game's execution
-// budget, which is what stops a running game that runs away.
 describe("a callback's steps", () => {
   test("count against the step limit of the callback they are nested in", async () => {
-    // About a million steps in all, though the outer function takes only a
-    // few thousand of its own.
     const result = await playSecondBeat(
       `store ok = true\nscene start\n  A\n  & ok = pcall(function() for i = 1, 1000 do pcall(function() for j = 1, 200 do end end) end end)\n  B {ok}\n  C\nend\n`,
     );
@@ -191,8 +176,6 @@ end
     expect(lastSearchStats.endReason).toBe("max-steps");
   });
 
-  /** Replay the route to the `  B` line of `source` under an execution budget
-   *  of `limit` steps, returning the errors the game reported. */
   const replayToB = (source: string, limit: number) => {
     const program = compileProgram(source);
     const game = new Game({
@@ -231,12 +214,6 @@ end
     ]);
   });
 
-  // A native loop can call short callbacks for as long as they keep giving it
-  // more to do: `table.foreach` over a table its callback appends to never
-  // runs out. Every callback stays far inside its own limit, so only the
-  // budget can stop the step, and it has to while the callbacks are running.
-  // The fixture stops growing at 20,000 entries so that a budget which waits
-  // for the step to end still finishes.
   const GROWING_FOREACH = `store t = {1}
 
 scene start
@@ -255,9 +232,6 @@ end
     expect((t.value as Map<unknown, unknown>).size).toBeLessThan(5000);
   });
 
-  // A step the budget stopped part way through cannot be resumed: the
-  // operation it was running has already taken its arguments. The story ends
-  // there, so driving the game again reports nothing the story did not do.
   test.each([
     ["a continue", (game: Game) => game.continue()],
     ["a step in", (game: Game) => game.step("in")],
@@ -288,8 +262,6 @@ end
     },
   );
 
-  // `table.sort` and `string.gsub` report an error their callback raises as
-  // their own. The budget running out is not the callback's error.
   test.each([
     [
       "table.sort",
@@ -333,14 +305,10 @@ end
     );
     expect(route).toBeNull();
     expect(lastSearchStats.endReason).toBe("max-steps");
-    // The step the budget ran out in is the only one that can overrun it.
     expect(lastSearchStats.stepsUsed).toBeLessThanOrEqual(5001);
   });
 });
 
-// Route search pauses the story before each condition so it can force the
-// result. A comparator's own `if` is not one of the story's decisions, so the
-// sort runs through it and the search reaches the line after the sort.
 describe("a route search past a sort whose comparator has an if", () => {
   const SOURCE = `function less(a, b)
   if a < b then

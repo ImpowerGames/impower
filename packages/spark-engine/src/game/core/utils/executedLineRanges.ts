@@ -1,7 +1,3 @@
-/**
- * The lines as sorted inclusive ranges, with adjacent lines joined, flattened
- * as `[start, end, start, end, ...]`.
- */
 export const lineRanges = (lines: Iterable<number>): number[] => {
   const sorted = Array.from(lines).sort((a, b) => a - b);
   const ranges: number[] = [];
@@ -18,7 +14,6 @@ export const lineRanges = (lines: Iterable<number>): number[] => {
   return ranges;
 };
 
-/** Every line the flattened inclusive ranges cover, in order. */
 export const expandLineRanges = (ranges: number[]): number[] => {
   const lines: number[] = [];
   for (let i = 0; i + 1 < ranges.length; i += 2) {

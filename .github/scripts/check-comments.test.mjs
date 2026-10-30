@@ -5,7 +5,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { baseFromPatch, checkComments, LISTING_LIMIT, needsCheck, parsePatch } from "./check-comments.mjs";
+import { baseFromPatch, checkComments, listPullRequestFiles, LISTING_LIMIT, needsCheck, parsePatch } from "./check-comments.mjs";
 import { loadTypescript } from "../../.agents/hooks/comment-policy.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -195,7 +195,7 @@ try {
   const listing = path.join(tempDir("check-comments-listing-"), "files.json");
   const run = (files, env = {}, cwd = checkout) => {
     fs.writeFileSync(listing, JSON.stringify(files));
-    return spawnSync(process.execPath, [script, "--files", listing, "--merge-base", base], { cwd, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "", ...env } });
+    return spawnSync(process.execPath, [script, "--files", listing, "--merge-base", base], { cwd, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "", COMMENT_POLICY_REQUIRE_YAML: "", ...env } });
   };
 
   const failing = run(records);
@@ -222,14 +222,41 @@ try {
   bare.write("src/a.ts", "export {};\n// prose\n");
   bare.commit("head");
   fs.writeFileSync(listing, JSON.stringify([bare.record(bareBase, "src/a.ts")]));
-  const required = spawnSync(process.execPath, [script, "--files", listing, "--merge-base", bareBase], { cwd: bare.checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "1" } });
+  const required = spawnSync(process.execPath, [script, "--files", listing, "--merge-base", bareBase], { cwd: bare.checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "1", COMMENT_POLICY_REQUIRE_YAML: "" } });
   assert.equal(required.status, 1);
   assert.match(required.stdout + required.stderr, /COMMENT_POLICY_REQUIRE_TYPESCRIPT/, "a required scanner that does not resolve fails rather than falling back");
-  const fallback = spawnSync(process.execPath, [script, "--files", listing, "--merge-base", bareBase], { cwd: bare.checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "" } });
+  const fallback = spawnSync(process.execPath, [script, "--files", listing, "--merge-base", bareBase], { cwd: bare.checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "", COMMENT_POLICY_REQUIRE_YAML: "" } });
   assert.equal(fallback.status, 1);
   assert.match(fallback.stdout, /Scanned with the fallback JavaScript scanner/, "the report names the fallback when it judged the file");
+  const requiredYaml = spawnSync(process.execPath, [script, "--files", listing, "--merge-base", bareBase], { cwd: bare.checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "", COMMENT_POLICY_REQUIRE_YAML: "1" } });
+  assert.equal(requiredYaml.status, 1);
+  assert.match(requiredYaml.stdout + requiredYaml.stderr, /COMMENT_POLICY_REQUIRE_YAML is set, but yaml does not resolve/, "a required yaml lexer that does not resolve fails rather than falling back");
 
-  console.log("ok: check-comments judges added comments, duplicates, exempt paths, missing patches and truncated listings");
+  {
+    const escaped = "@@ -1 +1 @@\n-a\n+    .replace(/[\\u0000-\\u001f\\u007f]/g, \"\")";
+    const pages = [Array.from({ length: 100 }, (_, k) => ({ filename: `src/f${k}.ts`, patch: k === 7 ? escaped : "" })), [{ filename: "src/last.ts" }]];
+    const asked = [];
+    const fetch = async (url, init) => {
+      asked.push({ url, init });
+      const page = Number(new URL(url).searchParams.get("page"));
+      return { ok: true, status: 200, text: async () => JSON.stringify(pages[page - 1] ?? []) };
+    };
+    const listed = await listPullRequestFiles({ repository: "owner/repo", number: 5, token: "t", api: "https://api.example.invalid", fetch });
+    assert.equal(listed.length, 101, "every page is read until one comes back short");
+    assert.equal(listed[7].patch, escaped, "a patch holding the text \\u0000 keeps it, rather than a control character in its place");
+    assert.deepEqual(asked.map(({ url }) => url), [1, 2].map((p) => `https://api.example.invalid/repos/owner/repo/pulls/5/files?per_page=100&page=${p}`));
+    assert.equal(asked[0].init.headers.authorization, "Bearer t");
+
+    const full = Array.from({ length: 100 }, (_, k) => ({ filename: `f${k}` }));
+    let calls = 0;
+    const capped = await listPullRequestFiles({ repository: "o/r", number: 1, token: "t", fetch: async () => (calls++, { ok: true, status: 200, text: async () => JSON.stringify(full) }) });
+    assert.equal(capped.length, LISTING_LIMIT, "listing stops at the endpoint's cap");
+    assert.equal(calls, LISTING_LIMIT / 100);
+
+    await assert.rejects(listPullRequestFiles({ repository: "o/r", number: 1, token: "t", fetch: async () => ({ ok: false, status: 403, text: async () => "forbidden" }) }), /answered 403: forbidden/, "a refused page fails rather than listing fewer files");
+  }
+
+  console.log("ok: check-comments judges added comments, duplicates, exempt paths, missing patches and truncated listings, and lists a pull request's files");
 } finally {
   for (const dir of scratch) fs.rmSync(dir, { recursive: true, force: true });
 }

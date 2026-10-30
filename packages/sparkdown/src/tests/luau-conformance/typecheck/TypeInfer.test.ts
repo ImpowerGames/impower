@@ -1,48 +1,37 @@
-// Luau's type-checker tests from `tests/TypeInfer.test.cpp` at the
-// commit pinned in `../upstream/typecheck-cases.json`, ported as `README.md`
-// describes. Each case names its upstream line.
-
 import { NEW_SOLVER_GUARD_REASON, portUpstreamFile } from "./portedCases";
 
 portUpstreamFile("TypeInfer.test.cpp", [
   {
-    // TypeInfer.test.cpp:40 TEST_CASE_FIXTURE(Fixture, "tc_hello_world")
     name: "tc_hello_world",
     fixture: "Fixture",
     source: `local a = 7`,
     expect: [{ errors: 0 }, { type: "a", equals: "number" }],
   },
   {
-    // TypeInfer.test.cpp:48 TEST_CASE_FIXTURE(Fixture, "tc_propagation")
-    // Upstream checks that `b` is the primitive type `number`.
     name: "tc_propagation",
     fixture: "Fixture",
     source: `local a = 7   local b = a`,
     expect: [{ errors: 0 }, { type: "b", equals: "number" }],
   },
   {
-    // TypeInfer.test.cpp:57 TEST_CASE_FIXTURE(Fixture, "tc_error")
     name: "tc_error",
     fixture: "Fixture",
     source: `local a = 7   local b = 'hi'   a = b`,
     expect: [{ errors: 0 }, { type: "a", equals: "number | string" }],
   },
   {
-    // TypeInfer.test.cpp:77 TEST_CASE_FIXTURE(Fixture, "tc_error_2")
     name: "tc_error_2",
     fixture: "Fixture",
     source: `local a = 7   a = 'hi'`,
     expect: [{ errors: 0 }, { type: "a", equals: "number | string" }],
   },
   {
-    // TypeInfer.test.cpp:103 TEST_CASE_FIXTURE(Fixture, "infer_locals_with_nil_value")
     name: "infer_locals_with_nil_value",
     fixture: "Fixture",
     source: `local f = nil; f = 'hello world'`,
     expect: [{ errors: 0 }, { type: "f", equals: "string?" }],
   },
   {
-    // TypeInfer.test.cpp:119 TEST_CASE_FIXTURE(Fixture, "infer_locals_with_nil_value_2")
     name: "infer_locals_with_nil_value_2",
     fixture: "Fixture",
     source: `
@@ -52,7 +41,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [{ errors: 0 }, { type: "a", equals: "number" }, { type: "b", equals: "number" }],
   },
   {
-    // TypeInfer.test.cpp:131 TEST_CASE_FIXTURE(Fixture, "infer_locals_via_assignment_from_its_call_site")
     name: "infer_locals_via_assignment_from_its_call_site",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -69,7 +57,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     ],
   },
   {
-    // TypeInfer.test.cpp:157 TEST_CASE_FIXTURE(Fixture, "infer_in_nocheck_mode")
     name: "infer_in_nocheck_mode",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -84,7 +71,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:175 TEST_CASE_FIXTURE(Fixture, "obvious_type_error_in_nocheck_mode")
     name: "obvious_type_error_in_nocheck_mode",
     fixture: "Fixture",
     source: `
@@ -94,14 +80,12 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:185 TEST_CASE_FIXTURE(Fixture, "expr_statement")
     name: "expr_statement",
     fixture: "Fixture",
     source: `local foo = 5    foo()`,
     expect: [{ errors: 1 }],
   },
   {
-    // TypeInfer.test.cpp:191 TEST_CASE_FIXTURE(Fixture, "if_statement")
     name: "if_statement",
     fixture: "Fixture",
     source: `
@@ -117,7 +101,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [{ errors: 0 }, { type: "a", equals: "string?" }, { type: "b", equals: "number?" }],
   },
   {
-    // TypeInfer.test.cpp:218 TEST_CASE_FIXTURE(Fixture, "statements_are_topologically_sorted")
     name: "statements_are_topologically_sorted",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -133,7 +116,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:236 TEST_CASE_FIXTURE(Fixture, "unify_nearly_identical_recursive_types")
     name: "unify_nearly_identical_recursive_types",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -149,7 +131,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:253 TEST_CASE_FIXTURE(BuiltinsFixture, "warn_on_lowercase_parent_property")
     name: "warn_on_lowercase_parent_property",
     fixture: "BuiltinsFixture",
     source: `
@@ -158,7 +139,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [{ errors: 1 }, { error: 0, code: "DeprecatedApiUsed", fields: { symbol: "parent" } }],
   },
   {
-    // TypeInfer.test.cpp:267 TEST_CASE_FIXTURE(BuiltinsFixture, "weird_case")
     name: "weird_case",
     fixture: "BuiltinsFixture",
     ignoreMissingAnnotations: true,
@@ -169,7 +149,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:279 TEST_CASE_FIXTURE(Fixture, "dont_ice_when_failing_the_occurs_check")
     name: "dont_ice_when_failing_the_occurs_check",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -181,7 +160,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:291 TEST_CASE_FIXTURE(Fixture, "occurs_check_does_not_recurse_forever_if_asked_to_traverse_a_cyclic_type")
     name: "occurs_check_does_not_recurse_forever_if_asked_to_traverse_a_cyclic_type",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -194,7 +172,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:305 TEST_CASE_FIXTURE(Fixture, "crazy_complexity")
     name: "crazy_complexity",
     fixture: "Fixture",
     source: `
@@ -204,7 +181,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:313 TEST_CASE_FIXTURE(Fixture, "type_errors_infer_types")
     name: "type_errors_infer_types",
     fixture: "Fixture",
     source: `
@@ -220,7 +196,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     ],
   },
   {
-    // TypeInfer.test.cpp:340 TEST_CASE_FIXTURE(Fixture, "should_be_able_to_infer_this_without_stack_overflowing")
     name: "should_be_able_to_infer_this_without_stack_overflowing",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -236,9 +211,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:357 TEST_CASE_FIXTURE(Fixture, "exponential_blowup_from_copying_types")
-    // Upstream also checks that the module's interface holds at most 13 types,
-    // which measures Luau's own copying of types.
     name: "exponential_blowup_from_copying_types",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -272,9 +244,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:399 TEST_CASE_FIXTURE(Fixture, "check_type_infer_recursion_count")
-    // The source repeats `{a=` and `}` 600 times, upstream's limit for an
-    // optimized build without sanitizers.
     name: "check_type_infer_recursion_count",
     fixture: "Fixture",
     limits: { LuauCheckRecursionLimit: 600 },
@@ -283,9 +252,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:419 TEST_CASE_FIXTURE(Fixture, "check_block_recursion_limit")
-    // The source nests 595 do blocks, upstream's limit for an optimized build
-    // without sanitizers.
     name: "check_block_recursion_limit",
     fixture: "Fixture",
     limits: {
@@ -298,9 +264,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [{ errors: 1 }, { error: 0, code: "CodeTooComplex" }],
   },
   {
-    // TypeInfer.test.cpp:452 TEST_CASE_FIXTURE(Fixture, "check_expr_recursion_limit")
-    // The source chains 500 calls to lower, upstream's limit for an optimized
-    // build without sanitizers.
     name: "check_expr_recursion_limit",
     fixture: "Fixture",
     limits: {
@@ -313,7 +276,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [{ errors: 1 }, { error: 0, code: "CodeTooComplex" }],
   },
   {
-    // TypeInfer.test.cpp:482 TEST_CASE_FIXTURE(Fixture, "globals")
     name: "globals",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -325,7 +287,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:497 TEST_CASE_FIXTURE(Fixture, "globals2")
     name: "globals2",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -337,7 +298,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:516 TEST_CASE_FIXTURE(Fixture, "globals_are_banned_in_strict_mode")
     name: "globals_are_banned_in_strict_mode",
     fixture: "Fixture",
     source: `
@@ -347,7 +307,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [{ errors: 1 }, { error: 0, code: "UnknownSymbol", fields: { name: "foo" } }],
   },
   {
-    // TypeInfer.test.cpp:530 TEST_CASE_FIXTURE(Fixture, "correctly_scope_locals_do")
     name: "correctly_scope_locals_do",
     fixture: "Fixture",
     source: `
@@ -360,7 +319,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [{ errors: 1 }, { error: 0, code: "UnknownSymbol", fields: { name: "a" } }],
   },
   {
-    // TypeInfer.test.cpp:547 TEST_CASE_FIXTURE(Fixture, "checking_should_not_ice")
     name: "checking_should_not_ice",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -374,7 +332,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:562 TEST_CASE_FIXTURE(Fixture, "cyclic_follow")
     name: "cyclic_follow",
     fixture: "Fixture",
     source: `
@@ -390,7 +347,6 @@ do end
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:576 TEST_CASE_FIXTURE(Fixture, "cyclic_follow_2")
     name: "cyclic_follow_2",
     fixture: "Fixture",
     source: `
@@ -409,8 +365,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:621 TEST_CASE_FIXTURE(Fixture, "tc_after_error_recovery")
-    // Upstream checks that `a` is the primitive type `number`.
     name: "tc_after_error_recovery",
     fixture: "Fixture",
     malformed: "`local x =` has no value",
@@ -421,9 +375,6 @@ end
     expect: [{ errors: "some" }, { type: "a", equals: "number" }],
   },
   {
-    // TypeInfer.test.cpp:634 TEST_CASE_FIXTURE(Fixture, "tc_after_error_recovery_no_assert")
-    // Luau rejects the snippet (`function +()` has no name), and so does
-    // Sparkdown (I-1322).
     name: "tc_after_error_recovery_no_assert",
     fixture: "Fixture",
     malformed: "`function +()` has no name",
@@ -431,9 +382,6 @@ end
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:640 TEST_CASE_FIXTURE(BuiltinsFixture, "tc_after_error_recovery_no_replacement_name_in_error")
-    // Luau rejects the fourth snippet's nameless local functions too, and so
-    // does Sparkdown (I-1322).
     name: "tc_after_error_recovery_no_replacement_name_in_error",
     fixture: "BuiltinsFixture",
     checks: [
@@ -487,7 +435,6 @@ end
     ],
   },
   {
-    // TypeInfer.test.cpp:700 TEST_CASE_FIXTURE(BuiltinsFixture, "invalide_deprecated_attribute_doesn't_chrash_checker")
     name: "invalide_deprecated_attribute_doesn't_chrash_checker",
     fixture: "BuiltinsFixture",
     malformed: "`@deprecated`'s `reason` is a name, not a literal string",
@@ -499,7 +446,6 @@ end`,
     expect: [{ errors: 2 }],
   },
   {
-    // TypeInfer.test.cpp:711 TEST_CASE_FIXTURE(BuiltinsFixture, "index_expr_should_be_checked")
     name: "index_expr_should_be_checked",
     fixture: "BuiltinsFixture",
     source: `
@@ -513,9 +459,6 @@ end`,
     ],
   },
   {
-    // TypeInfer.test.cpp:727 TEST_CASE_FIXTURE(Fixture, "stringify_nested_unions_with_optionals")
-    // Upstream compares the wanted type with the builtin `number` type itself,
-    // which prints as `number`.
     name: "stringify_nested_unions_with_optionals",
     fixture: "Fixture",
     source: `
@@ -529,7 +472,6 @@ end`,
     ],
   },
   {
-    // TypeInfer.test.cpp:742 TEST_CASE_FIXTURE(Fixture, "cli_39932_use_unifier_in_ensure_methods")
     name: "cli_39932_use_unifier_in_ensure_methods",
     fixture: "Fixture",
     source: `
@@ -539,7 +481,6 @@ end`,
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:752 TEST_CASE_FIXTURE(Fixture, "dont_report_type_errors_within_an_AstStatError")
     name: "dont_report_type_errors_within_an_AstStatError",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -550,7 +491,6 @@ end`,
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:763 TEST_CASE_FIXTURE(Fixture, "dont_report_type_errors_within_an_AstExprError")
     name: "dont_report_type_errors_within_an_AstExprError",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -561,7 +501,6 @@ end`,
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:774 TEST_CASE_FIXTURE(Fixture, "dont_ice_on_astexprerror")
     name: "dont_ice_on_astexprerror",
     fixture: "Fixture",
     malformed: "`-` has no operand",
@@ -571,7 +510,6 @@ end`,
     expect: [{ errors: 1 }],
   },
   {
-    // TypeInfer.test.cpp:783 TEST_CASE_FIXTURE(Fixture, "luau_resolves_symbols_the_same_way_lua_does")
     name: "luau_resolves_symbols_the_same_way_lua_does",
     fixture: "Fixture",
     source: `
@@ -585,7 +523,6 @@ end`,
     expect: [{ errors: 1 }, { error: 0, code: "UnknownSymbol" }],
   },
   {
-    // TypeInfer.test.cpp:800 TEST_CASE_FIXTURE(Fixture, "no_stack_overflow_from_isoptional")
     name: "no_stack_overflow_from_isoptional",
     fixture: "Fixture",
     source: `
@@ -599,7 +536,6 @@ end`,
     expect: [{ errors: "some" }, { alias: "t0", equals: "any" }, { anyError: "OccursCheckFailed" }],
   },
   {
-    // TypeInfer.test.cpp:832 TEST_CASE_FIXTURE(BuiltinsFixture, "no_stack_overflow_from_isoptional2")
     name: "no_stack_overflow_from_isoptional2",
     fixture: "BuiltinsFixture",
     source: `
@@ -615,7 +551,6 @@ end`,
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:848 TEST_CASE_FIXTURE(Fixture, "no_infinite_loop_when_trying_to_unify_uh_this")
     name: "no_infinite_loop_when_trying_to_unify_uh_this",
     fixture: "Fixture",
     source: `
@@ -629,7 +564,6 @@ end`,
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:862 TEST_CASE_FIXTURE(BuiltinsFixture, "no_heap_use_after_free_error")
     name: "no_heap_use_after_free_error",
     fixture: "BuiltinsFixture",
     source: `
@@ -646,7 +580,6 @@ end`,
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:879 TEST_CASE_FIXTURE(Fixture, "infer_type_assertion_value_type")
     name: "infer_type_assertion_value_type",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -658,7 +591,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:892 TEST_CASE_FIXTURE(Fixture, "infer_assignment_value_types")
     name: "infer_assignment_value_types",
     fixture: "Fixture",
     source: `
@@ -673,7 +605,6 @@ b, c = {2, "s"}, {"b", 4}
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:907 TEST_CASE_FIXTURE(BuiltinsFixture, "infer_assignment_value_types_mutable_lval")
     name: "infer_assignment_value_types_mutable_lval",
     fixture: "BuiltinsFixture",
     source: `
@@ -684,7 +615,6 @@ a = setmetatable(a, { __call = function(x) end })
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:918 TEST_CASE_FIXTURE(Fixture, "infer_through_group_expr")
     name: "infer_through_group_expr",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -695,14 +625,12 @@ f(((function(a, b) return a + b end)))
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:930 TEST_CASE_FIXTURE(Fixture, "tc_if_else_expressions1")
     name: "tc_if_else_expressions1",
     fixture: "Fixture",
     source: `local a = if true then "true" else "false"`,
     expect: [{ errors: 0 }, { type: "a", equals: "string" }],
   },
   {
-    // TypeInfer.test.cpp:939 TEST_CASE_FIXTURE(Fixture, "tc_if_else_expressions2")
     name: "tc_if_else_expressions2",
     fixture: "Fixture",
     source: `
@@ -711,14 +639,12 @@ local a = if false then "a" elseif false then "b" else "c"
     expect: [{ errors: 0 }, { type: "a", equals: "string" }],
   },
   {
-    // TypeInfer.test.cpp:950 TEST_CASE_FIXTURE(Fixture, "tc_if_else_expressions_type_union")
     name: "tc_if_else_expressions_type_union",
     fixture: "Fixture",
     source: `local a: number? = if true then 42 else nil`,
     expect: [{ errors: 0 }, { type: "a", equals: "number?", options: { exhaustive: true } }],
   },
   {
-    // TypeInfer.test.cpp:958 TEST_CASE_FIXTURE(Fixture, "tc_if_else_expressions_expected_type_1")
     name: "tc_if_else_expressions_expected_type_1",
     fixture: "Fixture",
     source: `
@@ -731,7 +657,6 @@ local a: X = if true then {"1", 2, 3} else {4, 5, 6}
     ],
   },
   {
-    // TypeInfer.test.cpp:969 TEST_CASE_FIXTURE(Fixture, "tc_if_else_expressions_expected_type_2")
     name: "tc_if_else_expressions_expected_type_2",
     fixture: "Fixture",
     source: `
@@ -740,7 +665,6 @@ local a: number? = if true then 1 else nil
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:978 TEST_CASE_FIXTURE(BuiltinsFixture, "tc_if_else_expressions_expected_type_3")
     name: "tc_if_else_expressions_expected_type_3",
     fixture: "BuiltinsFixture",
     ignoreMissingAnnotations: true,
@@ -755,7 +679,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:994 TEST_CASE_FIXTURE(Fixture, "tc_interpolated_string_basic")
     name: "tc_interpolated_string_basic",
     fixture: "Fixture",
     source: `
@@ -764,7 +687,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:1003 TEST_CASE_FIXTURE(Fixture, "tc_interpolated_string_with_invalid_expression")
     name: "tc_interpolated_string_with_invalid_expression",
     fixture: "Fixture",
     source: `
@@ -775,7 +697,6 @@ end
     expect: [{ errors: 1 }],
   },
   {
-    // TypeInfer.test.cpp:1014 TEST_CASE_FIXTURE(Fixture, "tc_interpolated_string_constant_type")
     name: "tc_interpolated_string_constant_type",
     fixture: "Fixture",
     source: `
@@ -784,7 +705,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:1032 TEST_CASE_FIXTURE(Fixture, "free_types_introduced_within_control_flow_constructs_do_not_get_an_elevated_TypeLevel")
     name: "free_types_introduced_within_control_flow_constructs_do_not_get_an_elevated_TypeLevel",
     fixture: "Fixture",
     source: `
@@ -804,7 +724,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:1064 TEST_CASE_FIXTURE(Fixture, "fuzzer_found_this")
     name: "fuzzer_found_this",
     fixture: "Fixture",
     source: `
@@ -822,7 +741,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:1085 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzzer_found_this_2")
     name: "fuzzer_found_this_2",
     fixture: "BuiltinsFixture",
     source: `
@@ -837,7 +755,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:1098 TEST_CASE_FIXTURE(Fixture, "indexing_a_cyclic_intersection_does_not_crash")
     name: "indexing_a_cyclic_intersection_does_not_crash",
     fixture: "Fixture",
     malformed: "`if _ then \"\"` has no else",
@@ -857,7 +774,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:1115 TEST_CASE_FIXTURE(BuiltinsFixture, "recursive_metatable_crash")
     name: "recursive_metatable_crash",
     fixture: "BuiltinsFixture",
     ignoreMissingAnnotations: true,
@@ -874,7 +790,6 @@ local c = a or b
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:1133 TEST_CASE_FIXTURE(Fixture, "bound_typepack_promote")
     name: "bound_typepack_promote",
     fixture: "Fixture",
     source: `
@@ -902,7 +817,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:1160 TEST_CASE_FIXTURE(Fixture, "cli_50041_committing_txnlog_in_apollo_client_error")
     name: "cli_50041_committing_txnlog_in_apollo_client_error",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -937,7 +851,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:1225 TEST_CASE_FIXTURE(Fixture, "type_infer_recursion_limit_no_ice")
     name: "type_infer_recursion_limit_no_ice",
     fixture: "Fixture",
     limits: { LuauTypeInferRecursionLimit: 2 },
@@ -956,8 +869,6 @@ end
     ],
   },
   {
-    // TypeInfer.test.cpp:1247 TEST_CASE_FIXTURE(Fixture, "type_infer_recursion_limit_normalizer")
-    // Upstream also checks each error with Luau's internal validateErrors.
     name: "type_infer_recursion_limit_normalizer",
     fixture: "Fixture",
     limits: { LuauTypeInferRecursionLimit: 10 },
@@ -979,7 +890,6 @@ end
     ],
   },
   {
-    // TypeInfer.test.cpp:1280 TEST_CASE_FIXTURE(Fixture, "type_infer_cache_limit_normalizer")
     name: "type_infer_cache_limit_normalizer",
     fixture: "Fixture",
     limits: { LuauNormalizeCacheLimit: 10 },
@@ -993,7 +903,6 @@ end
     ],
   },
   {
-    // TypeInfer.test.cpp:1293 TEST_CASE_FIXTURE(Fixture, "follow_on_new_types_in_substitution")
     name: "follow_on_new_types_in_substitution",
     fixture: "Fixture",
     source: `
@@ -1016,9 +925,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:1316 TEST_CASE_FIXTURE(Fixture, "types_stored_in_astResolvedTypes")
-    // Upstream checks that Luau recorded the alias's type as the resolved type
-    // of `param`'s annotation (astResolvedTypes), which is internal.
     name: "types_stored_in_astResolvedTypes",
     fixture: "Fixture",
     source: `
@@ -1029,8 +935,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:1339 TEST_CASE_FIXTURE(Fixture, "bidirectional_checking_of_higher_order_function")
-    // Upstream also checks that the error ends on line 4.
     name: "bidirectional_checking_of_higher_order_function",
     fixture: "Fixture",
     source: `
@@ -1043,7 +947,6 @@ end
     expect: [{ errors: 1 }, { error: 0, line: 4 }],
   },
   {
-    // TypeInfer.test.cpp:1356 TEST_CASE_FIXTURE(BuiltinsFixture, "it_is_ok_to_have_inconsistent_number_of_return_values_in_nonstrict")
     name: "it_is_ok_to_have_inconsistent_number_of_return_values_in_nonstrict",
     fixture: "BuiltinsFixture",
     source: `
@@ -1077,7 +980,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:1390 TEST_CASE_FIXTURE(Fixture, "fuzz_free_table_type_change_during_index_check")
     name: "fuzz_free_table_type_change_during_index_check",
     fixture: "Fixture",
     source: `
@@ -1088,7 +990,6 @@ end
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:1401 TEST_CASE_FIXTURE(BuiltinsFixture, "typechecking_in_type_guards")
     name: "typechecking_in_type_guards",
     fixture: "BuiltinsFixture",
     source: `
@@ -1102,7 +1003,6 @@ local b = typeof(foo) ~= 'nil'
     ],
   },
   {
-    // TypeInfer.test.cpp:1413 TEST_CASE_FIXTURE(Fixture, "occurs_isnt_always_failure")
     name: "occurs_isnt_always_failure",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -1116,7 +1016,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:1428 TEST_CASE_FIXTURE(Fixture, "dcr_delays_expansion_of_function_containing_blocked_parameter_type")
     name: "dcr_delays_expansion_of_function_containing_blocked_parameter_type",
     fixture: "Fixture",
     source: `
@@ -1133,7 +1032,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:1447 TEST_CASE_FIXTURE(BuiltinsFixture, "recursive_function_that_invokes_itself_with_a_refinement_of_its_parameter")
     name: "recursive_function_that_invokes_itself_with_a_refinement_of_its_parameter",
     fixture: "BuiltinsFixture",
     source: `
@@ -1154,7 +1052,6 @@ end
     expect: [{ type: "readValue", equals: "(unknown) -> ()" }],
   },
   {
-    // TypeInfer.test.cpp:1471 TEST_CASE_FIXTURE(BuiltinsFixture, "recursive_function_that_invokes_itself_with_a_refinement_of_its_parameter_2")
     name: "recursive_function_that_invokes_itself_with_a_refinement_of_its_parameter_2",
     fixture: "BuiltinsFixture",
     source: `
@@ -1167,7 +1064,6 @@ end
     expect: [{ type: "readValue", equals: "(unknown) -> ()" }],
   },
   {
-    // TypeInfer.test.cpp:1494 TEST_CASE_FIXTURE(BuiltinsFixture, "convoluted_case_where_two_TypeVars_were_bound_to_each_other")
     name: "convoluted_case_where_two_TypeVars_were_bound_to_each_other",
     fixture: "BuiltinsFixture",
     source: `
@@ -1191,7 +1087,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:1531 TEST_CASE_FIXTURE(Fixture, "handle_self_referential_HasProp_constraints")
     name: "handle_self_referential_HasProp_constraints",
     fixture: "Fixture",
     source: `
@@ -1221,7 +1116,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:1569 TEST_CASE_FIXTURE(Fixture, "promote_tail_type_packs")
     name: "promote_tail_type_packs",
     fixture: "Fixture",
     source: `
@@ -1250,10 +1144,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:1598 TEST_CASE_FIXTURE(BuiltinsFixture, "lti_must_record_contributing_locations")
-    // Upstream also checks that Luau recorded two locations contributing to the
-    // upper bound of `f`'s parameter (upperBoundContributors), which is
-    // internal.
     name: "lti_must_record_contributing_locations",
     fixture: "BuiltinsFixture",
     ignoreMissingAnnotations: true,
@@ -1269,7 +1159,6 @@ end
     expect: [{ errors: 3 }, { type: "f", kind: "FunctionType" }],
   },
   {
-    // TypeInfer.test.cpp:1636 TEST_CASE_FIXTURE(BuiltinsFixture, "be_sure_to_use_active_txnlog_when_evaluating_a_variadic_overload")
     name: "be_sure_to_use_active_txnlog_when_evaluating_a_variadic_overload",
     fixture: "BuiltinsFixture",
     source: `
@@ -1282,10 +1171,6 @@ end
     expect: [{ errors: "some" }, { everyError: { line: 5 } }],
   },
   {
-    // TypeInfer.test.cpp:1655 TEST_CASE_FIXTURE(Fixture, "typeof_cannot_refine_builtin_alias")
-    // Upstream first adds a sealed table type named GlobalTable to the
-    // fixture's global types through Luau's C++ API, and asserts only that
-    // checking does not crash.
     name: "typeof_cannot_refine_builtin_alias",
     fixture: "Fixture",
     source: `
@@ -1297,7 +1182,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:1674 TEST_CASE_FIXTURE(BuiltinsFixture, "bad_iter_metamethod")
     name: "bad_iter_metamethod",
     fixture: "BuiltinsFixture",
     source: `
@@ -1314,7 +1198,6 @@ end
     expect: [{ errors: 1 }, { error: 0, code: "CannotCallNonFunction", fields: { ty: "unknown" } }],
   },
   {
-    // TypeInfer.test.cpp:1703 TEST_CASE_FIXTURE(Fixture, "leading_bar")
     name: "leading_bar",
     fixture: "Fixture",
     source: `
@@ -1323,7 +1206,6 @@ end
     expect: [{ errors: 0 }, { alias: "Bar", equals: "number" }],
   },
   {
-    // TypeInfer.test.cpp:1713 TEST_CASE_FIXTURE(Fixture, "leading_bar_question_mark")
     name: "leading_bar_question_mark",
     fixture: "Fixture",
     malformed: "`|?` has no type before the ?",
@@ -1337,7 +1219,6 @@ end
     ],
   },
   {
-    // TypeInfer.test.cpp:1724 TEST_CASE_FIXTURE(Fixture, "leading_ampersand")
     name: "leading_ampersand",
     fixture: "Fixture",
     source: `
@@ -1346,7 +1227,6 @@ end
     expect: [{ errors: 0 }, { alias: "Amp", equals: "string" }],
   },
   {
-    // TypeInfer.test.cpp:1734 TEST_CASE_FIXTURE(Fixture, "leading_bar_no_type")
     name: "leading_bar_no_type",
     fixture: "Fixture",
     malformed: "the type after `=` is a `|` with no type before the end of the file",
@@ -1360,7 +1240,6 @@ end
     ],
   },
   {
-    // TypeInfer.test.cpp:1745 TEST_CASE_FIXTURE(Fixture, "leading_ampersand_no_type")
     name: "leading_ampersand_no_type",
     fixture: "Fixture",
     malformed: "the type after `=` is a `&` with no type before the end of the file",
@@ -1374,7 +1253,6 @@ end
     ],
   },
   {
-    // TypeInfer.test.cpp:1756 TEST_CASE_FIXTURE(Fixture, "react_lua_follow_free_type_ub")
     name: "react_lua_follow_free_type_ub",
     fixture: "Fixture",
     source: `
@@ -1397,7 +1275,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:1779 TEST_CASE_FIXTURE(Fixture, "visit_error_nodes_in_lvalue")
     name: "visit_error_nodes_in_lvalue",
     fixture: "Fixture",
     malformed: "`(::,` is not an expression",
@@ -1408,7 +1285,6 @@ end
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:1801 TEST_CASE_FIXTURE(Fixture, "avoid_blocking_type_function")
     name: "avoid_blocking_type_function",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -1422,7 +1298,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:1816 TEST_CASE_FIXTURE(Fixture, "avoid_double_reference_to_free_type")
     name: "avoid_double_reference_to_free_type",
     fixture: "Fixture",
     source: `
@@ -1435,7 +1310,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:1829 TEST_CASE_FIXTURE(BuiltinsFixture, "infer_types_of_globals")
     name: "infer_types_of_globals",
     fixture: "BuiltinsFixture",
     source: `
@@ -1450,7 +1324,6 @@ end
     ],
   },
   {
-    // TypeInfer.test.cpp:1845 TEST_CASE_FIXTURE(Fixture, "multiple_assignment")
     name: "multiple_assignment",
     fixture: "Fixture",
     source: `
@@ -1468,7 +1341,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:1865 TEST_CASE_FIXTURE(Fixture, "fuzz_global_self_assignment")
     name: "fuzz_global_self_assignment",
     fixture: "Fixture",
     source: `
@@ -1477,7 +1349,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:1874 TEST_CASE_FIXTURE(BuiltinsFixture, "getmetatable_works_with_any")
     name: "getmetatable_works_with_any",
     fixture: "BuiltinsFixture",
     source: `
@@ -1496,7 +1367,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:1891 TEST_CASE_FIXTURE(BuiltinsFixture, "getmetatable_infer_any_ret")
     name: "getmetatable_infer_any_ret",
     fixture: "BuiltinsFixture",
     ignoreMissingAnnotations: true,
@@ -1508,7 +1378,6 @@ end
     expect: [{ errors: 0 }, { type: "spooky", equals: "(any) -> any" }],
   },
   {
-    // TypeInfer.test.cpp:1904 TEST_CASE_FIXTURE(BuiltinsFixture, "getmetatable_infer_any_param")
     name: "getmetatable_infer_any_param",
     fixture: "BuiltinsFixture",
     source: `
@@ -1519,7 +1388,6 @@ end
     expect: [{ type: "check", equals: "(unknown) -> any" }],
   },
   {
-    // TypeInfer.test.cpp:1918 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzzer_pack_check_missing_follow")
     name: "fuzzer_pack_check_missing_follow",
     fixture: "BuiltinsFixture",
     source: `
@@ -1532,7 +1400,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:1930 TEST_CASE_FIXTURE(Fixture, "fuzzer_unify_with_free_missing_follow")
     name: "fuzzer_unify_with_free_missing_follow",
     fixture: "Fixture",
     malformed: "`if _ then _,_()` has no else",
@@ -1556,7 +1423,6 @@ end
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:1952 TEST_CASE_FIXTURE(Fixture, "fuzzer_derived_unsound_loops")
     name: "fuzzer_derived_unsound_loops",
     fixture: "Fixture",
     source: `
@@ -1572,7 +1438,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:1966 TEST_CASE_FIXTURE(Fixture, "concat_string_with_string_union")
     name: "concat_string_with_string_union",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -1584,7 +1449,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:1979 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzz_local_before_declaration_ice")
     name: "fuzz_local_before_declaration_ice",
     fixture: "BuiltinsFixture",
     source: `
@@ -1598,7 +1462,6 @@ end
     ],
   },
   {
-    // TypeInfer.test.cpp:1998 TEST_CASE_FIXTURE(Fixture, "fuzz_dont_double_solve_compound_assignment" * doctest::timeout(LUAU_TIMEOUT))
     name: "fuzz_dont_double_solve_compound_assignment",
     fixture: "Fixture",
     source: `
@@ -1615,7 +1478,6 @@ end
     expect: [{ errors: "some" }, { noError: "ConstraintSolvingIncompleteError" }],
   },
   {
-    // TypeInfer.test.cpp:2018 TEST_CASE_FIXTURE(Fixture, "assert_allows_singleton_union_or_intersection")
     name: "assert_allows_singleton_union_or_intersection",
     fixture: "Fixture",
     source: `
@@ -1625,7 +1487,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:2026 TEST_CASE_FIXTURE(BuiltinsFixture, "assert_table_freeze_constraint_solving")
     name: "assert_table_freeze_constraint_solving",
     fixture: "BuiltinsFixture",
     source: `
@@ -1635,7 +1496,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:2035 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzz_assert_table_freeze_constraint_solving")
     name: "fuzz_assert_table_freeze_constraint_solving",
     fixture: "BuiltinsFixture",
     malformed: "`(if _ then table)` has no else",
@@ -1653,7 +1513,6 @@ end
     expect: [{ errors: "some" }, { noError: "ConstraintSolvingIncompleteError" }],
   },
   {
-    // TypeInfer.test.cpp:2054 TEST_CASE_FIXTURE(BuiltinsFixture, "cyclic_unification_aborts_eventually" * doctest::timeout(LUAU_TIMEOUT))
     name: "cyclic_unification_aborts_eventually",
     fixture: "BuiltinsFixture",
     flags: { LuauInstantiateInSubtyping: true },
@@ -1663,7 +1522,6 @@ end
     expect: [{ anyError: "CodeTooComplex" }],
   },
   {
-    // TypeInfer.test.cpp:2068 TEST_CASE_FIXTURE(Fixture, "fuzz_generalize_one_remove_type_assert")
     name: "fuzz_generalize_one_remove_type_assert",
     fixture: "Fixture",
     source: `
@@ -1694,7 +1552,6 @@ end
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:2102 TEST_CASE_FIXTURE(Fixture, "fuzz_generalize_one_remove_type_assert_2")
     name: "fuzz_generalize_one_remove_type_assert_2",
     fixture: "Fixture",
     source: `
@@ -1720,7 +1577,6 @@ end
     expect: [{ errors: "some" }, { noError: "ConstraintSolvingIncompleteError" }],
   },
   {
-    // TypeInfer.test.cpp:2132 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzz_simplify_combinatorial_explosion")
     name: "fuzz_simplify_combinatorial_explosion",
     fixture: "BuiltinsFixture",
     checks: [
@@ -1741,7 +1597,6 @@ local _
     ],
   },
   {
-    // TypeInfer.test.cpp:2149 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzz_missing_follow_table_freeze")
     name: "fuzz_missing_follow_table_freeze",
     fixture: "BuiltinsFixture",
     source: `
@@ -1760,7 +1615,6 @@ local _
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:2166 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzzer_avoid_double_negation" * doctest::timeout(LUAU_TIMEOUT))
     name: "fuzzer_avoid_double_negation",
     fixture: "BuiltinsFixture",
     malformed: "`return if _ then _,_` has no else",
@@ -1793,7 +1647,6 @@ end
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:2199 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzzer_has_indexer_can_create_cyclic_union")
     name: "fuzzer_has_indexer_can_create_cyclic_union",
     fixture: "BuiltinsFixture",
     source: `
@@ -1812,7 +1665,6 @@ end
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:2216 TEST_CASE_FIXTURE(Fixture, "fuzzer_simplify_table_indexer" * doctest::timeout(LUAU_TIMEOUT))
     name: "fuzzer_simplify_table_indexer",
     fixture: "Fixture",
     source: `
@@ -1836,7 +1688,6 @@ end
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:2238 TEST_CASE_FIXTURE(Fixture, "fuzzer_simplify_crash")
     name: "fuzzer_simplify_crash",
     fixture: "Fixture",
     malformed: "the `if` has no `end` for its `else if`",
@@ -1850,7 +1701,6 @@ end
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:2249 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzzer_simplify_is_check_on_bound_type")
     name: "fuzzer_simplify_is_check_on_bound_type",
     fixture: "BuiltinsFixture",
     malformed: "`_[if _ then false]` has no else",
@@ -1862,7 +1712,6 @@ end
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:2258 TEST_CASE_FIXTURE(BuiltinsFixture, "regexp_hang" * doctest::timeout(LUAU_TIMEOUT))
     name: "regexp_hang",
     fixture: "BuiltinsFixture",
     source: `
@@ -1905,7 +1754,6 @@ end
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:2299 TEST_CASE_FIXTURE(Fixture, "self_bound_due_to_compound_assign")
     name: "self_bound_due_to_compound_assign",
     fixture: "Fixture",
     skip: { notApplicable: "declares extern types, which a Luau host defines in C++ or a definition file; Sparkdown has neither" },
@@ -1927,7 +1775,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:2327 TEST_CASE_FIXTURE(BuiltinsFixture, "config_reader_example")
     name: "config_reader_example",
     fixture: "BuiltinsFixture",
     checks: [
@@ -1979,7 +1826,6 @@ end
     ],
   },
   {
-    // TypeInfer.test.cpp:2378 TEST_CASE_FIXTURE(BuiltinsFixture, "is_safe_integer_example")
     name: "is_safe_integer_example",
     fixture: "BuiltinsFixture",
     checks: [
@@ -2016,7 +1862,6 @@ end
     ],
   },
   {
-    // TypeInfer.test.cpp:2404 TEST_CASE_FIXTURE(BuiltinsFixture, "type_remover_heap_use_after_free")
     name: "type_remover_heap_use_after_free",
     fixture: "BuiltinsFixture",
     checks: [
@@ -2045,7 +1890,6 @@ end
     ],
   },
   {
-    // TypeInfer.test.cpp:2422 TEST_CASE_FIXTURE(Fixture, "fuzzer_missing_follow_in_assign_index_constraint")
     name: "fuzzer_missing_follow_in_assign_index_constraint",
     fixture: "Fixture",
     malformed: "`{nil=_,}` has a reserved word as a field name",
@@ -2065,7 +1909,6 @@ end
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:2439 TEST_CASE_FIXTURE(Fixture, "fuzzer_occurs_check_stack_overflow")
     name: "fuzzer_occurs_check_stack_overflow",
     fixture: "Fixture",
     malformed: "`if _ then _` has no else",
@@ -2078,7 +1921,6 @@ end
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:2450 TEST_CASE_FIXTURE(Fixture, "fuzzer_infer_divergent_rw_props")
     name: "fuzzer_infer_divergent_rw_props",
     fixture: "Fixture",
     source: `
@@ -2088,7 +1930,6 @@ end
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:2460 TEST_CASE_FIXTURE(Fixture, "read_table_type_refinements_persist_scope")
     name: "read_table_type_refinements_persist_scope",
     fixture: "Fixture",
     malformed: "`else if _[…].setmetatable then if _ then _ … else ...` gives the middle if expression no else",
@@ -2100,7 +1941,6 @@ end then _._G else ...
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:2471 TEST_CASE_FIXTURE(Fixture, "oss_1815_verbatim")
     name: "oss_1815_verbatim",
     fixture: "Fixture",
     source: `
@@ -2121,7 +1961,6 @@ end then _._G else ...
     ],
   },
   {
-    // TypeInfer.test.cpp:2500 TEST_CASE_FIXTURE(Fixture, "if_then_else_bidirectional_inference")
     name: "if_then_else_bidirectional_inference",
     fixture: "Fixture",
     source: `
@@ -2136,7 +1975,6 @@ end then _._G else ...
     ],
   },
   {
-    // TypeInfer.test.cpp:2518 TEST_CASE_FIXTURE(Fixture, "if_then_else_two_errors")
     name: "if_then_else_two_errors",
     fixture: "Fixture",
     source: `
@@ -2152,7 +1990,6 @@ end then _._G else ...
     ],
   },
   {
-    // TypeInfer.test.cpp:2540 TEST_CASE_FIXTURE(Fixture, "standalone_constraint_solving_incomplete_is_hidden")
     name: "standalone_constraint_solving_incomplete_is_hidden",
     fixture: "Fixture",
     flags: { DebugLuauMagicTypes: true, DebugLuauAlwaysShowConstraintSolvingIncomplete: false },
@@ -2163,7 +2000,6 @@ end then _._G else ...
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:2557 TEST_CASE_FIXTURE(Fixture, "non_standalone_constraint_solving_incomplete_is_hidden")
     name: "non_standalone_constraint_solving_incomplete_is_hidden",
     fixture: "Fixture",
     flags: { DebugLuauMagicTypes: true },
@@ -2179,7 +2015,6 @@ end then _._G else ...
     ],
   },
   {
-    // TypeInfer.test.cpp:2574 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzzer_missing_type_pack_follow")
     name: "fuzzer_missing_type_pack_follow",
     fixture: "BuiltinsFixture",
     checks: [
@@ -2225,7 +2060,6 @@ do end
     ],
   },
   {
-    // TypeInfer.test.cpp:2614 TEST_CASE_FIXTURE(Fixture, "txnlog_checks_for_occurrence_before_self_binding_a_type")
     name: "txnlog_checks_for_occurrence_before_self_binding_a_type",
     fixture: "Fixture",
     skip: { disabledUpstream: true },
@@ -2268,8 +2102,6 @@ do end
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:2657 TEST_CASE_FIXTURE(Fixture, "constraint_generation_recursion_limit")
-    // Upstream asserts only that checking does not crash.
     name: "constraint_generation_recursion_limit",
     fixture: "Fixture",
     limits: { LuauCheckRecursionLimit: 5, LuauConstraintGeneratorRecursionLimit: 5 },
@@ -2285,7 +2117,6 @@ do end
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:2677 TEST_CASE_FIXTURE(Fixture, "nested_functions_can_depend_on_outer_generics")
     name: "nested_functions_can_depend_on_outer_generics",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -2304,7 +2135,6 @@ do end
     ],
   },
   {
-    // TypeInfer.test.cpp:2700 TEST_CASE_FIXTURE(BuiltinsFixture, "unterminated_function_body_causes_constraint_generator_crash")
     name: "unterminated_function_body_causes_constraint_generator_crash",
     fixture: "BuiltinsFixture",
     malformed: "`typeof(function)` has a function with no body",
@@ -2348,7 +2178,6 @@ export type t12 = {
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:2742 TEST_CASE_FIXTURE(BuiltinsFixture, "any_type_in_function_argument_should_not_error")
     name: "any_type_in_function_argument_should_not_error",
     fixture: "BuiltinsFixture",
     source: `
@@ -2364,7 +2193,6 @@ export type t12 = {
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:2758 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzz_avoid_singleton_union")
     name: "fuzz_avoid_singleton_union",
     fixture: "BuiltinsFixture",
     source: `
@@ -2375,7 +2203,6 @@ export type t12 = {
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:2767 TEST_CASE_FIXTURE(Fixture, "captured_globals_are_not_blocked")
     name: "captured_globals_are_not_blocked",
     fixture: "Fixture",
     flags: { DebugLuauForbidInternalTypes: true },
@@ -2403,7 +2230,6 @@ export type t12 = {
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:2796 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzzer_missing_follow_in_instantiation2")
     name: "fuzzer_missing_follow_in_instantiation2",
     fixture: "BuiltinsFixture",
     malformed: "the inner if expression takes the first else, so `elseif rawset(_) then (true)` leaves the outer one with no else",
@@ -2413,7 +2239,6 @@ export type t12 = {
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:2803 TEST_CASE_FIXTURE(BuiltinsFixture, "iterate_over_table_with_optional_indexer_values")
     name: "iterate_over_table_with_optional_indexer_values",
     fixture: "BuiltinsFixture",
     source: `
@@ -2430,7 +2255,6 @@ export type t12 = {
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:2822 TEST_CASE_FIXTURE(BuiltinsFixture, "iterate_over_local_table_with_optional_indexer_values")
     name: "iterate_over_local_table_with_optional_indexer_values",
     fixture: "BuiltinsFixture",
     source: `
@@ -2446,7 +2270,6 @@ export type t12 = {
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:2841 TEST_CASE_FIXTURE(BuiltinsFixture, "2236_iterate_over_table_with_values_as_optional_types")
     name: "2236_iterate_over_table_with_values_as_optional_types",
     fixture: "BuiltinsFixture",
     source: `
@@ -2460,7 +2283,6 @@ export type t12 = {
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:2857 TEST_CASE_FIXTURE(Fixture, "fuzzer_missing_follow_in_function_call")
     name: "fuzzer_missing_follow_in_function_call",
     fixture: "Fixture",
     malformed: "`type t0<),A,)...>` has no type parameter names",
@@ -2472,7 +2294,6 @@ export type t12 = {
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:2866 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzzer_avoid_emplacing_blocked_types_you_dont_own")
     name: "fuzzer_avoid_emplacing_blocked_types_you_dont_own",
     fixture: "BuiltinsFixture",
     checks: [
@@ -2511,7 +2332,6 @@ export type t12 = {
     ],
   },
   {
-    // TypeInfer.test.cpp:2897 TEST_CASE_FIXTURE(Fixture, "fuzzer_attach_polarity_to_ret_free_type")
     name: "fuzzer_attach_polarity_to_ret_free_type",
     fixture: "Fixture",
     source: `
@@ -2524,7 +2344,6 @@ export type t12 = {
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:2912 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzzer_missing_follow_in_checking_generic_mapping")
     name: "fuzzer_missing_follow_in_checking_generic_mapping",
     fixture: "BuiltinsFixture",
     checks: [
@@ -2556,7 +2375,6 @@ export type t12 = {
     ],
   },
   {
-    // TypeInfer.test.cpp:2935 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzzer_allow_failing_to_bind_generic")
     name: "fuzzer_allow_failing_to_bind_generic",
     fixture: "BuiltinsFixture",
     source: `
@@ -2571,7 +2389,6 @@ export type t12 = {
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:2948 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzzer_bind_generic_sigsegv")
     name: "fuzzer_bind_generic_sigsegv",
     fixture: "BuiltinsFixture",
     source: `
@@ -2587,7 +2404,6 @@ export type t12 = {
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:2962 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzzer_global_type_inference")
     name: "fuzzer_global_type_inference",
     fixture: "BuiltinsFixture",
     source: `
@@ -2599,7 +2415,6 @@ export type t12 = {
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:2972 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzzer_instantiate_iter_function")
     name: "fuzzer_instantiate_iter_function",
     fixture: "BuiltinsFixture",
     source: `
@@ -2612,7 +2427,6 @@ export type t12 = {
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:2996 TEST_CASE_FIXTURE(BuiltinsFixture, "table_insert_and_unpack_generic_order_independence")
     name: "table_insert_and_unpack_generic_order_independence",
     fixture: "BuiltinsFixture",
     source: `
@@ -2625,7 +2439,6 @@ export type t12 = {
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:3011 TEST_CASE_FIXTURE(Fixture, "fuzzer_export_no_ice")
     name: "fuzzer_export_no_ice",
     fixture: "Fixture",
     malformed: "`export local` exports a value, which Luau allows only for types",
@@ -2641,7 +2454,6 @@ export type t12 = {
     expect: [],
   },
   {
-    // TypeInfer.test.cpp:3025 TEST_CASE_FIXTURE(Fixture, "generic_P_inference_with_optional_param_does_not_leak_nil")
     name: "generic_P_inference_with_optional_param_does_not_leak_nil",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
@@ -2659,7 +2471,6 @@ export type t12 = {
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:3048 TEST_CASE_FIXTURE(Fixture, "generic_P_with_intersection_props_and_partial_table")
     name: "generic_P_with_intersection_props_and_partial_table",
     fixture: "Fixture",
     flags: { LuauSubtypingMissingPropertiesAsNil: true, LuauBidirectionalInferenceSimplifyTables: true },
@@ -2681,7 +2492,6 @@ export type t12 = {
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:3079 TEST_CASE_FIXTURE(Fixture, "generic_P_widening_with_recursive_optional_field")
     name: "generic_P_widening_with_recursive_optional_field",
     fixture: "Fixture",
     flags: { LuauSubtypingMissingPropertiesAsNil: true, LuauBidirectionalInferenceSimplifyTables: true },
@@ -2701,7 +2511,6 @@ export type t12 = {
     expect: [{ errors: 0 }],
   },
   {
-    // TypeInfer.test.cpp:3106 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzzer_relate_extern_table_1")
     name: "fuzzer_relate_extern_table_1",
     fixture: "BuiltinsFixture",
     flags: { LuauCheckReadTyWhenRelatingExtern: true, DebugLuauUserDefinedClasses: true },
@@ -2717,7 +2526,6 @@ export type t12 = {
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:3123 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzzer_relate_extern_table_2")
     name: "fuzzer_relate_extern_table_2",
     fixture: "BuiltinsFixture",
     flags: { LuauCheckReadTyWhenRelatingExtern: true, DebugLuauUserDefinedClasses: true },
@@ -2733,7 +2541,6 @@ export type t12 = {
     expect: [{ errors: "some" }],
   },
   {
-    // TypeInfer.test.cpp:3140 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzzer_generic_binding_ice")
     name: "fuzzer_generic_binding_ice",
     fixture: "BuiltinsFixture",
     flags: { LuauDoNotIceForBindingGeneric: true },

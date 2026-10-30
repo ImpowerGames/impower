@@ -37,26 +37,6 @@ import { recordAlternatorSource } from "../utils/statementShape";
 import { statementSource } from "../utils/statementSource";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
-// Lowers a single `*` (once-only) or `+` (sticky) choice. Captures the
-// choice mark, optional label, choice text (split across `startContent`
-// / `choiceOnlyContent` / `innerContent`), the optional `[suppressed]`
-// bracket form, and the trailing divert. Mirrors ink's three-part
-// choice anatomy:
-//
-//   * shared [label-only] chosen-only -> target
-//      ^^^^^^^ ^^^^^^^^^^^^ ^^^^^^^^^^^
-//      start   choiceOnly   inner
-//
-//   Choice label  = startContent + choiceOnlyContent     ("shared label-only")
-//   Chosen output = startContent + innerContent + divert ("shared chosen-only")
-//
-// For an unbracketed `* plain text -> target`, all the text goes in
-// `startContent` (label and chosen output are identical).
-// Walk up from `node` looking for a `choose`-related ancestor. A choice
-// (`* ...` / `+ ...`) only makes sense inside a `choose ... end` block;
-// at file or scene level it's almost always a typo (the author forgot
-// to wrap the choices in `choose`), so we want to flag it loudly
-// rather than let the grammar silently parse it as a top-level choice.
 function isInsideChoose(node: SyntaxNode): boolean {
   let cur: SyntaxNode | null = node.parent;
   while (cur) {
@@ -79,11 +59,6 @@ export function lowerChoice(
   const markText = markNode ? ctx.read(markNode.from, markNode.to) : "";
   // value-level: the ChoiceMark token encodes whether this choice is once-only.
   const onceOnly = markText.includes("*");
-  // The number of `*` / `+` characters in the mark determines weave
-  // nesting depth — `* one` is depth 1, `* * two` is depth 2 (nested
-  // under depth-1), etc. inkjs's `Weave` assembly uses this to figure
-  // out which choices are siblings vs. children. A `-` gather at
-  // depth N collects all loose ends at depth ≥ N.
   // value-level: count nesting marks in the isolated ChoiceMark token.
   const depth = (markText.match(/[*+]/g) ?? []).length || 1;
 
@@ -94,11 +69,6 @@ export function lowerChoice(
   const choiceOnlyContent = new ContentList();
   let innerContent = new ContentList();
 
-  // Two grammar shapes for the choice body, picked at parse time:
-  //   - `ChoiceWithSuppressedText` for `foo[bar]baz -> target`
-  //   - `ChoiceWithNoSuppressedText` for `plain text -> target`
-  // The bracket form splits text into three chunks corresponding
-  // exactly to the three ContentLists ink wants.
   const bracketed = getDescendent("ChoiceWithSuppressedText", nodeRef.node);
   const unbracketed = getDescendent("ChoiceWithNoSuppressedText", nodeRef.node);
 
@@ -106,45 +76,19 @@ export function lowerChoice(
 
   if (bracketed) {
     hasWeaveStyleInlineBrackets = true;
-    // Each capture is wrapped by a uniquely-named rule (§6.4: address
-    // captures by name, not by `_cN` index). The wrappers mirror ink's
-    // three-part choice anatomy:
-    //   ChoiceStartText → text before `[`  (startContent)
-    //   ChoiceOnlyText  → text inside `[]` (choiceOnlyContent)
-    //   ChoiceInnerText → text after `]`   (innerContent)
     appendTextFromCapture(bracketed, "ChoiceStartText", ctx, startContent);
     appendTextFromCapture(bracketed, "ChoiceOnlyText", ctx, choiceOnlyContent);
     appendTextFromCapture(bracketed, "ChoiceInnerText", ctx, innerContent);
   } else if (unbracketed) {
-    // Plain choice: all visible text goes in startContent (label and
-    // chosen output are the same).
     appendTextFromCapture(unbracketed, "ChoicePlainText", ctx, startContent);
   }
 
-  // Same-line vs next-line divert handling. `getDescendent` walks
-  // the choice subtree, so a divert it finds was on the SAME line as
-  // the choice text (the grammar captures inline diverts inside the
-  // choice's text-body rule). A next-line divert parses as a separate
-  // top-level node — invisible to this descendent lookup — and is
-  // handled by `parseIncrementally`'s "closest weave" attachment.
   const divertNode = getDescendent("Divert", nodeRef.node);
   const divertObjects = divertNode ? buildDivert(divertNode, ctx) : [];
-  // What follows the chosen text: the arrow's objects, or the newline that
-  // ends the line. The text becomes a `display()` call ahead of these.
   const chosenTail: ParsedObject[] = [];
   const endsFlow =
     !divertNode && nextSignificantSiblingIsTerminator(nodeRef.node);
   if (divertObjects.length > 0) {
-    // For an inline divert like `* hello -> world`, preserve the
-    // whitespace between the choice text and the `->` so the chosen
-    // output reads `"hello world\n"` (not `"helloworld\n"`). The
-    // grammar puts that whitespace in capture c3 of the unbracketed
-    // form or c6 of the bracketed form, sitting between the text and
-    // the divert. We grab it from the source range
-    // `[end-of-text..start-of-divert]`. Skip the whitespace when the
-    // choice has no visible text anywhere (e.g. `* -> target`
-    // fallback) — the gap is just between the choice mark and the
-    // divert mark and shouldn't surface as a stray space.
     const choiceHasVisibleText =
       startContent.content.length > 0 ||
       choiceOnlyContent.content.length > 0 ||
@@ -165,24 +109,10 @@ export function lowerChoice(
       ...withDivertLoad(divertNode!, divertObjects, ctx, { ownLine: false }),
     );
   } else if (!divertNode) {
-    // No inline divert. Append a newline so the chosen output ends
-    // with `\n` like a regular display line (matches inkjs's
-    // weave_options test: `* Hello[.], world.` produces
-    // `"Hello, world.\n"` after choosing).
-    //
-    // Skip the newline append when the next significant sibling is a
-    // `DoneStatement` / `FinStatement` — those keywords replace the
-    // old inline `-> DONE` / `-> END` forms, and matching the inline
-    // form's "no trailing newline" semantics keeps `* "X"\n  fin`
-    // producing the same chosen output as the old `* "X" -> END`.
     if (!endsFlow) {
       chosenTail.push(new Text("\n"));
     }
   }
-  // If `divertNode` was present but `buildDivert` returned undefined
-  // (empty target `* ->`), leave `innerContent` empty — the choice
-  // becomes an `isInvisibleDefault` fallback whose loose-end gets
-  // resolved by inkjs's `Weave.AddRuntimeForGather` to the next gather.
 
   const echo = chosenTextAsDisplayCall(
     startContent,
@@ -212,8 +142,6 @@ export function lowerChoice(
   if (choice.startEcho) {
     choice.startEcho.choice = choice;
   }
-  // The choice's own source, which its count symbol and its body are
-  // aligned by when its `choose` statement is emitted again.
   recordAlternatorSource(ctx, choice, nodeRef.node);
   choice.repeatsStartContent = echo?.repeatsStartContent ?? true;
   choice.onceOnly = onceOnly;
@@ -223,22 +151,11 @@ export function lowerChoice(
     choice.identifier = identifier;
   }
 
-  // Choice condition (`* if cond text`) — captured by the grammar as a
-  // `ChoiceCondition` named wrapper child. `collectChoiceCondition`
-  // walks for that wrapper and lowers its inner expression, which the
-  // choice's emission (`Choice.EmitProgram`) emits.
   const condition = collectChoiceCondition(nodeRef.node, ctx);
   if (condition) {
     choice.condition = condition;
   }
 
-  // Fallback (invisible default) choice: no visible label text in either
-  // `startContent` (text before/around the brackets) or `choiceOnlyContent`
-  // (text inside the brackets). Forms: `* -> target` (no text, divert),
-  // `* []` (empty bracket), `* {cond} -> target` (guarded fallback).
-  // The runtime's `TryFollowDefaultInvisibleChoice` auto-picks these
-  // when no visible choices remain. The program writer carries this flag
-  // onto the choice it emits.
   if (
     startContent.content.length === 0 &&
     choiceOnlyContent.content.length === 0
@@ -246,16 +163,7 @@ export function lowerChoice(
     choice.isInvisibleDefault = true;
   }
 
-  // Compile-time warnings — mirror upstream inkjs's parse-side checks
-  // for empty / blank choices. Those checks live in the parser (not in
-  // `ExportRuntime`), so they don't fire automatically through
-  // sparkdown's grammar-tree pipeline. Surface them here in the lowerer
-  // instead.
   const diagnostics: InkDiagnostic[] = [];
-  // Stray choice mark outside `choose ... end` — almost always a typo.
-  // The grammar permits `*` / `+` at scene level for legacy reasons
-  // (and to keep the parse tree well-formed for syntax highlighting),
-  // but at compile time it's an error.
   if (!isInsideChoose(nodeRef.node)) {
     diagnostics.push({
       message:
@@ -293,8 +201,6 @@ export function lowerChoice(
     });
   }
 
-  // `load` on the choice's arrow has the same shape rules as a standalone
-  // arrow: one target, never a tunnel-onwards.
   const loadProblem = divertNode ? divertLoadShapeProblem(divertNode) : null;
   if (loadProblem) {
     diagnostics.push({
@@ -311,17 +217,6 @@ export function lowerChoice(
   return block;
 }
 
-// The words a chosen choice prints (its start content repeated, then its inner
-// text) become one `display({ text })` call on the default target, followed by
-// the arrow's objects. A plain arrow holds the line open (the call is
-// `open`), so the target's first line joins the choice's beat.
-// Returns null when there are no words to print.
-//
-// The start content repeats by jumping into the container the choice label
-// uses, from inside the call's string. A tag cannot run inside a captured
-// string, so when a `# tag` sits among the words, the call instead takes a
-// fresh lowering of the start content (`relowerStart`) and carries the words
-// and tags as ordered `parts`, evaluated in the order written.
 function chosenTextAsDisplayCall(
   start: ContentList,
   inner: ContentList,
@@ -340,11 +235,7 @@ function chosenTextAsDisplayCall(
   const tagged = [...start.content, ...words].some(
     (obj) => obj instanceof Tag,
   );
-  // The call's own newline ends the line, so a bare newline tail is dropped.
   const arrow = tail.filter((obj) => !(obj instanceof Text && obj.text === "\n"));
-  // A choice whose flow ends after it keeps no newline, and an arrow holds the
-  // line open for the first line it reaches. A `load` arrow's directive is a
-  // step of its own, so nothing holds the line open for it.
   const open =
     endsFlow ||
     (arrow.length > 0 &&
@@ -372,44 +263,18 @@ function collectChoiceCondition(
   choiceNode: SyntaxNode,
   ctx: LowerContext,
 ): Expression | null {
-  // Sparkdown's choice-gate form: `* if cond text` — the `if` keyword
-  // sits between the choice mark (or label) and the choice text, and
-  // the cond expression is wrapped by the `ChoiceCondition` named rule
-  // (§6.4: address captures by name, not by auto-generated `_cN` index).
-  // `not` prefix and parenthesized expressions are also accepted.
-  // Lowering treats the captured node as a normal expression
-  // (`LuauAccessPath`, `LuauParenthetical`, etc.) and assigns it to
-  // `choice.condition`, which `Choice.EmitProgram` then emits. No other
-  // reading reads the condition, so its reading reports every error of it
-  // (`reportReadingErrors` "expression", I-1461); the choice text after it
-  // is story, which ends its Luau as a line of story does (`<eof>`).
   const condCapture = getDescendent("ChoiceCondition", choiceNode);
   if (!condCapture) return null;
   return lowerExpressionFromContainer(condCapture, ctx, "expression");
 }
 
 
-// Walks the named capture child and appends its contents to the given
-// ContentList. Text outside of `Tag` nodes is emitted as `Text` parsed
-// objects (preserving authorial spacing — `foo [bar] baz` with
-// surrounding spaces survives). Each `Tag` descendant is emitted as the
-// `Tag(true) + Text(name) + Tag(false)` triple that the choice's code
-// generation (deleted in #705) translated into a
-// `BeginTag`/`EndTag` pair in the choice's runtime container — those tags
-// then attached to `Choice.tags` (when in start/choice-only content) or
-// flowed into `currentTags` (when in inner content).
 function appendTextFromCapture(
   parent: SyntaxNode,
   captureName: string,
   ctx: LowerContext,
   list: ContentList,
 ): boolean {
-  // A capture's text range can contain multiple matches of the inner
-  // pattern — each emits its own wrapper node as a sibling (e.g. `c5`
-  // for the post-bracket text of a choice can have several
-  // `ChoiceInnerText` siblings, one per inner `DisplayText` match).
-  // Walk every wrapper with the given name inside `parent` and append
-  // each in source order.
   let appended = false;
   const stack: SyntaxNode[] = [parent];
   const matches: SyntaxNode[] = [];
@@ -419,8 +284,6 @@ function appendTextFromCapture(
     while (child) {
       if (child.name === captureName) {
         matches.push(child);
-        // Don't descend into the wrapper — its inner text is what we'll
-        // process via `appendNodeContent`.
       } else {
         stack.push(child);
       }
@@ -439,12 +302,6 @@ function appendNodeContent(
   ctx: LowerContext,
   list: ContentList,
 ): boolean {
-  // Collect top-level `Tag` and `LuauInterpolatedStringExpression`
-  // nodes inside this capture range. They split the capture into
-  // text segments + tag emissions + inline expressions. Don't
-  // descend into `Tag` (its own interpolation handling lives below),
-  // and don't descend into an outer interpolation node (its content
-  // is the expression itself, not nested text).
   type Marker =
     | { kind: "tag"; node: SyntaxNode }
     | { kind: "expr"; node: SyntaxNode };
@@ -485,8 +342,6 @@ function appendNodeContent(
   for (const m of markers) {
     flushText(m.node.from);
     if (m.kind === "expr") {
-      // Choice text's braces report every error of their reading, as story
-      // text's do (`reportReadingErrors`, I-1445).
       const expr = lowerExpressionFromContainer(m.node, ctx, "expression");
       if (expr) {
         expr.outputWhenComplete = true;
@@ -509,12 +364,6 @@ function appendNodeContent(
   return appended;
 }
 
-// Tag bodies support `{var}` interpolations (`# tag {var}`). The grammar
-// classifies the `TagContent` body into `TagText` literal runs +
-// `LuauInterpolatedStringExpression` nodes; the shared `lowerTagContent`
-// reads those (single-identifier `{var}` → `VariableReference`, other
-// `{expr}` → literal text) instead of re-scanning the raw text for braces
-// (GRAMMAR.md §5).
 function appendTagContent(
   tagContent: SyntaxNode,
   ctx: LowerContext,
@@ -528,12 +377,6 @@ function appendTagContent(
   return appended;
 }
 
-// Returns the whitespace (spaces / tabs) immediately preceding `pivot`
-// in the source — i.e. what's between the last non-whitespace character
-// of the choice text and the `->` of an inline divert. Walks backward
-// from `pivot` through the choice node's text range. Stops at the first
-// non-whitespace character (or at the node's start). Used to preserve
-// authorial spacing across the `text -> target` boundary.
 function collectTrailingWhitespace(
   choiceNode: SyntaxNode,
   pivot: number,
@@ -552,12 +395,6 @@ function collectTrailingWhitespace(
 }
 
 
-// Returns true if the next significant sibling of `choiceNode` (i.e.
-// the next-line statement that forms the choice's body once
-// `parseIncrementally` attaches it) is a `done` / `fin` keyword.
-// In that case the choice's chosen-output should NOT receive an
-// extra trailing newline — the terminator runs immediately, matching
-// what the legacy inline `* "X" -> END` form used to emit.
 const CHOICE_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "Newline",
   "Whitespace",

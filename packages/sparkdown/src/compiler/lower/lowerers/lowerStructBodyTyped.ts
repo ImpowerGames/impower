@@ -12,20 +12,11 @@ import { ErrorType } from "../../../runtime/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 
 
-/** A source range, as absolute document offsets. */
 export interface SourceSpan {
   from: number;
   to: number;
 }
 
-/**
- * Where each part of a parsed container was written. `keys` holds the key of
- * every `key = value` entry and header, `values` the value of every scalar
- * entry, and `lines` where every entry was written (a block's header and `{`). An array records where its items were written in
- * `items` and the values of scalar items in `itemValues`. `line` is where the
- * container was opened: its header, its list item, or, for a keyframe written
- * as a position, that position's header.
- */
 export interface StructSource {
   line?: SourceSpan;
   keys: Map<string, SourceSpan>;
@@ -36,16 +27,8 @@ export interface StructSource {
 }
 
 export interface TypedStructBodyOptions {
-  /**
-   * Scalar keys whose values are literal text: the value is kept exactly as
-   * written (quotes removed) instead of being read as a number, boolean or
-   * `type.name` reference, so `01` stays `"01"` and `eyes.closed` stays
-   * `"eyes.closed"`.
-   */
   literalKeys?: ReadonlySet<string>;
-  /** Container keys whose `-` items are literal text, as for `literalKeys`. */
   literalListKeys?: ReadonlySet<string>;
-  /** Receives the source of every container the parse builds. */
   sources?: WeakMap<object, StructSource>;
 }
 
@@ -75,12 +58,9 @@ const FIELD_VALUE_NAMES = nodeNameSet([
   "UnquotedStringFieldValue",
 ]);
 
-// A two-part `<type>.<name>` reference (e.g. `layer.self`). Anchored +
-// identifier-only so it never matches numbers / units / ratios / CSS funcs.
 const STRUCT_REFERENCE_RE =
   /^([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)$/;
 
-/** DFS in-order: first descendant (or self) whose name is in `names`. */
 function firstDescendant(
   node: SyntaxNode,
   names: Set<string>,
@@ -100,7 +80,6 @@ function readNumber(text: string): unknown {
   return Number.isNaN(n) ? text : n;
 }
 
-/** Read a value node as a typed scalar (number / boolean / string / ref). */
 function readTypedValue(
   field: SyntaxNode | null,
   ctx: LowerContext,
@@ -118,18 +97,12 @@ function readTypedValue(
     if (inner) return unescapeString(ctx.read(inner.from, inner.to));
     return ctx.read(value.from, value.to).trim().replace(/^"|"$/g, "");
   }
-  // Any other value → raw CSS text, or a struct ref.
   const raw = ctx.read(value.from, value.to).trim();
   const ref = STRUCT_REFERENCE_RE.exec(raw);
   if (ref) return { $type: ref[1], $name: ref[2] };
   return raw;
 }
 
-/**
- * Read a value node as the literal text it was written as: a quoted string
- * loses its quotes and escapes, anything else keeps its spelling. Nothing is
- * converted to a number, boolean or reference.
- */
 function readLiteralValue(
   field: SyntaxNode | null,
   ctx: LowerContext,
@@ -146,7 +119,6 @@ function readLiteralValue(
 
 const PLAIN_STRING_CONTENT = nodeNameSet(["PlainStringContent"]);
 
-/** The explicit block header's key. */
 function headerKey(entry: StructEntry, ctx: LowerContext): string {
   return entry.key ? ctx.read(entry.key.from, entry.key.to).trim() : "";
 }
@@ -157,14 +129,6 @@ function headerKeyNode(entry: StructEntry): SyntaxNode {
 
 const KEYFRAME_SELECTOR = nodeNameSet(["LuauKeyframeSelector"]);
 
-/**
- * The 0-to-1 offset a header names when its key is a keyframe position: `from`,
- * `to`, or a percentage, the way a CSS `@keyframes` selector names one. The
- * grammar marks a key that is entirely a position as a `LuauKeyframeSelector`,
- * in a `from { … }` block. Any percentage
- * is a position, including one outside 0-100, so an out-of-range position is
- * reported rather than silently read as an ordinary property name.
- */
 function keyframeOffset(
   keyNode: SyntaxNode,
   key: string,
@@ -174,15 +138,14 @@ function keyframeOffset(
   if (!selector || ctx.read(selector.from, selector.to) !== key) return null;
   if (key === "from") return 0;
   if (key === "to") return 1;
-  // The selector is a number followed by `%`; read the number.
   return Number(key.slice(0, -1)) / 100;
 }
 
 interface HeaderEntry {
   key: string;
-  node: SourceSpan; // where the header was written
-  keyNode: SourceSpan; // the header's key, without braces
-  offset: number | null; // the keyframe position the key names, if any
+  node: SourceSpan;
+  keyNode: SourceSpan;
+  offset: number | null;
   value: unknown;
 }
 
@@ -200,21 +163,6 @@ function diagnose(
   });
 }
 
-/**
- * Rewrite a `keyframes { … }` container written with position headers into
- * the array of keyframe objects the engine reads, each carrying the `offset`
- * its position named. The two forms mean the same thing, so this runs before
- * any consumer sees the value and nothing downstream needs to know which form
- * was written.
- *
- *   keyframes {                keyframes {
- *     from { opacity = "0" }     { offset = 0; opacity = "0" }
- *     40% { opacity = "1" }  →   { offset = 0.4; opacity = "1" }
- *   }                          }
- *
- * Returns null when the container is not in the position form, in which case
- * the caller keeps the value it already built.
- */
 function keyframesFromPositionKeys(
   headers: HeaderEntry[],
   hasArrayItems: boolean,
@@ -223,8 +171,6 @@ function keyframesFromPositionKeys(
   sources?: WeakMap<object, StructSource>,
 ): unknown[] | null {
   if (headers.length === 0) return null;
-  // Every header must name a position. A container holding ordinary property
-  // headers is left exactly as it was written.
   if (headers.some((h) => h.offset == null)) return null;
 
   if (hasArrayItems) {
@@ -267,19 +213,12 @@ function keyframesFromPositionKeys(
       body && typeof body === "object" && !Array.isArray(body)
         ? (body as Record<string, unknown>)
         : {};
-    // The position is what the keyframe's place is sorted by, so it also wins
-    // over an `offset` property written inside the keyframe body.
     frames.push({ offset, frame: { ...props, offset }, header: h });
   }
 
-  // Sort by position so the written order does not matter. `sort` is stable in
-  // every engine this runs on, so keyframes sharing a position keep their
-  // written order (a case that is already reported as a duplicate).
   frames.sort((a, b) => a.offset - b.offset);
   const result = frames.map((f) => f.frame);
   if (sources) {
-    // Each keyframe was written as its position's header, and that key is
-    // where its `offset` came from.
     const list = newSource();
     for (const f of frames) {
       const body = f.header.value;
@@ -302,7 +241,6 @@ function keyframesFromPositionKeys(
   return result;
 }
 
-/** Evaluate a container's entries into its value. */
 function evaluate(
   entries: StructEntry[],
   ctx: LowerContext,
@@ -347,14 +285,10 @@ function evaluate(
     }
 
     if (entry.kind === "header") {
-      // `key { … }` → container (its entries = the value).
       const key = headerKey(entry, ctx);
       const keyNode = headerKeyNode(entry);
       if (entry.children) {
         const sub = evaluate(entry.children, ctx, sink, options, key, line);
-        // A `keyframes` container may be written with position headers
-        // instead of list items; normalize it to the array form the engine
-        // consumes.
         const keyed =
           key === "keyframes"
             ? keyframesFromPositionKeys(
@@ -383,7 +317,6 @@ function evaluate(
     }
 
     if (entry.kind === "property") {
-      // `key = value` → typed scalar.
       const keyNode = firstDescendant(shape, KEY_TOKEN_NAMES);
       const key = keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : "";
       if (key) {
@@ -398,7 +331,6 @@ function evaluate(
       continue;
     }
 
-    // Bare marker / fallback → empty-object leaf keyed by the line text.
     const text = ctx.read(line.from, line.to).trim();
     if (text) {
       obj[text] = {};
@@ -412,7 +344,6 @@ function evaluate(
   return { value, headers, hasArrayItems: arr != null };
 }
 
-/** Build the typed nested struct for an `animation`/`theme`/`morph` body. */
 export function parseStructBodyTyped(
   contentNode: SyntaxNode | null,
   ctx: LowerContext,

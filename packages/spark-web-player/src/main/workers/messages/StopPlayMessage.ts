@@ -5,18 +5,14 @@ import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types
 export type StopPlayMethod = typeof StopPlayMessage.method;
 
 export interface StopPlayParams {
-  /** The run to stop, when the page knows it; without one, whichever runs.
-   *  A run that has already been replaced is left alone. */
   run?: number;
 }
 
 export interface StopPlayResult {
-  /** Where PLAY's game last executed, read before it went. */
   location: DocumentLocation | null;
   choices?: number;
 }
 
-/** End PLAY's game in the worker. */
 export class StopPlayMessage {
   static readonly method = "player/stopPlay";
   static readonly type = new MessageProtocolRequestType<

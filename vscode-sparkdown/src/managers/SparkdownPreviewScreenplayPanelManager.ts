@@ -170,7 +170,6 @@ export class SparkdownPreviewScreenplayPanelManager {
         }
       }
     });
-    // Post an empty message so panel activates after deserialization
     panel.webview.postMessage({});
   }
 
@@ -318,7 +317,7 @@ export class SparkdownPreviewScreenplayPanelManager {
     ]);
     const styleNonce = getNonce();
     const scriptNonce = getNonce();
-    return /*html*/ `
+    return `
       <!DOCTYPE html>
       <html class="theme-dark se-theme" lang="en">
         <head>

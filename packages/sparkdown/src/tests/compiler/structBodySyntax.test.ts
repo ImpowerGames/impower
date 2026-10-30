@@ -64,11 +64,6 @@ test.each(["none", "uniform", "random"])("builtins struct bodies compile identic
     const count = mode === "none" ? 0 : mode === "uniform" ? 4 : seed % 13;
     return " ".repeat(count) + line.trimStart();
   }).join("\n");
-  // Compares the program without its positions (`normalizeProgram`), and its
-  // code: each flow's instructions by the flow's name (`flowListings`). A
-  // binding evaluator's generated name ends with the source offset it was
-  // minted from, so each is numbered in the order of those offsets, which an
-  // indentation change keeps.
   const compile = (source: string) => {
     const compiler = new SparkdownCompiler();
     compiler.configure({

@@ -1,19 +1,3 @@
-// Ported from inkjs `src/tests/specs/ink/Builtins.spec.ts`.
-//
-// Sparkdown exposes math builtins under Luau-style names (`math.floor`,
-// `math.ceil`, `math.pow`, `math.min`, `math.max`, `math.random`,
-// `math.randomseed`) rather than ink's all-caps form (`FLOOR`, `CEILING`,
-// ...). The lowerer translates `math.floor(x)` etc. to the runtime's
-// existing `NativeFunctionCall` opcodes via `stdlibMapping.ts` — no
-// engine changes. Other ink builtins (TURNS, TURNS_SINCE, READ_COUNT,
-// RANDOM, SEED_RANDOM) keep their ink names today; only the math family
-// got luau-style aliases.
-//
-// Read-count / visit-count / turns-since tests depend on ink-specific
-// fixture shapes (knots-as-functions, bare `~ func()` calls, multi-target
-// tunnels) which need rewrites that go beyond simple translation. Those
-// are skipped with notes.
-
 import { describe, expect, test } from "vitest";
 import {
   makeRuntimeStoryFromFile,
@@ -23,23 +7,12 @@ import {
 
 describe("Builtins (ported from inkjs)", () => {
   test("count.turns() returns the current turn count", () => {
-    // `count.turns()` is the Luau-style alias for ink's `TURNS()`
-    // builtin, registered in INK_BUILTIN_ALIASES. The first Continue()
-    // advances the turn counter; we expect `0` on the first emission
-    // since the counter is 0-based at story start.
     const ctx = makeRuntimeStoryFromFile("builtins", "count-turns");
     expect(ctx.errorMessages).toEqual([]);
     expect(runToEnd(ctx.story)).toBe("0\n");
   });
 
   test("math.floor and math.ceil", () => {
-    // Sparkdown maps `math.floor(x)` / `math.ceil(x)` onto the inkjs
-    // runtime's `FLOOR` / `CEILING` native ops via `stdlibMapping.ts`
-    // (lowerer-level translation — no engine changes). Same fixture covers
-    // nested calls (`math.floor(math.ceil(1.2))`) to exercise the
-    // method-call pair detection inside parenthetical arg lists. The
-    // inkjs original also tested `INT(...)` separately, but luau has no
-    // INT primitive — `math.floor` covers the truncating-int role.
     const ctx = makeRuntimeStoryFromFile(
       "builtins",
       "floor-ceiling-and-casts",
@@ -49,10 +22,6 @@ describe("Builtins (ported from inkjs)", () => {
   });
 
   test("read count survives across tunnel callstack", () => {
-    // `{first}` interpolates the visit count of scene `first`. After
-    // a tunnel call into `second` and back, the read count should
-    // stay at 1 (we only entered `first` once). Tests that the
-    // tunnel mechanism doesn't double-count visits.
     const ctx = makeRuntimeStoryFromFile(
       "builtins",
       "read-count-across-callstack",
@@ -64,12 +33,6 @@ describe("Builtins (ported from inkjs)", () => {
   });
 
   test("read count across threads", () => {
-    // Spawning a thread that visits a scene should increment that
-    // scene's visit count just like a normal divert would. Before the
-    // `<- aside` line, `count.visits(-> aside)` is 0; after the thread
-    // executes (emitting "Inside aside." and reaching `-> DONE`), the
-    // count is 1. Verifies that thread-spawn doesn't skip the
-    // read-count bookkeeping.
     const ctx = makeRuntimeStoryFromFile(
       "builtins",
       "read-count-across-thread",
@@ -79,11 +42,6 @@ describe("Builtins (ported from inkjs)", () => {
   });
 
   test("count.visited(-> t) — boolean has-the-reader-been-here shorthand", () => {
-    // `count.visited(-> t)` lowers to `READ_COUNT(t) > 0` and yields
-    // a genuine boolean — the explicit "unvisited/visited" check now
-    // that Lua truthiness no longer treats a 0 read count as falsy in
-    // Luau code. Works in interpolations, Luau `if` conditions, and
-    // composes with `not`.
     const ctx = makeRuntimeStoryFromFile("builtins", "visited-shorthand");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe(
@@ -92,22 +50,6 @@ describe("Builtins (ported from inkjs)", () => {
   });
 
   test("read count dot-separated path", () => {
-    // Upstream ink fixture:
-    //   -> hi ->
-    //   -> hi ->
-    //   -> hi ->
-    //   { hi.stitch_to_count }
-    //   == hi ==
-    //   = stitch_to_count
-    //   hi
-    //   ->->
-    //
-    // Ink auto-routes `-> hi` to the first stitch (`stitch_to_count`).
-    // Sparkdown doesn't auto-route through `scene hi` to the first
-    // `branch` — explicit `-> hi.stitch_to_count` is required. The
-    // dotted-path read-count `{hi.stitch_to_count}` resolves to the
-    // visit count of the branch container, which after 3 tunnel calls
-    // should be 3.
     const ctx = makeRuntimeStoryFromFile(
       "builtins",
       "read-count-dot-separated-path",
@@ -117,10 +59,6 @@ describe("Builtins (ported from inkjs)", () => {
   });
 
   test("read count via variable divert target (`store x = -> knot; -> x(arg)`)", () => {
-    // Three tunnel calls through a variable that holds a divert-target
-    // (`store x = -> knot`). Each call passes a different arg. The
-    // `READ_COUNT(...)` and bare-name `{knot}` forms all return the
-    // visit count of the underlying scene.
     const ctx = makeRuntimeStoryFromFile(
       "builtins",
       "read-count-variable-target",
@@ -132,18 +70,6 @@ describe("Builtins (ported from inkjs)", () => {
   });
 
   test("turns since nested (choice depth-driven TURNS_SINCE)", () => {
-    // Upstream ink fixture nests `* (then) stuff` then `* * (next) more
-    // stuff` inside `=== empty_world ===`, with `TURNS_SINCE(-> then)`
-    // interpolated before the outer choice, between picking it and the
-    // inner choice, and inside the inner choice. Expected counts are
-    // -1 (never visited), 0 (just visited this turn), 1 (visited last
-    // turn).
-    //
-    // Sparkdown rewrite uses nested `choose ... then ... end` blocks
-    // instead of `*` / `* *` shortcut nesting. The outer choice carries
-    // label `(then)`. `count.turns(-> then)` is the luau alias for
-    // ink's `TURNS_SINCE(-> then)`. The program engine keeps the visits of every scene, branch and label,
-    // so no compile option forces the bookkeeping (`countAllVisits`, deleted in #705).
     const ctx = makeRuntimeStoryFromFile("builtins", "turns-since-nested");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("-1 = -1\n");
@@ -156,19 +82,6 @@ describe("Builtins (ported from inkjs)", () => {
   });
 
   test("turns since with variable target", () => {
-    // Upstream ink fixture wraps `TURNS_SINCE(x)` in a user function
-    // `=== function beats(x) === ~ return TURNS_SINCE(x)` and calls
-    // `{beats(-> start)}` from inside `start`. The wrapping forces a
-    // divert-target value to flow through a function parameter, which
-    // is still deferred in sparkdown's compiler (see "divert-target-as-
-    // value" in the open-items list).
-    //
-    // The underlying behavior the test verifies — `TURNS_SINCE(-> start)`
-    // returning 0 before any choice, then 1 after a choice — doesn't
-    // depend on the function wrapper. We inline `count.turns(-> start)`
-    // directly to exercise the same TURNS_SINCE bookkeeping the upstream
-    // test cares about, without the divert-target-through-parameter
-    // detour.
     const ctx = makeRuntimeStoryFromFile(
       "builtins",
       "turns-since-variable-target",
@@ -181,46 +94,16 @@ describe("Builtins (ported from inkjs)", () => {
   });
 
   test("turns (choice loop)", () => {
-    // Upstream ink fixture:
-    //   -> c
-    //   - (top)
-    //   + (c) [choice]
-    //       {TURNS()}
-    //       -> top
-    // A self-looping sticky choice that emits the turn count each
-    // iteration. Initial `-> c` diverts straight into the choice body,
-    // bypassing the first choice-presentation. The test loops 10x,
-    // expecting Continue to emit `i\n` (0..9) before each pick.
-    //
-    // Sparkdown rewrite flattens the divert-into-choice trick: emit
-    // `{count.turns()}` at the top of the loop, present the choice,
-    // then loop back. `[choice]` brackets keep the post-pick text empty
-    // so picking emits nothing — only the next iteration's turn count.
     const ctx = makeRuntimeStoryFromFile("builtins", "turns-choice-loop");
     expect(ctx.errorMessages).toEqual([]);
     for (let i = 0; i < 10; i++) {
       expect(ctx.story.Continue()).toBe(`${i}\n`);
-      // The line returns at its newline; the next continue raises the choice.
       expect(ctx.story.Continue()).toBe("");
       ctx.story.ChooseChoiceIndex(0);
     }
   });
 
   test("visit counts when choosing (VisitCountAtPathString)", () => {
-    // Upstream ink fixture has two knots; the test exercises
-    // `VisitCountAtPathString(name)` before and after `ChoosePathString`,
-    // a Continue, a ChooseChoiceIndex, and a second Continue — verifying
-    // that visit counts increment only when control actually enters the
-    // named container. The program engine counts every scene, which
-    // `visitCountOf` reads by its name, as the current engine's
-    // `VisitCountAtPathString` read a container's count by its path.
-    //
-    // Sparkdown rewrite uses `scene` for `=== knot ===` and a
-    // single-choice `choose` block for the `* [Next] -> TestKnot2`
-    // weave shape. Same observable visit-count semantics.
-    //
-    // The fixture never reads a visit count inline. The program engine keeps the visits of every scene, branch and label,
-    // so no compile option forces the bookkeeping (`countAllVisits`, deleted in #705).
     const ctx = makeRuntimeStoryFromFile("builtins", "visit-counts-when-choosing");
     expect(ctx.errorMessages).toEqual([]);
 
@@ -235,7 +118,6 @@ describe("Builtins (ported from inkjs)", () => {
     expect(visitCountOf(ctx.story, "TestKnot")).toBe(1);
     expect(visitCountOf(ctx.story, "TestKnot2")).toBe(0);
 
-    // The next continue raises the choice, and enters nothing.
     ctx.story.Continue();
     expect(visitCountOf(ctx.story, "TestKnot2")).toBe(0);
 
@@ -249,19 +131,6 @@ describe("Builtins (ported from inkjs)", () => {
   });
 
   test("visit count bug due to nested containers", () => {
-    // Upstream ink fixture:
-    //   - (gather) {gather}
-    //   * choice
-    //   - {gather}
-    // The `(gather)` labeled gather is referenced twice via `{gather}`
-    // interpolation — once before the choice, once after. The visit
-    // count should be 1 both times because the gather is only entered
-    // once (the second `-` is a different unnamed gather, not a
-    // re-entry of `(gather)`).
-    //
-    // Sparkdown rewrite uses `label gather` (the labeled-flow form) +
-    // `choose` block. The program engine keeps the visits of every scene, branch and label,
-    // so no compile option forces the bookkeeping (`countAllVisits`, deleted in #705).
     const ctx = makeRuntimeStoryFromFile("builtins", "visit-count-bug-nested-containers");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.Continue()).toBe("1\n");
@@ -273,22 +142,6 @@ describe("Builtins (ported from inkjs)", () => {
 
 describe("Builtins — ported from ink fixture rewrites", () => {
   test("turns since (rewrite of inkjs `turns_since.ink`)", () => {
-    // Upstream ink fixture:
-    //   { TURNS_SINCE(-> test) }     -- before test is called
-    //   ~ test()                      -- call function
-    //   { TURNS_SINCE(-> test) }     -- right after
-    //   * [choice 1]                  -- choice → 1 turn passes
-    //   - { TURNS_SINCE(-> test) }
-    //   * [choice 2]                  -- another → 2 turns pass
-    //   - { TURNS_SINCE(-> test) }
-    //   == function test == ~ return
-    //
-    // Sparkdown rewrite:
-    //   - `=== function test === ~ return` → `function test() end`
-    //   - `~ test()` discard-call → `& test()`
-    //   - `TURNS_SINCE(-> X)` → `count.turns(-> X)` (stdlib alias)
-    //   - Flat-weave `* [c] - gather` → `choose + [c1] + [c2] then ... end`
-    //     block (sparkdown's block-structured choice form)
     const ctx = makeRuntimeStoryFromFile("builtins", "turns-since");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("-1\n0\n");

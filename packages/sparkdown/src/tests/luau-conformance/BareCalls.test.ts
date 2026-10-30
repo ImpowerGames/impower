@@ -82,16 +82,6 @@ end
   });
 
   test("bare DOTTED stdlib call fires (table.insert without `&`)", () => {
-    // Regression guard for task #88. Before the LuauFunctionBody
-    // grammar split, `(t, 40)` inside a function body matched as
-    // `LuauFunctionParameters` (parameter-declaration shape) rather
-    // than `LuauParenthetical` (call-args shape), and the lowerer's
-    // args extractor silently dropped the args. The call appeared to
-    // fire but with the wrong argument list, so `table.insert` was a
-    // no-op. After the grammar refactor, body content lives inside
-    // `LuauFunctionBody` where `LuauFunctionParameters` isn't
-    // reachable — dotted call args parse as `LuauParenthetical` and
-    // the call fires correctly.
     const src = `external host_record(v)
 
 scene start

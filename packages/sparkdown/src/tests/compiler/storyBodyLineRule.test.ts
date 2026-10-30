@@ -9,7 +9,6 @@ import { parseOfficialTree } from "./officialAstTestUtils";
 
 const URI = "inmemory:///main.sd";
 
-/** Every error a full compile reports, with its range. */
 const errorsOf = (text: string): string[] => {
   const c = new SparkdownCompiler();
   c.configure({
@@ -18,7 +17,6 @@ const errorsOf = (text: string): string[] => {
   return compiledErrors(c);
 };
 
-/** Every error a compiler's compile of the document reports, with its range. */
 const compiledErrors = (c: SparkdownCompiler): string[] => {
   const program = c.compile({ textDocument: { uri: URI } } as never).program as any;
   return (program.diagnostics?.[URI] ?? [])
@@ -35,7 +33,6 @@ const run = (text: string) => {
   return { errors: ctx.errorMessages, warnings: ctx.warningMessages, output: ctx.story.ContinueMaximally() };
 };
 
-/** The parser's empty-match warnings while it reads `text`. */
 const parserWarnings = (text: string): string[] => {
   const warnings: string[] = [];
   const warn = vi.spyOn(console, "warn").mockImplementation((...args) => {
@@ -49,7 +46,6 @@ const parserWarnings = (text: string): string[] => {
   return warnings;
 };
 
-/** The top-level nodes of `text`'s tree, with their ranges. */
 const topNodes = (text: string) =>
   stripAnsi(dumpTree(text))
     .split("\n")
@@ -57,7 +53,6 @@ const topNodes = (text: string) =>
     .filter((m) => m !== null)
     .map((m) => ({ name: m[1], from: Number(m[2]), to: Number(m[3]) }));
 
-/** The top-level nodes that cross the start of the line holding `marker`. */
 const nodesCrossing = (text: string, marker: string) => {
   const at = text.indexOf(marker);
   expect(at, `the marker ${JSON.stringify(marker)} is in the text`).toBeGreaterThanOrEqual(0);
@@ -65,7 +60,6 @@ const nodesCrossing = (text: string, marker: string) => {
   return topNodes(text).filter((node) => node.from < lineStart && node.to > lineStart);
 };
 
-/** Luau's missing-expression error at the end of the last line of `statement`. */
 const missingAtLineEnd = (statement: string, firstLine = 0): string => {
   const lines = statement.split("\n");
   const line = firstLine + lines.length - 1;
@@ -75,7 +69,6 @@ const missingAtLineEnd = (statement: string, firstLine = 0): string => {
 const SCENE = "scene start\n";
 const SCENE_LINES = SCENE.split("\n").length - 1;
 
-/** `text` with each of its lines indented two spaces, as a scene body's are. */
 const indented = (text: string): string => text.replace(/^(?=.)/gm, "  ");
 
 const inScene = (body: string): string => `${SCENE}${indented(body)}end\n`;
@@ -88,7 +81,6 @@ const placed = (lines: string): string => {
   return `${top}${inScene(all.slice(split).join("\n"))}`;
 };
 
-/** Luau's missing-expression error at the end of the last line of `statement`, as `source` writes it. */
 const missingIn = (source: string, statement: string): string => {
   const last = statement.split("\n").at(-1)!.trim();
   const sourceLines = source.split("\n");
@@ -182,7 +174,6 @@ describe("an if expression's `else` or `then` ending its line does not take the 
 
 describe("an else value that begins with `end` on the next column-0 line (#1206)", () => {
   test.each(["ender", "endx", "end_time"])("`%s` is a story line, with no empty-match warning", (name) => {
-    // The locals are a scene's, and the line after them is at column 0.
     const statement = indented(`local a = false\nlocal ${name} = 5\nlocal x = if a then 1 else`);
     const source = `${SCENE}${statement}\n${name}\n  Value {x}.\nend\n`;
     expect(parserWarnings(source)).toEqual([]);
@@ -218,7 +209,6 @@ describe("a block comment after a story declaration's keyword stays in the decla
 });
 
 describe("a block comment after a story declaration's target is never story text (#1207)", () => {
-  // Luau reads `local a --[[b]]print(1)` as `local a` and then `print(1)`.
   test.each([
     ["an untyped target", "local a --[[b]]print(1)"],
     ["a space before the call", "local a --[[b]] print(1)"],
@@ -255,7 +245,6 @@ describe("a block comment after a story declaration's target is never story text
 describe("a story `if` whose condition ends its line with a method colon (#1199, story form)", () => {
   test("the story line under it is not read into the condition", () => {
     const source = "store flag = true\n\nscene start\n  if flag:\n    Went down the true side.\n  end\nend\n";
-    // Luau's first error for `if flag:` at its end of input.
     expect(errorsOf(source)).toEqual(["3:10-4:0 Expected identifier when parsing method name, got <eof>"]);
     expect(nodesCrossing(source, "    Went")).toEqual([
       expect.objectContaining({ name: "LuauSparkdownIfBlock" }),
@@ -266,8 +255,6 @@ describe("a story `if` whose condition ends its line with a method colon (#1199,
 });
 
 describe("an attribute that ends a story declaration's line has no function", () => {
-  // In Luau code the function may follow on a later line (#1329); a story
-  // declaration ends at its line, so the attribute is left without one.
   test("the function on the next line is not the attribute's", () => {
     const source = "store second = @[native]\nscene start\n  function() return 9 end\nend\n";
     expect(errorsOf(source)).toContain("0:15-0:17 Expected 'function' declaration after attribute, but got <eof> instead");
@@ -285,8 +272,6 @@ describe("a story `if` header ends at its line", () => {
     expect(errorsOf(source)).toEqual([`${line}:${lineText.length}-${line + 1}:0 Expected identifier when parsing expression, got <eof>`]);
   });
 
-  // Luau's reading of the condition stops at its unfinished expression, the
-  // one error native Luau reports there; it says nothing about `then`.
   test.each([
     ["a trailing operator", "store a = 1\nscene start\n  if a == 1 and\n    a == 1\n  then\n    Text.\n  end\nend\n", "  if a == 1 and"],
     ["an if expression's `then`", "store c = true\nscene start\n  if if c then\n    false\n  else true then\n    Text.\n  end\nend\n", "  if if c then"],
@@ -296,8 +281,6 @@ describe("a story `if` header ends at its line", () => {
     expect(errorsOf(source)).toEqual([`${line}:${header.length}-${line + 1}:0 Expected identifier when parsing expression, got <eof>`]);
   });
 
-  // Markdown would read `<eof>` as an HTML tag, and the editor's tooltip
-  // would end at "got" (#2062 round 1); a backticked `<` stays markdown.
   test("a message naming `<eof>` is plain text, so the tooltip shows the token", () => {
     const messageOf = (text: string, start: string) => {
       const c = new SparkdownCompiler();
@@ -348,9 +331,6 @@ describe("a story loop header ends at its line", () => {
     expect(nodesCrossing(source, later)).toEqual([]);
   });
 
-  // A marked loop shares the story loops' condition, and its header ends
-  // with its marked statement's line, so it reports Luau's error there too
-  // (#2062 round 4).
   test.each(["& while true", "& for k, v", "& for i = 1, 3"])(
     "`%s` before a story line reports Luau's error at its line's end",
     (header) => {
@@ -370,8 +350,6 @@ describe("a story loop header ends at its line", () => {
     ]);
   });
 
-  // Every loop the marked statement holds counts, not only its first
-  // (#2062 round 4).
   test.each([
     ["& while false do end while true", "Expected 'do' when parsing while loop, got <eof>"],
     ["& while false do end for k, v", "Expected 'in' when parsing for loop, got <eof>"],
@@ -391,9 +369,6 @@ describe("a story loop header ends at its line", () => {
     expect(run(source).output).toBe(output);
   });
 
-  // Luau's reading of the header meets its end of input at the line's end,
-  // so its first error there is the loop's one diagnostic, as the official
-  // parser reports it for the header alone.
   test.each([
     ["while true print(1)", "1:13-1:18 Expected 'do' when parsing while loop, got 'print'"],
     ["for i = 1, 3 print(i)", "1:15-1:20 Expected 'do' when parsing for loop, got 'print'"],
@@ -437,9 +412,6 @@ describe("a story loop header ends at its line", () => {
   });
 });
 
-// A statement later on a story statement's line goes on with its own bracket,
-// comment, long string or block; nothing ends Luau's reading between the two,
-// so the first one's end of input moves with it (#2062 round 1).
 describe("a statement later on the line keeps its own continuation", () => {
   test.each([
     ["a function", inScene("local a = 1 local function f()\n  return 2\nend\nValue {f()}.\n"), "Value 2.\n"],
@@ -448,7 +420,6 @@ describe("a statement later on the line keeps its own continuation", () => {
     ["a function value", inScene("local a = 0 local f = function()\n  return 2\nend\nValue {f()}.\n"), "Value 2.\n"],
     ["an `&` call", inScene("local a = 0 & a = math.max(1,\n  2)\nValue {a}.\n"), "Value 2.\n"],
     ["a story `if`", inScene("local a = 0 if true then\n  Yes.\nend\n"), "Yes.\n"],
-    // The long string's second line is at column 0, so the string is `two\nlines`.
     ["a long string", `${SCENE}  local a = 0 a = [[two\nlines]]\n  Value {a}.\nend\n`, "Value two\nlines.\n"],
     ["a block comment", inScene("local a = 0 a = --[[two\nlines]] 2\nValue {a}.\n"), "Value 2.\n"],
     ["a story `while`", inScene("local a = 0 while a < 2 do\n  a = a + 1\nend\nValue {a}.\n"), "Value 2.\n"],
@@ -457,7 +428,6 @@ describe("a statement later on the line keeps its own continuation", () => {
     expect(run(source).output).toBe(output);
   });
 
-  // The later statement's own ends still stand inside it (#2062 round 2).
   test("a statement inside the later block still ends at its own line", () => {
     const source = inScene("local a = 0 if true then\n  local b = 1 +\n  local c = 2\n  Value {c}.\nend\n");
     expect(errorsOf(source)).toEqual(["2:17-3:0 Expected identifier when parsing expression, got <eof>"]);
@@ -473,8 +443,6 @@ describe("a statement later on the line keeps its own continuation", () => {
 });
 
 describe("a block comment that runs over lines carries a story statement on", () => {
-  // Its Luau meets its end of input at the end of the line the comment
-  // closes on, and the error is placed on that line.
   test.each([
     ["a declaration", "local a = 1 + --[[ x\n ]]"],
     ["an `&` declaration", "& local a = 1 + --[[ x\n ]]"],
@@ -528,16 +496,12 @@ describe("brackets carry a story statement on", () => {
     expect(topNodes(source).find((node) => node.name === "Branch")?.from).toBe(source.indexOf("  branch t"));
   });
 
-  // A declaration's bracket that never closes carried nothing on, so its
-  // Luau ends with the opener's line, and the line after it is story (I-1532).
   test("an unclosed `(` in a declaration reports Luau's error for its line alone", () => {
     const source = inScene("local x = math.max(1,\n  2\nbranch t\n  After.\nend\n");
     expect(errorsOf(source)).toEqual(["1:23-2:0 Expected identifier when parsing expression, got <eof>"]);
     expect(topNodes(source).find((node) => node.name === "Branch")?.from).toBe(source.indexOf("  branch t"));
   });
 
-  // The block ends with the line its bracket closes on, so the story line
-  // after it stays story, as the `&` block's own message says.
   test("an `&` block that a bracket carries past its line still leaves the story line after it", () => {
     const source = "scene start\n  & do x = math.max(1,\n    2)\n  After.\nend\n";
     const missing = errorsOf(source).filter((error) => error.includes("missing its closing"));
@@ -553,11 +517,6 @@ describe("brackets carry a story statement on", () => {
   });
 });
 
-// The grammar's side of the rule: nothing a story statement reaches outside
-// its brackets, strings, comments and the blocks that close at their own
-// closer (a function, a `define` and the struct and layout blocks) takes a
-// line break or begins at the next line, so no story statement can go on
-// there. A capture is tokenized on its own text, so it cannot either.
 describe("the story statement rules", () => {
   type Rule = { patterns?: { include?: string }[] };
   const repository = GRAMMAR_DEFINITION.repository as unknown as Record<string, Rule>;
@@ -608,7 +567,6 @@ describe("the story statement rules", () => {
       "LuauSparkdownExplicitLoopCondition",
       "LuauSparkdownExplicitUntilCondition",
     ];
-    // The story blocks read their headers with these.
     expect(repository["LuauSparkdownIfBlock"]!.patterns).toContainEqual({ include: "#LuauSparkdownExplicitIfCondition" });
     expect(repository["LuauSparkdownForLoop"]!.patterns).toContainEqual({ include: "#LuauSparkdownExplicitLoopCondition" });
     expect(repository["LuauSparkdownWhileLoop"]!.patterns).toContainEqual({ include: "#LuauSparkdownExplicitLoopCondition" });

@@ -244,17 +244,14 @@ const _parseSystemMetaEvent = (
   } else if (event.statusData === MIDI_STATUS_DATA.system_meta_port) {
     event.midiPort = dataView.getUint8(nextOffset);
   } else if (event.statusData === MIDI_STATUS_DATA.system_meta_track_end) {
-    // TODO: length must be 0
     event.endOfTrack = true;
   } else if (event.statusData === MIDI_STATUS_DATA.system_meta_tempo) {
-    // TODO: length must be 5
     event.tempoMPQ =
       (dataView.getUint8(nextOffset) << 16) +
       (dataView.getUint8(nextOffset + 1) << 8) +
       dataView.getUint8(nextOffset + 2);
   } else if (event.statusData === MIDI_STATUS_DATA.system_meta_smpte_offset) {
     let frameRate = 0;
-    // TODO: length must be 5
     const hourByte = dataView.getUint8(nextOffset);
     if ((hourByte & 0x60) === 0x00) {
       frameRate = 24;
@@ -280,7 +277,6 @@ const _parseSystemMetaEvent = (
     event.timeSignatureClicks = dataView.getUint8(nextOffset + 2);
     event.timeSignatureResolution = dataView.getUint8(nextOffset + 3);
   } else if (event.statusData === MIDI_STATUS_DATA.system_meta_key_signature) {
-    // TODO: length must be 2
     event.keySignatureNote = dataView.getInt8(nextOffset);
     event.keySignatureScale = dataView.getInt8(nextOffset + 1);
   } else if (

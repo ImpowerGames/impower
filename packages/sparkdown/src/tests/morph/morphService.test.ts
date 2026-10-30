@@ -26,7 +26,6 @@ const artifactFor = (key: string): MorphArtifact => ({
 const input = (key: string): MorphBakeInput => ({ source: "<svg/>", selection: {}, recipe: blink(), key });
 const bakeLoad = (key: string, source = "s1") => async (): Promise<MorphLoad> => ({ kind: "bake", input: input(key), source });
 
-/** A bake that waits until the test lets it finish, and counts its runs. */
 function controlledService(options: ConstructorParameters<typeof MorphBakeService>[0] = {}) {
   const runs: { key: string; signal: AbortSignal; finish: () => void }[] = [];
   const service = new MorphBakeService({
@@ -114,7 +113,6 @@ describe("morph bake service", () => {
     await settle();
     runs[1]!.finish();
     const hb = await second;
-    // Still referenced, so it stays even over the bound.
     expect(service.stats().artifacts).toBe(2);
     expect(revoked).toEqual([]);
     ha.release();
@@ -155,7 +153,6 @@ describe("morph bake service", () => {
     await expect(requests[2]).rejects.toBeDefined();
     runs[0]!.finish();
     await settle();
-    // `c` left the queue, so `d` takes the freed turn.
     expect(runs.map((r) => r.key)).toEqual(["a", "b", "d"]);
     runs[1]!.finish();
     runs[2]!.finish();
@@ -211,7 +208,6 @@ describe("morph artifact slot", () => {
     await settle();
     slot.set(ref("new"));
     await settle();
-    // The old request was abandoned, so its bake is cancelled.
     expect(runs[0]!.signal.aborted).toBe(true);
     runs[1]!.finish();
     await settle();

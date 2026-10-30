@@ -45,10 +45,6 @@ interface LoweredEntry {
 export function compileSource(source: string): LoweredEntry[] {
   const tree = parseSource(source);
   const ctx = createLowerContextFromSource(source);
-  // Whole-file scan for define TYPE names (`as`-parents + `new X()` targets).
-  // Kept on `ctx.defineTypeNames` so the P2 shadow-warning path matches
-  // production, AND reused below for the leaf-instance scoping post-pass —
-  // mirroring the compiler's whole-program pass (single-file here).
   const defineTypeNames = collectDefineTypeNames(tree, (f, t) =>
     source.slice(f, t),
   );
@@ -75,9 +71,6 @@ export function compileSource(source: string): LoweredEntry[] {
     }
     child = child.nextSibling;
   }
-  // Leaf-instance scoping is a whole-program post-pass in production
-  // (SparkdownCompiler, before ExportRuntime); mirror it here over the lowered
-  // blocks so the snapshot shows the scoped `$<type>_<name>` global keys.
   for (const entry of entries) {
     if (entry.block?.content) {
       scopeDefineInstances(entry.block.content, defineTypeNames);
@@ -86,12 +79,6 @@ export function compileSource(source: string): LoweredEntry[] {
   return entries;
 }
 
-// Each top-level grammar chunk lowers to a single JSON-shaped block. The
-// source is available in the adjacent `.sd` file, so we don't echo it in the
-// snapshot.
-//
-// When a `.sd` file produces multiple top-level chunks, they're emitted
-// back-to-back separated by a blank line (the test joins entries with `\n\n`).
 export function formatLoweredEntry(entry: LoweredEntry): string {
   if (entry.block === undefined) {
     return "(no lowerer)";
@@ -110,10 +97,6 @@ function blockToJson(block: CompiledBlock): unknown {
   if (block.uuid !== undefined) result["uuid"] = block.uuid;
   return result;
 }
-
-// The `type` field on each JSON node matches the inkjs ParsedObject's class
-// name exactly. This means snapshot output mirrors the runtime tree's class
-// hierarchy, and the JSON shape stays in sync with renames in inkjs itself.
 
 function parsedObjectToJson(obj: ParsedObject): unknown {
   if (obj instanceof Knot) {
@@ -242,7 +225,7 @@ function flowToJson(typeName: "Knot" | "Stitch", flow: Knot | Stitch): unknown {
     args: flow.args?.map((a) => a.identifier?.name ?? null) ?? [],
     isFunction: flow.isFunction,
   };
-  const rootWeave = flow._rootWeave;
+  const rootWeave = flow._weave;
   if (rootWeave && rootWeave.content.length > 0) {
     result["body"] = rootWeave.content.map(parsedObjectToJson);
   }
@@ -250,9 +233,6 @@ function flowToJson(typeName: "Knot" | "Stitch", flow: Knot | Stitch): unknown {
 }
 
 function branchToJson(branch: ConditionalSingleBranch): unknown {
-  // Inkjs's ConditionalSingleBranch tracks the condition both as a property
-  // and as an entry in `content`. Filter it from the body so the JSON shape
-  // doesn't double-display it.
   const bodyContent =
     branch.content?.filter((c) => c !== branch.ownExpression) ?? [];
   return {

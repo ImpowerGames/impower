@@ -4,12 +4,6 @@ import type { ResponseMessage } from "@impower/jsonrpc/src/common/types/Response
 
 export type SetAnimatePortraitsMethod = typeof SetAnimatePortraitsMessage.method;
 
-/**
- * The editor's `Animate portraits` preference. Off returns every portrait
- * morph to its rest pose and keeps it there; on starts each one on a fresh
- * cycle. It holds for whatever the player shows, stopped or playing, until
- * the editor sends it again; the player starts with it on.
- */
 export interface SetAnimatePortraitsParams {
   enabled: boolean;
 }

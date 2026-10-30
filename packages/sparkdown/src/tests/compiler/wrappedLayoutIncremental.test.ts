@@ -2,12 +2,6 @@ import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent } from "../programListing";
 
-// #1225: a line that continues an element joins the element above it, so
-// adding or removing one changes that element, and typing or deleting the
-// `}` of a closure that spans lines changes which lines the closure holds.
-// An incremental compile after each edit must give the program a cold
-// compile of the same text gives.
-
 const URI = "inmemory:///main.sd";
 
 const SOURCE = `scene start
@@ -92,7 +86,6 @@ function posAt(text: string, offset: number) {
   return { line, character: offset - (before.lastIndexOf("\n") + 1) };
 }
 
-/** Each element of a layout tree as `tag.class…` with its children. */
 function shape(nodes: any[]): string[] {
   return (nodes ?? []).map((n: any) =>
     n.kind === "element"
@@ -106,8 +99,6 @@ const layoutShape = (program: ReturnType<typeof pick>) =>
 const componentShape = (program: ReturnType<typeof pick>) =>
   shape((program.sparkle as any)?.components?.["card"]?.children);
 
-// Each edit inserts `text` right after `after` (the text before it), and how
-// the edited source reads.
 const INSERTS = [
   {
     name: "a class line after an indented element's last part",
@@ -203,8 +194,6 @@ describe("deleting and retyping the `}` of a closure that spans lines", () => {
     const afterDeleting = pick(c.compile({ textDocument: { uri: URI } }).program);
     const coldDeleted = coldCompile(deleted);
     expect(stable(afterDeleting)).toBe(stable(coldDeleted));
-    // The closure now ends at the `}` that closed the panel, so it is the
-    // panel's block that is left open, reported on its `{`.
     const open = SOURCE.indexOf("column.panel {") + "column.panel ".length;
     expect(
       ((coldDeleted.diagnostics as any)?.[URI] ?? [])

@@ -1,5 +1,3 @@
-// Each character's scope stack as vscode-textmate and as textmate-grammar-tree
-// read the same grammar and text, so a test can require the two to agree.
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -11,11 +9,6 @@ const { Registry, INITIAL } = vstm;
 
 let wasm: Promise<void> | undefined;
 
-/**
- * Each character's scopes as vscode-textmate tokenizes `text` with `grammar`,
- * one line at a time. A line break has the empty string, since
- * vscode-textmate gives it no token.
- */
 export async function vscodeScopes(grammar: any, text: string): Promise<string[]> {
   wasm ??= loadWASM(readFileSync(createRequire(import.meta.url).resolve("vscode-oniguruma/release/onig.wasm")));
   await wasm;
@@ -43,10 +36,6 @@ export async function vscodeScopes(grammar: any, text: string): Promise<string[]
   return scopes;
 }
 
-/**
- * Each character's scopes as textmate-grammar-tree parses `text` with
- * `grammar`. A line break has the empty string, as in {@link vscodeScopes}.
- */
 export function treeScopes(grammar: any, text: string): string[] {
   const parser = new TextmateGrammarParser(structuredClone(grammar));
   const names = new Map<number, string>();

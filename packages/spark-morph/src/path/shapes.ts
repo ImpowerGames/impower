@@ -1,10 +1,6 @@
 import type { Subpath } from "../types";
 import { parsePathData } from "./parse";
 
-/**
- * The SVG basic shapes, given as plain attribute values. Missing lengths
- * default to zero as in SVG; `points` is the raw `points` attribute text.
- */
 export type BasicShape =
   | { kind: "rect"; x?: number; y?: number; width: number; height: number; rx?: number; ry?: number }
   | { kind: "circle"; cx?: number; cy?: number; r: number }
@@ -18,11 +14,6 @@ const nums = (points: string | number[]): number[] =>
     ? points
     : (points.match(/[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/g) ?? []).map(Number);
 
-/**
- * The equivalent path data for a basic shape, following the SVG spec. A
- * shape SVG would not render (a zero or negative width, height or radius)
- * yields empty path data, so absent art never becomes morphable geometry.
- */
 export function basicShapeToPathData(shape: BasicShape): string {
   switch (shape.kind) {
     case "rect": {
@@ -31,7 +22,6 @@ export function basicShapeToPathData(shape: BasicShape): string {
         w = shape.width,
         h = shape.height;
       if (!(w > 0) || !(h > 0)) return "";
-      // A negative corner radius is an error in SVG; treat it as unset.
       let rx = Math.max(0, shape.rx ?? shape.ry ?? 0),
         ry = Math.max(0, shape.ry ?? shape.rx ?? 0);
       rx = Math.min(rx, w / 2);
@@ -70,7 +60,6 @@ export function basicShapeToPathData(shape: BasicShape): string {
   }
 }
 
-/** Parses a basic shape straight to cubic subpaths. */
 export function basicShapeToSubpaths(shape: BasicShape): Subpath[] {
   return parsePathData(basicShapeToPathData(shape));
 }

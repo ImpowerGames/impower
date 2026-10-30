@@ -1,13 +1,3 @@
-// A `..` on each side of a `>` break (`A .. > .. B`, or `A .. >` ending a line
-// and `.. B` beginning the next) waits for a click and then carries on in the
-// same box. The part before the click is a step of its own whose table carries
-// `pause` and `extend`; the part after it begins a step whose first table
-// carries `continues`, which `display` keeps only when the line shown before
-// it offered the box. The interpreter carries that step on in the box
-// (packages/spark-engine). A mark on one side only joins nothing: the part
-// after the click is a new box, and a lone leading mark is warned about as the
-// story runs.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import {
@@ -40,8 +30,6 @@ const inStart = (body: string, declarations = "") => {
   return `${declarations}scene start\n${lines.join("\n")}\nend\n`;
 };
 
-// Every step that shows something, as its tables, and the warnings the run
-// raised.
 function run(
   body: string,
   declarations = "",
@@ -81,12 +69,9 @@ function run(
   return { steps, warnings };
 }
 
-// A step's text, as its tables say it.
 const text = (step: Table[]) => step.map((table) => table.text ?? "").join("");
 
 describe("a `..` on each side of a break carries on in the box after the click", () => {
-  // Each spelling: the step the break ends, which offers the box, then the
-  // continuation's own step, which takes it.
   test.each<[string, string, string, string, string?]>([
     ["in one line", `A .. > .. B\nAfter.\n`, "A ", "B"],
     ["touching the words", `A.. >..B\nAfter.\n`, "A", "B"],
@@ -211,7 +196,6 @@ describe("a mark on one side of a break joins nothing", () => {
       expect(warnings, source).toEqual([NOT_JOINED]);
       expect(steps.map(text)).toEqual(["A", "B"]);
       expect(steps[0]!.some((table) => table.extend)).toBe(false);
-      // `display` takes the mark off, so the interpreter starts a new box.
       expect(steps[1]![0]?.continues).toBeUndefined();
     }
   });
@@ -233,12 +217,10 @@ describe("a mark on one side of a break joins nothing", () => {
   });
 
   test("a branch taken that shows nothing leaves the next line's mark to decide", () => {
-    // The branch shows nothing, so the offer stands for the line after it.
     const untaken = run(`A .. >\nif false then\n  B\nend\n.. C\n`);
     expect(untaken.warnings).toEqual([]);
     expect(untaken.steps.map(text)).toEqual(["A ", "C"]);
     expect(untaken.steps[1]![0]).toMatchObject({ continues: true });
-    // Without a mark the line after the block is a new box.
     const plain = run(`A .. >\nif false then\n  .. B\nend\nC\n`);
     expect(plain.warnings).toEqual([]);
     expect(plain.steps.map(text)).toEqual(["A ", "C"]);
@@ -253,9 +235,6 @@ describe("a mark on one side of a break joins nothing", () => {
 });
 
 describe("an edit inside the block before a line", () => {
-  // The flags a line's calls carry read only the line itself, so a line kept
-  // from an earlier compile carries what a cold compile gives it. The edit
-  // changes the block's length, which moves the continuation below it.
   test("compiles as a cold compile of the same text does", () => {
     const pad = Array.from({ length: 20 }, (_, i) => `  Filler ${i}.`).join("\n");
     const base = `scene start\n${pad}\n  A .. >\n  if false then\n    B\n  end\n  .. C\n${pad}\nend\n`;
@@ -305,8 +284,6 @@ describe("an edit inside the block before a line", () => {
 });
 
 describe("the preview's lines", () => {
-  // The lines of the first part resolve to its step, and the continuation's
-  // lines to the continuation's.
   test("each part's lines belong to its own step", () => {
     const source = inStart(`CHARACTER:\n  [[a]]\n  First .. >\n  .. [[b]]\n  second.\n`);
     const compiler = testCompiler();
@@ -328,9 +305,6 @@ describe("the preview's lines", () => {
     const root = rootOf(program.chunks);
     const lines: number[][] = [];
     let ran = new Set<number>();
-    // The program engine names each instruction it runs by its address, which
-    // the root places at the lines of the line table row that covers it, as
-    // the current engine named a path the path-location table placed.
     story.onExecute = (address: unknown) => {
       if (typeof address !== "number") return;
       const location = root.locationOf(address);

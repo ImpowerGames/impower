@@ -1,5 +1,4 @@
 // agent-tooling-timeout-ms: 600000
-// Ran 198 s on a Windows runner with four checks in flight (#1937).
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -21,7 +20,6 @@ const controlOwned=async request=>{
   const prepared=await prepareOwnedChild(request);
   return prepared.status==='prepared'?runOwnedChild({...request,prepared}):prepared;
 };
-// Preserve failed evidence; every test uses a private fresh attempt.
 const scratch=()=>fs.mkdtempSync(path.join(os.tmpdir(),'test-suite-child-'));
 test('Linux required children interface refuses before capability acknowledgement',{skip:process.platform!=='linux',timeout:40000},async()=>{
   const parent=scratch(),source=fs.readFileSync(path.join(here,'test-suite-child-linux.py'),'utf8');
@@ -47,7 +45,6 @@ test('Linux required children interface refuses before capability acknowledgemen
     assert.ok(disposition.preparationClose,'Retain actual original capability-process close');
     assert.equal(disposition.preparationClose.signal,null);
     if(kind==='sensitivity') {
-      // --check cannot fork even when the defective capability check succeeds.
       assert.equal(result.status,'prepared');assert.equal(acknowledged,true);
       assert.equal(disposition.preparationClose.exit,0);
       assert.equal(fs.existsSync(marker),false,'Original admission never reads the required interface');
@@ -120,7 +117,6 @@ async function until(predicate,ms=10000) {
   assert.fail('Fixture did not reach its bounded observable state');
 }
 async function absence(file,ms=15000) {
-  // A just-terminated fixture can stay visible briefly on a loaded hosted Windows runner.
   for(const row of records(file)) {
     try {await waitForAbsence([row],ms);} catch(error) {assert.fail(`Fixture PID ${row.pid} remained live: ${error.message}`);}
   }
@@ -200,8 +196,6 @@ test('tree proof requires matching identities, terminal evidence, and actual hel
 });
 
 test('enclosing attempt and reservation cannot borrow another valid proof',{skip:!supported},()=>{
-  // Synthetic lifecycle unit control; actual native proof envelope controls
-  // run separately through the installed public API fixtures.
   const run=fs.realpathSync.native(scratch()),id=randomUUID(),directory=path.join(run,id);
   fs.mkdirSync(directory);
   const {expected,proof}=expectedProof(directory);
@@ -232,7 +226,6 @@ test('tree proof refuses a replaced physical attempt root',{skip:!supported},()=
   fs.symlinkSync(copy,directory,process.platform==='win32'?'junction':'dir');
   assert.equal(fs.realpathSync.native(directory),copy,'Exercise a real redirected attempt root');
   assert.throws(()=>readTreeProof(expected,{identify:()=>null}),/attempt directory changed/);
-  // Preserve the complete scratch repository and junction. No link deletion.
 });
 
 test('native supervisor owns normal exits, timeouts, and fast detached descendants',{skip:!supported,timeout:120000},async()=>{
@@ -260,7 +253,6 @@ test('native supervisor owns normal exits, timeouts, and fast detached descendan
 });
 
 test('reached authorization refusal never starts an engine',{skip:!supported,timeout:30000},async()=>{
-  // Late startup callbacks and definite prelaunch expiry have separate reached controls.
   const runtime=await prepareOwnedRuntime({directory:scratch(),startupMs:10000,cleanupMs:1000});
   assert.equal(runtime.status,'prepared',JSON.stringify(runtime));
   const directory=scratch(),inventory=path.join(directory,'pids.jsonl');
@@ -374,8 +366,6 @@ test('preparation deadline includes forced synchronous identity capture',{skip:p
       identityCaptures++;
       const original=capturedOriginal=processIdentity(pid);
       assert.ok(original?.start,'Capture the actual original compiler identity before delaying');
-      // Deliberately exhaust the authored bound; the child waits on our ack.
-      // This does not depend on compilation speed or ambient machine load.
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,startupMs+100);
       return original;
     },onPreparation(value) {fs.writeFileSync(ack,JSON.stringify(value.preparationProcess));}});
@@ -620,12 +610,11 @@ test('prepared binding is checked again after ready and before authorization',{s
 test('helper independently refuses nonce after a stalled synchronous coordinator callback',{skip:!supported,timeout:60000},async()=>{
   const directory=scratch(),inventory=path.join(directory,'pids.jsonl');
   let readyCalls=0;
-  // The startup bound also covers preparation and probe on a loaded runner; the stall still outlasts it.
   const result=await controlOwned({directory,command:process.execPath,args:[fixture,'loop',inventory],
     cwd:directory,timeoutMs:1500,startupMs:10000,reservationToken:randomUUID(),onReady() {
       readyCalls++;
       const until=Date.now()+12000;
-      while(Date.now()<until) {} // Node timers cannot fire; helper must refuse itself.
+      while(Date.now()<until) {}
     }});
   assert.equal(result.status,'not-run',JSON.stringify(result));
   assert.equal(result.exitConfirmed,true);
@@ -747,8 +736,6 @@ test('Linux helper loss is unknown; fixture cleanup uses pre-pinned exact identi
     cwd:directory,timeoutMs:20000,reservationToken:randomUUID(),onReady(value){helper=value.helper;},onStarted(){trigger();}});
   await began;
   await until(()=>records(inventory).length===3);
-  // This fixture-only sibling pins known stable processes before helper loss.
-  // It is not a process-tree containment implementation or recovery proof.
   const code=[
     'import json,os,select,signal,sys,time',
     'rows=json.loads(sys.argv[1]); handles=[]',

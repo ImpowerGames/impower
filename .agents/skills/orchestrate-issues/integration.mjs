@@ -1,20 +1,3 @@
-// Integration of an orchestrated parent issue. The merge gate decides whether the
-// coordinator may merge one slice's PR now; the merge itself records its
-// intent, calls GitHub with the expected head and reads the result back; and
-// the parent issue's own acceptance criteria are verified on main before the
-// coordinator closes the parent issue. GitHub stays the authority for PR state,
-// heads, checks and protection: every command reads them afresh, and the run
-// record keeps only the intent, the observed outcome and the evidence.
-//
-// The gate checks what can be checked: authority, scope, review state from
-// the launcher's journals, published decisions, CI on the head, main's own CI
-// and GitHub's merge state. Whether a criterion's evidence really shows it is met is the
-// coordinator's judgement; the helper only refuses a criterion without any.
-//
-//   node .agents/skills/orchestrate-issues/integration.mjs <command> --option value ...
-//
-// Commands: gate, merge, criteria, verify-issue, close-issue.
-
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -28,15 +11,8 @@ import { FIRST_CHECKPOINT_ROUND, roundState, readJournals, restore, acceptanceAp
 
 export { parseCriteria };
 
-// Every slice merges into main, the branch the snapshot measures delivery on.
 export const TARGET = "main";
-// The repository's own required gate: the Test Suite workflow's gate job,
-// which passes whether its package jobs ran or were skipped. Branch
-// protection and rulesets may name more; the gate reads them on every run.
 export const REPOSITORY_GATES = ["test-suite"];
-// The workflow whose push runs on main are the integration check: a head is
-// admitted without containing the current main, so what shows the combination
-// that landed is main's own run after the merge, and a red main freezes merges.
 export const REPOSITORY_WORKFLOW = "Test Suite";
 const MERGEABLE = new Set(["CLEAN", "HAS_HOOKS"]);
 const OPEN = new Set(["intent", "uncertain"]);
@@ -45,34 +21,18 @@ const short = (sha) => String(sha ?? "none").slice(0, 9);
 const present = (value) => typeof value === "string" && value.trim().length > 0;
 const norm = (text) => String(text ?? "").replace(/\s+/g, " ").trim();
 const sameCommit = (a, b) => typeof a === "string" && typeof b === "string" && a.length >= 7 && b.length >= 7 && (a.startsWith(b) || b.startsWith(a));
-// A writer's report has nothing outstanding when its findings field says None
-// or lists nothing.
 const noneOutstanding = (findings) => (Array.isArray(findings) ? findings.length === 0 : /^none\.?$/i.test(norm(findings)));
 
-// --- Authority ----------------------------------------------------------------
-
-// The recorded invocation names the skill and the parent issue. Whether the user
-// asked for orchestration or only discussed it is read from that quote by the
-// coordinator that recorded it; a quote that names neither grants nothing.
-// Once the record names a tickets repository apart from the code repository,
-// the parent may also be named with the autolink prefix, as #<prefix>N or
-// <prefix>N. Every form refuses a longer number, and the bare form a longer word.
 export const invokes = (record, repos = readRepos()) => {
   const text = record.invocation?.text ?? "";
   if (!/orchestrate-issues/i.test(text)) return false;
   const prefix = String(repos.autolinkPrefix ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  // A bare <prefix>N must start a token, so FIXI-40 does not name I-40.
   const ref = repositoriesOf(record).split && prefix ? `(?:#|#${prefix}|(?<![A-Za-z0-9_])${prefix})` : "#";
   return new RegExp(`${ref}${record.issue}(?![0-9])`).test(text);
 };
 
-// --- CI -------------------------------------------------------------------------
-
 const PASSED = new Set(["SUCCESS", "NEUTRAL"]);
 const PENDING = new Set(["", "PENDING", "QUEUED", "IN_PROGRESS", "EXPECTED", "WAITING", "REQUESTED"]);
-// Each check's latest run on the head, as passed, skipped (it did not run),
-// pending or failed. Any other conclusion (cancelled, timed out, stale,
-// action required) is a failure until it is diagnosed and run again.
 export function classifyChecks(checks, required) {
   const when = (c) => Date.parse(c.startedAt ?? c.completedAt ?? "") || 0;
   const latest = new Map();
@@ -101,12 +61,6 @@ function ciBlockers(checks, required, head) {
   return out;
 }
 
-// Main's own CI, from its push runs newest first. The verdict is the latest
-// completed run that was not cancelled (a superseded run is cancelled by the
-// workflow's concurrency and says nothing): green, red, or none when no such
-// run exists or main's runs could not be read. A pending run on the newest
-// main does not hold the gate; a red main does, until it is fixed or
-// reverted and the next run is green.
 export function mainVerdict(runs) {
   if (!Array.isArray(runs)) return { verdict: "none", reason: typeof runs === "string" ? runs : "main's workflow runs could not be read" };
   const sorted = [...runs].sort((a, b) => (Date.parse(b.createdAt ?? "") || 0) - (Date.parse(a.createdAt ?? "") || 0));
@@ -125,23 +79,12 @@ const MERGE_STATES = {
 };
 const mergeStateBlocker = (s) => MERGE_STATES[s] ?? `GitHub has not settled whether the PR can merge (${s ?? "no merge state"}); read it again shortly`;
 
-// --- Facts and the gate -----------------------------------------------------
-
-// Everything the gate decides on, read afresh: the PR as GitHub shows it, the
-// branch's protection, the comments on the PR's review thread (the PR, or the
-// ticket once tickets live apart), the review journals on this machine,
-// main's own push runs, and, read last so the slower reads cannot outdate it,
-// main as the remote holds it with the chain of clean main merges at the
-// branch's head and the main commit the head's CI covered (the merge base of
-// the head and main, which is main itself when the head contains it).
 export function gatherFacts({ record, ticket, pr, client, git }) {
   const pull = client.pull(pr);
   const protection = client.protection(TARGET), comments = client.comments(pr, ticket);
   const state = roundState(readJournals(path.join(`${record.checkout}.review-jobs`, `pr-${pr}`)));
   let mainRuns;
   try { mainRuns = client.mainRuns(TARGET); } catch (error) { mainRuns = `${TARGET}'s workflow runs could not be read: ${String(error.stderr || error.message).trim().split("\n")[0]}`; }
-  // Each ticket filed during the run that completes this slice's fix, as
-  // GitHub shows it now; one that cannot be read is held as open.
   const filed = Object.fromEntries(completingTickets(record, ticket).map((e) => { try { return [e.number, client.issue(e.number).state]; } catch (error) { return [e.number, `unreadable (${String(error.stderr || error.message).trim().split("\n")[0]})`]; } }));
   git.fetch(pr);
   const originMain = git.main();
@@ -149,8 +92,6 @@ export function gatherFacts({ record, ticket, pr, client, git }) {
   return { pull, originMain, protection, comments, state, mainRuns, filed, chain: git.cleanChain(pull.head, originMain), containsMain, ciMain: containsMain ? originMain : git.mergeBase(pull.head, originMain) };
 }
 
-// An acceptance applies to the head, or to a commit the head reaches through
-// clean merges of main alone.
 function acceptanceOn(decisions, chain) {
   const direct = acceptanceApplies(decisions, chain[0]);
   if (direct.applies || !direct.decision || !chain.includes(direct.decision.head)) return direct;
@@ -158,13 +99,9 @@ function acceptanceOn(decisions, chain) {
   return there.applies ? { ...there, reason: `${there.reason}; the head adds only clean merges of ${TARGET} after it` } : direct;
 }
 
-// The merge gate. It admits the PR's current head only when every condition
-// holds, and otherwise names each one that fails; it never changes anything.
 export function admission(record, { ticket: number, pr, snapshot, facts, git, running = null }) {
   const { pull, state, comments, originMain, chain, protection, ciMain, containsMain } = facts;
   const head = pull.head, blockers = [];
-  // Authority: the invocation granted the merge, did not stop at ready, and
-  // the coordinator never wrote for this ticket.
   if (record.invocation?.merging !== "coordinator") blockers.push(`the run records that the maintainer merges (merging ${record.invocation?.merging ?? "not recorded"}), so no PR of this run merges here`);
   else if (!coordinatorMerges(record)) blockers.push(`the run's recorded grant ("${record.authority?.merge}") or its quoted request ("${record.invocation?.text}") does not let the coordinator merge`);
   if (!record.checkpoints) blockers.push("checkpoints are not enabled for this run, so a merge's intent could not be saved where another machine finds it; run checkpoint.mjs enable first");
@@ -173,7 +110,6 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
   let writers = [];
   if (own) { try { writers = writersOf(own, number); } catch (error) { writers = null; blockers.push(error.message); } }
   if (writers?.includes(record.coordinator.session)) blockers.push(`${record.coordinator.session} wrote for #${number}, and a writer never merges its own work`);
-  // Scope: a sub-issue of this parent issue, and its one open PR.
   const t = snapshot.repository === record.repository && snapshot.issue?.number === record.issue ? snapshot.tickets.find((x) => x.number === number) : undefined;
   if (snapshot.repository !== record.repository || snapshot.issue?.number !== record.issue) blockers.push("the snapshot is of another repository or parent issue");
   else if (!t) blockers.push(`#${number} is not a sub-issue of issue #${record.issue} in the snapshot of ${snapshot.observedAt}`);
@@ -182,15 +118,8 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
   else if (!t.prs.some((p) => p.number === pr)) blockers.push(`PR #${pr} is not one of #${number}'s PRs in the snapshot of ${snapshot.observedAt}`);
   else if (t.prs.filter((p) => p.state === "OPEN").length > 1) blockers.push(`#${number} has open PRs ${t.prs.filter((p) => p.state === "OPEN").map((p) => `#${p.number}`).join(", ")}; which one delivers it is the maintainer's decision`);
   if (branchTicket(pull.branch) !== number) blockers.push(`PR #${pr}'s branch ${pull.branch} is not #${number}'s`);
-  // The client keeps only closing references to the tickets repository.
   const names = repositoriesOf(record), ref = names.split ? `${names.tickets}#${number}` : `#${number}`;
   if (!(pull.closes ?? []).includes(number)) blockers.push(`PR #${pr} does not close ${ref} (its body has no Closes ${ref}), so merging it would leave the ticket open`);
-  // A ticket filed during the run that completes this slice's fix is
-  // delivered by this PR: while it is open, the PR closes it or waits, unless
-  // the maintainer accepted the narrow fix as an interim. One raised with the
-  // maintainer for this slice holds the PR until their answer is recorded,
-  // whatever the PR or the ticket's state says, since a closing reference
-  // does not answer a decision that is theirs.
   for (const e of completingTickets(record, number)) {
     const fref = names.split ? `${names.tickets}#${e.number}` : `#${e.number}`;
     if (e.outcome.kind === "maintainer") { blockers.push(`${fref}, filed during the run, waits on the maintainer's answer to "${e.outcome.question}", and the PR holds until it is recorded (triage, or interim for an accepted narrow fix)`); continue; }
@@ -198,15 +127,10 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
     if (seen === "closed" || (pull.closes ?? []).includes(e.number)) continue;
     blockers.push(`${fref}, filed during the run, completes #${number}'s fix (${e.outcome.reason}) and is ${seen}, but PR #${pr} does not close it; send the PR back to its writer for the proper fix with Closes ${fref}, or record the maintainer's interim decision with issue-run.mjs interim`);
   }
-  // The PR itself.
   if (pull.state !== "OPEN") blockers.push(`PR #${pr} is ${pull.state}`);
   if (pull.isDraft) blockers.push(`PR #${pr} is a draft; it merges only once marked ready`);
   if (pull.base !== TARGET) blockers.push(`PR #${pr} targets ${pull.base}, not ${TARGET}`);
   for (const op of (record.operations ?? []).filter((o) => o.pr === pr && o.kind !== "close" && OPEN.has(o.state) && o.id !== running)) blockers.push(`${operationText(op)} ${op.id} at ${op.expectHead} is ${op.state}; settle it with checkpoint.mjs reconcile-operations before any new merge`);
-  // Review: every planned reviewer exited and every report is adjudicated,
-  // read through the same accounting as the review checkpoints; then the
-  // head is the last reviewed one, or a published acceptance covers it.
-  // With the ticket's writers unknown, no decision is trusted.
   const trusted = writers === null ? [] : trustedCoordinators(record, number);
   const e = checkpointEvidence({ pr, state, pull: { ...pull, checks: [] }, comments, git, trusted, record, firstRound: 1, ci: false, ...(names.split && { where: threadName(names.thread(pr, number)) }) });
   blockers.push(...e.blockers, ...e.audit.map((a) => `review audit: ${a}`));
@@ -221,16 +145,9 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
       blockers.push(`head ${head} is not the last independently reviewed head ${e.reviewedHead ?? "(none)"} or a clean merge of ${TARGET} on top of it${unreviewed}, and no acceptance covers it (${a.reason}); the writer's next review round, or a checkpoint decision on this head, settles it`);
     }
   }
-  // From round 3 on, every completed round ends at the coordinator's
-  // checkpoint: the PR merges only under that round's published finish or an
-  // acceptance that applies, and never while a repair, an extension or a
-  // question to the maintainer is the decision in force.
   const latest = decisions.filter((d) => d.effective).at(-1);
   if (latest && ["maintainer", "repair"].includes(latest.kind)) blockers.push(`decision ${latest.id} (${latest.kind} after round ${latest.round}) is in force; ${latest.kind === "maintainer" ? "the ticket waits for the maintainer's answer" : "the repair is decided again once it is verified"}, and a later checkpoint decision replaces it`);
   else if (e.completedRound >= FIRST_CHECKPOINT_ROUND && !(latest && latest.verified && latest.round === e.completedRound && ["finish", "accept-unreviewed"].includes(latest.kind))) blockers.push(`round ${e.completedRound}'s checkpoint has no published finish or acceptance decided at it${latest ? ` (the decision in force is ${latest.id}, ${latest.kind} after round ${latest.round}${latest.verified ? "" : ", not verified by this record"})` : ""}; decide it with review-checkpoint.mjs before the merge`);
-  // A reviewed completion also needs the writer's final report on that head
-  // with nothing outstanding: an unresolved finding or a material
-  // verification gap keeps the PR from merging.
   if (disposition === "reviewed") {
     const report = [...(own?.results ?? [])].reverse().find((r) => Number(r.report?.pr) === pr)?.report;
     if (!report) blockers.push(`the run record holds no writer report for PR #${pr}; read the writer's final report and record it with issue-run.mjs result`);
@@ -239,15 +156,9 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
       if (!noneOutstanding(report.findings)) blockers.push(`the writer's report lists outstanding findings or verification gaps: ${typeof report.findings === "string" ? report.findings : JSON.stringify(report.findings)}`);
     }
   }
-  // CI on the current head: every check complete, none failed, and each
-  // required gate run and passed.
   const required = [...new Set([...REPOSITORY_GATES, ...protection.required])];
   const checks = classifyChecks(pull.checks, required);
   blockers.push(...ciBlockers(checks, required, head));
-  // Integration: GitHub's own merge state admits the head, and main's own CI
-  // is not red. The head need not contain the current main: its CI covered
-  // the code as of ciMain, and main's push run after the merge checks the
-  // combination that lands, which the outcome and the final report name.
   const mainCi = mainVerdict(facts.mainRuns);
   if (mainCi.verdict === "red") blockers.push(`${TARGET}'s own CI is red: the latest completed push run of ${REPOSITORY_WORKFLOW} on ${TARGET} concluded ${mainCi.conclusion} at ${mainCi.head ?? "an unknown commit"}${mainCi.url ? ` (${mainCi.url})` : ""}; no merge lands on a red ${TARGET}, so fix or revert it and let its run go green first`);
   if (pull.mergeable === "CONFLICTING") blockers.push(`PR #${pr} conflicts with ${TARGET}`);
@@ -265,11 +176,6 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
 
 const gateSummary = (g) => ({ disposition: g.disposition, reviewedHead: g.reviewedHead, completedRound: g.completedRound, ...(g.acceptance && { acceptance: g.acceptance }), mergedSince: g.mergedSince, originMain: g.originMain, ciMain: g.ciMain, containsMain: g.containsMain, mainCi: g.mainCi, checks: g.checks.map(({ name, workflow, result }) => ({ name, workflow, result })) });
 
-// --- The final gate ----------------------------------------------------------
-
-// Whether this record's coordinator still owns the parent issue on its state
-// branch, with this operation's intent saved there, read from the remote. A
-// takeover, or an intent that never reached the remote, refuses the call.
 export function remoteOwnership(record, opId) {
   const state = fetchState(record.checkout, record.checkpoints.remote, record.repository, record.issue, repositoriesOf(record).tickets);
   if (!state) return [`${stateBranch(record.issue)} is missing on ${record.checkpoints.remote}`];
@@ -278,20 +184,6 @@ export function remoteOwnership(record, opId) {
   return [];
 }
 
-// The one sequence in front of every irreversible GitHub call, which no
-// caller orders itself. It reads ownership of the parent issue and this
-// operation's saved intent from the state branch, then a fresh snapshot, then
-// the caller's premises on that snapshot (which may make reads of their own),
-// then the parent issue's scope once more (its slices, then its acceptance
-// section), then main, last; the call is made only when every read holds.
-// The scope read catches a slice or criterion that changed while the snapshot
-// and the premises' slower reads ran, which the snapshot alone would miss.
-// `current` reads the run record as it is now. A read that fails leaves the
-// call unmade. A call that throws was made and may still land, so its error
-// is returned for the caller's outcome rule rather than thrown. The caller's
-// call is the GitHub write alone, with any lookup it needs done before the
-// gate. integration.test.mjs runs every reordering and removal of these five
-// reads and requires each to fail.
 export function finalGate({ current, opId, ownership, takeSnapshot, premises, readScope, git, main, call }) {
   let owned, snapshot, held, scope, now;
   try {
@@ -312,18 +204,6 @@ export function finalGate({ current, opId, ownership, takeSnapshot, premises, re
   catch (error) { return { called: true, error, held }; }
 }
 
-// --- Merge -------------------------------------------------------------------
-
-// Merges an admitted PR. The gate runs on a fresh snapshot and fresh facts,
-// the intent is recorded and saved to the state branch, and the final gate
-// reads everything again before the call, so a takeover, or a scope, head or
-// main that changed while the intent was saved, stops the merge before GitHub
-// is called. The call names the head the gate admitted, so a push in between
-// makes GitHub refuse it. The outcome is what GitHub reads back afterwards,
-// never what the call said: an unreadable or contradictory result is
-// uncertain and is settled by reconcile-operations before any retry. A merge
-// commit whose first parent is not the main the head's CI covered landed a
-// combination CI never checked, and the outcome says so.
 export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, takeSnapshot, readScope, client, git, afterIntent, ownership = remoteOwnership }) {
   const record = readRecord(file);
   if (record.coordinator.session !== coordinator) throw new Error(`Issue #${record.issue} is coordinated by ${record.coordinator.session}; ${coordinator} may not merge for it`);
@@ -356,8 +236,6 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, t
   const call = final.error ? { ok: false, interrupted: true, message: final.error.message } : final.value;
   let back = null, readError = null;
   try { back = client.pull(pr); } catch (error) { readError = error.message; }
-  // Only GitHub's own refusal shows the request did not apply; a call that was
-  // interrupted, or failed without GitHub's answer, may still land.
   const refused = !call.ok && !call.interrupted && GITHUB_REFUSAL.test(call.message ?? "");
   const said = call.ok ? "returned success" : `${refused ? "was refused by GitHub" : call.interrupted ? "was interrupted" : "failed without GitHub's answer"} (${call.message})`;
   let state, evidence, merged = null;
@@ -369,21 +247,13 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, t
     state = "confirmed";
     evidence = `PR #${pr} reads back merged as ${back.mergeCommit} at ${gate.head}${onMain ? `; the merge commit is on origin/${TARGET}` : onMain === false ? `; the merge commit is not on origin/${TARGET} yet` : `; whether it is on origin/${TARGET} could not be read (${readError})`}${landingText(merged, gate.ciMain)}`;
   } else if (back.state === "MERGED") { state = "uncertain"; evidence = `PR #${pr} reads back merged at ${back.head}, not at ${gate.head}; reconcile-operations settles it`; }
-  // A merge that was called is failed only on GitHub's own refusal; every
-  // other result short of a confirmed merge is uncertain until reconciled.
   else if (refused) { state = "failed"; evidence = `the merge call ${said}, and PR #${pr} reads back ${back.state} at ${back.head}; nothing was merged`; }
   else { state = "uncertain"; evidence = `the merge call ${said}, and PR #${pr} reads back ${back.state} at ${back.head}; the request may still land, so reconcile-operations settles it`; }
   const settled = updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { const o = outcome(r, { id: op.id, state, evidence }); if (merged) Object.assign(o, merged); });
   return { admitted: true, merged: state === "confirmed", operation: op.id, state, evidence, ...(merged ?? {}), revision: settled.record.revision, gate };
 }
 
-// --- The parent issue's acceptance -------------------------------------------------
-
-// What the run merged, and how: through this run's gate with its
-// disposition, or outside it.
 function slices(record, snapshot) {
-  // A delivered ticket's PR and merge are its deliverer's; its own list may
-  // lack that PR once tickets live apart.
   const prOf = (t) => (t.deliveredBy?.pr ? snapshot.tickets.find((x) => x.number === t.deliveredBy.ticket)?.prs.find((p) => p.number === t.deliveredBy.pr) ?? null : null);
   return snapshot.tickets.filter((t) => !t.container).map((t) => {
     const viaDeliverer = prOf(t);
@@ -395,8 +265,6 @@ function slices(record, snapshot) {
   });
 }
 
-// Every acceptance of unreviewed corrections the record published, with
-// whether its head is what merged.
 function acceptances(record, snapshot) {
   const merged = new Map(snapshot.tickets.flatMap((t) => t.prs.filter((p) => p.state === "MERGED").map((p) => [p.number, p.head])));
   return Object.entries(record.tickets).flatMap(([n, t]) => (t.checkpoints ?? []).filter((d) => d.kind === "accept-unreviewed" && d.state === "published").map((d) => ({ ticket: Number(n), pr: d.pr, id: d.id, comment: d.published.comment, head: d.head, range: d.range, merged: merged.has(d.pr) ? merged.get(d.pr) : null })));
@@ -404,7 +272,6 @@ function acceptances(record, snapshot) {
 
 const REPORT_MARK = (id) => `<!-- orchestrate-issues final report: verification ${id} -->`;
 export function finalReport(record, snapshot, v) {
-  // A decision's comment is on its PR's review thread.
   const names = repositoriesOf(record), link = (a) => names.commentUrl(names.thread(a.pr, a.ticket), a.comment);
   const rows = slices(record, snapshot).map((s) => {
     const how = s.history ? HISTORY : !s.mergeCommit ? (s.open.length ? `open: PR ${s.open.map((p) => `#${p}`).join(", ")}` : "no merged PR")
@@ -412,9 +279,6 @@ export function finalReport(record, snapshot, v) {
       : s.gate.disposition === "reviewed" ? `merged by the coordinator as \`${short(s.mergeCommit)}\`; independently reviewed through \`${short(s.gate.reviewedHead)}\`${s.gate.mergedSince.length ? ` plus ${s.gate.mergedSince.length} clean merge${s.gate.mergedSince.length > 1 ? "s" : ""} of ${TARGET}` : ""}`
       : `merged by the coordinator as \`${short(s.mergeCommit)}\` under acceptance \`${s.gate.acceptance.id}\`: reviewed through \`${short(s.gate.reviewedHead)}\`, \`${short(s.gate.acceptance.range?.from)}..${short(s.gate.acceptance.range?.to)}\` accepted unreviewed`;
     const landed = !s.gate ? "" : s.baseMoved ? `; it landed on ${TARGET} \`${short(s.mergedOnto)}\`, while its CI covered ${TARGET} \`${short(s.gate.ciMain ?? s.gate.originMain)}\`, so CI never ran on that combination before ${TARGET}'s own run` : s.baseMoved === null ? `; where it landed on ${TARGET} could not be read` : "";
-    // The report is on the parent issue, in the tickets repository, so its pull
-    // requests name the code repository once tickets live apart; the
-    // criteria and their evidence stay as the coordinator wrote them.
     const by = s.deliveredBy && !s.history ? `delivered by #${s.deliveredBy.ticket}'s PR: ` : "";
     return `| #${s.number} | ${s.delivered ? "delivered" : s.state} | ${s.pr ? prRef(names, s.pr) : ""} | ${qualifyPrs(names, by + how + landed).replace(/\|/g, "/")} |`;
   });
@@ -450,20 +314,11 @@ export function finalReport(record, snapshot, v) {
   ].join("\n");
 }
 
-// Records one verification of the parent issue's acceptance criteria against main
-// as it is now. It is complete only when every slice is delivered on main,
-// no operation is unsettled, and every criterion is met with evidence; any
-// other verdict keeps the parent issue open with its gaps named.
 export function verifyIssue(record, { snapshot, evidence, mainSha }) {
   if (snapshot.repository !== record.repository || snapshot.issue?.number !== record.issue) throw new Error("The snapshot is of another repository or parent issue");
-  // The criteria checked and the section the verification is bound to come
-  // from the same read of the parent issue.
   const criteria = snapshot.issue.criteria ?? [];
   if (!SHA.test(mainSha ?? "")) throw new Error("The verified main commit must be a full SHA");
   if (snapshot.originMain !== mainSha) throw new Error(`The snapshot saw origin/${TARGET} at ${snapshot.originMain}, but it is now ${mainSha}; snapshot again so the tickets and ${TARGET} agree`);
-  // A parent is verified only against its own "Acceptance criteria" section,
-  // which the Feature and Task templates carry and the Bug template does not;
-  // merged PRs alone never complete it.
   if (snapshot.issue.acceptanceSha256 == null) throw new Error(`Issue #${record.issue} has no "Acceptance criteria" section, so nothing can be verified and the parent issue stays open on its merged PRs alone; add a heading named Acceptance criteria with the checklist to verify, then verify again`);
   if (!criteria.length) throw new Error(`Issue #${record.issue} lists no checklist under its "Acceptance criteria" heading, so nothing can be verified; add the criteria there, then verify again`);
   const given = evidence?.criteria;
@@ -485,7 +340,6 @@ export function verifyIssue(record, { snapshot, evidence, mainSha }) {
     throw new Error(`Criterion ${c.index}'s status must be met or unmet`);
   });
   const incomplete = slices(record, snapshot).filter((s) => !s.delivered).map((s) => ({ number: s.number, action: s.state === "closed" ? `closed without a merged deliverable on ${TARGET}` : s.open.length ? `open, PR ${s.open.map((p) => `#${p}`).join(", ")} not merged` : "open with no merged PR" }));
-  // A ticket filed during the run is placed before the parent issue closes.
   incomplete.push(...filedActions(record).map((f) => ({ number: f.number, action: f.unplaced ? "triaged separate with no umbrella it was attached under" : f.action === "triage-filed" ? "filed during the run, with no triage outcome" : `named as filed in #${f.from}'s writer's report, not confirmed and triaged` })));
   const unsettled = (record.operations ?? []).filter((o) => OPEN.has(o.state)).map((o) => `${operationText(o)} ${o.id} (${o.state})`);
   const verdict = !incomplete.length && !unsettled.length && rows.every((r) => r.status === "met") ? "complete" : "incomplete";
@@ -496,16 +350,6 @@ export function verifyIssue(record, { snapshot, evidence, mainSha }) {
   return { id: v.id, verdict, report: v.report };
 }
 
-// Closes the parent issue after a complete verification that still holds: main is
-// the commit it verified, the parent issue has the acceptance section and slices
-// it covered, each slice is still delivered and no operation is unsettled.
-// Every premise is read on a fresh snapshot, with main read last, before the
-// intent is saved; after it is saved, the final gate stands in front of both
-// GitHub writes, posting the final report (or finding it, if an earlier
-// attempt posted it) and the close call. The outcome is the issue state
-// GitHub reads back: a close that was called is failed only on GitHub's own
-// refusal, and every other result short of a closed parent issue is uncertain
-// until reconciled, since the request may still land.
 export function closeIssue(file, { coordinator, expectRevision, verification: id, takeSnapshot, readScope, client, git, afterIntent, ownership = remoteOwnership }) {
   const record = readRecord(file);
   if (record.coordinator.session !== coordinator) throw new Error(`Issue #${record.issue} is coordinated by ${record.coordinator.session}; ${coordinator} may not close it`);
@@ -527,9 +371,6 @@ export function closeIssue(file, { coordinator, expectRevision, verification: id
   try { afterIntent?.(); }
   catch (error) { notRun(error.message); throw error; }
   const gated = (call) => finalGate({ current: () => readRecord(file), opId: op.id, ownership, takeSnapshot, readScope, git, main: v.mainSha, premises: (rec, snapshot) => gaps(rec, snapshot, op.id), call });
-  // The final report: a copy an earlier attempt posted is looked up before
-  // the final gate, so the gated call is the write alone; the comment is read
-  // back after it.
   let existing;
   try { existing = client.comments(record.issue).find((c) => (c.body ?? "").includes(REPORT_MARK(v.id))) ?? null; }
   catch (error) { notRun(`the parent issue's comments could not be read for an earlier copy of the report: ${error.message}`); throw error; }
@@ -547,8 +388,6 @@ export function closeIssue(file, { coordinator, expectRevision, verification: id
     comment = { id: back.id, url: back.url, reused: Boolean(existing) };
   } catch (error) { problem = `the final report was not posted, so the close was not called: ${error.message}`; }
   if (comment) {
-    // The close call, through the final gate again, after the report's
-    // GitHub requests.
     const close = gated(() => client.closeIssue(record.issue));
     if (!close.called && close.error) { notRun(`the verification could not be checked again before the close call: ${close.error.message}`); throw close.error; }
     if (!close.called) {
@@ -566,21 +405,9 @@ export function closeIssue(file, { coordinator, expectRevision, verification: id
   return { closed: state === "confirmed", operation: op.id, state, evidence, comment, revision: settled.record.revision };
 }
 
-// --- GitHub and Git ---------------------------------------------------------
-
-// The merge call: a merge commit, the head the gate admitted, and no flag
-// that bypasses protection or defers the merge. A failed call counts as
-// GitHub's refusal only when its message is GitHub's answer: a GraphQL error
-// or a 4xx status, such as a moved head or an unmet branch policy.
 export const GITHUB_REFUSAL = /GraphQL:|HTTP 4[0-9][0-9]/;
 export const mergeArgs = (repository, pr, head) => ["pr", "merge", String(pr), "--repo", repository, "--merge", "--match-head-commit", head];
 
-// The gate's GitHub calls, given the record: the pull request, its checks,
-// protection, main's runs and the merge on the code repository; the parent issue,
-// its comments and its closure, and a pull request's review thread
-// (`comments(pr, ticket)`), on the tickets repository. `comments(n)` without
-// a ticket reads issue n there. A pull request closes a ticket only by a
-// closing reference to the tickets repository's issue of that number.
 export function integrationClient(names, checkout, { exec = execFileSync, spawn = spawnSync } = {}) {
   const { code: repository, tickets, split, thread } = repositoriesOf(names);
   const run = (args, input) => exec("gh", args, { cwd: checkout, encoding: "utf8", windowsHide: true, maxBuffer: 256 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"], ...(input !== undefined && { input }) });
@@ -595,9 +422,6 @@ export function integrationClient(names, checkout, { exec = execFileSync, spawn 
       };
     },
     comments: (n, ticket) => { const t = ticket === undefined ? { repo: tickets, number: n } : thread(n, ticket); return JSON.parse(run(["api", "--paginate", "--slurp", `repos/${t.repo}/issues/${t.number}/comments`])).flat(); },
-    // Required checks from classic branch protection and from rulesets, and
-    // whether a ruleset requires a merge queue. Protection a token cannot read
-    // is noted; GitHub's merge state still reflects it.
     protection: (branch) => {
       const required = new Set(), sources = [];
       try {
@@ -617,7 +441,6 @@ export function integrationClient(names, checkout, { exec = execFileSync, spawn 
       sources.push("rulesets");
       return { required: [...required], mergeQueue, source: sources.join("; ") };
     },
-    // Main's push runs of the Test Suite workflow, newest first.
     mainRuns: (branch) => JSON.parse(run(["run", "list", "--repo", repository, "--workflow", REPOSITORY_WORKFLOW, "--branch", branch, "--event", "push", "--limit", "10", "--json", "databaseId,headSha,status,conclusion,createdAt,url"])).map((r) => ({ id: r.databaseId, headSha: r.headSha, status: r.status, conclusion: r.conclusion, createdAt: r.createdAt, url: r.url })),
     merge: (pr, head) => {
       const r = spawn("gh", mergeArgs(repository, pr, head), { cwd: checkout, encoding: "utf8", windowsHide: true, timeout: 120000 });
@@ -631,8 +454,6 @@ export function integrationClient(names, checkout, { exec = execFileSync, spawn 
   };
 }
 
-// The review checkpoint's Git reader, plus main, ancestry and the chain of
-// clean main merges at a branch's head.
 export function integrationGit(checkout, { fetch, main } = {}) {
   const git = (...args) => execFileSync("git", args, { cwd: checkout, encoding: "utf8", windowsHide: true, maxBuffer: 256 * 1024 * 1024 }).trim();
   const isAncestor = (a, b) => spawnSync("git", ["merge-base", "--is-ancestor", a, b], { cwd: checkout, windowsHide: true }).status === 0;
@@ -642,9 +463,6 @@ export function integrationGit(checkout, { fetch, main } = {}) {
     ...localGit(checkout, { fetch, base: main }), fetch, main, isAncestor,
     firstParent: (sha) => git("rev-parse", `${sha}^1`),
     mergeBase: (a, b) => git("merge-base", a, b),
-    // The head, then each first parent reached through a clean merge of the
-    // target: two parents, the second on the target, and an empty remerge
-    // diff, so the merge changed nothing a clean merge would not.
     cleanChain(head, target) {
       const chain = [head];
       for (let at = head; ;) {
@@ -657,8 +475,6 @@ export function integrationGit(checkout, { fetch, main } = {}) {
     },
   };
 }
-
-// --- Command line -----------------------------------------------------------
 
 function parse(argv) {
   const [command, ...rest] = argv, o = {};
@@ -673,7 +489,6 @@ function parse(argv) {
 const int = (v, name) => { const n = Number(v); if (!Number.isSafeInteger(n) || n <= 0) throw new Error(`--${name} must be a positive integer`); return n; };
 const abs = (v, name) => { if (typeof v !== "string" || !path.isAbsolute(v)) throw new Error(`--${name} must be an absolute path`); return v; };
 
-// The parent issue's snapshot, taken afresh each time a command needs one.
 const liveSnapshot = (record) => () => takeSnapshot({ repository: record.repository, issue: record.issue, tickets: repositoriesOf(record).tickets }, githubClient(record, record.checkout));
 const liveScope = (record) => () => readIssueScope({ issue: record.issue, tickets: repositoriesOf(record).tickets, split: repositoriesOf(record).split }, githubClient(record, record.checkout));
 
@@ -716,8 +531,6 @@ if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import
   try {
     const output = main(process.argv.slice(2));
     console.log(JSON.stringify(output, null, 2));
-    // Not admitted: nothing was recorded. Not confirmed: the outcome is
-    // recorded as failed or uncertain. Not saved: the change is local only.
     if (output?.admitted === false) process.exitCode = 2;
     else if (output?.state && output.state !== "confirmed") process.exitCode = 1;
     if (output?.checkpoint?.saved === false) { console.error(`The record changed locally, but its checkpoint was not saved: ${output.checkpoint.reason}`); process.exitCode = 3; }

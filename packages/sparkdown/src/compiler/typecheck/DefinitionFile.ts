@@ -1,5 +1,3 @@
-// Definition sources are parsed by buildDefinitionAst.mjs with the pinned
-// official Luau parser. This module loads data; it never parses source text.
 import * as A from "./Ast";
 import { Location, Position } from "./Location";
 
@@ -95,7 +93,6 @@ function indexer(value: unknown): A.AstTableIndexer | undefined {
 function genericTypes(value: unknown): A.AstGenericType[] {
   return array(value).map((value) => {
     const n = object(value);
-    // The official JSON format does not emit generic-name locations.
     return new A.AstGenericType(new Location(), string(n["name"]), n["luauType"] == null ? undefined : type(n["luauType"]));
   });
 }
@@ -202,7 +199,6 @@ function node(value: unknown): A.AstNode {
   }
 }
 
-/** Each load creates fresh nodes, since checking a definition may mutate them. */
 export function loadDefinitionAst(file: DefinitionFile): A.AstStatBlock {
   if (file.version !== 1 || !/^[a-f0-9]{40}$/.test(file.parser) || !/^[a-f0-9]{64}$/.test(file.sourceSha256))
     throw new Error("Unsupported definition AST artifact; regenerate with buildDefinitionAst.mjs");

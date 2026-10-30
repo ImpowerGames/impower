@@ -4,7 +4,6 @@ export interface AttributeDiagnostic {
   code: string;
   message: string;
   severity: "warning" | "error";
-  /** Stable source hierarchy key; not an XML text range. */
   path?: string;
   layer?: string;
   folder?: string;
@@ -39,13 +38,10 @@ export interface AttributeLayer extends AttributeLayerInput {
 export interface AttributeFolder {
   name: string;
   parent?: string;
-  // Conflicting defaults are reported, but all artist-marked resting options
-  // remain visible until the artist fixes the file or the script selects one.
   defaults: Record<string, string[]>;
   options: Record<string, string[]>;
 }
 
-/** JSON-only metadata; no XML, geometry, DOM nodes, Maps or Sets cross hosts. */
 export interface AttributeVocabulary {
   version: number;
   layers: AttributeLayer[];

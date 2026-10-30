@@ -1,14 +1,9 @@
-// A call to a member a standard library table does not have names the
-// missing member, as the uncalled form does, never the library (#915).
 import { describe, expect, test } from "vitest";
 import {
   diagnoseFilesDetailed as diagnoseAllFiles,
 } from "./diagnosticTestHarness";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// The functions these sources define only hold the call under test, and
-// nothing calls them, so their FunctionUnused warnings are left out, as are
-// the GlobalUsedAsLocal warnings of a global function one of them defines.
 const diagnoseFilesDetailed = (sources: Record<string, string>) =>
   diagnoseAllFiles(sources).filter((d) => d.code !== "FunctionUnused" && d.code !== "GlobalUsedAsLocal");
 const diagnoseDetailed = (source: string) =>
@@ -16,8 +11,6 @@ const diagnoseDetailed = (source: string) =>
 const diagnoseWithLints = (source: string) =>
   diagnoseDetailed(source).map((d) => d.message);
 
-// A local belongs in a scene or a function: these write lines as a scene's
-// body, or as the body of a function `host` that nothing calls.
 const inScene = (body: string) => `scene start\n${body.split("\n").map((line) => `  ${line}`).join("\n")}\nend\n`;
 const inHost = (body: string) => `function host()\n${body.split("\n").map((line) => `    ${line}`).join("\n")}\nend\n`;
 const notUnusedLint = (m: string) => !m.includes("never used");
@@ -75,8 +68,6 @@ describe("calling a missing stdlib member", () => {
   });
 });
 
-// A local named like a library shadows it only after its declaration and
-// inside its block; everywhere else the name is still the library (#1035).
 describe("a local named like a library", () => {
   const MISSING = ["Cannot find item or path named `table.nogetn`"];
   const SHADOW = "local table = { nogetn = function() return 1 end }";
@@ -161,7 +152,6 @@ describe("a local named like a library", () => {
     ).toEqual(MISSING);
   });
 
-  // Each function is written in `run` and returned, with the local between.
   const NESTED = [
     ["a variadic function", "function f(...)\n        return table.nogetn()\n    end"],
     ["a function stored on a table", "local obj = {}\n    function obj.f()\n        return table.nogetn()\n    end"],

@@ -4,7 +4,6 @@
 import { AstExpr, AstExprCall, AstExprConstantString, AstExprGlobal, AstExprTable, BinaryOp, visitAst, type AstNode } from "./Ast";
 import type { TypeId } from "./Type";
 
-/** A `type(x) == "name"` or `typeof(x) == "name"` test. */
 export interface TypeGuard {
   isTypeof: boolean;
   target: AstExpr;
@@ -25,10 +24,6 @@ export function matchTypeGuard(op: BinaryOp, left: AstExpr, right: AstExpr): Typ
   return { isTypeof: callee.name === "typeof", target: call.args[0]!, type: string.value };
 }
 
-/**
- * Adds the types of the table literals in an expression, which are known to
- * be uniquely held references, to `uniqueTypes`.
- */
 export function findUniqueTypes(uniqueTypes: Set<TypeId>, expr: AstExpr, astTypes: ReadonlyMap<AstExpr, TypeId>): void {
   visitAst(expr, {
     visit(node: AstNode): boolean {
@@ -42,7 +37,6 @@ export function findUniqueTypes(uniqueTypes: Set<TypeId>, expr: AstExpr, astType
   });
 }
 
-/** `findUniqueTypes` over each table literal among several expressions. */
 export function findUniqueTypesIn(uniqueTypes: Set<TypeId>, exprs: readonly AstExpr[], astTypes: ReadonlyMap<AstExpr, TypeId>): void {
   for (const expr of exprs) {
     if (expr instanceof AstExprTable) findUniqueTypes(uniqueTypes, expr, astTypes);

@@ -46,8 +46,6 @@ const solveCurveX = (x: number, ax: number, bx: number, cx: number): number => {
   let x2 = 0;
   let d2 = 0;
 
-  // First try a few iterations of Newton's method
-  // -- usually very fast.
   for (let i = 0; i < 8; i += 1) {
     x2 = sampleCurveX(t2, ax, bx, cx) - x;
     if (Math.abs(x2) < epsilon) {
@@ -81,14 +79,6 @@ const solveCurveX = (x: number, ax: number, bx: number, cx: number): number => {
   return t2;
 };
 
-/**
- * @constructor
- * @param x1 - first control point horizontal position
- * @param y1 - first control point vertical position
- * @param x2 - second control point horizontal position
- * @param y2 - second control point vertical position
- * @returns a new CubicBezier easing function
- */
 export const bezier = (
   x1?: number,
   y1?: number,

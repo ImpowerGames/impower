@@ -2,7 +2,6 @@ import { marked } from "marked";
 import type { Hover } from "@impower/spark-editor-protocol/src/types";
 import type { HoverResult } from "@impower/spark-editor-protocol/src/protocols/textDocument/HoverMessage";
 
-/** Read intrinsic image facts without mounting or scraping a hover widget. */
 export async function readHoverImages(
   hover: Hover | null,
   resolveSrc: (uri: string) => Promise<string | undefined>,
@@ -14,8 +13,6 @@ export async function readHoverImages(
   for (const part of parts) {
     if (typeof part !== "string" && ("language" in part || part.kind === "plaintext")) continue;
     const markdown = typeof part === "string" ? part : part.value;
-    // Parse the same Markdown representation as the UI. Template contents are
-    // inert: no scripts run and no images load until an Image is created below.
     const template = document.createElement("template");
     template.innerHTML = marked.parse(markdown, { async: false });
     for (const image of template.content.querySelectorAll("img[src]")) {

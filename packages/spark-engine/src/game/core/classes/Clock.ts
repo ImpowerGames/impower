@@ -1,28 +1,15 @@
-/**
- * A function that is called every tick.
- */
 type TickerCallback = (time: Clock) => void;
 
-/**
- * A function that requests a new frame.
- */
 export interface FrameRequestCallback {
   (): void;
 }
 
-/**
- * Reports a current time in seconds.
- */
 export interface ClockSource {
   currentTime: number;
 }
 
 export class Clock {
   protected _speed = 1;
-  /**
-   * Speeds up or slows down the clock by this factor.
-   * @default 1
-   */
   get speed() {
     return this._speed;
   }
@@ -31,11 +18,6 @@ export class Clock {
   }
 
   protected _maxFPS = 60;
-  /**
-   * Limits the frame rate to a certain number of frames per second.
-   * (When set to `0`, then there is no limit and the ticker will render as many frames as it can.)
-   * @default 60
-   */
   get maxFPS() {
     return this._maxFPS;
   }
@@ -44,101 +26,53 @@ export class Clock {
   }
 
   protected _running = false;
-  /**
-   * Whether the clock is running or not.
-   * @default false
-   */
   get running() {
     return this._running;
   }
 
   protected _startTime = 0;
-  /**
-   * The time in seconds that the clock started running.
-   * @default 0
-   */
   get startTime() {
     return this._startTime;
   }
 
   protected _prevTime = 0;
-  /**
-   * The time in seconds that previous update happened.
-   * @default 0
-   */
   get prevTime() {
     return this._prevTime;
   }
 
   protected _deltaTime = 0;
-  /**
-   * The time in seconds that elapsed between the previous and current update.
-   * @default 0
-   */
   get deltaTime() {
     return this._deltaTime;
   }
 
-  /**
-   * The time in milliseconds that elapsed between the previous and current update.
-   * @default 0
-   */
   get deltaMS() {
     return this._deltaTime * 1000;
   }
 
   protected _elapsedTime = 0;
-  /**
-   * The total time in seconds that the clock has been running.
-   * @default 0
-   */
   get elapsedTime() {
     return this._elapsedTime;
   }
 
   protected _elapsedFrames = 0;
-  /**
-   * The total number of frames since the clock started running.
-   * @default 0
-   */
   get elapsedFrames() {
     return this._elapsedFrames;
   }
 
-  /**
-   * The frames per second that the clock is currently ticking at (bounded by {@link Clock.maxFPS}).
-   */
   get currentFPS() {
     return 1 / (this._elapsedTime / this._elapsedFrames);
   }
 
-  /**
-   * The number of frames that have passed since the last update,
-   * (assuming max FPS).
-   */
   get deltaFrames(): number {
     return this._deltaTime * this.maxFPS;
   }
 
-  /**
-   * The clock that the ticker is synchronized to.
-   */
   protected _clock: ClockSource;
 
-  /**
-   * The function that will be called to request a new frame.
-   */
   protected _requestFrame: (callback: FrameRequestCallback) => number;
 
-  /**
-   * Used to offset the current time when synchronizing to a new clock.
-   * @default 0
-   */
   protected _timeOffset = 0;
 
-  /**
-   * The currently registered callbacks.
-   */
   protected _callbacks = new Set<TickerCallback>();
 
   constructor(
@@ -149,46 +83,28 @@ export class Clock {
     this._requestFrame = requestFrame;
   }
 
-  /**
-   * Register a function that will be called every tick.
-   */
   add(callback: TickerCallback) {
     this._callbacks.add(callback);
   }
 
-  /**
-   * Remove a callback.
-   */
   remove(callback: TickerCallback) {
     this._callbacks.delete(callback);
   }
 
-  /**
-   * Remove all callbacks.
-   */
   dispose() {
     this._callbacks.clear();
   }
 
-  /**
-   * Get current time in seconds.
-   */
   protected getCurrentTime(): number {
     return this._clock.currentTime + this._timeOffset;
   }
 
-  /**
-   * Synchronize the ticker to a different clock.
-   */
   syncToClock(clock: ClockSource) {
     const oldEffective = this.getCurrentTime();
     this._clock = clock;
     this._timeOffset = oldEffective - clock.currentTime;
   }
 
-  /**
-   * Start the ticker.
-   */
   start() {
     this._running = true;
     const now = this.getCurrentTime();
@@ -197,35 +113,21 @@ export class Clock {
     this.loop();
   }
 
-  /**
-   * Stop the ticker.
-   */
   stop() {
     this._running = false;
   }
 
-  /**
-   * Adjusts the ticker's time by a specified number of seconds.
-   * Positive values will move time forward, negative values will move it backward.
-   */
   adjustTime(seconds: number) {
     this._timeOffset += seconds;
-    // Adjust previous and start times so delta and elapsed time remain consistent
     this._prevTime += seconds;
     this._startTime += seconds;
   }
 
-  /**
-   * The clock loop.
-   */
   protected loop = () => {
     if (!this._running) {
       return;
     }
 
-    // A non-positive maxFPS means "no limit". Computing the budget as a bare
-    // reciprocal would make it Infinity, and nothing is greater than Infinity,
-    // so the clock would freeze rather than run unthrottled.
     const frameInterval = this._maxFPS > 0 ? 1 / this._maxFPS : 0;
     const currentTime = this.getCurrentTime();
 

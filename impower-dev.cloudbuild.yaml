@@ -6,10 +6,6 @@ availableSecrets:
       env: BROWSER_GOOGLE_OAUTH_CLIENT_ID
 
 steps:
-  # 1) Build the runtime image. The multi-stage Dockerfile installs the npm
-  #    workspace and builds inside Docker, then assembles a slim runtime image.
-  #    Context is the monorepo root so `npm ci` can use the root lockfile.
-  #    Build args bake the public client-side config into the browser bundle.
   - name: gcr.io/cloud-builders/docker
     entrypoint: bash
     secretEnv:
@@ -27,14 +23,12 @@ steps:
           --build-arg BROWSER_GOOGLE_OAUTH_CLIENT_ID="$$BROWSER_GOOGLE_OAUTH_CLIENT_ID" \
           .
     id: Build
-  # 2) Push image to Artifact Registry
   - name: gcr.io/cloud-builders/docker
     args:
       - push
       - >-
         $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
     id: Push
-  # 3) Deploy to Google Cloud Run
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
     args:
       - run

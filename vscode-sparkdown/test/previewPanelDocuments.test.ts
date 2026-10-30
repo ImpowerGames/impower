@@ -15,7 +15,6 @@ vi.mock("../src/utils/getWorkspaceFileWatchers", () => ({
   getWorkspaceFileWatchers: () => [],
 }));
 
-/** The manager with a stand-in panel that records what it is sent. */
 const load = async () => {
   const { SparkdownPreviewGamePanelManager } =
     await import("../src/managers/SparkdownPreviewGamePanelManager");

@@ -126,7 +126,6 @@ describe("editor protocol transport", () => {
       }
     };
     try {
-      // Socket open, no client subscribed.
       emit();
       expect(counts()).toEqual({});
       await subscribe(sockets[0], ["editor/didLoad"]);
@@ -139,13 +138,11 @@ describe("editor protocol transport", () => {
       await subscribe(sockets[0], []);
       emit();
       expect(counts()).toEqual({});
-      // A dropped connection forgets subscriptions until the server republishes.
       await subscribe(sockets[0], ["*"]);
       sockets[0].close();
       await vi.advanceTimersByTimeAsync(250);
       emit();
       expect(counts()).toEqual({});
-      // Responses to socket requests are still serialized without any subscription.
       const handle = (event: Event) => {
         const message = (event as CustomEvent).detail;
         if (message.method === "ask" && "id" in message) sendProtocolMessage({ jsonrpc: "2.0", id: message.id, result: 1 });

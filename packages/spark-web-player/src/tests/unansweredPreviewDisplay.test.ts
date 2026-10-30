@@ -1,12 +1,3 @@
-// A display the worker never answers must not hold the page back: the page's
-// programs are conflated behind the display of the one before, so an answer
-// that never comes would keep every later program, and the preview with it,
-// from the page for the rest of the session (#1080).
-//
-// The controller's constructor only stores its host and refs, so it is driven
-// directly with a stand-in for its link to the worker, which answers each
-// display the test lets it answer and holds the rest.
-
 import { afterEach, describe, expect, test } from "vitest";
 import { GamePlayerController, setWorkspace } from "../GamePlayerController";
 import { programIdentity } from "../utils/programIdentity";
@@ -28,11 +19,6 @@ type Display = {
   answer: (result: { displayed: boolean }) => void;
 };
 
-/**
- * A controller previewing from `URI` line 4, whose worker holds every display
- * `holds` names (by the order the displays were asked for, from 1) and
- * answers the others at once.
- */
 function controllerWhoseWorkerHolds(holds: number[]) {
   const displays: Display[] = [];
   setWorkspace({
@@ -60,14 +46,12 @@ function controllerWhoseWorkerHolds(holds: number[]) {
   return { controller, displays, runs };
 }
 
-/** Let every chain of already-settled promises run out. */
 async function settle() {
   for (let i = 0; i < 50; i++) {
     await Promise.resolve();
   }
 }
 
-/** Whether `promise` has settled once the microtasks queued so far ran out. */
 async function settled(promise: Promise<unknown>) {
   let done = false;
   promise.then(

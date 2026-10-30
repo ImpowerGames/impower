@@ -1,8 +1,3 @@
-// The builtin mixers and channels in the prelude (builtins.sd, the source the
-// engine reads) and their typed mirror (audioBuiltinDefinitions.ts) name the
-// same instances with the same values, the `movie` mixer and channel (I-1381)
-// among them.
-
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
@@ -41,7 +36,6 @@ function preludeContext() {
   return buildDefinesContext(programStoryOf(result.program, "prelude") as any);
 }
 
-/** A mixer reference as a name, whether written as a string or a reference. */
 const mixerName = (mixer: unknown) =>
   typeof mixer === "string" ? mixer : (mixer as any)?.$name;
 

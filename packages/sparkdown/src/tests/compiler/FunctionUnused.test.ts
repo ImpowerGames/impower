@@ -1,8 +1,3 @@
-// FunctionUnused (I-603): a local function nothing reads, or a global
-// `function f()` that no script mentions anywhere else. The upstream cases are
-// in `luau-conformance/LintCandidatesScope.test.ts`; these are the controls
-// around them and the program-wide form.
-
 import { describe, expect, test } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { testCompiler } from "../engineUnderTest";
@@ -15,12 +10,8 @@ const programUnused = (sources: Record<string, string>) =>
     .filter((d) => d.code === "FunctionUnused")
     .map((d) => `${d.file}: ${d.message}`);
 const message = (name: string) => `Function '${name}' is never used; prefix with '_' to silence`;
-// The defining script is part of the project and warns with nothing else
-// beside main, so a case where another script's use silences it is one where
-// the use was read.
 const expectSubjectWarnsAlone = () =>
   expect(programUnused({ "main.sd": "Ready.\n", "subject.sd": "function helper()\nend\n" })).toEqual([`subject.sd: ${message("helper")}`]);
-// Only main runs lines outside a scene, so another script's lines run in one.
 const inScene = (body: string) => `scene uses\n${body.replace(/^(?=.)/gm, "  ")}end\n`;
 
 describe("FunctionUnused for a local function", () => {
@@ -47,8 +38,6 @@ describe("FunctionUnused for a local function", () => {
     expect(messages(`& run()\nfunction run()\n${body}\nend\n`)).toEqual([]);
   });
 
-  // `public x` is a statement the reading recovers from, as it does the body
-  // of a Luau `class`, whose `end` then closes the function early.
   test("a function holding a syntax error is not checked", () => {
     expect(messages("& run()\nfunction run()\n local function helper() end\n public x\nend\n")).toEqual([]);
   });
@@ -91,8 +80,6 @@ describe("FunctionUnused for a global function", () => {
     ["a Luau string", inScene("& handlers = { \"helper\" }\n")],
     ["a narrative if condition", inScene("if helper() then\n  Yes.\nend\n")],
   ])("is silent for %s in another script", (_label, use) => {
-    // The defining script is part of the project and warns without the use,
-    // so the use is what silences it.
     expect(programUnused({ "main.sd": "Ready.\n", "subject.sd": "function helper()\nend\n" })).toEqual([`subject.sd: ${message("helper")}`]);
     expect(programUnused({ "main.sd": "Ready.\n", "subject.sd": "function helper()\nend\n", "use.sd": use })).toEqual([]);
   });
@@ -102,7 +89,6 @@ describe("FunctionUnused for a global function", () => {
     ["a member", "& T = {}\nfunction T.helper()\nend\n"],
     ["a method", "& T = {}\nfunction T:helper()\nend\n"],
     ["a prelude global", "function config()\nend\n"],
-    // The rest of the script is read into it, so its uses are out of reach.
     ["a function missing its end", "function helper()\n  if true then\n& helper()\n"],
   ])("is silent for %s", (_label, source) => {
     expect(messages(source)).toEqual([]);
@@ -116,8 +102,6 @@ describe("FunctionUnused for a global function", () => {
     expect(programUnused({ "main.sd": "Ready.\n", "subject.sd": "function helper()\nend\n", "use.sd": use })).toEqual([`subject.sd: ${message("helper")}`]);
   });
 
-  // Luau's `errors.luau`: the `do` takes `run`'s `end`, and `run` runs on to
-  // the end of the script, past the calls an author wrote after it.
   test("a complete definition inside a function missing an end is silent", () => {
     expect(messages("& run()\nfunction run()\n do\n function helper() end\nend\n")).toEqual([]);
   });
@@ -126,9 +110,6 @@ describe("FunctionUnused for a global function", () => {
     expect(messages("& run()\nfunction run()\n function helper() end\n public x\nend\n")).toEqual([]);
   });
 
-  // The `end` of `class C` (or recovery after `public x`) closes `caller`
-  // early, so the call after it reads as narrative, which only main runs: the
-  // misread caller is main's.
   test.each([
     ["a construct the grammar lacks", " class C\n end\n"],
     ["a statement the reading recovers from", " public x\n end\n"],
@@ -147,7 +128,6 @@ describe("FunctionUnused for a global function", () => {
       return (program.diagnostics?.["inmemory:///subject.sd"] ?? []).filter((d) => d.code === "FunctionUnused").length;
     };
     const update = (text: string, version: number) => compiler.updateDocument({ textDocument: { uri: "inmemory:///main.sd", version }, contentChanges: [{ text }] });
-    // Nothing mentions `helper`, so even the misread script hides no use of it.
     expect(found()).toBe(1);
     const tree = compiler.documents.tree("inmemory:///subject.sd");
     update(broken.replace("print(1)", "helper()"), 2);

@@ -1,8 +1,3 @@
-// `table.sort` — exercises the stdlib→Luau callback dispatch
-// (#96) by running a user comparator function inside the JS-side
-// sort. Both the default `<` comparator and a user-supplied one
-// are tested here, alongside the frozen-table refuse path.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -171,9 +166,6 @@ end
 end
 `);
     expect(errors).toEqual([]);
-    // Distances from 5: 1→4, 7→2, 3→2, 9→4, 2→3. Sorted ascending
-    // by distance: [3,2 → tied at 2], [2 → 3], [1,9 → tied at 4].
-    // Stable sort preserves source order within ties.
     expect(recorded).toEqual([7, 3, 2, 1, 9]);
   });
 });

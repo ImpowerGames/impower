@@ -1,6 +1,4 @@
 // agent-tooling-timeout-ms: 900000
-// Current sparse check measured538124ms;254s is a conservative historical
-// whole-check allowance for the installed branch, plus about108s margin.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -10,28 +8,17 @@ import { spawn, spawnSync, execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { processIdentity } from "./test-suite-process.mjs";
 
-// The fixture runs below are writer-pool runs whoever runs this check, so a
-// reviewer's environment does not move their reservations to the reviewer pool.
 process.env.IMPOWER_TEST_POOL = "writer";
-// Admission reads the machine's free memory; these fixtures run on a machine
-// with plenty, and the single-slot store of the older design where a case
-// relies on the second run queueing behind the first.
 const plenty = () => 65536;
-// Admission leaves last-admitted.json, the hand-over note that steers the
-// queue, so the listings below look past it.
 
 if (process.argv.includes("--progress-boundaries") || process.argv.includes("--progress-first")) {
   await ownedProgressBoundaries();
 } else if (process.argv.includes("--owned-boundaries") || process.argv.includes("--waiting-holder") || process.argv.includes("--discovery-status")) {
   await ownedBoundaries();
 } else {
-// Journal/admission tests use an explicit coordinator protocol adapter. Its
-// synthetic proofs carry no containment credit; actual helpers run below in
-// ownedBoundaries and in the separate cross-platform helper/API checks.
 const coordinatorAdapter = await import("./fixtures/test-suite-coordinator-adapter.mjs");
 const coordinatorDependencies = { prepareRuntime: coordinatorAdapter.prepareRuntime,
   prepareChild: coordinatorAdapter.prepareChild, ownedChild: coordinatorAdapter.ownedChild,
-  // Unit protocol identities are synthetic. Native/API cases omit this seam.
   identify:pid=>pid===process.pid?processIdentity(pid):null };
 const root = path.dirname(fileURLToPath(import.meta.url));
 assert.ok(fs.existsSync(path.join(root, "test-suite.mjs")),
@@ -192,9 +179,6 @@ assert.equal(reservationState({ owner, phase: "launching" }, () => null), "unkno
 assert.equal(reservationState({ owner, phase: "running", child }, () => ({ pid: 43, start: "reused" })), "interrupted");
 assert.throws(() => reservationState({ owner, phase: "running", child }, () => { throw new Error("denied"); }), /denied/);
 {
-  // A supervised run whose machine restarted before its supervisor wrote
-  // tree-proof.json: every recorded identity is gone and the proof is missing.
-  // The reservation was taken an hour into the earlier boot.
   const heldSince = "2026-10-24T06:47:19.540Z", afterRestart = () => 120, sameBoot = () => 4000;
   const missing = path.join(os.tmpdir(), `impower-suite-missing-${process.pid}`);
   const supervised = { version: 2, token: "bcb91d17-673e-4191-9428-30a650b046b8", owner, phase: "running", heldSince, heldUptime: 3600,
@@ -203,8 +187,6 @@ assert.throws(() => reservationState({ owner, phase: "running", child }, () => {
       directory: path.join(missing, "6a4b3c2d-1e0f-4a5b-8c7d-9e8f7a6b5c4d"), proofFile: path.join(missing, "6a4b3c2d-1e0f-4a5b-8c7d-9e8f7a6b5c4d", "tree-proof.json"),
       platform: process.platform, launcher: { pid: 28860, start: "launcher" }, helper: { pid: 32400, start: "helper" } } };
   assert.equal(reservationState(supervised, () => null, { uptime: afterRestart }), "interrupted", "a pre-boot supervised reservation is interrupted");
-  // A wall clock corrected forward after acquisition leaves heldSince far in the
-  // past, but the uptime still shows the same boot, so the run stays unknown.
   assert.equal(reservationState(supervised, () => null, { uptime: sameBoot }), "unknown", "a missing proof in the same boot stays unknown");
   assert.equal(reservationState(supervised, pid => pid === 32400 ? { pid, start: "helper" } : null, { uptime: afterRestart }), "running");
   assert.equal(reservationState(supervised, pid => pid === 28860 ? { pid } : null, { uptime: afterRestart }), "unknown", "an unreadable identity is never guessed away");
@@ -215,8 +197,6 @@ assert.throws(() => reservationState({ owner, phase: "running", child }, () => {
   const unsupervised = { version: 2, token: supervised.token, owner, phase: "launching", heldSince, heldUptime };
   assert.equal(reservationState(unsupervised, () => null, { uptime: afterRestart }), "interrupted");
   assert.equal(reservationState(unsupervised, () => null, { uptime: sameBoot }), "unknown");
-  // acquire records its uptime, then preserves a pre-boot reservation under its
-  // token in a private store and takes a new reservation.
   const store = fs.mkdtempSync(path.join(os.tmpdir(), "impower-suite-boot-"));
   const self = pid => pid === process.pid ? { pid, start: "self" } : null;
   try {
@@ -316,8 +296,6 @@ assert.equal(read(path.join(directory, "run.json")).attempts.length, initial.att
 assert.equal(status(directory, { identify:coordinatorDependencies.identify,fingerprint: () => "changed" }).status, "stale");
 await assert.rejects(execute({ ...options, directory, fingerprint: () => "changed" }), /identity changed/);
 
-// Let a separate coordinator finish a retry at the precise ownership handoff.
-// A finishing predecessor must never overwrite that successor's durable result.
 const raceDirectory=path.join(scratch,".git","release-run");
 const raceHelper=path.join(scratch,".git","retry.mjs");
 fs.writeFileSync(raceHelper, `import {execute} from ${JSON.stringify(new URL("./test-suite.mjs",import.meta.url).href)};
@@ -325,10 +303,6 @@ const result=await execute({...${JSON.stringify({...options,directory:raceDirect
 if(result.status!=="passed")throw Error(JSON.stringify(result));`);
 fs.writeFileSync(path.join(scratch,".git","fail"),"");
 const originalUnlink=fs.unlinkSync;
-// The release transaction unlinks the reservation and then its guard; the
-// successor starts at that guard's removal, the precise ownership handoff.
-// Every unit gate also takes and releases the guard, so counting guards would
-// start the successor while the predecessor still holds its slot.
 let reservationReleased=false;
 fs.unlinkSync=function(target,...args) {
   const result=originalUnlink.call(this,target,...args);
@@ -388,12 +362,8 @@ uncertain.update({phase:"launching"});
 assert.throws(() => acquire("fifth",{root:lockRoot,slots:1,memory:plenty,census:()=>[],identify:()=>null}),/unknown/);
 uncertain.update({phase:"exited"}); uncertain.release();
 
-// A waiting run queues on a live reservation, then holds it while other
-// Vitest processes finish, so a third run queues behind it rather than racing.
 const { acquireWaiting } = await import("./test-suite-process.mjs");
 const { runVitest } = await import("./test-suite.mjs");
-// Each wait signal advances the scenario one step, and a constant identity
-// keeps every attempt cheap, so no step depends on timers or machine load.
 const live = { root: lockRoot, slots: 1, identify: () => owner };
 const holder = acquire("holder", { ...live, memory: plenty, census: () => [] });
 let present = [777];
@@ -448,9 +418,6 @@ assert.equal(recorded.phase, "running", "the run holds the machine reservation")
 assert.equal(recorded.child, true, "the reservation names the Vitest process");
 assert.equal(fs.existsSync(path.join(lockRoot, "reservation.json")), false, "the reservation is released after exit");
 
-// Another session's transaction holds the guard as the child exits. The holder
-// keeps it until a marker file appears, so the guard is certainly held when
-// release first tries it; the marker is written from that first refused open.
 const guardFile = path.join(lockRoot, "guard.json");
 const freeGuard = path.join(scratch, ".git", "free-guard");
 const guardHolder = path.join(scratch, ".git", "hold-guard.mjs");
@@ -461,8 +428,6 @@ fs.writeFileSync(fd, JSON.stringify({owner:processIdentity(process.pid)}));
 const deadline=Date.now()+15000;
 while (!fs.existsSync(${JSON.stringify(freeGuard)}) && Date.now()<deadline) await new Promise(r => setTimeout(r, 10));
 fs.closeSync(fd); fs.unlinkSync(${JSON.stringify(guardFile)});`);
-// This coordinator-owned fixture is outside the managed engine ancestry. A
-// retained original handle, identity and actual close bound its guard lifetime.
 const guardHolders = [];
 const holdAfterFinalizer = async value => {
   const result = await coordinatorAdapter.ownedChild(value);
@@ -527,8 +492,6 @@ const unreleasable = { release() { throw new Error("guard still held"); } };
 const cause = new Error("Vitest processes still present: 1234");
 assert.throws(() => { releaseKeeping(unreleasable, cause); throw cause; }, /still present: 1234/, "an error-path release failure never replaces the error in hand");
 
-// A store the process may not write is refused with its location, whether the
-// denial comes from creating the directory or from opening the guard.
 const deny = (name, code) => {
   const original = fs[name];
   fs[name] = () => { const error = new Error(`${code}: operation not permitted`); error.code = code; throw error; };
@@ -539,14 +502,11 @@ const deny = (name, code) => {
 deny("openSync", "EPERM");
 deny("openSync", "EACCES");
 deny("mkdirSync", "EACCES");
-// File-specific Windows access failures are contention when a private probe
-// demonstrates that the store remains writable. Never use the live store.
 if (process.platform === "win32") {
   const store = fs.mkdtempSync(path.join(os.tmpdir(), "impower-store-contention-"));
   console.log(`Reservation contention scratch: ${store}`);
   for (const code of ["EPERM", "EACCES", "EBUSY"]) {
     for (const operation of ["guard", "create", "rename"]) {
-      // The guard is published by hard-linking a private file into place.
       const method = { guard: "linkSync", create: "openSync", rename: "renameSync" }[operation];
       const original = fs[method];
       let failures = 0;
@@ -624,9 +584,6 @@ if (process.platform === "win32") {
   for (const operation of ["open", "write", "read", "rename"]) {
     const guard = path.join(store, "guard.json");
     fs.writeFileSync(guard, JSON.stringify({ owner: { pid: 42, start: "dead" } }));
-    // "open" is the claim's publication (its link into place); "write" is the
-    // owner write into the claim's private file, the first opened after the
-    // guard's own publication was refused.
     const method = { open: "linkSync", write: "writeFileSync", read: "readFileSync", rename: "renameSync" }[operation];
     const originalMethod = fs[method], open = fs.openSync, link = fs.linkSync;
     let claimFd, guardReadFd, guardRefused = false, denied = 0;
@@ -660,7 +617,6 @@ if (process.platform === "win32") {
     assert.equal(read(path.join(store, archive[0])).owner.start, "dead");
     fs.unlinkSync(path.join(store, archive[0]));
   }
-  // A held peer survives file-specific denial, including the probe.
   const peer = JSON.stringify({ token: "peer", owner: { pid: 42, start: "peer" }, phase: "reserved" });
   fs.writeFileSync(path.join(store, "reservation.json"), peer);
   const open = fs.openSync, link = fs.linkSync;
@@ -673,7 +629,6 @@ if (process.platform === "win32") {
   assert.deepEqual(fs.readdirSync(store).filter(name => name !== "last-admitted.json").filter(name => name.startsWith("creating-")), [], "a refused publication removes its private file");
   assert.equal(fs.readFileSync(path.join(store, "reservation.json"), "utf8"), peer);
   fs.unlinkSync(path.join(store, "reservation.json"));
-  // Failure cleaning the private probe cannot claim writable proof or retry.
   const unlink = fs.unlinkSync;
   let cleanupProbe;
   fs.linkSync = (source, target) => {
@@ -712,7 +667,6 @@ if (process.platform === "win32") {
   finally { fs.openSync = open; fs.linkSync = link; fs.fstatSync = fstat; }
   assert.equal(fs.existsSync(unknownProbe), true, "a probe with uncertain identity remains for inspection");
   fs.unlinkSync(unknownProbe);
-  // A failed atomic replacement preserves old published ownership bytes.
   fs.writeFileSync(path.join(store, "reservation.json"), peer);
   fs.renameSync = (source, target) => {
     if (target === path.join(store, "reservation.json")) throw Object.assign(new Error("replacement denied"), { code: "EACCES" });
@@ -725,8 +679,6 @@ if (process.platform === "win32") {
   assert.equal(fs.readdirSync(store).filter(name => name !== "last-admitted.json").some(name => name.endsWith(".tmp")), false);
   fs.unlinkSync(path.join(store, "reservation.json"));
   fs.unlinkSync(path.join(store, "recovered-peer.json"));
-  // Once atomic publication succeeded, a guard cleanup failure must not replay
-  // acquisition, even when its code would otherwise be eligible for contention.
   let publications = 0;
   fs.renameSync = (source, target) => {
     if (target === path.join(store, "reservation.json")) publications++;
@@ -750,7 +702,6 @@ const busy = acquire("busy", { root: lockRoot, slots: 1, memory: plenty, census:
 await assert.rejects(runVitest({ ...options,files:["a.test.ts"],enginePath:fakeVitest,stdio:"ignore" }), /Existing suite running/);
 busy.release();
 {
-  // The reviewer execution service starts a delegated run's timeout from this line.
   const { reservationAcquiredLine } = await import("./test-suite.mjs");
   const lines = [], log = console.log;
   console.log = (...args) => { lines.push(args.join(" ")); };
@@ -761,9 +712,6 @@ busy.release();
 }
 console.log("PASS: run retains exact arguments, heap/environment, cwd and reservation ownership (coordinator adapter)");
 
-// The command line parses --wait and dispatches run, start and resume through
-// the same waiting reservation. A long poll interval shows the sleep stops at
-// the deadline rather than after a full interval.
 const { main } = await import("./test-suite.mjs");
 const seam = { ...options,enginePath:fakeVitest,stdio:"ignore" };
 assert.equal(await main(["run", path.relative(process.cwd(), scratch), "a.test.ts"], seam), 1,
@@ -812,8 +760,6 @@ if (process.platform === "win32") {
 await assert.rejects(main(["bogus", scratch], seam), /Usage/);
 console.log("PASS: the command line parses --wait for run, start and resume and refuses at its bound");
 
-// A guard held past one transaction's bound is contention while --wait lasts,
-// and a run that never started says so in a form the red/green driver reads.
 const { notRunExit } = await import("./test-suite.mjs");
 fs.writeFileSync(guardFile, "{}");
 const guardWaits = [];
@@ -827,7 +773,6 @@ let unstarted;
 await assert.rejects(main(["run", scratch, "a.test.ts", "--wait", "1"], { ...seam, guardWaitMs: 100, pollMs: 50 }),
   error => (unstarted = error, /Reservation transaction unavailable/.test(error.message) && error.notRun === true));
 assert.ok(Date.now() - guardBegan >= 1000, "the guard is retried until --wait expires");
-// The default five-second transaction bound never carries the wait past --wait.
 const boundBegan = Date.now();
 await assert.rejects(acquireWaiting("bounded", { root: lockRoot, slots: 1, waitMs: 1000, pollMs: 50, memory: plenty, census: () => [] }), error => error.guardHeld === true);
 const boundElapsed = Date.now() - boundBegan;
@@ -839,9 +784,6 @@ assert.match(printed.join("\n"), /^test-suite: not run: Reservation transaction 
 assert.equal(notRunExit(new Error("other"), line => printed.push(line)), 1, "other failures keep exit 1");
 console.log("PASS: a held guard is retried within --wait and an unstarted run is reported as not run");
 
-// A guard whose recorded owner is no longer running was abandoned inside its
-// transaction. It is renamed aside, preserving the evidence, like an interrupted
-// reservation. A live owner or an unreadable identity keeps it held.
 const deadOwner = { pid: 2147483000, start: "1" };
 const abandoned = JSON.stringify({ owner: deadOwner });
 fs.writeFileSync(guardFile, abandoned);
@@ -865,9 +807,6 @@ for (const [label, identify, record] of [
   fs.unlinkSync(guardFile);
 }
 assert.equal(recoveredGuards().length, recoveredBefore + 1, "no held guard was recovered");
-// Two recoverers never judge the same abandoned guard. While the first is
-// inside its identity check, a second acquirer finds the guard held and waits
-// instead of recovering it, so the first's rename can only move the guard it read.
 fs.writeFileSync(guardFile, abandoned);
 let nestedFailure = null, nestedBegan = false, guardDuringNested = null, claimDuringRecovery = null;
 const outer = acquire("first recoverer", { root: lockRoot, slots: 1, memory: plenty, census: () => [], guardWaitMs: 2000, identify: pid => {
@@ -887,7 +826,6 @@ assert.equal(guardDuringNested, abandoned,"the guard stays in place until the fi
 assert.equal(recoveredGuards().length, recoveredBefore + 2, "exactly one recoverer renamed the guard");
 assert.equal(fs.existsSync(path.join(lockRoot, "guard-recovery.json")), false, "the recovery claim is released");
 outer.release();
-// A claim left by a recoverer that died inside it blocks recovery until inspected.
 const claimFile = path.join(lockRoot, "guard-recovery.json");
 fs.writeFileSync(guardFile, abandoned);
 fs.writeFileSync(claimFile, "{}");
@@ -901,9 +839,6 @@ const normalWithClaim = acquire("normal transaction with abandoned recovery clai
 normalWithClaim.release();
 assert.equal(fs.readFileSync(claimFile, "utf8"), "{}", "an abandoned recovery claim does not block or change normal transactions");
 fs.unlinkSync(claimFile);
-// A guard or claim is empty from its exclusive creation until its owner is
-// written. Once it is older than that window could last, its creator died
-// between the two calls, and it is set aside like a dead owner's file.
 {
   const age = file => { const old = (Date.now() - 10 * 60_000) / 1000; fs.utimesSync(file, old, old); };
   const recoveredClaims = () => fs.readdirSync(lockRoot).filter(name => /^recovered-claim-.*\.json$/.test(name));
@@ -938,8 +873,6 @@ fs.unlinkSync(claimFile);
     fs.unlinkSync(guardFile);
   }
 
-  // Two recoverers of one abandoned claim serialize on a takeover named after
-  // its file identity; while another holds that takeover, this one backs off.
   fs.writeFileSync(guardFile, abandoned);
   fs.writeFileSync(claimFile, abandoned);
   const generation = fs.statSync(claimFile, { bigint: true });
@@ -947,7 +880,6 @@ fs.unlinkSync(claimFile);
   fs.writeFileSync(takeover, JSON.stringify({ owner: live }));
   held("a claim another recoverer is taking over");
   assert.equal(fs.readFileSync(claimFile, "utf8"), abandoned, "the claim under another's takeover is untouched");
-  // The takeover's own holder dying is recovered the same way, one level down.
   fs.writeFileSync(takeover, abandoned);
   acquire("dead takeover holder", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify, guardWaitMs: 100 }).release();
   assert.equal(recoveredGuards().length, ++count, "a dead takeover holder no longer blocks recovery");
@@ -958,8 +890,6 @@ fs.unlinkSync(claimFile);
   assert.equal(fs.readFileSync(guardFile, "utf8"), "", "a guard its creator may still be writing is untouched");
   fs.unlinkSync(guardFile);
 
-  // Guards are published with their owner already written, by hard-linking a
-  // private file into place, so a guard this code creates is never empty.
   const creating = () => fs.readdirSync(lockRoot).filter(name => /^creating-/.test(name));
   const link = fs.linkSync;
   let published = null;
@@ -972,8 +902,6 @@ fs.unlinkSync(claimFile);
   assert.deepEqual(JSON.parse(published), { owner: live }, "the guard carries its owner when it appears");
   assert.deepEqual(creating(), [], "the private file is removed after publishing");
 
-  // Two creators racing: the one whose link lands second gets EEXIST, refuses
-  // as for a held guard, removes its private file and leaves the winner's guard.
   const winner = JSON.stringify({ owner: live, token: "winner" });
   fs.linkSync = (from, to) => {
     if (to === guardFile && !fs.existsSync(guardFile)) fs.writeFileSync(guardFile, winner);
@@ -985,9 +913,6 @@ fs.unlinkSync(claimFile);
   assert.deepEqual(creating(), [], "the loser's private file is removed");
   fs.unlinkSync(guardFile);
 
-  // A creator killed after writing its private file but before linking it left
-  // no guard; its file is swept once its recorded pid and start name no live
-  // process. A live creator's file stays however old, and other names stay.
   const deadTemp = path.join(lockRoot, `creating-${deadOwner.pid}-${deadOwner.start}-0badc0de.tmp`);
   const liveTemp = path.join(lockRoot, `creating-${live.pid}-${live.start}-0000beef.tmp`);
   const unrelated = path.join(lockRoot, "creating-notes.txt");
@@ -1000,8 +925,6 @@ fs.unlinkSync(claimFile);
   fs.unlinkSync(liveTemp);
   fs.unlinkSync(unrelated);
 
-  // Windows can refuse the private file's removal while another reader holds
-  // it. The creator's own later transaction removes what it left.
   const unlink = fs.unlinkSync;
   let refusing = true;
   fs.unlinkSync = file => {
@@ -1018,9 +941,6 @@ fs.unlinkSync(claimFile);
 }
 console.log("PASS: a guard whose owner is gone is recovered and a live or unreadable one is kept");
 
-// A normal transaction can remove its guard and exit while recovery's process
-// lookup is still in flight. Its successor's live guard is a different file,
-// even if a delayed lookup then confirms the original coordinator is absent.
 {
   const peerGuard = JSON.stringify({ owner: processIdentity(process.pid), token: "live-successor" });
   const oldGeneration = path.join(lockRoot, "released-generation.json");
@@ -1071,8 +991,6 @@ console.log("PASS: recovery and cleanup preserve the observed guard generation, 
   const reservationFile = path.join(lockRoot, "reservation.json");
   fs.writeFileSync(childFile, `import fs from "node:fs"; fs.appendFileSync(${JSON.stringify(marker)}, "started\\n"); await new Promise(r=>setTimeout(r,50)); process.exitCode=Number(process.argv[2]);`);
   const refusal = await runVitest({ ...options,files:["a.test.ts"],enginePath:childFile,stdio:"ignore",
-    // The census runs at admission, before the record exists, and again at
-    // the first unit's gate, where the replacement lands before any child.
     memory: plenty, census: () => { if (fs.existsSync(reservationFile)) atomic(reservationFile, { ...read(reservationFile), token: "peer-before-child" }); return []; }
   });
   assert.equal(refusal.exit,75);
@@ -1081,8 +999,6 @@ console.log("PASS: recovery and cleanup preserve the observed guard generation, 
   assert.equal(read(reservationFile).token, "peer-before-child");
   fs.unlinkSync(reservationFile);
   for (const timing of ["post-spawn", "terminal"]) for (const exit of [0, 7]) {
-    // The fixture process has its own real observed close; a deterministic
-    // identity seam avoids a fast child disappearing during Windows lookup.
     fs.writeFileSync(childFile, `import fs from "node:fs";
 if(process.argv[2]==="run-direct")fs.appendFileSync(${JSON.stringify(marker)},"started\\n");
 await import(${JSON.stringify(new URL("./fixtures/test-suite-engine-control.mjs",import.meta.url).href)});
@@ -1114,8 +1030,6 @@ if(process.argv[2]==="run-direct")process.exitCode=${exit};`);
 }
 console.log("PASS: pre-child ownership loss is not run and post-spawn ownership loss preserves only the original child result");
 
-// Coordinator decision controls: synthetic protocol identities deliberately
-// provide no native containment credit. Actual ownership controls run below.
 for(const boundary of ["refused","positive","abandoned"]) {
   const reservationFile=path.join(lockRoot,"reservation.json"),rename=fs.renameSync;
   let entered=0,injected=false,entryRecord;
@@ -1148,8 +1062,6 @@ for(const boundary of ["refused","positive","abandoned"]) {
     assert.equal(reservationState(read(reservationFile),()=>null),"unknown","Abandoned possible launch without identities/proof cannot reclaim");
     assert.throws(()=>acquire("after abandoned entry",{root:lockRoot,slots:1,memory:plenty,census:()=>[],identify:()=>null}),/unknown/);
     assert.equal(fs.readFileSync(reservationFile,"utf8"),bytes);
-    // This unit callback never launches anything. Its own synthetic reservation
-    // is removed only after asserting the production recovery refusal.
     fs.unlinkSync(reservationFile);
   }
 }
@@ -1257,9 +1169,6 @@ for (const afterDiscovery of [false, true]) for (const peer of [false, true]) {
   } else { assert.equal(fs.existsSync(reservationFile), false); const next = acquire("next launch", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify: setupIdentify }); next.release(); }
 }
 
-// Parent log-close ownership moved into the native helper. Its reached real
-// log-open refusal and actual helper exit live in test-suite-child.test.mjs;
-// this coordinator unit retains the running-publication fault assertion.
 for (const boundary of ["running-save"]) for (const exit of [0, 7]) {
   const resultDirectory = path.join(scratch, ".git", `post-launch-${boundary}-${exit}`);
   const marker = path.join(scratch, ".git", `post-launch-${boundary}-${exit}.marker`);
@@ -1503,8 +1412,6 @@ await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/"
   let censusCalls = 0, failure, result, priorJournal;
   try { result = await execute({ ...options, directory: resultDirectory, enginePath: fixture,
     identify: pid => pid === process.pid ? processIdentity(pid) : { pid, start: "fixture-child" },
-    // The first census is the admission's, before the record exists; the
-    // discover unit's gate and the first file's gate follow.
     memory: plenty, census: () => {
       if (++censusCalls === (afterDiscovery ? 3 : 2)) {
         atomic(reservationFile, { ...read(reservationFile), token: "peer-before-durable-child" });
@@ -1528,9 +1435,6 @@ await import(${JSON.stringify(new URL(`file:///${enginePath.replaceAll("\\", "/"
   fs.unlinkSync(reservationFile);
 }
 
-// Lose ownership at the terminal update, after the child's result is observed
-// but before durable publication. A successor journal must remain byte-for-byte
-// intact; returned evidence is explicitly unpersisted and no next file starts.
 for (const boundary of ["discover", "first", "last"]) for (const exit of [0, 7]) {
   const resultDirectory = path.join(scratch, ".git", `lost-${boundary}-${exit}`);
   const marker = path.join(scratch, ".git", `lost-${boundary}-${exit}.marker`);
@@ -1565,7 +1469,7 @@ if(process.argv[2]==="run" || ${JSON.stringify(boundary)}==="discover")process.e
   let result;
   try { result = await execute({ ...options, directory: resultDirectory, enginePath: fixture, ownedChild:terminalOwnedChild,
     identify: pid => pid === process.pid ? processIdentity(pid) : { pid, start: "fixture-child" } }); }
-  finally { /* The adapter returns only after its original fixture-child close. */ }
+  finally {}
   assert.equal(replaced, true, `${boundary}: terminal update reached`);
   assert.match(result.reservationError, /ownership changed/);
   assert.equal(result.unpersistedAttempts.length, 1);
@@ -1666,14 +1570,10 @@ await until(() => {
 }, "second file running");
 assert.equal(status(interrupted, { fingerprint: () => "unchanged" }).unfinished[0].status, "running", "yield remains observable");
 assert.equal(status(interrupted, { fingerprint: () => { throw Error("live status must not scan inputs"); } }).status, "running");
-// With every slot free but one, the live coordinator's own run directory is
-// what keeps a second coordinator out.
 await assert.rejects(execute({packageRoot:scratch,enginePath,root:lockRoot,memory:plenty,census:()=>[],fingerprint:()=>"unchanged",directory:interrupted}), /Existing suite running for/);
 launched.kill();
 await exited;
 assert.notDeepEqual(processIdentity(coordinatorIdentity.pid),coordinatorIdentity);
-// Pipe loss cancels native-owned ancestry. Coordinator close alone cannot
-// establish that disposition; wait for independently bound fresh tree proof.
 await until(()=>{try{interruptionProof=readInterruptedProof(active.supervision);return interruptionProof.tree.empty;}catch{return false;}},"owned helper published empty-tree proof after coordinator cancellation");
 assert.equal(interruptionProof.interrupted,true);
 assert.deepEqual(interruptionProof.root,active.child);
@@ -1717,7 +1617,6 @@ const unknownStatus=status(unknownDirectory,{identify:()=>null,fingerprint:()=>{
 assert.equal(unknownStatus.status,"unknown");
 assert.equal(unknownStatus.identityChecked,false);
 
-// Same bytes, different index membership must invalidate reusable coverage.
 fs.writeFileSync(path.join(scratch,"c.test.ts"),"untracked test");
 const identityOptions={...options,fingerprint:undefined,directory:path.join(scratch,".git","membership")};
 assert.equal((await execute(identityOptions)).expected,2);
@@ -1740,8 +1639,6 @@ try {
   await assert.rejects(execute({...identityOptions,directory:environmentDirectory}),/identity changed/);
 } finally { if(originalFlag===undefined)delete process.env[flag]; else process.env[flag]=originalFlag; }
 
-// Exercise alias paths through the production API, including a not-yet-created
-// journal directory and resume. Windows additionally uses the real 8.3 spelling.
 const alias=path.join(path.dirname(scratch),path.basename(scratch)+"-alias");
 fs.symlinkSync(scratch,alias,process.platform==="win32"?"junction":"dir");
 assert.equal(canonicalPath(alias),canonicalPath(scratch));
@@ -1757,8 +1654,6 @@ if(process.platform==="win32") {
 }
 console.log("PASS: unknown aggregate status, contradictory file summaries, index-only changes, environment reuse refusal, path aliases and singleton Windows census");
 
-// The sparse tooling CI has no npm installation. The protocol/process fixtures
-// above always run; a full checkout additionally exercises the installed engine.
 let installed = false;
 try { createRequire(import.meta.url).resolve("vitest/node"); installed = true; }
 catch (error) { if (error.code !== "MODULE_NOT_FOUND") throw error; }
@@ -1776,8 +1671,6 @@ else {
   fs.writeFileSync(path.join(real,".gitignore"),"node_modules/\n");
   fs.writeFileSync(path.join(real,"vitest.config.ts"),'import {defineConfig} from "vitest/config"; export default defineConfig({test:{include:["src/**/*.{test,spec}.{ts,tsx}"],exclude:["**/excluded/**"]}});');
   fs.mkdirSync(path.join(real,"src","excluded"),{recursive:true});
-  // Total V8 heap includes a runtime/platform-dependent young generation. Pin
-  // the worker to a fresh process using the same repository old-space cap.
   const expectedHeapLimit=Number(execFileSync(process.execPath,["--max-old-space-size=1024","-e","process.stdout.write(String(require('node:v8').getHeapStatistics().heap_size_limit))"],{encoding:"utf8",windowsHide:true,env:childEnvironment()}));
   assert.ok(Number.isSafeInteger(expectedHeapLimit) && expectedHeapLimit>0);
   const testSource=`import {it,expect} from "vitest"; import v8 from "node:v8"; it("bounded",()=>{expect(v8.getHeapStatistics().heap_size_limit).toBe(${expectedHeapLimit});expect(process.execArgv.join(" ")).toContain("max-old-space-size=1024");}); it.skip("platform skip",()=>{}); it.todo("future");`;
@@ -1785,12 +1678,6 @@ else {
   realGit(["add","."]);
   fs.writeFileSync(path.join(real,"src","untracked.test.ts"),testSource);
   const realDirectory=path.join(real,".git","run");
-  // Real children run under a scratch reservation, and the census sees only
-  // processes naming this scratch repository, so other sessions' suites on the
-  // same machine cannot fail the fixture. The expensive full-install identity
-  // scan is replaced; dirty/dependency identity is tested above.
-  // Model a package that provides Vitest but no unrelated hoisted glob library.
-  // Vitest's own declared dependencies remain available through their importers.
   const isolatedEngine=path.join(real,".git","isolated-engine.mjs");
   fs.writeFileSync(isolatedEngine, `import Module from "node:module"; import path from "node:path";
 const resolve=Module._resolveFilename;
@@ -1828,8 +1715,6 @@ await import(${JSON.stringify(new URL("./suite-engine.mjs",import.meta.url).href
   const shared=await runVitest({packageRoot:real,files:["shared/first.test.ts","shared/second.test.ts"],root:path.join(real,".git","reservation"),memory:plenty,census:()=>vitestProcesses({within:real}),stdio:"ignore"});
   assert.equal(shared.exit,0,"each file gets a fresh environment in the one worker");
   console.log("PASS: run gives each file a fresh jsdom environment in one worker");
-  // The owned full-install CI must exercise repository callers too, rather
-  // than allowing tooling-only filtering to hide their different Vitest pin.
   for (const [name,file] of [["sparkdown-language-server","src/tests/logging/profile.test.ts"],
     ["sparkdown-document-views","test/typecheck-front-matter.test.ts"]]) {
     const packageRoot=path.resolve(root,"../packages",name);
@@ -1842,8 +1727,6 @@ await import(${JSON.stringify(new URL("./suite-engine.mjs",import.meta.url).href
     console.log("PASS: actual configured "+name+" "+file+" with repository Vitest "+version);
   }
 }
-// Required default inventory coverage, including sparse CI with no Vitest
-// installation. These controls use the real native ownership mechanisms.
 await ownedBoundaries();
 }
 
@@ -1861,8 +1744,6 @@ async function ownedBoundaries() {
   holder.update({ unitStartedAt: progressAt, progress: { at: progressAt, event: "collected" } });
   try {
     await assert.rejects(acquireWaiting("queued observer", { root: holderRoot, slots: 1, memory: plenty, census: () => [],
-      // Guard creation itself records a fresh OS identity. Five seconds allows
-      // repeated real Windows CIM transactions without replacing that boundary.
       waitMs: 5000, pollMs: 100, onWait: value => rows.push(value) }), /Existing suite running/);
     console.log(JSON.stringify({ waitingRows: rows }));
     assert.ok(rows.length >= 2, "The actual waiting-row route was reached repeatedly");
@@ -1932,7 +1813,7 @@ async function ownedBoundaries() {
           const target = expected === 124 ? "run-direct" : "merge";
           if (value.mode === target && (fault === "post-start" && value.phase === "running"
             || fault === "final-publication" && value.phase === "exited") && reached++ === 0) {
-            rename(from, to); // retain the genuine post-rename publication fault
+            rename(from, to);
             throw Object.assign(new Error("confirmed unit publication refused"), { code: "EIO" });
           }
         }
@@ -1983,8 +1864,6 @@ async function ownedBoundaries() {
   assert.equal(status(directory, { fingerprint: options.fingerprint }).status, "stale",
     "The reached semantic resume refusal remains stale without a reusable manifest");
   console.log("PASS: owned discovery timeout124 and explicit no-relaunch resume refusal");
-  // Journal-only variations reuse the authentic native proof; no fabricated
-  // terminal evidence or process identity supplies containment credit.
   const journalFile = path.join(directory, "run.json"), originalBytes = fs.readFileSync(journalFile);
   try {
     const live = structuredClone(original);

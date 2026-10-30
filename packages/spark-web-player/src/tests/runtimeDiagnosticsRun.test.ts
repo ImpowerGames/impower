@@ -1,4 +1,3 @@
-// #816 — one run's runtime errors and warnings, as the editor's diagnostics.
 import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import { describe, expect, it } from "vitest";
 import { RuntimeDiagnosticsRun } from "../utils/RuntimeDiagnosticsRun";
@@ -38,7 +37,6 @@ describe("a run's runtime diagnostics", () => {
   });
 
   it("never publish a position before the start of its line", () => {
-    // The statement's recorded location can start one character early.
     expect(
       diagnosticsOf([{ message: "boom", type: ErrorType.Error, location: at(6, -1, 14) }]),
     ).toEqual([{ range: at(6, 0, 14).range, severity: 1, message: "boom", source: "runtime" }]);

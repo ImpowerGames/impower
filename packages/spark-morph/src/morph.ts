@@ -6,20 +6,11 @@ import { type BendOptions, bendTrack } from "./methods/bend";
 import type { Cubic, MorphMethod, MorphResult, Subpath, SubpathMorph, SubpathTrack } from "./types";
 
 export interface MorphOptions {
-  /** The explicit method. A failure is reported, never swapped for another. */
   method: MorphMethod;
   match?: MatchOptions;
   bend?: BendOptions;
   trace?: TraceOptions;
-  /**
-   * Per-control-point tolerance under which two drawings count as
-   * identical, as a fraction of the larger drawing's size.
-   */
   stillTolerance?: number;
-  /**
-   * How far apart an unclosed subpath's ends may be, as a fraction of its
-   * perimeter, before it is refused as `not-closed`.
-   */
   seamTolerance?: number;
 }
 
@@ -35,14 +26,6 @@ const stillTrack = (loop: Cubic[]): SubpathTrack => {
 
 const toSubpath = (segments: Cubic[]): Subpath => ({ segments, closed: true });
 
-/**
- * Morphs two drawings with the chosen method. Compound drawings pair their
- * subpaths in document order and only when the counts match. Every subpath
- * must be closed: written with `Z`, or ending within `seamTolerance` of its
- * start. A subpath identical in both drawings stays still. Any subpath the
- * method cannot handle fails the whole morph with the offending index, so
- * the caller can apply its selected fallback.
- */
 export function morphSubpaths(from: Subpath[], to: Subpath[], options: MorphOptions): MorphResult {
   const still = options.stillTolerance ?? MORPH_DEFAULTS.stillTolerance;
   const seam = options.seamTolerance ?? MORPH_DEFAULTS.seamTolerance;
@@ -108,11 +91,6 @@ export interface ScaleMorph extends SubpathMorph {
   visible(progress: number): boolean;
 }
 
-/**
- * The `scale` transition for a drawing with no counterpart: each subpath
- * grows from, or shrinks to, its own fixed centre. The zero endpoint is
- * invisible and the full endpoint is the authored drawing exactly.
- */
 export function morphScale(shape: Subpath[], direction: "grow" | "shrink"): ScaleMorph {
   const tracks = shape.map((s) => scaleTrack(s.segments, direction));
   const zero: Subpath[] = shape.map((s, i) => ({ segments: tracks[i]!.frame(direction === "grow" ? 0 : 1), closed: s.closed }));

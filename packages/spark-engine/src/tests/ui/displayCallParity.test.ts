@@ -1,10 +1,3 @@
-// What each display statement renders through `display(<table>)`: per beat,
-// each target's text (as runs of one style, so emphasis shows), the image
-// directives and the load names. A dialogue beat's speaker is its
-// `character_name` text. The expected beats were captured at commit
-// ffd59219a from the flat-text lowering that `display()` replaced, so each
-// script renders what it rendered there.
-
 import { describe, expect, test } from "vitest";
 import type { Instructions } from "../../game/core/types/Instructions";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
@@ -79,8 +72,6 @@ interface Beat {
   image?: Record<string, { control: string; assets?: string[] }[]>;
 }
 
-// One beat as authored behaviour: each target's text as runs of equal style,
-// the image directives and the load names.
 function summarize(beat: Instructions): Beat {
   const out: Beat = {};
   if (beat.load) out.load = beat.load;
@@ -111,8 +102,6 @@ function summarize(beat: Instructions): Beat {
   return out;
 }
 
-// Drive every beat of the scene, displaying each; a story stopped on choices
-// takes the first one.
 async function renderedBeats(source: string): Promise<Beat[]> {
   const harness = createHarness(source);
   await harness.ready;
@@ -521,7 +510,6 @@ describe("display() renders inline asset directives", () => {
   }
 });
 
-// The interpreter's reading of a step, beat by beat.
 async function beats(body: string) {
   const harness = createHarness(story(body));
   await harness.ready;
@@ -545,8 +533,6 @@ describe("display() load beats", () => {
     ).toContain("load the cart");
   });
 
-  // A table naming no target renders on the default target; only a `load`
-  // field makes a load beat.
   for (const [label, body] of [
     ["a layerless write", `  store verb = "load"\n  @: {verb} the cart`],
     ["a print() call", `  & f()\nend\n\nfunction f()\nprint("load the cart")`],
@@ -563,8 +549,6 @@ describe("display() load beats", () => {
     });
   }
 
-  // A divert or a picked choice holds its line open with glue, so the target's
-  // `load` line reaches the same step; it still makes a beat of its own.
   for (const [label, body, pick] of [
     [
       "a mid-line divert",
@@ -592,7 +576,6 @@ describe("display() load beats", () => {
         if (!pick || s.canContinue || s.currentChoices.length === 0) break;
         s.ChooseChoiceIndex(0);
       }
-      // A picked choice's run opens with the beat that shows the choices.
       const shown = run.filter((b) => b.load || b.text).slice(pick ? 1 : 0);
       expect(shown.map((b) => Boolean(b.load))).toEqual([false, true, false]);
       expect(shown[1]!.load).toEqual([{ name: "overworld" }]);
