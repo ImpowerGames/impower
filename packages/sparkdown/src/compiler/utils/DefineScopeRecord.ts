@@ -208,8 +208,8 @@ export class DefineScopeRecord {
       // flows in a flow of its own (`parseIncrementally`), so they are
       // reached here whether or not the lowered flow lists them as content.
       if (obj instanceof FlowBase) {
-        if (obj._rootWeave) {
-          stack.push(obj._rootWeave);
+        if (obj._weave) {
+          stack.push(obj._weave);
         }
         for (const sub of obj._subFlowsByName.values()) {
           stack.push(sub);

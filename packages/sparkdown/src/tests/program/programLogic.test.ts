@@ -239,7 +239,7 @@ describe("the writer", () => {
   it("emits an increment and a chain of conditions", () => {
     const written = (emit: Parameters<typeof handWrittenProgram>[0]) => {
       const root = handWrittenProgram(emit);
-      return instructionsOf(root, root.flowNamed("")!.arrays.chunks[0]!);
+      return instructionsOf(root, root.flowNamed("start")!.arrays.chunks[0]!);
     };
     expect(
       written((e) => e.emitObject(new IncDecExpression(new Identifier("n"), true))),

@@ -47,8 +47,6 @@ export const ROUTE_KIND_MEANINGS: Record<RouteKind, string> = {
 /** The preview's route failing: why, and where it was to start and end. */
 export interface RouteFailure {
   message: string;
-  /** The scene the route was to start at the top of, or nothing for the
-   *  top-level content. */
   scene?: string;
   start?: DocumentLocation;
   target?: DocumentLocation;
@@ -212,9 +210,6 @@ export const routeIcon = (state: RouteViewState): RouteIcon => {
 
 const lineOf = (location: DocumentLocation) => location.range.start.line + 1;
 
-/** Where a route starts and ends, as the button reads it: the scene, or the
- *  script for the top-level content, then the start's line and the
- *  target's, which names its script when that is not the start's. */
 const startAndEnd = (
   scene: string | undefined,
   start: DocumentLocation,

@@ -173,8 +173,8 @@ describe("statements whose recorded facts an edit invalidates", () => {
     });
     const flows = (kind: typeof SymbolKind.Scene | typeof SymbolKind.Branch) => [
       {
-        name: "",
-        kind: SymbolKind.Root,
+        name: "start",
+        kind: SymbolKind.Scene,
         uri: MAIN_URI,
         firstLine: 0,
         span: n,
@@ -261,8 +261,8 @@ describe.each([
               }
             : [
                 {
-                  name: "",
-                  kind: SymbolKind.Root,
+                  name: "start",
+                  kind: SymbolKind.Scene,
                   uri: MAIN_URI,
                   firstLine: 0,
                   span: 1,
@@ -271,7 +271,7 @@ describe.each([
               ],
           true,
         ).root!;
-        return declarations ? root.initialization : root.flowNamed("")!.arrays.chunks;
+        return declarations ? root.initialization : root.flowNamed("start")!.arrays.chunks;
       },
     };
   };
@@ -363,7 +363,7 @@ describe.each([
               (s) => ({ ...s, uri: MAIN_URI, globals: [] }) as DeclarationSource,
             ),
           }
-        : [{ name: "", kind: SymbolKind.Root, uri: MAIN_URI, firstLine: 0, span: 1, statements }];
+        : [{ name: "start", kind: SymbolKind.Scene, uri: MAIN_URI, firstLine: 0, span: 1, statements }];
     const before = [...Array(n).keys()].map((k) =>
       shape.startsWith("of one syntax") ? statement("x", `r${k}`) : statement(`s${k}`),
     );
@@ -435,7 +435,7 @@ describe.each([
               (s) => ({ ...s, uri: MAIN_URI, globals: [] }) as DeclarationSource,
             ),
           }
-        : [{ name: "", kind: SymbolKind.Root, uri: MAIN_URI, firstLine: 0, span: 1, statements }];
+        : [{ name: "start", kind: SymbolKind.Scene, uri: MAIN_URI, firstLine: 0, span: 1, statements }];
     store.build(source(Array.from({ length: n }, () => defining("before"))), true);
     store.lookups = 0;
     store.build(source(Array.from({ length: n }, () => defining("after"))), true);
@@ -528,14 +528,14 @@ describe("a block statement that can keep an old chunk another one was paired wi
       reads: "[]",
     };
     const flow = (statements: StatementSource[]) => [
-      { name: "", kind: SymbolKind.Root, uri: MAIN_URI, firstLine: 0, span: 1, statements },
+      { name: "start", kind: SymbolKind.Scene, uri: MAIN_URI, firstLine: 0, span: 1, statements },
     ];
     const old = store
       .build(flow([owner("x", "r0"), anchor, owner("y", "r0")]), true)
-      .root!.flowNamed("")!.arrays.chunks;
+      .root!.flowNamed("start")!.arrays.chunks;
     const now = store
       .build(flow([owner("z", "r1"), anchor, owner("x", "r0")]), true)
-      .root!.flowNamed("")!.arrays.chunks;
+      .root!.flowNamed("start")!.arrays.chunks;
     expect(store.emittedLastBuild).toBe(1);
     expect(now[2] === old[0]).toBe(true);
     const sequences = (chunks: readonly Int32Array[]) =>
@@ -682,7 +682,7 @@ describe("block statements an edit reorders", () => {
     } as unknown as StatementSource;
   };
   const flow = (statements: StatementSource[]) => [
-    { name: "", kind: SymbolKind.Root, uri: MAIN_URI, firstLine: 0, span: 1, statements },
+    { name: "start", kind: SymbolKind.Scene, uri: MAIN_URI, firstLine: 0, span: 1, statements },
   ];
   class CountingStore extends ChunkStore {
     lookups = 0;
@@ -699,7 +699,7 @@ describe("block statements an edit reorders", () => {
   it("keep their chunks and body sequences through a three-way rotation", () => {
     const store = new ChunkStore();
     const build = (reads: string[]) =>
-      store.build(flow(reads.map((r) => owner("x", r))), true).root!.flowNamed("")!.arrays.chunks;
+      store.build(flow(reads.map((r) => owner("x", r))), true).root!.flowNamed("start")!.arrays.chunks;
     const before = build(["a", "b", "c"]);
     const after = build(["b", "c", "a"]);
     expect(store.emittedLastBuild).toBe(0);
@@ -761,7 +761,7 @@ describe("block statements an edit reorders", () => {
     }
     const built = store.build(flow(now), true);
     expect(built.unsupported).toBeUndefined();
-    const chunks = built.root!.flowNamed("")!.arrays.chunks;
+    const chunks = built.root!.flowNamed("start")!.arrays.chunks;
     expect(new Set(chunks).size).toBe(chunks.length);
     expect(reads).toBeLessThan(20 * n);
   });
@@ -847,7 +847,7 @@ describe("block statements an edit reorders", () => {
       old.push(owner(`x${k}`), anchors[k]!);
     }
     old.push(big(n - 1, false));
-    const before = store.build(flow(old), true).root!.flowNamed("")!.arrays.chunks;
+    const before = store.build(flow(old), true).root!.flowNamed("start")!.arrays.chunks;
     const now: StatementSource[] = [big(n, true), anchors[0]!];
     for (let k = 0; k < n; k += 1) {
       now.push(owner(`x${k}`), anchors[k + 1]!);
@@ -855,7 +855,7 @@ describe("block statements an edit reorders", () => {
     screens = 0;
     const built = store.build(flow(now), true);
     expect(built.unsupported).toBeUndefined();
-    const after = built.root!.flowNamed("")!.arrays.chunks;
+    const after = built.root!.flowNamed("start")!.arrays.chunks;
     for (let k = 0; k < n; k += 1) {
       expect(after[2 + 2 * k] === before[2 * k]).toBe(true);
     }

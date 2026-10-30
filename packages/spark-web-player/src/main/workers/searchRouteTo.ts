@@ -6,6 +6,7 @@ import type {
   RouteResumePoint,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
+import { START_FLOW_NAME } from "@impower/sparkdown/src/program/ProgramSymbols";
 import { profile } from "../../utils/profile";
 import { programIdentity } from "../../utils/programIdentity";
 import type { RouteSearchLog } from "./RouteSearchLog";
@@ -66,7 +67,7 @@ export const searchRouteFor = (
     return searchRouteFor(game, to, log, { ...settings, startSearched: true });
   }
   const searchedFromStart = fromStart || startSearched;
-  const from = fromStart ? "0" : game.routeStartOf(to);
+  const from = fromStart ? START_FLOW_NAME : game.routeStartOf(to);
   // Asked before anything replaces the planned route, because every question it
   // answers is about that route. Measured under its own name: it walks the
   // route's steps and reads a checkpoint back, so it is work in its own right

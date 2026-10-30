@@ -104,7 +104,6 @@ import {
 } from "./ProgramInstructions";
 import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
 import {
-  ROOT_FLOW_NAME,
   START_FLOW_NAME,
   SymbolKind,
   UNDEFINED_KIND,
@@ -1397,8 +1396,7 @@ export class ProgramStory implements StoryEngine {
       this.land(place, [], 0);
       this._start = { symbol: start!, ...place };
     } else {
-      const root = this.root.flowNamed(ROOT_FLOW_NAME);
-      this._state.position = root ? { sequence: root, entry: 0, offset: 0 } : null;
+      this._state.position = null;
       this._start = null;
     }
     if (this._imagesOn) {
@@ -1465,12 +1463,6 @@ export class ProgramStory implements StoryEngine {
     this._asyncContinueActive = false;
   }
 
-  /** Moves to the start of a flow, named by its qualified name (the top-level
-   *  content's flow is `""` or `"0"`), or of a label; a position in the
-   *  source is chosen by its address (`ChooseAddress`). The host's arguments
-   *  go on the stack as they are, for the entry of a flow that takes
-   *  parameters to bind, as the object engine's `ChoosePathString` passed
-   *  them to the knot it chose. */
   ChoosePathString(path: string, resetCallstack = true, args: any[] = []): void {
     this.IfAsyncWeCant("call ChoosePathString right now");
     if (this.onChoosePathString !== null) this.onChoosePathString(path, args);
@@ -1479,6 +1471,14 @@ export class ProgramStory implements StoryEngine {
       throw new StoryException(`Path not found: '${path}'`);
     }
     this.choose(target, resetCallstack, args);
+  }
+
+  ChooseStart(): void {
+    if (this.startSymbol() === undefined) {
+      this.ResetCallstack();
+      return;
+    }
+    this.ChoosePathString(START_FLOW_NAME);
   }
 
   /** Moves to an address (`ProgramRoot.addressAt`), inside the blocks that
@@ -2029,11 +2029,6 @@ export class ProgramStory implements StoryEngine {
     return this._state.callStack.elements.length;
   }
 
-  /** The name of call frame `index`, counting from the outermost, as
-   *  `debug.info` names a frame: the name of the function a call frame runs,
-   *  or for the flow's own frame, the name of the flow it is in (`0` for the
-   *  top-level content, as the object engine's path of that container
-   *  read); null for a frame with no position. */
   CallFramePath(index: number): string | null {
     const state = this._state;
     const elements = state.callStack.elements;
@@ -2079,18 +2074,8 @@ export class ProgramStory implements StoryEngine {
     return symbol === undefined ? ref.label : this.root.shownLabelOf(symbol);
   }
 
-  /** The name a frame that runs no function shows: the name of the flow it
-   *  stands in, `0` for the top-level content, as the object engine's path
-   *  of that container read, and `global decl` for a declaration. */
   flowName(flow: number): string {
-    if (flow < 0) {
-      return "global decl";
-    }
-    if (this.root.kindOf(flow) === SymbolKind.Root) {
-      return "0";
-    }
-    const name = this.root.labelOf(flow);
-    return name === ROOT_FLOW_NAME ? "0" : name;
+    return flow < 0 ? "global decl" : this.root.labelOf(flow);
   }
 
   /**
@@ -2511,11 +2496,6 @@ export class ProgramStory implements StoryEngine {
     return !state.inStringEvaluation && state.outputStreamEndsInNewline;
   }
 
-  /** Runs the instruction at the position. A body whose sequence runs out
-   *  resumes its owner at the block's resume offset first; a flow's sequence
-   *  that runs out ends the flow as `Done` does: the compiler ends every flow
-   *  that does not end itself with a `-> DONE`, and the top-level content
-   *  with a `done`. */
   Step(): void {
     const state = this._state;
     const start = this._start;
@@ -4073,10 +4053,6 @@ export class ProgramStory implements StoryEngine {
       : undefined;
   }
 
-  protected startName(): string {
-    return this.startSymbol() === undefined ? ROOT_FLOW_NAME : START_FLOW_NAME;
-  }
-
   protected _start: {
     symbol: number;
     sequence: SequenceRow;
@@ -4087,8 +4063,7 @@ export class ProgramStory implements StoryEngine {
   protected placeName(
     path: string,
   ): { position: ProgramPosition; symbol?: number } | undefined {
-    const name = path === "0" ? this.startName() : path;
-    const symbol = this.root.table.symbolIds.get(name);
+    const symbol = this.root.table.symbolIds.get(path);
     const kind = symbol === undefined ? UNDEFINED_KIND : this.root.kindOf(symbol);
     // A flow, or a label, by its qualified name.
     if (

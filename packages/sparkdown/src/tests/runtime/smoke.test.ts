@@ -153,12 +153,6 @@ end
   });
 
   test("divert to a label inside a branch resolves (cross-stitch path lookup)", () => {
-    // Validates that sparkdown DOES support diverting to a labeled
-    // weave-point inside a `branch` (`scene.branch.label`). The path
-    // resolver's deep-search in `Path.GetChildFromContext` falls
-    // through to `FlowBase.ContentWithNameAtLevel` which checks the
-    // stitch's `_rootWeave.WeavePointNamed(...)` for both labeled
-    // gathers and labeled choices (any IWeavePoint with an identifier).
     const ctxGather = makeRuntimeStoryFromSource(`scene start
   -> main.sub.hello_label
 end

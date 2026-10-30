@@ -849,7 +849,6 @@ const exitedKnot = (
   knotName: string,
   functions: string[],
 ): boolean => {
-  // A story that stands nowhere is in the top-level content's flow, `"0"`.
   // Read first, since a step that stays in its scene is the common case.
   const curKnot = positions.knot();
 

@@ -41,21 +41,6 @@ import { reportReassignedConst } from "../utils/publishesConst";
 import { syntheticId } from "../utils/documentTag";
 import { statementNodeAt, type StatementSite } from "./lowerLuauStatement";
 
-// `function name(args) BODY end` → Knot(name, [], args, isFunction=true) with
-// the body content placed in the Knot's _rootWeave. parseIncrementally
-// preserves this rootWeave when it sees a Knot with one already set.
-//
-// A function written in another function's body is a value of that
-// function's scope (`lowerNestedNamedFunction`), with `...` or without,
-// and `function a.f` / `function a:m` stores a function in a table
-// (`lowerPropertyTargetFunctionDefinition`). A function expression is
-// lowered by the expression lowerer (`lowerFunctionExpression`).
-//
-// Function purity (no display text, no diverts in the body) is enforced
-// by the grammar itself: a `LuauFunctionDefinition`'s body only includes
-// Luau-statement patterns, so display lines and `-> divert` syntax can't
-// land here. No lowerer-side validation is needed.
-
 const FUNCTION_NODES = nodeNameSet(["LuauFunctionDefinition"]);
 
 export function lowerLuauFunctionDefinition(
@@ -134,7 +119,7 @@ export function lowerLuauFunctionDefinition(
   // up to a stray `end`, follows as chunks of their own.
   knot._bodyClosed = !!node.getChild("LuauFunctionDefinition_end");
   const rootWeave = new Weave([...hoisted, ...body]);
-  knot._rootWeave = rootWeave;
+  knot._weave = rootWeave;
   knot.AddContent(rootWeave);
   // Nested callables collected during this function's body lowering
   // become subFlows of the knot. Adding them as content makes

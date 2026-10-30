@@ -947,28 +947,6 @@ export function installPlayerWorker(connection: MessageConnection) {
     };
   };
 
-  /**
-   * The line and beat a display or PLAY of `point` routes to: the point's own
-   * `beat`. The `end` that closes a scene or branch belongs to that flow,
-   * not to the line below it, which another flow holds (#1618). It routes to
-   * where the flow finishes:
-   * - for a flow that runs off its end, the `Done` the compile ends it with
-   *   (`ProgramRoot.flowEndAddress`), which a route reaches only when a run
-   *   finishes the flow, whatever its conditionals decided; the point names
-   *   that address, since the line of a scene's `end` can stand in a
-   *   branch's lines or resolve elsewhere;
-   * - for a flow that ends itself (a `done`, a `fin`, a divert), the last
-   *   beat of its own nearest line above the `end` that has an address,
-   *   passing over the branches written inside a scene, as the story stands
-   *   once that line has run (#1606);
-   * - for a scene that enters its first branch (one that binds no
-   *   parameters), what that branch's `end` routes to.
-   * A line with no address and none below it in its script (the blank lines
-   * after the script's last `end`), or a closing `end` none of these place,
-   * routes to the last beat of the nearest line above it that has one. With
-   * no such line above, the point stands, and a run from it starts from
-   * where its address leads, or from the top of the top-level content.
-   */
   const startPoint = (
     program: SparkProgram,
     point: StartPoint,

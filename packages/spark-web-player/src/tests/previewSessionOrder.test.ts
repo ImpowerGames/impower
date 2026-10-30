@@ -46,8 +46,7 @@ function recordingGame(calls: string[], state = "previewing") {
     previewAddress: 0,
     previewFrom: { file: PROGRAM.uri, line: 4 },
     previewedAddress: undefined as number | undefined,
-    // The flow a route to an address starts from: here, the top level.
-    routeStartOf: (_address: number) => "0",
+    routeStartOf: (_address: number) => "start",
     updateProgram: () => calls.push("updateProgram"),
     markPreviewing: () => calls.push("markPreviewing"),
     endSimulation: () => {},

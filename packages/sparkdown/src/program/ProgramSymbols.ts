@@ -5,9 +5,6 @@ import type { ProgramTable } from "./ProgramTable";
  *  A root records the kind its program defines each symbol as
  *  (`ProgramRoot.kindOf`, `SequenceRow.kind` for a flow). */
 export const SymbolKind = {
-  /** The flow of the starting script's top-level content, named by the
-   *  empty string. */
-  Root: 0,
   Scene: 1,
   Branch: 2,
   /** A function declared at the top level, whose flow is its definition. A
@@ -31,8 +28,7 @@ export type SymbolKindValue = (typeof SymbolKind)[keyof typeof SymbolKind];
 /** What a root's kind array holds for a symbol its program does not define. */
 export const UNDEFINED_KIND = -1;
 
-/** The name the flow of the top-level content is registered under. */
-export const ROOT_FLOW_NAME = "";
+export type SequenceKind = SymbolKindValue | typeof UNDEFINED_KIND;
 
 export const START_FLOW_NAME = "start";
 

@@ -379,12 +379,12 @@ describe("a reference table", () => {
       reads: "[]",
     };
     const flows = (kind: SymbolKindValue | null): FlowSource[] => [
-      { name: "", kind: SymbolKind.Root, uri: MAIN, firstLine: 0, span: 1, statements: [statement] },
+      { name: "start", kind: SymbolKind.Scene, uri: MAIN, firstLine: 0, span: 1, statements: [statement] },
       ...(kind !== null
         ? [{ name: "TARGET", kind, uri: MAIN, firstLine: 2, span: 1, statements: [] }]
         : []),
     ];
-    const chunk = (root: ProgramRoot) => root.flowNamed("")!.arrays.chunks[0];
+    const chunk = (root: ProgramRoot) => root.flowNamed("start")!.arrays.chunks[0];
     return { store, flows, chunk };
   };
 

@@ -818,9 +818,6 @@ export class SparkdownCompiler {
   get defineScopeStats(): DefineScopeStats {
     return this._defineScope.stats;
   }
-  // Per-flow asset captures for this compile (`program.sceneAssets`), keyed
-  // by top-level flow name plus "0" for root content, read from the program's
-  // chunks once they are built (`captureProgramAssets`).
   protected _flowAssetAccum?: Map<string, SceneAssetCapture>;
 
   // The string/number table the statement chunks' operands refer to.
@@ -2446,11 +2443,6 @@ export class SparkdownCompiler {
     declarationOnly = false,
   ) {
     const version = this.documents.get(uri)?.version ?? 0;
-    // A function whose declaration closes its body with its `end` takes no
-    // content from the chunks after it. The story content after it joins the
-    // flow or weave it would join if the function were not there: the scene
-    // the function is declared among, or the root flow. It never joins the
-    // function, where it would follow the function's `return`.
     const isClosedFunctionFlow = (obj: unknown): boolean =>
       obj instanceof FlowBase && obj.isFunction && obj._bodyClosed;
     const lastStoryEntry = <T,>(content: T[]): T | undefined => {
@@ -3281,13 +3273,8 @@ export class SparkdownCompiler {
           const flow = content[0];
           if (flow) {
             if (flow instanceof Knot) {
-              // If the lowerer already populated a rootWeave with body content
-              // (e.g. function definitions whose body lives inside the same
-              // chunk), preserve it. Scene/Branch declarations leave _rootWeave
-              // unset so the staged-chunk pattern still creates an empty weave
-              // for subsequent body chunks to attach to.
-              const rootWeave = flow._rootWeave
-                ? assemblyWeave(flow._rootWeave)
+              const rootWeave = flow._weave
+                ? assemblyWeave(flow._weave)
                 : new Weave([]);
               rootWeave.debugMetadata = flow.debugMetadata;
               const knot = new Knot(
@@ -3299,7 +3286,7 @@ export class SparkdownCompiler {
               knot._bodyClosed = flow._bodyClosed;
               knot._loweredFrom = flow;
               knot.debugMetadata = flow.debugMetadata;
-              knot._rootWeave = rootWeave;
+              knot._weave = rootWeave;
               knot.AddContent(rootWeave);
               // Preserve nested subFlows that the lowerer attached (e.g.
               // anonymous-function literals and nested named function
@@ -3325,7 +3312,7 @@ export class SparkdownCompiler {
               stitch._bodyClosed = flow._bodyClosed;
               stitch._loweredFrom = flow;
               stitch.debugMetadata = flow.debugMetadata;
-              stitch._rootWeave = rootWeave;
+              stitch._weave = rootWeave;
               stitch.AddContent(rootWeave);
               rootWeave.debugMetadata = flow.debugMetadata;
               this._placedBy.set(stitch, compiledBlock);
@@ -3509,30 +3496,9 @@ export class SparkdownCompiler {
     // too.
     this.validateSceneStructure(uri, onDiagnostic);
 
-    // Auto-terminate non-function scenes / branches whose body doesn't end
-    // with an explicit terminator. Sparkdown narrative flows (`scene` /
-    // `branch`) are story content — running off the end without a
-    // `-> DONE` / `-> END` / `->->` causes the runtime to halt with a
-    // diagnostic. Authors almost always WANT `-> DONE` at the natural
-    // end of a scene, so we synthesize it when missing. This mirrors
-    // the existing `isRootStory` branch in `FlowBase.
-    // SplitWeaveAndSubFlowContent` which appends `Gather + Divert(Done)`
-    // to the top-level story for the same reason.
-    //
-    // Skipped for:
-    //   - Functions (`isFunction === true`) — they have explicit `return`
-    //     semantics; falling off the end is handled by the runtime as an
-    //     implicit `return Void`.
-    //   - Flows whose `_rootWeave` already ends with a `Divert` /
-    //     `TunnelOnwards` / `ReturnType` — author already terminated.
-    //
-    // Recurses into `subFlowsByName` so nested branches (sparkdown's
-    // `branch X` declared inside a `scene Y`) get the same treatment;
-    // those don't appear in `topLevelFlowBaseObjs` because the chunk
-    // dispatcher folds them under their parent knot.
     const autoTerminate = (flow: FlowBase): void => {
       if (!flow.isFunction) {
-        const rootWeave = flow._rootWeave;
+        const rootWeave = flow._weave;
         if (rootWeave) {
           const last = rootWeave.content[rootWeave.content.length - 1];
           const alreadyTerminates =
@@ -4461,7 +4427,6 @@ export class SparkdownCompiler {
       story: parsedStory,
       uri,
       preludeUri: BUILTINS_PRELUDE_URI,
-      topLevelFlow: hasLuauExtension(uri),
       blockOf: (obj) => this._placedBy.get(obj),
       record: (block) =>
         this._statementRecords.get(block) ??

@@ -68,6 +68,7 @@ import {
   snapshotTable,
   SymbolKind,
   UNDEFINED_KIND,
+  type SequenceKind,
   type SymbolKindValue,
 } from "./ProgramSymbols";
 import {
@@ -187,8 +188,6 @@ export interface DeclarationSource extends StatementSource {
 
 /** One flow of the program, as the compile hands it to the store. */
 export interface FlowSource {
-  /** The flow's qualified name; the top-level content's flow is named by the
-   *  empty string. */
   name: string;
   kind: SymbolKindValue;
   uri: string;
@@ -1030,7 +1029,7 @@ export class ChunkStore {
           build,
           declaration,
           chunk,
-          { flow: -1, kind: SymbolKind.Root, uri: declaration.uri },
+          { flow: -1, kind: UNDEFINED_KIND, uri: declaration.uri },
           false,
         );
       }
@@ -1067,7 +1066,7 @@ export class ChunkStore {
         id,
         arrays,
         flow: -1,
-        kind: SymbolKind.Root,
+        kind: UNDEFINED_KIND,
         owner: -1,
         block: -1,
         uri,
@@ -4205,7 +4204,7 @@ const emptyPasses = (): BuildPasses => ({
  *  names. */
 interface SequenceHome {
   flow: number;
-  kind: SymbolKindValue;
+  kind: SequenceKind;
   uri: string;
 }
 

@@ -12,16 +12,6 @@
  */
 export type ProgramAddress = number;
 
-/**
- * Where a run starts when the line it starts from has no address of its own
- * and none below it does (`ProgramLocator.addressAt` answers nothing): the top
- * of the top-level content. It is no position of a program, so
- * `ProgramLocator.locationOf` and `sceneAt` find nothing for it, a route
- * search never reaches it, and jumping to it starts the top-level flow
- * (docs/engine/binary-program.md, section 8). It is -1, the value the story
- * gives `previousAddress` before a step has run, since an address is never
- * negative.
- */
 export const TOP_LEVEL_START: ProgramAddress = -1;
 
 /** A source range, with lines and columns counting from 0, in the script
@@ -63,10 +53,6 @@ export interface ProgramLocator {
   /** Where an address stands in its script, or nothing for an address the
    *  program does not hold. */
   locationOf(address: ProgramAddress | null | undefined): SourceLocation | undefined;
-  /** The name of the top-level flow an address stands in, which is the scene
-   *  a beat belongs to and what a route to it starts from: a scene's name,
-   *  a branch's scene's, a function's, or `"0"` for the top-level content.
-   *  Nothing for an address the program does not hold. */
   sceneAt(address: ProgramAddress | null | undefined): string | undefined;
 }
 

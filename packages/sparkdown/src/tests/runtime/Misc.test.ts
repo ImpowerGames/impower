@@ -121,11 +121,6 @@ describe.skip("Misc — closed by design (see docs/runtime/DIVERGENCES.md)", () 
   test("comment eliminator (preprocessor)", () => {});
   test("comment eliminator with mixed newlines", () => {});
 
-  // Loose-end / end-of-content validation is intentionally disabled in
-  // sparkdown — the flow's code generation (deleted in #705) had the
-  // `_rootWeave.ValidateTermination(...)` call commented out. The
-  // screenplay-format use case has many scene-shaped narratives that
-  // would trip this warning noisily, so the diagnostic was retired.
   test("end of content with/without -> END (validation disabled in sparkdown)", () => {});
   test("loose ends (validation disabled in sparkdown)", () => {});
 

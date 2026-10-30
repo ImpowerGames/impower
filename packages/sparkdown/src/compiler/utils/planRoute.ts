@@ -18,8 +18,6 @@ import {
 } from "./routePins";
 
 export interface RoutePlan {
-  /** The flow the route starts at the top of: a scene's name, or `"0"` for
-   *  the top-level content. */
   from: string;
   /** The address the route ends at (`ProgramLocator.addressAt`). */
   to: ProgramAddress;
@@ -2452,7 +2450,6 @@ const exitedKnot = (
   knotName: string,
   functions: string[],
 ): boolean => {
-  // A story that stands nowhere is in the top-level content's flow, `"0"`.
   // Read first, since a step that stays in its scene is the common case.
   const curKnot = positions.knot();
 

@@ -34,7 +34,7 @@ import type {
 import type { ProgramEmitter } from "./ProgramEmitter";
 import { parameterKinds } from "./ProgramFacts";
 import { Op } from "./ProgramInstructions";
-import { ROOT_FLOW_NAME, SymbolKind } from "./ProgramSymbols";
+import { SymbolKind } from "./ProgramSymbols";
 
 /** What the compile knows of one top-level statement: where it stands, its
  *  syntax, the lowering inputs it recorded, and the shape its lowering found
@@ -79,7 +79,6 @@ export interface ProgramFlowsInput {
   /** The script the compiler seeds the builtins from, whose top-level
    *  content holds declarations alone. */
   preludeUri?: string;
-  topLevelFlow?: boolean;
   /** The compiled block each placed object came from. */
   blockOf(obj: ParsedObject): object | undefined;
   record(block: object): StatementRecord | undefined;
@@ -299,7 +298,7 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
         ? `${name}.${first.identifier?.name ?? ""}`
         : undefined;
     const statements = statementsOf(
-      flow._rootWeave?.content ?? [],
+      flow._weave?.content ?? [],
       record.uri,
       record.line,
     );
@@ -349,24 +348,13 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     }
   };
 
-  const rootContent = input.story._rootWeave?.content ?? [];
-  const rootStatements = input.topLevelFlow
-    ? statementsOf(rootContent, input.uri, 0)
-    : statementsOf(rootContent, input.uri, 0, (statement) => write(statement, input.uri));
-  flows.push({
-    name: ROOT_FLOW_NAME,
-    kind: SymbolKind.Root,
-    uri: input.uri,
-    firstLine: 0,
-    span: 0,
-    statements: rootStatements,
-  });
+  statementsOf(input.story._weave?.content ?? [], input.uri, 0, (statement) =>
+    write(statement, input.uri),
+  );
   for (const flow of input.story.subFlowsByName.values()) {
     visitFlow(flow, "");
   }
 
-  // A flow's body runs to the line before the next flow's header in its
-  // script, or to the script's end; the top level runs to the first header.
   for (const flow of flows) {
     let end = input.lineCount(flow.uri);
     for (const header of headerLines) {

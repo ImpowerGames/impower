@@ -8,7 +8,7 @@ import {
   SymbolKind,
   UNDEFINED_KIND,
   readableSymbolLabel,
-  type SymbolKindValue,
+  type SequenceKind,
 } from "./ProgramSymbols";
 import { DONE_HOLD, Op, flagsOf, opOf } from "./ProgramInstructions";
 import {
@@ -54,7 +54,7 @@ export interface SequenceRow {
    *  like where the flow is defined: the table every root reads holds names
    *  only, and an edit, or a preview of one, can define a name as another
    *  kind while roots built before it are still in use. */
-  readonly kind: SymbolKindValue;
+  readonly kind: SequenceKind;
   /** The owner's chunk id, or -1 for a flow's own sequence and a
    *  declaration sequence. */
   readonly owner: number;
@@ -300,8 +300,6 @@ export class ProgramRoot {
     return id === undefined ? undefined : this._sequences.get(id);
   }
 
-  /** The flow named `name` (a qualified name; the top-level content's flow
-   *  is named by the empty string). */
   flowNamed(name: string): SequenceRow | undefined {
     const symbol = this.table.symbolIds.get(name);
     return symbol === undefined ? undefined : this.flow(symbol);
@@ -1119,10 +1117,6 @@ export class ProgramRoot {
     );
   }
 
-  /** The name of the top-level flow an address stands in, as a scene is
-   *  entered and a route starts: a scene's name, a branch's scene's, a
-   *  function's, or `"0"` for the top-level content; nothing for a
-   *  declaration or a chunk this root does not hold. */
   sceneAt(address: number): string | undefined {
     const at = this.position(chunkOfAddress(address));
     return at ? this.sceneOf(at.sequence) : undefined;
@@ -1138,9 +1132,6 @@ export class ProgramRoot {
     if (!row || row.flow < 0) {
       return undefined;
     }
-    if (row.kind === SymbolKind.Root) {
-      return "0";
-    }
     let symbol = row.flow;
     if (row.kind === SymbolKind.Branch) {
       const scene = this.parentOf(symbol);
@@ -1148,8 +1139,7 @@ export class ProgramRoot {
         symbol = scene;
       }
     }
-    const name = this.table.symbols[symbol] ?? "";
-    return name === "" ? "0" : name;
+    return this.table.symbols[symbol];
   }
 }
 

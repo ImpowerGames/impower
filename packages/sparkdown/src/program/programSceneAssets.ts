@@ -42,11 +42,6 @@ const mergeBeat = (into: SceneBeat, from: SceneBeat): void => {
  * Before #705 the current engine's program gathered the same from the walk
  * of its runtime tree that filled its path locations; a program of chunks
  * has no such walk.
- *
- * A top-level flow is the top-level content (`"0"`), a scene with its
- * branches, or a function, and each one's statements are read in the order
- * the root keeps them, a block statement's code up to where it enters a body
- * before that body's statements, as the document orders them.
  */
 export const captureProgramAssets = (
   root: ProgramRoot,
@@ -54,8 +49,6 @@ export const captureProgramAssets = (
   const captures = new Map<string, SceneAssetCapture>();
   const strings = root.table.strings;
   const symbols = root.table.symbols;
-  // The top-level flow a symbol's name stands in: its first segment, or the
-  // top-level content's.
   const flowOfName = (name: string | undefined): string | undefined => {
     if (name === undefined) {
       return undefined;

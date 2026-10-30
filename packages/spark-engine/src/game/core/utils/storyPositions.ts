@@ -26,11 +26,7 @@ export interface StoryPositions {
   /** The addresses the story will come back to: where every open tunnel,
    *  thread and function call returns, with the position. */
   stack(): ProgramAddress[];
-  /** Moves the story to an address; `TOP_LEVEL_START` is the top of the
-   *  top-level content. */
   jumpTo(address: ProgramAddress): void;
-  /** Moves the story to the top of a flow named by its qualified name (a
-   *  route's start), `"0"` for the top-level content. */
   jumpToFlow(flow: string): void;
   /** Whether the program holds the address. */
   holds(address: ProgramAddress | null | undefined): boolean;
@@ -50,7 +46,7 @@ const programPositions = (story: ProgramStory): StoryPositions => ({
   stack: () => story.stackAddresses(),
   jumpTo: (address) => {
     if (address === TOP_LEVEL_START) {
-      story.ChoosePathString("0");
+      story.ChooseStart();
     } else {
       story.ChooseAddress(address);
     }

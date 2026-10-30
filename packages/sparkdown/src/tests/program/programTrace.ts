@@ -38,8 +38,8 @@ export function handWrittenProgram(
   const { root, unsupported } = new ChunkStore().build(
     [
       {
-        name: "",
-        kind: SymbolKind.Root,
+        name: "start",
+        kind: SymbolKind.Scene,
         uri: "inmemory:///hand.sd",
         firstLine: 0,
         span: 1,

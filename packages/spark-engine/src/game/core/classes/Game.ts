@@ -20,6 +20,7 @@ import {
   placeDurableAddress,
 } from "@impower/sparkdown/src/program/ProgramSave";
 import { chunkOfAddress } from "@impower/sparkdown/src/program/ProgramChunk";
+import { START_FLOW_NAME } from "@impower/sparkdown/src/program/ProgramSymbols";
 import {
   buildRouteSimulator,
   lastSearchStats,
@@ -1483,19 +1484,14 @@ export class Game<T extends M = {}> {
     );
   }
 
-  /** The top-level flow an address stands in: a scene's name, a branch's
-   *  scene's, a function's, or `"0"` for the top-level content
-   *  (`ProgramLocator.sceneAt`). Null for no address. */
   sceneOf(address: ProgramAddress | null | undefined): string | null {
     return address == null
       ? null
       : (this._positions.locator.sceneAt(address) ?? null);
   }
 
-  /** The flow a route to `address` starts at the top of: the scene the
-   *  address stands in, or the top-level content. */
   routeStartOf(address: ProgramAddress): string {
-    return this.sceneOf(address) ?? "0";
+    return this.sceneOf(address) ?? START_FLOW_NAME;
   }
 
   /** Whether a route to `address` is searched from the story's start before
@@ -1709,14 +1705,6 @@ export class Game<T extends M = {}> {
     return null;
   }
 
-  /** Where a run from `startFrom` begins: its `address` when it names one
-   *  (a position no line resolves to, such as the end of a scene that runs
-   *  nothing of its own), and otherwise the address of the beat on the line
-   *  (`ProgramLocator.addressAt`), or `TOP_LEVEL_START`, the top of the
-   *  top-level content, when the line has none. A line that `>` breaks holds
-   *  several beats: PLAY from the line starts at its first, and the route a
-   *  preview of the line replays ends at its last (`beat`), so the beats
-   *  before it run, and apply what they do, as any beat on the route does. */
   setStartFrom(
     startFrom: { file: string; line: number; address?: ProgramAddress },
     beat: "first" | "last" = "first",
@@ -2108,7 +2096,6 @@ export class Game<T extends M = {}> {
     const route = Game.planRouteInFlow(story, program, from, to, budget);
     if (
       route ||
-      from === "0" ||
       budget?.resumeFrom ||
       lastSearchStats.endReason !== "exhausted"
     ) {
@@ -2167,7 +2154,7 @@ export class Game<T extends M = {}> {
       | "pins"
     >,
   ) {
-    return planRoute(story, "0", to, {
+    return planRoute(story, START_FLOW_NAME, to, {
       ...budget,
       functions: Object.keys(program.functionLocations || {}),
       stayWithinKnot: false,
@@ -4002,8 +3989,6 @@ export class Game<T extends M = {}> {
     this._shownChoices = [...(instructions?.choices ?? [])];
   }
 
-  /** Resets the story and moves it to an address; `TOP_LEVEL_START` is the
-   *  top of the top-level content. */
   jumpTo(address: ProgramAddress) {
     this.discardOpenStoryLine();
     this._story.ResetState();
