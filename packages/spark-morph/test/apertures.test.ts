@@ -2,7 +2,18 @@ import { describe, expect, test } from "vitest";
 
 import { buildApertures, pairShapes, parsePathData, bendTrack } from "../src/index";
 import type { EdgeTrack, LabelledShape, BendTrack } from "../src/index";
-import { closedLash, loop, lowerOpen, runtimeProgress, shift, upperOpen } from "./fixtures";
+import {
+  closedLash,
+  loop,
+  lowerOpen,
+  runtimeProgress,
+  shift,
+  splitClosedBottomOverlappingTop,
+  splitClosedTopShortOfOuterTip,
+  splitOpeningBottom,
+  splitOpeningTop,
+  upperOpen,
+} from "./fixtures";
 
 // A closed aperture reports an area at floating-point noise, not exactly zero.
 const AREA_ZERO = 1e-6;
@@ -266,6 +277,65 @@ describe("buildApertures", () => {
     // at both rest poses, so the corners close straight.
     expect(r.apertures[0]!.area(0.25)).toBeCloseTo(2812.5, 6);
     expect(r.apertures[0]!.area(0.5)).toBeLessThan(AREA_ZERO);
+  });
+
+  test("split closed lashes whose tips never meet close to zero area, with no corner caps", () => {
+    const r = buildApertures([
+      edge("top", upperOpen, splitClosedTopShortOfOuterTip, "eyelash-top-left"),
+      edge("bottom", lowerOpen, splitClosedBottomOverlappingTop, "eyelash-bottom-left"),
+    ]);
+    expect(r.diagnostics).toEqual([]);
+    const ap = r.apertures[0]!;
+    expect(ap.area(0)).toBeGreaterThan(1000);
+    expect(ap.area(0.9)).toBeLessThan(AREA_ZERO);
+    expect(ap.area(1)).toBeLessThan(AREA_ZERO);
+    expect(ap.loop(1)).toHaveLength(48);
+    const outermostTipX = 100;
+    for (const t of runtimeProgress) {
+      expect(Math.max(...ap.loop(t).map(([x]) => x)), `loop at ${t}`).toBeLessThan(outermostTipX + 0.5);
+    }
+  });
+
+  test("split closed lashes with a real opening between them stay open", () => {
+    const r = buildApertures([
+      edge("top", upperOpen, splitOpeningTop, "eyelash-top-left"),
+      edge("bottom", lowerOpen, splitOpeningBottom, "eyelash-bottom-left"),
+    ]);
+    expect(r.diagnostics).toEqual([]);
+    expect(r.apertures[0]!.area(1)).toBeGreaterThan(10);
+  });
+
+  test("tip ribs alone never open an aperture; one open interior rib does", () => {
+    const points = 24;
+    const flat = (sign: number, closedY: (i: number) => number): BendTrack => ({
+      from: [],
+      to: [],
+      canonicalFrom: [],
+      canonicalTo: [],
+      n1: 1,
+      thickness: 1,
+      frame: () => [],
+      canonical: () => [],
+      tips: () => [
+        [0, 50],
+        [100, 50],
+      ],
+      edges: (t, n) => {
+        const inner = Array.from({ length: n }, (_, i): [number, number] => [(100 * i) / (n - 1), (1 - t) * (50 + sign * 10) + t * closedY(i)]);
+        return [inner.map(([x, y]): [number, number] => [x, y + sign * 10]), inner];
+      },
+    });
+    const tip = (i: number) => i === 0 || i === points - 1;
+    const pair = (opened: (i: number) => boolean) =>
+      buildApertures(
+        [
+          { id: "u", label: "l", track: flat(-1, (i) => (opened(i) ? 48 : 51)) },
+          { id: "l", label: "l", track: flat(1, (i) => (opened(i) ? 52 : 49)) },
+        ],
+        { points },
+      ).apertures[0]!;
+    expect(pair(tip).area(1)).toBeLessThan(AREA_ZERO);
+    expect(pair((i) => tip(i) || i === 12).area(1)).toBeGreaterThan(1);
   });
 
   test("results are deterministic across input order", () => {

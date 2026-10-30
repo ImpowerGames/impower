@@ -13,6 +13,10 @@ export const lowerOpen = "M0,50 C30,75 70,75 100,50 C70,85 30,85 0,50Z";
 export const closedLash = "M0,50 C30,44 70,44 100,50 C70,50 30,50 0,50Z";
 /** The closed lash drawn in the opposite winding and starting elsewhere. */
 export const closedLashReversed = "M100,50 C70,44 30,44 0,50 C30,50 70,50 100,50Z";
+export const splitClosedTopShortOfOuterTip = "M0,50 C30,43 70,43 92,45 C75,54 30,54 0,50Z";
+export const splitClosedBottomOverlappingTop = "M0,50 C30,45 70,45 100,47 C70,54 30,54 0,50Z";
+export const splitOpeningTop = "M0,50 C30,44 70,44 96,47 C70,52 30,52 0,50Z";
+export const splitOpeningBottom = "M0,50 C30,46 70,46 100,49 C70,53 30,53 0,50Z";
 /** A lash tilted about 30 degrees, for the correspondence search. */
 export const tiltedOpen = "M0,80 C25,25 60,0 100,20 C65,15 35,40 0,80Z";
 export const tiltedClosed = "M0,80 C30,55 65,35 100,20 C65,38 30,58 0,80Z";

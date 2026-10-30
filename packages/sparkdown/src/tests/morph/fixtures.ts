@@ -8,6 +8,8 @@ import type { MorphRecipe } from "../../morph/types";
 export const UPPER_OPEN = "M0,50 C30,5 70,5 100,50 C70,25 30,25 0,50Z";
 export const LOWER_OPEN = "M0,50 C30,75 70,75 100,50 C70,85 30,85 0,50Z";
 export const CLOSED = "M0,50 C30,44 70,44 100,50 C70,50 30,50 0,50Z";
+export const SPLIT_CLOSED_TOP_SHORT_OF_OUTER_TIP = "M0,50 C30,43 70,43 92,45 C75,54 30,54 0,50Z";
+export const SPLIT_CLOSED_BOTTOM_OVERLAPPING_TOP = "M0,50 C30,45 70,45 100,47 C70,54 30,54 0,50Z";
 /** Wider than the aperture, so the clip has something to trim at rest. */
 export const EYEBALL = "M-5,50 C-5,20 105,20 105,50 C105,80 -5,80 -5,50Z";
 export const PUPIL = "M40,50 C40,40 60,40 60,50 C60,60 40,60 40,50Z";
