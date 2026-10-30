@@ -184,6 +184,9 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
         ["a: !!str \"value # no\" # yes\nb: &v \"value # no\" # yes\n", ["# yes", "# yes"], "a tagged or anchored quoted scalar"],
         ["? ? 's # no'\n- ? 's # no'\n", [], "nested block indicators before a quoted scalar"],
       ];
+      const bom = "﻿a: b # prose\nc: d\n";
+      assert.deepEqual(scanComments(bom, "a.yml").map((c) => [c.start, c.text]), [[6, "# prose"]], "a byte order mark is a source character, so the comment range counts it");
+      assert.equal(stripComments(bom, "a.yml"), "﻿a: b\nc: d\n");
       for (const [text, expected, why] of lexerOnly) {
         heuristicLimits.set(text, why);
         assert.deepEqual(comments(text, "a.yml"), expected, why);
@@ -195,13 +198,14 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
       };
       const withoutYamlComments = (text) => {
         let out = "";
-        const control = new Set([yamlLexer.CST.DOCUMENT, yamlLexer.CST.FLOW_END, yamlLexer.CST.SCALAR, yamlLexer.CST.BOM]);
+        const control = new Set([yamlLexer.CST.DOCUMENT, yamlLexer.CST.FLOW_END, yamlLexer.CST.SCALAR]);
         for (const token of new yamlLexer.Lexer().lex(text)) if (!control.has(token) && yamlLexer.CST.tokenType(token) !== "comment") out += token;
         return out;
       };
-      const tracked = spawnSync("git", ["-C", root, "ls-files", "-z", "--", "*.yml", "*.yaml"], { encoding: "utf8", maxBuffer: 1 << 26 }).stdout.split("\0").filter(Boolean);
+      const tracked = spawnSync("git", ["-C", root, "ls-files", "-z", "--", "*.yml", "*.yaml"], { encoding: "utf8", maxBuffer: 1 << 26, windowsHide: true }).stdout.split("\0").filter(Boolean);
       assert.ok(tracked.length > 0);
       for (const file of new Set(tracked)) {
+        assert.ok(fs.existsSync(path.join(root, file)), `${file} is a tracked YAML file the corpus check reads, so a sparse checkout must include it (.github/workflows/hook-tests.yml)`);
         const text = fs.readFileSync(path.join(root, file), "utf8");
         const before = data(text);
         if (before === null) continue;

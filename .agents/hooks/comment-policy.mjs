@@ -598,7 +598,7 @@ function blockScalarComments(text, lineStart, i, code, records) {
 
 function scanYamlLexed(yaml, text) {
   const comments = [];
-  const control = new Set([yaml.CST.DOCUMENT, yaml.CST.FLOW_END, yaml.CST.SCALAR, yaml.CST.BOM]);
+  const control = new Set([yaml.CST.DOCUMENT, yaml.CST.FLOW_END, yaml.CST.SCALAR]);
   let offset = 0, records = null;
   for (const token of new yaml.Lexer().lex(text)) {
     if (control.has(token)) continue;

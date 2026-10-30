@@ -112,10 +112,12 @@ jobs:
             /scripts/
             /.github/scripts/
             /.github/ISSUE_TEMPLATE/
-            /.github/workflows/test-suite.yml
-            /.github/workflows/comment-check.yml
-            /.github/workflows/hook-tests.yml
+            /.github/workflows/
             /.github/PULL_REQUEST_TEMPLATE.md
+            /definitions/yaml/
+            /impower-dev.cloudbuild.yaml
+            /sparkdown-player-app.cloudbuild.yaml
+            /packages/concept-generator/src/input/concepts.yaml
             /AGENTS.md
             /CLAUDE.md
             /.gitignore
