@@ -1,8 +1,3 @@
-// Live portrait morphs on the page: the real engine's image writes reach the
-// real UIManager, which draws each morph's artifact inline and poses it on a
-// clock (`app/morph/MorphPlayback.ts`). Artifacts are baked in process from
-// the artwork the program carries, as a host without an asset service does.
-
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { createMorphHost, inlineMorphSource, type MorphHost } from "@impower/sparkdown/src/morph/hosts";
 import { serializeMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
@@ -17,8 +12,6 @@ import { UpdateElementMessage } from "../../../../spark-engine/src/game/modules/
 import { cssList } from "@impower/sparkdown/src/morph/cssList";
 import { createDOMHarness, createStubApp, flushMicrotasks, installJSDOM } from "./domTestHarness";
 
-// A real game compiles, replays its route and bakes for each test here; on
-// a busy machine that alone can outlast the default five seconds.
 vi.setConfig({ testTimeout: 60_000 });
 
 const TIMING = `  timing {
@@ -47,8 +40,6 @@ const FILES = [
   { uri: "inmemory:///cat.svg", type: "image", name: "cat", ext: "svg", data: PLAIN },
 ];
 
-// Both eyes in one clip entry, the left open and the right closed at rest,
-// so the entry's aperture mask strokes its open loop with a second path.
 const shiftRight = (d: string) => d.replace(/(-?[0-9.]+),(-?[0-9.]+)/g, (_m, x: string, y: string) => `${Number(x) + 120},${y}`);
 const WINK_UPPER = "M20,50 C40,15 95,0 120,45 C110,40 100,24 85,26 C70,28 60,36 45,34 C35,33 28,44 20,50Z";
 const WINK_LOWER = "M20,50 C30,52 45,60 60,58 C80,56 100,62 120,45 C95,72 50,75 20,50Z";
@@ -77,13 +68,11 @@ const WINK_FILES = [{ uri: "inmemory:///bunny.svg", type: "image", name: "bunny"
 
 const lineOf = (source: string, text: string) => source.split("\n").findIndex((l) => l.includes(text));
 
-/** Frames the playback requests, run by the test. */
 function manualFrames() {
   const queue: ((now: number) => void)[] = [];
   return {
     requestFrame: (cb: (now: number) => void) => queue.push(cb),
     cancelFrame: () => {},
-    /** Runs the frames pending now at `now` milliseconds. */
     run(now: number) {
       const due = queue.splice(0);
       for (const cb of due) cb(now);
@@ -102,7 +91,6 @@ async function until(check: () => boolean, what: string) {
   throw new Error(`Timed out waiting for ${what}`);
 }
 
-/** What each posed leaf of a live drawing shows: whether it is displayed, and its path data. */
 function leafStates(root: ParentNode): Record<string, { shown: boolean; d: string | null }[]> {
   const out: Record<string, { shown: boolean; d: string | null }[]> = {};
   for (const el of Array.from(root.querySelectorAll("[data-morph]"))) {
@@ -118,7 +106,6 @@ function referenceStates(artifact: MorphArtifact, offset: number) {
   return leafStates(doc);
 }
 
-/** Each shown leaf's inline style, by node. */
 function paintStates(root: ParentNode): Record<string, string[]> {
   const out: Record<string, string[]> = {};
   for (const el of Array.from(root.querySelectorAll("[data-morph]"))) {
@@ -132,19 +119,12 @@ function referencePaint(artifact: MorphArtifact, offset: number) {
   return paintStates(new DOMParser().parseFromString(renderMorphAt(artifact, offset), "image/svg+xml"));
 }
 
-/**
- * The path data and style of every path each aperture mask draws its
- * aperture with, and the path data of the clip path its reach is clipped to
- * where a path refers to one.
- */
 function apertureStates(root: ParentNode): { d: string | null; style: string | null; reach?: string | null }[][] {
   return Array.from(root.querySelectorAll("mask")).map((mask) =>
     Array.from(mask.querySelectorAll(":scope > path")).map((path) => {
       const style = path.getAttribute("style");
       const bound = /clip-path:url\(#([^)]+)\)/.exec(style ?? "")?.[1];
       const reach = bound === undefined ? undefined : (mask.querySelector(`:scope > clipPath[id="${bound}"] > path`)?.getAttribute("d") ?? null);
-      // The clip path's id carries the occurrence's prefix; its path data
-      // stands for it.
       return { d: path.getAttribute("d"), style: style?.replace(/clip-path:url\(#[^)]+\)/, "clip-path:url(#reach)") ?? null, ...(reach === undefined ? {} : { reach }) };
     }),
   );
@@ -201,13 +181,9 @@ describe("morph playback in the page", () => {
     expect(content.morph.plays).toHaveLength(1);
     expect(content.morph.plays[0].ref).toMatchObject({ morph: "blink", image: "bunny", groups: ["eyes"] });
     expect(content.morph.plays[0].layer).toBe(0);
-    // References, never artifacts: no parts or frames cross the boundary,
-    // and the morph adds a few hundred bytes to the write.
     expect(JSON.stringify(content.morph).length).toBeLessThan(1000);
     expect(JSON.stringify(write)).not.toContain("data-morph");
     const span = portraitSpan(h.overlay)!;
-    // The bake is still under way: the span shows its static image, with no
-    // live drawing of its own yet.
     expect(playback.stats.live).toBe(0);
     expect(span.querySelector("span.morph")).toBeNull();
     await until(() => playback.stats.live === 1, "the artifact");
@@ -231,7 +207,6 @@ describe("morph playback in the page", () => {
 
   test("inline art animates with the page's own host: the game bakes it and sends the artifact", async () => {
     const h = createDOMHarness(SOURCE, 0, { files: FILES });
-    // The production host: no in-process baking on the page.
     const playback = MorphPlayback.for(h.overlay);
     await h.ready;
     await h.preview(lineOf(SOURCE, "First line."));
@@ -252,7 +227,6 @@ describe("morph playback in the page", () => {
     await h.ready;
     await h.preview(lineOf(SOURCE, "First line."));
     await until(() => sent.length >= 1, "the first delivery");
-    // The page's own ask on mounting raced the first bake, which answered it.
     await new Promise((r) => setTimeout(r, 200));
     const key = sent[0]!;
     const before = sent.length;
@@ -294,12 +268,8 @@ end
     await until(() => playback.stats.live === 1, "the artifact");
     const shadow = shadowOf(portraitSpan(h.overlay))!;
     const artifact = (playback as any).layers.values().next().value.plays[0].slot.artifact as MorphArtifact;
-    // No game clock is attached: the playback asks for frames of its own.
     expect(frames.pending).toBeGreaterThan(0);
     frames.run(1000);
-    // At rest each aperture keeps the reach past its outline it is written
-    // with, unclipped; away from its rest outline it reaches as far, clipped
-    // to the moving edges' drawings.
     const reaches = () => apertureStates(shadow).flatMap((paths) => paths.filter(({ style }) => !/stroke:\s*none/.test(style ?? "")));
     expect(apertureStates(shadow)).toEqual(referenceApertures(artifact, 0));
     expect(reaches().length).toBe(apertureStates(shadow).length);
@@ -313,7 +283,6 @@ end
     frames.run(1000 + 0.9 * 250);
     expect(leafStates(shadow)).toEqual(referenceStates(artifact, 0.9));
     expect(apertureStates(shadow)).toEqual(referenceApertures(artifact, 0.9));
-    // Ids are the occurrence's own, never the artifact's.
     const ids = Array.from(shadow.querySelectorAll("[id]")).map((e) => e.id);
     expect(ids.length).toBeGreaterThan(0);
     expect(ids.every((id) => !id.startsWith(artifact.idPrefix))).toBe(true);
@@ -352,7 +321,6 @@ end
   });
 
   test("a moving lash takes its blended paint on the live leaf and its markup's paint at the poses", async () => {
-    // The closed lash is drawn light grey; the open lashes stay near black.
     const closed = `d="${CLOSED}" fill="#111"`;
     expect(ART).toContain(closed);
     const files = [{ ...FILES[0]!, data: ART.replace(closed, `d="${CLOSED}" fill="#c9c9c9"`) }];
@@ -363,14 +331,12 @@ end
     frames.run(1000);
     expect(paintStates(shadow)).toEqual(referencePaint(artifact, 0));
     expect(Object.values(paintStates(shadow)).flat().every((style) => !/fill/.test(style))).toBe(true);
-    // Partway through the closing both moving lashes are drawn in between.
     frames.run(1000 + 0.15 * 250);
     const moving = paintStates(shadow);
     expect(moving).toEqual(referencePaint(artifact, 0.15));
     const fills = Object.values(moving).flat().map((style) => /fill:([^;]+)/.exec(style)?.[1]).filter(Boolean);
     expect(fills).toHaveLength(2);
     for (const fill of fills) expect(fill).toMatch(/^rgba\((?!17,17,17,)(?!201,201,201,)/);
-    // Reopening, the same, and back at the end of the play the markup's paint.
     frames.run(1000 + 0.6 * 250);
     expect(paintStates(shadow)).toEqual(referencePaint(artifact, 0.6));
     expect(Object.values(paintStates(shadow)).flat().filter((style) => /fill:rgba/.test(style))).toHaveLength(2);
@@ -380,8 +346,6 @@ end
   });
 
   test("a moving lash paints with its own gradient copy, posed every frame and returned to its markup at the poses", async () => {
-    // The lashes fill with linear gradients whose first stop is dark open
-    // and light closed.
     const stops = (first: string) => `<stop offset="0" stop-color="${first}"/><stop offset="1" stop-color="#111"/>`;
     const art = ART.replace(
       "</linearGradient></defs>",
@@ -402,10 +366,8 @@ end
         artifact.segments.flatMap((s) => s.transitions.flatMap((t) => (t.kind === "morph" && t.gradients?.fill ? [t.gradients.fill.id] : []))),
       ),
     ];
-    // Each open lash draws on itself and has its own copy.
     expect(copies).toHaveLength(2);
     const own = (id: string) => id.split(artifact.idPrefix).join(view.prefix);
-    /** A gradient's attributes and its stops', with ids in the artifact's prefix. */
     const state = (root: ParentNode, id: string) => {
       const element = Array.from(root.querySelectorAll("*")).find((e) => e.localName === "linearGradient" && e.id === id)!;
       const attributes = (e: Element) => Object.fromEntries(Array.from(e.attributes, (a) => [a.name, a.value.split(view.prefix).join(artifact.idPrefix)]));
@@ -416,7 +378,6 @@ end
     frames.run(1000);
     expect(copies.map((id) => state(shadow, own(id)))).toEqual(copies.map((id) => reference(0, id)));
     expect(Object.values(paintStates(shadow)).flat().every((style) => !/fill/.test(style))).toBe(true);
-    // Partway through the closing both lashes paint with their copies, posed as the reference renderer poses them.
     frames.run(1000 + 0.15 * 250);
     expect(paintStates(shadow)).toEqual(
       Object.fromEntries(Object.entries(referencePaint(artifact, 0.15)).map(([node, styles]) => [node, styles.map((s) => s.split(artifact.idPrefix).join(view.prefix))])),
@@ -428,7 +389,6 @@ end
       expect(posed).toEqual(reference(0.15, id));
       expect(posed).not.toEqual(markup[copies.indexOf(id)]);
     }
-    // Back at the end of the play every copy is its markup again.
     frames.run(1000 + 250);
     expect(copies.map((id) => state(shadow, own(id)))).toEqual(markup);
     expect(Object.values(paintStates(shadow)).flat().every((style) => !/fill/.test(style))).toBe(true);
@@ -444,17 +404,12 @@ end
     frames.run(1000);
     const rest = apertureStates(shadow);
     expect(rest).toEqual(referenceApertures(artifact, 0));
-    // Each mask fills both eyes unstroked and strokes the open eye alone.
     expect(rest.length).toBeGreaterThan(0);
     for (const [all, open] of rest) {
       expect(all!.style).toMatch(/stroke:none/);
       expect(open!.style).toMatch(/stroke-width:2px/);
       expect(open!.d).not.toBe(all!.d);
     }
-    // Mid-blink every path draws the frame's whole aperture. The first
-    // reaches past it, clipped to the moving edges, where its target paints
-    // beneath every moving edge: the left white does, the right white,
-    // drawn above the right eye's lashes, does not.
     frames.run(1000 + 0.4 * 250);
     const moving = apertureStates(shadow);
     expect(moving).toEqual(referenceApertures(artifact, 0.4));
@@ -466,7 +421,6 @@ end
       else expect(paths[0]!.style).toMatch(/stroke:\s*none/);
     }
     expect(moving.filter((paths) => paths[0]!.reach).length).toBe(1);
-    // Back at the rest outline, the open loops' path gets its reach back.
     frames.run(1000 + 250);
     expect(apertureStates(shadow)).toEqual(rest);
   });
@@ -483,13 +437,11 @@ end
     playback.setPaused(true);
     playback.advance(0.1);
     expect(leafStates(shadow)).toEqual(frozen);
-    // Off returns to rest, even while paused, and stays there when the pause clears.
     playback.setEnabled(false);
     expect(leafStates(shadow)).toEqual(rest);
     playback.setPaused(false);
     playback.advance(0.1);
     expect(leafStates(shadow)).toEqual(rest);
-    // On starts a fresh cycle from its beginning.
     playback.setEnabled(true);
     playback.advance(0.2 * 0.25);
     expect(leafStates(shadow)).toEqual(referenceStates(artifact, 0.2));
@@ -512,7 +464,6 @@ end
     const artifact = (playback as any).layers.values().next().value.plays[0].slot.artifact as MorphArtifact;
     playback.advance(0.1 * 0.25);
     expect(leafStates(shadow)).toEqual(referenceStates(artifact, 0.4));
-    // A different place: every occurrence starts again at rest.
     playback.setSession(`preview:main:${line + 1}`);
     expect((playback as any).occurrences.get(keys[0]).start).toBe(playback.now);
   });
@@ -568,7 +519,6 @@ describe("morph layers", () => {
     await until(() => playback.stats.live === 1, "the first artifact");
     playback.advance(0.1);
     const second = span();
-    // Another variant of the same character: a different artifact, the same occurrence.
     playback.mount(second, content({ ref: ref("k2") }), BG, "background", "portrait:0");
     playback.freezeWithin(first);
     expect(playback.occurrenceKeys).toHaveLength(1);
@@ -590,7 +540,6 @@ describe("morph layers", () => {
     expect(keys(content({}, 1))).not.toBe(base);
     expect(keys(content({ definition: "d2" }))).not.toBe(base);
     expect(keys(content())).toBe(base);
-    // A second occurrence elsewhere on the screen has its own schedule.
     expect(playback.mount(span(), content(), BG, "background", "backdrop:0").occurrenceKeys[0]).not.toBe(base);
   });
 
@@ -618,7 +567,6 @@ describe("morph layers", () => {
   test("a mask shows the artifact's static rest render", async () => {
     const { playback, span } = setup();
     const mask = span();
-    // The background lists the top image first: bunny.svg is drawn over under.svg.
     playback.mount(mask, { ...content(), plays: [{ ...content().plays[0]!, layer: 1 }] }, 'url("bunny.svg"), url("under.svg")', "mask", "portrait:mask:0");
     await until(() => mask.style.getPropertyValue("mask-image") !== "", "the rest render");
     expect(mask.style.getPropertyValue("mask-image")).toBe('url("blob:rest"), url("under.svg")');
@@ -683,7 +631,6 @@ describe("morph lifecycle at the page's boundaries", () => {
     frames.run(1200);
     playback.releaseWithin(first);
     first.remove();
-    // The frame already requested runs once more and finds nothing to draw.
     frames.run(1300);
     expect(frames.pending).toBe(0);
     const before = playback.now;
@@ -691,7 +638,6 @@ describe("morph lifecycle at the page's boundaries", () => {
     env.overlay.appendChild(second);
     playback.mount(second, content, BG, "background", "portrait:1");
     await until(() => playback.stats.live === 1, "the second artifact");
-    // Its first frame, long after the loop went idle, moves nothing.
     frames.run(10_000);
     expect(playback.now).toBe(before);
     frames.run(10_100);
@@ -704,8 +650,6 @@ describe("morph lifecycle at the page's boundaries", () => {
     const playback = new MorphPlayback(env.overlay, { host: bakingHost(), requestFrame: () => 0, cancelFrame: () => {} });
     (env.overlay as any).__sdMorphs = playback;
     const ui = new UIManager(createStubApp(env.overlay, () => {}));
-    // `Application.skip` steps the clock without adding to its elapsed time,
-    // then updates with the delta of the frame before.
     const clock = { elapsedTime: 0, deltaTime: 0 } as any;
     ui.onStart();
     ui.onUpdate(clock);
@@ -776,7 +720,6 @@ describe("live drawing presentation", () => {
       return [part.getAttribute("x"), part.getAttribute("y")];
     };
     expect(box()).toEqual(["0", "0"]);
-    // Any screen op may restyle the span; the span keeps its size.
     span.style.backgroundPosition = "100% 100%";
     await ui.onReceiveRequest(UpdateElementMessage.type.request({ element: "other", style: { opacity: "1" } } as any));
     await flushMicrotasks(5);
@@ -802,8 +745,6 @@ describe("live drawing presentation", () => {
     playback.mount(span, content, 'url("bunny.svg")', "background", "portrait:0");
     await until(() => playback.stats.live === 1, "the artifact");
     const b = span.querySelector(":scope > span.morph")!.shadowRoot!.querySelector("div") as HTMLElement;
-    // The root covers the span as the static layer does; every part takes the
-    // exact rectangle, unrounded, so none moves, scales or letterboxes.
     expect(b.getAttribute("style")).toBe("position:absolute;left:0;top:0;width:100%;height:100%");
     const width = (100.5 * 260) / 140;
     const parts = Array.from(b.querySelectorAll(":scope > svg > svg"));
@@ -861,15 +802,12 @@ describe("live drawing presentation", () => {
       readSource: async () => ({ text: ART }),
     }).resolve(ref);
     const artifactFor = (key: string) => ({ ...structuredClone(baked.artifact), key });
-    // The production host, which waits for the game's deliveries.
     const playback = new MorphPlayback(env.overlay, { requestFrame: () => 0, cancelFrame: () => {} });
     const asked: string[] = [];
     playback.askGame = (key) => {
       asked.push(key);
       playback.deliver({ key, artifact: artifactFor(key) });
     };
-    // Far more deliveries than the page keeps, or remembers keeping: the
-    // first one is long gone.
     const artifact = artifactFor("k");
     for (let i = 0; i < 1100; i++) playback.deliver({ key: `k${i}`, artifact: { ...artifact, key: `k${i}` } });
     const span = env.overlay.ownerDocument.createElement("span");
@@ -877,7 +815,6 @@ describe("live drawing presentation", () => {
     playback.mount(span, { ...content, plays: [{ ...content.plays[0]!, ref: { ...ref, key: "k0" } }] }, 'url("bunny.svg")', "background", "portrait:0");
     await until(() => playback.stats.live === 1, "the artifact asked for again");
     expect(asked).toEqual(["k0"]);
-    // One still held is not asked for.
     const other = env.overlay.ownerDocument.createElement("span");
     env.overlay.appendChild(other);
     playback.mount(other, { ...content, plays: [{ ...content.plays[0]!, ref: { ...ref, key: "k1099" } }] }, 'url("bunny.svg")', "background", "portrait:1");
@@ -909,7 +846,6 @@ describe("live drawing presentation", () => {
     expect(shadow.querySelectorAll("script, iframe, object, embed")).toHaveLength(0);
     const attributes = Array.from(shadow.querySelectorAll("*")).flatMap((e) => Array.from(e.attributes));
     expect(attributes.filter((a) => a.name.toLowerCase().startsWith("on"))).toEqual([]);
-    // A browser reads `java<tab>script:` as `javascript:`.
     expect(attributes.filter((a) => /javascript:/i.test(a.value.replace(/\s/g, "")))).toEqual([]);
     expect(shadow.querySelectorAll("[data-morph]").length).toBeGreaterThan(0);
   });
@@ -931,7 +867,6 @@ describe("background fit", () => {
     expect(backgroundRect(area, art, "contain", "0% 0%")).toMatchObject({ width: 400, height: (400 * 140) / 260 });
     expect(backgroundRect(area, art, "cover", "0% 0%")).toMatchObject({ height: 300, width: (300 * 260) / 140 });
     expect(backgroundRect(area, art, "auto", "0% 0%")).toMatchObject({ width: 260, height: 140 });
-    // Relative intrinsic dimensions give a ratio only: auto then contains.
     const ratioOnly = svgIntrinsicSize({ viewBox: "0 0 260 140", width: "100%", height: "100%" });
     expect(backgroundRect(area, ratioOnly, "auto", "0% 0%")).toMatchObject({ width: 400 });
     expect(backgroundRect(area, art, "50% auto", "0% 0%")).toMatchObject({ width: 200, height: (200 * 140) / 260 });

@@ -1,27 +1,3 @@
-// Where a layer's movie stands in Chromium's own media element, with the
-// production UIManager, Application and Clock. After each settle of a skip,
-// a rewind or a pause, the element and the anchor must stand where the game
-// clock puts the movie, within 0.02 s (a paused loop's last frame is not its
-// first). While the movie plays, its anchor must keep the clock, and the
-// page must not seek a movie in step with it, nor any movie while the clock
-// gets no animation frames, as in a hidden page; between skips the element
-// runs on the browser's own playback, and its drift from the clock is
-// measured and printed, not asserted.
-//
-// Run from the repository root (needs Playwright's Chromium):
-//
-//   node packages/spark-web-player/scripts/movie-placement-probe.ts [--out <evidence.json>]
-//
-// The movies are blob-backed WebM files recorded in the page with
-// MediaRecorder: one whose duration Chromium reads at load ("known"), the
-// same file skipped before its metadata loads ("learned"), and one recorded
-// in slices, which Chromium reports as Infinity while it stays seekable
-// ("infinite"). Expected positions come from the probe's own tally of the
-// game clock, not from UIManager: a loop wraps at the movie's duration, and
-// a movie that plays once stays between its start and its end; a loop
-// skipped back past its start before its duration is known starts from its
-// first frame. Exits 1 with an AssertionError listing every failed check.
-
 import { AssertionError } from "node:assert";
 import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -58,19 +34,12 @@ for (const fixture of ["known", "learned", "infinite"] as const) {
     }
   }
 }
-// Played through from the start with no skip, so the duration of the
-// infinite file arrives while the movie plays.
 cases.push({ fixture: "infinite", loop: true, first: "none" });
 cases.push({ fixture: "infinite", loop: false, first: "none" });
-// Skipped exactly two lengths before its metadata loads: a paused loop stands
-// on its first frame, not on its last.
 cases.push({ fixture: "learned", loop: true, first: "twice" });
 cases.push({ fixture: "learned", loop: false, first: "twice" });
-// Playing while the clock gets no animation frames (a hidden page) for two
-// wraps of the loop, then gets them again.
 cases.push({ fixture: "known", loop: true, first: "unframed" });
 cases.push({ fixture: "infinite", loop: true, first: "unframed" });
-// Playing four times round with no skip, its drift from the clock measured.
 cases.push({ fixture: "known", loop: true, first: "long" });
 cases.push({ fixture: "infinite", loop: true, first: "long" });
 
@@ -106,9 +75,6 @@ try {
       new Promise<void>((resolve) => setTimeout(resolve, ms));
     const mod = (t: number, d: number) => ((t % d) + d) % d;
 
-    // Three seconds of a bar filling the frame, recorded whole (Chromium
-    // reads its duration at load) or in 100 ms slices (Infinity until
-    // Chromium finds the end).
     const record = async (timeslice: number): Promise<string> => {
       const canvas = document.createElement("canvas");
       canvas.width = 320;
@@ -155,7 +121,6 @@ try {
       return URL.createObjectURL(new Blob(chunks, { type: "video/webm" }));
     };
     const urls = { known: await record(0), infinite: await record(100) };
-    // The whole recording's duration, read from an element of its own.
     const knownSpan = await new Promise<number>((resolve) => {
       const sizer = document.createElement("video");
       sizer.muted = true;
@@ -174,8 +139,6 @@ try {
       const rows: Record<string, unknown>[] = [];
       const overlay = document.createElement("div");
       document.body.appendChild(overlay);
-      // Application's clock, whose frames can be held back as a hidden page's
-      // are.
       let unframed = false;
       let heldFrame: (() => void) | undefined;
       const clock = new Clock(
@@ -211,7 +174,6 @@ try {
       });
       const ui = new UIManager(app);
       app._managers.push(ui);
-      // Each frame updates the managers, as `Application.start` arranges.
       clock.add((time: unknown) => app.update(time));
       clock.start();
 
@@ -220,8 +182,6 @@ try {
       video.muted = true;
       video.loop = c.loop;
       video.style.cssText = "width:96px;height:54px";
-      // While the movie plays, the probe's tally of the clock from when it
-      // started to: how far the element stands from the clock's place.
       let playing: { tally: number; game: number } | undefined;
       const gapToClock = (): number | undefined => {
         if (!playing) {
@@ -236,9 +196,6 @@ try {
         const gap = Math.abs(at - (c.loop ? mod(t, d) : Math.min(t, d)));
         return c.loop ? Math.min(gap, d - gap) : gap;
       };
-      // Every position the page gives the element, with how far from the
-      // clock's place the element stood then, so a seek of a movie already in
-      // step with the clock shows up.
       const writes: { value: number; gap?: number }[] = [];
       Object.defineProperty(video, "currentTime", {
         configurable: true,
@@ -270,8 +227,6 @@ try {
       );
       video.src = c.fixture === "infinite" ? urls.infinite : urls.known;
 
-      // Until no seek is pending and the element has reported nothing for a
-      // quarter second.
       const settle = async () => {
         const deadline = performance.now() + 5000;
         await delay(50);
@@ -302,7 +257,6 @@ try {
         rows.push(row);
         return row;
       };
-      // The game clock's position, by the probe's own tally.
       let tally = 0;
       const span = () =>
         Number.isFinite(video.duration) && video.duration > 0
@@ -310,16 +264,12 @@ try {
           : undefined;
       const expected = (d: number) =>
         c.loop ? mod(tally, d) : Math.min(tally, d);
-      // A playing loop is in step anywhere around its end; a paused one shows
-      // its last frame at its end and its first at its start.
       const distance = (a: number, b: number, d: number) => {
         const gap = Math.abs(a - b);
         return c.loop && !video.paused ? Math.min(gap, d - gap) : gap;
       };
       const check = (step: string, tolerance: number) => {
         const row = snap(step);
-        // Until Chromium reports the duration the tally is neither wrapped
-        // nor held at an end: the movie stands at the clock's time itself.
         const d = span() ?? Infinity;
         if (!c.loop) {
           tally = Math.min(tally, d);
@@ -338,9 +288,6 @@ try {
           detail: `element ${video.currentTime.toFixed(3)} anchor ${row.position.toFixed(3)} clock ${want.toFixed(3)} (duration ${row.duration}, tolerance ${tolerance})`,
         });
       };
-      // Between skips a playing movie runs on the browser's own playback, so
-      // its element can drift from the clock: measured, not asserted. Its
-      // anchor keeps the clock, which is asserted.
       const measure = (step: string) => {
         const row = snap(step);
         const d = span() ?? Infinity;
@@ -372,8 +319,6 @@ try {
           tally = Math.min(tally, d);
         }
       };
-      // The next pause and skip place a movie that drifted: the pause anchors
-      // it where its element stands, and a skip moves both exactly.
       const pauseAndSkip = async () => {
         app.pause();
         await settle();
@@ -414,7 +359,6 @@ try {
             detail: `page seeks: ${JSON.stringify(writes.slice(held, resumed))}`,
           });
         } else {
-          // Twelve seconds, four times round, with no skip.
           for (let i = 1; i <= 24; i += 1) {
             await delay(500);
             tally = clock.elapsedTime - game;
@@ -434,7 +378,6 @@ try {
         return { checks, rows };
       }
       if (c.fixture === "learned") {
-        // Shown and paused before its metadata loads.
         ui.startMovie(video);
         app.pause();
         tally = 0;
@@ -443,7 +386,6 @@ try {
         ui.startMovie(video);
         await delay(250);
         app.pause();
-        // The pause anchors the movie where its element stands.
         tally = video.currentTime;
       }
       const first = {
@@ -474,7 +416,6 @@ try {
         check("rewind -0.5", 0.02);
       }
 
-      // Playing with the clock: the page seeks no movie in step with it.
       const writesBefore = writes.length;
       let game = clock.elapsedTime;
       playing = { tally, game };
@@ -490,7 +431,6 @@ try {
         detail: `page seeks while playing (value, gap to the clock): ${JSON.stringify(writes.slice(writesBefore))}`,
       });
 
-      // Fast Forward held while playing: ten steps of 0.1 s.
       game = clock.elapsedTime;
       for (let i = 0; i < 10; i += 1) {
         await skip(0.1);
@@ -509,8 +449,6 @@ try {
       return { checks, rows };
     };
 
-    // One at a time, as the editor plays a movie or two: concurrent decodes
-    // slow every seek.
     const results: Outcome[] = [];
     for (const c of cases) {
       results.push(await runCase(c));

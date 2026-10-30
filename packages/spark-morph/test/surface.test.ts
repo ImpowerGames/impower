@@ -1,9 +1,6 @@
 import { describe, expect, test } from "vitest";
 import * as index from "../src/index";
 
-// The package root is the contract the bake and player build against; the
-// geometry helpers behind it are free to change. Pin both directions.
-
 describe("package surface", () => {
   test("exports the pipeline entry points, the method builders and their defaults", () => {
     expect(Object.keys(index).sort()).toEqual(

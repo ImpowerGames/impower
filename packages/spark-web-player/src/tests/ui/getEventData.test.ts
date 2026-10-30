@@ -1,7 +1,3 @@
-// getEventData translates a DOM event into the serializable payload the engine
-// receives. For two-way binding, a range/number control's value must cross as a
-// NUMBER (not the DOM's string `.value`) so a numeric Luau store keeps its type.
-
 import { describe, expect, test } from "vitest";
 import { getEventData } from "../../app/utils/getEventData";
 
@@ -56,16 +52,11 @@ describe("getEventData (two-way input payload)", () => {
     input.type = "number";
     input.value = "";
     const data = getEventData(inputEvent(input)) as { value?: unknown };
-    // valueAsNumber is NaN for an empty number field — don't write NaN.
     expect(data.value).toBe("");
   });
 });
 
 describe("every payload carries `type`", () => {
-  // `UIModule` dispatches on `params.type`. An event with no dedicated branch
-  // fell through to a fallback that omitted it: the listener attached, the
-  // handler never ran, and nothing warned. `scroll`/`scrollend` are the only
-  // names in the valid event set that take that path.
   const fire = (type: string) => {
     const el = document.createElement("div");
     const event = new Event(type);
@@ -80,7 +71,6 @@ describe("every payload carries `type`", () => {
     });
   }
 
-  // Controls: the branch-covered events already carried it and must keep it.
   for (const type of ["click", "keydown", "focus"]) {
     test(`\`${type}\` still carries its type`, () => {
       expect(fire(type).type).toBe(type);

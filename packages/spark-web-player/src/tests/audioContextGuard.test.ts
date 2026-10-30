@@ -2,17 +2,9 @@ import { describe, expect, test, vi } from "vitest";
 import { Clock } from "../../../spark-engine/src/game/core/classes/Clock";
 import { Application } from "../app/Application";
 
-// Issue #394: the first click in play mode froze the game for seconds because
-// the audio-context handler called setAudioContext with the context already in
-// use, which re-synced the clock and zeroed the time offset. The guard added
-// to setAudioContext prevents the redundant re-sync.
-
 const setAudioContext = Application.prototype.setAudioContext;
 
 function fakeApp(clock: Clock) {
-  // Watching the context's state is the audio clock's concern, not the
-  // guard's; the game is not connected, so no clock reading is sent. The
-  // audio manager has no movies to route.
   return {
     _audioContext: undefined as any,
     _clock: clock,

@@ -15,24 +15,10 @@ import type { Cubic, MorphFailure, SubpathTrack } from "../types";
 import { prepareLoop } from "./match";
 
 export interface TraceOptions {
-  /**
-   * A nearly closed loop's ends are snapped together when within this
-   * fraction of its perimeter, so the seam never becomes an extra anchor.
-   */
   seamTolerance?: number;
-  /**
-   * How many corner-to-corner alignments to evaluate fully per winding,
-   * after ranking every alignment by a cheap travel estimate.
-   */
   alignments?: number;
-  /**
-   * A dissolved node keeps at least this fraction of its edge's length
-   * from either end of the edge, so it never coincides with a real anchor.
-   */
   minGap?: number;
-  /** `angular` keeps smooth nodes smooth; `linear` blends handle points. */
   handles?: "angular" | "linear";
-  /** Progress values at which self-intersection is checked. */
   checkProgress?: number[];
 }
 
@@ -41,19 +27,12 @@ export const TRACE_DEFAULTS: Required<TraceOptions> = {
   alignments: 8,
   minGap: 0.004,
   handles: "angular",
-  // The rest poses and nine points between: a crossing that opens and
-  // closes between two coarser samples (the hook fixtures cross at 0.3)
-  // would otherwise slip through, and a drawing that crosses itself at rest
-  // is refused rather than morphed.
   checkProgress: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
 };
 
 export interface TraceTrack extends SubpathTrack {
-  /** Whether the target was reversed to match the source winding. */
   reversed: boolean;
-  /** The chosen alignment: the target's arc-length offset relative to the source. */
   phase: number;
-  /** Summed anchor travel of the chosen alignment. */
   travel: number;
 }
 
@@ -61,21 +40,6 @@ export type TraceResult = { ok: true; track: TraceTrack } | { ok: false; failure
 
 const wrap = (u: number) => ((u % 1) + 1) % 1;
 
-/**
- * Pairs the drawings' anchors along the outline. Both loops keep their own
- * anchors and handles. With equal anchor counts they pair anchor with
- * anchor, so a square to a tilted quadrilateral keeps four corners. With
- * different counts, where one drawing has an anchor the other lacks, the
- * other receives a dissolved node at the same arc-length position, an
- * exact sub-cubic split that leaves its shape unchanged; a corner the
- * target lacks then flattens into an edge. Straight edges stay straight
- * and corners stay sharp throughout.
- *
- * The alignment is searched over both windings: every anchor-to-anchor
- * alignment is a candidate, ranked by a cheap travel estimate; the best few
- * are built exactly, checked for self-intersection at `checkProgress`, and
- * the least anchor travel wins. Ties fall to the earlier candidate.
- */
 export function traceTrack(fromRaw: Cubic[], toRaw: Cubic[], options: TraceOptions = {}): TraceResult {
   const o = { ...TRACE_DEFAULTS, ...options };
   if (!fromRaw.length || !toRaw.length) {
@@ -97,14 +61,12 @@ export function traceTrack(fromRaw: Cubic[], toRaw: Cubic[], options: TraceOptio
     }
     let travel = 0;
     for (let k = 0; k < aOut.length; k++) travel += dist(aOut[k]!.p0, bOut[k]!.p0);
-    // Ties fall to the earlier candidate, judged relative to the travel.
     if (!best || travel < best.travel - 1e-9 * Math.max(best.travel, loopExtent(a))) best = { aOut, bOut, travel, phase };
   };
   for (const opposite of [false, true]) {
     const b = withWinding(toClosed, opposite ? -wind : wind);
     const pb = anchorFractions(b);
     if (pa.length === pb.length) {
-      // Anchor with anchor: try every rotation of the target's node order.
       const n = pa.length;
       const rotations: { j: number; estimate: number }[] = [];
       for (let j = 0; j < n; j++) {
@@ -118,10 +80,6 @@ export function traceTrack(fromRaw: Cubic[], toRaw: Cubic[], options: TraceOptio
       }
       continue;
     }
-    // Unequal counts: every anchor of the drawing with more anchors pairs
-    // with an anchor of the other, in cyclic order, where the total travel
-    // is least; the leftover anchors get dissolved nodes on the other
-    // drawing. Each start pairing is a candidate.
     const aIsLarger = pa.length >= pb.length;
     const L = aIsLarger ? a : b,
       S = aIsLarger ? b : a;
@@ -161,18 +119,10 @@ export function traceTrack(fromRaw: Cubic[], toRaw: Cubic[], options: TraceOptio
 }
 
 
-/**
- * Pairs every anchor of the smaller loop `S` with an anchor of the larger
- * loop `L`, in cyclic order starting from `S[0]` paired with `L[start]`,
- * minimising the total distance between paired anchors. A dynamic
- * programme over the order-preserving choices; `match[k]` is the index in
- * `L` paired with `S[k]`.
- */
 function monotoneMatch(S: Cubic[], L: Cubic[], start: number): { cost: number; match: number[] } {
   const m = S.length,
     n = L.length;
   const at = (i: number) => L[(start + i) % n]!.p0;
-  // cost[k][i]: best cost pairing S[0..k] with S[k] at offset i.
   const INF = Number.POSITIVE_INFINITY;
   const cost: number[][] = [];
   const from: number[][] = [];
@@ -184,7 +134,6 @@ function monotoneMatch(S: Cubic[], L: Cubic[], start: number): { cost: number; m
   for (let k = 1; k < m; k++) {
     let bestPrev = INF,
       bestIdx = -1;
-    // Offsets must leave room for the remaining anchors.
     for (let i = k; i <= n - (m - k); i++) {
       const prev = cost[k - 1]![i - 1]!;
       if (prev < bestPrev) {
@@ -215,12 +164,6 @@ function monotoneMatch(S: Cubic[], L: Cubic[], start: number): { cost: number; m
   return { cost: total, match: offsets.map((off) => (start + off) % n) };
 }
 
-/**
- * Gives the smaller loop a dissolved node for every unpaired anchor of the
- * larger loop, at the same relative arc-length position between the
- * neighbouring paired anchors, and rotates the larger loop so paired
- * anchors line up index for index. Both come back with the larger count.
- */
 function dissolveInto(
   S: Cubic[],
   pS: number[],
@@ -243,7 +186,6 @@ function dissolveInto(
     const spanL = fwd(pL[i0]!, pL[i1]!),
       spanS = fwd(pS[k]!, pS[kNext]!);
     fractions.push(pS[k]!);
-    // Unpaired anchors of L strictly between i0 and i1, in cyclic order.
     for (let step = 1; step < n; step++) {
       const j = (i0 + step) % n;
       if (j === i1) break;

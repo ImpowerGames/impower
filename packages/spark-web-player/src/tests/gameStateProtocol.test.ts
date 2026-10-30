@@ -8,7 +8,6 @@ afterEach(() => {
   setWorkspace(undefined as any);
 });
 
-// The page is handed each program's summary.
 it("reports mounted, loaded, paused and disposed states from the player lifecycle", async () => {
   vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
   setWorkspace({ gameLink: { detach() {} }, programHeld: async () => {} } as any);

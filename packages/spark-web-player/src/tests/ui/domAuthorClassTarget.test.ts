@@ -1,9 +1,3 @@
-// #863: an element in an author's layout whose class is the name of a builtin
-// text target shows what the author wrote. The story's line goes to the
-// builtin `action` element, and the author's `text.action` keeps its own text
-// and stays visible, whether the page resolves the write's target itself or
-// a composed beat names its elements.
-
 import { describe, expect, test } from "vitest";
 import {
   createDOMHarness,

@@ -6,23 +6,9 @@ export type WriteTextMethod = typeof WriteTextMessage.method;
 export interface WriteTextParams {
   target: string;
   instructions: TextInstruction[];
-  /** Shows every letter at once. A write that is not instant reveals each
-   *  letter at its `after`, and keeps a target with no text on it hidden
-   *  until the first letter's reveal begins. */
   instant: boolean;
-  /** When the beat this write belongs to starts, on the shared clock
-   *  (`sharedNow`, milliseconds). The page shows it that long after the
-   *  audio's output latency. Absent for writes that start when the page
-   *  handles them. */
   time?: number;
-  /** How many leading instructions are text already on the page (a box
-   *  carried on after a click): they appear at once, and only the rest are
-   *  revealed from `time`. */
   shown?: number;
-  /** The structural ids of the elements the write goes to, when the game
-   *  sends it inside a composed `ui/beat` (#1820): the target as it resolved
-   *  where the write stands in the beat, not as it resolves once the beat's
-   *  later structure is on the page. */
   elements?: string[];
 }
 

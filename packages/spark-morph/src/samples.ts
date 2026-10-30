@@ -1,24 +1,13 @@
 import { serializePathData, serializeSegments } from "./path/serialize";
 import type { Cubic, Subpath, SubpathMorph } from "./types";
 
-/** Numbers per segment in a sample frame: p0, c1, c2, p1 as x, y pairs. */
 export const SEGMENT_STRIDE = 8;
 
-/**
- * Precomputed frames of one morph with compatible topology, ready for the
- * player to interpolate numerically every tick. The authored endpoints are
- * kept as path data so the rest poses render the drawing itself.
- */
 export interface MorphSamples {
-  /** Number of frames, evenly spaced over progress 0 to 1 inclusive. */
   count: number;
-  /** Segments per subpath; every frame shares this layout. */
   segmentCounts: number[];
-  /** Whether each subpath closes. */
   closed: boolean[];
-  /** One flat buffer per frame, `sum(segmentCounts) * SEGMENT_STRIDE` long. */
   frames: Float64Array[];
-  /** The authored drawings, serialised. */
   from: string;
   to: string;
 }
@@ -43,19 +32,9 @@ function packFrame(subpaths: Subpath[]): Float64Array {
 }
 
 export interface SampleOptions {
-  /**
-   * Decimals kept when serialising the authored endpoints. Omitted, every
-   * coordinate is written exactly, so small or high-precision art keeps its
-   * rest poses.
-   */
   precision?: number;
 }
 
-/**
- * Samples `count` frames of a morph at evenly spaced progress values. The
- * count trades bake cost and memory for fidelity; eight is a starting point
- * for lash-sized art, not a guarantee for every drawing.
- */
 export function sampleMorph(morph: SubpathMorph, count = 8, options: SampleOptions = {}): MorphSamples {
   const n = Math.max(2, Math.round(count));
   const first = morph.frame(0);
@@ -71,11 +50,6 @@ export function sampleMorph(morph: SubpathMorph, count = 8, options: SampleOptio
   };
 }
 
-/**
- * The frame at `progress`, linearly interpolated between the two nearest
- * samples. Progress arrives already shaped by the author's timing; nothing
- * here eases it again. Pass `out` to reuse a buffer across ticks.
- */
 export function interpolateSamples(samples: MorphSamples, progress: number, out?: Float64Array): Float64Array {
   const t = Math.max(0, Math.min(1, progress));
   const u = t * (samples.count - 1);
@@ -90,7 +64,6 @@ export function interpolateSamples(samples: MorphSamples, progress: number, out?
   return dst;
 }
 
-/** Unpacks a frame buffer into subpaths. */
 export function unpackFrame(samples: MorphSamples, values: Float64Array): Subpath[] {
   const subpaths: Subpath[] = [];
   let k = 0;
@@ -110,10 +83,6 @@ export function unpackFrame(samples: MorphSamples, values: Float64Array): Subpat
   return subpaths;
 }
 
-/**
- * Path data for a frame buffer, without going through subpath objects.
- * Frames are interpolated geometry, so two decimals is the default here.
- */
 export function frameToPathData(samples: MorphSamples, values: Float64Array, precision: number | undefined = 2): string {
   let d = "";
   let k = 0;

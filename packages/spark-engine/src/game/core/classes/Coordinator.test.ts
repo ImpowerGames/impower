@@ -6,9 +6,6 @@ import { Coordinator } from "./Coordinator";
 import type { Game } from "./Game";
 import { EventMessage } from "./messages/EventMessage";
 
-/**
- * `shouldContinue()` return codes.
- */
 const NOW = 5000;
 
 const STAY = 0;
@@ -19,23 +16,13 @@ interface Calls {
   clickedToContinue: number;
   autoAdvancedToContinue: number;
   chosePathToContinue: number[];
-  /** One entry per `ui.text.write`, recording whether it was an instant
-   *  reveal and the start time it was stamped with. */
   textWrites: { target: string; instant: boolean; time?: number }[];
-  /** The start time each `audio.triggerAll` was given. */
   audioTriggerTimes: (number | undefined)[];
   loadedWorlds: string[];
-  /** The cutscenes `ui.runCutscene` was asked to play, by name. */
   cutscenes: string[];
-  /** How many times `ui.skipCutscene` was called. */
   skippedCutscenes: number;
 }
 
-/**
- * A stand-in for `Game` exposing only the surface `Coordinator` touches. Its
- * shared clock reads `NOW`, and `setTimeout` runs synchronously so a tick
- * fully resolves before returning.
- */
 const createGame = (
   overrides: {
     autoAdvanceDelay?: number;
@@ -105,8 +92,6 @@ const createGame = (
           write: () => {},
         },
         style: { update: () => {} },
-        // A cutscene's trigger fires once the page answers; tests flip
-        // `cutsceneEnded` to stand in for that answer.
         cutsceneEnded: false,
         runCutscene(cutscene: { name: string }) {
           calls.cutscenes.push(cutscene.name);
@@ -130,7 +115,6 @@ const createGame = (
       },
       assets: {
         prepareBeat: () => null,
-        // A `load` beat reaches the loader with every name it carries.
         runLoad: (loads: Array<{ name: string }>) => {
           for (const load of loads) {
             calls.loadedWorlds.push(load.name);
@@ -156,10 +140,6 @@ const createGame = (
 
 const tick = (deltaMS: number) => ({ deltaMS }) as Clock;
 
-/**
- * Exposes the execution flags so the state-machine hygiene tests can assert
- * them directly. Behaviour is otherwise identical to `Coordinator`.
- */
 class ProbeCoordinator extends Coordinator<Game> {
   get finishedExecution(): boolean {
     return this._finishedExecution;
@@ -169,35 +149,24 @@ class ProbeCoordinator extends Coordinator<Game> {
   }
 }
 
-/** A beat with text that takes 1s to reveal. */
 const textBeat = (extra: Partial<Instructions> = {}): Instructions => ({
   text: { textbox: [{ text: "Hello." }] as never },
   end: 1,
   ...extra,
 });
 
-/**
- * A coordinator part-way through revealing its text: execution has started
- * (so an interaction means "reveal the rest"), but hasn't finished.
- */
 const midReveal = (instructions: Instructions = textBeat()) => {
   const { game, calls } = createGame();
   const coordinator = new ProbeCoordinator(game, instructions);
   return { coordinator, calls };
 };
 
-/**
- * A coordinator whose text has fully revealed and is now waiting on the
- * player (this is the state that shows the tap-to-continue indicator).
- */
 const finishedBeat = (
   instructions: Instructions = textBeat(),
   gameOverrides: Parameters<typeof createGame>[0] = {},
 ) => {
   const { game, calls } = createGame(gameOverrides);
   const coordinator = new ProbeCoordinator(game, instructions);
-  // Run out the reveal duration, which counts from when the beat shows, so
-  // handleFinished() fires
   coordinator.onUpdate(tick(instructions.end * 1000 + BEAT_LEAD_MS));
   return { coordinator, calls };
 };
@@ -217,10 +186,6 @@ const keydown = (key: string, modifiers: Record<string, boolean> = {}) =>
     ...modifiers,
   } as never);
 
-/**
- * The three ways a player can say "continue". These must stay
- * indistinguishable to the Coordinator -- they all set the same latch.
- */
 const ADVANCE_INPUTS = [
   ["tap", () => pointerdown(0)],
   ["Enter", () => keydown("Enter")],
@@ -262,8 +227,6 @@ describe("Coordinator", () => {
     for (const [name, event] of ADVANCE_INPUTS) {
       it(`reveals the rest of the beat on ${name} instead of advancing`, () => {
         const { coordinator, calls } = midReveal();
-        // The initial reveal is animated, not instant, and starts with the
-        // beat's sound a lead ahead of now
         expect(calls.textWrites).toEqual([
           { target: "textbox", instant: false, time: NOW + BEAT_LEAD_MS },
         ]);
@@ -311,9 +274,6 @@ describe("Coordinator", () => {
       });
     });
 
-    // An interaction that is deliberately ignored must not disturb the state
-    // machine. Clearing the finished flag here used to strand the beat out of
-    // its "finished revealing" state for the rest of its life (#231).
     for (const [name, event] of ADVANCE_INPUTS) {
       it(`keeps the beat marked finished after an ignored ${name}`, () => {
         const { coordinator } = finishedBeat(withChoices());
@@ -343,7 +303,6 @@ describe("Coordinator", () => {
 
       coordinator.onMessage(keydown("Enter"));
       expect(coordinator.shouldContinue()).toBe(INTERACTED);
-      // Consumed by the advance itself
       expect(coordinator.finishedExecution).toBe(false);
     });
 
@@ -439,13 +398,10 @@ describe("Coordinator", () => {
       });
       expect(coordinator.shouldContinue()).toBe(STAY);
       expect(calls.loadedWorlds).toEqual(["world"]);
-      // Ticking while the load is still running changes nothing.
       coordinator.onUpdate(tick(0));
       coordinator.onUpdate(tick(0));
       expect(coordinator.shouldContinue()).toBe(STAY);
       assets.isReady = () => true;
-      // The tick it becomes ready on passed before it was stamped, and its
-      // duration counts from when it shows, a lead after that.
       coordinator.onUpdate(tick(100));
       expect(coordinator.shouldContinue()).toBe(STAY);
       coordinator.onUpdate(tick(BEAT_LEAD_MS - 1));
@@ -481,7 +437,6 @@ describe("Coordinator", () => {
     it("starts the cutscene once the beat's assets are resident", () => {
       const { game, calls } = createGame();
       const assets = (game.module as any).assets;
-      // The beat waits on its gate for the video.
       assets.prepareBeat = () => 1;
       assets.isReady = () => false;
       const coordinator = new Coordinator(game, cutsceneBeat());
@@ -490,7 +445,6 @@ describe("Coordinator", () => {
       assets.isReady = () => true;
       coordinator.onUpdate(tick(0));
       expect(calls.cutscenes).toEqual(["intro"]);
-      // Once only, however many ticks it plays for.
       coordinator.onUpdate(tick(BEAT_LEAD_MS));
       coordinator.onUpdate(tick(1000));
       expect(calls.cutscenes).toEqual(["intro"]);
@@ -522,8 +476,6 @@ describe("Coordinator", () => {
         expect(calls.skippedCutscenes).toBe(1);
         expect(calls.clickedToContinue).toBe(0);
         expect(calls.autoAdvancedToContinue).toBe(0);
-        // The page plays the exit and answers; the beat then advances once,
-        // by the normal path.
         ui.cutsceneEnded = true;
         coordinator.onUpdate(tick(16));
         expect(calls.autoAdvancedToContinue).toBe(1);
@@ -556,13 +508,10 @@ describe("Coordinator", () => {
       assets.isReady = () => false;
       const coordinator = new Coordinator(game, cutsceneBeat());
       coordinator.onMessage(pointerdown());
-      // The video arrives before the next frame: that one tick starts the
-      // cutscene and asks whether to go on.
       assets.isReady = () => true;
       coordinator.onUpdate(tick(16));
       expect(calls.cutscenes).toEqual(["intro"]);
       expect(calls.skippedCutscenes).toBe(0);
-      // A click now is meant for the cutscene.
       coordinator.onMessage(pointerdown());
       coordinator.onUpdate(tick(16));
       expect(calls.skippedCutscenes).toBe(1);
@@ -572,8 +521,6 @@ describe("Coordinator", () => {
       const { game, calls } = createGame();
       (game.context.system as any).simulating = true;
       const coordinator = new Coordinator(game, cutsceneBeat());
-      // The UI module records the music stop and sends nothing; the beat
-      // goes on at once.
       expect(calls.cutscenes).toEqual(["intro"]);
       expect(coordinator.shouldContinue()).toBe(AUTO_ADVANCED);
     });

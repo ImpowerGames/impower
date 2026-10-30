@@ -1,17 +1,3 @@
-// Characterization tests for the checkpoint / simulation / HMR-resume machinery
-// (save/load, simulate, planRoute/simulateRoute/patchAndSimulateRoute,
-// getCheckpoint). These lock in the CURRENT observable behavior so the planned
-// incremental/delta-checkpoint refactor can be proven regression-free.
-//
-// The load-bearing property the delta refactor must preserve is: the checkpoint
-// returned for any simulated point restores the EXACT same state into a fresh
-// game, AND re-saving is byte-identical. We assert THAT (round-trip +
-// determinism) across linear, choice, and variable-driven-conditional routes —
-// NOT the route planner's specific chosen values, which are its own concern (and
-// note: the route SIMULATOR forces the planned path, so a simulated state need
-// not match natural execution — e.g. a forced branch can leave a variable at a
-// value the natural branch wouldn't).
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "../../game/core/classes/Game";
@@ -19,15 +5,10 @@ import { requireChunks } from "../harness/compileProgram";
 
 const URI = "inmemory:///main.sd";
 
-// The net runs on the program engine, whose checkpoints are its beat images
-// (`CheckpointStore.capture`'s image branch).
-
 function compileSrc(src: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     useBuiltinsPrelude: true,
-    // The Game sources defines from the live runtime __def tables, so seed the
-    // builtins prelude into the story VM (the production player does the same).
     seedBuiltinsIntoStory: true,
     files: [
       { uri: URI, type: "script", name: "main", ext: "sd", text: src, version: 1, languageId: "sparkdown" },
@@ -48,12 +29,10 @@ function newGame(program: unknown) {
   } as any);
 }
 
-/** Stable fingerprint of the observable post-simulation state. */
 function fp(game: Game, vars: string[]) {
   const vs: any = game.story.variablesState;
   const o: Record<string, unknown> = {
     text: (game.story.currentText ?? "").trim(),
-    // The program engine's state counts visits by flow name.
     startVisits:
       (game.story.state as any)
         .GetVisitCountEntries()
@@ -69,10 +48,6 @@ function planTo(game: Game, program: any, line: number) {
   const from = game.routeStartOf(to);
   return Game.planRoute(game.story, program, from, to)!;
 }
-
-// ---------------------------------------------------------------------------
-// Linear fixture — globals mutated between display beats.
-// ---------------------------------------------------------------------------
 
 const LINEAR = `store score = 0
 store flag = false
@@ -132,15 +107,8 @@ describe("save / load / simulate (linear)", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Shared round-trip check: for every target, the checkpoint from
-// patchAndSimulateRoute must restore the exact state into a fresh game and
-// re-save byte-identically.
-// ---------------------------------------------------------------------------
-
 function assertRoundTrips(src: string, targets: Record<string, number>, vars: string[]) {
   const program = compileSrc(src);
-  // Fixture must compile WITHOUT errors (no parse-recovery edge cases).
   const diags = (program as any).diagnostics?.[URI] ?? [];
   expect(diags.filter((d: any) => d?.severity === 1)).toEqual([]);
 
@@ -157,10 +125,6 @@ function assertRoundTrips(src: string, targets: Record<string, number>, vars: st
   }
   return program;
 }
-
-// ---------------------------------------------------------------------------
-// Choice fixture — each arm sets globals; route must take the right decision.
-// ---------------------------------------------------------------------------
 
 const CHOICE = `store gold = 0
 store picked = "none"
@@ -212,11 +176,6 @@ describe("checkpoint round-trip through CHOICE routes", () => {
     expect(b).toBe(a);
   });
 });
-
-// ---------------------------------------------------------------------------
-// Variable-driven conditional fixture — a global set earlier gates an if/else
-// (the case the route simulator forces conditions through + rewinds).
-// ---------------------------------------------------------------------------
 
 const COND = `store key = false
 store result = "none"

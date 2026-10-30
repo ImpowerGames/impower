@@ -1,7 +1,3 @@
-// A `[[play NAME]]` cutscene in the engine (I-1382): the interpreter queues it
-// as a beat of its own, the UI module asks the page to play it and stops the
-// music, and the builtins carry the `movie` config and the `cutscene` styles.
-
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { describe, expect, test } from "vitest";
 import { uiBuiltinDefinitions } from "../../game/modules/ui/uiBuiltinDefinitions";
@@ -27,14 +23,11 @@ const story = (body: string, defines = "") =>
 const byMethod = (messages: any[], method: string) =>
   messages.filter((m) => m?.method === method);
 
-/** The audio messages that stop or start sound on `channel`. */
 const musicUpdates = (messages: any[], channel = "music") =>
   byMethod(messages, "audio/update").filter(
     (m) => m.params?.channel === channel,
   );
 
-/** Whether a restore brought the music back: it loads the track again, or an
- *  update on the channel carries something to play. */
 const musicRestored = (messages: any[]) =>
   byMethod(messages, "audio/load").length > 0 ||
   musicUpdates(messages).some((m) => m.params.updates.length > 0);
@@ -43,7 +36,6 @@ const playing = (game: any) => {
   game.context.system.previewing = undefined;
 };
 
-/** Every beat the story queues from its start, in order. */
 async function beatsOf(body: string) {
   const h = createHarness(story(body), 0, { assets: ASSETS });
   await h.ready;
@@ -130,7 +122,6 @@ describe("a cutscene: the UI module", () => {
     });
     const requests = byMethod(h.messages, "ui/play-cutscene");
     expect(requests).toHaveLength(1);
-    // The `with` transition goes resolved, as the page plays it.
     expect(requests[0].params).toEqual({
       src: "/file:/proj/intro.webm?v=1",
       loop: true,
@@ -231,7 +222,6 @@ describe("a cutscene: the UI module", () => {
     expect(skips[0].params).toEqual({});
   });
 
-  /** A played beat that starts `theme` looping on the music channel. */
   async function withMusic(defines = "") {
     const h = await harness({
       playing: true,
@@ -243,7 +233,6 @@ describe("a cutscene: the UI module", () => {
     expect(beat?.audio?.["music"]).toBeDefined();
     await h.display(beat!, false);
     await flushMicrotasks();
-    // The music really started, or a missing stop below proves nothing.
     expect(
       musicUpdates(h.messages).some((m) =>
         m.params.updates.some((u: any) => u.control === "start"),
@@ -263,8 +252,6 @@ describe("a cutscene: the UI module", () => {
       expect(update.control).toBe("stop");
       expect(update.over).toBeGreaterThan(0);
     }
-    // The cutscene has ended (the page answered): nothing starts the music
-    // again, and a checkpoint taken now restores no music.
     expect(byMethod(h.messages, "ui/play-cutscene")).toHaveLength(1);
     expect(
       musicUpdates(h.messages)
@@ -281,8 +268,6 @@ describe("a cutscene: the UI module", () => {
   });
 
   test("stops music a restore brought back", async () => {
-    // PLAY from a later line, or a loaded save, restores the music the saved
-    // state names; a cutscene right after it must stop that music too.
     const h = await withMusic();
     const restored = createHarness(
       story("  ((play music theme loop))\n  Music."),
@@ -308,8 +293,6 @@ describe("a cutscene: the UI module", () => {
   });
 
   test("keeps restored music stopped when a cutscene starts while it still loads", async () => {
-    // PLAY that starts on a cutscene line: the restore asks the page to load
-    // the music, and the cutscene begins before that load has settled.
     const h = await withMusic();
     let release!: () => void;
     const loaded = new Promise<void>((resolve) => (release = resolve));
@@ -372,7 +355,6 @@ describe("a cutscene: the UI module", () => {
     await flushMicrotasks(10);
     expect(musicUpdates(h.messages)).toEqual([]);
     expect(byMethod(h.messages, "ui/play-cutscene")).toHaveLength(1);
-    // The control for the restores above: music still playing comes back.
     const restored = createHarness(
       story(
         "  ((play music theme loop))\n  Music.",

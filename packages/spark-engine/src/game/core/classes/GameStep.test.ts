@@ -2,25 +2,6 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { compileProgram } from "../../../tests/harness/compileProgram";
 import { Game } from "./Game";
 
-/**
- * `Game.step()` / `continue()` are the flow engine: they drive the story
- * forward, decide when to stop and wait for the player, checkpoint, and tell
- * the host what happened. None of that is observable from a return value
- * alone, so these tests assert on the notifications the game emits -- that is
- * its actual contract with whatever is hosting it.
- *
- * Driving this needs a real compiled program; a fake story can't model the
- * flush/wait handoff that is the whole point. Like the save/load suite, that
- * makes this one of the slower files in the package.
- *
- * Every case runs on the program engine, which a program compiled to
- * statement chunks runs on (#702).
- *
- * Deliberately out of scope: the `in` / `out` / `over` traversal modes and
- * breakpoint stops. Those only engage mid-flow with a debugger attached;
- * `src/tests/core/programDebugger.test.ts` covers them.
- */
-
 const THREE_BEATS = [
   "scene start",
   "  First beat.",
@@ -63,7 +44,6 @@ const createGame = (
   return {
     game,
     emitted,
-    /** Just the game/* notifications, in order -- UI churn isn't the contract. */
     gameMethods: () =>
       emitted.map((e) => e.method).filter((m) => m.startsWith("game/")),
     clear: () => {
@@ -180,7 +160,7 @@ describe("Game flow on the program engine", () => {
       game.clickedToContinue();
       game.clickedToContinue();
       clear();
-      game.clickedToContinue(); // past the last beat
+      game.clickedToContinue();
       expect(gameMethods()).not.toContain("game/awaitingInteraction");
     });
 
@@ -190,12 +170,10 @@ describe("Game flow on the program engine", () => {
       game.clickedToContinue();
       game.clickedToContinue();
       clear();
-      game.clickedToContinue(); // past the last beat
+      game.clickedToContinue();
       expect(gameMethods()).toContain("game/finished");
     });
 
-    // The last beat still has to be readable before the story is declared
-    // over -- finishing early would cut off the final line.
     it("does not report finished while a beat is still waiting to be read", () => {
       const { game, gameMethods } = createGame();
       game.start();
@@ -204,14 +182,11 @@ describe("Game flow on the program engine", () => {
       game.clickedToContinue();
       expect(gameMethods()).not.toContain("game/finished");
 
-      game.clickedToContinue(); // now showing the final beat
+      game.clickedToContinue();
       expect(game.story.currentText).toBe("Third beat.\n");
       expect(gameMethods()).not.toContain("game/finished");
     });
 
-    // A one-beat script is the tightest case: the story is already exhausted
-    // when the only beat is flushed, so an over-eager check would declare it
-    // finished before the player has read anything.
     it("shows a single-beat script before reporting finished", () => {
       const oneBeat = compile("scene start\n  Only beat.\nend\n");
       const game = new Game({
@@ -247,8 +222,6 @@ describe("Game flow on the program engine", () => {
     });
   });
 
-  // `step()` is one iteration of the flow loop, not one beat: it reports
-  // whether the loop is done, and `continue()` drives it until it is.
   describe("stepping", () => {
     it("reports not-done while there is still work to do", () => {
       const { game } = createGame();
@@ -264,7 +237,6 @@ describe("Game flow on the program engine", () => {
         done = game.step();
       }
       expect(done).toBe(true);
-      // The step that reported done is the one that reached the next beat.
       expect(game.story.currentText).toBe("Second beat.\n");
     });
 
@@ -278,10 +250,6 @@ describe("Game flow on the program engine", () => {
       expect(game.story.currentText).toBe("Second beat.\n");
     });
 
-    // Part-way through, the story is a work in progress and reading its text
-    // throws. That's transient rather than corruption -- driving the loop to
-    // its next stop resolves it. Worth pinning: a regression that left the
-    // story permanently unreadable would look identical at the call site.
     it("recovers from a partially stepped story", () => {
       const { game } = createGame();
       game.start();
@@ -302,8 +270,6 @@ describe("Game flow on the program engine", () => {
   });
 
   describe("continue", () => {
-    // Each frame reports only what it just executed, so the host can highlight
-    // the current line rather than every line ever run.
     it("reports only the paths executed in the latest frame", () => {
       const { game } = createGame();
       game.start();
@@ -315,7 +281,6 @@ describe("Game flow on the program engine", () => {
       expect(first.length).toBeGreaterThan(0);
       expect(second.length).toBeGreaterThan(0);
       expect(second).not.toEqual(first);
-      // Not accumulated across frames
       expect(second.some((p) => first.includes(p))).toBe(false);
     });
 
@@ -330,10 +295,6 @@ describe("Game flow on the program engine", () => {
   });
 
   describe("execution budget", () => {
-    // The guard exists so a runaway script reports an error instead of
-    // hanging the host. It is counted in work rather than elapsed time, so the
-    // test names a tiny budget instead of driving a clock -- and so a slow
-    // machine cannot turn a long scene into a reported infinite loop.
     it("reports a runtime error instead of looping forever", () => {
       const { game, emitted } = createGame({ executionStepLimit: 1 });
       game.start();

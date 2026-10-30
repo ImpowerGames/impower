@@ -57,7 +57,6 @@ export const parseBeatmap = (
 
   let isReversed = false;
   for (let i = 0; i < 5; i += 1) {
-    // Check if any of the first 5 lines starts with an !END! marker
     if (lines[i]?.text.startsWith("!E")) {
       isReversed = true;
     }

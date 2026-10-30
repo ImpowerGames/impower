@@ -1,7 +1,7 @@
 import { FUNDAMENTAL_KEYS } from "../constants/FUNDAMENTAL_KEYS";
 import { Note } from "../types/Note";
 
-const A4 = 440.0; // An A-note in the fourth octave
+const A4 = 440.0;
 
 const calculateStepsFromFrequency = (frequency: number) => {
   const steps = (12 * Math.log(frequency / A4)) / Math.log(2);

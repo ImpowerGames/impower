@@ -12,7 +12,7 @@ export const getHash = (obj?: unknown): number => {
   for (i = 0; i < json.length; i += 1) {
     chr = json.charCodeAt(i);
     hash = (hash << 5) - hash + chr;
-    hash |= 0; // Convert to 32bit integer
+    hash |= 0;
   }
   return hash;
 };

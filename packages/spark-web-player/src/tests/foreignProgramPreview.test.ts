@@ -1,11 +1,3 @@
-// Opening a script compiles it, and a script the story does not include
-// compiles on its own, into a program that holds only that script. On a cold
-// start in VS Code every script of the project is open, so such programs reach
-// the player beside the story's. When one came last, the player previewed the
-// point it was showing against it: the point is not in it, so nothing
-// displayed, the panel was never revealed and it stayed black for good
-// (#1874).
-
 import { describe, expect, test } from "vitest";
 import { GamePlayerController } from "../GamePlayerController";
 
@@ -16,15 +8,11 @@ const program = (uri: string, version: number) =>
   ({
     uri,
     version,
-    // The summary of a program that runs, as the page is sent one.
     summary: true,
     runnable: true,
     scripts: { [uri]: 1 },
   }) as any;
 
-/** A controller previewing `MAIN` at line 8, with the preview recorded
- *  rather than run: `updatePreview` builds a game and a pixi Application,
- *  and none of that is what these tests are about. */
 function controllerPreviewingMain() {
   const controller: any = new GamePlayerController(
     document.createElement("div"),
@@ -50,7 +38,6 @@ describe("a program compiled for a script the preview is not showing (#1874)", (
     await controller.loadProgram(program(LOOSE, 1));
 
     expect(controller.previews).toEqual([{ program: MAIN, line: 8 }]);
-    // PLAY runs the program the player holds, which stays the story's.
     expect(controller._program.uri).toBe(MAIN);
   });
 
@@ -64,9 +51,6 @@ describe("a program compiled for a script the preview is not showing (#1874)", (
   });
 
   test("is not previewed when it is the first the player is sent", async () => {
-    // Before its first program the player has no point of its own: it
-    // previews from the one each program was compiled to start from, which
-    // the compile of every open script names alike.
     const controller = controllerPreviewingMain();
     controller._options = undefined;
     const startFrom = { file: MAIN, line: 8 };
@@ -81,7 +65,6 @@ describe("a program compiled for a script the preview is not showing (#1874)", (
     const controller = controllerPreviewingMain();
     await controller.loadProgram(program(MAIN, 1));
 
-    // A selection in that script, which compiles it again.
     controller._options.startFrom = { file: LOOSE, line: 2 };
     await controller.loadProgram(program(LOOSE, 2));
 

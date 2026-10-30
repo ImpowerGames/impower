@@ -3,19 +3,6 @@ import { compileProgram } from "../../../tests/harness/compileProgram";
 import { Game } from "./Game";
 import { RuntimeState } from "./RuntimeState";
 
-/**
- * Save corruption is the worst failure mode in the runtime: it surfaces as a
- * broken save long after the change that caused it, and by then the only
- * evidence is a save file nobody can load. So these tests drive a real
- * compiled program through a real `Game` rather than a fake -- the point is
- * to catch serialization drift between `save()` and `load()`, which a stub
- * can't model.
- *
- * The compiler import makes this the slowest file in the package (a few
- * seconds to collect). That's the price of testing the real thing here; keep
- * unit-level work in the cheaper suites.
- */
-
 const SOURCE = [
   "scene start",
   "  First beat here.",
@@ -51,7 +38,6 @@ beforeAll(() => {
   choiceProgram = compile(CHOICE_SOURCE);
 });
 
-/** A started game, ready to advance. */
 const startGame = (p = program) => {
   const game = new Game({
     program: p,
@@ -65,7 +51,6 @@ const startGame = (p = program) => {
   return game;
 };
 
-/** Advance `times` beats, as clicking to continue would. */
 const advance = (game: Game, times: number) => {
   for (let i = 0; i < times; i += 1) {
     game.clickedToContinue();
@@ -75,7 +60,6 @@ const advance = (game: Game, times: number) => {
 
 describe("Game save/load", () => {
   it("compiles the fixture without diagnostics", () => {
-    // If this fails, every other expectation here is meaningless.
     expect(program.diagnostics ?? {}).toEqual({});
     expect(program.chunks).toBeDefined();
     expect(program.chunks).toBeTruthy();
@@ -96,8 +80,6 @@ describe("Game save/load", () => {
       expect(game.save()).toBe(saved);
     });
 
-    // Guards the two tests above from being vacuous: if every game produced
-    // the same save regardless of progress, they'd pass while proving nothing.
     it("produces different saves at different points in the story", () => {
       const atStart = startGame().save();
       const midStory = advance(startGame(), 2).save();
@@ -151,7 +133,6 @@ describe("Game save/load", () => {
     it("restores every module's state", () => {
       const original = advance(startGame(), 2);
       const saved = JSON.parse(original.save());
-      // The save is only meaningful if the modules actually round-trip
       expect(Object.keys(saved.modules).length).toBeGreaterThan(0);
 
       const restored = startGame();
@@ -159,9 +140,6 @@ describe("Game save/load", () => {
       expect(JSON.parse(restored.save()).modules).toEqual(saved.modules);
     });
 
-    // The strongest property: a restored save doesn't just look the same, it
-    // continues the same. Byte-identical state that then diverges on the next
-    // step would be a save that silently breaks the story.
     it("continues into the same next beat after restoring", () => {
       const original = advance(startGame(), 2);
       const saved = original.save();
@@ -231,8 +209,6 @@ describe("RuntimeState", () => {
     ]);
   });
 
-  // The Set is ordered deliberately: re-executing a path moves it to the end
-  // so the last entry is always the most recently executed.
   it("moves a re-executed path to the end", () => {
     const state = new RuntimeState();
     state.recordExecution(1);
@@ -243,8 +219,6 @@ describe("RuntimeState", () => {
     expect(Array.from(restored.pathsExecutedThisFrame)).toEqual([2, 1]);
   });
 
-  // A save writes each executed position in its durable form, a string, which
-  // a load places (`Game.placedExecuted`); the record still reads one.
   it("reads a saved record's durable positions", () => {
     const restored = RuntimeState.read(
       JSON.stringify({
@@ -271,9 +245,6 @@ describe("RuntimeState", () => {
     ]);
   });
 
-  // clone() must deep-copy: a shallow copy would let a checkpoint mutate the
-  // state it was cloned from, which is exactly the kind of aliasing bug that
-  // only shows up much later as a corrupted save.
   describe("clone", () => {
     it("does not alias the executed-path set", () => {
       const state = new RuntimeState();
