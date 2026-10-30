@@ -11,8 +11,6 @@ export type AudioPreviewProps = {
   src: string;
 };
 
-// Number of waveform bars rendered across the track. Independent of the canvas
-// width (we stretch the bars to fit), so the decode cost is constant.
 const BAR_COUNT = 200;
 
 const formatTime = (seconds: number): string => {
@@ -22,17 +20,6 @@ const formatTime = (seconds: number): string => {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 };
 
-/**
- * Audio-file preview with a waveform scrubber. Decodes the audio with the Web
- * Audio API to compute static peak data, renders it to a canvas (played portion
- * highlighted), and drives playback through a hidden `<audio>` element. Click or
- * drag the waveform to seek. If decoding fails (e.g. a cross-origin remote URL
- * with no CORS headers) the canvas falls back to a flat seekable baseline — the
- * audio still plays, just without a rendered waveform.
- *
- * Self-contained (no `wavesurfer.js`): the old engine's player pulled in that
- * dependency; this keeps the file manager lean.
- */
 export default function AudioPreview({ src }: AudioPreviewProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -42,7 +29,6 @@ export default function AudioPreview({ src }: AudioPreviewProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
-  // Decode the audio once to compute the static waveform peaks.
   useEffect(() => {
     let cancelled = false;
     setPeaks(null);
@@ -77,7 +63,6 @@ export default function AudioPreview({ src }: AudioPreviewProps) {
         const norm = Math.max(...out, 0.0001);
         setPeaks(out.map((v) => v / norm));
       } catch {
-        // CORS / unsupported codec: fall back to a flat baseline (still seekable).
         if (!cancelled) {
           setPeaks([]);
         }
@@ -88,9 +73,6 @@ export default function AudioPreview({ src }: AudioPreviewProps) {
     };
   }, [src]);
 
-  // Draw the waveform whenever the peaks, progress, or size change. A played bar
-  // is drawn opaque white; the rest are dimmed. Sized to the device pixel ratio
-  // so the bars stay crisp.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) {
@@ -117,14 +99,13 @@ export default function AudioPreview({ src }: AudioPreviewProps) {
       const mid = cssH / 2;
       const progress = duration > 0 ? currentTime / duration : 0;
       for (let i = 0; i < n; i += 1) {
-        const amp = bars ? bars[i]! : 0.04; // flat baseline when no peaks
+        const amp = bars ? bars[i]! : 0.04;
         const h = Math.max(2, amp * cssH);
         const x = (i / n) * cssW;
         const played = i / n < progress;
         ctx.fillStyle = played ? "#ffffff" : "rgba(255,255,255,0.28)";
         const r = Math.min(barW / 2, 2);
         const y = mid - h / 2;
-        // rounded bar
         ctx.beginPath();
         ctx.roundRect(x, y, barW, h, r);
         ctx.fill();
@@ -136,8 +117,6 @@ export default function AudioPreview({ src }: AudioPreviewProps) {
     return () => ro.disconnect();
   }, [peaks, currentTime, duration]);
 
-  // Smooth playhead: <audio>'s timeupdate fires only ~4×/s, so poll
-  // currentTime on a rAF loop while playing for a fluid scrubber.
   useEffect(() => {
     if (!playing) {
       return;
@@ -174,7 +153,6 @@ export default function AudioPreview({ src }: AudioPreviewProps) {
     }
   };
 
-  // Seek by mapping the pointer's x within the canvas to a fraction of duration.
   const seekFromEvent = (e: PointerEvent) => {
     const canvas = canvasRef.current;
     const a = audioRef.current;

@@ -1,10 +1,4 @@
 // @vitest-environment node
-// How the project-file service worker answers a `Range` request.
-//
-// The preview's `<video preload="metadata">` asks for the bytes it needs to
-// show a first frame, and a seek asks for the bytes at the new position. The
-// worker advertises `Accept-Ranges: bytes`, so a ranged request has to come
-// back as 206 with exactly the requested bytes.
 
 import { describe, expect, it } from "vitest";
 import { fileResponse, parseByteRange } from "../../src/workers/swRanges";

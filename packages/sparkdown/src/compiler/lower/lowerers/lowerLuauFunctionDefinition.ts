@@ -86,7 +86,7 @@ export function lowerLuauFunctionDefinition(
   close(knot);
   knot._bodyClosed = !!node.getChild("LuauFunctionDefinition_end");
   const rootWeave = new Weave([...hoisted, ...body]);
-  knot._rootWeave = rootWeave;
+  knot._weave = rootWeave;
   knot.AddContent(rootWeave);
   for (const child of nested) {
     knot.AddContent(child);

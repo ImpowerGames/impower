@@ -136,8 +136,8 @@ export class DefineScopeRecord {
         for (const c of content) stack.push(c);
       }
       if (obj instanceof FlowBase) {
-        if (obj._rootWeave) {
-          stack.push(obj._rootWeave);
+        if (obj._weave) {
+          stack.push(obj._weave);
         }
         for (const sub of obj._subFlowsByName.values()) {
           stack.push(sub);

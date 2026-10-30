@@ -3,8 +3,6 @@ import MainWindow from "../components/main-window/MainWindow";
 import SnackbarHost from "../components/snackbar-host/SnackbarHost";
 import TrashPanel from "../components/trash-panel/TrashPanel";
 
-// Host CSS — `#root` is the page mount; make it a full-bleed flex column so
-// its children can fill the viewport.
 const HOST_STYLE = `
   #root {
     position: relative;
@@ -25,22 +23,14 @@ const HOST_STYLE = `
 export const propDefaults = {};
 export type SparkEditorProps = Partial<typeof propDefaults>;
 
-/**
- * Page-root component. Wraps the main editor window plus the window-level
- * file-dropzone overlay. Mounted as a plain Preact root via `hydrate()` into
- * `<div id="root">` (no custom element) — see `../index.ts`.
- */
 export default function SparkEditor(_props: SparkEditorProps) {
   return (
     <>
       <style>{HOST_STYLE}</style>
       <MainWindow />
-      {/* Project-wide recycle bin overlay — a single global instance toggled by
-          workspace.trashOpen (opened from the file-list toolbar). */}
+
       <TrashPanel />
-      {/* Upload "file already exists" prompt (Replace / Keep both / Skip). */}
       <ConflictDialogHost />
-      {/* Transient toasts (e.g. "Deleted X · Undo"). */}
       <SnackbarHost />
     </>
   );

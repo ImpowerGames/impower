@@ -68,6 +68,7 @@ import {
   snapshotTable,
   SymbolKind,
   UNDEFINED_KIND,
+  type SequenceKind,
   type SymbolKindValue,
 } from "./ProgramSymbols";
 import {
@@ -731,7 +732,7 @@ export class ChunkStore {
           build,
           declaration,
           chunk,
-          { flow: -1, kind: SymbolKind.Root, uri: declaration.uri },
+          { flow: -1, kind: UNDEFINED_KIND, uri: declaration.uri },
           false,
         );
       }
@@ -768,7 +769,7 @@ export class ChunkStore {
         id,
         arrays,
         flow: -1,
-        kind: SymbolKind.Root,
+        kind: UNDEFINED_KIND,
         owner: -1,
         block: -1,
         uri,
@@ -806,7 +807,8 @@ export class ChunkStore {
       !previous ||
       declarationsEmitted ||
       !sameChunks(oldDeclarations, declarationChunks) ||
-      functionsChanged;
+      functionsChanged ||
+      !previous.tables?.luauEntry !== !tables?.luauEntry;
     const definitions = this.definitionArrays(
       flows,
       symbols,
@@ -3342,7 +3344,7 @@ const emptyPasses = (): BuildPasses => ({
 
 interface SequenceHome {
   flow: number;
-  kind: SymbolKindValue;
+  kind: SequenceKind;
   uri: string;
 }
 

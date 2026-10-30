@@ -118,9 +118,6 @@ const asNormal = async (
   return false;
 };
 
-// The commands here are only bound to keys with `when` clause containing `editorTextFocus && !editorReadonly`. (package.json)
-// So we don't need to check whether `activeTextEditor` returns `undefined` in most cases.
-
 const onEnterKey = async (modifiers?: IModifier) => {
   const editor = window.activeTextEditor!;
   const cursor = editor.selection.active;
@@ -137,7 +134,6 @@ const onEnterKey = async (modifiers?: IModifier) => {
       return true;
     }
   }
-  // TODO: Continue choices
   return asNormal(editor, "enter", modifiers);
 };
 
@@ -339,7 +335,6 @@ const toggleEmphasis = (type: EmphasisType) => {
   return false;
 };
 
-// Read PR #1052 before touching this please!
 const styleByWrapping = (startPattern: string, endPattern = startPattern) => {
   const editor = window.activeTextEditor!;
   let selections = editor.selections;
@@ -362,7 +357,6 @@ const styleByWrapping = (startPattern: string, endPattern = startPattern) => {
     if (selection.isEmpty) {
       const context = getContext(editor, cursorPos, startPattern, endPattern);
 
-      // No selected text
       if (
         startPattern === endPattern &&
         Object.values(EmphasisType)
@@ -370,14 +364,12 @@ const styleByWrapping = (startPattern: string, endPattern = startPattern) => {
           .includes(startPattern) &&
         context === `${startPattern}text|${endPattern}`
       ) {
-        // `**text|**` to `**text**|`
         let newCursorPos = cursorPos.with({
           character: cursorPos.character + shift + endPattern.length,
         });
         newSelections[i] = new Selection(newCursorPos, newCursorPos);
         continue;
       } else if (context === `${startPattern}|${endPattern}`) {
-        // `**|**` to `|`
         let start = cursorPos.with({
           character: cursorPos.character - startPattern.length,
         });
@@ -398,7 +390,6 @@ const styleByWrapping = (startPattern: string, endPattern = startPattern) => {
           endPattern,
         );
       } else {
-        // Select word under cursor
         let wordRange = editor.document.getWordRangeAtPosition(cursorPos);
         if (wordRange == undefined) {
           wordRange = selection;
@@ -418,7 +409,6 @@ const styleByWrapping = (startPattern: string, endPattern = startPattern) => {
         );
       }
     } else {
-      // Text selected
       wrapRange(
         editor,
         batchEdit,
@@ -440,16 +430,6 @@ const styleByWrapping = (startPattern: string, endPattern = startPattern) => {
   });
 };
 
-/**
- * Add or remove `startPattern`/`endPattern` according to the context
- * @param editor
- * @param options The undo/redo behavior
- * @param cursor cursor position
- * @param range range to be replaced
- * @param isSelected is this range selected
- * @param startPtn
- * @param endPtn
- */
 const wrapRange = (
   editor: TextEditor,
   wsEdit: WorkspaceEdit,
@@ -470,7 +450,6 @@ const wrapRange = (
   let newCursorPos = cursor.with({ character: cursor.character + shift });
   let newSelection: Selection | undefined = undefined;
   if (isWrapped(text, startPtn, endPtn)) {
-    // remove start/end patterns from range
     wsEdit.replace(
       editor.document.uri,
       range,
@@ -479,10 +458,8 @@ const wrapRange = (
 
     shifts.push([range.end, -ptnLength]);
 
-    // Fix cursor position
     if (!isSelected) {
       if (!range.isEmpty) {
-        // means quick styling
         if (cursor.character == range.end.character) {
           newCursorPos = cursor.with({
             character: cursor.character + shift - ptnLength,
@@ -493,7 +470,6 @@ const wrapRange = (
           });
         }
       } else {
-        // means `**|**` -> `|`
         newCursorPos = cursor.with({
           character: cursor.character + shift + startPtn.length,
         });
@@ -510,15 +486,12 @@ const wrapRange = (
       );
     }
   } else {
-    // add start/end patterns around range
     wsEdit.replace(editor.document.uri, range, startPtn + text + endPtn);
 
     shifts.push([range.end, ptnLength]);
 
-    // Fix cursor position
     if (!isSelected) {
       if (!range.isEmpty) {
-        // means quick styling
         if (cursor.character == range.end.character) {
           newCursorPos = cursor.with({
             character: cursor.character + shift + ptnLength,
@@ -529,7 +502,6 @@ const wrapRange = (
           });
         }
       } else {
-        // means `|` -> `**|**`
         newCursorPos = cursor.with({
           character: cursor.character + shift + startPtn.length,
         });

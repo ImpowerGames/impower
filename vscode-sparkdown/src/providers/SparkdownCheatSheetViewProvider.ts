@@ -317,8 +317,6 @@ The men look at each other.`.trim(),
     ),
   ];
 
-  // TODO: Add function syntax to cheatsheet
-
   cheatSheet["Variables"] = [
     new CheatsheetItem(
       "const x = 0",
@@ -361,7 +359,6 @@ The men look at each other.`.trim(),
     ),
   ];
 
-  // TODO: Update to match ink inline condition syntax
   cheatSheet["Inline Conditions"] = [
     new CheatsheetItem(
       "{count}",
@@ -420,7 +417,6 @@ The men look at each other.`.trim(),
     ),
   ];
 
-  // TODO: Update to match ink block condition syntax
   cheatSheet["Block Conditions"] = [
     new CheatsheetItem(
       "if (condition):",

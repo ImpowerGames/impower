@@ -22,7 +22,6 @@ window.addEventListener("message", (e) => {
     state.ranges = ranges;
     vscode.setState(state);
   }
-  // Forward all messages from vscode extension to window
   window.dispatchEvent(
     new CustomEvent("jsonrpc", {
       bubbles: true,
@@ -33,7 +32,6 @@ window.addEventListener("message", (e) => {
   );
 });
 
-// Forward responses and notifications from window to vscode extension
 window.addEventListener("jsonrpc", (e: Event) => {
   if (e instanceof CustomEvent) {
     const message = e.detail;

@@ -34,7 +34,7 @@ import type {
 import type { ProgramEmitter } from "./ProgramEmitter";
 import { parameterKinds } from "./ProgramFacts";
 import { Op } from "./ProgramInstructions";
-import { ROOT_FLOW_NAME, SymbolKind } from "./ProgramSymbols";
+import { SymbolKind } from "./ProgramSymbols";
 
 export interface StatementRecord {
   uri: string;
@@ -60,7 +60,6 @@ export interface ProgramFlowsInput {
   story: Story;
   uri: string;
   preludeUri?: string;
-  topLevelFlow?: boolean;
   blockOf(obj: ParsedObject): object | undefined;
   record(block: object): StatementRecord | undefined;
   lineCount(uri: string): number;
@@ -236,7 +235,7 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
         ? `${name}.${first.identifier?.name ?? ""}`
         : undefined;
     const statements = statementsOf(
-      flow._rootWeave?.content ?? [],
+      flow._weave?.content ?? [],
       record.uri,
       record.line,
     );
@@ -279,18 +278,9 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     }
   };
 
-  const rootContent = input.story._rootWeave?.content ?? [];
-  const rootStatements = input.topLevelFlow
-    ? statementsOf(rootContent, input.uri, 0)
-    : statementsOf(rootContent, input.uri, 0, (statement) => write(statement, input.uri));
-  flows.push({
-    name: ROOT_FLOW_NAME,
-    kind: SymbolKind.Root,
-    uri: input.uri,
-    firstLine: 0,
-    span: 0,
-    statements: rootStatements,
-  });
+  statementsOf(input.story._weave?.content ?? [], input.uri, 0, (statement) =>
+    write(statement, input.uri),
+  );
   for (const flow of input.story.subFlowsByName.values()) {
     visitFlow(flow, "");
   }

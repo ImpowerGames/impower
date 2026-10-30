@@ -1,9 +1,6 @@
 /*---------------------------------------------------------
  * Copyright (C) Microsoft Corporation. All rights reserved.
  *--------------------------------------------------------*/
-/*
- * activateMockDebug.ts containes the shared extension code that can be executed both in node.js and the browser.
- */
 
 "use strict";
 
@@ -87,13 +84,11 @@ export const activateDebugger = (
     }),
   );
 
-  // register a configuration provider for 'mock' debug type
   const provider = new MockConfigurationProvider();
   context.subscriptions.push(
     vscode.debug.registerDebugConfigurationProvider("game", provider),
   );
 
-  // register a dynamic configuration provider for 'mock' debug type
   context.subscriptions.push(
     vscode.debug.registerDebugConfigurationProvider(
       "game",
@@ -137,9 +132,6 @@ export const activateDebugger = (
     context.subscriptions.push(factory as { dispose: () => any });
   }
 
-  // The debug hover evaluates the variable, or dotted path, under the cursor
-  // (#1845); a name the selected frame does not have falls through to the
-  // language hover (`SparkDebugSession.evaluateRequest`).
   context.subscriptions.push(
     vscode.languages.registerEvaluatableExpressionProvider("sparkdown", {
       provideEvaluatableExpression(
@@ -158,7 +150,6 @@ export const activateDebugger = (
     }),
   );
 
-  // override VS Code's default implementation of the "inline values" feature"
   context.subscriptions.push(
     vscode.languages.registerInlineValuesProvider("sparkdown", {
       provideInlineValues(
@@ -174,7 +165,7 @@ export const activateDebugger = (
           l++
         ) {
           const line = document.lineAt(l);
-          var regExp = /\$([a-z][a-z0-9]*)/gi; // variables are words starting with '$'
+          var regExp = /\$([a-z][a-z0-9]*)/gi;
           do {
             var m = regExp.exec(line.text);
             if (m) {
@@ -186,16 +177,10 @@ export const activateDebugger = (
                 m.index + varName.length,
               );
 
-              // some literal text
-              //allValues.push(new vscode.InlineValueText(varRange, `${varName}: ${viewport.start.line}`));
-
-              // value found via variable lookup
               allValues.push(
                 new vscode.InlineValueVariableLookup(varRange, varName, false),
               );
 
-              // value determined via expression evaluation
-              //allValues.push(new vscode.InlineValueEvaluatableExpression(varRange, varName));
             }
           } while (m);
         }
@@ -207,16 +192,11 @@ export const activateDebugger = (
 };
 
 class MockConfigurationProvider implements vscode.DebugConfigurationProvider {
-  /**
-   * Massage a debug configuration just before a debug session is being launched,
-   * e.g. add all missing attributes to the debug configuration.
-   */
   resolveDebugConfiguration(
     _folder: WorkspaceFolder | undefined,
     config: DebugConfiguration,
     _token?: CancellationToken,
   ): ProviderResult<DebugConfiguration> {
-    // if launch.json is missing or empty
     if (!config.type && !config.request && !config.name) {
       const editor = getActiveOrVisibleEditor();
       if (editor && editor.document.languageId === "sparkdown") {
@@ -232,7 +212,7 @@ class MockConfigurationProvider implements vscode.DebugConfigurationProvider {
       return vscode.window
         .showInformationMessage("Cannot find a program to debug")
         .then((_) => {
-          return undefined; // abort launch
+          return undefined;
         });
     }
 
@@ -337,8 +317,6 @@ class InlineDebugAdapterFactory
         const uri = pathToUri(path);
         const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
         if (workspaceFolder) {
-          // Spelled like the source paths uriToPath produces, so a source's
-          // name is its path relative to the folder on every scheme.
           return debugUriToPath(vscode.Uri, workspaceFolder.uri.toString());
         }
         return undefined;

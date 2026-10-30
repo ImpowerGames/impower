@@ -29,8 +29,6 @@ export const exportJson = async (): Promise<void> => {
   }
   SparkdownCommandTreeDataProvider.instance.notifyExportStarted("json");
   await new Promise<void>(async (resolve) => {
-    // Write a typed array as an array of numbers rather than as an object
-    // keyed by position.
     await writeFile(
       fsPath,
       JSON.stringify(program, (_key, value) =>

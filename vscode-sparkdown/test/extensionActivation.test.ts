@@ -7,7 +7,6 @@ vi.mock("../src/state/fileSystemWatcherState", () => ({
   fileSystemWatcherState: {},
 }));
 
-// Every activation step the extension runs, recorded by name.
 vi.mock("../src/context/activateContextService", () => ({
   activateContextService: () => state.activated.push("activateContextService"),
 }));

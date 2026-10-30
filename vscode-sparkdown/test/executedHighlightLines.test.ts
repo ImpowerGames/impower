@@ -1,7 +1,3 @@
-// The lines the extension highlights for what a game executed (#714): drawn
-// from the report's merged line ranges, they are the lines it highlighted when
-// the report listed every executed location, for a preview at the bottom of a
-// long scene, a preview in another scene and a running game.
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import {
   MAIN_URI,
@@ -15,9 +11,6 @@ import {
 import { describe, expect, it } from "vitest";
 import { addExecutedHighlightLines } from "../src/utils/executedHighlightLines";
 
-/** What the extension highlighted from a report that listed every location:
- *  each location's lines, sorted by start, and the lines between two of them
- *  when every one is blank or a comment. */
 const highlightedFromLocations = (
   locations: DocumentLocation[],
   lineText: (line: number) => string,
@@ -85,7 +78,6 @@ scene B
 end
 `;
 
-// Compiling the fixture and replaying its route takes seconds.
 const BLOCK_THEN_BLANK = `scene A
   Line one.
   if true then
@@ -110,14 +102,11 @@ describe("the executed line highlight", { timeout: 60_000 }, () => {
     const s = story(TWO_SCENES);
     const [report] = await previewReports(s, 9);
     const { reported, expected } = highlighted(s, report!);
-    // The blank line and the comment between `Line two.` and `Line three.`.
     expect(reported).toEqual(expect.arrayContaining([6, 7, 8, 9]));
     expect(reported).toEqual(expected);
   });
 
   it("marks the same lines when a blank line follows a block", async () => {
-    // The `if` block's location spans the line inside it, so the blank line
-    // after its `end` sits between two executed locations.
     const s = story(BLOCK_THEN_BLANK);
     for (const line of [3, 6]) {
       const [report] = await previewReports(s, line);

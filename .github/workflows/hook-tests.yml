@@ -84,10 +84,12 @@ jobs:
             /scripts/
             /.github/scripts/
             /.github/ISSUE_TEMPLATE/
-            /.github/workflows/test-suite.yml
-            /.github/workflows/comment-check.yml
-            /.github/workflows/hook-tests.yml
+            /.github/workflows/
             /.github/PULL_REQUEST_TEMPLATE.md
+            /definitions/yaml/
+            /impower-dev.cloudbuild.yaml
+            /sparkdown-player-app.cloudbuild.yaml
+            /packages/concept-generator/src/input/concepts.yaml
             /AGENTS.md
             /CLAUDE.md
             /.gitignore
@@ -102,15 +104,16 @@ jobs:
         run: node scripts/link-agent-skills.mjs
       - name: Check generated reviewer definitions
         run: node scripts/generate-reviewer-agents.mjs --check
-      - name: Install typescript so the comment policy check compares its fallback scanner with TypeScript's
+      - name: Install typescript and yaml so the comment policy check compares its fallback scanners with TypeScript's and the yaml lexer
         if: runner.os == 'Linux'
         run: |
-          npm install --prefix "$RUNNER_TEMP/typescript" --no-audit --no-fund --ignore-scripts "typescript@$(node -p "require('./package.json').devDependencies.typescript")"
+          npm install --prefix "$RUNNER_TEMP/typescript" --no-audit --no-fund --ignore-scripts "typescript@$(node -p "require('./package.json').devDependencies.typescript")" "yaml@$(node -p "require('./package.json').devDependencies.yaml")"
           mkdir -p node_modules
-          cp -R "$RUNNER_TEMP/typescript/node_modules/typescript" node_modules/
+          cp -R "$RUNNER_TEMP/typescript/node_modules/typescript" "$RUNNER_TEMP/typescript/node_modules/yaml" node_modules/
       - name: Run the skills tier of the standalone agent tooling checks
         env:
           COMMENT_POLICY_REQUIRE_TYPESCRIPT: ${{ runner.os == 'Linux' && '1' || '' }}
+          COMMENT_POLICY_REQUIRE_YAML: ${{ runner.os == 'Linux' && '1' || '' }}
         run: node scripts/check-agent-tooling.mjs --tier skills
 
   driver-checks:

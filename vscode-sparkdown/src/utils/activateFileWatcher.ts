@@ -19,7 +19,6 @@ export const activateFileWatcher = async (
         change?.contentChanges?.length > 0
       ) {
         watchFiles(context, change.document);
-        // updateStatisticsDocumentVersion(change.document.uri, change.document.version);
       }
     }),
   );

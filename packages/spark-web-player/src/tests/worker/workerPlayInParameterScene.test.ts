@@ -230,7 +230,7 @@ describe("the route to a line inside a scene that takes parameters", () => {
     searchRouteFor(game, to, log, {});
     expect(log.outcomeFor(to)?.reachedTarget).toBe(true);
     expect(log.outcomeFor(to)?.fromStart).toBe(true);
-    expect(game.plannedRoute?.from).toBe("0");
+    expect(game.plannedRoute?.from).toBe("start");
     game.updateProgram(
       compiler.compile({ textDocument: { uri: MAIN_URI } } as never).program,
     );

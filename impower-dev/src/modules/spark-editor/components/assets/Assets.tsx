@@ -26,38 +26,14 @@ export type AssetsProps = Partial<typeof propDefaults>;
 
 type Panel = "files" | "urls";
 
-// The `.url` refs live in `assets/urls/` (the URLs panel). Hide that nested
-// folder from the Files panel so each panel shows only its own category.
-// Module constant → stable identity (safe as a FileList prop).
 const URLS_DIR = "assets/urls";
 const FILES_EXCLUDE_DIRS = [URLS_DIR];
 
-/**
- * Assets pane wrapper. Top sub-tabs switch between Files and URLs panels.
- *
- * The Router uses `mode="slide-x"` (a horizontal swipe matching sparkle's
- * `<s-router directional>`). The FAB inside each FileList is tagged with
- * `viewTransitionName="assets-fab"` — that opts it OUT of the root slide
- * snapshot and into its own shared-element animation group, so visually
- * the FAB stays anchored at the bottom while the rest of the panel
- * (sub-tabs, list, empty state) slides past it.
- */
 export default function Assets(_props: AssetsProps) {
   const panel = (workspace.state.value.panes?.assets?.panel ||
     "files") as Panel;
 
-  // Collapse the FAB to an icon once the active list is scrolled off the top.
   const [fabCollapsed, setFabCollapsed] = useState(false);
-  // Dive-mode (mobile) folder scope per panel, reported by each FileList, so the
-  // create FAB drops new files INTO the folder the user is currently viewing.
-  // `""` (root) on desktop / when not scoped in. Separate `useState`s (not one
-  // object) so the setters are stable identities AND bail out when unchanged —
-  // FileList's `onScopeChange` effect depends on the callback, so an unstable one
-  // would re-fire and loop.
-  // The Assets pane's two panels map to two folders: local files under
-  // `assets/`, remote `.url` refs under `assets/urls/` (nested, mirroring the
-  // pane/panel hierarchy). Seed each panel's scope to its folder so an upload/add
-  // before the FileList reports its scope still lands in the right place.
   const [filesScope, setFilesScope] = useState("assets");
   const [urlsScope, setUrlsScope] = useState("assets/urls");
 
@@ -117,12 +93,7 @@ export default function Assets(_props: AssetsProps) {
             }
           />
         </Router>
-        {/* FAB stays anchored at the bottom — pulled out of the
-            sliding Router so it doesn't move with the panel content.
-            Single Button shell, inner icon+label cross-fade between
-            Files's "Upload Files" and URLs's "Add URL". The shell
-            stays at 100% opacity so there's no compositing-induced
-            brightness dip during the cross-fade. */}
+
         <div class="pointer-events-none absolute inset-x-0 bottom-0 h-24 [&_button]:pointer-events-auto">
           <AssetsFab
             panel={panel}
@@ -142,7 +113,6 @@ function AssetsFab({
 }: {
   panel: Panel;
   collapsed: boolean;
-  /** Current dive-mode folder (`""` = root) new files are created INTO. */
   scope: string;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -150,11 +120,6 @@ function AssetsFab({
   const disabledSig = useComputed(() => {
     const status = workspace.signals.syncStatus.value;
     return (
-      // The Files FAB also disables mid-import so a second upload can't restart
-      // the first's progress bar (asset upload doesn't flip sync.status, hence
-      // the extra check). Scoped to `files`: the URLs FAB writes an independent
-      // `.url` metadata file with no contention, so an in-flight upload must
-      // not disable it.
       (panel === "files" && workspace.importProgress.value != null) ||
       status === "syncing" ||
       status === "loading" ||
@@ -170,11 +135,7 @@ function AssetsFab({
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
     const fileArr = Array.from(fileList);
-    // Clear the input first so re-picking the same file fires `change` again; the
-    // File objects stay valid (importDroppedFiles reads bytes lazily).
     input.value = "";
-    // Upload into the panel's current folder (`scope`). importDroppedFiles owns
-    // conflict resolution, the progress bar, the write, and the undo record.
     await importDroppedFiles(
       projectId,
       fileArr.map((file) => {
@@ -187,10 +148,6 @@ function AssetsFab({
     );
   }
 
-  // Create a remote/CDN asset: write a `<name>.url` file whose CONTENT is the
-  // URL the user entered. The engine resolves `.url` files straight to that
-  // remote `src` (opfs-workspace `updateFileCache`), so it renders in-game like
-  // a local import. Goes into the `urls/` subtree (the URLs panel's scope).
   async function createUrlAsset(url: string, name: string) {
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
@@ -220,9 +177,6 @@ function AssetsFab({
       ? () => inputRef.current?.click()
       : () => setUrlDialogOpen(true);
 
-  // Collapsed: shrink to a 48px circle docked right, icon-only. The two
-  // crossfading label overlays keep their icon but collapse their text width
-  // to 0 so the icon stays centered (matching FileAddButton/FileUploadButton).
   const labelClass = `overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-200 ease-out ${
     collapsed ? "ml-0 max-w-0 opacity-0" : "ml-2 max-w-[12rem] opacity-100"
   }`;

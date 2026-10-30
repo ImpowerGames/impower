@@ -140,8 +140,6 @@ export default class WorkspacePrint {
     scripts: string[],
     onProgress?: (value: ProgressValue) => void,
   ) {
-    // Runs in the worker (see sparkdown-screenplay-pdf.ts) so fontkit's Buffer
-    // shim is available to embed only the emoji this script uses as inline SVG.
     const fonts = await this.getFonts();
     const params: ExportHTMLParams = { scripts, fonts, config: this.config };
     if (onProgress) {

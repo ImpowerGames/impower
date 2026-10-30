@@ -1,19 +1,10 @@
 // @vitest-environment jsdom
 
-// The game webview saves the script its preview shows, for VS Code to restore
-// its panel with when the workspace reopens. It had stopped saving it, so a
-// restored panel had no script to resume (#1886). These load the webview's
-// own script, with the player and its workers stubbed out, and read what it
-// hands VS Code's `setState`.
-
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
-  /** Every state the webview saved, in order. */
   saved: [] as any[],
-  /** What VS Code hands the webview from its last session. */
   restored: undefined as unknown,
-  /** Delivers a message from the extension to the webview. */
   receive: (_message: unknown) => {},
 }));
 
@@ -69,7 +60,6 @@ const select = (uri: string, userEvent: boolean) => ({
   },
 });
 
-/** The player reporting its canvas height, as it bubbles up to the window. */
 const resized = (height: number) => {
   document.body.dispatchEvent(
     new CustomEvent("jsonrpc", {
@@ -81,12 +71,8 @@ const resized = (height: number) => {
 
 const lastSaved = () => state.saved.at(-1);
 
-/** Load the webview's script, as VS Code does when a panel opens or is
- *  restored, handing it what `restored` holds. */
 const load = async () => {
   vi.resetModules();
-  // The scripts of earlier tests still listen on the window, so each load
-  // records into its own list.
   const saves: unknown[] = [];
   state.saved = saves;
   (globalThis as any).acquireVsCodeApi = () => ({

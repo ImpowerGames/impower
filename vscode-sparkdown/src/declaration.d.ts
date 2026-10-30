@@ -1,6 +1,3 @@
-// esbuild inlines these as strings through the repo's loader plugin. The `?tw`
-// and `?raw` suffixes select a loader; they still resolve to a string.
-
 declare module "*.css" {
   const value: string;
   export default value;

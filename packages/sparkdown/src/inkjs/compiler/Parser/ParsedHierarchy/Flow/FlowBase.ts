@@ -91,7 +91,7 @@ function definitionSite(
   parentFlow: FlowBase,
   flow: FlowBase,
 ): { parent: ParsedObject; end: number } | null {
-  const root = parentFlow._rootWeave;
+  const root = parentFlow._weave;
   const start = flow.ownDebugMetadata ?? flow.identifier?.debugMetadata;
   if (!root || !start) {
     return null;
@@ -307,7 +307,7 @@ type VariableResolveResult = {
 export abstract class FlowBase extends ParsedObject implements INamedContent {
   public abstract readonly flowLevel: FlowLevel;
 
-  public _rootWeave: Weave | null = null;
+  public _weave: Weave | null = null;
   // Set when the flow's own declaration holds its whole body, closed by its
   // `end` or by a following `scene` or `branch`, so the chunks after the
   // declaration are not part of it.
@@ -473,8 +473,8 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     const finalContent: ParsedObject[] = [];
 
     if (weaveObjs.length > 0) {
-      this._rootWeave = new Weave(weaveObjs, 0);
-      finalContent.push(this._rootWeave);
+      this._weave = new Weave(weaveObjs, 0);
+      finalContent.push(this._weave);
     }
 
     if (subFlowObjs.length > 0) {
@@ -869,8 +869,8 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   public ResolveWeavePointNaming = (): void => {
     // Find all weave points and organise them by name ready for
     // diverting. Also detect naming collisions.
-    if (this._rootWeave) {
-      this._rootWeave.ResolveWeavePointNaming();
+    if (this._weave) {
+      this._weave.ResolveWeavePointNaming();
     }
 
     for (const [, value] of this._subFlowsByName) {
@@ -930,19 +930,10 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         this.ReportReturnOutsideFunction(foundReturn);
       }
     } else if (this.flowLevel === FlowLevel.Story) {
-      // Explicit Luau return nodes are only valid inside a function body:
-      // their PopFunction needs an active function-call frame. Bare return
-      // lines in narrative scope are ordinary prose and produce no return
-      // node; misplaced marked returns are validated at runtime export.
-      //
-      // `_rootWeave` holds the Story's free-floating top-level content
-      // (everything outside a `scene` / `branch` / `function`). Search the
-      // weave with the same ownership predicate as child flows, so returns
-      // belonging to functions remain valid.
-      if (this._rootWeave !== null) {
+      if (this._weave !== null) {
         const rootReturn =
-          this._rootWeave.Find(ReturnType)(belongsToThisFlow) ??
-          this._rootWeave.Find(MultiReturnType)(belongsToThisFlow);
+          this._weave.Find(ReturnType)(belongsToThisFlow) ??
+          this._weave.Find(MultiReturnType)(belongsToThisFlow);
         if (rootReturn !== null) {
           this.ReportReturnOutsideFunction(rootReturn);
         }
@@ -1011,11 +1002,9 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       }
     }
 
-    // Weave points live in this._rootWeave and are at level WeavePoint.
-    // They satisfy any `level <= WeavePoint` search.
     if (ambiguousLevel || level! <= FlowLevel.WeavePoint) {
-      if (this._rootWeave) {
-        const weavePointResult = this._rootWeave.WeavePointNamed(
+      if (this._weave) {
+        const weavePointResult = this._weave.WeavePointNamed(
           name,
         ) as ParsedObject;
         if (weavePointResult) {
@@ -1143,16 +1132,11 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       );
     }
 
-    // Empty function bodies (`function() end`) produce no _rootWeave
-    // — there's no content to construct one from. That's a valid Lua
-    // form (returns nothing, takes no effect), so just skip the
-    // contained-divert / contained-return checks below; there's
-    // nothing to check.
-    if (!this._rootWeave) {
+    if (!this._weave) {
       return;
     }
 
-    const allDiverts = this._rootWeave.FindAll<Divert>(Divert)();
+    const allDiverts = this._weave.FindAll<Divert>(Divert)();
     for (const divert of allDiverts) {
       if (!divert.isFunctionCall && !(divert.parent instanceof DivertTarget)) {
         // Allow non-function-call diverts whose target is a weave point
@@ -1171,7 +1155,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       }
     }
 
-    const allChoices = this._rootWeave.FindAll<Choice>(Choice)();
+    const allChoices = this._weave.FindAll<Choice>(Choice)();
     for (const choice of allChoices) {
       this.Error(
         `Functions may not contain choices, but saw \`${choice}\``,
@@ -1188,13 +1172,13 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   public readonly divertTargetsInternalWeavePoint = (
     divert: Divert,
   ): boolean => {
-    if (!this._rootWeave) return false;
+    if (!this._weave) return false;
     const target = divert.target;
     if (!target || target.numberOfComponents !== 1) return false;
     const targetName = target.firstComponent;
     if (!targetName) return false;
-    if (this._rootWeave.WeavePointNamed(targetName)) return true;
-    const nestedWeaves = this._rootWeave.FindAll<Weave>(Weave)();
+    if (this._weave.WeavePointNamed(targetName)) return true;
+    const nestedWeaves = this._weave.FindAll<Weave>(Weave)();
     for (const w of nestedWeaves) {
       if (w.WeavePointNamed(targetName)) return true;
     }
@@ -1204,7 +1188,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   public readonly WarningInTermination = (terminatingObject: ParsedObject) => {
     let message: string =
       "Apparent loose end exists where the flow runs out. Do you need a '-> DONE' statement, choice or divert?";
-    if (terminatingObject.parent === this._rootWeave && this._firstChildFlow) {
+    if (terminatingObject.parent === this._weave && this._firstChildFlow) {
       message = `${message} Note that if you intend to enter \`${this._firstChildFlow.identifier}\` next, you need to divert to it explicitly.`;
     }
 
