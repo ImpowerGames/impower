@@ -1,12 +1,3 @@
-// Rule: `tag` and `name` appear together on grammar rules, both ways. Per
-// GRAMMAR.md §8, the two attributes target different renderers
-// (Lezer/CodeMirror vs VS Code's TextMate engine) and one can't be
-// inferred from the other: a rule with only one of them highlights in one
-// editor and not the other.
-//
-// A `name:` without a `tag:` is baselined per owner (see
-// utils/baseline.ts) for the region rules that predate this check.
-
 import { BASELINE_NOTE, defineBaselinedRule, type Finding } from "../utils/baseline.ts";
 import { findPair } from "../utils/yaml-ast.ts";
 import { getGrammarIndex } from "../utils/grammar-index.ts";

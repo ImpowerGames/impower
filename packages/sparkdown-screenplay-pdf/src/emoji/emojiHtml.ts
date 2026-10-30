@@ -1,22 +1,7 @@
 import EmojiSvgProvider from "./EmojiSvgProvider";
 
-/**
- * Builds an HTML emoji inliner that embeds ONLY the emoji actually used by a
- * script, as vector SVG — the equivalent of a per-export font subset without
- * needing to subset the (color) font itself (fontkit can't subset COLR/SVG).
- *
- * Each unique emoji becomes one CSS rule carrying its own `data:` SVG document,
- * referenced by class, so a repeated emoji costs nothing extra. The real emoji
- * character stays in the DOM at `opacity:0` (invisible but still selectable and
- * copy-pasteable, and it reserves the correct width); our vector art is painted
- * on top via `::after`. `color:transparent` would NOT work here — color-emoji
- * fonts ignore `color` — but `opacity` applies to everything.
- */
-
 export interface EmojiHtmlInliner {
-  /** Replace emoji clusters in already-generated screenplay HTML. */
   inline(html: string): string;
-  /** `<style>` block for the emoji used so far; "" if none. Call after inline. */
   styleAndDefs(): string;
 }
 
@@ -32,9 +17,6 @@ const BASE_CSS = `.spark-emoji{position:relative;display:inline-block;line-heigh
 .spark-emoji::after{content:"";position:absolute;inset:0;background-position:center;background-size:contain;background-repeat:no-repeat}`;
 
 const svgToDataUrl = (svg: string): string =>
-  // encodeURIComponent escapes ", #, <, > etc., so the result is safe inside a
-  // double-quoted CSS url(). Gradient url(#id) parens survive (harmless in a
-  // quoted string) and every emoji's SVG is its own document, so ids never clash.
   `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 
 export const createEmojiHtmlInliner = (
@@ -59,8 +41,6 @@ export const createEmojiHtmlInliner = (
     EMOJI_REGEX!.lastIndex = 0;
     return html.replace(EMOJI_REGEX!, (cluster) => {
       const run = provider.getEmojiRun(cluster);
-      // Only handle clusters that resolve to a single drawable glyph; leave
-      // anything unusual as plain text (falls back to the OS emoji font).
       if (run.glyphs.length !== 1) {
         return cluster;
       }

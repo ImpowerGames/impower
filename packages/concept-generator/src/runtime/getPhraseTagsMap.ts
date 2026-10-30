@@ -1,13 +1,5 @@
 import { getSubphrases } from "../utils/getSubphrases";
 
-/**
- * Get all tags associated with a phrase
- *
- * @param phrase The phrase
- * @param termTagsMap A map of terms -> tags related to that term
- *
- * @returns A map of phrases -> tags related to that phrase
- */
 const getPhraseTagsMap = (
   phrases: string[],
   termTagsMap: { [term: string]: string[] },

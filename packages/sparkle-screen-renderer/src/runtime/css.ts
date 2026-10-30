@@ -73,16 +73,14 @@ const PSEUDO_ALIASES = {
   "@view_transition": "@view-transition",
 } as const;
 
-/* -------- 2.  @pseudo-aliases combined into ONE RegExp ------------- */
 const PSEUDO_ALIAS_REGEX = new RegExp(
   Object.keys(PSEUDO_ALIASES)
     .map((k) => k.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&"))
-    .sort((a, b) => b.length - a.length) // longest first (avoids partial hits)
+    .sort((a, b) => b.length - a.length)
     .join("|"),
   "g",
 );
 
-/* -------- 1.  breakpoint → RegExp cache ---------------------------- */
 const _breakpointRegexCache: Record<string, RegExp> = {};
 function breakpointRegex(name: string) {
   return (
@@ -95,29 +93,25 @@ export function sparkleSelectorToCssSelector(
   selector: string,
   breakpoints: Record<string, number> = DEFAULT_BREAKPOINTS,
 ): string {
-  // Split by quoted strings so we never touch them (= valid CSS)
   const OUT: string[] = [];
   const parts = selector.split(/(["](?:\\.|[^"])*["]|['](?:\\.|[^'])*['])/);
 
   for (let idx = 0; idx < parts.length; idx++) {
     const piece = parts[idx]!;
     if (idx & 1) {
-      // quoted -> keep verbatim
       OUT.push(piece);
       continue;
     }
 
-    // Expand @aliases, and treat >> as descendant operator, assume identifiers that are not prefixed with a symbol are .classes
     let rewritten = piece
-      .replace(ATTRIBUTE_SELECTOR_REGEX, "[$1]") // #a=value → [a=value]
-      .replace(SPACE_BEFORE_IDENTIFIER_REGEX, ".") // a b c → .a.b.c
-      .replace(SPACE_BEFORE_SELECTOR_OPERATOR_REGEX, "") // [a] [b] [c] → [a][b][c]
-      .replace(DESCENDANT_REGEX, " ") // a >> b >> c → a b c
+      .replace(ATTRIBUTE_SELECTOR_REGEX, "[$1]")
+      .replace(SPACE_BEFORE_IDENTIFIER_REGEX, ".")
+      .replace(SPACE_BEFORE_SELECTOR_OPERATOR_REGEX, "")
+      .replace(DESCENDANT_REGEX, " ")
       .replace(PSEUDO_ALIAS_REGEX, (m) =>
         m in PSEUDO_ALIASES ? (PSEUDO_ALIASES as any)[m] : ":" + m.slice(1),
-      ); // @hovered → :hover
+      );
 
-    // Replace breakpoint selector
     for (const [name, px] of Object.entries(breakpoints)) {
       rewritten = rewritten.replace(breakpointRegex(name), `width:${px}px)`);
     }

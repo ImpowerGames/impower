@@ -1,9 +1,3 @@
-// One-off helper: fetch specific Tabler outline icons and normalize them to the
-// local single-path svg format (matching the existing file-type-*.svg files),
-// then write them into ./svg so `npm run gen:icons` picks them up.
-//
-// Usage: node import-tabler.mjs <icon-name> [<icon-name> ...]
-// Re-runnable; overwrites existing files.
 import { writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,9 +21,6 @@ for (const name of names) {
     continue;
   }
   const raw = await res.text();
-  // Collect every <path>'s d, skipping the decorative bounding-box path
-  // (the only one carrying stroke="none"). Dedupe identical subpaths (some
-  // Tabler icons repeat the folded-corner path).
   const seen = new Set();
   const ds = [];
   for (const m of raw.matchAll(/<path\b([^>]*)>/g)) {

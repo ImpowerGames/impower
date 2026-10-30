@@ -1,10 +1,3 @@
-// Rule: a `tag:` value must parse with the parseTag mini-syntax AND
-// every name referenced (base tag + wrapper functions) must exist in
-// `@lezer/highlight`'s `tags` namespace. Mirrors the runtime
-// `parseTag()` in `packages/codemirror-vscode-language/src/utils/parseTag.ts`
-// so authors get fast feedback instead of a cryptic CodeMirror highlight-
-// builder failure at boot time.
-
 import type { Rule } from "eslint";
 import { tags as lezerTags } from "@lezer/highlight";
 import {

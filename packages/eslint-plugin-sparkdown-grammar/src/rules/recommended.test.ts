@@ -1,7 +1,3 @@
-// End to end: the recommended configuration with the committed baseline
-// passes the grammar as it is, and fails it once a rule gains a new
-// unjustified lookaround.
-
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
@@ -28,7 +24,6 @@ test("the grammar has no findings beyond the baseline", () => {
 });
 
 test("a new negative lookahead in the grammar is an error", () => {
-  // `Newline` carries no lookaround and no baseline entry.
   const changed = GRAMMAR.replace(
     /^( {2}Newline:\n(?: {4}.*\n)*? {4}match: )(.*)$/m,
     "$1(?!zz)$2",

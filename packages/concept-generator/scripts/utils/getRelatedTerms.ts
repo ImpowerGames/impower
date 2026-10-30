@@ -50,16 +50,12 @@ export const getRelatedTerms = async (
   const conceptVecs: { [tag: string]: number[] } = {};
   targetTags.forEach((tag, index) => {
     onProgress?.(index, total);
-    // Get all existing related terms to this tag,
-    // making sure to unpack any referential tags (i.e. tags that start with "^")
     conceptVecs[tag] = vectorizeTag(tag, targetConcepts, wordVecs);
   });
 
   const unpackedConcepts: { [tag: string]: string[] } = {};
   targetTags.forEach((tag, index) => {
     onProgress?.(targetTags.length + index, total);
-    // Get all existing related terms to this tag in all it's possible forms
-    // (past/present/future tenses, possessive, negated, etc.)
     unpackedConcepts[tag] = unpackTag(tag, targetConcepts, true);
   });
 
@@ -71,13 +67,8 @@ export const getRelatedTerms = async (
       const tagVec = wordVecs[tag] || [];
       const conceptVec = conceptVecs[tag] || [];
       if (wordVec) {
-        // This vector captures the conceptual nature of a tag
         const literalSim = similarity(wordVec, conceptVec);
-        // This vector captures the figurative/lingual nature of a tag
         const figurativeSim = similarity(wordVec, tagVec);
-        // To maximize the potential for puns and double entendres
-        // we want to include tags that are similar both literally OR figuratively
-        // therefore, we use the max similarity of both.
         pairs.push([tag, Math.max(literalSim, figurativeSim)]);
       }
     });

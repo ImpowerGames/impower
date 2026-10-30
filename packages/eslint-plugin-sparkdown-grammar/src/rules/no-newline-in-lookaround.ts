@@ -1,39 +1,3 @@
-// Rule: GRAMMAR.md §11.5, no lookaround may look past its line's break.
-// VS Code's TextMate engine tokenizes one line at a time, and the web
-// editor hands the tokenizer one line at a time too, so a lookaround that
-// wants to read content from the previous or next line never sees it
-// there, while the compiler, which parses whole slices of the document,
-// does. The result is highlighting and the editor's tree diverging from
-// the compiler's tree.
-//
-// Each rule's `match`, `begin` and `end` is checked with its `{{NAME}}`
-// references expanded, since a lookaround and the line break inside it can
-// sit on either side of a variable reference, and a variable's own
-// lookarounds take effect only where a rule uses it. Three shapes fail:
-//
-// 1. `\s` inside any lookaround. `\s` matches `\n` along with horizontal
-//    whitespace, so it skips whitespace across lines. Use `{{WS}}`
-//    (horizontal whitespace only), or restructure the rule so the
-//    cross-line consumption happens inside the scope's `patterns:` list.
-//
-// 2. A line break (`\n`, `\r`, `{{NL}}`, or a character class holding one)
-//    inside a lookbehind, which would look back into the previous line.
-//
-// 3. A line break inside a lookahead with more pattern after it in that
-//    lookahead (`(?={{NL}}\S)`), which reads the next line's content, or
-//    repeated there (`(?=\n{2})`, `(?=(?:\n)+)`), which needs a second
-//    line. A line break that ends its lookahead once (`(?=\r\n|\r|\n)`,
-//    `(?=$|{{NL}})`) is an anchor at the line's own end and passes.
-//
-// A line break is `\n`, `\r`, or a class that names one or `\s`
-// (`[\r\n]`, `[\s]`). A rule that should
-//    stop before a line that begins with something ends at the start of
-//    that line instead (`^(?=…)`), which each tokenizer decides on that
-//    line alone.
-//
-// A negated class such as `[^)]`, which matches a line break without
-// naming one, is `no-line-crossing-class`'s to report.
-
 import { defineBaselinedRule, BASELINE_NOTE, type Finding } from "../utils/baseline.ts";
 import { getGrammarIndex } from "../utils/grammar-index.ts";
 import { regexGroups, scanRegex, type RegexGroup } from "../utils/regex-scan.ts";
@@ -42,7 +6,6 @@ import { siteLabel } from "./lookaround-needs-rival-comment.ts";
 import { expand, isLookahead, isLookbehind, readsOnAfter, repeats } from "./no-line-crossing-class.ts";
 
 interface Hit {
-  // Offset and length in the expanded pattern.
   start: number;
   length: number;
   label: string;
@@ -50,13 +13,11 @@ interface Hit {
 
 const isLineBreakEscape = (text: string) => text === "\\n" || text === "\\r";
 
-// The hits in an expanded pattern.
 function findHits(source: string): Hit[] {
   const hits: Hit[] = [];
   const groups = regexGroups(source);
   const enclosing = (at: number) => groups.filter((g) => g.start < at && g.end > at);
   const tokens = [...scanRegex(source)];
-  // One hit per lookaround: `{{NL}}` alone holds three line breaks.
   const reported = new Set<number>();
   const lineBreak = (start: number, end: number, label: string, within: RegexGroup[]) => {
     const lookaround = within.filter((g) => isLookahead(g) || isLookbehind(g)).sort((a, b) => b.start - a.start)[0];
@@ -86,7 +47,6 @@ function findHits(source: string): Hit[] {
       continue;
     }
     if (isLineBreakEscape(tok.text)) {
-      // `\r\n` is one line break.
       const next = tokens[i + 1];
       const pair = tok.text === "\\r" && next?.text === "\\n" && next.index === tok.index + 2;
       const end = tok.index + (pair ? 4 : 2);
@@ -95,16 +55,6 @@ function findHits(source: string): Hit[] {
       continue;
     }
     if (tok.text === "[") {
-      // A class that names a line break (`[\r\n]`), or, in a lookahead,
-      // `\s` (`[\s]`); a negated class is `no-line-crossing-class`'s. A
-      // class with `\s` in a lookbehind is reported when it repeats there
-      // (`(?<=[\s]{2})`), which reads past the character before the
-      // position into the line above. Read once, it reads only that
-      // character, and at the start of a line there is none in either
-      // engine: textmate-grammar-tree matches each regex against its own
-      // line, as vscode-textmate does, so a single `\s` lookbehind never
-      // reads the line above (`LuauSparkleEventClosureAttribute` and
-      // `LuauDocParamModifier` use one).
       let close = i + 1;
       while (close < tokens.length && !(tokens[close]!.text === "]" && tokens[close]!.inCharClass)) close++;
       const closeToken = tokens[close];
@@ -141,7 +91,6 @@ const { rule, find } = defineBaselinedRule(
     const index = getGrammarIndex(context);
     const findings: Finding[] = [];
     for (const site of index.patternSites) {
-      // A variable is checked where a rule uses it, with the pattern around it.
       if (site.owner.kind === "variable") continue;
       const expanded = expand(site.source, index);
       for (const hit of findHits(expanded.text)) {

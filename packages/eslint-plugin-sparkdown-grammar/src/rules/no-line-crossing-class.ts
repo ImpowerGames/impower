@@ -1,22 +1,3 @@
-// Rule: GRAMMAR.md §11.5, "no single `begin:`, `end:`, or `match:`
-// pattern can extend past that `\n` into the next line's content". A
-// negated character class such as `[^()]` also matches a line break, so
-// a pattern that repeats it, or reads on after it, can read the lines
-// below its own: VS Code and the web editor, which hand the tokenizer
-// one line at a time, never see them, and an incremental reparse keeps
-// the token although an edit on a later line changes what the pattern
-// read (#1583). Adding `\r\n` to the class keeps it on its line.
-//
-// Each rule's `match`, `begin` and `end` is checked with its `{{NAME}}`
-// references expanded, since a class and the repetition that carries it
-// over the break can sit on either side of a variable reference. A class
-// that matches `\n` is reported when it is repeated (`*`, `+`,
-// `{n,}`), sits in a repeated group, or has more pattern after it before
-// its lookahead or the whole pattern ends. A class whose match can only be
-// the line's own break (`(?=[^{])`) passes, and so does a class inside a
-// lookbehind, which reads backwards. No variable is exempt: since I-1283
-// neither engine lets a pattern read past its line.
-
 import { BASELINE_NOTE, defineBaselinedRule, type Finding } from "../utils/baseline.ts";
 import { getGrammarIndex, type GrammarIndex } from "../utils/grammar-index.ts";
 import { isScalar, isSequence, rangeInScalar, type YAMLNode } from "../utils/yaml-ast.ts";
@@ -25,7 +6,6 @@ import { siteLabel } from "./lookaround-needs-rival-comment.ts";
 
 interface CharClass {
   start: number;
-  // Offset of the closing `]`.
   end: number;
   text: string;
 }
@@ -44,11 +24,6 @@ function charClasses(source: string): CharClass[] {
   return classes;
 }
 
-// Whether a negated class matches `\n`. A lone `\r` never reaches the
-// compiler's tokenizer, since `SparkdownDocumentRegistry` turns every line
-// break into `\n`, and in a `\r\n` break the `\n` still stops the class;
-// many classes in the grammar exclude only `\n` for that reason. A class
-// JavaScript cannot compile is left alone.
 export function negatedClassMatchesLineBreak(text: string): boolean {
   if (!text.startsWith("[^")) return false;
   for (const flags of ["u", ""]) {
@@ -59,7 +34,6 @@ export function negatedClassMatchesLineBreak(text: string): boolean {
   return false;
 }
 
-// Whether a quantifier at `at` lets the atom before it repeat.
 export function repeats(source: string, at: number): boolean {
   const ch = source[at];
   if (ch === "*" || ch === "+") return true;
@@ -72,7 +46,6 @@ export function repeats(source: string, at: number): boolean {
   return false;
 }
 
-// The offset just past a quantifier (and its lazy `?`) at `at`, or `at`.
 function skipQuantifier(source: string, at: number): number {
   let i = at;
   const ch = source[i];
@@ -94,19 +67,14 @@ export const isLookbehind = (g: RegexGroup) =>
 export const isLookahead = (g: RegexGroup) =>
   g.kind === "lookahead" || g.kind === "negative-lookahead";
 
-// Whether the pattern can read on after the atom that ends at `after`
-// (the offset just past it): something other than the end of its
-// lookahead or of the whole pattern comes next.
 export function readsOnAfter(source: string, after: number, groups: RegexGroup[]): boolean {
   let i = skipQuantifier(source, after);
   for (;;) {
     if (i >= source.length) return false;
     const ch = source[i];
     if (ch !== ")" && ch !== "|") return true;
-    // The innermost group still open at `i`.
     const group = groups.filter((g) => g.start < i && g.end >= i).sort((a, b) => b.start - a.start)[0];
     if (!group) {
-      // A top-level `|` ends this branch: nothing more is read after it.
       return false;
     }
     if (isLookahead(group)) return false;
@@ -114,13 +82,10 @@ export function readsOnAfter(source: string, after: number, groups: RegexGroup[]
   }
 }
 
-// Whether a class at `cls` lets the pattern `source` read past the line.
 function crossesLine(source: string, cls: CharClass, groups: RegexGroup[]): boolean {
   if (!negatedClassMatchesLineBreak(cls.text)) return false;
   const enclosing = groups.filter((g) => g.start < cls.start && g.end > cls.end);
   if (enclosing.some(isLookbehind)) return false;
-  // Only the groups inside the innermost lookahead repeat what the
-  // lookahead reads.
   const lookahead = enclosing.filter(isLookahead).sort((a, b) => b.start - a.start)[0];
   const repeatable = enclosing.filter((g) => !lookahead || g.start > lookahead.start);
   return (
@@ -130,10 +95,6 @@ function crossesLine(source: string, cls: CharClass, groups: RegexGroup[]): bool
   );
 }
 
-// A pattern with its variable references expanded. For each character of
-// `text`, `rawOffset` is its offset in the written pattern (or -1 when a
-// variable brought it in) and `variables` the references it came through,
-// outermost first.
 export interface Expanded {
   text: string;
   rawOffset: number[];
@@ -142,8 +103,6 @@ export interface Expanded {
 
 const REFERENCE = /\{\{([A-Za-z0-9_]+)\}\}/g;
 
-// A variable's value as the build substitutes it: a sequence becomes
-// `\b(?:a|b)\b`.
 function variableValue(value: YAMLNode | null): string | null {
   if (isScalar(value) && typeof value.value === "string") return value.value;
   if (isSequence(value)) {
@@ -173,8 +132,6 @@ export function expand(source: string, index: GrammarIndex): Expanded {
       last = at + match[0].length;
       const value = chain.includes(name) ? null : variableValue(index.variables.get(name)?.value ?? null);
       if (value === null) {
-        // An undefined name or a cycle stays a literal token, as the build
-        // reports it.
         push(at, last);
       } else {
         visit(value, [...chain, name], false);
@@ -201,7 +158,6 @@ const { rule, find } = defineBaselinedRule(
     const index = getGrammarIndex(context);
     const findings: Finding[] = [];
     for (const site of index.patternSites) {
-      // A variable is checked where a rule uses it, with the pattern around it.
       if (site.owner.kind === "variable") continue;
       const expanded = expand(site.source, index);
       const groups = regexGroups(expanded.text);

@@ -125,7 +125,7 @@
 
 :host > .root > .form > .article {
   overflow-y: auto;
-  max-block-size: 100%; /* safari */
+  max-block-size: 100%;
   overscroll-behavior-y: contain;
   display: flex;
   justify-items: flex-start;

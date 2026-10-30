@@ -26,9 +26,6 @@ const getCollapsedIconOffset = (
   return buttonX - iconX - iconWidth / 4 + buttonPaddingLeft;
 };
 
-/**
- * Collapsibles can be used to collapse child buttons so that only their icon is visible.
- */
 export default class Collapsible extends SparkleComponent(spec) {
   protected _buttonEl: HTMLElement | null = null;
 

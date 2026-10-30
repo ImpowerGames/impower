@@ -1,11 +1,7 @@
 import { SparkleComponent } from "../../core/sparkle-component";
 import spec from "./_scroll-blocker";
 
-/**
- * A Scroll Blocker to prevent page scrolls on safari when the on-screen keyboard is visible.
- * This component is literally just an empty and invisible button that you can stick inside positioned elements
- * (Because this hackery is the kind of shit that Safari forces us to resort to.)
- */
+// workaround(safari): the page scrolls behind positioned elements while the on-screen keyboard is visible; an invisible button blocks it
 export default class ScrollBlocker extends SparkleComponent(spec) {
   override onConnected() {
     this.root.addEventListener("click", this.handleClick);
