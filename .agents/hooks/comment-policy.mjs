@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const configFile = "comment-policy.json";
 const config = JSON.parse(fs.readFileSync(path.join(here, configFile), "utf8"));
-const directives = config.directives.map((d) => ({ form: new RegExp(d.form), extensions: d.extensions }));
+const directives = config.directives.filter((d) => d.form).map((d) => ({ form: new RegExp(d.form), extensions: d.extensions }));
+const commentDirectives = config.directives.filter((d) => d.comment).map((d) => ({ form: new RegExp(d.comment), extensions: d.extensions }));
 const licences = config.licences.map((l) => ({ form: new RegExp(l.form, "m"), file: l.file }));
 const platforms = new Set(config.platforms);
 
@@ -768,7 +769,47 @@ function licenceNotice(lines) {
   return licences.some(({ form }) => form.test(body));
 }
 
-const POWERSHELL_HELP_KEYWORD = /^\.(?:SYNOPSIS|DESCRIPTION|PARAMETER|EXAMPLE|INPUTS|OUTPUTS|NOTES|LINK|COMPONENT|ROLE|FUNCTIONALITY|FORWARDHELPTARGETNAME|FORWARDHELPCATEGORY|REMOTEHELPRUNSPACE|EXTERNALHELP)(?:\s|$)/i;
+const POWERSHELL_HELP_ARGUMENT = new Map([
+  ["SYNOPSIS", false], ["DESCRIPTION", false], ["PARAMETER", true], ["EXAMPLE", false], ["INPUTS", false], ["OUTPUTS", false],
+  ["NOTES", false], ["LINK", false], ["COMPONENT", false], ["ROLE", false], ["FUNCTIONALITY", false],
+  ["FORWARDHELPTARGETNAME", true], ["FORWARDHELPCATEGORY", true], ["REMOTEHELPRUNSPACE", true], ["EXTERNALHELP", true],
+]);
+const POWERSHELL_HELP = "comment-based help Get-Help reads";
+
+function powershellHelp(text) {
+  if (!text.startsWith("<#") || !text.endsWith("#>")) return false;
+  let keywords = 0;
+  for (const raw of text.slice(2, -2).split(/\r?\n/)) {
+    const line = raw.trim();
+    const keyword = /^\.([A-Za-z]+)(?:[ \t]+(\S.*))?$/.exec(line);
+    if (!keyword) {
+      if (line && !keywords) return false;
+      continue;
+    }
+    const argument = POWERSHELL_HELP_ARGUMENT.get(keyword[1].toUpperCase());
+    if (argument === undefined || argument !== Boolean(keyword[2])) return false;
+    keywords++;
+  }
+  return keywords > 0;
+}
+
+function codeOutside(text, comments, from, to) {
+  let code = "", at = from;
+  for (const c of comments) {
+    if (c.end <= from || c.start >= to) continue;
+    code += text.slice(at, Math.max(at, c.start));
+    at = Math.max(at, c.end);
+  }
+  return code + text.slice(at, to);
+}
+
+function powershellHelpPlaced(text, comment, comments) {
+  const before = codeOutside(text, comments, 0, comment.start);
+  const after = codeOutside(text, comments, comment.end, text.length);
+  if (!before.trim() || !after.trim()) return true;
+  if (/^[ \t]*(?:\r?\n[ \t]*){1,2}(?:function|filter|workflow)[ \t]/i.test(after)) return true;
+  return /(?:^|\n)[ \t]*(?:function|filter|workflow)[ \t]+[^\s{(]+[^{\n]*\{\s*$/i.test(before);
+}
 
 const JS_DOC_EXTENSIONS = new Set([".js", ".mjs", ".cjs"]);
 
@@ -826,7 +867,8 @@ export function classifyComment(text, file, options = {}) {
     const parsed = ts && jsdocTags(ts, text);
     if (parsed?.tags.length && !parsed.prose && parsed.tags.every((t) => t.read)) return { kind: "directive", reason: "JSDoc tags TypeScript reads" };
   }
-  if (extension === ".ps1" && text.startsWith("<#") && POWERSHELL_HELP_KEYWORD.test(lines[0])) return { kind: "directive", reason: "comment-based help Get-Help reads" };
+  if (extension === ".ps1" && powershellHelp(text)) return { kind: "directive", reason: POWERSHELL_HELP };
+  if (commentDirectives.some((d) => (!d.extensions || d.extensions.includes(extension)) && d.form.test(text))) return { kind: "directive", reason: "a directive a tool reads" };
   if (lines.every((line) => directiveLine(line, extension))) return { kind: "directive", reason: "a directive a tool reads" };
   return { kind: "refused", reason: "neither a directive a tool reads nor a `workaround(<name>):` note" };
 }
@@ -841,6 +883,7 @@ export function judgeComments(text, file, options = {}) {
   let previous = null;
   for (const comment of comments) {
     Object.assign(comment, classifyComment(comment.text, file, options));
+    if (comment.reason === POWERSHELL_HELP && !powershellHelpPlaced(text, comment, comments)) Object.assign(comment, { kind: "refused", reason: "comment-based help where Get-Help does not read it" });
     if (comment.kind === "refused" && previous?.kind === "workaround" && single(comment) && single(previous) && comment.line === previous.endLine + 1 && comment.column === previous.column) {
       comment.kind = "workaround";
       comment.reason = `continues the workaround note on line ${previous.line}`;
