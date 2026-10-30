@@ -22,7 +22,7 @@ interface Found {
 
 function diagnosticsOf(text: string): Found[] {
   const lines = text.split("\n");
-  return (compile(text).diagnostics?.[URI] ?? []).map((d) => {
+  return (compile(`${text}\nscene start\nend\n`).diagnostics?.[URI] ?? []).map((d) => {
     const { start, end } = d.range;
     return {
       message: typeof d.message === "string" ? d.message : d.message.value,
