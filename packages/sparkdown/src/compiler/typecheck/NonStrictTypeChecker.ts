@@ -291,7 +291,8 @@ class NonStrictTypeChecker {
   visitStatBlock(block: AstStatBlock): NonStrictContext {
     this.nonStrictRecursionCount++;
     try {
-      if (NON_STRICT_TYPE_CHECKER_RECURSION_LIMIT > 0 && this.nonStrictRecursionCount >= NON_STRICT_TYPE_CHECKER_RECURSION_LIMIT) {
+      const limit = this.limits.nonStrictRecursionLimit ?? NON_STRICT_TYPE_CHECKER_RECURSION_LIMIT;
+      if ((this.limits.addRecursionCounterToNonStrictTypeChecker ?? true) && limit > 0 && this.nonStrictRecursionCount >= limit) {
         return new NonStrictContext();
       }
 
@@ -447,7 +448,8 @@ class NonStrictTypeChecker {
   visitExpr(expr: AstExpr, context: ValueContext): NonStrictContext {
     this.nonStrictRecursionCount++;
     try {
-      if (NON_STRICT_TYPE_CHECKER_RECURSION_LIMIT > 0 && this.nonStrictRecursionCount >= NON_STRICT_TYPE_CHECKER_RECURSION_LIMIT) {
+      const limit = this.limits.nonStrictRecursionLimit ?? NON_STRICT_TYPE_CHECKER_RECURSION_LIMIT;
+      if ((this.limits.addRecursionCounterToNonStrictTypeChecker ?? true) && limit > 0 && this.nonStrictRecursionCount >= limit) {
         return new NonStrictContext();
       }
 
@@ -653,7 +655,8 @@ class NonStrictTypeChecker {
   visitExprTable(table: AstExprTable): NonStrictContext {
     this.nonStrictRecursionCount++;
     try {
-      if (NON_STRICT_TYPE_CHECKER_RECURSION_LIMIT > 0 && this.nonStrictRecursionCount >= NON_STRICT_TYPE_CHECKER_RECURSION_LIMIT) {
+      const limit = this.limits.nonStrictRecursionLimit ?? NON_STRICT_TYPE_CHECKER_RECURSION_LIMIT;
+      if ((this.limits.addRecursionCounterToNonStrictTypeChecker ?? true) && limit > 0 && this.nonStrictRecursionCount >= limit) {
         return new NonStrictContext();
       }
 
@@ -727,6 +730,12 @@ class NonStrictTypeChecker {
   }
 
   visitTypeReference(ty: AstTypeReference): void {
+    // NonStrictTypeChecker.cpp:927–937 at 7d5f733. This is an actual
+    // checker diagnostic, not a fixture-supplied expected result.
+    if (this.limits.debugMagicTypes && ty.name === "_luau_force_constraint_solving_incomplete") {
+      this.reportError({ kind: "ConstraintSolvingIncompleteError" }, ty.location);
+      return;
+    }
     for (const param of ty.parameters) {
       if (param.type) this.visitType(param.type);
       else this.visitTypePack(param.typePack);
