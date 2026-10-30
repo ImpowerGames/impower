@@ -232,6 +232,25 @@ describe("a story that ends", () => {
     expect(h.game.ending?.kind).toBe("fin");
   });
 
+  for (const [kind, last] of [
+    ["fin", "fin"],
+    ["out", "done"],
+    ["error", '& error("boom")'],
+  ] as const) {
+    it(`names the thread and frame of a story ended by ${last} after the scene it ended in`, async () => {
+      const h = await play(`scene start\n  Hello.\n  ${last}\n  Goodbye.\nend\n`);
+      h.game.clickedToContinue();
+      await flushMicrotasks(20);
+      expect(h.game.ending?.kind).toBe(kind);
+      const threads = h.game.getThreads();
+      expect(threads.map((t) => t.name)).toEqual(["start"]);
+      const { stackFrames } = h.game.getStackTrace(threads[0]!.id);
+      expect(
+        stackFrames.map((f) => [f.name, f.location?.range.start.line]),
+      ).toEqual([["start", 2]]);
+    });
+  }
+
   it("leaves a held choice on the page when it is clicked after an error ended the story", async () => {
     const h = await play(
       [

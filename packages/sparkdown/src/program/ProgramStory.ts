@@ -1518,7 +1518,10 @@ export class ProgramStory implements StoryEngine {
     return flow < 0 ? "global decl" : this.root.labelOf(flow);
   }
 
-  debugFrames(threadIndex: number): DebugFrame[] | undefined {
+  debugFrames(
+    threadIndex: number,
+    ranAddress = -1,
+  ): DebugFrame[] | undefined {
     const state = this._state;
     const thread = state.callStack.ThreadWithIndex(threadIndex);
     if (!thread) {
@@ -1551,7 +1554,10 @@ export class ProgramStory implements StoryEngine {
         }
       }
       const frame = state.frameOf(element);
-      const symbol = frame ? frame.symbol : (at?.sequence.flow ?? -1);
+      const ran = address >= 0 ? address : current && !above ? ranAddress : -1;
+      const named =
+        at ?? (ran >= 0 ? this.root.position(chunkOfAddress(ran)) : undefined);
+      const symbol = frame ? frame.symbol : (named?.sequence.flow ?? -1);
       frames.push({
         type: element.type,
         symbol,

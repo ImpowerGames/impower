@@ -3707,9 +3707,10 @@ export class Game<T extends M = {}> {
   getThreads(): Thread[] {
     const threads: Thread[] = [];
     const callStack = this._story.state.callStack;
+    const ranAddress = this.lastExecutedAddress();
     for (const thread of callStack._threads) {
       const threadId = thread.threadIndex;
-      const name = this._story.debugFrames(threadId)?.at(-1)?.name;
+      const name = this._story.debugFrames(threadId, ranAddress)?.at(-1)?.name;
       threads.push({
         id: threadId,
         name: name || "<unknown thread>",
@@ -3725,7 +3726,7 @@ export class Game<T extends M = {}> {
     levels?: number,
   ): { stackFrames: StackFrame[]; totalFrames: number } {
     const stackFrames: StackFrame[] = [];
-    const frames = program.debugFrames(threadId);
+    const frames = program.debugFrames(threadId, this.lastExecutedAddress());
     if (!frames) {
       return { stackFrames, totalFrames: 0 };
     }
@@ -3735,10 +3736,10 @@ export class Game<T extends M = {}> {
       this._executingLocation && this._executingLocation[0] >= 0
         ? this._executingLocation
         : this.lastExecutedScriptLocation();
-    const awaiting =
-      threadId === program.state.callStack.currentThread.threadIndex
-        ? this._awaiting
-        : null;
+    const current =
+      threadId === program.state.callStack.currentThread.threadIndex;
+    const awaiting = current ? this._awaiting : null;
+    const endedAt = current ? (this._ending?.location ?? null) : null;
     for (let i = top; i >= bottom; i--) {
       const f = frames[i]!;
       const location =
@@ -3751,7 +3752,9 @@ export class Game<T extends M = {}> {
         name: f.name || (isFunction ? "<unknown function>" : "<unknown tunnel>"),
         moduleId: isFunction ? "function" : "tunnel",
         presentationHint: "normal",
-        location: this.getDocumentLocation(location),
+        location:
+          (i === frames.length - 1 ? endedAt : null) ??
+          this.getDocumentLocation(location),
       });
     }
     return { stackFrames, totalFrames: frames.length };
@@ -3993,14 +3996,18 @@ export class Game<T extends M = {}> {
     return location ? this.getDocumentLocation(location) : null;
   }
 
-  protected lastExecutedScriptLocation(): ScriptLocation | null {
-    const lastExecuted = this._runtimeState.pathsExecutedThisFrame
+  protected lastExecutedAddress(): ProgramAddress | undefined {
+    return this._runtimeState.pathsExecutedThisFrame
       .toArray()
       .findLast(
         (entry): entry is ProgramAddress =>
           typeof entry === "number" &&
           this.scriptLocationOf(entry) !== undefined,
       );
+  }
+
+  protected lastExecutedScriptLocation(): ScriptLocation | null {
+    const lastExecuted = this.lastExecutedAddress();
     return lastExecuted != null
       ? (this.scriptLocationOf(lastExecuted) ?? null)
       : null;
