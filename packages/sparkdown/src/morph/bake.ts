@@ -776,7 +776,7 @@ export function* bakeSteps(
         report(
           "paint-target-missing",
           "warning",
-          `\`paints\` entry ${index + 1} recolours "${label}" at \`${entry.state}\`, but that pose draws no "${label}", so nothing of it takes the colour.`,
+          `\`paints\` entry ${index + 1} paints "${label}" at \`${entry.state}\`, but that pose draws no "${label}", so nothing of it takes the entry's paint.`,
           { layer: label },
         );
       }

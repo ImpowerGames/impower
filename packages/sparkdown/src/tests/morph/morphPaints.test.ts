@@ -209,5 +209,9 @@ describe("`paints` recolours a pose's drawings where its condition holds", () =>
     expect(masked.diagnostics[0]!.message).toContain("eyelash-right");
     expect(fills(masked, CLOSED)).toEqual([GREY]);
     expect(bake("unmasked", [missing]).diagnostics).toEqual([]);
+    const faded = bake("masked", [{ targets: ["eyelash-right"], state: "eyes.closed", opacity: 0 }]);
+    expect(faded.diagnostics.map((d) => d.message)).toEqual([
+      '`paints` entry 1 paints "eyelash-right" at `eyes.closed`, but that pose draws no "eyelash-right", so nothing of it takes the entry\'s paint.',
+    ]);
   });
 });

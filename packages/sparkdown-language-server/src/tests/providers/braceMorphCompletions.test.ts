@@ -571,7 +571,7 @@ end
   |
 end
 `, "paints")).toContain("Colours and opacities that layers take at one pose");
-    expect(docOf(PAINTED("|"), "targets")).toContain("this entry recolours");
+    expect(docOf(PAINTED("|"), "targets")).toContain("whose drawings this entry paints");
     expect(docOf(PAINTED("|"), "state")).toContain("The pose the colour belongs to");
     expect(docOf(PAINTED("|"), "when")).toContain("does not drive");
     expect(docOf(PAINTED("|"), "fill")).toContain("fill colour");

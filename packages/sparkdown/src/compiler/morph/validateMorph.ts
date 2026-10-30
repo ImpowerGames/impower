@@ -177,7 +177,7 @@ const partnerEdgeProblem = (label: string) =>
   `\`${label}\` forms an aperture in \`clips\`, so it cannot take a partner: an aperture edge pairs by its own label.`;
 
 const PAINT_ENTRY =
-  "A `paints` entry is a `{ … }` entry with `targets { … }`, a `state` and a `fill` or `stroke`: `{ targets { eyelash-left }; state = eyes.closed; fill = #c9c9c9 }`.";
+  "A `paints` entry is a `{ … }` entry with `targets { … }`, a `state` and at least one of `fill`, `stroke` and `opacity`: `{ targets { eyelash-left }; state = eyes.closed; fill = #c9c9c9 }`.";
 
 /**
  * Why a `paints` entry's `state` names no pose that can take a colour, or

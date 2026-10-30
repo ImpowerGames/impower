@@ -1306,6 +1306,16 @@ end
     ]);
   });
 
+  test("an opacity-only entry written without its braces is told an entry may set `opacity`", () => {
+    const found = paintErrors(PAINTED(["targets { eyeshadow-left }; state = eyes.closed; opacity = 0"]));
+    expect(found.length).toBeGreaterThan(0);
+    for (const d of found.filter((d) => d.message.includes("A `paints` entry is"))) {
+      expect(d.message).toContain("at least one of `fill`, `stroke` and `opacity`");
+    }
+    expect(found.some((d) => d.message.includes("A `paints` entry is"))).toBe(true);
+    expect(found.some((d) => d.message.includes("a `fill` or `stroke`:"))).toBe(false);
+  });
+
   test("equal colours give one recipe, and changing a colour changes the bake key", () => {
     const spelled = PAINTED([ENTRY.replace("#c9c9c9", "rgb(201 201 201)")]);
     expect(compile(spelled).morphs!.recipes["m"]).toBe(compile(PAINTED()).morphs!.recipes["m"]);

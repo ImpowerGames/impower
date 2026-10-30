@@ -65,7 +65,7 @@ describe("morph field hover", () => {
   it("documents `paints` and each field of an entry", async () => {
     expect(await hoverAt(MORPH, "paints {")).toEqual({ value: expect.stringContaining("Colours and opacities that layers take at one pose"), marked: "paints" });
     const fields: [string, string, string][] = [
-      ["targets {", "targets", "this entry recolours"],
+      ["targets {", "targets", "whose drawings this entry paints"],
       ["state = eyes.closed", "state", "The pose the colour belongs to"],
       ["when =", "when", "does not drive"],
       ["fill = #", "fill", "fill colour"],

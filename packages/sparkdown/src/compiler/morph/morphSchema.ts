@@ -183,7 +183,7 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
   targets: "The layers the aperture clips.",
   paints:
     "Colours and opacities that layers take at one pose, as `{ … }` entries with `targets`, `state`, an optional `when`, at least one of `fill`, `stroke` and `opacity`, and an optional `span`: `{ targets { eyelash-left }; state = eyes.closed; when = mask.on; fill = #c9c9c9; span = 40% }`. Where two entries recolour one drawing, the later wins.",
-  "paints.targets": "The layer labels whose drawings this entry recolours, such as `eyelash-left`.",
+  "paints.targets": "The layer labels whose drawings this entry paints, such as `eyelash-left`.",
   "paints.state":
     "The pose the colour belongs to, written with its group, such as `eyes.closed`: a state the keyframes name, other than the one the morph starts from. The colour shows while the pose is held and moves in over the neighbouring segments.",
   when: "Applies the entry only in variants that draw a layer needing this state, written with its group, such as `mask.on`: a state of a group the morph does not drive. Without it the entry applies wherever the morph plays.",
