@@ -1,6 +1,7 @@
 import "./compileSnapshot";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { NO_START_SCENE_MESSAGE } from "../../compiler/utils/startScene";
 import { parseSource } from "./grammarSnapshot";
 import {
   asScript,
@@ -10,12 +11,6 @@ import {
   isLayoutFragment,
   type GuideExample,
 } from "./guideExamples";
-
-// #1232: the Sparkle guide teaches the brace bodies and dotted classes of
-// #1222. Every `layout`, `component`, `style`, `animation` and `theme`
-// declaration in its fenced examples must compile without an error, and none
-// may use the old forms: a `name:` header, a `-` list item, or a class written
-// as a bare word after an element's name.
 
 const DECLARATIONS = new Set([
   "LuauLayout",
@@ -37,29 +32,6 @@ function lineOf(code: string, offset: number): number {
   return code.slice(0, offset).split("\n").length;
 }
 
-// The style selectors the guide may use, as an allowlist. A selector the
-// list does not describe fails the test, so a shape nobody thought about
-// can never pass unchecked; extend the list here when the guide teaches a
-// new shape, with a control below.
-//
-// The guide's examples use exactly these selectors (StyleProps.md §7,
-// "Nested selectors, breakpoints & states"): `> text`, `> text.headline`,
-// `>> image`, `@screen-size(sm)`, `@hovered` and `&.secondary`. They are
-// made of these parts, and a selector is one of:
-//
-//   [ `>` | `>>` ]  ( `&` | name ) ( `.` name )*    an element or `&`, with
-//                                                   dotted classes, after an
-//                                                   optional combinator
-//   `@` name [ `(` name `)` ]                       a state, or a breakpoint
-//                                                   with its one argument
-//
-// where a name is `[_\p{L}][_\p{L}\p{N}-]*`, the first character being the
-// one `getCSSSelector` treats as starting a name
-// (`packages/spark-dom/src/utils/getStyleContent.ts`). What follows an
-// allowed selector after whitespace is a bare-word class when it is only
-// names and dotted classes (`> text headline`, `& secondary`): the renderer
-// turns that whitespace into a class dot. Anything else is reported as an
-// unrecognised shape.
 const SELECTOR_NAME = String.raw`[_\p{L}][_\p{L}\p{N}-]*`;
 const ALLOWED_SELECTOR = new RegExp(
   String.raw`^(?:(?:>>?\s+)?(?:&|${SELECTOR_NAME})(?:\.${SELECTOR_NAME})*|@${SELECTOR_NAME}(?:\(${SELECTOR_NAME}\))?)`,
@@ -70,9 +42,6 @@ const BARE_WORD = new RegExp(
   "u",
 );
 
-/** Checks a style rule's selector against the allowlist above: the
- *  bare-word classes it holds, or a description of a shape the allowlist
- *  does not describe. */
 function checkSelector(selector: string): {
   bareClasses: string[];
   unrecognised?: string;
@@ -93,8 +62,6 @@ function checkSelector(selector: string): {
   };
 }
 
-/** Each declaration of the five kinds in a source, and every old-form mark
- *  inside one, as `line: what`. */
 function readDeclarations(code: string) {
   const declarations: Declaration[] = [];
   const oldForms: string[] = [];
@@ -159,6 +126,11 @@ function errorsIn(code: string, declarations: Declaration[]): string[] {
   }
   return (program.diagnostics?.[URI] ?? [])
     .filter((d) => d.severity === 1)
+    .filter(
+      (d) =>
+        (typeof d.message === "string" ? d.message : d.message.value) !==
+        NO_START_SCENE_MESSAGE,
+    )
     .filter((d) => {
       const offset =
         (lineStarts[d.range.start.line] ?? code.length) +
@@ -175,9 +147,6 @@ function errorsIn(code: string, declarations: Declaration[]): string[] {
 
 const label = (e: GuideExample) => `${e.chapter}:${e.line}`;
 
-// A fragment of a layout body (`button "Save"`) is read inside a layout, so
-// it is held to the same rules; line numbers in its messages count the
-// layout's first line.
 const EXAMPLES = guideChapters()
   .flatMap(guideExamples)
   .map((e) => ({ ...e, script: asScript(e.code) }));
@@ -217,8 +186,6 @@ describe("the Sparkle guide's examples", () => {
   );
 });
 
-// The check above is only as good as what it can see, so it is pinned here
-// on old forms it must report and new forms it must accept.
 const style = (rule: string) =>
   `style dialogue with\n  ${rule} { color = red }\nend\n`;
 const layout = (body: string) => `layout hud with\n  ${body}\nend\n`;
@@ -234,7 +201,6 @@ describe("the guide's old-form check", () => {
     expect(readDeclarations(source).oldForms).not.toEqual([]);
   });
 
-  // A word after an allowed selector is reported by name.
   test.each([
     ["after a selector's name", "> text headline", "headline"],
     ["after `&`", "& secondary", "secondary"],
@@ -250,9 +216,6 @@ describe("the guide's old-form check", () => {
     ]);
   });
 
-  // Every shape the allowlist does not describe is reported, whether or
-  // not it also holds a bare class, so none passes unchecked. These include
-  // the spellings earlier versions of this check let through.
   test.each([
     ["a selector list", "@hovered, > text headline"],
     [
@@ -287,18 +250,15 @@ describe("the guide's old-form check", () => {
   });
 
   test.each([
-    // The guide's own selectors.
     ["`> text`", style("> text")],
     ["`> text.headline`", style("> text.headline")],
     ["`>> image`", style(">> image")],
     ["`@screen-size(sm)`", style("@screen-size(sm)")],
     ["`@hovered`", style("@hovered")],
     ["`&.secondary`", style("&.secondary")],
-    // Within the same shapes.
     ["several dotted classes", style("> text.headline.large")],
     ["a non-ASCII dotted class", style("> text.заголовок")],
     ["a bare element name", style("text")],
-    // Not selectors at all.
     [
       "dotted classes in a layout",
       layout(`row.hud { text.title "a"; text.заголовок "b" }`),

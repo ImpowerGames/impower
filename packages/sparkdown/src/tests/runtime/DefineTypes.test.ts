@@ -1,16 +1,3 @@
-// `define` as the unified type/instance/namespace construct — the
-// companion / O / N model:
-//
-//   define companion as character with store trust = 0 end
-//   define O as companion with name = "Orion", color = "teal" end
-//   define N as character with name = "Nova", color = "violet" end
-//
-// Each `define D as T` auto-creates the named singleton D, inheriting
-// T's props/methods, registered under T (and ancestors) so `T.D` and
-// `Grandparent.D` resolve, and enumerable via `instances(T)`.
-// `store` props are copied into each instance (per-instance, serialized).
-// `new T()` mints fresh anonymous instances.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -70,8 +57,10 @@ end
 describe("define type/instance/namespace model", () => {
   test("members are accessed through their type (companion.O)", () => {
     const { errors, recorded } = compileAndCapture(`${COMPANION_PRELUDE}
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(companion.O.name)
@@ -85,8 +74,10 @@ end
 
   test("members are also reachable through the grandparent type", () => {
     const { errors, recorded } = compileAndCapture(`${COMPANION_PRELUDE}
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(character.O.name)
@@ -95,14 +86,15 @@ host_record(character.companion.trust)
 end
 `);
     expect(errors).toEqual([]);
-    // O is a companion, companion is a character — so character.O bubbles up.
     expect(recorded).toEqual(["Orion", "Nova", 0]);
   });
 
   test("store props are inherited as own keys; mutation is per-instance", () => {
     const { errors, recorded } = compileAndCapture(`${COMPANION_PRELUDE}
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(companion.O.trust)
@@ -114,10 +106,10 @@ end
 `);
     expect(errors).toEqual([]);
     expect(recorded).toEqual([
-      0, // inherited store default, copied into O at creation
-      0, // ...and it's an OWN key (store-copied), not just inherited
-      1, // per-instance mutation
-      0, // the type's own default is untouched
+      0,
+      0,
+      1,
+      0,
     ]);
   });
 
@@ -127,8 +119,10 @@ define P as companion with
   name = "Pax"
 end
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local count = 0
@@ -142,8 +136,6 @@ host_record(count)
 end
 `);
     expect(errors).toEqual([]);
-    // companion's members are O and P (both `as companion`). trust (a
-    // prop) and __storeProps (bookkeeping) are NOT yielded.
     expect(recorded).toEqual([
       "O",
       "Orion",
@@ -157,8 +149,10 @@ end
 
   test("iinstances(T) yields ordinals", () => {
     const { errors, recorded } = compileAndCapture(`${COMPANION_PRELUDE}
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 for i, v in iinstances(character) do
@@ -168,16 +162,15 @@ end
 end
 `);
     expect(errors).toEqual([]);
-    // character's members in registration (document) order: companion
-    // (no name → nil), then O (bubbled up from companion as it's
-    // declared), then N.
     expect(recorded).toEqual([1, null, 2, "Orion", 3, "Nova"]);
   });
 
   test("the reset loop: mutate every member through instances()", () => {
     const { errors, recorded } = compileAndCapture(`${COMPANION_PRELUDE}
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 companion.O.trust = 5
@@ -193,8 +186,10 @@ end
 
   test("new T() mints fresh anonymous instances of a define-type", () => {
     const { errors, recorded } = compileAndCapture(`${COMPANION_PRELUDE}
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local c = new companion()
@@ -206,8 +201,6 @@ host_record(companion.O.trust)
 end
 `);
     expect(errors).toEqual([]);
-    // Fresh instance gets its own store default; mutating it leaves
-    // both the type and the named singleton O untouched.
     expect(recorded).toEqual([0, 7, 0, 0]);
   });
 
@@ -225,8 +218,10 @@ define Hero as Actor with
   name = "Knight"
 end
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local seen = {}
@@ -259,8 +254,10 @@ define Hero as Actor with
   name = "Knight"
 end
 
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(Actor.Hero.name)

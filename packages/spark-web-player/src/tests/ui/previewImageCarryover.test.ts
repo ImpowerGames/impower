@@ -7,7 +7,7 @@ end
 `;
 
 const SOURCE = `${SCREEN}
--> start
+
 
 scene start
   ^: TITLE

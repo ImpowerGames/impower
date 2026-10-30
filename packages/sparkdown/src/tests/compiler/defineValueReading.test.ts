@@ -1,10 +1,3 @@
-// A define property's value reaches the engine's struct registry
-// (`program.context`) as the converter reads it (#1274): a quoted string's
-// value with its escapes read, a `--` inside the quotes kept, a number, a
-// boolean, a typed reference as a reference, a table as a list, and a
-// bracket key's string as the key. A call has no literal form and stays
-// with the runtime `__def` table.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
@@ -36,6 +29,9 @@ const SOURCE = String.raw`define Thing with
   made = math.max(1, 2)
   list = { 1, 2 }
   ["$link"] = "x"
+end
+
+scene start
 end
 `;
 

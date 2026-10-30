@@ -3,11 +3,6 @@ import { describe, expect, it } from "vitest";
 import { getReferences } from "../../utils/providers/getReferences";
 import { complete as completeAt } from "./completionHarness";
 
-// Video names in `[[show LAYER NAME]]` and `[[animate LAYER NAME]]` (I-1378):
-// offered beside image names, with the movie clauses `loop`, `once` and
-// `mute` among the image clauses, and go-to-definition lands on the video's
-// declaration.
-
 const program = {
   context: {
     image: { forest: { $type: "image", $name: "forest" } },

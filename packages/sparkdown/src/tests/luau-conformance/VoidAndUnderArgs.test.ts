@@ -1,41 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// Three related fixes for Luau function-return / arg-binding semantics
-// that basic.luau exercises early (line 20 onwards):
-//
-// 1. **Void coerces to nil in single-value contexts.** A function with
-//    no return values pushes a `Void` sentinel at PopFunction time.
-//    Single-value consumers (binary ops, comparisons) used to throw
-//    "Attempting to perform X on a void value". Now NativeFunctionCall
-//    coerces Void → NullValue inline, so `(function() end)() == nil`
-//    evaluates to true (matching Luau's empty-return semantics).
-//
-// 2. **Void counts as zero args in `select` / RunStdLibFunction.** As
-//    the syntactically LAST arg of a variadic stdlib call (e.g.
-//    `select('#', (function() end)())`), Void is conceptually an
-//    empty MultiValue — it spreads to zero values. Earlier args
-//    truncate to nil (same as MultiValue truncation rules). So
-//    `select('#', (function() end)())` correctly returns 0.
-//
-// 3. **Under-supplied closure args pad with nil.** The closure
-//    dispatch path now respects the call-site arg count (encoded on
-//    `CallValueAsFunction(argCount)` and threaded through
-//    JSON serialization). When the call site supplied fewer args than
-//    the closure's user arity, the runtime pads with `NullValue`
-//    inline before extractClosurePath pops user args — so
-//    `local function foo(a, b) return b end; foo(1)` binds `b` to
-//    nil instead of digging garbage from the caller's eval context.
-//
-//    To make this work uniformly, both `lowerLuauFunctionDefinition`
-//    and `lowerAnonymousFunction` now ALWAYS emit the closure-shaped
-//    ObjectValue (even for no-upvals closures), so the
-//    `__closure_user_arity` field is always available. The padding
-//    logic also handles MultiValue spread correctly: a last-arg
-//    MultiValue is spread inline BEFORE the pad-count decision, so
-//    `f(g())` where g returns (1, 2, 3) and f takes (a, b, c) fills
-//    all three params (no padding needed).
-
 describe("Void in single-value contexts coerces to nil", () => {
   test("empty function compared to nil is true", () => {
     const r = runConformanceSource(

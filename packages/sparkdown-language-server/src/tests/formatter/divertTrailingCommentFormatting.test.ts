@@ -1,7 +1,3 @@
-// A `// note` after a divert is a comment, as it is after any other display
-// text, so formatting keeps one space before it rather than joining it to the
-// divert's target.
-
 import { describe, expect, test } from "vitest";
 import { formatSource } from "./formatSource";
 

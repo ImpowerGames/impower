@@ -21,9 +21,6 @@ const DEFAULT_TRANSFORMERS = {
   "indicator-color": getCssColor,
 };
 
-/**
- * Tabs indicate which child tab is currently active.
- */
 export default class Tabs extends SparkleComponent(spec, DEFAULT_TRANSFORMERS) {
   protected _indicatorInitialized = false;
 

@@ -1,7 +1,4 @@
 
-// Tables of source positions, a per-compiler revision counter, and the
-// program's code (the binary buffer and its chunks), which a test compares
-// through its listings (`flowListings`, programListing.ts).
 const IGNORED = new Set([
   "functionLocations",
   "sceneLocations",
@@ -16,7 +13,6 @@ const IGNORED = new Set([
   "contextRevision",
 ]);
 
-/** A layout tree node's source position: `{ line, from, to }`. */
 const isSpan = (value: unknown): boolean =>
   !!value &&
   typeof value === "object" &&
@@ -24,13 +20,6 @@ const isSpan = (value: unknown): boolean =>
   typeof (value as any).from === "number" &&
   typeof (value as any).to === "number";
 
-/**
- * The layout tree (`program.sparkle`) without its nodes' source positions,
- * and the generated names it holds. A binding, condition or loop is compiled
- * into a function named after its source offset
- * (`__binding$<uri>__layout_main_2310`), which the tree names in `exprId`
- * and the compiled story and scene assets hold as a key.
- */
 function readLayoutTree(value: unknown, names: Map<string, string>): unknown {
   if (Array.isArray(value)) return value.map((v) => readLayoutTree(v, names));
   if (!value || typeof value !== "object") return value;
@@ -45,8 +34,6 @@ function readLayoutTree(value: unknown, names: Map<string, string>): unknown {
   return out;
 }
 
-/** `value` with every key or string that is exactly a generated name, or
- *  such a name followed by a `.path`, replaced by its number. */
 function renameGenerated(value: unknown, names: Map<string, string>): unknown {
   const rename = (s: string) => {
     const exact = names.get(s);
@@ -65,13 +52,6 @@ function renameGenerated(value: unknown, names: Map<string, string>): unknown {
   return out;
 }
 
-/**
- * A program without source positions or the names derived from them, as
- * plain data: location tables dropped, the layout tree's spans dropped, the
- * generated names its `exprId`s hold numbered in the order the tree holds
- * them and renamed wherever they appear exactly (authored text is never
- * renamed), and each diagnostic as its severity, code and message.
- */
 export function normalizeProgram(program: any) {
   const names = new Map<string, string>();
   const out: Record<string, unknown> = {};
@@ -84,9 +64,6 @@ export function normalizeProgram(program: any) {
     string,
     unknown
   >;
-  // A diagnostic's range is a source position, and the text it underlines
-  // can be the converted syntax itself (`- targets:` becomes `{`), so a
-  // diagnostic is compared by its severity, code and message.
   normalized["diagnostics"] = Object.fromEntries(
     Object.entries(program.diagnostics ?? {}).map(([uri, list]) => [
       uri,

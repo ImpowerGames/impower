@@ -1,12 +1,3 @@
-// Statements whose order an edit swaps in the program's statement list keep
-// their chunks (#1496). Turning the text after an earlier `end` into `return `
-// moves `function bump(by)` into an earlier body, so it now comes before
-// `function twice(n`, which the edit did not touch. The script is a reduction
-// of a case from the cumulative fuzz in programChunkIdentity.test.ts. The
-// other cases hold the alignment to its rule when statements cross: a
-// statement keeps the old chunk it can keep where that leaves nothing
-// behind, a statement edited in place keeps the parts of its old self, and
-// the work stays linear in the number of statements.
 import { describe, expect, it } from "vitest";
 import { bodyOfBlock } from "../../compiler/lower/utils/statementShape";
 import { wrapInScope } from "../../compiler/lower/utils/wrapInScope";
@@ -80,22 +71,20 @@ describe("statements an edit swaps in the statement list", () => {
 });
 
 describe("a function an edit changes, beside a lookalike the edit deletes", () => {
-  // The first assignment's function gains `g` and returns 2, which makes it
-  // read as the second's, and the edit deletes the second. The first is
-  // edited in place and keeps its function's symbol, so a closure saved
-  // before the edit still calls it; it does not take the deleted one's chunk.
-  const other = "f = function()\n  function g() return 7 end\n  return 2\nend\n";
+  const other = "  f = function()\n    function g() return 7 end\n    return 2\n  end\n";
   const text = [
     "store f = nil",
     "store keep = nil",
-    "f = function()",
-    "  return 1",
-    "end",
-    "keep = f",
-    other.trimEnd(),
-    "done",
     "function call_keep()",
     "  return keep()",
+    "end",
+    "scene start",
+    "  f = function()",
+    "    return 1",
+    "  end",
+    "  keep = f",
+    other.trimEnd(),
+    "  done",
     "end",
     "",
   ].join("\n");
@@ -104,7 +93,7 @@ describe("a function an edit changes, beside a lookalike the edit deletes", () =
     const c = programCompiler({ [MAIN_URI]: text });
     const before = c.compile().program;
     expect(before.chunks).toBeDefined();
-    const first = before.chunks!.flowNamed("")!.arrays.chunks[0]!;
+    const first = before.chunks!.flowNamed("start")!.arrays.chunks[0]!;
     const story = new ProgramStory(before.chunks!);
     while (story.canContinue) {
       story.Continue();
@@ -112,20 +101,20 @@ describe("a function an edit changes, beside a lookalike the edit deletes", () =
     const saved = story.variablesState.GetVariableWithName("keep");
     expect(story.EvaluateFunction("call_keep")).toBe(1);
     const document = c.compiler.documents.get(MAIN_URI)!;
-    const from = text.indexOf("  return 1\n");
+    const from = text.indexOf("    return 1\n");
     const to = text.indexOf(other) + other.length;
     c.compiler.updateDocument({
       textDocument: { uri: MAIN_URI, version: 2 },
       contentChanges: [
         {
           range: { start: document.positionAt(from), end: document.positionAt(to) },
-          text: "  function g() return 7 end\n  return 2\nend\nkeep = f\n",
+          text: "    function g() return 7 end\n    return 2\n  end\n  keep = f\n",
         },
       ],
     });
     const after = c.compile().program;
     expect(after.chunks).toBeDefined();
-    const edited = after.chunks!.flowNamed("")!.arrays.chunks[0]!;
+    const edited = after.chunks!.flowNamed("start")!.arrays.chunks[0]!;
     expect(exportSymbol(edited, 0)).toBe(exportSymbol(first, 0));
     const resumed = new ProgramStory(after.chunks!);
     resumed.variablesState.SetGlobal("keep", saved as never);
@@ -134,7 +123,6 @@ describe("a function an edit changes, beside a lookalike the edit deletes", () =
 });
 
 describe("statements whose recorded facts an edit invalidates", () => {
-  // A statement that refers to a symbol, as a divert does.
   class RefersTo extends ParsedObject {
     constructor(readonly symbol: number) {
       super();
@@ -191,10 +179,12 @@ describe("statements whose recorded facts an edit invalidates", () => {
     const n = 128;
     const text = [
       "store r = 0",
-      ...Array(n).fill("r = first(1)"),
-      "done",
       "function first(a, ...)",
       "  return a * 10",
+      "end",
+      "scene start",
+      ...Array(n).fill("  r = first(1)"),
+      "  done",
       "end",
       "",
     ].join("\n");
@@ -212,7 +202,7 @@ describe("statements whose recorded facts an edit invalidates", () => {
       textDocument: { uri: MAIN_URI, version: 2 },
       contentChanges: [
         {
-          range: { start: { line: n + 2, character: 0 }, end: { line: n + 2, character: 22 } },
+          range: { start: { line: 1, character: 0 }, end: { line: 1, character: 22 } },
           text: "function first(a)",
         },
       ],
@@ -224,11 +214,6 @@ describe("statements whose recorded facts an edit invalidates", () => {
   });
 });
 
-// The same alignment, through the store directly, for the statements of a
-// flow and for the declarations, which the store aligns separately. Each
-// statement is a line of text whose syntax and recorded reads are given; a
-// statement re-lowered by a compile has a new block, and the anchor keeps
-// its block, so it keeps its chunk first.
 describe.each([
   ["flow statements", false],
   ["declarations", true],
@@ -328,9 +313,6 @@ describe.each([
     expect(after[4] === before[4]).toBe(true);
   });
 
-  // What the store looks up per statement stays bounded however the
-  // statements of a long run are reordered or changed: a lookup count, not a
-  // time, so the bound holds on any machine.
   it.each([
     ["reversed", (n: number) => [...Array(n).keys()].reverse().map((k) => statement(`s${k}`))],
     ["swapped in pairs", (n: number) => [...Array(n).keys()].map((k) => statement(`s${k ^ 1}`))],
@@ -441,27 +423,26 @@ describe.each([
 });
 
 describe("an edited function beside an inserted copy of its old version", () => {
-  // The edit gives the function `g` and a new return value, and inserts a
-  // copy of the function as it was after `keep = f`. The edited function is
-  // edited in place and keeps its symbol, so a closure saved before the edit
-  // calls its new code; the copy, which could keep the old chunk, takes a new
-  // one.
   it("keeps the edited function's symbol for a saved closure", () => {
     const text = [
-      "f = function()",
-      "  return 1",
-      "end",
-      "keep = f",
-      "done",
+      "store f = nil",
+      "store keep = nil",
       "function call_keep()",
       "  return keep()",
+      "end",
+      "scene start",
+      "  f = function()",
+      "    return 1",
+      "  end",
+      "  keep = f",
+      "  done",
       "end",
       "",
     ].join("\n");
     const c = programCompiler({ [MAIN_URI]: text });
     const before = c.compile().program;
     expect(before.chunks).toBeDefined();
-    const first = before.chunks!.flowNamed("")!.arrays.chunks[0]!;
+    const first = before.chunks!.flowNamed("start")!.arrays.chunks[0]!;
     const story = new ProgramStory(before.chunks!);
     while (story.canContinue) {
       story.Continue();
@@ -472,14 +453,14 @@ describe("an edited function beside an inserted copy of its old version", () => 
       textDocument: { uri: MAIN_URI, version: 2 },
       contentChanges: [
         {
-          range: { start: { line: 1, character: 0 }, end: { line: 4, character: 0 } },
-          text: "  function g() return 7 end\n  return 2\nend\nkeep = f\nf = function()\n  return 1\nend\n",
+          range: { start: { line: 7, character: 0 }, end: { line: 10, character: 0 } },
+          text: "    function g() return 7 end\n    return 2\n  end\n  keep = f\n  f = function()\n    return 1\n  end\n",
         },
       ],
     });
     const after = c.compile().program;
     expect(after.chunks).toBeDefined();
-    const edited = after.chunks!.flowNamed("")!.arrays.chunks[0]!;
+    const edited = after.chunks!.flowNamed("start")!.arrays.chunks[0]!;
     expect(exportSymbol(edited, 0)).toBe(exportSymbol(first, 0));
     const resumed = new ProgramStory(after.chunks!);
     resumed.variablesState.SetGlobal("keep", saved as never);
@@ -488,11 +469,6 @@ describe("an edited function beside an inserted copy of its old version", () => 
 });
 
 describe("a block statement that can keep an old chunk another one was paired with", () => {
-  // Old `[x, anchor, y]` becomes `[z, anchor, x]`, each but the anchor a
-  // block statement with one body. By position `z` is edited in place from
-  // `x` and the new `x` from `y`; the new `x` keeps its own old chunk by
-  // exchange, `z` is edited in place from `y`, and no old chunk or body
-  // sequence is left behind.
   it("keeps every old body sequence and leaves no old chunk unused", () => {
     const store = new ChunkStore();
     const owner = (syntax: string, reads: string): StatementSource => {
@@ -551,7 +527,7 @@ describe("statements whose recorded values an edit changes", () => {
 
   it("are emitted again in lookups linear in their number when a scene changes what a name reads", () => {
     const n = 256;
-    const text = [...Array(n).fill("Seen {extra}."), ""].join("\n");
+    const text = ["scene start", ...Array(n).fill("  Seen {extra}."), "end", ""].join("\n");
     const c = programCompiler({ [MAIN_URI]: text });
     expect(c.compile().program.chunks).toBeDefined();
     const count = counted(c);
@@ -559,13 +535,11 @@ describe("statements whose recorded values an edit changes", () => {
     c.compiler.updateDocument({
       textDocument: { uri: MAIN_URI, version: 2 },
       contentChanges: [
-        { range: { start: { line: n, character: 0 }, end: { line: n, character: 0 } }, text: added },
+        { range: { start: { line: n + 2, character: 0 }, end: { line: n + 2, character: 0 } }, text: added },
       ],
     });
     const after = c.compile().program;
     expect(after.chunks).toBeDefined();
-    // The `n` lines that read `extra`, and the added scene's line and its
-    // end (`flowEnd`).
     expect(c.compiler.chunkStore!.emittedLastBuild).toBe(n + 2);
     expect(count.lookups).toBeLessThan(20 * n);
     const cold = programCompiler({ [MAIN_URI]: text + added });
@@ -573,11 +547,8 @@ describe("statements whose recorded values an edit changes", () => {
   });
 
   it("build no identity during alignment for an inserted statement no old chunk reads as", () => {
-    // `Anchor.` keeps its chunk, and the inserted assignment reads `n`
-    // names, which building its identity would sort; no old chunk has its
-    // syntax, so alignment builds none.
     const n = 512;
-    const text = "Anchor.\n";
+    const text = "scene start\n  Anchor.\nend\n";
     const c = programCompiler({ [MAIN_URI]: text });
     expect(c.compile().program.chunks).toBeDefined();
     const names = Array.from({ length: n }, (_, k) => `v${String((k * 7919) % n).padStart(6, "0")}`);
@@ -607,8 +578,8 @@ describe("statements whose recorded values an edit changes", () => {
         textDocument: { uri: MAIN_URI, version: 2 },
         contentChanges: [
           {
-            range: { start: { line: 1, character: 0 }, end: { line: 1, character: 0 } },
-            text: `items = {${names.join(", ")}}\n`,
+            range: { start: { line: 2, character: 0 }, end: { line: 2, character: 0 } },
+            text: `  items = {${names.join(", ")}}\n`,
           },
         ],
       });
@@ -622,12 +593,10 @@ describe("statements whose recorded values an edit changes", () => {
   });
 
   it("are emitted again in lookups linear in their number when their functions' hoisted locals change", () => {
-    // The lookups of the whole compile, at n and 2n assignments: doubling
-    // the assignments at most doubles them, with room for constant work.
     const lookupsFor = (n: number) => {
       const section = (name: string) =>
-        ["f = function()", `  function ${name}() return 7 end`, "  return 2", "end"].join("\n");
-      const text = ["store f = nil", ...Array(n).fill(section("g")), "done", ""].join("\n");
+        ["  f = function()", `    function ${name}() return 7 end`, "    return 2", "  end"].join("\n");
+      const text = ["store f = nil", "scene start", ...Array(n).fill(section("g")), "  done", "end", ""].join("\n");
       const c = programCompiler({ [MAIN_URI]: text });
       expect(c.compile().program.chunks).toBeDefined();
       const count = counted(c);
@@ -637,8 +606,8 @@ describe("statements whose recorded values an edit changes", () => {
         contentChanges: [
           {
             range: {
-              start: document.positionAt(text.indexOf("f = function()")),
-              end: document.positionAt(text.lastIndexOf("done")),
+              start: document.positionAt(text.indexOf("  f = function()")),
+              end: document.positionAt(text.lastIndexOf("  done")),
             },
             text: Array(n).fill(section("h")).join("\n") + "\n",
           },
@@ -699,11 +668,6 @@ describe("block statements an edit reorders", () => {
   });
 
   it("read a large owner's body a bounded number of times when it is exchanged repeatedly", () => {
-    // Old `[x0, anchor0, …, xN, anchorN]` becomes `[changed, anchor0, x0,
-    // anchor1, …]`: the changed owner, which holds N body statements, is
-    // paired with each old `xK` in turn as every requester keeps its own by
-    // exchange. Its body is read a bounded number of times, not once per
-    // exchange.
     const n = 128;
     let aligning = false;
     let reads = 0;
@@ -759,12 +723,6 @@ describe("block statements an edit reorders", () => {
   });
 
   it("build a repeatedly exchanged owner's identity once", () => {
-    // Old `[x0, anchor0, …, xN, anchorN, big]` becomes `[big, anchor0, x0,
-    // anchor1, …]`, where `big` owns N bodies: the new `big` is paired with
-    // each old `xK` in turn and visited again after every exchange, beside a
-    // free old `big` it reads as but does not take. Its identity, whose
-    // length grows with its bodies, is built once, so each visit is
-    // constant work; `reads` is read when the identity is built.
     const n = 128;
     const store = new ChunkStore();
     const anchors = Array.from({ length: n + 1 }, (_, k) => plain(`anchor${k}`));
@@ -805,11 +763,6 @@ describe("block statements an edit reorders", () => {
   });
 
   it("screen a repeatedly exchanged owner that keeps no old chunk once", () => {
-    // As above, but the free old `big` owns one body fewer, so it reads as
-    // the new `big` in its syntax and reads but not in its identity, which
-    // has no old chunk. The new `big` is visited again after every
-    // exchange; it is screened and its identity looked up once, and
-    // `reads`, which the screen reads, is read a bounded number of times.
     const n = 128;
     const store = new ChunkStore();
     const anchors = Array.from({ length: n + 1 }, (_, k) => plain(`anchor${k}`));
@@ -857,12 +810,6 @@ describe("block statements an edit reorders", () => {
   it.each([1, 2])(
     "classify the ancestry of changed leaves under nested kept owners in owner queries linear in their number (%i per owner)",
     (perOwner) => {
-      // Old `[o0, a0…, o1, a1…, …]`, where each `oK` owns the next owner and
-      // its own leaves, becomes the same owners with every leaf changed: the
-      // owners keep their chunks, so each run between two of them holds the
-      // owner's changed leaves, each of whose owner chain is N deep. Which
-      // of the leaves a run leaves contain one another is found in owner
-      // queries linear in N, not once per leaf per owner above it.
       const n = 256;
       class Measured extends ChunkStore {
         make(syntax: string) {
@@ -943,11 +890,6 @@ describe("block statements an edit reorders", () => {
   );
 
   it("look up a large old chunk's identity once while exchanges pass it on", () => {
-    // Old `[big, anchor0, x0, anchor1, …, x(N-1), anchorN, bigCopy]` and new
-    // `[x0, anchor0, x1, …, changed, anchorN]`, aligned directly: `big`, whose
-    // N bodies make its identity long, is paired with `x0` by position and
-    // passed on by each exchange in which a requester keeps its own `xK`.
-    // The identity of `big` is looked up once, not once per exchange.
     const n = 1024;
     class Measured extends ChunkStore {
       longKeys = 0;
@@ -1033,10 +975,6 @@ describe("block statements an edit reorders", () => {
   });
 
   it("are aligned in lookups linear in their number when no exchange can be made", () => {
-    // N plain statements take the syntax of N old block statements, and N
-    // block statements of that syntax, each alone between two anchors, are
-    // paired with other old blocks; every one of them can keep an old `x`
-    // block, but its plain holder cannot take the block it would leave.
     const n = 128;
     const store = new CountingStore();
     const anchors = Array.from({ length: n + 1 }, (_, k) => plain(`anchor${k}`));

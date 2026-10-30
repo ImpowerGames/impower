@@ -1,13 +1,3 @@
-// #1817 — the editor forwards file events to the language server as they
-// happen, and on a large project some arrive before `initialize`. Sent on to
-// the compiler then, each was answered "Compiler has not been configured!".
-// A file event or document that arrives before `initialize` waits for the
-// compiler's configuration, and is recorded after the files `initialize`
-// registers, so they do not overwrite it.
-//
-// The workspace is driven with a stand-in compiler connection that holds the
-// configuration until the test releases it, since what is under test is the
-// order in which the workspace sends its requests.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AddCompilerFileMessage } from "../../compiler/classes/messages/AddCompilerFileMessage";
 import { ConfigureCompilerMessage } from "../../compiler/classes/messages/ConfigureCompilerMessage";
@@ -27,11 +17,8 @@ const settle = async () => {
 };
 
 class TestWorkspace extends SparkdownWorkspace {
-  /** Every request sent to the compiler, in order. */
   requests: { method: string; params: any }[] = [];
-  /** Resolves the configuration request, which is held until then. */
   configure?: () => void;
-  /** File loads held until the test resolves them, by uri. */
   heldLoads = new Map<string, () => void>();
   holdLoadsOf = new Set<string>();
 
@@ -134,8 +121,6 @@ describe("a file event that arrives before the workspace is initialized", () => 
 
     await workspace.initializeWith([MAIN, EXTRA, IMAGE]);
     await settle();
-    // Configured with the files `initialize` was given, and nothing else
-    // sent while the compiler is being configured.
     expect(workspace.sent).toEqual([ConfigureCompilerMessage.method]);
 
     workspace.configure!();
@@ -165,13 +150,11 @@ describe("a file event that arrives before the workspace is initialized", () => 
   it("is applied after an earlier event for the same file, however long that one takes", async () => {
     const workspace = new TestWorkspace();
     workspace.holdLoadsOf.add(ADDED);
-    // Created, then deleted, before initialize: the file is gone.
     const creating = workspace.createFile(ADDED);
     const deleting = workspace.deleteFile(ADDED);
     await workspace.initializeWith([MAIN]);
     workspace.configure!();
     await settle();
-    // The create's load is still out, and the delete waits behind it.
     expect(workspace.sent).toEqual([ConfigureCompilerMessage.method]);
 
     workspace.heldLoads.get(ADDED)!();
@@ -190,8 +173,6 @@ describe("a file event that arrives before the workspace is initialized", () => 
     const deleting = workspace.deleteFile(EXTRA);
     await workspace.initialize({ rootUri: "file://proj", capabilities: {} });
     await deleting;
-    // Sent on, so the compiler answers it (with its error), rather than held
-    // for a configuration that will never come.
     expect(workspace.sent).toEqual([RemoveCompilerFileMessage.method]);
   });
 });

@@ -1,24 +1,3 @@
-// Sparkdown and Luau's parser must agree on which Luau inputs have syntax
-// errors (#1284, the first check of #1283).
-//
-// For every Luau fixture, the document is compiled with `SparkdownCompiler`
-// and its syntax errors are collected, and the fixture's Luau is parsed with
-// the pinned official C++ parser. Where Sparkdown reports
-// no syntax error the parser must report none, and where Sparkdown reports one
-// the parser must report at least one.
-//
-// The inputs are found, not listed (`luauFixtures.ts`), so a fixture added
-// under either directory is checked without editing this file. The
-// conformance files are Luau as written, so the parser reads the patched file
-// itself in the function the harness wraps it in, not text taken from
-// Sparkdown's tree: a token the tree loses would otherwise vanish from both
-// readings and hide the disagreement.
-//
-// `KNOWN_DISAGREEMENTS` names the inputs on which the two disagree, each with
-// its bug or intentional limitation. Bugs must still disagree until their fix
-// removes the entry. Integer limitations remain after #1309 closes and require
-// Luau to accept the input while Sparkdown reports its unsupported diagnostic.
-
 import { describe, expect, test } from "vitest";
 import { KNOWN_DISAGREEMENTS, luauInputs } from "./luauFixtures";
 import { readings } from "./luauSyntaxReadings";

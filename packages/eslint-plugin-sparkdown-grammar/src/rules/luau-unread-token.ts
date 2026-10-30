@@ -1,29 +1,3 @@
-// Rule: a pure-Luau body or bracket tiles with `LuauUnreadToken`, the
-// catch-all that takes a token no other pattern of the rule reads, so the
-// rule never closes before its closer (GRAMMAR.md §3.2, §13.2, §17.2).
-// Three findings, over the `Luau` rules (the rest are Sparkdown's narrative
-// syntax):
-//
-// - A closer-bounded rule must end its `patterns:` with
-//   `#LuauUnreadToken`. A `begin`/`end` rule is closer-bounded when its
-//   `end:` consumes a closer (`end`, `until`, `)`, `]`, `}`, `>>` or a
-//   type's `>`) and no ordinary token, or when it holds a block's body
-//   (`#LuauBlockBody`), which its block's closer ends.
-// - A rule whose `end:` consumes nothing (every alternative zero-width)
-//   and that is not closer-bounded must not include it, directly or
-//   through a `Switch` rule: it ends where its content stops matching, so
-//   the catch-all would take the construct after it (`if a == (1)then`
-//   would read `then` into the parenthetical).
-// - A rule with `applyEndPatternLast` must not include it either: its
-//   content is tried before its end, so the catch-all would take the
-//   closer and the end would never match.
-//
-// The check is behavioural, as `scoped-end-has-bailout`'s is: the `end:`
-// pattern, with its variables substituted, runs at probe positions before
-// each closer and each ordinary token. A pattern JavaScript cannot compile
-// is skipped. Rules that are closer-bounded but tile some other way are
-// named in `EXEMPT` with the reason.
-
 import { BASELINE_NOTE, defineBaselinedRule, type Finding } from "../utils/baseline.ts";
 import { getGrammarIndex, type GrammarIndex } from "../utils/grammar-index.ts";
 import { findPair, isMapping, isScalar, isSequence, type YAMLMapping } from "../utils/yaml-ast.ts";
@@ -33,13 +7,9 @@ export const UNREAD_TOKEN = "LuauUnreadToken";
 const BLOCK_BODY = "LuauBlockBody";
 
 const CLOSERS = ["end", "until", ")", "]", "}", ">>", ">"];
-// Ordinary tokens, which a closer-bounded end never consumes.
 const ORDINARY = ["a", "x1", "7", "+", "\"s\"", "then", ","];
-// Text before the probed token: none, whitespace, a name and a bracket.
 const PREFIXES = ["", " ", "\t", "x", "x ", ")"];
 
-// The closer-bounded rules that are not pure-Luau bodies or brackets, by
-// the names they share and the reason.
 export const EXEMPT: readonly { names: RegExp; reason: string }[] = [
   {
     names: /^LuauSparkdown/,
@@ -64,12 +34,6 @@ export function exemption(name: string): string | undefined {
   return EXEMPT.find((entry) => entry.names.test(name))?.reason;
 }
 
-/**
- * Why a `begin`/`end` rule is closer-bounded, with the closer its `end:`
- * consumes (none for a rule that holds a block's body and consumes no
- * closer) and its compiled `end:`; undefined when it is not, or when its
- * `end:` does not compile.
- */
 export function closerBounded(
   index: GrammarIndex,
   mapping: YAMLMapping,
@@ -93,15 +57,12 @@ function compile(index: GrammarIndex, end: string): RegExp | null {
   }
 }
 
-// The length of the match at `at`, or -1 for none.
 function matchLength(regex: RegExp, text: string, at: number): number {
   regex.lastIndex = at;
   const match = regex.exec(text);
   return match ? match[0].length : -1;
 }
 
-// Whether the end, run at the token or at the whitespace before it, takes
-// the whole token.
 function consumes(regex: RegExp, token: string): boolean {
   return PREFIXES.some((prefix) => {
     const text = `${prefix}${token} x\n`;
@@ -114,7 +75,6 @@ function consumes(regex: RegExp, token: string): boolean {
   });
 }
 
-// Whether the end ever matches with a length, at any probe.
 function consumesAnything(regex: RegExp): boolean {
   for (const token of [...CLOSERS, ...ORDINARY, ""]) {
     for (const prefix of PREFIXES) {
@@ -141,8 +101,6 @@ function patternIncludes(mapping: YAMLMapping): string[] {
   return names;
 }
 
-// Whether a rule's `patterns:` include the catch-all, directly or through
-// rules that hold only `patterns:` (a `Switch`).
 function includesUnreadToken(index: GrammarIndex, mapping: YAMLMapping, seen = new Set<string>()): boolean {
   for (const name of patternIncludes(mapping)) {
     if (name === UNREAD_TOKEN) return true;

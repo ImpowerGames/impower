@@ -52,17 +52,11 @@ export interface Reference {
   prop?: boolean;
   linkable?: boolean;
   stylingStringIdentifier?: boolean;
-  /** A define property's whole value naming an asset: a bare name, which may
-   *  name a declared asset of any of `types`, or a typed one (`typed`), whose
-   *  name must be declared under its one type. */
   asset?: { types: string[]; name: string; typed?: boolean };
 }
 
-/** The asset types a define property value is checked against. */
 export const DEFINE_ASSET_TYPES = ["image", "layered_image", "filtered_image"];
 
-// Whether `node` and the siblings past it in `direction` are only whitespace
-// and comments.
 function onlyTrivia(node: SyntaxNode | null, direction: "prevSibling" | "nextSibling"): boolean {
   for (let sibling = node; sibling; sibling = sibling[direction]) {
     if (!sibling.name.endsWith("Whitespace") && !sibling.name.endsWith("Comment")) return false;
@@ -70,15 +64,10 @@ function onlyTrivia(node: SyntaxNode | null, direction: "prevSibling" | "nextSib
   return true;
 }
 
-// The access path that is a define property's whole value (`image = warm`,
-// `image = filtered_image.warm`): its variable name and, in the typed
-// spelling, its property name. Null for any other path, such as a call, a
-// longer path, or a path that is one operand of an expression.
 function definePropertyReference(
   path: SyntaxNode | null | undefined,
 ): { variable: SyntaxNode; property: SyntaxNode | null } | null {
   if (path?.name !== "LuauAccessPath") return null;
-  // Parentheses do not change the value: `image = (warm)` names `warm`.
   let value: SyntaxNode = path;
   while (value.parent?.name === "LuauParenthetical_content") {
     if (!onlyTrivia(value.prevSibling, "prevSibling") || !onlyTrivia(value.nextSibling, "nextSibling")) {
@@ -109,7 +98,6 @@ function definePropertyReference(
   return propertyName ? { variable: variableName, property: propertyName } : null;
 }
 
-// DFS in-order: first descendant (or self) whose name is in `names`, else null.
 function firstDescendant(node: any, names: Set<string>): any {
   if (names.has(node.name)) return node;
   let c = node.firstChild;
@@ -129,50 +117,28 @@ const PARAMETER_OWNER = nodeNameSet([
 const VARIABLE_DECL_SITE = nodeNameSet(["LuauVariableAssignment_begin"]);
 const ASSET_COMMAND_INSTRUCTION = nodeNameSet(["AssetCommandInstruction"]);
 const ASSET_COMMAND_CONTROL = nodeNameSet(["AssetCommandControl"]);
-// The whole `[[…]]` / `((…))` command. A clause value (NameValue) is a SIBLING
-// of AssetCommandInstruction (both under the command), so reading the control
-// from a clause value walks up to the command, not the instruction.
 const ASSET_COMMAND = nodeNameSet(["ImageCommand", "AudioCommand"]);
 
-// The OOP define property line (`store trust = 0`, `name = "RAFFLES"`). Its LHS
-// name LuauVariableName must be claimed as a `property` declaration by the
-// LuauPropertyDefinition branch, NOT emitted as a generic variable read.
 const PROPERTY_DEFINITION = nodeNameSet(["LuauPropertyDefinition"]);
 
-// A Sparkle `@event=handler` binding and its parts. When the handler is a bare
-// function ref (`@click=go_back`) or a direct call (`@click=use_item(item)`),
-// the target must be a runtime-callable function/knot; an inline closure
-// (`@e={ … }`) or a member/method target (`@click=hero:jump()`) carries no bare
-// function name to resolve.
 const EVENT_ATTR_CONTENT = nodeNameSet([
   "LuauEventAttribute_content",
-  // In a brace block, the handler is its own node.
   "LuauSparkleEventHandler",
 ]);
 const EVENT_HANDLER_CLOSURE = nodeNameSet(["LuauSparkleHandlerClosure"]);
-// A bare-ref handler (`@e=go_back`) is its own grammar node (highlighted like a
-// divert path); a direct call (`@e=use_item(a)`) keeps the callee as a
-// `LuauFunctionName`. Either is the resolvable handler target.
 const EVENT_HANDLER_NAME = nodeNameSet([
   "LuauSparkleEventHandlerName",
   "LuauFunctionName",
   "LuauVariableName",
 ]);
 
-// The entries of a brace list that number its `-` items: a list entry's
-// braces and a bare list value.
 const LIST_ENTRY_NAMES = nodeNameSet([
   "LuauStructListBlock",
   "LuauStructListValue",
 ]);
 
-// The identifier tokens that carry a struct property/header KEY, shared with
-// the brace readers so both forms read keys alike.
 const STRUCT_KEY_TOKENS = STRUCT_KEY_TOKEN_NAMES;
 
-// Top-level structural-define keyword nodes → the engine type they declare.
-// Their `name` (LuauDefineName) is an INSTANCE under that type, and a trailing
-// `as PARENT` is `$extends` (a sibling of the SAME type), not the type itself.
 const STRUCTURAL_TYPE_BY_NODE: Partial<Record<SparkdownNodeName, string>> = {
   LuauStyle: "style",
   LuauLayout: "layout",
@@ -183,29 +149,18 @@ const STRUCTURAL_TYPE_BY_NODE: Partial<Record<SparkdownNodeName, string>> = {
   LuauMorph: "morph",
 };
 
-// `[[open hud]]` / `[[close hud]]` — the directive's target is a SCREEN name, so
-// it references the `screen <name>` define (symbolId `screen.<name>`) rather than
-// an image layer.
 const LAYOUT_CONTROL_KEYWORDS: string[] =
   GRAMMAR_DEFINITION.variables.LAYOUT_CONTROL_KEYWORDS || [];
 
-// `[[load <name>…]]` — every name is a scene (a divert target) or a world, so
-// it links to the scene or the `world` define and warns only when neither
-// exists.
 const LOAD_CONTROL_KEYWORDS: string[] =
   GRAMMAR_DEFINITION.variables.LOAD_CONTROL_KEYWORDS || [];
 
-// `[[play <name>]]` — the one name, in the target slot, is a video. Any
-// further name is the validator's to report, so it references nothing.
 const MOVIE_CONTROL_KEYWORDS: string[] =
   GRAMMAR_DEFINITION.variables.MOVIE_CONTROL_KEYWORDS || [];
 
 export class ReferenceAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<Reference>
 > {
-  /** A name a `load` directive or arrow names: the scene it diverts to (a
-   *  divert-style reference, so it links and warns like `-> name`) or a
-   *  `world` define. */
   protected loadTargetReference(
     name: string,
     nodeRef: { from: number; to: number },
@@ -218,28 +173,14 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     }).range(nodeRef.from, nodeRef.to);
   }
 
-  // The engine type of the define currently being walked. For an OOP `define
-  // <name> as <parent>` this is the PARENT (the inverted model: parent = type);
-  // for a root `define <name> with …` it is the name itself; for a structural
-  // block it is the keyword (style/screen/component/animation/theme).
   defineType = "";
 
-  // The instance name of the current define (`$default` for a root define, whose
-  // properties live under `context.<type>.$default`).
   defineName = "";
 
-  // True while inside a structural (style/screen/…) block — distinguishes the
-  // struct-body property syntax from the OOP `LuauPropertyDefinition` syntax and
-  // marks a trailing `as PARENT` as `$extends` rather than the type.
   inStructural = false;
 
-  // OOP only: whether the current `define` has a parent (`as PARENT`). Drives
-  // whether the name is a type declaration (root) or an instance (typed).
   oopHasParent = false;
 
-  // OOP typed defines emit `<name>` BEFORE `<parent>` in source order, but the
-  // name's symbolId is `<parent>.<name>`, so its emission is deferred until the
-  // parent is known.
   pendingOOPName: { from: number; to: number; name: string } | null = null;
 
   divertPathParts: string[] = [];
@@ -261,12 +202,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     this.pendingOOPName = null;
   }
 
-  /**
-   * The path of the blocks around `node` in its line of brace blocks,
-   * outermost first: each
-   * block's key, an element's key, and a list entry's index among the
-   * entries before it.
-   */
   private braceBlockPath(node: SyntaxNode): string[] {
     const keys: string[] = [];
     for (let n = node.parent; n; n = n.parent) {
@@ -288,12 +223,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     return keys;
   }
 
-  /**
-   * In a layout or component, each word or class of an element reads the
-   * layer and the style of its name, in either form, so go to definition
-   * reaches the style and a rename keeps every class use and its style
-   * together.
-   */
   private pushClassWordReferences(
     annotations: Range<SparkdownAnnotation<Reference>>[],
     words: SyntaxNode[],
@@ -312,11 +241,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     }
   }
 
-  /**
-   * A struct key's declaration at `path`. In a layout a key's words name
-   * layers and link to the styles of those names; in a style they link to
-   * the layers.
-   */
   private structKeyReference(
     path: (string | number)[],
     key: string,
@@ -342,8 +266,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     }).range(from, to);
   }
 
-  // The `{types:[type], name:"$default", …}` selector a define-type reference
-  // carries so go-to-definition / hover can resolve the type's default struct.
   private typeNameSelector(type: string): SparkSelector[] {
     return [
       {
@@ -363,14 +285,10 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       nodeRef.name === "LuauEventAttribute" ||
       nodeRef.name === "LuauSparkleEventAttribute"
     ) {
-      // Emit a `handler` reference at the callee name of a bare-ref / direct-call
-      // `@event` handler so validateReferences can warn when it names no defined
-      // function. Skip inline closures and dotted/method targets (no bare name).
       const content = firstDescendant(nodeRef.node, EVENT_ATTR_CONTENT);
       const hasClosure = !!firstDescendant(nodeRef.node, EVENT_HANDLER_CLOSURE);
       if (content && !hasClosure) {
         const raw = this.read(content.from, content.to).trim();
-        // Strip a trailing call `(...)` so `use_item(item)` resolves `use_item`.
         const callee = raw.replace(/\s*\([\s\S]*\)\s*$/, "");
         if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(callee)) {
           const nameNode = firstDescendant(content, EVENT_HANDLER_NAME) ?? content;
@@ -386,8 +304,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (nodeRef.name === "LuauFunctionName") {
-      // `LuauFunctionName` fires at both the declaration (`function NAME(...)`,
-      // under LuauFunctionDeclarationName) and call/read sites (`& NAME()`).
       const isDeclaration = !!ancestorMatching(
         nodeRef.node,
         FUNCTION_DECL_NAME,
@@ -432,11 +348,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (nodeRef.name === "LuauFunctionParameter") {
-      // Scope the param symbol under its enclosing function's name, matching
-      // the pre-port `funcName.param` id. The name lives at
-      // LuauFunctionDefinition > LuauFunctionDeclarationName > LuauFunctionName,
-      // or for a type function at LuauFunctionTypeDeclaration >
-      // LuauTypeFunctionName.
       const definition = ancestorMatching(nodeRef.node, PARAMETER_OWNER);
       let functionNameNode = null;
       if (definition?.name === "LuauFunctionTypeDeclaration") {
@@ -468,7 +379,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (nodeRef.name === "DivertPartName") {
-      // NOTE: divertPathParts also includes . separator as a part
       const divertPath = this.divertPathParts.join("");
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
@@ -481,12 +391,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       return annotations;
     }
 
-    // ----- Define declarations (the Luau-port, inverted model) -----------------
-    //
-    // OOP `define <name> as <parent>` : type = parent, instance = name.
-    // OOP `define <name> with …`       : root define, name IS the type.
-    // structural `style/screen/component/animation/theme <name> [as <extends>]` :
-    //   type = keyword, instance = name, trailing `as` = `$extends` (same type).
     if (nodeRef.name === "LuauDefine") {
       this.resetDefineState();
       this.inStructural = false;
@@ -502,13 +406,11 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "LuauDefineName") {
       const name = this.read(nodeRef.from, nodeRef.to).trim();
       if (this.inStructural) {
-        // Structural instance: `<keyword>.<name>` (e.g. `style.my_button`).
         this.defineName = name;
         annotations.push(
           SparkdownAnnotation.mark<Reference>({
             declaration: "define_variable_name",
             symbolIds: [`${this.defineType}.${name}`],
-            // A style styles the layers of its name, which link back to it.
             ...(this.defineType === "style"
               ? { interdependentIds: [`layer.${name}`] }
               : {}),
@@ -519,8 +421,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         return annotations;
       }
       if (!this.oopHasParent) {
-        // Root OOP define: the name IS the declared type. Properties live under
-        // `<type>.$default`.
         this.defineType = name;
         this.defineName = "$default";
         annotations.push(
@@ -533,7 +433,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         );
         return annotations;
       }
-      // Typed OOP define: defer the name until the parent (= type) is known.
       this.defineName = name;
       this.pendingOOPName = { from: nodeRef.from, to: nodeRef.to, name };
       return annotations;
@@ -541,8 +440,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "LuauDefineParentName") {
       const parent = this.read(nodeRef.from, nodeRef.to).trim();
       if (this.inStructural) {
-        // `as PARENT` on a structural block is `$extends` — a read reference to
-        // another define of the SAME type (e.g. `animation X as Y` → animation.Y).
         annotations.push(
           SparkdownAnnotation.mark<Reference>({
             symbolIds: [`${this.defineType}.${parent}`],
@@ -552,7 +449,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         );
         return annotations;
       }
-      // OOP typed define: the parent IS the engine type.
       this.defineType = parent;
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
@@ -576,9 +472,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       return annotations;
     }
 
-    // ----- OOP define property (`store trust = 0`, `name = "RAFFLES"`) ---------
     if (nodeRef.name === "LuauPropertyDefinition") {
-      // A reserved-word key is in the property's own begin.
       const ownBegin = findChildByName(nodeRef.node, "LuauPropertyDefinition_begin");
       const keywordKey = ownBegin ? getDescendent("LuauDefineKeywordKey", ownBegin) : null;
       const begin = keywordKey ? null : getDescendent(["LuauVariableAssignment_begin", "LuauSparkdownExplicitVariableAssignment_begin"], nodeRef.node);
@@ -594,8 +488,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
             kind: "write",
           }).range(nameNode.from, nameNode.to),
         );
-        // A character's `name = "X"` value is the cross-reference target a
-        // dialogue cue (`X:`) resolves to via `character.?.name=X`.
         if (this.defineType === "character" && propName === "name") {
           const stringNode = getDescendent(
             "LuauDoubleQuotedString",
@@ -618,8 +510,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       return annotations;
     }
 
-    // ----- Brace blocks (#1222) ------------------------------------------------
-    //
     if (
       this.inStructural &&
       (nodeRef.name === "LuauStructBlock" ||
@@ -644,10 +534,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (this.inStructural && nodeRef.name === "LuauSparkleElement") {
-      // An element's name and each of its words and `.name` classes name a
-      // layer, linked to the style of the same name. The name also declares
-      // the element's key at its path, as the static struct keys it. A
-      // component call has no key, but its classes still name layers.
       const { name, words, call } = sparkleElementKeyParts(nodeRef.node);
       if (name && !call) {
         const nameText = this.read(name.from, name.to).trim();
@@ -671,8 +557,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (this.inStructural && nodeRef.name === "LuauSparkleElementContinuation") {
-      // An element's parts continued on a later line: its words and classes
-      // link as the element's own do.
       const content = findChildByName(
         nodeRef.node,
         "LuauSparkleElementContinuation_content",
@@ -695,19 +579,12 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     }
     if (nodeRef.name === "LuauVariableName") {
       const name = this.read(nodeRef.from, nodeRef.to);
-      // Skip the LHS name of an OOP define property — the LuauPropertyDefinition
-      // branch already claimed it as a `property` declaration.
       if (
         ancestorMatching(nodeRef.node, VARIABLE_DECL_SITE, 6) &&
         ancestorMatching(nodeRef.node, PROPERTY_DEFINITION)
       ) {
         return annotations;
       }
-      // Declaration site: the LHS of a `store`/`local`/`const` definition
-      // (nested in LuauVariableAssignment_begin AND a LuauVariableDefinition;
-      // a bare reassignment has the former but not the latter). const vs var
-      // comes from the definition's LuauScopeModifier. A value in the list
-      // (`x` in `local a, b = 1, x`) has the same shape but is a read.
       if (
         ancestorMatching(nodeRef.node, VARIABLE_DECL_SITE, 6) &&
         ancestorMatching(nodeRef.node, VARIABLE_DEFINITION_NAMES) &&
@@ -727,8 +604,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         );
         return annotations;
       }
-      // A define property whose whole value is this bare name may name a
-      // declared asset (`image = warm`).
       const valueReference = definePropertyReference(
         nodeRef.node.parent?.parent?.parent?.parent?.parent,
       );
@@ -736,8 +611,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         valueReference && !valueReference.property
           ? { types: DEFINE_ASSET_TYPES, name }
           : undefined;
-      // Value read: reference the binding by bare name (and `.name` scoped form
-      // for divert-style resolution).
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
           symbolIds: ["." + name, name],
@@ -750,8 +623,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (nodeRef.name === "LuauPropertyName") {
-      // A define property whose whole value is a typed asset reference
-      // (`image = filtered_image.warm`) names an asset of that type.
       const valueReference = definePropertyReference(
         nodeRef.node.parent?.parent?.parent?.parent?.parent,
       );
@@ -770,10 +641,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       }
     }
     if (nodeRef.name === "LuauLayoutScreenName") {
-      // The `in <screen>` clause on a layout header (`layout X in SCREEN`):
-      // references a defined navigation `screen <name>`. Resolving it warns
-      // "Cannot find screen `X`" when the screen isn't declared — catching typos
-      // in the `in` clause (the whole reason screens are explicitly defined).
       const name = this.read(nodeRef.from, nodeRef.to).trim();
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
@@ -787,13 +654,8 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     }
     if (nodeRef.name === "AssetCommandTarget") {
       const context = getContextNames(nodeRef.node);
-      // Record image target reference
       if (context.includes("ImageCommand")) {
         const name = this.read(nodeRef.from, nodeRef.to);
-        // Layout-lifecycle directive (`[[open/close <layout>]]` /
-        // `[[navigate <screen> to <layout>]]`): the FIRST token references a
-        // `layout`/`screen` define (not an image layer) — links to the
-        // definition and warns only when undefined.
         const instruction = ancestorMatching(
           nodeRef.node,
           ASSET_COMMAND_INSTRUCTION,
@@ -805,10 +667,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           ? this.read(controlNode.from, controlNode.to).trim()
           : "";
         if (control === "navigate") {
-          // `[[navigate <screen> to <layout>]]` — the FIRST token is a defined
-          // navigation SCREEN. Resolve it as a `screen <name>` define; an
-          // undefined one warns "Cannot find screen `X`" (catching e.g. a layout
-          // name typo'd in the screen position).
           annotations.push(
             SparkdownAnnotation.mark<Reference>({
               selectors: [{ types: ["screen"], name, displayType: "screen" }],
@@ -820,7 +678,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           return annotations;
         }
         if (LAYOUT_CONTROL_KEYWORDS.includes(control)) {
-          // `[[open/close <layout>]]` — the target IS a layout name.
           annotations.push(
             SparkdownAnnotation.mark<Reference>({
               selectors: [{ types: ["layout"], name, displayType: "layout" }],
@@ -867,7 +724,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         );
         return annotations;
       }
-      // Record audio target reference
       if (context.includes("AudioCommand")) {
         const types = ["channel"];
         const name = this.read(nodeRef.from, nodeRef.to);
@@ -884,7 +740,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     }
     if (nodeRef.name === "AssetCommandFilteredFileName") {
       const context = getContextNames(nodeRef.node);
-      // Record image name (and filter) reference
       if (context.includes("ImageCommand")) {
         const instruction = ancestorMatching(
           nodeRef.node,
@@ -915,11 +770,8 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     }
     if (nodeRef.name === "AssetCommandFileName") {
       const context = getContextNames(nodeRef.node);
-      // Record image file name reference
       if (context.includes("ImageCommand")) {
         const name = this.read(nodeRef.from, nodeRef.to);
-        // `[[load A B]]`: every further name is a scene or world too, never
-        // an image.
         const instruction = ancestorMatching(
           nodeRef.node,
           ASSET_COMMAND_INSTRUCTION,
@@ -937,8 +789,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
           return annotations;
         }
-        // A video shows on a layer like an image does, so its name is a
-        // candidate too.
         const types = [
           "filtered_image",
           "layered_image",
@@ -957,7 +807,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         );
         return annotations;
       }
-      // Record audio file name reference
       if (context.includes("AudioCommand")) {
         const types = ["layered_audio", "audio", "synth"];
         const name = this.read(nodeRef.from, nodeRef.to);
@@ -1008,9 +857,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           return annotations;
         }
         if (clauseKeyword === "to") {
-          // `[[navigate <screen> to <layout>]]` — the value after `to` is the
-          // destination LAYOUT. (`to` only appears in `[[…]]` brackets for
-          // navigate; the control is verified before resolving.)
           const command = ancestorMatching(nodeRef.node, ASSET_COMMAND);
           const controlNode = command
             ? firstDescendant(command, ASSET_COMMAND_CONTROL)

@@ -19,4 +19,6 @@ end
 screen --[[ c ]] hud with
 end
 external --[[ c ]] message(x)
-Hi.
+scene start
+  Hi.
+end

@@ -24,8 +24,6 @@ import { Location } from "../../compiler/typecheck/Location";
 import type { AstSubstitution } from "../../compiler/typecheck/printAst";
 import type { Json } from "./officialLuau";
 
-// The fields written by Analysis/src/AstJsonEncoder.cpp at the conformance pin.
-// Omitted fields here are absent upstream, not comparison exemptions.
 const fields: Record<string, string[]> = Object.fromEntries(
   Object.entries({
     ExprGroup: "expr",
@@ -93,7 +91,6 @@ const binaryNames =
     " ",
   );
 
-/** The official encoder's shape, with the converter's document coordinates. */
 export function printOfficialAst(
   root: AstNode,
   substitute?: AstSubstitution,

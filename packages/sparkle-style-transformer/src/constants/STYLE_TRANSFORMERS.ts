@@ -137,8 +137,6 @@ export const STYLE_TRANSFORMERS = {
   "child-layout": getCssChildLayout,
   "child-columns": getCssChildColumns,
   "child-gap": getCssSize,
-  // A marker is a KEYWORD (`disc` / `decimal` / `none` / …), so it passes
-  // through unchanged.
   "list-mark": get,
   "child-align": getCssChildAlign,
   "child-justify": getCssChildJustify,
@@ -187,8 +185,6 @@ export const STYLE_TRANSFORMERS = {
 
   mask: getCssMask,
 
-  // `clip-path` takes a basic shape, `path()`, `url()` or a geometry-box
-  // keyword, all of which are already valid CSS as written.
   clip: get,
 
   shadow: getCssShadow,
@@ -232,20 +228,10 @@ export const STYLE_TRANSFORMERS = {
   "thumb-border-color": getCssColor,
   "thumb-size": getCssSize,
 
-  // `content` takes a QUOTED string. Authors write it bare (`content = ""` for
-  // a pseudo-element box, `content = "New"` for a label), and an unquoted value
-  // is invalid CSS — which renders as nothing at all, silently.
   content: getCssContent,
 
-  // Native form-control tints. These name a theme color like any other color
-  // prop, so they must resolve to `var(--theme-color-…)` — without this,
-  // `accent-color = sky_60` emitted the bare token `sky_60`, which is not a
-  // valid CSS color, so checkbox/radio/slider/progress tints silently did
-  // nothing.
   "accent-color": getCssColor,
   "caret-color": getCssColor,
 
-  // The spinner's colour names a theme token like any other color prop, even
-  // though it lands in a custom property rather than a real CSS property.
   "spinner-color": getCssColor,
 } as const;

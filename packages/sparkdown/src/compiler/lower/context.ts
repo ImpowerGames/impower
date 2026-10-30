@@ -3,362 +3,58 @@ import type { CompilationConfig } from "../classes/annotators/CompilationAnnotat
 import type { RootLocals } from "../utils/rootLocals";
 import type { SparkleJoins } from "./utils/sparkleContinuations";
 
-/**
- * Something a statement's lowering read from outside the statement's own
- * syntax, with the answer it got. `CompilationAnnotator` keeps the reads of
- * each chunk it lowers and lowers the chunk again when the document answers
- * one of them differently; the chunk store reuses a statement chunk only
- * while its statement's reads are the ones the chunk was emitted for.
- *
- * `routing` is the routing of the display line a glued continuation (a line
- * that begins with `..`) continues, which the continuation's beats after a
- * `>` break take (`lexicalRouting` in `lowerDisplay.ts`). The node that read
- * it is named with the read, since a continuation can stand inside a block
- * statement below the chunk's top-level node, and the question is its own.
- *
- * `unreachable` is the range of the statements a `done` or `fin` leaves
- * unreachable, which its hint covers (`unreachableRead` in
- * `lowerDoneOrFin.ts`): the statements after it in its scope, which an edit
- * below it changes. It decides the hint and not the statement's code, so the
- * chunk store does not compare it.
- *
- * `rootLocal` is the `local` of the root frame's own scope a function or a
- * closure reads a name from where it is written (`RootLocals.answer`), and
- * `rootDeclaration` what a root-frame declaration is known by among the
- * document's declarations of its name (`RootLocals.declared`): a `local`
- * written, removed or moved above either changes the code it lowers to. Each
- * names the variable in place of a node, and its value is `name=answer`.
- * `rootLocalIgnoringBlocks`, read the same way, is the `local` of the flows
- * around a block a top-level statement opens that is in scope inside it
- * (`RootLocals.answerIgnoringBlocks`), which decides whether a closure
- * written in the block captures the name though a global takes it.
- */
 export interface LoweringRead {
   kind: "routing" | "unreachable" | "rootLocal" | "rootDeclaration" | "rootLocalIgnoringBlocks";
   value: string;
-  /** The name of the node that read it, or for a `rootLocal` or a
-   *  `rootDeclaration`, the variable's. */
   node: string;
-  /** Where that node starts in the document. */
   from: number;
 }
 
 export interface LowerContext {
-  /**
-   * Records a read of something outside the statement being lowered (see
-   * {@link LoweringRead}). Absent for callers that keep nothing across
-   * compiles.
-   */
   recordRead?: (read: LoweringRead) => void;
   read: (from: number, to: number) => string;
-  /**
-   * The whole text of the document being lowered, which the syntax tree's
-   * offsets index. The lowerers read Luau through the converter
-   * (`typecheck/readLuauAst.ts`), which reads its tokens from the tree and
-   * this text (`lower/utils/luauAst.ts`). A function, so a caller that keeps
-   * the document in another form converts it once, when Luau is first read.
-   */
   documentText?: () => string;
-  /**
-   * Returns the **chunk-relative** 0-based line number for an absolute byte
-   * offset. Line 0 is the first line of the chunk currently being lowered.
-   * The compiler's `offsetDebugMetadata` later adds the chunk's absolute
-   * start line back in.
-   */
   lineNumber: (pos: number) => number;
-  /**
-   * Returns the 0-based column (character offset within the line) for an
-   * absolute byte offset.
-   */
   characterNumber: (pos: number) => number;
-  /**
-   * URI of the document being lowered. Stamped onto `DebugMetadata.filePath`
-   * so the resolver's diagnostics route back to the right URI in
-   * `program.diagnostics`. Optional for snapshot-tool callers that don't
-   * surface diagnostics.
-   */
   filePath?: string;
-  /**
-   * Absolute source offset of the chunk being lowered. An unchanged chunk is
-   * carried into later compiles without being lowered again, so a name that
-   * must match a cold compile is derived from a position within the chunk
-   * rather than from its position in the document (see `bindingId` in
-   * `lowerSparkleBody`). Snapshot callers may omit it.
-   */
   chunkFrom?: number;
-  /**
-   * The layout or component whose Sparkle body is being lowered, as
-   * `<kind>_<name>` (`layout_hud`). Set by `lowerLuauUI` around the body.
-   */
   sparkleOwner?: string;
   config?: CompilationConfig;
-  /**
-   * Mutable list of synthetic `Knot` ParsedObjects produced by lowering
-   * anonymous function literals (`function(x) ... end` in expression
-   * position). Each such literal compiles to a uniquely-named top-level
-   * knot plus a `DivertTarget` at the literal's source position; the
-   * synthetic knot has nowhere to live in the expression's parsed tree
-   * so it gets stashed here. Names are derived from the document and
-   * the source byte offset within it (`__anon_fn_<syntheticId>`) so they
-   * stay unique across chunks and files. If unset, anonymous-function lowering is a
-   * no-op (snapshot tools that don't care about runtime execution can
-   * omit it).
-   */
   hoistedKnots?: ParsedObject[];
-  /**
-   * Enclosing Sparkle `for`-loop variable names, outermost-first. A reactive
-   * UI binding (`{expr}`) lowered inside one or more `for` loops can't read the
-   * per-iteration loop variables as globals (they aren't declared globals — the
-   * engine rejects assigning undeclared globals). So `lowerBinding` emits the
-   * enclosing loop vars as the evaluator function's PARAMETERS
-   * (`__binding$N(item, …) return <expr> end`) and records them on the Binding
-   * (`Binding.params`); the reactive runtime passes each iteration's values as
-   * args. `buildForNode` pushes its bindings before lowering its body and pops
-   * after (the iterable + `else` are lowered outside this scope).
-   */
   sparkleLoopVars?: string[];
-  /**
-   * Set while the statements of a Sparkle handler's closure (`@e={ ... }`)
-   * lower: the closure runs as a function, though it is not on
-   * `functionScopeStack`, so a `const` in it is Luau's, a local, rather than
-   * the story's published constant (`publishesConst`).
-   */
   localConsts?: boolean;
-  /**
-   * The names each function lowering around the statement binds, innermost
-   * last, with the ranges they bind over (`functionBindings`): pushed with
-   * `declaredLocalsStack` by a function's body, a define's method and a
-   * Sparkle handler's closure. An assignment whose reading does not hold the
-   * binding it targets resolves it here (`resolveFunctionBinding`), so a
-   * function's `const` reassigned from a body read on its own is Luau's
-   * error (`reportReassignedConst`).
-   */
   functionBindingsStack?: import("./utils/functionBindings").FunctionBinding[][];
-  /**
-   * The continuation lines and own-line blocks of the Sparkle body being
-   * built, joined to the elements they continue (`joinSparkleContinuations`).
-   * Set by `buildSparkleBody` around the body.
-   */
   sparkleJoins?: SparkleJoins;
-  /**
-   * When set, expression lowerers stamp per-node `DebugMetadata` (currently the
-   * `VariableReference` for an identifier chain) with the chain's own source
-   * span. Enabled only while lowering a Sparkle binding body
-   * (`buildSparkleBody`), where bindings are hoisted into synthetic functions
-   * with no natural statement-level metadata to inherit, so the reference and
-   * the code it compiles to get the binding's own position. It stays scoped to
-   * Sparkle because a reference's `DebugMetadata` feeds the positions its chunk
-   * records. Unresolved-name warnings do not depend on it:
-   * `VariableReference` reports them on its positioned `identifier` in every
-   * expression.
-   */
   stampExpressionSpans?: boolean;
-  /**
-   * Stack of per-function buffers for nested callable definitions
-   * (anonymous function literals, nested named functions, class
-   * methods). When a function-definition lowerer enters, it pushes a
-   * new buffer onto this stack; inner lowerers that produce a nestable
-   * callable push the resulting `Function` (or other FlowBase) onto
-   * the top buffer instead of `hoistedKnots`. When the function-
-   * definition lowerer pops its buffer, it includes the collected
-   * children as subFlows of its own runtime container so they live at
-   * their lexical position rather than hoisted to top-level. If the
-   * stack is empty (top-level scope), callables fall back to
-   * `hoistedKnots`.
-   */
   functionScopeStack?: ParsedObject[][];
-  /**
-   * Buffer for diagnostics produced by lowerers nested deep inside a
-   * top-level chunk's lowering tree. Top-level lowerers attach
-   * diagnostics directly to their returned `CompiledBlock`, which the
-   * annotator picks up from the chunk-level dispatch. Statement-level
-   * lowerers reached through `lowerStatements` may push here directly
-   * or attach to their block. Every site that unwraps a nested block
-   * and discards it (`appendBlockContent`, the alternator arm lowerers,
-   * a variable definition's trailing statements) moves the block's
-   * `diagnostics` here with `forwardBlockDiagnostics`.
-   * The chunk-level annotator collects everything before finalizing.
-   */
   diagnostics?: import("../classes/annotators/CompilationAnnotator").InkDiagnostic[];
-  /**
-   * Stack of loop-control targets, innermost-last. Each loop lowerer
-   * (`while`, `for`, `repeat`) pushes an entry before lowering its
-   * body and pops after. The body's `break` / `continue` lowerers
-   * read the top entry to emit a `Divert` to the right label.
-   *
-   * `continueLabel` is the label that re-enters the loop's next-
-   * iteration logic (for `while`, the loop gather itself; for `for`,
-   * the step-update gather; for `repeat`, the until-check gather).
-   * `breakLabel` is the gather immediately past the loop's exit.
-   *
-   * Each loop emits both labels, including a sentinel `loop_break`
-   * gather past the loop body.
-   *
-   * `scopeDepth` is the `ctx.scopeDepth` that stays open at both
-   * labels. A `break`/`continue` lowered at a deeper `ctx.scopeDepth`
-   * sits inside scoped blocks whose `EndScope` commands the divert
-   * would skip, so the keyword lowerers emit one `EndScope` per level
-   * of difference and the runtime scope stack stays balanced (a leaked
-   * scope makes later upvalue closing snapshot the wrong binding —
-   * basic.luau's break-inside-if timely-closing test).
-   *
-   * `for` and `repeat` wrap the whole loop, labels included, in one
-   * scope, so they record the depth with that scope counted and their
-   * body runs at the same depth. `while` opens a scope around the body
-   * on each iteration, inside its conditional branch, with both labels
-   * outside it, so it records the enclosing depth and lowers its body
-   * one level deeper; a `break`/`continue` then closes the body's scope.
-   */
   loopStack?: {
     continueLabel: string;
     breakLabel: string;
     scopeDepth?: number;
   }[];
-  /**
-   * Number of scoped blocks (`if`/`elseif`/`else` arms, `do` bodies,
-   * loop bodies — anything whose lowered content is wrapped in
-   * `BeginScope`/`EndScope`) enclosing the statement currently being
-   * lowered, relative to the function body's top level (0). Each
-   * scope-wrapping lowerer increments around its body lowering.
-   * Consumed by `break`/`continue` to unwind skipped scopes (see
-   * `loopStack.scopeDepth`).
-   */
   scopeDepth?: number;
-  /**
-   * Number of blocks whose statements are lowering (`lowerStatements`)
-   * around the statement currently being lowered, which Luau's block
-   * recursion limit bounds.
-   */
   blockDepth?: number;
-  /**
-   * Names that resolve to globally-addressable callables — top-level
-   * function knots, `external NAME(...)` declarations, and `store`
-   * declarations at the document root. Populated by a pre-scan of
-   * the parse tree before lowering starts. Used by `scanFreeVariables`
-   * to distinguish "reference to a sibling local I should capture as
-   * an upval" from "reference to a global that the divert resolver
-   * can find on its own". Stdlib names are NOT in this set — the
-   * grammar tags them under `LuauStdLibFunctions` / `LuauStdLibConstants`
-   * and the scanner already skips those.
-   *
-   * Only `has` is offered: `CompilationAnnotator` records every lookup a
-   * chunk makes so it can lower that chunk again when an edit elsewhere
-   * changes one of the answers.
-   */
   globalCallableNames?: Pick<ReadonlySet<string>, "has">;
-  /**
-   * The `local`s of the root frame's own scope the document declares, by
-   * where each is written (`RootLocals`). A function or a closure binds a
-   * name it reads to the one in scope where it is written, which
-   * `rootLocalAnswer` asks and records (I-1374, I-1365). Absent for callers
-   * that lower no document, where no such local is in scope.
-   */
   rootLocals?: Pick<RootLocals, "answer" | "answerIgnoringBlocks" | "blockLocal" | "declared">;
-  /**
-   * Names that are used as a TYPE somewhere in the document — every
-   * `define`/`animation`/`theme` PARENT (`LuauDefineParentName`) AND every
-   * `new <Class>()` target (`LuauNewClassName`). These are the type /
-   * namespace-root names that must keep their BARE global, because `type.name`
-   * member access, `new T()`, and `instances(T)` all resolve the type name as
-   * a bare global. Populated by a whole-tree pre-scan (alongside
-   * `globalCallableNames`). `lowerLuauDefine` consults it to decide whether a
-   * typed define is a **leaf instance** (has a parent AND its own name is NOT
-   * in this set → scope its runtime global under a synthetic `$<type>_<name>`
-   * key so the bare name stays free for user `store`/vars — the `store show`
-   * vs builtin `animation show` clash class) or a **type** (a root, an
-   * as-parent, or a new-target → keep the bare global). `instances(T)` needs
-   * no scan: a `T` with members is always an as-parent. See
-   * [[project_define_namespace_scoping]]. When absent, treated as the empty
-   * set (every typed define is a leaf → scoped).
-   *
-   * Only `has` is offered, recorded per chunk like `globalCallableNames`.
-   */
   defineTypeNames?: Pick<ReadonlySet<string>, "has">;
-  /**
-   * Stack of per-enclosing-function-scope local declarations. Each
-   * frame holds the names declared via `local` / `store` / `const`
-   * (and nested `local function NAME(...) end` declarations; a plain
-   * `function NAME` assigns and declares nothing, I-1422) in that
-   * function's immediate body. `lowerLuauFunctionDefinition` pushes
-   * a frame before lowering its body and pops after; the body's
-   * recursive lowering of nested functions can then consult the stack
-   * to detect shadowing.
-   *
-   * Specifically: `scanFreeVariables`, when deciding whether to
-   * capture a referenced name as an upval, checks the stack. If the
-   * name appears in ANY enclosing frame, it's a locally-shadowed
-   * binding and MUST be captured — even if the name also matches a
-   * stdlib identifier (otherwise `local count = 0; function f() count
-   * = count + 1 end` would silently route `count` through the stdlib
-   * dispatch instead of the local). Without this stack the scanner
-   * has no way to know a stdlib-shaped name is shadowed.
-   */
   declaredLocalsStack?: Set<string>[];
-  /**
-   * Stack of per-enclosing-function-scope sibling-subflow frames. A
-   * nested function statement, variadic or not, lowers as a closure
-   * declared as a local (`local function`) or assigned to the variable
-   * its name resolves to (`function NAME`, I-1422)
-   * (`lowerNestedNamedFunction`), so no lowerer registers a subflow here
-   * any more (I-1360); the frames hold the names an assignment or a
-   * function statement rebinds (`recordRebind`), whose calls dispatch
-   * through the variable (`SiblingSubFlowInfo.rebound`).
-   *
-   * Parallel to `functionScopeStack`:
-   * each function-definition lowerer pushes one frame on entry and
-   * pops on exit.
-   */
   siblingSubFlowNamesStack?: Map<string, SiblingSubFlowInfo>[];
-  /**
-   * The statements whose lowering is running, the innermost last, with the
-   * top-level statement at the bottom (see `StatementShape`). Given by the
-   * compilation annotator when statement chunks are on; `lowerStatements`
-   * pushes each statement of a block's body while it lowers it, and a read
-   * of the context is recorded on the innermost statement. Absent for
-   * callers that keep no statement shapes.
-   */
   statementStack?: import("./utils/statementShape").StatementShape[];
-  /**
-   * The statement memo of the top-level node being lowered
-   * (`statementMemo.ts`), through which `lowerStatements` lowers each
-   * statement of a body that lowers from its own node, or serves it from its
-   * memo. Given by the compilation annotator when statement chunks are on.
-   */
   statementMemo?: import("./statementMemo").StatementMemoSession;
 }
 
-/**
- * Registry entry for a name of the sibling-subflow frames
- * (`LowerContext.siblingSubFlowNamesStack`): a plain `NAME = <expr>`
- * assignment rebound the name to a runtime value (Lua's `function f` is
- * sugar for exactly that, so a later assignment wins). A rebound entry makes
- * `resolveCallableBinding` answer "local" (subsequent calls value-dispatch
- * through the variable, carrying the arg count the runtime's variadic
- * packing needs) while still suppressing upval capture — a bare-assigned
- * GLOBAL is read as a global inside closures, not captured by pointer. The
- * registry is consulted in lexical order during lowering, so call sites
- * before the assignment keep their binding. Each rebind writes an entry of
- * its own, so the frame a rebinding statement wrote reads as changed, and the
- * statement, whose write no memo replays, is not served from one
- * (`recordLowering`).
- */
 export interface SiblingSubFlowInfo {
   rebound: true;
 }
 
-// Builds a `LowerContext` from a raw source string. Used by the snapshot
-// tools (which compile a string without going through the annotator); the
-// annotator builds its own context using the codemirror `Text` so it can
-// share the document's line index. Line/character numbers are absolute
-// here (chunk = whole source) which is the right behavior for snapshots.
 export function createLowerContextFromSource(
   source: string,
   config?: CompilationConfig,
 ): LowerContext {
-  // Pre-compute line starts so we can binary-search positions.
   const lineStarts: number[] = [0];
   for (let i = 0; i < source.length; i++) {
-    if (source.charCodeAt(i) === 10 /* \n */) {
+    if (source.charCodeAt(i) === 10) {
       lineStarts.push(i + 1);
     }
   }

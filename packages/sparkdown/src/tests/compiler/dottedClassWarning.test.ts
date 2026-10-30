@@ -1,9 +1,3 @@
-// A class on a Sparkle element line is written `.name` (`row.hud`, #1222), and
-// until the indented forms are removed a bare word after the tag (`row hud`)
-// is still one. The "classes are space-separated" warning a dotted class used
-// to get is gone (#1224); `braceLayoutBodies.test.ts` checks how a dotted
-// class lowers.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
@@ -41,29 +35,25 @@ const warnsDotted = (diags: string[]) =>
 describe("dotted-class warning", () => {
   test("a dotted class on a container element does not warn", () => {
     const diags = diagnosticsFor(
-      `layout main with\n  row.hud #gap=12 {\n    text "x"\n  }\nend\n`,
+      `layout main with\n  row.hud #gap=12 {\n    text "x"\n  }\nend\nscene start\nend\n`,
     );
     expect(diags).toEqual([]);
   });
 
   test("a dotted class on a content element does not warn", () => {
-    const diags = diagnosticsFor(`layout main with\n  text.title "Hi"\nend\n`);
+    const diags = diagnosticsFor(`layout main with\n  text.title "Hi"\nend\nscene start\nend\n`);
     expect(diags).toEqual([]);
   });
 
   test("a dotted class in a brace block does not warn", () => {
     const diags = diagnosticsFor(
-      `layout main with\n  row.hud #gap=12 { text.title "Hi" }\nend\n`,
+      `layout main with\n  row.hud #gap=12 { text.title "Hi" }\nend\nscene start\nend\n`,
     );
     expect(diags).toEqual([]);
   });
 });
 
 describe("a CSS-nesting selector is not a dotted class", () => {
-  // `&.secondary:` compiles to a real, populated compound rule (`builtins.sd`
-  // uses the idiom 13 times), and taking the suggested fix turns it into a
-  // descendant TYPE selector matching nothing — with no further warning. The
-  // advice was not just noise; following it silently broke working styles.
   for (const selector of [
     "&.secondary",
     "&.outline.secondary",

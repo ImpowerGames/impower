@@ -68,7 +68,6 @@ const getColor = (
       }
     }
     if (requireValidReference) {
-      // Could not find a matching defined color
       return null;
     }
   }

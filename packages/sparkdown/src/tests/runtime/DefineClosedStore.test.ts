@@ -1,6 +1,3 @@
-// A `store` below a closed `define` stays a global: the define's `end` stops it
-// from taking the line as one of its properties, so `{trust}` reads the stored
-// value. See issue #836.
 import { expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
@@ -12,7 +9,9 @@ test("a store below a closed define stays global", () => {
     "",
     "store trust = 5",
     "",
-    "Trust is {trust}.",
+    "scene start",
+    "  Trust is {trust}.",
+    "end",
     "",
   ].join("\n");
   const ctx = makeRuntimeStoryFromSource(source);

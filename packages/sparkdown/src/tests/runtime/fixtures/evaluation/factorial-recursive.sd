@@ -1,5 +1,7 @@
-{factorial(5)}
-done
+scene start
+  {factorial(5)}
+  done
+end
 
 function factorial(n)
   if n == 1 then

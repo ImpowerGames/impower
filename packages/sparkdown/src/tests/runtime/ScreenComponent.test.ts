@@ -1,12 +1,3 @@
-// `screen NAME [as PARENT] with <colon/indent element tree> end` (and
-// `component`). Structural UI keywords lowering to a compile-time struct
-// in program.context.screen|component.<name>. The body is the colon/indent
-// named-element tree the engine consumes directly: named elements as keys,
-// `key = value` scalars, and bare markers (`image`, `text`, `mask shadow_1`)
-// as `{}` leaves. (Matches production ui.sd.)
-//
-// Run: npx vitest run .../ScreenComponent.test.ts
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
@@ -64,6 +55,8 @@ describe("screen · named-element tree", () => {
     }
   }
 end
+scene start
+end
 `);
     expect(r.errors).toEqual([]);
     expect(r.layout["main"]).toEqual({
@@ -84,20 +77,14 @@ end
 
 describe("screen · classed element with content", () => {
   test("`text.h1 \"…\"` splits into key = tag + classes, value = content", () => {
-    // The adjacency rule (`tag "content"`) only matches ONE tag token before the
-    // string, so an element carrying style classes AND content falls through to
-    // the bare-marker fallback. It must still lower like the class-less form
-    // rather than stuffing the whole line into the key with an empty value:
-    // UIModule.initLayout reads an empty `text`/`image` leaf as an unwritten
-    // WRITE TARGET and registers its PARENT as a clear-on-continue transient, so
-    // the whole-line-key shape made the engine hide (and wipe) the authored
-    // `column` merely for holding a styled static text.
     const r = compileUI(`layout main with
   column {
     text.h1 "Sparkle x Pico"
     text "plain"
     image
   }
+end
+scene start
 end
 `);
     expect(r.errors).toEqual([]);
@@ -108,8 +95,6 @@ end
       column: {
         "text h1": "Sparkle x Pico",
         text: "plain",
-        // A genuinely content-less leaf still lowers to `{}` — that IS a write
-        // target, and its parent SHOULD stay transient.
         image: {},
       },
     });
@@ -122,6 +107,8 @@ end
     button.primary "Go" @click=noop
   }
 end
+scene start
+end
 `);
     expect(r.errors).toEqual([]);
     expect(r.layout["main"]!["column"]).toEqual({
@@ -133,19 +120,15 @@ end
 
 describe("screen · reactive content interpolation", () => {
   test("interpolated content compiles cleanly (binding evaluators hoisted)", () => {
-    // `{expr}` in display content lowers to a hoisted nullary binding function
-    // (`__binding$<id>() return <expr> end`). The full pipeline must compile
-    // those with no errors — a malformed flow or unresolved reference would
-    // surface as a diagnostic here.
     const r = compileUI(`store hp = 100
 store max_hp = 100
 layout hud with
   text = "HP: {hp} / {max_hp + 0}"
 end
+scene start
+end
 `);
     expect(r.errors).toEqual([]);
-    // Static struct still carries the raw content string (engine path
-    // unchanged in Phase 1).
     expect(r.layout["hud"]["text"]).toBe("HP: {hp} / {max_hp + 0}");
   });
 });
@@ -159,10 +142,10 @@ describe("screen · adjacency content", () => {
     }
   }
 end
+scene start
+end
 `);
     expect(r.errors).toEqual([]);
-    // Adjacency `image "black"` lowers to { image: "black" } — identical to the
-    // scalar `image = "black"` form (engine static path unchanged).
     expect(r.layout["main"]["stage"]).toEqual({ backdrop: { image: "black" } });
   });
 });
@@ -180,10 +163,10 @@ layout hud with
     button "Hit" @click=take_damage(10)
   }
 end
+scene start
+end
 `);
     expect(r.errors).toEqual([]);
-    // The reactive `@click` attrs are not in the static context struct — only
-    // the element + its content survive.
     expect(r.layout["hud"]["row"]).toEqual({
       button: "Hit",
     });
@@ -197,6 +180,8 @@ describe("screen · classes", () => {
     mask.shadow_1
     text.title "Inventory"
   }
+end
+scene start
 end
 `);
     expect(r.errors).toEqual([]);
@@ -220,10 +205,9 @@ layout hud with
     text "ok"
   end
 end
+scene start
+end
 `);
-    // The branch conditions lower to hoisted nullary binding functions; the full
-    // pipeline must compile them with no errors (nested `end`s balance against
-    // the screen's `end`).
     expect(r.errors).toEqual([]);
   });
 });
@@ -239,6 +223,8 @@ layout bag with
   else
     text "empty"
   end
+end
+scene start
 end
 `);
     expect(r.errors).toEqual([]);
@@ -256,6 +242,8 @@ layout sheet with
     text "Other"
   end
 end
+scene start
+end
 `);
     expect(r.errors).toEqual([]);
   });
@@ -270,6 +258,8 @@ describe("component", () => {
     }
   }
 end
+scene start
+end
 `);
     expect(r.errors).toEqual([]);
     const c = r.component["card"];
@@ -283,6 +273,8 @@ end
   label {
     text
   }
+end
+scene start
 end
 `);
     expect(r.errors).toEqual([]);
@@ -302,8 +294,7 @@ layout s with
     }
   }
 end
--> main
-scene main
+scene start
   Hi.
   done
 end

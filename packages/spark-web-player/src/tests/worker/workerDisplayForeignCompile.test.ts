@@ -11,7 +11,7 @@ const SOURCE = `define SPRITE_A as image with
   src = "https://example.com/a.png"
 end
 
--> start
+
 
 scene start
   HERO:
@@ -23,9 +23,9 @@ scene start
 end
 `;
 
-const LOOSE = `-> loose
+const LOOSE = `
 
-scene loose
+scene start
   A script the story does not include.
 end
 `;

@@ -1,11 +1,6 @@
 // Checking one module, ported from the new-solver path of Luau's
 // `Frontend.h`/`Frontend.cpp`; Luau is MIT-licensed (see `LICENSE-luau.txt`).
-//
-// `check` runs the passes in Luau's order: the data-flow graph, constraint
-// generation, constraint solving, then the checker for the module's mode,
-// and last the cloning of the module's public interface.
 
-// Registers the builtin type functions every check reduces with.
 import "./BuiltinTypeFunctions";
 import { cloneTypeFun, TypeCloner } from "./Clone";
 import { ConstraintGenerator } from "./ConstraintGenerator";
@@ -25,11 +20,9 @@ import { BuiltinTypes, persist, type TypeId } from "./Type";
 import { check as checkStrict } from "./TypeChecker2";
 import { TypeFunctionRuntime, type TypeCheckLimits } from "./TypeFunction";
 
-// Luau's `LuauTypeInferRecursionLimit` and `LuauTypeInferIterationLimit`.
 const TYPE_INFER_RECURSION_LIMIT = 165;
 const TYPE_INFER_ITERATION_LIMIT = 20000;
 
-/** The mode a module's `--!` header comment selects, if any (Luau's `parseMode`). */
 export function parseMode(hotcomments: readonly HotComment[]): Mode | undefined {
   for (const hc of hotcomments) {
     if (!hc.header) continue;
@@ -40,10 +33,6 @@ export function parseMode(hotcomments: readonly HotComment[]): Mode | undefined 
   return undefined;
 }
 
-/**
- * Checks one parsed module in the given mode (Luau's free `check`). The
- * module's errors are in the order the passes reported them.
- */
 export function check(
   sourceModule: SourceModule,
   mode: Mode,
@@ -112,18 +101,12 @@ export function check(
       break;
   }
 
-  // An incomplete solve is not worth a warning when it is the only error.
   if (module.errors.length === 1 && module.errors[0]!.data.kind === "ConstraintSolvingIncompleteError") module.errors = [];
 
   module.clonePublicInterface(builtinTypes);
   return module;
 }
 
-/**
- * Errors in source order, as Luau's `accumulateErrors` leaves a module's
- * errors: sorted by where they begin, with errors that begin at the same place
- * in the order they were reported.
- */
 export function accumulateErrors(errors: readonly LuauTypeError[]): LuauTypeError[] {
   return errors
     .map((error, index) => ({ error, index }))
@@ -145,14 +128,9 @@ export interface LoadDefinitionFileResult {
 
 export interface CheckResult {
   module: Module;
-  /** The module's errors in source order (Luau's `CheckResult::errors`). */
   errors: LuauTypeError[];
 }
 
-/**
- * The state checks share: the builtin types, the global scope and the
- * module resolver (a part of Luau's `Frontend`).
- */
 export class Frontend {
   readonly builtinTypes: BuiltinTypes;
   readonly globals: GlobalTypes;
@@ -163,11 +141,6 @@ export class Frontend {
     this.globals = new GlobalTypes(builtinTypes);
   }
 
-  /**
-   * Loads a prepared module of `declare` statements and adds its globals and
-   * exported types to `targetScope`. Definition source is parsed at build time
-   * with the official parser, never while an author's document is checked.
-   */
   loadDefinitionFile(globals: GlobalTypes, targetScope: Scope, definition: DefinitionFile, packageName: string): LoadDefinitionFileResult {
     const sourceModule: SourceModule = {
       name: packageName,
@@ -192,11 +165,6 @@ export class Frontend {
     return { success: true, module: checkedModule, parseErrors: [] };
   }
 
-  /**
-   * Checks a module in its `--!` header's mode, or in `defaultMode` without
-   * one. `environmentScope`, a scope below the global scope, holds names the
-   * module sees in addition to the globals (Luau's module environments).
-   */
   checkSourceModule(sourceModule: SourceModule, defaultMode: Mode, environmentScope?: Scope, limits: TypeCheckLimits = {}): CheckResult {
     const mode = sourceModule.mode ?? defaultMode;
     sourceModule.mode = mode;
@@ -216,7 +184,6 @@ export class Frontend {
   }
 }
 
-/** Clones a checked definition module's globals and exported types into the global arena and scope. */
 function persistCheckedTypes(checkedModule: Module, globals: GlobalTypes, targetScope: Scope): void {
   const cloner = new TypeCloner(globals.globalTypes, globals.builtinTypes);
   const typesToPersist: TypeId[] = [];

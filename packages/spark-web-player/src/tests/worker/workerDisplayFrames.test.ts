@@ -172,7 +172,7 @@ describe("the preview displayed from the worker's game", () => {
       `  src = "https://example.com/b.png"`,
       `end`,
       ``,
-      `-> start`,
+      ``,
       ``,
       `scene start`,
       `  HERO:`,
@@ -209,7 +209,7 @@ describe("the preview displayed from the worker's game", () => {
 
   it("shows the real document after a suggestion changed a function an unchanged scene calls", async () => {
     const text = [
-      "-> bridge",
+      "",
       "",
       "function greeting()",
       `  return "the real greeting"`,
@@ -217,6 +217,10 @@ describe("the preview displayed from the worker's game", () => {
       "",
       "scene bridge",
       "  The bridge says {greeting()}.",
+      "end",
+      "",
+      "scene start",
+      "  -> bridge",
       "end",
       "",
     ].join("\n");
@@ -248,7 +252,8 @@ describe("the preview displayed from the worker's game", () => {
     }));
     const on = await frames(text, steps);
     expect(on).toHaveLength(steps.length + 1);
-    expect(on.launches.slice(1)).toEqual(steps.map(() => ""));
+    const startEnd = lines.indexOf("scene start") + 2;
+    expect(on.launches.slice(1)).toEqual(steps.map(() => `main : ${startEnd}`));
     for (const frame of on.slice(1)) {
       for (const text of ["Pico", "Preview", "Subscribe", "Privacy Policy"]) {
         expect(shows(frame, text)).toBe(true);

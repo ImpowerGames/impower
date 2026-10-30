@@ -1,14 +1,3 @@
-// A canonical text of a Luau syntax tree (`Ast.ts`), without locations, so
-// two trees read from the same Luau by different readers can be compared as
-// text: the tree `readLuauAst.ts` reads from Sparkdown's syntax tree, and the
-// tree the port of Luau's parser reads from the text (#1285).
-//
-// Each node is a line, indented by its depth, naming its kind and the fields
-// that are not children or locations; its children follow on lines of their
-// own. A local is printed with a number that names its declaration, in the
-// order the declarations are printed, so a name's resolution is part of the
-// text: `x#1` is the second local declared, wherever it is used.
-
 import {
   AstAttr,
   AstExpr,
@@ -94,16 +83,8 @@ import {
   type AstTypeOrPack,
 } from "./Ast";
 
-/**
- * Nodes to print in place of others: for a node, the node or nodes printed
- * instead (several only for a statement of a block), or undefined to print
- * it as it is. A comparison of two readings that differ by design, such as
- * Sparkdown's own constructs, which Luau's parser reads as something else,
- * prints one reading's nodes as the other reads them.
- */
 export type AstSubstitution = (node: AstNode) => AstNode | AstNode[] | undefined;
 
-/** The canonical text of a tree. */
 export function printAst(node: AstNode, substitute?: AstSubstitution): string {
   const printer = new Printer(substitute);
   printer.node(node, 0);
@@ -123,7 +104,6 @@ const TABLE_ITEM_KINDS: Record<TableItemKind, string> = {
   [TableItemKind.General]: "general",
 };
 
-/** A string as a JSON string literal, which spells every character, control characters included, in source form. */
 function quote(value: string): string {
   return JSON.stringify(value);
 }
@@ -138,7 +118,6 @@ class Printer {
 
   constructor(private readonly substitute: AstSubstitution | undefined) {}
 
-  /** The nodes printed for a node: itself, or what `substitute` gives for it. */
   private substitutes(node: AstNode): AstNode[] {
     const replaced = this.substitute?.(node);
     if (replaced === undefined) return [node];
@@ -158,7 +137,6 @@ class Printer {
     return `${local.name}#${id}`;
   }
 
-  /** A local's declaration: its name and number, where it was declared, and its annotation on the lines after. */
   private declare(local: AstLocal, depth: number): void {
     const shadow = local.shadow ? ` shadows ${this.local(local.shadow)}` : "";
     const flags = `${local.isConst ? " const" : ""}${local.isExported ? " exported" : ""}`;
@@ -206,7 +184,6 @@ class Printer {
 
   node(original: AstNode, depth: number): void {
     const nodes = this.substitutes(original);
-    // A substitute that is the node itself is printed as it is.
     if (nodes.length !== 1 || nodes[0] !== original) {
       for (const n of nodes) this.node(n, depth);
       return;

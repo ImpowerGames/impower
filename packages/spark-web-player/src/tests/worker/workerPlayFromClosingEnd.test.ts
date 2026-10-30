@@ -39,8 +39,10 @@ scene other
 end
 `;
 
-const PARAMETER_SCENE_BRANCHES = `-> start(7)
-scene start(a)
+const PARAMETER_SCENE_BRANCHES = `scene start
+  -> main(7)
+end
+scene main(a)
   branch first
     First.
     done
@@ -55,8 +57,7 @@ scene other
 end
 `;
 
-const EMPTY_PARAMETER_LIST = `-> start
-scene start
+const EMPTY_PARAMETER_LIST = `scene start
   branch first()
     First.
     done
@@ -75,11 +76,11 @@ const CASES = [
   ["a scene's end", SCENES, 3, "First.", ["Other."]],
   ["a scene's end below a branch it holds", SCENE_WITH_BRANCH, 7, "Main.", ["Unused.", "Other."]],
   ["the end of a scene that enters its first branch", BRANCHES_ONLY, 9, "First.", ["Unused.", "Other."]],
-  ["the end of a scene that binds a parameter and enters its first branch", PARAMETER_SCENE_BRANCHES, 10, "First.", ["Unused.", "Other."]],
-  ["the end of a scene whose first branch has an empty parameter list", EMPTY_PARAMETER_LIST, 10, "First.", ["Unused.", "Other."]],
-  ["the end of a scene whose first branch has a long empty parameter list", EMPTY_PARAMETER_LIST.replace("first()", `first(${" ".repeat(100)})`), 10, "First.", ["Unused.", "Other."]],
-  ["the end of a branch that diverts out", BRANCHES, 8, "Second 4 b.", ["Visit"]],
-  ["the end of a branch below a done no run reaches", BRANCHES, 22, "Never shown.", ["Leave"]],
+  ["the end of a scene that binds a parameter and enters its first branch", PARAMETER_SCENE_BRANCHES, 12, "First.", ["Unused.", "Other."]],
+  ["the end of a scene whose first branch has an empty parameter list", EMPTY_PARAMETER_LIST, 9, "First.", ["Unused.", "Other."]],
+  ["the end of a scene whose first branch has a long empty parameter list", EMPTY_PARAMETER_LIST.replace("first()", `first(${" ".repeat(100)})`), 9, "First.", ["Unused.", "Other."]],
+  ["the end of a branch that diverts out", BRANCHES, 10, "Second 4 b.", ["Visit"]],
+  ["the end of a branch below a done no run reaches", BRANCHES, 24, "Never shown.", ["Leave"]],
 ] as const;
 
 describe("PLAY from the end that closes a flow with more script below", () => {
@@ -129,8 +130,7 @@ const EMPTY_BRANCH = `scene start
 end
 `;
 
-const EMPTY_AFTER_BEAT = `-> start
-scene start
+const EMPTY_AFTER_BEAT = `scene start
   First.
   -> next
 end
@@ -170,8 +170,8 @@ describe("PLAY and the preview at an empty scene or branch", () => {
   );
 
   it.each([
-    ["header", 5],
-    ["end", 6],
+    ["header", 4],
+    ["end", 5],
   ] as const)(
     "PLAY and the preview at the %s of an empty scene a run enters wait on the beat it displayed",
     async (_name, line) => {
@@ -189,8 +189,7 @@ describe("PLAY and the preview at an empty scene or branch", () => {
   );
 });
 
-const UNENTERED_BRANCH = `-> start
-scene start
+const UNENTERED_BRANCH = `scene start
   branch needs(a)
     Unused {a}.
     done
@@ -201,12 +200,11 @@ scene other
 end
 `;
 
-const UNENTERED_AFTER_BEAT = `-> pre
-scene pre
+const UNENTERED_AFTER_BEAT = `scene start
   Before.
-  -> start
+  -> later
 end
-scene start
+scene later
   branch needs(a)
     Unused {a}.
     done
@@ -217,7 +215,9 @@ scene other
 end
 `;
 
-const BRANCHES_DIVERTED_AT_END = `-> outer.inner(1)
+const BRANCHES_DIVERTED_AT_END = `scene start
+  -> outer.inner(1)
+end
 scene outer
   branch inner(a)
     Inner {a}.
@@ -232,7 +232,7 @@ end
 
 describe("PLAY and the preview at the end of a scene whose branches it does not enter", () => {
   it("PLAY starts and ends without a branch's beat or the flow below", async () => {
-    const outcome = await playFrom(UNENTERED_BRANCH, 6);
+    const outcome = await playFrom(UNENTERED_BRANCH, 5);
     expect(outcome.started).toBe(true);
     expect(outcome.exited).toEqual(["finished"]);
     expect(outcome.text).not.toContain("Unused");
@@ -240,32 +240,32 @@ describe("PLAY and the preview at the end of a scene whose branches it does not 
   }, 120_000);
 
   it("the preview shows no branch's beat and nothing of the flow below", async () => {
-    const text = await previewAt(UNENTERED_BRANCH, 6);
+    const text = await previewAt(UNENTERED_BRANCH, 5);
     expect(text).not.toContain("Unused");
     expect(text).not.toContain("Other.");
   }, 120_000);
 
   it("PLAY and the preview wait on the beat the run displayed before the scene", async () => {
-    const outcome = await playFrom(UNENTERED_AFTER_BEAT, 10);
+    const outcome = await playFrom(UNENTERED_AFTER_BEAT, 9);
     expect(outcome.started).toBe(true);
     expect(outcome.exited).toEqual([]);
     expect(outcome.state).toBe("running");
     expect(outcome.text).toContain("Before.");
     expect(outcome.text).not.toContain("Unused");
     expect(outcome.text).not.toContain("Other.");
-    const preview = await previewAt(UNENTERED_AFTER_BEAT, 10);
+    const preview = await previewAt(UNENTERED_AFTER_BEAT, 9);
     expect(preview).toContain("Before.");
     expect(preview).not.toContain("Unused");
     expect(preview).not.toContain("Other.");
   }, 120_000);
 
   it("PLAY starts and ends at the end of the script, though a divert ran the scene's branches", async () => {
-    const outcome = await playFrom(BRANCHES_DIVERTED_AT_END, 10);
+    const outcome = await playFrom(BRANCHES_DIVERTED_AT_END, 12);
     expect(outcome.started).toBe(true);
     expect(outcome.exited).toEqual(["finished"]);
     expect(outcome.text).not.toContain("Inner");
     expect(outcome.text).not.toContain("Last");
-    const preview = await previewAt(BRANCHES_DIVERTED_AT_END, 10);
+    const preview = await previewAt(BRANCHES_DIVERTED_AT_END, 12);
     expect(preview).not.toContain("Inner");
     expect(preview).not.toContain("Last");
   }, 120_000);
@@ -279,11 +279,11 @@ describe("the preview after the end of a scene whose branches it does not enter"
         { uri: MAIN_URI, text: UNENTERED_AFTER_BEAT },
         { uri: empty, text: "// no narrative\n" },
       ],
-      startFrom: { file: MAIN_URI, line: 10 },
+      startFrom: { file: MAIN_URI, line: 9 },
     });
     try {
       await h.compile();
-      await h.select(10);
+      await h.select(9);
       await settle(40);
       expect(writtenText(h.toRouter)).toContain("Before.");
       const before = h.toRouter.length;
@@ -291,7 +291,7 @@ describe("the preview after the end of a scene whose branches it does not enter"
       await settle(40);
       expect(writtenText(h.toRouter.slice(before))).not.toContain("Other.");
       const kept = h.toRouter.length;
-      await h.select(12);
+      await h.select(11);
       await settle(40);
       expect(writtenText(h.toRouter.slice(kept))).toContain("Other.");
     } finally {
@@ -300,8 +300,7 @@ describe("the preview after the end of a scene whose branches it does not enter"
   }, 120_000);
 });
 
-const AFTER_CONDITIONAL = `-> start
-scene start
+const AFTER_CONDITIONAL = `scene start
   First.
   if false then
     Skipped.
@@ -312,8 +311,10 @@ scene other
 end
 `;
 
-const BRANCH_AFTER_CONDITIONAL = `-> start.inner
-scene start
+const BRANCH_AFTER_CONDITIONAL = `scene start
+  -> main.inner
+end
+scene main
   branch inner
     First.
     if false then
@@ -326,8 +327,7 @@ scene start
 end
 `;
 
-const AFTER_TRUE_CONDITIONAL = `-> start
-scene start
+const AFTER_TRUE_CONDITIONAL = `scene start
   First.
   if true then
     Shown.
@@ -338,8 +338,7 @@ scene other
 end
 `;
 
-const AFTER_CONDITIONAL_AT_END = `-> start
-scene start
+const AFTER_CONDITIONAL_AT_END = `scene start
   First.
   if false then
     Skipped.
@@ -347,8 +346,7 @@ scene start
 end
 `;
 
-const AFTER_THREAD = `-> start
-scene start
+const AFTER_THREAD = `scene start
   First.
   <- side
 end
@@ -364,11 +362,11 @@ end
 
 describe("PLAY and the preview at the end of a flow that runs off its end", () => {
   it.each([
-    ["a scene's end past a conditional that shows nothing", AFTER_CONDITIONAL, 6, "First.", ["Skipped.", "Other."]],
-    ["a branch's end past a conditional that shows nothing", BRANCH_AFTER_CONDITIONAL, 7, "First.", ["Skipped.", "Other."]],
-    ["a scene's end past a conditional that shows its beat", AFTER_TRUE_CONDITIONAL, 6, "Shown.", ["Other."]],
-    ["a scene's end at the end of the script, past a conditional", AFTER_CONDITIONAL_AT_END, 6, "First.", ["Skipped."]],
-    ["a scene's end past a thread", AFTER_THREAD, 4, "Side two.", ["Other."]],
+    ["a scene's end past a conditional that shows nothing", AFTER_CONDITIONAL, 5, "First.", ["Skipped.", "Other."]],
+    ["a branch's end past a conditional that shows nothing", BRANCH_AFTER_CONDITIONAL, 9, "First.", ["Skipped.", "Other."]],
+    ["a scene's end past a conditional that shows its beat", AFTER_TRUE_CONDITIONAL, 5, "Shown.", ["Other."]],
+    ["a scene's end at the end of the script, past a conditional", AFTER_CONDITIONAL_AT_END, 5, "First.", ["Skipped."]],
+    ["a scene's end past a thread", AFTER_THREAD, 3, "Side two.", ["Other."]],
   ] as const)("at %s, shows the beat the run left on screen", async (_name, source, line, shown, notShown) => {
     const outcome = await playFrom(source, line);
     expect(outcome.started).toBe(true);

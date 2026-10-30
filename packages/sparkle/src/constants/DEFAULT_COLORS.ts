@@ -1,10 +1,5 @@
 import { ColorName } from "../types/colorName";
 
-/**
- * Color names that are supported by default.
- *
- * @summary ColorName
- */
 export const DEFAULT_COLORS: ColorName[] = [
   "fg",
   "bg",

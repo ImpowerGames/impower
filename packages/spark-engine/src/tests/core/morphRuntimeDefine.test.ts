@@ -33,7 +33,7 @@ const SRC = `morph blink with
   }
 end
 
--> start
+
 scene start
   Hello.
 end

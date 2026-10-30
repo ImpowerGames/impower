@@ -57,12 +57,10 @@ const AUDIO_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.AUDIO_CONTROL_KEYWORDS || [];
 const MOVIE_CONTROL_KEYWORDS: string[] =
   GRAMMAR_DEFINITION.variables.MOVIE_CONTROL_KEYWORDS || [];
-// The verbs offered inside `[[ ]]`: the image verbs and the cutscene verb.
 const BRACKET_CONTROL_KEYWORDS = [
   ...IMAGE_CONTROL_KEYWORDS,
   ...MOVIE_CONTROL_KEYWORDS,
 ];
-// The clauses a `[[play NAME]]` cutscene takes.
 const CUTSCENE_CLAUSE_KEYWORDS = ["loop", "mute", "with"];
 
 const IMAGE_CLAUSE_KEYWORDS =
@@ -96,17 +94,11 @@ const GLOBAL_DECLARATION_KEYWORDS =
 const LOCAL_DECLARATION_KEYWORDS =
   GRAMMAR_DEFINITION.variables.LUAU_LOCAL_DECLARATION_KEYWORDS || [];
 
-// The grammar no longer defines STYLING_DEFINE_TYPES, so this is empty and the
-// completion paths that consult it are inert.
 const STYLING_DEFINE_TYPES: string[] = [];
 
 const IMAGE_TYPES = ["filtered_image", "layered_image", "image"];
-// The names an image command shows: images, and videos, which play on a layer.
 const IMAGE_COMMAND_NAME_TYPES = [...IMAGE_TYPES, "video"];
-// The clauses a video takes on a layer, offered on every image command that
-// names what it shows.
 const MOVIE_CLAUSE_KEYWORDS = ["loop", "once", "mute"];
-// The clauses whose next word is their value.
 const VALUE_CLAUSE_KEYWORDS = ["after", "over", "with", "to", "ease"];
 const AUDIO_TYPES = ["layered_audio", "audio", "synth"];
 const VIDEO_TYPES = ["video"];
@@ -117,7 +109,6 @@ const INSERT_TEXT_CURSOR_REGEX = /[$]\d+/g;
 
 const isPrefilteredName = (name: string) => name.includes("~");
 
-// Top-level structural-define keyword node → the engine type it declares.
 const STRUCTURAL_DEFINE_TYPE: Partial<Record<SparkdownNodeName, string>> = {
   LuauStyle: "style",
   LuauLayout: "layout",
@@ -128,13 +119,6 @@ const STRUCTURAL_DEFINE_TYPE: Partial<Record<SparkdownNodeName, string>> = {
   LuauMorph: "morph",
 };
 
-// Resolve the engine `type` + instance `name` of the define enclosing the
-// cursor, in the Luau-port inverted model:
-//   - OOP `define <name> as <parent>` → type = parent, name = name.
-//   - OOP root `define <name> with …`  → type = name, name = "$default".
-//   - structural `<keyword> <name> …`  → type = keyword, name = name.
-// Returns null when the cursor is not inside a define body. Used to drive
-// struct property-name/value completions against `program.context[type]`.
 const getDefineContext = (
   leftStack: GrammarSyntaxNode<SparkdownNodeName>[],
   read: (from: number, to: number) => string,
@@ -162,10 +146,6 @@ const getDefineContext = (
 
 const KEYFRAME_POSITION_KEYWORDS = ["from", "to"];
 
-/** Each `state = …` written in a brace block of `declaration`: the innermost
- *  block key around it, which names the group a morph drives there, and the
- *  value as written; and whether the declaration writes its own root
- *  `keyframes` block, which replaces any it inherits. */
 const blockStates = (
   declaration: SyntaxNode,
   tree: Tree,
@@ -207,19 +187,10 @@ const isWhitespaceNode = (name?: SparkdownNodeName) =>
 
 interface AttributeChoice {
   label: string;
-  /** Where the edit starts within the attribute typed so far. */
   offset: number;
-  /** The attribute the choice writes; a bare group name writes only `group.`. */
   attribute?: string;
 }
 
-/**
- * Follow the attribute syntax one step at a time, so no label holds a `.`
- * (a trigger character, where the web client restarts its word): before a
- * dot the groups not yet written, the switches and the bare options that
- * select their own group and nothing already written; after `group.` that
- * group's options not yet selected.
- */
 const attributeCompletionChoices = (
   vocabulary: AttributeVocabulary,
   current: string,
@@ -240,10 +211,6 @@ const attributeCompletionChoices = (
     choices.set(group, info.switch ? { label: group, offset: 0, attribute: group } : { label: group, offset: 0 });
     if (info.switch) continue;
     for (const option of info.options) {
-      // A bare option named like a group shares that group's label, and one
-      // named like a switch selects the switch; both stay reachable after
-      // `group.`. Offer a bare option only where it selects this group and
-      // changes no group already set (face/eyebrows shorthand selects both).
       if (choices.has(option) || Object.hasOwn(vocabulary.groups, option)) continue;
       const bare = resolveAttributes(vocabulary, [option]);
       const targets = Object.keys(bare.selection);
@@ -255,10 +222,6 @@ const attributeCompletionChoices = (
   return [...choices.values()];
 };
 
-/**
- * The completion item for one attribute choice. A group inserts its dot and
- * asks for its options; every other choice writes an attribute.
- */
 const attributeCompletionItem = (
   choice: AttributeChoice,
   description: string,
@@ -307,7 +270,6 @@ const rankMostRecentTexts = (
   strict: boolean,
   include?: string[],
 ) => {
-  // Sort by most recently used
   const before: string[] = [];
   const after: string[] = [];
   const scriptEntries = Array.from(scripts.entries());
@@ -387,8 +349,6 @@ const rankMostRecentTexts = (
   const mostRecentTexts = Array.from(
     new Set([...before.toReversed(), ...after]),
   );
-  // Most recent is the least likely to be used again,
-  // So move it to the end of the list
   const mostRecentText = mostRecentTexts.shift();
   if (mostRecentText) {
     mostRecentTexts.push(mostRecentText);
@@ -423,7 +383,6 @@ const addCharacterCompletions = (
     strict,
     Object.keys(program?.context?.["character"] || {}),
   );
-  // Add completions
   for (const text of mostRecentTexts) {
     const labelDetails = { description: "character" };
     const kind = CompletionItemKind.Constant;
@@ -525,28 +484,12 @@ const addStructTypeNameCompletions = (
   }
 };
 
-/**
- * What the asset command under the cursor names: the asset at its head, and
- * the attributes already written in it. Both answers feed an attribute completion
- * — the applied attributes are the ones to leave out of the suggestion list, and
- * the asset is what the remaining candidates preview against.
- *
- * The token under the cursor is skipped, because it is the partial name being
- * completed rather than an attribute that is already applied; leaving it in would
- * hide the very name the author is part-way through typing.
- *
- * Keep the two sides of the cursor separate: a candidate replaces the current
- * token in place, and any attributes after it must retain their later priority.
- */
 const readAssetCommandAttributes = (
   leftStack: GrammarSyntaxNode<SparkdownNodeName>[],
   read: (from: number, to: number) => string,
   offset: number,
   tokenStart: number,
 ): { asset: string; before: string[]; after: string[] } => {
-  // The enclosing `AssetCommandName`, not `AssetCommandContent`: a `+`-joined
-  // command holds one `AssetCommandName` per asset, and an attribute belongs to
-  // the asset it is attached to.
   const nameNode = leftStack.find((n) => n.name === "AssetCommandName");
   if (!nameNode) {
     return { asset: "", before: [], after: [] };
@@ -555,18 +498,12 @@ const readAssetCommandAttributes = (
   let image = "";
   const before: string[] = [];
   const after: string[] = [];
-  // Depth-first over this node's subtree and nothing beyond it. `next()` walks
-  // the whole document rather than one subtree, so the descent is driven by
-  // firstChild/nextSibling against a depth counter, which never takes a
-  // sibling while standing on `nameNode` itself.
   const cur = nameNode.node.cursor();
   let depth = 0;
   walk: for (;;) {
     if (!image && cur.name === "AssetCommandFileName") {
       image = read(cur.from, cur.to).trim();
     }
-    // The typed token may parse as several nodes: `face.` leaves the
-    // cursor past a `face` node, which is still the token, not an attribute.
     if (
       cur.name === "AssetCommandFilterName" &&
       !(cursorNode && cur.from === cursorNode.from && cur.to === cursorNode.to) &&
@@ -618,10 +555,6 @@ const addStructReferenceCompletions = (
               labelDetails: { description: type },
               kind: CompletionItemKind.Constructor,
             };
-            // The image preview is deliberately NOT built here — an asset list
-            // runs to hundreds of items and only the highlighted one is ever
-            // shown. `completionItem/resolve` builds it on demand; this just
-            // records where to find the struct again.
             const data =
               buildData?.(type, name) ??
               (IMAGE_TYPES.includes(type) ? { type, name } : undefined);
@@ -675,14 +608,6 @@ const addScreenElementReferenceCompletions = (
   }
 };
 
-/**
- * The completions of a `run` statement's operand, `typed` being the operand
- * up to the cursor at `position` in the script `scriptUri` (#1389): after
- * `run ` the name of each `.luau` file of the program's project that no other
- * file there shares, and after `run "` the path of each relative to the
- * script, `.luau` left out, as the compiler resolves them. Each replaces what
- * is typed.
- */
 const addRunCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
@@ -830,9 +755,6 @@ const addStructPropertyNameContextCompletions = (
                 modifier === "schema" ||
                 modifier === "random" ||
                 modifier === "description";
-              // In a brace body an entry ends at its `;` or `}`, and a
-              // container opens a balanced one-line block with the cursor
-              // inside it; Enter there splits it over lines.
               const restOfEntry = /^[^;}]*/.exec(textAfterCursor)![0].trim();
               const braced = container && !restOfEntry;
               const insertSuffix = restOfEntry
@@ -1128,11 +1050,6 @@ const addStructPropertyValueCompletions = (
   }
 };
 
-/**
- * Whether a cursor in the section `scopePath` is inside the section `path`:
- * the same section or one nested in it. The global path `""` holds every
- * section.
- */
 const isWithinSection = (scopePath: string, path: string) =>
   !path || scopePath === path || scopePath.startsWith(path + ".");
 
@@ -1372,11 +1289,6 @@ export const getCompletions = (
   const getNodeText = (node: SyntaxNode | undefined | null) =>
     node ? read(node.from, node.to) : "";
 
-  // The clause keywords written in the `[[…]]` or `((…))` command at the
-  // cursor, except one the cursor is in or at the end of, which is the word
-  // being typed. A cursor at a keyword's start inserts before it. They can sit
-  // on either side of the cursor, and the space before the closing marks is
-  // not their sibling.
   const writtenClauses = (commandName: SparkdownNodeName) => {
     const command = leftStack.find((n) => n.type.name === commandName);
     const written: string[] = [];
@@ -1397,14 +1309,10 @@ export const getCompletions = (
     return written;
   };
 
-  // A name typed after a space follows another name, so it may as well be the
-  // start of a clause: the grammar reads a clause keyword only once it is whole.
   const isNameAfterName = (node: SyntaxNode | undefined) =>
     node?.name === "AssetCommandFileName" &&
     node.prevSibling?.name === "RequiredWhitespace";
 
-  // A word after a clause that takes no value, or after a clause's value, is
-  // the start of the next clause.
   const isClauseStart = (node: SyntaxNode | undefined) => {
     if (node?.name !== "NameValue") {
       return false;
@@ -1442,8 +1350,6 @@ export const getCompletions = (
     }));
   };
 
-  // A morph body completes from the morph vocabulary and the artwork its
-  // groups bind to, at every nesting level (see getMorphCompletions).
   const morphNode = leftStack.find((node) => node.name === "LuauMorph");
   if (morphNode) {
     const endNode = getDescendent("LuauMorph_end", morphNode);
@@ -1477,8 +1383,6 @@ export const getCompletions = (
     if (morphCompletions) return morphCompletions;
   }
 
-  // Read the current image only. Attribute names belong to its artwork, not
-  // to the global define namespace (and may contain dots and hyphens).
   if (program?.context && leftStack.some((node) => node.name === "ImageCommand")) {
     const asset = leftStack.find((node) => node.name === "AssetCommandName");
     const prefix = asset ? read(asset.from, documentCursorOffset) : "";
@@ -1506,9 +1410,6 @@ export const getCompletions = (
     }
   }
 
-  // Only literal list entries in a filtered_image's attributes assignment
-  // receive artwork choices. The parsed table/property/define ancestry keeps
-  // ordinary strings, nested tables, and executable Luau out of this path.
   const quotedAttribute = leftStack.find((node) =>
     node.name === "LuauDoubleQuotedString" || node.name === "LuauSingleQuotedString",
   );
@@ -1560,13 +1461,6 @@ export const getCompletions = (
   const nextNode = nextCursor.node as GrammarSyntaxNode<SparkdownNodeName>;
   const prevText = getNodeText(prevNode);
 
-  // console.log("program", program);
-  // console.log(printTree(tree, document.getText()));
-  // console.log(leftStack.map((n) => n.type.name));
-  // console.log("prev", prevNode.name);
-  // console.log("next", nextNode.name);
-
-  // FrontMatter
   if (
     leftStack.some((n) => n.name === "FrontMatter") &&
     leftStack[0]?.name === "Newline"
@@ -1577,8 +1471,6 @@ export const getCompletions = (
       1,
     );
     if (rightStack[0]?.name === "Newline") {
-      // left and right side of the cursor has a Newline,
-      // so this is a completely blank line.
       const lineText = document.getLineText(position.line);
       const exclude = getDescendentsInsideParent(
         "FrontMatterFieldKeyword",
@@ -1626,7 +1518,6 @@ export const getCompletions = (
     return buildCompletions();
   }
 
-  // Run
   if (
     (isWhitespaceNode(leftStack[0]?.name) &&
       prevNode?.name === "RunKeyword") ||
@@ -1644,8 +1535,6 @@ export const getCompletions = (
       "Run",
       leftStack,
     );
-    // The operand up to the cursor, and after it nothing but the closing
-    // quote an editor types with the opening one.
     const typed = runKeywordNode
       ? read(runKeywordNode.to, documentCursorOffset).trimStart()
       : "";
@@ -1665,7 +1554,6 @@ export const getCompletions = (
     return buildCompletions();
   }
 
-  // Dialogue
   if (
     (isWhitespaceNode(leftStack[0]?.name) &&
       leftStack.some((n) => n?.name === "BlockDialogue_begin")) ||
@@ -1695,7 +1583,6 @@ export const getCompletions = (
     return buildCompletions();
   }
 
-  // Write
   if (leftStack[0]?.name === "WriteMark") {
     if (isCursorAfterNodeText(leftStack[0])) {
       addScreenElementReferenceCompletions(completions, program, ["text"], " ");
@@ -1719,10 +1606,7 @@ export const getCompletions = (
     return buildCompletions();
   }
 
-  // ImageCommand
   if (leftStack.some((n) => n.type.name === "ImageCommand")) {
-    // `show`, `animate` and the bare `[[NAME]]` name what they display, which
-    // may be a video.
     const takesMovieClauses = (control: string) =>
       control === "" || control === "show" || control === "animate";
     const imageControl = () =>
@@ -1733,8 +1617,6 @@ export const getCompletions = (
           leftStack,
         ),
       );
-    // A cutscene takes its own clauses; `animate` is mostly followed by
-    // `with`, so it comes first there.
     const addImageClauseCompletions = (control: string) => {
       const clauses = MOVIE_CONTROL_KEYWORDS.includes(control)
         ? CUTSCENE_CLAUSE_KEYWORDS
@@ -1785,7 +1667,6 @@ export const getCompletions = (
       const control = getNodeText(controlNode);
       if (isCursorAfterNodeText(leftStack[0])) {
         if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
-          // A cutscene's target is the video it plays.
           addStructReferenceCompletions(completions, program, VIDEO_TYPES);
           return buildCompletions();
         }
@@ -1807,7 +1688,6 @@ export const getCompletions = (
       if (isCursorAfterNodeText(leftStack[0])) {
         const control = imageControl();
         addImageClauseCompletions(control);
-        // A cutscene plays one video: only its clauses follow the name.
         if (control !== "hide" && !MOVIE_CONTROL_KEYWORDS.includes(control)) {
           addStructReferenceCompletions(
             completions,
@@ -1826,8 +1706,6 @@ export const getCompletions = (
       if (isCursorAfterNodeText(leftStack[0])) {
         const control = imageControl();
         if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
-          // A cutscene takes no second name, so a word typed after its
-          // video is the start of a clause.
           addImageClauseCompletions(control);
           return buildCompletions();
         }
@@ -1913,7 +1791,6 @@ export const getCompletions = (
     }
   }
 
-  // AudioCommand
   if (leftStack.some((n) => n.type.name === "AudioCommand")) {
     const beforeAudioNode = leftStack.find(
       (n) => n.type.name === "AudioBeginMark",
@@ -2040,8 +1917,6 @@ export const getCompletions = (
   }
 
 
-  // Type completion: in the inverted model the engine type is the PARENT, so
-  // offer type names after `as`.
   if (
     (isWhitespaceNode(leftStack[0]?.name) &&
       prevNode.name === "LuauAsKeyword") ||
@@ -2061,8 +1936,6 @@ export const getCompletions = (
   const braceBlock = braceDefine
     ? braceBlockPathAt(tree, documentCursorOffset, read)
     : null;
-  // The block path for a struct lookup, a list entry read as the list's
-  // first item.
   const braceStructPath =
     braceBlock && braceBlock.body.name !== "LuauSparkleElementBlock"
       ? braceBlock.path.map((key) => key === "-" ? "0" : key)
@@ -2075,10 +1948,6 @@ export const getCompletions = (
       document.offsetAt({ line: position.line, character: 0 }),
       read,
     );
-    // In a layout or component block an element is being named: offer the
-    // definition's top-level fields.
-    // Inside a value or a quoted string neither runs, nor inside an element's
-    // attribute or handler value that began on an earlier line.
     const keying =
       !entryInsideValue(entryBefore) &&
       !insideElementValue(tree, documentCursorOffset);
@@ -2158,8 +2027,6 @@ export const getCompletions = (
       const defineContext = getDefineContext(leftStack, read);
       if (defineContext) {
         const lineText = document.getLineText(position.line);
-        // A body written with blocks takes a block for a container at its
-        // root too, and so does any key inside a block.
         addStructPropertyNameCompletions(
           completions,
           program,
@@ -2179,10 +2046,6 @@ export const getCompletions = (
     return buildCompletions();
   }
 
-  // Struct property VALUE completion: cursor after `=` in a scalar property
-  // line (but not inside a `type.name` struct-reference access path, handled
-  // below). Offers the property's schema/option values for the top-level key,
-  // or, in a brace block, for the key at the block's path.
   const scalarPropertyNode = leftStack.find(
     (n) =>
       n.type.name === "LuauStructBlockProperty",
@@ -2251,11 +2114,6 @@ export const getCompletions = (
     return buildCompletions();
   }
 
-  // Access Path. The Luau port split the single pre-port `AccessPath` into
-  // `StylingAccessPath` (a `type.name` struct-reference inside a struct value)
-  // and `LuauAccessPath` (a Luau-code / `{interpolation}` identifier path), so
-  // the access-path kind itself now selects struct-reference vs scope
-  // completions — no `ViewStructField` wrapper lookup needed.
   const accessPathNode = leftStack.find(
     (n) =>
       isExplicitRuleName(n.type.name, "LuauAccessPath") || n.type.name === "StylingAccessPath",
@@ -2298,7 +2156,6 @@ export const getCompletions = (
     return buildCompletions();
   }
 
-  // Divert Path
   if (
     leftStack[0]?.name === "DivertMark" &&
     !getNodeText(
@@ -2418,11 +2275,6 @@ export const getCompletions = (
         );
       }
     }
-    // A story `for` reads its condition with the bounded rule it shares with
-    // a story `while` and a marked (`&`) loop (#1907), so the loop that owns
-    // the condition, the first such loop outside it, decides (a `while`
-    // nested in a `for` offers no `in`). A marked loop is a `for` when its
-    // header's keyword is.
     const storyCondition = leftStack.findIndex(
       (n) => n.name === "LuauSparkdownExplicitLoopCondition",
     );

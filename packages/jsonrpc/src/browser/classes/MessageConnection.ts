@@ -29,8 +29,6 @@ export abstract class MessageConnection {
 
   protected _postMessage: (message: any, transfer?: Transferable[]) => void;
 
-  /** Every request still waiting for its answer, each settled with the
-   *  error it is given by {@link abandon}. */
   protected _pending = new Set<(error: Error) => void>();
 
   constructor(postMessage: (message: any, transfer?: Transferable[]) => void) {
@@ -131,7 +129,6 @@ export abstract class MessageConnection {
                       ? message.error
                       : {
                           ...toResponseError(error),
-                          // A peer's numeric code remains meaningful without text.
                           ...(typeof peerCode === "number"
                             ? { code: peerCode }
                             : {}),
@@ -152,8 +149,6 @@ export abstract class MessageConnection {
                 message.result !== undefined ||
                 message.error !== undefined)
             ) {
-              // An addressed reply failed envelope validation. Settle rather
-              // than hang, but exclude echoed requests and progress traffic.
               console.error(message);
               profile("end", this._profilerId, "request " + request.method);
               reject(
@@ -177,9 +172,6 @@ export abstract class MessageConnection {
     });
   }
 
-  /** Settle every request still waiting for its answer with `error`: the
-   *  peer that would answer them is gone, as a worker is once it has been
-   *  terminated, so nothing else will. */
   abandon(error: Error) {
     for (const abandon of [...this._pending]) {
       abandon(error);
@@ -217,11 +209,6 @@ export abstract class MessageConnection {
       responseError = toResponseError(e);
     }
     profile("start", this._profilerId, "send response " + method);
-    // Every response MUST carry exactly one of `result` / `error`. JSON-RPC 2.0
-    // requires it, and more concretely `isResponse` keys on their presence: a
-    // response with neither is not recognized as a response at all, so the
-    // requester never resolves, never rejects, and never removes its listener.
-    // A handler that returns nothing therefore has to send an explicit `null`.
     const response: ResponseMessage<M, R | null> =
       responseError !== undefined
         ? { jsonrpc: "2.0", method, id, error: responseError }
@@ -229,9 +216,6 @@ export abstract class MessageConnection {
     try {
       this.postMessage(response, transfer);
     } catch (e) {
-      // A result that cannot be structured-cloned throws here, and an
-      // unsent response is the same permanent hang this method exists to
-      // avoid — so fall back to reporting the failure instead of nothing.
       console.error(e);
       this.postMessage({
         jsonrpc: "2.0",

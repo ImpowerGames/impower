@@ -1,16 +1,3 @@
-// An unquoted struct value ends where a trailing comment begins, and the
-// grammar says where that is.
-//
-// `StylingValue` and `UnquotedStringFieldValue` used to run to the end of the
-// line, so a trailing `-- note` or `// note` landed inside the value node and
-// each struct lowerer cut it back off with its own regexes. The style lowerer
-// and the typed (animation / theme) lowerer cut differently: the typed one knew
-// that a `--` right after a number ends the number and that a quoted string
-// ends at its closing quote, the style one did not, so `gap = 5-- note` and
-// `label = "a -- b" -- note` compiled to `5-- note` and `"a` in a style. Now
-// the grammar ends the value before the comment and every lowerer reads the
-// value node, so all three bodies read the same text.
-
 import type { SyntaxNode } from "@lezer/common";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -35,8 +22,6 @@ function compile(source: string): any {
   return compiler.compile({ textDocument: { uri } }).program;
 }
 
-// Each line, and the value it compiles to in a style body and in a typed
-// (animation or theme) body. A style keeps numbers as their CSS text.
 const LINES: { line: string; key: string; style: unknown; typed: unknown }[] = [
   { line: "delay = 5 -- note", key: "delay", style: "5", typed: 5 },
   { line: "gap = 5-- note", key: "gap", style: "5", typed: 5 },
@@ -52,8 +37,6 @@ const LINES: { line: string; key: string; style: unknown; typed: unknown }[] = [
   { line: 'label = "a -- b" -- note', key: "label", style: "a -- b", typed: "a -- b" },
   { line: "count = 5 // note", key: "count", style: "5", typed: 5 },
   { line: "tight = 5//note", key: "tight", style: "5", typed: 5 },
-  // A quoted run inside a longer value is read whole, so a marker in it is
-  // not a comment.
   { line: 'font = "a -- b", serif -- note', key: "font", style: '"a -- b", serif', typed: '"a -- b", serif' },
   { line: 'family = "a // b", serif // note', key: "family", style: '"a // b", serif', typed: '"a // b", serif' },
 ];
@@ -80,7 +63,6 @@ describe("a trailing comment ends an unquoted struct value", () => {
     }
   }
 
-  // A brace block hands its value to the same value rules.
   test("a block property reads the same value", () => {
     const blocks = compile(
       `animation pulse with\n` +
@@ -97,7 +79,6 @@ describe("a trailing comment ends an unquoted struct value", () => {
   });
 });
 
-// Every node from `node` down, in document order.
 function* walk(node: SyntaxNode): Generator<SyntaxNode> {
   yield node;
   for (let child = node.firstChild; child; child = child.nextSibling) {
@@ -135,7 +116,6 @@ describe("the value node stops before the comment", () => {
       expect(valueNode && source.slice(valueNode.from, valueNode.to)).toBe(
         value,
       );
-      // The comment is the value's sibling, never inside it.
       expect(comment!.from).toBeGreaterThanOrEqual(valueNode!.to);
       expect(source.slice(comment!.from, comment!.to).trim()).toMatch(
         /^(--|\/\/) note$/,

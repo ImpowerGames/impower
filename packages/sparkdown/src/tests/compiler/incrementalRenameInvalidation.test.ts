@@ -102,11 +102,9 @@ describe("incremental declaration invalidation", () => {
         tokenModifiers: [],
       });
       if (text.includes("{future}")) expectReference(registry, text, "future", undefined);
-      // Establish parser reuse without changing a binding first.
       const warm = text.indexOf("\n");
       registry.update({ textDocument: { uri: URI, version: 2 }, contentChanges: [{ range: { start: position(text, warm), end: position(text, warm) }, text: " " }] });
       text = text.slice(0, warm) + " " + text.slice(warm);
-      // Whole-line deletion must include the harmless warm-up space.
       const needle = before!.includes("\n") ? before!.replace("\n", " \n") : before!;
       const at = text.indexOf(needle);
       expect(at).toBeGreaterThanOrEqual(0);

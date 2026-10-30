@@ -21,6 +21,7 @@ import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
+import { FIELD_COLON } from "../../lower/utils/fieldColon";
 import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
 import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements } from "../../typecheck/readLuauAst";
 import { closureReadingErrors } from "../../typecheck/closureReading";
@@ -49,9 +50,6 @@ const LOAD_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.LOAD_CONTROL_KEYWORDS || [];
 const MOVIE_CONTROL_KEYWORDS: string[] =
   GRAMMAR_DEFINITION.variables.MOVIE_CONTROL_KEYWORDS || [];
-// `[[...]]` brackets carry visual (show/hide/animate), screen-lifecycle
-// (open/close/navigate), preload (load) and cutscene (play) verbs — see the
-// *_CONTROL_KEYWORDS variables in the grammar.
 const BRACKET_CONTROL_KEYWORDS = [
   ...IMAGE_CONTROL_KEYWORDS,
   ...LAYOUT_CONTROL_KEYWORDS,
@@ -61,25 +59,16 @@ const BRACKET_CONTROL_KEYWORDS = [
 const PLAY_ONE_VIDEO =
   "`play` takes one video name\n> e.g. `[[play intro]]`, `[[play intro loop with fade]]`";
 
-// The whole `[[…]]` / `((…))` command + its control token. A clause keyword/
-// value is a SIBLING of AssetCommandInstruction (both under the command), so
-// reading the control from a clause node walks up to the command, not the
-// instruction.
 const ASSET_COMMAND = nodeNameSet(["ImageCommand", "AudioCommand"]);
 const ASSET_COMMAND_CONTROL = nodeNameSet(["AssetCommandControl"]);
 const ASSET_COMMAND_INSTRUCTION = nodeNameSet(["AssetCommandInstruction"]);
 const ASSET_COMMAND_TARGET = nodeNameSet(["AssetCommandTarget"]);
-// The clauses whose value is a name.
 const NAME_VALUE_CLAUSE_KEYWORDS: ReadonlySet<string> = new Set(["with", "ease"]);
 const ASSET_COMMAND_EXTRA_NAME = nodeNameSet([
   "AssetCommandName",
   "AssetCommandAddOperator",
 ]);
 
-// The closed set of `@event` names a Sparkle element line can bind. Source of
-// truth: the runtime's `EventMap` (packages/spark-engine/src/game/core/types/
-// EventMap.ts) — the renderer only forwards these, and an unknown name silently
-// never fires, so a typo (`@clik`) is always a bug. Keep in sync with EventMap.
 const VALID_SPARKLE_EVENTS = new Set([
   "click", "mousedown", "mouseenter", "mouseleave", "mousemove", "mouseout",
   "mouseover", "mouseup",
@@ -95,26 +84,14 @@ const VALID_SPARKLE_EVENTS = new Set([
   "focus", "focusin", "focusout", "blur",
 ]);
 
-// The prop names a Sparkle `#prop=value` may use without warning: every real CSS
-// property + the sparkle style vocabulary + widget props (generated into
-// validStyleProps.json from mdn-data + sparkle-style-transformer). Sparkle passes
-// unknown props straight through to CSS, so the value is catching typos
-// (`#colr`) without flagging valid raw CSS or `--custom` props.
 const VALID_STYLE_PROPS = new Set<string>(VALID_STYLE_PROPS_DATA.props);
 
-// The element-line handler attribute (`@click=save`). `EventAttributeName` is
-// also emitted for STYLE SELECTORS (`@hovered:`, `@theme(dark)`), whose
-// vocabulary is unrelated — so the EventMap check must find this wrapper above
-// it before it says anything.
 const SPARKLE_EVENT_HANDLER = nodeNameSet([
   "LuauEventAttribute",
   "LuauSparkleEventAttribute",
-  // An event closure that goes on at the next line (#1225).
   "LuauSparkleEventClosureAttribute",
 ]);
 
-// Luau string literals. Every form parses as `<name>_begin`, `<name>_content`
-// and `<name>_end`; an unfinished literal has no `_end` child.
 const LUAU_QUOTED_STRING = nodeNameSet([
   "LuauDoubleQuotedString",
   "LuauSingleQuotedString",
@@ -127,39 +104,23 @@ const LUAU_STRING = nodeNameSet([
   "LuauMultilineString",
 ]);
 
-// Luau numeric literals. Their first child is the literal text; the second is
-// the trailing whitespace capture.
 const LUAU_NUMBER = nodeNameSet([
   "LuauNumericDecimal",
   "LuauNumericHex",
   "LuauNumericBinary",
 ]);
-// The grammar's `LUAU_TYPE_END` without the `]` that a block comment's close
-// adds, tested against the two characters before a position.
 const LUAU_TYPE_END_BEFORE_OPTIONAL = /(?:[\w)}"'`?]|[^-]>)$/;
 
-// The inline text command (`<1.5x:...>`) reuses the number rule for its
-// control argument, where the surrounding syntax is not Luau.
 const TEXT_COMMAND_CONTROL = nodeNameSet(["TextCommandControl"]);
 
-// The characters Luau's lexer skips after a `\z` escape. Narrower than JS
-// `\s`, which also matches non-breaking and other Unicode spaces.
 const LUAU_WHITESPACE_RUN = /^[ \t\r\n\v\f]+$/;
 
 const MALFORMED_STRING = "Malformed string; did you forget to finish it?";
-// A backtick string's interpolations and `{{f}}` shorthands, and their ends,
-// which take a string their line ends inside (I-1318).
 const BACKTICK_INTERPOLATIONS = nodeNameSet([
   "LuauBacktickStringInterpolation",
   "LuauBacktickFunctionCallShorthand",
 ]);
 
-/**
- * The first lexeme Luau's lexer reads of a backtick string that `text`
- * begins with, to its line's end: to its first interpolation's `{`
- * (`` `a { ``), the whole string with no interpolation, or, with neither,
- * the string its line ends (I-1419).
- */
 function backtickLexeme(text: string): string {
   return /^`(?:[^`{\\\r\n]|\\.)*[`{]?/.exec(text)?.[0] ?? "";
 }
@@ -170,54 +131,33 @@ const BACKTICK_INTERPOLATION_ENDS = nodeNameSet([
 const MALFORMED_NUMBER = "Malformed number";
 const UNSUPPORTED_INTEGER =
   "Luau 64-bit integer literals are not supported in Sparkdown";
-// Luau reports an unfinished `--[[` from wherever the parser was expecting
-// its next token; the expression-position wording is the one its test suite
-// pins, so it is the one sparkdown uses everywhere.
 const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
 const STRAY_OPTIONAL = "Expected type, got '?'";
 const MISSING_EXPRESSION = "Expected identifier when parsing expression";
-// The binary value operators whose rule takes the line break after the
-// operator, so that the operand begins on a later line.
 const LINE_BREAK_BINARY_OPERATORS = new Set(
   ["LuauArithmeticOperator", "LuauCompareOperator", "LuauConcatOperator", "LuauLogicalOperator"].flatMap(explicitRuleNames),
 );
-// Worded like the missing-`end` message of a define (validateDefineStructure).
 const UNCLOSED_STRUCT_BLOCK =
   "This block is missing its closing `}`. Without it, every line up to the declaration's `end`, the next `scene` or `branch`, or the end of the file is read as part of this block.";
-const STRUCT_ENTRY_COMMA =
-  "Separate entries on one line with `;`, not `,`.";
-// Tokens a brace block cannot hold: a `}` that closes no block, and an
-// indented-form `key:` header or `-` item inside a block.
 const INVALID_STRUCT_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
   "LuauStructStrayBlockClose",
-  "LuauStructInvalidColon",
   "LuauStructBlockItemMark",
 ]);
-// In a layout or component block: text that starts no entry, and a character
-// no part of an element reads.
 const INVALID_SPARKLE_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
   "LuauSparkleBlockUnknown",
   "LuauSparkleElementInvalid",
 ]);
-// A scene's or branch's header line, whose text after the name or
-// parameters the grammar reads as `Unknown`.
 const HEADER_CONTENT: ReadonlySet<string> = nodeNameSet(["Scene_content", "Branch_content"]);
 const MISSING_TYPE = "Expected type";
-// The `:` a loop's `do` or an `if`'s `then` follows with no method name
-// between, which ends the header there (I-1318).
 const HEADER_METHOD_COLON_NAMES: SparkdownNodeName[] = ["LuauLoopHeaderMethodColon", "LuauIfHeaderMethodColon"];
 const HEADER_METHOD_COLONS = nodeNameSet(HEADER_METHOD_COLON_NAMES);
-// The values Luau can call a method on, as its primary expression is: a name
-// or access path, a value in brackets, and a call or access chained onto one.
 const METHOD_RECEIVERS = nodeNameSet([
   "LuauAccessPath",
   "LuauParenthetical",
   "LuauChainedFunctionCall",
   "LuauChainedPropertyAccess",
 ]);
-// The grammar's tokens for a type that is missing or malformed, and for a
-// declaration target's `::`, and a header's method colon.
 const TYPE_ERROR_TOKENS = nodeNameSet([
   "LuauTypeStrayOptionalOperator",
   "LuauTypeStrayColon",
@@ -246,7 +186,6 @@ const EMPTY_AT_END_OPERATIONS = nodeNameSet([
   "LuauTypeAnnotationOperation",
   "LuauFunctionReturnType",
 ]);
-// The `:` of each, with the whitespace around it on its line.
 const TYPE_COLON_BEGINS = nodeNameSet([
   "LuauTypeAnnotationOperator_begin",
   "LuauFunctionReturnType_begin",
@@ -254,26 +193,15 @@ const TYPE_COLON_BEGINS = nodeNameSet([
 const LUAU_TYPE_LITERAL = nodeNameSet(["LuauTypeLiteral"]);
 const LUAU_NAME_START = /[A-Za-z_]/;
 const LUAU_NAME = /^[A-Za-z_]\w*/;
-// The keywords that cannot start a type, which leave an annotation empty.
 const LUAU_NON_TYPE_KEYWORDS = new Set<string>(
   GRAMMAR_DEFINITION.variables.LUAU_NON_TYPE_KEYWORDS,
 );
-// Whitespace or a closed Luau comment, the opener of a block comment that
-// never closes, and a Luau token as Luau's lexer reads it: a name or
-// keyword, a number (with its digits, `.`, `_`, exponent and suffix), a
-// multi-character operator, or one character.
 const LUAU_TRIVIA = /\s+|--\[(=*)\[[\s\S]*?\]\1\]|--(?!\[=*\[)[^\n]*/y;
 const LUAU_BLOCK_COMMENT_OPENER = /--\[=*\[/y;
 const LUAU_TOKEN = /[A-Za-z_]\w*|(?:\d|\.\d)[\d._]*(?:[eE][+-]?)?\w*|\.\.\.|\.\.=?|\/\/=?|[=~<>]=|::|->|[+\-*/%^]=|\S/y;
-// The `end` line a `run` file's wrapper closes its function with.
 const RUN_WRAPPER_END = RUN_WRAPPER_SUFFIX.slice("\n".length);
 const STRAY_CLOSING_BRACKET =
   "Expected identifier when parsing expression, got ']'";
-// A block comment after a type or a value that closes on a later line is its
-// own rule (`LuauTypeTrailingBlockComment`, and the two value rules), which
-// differs in what it leaves after its close: the whitespace before code, or,
-// before code right after the close, the closing brackets, which the body
-// reads as `LuauTypeTrailingBlockCommentClose`.
 const LUAU_TRAILING_BLOCK_COMMENTS: SparkdownNodeName[] = [
   "LuauTypeTrailingBlockComment",
   "LuauUncallableValueTrailingBlockComment",
@@ -295,37 +223,21 @@ const LUAU_COMMENT = nodeNameSet([
   "LuauDocLineComment",
   "LuauLineComment",
 ]);
-// Luau reads a name on a later line after a `.`, but a Sparkdown access path
-// ends with its line.
 const NAME_ON_LATER_LINE =
   "Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line";
-// Luau's parser reports the first part of an if expression it does not find
-// in these words (`parseIfElseExpr`): a condition or an arm's value is an
-// expression, and `then` and `else` are keywords it expects. It adds the
-// token it found instead, which lies outside the expression, so these leave
-// it out. Where the type checker reads the Luau and Luau finds a value
-// missing too, the checker reports that one with Luau's token and range;
-// where it reads on to the token after a missing `else`, that error is
-// Luau's own, with its token and range.
 const IF_EXPRESSION_WITHOUT_VALUE =
   "Expected identifier when parsing expression";
 const IF_EXPRESSION_WITHOUT_THEN =
   "Expected 'then' when parsing if then else expression";
 const IF_EXPRESSION_WITHOUT_ELSE =
   "Expected 'else' when parsing if then else expression";
-// Luau's parser reports an if statement's condition that no `then` follows
-// in these words (`parseIf`, for an `elseif` too), naming the token it found.
 const IF_STATEMENT_WITHOUT_THEN = "Expected 'then' when parsing if statement";
 const LUAU_IF_STATEMENT_CONDITION = nodeNameSet([
   "LuauIfBlockCondition",
   "LuauElseifBlockCondition",
-  // The bounded if/elseif routes share this condition, rather than a
-  // one-to-one counterpart of either ordinary condition rule.
   "LuauSparkdownExplicitIfCondition",
 ]);
-// The story blocks whose condition ends at the header's line (#1907).
 const STORY_CONDITION_BLOCKS: ReadonlySet<string> = new Set(["LuauSparkdownIfBlock", "LuauSparkdownElseifBlock"]);
-// The parts of an if statement's condition that are not its expression.
 const IF_CONDITION_TRIVIA = nodeNameSet([
   "LuauConditionLeadingBreak",
   "LuauComment",
@@ -339,7 +251,6 @@ const LUAU_IF_KEYWORD = nodeNameSet(["LuauIfKeyword"]);
 const LUAU_THEN_KEYWORD = nodeNameSet(["LuauThenKeyword"]);
 const LUAU_UNTIL_KEYWORD = nodeNameSet(["LuauUntilKeyword"]);
 const LUAU_ELSE_KEYWORD = nodeNameSet(["LuauElseKeyword"]);
-// The parts of an if expression's clause that are not its value.
 const IF_CLAUSE_TRIVIA = new Set([
   "LuauThenOperator",
   "LuauElseOperator",
@@ -354,10 +265,6 @@ const IF_CLAUSE_TRIVIA = new Set([
   "OptionalWhitespace",
   "Newline",
 ]);
-// The hosts whose `{…}` interpolations Sparkle and struct bodies lower as
-// Luau bindings. Everywhere else a `{…}` interpolation is display text,
-// which `lowerDisplay.ts` lowers as an inline conditional when it is an if
-// expression (`tryLowerInlineConditional`).
 const LUAU_BINDING_INTERPOLATION_HOSTS = nodeNameSet([
   "LuauPropAttribute",
   "LuauSparklePropAttribute",
@@ -372,8 +279,6 @@ function isInlineConditional(node: any): boolean {
   );
 }
 
-// The operations whose node begins with their operator. Only `-`, `not` and
-// `#` can begin a value, and then only with an operand after them.
 const OPERATOR_FIRST_OPERATIONS = nodeNameSet([
   "LuauArithmeticOperation",
   "LuauCompareOperation",
@@ -384,19 +289,12 @@ const OPERATOR_FIRST_OPERATIONS = nodeNameSet([
 ]);
 const UNARY_OPERATORS = new Set(["-", "not", "#"]);
 
-// The first part of `node`'s `_content` from `start` on that is not a
-// comment or space.
 function firstPart(node: any, start = node?.firstChild): any {
   let part = start;
   while (part && IF_CLAUSE_TRIVIA.has(part.name)) part = part.nextSibling;
   return part ?? null;
 }
 
-// Whether an if expression's clause holds a value: its first part that is not
-// its keyword, a comment or space is a value, not a line or an operator that
-// continues a value before it, nor a unary operator with nothing after it. A
-// then arm whose `then` ends its line holds its keyword and first value in a
-// part of its own (`LuauThenNextLineArm`), whose parts are the arm's.
 function clauseHasValue(
   clause: any,
   read: (from: number, to: number) => string,
@@ -409,10 +307,6 @@ function clauseHasValue(
   return !!part && !isLineContinuation(part) && isValue(part, read);
 }
 
-// Whether `part` begins a value. An operation that begins with its operator,
-// or an operator on its own, begins one only when the operator is unary and a
-// value follows it (`not x`, but not `not not`, which the grammar reads as one
-// operation holding both operators).
 function isValue(
   part: any,
   read: (from: number, to: number) => string,
@@ -427,13 +321,6 @@ function isValue(
   return !!operand && isValue(operand, read);
 }
 
-// The first part an if expression lacks, reading it in order: a condition,
-// `then` and its value, then either `elseif` and another condition or
-// `else` and its value. The node it returns is the keyword to report on:
-// the `if`, or the `elseif`, `then` or `else` of the clause that is short.
-// A `then` glued to its condition (`if (c)then`) belongs to the condition's
-// end, so after such a condition the `then` is present and its value is
-// what comes next, whether or not a then arm follows.
 function missingIfExpressionPart(
   node: any,
   read: (from: number, to: number) => string,
@@ -485,8 +372,6 @@ function missingIfExpressionPart(
   return missing();
 }
 
-// Luau's `toUtf8` refuses code points above this, so `\u{80000000}` is a
-// malformed escape rather than a character.
 const MAX_UNICODE_ESCAPE = 0x7fffffff;
 
 function childNamed(node: any, name: string): any {
@@ -496,9 +381,6 @@ function childNamed(node: any, name: string): any {
   return null;
 }
 
-// Normalize a prop name to the vocabulary's kebab-case form the way the renderer
-// does (`getCSSPropertyName`): camelCase → kebab, `_` → `-`, lowercased. So
-// `#maxWidth` / `#max_width` both match `max-width`.
 function normalizeStylePropName(name: string): string {
   return name
     .replace(/_/g, "-")
@@ -506,7 +388,6 @@ function normalizeStylePropName(name: string): string {
     .toLowerCase();
 }
 
-// DFS in-order: first descendant (or self) whose name is in `names`, else null.
 function firstDescendant(node: any, names: Set<string>): any {
   if (names.has(node.name)) return node;
   let c = node.firstChild;
@@ -518,8 +399,6 @@ function firstDescendant(node: any, names: Set<string>): any {
   return null;
 }
 
-// The bodies of the pure-Luau blocks (the rules that hold `LuauBlockBody`),
-// whose children are the blocks' statements.
 const PURE_LUAU_BODY_CONTENT = nodeNameSet([
   "LuauDefine_content",
   "LuauMethodDefinition_content",
@@ -537,22 +416,14 @@ const PURE_LUAU_BODY_CONTENT = nodeNameSet([
   "LuauFunctionTypeDeclaration_content",
 ]);
 
-// The alternator bodies among them. The type checker reads an alternator as
-// a value of any type, not its arms, so an arm that holds an unread token is
-// the alternator lowerer's to report (`lowerArms`).
 const ALTERNATOR_CONTENT = nodeNameSet(["LuauAlternatorArms_content"]);
-// The bodies whose statements are read one member or one closure at a time:
-// a define's (its members, each a method, a function or a property) and a
-// sparkle handler's closure's (read whole, as `lowerSparkleBody.ts` reads it).
 const MEMBER_CONTENT = nodeNameSet(["LuauDefine_content", "LuauSparkleHandlerClosure_content"]);
 
-/** The node of an alternator's arm a node is in, at any depth (a function value's body in the arm included): its nearest ancestor (or itself) that is a child of an alternator's body. */
 function armNodeOf(node: SyntaxNode | null): SyntaxNode | null {
   while (node && !ALTERNATOR_CONTENT.has(node.parent?.name ?? "")) node = node.parent;
   return node;
 }
 
-/** Whether the arm of an alternator that a node of its body is in holds a token the grammar left unread. */
 function armHoldsUnreadToken(armNode: SyntaxNode): boolean {
   let first = armNode;
   while (first.prevSibling && first.prevSibling.name !== "LuauAlternatorSeparator") first = first.prevSibling;
@@ -562,18 +433,11 @@ function armHoldsUnreadToken(armNode: SyntaxNode): boolean {
   return false;
 }
 
-/** The statement of a pure-Luau body a node is in: its nearest ancestor (or itself) that is a child of such a body. */
 function bodyStatementOf(node: SyntaxNode | null): SyntaxNode | null {
   while (node && !PURE_LUAU_BODY_CONTENT.has(node.parent?.name ?? "")) node = node.parent;
   return node;
 }
 
-/**
- * The outermost Luau statement around a statement of a pure-Luau body, which
- * the converter reads whole as the type checker or a lowerer reads it: up to
- * a define's member or a closure's statement, and no further than Luau runs
- * (a scene's body, Sparkdown's own constructs).
- */
 function outermostStatementOf(statement: SyntaxNode): SyntaxNode {
   let top = statement;
   for (let parent = statement.parent; parent?.parent; parent = parent.parent) {
@@ -584,19 +448,6 @@ function outermostStatementOf(statement: SyntaxNode): SyntaxNode {
   return top;
 }
 
-// NOTE: This annotator previously also validated property selectors
-// (`PropertySelectorSimpleConditionName`/`...FunctionConditionName`/
-// `PropertySelectorConstant`), reserved define names (`DefineVariableName`),
-// and `InvalidFieldValue`. The Luau port restructured the selector grammar
-// (now `SimpleSelectorFunction`/`RecursiveSelectorFunction`/
-// `SelectorPropertyNamePart`, bad names caught by `InvalidSelectorPropertyName`)
-// and typed field values (`Numeric/Boolean/String/UnquotedStringFieldValue`),
-// so those node names no longer exist — the branches were dead. They were
-// removed (along with the `ConditionalBracedBlock` value-type checks: the
-// asset-clause value position now only admits TimeValue/NumberValue/NameValue,
-// so no conditional node appears there). Only the asset-command validations
-// below remain live.
-
 export interface Diagnostic {
   message?: string;
   severity?: "info" | "warning" | "error";
@@ -606,16 +457,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<Diagnostic>
 > {
   private diagnosticDocument?: { text: Text; source: string };
-  // For each outermost statement around a pure-Luau body's statements, by
-  // its range, the statements in it whose errors Luau's reading reports
-  // (`ownedByUnreadReading`), by theirs.
   private unreadReadings = new Map<string, ReadonlySet<string>>();
-  // For each body a lowerer reads in the type checker's stead
-  // (`loweredLuauBodyOf`), by its range, the errors its reading reports.
   private loweredReadings = new Map<string, readonly { message: string; from: number; to: number }[]>();
 
-  // The tree's story islands cut at their unclosed bracket's line
-  // (`cutIslands`), found once per tree.
   private cutIslandRanges?: { tree: Tree; islands: readonly { from: number; to: number }[] };
 
   override update(tree: Tree, text: Text, uri?: string): void {
@@ -625,7 +469,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     super.update(tree, text, uri);
   }
 
-  /** Whether an offset is in a story island cut at its unclosed bracket's line. */
   private inCutIsland(at: number): boolean {
     const tree = this.tree;
     if (!tree) return false;
@@ -633,16 +476,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return this.cutIslandRanges.islands.some((island) => at >= island.from && at < island.to);
   }
 
-  /**
-   * Whether the lowerer's reading of a define's method or a Sparkle
-   * handler's closure (`loweredLuauBodyOf`) reports an error in the same
-   * words at a range that meets `from`-`to`, which it reports in Luau's
-   * range (`reportBodySyntaxErrors`), so the validator's own report of it
-   * gives way, as Sparkdown's does to the type checker's reading in a
-   * function (`validateTypes` in `SparkdownCompiler.ts`): the ranges meet
-   * where either holds the other's start, or only space lies between them
-   * (a comma the validator marks and the `}` the reading names after it).
-   */
   private loweredReadingReports(message: string, from: number, to: number): boolean {
     const errors = this.loweredReadingErrors(this.tree?.resolveInner(from, 1) ?? null);
     return !!errors?.some(
@@ -652,11 +485,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     );
   }
 
-  /**
-   * The errors the lowerer reports of its reading of the define's method or
-   * Sparkle handler's closure a node is in (`loweredLuauBodyOf`), with their
-   * document ranges, or undefined outside one.
-   */
   private loweredReadingErrors(node: SyntaxNode | null): readonly { message: string; from: number; to: number }[] | undefined {
     const body = loweredLuauBodyOf(node);
     if (!body) return undefined;
@@ -671,8 +499,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           : content
             ? readLuauStatements([content], text)
             : readLuauBlock([body], text);
-      // As the lowerer reports them (`reportBodySyntaxErrors`), a closure's
-      // at its `}` (`closureReadingErrors`).
       errors = closureReadingErrors(reading.errors, body, text)
         .filter((error) => !error.sparkdown && !error.pastChunkEnd)
         .map((error) => ({
@@ -685,18 +511,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return errors;
   }
 
-  /**
-   * Whether `node` is in a statement of a pure-Luau body whose errors Luau's
-   * reading reports, which the converter marks (`LuauSyntaxError.unread`,
-   * `markUnreadErrors`): one that holds a token the grammar left unread,
-   * one such a token follows on its line, and one Luau's recovery from such
-   * a statement reads. None of their errors is reported from the tree. The
-   * converter reads the statement's outermost statement for them (a sparkle
-   * closure's whole body), only when that holds an unread token. Anything in
-   * an alternator's arm that holds one is the alternator lowerer's to
-   * report, which reads the arm whole, and a define's property-level
-   * statement that is one is the define lowerer's.
-   */
   private ownedByUnreadReading(node: SyntaxNode): boolean {
     const arm = armNodeOf(node);
     if (arm) return armHoldsUnreadToken(arm);
@@ -706,14 +520,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (top.parent?.name === "LuauDefine_content" && top.name !== "LuauMethodDefinition" && top.name !== "LuauFunctionDefinition") {
       return UNREAD_TOKENS.has(statement.name);
     }
-    // A closure's body is read whole, as its lowerer reads it (the body of
-    // the function value it runs as), so that Luau's recovery from one of its
-    // statements reaches the next.
     const reading = top.parent?.name === "LuauSparkleHandlerClosure_content" ? top.parent : top;
     return this.unreadStatementsIn(reading).has(`${statement.from}:${statement.to}`);
   }
 
-  /** The statements in a reading (an outermost statement, or a closure's body) whose errors the converter marks as Luau's, by range. */
   private unreadStatementsIn(reading: SyntaxNode): ReadonlySet<string> {
     const key = `${reading.name}:${reading.from}:${reading.to}`;
     let owned = this.unreadReadings.get(key);
@@ -726,8 +536,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         : reading.name === "LuauSparkleHandlerClosure_content"
           ? readLuauStatements([reading], text).unreadStatements
           : readLuauBlock([reading], text).unreadStatements ?? [];
-      // Each range begins with its statement's first token: the statement is
-      // the body statement there.
       for (const range of ranges) {
         const statement = bodyStatementOf(reading.resolveInner(range.from, 1));
         if (statement) found.add(`${statement.from}:${statement.to}`);
@@ -737,9 +545,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return found;
   }
 
-  // CodeMirror Text is immutable. A replacement or edit supplies a new Text
-  // identity, including equal-length edits that leave the syntax tree shape
-  // unchanged. Keep only the current document, and convert it lazily.
   private statementDocumentText = (): string => {
     const text = this.text;
     if (!text) return "";
@@ -749,9 +554,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return this.diagnosticDocument.source;
   };
 
-  /** Does this `[[…]]` command contain a `to <NameValue>` destination (the
-   *  navigate target screen)? Mirrors how ReferenceAnnotator reads a clause
-   *  value's keyword (`prevSibling.prevSibling`). */
   protected hasNavigateDestination(commandNode: any): boolean {
     const search = (node: any): boolean => {
       if (node.name === "NameValue") {
@@ -775,16 +577,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return search(commandNode);
   }
 
-  /**
-   * Where an if statement's condition expression ends: after the last part
-   * of the condition that is not a space or line break, before any part the
-   * grammar could not read into the expression (`flag` in `if flag print(1)`).
-   */
   protected conditionExpressionEnd(condition: any): number {
     if (condition.name === "LuauSparkdownExplicitIfCondition") {
-      // The highlighting expression may include an adjacent assignment.
-      // The parsed condition ends before that token, which is the missing
-      // `then` diagnostic's owner. Keep the read inside the authored header.
       const text = this.statementDocumentText();
       return luauPositionOffset(readLuauExpressionAfter(condition.from, text, condition.to).expr.location.end, text);
     }
@@ -812,15 +606,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     );
   }
 
-  /**
-   * Brace blocks in `style`, `animation`, `theme` and `morph` bodies. A `{`
-   * with no `}` is reported on that brace: the grammar ends the block where
-   * the declaration's `end` starts a line, so everything up to it is read into
-   * the block. A `}` that closes no block, and an indented-form `key:` header
-   * or `-` item inside a block, are invalid tokens. A comma between two
-   * entries on one line would otherwise be read into the first entry's value,
-   * so it is reported with the separator entries take.
-   */
   protected validateStructBlock(
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
@@ -838,56 +623,36 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           open?.to ?? nodeRef.from + 1,
         );
       }
-      // The entries inside are checked on their own.
       return false;
     }
-    // In a layout or component body, a block left open, a block with no
-    // element before it, and a control block left without its `end` are
-    // reported where the body is lowered (`validateSparkleBlocks`), since the
-    // edit that makes or fixes one can stand after the place it is reported.
     if (INVALID_SPARKLE_BLOCK_TOKENS.has(nodeRef.name)) {
       this.error(annotations, "Invalid syntax", nodeRef.from, nodeRef.to);
+      return true;
+    }
+    if (nodeRef.name === "LuauStructInvalidColon") {
+      this.error(annotations, FIELD_COLON, nodeRef.from, nodeRef.to);
       return true;
     }
     if (INVALID_STRUCT_BLOCK_TOKENS.has(nodeRef.name)) {
       this.error(annotations, "Invalid syntax", nodeRef.from, nodeRef.to);
       return true;
     }
-    if (nodeRef.name === "LuauStructBlockEntryComma") {
-      this.error(annotations, STRUCT_ENTRY_COMMA, nodeRef.from, nodeRef.to);
-      return true;
-    }
     return false;
   }
 
-  /** Whether an interpolation ends with its closing braces. */
   protected isClosedInterpolation(node: any): boolean {
     const end = childNamed(node, `${node.name}_end`);
     return !!end && this.read(end.from, end.to).startsWith("}");
   }
 
-  /**
-   * Malformed Luau literals: an unfinished string or block comment, a bad
-   * escape sequence, or a number that runs into letters. The grammar
-   * recovers from each of these silently (an unfinished `"` swallows the
-   * following lines, `123x` parses as `123` followed by narrative text, `\xQQ`
-   * lowers to a literal `x`), so without these diagnostics the mistake shows
-   * up as wrong program behavior rather than an error at the typo. The
-   * wording matches Luau's parser so its diagnostic tests apply verbatim.
-   */
   protected validateLuauLiteral(
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): boolean {
     const name = nodeRef.name as string;
     if (LUAU_STRING.has(name)) {
-      // A backtick string's errors, its sections' and interpolations', its
-      // escapes' and an unfinished one's, have one owner, the reading of the
-      // statement it stands in (`LuauSyntaxError.ofString`, I-1435), which
-      // gives none where the statement rejects the string before reading it.
       if (name === "LuauInterpolatedString") return false;
       const node = nodeRef.node as any;
-      // `[[...]]` holds raw text: no escapes, and newlines are content.
       if (!LUAU_QUOTED_STRING.has(name)) {
         if (!childNamed(node, `${name}_end`)) {
           this.error(annotations, MALFORMED_STRING, nodeRef.from, nodeRef.to);
@@ -897,14 +662,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       const escapeMessage = "String literal contains malformed escape sequence";
       const content = childNamed(node, `${name}_content`);
-      // A quoted string's line break is either the line it is not finished
-      // on, where the grammar ends it (see below), or one a `\` or a `\z`
-      // carries it over, which `LuauEscapeLine` takes with the escape.
       for (let c = content?.firstChild; c; c = c.nextSibling) {
         const esc = this.read(c.from, c.to);
         let malformed = false;
         if (c.name === "LuauEscapeAny") {
-          // `\x` and `\u` only reach here when their digits are missing.
           malformed = esc === "\\x" || esc === "\\u";
         } else if (c.name === "LuauEscapeDecimal") {
           malformed = parseInt(esc.slice(1), 10) > 255;
@@ -920,12 +681,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           return true;
         }
       }
-      // No closing quote: the string ends at its line, or at the end of the
-      // file, with nothing in its `_end`, as Luau's lexer ends it there.
       const end = childNamed(node, `${name}_end`);
       if (!end || end.from === end.to) {
-        // A string a backtick string's interpolation ended with
-        // (`` `a {b`) ``) is the interpolation's error, reported at it.
         if (ancestorMatching(nodeRef.node, BACKTICK_INTERPOLATION_ENDS)) {
           return true;
         }
@@ -941,18 +698,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const literal = (nodeRef.node as any).firstChild;
       const literalTo = literal ? literal.to : nodeRef.to;
       const text = this.read(nodeRef.from, literalTo);
-      // Luau's lexer takes every following letter, digit, `_` and `.` into
-      // the number token and then fails to convert it; the grammar stops at
-      // the first character it cannot use, so look at what comes next, up to
-      // the end of the line.
       const lineTo = this.text?.lineAt(literalTo).to ?? literalTo;
       const rest = this.read(literalTo, lineTo).match(/^[A-Za-z0-9_.]+/);
       const noDigits = /^0_*[xXbB]_*$/.test(text);
       if (rest || noDigits) {
-        // Recognize the spelling only to reject it clearly (#1309). Neither
-        // the grammar nor the runtime gains integer semantics or overflow
-        // checks. Luau ignores underscores throughout a numeric token and
-        // accepts a hexadecimal integer with no digits, such as `0xi`.
         const integer = /^(?:[0-9]+|0[xX][0-9a-fA-F]*|0[bB][01]+)i$/.test(
           (text + (rest?.[0] ?? "")).replaceAll("_", ""),
         );
@@ -973,10 +722,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       return false;
     }
-    // The grammar reads closing brackets before code as a trailing type
-    // comment's close wherever a statement or parameter can begin, since no
-    // pattern can see the comment's opening on an earlier line. Brackets that
-    // no such comment ends right before are Luau's first unexpected token.
     if (name === "LuauTypeTrailingBlockCommentClose") {
       if (!this.endsTrailingTypeComment(nodeRef.from)) {
         this.error(annotations, STRAY_CLOSING_BRACKET, nodeRef.from, nodeRef.from + 1);
@@ -987,12 +732,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return false;
   }
 
-  /**
-   * The Luau token at or after `pos`, past whitespace, line breaks and the
-   * Luau comments the grammar read: a whole name or keyword, or one
-   * character. `""` at the end of the Luau, which for a `run` file is the
-   * `end` its wrapper closes its function with.
-   */
   protected tokenAfterTrivia(pos: number, to = this.text?.length ?? pos): string {
     for (;;) {
       if (pos >= to) return "";
@@ -1019,23 +758,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
   }
 
-  /**
-   * Whether the type checker reports what a node's construct is missing, at
-   * the token Luau finds instead (`checkerReadsOnTo`). A Luau file is Luau
-   * throughout, however this document's tree reads it.
-   *
-   * In story braces (`Hello {x.}.`), a choice's condition and an
-   * alternator's head and arms, the lowerer's reading of the expression
-   * reports every syntax error, in Luau's words, naming the brace's `}` or
-   * the arm's `|` it ends at, and these checks defer to it
-   * (`loweredExpressionOf`, I-1445).
-   */
-  /**
-   * The end of a missing type's range, from where the type should stand
-   * (`from`) to the end of the token found instead (`to`): the end of the
-   * line the type is missing from when the token is on a later line, as the
-   * checker gives it, or the token's end.
-   */
   protected missingTypeEnd(from: number, to: number): number {
     const lineBreak = this.read(from, to).indexOf("\n");
     return lineBreak < 0 ? to : from + lineBreak + 1;
@@ -1046,8 +768,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return checkerReadsOnTo(node, tokenFrom, (from, to) => this.read(from, to));
   }
 
-  /** Whether `pos` is the `end` a `run` file's wrapper closes it with
-   *  (`runFileUnit`), which is not in the file. */
   protected isRunWrapperEnd(pos: number): boolean {
     const length = this.text?.length ?? 0;
     return (
@@ -1058,12 +778,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     );
   }
 
-  /**
-   * Whether a node directly follows a `for` loop variable, an access path of
-   * one name in the loop's header with no `in` or `=` before it
-   * (`for k: then`), where a `:` is the variable's type annotation. Comments
-   * may stand between them (`for k --[[c]] : then`).
-   */
   protected followsForBinding(node: SyntaxNode): boolean {
     let path = node.prevSibling;
     while (path && isTrivia(path)) {
@@ -1089,14 +803,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return true;
   }
 
-  /**
-   * Whether the value right before a node is one Luau can call a method on:
-   * a name or access path, a value in brackets, or a call or access chained
-   * onto one, as Luau's primary expression is. The value is the last one the
-   * previous sibling holds (`for k = i : then` reads `i` inside the `=`'s
-   * operation). A literal is none (`for k = 1 : then`), and there Luau's first
-   * error is the `:` itself, which the type checker reports.
-   */
   protected followsMethodReceiver(node: SyntaxNode): boolean {
     let value: SyntaxNode | null = node.prevSibling;
     while (value && isTrivia(value)) {
@@ -1115,28 +821,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return false;
   }
 
-  /**
-   * Whether a node is in a pure-Luau body (a `.luau` or `run` file, a
-   * function's own Luau the type checker reads), where Luau's reading
-   * reports every syntax error, its recovery's included (I-1322), so the
-   * validator reports none of Luau's own there. A story statement's errors
-   * keep one owner each, as before (#931, #1907).
-   */
   protected inPureLuau(node: SyntaxNode): boolean {
     return luauReadingReportsAllAt(node, (from, to) => this.read(from, to), this.uri);
   }
 
-  /** Whether the document is a `.luau` or `run` file, Luau from its first line to its last. */
   protected inLuauDocument(): boolean {
     return !!this.uri && isLuauDocument(this.uri);
   }
 
-  /**
-   * Whether a missing-type `:` is read as part of an access path (`t.a: = 2`)
-   * other than a `for` loop variable's annotation (`for i: = 1, 3`): the name
-   * directly after `for` or after a comma before the loop's `in` or `=`.
-   * A header's `:` before its `do` or `then` is always a method's (I-1318).
-   */
   protected isMethodColon(node: SyntaxNode): boolean {
     if (HEADER_METHOD_COLONS.has(node.name)) {
       return true;
@@ -1166,19 +858,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return false;
   }
 
-  /**
-   * Where the type checker does not read the Luau (a flow header or a
-   * `store` declaration), the token Luau would find after `pos` if it did,
-   * and where Luau's range for it ends: the next token on its line, or on a
-   * later line that is Luau the checker reads or starts with a keyword (a
-   * flow's `end`, or a statement's, which the grammar may have read as the
-   * type when it had only part of the text). Otherwise the Luau ends
-   * (`null`, `<eof>`), and the range ends at the start of the next line, as
-   * Luau's does at the end of a unit. `undefined` where a block comment that
-   * never closes stands instead: that comment's own error
-   * (`UNFINISHED_COMMENT`) is the one error there, as it is in the Luau the
-   * checker reads.
-   */
   protected luauTokenAfter(pos: number): { text: string | null; to: number } | undefined {
     const read = (from: number, to: number) => this.read(from, to);
     const got = this.luauTokenAt(pos);
@@ -1196,10 +875,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return { text: null, to: this.text?.length ?? pos };
   }
 
-  /** The Luau token at or after `pos`, past whitespace and comments of any
-   *  length, read whole as Luau's lexer reads it (`123`, `..`, `::`), `null`
-   *  at the end of the text, or `undefined` at a block comment that never
-   *  closes. */
   protected luauTokenAt(pos: number, to = this.text?.length ?? pos): { text: string; from: number } | null | undefined {
     const rest = this.read(pos, to);
     let i = 0;
@@ -1216,15 +891,11 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return token ? { text: token[0], from: pos + i } : null;
   }
 
-  /** The end of the line break at `pos`, or `pos` where none begins there. */
   protected lineBreakEnd(pos: number): number {
     const next = this.read(pos, pos + 2);
     return pos + (next.startsWith("\r\n") ? 2 : next.startsWith("\n") || next.startsWith("\r") ? 1 : 0);
   }
 
-  /** The end of the token before `pos`, past the whitespace and block
-   *  comments before it, where Luau's range for a token it did not expect
-   *  begins. */
   protected endOfTokenBefore(pos: number): number {
     const before = this.startBeforeBlockComments(pos) ?? pos;
     let end = before;
@@ -1234,8 +905,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return end;
   }
 
-  /** Whether a trailing block comment after a type or a value ends at `pos`,
-   *  leaving its closing brackets to the body there. */
   protected endsTrailingTypeComment(pos: number): boolean {
     let node = this.tree?.resolveInner(pos, -1) ?? null;
     while (node && !LUAU_TRAILING_BLOCK_COMMENT.has(node.name)) {
@@ -1244,13 +913,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return node?.to === pos;
   }
 
-  /**
-   * The part of a declaration's content before `node` (its targets, the
-   * commas between them and, from the first `=` on, its values), past
-   * comments and whitespace: `null` when `node` comes first, and `undefined`
-   * when an `=` comes before it, since `node` is then among the values, not
-   * the targets.
-   */
   protected declarationTargetBefore(
     node: SyntaxNode,
   ): SyntaxNode | null | undefined {
@@ -1269,8 +931,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return before;
   }
 
-  /** The end of the text before the block comments (and the whitespace around
-   *  them) that end at `pos`, or null when no block comment ends there. */
   protected startBeforeBlockComments(pos: number): number | null {
     let skipped = false;
     for (;;) {
@@ -1289,14 +949,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
   }
 
-  /**
-   * A binary operator that ends its line takes the line break, and its
-   * operand begins on a later line, as Luau reads it; no pattern sees that
-   * line (GRAMMAR.md §11.5). Where that line begins with a statement keyword,
-   * no expression begins there, and Luau reports the keyword as the missing
-   * operand. The checker reports it for the Luau it reads, and Sparkdown for
-   * a `store` declaration in a function, which it does not.
-   */
   protected validateLineEndOperator(
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
@@ -1314,16 +966,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
-    // A story declaration whose bracket never closes ends with its opener's
-    // line, and the tree reads the story lines after it into the bracket
-    // (`cutIslands`, I-1532). The checker's reading of the line alone
-    // reports every error of its Luau, so no Luau check reports in it: one
-    // here would read the tree's run-on, which is story.
     if (nodeRef.name.startsWith("Luau") && this.inCutIsland(nodeRef.from)) {
       return annotations;
     }
-    // Before the unread reading's ownership: that reading's errors are the
-    // checker's, and this check reports only where the checker does not read.
     this.validateLineEndOperator(annotations, nodeRef);
     if (nodeRef.name.startsWith("Luau") && this.ownedByUnreadReading(nodeRef.node)) {
       return annotations;
@@ -1334,26 +979,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (this.validateStructBlock(annotations, nodeRef)) {
       return annotations;
     }
-    // A type that is missing or malformed in Luau the type checker reads is
-    // reported by the checker, with Luau's parser's wording and range, since
-    // Luau's parser has a point wherever a type can stand (see
-    // `SparkdownTypechecker`), as the lowerer of a define's method or a
-    // Sparkle handler's closure reports them there (`isReadLuau`). The
-    // grammar's tokens for one are reported here only where neither reads
-    // the Luau: in a flow header's parameters and in Sparkdown's own
-    // constructs.
     const checkerReportsType =
       TYPE_ERROR_TOKENS.has(nodeRef.name) && isReadLuau(nodeRef.node, (from, to) => this.read(from, to));
-    // A `?` only ends the type before it; the grammar reads one with no type
-    // before it as its own token. The wording and range are Luau's parser's,
-    // from the end of the token before it.
     if (nodeRef.name === "LuauTypeStrayOptionalOperator") {
       if (!checkerReportsType) {
         this.error(annotations, STRAY_OPTIONAL, this.endOfTokenBefore(nodeRef.from), nodeRef.to);
       }
       return annotations;
     }
-    // Likewise a `:` or `::` where a type must begin.
     if (nodeRef.name === "LuauTypeStrayColon") {
       if (!checkerReportsType) {
         const colon = childNamed(nodeRef.node, "LuauTypeStrayColon_c1");
@@ -1366,25 +999,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       return annotations;
     }
-    // An operator or `if` with only whitespace, line breaks or comments before
-    // the `;` that ends its statement has no right operand; the grammar reads
-    // it as its own token. Where the type checker reads the Luau, it reports
-    // the missing operand (and a cast's missing type) with Luau's range, the
-    // `;`, as it reports every missing expression (#1175). In a story
-    // statement, which ends at its line, the operand is missing at the
-    // statement's end (#1907); the checker reports it there for the Luau it
-    // reads, and Sparkdown for a `store` declaration, which it does not.
     if (isExplicitRuleName(nodeRef.name, "LuauOperatorMissingOperand")) {
-      // An operator right after an annotation's `:` stands where the type
-      // must begin, and is the token the type's own error names
-      // (`scene s(a: ..)`).
       const lineStart = this.text?.lineAt(nodeRef.from).from ?? nodeRef.from;
       const afterAnnotationColon = /(?:^|[^:]):\s*$/.test(this.read(lineStart, nodeRef.from));
       const authoredEnd = authoredIslandEnd(nodeRef.node, this.statementDocumentText());
       const got = this.luauTokenAt(nodeRef.to, authoredEnd);
       if (!afterAnnotationColon && !this.checkerReadsOnTo(nodeRef.node, got?.from)) {
-        // A story statement's `<eof>` is its line break, as the checker
-        // ranges it.
         const eof = authoredEnd === undefined ? undefined : { from: authoredEnd, to: this.lineBreakEnd(authoredEnd) };
         this.error(
           annotations,
@@ -1395,22 +1015,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       return annotations;
     }
-    // Likewise a type annotation or return type `:`, or a type's `|`, `&` or
-    // `->`, with no type before the token after it that cannot start one;
-    // Luau names the token it found instead. After a name in a value, the `:`
-    // starts a method call, which is missing its name.
-    // A reserved word as a method's name (`a:do`): Luau's first error is the
-    // missing name, at the word (I-1318). In a pure-Luau body Luau's reading
-    // reports it and every error around it (I-1322).
     if (nodeRef.name === "LuauKeywordMethodName") {
       if (this.inPureLuau(nodeRef.node) || loweredExpressionOf(nodeRef.node)) {
         return annotations;
       }
-      // After a `for` loop variable the `:` is its type's, and the word is
-      // the type Luau found missing (`for k: then`), which the type checker
-      // reports.
-      // After a value no method is called on (`for k = 1 : then`), Luau's
-      // first error is the `:`, which the type checker reports too.
       const accessor = nodeRef.node.parent?.parent;
       if (
         accessor &&
@@ -1428,35 +1036,20 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (MISSING_TYPE_NODES.has(nodeRef.name)) {
-      // A header's `:` before its `do` or `then` (`while t: do`): in a
-      // pure-Luau body Luau's reading reports every error there (I-1322).
-      // Elsewhere, after a value no method is called on (`while 1: do`),
-      // Luau's first error is the `:` itself, which the type checker reports.
       if (HEADER_METHOD_COLONS.has(nodeRef.name) && (this.inPureLuau(nodeRef.node) || !this.followsMethodReceiver(nodeRef.node))) {
         return annotations;
       }
       const isMethodColon = this.isMethodColon(nodeRef.node);
-      // An unfinished narrative method call owns its island's EOF. A genuine
-      // function still permits the method name on its next Luau line.
       const authoredEnd = isMethodColon ? authoredIslandEnd(nodeRef.node, this.statementDocumentText()) : undefined;
-      // The checker reports a missing method name too, as it reports every
-      // missing name after a member access (#1175), where it reads the token
-      // found instead.
       if (checkerReportsType && (!isMethodColon || this.checkerReadsOnTo(nodeRef.node, this.luauTokenAt(nodeRef.to, authoredEnd)?.from))) {
         return annotations;
       }
-      // In a story brace or an alternator's arm the lowerer's reading
-      // reports a method call's missing name and arguments (I-1445).
       if (isMethodColon && loweredExpressionOf(nodeRef.node)) {
         return annotations;
       }
       if (!isMethodColon) {
-        // Luau's range, as the checker reports it: from the end of the
-        // operator to the end of the token it found.
         const operator = /^\s*(->|[:|&])/.exec(this.read(nodeRef.from, nodeRef.to));
         const from = nodeRef.from + (operator?.[0].length ?? 0);
-        // A story statement ends at its line (#1907): its Luau meets its end
-        // of input there, whatever the next line holds.
         const islandEnd = authoredIslandEnd(nodeRef.node, this.statementDocumentText());
         const inIsland = islandEnd === undefined ? undefined : this.luauTokenAt(nodeRef.to, islandEnd);
         const got = inIsland === null
@@ -1473,7 +1066,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         );
         return annotations;
       }
-      // Luau's range is the token it found instead of the name.
       const token = this.tokenAfterTrivia(nodeRef.to, authoredEnd);
       const got = token ? this.luauTokenAt(nodeRef.to, authoredEnd) : null;
       this.error(
@@ -1484,19 +1076,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    // A `::` after a declaration's target, where an annotation takes one `:`.
     if (nodeRef.name === "LuauTargetTypeCastOperator") {
       if (!checkerReportsType) {
         this.error(annotations, TARGET_TYPECAST, nodeRef.from, nodeRef.to);
       }
       return annotations;
     }
-    // Likewise in a flow header's parameters, which the checker does not
-    // read: a `:` or `::` with no name before it (`scene s(: number)`,
-    // `scene s(a, :: number)`), or a `::` after a name (`scene s(a :: number)`),
-    // worded as Luau's parser words one among a function's parameters. In
-    // a function of a define's method or a Sparkle handler's closure, the
-    // lowerer's reading reports it (`isReadLuau`).
     if (
       (isExplicitRuleName(nodeRef.name, "LuauTypeCastOperation") ||
         isExplicitRuleName(nodeRef.name, "LuauTypeAnnotationOperation")) &&
@@ -1530,11 +1115,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    // A `:` or `::` among a declaration's targets that has no name before it
-    // (`local :: number`, `local a, : number`), or a `::` after a target on a
-    // line continued from a trailing comma, which `LuauTargetTypeCast` cannot
-    // see (`local a,` then `b :: number`). The grammar reads each as an
-    // annotation or cast in the declaration's own content.
     if (
       (isExplicitRuleName(nodeRef.name, "LuauTypeCastOperation") ||
         isExplicitRuleName(nodeRef.name, "LuauTypeAnnotationOperation")) &&
@@ -1565,8 +1145,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    // A second annotation `:` where the type should be (`local c: : number`).
-    // Luau's range runs from the end of the first `:` to the end of the second.
     if (nodeRef.name === "LuauTypeAnnotationOperator") {
       let previous = nodeRef.node.prevSibling;
       while (previous && isTrivia(previous)) {
@@ -1584,15 +1162,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    // An annotation with no type before the end of its line where the
-    // declaration ends there (`store x:` before a line of story), which the
-    // grammar reads with no token for the missing type. The grammar only
-    // sees the text it has read so far, so it also cannot tell one whose
-    // next line starts past the chunk of text it was given, where it reads
-    // that line's keyword as the type. The whole text is here. In Luau the
-    // type checker reads, the checker reports it, and in a define's method
-    // or a Sparkle handler's closure its lowerer (`isReadLuau`); elsewhere
-    // the range is the checker's, from the `:` to the token Luau would find.
     if (
       EMPTY_AT_END_OPERATIONS.has(nodeRef.name) &&
       !isReadLuau(nodeRef.node, (from, to) => this.read(from, to))
@@ -1616,10 +1185,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    // The grammar reads a `?` after a block comment as a suffix, because a
-    // lookbehind cannot see whether a type stands before the comment
-    // (`() -> --[[c]] ?`). Only a type before the comments makes it one.
-    // Luau's range begins at the end of the token before the comments.
     if (nodeRef.name === "LuauTypeOptionalOperator" && !checkerReportsType) {
       const operator = childNamed(nodeRef.node, "LuauTypeOptionalOperator_c2");
       const before = this.startBeforeBlockComments(operator.from);
@@ -1631,13 +1196,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    // A member access whose last `.` has no name after it on its line
-    // (`t.a.`). The grammar reads that `.`, after any whitespace before it, as
-    // its own token, so the `.` is the node's last character. Luau reads a
-    // name on a later line as the member, but a Sparkdown access path ends
-    // with its line, which only Sparkdown reports. Otherwise Luau's parser
-    // names the token it meets instead of the name, at that token; the type
-    // checker reports that where it reads the Luau (#1175).
     if (nodeRef.name === "LuauDanglingAccessor") {
       const got = nextSignificantToken(nodeRef.node, nodeRef.to,
         (from, to) => this.read(from, to), this.statementDocumentText);
@@ -1649,9 +1207,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       if (nameOnLaterLine) {
         this.error(annotations, NAME_ON_LATER_LINE, nodeRef.to - 1, nodeRef.to);
       } else if (!this.checkerReadsOnTo(nodeRef.node, got?.from)) {
-        // A backtick string is named as Luau's lexer reads it, by its first
-        // lexeme (`` `a { ``), or as a malformed string where its line ends
-        // first (I-1419).
         const backtick = got?.text === "`" ? backtickLexeme(this.read(got.from, this.text?.lineAt(got.from).to ?? got.from)) : undefined;
         const finished = backtick !== undefined && backtick.length > 1 && /[`{]$/.test(backtick);
         const description = got == null ? "<eof>" : backtick !== undefined ? (finished ? backtick : "malformed string") : `'${got.text}'`;
@@ -1665,9 +1220,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       return annotations;
     }
-    // A type name with more than one module prefix (`types.ui.Button`). Luau
-    // reads at most `module.Type`, so the segments after it are a syntax
-    // error; the grammar keeps them inside the type so this can report them.
     if (nodeRef.name === "LuauTypeNameExtraQualifier" || isExplicitRuleName(nodeRef.name, "LuauTypeNameExtraQualifierContinuation")) {
       const to = isExplicitRuleName(nodeRef.name, "LuauTypeNameExtraQualifierContinuation")
         ? nodeRef.from + this.read(nodeRef.from, nodeRef.to).trimEnd().length
@@ -1680,15 +1232,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    // A Luau if expression needs a condition, a `then` arm and an `else`
-    // arm, each with its value; the grammar closes one whose next part never
-    // comes at the end of its lines so this can report the part that is
-    // missing. An if expression that is a whole `{…}` interpolation in
-    // display text is Sparkdown's inline conditional, which may leave out
-    // its arms.
-    // In a story brace or an alternator's arm, the lowerer's reading reports
-    // every part one lacks (I-1445, `reportInlineIfReading` for a whole
-    // brace's).
     if (
       isExplicitRuleName(nodeRef.name, "LuauTernaryExpression") &&
       !isInlineConditional(nodeRef.node) &&
@@ -1697,31 +1240,16 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const found = missingIfExpressionPart(nodeRef.node, (from, to) =>
         this.read(from, to),
       );
-      // In a pure-Luau body where Luau's reading reads on past the missing
-      // part, it reports every error of the expression, at Luau's tokens and
-      // ranges (I-1322); where the tree ends the statement first (a line at
-      // column 0, #1906), the missing part is reported here.
       const after = found ? this.luauTokenAt(found.at?.to ?? nodeRef.to, authoredIslandEnd(nodeRef.node, this.statementDocumentText())) : undefined;
-      // In a define's method or a Sparkle handler's closure, the lowerer's
-      // reading reports it where its errors, as the lowerer reports them
-      // (a closure's at its `}`, `closureReadingErrors`), hold one that
-      // begins with the expression's words.
       const lowered = this.loweredReadingErrors(nodeRef.node);
       const readingReports = lowered
         ? lowered.some((error) => !!found && error.message.startsWith(found.message) && error.from >= nodeRef.from)
         : !!after && this.checkerReadsOnTo(nodeRef.node, after.from);
       const missing = found && this.inPureLuau(nodeRef.node) && readingReports ? undefined : found;
-      // A missing condition or arm value is a missing expression, which the
-      // type checker reports with Luau's range where it reads the Luau and
-      // Luau finds it missing too.
       const read = (from: number, to: number) => this.read(from, to);
       const checkerReportsValue =
         missing?.message === IF_EXPRESSION_WITHOUT_VALUE &&
         typeCheckerReportsMissingValue(nodeRef.node, missing.at?.to ?? nodeRef.to, read, this.statementDocumentText);
-      // A missing `else` is Luau's error, worded and placed as Luau's reading
-      // of the expression finds it, at the token after the then arm's value
-      // (which may be on the line after `then`, #1501), where the checker
-      // reads the Luau on to that token (`checkerReadsOnTo`).
       let reportedElse = false;
       if (missing?.message === IF_EXPRESSION_WITHOUT_ELSE) {
         const text = this.statementDocumentText();
@@ -1731,8 +1259,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           let from = luauPositionOffset(error.location.begin, text);
           let to = luauPositionOffset(error.location.end, text);
           let message = error.message;
-          // The `end` a `run` file's wrapper closes it with is not in the
-          // file, so the token found there is the file's end.
           if (this.isRunWrapperEnd(from)) {
             from = to = from - 1;
             message = `${IF_EXPRESSION_WITHOUT_ELSE}, got <eof>`;
@@ -1753,9 +1279,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         );
       }
     }
-    // A story `if` or `elseif` header whose line ends with its keyword has no
-    // condition: the header ends at its line (#1907), so Luau's reading meets
-    // its end of input where the condition should begin.
     if (STORY_CONDITION_BLOCKS.has(nodeRef.name)) {
       const content = childNamed(nodeRef.node, `${nodeRef.name}_content`);
       if (!content?.getChild("LuauSparkdownExplicitIfCondition")) {
@@ -1764,8 +1287,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         this.error(annotations, `${MISSING_EXPRESSION}, got <eof>`, at, this.lineBreakEnd(at));
       }
     }
-    // Likewise a story `repeat` loop's `until` that ends its line: the
-    // condition the body around the loop reads after it is not on its line.
     if (nodeRef.name === "LuauSparkdownRepeatLoop") {
       const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
       const until = end ? firstDescendant(end, LUAU_UNTIL_KEYWORD) : null;
@@ -1778,23 +1299,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         }
       }
     }
-    // An if statement's condition that its line ends without a `then`: the
-    // grammar ends the condition there, so the branch's first line stays in
-    // its body. Luau names the token after the condition's expression, which
-    // is the first one the grammar could not read into it.
-    // In a `.luau` or `run` file Luau's reading reports a missing `then`
-    // itself, as every error of the file's (I-1322), and no condition there
-    // is a story header's, which its line ends.
     if (LUAU_IF_STATEMENT_CONDITION.has(nodeRef.name) && !this.inLuauDocument()) {
       const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
       if (!end || !firstDescendant(end, LUAU_THEN_KEYWORD)) {
         const authoredEnd = authoredIslandEnd(nodeRef.node, this.statementDocumentText());
-        // A story header's condition ends at its line (#1907). Where its own
-        // expression is unfinished there (`if a and`), Luau's reading stops
-        // at that error and names nothing about `then`: the error at the
-        // line's end is the expression's, and one at a token on the line is
-        // the missing operand's own report. A whole expression followed by a
-        // token (`if flag print(1)`) is missing the `then` before that token.
         if (authoredEnd !== undefined && isStoryCondition(nodeRef.node)) {
           const expressionError = readLuauExpressionAfter(nodeRef.from, this.statementDocumentText(), authoredEnd).errors[0];
           if (expressionError && !expressionError.message.startsWith("Expected the end of the expression")) {
@@ -1812,8 +1320,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           authoredEnd,
         );
         const eof = authoredEnd ?? this.tree?.length ?? nodeRef.to;
-        // A story header's `<eof>` is its line break, as for a story
-        // statement.
         const eofEnd = authoredEnd !== undefined && isStoryCondition(nodeRef.node) ? this.lineBreakEnd(eof) : eof;
         this.error(
           annotations,
@@ -1825,7 +1331,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
     if (nodeRef.name === "AssetCommandControl") {
       const context = getContextNames(nodeRef.node);
-      // Report invalid image/screen control
       if (
         context.includes("ImageCommand") &&
         !BRACKET_CONTROL_KEYWORDS.includes(this.read(nodeRef.from, nodeRef.to))
@@ -1841,7 +1346,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         );
         return annotations;
       }
-      // Report invalid audio control
       if (
         context.includes("AudioCommand") &&
         !AUDIO_CONTROL_KEYWORDS.includes(this.read(nodeRef.from, nodeRef.to))
@@ -1857,8 +1361,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         );
         return annotations;
       }
-      // `[[navigate <container> to <screen>]]` requires a `to <screen>`
-      // destination — a bare `[[navigate <container>]]` is incomplete.
       if (
         context.includes("ImageCommand") &&
         this.read(nodeRef.from, nodeRef.to) === "navigate"
@@ -1875,10 +1377,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           return annotations;
         }
       }
-      // `[[play NAME]]` plays one video: the name in the target slot. A
-      // missing name, a second name (before the clauses, or after a flag
-      // such as `loop`), or names joined with `+` are reported. Whether the
-      // name is a video is the reference's to report.
       if (
         context.includes("ImageCommand") &&
         MOVIE_CONTROL_KEYWORDS.includes(this.read(nodeRef.from, nodeRef.to))
@@ -1891,7 +1389,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           ? firstDescendant(instruction, ASSET_COMMAND_TARGET)
           : null;
         const targetText = target ? this.read(target.from, target.to) : "";
-        // The names after the target, each with any `+` before it.
         let extraFrom: number | undefined;
         let extraTo: number | undefined;
         const findExtra = (node: SyntaxNode) => {
@@ -1916,9 +1413,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         if (extraFrom !== undefined && extraTo !== undefined) {
           this.error(annotations, PLAY_ONE_VIDEO, extraFrom, extraTo);
         }
-        // A name among the clauses is a clause's value only after a clause
-        // that takes a name (`with fade`); after a flag or another value it
-        // is a second video.
         const command = ancestorMatching(nodeRef.node, ASSET_COMMAND);
         const findStrayValue = (node: SyntaxNode) => {
           for (let c = node.firstChild; c; c = c.nextSibling) {
@@ -1942,17 +1436,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    // Unrecognized `@event` name on a Sparkle element line (`@clik=save`). The
-    // event set is closed (EventMap) and an unknown name silently never fires,
-    // so surface a typo instead of leaving a dead handler. `EventAttributeName`
-    // captures exactly the identifier after `@` (no `@`, no whitespace).
-    //
-    // Gated on the enclosing HANDLER attribute, because the grammar emits this
-    // same leaf for a style SELECTOR (`@hovered:`, `@focused`, `@theme(dark)`,
-    // `@has(button)`) — a closed vocabulary of its own that has nothing to do
-    // with EventMap. Ungated, every one of those warned that a selector the
-    // docs recommend and `builtins.sd` uses 90 times "never fires", and
-    // suggested `@click`/`@input` in its place.
     if (
       nodeRef.name === "EventAttributeName" &&
       ancestorMatching(nodeRef.node, SPARKLE_EVENT_HANDLER)
@@ -1969,17 +1452,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    // Unterminated `{` inside an interpolated string.
-    //
-    // Matches Luau, which lexes a `{` that reaches the end of its string as a
-    // BrokenString and reports "Malformed interpolated string; did you forget
-    // to add a '}'?". Without this the mistake is silent: the interpolation
-    // closes at the string boundary and its contents quietly vanish from the
-    // value (and, before the string-bounded rules, it swallowed the rest of
-    // the file).
-    //
-    // Detected on the text rather than on an `_end` child: closing at the
-    // string boundary still produces an `_end` node, just a zero-width one.
     if (
       isExplicitRuleName(nodeRef.name, "LuauInterpolatedStringExpression") ||
       nodeRef.name === "LuauDoubleQuotedStringInterpolation" ||
@@ -1989,13 +1461,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       nodeRef.name === "LuauBacktickFunctionCallShorthand"
     ) {
       const raw = this.read(nodeRef.from, nodeRef.to);
-      // Empty `{}` — Luau: "Malformed interpolated string, expected expression
-      // inside '{}'". An empty interpolation has no value to splice, so
-      // without the diagnostic it would vanish from the string. Use `'...'`
-      // or `[[...]]` for a string that should hold literal braces.
       if (/^\{\s*\}$/.test(raw.trim())) {
-        // A backtick string's empty interpolation is the reading's to
-        // report, the one owner of the string's errors (I-1420, I-1435).
         if (BACKTICK_INTERPOLATIONS.has(nodeRef.name)) return annotations;
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({
@@ -2006,10 +1472,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         );
         return annotations;
       }
-      // A backtick string's interpolation may go on over lines, and one left
-      // open leaves its string unfinished, both the reading's to report
-      // (I-1318, I-1435). Whether it closed is its `_end`'s: the text can end in
-      // a `}` that a string its end took holds (`` `a {"y}``).
       const backtick = BACKTICK_INTERPOLATIONS.has(nodeRef.name);
       const closed = backtick
         ? this.isClosedInterpolation(nodeRef.node)
@@ -2026,12 +1488,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    // Text after a scene's or branch's name or parameters on its header line
-    // (`scene start oops`), which the grammar reads to the line's end as
-    // `Unknown` (#674). A `--` comment there is a comment, as after a
-    // definition's `end`.
-    // A `.luau` or `run` file has no scene or branch, whatever its tree
-    // reads: Luau's reading reports its lines.
     if (nodeRef.name === "Unknown" && HEADER_CONTENT.has(nodeRef.node.parent?.name ?? "") && !this.inLuauDocument()) {
       const raw = this.read(nodeRef.from, nodeRef.to);
       const from = nodeRef.from + (raw.length - raw.trimStart().length);
@@ -2044,16 +1500,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    // Unrecognized inline RICH TEXT tag inside a content string
-    // (`text "a <bold>x</bold>"`). The runtime leaves an unknown tag as literal
-    // characters — deliberately, so prose like `5 < 6` survives — which means a
-    // typo shows up verbatim in the UI instead of styling anything. The grammar
-    // already separates a tag-SHAPED token whose name isn't in the vocabulary
-    // (`SparkleRichTextTagUnknown`) from a recognized one, so this only has to
-    // report it.
-    //
-    // NOT flagged inside a `#prop` value: rich text is only parsed in element
-    // CONTENT, so `<b>` in a placeholder is inert rather than misspelled.
     if (nodeRef.name === "SparkleRichTextTagUnknown") {
       const raw = this.read(nodeRef.from, nodeRef.to).trim();
       const name = raw.replace(/^<\/?/, "").replace(/[=>].*$/s, "");
@@ -2072,19 +1518,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    // Unrecognized inline `#prop` name on a Sparkle element line (`#colr=red`).
-    // Sparkle passes unknown props straight through to CSS, so a typo silently
-    // does nothing — warn when the name is neither a known style prop / CSS
-    // property / widget prop nor a `--custom` property. `StyleAttributeName`
-    // captures exactly the identifier after `#`.
     if (nodeRef.name === "StyleAttributeName") {
       const raw = this.read(nodeRef.from, nodeRef.to).trim();
       const name = raw.replace(/^#/, "");
-      // `--custom` CSS variables and `data-*` / `aria-*` attributes are always
-      // valid on any element, so they're never flagged. So are the named
-      // non-standard props (`#tooltip`), which the ui writes out as `data-*`.
-      // The `data-*` names the ui reserves for itself are not written, so
-      // they are flagged like any other prop that has no effect.
       const isPassThrough =
         name.startsWith("--") ||
         (name.startsWith("data-") && !isReservedAttribute(name)) ||
@@ -2109,7 +1545,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
     if (nodeRef.name === "IllegalChar") {
       const context = getContextNames(nodeRef.node);
-      // Report invalid image name syntax
       if (context.includes("ImageCommand")) {
         const message = `Invalid syntax`;
         annotations.push(
@@ -2120,7 +1555,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         );
         return annotations;
       }
-      // Report invalid audio name syntax
       if (context.includes("AudioCommand")) {
         const message = `Invalid syntax`;
         annotations.push(
@@ -2249,10 +1683,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         }
       }
       if (text === "to") {
-        // `[[navigate <container> to <screen>]]` uses `to` to name a destination
-        // SCREEN (a NameValue), not a number — skip the numeric check for
-        // navigate (the destination is validated as a screen by the reference
-        // resolver). Audio `to <number>` (volume target) still validates here.
         const command = ancestorMatching(nodeRef.node, ASSET_COMMAND);
         const controlNode = command
           ? firstDescendant(command, ASSET_COMMAND_CONTROL)

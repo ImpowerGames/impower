@@ -1,11 +1,7 @@
-// #1204: a script that diverts into a scene with its argument (`-> s(10)`)
-// and reads the parameter on two lines keeps that argument through a save:
-// the session save and the durable one write the entered scene's frame, load
-// back, and the scene runs on with the argument still bound.
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
-const source = "-> s(10)\n\nscene s(a)\n  First {a}.\n  Second {a}.\nend\n";
+const source = "scene start\n  -> s(10)\nend\n\nscene s(a)\n  First {a}.\n  Second {a}.\nend\n";
 
 const start = () => {
   const ctx = makeRuntimeStoryFromSource(source);

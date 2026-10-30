@@ -2,7 +2,9 @@ store knotCount = 0
 store stitchCount = 0
 store gatherCount = 0
 
--> main
+scene start
+  -> main
+end
 
 scene main
   -> gather_count_test ->

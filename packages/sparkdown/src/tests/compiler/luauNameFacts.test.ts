@@ -13,15 +13,12 @@ function script(text: string) {
   return { tree, text, result: lint.collectLuauLints(tree, (from, to) => text.slice(from, to)) };
 }
 
-// Access through the existing entry point so the base fails a behavioral
-// assertion for its absent facts, rather than failing to import a new module.
 function names(value: ReturnType<typeof script>) {
   expect(value.result).toHaveProperty("names");
   expect(value.result).toHaveProperty("roots");
   return (value.result as any).names;
 }
 
-/** The same public Lezer tree with its packed forests expanded to trees. */
 function unpack(part: Tree | TreeBuffer): Tree {
   if (part instanceof Tree) return new Tree(part.type, part.children.map(unpack), part.positions, part.length);
   const { buffer, set } = part;
@@ -44,13 +41,10 @@ function unpack(part: Tree | TreeBuffer): Tree {
 }
 
 describe("shared AST name facts", () => {
-  // A structural word with no construct after it is a name (#1906), so the
-  // AST represents its uses.
   test.each([
     ["style", "function inspect() local style = {}; setStyle(style) end\n"],
     ["layout", "function inspect() local layout = {}; return layout.x end\n"],
     ["match", "function inspect() local match = true; if match then print(1) end end\n"],
-    // A structural word whose rule holds no arms is a call (I-1304, I-1310).
     ["match", "function inspect() local match = print; match(1) end\n"],
     ["match", "function inspect() local match = print; match(\"a\") end\n"],
   ])("represents %s used as a name, with no uncertainty", (name, source) => {
@@ -62,8 +56,6 @@ describe("shared AST name facts", () => {
     expect(value.result.lints).toEqual([]);
   });
 
-  // Where the word opens an alternator, which Luau has no syntax for, the
-  // word stays uncertain.
   test.each([
     ["match", "function inspect() local match = print; return match(1) | a = 1 end end\n"],
     ["match", "function inspect() local match = print; return match(\"a\") | a = 1 end end\n"],
@@ -112,7 +104,7 @@ describe("shared AST name facts", () => {
     expect(index([{ uri: "second", names: names(edited) }]).uncertainNames.size).toBe(0);
   });
   test("embedded stores publish explicit global writes", () => {
-    const source = "define hero as character with\n callback = function() store saved = 1; return saved end\nend\nHi.\n";
+    const source = "define hero as character with\n callback = function() store saved = 1; return saved end\nend\nscene start\n  Hi.\nend\n";
     expect(diagnoseDetailed(source).filter(d => d.severity === 1)).toEqual([]);
     const value = script(source);
     const facts = names(value);
@@ -126,7 +118,7 @@ describe("shared AST name facts", () => {
   });
 
   test("embedded function-valued stores retain explicit kind and function identity", () => {
-    const source = "define hero as character with\n callback = function() store storedCallback = function() return 1 end; return storedCallback end\nend\nHi.\n";
+    const source = "define hero as character with\n callback = function() store storedCallback = function() return 1 end; return storedCallback end\nend\nscene start\n  Hi.\nend\n";
     expect(diagnoseDetailed(source).filter(d => d.severity === 1)).toEqual([]);
     const value = script(source);
     const facts = names(value);
@@ -138,8 +130,6 @@ describe("shared AST name facts", () => {
     expect(facts.references.filter((r: any) => r.name === "storedCallback").map((r: any) => [r.access, !!r.local])).toEqual([["write", false], ["read", false]]); // not a node name
   });
 
-  // A const in a function is Luau's: a local that shadows the binding before
-  // it, to the end of its block (#1319).
   test.each([
     ["local", "function inspect() local n = 1; const n = 2; return n end", "inspect()", 2, true],
     ["parameter", "function inspect(n) const n = 2; return n end", "inspect(7)", 2, true],
@@ -147,7 +137,7 @@ describe("shared AST name facts", () => {
     ["closure", "function inspect() local n = 1; const n = 2; return (function() return n end)() end", "inspect()", 2, true],
     ["outer block", "function inspect() local n = 1; do const n = 2 end; return n end", "inspect()", 1, false],
   ])("a const in a function shadows the %s as a local", (_label, body, call, expected, readsConst) => {
-    const source = `Value {${call}}.\n${body}\n`;
+    const source = `scene start\n  Value {${call}}.\nend\n${body}\n`;
     const runtime = makeRuntimeStoryFromSource(source);
     expect(runtime.errorMessages).toEqual([]);
     expect(runtime.story.ContinueMaximally()).toBe(`Value ${expected}.\n`);
@@ -161,7 +151,7 @@ describe("shared AST name facts", () => {
   });
 
   test("a rejected store/local collision still identifies the explicit global target", () => {
-    const source = "Value {inspect()} {saved}.\nfunction inspect() local saved = 7; store saved = 1; return saved end\n";
+    const source = "scene start\n  Value {inspect()} {saved}.\nend\nfunction inspect() local saved = 7; store saved = 1; return saved end\n";
     const runtime = makeRuntimeStoryFromSource(source);
     expect(runtime.errorMessages).toHaveLength(1);
     expect(runtime.errorMessages[0]).toContain("Duplicate identifier `saved`");
@@ -174,7 +164,7 @@ describe("shared AST name facts", () => {
   });
 
   test.each([["=", "write"], ["+=", "readwrite"]])("a rejected %s to a const in a function names the const's local", (operator, access) => {
-    const source = `Value {inspect()}.\nfunction inspect() local n = 1; const n = 2; n ${operator} 3; return n end\n`;
+    const source = `scene start\n  Value {inspect()}.\nend\nfunction inspect() local n = 1; const n = 2; n ${operator} 3; return n end\n`;
     const runtime = makeRuntimeStoryFromSource(source);
     expect(runtime.errorMessages).toEqual(["Variable 'n' is constant and may not be reassigned"]);
     const facts = names(script(source));
@@ -204,7 +194,7 @@ describe("shared AST name facts", () => {
   });
 
   test("chained consts in a function each shadow the one before", () => {
-    const source = "Value {inspect()}.\nfunction inspect() local n = 1; const n = 2; const n = 3; return n end\n";
+    const source = "scene start\n  Value {inspect()}.\nend\nfunction inspect() local n = 1; const n = 2; const n = 3; return n end\n";
     const runtime = makeRuntimeStoryFromSource(source);
     expect(runtime.errorMessages).toEqual([]);
     expect(runtime.story.ContinueMaximally()).toBe("Value 3.\n");
@@ -217,7 +207,7 @@ describe("shared AST name facts", () => {
   });
 
   test("a const table in a function stays mutable and its member function names its local", () => {
-    const source = "Value {inspect()}.\nfunction inspect() const T = {}; function T.x() return 3 end; return T.x() end\n";
+    const source = "scene start\n  Value {inspect()}.\nend\nfunction inspect() const T = {}; function T.x() return 3 end; return T.x() end\n";
     const runtime = makeRuntimeStoryFromSource(source);
     expect(runtime.errorMessages).toEqual([]);
     expect(runtime.story.ContinueMaximally()).toBe("Value 3.\n");
@@ -254,8 +244,6 @@ describe("shared AST name facts", () => {
     const nodeNames = new Set<string>();
     value.tree.iterate({ enter(node) { nodeNames.add(node.name); } });
     expect(nodeNames.has("LuauSparkdownExplicitAccessPath")).toBe(bounded);
-    // A story statement's brackets are the Luau ones, which span lines
-    // (#1907), so what the call's parentheses hold is read as Luau.
     expect(nodeNames.has("LuauTable")).toBe(true);
     expect(nodeNames.has("LuauLogicalOperator")).toBe(true);
     const facts = names(value);
@@ -462,7 +450,7 @@ describe("shared AST name facts", () => {
   test("compiler recombination uses the program's current scripts and cached untouched trees", () => {
     const compiler = testCompiler();
     const files = [
-      { uri: "inmemory:///main.sd", text: "function target() end\nReady.\n", name: "main" },
+      { uri: "inmemory:///main.sd", text: "function target() end\nscene start\n  Ready.\nend\n", name: "main" },
       { uri: "inmemory:///use.sd", text: "scene greeting\n  Hi {target()}.\nend\n", name: "use" },
     ].map(f => ({ ...f, type: "script" as const, ext: "sd", version: 1, languageId: "sparkdown" }));
     compiler.configure({ files });

@@ -1,2 +1,4 @@
 store list = {"b", "d"}
-{not list:find("c")}
+scene start
+  {not list:find("c")}
+end

@@ -1,4 +1,6 @@
-# a top-of-line note
-N: Hello.
-   # another note
-N: Bye.
+scene start
+  # a top-of-line note
+  N: Hello.
+     # another note
+  N: Bye.
+end

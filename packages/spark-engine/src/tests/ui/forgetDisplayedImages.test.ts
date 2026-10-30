@@ -18,7 +18,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   [[show backdrop BG]]

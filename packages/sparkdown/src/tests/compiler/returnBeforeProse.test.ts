@@ -1,10 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { parseSource } from "./grammarSnapshot";
 
-// Bare narrative `return` is prose. An explicitly marked return ends at its
-// line: the next line stays prose, never its returned value. Only a real
-// Luau function body reads a value after a whole-line bare return.
-
 function returnEnd(source: string): number | undefined {
   const tree = parseSource(source);
   const cur = tree.cursor();
@@ -14,7 +10,6 @@ function returnEnd(source: string): number | undefined {
   return undefined;
 }
 
-/** Every node name the grammar gives to the exact text `key` in `source`. */
 function nodeNamesFor(source: string, key: string): string[] {
   const tree = parseSource(source);
   const from = source.indexOf(key);
@@ -56,7 +51,6 @@ describe("the line after an explicit narrative return stays prose", () => {
     expect(nodeNamesFor(source, "Hello")).toContain("Word");
   });
 
-  // An `&` statement can put a block keyword directly before `return`.
   test.each([
     ["& if x then return", `scene a\n  & if x then return\n  Hello there.\n`],
     ["& repeat return", `scene a\n  & repeat return\n  Hello there.\n`],
@@ -70,7 +64,6 @@ describe("the line after an explicit narrative return stays prose", () => {
 });
 
 describe("a function whose last line is a bare return", () => {
-  // A function still being typed: `return` is the last thing in the file.
   test.each([
     ["with a final line break", `function f()\n  return\n`],
     ["without a final line break", `function f()\n  return`],

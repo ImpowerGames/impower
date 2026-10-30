@@ -1,12 +1,3 @@
-// #1091 — a closure's captured variables survive a story state save and load.
-//
-// A closure's upvalue is a pointer cell: open while the variable it captured
-// is still bound in a live frame or block scope, closed (holding the value
-// itself) once that binding ends. Every case here runs the script straight
-// through, then again with a save after the first line: a fresh story from the
-// same compiled program loads the save and runs the rest. Both runs have to
-// print the same thing.
-
 import { describe, expect, test } from "vitest";
 import { testStory } from "../engineUnderTest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
@@ -43,8 +34,6 @@ function restored(source: string): {
   return { output: (first ?? "") + rest, errors, savedJson };
 }
 
-// The upvalue cells a save holds: each cell id with whether it is closed, how
-// many times it is written, and whether a call-stack element lists it as open.
 function cellsIn(
   savedJson: string,
 ): Map<number, { closed: boolean; occurrences: number; listed: boolean }> {
@@ -96,8 +85,7 @@ const counter = `function make()
   end
 end
 
--> s
-scene s
+scene start
   & local inc = make()
   & local a = inc()
   First {a}.
@@ -109,8 +97,7 @@ end
 
 function blockLocal(open: string, close: string): string {
   return `store out = ""
--> s
-scene s
+scene start
   & local x = "outer"
   & local f = nil
   ${open}
@@ -152,8 +139,7 @@ describe("closures across a save and load", () => {
 
   test("two closures sharing an open upvalue still share it after the load", () => {
     const source = `store out = ""
--> s
-scene s
+scene start
   & local inc = nil
   & local get = nil
   do
@@ -182,8 +168,7 @@ function make()
   return function() n = n + 1 end, function() return n end
 end
 
--> s
-scene s
+scene start
   & local inc, get = make()
   & inc()
   First line.
@@ -210,8 +195,7 @@ end
   return fact
 end
 
--> s
-scene s
+scene start
   & local fact = make()
   First {fact(3)}.
   Second {fact(4)}.
@@ -219,8 +203,6 @@ scene s
 end
 `;
     const saved = expectSameAcrossSave(source, "First 6.\nSecond 24.\n");
-    // The closed cell's value is the function that holds the cell, written as
-    // a reference to the function table already being written.
     expect([...cellsIn(saved).values()]).toEqual([
       { closed: true, occurrences: 1, listed: false },
     ]);
@@ -229,8 +211,7 @@ end
 
   test("an upvalue open in the scene frame still reads the live variable after the load", () => {
     const source = `store out = ""
--> s
-scene s
+scene start
   & local x = 1
   & local get = function() return x end
   First line.
@@ -248,8 +229,7 @@ end
 
   test("an upvalue open in a block stays open across a choice and closes at the block end, with and without a save at the choice", () => {
     const source = `store out = ""
--> s
-scene s
+scene start
   & local x = "outer"
   & local f = nil
   do
@@ -284,8 +264,7 @@ end
   });
 
   test("a `<-` thread's own local does not close the cell its parent thread still binds", () => {
-    const source = `-> main
-scene main
+    const source = `scene start
   & local x = 1
   & local get = function() return x end
   <- side
@@ -313,8 +292,7 @@ end
 end
 store inc = make()
 
--> s
-scene s
+scene start
   First {inc()}.
   Second {inc()}.
   fin
@@ -333,8 +311,7 @@ end
 end
 store inc = make()
 
--> s
-scene s
+scene start
   & local alias = inc
   First.
   A {inc()}.
@@ -357,8 +334,7 @@ end
 
 store get = make()
 
--> s
-scene s
+scene start
   First.
   & local got = get()
   Result {got.title} {rawequal(got, Hero)}.
@@ -369,8 +345,6 @@ end
   });
 
   test("a saved closure keeps sharing its cell with a closure a define holds from init", () => {
-    // Only `inc` reaches the save (through the scene local); `get` is held
-    // by the define, which init rebuilds and the save does not write.
     const source = `function make()
   local n = 0
   return {
@@ -381,8 +355,7 @@ end
 define Holder with
   pair = make()
 end
--> main
-scene main
+scene start
   & local inc = Holder.pair.inc
   First {inc()}.
   Second {inc()} {Holder.pair.get()}.
@@ -393,11 +366,8 @@ end
   });
 
   test("a save written without upvalue cells still loads", () => {
-    // A save whose pointers carry no cell id (the form every save had before
-    // cells were written) loads each pointer as its own open cell.
     const source = `store out = ""
--> s
-scene s
+scene start
   & local x = 1
   & local get = function() return x end
   First line.

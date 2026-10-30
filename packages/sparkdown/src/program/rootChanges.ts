@@ -10,7 +10,6 @@ import {
 
 const ascending = (a: number, b: number) => a - b;
 
-/** Where a root defines a symbol: the chunk, the offset and the sequence. */
 const definitionKey = (root: ProgramRoot, symbol: number): string => {
   const at = root.place(symbol);
   if (!at) {
@@ -20,31 +19,15 @@ const definitionKey = (root: ProgramRoot, symbol: number): string => {
   return `${at.sequence.id}:${chunk ? chunkId(chunk) : -1}:${at.offset}`;
 };
 
-/** Whether two roots run the declarations in the same order. */
 const sameInitialization = (before: ProgramRoot, after: ProgramRoot) =>
   before.initialization.length === after.initialization.length &&
   before.initialization.every((chunk, i) => chunk === after.initialization[i]);
 
-/**
- * What a compile changed in the program's statement chunks, from the root it
- * built and the root it is measured against (`ProgramChangeSummary.chunks`).
- * Chunk ids never go back, so a chunk held by both roots is one statement
- * whose code neither compile changed, and every other is one the compile
- * emitted or dropped. The ids are in ascending order.
- *
- * When `build` is the store's record of the build that made `after` from
- * `before` (`ChunkStore.lastBuild`), the changes are read from it in work
- * proportional to the edit; otherwise (a first compile, a compile measured
- * against a preview's root, a preview measured against an older root) the two
- * whole roots are compared. Both give the same result.
- */
 export const rootChanges = (
   before: ProgramRoot | undefined,
   after: ProgramRoot,
   build?: BuildRecord,
 ): ChunkChanges => {
-  // A compile that served the root it measured against (a cached compile)
-  // changed nothing.
   if (before === after) {
     return { dropped: [], emitted: [], moved: [], initializers: false };
   }
@@ -60,11 +43,6 @@ export const rootChanges = (
   return wholeRootChanges(before, after);
 };
 
-/** The changes read from the store's record of the build that made `after`
- *  from `before`: the chunks it dropped, those it placed that `before` does
- *  not hold, and the symbols that a dropped or placed chunk exports or that
- *  name the flow of a sequence it built again or removed, which are the only
- *  definitions a build writes (`ChunkStore.definitionArrays`). */
 const buildChanges = (
   build: BuildRecord,
   before: ProgramRoot,
@@ -110,7 +88,6 @@ const buildChanges = (
   };
 };
 
-/** Every chunk a root holds, with its id. */
 const chunksOf = (root: ProgramRoot): Map<number, ProgramChunk> => {
   const out = new Map<number, ProgramChunk>();
   for (const row of root.sequences()) {
@@ -121,11 +98,6 @@ const chunksOf = (root: ProgramRoot): Map<number, ProgramChunk> => {
   return out;
 };
 
-/** The changes found by comparing the two whole roots. The declarations ran
- *  again (`initializers`) when the declaration chunks or their order differ,
- *  or a chunk holds a function's code in one root and not the other
- *  (`functionChunksOf`), which is the store's rule for a build
- *  (`ProgramBuild.declarationsChanged`). */
 const wholeRootChanges = (
   before: ProgramRoot | undefined,
   after: ProgramRoot,
@@ -163,8 +135,6 @@ const wholeRootChanges = (
       }
     }
   } else if (before) {
-    // A reseed renumbered every symbol, and the compile emitted every chunk
-    // again: nothing measured against the older root holds.
     initializers = true;
   }
   return {

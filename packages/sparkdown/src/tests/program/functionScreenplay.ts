@@ -1,10 +1,3 @@
-// A screenplay made of the constructs of functions (#698): functions declared
-// at the top level with fixed and variadic parameters and several returns, a
-// function the story takes out of a `do` block and one it leaves in an `if`
-// block, closures that capture a local and write a global, a closure made by
-// a closure, a comparator a builtin calls, a protected call, the method of a
-// define, and display lines that call them through interpolation. Each scene
-// ends with `done`, whose hint covers what an edit writes after it.
 export function functionScreenplay(scenes = 3): string {
   const L: string[] = [
     "store total = 0",
@@ -16,13 +9,13 @@ export function functionScreenplay(scenes = 3): string {
     "  end",
     "end",
     "",
-    "do",
-    "  function twice(n)",
-    "    return n * 2",
-    "  end",
+    "function twice(n)",
+    "  return n * 2",
     "end",
     "",
-    "Before any scene {describe(1)} {twice(2)}.",
+    "scene start",
+    "  Before any scene {describe(1)} {twice(2)}.",
+    "end",
     "",
   ];
   for (let s = 0; s < scenes; s++) {
@@ -60,10 +53,6 @@ export function functionScreenplay(scenes = 3): string {
   return L.join("\n");
 }
 
-// Edits the function fuzz inserts: text inside lines, new lines, a closure
-// and a call, fragments that change a parameter list or a call's arguments,
-// open or close a function, a function declared at the top level, and one
-// written inside a `do` block.
 export const FUNCTION_INSERTS = [
   "x",
   "\n",
@@ -86,11 +75,6 @@ export const FUNCTION_INSERTS = [
   "-- c",
 ];
 
-// A screenplay of functions whose bodies read the locals of the function that
-// writes them, each body on lines of its own, so an edit inside a body can
-// change what the function captures without touching the statement that
-// writes it: a closure, a local function that calls itself, and a function
-// declared with `...` called by name. Each scene ends with `done`.
 export function captureScreenplay(scenes = 3): string {
   const L: string[] = [];
   for (let s = 0; s < scenes; s++) {
@@ -124,8 +108,6 @@ export function captureScreenplay(scenes = 3): string {
   return L.join("\n");
 }
 
-// Edits the capture fuzz inserts: names a body reads, locals that hide them,
-// and fragments that change a name or the lines around it.
 export const CAPTURE_INSERTS = [
   "x",
   "1",

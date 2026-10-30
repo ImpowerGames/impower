@@ -1,18 +1,7 @@
-// #1126 — a closure over a variable a `<-` thread also binds.
-//
-// A `<-` thread, and the thread a choice continues on, start as copies of the
-// thread that made them, so each copy binds its own copy of the variables in
-// scope. A closure's upvalue cell reads the binding of whichever thread holds
-// it: the parent while it still binds the variable, a taken choice's thread
-// once that replaces the parent, and a finished thread's own value once the
-// thread ends.
-
 import { describe, expect, test } from "vitest";
 import { testStory } from "../engineUnderTest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
-// Runs to the first choice, takes it and runs the rest; again from a save
-// taken at the choice, loaded into a fresh story.
 function chooseFirst(source: string): {
   beforeChoice: string;
   afterChoice: string;
@@ -37,8 +26,6 @@ function chooseFirst(source: string): {
   return { beforeChoice, afterChoice, afterLoad, errors };
 }
 
-// Runs straight through; again with a save after the first line, loaded into
-// a fresh story that runs the rest.
 function straightAndRestored(source: string): {
   straight: string;
   restored: string;
@@ -64,8 +51,7 @@ function straightAndRestored(source: string): {
 describe("closures over variables a `<-` thread also binds", () => {
   test("a closure a `<-` thread makes over its own local keeps that value after the thread ends", () => {
     const run = straightAndRestored(`store f = nil
--> main
-scene main
+scene start
   & local x = 1
   <- side
   First.
@@ -85,8 +71,7 @@ end
 
   test("a taken choice from a `<-` thread reads the thread's own local its closure captured", () => {
     const run = chooseFirst(`store f = nil
--> main
-scene main
+scene start
   & local x = 1
   <- side
   Main {f()}.
@@ -112,8 +97,7 @@ end
 
   test("a taken choice from a `<-` thread that declared its own same-named local keeps the parent's variable in the closure", () => {
     const run = chooseFirst(`store get = nil
--> main
-scene main
+scene start
   & local x = 1
   & get = function() return x end
   <- side
@@ -138,8 +122,7 @@ end
 
   test("a choice from a `<-` thread started while an inner local shadows the captured name reads the captured variable", () => {
     const run = chooseFirst(`store get = nil
--> main
-scene main
+scene start
   & local x = "outer"
   & get = function() return x end
   do
@@ -166,8 +149,7 @@ end
 
 describe("closures over a variable an inner local of the same name shadows", () => {
   test("the closure reads the variable it captured, not the shadowing local", () => {
-    const run = straightAndRestored(`-> main
-scene main
+    const run = straightAndRestored(`scene start
   & local x = "outer"
   & local get = function() return x end
   First.
@@ -185,8 +167,7 @@ end
   });
 
   test("the closure writes the variable it captured, not the shadowing local", () => {
-    const run = straightAndRestored(`-> main
-scene main
+    const run = straightAndRestored(`scene start
   & local x = "outer"
   & local set = function(v) x = v end
   First.
@@ -206,8 +187,7 @@ end
 
   test("the captured variable's cell stays open when the shadowing block ends", () => {
     const run = straightAndRestored(`store get = nil
--> main
-scene main
+scene start
   do
     local x = "outer"
     get = function() return x end
@@ -227,8 +207,7 @@ end
   });
 
   test("a closure over the shadowing local gets a cell of its own", () => {
-    const run = straightAndRestored(`-> main
-scene main
+    const run = straightAndRestored(`scene start
   & local x = "outer"
   & local getOuter = function() return x end
   First.

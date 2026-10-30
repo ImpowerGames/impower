@@ -22,7 +22,6 @@ const PROPERTY_VALUE_REGEX = /^([-]\s+)?([\w-]+)(?:\s*)(?:[=])(?:$|\s+)($|.+)$/;
 const PARAMETER_SEPARATORS = [","];
 const ATTRIBUTE_SEPARATORS = [" ", "\t"];
 
-// TODO: output diagnostics
 export function parseSparkle(input: string): SparkleNode[] {
   const rawLines = input.split(NEWLINE_REGEX);
 
@@ -33,24 +32,20 @@ export function parseSparkle(input: string): SparkleNode[] {
   for (let i = 0; i < rawLines.length; i++) {
     const rawLine = rawLines[i]!;
 
-    // Determine indent level
     const indentMatch = rawLine.match(INDENT_REGEX);
     const currentIndentation = indentMatch?.[0] || "";
     let indent = currentIndentation.length;
 
     if (indent === 0) {
-      // TODO: Support blank lines
       currentRoot = null;
     }
 
-    // Get trimmed statement
     const trimmedLine = rawLine.trim();
     const statement = trimmedLine.endsWith(":")
       ? trimmedLine.slice(0, -1).trim()
       : trimmedLine;
 
     if (trimmedLine) {
-      // Split statement into tokens
       if (!currentRoot) {
         let match: RegExpMatchArray | null = null;
         if ((match = statement.match(DECLARATION_REGEX))) {
@@ -63,7 +58,6 @@ export function parseSparkle(input: string): SparkleNode[] {
           const parameterString = (assignmentMatch?.[3] || "").trim();
           const parameters = splitArgs(parameterString, PARAMETER_SEPARATORS);
           if (declarationKeyword === "screen") {
-            // Root is a Screen
             currentRoot = {
               root: "screen",
               type: "screen",
@@ -73,7 +67,6 @@ export function parseSparkle(input: string): SparkleNode[] {
             stack.length = 0;
             stack.push({ node: currentRoot, indent });
           } else if (declarationKeyword === "component") {
-            // Root is a Component
             currentRoot = {
               root: "component",
               type: "component",
@@ -83,7 +76,6 @@ export function parseSparkle(input: string): SparkleNode[] {
             stack.length = 0;
             stack.push({ node: currentRoot, indent });
           } else if (declarationKeyword === "style") {
-            // Root is a Style
             currentRoot = {
               root: "style",
               type: "style",
@@ -93,7 +85,6 @@ export function parseSparkle(input: string): SparkleNode[] {
             stack.length = 0;
             stack.push({ node: currentRoot, indent });
           } else if (declarationKeyword === "animation") {
-            // Root is a Animation
             currentRoot = {
               root: "animation",
               type: "animation",
@@ -103,7 +94,6 @@ export function parseSparkle(input: string): SparkleNode[] {
             stack.length = 0;
             stack.push({ node: currentRoot, indent });
           } else if (declarationKeyword === "theme") {
-            // Root is a Theme
             currentRoot = {
               root: "theme",
               type: "theme",
@@ -115,7 +105,6 @@ export function parseSparkle(input: string): SparkleNode[] {
           }
         }
       } else {
-        // Determine parent from indentation
         while (stack.length > 0 && indent <= stack.at(-1)!.indent) {
           stack.pop();
         }
@@ -125,7 +114,6 @@ export function parseSparkle(input: string): SparkleNode[] {
           continue;
         }
 
-        // Get child node
         let node: SparkleNode | null = null;
         if (
           currentRoot?.type === "screen" ||
@@ -143,7 +131,6 @@ export function parseSparkle(input: string): SparkleNode[] {
             ATTRIBUTE_SEPARATORS,
           );
 
-          // Determine child node type
           if (type === "if") {
             const condition = attributesString;
             node = {
@@ -213,7 +200,6 @@ export function parseSparkle(input: string): SparkleNode[] {
               args: { name },
             };
           } else if (type) {
-            // Use of builtin or custom component
             const attributes = parseAttributes(attributeArray);
             node = {
               root: currentRoot.root,
@@ -297,7 +283,6 @@ export function parseSparkle(input: string): SparkleNode[] {
           }
         }
 
-        // Add node to parent's children and to the stack
         if (node) {
           parent.children ??= [];
           parent.children.push(node);

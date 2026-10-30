@@ -16,7 +16,7 @@ end
 layout hud with
   text "HP: {hp}"
 end
--> start
+
 scene start
   [[open hud]]
   Hello.
@@ -122,7 +122,7 @@ end
 layout hud with
   text "static"
 end
--> start
+
 scene start
   [[open hud with fade over 0.5s after 0.2s ease ease_out]]
   Hello.
@@ -159,7 +159,7 @@ end
 layout hud with
   text "static"
 end
--> start
+
 scene start
   [[open hud with fade over 1s wait]]
 end
@@ -217,7 +217,7 @@ end
 layout settings in menu with
   text "Settings"
 end
--> start
+
 scene start
   [[open hud]]
   [[open pause]]
@@ -299,7 +299,7 @@ end
 layout pause in menu with
   text "Paused"
 end
--> start
+
 scene start
   [[open pause]]
   [[navigate menu]]

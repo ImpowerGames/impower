@@ -11,10 +11,6 @@ import {
   ViewUpdate,
 } from "@codemirror/view";
 
-/**
- * A StateEffect used to dispatch updates to the line highlights.
- * Your application logic will use this to send new highlight data to the editor.
- */
 export const setPinpointsEffect = StateEffect.define<number[]>();
 
 export const setPinpoints = (view: EditorView, lineNumbers: number[]) => {
@@ -47,15 +43,10 @@ export const pinpointsChanged = (update: ViewUpdate): boolean => {
   );
 };
 
-// Define CSS classes for styling the decorated line.
 const pinpointClass = "cm-pinpoint";
 
-// Create the line decorations that apply our CSS classes.
 export const pinpointDeco = Decoration.line({ class: pinpointClass });
 
-/**
- * A CodeMirror theme to style the highlighted line.
- */
 const pinpointsTheme = EditorView.baseTheme({
   [`.cm-line.${pinpointClass}`]: {
     position: "relative",
@@ -84,16 +75,11 @@ const pinpointsTheme = EditorView.baseTheme({
   },
 });
 
-/**
- * The StateField that manages the DecorationSet for the highlighted line.
- * It listens for `setLineHighlightEffect` to update its state.
- */
 export const pinpointsField = StateField.define<DecorationSet>({
   create() {
     return Decoration.none;
   },
   update(decorations, tr) {
-    // Automatically adjust decoration positions when the document changes.
     decorations = decorations.map(tr.changes);
 
     for (const effect of tr.effects) {
@@ -117,15 +103,9 @@ export const pinpointsField = StateField.define<DecorationSet>({
 
     return decorations;
   },
-  // Provide the decorations from this state field to the editor view.
   provide: (f) => EditorView.decorations.from(f),
 });
 
-/**
- * The main line highlighting extension.
- * Add this to your CodeMirror editor's configuration to enable the functionality.
- * @returns {Extension} A CodeMirror extension array.
- */
 export function pinpoints(): Extension {
   return [pinpointsField, pinpointsTheme];
 }

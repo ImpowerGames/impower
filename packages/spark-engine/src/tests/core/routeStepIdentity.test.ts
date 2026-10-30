@@ -28,7 +28,7 @@ function compileSrc(src: string) {
 }
 
 function longScene(beats: number): string {
-  const lines = ["-> start", "", "scene start"];
+  const lines = ["", "", "scene start"];
   for (let i = 0; i < beats; i += 1) {
     lines.push(`  Beat number ${i} of the long scene.`);
   }
@@ -71,7 +71,7 @@ describe("step identity is a fixed-width hash of the history", () => {
 describe("identity still drives checkpoint reuse across a re-plan", () => {
   const LINEAR = `store score = 0
 
--> start
+
 
 scene start
   First beat.
@@ -171,7 +171,7 @@ end
 describe("branches do not share an identity", () => {
   const BRANCHY = `store flag = false
 
--> start
+
 
 scene start
   Opening beat.

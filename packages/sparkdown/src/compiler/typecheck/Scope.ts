@@ -15,7 +15,6 @@ export interface Binding {
 
 export class Scope {
   readonly children: Scope[] = [];
-  /** Keyed by local declaration or global name, in insertion order. */
   readonly bindings = new Map<LuauSymbol, Binding>();
   returnType: TypePackId;
   varargPack: TypePackId | undefined;
@@ -31,21 +30,17 @@ export class Scope {
   readonly builtinTypeNames = new Set<string>();
   readonly privateTypePackBindings = new Map<string, TypePackId>();
 
-  /** The unrefined type of each binding's def. */
   readonly lvalueTypes = new Map<DefId, TypeId>();
-  /** The narrower types control flow has refined defs to. */
   readonly rvalueRefinements = new Map<DefId, TypeId>();
 
   readonly globalsToWarn = new Set<string>();
 
-  /** Type parameters shared by mutually recursive aliases of the same name. */
   readonly typeAliasTypeParameters = new Map<string, TypeId>();
   readonly typeAliasTypePackParameters = new Map<string, TypePackId>();
 
   interiorFreeTypes: TypeId[] | undefined;
   interiorFreeTypePacks: TypePackId[] | undefined;
 
-  /** Aliases that break Luau's rule on recursive uses, with where it was broken. */
   readonly invalidTypeAliases = new Map<string, Location>();
 
   private constructor(
@@ -110,7 +105,6 @@ export class Scope {
     return undefined;
   }
 
-  /** The type of a def: its refinement where there is one, else its unrefined type. */
   lookupDef(def: DefId): TypeId | undefined {
     for (let s: Scope | undefined = this; s; s = s.parent) {
       const rv = s.rvalueRefinements.get(def);
@@ -147,7 +141,6 @@ export class Scope {
     return undefined;
   }
 
-  /** The first binding with the given name, searching outwards, as Luau's `linearSearchForBinding`. */
   linearSearchForBinding(name: string, traverseScopeChain = true): Binding | undefined {
     for (let s: Scope | undefined = this; s; s = s.parent) {
       for (const [sym, binding] of s.bindings) {
@@ -158,12 +151,10 @@ export class Scope {
     return undefined;
   }
 
-  /** Takes the assignments a child scope made, including ones to names this scope lacks. */
   inheritAssignments(childScope: Scope): void {
     for (const [k, a] of childScope.lvalueTypes) this.lvalueTypes.set(k, a);
   }
 
-  /** Takes the refinements a child scope made to names this scope has. */
   inheritRefinements(childScope: Scope): void {
     for (const [k, a] of childScope.rvalueRefinements) {
       if (this.lookupDef(k)) this.rvalueRefinements.set(k, a);
@@ -202,7 +193,6 @@ export class Scope {
   }
 }
 
-/** Whether `left` strictly encloses `right`. */
 export function subsumesStrict(left: Scope | undefined, right: Scope | undefined): boolean {
   if (!left || !right) return false;
   for (let r: Scope | undefined = right; r; r = r.parent) {
@@ -211,7 +201,6 @@ export function subsumesStrict(left: Scope | undefined, right: Scope | undefined
   return false;
 }
 
-/** Whether `left` encloses `right` or is it. */
 export function subsumes(left: Scope | undefined, right: Scope | undefined): boolean {
   if (!left || !right) return false;
   return left === right || subsumesStrict(left, right);

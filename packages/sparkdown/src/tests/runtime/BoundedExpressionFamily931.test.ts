@@ -6,8 +6,6 @@ import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { parseOfficialTree } from "../compiler/officialAstTestUtils";
 
-// Independent grammar inventory: do not use the compiler's alias whitelist
-// to decide which rules the source grammar must bound.
 const repository = GRAMMAR.repository as Record<string, Record<string, unknown>>;
 const pairs = Object.keys(repository).flatMap(name => {
   const original =
@@ -32,11 +30,6 @@ function captureScopes(value: unknown): unknown {
 
 describe("closed narrative expression family", () => {
   test("all recursive counterparts keep scopes and never escape to an ordinary expression child", () => {
-    // A story statement's brackets are the Luau ones, which carry it on to
-    // their closer or the next header (#1907), so they have no counterpart.
-    // The type function parameters' named-parameter twin went with them.
-    // The comments after a type operator have a twin (I-1321), and so do
-    // an alternator's head and arms (I-1310).
     expect(pairs).toHaveLength(74);
     const originals = new Set(pairs.map(([original]) => original));
     for (const [original, twin] of pairs) {
@@ -45,8 +38,6 @@ describe("closed narrative expression family", () => {
       expect(includes(repository[twin]).filter(name => ["Newline", "LuauReturnLineBreak", "LuauCommaLineBreak"].includes(name))).toEqual([]);
       if (repository[twin]!["begin"]) expect(String(repository[twin]!["end"])).toContain("$");
     }
-    // Only actual opaque roots and genuine structured/function contexts may
-    // stop the closure walk. Helpers named AfterComment are ordinary code.
     const barriers = new Set([
       "LuauComment", "LuauLineComment", "LuauDocLineComment", "LuauBlockComment",
       "LuauTypeTrailingBlockComment", "LuauValueTrailingBlockComment",
@@ -55,7 +46,6 @@ describe("closed narrative expression family", () => {
       "LuauMultilineString", "LuauInterpolatedString", "LuauRegexLiteral",
       "LuauFunctionBody", "LuauFunctionDefinition", "LuauFunctionTypeDeclaration",
       "LuauStyle", "LuauLayout", "LuauScreen", "LuauComponent", "LuauAnimation", "LuauTheme", "LuauMorph", "LuauDefine",
-      // The brackets, the one place a story statement goes on past its line (#1907).
       "LuauParenthetical", "LuauTable", "LuauPropertyIndexer", "LuauFunctionCallParameters",
       "LuauTypeTableStruct", "LuauTypeFunctionParameters", "LuauTypeofFunctionParameters", "LuauAttributeList",
     ]);
@@ -72,10 +62,6 @@ describe("closed narrative expression family", () => {
     visit("LuauSparkdownExplicitReassignment");
     for (const [, twin] of pairs) visit(twin);
   });
-  // A bracket left open is the one thing that carries a story statement on
-  // past its line (#1907): the next lines are the bracket's, up to its
-  // closer or the next header, which stays a header, and the story after
-  // the header is story again.
   test.each([
     "& local value = math.abs(", "& local value = (5", "& local value = {5",
     "& local value = math[1", "& do x = f(", "& do x = t[", "& do x = {", "& do x = if f(",
@@ -113,9 +99,6 @@ describe("closed narrative expression family", () => {
     }
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
-  // The open `(` reads the next line (#1907), so Luau's reading stops at
-  // that line's first token, or at the island's end where a closer or the
-  // end of the file follows.
   test.each(["file", "scene", "branch"])("missing marked-call value is published where the reading stops at %s boundary", scope => {
     for (const [tail, got] of [["", "<eof>"], ["return to the village\n", "'return'"], ["& math.abs(5)\n", "'&'"]] as const) {
       const prefix = scope === "file" ? "" : scope === "scene" ? "scene a\n" : "scene a\nbranch b\n";
@@ -135,7 +118,7 @@ describe("closed narrative expression family", () => {
     ["local t = {n = 5}; x = t.n", 5], ["local n: number = 5; x = n", 5],
     ["x = if false then 1 else 5", 5], ["x = (5 :: number)", 5],
   ])("same-line %s retains effects and engine parity", async (body, value) => {
-    const source = `store x = 0\n-> a\nscene a\n& do ${body} end\nreturn to the village\nValue {x}.\ndone\nend\n`;
+    const source = `store x = 0\nscene start\n& do ${body} end\nreturn to the village\nValue {x}.\ndone\nend\n`;
     const runtime = makeRuntimeStoryFromSource(source);
     expect(runtime.errorMessages).toEqual([]);
     expect(runtime.story.ContinueMaximally()).toBe(`return to the village\nValue ${value}.\n`);
@@ -146,39 +129,39 @@ describe("closed narrative expression family", () => {
     "function f(\n  value: number\n): number\n  return value\nend",
     "function f(value)\n  local identity = function(\n    n\n  )\n    return n\n  end\n  return identity(value)\nend",
   ])("genuine function headers and bodies keep multiline ownership: %s", async definition => {
-    const source = `Value {f(5)}.\n${definition}\nreturn to the village\n`;
+    const source = `scene start\nValue {f(5)}.\nreturn to the village\nend\n${definition}\n`;
     const runtime = makeRuntimeStoryFromSource(source);
     expect(runtime.errorMessages).toEqual([]);
     expect(runtime.story.ContinueMaximally()).toBe("Value 5.\nreturn to the village\n");
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
   test.each(["[[é😀\nnext]]", "[=[é😀\nnext]=]"])("opaque string %s retains ownership", async value => {
-    const source = `store x = ""\n& do x = ${value} end\nreturn to the village\nValue {x}.\ndone\n`;
+    const source = `store x = ""\nscene start\n& do x = ${value} end\nreturn to the village\nValue {x}.\ndone\nend\n`;
     const runtime = makeRuntimeStoryFromSource(source);
     expect(runtime.errorMessages).toEqual([]);
     expect(runtime.story.ContinueMaximally()).toBe("return to the village\nValue é😀\nnext.\n");
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
   test("a marked anonymous function retains multiline parameters and body", async () => {
-    const source = "store x = 0\n-> a\nscene a\n& do local identity = function(\n  value\n)\n  return value\nend; x = identity(5) end\nreturn to the village\nValue {x}.\ndone\nend\n";
+    const source = "store x = 0\nscene start\n& do local identity = function(\n  value\n)\n  return value\nend; x = identity(5) end\nreturn to the village\nValue {x}.\ndone\nend\n";
     const runtime = makeRuntimeStoryFromSource(source);
     expect(runtime.errorMessages).toEqual([]);
     expect(runtime.story.ContinueMaximally()).toBe("return to the village\nValue 5.\n");
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
   test("a complete opaque comment retains its closing-line code suffix", async () => {
-    const source = "store x = 0\n& do x = 5 --[=[ é😀\ncomment ]=]; x += 1 end\nreturn to the village\nValue {x}.\ndone\n";
+    const source = "store x = 0\nscene start\n& do x = 5 --[=[ é😀\ncomment ]=]; x += 1 end\nreturn to the village\nValue {x}.\ndone\nend\n";
     const runtime = makeRuntimeStoryFromSource(source);
     expect(runtime.errorMessages).toEqual([]);
     expect(runtime.story.ContinueMaximally()).toBe("return to the village\nValue 6.\n");
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
   test("a physically multiline backtick retains its native malformed-string error", () => {
-    const source = "store x = \"\"\n& do x = `é😀\nnext` end\nreturn to the village\n";
+    const source = "store x = \"\"\nscene start\n& do x = `é😀\nnext` end\nreturn to the village\nend\n";
     expect(makeRuntimeStoryFromSource(source).errorMessages).toContain("Malformed string; did you forget to finish it?");
   });
   test("a marked divert value retains its target and non-Luau category", async () => {
-    const source = "store destination = -> place\n& destination = -> place\n-> destination\nscene place\nReached.\nend\n";
+    const source = "store destination = -> place\nscene start\n& destination = -> place\n-> destination\nend\nscene place\nReached.\nend\n";
     const tree = parseSource(source);
     const cursor = tree.cursor();
     const names: string[] = [];

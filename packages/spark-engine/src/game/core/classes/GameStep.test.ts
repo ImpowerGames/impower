@@ -2,9 +2,14 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { compileProgram } from "../../../tests/harness/compileProgram";
 import { Game } from "./Game";
 
-const THREE_BEATS = ["First beat.", "Second beat.", "Third beat.", ""].join(
-  "\n",
-);
+const THREE_BEATS = [
+  "scene start",
+  "  First beat.",
+  "  Second beat.",
+  "  Third beat.",
+  "end",
+  "",
+].join("\n");
 
 const compile = (source: string) => compileProgram(source);
 
@@ -98,7 +103,7 @@ describe("Game flow on the program engine", () => {
       const executed = emitted.find((e) => e.method === "game/executed");
       expect(executed?.params?.["state"]).toBe("running");
       expect(executed?.params?.["executedLines"]).toEqual({
-        "inmemory:///main.sd": { ranges: [0, 0], last: 0 },
+        "inmemory:///main.sd": { ranges: [1, 1], last: 1 },
       });
       expect(executed?.params?.["lastExecutedAddress"]).toBeTruthy();
     });
@@ -183,7 +188,7 @@ describe("Game flow on the program engine", () => {
     });
 
     it("shows a single-beat script before reporting finished", () => {
-      const oneBeat = compile("Only beat.\n");
+      const oneBeat = compile("scene start\n  Only beat.\nend\n");
       const game = new Game({
         program: oneBeat,
         now: () => 0,

@@ -1,13 +1,3 @@
-// The whole-program passes of a compile with statement chunks on are
-// proportional to the edit (#701; docs/engine/binary-program.md, sections 1
-// and 2): a statement the incremental parse carried keeps its chunk with
-// nothing read again unless a symbol it read a fact about changed or the
-// statement watch reports that a value it recorded resolves otherwise, a
-// sequence is built again only where it holds an edited statement, and the
-// root's tables are written over the previous root's where chunks were added,
-// moved or dropped. These tests count what each pass of the chunk store
-// visited (`ChunkStore.passesLastBuild`), compare chunks by identity, and run
-// the stories the roots hold.
 import { describe, expect, it } from "vitest";
 import { buildBeatsFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -60,8 +50,6 @@ const quietly = <T>(run: () => T): T => {
   }
 };
 
-/** A compiler over `texts` with statement chunks on, and an editor of its
- *  main script that compiles after each edit. */
 function session(
   texts: Record<string, string>,
   configure?: (compiler: SparkdownCompiler) => void,
@@ -91,7 +79,6 @@ function session(
       return c.compiler.chunkStore!;
     },
     compiler: c.compiler,
-    /** Replaces the first `find` with `replace` as one minimal edit. */
     edit(find: string, replace: string): ProgramRoot | undefined {
       const offset = text.indexOf(find);
       expect(offset, `"${find}" is in the script`).toBeGreaterThanOrEqual(0);
@@ -116,7 +103,6 @@ function session(
   };
 }
 
-/** A cold compile of `texts` with statement chunks on. */
 const cold = (texts: Record<string, string>): SparkProgram =>
   quietly(
     () =>
@@ -124,36 +110,28 @@ const cold = (texts: Record<string, string>): SparkProgram =>
         .compile().program,
   );
 
-/** The chunks of `after` that `before` does not hold. */
 const newChunks = (before: ProgramRoot, after: ProgramRoot) => {
   const held = new Set(rootChunks(before));
   return rootChunks(after).filter((chunk) => !held.has(chunk));
 };
 
-/** The chunks of `before` that `after` does not hold. */
 const lostChunks = (before: ProgramRoot, after: ProgramRoot) => {
   const held = new Set(rootChunks(after));
   return rootChunks(before).filter((chunk) => !held.has(chunk));
 };
 
-/** The innermost statement chunk that line `line` (counting from 0) of the
- *  main script falls in. */
 const chunkAtLine = (root: ProgramRoot, line: number): ProgramChunk => {
   const at = root.statementAt(MAIN_URI, line);
   expect(at, `a statement holds line ${line}`).toBeDefined();
   return at!.sequence.arrays.chunks[at!.entry]!;
 };
 
-/** The innermost statement chunk of the first line of `text` that holds
- *  `needle`. */
 const chunkAt = (root: ProgramRoot, text: string, needle: string) => {
   const line = text.split("\n").findIndex((l) => l.includes(needle));
   expect(line, `"${needle}" is in the script`).toBeGreaterThanOrEqual(0);
   return chunkAtLine(root, line);
 };
 
-/** How many statements a chunk's subtree holds: the chunk and the
- *  statements of its bodies, at any depth. */
 const subtreeSize = (root: ProgramRoot, chunk: ProgramChunk): number => {
   let size = 1;
   for (let k = 0; k < blockCount(chunk); k += 1) {
@@ -164,8 +142,6 @@ const subtreeSize = (root: ProgramRoot, chunk: ProgramChunk): number => {
   return size;
 };
 
-// The beats fixture's scene, 2,000 lines of display beats, ending in a
-// `choose` block whose `then` clause holds the scene's last lines.
 const flatScene = () => {
   const { files } = buildBeatsFixture({ lines: 2000 });
   const main = files.get("main.sd")!;
@@ -198,7 +174,6 @@ describe("an edit inside one beat", () => {
     const s = session(flatScene());
     const lines = s.text.split("\n");
     expect(s.root.flowNamed("MAIN")!.arrays.chunks.length).toBeGreaterThan(500);
-    // Lines of dialogue and action well inside the flat part of the scene.
     const targets = [40, 700, 1500]
       .map((at) => lines.findIndex((l, i) => i >= at && /^ {4}\S/.test(l)))
       .map((i) => lines[i]!);
@@ -208,7 +183,6 @@ describe("an edit inside one beat", () => {
       expect(s.store.emittedLastBuild).toBe(1);
       expect(newChunks(before, after)).toHaveLength(1);
       expect(lostChunks(before, after)).toHaveLength(1);
-      // Every pass visited the edited statement and its new chunk alone.
       const passes = s.store.passesLastBuild;
       expect(passes.emitted).toBe(1);
       expect(passes.identity).toBeLessThanOrEqual(2);
@@ -231,9 +205,6 @@ describe("an edit inside one beat", () => {
     expect(s.store.emittedLastBuild).toBe(1);
     expect(newChunks(before, after)).toHaveLength(1);
     expect(lostChunks(before, after)).toHaveLength(1);
-    // The `choose` statement keeps its chunk, and the statements of its
-    // bodies, which the incremental parse lowered again with it (#656),
-    // keep theirs: the passes read them, and nothing outside the block.
     expect(chunkAt(after, s.text, "  choose")).toBe(choose);
     const passes = s.store.passesLastBuild;
     expect(passes.emitted).toBe(1);
@@ -246,11 +217,6 @@ describe("an edit inside one beat", () => {
   });
 
   it("builds no runtime tree", () => {
-    // A read count of a label and a once-only choice, which the current
-    // engine's resolution counted in their containers. A program runs from
-    // its chunks, and its compile builds no runtime story (#1607, #705): its
-    // root holds what the engine reads of the story besides its chunks, the
-    // structs and constants (`ProgramRoot.tables`).
     const text = [
       "scene MAIN",
       "  label knock",
@@ -272,18 +238,10 @@ describe("an edit inside one beat", () => {
   });
 });
 
-// The listing of the current root's statements and the assembly of the
-// sequences' entries scale with the edit (#1599): the compile hands the store
-// the lines of the blocks it lowered anew (`ProgramSource.changed`), the
-// alignment reads the old statements only between the carried ones around
-// the statements that are not carried, and a sequence keeps the entries
-// above and below its window as the current root holds them.
 describe("the bookkeeping of a build over an edit", () => {
-  // `count` scenes, each a line, an `if` block and a line, under a top level
-  // that runs them in turn.
   const scenes = (count: number) =>
     [
-      ...Array.from({ length: count }, (_, i) => `-> S${i} ->`),
+      ...Array.from({ length: count }, () => ""),
       "",
       ...Array.from({ length: count }, (_, i) => [
         `scene S${i}`,
@@ -295,8 +253,11 @@ describe("the bookkeeping of a build over an edit", () => {
         "end",
         "",
       ]).flat(),
+      "scene start",
+      ...Array.from({ length: count }, (_, i) => `  -> S${i} ->`),
+      "end",
+      "",
     ].join("\n");
-  // A flat scene of `lines` beats.
   const beats = (lines: number) => {
     const { files } = buildBeatsFixture({ lines });
     return {
@@ -304,7 +265,6 @@ describe("the bookkeeping of a build over an edit", () => {
       [CHARACTERS]: files.get("scripts/characters.sd")!,
     };
   };
-  // A line of dialogue or action halfway down a beats scene.
   const middleBeat = (text: string) => {
     const lines = text.split("\n");
     return lines.find((l, i) => i >= lines.length / 2 && /^ {4}\S/.test(l))!;
@@ -358,7 +318,6 @@ describe("the bookkeeping of a build over an edit", () => {
         const largeCount = largeCounts[i]!;
         expect(largeCount.statements).toBeGreaterThan(3 * counts.statements);
         expect(counts.statements).toBeGreaterThan(100);
-        // Neither count grows with the program, and both stay a handful.
         expect(largeCount.order).toBe(counts.order);
         expect(largeCount.assembly).toBe(counts.assembly);
         expect(largeCount.order).toBeLessThan(10);
@@ -367,11 +326,6 @@ describe("the bookkeeping of a build over an edit", () => {
     },
   );
 
-  // `count` scenes, then as many declarations and a declaration whose
-  // initializer writes a function: the declarations' line starts are the
-  // script's own lines, which a line inserted in a scene above moves, and
-  // the function's body is a body of the declaration, whose statements the
-  // order lists after every flow's.
   const declared = (count: number) =>
     [
       scenes(count),
@@ -433,9 +387,6 @@ describe("the bookkeeping of a build over an edit", () => {
   });
 });
 
-// The worked example of the design of record (section "A statement inserted
-// in the middle of a long `then` clause"), at the size of a test: one line
-// inserted above an `if` inside a `then` clause, and one below it.
 describe("a position inside an unchanged block below an edit", () => {
   const text = [
     "scene MAIN",
@@ -461,9 +412,6 @@ describe("a position inside an unchanged block below an edit", () => {
   const BELOW = ["    After the block.", "    Inserted below.\n    After the block."];
   const edited = text.replace(ABOVE[0]!, ABOVE[1]!).replace(BELOW[0]!, BELOW[1]!);
   const beatTexts = (beats: ReturnType<typeof storyBeats>) => beats.beats.map((b) => b.text.trim());
-  // An engine on `root` that chooses a line of `script`, named by its text,
-  // at the line's address, as a game places a line of the editor
-  // (`Game.setStartFrom`, #700), which enters the blocks that hold it.
   const engineAt = (root: ProgramRoot, script: string) => {
     const story = new ProgramStory(root);
     const choose = story.ChoosePathString.bind(story);
@@ -500,8 +448,6 @@ describe("a position inside an unchanged block below an edit", () => {
         .flatMap((row) => [...after.sequence(row.id)!.arrays.chunks])
         .every((chunk, i) => chunk === inside[i]),
     ).toBe(true);
-    // The body's lines are the edited script's, derived from where its
-    // owner now stands.
     expect(after.firstLineOf(rows[0]!)).toBe(edited.split("\n").indexOf("      Inside, first."));
     expect(describeRoot(after)).toEqual(describeRoot(cold({ [MAIN_URI]: edited }).chunks!));
   });
@@ -529,7 +475,6 @@ describe("a position inside an unchanged block below an edit", () => {
     const s = session({ [MAIN_URI]: text });
     const old = engineAt(s.root, text);
     old.ChoosePathString("Inside, second.");
-    // One line inside the block, then the image, taken on the old root.
     expect(old.Continue()).toContain("Inside, second.");
     const image = old.state.toJson();
     s.edit(ABOVE[0]!, ABOVE[1]!);
@@ -551,7 +496,6 @@ describe("a position inside an unchanged block below an edit", () => {
   });
 });
 
-// The hazards #306 catalogued, at statement granularity.
 describe("a hazard of reuse", () => {
   it("a callee's signature changing emits its callers again and nothing else", () => {
     const text = [
@@ -579,8 +523,6 @@ describe("a hazard of reuse", () => {
       chunkAt(before, text, l),
     );
     const after = s.edit("function bump(x)", "function bump(x, ...)")!;
-    // The definition and the two calls; the function held as a value reads
-    // only what the program defines the name as.
     expect(s.store.emittedLastBuild).toBe(3);
     expect(newChunks(before, after)).toHaveLength(3);
     expect(chunkAt(after, s.text, "local held = bump")).toBe(held);
@@ -612,8 +554,6 @@ describe("a hazard of reuse", () => {
     expect(s.store.handedOnLastBuild).toEqual([
       { sequenceId: body, part: "function", how: "aligned" },
     ]);
-    // The body's statements read the parameters they did, and keep their
-    // chunks; the call reads the parameters, and is emitted again.
     expect([...after.sequence(body)!.arrays.chunks]).toEqual(statements);
     expect(describeRoot(after)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
   });
@@ -687,9 +627,6 @@ describe("a hazard of reuse", () => {
   });
 
   it("a constant's value changing runs the declarations again, and its readers read the new value", () => {
-    // A constant is a global the declaration sequence initializes, and a
-    // statement that reads it reads the global (`GetVar`), so its code does
-    // not hold the value and its chunk is kept.
     const text = ["const LIMIT = 3", "scene MAIN", "  if true then", "    Limit {LIMIT}.", "  end", "end", ""].join("\n");
     const s = session({ [MAIN_URI]: text });
     const before = s.root;
@@ -717,7 +654,6 @@ describe("a hazard of reuse", () => {
       const before = s.root;
       const other = chunkAt(before, text, "Other line.");
       const entered = s.edit("scene MAIN", `${declaration}\nscene MAIN`)!;
-      // The declaration's chunk and the reader's.
       expect(s.store.emittedLastBuild).toBe(2);
       expect(newChunks(before, entered)).toHaveLength(2);
       expect(chunkAt(entered, s.text, "Other line.")).toBe(other);
@@ -731,10 +667,6 @@ describe("a hazard of reuse", () => {
   }
 
   it("a name another statement starts to declare changes how a carried statement reads it", () => {
-    // `knock` reads the label's count until a `local knock` is written in
-    // the scene, after which it reads the local. The reading statement's
-    // block is carried: only the statement watch, which reads the resolver's
-    // answer again, finds that its chunk no longer holds.
     const text = [
       "scene MAIN",
       "  label knock",
@@ -754,14 +686,10 @@ describe("a hazard of reuse", () => {
     expect(chunkAt(after, s.text, "Count {knock}.")).not.toBe(reader);
     expect(describeRoot(after).some((l) => l.includes("GetCount"))).toBe(false);
     expect(describeRoot(after)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
-    // Most of the scene's statements were carried, and read nothing again.
     expect(s.store.passesLastBuild.identity).toBeLessThanOrEqual(4);
   });
 
   it("a loop written above renumbers the names of the loops below it, and their statements are read again nowhere", () => {
-    // The compiler names a loop's own labels by document order, so a loop
-    // written in an earlier scene renames those of every loop after it. No
-    // chunk names them: the writer emits a loop's jumps inside its chunk.
     const scene = (name: string, loops: boolean) => [
       `scene ${name}`,
       `  The room ${name} is quiet.`,
@@ -803,7 +731,6 @@ describe("a hazard of reuse", () => {
       });
     const loopOwners = owners(s.root, text);
     const LOOP = "  for j = 1, 2 do\n    Inner {j}.\n  end\n";
-    // A preview of the loop, then the loop itself.
     const at = text.indexOf("  Line 11 of FIRST.") + "  Line 11 of FIRST.".length + 1;
     quietly(() =>
       s.compiler.previewCompile({
@@ -824,8 +751,6 @@ describe("a hazard of reuse", () => {
         ])
         .every((chunk, i) => chunk === loops[i]),
     ).toBe(true);
-    // The new loop and the statements of its body, and nothing of the
-    // scenes below it.
     const passes = s.store.passesLastBuild;
     expect(passes.identity).toBeLessThanOrEqual(3);
     expect(passes.facts).toBeLessThanOrEqual(6);
@@ -862,11 +787,9 @@ describe("a hazard of reuse", () => {
       "    local pair = {\n",
       "    local pair = {\n      function()\n        return 0\n      end,\n",
     )!;
-    // The statement and the body of the function written above the others.
     expect(s.store.emittedLastBuild).toBe(2);
     const rewritten = chunkAt(after, s.text, "local pair");
     expect(rewritten).not.toBe(writer);
-    // The functions below it keep their symbols, and their bodies' chunks.
     const now = exportedSymbols(rewritten);
     expect(now).toHaveLength(3);
     expect(now.slice(1)).toEqual(symbols);
@@ -878,11 +801,6 @@ describe("a hazard of reuse", () => {
   });
 
   it("a function written in a scene above leaves the functions of the scenes below it, and their statements are read again nowhere", () => {
-    // The compiler names a function a statement writes by document order
-    // within its scene (`__synth$<flow>$<n>`, #851), so one written in an
-    // earlier scene renames none of those after it. A chunk names such a
-    // function by its anonymous symbol, which belongs to the function for as
-    // long as its statement is kept.
     const scene = (name: string, closures: boolean) => [
       `scene ${name}`,
       `  The room ${name} is quiet.`,
@@ -903,9 +821,6 @@ describe("a hazard of reuse", () => {
       "\n",
     );
     const s = session({ [MAIN_URI]: text });
-    // The same edits made with no preview before them: a preview compile is
-    // rolled back whole (#666), so the edit after it reads what the edit
-    // alone reads.
     const plain = session({ [MAIN_URI]: text });
     const closures = (root: ProgramRoot, script: string) =>
       below.flatMap((name) => [
@@ -914,7 +829,6 @@ describe("a hazard of reuse", () => {
       ]);
     const kept = closures(s.root, text);
     const insert = (n: number) => `  local extra${n} = function() return ${n} end\n`;
-    // A preview of a function, then the function itself, twice.
     for (const n of [1, 2]) {
       const at = s.text.indexOf("  Line 11 of FIRST.") + "  Line 11 of FIRST.".length + 1;
       const preview = quietly(() =>
@@ -931,11 +845,6 @@ describe("a hazard of reuse", () => {
       const after = s.edit("  Line 11 of FIRST.\n", `  Line 11 of FIRST.\n${insert(n)}`)!;
       plain.edit("  Line 11 of FIRST.\n", `  Line 11 of FIRST.\n${insert(n)}`);
       expect(closures(after, s.text).every((chunk, i) => chunk === kept[i])).toBe(true);
-      // The statements the parse read again around the edit: the lines
-      // above it, and on the second edit the function written the first
-      // time, just below it, with its body. None of the sixteen statements
-      // of the scenes below, which write or call functions the new one
-      // renumbered, is read again.
       const passes = s.store.passesLastBuild;
       expect(passes.identity).toBeLessThanOrEqual(5);
       expect(passes.facts).toBeLessThanOrEqual(10);
@@ -946,15 +855,8 @@ describe("a hazard of reuse", () => {
   });
 });
 
-// The facts a chunk's reference table records are what its emission read
-// from the symbol table (`ProgramEmitter.fact`), recorded by the reader: no
-// list of a chunk's dependencies is kept anywhere.
 describe("a fact a chunk read", () => {
   it("emits again the chunk that read it when it changes, and nothing else, with no detector added", () => {
-    // A fact a definition holds that no emit path reads today: the store's
-    // definition of a scene gains it here, and one emit path, a jump to the
-    // scene named `TARGET`, reads it, as an emit path that comes to depend
-    // on a new fact would.
     let mood = "calm";
     class MoodStore extends ChunkStore {
       protected override definitionFacts(flow: FlowSource) {
@@ -1005,11 +907,8 @@ describe("a fact a chunk read", () => {
       expect(s.store).toBeInstanceOf(MoodStore);
       const before = s.root;
       const reader = chunkAt(before, text, "-> TARGET");
-      // The same program, compiled again after an edit that changes nothing
-      // the reader reads: the fact reads the same, and the reader is kept.
       s.edit("Plain line.", "Plain line, once.");
       expect(chunkAt(s.root, s.text, "-> TARGET")).toBe(reader);
-      // The fact changes between compiles, with an edit elsewhere.
       mood = "stormy";
       const edited = chunkAt(s.root, s.text, "Plain line, once.");
       const others = rootChunks(s.root).filter((chunk) => chunk !== reader && chunk !== edited);
@@ -1018,9 +917,6 @@ describe("a fact a chunk read", () => {
       expect(chunkAt(after, s.text, "-> TARGET")).not.toBe(reader);
       const kept = new Set(rootChunks(after));
       expect(others.every((chunk) => kept.has(chunk))).toBe(true);
-      // Only the reader read it: the facts of the reader, and of the edited
-      // statement, were read again, and not those of the twenty calls that
-      // read a fact about another function.
       expect(others.length).toBeGreaterThan(20);
       expect(s.store.passesLastBuild.facts).toBeLessThanOrEqual(6);
     } finally {
@@ -1029,8 +925,6 @@ describe("a fact a chunk read", () => {
   });
 });
 
-// A naming collision is found through the index of the program's
-// declarations by name, and is reported with both declarations' places.
 describe("a naming collision", () => {
   it("is reported with the place of the declaration it collides with, and cleared when the declaration goes", () => {
     const text = [
@@ -1052,23 +946,15 @@ describe("a naming collision", () => {
     s.edit("scene MAIN", `${duplicate}scene MAIN`);
     const reported = messages(s.program).filter((m) => m.includes("Duplicate identifier `raffles`"));
     expect(reported.length).toBeGreaterThan(0);
-    // The message names where the first declaration stands, and the
-    // diagnostic stands on the second.
     expect(reported.some((m) => /line 1\b/.test(m))).toBe(true);
     expect(collisionLines(s.program)).toContain(text.split("\n").indexOf("scene MAIN"));
     expect(messages(s.program)).toEqual(messages(cold({ [MAIN_URI]: s.text })));
-    // The program's other chunks kept theirs: only the new declaration
-    // statement was read.
     expect(s.store.passesLastBuild.identity).toBeLessThanOrEqual(4);
     s.edit(duplicate, "");
     expect(messages(s.program).filter((m) => m.includes("Duplicate identifier"))).toEqual([]);
   });
 });
 
-// An edit that writes a construct the writer has no emit path for makes the
-// compile report it at its line and make no program (#705); the edit that
-// removes it builds the root a cold compile builds, however often one
-// compiler goes back and forth between the two.
 describe("a construct the program cannot compile, written and removed by edits", () => {
   it("is reported at its line, and its removal builds the cold compile's root, however often it goes back and forth", () => {
     const scene = (name: string, next: string) => [
@@ -1091,13 +977,16 @@ describe("a construct the program cannot compile, written and removed by edits",
       "",
     ];
     const text = [
-      "-> FIRST",
+      "",
       "",
       ...scene("FIRST", "SECOND"),
       ...scene("SECOND", "THIRD"),
       ...scene("THIRD", "FIRST"),
+      "scene start",
+      "  -> FIRST",
+      "end",
+      "",
     ].join("\n");
-    // A read of a list builtin, which the writer has no emit path for.
     const FALL = "\n  Rolled {LIST_RANDOM(knock)}.";
     const s = session({ [MAIN_URI]: text });
     expect(s.program.chunks).toBeDefined();
@@ -1125,10 +1014,6 @@ describe("a construct the program cannot compile, written and removed by edits",
   });
 
   it("builds the root a cold compile builds after a preview whose compile reseeded the table", () => {
-    // A preview's compile reseeds the table when it has grown past its
-    // bound (`SparkdownCompiler.maybeReseedBinaryTable`), which starts a new
-    // generation and drops what the store keeps by symbol; the next real
-    // compile then emits every chunk again.
     const text = [
       "scene MAIN",
       "  label top",
@@ -1141,8 +1026,6 @@ describe("a construct the program cannot compile, written and removed by edits",
       "",
     ].join("\n");
     const s = session({ [MAIN_URI]: text });
-    // Grow the table past its bound, so that the preview's own compile
-    // reseeds it once it has built the preview's root.
     const table = s.store.table;
     const generation = table.generation;
     const grown = table.strings.length * 2 + 600;
@@ -1165,21 +1048,14 @@ describe("a construct the program cannot compile, written and removed by edits",
     );
     const after = s.edit("  Got {f(1)}.", "  Got {f(2)}.")!;
     expect(describeRoot(after)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
-    // The compile after the reseed emitted every chunk; the next one is
-    // proportional again.
     s.edit("  Got {f(2)}.", "  Got {f(3)}.");
     expect(s.store.emittedLastBuild).toBe(1);
     expect(describeRoot(s.root)).toEqual(describeRoot(cold({ [MAIN_URI]: s.text }).chunks!));
   });
 
   it("reads a label's count above an assignment below that makes the name a global", () => {
-    // Resolution makes `knock` a global as it reaches the bare assignment,
-    // after the line above it has read the label's count. A scene that reads
-    // a list builtin makes the compile report it, at its line, and make no
-    // program.
     const text = [
-      "-> MAIN",
-      "scene MAIN",
+      "scene start",
       "  label knock",
       "  Count {knock}.",
       "  & knock = 5",
@@ -1199,33 +1075,28 @@ describe("a construct the program cannot compile, written and removed by edits",
       programCompiler({ [MAIN_URI]: `${text}\n${unused}` }, { seedBuiltinsIntoStory: true }).compile(),
     ).program;
     expect(listed.chunks).toBeUndefined();
-    expect(errorsOf(listed)).toContainEqual([9, unsupportedConstructMessage("list")]);
+    expect(errorsOf(listed)).toContainEqual([8, unsupportedConstructMessage("list")]);
   });
 });
 
-/** The messages of a program's diagnostics, by script, in order. */
 function messages(program: SparkProgram): string[] {
   return Object.values(program.diagnostics ?? {}).flatMap((list) =>
     list.map(messageText),
   );
 }
 
-/** The symbols a chunk exports, in its export table's order. */
 const exportedSymbols = (chunk: ProgramChunk): number[] =>
   Array.from({ length: exportCount(chunk) }, (_, r) => exportSymbol(chunk, r));
 
-/** A diagnostic's message as text. */
 const messageText = (d: { message: unknown }): string =>
   typeof d.message === "string" ? d.message : String((d.message as { value?: string })?.value ?? "");
 
-/** The lines of the main script a duplicate identifier is reported on. */
 function collisionLines(program: SparkProgram): number[] {
   return (program.diagnostics?.[MAIN_URI] ?? [])
     .filter((d) => messageText(d).includes("Duplicate identifier"))
     .map((d) => d.range.start.line);
 }
 
-/** The text of each beat a story's program engine shows from its start. */
 function texts(story: ProgramStory): string[];
 function texts(beats: ReturnType<typeof storyBeats>): string[];
 function texts(from: ProgramStory | ReturnType<typeof storyBeats>): string[] {

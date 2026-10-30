@@ -1,13 +1,20 @@
-text.source.sparkdown [0..14]
- ├─ keyword.control.divert.mark.sd [0..2]: "->"
- ├─ keyword.control.divert.path.sd [2..6]
- │   ├─ punctuation.whitespace.optional.sd [2..3]: " "
- │   └─ keyword.control.divert.path.sd [3..6]
- │       └─ keyword.control.divert.path.sd [3..6]: "Foo"
- ├─ punctuation.whitespace.optional.sd [6..7]: " "
- ├─ keyword.control.divert.mark.sd [7..9]: "->"
- ├─ keyword.control.divert.path.sd [9..13]
- │   ├─ punctuation.whitespace.optional.sd [9..10]: " "
- │   └─ keyword.control.divert.path.sd [10..13]
- │       └─ keyword.control.divert.path.sd [10..13]: "Bar"
- └─ Newline [13..14]: "\n"
+text.source.sparkdown [0..32]
+ ├─ keyword.control.scene.sd [0..5]: "scene"
+ ├─ punctuation.whitespace.required.sd [5..6]: " "
+ ├─ keyword.control.section.sd [6..11]: "start"
+ ├─ Newline [11..12]: "\n"
+ ├─ punctuation.whitespace.optional.sd [12..14]: "  "
+ ├─ keyword.control.divert.mark.sd [14..16]: "->"
+ ├─ keyword.control.divert.path.sd [16..20]
+ │   ├─ punctuation.whitespace.optional.sd [16..17]: " "
+ │   └─ keyword.control.divert.path.sd [17..20]
+ │       └─ keyword.control.divert.path.sd [17..20]: "Foo"
+ ├─ punctuation.whitespace.optional.sd [20..21]: " "
+ ├─ keyword.control.divert.mark.sd [21..23]: "->"
+ ├─ keyword.control.divert.path.sd [23..27]
+ │   ├─ punctuation.whitespace.optional.sd [23..24]: " "
+ │   └─ keyword.control.divert.path.sd [24..27]
+ │       └─ keyword.control.divert.path.sd [24..27]: "Bar"
+ ├─ Newline [27..28]: "\n"
+ ├─ keyword.control.end.luau [28..31]: "end"
+ └─ Newline [31..32]: "\n"

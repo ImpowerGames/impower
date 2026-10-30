@@ -26,15 +26,11 @@ const LEADING_WHITESPACE_REGEX = /^\s*/;
 function trimWhitespace(from: number, to: number, state: EditorState) {
   const text = state.sliceDoc(from, to);
 
-  // Find leading whitespace length
   const leadMatch = text.match(LEADING_WHITESPACE_REGEX);
   const leadOffset = leadMatch ? leadMatch[0].length : 0;
 
-  // Find trailing whitespace length
-  // We trim the right side and compare lengths to get the offset
   const trailOffset = text.length - text.trimEnd().length;
 
-  // If the bracket is entirely whitespace, we shouldn't "disappear" it
   if (leadOffset === text.length) {
     return { from, to };
   }

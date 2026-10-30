@@ -1,7 +1,3 @@
-// Sanity tests for stdlib entries that recently landed — especially
-// the n-ary pure path that `math.clamp` / `math.map` now use after
-// `NativeFunctionCall` learned arity >= 3.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -44,8 +40,11 @@ function compileAndCapture(source: string): {
 describe("stdlib n-ary numeric", () => {
   test("math.clamp clamps into [min, max]", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(math.clamp(5, 0, 10))
@@ -59,8 +58,11 @@ end
 
   test("math.map remaps linearly across ranges", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(math.map(0.5, 0, 1, 0, 100))
@@ -75,8 +77,11 @@ end
 describe("stdlib globals", () => {
   test("tostring coerces numbers, booleans, nil", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(tostring(42))
@@ -89,16 +94,12 @@ end
   });
 
   test("type / typeof return Lua-style type names", () => {
-    // Two grammar changes were needed to unblock `type(x)`:
-    //   1. `LuauDataTypeDeclaration` got a `(?!{{WS}}*[(])`
-    //      lookahead so `type(x)` falls through to the function-call
-    //      path (not consumed as a type-alias declaration start).
-    //   2. `LUAU_LOCAL_DECLARATION_KEYWORDS` no longer includes
-    //      `type`, so `LUAU_TERMINATOR_KEYWORDS` doesn't reject
-    //      `type` from `LuauAccessPath` in expression contexts.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(type(1))
@@ -122,8 +123,11 @@ end
 describe("stdlib string.char + select + raw*", () => {
   test("string.char produces single-byte string from codepoints", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.char(65))
@@ -136,8 +140,11 @@ end
 
   test('select("#", ...) returns the variadic arg count', () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(select("#", 1, 2, 3))
@@ -150,15 +157,17 @@ end
 
   test("utf8.charpattern constant is accessible", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(utf8.charpattern)
 end
 `);
     expect(errors).toEqual([]);
-    // The exact pattern string — see STDLIB_CONSTANTS in StdLib.ts.
     expect(typeof recorded[0]).toBe("string");
     expect((recorded[0] as string).length).toBeGreaterThan(0);
   });
@@ -167,8 +176,11 @@ end
 describe("stdlib bit32", () => {
   test("bit32 variadic ops fold across args", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(bit32.band(0xFF, 0x0F, 0x07))
@@ -184,8 +196,11 @@ end
 describe("stdlib string.rep + utf8 extras", () => {
   test("string.rep accepts an optional separator", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.rep("ab", 3))
@@ -198,17 +213,14 @@ end
   });
 
   test("utf8.nfcnormalize / nfdnormalize roundtrip", () => {
-    // "é" can be expressed as one codepoint (U+00E9) or two
-    // (U+0065 U+0301). NFC collapses to the precomposed form; NFD
-    // decomposes. Cross-checking length proves the normalization
-    // actually happened. Sparkdown doesn't decode `\u{}` escapes in
-    // string literals, so we embed the chars directly via JS string
-    // interpolation in the test source.
-    const combining = "é"; // "e" + COMBINING ACUTE
-    const precomposed = "é"; // "é" (NFC)
+    const combining = "é";
+    const precomposed = "é";
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(#utf8.nfcnormalize("${combining}"))
@@ -216,19 +228,16 @@ host_record(#utf8.nfdnormalize("${precomposed}"))
 end
 `);
     expect(errors).toEqual([]);
-    // CHAR counts via `#` — utf8.len isn't usable here: under the
-    // byte-string convention the precomposed U+00E9 char is the raw
-    // byte E9, which is not valid UTF-8.
     expect(recorded).toEqual([1, 2]);
   });
 
   test("utf8.len counts code points across byte ranges", () => {
-    // "héllo" with é spelled as its UTF-8 bytes \xC3\xA9 (under the
-    // byte-string convention a bare "é" char IS the raw byte E9) —
-    // 5 characters in 6 bytes.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(utf8.len("h\\xC3\\xA9llo"))
@@ -241,11 +250,12 @@ end
   });
 
   test("utf8.offset returns 1-based byte positions", () => {
-    // "héllo" (é as bytes \xC3\xA9): h=1byte, é=2bytes, l=1, l=1,
-    // o=1 → boundaries at bytes 1, 2, 4, 5, 6, 7.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(utf8.offset("h\\xC3\\xA9llo", 1))
@@ -255,8 +265,6 @@ host_record(utf8.offset("h\\xC3\\xA9llo", 0, 3))
 end
 `);
     expect(errors).toEqual([]);
-    // n=0 with i=3 finds the char containing byte 3, which is the
-    // second byte of "é" (whose start is byte 2).
     expect(recorded).toEqual([1, 2, 4, 2]);
   });
 });
@@ -264,8 +272,11 @@ end
 describe("bracket-key table literals", () => {
   test('{ ["k"] = v } produces a named-key table', () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { ["name"] = "Anonymous", ["score"] = 42 }
@@ -278,11 +289,12 @@ end
   });
 
   test("bracket-key + bare-key + array entries mix", () => {
-    // Array-style entries get auto-incremented int keys ("1", "2", …)
-    // independent of named keys, matching Lua semantics.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 100, ["foo"] = "x", 200, bar = "y" }
@@ -298,8 +310,11 @@ end
 
   test("bracket numeric key works for static integers", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { [5] = "five", [10] = "ten" }
@@ -314,14 +329,15 @@ end
 
 describe("stdlib os.time table form", () => {
   test("os.time({year, month, day [, hour, min, sec]}) converts to a Unix timestamp", () => {
-    // Luau semantics: date-table fields are UTC (timegm), so the
-    // result is timezone-independent. Hour defaults to 12.
     const expected = Math.floor(
       Date.UTC(2026, 0, 15, 12, 0, 0) / 1000,
     );
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(os.time({ year = 2026, month = 1, day = 15 }))
@@ -336,8 +352,11 @@ end
       Date.UTC(2026, 0, 15, 9, 30, 0) / 1000,
     );
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(os.time({ ["year"] = 2026, ["month"] = 1, ["day"] = 15, ["hour"] = 9, ["min"] = 30 }))
@@ -351,8 +370,11 @@ end
 describe("stdlib table.* (read-only)", () => {
   test("table.getn counts the array portion", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 10, 20, 30 }
@@ -367,8 +389,11 @@ end
 
   test("table.concat joins with separator", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { "a", "b", "c" }
@@ -384,8 +409,11 @@ end
 
   test("table.insert appends or inserts shifting later elements", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 10, 20, 30 }
@@ -403,8 +431,11 @@ end
 
   test("table.remove pops last by default, or at given index", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 10, 20, 30, 40 }
@@ -421,8 +452,11 @@ end
 
   test("table.clear empties a table", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 1, 2, 3 }
@@ -437,8 +471,11 @@ end
 
   test("table.clone makes a shallow copy", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 1, 2, 3 }
@@ -454,8 +491,11 @@ end
 
   test("table.create builds an n-entry table sharing one value", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = table.create(3, "x")
@@ -471,8 +511,11 @@ end
 
   test("table.pack collects variadic args plus n field", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = table.pack(10, 20, 30)
@@ -487,8 +530,11 @@ end
 
   test("table.move copies an index range into another table", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local a = { 1, 2, 3, 4, 5 }
@@ -503,8 +549,11 @@ end
 
   test("table.freeze blocks mutation and table.isfrozen reports it", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 1, 2, 3 }
@@ -514,8 +563,6 @@ host_record(table.isfrozen(t))
 table.insert(t, 4)
 end
 `);
-    // The insert into the frozen table should error; everything
-    // up to that point should still record cleanly.
     expect(recorded).toEqual([false, true]);
     expect(errors.length).toBe(1);
     expect(errors[0]).toMatch(/frozen/);
@@ -523,8 +570,11 @@ end
 
   test("table.clone of a frozen table is unfrozen", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 1, 2 }
@@ -541,8 +591,11 @@ end
 
   test("table.find returns first matching index, or nil if absent", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { "x", "y", "z", "y" }
@@ -559,8 +612,11 @@ end
 describe("iterators (pairs / ipairs / next)", () => {
   test("ipairs walks integer keys 1..N in order", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { "a", "b", "c" }
@@ -576,8 +632,11 @@ end
 
   test("ipairs stops at the first integer gap", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { [1] = "first", [2] = "second", [4] = "skipped" }
@@ -593,8 +652,11 @@ end
 
   test("ipairs over an empty table runs zero iterations", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = {}
@@ -610,8 +672,11 @@ end
 
   test("pairs walks all keys (including string-keyed entries)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { name = "alpha", score = 42 }
@@ -624,16 +689,16 @@ host_record(n)
 end
 `);
     expect(errors).toEqual([]);
-    // Order is insertion order (string-keyed entries in declaration
-    // order). The recorded values are the visited keys plus the
-    // total number of visits.
     expect(recorded).toEqual(["name", "score", 2]);
   });
 
   test("next(t, nil) returns first entry; next(t, last_key) returns nil", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { "x", "y" }
@@ -657,8 +722,11 @@ end
 describe("string.format", () => {
   test("%d / %i — integers", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.format("%d", 42))
@@ -674,8 +742,11 @@ end
 
   test("%s — strings, with precision-as-max-length", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.format("%s", "hello"))
@@ -690,8 +761,11 @@ end
 
   test("%f / %.Nf — floats", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.format("%f", 3.14159))
@@ -706,8 +780,11 @@ end
 
   test("%x / %X / %o — bases", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.format("%x", 255))
@@ -722,8 +799,11 @@ end
 
   test("%% — literal percent", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.format("100%% done"))
@@ -736,8 +816,11 @@ end
 
   test("multi-arg format string", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.format("%s = %d", "score", 100))
@@ -752,8 +835,11 @@ end
 describe("string.split / contains / startswith / endswith", () => {
   test("string.split on a separator", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local parts = string.split("a,b,c", ",")
@@ -769,8 +855,11 @@ end
 
   test("string.split with empty separator splits into characters", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local chars = string.split("xyz", "")
@@ -783,8 +872,11 @@ end
 
   test("string.contains / startswith / endswith", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.contains("hello world", "lo wo"))
@@ -803,8 +895,11 @@ end
 describe("string.trim / trimstart / trimend", () => {
   test("string.trim strips leading and trailing whitespace", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.trim("   hello   "))
@@ -819,8 +914,11 @@ end
 
   test("string.trimstart / trimend strip only one side", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(string.trimstart("   hello   "))
@@ -835,8 +933,11 @@ end
 describe("math.lerp / math.ult", () => {
   test("math.lerp interpolates a to b by t", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(math.lerp(0, 10, 0))
@@ -851,8 +952,11 @@ end
 
   test("math.lerp extrapolates outside [0, 1]", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(math.lerp(0, 10, 2))
@@ -865,8 +969,11 @@ end
 
   test("math.ult treats negative as large unsigned", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(math.ult(1, 2))
@@ -882,8 +989,11 @@ end
 describe("table.maxn", () => {
   test("table.maxn returns the largest integer key", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = {}
@@ -899,8 +1009,11 @@ end
 
   test("table.maxn returns 0 for empty / non-numeric keys", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local empty = {}

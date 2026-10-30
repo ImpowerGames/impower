@@ -1,7 +1,3 @@
-// #1333 — a `store` evaluates every value of its list, in order, binds the
-// first to its first name and later ones to later names, and drops the rest,
-// as Luau does: `store x = 1, bump()` calls `bump` when the story starts.
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
@@ -10,10 +6,12 @@ const play = (declaration: string) => {
     [
       "store calls = 0",
       declaration,
-      "Value {x} {calls}.",
       "function bump()",
       "  calls = calls + 1",
       "  return 2",
+      "end",
+      "scene start",
+      "  Value {x} {calls}.",
       "end",
       "",
     ].join("\n"),
@@ -37,12 +35,14 @@ describe("a store's values after its last name", () => {
       [
         "store calls = 0",
         "store x = 1, first(), second()",
-        "Value {calls}.",
         "function first()",
         "  calls = calls * 10 + 1",
         "end",
         "function second()",
         "  calls = calls * 10 + 2",
+        "end",
+        "scene start",
+        "  Value {calls}.",
         "end",
         "",
       ].join("\n"),

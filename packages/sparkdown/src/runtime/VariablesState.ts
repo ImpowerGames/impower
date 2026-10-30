@@ -17,58 +17,30 @@ import { throwNullException } from "./NullException";
 import { CallStack } from "./CallStack";
 import { SimpleJson } from "./SimpleJson";
 
-// Fake class wrapper around VariableState to have correct typing
-// when using the Proxy syntax in typescript
 function VariablesStateAccessor<T>(): new () => Pick<T, keyof T> {
   return class {} as any;
 }
 
 type VariableStateValue = boolean | string | number | null;
 
-/** What the program engine's images hear of the keyed state before it is
- *  written (docs/engine/binary-program.md, section 7, The write barrier): a
- *  table about to be written, a table a call may write (`prepare`, which
- *  keeps its content without marking it), and a global assigned. */
 export interface ImageBarrier {
   table(table: ObjectValue): void;
   prepare(table: ObjectValue): void;
   global(name: string): void;
 }
 
-/** A binding the story can write: the block scope that holds a temporary
- *  (a map of a call stack element's `temporaryScopes`), the closed upvalue
- *  cell of a captured variable whose frame is gone, or `null` for a global.
- *  With the variable's name it says which variable a write reached. */
 export type VariableBinding =
   | Map<string, InkObject>
   | VariablePointerValue
   | null;
 
-/** Hears each write the story makes to a variable that is already bound,
- *  with the binding it reached and the variable's name there: an
- *  assignment to a temporary, to a closed upvalue cell, or to a global
- *  (docs/engine/binary-program.md, section 9: a data breakpoint). A
- *  temporary's declaration binds a new variable, so it is not a write to
- *  one, and neither is the initializer that completes it (`SET_INITIALIZE`);
- *  a global's writes the one global of its name. */
 export type WriteWatch = (binding: VariableBinding, name: string) => void;
 
-/** The tables a constant reaches, and whether anything wrote in one, or may
- *  have, since the declarations built them (`VariablesState.WriteBarrier`,
- *  `PrepareTableWrite`), shared by the variables of every engine that took
- *  over that run. A constant table that closes over an upvalue cell, whose
- *  writes no table barrier hears, counts as written from the start. */
 export interface ConstantWatch {
   readonly tables: ReadonlySet<ObjectValue>;
   written: boolean;
 }
 
-/** What the variables recorded of the globals a run of the declarations
- *  left (`VariablesState.SnapshotDefaultGlobals`): each default global, and
- *  the graph of tables and closed upvalue cells init built, with each one's
- *  anchor, and the tables a constant reaches with the watch on their
- *  writes. Nothing in it is written after the snapshot but the watch's
- *  flag, which every engine sharing the run writes. */
 export interface DeclaredGlobals {
   readonly defaults: ReadonlyMap<string, InkObject>;
   readonly tablePaths: ReadonlyMap<object, string>;
@@ -86,10 +58,6 @@ export interface DeclaredGlobals {
 export class VariablesState extends VariablesStateAccessor<
   Record<string, any>
 >() {
-  // The way variableChangedEvent is a bit different than the reference implementation.
-  // Originally it uses the C# += operator to add delegates, but in js we need to maintain
-  // an actual collection of delegates (ie. callbacks) to register a new one, there is a
-  // special ObserveVariableChange method below.
   public variableChangedEventCallbacks: Array<
     (variableName: string, newValue: InkObject) => void
   > = [];
@@ -115,9 +83,6 @@ export class VariablesState extends VariablesStateAccessor<
     this._changedVariablesForBatchObs = null;
   }
 
-  /** Closes the batch without announcing its writes, for a line the engine
-   *  abandons: no observer hears of a run that did not happen (#281). Returns
-   *  whether the batch had recorded any write. */
   public DiscardVariableObservation(): boolean {
     this._batchObservingVariableChanges = false;
     const wrote = (this._changedVariablesForBatchObs?.size ?? 0) > 0;
@@ -132,9 +97,6 @@ export class VariablesState extends VariablesStateAccessor<
     this._callStack = callStack;
   }
 
-  // the original code uses a magic getter and setter for global variables,
-  // allowing things like variableState['varname]. This is not quite possible
-  // in js without a Proxy, so it is replaced with this $ function.
   public $(variableName: string): VariableStateValue;
   public $(variableName: string, value: VariableStateValue): void;
   public $(variableName: string, value?: any) {
@@ -176,11 +138,7 @@ export class VariablesState extends VariablesStateAccessor<
     this._globalVariables = new Map();
     this._callStack = callStack;
 
-    // if es6 proxies are available, use them.
     try {
-      // the proxy is used to allow direct manipulation of global variables.
-      // It first tries to access the objects own property, and if none is
-      // found it delegates the call to the $ method, defined below
       let p = new Proxy(this, {
         get(target: any, name) {
           return name in target ? target[name] : target.$(name);
@@ -188,7 +146,7 @@ export class VariablesState extends VariablesStateAccessor<
         set(target: any, name, value) {
           if (name in target) target[name] = value;
           else target.$(name, value);
-          return true; // returning a falsy value make the trap fail
+          return true;
         },
         ownKeys(target: any) {
           return [
@@ -199,7 +157,6 @@ export class VariablesState extends VariablesStateAccessor<
           ];
         },
         getOwnPropertyDescriptor(target, name) {
-          // called for every property
           return {
             enumerable: true,
             configurable: true,
@@ -210,32 +167,15 @@ export class VariablesState extends VariablesStateAccessor<
 
       return p;
     } catch (e) {
-      // the proxy object is not available in this context. we should warn the
-      // dev but writing to the console feels a bit intrusive.
-      // console.log("ES6 Proxy not available - direct manipulation of global variables can't work, use $() instead.");
     }
   }
 
-  /**
-   * Names declared with `const`, published by `Story.ResetGlobals`.
-   *
-   * A constant IS a real global — it initializes from the `global decl`
-   * container and is therefore visible to anything inspecting runtime state
-   * (notably the debug adapter). But its value is fully determined by the
-   * compiled program, so it must never round-trip through a save: it is
-   * neither written by `WriteJson` nor restored by `SetJsonToken`. Without
-   * that, a save written when the name was still a mutable `store` would
-   * overwrite the compiled constant on load and pin it forever.
-   */
   public constantNames: Set<string> = new Set<string>();
 
   public SetJsonToken(jToken: Record<string, any>) {
     this._globalVariables.clear();
 
     for (let [varValKey, varValValue] of this._defaultGlobalVariables) {
-      // Always take the compiled value for a constant, never the saved one.
-      // A save written while the name was a `store` still defines, in its
-      // value, the tables and cells other values of the save refer to.
       if (this.constantNames.has(varValKey)) {
         this._globalVariables.set(varValKey, varValValue);
         JsonSerialisation.ReadDefinitions(jToken[varValKey]);
@@ -248,19 +188,12 @@ export class VariablesState extends VariablesStateAccessor<
         if (tokenInkObject === null) {
           return throwNullException("tokenInkObject");
         }
-        // Named define (store-keyed save): the token holds only the
-        // `store` delta. MERGE it onto the init-reconstructed default —
-        // which already carries the definition's own non-store props,
-        // methods, metatable, and identity (so `companion.O === O` etc.
-        // still hold) — instead of replacing it with a partial table.
         const defSelf = (tokenInkObject as any).__loadDefSelf;
         if (
           defSelf != null &&
           tokenInkObject instanceof ObjectValue &&
           varValValue instanceof ObjectValue
         ) {
-          // Written in place: an image of the program engine keeps it as it
-          // was first.
           this.imageBarrier?.prepare(varValValue);
           const target = varValValue.value as Map<string, AbstractValue>;
           for (const [k, v] of tokenInkObject.value as Map<
@@ -278,15 +211,8 @@ export class VariablesState extends VariablesStateAccessor<
       }
     }
 
-    // DYNAMIC globals — Lua-style assignments to undeclared names
-    // (`t = {}` inside a function creates a global). They serialize
-    // through WriteJson like any other global, but the defaults-
-    // driven loop above never visits them, so without this pass
-    // they'd silently vanish on load.
     for (const key of Object.keys(jToken)) {
       if (this._defaultGlobalVariables.has(key)) continue;
-      // A stale save may carry a key that has since become a constant,
-      // whose value still defines what the rest of the save refers to.
       if (this.constantNames.has(key)) {
         JsonSerialisation.ReadDefinitions(jToken[key]);
         continue;
@@ -308,26 +234,14 @@ export class VariablesState extends VariablesStateAccessor<
       let name = keyValKey;
       let val = keyValValue;
 
-      // Constants are reconstructed from the bytecode on every run, so they
-      // are never persisted — see `constantNames`.
       if (this.constantNames.has(name)) {
         continue;
       }
 
-      // Store-keyed rule for define tables: persistence follows the
-      // `store` marker, NOT value-equality. A define with no store state
-      // is fully reconstructed by init — never written. One WITH store
-      // props always writes its (compact) store delta, because the
-      // default shares the same table reference and so can't reveal an
-      // in-place store mutation via RuntimeObjectsEqual.
       const defInfo =
         val instanceof ObjectValue
           ? JsonSerialisation.defineSerializationInfo(val)
           : null;
-      // Any other table or function global is written even while it holds
-      // its default object: a field set or a captured variable changed in
-      // place leaves the object the same, and a saved local or closure may
-      // share the object, which a load reproduces only from the save.
       if (defInfo) {
         if (defInfo.storeNames.size === 0) continue;
       } else if (
@@ -398,7 +312,6 @@ export class VariablesState extends VariablesStateAccessor<
   ): InkObject | null {
     let varValue = this.GetRawVariableWithName(name, contextIndex, scopeIndex);
 
-    // var varPointer = varValue as VariablePointerValue;
     let varPointer = asOrNull(varValue, VariablePointerValue);
     if (varPointer !== null) {
       varValue = this.ValueAtVariablePointer(varPointer);
@@ -412,11 +325,6 @@ export class VariablesState extends VariablesStateAccessor<
     return val.exists ? val.result : null;
   }
 
-  // Global-only lookup, used by the `_G` globals-table proxy. Unlike
-  // `GetVariableWithName` (which checks call-stack temporaries first
-  // because locals shadow globals), reads through `_G` must see THE
-  // GLOBAL binding even when a same-named local is in scope —
-  // `local x = 1  _G.x` reads the global x (or nil), never the local.
   public GetGlobalVariableValue(name: string): InkObject | null {
     const current = tryGetValueFromMap(this._globalVariables, name, null);
     if (current.exists) return current.result;
@@ -435,8 +343,6 @@ export class VariablesState extends VariablesStateAccessor<
     );
   }
 
-  // `scopeIndex`, from an open upvalue cell, picks the block scope whose
-  // binding the cell captured.
   public GetRawVariableWithName(
     name: string | null,
     contextIndex: number,
@@ -444,15 +350,6 @@ export class VariablesState extends VariablesStateAccessor<
   ) {
     let varValue: InkObject | null = null;
 
-    // Luau-superset semantics: locals shadow globals. Check the
-    // call-stack temporaries FIRST, then fall back to globals if
-    // nothing's in scope. Ink's original order was
-    // globals-first (because ink temps were rare `~temp` declarations
-    // scoped to knots, never overlapping with global names), but
-    // sparkdown's `local x = …` is the common case and must shadow
-    // any same-named global. See `do local g = … end` patterns in
-    // calls.luau (line 22–31) which previously read the OUTER global
-    // `g = false` from inside the do-block.
     varValue = this._callStack.GetTemporaryVariableWithName(
       name,
       contextIndex,
@@ -478,9 +375,6 @@ export class VariablesState extends VariablesStateAccessor<
   }
 
   public ValueAtVariablePointer(pointer: VariablePointerValue) {
-    // Closed upvalue: the parent frame has been popped and the value
-    // was snapshotted into the pointer at pop time. Read directly from
-    // the closed cell, no call-stack lookup needed.
     if (pointer.isClosed) {
       return pointer.closedValue;
     }
@@ -497,23 +391,12 @@ export class VariablesState extends VariablesStateAccessor<
       return throwNullException("name");
     }
     let contextIndex = -1;
-    // The block scope an open upvalue cell captured, once the write is
-    // redirected through one.
     let scopeIndex = -1;
 
     let setGlobal = false;
     if (varAss.isNewDeclaration) {
       setGlobal = varAss.isGlobal;
     } else {
-      // Luau-superset semantics: a temp variable shadows any
-      // same-named global for both READ and WRITE. Without this
-      // check, `g = false; do local g = nil; g = closure end` writes
-      // the closure to the GLOBAL `g` (because the global exists)
-      // instead of updating the local TEMP — breaking `local
-      // function g(...)` self-recursive declarations whose two-step
-      // (declareNil + assignClosure) lowering relies on the closure
-      // landing in the temp slot. Only fall back to the global path
-      // when no temp with this name is in scope.
       const tempExists =
         this._callStack.GetTemporaryVariableWithName(name, contextIndex) !==
         null;
@@ -521,7 +404,6 @@ export class VariablesState extends VariablesStateAccessor<
     }
 
     if (varAss.isNewDeclaration) {
-      // var varPointer = value as VariablePointerValue;
       let varPointer = asOrNull(value, VariablePointerValue);
       if (varPointer !== null) {
         let fullyResolvedVariablePointer =
@@ -531,16 +413,11 @@ export class VariablesState extends VariablesStateAccessor<
     } else {
       let existingPointer = null;
       do {
-        // existingPointer = GetRawVariableWithName (name, contextIndex) as VariablePointerValue;
         existingPointer = asOrNull(
           this.GetRawVariableWithName(name, contextIndex, scopeIndex),
           VariablePointerValue,
         );
         if (existingPointer != null) {
-          // Closed upvalue: write directly to the snapshotted cell.
-          // The parent frame is gone; there's no slot to redirect to.
-          // Mutating the pointer's `closedValue` lets all closures
-          // sharing this pointer see the updated value.
           if (existingPointer.isClosed) {
             this.CellWriteBarrier(existingPointer);
             existingPointer.closedValue = value;
@@ -559,13 +436,6 @@ export class VariablesState extends VariablesStateAccessor<
       this.SetGlobal(name, value);
       return;
     }
-    // Luau's auto-global semantics: `x = 1` (without `local` /
-    // `store`) writes to a global if `x` isn't a known local in
-    // scope. We honour this only for *reassignment* shapes
-    // (isNewDeclaration=false) — explicit `local x = 1` declarations
-    // still create temps as before. If no local with this name
-    // exists in any scope of the current call-stack element, treat
-    // the bare assignment as a new-global creation.
     if (
       !varAss.isNewDeclaration &&
       this._callStack.GetTemporaryVariableWithName(
@@ -584,9 +454,6 @@ export class VariablesState extends VariablesStateAccessor<
       contextIndex,
       scopeIndex,
     );
-    // A declaration binds a new variable, and its initializer (a
-    // self-recursive `local function`'s closure, #1720) completes it: neither
-    // writes a variable that was there before.
     if (
       this.writeWatch !== null &&
       !varAss.isNewDeclaration &&
@@ -596,18 +463,8 @@ export class VariablesState extends VariablesStateAccessor<
     }
   }
 
-  /** Hears each write to a bound variable (`WriteWatch`), or nothing: a
-   *  data breakpoint's game installs it for the length of a step while a
-   *  breakpoint watches a variable, and with none the assignment paths test
-   *  this field and call nothing. */
   public writeWatch: WriteWatch | null = null;
 
-  /** The binding a write to `name` reaches from the block scope `scope`,
-   *  and the variable's name there, as `Assign` reaches it: a temporary
-   *  bound to a pointer (a variable passed by reference, or one a closure
-   *  captured) is written through it, to the binding it points at, which
-   *  is a closed upvalue cell once the frame that bound it is gone, or a
-   *  global. */
   public BindingOf(
     scope: Map<string, InkObject>,
     name: string,
@@ -618,8 +475,6 @@ export class VariablesState extends VariablesStateAccessor<
       : { binding: scope, name };
   }
 
-  /** The binding a write through `pointer` reaches, and the variable's
-   *  name there (`BindingOf`). */
   public BindingThrough(pointer: VariablePointerValue): {
     binding: VariableBinding;
     name: string;
@@ -641,7 +496,6 @@ export class VariablesState extends VariablesStateAccessor<
         value.scopeIndex,
       );
       if (found === null) {
-        // `Assign` takes a name no temporary holds for a global.
         return { binding: null, name };
       }
       binding = found;
@@ -650,14 +504,10 @@ export class VariablesState extends VariablesStateAccessor<
     return { binding, name };
   }
 
-  /** The globals as they stand, by name, which an image copies
-   *  (`ProgramImages`). Read only. */
   public get globalEntries(): ReadonlyMap<string, InkObject> {
     return this._globalVariables;
   }
 
-  /** Puts `globals` in place of the globals, as an image restored in place
-   *  holds them, with no change event and no barrier. */
   public RestoreGlobals(globals: ReadonlyMap<string, InkObject>) {
     this._globalVariables.clear();
     for (const [name, value] of globals) {
@@ -665,9 +515,6 @@ export class VariablesState extends VariablesStateAccessor<
     }
   }
 
-  /** Puts `value` in place of global `name`, or removes the global for
-   *  nothing, as an image restored in place holds it, with no change event
-   *  and no barrier. */
   public RestoreGlobal(name: string, value: InkObject | undefined) {
     if (value === undefined) {
       this._globalVariables.delete(name);
@@ -676,8 +523,6 @@ export class VariablesState extends VariablesStateAccessor<
     }
   }
 
-  /** The compiled value of each constant, which a restore into another
-   *  program's engine keeps (`SetJsonToken`). */
   public DefaultGlobal(name: string): InkObject | undefined {
     return this._defaultGlobalVariables.get(name);
   }
@@ -687,10 +532,6 @@ export class VariablesState extends VariablesStateAccessor<
     this.SnapshotInitTables();
   }
 
-  /** What `SnapshotDefaultGlobals` recorded of the globals the declarations
-   *  left: the defaults and the graph of tables and cells they built. Read
-   *  only: a snapshot is never written after it is taken, so the variables
-   *  of another engine can take it over (`AdoptDeclared`). */
   public get Declared(): DeclaredGlobals {
     return {
       defaults: this._defaultGlobalVariables,
@@ -704,32 +545,16 @@ export class VariablesState extends VariablesStateAccessor<
     };
   }
 
-  /** Whether every table a constant reaches still holds what the
-   *  declarations built in it: nothing wrote in one, or called something
-   *  that may, since (`constantWatch`). A constant's value is then its
-   *  compiled value, which a restore of another engine's image gives it
-   *  (#1759). Asks nothing of the tables themselves. */
   public get ConstantsAsDeclared(): boolean {
     return !(this._constantWatch?.written ?? false);
   }
 
-  /** Counts every table a constant reaches as written: a load writes the
-   *  tables it reads saved contents into by paths of its own, not through
-   *  the table barrier (`SetJsonToken`'s merge of a named define's token,
-   *  the load session's redefinitions), and one of them can be a table a
-   *  constant reaches through a `store` that holds it. */
   public ConstantsMayHaveChanged(): void {
     if (this._constantWatch !== null) {
       this._constantWatch.written = true;
     }
   }
 
-  /** Takes over what another engine's variables recorded of the same
-   *  declarations' run (`Declared`), in place of running them and taking the
-   *  snapshot again (#1759). The tables it names are that run's, so an
-   *  anchor a save writes or reads names the tables the images of both
-   *  engines hold. The constants it records as kept are those of the same
-   *  constant names, which the caller compares. */
   public AdoptDeclared(declared: DeclaredGlobals) {
     this._defaultGlobalVariables = declared.defaults as Map<string, InkObject>;
     this._initTablePaths = declared.tablePaths as Map<object, string>;
@@ -747,16 +572,6 @@ export class VariablesState extends VariablesStateAccessor<
     >;
   }
 
-  // Records the graph of tables init built, as it stands when the defaults
-  // are set: each default global's table, and every edge from a table to
-  // another one. An edge is a key (`".key"`), a metatable (`"@mt"`), or a
-  // closed upvalue's table (`"@cv.key"`); a key segment always starts with
-  // `.` and a synthetic one with `@`, so no key can be taken for one. A
-  // table's anchor is a JSON array of its global's name and the segments
-  // to it, the shortest and earliest path found. Taken once, so anchors
-  // name the tables init built even after the story has changed or
-  // reassigned them. A table any constant reaches keeps its compiled
-  // contents, whichever other globals reach it too.
   private SnapshotInitTables() {
     this._initTablePaths = new Map();
     this._initRoots = new Map();
@@ -787,9 +602,6 @@ export class VariablesState extends VariablesStateAccessor<
         if (entry instanceof ObjectValue) {
           follow("." + key, entry);
         } else if (entry instanceof VariablePointerValue && entry.isClosed) {
-          // A closed upvalue cell a closure init built holds: other
-          // closures init built can share it, so it is anchored like a
-          // table, by the path of the closure holding it.
           let cells = this._initCellEdges.get(map);
           if (!cells) {
             cells = new Map();
@@ -830,18 +642,10 @@ export class VariablesState extends VariablesStateAccessor<
       watched.size > 0 ? { tables: watched, written: closesOverCells } : null;
   }
 
-  // Each table init built, by its underlying Map, to its anchor: the
-  // anchors a save writes (`JsonSerialisation.SetWriterAnchors`).
   public InitTableAnchors(): Map<object, string> {
     return this._initTablePaths;
   }
 
-  // The table init built at an anchor's path in this story, following the
-  // path through the recorded init graph, so any path that exists here
-  // resolves, not only the one this story would write. Also whether a load
-  // may restore saved contents into it: a table a constant reaches is
-  // determined by the compiled program, so a load only joins references to
-  // it.
   public InitTableAtAnchor(
     anchor: string,
   ): { table: ObjectValue; restore: boolean } | null {
@@ -854,15 +658,10 @@ export class VariablesState extends VariablesStateAccessor<
     };
   }
 
-  // Each closed upvalue cell init built to its anchor: the path of a
-  // closure holding it followed by `"@cell." + key`.
   public InitCellAnchors(): Map<VariablePointerValue, string> {
     return this._initCellPaths;
   }
 
-  // The cell init built at an anchor's path in this story, and whether a
-  // load may restore a saved value into it (not when a constant reaches the
-  // closure holding it).
   public InitCellAtAnchor(
     anchor: string,
   ): { cell: VariablePointerValue; restore: boolean } | null {
@@ -893,8 +692,6 @@ export class VariablesState extends VariablesStateAccessor<
       : null;
   }
 
-  // Follows a path from a default global's init table through the
-  // recorded edges.
   private InitTableAtPath(path: string[]): ObjectValue | null {
     let table = this._initRoots.get(path[0]!) ?? null;
     for (let i = 1; table && i < path.length; i++) {
@@ -918,11 +715,8 @@ export class VariablesState extends VariablesStateAccessor<
     this.imageBarrier?.global(variableName);
     this.writeWatch?.(null, variableName);
 
-    // Reactive dep tracking: a global write is a coarse-grained change keyed by
-    // name (a binding that read this global re-runs). Cheap no-op when disabled.
     this.recordReactiveGlobalChange(variableName);
 
-    // TODO: Not sure !== is equivalent to !value.Equals(oldValue)
     if (
       this.variableChangedEvent !== null &&
       oldValue !== null &&
@@ -941,9 +735,6 @@ export class VariablesState extends VariablesStateAccessor<
   }
 
   public ResolveVariablePointer(varPointer: VariablePointerValue) {
-    // Already-closed pointer: it's heap-resident, no frame lookup
-    // needed and no further canonicalization possible. Return as-is
-    // so all references continue to share the same closed cell.
     if (varPointer.isClosed) {
       return varPointer;
     }
@@ -959,7 +750,6 @@ export class VariablesState extends VariablesStateAccessor<
       contextIndex,
     );
 
-    // var doubleRedirectionPointer = valueOfVariablePointedTo as VariablePointerValue;
     let doubleRedirectionPointer = asOrNull(
       valueOfVariablePointedTo,
       VariablePointerValue,
@@ -967,14 +757,6 @@ export class VariablesState extends VariablesStateAccessor<
     if (doubleRedirectionPointer != null) {
       return doubleRedirectionPointer;
     }
-    // If the pointer already has a canonical contextIndex (the
-    // auto-resolve path at content-push time has run), return the
-    // SAME object rather than a fresh copy. Sharing identity matters
-    // for Lua-style upvalue closing — the open-upvalue list in the
-    // target frame holds this object reference, and we need every
-    // place that holds the pointer (closure's __closure_upvals, the
-    // callee's param slot, etc.) to point at the same instance so
-    // close-on-pop is observable everywhere.
     if (varPointer.contextIndex > 0) {
       return varPointer;
     }
@@ -987,13 +769,6 @@ export class VariablesState extends VariablesStateAccessor<
     return this._callStack.currentElementIndex;
   }
 
-  /**
-   * This function is specific to the js version of ink. It allows to register a
-   * callback that will be called when a variable changes. The original code uses
-   * `state.variableChangedEvent += callback` instead.
-   *
-   * @param {function} callback
-   */
   public ObserveVariableChange(
     callback: (variableName: string, newValue: InkObject) => void,
   ) {
@@ -1002,17 +777,11 @@ export class VariablesState extends VariablesStateAccessor<
 
   private _globalVariables: Map<string, InkObject>;
   private _defaultGlobalVariables: Map<string, InkObject> = new Map();
-  // The tables init built (`SnapshotInitTables`): each one's anchor, each
-  // default global's table, the edges between them by segment, and the
-  // ones a constant reaches.
   private _initTablePaths: Map<object, string> = new Map();
   private _initRoots: Map<string, ObjectValue> = new Map();
   private _initEdges: Map<object, Map<string, ObjectValue>> = new Map();
   private _constantInitTables: Set<object> = new Set();
-  // The tables a constant reaches, and whether one was written since.
   private _constantWatch: ConstantWatch | null = null;
-  // The closed upvalue cells init built: each table's cells by key, and
-  // each cell's anchor.
   private _initCellEdges: Map<object, Map<string, VariablePointerValue>> =
     new Map();
   private _initCellPaths: Map<VariablePointerValue, string> = new Map();
@@ -1022,64 +791,41 @@ export class VariablesState extends VariablesStateAccessor<
 
   private _batchObservingVariableChanges: boolean = false;
 
-  // -------------------------------------------------------------------------
-  // Reactive dependency tracking (Phase 4 fine-grained primitive).
-  //
-  // The reactive UI runtime needs to know, since its last refresh, WHICH game
-  // state changed — at finer granularity than the whole-global `variableChanged`
-  // observation: a table-field write (`player.hp = 5`) mutates a table in place
-  // and fires no global change. So we accumulate, while `reactiveDepsEnabled`:
-  //   - changed GLOBAL names  (SetGlobal)
-  //   - changed TABLE identities (StoreIndex — the ObjectValue's backing Map)
-  // and, during a single binding evaluation bracketed by
-  // begin/endReactiveRead(), the GLOBAL names + TABLE identities that binding
-  // READ. The runtime re-runs a binding only when its read-set intersects the
-  // change-set. False positives (e.g. a local shadowing a global name) are
-  // safe — they cost an extra (equality-gated)
-  // re-eval, never a missed update. Disabled by default → zero cost for
-  // non-reactive games (every hook is a single boolean check).
-  // -------------------------------------------------------------------------
   public reactiveDepsEnabled = false;
   private _reactiveChangedGlobals = new Set<string>();
   private _reactiveChangedTables = new Set<object>();
   private _reactiveReadGlobals: Set<string> | null = null;
   private _reactiveReadTables: Set<object> | null = null;
 
-  /** Record a global-name write (no-op unless reactive tracking is enabled). */
   public recordReactiveGlobalChange(name: string): void {
     if (this.reactiveDepsEnabled && name) {
       this._reactiveChangedGlobals.add(name);
     }
   }
 
-  /** Record an in-place table mutation by the table's backing-Map identity. */
   public recordReactiveTableChange(table: object): void {
     if (this.reactiveDepsEnabled && table) {
       this._reactiveChangedTables.add(table);
     }
   }
 
-  /** Record a global-name read into the active binding's dep set (if tracking). */
   public recordReactiveGlobalRead(name: string): void {
     if (this._reactiveReadGlobals && name) {
       this._reactiveReadGlobals.add(name);
     }
   }
 
-  /** Record a table read into the active binding's dep set (if tracking). */
   public recordReactiveTableRead(table: object): void {
     if (this._reactiveReadTables && table) {
       this._reactiveReadTables.add(table);
     }
   }
 
-  /** Begin capturing the reads of a single binding evaluation. */
   public beginReactiveRead(): void {
     this._reactiveReadGlobals = new Set();
     this._reactiveReadTables = new Set();
   }
 
-  /** End capture and return the binding's dependency set. */
   public endReactiveRead(): { globals: Set<string>; tables: Set<object> } {
     const deps = {
       globals: this._reactiveReadGlobals ?? new Set<string>(),
@@ -1090,27 +836,11 @@ export class VariablesState extends VariablesStateAccessor<
     return deps;
   }
 
-  // -------------------------------------------------------------------------
-  // The write barrier (docs/engine/binary-program.md, section 7). Every write
-  // to a table goes through it: to the table's entries (`StoreIndex`,
-  // `__newindex`, `rawset` and each builtin that changes a table in place)
-  // and to what the table is beside them (its metatable, its frozen flag, and
-  // the length hints `table.clear` and `#` leave on its map); and so does
-  // every assignment to a closed upvalue cell, whose frame is gone. The
-  // barrier marks, while `trackWrites` is set, and an image barrier, when
-  // the program engine keeps images of its state (#699), hears every write
-  // before it is made, so that it can keep a table's or a cell's content as
-  // it was before the first write (`ProgramImages`). A caller calls the
-  // barrier before it writes; one that learns only after a call whether the
-  // call wrote (`#`, which may leave a new length hint) prepares the table
-  // first (`PrepareTableWrite`) and marks it after.
-  // -------------------------------------------------------------------------
   public trackWrites = false;
   public imageBarrier: ImageBarrier | null = null;
   private _writtenTables = new Set<ObjectValue>();
   private _writtenCells = new Set<VariablePointerValue>();
 
-  /** Marks `table` as written. Called before the write. */
   public WriteBarrier(table: ObjectValue): void {
     this.imageBarrier?.table(table);
     if (this.trackWrites) {
@@ -1119,15 +849,11 @@ export class VariablesState extends VariablesStateAccessor<
     this.watchConstantWrite(table);
   }
 
-  /** Keeps `table` as it is before a call that may write it, without
-   *  marking it. */
   public PrepareTableWrite(table: ObjectValue): void {
     this.imageBarrier?.prepare(table);
     this.watchConstantWrite(table);
   }
 
-  // A write in a table a constant reaches leaves the constant no longer
-  // its compiled value (`ConstantsAsDeclared`).
   private watchConstantWrite(table: ObjectValue): void {
     const watch = this._constantWatch;
     if (watch !== null && !watch.written && watch.tables.has(table)) {
@@ -1135,8 +861,6 @@ export class VariablesState extends VariablesStateAccessor<
     }
   }
 
-  /** Marks the closed upvalue cell `cell` as written. Called before the
-   *  write. */
   public CellWriteBarrier(cell: VariablePointerValue): void {
     this._callStack.cellBarrier?.(cell);
     if (this.trackWrites) {
@@ -1144,7 +868,6 @@ export class VariablesState extends VariablesStateAccessor<
     }
   }
 
-  /** Takes the tables and cells marked since the last call. */
   public TakeWrites(): {
     tables: Set<ObjectValue>;
     cells: Set<VariablePointerValue>;
@@ -1155,7 +878,6 @@ export class VariablesState extends VariablesStateAccessor<
     return writes;
   }
 
-  /** Take + clear the change-set accumulated since the last call (per refresh). */
   public takeReactiveChanges(): { globals: Set<string>; tables: Set<object> } {
     const changes = {
       globals: this._reactiveChangedGlobals,
@@ -1166,17 +888,6 @@ export class VariablesState extends VariablesStateAccessor<
     return changes;
   }
 
-  /**
-   * Merge a previously taken change-set back in.
-   *
-   * `takeReactiveChanges` is destructive, so a caller that takes it to discard
-   * its OWN residue also discards everything the turn recorded before it ran.
-   * That is not recoverable downstream: reactive updates are equality-gated on
-   * the last emitted value, so a dropped change is never re-derived and the
-   * affected bindings stay stale indefinitely. Restoring is safe in the other
-   * direction — per the note above, a false positive costs one extra
-   * equality-gated re-eval and never a missed update.
-   */
   public restoreReactiveChanges(changes: {
     globals: Set<string>;
     tables: Set<object>;

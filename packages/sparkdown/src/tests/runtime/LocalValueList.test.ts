@@ -1,16 +1,12 @@
-// In a `local` with several names and several values, everything after the
-// `=` is the value list, as Luau reads it: a later value that is a name or a
-// boolean is a value, not another name being declared (#1116).
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 const run = (body: string) => {
   const ctx = makeRuntimeStoryFromSource(
-    `Value {f()}.\nfunction f()\n${body
+    `function f()\n${body
       .split("\n")
       .map((line) => `  ${line}`)
-      .join("\n")}\nend\n`,
+      .join("\n")}\nend\nscene start\n  Value {f()}.\nend\n`,
   );
   return { errors: ctx.errorMessages, output: ctx.story.ContinueMaximally() };
 };
@@ -45,9 +41,6 @@ describe("a local's value list", () => {
     expect(run(body)).toEqual({ errors: [], output: expected });
   });
 
-  // Shapes whose names and values are told apart by their shape alone: a
-  // name first, a same-line statement, a bare list, and typed names whose
-  // types hold strings, brackets or comments.
   test.each([
     ["a name first", "local x = 5\nlocal a, b = x, 1\nreturn a + b", "Value 6.\n"],
     ["a name in a later statement on the line", "local x = 5\nlocal a, b = 1, x return b", "Value 5.\n"],
@@ -74,9 +67,6 @@ describe("a local's value list", () => {
     expect(run(body)).toEqual({ errors: [], output: expected });
   });
 
-  // A target's own `=` is the one directly after its name and type, never an
-  // `=` inside its type: the `k = 1` in `typeof({ k = 1 })` must neither
-  // count as the declaration's `=` nor supply its value.
   test.each([
     ["a later typed name after a table type", "local a: typeof({ k = 1 }), b: number = { k = 1 }, 2\nreturn b", "Value 2.\n"],
     ["the only name's value past its table type", "local b: typeof({ k = 1 }) = 7\nreturn b", "Value 7.\n"],
@@ -86,8 +76,6 @@ describe("a local's value list", () => {
     expect(run(body)).toEqual({ errors: [], output: expected });
   });
 
-  // A closure captures the names it reads from the enclosing function. A
-  // name in a value list is one of them, not a local of the closure.
   test.each([
     ["a local function", "local x = 5\nlocal function inner()\n  local a, b = 1, x\n  return b\nend\nreturn inner()", "Value 5.\n"],
     ["an anonymous function", "local x = 5\nlocal inner = function()\n  local a, b = 1, x\n  return b\nend\nreturn inner()", "Value 5.\n"],
@@ -97,28 +85,28 @@ describe("a local's value list", () => {
   });
 
   test("a store reads its value past its table type", () => {
-    const ctx = makeRuntimeStoryFromSource("store S: typeof({ k = 1 }) = 9\nValue {S}.\n");
+    const ctx = makeRuntimeStoryFromSource("store S: typeof({ k = 1 }) = 9\nscene start\n  Value {S}.\nend\n");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 9.\n");
   });
 
   test("a store takes later booleans as values", () => {
     const ctx = makeRuntimeStoryFromSource(
-      "store a, b, c = 1, true, false\nValue {a} {b} {c}.\n",
+      "store a, b, c = 1, true, false\nscene start\n  Value {a} {b} {c}.\nend\n",
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 1 true false.\n");
   });
 
   test("a store takes a later constant as a value", () => {
-    const ctx = makeRuntimeStoryFromSource("const K = 3\nstore a, b = 1, K\nValue {a} {b}.\n");
+    const ctx = makeRuntimeStoryFromSource("const K = 3\nstore a, b = 1, K\nscene start\n  Value {a} {b}.\nend\n");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 1 3.\n");
   });
 
   test("a local outside a function takes a later name as a value", () => {
     const ctx = makeRuntimeStoryFromSource(
-      "-> start\nscene start\n  local x = 5\n  local a, b = 1, x\n  Value {b}.\nend\n",
+      "scene start\n  local x = 5\n  local a, b = 1, x\n  Value {b}.\nend\n",
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
@@ -126,7 +114,7 @@ describe("a local's value list", () => {
 
   test("a store still reads a typed name after a string-typed name", () => {
     const ctx = makeRuntimeStoryFromSource(
-      'store a: "p" | "q", b: number = "p", 5\nValue {a} {b}.\n',
+      'store a: "p" | "q", b: number = "p", 5\nscene start\n  Value {a} {b}.\nend\n',
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value p 5.\n");

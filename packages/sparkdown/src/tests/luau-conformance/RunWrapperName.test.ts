@@ -1,9 +1,3 @@
-// I-1266: the wrapper function a `run` statement calls keeps its identity
-// name (`__run_` and the file's document tag), but an author reads it by
-// the file's name: the compiler records which symbols are run wrappers and
-// the file each wraps, and the presentation reads that record, never the
-// label's text.
-
 import { describe, expect, test } from "vitest";
 import {
   TestProgramStory,
@@ -48,9 +42,6 @@ function compileWithFiles(files: File[], uriPathsAsWritten = false) {
   return { compiler, result, errs };
 }
 
-/** What a story reports while a `run` file's body calls `harness_probe`:
- *  what the body recorded, and at the probe, each call frame's name
- *  (`CallFramePath`), the debugger's frame names and the stack trace. */
 function probe(files: File[], uriPathsAsWritten = false) {
   const { result, errs } = compileWithFiles(files, uriPathsAsWritten);
   expect(errs).toEqual([]);
@@ -77,8 +68,6 @@ function probe(files: File[], uriPathsAsWritten = false) {
 
 const EXTERNALS = "external harness_record(v)\nexternal harness_probe()\n";
 
-/** The body every run file below has: what `debug.info` names its own
- *  function, the traceback it prints, then the probe. */
 const BODY = `harness_record(debug.info(1, "n"))\nharness_record(debug.traceback())\nharness_probe()\n`;
 
 describe("a run file's wrapper is shown by the file's name (I-1266)", () => {
@@ -88,7 +77,7 @@ describe("a run file's wrapper is shown by the file's name (I-1266)", () => {
     { spelling: "a quoted path without its extension", line: 'run "helper"' },
   ])("shows helper.luau as helper when run by $spelling", ({ line }) => {
     const { recorded, paths, frames, traces } = probe([
-      { uri: "file:///C:/proj/main.sd", text: `${EXTERNALS}${line}\ndone\n` },
+      { uri: "file:///C:/proj/main.sd", text: `${EXTERNALS}scene start\n  ${line}\n  done\nend\n` },
       { uri: "file:///C:/proj/helper.luau", text: BODY },
     ]);
     expect(recorded[0]).toBe("helper");
@@ -106,7 +95,7 @@ describe("a run file's wrapper is shown by the file's name (I-1266)", () => {
     const { recorded, paths, frames } = probe([
       {
         uri: "file:///C:/proj/main.sd",
-        text: `${EXTERNALS}run "my helper"\ndone\n`,
+        text: `${EXTERNALS}scene start\n  run "my helper"\n  done\nend\n`,
       },
       { uri: "file:///C:/proj/my%20helper.luau", text: BODY },
     ]);
@@ -119,7 +108,7 @@ describe("a run file's wrapper is shown by the file's name (I-1266)", () => {
     const { recorded, paths, frames, traces } = probe([
       {
         uri: "file:///C:/proj/main.sd",
-        text: `${EXTERNALS}run "a/helper"\nrun "b dir/helper"\ndone\n`,
+        text: `${EXTERNALS}scene start\n  run "a/helper"\n  run "b dir/helper"\n  done\nend\n`,
       },
       { uri: "file:///C:/proj/a/helper.luau", text: BODY },
       { uri: "file:///C:/proj/b%20dir/helper.luau", text: BODY },
@@ -134,14 +123,11 @@ describe("a run file's wrapper is shown by the file's name (I-1266)", () => {
     expect(traces[1]).toContain("<SOMEWHERE IN b dir/helper>");
   });
 
-  // The record is the compile's: an incremental compile that adds a second
-  // file of the name shows both by their paths, and one that removes it
-  // shows the first by its name again.
   test("names the files anew when an incremental compile adds or removes a file of one name", () => {
     const mainWith = (lines: string) =>
-      `external harness_record(v)\n${lines}done\n`;
+      `external harness_record(v)\nscene start\n${lines}  done\nend\n`;
     const files = [
-      { uri: "file:///C:/proj/main.sd", text: mainWith('run "a/helper"\n') },
+      { uri: "file:///C:/proj/main.sd", text: mainWith('  run "a/helper"\n') },
       {
         uri: "file:///C:/proj/a/helper.luau",
         text: `harness_record(debug.info(1, "n"))\n`,
@@ -175,22 +161,22 @@ describe("a run file's wrapper is shown by the file's name (I-1266)", () => {
           .program.chunks,
       );
     };
-    expect(recompile(mainWith('run "a/helper"\nrun "b/helper"\n'))).toEqual([
+    expect(recompile(mainWith('  run "a/helper"\n  run "b/helper"\n'))).toEqual([
       "a/helper",
       "b/helper",
     ]);
-    expect(recompile(mainWith('run "b/helper"\n'))).toEqual(["helper"]);
+    expect(recompile(mainWith('  run "b/helper"\n'))).toEqual(["helper"]);
   });
 
-  // A function value of the wrapper prints by the file's name, also after
-  // the state it is held in was saved and loaded.
   test("prints the wrapper's function value by the file's name, before and after a save", () => {
     const wrapper = "__run_file_3a_2f_2f_2fC_3a_2fproj_2fhelper_2eluau__";
-    const main = `${EXTERNALS}run hold
-First line.
-run show
-run helper
-done
+    const main = `${EXTERNALS}scene start
+  run hold
+  First line.
+  run show
+  run helper
+  done
+end
 `;
     const { result, errs } = compileWithFiles([
       { uri: "file:///C:/proj/main.sd", text: main },
@@ -227,8 +213,6 @@ done
     expect(after).toEqual(["function: helper", 1]);
   });
 
-  // A function the file defines is held by the wrapper, whose part of its
-  // path is shown by the file's name as well.
   test.each([
     {
       shape: "a local function",
@@ -252,7 +236,7 @@ done
       const { recorded, paths, frames, traces } = probe([
         {
           uri: "file:///C:/proj/main.sd",
-          text: `${EXTERNALS}run "my helper"\ndone\n`,
+          text: `${EXTERNALS}scene start\n  run "my helper"\n  done\nend\n`,
         },
         {
           uri: "file:///C:/proj/my%20helper.luau",
@@ -266,9 +250,6 @@ done
     },
   );
 
-  // Only where a function is defined says that it is the file's: an
-  // author's function spelled like the wrapper, inside another function or
-  // at the top level, keeps its name (round 1, comment 6354742003).
   test.each([
     {
       shape: "inside an author's function",
@@ -290,7 +271,7 @@ done
       const { recorded, paths } = probe([
         {
           uri: "file:///C:/proj/main.sd",
-          text: `${EXTERNALS}run helper\nrun shadow\ndone\n`,
+          text: `${EXTERNALS}scene start\n  run helper\n  run shadow\n  done\nend\n`,
         },
         { uri: "file:///C:/proj/helper.luau", text: `harness_record(1)\n` },
         {
@@ -305,8 +286,6 @@ done
     },
   );
 
-  // A host that writes each path as it is (the web editor) has a file of
-  // that very name, which is shown as it is (`projectPath`).
   test.each([
     {
       host: "a host that encodes its URIs",
@@ -325,7 +304,7 @@ done
         [
           {
             uri: "file:///C:/proj/main.sd",
-            text: `${EXTERNALS}run "${asWritten ? "my%20helper" : "my helper"}"\ndone\n`,
+            text: `${EXTERNALS}scene start\n  run "${asWritten ? "my%20helper" : "my helper"}"\n  done\nend\n`,
           },
           { uri: "file:///C:/proj/my%20helper.luau", text: BODY },
         ],
@@ -336,18 +315,14 @@ done
     },
   );
 
-  // A function value is named by the program that runs it: a value made
-  // while `a/helper` was the only `helper`, carried into a program that also
-  // runs `b/helper`, prints as `a/helper`, after an execution image's
-  // restore or a state's `LoadJson` alike.
   test.each(["an execution image", "the state's JSON"])(
     "prints a carried wrapper value by the running program's name after restoring %s",
     (carrier) => {
       const wrapper = "__run_file_3a_2f_2f_2fC_3a_2fproj_2fa_2fhelper_2eluau__";
       const mainWith = (runs: string) =>
-        `${EXTERNALS}run hold\nFirst line.\nrun show\n${runs}done\n`;
+        `${EXTERNALS}scene start\n  run hold\n  First line.\n  run show\n${runs}  done\nend\n`;
       const files = [
-        { uri: "file:///C:/proj/main.sd", text: mainWith('run "a/helper"\n') },
+        { uri: "file:///C:/proj/main.sd", text: mainWith('  run "a/helper"\n') },
         { uri: "file:///C:/proj/hold.luau", text: `held = ${wrapper}\n` },
         {
           uri: "file:///C:/proj/show.luau",
@@ -382,7 +357,7 @@ done
         contentChanges: [
           {
             text: withTestExternals(
-              mainWith('run "a/helper"\nrun "b/helper"\n'),
+              mainWith('  run "a/helper"\n  run "b/helper"\n'),
             ),
           },
         ],
@@ -391,8 +366,6 @@ done
         textDocument: { uri: "file:///C:/proj/main.sd" },
       });
       const after: unknown[] = [];
-      // The next program's engine shares the first's images, as a game's
-      // engine after an edit does.
       const second = new TestProgramStory(next.program.chunks!, {
         images: first.images,
       });
@@ -411,7 +384,7 @@ done
     const { recorded, paths } = probe([
       {
         uri: "file:///C:/proj/main.sd",
-        text: `${EXTERNALS}run "my.helper.luau"\ndone\n`,
+        text: `${EXTERNALS}scene start\n  run "my.helper.luau"\n  done\nend\n`,
       },
       { uri: "file:///C:/proj/my.helper.luau", text: BODY },
     ]);
@@ -420,10 +393,12 @@ done
   });
 
   test("never renames an author's function named like a wrapper", () => {
-    const main = `${EXTERNALS}run helper
-& __run_helper__()
-& __run__uffffff__()
-done
+    const main = `${EXTERNALS}scene start
+  run helper
+  & __run_helper__()
+  & __run__uffffff__()
+  done
+end
 function __run_helper__()
   harness_record(debug.info(1, "n"))
 end
@@ -441,11 +416,7 @@ end
     expect(recorded).toEqual(["helper", "__run_helper__", "__run__uffffff__"]);
   });
 
-  // A function value's key in a table is its identity, not the name it is
-  // shown by: the wrapper, shown as `helper`, and the author's `helper` are
-  // two keys, as two author functions named like a wrapper are.
   test("keeps a wrapper and an author function of the shown name apart as table keys", () => {
-    // The wrapper's identity name, which a script can write.
     const wrapper = "__run_file_3a_2f_2f_2fC_3a_2fproj_2fhelper_2eluau__";
     const keys = `local t = {}
 t[__run_helper__] = 1
@@ -462,9 +433,11 @@ harness_record(t[__run_helper])
 harness_record(t[helper])
 harness_record(t[${wrapper}])
 `;
-    const main = `${EXTERNALS}run keys
-run helper
-done
+    const main = `${EXTERNALS}scene start
+  run keys
+  run helper
+  done
+end
 function helper()
   return 0
 end

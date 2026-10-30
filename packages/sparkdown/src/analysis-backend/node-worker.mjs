@@ -17,5 +17,4 @@ async function initialize() {
   const { default: factory } = await import(new URL("backend.js", base).href);
   return factory({ wasmBinary, print() {}, printErr() {} });
 }
-// Parent serializes requests; callbacks cannot race one native frontend.
 parentPort.on("message", async message => parentPort.postMessage(await handleAnalysisRequest(message, initialize)));

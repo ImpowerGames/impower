@@ -1,10 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// Luau reads an expression list after `return` unless the next token ends
-// the block (`end`, `else`, `elseif`, `until`, end of file) or is `;`, so a
-// value that starts on the line after `return` is the value returned.
-
 function expectRuns(source: string) {
   const r = runConformanceSource(source);
   expect(r.errorMessages).toEqual([]);

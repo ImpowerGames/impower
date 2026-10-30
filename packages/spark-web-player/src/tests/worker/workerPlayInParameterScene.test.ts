@@ -5,7 +5,9 @@ import { RouteSearchLog } from "../../main/workers/RouteSearchLog";
 import { searchRouteFor } from "../../main/workers/searchRouteTo";
 import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarness";
 
-const ONE = `-> s(10)
+const ONE = `scene start
+  -> s(10)
+end
 
 scene s(a)
   First {a}.
@@ -14,7 +16,9 @@ end
 `;
 
 const TWO = `store keep = function() return 0 end
--> s(10, 0)
+scene start
+  -> s(10, 0)
+end
 
 scene s(a, b)
   & keep = function() return a end
@@ -23,7 +27,9 @@ scene s(a, b)
 end
 `;
 
-const UNREACHED = `Top.
+const UNREACHED = `scene start
+  Top.
+end
 
 scene s(a)
   First {a}.
@@ -83,11 +89,11 @@ const previewAt = async (source: string, line: number) => {
 
 describe("PLAY inside a scene a divert enters with arguments", () => {
   it.each([
-    ["the divert", ONE, 0, "First 10."],
-    ["the scene's first line", ONE, 3, "First 10."],
-    ["the scene's second line", ONE, 4, "Second 10."],
-    ["a line that reads two parameters", TWO, 5, "First 10 10."],
-    ["the next line that reads them", TWO, 6, "Second 10 10."],
+    ["the divert", ONE, 1, "First 10."],
+    ["the scene's first line", ONE, 5, "First 10."],
+    ["the scene's second line", ONE, 6, "Second 10."],
+    ["a line that reads two parameters", TWO, 7, "First 10 10."],
+    ["the next line that reads them", TWO, 8, "Second 10 10."],
   ])("from %s, runs with the divert's arguments", async (_name, source, line, shown) => {
     const outcome = await playFrom(source, line);
     expect(outcome.started).toBe(true);
@@ -100,7 +106,7 @@ describe("PLAY inside a scene a divert enters with arguments", () => {
   }, 120_000);
 
   it("from a scene no run reaches, binds nil and still saves", async () => {
-    const outcome = await playFrom(UNREACHED, 3);
+    const outcome = await playFrom(UNREACHED, 5);
     expect(outcome.started).toBe(true);
     expect(outcome.state).toBe("running");
     expect(outcome.text).toContain("First nil.");
@@ -111,9 +117,9 @@ describe("PLAY inside a scene a divert enters with arguments", () => {
 
 describe("the preview inside a scene a divert enters with arguments", () => {
   it.each([
-    [ONE, 3, "First 10."],
-    [ONE, 4, "Second 10."],
-    [TWO, 5, "First 10 10."],
+    [ONE, 5, "First 10."],
+    [ONE, 6, "Second 10."],
+    [TWO, 7, "First 10 10."],
   ])("at line %#, shows the divert's arguments", async (source, line, shown) => {
     const text = await previewAt(source, line);
     expect(text).toContain(shown);
@@ -123,22 +129,22 @@ describe("the preview inside a scene a divert enters with arguments", () => {
   it("after an edit adds the divert that enters the scene, shows its arguments", async () => {
     const h = await createPlayerHarness({
       files: [{ uri: MAIN_URI, text: UNREACHED.replace("First {a}.", "First {a}.\n  Second {a}.") }],
-      startFrom: { file: MAIN_URI, line: 4 },
+      startFrom: { file: MAIN_URI, line: 6 },
     });
     try {
       await h.compile();
-      await h.select(4);
+      await h.select(6);
       await settle(40);
       expect(writtenText(h.toRouter)).toContain("Second nil.");
       const sentBefore = h.toRouter.length;
       await h.edit([
         {
-          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 4 } },
+          range: { start: { line: 1, character: 2 }, end: { line: 1, character: 6 } },
           text: "-> s(10)",
         },
       ]);
       await h.compile();
-      await h.select(4);
+      await h.select(6);
       await settle(40);
       expect(writtenText(h.toRouter.slice(sentBefore))).toContain("Second 10.");
     } finally {
@@ -147,8 +153,10 @@ describe("the preview inside a scene a divert enters with arguments", () => {
   }, 120_000);
 });
 
-const DEEP = `${Array.from({ length: 40 }, (_, i) => `Top ${i}.`).join("\n")}
--> s(10)
+const DEEP = `scene start
+${Array.from({ length: 40 }, (_, i) => `  Top ${i}.`).join("\n")}
+  -> s(10)
+end
 
 scene s(a)
   Target {a}.
@@ -195,7 +203,7 @@ const limitStartSearch = () => {
 
 describe("the route to a line inside a scene that takes parameters", () => {
   it("is not the scene's own route when the search from the start is cut short", () => {
-    const { game, to } = gameAt(DEEP, 43);
+    const { game, to } = gameAt(DEEP, 45);
     const spy = limitStartSearch();
     try {
       game.simulate();
@@ -205,7 +213,7 @@ describe("the route to a line inside a scene that takes parameters", () => {
       spy.mockRestore();
     }
     const log = new RouteSearchLog();
-    const worker = gameAt(DEEP, 43).game;
+    const worker = gameAt(DEEP, 45).game;
     const limited = limitStartSearch();
     try {
       searchRouteFor(worker, to, log, {});
@@ -217,7 +225,7 @@ describe("the route to a line inside a scene that takes parameters", () => {
   }, 120_000);
 
   it("is replayed from the story's start after a compile that changes nothing", () => {
-    const { compiler, game, to } = gameAt(DEEP, 43);
+    const { compiler, game, to } = gameAt(DEEP, 45);
     const log = new RouteSearchLog();
     searchRouteFor(game, to, log, {});
     expect(log.outcomeFor(to)?.reachedTarget).toBe(true);

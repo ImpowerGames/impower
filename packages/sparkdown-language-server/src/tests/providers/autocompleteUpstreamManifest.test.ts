@@ -3,12 +3,6 @@ import { describe, expect, test } from "vitest";
 import { BUG } from "./autocompleteBugs";
 import { UPSTREAM_CASES, UPSTREAM_COMMIT } from "./autocompleteUpstreamCases";
 
-// Holds the port to its manifest: every upstream case is accounted for, every
-// ported or adapted case has at least one test, the tests name no case the
-// manifest does not list as tested, every skipped case names its Bugs from
-// the Bug map, and the manifest's upstream commit is the one the vendored
-// Luau suite is pinned to.
-
 const DIRECTORY = new URL(".", import.meta.url);
 
 const suiteFiles = readdirSync(DIRECTORY).filter((name) =>
@@ -21,7 +15,6 @@ const sources = suiteFiles.map((file) => ({
 
 const CASE_CALL =
   /upstreamCase(?:\.bug\(\s*(?:[\w.]+|\[[^\]]*\])\s*,|\()\s*"([^"]+)"/g;
-// The first argument of every skipped registration: one Bug or a list.
 const BUG_CALL = /(?:upstreamCase\.bug|sparkdownBug)\(\s*(\[[^\]]*\]|[^,]+),/g;
 
 const testedCases = new Map<string, string[]>();

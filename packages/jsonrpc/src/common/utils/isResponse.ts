@@ -18,7 +18,5 @@ export const isResponse = <M extends string = string, R = unknown>(
     return false;
   if ("result" in obj && obj.result !== undefined)
     return !("error" in obj) || obj.error === undefined;
-  // Classify the envelope, as with an unchecked result payload. Relays must
-  // deliver peer failures even when their error payload needs normalization.
   return "error" in obj && obj.error !== undefined;
 };

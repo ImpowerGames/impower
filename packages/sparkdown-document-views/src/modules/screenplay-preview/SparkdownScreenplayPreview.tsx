@@ -30,10 +30,6 @@ export default function SparkdownScreenplayPreview({
       ({ ScreenplayPreviewController }) => {
         if (cancelled) return;
 
-        // Host = the <sparkdown-screenplay-preview> custom-element ancestor
-        // when used via the element wrapper (vscode-sparkdown), else the
-        // component's own root element when rendered directly as a Preact
-        // component (impower-dev).
         const realHost =
           (root.closest(
             "sparkdown-screenplay-preview",

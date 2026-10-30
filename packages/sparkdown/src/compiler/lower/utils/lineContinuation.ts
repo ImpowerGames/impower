@@ -35,27 +35,8 @@ import {
 import type { LuauSyntaxError } from "../../typecheck/readLuauAst";
 import { enclosingNode, offsetAt, type LuauSource } from "./luauAst";
 
-// A `LuauLineContinuation` is a line of Luau code that begins with `.name`,
-// `:name`, a binary operator or a cast's `::` and so continues the expression
-// on the line before it (`t` then `.a` reads as `t.a`). In a statement body a
-// line that begins with `-` does too (`LuauMinusLineContinuation`), since no
-// statement begins with `-`, and outside a table a line that begins with `[`
-// indexes it (`LuauIndexerLineContinuation`). The grammar cannot nest these
-// in the expression, which has already closed at its own line's end, so each
-// is a sibling of the statement that line ended.
-//
-// The converter reads a block's statements across these lines as Luau does,
-// and records the nodes each statement was read from (`lowerStatements`). A
-// line that no statement before it takes is reported here, as the line it
-// continues does not end in a value it can continue.
-
 export { isLineContinuation };
 
-// The lines at the start of a function body that qualify the name its return
-// type ends with (`function f(): types` then `.Button`), with that return
-// type. A return type takes in the line break after it, so the body opens at
-// the next line and those lines are its first children rather than siblings
-// of a statement. Null when the body does not start with such lines.
 export function leadingReturnTypeQualifier(
   bodyContent: SyntaxNode,
 ): { returnType: SyntaxNode; lines: SyntaxNode[] } | null {
@@ -85,12 +66,6 @@ export function leadingReturnTypeQualifier(
   return { returnType, lines };
 }
 
-// Whether the function body `bodyContent` begins, at its child `first`, with
-// union or intersection member lines that continue its return type
-// (`function f(): A` then `& B`). They are part of the type, which the body's
-// own children do not hold, so the body is read as the rest of a type
-// (`readBlockAst`'s `afterType`): read alone, an `&` line would read as a
-// statement that cannot begin with `&`.
 export function startsWithReturnTypeMembers(
   bodyContent: SyntaxNode,
   first: SyntaxNode | null,
@@ -106,10 +81,6 @@ export function startsWithReturnTypeMembers(
   return returnType && scan?.name === "LuauTypeOperatorLineContinuation";
 }
 
-// The `= value` that ends the union or intersection member lines after the
-// declaration `node`, across blank and comment lines, which the declaration
-// ended before (`local v: number` then `-- note` then `| string = 1`, or
-// `local v: A` then `& B = 1`).
 export function typeOperatorLineValue(node: SyntaxNode): SyntaxNode | null {
   if (!endsInTypeAnnotation(node)) return null;
   let value: SyntaxNode | null = null;
@@ -123,10 +94,6 @@ export function typeOperatorLineValue(node: SyntaxNode): SyntaxNode | null {
   return value;
 }
 
-// Whether the declaration `node` ends in its last target's type annotation,
-// with no value after it (`local v: number`). Member lines follow only a
-// declaration in Luau code: a story declaration ends at its line, so a `|`
-// or `&` line after it is story (#1907).
 function endsInTypeAnnotation(node: SyntaxNode): boolean {
   if (!isExplicitRuleName(node.name, "LuauVariableDefinition")) {
     return false;
@@ -144,11 +111,6 @@ function endsInTypeAnnotation(node: SyntaxNode): boolean {
   );
 }
 
-// Whether the union or intersection member line `line` (a
-// `LuauTypeOperatorLineContinuation`) continues a type: the nearest node
-// before it, across blank and comment lines, is a declaration that ends in
-// its type, a type alias, an annotated parameter, or another such line with
-// no value; or it starts a function body after the function's return type.
 export function hasTypeOperatorLineOwner(line: SyntaxNode): boolean {
   let prev = line.prevSibling;
   while (prev && SKIPPABLE.has(prev.name)) prev = prev.prevSibling;
@@ -170,15 +132,10 @@ export function hasTypeOperatorLineOwner(line: SyntaxNode): boolean {
   );
 }
 
-// Whether the member line `line` begins with an intersection's `&`
-// (`& { y: string }`), rather than a union's `|`.
 export function continuesIntersection(line: SyntaxNode): boolean {
   return hasDescendant(line, "LuauTypeIntersectionLineOperator");
 }
 
-// Report a union member line that continues no type (`print(1)` then
-// `-- note` then `| string`), which Luau rejects. An intersection member
-// line that continues no type is left to Luau, which reports the `&` itself.
 export function reportUnownedTypeOperatorLine(line: SyntaxNode, ctx: LowerContext): void {
   const raw = ctx.read(line.from, line.to);
   const text = raw.trim();
@@ -197,17 +154,6 @@ export function reportUnownedTypeOperatorLine(line: SyntaxNode, ctx: LowerContex
   });
 }
 
-/**
- * Reports a continuation line that no statement before it took: one after
- * a statement that does not end in a value (`end`, a bare `return`), with
- * no statement before it in its block, or after a type that cannot take it.
- * `previous` is the statement before it, which the converter read. A line
- * of `.Name` parts after a type name with a module prefix already
- * (`local x: types.ui` then `.Button`) gives the name a second prefix,
- * which Luau does not read; one after a cast that cannot take it (`t ::
- * { x: number }` then `.a`) is the cast's value accessed, which needs the
- * cast in parentheses.
- */
 export function reportUntakenContinuation(
   line: SyntaxNode,
   previous: AstStat | undefined,
@@ -235,14 +181,6 @@ export function reportUntakenContinuation(
   reportUntakenLineContinuation([line], ctx);
 }
 
-/**
- * Whether the continuation line `line`, which the converter read as part of
- * the statement before it, continues that statement in vain: the reading
- * fails at the line's first token, since the line before it does not end in
- * a value (a bare `return` then `.a`, `tostring(` then `.a)`). After a comma
- * the value is missing from the list, which the statement's own validators
- * report at the comma (`local a, g = 1,` then `.x`).
- */
 export function continuesInVain(
   line: SyntaxNode,
   errors: readonly LuauSyntaxError[],
@@ -256,20 +194,11 @@ export function continuesInVain(
   return previousTokenText(line, ctx) !== ",";
 }
 
-/**
- * Reports a continuation line inside a value's parentheses, braces or call
- * arguments (`tostring(` then `.a)`, `{` then `.a }`) that begins where a
- * value should, as the converter found reading `expr` there: the line
- * continues nothing. A line in a block is reported by the block
- * (`lowerStatements`).
- */
 export function reportValueInVain(
   expr: AstExpr,
   source: LuauSource,
   ctx: LowerContext,
 ): void {
-  // Luau reads on past the missing value, so the line's own links hang on
-  // the error (`.a` is the error indexed by `a`).
   let first = expr;
   for (;;) {
     if (first instanceof AstExprIndexName || first instanceof AstExprIndexExpr) {
@@ -293,8 +222,6 @@ export function reportValueInVain(
   reportUntakenLineContinuation([line], ctx);
 }
 
-// The last character of the token before `node`, past whitespace and
-// comments, or null at the document's start.
 function previousTokenText(node: SyntaxNode, ctx: LowerContext): string | null {
   const leaf = previousTokenLeaf(node, ctx);
   return leaf && lastCharacter(leaf, ctx);
@@ -310,10 +237,6 @@ function previousTokenLeaf(node: SyntaxNode, ctx: LowerContext): SyntaxNode | nu
   return null;
 }
 
-/**
- * Whether `node` begins a line after a line that ends with a comma, where a
- * statement is left to the enclosing block (`commaBeforeStatement`).
- */
 export function followsLineEndingComma(node: SyntaxNode, ctx: LowerContext): boolean {
   const leaf = previousTokenLeaf(node, ctx);
   return (
@@ -323,8 +246,6 @@ export function followsLineEndingComma(node: SyntaxNode, ctx: LowerContext): boo
   );
 }
 
-// The last leaf under `node` that holds a token, past whitespace and
-// comments.
 function lastTokenLeaf(node: SyntaxNode, ctx: LowerContext): SyntaxNode | null {
   if (SKIPPABLE.has(node.name) || node.from === node.to) return null;
   if (!node.firstChild) return lastCharacter(node, ctx) ? node : null;
@@ -340,9 +261,6 @@ function lastCharacter(leaf: SyntaxNode, ctx: LowerContext): string | null {
   return text ? text[text.length - 1]! : null;
 }
 
-// The statements `LuauDeclarations` reaches besides the trailing ones, and
-// the blocks and loops `LuauControlBlock` does (matched by their suffix).
-// `statementBoundary.test.ts` holds this classification to the grammar.
 const DECLARATION_STATEMENTS = nodeNameSet([
   "LuauFunctionTypeDeclaration",
   "LuauDataTypeDeclaration",
@@ -355,13 +273,10 @@ const DECLARATION_STATEMENTS = nodeNameSet([
   "LuauAnimation",
   "LuauTheme",
   "LuauMorph",
-  // The rest of a `repeat` statement, after the `until` its loop took.
   "LuauUntilCondition",
   "LuauStrayUntilStatement",
 ]);
 
-// Whether `name` is a node that starts a statement in a block, or a `;`
-// that ends one, so no value can begin with it.
 export function isStatementNodeName(name: string): boolean {
   return (
     name === "LuauSemicolonSeparator" ||
@@ -371,17 +286,6 @@ export function isStatementNodeName(name: string): boolean {
   );
 }
 
-/**
- * The comma left without a value by a statement on the line after it, among
- * a declaration's or a reassignment's last list item and the nodes the
- * statement continues into (`nodes`, in order), or null. Luau reads a word
- * that begins some of Sparkdown's statements as a name (`continue`, `goto`,
- * `type`, `export`), and a named function's `function` as the start of a
- * value, so the converter continues the list into that line. Sparkdown's
- * grammar reads the line as a statement of the enclosing block, and reports
- * the comma before it as Luau reports one before `end`. An assignment or a
- * declaration on that line is left to its own reports (a second `=`).
- */
 export function commaBeforeStatement(
   nodes: readonly (SyntaxNode | null | undefined)[],
   ctx: LowerContext,
@@ -396,8 +300,6 @@ export function commaBeforeStatement(
   return null;
 }
 
-// Whether `node`, the first node of a line after a comma, is a statement
-// Luau reads as part of the list: an anonymous function is a value.
 function startsStatement(node: SyntaxNode): boolean {
   if (node.name === "LuauFunctionDefinition") {
     return findOwnDeclarationName(node) != null;
@@ -409,9 +311,6 @@ function startsStatement(node: SyntaxNode): boolean {
   );
 }
 
-// The type a statement ends with, when it ends with one: a type alias's,
-// the annotation of the last name a declaration with no value declares, or
-// the type a cast at the end of its last value casts to.
 function trailingType(stat: AstStat | undefined): AstType | undefined {
   const inner = stat instanceof AstStatSparkdownExplicit ? stat.statement : stat;
   if (inner instanceof AstStatTypeAlias) return inner.type;
@@ -424,7 +323,6 @@ function trailingType(stat: AstStat | undefined): AstType | undefined {
   return trailingCast(stat)?.annotation;
 }
 
-// The cast a statement's last value ends with (`t :: T`, `1 + t :: T`).
 function trailingCast(stat: AstStat | undefined): AstExprTypeAssertion | undefined {
   const inner = stat instanceof AstStatSparkdownExplicit ? stat.statement : stat;
   let value: AstExpr | undefined;
@@ -446,8 +344,6 @@ function trailingCast(stat: AstStat | undefined): AstExprTypeAssertion | undefin
   return undefined;
 }
 
-// How many dot-separated segments a type name has (`types.Button` has two),
-// or 0 when the type is not a name a `.Name` line could qualify.
 function astTypeNameSegments(type: AstType): number {
   if (type instanceof AstTypeReference && !type.hasParameterList) {
     return type.prefix ? 2 : 1;
@@ -455,9 +351,6 @@ function astTypeNameSegments(type: AstType): number {
   return 0;
 }
 
-// Report continuation lines, or the access parts of one, that nothing on
-// the line before them takes. `advice` replaces the default advice, to join
-// the line to its value.
 export function reportUntakenLineContinuation(
   nodes: SyntaxNode[],
   ctx: LowerContext,
@@ -486,8 +379,6 @@ export function reportUntakenLineContinuation(
   }
 }
 
-// Whether `nodes` are continuation lines that only qualify a type name
-// (`types` then `.Button`), which Luau reads as one qualified type.
 export function isTypeQualifierContinuation(nodes: SyntaxNode[]): boolean {
   let lines = 0;
   for (const node of nodes) {
@@ -507,16 +398,9 @@ export function isTypeQualifierContinuation(nodes: SyntaxNode[]): boolean {
   return lines > 0;
 }
 
-// Luau reads at most one module prefix in a type name (`module.Type`).
 export const TYPE_NAME_EXTRA_QUALIFIER =
   "A type name takes at most one module prefix\n> e.g. `types.Button`, not `types.ui.Button`";
 
-// How many dot-separated segments the type name that the type syntax in
-// `node` ends with has, leaving out any comment and whitespace after it, or 0
-// when it does not end in a name, so that a `.Name` continuation can qualify
-// it (`types` then `.Button`, but not `{ x: number }` then `.b`). A module
-// named like a primitive (`string` then `.Button`) reads as a
-// `LuauPrimitiveType` until its qualifier is on the same line.
 export function typeNameSegments(node: SyntaxNode): number {
   for (let n = lastSignificantLeaf(node); n && n !== node; n = n.parent) {
     if (n.name === "LuauTypeNameExtraQualifier" || isExplicitRuleName(n.name, "LuauTypeNameExtraQualifierContinuation")) return 3;
@@ -546,8 +430,6 @@ export function endsInTypeName(node: SyntaxNode): boolean {
   return typeNameSegments(node) > 0;
 }
 
-// The access parts of `nodes`: those of each continuation line, and any
-// access part already expanded from one.
 export function continuationParts(nodes: SyntaxNode[]): SyntaxNode[] {
   const parts: SyntaxNode[] = [];
   for (const node of nodes) {
@@ -560,9 +442,6 @@ export function continuationParts(nodes: SyntaxNode[]): SyntaxNode[] {
   return parts;
 }
 
-// Report the continued `parts` that give the type name `typeNode` ends with
-// more than one module prefix (`types.ui` then `.Button`), as the same name
-// written on one line is reported.
 export function reportExtraTypeQualifiers(
   typeNode: SyntaxNode,
   parts: SyntaxNode[],
@@ -571,8 +450,6 @@ export function reportExtraTypeQualifiers(
   reportExtraQualifiers(typeNameSegments(typeNode), parts, ctx);
 }
 
-// Report the `parts` that continue a type name of `segments` segments past
-// its one module prefix.
 function reportExtraQualifiers(
   segments: number,
   parts: SyntaxNode[],

@@ -8,7 +8,7 @@ const MAIN = "file:///local/main.sd";
 const SCRIPT = [
   "store n = 0",
   "",
-  "-> start",
+  "",
   "",
   "scene start",
   ...Array.from({ length: 10 }, (_, i) => `  Line number ${i} here.`),
@@ -19,7 +19,7 @@ const SCRIPT = [
 const DECISIONS = [
   "store key = false",
   "",
-  "-> start",
+  "",
   "",
   "scene start",
   "  You approach the door.",

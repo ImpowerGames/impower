@@ -48,7 +48,7 @@ const newGame = (program: unknown) =>
   } as any);
 
 function longScene(beats: number): string {
-  const lines = ["-> start", "", "scene start"];
+  const lines = ["", "", "scene start"];
   for (let i = 0; i < beats; i += 1) {
     lines.push(`  Beat number ${i} of the long scene.`);
   }
@@ -154,7 +154,7 @@ describe("a budget of N permits N, not N minus one", () => {
 });
 
 describe("a story that never terminates still gives up", () => {
-  const DIVERT_LOOP = `-> start
+  const DIVERT_LOOP = `
 
 scene start
   Going round.
@@ -162,7 +162,7 @@ scene start
 end
 `;
 
-  const CHOICE_LOOP = `-> start
+  const CHOICE_LOOP = `
 
 scene start
   Before the loop.
@@ -202,7 +202,7 @@ end
 describe("a position already expanded is not expanded again", () => {
   const BRANCH_IN_LOOP = `store flag = false
 
--> start
+
 
 scene start
   Opening beat.
@@ -215,7 +215,7 @@ scene start
 end
 `;
 
-  const PLAIN_LOOP = `-> start
+  const PLAIN_LOOP = `
 
 scene start
   Going round.
@@ -252,7 +252,7 @@ end
 describe("every branch of a decision stays reachable", () => {
   const TWO_BRANCHES = `store flag = false
 
--> start
+
 
 scene start
   Opening beat.

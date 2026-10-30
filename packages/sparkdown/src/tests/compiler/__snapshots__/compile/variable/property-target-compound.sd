@@ -1,1 +1,3 @@
-& opts.count += 1
+scene start
+  & opts.count += 1
+end

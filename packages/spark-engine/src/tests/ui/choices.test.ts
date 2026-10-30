@@ -18,7 +18,7 @@ end
 `;
 
 const CHOICE_STORY = `${SCREEN}
--> start
+
 
 scene start
   choose

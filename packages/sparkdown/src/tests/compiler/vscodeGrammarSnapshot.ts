@@ -1,13 +1,3 @@
-// Tokenizes sources through the SAME engine VSCode uses (vscode-textmate +
-// vscode-oniguruma). The tree-based grammar test (`grammarSnapshot.test.ts`)
-// reads the YAML grammar via `textmate-grammar-tree`, which is permissive in
-// places where the real TextMate engine is not — so it can miss bugs that
-// only surface in the editor (e.g. begin/end rules failing to close because
-// of a too-narrow `end` lookahead).
-//
-// This helper compiles the grammar through vscode-textmate and produces a
-// stable, snapshottable representation of tokens-and-scopes per line.
-
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
@@ -20,8 +10,6 @@ const { Registry, parseRawGrammar } = vstm;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// `packages/sparkdown/language/sparkdown.language-grammar.json` is the same
-// JSON shipped to VSCode (via `definitions/` → `vscode-sparkdown/`).
 const GRAMMAR_PATH = join(
   __dirname,
   "..",
@@ -31,8 +19,6 @@ const GRAMMAR_PATH = join(
   "sparkdown.language-grammar.json",
 );
 
-// The TextMate grammar of the `.luau` root, which the build writes beside the
-// grammar and which includes its root rule from it (GRAMMAR.md §1.5).
 const LUAU_FILE_GRAMMAR_PATH = join(
   __dirname,
   "..",
@@ -46,14 +32,11 @@ let registry: InstanceType<typeof Registry> | null = null;
 let scopeName: string | null = null;
 let wasmLoaded: Promise<void> | null = null;
 
-/** The scope of the `.luau` root's TextMate grammar. */
 export const LUAU_FILE_SCOPE_NAME: string = JSON.parse(readFileSync(LUAU_FILE_GRAMMAR_PATH, "utf8")).scopeName;
 
 function loadOnig(): Promise<void> {
   if (wasmLoaded) return wasmLoaded;
   const require = createRequire(import.meta.url);
-  // Resolve onig.wasm relative to the installed package so this works in any
-  // workspace layout (file: deps, hoisted node_modules, etc.).
   const wasmPath = require.resolve("vscode-oniguruma/release/onig.wasm");
   wasmLoaded = loadWASM(readFileSync(wasmPath));
   return wasmLoaded;
@@ -102,7 +85,6 @@ export interface VsTokenDump {
   }[];
 }
 
-/** Tokenizes `source` as VS Code does: as a `.sd` script, or with `luauFile` as a `.luau` document, from the `sparkdown-luau` language's grammar. */
 export async function tokenize(source: string, { luauFile = false }: { luauFile?: boolean } = {}): Promise<VsTokenDump[]> {
   const { registry, scopeName } = await getRegistry();
   const rootScope = luauFile ? LUAU_FILE_SCOPE_NAME : scopeName;
@@ -112,11 +94,6 @@ export async function tokenize(source: string, { luauFile = false }: { luauFile?
   }
 
   const out: VsTokenDump[] = [];
-  // Preserve trailing newlines so absolute positions in the formatted tree
-  // match the lezer tree exactly (which includes trailing `Newline` nodes).
-  // Splitting on `\n` after a trailing `\n` yields an empty final element —
-  // we keep it so the inter-line `Newline` marker between the last real line
-  // and this empty tail is still emitted.
   const normalized = source.replace(/\r\n?/g, "\n");
   const lines = normalized.split("\n");
   let ruleStack: vstm.StateStack | null = null;
@@ -130,8 +107,6 @@ export async function tokenize(source: string, { luauFile = false }: { luauFile?
         line.length === 0
           ? []
           : result.tokens
-              // Drop any zero-width tokens (some grammars emit them where a
-              // begin/end's content is empty).
               .filter((tok) => tok.endIndex > tok.startIndex)
               .map((tok) => ({
                 startIndex: tok.startIndex,
@@ -145,21 +120,6 @@ export async function tokenize(source: string, { luauFile = false }: { luauFile?
   return out;
 }
 
-// Renders tokens as a tree mirroring the lezer-tree snapshot format so the
-// two `.snap` / `.vsc.snap` siblings diff cleanly. Each TextMate scope chain
-// becomes a path in the tree: when adjacent tokens share a scope prefix, they
-// share the same parent nodes; the innermost scope appears as a leaf with the
-// token text. Positions are absolute (across lines) and `Newline` pseudo-leaves
-// stand in for the line breaks between tokenized lines so the structure lines
-// up with the lezer tree's explicit `Newline` nodes.
-//
-//   text.source.sparkdown [0..169]
-//    ├─ keyword.control.scene.sd [0..5]: "scene"
-//    ├─ meta.parameter.luau [15..29]
-//    │   ├─ variable.parameter.function.luau [16..17]: "c"
-//    │   └─ entity.name.type.luau [19..28]: "companion"
-//    ├─ Newline [29..30]: "\n"
-//    └─ ...
 interface AbsToken {
   from: number;
   to: number;
@@ -171,8 +131,6 @@ interface TreeNode {
   name: string;
   from: number;
   to: number;
-  // For leaves only — the source text the token covers. Internal nodes
-  // collapse adjacent same-scope siblings and have no text of their own.
   text?: string;
   children: TreeNode[];
 }
@@ -199,9 +157,6 @@ function collectAbsoluteTokens(dumps: VsTokenDump[]): AbsToken[] {
     }
     const nlAt = lineStart + dump.lineText.length;
     if (i < dumps.length - 1) {
-      // Synthesize a top-level `Newline` leaf so the tree structure lines up
-      // with the lezer tree's `Newline` nodes for easy side-by-side diffing.
-      // The first scope (grammar root) is the only one we attribute to it.
       const rootScope = dump.tokens[0]?.scopes[0] ?? "";
       out.push({
         from: nlAt,
@@ -253,8 +208,6 @@ function buildScopeTree(tokens: AbsToken[]): TreeNode {
         parent = node;
       }
     }
-    // Token with no inner scopes (scope chain length 1) — attach as a leaf
-    // directly under root, named after its only scope.
     if (inner.length === 0) {
       root.children.push({
         name: tok.scopes[0] ?? "(token)",
@@ -269,9 +222,6 @@ function buildScopeTree(tokens: AbsToken[]): TreeNode {
 }
 
 function renderTree(root: TreeNode): string {
-  // Mirrors `printTree` from textmate-grammar-tree: 4-char prefix segments
-  // (" │  " for open ancestor, "    " for closed), connectors " ├─ " and
-  // " └─ ", and a single leading space for the top level.
   const out: string[] = [];
   const prefixes: string[] = [];
 
@@ -295,9 +245,6 @@ function renderTree(root: TreeNode): string {
       out.push(prefix + connector + describe(node));
     }
     if (node.children.length === 0) return;
-    // Only non-top nodes contribute a continuation prefix to their
-    // descendants — the top node's children print their connector with
-    // no leading prefix (matching the lezer tree's format).
     if (!isTop) prefixes.push(isLast ? "    " : " │  ");
     for (let i = 0; i < node.children.length; i++) {
       emit(node.children[i]!, false, i === node.children.length - 1);

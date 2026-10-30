@@ -1,8 +1,3 @@
-// `table.sort` — exercises the stdlib→Luau callback dispatch
-// (#96) by running a user comparator function inside the JS-side
-// sort. Both the default `<` comparator and a user-supplied one
-// are tested here, alongside the frozen-table refuse path.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -45,8 +40,11 @@ function compileAndCapture(source: string): {
 describe("table.sort — default comparator", () => {
   test("sorts an array of numbers ascending", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 3, 1, 4, 1, 5, 9, 2, 6 }
@@ -62,8 +60,11 @@ end
 
   test("sorts an array of strings lexicographically", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { "banana", "apple", "cherry" }
@@ -79,8 +80,11 @@ end
 
   test("preserves ties (stable sort)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 3, 1, 2, 3, 1, 2 }
@@ -98,8 +102,11 @@ end
 describe("table.sort — user comparator", () => {
   test("descending sort via custom comparator", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 1, 4, 2, 3 }
@@ -115,8 +122,11 @@ end
 
   test("comparator can be a bare-named function", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function desc(a, b)
 return a > b
@@ -136,8 +146,11 @@ end
 
   test("comparator with closure capture", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local pivot = 5
@@ -153,9 +166,6 @@ end
 end
 `);
     expect(errors).toEqual([]);
-    // Distances from 5: 1→4, 7→2, 3→2, 9→4, 2→3. Sorted ascending
-    // by distance: [3,2 → tied at 2], [2 → 3], [1,9 → tied at 4].
-    // Stable sort preserves source order within ties.
     expect(recorded).toEqual([7, 3, 2, 1, 9]);
   });
 });
@@ -163,8 +173,11 @@ end
 describe("table.sort — error paths", () => {
   test("refuses a frozen table", () => {
     const { errors } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 3, 1, 2 }
@@ -178,8 +191,11 @@ end
 
   test("default comparator errors on mismatched types", () => {
     const { errors } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = { 1, "two", 3 }

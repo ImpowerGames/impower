@@ -67,12 +67,12 @@ describe("PLAY's game in the worker", () => {
 });
 
 describe("PLAY in the worker stopped by a runtime error", () => {
-  const SOURCE = `The first line.\nThe second line.\nThe third line.\n`;
+  const SOURCE = `scene start\n  The first line.\n  The second line.\n  The third line.\nend\n`;
 
   it("leaves the editor on the line the error names", async () => {
     const h = await createPlayerHarness({
       files: [{ uri: MAIN_URI, text: SOURCE }],
-      startFrom: { file: MAIN_URI, line: 0 },
+      startFrom: { file: MAIN_URI, line: 1 },
     });
     const win = h.overlay.ownerDocument.defaultView as any;
     win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
@@ -80,11 +80,11 @@ describe("PLAY in the worker stopped by a runtime error", () => {
     console.error = () => {};
     const raisedAt = {
       uri: MAIN_URI,
-      range: { start: { line: 2, character: 0 }, end: { line: 2, character: 15 } },
+      range: { start: { line: 3, character: 0 }, end: { line: 3, character: 17 } },
     };
     try {
       await h.compile();
-      await h.select(0);
+      await h.select(1);
       expect(await h.controller.startGameAndApp()).toBe(true);
       await settle(10);
       h.workspace.selections.length = 0;

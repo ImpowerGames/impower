@@ -1,7 +1,3 @@
-// Smoke test for the runtime harness. Verifies the basic
-// "compile a `.sd` fixture, run, capture output" loop works end-to-end
-// before we start porting the inkjs specs in earnest.
-
 import { describe, expect, test } from "vitest";
 import {
   makeRuntimeStoryFromFile,
@@ -14,31 +10,18 @@ describe("runtime test harness smoke", () => {
     const ctx = makeRuntimeStoryFromFile("smoke", "hello");
     expect(ctx.errorMessages).toEqual([]);
     const output = runToEnd(ctx.story);
-    // Dialogue lines emit the speaker tag plus the text. We don't care about
-    // the exact whitespace here — just that the body is present and no errors
-    // surfaced during compilation.
     expect(output).toContain("hello world");
   });
 
   test("unary `not` and short-circuit `and`/`or` dispatch at runtime", () => {
-    // Exercises the keyword operators end-to-end after the rename from
-    // `!`/`&&`/`||` to `not`/`and`/`or`. With `x = false`, `not x` is true,
-    // so `true and "yes"` returns "yes", and `"yes" or "no"` short-circuits
-    // to "yes". The variable operand defeats compile-time constant folding,
-    // so this exercises the runtime native-function lookup under the new
-    // keyword names.
     const ctx = makeRuntimeStoryFromFile("smoke", "not-runtime");
     expect(ctx.errorMessages).toEqual([]);
     expect(runToEnd(ctx.story).trim()).toBe("yes");
   });
 
   test("scenes without explicit `-> DONE` auto-terminate cleanly", () => {
-    // SparkdownCompiler auto-appends `Divert(Done)` to any non-function
-    // scene / branch whose body doesn't end with a `Divert` /
-    // `TunnelOnwards` / `ReturnType`. Authors get to skip the trailing
-    // `-> DONE` boilerplate on most scenes.
     const ctx = makeRuntimeStoryFromSource(
-      `-> main\nscene main\n  Hello world.\nend\n`,
+      `scene start\n  Hello world.\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.warningMessages).toEqual([]);
@@ -47,9 +30,8 @@ describe("runtime test harness smoke", () => {
   });
 
   test("branches without explicit `-> DONE` auto-terminate cleanly", () => {
-    // Same auto-DONE behavior applies to `branch` (stitch) blocks.
     const ctx = makeRuntimeStoryFromSource(
-      `-> main.opener\nscene main\n  branch opener\n    Greetings.\n  end\nend\n`,
+      `scene start\n  -> main.opener\nend\nscene main\n  branch opener\n    Greetings.\n  end\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.warningMessages).toEqual([]);
@@ -58,12 +40,9 @@ describe("runtime test harness smoke", () => {
   });
 
   test("`->` is accepted as a divert-target type annotation", () => {
-    // Sparkdown's analogue of ink's typed-divert parameter `function
-    // f(-> target)` is `function f(target: ->) ... end`. The type
-    // annotation is informational — sparkdown's runtime accepts any
-    // value as a divert-target if used as one (see
-    // `tunnel-onwards-variable-target` in `Diverts.test.ts`).
-    const ctx = makeRuntimeStoryFromSource(`-> outer ->
+    const ctx = makeRuntimeStoryFromSource(`scene start
+  -> outer ->
+end
 
 scene outer
   This is outer
@@ -86,16 +65,13 @@ end
   });
 
   test("table-typed store: read + property-access via dotted name", () => {
-    // Sparkdown's property-access fallback in `Story.ts > VariableReference`
-    // lets authors read `obj.field` on a stored table without the
-    // bracket-indexer form. Used in tandem with the `StorePropertyAssignment`
-    // path for writes (`& obj.field = X`), this gives luau-idiomatic
-    // table access for read+write.
     const ctx = makeRuntimeStoryFromSource(`store t = { value = 10 }
-{t.value}
-& mutate(t)
-{t.value}
--> DONE
+scene start
+  {t.value}
+  & mutate(t)
+  {t.value}
+  -> DONE
+end
 function mutate(x)
   x.value = 99
 end
@@ -105,14 +81,13 @@ end
   });
 
   test("a property write between two lines is applied once", () => {
-    // `StoreIndex` mutates the table's Map in place. The write runs in the
-    // continue after the first line's newline, once, so `5 * 5` lands at `25`;
-    // a second run would square it again to `625`.
     const ctx = makeRuntimeStoryFromSource(`store t = { value = 5 }
-{t.value}
-& t.value = t.value * t.value
-{t.value}
--> DONE
+scene start
+  {t.value}
+  & t.value = t.value * t.value
+  {t.value}
+  -> DONE
+end
 `);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.Continue()).toBe("5\n");
@@ -121,15 +96,8 @@ end
   });
 
   test("diverts inside alternator arms route through `lower()` dispatch", () => {
-    // `lowerArmContent` now recognizes `ArmDivert` (the alternator-arm
-    // context-bounded variant of `Divert` introduced in the grammar)
-    // and routes it through the main lowerer dispatch — so `-> X`
-    // inside `{chain | -> X | other end}` becomes a real `Divert`
-    // ParsedObject, not literal `Text("-> X")`. Critical for the
-    // flat-weave-style "alternator arm pivots to another path" idiom.
     const ctx = makeRuntimeStoryFromSource(
-      `-> main
-scene main
+      `scene start
   start
   {chain | -> next | second visit end}
   -> DONE
@@ -142,19 +110,13 @@ end
 `,
     );
     expect(ctx.errorMessages).toEqual([]);
-    // First Continue runs main's "start", then the chain's first arm
-    // (the divert) which transfers to `next`, which emits "arrived".
     expect(ctx.story.ContinueMaximally()).toBe("start\narrived\n");
   });
 
   test("divert to a label inside a branch resolves (cross-stitch path lookup)", () => {
-    // Validates that sparkdown DOES support diverting to a labeled
-    // weave-point inside a `branch` (`scene.branch.label`). The path
-    // resolver's deep-search in `Path.GetChildFromContext` falls
-    // through to `FlowBase.ContentWithNameAtLevel` which checks the
-    // stitch's `_rootWeave.WeavePointNamed(...)` for both labeled
-    // gathers and labeled choices (any IWeavePoint with an identifier).
-    const ctxGather = makeRuntimeStoryFromSource(`-> main.sub.hello_label
+    const ctxGather = makeRuntimeStoryFromSource(`scene start
+  -> main.sub.hello_label
+end
 scene main
   branch sub
     label hello_label
@@ -164,7 +126,9 @@ end
 `);
     expect(ctxGather.errorMessages).toEqual([]);
 
-    const ctxChoice = makeRuntimeStoryFromSource(`-> main.sub.target
+    const ctxChoice = makeRuntimeStoryFromSource(`scene start
+  -> main.sub.target
+end
 scene main
   branch sub
     choose

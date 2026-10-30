@@ -9,7 +9,7 @@ const URI = "inmemory:///main.sd";
 
 const TEXT = [
   "store total = 0",
-  "-> start",
+  "",
   "scene start",
   "  Opening beat.",
   "  for i = 1, 3 do",

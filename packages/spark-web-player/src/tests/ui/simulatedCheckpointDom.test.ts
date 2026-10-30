@@ -13,7 +13,7 @@ const SOURCE = `define SPRITE as image with
   src = "https://example.com/hero.png"
 end
 
--> start
+
 
 scene start
 ${FILLER}

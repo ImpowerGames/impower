@@ -1,15 +1,10 @@
-// I-853 — `string.sub` checks its start index the way Luau's
-// `luaL_checkinteger` does: a nil (or other non-number) start index raises
-// `invalid argument #N to 'sub' (number expected, got <type>)`, which `pcall`
-// traps. The function form counts the string as argument #1, so the start
-// index is #2; the method form does not count the receiver, so it is #1. An
-// absent or nil end index still means "to the end"; a table end index raises.
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 function probe(body: string): string {
-  const ctx = makeRuntimeStoryFromSource(`Got {run()}.
+  const ctx = makeRuntimeStoryFromSource(`scene start
+  Got {run()}.
+end
 function run()
   local ok, e = pcall(function() return ${body} end)
   return tostring(ok) .. " " .. tostring(e)

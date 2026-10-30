@@ -1,4 +1,3 @@
-local a = 9
 define thing with
   function get(p)
     define child with
@@ -8,7 +7,10 @@ define thing with
   end
 end
 store held = nil
-held = thing.get
-First.
-Got {held(thing, 7)}.
+scene start
+  local a = 9
+  held = thing.get
+  First.
+  Got {held(thing, 7)}.
+end
 function callHeld() return held(thing, 7) end

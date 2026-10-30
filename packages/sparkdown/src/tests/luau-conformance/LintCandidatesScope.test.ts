@@ -1,12 +1,6 @@
-// Ported from Luau's linter tests (`luau/tests/Linter.test.cpp`): lints about
-// names and scopes. Snippets and expected messages are quoted verbatim inside
-// a function body; the upstream test-case name is in the comment above each
-// group, marked adapted where sparkdown's result differs. Upstream cases
-// whose expected result is silence run too, so no rule can start warning on
-// them.
-
 import { describe, expect, test } from "vitest";
 import { indexProgramNames, lintBuiltinGlobalWrites } from "../../compiler/lint/collectLuauLints";
+import { TOP_LEVEL_STATEMENT_MESSAGE } from "../../compiler/utils/declarationOnly";
 import { testCompiler } from "../engineUnderTest";
 import {
   diagnoseWithLints,
@@ -36,10 +30,7 @@ assert(5)
   });
 });
 
-// Sparkdown-specific: the rule over sparkdown's flows, callbacks, handlers and
-// the other scripts of a project, which upstream has no counterpart for. Only
-// main holds a top-level local, so another script's local is in a scene's
-// outermost block (`HELPER_LOCAL`).
+// Sparkdown-specific
 const HELPER_LOCAL = "scene helper_setup\n  & local math = {}\nend\n";
 describe("overwriting a builtin global across sparkdown's units and scripts (BuiltinGlobalWrite)", () => {
   test("a future flow local does not hide a preceding write to an explicit global", () => {
@@ -94,7 +85,6 @@ describe("overwriting a builtin global across sparkdown's units and scripts (Bui
     ]);
   });
   test("a top-level local in any script silences that name program-wide", () => {
-    // Conservative: the AST cannot show which writes a top-level local reaches.
     const ds = diagnoseFilesDetailed({
       "main.sd": "local math = {}\nReady.\n",
       "helper.sd": "scene helper_setup\n  & math = {}\nend\nfunction f() assert = 1 end\n",
@@ -132,8 +122,6 @@ describe("overwriting a builtin global across sparkdown's units and scripts (Bui
     expect(lintBuiltinGlobalWrites(indexProgramNames([{ uri: "b", names: facts([], [uncertain]) }]))).toEqual([]);
     expect(lintBuiltinGlobalWrites(indexProgramNames([{ uri: "a", names: facts([write], []) }])).map((f) => f.uri)).toEqual(["a"]);
   });
-  // The other script is read: its local of the library's name silences main's
-  // unmarked write.
   const expectHelperLocalRead = () =>
     expect(diagnoseFilesDetailed({
       "main.sd": "& math = {}\nReady.\n",
@@ -194,17 +182,6 @@ return math, assert, f
   });
 });
 
-// The GlobalAsLocal cases below are adapted. An upstream snippet is a Luau
-// chunk, and its globals are the chunk's; in the wrapper `run` they would be
-// held by one function, which the harness does not report (it leaves out
-// every GlobalUsedAsLocal warning naming `run`), so the snippet is placed at
-// the script's top level instead, where a `function f()` is a story function
-// and a Luau statement such as `fnA = createFunction(true)` is outside every
-// function, as in the chunk. The chunk's last line, `return bar()`, which
-// Sparkdown's top level reads as narrative, becomes the interpolation
-// `{bar()}`, a use of the same functions outside every function. Line
-// numbers are unchanged.
-
 // Luau: GlobalAsLocal (adapted)
 describe("a global used only in one function", () => {
   test("foo written and read only in bar", () => {
@@ -250,7 +227,6 @@ end
 // Luau: GlobalAsLocalWithConditional (adapted)
 // Luau: GlobalAsLocal3WithConditionalRead (adapted)
 // Luau: GlobalAsLocalInnerRead (adapted)
-// Each also runs as written in the wrapper, which stays silent too.
 describe("globals that are genuinely shared are not reported", () => {
   test.each([
     [
@@ -327,7 +303,7 @@ return foo() + baz()
     expect(diagnoseWithLintsInFunction(body)).toEqual([]);
     const chunk = body.replace(/^return (.*)$/m, "{$1}");
     expect(chunk).not.toBe(body);
-    expect(diagnoseWithLints(chunk)).toEqual([]);
+    expect(diagnoseWithLints(chunk).filter((m) => m !== TOP_LEVEL_STATEMENT_MESSAGE)).toEqual([]);
   });
 });
 
@@ -380,7 +356,6 @@ print(arg)
 });
 
 // Luau: LocalShadowGlobal
-// Shadowing itself is covered as behavior in LocalShadowsGlobal.test.ts.
 describe("a local named like a global in use", () => {
   test("local global inside bar", () => {
     expect(
@@ -445,8 +420,6 @@ return foo()
 });
 
 // Luau: ImportOnlyUsedInReturnType (adapted)
-// Sparkdown has no `require`; a plain local stands in for the import, which
-// is read only in the return type.
 describe("a function used only in a type", () => {
   test("foo(): Foo.Y", () => {
     expect(
@@ -461,9 +434,6 @@ describe("a function used only in a type", () => {
 });
 
 // Luau: DeadLocalsUsed (adapted)
-// Sparkdown has no `--!nolint` (#598), so the directive is dropped, which
-// moves every line up by one, and the loop variable's LocalShadow warning is
-// expected too, first in the source order the warnings are reported in.
 describe("locals read but never assigned", () => {
   test("x hidden by a loop variable, c without a value", () => {
     expect(
@@ -511,7 +481,6 @@ describe("a global function defined twice", () => {
 });
 
 // Luau: DuplicateLocalFunction
-// Upstream checks only that the warning's code is DuplicateFunction.
 describe("a local function defined twice", () => {
   test("local function x twice", () => {
     expect(

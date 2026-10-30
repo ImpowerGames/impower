@@ -1,7 +1,3 @@
-// A loop written directly in a scene's body, or at the top level, runs in that
-// flow the same as one written in a function: every iteration applies every
-// statement of its body, and the flow continues after the loop ends. A loop
-// written without `do` has no body and is a compile error.
 
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
@@ -16,24 +12,25 @@ const STORES = `store n = 0
 store seen = 0
 `;
 
-// The same body lines, placed in a scene (indented under `scene s`) or at the
-// top level of the script.
 const indent = (body: string) =>
   body
     .split("\n")
     .map((line) => (line ? `  ${line}` : line))
     .join("\n");
-const places = {
-  "in a scene": (body: string) => `${STORES}-> s
-scene s
+const inScene = (body: string) => `${STORES}scene start
 ${indent(body)}
   fin
 
 end
-`,
-  "at the top level": (body: string) => `${STORES}${body}
-`,
-};
+`;
+const atTopLevel = (body: string) => `${STORES}${body}
+scene start
+  fin
+end
+`;
+
+const PLACEMENT =
+  "statement must be inside a scene or branch; the top level holds declarations only";
 
 const forms: [string, string, string][] = [
   [
@@ -116,48 +113,48 @@ Done.`,
   ],
 ];
 
-// `tick` counts its calls and returns false, so an empty-bodied loop on it
-// runs its condition once.
 const TICK = `function tick()
   n = n + 1
   return false
 end
 `;
 
-for (const [place, wrap] of Object.entries(places)) {
-  describe(`a loop ${place}`, () => {
-    test.each(forms)("%s", (_, body, expected) => {
-      expect(run(TICK + wrap(body))).toBe(expected);
-    });
+describe("a loop at the top level", () => {
+  test.each(forms)("%s is a compile error", (_, body) => {
+    const ctx = makeRuntimeStoryFromSource(TICK + atTopLevel(body));
+    expect(ctx.errorMessages).toContain(PLACEMENT);
   });
+});
 
-  describe(`a loop without do ${place}`, () => {
-    test.each([
-      ["while", "while n < 2"],
-      ["for", "for i = 1, 3"],
-    ])("a %s loop is a compile error", (keyword, header) => {
-      const ctx = makeRuntimeStoryFromSource(
-        wrap(`${header}
+describe("a loop in a scene", () => {
+  test.each(forms)("%s", (_, body, expected) => {
+    expect(run(TICK + inScene(body))).toBe(expected);
+  });
+});
+
+describe("a loop without do in a scene", () => {
+  test.each([
+    ["while", "while n < 2"],
+    ["for", "for i = 1, 3"],
+  ])("a %s loop is a compile error", (keyword, header) => {
+    const ctx = makeRuntimeStoryFromSource(
+      inScene(`${header}
   & n = n + 1
 end
 n is {n}.`),
-      );
-      // The header ends at its line (#1907), so Luau's reading meets its end
-      // of input where the `do` should be. The `end` written for the loop
-      // then closes the scene, or nothing, so the last `end` closes nothing
-      // and is reported (#774).
-      expect([...ctx.errorMessages].sort()).toEqual([
-        `Expected 'do' when parsing ${keyword} loop, got <eof>`,
-        "Expected <eof>, got 'end'",
-      ]);
-    });
+    );
+    expect([...ctx.errorMessages].sort()).toEqual([
+      `Expected 'do' when parsing ${keyword} loop, got <eof>`,
+      "Expected <eof>, got 'end'",
+      PLACEMENT,
+      PLACEMENT,
+    ]);
   });
-}
+});
 
 test("a while loop in a function called from a scene matches", () => {
   expect(
-    run(`-> s
-function count()
+    run(`function count()
   local n = 0
   local seen = 0
   while n < 2 do
@@ -166,7 +163,7 @@ function count()
   end
   return seen
 end
-scene s
+scene start
   & local total = count()
   total is {total}.
   fin

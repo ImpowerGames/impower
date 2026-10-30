@@ -2,13 +2,15 @@ import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/Progr
 import { describe, expect, test } from "vitest";
 import { createHarness, MAIN_URI } from "../ui/harness/uiTestHarness";
 
-const SOURCE = `RAFFLES:
-  Wow.
+const SOURCE = `scene start
+  RAFFLES:
+    Wow.
 
-With an indignant pivot, Raffles glides briskly ahead.
+  With an indignant pivot, Raffles glides briskly ahead.
 
-BUNNY:
-  Okay, okay!
+  BUNNY:
+    Okay, okay!
+end
 `;
 
 const lineOf = (needle: string): number => {

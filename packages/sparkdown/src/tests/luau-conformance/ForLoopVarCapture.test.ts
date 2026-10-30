@@ -1,22 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// Numeric `for var = start, stop[, step] do ... end` and generic
-// `for k, v in iter do ... end` implicitly declare loop variables.
-// They're embedded in `LuauForCondition` nodes, NOT in
-// `LuauVariableDefinition`, so without explicit handling neither
-// `collectImmediateBodyDeclarations` nor `scanFreeVariables` recorded
-// them as locally-bound.
-//
-// Bite: an anonymous function whose body contains a for-loop would
-// misclassify the loop variable as a free variable, capture it as an
-// upval, and surface as "Duplicate identifier `b`. A parameter named
-// `b` already exists for __anon_fn_X" when the for-loop's own runtime
-// declaration of `b` then collided with the synthesized upval-param.
-//
-// Both helpers walk into LuauForLoop nodes (numeric and generic loops share
-// the rule) and add the loop variable name(s) to the locally-bound set.
-
 describe("for-loop variable is treated as locally bound", () => {
   test("numeric for inside anonymous function compiles (basic.luau-178)", () => {
     const r = runConformanceSource(

@@ -1,9 +1,3 @@
-// A function body is Luau. A line there that is not a Luau statement
-// (`Hello there.`, `Hi, Bob`, a lone `Hello`, a line holding a token the
-// grammar leaves unread, `?`, `!`, `$`) is reported with every error Luau's
-// parser finds in it, at Luau's ranges, its recovery's included (#1905,
-// I-1322). Its names get the warnings any name of a function body gets; the
-// function still ends at its own `end` (#1158).
 import { describe, expect, it } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
@@ -11,6 +5,11 @@ import { officialErrorList, officialSyntaxErrors } from "./officialSyntax";
 import { checkLuau } from "../luau-conformance/typecheckTestHarness";
 
 const URI = "inmemory:///main.sd";
+
+const withStart = (text: string) =>
+  /^scene start$/m.test(text)
+    ? text
+    : `${text}${text.endsWith("\n") ? "" : "\n"}scene start\nend\n`;
 
 function compile(text: string) {
   const c = testCompiler();
@@ -21,7 +20,7 @@ function compile(text: string) {
         type: "script",
         name: "main",
         ext: "sd",
-        text,
+        text: withStart(text),
         version: 1,
         languageId: "sparkdown",
       },
@@ -65,7 +64,6 @@ const warningsOf = (source: string) =>
     .filter((d) => d.severity === 2)
     .sort(byPosition);
 
-/** Luau's parser's first error for `source` read as a Luau file (ASCII only). */
 function luauFirstError(source: string): Found {
   const error = officialSyntaxErrors(source)[0];
   expect(error, "Luau reports an error").toBeDefined();
@@ -77,14 +75,6 @@ function luauFirstError(source: string): Found {
   };
 }
 
-/**
- * Luau's parser's errors for `source` read as a Luau file (ASCII only),
- * every one, its recovery's included, as Sparkdown reports them (I-1322),
- * in position order. Keep this official expectation independent of the
- * tree reader and its recovery metadata. An error at the end of the input
- * begins where the source's last token ends, as Sparkdown places one at the
- * end of a unit's Luau (`officialErrorList`).
- */
 const luauErrors = (source: string): Found[] =>
   officialErrorList(source).map((error) => {
     const [range, ...message] = error.split(" ");
@@ -97,11 +87,6 @@ const luauErrors = (source: string): Found[] =>
     };
   });
 
-/**
- * The warnings Luau's type checker gives the same source as a Luau file, in
- * the non-strict mode a Sparkdown file is checked in: there an assignment to
- * an undeclared global is not an unknown global.
- */
 const luauWarningsOf = (source: string): Found[] =>
   checkLuau(source, { mode: "nonstrict" })
     .diagnostics.filter((d: any) => d.code !== "SyntaxError")
@@ -113,10 +98,8 @@ const luauWarningsOf = (source: string): Found[] =>
     }))
     .sort(byPosition);
 
-/** `line` alone in a function body. */
 const inBody = (line: string) => `function greet()\n  ${line}\nend\n`;
 
-/** The lines to read to the end, as a runtime story plays them. */
 function playedLines(source: string): string[] {
   const program = compile(source);
   const story = testStory(program.chunks);
@@ -129,10 +112,6 @@ function playedLines(source: string): string[] {
 }
 
 describe("a line in a function body that is not a Luau statement (#1158)", () => {
-  // The ticket's lines, the shapes review found, and lines that only the
-  // lines around them could make a statement: each gets the one error Luau's
-  // parser reports first for it, at Luau's range, which for a comma list
-  // can be the next line's token.
   it.each([
     "Hello there.",
     "Hello there, friend.",
@@ -179,10 +158,6 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
   );
 
   it("gives a name read as a value the warning any name of a function body gets", () => {
-    // Luau reads `Hello, I` as an assignment's targets and stops at `am`,
-    // which the tree reads as a value, as it would in any statement:
-    // Sparkdown's own resolver reports it, and the type checker's warning for
-    // the same read is left out.
     expect(warningsOf(inBody("Hello, I am here.")).map((d) => d.message)).toEqual([
       "Cannot find variable named `am`",
       "Unknown global 'here'; consider assigning to it first",
@@ -190,10 +165,6 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
   });
 
   it("reports each such line of a body", () => {
-    // Luau reads `How` on the next line as the member after `there.`; a
-    // Sparkdown access path ends with its line, which is reported at the
-    // `.`. Every error of Luau's reading is reported too (I-1322), the `?`
-    // no rule reads and the statements it leaves incomplete included.
     const source = "function greet()\n  Hello there.\n  How are you?\nend\n";
     const errors = errorsOf(source);
     expect(errors.map((d) => [d.start!.line, d.start!.character, d.message.split("\n")[0]])).toEqual([
@@ -209,8 +180,6 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
   });
 
   it("reports a `.` with no name after it, before a line of names, as a Sparkdown access path", () => {
-    // Luau reads the next line's first word as the member, and reports the
-    // statement as it reads it; a Sparkdown access path ends with its line.
     const source = `function greet()\n  Hello.\n  How are you?\nend\n`;
     const errors = errorsOf(source);
     expect(errors).toContainEqual(luauFirstError(source));
@@ -224,7 +193,6 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
   });
 
   it("reports a lone name after a number that ends with `.`, which is no dangling access", () => {
-    // `1.` is a number; the name on the next line is a statement of its own.
     const source = "function f()\n  local x = 1.\n  y\nend\n";
     expect(errorsOf(source)).toEqual([
       {
@@ -238,8 +206,8 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
 
   it("keeps an `end` in a string or a comment inside the line, so the function ends at its own", () => {
     for (const line of ['He said "the end" today.', "Hello there -- the end"]) {
-      const source = `function greet()\n  ${line}\nend\nAfter it.\n`;
-      const luau = source.replace("After it.\n", "");
+      const luau = `function greet()\n  ${line}\nend\n`;
+      const source = `${luau}scene start\n  After it.\nend\n`;
       expect(errorsOf(source), line).toEqual(luauErrors(luau));
       expect(playedLines(source), line).toEqual(["After it.\n"]);
     }
@@ -320,19 +288,18 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
       "",
       "    'b'",
       "  t.add",
-      // The `;` keeps the `(` line from being read as a call of `t.add "c"`,
-      // which Luau reports as ambiguous.
       '    "c";',
       "  (note)",
       '    "d"',
       "  return got",
       "end",
       "",
-      "{f()}",
+      "scene start",
+      "  {f()}",
+      "end",
       "",
     ].join("\n");
-    // Luau reads the functions without an error too.
-    expect(officialSyntaxErrors(source.slice(source.indexOf("function note")).replace("{f()}", ""))).toEqual([]);
+    expect(officialSyntaxErrors(source.slice(source.indexOf("function note"), source.indexOf("scene start")))).toEqual([]);
     expect(errorsOf(source)).toEqual([]);
     expect(playedLines(source)).toEqual(["a2bcd\n"]);
   });
@@ -345,7 +312,7 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     ["a value after a line-ending `=`", "  local x =\n    size\n    { 1 }\n  return x", "1"],
     ["a table field", "  local t = { f = size }\n  local x = t.f\n    { 1, 2, 3, 4 }\n  return x", "4"],
   ])("calls the value of %s with a string or table on the next line", (_, body, played) => {
-    const source = `function size(t)\n  return #t\nend\n\nfunction id(s)\n  return s\nend\n\nfunction f()\n${body}\nend\n\n{f()}\n`;
+    const source = `function size(t)\n  return #t\nend\n\nfunction id(s)\n  return s\nend\n\nfunction f()\n${body}\nend\n\nscene start\n  {f()}\nend\n`;
     expect(errorsOf(source)).toEqual([]);
     expect(playedLines(source)).toEqual([`${played}\n`]);
   });
@@ -364,17 +331,15 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     ["a negative value after a line-ending `=`", "function f()\n  local x =\n    -2\n  return x\nend\n", "-2"],
   ])("gives %s its value on the next line, as Luau does", (_, functions, played) => {
     expect(officialSyntaxErrors(functions)).toEqual([]);
-    const source = `${functions}\n{f()}\n`;
+    const source = `${functions}\nscene start\n  {f()}\nend\n`;
     expect(errorsOf(source)).toEqual([]);
     expect(playedLines(source)).toEqual([`${played}\n`]);
   });
 
   it("reports a line that begins with a character no Luau statement begins with and closes the function at its own `end`", () => {
-    // The character is a token the grammar leaves unread, so every error
-    // Luau's parser finds in the line is reported, its recovery's included.
     for (const line of ["!Hello", "?Who", "$5 a day", "&Hello", "\\Hello", "~Hello"]) {
-      const source = `function f()\n  ${line}\nend\nAfter it.\n`;
-      const luau = source.replace("After it.\n", "");
+      const luau = `function f()\n  ${line}\nend\n`;
+      const source = `${luau}scene start\n  After it.\nend\n`;
       expect(errorsOf(source), line).toEqual(
         officialSyntaxErrors(luau)
           .map((error) => ({
@@ -403,7 +368,9 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
       "  return x",
       "end",
       "",
-      "{f()}",
+      "scene start",
+      "  {f()}",
+      "end",
       "",
     ].join("\n");
     expect(errorsOf(source)).toEqual([]);
@@ -428,7 +395,9 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
       "  return x .. y",
       "end",
       "",
-      "{f()}",
+      "scene start",
+      "  {f()}",
+      "end",
       "",
     ].join("\n");
     expect(errorsOf(source)).toEqual([]);
@@ -437,16 +406,14 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
 
   it("reports a line after a long string that holds `--`", () => {
     for (const value of ["[[--]]", "[=[--]=]"]) {
-      const source = `function f()\n  local x = ${value}\n  Hello\nend\nAfter it.\n`;
-      expect(errorsOf(source), value).toEqual(luauErrors(source.replace("After it.\n", "")));
+      const luau = `function f()\n  local x = ${value}\n  Hello\nend\n`;
+      const source = `${luau}scene start\n  After it.\nend\n`;
+      expect(errorsOf(source), value).toEqual(luauErrors(luau));
     }
   });
 
   it("ends a line that is not a statement before a block comment that runs on", () => {
-    // The `end` inside the comment closes nothing. Luau reads the `Hello`
-    // after the comment as the member `there.` leaves for it; a Sparkdown
-    // access path ends with its line, which is reported at the `.`.
-    const source = "function f()\n  Hello there. --[[\nend\n]]\n  Hello\nend\nAfter it.\n";
+    const source = "function f()\n  Hello there. --[[\nend\n]]\n  Hello\nend\nscene start\n  After it.\nend\n";
     const errors = errorsOf(source);
     expect(errors).toContainEqual(luauFirstError(source));
     expect(errors.slice(1).map((d) => [d.start, d.message.split("\n")[0]])).toEqual([
@@ -465,8 +432,7 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
   });
 
   it("reports a line that is not a statement once when a long string runs on from it", () => {
-    // Luau reads `there [[…]]` as a call; its one error is at `Hello`.
-    const source = "function f()\n  Hello there [[\nend\n]]\nend\nAfter it.\n";
+    const source = "function f()\n  Hello there [[\nend\n]]\nend\nscene start\n  After it.\nend\n";
     expect(errorsOf(source).map((d) => [d.start!.line, d.start!.character, d.message])).toEqual([
       [1, 2, "Incomplete statement: expected assignment or a function call"],
     ]);
@@ -478,7 +444,7 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     ["with nothing between", '  note\n    "a" note("b")'],
     ["after a declaration's value", '  local x = note\n    "a"; note("b")'],
   ])("runs the statement on the line of a next-line argument %s", (_, body) => {
-    const source = `store got = ""\n\nfunction note(s)\n  got = got .. s\n  return s\nend\n\nfunction f()\n${body}\n  return got\nend\n\n{f()}\n`;
+    const source = `store got = ""\n\nfunction note(s)\n  got = got .. s\n  return s\nend\n\nfunction f()\n${body}\n  return got\nend\n\nscene start\n  {f()}\nend\n`;
     expect(errorsOf(source)).toEqual([]);
     expect(playedLines(source)).toEqual(["ab\n"]);
   });
@@ -491,7 +457,9 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
       "  Hello there --[[note]]end",
       "function h()",
       '  Hello there"hi"end',
-      "After it.",
+      "scene start",
+      "  After it.",
+      "end",
       "",
     ].join("\n");
     expect(errorsOf(source).map((d) => [d.start!.line, d.start!.character])).toEqual([
@@ -505,9 +473,8 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
   });
 
   it("ends a line that is not a statement before a quoted string that runs on", () => {
-    // The `\` escapes the line break, so `end inside` is the string's.
     const source =
-      'function note()\n  Hello there "first\\\nend inside"\nend\nThe story resumes here.\n';
+      'function note()\n  Hello there "first\\\nend inside"\nend\nscene start\n  The story resumes here.\nend\n';
     expect(errorsOf(source).map((d) => [d.start!.line, d.start!.character, d.message])).toEqual([
       [1, 2, "Incomplete statement: expected assignment or a function call"],
     ]);
@@ -524,9 +491,8 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
 
   it("reports the lines of a type function's body that are not statements", () => {
     const source =
-      'type function example(t)\n  Hello\n  1 + 2\n  "This is not a statement"\n  return t\nend\nAfter the function.\n';
-    expect(errorsOf(source)).toContainEqual(luauFirstError(source.replace("After the function.\n", "")));
-    // Luau reports `1 + 2` once per token (I-1515).
+      'type function example(t)\n  Hello\n  1 + 2\n  "This is not a statement"\n  return t\nend\nscene start\n  After the function.\nend\n';
+    expect(errorsOf(source)).toContainEqual(luauFirstError(source.slice(0, source.indexOf("scene start"))));
     expect(errorsOf(source).map((d) => d.start!.line)).toEqual([1, 2, 2, 2, 3]);
     expect(playedLines(source)).toEqual(["After the function.\n"]);
   });
@@ -551,9 +517,7 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
   });
 
   it("reports a `.` that no name follows once when the next line is a comma list", () => {
-    const source = "function g()\n  U.S.\n  Hi, Bob\nend\nAfter it.\n";
-    // Sparkdown's own error at the `.`, then Luau's for the list it reads
-    // on into (I-1322).
+    const source = "function g()\n  U.S.\n  Hi, Bob\nend\nscene start\n  After it.\nend\n";
     expect(errorsOf(source)).toEqual([
       expect.objectContaining({
         message: expect.stringMatching(/^Expected identifier after '\.' on the same line/),
@@ -571,9 +535,6 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
 
   it("reports the expressions of a define body that are not statements", () => {
     const source = 'define foo as object with\n  name = "Orion"\n  Hello\n  Hi, Bob\n  1 + 2\nend\n';
-    // `Hi, Bob` gets Luau's range at the next token, the `1` below it, and
-    // Luau reads `1 + 2` as the assignment's values, as the official parser
-    // does (I-1489).
     expect(errorsOf(source).map((d) => [d.start!.line, d.start!.character, d.message])).toEqual([
       [2, 2, "Incomplete statement: expected assignment or a function call"],
       [4, 2, "Expected '=' when parsing assignment, got '1'"],
@@ -585,8 +546,6 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     expect(errorsOf(source)).toEqual(luauErrors(source));
   });
 
-  // `Hello` and `there.` are each a statement Luau finds incomplete, and the
-  // `.` names the `end` after it, as the official parser reports (I-1489).
   it("reports such a line among the properties of a define block", () => {
     const source = `define foo as object with\n  name = "Orion"\n  Hello there.\nend\n`;
     expect(errorsOf(source).map((d) => [d.start!.line, d.message])).toEqual([
@@ -596,8 +555,6 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     ]);
   });
 
-  // As in a function: `Hello` and `there.` are each a statement Luau finds
-  // incomplete, and the `.` names the method's `end` (I-1368).
   it("reports such a line in a method of a define block", () => {
     const source = `define foo as object with\n  greet(x)\n    Hello there.\n  end\nend\n`;
     expect(errorsOf(source).map((d) => [d.start!.line, d.message])).toEqual([
@@ -611,7 +568,7 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     const lines = ["(aside) hi", '"Quoted."', "42 bottles.", "true story.", "{1}", "#1 fan"];
     const body = lines.map((line) => `  ${line}`).join("\n");
     const nested = lines.map((line) => `    ${line}`).join("\n");
-    const source = `-> A\n\nscene A\n${body}\n  if true then\n${nested}\n  end\nend\n\n${lines.join("\n")}\n`;
+    const source = `scene start\n${body}\n  if true then\n${nested}\n  end\nend\n`;
     expect(
       diagnostics(compile(source)).filter((d) => /^Incomplete statement|^Expected/.test(d.message)),
     ).toEqual([]);
@@ -647,10 +604,10 @@ function _describe(t)
   return a
 end
 
-{greet("Bob")}
+scene start
+  {greet("Bob")}
+end
 `;
-    // Keep the adjacent string-argument calls as a parser control: both
-    // compile, with only the statement-layout warning for the second call.
     expect(diagnostics(compile(source))).toEqual([{
       message: "A new statement is on the same line; add semi-colon on previous statement to silence",
       severity: 2,
@@ -661,7 +618,6 @@ end
 });
 
 describe("an `=` that ends its line in Luau code (#1158)", () => {
-  // As in Luau, the value is on the next line.
   it("gives a declaration the values on the next line", () => {
     const source = [
       "store sizes = { breadth = 2, components = 3 }",
@@ -674,7 +630,9 @@ describe("an `=` that ends its line in Luau code (#1158)", () => {
       "  return x",
       "end",
       "",
-      "{f(sizes)}",
+      "scene start",
+      "  {f(sizes)}",
+      "end",
       "",
     ].join("\n");
     expect(errorsOf(source)).toEqual([]);
@@ -701,7 +659,9 @@ describe("an `=` that ends its line in Luau code (#1158)", () => {
       "  return c",
       "end",
       "",
-      "{f()}",
+      "scene start",
+      "  {f()}",
+      "end",
       "",
     ].join("\n");
     expect(errorsOf(source)).toEqual([]);
@@ -712,27 +672,20 @@ describe("an `=` that ends its line in Luau code (#1158)", () => {
     const source = [
       "store x = 0",
       "",
-      "-> A",
-      "",
-      "scene A",
+      "scene start",
       "  x =",
       "  Hello there.",
       "  done",
       "end",
       "",
     ].join("\n");
-    // Its Luau meets its end of input at the end of its line (#1907).
     expect(errorsOf(source).map((d) => [d.start!.line, d.message])).toEqual([
-      [5, "Expected identifier when parsing expression, got <eof>"],
+      [3, "Expected identifier when parsing expression, got <eof>"],
     ]);
     expect(playedLines(source)).toEqual(["Hello there.\n"]);
   });
 
   it("reports a line the statement before it takes at that statement's report, then Luau's cascade", () => {
-    // Luau reads `?` as the member after `U.S.`, or as the value after the
-    // `=`, and reports it there; the `?` is a token the grammar leaves
-    // unread, so the errors Luau's recovery finds after it on its line are
-    // reported too.
     const dangling = "function f()\n  U.S.\n  ?Who\nend\n";
     const errors = errorsOf(dangling);
     expect(errors).toContainEqual(luauFirstError(dangling));
@@ -752,10 +705,6 @@ describe("an `=` that ends its line in Luau code (#1158)", () => {
 });
 
 describe("an edit after a line whose error names the next token (#1158)", () => {
-  // Each check reads past its line, across blank and comment lines, to the
-  // next token, and names it or reports at it. An edit on those lines must
-  // leave the validations a cold parse gives, after earlier edits in the
-  // block have given the parser places to restart inside it.
   const ANNOTATORS = ["implicits", "references", "compilations", "validations", "declarations"];
 
   const position = (text: string, offset: number) => {
@@ -817,8 +766,6 @@ describe("an edit after a line whose error names the next token (#1158)", () => 
   ])(
     "keeps a report several lines below the line it belongs to after %s",
     (_, lines) => {
-      // The first line takes the lines below it, so its report stands at
-      // `Another`; an edit below that must not remove it.
       const scenes = Array.from({ length: 6 }, (_, s) => `scene s${s}\n  Line ${s} here.\nend\n`);
       let text = `${scenes.join("\n")}\nfunction f()\n  local a = 1\n${lines.join("\n")}\n  local b = 2\nend\n`;
       const registry = open(text);
@@ -838,13 +785,8 @@ describe("an edit after a line whose error names the next token (#1158)", () => 
   );
 
   it("reports a line again when an edit to the line before stops taking it", () => {
-    // While the `=` ends its line, Luau reads `?Who` as its value and the
-    // missing value is reported at the `?`; once the `=` has a value, `?Who`
-    // is a statement of its own, reported at the `?` again. The `?` is a
-    // token the grammar leaves unread, so Luau's reading reports it, and an
-    // incremental compile reports what a cold one does after each edit.
     const scenes = Array.from({ length: 6 }, (_, s) => `scene s${s}\n  Line ${s} here.\nend\n`);
-    let text = `${scenes.join("\n")}\nfunction f()\n  local a = 1\n  local y =\n  ?Who\n  local b = 2\nend\n`;
+    let text = `scene start\nend\n\n${scenes.join("\n")}\nfunction f()\n  local a = 1\n  local y =\n  ?Who\n  local b = 2\nend\n`;
     const c = testCompiler();
     c.configure({ files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }] } as never);
     c.compile({ textDocument: { uri: URI } } as never);

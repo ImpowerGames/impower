@@ -49,7 +49,6 @@ import {
 } from "../utils/sparkleBlockEntries";
 import { joinSparkleContinuations } from "../utils/sparkleContinuations";
 
-// Build the reactive UI tree from element parts and explicit block nesting.
 const CONTROL_BLOCK_NAMES = nodeNameSet([
   "LuauSparkleIfBlock", "LuauSparkleForLoop", "LuauSparkleMatchBlock",
 ]);
@@ -57,7 +56,6 @@ const CONTROL_CLAUSE_NAMES = nodeNameSet([
   "LuauSparkleElseifBlock", "LuauSparkleElseBlock", "LuauSparkleCaseClause",
 ]);
 
-/** Top-level lines and control blocks; nested entries are read by their owner. */
 function buildBodyEntries(content: SyntaxNode | null, ctx: LowerContext): BodyNode[] {
   if (!content) return [];
   const children: BodyNode[] = [];
@@ -89,45 +87,18 @@ const FIELD_VALUE_NAMES = nodeNameSet([
   "UnquotedStringFieldValue",
 ]);
 
-// Interpolation-aware content-string nodes (EOPL-bound + inline EOPL-less). Each
-// wraps its parts under a `<name>_content` child the reader walks.
 const INTERP_CONTENT_NODES = nodeNameSet([
   "StringFieldValueInterpolated",
   "LuauElementContentStringInterpolated",
 ]);
-// Plain (non-interpolated) quoted content-string nodes — read as a literal.
 const PLAIN_CONTENT_NODES = nodeNameSet([
   "StringFieldValue",
   "LuauElementContentStringPlain",
-  // Single-quoted content never interpolates, so it is always read literally —
-  // which is exactly why an author reaches for it (e.g. text containing `{`).
   "LuauElementContentStringSingleQuoted",
 ]);
 
-/** Every binding evaluator's name starts with this. Its `$` is a character
- *  no identifier can contain, so no function an author declares has an
- *  evaluator's name (#1729). */
 export const BINDING_ID_PREFIX = "__binding$";
 
-/** The evaluator name for a binding whose source starts at `from`:
- *  `__binding$<document tag><kind>_<name>_<offset within the chunk>`, as in
- *  `__binding$file_3a_2f_2fproj_2fmain_2esd__layout_hud_23`.
- *
- *  Every hoisted evaluator lands in one flow namespace, so the name carries
- *  the document: two files whose first binding starts at the same offset, as
- *  a copy-and-adapt pair of layout files will, would otherwise share one
- *  evaluator and one layout would render the other's value.
- *
- *  Within the document the name comes from the layout or component that holds
- *  the binding and the binding's place in its chunk, not from the binding's
- *  place in the document. A chunk an edit does not touch is carried into the
- *  next compile without being lowered again, so a name taken from its
- *  document offset would keep the offset it had before the edit while a cold
- *  compile of the same text takes the new one. Two chunks of one document
- *  mint the same name only when they declare the same layout or component
- *  twice; the later declaration replaces the earlier one, and the compiler
- *  keeps the later chunk's evaluator to match. A caller without a chunk (the
- *  snapshot lowerers) names the binding by its offset. */
 function bindingId(from: number, ctx: LowerContext): string {
   const tag = documentTag(ctx.filePath);
   if (ctx.chunkFrom === undefined || ctx.sparkleOwner === undefined) {
@@ -136,10 +107,6 @@ function bindingId(from: number, ctx: LowerContext): string {
   return `${BINDING_ID_PREFIX}${tag}${ctx.sparkleOwner}_${from - ctx.chunkFrom}`;
 }
 
-// A binding handle's span, relative to the chunk being lowered. The compiler
-// adds the chunk's document position when it merges the chunk's trees into
-// `program.sparkle` (see `rebaseSparkleSpans`), so a chunk carried unlowered
-// into a later compile still gives its handles' current positions.
 function bindingSpan(from: number, to: number, ctx: LowerContext): SparkRange {
   const chunkFrom = ctx.chunkFrom ?? 0;
   return {
@@ -150,7 +117,6 @@ function bindingSpan(from: number, to: number, ctx: LowerContext): SparkRange {
   };
 }
 
-/** DFS in-order: the first descendant (or self) whose name is in `names`. */
 function firstDescendant(
   node: SyntaxNode,
   names: Set<string>,
@@ -165,9 +131,6 @@ function firstDescendant(
   return null;
 }
 
-/** Inline-attribute subtrees (`@event`/`#prop`) — opaque to tag/class
- *  collection, so a prop value (`#gap=16` → NumberLiteral) isn't mistaken for a
- *  class and a handler's tokens don't leak in. */
 const ATTRIBUTE_NODES = nodeNameSet([
   "LuauEventAttribute",
   "LuauPropAttribute",
@@ -176,9 +139,6 @@ const ATTRIBUTE_NODES = nodeNameSet([
   "LuauSparkleEventClosureAttribute",
 ]);
 
-/** A block entry the element before it takes (a continuation line, or a
- *  block on a line of its own), or a continuation line that follows no
- *  element. Neither is an entry of its own. */
 function isContinuation(entry: SyntaxNode, ctx: LowerContext): boolean {
   return (
     entry.name === "LuauSparkleElementContinuation" ||
@@ -186,14 +146,6 @@ function isContinuation(entry: SyntaxNode, ctx: LowerContext): boolean {
   );
 }
 
-/** {@link firstDescendant}, but opaque to inline-attribute subtrees.
- *
- *  Use this for anything that asks "what did the author write on the LINE",
- *  because a prop value is a field value of exactly the kind those lookups
- *  match. Without the guard, `text #label="HP: {c}"` found the PROP's
- *  interpolated string as the element's own content — and, being first in
- *  document order, it beat the content the author actually wrote, which then
- *  appeared in neither the AST nor the DOM. */
 function firstContentDescendant(
   node: SyntaxNode,
   names: Set<string>,
@@ -210,10 +162,6 @@ function firstContentDescendant(
   return null;
 }
 
-/** DFS in-order: every descendant whose name is in `names`, source order, but
- *  WITHOUT descending into a matched node (so a value subtree's inner tokens
- *  don't leak when collecting top-level name tokens) and WITHOUT descending
- *  into inline-attribute subtrees. */
 function descendants(node: SyntaxNode, names: Set<string>): SyntaxNode[] {
   const out: SyntaxNode[] = [];
   const walk = (n: SyntaxNode) => {
@@ -231,24 +179,6 @@ function descendants(node: SyntaxNode, names: Set<string>): SyntaxNode[] {
   return out;
 }
 
-// Display CONTENT resolves the FULL escape set — see {@link unescapeString}.
-// It used to resolve `\{`/`\}` alone, which was the tell: escapes already
-// half-existed here, and the grammar paints `\"` as `constant.character.escape`,
-// so the editor showed an escape while the compiler printed the backslash on
-// screen (`text "say \"hi\""` → `say \"hi\"`).
-//
-// (`{{`/`}}` are not escapes: doubled braces are the `{{fn}}` call shorthand per
-// issue #223, superseding spec decision D3.) Luau-position prop/style values are
-// left alone.
-
-/** Compile a `{expr}` interpolation node (a `LuauInterpolatedStringExpression`)
- *  into a {@link Binding}: a synthetic nullary function
- *  `__binding$<id>() return <expr> end` hoisted into `ctx.hoistedKnots`, plus
- *  the handle the AST carries. The reactive runtime (Phase 3) calls the hoisted
- *  function to evaluate the binding (and, later, track its reads for deps); the
- *  compiler only produces the handle + the function. Bindings read game-state
- *  globals by name, so the function is nullary — no upvalue capture (one-way
- *  binding, spec L6). {@link bindingId} names it. */
 function lowerBinding(
   interpNode: SyntaxNode,
   ctx: LowerContext,
@@ -257,34 +187,11 @@ function lowerBinding(
   const exprId = bindingId(interpNode.from, ctx);
   const source = ctx.read(interpNode.from, interpNode.to);
   const span = bindingSpan(interpNode.from, interpNode.to, ctx);
-  // Enclosing `for`-loop variables become the evaluator's parameters so the
-  // body can read per-iteration values the runtime passes as args (loop locals
-  // aren't globals — see LowerContext.sparkleLoopVars). `extraParams` adds
-  // handler-only params like `event` (the runtime supplies the DOM event table).
-  // DEDUPED: nested loops may bind the SAME name (`for i in rows` inside
-  // `for i in cols`), and a component param can be re-bound by a loop
-  // (`component card(item)` + `for item in ...`). The stack is push/restore, so
-  // both live on it at once; handing both to the evaluator produced
-  // `params: ["i","i"]` and a severity-1 "Multiple arguments with the same
-  // name" on every keystroke — anchored at the interpolation, not the loop
-  // header, for a construct that is legal Luau in this same language. The
-  // rendered values were always right (the runtime maps params against a flat
-  // env, so both copies resolved to the innermost value); only the Problems
-  // panel was wrong. Deduped HERE rather than at the push site, which has to
-  // stay a plain stack for `buildForNode`'s `length = restoreLen` restore.
   const loopVars = [...new Set([...(ctx.sparkleLoopVars ?? []), ...extraParams])];
-  // Hoist the evaluator once per source position (the same expression node can
-  // be lowered more than once; first registration wins). Snapshot-only callers
-  // without a hoist buffer skip it — the handle is still produced.
   const already = ctx.hoistedKnots?.some(
     (o) => o instanceof Function && o.identifier?.name === exprId,
   );
   if (!already && ctx.hoistedKnots) {
-    // The expression lives in the `_content` child; passing the wrapper node
-    // works — `lowerExpressionFromContainer` skips the brace punctuation (same
-    // call shape as `lowerInterpolatedString`). With statement shapes on, the
-    // evaluator's body is recorded as the one statement it returns, for the
-    // binary program (`openEvaluatorBody`).
     const body = openEvaluatorBody(ctx, interpNode.from, interpNode.to);
     const fn = new Function(
       new Identifier(exprId),
@@ -293,10 +200,6 @@ function lowerBinding(
       ]),
       loopVars.map((n) => new Argument(new Identifier(n), false, false)),
     );
-    // Stamp the hoisted evaluator with the binding's source span so a compile
-    // error inside it (e.g. an undefined `{player.inventory}`) reports at the
-    // binding, not at line 0 (a Function with no debugMetadata makes the
-    // inner-node error walk hit null → 0:0). remapContent later rebases it.
     stampDebugMetadata([fn], interpNode.from, interpNode.to, ctx);
     closeFunctionBody(ctx, body, fn, interpNode, [], true);
     ctx.hoistedKnots.push(fn);
@@ -312,16 +215,8 @@ function lowerBinding(
 const COMPONENT_CALL_CONTENT = nodeNameSet([
   "LuauSparkleCallArguments_content",
 ]);
-/** Nodes inside a call's arg list that carry no expression value (separators,
- *  whitespace, comments) — skipped when grouping args. */
 const ARG_SKIP_RE = /Whitespace|Newline|Comment|Separator/;
 
-/** Build a component-call's positional args (`card(a, b)`) as `PropValue[]`.
- *  Splits the call's arg expressions on `LuauCommaSeparator` (mirrors
- *  `lowerParentheticalArgList`) and compiles each group into a reactive
- *  {@link Binding} — args are evaluated in the CALLER's scope (so they capture
- *  the caller's loop vars), and the runtime feeds each value to the component as
- *  the matching declared param. */
 function readComponentArgs(callNode: SyntaxNode, ctx: LowerContext): PropValue[] {
   const content = firstDescendant(callNode, COMPONENT_CALL_CONTENT);
   if (!content) return [];
@@ -346,20 +241,10 @@ function readComponentArgs(callNode: SyntaxNode, ctx: LowerContext): PropValue[]
   return args;
 }
 
-/** Compile one component-call arg (a list of expression nodes for a single
- *  positional argument) into a reactive {@link Binding} PropValue, mirroring
- *  {@link lowerBinding} but reading already-split nodes via
- *  `lowerExpressionFromNodes`. Enclosing `for`-loop vars (caller scope) become
- *  the evaluator's params. */
 function lowerComponentArg(
   argNodes: SyntaxNode[],
   ctx: LowerContext,
 ): PropValue {
-  // A lone quoted string with `{expr}` interpolates like display content
-  // (spec D3: "quoted = text, braces = code"): lower it to a `content` PropValue
-  // (literal + binding parts) the runtime concatenates to a string. Bindings
-  // capture the caller's loop vars (readContentParts → lowerBinding), matching
-  // how a bare-expression arg is evaluated in the caller scope.
   if (
     argNodes.length === 1 &&
     (INTERP_CONTENT_NODES.has(argNodes[0]!.name) ||
@@ -372,7 +257,7 @@ function lowerComponentArg(
   const exprId = bindingId(first.from, ctx);
   const source = ctx.read(first.from, last.to);
   const span = bindingSpan(first.from, last.to, ctx);
-  const loopVars = [...new Set(ctx.sparkleLoopVars ?? [])]; // see lowerBinding
+  const loopVars = [...new Set(ctx.sparkleLoopVars ?? [])];
   const already = ctx.hoistedKnots?.some(
     (o) => o instanceof Function && o.identifier?.name === exprId,
   );
@@ -403,25 +288,18 @@ function lowerComponentArg(
 const EVENT_ATTR = nodeNameSet([
   "LuauEventAttribute",
   "LuauSparkleEventAttribute",
-  // An event closure that goes on at the next line.
   "LuauSparkleEventClosureAttribute",
 ]);
 const EVENT_NAME = nodeNameSet(["EventAttributeName"]);
 const EVENT_CONTENT = nodeNameSet([
   "LuauEventAttribute_content",
-  // In a brace block, the handler is its own node (see `handlerContent`).
   "LuauSparkleEventHandler",
 ]);
-/** A bare `@e=name` handler, emitted by the grammar as its own node — which is
- *  the only reliable way to tell one from a call once a trailing comment is in
- *  the raw text. */
 const EVENT_HANDLER_NAME = nodeNameSet(["LuauSparkleEventHandlerName"]);
 const EVENT_CLOSURE = nodeNameSet(["LuauSparkleHandlerClosure"]);
 const EVENT_CLOSURE_BODY = nodeNameSet(["LuauSparkleHandlerClosure_content"]);
 const EVENT_CLOSURE_END = nodeNameSet(["LuauSparkleHandlerClosure_end"]);
 
-/** DFS: every `LuauEventAttribute` descendant, in source order, or the node
- *  itself when it is one. */
 function eventAttributes(node: SyntaxNode): SyntaxNode[] {
   if (EVENT_ATTR.has(node.name)) return [node];
   const out: SyntaxNode[] = [];
@@ -437,21 +315,12 @@ function eventAttributes(node: SyntaxNode): SyntaxNode[] {
   return out;
 }
 
-/** Build EventBindings (spec §4.5) from a line's `@event=handler` attributes.
- *  Three handler forms (L7):
- *   `@e=name`         → a `ref` (the runtime calls the named function);
- *   `@e=call(args)`   → a `call` whose binding (`__binding$N`) the runtime
- *                       evaluates for its effects;
- *   `@e={ stmts }`    → a `closure` whose binding is a hoisted function body of
- *                       statements (write-back: `@input={ name = event.value }`).
- *  All three expose `event` (the DOM payload) plus any enclosing loop vars. */
 function readEvents(lineNode: SyntaxNode, ctx: LowerContext): EventBinding[] {
   const events: EventBinding[] = [];
   for (const attr of eventAttributes(lineNode)) {
     const nameNode = firstDescendant(attr, EVENT_NAME);
     const event = nameNode ? ctx.read(nameNode.from, nameNode.to).trim() : "";
     if (!event) continue;
-    // Inline closure `{ … }` — its own grammar node (statements, not a table).
     const closureNode = firstDescendant(attr, EVENT_CLOSURE);
     if (closureNode) {
       events.push({
@@ -463,12 +332,6 @@ function readEvents(lineNode: SyntaxNode, ctx: LowerContext): EventBinding[] {
       });
       continue;
     }
-    // Prefer the node the grammar already produced for a bare handler name.
-    // Re-reading the attribute's RAW TEXT instead meant a trailing comment
-    // (`@click=use -- note`) failed the bare-name test and fell through to the
-    // call branch, compiling to an empty evaluator: a button that runs nothing,
-    // with no diagnostic. `LuauSparkleEventHandlerName` anticipates exactly
-    // that comment, so read it rather than re-tokenizing.
     const refNode = firstDescendant(attr, EVENT_HANDLER_NAME);
     if (refNode) {
       events.push({
@@ -481,8 +344,6 @@ function readEvents(lineNode: SyntaxNode, ctx: LowerContext): EventBinding[] {
     if (handlerNode) {
       events.push({
         event,
-        // `event` is a reserved evaluator param so a call handler can pass it
-        // (`@change=toggle(event)`); the runtime supplies the DOM event table.
         handler: {
           kind: "call",
           binding: lowerBinding(handlerNode, ctx, ["event"]),
@@ -493,25 +354,14 @@ function readEvents(lineNode: SyntaxNode, ctx: LowerContext): EventBinding[] {
   return events;
 }
 
-/** The node that holds a handler expression. */
 function handlerContent(node: SyntaxNode | null): SyntaxNode | null {
   if (node?.name === "LuauSparkleEventHandler") return node.firstChild ?? node;
   return node;
 }
 
-/** Worded like the message for a layout block left open
- *  (`UNCLOSED_SPARKLE_BLOCK`). */
 export const UNCLOSED_HANDLER_CLOSURE =
   "This handler is missing its closing `}`. Without it, the handler runs to the next line that starts with `end`, `else`, `elseif` or `case`, the next `scene` or `branch`, or the end of the file.";
 
-/** Compile an inline-closure handler (`@e={ stmts }`) into a {@link Binding}: a
- *  hoisted function `__binding$<id>(event, <loopvars>) <stmts> end`. Unlike
- *  {@link lowerBinding} (a single `return <expr>`), the body is the closure's
- *  STATEMENTS — lowered via the shared `lowerStatements` so every form works
- *  (assignment, property-target `a.b = x`, bare call). The reactive runtime
- *  evaluates it for its side effects (writes), then flushes affected bindings.
- *  `event` and loop vars are the function's parameters; references resolve to
- *  them at the call frame, while assigned game-state names resolve as globals. */
 function lowerHandlerClosure(
   closureNode: SyntaxNode,
   ctx: LowerContext,
@@ -520,12 +370,11 @@ function lowerHandlerClosure(
   const exprId = bindingId(closureNode.from, ctx);
   const source = ctx.read(closureNode.from, closureNode.to);
   const span = bindingSpan(closureNode.from, closureNode.to, ctx);
-  const loopVars = [...new Set([...(ctx.sparkleLoopVars ?? []), ...extraParams])]; // see lowerBinding
+  const loopVars = [...new Set([...(ctx.sparkleLoopVars ?? []), ...extraParams])];
   const closeBrace = childrenByName(closureNode, EVENT_CLOSURE_END)[0];
   if ((!closeBrace || closeBrace.to === closeBrace.from) && ctx.diagnostics) {
     const open = closureNode.from;
     ctx.diagnostics.push({
-      // With no end at all, the closure stopped at the end of its line.
       message: closeBrace
         ? UNCLOSED_HANDLER_CLOSURE
         : "This handler is missing its closing `}`.",
@@ -545,18 +394,10 @@ function lowerHandlerClosure(
   );
   if (!already && ctx.hoistedKnots) {
     const body = firstDescendant(closureNode, EVENT_CLOSURE_BODY);
-    // With statement shapes on, each statement of the closure is recorded on
-    // the evaluator's body, for the binary program (`openEvaluatorBody`).
     const shape = openEvaluatorBody(ctx, closureNode.from, closureNode.to);
-    // The closure runs as a function: a `const` in it is Luau's local.
     const localConsts = ctx.localConsts;
     ctx.localConsts = true;
     const closureBody = body ? closureBodyAst(body, ctx) : null;
-    // It opens the scopes a function body opens (`inFunctionScopes`), so
-    // the functions declared or written in it are its own subflows, as a
-    // plain function's are: a named one would otherwise be read as a
-    // top-level function inside the evaluator, and in a function's layout a
-    // function value would land in that function rather than the evaluator.
     const { result: stmts, hoisted, nested } = inFunctionScopes(
       loopVars.map((name) => ({ name })),
       loopVars,
@@ -569,8 +410,6 @@ function lowerHandlerClosure(
       },
     );
     ctx.localConsts = localConsts;
-    // An error at the `end` the reading closes the closure with is reported
-    // at the closure's `}` (`closureReadingErrors`).
     if (body) reportBodySyntaxErrors(closureReadingErrors(closureSyntaxErrors(body, ctx), closureNode, documentText(ctx)), ctx);
     const fn = new Function(
       new Identifier(exprId),
@@ -600,7 +439,6 @@ const PROP_LITERAL = nodeNameSet([
   "InlinePropNumericValue", "InlinePropBooleanValue", "InlinePropWordValue",
 ]);
 
-/** DFS: every `LuauPropAttribute` descendant, in source order. */
 function propAttributes(node: SyntaxNode): SyntaxNode[] {
   const out: SyntaxNode[] = [];
   const walk = (n: SyntaxNode) => {
@@ -615,11 +453,6 @@ function propAttributes(node: SyntaxNode): SyntaxNode[] {
   return out;
 }
 
-/** Build the inline `#prop=value` map (spec §4.2/§4.4) from a line's prop
- *  attributes. A `{expr}` value → a reactive binding; an interpolated quoted
- *  value (`"HP: {hp}"`) → a `content` PropValue (concatenated to a string at
- *  runtime, so quoted props interpolate like display content, spec D3); a plain
- *  `"string"`/literal → a literal. The runtime re-applies bound props on change. */
 function readProps(
   lineNode: SyntaxNode,
   ctx: LowerContext,
@@ -629,9 +462,6 @@ function readProps(
     const nameNode = firstDescendant(attr, PROP_NAME);
     const name = nameNode ? ctx.read(nameNode.from, nameNode.to).trim() : "";
     if (!name) continue;
-    // Interpolated quoted value (`"HP: {hp}"`) — checked BEFORE the bare-`{expr}`
-    // case, since the content-string node CONTAINS LuauInterpolatedStringExpression
-    // children that would otherwise be mistaken for a lone binding.
     const contentStr = firstDescendant(attr, INTERP_CONTENT_NODES);
     if (contentStr) {
       props[name] = { kind: "content", content: readContentParts(contentStr, ctx) };
@@ -663,16 +493,11 @@ function readProps(
   return props;
 }
 
-/** Build the ordered literal/binding content parts for an element's display
- *  content. Handles the interpolation-aware `StringFieldValueInterpolated`
- *  (literal runs + `{expr}` / `{{fn}}` bindings) and plain values (a single
- *  literal part), resolving backslash escapes in literal text. */
 function readContentParts(
   value: SyntaxNode | null,
   ctx: LowerContext,
 ): ContentPart[] {
   if (value && INTERP_CONTENT_NODES.has(value.name)) {
-    // Each interp content node wraps its parts under a `<name>_content` child.
     const inner = firstDescendant(value, new Set([`${value.name}_content`]));
     const parts: ContentPart[] = [];
     let textBuf = "";
@@ -698,8 +523,6 @@ function readContentParts(
     flush();
     return parts.length > 0 ? parts : [{ kind: "literal", text: "" }];
   }
-  // Plain value → a single literal content part (unescape brace escapes for
-  // strings; numbers/bools stringify).
   const literal = readLiteralValue(value, ctx);
   if (literal.kind === "literal") {
     const text =
@@ -714,22 +537,15 @@ function readContentParts(
   return [{ kind: "binding", binding: literal.binding }];
 }
 
-/** Read a field-value node as a literal PropValue, used for inline props/style
- *  values (Luau-position values that are NOT reactive in v1). Display content
- *  goes through {@link readContentParts} instead. */
 const PLAIN_STRING_CONTENT = nodeNameSet([
   "PlainStringContent",
-  // Same role, but bounded by `'` — `PlainStringContent` stops at a double
-  // quote, so it reads as empty inside single-quoted content that contains one.
   "PlainStringContentSingleQuoted",
 ]);
 
 function readLiteralValue(field: SyntaxNode | null, ctx: LowerContext): PropValue {
   if (!field) return { kind: "literal", value: "" };
-  // A value with a trailing comment reads only its value node.
   const value = structValueNode(field);
   if (PLAIN_CONTENT_NODES.has(value.name)) {
-    // Read the unquoted inner content (PlainStringContent), else strip quotes.
     const inner = firstDescendant(value, PLAIN_STRING_CONTENT);
     if (inner) {
       return { kind: "literal", value: ctx.read(inner.from, inner.to) };
@@ -747,7 +563,6 @@ function readLiteralValue(field: SyntaxNode | null, ctx: LowerContext): PropValu
   return { kind: "literal", value: ctx.read(value.from, value.to).trim() };
 }
 
-/** An element's parts, as {@link readParts} reads them. */
 interface ElementParts {
   classes: string[];
   content?: ContentPart[];
@@ -755,9 +570,6 @@ interface ElementParts {
   events: EventBinding[];
 }
 
-/** Read the parts an element's part nodes hold (`sparklePartNodes`), in
- *  source order: its classes, its first content, its `#prop`s (a later one
- *  wins) and its `@event`s. An event closure holds no part but its event. */
 function readParts(parts: SyntaxNode[], ctx: LowerContext): ElementParts {
   const out: ElementParts = { classes: partClasses(parts, ctx), props: {}, events: [] };
   for (const part of parts) {
@@ -773,9 +585,6 @@ function readParts(parts: SyntaxNode[], ctx: LowerContext): ElementParts {
   return out;
 }
 
-/** The classes the part nodes hold (`sparklePartNodes`), in source order:
- *  each dotted `.name`. An event
- *  closure holds none. */
 function partClasses(parts: SyntaxNode[], ctx: LowerContext): string[] {
   return parts.flatMap((part) =>
     part.name === "LuauSparkleEventClosureAttribute"
@@ -786,24 +595,16 @@ function partClasses(parts: SyntaxNode[], ctx: LowerContext): string[] {
   );
 }
 
-/** The part nodes of the continuation lines the element keyed `key` (its
- *  node's `from`) takes, in source order. */
 function continuationPartNodes(key: number, ctx: LowerContext): SyntaxNode[] {
   return (ctx.sparkleJoins?.continuations.get(key) ?? []).flatMap((line) =>
     sparklePartNodes(line),
   );
 }
 
-/** The dotted `.name` classes in an element's head, in source order. */
 const HEAD_CLASS_NAMES = nodeNameSet([
   "LuauSparkleClassName",
 ]);
 
-/** The entries of a brace block (`container` is a block line, or the content
- *  of a block or of a control block's branch): the elements and control
- *  blocks it holds, and the style props its `key = value` lines set on the
- *  element around it. The entries nest by their braces, so indentation plays
- *  no part. */
 function buildBracedEntries(
   container: SyntaxNode,
   ctx: LowerContext,
@@ -812,15 +613,11 @@ function buildBracedEntries(
   const props: Record<string, PropValue> = {};
   for (const entry of sparkleBlockEntries(container)) {
     if (isContinuation(entry, ctx)) {
-      // Read with the element it continues; one that continues nothing is
-      // reported by the validator.
       continue;
     }
     if (entry.name === "LuauSparkleElement") {
       children.push(buildBracedElement(entry, ctx));
     } else if (entry.name === "LuauStructBlockProperty") {
-      // `image = "black"` (a builtin key) is an element whose content is the
-      // value; any other key is a style prop.
       const keyNode = firstDescendant(entry, KEY_TOKEN_NAMES);
       const valueNode = firstContentDescendant(entry, FIELD_VALUE_NAMES);
       const key = keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : "";
@@ -840,18 +637,13 @@ function buildBracedEntries(
     } else if (entry.name !== "LuauSparkleElementBlock") {
       children.push(buildControl(entry, ctx));
     }
-    // A block with no element before it holds nothing an element can take;
-    // the validator reports it.
   }
   return { children, props };
 }
 
-/** Build an element, component call, slot or fill from its explicit block. */
 function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
   const { name, args, block } = sparkleElementParts(node);
   const tag = name ? ctx.read(name.from, name.to).trim() : "";
-  // The element's parts, on its line and after a closure that goes on at
-  // the next line, then those of the continuation lines it takes.
   const parts = [
     ...sparklePartNodes(node),
     ...continuationPartNodes(node.from, ctx),
@@ -866,7 +658,6 @@ function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
     blockContent
       ? buildBracedEntries(blockContent, ctx)
       : { children: [] as BodyNode[], props: {} as Record<string, PropValue> };
-  // A named slot or fill uses its first dotted class as the name.
   if (tag === "slot" || tag === "fill") {
     const name = partClasses(parts, ctx)[0];
     return tag === "slot"
@@ -877,8 +668,6 @@ function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
           children: buildBlockEntries().children,
         };
   }
-  // Content on an element with a block is read as a leaf's is, so `{expr}` in
-  // it binds.
   const read = readParts(parts, ctx);
   const element: ElementNode = {
     kind: "element",
@@ -898,7 +687,6 @@ function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
   return element;
 }
 
-/** Direct children of `node` whose name is in `names`, in source order. */
 function childrenByName(node: SyntaxNode, names: Set<string>): SyntaxNode[] {
   const out: SyntaxNode[] = [];
   let c = node.firstChild;
@@ -939,7 +727,6 @@ const CASE_CONTENT = nodeNameSet([
   "LuauSparkleCaseClause_content",
   "LuauSparkleBlockCase_content",
 ]);
-// A branch of a control block inside a brace block holds block entries.
 const BRACED_BRANCH_CONTENT = nodeNameSet([
   "LuauSparkleBlockIf_content",
   "LuauSparkleBlockElseif_content",
@@ -948,7 +735,6 @@ const BRACED_BRANCH_CONTENT = nodeNameSet([
   "LuauSparkleBlockCase_content",
 ]);
 
-/** Build the children owned by a control-flow branch. */
 function buildBranchChildren(
   content: SyntaxNode | null,
   ctx: LowerContext,
@@ -963,9 +749,6 @@ const IF_CONDITION = nodeNameSet(["LuauIfBlockCondition"]);
 const IF_CONDITION_CONTENT = nodeNameSet(["LuauIfBlockCondition_content"]);
 const ELSEIF_CONDITION_CONTENT = nodeNameSet(["LuauElseifBlockCondition_content"]);
 
-/** Compile a control-block condition node (the expression up to `then`) into a
- *  Binding the reactive runtime evaluates. Prefers the `_content` wrapper so the
- *  `then` keyword isn't included in the binding source. */
 function lowerCondition(
   conditionNode: SyntaxNode,
   contentNames: Set<string>,
@@ -977,8 +760,6 @@ function lowerCondition(
   );
 }
 
-/** Build a control-flow BodyNode. `if` (IfNode) / `for` (ForNode); `match`/
- *  `slot`/`fill` follow. */
 function buildControl(node: SyntaxNode, ctx: LowerContext): BodyNode {
   if (node.name === "LuauSparkleForLoop" || node.name === "LuauSparkleBlockFor") {
     return buildForNode(node, ctx);
@@ -995,9 +776,6 @@ function buildControl(node: SyntaxNode, ctx: LowerContext): BodyNode {
 const MATCH_CONDITION_CONTENT = nodeNameSet(["LuauSparkleMatchCondition_content"]);
 const CASE_VALUE_CONTENT = nodeNameSet(["LuauSparkleCaseValue_content"]);
 
-/** `LuauSparkleMatchBlock` → MatchNode (spec §4.6). `match <expr> do  case
- *  <value> …  [else …]  end`: each `case` arm (value + children) is a grammar
- *  child; `else` is the default. */
 function buildMatchNode(matchBlock: SyntaxNode, ctx: LowerContext): MatchNode {
   const content = firstDescendant(matchBlock, MATCH_CONTENT);
   const cases: MatchNode["cases"] = [];
@@ -1046,16 +824,13 @@ const WS_NODE_NAMES = nodeNameSet([
   "Newline",
 ]);
 
-/** Compile a list of sibling expression nodes (e.g. the iterable after `in`)
- *  into a Binding, mirroring {@link lowerBinding} but for a node LIST rather
- *  than a single container. */
 function lowerBindingFromNodes(nodes: SyntaxNode[], ctx: LowerContext): Binding {
   const first = nodes[0]!;
   const last = nodes[nodes.length - 1]!;
   const exprId = bindingId(first.from, ctx);
   const source = ctx.read(first.from, last.to);
   const span = bindingSpan(first.from, last.to, ctx);
-  const loopVars = [...new Set(ctx.sparkleLoopVars ?? [])]; // see lowerBinding
+  const loopVars = [...new Set(ctx.sparkleLoopVars ?? [])];
   const already = ctx.hoistedKnots?.some(
     (o) => o instanceof Function && o.identifier?.name === exprId,
   );
@@ -1080,10 +855,6 @@ function lowerBindingFromNodes(nodes: SyntaxNode[], ctx: LowerContext): Binding 
   };
 }
 
-/** `LuauSparkleForLoop` → ForNode (spec §4.6). `for <bindings> in <expr> do …
- *  [else …] end`: bindings = the loop variable name(s) before `in`; `each` =
- *  the iterable after `in`; `else` = the empty-iterable fallback. Numeric `for`
- *  (no `in`) is a follow-up. */
 function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
   const content = firstDescendant(forBlock, FOR_CONTENT);
   const condContent = content
@@ -1095,9 +866,6 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
   if (condContent) {
     const inKw = firstDescendant(condContent, nodeNameSet(["LuauInKeyword"]));
     if (inKw) {
-      // Each variable is a path of its own before `in`; a type annotation
-      // after one is not, so a comma inside its type is not a separator
-      // (`for k: {a: number, b: string}, v in scores`).
       bindings = collectForLoopTargetNames(condContent, ctx);
       const iterableNodes: SyntaxNode[] = [];
       let c = condContent.firstChild;
@@ -1111,8 +879,6 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
         each = lowerBindingFromNodes(iterableNodes, ctx);
       }
     } else {
-      // Numeric `for i = from, to[, step] do` (no `in`). All three bounds are
-      // lowered OUTSIDE the loop scope (the loop var isn't in scope for them).
       const parsed = parseNumericForHeader(condContent, ctx);
       if (parsed) {
         bindings = [parsed.loopVar];
@@ -1121,9 +887,6 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
     }
   }
   const elseBlock = content ? childrenByName(content, ELSE_CLAUSE)[0] : undefined;
-  // Lower the body WITH the loop variables in scope, so body bindings emit them
-  // as evaluator params; the iterable (lowered above) and `else` (below) stay
-  // OUTSIDE the loop scope (the loop var is undefined when the iterable is empty).
   ctx.sparkleLoopVars ??= [];
   const restoreLen = ctx.sparkleLoopVars.length;
   ctx.sparkleLoopVars.push(...bindings);
@@ -1143,11 +906,6 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
   return forNode;
 }
 
-/** Parse a numeric `for` header (`i = from, to[, step]`, no `in`) from its
- *  `LuauForCondition_content`. The loop var is the name before the `= from`
- *  assignment; `from` is the assignment's value; `to`/`step` are the
- *  comma-separated expressions after it. Returns null if it doesn't look
- *  numeric (no assignment / no `to`). */
 function parseNumericForHeader(
   condContent: SyntaxNode,
   ctx: LowerContext,
@@ -1163,7 +921,6 @@ function parseNumericForHeader(
   if (!loopVar) {
     return null;
   }
-  // `from` = the assignment value: its content nodes after the `=` operator.
   const asnContent = firstDescendant(
     asn,
     nodeNameSet(["LuauAssignmentOperation_content"]),
@@ -1176,8 +933,6 @@ function parseNumericForHeader(
     }
     cc = cc.nextSibling;
   }
-  // `to` / optional `step` = comma-separated expression groups after the
-  // assignment operation.
   const groups: SyntaxNode[][] = [];
   let cur: SyntaxNode[] = [];
   let c = condContent.firstChild;
@@ -1211,9 +966,6 @@ function parseNumericForHeader(
   };
 }
 
-/** `LuauSparkleIfBlock` → IfNode: the `if` + each `elseif` are branches
- *  (condition + children), `else` is the default. Branch bodies are the element
- *  lines inside each clause (grammar children — no sibling-index walking). */
 function buildIfNode(ifBlock: SyntaxNode, ctx: LowerContext): IfNode {
   const ifContent = firstDescendant(ifBlock, IF_CONTENT);
   const branches: IfNode["branches"] = [];
@@ -1247,17 +999,12 @@ function buildIfNode(ifBlock: SyntaxNode, ctx: LowerContext): IfNode {
   return { kind: "if", branches };
 }
 
-/** Build the reactive AST body (BodyNode[]) for a screen/component content
- *  node, reading the grammar's separated tokens. */
 export function buildSparkleBody(
   contentNode: SyntaxNode | null,
   ctx: LowerContext,
 ): BodyNode[] {
   const prevJoins = ctx.sparkleJoins;
   ctx.sparkleJoins = joinSparkleContinuations(contentNode);
-  // Stamp per-token metadata on binding expression nodes, which the synthetic
-  // functions bindings are hoisted into cannot inherit from a statement
-  // (scoped to Sparkle bodies — see LowerContext.stampExpressionSpans).
   const prevStamp = ctx.stampExpressionSpans;
   ctx.stampExpressionSpans = true;
   try {
@@ -1267,10 +1014,6 @@ export function buildSparkleBody(
     ctx.sparkleJoins = prevJoins;
   }
 }
-// The loop variables a Sparkle `for` declares, before its `in`
-// (`for k, v in scores`). A type annotation after one is not a variable of
-// its own, so a comma inside its type is not a separator
-// (`for k: {a: number, b: string}, v in scores`).
 function collectForLoopTargetNames(
   condContent: SyntaxNode,
   ctx: LowerContext,

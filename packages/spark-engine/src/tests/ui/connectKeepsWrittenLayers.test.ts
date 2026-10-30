@@ -18,7 +18,7 @@ define hat as image with
   src = "https://example.com/hat.png"
 end
 
--> start
+
 
 scene start
   [[show backdrop sky]]

@@ -6,14 +6,8 @@ export type Binding = { kind: BindingKind; fromStdlib: boolean };
 
 type Site = { from: number; to: number; name: string };
 type Declaration = Site & { scope: number; kind: BindingKind };
-/** `nameFallback`: a site that takes the name's token even with no binding, a
- * structural word that names a value (`namesValue`), whose grammar scope is
- * the alternator keyword's. */
 type Reference = Site & { scopes: number[]; declaration: boolean; nameFallback?: true };
 
-/** Scope identities are the starts of enclosing function definitions and type
- * function declarations. Global scope is -1. These are the same scopes
- * SemanticAnnotator uses. */
 function scopesAt(node: SyntaxNode): number[] {
   const scopes: number[] = [];
   for (let parent = node.parent; parent; parent = parent.parent) {
@@ -36,10 +30,6 @@ export interface SemanticDependenciesSnapshot {
   observedReferences: Reference[];
 }
 
-/** Keeps resolved AND unresolved reference sites. A newly introduced binding
- * must be able to add a token where there was previously no annotation.
- * Declaration changes only re-resolve references indexed under the changed
- * names; neither syntax traversal nor other annotators' windows are widened. */
 export class SemanticDependencies {
   private declarations: Declaration[] = [];
   private references = new Map<string, Reference[]>();
@@ -52,15 +42,6 @@ export class SemanticDependencies {
     this.observedReferences = [];
   }
 
-  /**
-   * Everything the index carries across updates.
-   *
-   * `declarations` is replaced wholesale by every pass, so it is held by
-   * reference. The per-name reference lists and the changed-name set are
-   * edited in place — `finish` pushes into a name's list, sorts it, and clears
-   * the set — so those are copied one level deep, which is what it costs to be
-   * able to put the index back after a hypothetical edit.
-   */
   snapshot(): SemanticDependenciesSnapshot {
     const references = new Map<string, Reference[]>();
     for (const [name, sites] of this.references) {
@@ -75,7 +56,6 @@ export class SemanticDependencies {
     };
   }
 
-  /** Take back the state `snapshot` recorded. */
   restore(snapshot: SemanticDependenciesSnapshot) {
     this.declarations = snapshot.declarations;
     this.references = snapshot.references;
@@ -139,8 +119,6 @@ export class SemanticDependencies {
   ) {
     const overlaps = (site: Site) => site.to >= from && site.from <= to;
     const previous = this.declarations.filter(overlaps);
-    // `to` belongs to the owner node, which may extend across an entire
-    // function. Changing only its end is not a change to the binding.
     const key = (site: Declaration) =>
       `${site.from}:${site.scope}:${site.name}:${site.kind}`;
     const oldKeys = new Set(previous.map(key));
@@ -186,7 +164,6 @@ export class SemanticDependencies {
           const binding = bindings[i++]!;
           visible.set(binding.scope, { kind: binding.kind, fromStdlib: false });
         }
-        // The ordinary pass already emitted tokens inside its window.
         if (overlaps(ref)) continue;
         let binding: Binding | undefined;
         for (const scope of ref.scopes) {

@@ -28,6 +28,8 @@ const CHARACTERS = [
   { id: "hero", name: "HERO" },
   { id: "rival", name: "RIVAL" },
 ];
+const START = "scene start\n  -> MAIN\nend\n";
+
 const EXPRESSIONS = ["calm", "concerned", "confident", "confused", "shy", "unsure", "frustrated", "smug", "sad", "happy", "angry", "tired"];
 // Attributes a directive may ask for; each is a condition some layer names.
 const ATTRIBUTES = ["gloves", "hat", "bandage", "young", "cushion", "coat", "robe", "school", "mouth.closed", "mouth.teeth", "eyes.closed", "look.left", "look.right"];
@@ -151,6 +153,7 @@ export function buildPreviewFixture({ beforeLines = 1300, thenLines = 1100 } = {
   const lineText = lines[line - 1];
   const files = new Map();
   files.set("main.sd", lines.join("\n"));
+  files.set("scripts/start.sd", START);
   files.set("scripts/characters.sd", CHARACTERS.map((c) => `define ${c.id} as character with\n  name = "${c.name}"\nend\n`).join("\n"));
   // Named looks over the layered files, as a real project writes them.
   files.set(
@@ -206,6 +209,7 @@ export function buildBeatsFixture({ lines = 2400 } = {}) {
   const scene = ["scene MAIN", ...beats(rand, 2, lines, []), "end", ""];
   const files = new Map();
   files.set("main.sd", scene.join("\n"));
+  files.set("scripts/start.sd", START);
   files.set("scripts/characters.sd", CHARACTERS.map((c) => `define ${c.id} as character with\n  name = "${c.name}"\nend\n`).join("\n"));
   return { files, target: { line: scene.length - 3, sceneLines: scene.length } };
 }
@@ -247,6 +251,7 @@ export function buildChunksFixture({ scenes = 8, linesPerScene = 150, thenLines 
   }
   const files = new Map();
   files.set("main.sd", out.join("\n"));
+  files.set("scripts/start.sd", START);
   files.set("scripts/characters.sd", CHARACTERS.map((c) => `define ${c.id} as character with\n  name = "${c.name}"\nend\n`).join("\n"));
   return { files, target: { line: out.length - 3, scenes, sceneLines: out.length } };
 }

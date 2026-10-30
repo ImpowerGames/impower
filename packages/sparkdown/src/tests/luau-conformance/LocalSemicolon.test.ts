@@ -2,10 +2,6 @@ import { describe, expect, test } from "vitest";
 import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
 import { parseSource } from "../compiler/grammarSnapshot";
 
-// A Luau `local` statement ends at a `;` written directly after its value
-// (`local x = f();`), just as it does at whitespace or the end of the line.
-
-/** Every rule name in the tree, without the `_c<N>` suffix a capture node carries. */
 function nodeNames(source: string): string[] {
   const tree = parseSource(source);
   const names: string[] = [];
@@ -16,7 +12,6 @@ function nodeNames(source: string): string[] {
   return names;
 }
 
-/** Every rule name the grammar gives to the text from `from` with length `length`. */
 function nodeNamesAt(source: string, from: number, length: number): string[] {
   const tree = parseSource(source);
   const names: string[] = [];
@@ -38,8 +33,6 @@ const STATEMENTS = [
   "local x = if t then 1 else 2;",
   "local x = iffy;",
   "local x = 1 +\n  2;",
-  // `not`, not `-`: a comment right after an arithmetic `-` is read as more
-  // minus signs (#880).
   "local x = not --[[c]] t;",
   "local x: --[[c]] number;",
   "local x = not --[=[ ]] ]=] t;",
@@ -63,7 +56,6 @@ describe("a local statement ends at a `;` directly after its value", () => {
     },
   );
 
-  // A cast's `::` takes a type, which Luau reports as missing (#1174).
   test("local foo = a::; reports the missing type", () => {
     expect(checkLuau("local foo = a::;\n").syntaxDiagnostics.map(describeDiagnostic)).toEqual([
       "0:15-0:16 SyntaxError: Expected type, got ';'",
@@ -77,12 +69,10 @@ describe("a local statement ends at a `;` directly after its value", () => {
     ["local foo = -\n\n  ;", "Expected identifier when parsing expression, got ';'"],
     ["local x = 1 + if;", "Expected identifier when parsing expression, got ';'"],
     ["local x =\n;", "Expected identifier when parsing expression, got ';'"],
-    // Comments are trivia to Luau, like the line breaks above.
     ["local x: --[[c]] ;", "Expected type, got ';'"],
     ["local x = if --[[c]] ;", "Expected identifier when parsing expression, got ';'"],
     ["local foo = - --[[c]] ;", "Expected identifier when parsing expression, got ';'"],
     ["local foo = - --[=[c]=] ;", "Expected identifier when parsing expression, got ';'"],
-    // A level-1 comment holding a level-0 close (`]]`) ends only at `]=]`.
     ["local x: --[=[ ]] ]=] ;", "Expected type, got ';'"],
     ["local x = if --[=[ ]] ]=] ;", "Expected identifier when parsing expression, got ';'"],
     ["local x: -- missing type\n;", "Expected type, got ';'"],
@@ -94,7 +84,6 @@ describe("a local statement ends at a `;` directly after its value", () => {
     ]);
   });
 
-  // A `;` inside a line comment after an operator is not the statement's end.
   test("an operator followed by a comment holding `;` keeps its operand", () => {
     expect(checkLuau("local a = 1 + -- note; more\n  2\n").syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
   });

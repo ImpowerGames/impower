@@ -45,7 +45,7 @@ const shownText = (game: Game) => {
 };
 
 const playSecondBeat = async (source: string) => {
-  const h = createHarness(source, source.split("\n").indexOf("A"));
+  const h = createHarness(source, source.split("\n").indexOf("  A"));
   await h.ready;
   h.reset();
   h.game.start();
@@ -70,57 +70,57 @@ const playSecondBeat = async (source: string) => {
 const CASES: [name: string, source: string, text: string][] = [
   [
     "table.sort with an inline comparator in a display line",
-    `store t = {3, 1, 2}\nA\n{table.sort(t, function(a, b) return a < b end)} B {t[1]}\nC\n`,
+    `store t = {3, 1, 2}\nscene start\n  A\n  {table.sort(t, function(a, b) return a < b end)} B {t[1]}\n  C\nend\n`,
     "B 1",
   ],
   [
     "table.sort with an inline comparator in a logic line",
-    `store t = {3, 1, 2}\nA\n& table.sort(t, function(a, b) return a < b end)\nB {t[1]}\nC\n`,
+    `store t = {3, 1, 2}\nscene start\n  A\n  & table.sort(t, function(a, b) return a < b end)\n  B {t[1]}\n  C\nend\n`,
     "B 1",
   ],
   [
     "table.sort with a named comparator",
-    `function less(a, b)\n  return a < b\nend\n\nstore t = {3, 1, 2}\nA\nB {table.sort(t, less)} {t[1]}\nC\n`,
+    `function less(a, b)\n  return a < b\nend\n\nstore t = {3, 1, 2}\nscene start\n  A\n  B {table.sort(t, less)} {t[1]}\n  C\nend\n`,
     "B  1",
   ],
   [
     "string.gsub with a replacement function",
-    `store s = ""\nA\n& s = string.gsub("abc", "b", function(m) return "X" end)\nB {s}\nC\n`,
+    `store s = ""\nscene start\n  A\n  & s = string.gsub("abc", "b", function(m) return "X" end)\n  B {s}\n  C\nend\n`,
     "B aXc",
   ],
   [
     "an __index metamethod",
-    `store obj = setmetatable({}, { __index = function(t, k) return "found" end })\nA\nB {obj.missing}\nC\n`,
+    `store obj = setmetatable({}, { __index = function(t, k) return "found" end })\nscene start\n  A\n  B {obj.missing}\n  C\nend\n`,
     "B found",
   ],
   [
     "an __add metamethod",
-    `store v = setmetatable({}, { __add = function(a, b) return 7 end })\nA\nB {v + 1}\nC\n`,
+    `store v = setmetatable({}, { __add = function(a, b) return 7 end })\nscene start\n  A\n  B {v + 1}\n  C\nend\n`,
     "B 7",
   ],
   [
     "a __newindex metamethod",
-    `store seen = ""\nstore obj = setmetatable({}, { __newindex = function(t, k, v) seen = k end })\nA\n& obj.name = 1\nB {seen}\nC\n`,
+    `store seen = ""\nstore obj = setmetatable({}, { __newindex = function(t, k, v) seen = k end })\nscene start\n  A\n  & obj.name = 1\n  B {seen}\n  C\nend\n`,
     "B name",
   ],
   [
     "a __call metamethod",
-    `store f = setmetatable({}, { __call = function(self, x) return x * 2 end })\nA\nB {f(4)}\nC\n`,
+    `store f = setmetatable({}, { __call = function(self, x) return x * 2 end })\nscene start\n  A\n  B {f(4)}\n  C\nend\n`,
     "B 8",
   ],
   [
     "pcall of a function",
-    `A\nB {select(2, pcall(function() return "ok" end))}\nC\n`,
+    `scene start\n  A\n  B {select(2, pcall(function() return "ok" end))}\n  C\nend\n`,
     "B ok",
   ],
   [
     "table.foreach with a function",
-    `store total = 0\nA\n& table.foreach({1, 2, 3}, function(k, v) total = total + v end)\nB {total}\nC\n`,
+    `store total = 0\nscene start\n  A\n  & table.foreach({1, 2, 3}, function(k, v) total = total + v end)\n  B {total}\n  C\nend\n`,
     "B 6",
   ],
   [
     "table.sort with no comparator",
-    `store t = {3, 1, 2}\nA\n& table.sort(t)\nB {t[1]}\nC\n`,
+    `store t = {3, 1, 2}\nscene start\n  A\n  & table.sort(t)\n  B {t[1]}\n  C\nend\n`,
     "B 1",
   ],
 ];
@@ -145,16 +145,14 @@ describe("a Luau callback run from a story line in a running game", () => {
 describe("a callback's steps", () => {
   test("count against the step limit of the callback they are nested in", async () => {
     const result = await playSecondBeat(
-      `store ok = true\nA\n& ok = pcall(function() for i = 1, 1000 do pcall(function() for j = 1, 200 do end end) end end)\nB {ok}\nC\n`,
+      `store ok = true\nscene start\n  A\n  & ok = pcall(function() for i = 1, 1000 do pcall(function() for j = 1, 200 do end end) end end)\n  B {ok}\n  C\nend\n`,
     );
     expect(result.errors).toEqual([]);
     expect(result.threw).toBe("");
     expect(result.text).toBe("B false");
   });
 
-  const LOOPING_CALLBACK = `-> start
-
-scene start
+  const LOOPING_CALLBACK = `scene start
   A
   & table.foreach({1}, function(k, v) for i = 1, 2000 do end end)
   B
@@ -216,9 +214,7 @@ end
     ]);
   });
 
-  const GROWING_FOREACH = `-> start
-
-store t = {1}
+  const GROWING_FOREACH = `store t = {1}
 
 scene start
   A
@@ -244,8 +240,8 @@ end
   ])(
     "stopped by a running game's budget end the story, and %s after reports nothing",
     async (_, drive) => {
-      const source = `store t = {1}\nA\n& table.foreach(t, function(k, v) if #t < 20000 then table.insert(t, v) end end)\nB\nC\n`;
-      const h = createHarness(source, source.split("\n").indexOf("A"), {
+      const source = `store t = {1}\nscene start\n  A\n  & table.foreach(t, function(k, v) if #t < 20000 then table.insert(t, v) end end)\n  B\n  C\nend\n`;
+      const h = createHarness(source, source.split("\n").indexOf("  A"), {
         beforeConnect: (game) => {
           (game as any)._executionStepLimit = 5000;
         },
@@ -278,9 +274,7 @@ end
   ])(
     "stopped inside %s are reported as the budget running out",
     (_, line) => {
-      const source = `-> start
-
-store t = {5, 4, 3, 2, 1}
+      const source = `store t = {5, 4, 3, 2, 1}
 store s = ""
 
 scene start
@@ -316,9 +310,7 @@ end
 });
 
 describe("a route search past a sort whose comparator has an if", () => {
-  const SOURCE = `-> start
-
-function less(a, b)
+  const SOURCE = `function less(a, b)
   if a < b then
     return true
   end

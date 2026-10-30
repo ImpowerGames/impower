@@ -1,6 +1,3 @@
-// Synthetic names minted from a source offset are unique across files. An
-// offset is a position within one file, so two files each holding a
-// synthetic at the same offset must still get names no other file shares.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
@@ -64,8 +61,6 @@ function globalAfterRun(program: any, name: string): unknown {
   return story.variablesState.$(name);
 }
 
-// Compiles `project`, prepends `insert` to the file `name`, and returns the
-// incremental compile of the edited project beside a cold compile of it.
 function incrementalAndCold(project: Project, name: string, insert: string): [any, any] {
   return quiet(() => {
     const compiler = testCompiler();
@@ -84,19 +79,13 @@ function incrementalAndCold(project: Project, name: string, insert: string): [an
   });
 }
 
-// Edits `pre.sd`, a script of the project that holds only a scene, so it
-// starts with the same code `shared.sd` holds (both wrapped in a function of a
-// same-length name, so the code sits at the same offset of each file), and
-// checks the incremental program's chunks against a cold one's.
 function expectCopiedCodeMatchesCold(main: string[], body: (name: string) => string) {
   const project: Project = {
-    main: [...main, ""].join("\n"),
+    main: [...main, "scene start", "end", ""].join("\n"),
     pre: ["scene pre_one", "  Before.", "end", ""].join("\n"),
     shared: body("sf"),
   };
   const [incremental, cold] = incrementalAndCold(project, "pre", body("pf"));
-  // Both other scripts are part of each program, with the functions holding
-  // the copied code.
   for (const program of [incremental, cold]) {
     expect(Object.keys(program.scripts)).toEqual([MAIN_URI, uriOf("pre"), uriOf("shared")]);
     expect(Object.keys(program.functionLocations ?? {})).toEqual(expect.arrayContaining(["pf", "sf"]));
@@ -109,7 +98,7 @@ function expectCopiedCodeMatchesCold(main: string[], body: (name: string) => str
 describe("synthetic names in two files", () => {
   it("two anonymous functions at the same offset of their files compile", () => {
     const program = compileOnce({
-      main: ["store x = 0", "& x = fa_f() + fb_f()", ""].join("\n"),
+      main: ["store x = 0", "scene start", "  & x = fa_f() + fb_f()", "end", ""].join("\n"),
       fa: ["store fa_f = function() return 1 end", ""].join("\n"),
       fb: ["store fb_f = function() return 2 end", ""].join("\n"),
     });
@@ -121,7 +110,7 @@ describe("synthetic names in two files", () => {
     const defineIn = (name: string) =>
       [`define ${name} with`, "  function get()", `    return ${name === "ca" ? 1 : 2}`, "  end", "end", ""].join("\n");
     const program = compileOnce({
-      main: ["store x = 0", "& x = ca:get() + cb:get()", ""].join("\n"),
+      main: ["store x = 0", "scene start", "  & x = ca:get() + cb:get()", "end", ""].join("\n"),
       fa: defineIn("ca"),
       fb: defineIn("cb"),
     });
@@ -130,7 +119,6 @@ describe("synthetic names in two files", () => {
   });
 
   it("a method-call temp copied into another file keeps the cold names after an edit", () => {
-    // `main`'s anonymous function, and two receiver temps per chain.
     expectCopiedCodeMatchesCold(
       ["store a = { add = function(self, n) return self end }", "store r = 0"],
       (name) => [`function ${name}()`, "  r = a:add(1):add(2)", "end", ""].join("\n"),
@@ -166,9 +154,6 @@ describe("synthetic names in two files", () => {
   });
 });
 
-// Compiles `text` in `main`, inserts `insert` at the start of the 0-based
-// `line`, and returns the incremental compile beside a cold compile of the
-// edited text.
 function editMain(text: string, line: number, insert: string): [any, any] {
   return quiet(() => {
     const compiler = testCompiler();
@@ -195,9 +180,7 @@ function evaluate(program: any, fn: string): unknown {
 
 describe("assignment temps in a carried chunk", () => {
   it("compound and multi-target assignment temps keep the cold names after an edit above them", () => {
-    // The scenes keep the function's chunk outside the region the edit
-    // reparses, so the incremental compile carries it without lowering it.
-    const scenes = [0, 1, 2, 3, 4, 5].flatMap((i) => [`scene s${i}`, `  Line ${i}.`, "end", ""]);
+    const scenes = [0, 1, 2, 3, 4, 5].flatMap((i) => [`scene ${i === 0 ? "start" : `s${i}`}`,`  Line ${i}.`, "end", ""]);
     const text = [
       "store t = { a = 0, b = 0 }",
       "",
@@ -215,8 +198,6 @@ describe("assignment temps in a carried chunk", () => {
     expect(programContent(incremental.chunks)).toEqual(programContent(cold.chunks));
   });
 
-  // An anonymous function added above `f` comes ahead of every generated
-  // name after it, in the carried `g` too.
   it.each([
     ["numeric for", ["  for i = 1, 2 do", "    u.a += i", "  end"]],
     ["numeric for with a multi-target assignment", ["  for i = 1, 2 do", "    local z", "    z, u.a = i, u.a + i", "  end"]],
@@ -228,7 +209,7 @@ describe("assignment temps in a carried chunk", () => {
     const text = [
       "store u = { a = 0 }",
       "",
-      "scene s0",
+      "scene start",
       "  Line 0.",
       "end",
       "",
@@ -242,7 +223,7 @@ describe("assignment temps in a carried chunk", () => {
       "end",
       "",
     ].join("\n");
-    const [incremental, cold] = editMain(text, 6, "& h = function() return 9 end\n\n");
+    const [incremental, cold] = editMain(text, 6, "store h = function() return 9 end\n\n");
     expect(errors(incremental)).toEqual([]);
     expect(programContent(incremental.chunks)).toEqual(programContent(cold.chunks));
     expect(evaluate(incremental, "g")).toBe(3);
@@ -261,21 +242,20 @@ describe("authored names shaped like synthetic ones", () => {
         "  return 7",
         "end",
         "",
+        "scene start",
+        "end",
+        "",
       ].join("\n"),
     });
     expect(errors(program)).toEqual([]);
     const story = testStory(program.chunks);
     expect(story.HasFunction("f__redef_x__1")).toBe(true);
     expect(quiet(() => story.EvaluateFunction("f__redef_x__1"))).toBe(7);
-    // Each store keeps its name, and is read under it.
     expect(globalAfterRun(program, "__anon_fn_x__1")).toBe(4);
     expect(globalAfterRun(program, "__pa_base_1")).toBe(5);
     expect(globalAfterRun(program, "__mt_1_0")).toBe(6);
   });
 
-  // The compiler's own names hold a `$` (#1729), so a name an author
-  // writes in the shape an earlier compiler gave its own is an ordinary
-  // name: neither reported nor renamed.
   it("keep the canonical form of an earlier compiler as an ordinary name", () => {
     const program = compileOnce({
       main: [
@@ -296,7 +276,9 @@ describe("authored names shaped like synthetic ones", () => {
         '  name = "Bob"',
         "end",
         "",
-        "-> __synth_6",
+        "scene start",
+        "  -> __synth_6",
+        "end",
         "",
         "scene __synth_6",
         "  & g = __synth_0",
@@ -318,17 +300,18 @@ describe("authored names shaped like synthetic ones", () => {
     expect(globalAfterRun(program, "__synth_2")).toBe(3);
   });
 
-  // These names reach the program as strings the synthetic-name pass never
-  // renames, so they keep their names without a report.
   it("keep a match key, a layout and a component of the canonical form", () => {
     const program = compileOnce({
       main: [
         "store f = function() return 1 end",
         'store x = "__synth_0"',
         'store y = ""',
-        "match (x)",
-        '  | __synth_0 = y = "matched"',
-        '  | other = y = "unmatched"',
+        "",
+        "scene start",
+        "  match (x)",
+        '    | __synth_0 = y = "matched"',
+        '    | other = y = "unmatched"',
+        "  end",
         "end",
         "",
         "layout __synth_6 with",
@@ -346,7 +329,7 @@ describe("authored names shaped like synthetic ones", () => {
 
   it("keep their names when only the prefix matches", () => {
     const program = compileOnce({
-      main: ["store f = function() return 1 end", "store __synth_x = 9", ""].join("\n"),
+      main: ["store f = function() return 1 end", "store __synth_x = 9", "", "scene start", "end", ""].join("\n"),
     });
     expect(errors(program)).toEqual([]);
     expect(globalAfterRun(program, "__synth_x")).toBe(9);

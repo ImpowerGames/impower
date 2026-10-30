@@ -1,8 +1,3 @@
-// DuplicateLocal (I-606): a name that one `local` statement or one function's
-// parameter list declares again. The upstream case is in
-// `luau-conformance/LintCandidatesScope.test.ts`; these are the controls
-// around it, and the LocalUnused warning for the first of the two names.
-
 import { describe, expect, test } from "vitest";
 import { diagnoseDetailed } from "../luau-conformance/diagnosticTestHarness";
 

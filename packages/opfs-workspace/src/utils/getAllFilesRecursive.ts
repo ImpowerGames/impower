@@ -6,13 +6,6 @@ interface FileEntry {
 export const getAllFilesRecursive = async (
   directoryHandle: FileSystemDirectoryHandle,
   directoryPath: string,
-  /**
-   * Directory names to skip entirely (not descended into). The recycle-bin
-   * passes `[".trash"]` so trashed files stay out of the normal file pipeline
-   * — keeping them out of `_files`, the script/asset bundles, sync, and the UI
-   * without per-site exclusion. (Listing the trash itself roots the walk AT
-   * `.trash`, so its batch subdirs aren't skipped.)
-   */
   skipDirNames: string[] = [],
 ): Promise<FileEntry[]> => {
   const getEntryPromises: Promise<FileEntry>[] = [];

@@ -1,4 +1,6 @@
--> opts
+scene start
+  -> opts
+end
 scene opts
   choose
     * (firstOpt) [First choice] -> opts

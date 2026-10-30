@@ -1,9 +1,11 @@
-Go **bold** now.
-Go *italic* now.
-Go ***both*** now.
-Go __underline__ now.
-Go `raw` now.
-HERO: Go **bold** and `raw` now.
-HERO:
-  Go *italic* and __underline__ now.
-Go ^centered^ now.
+scene start
+  Go **bold** now.
+  Go *italic* now.
+  Go ***both*** now.
+  Go __underline__ now.
+  Go `raw` now.
+  HERO: Go **bold** and `raw` now.
+  HERO:
+    Go *italic* and __underline__ now.
+  Go ^centered^ now.
+end

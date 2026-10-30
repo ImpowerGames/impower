@@ -10,7 +10,7 @@ const SOURCE = `define BG as image with
   src = "https://example.com/bg.png"
 end
 
--> start
+
 
 scene start
   HERO:

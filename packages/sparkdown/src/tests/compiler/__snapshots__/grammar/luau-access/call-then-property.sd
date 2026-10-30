@@ -1,1 +1,3 @@
-& v = f(x).y
+scene start
+  & v = f(x).y
+end

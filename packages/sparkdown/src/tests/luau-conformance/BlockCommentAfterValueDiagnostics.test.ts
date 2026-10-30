@@ -1,8 +1,3 @@
-// A block comment after a value in Luau code is trivia (#1157). Its
-// diagnostics match Luau's: an unfinished one is reported however the value
-// before it ends, and a finished one reports nothing, even when a statement
-// follows its close directly on a later line.
-
 import { describe, expect, test } from "vitest";
 import { dumpTree, stripAnsi } from "../compiler/grammarSnapshot";
 import { diagnoseInFunction } from "./diagnosticTestHarness";
@@ -23,12 +18,9 @@ describe("an unfinished block comment after a value is reported", () => {
   });
 });
 
-// The union after a level-four comment is read as part of the type: the
-// runtime value alone would be the same if the `| string` were dropped.
 test("a level-four comment keeps a type union in the type", () => {
   const source = "function f()\n  local w: number --[====[a]]b]====] | string = 5\n  return w\nend\n";
   const tree = stripAnsi(dumpTree(source));
-  // `number`, the comment, then `| string` as a union in the same literal.
   expect(tree).toContain("LuauTypeTrailingBlockComment [31..50]");
   expect(tree).toContain("LuauTypeBinaryOperator [50..52]");
   expect(tree).toContain("LuauNamedTypeReference [52..59]");

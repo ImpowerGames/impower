@@ -34,7 +34,7 @@ define rain as video with
   src = "${RAIN}"
 end
 
--> start
+
 
 scene start
   [[show portrait bunny_wave]]
@@ -665,7 +665,7 @@ define rain as video with
   src = "${RAIN}"
 end
 
--> start
+
 
 scene start
   HERO:
@@ -755,7 +755,7 @@ define movie as mixer with
   gain = 0.25
 end
 
--> start
+
 
 scene start
   [[show portrait bunny_wave]]

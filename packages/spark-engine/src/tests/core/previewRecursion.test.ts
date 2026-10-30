@@ -42,17 +42,19 @@ const previewOf = async (source: string, line: number, limits?: Limits) => {
 };
 
 const DANGLING_ACCESS = [
-  "$:",
-  "  A QUIET ROOM",
-  "",
   "function f()",
   "  local t = { a = { b = 7 } }",
   "  local y = t.a.",
   "  return y",
   "end",
   "",
-  "BOB:",
-  "  Value {f()}.",
+  "scene start",
+  "  $:",
+  "    A QUIET ROOM",
+  "",
+  "  BOB:",
+  "    Value {f()}.",
+  "end",
   "",
 ].join("\n");
 
@@ -61,8 +63,10 @@ const SELF_CALL = [
   "  return f()",
   "end",
   "",
-  "BOB:",
-  "  Value {f()}.",
+  "scene start",
+  "  BOB:",
+  "    Value {f()}.",
+  "end",
   "",
 ].join("\n");
 
@@ -72,14 +76,16 @@ const DISPLAY_SELF_CALL = [
   "  return f()",
   "end",
   "",
-  "BOB:",
-  "  Value {f()}.",
+  "scene start",
+  "  BOB:",
+  "    Value {f()}.",
+  "end",
   "",
 ].join("\n");
 
 describe("a preview of a dangling access (#1079)", () => {
   test("shows the line below the function without recursing", async () => {
-    const result = await previewOf(DANGLING_ACCESS, 10, LIMITS);
+    const result = await previewOf(DANGLING_ACCESS, 11, LIMITS);
     expect(result.errors.join("\n")).not.toContain("stack overflow");
     expect(result.text).toContain("Value");
   }, 120_000);
@@ -87,23 +93,23 @@ describe("a preview of a dangling access (#1079)", () => {
 
 describe("a preview that recurses without end (#1072)", () => {
   test("stops on a stack overflow when each call displays a line", async () => {
-    const result = await previewOf(DISPLAY_SELF_CALL, 6, LIMITS);
+    const result = await previewOf(DISPLAY_SELF_CALL, 7, LIMITS);
     expect(result.errors.join("\n")).toContain("stack overflow");
     expect(result.advancesUsed).toBeLessThan(LIMITS.steps);
   }, 120_000);
 
   test("stops on a stack overflow when a function calls itself unconditionally", async () => {
-    const result = await previewOf(SELF_CALL, 5, LIMITS);
+    const result = await previewOf(SELF_CALL, 6, LIMITS);
     expect(result.errors.join("\n")).toContain("stack overflow");
     expect(result.advancesUsed).toBeLessThan(LIMITS.steps);
   }, 120_000);
 
   test("reaches the default call depth long before the default step budget", async () => {
-    const measured = await previewOf(DISPLAY_SELF_CALL, 6, LIMITS);
+    const measured = await previewOf(DISPLAY_SELF_CALL, 7, LIMITS);
     expect(measured.errors.join("\n")).toContain("stack overflow");
     const perCall = measured.advancesUsed / LIMITS.depth;
     expect(perCall).toBeGreaterThan(1);
-    const h = createHarness("Hello.\n", 0);
+    const h = createHarness("scene start\n  Hello.\nend\n", 1);
     await h.ready;
     const game = h.game as any;
     expect(perCall * game._callDepthLimit).toBeLessThan(
@@ -136,11 +142,13 @@ describe("a preview through deep recursion that ends (#1072)", () => {
       "  return 1 + count(n - 1)",
       "end",
       "",
-      "BOB:",
-      "  Value {count(4000)}.",
+      "scene start",
+      "  BOB:",
+      "    Value {count(4000)}.",
+      "end",
       "",
     ].join("\n");
-    const result = await previewOf(source, 8);
+    const result = await previewOf(source, 9);
     expect(result.errors).toEqual([]);
     expect(result.text).toContain("Value 4000.");
     expect(result.ms).toBeLessThan(20_000);

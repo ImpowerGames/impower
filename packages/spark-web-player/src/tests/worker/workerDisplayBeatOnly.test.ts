@@ -26,7 +26,7 @@ end
 
 store open = true
 
--> start
+
 
 scene start
   ((play music theme))
@@ -102,7 +102,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   Before.
@@ -132,7 +132,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   Before.
@@ -168,7 +168,7 @@ const SHARED = `layout main with
   }
 end
 
--> start
+
 
 scene start
   Before.
@@ -202,7 +202,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   ^: Heading.
@@ -257,7 +257,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   HERO: First. > Second.
@@ -281,7 +281,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   HERO:
@@ -309,7 +309,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   Before.
@@ -332,7 +332,7 @@ const PLACEHOLDER = `layout main with
   }
 end
 
--> start
+
 
 scene start
   Before.
@@ -362,7 +362,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   Before.
@@ -387,7 +387,7 @@ layout hud with
   }
 end
 
--> start
+
 
 scene start
   Before.
@@ -404,7 +404,7 @@ end
 
 store skip = true
 
--> start
+
 
 scene start
   HERO:
@@ -444,7 +444,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   Before.
@@ -486,7 +486,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   Before.
@@ -505,7 +505,7 @@ const READS = (binding: string) => `layout main with
   }
 end
 
--> start
+
 
 scene start
   Before.
@@ -528,7 +528,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   Before.
@@ -551,7 +551,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   Before.
@@ -572,7 +572,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   stamp = ${value}
@@ -602,7 +602,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   Before.
@@ -629,7 +629,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   Before.
@@ -1431,7 +1431,7 @@ function shout(s)
   return s
 end
 
--> start
+
 
 scene start
   Before.

@@ -1,4 +1,4 @@
-text.source.sparkdown [0..865]
+text.source.sparkdown [0..883]
  ├─ meta.function.luau [0..16]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
@@ -558,16 +558,23 @@ text.source.sparkdown [0..865]
  ├─ meta.function.luau [844..847]
  │   └─ keyword.control.end.luau [844..847]: "end"
  ├─ Newline [847..848]: "\n"
- ├─ string.display.text.chunk.sd [848..864]
- │   ├─ markup.raw.text.sd [848..853]: "After"
- │   ├─ markup.raw.space.sd [853..854]: " "
- │   ├─ meta.template.expression.luau [854..863]
- │   │   ├─ punctuation.definition.template-expression.begin.sd [854..855]: "{"
- │   │   ├─ meta.embedded.line.luau [855..862]
- │   │   │   ├─ entity.name.function.luau [855..860]: "paren"
- │   │   │   └─ meta.parameter.luau [860..862]
- │   │   │       ├─ punctuation.definition.template-expression.begin.sd [860..861]: "("
- │   │   │       └─ punctuation.definition.template-expression.end.sd [861..862]: ")"
- │   │   └─ punctuation.definition.template-expression.end.sd [862..863]: "}"
- │   └─ markup.raw.punctuation.sd [863..864]: "."
- └─ Newline [864..865]: "\n"
+ ├─ keyword.control.scene.sd [848..853]: "scene"
+ ├─ punctuation.whitespace.required.sd [853..854]: " "
+ ├─ keyword.control.section.sd [854..859]: "start"
+ ├─ Newline [859..860]: "\n"
+ ├─ punctuation.whitespace.optional.sd [860..862]: "  "
+ ├─ string.display.text.chunk.sd [862..878]
+ │   ├─ markup.raw.text.sd [862..867]: "After"
+ │   ├─ markup.raw.space.sd [867..868]: " "
+ │   ├─ meta.template.expression.luau [868..877]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [868..869]: "{"
+ │   │   ├─ meta.embedded.line.luau [869..876]
+ │   │   │   ├─ entity.name.function.luau [869..874]: "paren"
+ │   │   │   └─ meta.parameter.luau [874..876]
+ │   │   │       ├─ punctuation.definition.template-expression.begin.sd [874..875]: "("
+ │   │   │       └─ punctuation.definition.template-expression.end.sd [875..876]: ")"
+ │   │   └─ punctuation.definition.template-expression.end.sd [876..877]: "}"
+ │   └─ markup.raw.punctuation.sd [877..878]: "."
+ ├─ Newline [878..879]: "\n"
+ ├─ keyword.control.end.luau [879..882]: "end"
+ └─ Newline [882..883]: "\n"

@@ -1,12 +1,6 @@
-// Where a program says how strictly to type check it: `config.typecheck.mode`
-// for the project, and a `.sd` file's `typecheck:` front matter field for
-// that file. (A `.luau` file's `--!` first line is Luau's own, and the
-// checker reads it.)
-
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { TYPECHECK_MODE_NAMES } from "./LuauDocumentChecker";
 
-/** A mode setting as written: its text, and where the text is. */
 export interface TypecheckSetting {
   value: string;
   from: number;
@@ -15,7 +9,6 @@ export interface TypecheckSetting {
 
 type Read = (from: number, to: number) => string;
 
-/** The first descendant with a name, depth first. */
 function descendant(node: SyntaxNode, name: string): SyntaxNode | undefined {
   for (let c = node.firstChild; c; c = c.nextSibling) {
     if (c.name === name) return c;
@@ -25,7 +18,6 @@ function descendant(node: SyntaxNode, name: string): SyntaxNode | undefined {
   return undefined;
 }
 
-/** Every descendant with a name, not looking inside the ones found. */
 function descendants(node: SyntaxNode, name: string, found: SyntaxNode[] = []): SyntaxNode[] {
   for (let c = node.firstChild; c; c = c.nextSibling) {
     if (c.name === name) found.push(c);
@@ -34,7 +26,6 @@ function descendants(node: SyntaxNode, name: string, found: SyntaxNode[] = []): 
   return found;
 }
 
-/** A range without the whitespace at either end. */
 function trimmed(read: Read, from: number, to: number): TypecheckSetting {
   const text = read(from, to);
   const start = text.length - text.trimStart().length;
@@ -42,7 +33,6 @@ function trimmed(read: Read, from: number, to: number): TypecheckSetting {
   return { value, from: from + start, to: from + start + value.length };
 }
 
-/** The `typecheck:` field of a `.sd` file's front matter. */
 export function frontMatterTypecheckSetting(tree: Tree, read: Read): TypecheckSetting | undefined {
   for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
     if (node.name !== "FrontMatter") continue;
@@ -56,7 +46,6 @@ export function frontMatterTypecheckSetting(tree: Tree, read: Read): TypecheckSe
   return undefined;
 }
 
-/** The `mode` a document's `define typecheck as config` sets, as written. */
 export function configTypecheckSetting(tree: Tree, read: Read): TypecheckSetting | undefined {
   for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
     if (node.name !== "LuauDefine") continue;
@@ -74,7 +63,6 @@ export function configTypecheckSetting(tree: Tree, read: Read): TypecheckSetting
   return undefined;
 }
 
-/** The warning for a mode Sparkdown does not know. */
 export function unknownModeMessage(value: string): string {
   return `Unknown type checking mode ${JSON.stringify(value)}; the modes are ${TYPECHECK_MODE_NAMES.map((m) => `"${m}"`).join(", ")}`;
 }

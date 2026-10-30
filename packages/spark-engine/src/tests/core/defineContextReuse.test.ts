@@ -13,7 +13,7 @@ define hero as character with
   name = "Hero"
 end
 
--> start
+
 scene start
 :
   Action line.
@@ -157,7 +157,7 @@ define pace as config with
   speed = base_speed
 end
 
--> start
+
 scene start
 :
   Action line.

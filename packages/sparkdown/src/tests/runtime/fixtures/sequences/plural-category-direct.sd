@@ -1,4 +1,6 @@
--> main
+scene start
+  -> main
+end
 scene main
   {plural.category(0)}
   {plural.category(1)}

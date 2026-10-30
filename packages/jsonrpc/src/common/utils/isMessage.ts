@@ -1,6 +1,5 @@
 import type { IMessage } from "../types/IMessage";
 
-/** Checks the internal envelope, not application payload schemas. */
 export const isMessage = <M extends string = string>(
   obj: unknown,
   method?: M,

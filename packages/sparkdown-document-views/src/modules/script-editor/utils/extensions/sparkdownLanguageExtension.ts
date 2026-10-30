@@ -26,11 +26,11 @@ import EDITOR_HIGHLIGHTS from "../../constants/EDITOR_HIGHLIGHTS";
 const sparkdownKeymap = [
   {
     key: "PageUp",
-    run: () => true, // Used by preview
+    run: () => true,
   },
   {
     key: "PageDown",
-    run: () => true, // Used by preview
+    run: () => true,
   },
   { key: "Mod-s", run: formatDocument, preventDefault: true },
 ] as const;
@@ -50,7 +50,6 @@ export const sparkdownLanguageExtension = (config: {
   const serverInitializeResult = config.serverInitializeResult;
   const serverWorkspace = config.serverWorkspace;
 
-  // A `.luau` document is read from the grammar's Luau root.
   const languageSupport = vscodeLanguage({
     name: "sparkdown",
     grammar: sparkdownGrammarFor(textDocument.uri),

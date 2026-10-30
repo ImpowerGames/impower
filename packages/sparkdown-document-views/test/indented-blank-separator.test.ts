@@ -1,21 +1,3 @@
-// User-reported regression (2026-06-12, second issue):
-//
-// "When a blank line after a dialogue is on the same indentation
-//  level as the dialogue above it, the dialogue eats the blank
-//  separator entirely.
-//
-//     CHARACTER:
-//       dialogue
-//
-//  This should display after the blank line above, but it doesn't.
-//  The blank line doesn't get rendered at all."
-//
-// Affects both the preview AND the screenplay export, so the root
-// cause is in the parser / typesetter layer that they share.
-//
-// This sweeps the relevant outputs: PDF token stream, reading-copy
-// markdown, and rendered preview DOM.
-
 import { describe, expect, it } from "vitest";
 import ScreenplayParser from "../../sparkdown-screenplay/src/classes/ScreenplayParser";
 import { generateScreenplayReadingCopy } from "../../sparkdown-screenplay/src/utils/generateScreenplayReadingCopy";
@@ -25,11 +7,6 @@ import { renderPreview } from "./helpers/renderPreview";
 const readingCopy = (source: string) =>
   generateScreenplayReadingCopy(new ScreenplayParser().parse(source));
 
-// The user's exact fixture: a single-character dialogue followed by
-// an INDENTED blank line (`  \n`, NOT `\n`), then an action line.
-// What an editor leaves behind when the user types into the dialogue
-// block, hits Enter to start a new line, and then deletes content
-// back to nothing — the indent persists.
 const FIXTURE_DIALOGUE_THEN_ACTION =
   `CHARACTER:\n` +
   `  dialogue\n` +
@@ -116,8 +93,6 @@ describe("indented-blank separator after dialogue (user bug 2026-06-12)", () => 
 
   it("reading copy: dialogue → action — blank line preserved between blocks", () => {
     const out = readingCopy(FIXTURE_DIALOGUE_THEN_ACTION);
-    // Expect an empty line between the dialogue content and the
-    // following action text.
     expect(out).toMatch(/dialogue\n\nThis should display/);
   });
 
@@ -141,12 +116,6 @@ describe("indented-blank separator after dialogue (user bug 2026-06-12)", () => 
     ).toBe(true);
   });
 
-  // Nested case: everything inside a scene means cues are at column 2,
-  // dialogue body at column 4, and the trailing indented blank is at
-  // column 4 (matching the body indent, NOT the cue indent).
-  // NOTE: the scene declaration is `scene NAME` (no trailing colon) — that
-  // is the keyword's syntax. A trailing `:` would start a block-action whose
-  // indented body is parsed as action text, not nested dialogue.
   const NESTED_DIALOGUE_THEN_ACTION =
     `scene ACT_ONE\n` +
     `  BUNNY:\n` +
@@ -193,9 +162,6 @@ describe("indented-blank separator after dialogue (user bug 2026-06-12)", () => 
     ).toBe(true);
   });
 
-  // Dialogue body that itself contains a directive line then real
-  // content, then the same-indent blank, then action. The directive
-  // line could affect where the "last content line" boundary lands.
   const DIRECTIVE_DIALOGUE_THEN_ACTION =
     `BUNNY:\n` +
     `  [[show backdrop kitchen]]\n` +
@@ -223,8 +189,6 @@ describe("indented-blank separator after dialogue (user bug 2026-06-12)", () => 
     expect(out).toMatch(/Hello\.\n\nHe looks around\./);
   });
 
-  // Multiple indented blank lines between two dialogues. The PDF
-  // collapses consecutive blanks, but a separator should still appear.
   const MULTIPLE_BLANKS =
     `BUNNY:\n` +
     `  Hello.\n` +
@@ -246,7 +210,6 @@ describe("indented-blank separator after dialogue (user bug 2026-06-12)", () => 
     ).toBe(true);
   });
 
-  // Same character cue twice in a row.
   const SAME_CHARACTER_REPEAT =
     `BUNNY:\n` +
     `  Hello.\n` +
@@ -258,7 +221,6 @@ describe("indented-blank separator after dialogue (user bug 2026-06-12)", () => 
     const pdf = extractPdfText(SAME_CHARACTER_REPEAT);
     const lines = pdf.split("\n");
     const before = lines.findIndex((l) => l.includes("<dialogue> Hello."));
-    // Find the SECOND BUNNY (after the first dialogue).
     const after = lines.findIndex(
       (l, i) => i > before && l.includes("<character> BUNNY"),
     );
@@ -270,7 +232,6 @@ describe("indented-blank separator after dialogue (user bug 2026-06-12)", () => 
     ).toBe(true);
   });
 
-  // Dialogue at end of file with trailing indented blank.
   const DIALOGUE_AT_EOF =
     `BUNNY:\n` +
     `  Final words.\n` +
@@ -288,15 +249,10 @@ describe("indented-blank separator after dialogue (user bug 2026-06-12)", () => 
     expect(out).toMatch(/\n {2}Final words\.\n/);
   });
 
-  // Direct user-fixture as quoted in their bug report (LITERAL text):
-  //   "CHARACTER:\n  dialogue\n  \n"
-  // No following content — exact fixture they pasted. Useful to verify
-  // the parser still emits the trailing separator even at EOF.
   it("debug: dump tokens for the user's exact literal fixture", () => {
     const fixture = `CHARACTER:\n  dialogue\n  \n`;
     const tokens = new ScreenplayParser().parse(fixture);
     console.log("USER-LITERAL TOKENS:", JSON.stringify(tokens, null, 2));
-    // Also dump for the +ACTION variant for comparison.
     const tokensWithAction = new ScreenplayParser().parse(
       fixture + `This should display.\n`,
     );

@@ -39,8 +39,8 @@ function debugGame(text: string) {
 
 const SOURCE = [
   "store result = 0",
-  "-> main",
-  "scene main",
+  "",
+  "scene start",
   '  result = f("x", "y")',
   "  done",
   "end",

@@ -33,10 +33,6 @@ import type {
 } from "../types/ProgramAddress";
 import type { SparkProgram } from "../types/SparkProgram";
 
-/**
- * The accessor (docs/engine/binary-program.md, section 8) on the program
- * engine: the root's lookups, whose addresses are numbers.
- */
 export const rootLocator = (root: ProgramRoot): ProgramLocator => ({
   addressAt: (uri, line, query) => root.addressAt(uri, line, query),
   locationOf: (address) =>
@@ -46,11 +42,6 @@ export const rootLocator = (root: ProgramRoot): ProgramLocator => ({
 
 const locators = new WeakMap<object, ProgramLocator>();
 
-/**
- * The accessor for a program: its root's, or one that finds nothing for a
- * program with no root (a compile that made no program). Made once per
- * program.
- */
 export const programLocator = (program: SparkProgram): ProgramLocator => {
   let locator = locators.get(program);
   if (!locator) {
@@ -66,8 +57,6 @@ const NO_LOCATIONS: ProgramLocator = {
   sceneAt: () => undefined,
 };
 
-/** The location of an address in the form an editor takes: a uri, and a
- *  range of positions. */
 export const documentRangeOf = (location: SourceLocation) => ({
   uri: location.uri,
   range: {
@@ -76,9 +65,6 @@ export const documentRangeOf = (location: SourceLocation) => ({
   },
 });
 
-/** The answers of a program's accessor to `queries`, in order, with null
- *  where it has none, for a host that asks the worker holding the program
- *  (`LocateProgramMessage`). */
 export const answerLocateQueries = (
   program: SparkProgram | undefined,
   queries: readonly LocateQuery[],
@@ -100,21 +86,9 @@ export const answerLocateQueries = (
   });
 };
 
-// How a divert, a `done` or a `fin` leaves its flow.
 const LEAVES = new Set<number>([Op.JumpSym, Op.JumpVar, Op.Done, Op.End]);
-// What only another kind of statement holds: a beat (every line an author
-// displays starts with `LineStart`), a choice and a thread. A divert's
-// arguments are expressions, whatever their code does to compute them: a
-// captured string writes text and values into its capture, and a method
-// call stashes its receiver in a generated temporary.
 const NOT_A_DIVERT = new Set<number>([Op.LineStart, Op.Choice, Op.Thread]);
 
-/** Whether the statement an address stands in is a divert, a `done` or a
- *  `fin` at its flow's own level, with whatever arguments it passes: its
- *  code leaves the flow and holds no beat, choice or thread anywhere, the
- *  entry code of a function an argument writes included. A `choose` whose
- *  preamble diverts before its caption holds the caption's beat and its
- *  choices, and is no divert. */
 const leavesFlowOnly = (root: ProgramRoot, address: number): boolean => {
   const position = root.position(chunkOfAddress(address));
   if (!position || root.ownerOf(position.sequence)) {
@@ -133,29 +107,9 @@ const leavesFlowOnly = (root: ProgramRoot, address: number): boolean => {
   return leaves;
 };
 
-// The kinds of block body whose owner's line is no stop: a loop's header, a
-// choice's line, a `choose` block's `then` and a function's header.
 const NOT_A_CONDITION =
   BLOCK_LOOP | BLOCK_CHOICE | BLOCK_THEN | BLOCK_FUNCTION;
 
-/** Whether the address a line takes is a stop of the previous and next beat,
- *  by what the statement is (#1677). The stops are the beats an author
- *  displays, a choice's body and the logic an author writes as a statement
- *  of its own: an assignment, a call, an `if`, and a divert, a `done` or a
- *  `fin` inside a block's body. Not a stop:
- *  - a divert, a `done` or a `fin` at its flow's own level (`leavesFlowOnly`);
- *  - a taken choice's own beat, on the choice's line: the choice's stop is
- *    the first beat of its body;
- *  - an `elseif`, which only the jump ending the branch above passes, and a
- *    choice's line without a beat of its own;
- *  - a tunnel call (`-> T ->`), a tunnel return (`->->`), a thread (`<-`)
- *    and a `label`, which mark or move the flow and show nothing;
- *  - the header of a block that is no `if`: a loop's, a `do` block's.
- *  A part past a statement's start (a `choose` preamble's assignment or
- *  `if`, which the writer puts in the `choose` statement's own code) is read
- *  by the code of its line table row, as a statement of its own. This is the
- *  set the object engine's path locations stopped at for these constructs,
- *  which the language server's navigation keeps. */
 const isStop = (root: ProgramRoot, address: number): boolean => {
   const position = root.position(chunkOfAddress(address));
   if (!position) {
@@ -171,7 +125,6 @@ const isStop = (root: ProgramRoot, address: number): boolean => {
   const word = (at: number) => chunk[HEADER_WORDS + at]!;
   const lineAt = (at: number) => root.rangeAt(sequence, entry, at)?.startLine;
   if (opOf(word(offset)) === Op.LineStart) {
-    // A beat, unless it stands on a choice's own line.
     const line = lineAt(offset);
     for (let at = 0; at < words; at += 2) {
       if (opOf(word(at)) === Op.Choice && lineAt(at) === line) {
@@ -188,16 +141,9 @@ const isStop = (root: ProgramRoot, address: number): boolean => {
     opOf(word(offset - 2)) === Op.Jump &&
     word(offset - 1) > 0
   ) {
-    // Reached only past the jump that ends the branch above, which jumps
-    // forward over it: an `elseif`. The last branch's jump lands right
-    // here, on whatever is written after the `if`, and a loop the preamble
-    // inlines ends in a jump back to its condition.
     return false;
   }
   if (offset === 0) {
-    // A statement's start: the header of a block statement that is no
-    // `if` (a loop, a function, a `do` block) is no stop. A `choose`'s
-    // start is its preamble's first part or its first choice, read below.
     let plain = false;
     let decides = false;
     for (let k = 0; k < blockCount(chunk); k += 1) {
@@ -214,9 +160,6 @@ const isStop = (root: ProgramRoot, address: number): boolean => {
       return false;
     }
   }
-  // The part the address starts: the code of its line table row. A part of
-  // a `choose` preamble (an assignment, an `if` gating choices) is read as
-  // a statement of its own.
   const row = lineRowAt(chunk, offset);
   const rows = chunk[H_LINE_ROWS]!;
   const end =
@@ -240,15 +183,6 @@ const isStop = (root: ProgramRoot, address: number): boolean => {
   return true;
 };
 
-/**
- * The beat a line takes for the previous and next beat: its address and
- * where that address stands, from one program, or nothing for a line with
- * no address. It is the program's accessor's, but for an address that is no
- * stop (`isStop`): the program engine gives every statement and part an
- * address of its own, which the Game Preview routes to, so such a line takes
- * the beat of the lines below it, as it did on the object engine's path
- * locations.
- */
 export const beatAt = (
   program: SparkProgram,
   uri: string,
@@ -270,9 +204,6 @@ export const beatAt = (
       location.endLine >= from &&
       !isStop(root, address)
     ) {
-      // The next line down: a part written below can stand at a lower
-      // address (a `store` in a `choose` preamble), so its range says
-      // nothing about where the next stop is.
       from = Math.max(from, location.startLine) + 1;
       continue;
     }

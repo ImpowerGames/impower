@@ -4,7 +4,7 @@ import { DisplayPreviewMessage } from "../../main/workers/messages/DisplayPrevie
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
 const TEXT = [
-  "-> bridge",
+  "",
   "",
   "function greeting()",
   `  return "the real greeting"`,
@@ -13,6 +13,9 @@ const TEXT = [
   "scene bridge",
   "  The bridge says {greeting()}.",
   "  The bridge says it again, {greeting()}.",
+  "end",
+  "scene start",
+  "  -> bridge",
   "end",
   "",
 ].join("\n");

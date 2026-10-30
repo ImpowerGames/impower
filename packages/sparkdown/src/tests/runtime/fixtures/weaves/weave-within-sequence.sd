@@ -1,6 +1,8 @@
-choose
-  + choice
-then
-  nextline
-  fin
+scene start
+  choose
+    + choice
+  then
+    nextline
+    fin
+  end
 end

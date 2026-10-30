@@ -1,319 +1,336 @@
-sparkdown [0..165]
- ├─ LuauSparkdownExplicitStatement [0..8]
- │   ├─ LuauSparkdownExplicitStatement_begin [0..2]
- │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 0
+sparkdown [0..185]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
  │   │   │   └─ OptionalWhitespace 0
- │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [0..1]
- │   │   │   └─ LuauExplicitStatementMark [0..1]: "&"
- │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [1..2]
- │   │       └─ RequiredWhitespace [1..2]: " "
- │   ├─ LuauSparkdownExplicitStatement_content [2..8]
- │   │   └─ LuauSparkdownExplicitReturnStatement [2..8]
- │   │       ├─ LuauSparkdownExplicitReturnStatement_begin [2..8]
- │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 2
- │   │       │   │   └─ OptionalWhitespace 2
- │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [2..8]
- │   │       │   │   └─ LuauControlKeyword [2..8]: "return"
- │   │       │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 8
- │   │       │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 8
- │   │       │           └─ OptionalWhitespace 8
- │   │       └─ LuauSparkdownExplicitReturnStatement_end 8
- │   └─ LuauSparkdownExplicitStatement_end 8
- ├─ Newline [8..9]: "\n"
- ├─ ImplicitAction [9..21]
- │   ├─ ImplicitAction_begin 9
- │   │   └─ ImplicitAction_begin_c1 9
- │   │       └─ OptionalWhitespace 9
- │   ├─ ImplicitAction_content [9..21]
- │   │   └─ ActionLineEnd [9..21]
- │   │       ├─ ActionLineEnd_begin 9
- │   │       │   └─ ActionLineEnd_begin_c1 9
- │   │       │       └─ OptionalWhitespace 9
- │   │       ├─ ActionLineEnd_content [9..21]
- │   │       │   └─ TextChunk [9..21]
- │   │       │       ├─ TextChunk_begin 9
- │   │       │       ├─ TextChunk_content [9..21]
- │   │       │       │   ├─ Word [9..14]: "Hello"
- │   │       │       │   ├─ Space [14..15]: " "
- │   │       │       │   ├─ Word [15..20]: "there"
- │   │       │       │   └─ Punctuation [20..21]: "."
- │   │       │       └─ TextChunk_end 21
- │   │       └─ ActionLineEnd_end 21
- │   └─ ImplicitAction_end 21
- ├─ Newline [21..22]: "\n"
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ LuauSparkdownExplicitStatement [12..22]
+ │   ├─ LuauSparkdownExplicitStatement_begin [12..16]
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 [12..14]
+ │   │   │   └─ OptionalWhitespace [12..14]: "  "
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [14..15]
+ │   │   │   └─ LuauExplicitStatementMark [14..15]: "&"
+ │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [15..16]
+ │   │       └─ RequiredWhitespace [15..16]: " "
+ │   ├─ LuauSparkdownExplicitStatement_content [16..22]
+ │   │   └─ LuauSparkdownExplicitReturnStatement [16..22]
+ │   │       ├─ LuauSparkdownExplicitReturnStatement_begin [16..22]
+ │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 16
+ │   │       │   │   └─ OptionalWhitespace 16
+ │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [16..22]
+ │   │       │   │   └─ LuauControlKeyword [16..22]: "return"
+ │   │       │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 22
+ │   │       │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 22
+ │   │       │           └─ OptionalWhitespace 22
+ │   │       └─ LuauSparkdownExplicitReturnStatement_end 22
+ │   └─ LuauSparkdownExplicitStatement_end 22
  ├─ Newline [22..23]: "\n"
- ├─ Scene [23..30]
- │   ├─ Scene_begin [23..29]
- │   │   ├─ Scene_begin_c1 23
- │   │   │   └─ OptionalWhitespace 23
- │   │   ├─ Scene_begin_c2 [23..28]
- │   │   │   └─ SceneKeyword [23..28]: "scene"
- │   │   └─ Scene_begin_c3 [28..29]
- │   │       └─ RequiredWhitespace [28..29]: " "
- │   ├─ Scene_content [29..30]
- │   │   └─ SceneWithoutParametersDeclaration [29..30]
- │   │       ├─ SceneWithoutParametersDeclaration_c1 [29..30]
- │   │       │   └─ SceneDeclarationName [29..30]: "a"
- │   │       └─ SceneWithoutParametersDeclaration_c2 30
- │   └─ Scene_end 30
- ├─ Newline [30..31]: "\n"
- ├─ LuauSparkdownExplicitStatement [31..41]
- │   ├─ LuauSparkdownExplicitStatement_begin [31..35]
- │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 [31..33]
- │   │   │   └─ OptionalWhitespace [31..33]: "  "
- │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [33..34]
- │   │   │   └─ LuauExplicitStatementMark [33..34]: "&"
- │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [34..35]
- │   │       └─ RequiredWhitespace [34..35]: " "
- │   ├─ LuauSparkdownExplicitStatement_content [35..41]
- │   │   └─ LuauSparkdownExplicitReturnStatement [35..41]
- │   │       ├─ LuauSparkdownExplicitReturnStatement_begin [35..41]
- │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 35
- │   │       │   │   └─ OptionalWhitespace 35
- │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [35..41]
- │   │       │   │   └─ LuauControlKeyword [35..41]: "return"
- │   │       │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 41
- │   │       │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 41
- │   │       │           └─ OptionalWhitespace 41
- │   │       └─ LuauSparkdownExplicitReturnStatement_end 41
- │   └─ LuauSparkdownExplicitStatement_end 41
+ ├─ ImplicitAction [23..37]
+ │   ├─ ImplicitAction_begin [23..25]
+ │   │   └─ ImplicitAction_begin_c1 [23..25]
+ │   │       └─ OptionalWhitespace [23..25]: "  "
+ │   ├─ ImplicitAction_content [25..37]
+ │   │   └─ ActionLineEnd [25..37]
+ │   │       ├─ ActionLineEnd_begin 25
+ │   │       │   └─ ActionLineEnd_begin_c1 25
+ │   │       │       └─ OptionalWhitespace 25
+ │   │       ├─ ActionLineEnd_content [25..37]
+ │   │       │   └─ TextChunk [25..37]
+ │   │       │       ├─ TextChunk_begin 25
+ │   │       │       ├─ TextChunk_content [25..37]
+ │   │       │       │   ├─ Word [25..30]: "Hello"
+ │   │       │       │   ├─ Space [30..31]: " "
+ │   │       │       │   ├─ Word [31..36]: "there"
+ │   │       │       │   └─ Punctuation [36..37]: "."
+ │   │       │       └─ TextChunk_end 37
+ │   │       └─ ActionLineEnd_end 37
+ │   └─ ImplicitAction_end 37
+ ├─ Newline [37..38]: "\n"
+ ├─ LuauEndKeyword [38..41]: "end"
  ├─ Newline [41..42]: "\n"
- ├─ ImplicitAction [42..56]
- │   ├─ ImplicitAction_begin [42..44]
- │   │   └─ ImplicitAction_begin_c1 [42..44]
- │   │       └─ OptionalWhitespace [42..44]: "  "
- │   ├─ ImplicitAction_content [44..56]
- │   │   └─ ActionLineEnd [44..56]
- │   │       ├─ ActionLineEnd_begin 44
- │   │       │   └─ ActionLineEnd_begin_c1 44
- │   │       │       └─ OptionalWhitespace 44
- │   │       ├─ ActionLineEnd_content [44..56]
- │   │       │   └─ TextChunk [44..56]
- │   │       │       ├─ TextChunk_begin 44
- │   │       │       ├─ TextChunk_content [44..56]
- │   │       │       │   ├─ Word [44..49]: "Hello"
- │   │       │       │   ├─ Space [49..50]: " "
- │   │       │       │   ├─ Word [50..55]: "there"
- │   │       │       │   └─ Punctuation [55..56]: "."
- │   │       │       └─ TextChunk_end 56
- │   │       └─ ActionLineEnd_end 56
- │   └─ ImplicitAction_end 56
- ├─ Newline [56..57]: "\n"
- ├─ LuauSparkdownExplicitStatement [57..71]
- │   ├─ LuauSparkdownExplicitStatement_begin [57..61]
- │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 [57..59]
- │   │   │   └─ OptionalWhitespace [57..59]: "  "
- │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [59..60]
- │   │   │   └─ LuauExplicitStatementMark [59..60]: "&"
- │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [60..61]
- │   │       └─ RequiredWhitespace [60..61]: " "
- │   ├─ LuauSparkdownExplicitStatement_content [61..71]
- │   │   ├─ LuauSparkdownExplicitAccessPath [61..64]
- │   │   │   ├─ LuauSparkdownExplicitAccessPath_begin 61
- │   │   │   ├─ LuauSparkdownExplicitAccessPath_content [61..64]
- │   │   │   │   └─ LuauSparkdownExplicitAccessPart [61..64]
- │   │   │   │       └─ LuauSparkdownExplicitFunctionCall [61..64]
- │   │   │   │           ├─ LuauSparkdownExplicitFunctionCall_begin [61..62]
- │   │   │   │           │   ├─ LuauSparkdownExplicitFunctionCall_begin_c1 [61..62]
- │   │   │   │           │   │   └─ LuauFunctionName [61..62]: "f"
- │   │   │   │           │   └─ LuauSparkdownExplicitFunctionCall_begin_c2 62
- │   │   │   │           ├─ LuauSparkdownExplicitFunctionCall_content [62..64]
- │   │   │   │           │   └─ LuauFunctionCallParameters [62..64]
- │   │   │   │           │       ├─ LuauFunctionCallParameters_begin [62..63]
- │   │   │   │           │       │   └─ LuauFunctionCallParameters_begin_c1 [62..63]
- │   │   │   │           │       │       └─ PunctuationParenOpen [62..63]: "("
- │   │   │   │           │       └─ LuauFunctionCallParameters_end [63..64]
- │   │   │   │           │           └─ LuauFunctionCallParameters_end_c1 [63..64]
- │   │   │   │           │               └─ PunctuationParenClose [63..64]: ")"
- │   │   │   │           └─ LuauSparkdownExplicitFunctionCall_end 64
- │   │   │   └─ LuauSparkdownExplicitAccessPath_end 64
- │   │   │       └─ LuauSparkdownExplicitAccessPath_end_c1 64
- │   │   └─ LuauSparkdownExplicitReturnStatement [64..71]
- │   │       ├─ LuauSparkdownExplicitReturnStatement_begin [64..71]
- │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 [64..65]
- │   │       │   │   └─ OptionalWhitespace [64..65]: " "
- │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [65..71]
- │   │       │   │   └─ LuauControlKeyword [65..71]: "return"
- │   │       │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 71
- │   │       │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 71
- │   │       │           └─ OptionalWhitespace 71
- │   │       └─ LuauSparkdownExplicitReturnStatement_end 71
- │   └─ LuauSparkdownExplicitStatement_end 71
- ├─ Newline [71..72]: "\n"
- ├─ ImplicitAction [72..82]
- │   ├─ ImplicitAction_begin [72..74]
- │   │   └─ ImplicitAction_begin_c1 [72..74]
- │   │       └─ OptionalWhitespace [72..74]: "  "
- │   ├─ ImplicitAction_content [74..82]
- │   │   └─ ActionLineEnd [74..82]
- │   │       ├─ ActionLineEnd_begin 74
- │   │       │   └─ ActionLineEnd_begin_c1 74
- │   │       │       └─ OptionalWhitespace 74
- │   │       ├─ ActionLineEnd_content [74..82]
- │   │       │   └─ TextChunk [74..82]
- │   │       │       ├─ TextChunk_begin 74
- │   │       │       ├─ TextChunk_content [74..82]
- │   │       │       │   ├─ Word [74..81]: "Goodbye"
- │   │       │       │   └─ Punctuation [81..82]: "."
- │   │       │       └─ TextChunk_end 82
- │   │       └─ ActionLineEnd_end 82
- │   └─ ImplicitAction_end 82
- ├─ Newline [82..83]: "\n"
- ├─ LuauSparkdownExplicitStatement [83..105]
- │   ├─ LuauSparkdownExplicitStatement_begin [83..87]
- │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 [83..85]
- │   │   │   └─ OptionalWhitespace [83..85]: "  "
- │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [85..86]
- │   │   │   └─ LuauExplicitStatementMark [85..86]: "&"
- │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [86..87]
- │   │       └─ RequiredWhitespace [86..87]: " "
- │   ├─ LuauSparkdownExplicitStatement_content [87..105]
- │   │   ├─ LuauSparkdownVariableDefinition [87..98]
- │   │   │   ├─ LuauSparkdownVariableDefinition_begin [87..93]
- │   │   │   │   ├─ LuauSparkdownVariableDefinition_begin_c1 87
- │   │   │   │   │   └─ OptionalWhitespace 87
- │   │   │   │   ├─ LuauSparkdownVariableDefinition_begin_c2 [87..92]
- │   │   │   │   │   └─ LuauScopeModifier [87..92]: "local"
- │   │   │   │   └─ LuauSparkdownVariableDefinition_begin_c3 [92..93]
- │   │   │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [92..93]
- │   │   │   │           └─ OptionalWhitespace [92..93]: " "
- │   │   │   ├─ LuauSparkdownVariableDefinition_content [93..98]
- │   │   │   │   └─ LuauSparkdownVariableAssignment [93..98]
- │   │   │   │       ├─ LuauSparkdownVariableAssignment_begin [93..95]
- │   │   │   │       │   ├─ LuauSparkdownVariableAssignment_begin_c1 [93..94]
- │   │   │   │       │   │   └─ LuauVariableName [93..94]: "x"
- │   │   │   │       │   └─ LuauSparkdownVariableAssignment_begin_c2 [94..95]
- │   │   │   │       │       └─ OptionalWhitespace [94..95]: " "
- │   │   │   │       ├─ LuauSparkdownVariableAssignment_content [95..98]
- │   │   │   │       │   └─ LuauSparkdownAssignmentOperation [95..98]
- │   │   │   │       │       ├─ LuauSparkdownAssignmentOperation_begin 95
- │   │   │   │       │       │   └─ LuauSparkdownAssignmentOperation_begin_c1 95
- │   │   │   │       │       │       └─ OptionalWhitespace 95
- │   │   │   │       │       ├─ LuauSparkdownAssignmentOperation_content [95..98]
- │   │   │   │       │       │   ├─ LuauAssignmentOperator [95..97]
- │   │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [95..97]
- │   │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 95
- │   │   │   │       │       │   │   │   │   └─ OptionalWhitespace 95
- │   │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [95..96]: "="
- │   │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [96..97]
- │   │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [96..97]
- │   │   │   │       │       │   │   │           └─ OptionalWhitespace [96..97]: " "
- │   │   │   │       │       │   │   └─ LuauAssignmentOperator_end 97
- │   │   │   │       │       │   └─ LuauNumericDecimal [97..98]
- │   │   │   │       │       │       ├─ LuauNumericDecimal_c1 [97..98]: "5"
- │   │   │   │       │       │       └─ LuauNumericDecimal_c2 98
- │   │   │   │       │       └─ LuauSparkdownAssignmentOperation_end 98
- │   │   │   │       └─ LuauSparkdownVariableAssignment_end 98
- │   │   │   └─ LuauSparkdownVariableDefinition_end 98
- │   │   └─ LuauSparkdownExplicitReturnStatement [98..105]
- │   │       ├─ LuauSparkdownExplicitReturnStatement_begin [98..105]
- │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 [98..99]
- │   │       │   │   └─ OptionalWhitespace [98..99]: " "
- │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [99..105]
- │   │       │   │   └─ LuauControlKeyword [99..105]: "return"
- │   │       │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 105
- │   │       │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 105
- │   │       │           └─ OptionalWhitespace 105
- │   │       └─ LuauSparkdownExplicitReturnStatement_end 105
- │   └─ LuauSparkdownExplicitStatement_end 105
- ├─ Newline [105..106]: "\n"
- ├─ ImplicitAction [106..116]
- │   ├─ ImplicitAction_begin [106..108]
- │   │   └─ ImplicitAction_begin_c1 [106..108]
- │   │       └─ OptionalWhitespace [106..108]: "  "
- │   ├─ ImplicitAction_content [108..116]
- │   │   └─ ActionLineEnd [108..116]
- │   │       ├─ ActionLineEnd_begin 108
- │   │       │   └─ ActionLineEnd_begin_c1 108
- │   │       │       └─ OptionalWhitespace 108
- │   │       ├─ ActionLineEnd_content [108..116]
- │   │       │   └─ TextChunk [108..116]
- │   │       │       ├─ TextChunk_begin 108
- │   │       │       ├─ TextChunk_content [108..116]
- │   │       │       │   ├─ Word [108..111]: "See"
- │   │       │       │   ├─ Space [111..112]: " "
- │   │       │       │   ├─ Word [112..115]: "you"
- │   │       │       │   └─ Punctuation [115..116]: "."
- │   │       │       └─ TextChunk_end 116
- │   │       └─ ActionLineEnd_end 116
- │   └─ ImplicitAction_end 116
- ├─ Newline [116..117]: "\n"
- ├─ LuauSparkdownIfBlock [117..164]
- │   ├─ LuauSparkdownIfBlock_begin [117..122]
- │   │   ├─ LuauSparkdownIfBlock_begin_c1 [117..119]
- │   │   │   └─ OptionalWhitespace [117..119]: "  "
- │   │   ├─ LuauSparkdownIfBlock_begin_c2 [119..121]
- │   │   │   └─ LuauIfKeyword [119..121]: "if"
- │   │   └─ LuauSparkdownIfBlock_begin_c3 [121..122]
- │   │       └─ LuauSparkdownIfBlock_begin_c3 [121..122]
- │   │           └─ OptionalWhitespace [121..122]: " "
- │   ├─ LuauSparkdownIfBlock_content [122..159]
- │   │   ├─ LuauSparkdownExplicitIfCondition [122..128]
- │   │   │   ├─ LuauSparkdownExplicitIfCondition_begin 122
- │   │   │   ├─ LuauSparkdownExplicitIfCondition_content [122..123]
- │   │   │   │   └─ LuauSparkdownExplicitAccessPath [122..123]
- │   │   │   │       ├─ LuauSparkdownExplicitAccessPath_begin 122
- │   │   │   │       ├─ LuauSparkdownExplicitAccessPath_content [122..123]
- │   │   │   │       │   └─ LuauSparkdownExplicitAccessPart [122..123]
- │   │   │   │       │       └─ LuauVariable [122..123]
- │   │   │   │       │           └─ LuauVariable_c1 [122..123]
- │   │   │   │       │               └─ LuauVariableName [122..123]: "x"
- │   │   │   │       └─ LuauSparkdownExplicitAccessPath_end 123
- │   │   │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 123
- │   │   │   └─ LuauSparkdownExplicitIfCondition_end [123..128]
- │   │   │       ├─ LuauSparkdownExplicitIfCondition_end_c1 [123..124]
- │   │   │       │   └─ LuauSparkdownExplicitIfCondition_end_c1 [123..124]
- │   │   │       │       └─ OptionalWhitespace [123..124]: " "
- │   │   │       └─ LuauSparkdownExplicitIfCondition_end_c2 [124..128]
- │   │   │           └─ LuauThenKeyword [124..128]: "then"
- │   │   ├─ Newline [128..129]: "\n"
- │   │   ├─ LuauSparkdownExplicitStatement [129..141]
- │   │   │   ├─ LuauSparkdownExplicitStatement_begin [129..135]
- │   │   │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 [129..133]
- │   │   │   │   │   └─ OptionalWhitespace [129..133]: "    "
- │   │   │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [133..134]
- │   │   │   │   │   └─ LuauExplicitStatementMark [133..134]: "&"
- │   │   │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [134..135]
- │   │   │   │       └─ RequiredWhitespace [134..135]: " "
- │   │   │   ├─ LuauSparkdownExplicitStatement_content [135..141]
- │   │   │   │   └─ LuauSparkdownExplicitReturnStatement [135..141]
- │   │   │   │       ├─ LuauSparkdownExplicitReturnStatement_begin [135..141]
- │   │   │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 135
- │   │   │   │       │   │   └─ OptionalWhitespace 135
- │   │   │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [135..141]
- │   │   │   │       │   │   └─ LuauControlKeyword [135..141]: "return"
- │   │   │   │       │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 141
- │   │   │   │       │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 141
- │   │   │   │       │           └─ OptionalWhitespace 141
- │   │   │   │       └─ LuauSparkdownExplicitReturnStatement_end 141
- │   │   │   └─ LuauSparkdownExplicitStatement_end 141
- │   │   ├─ Newline [141..142]: "\n"
- │   │   ├─ ImplicitAction [142..158]
- │   │   │   ├─ ImplicitAction_begin [142..146]
- │   │   │   │   └─ ImplicitAction_begin_c1 [142..146]
- │   │   │   │       └─ OptionalWhitespace [142..146]: "    "
- │   │   │   ├─ ImplicitAction_content [146..158]
- │   │   │   │   └─ ActionLineEnd [146..158]
- │   │   │   │       ├─ ActionLineEnd_begin 146
- │   │   │   │       │   └─ ActionLineEnd_begin_c1 146
- │   │   │   │       │       └─ OptionalWhitespace 146
- │   │   │   │       ├─ ActionLineEnd_content [146..158]
- │   │   │   │       │   └─ TextChunk [146..158]
- │   │   │   │       │       ├─ TextChunk_begin 146
- │   │   │   │       │       ├─ TextChunk_content [146..158]
- │   │   │   │       │       │   ├─ Word [146..151]: "Hello"
- │   │   │   │       │       │   ├─ Space [151..152]: " "
- │   │   │   │       │       │   ├─ Word [152..157]: "again"
- │   │   │   │       │       │   └─ Punctuation [157..158]: "."
- │   │   │   │       │       └─ TextChunk_end 158
- │   │   │   │       └─ ActionLineEnd_end 158
- │   │   │   └─ ImplicitAction_end 158
- │   │   └─ Newline [158..159]: "\n"
- │   └─ LuauSparkdownIfBlock_end [159..164]
- │       ├─ LuauSparkdownIfBlock_end_c1 [159..161]
- │       │   └─ LuauSparkdownIfBlock_end_c1 [159..161]
- │       │       └─ OptionalWhitespace [159..161]: "  "
- │       ├─ LuauSparkdownIfBlock_end_c2 [161..164]
- │       │   └─ LuauEndKeyword [161..164]: "end"
- │       └─ LuauSparkdownIfBlock_end_c3 164
- └─ Newline [164..165]: "\n"
+ ├─ Newline [42..43]: "\n"
+ ├─ Scene [43..50]
+ │   ├─ Scene_begin [43..49]
+ │   │   ├─ Scene_begin_c1 43
+ │   │   │   └─ OptionalWhitespace 43
+ │   │   ├─ Scene_begin_c2 [43..48]
+ │   │   │   └─ SceneKeyword [43..48]: "scene"
+ │   │   └─ Scene_begin_c3 [48..49]
+ │   │       └─ RequiredWhitespace [48..49]: " "
+ │   ├─ Scene_content [49..50]
+ │   │   └─ SceneWithoutParametersDeclaration [49..50]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [49..50]
+ │   │       │   └─ SceneDeclarationName [49..50]: "a"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 50
+ │   └─ Scene_end 50
+ ├─ Newline [50..51]: "\n"
+ ├─ LuauSparkdownExplicitStatement [51..61]
+ │   ├─ LuauSparkdownExplicitStatement_begin [51..55]
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 [51..53]
+ │   │   │   └─ OptionalWhitespace [51..53]: "  "
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [53..54]
+ │   │   │   └─ LuauExplicitStatementMark [53..54]: "&"
+ │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [54..55]
+ │   │       └─ RequiredWhitespace [54..55]: " "
+ │   ├─ LuauSparkdownExplicitStatement_content [55..61]
+ │   │   └─ LuauSparkdownExplicitReturnStatement [55..61]
+ │   │       ├─ LuauSparkdownExplicitReturnStatement_begin [55..61]
+ │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 55
+ │   │       │   │   └─ OptionalWhitespace 55
+ │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [55..61]
+ │   │       │   │   └─ LuauControlKeyword [55..61]: "return"
+ │   │       │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 61
+ │   │       │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 61
+ │   │       │           └─ OptionalWhitespace 61
+ │   │       └─ LuauSparkdownExplicitReturnStatement_end 61
+ │   └─ LuauSparkdownExplicitStatement_end 61
+ ├─ Newline [61..62]: "\n"
+ ├─ ImplicitAction [62..76]
+ │   ├─ ImplicitAction_begin [62..64]
+ │   │   └─ ImplicitAction_begin_c1 [62..64]
+ │   │       └─ OptionalWhitespace [62..64]: "  "
+ │   ├─ ImplicitAction_content [64..76]
+ │   │   └─ ActionLineEnd [64..76]
+ │   │       ├─ ActionLineEnd_begin 64
+ │   │       │   └─ ActionLineEnd_begin_c1 64
+ │   │       │       └─ OptionalWhitespace 64
+ │   │       ├─ ActionLineEnd_content [64..76]
+ │   │       │   └─ TextChunk [64..76]
+ │   │       │       ├─ TextChunk_begin 64
+ │   │       │       ├─ TextChunk_content [64..76]
+ │   │       │       │   ├─ Word [64..69]: "Hello"
+ │   │       │       │   ├─ Space [69..70]: " "
+ │   │       │       │   ├─ Word [70..75]: "there"
+ │   │       │       │   └─ Punctuation [75..76]: "."
+ │   │       │       └─ TextChunk_end 76
+ │   │       └─ ActionLineEnd_end 76
+ │   └─ ImplicitAction_end 76
+ ├─ Newline [76..77]: "\n"
+ ├─ LuauSparkdownExplicitStatement [77..91]
+ │   ├─ LuauSparkdownExplicitStatement_begin [77..81]
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 [77..79]
+ │   │   │   └─ OptionalWhitespace [77..79]: "  "
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [79..80]
+ │   │   │   └─ LuauExplicitStatementMark [79..80]: "&"
+ │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [80..81]
+ │   │       └─ RequiredWhitespace [80..81]: " "
+ │   ├─ LuauSparkdownExplicitStatement_content [81..91]
+ │   │   ├─ LuauSparkdownExplicitAccessPath [81..84]
+ │   │   │   ├─ LuauSparkdownExplicitAccessPath_begin 81
+ │   │   │   ├─ LuauSparkdownExplicitAccessPath_content [81..84]
+ │   │   │   │   └─ LuauSparkdownExplicitAccessPart [81..84]
+ │   │   │   │       └─ LuauSparkdownExplicitFunctionCall [81..84]
+ │   │   │   │           ├─ LuauSparkdownExplicitFunctionCall_begin [81..82]
+ │   │   │   │           │   ├─ LuauSparkdownExplicitFunctionCall_begin_c1 [81..82]
+ │   │   │   │           │   │   └─ LuauFunctionName [81..82]: "f"
+ │   │   │   │           │   └─ LuauSparkdownExplicitFunctionCall_begin_c2 82
+ │   │   │   │           ├─ LuauSparkdownExplicitFunctionCall_content [82..84]
+ │   │   │   │           │   └─ LuauFunctionCallParameters [82..84]
+ │   │   │   │           │       ├─ LuauFunctionCallParameters_begin [82..83]
+ │   │   │   │           │       │   └─ LuauFunctionCallParameters_begin_c1 [82..83]
+ │   │   │   │           │       │       └─ PunctuationParenOpen [82..83]: "("
+ │   │   │   │           │       └─ LuauFunctionCallParameters_end [83..84]
+ │   │   │   │           │           └─ LuauFunctionCallParameters_end_c1 [83..84]
+ │   │   │   │           │               └─ PunctuationParenClose [83..84]: ")"
+ │   │   │   │           └─ LuauSparkdownExplicitFunctionCall_end 84
+ │   │   │   └─ LuauSparkdownExplicitAccessPath_end 84
+ │   │   │       └─ LuauSparkdownExplicitAccessPath_end_c1 84
+ │   │   └─ LuauSparkdownExplicitReturnStatement [84..91]
+ │   │       ├─ LuauSparkdownExplicitReturnStatement_begin [84..91]
+ │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 [84..85]
+ │   │       │   │   └─ OptionalWhitespace [84..85]: " "
+ │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [85..91]
+ │   │       │   │   └─ LuauControlKeyword [85..91]: "return"
+ │   │       │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 91
+ │   │       │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 91
+ │   │       │           └─ OptionalWhitespace 91
+ │   │       └─ LuauSparkdownExplicitReturnStatement_end 91
+ │   └─ LuauSparkdownExplicitStatement_end 91
+ ├─ Newline [91..92]: "\n"
+ ├─ ImplicitAction [92..102]
+ │   ├─ ImplicitAction_begin [92..94]
+ │   │   └─ ImplicitAction_begin_c1 [92..94]
+ │   │       └─ OptionalWhitespace [92..94]: "  "
+ │   ├─ ImplicitAction_content [94..102]
+ │   │   └─ ActionLineEnd [94..102]
+ │   │       ├─ ActionLineEnd_begin 94
+ │   │       │   └─ ActionLineEnd_begin_c1 94
+ │   │       │       └─ OptionalWhitespace 94
+ │   │       ├─ ActionLineEnd_content [94..102]
+ │   │       │   └─ TextChunk [94..102]
+ │   │       │       ├─ TextChunk_begin 94
+ │   │       │       ├─ TextChunk_content [94..102]
+ │   │       │       │   ├─ Word [94..101]: "Goodbye"
+ │   │       │       │   └─ Punctuation [101..102]: "."
+ │   │       │       └─ TextChunk_end 102
+ │   │       └─ ActionLineEnd_end 102
+ │   └─ ImplicitAction_end 102
+ ├─ Newline [102..103]: "\n"
+ ├─ LuauSparkdownExplicitStatement [103..125]
+ │   ├─ LuauSparkdownExplicitStatement_begin [103..107]
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 [103..105]
+ │   │   │   └─ OptionalWhitespace [103..105]: "  "
+ │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [105..106]
+ │   │   │   └─ LuauExplicitStatementMark [105..106]: "&"
+ │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [106..107]
+ │   │       └─ RequiredWhitespace [106..107]: " "
+ │   ├─ LuauSparkdownExplicitStatement_content [107..125]
+ │   │   ├─ LuauSparkdownVariableDefinition [107..118]
+ │   │   │   ├─ LuauSparkdownVariableDefinition_begin [107..113]
+ │   │   │   │   ├─ LuauSparkdownVariableDefinition_begin_c1 107
+ │   │   │   │   │   └─ OptionalWhitespace 107
+ │   │   │   │   ├─ LuauSparkdownVariableDefinition_begin_c2 [107..112]
+ │   │   │   │   │   └─ LuauScopeModifier [107..112]: "local"
+ │   │   │   │   └─ LuauSparkdownVariableDefinition_begin_c3 [112..113]
+ │   │   │   │       └─ LuauSparkdownVariableDefinition_begin_c3 [112..113]
+ │   │   │   │           └─ OptionalWhitespace [112..113]: " "
+ │   │   │   ├─ LuauSparkdownVariableDefinition_content [113..118]
+ │   │   │   │   └─ LuauSparkdownVariableAssignment [113..118]
+ │   │   │   │       ├─ LuauSparkdownVariableAssignment_begin [113..115]
+ │   │   │   │       │   ├─ LuauSparkdownVariableAssignment_begin_c1 [113..114]
+ │   │   │   │       │   │   └─ LuauVariableName [113..114]: "x"
+ │   │   │   │       │   └─ LuauSparkdownVariableAssignment_begin_c2 [114..115]
+ │   │   │   │       │       └─ OptionalWhitespace [114..115]: " "
+ │   │   │   │       ├─ LuauSparkdownVariableAssignment_content [115..118]
+ │   │   │   │       │   └─ LuauSparkdownAssignmentOperation [115..118]
+ │   │   │   │       │       ├─ LuauSparkdownAssignmentOperation_begin 115
+ │   │   │   │       │       │   └─ LuauSparkdownAssignmentOperation_begin_c1 115
+ │   │   │   │       │       │       └─ OptionalWhitespace 115
+ │   │   │   │       │       ├─ LuauSparkdownAssignmentOperation_content [115..118]
+ │   │   │   │       │       │   ├─ LuauAssignmentOperator [115..117]
+ │   │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [115..117]
+ │   │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 115
+ │   │   │   │       │       │   │   │   │   └─ OptionalWhitespace 115
+ │   │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [115..116]: "="
+ │   │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [116..117]
+ │   │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [116..117]
+ │   │   │   │       │       │   │   │           └─ OptionalWhitespace [116..117]: " "
+ │   │   │   │       │       │   │   └─ LuauAssignmentOperator_end 117
+ │   │   │   │       │       │   └─ LuauNumericDecimal [117..118]
+ │   │   │   │       │       │       ├─ LuauNumericDecimal_c1 [117..118]: "5"
+ │   │   │   │       │       │       └─ LuauNumericDecimal_c2 118
+ │   │   │   │       │       └─ LuauSparkdownAssignmentOperation_end 118
+ │   │   │   │       └─ LuauSparkdownVariableAssignment_end 118
+ │   │   │   └─ LuauSparkdownVariableDefinition_end 118
+ │   │   └─ LuauSparkdownExplicitReturnStatement [118..125]
+ │   │       ├─ LuauSparkdownExplicitReturnStatement_begin [118..125]
+ │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 [118..119]
+ │   │       │   │   └─ OptionalWhitespace [118..119]: " "
+ │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [119..125]
+ │   │       │   │   └─ LuauControlKeyword [119..125]: "return"
+ │   │       │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 125
+ │   │       │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 125
+ │   │       │           └─ OptionalWhitespace 125
+ │   │       └─ LuauSparkdownExplicitReturnStatement_end 125
+ │   └─ LuauSparkdownExplicitStatement_end 125
+ ├─ Newline [125..126]: "\n"
+ ├─ ImplicitAction [126..136]
+ │   ├─ ImplicitAction_begin [126..128]
+ │   │   └─ ImplicitAction_begin_c1 [126..128]
+ │   │       └─ OptionalWhitespace [126..128]: "  "
+ │   ├─ ImplicitAction_content [128..136]
+ │   │   └─ ActionLineEnd [128..136]
+ │   │       ├─ ActionLineEnd_begin 128
+ │   │       │   └─ ActionLineEnd_begin_c1 128
+ │   │       │       └─ OptionalWhitespace 128
+ │   │       ├─ ActionLineEnd_content [128..136]
+ │   │       │   └─ TextChunk [128..136]
+ │   │       │       ├─ TextChunk_begin 128
+ │   │       │       ├─ TextChunk_content [128..136]
+ │   │       │       │   ├─ Word [128..131]: "See"
+ │   │       │       │   ├─ Space [131..132]: " "
+ │   │       │       │   ├─ Word [132..135]: "you"
+ │   │       │       │   └─ Punctuation [135..136]: "."
+ │   │       │       └─ TextChunk_end 136
+ │   │       └─ ActionLineEnd_end 136
+ │   └─ ImplicitAction_end 136
+ ├─ Newline [136..137]: "\n"
+ ├─ LuauSparkdownIfBlock [137..184]
+ │   ├─ LuauSparkdownIfBlock_begin [137..142]
+ │   │   ├─ LuauSparkdownIfBlock_begin_c1 [137..139]
+ │   │   │   └─ OptionalWhitespace [137..139]: "  "
+ │   │   ├─ LuauSparkdownIfBlock_begin_c2 [139..141]
+ │   │   │   └─ LuauIfKeyword [139..141]: "if"
+ │   │   └─ LuauSparkdownIfBlock_begin_c3 [141..142]
+ │   │       └─ LuauSparkdownIfBlock_begin_c3 [141..142]
+ │   │           └─ OptionalWhitespace [141..142]: " "
+ │   ├─ LuauSparkdownIfBlock_content [142..179]
+ │   │   ├─ LuauSparkdownExplicitIfCondition [142..148]
+ │   │   │   ├─ LuauSparkdownExplicitIfCondition_begin 142
+ │   │   │   ├─ LuauSparkdownExplicitIfCondition_content [142..143]
+ │   │   │   │   └─ LuauSparkdownExplicitAccessPath [142..143]
+ │   │   │   │       ├─ LuauSparkdownExplicitAccessPath_begin 142
+ │   │   │   │       ├─ LuauSparkdownExplicitAccessPath_content [142..143]
+ │   │   │   │       │   └─ LuauSparkdownExplicitAccessPart [142..143]
+ │   │   │   │       │       └─ LuauVariable [142..143]
+ │   │   │   │       │           └─ LuauVariable_c1 [142..143]
+ │   │   │   │       │               └─ LuauVariableName [142..143]: "x"
+ │   │   │   │       └─ LuauSparkdownExplicitAccessPath_end 143
+ │   │   │   │           └─ LuauSparkdownExplicitAccessPath_end_c1 143
+ │   │   │   └─ LuauSparkdownExplicitIfCondition_end [143..148]
+ │   │   │       ├─ LuauSparkdownExplicitIfCondition_end_c1 [143..144]
+ │   │   │       │   └─ LuauSparkdownExplicitIfCondition_end_c1 [143..144]
+ │   │   │       │       └─ OptionalWhitespace [143..144]: " "
+ │   │   │       └─ LuauSparkdownExplicitIfCondition_end_c2 [144..148]
+ │   │   │           └─ LuauThenKeyword [144..148]: "then"
+ │   │   ├─ Newline [148..149]: "\n"
+ │   │   ├─ LuauSparkdownExplicitStatement [149..161]
+ │   │   │   ├─ LuauSparkdownExplicitStatement_begin [149..155]
+ │   │   │   │   ├─ LuauSparkdownExplicitStatement_begin_c1 [149..153]
+ │   │   │   │   │   └─ OptionalWhitespace [149..153]: "    "
+ │   │   │   │   ├─ LuauSparkdownExplicitStatement_begin_c2 [153..154]
+ │   │   │   │   │   └─ LuauExplicitStatementMark [153..154]: "&"
+ │   │   │   │   └─ LuauSparkdownExplicitStatement_begin_c3 [154..155]
+ │   │   │   │       └─ RequiredWhitespace [154..155]: " "
+ │   │   │   ├─ LuauSparkdownExplicitStatement_content [155..161]
+ │   │   │   │   └─ LuauSparkdownExplicitReturnStatement [155..161]
+ │   │   │   │       ├─ LuauSparkdownExplicitReturnStatement_begin [155..161]
+ │   │   │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c1 155
+ │   │   │   │       │   │   └─ OptionalWhitespace 155
+ │   │   │   │       │   ├─ LuauSparkdownExplicitReturnStatement_begin_c2 [155..161]
+ │   │   │   │       │   │   └─ LuauControlKeyword [155..161]: "return"
+ │   │   │   │       │   └─ LuauSparkdownExplicitReturnStatement_begin_c3 161
+ │   │   │   │       │       └─ LuauSparkdownExplicitReturnStatement_begin_c3 161
+ │   │   │   │       │           └─ OptionalWhitespace 161
+ │   │   │   │       └─ LuauSparkdownExplicitReturnStatement_end 161
+ │   │   │   └─ LuauSparkdownExplicitStatement_end 161
+ │   │   ├─ Newline [161..162]: "\n"
+ │   │   ├─ ImplicitAction [162..178]
+ │   │   │   ├─ ImplicitAction_begin [162..166]
+ │   │   │   │   └─ ImplicitAction_begin_c1 [162..166]
+ │   │   │   │       └─ OptionalWhitespace [162..166]: "    "
+ │   │   │   ├─ ImplicitAction_content [166..178]
+ │   │   │   │   └─ ActionLineEnd [166..178]
+ │   │   │   │       ├─ ActionLineEnd_begin 166
+ │   │   │   │       │   └─ ActionLineEnd_begin_c1 166
+ │   │   │   │       │       └─ OptionalWhitespace 166
+ │   │   │   │       ├─ ActionLineEnd_content [166..178]
+ │   │   │   │       │   └─ TextChunk [166..178]
+ │   │   │   │       │       ├─ TextChunk_begin 166
+ │   │   │   │       │       ├─ TextChunk_content [166..178]
+ │   │   │   │       │       │   ├─ Word [166..171]: "Hello"
+ │   │   │   │       │       │   ├─ Space [171..172]: " "
+ │   │   │   │       │       │   ├─ Word [172..177]: "again"
+ │   │   │   │       │       │   └─ Punctuation [177..178]: "."
+ │   │   │   │       │       └─ TextChunk_end 178
+ │   │   │   │       └─ ActionLineEnd_end 178
+ │   │   │   └─ ImplicitAction_end 178
+ │   │   └─ Newline [178..179]: "\n"
+ │   └─ LuauSparkdownIfBlock_end [179..184]
+ │       ├─ LuauSparkdownIfBlock_end_c1 [179..181]
+ │       │   └─ LuauSparkdownIfBlock_end_c1 [179..181]
+ │       │       └─ OptionalWhitespace [179..181]: "  "
+ │       ├─ LuauSparkdownIfBlock_end_c2 [181..184]
+ │       │   └─ LuauEndKeyword [181..184]: "end"
+ │       └─ LuauSparkdownIfBlock_end_c3 184
+ └─ Newline [184..185]: "\n"

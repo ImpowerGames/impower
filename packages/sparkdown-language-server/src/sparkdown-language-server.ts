@@ -46,8 +46,7 @@ import {
   TOKEN_TYPES,
 } from "./utils/providers/getSemanticTokens";
 
-// This module runs as a dedicated worker; the project also loads the DOM lib,
-// so `self` would otherwise be typed as Window.
+// workaround(typescript): with the DOM lib loaded, `self` in a dedicated worker is typed as Window
 declare const self: DedicatedWorkerGlobalScope;
 
 console.log("running sparkdown-language-server v1.0");
@@ -59,8 +58,6 @@ try {
 
   const workspace = new SparkdownLanguageServerWorkspace(connection);
 
-  // Hosts that implement neither image route fall back to the single-layer
-  // preview rather than failing.
   const imageCompositeOptions = createImageCompositeOptions(workspace);
 
   const capabilities: ServerCapabilities = {
@@ -100,9 +97,6 @@ try {
       completionItem: {
         labelDetailsSupport: true,
       },
-      // Asset previews are computed in `completionItem/resolve`, not up front:
-      // a project-wide asset list can be hundreds of items and only the one the
-      // user highlights ever needs its image.
       resolveProvider: true,
     },
     documentFormattingProvider: true,
@@ -147,19 +141,7 @@ try {
   connection.onInitialized(async () => {
     const settings = await connection.workspace.getConfiguration("sparkdown");
     workspace.loadConfiguration(settings);
-    // Ask the client to re-request anything it may have asked for while we were
-    // still starting up. Initialization loads every project file into the
-    // compiler and runs a full compile, and on a large project that takes long
-    // enough that the editor's first semantic-token / diagnostic requests
-    // fail: they used to be rejected outright ("Compiler has not been
-    // configured!", #224), and now wait for the compiler but can outlast the
-    // client's own request timeout (#1785). Without this the features can stay
-    // dead until something else happens to trigger a re-request.
-    //
-    // A refresh is a hint with no result, and a client with no editor open
-    // yet may answer it with an error (#1785): that refusal is not a failure.
-    // (Sent directly: `languages.*.refresh()` returns the request's promise
-    // but is typed `void`.)
+    // workaround(vscode-languageserver): languages.*.refresh() returns the request promise but is typed void, so the refresh is sent directly
     const ignoreRefusal = () => {};
     connection
       .sendRequest(SemanticTokensRefreshRequest.type)
@@ -167,10 +149,6 @@ try {
     connection.sendRequest(DiagnosticRefreshRequest.type).catch(ignoreRefusal);
   });
 
-  // Clients re-pull folding ranges and semantic tokens after every change AND
-  // every refresh, so identical requests arrive in bursts. Both computations
-  // are pure functions of (document version, program version) -- cache the
-  // last result per uri and only recompute when either input moves.
   const foldingRangeCache = new Map<
     string,
     { documentVersion: number; programVersion: number | undefined; result: any }
@@ -180,7 +158,6 @@ try {
     { documentVersion: number; programVersion: number | undefined; result: any }
   >();
 
-  // foldingRangeProvider
   connection.onFoldingRanges((params) => {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
@@ -208,7 +185,6 @@ try {
     return result;
   });
 
-  // colorProvider
   connection.onDocumentColor((params) => {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
@@ -220,15 +196,12 @@ try {
     return result;
   });
   connection.onColorPresentation((params) => {
-    // Its own name: this used to share "lsp: onDocumentColor" with the handler
-    // above, so two different requests aggregated into one phase.
     const result = profiled("lsp: onColorPresentation", undefined, () =>
       getColorPresentations(params.color),
     );
     return result;
   });
 
-  // documentSymbolProvider
   connection.onDocumentSymbol((params) => {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
@@ -239,7 +212,6 @@ try {
     return result;
   });
 
-  // hoverProvider
   connection.onHover((params) => {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
@@ -261,7 +233,6 @@ try {
     return result;
   });
 
-  // completionProvider
   connection.onCompletion((params) => {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
@@ -280,10 +251,6 @@ try {
         params.context,
       ),
     );
-    // `workspace.program()` is keyed by the REQUESTED document uri, not by
-    // `program.uri` (which is the compiled root), so resolve has to be told
-    // which document it came from. Stamped here to keep uri plumbing out of
-    // the completion builders.
     if (result) {
       for (const item of result) {
         if (item.data) {
@@ -294,7 +261,6 @@ try {
     return result;
   });
 
-  // completionProvider.resolveProvider
   connection.onCompletionResolve(async (item) => {
     const data = item.data as CompletionItemResolveData | undefined;
     if (!data?.uri) {
@@ -311,7 +277,6 @@ try {
     return resolved;
   });
 
-  // documentFormattingProvider
   connection.onDocumentFormatting(async (params) => {
     const settings = await connection.workspace.getConfiguration("sparkdown");
     workspace.loadConfiguration(settings);
@@ -320,10 +285,6 @@ try {
     const tree = workspace.tree(uri);
     const annotations = workspace.annotations(uri);
     const result = profiled("lsp: onDocumentFormatting", uri, () => {
-      // Incremental (delta) formatting for format-on-save: only reprocess
-      // the construct(s) changed since the last format. The dirty range is
-      // the diff against the last formatted output — safe because outside
-      // it the text equals an already-formatted baseline.
       const dirtyRange = document
         ? workspace.formatDirtyRange(uri, document.getText())
         : undefined;
@@ -336,9 +297,6 @@ try {
         undefined,
         dirtyRange,
       );
-      // Cache the resulting (fully formatted) text as the next diff
-      // baseline. Apply our own edits to compute it — that's what the
-      // editor will materialize.
       if (document) {
         const formatted = edits
           ? applyTextEdits(document, edits)
@@ -350,7 +308,6 @@ try {
     return result;
   });
 
-  // documentRangeFormattingProvider
   connection.onDocumentRangeFormatting(async (params) => {
     const settings = await connection.workspace.getConfiguration("sparkdown");
     workspace.loadConfiguration(settings);
@@ -370,7 +327,6 @@ try {
     return result;
   });
 
-  // documentOnTypeFormattingProvider
   connection.onDocumentOnTypeFormatting(async (params) => {
     const settings = await connection.workspace.getConfiguration("sparkdown");
     workspace.loadConfiguration(settings);
@@ -391,7 +347,6 @@ try {
     return result;
   });
 
-  // prepareRenameProvider
   connection.onPrepareRename((params) => {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
@@ -402,7 +357,6 @@ try {
     return result;
   });
 
-  // renameProvider
   connection.onRenameRequest(async (params) => {
     const settings = await connection.workspace.getConfiguration("sparkdown");
     workspace.loadConfiguration(settings);
@@ -424,11 +378,6 @@ try {
     return result;
   });
 
-  // Custom: file-driven (no cursor) reference queries for the file manager.
-  // "sparkdown/fileReferences" — script locations that reference an asset file
-  // (find-usages). "sparkdown/fileRenameEdits" — the WorkspaceEdit to rename an
-  // asset file AND rewrite every reference to it. The asset has no program of
-  // its own, so resolution uses the nearest main script's program.
   connection.onRequest(
     "sparkdown/fileReferences",
     (params: { uri: string }) => {
@@ -437,10 +386,6 @@ try {
       return getFileReferences(workspace, program, params.uri)?.references ?? [];
     },
   );
-  // Custom: previous/next beat location for PageUp/PageDown navigation.
-  // Answered here (rather than from a client-side copy of the program) so
-  // the program's locations — large on a feature-length script — never
-  // have to ride along with every compile notification.
   connection.onRequest(
     "sparkdown/offsetSourceLocation",
     (params: { uri: string; line: number; offset: number }) => {
@@ -455,11 +400,6 @@ try {
       );
     },
   );
-  // Custom: the program's accessor (`ProgramLocator`), for a client that
-  // holds no program of its own: the address of a line, and where an
-  // address stands. An address is opaque, and the client only compares it
-  // or hands it back. The compiler's worker answers (`locatorOf`): it holds
-  // the root a program compiled with statement chunks is located by (#704).
   connection.onRequest(
     "sparkdown/addressAt",
     async (params: { uri: string; line: number; query?: AddressQuery }) => {
@@ -499,7 +439,6 @@ try {
     },
   );
 
-  // referencesProvider
   connection.onReferences((params) => {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
@@ -516,7 +455,6 @@ try {
     return references;
   });
 
-  // declarationProvider
   connection.onDeclaration((params) => {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
@@ -534,7 +472,6 @@ try {
     return references;
   });
 
-  // definitionProvider
   connection.onDefinition((params) => {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
@@ -552,7 +489,6 @@ try {
     return references;
   });
 
-  // documentLinkProvider
   connection.onDocumentLinks((params) => {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
@@ -564,7 +500,6 @@ try {
     return result;
   });
 
-  // documentHighlightProvider
   connection.onDocumentHighlight((params) => {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
@@ -581,14 +516,10 @@ try {
     return references;
   });
 
-  // semanticTokensProvider
   connection.languages.semanticTokens.on(async (params) => {
     const uri = params.textDocument.uri;
     const program =
       workspace.program(uri) || (await workspace.compile(uri, false));
-    // Read the document/annotations AFTER the potential compile await, so a
-    // didChange processed during it can't leave us caching a result built
-    // from older annotations under the newer document version.
     const document = workspace.document(uri);
     const annotations = workspace.annotations(uri);
     const cached = semanticTokensCache.get(uri);
@@ -624,7 +555,6 @@ try {
     return result;
   });
 
-  // codeLensProvider
   connection.onCodeLens((params) => {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
@@ -635,7 +565,6 @@ try {
     return result;
   });
 
-  // codeActionProvider
   connection.onCodeAction((params) => {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);

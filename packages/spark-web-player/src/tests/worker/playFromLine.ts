@@ -1,6 +1,8 @@
 import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarness";
 
-export const BRANCHES = `-> outer.inner(1)
+export const BRANCHES = `scene start
+  -> outer.inner(1)
+end
 scene outer
   branch inner(a)
     Inner {a}.

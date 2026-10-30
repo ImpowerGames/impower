@@ -12,16 +12,8 @@ export interface SelectCompilerDocumentParams {
   selectedRange: Range;
   docChanged: boolean;
   userEvent?: boolean;
-  /** Filled in by the preview worker while the request is handled — the same
-   *  object is returned as the result (see {@link SelectCompilerDocumentResult}). */
   checkpoint?: string;
-  /** Why no checkpoint could be simulated, when there is none. */
   simulationFailure?: SimulationFailure;
-  /** Filled in by the compiler before the request is handled: a script the
-   *  compiled program was built from has been edited since that compile, so
-   *  the program's path locations describe where this document's lines used to
-   *  be. Everything that would answer this selection from that program waits
-   *  for the compile the edit scheduled instead. */
   programOutdated?: boolean;
 }
 
@@ -31,9 +23,7 @@ export type SelectCompilerDocumentResult = {
   docChanged: boolean;
   userEvent?: boolean;
   checkpoint?: string;
-  /** Why no checkpoint could be simulated, when there is none. */
   simulationFailure?: SimulationFailure;
-  /** Mirrors the field of the same name on {@link SelectCompilerDocumentParams}. */
   programOutdated?: boolean;
 };
 

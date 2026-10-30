@@ -1,4 +1,6 @@
--> main
+scene start
+  -> main
+end
 scene main
   label dododo
   -> tunnel ->

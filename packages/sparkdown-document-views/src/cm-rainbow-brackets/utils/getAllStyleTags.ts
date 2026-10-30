@@ -1,12 +1,6 @@
 import type { SyntaxNode } from "@lezer/common";
 import { Tag, getStyleTags } from "@lezer/highlight";
 
-/**
- * Gets the style tag of a `SyntaxNode`.
- *
- * @param node - The `SyntaxNode` to get the tag from.
- */
-
 export const getAllStyleTags = (
   node: SyntaxNode,
 ): {

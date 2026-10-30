@@ -15,7 +15,7 @@ define SPRITE_B as image with
   src = "https://example.com/b.png"
 end
 
--> start
+
 
 scene start
   HERO:

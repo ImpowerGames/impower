@@ -74,7 +74,7 @@ describe("a search resumed inside an earlier route", () => {
   test("shows a loop of menus as a search from the top does", () => {
     const text = [
       "store total = 0",
-      "-> start",
+      "",
       "scene start",
       "  for i = 1, 600 do",
       "    choose",
@@ -98,7 +98,7 @@ describe("a search resumed inside an earlier route", () => {
   const longLoop = (passes: number) =>
     [
       "store total = 0",
-      "-> start",
+      "",
       "scene start",
       "  Opening beat.",
       "  Second beat.",
@@ -128,7 +128,7 @@ describe("a search resumed inside an earlier route", () => {
     const text = [
       "store total = 0",
       "store work = 0",
-      "-> start",
+      "",
       "scene start",
       "  & table.foreachi(table.create(150000, 1), function(k, v) work += v end)",
       "  Opening beat.",

@@ -10,7 +10,13 @@ const MAIN = "file:///local/main.sd";
 const programOf = (lines: number[]): SparkProgram => {
   const last = Math.max(0, ...lines);
   const text = Array.from({ length: last + 2 }, (_, line) =>
-    lines.includes(line) ? `Line ${line}.` : "",
+    line === 0
+      ? "scene start"
+      : line === last + 1
+        ? "end"
+        : lines.includes(line)
+          ? `  Line ${line}.`
+          : "",
   ).join("\n");
   const compiler = new SparkdownCompiler();
   compiler.configure({

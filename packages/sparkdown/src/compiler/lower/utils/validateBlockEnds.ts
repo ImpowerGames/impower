@@ -12,53 +12,6 @@ import { loopBodyBlock } from "./loopDoBlock";
 import { isTrivia, lineTextSpan, makeSource } from "./validateDefineStructure";
 import { isLuauDocument, luauReadingReportsAllAt } from "../../typecheck/LuauUnitNodes";
 
-// Reports every Luau function, type function, `if`, `do`, `while`, `for` and
-// `repeat` block that is left open.
-//
-// The grammar ends one of these blocks in one of three ways, and records no
-// error for any of them:
-//
-//   - at its `end` keyword, which its `_end` node holds;
-//   - just before the next `scene` / `branch` beat, with an empty `_end` node;
-//   - with no `_end` node at all, at a line of its body the grammar cannot
-//     read as Luau or at the end of the document. The rest of the block then
-//     follows as root-level chunks of its own, and a root-level `end` closes
-//     it.
-//
-// The first two are read from the block's own node, so `validateBlockEnds`
-// checks them for each chunk as it is lowered. The third depends on the
-// root-level `end` siblings after the chunk, so `validateOpenBlocks` checks it
-// over the whole document each compile, as the scene and branch `end` checks
-// do (`validateSceneBranchScope.ts`): a per-chunk result would go stale when
-// only a later `end` is edited.
-//
-// When a block nested inside another is also missing its `end`, the `end`
-// written for the outer block closes the inner one, so the block left open is
-// the outer one; that is the block reported, as Luau reports it. A scene or
-// branch whose `end` a block inside it took is left open the same way. The
-// `end`s alone cannot say whether the author left out the block's or the
-// scene's, so the block that took it is reported as missing one or the other.
-//
-// The word `end` in a line of text closes a block the same way, as in
-// `The end of the scene.` under a function with no `end` of its own. For a
-// root-level block, the rest of such a line (`of the scene.`) is a root-level
-// line of text of its own. The tree cannot tell that from code the grammar
-// read as text after a block's own `end` (`end bump()`, or `if {} then … end
-// assert(x)`, whose `if`'s `end` the grammar gives to the function around it),
-// and the text before the `end` cannot tell either, since a bare name such as
-// `The` is a statement (a call of that name). Every reading leaves that text
-// displayed rather than run, so a root-level block whose `end` is followed on
-// its line by a line of text gets a warning on that line that says so, rather
-// than an error claiming its `end` is missing.
-//
-// A `while` or `for` loop ends after its `do` block, whose `end` closes both,
-// so an unclosed `do` block that belongs to a loop is reported as the loop.
-//
-// A `repeat` loop closes at `until`, never at `end`, and takes its `until`
-// into its `_end` node as a block takes its `end`, so it is checked against
-// its own node alone. A `repeat` nested in another takes the first `until`,
-// so the loop left open is the outer one, as Luau reports it.
-
 const END_BLOCKS: Readonly<Record<string, string>> = {
   LuauFunctionDefinition: "function",
   LuauFunctionTypeDeclaration: "type function",
@@ -87,10 +40,8 @@ const BOUNDED_BLOCKS = nodeNameSet([
 ]);
 
 interface Block {
-  // The line the diagnostic is reported on: the loop's for a loop's `do`.
   header: SyntaxNode;
   label: string;
-  // The keyword that closes the block: `until` for a `repeat`.
   closer: "end" | "until";
   bounded?: boolean;
 }
@@ -101,7 +52,6 @@ const MISSING_UNTIL =
 function asBlock(node: SyntaxNode): Block | null {
   const kind = END_BLOCKS[node.name];
   if (!kind) return null;
-  // The nearest enclosing loop, if the block is that loop's body.
   for (let up = node.parent; up && !END_BLOCKS[up.name]; up = up.parent) {
     const loopKind = LOOPS[up.name];
     if (!loopKind) continue;
@@ -121,25 +71,10 @@ function boundedMissingMessage(label: string, closer: "end" | "until"): string {
   return `This ${label} is missing its closing \`${closer}\` keyword on this \`&\` line. The following line remains story text.`;
 }
 
-// Whether the document is a `.luau` or `run` file, where Luau's reading
-// reports every error (I-1322) and the tree's blocks are not the story's (it
-// reads the file's lines as story statements, `nil:do` as a `do` block, or
-// wraps them in the `run`'s own function).
 function luauReportsOpenBlock(ctx: LowerContext): boolean {
   return ctx.filePath !== undefined && isLuauDocument(ctx.filePath);
 }
 
-// Whether Luau's reading alone reports a block left open at its header: in
-// a `.luau` or `run` file, and in a `.sd` function's own Luau the type
-// checker reads (`luauReadingReportsAllAt`), where Luau's `Expected 'end'
-// (to close ...)` at Luau's range is the report and Sparkdown's on the
-// header would report the same mistake again (I-1322, the maintainer's
-// decision). A block in story, a `store`'s function value and a `&` line's
-// block are Sparkdown's to report.
-// A block opened in a story statement whose bracket never closes ends with
-// that bracket's line, where Luau's reading meets its end of input inside
-// it and reports the missing closer (`unclosedIslandEnd`, I-1532); the
-// tree's closers on the story lines after it are not its.
 function luauReportsOpenBlockAt(header: SyntaxNode, ctx: LowerContext): boolean {
   if (luauReportsOpenBlock(ctx) || luauReadingReportsAllAt(header, (from, to) => ctx.read(from, to))) return true;
   const text = ctx.documentText?.();
@@ -166,14 +101,12 @@ function report(
   });
 }
 
-// Whether a walk over siblings or children may step over `node`.
 function skippable(node: SyntaxNode): boolean {
   return (
     node.from === node.to || isTrivia(node) || node.name === "ERROR_INCOMPLETE"
   );
 }
 
-// The `until` keyword inside a `repeat` loop's `_end` node, if it has one.
 export function untilKeywordOf(repeat: SyntaxNode): SyntaxNode | null {
   const endNode = findChildByName(repeat, `${repeat.name}_end`);
   if (!endNode || endNode.from === endNode.to) return null;
@@ -181,12 +114,10 @@ export function untilKeywordOf(repeat: SyntaxNode): SyntaxNode | null {
   return keyword && keyword.to <= endNode.to ? keyword : null;
 }
 
-// Whether a `repeat` loop took its `until`, as a block takes its `end`.
 function hasUntil(repeat: SyntaxNode): boolean {
   return untilKeywordOf(repeat) !== null;
 }
 
-// The `end` keyword inside a block's `_end` node, if it has one.
 function endKeywordOf(node: SyntaxNode): SyntaxNode | null {
   const endNode = findChildByName(node, `${node.name}_end`);
   if (!endNode || endNode.from === endNode.to) return null;
@@ -194,20 +125,14 @@ function endKeywordOf(node: SyntaxNode): SyntaxNode | null {
   return keyword && keyword.to <= endNode.to ? keyword : null;
 }
 
-// A function body's stray `else`, `elseif` or `until` is a closer no block
-// owns.
 const CLOSER_KEYWORDS = nodeNameSet(["LuauEndKeyword", "LuauElseKeyword", "LuauElseifKeyword", "LuauUntilKeyword", "LuauStrayCloser"]);
 
-// The story blocks of `END_BLOCKS` and `REPEAT_LOOPS`.
 const STORY_BLOCKS = nodeNameSet([
   "LuauSparkdownIfBlock",
   "LuauSparkdownDoBlock",
   "LuauSparkdownRepeatLoop",
 ]);
 
-// The node after `node` in the document, past trivia, from the first of its
-// following siblings or of its ancestors' that has one; null where only
-// the chunk's end follows.
 function nextAfter(node: SyntaxNode): SyntaxNode | null {
   for (let at: SyntaxNode | null = node; at; at = at.parent) {
     let next = at.nextSibling;
@@ -217,7 +142,6 @@ function nextAfter(node: SyntaxNode): SyntaxNode | null {
   return null;
 }
 
-// The first token of a node that is not trivia, or null for none.
 function firstToken(node: SyntaxNode): SyntaxNode | null {
   if (skippable(node)) return null;
   if (!node.firstChild) return node;
@@ -228,14 +152,6 @@ function firstToken(node: SyntaxNode): SyntaxNode | null {
   return null;
 }
 
-// Whether the grammar closed a block, with nothing in its `_end`, before a
-// closer that is not its own (`own`) and that a Luau block around it holds,
-// as an `if` with no `end` before its `repeat`'s `until` (#1209). Luau's
-// reading of the chunk reports the block left open at that closer
-// (`readLuauAst.ts`), as Luau does, so it is not reported here. A closer
-// the chunk does not hold is left to this validator, and so is a story
-// block that closed before its `repeat`'s `until`, which keeps the
-// validator's own report.
 function closedBeforeOuterCloser(node: SyntaxNode, own: ReadonlySet<string>, chunk: SyntaxNode): boolean {
   if (STORY_BLOCKS.has(node.name)) return false;
   const endNode = findChildByName(node, `${node.name}_end`);
@@ -249,16 +165,6 @@ function closedBeforeOuterCloser(node: SyntaxNode, own: ReadonlySet<string>, chu
 const OWNS_END = nodeNameSet(["LuauEndKeyword"]);
 const OWNS_UNTIL = nodeNameSet(["LuauUntilKeyword"]);
 
-// Checks the blocks of one chunk that the chunk's own nodes show to be open:
-// those cut off before a `scene` or `branch`, and `repeat` loops with no
-// `until`. A `repeat` left open is reported as the outermost of the loops
-// left open, as Luau reports it, and the loops inside it are not reported
-// again. A `repeat` cut off where its body cannot go on, which a root-level
-// `end` after the chunk reaches, is `validateOpenBlocks`'s to check.
-//
-// A node `skip` names holds no block this checks (`holdsCheckedBlock`), and
-// is not walked: a statement served from its memo (#656), which the chunk's
-// last lowering found to hold none, as its syntax still does.
 export function validateBlockEnds(
   chunk: SyntaxNode,
   ctx: LowerContext,
@@ -289,8 +195,6 @@ export function validateBlockEnds(
       !insideOpenRepeat &&
       !cutOff.has(node.from) &&
       !hasUntil(node) &&
-      // As for a block above: a loop the grammar closed before a closer of
-      // a block around it (`repeat … end`) is Luau's reading's to report.
       (BOUNDED_BLOCKS.has(node.name) || findChildByName(node, `${node.name}_end`)) &&
       !closedBeforeOuterCloser(node, OWNS_UNTIL, chunk)
     ) {
@@ -306,9 +210,6 @@ export function validateBlockEnds(
   return diagnostics;
 }
 
-// Whether `node` is, or holds, a block `validateBlockEnds` checks: one that
-// ends at `end`, or a `repeat` loop. A node that holds none gives it nothing
-// to report, whatever stands around it.
 export function holdsCheckedBlock(node: GrammarSyntaxNode<SparkdownNodeName>): boolean {
   if (END_BLOCKS[node.name] || REPEAT_LOOPS.has(node.name)) return true;
   for (let child = node.firstChild; child; child = child.nextSibling) {
@@ -317,19 +218,11 @@ export function holdsCheckedBlock(node: GrammarSyntaxNode<SparkdownNodeName>): b
   return false;
 }
 
-// The blocks a root-level chunk leaves open for later root-level `end`s to
-// close, outermost first. Only a block with no `_end` node is open this way,
-// and every such block holds the point where the grammar stopped reading it,
-// so they all lie on the path through each node's last child that has text.
-// A `repeat` on that path with no `until` of its own is cut off the same way,
-// and an `end` that reaches it leaves it without its `until`.
 function openChain(root: SyntaxNode): Block[] {
   const chain: Block[] = [];
   let node: SyntaxNode | null = root;
   while (node) {
     if (BOUNDED_BLOCKS.has(node.name)) {
-      // Its missing closer belongs to this explicit line, never a later
-      // root-level end. Still descend to any real function body.
     } else if (END_BLOCKS[node.name]) {
       if (findChildByName(node, `${node.name}_end`)) break;
       chain.push(asBlock(node)!);
@@ -345,12 +238,9 @@ function openChain(root: SyntaxNode): Block[] {
 
 interface ProseEnd {
   endKeyword: SyntaxNode;
-  // The line of text after the keyword.
   rest: string;
 }
 
-// A root-level block's `end` keyword, when a line of text continues after the
-// keyword on its line. A loop's `end` is its `do` block's, `holder`.
 function proseEnd(
   root: SyntaxNode,
   holder: SyntaxNode,
@@ -375,22 +265,8 @@ function proseEnd(
 
 type OpenEntry =
   | { kind: "block"; block: Block }
-  // A scene or branch, and the last block an `end` closed while it was open.
   | { kind: "scene" | "branch"; lastClosed?: Block };
 
-// Checks, over the root-level nodes of a whole document, the blocks that
-// chunks leave open for a later root-level `end` to close, whether the chunk
-// is itself a block or holds one (a function value in a `store`), and warns
-// about text after a root-level block's `end`. Each root-level
-// `end` closes the innermost block, scene or branch still open; no
-// root-level `until` closes a `repeat`, since only a loop's own end reads
-// `until` (`LuauRepeatLoop`). A `branch`
-// sets aside every block still open before it, and a `scene` or the end of
-// the document every block, scene and branch. Scenes and branches take part
-// so that their own `end`s are not counted as a block's: one left open after
-// a block inside it took an `end` is reported on that block, and one no block
-// took an `end` from is `validateSceneBranchScope.ts`'s to report. An `end`
-// with nothing open to close is reported on itself.
 export function validateOpenBlocks(
   top: SyntaxNode,
   ctx: LowerContext,
@@ -417,15 +293,11 @@ export function validateOpenBlocks(
       );
     }
   };
-  // Reports and removes the open entries above the innermost one that
-  // `keep` accepts.
   const closeAbove = (keep: (entry: OpenEntry) => boolean) => {
     while (open.length > 0 && !keep(open.at(-1)!)) {
       reportEntry(open.pop()!);
     }
   };
-  // Whether the root-level tokens since the last statement are a stray
-  // closer and the line breaks and comments after it.
   let afterStrayCloser = false;
   for (let node = top.firstChild; node; node = node.nextSibling) {
     if (node.name === "LuauStrayUntilStatement" && open.length === 0) afterStrayCloser = true;
@@ -437,26 +309,12 @@ export function validateOpenBlocks(
       closeAbove((entry) => entry.kind === "scene");
       open.push({ kind: "branch" });
     } else if (node.name === "LuauEndKeyword") {
-      // An `end` with nothing open to close is reported on itself, as Luau
-      // reports one (#774): an extra `end` after a function, or the second
-      // `end` of an if statement written where an if expression is read,
-      // whose first `end` closed the function early. One that a `repeat`
-      // meets in place of its `until` is that loop's missing `until`. In a
-      // `.luau` or `run` file Luau's reading reports it, and nothing after
-      // it, where Luau's parser stops (`luauReportsOpenBlock`).
-      // Luau's parser stops at the first stray closer (`until` included,
-      // which Luau's reading of its line reports), so a stray `end` right
-      // after one, with no statement between, is none of Luau's (I-1514).
       if (open.length === 0 && !luauReportsOpenBlock(ctx) && !afterStrayCloser) report(diagnostics, node, "Expected <eof>, got 'end'", ctx);
       if (open.length === 0) afterStrayCloser = true;
-      // An `end` cannot close a `repeat`, so a `repeat` still open inside the
-      // block it reaches is left without its `until`.
       closeAbove(
         (entry) => entry.kind !== "block" || entry.block.closer !== "until",
       );
       const closed = open.pop();
-      // The block an `end` closes, or the one a closing branch recorded, took
-      // the `end` of the scene or branch around it if that is left open.
       const took = closed?.kind === "block" ? closed.block : closed?.lastClosed;
       if (took) {
         for (let i = open.length - 1; i >= 0; i--) {
@@ -471,13 +329,10 @@ export function validateOpenBlocks(
       for (const block of openChain(node)) {
         open.push({ kind: "block", block });
       }
-      // A root-level loop's `end` closes its `do` block, which names the loop.
       const holder = LOOPS[node.name]
         ? loopBodyBlock(node as GrammarSyntaxNode<SparkdownNodeName>)
         : node;
       const block = holder ? asBlock(holder) : null;
-      // A `.luau` or `run` file holds no story text: Luau reads what follows
-      // an `end` on its line as a statement and reports it.
       const prose = block && holder && !luauReportsOpenBlock(ctx) ? proseEnd(node, holder, ctx) : null;
       if (block && prose) {
         report(

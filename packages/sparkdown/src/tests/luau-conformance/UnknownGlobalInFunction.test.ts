@@ -1,9 +1,3 @@
-// A read of a name that nothing declares or assigns is reported on the name
-// itself, from its first character to its last, in every script expression:
-// statements, `&` lines, `local` declarations, `return` values, the conditions
-// and subjects of block statements, and interpolations in display lines. An
-// unknown dotted path is reported on the whole path (#990).
-
 import { describe, expect, test } from "vitest";
 import { diagnoseDetailed, diagnosticMessage } from "./diagnosticTestHarness";
 import { testCompiler } from "../engineUnderTest";
@@ -19,7 +13,6 @@ function rangesOf(source: string, message: string): Range[] {
     .map((d) => d.range as Range);
 }
 
-// The range of the last occurrence of `name` as a whole word on `line`.
 function nameRange(source: string, line: number, name: string): Range {
   const text = source.split("\n")[line]!;
   const matches = [
@@ -54,12 +47,12 @@ describe("an unknown global read inside a function", () => {
   });
 });
 
-describe("an unknown global read at the top level", () => {
+describe("an unknown global read in a marked line of a scene", () => {
   test.each(["& print(foo)", "& local x = foo", "  & print(1 + foo)"])(
     "%j is reported on the name",
     (line) => {
-      const source = `${line}\n`;
-      expect(rangesOf(source, FOO)).toEqual([nameRange(source, 0, "foo")]);
+      const source = `scene start\n  ${line}\nend\n`;
+      expect(rangesOf(source, FOO)).toEqual([nameRange(source, 1, "foo")]);
     },
   );
 });
@@ -94,9 +87,9 @@ describe("an unknown global read in a block statement", () => {
     ],
     ["a match in a scene", "scene start()\n  match (foo)\n    | other = A recruit.\n  end\nend\n", 1],
     [
-      "a top-level match after a scene",
-      "scene start()\n  Hello.\nend\n\nmatch (foo)\n  | other = A recruit.\nend\n",
-      4,
+      "a match after a display line in a scene",
+      "scene start()\n  Hello.\n  match (foo)\n    | other = A recruit.\n  end\nend\n",
+      2,
     ],
   ])("%s is reported on the name", (_name, source, line) => {
     expect(rangesOf(source, FOO)).toEqual([nameRange(source, line, "foo")]);
@@ -130,8 +123,6 @@ describe("the reported name among others", () => {
   });
 });
 
-// An edit above a chunk carries it into the next compile, shifted; the names in
-// it keep their own ranges, at their new lines.
 describe("an unknown global read in a carried chunk", () => {
   const URI = "inmemory:///main.sd";
   const FIRST_LINE = "  Line one.";

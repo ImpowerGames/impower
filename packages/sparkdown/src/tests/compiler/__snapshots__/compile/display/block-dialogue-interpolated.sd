@@ -1,3 +1,5 @@
-N:
-  Hello {name}.
-  Score is {score}.
+scene start
+  N:
+    Hello {name}.
+    Score is {score}.
+end

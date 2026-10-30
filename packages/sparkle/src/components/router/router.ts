@@ -9,12 +9,6 @@ import spec from "./_router";
 const EXIT_EVENT = "exit";
 const ENTER_EVENT = "enter";
 
-/**
- * Routers are used to lazy-load templates when their value matches an observed value.
- *
- * This element loads any child template whose value attribute matches an observed value.
- * All other children are unloaded.
- */
 export default class Router extends SparkleComponent(spec) {
   override get skipMorphingChildren() {
     return true;
@@ -135,7 +129,6 @@ export default class Router extends SparkleComponent(spec) {
 
   async exitRoute(direction: string | null): Promise<void> {
     if (this._status === "entering") {
-      // already entering, so reverse enter animations
       reverseAnimation(this.enterFadeEl, this._enter_fade);
       reverseAnimation(this.enterTransformEl, this._enter_transform);
     } else {
@@ -155,7 +148,6 @@ export default class Router extends SparkleComponent(spec) {
       if (this.interrupted(newValue)) {
         return;
       }
-      // already loaded, so reverse exit animations
       reverseAnimation(this.exitFadeEl, this._exit_fade);
       reverseAnimation(this.exitTransformEl, this._exit_transform);
       await animationsComplete(this.exitFadeEl, this.exitTransformEl);
@@ -165,8 +157,6 @@ export default class Router extends SparkleComponent(spec) {
       this.endTransitions();
     } else {
       if (this.directional != null) {
-        // For directional transitions, to give the illusion of continuous motion
-        // we only wait for the fade to finish
         await animationsComplete(this.exitFadeEl);
       } else {
         await animationsComplete(this.exitFadeEl, this.exitTransformEl);

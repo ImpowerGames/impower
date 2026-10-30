@@ -35,8 +35,6 @@ import {
 } from "./officialLuau";
 import { printOfficialAst } from "./printOfficialAst";
 
-// Every exemption is explicit here. Locations absent from the upstream encoder
-// are not invented; all locations it does emit are compared in document units.
 const EXEMPTIONS = [
   "AstExprFunction.varargLocation when vararg is false: no source token",
   "The __flow wrapper header: wrapper name and the begins of its containing blocks",
@@ -48,8 +46,6 @@ const EXEMPTIONS = [
   "Lexical commentLocations are not part of the converter's AST",
 ] as const;
 const KNOWN: { input: string; issue: number }[] = [
-  // This is the official-parser list. It stays separate from the port's
-  // KNOWN_DISAGREEMENTS, whose entries would otherwise hide passing inputs here.
 ];
 if (!officialLuauAvailable)
   console.warn(
@@ -89,7 +85,6 @@ function mapLocations(
   );
 }
 
-/** Compact first mismatch includes its complete nesting path, never a huge AST diff. */
 function difference(a: Json, b: Json, path = "root"): string[] {
   if (Object.is(a, b)) return [];
   if (Array.isArray(a) !== Array.isArray(b))
@@ -168,9 +163,6 @@ describe.skipIf(!officialLuauAvailable)(
           const suffix = token.lastIndexOf("i");
           expect(suffix).toBeGreaterThanOrEqual(0);
           expect(token.slice(suffix + 1)).toMatch(/^_*$/);
-          // Change only a suffix proven to belong to an official integer AST
-          // node. `_` keeps offsets and creates an ordinary number; strings
-          // and comments are untouched. This does not supply integer semantics.
           sourceChars[sourceFrom + suffix] = "_";
           documentChars[documentFrom + suffix] = "_";
           integers += 1;
@@ -194,9 +186,7 @@ describe.skipIf(!officialLuauAvailable)(
       const ours = readLuauUnits(tree, input.text);
       mutate?.(ours);
       if (expectedIntegerErrors) {
-        // Pin suffix-induced recovery too: a positive count alone would hide
-        // unrelated syntax errors in an intentionally unsupported fixture.
-        expect(ours.flows).toEqual([]);
+        expect(ours.flows.flatMap((flow) => flow.errors)).toEqual([]);
         expect(ours.prelude.errors.map(({ location, message }) =>
           `${location.begin.line}:${location.begin.column}-${location.end.line}:${location.end.column} ${message}`,
         )).toEqual(expectedIntegerErrors);
@@ -244,8 +234,6 @@ describe.skipIf(!officialLuauAvailable)(
         });
         const documentLines = input.text.split("\n");
         const oursJson = printOfficialAst(root, (node) => {
-          // `store` is blanked; a `store function` begins at its `function`
-          // (#1341), as a `local function` would begin at `local`.
           if (
             node instanceof AstStatFunction &&
             documentLines[node.location.begin.line]?.startsWith("store", node.location.begin.column)
@@ -261,7 +249,6 @@ describe.skipIf(!officialLuauAvailable)(
             node instanceof AstStatSparkdownStore &&
             replacement instanceof AstStatAssign
           ) {
-            // `store` is blanked; an assignment begins at its first variable.
             replacement.location = new Location(
               node.vars[0]!.location.begin,
               node.location.end,
@@ -298,8 +285,6 @@ describe.skipIf(!officialLuauAvailable)(
           line,
           character,
         }));
-        // These are paired only to erase the explicitly named synthetic spans.
-        // No real begin, field value, child order or node type is copied across.
         const exemptRewrites = (a: Json, b: Json) => {
           if (!a || !b || typeof a !== "object" || typeof b !== "object")
             return;
@@ -397,8 +382,6 @@ describe.skipIf(!officialLuauAvailable)(
           text: input.text,
           lines: input.text.split("\n").map((_, i) => i),
         };
-        // Compare the function containing the generated expression. The unit's
-        // outer block has an artificial EOF where extraction drops whitespace.
         return compare(
           input.text,
           ours.prelude.root.body[0]!,
@@ -442,9 +425,6 @@ describe.skipIf(!officialLuauAvailable)(
       if (unsupported) expect(expectedIntegerErrors, unsupported.reason).toBeDefined();
       const differences = fixtureDifferences(input, mutate, expectedIntegerErrors);
       if (unsupported) {
-        // Retain the precise intentional divergence, not any AST mismatch:
-        // official Luau accepts this file, the converter has syntax errors,
-        // and the compiler reports the unsupported integer literal diagnostic.
         expect(input.luau, unsupported.reason).toBeDefined();
         expect(parse(input.luau!).errors, unsupported.reason).toBe(0);
         expect(differences, unsupported.reason).toEqual([
@@ -518,7 +498,6 @@ describe.skipIf(!officialLuauAvailable)(
     test("official module parses and reports syntax errors", () => {
       expect(parse("local x = 1").errors).toBe(0);
       expect(parse("local =").errors).toBeGreaterThan(0);
-      // Keep the exemption names visible in failure evidence.
       expect(parse("local x = 1").root, EXEMPTIONS.join("; ")).not.toBeNull();
     });
     test("the full pinned corpus and every known disagreement are still present", () => {

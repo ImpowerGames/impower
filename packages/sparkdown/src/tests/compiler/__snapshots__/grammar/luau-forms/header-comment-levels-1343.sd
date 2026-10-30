@@ -12,4 +12,6 @@ style --[====[c]====] fourth with
 end
 function --[=[a]]=] h(x: number) return x end
 
-The rain stops on the rooftop.
+scene start
+  The rain stops on the rooftop.
+end

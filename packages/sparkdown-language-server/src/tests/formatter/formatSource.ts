@@ -1,7 +1,3 @@
-// Drive `getDocumentFormattingEdits` end-to-end over a raw `.sd` source
-// string and return the formatted output. Used by the formatter snapshot
-// suite to regression-test indent / spacing / blank-line handling.
-
 import { Text } from "@codemirror/state";
 import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
 import { SparkdownCombinedAnnotator } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
@@ -19,11 +15,6 @@ function getParser(): TextmateGrammarParser {
   return cachedParser;
 }
 
-// Applies a list of TextEdits to the source string. Edits are sorted in
-// reverse offset order so earlier edits' indices don't shift under
-// later edits. (`getDocumentFormattingEdits` returns edits in forward
-// order, suitable for an editor that accumulates a single ChangeSet —
-// but for a pure string apply we want reverse.)
 function applyEdits(doc: SparkdownDocument, edits: TextEdit[]): string {
   const reverse = [...edits].sort(
     (a, b) => doc.offsetAt(b.range.start) - doc.offsetAt(a.range.start),
@@ -49,10 +40,6 @@ export function formatSource(
   source: string,
   options: FormatOptions = {},
 ): string {
-  // Real LSP usage normalizes line endings to LF inside
-  // `SparkdownDocumentRegistry.set` before anything sees the text;
-  // mirror that here so the formatter (and downstream annotators
-  // like `CompilationAnnotator`) never see `\r`.
   const normalized = source.replace(/\r\n|\r/g, "\n");
   const tree = getParser().parse(normalized);
   const doc = new SparkdownDocument(

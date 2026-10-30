@@ -140,7 +140,7 @@ describe("preview session ordering", () => {
     game.markPreviewing = (address: number) => calls.push(`markPreviewing:${address}`);
     const program = compiledProgram(
       PROGRAM.uri,
-      ["Line zero.", "Line one.", "Line two.", "Line three.", "Line four.", ""].join("\n"),
+      ["scene start", "  Line one.", "  Line two.", "  Line three.", "  Line four.", "end", ""].join("\n"),
       PROGRAM.version,
     );
     const locator = programLocator(program);
@@ -159,7 +159,7 @@ describe("preview session ordering", () => {
     game.markPreviewing = (address: number) => calls.push(`markPreviewing:${address}`);
     const program = compiledProgram(
       "file://proj/other.sd",
-      ["Line zero.", "Line one.", "Line two.", "Line three.", "Line four.", ""].join("\n"),
+      ["scene start", "  Line one.", "  Line two.", "  Line three.", "  Line four.", "end", ""].join("\n"),
       PROGRAM.version,
     );
     expect(Object.keys(program.scripts)).toEqual(["file://proj/other.sd"]);

@@ -1,35 +1,26 @@
-/****************************** DEFAULT STYLES ******************************/
-
 .screen {
-  /* Divider */
   --theme-divider-background-color: var(--theme-color-fg-12);
 
-  /* Buttons */
   --theme-button-background-color: var(--theme-color-neutral-20);
   --theme-button-border-color: var(--theme-color-neutral-40);
   --theme-button-text-color: var(--theme-color-neutral-100);
 
-  /* Inputs */
   --theme-input-background-color: var(--theme-color-neutral-20);
   --theme-input-border-color: var(--theme-color-neutral-40);
   --theme-input-text-color: var(--theme-color-neutral-100);
   --theme-input-text-placeholder-color: var(--theme-color-neutral-70);
 
-  /* Dropdowns */
   --theme-dropdown-background-color: var(--theme-color-neutral-20);
   --theme-dropdown-border-color: var(--theme-color-neutral-40);
   --theme-dropdown-text-color: var(--theme-color-neutral-100);
 
-  /* Options */
   --theme-option-background-color: var(--theme-color-neutral-20);
   --theme-option-text-color: var(--theme-color-neutral-100);
 
-  /* Checkboxes */
   --theme-checkbox-background-color: var(--theme-color-neutral-20);
   --theme-checkbox-border-color: var(--theme-color-neutral-60);
   --theme-checkbox-check-color: var(--theme-color-fill-contrast);
 
-  /* Sliders */
   --theme-slider-thumb-background-color: var(--theme-color-primary-60);
   --theme-slider-thumb-border-color: var(--theme-color-primary-60);
   --theme-slider-fill-color: var(--theme-color-primary-60);

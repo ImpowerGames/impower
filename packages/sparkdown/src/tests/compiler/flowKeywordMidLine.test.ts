@@ -1,7 +1,3 @@
-// #401: a Luau block inside a define ends when the next line declares a scene
-// or branch. Only a line that starts with `scene` or `branch` declares one, so
-// a table key, a parameter or a variable with that name leaves the block open
-// and keeps every value where it was written.
 import { describe, expect, it } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -71,7 +67,7 @@ describe("scene and branch as names inside a define", () => {
   it("a define directly followed by a scene declaration still ends there", () => {
     const program = compile(
       [
-        "-> start",
+        "",
         "define settings with",
         "  t = { x = 1 }",
         "scene start",
@@ -90,7 +86,7 @@ describe("scene and branch as names inside a function", () => {
   it("a parameter and a local with those names stay in the function body", () => {
     const program = compile(
       [
-        "-> start",
+        "",
         "function echo(scene)",
         "  local branch = scene",
         "  return branch",
@@ -110,7 +106,7 @@ describe("scene and branch as names inside a function", () => {
   it("assignments to a parameter named scene or branch stay in the function body", () => {
     const program = compile(
       [
-        "-> start",
+        "",
         "function pick(scene, branch)",
         '  scene = "left"',
         "  branch += 1",

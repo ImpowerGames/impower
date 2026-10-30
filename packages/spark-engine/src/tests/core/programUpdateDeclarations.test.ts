@@ -24,7 +24,7 @@ define hero as character with
   name = "Hero"
 end
 
--> start
+
 
 scene start
   Action line.
@@ -260,7 +260,7 @@ const GUIDE = `define guide with
   title = "calm"
 end
 
--> start
+
 scene start
   Before.
   Restored {guide.title}.
@@ -311,7 +311,7 @@ describe("a game whose constant holds a table (#1759)", () => {
   const limits = (write: string) => `const LIMITS = { cap = 3 }
 store visits = 0
 
--> start
+
 scene start
   Before.
   ${write}
@@ -396,7 +396,7 @@ end
     const s = session(`const LIMITS = { cap = 3 }
 store guide = LIMITS
 
--> start
+
 scene start
   Before.
   After.

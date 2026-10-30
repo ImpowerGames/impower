@@ -1,9 +1,6 @@
 import { expect, test } from "vitest";
 import { tokenChange } from "./tokenChanges";
 
-// The corpus check's notion of a lost token (I-874).
-
-// The body lines in a function, where they are Luau.
 const fn = (body: string) => `function f(s, t)\n${body}\nend\n`;
 
 test("whitespace changes between tokens are no token change", () => {

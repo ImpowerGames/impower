@@ -23,7 +23,7 @@ describe("builtins prelude", () => {
           type: "script",
           name: "main",
           ext: "sd",
-          text: sdContent,
+          text: `${sdContent}\nscene start\nend\n`,
           version: 1,
           languageId: "sparkdown",
         } as any,

@@ -1,11 +1,3 @@
-// A `style`, `layout`, `screen`, `component`, `animation`, `theme` or `morph`
-// block whose `end` is missing, or whose header line holds text the grammar
-// cannot read, must be reported instead of compiling silently. An unclosed
-// block runs on to the next `scene` / `branch` or the end of the file and
-// takes the top-level lines in between as its body (`store trust = 5` becomes
-// a body line); a `:` or a stray word on the header line cuts the block off
-// there, and the body below it is dropped. Text after `with` on a define's
-// header line is reported the same way. See issue #839.
 import { describe, expect, test } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { MAIN_URI, programCompiler } from "../program/programHarness";
@@ -47,8 +39,6 @@ const errors = (source: string) =>
 const MISSING_END = "missing its closing `end`";
 const UNREADABLE = "cannot be read past";
 
-// Each form: its keyword, the name its header declares, a header and a body
-// line it reads.
 const FORMS = [
   { keyword: "style", name: "s", header: "style s", body: "  color = red" },
   { keyword: "layout", name: "main", header: "layout main", body: "  box {\n  }" },
@@ -101,9 +91,6 @@ describe("a block without `end`", () => {
   });
 
   test("a layout that stops at a body line it cannot read is an error on its header", () => {
-    // The `}` typed after the image closes the `for` and the column, so the
-    // `else` is a line the layout cannot read: the layout stops there, and
-    // the lines below it, its `end` among them, are read outside it.
     const source = [
       "layout inventory with",
       "  column {",
@@ -119,7 +106,9 @@ describe("a block without `end`", () => {
       "  }",
       "end",
       "",
-      "Hi.",
+      "scene start",
+      "  Hi.",
+      "end",
       "",
     ].join("\n");
     const layout = errors(source).filter((e) =>
@@ -152,7 +141,7 @@ describe("text a block header cannot read", () => {
       ["a name that starts with a digit", `${form.keyword} 2x with`, form.keyword],
     ] as const) {
       test(`${label} on ${article(form.keyword)} ${form.keyword} is an error on the readable header`, () => {
-        const source = lines(header, form.body, "end", "", "Hi.", "");
+        const source = lines(header, form.body, "end", "", "scene start", "  Hi.", "end", "");
         const unreadable = errors(source).filter((e) =>
           e.message.includes(UNREADABLE),
         );
@@ -172,7 +161,7 @@ describe("text a block header cannot read", () => {
   }
 
   test("a morph name that starts with a digit is an error on the readable header", () => {
-    const unreadable = errors("morph 2m with\n  x = 1\nend\n\nHi.\n").filter((e) =>
+    const unreadable = errors("morph 2m with\n  x = 1\nend\n\nscene start\n  Hi.\nend\n").filter((e) =>
       e.message.includes(UNREADABLE),
     );
     expect(unreadable).toHaveLength(1);
@@ -181,7 +170,7 @@ describe("text a block header cannot read", () => {
   });
 
   test("a dotted style name is an error on the readable header", () => {
-    const unreadable = errors("style s.t with\n  color = red\nend\n\nHi.\n").filter(
+    const unreadable = errors("style s.t with\n  color = red\nend\n\nscene start\n  Hi.\nend\n").filter(
       (e) => e.message.includes(UNREADABLE),
     );
     expect(unreadable).toHaveLength(1);
@@ -191,7 +180,7 @@ describe("text a block header cannot read", () => {
 
 describe("text after `with` on a define header", () => {
   test("a word after `with` is an error at the word", () => {
-    const source = 'define hero as character with junk\n  name = "Hero"\nend\n\nHi.\n';
+    const source = 'define hero as character with junk\n  name = "Hero"\nend\n\nscene start\n  Hi.\nend\n';
     const errs = errors(source);
     expect(errs).toHaveLength(1);
     expect(errs[0]!.message).toContain("Unexpected `junk` after `with`");
@@ -204,9 +193,7 @@ describe("text after `with` on a define header", () => {
   });
 
   test("a `:` after `with` is an error at the colon", () => {
-    // The `:` reads the next line's property name as a type annotation, so
-    // the property is dropped.
-    const source = 'define hero as character with:\n  name = "Hero"\nend\n\nHi.\n';
+    const source = 'define hero as character with:\n  name = "Hero"\nend\n\nscene start\n  Hi.\nend\n';
     const errs = errors(source);
     expect(errs).toHaveLength(1);
     expect(errs[0]!.message).toContain("Unexpected `:` after `with`");
@@ -220,26 +207,28 @@ describe("text after `with` on a define header", () => {
 
 describe("valid blocks report nothing new", () => {
   const cases: Record<string, string> = {
-    "the builtins prelude": "Hi.\n",
+    "the builtins prelude": "scene start\n  Hi.\nend\n",
     "a define with a member after `with`":
-      'define hero as character with name = "Hero"\nend\nHi.\n',
+      'define hero as character with name = "Hero"\nend\nscene start\n  Hi.\nend\n',
     "a define with a comment after `with`":
-      "define hero as character with -- the lead\nend\nHi.\n",
+      "define hero as character with -- the lead\nend\nscene start\n  Hi.\nend\n",
     "a style with a comment after `with`":
-      "style s with -- note\n  color = red\nend\nHi.\n",
+      "style s with -- note\n  color = red\nend\nscene start\n  Hi.\nend\n",
     "a style with a nested block":
-      "style s with\n  &.a {\n    color = red\n  }\nend\nHi.\n",
+      "style s with\n  &.a {\n    color = red\n  }\nend\nscene start\n  Hi.\nend\n",
     "a layout in a screen":
-      "screen hud with\nend\nlayout main as base in hud with\n  box {\n  }\nend\nlayout base with\nend\nHi.\n",
+      "screen hud with\nend\nlayout main as base in hud with\n  box {\n  }\nend\nlayout base with\nend\nscene start\n  Hi.\nend\n",
   };
   for (const form of FORMS) {
-    cases[`a one-line ${form.keyword}`] = `${form.header} with end\nHi.\n`;
-    cases[`a body-less ${form.keyword}`] = `${form.header} with\nend\nHi.\n`;
+    cases[`a one-line ${form.keyword}`] = `${form.header} with end\nscene start\n  Hi.\nend\n`;
+    cases[`a body-less ${form.keyword}`] = `${form.header} with\nend\nscene start\n  Hi.\nend\n`;
     cases[`a multi-line ${form.keyword}`] = lines(
       `${form.header} with`,
       form.body || "  -- nothing yet",
       "end",
-      "Hi.",
+      "scene start",
+      "  Hi.",
+      "end",
       "",
     );
   }
@@ -250,11 +239,6 @@ describe("valid blocks report nothing new", () => {
   }
 });
 
-// The block diagnostics are raised while a chunk is lowered, and an
-// incremental compile re-lowers only the chunks an edit touches. Each step
-// applies one edit through `updateDocument` and compares the diagnostics with
-// a cold compile of the same text, including steps whose edit is far from the
-// block.
 describe("block diagnostics across incremental edits", () => {
   const summary = (diags: Diag[]) =>
     diags
@@ -303,9 +287,8 @@ describe("block diagnostics across incremental edits", () => {
         "",
         "store trust = 5",
         "",
-        "-> s1",
-        "scene s1",
-        "Trust is {trust}.",
+        "scene start",
+        "  Trust is {trust}.",
         "end",
         "",
       ].join("\n"),
@@ -332,7 +315,9 @@ describe("block diagnostics across incremental edits", () => {
         "",
         "store trust = 5",
         "",
-        "Trust is {trust}.",
+        "scene start",
+        "  Trust is {trust}.",
+        "end",
         "",
       ].join("\n"),
       [

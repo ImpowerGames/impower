@@ -78,7 +78,7 @@ function debugGame(texts: string | Record<string, string>) {
 const NESTED = [
   "store health = 100",
   "store result = 0",
-  "-> main",
+  "",
   "scene main",
   "  local mainLoc = 111",
   "  Main here.",
@@ -97,6 +97,9 @@ const NESTED = [
   "function add(a, b)",
   "  local sum = a + b",
   "  return sum",
+  "end",
+  "scene start",
+  "  -> main",
   "end",
   "",
 ].join("\n");
@@ -239,15 +242,17 @@ describe("the debugger on the program engine", () => {
 
   it("places the frame of a checkpoint loaded in place on the beat it shows, as a load of its save does (#1200)", () => {
     const script = [
-      "choose",
-      "  First.",
-      "  & aside()",
-      "  * One",
-      "end",
-      "choose",
-      "  Second.",
-      "  & aside()",
-      "  * Two",
+      "scene start",
+      "  choose",
+      "    First.",
+      "    & aside()",
+      "    * One",
+      "  end",
+      "  choose",
+      "    Second.",
+      "    & aside()",
+      "    * Two",
+      "  end",
       "end",
       "function aside()",
       '  print("Aside.")',
@@ -275,8 +280,8 @@ describe("the debugger on the program engine", () => {
     expect(inPlace.game.story.currentText).toBe("First.\n");
     const fromJson = debugGame(script);
     expect(fromJson.game.load(inPlace.game.checkpointJson(checkpoint)!)).toBe(true);
-    expect(topLine(fromJson)).toBe(1);
-    expect(topLine(inPlace)).toBe(1);
+    expect(topLine(fromJson)).toBe(2);
+    expect(topLine(inPlace)).toBe(2);
   });
 
   it("shows the temporaries of the frame that runs, and of the frame below it", () => {
@@ -343,10 +348,13 @@ describe("the debugger on the program engine", () => {
         "  end",
         "  return thing.get()",
         "end",
-        "-> main",
+        "",
         "scene main",
         "  Got {outer(7)}.",
         "  done",
+        "end",
+        "scene start",
+        "  -> main",
         "end",
         "",
       ].join("\n"),
@@ -434,13 +442,16 @@ describe("the debugger on the program engine", () => {
   const calling = (call: string, functions: string[]) =>
     [
       "store result = 0",
-      "-> main",
+      "",
       "scene main",
       "  Before.",
       `  result = ${call}`,
       "  done",
       "end",
       ...functions,
+      "scene start",
+      "  -> main",
+      "end",
       "",
     ].join("\n");
 
@@ -536,7 +547,7 @@ describe("the debugger on the program engine", () => {
 
   const SHADOWED = [
     "store health = 100",
-    "-> main",
+    "",
     "scene main",
     "  local health = 10",
     "  local count = 0",
@@ -545,6 +556,9 @@ describe("the debugger on the program engine", () => {
     "  count = count + 1",
     "  Second {health}.",
     "  done",
+    "end",
+    "scene start",
+    "  -> main",
     "end",
     "",
   ].join("\n");
@@ -587,7 +601,7 @@ describe("the debugger on the program engine", () => {
   it("stops at a breakpoint inside a function a builtin calls, and records the lines it ran", () => {
     const text = [
       "store order = \"\"",
-      "-> main",
+      "",
       "scene main",
       "  local t = {3, 1, 2}",
       "  Before.",
@@ -599,6 +613,9 @@ describe("the debugger on the program engine", () => {
       "function less(a, b)",
       "  local before = a < b",
       "  return before",
+      "end",
+      "scene start",
+      "  -> main",
       "end",
       "",
     ].join("\n");
@@ -630,9 +647,9 @@ describe("the debugger on the program engine", () => {
         d.range.start.line,
         typeof d.message === "string" ? d.message : d.message.value,
       ]);
-    expect(errors.filter(([line]) => line === 23)).toEqual([
+    expect(errors.filter(([line]) => line === 26)).toEqual([
       [
-        23,
+        26,
         "A function can't be diverted to: call `add` instead, as `& add()` on a line of its own or `{add()}` in a line.",
       ],
     ]);
@@ -642,7 +659,7 @@ describe("the debugger on the program engine", () => {
   it("keeps a temporary's data breakpoint on its binding while an inner block shadows it", () => {
     const h = debugGame(
       [
-        "-> main",
+        "",
         "scene main",
         "  local health = 10",
         "  First.",
@@ -653,6 +670,9 @@ describe("the debugger on the program engine", () => {
         "  health = health - 1",
         "  Second {health}.",
         "  done",
+        "end",
+        "scene start",
+        "  -> main",
         "end",
         "",
       ].join("\n"),
@@ -672,7 +692,7 @@ describe("the debugger on the program engine", () => {
     "fires a data breakpoint on a temporary of a function written inside a scene: %s",
     (header) => {
     const text = [
-      "-> main",
+      "",
       "scene main",
       `  ${header}`,
       "    local n = 0",
@@ -683,6 +703,9 @@ describe("the debugger on the program engine", () => {
       "  local r = bump()",
       "  Got {r}.",
       "  done",
+      "end",
+      "scene start",
+      "  -> main",
       "end",
       "",
     ].join("\n");
@@ -710,7 +733,7 @@ describe("the debugger on the program engine", () => {
 
   it("keeps the data breakpoint of one anonymous function's temporary off another's of the same name", () => {
     const text = [
-      "-> main",
+      "",
       "scene main",
       "  local first = function()",
       "    local n = 0",
@@ -727,6 +750,9 @@ describe("the debugger on the program engine", () => {
       "  local a = first()",
       "  Got {a} {b}.",
       "  done",
+      "end",
+      "scene start",
+      "  -> main",
       "end",
       "",
     ].join("\n");
@@ -753,7 +779,7 @@ describe("the debugger on the program engine", () => {
 
   it("fires a data breakpoint on a temporary a closure captured, when the closure writes it", () => {
     const text = [
-      "-> main",
+      "",
       "scene main",
       "  Start.",
       "  Got {outer()}.",
@@ -766,6 +792,9 @@ describe("the debugger on the program engine", () => {
       "    return n",
       "  end",
       "  return bump()",
+      "end",
+      "scene start",
+      "  -> main",
       "end",
       "",
     ].join("\n");
@@ -790,7 +819,7 @@ describe("the debugger on the program engine", () => {
 
   it("fires a data breakpoint when a callback writes the variable and declares another of its name", () => {
     const text = [
-      "-> main",
+      "",
       "scene main",
       "  Start.",
       "  Got {outer()}.",
@@ -808,6 +837,9 @@ describe("the debugger on the program engine", () => {
       "  local t = {2, 1}",
       "  table.sort(t, less)",
       "  return n",
+      "end",
+      "scene start",
+      "  -> main",
       "end",
       "",
     ].join("\n");
@@ -827,7 +859,7 @@ describe("the debugger on the program engine", () => {
   it("does not take a temporary declared again in its own block for a write to it", () => {
     const h = debugGame(
       [
-        "-> main",
+        "",
         "scene main",
         "  local n = 1",
         "  First.",
@@ -836,6 +868,9 @@ describe("the debugger on the program engine", () => {
         "  n = n + 1",
         "  Third {n}.",
         "  done",
+        "end",
+        "scene start",
+        "  -> main",
         "end",
         "",
       ].join("\n"),
@@ -853,7 +888,7 @@ describe("the debugger on the program engine", () => {
 
   it("fires a data breakpoint on a write to a watched temporary when a recursive call in the same step declares its name", () => {
     const text = [
-      "-> main",
+      "",
       "scene main",
       "  Start.",
       "  Got {outer(true)}.",
@@ -871,6 +906,9 @@ describe("the debugger on the program engine", () => {
       "    table.sort(t, less)",
       "  end",
       "  return n",
+      "end",
+      "scene start",
+      "  -> main",
       "end",
       "",
     ].join("\n");
@@ -896,7 +934,7 @@ describe("the debugger on the program engine", () => {
 
   it("does not fire a data breakpoint on a self-recursive local function's declaration, and fires on a later write", () => {
     const text = [
-      "-> main",
+      "",
       "scene main",
       "  Start.",
       "  Got {outer()}.",
@@ -914,6 +952,9 @@ describe("the debugger on the program engine", () => {
       "  local r = f(2)",
       "  f = 5",
       "  return r",
+      "end",
+      "scene start",
+      "  -> main",
       "end",
       "",
     ].join("\n");
@@ -934,7 +975,7 @@ describe("the debugger on the program engine", () => {
 
   it("fires a data breakpoint on a captured variable in its closure's frame, through the cell its function left", () => {
     const text = [
-      "-> main",
+      "",
       "scene main",
       "  Start.",
       "  Got {count()}.",
@@ -949,6 +990,9 @@ describe("the debugger on the program engine", () => {
       "  end",
       "end",
       "store count = make()",
+      "scene start",
+      "  -> main",
+      "end",
       "",
     ].join("\n");
     const h = debugGame(text);
@@ -969,7 +1013,7 @@ describe("the debugger on the program engine", () => {
 
   it("fires a data breakpoint on a captured variable's cell when a builtin calls its closure again", () => {
     const text = [
-      "-> main",
+      "",
       "scene main",
       "  Start.",
       "  local first = less(1, 2)",
@@ -991,6 +1035,9 @@ describe("the debugger on the program engine", () => {
       "end",
       "store less = make()",
       "store other = make()",
+      "scene start",
+      "  -> main",
+      "end",
       "",
     ].join("\n");
     const h = debugGame(text);
@@ -1029,7 +1076,7 @@ describe("the debugger on the program engine", () => {
   for (const [held, { lines, declarations }] of Object.entries(closures)) {
     it(`keeps a captured variable's watch across a load, for a closure ${held}`, () => {
       const text = [
-        "-> main",
+        "",
         "scene main",
         "  Start.",
         ...lines,
@@ -1051,6 +1098,9 @@ describe("the debugger on the program engine", () => {
         "  end",
         "end",
         ...declarations,
+        "scene start",
+        "  -> main",
+        "end",
         "",
       ].join("\n");
       const h = debugGame(text);
@@ -1096,7 +1146,7 @@ describe("the debugger on the program engine", () => {
 
   it("carries no watch that holds another cell since the save to the cell the save noted", () => {
     const text = [
-      "-> main",
+      "",
       "scene main",
       "  Start.",
       "  local first = less(1, 2)",
@@ -1120,6 +1170,9 @@ describe("the debugger on the program engine", () => {
       "end",
       "store less = make()",
       "store other = make()",
+      "scene start",
+      "  -> main",
+      "end",
       "",
     ].join("\n");
     const h = debugGame(text);
@@ -1163,7 +1216,7 @@ describe("the debugger on the program engine", () => {
 
   it("carries no captured variable's watch to another closure's variable across a load of a save written before the watch", () => {
     const text = [
-      "-> main",
+      "",
       "scene main",
       "  & less = make()",
       "  & other = make()",
@@ -1185,6 +1238,9 @@ describe("the debugger on the program engine", () => {
       "end",
       "store less = nil",
       "store other = nil",
+      "scene start",
+      "  -> main",
+      "end",
       "",
     ].join("\n");
     const h = debugGame(text);
@@ -1214,7 +1270,7 @@ describe("the debugger on the program engine", () => {
 
   it("fires a data breakpoint on a captured variable in its closure's frame when a builtin calls the closure again", () => {
     const text = [
-      "-> main",
+      "",
       "scene main",
       "  Start.",
       "  Got {outer()}.",
@@ -1230,6 +1286,9 @@ describe("the debugger on the program engine", () => {
       "  local t = {2, 1}",
       "  table.sort(t, less)",
       "  return n",
+      "end",
+      "scene start",
+      "  -> main",
       "end",
       "",
     ].join("\n");
@@ -1256,7 +1315,7 @@ describe("the debugger on the program engine", () => {
     const h = debugGame(
       [
         "store health = 100",
-        "-> main",
+        "",
         "scene main",
         "  First.",
         "  & hurt()",
@@ -1265,6 +1324,9 @@ describe("the debugger on the program engine", () => {
         "end",
         "function hurt()",
         "  _G.health = health - 1",
+        "end",
+        "scene start",
+        "  -> main",
         "end",
         "",
       ].join("\n"),
@@ -1279,7 +1341,7 @@ describe("the debugger on the program engine", () => {
   it("fires a function breakpoint on a named function written inside another function", () => {
     const h = debugGame(
       [
-        "-> main",
+        "",
         "scene main",
         "  Start.",
         "  Got {outer()}.",
@@ -1290,6 +1352,9 @@ describe("the debugger on the program engine", () => {
         "    return 1",
         "  end",
         "  return inner()",
+        "end",
+        "scene start",
+        "  -> main",
         "end",
         "",
       ].join("\n"),
@@ -1313,13 +1378,16 @@ describe("the debugger on the program engine", () => {
     (_case, tail, hits) => {
       const h = debugGame(
         [
-          "-> main",
+          "",
           "scene main",
           "  Start.",
           "  Got {outer()}.",
           "  done",
           "end",
           `function outer() local function inner() local function deep() return 2 end return 1 end ${tail} end`,
+          "scene start",
+          "  -> main",
+          "end",
           "",
         ].join("\n"),
       );
@@ -1345,12 +1413,15 @@ describe("the debugger on the program engine", () => {
       "  local x = 1",
       "  return x + 1",
       "end",
-      "-> main",
+      "",
       "scene main",
       "  Start.",
       "  local v = handler()",
       "  Got {v}.",
       "  done",
+      "end",
+      "scene start",
+      "  -> main",
       "end",
       "",
     ].join("\n");
@@ -1389,14 +1460,16 @@ describe("the debugger on the program engine", () => {
     const h = debugGame(
       [
         "store total = 0",
-        "for i = 1, 3 do",
-        "  total = total + i",
+        "scene start",
+        "  for i = 1, 3 do",
+        "    total = total + i",
+        "  end",
+        "  Total {total}.",
         "end",
-        "Total {total}.",
         "",
       ].join("\n"),
     );
-    h.game.setBreakpoints([{ file: MAIN, line: 2 }]);
+    h.game.setBreakpoints([{ file: MAIN, line: 3 }]);
     h.game.start();
     const seen: string[] = [];
     for (let i = 0; i < 3; i += 1) {
@@ -1426,14 +1499,16 @@ describe("the debugger on the program engine", () => {
   it("offers the lines a breakpoint can sit on from the line tables", () => {
     const search = { uri: MAIN, range: { start: { line: 0 }, end: { line: 100 } } };
     const program = debugGame(NESTED).game.possibleBreakpointLines(search);
-    const beats = [3, 5, 9, 12, 14, 15, 18, 19, 20];
+    const beats = [3, 5, 9, 12, 14, 15, 18, 19, 20, 22];
     expect(program.filter((line) => beats.includes(line))).toEqual(beats);
     const logic = program.filter((line) => !beats.includes(line));
-    expect(logic).toEqual([2, 4, 6, 7, 8, 10, 13, 16]);
+    expect(logic).toEqual([4, 6, 7, 8, 10, 13, 16, 23]);
     const h = debugGame(NESTED);
     const set = h.game.setBreakpoints(program.map((line) => ({ file: MAIN, line })));
     expect(set.map((b) => b.location?.range.start.line)).toEqual(
-      program.map((line) => (line === 3 ? 4 : line === 12 ? 13 : line)),
+      program.map((line) =>
+        line === 3 ? 4 : line === 12 ? 13 : line === 22 ? 23 : line,
+      ),
     );
   });
 
@@ -1515,13 +1590,16 @@ describe("the debugger on the program engine", () => {
   it("shows a table's entries, its array part in order and then its keys, and a nested table's too", () => {
     const h = debugGame(
       [
-        "-> main",
+        "",
         "scene main",
         "  Start.",
         "  local t = {2, 1}",
         "  local n = {10, name = 'a', inner = {x = 1}}",
         "  After.",
         "  done",
+        "end",
+        "scene start",
+        "  -> main",
         "end",
         "",
       ].join("\n"),
@@ -1551,12 +1629,15 @@ describe("the debugger on the program engine", () => {
   it("shows a table's keys that a JavaScript object would take for its own", () => {
     const h = debugGame(
       [
-        "-> main",
+        "",
         "scene main",
         "  Start.",
         "  local k = {['__proto__'] = 1, ['$x'] = 2, ['$type'] = 'list.var'}",
         "  After.",
         "  done",
+        "end",
+        "scene start",
+        "  -> main",
         "end",
         "",
       ].join("\n"),
@@ -1577,12 +1658,15 @@ describe("the debugger on the program engine", () => {
   it("lists a table's array part before its other integer keys, up to the first hole", () => {
     const h = debugGame(
       [
-        "-> main",
+        "",
         "scene main",
         "  Start.",
         "  local s = {'one', 'two', name = 'n', [0] = 'zero', [4] = 'four'}",
         "  After.",
         "  done",
+        "end",
+        "scene start",
+        "  -> main",
         "end",
         "",
       ].join("\n"),
@@ -1604,7 +1688,7 @@ describe("the debugger on the program engine", () => {
   it("shows a deeply nested table one level at a time, and a table that holds itself", () => {
     const h = debugGame(
       [
-        "-> main",
+        "",
         "scene main",
         "  Start.",
         "  local d = deep()",
@@ -1619,6 +1703,9 @@ describe("the debugger on the program engine", () => {
         "    t = {child = t}",
         "  end",
         "  return t",
+        "end",
+        "scene start",
+        "  -> main",
         "end",
         "",
       ].join("\n"),
@@ -1660,7 +1747,7 @@ describe("the variables of a selected frame", () => {
   it("reads a temporary bound to a pointer in the frames of its own thread, not the running one's", () => {
     const h = debugGame(
       [
-        "-> main",
+        "",
         "scene main",
         "  local n = 1",
         "  Before.",
@@ -1671,6 +1758,9 @@ describe("the variables of a selected frame", () => {
         "scene side",
         "  In side.",
         "  done",
+        "end",
+        "scene start",
+        "  -> main",
         "end",
         "",
       ].join("\n"),
@@ -1708,11 +1798,14 @@ describe("the variables of a selected frame", () => {
     const h = debugGame(
       [
         "store health = 100",
-        "-> main",
+        "",
         "scene main",
         "  local health = 10",
         "  First.",
         "  done",
+        "end",
+        "scene start",
+        "  -> main",
         "end",
         "",
       ].join("\n"),
@@ -1730,7 +1823,7 @@ describe("the variables of a selected frame", () => {
     const h = debugGame(
       [
         "store health = 100",
-        "-> main",
+        "",
         "scene main",
         "  local n = 1",
         "  Start.",
@@ -1742,6 +1835,9 @@ describe("the variables of a selected frame", () => {
         "  local health = 10",
         "  local n = k * 2",
         "  return n",
+        "end",
+        "scene start",
+        "  -> main",
         "end",
         "",
       ].join("\n"),
@@ -1784,7 +1880,7 @@ describe("the variables of a selected frame", () => {
   it("evaluates a captured variable as the value it points to, in the closure's frame and the frame that declared it", () => {
     const h = debugGame(
       [
-        "-> main",
+        "",
         "scene main",
         "  Start.",
         "  Got {outer()}.",
@@ -1797,6 +1893,9 @@ describe("the variables of a selected frame", () => {
         "    return n",
         "  end",
         "  return bump()",
+        "end",
+        "scene start",
+        "  -> main",
         "end",
         "",
       ].join("\n"),
@@ -1818,12 +1917,14 @@ describe("the variables of a selected frame", () => {
 });
 
 const CAPTION = [
-  "choose",
-  "  Pick.",
-  "  if true then",
-  "    Something shows first.",
+  "scene start",
+  "  choose",
+  "    Pick.",
+  "    if true then",
+  "      Something shows first.",
+  "    end",
+  "    * One",
   "  end",
-  "  * One",
   "end",
   "",
 ].join("\n");
@@ -1845,14 +1946,14 @@ describe("a choose block's caption on the program engine", () => {
     });
     h.game.start();
     expect(reports).toEqual([
-      { text: "Pick.\n", lines: { ranges: [1, 1], last: 1 }, follow: 1 },
+      { text: "Pick.\n", lines: { ranges: [2, 2], last: 2 }, follow: 2 },
     ]);
     h.game.continue();
     expect(reports.slice(1)).toEqual([
       {
         text: "Something shows first.\n",
-        lines: { ranges: [2, 3], last: 3 },
-        follow: 3,
+        lines: { ranges: [3, 4], last: 4 },
+        follow: 4,
       },
     ]);
     h.game.continue();
@@ -1861,7 +1962,7 @@ describe("a choose block's caption on the program engine", () => {
 
   it("reports the carried step's lines after a start from the route's checkpoint at the caption", () => {
     const sim = debugGame(CAPTION);
-    sim.game.setStartFrom({ file: MAIN, line: 1 });
+    sim.game.setStartFrom({ file: MAIN, line: 2 });
     const to = sim.game.startAddress!;
     const route = Game.planRoute(
       sim.game.story,
@@ -1890,14 +1991,14 @@ describe("a choose block's caption on the program engine", () => {
     h.game.continue();
     expect(reports.at(-1)).toEqual({
       text: "Something shows first.\n",
-      lines: { ranges: [2, 3], last: 3 },
-      follow: 3,
+      lines: { ranges: [3, 4], last: 4 },
+      follow: 4,
     });
   });
 
   it("ends a route to the carried line on the beat that shows it", () => {
     const sim = debugGame(CAPTION);
-    sim.game.setStartFrom({ file: MAIN, line: 3 });
+    sim.game.setStartFrom({ file: MAIN, line: 4 });
     const to = sim.game.startAddress!;
     const route = Game.planRoute(
       sim.game.story,
@@ -1912,9 +2013,9 @@ describe("a choose block's caption on the program engine", () => {
 
   it("reports the carried step's lines after a save at a breakpoint on the carried line", () => {
     const h = debugGame(CAPTION);
-    h.game.setBreakpoints([{ file: MAIN, line: 3 }]);
+    h.game.setBreakpoints([{ file: MAIN, line: 4 }]);
     h.game.start();
-    expect(h.stoppedAt()).toBe(3);
+    expect(h.stoppedAt()).toBe(4);
     expect(typeof h.game.save()).toBe("string");
     const reports: { text: string | null; lines: unknown; follow: unknown }[] =
       [];
@@ -1936,8 +2037,8 @@ describe("a choose block's caption on the program engine", () => {
     ]);
     expect(reports[1]).toEqual({
       text: "Something shows first.\n",
-      lines: { ranges: [2, 3], last: 3 },
-      follow: 3,
+      lines: { ranges: [3, 4], last: 4 },
+      follow: 4,
     });
   });
 
@@ -1955,19 +2056,19 @@ describe("a choose block's caption on the program engine", () => {
     });
     h.game.start();
     expect(h.game.story.currentText).toBe("Pick.\n");
-    expect(waits).toEqual([{ line: 1, frame: 1 }]);
+    expect(waits).toEqual([{ line: 2, frame: 2 }]);
     h.game.continue();
     expect(h.game.story.currentText).toBe("Something shows first.\n");
-    expect(waits.slice(1)).toEqual([{ line: 3, frame: 3 }]);
+    expect(waits.slice(1)).toEqual([{ line: 4, frame: 4 }]);
   });
 
   it("keeps the running frame on the caption's line through a refused load", () => {
     const h = debugGame(CAPTION);
     h.game.start();
-    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(1);
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(2);
     expect(h.game.load("{not json")).toBe(false);
     expect(h.game.story.currentText).toBe("Pick.\n");
-    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(1);
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(2);
   });
 
   it("keeps the running frame on the caption's line through a host's call into the story", () => {
@@ -1975,24 +2076,26 @@ describe("a choose block's caption on the program engine", () => {
       [CAPTION.trimEnd(), "function quiet()", "  return 1", "end", ""].join("\n"),
     );
     h.game.start();
-    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(1);
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(2);
     h.game.story.EvaluateFunction("quiet");
     expect(h.game.story.currentText).toBe("Pick.\n");
-    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(1);
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(2);
   });
 
   it("does not stand a loaded checkpoint's frame on the beat the game waited on before the load", () => {
     const h = debugGame(
       [
-        "choose",
-        "  First.",
-        "  & aside()",
-        "  * One",
-        "end",
-        "choose",
-        "  Second.",
-        "  & aside()",
-        "  * Two",
+        "scene start",
+        "  choose",
+        "    First.",
+        "    & aside()",
+        "    * One",
+        "  end",
+        "  choose",
+        "    Second.",
+        "    & aside()",
+        "    * Two",
+        "  end",
         "end",
         "function aside()",
         '  print("Aside.")',
@@ -2002,7 +2105,7 @@ describe("a choose block's caption on the program engine", () => {
     );
     h.game.start();
     expect(h.game.story.currentText).toBe("First.\n");
-    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(1);
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(2);
     const first = h.game.newestCheckpoint();
     expect(first == null).toBe(false);
     for (let i = 0; i < 8 && h.game.story.currentText !== "Second.\n"; i += 1) {
@@ -2013,18 +2116,18 @@ describe("a choose block's caption on the program engine", () => {
       }
     }
     expect(h.game.story.currentText).toBe("Second.\n");
-    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(6);
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).toBe(7);
     expect(h.game.loadCheckpoint(first!)).toBe(true);
     expect(h.game.story.currentText).toBe("First.\n");
-    expect(h.frames().stackFrames[0]?.location?.range.start.line).not.toBe(6);
+    expect(h.frames().stackFrames[0]?.location?.range.start.line).not.toBe(7);
   });
 
   it("stops at a breakpoint on the carried line before the caption's beat displays", () => {
     const h = debugGame(CAPTION);
-    h.game.setBreakpoints([{ file: MAIN, line: 3 }]);
+    h.game.setBreakpoints([{ file: MAIN, line: 4 }]);
     h.game.start();
     expect(h.of("game/hitBreakpoint")).toHaveLength(1);
-    expect(h.stoppedAt()).toBe(3);
+    expect(h.stoppedAt()).toBe(4);
     expect(h.of("game/awaitingInteraction")).toHaveLength(0);
   });
 });

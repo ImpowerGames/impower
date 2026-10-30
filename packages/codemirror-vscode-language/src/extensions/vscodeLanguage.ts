@@ -12,24 +12,12 @@ import { vscodeOnEnterRules } from "./vscodeOnEnterRules";
 import { vscodeSurroundBrackets } from "./vscodeSurroundBrackets";
 
 export interface VSCodeLanguageFeaturesConfig {
-  /**
-    The name of this language.
-    */
   name: string;
 
-  /**
-    Alternative names for the language (lowercased).
-    */
   alias?: string[];
 
-  /**
-   * The grammar definition for this language
-   */
   grammar: GrammarDefinition;
 
-  /**
-   * The config definition for this language
-   */
   config?: VSCodeConfigDefinition;
 }
 

@@ -1,13 +1,3 @@
-// An incremental compile after an edit below a block in the same scene (#668).
-//
-// An incremental compile has to be the program a cold compile of the edited
-// text produces: the bytecode carries the edited line, and every path location
-// names the line a cold compile gives it. The edit sits above or below a
-// `choose … then … end` or an `if … else … end`, the two blocks a scene's
-// closing lines usually follow, or a `choose` block nested in an `if` or in
-// another block's preamble, or inside those nested blocks. It also sits above,
-// below or inside a loop written in the scene: `while`, numeric `for`,
-// `repeat`, `do`, a loop nested in a loop, and a loop whose body displays.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent, programListing } from "../programListing";
@@ -57,9 +47,6 @@ const BLOCKS: Record<string, string[]> = {
   ],
 };
 
-// Loops written in the scene's body. Each is its own top-level chunk, and its
-// gathers are named from its document offset, so an edit above it renames
-// them. `inside` is an edit to a line of the loop's body.
 const LOOPS: Record<string, { lines: string[]; inside: [string, string] }> = {
   "a while loop": {
     lines: ["  while trust < 2 do", "    trust = trust + 1", "  end"],
@@ -106,7 +93,9 @@ function screenplay(block: string[]): string {
   L.push("store trust = 0");
   L.push("store key = false");
   L.push("");
-  L.push("-> act_one");
+  L.push("scene start");
+  L.push("  -> act_one");
+  L.push("end");
   L.push("");
   L.push("scene act_one");
   for (let i = 0; i < 4; i++) L.push(`  Beat ${i} before.`);
@@ -116,9 +105,6 @@ function screenplay(block: string[]): string {
   return L.join("\n");
 }
 
-// The program's chunks by content, which hold its line tables, in place of
-// the current engine's compiled JSON and path-location table; a compile that
-// builds no chunks fails the comparison (`programContent` throws).
 const pick = (p: any) => ({
   chunks: programContent(p.chunks),
   functionLocations: p.functionLocations,
@@ -165,7 +151,6 @@ function compilerFor(text: string, version = 1) {
 const compileOf = (c: SparkdownCompiler) =>
   quiet(() => c.compile({ textDocument: { uri: URI } })).program;
 
-/** The message of every error-severity diagnostic, in every file. */
 const errorsOf = (p: any): string[] =>
   Object.values(p.diagnostics ?? {}).flatMap((list) =>
     (list as any[])
@@ -178,7 +163,6 @@ const posAt =(text: string, offset: number) => {
   return { line: before.length - 1, character: before.at(-1)!.length };
 };
 
-/** A minimal-range change turning the first `find` in `text` into `replace`. */
 function change(text: string, find: string, replace: string) {
   const offset = text.indexOf(find);
   expect(offset, `"${find}" is in the text`).toBeGreaterThanOrEqual(0);
@@ -227,7 +211,6 @@ describe("an incremental compile of an edit in a scene", () => {
     it(`is the cold compile of the edited text (inside ${loopName})`, () => {
       const base = screenplay(loop.lines);
       const c = compilerFor(base);
-      // The loop compiles, so the comparison is between two working programs.
       expect(errorsOf(compileOf(c))).toEqual([]);
       const { contentChanges, after } = change(base, ...loop.inside);
 
@@ -241,8 +224,6 @@ describe("an incremental compile of an edit in a scene", () => {
       );
     });
 
-    // The edit sits in another scene above, so the loop's scene is carried
-    // unchanged into the incremental compile while its offset moves.
     it(`is the cold compile when lines added to a scene above move ${loopName}`, () => {
       let text = screenplay(loop.lines).replace(
         "scene act_one",
@@ -323,12 +304,12 @@ describe("an incremental compile of an edit in a scene", () => {
   });
 
   it("is the cold compile when a moved scene with a choose block is reused and then regenerated", () => {
-    // The edit gives `earlier` an anonymous function, which renames the one in
-    // `main`: `main` is reused as it stood, restamped at its new lines, and
-    // then regenerated from those stamps.
     const choose = BLOCKS["a choose block"]!;
     const base = [
-      "-> earlier",
+      "scene start",
+      "  -> earlier",
+      "end",
+      "",
       "scene earlier",
       ...choose,
       "& local g = 1",

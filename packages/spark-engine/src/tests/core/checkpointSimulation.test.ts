@@ -52,8 +52,6 @@ function planTo(game: Game, program: any, line: number) {
 const LINEAR = `store score = 0
 store flag = false
 
--> start
-
 scene start
   First line here.
   & score = 10
@@ -64,7 +62,7 @@ scene start
   Fourth line here.
 end
 `;
-const LINEAR_T = { first: 6, second: 8, third: 10, fourth: 12 };
+const LINEAR_T = { first: 4, second: 6, third: 8, fourth: 10 };
 const LINEAR_VARS = ["score", "flag"];
 
 describe("save / load / simulate (linear)", () => {
@@ -132,8 +130,6 @@ const CHOICE = `store gold = 0
 store picked = "none"
 store done = false
 
--> start
-
 scene start
   You enter the cave.
   choose
@@ -152,7 +148,7 @@ scene start
   Final words.
 end
 `;
-const CHOICE_T = { grab: 12, leave: 16, stepBack: 19, final: 21 };
+const CHOICE_T = { grab: 10, leave: 14, stepBack: 17, final: 19 };
 const CHOICE_VARS = ["gold", "picked", "done"];
 
 describe("checkpoint round-trip through CHOICE routes", () => {
@@ -184,8 +180,6 @@ describe("checkpoint round-trip through CHOICE routes", () => {
 const COND = `store key = false
 store result = "none"
 
--> start
-
 scene start
   You approach the door.
   & key = true
@@ -199,7 +193,7 @@ scene start
   You continue on.
 end
 `;
-const COND_T = { open: 10, shut: 13, after: 15 };
+const COND_T = { open: 8, shut: 11, after: 13 };
 const COND_VARS = ["key", "result"];
 
 describe("checkpoint round-trip through variable-driven IF routes", () => {

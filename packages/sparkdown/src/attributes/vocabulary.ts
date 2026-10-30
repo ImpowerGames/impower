@@ -57,8 +57,6 @@ export const buildAttributeVocabulary = (
       for (const option of condition.options)
         if (!group.options.includes(option)) group.options.push(option);
       append(scope.options, condition.group, condition.options);
-      // An OR list shares artwork among alternatives; its first option is the
-      // resting choice. Other options must not activate their own artwork.
       if (layer.parsed.default && condition.options[0])
         append(scope.defaults, condition.group, [condition.options[0]]);
     }
@@ -85,9 +83,6 @@ export const buildAttributeVocabulary = (
         });
     }
   }
-  // A single explicit selection must satisfy every ancestor condition. Keep
-  // this diagnostic separate from visibility: nearest-folder defaults remain
-  // valid even when they choose different options at different depths.
   const layers = new Map(vocabulary.layers.map((layer) => [layer.key, layer]));
   const overlaps = (a: string, b: string) =>
     a === b || a.startsWith(`${b}-`) || b.startsWith(`${a}-`);
@@ -120,8 +115,6 @@ export const buildAttributeVocabulary = (
   return vocabulary;
 };
 
-/** Run after collecting all of a character's files, so a per-file rarity is
- * not mistaken for an option occurring only once across the character. */
 export const diagnoseRareAttributeOptions = (
   vocabularies: readonly AttributeVocabulary[],
 ): AttributeDiagnostic[] => {
@@ -141,8 +134,6 @@ export const diagnoseRareAttributeOptions = (
       }
     }
   }
-  // A rare artistic choice is valid. Warn only when a more common spelling
-  // supports a likely typo (one edit or one adjacent transposition).
   const close = (a: string, b: string): boolean => {
     if (a === b || Math.min(a.length, b.length) < 3 || Math.abs(a.length - b.length) > 1) return false;
     if (a.length === b.length) {
@@ -173,8 +164,6 @@ export const diagnoseRareAttributeOptions = (
   return diagnostics;
 };
 
-/** A signature suitable for a persistent workspace cache; bump the schema
- * version whenever parsing or vocabulary semantics change. */
 export const attributeVocabularyCacheKey = (
   path: string,
   lastModified: number,

@@ -7,4 +7,7 @@ function f(): number?
 end
 store w: Foo?
 store x: number? | string = 1
-Hello.
+
+scene start
+  Hello.
+end

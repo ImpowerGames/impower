@@ -1,34 +1,52 @@
-sparkdown [0..19]
- ├─ Tags [0..18]
- │   ├─ Tags_begin 0
- │   │   └─ Tags_begin_c1 0
- │   ├─ Tags_content [0..18]
- │   │   └─ Tag [0..18]
- │   │       ├─ Tag_c1 0
- │   │       ├─ Tag_c2 [0..1]: "#"
- │   │       └─ Tag_c3 [1..18]
- │   │           └─ TagContent [1..18]
- │   │               ├─ TagContent_begin 1
- │   │               ├─ TagContent_content [1..18]
- │   │               │   ├─ TagText [1..8]: " a tag "
- │   │               │   ├─ LuauInterpolatedStringExpression [8..13]
- │   │               │   │   ├─ LuauInterpolatedStringExpression_begin [8..9]
- │   │               │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [8..9]
- │   │               │   │   │       └─ PunctuationBraceOpen [8..9]: "{"
- │   │               │   │   ├─ LuauInterpolatedStringExpression_content [9..12]
- │   │               │   │   │   └─ LuauAccessPath [9..12]
- │   │               │   │   │       ├─ LuauAccessPath_begin 9
- │   │               │   │   │       ├─ LuauAccessPath_content [9..12]
- │   │               │   │   │       │   └─ LuauAccessPart [9..12]
- │   │               │   │   │       │       └─ LuauVariable [9..12]
- │   │               │   │   │       │           └─ LuauVariable_c1 [9..12]
- │   │               │   │   │       │               └─ LuauVariableName [9..12]: "var"
- │   │               │   │   │       └─ LuauAccessPath_end 12
- │   │               │   │   │           └─ LuauAccessPath_end_c1 12
- │   │               │   │   └─ LuauInterpolatedStringExpression_end [12..13]
- │   │               │   │       └─ LuauInterpolatedStringExpression_end_c1 [12..13]
- │   │               │   │           └─ PunctuationBraceClose [12..13]: "}"
- │   │               │   └─ TagText [13..18]: " more"
- │   │               └─ TagContent_end 18
- │   └─ Tags_end 18
- └─ Newline [18..19]: "\n"
+sparkdown [0..37]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ Tags [12..32]
+ │   ├─ Tags_begin [12..14]
+ │   │   └─ Tags_begin_c1 [12..14]
+ │   │       └─ RequiredWhitespace [12..14]: "  "
+ │   ├─ Tags_content [14..32]
+ │   │   └─ Tag [14..32]
+ │   │       ├─ Tag_c1 14
+ │   │       ├─ Tag_c2 [14..15]: "#"
+ │   │       └─ Tag_c3 [15..32]
+ │   │           └─ TagContent [15..32]
+ │   │               ├─ TagContent_begin 15
+ │   │               ├─ TagContent_content [15..32]
+ │   │               │   ├─ TagText [15..22]: " a tag "
+ │   │               │   ├─ LuauInterpolatedStringExpression [22..27]
+ │   │               │   │   ├─ LuauInterpolatedStringExpression_begin [22..23]
+ │   │               │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [22..23]
+ │   │               │   │   │       └─ PunctuationBraceOpen [22..23]: "{"
+ │   │               │   │   ├─ LuauInterpolatedStringExpression_content [23..26]
+ │   │               │   │   │   └─ LuauAccessPath [23..26]
+ │   │               │   │   │       ├─ LuauAccessPath_begin 23
+ │   │               │   │   │       ├─ LuauAccessPath_content [23..26]
+ │   │               │   │   │       │   └─ LuauAccessPart [23..26]
+ │   │               │   │   │       │       └─ LuauVariable [23..26]
+ │   │               │   │   │       │           └─ LuauVariable_c1 [23..26]
+ │   │               │   │   │       │               └─ LuauVariableName [23..26]: "var"
+ │   │               │   │   │       └─ LuauAccessPath_end 26
+ │   │               │   │   │           └─ LuauAccessPath_end_c1 26
+ │   │               │   │   └─ LuauInterpolatedStringExpression_end [26..27]
+ │   │               │   │       └─ LuauInterpolatedStringExpression_end_c1 [26..27]
+ │   │               │   │           └─ PunctuationBraceClose [26..27]: "}"
+ │   │               │   └─ TagText [27..32]: " more"
+ │   │               └─ TagContent_end 32
+ │   └─ Tags_end 32
+ ├─ Newline [32..33]: "\n"
+ ├─ LuauEndKeyword [33..36]: "end"
+ └─ Newline [36..37]: "\n"

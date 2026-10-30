@@ -12,12 +12,7 @@ import { createID } from "../../utils/createID";
 import { GrammarNode } from "../GrammarNode";
 import type { GrammarRepository } from "../GrammarRepository";
 import { GrammarState } from "../GrammarState";
-import { RegExpMatcher } from "../RegExpMatcher";
 
-/**
- * A {@link Rule} subclass that uses {@link RegExpMatcher} or
- * {@link StringMatcher} instances for the underlying pattern.
- */
 export class SwitchRule implements Rule {
   repo: GrammarRepository;
 
@@ -44,15 +39,9 @@ export class SwitchRule implements Rule {
 
     this.emit = def.emit;
 
-    // patterns
     this.patterns = def.patterns;
   }
 
-  /**
-   * @param str - The string to match.
-   * @param from - The position to start matching at.
-   * @param state - The current {@link GrammarState}.
-   */
   match(state: GrammarState, from: number) {
     return this.pattern(state, from);
   }
@@ -67,7 +56,7 @@ export class SwitchRule implements Rule {
 
   pattern(state: GrammarState, from: number) {
     if (state.possibleStackOverflow(this.id, from)) {
-      return null; // Detected infinite recursion
+      return null;
     }
     state.enter(this.id, from);
     this.resolve();

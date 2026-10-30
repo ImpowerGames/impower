@@ -1,8 +1,3 @@
-// A run file nesting more blocks than Luau's block recursion limit compiles
-// to Luau's `CodeTooComplex` diagnostic instead of overflowing the stack in
-// the lowering (#1688). The source is
-// Luau's `check_block_recursion_limit` (TypeInfer.test.cpp).
-
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 

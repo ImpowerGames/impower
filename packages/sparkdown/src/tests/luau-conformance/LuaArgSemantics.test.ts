@@ -1,21 +1,3 @@
-// Regression tests for the final basic.luau batch (lines 765-1018):
-//   - Lua's index-type rule: indexing nil / functions raises
-//     (trappable), while a missing table member is still nil.
-//   - String values keep literal newlines (string evaluation no
-//     longer routes whitespace-only text through display trimming);
-//     long `[[...]]` strings normalize line endings and drop the
-//     newline immediately after the opening bracket.
-//   - Variadic nested functions capture upvalues (prepended params +
-//     pointer args at call sites), with sibling-subflow precedence
-//     over same-named outer locals in the free-variable scan.
-//   - Pure number stdlib ops follow Lua argument semantics: numeric
-//     strings coerce, missing args raise "missing argument #1",
-//     wrong types raise "invalid argument #1" — all pcall-trappable.
-//   - type/typeof require an argument; newproxy values report
-//     "userdata" (not spoofable via a `__type` metatable field).
-//   - getfenv() returns the environment; assigning
-//     `getfenv().math = {...}` overrides statically-lowered math.*
-//     call sites.
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -58,8 +40,10 @@ function compileAndCapture(source: string): {
 describe("Lua index-type errors", () => {
   test("indexing nil raises and pcall traps it; missing member is nil", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(pcall(function() return idontexist.a end) == false)
@@ -80,8 +64,10 @@ end
 describe("string newline fidelity", () => {
   test("newline-only strings round-trip through values", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local a = "\\n"
@@ -97,8 +83,10 @@ end
     const { errors, recorded } = compileAndCapture(
       [
         "external host_record(v)",
-        "& run()",
-        "done",
+        "scene start",
+        "  & run()",
+        "  done",
+        "end",
         "",
         "function run()",
         "local s1 = [[",
@@ -124,8 +112,10 @@ end
 describe("variadic nested functions capture upvalues", () => {
   test("stdlib value held in a local reaches the variadic body", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record((function() local abs = math.abs function foo(...) return abs(...) end return foo(-5) end)())
@@ -135,13 +125,12 @@ end
     expect(recorded).toEqual([5]);
   });
 
-  // A variadic `function foo` naming an outer local assigns it (#1349), so a
-  // sibling's call and the outer function's later call both reach it: Lua
-  // records 7, then 1 (`foo(1, 2)` returns 1, 2).
   test("a variadic definition over a same-named outer local assigns it", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local function foo(a, b) return b end
@@ -157,8 +146,10 @@ end
 describe("pure number stdlib argument semantics", () => {
   test("numeric strings coerce; missing/invalid args raise Lua messages", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(math.abs('-5'))
@@ -181,8 +172,10 @@ end
 describe("type/typeof/newproxy", () => {
   test("type and typeof require an argument", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function nothing() end
 
@@ -199,8 +192,10 @@ end
 
   test("newproxy reports userdata; __type cannot spoof it", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 host_record(typeof(newproxy()))
@@ -218,8 +213,10 @@ end
 describe("getfenv environment override", () => {
   test("assigning getfenv().math redirects static math.* call sites", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local negfive = -5

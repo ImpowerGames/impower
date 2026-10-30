@@ -13,7 +13,7 @@ store seen = 0
 store names = {}
 store hero = nil
 
--> start
+
 
 scene start
   & trust = trust + 1
@@ -301,7 +301,7 @@ define link with
   contents = bag
 end
 
--> start
+
 
 scene start
   & bag.n = 7

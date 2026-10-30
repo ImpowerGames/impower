@@ -59,83 +59,28 @@ import {
   type ProgramChunk,
 } from "./ProgramChunk";
 
-/**
- * The durable save of the program engine (docs/engine/binary-program.md,
- * sections 7 and 8): the last beats the player passed, the oldest written
- * whole and each after it as what changed since the beat before, with every
- * position, every anonymous symbol and every count in the saved form, so
- * that it loads into another process, after the program table was reseeded,
- * into a program compiled again, and into a program that was edited.
- *
- * A position is written as the chain of sequences that holds it, from its
- * flow (by qualified name) or its script's declaration sequence (by uri)
- * down, each level a window of its sequence's listing (the fingerprints of
- * its entries) and the ordinal of the entry the position is in, with, for a
- * body, the owner's part listing and the ordinal of the part that heads the
- * body and, for a loop's body, the owner's layout hash; then the anchor: the
- * statement's start, the end of the sequence, after or at the break of a body
- * named by its part, the entry of a choice named by its part, or an offset
- * in the statement's code beside its layout hash. A frame names its function
- * and the layout hash of the chunk that bound its parameters. A named symbol
- * is written by its qualified name, and an anonymous one (a function a
- * statement writes, an alternator, a choice) by its statement and its part.
- *
- * The loader places a position by the steps of section 8: the flow by its
- * name, each level by the matching blocks of its window and the sequence the
- * program has now, a statement no block matched by its own neighbourhood in
- * every sequence, and one still left by its neighbours as an edited
- * statement; a body by its part, aligned with the owner's parts as a re-emit
- * aligns them; then the anchor and the layout, placing a frame after the
- * statement or loop whose code it can no longer resume in, dropping a
- * frame whose function binds its parameters in other code, or restarting a
- * scene or a branch whose parameter names changed, its parameters
- * bound by name from the saved ones (#1728). It takes the
- * newest beat whose every frame is placed exactly, or else the newest placed
- * at all, restores that beat's state, and refuses a save none of whose beats
- * can be placed, naming the flow.
- */
-
-/** The format version this engine writes, and the newest it reads. */
 export const SAVE_FORMAT = 2;
 
-/** The version of the engine, which a save's header names beside the
- *  format's. */
 export const PROGRAM_ENGINE_VERSION = "2";
 
-/** The flags of a beat (docs/engine/binary-program.md, section 7, Rewind and
- *  roll forward), in its image and in a save: whether the beat waited for
- *  the player, whether no rewind may pass it, and whether the decisions
- *  taken at it are fixed. */
 export const BEAT_WAITED = 1;
 export const BEAT_REWIND_FLOOR = 2;
 export const BEAT_DECISIONS_FIXED = 4;
 
-/** What a beat holds beside its image: its flags and the decisions taken at
- *  it, each a chosen choice by the address of its `Choice` instruction. */
 export interface BeatRecord {
   readonly image: ProgramImage;
   flags: number;
   readonly decisions: number[];
-  /** The root the decisions' addresses are in, when a history held the
-   *  record (`BeatHistory.translateTo`). */
   root?: ProgramRoot;
 }
 
-/** What a save's header says. */
 export interface SaveHeader {
   format: number;
   engine: string;
   engineVersion: string;
-  /** The game's own version string (`GameConfiguration.version`), empty
-   *  when the game set none. */
   gameVersion: string;
 }
 
-/** How a load placed a save: the beat it restored (its index among the
- *  save's beats, from the oldest), how many beats the save holds, whether
- *  every frame of that beat was placed exactly, what the placement warned
- *  of, and for a save taken after a choice was made, whether the choice was
- *  taken again or could not be placed. */
 export interface SaveReport {
   beat: number;
   beats: number;
@@ -144,7 +89,6 @@ export interface SaveReport {
   chosen: "taken" | "unplaced" | null;
 }
 
-/** A save the loader cannot place, naming the flow it is in. */
 export class SaveRefused extends Error {
   constructor(
     message: string,
@@ -155,12 +99,6 @@ export class SaveRefused extends Error {
   }
 }
 
-/** The migration of a save of each older format version to the next one.
- *  A format version that shipped keeps its migration, and a fixture save
- *  of it stays in the tests. Format 1 (#699) held one state, the newest
- *  beat's, with a body's level named by its block and an anonymous symbol
- *  by the hash of its part alone; it becomes a save of that one beat, whose
- *  forms the loader still reads. */
 const MIGRATIONS: Record<number, (save: Record<string, any>) => Record<string, any>> = {
   1: (save) => {
     const { engine, format, engineVersion, gameVersion, listings, ...state } = save;
@@ -177,7 +115,6 @@ const MIGRATIONS: Record<number, (save: Record<string, any>) => Record<string, a
   },
 };
 
-// A 64-bit hash of a chunk, as 16 hex digits.
 const hex = (chunk: ProgramChunk, at: number): string =>
   (chunk[at]! >>> 0).toString(16).padStart(8, "0") +
   (chunk[at + 1]! >>> 0).toString(16).padStart(8, "0");
@@ -196,31 +133,14 @@ export const fingerprintOf = (chunk: ProgramChunk): string => {
 export const layoutOf = (chunk: ProgramChunk): string =>
   hex(chunk, H_LAYOUT_HASH);
 
-// A part's fingerprint, the normalized source the store aligns it by, as
-// 16 hex digits.
 const partPrint = (fingerprint: string): string =>
   hash64(fingerprint)
     .map((word) => (word >>> 0).toString(16).padStart(8, "0"))
     .join("");
 
-// The fingerprints of a chunk's parts of one kind, as a save writes them.
 const partPrints = (chunk: ProgramChunk, kind: ChunkPartKind): string[] =>
   (chunkPartsOf(chunk)?.[kind] ?? []).map((part) => partPrint(part.fingerprint));
 
-// ------------------------------------------------------------- saved forms
-
-/** A level of a saved statement: the listing of its sequence (`s`, an index
- *  into the save's listings) and the entry's ordinal (`at`); the first level
- *  names its flow or its script's declaration sequence, and each level after
- *  it the part of the owner's chunk that heads its body (`p`, an index into
- *  the save's part listings, with the part's kind `k` and ordinal `i`), with
- *  the owner's layout hash when the owner is a loop. Format 1 named the body
- *  by its block alone (`block`). The first level of a position in a scene or
- *  a branch also carries the names of the parameters the flow's entry binds,
- *  in the order the header writes them, empty for an entry that binds
- *  nothing (`params`), since a flow entered by a divert or a thread binds
- *  them as temporaries of a frame that names no symbol of the flow (#1728);
- *  a position in a branch carries its scene's the same way (`scene`). */
 interface SavedLevel {
   s: number;
   at: number;
@@ -239,14 +159,8 @@ interface SavedStatement {
   levels: SavedLevel[];
 }
 
-/** A part of a statement: its part listing, its kind and its ordinal. */
 type PartRef = [number, ChunkPartKind, number];
 
-/** An anchor: the statement's start, the end of the sequence, the end of
- *  the statement's code (`"done"`, where a call that is the statement's
- *  last instruction returns), after or at the break of the body a part
- *  heads, the entry of the choice a part is, or an offset in the
- *  statement's code with the statement's layout hash. */
 type SavedAnchor =
   | "start"
   | "end"
@@ -261,32 +175,21 @@ interface SavedPosition {
   a: SavedAnchor;
 }
 
-/** A symbol: by its qualified name, or by its statement and part (format
- *  1 named the part by its own hash alone, `p`), or an anonymous function
- *  value that named nothing when it was saved, by the label it printed as
- *  (`gone`). */
 type SavedSymbol =
   | { n: string }
   | { gone: string }
   | { st: SavedStatement; k: ChunkPartKind; i: number; pl?: number; p?: string };
 
-/** A listing as a save writes it: the sequence's length and the windows of
- *  its fingerprints, each its first ordinal followed by the fingerprints. */
 interface SavedListing {
   n: number;
   windows: (number | string)[][];
 }
 
-/** A part listing: its kind and the fingerprints of the owner's parts of
- *  that kind, in order. */
 interface SavedParts {
   k: ChunkPartKind;
   l: string[];
 }
 
-// The windows of one sequence's listing a save cuts: a sequence of up to
-// 512 entries whole, and otherwise 256 entries on each side of each
-// position the save names in it, merged where they overlap.
 const WHOLE_LISTING = 512;
 const WINDOW_SIDE = 256;
 
@@ -304,10 +207,6 @@ const merged = (ranges: [number, number][]): [number, number][] => {
   return out;
 };
 
-/** Whether a declaration chunk declares a global: a `SetVar` with the
- *  declare and global flags, which every global's declaration ends with and
- *  a member function's write, which declares none, never holds
- *  (`BinaryProgramWriter.writeDeclaration`). */
 const declaresGlobal = (chunk: ProgramChunk): boolean => {
   for (let at = 0; at < codeWords(chunk); at += 2) {
     const w0 = chunk[HEADER_WORDS + at]!;
@@ -318,16 +217,6 @@ const declaresGlobal = (chunk: ProgramChunk): boolean => {
   return false;
 };
 
-/** One role's chunks of a declaration sequence as a sequence of their own,
- *  with the entry of each in the declaration sequence: the member functions'
- *  writes (`writes`), its chunks that declare no global, or the globals'
- *  declarations, the chunks that declare one. A save names a position in a
- *  declaration sequence among the chunks of its role alone, a write under its
- *  script's writes' name (`writesName`) and a global's declaration under its
- *  script's uri, as a save taken before I-1438 named them when the writes
- *  were a flow of their own (`FormWriter.statementForm`, `FormPlacer.topOf`),
- *  so that a write and a global, whose chunks can share a source and so a
- *  fingerprint, never pair. */
 const roleView = (
   declarations: SequenceRow,
   writes: boolean,
@@ -351,14 +240,9 @@ const roleView = (
   };
 };
 
-/** The name a save gives the writes of the script `uri` (`roleView`):
- *  `$include:` and the uri with each `.` written `%2E`, the name of the flow
- *  that held them before I-1438. */
 const writesName = (uri: string): string =>
   `${SAVED_INCLUDED_FLOW_PREFIX}${uri.replace(/\./g, "%2E")}`;
 
-/** Each `Choice` instruction of a chunk, in order: its offset and the
- *  offset of its entry. */
 const choiceInstructions = (
   chunk: ProgramChunk,
 ): { at: number; entry: number }[] => {
@@ -371,16 +255,6 @@ const choiceInstructions = (
   return out;
 };
 
-/**
- * The layout hash of the chunk that bound the parameters of a frame running
- * `symbol` (docs/engine/binary-program.md, section 8): a function's
- * definition, the entry of a function written inside a statement, which is
- * that statement's chunk, or the entry of a scene or a branch that takes
- * parameters (`FlowEntry`, the statement on the flow's header line, #1436),
- * whose frame a tunnel pushes; `"none"` for a scene or a branch that binds
- * nothing, so that a later one that does reads as other code; nothing for
- * a symbol that is neither.
- */
 const bindingLayout = (root: ProgramRoot, symbol: number): string | undefined => {
   const kind = root.kindOf(symbol);
   if (kind === SymbolKind.Function) {
@@ -399,17 +273,11 @@ const bindingLayout = (root: ProgramRoot, symbol: number): string | undefined =>
   return undefined;
 };
 
-/** The scene or branch whose entry bound the temporaries of a frame standing
- *  in `sequence`: the sequence's flow when it is one and no owner between
- *  them is a function's body, whose frame binds its own; nothing
- *  otherwise. */
 const bindingFlowOf = (root: ProgramRoot, sequence: SequenceRow): number | undefined => {
   const kind = sequence.flow >= 0 ? root.kindOf(sequence.flow) : undefined;
   if (kind !== SymbolKind.Scene && kind !== SymbolKind.Branch) {
     return undefined;
   }
-  // The block stack stops at a function's body, so its outermost block is
-  // that body when there is one.
   const blocks = blockStackOf(root, sequence);
   const outer = blocks?.[0];
   if (
@@ -421,10 +289,6 @@ const bindingFlowOf = (root: ProgramRoot, sequence: SequenceRow): number | undef
   return sequence.flow;
 };
 
-/** The parameters the entry of a scene or a branch (`flow`, its sequence)
- *  binds, in the order its header writes them: each by the name its
- *  `SetVar` declares, the first of which binds the last parameter, and
- *  whether it is the `...`. Nothing for a flow whose entry binds nothing. */
 const entryParameters = (
   root: ProgramRoot,
   flow: SequenceRow,
@@ -449,8 +313,6 @@ const entryParameters = (
 
 type FlowRestart = NonNullable<ThreadCuts["restart"]>;
 
-/** The names of the parameters the entry of scene or branch `symbol` binds,
- *  as a saved level carries them, or nothing for a symbol that is neither. */
 const entryBinding = (root: ProgramRoot, symbol: number): string[] | undefined => {
   const kind = root.kindOf(symbol);
   const flow =
@@ -458,7 +320,6 @@ const entryBinding = (root: ProgramRoot, symbol: number): string[] | undefined =
   return flow ? entryParameters(root, flow).map((param) => param.name) : undefined;
 };
 
-/** The scene a branch `symbol` belongs to, or -1. */
 const sceneOfBranch = (root: ProgramRoot, symbol: number): number => {
   if (root.kindOf(symbol) !== SymbolKind.Branch) {
     return -1;
@@ -467,11 +328,6 @@ const sceneOfBranch = (root: ProgramRoot, symbol: number): number => {
   return scene >= 0 && root.kindOf(scene) === SymbolKind.Scene ? scene : -1;
 };
 
-/** The bindings a position in `sequence` carries on its first level: its
- *  scene's or branch's entry, and for a branch, its scene's entry, whose
- *  parameters the frame holds too when the scene's entry went on to the
- *  branch, falling through; a divert into the branch opens the scene's
- *  scope fresh, with none of them (#1728). */
 const positionBindings = (
   root: ProgramRoot,
   sequence: SequenceRow,
@@ -486,11 +342,6 @@ const positionBindings = (
   return outer ? { params: own, scene: outer } : { params: own };
 };
 
-/** Where a restart of `flow` (the sequence of `symbol`) resumes: past its
- *  entry's `SetVar`s, which the restart does in their place, at the entry's
- *  jump to the scene's first branch when it has one or else the flow's first
- *  statement; or, for a scene with no entry and no content of its own, at
- *  its first branch, as entering it lands (`ProgramStory.enterStart`). */
 const restartPosition = (
   root: ProgramRoot,
   symbol: number,
@@ -509,16 +360,6 @@ const restartPosition = (
     : { sequence: flow, entry: 0, offset: bindings * 2 };
 };
 
-/** The restart of flow `symbol` when the parameters its entry binds now,
- *  by name and in order, differ from those the saved entry bound
- *  (`saved`). Nothing when the save carries none (a format 2 save written
- *  before #1728), when the list is the same (a change to the entry's jump to
- *  a scene's first branch binds nothing differently), or when the saved
- *  entry did not bind the frame's temporaries: a frame whose outermost scope
- *  (`names`, when the caller has them) lacks a parameter the saved entry
- *  bound jumped past it, to a label, and an entry that bound nothing left
- *  nothing in the frame to be stale and cannot be told from one the frame
- *  jumped past, so the frame resumes where it was. */
 const restartOf = (
   root: ProgramRoot,
   symbol: number,
@@ -551,16 +392,6 @@ const restartOf = (
   };
 };
 
-/** The restart of a position whose first saved level is `level` and which
- *  was placed in `sequence`, in a frame whose scopes bind `scopes` (each
- *  scope's names, outermost first): of the branch's scene when its
- *  parameters changed, since restarting the scene enters the branch again,
- *  or else of the scene or branch the position is in when its own
- *  parameters changed. Whether a flow's saved entry ran is read from the
- *  flow's own scope (`flowScopesOf`: a scene's is the frame's second, a
- *  branch's the third) and the frame's outermost, where an earlier engine
- *  bound every flow's parameters, never from another flow's or a block's
- *  scope, whose local of a parameter's name the entry did not bind. */
 const flowRestart = (
   root: ProgramRoot,
   level: Pick<SavedLevel, "params" | "scene"> | undefined,
@@ -582,16 +413,12 @@ const flowRestart = (
   );
 };
 
-/** The names each scope of a saved frame binds, outermost first, or nothing
- *  for a frame that holds no temporaries. */
 const savedScopeNames = (frame: Record<string, any> | undefined): string[][] | undefined => {
   const scopes: unknown[] = Array.isArray(frame?.["temps"]) ? frame["temps"] : [];
   const held = scopes.filter((scope): scope is object => !!scope && typeof scope === "object");
   return held.length > 0 ? held.map((scope) => Object.keys(scope)) : undefined;
 };
 
-/** The choices of a chunk whose `Choice` instructions stand one for each
- *  choice part, in order, or nothing. */
 const choicesByPart = (
   chunk: ProgramChunk,
 ): { at: number; entry: number }[] | undefined => {
@@ -600,8 +427,6 @@ const choicesByPart = (
   return parts && parts.length === choices.length ? choices : undefined;
 };
 
-/** Writes the saved form of positions, statements and symbols of one root,
- *  with the listings and part listings they name. */
 class FormWriter {
   protected _listings = new Map<number, { index: number; sequence: SequenceRow; ranges: [number, number][] }>();
   protected _parts = new Map<ProgramChunk, Map<ChunkPartKind, number>>();
@@ -611,8 +436,6 @@ class FormWriter {
 
   constructor(readonly root: ProgramRoot) {}
 
-  /** The listings, each cut to its windows, in the order the forms name
-   *  them. */
   listings(): SavedListing[] {
     return [...this._listings.values()]
       .sort((a, b) => a.index - b.index)
@@ -628,12 +451,10 @@ class FormWriter {
       });
   }
 
-  /** The part listings, in the order the forms name them. */
   parts(): SavedParts[] {
     return this._partList;
   }
 
-  // The part listing of `chunk`'s parts of `kind`.
   protected partList(chunk: ProgramChunk, kind: ChunkPartKind): number {
     let kinds = this._parts.get(chunk);
     if (!kinds) {
@@ -664,7 +485,6 @@ class FormWriter {
     return listing.index;
   }
 
-  /** The chain of levels from the flow down to `entry` of `sequence`. */
   statementForm(sequence: SequenceRow, entry: number): SavedStatement {
     const root = this.root;
     const levels: SavedLevel[] = [];
@@ -672,8 +492,6 @@ class FormWriter {
     let e = entry;
     for (;;) {
       if (at.owner < 0 && at.flow < 0) {
-        // A declaration sequence: a member function's write among its
-        // script's writes alone, a global's declaration among its globals.
         const writes = !declaresGlobal(at.arrays.chunks[e]!);
         const role = roleView(at, writes);
         const r = role.entries.indexOf(e);
@@ -717,15 +535,10 @@ class FormWriter {
     return { levels };
   }
 
-  // The anchor a position at `offset` of `chunk` takes: the start, after or
-  // at the break of a body its part heads, the entry of a choice its part
-  // is, or the offset with the layout hash.
   protected anchorOf(chunk: ProgramChunk, offset: number): SavedAnchor {
     if (offset === 0) {
       return "start";
     }
-    // Past the statement's last instruction: the statement has run, so no
-    // layout of its code is needed to resume there.
     if (offset >= codeWords(chunk)) {
       return "done";
     }
@@ -753,9 +566,6 @@ class FormWriter {
     const { sequence, entry, offset } = position;
     const chunk = sequence.arrays.chunks[entry];
     const st = this.statementForm(sequence, entry);
-    // The binding of the scene or branch the position is in, and of a
-    // branch's scene, which a frame entered by a divert or a thread holds as
-    // temporaries (#1728).
     const level = st.levels[0]!;
     if (level.flow !== undefined) {
       Object.assign(level, positionBindings(this.root, sequence));
@@ -766,9 +576,6 @@ class FormWriter {
     };
   }
 
-  /** The saved form of the choice whose `Choice` instruction stands at
-   *  `address`: its statement, anchored at the choice's entry by its part,
-   *  or nothing when the root does not hold it. */
   choiceForm(address: number): SavedPosition | undefined {
     const at = this.root.position(chunkOfAddress(address));
     const chunk = at?.sequence.arrays.chunks[at.entry];
@@ -804,8 +611,6 @@ class FormWriter {
     };
   }
 
-  // Each anonymous symbol of the root's statements, by the statement and
-  // part that own it.
   protected owners() {
     if (!this._owners) {
       const owners = new Map<number, { chunk: ProgramChunk; kind: ChunkPartKind; index: number }>();
@@ -827,12 +632,6 @@ class FormWriter {
   }
 }
 
-// ---------------------------------------------------------------- placing
-
-/** Where the steps of section 8 placed a statement: the sequence and entry,
- *  whether it was matched exactly (by a block or by its neighbourhood) or
- *  paired as an edited statement, and whether its neighbourhood found it in
- *  a sequence other than the one its levels name. */
 interface StatementPlacement {
   sequence: SequenceRow;
   entry: number;
@@ -840,26 +639,17 @@ interface StatementPlacement {
   moved: boolean;
 }
 
-/** A placed position: where it stands now, whether it was placed after
- *  the statement or loop it was inside because that construct's code
- *  differs, and the statement the chain placed. */
 interface Placed {
   position: ProgramPosition;
   after: boolean;
   statement: { sequence: SequenceRow; entry: number };
 }
 
-/** The neighbours on each side of a statement that its search matches
- *  (section 8, step 3), and the fewest that must match beside it. */
 const SEARCH_SIDE = 8;
 const SEARCH_NEIGHBOURS = 2;
 
-/** How a save starts the name of a script's member functions' writes, the
- *  name of the flow that held them before I-1438 (`writesName`). */
 const SAVED_INCLUDED_FLOW_PREFIX = "$include:";
 
-/** The longest run of `a[alo..ahi)` that `b[blo..bhi)` holds, the first of
- *  the longest, as `difflib`'s `find_longest_match` finds it. */
 const longestMatch = (
   a: readonly string[],
   b2j: ReadonlyMap<string, readonly number[]>,
@@ -890,9 +680,6 @@ const longestMatch = (
   return [besti, bestj, bestsize];
 };
 
-/** The matching blocks of `a` and `b`, as Ren'Py's `merge_names` takes them
- *  from `difflib.SequenceMatcher` (section 8, step 2): the longest common
- *  run, then the same on each side of it, in order of `a`. */
 const matchingBlocks = (
   a: readonly string[],
   b: readonly string[],
@@ -916,19 +703,11 @@ const PRINTS = new WeakMap<object, string[]>();
 const B2J = new WeakMap<object, Map<string, number[]>>();
 const INDEXES = new WeakMap<ProgramRoot, Map<string, { sequence: SequenceRow; entry: number }[]>>();
 
-/** Places the saved forms of one save, or one translation, in a root. */
 class FormPlacer {
-  /** What placing warned of. */
   readonly warnings: string[] = [];
-  /** The flows a statement's neighbourhood found under another name, old
-   *  name to new. */
   protected _moves = new Map<string, string>();
-  /** The renames that apply (`settleRenames`), longest old prefix first. */
   protected _renames: [string, string][] = [];
   protected _blocks = new Map<string, [number, number, number][]>();
-  /** Each role's chunks of each declaration sequence a save names
-   *  (`roleOf`), as a sequence of their own, by the declaration sequence
-   *  and the role, and by that sequence. */
   protected _roles = new Map<string, { view: SequenceRow; entries: number[] }>();
   protected _roleOf = new Map<SequenceRow, { real: SequenceRow; entries: number[] }>();
   protected _roleIndexes = new Map<boolean, Map<string, { sequence: SequenceRow; entry: number }[]>>();
@@ -939,8 +718,6 @@ class FormPlacer {
     protected _parts: readonly SavedParts[],
   ) {}
 
-  // The fingerprints of a sequence's entries, kept with its arrays, which
-  // never change and which the roots that share a sequence share.
   protected printsOf(sequence: SequenceRow): string[] {
     let prints = PRINTS.get(sequence.arrays);
     if (!prints) {
@@ -950,7 +727,6 @@ class FormPlacer {
     return prints;
   }
 
-  // The entries of a sequence by their fingerprints, in order.
   protected b2jOf(sequence: SequenceRow): Map<string, number[]> {
     let b2j = B2J.get(sequence.arrays);
     if (!b2j) {
@@ -968,8 +744,6 @@ class FormPlacer {
     return b2j;
   }
 
-  // Every entry of every sequence of the root, by its fingerprint, kept
-  // with the root, which never changes.
   protected index(): Map<string, { sequence: SequenceRow; entry: number }[]> {
     let index = INDEXES.get(this.root);
     if (!index) {
@@ -977,8 +751,6 @@ class FormPlacer {
       for (const sequence of this.root.sequences()) {
         const declarations = sequence.flow < 0 && sequence.owner < 0;
         this.printsOf(sequence).forEach((print, entry) => {
-          // A member function's write is looked for among writes alone
-          // (`roleIndex`).
           if (declarations && !declaresGlobal(sequence.arrays.chunks[entry]!)) {
             return;
           }
@@ -995,10 +767,6 @@ class FormPlacer {
     return index;
   }
 
-  /** The same over one role's chunks of every declaration sequence alone
-   *  (`roleOf`), the writes or the globals' declarations, whose entries
-   *  `placeLevels` translates back, so that the search of step 3 never
-   *  places a saved write on a global or a global on a write. */
   protected roleIndex(writes: boolean): Map<string, { sequence: SequenceRow; entry: number }[]> {
     let index = this._roleIndexes.get(writes);
     if (!index) {
@@ -1022,7 +790,6 @@ class FormPlacer {
     return index;
   }
 
-  /** The window of listing `s` that holds ordinal `at`. */
   protected windowOf(
     s: number,
     at: number,
@@ -1041,7 +808,6 @@ class FormPlacer {
     return undefined;
   }
 
-  /** A name as the renames give it. */
   renamed(name: string): string {
     for (const [from, to] of this._renames) {
       if (name === from) return to;
@@ -1055,15 +821,6 @@ class FormPlacer {
     return symbol !== undefined && this.root.kindOf(symbol) !== UNDEFINED_KIND;
   }
 
-  /**
-   * Settles the renames the placements found (section 8, after step 7): a
-   * flow a statement's neighbourhood found under another qualified name
-   * renames the differing leading segments of the two names, which is a
-   * scene renamed with every branch, label and function under it, when the
-   * old prefix names nothing in the program and the new one exists, and
-   * otherwise its own name, when that names nothing; a branch moved under a
-   * scene that still exists rewrites its own name only.
-   */
   settleRenames(): void {
     const renames = new Map<string, string>();
     for (const [old, now] of this._moves) {
@@ -1088,12 +845,6 @@ class FormPlacer {
     return this._renames;
   }
 
-  // The flow or declaration sequence a first level names. A save names a
-  // member function's write of a script other than main among that script's
-  // writes alone (`writesName`), as a save taken before I-1438 named it by
-  // the flow that held them then; the writes are statements of the script's
-  // declaration sequence, beside its globals, and the level is placed among
-  // the writes alone (`roleOf`).
   protected topOf(level: SavedLevel): SequenceRow | undefined {
     if (level.flow !== undefined) {
       const flow = this.root.flowNamed(this.renamed(level.flow));
@@ -1112,9 +863,6 @@ class FormPlacer {
     return declarations ? this.roleOf(declarations, false) : undefined;
   }
 
-  // The member functions' writes of a declaration sequence, its chunks that
-  // declare no global, as a sequence of their own whose entries stand for
-  // theirs in the declaration sequence (`placeLevels`, `roleView`).
   protected roleOf(declarations: SequenceRow, writes: boolean): SequenceRow {
     const key = `${declarations.id}:${writes}`;
     let role = this._roles.get(key);
@@ -1126,15 +874,10 @@ class FormPlacer {
     return role.view;
   }
 
-  // The qualified name of the flow a sequence is in, or nothing for a
-  // declaration sequence.
   protected flowNameOf(sequence: SequenceRow): string | undefined {
     return sequence.flow >= 0 ? this.root.table.symbols[sequence.flow] : undefined;
   }
 
-  // The body of a placed owner that a saved level names: by aligning the
-  // owner's saved part listing with the owner's parts (section 2), or for a
-  // format 1 level, by its block when the owner is the statement it was.
   protected bodyOf(owner: StatementPlacement, level: SavedLevel): SequenceRow | undefined {
     const chunk = owner.sequence.arrays.chunks[owner.entry];
     if (!chunk) {
@@ -1151,18 +894,12 @@ class FormPlacer {
       const block = j >= 0 ? now[j]!.block : -1;
       return block >= 0 ? this.root.body(chunk, block) : undefined;
     }
-    // A format 1 level names its block by index. Format 1 hashed its
-    // fingerprints before format 2 dropped the spacing between tokens, so
-    // its statements are placed as edited ones, and its blocks are taken as
-    // they stand.
     if (level.block !== undefined && level.block < blockCount(chunk)) {
       return this.root.body(chunk, level.block);
     }
     return undefined;
   }
 
-  /** Places each level of a saved statement, from the flow down: the
-   *  statement of each level, or nothing for one that cannot be placed. */
   placeLevels(levels: readonly SavedLevel[]): (StatementPlacement | undefined)[] {
     const out: (StatementPlacement | undefined)[] = [];
     levels.forEach((level, i) => {
@@ -1174,8 +911,6 @@ class FormPlacer {
         sequence = owner ? this.bodyOf(owner, level) : undefined;
       }
       let placed = this.placeIn(sequence, level);
-      // A place among a declaration sequence's writes is the place of that
-      // write in the declaration sequence (`roleOf`).
       const role = placed ? this._roleOf.get(placed.sequence) : undefined;
       if (placed && role) {
         placed = {
@@ -1196,10 +931,6 @@ class FormPlacer {
     return out;
   }
 
-  // Places the statement a level names, in `sequence` when the level's
-  // chain placed one: by the matching blocks of its window (step 2), by its
-  // neighbourhood in every sequence (step 3), or by its neighbours as an
-  // edited statement (step 4).
   protected placeIn(
     sequence: SequenceRow | undefined,
     level: SavedLevel,
@@ -1209,8 +940,6 @@ class FormPlacer {
       return undefined;
     }
     if (level.at >= listing.n) {
-      // The end of the sequence: of the sequence placed, or of the one the
-      // sequence's last statement is placed in.
       if (sequence) {
         return { sequence, entry: sequence.arrays.chunks.length, how: "exact", moved: false };
       }
@@ -1235,9 +964,6 @@ class FormPlacer {
         }
       }
     }
-    // A level among a script's writes is looked for among writes alone, and
-    // a level among its globals among globals alone, in every script: its own
-    // may have been renamed (`roleIndex`).
     const found = this.search(
       window.prints,
       wi,
@@ -1278,10 +1004,6 @@ class FormPlacer {
     return blocks;
   }
 
-  // Step 3: the statement at `wi` of a window, by the longest run of its
-  // neighbours that covers it and at least two of them, or the whole window
-  // when the window is shorter, in every sequence of the root; a tie places
-  // nothing.
   protected search(
     prints: readonly string[],
     wi: number,
@@ -1329,9 +1051,6 @@ class FormPlacer {
     return found.length === 1 ? found[0] : undefined;
   }
 
-  // Step 4: the entry the statement at `wi` of a window is paired with in
-  // the run of entries between the matched blocks around it, or between a
-  // block and either end of the sequence.
   protected pair(
     sequence: SequenceRow,
     s: number,
@@ -1362,8 +1081,6 @@ class FormPlacer {
     return entry < b1 && wi < a1 ? entry : undefined;
   }
 
-  /** The statement a saved statement names, with its levels' placements,
-   *  or nothing. */
   placeStatement(
     st: SavedStatement,
   ): { placed: StatementPlacement; levels: (StatementPlacement | undefined)[] } | undefined {
@@ -1376,15 +1093,11 @@ class FormPlacer {
     return last ? { placed: last, levels: placed } : undefined;
   }
 
-  /** The block of a chunk that the part `ref` of a saved part listing heads
-   *  now, by aligning the listing with the chunk's parts, or -1. */
   protected blockOfPart(chunk: ProgramChunk, ref: PartRef): number {
     const index = this.partIndex(chunk, ref);
     return index >= 0 ? chunkPartsOf(chunk)![ref[1]][index]!.block : -1;
   }
 
-  // The ordinal among `chunk`'s parts of `ref`'s kind of the part `ref`
-  // names in its saved listing, by aligning the two, or -1.
   protected partIndex(chunk: ProgramChunk, ref: PartRef): number {
     const [p, kind, ordinal] = ref;
     const saved = this._parts[p];
@@ -1396,16 +1109,6 @@ class FormPlacer {
     return pairs.indexOf(ordinal);
   }
 
-  /**
-   * Places a saved position (section 8, steps 1 to 5): its statement, its
-   * anchor in the statement's chunk as the program has it now, and the
-   * layout of the code it resumes in. A position inside a statement's code
-   * whose layout differs is placed after the statement; one inside the body
-   * of a loop whose layout differs, or that the placement put in a loop the
-   * save does not name, after the outermost such loop on its block stack,
-   * whose hidden temporaries the frame holds. Nothing when the statement or
-   * the anchor's part cannot be placed.
-   */
   placePosition(form: SavedPosition | null | undefined): Placed | undefined {
     if (!form || typeof form !== "object" || !form.st) {
       return undefined;
@@ -1431,8 +1134,6 @@ class FormPlacer {
       position = { sequence, entry, offset: codeWords(chunk) };
     } else if (Array.isArray(a)) {
       const [offset, layout] = a;
-      // A call that ends its statement returns past the statement's last
-      // instruction, which is where the next one starts.
       if (layoutOf(chunk) === layout && offset <= codeWords(chunk)) {
         position = { sequence, entry, offset };
       } else {
@@ -1462,8 +1163,6 @@ class FormPlacer {
         this.warn(sequence, entry, "a body it resumed after is gone, so the frame resumes after it");
       }
     }
-    // The loops on the position's block stack, whose hidden temporaries the
-    // frame holds: each must have the layout the save carries for it.
     const saved = new Map<string, string | undefined>();
     form.st.levels.forEach((level, i) => {
       const owner = i > 0 ? statement.levels[i - 1] : undefined;
@@ -1492,10 +1191,6 @@ class FormPlacer {
     return { position, after, statement: at };
   }
 
-  /** Places the choice a saved form names: the entry of its part, and the
-   *  address of its `Choice` instruction, its identity. A format 1 choice
-   *  is its entry by offset with its statement's layout, and its `Choice`
-   *  by `source`. */
   placeChoice(
     form: SavedPosition | null | undefined,
     source?: unknown,
@@ -1520,11 +1215,6 @@ class FormPlacer {
     return { ...placed, address: addressOf(chunkId(chunk), source) };
   }
 
-  /** The symbol a saved form names in the root, or nothing. A count's
-   *  symbol, a function value's and a frame's function are placed so: a
-   *  named one by its name, after the renames; an anonymous one by its
-   *  statement and its part, aligned with the statement's parts as a
-   *  re-emit aligns them (section 2). */
   decodeSymbol(form: SavedSymbol | null | undefined): number | undefined {
     if (!form || typeof form !== "object") {
       return undefined;
@@ -1551,9 +1241,6 @@ class FormPlacer {
     if (form.pl !== undefined) {
       index = this.partIndex(chunk, [form.pl, form.k, form.i]);
     } else if (form.p !== undefined) {
-      // Format 1: the part by its own hash, the nearest ordinal first, or,
-      // since that hash predates format 2's normalization, the part at its
-      // ordinal.
       const prints = parts.map((part) => partPrint(part.fingerprint));
       let best = Infinity;
       prints.forEach((print, j) => {
@@ -1577,39 +1264,23 @@ class FormPlacer {
   }
 }
 
-/** What a frame that resumes nothing is placed as: a frame a host pushed,
- *  or a thread whose flow ended. */
 const NOWHERE: Placed = {
   position: null as unknown as ProgramPosition,
   after: false,
   statement: null as unknown as Placed["statement"],
 };
 
-/** The position after a statement: the next entry of its sequence, or the
- *  sequence's end. */
 const afterStatement = (sequence: SequenceRow, entry: number): ProgramPosition => ({
   sequence,
   entry: entry + 1,
   offset: 0,
 });
 
-/** What placing one thread's frames made of them: whether each was placed
- *  and exactly, and the cuts. */
 interface ThreadPlan {
   exact: boolean;
   cuts: ThreadCuts | undefined;
 }
 
-/**
- * Plans the placement of one thread's frames (section 8, step 5): the
- * position of each element (the return position of the frame above it, or
- * for the top one `top`), placed by `place`; a frame whose function binds its
- * parameters in other code (`drop`) is dropped with every frame above it,
- * and the frame below placed after the statement that called it. An element
- * standing in a scene or a branch whose parameters changed (`restart`,
- * #1728) restarts the flow, with every frame above it
- * dropped. Nothing when a position that is not dropped cannot be placed.
- */
 const planThread = (
   count: number,
   drop: (i: number) => boolean,
@@ -1658,11 +1329,8 @@ const planThread = (
   return { exact, cuts };
 };
 
-// ------------------------------------------------------------------ writing
-
 const NEVER_VISITED = -0x80000000;
 
-/** Writes a state, or a history of beats, in the saved form. */
 class SaveWriter implements StateCodec {
   protected _forms: FormWriter;
   protected _identities = new WeakMap<object, number>();
@@ -1685,10 +1353,6 @@ class SaveWriter implements StateCodec {
     );
   }
 
-  // The saved form of a function value, or for one that names nothing in
-  // this program (a load placed a value whose part was gone), its name, or
-  // for an anonymous one the label it printed as, which a load reads as a
-  // value that names nothing again.
   protected valueForm(value: SymbolValue): SavedSymbol {
     let symbol: number | undefined;
     try {
@@ -1714,18 +1378,12 @@ class SaveWriter implements StateCodec {
     writer.WritePropertyStart("fn");
     writer.WriteInjected(this._forms.symbolForm(symbol, this.root.labelOf(symbol)));
     writer.WritePropertyEnd();
-    // The chunk that bound the frame's parameters, a function's or a
-    // tunnel's, whose layout says whether the frame's temporaries mean what
-    // they meant.
     const bound = bindingLayout(this.root, symbol);
     if (bound !== undefined) {
       writer.WriteProperty("bound", bound);
     }
   }
 
-  // A choice's identity is the address of its `Choice`, which its part
-  // names in the saved form of its entry; the offset in the entry's chunk
-  // is kept beside it for a chunk whose choices its parts do not name.
   choiceSource(writer: SimpleJson.Writer, choice: ProgramChoice): void {
     const chunk = choice.target.sequence.arrays.chunks[choice.target.entry];
     const address = Number(choice.sourcePath);
@@ -1734,9 +1392,6 @@ class SaveWriter implements StateCodec {
     }
   }
 
-  // The addresses a carried step ran, each in its durable form, as a game
-  // writes its executed record (#1686); one the root does not hold is left
-  // out.
   addresses(writer: SimpleJson.Writer, addresses: readonly number[]): void {
     const forms: string[] = [];
     for (const address of addresses) {
@@ -1746,8 +1401,6 @@ class SaveWriter implements StateCodec {
     writer.WriteInjected(forms);
   }
 
-  // Every count, by its symbol's saved form, with its visits and the turn
-  // of its last visit.
   counts(writer: SimpleJson.Writer): void {
     writer.WriteProperty("counts", (w) => {
       w.WriteArrayStart();
@@ -1761,8 +1414,6 @@ class SaveWriter implements StateCodec {
 
   protected _symbolOf: number[] | null = null;
 
-  // Writes count `id` with its visits and turn, unless it was never
-  // visited and `always` is not set, or its symbol is not the root's.
   protected writeCount(w: SimpleJson.Writer, id: number, always: boolean): void {
     const state = this._state;
     const table = this.root.table;
@@ -1809,7 +1460,6 @@ class SaveWriter implements StateCodec {
     throw new Error("A save writer reads nothing.");
   }
 
-  // The symbol a function value names in this root.
   protected symbolOf(value: SymbolValue): number {
     const ref = value.ref;
     const root = this.root;
@@ -1827,8 +1477,6 @@ class SaveWriter implements StateCodec {
     return named;
   }
 
-  // ---------------------------------------------------------- the history
-
   protected identity(obj: object): number {
     let id = this._identities.get(obj);
     if (id === undefined) {
@@ -1838,9 +1486,6 @@ class SaveWriter implements StateCodec {
     return id;
   }
 
-  // What a value is, as a delta compares it: a table or a cell by its
-  // identity, whose content is compared apart, and anything else by what it
-  // holds.
   protected valueSignature(value: InkObject | null | undefined): string {
     if (value === null || value === undefined) return "-";
     if (value instanceof ObjectValue || value instanceof VariablePointerValue) {
@@ -1864,9 +1509,6 @@ class SaveWriter implements StateCodec {
     return `${value.constructor.name}:${scratch.toString()}`;
   }
 
-  // What a table holds, as a delta compares it: its metatable, frozen flag,
-  // length hints and entries in order, each key and value as its own JSON
-  // string, so that no two contents read the same.
   protected tableSignature(table: ObjectValue): string {
     const map = table.value as (Map<string, any> & { __luauCapacity?: number; __luauBoundary?: number }) | null;
     const entries: [string, string][] = [];
@@ -1892,18 +1534,6 @@ class SaveWriter implements StateCodec {
     ]);
   }
 
-  /**
-   * Writes `beats`, from the oldest, as a save: the oldest whole, as a
-   * state, and each one after it as its positional state, which is small,
-   * and the counts, globals, tables and cells that changed since the beat
-   * before, a table or a cell written again whole under the id the save
-   * first gave it, and one first met in a beat written whole where it is
-   * first met (docs/engine/binary-program.md, section 7). `restore` puts
-   * each beat's image in place before it is written. `chosen` is, for a
-   * save taken after a choice was made at the newest beat, the address of
-   * the `Choice` taken, which the save writes in the saved form for a load
-   * to take again.
-   */
   writeBeats(
     beats: readonly BeatRecord[],
     chosen: number | undefined,
@@ -1949,9 +1579,6 @@ class SaveWriter implements StateCodec {
           }
         }
         if (j === 0) {
-          // Every global but a constant, those equal to the program's
-          // initial value included: a load into a program whose initial
-          // value differs reads the beat's (#1429).
           w.WriteProperty("variablesState", (vw) => {
             const policy = variables.constructor as unknown as { dontSaveDefaultValues: boolean };
             const skip = policy.dontSaveDefaultValues;
@@ -1997,8 +1624,6 @@ class SaveWriter implements StateCodec {
             }
             cw.WriteArrayEnd();
           });
-          // The tables and cells the save wrote before this beat that
-          // changed since the beat before, whole again under their ids.
           w.WriteProperty("tables", (tw) => {
             tw.WriteArrayStart();
             for (const [id, table] of JsonSerialisation.WrittenTables(w)) {
@@ -2028,7 +1653,6 @@ class SaveWriter implements StateCodec {
           });
         }
         w.WriteObjectEnd();
-        // What the beat holds, which the next beat is compared with.
         globals = now;
         tables = new Map();
         for (const [id, table] of JsonSerialisation.WrittenTables(w)) {
@@ -2057,30 +1681,19 @@ class SaveWriter implements StateCodec {
   }
 }
 
-// ------------------------------------------------------------------ reading
-
-/** The placement of one beat of a save. */
 interface BeatPlan {
   placed: boolean;
   exact: boolean;
-  /** Each saved position the beat holds, by its saved object, as placed. */
   positions: Map<unknown, ProgramPosition>;
-  /** The cuts of each thread, by its saved frames. */
   cuts: Map<unknown, ThreadCuts>;
-  /** Each waiting choice placed, by its saved object, with its identity. */
   choices: Map<unknown, number>;
-  /** The flow the beat stands in, which a refusal names. */
   flow: string;
-  /** What placing the beat warned of. */
   warnings: string[];
 }
 
-/** Reads a save in the saved form into an engine's state. */
 class SaveReader {
   protected _placer: FormPlacer;
   protected _warnings: string[] = [];
-  /** Set when the save was taken after a choice whose part this program
-   *  no longer has. */
   _chosenUnplaced = false;
 
   constructor(
@@ -2103,14 +1716,11 @@ class SaveReader {
     return Array.isArray(this._save["beats"]) ? this._save["beats"] : [];
   }
 
-  // The flow a saved position's first level names.
   protected flowOf(form: unknown): string {
     const level = (form as SavedPosition | null)?.st?.levels?.[0];
     return level?.flow ?? level?.decl ?? "";
   }
 
-  // Whether frame `saved` must be dropped: its function cannot be placed,
-  // or binds its parameters in other code than the save's.
   protected dropsFrame(saved: Record<string, any>): boolean {
     const form = saved?.["fn"] as SavedSymbol | undefined;
     if (!form || typeof form !== "object") {
@@ -2134,7 +1744,6 @@ class SaveReader {
     return true;
   }
 
-  /** Places every position a beat holds (section 8, steps 1 to 6). */
   planBeat(beat: Record<string, any>): BeatPlan {
     const warned = this._placer.warnings.length;
     const plan: BeatPlan = {
@@ -2146,13 +1755,6 @@ class SaveReader {
       flow: this.flowOf(beat?.["position"]),
       warnings: [],
     };
-    // Places one thread's frames: the position of each frame below the top
-    // is the return position of the frame above it, and the top one's is
-    // `top`, placed by `placeTop`.
-    // A choice's thread that stands in a scene whose entry binds its
-    // parameters in other code is not placed, so the choice is dropped: its
-    // body would run with the saved entry's temporaries, and a choice has no
-    // start to restart at.
     const thread = (
       frames: unknown,
       top: unknown,
@@ -2162,9 +1764,6 @@ class SaveReader {
       const saved = (Array.isArray(frames) ? frames : []) as Record<string, any>[];
       const count = Math.max(1, saved.length);
       const forms = (i: number) => (i < count - 1 ? saved[i + 1]?.["returnTo"] : top);
-      // Every position is placed once whatever frames are dropped, so that a
-      // flow its statement was found in under another name renames the
-      // functions the frames name, which `plan` places again with.
       for (let i = 0; i < count; i += 1) {
         const form = forms(i);
         const st = (form as SavedPosition | null | undefined)?.st;
@@ -2179,8 +1778,6 @@ class SaveReader {
         (i) => this.dropsFrame(saved[i] ?? {}),
         (i) => {
           const form = forms(i);
-          // A frame a host pushed resumes nothing, and a flow that ended
-          // stands nowhere.
           placed[i] =
             form === null || form === undefined
               ? NOWHERE
@@ -2237,8 +1834,6 @@ class SaveReader {
           return choice;
         }, true);
         if (!ok || address === undefined) {
-          // A choice the image holds whose part cannot be placed is dropped,
-          // which makes the beat a placement with a warning (step 6).
           plan.warnings.push(
             `A choice waiting at the saved beat (${JSON.stringify(String(saved?.["text"] ?? ""))}) cannot be placed, and was dropped.`,
           );
@@ -2252,21 +1847,11 @@ class SaveReader {
     return plan;
   }
 
-  /**
-   * Chooses the beat to load (step 6): the newest whose frames are all
-   * placed exactly, or else the newest placed at all; for a save taken
-   * after a choice was made, the newest beat with that choice, when its
-   * part can be placed, comes first. Throws `SaveRefused`, naming the flow
-   * of the newest beat, when none is placed (step 7).
-   */
   plan(): { index: number; plans: (BeatPlan | null)[]; chosen: SavedPosition | null } {
     const beats = this.beats;
     if (beats.length === 0) {
       throw new SaveRefused("The save holds no beat.");
     }
-    // Placed once, and again when the placements found a flow under
-    // another name: the renames then name the flows the save's frames and
-    // symbols are in, which the first placement could not read by name.
     const first = this.select();
     const before = this._placer.renames.length;
     this._placer.settleRenames();
@@ -2281,10 +1866,6 @@ class SaveReader {
     return this.selected(second);
   }
 
-  // The beat placement chooses (step 6), with every beat up to it placed so
-  // that a flow found under another name in any of them renames the counts
-  // and symbols the beats hold (`settleRenames`); or the newest beat's flow,
-  // when no beat is placed.
   protected select():
     | { index: number; plans: (BeatPlan | null)[]; chosen: SavedPosition | null }
     | { refused: string } {
@@ -2322,7 +1903,6 @@ class SaveReader {
     return { refused: planOf(newest).flow };
   }
 
-  // The choice `select` made, or the refusal of step 7.
   protected selected(
     choice:
       | { index: number; plans: (BeatPlan | null)[]; chosen: SavedPosition | null }
@@ -2339,12 +1919,10 @@ class SaveReader {
     );
   }
 
-  /** What placing the beat at `index` and reading the save warned of. */
   warningsOf(plan: BeatPlan | null): string[] {
     return [...(plan?.warnings ?? []), ...this._warnings, ...this._placer.warnings];
   }
 
-  // The codec a placed beat's positional state is read with.
   protected codecOf(plan: BeatPlan): StateCodec {
     const reader = this;
     return {
@@ -2363,8 +1941,6 @@ class SaveReader {
       counts() {
         throw new Error("A save reader writes nothing.");
       },
-      // Each durable address placed in this program; one it cannot place
-      // is dropped, as a game drops one of its executed record.
       readAddresses: (saved) =>
         Array.isArray(saved)
           ? saved.flatMap((form) => {
@@ -2387,9 +1963,6 @@ class SaveReader {
     };
   }
 
-  // Reads the counts a beat holds, each placed by its symbol's saved form;
-  // a count whose symbol cannot be placed is dropped (section 2), and one
-  // of a part that cannot be placed starts fresh.
   protected readCounts(beat: Record<string, any>, mark: boolean): void {
     const state = this._state;
     for (const entry of Array.isArray(beat["counts"]) ? beat["counts"] : []) {
@@ -2403,8 +1976,6 @@ class SaveReader {
     }
   }
 
-  // Rewrites the names a save holds of flows that were renamed: each
-  // `previousFlow`.
   protected renameFlows(token: unknown): void {
     if (this._placer.renames.length === 0 || !token || typeof token !== "object") {
       return;
@@ -2424,13 +1995,6 @@ class SaveReader {
     }
   }
 
-  /**
-   * Reads the beats up to `index` into the state, which `beginLoad`
-   * opened: the oldest whole, then each delta onto it in place, through the
-   * write barrier, so that `onBeat` can take each placed beat's image as
-   * the images of a run would hold it. A beat that is not placed has its
-   * positional state read only for the tables and cells it defines.
-   */
   apply(
     index: number,
     plans: (BeatPlan | null)[],
@@ -2446,8 +2010,6 @@ class SaveReader {
         const name = "n" in form ? form.n : null;
         const label = "gone" in form ? form.gone : (name ?? "function");
         this._warnings.push(`A function value of the save (${name ?? "an anonymous function"}) names nothing in this program.`);
-        // A value that names nothing: calling it, or jumping to it, raises
-        // the engine's error for a target the program does not define.
         return new SymbolValue(new SymbolRef(-1, this.root.generation, name, label));
       }
       return this._symbolValue(symbol);
@@ -2465,9 +2027,6 @@ class SaveReader {
           JsonSerialisation.ReadDefinitions([beat["evalStack"], beat["output"], beat["carried"]]);
         }
       };
-      // The cells the cuts of this beat's placement close, each as it was
-      // before, which the beats after it, read on the same cells, find as
-      // the save holds them: a cut is the placement's, not the run's.
       const cut = new Map<VariablePointerValue, CellCopy>();
       const tail = () => {
         if (!plan.placed) {
@@ -2496,9 +2055,6 @@ class SaveReader {
       } else {
         const tracker = state.images;
         const globals = beat["globals"] ?? {};
-        // A global the program now declares a constant keeps its compiled
-        // value, as the oldest beat's globals do (`SetJsonToken`); its saved
-        // value is still read, for the tables it defines.
         for (const name of Object.keys(globals)) {
           const value = JsonSerialisation.JTokenToRuntimeObject(globals[name]);
           if (variables.constantNames.has(name)) continue;
@@ -2526,10 +2082,6 @@ class SaveReader {
             scopeIndex: Number(scopeIndex),
           });
         }
-        // The frames last, so that the cuts of a placement after a
-        // construct close the cells of the scopes they drop on the beat's
-        // own values. A table a frame's temporaries first define is a
-        // placeholder the tables above already filled by its id.
         tail();
       }
       state.endLoad();
@@ -2545,8 +2097,6 @@ class SaveReader {
     }
   }
 
-  /** The decisions a beat records, each placed as the address of its
-   *  `Choice`, without those that cannot be placed. */
   decisionsOf(beat: Record<string, any>): number[] {
     const out: number[] = [];
     for (const form of Array.isArray(beat["decisions"]) ? beat["decisions"] : []) {
@@ -2556,16 +2106,11 @@ class SaveReader {
     return out;
   }
 
-  /** The address of the `Choice` a chosen form names, or nothing. */
   choiceAddress(form: SavedPosition): number | undefined {
     return this._placer.placeChoice(form)?.address;
   }
 }
 
-// ---------------------------------------------------------------- the API
-
-/** The state as a durable save: `beats`, from the oldest, each restored in
- *  place by `restore` to be written. */
 export const writeSave = (
   state: ProgramStoryState,
   gameVersion: string,
@@ -2574,23 +2119,12 @@ export const writeSave = (
   restore: (image: ProgramImage) => boolean,
 ): string => new SaveWriter(state, gameVersion).writeBeats(beats, chosen, restore);
 
-/** What `readSave` hands back besides the header. */
 export interface SaveLoad {
   header: SaveHeader;
   report: SaveReport;
-  /** For a save taken after a choice was made, the address of the
-   *  `Choice` to take again once the continue raises it. */
   chosen: number | undefined;
 }
 
-/**
- * Reads a durable save into `state`, which a caller with images on can roll
- * back: the beat the save's placement chooses, with the beats before it
- * handed to `onBeat` as each is read. A save of an older format goes
- * through the migration of each version after it; one of a newer format,
- * one written by another engine, and one none of whose beats can be placed
- * are refused before anything changes.
- */
 export const readSave = (
   state: ProgramStoryState,
   json: string,
@@ -2629,7 +2163,6 @@ export const readSave = (
   };
 };
 
-/** Throws what `readSave` would refuse a save for, and changes nothing. */
 export const checkSave = (state: ProgramStoryState, json: string): void => {
   const { save } = parseSave(json);
   new SaveReader(state, save, () => {
@@ -2637,8 +2170,6 @@ export const checkSave = (state: ProgramStoryState, json: string): void => {
   }).plan();
 };
 
-// A save's JSON, of this engine and taken through the migration of each
-// older format version, or a refusal.
 const parseSave = (
   json: string,
 ): { save: Record<string, any>; format: number } => {
@@ -2665,14 +2196,6 @@ const parseSave = (
   return { save, format };
 };
 
-// --------------------------------------------------------- translation
-
-/** The address in `root` of the choice whose `Choice` instruction stands at
- *  `address` of `from`: the address itself when `root` still holds its
- *  chunk, or else the address of the `Choice` its saved form in `from` is
- *  placed at, by the steps a durable load takes; nothing when it cannot be
- *  placed. A decision and a chosen choice are translated so, as an image's
- *  waiting choices are (`translatePositional`). */
 export const translateChoiceAddress = (
   root: ProgramRoot,
   from: ProgramRoot,
@@ -2686,15 +2209,6 @@ export const translateChoiceAddress = (
   return form ? new FormPlacer(root, forms.listings(), forms.parts()).placeChoice(form)?.address : undefined;
 };
 
-/**
- * Places an image's positional state, taken on `from`, in the root `state`
- * runs on, translating each position whose chunk that root no longer holds
- * through its saved form in `from`, windows and part listings included, by
- * the steps a durable load takes (docs/engine/binary-program.md, section 8,
- * Within a session). A position the root still holds is not translated.
- * `generation` is the table generation the copy's symbol ids belong to.
- * Nothing when a position cannot be placed.
- */
 export const translatePositional = (
   state: ProgramStoryState,
   from: ProgramRoot,
@@ -2707,7 +2221,6 @@ export const translatePositional = (
     symbol < 0 || generation === root.generation
       ? symbol
       : (root.symbolFrom(symbol, generation) ?? -1);
-  // The position a copy names in `from`.
   const old = (saved: PositionCopy | null): ProgramPosition | null => {
     if (!saved) return null;
     if (saved.chunk < 0) {
@@ -2717,7 +2230,6 @@ export const translatePositional = (
     const at = from.position(saved.chunk, saved.entry);
     return at ? { sequence: at.sequence, entry: at.entry, offset: saved.offset } : null;
   };
-  // The position a copy names in `root`, when `root` holds it as it is.
   const held = (saved: PositionCopy | null): ProgramPosition | undefined => {
     if (!saved) return undefined;
     if (saved.chunk < 0) {
@@ -2733,7 +2245,6 @@ export const translatePositional = (
       ? { sequence: after.sequence, entry: after.entry + 1, offset: 0 }
       : { sequence: at.sequence, entry: at.entry, offset: saved.offset };
   };
-  // Every position's saved form first, so the listings hold every window.
   const savedForms = new Map<PositionCopy, SavedPosition>();
   const note = (saved: PositionCopy | null) => {
     if (saved && !held(saved)) {
@@ -2763,17 +2274,12 @@ export const translatePositional = (
     const form = savedForms.get(saved);
     return form ? placer.placePosition(form) : undefined;
   };
-  // Whether a frame's function binds its parameters in other code now.
   const drops = (symbol: number): boolean => {
     const was = symbol >= 0 ? bindingLayout(from, symbol) : undefined;
     if (was === undefined) return false;
     const now = remap(symbol);
     return now < 0 || bindingLayout(root, now) !== was;
   };
-  // The restart of an element whose position was in a scene or a branch of
-  // `from` and is in one whose parameters changed
-  // (#1728), read from `from` as a save's first level carries it, in a frame
-  // whose scopes are `scopes`.
   const restarts = (
     saved: PositionCopy | null,
     at: Placed,
@@ -2804,8 +2310,6 @@ export const translatePositional = (
       (i) => (placed[i] = place(positionOf(i))),
       (i, at) => restarts(positionOf(i), at, elements[i]?.scopes),
     );
-    // A choice's thread that restarts its flow is dropped with the choice,
-    // as a save's is.
     if (!plan || (choice && plan.cuts?.restart)) return undefined;
     const at = (i: number) => {
       const p = placed[i];
@@ -2858,15 +2362,6 @@ export const translatePositional = (
   };
 };
 
-// ------------------------------------------------- executed addresses
-
-/** An address in a form that outlives the process that wrote it: the chain
- *  of levels from its flow (by qualified name) or its script's declaration
- *  sequence (by uri) down to its statement, each level the entry's ordinal
- *  and, below the first, the block of the owner's chunk; the statement's
- *  fingerprint; and the offset in its code. A game writes the addresses of
- *  its executed record so (`durableAddress`) in a save, whose chunk ids a
- *  later compile does not give again (#700). */
 interface DurableAddress {
   f?: string;
   d?: string;
@@ -2875,8 +2370,6 @@ interface DurableAddress {
   o: number;
 }
 
-/** The durable form of `address` in `root`, as a string, or nothing for an
- *  address the root does not hold. */
 export const durableAddress = (
   root: ProgramRoot,
   address: number,
@@ -2914,10 +2407,6 @@ export const durableAddress = (
   return JSON.stringify(form);
 };
 
-/** The address a durable form names in `root`: the statement at the end of
- *  its chain, when that statement has the fingerprint it had and its code
- *  reaches the offset; otherwise nothing, and nothing is matched
- *  approximately. */
 export const placeDurableAddress = (
   root: ProgramRoot,
   saved: string,

@@ -40,8 +40,11 @@ function compileAndCapture(source: string): {
 describe("`local x` bare declaration (no init)", () => {
   test("declares variable initialized to nil", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local x
@@ -54,8 +57,11 @@ end
 
   test("subsequent re-assignment writes to the local, not a new global", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function inner()
@@ -71,13 +77,12 @@ end
   });
 
   test("bare local doesn't leak to enclosing scope", () => {
-    // After inner() returns, y is out of scope. Reading it falls
-    // through to the "variable not found" warning path (IntValue 0
-    // fallback), but the key thing is y is NOT a global with the
-    // assigned value 42 — host_record sees `false`.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 function inner()
@@ -88,8 +93,6 @@ inner()
 host_record(y == 42)
 end
 `);
-    // The "variable not found" warning is expected — what we're
-    // verifying is the value comparison, not the absence of warnings.
     const realErrors = errors.filter((e) => !e.includes("Variable not found"));
     expect(realErrors).toEqual([]);
     expect(recorded).toEqual([false]);

@@ -1,8 +1,3 @@
-// An anonymous function written without parentheses after a comma in the
-// value list of a `local` or `store` declaration is a value in that slot, as
-// in Luau. The lowerer used to classify it as a trailing statement, so the
-// slot was dropped and every later value shifted one target to the left.
-
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
@@ -15,7 +10,7 @@ function run(source: string) {
 }
 
 const local = (declaration: string, body: string) =>
-  `Value {f()}.\nfunction f()\n  ${declaration}\n  ${body}\nend\n`;
+  `scene start\n  Value {f()}.\nend\nfunction f()\n  ${declaration}\n  ${body}\nend\n`;
 
 describe("anonymous function in a declaration value list", () => {
   test.each([
@@ -53,8 +48,6 @@ describe("anonymous function in a declaration value list", () => {
     expect(text).toBe("Value 8.\n");
   });
 
-  // Luau rejects a function value with a name, and still reads it as the
-  // slot's value (#1148).
   test("a named function directly after a comma is the slot's value, and an error", () => {
     const { errors, text } = run(
       local("local a, g = 1, function named() return 7 end", "return g()"),
@@ -68,7 +61,7 @@ describe("anonymous function in a declaration value list", () => {
     ["parenthesized control", "store a, g = 1, (function() return 7 end)"],
   ])("store: %s", (_name, declaration) => {
     const ctx = makeRuntimeStoryFromSource(
-      `${declaration}\nValue {a + g()}.\n`,
+      `${declaration}\nscene start\n  Value {a + g()}.\nend\n`,
     );
     const errors = [...ctx.errorMessages];
     ctx.story.onError = (m: string) => errors.push(m);

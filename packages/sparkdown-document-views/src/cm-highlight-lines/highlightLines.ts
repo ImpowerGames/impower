@@ -15,9 +15,6 @@ import {
 } from "@codemirror/view";
 
 export interface HighlightsConfiguration {
-  /**
-   * Highlight gaps between highlights
-   */
   isGap?: (text: string) => boolean;
 }
 
@@ -32,10 +29,6 @@ export const highlightsConfig = Facet.define<
   },
 });
 
-/**
- * A StateEffect used to dispatch updates to the line highlights.
- * Your application logic will use this to send new highlight data to the editor.
- */
 export const setHighlightsEffect = StateEffect.define<number[]>();
 
 export const setHighlights = (view: EditorView, lines: number[]) => {
@@ -68,15 +61,10 @@ export const highlightsChanged = (update: ViewUpdate): boolean => {
   );
 };
 
-// Define CSS classes for styling the decorated lines.
 const highlightedLineClass = "cm-highlightedLine";
 
-// Create the line decorations that apply our CSS classes.
 export const highlightDeco = Decoration.line({ class: highlightedLineClass });
 
-/**
- * A CodeMirror theme to style the highlighted lines.
- */
 const highlightsTheme = EditorView.baseTheme({
   [`&light .cm-line.${highlightedLineClass}`]: {
     backgroundColor: "rgba(255, 255, 255, 0.04)",
@@ -86,10 +74,6 @@ const highlightsTheme = EditorView.baseTheme({
   },
 });
 
-/**
- * The StateField that manages the DecorationSet for the highlighted lines.
- * It listens for `setLineHighlightEffect` to update its state.
- */
 export const highlightsField = StateField.define<DecorationSet>({
   create() {
     return Decoration.none;
@@ -97,7 +81,6 @@ export const highlightsField = StateField.define<DecorationSet>({
   update(decorations, tr) {
     const config = tr.state.facet(highlightsConfig);
 
-    // Automatically adjust decoration positions when the document changes.
     decorations = decorations.map(tr.changes);
 
     for (const effect of tr.effects) {
@@ -120,10 +103,8 @@ export const highlightsField = StateField.define<DecorationSet>({
                 i++
               ) {
                 if (config.isGap(tr.state.doc.line(i).text)) {
-                  // also highlight empty lines between highlighted lines
                   consecutiveGapLines.add(i);
                 } else {
-                  // non-blank line, so this is not a connective gap between highlighted lines
                   consecutiveGapLines.clear();
                   break;
                 }
@@ -149,15 +130,9 @@ export const highlightsField = StateField.define<DecorationSet>({
 
     return decorations;
   },
-  // Provide the decorations from this state field to the editor view.
   provide: (f) => EditorView.decorations.from(f),
 });
 
-/**
- * The main line highlighting extension.
- * Add this to your CodeMirror editor's configuration to enable the functionality.
- * @returns {Extension} A CodeMirror extension array.
- */
 export function highlightLines(
   config: HighlightsConfiguration = {},
 ): Extension {

@@ -1,16 +1,3 @@
-// Reading copy should keep display blocks indented under their header
-// mark so the structure is visually obvious:
-//
-//   RAFFLES:
-//     Some dialogue.
-//
-//   ^:
-//     OPENING CREDITS SEQUENCE
-//     RAFFLES & BUNNY
-//
-// Headers that fit on one line (`$: INT. KITCHEN`, `%: CUT TO:`,
-// `^: Single line title`) stay inline — there's no body to indent.
-
 import { describe, expect, it } from "vitest";
 import ScreenplayParser from "../../sparkdown-screenplay/src/classes/ScreenplayParser";
 import { generateScreenplayReadingCopy } from "../../sparkdown-screenplay/src/utils/generateScreenplayReadingCopy";
@@ -30,14 +17,11 @@ describe("reading copy — indent display blocks under their header", () => {
     expect(out).toContain("\n  You mean--\n");
     expect(out).toContain("\n  (beat)\n");
     expect(out).toContain("\n  ... A sticky wicket?\n");
-    // No body line should appear flush-left (a regression would put
-    // "You mean--" at column 0).
     expect(out).not.toMatch(/^You mean--/m);
     expect(out).not.toMatch(/^\(beat\)/m);
   });
 
   it("multi-line centered title body indented under the `^:` mark", () => {
-    // BlockTitle: `^:` on its own line followed by indented body lines.
     const out = readingCopy(
       `^:\n` + `  OPENING CREDITS SEQUENCE\n` + `  RAFFLES & BUNNY\n`,
     );
@@ -47,7 +31,6 @@ describe("reading copy — indent display blocks under their header", () => {
   });
 
   it("single-line title stays inline (no indent)", () => {
-    // InlineTitle: `^: text on the same line`.
     const out = readingCopy(`^: Single Line Title\n`);
     expect(out).toContain("^: Single Line Title\n");
   });

@@ -1,24 +1,12 @@
-// #1657 — the route's report says where a pin was not followed. A menu's own
-// options are those it offers, those of the same statement, and those it
-// offered at an earlier meeting, among them an option a thread (`<- name`)
-// adds from another statement: once-only and already taken, such an option
-// is not offered at a later meeting, and a pin on that later offer is
-// reported not followed there. A menu that offers only a thread's options
-// owns none of its own statement's options, which is a known limit.
 import { describe, expect, test } from "vitest";
 import type { RoutePlan } from "../../compiler/utils/planRoute";
 import { routeDecisions } from "../../compiler/utils/routeDecisions";
 import { pinnedOptionsOf } from "../../compiler/utils/routePins";
 
-/** Addresses in two chunks: a thread's option in one, the menu's own option
- *  and the site the menu is met at in the other. */
 const KEY = 4 * 2 ** 21 + 6;
 const LEAVE = 8 * 2 ** 21 + 6;
 const MENU = 8 * 2 ** 21 + 8;
 
-/** A hub met twice: the first meeting offers the thread's "Ask about the
- *  key." and the menu's own "Leave." and takes the key; the second offers
- *  only "Leave." and takes it. */
 const hub: RoutePlan = {
   from: "start",
   to: 0,
@@ -38,7 +26,6 @@ const hub: RoutePlan = {
   ],
 };
 
-/** The key's pins at its first and second offers, its line being 13. */
 const pinned = pinnedOptionsOf(
   [
     { uri: "main", line: 13, offer: 1 },
@@ -49,8 +36,6 @@ const pinned = pinnedOptionsOf(
 
 describe("a pin on a gated option of a menu that offers only a thread's options", () => {
   test("is not reported, since nothing the menu offers names its own statement (a known limit)", () => {
-    // `* if key [Show the key.]` in its menu's own statement, its gate left
-    // false, so the menu offers only the thread's option, in another chunk.
     const GATE = 3 * 2 ** 21 + 14;
     const THREAD = 8 * 2 ** 21 + 6;
     const SITE = 8 * 2 ** 21 + 8;

@@ -3,6 +3,12 @@ import { compileSource } from "./compileSnapshot";
 import { dumpTree, stripAnsi } from "./grammarSnapshot";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 
+const inStart = (body: string) =>
+  `scene start\n${body
+    .split("\n")
+    .map((line) => (line === "" ? line : `  ${line}`))
+    .join("\n")}\nend\n`;
+
 describe("lowerer grammar distinctions", () => {
   test("run paths distinguish quoted and unquoted content", () => {
     expect(stripAnsi(dumpTree('run "scripts/start.luau"\n'))).toContain("RunQuotedPath");
@@ -13,8 +19,6 @@ describe("lowerer grammar distinctions", () => {
         quote,
       });
     }
-    // An unquoted operand is a name (#1389): one with a slash is a path to
-    // quote, and runs nothing.
     expect(compileSource("run start.luau\n").find((e) => e.block?.run)?.block?.run).toMatchObject({
       path: "start",
       written: "start.luau",
@@ -58,7 +62,7 @@ describe("lowerer grammar distinctions", () => {
     "Before > ..\tload forest",
     ":\n  ..\tload forest",
   ])("%s keeps a load directive after spaced glue", (line) => {
-    const { story, errorMessages } = makeRuntimeStoryFromSource(`${line}\ndone\n`);
+    const { story, errorMessages } = makeRuntimeStoryFromSource(inStart(`${line}\ndone`));
     expect(errorMessages).toEqual([]);
     const warnings: string[] = [];
     story.onError = (message) => warnings.push(message);
@@ -97,7 +101,7 @@ describe("lowerer grammar distinctions", () => {
     ":\n  // preload the next scene\n  load forest",
   ])(
     "%s remains a load directive", (line) => {
-      const { story, errorMessages } = makeRuntimeStoryFromSource(`${line}\ndone\n`);
+      const { story, errorMessages } = makeRuntimeStoryFromSource(inStart(`${line}\ndone`));
       expect(errorMessages).toEqual([]);
       story.Continue();
       const fields = story.currentDisplayInstructions[0]?.value;
@@ -107,7 +111,9 @@ describe("lowerer grammar distinctions", () => {
   );
 
   test("a load after a break is a directive, but dialogue and mid-line words stay text", () => {
-    const { story } = makeRuntimeStoryFromSource("Before > load forest\nHERO: load forest\nWe load forest\ndone\n");
+    const { story } = makeRuntimeStoryFromSource(
+      inStart("Before > load forest\nHERO: load forest\nWe load forest\ndone"),
+    );
     story.Continue();
     story.Continue();
     expect((story.currentDisplayInstructions[0]?.value?.get("load") as any)?.value).toBe("forest");
@@ -117,7 +123,7 @@ describe("lowerer grammar distinctions", () => {
 
   test("tags substitute only lone variables", () => {
     const { story, errorMessages } = makeRuntimeStoryFromSource(
-      'store amount = 8\nText # {amount} { amount } {amount + 1} {amount.value} {amount[1]} {fn()}\ndone\n',
+      `store amount = 8\n${inStart("Text # {amount} { amount } {amount + 1} {amount.value} {amount[1]} {fn()}\ndone")}`,
     );
     expect(errorMessages).toEqual([]);
     story.Continue();
@@ -125,7 +131,7 @@ describe("lowerer grammar distinctions", () => {
   });
 
   test("a load word without arguments remains literal text", () => {
-    const { story } = makeRuntimeStoryFromSource("load \ndone\n");
+    const { story } = makeRuntimeStoryFromSource(inStart("load \ndone"));
     expect(story.Continue()).toBe("load\n");
     expect(story.currentDisplayInstructions[0]?.value?.has("load")).toBe(false);
   });

@@ -1,12 +1,10 @@
-// A display line that is only an inline conditional shows what the same
-// conditional shows when other text shares the line (#1103): its matching
-// branch, or nothing at all, never the text `nil`.
 import { describe, expect, it } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, storyBeats } from "./programHarness";
 
-const shown = (text: string): string[] => {
-  const { program } = compileScript(text);
+const shown = (body: string): string[] => {
+  const lines = body.trimEnd().split("\n").map((line) => `  ${line}`);
+  const { program } = compileScript(["scene start", ...lines, "end", ""].join("\n"));
   expect(program.chunks).toBeDefined();
   const { beats, errors } = storyBeats(new ProgramStory(program.chunks!));
   expect(errors).toEqual([]);

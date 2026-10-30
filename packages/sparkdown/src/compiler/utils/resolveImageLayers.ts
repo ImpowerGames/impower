@@ -1,41 +1,13 @@
 import { filterImage } from "./filterImage";
 import { resolveImageReference } from "./resolveImageReference";
 
-/** One layer of a flattened image: how to display it, and how to read it. */
 export interface ImageLayer {
-  /**
-   * Directly usable source (a served url, or a `data:` uri for inlined SVG).
-   * Always present — this is what a preview renders when no compositing is
-   * needed.
-   */
   src: string;
-  /**
-   * Workspace uri, when the layer came from a file. Hosts that can't `fetch`
-   * a layer's `src` (VS Code, whose srcs are workspace uris a worker cannot
-   * fetch) read the bytes through this instead.
-   */
   uri?: string;
-  /** Host supplied revision; undefined means the bytes must be checked. */
   version?: number;
-  /**
-   * The image or filtered image this layer is, so a preview can ask for what
-   * the host has baked for that variant (a morph's rest render).
-   */
   struct?: any;
 }
 
-/**
- * Flatten an image-ish struct into the ordered layers that make it up,
- * **bottom layer first**.
- *
- * That order is not arbitrary: `UIModule.createImage` reverses the asset list
- * before joining it into CSS `background-image` (whose first layer paints on
- * top), so `assets[0]` is the bottom-most layer in the running game. Anything
- * compositing these has to draw in the same order or the preview won't match.
- *
- * Returns `[]` when nothing resolves, and a single entry for a plain image —
- * callers treat "fewer than two layers" as "nothing to composite".
- */
 export const resolveImageLayers = (
   context: { [type: string]: { [name: string]: any } } | undefined,
   struct: any,
@@ -51,7 +23,6 @@ export const resolveImageLayers = (
   if (type === "image") {
     if (context) filterImage(context, struct);
     const src = struct["filtered_src"] || struct["src"] || struct["data"] || struct["uri"];
-    // A pointer revision describes the .url file, not the remote image bytes.
     const version = /\.url(?:[?#]|$)/i.test(struct["uri"] ?? "")
       ? undefined
       : struct["version"];
@@ -63,15 +34,10 @@ export const resolveImageLayers = (
       filterImage(context, struct);
     }
     if (struct["filtered_src"]) {
-      // A filtered SVG is already a single flattened source, inline in the
-      // context — there is no file to read behind it.
       return [{ src: struct["filtered_src"], struct }];
     }
     const filteredLayers = struct["filtered_layers"];
     if (filteredLayers) {
-      // A layered root filters down to a subset of its layers. Descending into
-      // the unfiltered root instead would show the author a preview carrying
-      // layers the running game drops.
       return filteredLayers.flatMap((layer: unknown) =>
         resolveImageLayers(
           context,
@@ -99,9 +65,6 @@ export const resolveImageLayers = (
       resolveImageLayers(
         context,
         resolveImageReference(context, layer),
-        // Branch the guard per layer rather than sharing it: it exists to stop
-        // cycles along one path, and sharing it would silently drop a layer
-        // that legitimately reuses an asset an earlier layer already used.
         new Set(visited),
       ),
     );

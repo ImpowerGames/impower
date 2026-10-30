@@ -1346,12 +1346,14 @@ end
   Hello there.
 end
 
-[[show backdrop room]]
-Line one.
+scene start
+  [[show backdrop room]]
+  Line one.
+end
 `;
     const inFunction = await previewGate(story, 1);
-    const atStory = await previewGate(story, 5);
-    expect(pathAt(inFunction.h.game, 1)).toBe(pathAt(atStory.h.game, 5));
+    const atStory = await previewGate(story, 6);
+    expect(pathAt(inFunction.h.game, 1)).toBe(pathAt(atStory.h.game, 6));
     expect(inFunction.gated).toEqual(atStory.gated);
     expect(inFunction.written).toEqual(atStory.written);
     expect(atStory.written).toContain("room.png");

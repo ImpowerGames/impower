@@ -1,14 +1,11 @@
 import { expect, test } from "vitest";
 import { formatSource } from "./formatSource";
 
-// Formatting an already formatted script changes nothing, and formatting the
-// result of a first pass changes nothing either.
 function expectFormatsTo(source: string, expected: string) {
   expect(formatSource(source)).toBe(expected);
   expect(formatSource(expected)).toBe(expected);
 }
 
-// #1095
 test("formatting leaves a Luau generic type's angle brackets tight", () => {
   const source = `local a: Array<number> = {}
 local m: Map<string, number> = {}
@@ -81,7 +78,6 @@ Hello.
   expectFormatsTo(source, source);
 });
 
-// #1096
 test("formatting keeps the space before `|` in a parenthesized Luau union", () => {
   const source = `local b: (number | string) = nil
 local c: number | string = nil
@@ -112,7 +108,6 @@ Hello.
   );
 });
 
-// #1097
 test("formatting a single-quoted string before an operator keeps the space", () => {
   const source = `local s = 'x' .. 'y'
 Hello.
@@ -125,7 +120,6 @@ Hello.
   );
 });
 
-// #1098
 test("formatting normalizes every single-quoted string in a union type", () => {
   const source = `local x: 'x' | 'y' = nil
 Hello.
@@ -182,7 +176,6 @@ Hello.
   );
 });
 
-// #1108
 test("formatting keeps one space before the `=` of a bracketed table key", () => {
   const source = `local t = { ["k"] = "v" }
 local u = { [k] = v, [1] = 2 }
@@ -202,7 +195,6 @@ Hello.
   );
 });
 
-// #1109
 test("formatting keeps the spaces around an if expression's keywords", () => {
   const source = `local y = if c then 1 else 2
 local z = if c then 1 elseif d then 2 else 3
@@ -222,7 +214,6 @@ Hello.
   );
 });
 
-// #1110
 test("formatting keeps one space between a keyword and a table or long string", () => {
   const source = `function f()
   return { 1 }
@@ -271,7 +262,6 @@ Hello.
   );
 });
 
-// #1113
 test("formatting keeps the minus attached after an if expression's keywords", () => {
   const source = `local y = if c then -1 else -2
 local z = if c then 1 elseif d then -2 else 3
@@ -281,7 +271,6 @@ Hello.
   expectFormatsTo(source, source);
 });
 
-// #1114
 test("formatting keeps one space on each side of `..=`", () => {
   const source = `local s = "a"
 s ..= "b"
@@ -297,7 +286,6 @@ Hello.
   );
 });
 
-// #1115
 test("formatting separates a clause keyword glued to a closing bracket", () => {
   expectFormatsTo(
     `local y = if(c)then 1 else(2)
@@ -313,7 +301,6 @@ Hello.
   );
 });
 
-// #1099
 test("formatting keeps the space before the `::` cast operator", () => {
   const source = `local x = y :: number
 local z = (y :: number)

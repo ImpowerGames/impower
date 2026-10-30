@@ -1,9 +1,3 @@
-// Host adapters: how each host turns a compact reference into an artifact.
-// A reference with `src` names an asset service that bakes (the web service
-// worker); without one the host reads the artwork itself and bakes in
-// process. Either way the request goes through one `MorphBakeService`, so
-// coalescing, caching and cancellation behave the same on every host.
-
 import { decodeSVGSource } from "../attributes";
 import { hashText } from "./hash";
 import { own } from "./own";
@@ -12,11 +6,9 @@ import type { MorphBakeService, MorphHandle, MorphLoad } from "./service";
 import { MORPH_BAKE_FORMAT, type MorphArtifact, type MorphProgramChannel, type MorphRecipe, type MorphRef } from "./types";
 
 export interface MorphHost {
-  /** The artifact for `ref`, from cache or freshly baked; release the handle when done. */
   resolve(ref: MorphRef, options?: { signal?: AbortSignal }): Promise<MorphHandle>;
 }
 
-/** Artwork text for a reference, and the URI diagnostics belong to. */
 export type MorphSourceReader = (
   ref: MorphRef,
   signal: AbortSignal,
@@ -24,10 +16,6 @@ export type MorphSourceReader = (
 
 type Context = { [type: string]: { [name: string]: any } };
 
-/**
- * Reads the artwork the program carries inline (`image.data`), as VS Code,
- * the language server and local compiles do.
- */
 export const inlineMorphSource = (context: () => Context | undefined): MorphSourceReader => async (ref) => {
   const image = own(context()?.["image"], ref.image);
   const data = image?.data;
@@ -35,10 +23,6 @@ export const inlineMorphSource = (context: () => Context | undefined): MorphSour
   return { text: decodeSVGSource(data), ...(typeof image.uri === "string" ? { uri: image.uri } : {}) };
 };
 
-/**
- * Fetches the artwork from the root image's `src`, for players whose assets
- * are served as files with no baking asset service in front of them.
- */
 export const fetchedMorphSource = (
   context: () => Context | undefined,
   fetcher: (url: string, init: { signal: AbortSignal }) => Promise<Response> = (url, init) => fetch(url, init),
@@ -51,7 +35,6 @@ export const fetchedMorphSource = (
   return { text: await response.text(), ...(typeof image.uri === "string" ? { uri: image.uri } : {}) };
 };
 
-/** Whether `value` has the shape of an artifact this build can play. */
 export function isMorphArtifact(value: unknown): value is MorphArtifact {
   if (!value || typeof value !== "object") return false;
   const a = value as Partial<MorphArtifact>;
@@ -67,11 +50,8 @@ export function isMorphArtifact(value: unknown): value is MorphArtifact {
 
 export interface MorphHostOptions {
   service: MorphBakeService;
-  /** The program's morph channel; read on every request so a new program takes effect. */
   channel: () => MorphProgramChannel | undefined;
-  /** Reads artwork for references without `src`. */
   readSource?: MorphSourceReader;
-  /** Fetches `src` from the asset service; references with `src` need it. */
   fetch?: (url: string, init: { signal: AbortSignal }) => Promise<Response>;
 }
 
@@ -84,7 +64,6 @@ const recipeFor = (text: string): MorphRecipe | undefined => {
   return recipeCache.get(text);
 };
 
-/** The host every adapter above plugs into. */
 export function createMorphHost(options: MorphHostOptions): MorphHost {
   const load = (ref: MorphRef) => async (signal: AbortSignal): Promise<MorphLoad> => {
     if (ref.src && options.fetch) {
@@ -133,12 +112,6 @@ const variantName = (channel: MorphProgramChannel | undefined, ref: MorphRef): s
 
 export type MorphSlotState = "idle" | "pending" | "ready" | "failed";
 
-/**
- * One consumer's view of one reference: static first, the artifact when it
- * is ready, the static render for good when it fails. Changing the reference
- * abandons the old request; a late result for a reference the slot no longer
- * holds is released unseen, so it can never attach to the wrong generation.
- */
 export class MorphArtifactSlot {
   state: MorphSlotState = "idle";
   handle?: MorphHandle;
@@ -155,7 +128,6 @@ export class MorphArtifactSlot {
     return this.handle?.artifact;
   }
 
-  /** Points the slot at `ref`, or clears it. The same key again changes nothing. */
   set(ref: MorphRef | undefined) {
     if (ref?.key === this.ref?.key) return;
     this.controller?.abort();

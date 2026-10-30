@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 import { MessageConnection } from "../src/browser/classes/MessageConnection";
 import type { RequestMessage } from "../src/common/types/RequestMessage";
 
-// A connection whose peer never answers, as a worker that is stuck, or has
-// been terminated, does not (#679).
 class SilentConnection extends MessageConnection {
   protected _listeners = new Set<(e: MessageEvent) => void>();
 
@@ -69,7 +67,6 @@ describe("abandoning a connection's requests", () => {
     const waiting = connection.request(requestMessage("test/waiting"));
     connection.abandon(new Error("gone"));
     await expect(waiting).rejects.toThrow("gone");
-    // Nothing is left to settle.
     expect(() => connection.abandon(new Error("again"))).not.toThrow();
   });
 });

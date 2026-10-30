@@ -1,5 +1,7 @@
 store times = 3
--> home
+scene start
+  -> home
+end
 
 scene home
   & times = times - 1

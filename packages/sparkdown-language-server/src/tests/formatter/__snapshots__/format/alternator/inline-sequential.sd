@@ -1,3 +1,5 @@
-N: {queue|a|b|c end}
-N: {cycle  |  x  |  y  |  z end}
-N: {chain | first | second end}
+scene start
+  N: {queue|a|b|c end}
+  N: {cycle  |  x  |  y  |  z end}
+  N: {chain | first | second end}
+end

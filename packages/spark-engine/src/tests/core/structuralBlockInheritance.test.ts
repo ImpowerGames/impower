@@ -3,7 +3,6 @@ import { buildDefinesContext } from "../../game/core/utils/buildContextFromStory
 import { compileUI, createHarness } from "../ui/harness/uiTestHarness";
 
 const SCENE = `
--> start
 scene start
   Hello.
 end

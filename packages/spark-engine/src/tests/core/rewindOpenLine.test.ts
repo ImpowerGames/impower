@@ -27,7 +27,7 @@ function compileSrc(src: string) {
 }
 
 const UNFINISHABLE_LINE = [
-  "-> a",
+  "",
   "",
   "scene a",
   "  -> b",
@@ -37,10 +37,14 @@ const UNFINISHABLE_LINE = [
   "  -> a",
   "end",
   "",
+  "scene start",
+  "  -> a",
+  "end",
+  "",
 ].join("\n");
 
 const ORDINARY = [
-  "-> start",
+  "",
   "",
   "scene start",
   "  The first thing that happens.",

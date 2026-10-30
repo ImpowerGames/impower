@@ -1,1 +1,3 @@
-& v = obj:greet("hello")
+scene start
+  & v = obj:greet("hello")
+end

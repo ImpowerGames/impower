@@ -1,5 +1,3 @@
-// Taken from https://gist.github.com/blixt/f17b47c62508be59987b
-// Ink uses a seedable PRNG of which there is none in native javascript.
 export class PRNG {
   private seed: number;
 

@@ -5,11 +5,10 @@ import { checkerTextUnits } from "./luauCheckerText";
 import { officialSyntaxErrors } from "./officialSyntax";
 
 const URI = "inmemory:///main.sd";
+const START = "scene start\nend\n";
+const START_LINES = 2;
 
 function readings(text: string) {
-  // A rule that opens and closes without reading anything at one position
-  // over and over is a grammar loop, which the parser breaks out of with a
-  // warning; the tree it leaves behind is not the grammar's.
   const warn = vi.spyOn(console, "warn");
   try {
     const result = compile(text);
@@ -21,7 +20,8 @@ function readings(text: string) {
   }
 }
 
-function compile(text: string) {
+function compile(source: string) {
+  const text = START + source;
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
@@ -33,7 +33,10 @@ function compile(text: string) {
   const errors = diagnostics.map((diagnostic) =>
     typeof diagnostic.message === "string" ? diagnostic.message : diagnostic.message.value,
   );
-  const starts = diagnostics.map((diagnostic) => diagnostic.range.start);
+  const starts = diagnostics.map((diagnostic) => ({
+    line: diagnostic.range.start.line - START_LINES,
+    character: diagnostic.range.start.character,
+  }));
   const tree = compiler.documents.tree(URI);
   if (!tree) throw new Error("Compiler kept no syntax tree");
   const units = checkerTextUnits(tree, text);
@@ -41,9 +44,6 @@ function compile(text: string) {
   return { errors, starts, official };
 }
 
-// Where each error begins, with a position on the line holding `then`
-// given relative to the end of that `then`, so that a glued and a spaced
-// `then` compare equal.
 function relativeStarts(text: string, starts: { line: number; character: number }[]) {
   const lines = text.split("\n");
   const thenLine = lines.findIndex((line) => /then\s*$/.test(line));
@@ -53,7 +53,6 @@ function relativeStarts(text: string, starts: { line: number; character: number 
   );
 }
 
-// The value of the arm is on the line after its `then`.
 const nextLine = (opening: string, trailing = "") =>
   `function f(c, ...)\n  local s = ${opening}${trailing}\n    1\n  else 2\n  return s\nend\n`;
 
@@ -118,8 +117,6 @@ describe("an if expression whose then is glued to its condition and ends its lin
     expect(result.errors).toEqual([]);
   });
 
-  // A then arm with no value reports the same errors whether or not its
-  // `then` is glued, and never asks for an `else` it has not reached.
   const missingValue: [string, (opening: string) => string][] = [
     ["at the end of the script", (opening) => `store c = true\nstore s = ${opening}`],
     ["at the end of the script before a final line break", (opening) => `store c = true\nstore s = ${opening}\n`],
@@ -128,7 +125,10 @@ describe("an if expression whose then is glued to its condition and ends its lin
     ["whose next line ends the function", (opening) => `function f(c)\n  local s = ${opening}\nend\n`],
     ["before a column-0 line", (opening) => `store c = true\nstore s = ${opening}\nstore t = 1\n`],
     ["before a column-0 call", (opening) => `store c = true\nstore s = ${opening}\nprint(c)\n`],
-    ["in a reassignment before a column-0 call", (opening) => `store c = true\nstore s = 0\ns = ${opening}\nprint(s)\n`],
+    [
+      "in a reassignment before a call",
+      (opening) => `store c = true\nstore s = 0\nscene go\n  s = ${opening}\n  print(s)\nend\n`,
+    ],
   ];
   describe.each(missingValue)("an arm with no value %s", (_, script) => {
     test.each([

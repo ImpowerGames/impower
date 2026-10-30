@@ -8,9 +8,6 @@ const DEFAULT_TRANSFORMERS = {
   speed: (v: string) => v,
 };
 
-/**
- * Progress bars are used to show the status of an ongoing operation.
- */
 export default class ProgressBar extends SparkleComponent(
   spec,
   DEFAULT_TRANSFORMERS,

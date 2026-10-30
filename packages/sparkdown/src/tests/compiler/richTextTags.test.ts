@@ -1,13 +1,3 @@
-// Inline rich text tags inside content strings are TOKENIZED by the grammar, so
-// the editor highlights them instead of showing markup as flat string text —
-// and so a tag-shaped token whose name isn't in the vocabulary can be reported.
-//
-// The runtime deliberately leaves an unknown tag as literal characters (that's
-// what lets prose like `5 < 6` survive), which means a typo renders verbatim in
-// the UI. Two grammar rules keep that distinction structural rather than
-// re-derived downstream: `SparkleRichTextTag` (recognized) and
-// `SparkleRichTextTagUnknown` (tag-shaped, unrecognized).
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { dumpTree, stripAnsi } from "./grammarSnapshot";
@@ -30,7 +20,7 @@ function diagnose(source: string): string[] {
         type: "script",
         name: "main",
         ext: "sd",
-        text: source,
+        text: `${source}scene start\nend\n`,
         version: 1,
         languageId: "sparkdown",
       },
@@ -55,7 +45,6 @@ describe("rich text tags · tokenization", () => {
     const names = nodeNames(
       layout('text "a <b>bold</b> and <color=sky_60>tint</color>"'),
     );
-    // Two opens + two closes.
     expect(names.filter((n) => n === "SparkleRichTextTag").length).toBe(4);
     expect(names).not.toContain("SparkleRichTextTagUnknown");
   });
@@ -101,8 +90,6 @@ describe("rich text tags · diagnostics", () => {
     expect(diagnose(layout('text "5 < 6, a > b, x <- y"'))).toEqual([]);
   });
 
-  // Rich text is only parsed in element CONTENT, so a tag in a prop VALUE is
-  // inert rather than misspelled — warning there would be wrong.
   test("a tag inside a #prop value does not warn", () => {
     expect(
       diagnose(layout('field #placeholder="type <b>here</b>"')),

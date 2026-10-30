@@ -1,9 +1,3 @@
-// Verifies that calls to Luau-deprecated stdlib entries (e.g.
-// `table.getn`, `math.pow`, `unpack`) emit an Information-severity
-// diagnostic tagged `Deprecated` (LSP tag = 2). The runtime still
-// dispatches the call — the diagnostic is editor-side strikethrough
-// only.
-
 import { describe, expect, test } from "vitest";
 import { testCompiler } from "../engineUnderTest";
 
@@ -60,8 +54,8 @@ end
     const diagnostics = compileAndCollectDiagnostics(src);
     const dep = diagnostics.filter((d) => d.message.includes("table.getn"));
     expect(dep).toHaveLength(1);
-    expect(dep[0]!.severity).toBe(3); // Information
-    expect(dep[0]!.tags).toEqual([2]); // Deprecated
+    expect(dep[0]!.severity).toBe(3);
+    expect(dep[0]!.tags).toEqual([2]);
   });
 
   test("`math.pow(a, b)` is flagged deprecated (suggests `^`)", () => {

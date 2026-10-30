@@ -1,5 +1,7 @@
 store x = -> here
--> there
+scene start
+  -> there
+end
 
 scene there
   -> x

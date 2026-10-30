@@ -40,8 +40,10 @@ function compileAndCapture(source: string): {
 describe("setmetatable / getmetatable", () => {
   test("setmetatable returns the table and stores the metatable", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = {}
@@ -57,8 +59,10 @@ end
 
   test("setmetatable(t, nil) clears the metatable", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = setmetatable({}, { x = 1 })
@@ -73,8 +77,10 @@ end
 
   test("__metatable field hides and protects the real metatable", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = setmetatable({}, { __metatable = "locked" })
@@ -91,8 +97,10 @@ end
 describe("__index metamethod", () => {
   test("table-form __index chains lookup to parent", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local parent = { x = 10, y = 20 }
@@ -107,8 +115,10 @@ end
 
   test("direct child key shadows parent", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local parent = { x = 10 }
@@ -124,8 +134,10 @@ end
 
   test("__index chain across multiple levels", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local gp = { name = "grandparent" }
@@ -140,8 +152,10 @@ end
 
   test("function-form __index", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = setmetatable({}, {
@@ -161,8 +175,10 @@ end
 describe("__newindex metamethod", () => {
   test("table-form __newindex redirects new keys to target", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local fallback = {}
@@ -180,8 +196,10 @@ end
 
   test("function-form __newindex receives (t, key, value)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local logged = {}
@@ -205,8 +223,10 @@ end
 describe("arithmetic metamethods", () => {
   test("__add fires when one operand is a table", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local mt = { __add = function(a, b) return 99 end }
@@ -221,8 +241,10 @@ end
 
   test("__sub", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local mt = { __sub = function(a, b) return a.n - b.n end }
@@ -237,8 +259,10 @@ end
 
   test("__unm (unary minus)", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local mt = { __unm = function(v) return -v.x end }
@@ -254,8 +278,10 @@ end
 describe("comparison metamethods", () => {
   test("__eq fires when both operands are tables with the same metatable", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local mt = { __eq = function(a, b) return a.k == b.k end }
@@ -273,8 +299,10 @@ end
 
   test("__lt with symmetric > and < dispatch", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local mt = { __lt = function(a, b) return a.n < b.n end }
@@ -291,8 +319,10 @@ end
 
   test("__le for less-than-or-equal", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local mt = { __le = function(a, b) return a.n <= b.n end }
@@ -310,8 +340,10 @@ end
 describe("__tostring metamethod", () => {
   test("__tostring formats a custom display string", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local mt = { __tostring = function(t) return "Point(" .. t.x .. "," .. t.y .. ")" end }
@@ -327,8 +359,10 @@ end
 describe("__call metamethod", () => {
   test("__call dispatches calls on a table value", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local mt = { __call = function(t) return t.value * 2 end }
@@ -342,15 +376,12 @@ end
 });
 
 describe("metamethod property names compile", () => {
-  // Grammar tags metamethod identifiers (__len, __index, __call, …) as
-  // `LuauStdLibMethods` inside `LuauPropertyAccessor`. Without explicit
-  // handling, the lowerer's `getDescendent("LuauPropertyName", ...)`
-  // lookups returned null and the access path fell through to a
-  // VariableReference whose `__len` name couldn't be resolved.
   test("mt.__len = ... compiles (dot-assignment to metamethod key)", () => {
     const { errors } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local mt = {}
@@ -363,8 +394,10 @@ end
 
   test("getmetatable(x).__index = ... compiles (call-chain assignment)", () => {
     const { errors } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local t = {}
@@ -378,8 +411,10 @@ end
 
   test("obj.__call read compiles (dot-read of metamethod key)", () => {
     const { errors } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local mt = { __call = function() return 42 end }

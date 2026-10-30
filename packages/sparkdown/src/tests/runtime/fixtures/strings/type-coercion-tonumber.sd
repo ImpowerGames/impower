@@ -1,4 +1,6 @@
 store five = 5
-{"5" == ("" .. five) and "same" or "different"}
-{"blah" == ("" .. five) and "same" or "different"}
-done
+scene start
+  {"5" == ("" .. five) and "same" or "different"}
+  {"blah" == ("" .. five) and "same" or "different"}
+  done
+end

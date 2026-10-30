@@ -1,8 +1,3 @@
-// A function is a top-level flow wherever it is declared, and the flow it is
-// declared in goes on after it: a scene whose `end` is missing takes the lines
-// after the function as its own. An edit to those lines changes the scene, so
-// an incremental compile must give the scene the chunks and line tables a
-// cold compile gives it, not the ones from before the edit.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { programContent } from "../programListing";
@@ -18,9 +13,6 @@ function compiled(text: string) {
   return c;
 }
 
-/** The program of `text` after `insert` at `line`:`character`, by content
- *  (its chunks, their line tables and its flows' lines), incrementally and
- *  cold. */
 function pathLocations(text: string, line: number, character: number, insert: string) {
   const lines = text.split("\n");
   const after = [

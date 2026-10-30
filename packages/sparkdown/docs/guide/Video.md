@@ -23,9 +23,11 @@ A name belongs to one kind of asset. A name that is both an image and a video is
 Put a video name where an image name goes:
 
 ```sparkdown
-[[show portrait bunny_idle]]
-BUNNY:
-  Hello again.
+scene start
+  [[show portrait bunny_idle]]
+  BUNNY:
+    Hello again.
+end
 ```
 
 The video plays on the `portrait` layer and loops. Everything you can write after an image works the same way after a video, and three clauses belong to video:
@@ -49,8 +51,10 @@ A video with an alpha channel shows the layers behind it through its transparent
 `play` inside `[[ ]]` plays a video full screen, above every layout and the loading screen:
 
 ```sparkdown
-[[play intro]]
-N: The ship was already burning when we woke.
+scene start
+  [[play intro]]
+  N: The ship was already burning when we woke.
+end
 ```
 
 The cutscene plays once. The story goes on to the next line when the video ends, or as soon as the player clicks, taps or presses the key that advances the story; that click or key ends the cutscene and nothing else, so it does not also skip the next line.

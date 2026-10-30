@@ -46,7 +46,7 @@ const labels = (report: ExecutedReport) => ({
   },
 });
 
-const TWO_SCENES = `scene A
+const TWO_SCENES = `scene start
   Line one.
   -> B
 end
@@ -67,8 +67,11 @@ end
 const FUNCTION_CALL = `function F()
   return "world"
 end
-Hello {F()}.
-Bye.
+
+scene start
+  Hello {F()}.
+  Bye.
+end
 `;
 
 describe("the executed report", { timeout: 60_000 }, () => {
@@ -115,7 +118,7 @@ describe("the executed report", { timeout: 60_000 }, () => {
   });
 
   it("follows the line the listed report did when a line calls a function", async () => {
-    const reports = await runningReports(story(FUNCTION_CALL), 3);
+    const reports = await runningReports(story(FUNCTION_CALL), 5);
     expect(reports.length).toBeGreaterThan(0);
     for (const report of reports) {
       const { reported, expected } = highlights(report);

@@ -8,18 +8,20 @@ const CONTINUES_WARNING =
 
 const SOURCE = [
   "store x = 0",
-  "A",
-  "& x = 1",
-  ".. B",
-  "Pick a path.",
-  "choose",
-  "  * Left path",
-  "    & x = 2",
-  "    .. Left.",
-  "  * Right path",
-  "    You went right.",
+  "scene start",
+  "  A",
+  "  & x = 1",
+  "  .. B",
+  "  Pick a path.",
+  "  choose",
+  "    * Left path",
+  "      & x = 2",
+  "      .. Left.",
+  "    * Right path",
+  "      You went right.",
+  "  end",
+  "  Done here.",
   "end",
-  "Done here.",
   "",
 ].join("\n");
 
@@ -61,18 +63,18 @@ describe("runtime diagnostics", () => {
   }, 120_000);
 
   it("include an error that keeps the route from reaching the line", async () => {
-    const text = ["A", '{error("first")} B', "C", "D", ""].join("\n");
+    const text = ["scene start", "  A", '  {error("first")} B', "  C", "  D", "end", ""].join("\n");
     const h = await createPlayerHarness({
       files: [{ uri: MAIN_URI, text }],
-      startFrom: { file: MAIN_URI, line: 3 },
+      startFrom: { file: MAIN_URI, line: 4 },
     });
     const error = console.error;
     console.error = () => {};
     try {
       await h.compile();
-      await h.select(3);
+      await h.select(4);
       await settle(20);
-      expect(lastReported(h.toEditor)).toEqual([[1, 1, "first", "runtime"]]);
+      expect(lastReported(h.toEditor)).toEqual([[2, 1, "first", "runtime"]]);
     } finally {
       console.error = error;
       h.dispose();
@@ -80,10 +82,10 @@ describe("runtime diagnostics", () => {
   }, 120_000);
 
   it("of PLAY include an error the story raises while it plays", async () => {
-    const text = ["A", "B", '{error("boom")} C', "D", ""].join("\n");
+    const text = ["scene start", "  A", "  B", '  {error("boom")} C', "  D", "end", ""].join("\n");
     const h = await createPlayerHarness({
       files: [{ uri: MAIN_URI, text }],
-      startFrom: { file: MAIN_URI, line: 0 },
+      startFrom: { file: MAIN_URI, line: 1 },
     });
     const win = h.overlay.ownerDocument.defaultView as any;
     win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
@@ -91,14 +93,14 @@ describe("runtime diagnostics", () => {
     console.error = () => {};
     try {
       await h.compile();
-      await h.select(0);
+      await h.select(1);
       expect(await h.controller.startGameAndApp()).toBe(true);
       await settle(20);
       for (let i = 0; i < 5 && !lastReported(h.toEditor).length; i++) {
         h.playing()?.continue();
         await settle(10);
       }
-      expect(lastReported(h.toEditor)).toEqual([[2, 1, "boom", "runtime"]]);
+      expect(lastReported(h.toEditor)).toEqual([[3, 1, "boom", "runtime"]]);
     } finally {
       console.error = error;
       h.workerState.gameState.running?.destroy();
@@ -121,7 +123,7 @@ describe("runtime diagnostics", () => {
       const done = lineOf("Done here.");
       await h.edit([
         {
-          range: { start: { line: done, character: 0 }, end: { line: done, character: 4 } },
+          range: { start: { line: done, character: 2 }, end: { line: done, character: 6 } },
           text: "Over",
         },
       ]);
@@ -154,7 +156,7 @@ describe("runtime diagnostics", () => {
     console.error = () => {};
     const raisedAt = {
       uri: MAIN_URI,
-      range: { start: { line: 10, character: 0 }, end: { line: 10, character: 19 } },
+      range: { start: { line: 11, character: 0 }, end: { line: 11, character: 21 } },
     };
     try {
       await h.compile();

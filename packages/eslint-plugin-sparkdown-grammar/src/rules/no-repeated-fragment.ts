@@ -1,16 +1,3 @@
-// Rule: a non-capturing group `(?:…)` longer than 12 characters that is
-// written verbatim more than once, in two patterns or twice in one,
-// should be a variable (GRAMMAR.md §7: "every regex fragment used in more
-// than one place should be a variable"). This extends
-// `no-handwritten-alternation` beyond keyword lists.
-//
-// Patterns are rules' `match`/`begin`/`end` and variables' values and
-// array entries, compared as written (before `{{NAME}}` substitution). Only the
-// outermost repeated group is reported, not each repeated group inside
-// it. A variable whose whole value is the fragment counts as one
-// occurrence but is not reported: it is the named copy, and the message
-// at the other occurrences points to it.
-
 import { BASELINE_NOTE, defineBaselinedRule, type Finding } from "../utils/baseline.ts";
 import { getGrammarIndex, type PatternSite } from "../utils/grammar-index.ts";
 import { regexGroups, type RegexGroup } from "../utils/regex-scan.ts";

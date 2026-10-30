@@ -2,8 +2,6 @@ import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// `string.format`'s `%s` stringifies its argument the way `tostring`
-// does, so a table's `__tostring` metamethod is honored (I-854).
 const passes = (source: string) => {
   const r = runConformanceSource(source, undefined, "main");
   expect(r.errorMessages).toEqual([]);
@@ -14,7 +12,9 @@ describe("string.format `%s` and `__tostring`", () => {
   test("the ticket's story prints the metamethod's result", () => {
     const ctx = makeRuntimeStoryFromSource(
       `function run() local t = setmetatable({}, { __tostring = function() return "T" end }) return string.format("%s", t) end
-Got {run()}.
+scene start
+  Got {run()}.
+end
 `,
     );
     expect(ctx.errorMessages).toEqual([]);

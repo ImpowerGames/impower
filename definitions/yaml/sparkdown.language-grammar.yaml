@@ -159,6 +159,8 @@ variables:
   # (`LuauExpressionKeywordMethodAccessor`).
   # lookaround: `LUAU_TYPECAST_OPERATOR` owns `::`; read only inside the `end:` lookaheads of the path and of a type, which hand the `:` to those rules (GRAMMAR.md §10.1, the end carrying the load).
   LUAU_COLON_BEFORE_LONG_COMMENT: (?:[:](?![:]){{LUAU_METHOD_TRIVIA_TO_LONG_COMMENT}})
+  # lookaround: `LUAU_TYPECAST_OPERATOR` owns `::`, and `LuauTypeAnnotationOperation` keeps every other `:` no name follows (`t: = 2`, `{x:}`), whose missing method name the validator reports there; read only inside `LuauAccessPath`'s `end:` lookahead, which hands this `:` to `LuauTableMethodColon` (GRAMMAR.md §10.1, the end carrying the load).
+  LUAU_COLON_BEFORE_NO_NAME: (?:[:](?![:])(?={{WS}}*[0-9"']))
   # A type operator whose right operand is missing before a `:`
   # (`t :: T | :do`, `t :: :do`), where the `:` is a type's stray colon
   # and a header's bracket may hold the word after it, which Luau's
@@ -908,20 +910,23 @@ variables:
   # it here, once, keeps every rule built on the class from reading it
   # (§10.1, "tighten what a variable matches").
   LUAU_IDENTIFIER: (?:(?!{{LUAU_KEYWORD}}){{LUAU_WORD}})
+  LUAU_DEFINE_COLON_KEY: (?:{{LUAU_IDENTIFIER}}{{WS}}*{{LUAU_DEFINE_KEY_COLON}})
+  # lookaround: `LuauFunctionAccessor` and the statement rules own a `:` that a name or comment follows; deciding which of those is a call would take reading Luau's whole call syntax ahead of the rules that read it, and reordering cannot help, since this is read inside `LuauPropertyDefinition`'s begin lookahead, before any rule of the body has claimed the line.
+  LUAU_DEFINE_KEY_COLON: (?:[:]{{WS}}+(?!--|{{LUAU_IDENTIFIER}})\S)
+  LUAU_DEFINE_KEY_OPERATOR: (?:{{LUAU_SINGLE_EQUALS}}|{{LUAU_DEFINE_KEY_COLON}})
   # A define's key spelled as a reserved word other than a closer, or as a
   # modifier (`repeat = 3`, `local = 3`, #1081): a define's keys are
   # Sparkdown's own, as a table's bracketed keys are. Only
   # `LuauPropertyDefinition`'s begin reads one.
   # lookaround: LuauDefine ends at a closer, and LuauRepeatLoop and the
   # other blocks a reserved word begins read any word not before a lone `=`.
-  LUAU_DEFINE_KEYWORD_KEY: (?:(?!{{LUAU_CLOSER}})(?:{{LUAU_KEYWORD}}|{{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}})(?={{WS}}*{{LUAU_SINGLE_EQUALS}}))
-  # lookaround: a modifier before a lone `=` is the key LUAU_DEFINE_KEYWORD_KEY
-  # reads.
-  LUAU_NOT_BEFORE_LONE_EQUALS: (?!{{WS}}*{{LUAU_SINGLE_EQUALS}})
+  LUAU_DEFINE_KEYWORD_KEY: (?:(?!{{LUAU_CLOSER}})(?:{{LUAU_KEYWORD}}|{{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}})(?={{WS}}*{{LUAU_DEFINE_KEY_OPERATOR}}))
+  # lookaround: a modifier before a lone `=`, or the `:` written in its place, is the key LUAU_DEFINE_KEYWORD_KEY reads.
+  LUAU_NOT_BEFORE_DEFINE_KEY_OPERATOR: (?!{{WS}}*{{LUAU_DEFINE_KEY_OPERATOR}})
   # Right after a define's reserved-word key, before its lone `=`.
   # lookaround: without a key read, LuauPropertyDefinition needs a name or a
   # bracketed key before the `=`.
-  LUAU_AFTER_DEFINE_KEYWORD_KEY: (?<=[a-zA-Z0-9_]){{WS}}*{{LUAU_SINGLE_EQUALS}}
+  LUAU_AFTER_DEFINE_KEYWORD_KEY: (?<=[a-zA-Z0-9_]){{WS}}*{{LUAU_DEFINE_KEY_OPERATOR}}
   # lookaround: LuauCompareOperator reads `==`.
   LUAU_SINGLE_EQUALS: =(?!=)
   # A name or a reserved word, as one token of Luau's lexer.
@@ -1185,13 +1190,6 @@ variables:
   STRUCT_BLOCK_BRACKET_BODY: (?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_SQUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}}|[^\]\s"'{}])*
   STRUCT_BLOCK_BRACKET: (?:[\[]{{STRUCT_BLOCK_BRACKET_BODY}}[\]])
   STRUCT_BLOCK_LONE_BRACKET: (?:[\[](?!{{STRUCT_BLOCK_BRACKET_BODY}}[\]]))
-  # A block header: a key, a selector or a keyframe position. It holds no
-  # unquoted brace or `;` and no comment, and does not start with `=` or `,`,
-  # so a brace in a comment never opens a block. A quoted run and an
-  # attribute selector are read whole (`"quoted key"`, `&[data-label="x"]`,
-  # `&[data-label='a;b']`). It does not end in a comma, so in
-  # `{ "a", { v = 1 } }` the comma separates two entries (and is reported)
-  # rather than ending a header; a selector list (`&.a, &.b {`) ends in a name.
   STRUCT_BLOCK_HEADER: (?:(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"=,\[])(?:{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"\[]|{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}})*?(?<![\s,]))
   # Between a header and its `{`: whitespace and the optional `=`.
   STRUCT_BLOCK_ASSIGN: (?:{{WS}}*{{STRUCT_BLOCK_EQUAL}}?)
@@ -5576,7 +5574,7 @@ repository:
     # keys stay Sparkdown's own without any Luau binding taking a reserved
     # word; its `=` and value are the `LuauAssignmentOperation` after it. A
     # modifier before a lone `=` is that key, not a modifier.
-    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}}){{LUAU_NOT_BEFORE_LONE_EQUALS}})?({{WS}}*)({{LUAU_DEFINE_KEYWORD_KEY}})?(?=(?:{{LUAU_IDENTIFIER}}|\[[^\]\r\n]*\]){{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_AFTER_DEFINE_KEYWORD_KEY}})
+    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}}){{LUAU_NOT_BEFORE_DEFINE_KEY_OPERATOR}})?({{WS}}*)({{LUAU_DEFINE_KEYWORD_KEY}})?(?=(?:{{LUAU_IDENTIFIER}}|\[[^\]\r\n]*\]){{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}|\[[^\]\r\n]*\]{{WS}}*{{LUAU_DEFINE_KEY_COLON}}|{{LUAU_AFTER_DEFINE_KEYWORD_KEY}}|{{LUAU_DEFINE_COLON_KEY}})
     beginCaptures:
       1:
         patterns:
@@ -5595,8 +5593,10 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauBracketKeyAssignment" }
+      - { include: "#LuauPropertyColonAssignment" }
       - { include: "#LuauVariableAssignment" }
       - { include: "#LuauAssignmentOperation" }
+      - { include: "#LuauPropertyColonOperation" }
     applyEndPatternLast: true
     end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
 
@@ -5605,6 +5605,38 @@ repository:
   # any computed key); the value is a normal assignment RHS. Used ONLY inside
   # LuauPropertyDefinition (define bodies) — general statements keep the strict
   # identifier-keyed LuauVariableAssignment.
+  LuauPropertyColonAssignment:
+    # lookaround: `LuauVariableAssignment` reads the same name before an `=`, after this rule in `LuauPropertyDefinition`; the `:` stays unconsumed for `LuauPropertyColonOperation`, which reads it with its own captures.
+    begin: ({{LUAU_IDENTIFIER}})({{WS}}*)(?=[:]{{WS}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauVariableName" }
+      2:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauPropertyColonOperation" }
+    end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|{{LUAU_AT_LATER_LINE_TOKEN}}
+
+  LuauPropertyColonOperation:
+    begin: ({{WS}}*)([:])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauStructInvalidColon" }
+      3:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauValueTrailingBlockComment" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauExpression" }
+    end: (?={{BEAT}})|(?=^|{{WS}}|[,;)\]}])|(?=$|{{LUAU_LINE_COMMENT_START}})|{{LUAU_AT_LATER_LINE_TOKEN}}|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?={{LUAU_GLUED_KEYWORD}})
+
   LuauBracketKeyAssignment:
     begin: (?=\[)
     patterns:
@@ -7234,7 +7266,7 @@ repository:
   # would still have to look for the brace, as `LuauStructBlock`'s
   # `(?=[{])` does.
   LuauStructBlockProperty:
-    match: ({{STRUCT_BLOCK_PROPERTY_KEY}})({{ASSIGN_EQUAL_OPERATOR}})(?!{{WS}}*[{])({{STRUCT_BLOCK_VALUE}}?)({{WS}}*[/][/][^\n]*)?
+    match: ({{STRUCT_BLOCK_PROPERTY_KEY}})({{ASSIGN_EQUAL_OPERATOR}}|{{WS}}*[:]{{WS}}+)(?!{{WS}}*[{])({{STRUCT_BLOCK_VALUE}}?)({{WS}}*[/][/][^\n]*)?
     captures:
       1:
         patterns:
@@ -7243,6 +7275,8 @@ repository:
       2:
         patterns:
           - { include: "#AssignEqualOperator" }
+          - { include: "#LuauStructInvalidColon" }
+          - { include: "#Whitespace" }
       3:
         patterns:
           - { include: "#NumericFieldValue" }
@@ -7298,10 +7332,9 @@ repository:
     name: punctuation.separator.comma.sd
     match: (?={{STRUCT_BLOCK_TRAILING_COMMA}})([,])
 
-  # A comma between two entries on one line. Entries are separated by `;`.
   LuauStructBlockEntryComma:
-    tag: invalid
-    name: invalid.illegal.struct-entry-comma.sd
+    tag: punctuation
+    name: punctuation.separator.comma.sd
     match: ([,])
 
   # A `//` comment inside a block: after whitespace (or at the start of an
@@ -10090,6 +10123,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauDanglingAccessor" }
+      - { include: "#LuauMethodNameAccessor" }
       - { include: "#LuauPropertyAccessor" }
       - { include: "#LuauPropertyIndexer" }
     # lookaround: LuauConcatOperation owns consecutive dots; this chain opens only at a member dot and ends before unrelated expressions.
@@ -10372,6 +10406,7 @@ repository:
       - { include: "#LuauSparkdownExplicitTypeAnnotationMissingType" }
       - { include: "#LuauFunctionAccessor" }
       - { include: "#LuauDanglingAccessor" }
+      - { include: "#LuauMethodNameAccessor" }
       - { include: "#LuauPropertyAccessor" }
       - { include: "#LuauPropertyIndexer" }
       - { include: "#LuauFunctionDeclarationName" }
@@ -12854,7 +12889,7 @@ repository:
     # block comments before the arguments too (`t:m --[[c]] ()`). A `:` that
     # a header's `do` or `then` follows on its line ends the path, so the
     # rule around it reads the `:` (`LUAU_COLON_BEFORE_HEADER_END`).
-    end: "(?={{BEAT}})|(?=$|{{WS}}*{{LUAU_SHARED_PATH_END_KEYWORDS}}|{{WS}}*{{LUAU_COLON_BEFORE_HEADER_END}}|{{WS}}*{{LUAU_COLON_BEFORE_LONG_COMMENT}}|{{LUAU_SHARED_PATH_NO_CONTINUATION}}|{{LUAU_SHARED_FOR_BINDING_BEHIND}}{{LUAU_SHARED_PATH_TYPE_ANNOTATION_AHEAD}}{{LUAU_SHARED_PATH_NO_METHOD_CALL}}){{_LUAU_VALUE_OPERATOR_AHEAD_}}"
+    end: "(?={{BEAT}})|(?=$|{{WS}}*{{LUAU_SHARED_PATH_END_KEYWORDS}}|{{WS}}*{{LUAU_COLON_BEFORE_HEADER_END}}|{{WS}}*{{LUAU_COLON_BEFORE_LONG_COMMENT}}|{{WS}}*{{LUAU_COLON_BEFORE_NO_NAME}}|{{LUAU_SHARED_PATH_NO_CONTINUATION}}|{{LUAU_SHARED_FOR_BINDING_BEHIND}}{{LUAU_SHARED_PATH_TYPE_ANNOTATION_AHEAD}}{{LUAU_SHARED_PATH_NO_METHOD_CALL}}){{_LUAU_VALUE_OPERATOR_AHEAD_}}"
     endCaptures:
       1:
         emit: true
@@ -12875,6 +12910,7 @@ repository:
       - { include: "#LuauTypeAnnotationMissingType" }
       - { include: "#LuauFunctionAccessor" }
       - { include: "#LuauDanglingAccessor" }
+      - { include: "#LuauMethodNameAccessor" }
       - { include: "#LuauPropertyAccessor" }
       - { include: "#LuauPropertyIndexer" }
       - { include: "#LuauFunctionDeclarationName" }
@@ -13263,6 +13299,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauDanglingAccessor" }
+      - { include: "#LuauMethodNameAccessor" }
       - { include: "#LuauPropertyAccessor" }
       - { include: "#LuauPropertyIndexer" }
     end: "(?!{{WS}}*{{LUAU_SHARED_PROPERTY_CHAIN_START}})"
@@ -13478,6 +13515,23 @@ repository:
           # the receiver of a `_G.foo` access).
           - { include: "#LuauStdLibGlobals" }
           - { include: "#LuauVariableName" }
+
+  LuauMethodNameAccessor:
+    match: ({{WS}}*)({{LUAU_SINGLE_COLON}})({{WS}}*)({{LUAU_IDENTIFIER}})
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauAccessorOperator" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      4:
+        patterns:
+          - { include: "#LuauStdLibMethods" }
+          - { include: "#LuauFunctionName" }
 
   LuauPropertyAccessor:
     match: ({{WS}}*)({{LUAU_ACCESSOR_OPERATOR}})({{WS}}*)({{LUAU_WORD}})
@@ -14251,6 +14305,7 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauSemicolonSeparator" }
       - { include: "#LuauTableIndexDeclaration" }
+      - { include: "#LuauTableMethodColon" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
@@ -14264,6 +14319,22 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+
+  LuauTableMethodColon:
+    match: ({{WS}}*)({{LUAU_SINGLE_COLON}})({{WS}}*)({{LUAU_IDENTIFIER}})?
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauAccessorOperator" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      4:
+        patterns:
+          - { include: "#LuauFunctionName" }
 
   LuauTableIndexDeclaration:
     brackets: true

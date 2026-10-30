@@ -1,1 +1,3 @@
-N: hello world
+scene start
+  N: hello world
+end

@@ -8,9 +8,11 @@ scene compute
     return n
   end; value = identity(5) end
 end
-& return value --[=[ é😀
-comment ]=]
-return to the village
+scene start
+  & return value --[=[ é😀
+  comment ]=]
+  return to the village
+end
 scene place
 After.
 end

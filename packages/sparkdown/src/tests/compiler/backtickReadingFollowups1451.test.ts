@@ -1,10 +1,3 @@
-// The backtick-string readings left after one owner for a string's errors
-// (I-1435), each reporting the official parser's errors once at Luau's
-// ranges (I-1451): an interpolation holding an expression and then a
-// backtick string with interpolations (I-1427), a story store's run-on
-// value that is such a string (I-1429), a malformed interpolation in a
-// scene-level call's argument (I-1433), and an interpolation left open
-// inside a call, after which Luau reads on from the next line (I-1343).
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { DiagnosticSeverity, type SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
@@ -13,8 +6,8 @@ import { officialErrorList } from "./officialSyntax";
 import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 
 const URI = "inmemory:///main.sd";
+const SCENE = "scene start\n  Hello.\nend\n";
 
-/** Syntax errors, as `start-end message` in 0-based lines and characters, sorted. */
 function errorsOf(diagnostics: readonly SparkDiagnostic[]): string[] {
   return diagnostics
     .filter((d) => d.severity === DiagnosticSeverity.Error && !NOT_SYNTAX.some((pattern) => pattern.test(messageOf(d))))
@@ -34,16 +27,12 @@ function compileErrors(compiler: SparkdownCompiler): string[] {
   return errorsOf(compiler.compile({ textDocument: { uri: URI } } as never).program.diagnostics?.[URI] ?? []);
 }
 
-/** A cold compile's syntax errors. */
 function sparkdownErrors(text: string): string[] {
   return compileErrors(newCompiler(text));
 }
 
-// A function ahead of the form, whose `0` an edit makes longer: the edit is
-// away from every string, on a line before it, and changes no line count.
 const PADDING = "function padding()\n  local p = 0\nend\n";
 
-/** Asserts that an edit in `PADDING` ahead of `text` reports what a cold compile of the edited text does. */
 function expectIncrementalEqualsCold(text: string): void {
   const padded = PADDING + text;
   const offset = padded.indexOf("0");
@@ -57,11 +46,6 @@ function expectIncrementalEqualsCold(text: string): void {
   expect(compileErrors(compiler)).toEqual(sparkdownErrors(edited));
 }
 
-/**
- * The official parser's errors for `text`, moved down by `line` lines and
- * right by `shift` characters, with the bracket positions their messages
- * name (`at column 6`, `at line 2`) moved too.
- */
 function official(text: string, line = 0, shift = 0): string[] {
   return officialErrorList(text)
     .map((error) =>
@@ -79,7 +63,7 @@ describe("an interpolation holding an expression and then a backtick string with
       const luau = `local t = ${string}\n`;
       const expected = official(luau, 1);
       expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
-      expect(sparkdownErrors(`function f()\n${luau}end\nGo {f()}.\n`)).toEqual(expected);
+      expect(sparkdownErrors(`function f()\n${luau}end\n${SCENE}`)).toEqual(expected);
     });
     test(`a story store t = ${string}`, () => {
       expect(sparkdownErrors(`store t = ${string}\n`)).toEqual(official(`local t = ${string}\n`));
@@ -102,8 +86,6 @@ describe("a story store's run-on value that is a backtick string with interpolat
 });
 
 describe("a malformed interpolation in a scene-level call's argument (I-1433)", () => {
-  // A scene-level call is a Luau statement written after `&`; without it
-  // the line is display text, whose backticks are a raw span, not Luau.
   for (const line of ["print(`a {} b`)", "print(`a {1 2} b`)", "print(`a {x y} b`)", "print(1, `a {} b`)", "print(1, `a {1 2} b`)", "print((`a {} b`))"]) {
     test(`& ${line}`, () => {
       const expected = official(`${line}\n`, 1, 4);
@@ -114,7 +96,6 @@ describe("a malformed interpolation in a scene-level call's argument (I-1433)", 
       expect(sparkdownErrors(`scene start\n  ${line}\n  Hello.\nend\n`)).toEqual([]);
     });
   }
-  // The positions that already reported the string's errors keep them.
   for (const line of ["s = `a {} b`", "local x = print(`a {} b`)"]) {
     test(`unchanged: ${line}`, () => {
       expect(sparkdownErrors(`scene start\n  ${line}\n  Hello.\nend\n`)).toEqual(official(`${line}\n`, 1, 2));
@@ -128,15 +109,11 @@ describe("an interpolation left open inside a call reads on from the line after 
       const luau = `function run()\n${body}end\n`;
       const expected = official(luau);
       expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
-      expect(sparkdownErrors(`${luau}After {run()}.\n`)).toEqual(expected);
+      expect(sparkdownErrors(`${luau}${SCENE}`)).toEqual(expected);
     });
   }
 });
 
-// Round 1's boundaries: a string read from text whose section holds a
-// Unicode escape or ends its line, and a string continued through another's
-// sections whose escape is malformed or whose interpolation the grammar
-// leaves open.
 describe("a backtick string's boundaries, as Luau reads them", () => {
   const forms = [
     "1 g(`a \\u{41} b`)",
@@ -161,10 +138,6 @@ describe("a backtick string's boundaries, as Luau reads them", () => {
     "1 `a {1 `b {x} c",
     "`a \\u{41} {x} b`",
   ];
-  // A store ends at its line (its value too), and with an unclosed call its
-  // reading meets the end of its input where Luau's names the next line
-  // (`at line 1`, as for `store s = 1 g(x`, outside this change): those
-  // forms are compared up to that error.
   const callEnd = /^\d+:\d+-1:0 Expected '\)' \(to close '\(' at /;
   for (const value of forms) {
     test(`store s = ${JSON.stringify(value)}`, () => {
@@ -172,33 +145,19 @@ describe("a backtick string's boundaries, as Luau reads them", () => {
       expect(sparkdownErrors(`store s = ${value}\n`).filter((error) => !callEnd.test(error))).toEqual(expected);
     });
   }
-  // In a store, a missing operand in an interpolation (`{x +}`) is the
-  // validator's to report, in its words, which is outside this change. A
-  // continued string whose inner last section is unfinished at its line's
-  // end (`` `a {1 `b {x} c `` and then `` } d` ``) leaves the outer
-  // interpolation open in Luau's lexer across lines where the tree ends the
-  // string at its line (I-1318), which is not part of this change.
   for (const value of [...forms, "`a {1 `b {x +} c`} d`", "1 g(`a \\z\n  {x} b`)", "`a {1 `b {x\n} c`} d`", "`a {1 `b {x} c\nlocal z = {x = 1}", "`a {1 `b {x} c\nlocal z = 1"]) {
     test(`a function's local s = ${JSON.stringify(value)}`, () => {
       const luau = `function f()\nlocal s = ${value}\nend\n`;
-      expect(sparkdownErrors(`${luau}Go {f()}.\n`)).toEqual(official(luau));
+      expect(sparkdownErrors(`${luau}${SCENE}`)).toEqual(official(luau));
     });
   }
-  // `\z` skips only Luau's whitespace, so a no-break space after it leaves
-  // the line break to end the string (round 2).
   test("a \\z escape before a no-break space and a line break", () => {
     const source = "`a \\z\u00a0\n   b`";
-    // The string ends at the line break, and `b` is the next line's.
     expect(readLuauExpressionAfter(0, source).errors[0]?.message).toBe("Malformed string; did you forget to finish it?");
     forgetLookups();
     expect(nextLuauToken(7, source)).toEqual({ text: "b", from: source.indexOf("b") });
   });
 
-  // A store ends at its line: the story after a continued string left open
-  // there is story, not the string's, and reports nothing (round 3). The
-  // string's own error is its line's; which of Luau's words it takes depends
-  // on the lines after it in Luau, which reads on inside the open
-  // interpolation, and is not part of this change.
   test("a store whose continued string is left open at its line, before story lines", () => {
     const text = "store s = `a {1 `b {x} c\nHello.\n} d`\nstore t = 1\n";
     const errors = sparkdownErrors(text);
@@ -206,9 +165,6 @@ describe("a backtick string's boundaries, as Luau reads them", () => {
     expect(errors[0]).toMatch(/^0:21-0:24 Malformed interpolated string; /);
   });
 
-  // Whether a `}` closing the outer interpolation follows a broken inner
-  // section is read from the unit's own next token: nothing a bounded read
-  // leaves out, nor story the unit does not hold (round 4).
   test("a broken inner section's words, read no further than the bound", () => {
     const source = "`a {1 `b {x} c} d`";
     const bounded = readLuauExpressionAfter(0, source, 14);
@@ -242,16 +198,12 @@ describe("a backtick string's boundaries, as Luau reads them", () => {
   });
 });
 
-/** Empties the lookups' tokens, so the next lookup lexes the whole document. */
 function forgetLookups() {
   nextLuauToken(0, "");
 }
 
-// The lookups' lexer keeps the tokens before an edit and lexes on from the
-// last of them, inside the interpolations it leaves open (round 1).
 describe("the lookups after an edit inside a backtick string's interpolation", () => {
   const forget = () => nextLuauToken(0, "");
-  /** The next token a lex of the whole document gives, as `nextLuauToken` gives it. */
   const fresh = (from: number, source: string) => {
     const token = lexLuauDocumentForTesting(source).find((candidate) => candidate.from >= from);
     if (!token) return null;
@@ -307,7 +259,6 @@ describe("the lookups after an edit inside a backtick string's interpolation", (
       const tokens = probes.map((from) => fresh(from, source));
       forget();
       expect(found, `step ${step}`).toEqual({ tokens, expression: readLuauExpressionAfter(probes[0]!, source) });
-      // Carry the lookups' tokens on from this document, as an editing session does.
       nextLuauToken(source.length, source);
     }
   });

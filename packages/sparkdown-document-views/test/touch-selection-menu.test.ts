@@ -1,12 +1,3 @@
-// The touch text-selection menu and handles (#789) behave like Android's
-// native floating selection toolbar: where the menu goes, what a menu tap does
-// to focus and the selection, when the menu closes, and which gestures open it.
-//
-// jsdom has no layout, so each test gives the editor a fixed one: lines are
-// 16px tall and characters 8px wide, starting at the scroller's top-left
-// corner, and `scrollOffset` stands in for the scroller's scroll position. The
-// visual viewport is the phone's with the keyboard open (384 x 383) unless a
-// test changes it.
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
@@ -25,7 +16,6 @@ const WINDOW_HEIGHT = 693;
 const KEYBOARD_OPEN_HEIGHT = 383;
 const MAX_SCROLL_TOP = 500;
 
-// The rendered sizes of the two menu shapes.
 const BAR = { width: 324, height: 41 };
 const LIST = { width: 180, height: 190 };
 
@@ -67,7 +57,6 @@ beforeEach(() => {
     value: 384,
     configurable: true,
   });
-  // CodeMirror keeps tooltips inside the document element's client area.
   Object.defineProperty(document.documentElement, "clientWidth", {
     value: 384,
     configurable: true,
@@ -88,7 +77,6 @@ beforeEach(() => {
   });
   Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
   Range.prototype.getBoundingClientRect = () => new DOMRect();
-  // A menu reports its size at the position the tooltip gave it.
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
     function (this: HTMLElement) {
       if (this.classList.contains("cm-context-menu")) {
@@ -113,8 +101,6 @@ afterEach(() => {
   delete (navigator as { maxTouchPoints?: number }).maxTouchPoints;
 });
 
-/** An editor with the web editor's touch handler and menu, laid out on the
- *  fixed grid described at the top of this file. */
 function mount(doc: string, selection?: EditorSelection) {
   const parent = document.createElement("div");
   document.body.appendChild(parent);
@@ -133,7 +119,6 @@ function mount(doc: string, selection?: EditorSelection) {
     ],
   });
   const v = view;
-  // A scroller stops at its ends, which is what ends a fling's momentum.
   let scrollTop = 0;
   Object.defineProperty(v.scrollDOM, "scrollTop", {
     get: () => scrollTop,
@@ -157,8 +142,6 @@ function mount(doc: string, selection?: EditorSelection) {
     const top = scroller.top - scrollOffset + (line.number - 1) * LINE_HEIGHT;
     return { left, right: left, top, bottom: top + LINE_HEIGHT };
   };
-  // Like CodeMirror's, a point above the text gives the document's start and
-  // one below it gives the document's end.
   v.posAtCoords = ((coords: { x: number; y: number }) => {
     const number =
       Math.floor((coords.y - scroller.top + scrollOffset) / LINE_HEIGHT) + 1;
@@ -186,7 +169,6 @@ function mount(doc: string, selection?: EditorSelection) {
   return v;
 }
 
-/** Client coordinates of the middle of `text` on line `lineNumber`. */
 function pointAt(v: EditorView, lineNumber: number, text: string) {
   const line = v.state.doc.line(lineNumber);
   const from = line.from + line.text.indexOf(text);
@@ -222,7 +204,6 @@ function longPress(v: EditorView, point: { x: number; y: number }) {
   touch(v.scrollDOM, "touchend", point);
 }
 
-/** A vertical drag in the editor from client y `fromY` to `toY`. */
 function swipe(v: EditorView, fromY: number, toY: number) {
   const x = 200;
   touch(v.scrollDOM, "touchstart", { x, y: fromY });
@@ -252,9 +233,6 @@ function menuItem(label: string) {
   )!;
 }
 
-/** Runs CodeMirror's pending layout reads and writes now, as the next
- *  animation frame would. `measure` is public at runtime but left out of the
- *  published types. */
 function flushMeasure() {
   (view as unknown as { measure(): void }).measure();
 }
@@ -294,8 +272,6 @@ function selectWord(v: EditorView, lineNumber: number, word: string) {
 describe("menu placement", () => {
   it("sits above the selection, outside the editor, when the editor is too short to hold it", () => {
     const v = mount(DOC);
-    // Line 1 is at the very top of a 150px editor: no room above it inside
-    // the editor, but room above it in the viewport, over the page header.
     selectWord(v, 1, "world");
     const box = menuBox();
     const selectionTop = v.coordsAtPos(v.state.selection.main.from)!.top;
@@ -313,7 +289,6 @@ describe("menu placement", () => {
   });
 
   it("is centred over the selection", () => {
-    // Wide enough that the viewport's edges do not clamp the menu.
     viewport.width = 800;
     Object.defineProperty(document.documentElement, "clientWidth", {
       value: 800,
@@ -328,8 +303,6 @@ describe("menu placement", () => {
 
   it("sits beside a caret at a soft wrap, on the line where the caret is drawn", () => {
     const v = mount(DOC, EditorSelection.single(30));
-    // Position 30, inside line 2, is made a soft wrap: its side before is on
-    // line 2's row and its side after on the row below.
     const layout = v.coordsAtPos.bind(v);
     v.coordsAtPos = (pos: number, side = 1) => {
       if (pos !== 30) return layout(pos, side);
@@ -366,7 +339,6 @@ describe("menu placement", () => {
   });
 
   it("comes back beside its selection from the overflow list after an edit the user did not make", () => {
-    // Wide enough that the viewport's edges do not clamp the menu.
     viewport.width = 800;
     Object.defineProperty(document.documentElement, "clientWidth", {
       value: 800,
@@ -443,7 +415,6 @@ describe("menu items", () => {
     expect(v.state.selection.main.from).toBe(0);
     expect(v.state.selection.main.to).toBe(v.state.doc.length);
     expect(isContextMenuOpen(v)).toBe(true);
-    // The document's start is in view; its end is scrolled far below.
     expect(handleShown("start")).toBe(true);
   });
 
@@ -477,15 +448,12 @@ describe("closing the menu", () => {
     const v = mount(DOC);
     selectWord(v, 3, "world");
     const before = menuBox();
-    // Text added to line 1 shifts every later offset by 20 without moving
-    // the selection off line 3; its old offsets now fall on line 2.
     v.dispatch({ changes: { from: 0, insert: "x".repeat(20) } });
     const after = menuBox();
     expect(after.top).toBeCloseTo(before.top, 0);
   });
 
   it("a change the user did not make at the selection's start keeps it beside the selection", () => {
-    // Wide enough that the viewport's edges do not clamp the menu.
     viewport.width = 800;
     Object.defineProperty(document.documentElement, "clientWidth", {
       value: 800,
@@ -493,8 +461,6 @@ describe("closing the menu", () => {
     });
     const v = mount(DOC);
     const { from } = selectWord(v, 3, "world");
-    // Inserted exactly at the selection's start, as CodeMirror maps it, the
-    // text stays outside the selection.
     v.dispatch({ changes: { from, insert: "x".repeat(20) } });
     const { from: movedFrom, to: movedTo } = v.state.selection.main;
     expect(v.state.sliceDoc(movedFrom, movedTo)).toBe("world");
@@ -544,8 +510,6 @@ describe("touch gestures", () => {
   it("a long-press past the end of a word that wraps places the caret there", () => {
     const WRAP = 15;
     const v = mount("averyveryverylongidentifier");
-    // The word's first 15 characters fill the first row and the rest wrap
-    // onto the second.
     v.coordsAtPos = (pos: number) => {
       const row = pos > WRAP ? 1 : 0;
       const left = TEXT_LEFT + (row ? pos - WRAP : pos) * CHAR_WIDTH;
@@ -576,8 +540,6 @@ describe("touch gestures", () => {
 
   it("a long-press on a word, below its glyphs but inside its row, selects it", () => {
     const v = mount(DOC);
-    // Glyphs are shorter than their row, as in a real line box: the text box
-    // CodeMirror reports leaves 4px of the row below it.
     const layout = v.coordsAtPos.bind(v);
     v.coordsAtPos = (pos: number, side?: -1 | 1) => {
       const box = layout(pos, side)!;
@@ -609,22 +571,18 @@ describe("touch gestures", () => {
     const v = mount(DOC);
     v.focus();
     longPress(v, pointAt(v, 3, "world"));
-    // The menu first: pressing a handle hides the menu for the drag.
     const targets = [
       () => menuItem("Copy"),
       () => v.dom.querySelector(".cm-touch-selection-handle-end")!,
     ];
     for (const find of targets) {
       const target = find();
-      // Chrome's own long-press gesture takes focus to nowhere while the
-      // finger is still down.
       touch(target, "touchstart", { x: 0, y: 0 });
       v.contentDOM.blur();
       await Promise.resolve();
       expect(v.hasFocus).toBe(true);
       touch(target, "touchend", { x: 0, y: 0 });
     }
-    // With no touch down, leaving the editor is the user's choice.
     v.contentDOM.blur();
     await Promise.resolve();
     expect(v.hasFocus).toBe(false);
@@ -682,7 +640,6 @@ describe("touch gestures", () => {
     v.focus();
     const point = pointAt(v, 3, "world");
     tap(v, point);
-    // Sideways, so the drag leaves no momentum for the next tap to stop.
     touch(v.scrollDOM, "touchstart", point);
     touch(v.scrollDOM, "touchmove", { x: point.x + 50, y: point.y });
     touch(v.scrollDOM, "touchend", { x: point.x + 50, y: point.y });
@@ -717,7 +674,6 @@ describe("touch gestures", () => {
 
     hideContextMenu(v);
     swipe(v, 240, 140);
-    // Watch every frame until any momentum has run out.
     for (let frame = 0; frame < 120; frame++) {
       await new Promise((resolve) => requestAnimationFrame(resolve));
       expect(isContextMenuOpen(v)).toBe(false);
@@ -753,8 +709,6 @@ describe("touch gestures", () => {
     first.focus();
     longPress(first, pointAt(first, 3, "world"));
     expect(isContextMenuOpen(first)).toBe(true);
-    // A scroll hides the menu, and the view is replaced before the finger
-    // lifts, as when the open document changes.
     touch(first.scrollDOM, "touchstart", { x: 200, y: 240 });
     touch(first.scrollDOM, "touchmove", { x: 200, y: 190 });
     first.destroy();

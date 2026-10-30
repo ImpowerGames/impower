@@ -763,69 +763,66 @@ function workaroundNameReason(name, root) {
   return `\`${name}\` is neither a dependency in a package-lock.json nor a platform listed in .agents/hooks/${configFile}`;
 }
 
-function licenceNotice(lines, file, root) {
+function licenceNotice(lines) {
   const body = lines.join("\n");
-  return licences.some(({ form, file: group }) => {
-    const match = form.exec(body);
-    if (!match) return false;
-    if (!group) return true;
-    for (let dir = path.posix.dirname(posix(file)); ; dir = path.posix.dirname(dir)) {
-      if (fs.existsSync(path.join(root, dir, match[group]))) return true;
-      if (dir === "." || dir === "/" || dir === "") return false;
-    }
-  });
+  return licences.some(({ form }) => form.test(body));
 }
 
 const JS_DOC_EXTENSIONS = new Set([".js", ".mjs", ".cjs"]);
-const JSDOC_TYPE_TAGS = new Set(["type", "param", "arg", "argument", "returns", "return", "property", "prop", "typedef", "template", "callback", "satisfies", "this", "enum", "import", "overload", "extends", "augments", "implements"]);
-const JSDOC_UNTYPED_TAGS = new Set(["typedef", "template", "callback", "import", "overload"]);
 
-function jsdocParts(comment) {
-  let body = comment.slice(3);
-  if (body.endsWith("*/")) body = body.slice(0, -2);
-  const text = body
-    .split(/\r\n|\n|\r|\u2028|\u2029/)
-    .map((line) => line.replace(/^\s*\*(?!\/)\s?/, "").replace(/\s+\*+$/, "").replace(/\s+$/, ""))
-    .join("\n");
-  const starts = [];
-  let depth = 0;
-  for (let i = 0; i < text.length; i++) {
-    if (text[i] === "{") depth++;
-    else if (text[i] === "}") depth = Math.max(0, depth - 1);
-    else if (text[i] === "@" && depth === 0 && (i === 0 || /\s/.test(text[i - 1])) && /[A-Za-z]/.test(text[i + 1] ?? "")) starts.push(i);
-  }
-  const tags = starts.map((start, k) => {
-    const raw = text.slice(start, starts[k + 1] ?? text.length).replace(/\s+$/, "");
-    const name = /^@([A-Za-z]+)/.exec(raw)[1];
-    const rest = raw.slice(name.length + 1);
-    const read = JSDOC_TYPE_TAGS.has(name) && (/^\s*\{/.test(rest) || JSDOC_UNTYPED_TAGS.has(name) || (name === "type" && /^\s+[A-Za-z_$][\w$.]*(?:<[^<>]*>)?(?:\[\])*$/.test(rest)));
-    return { name, raw, read };
-  });
-  return { prose: text.slice(0, starts[0] ?? text.length).trim(), tags };
+function jsdocTypescript(file, options) {
+  if (!JS_DOC_EXTENSIONS.has(path.posix.extname(posix(file)).toLowerCase())) return null;
+  return options.scanner === "fallback" ? null : loadTypescript(options.root ?? defaultRoot);
 }
 
-function jsdocKeptLines(comment, file) {
-  if (!JS_DOC_EXTENSIONS.has(path.posix.extname(posix(file)).toLowerCase()) || !comment.startsWith("/**")) return [];
-  return jsdocParts(comment).tags.filter((t) => t.read).flatMap((t) => t.raw.split("\n"));
+function readTag(ts, tag) {
+  const { SyntaxKind: K } = ts;
+  if (tag.kind === K.JSDocParameterTag || tag.kind === K.JSDocPropertyTag || tag.kind === K.JSDocReturnTag) return Boolean(tag.typeExpression);
+  const read = ["JSDocTypeTag", "JSDocTypedefTag", "JSDocTemplateTag", "JSDocCallbackTag", "JSDocSatisfiesTag", "JSDocThisTag", "JSDocEnumTag", "JSDocImportTag", "JSDocOverloadTag", "JSDocAugmentsTag", "JSDocImplementsTag", "JSDocPrivateTag", "JSDocProtectedTag", "JSDocPublicTag", "JSDocReadonlyTag", "JSDocOverrideTag", "JSDocDeprecatedTag", "JSDocClassTag"];
+  return read.some((name) => K[name] !== undefined && tag.kind === K[name]);
 }
 
-export function classifyComment(text, file, { root = defaultRoot } = {}) {
+function jsdocTags(ts, comment) {
+  const source = ts.createSourceFile("probe.js", `${comment}\nvar probe;`, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const docs = source.statements[0]?.jsDoc;
+  const doc = docs?.[docs.length - 1];
+  if (!doc || doc.end !== comment.length) return null;
+  const prose = typeof doc.comment === "string" ? doc.comment : (doc.comment ?? []).map((part) => source.text.slice(part.pos, part.end)).join("");
+  const tags = (doc.tags ?? []).map((tag) => ({
+    read: readTag(ts, tag),
+    text: source.text.slice(tag.getStart(source), tag.end).replace(/\s+$/, "").replace(/(?:\r\n|[\n\r])[ \t]*\*$/, "").replace(/\s+$/, ""),
+  }));
+  return { prose: prose.trim(), tags };
+}
+
+function jsdocKeptTags(comment, file, options) {
+  if (!comment.startsWith("/**")) return null;
+  const ts = jsdocTypescript(file, options);
+  if (!ts) return /(?:^|\s)@[A-Za-z]/.test(comment) && JS_DOC_EXTENSIONS.has(path.posix.extname(posix(file)).toLowerCase()) ? { whole: true } : null;
+  const parsed = jsdocTags(ts, comment);
+  const kept = parsed?.tags.filter((t) => t.read).map((t) => t.text) ?? [];
+  return kept.length ? { kept } : null;
+}
+
+export function classifyComment(text, file, options = {}) {
+  const root = options.root ?? defaultRoot;
   const rel = posix(file);
   if (exemptPath(rel)) return { kind: "exempt", reason: `${rel} is under a path the rule exempts` };
   const extension = path.posix.extname(rel).toLowerCase();
   if (!FAMILIES[extension]) return { kind: "exempt", reason: `${extension || rel} is not a code file type the rule covers` };
   const lines = bodyLines(text);
   if (!lines.length) return { kind: "refused", reason: "an empty comment" };
-  if (licenceNotice(lines, rel, root)) return { kind: "licence", reason: "a licence or copyright notice" };
+  if (licenceNotice(lines)) return { kind: "licence", reason: "a licence or copyright notice" };
   if (/^workaround\b/i.test(lines[0])) {
     const marker = /^workaround\(([^()\s]+)\):\s*\S/.exec(lines[0]);
     if (!marker) return { kind: "refused", reason: "a workaround note takes the form `workaround(<name>): <what the dependency or platform does wrong, with the version or link that retires the note>`" };
     const reason = workaroundNameReason(marker[1], root);
     return reason ? { kind: "refused", reason } : { kind: "workaround", reason: `a workaround note for \`${marker[1]}\`` };
   }
-  if (JS_DOC_EXTENSIONS.has(extension) && text.startsWith("/**")) {
-    const { prose, tags } = jsdocParts(text);
-    if (tags.length && !prose && tags.every((t) => t.read)) return { kind: "directive", reason: "JSDoc type tags TypeScript reads" };
+  if (text.startsWith("/**")) {
+    const ts = jsdocTypescript(rel, options);
+    const parsed = ts && jsdocTags(ts, text);
+    if (parsed?.tags.length && !parsed.prose && parsed.tags.every((t) => t.read)) return { kind: "directive", reason: "JSDoc tags TypeScript reads" };
   }
   if (lines.every((line) => directiveLine(line, extension))) return { kind: "directive", reason: "a directive a tool reads" };
   return { kind: "refused", reason: "neither a directive a tool reads nor a `workaround(<name>):` note" };
@@ -866,7 +863,7 @@ export function judgeComments(text, file, options = {}) {
     }
     for (const p of paragraphs) {
       if (!p.members) continue;
-      p.licence = p.members.length > 1 ? licenceNotice(p.members.flatMap((c) => bodyLines(c.text)), file, options.root ?? defaultRoot) : p.members[0].kind === "licence";
+      p.licence = p.members.length > 1 ? licenceNotice(p.members.flatMap((c) => bodyLines(c.text))) : p.members[0].kind === "licence";
       if (p.licence) for (const c of p.members) if (c.kind === "refused") Object.assign(c, { kind: "licence", reason: `part of the licence notice on line ${p.members[0].line}` });
     }
     paragraphs.forEach((p, k) => {
@@ -901,16 +898,20 @@ export function stripComments(text, file, options = {}) {
   const eol = text.includes("\r\n") ? "\r\n" : "\n";
   const removals = [];
   for (const c of refused) {
-    const kept = family === "js" ? jsdocKeptLines(c.text, file) : [];
-    if (!kept.length) {
+    const jsdoc = family === "js" ? jsdocKeptTags(c.text, file, options) : null;
+    if (jsdoc?.whole) continue;
+    if (!jsdoc) {
       removals.push(c);
       continue;
     }
+    const kept = jsdoc.kept;
     const before = text.slice(c.lineStart, c.start);
     const alone = /^[ \t]*$/.test(before);
     const pad = alone ? before : "";
     const breaks = /[\n\r\u2028\u2029]/.test(c.text);
-    const replacement = kept.length === 1 && (alone || !breaks) ? `/** ${kept[0]} */` : `/**${eol}${kept.map((line) => `${pad} *${line ? ` ${line}` : ""}`).join(eol)}${eol}${pad} */`;
+    const single = kept.length === 1 && !/[\n\r]/.test(kept[0]) && (alone || !breaks);
+    const block = kept.map((tag) => tag.split(/\r\n|[\n\r]/).map((line, k) => (k ? line : `${pad} * ${line}`)).join(eol)).join(eol);
+    const replacement = single ? `/** ${kept[0]} */` : `/**${eol}${block}${eol}${pad} */`;
     cuts.push({ from: c.start, to: c.end, replacement, rewrite: true });
   }
   const removed = new Uint8Array(text.length);
@@ -951,17 +952,21 @@ export function stripComments(text, file, options = {}) {
     } else merged.push({ ...cut });
   }
   const blankLine = (k) => k >= 0 && k < starts.length && !text.slice(starts[k], ends[k]).trim();
+  const lineText = (k) => (k >= 0 && k < starts.length ? text.slice(starts[k], ends[k]) : "");
   for (const cut of merged) {
     if (!cut.whole) continue;
     const first = lineOf(cut.from);
+    const after = cut.to < text.length ? lineOf(cut.to) : -1;
     const blankBefore = first === 0 || blankLine(first - 1);
-    if (blankBefore && cut.to < text.length && blankLine(lineOf(cut.to))) cut.to = nextLine(cut.to);
+    if (blankBefore && after >= 0 && blankLine(after)) cut.to = nextLine(cut.to);
     else if (cut.to >= text.length && first > 0 && blankLine(first - 1)) cut.from = starts[first - 1];
+    else if (first > 0 && /[{([]\s*$/.test(lineText(first - 1)) && after >= 0 && blankLine(after)) cut.to = nextLine(cut.to);
+    else if (first > 0 && blankLine(first - 1) && after >= 0 && /^\s*[})\]]/.test(lineText(after))) cut.from = starts[first - 1];
   }
   let out = "", at = 0;
   for (const cut of merged) {
-    if (cut.from < at) continue;
-    out += text.slice(at, cut.from) + (cut.replacement ?? "");
+    if (cut.to <= at) continue;
+    out += text.slice(at, Math.max(at, cut.from)) + (cut.replacement ?? "");
     at = cut.to;
   }
   return out + text.slice(at);

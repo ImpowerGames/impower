@@ -1,8 +1,3 @@
-// LocalShadow (I-602): a used local in a function that hides an earlier local
-// of the same function, or a global the whole program uses. The upstream
-// cases are in `luau-conformance/LintCandidatesScope.test.ts`; these are the
-// controls around them and the program-wide form.
-
 import { describe, expect, test } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { testCompiler } from "../engineUnderTest";
@@ -15,8 +10,6 @@ const programShadows = (sources: Record<string, string>) =>
   diagnoseFilesDetailed(sources)
     .filter((d) => d.code === "LocalShadow")
     .map((d) => `${d.file}: ${d.message}`);
-// Only main runs lines outside a scene, so another script's lines run in one,
-// a line below where the script would otherwise write them.
 const inScene = (body: string) => `scene uses\n${body.replace(/^(?=.)/gm, "  ")}end\n`;
 
 describe("LocalShadow within a function", () => {
@@ -58,10 +51,6 @@ describe("LocalShadow within a function", () => {
     expect(inFunction(body)).toEqual([`Variable '${name}' shadows previous declaration at line ${line}`]);
   });
 
-  // luau-analyze 0.721 reports exactly these two: a parameter or loop
-  // variable hiding another is silent unless the hidden loop variable is
-  // never used (Luau's DuplicateLocal exemption compares their absent
-  // declaring statements).
   test("parameters and loop variables hide each other as in Luau", () => {
     expect(
       messages(`function f(p)
@@ -81,7 +70,6 @@ end
   });
 
   test("a keyword the grammar reads in place of a name silences that name", () => {
-    // `match(1)` is read as the start of a `match` block, not a call of the local.
     const source = (call: string) => `function f()\n local match = print\n local match = print\n print(match)${call}\nend\n`;
     expect(messages(source(""))).toEqual(["Variable 'match' shadows previous declaration at line 2"]);
     expect(messages(source("\n match(1)"))).toEqual([]);
@@ -119,7 +107,6 @@ describe("LocalShadow of a global", () => {
   });
 
   test("a constant with no use is not a use", () => {
-    // The other script is read: a write there is a use, which warns.
     expect(programShadows({ "main.sd": "Ready.\n", "subject.sd": subject, "use.sd": inScene("& state = 1\n") })).not.toEqual([]);
     expect(programShadows({ "main.sd": "Ready.\n", "subject.sd": subject, "use.sd": "const state = 1\n" })).toEqual([]);
   });
@@ -131,7 +118,6 @@ describe("LocalShadow of a global", () => {
   });
 
   test("a local declared outside every function anywhere in the program silences the name", () => {
-    // The other script is read: a write there is a use, which warns.
     expect(programShadows({ "main.sd": "Ready.\n", "subject.sd": subject, "use.sd": inScene("& state = 1\n") })).not.toEqual([]);
     expect(programShadows({ "main.sd": "Ready.\n", "subject.sd": subject, "use.sd": inScene("& local state = 1\nState: {state}.\n") })).toEqual([]);
   });
@@ -153,7 +139,6 @@ describe("LocalShadow of a global", () => {
     ["a scene parameter after the use", `${inScene("& state = 1\n")}scene inspect(state)\n State: {state}.\nend\n`, {}],
     ["a Sparkle handler's local", `${inScene("& state = 1\n")}layout main with\n button @click={ local state = 3; print(state) }\nend\n`, {}],
     ["another script's scene parameter", inScene("& state = 1\n"), { "flow.sd": "scene inspect(state)\n & print(state)\nend\n" }],
-    // The reading declares a nested branch's parameters as a local of its scene.
     ["another script's nested branch parameter", inScene("& state = 1\n"), { "flow.sd": "scene inspect()\n branch inner(state)\n  State: {state}.\n end\nend\n" }],
   ])("%s does not hide a global use elsewhere", (_label, use, more) => {
     expect(programShadows({ "main.sd": "Ready.\n", "subject.sd": subject, "use.sd": use, ...more })).toEqual([
@@ -186,9 +171,7 @@ describe("LocalShadow of a global", () => {
   test("a name on a line with a syntax error is not a use", () => {
     const sources = (name: string, use: string) => ({ "main.sd": "Ready.\n", "subject.sd": `function f()\n local ${name} = 2\n return ${name}\nend\n`, "use.sd": inScene(use) });
     expect(programShadows(sources("i", "& i = 1\n"))).toEqual(["subject.sd: Variable 'i' shadows a global variable used at line 2 in 'use.sd'"]);
-    // Luau's integer literal suffix, which the reading takes for a name.
     expect(programShadows(sources("i", "& v = 0x10i\n"))).toEqual([]);
-    // Every name on that line, the write before the error included.
     expect(programShadows(sources("v", "& v = 0x10i\n"))).toEqual([]);
     expect(programShadows(sources("v", "& v = 0x10i\n& v = 1\n"))).toEqual(["subject.sd: Variable 'v' shadows a global variable used at line 3 in 'use.sd'"]);
   });
@@ -203,7 +186,6 @@ describe("LocalShadow of a global", () => {
     const sources = (use: string) => ({ "main.sd": "Ready.\n", "subject.sd": "function f()\n local match = print\n return match\nend\n", "use.sd": inScene(use) });
     expect(programShadows(sources("& match = 1\n"))).toEqual(["subject.sd: Variable 'match' shadows a global variable used at line 2 in 'use.sd'"]);
     expect(programShadows(sources("& match = 1\n& local v = match(1) | a = 1 end\n"))).toEqual([]);
-    // A structural word with no arms is a name (I-1310): its call is a use.
     expect(programShadows(sources("& match(1)\n"))).toEqual(["subject.sd: Variable 'match' shadows a global variable used at line 2 in 'use.sd'"]);
   });
 

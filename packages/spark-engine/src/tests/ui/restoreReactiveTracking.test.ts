@@ -14,7 +14,7 @@ layout main with
   }
 end
 
--> start
+
 scene start
   Hello.
 end
@@ -128,7 +128,7 @@ describe("reactive dependency tracking survives story-state replacement", () => 
   });
 
   test("restore matches what mount decided (no layouts → no independent opt-in)", async () => {
-    const h = createHarness(`-> start\nscene start\n  Hello.\nend\n`);
+    const h = createHarness(`\nscene start\n  Hello.\nend\n`);
     await h.ready;
     const atMount = depsEnabled(h.game);
     (h.game as any).rewindStory();

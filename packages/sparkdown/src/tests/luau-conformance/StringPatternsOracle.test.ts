@@ -1,16 +1,3 @@
-// Parametric conformance tests for Lua patterns: every test case
-// runs against BOTH sparkdown's pattern engine (compiled to JS
-// regex via `luaPatternToJs`) and fengari (a Lua 5.3 VM in JS).
-// Both must agree, byte-for-byte, on ASCII inputs.
-//
-// When sparkdown diverges from upstream Lua, this is the test file
-// that fails. Hand-coded expected values live in
-// StringPatterns.test.ts; this file is the oracle backstop.
-//
-// Phase 4 patterns (`%b`, `%f`, `()`) are NOT in this file — they
-// throw `LuaPatternError` on the sparkdown side today. They'll be
-// added as those features land.
-
 import { describe, expect, test } from "vitest";
 import {
   executeLuaPattern,
@@ -24,10 +11,6 @@ import {
   fengariMatch,
 } from "./_fengariOracle";
 
-// Mirror of `StdLib.resolveInit` — inlined here to avoid pulling the
-// full inkjs module graph (Container/Object circular import) into
-// this test file. Translates Lua's 1-indexed `init` (with negative-
-// counts-from-end support) to a 1-based start position.
 function resolveInit(init: number, strLen: number): number {
   let i = Math.floor(init);
   if (i < 0) i = Math.max(strLen + i + 1, 1);
@@ -35,13 +18,6 @@ function resolveInit(init: number, strLen: number): number {
   if (i > strLen + 1) i = strLen + 1;
   return i;
 }
-
-// ============================================================
-// Sparkdown-side implementations (direct calls into the JS-level
-// matcher, bypassing the runtime). This lets us compare *exactly*
-// the matcher's output against fengari, without runtime-layer
-// boxing / unboxing noise.
-// ============================================================
 
 function sparkdownFind(
   s: string,
@@ -197,39 +173,28 @@ function sparkdownGsub(
   return [out.join(""), count];
 }
 
-// ============================================================
-// Parametric cases — `[input, pattern]` for the no-arg ops, plus
-// op-specific variants where extra args matter.
-// ============================================================
-
 const FIND_MATCH_CASES: Array<[string, string]> = [
-  // Balanced match `%b{xy}` — segmented matcher.
   ["before (a (b c) d) after", "%b()"],
   ["(unbalanced", "%b()"],
   ["{x {y} z}", "%b{}"],
-  ["foo (bar) baz (qux)", "%b()"], // first balanced group
+  ["foo (bar) baz (qux)", "%b()"],
   ["empty()", "%b()"],
   ["prefix [a [b] c] suffix", "%b[]"],
-  // Balanced combined with surrounding pattern segments.
   ["fn(args)", "%a+%b()"],
   ["x(1) y(2)", "(%a)%b()"],
-  // Position capture `()` — yields 1-indexed position as integer.
-  ["hello", "()"], // position-at-start
-  ["hello", "()hello"], // position before whole-string match
-  ["hello world", "(%a+)() (%a+)"], // mixed string + position captures
-  ["abcdef", "abc()def"], // position between two literal segments
-  ["abc", "(%a)()(%a)"], // string + position + string
-  // Frontier `%f[set]` — word-boundary-like assertion.
-  ["the dog ate", "%f[%a]%a+"], // first word
-  ["123 abc 456 def", "%f[%a]%a+"], // first alpha run
-  ["abc123def", "%f[%d]%d+"], // first digit run inside an alpha context
-  ["hello world", "%f[%w]%w+%f[%W]"], // both edges of first word
-  ["abcdef", "%f[%a]"], // zero-width assertion at start
-  ["   abc", "%f[%a]"], // zero-width before first letter
-  // Literal substring.
+  ["hello", "()"],
+  ["hello", "()hello"],
+  ["hello world", "(%a+)() (%a+)"],
+  ["abcdef", "abc()def"],
+  ["abc", "(%a)()(%a)"],
+  ["the dog ate", "%f[%a]%a+"],
+  ["123 abc 456 def", "%f[%a]%a+"],
+  ["abc123def", "%f[%d]%d+"],
+  ["hello world", "%f[%w]%w+%f[%W]"],
+  ["abcdef", "%f[%a]"],
+  ["   abc", "%f[%a]"],
   ["hello world", "world"],
   ["abc", "xyz"],
-  // Character classes.
   ["abc 12345 def", "%d+"],
   ["123 abc 456", "%a+"],
   ["a1b2c3", "%a%d"],
@@ -237,30 +202,25 @@ const FIND_MATCH_CASES: Array<[string, string]> = [
   ["foo bar BAZ", "%l+"],
   ["abc!def?ghi.", "%p"],
   ["abc def", "%s+"],
-  ["abc_def", "%w+"], // Lua's %w EXCLUDES `_` — divergence from JS \w
+  ["abc_def", "%w+"],
   ["x1y_z9", "[%a%d]+"],
-  // Anchors.
   ["abc123", "^%a+"],
   ["123abc", "^%a+"],
   ["file.txt", "%.txt$"],
   ["file.sd", "%.txt$"],
-  // Captures.
   ["hello world", "(%a+) world"],
   ["2026-05-20", "(%d+)-(%d+)-(%d+)"],
   ["k=v", "(%a+)=(%a+)"],
-  // Quantifiers.
   ["color", "colou?r"],
   ["colour", "colou?r"],
-  ["<a><b>", "<(.-)>"], // Lazy
-  ["<a><b>", "<(.*)>"], // Greedy
+  ["<a><b>", "<(.-)>"],
+  ["<a><b>", "<(.*)>"],
   ["aaaa", "a*"],
   ["bbb", "a*"],
   ["aaaa", "a+"],
   ["bbb", "a+"],
-  // Escaped magic chars.
   ["1+1=2", "1%+1"],
   ["a.b.c", "%."],
-  // Sets and negation.
   ["abc123", "[^%a]+"],
   ["abc XYZ", "[a-z]+"],
   ["abc XYZ", "[A-Z]+"],

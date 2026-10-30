@@ -4,12 +4,8 @@ import { describe, expect, test } from "vitest";
 import { getDocumentSymbols } from "../../utils/providers/getDocumentSymbols";
 import { getFoldingRanges } from "../../utils/providers/getFoldingRanges";
 
-// The outline and the heading folds end a scene or branch at its `end`, so a
-// label or branch declared after a branch's `end` belongs to the scene again.
-
 const URI = "file:///outline.sd";
 
-// Line numbers (from 0) are what the assertions below refer to.
 const CLOSED_BRANCH = `scene A
   choose
     * Go
@@ -90,8 +86,6 @@ describe("provider · outline and folding after a closed branch", () => {
   });
 });
 
-// A function inside a branch, a label in the scene after the branch closes,
-// and a label outside every scene.
 const NESTED_FUNCTION = `scene A
   branch x
     function helper()
@@ -129,7 +123,6 @@ describe("provider · outline and folding around a nested function", () => {
   });
 
   test("a stray end does not reopen a scene the next scene already closed", () => {
-    // Scene A is missing its `end`; the last `end` is stray.
     const { document, annotations, tree } = setup(
       "scene A\n  Hi.\nscene B\n  Bye.\nend\nend\n",
     );
@@ -186,8 +179,6 @@ end
   });
 });
 
-// Luau does not require a function body to be indented, so a function's
-// extent comes from its definition in the tree, not from indentation.
 describe("provider · outline and folding of unindented functions", () => {
   test("a function whose body is not indented spans to its own end", () => {
     const { document, annotations, tree } = setup(

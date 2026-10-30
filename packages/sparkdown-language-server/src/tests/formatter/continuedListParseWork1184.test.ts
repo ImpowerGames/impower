@@ -1,14 +1,7 @@
-// The formatter reads where a list continued after a comma that ends its line
-// ends by parsing the block it stands in again, indented (I-1184). That work
-// grows with the block, not with the block times its continued statements:
-// formatting a function of R short continued reassignments reparses about as
-// many characters per reassignment whatever R is.
-
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { formatSource } from "./formatSource";
 
-// The function of `count` reassignments, each continued onto a second line.
 function continuedReassignments(count: number, indent: string): string {
   const lines = ["function f()", "  local a, b = 0, 0"];
   for (let i = 0; i < count; i++) lines.push(`  a, b = ${i},`, `${indent}${i + 1}`);
@@ -16,7 +9,6 @@ function continuedReassignments(count: number, indent: string): string {
   return lines.join("\n");
 }
 
-// The characters the formatter's list parses read while formatting `source`.
 function reparsedCharacters(source: string): number {
   let characters = 0;
   const parse = TextmateGrammarParser.prototype.parse;
@@ -49,8 +41,6 @@ describe("reparsing continued reassignment lists while formatting", () => {
     const few = reparsedCharacters(continuedReassignments(8, ""));
     const many = reparsedCharacters(continuedReassignments(64, ""));
     expect(few).toBeGreaterThan(0);
-    // 8 times the reassignments: linear work is about 8 times as much,
-    // reparsing every reassignment's rest of the block about 60 times.
     expect(many / few).toBeLessThan(12);
   });
 });

@@ -1,18 +1,3 @@
-// Regression tests for the attrib.luau batch:
-//   - Table/function values as table KEYS use pointer identity
-//     (luauMapKeyString in Story.ts) — self-referential `a[a] = a`
-//     must not recurse, distinct empty tables are distinct keys, and
-//     stdlib markers (`a[print]`) key by tag since each source
-//     reference builds a fresh marker object.
-//   - Stdlib markers compare equal by tag (`a[f] == print` after
-//     storing `print`).
-//   - Call-rooted assignment targets (`f(a)[2] = 10`) decompose via
-//     the expression lowerer when the segment-walk can't root a
-//     VariableReference (multi-target path in lower.ts).
-//   - `;` is a STATEMENT separator owned by LuauBlockBody, not
-//     LuauExpression — `local x = {}; for i=1,n do ... end; return`
-//     on one line parses as three statements (the for-loop previously
-//     degraded into a once-through do-block).
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -55,8 +40,10 @@ function compileAndCapture(source: string): {
 describe("identity-based table keys", () => {
   test("self-referential and chained table keys", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local a = {}
@@ -78,8 +65,10 @@ end
 
   test("stdlib builtins as keys and equality by tag", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function nothing() end
 
@@ -100,8 +89,10 @@ end
 describe("call-rooted assignment targets", () => {
   test("f(a)[k] = v in single and multi-target assignments", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function ident(x) return x end
 
@@ -118,7 +109,6 @@ host_record(c)
 end
 `);
     expect(errors).toEqual([]);
-    // b must see the OLD a[1] (4) — RHS evaluates before any store.
     expect(recorded).toEqual([4, 7, 10, 4, 5]);
   });
 });
@@ -126,8 +116,10 @@ end
 describe("semicolon statement separators", () => {
   test("one-line local; for; return parses as three statements", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+scene start
+  & run()
+  done
+end
 
 function run()
 local unpack = table.unpack

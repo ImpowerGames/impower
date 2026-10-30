@@ -1,16 +1,34 @@
-sparkdown [0..22]
- ├─ Tags [0..21]
- │   ├─ Tags_begin 0
- │   │   └─ Tags_begin_c1 0
- │   ├─ Tags_content [0..21]
- │   │   └─ Tag [0..21]
- │   │       ├─ Tag_c1 0
- │   │       ├─ Tag_c2 [0..1]: "#"
- │   │       └─ Tag_c3 [1..21]
- │   │           └─ TagContent [1..21]
- │   │               ├─ TagContent_begin 1
- │   │               ├─ TagContent_content [1..21]
- │   │               │   └─ TagText [1..21]: " plain tag no interp"
- │   │               └─ TagContent_end 21
- │   └─ Tags_end 21
- └─ Newline [21..22]: "\n"
+sparkdown [0..40]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ Tags [12..35]
+ │   ├─ Tags_begin [12..14]
+ │   │   └─ Tags_begin_c1 [12..14]
+ │   │       └─ RequiredWhitespace [12..14]: "  "
+ │   ├─ Tags_content [14..35]
+ │   │   └─ Tag [14..35]
+ │   │       ├─ Tag_c1 14
+ │   │       ├─ Tag_c2 [14..15]: "#"
+ │   │       └─ Tag_c3 [15..35]
+ │   │           └─ TagContent [15..35]
+ │   │               ├─ TagContent_begin 15
+ │   │               ├─ TagContent_content [15..35]
+ │   │               │   └─ TagText [15..35]: " plain tag no interp"
+ │   │               └─ TagContent_end 35
+ │   └─ Tags_end 35
+ ├─ Newline [35..36]: "\n"
+ ├─ LuauEndKeyword [36..39]: "end"
+ └─ Newline [39..40]: "\n"

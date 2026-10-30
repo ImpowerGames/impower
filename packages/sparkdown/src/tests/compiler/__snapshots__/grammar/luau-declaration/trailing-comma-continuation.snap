@@ -1,4 +1,4 @@
-sparkdown [0..141]
+sparkdown [0..159]
  ├─ LuauFunctionDefinition [0..120]
  │   ├─ LuauFunctionDefinition_begin [0..9]
  │   │   ├─ LuauFunctionDefinition_begin_c1 0
@@ -335,21 +335,38 @@ sparkdown [0..141]
  │   │               └─ OptionalWhitespace 136
  │   └─ LuauSparkdownVariableDefinition_end 136
  ├─ Newline [136..137]: "\n"
- ├─ ImplicitAction [137..140]
- │   ├─ ImplicitAction_begin [137..139]
- │   │   └─ ImplicitAction_begin_c1 [137..139]
- │   │       └─ OptionalWhitespace [137..139]: "  "
- │   ├─ ImplicitAction_content [139..140]
- │   │   └─ ActionLineEnd [139..140]
- │   │       ├─ ActionLineEnd_begin 139
- │   │       │   └─ ActionLineEnd_begin_c1 139
- │   │       │       └─ OptionalWhitespace 139
- │   │       ├─ ActionLineEnd_content [139..140]
- │   │       │   └─ TextChunk [139..140]
- │   │       │       ├─ TextChunk_begin 139
- │   │       │       ├─ TextChunk_content [139..140]
- │   │       │       │   └─ Word [139..140]: "2"
- │   │       │       └─ TextChunk_end 140
- │   │       └─ ActionLineEnd_end 140
- │   └─ ImplicitAction_end 140
- └─ Newline [140..141]: "\n"
+ ├─ Scene [137..148]
+ │   ├─ Scene_begin [137..143]
+ │   │   ├─ Scene_begin_c1 137
+ │   │   │   └─ OptionalWhitespace 137
+ │   │   ├─ Scene_begin_c2 [137..142]
+ │   │   │   └─ SceneKeyword [137..142]: "scene"
+ │   │   └─ Scene_begin_c3 [142..143]
+ │   │       └─ RequiredWhitespace [142..143]: " "
+ │   ├─ Scene_content [143..148]
+ │   │   └─ SceneWithoutParametersDeclaration [143..148]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [143..148]
+ │   │       │   └─ SceneDeclarationName [143..148]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 148
+ │   └─ Scene_end 148
+ ├─ Newline [148..149]: "\n"
+ ├─ ImplicitAction [149..154]
+ │   ├─ ImplicitAction_begin [149..153]
+ │   │   └─ ImplicitAction_begin_c1 [149..153]
+ │   │       └─ OptionalWhitespace [149..153]: "    "
+ │   ├─ ImplicitAction_content [153..154]
+ │   │   └─ ActionLineEnd [153..154]
+ │   │       ├─ ActionLineEnd_begin 153
+ │   │       │   └─ ActionLineEnd_begin_c1 153
+ │   │       │       └─ OptionalWhitespace 153
+ │   │       ├─ ActionLineEnd_content [153..154]
+ │   │       │   └─ TextChunk [153..154]
+ │   │       │       ├─ TextChunk_begin 153
+ │   │       │       ├─ TextChunk_content [153..154]
+ │   │       │       │   └─ Word [153..154]: "2"
+ │   │       │       └─ TextChunk_end 154
+ │   │       └─ ActionLineEnd_end 154
+ │   └─ ImplicitAction_end 154
+ ├─ Newline [154..155]: "\n"
+ ├─ LuauEndKeyword [155..158]: "end"
+ └─ Newline [158..159]: "\n"

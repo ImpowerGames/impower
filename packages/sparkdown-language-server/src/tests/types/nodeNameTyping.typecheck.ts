@@ -9,20 +9,10 @@ import { getOtherNodesInsideParent } from "@impower/textmate-grammar-tree/src/tr
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import { type SyntaxNode, type Tree } from "@lezer/common";
 
-// Compile-time pins for the node-name typing. Nothing here runs: vitest does
-// not pick the file up (it is not a `.test.ts`), and `tsc` checks it as part of
-// this package. Each `@ts-expect-error` line asserts that a name the grammar
-// cannot produce is rejected; if a refactor of the tree helpers or of
-// `GrammarSyntaxNode` ever stops rejecting it, the directive itself becomes
-// the error and the typecheck gate fails. The lines without a directive
-// assert that the shapes the codebase relies on still compile.
-
 declare const tree: Tree;
 declare const plain: SyntaxNode;
 const stack = getStack<SparkdownNodeName>(tree, 0);
 const typed = stack[0] as GrammarSyntaxNode<SparkdownNodeName>;
-
-// A stale name is rejected wherever the parent or the stack is typed.
 
 // @ts-expect-error a name the grammar cannot produce, typed parent
 getDescendent("NotARule_1", typed);
@@ -44,8 +34,6 @@ if (typed.name === "NotARule_7") {
 const badSet = nodeNameSet(["NotARule_8"]);
 void badSet;
 
-// The result of one lookup is a valid parent for the next: the grammar's set
-// travels on `type.name` while `name` narrows to what was looked up.
 const found = getDescendent("FrontMatterField", typed);
 if (found) {
   // @ts-expect-error still rejected through a narrowed node
@@ -56,7 +44,6 @@ if (found) {
   void narrowed;
 }
 
-// Valid names compile in every shape the codebase uses.
 getDescendent("Divert_content", typed);
 getDescendents(["Divert", "DivertPath"], typed);
 getDescendentInsideParent("Divert_content", "Divert", stack);
@@ -66,8 +53,6 @@ void goodSet;
 const plainName: string = plain.name;
 void goodSet.has(plainName);
 
-// A bare lezer node infers `string` and checks nothing; that shape is what
-// scripts/check-node-names.mjs covers.
 getDescendent("NotARule_10", plain);
 
 export {};

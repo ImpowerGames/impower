@@ -53,7 +53,7 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
     const src = [
       "store total = 0",
       "",
-      "scene s0",
+      "scene start",
       "  & g()",
       "  Loop total {total}.",
       "end",
@@ -74,7 +74,7 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
     const src = [
       "store total = 0",
       "",
-      "scene s0",
+      "scene start",
       "  & g()",
       "  Loop total {total}.",
       "end",
@@ -93,9 +93,7 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
     const src = [
       "store total = 0",
       "",
-      "-> main",
-      "",
-      "scene main",
+      "scene start",
       "  for i = 1, 3 do",
       "    total += i",
       "  end",
@@ -103,16 +101,14 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
       "end",
       "",
     ].join("\n");
-    expect(previewedStore(src, 9, "total")).toBe(6);
+    expect(previewedStore(src, 7, "total")).toBe(6);
   }, 120_000);
 
   test("a branch inside a loop takes the program's side on every pass", () => {
     const src = [
       "store total = 0",
       "",
-      "-> main",
-      "",
-      "scene main",
+      "scene start",
       "  for i = 1, 3 do",
       "    if i == 2 then",
       "      total += 10",
@@ -123,16 +119,14 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
       "end",
       "",
     ].join("\n");
-    expect(previewedStore(src, 12, "total")).toBe(16);
+    expect(previewedStore(src, 10, "total")).toBe(16);
   }, 120_000);
 
   test("a short loop runs every pass", () => {
     const src = [
       "store total = 0",
       "",
-      "-> main",
-      "",
-      "scene main",
+      "scene start",
       "  for i = 1, 50 do",
       "    total += 1",
       "  end",
@@ -140,28 +134,28 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
       "end",
       "",
     ].join("\n");
-    expect(previewedStore(src, 9, "total")).toBe(50);
+    expect(previewedStore(src, 7, "total")).toBe(50);
   }, 120_000);
 
-  test("a for loop at story scope", () => {
+  test("a for loop at the top of the start scene", () => {
     const src = [
       "store x = 0",
-      "for i = 1, 3 do",
-      "  x = i",
+      "scene start",
+      "  for i = 1, 3 do",
+      "    x = i",
+      "  end",
+      "  Counted to {x}.",
       "end",
-      "Counted to {x}.",
       "",
     ].join("\n");
-    expect(previewedStore(src, 5, "x")).toBe(3);
+    expect(previewedStore(src, 6, "x")).toBe(3);
   }, 120_000);
 
   test("a line inside a branch the program skips is still reached", () => {
     const src = [
       "store seen = 0",
       "",
-      "-> main",
-      "",
-      "scene main",
+      "scene start",
       "  if seen > 5 then",
       "    seen = 7",
       "    Inside the branch {seen}.",
@@ -170,15 +164,13 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
       "end",
       "",
     ].join("\n");
-    expect(previewedStore(src, 8, "seen")).toBe(7);
+    expect(previewedStore(src, 6, "seen")).toBe(7);
   }, 120_000);
 
   test("a branch the program skips is reached beside a loop that never ends", () => {
     const src = [
       "store flag = false",
       "store laps = 0",
-      "",
-      "-> start",
       "",
       "scene start",
       "  if flag then",
@@ -224,8 +216,6 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
       "store flag = false",
       "store total = 0",
       "",
-      "-> start",
-      "",
       "scene start",
       "  if flag then",
       "    Target branch.",
@@ -256,7 +246,6 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
   test("menus after a loop leave the loop's writes in place", () => {
     const src = [
       "store total = 0",
-      "-> start",
       "scene start",
       "  for i = 1, 3 do",
       "    total += i",
@@ -277,7 +266,7 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
       "end",
       "",
     ].join("\n");
-    expect(previewedStore(src, 19, "total")).toBe(6);
+    expect(previewedStore(src, 18, "total")).toBe(6);
   }, 120_000);
 
   test("a run of menus after a loop leaves the loop's writes in place", () => {
@@ -292,7 +281,6 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
     const src = [
       "store total = 0",
       "store path = 0",
-      "-> start",
       "scene start",
       "  for i = 1, 3 do",
       "    total += i",
@@ -310,7 +298,6 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
     const src = [
       "store flag = false",
       "store total = 0",
-      "-> start",
       "scene start",
       "  if flag then",
       "    Target branch.",
@@ -344,7 +331,6 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
     const src = [
       "store flag = false",
       "store total = 0",
-      "-> start",
       "scene start",
       "  if flag then",
       "    Target branch.",
@@ -377,8 +363,7 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
   test("a break inside a loop leaves after the passes the program runs", () => {
     const src = [
       "store total = 0",
-      "-> main",
-      "scene main",
+      "scene start",
       "  for i = 1, 3 do",
       "    if i == 3 then",
       "      break",
@@ -389,15 +374,14 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
       "end",
       "",
     ].join("\n");
-    expect(previewedStore(src, 10, "total")).toBe(3);
+    expect(previewedStore(src, 9, "total")).toBe(3);
   }, 120_000);
 
   test("a branch around a loop is taken as the program takes it", () => {
     const src = [
       "store total = 0",
       "store go = true",
-      "-> main",
-      "scene main",
+      "scene start",
       "  if go then",
       "    for i = 1, 3 do",
       "      total += i",
@@ -407,14 +391,13 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
       "end",
       "",
     ].join("\n");
-    expect(previewedStore(src, 10, "total")).toBe(6);
+    expect(previewedStore(src, 9, "total")).toBe(6);
   }, 120_000);
 
   test("a loop in a choose block's preamble runs its passes", () => {
     const src = [
       "store total = 0",
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    for i = 1, 3 do",
       "      total += i",
@@ -425,7 +408,7 @@ describe("a previewed line after a loop shows what the loop wrote", () => {
       "end",
       "",
     ].join("\n");
-    expect(previewedStore(src, 10, "total")).toBe(6);
+    expect(previewedStore(src, 9, "total")).toBe(6);
   }, 120_000);
 });
 
@@ -451,7 +434,6 @@ function routeTo(lines: string[], label: string, options?: object) {
 describe("a search whose level spends its bound", () => {
   const HUB = [
     "store total = 0",
-    "-> start",
     "scene start",
     "  choose",
     "  + [Again]",
@@ -481,7 +463,6 @@ describe("a search whose level spends its bound", () => {
   test("does not run a long call before the first condition twice", () => {
     const src = [
       "store total = 0",
-      "-> start",
       "scene start",
       "  & table.foreachi(table.create(150000, 1), function(k, v) total += v end)",
       "  if total > 0 then",
@@ -490,13 +471,12 @@ describe("a search whose level spends its bound", () => {
       "end",
       "",
     ].join("\n");
-    expect(previewedStore(src, 6, "total")).toBe(150000);
+    expect(previewedStore(src, 5, "total")).toBe(150000);
   }, 120_000);
 
   test("a loop of menus within its level's bound runs every pass", () => {
     const src = [
       "store total = 0",
-      "-> start",
       "scene start",
       "  for i = 1, 600 do",
       "    choose",
@@ -508,12 +488,11 @@ describe("a search whose level spends its bound", () => {
       "end",
       "",
     ].join("\n");
-    expect(previewedStore(src, 10, "total")).toBe(600);
+    expect(previewedStore(src, 9, "total")).toBe(600);
   }, 120_000);
 
   const longLoop = (passes: number) => [
     "store total = 0",
-    "-> start",
     "scene start",
     `  for i = 1, ${passes} do`,
     "    total += 1",
@@ -525,7 +504,7 @@ describe("a search whose level spends its bound", () => {
 
   test("a long loop with no beat in it runs every pass within the search's budget", () => {
     const lines = longLoop(4000);
-    expect(previewedStore(lines.join("\n"), 7, "total")).toBe(4000);
+    expect(previewedStore(lines.join("\n"), 6, "total")).toBe(4000);
     const route = routeTo(lines, "Target total");
     expect(route.fallback).toBeUndefined();
     expect(route.decisions.filter((d: any) => d.departs)).toHaveLength(0);
@@ -535,7 +514,7 @@ describe("a search whose level spends its bound", () => {
 
   test("a loop with no beat in it longer than the search's budget shows origin/main's value", () => {
     const lines = longLoop(25000);
-    expect(previewedStore(lines.join("\n"), 7, "total")).toBe(0);
+    expect(previewedStore(lines.join("\n"), 6, "total")).toBe(0);
     expect(routeTo(lines, "Target total").fallback).toBe(true);
   }, 120_000);
 
@@ -543,7 +522,6 @@ describe("a search whose level spends its bound", () => {
     const lines = [
       "store flag = false",
       "store total = 0",
-      "-> start",
       "scene start",
       "  if flag then",
       "    Inside the branch {total}.",

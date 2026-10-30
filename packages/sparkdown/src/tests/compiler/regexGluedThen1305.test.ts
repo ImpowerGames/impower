@@ -6,7 +6,7 @@ import { officialSyntaxErrors } from "./officialSyntax";
 
 const URI = "inmemory:///main.sd";
 
-function readings(expression: string, text = `function f(c)\n  local s = ${expression}\n  return s\nend\n`) {
+function readings(expression: string, text = `function f(c)\n  local s = ${expression}\n  return s\nend\nscene start\nend\n`) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
@@ -46,7 +46,7 @@ describe("regex flags glued to an if expression's then (#1305)", () => {
     (expression) => {
       const result = readings(
         expression,
-        `-> start\nscene start\n  & local c = true\n  & local s = ${expression}\nend\n`,
+        `scene start\n  & local c = true\n  & local s = ${expression}\nend\n`,
       );
       expect(result.official, "official Luau parser of projected checker text").toEqual([]);
       expect(result.errors).toEqual([]);

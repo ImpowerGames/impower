@@ -7,18 +7,12 @@ const CONTENT_ATTR_PLACEHOLDER = "{content-attr}";
 const ATTRS_PLACEHOLDER = "{...attrs}";
 const CLASSES_PLACEHOLDER = "{...classes}";
 
-/* ---------------- Public API -------------------- */
-
 export interface BuiltinInfo {
-  /** frozen V-Node skeleton, safe to share across renders */
   vnode: Readonly<VNode>;
-  /** parsed DOM template (for createElement fast-path)    */
   template: HTMLTemplateElement;
 }
 
 export const builtins = new Map<string, BuiltinInfo>();
-
-/* ---------- Builtin HTML sources ----------------- */
 
 type BuiltinDefinition = { begin: string; end: string };
 
@@ -102,45 +96,35 @@ const SRC: Record<string, BuiltinDefinition> = {
   divider: { begin: `<hr>`, end: "" },
 };
 
-/* ---------- one-time compilation -------------------------------- */
-
 (function compile() {
   const t = document.createElement("template");
 
   for (const [name, def] of Object.entries(SRC)) {
-    // build expanded HTML string
     const childSlot = def.begin.includes("<select")
       ? `<option ${CHILDREN_SLOT_FLAG} hidden></option>`
       : "<children-slot></children-slot>";
 
-    // replace ATTRS_PLACEHOLDER once, replace CONTENT_CHILDREN_PLACEHOLDER once
     const html = (def.begin + childSlot + def.end)
       .replace(ATTRS_PLACEHOLDER, ATTR_HOST_FLAG)
       .replace(CONTENT_CHILDREN_PLACEHOLDER, "<content-slot></content-slot>");
 
-    // create <template>
     t.innerHTML = html.trim();
     const template = t.cloneNode(true) as HTMLTemplateElement;
 
     const rawVNode = buildVNodeFromDOM(template.content.firstElementChild!);
 
-    // remove data-attrs-host from every element, incl. the root, since we don't need it anymore
     for (const el of template.content.querySelectorAll(`[${ATTR_HOST_FLAG}]`)) {
       (el as Element).removeAttribute(ATTR_HOST_FLAG);
     }
 
-    // add fast-path breadcrumbs first
     (rawVNode as VElement).builtin = name;
-    (rawVNode as VElement).template = template; // the <template> we just built
+    (rawVNode as VElement).template = template;
 
-    // now deep-freeze the whole thing
     const vnode = freezeVNode(rawVNode);
 
     builtins.set(name, { vnode, template });
   }
 })();
-
-/* ---------- Helpers: DOM -> V-Dom skeleton ------------ */
 
 function freezeVNode(v: VNode): Readonly<VNode> {
   if (typeof v === "string") return v;

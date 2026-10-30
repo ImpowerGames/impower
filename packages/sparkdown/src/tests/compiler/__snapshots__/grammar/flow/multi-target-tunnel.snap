@@ -1,45 +1,62 @@
-sparkdown [0..14]
- ├─ Divert [0..13]
- │   ├─ Divert_begin [0..2]
- │   │   ├─ Divert_begin_c1 0
+sparkdown [0..32]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
  │   │   │   └─ OptionalWhitespace 0
- │   │   └─ Divert_begin_c2 [0..2]
- │   │       └─ DivertMark [0..2]: "->"
- │   ├─ Divert_content [2..13]
- │   │   ├─ DivertTarget [2..6]
- │   │   │   ├─ DivertTarget_begin [2..3]
- │   │   │   │   └─ DivertTarget_begin_c1 [2..3]
- │   │   │   │       └─ DivertTarget_begin_c1 [2..3]
- │   │   │   │           └─ OptionalWhitespace [2..3]: " "
- │   │   │   ├─ DivertTarget_content [3..6]
- │   │   │   │   └─ DivertPath [3..6]
- │   │   │   │       ├─ DivertPath_begin 3
- │   │   │   │       ├─ DivertPath_content [3..6]
- │   │   │   │       │   └─ DivertPart [3..6]
- │   │   │   │       │       └─ DivertPartName [3..6]: "Foo"
- │   │   │   │       └─ DivertPath_end 6
- │   │   │   └─ DivertTarget_end 6
- │   │   └─ Tunnel [6..13]
- │   │       ├─ Tunnel_begin [6..9]
- │   │       │   ├─ Tunnel_begin_c1 [6..7]
- │   │       │   │   └─ Tunnel_begin_c1 [6..7]
- │   │       │   │       └─ OptionalWhitespace [6..7]: " "
- │   │       │   └─ Tunnel_begin_c2 [7..9]
- │   │       │       └─ DivertMark [7..9]: "->"
- │   │       ├─ Tunnel_content [9..13]
- │   │       │   └─ DivertTarget [9..13]
- │   │       │       ├─ DivertTarget_begin [9..10]
- │   │       │       │   └─ DivertTarget_begin_c1 [9..10]
- │   │       │       │       └─ DivertTarget_begin_c1 [9..10]
- │   │       │       │           └─ OptionalWhitespace [9..10]: " "
- │   │       │       ├─ DivertTarget_content [10..13]
- │   │       │       │   └─ DivertPath [10..13]
- │   │       │       │       ├─ DivertPath_begin 10
- │   │       │       │       ├─ DivertPath_content [10..13]
- │   │       │       │       │   └─ DivertPart [10..13]
- │   │       │       │       │       └─ DivertPartName [10..13]: "Bar"
- │   │       │       │       └─ DivertPath_end 13
- │   │       │       └─ DivertTarget_end 13
- │   │       └─ Tunnel_end 13
- │   └─ Divert_end 13
- └─ Newline [13..14]: "\n"
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ Divert [12..27]
+ │   ├─ Divert_begin [12..16]
+ │   │   ├─ Divert_begin_c1 [12..14]
+ │   │   │   └─ OptionalWhitespace [12..14]: "  "
+ │   │   └─ Divert_begin_c2 [14..16]
+ │   │       └─ DivertMark [14..16]: "->"
+ │   ├─ Divert_content [16..27]
+ │   │   ├─ DivertTarget [16..20]
+ │   │   │   ├─ DivertTarget_begin [16..17]
+ │   │   │   │   └─ DivertTarget_begin_c1 [16..17]
+ │   │   │   │       └─ DivertTarget_begin_c1 [16..17]
+ │   │   │   │           └─ OptionalWhitespace [16..17]: " "
+ │   │   │   ├─ DivertTarget_content [17..20]
+ │   │   │   │   └─ DivertPath [17..20]
+ │   │   │   │       ├─ DivertPath_begin 17
+ │   │   │   │       ├─ DivertPath_content [17..20]
+ │   │   │   │       │   └─ DivertPart [17..20]
+ │   │   │   │       │       └─ DivertPartName [17..20]: "Foo"
+ │   │   │   │       └─ DivertPath_end 20
+ │   │   │   └─ DivertTarget_end 20
+ │   │   └─ Tunnel [20..27]
+ │   │       ├─ Tunnel_begin [20..23]
+ │   │       │   ├─ Tunnel_begin_c1 [20..21]
+ │   │       │   │   └─ Tunnel_begin_c1 [20..21]
+ │   │       │   │       └─ OptionalWhitespace [20..21]: " "
+ │   │       │   └─ Tunnel_begin_c2 [21..23]
+ │   │       │       └─ DivertMark [21..23]: "->"
+ │   │       ├─ Tunnel_content [23..27]
+ │   │       │   └─ DivertTarget [23..27]
+ │   │       │       ├─ DivertTarget_begin [23..24]
+ │   │       │       │   └─ DivertTarget_begin_c1 [23..24]
+ │   │       │       │       └─ DivertTarget_begin_c1 [23..24]
+ │   │       │       │           └─ OptionalWhitespace [23..24]: " "
+ │   │       │       ├─ DivertTarget_content [24..27]
+ │   │       │       │   └─ DivertPath [24..27]
+ │   │       │       │       ├─ DivertPath_begin 24
+ │   │       │       │       ├─ DivertPath_content [24..27]
+ │   │       │       │       │   └─ DivertPart [24..27]
+ │   │       │       │       │       └─ DivertPartName [24..27]: "Bar"
+ │   │       │       │       └─ DivertPath_end 27
+ │   │       │       └─ DivertTarget_end 27
+ │   │       └─ Tunnel_end 27
+ │   └─ Divert_end 27
+ ├─ Newline [27..28]: "\n"
+ ├─ LuauEndKeyword [28..31]: "end"
+ └─ Newline [31..32]: "\n"

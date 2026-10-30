@@ -9,7 +9,7 @@ describe("a game's evaluation context", () => {
       'store label = "hello"',
       "store where = -> start",
       "",
-      "-> start",
+      "",
       "",
       "scene start",
       "  The line.",

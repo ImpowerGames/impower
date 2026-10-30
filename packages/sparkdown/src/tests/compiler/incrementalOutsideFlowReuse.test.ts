@@ -1,14 +1,3 @@
-// Incremental compiles when content OUTSIDE every flow changes.
-//
-// An unchanged flow's statements can still compile differently after an edit
-// elsewhere: a declared NAME entering or leaving the program, a change to the
-// `include`/`run`/`external` structure, or a callee's parameter list each
-// changes how call sites in flows whose own source never changed compile.
-// Other edits outside a flow — a constant's value or type, loose prose after
-// the last flow — change no other flow. Each case below is written at the
-// position it is about, and after a warm-up edit inside a scene, the
-// incremental compile has to build the chunks and report the diagnostics a
-// cold compile of the same text does.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
@@ -52,7 +41,6 @@ function quiet<T>(fn: () => T): T {
   }
 }
 
-/** Key-sorted JSON, so two programs compare structurally. */
 const stable = (value: unknown): string => {
   const seen = new WeakSet();
   const walk = (x: any): any => {
@@ -99,7 +87,6 @@ function edit(
   return text.slice(0, offset) + replace + text.slice(offset + find.length);
 }
 
-/** The player worker's configuration. */
 function configured(text: string): SparkdownCompiler {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -110,7 +97,6 @@ function configured(text: string): SparkdownCompiler {
   return compiler;
 }
 
-/** A compile's chunks by content and its diagnostics. */
 function compiledOf(compiler: SparkdownCompiler): string {
   const program = (compiler.compile({ textDocument: { uri: URI } } as any) as any).program;
   return stable({
@@ -123,11 +109,6 @@ function coldCompiledOf(text: string): string {
   return compiledOf(configured(text));
 }
 
-/**
- * Twelve five-line scenes with `const LIMIT = 5` on line 0 and the first scene
- * on line 2. Every scene READS the constant, so each scene's code refers to
- * it.
- */
 function fixture(): string {
   const lines: string[] = ["const LIMIT = 5", ""];
   for (let s = 0; s < SCENES; s++) {
@@ -140,11 +121,6 @@ function fixture(): string {
   return lines.join("\n");
 }
 
-/**
- * Compile `text`, make the warm-up edit `warm`, then apply each of `steps`,
- * and require the incremental compile after each step to equal a cold
- * compile of the same text.
- */
 function expectMatchesCold(
   text: string,
   warm: { find: string; replace: string },
@@ -214,9 +190,6 @@ describe("incremental compiles when content outside a flow changes", () => {
   });
 });
 
-// Every scene calls a flow that takes a parameter; declaring a global with
-// that flow's name shadows it, which changes how each call site compiles
-// though the calling scenes' own source never changes.
 describe("a global that shadows a flow name", () => {
   function shadowFixture(): string {
     const lines: string[] = [];

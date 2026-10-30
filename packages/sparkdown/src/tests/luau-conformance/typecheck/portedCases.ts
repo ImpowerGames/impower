@@ -1,8 +1,3 @@
-// How a ported case of Luau's type-checker tests is written down and run.
-// Each port file in this directory hands its cases to `portUpstreamFile`;
-// `README.md` explains the conventions, and `../typecheckTestHarness.ts`
-// compiles the snippets.
-
 import { readFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,35 +16,25 @@ import {
   type LocationTuple,
 } from "../typecheckTestHarness";
 
-/** What upstream checks about one `check()` result, in upstream order. */
 export type Assertion =
-  /** `LUAU_REQUIRE_ERROR_COUNT(n)`, or `LUAU_REQUIRE_ERRORS` as `"some"`. */
   | { errors: number | "some" }
-  /** Facts about the error at an index: `get<Kind>(result.errors[i])`, its text, location or fields. */
   | {
       error: number;
       code?: string;
       message?: string | { oneOf: string[] };
       messageContains?: string;
       messageExcludes?: string;
-      /** `[beginLine, beginColumn, endLine, endColumn]`. */
       location?: [number, number, number, number];
-      /** Only the line the error begins on. */
       line?: number;
       endLine?: number;
-      /** Fields of the error, as its Luau struct names them; a type field is compared printed. */
       fields?: Record<string, unknown>;
       fieldOptions?: Record<string, LuauToStringOptions>;
       fieldLocations?: Record<string, { present?: boolean; line?: number }>;
       moduleMatchesCheck?: true;
     }
-  /** `LUAU_REQUIRE_ERROR(result, Kind)`: an error of the kind somewhere. */
   | { anyError: string }
-  /** `LUAU_REQUIRE_NO_ERROR(result, Kind)`. */
   | { noError: string }
-  /** A fact about every error, without asserting their count. */
   | { everyError: { line?: number; messageExcludes?: string } }
-  /** Exact decorateWithTypes output, including its whitespace. */
   | { decoratedSource: string }
   | {
       scopes: {
@@ -62,7 +47,6 @@ export type Assertion =
         ) & { name: string; location: LocationTuple })[];
       };
     }
-  /** A fact about a type: printed text, class, identity, return pack, type parameter count or property count. */
   | (TypeSelector & {
       equals?: string;
       notEquals?: string;
@@ -99,21 +83,12 @@ export type Assertion =
       >;
     });
 
-/**
- * Why Sparkdown cannot parse a snippet yet: a filed defect, or a section of
- * `packages/sparkdown/docs/runtime/DIVERGENCES.md` that documents the
- * difference, named by its heading.
- */
 export type Unparsed = { defect: number } | { divergence: string };
 
 export interface PortedCheck {
-  /** The Luau source, exactly as upstream writes it. */
   source: string;
-  /** The module name upstream gives the source (`fileResolver.source["..."]`). */
   module?: string;
-  /** `Fixture::check(mode, source)`; strict when upstream names none. */
   mode?: LuauMode;
-  /** For a plain `TEST_CASE`, the fixture it builds for this check. */
   fixture?: string;
   definitions?: string[];
   globals?: Record<string, string>;
@@ -121,59 +96,27 @@ export interface PortedCheck {
   hiddenTypes?: true;
   retainFullTypeGraphs?: false;
   clearModules?: true;
-  /** Upstream calls `ignoreMissingAnnotations(result)`: drop `TypeAnnotationRequired` errors first. */
   ignoreMissingAnnotations?: true;
-  /**
-   * Sparkdown cannot parse the snippet yet. The parse check then expects it
-   * to fail, so the record goes as soon as the snippet parses.
-   */
   unparsed?: Unparsed;
-  /**
-   * Luau's parser rejects the snippet too, for the reason given. The parse
-   * check then expects Sparkdown to report a syntax diagnostic, and the
-   * assertions still run.
-   */
   malformed?: string;
-  /** This check sits in a block of its own under `DOES_NOT_PASS_NEW_SOLVER_GUARD`. */
   doesNotPassNewSolver?: true;
-  /**
-   * This check cannot apply to Sparkdown, for the reason given: its snippet
-   * still gets the parse check, and its assertions never run.
-   */
   notApplicable?: string;
   expect: Assertion[];
 }
 
-/** Why a case's type assertions never run, whatever Sparkdown parses. */
 export type CaseSkip =
-  /**
-   * Upstream runs the case on the old solver only: under
-   * `DOES_NOT_PASS_NEW_SOLVER_GUARD` (`NEW_SOLVER_GUARD_REASON`), or behind
-   * an early return on the new solver (the reason given).
-   */
   | { newSolver: string }
-  /** The case cannot apply to Sparkdown, for the reason given. */
   | { notApplicable: string }
-  /** Upstream never compiles the case. */
   | { disabledUpstream: true };
 
 export const NEW_SOLVER_GUARD_REASON =
   "does not pass on Luau's new solver upstream";
 
-/** One upstream case: a single check written inline, or several under `checks`. */
 export type PortedCase = {
-  /** The upstream case name, exactly. */
   name: string;
-  /** The upstream fixture; absent for a plain `TEST_CASE`. */
   fixture?: string;
-  /** Luau flags the case sets with `ScopedFastFlag`, other than the solver switch. */
   flags?: Record<string, boolean>;
   shareFixture?: true;
-  /**
-   * Luau limits the case sets with `ScopedFastInt`. The harness cannot apply
-   * them, so once the case's area is on it fails as not implemented rather
-   * than asserting what upstream sees only under those limits.
-   */
   limits?: Record<string, number>;
   skip?: CaseSkip;
 } & (
@@ -196,15 +139,6 @@ export function checksOf(c: PortedCase): PortedCheck[] {
   return [check];
 }
 
-// ---------------------------------------------------------------------------
-// The area switch
-// ---------------------------------------------------------------------------
-
-/**
- * The upstream files whose type assertions run. Each file's area is turned
- * on by the checker slice that implements it; until then its cases check that
- * their snippets parse, then report as skipped.
- */
 export const CHECKED_AREAS: readonly string[] = [
   "TypeInfer.primitives.test.cpp",
   "TypeInfer.const.test.cpp",
@@ -215,10 +149,6 @@ export const CHECKED_AREAS: readonly string[] = [
   "TypeInfer.annotations.test.cpp",
 ];
 
-/**
- * `LUAU_TYPECHECK_AREAS=all`, or a comma-separated list of upstream files,
- * turns areas on without editing `CHECKED_AREAS`.
- */
 export function areaIsChecked(
   file: string,
   env: Record<string, string | undefined> = process.env,
@@ -231,10 +161,6 @@ export function areaIsChecked(
     CHECKED_AREAS.includes(file)
   );
 }
-
-// ---------------------------------------------------------------------------
-// The upstream manifest
-// ---------------------------------------------------------------------------
 
 export interface ManifestCase {
   name: string;
@@ -252,7 +178,6 @@ export interface Manifest {
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 let manifestCache: Manifest | undefined;
-/** `../upstream/typecheck-cases.json`, which `scripts/generateTypecheckCases.ts` writes. */
 export function loadManifest(): Manifest {
   manifestCache ??= JSON.parse(
     readFileSync(join(HERE, "..", "upstream", "typecheck-cases.json"), "utf8"),
@@ -261,7 +186,6 @@ export function loadManifest(): Manifest {
 }
 
 let divergenceCache: string[] | undefined;
-/** The `###` section headings of `DIVERGENCES.md`, which a divergence names. */
 export function divergenceHeadings(): string[] {
   divergenceCache ??= readFileSync(
     join(HERE, "..", "..", "..", "..", "docs", "runtime", "DIVERGENCES.md"),
@@ -273,7 +197,6 @@ export function divergenceHeadings(): string[] {
   return divergenceCache;
 }
 
-/** Luau's type classes (`TypeVariant` in `Type.h`, with the bound and error types it wraps). */
 export const LUAU_TYPE_KINDS: readonly string[] = [
   "BoundType",
   "ErrorType",
@@ -298,15 +221,8 @@ export const LUAU_TYPE_KINDS: readonly string[] = [
   "TypeFunctionInstanceType",
 ];
 
-// ---------------------------------------------------------------------------
-// Checking a port against the manifest and itself
-// ---------------------------------------------------------------------------
-
-// The keys of every member of a union.
 type KeysOf<T> = T extends unknown ? keyof T : never;
 
-// A type's keys, written out as an object so that the compiler rejects a list
-// that leaves one out or names one the type lacks.
 function keyList<T>(keys: Record<KeysOf<T>, true>): string[] {
   return Object.keys(keys);
 }
@@ -905,7 +821,6 @@ function checkProblems(
   return problems;
 }
 
-/** Everything wrong with a ported file, compared with the manifest's entry for its upstream file. */
 export function portProblems(
   file: string,
   cases: PortedCase[],
@@ -977,7 +892,6 @@ export function portProblems(
   return problems;
 }
 
-// How a case must be marked, given what upstream says about it.
 function upstreamProblems(
   c: PortedCase,
   up: ManifestCase,
@@ -1020,16 +934,6 @@ function upstreamProblems(
   return problems;
 }
 
-// ---------------------------------------------------------------------------
-// Running a ported case
-// ---------------------------------------------------------------------------
-
-/**
- * Runs a case outside vitest's registration: the parse check on every
- * snippet, then the type assertions when nothing skips the case and its area
- * is on, or `skip` otherwise. `check` compiles a snippet; tests give a
- * stand-in.
- */
 export function runPortedCase(
   file: string,
   c: PortedCase,
@@ -1065,9 +969,6 @@ export function runPortedCase(
         : {}),
     });
 
-    // A snippet recorded as unparsed must still fail to parse, so the record
-    // goes as soon as the defect is fixed or the divergence removed. A snippet
-    // Luau rejects must be rejected here too.
     expect(
       (result.setupSyntaxDiagnostics ?? []).map(describeDiagnostic),
       "setup source did not parse",
@@ -1088,8 +989,6 @@ export function runPortedCase(
         "Sparkdown did not read the snippet as Luau",
       ).toEqual([]);
     }
-    // Intentional shared-fixture queries must observe this step before the
-    // next setup/reset changes its globals or module cache.
     if (!skipped && !c.limits && !ch.doesNotPassNewSolver && !ch.notApplicable)
       runAssertions(result, ch);
   }
@@ -1108,7 +1007,6 @@ export function runPortedCase(
   }
 }
 
-/** Runs one check's assertions against its result, in order. */
 export function runAssertions(
   result: LuauCheckResult,
   check: PortedCheck,
@@ -1244,7 +1142,6 @@ export function runAssertions(
   }
 }
 
-// Only the selector of a type assertion goes to the checker.
 function selectorOf(s: TypeSelector): TypeSelector {
   return Object.fromEntries(
     Object.entries(s).filter(([key]) => SELECTOR_KEYS.includes(key)),
@@ -1253,8 +1150,6 @@ function selectorOf(s: TypeSelector): TypeSelector {
 
 export const COVERAGE_TEST = "the port covers every upstream case";
 
-// Pinned AstQuery.cpp's findScopeAtPosition: choose an enclosing narrower
-// scope, with the module scope as fallback even outside the source range.
 function scopeAtPosition(result: LuauCheckResult, at: [number, number]) {
   let selected = result.scopes?.[0];
   const position = new Position(...at);
@@ -1274,10 +1169,6 @@ function scopeAtPosition(result: LuauCheckResult, at: [number, number]) {
   return selected;
 }
 
-/**
- * Registers a ported file: one test per upstream case, named as the case is,
- * and a test that the port covers exactly the upstream file's cases.
- */
 export function portUpstreamFile(file: string, cases: PortedCase[]): void {
   describe(file, () => {
     for (const c of cases) {

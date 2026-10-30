@@ -117,7 +117,7 @@ try {
   write("src/wrapped-copy.css", ".b { color: blue; }\n/* keeps the panel layout stacked, since the host page forces a column on every element */\n");
   write("src/unpatched-legacy.ts", "// a legacy comment kept in a file whose patch the listing omits\nexport const q = 2;\n");
   write("src/licensed-copy.ts", `${mpl}\nexport const m = 1;\n`);
-  write("src/licence-prose.ts", "export const p = 1;\n// Copyright handling must stay centralized because the generator depends on it\n");
+  write("src/licence-prose.ts", "export const p = 1;\n// keeps the copyright header because the generator depends on it\n");
   commit("head");
 
   const records = [
@@ -240,7 +240,7 @@ try {
     };
     const listed = await listPullRequestFiles({ repository: "owner/repo", number: 5, token: "t", api: "https://api.example.invalid", fetch });
     assert.equal(listed.length, 101, "every page is read until one comes back short");
-    assert.equal(listed[7].patch, escaped, "a patch holding the text \\u0000 keeps it, rather than the caret notation gh api rewrites it to");
+    assert.equal(listed[7].patch, escaped, "a patch holding the text \\u0000 keeps it, rather than a control character in its place");
     assert.deepEqual(asked.map(({ url }) => url), [1, 2].map((p) => `https://api.example.invalid/repos/owner/repo/pulls/5/files?per_page=100&page=${p}`));
     assert.equal(asked[0].init.headers.authorization, "Bearer t");
 
