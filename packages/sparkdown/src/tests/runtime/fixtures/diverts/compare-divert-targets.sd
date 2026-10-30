@@ -1,6 +1,8 @@
 store to_one = -> one
 store to_two = -> two
--> main
+scene start
+  -> main
+end
 scene main
   if to_one == to_two then
     same knot

@@ -8,4 +8,6 @@ function f()
   return c + d + e + g
 end
 store a, b = 1,
-  2
+scene start
+    2
+end

@@ -194,9 +194,14 @@ import {
 } from "../../program/StatementWatch";
 import { debugFileName } from "../utils/debugFileName";
 import {
-  CONTENT_OUTSIDE_SCENE_MESSAGE,
+  TOP_LEVEL_STATEMENT_MESSAGE,
   topLevelStatements,
 } from "../utils/declarationOnly";
+import {
+  isStartSceneMessage,
+  startSceneProblems,
+  type StartSceneScript,
+} from "../utils/startScene";
 import {
   isPlacementMessage,
   misplacedDeclarations,
@@ -348,10 +353,6 @@ const isHoistedDeclaration = (obj: ParsedObject): boolean =>
   obj instanceof ConstantDeclaration ||
   obj instanceof ExternalDeclaration;
 
-/** Whether the objects a top-level statement of a script other than main
- *  lowered to only declare: flows, globals, constants and externals, and the
- *  write that defines a member or method function, held directly or in the
- *  statement's weave. Anything else runs where the statement is placed. */
 function onlyDeclares(content: readonly ParsedObject[] | undefined): boolean {
   return (content ?? []).every(
     (obj) =>
@@ -1889,6 +1890,7 @@ export class SparkdownCompiler {
 
     try {
       profile("start", this._profilerId, "ink/parse", uri);
+      const story = uri !== BUILTINS_PRELUDE_URI && !hasLuauExtension(uri);
       const parsedStory = this.parseIncrementally(
         uri,
         fileHandler,
@@ -1896,7 +1898,11 @@ export class SparkdownCompiler {
         state,
         program,
         onDiagnostic,
+        story,
       );
+      if (story) {
+        this.validateStartScene(uri, state.projectScripts ?? [], onDiagnostic);
+      }
       profile("end", this._profilerId, "ink/parse", uri);
       // Whole-program namespace scoping (P1). Scope leaf-instance defines to a
       // synthetic `$<type>_<name>` global here — after assembly, before
@@ -2424,14 +2430,6 @@ export class SparkdownCompiler {
     }
   }
 
-  /**
-   * Parses the script `uri` into the story's objects. The script a compile
-   * starts from is parsed with `isInclude` false, and reads the other scripts
-   * of its project (`SparkdownCompilerState.projectScripts`) after its own
-   * statements, each with `declarationOnly`: a statement of such a script's
-   * top level that declares nothing reports that only main runs it and is
-   * left out of the program.
-   */
   parseIncrementally(
     uri: string,
     fileHandler: IFileHandler,
@@ -2863,17 +2861,6 @@ export class SparkdownCompiler {
       }
     };
 
-    // Try to reuse last compile's constructed flow for the run declared by
-    // `declBlock`: every content chunk of the recorded run must reappear
-    // identically in order (interleaved content-less chunks — include lines,
-    // context-only — and closed function declarations are transparent), no
-    // run chunk may carry a reuse disqualifier, the flow must not have raised
-    // generation-time diagnostics, and, unless the flow is a closed function,
-    // the chunk FOLLOWING the run (past any closed function declarations)
-    // must not be one that would attach new body content into this flow.
-    // A `run` statement among those chunks, or following them, refuses the
-    // reuse: its content, the call of its file's wrapper, is made by each
-    // compile once it resolves the file, so the chunk's block holds none.
     const tryReuseFlowRun = (
       declBlock: object,
       startIdx: number,
@@ -2893,7 +2880,7 @@ export class SparkdownCompiler {
           return undefined;
         }
         const cb = chunkRecords[j]!.block as any;
-        if (cb.run) {
+        if (cb.run || refused(chunkRecords[j]!)) {
           return undefined;
         }
         if (!cb.content || (k > 0 && isClosedFunctionChunk(cb))) {
@@ -2912,7 +2899,7 @@ export class SparkdownCompiler {
         if (cb.run) {
           return undefined;
         }
-        if (!cb.content || isClosedFunctionChunk(cb)) {
+        if (!cb.content || isClosedFunctionChunk(cb) || refused(chunkRecords[m]!)) {
           continue;
         }
         const kind = chunkFlowKind(cb);
@@ -2929,10 +2916,6 @@ export class SparkdownCompiler {
       return prevRun.flow;
     };
 
-    // A script other than main holds declarations only: the statements of its
-    // top level that run are reported and left out (`topLevelStatements`):
-    // those whose syntax runs, and those whose syntax declares but that also
-    // lowered to something that runs (`onlyDeclares`).
     const tree = declarationOnly ? this.documents.tree(uri) : undefined;
     const topLevel =
       tree && document
@@ -2940,11 +2923,13 @@ export class SparkdownCompiler {
             document.read(from, to),
           )
         : undefined;
-    // A `local` outside a flow and a hoisted declaration inside one are
-    // reported where they are written (`misplacedDeclarations`). A top-level
-    // `local` of a script other than main reports that alone, and is left
-    // out as the other lines only main runs are. A `.luau` file is Luau,
-    // whose top-level `local` is its chunk's.
+    const refused = (rec: { block: any; from: number }): boolean => {
+      const declares = topLevel?.get(rec.from);
+      return (
+        declares === false ||
+        (declares === true && !onlyDeclares(rec.block.content))
+      );
+    };
     const misplacedLocals = new Set<number>();
     const placementTree =
       this._injectingPrelude || hasLuauExtension(uri)
@@ -3039,13 +3024,10 @@ export class SparkdownCompiler {
       let content = rec.block.content;
       const lineNumberOffset = document?.lineAt(rec.from) ?? 0;
       const declares = topLevel?.get(rec.from);
-      if (declares === false || (declares === true && !onlyDeclares(content))) {
-        // Only main runs a line outside a scene. The statement is reported
-        // and left out of the program, as if it were not written; what its
-        // lowering itself reported still stands.
+      if (refused(rec)) {
         if (!misplacedLocals.has(rec.from)) {
           onDiagnostic(
-            CONTENT_OUTSIDE_SCENE_MESSAGE,
+            TOP_LEVEL_STATEMENT_MESSAGE,
             ErrorType.Error,
             firstLineSource(rec.from),
           );
@@ -3053,6 +3035,7 @@ export class SparkdownCompiler {
         forwardDiagnostics(diagnostics, lineNumberOffset);
         continue;
       }
+      const hoisted = declares === true;
       // A layout or component is declared in one script: one a script
       // other than the first to declare it declares again is reported in
       // both and left out, and the first declaration stands. Within one
@@ -3145,11 +3128,6 @@ export class SparkdownCompiler {
         }
       }
       if (run) {
-        // `run helpers` or `run "path"` — load the `.luau` file the
-        // operand names (`resolveRunOperand`), wrap its body in a
-        // function, place a call of the function where the statement
-        // stands, at the top level or in a scene's body, and hoist the
-        // function declaration to the end of the parent program.
         const previousParentUri =
           state.fileResolutionState?.currentParentUri ?? uri;
         if (state.fileResolutionState) {
@@ -3424,7 +3402,9 @@ export class SparkdownCompiler {
               for (const placed of flowContent) {
                 this._placedBy.set(placed, compiledBlock);
               }
-              const closestWeave = getClosestWeave(topLevelContent);
+              const closestWeave = hoisted
+                ? undefined
+                : getClosestWeave(topLevelContent);
               if (closestWeave) {
                 const lastContent = closestWeave.content.at(-1);
                 if (
@@ -3439,7 +3419,9 @@ export class SparkdownCompiler {
               } else {
                 const weave = new Weave(flowContent);
                 topLevelWeaveObjs.push(weave);
-                topLevelContent.push(weave);
+                if (!hoisted) {
+                  topLevelContent.push(weave);
+                }
               }
             }
           }
@@ -3501,14 +3483,6 @@ export class SparkdownCompiler {
       }
     }
 
-    // The project's other scripts, after the entry's own statements, so that
-    // their declarations register after main's and in path order: the story
-    // places each one's top level after the entry's
-    // (`Story.PreProcessTopLevelObjects`), where its globals initialize after
-    // main's. A member function's write (`function api.f()` writes the
-    // function into `api`) stays in its script's top level, and runs with the
-    // declarations, after every global initializes and before the entry's
-    // top level runs (`programFlows`).
     if (!isInclude) {
       for (const member of state.projectScripts ?? []) {
         const memberStory = this.parseIncrementally(
@@ -4076,6 +4050,45 @@ export class SparkdownCompiler {
     emit(validateOpenBlocks(tree.topNode, ctx));
   }
 
+  protected validateStartScene(
+    uri: string,
+    scripts: readonly string[],
+    onDiagnostic: (
+      message: string,
+      type: ErrorType,
+      source: SourceMetadata | null,
+    ) => void,
+  ) {
+    const read: StartSceneScript[] = [];
+    for (const scriptUri of [uri, ...scripts]) {
+      const tree = this.documents.tree(scriptUri);
+      const doc = this.documents.get(scriptUri);
+      if (tree && doc) {
+        read.push({
+          uri: scriptUri,
+          top: tree.topNode,
+          read: (from, to) => doc.read(from, to),
+        });
+      }
+    }
+    for (const problem of startSceneProblems(read)) {
+      const doc = this.documents.get(problem.uri)!;
+      const text = doc.getText();
+      const lineEnd = text.indexOf("\n", problem.from);
+      const line = text.slice(problem.from, lineEnd < 0 ? text.length : lineEnd);
+      const indent = line.length - line.trimStart().length;
+      const start = doc.positionAt(problem.from + indent);
+      onDiagnostic(problem.message, ErrorType.Error, {
+        fileName: debugFileName(problem.uri),
+        filePath: problem.uri,
+        startLineNumber: start.line + 1,
+        endLineNumber: start.line + 1,
+        startCharacterNumber: start.character + 1,
+        endCharacterNumber: start.character + line.trim().length + 1,
+      });
+    }
+  }
+
   /**
    * Bound the append-only binary string table.
    *
@@ -4448,6 +4461,7 @@ export class SparkdownCompiler {
       story: parsedStory,
       uri,
       preludeUri: BUILTINS_PRELUDE_URI,
+      topLevelFlow: hasLuauExtension(uri),
       blockOf: (obj) => this._placedBy.get(obj),
       record: (block) =>
         this._statementRecords.get(block) ??
@@ -6284,9 +6298,11 @@ export class SparkdownCompiler {
       if (declarations.length === 0) continue;
       const diagnostics = ((program.diagnostics ??= {})[scriptUri] ??= []);
       const wordsOf = (d: SparkDiagnostic) => (typeof d.message === "string" ? d.message : d.message.value);
-      // A placement error (`misplacedDeclarations`) reports no syntax error.
       const existing = diagnostics.filter(
-        (d) => d.severity === DiagnosticSeverity.Error && !isPlacementMessage(wordsOf(d)),
+        (d) =>
+          d.severity === DiagnosticSeverity.Error &&
+          !isPlacementMessage(wordsOf(d)) &&
+          !isStartSceneMessage(wordsOf(d)),
       );
       const offsetOf = (position: Range["start"]) => doc.offsetAt(position);
       for (const { declaration, found, reported } of declarations) {
@@ -6439,7 +6455,13 @@ export class SparkdownCompiler {
         const message = typeof d.message === "string" ? d.message : d.message.value;
         const path = /Cannot find (?:variable|item or path) named `([^`]+)`/.exec(message)?.[1];
         if (path) unresolved.push({ name: path.split(".")[0]!, range: d.range });
-        if (d.severity === DiagnosticSeverity.Error && !isPlacementMessage(message)) errors.push(d);
+        if (
+          d.severity === DiagnosticSeverity.Error &&
+          !isPlacementMessage(message) &&
+          !isStartSceneMessage(message)
+        ) {
+          errors.push(d);
+        }
       }
       const checked = this._typechecker.checkDocument(scriptUri, doc.read(0, doc.length), tree, mode);
       // A syntax error's range ends with the token the reading found.

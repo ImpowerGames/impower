@@ -16,13 +16,13 @@ import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { compileSource } from "./compileSnapshot";
 import { dumpTree, stripAnsi } from "./grammarSnapshot";
 import { loadOfficialLuau } from "./officialLuau";
+import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
 
 type Rule = { begin?: string; match?: string; patterns?: { include?: string }[] };
 const repository = GRAMMAR_DEFINITION.repository as unknown as Record<string, Rule>;
 
 const URI = "inmemory:///main.sd";
 
-/** Every error a full compile reports, with its range. */
 const errorsOf = (text: string): string[] => {
   const c = new SparkdownCompiler();
   c.configure({
@@ -30,11 +30,8 @@ const errorsOf = (text: string): string[] => {
   } as never);
   const program = c.compile({ textDocument: { uri: URI } } as never).program as any;
   return (program.diagnostics?.[URI] ?? [])
-    .filter((d: any) => d.severity === DiagnosticSeverity.Error)
-    .map((d: any) => {
-      const message = typeof d.message === "string" ? d.message : d.message.value;
-      return `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character} ${message}`;
-    })
+    .filter((d: any) => d.severity === DiagnosticSeverity.Error && !NOT_SYNTAX.some((pattern) => pattern.test(messageOf(d))))
+    .map((d: any) => `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character} ${messageOf(d)}`)
     .sort();
 };
 
@@ -107,16 +104,16 @@ describe("closers close blocks and nothing else", () => {
   });
 
   test("#1195 a repeat nested directly in another takes the first until", () => {
-    const loops = "function f()\n  local n = 0\n  repeat\n    repeat n = n + 1 until true\n  until true\n  return n\nend\nResult {f()}.\n";
+    const loops = "function f()\n  local n = 0\n  repeat\n    repeat n = n + 1 until true\n  until true\n  return n\nend\nscene start\n  Result {f()}.\nend\n";
     expect(run(loops)).toEqual({ errors: [], warnings: [], output: "Result 1.\n" });
-    const oneLine = "function f()\n  local n = 0\n  repeat repeat n = n + 1 until true until true\n  return n\nend\nResult {f()}.\n";
+    const oneLine = "function f()\n  local n = 0\n  repeat repeat n = n + 1 until true until true\n  return n\nend\nscene start\n  Result {f()}.\nend\n";
     expect(run(oneLine)).toEqual({ errors: [], warnings: [], output: "Result 1.\n" });
-    const story = "store n = 0\nrepeat\n  repeat n = n + 1 until true\nuntil n >= 1\nCount {n}.\n";
+    const story = "store n = 0\nscene start\n  repeat\n    repeat n = n + 1 until true\n  until n >= 1\n  Count {n}.\nend\n";
     expect(run(story)).toEqual({ errors: [], warnings: [], output: "Count 1.\n" });
   });
 
   test("#922 an until glued to an operand closes its repeat", () => {
-    const source = "Value {f()}.\nfunction f()\n  local n = 0\n  repeat n = (n + 1)until n > 2\n  return n\nend\n";
+    const source = "scene start\n  Value {f()}.\nend\nfunction f()\n  local n = 0\n  repeat n = (n + 1)until n > 2\n  return n\nend\n";
     expect(run(source)).toEqual({ errors: [], warnings: [], output: "Value 3.\n" });
   });
 
@@ -229,13 +226,13 @@ describe("a reserved word is never a name", () => {
   });
 
   test("#922 `do local y = (1)end` keeps the function's end", () => {
-    const source = "Value {f()}.\nfunction f()\n  do local y = (1)end\n  return 2\nend\nAfter.\n";
+    const source = "scene start\n  Value {f()}.\n  -> after\nend\nfunction f()\n  do local y = (1)end\n  return 2\nend\nscene after\n  After.\nend\n";
     expect(run(source).output).toBe("Value 2.\nAfter.\n");
     expect(stripAnsi(dumpTree(source))).not.toMatch(/LuauVariableName \[\d+\.\.\d+\]: "end"/);
   });
 
   test("#924 `local x = if a then 2 else 3 end` keeps its block's end", () => {
-    const source = "Value {g()}.\nfunction g()\n  local function foo(a) local x = if a then 2 else 3 end\n  return 1\nend\n";
+    const source = "scene start\n  Value {g()}.\nend\nfunction g()\n  local function foo(a) local x = if a then 2 else 3 end\n  return 1\nend\n";
     expect(run(source).output).toBe("Value 1.\n");
     expect(stripAnsi(dumpTree(source))).not.toMatch(/LuauVariableName \[\d+\.\.\d+\]: "end"/);
   });
@@ -292,12 +289,12 @@ describe("a reserved word is never a name", () => {
 
   test("a define's key may be a modifier, and a reserved word's value may hold assignments (#1081)", () => {
     const source =
-      "define cfg with\n  repeat = function() local inner = 7; return inner end\n  local = 3\n  store = 4\n  read = 5\n  local x = 8\n  store y = 9\nend\nValue {cfg['repeat']()} {cfg['local']} {cfg.store} {cfg.read} {cfg.x} {cfg.y}.\n";
+      "define cfg with\n  repeat = function() local inner = 7; return inner end\n  local = 3\n  store = 4\n  read = 5\n  local x = 8\n  store y = 9\nend\nscene start\n  Value {cfg['repeat']()} {cfg['local']} {cfg.store} {cfg.read} {cfg.x} {cfg.y}.\nend\n";
     expect(run(source)).toEqual({ errors: [], warnings: [], output: "Value 7 3 4 5 8 9.\n" });
   });
 
   test("a define's key may be a reserved word (#1081)", () => {
-    const source = "define cfg with\n  repeat = 3\n  if = 4\n  x = 5\nend\nValue {cfg['repeat']} {cfg['if']} {cfg.x}.\n";
+    const source = "define cfg with\n  repeat = 3\n  if = 4\n  x = 5\nend\nscene start\n  Value {cfg['repeat']} {cfg['if']} {cfg.x}.\nend\n";
     expect(run(source)).toEqual({ errors: [], warnings: [], output: "Value 3 4 5.\n" });
   });
 });
@@ -306,22 +303,22 @@ describe("a structural word is a name outside its shape (#984)", () => {
   const WORDS = ["style", "layout", "screen", "component", "animation", "theme", "morph", "match", "plural", "queue", "cycle", "chain", "shuffle", "continue"];
 
   test.each(["hp", ...WORDS])("a local named %s is read inside a function", (word) => {
-    const source = `Value {f()}.\nfunction f()\n  local ${word} = 7\n  local y = ${word}\n  return y\nend\n`;
+    const source = `scene start\n  Value {f()}.\nend\nfunction f()\n  local ${word} = 7\n  local y = ${word}\n  return y\nend\n`;
     expect(run(source)).toMatchObject({ errors: [], output: "Value 7.\n" });
   });
 
   // `store style` and the other builtin type roots are #453.
   test.each(["hp", "match", "plural", "queue", "cycle", "chain", "shuffle", "continue", "layout"])("a store named %s is read in interpolation", (word) => {
-    expect(run(`store ${word} = 1\n\nYou have {${word}} left.\n`)).toMatchObject({ errors: [], output: "You have 1 left.\n" });
+    expect(run(`store ${word} = 1\n\nscene start\n  You have {${word}} left.\nend\n`)).toMatchObject({ errors: [], output: "You have 1 left.\n" });
   });
 
   test.each(["hp", ...WORDS])("return %s leaves the function's end to the function", (word) => {
-    const source = `Value {f()}.\nfunction f()\n  local ${word} = 7\n  return ${word}\nend\n\nAfter.\n`;
+    const source = `scene start\n  Value {f()}.\n  -> after\nend\nfunction f()\n  local ${word} = 7\n  return ${word}\nend\n\nscene after\n  After.\nend\n`;
     expect(run(source)).toMatchObject({ errors: [], output: "Value 7.\nAfter.\n" });
   });
 
   test("a local named continue is assigned, and continue is a statement where one begins", () => {
-    const source = "Value {f()} {g()}.\nfunction f()\n  local continue = 1\n  continue = continue + 1\n  return continue\nend\nfunction g()\n  local n = 0\n  for i = 1, 3 do\n    if i == 2 then continue end\n    n = n + i\n  end\n  return n\nend\n";
+    const source = "scene start\n  Value {f()} {g()}.\nend\nfunction f()\n  local continue = 1\n  continue = continue + 1\n  return continue\nend\nfunction g()\n  local n = 0\n  for i = 1, 3 do\n    if i == 2 then continue end\n    n = n + i\n  end\n  return n\nend\n";
     expect(run(source)).toMatchObject({ errors: [], output: "Value 2 4.\n" });
   });
 
@@ -334,7 +331,7 @@ describe("a structural word is a name outside its shape (#984)", () => {
     ["queue", "local s = queue :: number | string", "q"],
     ["shuffle", 'local s, t = shuffle, "|"', "q"],
   ])("a %s with a later `|` on its line is a name: %s", (word, statement, value) => {
-    const source = `Value {f()}.\nfunction f()\n  local ${word} = "q"\n  ${statement}\n  return s\nend\n`;
+    const source = `scene start\n  Value {f()}.\nend\nfunction f()\n  local ${word} = "q"\n  ${statement}\n  return s\nend\n`;
     expect(run(source)).toEqual({ errors: [], warnings: expect.any(Array), output: `Value ${value}.\n` });
     expect(stripAnsi(dumpTree(source))).not.toMatch(/AlternatorBlock \[/);
   });
@@ -349,7 +346,7 @@ describe("a structural word is a name outside its shape (#984)", () => {
     ["queue([====[a|b]====])", "a|b"],
     ["queue([==========[a|b]==========])", "a|b"],
   ])("a call %s with a `|` in its string is a call", (call, value) => {
-    const source = `Value {f()}.\nfunction f()\n  local queue = function(s) return if type(s) == "table" then "table" else s end\n  local s = ${call}\n  return s\nend\n`;
+    const source = `scene start\n  Value {f()}.\nend\nfunction f()\n  local queue = function(s) return if type(s) == "table" then "table" else s end\n  local s = ${call}\n  return s\nend\n`;
     expect(run(source)).toEqual({ errors: [], warnings: [], output: `Value ${value}.\n` });
     // The word's rule holds no arms, so it names a value (I-1310).
     expect(stripAnsi(dumpTree(source))).not.toMatch(/AlternatorArms \[/);
@@ -357,7 +354,7 @@ describe("a structural word is a name outside its shape (#984)", () => {
 
   // The long string is the alternator's head, an error that runs as no head (I-1446).
   test.each(['{cycle [===[a]===] | "b" end}', '{cycle [====[a]====] | "b" end}'])("an inline alternator whose head is a long string still alternates: %s", (alternator) => {
-    expect(run(`Value ${alternator}.\n`)).toEqual({
+    expect(run(`scene start\n  Value ${alternator}.\nend\n`)).toEqual({
       errors: ["A `cycle` takes no value before its first `|`; write its arms as `| ...`"],
       warnings: [],
       output: "Value b.\n",
@@ -365,7 +362,7 @@ describe("a structural word is a name outside its shape (#984)", () => {
   });
 
   test.each(["queue -- note", "shuffle cycle --[[ note ]]"])("a block-form head %j with a comment after it still opens its block", (head) => {
-    const source = `function f()\n  ${head}\n    | print(1)\n    | print(2)\n  end\n  return 3\nend\nValue {f()}.\n`;
+    const source = `function f()\n  ${head}\n    | print(1)\n    | print(2)\n  end\n  return 3\nend\nscene start\n  Value {f()}.\nend\n`;
     // One arm's call runs, writing its number before the line (I-1397); a
     // shuffle may take either arm.
     expect(run(source)).toMatchObject({ errors: [], output: expect.stringMatching(/^Value [12]3\.\n$/) });
@@ -374,7 +371,7 @@ describe("a structural word is a name outside its shape (#984)", () => {
   });
 
   test("a value after a block comment on the `=`'s line stays on that line", () => {
-    const source = "function f()\n  local x = --[====[ n ]====] 5\n  return x\nend\nValue {f()}.\n";
+    const source = "function f()\n  local x = --[====[ n ]====] 5\n  return x\nend\nscene start\n  Value {f()}.\nend\n";
     expect(run(source)).toEqual({ errors: [], warnings: [], output: "Value 5.\n" });
   });
 
@@ -387,7 +384,7 @@ describe("a structural word is a name outside its shape (#984)", () => {
     // A narrative reassignment with no value leaves the next line to the story.
     expect(tree("scene A\n  y = -- note\n  Hello there.\nend\n")).toMatch(/─ ActionLineEnd \[/);
     // A define property whose value begins the next line keeps it.
-    expect(run("define cfg with\n  sameLine = if true then 10 else 0\n  nextLine =\n    if true then 10 else 0\nend\nValues {cfg.sameLine} {cfg.nextLine}.\n")).toEqual({
+    expect(run("define cfg with\n  sameLine = if true then 10 else 0\n  nextLine =\n    if true then 10 else 0\nend\nscene start\n  Values {cfg.sameLine} {cfg.nextLine}.\nend\n")).toEqual({
       errors: [],
       warnings: [],
       output: "Values 10 10.\n",
@@ -442,7 +439,7 @@ describe("a name's boundary", () => {
 
 describe("require is a call (#879)", () => {
   test("a function that calls require keeps its shape and reports nothing", () => {
-    const source = "Value {f()}.\nfunction f()\n  if false then\n    local _m = require(1)\n  end\n  return 1\nend\n";
+    const source = "scene start\n  Value {f()}.\nend\nfunction f()\n  if false then\n    local _m = require(1)\n  end\n  return 1\nend\n";
     expect(run(source)).toEqual({ errors: [], warnings: [], output: "Value 1.\n" });
     const tree = stripAnsi(dumpTree(source));
     expect(tree).toMatch(/LuauStdLibFunctions \[\d+\.\.\d+\]: "require"/);
@@ -452,17 +449,17 @@ describe("require is a call (#879)", () => {
 
 describe("an `=` that ends its line reads its value from the next line (#1247)", () => {
   test("an if expression there is the declared value", () => {
-    const source = "function f(c)\n  local x =\n    if c then 1 else 2\n  return x\nend\n\n{f(true)} {f(false)}\n";
+    const source = "function f(c)\n  local x =\n    if c then 1 else 2\n  return x\nend\n\nscene start\n  {f(true)} {f(false)}\nend\n";
     expect(run(source)).toEqual({ errors: [], warnings: [], output: "1 2\n" });
   });
 
   test("and the reassigned one, unindented too, which Luau's linter warns about", () => {
-    const source = "function f(c)\n  local x\n  x =\nif c then 1 else 2\n  return x\nend\n\n{f(true)} {f(false)}\n";
+    const source = "function f(c)\n  local x\n  x =\nif c then 1 else 2\n  return x\nend\n\nscene start\n  {f(true)} {f(false)}\nend\n";
     expect(run(source)).toEqual({ errors: [], warnings: ["Statement spans multiple lines; use indentation to silence"], output: "1 2\n" });
   });
 
   test("an if statement after a complete assignment stays a statement", () => {
-    const source = "function f(c)\n  local x = 0\n  if c then\n    x = 1\n  end\n  return x\nend\n\n{f(true)} {f(false)}\n";
+    const source = "function f(c)\n  local x = 0\n  if c then\n    x = 1\n  end\n  return x\nend\n\nscene start\n  {f(true)} {f(false)}\nend\n";
     expect(run(source)).toEqual({ errors: [], warnings: [], output: "1 0\n" });
   });
 
@@ -473,7 +470,7 @@ describe("an `=` that ends its line reads its value from the next line (#1247)",
   });
 
   test.each(["-- note =", "-- note +=", "--[[ a ]] -- note ="])("an `=` inside a comment after a complete declaration is not one: %s", (comment) => {
-    const source = `function f(c)\n  local x = 0 ${comment}\nif c then\n  x = 1\nend\n  return x\nend\n\n{f(true)} {f(false)}\n`;
+    const source = `function f(c)\n  local x = 0 ${comment}\nif c then\n  x = 1\nend\n  return x\nend\n\nscene start\n  {f(true)} {f(false)}\nend\n`;
     expect(run(source)).toEqual({ errors: [], warnings: [], output: "1 0\n" });
   });
 
@@ -488,7 +485,7 @@ describe("an `=` that ends its line reads its value from the next line (#1247)",
     ["a block comment of a high level", "local x = --[====[ note ]====]\n    if c then 1 else 2"],
     ["a block comment whose closing line holds the value", "local x = --[[ a\n b ]] if c then 1\n  else 2"],
   ])("after %s", (_name, statement) => {
-    const source = `function f(c)\n  ${statement}\n  return x\nend\n\n{f(true)} {f(false)}\n`;
+    const source = `function f(c)\n  ${statement}\n  return x\nend\n\nscene start\n  {f(true)} {f(false)}\nend\n`;
     expect(run(source)).toEqual({ errors: [], warnings: [], output: "1 2\n" });
   });
 });
@@ -501,21 +498,19 @@ describe("an `=` that ends its line reads its value from the next line (#1247)",
 // line's does, so the value is missing there, at `<eof>` (#1907).
 describe("a narrative `=` that ends its line has no value (#1906)", () => {
   test.each([
-    ["declaration", "store q =", "0:9-1:0"],
-    ["reassignment", "store q = 0\nq =", "1:3-2:0"],
-  ])("a %s's value after a multi-line comment's close is not read", (_kind, statement, at) => {
-    const source = `${statement}\n--[[ a\nb\n]] l\nAfter.\n`;
+    ["declaration", "store q =\n--[[ a\nb\n]] l\nAfter.\n", "0:9-1:0"],
+    ["reassignment", "store q = 0\nscene start\n  q =\n  --[[ a\n  b\n  ]] l\n  After.\nend\n", "2:5-3:0"],
+  ])("a %s's value after a multi-line comment's close is not read", (_kind, source, at) => {
     expect(errorsOf(source)).toEqual([`${at} Expected identifier when parsing expression, got <eof>`]);
   });
 
   test.each([
-    ["declaration", "store y =", "0:9-1:0"],
-    ["reassignment", "store y = 0\ny =", "1:3-2:0"],
-  ])("a %s before an if line ends at its line", (_kind, statement, at) => {
-    const source = `${statement}\nif true then\n  Inside.\nend\nAfter.\n`;
+    ["declaration", "store y =\nif true then\n  Inside.\nend\nAfter.\n", "0:9-1:0"],
+    ["reassignment", "store y = 0\nscene start\n  y =\n  if true then\n    Inside.\n  end\n  After.\nend\n", "2:5-3:0"],
+  ])("a %s before an if line ends at its line", (_kind, source, at) => {
     expect(errorsOf(source)).toEqual([`${at} Expected identifier when parsing expression, got <eof>`]);
     // The `if` line is a narrative if block, and no statement crosses into it.
-    const ifAt = source.indexOf("\nif") + 1;
+    const ifAt = source.lastIndexOf("\n", source.indexOf("if true")) + 1;
     const top = stripAnsi(dumpTree(source))
       .split("\n")
       .map((line) => /^ [├└]─ (\S+) \[(\d+)\.\.(\d+)\]/.exec(line))

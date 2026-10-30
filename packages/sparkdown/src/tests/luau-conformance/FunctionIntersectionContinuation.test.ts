@@ -3,12 +3,13 @@ import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { checkLuau } from "./typecheckTestHarness";
 import { testCompiler } from "../engineUnderTest";
 import { officialSyntaxErrors } from "../compiler/officialSyntax";
+import { NO_START_SCENE_MESSAGE } from "../../compiler/utils/startScene";
 
 // A function body is Luau, so a line there that begins with `&` continues the
 // type before it as an intersection, as Luau reads it. `&` marks a Luau
 // statement only in story text, where it ends at its line (#1374).
 const inFunction = (body: string) =>
-  `Value {f()}.\nfunction f()\n${body
+  `scene start\n  Value {f()}.\nend\nfunction f()\n${body
     .split("\n")
     .map((line) => (line ? `  ${line}` : line))
     .join("\n")}\nend\n`;
@@ -188,7 +189,7 @@ test.each([
   ["after a block comment", "& {}--[[c]]a = 9"],
 ])("a statement after a return type's member line runs (%s)", (_name, line) => {
   const ctx = makeRuntimeStoryFromSource(
-    `store a = 1\nValue {f().a}.\nfunction f(): {}\n${line}\nreturn {a = a}\nend\n`,
+    `store a = 1\nscene start\n  Value {f().a}.\nend\nfunction f(): {}\n${line}\nreturn {a = a}\nend\n`,
   );
   expect(ctx.errorMessages).toEqual([]);
   expect(ctx.story.ContinueMaximally()).toBe("Value 9.\n");
@@ -243,7 +244,7 @@ test.each([
   ["a double-quoted string", '"Value {a}"'],
 ])("a statement after a member line keeps the interpolation of %s", (_name, text) => {
   const ctx = makeRuntimeStoryFromSource(
-    `store result = ""\nstore a = 3\nfunction capture(s)\n  result = s\nend\nfunction f()\n  type T = {}\n  & {}capture(${text})\nend\n& f()\n{result}\n`,
+    `store result = ""\nstore a = 3\nfunction capture(s)\n  result = s\nend\nfunction f()\n  type T = {}\n  & {}capture(${text})\nend\nscene start\n  & f()\n  {result}\nend\n`,
   );
   expect(ctx.errorMessages).toEqual([]);
   expect(ctx.story.ContinueMaximally()).toBe("Value 3\n");
@@ -321,7 +322,8 @@ const errorMessages = (source: string) => {
   const program = (compiler.compile({ textDocument: { uri } } as never) as any).program;
   return ((program.diagnostics?.[uri] ?? []) as any[])
     .filter((d) => d.severity === 1)
-    .map((d) => (typeof d.message === "string" ? d.message : d.message.value));
+    .map((d) => (typeof d.message === "string" ? d.message : d.message.value))
+    .filter((message) => message !== NO_START_SCENE_MESSAGE);
 };
 test.each(["local t = {}\n& t:missing()", "local a\n& a =", "& local v: = 1"])(
   "a marked line in a define's method is reported as Luau reports it: %s",
@@ -342,7 +344,7 @@ test.each(["local t = {}\n& t:missing()", "local a\n& a =", "& local v: = 1"])(
 // out of the block: the story still plays, and the count stays 0.
 test("a marked statement in a function neither runs nor leaves its block", () => {
   const ctx = makeRuntimeStoryFromSource(
-    "store count = 0\nfunction bump()\n  if false then\n    & count += 1\n  end\nend\n& bump()\nThe count is {count}.\n",
+    "store count = 0\nfunction bump()\n  if false then\n    & count += 1\n  end\nend\nscene start\n  & bump()\n  The count is {count}.\nend\n",
   );
   expect(ctx.errorMessages).toEqual([AMPERSAND_ERROR]);
   expect(ctx.story.ContinueMaximally()).toBe("The count is 0.\n");
@@ -363,7 +365,14 @@ test.each([
   ["\r\n", "CRLF"],
 ])("a story marked statement ends at its line (%#)", (eol) => {
   const ctx = makeRuntimeStoryFromSource(
-    ["store count = 0", "& count += 1", "The count is {count}.", ""].join(eol),
+    [
+      "store count = 0",
+      "scene start",
+      "  & count += 1",
+      "  The count is {count}.",
+      "end",
+      "",
+    ].join(eol),
   );
   expect(ctx.errorMessages).toEqual([]);
   expect(ctx.story.ContinueMaximally()).toBe("The count is 1.\n");
@@ -371,19 +380,18 @@ test.each([
 
 // A type that ends its line in story text does not take a marked line after
 // it: the `&` there marks a statement, not an intersection.
-test.each([
-  [
-    "a declaration",
-    "-> start\nscene start\n  local s: number\n  & s = 2\n  Value {s}.\nend\n",
-    "Value 2.\n",
-  ],
-  [
-    "a type alias",
-    "store s = 1\ntype T = number\n& s += 1\nValue {s}.\n",
-    "Value 2.\n",
-  ],
-])("a marked line after %s in story text is a statement", (_name, source, text) => {
-  const ctx = makeRuntimeStoryFromSource(source);
+test("a marked line after a declaration in story text is a statement", () => {
+  const ctx = makeRuntimeStoryFromSource(
+    "scene start\n  local s: number\n  & s = 2\n  Value {s}.\nend\n",
+  );
   expect(ctx.errorMessages).toEqual([]);
-  expect(ctx.story.ContinueMaximally()).toBe(text);
+  expect(ctx.story.ContinueMaximally()).toBe("Value 2.\n");
+});
+
+test("a marked line after a type alias in story text is a statement", () => {
+  expect(
+    errorMessages("store s = 1\ntype T = number\n& s += 1\nscene start\nend\n"),
+  ).toEqual([
+    "statement must be inside a scene or branch; the top level holds declarations only",
+  ]);
 });

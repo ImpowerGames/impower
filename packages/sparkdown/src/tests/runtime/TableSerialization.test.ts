@@ -52,8 +52,7 @@ function storySource(
 ): string {
   return `external host_record(v)
 ${prelude}
--> main
-scene main
+scene start
   & setup()
   choose
     * [go]

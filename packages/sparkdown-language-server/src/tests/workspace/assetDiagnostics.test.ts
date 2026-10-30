@@ -177,9 +177,6 @@ describe("asset diagnostic delivery", () => {
     expect(workerCompile).toHaveBeenCalledTimes(2);
   });
 
-  // #1389: while a .luau file is open, its own compile publishes its
-  // diagnostics under LUAU_DOCUMENT_OWNER and the story that runs it leaves
-  // them alone; once that publication is cleared, the story publishes them.
   it("leaves an open Luau file's own diagnostics to it, and publishes the story's once they are cleared", () => {
     const { workspace, publishes } = setup();
     const luau = "file:///project/lib/helpers.luau";
@@ -188,7 +185,6 @@ describe("asset diagnostic delivery", () => {
     (workspace as any).publishDiagnostics(luau, [own], LUAU_DOCUMENT_OWNER);
     workspace.onCompiledTextDocument({ program: { uri: main, diagnostics: { [luau]: [story] } } });
     expect(publishes().filter((p) => p.uri === luau).map((p) => p.diagnostics)).toEqual([[own]]);
-    // The file is closed: its owner clears its publication.
     (workspace as any)._lastPublishedDiagnostics.delete(luau);
     workspace.onCompiledTextDocument({ program: { uri: main, diagnostics: { [luau]: [story] } } });
     expect(publishes().filter((p) => p.uri === luau).map((p) => p.diagnostics)).toEqual([[own], [story]]);

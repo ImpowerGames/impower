@@ -875,13 +875,6 @@ function lowerDefineMethod(
     ctx,
     { node, defineReads: atTopLevel ? defineReads : undefined },
   ).filter((n) => n !== "self");
-  // The define's table is built when the story starts, before the top level
-  // runs, so a method of a define written at the top level reads what it
-  // captured, which reads the global of the name, as a top-level function
-  // does. It keeps those captures, so a closure of it that a save holds (a
-  // method kept in a variable) passes the parameters the method binds. A
-  // method of a define written in a function reads that function's locals
-  // through cells the define's line points at them when it runs.
   recordCaptureRead(ctx, upvals);
   const upvalArgs = upvals.map(
     (n) => new Argument(new Identifier(n), false, false, false, true),

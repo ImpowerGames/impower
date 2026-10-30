@@ -87,10 +87,6 @@ function matchRanges(view: EditorView, maxLength: number) {
   return result;
 }
 
-/// Helper class used to make it easier to maintain decorations on
-/// visible code that matches a given regular expression. To be used
-/// in a [view plugin](#view.ViewPlugin). Instances of this object
-/// represent a matching configuration.
 export class MatchDecorator {
   private regexp: RegExp;
   private addMatch: (
@@ -102,14 +98,8 @@ export class MatchDecorator {
   private boundary: RegExp | undefined;
   private maxLength: number;
 
-  /// Create a decorator.
   constructor(config: {
-    /// The regular expression to match against the content. Will only
-    /// be matched inside lines (not across them). Should have its 'g'
-    /// flag set.
     regexp: RegExp;
-    /// The decoration to apply to matches, either directly or as a
-    /// function of the match.
     decoration?:
       | Decoration
       | ((
@@ -117,14 +107,6 @@ export class MatchDecorator {
           view: EditorView,
           pos: number,
         ) => Decoration | null);
-    /// Customize the way decorations are added for matches. This
-    /// function, when given, will be called for matches and should
-    /// call `add` to create decorations for them. Note that the
-    /// decorations should appear *in* the given range, and the
-    /// function should have no side effects beyond calling `add`.
-    ///
-    /// The `decoration` option is ignored when `decorate` is
-    /// provided.
     decorate?: (
       add: (from: number, to: number, decoration: Decoration) => void,
       from: number,
@@ -132,16 +114,7 @@ export class MatchDecorator {
       match: RegExpExecArray,
       view: EditorView,
     ) => void;
-    /// By default, changed lines are re-matched entirely. You can
-    /// provide a boundary expression, which should match single
-    /// character strings that can never occur in `regexp`, to reduce
-    /// the amount of re-matching.
     boundary?: RegExp;
-    /// Matching happens by line, by default, but when lines are
-    /// folded or very long lines are only partially drawn, the
-    /// decorator may avoid matching part of them for speed. This
-    /// controls how much additional invisible content it should
-    /// include in its matches. Defaults to 1000.
     maxLength?: number;
   }) {
     const { regexp, decoration, decorate, boundary, maxLength = 1000 } = config;
@@ -170,9 +143,6 @@ export class MatchDecorator {
     this.maxLength = maxLength;
   }
 
-  /// Compute the full set of decorations for matches in the given
-  /// view's viewport. You'll want to call this when initializing your
-  /// plugin.
   createDeco(view: EditorView) {
     let build = new RangeSetBuilder<Decoration>();
     let add = build.add.bind(build);
@@ -183,9 +153,6 @@ export class MatchDecorator {
     return build.finish();
   }
 
-  /// Update a set of decorations for a view update. `deco` _must_ be
-  /// the set of decorations produced by _this_ `MatchDecorator` for
-  /// the view state before the update.
   updateDeco(update: ViewUpdate, deco: DecorationSet) {
     let changeFrom = 1e9;
     let changeTo = -1;
@@ -218,8 +185,6 @@ export class MatchDecorator {
     updateTo: number,
   ) {
     for (let r of view.visibleRanges) {
-      // VENDORING CHANGE: Had extend `from` by -1 and `to` by +1
-      // so that regexp backreferences and forward references would work
       let from = view.state.doc.lineAt(Math.max(r.from, updateFrom)).from;
       let to = view.state.doc.lineAt(Math.max(r.to, updateTo)).to;
       if (to > from) {
@@ -276,10 +241,6 @@ const whitespaceHighlighter = matcher(
   }),
 );
 
-/// Returns an extension that highlights whitespace, adding a
-/// `cm-highlightSpace` class to stretches of spaces, and a
-/// `cm-highlightTab` class to individual tab characters. By default,
-/// the former are shown as faint dots, and the latter as arrows.
 export function highlightExtraWhitespace() {
   return [highlightExtraWhitespaceTheme, whitespaceHighlighter];
 }

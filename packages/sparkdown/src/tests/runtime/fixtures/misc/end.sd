@@ -1,2 +1,4 @@
-hello
-fin
+scene start
+  hello
+  fin
+end

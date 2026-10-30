@@ -1,338 +1,355 @@
-sparkdown [0..184]
- ├─ ImplicitAction [0..16]
- │   ├─ ImplicitAction_begin 0
- │   │   └─ ImplicitAction_begin_c1 0
- │   │       └─ OptionalWhitespace 0
- │   ├─ ImplicitAction_content [0..16]
- │   │   └─ ActionLineEnd [0..16]
- │   │       ├─ ActionLineEnd_begin 0
- │   │       │   └─ ActionLineEnd_begin_c1 0
- │   │       │       └─ OptionalWhitespace 0
- │   │       ├─ ActionLineEnd_content [0..16]
- │   │       │   └─ TextChunk [0..16]
- │   │       │       ├─ TextChunk_begin 0
- │   │       │       ├─ TextChunk_content [0..16]
- │   │       │       │   ├─ Word [0..2]: "Go"
- │   │       │       │   ├─ Space [2..3]: " "
- │   │       │       │   ├─ Bold [3..11]
- │   │       │       │   │   ├─ Bold_begin [3..5]
- │   │       │       │   │   │   └─ Bold_begin_c1 [3..5]
- │   │       │       │   │   │       └─ StylingMark [3..5]
- │   │       │       │   │   │           └─ StylingMark_c1 [3..5]: "**"
- │   │       │       │   │   ├─ Bold_content [5..9]
- │   │       │       │   │   │   └─ Word [5..9]: "bold"
- │   │       │       │   │   └─ Bold_end [9..11]
- │   │       │       │   │       └─ Bold_end_c1 [9..11]
- │   │       │       │   │           └─ StylingMark [9..11]
- │   │       │       │   │               └─ StylingMark_c1 [9..11]: "**"
- │   │       │       │   ├─ Space [11..12]: " "
- │   │       │       │   ├─ Word [12..15]: "now"
- │   │       │       │   └─ Punctuation [15..16]: "."
- │   │       │       └─ TextChunk_end 16
- │   │       └─ ActionLineEnd_end 16
- │   └─ ImplicitAction_end 16
- ├─ Newline [16..17]: "\n"
- ├─ ImplicitAction [17..33]
- │   ├─ ImplicitAction_begin 17
- │   │   └─ ImplicitAction_begin_c1 17
- │   │       └─ OptionalWhitespace 17
- │   ├─ ImplicitAction_content [17..33]
- │   │   └─ ActionLineEnd [17..33]
- │   │       ├─ ActionLineEnd_begin 17
- │   │       │   └─ ActionLineEnd_begin_c1 17
- │   │       │       └─ OptionalWhitespace 17
- │   │       ├─ ActionLineEnd_content [17..33]
- │   │       │   └─ TextChunk [17..33]
- │   │       │       ├─ TextChunk_begin 17
- │   │       │       ├─ TextChunk_content [17..33]
- │   │       │       │   ├─ Word [17..19]: "Go"
- │   │       │       │   ├─ Space [19..20]: " "
- │   │       │       │   ├─ Italic [20..28]
- │   │       │       │   │   ├─ Italic_begin [20..21]
- │   │       │       │   │   │   └─ Italic_begin_c1 [20..21]
- │   │       │       │   │   │       └─ StylingMark [20..21]
- │   │       │       │   │   │           └─ StylingMark_c1 [20..21]: "*"
- │   │       │       │   │   ├─ Italic_content [21..27]
- │   │       │       │   │   │   └─ Word [21..27]: "italic"
- │   │       │       │   │   └─ Italic_end [27..28]
- │   │       │       │   │       └─ Italic_end_c1 [27..28]
- │   │       │       │   │           └─ StylingMark [27..28]
- │   │       │       │   │               └─ StylingMark_c1 [27..28]: "*"
- │   │       │       │   ├─ Space [28..29]: " "
- │   │       │       │   ├─ Word [29..32]: "now"
- │   │       │       │   └─ Punctuation [32..33]: "."
- │   │       │       └─ TextChunk_end 33
- │   │       └─ ActionLineEnd_end 33
- │   └─ ImplicitAction_end 33
- ├─ Newline [33..34]: "\n"
- ├─ ImplicitAction [34..52]
- │   ├─ ImplicitAction_begin 34
- │   │   └─ ImplicitAction_begin_c1 34
- │   │       └─ OptionalWhitespace 34
- │   ├─ ImplicitAction_content [34..52]
- │   │   └─ ActionLineEnd [34..52]
- │   │       ├─ ActionLineEnd_begin 34
- │   │       │   └─ ActionLineEnd_begin_c1 34
- │   │       │       └─ OptionalWhitespace 34
- │   │       ├─ ActionLineEnd_content [34..52]
- │   │       │   └─ TextChunk [34..52]
- │   │       │       ├─ TextChunk_begin 34
- │   │       │       ├─ TextChunk_content [34..52]
- │   │       │       │   ├─ Word [34..36]: "Go"
- │   │       │       │   ├─ Space [36..37]: " "
- │   │       │       │   ├─ BoldItalic [37..47]
- │   │       │       │   │   ├─ BoldItalic_begin [37..39]
- │   │       │       │   │   │   └─ BoldItalic_begin_c1 [37..39]
- │   │       │       │   │   │       └─ StylingMark [37..39]
- │   │       │       │   │   │           └─ StylingMark_c1 [37..39]: "**"
- │   │       │       │   │   ├─ BoldItalic_content [39..45]
- │   │       │       │   │   │   └─ Italic [39..45]
- │   │       │       │   │   │       ├─ Italic_begin [39..40]
- │   │       │       │   │   │       │   └─ Italic_begin_c1 [39..40]
- │   │       │       │   │   │       │       └─ StylingMark [39..40]
- │   │       │       │   │   │       │           └─ StylingMark_c1 [39..40]: "*"
- │   │       │       │   │   │       ├─ Italic_content [40..44]
- │   │       │       │   │   │       │   └─ Word [40..44]: "both"
- │   │       │       │   │   │       └─ Italic_end [44..45]
- │   │       │       │   │   │           └─ Italic_end_c1 [44..45]
- │   │       │       │   │   │               └─ StylingMark [44..45]
- │   │       │       │   │   │                   └─ StylingMark_c1 [44..45]: "*"
- │   │       │       │   │   └─ BoldItalic_end [45..47]
- │   │       │       │   │       └─ BoldItalic_end_c1 [45..47]
- │   │       │       │   │           └─ StylingMark [45..47]
- │   │       │       │   │               └─ StylingMark_c1 [45..47]: "**"
- │   │       │       │   ├─ Space [47..48]: " "
- │   │       │       │   ├─ Word [48..51]: "now"
- │   │       │       │   └─ Punctuation [51..52]: "."
- │   │       │       └─ TextChunk_end 52
- │   │       └─ ActionLineEnd_end 52
- │   └─ ImplicitAction_end 52
- ├─ Newline [52..53]: "\n"
- ├─ ImplicitAction [53..74]
- │   ├─ ImplicitAction_begin 53
- │   │   └─ ImplicitAction_begin_c1 53
- │   │       └─ OptionalWhitespace 53
- │   ├─ ImplicitAction_content [53..74]
- │   │   └─ ActionLineEnd [53..74]
- │   │       ├─ ActionLineEnd_begin 53
- │   │       │   └─ ActionLineEnd_begin_c1 53
- │   │       │       └─ OptionalWhitespace 53
- │   │       ├─ ActionLineEnd_content [53..74]
- │   │       │   └─ TextChunk [53..74]
- │   │       │       ├─ TextChunk_begin 53
- │   │       │       ├─ TextChunk_content [53..74]
- │   │       │       │   ├─ Word [53..55]: "Go"
- │   │       │       │   ├─ Space [55..56]: " "
- │   │       │       │   ├─ Underline [56..69]
- │   │       │       │   │   ├─ Underline_begin [56..58]
- │   │       │       │   │   │   └─ Underline_begin_c1 [56..58]
- │   │       │       │   │   │       └─ StylingMark [56..58]
- │   │       │       │   │   │           └─ StylingMark_c1 [56..58]: "__"
- │   │       │       │   │   ├─ Underline_content [58..67]
- │   │       │       │   │   │   └─ Word [58..67]: "underline"
- │   │       │       │   │   └─ Underline_end [67..69]
- │   │       │       │   │       └─ Underline_end_c1 [67..69]
- │   │       │       │   │           └─ StylingMark [67..69]
- │   │       │       │   │               └─ StylingMark_c1 [67..69]: "__"
- │   │       │       │   ├─ Space [69..70]: " "
- │   │       │       │   ├─ Word [70..73]: "now"
- │   │       │       │   └─ Punctuation [73..74]: "."
- │   │       │       └─ TextChunk_end 74
- │   │       └─ ActionLineEnd_end 74
- │   └─ ImplicitAction_end 74
- ├─ Newline [74..75]: "\n"
- ├─ ImplicitAction [75..88]
- │   ├─ ImplicitAction_begin 75
- │   │   └─ ImplicitAction_begin_c1 75
- │   │       └─ OptionalWhitespace 75
- │   ├─ ImplicitAction_content [75..88]
- │   │   └─ ActionLineEnd [75..88]
- │   │       ├─ ActionLineEnd_begin 75
- │   │       │   └─ ActionLineEnd_begin_c1 75
- │   │       │       └─ OptionalWhitespace 75
- │   │       ├─ ActionLineEnd_content [75..88]
- │   │       │   └─ TextChunk [75..88]
- │   │       │       ├─ TextChunk_begin 75
- │   │       │       ├─ TextChunk_content [75..88]
- │   │       │       │   ├─ Word [75..77]: "Go"
- │   │       │       │   ├─ Space [77..78]: " "
- │   │       │       │   ├─ Raw [78..83]
- │   │       │       │   │   ├─ Raw_begin [78..79]
- │   │       │       │   │   │   └─ Raw_begin_c1 [78..79]
- │   │       │       │   │   │       └─ StylingMark [78..79]
- │   │       │       │   │   │           └─ StylingMark_c1 [78..79]: "`"
- │   │       │       │   │   ├─ Raw_content [79..82]
- │   │       │       │   │   │   └─ Word [79..82]: "raw"
- │   │       │       │   │   └─ Raw_end [82..83]
- │   │       │       │   │       └─ Raw_end_c1 [82..83]
- │   │       │       │   │           └─ StylingMark [82..83]
- │   │       │       │   │               └─ StylingMark_c1 [82..83]: "`"
- │   │       │       │   ├─ Space [83..84]: " "
- │   │       │       │   ├─ Word [84..87]: "now"
- │   │       │       │   └─ Punctuation [87..88]: "."
- │   │       │       └─ TextChunk_end 88
- │   │       └─ ActionLineEnd_end 88
- │   └─ ImplicitAction_end 88
- ├─ Newline [88..89]: "\n"
- ├─ InlineDialogue [89..121]
- │   ├─ InlineDialogue_begin [89..95]
- │   │   ├─ InlineDialogue_begin_c1 89
- │   │   │   └─ OptionalWhitespace 89
- │   │   ├─ InlineDialogue_begin_c2 [89..93]
- │   │   │   └─ DialogueCharacter [89..93]
- │   │   │       ├─ DialogueCharacter_c1 89
- │   │   │       ├─ DialogueCharacter_c2 [89..93]
- │   │   │       │   └─ DialogueCharacterName [89..93]
- │   │   │       │       └─ DialogueCharacterName_c1 [89..93]
- │   │   │       │           └─ Word [89..93]: "HERO"
- │   │   │       ├─ DialogueCharacter_c3 93
- │   │   │       ├─ DialogueCharacter_c4 93
- │   │   │       ├─ DialogueCharacter_c5 93
- │   │   │       ├─ DialogueCharacter_c6 93
- │   │   │       └─ DialogueCharacter_c7 93
- │   │   ├─ InlineDialogue_begin_c3 [93..94]
- │   │   │   └─ ColonSeparator [93..94]: ":"
- │   │   ├─ InlineDialogue_begin_c4 [94..95]
- │   │   │   └─ RequiredWhitespace [94..95]: " "
- │   │   └─ InlineDialogue_begin_c5 95
- │   ├─ InlineDialogue_content [95..121]
- │   │   └─ LineEnd [95..121]
- │   │       ├─ LineEnd_begin 95
- │   │       │   └─ LineEnd_begin_c1 95
- │   │       │       └─ OptionalWhitespace 95
- │   │       ├─ LineEnd_content [95..121]
- │   │       │   └─ TextChunk [95..121]
- │   │       │       ├─ TextChunk_begin 95
- │   │       │       ├─ TextChunk_content [95..121]
- │   │       │       │   ├─ Word [95..97]: "Go"
- │   │       │       │   ├─ Space [97..98]: " "
- │   │       │       │   ├─ Bold [98..106]
- │   │       │       │   │   ├─ Bold_begin [98..100]
- │   │       │       │   │   │   └─ Bold_begin_c1 [98..100]
- │   │       │       │   │   │       └─ StylingMark [98..100]
- │   │       │       │   │   │           └─ StylingMark_c1 [98..100]: "**"
- │   │       │       │   │   ├─ Bold_content [100..104]
- │   │       │       │   │   │   └─ Word [100..104]: "bold"
- │   │       │       │   │   └─ Bold_end [104..106]
- │   │       │       │   │       └─ Bold_end_c1 [104..106]
- │   │       │       │   │           └─ StylingMark [104..106]
- │   │       │       │   │               └─ StylingMark_c1 [104..106]: "**"
- │   │       │       │   ├─ Space [106..107]: " "
- │   │       │       │   ├─ Word [107..110]: "and"
- │   │       │       │   ├─ Space [110..111]: " "
- │   │       │       │   ├─ Raw [111..116]
- │   │       │       │   │   ├─ Raw_begin [111..112]
- │   │       │       │   │   │   └─ Raw_begin_c1 [111..112]
- │   │       │       │   │   │       └─ StylingMark [111..112]
- │   │       │       │   │   │           └─ StylingMark_c1 [111..112]: "`"
- │   │       │       │   │   ├─ Raw_content [112..115]
- │   │       │       │   │   │   └─ Word [112..115]: "raw"
- │   │       │       │   │   └─ Raw_end [115..116]
- │   │       │       │   │       └─ Raw_end_c1 [115..116]
- │   │       │       │   │           └─ StylingMark [115..116]
- │   │       │       │   │               └─ StylingMark_c1 [115..116]: "`"
- │   │       │       │   ├─ Space [116..117]: " "
- │   │       │       │   ├─ Word [117..120]: "now"
- │   │       │       │   └─ Punctuation [120..121]: "."
- │   │       │       └─ TextChunk_end 121
- │   │       └─ LineEnd_end 121
- │   └─ InlineDialogue_end 121
- ├─ Newline [121..122]: "\n"
- ├─ BlockDialogue [122..165]
- │   ├─ BlockDialogue_begin [122..127]
- │   │   ├─ BlockDialogue_begin_c1 122
- │   │   │   └─ OptionalWhitespace 122
- │   │   ├─ BlockDialogue_begin_c2 [122..126]
- │   │   │   └─ DialogueCharacter [122..126]
- │   │   │       ├─ DialogueCharacter_c1 122
- │   │   │       ├─ DialogueCharacter_c2 [122..126]
- │   │   │       │   └─ DialogueCharacterName [122..126]
- │   │   │       │       └─ DialogueCharacterName_c1 [122..126]
- │   │   │       │           └─ Word [122..126]: "HERO"
- │   │   │       ├─ DialogueCharacter_c3 126
- │   │   │       ├─ DialogueCharacter_c4 126
- │   │   │       ├─ DialogueCharacter_c5 126
- │   │   │       ├─ DialogueCharacter_c6 126
- │   │   │       └─ DialogueCharacter_c7 126
- │   │   ├─ BlockDialogue_begin_c3 [126..127]
- │   │   │   └─ ColonSeparator [126..127]: ":"
- │   │   └─ BlockDialogue_begin_c4 127
- │   ├─ BlockDialogue_content [127..165]
- │   │   ├─ Newline [127..128]: "\n"
- │   │   ├─ BlockLineContinue [128..164]
- │   │   │   ├─ BlockLineContinue_begin [128..130]
- │   │   │   │   ├─ BlockLineContinue_begin_c1 [128..130]
- │   │   │   │   │   └─ OptionalWhitespace [128..130]: "  "
- │   │   │   │   └─ BlockLineContinue_begin_c2 130
- │   │   │   ├─ BlockLineContinue_content [130..164]
- │   │   │   │   └─ TextChunk [130..164]
- │   │   │   │       ├─ TextChunk_begin 130
- │   │   │   │       ├─ TextChunk_content [130..164]
- │   │   │   │       │   ├─ Word [130..132]: "Go"
- │   │   │   │       │   ├─ Space [132..133]: " "
- │   │   │   │       │   ├─ Italic [133..141]
- │   │   │   │       │   │   ├─ Italic_begin [133..134]
- │   │   │   │       │   │   │   └─ Italic_begin_c1 [133..134]
- │   │   │   │       │   │   │       └─ StylingMark [133..134]
- │   │   │   │       │   │   │           └─ StylingMark_c1 [133..134]: "*"
- │   │   │   │       │   │   ├─ Italic_content [134..140]
- │   │   │   │       │   │   │   └─ Word [134..140]: "italic"
- │   │   │   │       │   │   └─ Italic_end [140..141]
- │   │   │   │       │   │       └─ Italic_end_c1 [140..141]
- │   │   │   │       │   │           └─ StylingMark [140..141]
- │   │   │   │       │   │               └─ StylingMark_c1 [140..141]: "*"
- │   │   │   │       │   ├─ Space [141..142]: " "
- │   │   │   │       │   ├─ Word [142..145]: "and"
- │   │   │   │       │   ├─ Space [145..146]: " "
- │   │   │   │       │   ├─ Underline [146..159]
- │   │   │   │       │   │   ├─ Underline_begin [146..148]
- │   │   │   │       │   │   │   └─ Underline_begin_c1 [146..148]
- │   │   │   │       │   │   │       └─ StylingMark [146..148]
- │   │   │   │       │   │   │           └─ StylingMark_c1 [146..148]: "__"
- │   │   │   │       │   │   ├─ Underline_content [148..157]
- │   │   │   │       │   │   │   └─ Word [148..157]: "underline"
- │   │   │   │       │   │   └─ Underline_end [157..159]
- │   │   │   │       │   │       └─ Underline_end_c1 [157..159]
- │   │   │   │       │   │           └─ StylingMark [157..159]
- │   │   │   │       │   │               └─ StylingMark_c1 [157..159]: "__"
- │   │   │   │       │   ├─ Space [159..160]: " "
- │   │   │   │       │   ├─ Word [160..163]: "now"
- │   │   │   │       │   └─ Punctuation [163..164]: "."
- │   │   │   │       └─ TextChunk_end 164
- │   │   │   └─ BlockLineContinue_end 164
- │   │   │       └─ BlockLineContinue_end_c1 164
- │   │   └─ Newline [164..165]: "\n"
- │   └─ BlockDialogue_end 165
- ├─ ImplicitAction [165..183]
- │   ├─ ImplicitAction_begin 165
- │   │   └─ ImplicitAction_begin_c1 165
- │   │       └─ OptionalWhitespace 165
- │   ├─ ImplicitAction_content [165..183]
- │   │   └─ ActionLineEnd [165..183]
- │   │       ├─ ActionLineEnd_begin 165
- │   │       │   └─ ActionLineEnd_begin_c1 165
- │   │       │       └─ OptionalWhitespace 165
- │   │       ├─ ActionLineEnd_content [165..183]
- │   │       │   └─ TextChunk [165..183]
- │   │       │       ├─ TextChunk_begin 165
- │   │       │       ├─ TextChunk_content [165..183]
- │   │       │       │   ├─ Word [165..167]: "Go"
- │   │       │       │   ├─ Space [167..168]: " "
- │   │       │       │   ├─ Centered [168..178]
- │   │       │       │   │   ├─ Centered_begin [168..169]
- │   │       │       │   │   │   └─ Centered_begin_c1 [168..169]
- │   │       │       │   │   │       └─ StylingMark [168..169]
- │   │       │       │   │   │           └─ StylingMark_c1 [168..169]: "^"
- │   │       │       │   │   ├─ Centered_content [169..177]
- │   │       │       │   │   │   └─ Word [169..177]: "centered"
- │   │       │       │   │   └─ Centered_end [177..178]
- │   │       │       │   │       └─ Centered_end_c1 [177..178]
- │   │       │       │   │           └─ StylingMark [177..178]
- │   │       │       │   │               └─ StylingMark_c1 [177..178]: "^"
- │   │       │       │   ├─ Space [178..179]: " "
- │   │       │       │   ├─ Word [179..182]: "now"
- │   │       │       │   └─ Punctuation [182..183]: "."
- │   │       │       └─ TextChunk_end 183
- │   │       └─ ActionLineEnd_end 183
- │   └─ ImplicitAction_end 183
- └─ Newline [183..184]: "\n"
+sparkdown [0..218]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ ImplicitAction [12..30]
+ │   ├─ ImplicitAction_begin [12..14]
+ │   │   └─ ImplicitAction_begin_c1 [12..14]
+ │   │       └─ OptionalWhitespace [12..14]: "  "
+ │   ├─ ImplicitAction_content [14..30]
+ │   │   └─ ActionLineEnd [14..30]
+ │   │       ├─ ActionLineEnd_begin 14
+ │   │       │   └─ ActionLineEnd_begin_c1 14
+ │   │       │       └─ OptionalWhitespace 14
+ │   │       ├─ ActionLineEnd_content [14..30]
+ │   │       │   └─ TextChunk [14..30]
+ │   │       │       ├─ TextChunk_begin 14
+ │   │       │       ├─ TextChunk_content [14..30]
+ │   │       │       │   ├─ Word [14..16]: "Go"
+ │   │       │       │   ├─ Space [16..17]: " "
+ │   │       │       │   ├─ Bold [17..25]
+ │   │       │       │   │   ├─ Bold_begin [17..19]
+ │   │       │       │   │   │   └─ Bold_begin_c1 [17..19]
+ │   │       │       │   │   │       └─ StylingMark [17..19]
+ │   │       │       │   │   │           └─ StylingMark_c1 [17..19]: "**"
+ │   │       │       │   │   ├─ Bold_content [19..23]
+ │   │       │       │   │   │   └─ Word [19..23]: "bold"
+ │   │       │       │   │   └─ Bold_end [23..25]
+ │   │       │       │   │       └─ Bold_end_c1 [23..25]
+ │   │       │       │   │           └─ StylingMark [23..25]
+ │   │       │       │   │               └─ StylingMark_c1 [23..25]: "**"
+ │   │       │       │   ├─ Space [25..26]: " "
+ │   │       │       │   ├─ Word [26..29]: "now"
+ │   │       │       │   └─ Punctuation [29..30]: "."
+ │   │       │       └─ TextChunk_end 30
+ │   │       └─ ActionLineEnd_end 30
+ │   └─ ImplicitAction_end 30
+ ├─ Newline [30..31]: "\n"
+ ├─ ImplicitAction [31..49]
+ │   ├─ ImplicitAction_begin [31..33]
+ │   │   └─ ImplicitAction_begin_c1 [31..33]
+ │   │       └─ OptionalWhitespace [31..33]: "  "
+ │   ├─ ImplicitAction_content [33..49]
+ │   │   └─ ActionLineEnd [33..49]
+ │   │       ├─ ActionLineEnd_begin 33
+ │   │       │   └─ ActionLineEnd_begin_c1 33
+ │   │       │       └─ OptionalWhitespace 33
+ │   │       ├─ ActionLineEnd_content [33..49]
+ │   │       │   └─ TextChunk [33..49]
+ │   │       │       ├─ TextChunk_begin 33
+ │   │       │       ├─ TextChunk_content [33..49]
+ │   │       │       │   ├─ Word [33..35]: "Go"
+ │   │       │       │   ├─ Space [35..36]: " "
+ │   │       │       │   ├─ Italic [36..44]
+ │   │       │       │   │   ├─ Italic_begin [36..37]
+ │   │       │       │   │   │   └─ Italic_begin_c1 [36..37]
+ │   │       │       │   │   │       └─ StylingMark [36..37]
+ │   │       │       │   │   │           └─ StylingMark_c1 [36..37]: "*"
+ │   │       │       │   │   ├─ Italic_content [37..43]
+ │   │       │       │   │   │   └─ Word [37..43]: "italic"
+ │   │       │       │   │   └─ Italic_end [43..44]
+ │   │       │       │   │       └─ Italic_end_c1 [43..44]
+ │   │       │       │   │           └─ StylingMark [43..44]
+ │   │       │       │   │               └─ StylingMark_c1 [43..44]: "*"
+ │   │       │       │   ├─ Space [44..45]: " "
+ │   │       │       │   ├─ Word [45..48]: "now"
+ │   │       │       │   └─ Punctuation [48..49]: "."
+ │   │       │       └─ TextChunk_end 49
+ │   │       └─ ActionLineEnd_end 49
+ │   └─ ImplicitAction_end 49
+ ├─ Newline [49..50]: "\n"
+ ├─ ImplicitAction [50..70]
+ │   ├─ ImplicitAction_begin [50..52]
+ │   │   └─ ImplicitAction_begin_c1 [50..52]
+ │   │       └─ OptionalWhitespace [50..52]: "  "
+ │   ├─ ImplicitAction_content [52..70]
+ │   │   └─ ActionLineEnd [52..70]
+ │   │       ├─ ActionLineEnd_begin 52
+ │   │       │   └─ ActionLineEnd_begin_c1 52
+ │   │       │       └─ OptionalWhitespace 52
+ │   │       ├─ ActionLineEnd_content [52..70]
+ │   │       │   └─ TextChunk [52..70]
+ │   │       │       ├─ TextChunk_begin 52
+ │   │       │       ├─ TextChunk_content [52..70]
+ │   │       │       │   ├─ Word [52..54]: "Go"
+ │   │       │       │   ├─ Space [54..55]: " "
+ │   │       │       │   ├─ BoldItalic [55..65]
+ │   │       │       │   │   ├─ BoldItalic_begin [55..57]
+ │   │       │       │   │   │   └─ BoldItalic_begin_c1 [55..57]
+ │   │       │       │   │   │       └─ StylingMark [55..57]
+ │   │       │       │   │   │           └─ StylingMark_c1 [55..57]: "**"
+ │   │       │       │   │   ├─ BoldItalic_content [57..63]
+ │   │       │       │   │   │   └─ Italic [57..63]
+ │   │       │       │   │   │       ├─ Italic_begin [57..58]
+ │   │       │       │   │   │       │   └─ Italic_begin_c1 [57..58]
+ │   │       │       │   │   │       │       └─ StylingMark [57..58]
+ │   │       │       │   │   │       │           └─ StylingMark_c1 [57..58]: "*"
+ │   │       │       │   │   │       ├─ Italic_content [58..62]
+ │   │       │       │   │   │       │   └─ Word [58..62]: "both"
+ │   │       │       │   │   │       └─ Italic_end [62..63]
+ │   │       │       │   │   │           └─ Italic_end_c1 [62..63]
+ │   │       │       │   │   │               └─ StylingMark [62..63]
+ │   │       │       │   │   │                   └─ StylingMark_c1 [62..63]: "*"
+ │   │       │       │   │   └─ BoldItalic_end [63..65]
+ │   │       │       │   │       └─ BoldItalic_end_c1 [63..65]
+ │   │       │       │   │           └─ StylingMark [63..65]
+ │   │       │       │   │               └─ StylingMark_c1 [63..65]: "**"
+ │   │       │       │   ├─ Space [65..66]: " "
+ │   │       │       │   ├─ Word [66..69]: "now"
+ │   │       │       │   └─ Punctuation [69..70]: "."
+ │   │       │       └─ TextChunk_end 70
+ │   │       └─ ActionLineEnd_end 70
+ │   └─ ImplicitAction_end 70
+ ├─ Newline [70..71]: "\n"
+ ├─ ImplicitAction [71..94]
+ │   ├─ ImplicitAction_begin [71..73]
+ │   │   └─ ImplicitAction_begin_c1 [71..73]
+ │   │       └─ OptionalWhitespace [71..73]: "  "
+ │   ├─ ImplicitAction_content [73..94]
+ │   │   └─ ActionLineEnd [73..94]
+ │   │       ├─ ActionLineEnd_begin 73
+ │   │       │   └─ ActionLineEnd_begin_c1 73
+ │   │       │       └─ OptionalWhitespace 73
+ │   │       ├─ ActionLineEnd_content [73..94]
+ │   │       │   └─ TextChunk [73..94]
+ │   │       │       ├─ TextChunk_begin 73
+ │   │       │       ├─ TextChunk_content [73..94]
+ │   │       │       │   ├─ Word [73..75]: "Go"
+ │   │       │       │   ├─ Space [75..76]: " "
+ │   │       │       │   ├─ Underline [76..89]
+ │   │       │       │   │   ├─ Underline_begin [76..78]
+ │   │       │       │   │   │   └─ Underline_begin_c1 [76..78]
+ │   │       │       │   │   │       └─ StylingMark [76..78]
+ │   │       │       │   │   │           └─ StylingMark_c1 [76..78]: "__"
+ │   │       │       │   │   ├─ Underline_content [78..87]
+ │   │       │       │   │   │   └─ Word [78..87]: "underline"
+ │   │       │       │   │   └─ Underline_end [87..89]
+ │   │       │       │   │       └─ Underline_end_c1 [87..89]
+ │   │       │       │   │           └─ StylingMark [87..89]
+ │   │       │       │   │               └─ StylingMark_c1 [87..89]: "__"
+ │   │       │       │   ├─ Space [89..90]: " "
+ │   │       │       │   ├─ Word [90..93]: "now"
+ │   │       │       │   └─ Punctuation [93..94]: "."
+ │   │       │       └─ TextChunk_end 94
+ │   │       └─ ActionLineEnd_end 94
+ │   └─ ImplicitAction_end 94
+ ├─ Newline [94..95]: "\n"
+ ├─ ImplicitAction [95..110]
+ │   ├─ ImplicitAction_begin [95..97]
+ │   │   └─ ImplicitAction_begin_c1 [95..97]
+ │   │       └─ OptionalWhitespace [95..97]: "  "
+ │   ├─ ImplicitAction_content [97..110]
+ │   │   └─ ActionLineEnd [97..110]
+ │   │       ├─ ActionLineEnd_begin 97
+ │   │       │   └─ ActionLineEnd_begin_c1 97
+ │   │       │       └─ OptionalWhitespace 97
+ │   │       ├─ ActionLineEnd_content [97..110]
+ │   │       │   └─ TextChunk [97..110]
+ │   │       │       ├─ TextChunk_begin 97
+ │   │       │       ├─ TextChunk_content [97..110]
+ │   │       │       │   ├─ Word [97..99]: "Go"
+ │   │       │       │   ├─ Space [99..100]: " "
+ │   │       │       │   ├─ Raw [100..105]
+ │   │       │       │   │   ├─ Raw_begin [100..101]
+ │   │       │       │   │   │   └─ Raw_begin_c1 [100..101]
+ │   │       │       │   │   │       └─ StylingMark [100..101]
+ │   │       │       │   │   │           └─ StylingMark_c1 [100..101]: "`"
+ │   │       │       │   │   ├─ Raw_content [101..104]
+ │   │       │       │   │   │   └─ Word [101..104]: "raw"
+ │   │       │       │   │   └─ Raw_end [104..105]
+ │   │       │       │   │       └─ Raw_end_c1 [104..105]
+ │   │       │       │   │           └─ StylingMark [104..105]
+ │   │       │       │   │               └─ StylingMark_c1 [104..105]: "`"
+ │   │       │       │   ├─ Space [105..106]: " "
+ │   │       │       │   ├─ Word [106..109]: "now"
+ │   │       │       │   └─ Punctuation [109..110]: "."
+ │   │       │       └─ TextChunk_end 110
+ │   │       └─ ActionLineEnd_end 110
+ │   └─ ImplicitAction_end 110
+ ├─ Newline [110..111]: "\n"
+ ├─ InlineDialogue [111..145]
+ │   ├─ InlineDialogue_begin [111..119]
+ │   │   ├─ InlineDialogue_begin_c1 [111..113]
+ │   │   │   └─ OptionalWhitespace [111..113]: "  "
+ │   │   ├─ InlineDialogue_begin_c2 [113..117]
+ │   │   │   └─ DialogueCharacter [113..117]
+ │   │   │       ├─ DialogueCharacter_c1 113
+ │   │   │       ├─ DialogueCharacter_c2 [113..117]
+ │   │   │       │   └─ DialogueCharacterName [113..117]
+ │   │   │       │       └─ DialogueCharacterName_c1 [113..117]
+ │   │   │       │           └─ Word [113..117]: "HERO"
+ │   │   │       ├─ DialogueCharacter_c3 117
+ │   │   │       ├─ DialogueCharacter_c4 117
+ │   │   │       ├─ DialogueCharacter_c5 117
+ │   │   │       ├─ DialogueCharacter_c6 117
+ │   │   │       └─ DialogueCharacter_c7 117
+ │   │   ├─ InlineDialogue_begin_c3 [117..118]
+ │   │   │   └─ ColonSeparator [117..118]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [118..119]
+ │   │   │   └─ RequiredWhitespace [118..119]: " "
+ │   │   └─ InlineDialogue_begin_c5 119
+ │   ├─ InlineDialogue_content [119..145]
+ │   │   └─ LineEnd [119..145]
+ │   │       ├─ LineEnd_begin 119
+ │   │       │   └─ LineEnd_begin_c1 119
+ │   │       │       └─ OptionalWhitespace 119
+ │   │       ├─ LineEnd_content [119..145]
+ │   │       │   └─ TextChunk [119..145]
+ │   │       │       ├─ TextChunk_begin 119
+ │   │       │       ├─ TextChunk_content [119..145]
+ │   │       │       │   ├─ Word [119..121]: "Go"
+ │   │       │       │   ├─ Space [121..122]: " "
+ │   │       │       │   ├─ Bold [122..130]
+ │   │       │       │   │   ├─ Bold_begin [122..124]
+ │   │       │       │   │   │   └─ Bold_begin_c1 [122..124]
+ │   │       │       │   │   │       └─ StylingMark [122..124]
+ │   │       │       │   │   │           └─ StylingMark_c1 [122..124]: "**"
+ │   │       │       │   │   ├─ Bold_content [124..128]
+ │   │       │       │   │   │   └─ Word [124..128]: "bold"
+ │   │       │       │   │   └─ Bold_end [128..130]
+ │   │       │       │   │       └─ Bold_end_c1 [128..130]
+ │   │       │       │   │           └─ StylingMark [128..130]
+ │   │       │       │   │               └─ StylingMark_c1 [128..130]: "**"
+ │   │       │       │   ├─ Space [130..131]: " "
+ │   │       │       │   ├─ Word [131..134]: "and"
+ │   │       │       │   ├─ Space [134..135]: " "
+ │   │       │       │   ├─ Raw [135..140]
+ │   │       │       │   │   ├─ Raw_begin [135..136]
+ │   │       │       │   │   │   └─ Raw_begin_c1 [135..136]
+ │   │       │       │   │   │       └─ StylingMark [135..136]
+ │   │       │       │   │   │           └─ StylingMark_c1 [135..136]: "`"
+ │   │       │       │   │   ├─ Raw_content [136..139]
+ │   │       │       │   │   │   └─ Word [136..139]: "raw"
+ │   │       │       │   │   └─ Raw_end [139..140]
+ │   │       │       │   │       └─ Raw_end_c1 [139..140]
+ │   │       │       │   │           └─ StylingMark [139..140]
+ │   │       │       │   │               └─ StylingMark_c1 [139..140]: "`"
+ │   │       │       │   ├─ Space [140..141]: " "
+ │   │       │       │   ├─ Word [141..144]: "now"
+ │   │       │       │   └─ Punctuation [144..145]: "."
+ │   │       │       └─ TextChunk_end 145
+ │   │       └─ LineEnd_end 145
+ │   └─ InlineDialogue_end 145
+ ├─ Newline [145..146]: "\n"
+ ├─ BlockDialogue [146..193]
+ │   ├─ BlockDialogue_begin [146..153]
+ │   │   ├─ BlockDialogue_begin_c1 [146..148]
+ │   │   │   └─ OptionalWhitespace [146..148]: "  "
+ │   │   ├─ BlockDialogue_begin_c2 [148..152]
+ │   │   │   └─ DialogueCharacter [148..152]
+ │   │   │       ├─ DialogueCharacter_c1 148
+ │   │   │       ├─ DialogueCharacter_c2 [148..152]
+ │   │   │       │   └─ DialogueCharacterName [148..152]
+ │   │   │       │       └─ DialogueCharacterName_c1 [148..152]
+ │   │   │       │           └─ Word [148..152]: "HERO"
+ │   │   │       ├─ DialogueCharacter_c3 152
+ │   │   │       ├─ DialogueCharacter_c4 152
+ │   │   │       ├─ DialogueCharacter_c5 152
+ │   │   │       ├─ DialogueCharacter_c6 152
+ │   │   │       └─ DialogueCharacter_c7 152
+ │   │   ├─ BlockDialogue_begin_c3 [152..153]
+ │   │   │   └─ ColonSeparator [152..153]: ":"
+ │   │   └─ BlockDialogue_begin_c4 153
+ │   ├─ BlockDialogue_content [153..193]
+ │   │   ├─ Newline [153..154]: "\n"
+ │   │   ├─ BlockLineContinue [154..192]
+ │   │   │   ├─ BlockLineContinue_begin [154..158]
+ │   │   │   │   ├─ BlockLineContinue_begin_c1 [154..158]
+ │   │   │   │   │   └─ OptionalWhitespace [154..158]: "    "
+ │   │   │   │   └─ BlockLineContinue_begin_c2 158
+ │   │   │   ├─ BlockLineContinue_content [158..192]
+ │   │   │   │   └─ TextChunk [158..192]
+ │   │   │   │       ├─ TextChunk_begin 158
+ │   │   │   │       ├─ TextChunk_content [158..192]
+ │   │   │   │       │   ├─ Word [158..160]: "Go"
+ │   │   │   │       │   ├─ Space [160..161]: " "
+ │   │   │   │       │   ├─ Italic [161..169]
+ │   │   │   │       │   │   ├─ Italic_begin [161..162]
+ │   │   │   │       │   │   │   └─ Italic_begin_c1 [161..162]
+ │   │   │   │       │   │   │       └─ StylingMark [161..162]
+ │   │   │   │       │   │   │           └─ StylingMark_c1 [161..162]: "*"
+ │   │   │   │       │   │   ├─ Italic_content [162..168]
+ │   │   │   │       │   │   │   └─ Word [162..168]: "italic"
+ │   │   │   │       │   │   └─ Italic_end [168..169]
+ │   │   │   │       │   │       └─ Italic_end_c1 [168..169]
+ │   │   │   │       │   │           └─ StylingMark [168..169]
+ │   │   │   │       │   │               └─ StylingMark_c1 [168..169]: "*"
+ │   │   │   │       │   ├─ Space [169..170]: " "
+ │   │   │   │       │   ├─ Word [170..173]: "and"
+ │   │   │   │       │   ├─ Space [173..174]: " "
+ │   │   │   │       │   ├─ Underline [174..187]
+ │   │   │   │       │   │   ├─ Underline_begin [174..176]
+ │   │   │   │       │   │   │   └─ Underline_begin_c1 [174..176]
+ │   │   │   │       │   │   │       └─ StylingMark [174..176]
+ │   │   │   │       │   │   │           └─ StylingMark_c1 [174..176]: "__"
+ │   │   │   │       │   │   ├─ Underline_content [176..185]
+ │   │   │   │       │   │   │   └─ Word [176..185]: "underline"
+ │   │   │   │       │   │   └─ Underline_end [185..187]
+ │   │   │   │       │   │       └─ Underline_end_c1 [185..187]
+ │   │   │   │       │   │           └─ StylingMark [185..187]
+ │   │   │   │       │   │               └─ StylingMark_c1 [185..187]: "__"
+ │   │   │   │       │   ├─ Space [187..188]: " "
+ │   │   │   │       │   ├─ Word [188..191]: "now"
+ │   │   │   │       │   └─ Punctuation [191..192]: "."
+ │   │   │   │       └─ TextChunk_end 192
+ │   │   │   └─ BlockLineContinue_end 192
+ │   │   │       └─ BlockLineContinue_end_c1 192
+ │   │   └─ Newline [192..193]: "\n"
+ │   └─ BlockDialogue_end 193
+ ├─ ImplicitAction [193..213]
+ │   ├─ ImplicitAction_begin [193..195]
+ │   │   └─ ImplicitAction_begin_c1 [193..195]
+ │   │       └─ OptionalWhitespace [193..195]: "  "
+ │   ├─ ImplicitAction_content [195..213]
+ │   │   └─ ActionLineEnd [195..213]
+ │   │       ├─ ActionLineEnd_begin 195
+ │   │       │   └─ ActionLineEnd_begin_c1 195
+ │   │       │       └─ OptionalWhitespace 195
+ │   │       ├─ ActionLineEnd_content [195..213]
+ │   │       │   └─ TextChunk [195..213]
+ │   │       │       ├─ TextChunk_begin 195
+ │   │       │       ├─ TextChunk_content [195..213]
+ │   │       │       │   ├─ Word [195..197]: "Go"
+ │   │       │       │   ├─ Space [197..198]: " "
+ │   │       │       │   ├─ Centered [198..208]
+ │   │       │       │   │   ├─ Centered_begin [198..199]
+ │   │       │       │   │   │   └─ Centered_begin_c1 [198..199]
+ │   │       │       │   │   │       └─ StylingMark [198..199]
+ │   │       │       │   │   │           └─ StylingMark_c1 [198..199]: "^"
+ │   │       │       │   │   ├─ Centered_content [199..207]
+ │   │       │       │   │   │   └─ Word [199..207]: "centered"
+ │   │       │       │   │   └─ Centered_end [207..208]
+ │   │       │       │   │       └─ Centered_end_c1 [207..208]
+ │   │       │       │   │           └─ StylingMark [207..208]
+ │   │       │       │   │               └─ StylingMark_c1 [207..208]: "^"
+ │   │       │       │   ├─ Space [208..209]: " "
+ │   │       │       │   ├─ Word [209..212]: "now"
+ │   │       │       │   └─ Punctuation [212..213]: "."
+ │   │       │       └─ TextChunk_end 213
+ │   │       └─ ActionLineEnd_end 213
+ │   └─ ImplicitAction_end 213
+ ├─ Newline [213..214]: "\n"
+ ├─ LuauEndKeyword [214..217]: "end"
+ └─ Newline [217..218]: "\n"

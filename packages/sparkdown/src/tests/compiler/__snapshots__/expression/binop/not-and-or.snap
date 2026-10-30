@@ -1,1 +1,1 @@
-(((not Var(a)) and Var(b)) or Var(c))
+Var(scene)

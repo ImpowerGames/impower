@@ -120,7 +120,7 @@ describe("a label inserted between choices an `if` gates (#1632)", () => {
     "store has_key = true",
     "store gold = 0",
     "",
-    "scene S",
+    "scene start",
     "  choose",
     "    if has_key then",
     "      * Unlock",
@@ -148,12 +148,12 @@ describe("a label inserted between choices an `if` gates (#1632)", () => {
 
   it("is refused as a cold compile refuses it, in the fuzz's reduction", () => {
     const before =
-      "  choose\n    if has_key then\n      * Unlock door 0\n    Anoth\n    * if gold < 9 [Take a coin] and pocket it";
+      "scene start\n    choose\n      if has_key then\n        * Unlock door 0\n      Anoth\n      * if gold < 9 [Take a coin] and pocket it\nend\n";
     const { incremental, cold } = editOnce(
       before,
-      offsetOf(before, 3, 1),
+      offsetOf(before, 4, 3),
       0,
-      "\n  label dup\n",
+      "\n    label dup\n",
     );
     expect(cold.chunks).toBeNull();
     expect(incremental).toEqual(cold);
@@ -178,17 +178,17 @@ describe("a label inserted between choices an `if` gates (#1632)", () => {
   const preambles: [string, string, string][] = [
     [
       "a `do` block's body",
-      "scene S\n  choose\n    do\n      * A\n        Body.\n      * B\n    end\n  end\nend\n",
+      "scene start\n  choose\n    do\n      * A\n        Body.\n      * B\n    end\n  end\nend\n",
       "      * B\n",
     ],
     [
       "a nested `if`",
-      "store k = true\nscene S\n  choose\n    if k then\n      if k then\n        * A\n          Body.\n        * B\n      end\n    end\n  end\nend\n",
+      "store k = true\nscene start\n  choose\n    if k then\n      if k then\n        * A\n          Body.\n        * B\n      end\n    end\n  end\nend\n",
       "        * B\n",
     ],
     [
       "an `else` branch",
-      "store k = true\nscene S\n  choose\n    if k then\n      * A\n        Body.\n    else\n      * B\n        Other.\n      * C\n    end\n  end\nend\n",
+      "store k = true\nscene start\n  choose\n    if k then\n      * A\n        Body.\n    else\n      * B\n        Other.\n      * C\n    end\n  end\nend\n",
       "      * C\n",
     ],
   ];
@@ -485,22 +485,22 @@ describe("a name two definitions share (#1934)", () => {
   };
 
   it("is reported where a cold compile reports it when a branch is inserted after a label", () => {
-    const before = "scene S\n  label extra\n  B\n  Line.\nend\n";
+    const before = "scene start\n  label extra\n  B\n  Line.\nend\n";
     expectSameClash(editOnce(before, after(before, "  B"), 0, "\n  branch extra\n    Extra.\n  end"));
   });
 
   it("is reported where a cold compile reports it when a label is inserted after a branch", () => {
-    const before = "scene S\n  B\n  branch extra\n    Extra.\n  end\n  Line.\nend\n";
+    const before = "scene start\n  B\n  branch extra\n    Extra.\n  end\n  Line.\nend\n";
     expectSameDuplicate(editOnce(before, after(before, "  Line."), 0, "\n  label extra"));
   });
 
   it("is reported where a cold compile reports it when a label is inserted before a label", () => {
-    const before = "scene S\n  B\n  label extra\n  Line.\nend\n";
+    const before = "scene start\n  B\n  label extra\n  Line.\nend\n";
     expectSameDuplicate(editOnce(before, after(before, "  B"), 0, "\n  label extra"));
   });
 
   it("is reported where a cold compile reports it when a label is inserted after a label", () => {
-    const before = "scene S\n  label extra\n  B\n  Line.\nend\n";
+    const before = "scene start\n  label extra\n  B\n  Line.\nend\n";
     expectSameDuplicate(editOnce(before, after(before, "  Line."), 0, "\n  label extra"));
   });
 });

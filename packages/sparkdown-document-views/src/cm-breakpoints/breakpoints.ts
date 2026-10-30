@@ -14,9 +14,6 @@ import {
 } from "@codemirror/view";
 
 export interface BreakpointsConfiguration {
-  /**
-   * Only allow one breakpoint
-   */
   singular?: boolean;
 }
 

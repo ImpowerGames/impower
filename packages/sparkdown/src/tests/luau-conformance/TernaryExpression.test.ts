@@ -116,8 +116,11 @@ function reassignmentCount(source: string): number {
 describe("if-then-else expressions", () => {
   test("statement, paren, call-arg, and operand positions", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local a = if true then 1 else 2
@@ -139,8 +142,11 @@ end
     // alternator keyword (`queue|chain|cycle|shuffle`) and hijacks the
     // parse.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function pick(c1, c2, c3)
 return if c1 then 10 elseif c2 then 20 elseif c3 then 30 else 40
@@ -159,8 +165,11 @@ end
 
   test("only the taken arm evaluates", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local counter = 0
@@ -182,8 +191,11 @@ end
 
   test("nested ternary in condition position, with and without parens", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function truthy()
 return true
@@ -223,8 +235,11 @@ describe("if expression as a statement condition", () => {
 
   test("if statement takes the then branch when the expression is true", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local c = true
@@ -257,8 +272,11 @@ end
 
   test("elseif chains and nested else arms inside the condition", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local c = false
@@ -285,8 +303,11 @@ end
 
   test("while loop runs while the expression is true", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local n = 0
@@ -302,8 +323,11 @@ end
 
   test("elseif conditions that begin with an operator or a function literal", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local x = false
@@ -331,8 +355,11 @@ end
 
   test("an else arm glued to the enclosing then", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local c = true
@@ -347,8 +374,11 @@ end
 
   test("if statement and while loop with an else arm glued to their then or do", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local c = false
@@ -388,8 +418,11 @@ end
 
   test("an else arm ending in a vararg glued to the enclosing then", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function pick(c, ...)
   return if if c then false else ...then "A" else "B"
@@ -420,8 +453,11 @@ end
 
   test("an else arm ending in a regex literal glued to the enclosing then", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
-& run()
-done
+
+scene start
+  & run()
+  done
+end
 
 function run()
 local c = false
@@ -468,132 +504,132 @@ describe("if expression across lines", () => {
   test.each([
     [
       "condition on its own line",
-      "Value {f()}.\nfunction f()\n  local y = if false\n    then 1 else 2\n  return y\nend\n",
+      "scene start\n  Value {f()}.\nend\nfunction f()\n  local y = if false\n    then 1 else 2\n  return y\nend\n",
       "Value 2.\n",
     ],
     [
       "one clause per line",
-      "Value {f()}.\nfunction f()\n  local x = if true\n    then 1\n    else 2\n  return x\nend\n",
+      "scene start\n  Value {f()}.\nend\nfunction f()\n  local x = if true\n    then 1\n    else 2\n  return x\nend\n",
       "Value 1.\n",
     ],
     [
       "else arm on the next line",
-      "Value {f()}.\nfunction f()\n  local x = if false then 1\n    else 2\n  return x\nend\n",
+      "scene start\n  Value {f()}.\nend\nfunction f()\n  local x = if false then 1\n    else 2\n  return x\nend\n",
       "Value 2.\n",
     ],
     [
       "returned",
-      "Value {f(false)}.\nfunction f(x)\n  return if x\n    then 1\n    else 3\nend\n",
+      "scene start\n  Value {f(false)}.\nend\nfunction f(x)\n  return if x\n    then 1\n    else 3\nend\n",
       "Value 3.\n",
     ],
     [
       "elseif chain",
-      "Value {f()}.\nfunction f()\n  local x = if false\n    then 1\n    elseif true\n    then 2\n    else 3\n  return x\nend\n",
+      "scene start\n  Value {f()}.\nend\nfunction f()\n  local x = if false\n    then 1\n    elseif true\n    then 2\n    else 3\n  return x\nend\n",
       "Value 2.\n",
     ],
     [
       "a value on the line after then and else",
-      "Value {f()}.\nfunction f()\n  local x = if false\n  then\n    1\n  else\n    2\n  return x\nend\n",
+      "scene start\n  Value {f()}.\nend\nfunction f()\n  local x = if false\n  then\n    1\n  else\n    2\n  return x\nend\n",
       "Value 2.\n",
     ],
     [
       "nested",
-      "Value {f()}.\nfunction f()\n  local y = if true\n    then if false\n      then 1\n      else 2\n    else 3\n  return y\nend\n",
+      "scene start\n  Value {f()}.\nend\nfunction f()\n  local y = if true\n    then if false\n      then 1\n      else 2\n    else 3\n  return y\nend\n",
       "Value 2.\n",
     ],
     [
       "a condition and an arm split inside parentheses",
-      "Value {f(true, true)}.\nfunction f(a, b)\n  local y = if (a and\n    b)\n    then (1\n      + 10)\n    else 2\n  return y\nend\n",
+      "scene start\n  Value {f(true, true)}.\nend\nfunction f(a, b)\n  local y = if (a and\n    b)\n    then (1\n      + 10)\n    else 2\n  return y\nend\n",
       "Value 11.\n",
     ],
     [
       "a continuation line in the condition and the then arm",
-      "Value {f({ok = true, a = 1})}.\nfunction f(t)\n  local y = if t\n    .ok\n    then t\n      .a\n      + 10\n    else 2\n  return y\nend\n",
+      "scene start\n  Value {f({ok = true, a = 1})}.\nend\nfunction f(t)\n  local y = if t\n    .ok\n    then t\n      .a\n      + 10\n    else 2\n  return y\nend\n",
       "Value 11.\n",
     ],
     [
       "a continuation line in an elseif condition",
-      "Value {f(2)}.\nfunction f(c)\n  local y = if c\n    == 1\n    then 1\n    elseif c\n      == 2\n    then 2\n    else 3\n  return y\nend\n",
+      "scene start\n  Value {f(2)}.\nend\nfunction f(c)\n  local y = if c\n    == 1\n    then 1\n    elseif c\n      == 2\n    then 2\n    else 3\n  return y\nend\n",
       "Value 2.\n",
     ],
     [
       "an operation after the else arm's value on its line",
-      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = if c then 1 else 2 + 10\n  return y\nend\n",
+      "scene start\n  Value {f(true)} {f(false)}.\nend\nfunction f(c)\n  local y = if c then 1 else 2 + 10\n  return y\nend\n",
       "Value 1 12.\n",
     ],
     [
       "a continuation line after the else arm's value",
-      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = if c then 1 else 2\n    + 10\n  return y\nend\n",
+      "scene start\n  Value {f(true)} {f(false)}.\nend\nfunction f(c)\n  local y = if c then 1 else 2\n    + 10\n  return y\nend\n",
       "Value 1 12.\n",
     ],
     [
       "a continuation line after the else arm, with an operand before the expression",
-      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = 100 + if c then 1 else 2\n    + 10\n  return y\nend\n",
+      "scene start\n  Value {f(true)} {f(false)}.\nend\nfunction f(c)\n  local y = 100 + if c then 1 else 2\n    + 10\n  return y\nend\n",
       "Value 101 112.\n",
     ],
     [
       "a minus line after the else arm's value",
-      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = if c then 1 else 20\n    - 1\n  return y\nend\n",
+      "scene start\n  Value {f(true)} {f(false)}.\nend\nfunction f(c)\n  local y = if c then 1 else 20\n    - 1\n  return y\nend\n",
       "Value 1 19.\n",
     ],
     [
       "a continuation line after a returned else arm",
-      "Value {f(true)} {f(false)}.\nfunction f(c)\n  return if c then 1 else 2\n    + 10\nend\n",
+      "scene start\n  Value {f(true)} {f(false)}.\nend\nfunction f(c)\n  return if c then 1 else 2\n    + 10\nend\n",
       "Value 1 12.\n",
     ],
     [
       "a continuation line after a nested else arm",
-      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = if c then 1 else if c == true then 2 else 3\n    + 10\n  return y\nend\n",
+      "scene start\n  Value {f(true)} {f(false)}.\nend\nfunction f(c)\n  local y = if c then 1 else if c == true then 2 else 3\n    + 10\n  return y\nend\n",
       "Value 1 13.\n",
     ],
     [
       "a line that begins with and or or in the condition, an arm and after the else value",
-      "Value {f(false)} {f(true)}.\nfunction f(c)\n  local y = if c\n    or false\n    then 5\n      and 6\n    else nil\n      or 7\n  return y\nend\n",
+      "scene start\n  Value {f(false)} {f(true)}.\nend\nfunction f(c)\n  local y = if c\n    or false\n    then 5\n      and 6\n    else nil\n      or 7\n  return y\nend\n",
       "Value 7 6.\n",
     ],
     [
       "a line that begins with or after a value in brackets and in a statement",
-      "Value {f()}.\nfunction f()\n  local a = (false\n    or true)\n  local b = false\n    or a\n  return if b then 1 else 2\nend\n",
+      "scene start\n  Value {f()}.\nend\nfunction f()\n  local a = (false\n    or true)\n  local b = false\n    or a\n  return if b then 1 else 2\nend\n",
       "Value 1.\n",
     ],
     [
       "arms that begin with a unary operator",
-      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = if c\n    then -1\n    else if not c then 2 else 3\n  return y\nend\n",
+      "scene start\n  Value {f(true)} {f(false)}.\nend\nfunction f(c)\n  local y = if c\n    then -1\n    else if not c then 2 else 3\n  return y\nend\n",
       "Value -1 2.\n",
     ],
     [
       "a continuation line after a bracketed if expression",
-      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = (if c then 1 else 2)\n    + 10\n  return y\nend\n",
+      "scene start\n  Value {f(true)} {f(false)}.\nend\nfunction f(c)\n  local y = (if c then 1 else 2)\n    + 10\n  return y\nend\n",
       "Value 11 12.\n",
     ],
     [
       "a continuation line after a call whose last argument is an if expression",
-      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = tostring(if c then 1 else 2)\n    .. \"0\"\n  return y\nend\n",
+      "scene start\n  Value {f(true)} {f(false)}.\nend\nfunction f(c)\n  local y = tostring(if c then 1 else 2)\n    .. \"0\"\n  return y\nend\n",
       "Value 10 20.\n",
     ],
     [
       "a minus line and an indexer line in the then arm",
-      "Value {f({5})}.\nfunction f(t)\n  local y = if t\n    then t\n      [1]\n      - 1\n    else 2\n  return y\nend\n",
+      "scene start\n  Value {f({5})}.\nend\nfunction f(t)\n  local y = if t\n    then t\n      [1]\n      - 1\n    else 2\n  return y\nend\n",
       "Value 4.\n",
     ],
     [
       "nested on the line after then",
-      "Value {f(true, false)}.\nfunction f(a, b)\n  local y = if a\n    then\n      if b\n        then 1\n        else 2\n    else 3\n  return y\nend\n",
+      "scene start\n  Value {f(true, false)}.\nend\nfunction f(a, b)\n  local y = if a\n    then\n      if b\n        then 1\n        else 2\n    else 3\n  return y\nend\n",
       "Value 2.\n",
     ],
     [
       "nested in the else arm",
-      "Value {f()}.\nfunction f()\n  local y = if false\n    then 1\n    else if nil\n      then 2\n      else 3\n  return y\nend\n",
+      "scene start\n  Value {f()}.\nend\nfunction f()\n  local y = if false\n    then 1\n    else if nil\n      then 2\n      else 3\n  return y\nend\n",
       "Value 3.\n",
     ],
     [
       "a call argument",
-      "Value {f()}.\nfunction f()\n  return tostring(if false\n    then 1\n    else 2)\nend\n",
+      "scene start\n  Value {f()}.\nend\nfunction f()\n  return tostring(if false\n    then 1\n    else 2)\nend\n",
       "Value 2.\n",
     ],
     [
       "an operand",
-      "Value {f()}.\nfunction f()\n  local x = 10 + if false\n    then 1\n    else 2\n  return x\nend\n",
+      "scene start\n  Value {f()}.\nend\nfunction f()\n  local x = 10 + if false\n    then 1\n    else 2\n  return x\nend\n",
       "Value 12.\n",
     ],
   ])("%s", (_name, source, expected) => {
@@ -616,7 +652,7 @@ describe("if expression with an = before its else", () => {
     ["return if next({a = 1}) then 1 else 2", "Value 1.\n"],
   ])("%s", (body, expected) => {
     const ctx = makeRuntimeStoryFromSource(
-      `Value {f()}.\nfunction f()\n  local t = {1}\n  ${body}\nend\n`,
+      `scene start\n  Value {f()}.\nend\nfunction f()\n  local t = {1}\n  ${body}\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe(expected);
@@ -639,7 +675,7 @@ describe("if expression without an else", () => {
     ["no then after elseif", "  local y = if false then 1\n    elseif true\n", MISSING_THEN],
   ])("%s: reports it and keeps what follows", (_name, partial, message) => {
     const ctx = makeRuntimeStoryFromSource(
-      `The door is open.\nSum {g()}.\nfunction f()\n${partial}  return y\nend\nfunction g()\n  return 6\nend\nYou walk through it.\n`,
+      `function f()\n${partial}  return y\nend\nfunction g()\n  return 6\nend\nscene start\n  The door is open.\n  Sum {g()}.\n  You walk through it.\nend\n`,
     );
     expect(ctx.errorMessages.filter((m) => m.includes("when parsing"))).toEqual(
       expect.arrayContaining([expect.stringContaining(message)]),
@@ -674,7 +710,7 @@ describe("if expression without an else", () => {
     ["an empty elseif arm", "  local y = if false then 1\n    elseif true then\n    else 2\n", `${MISSING_CONDITION}, got 'else'`, "4:5-4:9"],
     ["no then after elseif", "  local y = if false then 1\n    elseif true\n", MISSING_THEN, "3:5-3:11"],
   ])("%s: reports Luau's errors and keeps what follows", (_name, partial, message) => {
-    const source = `function f()\n${partial}  return y\nend\nfunction g()\n  return 6\nend\nSum {g()}.\nYou walk through it.\n`;
+    const source = `function f()\n${partial}  return y\nend\nfunction g()\n  return 6\nend\nscene start\n  Sum {g()}.\n  You walk through it.\nend\n`;
     expect(ifDiagnostics(source)).toEqual(expect.arrayContaining([expect.stringContaining(message)]));
     expect(sortedIfDiagnostics(source)).toEqual(officialFunctionIfDiagnostics(source));
     const ctx = makeRuntimeStoryFromSource(source);
@@ -686,9 +722,9 @@ describe("if expression without an else", () => {
   // after it closes nothing there (#1906), so the lines are Luau's to read,
   // and Luau reads the value as the arm's.
   test("a then arm at column 0 on the line after then is read as Luau reads it", () => {
-    const source = "function f()\n  local y = if true then\n1\n  else 2\n  return y\nend\nSum {f()}.\n";
+    const source = "function f()\n  local y = if true then\n1\n  else 2\n  return y\nend\nscene start\n  Sum {f()}.\nend\n";
     expect(ifDiagnostics(source)).toEqual([]);
-    expect(officialSyntaxErrors(source.slice(0, source.indexOf("Sum")))).toEqual([]);
+    expect(officialSyntaxErrors(source.slice(0, source.indexOf("scene start")))).toEqual([]);
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Sum 1.\n");
@@ -703,7 +739,7 @@ describe("if expression without an else", () => {
     ["no then yet", "  local y = if true\n", MISSING_THEN, "2:13-2:15"],
     ["a reassignment with no else yet", "  x = if true\n    then 1\n", `${MISSING_ELSE}, got 'end'`, "4:1-4:4"],
   ])("%s, right before the function's end: keeps the next function", (_name, body, message) => {
-    const source = `function f()\n${body}end\nfunction g()\n  return 6\nend\nSum {g()}.\n`;
+    const source = `function f()\n${body}end\nfunction g()\n  return 6\nend\nscene start\n  Sum {g()}.\nend\n`;
     expect(ifDiagnostics(source)).toEqual(expect.arrayContaining([expect.stringContaining(message)]));
     expect(sortedIfDiagnostics(source)).toEqual(officialFunctionIfDiagnostics(source));
     const ctx = makeRuntimeStoryFromSource(source);
@@ -715,17 +751,17 @@ describe("if expression without an else", () => {
   // authored end of file, whatever follows it (#1501); a `store`
   // declaration, which the checker does not read, on its `if`.
   test.each([
-    ["an & statement before story", "& x = 0\n& x = if true then 1\nStory follows.\n", `2:21-2:21 ${MISSING_ELSE}, got <eof>`],
-    ["an & statement before another", "& x = 0\n& x = if true then 1\n& x = 2\n", `2:21-2:21 ${MISSING_ELSE}, got <eof>`],
+    ["an & statement before story", "scene start\n  & x = 0\n  & x = if true then 1\n  Story follows.\nend\n", `3:23-3:23 ${MISSING_ELSE}, got <eof>`],
+    ["an & statement before another", "scene start\n  & x = 0\n  & x = if true then 1\n  & x = 2\nend\n", `3:23-3:23 ${MISSING_ELSE}, got <eof>`],
     ["an & statement before a scene's end", "scene s\n  & x = if true then 1\nend\n", `2:23-2:23 ${MISSING_ELSE}, got <eof>`],
-    ["a store declaration before story", "store x = if true then 1\nStory follows.\n", `1:11-1:13 ${MISSING_ELSE}`],
+    ["a store declaration before story", "store x = if true then 1\nscene start\n  Story follows.\nend\n", `1:11-1:13 ${MISSING_ELSE}`],
   ])("in %s: reports it where Sparkdown ends the expression", (_name, source, diagnostic) => {
     expect(ifDiagnostics(source)).toEqual([diagnostic]);
   });
 
   test("an & statement ends before a following narrative then line", () => {
-    const source = `& x = 0\n& x = if true\n  then 1\nx = 6\nValue {x}.\n`;
-    expect(ifDiagnostics(source)).toEqual([`2:7-2:9 ${MISSING_THEN}`]);
+    const source = `scene start\n  & x = 0\n  & x = if true\n    then 1\n  x = 6\n  Value {x}.\nend\n`;
+    expect(ifDiagnostics(source)).toEqual([`3:9-3:11 ${MISSING_THEN}`]);
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.story.ContinueMaximally()).toBe("then 1\nValue 6.\n");
   });
@@ -734,8 +770,8 @@ describe("if expression without an else", () => {
     ["a reassignment", "="],
     ["a compound assignment", "+="],
   ])("in %s, followed by a statement at column 0", (_name, op) => {
-    const source = `Value {f()}.\nfunction f()\n  local x = 0\n  x ${op} if true\n    then 1\nx = 6\n  return x\nend\n`;
-    expect(ifDiagnostics(source)).toContain(`6:1-6:2 ${MISSING_ELSE}, got 'x'`);
+    const source = `function f()\n  local x = 0\n  x ${op} if true\n    then 1\nx = 6\n  return x\nend\nscene start\n  Value {f()}.\nend\n`;
+    expect(ifDiagnostics(source)).toContain(`5:1-5:2 ${MISSING_ELSE}, got 'x'`);
     expect(sortedIfDiagnostics(source)).toEqual(officialFunctionIfDiagnostics(source));
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
@@ -750,11 +786,11 @@ describe("if expression without an else", () => {
   // Sparkdown ends the statement at the reassignment at column 0 (#1906).
   test.each([
     ["no then yet", "  x = if true\n", "luau", "Value 6.\n"],
-    ["then ending the line", "  x = if true then\n", `4:15-4:19 ${MISSING_CONDITION}`, null],
-    ["else ending the line", "  x = if false then 1 else\n", `4:23-4:27 ${MISSING_CONDITION}`, null],
+    ["then ending the line", "  x = if true then\n", `3:15-3:19 ${MISSING_CONDITION}`, null],
+    ["else ending the line", "  x = if false then 1 else\n", `3:23-3:27 ${MISSING_CONDITION}`, null],
     ["no then after elseif", "  x = if false then 1\n    elseif true\n", "luau", "Value 6.\n"],
   ])("in a reassignment with %s, followed by a reassignment at column 0", (_name, partial, diagnostic, value) => {
-    const source = `Value {f()}.\nfunction f()\n  local x = 0\n${partial}x = 6\n  return x\nend\n`;
+    const source = `function f()\n  local x = 0\n${partial}x = 6\n  return x\nend\nscene start\n  Value {f()}.\nend\n`;
     if (diagnostic === "luau") expect(sortedIfDiagnostics(source)).toEqual(officialFunctionIfDiagnostics(source));
     else expect(ifDiagnostics(source)).toEqual([diagnostic]);
     expect(reassignmentCount(source)).toBe(2);
@@ -773,8 +809,8 @@ describe("if expression without an else", () => {
     ["a while loop", "while x ~= 6 do x = 6 end"],
     ["a for loop", "for i = 6, 6 do x = i end"],
   ])("in a reassignment, followed by %s at column 0", (_name, next) => {
-    const source = `Value {f()}.\nlocal x = 0\nfunction set(v)\n  x = v\nend\nfunction f()\n  x = if true\n    then 1\n${next}\n  return x\nend\n`;
-    expect(ifDiagnostics(source)).toEqual(expect.arrayContaining([expect.stringMatching(/^9:1-9:\d+ Expected 'else' when parsing if then else expression, got '/)]));
+    const source = `store x = 0\nfunction set(v)\n  x = v\nend\nfunction f()\n  x = if true\n    then 1\n${next}\n  return x\nend\nscene start\n  Value {f()}.\nend\n`;
+    expect(ifDiagnostics(source)).toEqual(expect.arrayContaining([expect.stringMatching(/^8:1-8:\d+ Expected 'else' when parsing if then else expression, got '/)]));
     expect(sortedIfDiagnostics(source)).toEqual(officialFunctionIfDiagnostics(source));
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
@@ -790,7 +826,7 @@ describe("if expression without an else", () => {
     ["an else value at column 0", 'local a = false\nlocal x = if a then "a" else\n"c"\n', "Value c.\n"],
     ["an else value at column 0 that is a name", "local a = false\nlocal n = 4\nlocal x = if a then 1 else\nn\n", "Value 4.\n"],
   ])("%s stays in the expression", (_name, lines, value) => {
-    const ctx = makeRuntimeStoryFromSource(`Value {f()}.\nfunction f()\n${lines}return x\nend\n`);
+    const ctx = makeRuntimeStoryFromSource(`function f()\n${lines}return x\nend\nscene start\n  Value {f()}.\nend\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe(value);
   });
@@ -803,14 +839,14 @@ describe("if expression without an else", () => {
   });
 
   test("display text may leave out the else", () => {
-    const ctx = makeRuntimeStoryFromSource(`A {if f() then "B"}.\nfunction f()\n  return true\nend\n`);
+    const ctx = makeRuntimeStoryFromSource(`scene start\n  A {if f() then "B"}.\nend\nfunction f()\n  return true\nend\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("A B.\n");
   });
 
   test("a display line that is only the interpolation may leave out the else", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `{if f() then "A"}\n{if false then "x" elseif f() then "B"}\nscene main\n  {if f() then "C"}\nend\nfunction f()\n  return true\nend\n`,
+      `scene start\n  {if f() then "A"}\n  {if false then "x" elseif f() then "B"}\nend\nscene main\n  {if f() then "C"}\nend\nfunction f()\n  return true\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("A\nB\n");
@@ -818,7 +854,7 @@ describe("if expression without an else", () => {
 
   test("choice text may leave out the else", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `choose\n  * [Take {if f() then "it"}]\nend\nfunction f()\n  return true\nend\n`,
+      `scene start\n  choose\n    * [Take {if f() then "it"}]\n  end\nend\nfunction f()\n  return true\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
     ctx.story.ContinueMaximally();
@@ -828,8 +864,10 @@ describe("if expression without an else", () => {
 
 describe("clause-less if in display text", () => {
   test("shows its condition's value", () => {
-    const { errors, text } = compileAndCapture(`The value is {if pick()}.
-done
+    const { errors, text } = compileAndCapture(`scene start
+  The value is {if pick()}.
+  done
+end
 
 function pick()
   return 7

@@ -60,7 +60,7 @@ export interface CorpusInput {
 export const CORPUS_INVENTORY: Record<CorpusSource, number> = {
   conformance: 54,
   typecheck: 851,
-  lint: 90,
+  lint: 89,
   autocomplete: 77,
 };
 

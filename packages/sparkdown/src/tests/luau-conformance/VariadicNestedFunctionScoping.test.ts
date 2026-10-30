@@ -38,7 +38,9 @@ describe("a closure written before a variadic function statement (I-1360)", () =
       "  end",
       "  return bar()",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got 10.\n", errors: [] });
   });
@@ -57,7 +59,9 @@ describe("a closure written before a variadic function statement (I-1360)", () =
       "  bar(2)",
       "  return base",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got 13.\n", errors: [] });
   });
@@ -78,7 +82,9 @@ describe("a closure written before a variadic function statement (I-1360)", () =
       "  end",
       "  return tostring(ok) .. \" \" .. tostring(string.find(err, \"attempt to call a nil value\", 1, true) ~= nil) .. \" \" .. bar()",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got false true 1.\n", errors: [] });
   });
@@ -98,7 +104,9 @@ describe("a variadic function statement in a function (I-1360)", () => {
       "  end",
       "  return first .. \" \" .. f(2, 1)",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got 12 200.\n", errors: [] });
   });
@@ -116,7 +124,9 @@ describe("a variadic function statement in a function (I-1360)", () => {
       "  end",
       "  return concat(1, 2, 3)",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got 1,2,3.\n", errors: [] });
   });
@@ -134,7 +144,9 @@ describe("a variadic function statement in a function (I-1360)", () => {
       "  end",
       "  return foo(2)",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got function.\n", errors: [] });
   });
@@ -153,7 +165,9 @@ describe("a variadic function statement in a function (I-1360)", () => {
       "  end",
       "  return foo()",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     const { text, errors } = run(source);
     expect(errors).toEqual([]);
@@ -171,7 +185,9 @@ describe("a variadic function statement in a function (I-1360)", () => {
       ...block.map((l) => `  ${l}`),
       "  return foo(1, 2)",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got 12.\n", errors: [] });
   });
@@ -189,7 +205,9 @@ describe("a multiple assignment over a variadic function (I-1355)", () => {
       ...assign.map((l) => `  ${l}`),
       "  return foo()",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got 100.\n", errors: [] });
   });
@@ -203,7 +221,9 @@ describe("a multiple assignment over a variadic function (I-1355)", () => {
       "  a, foo = 1, function() return 100 end",
       "  return before + foo()",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got 102.\n", errors: [] });
   });
@@ -218,7 +238,9 @@ describe("a multiple assignment over a variadic function (I-1355)", () => {
       "  function foo(...) return 3 end",
       "  return mid + foo()",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got 103.\n", errors: [] });
   });
@@ -234,7 +256,9 @@ describe("a call to a variadic function from a scope with a local of a name it c
       "  end",
       ...body.map((l) => `  ${l}`),
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
 
   test.each([
@@ -269,7 +293,9 @@ describe("a call to a variadic function from a scope with a local of a name it c
       "  bar(0)",
       "  return read()",
       "end",
-      "Got {run()}.",
+      "scene start",
+      "  Got {run()}.",
+      "end",
     );
     expect(run(source)).toEqual({ text: "Got 12.\n", errors: [] });
   });

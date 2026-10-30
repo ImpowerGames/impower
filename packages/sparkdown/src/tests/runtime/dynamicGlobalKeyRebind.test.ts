@@ -49,7 +49,6 @@ const inScene = (text: string): string => {
   const story = lines.findIndex((line) => !line.startsWith("function "));
   return [
     ...lines.slice(0, story),
-    "-> start",
     "scene start",
     ...lines.slice(story).map((line) => `  ${line}`),
     "end",
@@ -279,8 +278,7 @@ describe("rebinding a top-level function through _G with a dynamic key (I-1394)"
   ])("edits around a store %s in a memoized block keep the call through the global", (_name, store, expected) => {
     let text = [
       "function f() return 7 end",
-      "-> MAIN",
-      "scene MAIN",
+      "scene start",
       "  choose",
       "    + [Go]",
       "      Go.",

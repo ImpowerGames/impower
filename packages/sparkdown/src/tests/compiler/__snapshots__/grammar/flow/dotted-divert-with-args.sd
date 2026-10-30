@@ -1,4 +1,6 @@
--> outer.inner(1)
+scene start
+  -> outer.inner(1)
+end
 scene outer
   branch inner(a)
     -> outer.visit(a + 1, "t") ->

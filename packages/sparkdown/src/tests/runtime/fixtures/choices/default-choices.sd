@@ -1,6 +1,8 @@
--> main
+scene start
+  -> main
+end
 scene main
-  label start
+  label again
   choose
     * [Choice 1]
     * [Choice 2]
@@ -9,7 +11,7 @@ scene main
   then
     After choice
   end
-  -> start
+  -> again
 
 end
 scene default

@@ -1,3 +1,5 @@
-choose
-  * [Courage.] -> WishCourage
+scene start
+  choose
+    * [Courage.] -> WishCourage
+  end
 end

@@ -108,7 +108,7 @@ const signaturePlugin = ViewPlugin.fromClass(
 
       if (triggerCharacter) {
         this.startRequest(plugin, {
-          triggerKind: 2 /* TriggerCharacter */,
+          triggerKind: 2,
           isRetrigger: !!sigState,
           triggerCharacter,
           activeSignatureHelp: sigState ? sigState.data : undefined,
@@ -117,7 +117,7 @@ const signaturePlugin = ViewPlugin.fromClass(
         if (this.delayedRequest) clearTimeout(this.delayedRequest);
         this.delayedRequest = self.setTimeout(() => {
           this.startRequest(plugin, {
-            triggerKind: 3 /* ContentChange */,
+            triggerKind: 3,
             isRetrigger: true,
             activeSignatureHelp: sigState.data,
           });
@@ -141,7 +141,6 @@ const signaturePlugin = ViewPlugin.fromClass(
               same && context.triggerKind == 3
                 ? cur!.active
                 : (result.activeSignature ?? 0);
-            // Don't update at all if nothing changed
             if (same && sameActiveParam(cur!.data, result, active)) return;
             view.dispatch({
               effects: signatureEffect.of({
@@ -154,7 +153,7 @@ const signaturePlugin = ViewPlugin.fromClass(
             view.dispatch({ effects: signatureEffect.of(null) });
           }
         },
-        context.triggerKind == 1 /* Invoked */
+        context.triggerKind == 1
           ? (err) => plugin.reportError("Signature request failed", err)
           : undefined,
       );
@@ -291,8 +290,6 @@ function drawSignatureTooltip(
   return { dom };
 }
 
-/// Explicitly prompt the server to provide signature help at the
-/// cursor.
 export const showSignatureHelp: Command = (view) => {
   let plugin = view.plugin(signaturePlugin);
   if (!plugin) {
@@ -306,15 +303,13 @@ export const showSignatureHelp: Command = (view) => {
   let lspPlugin = LSPPlugin.get(view);
   if (!lspPlugin) return false;
   plugin.startRequest(lspPlugin, {
-    triggerKind: 1 /* Invoked */,
+    triggerKind: 1,
     activeSignatureHelp: field ? field.data : undefined,
     isRetrigger: !!field,
   });
   return true;
 };
 
-/// If there is an active signature tooltip with multiple signatures,
-/// move to the next one.
 export const nextSignature: Command = (view) => {
   let field = view.state.field(signatureState);
   if (!field) return false;
@@ -329,8 +324,6 @@ export const nextSignature: Command = (view) => {
   return true;
 };
 
-/// If there is an active signature tooltip with multiple signatures,
-/// move to the previous signature.
 export const prevSignature: Command = (view) => {
   let field = view.state.field(signatureState);
   if (!field) return false;
@@ -345,20 +338,6 @@ export const prevSignature: Command = (view) => {
   return true;
 };
 
-/// A keymap that binds
-///
-/// - Ctrl-Shift-Space (Cmd-Shift-Space on macOS) to
-///   [`showSignatureHelp`](#lsp-client.showSignatureHelp)
-///
-/// - Ctrl-Shift-ArrowUp (Cmd-Shift-ArrowUp on macOS) to
-///   [`prevSignature`](#lsp-client.prevSignature)
-///
-/// - Ctrl-Shift-ArrowDown (Cmd-Shift-ArrowDown on macOS) to
-///   [`nextSignature`](#lsp-client.nextSignature)
-///
-/// Note that these keys are automatically bound by
-/// [`signatureHelp`](#lsp-client.signatureHelp) unless you pass it
-/// `keymap: false`.
 export const signatureKeymap: readonly KeyBinding[] = [
   { key: "Mod-Shift-Space", run: showSignatureHelp },
   { key: "Mod-Shift-ArrowUp", run: prevSignature },
@@ -369,9 +348,6 @@ export interface ServerSignatureHelpConfig {
   keymap?: boolean;
 }
 
-/// Returns an extension that enables signature help. Will bind the
-/// keys in [`signatureKeymap`](#lsp-client.signatureKeymap) unless
-/// `keymap` is set to `false`.
 export function serverSignatureHelp(
   config: ServerSignatureHelpConfig = {},
 ): LSPClientExtension {

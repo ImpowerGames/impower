@@ -33,10 +33,8 @@ const vscodeIndentService = indentService.of((context, pos) => {
   const currentLineText = currentLine?.text || "";
   const prevIndentSize = currentLineText.match(INDENT_REGEX)?.[0].length ?? 0;
 
-  // Base our initial calculation on the previous line's indent
   let newIndentSize = prevIndentSize;
 
-  // INCREASE check: Does the PREVIOUS line trigger an increase?
   const increaseIndentPattern = indentationRules?.increaseIndentPattern;
   const isIncrease =
     increaseIndentPattern && lineTextBeforeCursor.match(increaseIndentPattern);
@@ -44,7 +42,6 @@ const vscodeIndentService = indentService.of((context, pos) => {
     newIndentSize += context.unit;
   }
 
-  // DECREASE check: Does the CURRENT line trigger a decrease?
   const decreaseIndentPattern = indentationRules?.decreaseIndentPattern;
   const isDecrease =
     decreaseIndentPattern && lineTextAfterCursor.match(decreaseIndentPattern);
@@ -53,7 +50,6 @@ const vscodeIndentService = indentService.of((context, pos) => {
   }
 
   if (isIncrease || isDecrease) {
-    // Ensure we never return a negative indent size
     return Math.max(0, newIndentSize);
   }
 

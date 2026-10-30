@@ -1,6 +1,3 @@
-// Text after a divert's target is stray, but formatting still keeps the
-// space that separates it from the target rather than joining the two.
-
 import { describe, expect, test } from "vitest";
 import { formatSource } from "./formatSource";
 

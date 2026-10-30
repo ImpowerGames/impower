@@ -1,3 +1,5 @@
-Some ..
-.. content ..
-.. with glue.
+scene start
+  Some ..
+  .. content ..
+  .. with glue.
+end

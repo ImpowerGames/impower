@@ -11,12 +11,6 @@ import { convertFromPosition } from "./pos";
 import { escHTML } from "./text";
 
 const hoverTheme = EditorView.baseTheme({
-  // The server's preview markup sizes its own thumbnail with an inline
-  // `height`, and VS Code sizes it from the same markup. Restating a height
-  // here would make that number inert on this surface alone and let the two
-  // surfaces drift, so height is left to the markup. Width is bounded only so
-  // an unusually wide asset cannot push the tooltip past its container;
-  // `contain` keeps the aspect ratio when that bound bites.
   "& .cm-lsp-hover-tooltip img": {
     maxWidth: "100%",
     objectFit: "contain",
@@ -27,9 +21,6 @@ export interface ServerHoversConfig {
   hoverTime?: number;
 }
 
-/// Create an extension that queries the language server for hover
-/// tooltips when the user hovers over the code with their pointer,
-/// and displays a tooltip when the server provides one.
 export function serverHovers(
   config: ServerHoversConfig = {},
 ): LSPClientExtension {

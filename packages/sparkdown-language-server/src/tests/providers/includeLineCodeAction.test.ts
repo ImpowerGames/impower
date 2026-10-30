@@ -1,9 +1,3 @@
-// The language server's quick fixes (#1387): an `include` line, which every
-// script under the project's folder makes needless, reports an error whose
-// fix deletes the line. A client that asks for code actions gets the fix from
-// `textDocument/codeAction`; the web editor's client, which asks for none,
-// gets it in the diagnostic's `data`.
-
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { INCLUDE_LINE_MESSAGE } from "@impower/sparkdown/src/compiler/lower/lowerers/lowerInclude";
@@ -48,7 +42,6 @@ const compile = (main: string): SparkProgram => {
   }
 };
 
-/** `text` with the include line's quick fix applied. */
 const fixed = (text: string): { title: string; kind?: string; text: string } => {
   const program = compile(text);
   const diagnostics = (program.diagnostics?.[MAIN] ?? []).filter(

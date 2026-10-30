@@ -1,1 +1,3 @@
-reset()
+scene start
+  reset()
+end

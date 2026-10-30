@@ -37,8 +37,10 @@ function compileAndRun(source: string) {
 
 describe("native assert(cond [, message])", () => {
   test("truthy condition: no error", () => {
-    const { errors } = compileAndRun(`& run()
-done
+    const { errors } = compileAndRun(`scene start
+  & run()
+  done
+end
 
 function run()
 assert(true)
@@ -50,8 +52,10 @@ end
   });
 
   test("falsy condition (false): default message", () => {
-    const { errors } = compileAndRun(`& run()
-done
+    const { errors } = compileAndRun(`scene start
+  & run()
+  done
+end
 
 function run()
 assert(false)
@@ -62,8 +66,10 @@ end
   });
 
   test("falsy condition with custom message", () => {
-    const { errors } = compileAndRun(`& run()
-done
+    const { errors } = compileAndRun(`scene start
+  & run()
+  done
+end
 
 function run()
 assert(false, "custom failure")
@@ -81,8 +87,10 @@ end
     // `errorMessageFormatter` — this harness doesn't, so check the
     // message body by substring. The prefixed form is covered by the
     // gated assert.luau fixture in UpstreamConformance.test.ts.
-    const { errors } = compileAndRun(`& run()
-done
+    const { errors } = compileAndRun(`scene start
+  & run()
+  done
+end
 
 function run()
 assert(assert(1) == 1)
@@ -105,8 +113,10 @@ end
     // these assertions succeed. (Formerly a documented divergence
     // where sparkdown treated 0/"" as falsy; removed for Luau
     // conformance — basic.luau's truthiness section.)
-    const { errors } = compileAndRun(`& run()
-done
+    const { errors } = compileAndRun(`scene start
+  & run()
+  done
+end
 
 function run()
 assert(0)

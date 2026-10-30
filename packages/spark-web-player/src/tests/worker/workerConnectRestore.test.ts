@@ -64,7 +64,7 @@ const script = (box: string) =>
     "  }",
     "end",
     "",
-    "-> start",
+    "",
     "",
     "scene start",
     "  Before.",

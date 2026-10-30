@@ -1,4 +1,6 @@
--> test
+scene start
+  -> test
+end
 scene test
   choose
     + Choice 1 -> test

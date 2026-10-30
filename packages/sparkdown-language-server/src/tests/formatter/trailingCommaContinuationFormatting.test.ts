@@ -1,7 +1,3 @@
-// A declaration or reassignment list continued after a comma that ends its
-// line keeps the comma and its value, and the continued lines indent one
-// level past the statement, as stylua does.
-
 import { describe, expect, test } from "vitest";
 import { formatSource } from "./formatSource";
 
@@ -143,8 +139,6 @@ describe("formatting a reassignment list continued after a trailing comma", () =
     expect(formatSource(source)).toBe(source);
   });
 
-  // The reassignment ends at the start of an unindented line (#1494), and
-  // the line it continues onto is still one of its continued lines.
   test("indents an unindented value after a trailing comma one level past the reassignment", () => {
     const source = ["function f()", "  local a, g = 0, 0", "  a, g = 1,", "tostring(2)", "  return g", "end", ""].join("\n");
     expect(formatSource(source)).toBe(
@@ -162,10 +156,6 @@ describe("formatting a reassignment list continued after a trailing comma", () =
     expect(formatSource(wrap(formatted))).toBe(wrap(formatted));
   });
 
-  // A block comment that spans lines ends the line the list's last value
-  // is on, so the call after it is a statement of its own (`2` ends the
-  // list). The comment's own lines are left aside: the formatter rewrites
-  // the space after its close on a second pass, as it does on main.
   test("leaves a call after a value and a comment spanning lines at the statement's level", () => {
     const source = ["function f()", "  local a, g = 0, 0", "  a, g = 1,", "2 --[[comment", "]] math.max(", "3,", "4", ")", "  return g", "end", ""].join("\n");
     const callLines = (text: string) => text.split("\n").filter((line) => /^\s*(3,|4|\))$/.test(line));
@@ -174,11 +164,6 @@ describe("formatting a reassignment list continued after a trailing comma", () =
     expect(callLines(formatSource(once))).toEqual(callLines(once));
   });
 
-  // The reassignment ends at an unindented line, so which of the lines after
-  // it hold the rest of its list is decided as it reads them once indented
-  // (#1494, round 4): a call split by a comment that spans lines, a comment
-  // before the comma, a call after a finished value on the same line, and a
-  // named function that is a statement of its own.
   test.each([
     [
       "a call whose callee and arguments a comment spanning lines splits",
@@ -211,8 +196,6 @@ describe("formatting a reassignment list continued after a trailing comma", () =
     expect(formatSource(wrap(formatted))).toBe(wrap(formatted));
   });
 
-  // A function whose header names nothing is a value of the list, whatever
-  // comments sit between `function` and its parameters (#1494, round 6).
   test.each([
     ["a block comment", "function --[[note]] ()"],
     ["a long-bracket comment", "function --[=[note]=] ()"],
@@ -226,8 +209,6 @@ describe("formatting a reassignment list continued after a trailing comma", () =
     expect(formatSource(once)).toBe(once);
   });
 
-  // The continued lines are found by reading the rest of the block, however
-  // many lines the list runs over.
   test("indents a value after more than two hundred comment lines in a continued list", () => {
     const wrap = (value: string) =>
       ["function f()", "  local a, g = 0, 0", "  a, g = 1,", ...Array(205).fill("-- note"), value, "  return g", "end", ""].join("\n");

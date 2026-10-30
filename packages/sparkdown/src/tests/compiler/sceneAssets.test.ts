@@ -45,7 +45,10 @@ const ASSETS: File[] = [
 
 const FIXTURE = `store mood = "hat"
 
-[[show backdrop room]]
+scene start
+  [[show backdrop room]]
+  -> A
+end
 
 scene A
   [[show portrait bunny~hat+hat]]
@@ -96,15 +99,18 @@ describe("program.sceneAssets", () => {
 
   it("has an entry per top-level flow, including root content and functions", () => {
     expect(Object.keys(sceneAssets).sort()).toEqual(
-      ["0", "A", "B", "Fn", "Other"].sort(),
+      ["0", "A", "B", "Fn", "Other", "start"].sort(),
     );
     expect(sceneAssets["0"]!.kind).toBe("root");
     expect(sceneAssets["A"]!.kind).toBe("scene");
     expect(sceneAssets["Fn"]!.kind).toBe("function");
   });
 
-  it("records root-level directives under the pseudo-flow 0", () => {
-    expect(sceneAssets["0"]!.image).toEqual(["room"]);
+  it("records the start scene's directives under its own name", () => {
+    expect(sceneAssets["start"]!.kind).toBe("scene");
+    expect(sceneAssets["start"]!.image).toEqual(["room"]);
+    expect(sceneAssets["start"]!.successors).toEqual(["A"]);
+    expect(sceneAssets["0"]!.image).toEqual([]);
   });
 
   it("unions a scene's names in first-use order and records the functions it calls", () => {

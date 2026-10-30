@@ -36,19 +36,23 @@ const LUAU_LOOP = [
   "  return n",
   "end",
   "",
-  "BOB:",
-  "  Before the loop.",
+  "scene start",
+  "  BOB:",
+  "    Before the loop.",
   "",
-  "BOB:",
-  "  Spinning {spin()}.",
+  "  BOB:",
+  "    Spinning {spin()}.",
+  "end",
   "",
 ].join("\n");
 
 const DIVERT_LOOP = [
-  "BOB:",
-  "  Before the loop.",
+  "scene start",
+  "  BOB:",
+  "    Before the loop.",
   "",
-  "-> around",
+  "  -> around",
+  "end",
   "",
   "scene around",
   "  -> around",
@@ -98,7 +102,7 @@ afterEach(() => {
 
 describe("the execution watch (#679)", () => {
   test("hears a Luau loop inside one function call, on the loop's lines", async () => {
-    const { game, heard, errors } = await playWatched(LUAU_LOOP, 9);
+    const { game, heard, errors } = await playWatched(LUAU_LOOP, 10);
     expect(game.story).toBeInstanceOf(ProgramStory);
     // The engine's own ceiling stopped it, which is what ends the test.
     expect(errors.join("\n")).toContain("possible infinite loop");
@@ -113,18 +117,18 @@ describe("the execution watch (#679)", () => {
   }, 120_000);
 
   test("hears a scene that diverts to itself, on the divert's line", async () => {
-    const { game, heard, errors } = await playWatched(DIVERT_LOOP, 0);
+    const { game, heard, errors } = await playWatched(DIVERT_LOOP, 1);
     expect(errors.join("\n")).toContain("possible infinite loop");
     expect(heard.length).toBeGreaterThanOrEqual(LEAST_CALLS);
     expect(heard.every((h) => h.story === game.story)).toBe(true);
     const lines = new Set(heard.map((h) => h.line));
-    expect([...lines].every((l) => l === 5 || l === 6)).toBe(true);
+    expect([...lines].every((l) => l === 7 || l === 8)).toBe(true);
   }, 120_000);
 
   test("is not called by a beat that ends", async () => {
     const { game, heard, errors, steps } = await playWatched(
-      "BOB:\n  One.\n\nBOB:\n  Two.\n",
-      0,
+      "scene start\n  BOB:\n    One.\n\n  BOB:\n    Two.\nend\n",
+      1,
     );
     expect(game.story).toBeInstanceOf(ProgramStory);
     expect(errors).toEqual([]);

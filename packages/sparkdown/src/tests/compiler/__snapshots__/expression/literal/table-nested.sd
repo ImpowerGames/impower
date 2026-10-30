@@ -1,1 +1,3 @@
-{outer = {inner = 42}}
+scene start
+  {outer = {inner = 42}}
+end

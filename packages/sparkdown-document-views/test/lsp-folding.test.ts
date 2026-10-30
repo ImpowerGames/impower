@@ -1,9 +1,3 @@
-// Folding ranges from the language server (#1815). Every keystroke syncs the
-// document and pulls the server's folding ranges again; the editor maps the
-// folds it holds through each edit and applies a pulled result only when it
-// differs. These tests drive the client's folding extension against a stand-in
-// server whose answers the test releases, and compare the editor's folds after
-// an edit with what a fresh pull of the same document produces.
 import { foldable } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -23,7 +17,6 @@ interface PendingRequest {
   params: any;
 }
 
-/** A transport the test answers by hand. */
 class StandInServer {
   handler?: (value: object) => void;
   requests: PendingRequest[] = [];
@@ -49,8 +42,6 @@ class StandInServer {
   }
 }
 
-/** The server's folds for a document: each line starting with `#` opens a
- *  fold that runs to the line before the next `#` line, or to the end. */
 function serverFolds(doc: string): lsp.FoldingRange[] {
   const lines = doc.split("\n");
   const heads = lines.flatMap((l, i) => (l.startsWith("#") ? [i] : []));
@@ -68,8 +59,6 @@ afterEach(() => {
   for (const view of views.splice(0)) view.destroy();
 });
 
-/** Every line's fold as `foldable` reports it, which is what the gutter
- *  shows and what folding a line would collapse. */
 function folds(state: EditorState) {
   const result: { line: number; from: number; to: number }[] = [];
   for (let n = 1; n <= state.doc.lines; n++) {
@@ -80,8 +69,6 @@ function folds(state: EditorState) {
   return result;
 }
 
-/** `syncDelay` holds edits back from the server that long, so a result can
- *  arrive while the editor has changes the server has not seen. */
 function connect(server: StandInServer, syncDelay = 0) {
   return new LSPClient({
     extensions: [serverFolding(), serverAutoSync({ delay: syncDelay })],
@@ -102,8 +89,6 @@ async function mount(
     parent: document.body,
   });
   views.push(view);
-  // Count the transactions that carry effects: the folding extension's
-  // updates. An edit made with `type` carries none.
   let applied = 0;
   const dispatch = view.dispatch.bind(view);
   (view as any).dispatch = (...specs: any[]) => {
@@ -114,8 +99,6 @@ async function mount(
   return { client, server, view, applied: () => applied };
 }
 
-/** A fresh editor on `doc` that has pulled the server's folds once: what a
- *  full re-pull produces. */
 async function fullPull(doc: string) {
   const { server, view } = await mount(doc);
   const [request] = server.pending();
@@ -159,7 +142,6 @@ describe("server folding ranges", () => {
     const { server, view } = await mount(DOC);
     server.answer(server.pending()[0]!, serverFolds(DOC));
     await settle();
-    // Typing at the end of a body line, as an author does.
     for (const ch of " and more") {
       type(view, view.state.doc.line(5).to, ch);
       await settle();
@@ -176,7 +158,6 @@ describe("server folding ranges", () => {
     const { server, view } = await mount(DOC);
     server.answer(server.pending()[0]!, serverFolds(DOC));
     await settle();
-    // A new heading in the middle of fold Two, then a deleted body line.
     type(view, view.state.doc.line(6).from, "# Inserted\n");
     await settle();
     for (const request of server.pending()) {
@@ -200,23 +181,16 @@ describe("server folding ranges", () => {
     server.answer(server.pending()[0]!, serverFolds(DOC));
     await settle();
 
-    // A pull goes out for the document after one edit...
     type(view, 0, "intro\n");
     await settle();
     const [stale] = server.pending();
     const staleDoc = view.state.doc.toString();
-    // ...and another line is added at the top before the server answers it.
     type(view, 0, "intro\n");
     await settle();
-    // Its answer describes the document as it was when it was asked for,
-    // whose lines are now one line higher than the editor's.
     server.answer(stale!, serverFolds(staleDoc));
     await settle();
-    // The folds the editor holds were mapped through both edits; reading the
-    // stale lines against the newer document would put every fold a line early.
     expect(folds(view.state).map((f) => f.line)).toEqual([3, 6, 10]);
 
-    // The pull the second edit asked for then runs, and its result applies.
     expect(server.pending()).toHaveLength(1);
     for (const request of server.pending()) {
       server.answer(request, serverFolds(view.state.doc.toString()));
@@ -231,8 +205,6 @@ describe("server folding ranges", () => {
     const { server, view } = await mount(DOC);
     server.answer(server.pending()[0]!, serverFolds(DOC));
     await settle();
-    // Delete the whole of fold One, heading and body; Two's heading moves up
-    // to line 1. The pull this edit causes has not been answered yet.
     type(view, 0, "", view.state.doc.line(4).from);
     await settle();
     expect(server.pending()).toHaveLength(1);
@@ -253,8 +225,6 @@ describe("server folding ranges", () => {
       client: connect(server, 60_000),
     });
     const [request] = server.pending();
-    // Fold One is deleted while the server is answering for the document it
-    // was sent, and the edit has not been synced yet.
     type(view, 0, "", view.state.doc.line(4).from);
     await settle();
     server.answer(request!, serverFolds(DOC));
@@ -272,8 +242,6 @@ describe("server folding ranges", () => {
     const before = applied();
     type(view, view.state.doc.line(5).to, "x");
     await settle();
-    // The edit itself is one transaction; the pull it causes returns the same
-    // folds, mapped through the edit, and is not dispatched.
     for (const request of server.pending()) {
       server.answer(request, serverFolds(view.state.doc.toString()));
       await settle();

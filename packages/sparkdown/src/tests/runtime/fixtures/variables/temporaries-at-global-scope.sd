@@ -1,5 +1,4 @@
 store x = 5
--> start
 scene start
   local y = 4
   {x}{y}

@@ -37,6 +37,9 @@ const SOURCE = String.raw`define Thing with
   list = { 1, 2 }
   ["$link"] = "x"
 end
+
+scene start
+end
 `;
 
 describe("define property values in the struct registry", () => {

@@ -10,6 +10,7 @@ import {
   H_FINGERPRINT,
   H_LAYOUT_HASH,
 } from "../../program/ProgramChunk";
+import { TOP_LEVEL_STATEMENT_MESSAGE } from "../../compiler/utils/declarationOnly";
 import { unsupportedConstructMessage } from "../../compiler/utils/unsupportedConstructMessage";
 import { compileScript, errorsOf, storyBeats } from "./programHarness";
 
@@ -24,8 +25,10 @@ const indent = (text: string) =>
     .map((line) => (line ? `  ${line}` : line))
     .join("\n");
 
-const listing = (text: string, flow = "") => {
-  const { program } = compileScript(text);
+const inStart = (text: string) => `scene start\n${indent(text)}end\n`;
+
+const listing = (text: string, flow = "start") => {
+  const { program } = compileScript(inStart(text));
   const root = program.chunks!;
   expect(program.chunks).toBeDefined();
   return new BinaryProgramReader(root)
@@ -44,6 +47,7 @@ describe("the writer", () => {
       'Str "Hello there."',
       "MakeTable 2",
       "CallStd display/1 flags 1",
+      "Done",
     ]);
   });
 
@@ -58,6 +62,7 @@ describe("the writer", () => {
       'Str "Hi."',
       "MakeTable 3",
       "CallStd display/1 flags 1",
+      "Done",
     ]);
   });
 
@@ -74,8 +79,8 @@ describe("the writer", () => {
 
   it("keeps a statement's fingerprint and layout when the statement moves", () => {
     const at = (text: string) => {
-      const { program } = compileScript(text);
-      const chunks = program.chunks!.flowNamed("")!.arrays.chunks;
+      const { program } = compileScript(inStart(text));
+      const chunks = program.chunks!.flowNamed("start")!.arrays.chunks;
       const moved = chunks[chunks.length - 1]!;
       return [...moved.subarray(H_FINGERPRINT, H_LAYOUT_HASH + 2)];
     };
@@ -85,15 +90,15 @@ describe("the writer", () => {
   });
 
   it("gives each display call a line table row of its own range", () => {
-    const { program } = compileScript("Intro.\nFirst > Second.\n", {
+    const { program } = compileScript(inStart("Intro.\nFirst > Second.\n"), {
     });
     const root = program.chunks!;
-    const flow = root.flowNamed("")!;
+    const flow = root.flowNamed("start")!;
     const reader = new BinaryProgramReader(root);
     const starts = [...reader.instructions(flow.arrays.chunks[1]!)]
       .filter((instruction) => instruction.op === Op.LineStart)
       .map((instruction) => reader.rangeAt(flow, 1, instruction.offset));
-    expect(starts.map((range) => range?.startLine)).toEqual([1, 1]);
+    expect(starts.map((range) => range?.startLine)).toEqual([2, 2]);
     expect(starts[0]!.startColumn).toBeLessThan(starts[1]!.startColumn);
   });
 });
@@ -102,71 +107,67 @@ describe("the writer", () => {
  *  tables of its display calls, each table's entries in order. */
 type Shown = string | { text: string; tags?: string[]; tables?: [string, unknown][][] };
 
-const UNJOINED =
-  "RUNTIME WARNING: 'main' line 3: This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.";
+const unjoined = (line: number) =>
+  `RUNTIME WARNING: 'main' line ${line}: This line begins with \`..\`, but the line shown before it does not end with \`..\`, so it does not join it.`;
 
-// Each script runs from its top (from MAIN when it is one scene), and shows
-// these beats and reports these errors.
 const SHOWS: Record<string, [string, Shown[], string[]?]> = {
   "action and dialogue": [
-    "Hello there.\nBOB: Hi.\nThe end.\n",
+    inStart("Hello there.\nBOB: Hi.\nThe end.\n"),
     [
       { text: "Hello there.", tables: [[["target", "action"], ["text", "Hello there."]]] },
       { text: "Hi.", tables: [[["target", "dialogue"], ["character", "BOB"], ["text", "Hi."]]] },
       { text: "The end.", tables: [[["target", "action"], ["text", "The end."]]] },
     ],
   ],
-  "a trailing-glue chain": ["Some ..\n.. content ..\n.. with glue.\ndone\n", ["Some content with glue."]],
-  "glued dialogue": ["HERO: One ..\nHERO: .. two ..\nHERO: .. three.\ndone\n", ["One two three."]],
+  "a trailing-glue chain": [inStart("Some ..\n.. content ..\n.. with glue.\ndone\n"), ["Some content with glue."]],
+  "glued dialogue": [inStart("HERO: One ..\nHERO: .. two ..\nHERO: .. three.\ndone\n"), ["One two three."]],
   "a glued line before a plain one": [
-    "You see a ..\nIt is locked.\nAfter.\n",
+    inStart("You see a ..\nIt is locked.\nAfter.\n"),
     ["You see a", "It is locked.", "After."],
   ],
   "a leading glue that joins nothing": [
-    "scene MAIN\n  First.\n  .. Second.\n  Third.\nend\n",
+    inStart("First.\n.. Second.\nThird.\n"),
     ["First.", "Second.", "Third."],
-    [`2: ${UNJOINED}`],
+    [`2: ${unjoined(3)}`],
   ],
   "a lone leading glue in a block body": [
-    "HERO:\n  First.\n  .. second.\ndone\n",
+    inStart("HERO:\n  First.\n  .. second.\ndone\n"),
     ["First.\nsecond."],
-    [`2: ${UNJOINED}`],
+    [`2: ${unjoined(4)}`],
   ],
-  "breaks": ["First >\nLast.\ndone\n", ["First", "Last."]],
-  "a trailing glue before a break": ["First .. >\n.. second.\nLast.\ndone\n", ["First", "second.", "Last."]],
+  "breaks": [inStart("First >\nLast.\ndone\n"), ["First", "Last."]],
+  "a trailing glue before a break": [inStart("First .. >\n.. second.\nLast.\ndone\n"), ["First", "second.", "Last."]],
   "a continuation's beats after a break": [
-    "HERO: Wait ..\n.. right there. > And then more.\nAfter.\n",
+    inStart("HERO: Wait ..\n.. right there. > And then more.\nAfter.\n"),
     ["Wait right there.", "And then more.", "After."],
   ],
   "tags": [
-    "# chapter one\nA line. # mood\nB line # a # b\n",
+    inStart("# chapter one\nA line. # mood\nB line # a # b\n"),
     [
       { text: "A line.", tags: ["chapter one", "mood"] },
       { text: "B line", tags: ["a", "b"] },
     ],
   ],
   "a load line": [
-    "load hero villain\nAfter the load.\n",
+    inStart("load hero villain\nAfter the load.\n"),
     [{ text: "", tables: [[["load", "hero villain"]]] }, "After the load."],
   ],
   "a scene with a block dialogue": [
-    "scene MAIN\n  In the scene.\n  BOB:\n    (quietly)\n    Hello.\nend\n",
+    inStart("In the scene.\nBOB:\n  (quietly)\n  Hello.\n"),
     ["In the scene.", "(quietly)\nHello."],
   ],
-  "fin": ["One.\nfin\nTwo.\n", ["One."]],
-  "a store beside the lines": ["store x = 3\nA plain line.\n", ["A plain line."]],
-  "glue inside a block body": ["HERO:\n  First ..\n  .. second.\ndone\n", ["First second."]],
-  "a line with a comment": ["A line // with a comment\nB line\n", ["A line", "B line"]],
-  "content after a scene's end": ["scene MAIN\n  Inside.\nend\nAfter end.\n", ["Inside.", "After end."]],
+  "fin": [inStart("One.\nfin\nTwo.\n"), ["One."]],
+  "a store beside the lines": ["store x = 3\n" + inStart("A plain line.\n"), ["A plain line."]],
+  "glue inside a block body": [inStart("HERO:\n  First ..\n  .. second.\ndone\n"), ["First second."]],
+  "a line with a comment": [inStart("A line // with a comment\nB line\n"), ["A line", "B line"]],
 };
 
 describe("the engine", () => {
   for (const [name, [text, beats, errors = []]] of Object.entries(SHOWS)) {
     it(`shows ${name}`, () => {
-      const from = text.startsWith("scene MAIN") ? "MAIN" : undefined;
       const { program } = compileScript(text);
       expect(program.chunks).toBeDefined();
-      const actual = storyBeats(new ProgramStory(program.chunks!), from);
+      const actual = storyBeats(new ProgramStory(program.chunks!));
       const shown = actual.beats.map((beat, i): Shown => {
         const want = beats[i];
         const text = beat.text.trim();
@@ -182,17 +183,21 @@ describe("the engine", () => {
     });
   }
 
+  it("reports a statement written after a scene's end at the top level", () => {
+    const { program } = compileScript("scene start\n  Inside.\nend\nAfter end.\n");
+    expect(errorsOf(program)).toContainEqual([3, TOP_LEVEL_STATEMENT_MESSAGE]);
+  });
   it("reports a warning with the line of the call that raised it", () => {
-    const { program } = compileScript("First.\n.. Second.\n", {
+    const { program } = compileScript(inStart("First.\n.. Second.\n"), {
     });
     const { errors } = storyBeats(new ProgramStory(program.chunks!));
     expect(errors).toEqual([
-      "2: RUNTIME WARNING: 'main' line 2: This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.",
+      "2: RUNTIME WARNING: 'main' line 3: This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.",
     ]);
   });
 
   it("runs a display beat once, one instruction a step", () => {
-    const { program } = compileScript("One.\nTwo.\nThree.\n", {
+    const { program } = compileScript(inStart("One.\nTwo.\nThree.\n"), {
     });
     const story = new ProgramStory(program.chunks!);
     const steps: number[] = [];
@@ -208,7 +213,7 @@ describe("the engine", () => {
   // After its last beat a flow rests past its last statement, until the step
   // that ends it: a position in no chunk.
   it("restores a state saved after any beat, the last included", () => {
-    const { program } = compileScript("One.\nTwo. > Three.\nFour.\n", {
+    const { program } = compileScript(inStart("One.\nTwo. > Three.\nFour.\n"), {
     });
     const root = program.chunks!;
     const whole = storyBeats(new ProgramStory(root)).beats;
@@ -233,7 +238,7 @@ describe("the engine", () => {
   // function one engine evaluates reads that engine's globals.
   it("keeps the globals of engines that share a root apart", () => {
     const { program } = compileScript(
-      "store x = 3\nfunction read_x() return x end\nA line.\n",
+      "store x = 3\nfunction read_x() return x end\n" + inStart("A line.\n"),
       {},
     );
     expect(program.chunks).toBeDefined();
@@ -256,22 +261,11 @@ describe("a construct the program cannot build", () => {
   // An external function is not carried, and its declaration names it.
   it("is reported at the top level, and makes no program", () => {
     const { program } = compileScript(
-      "One.\nTwo.\nexternal message(x)\n\n& message(1)\nThree.\n",
+      "external message(x)\n\n" + inStart("One.\nTwo.\nThree.\n"),
       {},
     );
     expect(program.chunks).toBeUndefined();
-    expect(errorsOf(program)).toContainEqual([2, unsupportedConstructMessage("external")]);
-  });
-
-  // A label between two choices an `if` of a `choose` block's preamble gates
-  // is not emitted.
-  it("is reported at a block statement at the top level", () => {
-    const { program } = compileScript(
-      `One.\nchoose\n${PREAMBLE_THEN}  + [A]\n    Took A.\nend\n`,
-      {},
-    );
-    expect(program.chunks).toBeUndefined();
-    expect(errorsOf(program)).toContainEqual([1, unsupportedConstructMessage(PREAMBLE_THEN_CONSTRUCT)]);
+    expect(errorsOf(program)).toContainEqual([0, unsupportedConstructMessage("external")]);
   });
 
   // The list builtin stands in the text of the table the display call is

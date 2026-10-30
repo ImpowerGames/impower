@@ -41,19 +41,19 @@ const warnsDotted = (diags: string[]) =>
 describe("dotted-class warning", () => {
   test("a dotted class on a container element does not warn", () => {
     const diags = diagnosticsFor(
-      `layout main with\n  row.hud #gap=12 {\n    text "x"\n  }\nend\n`,
+      `layout main with\n  row.hud #gap=12 {\n    text "x"\n  }\nend\nscene start\nend\n`,
     );
     expect(diags).toEqual([]);
   });
 
   test("a dotted class on a content element does not warn", () => {
-    const diags = diagnosticsFor(`layout main with\n  text.title "Hi"\nend\n`);
+    const diags = diagnosticsFor(`layout main with\n  text.title "Hi"\nend\nscene start\nend\n`);
     expect(diags).toEqual([]);
   });
 
   test("a dotted class in a brace block does not warn", () => {
     const diags = diagnosticsFor(
-      `layout main with\n  row.hud #gap=12 { text.title "Hi" }\nend\n`,
+      `layout main with\n  row.hud #gap=12 { text.title "Hi" }\nend\nscene start\nend\n`,
     );
     expect(diags).toEqual([]);
   });

@@ -1,6 +1,3 @@
-// Diagnostic for the 2026-06-13 user reproducer — verifies the PDF
-// export shows the blank-line separator between the dialogue and the
-// following action, not just the preview.
 import { describe, expect, it } from "vitest";
 import ScreenplayParser from "../../sparkdown-screenplay/src/classes/ScreenplayParser";
 import { generateScreenplayReadingCopy } from "../../sparkdown-screenplay/src/utils/generateScreenplayReadingCopy";

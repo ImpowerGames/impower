@@ -1,10 +1,3 @@
-// The editor's previous and next beat navigation (PageUp/PageDown), which the
-// language server answers through the program's accessor (#700): the next
-// beat is the first one below the line that starts below it, and the previous
-// one the first one above that starts above it, where a beat is what the
-// accessor gives one address (`ProgramLocator.addressAt`) and starts where
-// `locationOf` says, from the program engine's root, which no client holds.
-
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { describe, expect, test } from "vitest";
@@ -18,7 +11,9 @@ const CHAPTER = "file://proj/chapter.sd";
 const NEWLINE = String.fromCharCode(10);
 
 const MAIN_SRC = [
-  "Raffles waits by the door.",
+  "scene start",
+  "  Raffles waits by the door.",
+  "end",
   "",
   "scene A",
   "  He looks around.",
@@ -132,11 +127,9 @@ describe("previous and next beat navigation on the program engine", () => {
       file: CHAPTER,
       line: lineOf(CHAPTER_SRC, "Bunny leaves."),
     });
-    // A scene's header is a stop of its own: a header the program lists,
-    // whose root gives it no statement (#704).
     expect(await at(CHAPTER, bunny, -1)).toEqual({ file: CHAPTER, line: 0 });
     expect(await at(MAIN, 0, -1)).toBeNull();
-    expect(await at(MAIN, main("end"), 1)).toBeNull();
+    expect(await at(MAIN, MAIN_SRC.split(NEWLINE).lastIndexOf("end"), 1)).toBeNull();
     expect(await at(MAIN, main("He looks around."), 1000)).toBeNull();
   });
 
@@ -150,10 +143,6 @@ describe("previous and next beat navigation on the program engine", () => {
 });
 
 describe("previous and next beat navigation", () => {
-  // The language server answers it from the program engine's root (#704).
-  // A scene's and a branch's header is a stop, and a divert, a `done` or a
-  // `fin` at a flow's own level is none, while one inside a block's body is
-  // a stop.
   const FLOWS = [
     "store n = 0",
     "",
@@ -194,26 +183,23 @@ describe("previous and next beat navigation", () => {
       }
       return out;
     };
-    // [line, next, previous], null for nowhere. The stops in the main script
-    // are its first beat (0), the scene's header (2), its beats (3 and 9)
-    // and the dialogue, which starts at its parenthetical (6); the divert at
-    // the scene's own level is none. The chapter's are its header (0) and
-    // its two beats (1 and 3).
     expect(await rows(MAIN, MAIN_SRC)).toEqual([
-      [0, 2, null],
-      [1, 2, 0],
-      [2, 3, 0],
-      [3, 6, 2],
-      [4, 6, 3],
-      [5, 6, 3],
-      [6, 9, 3],
-      [7, 9, 6],
-      [8, 9, 6],
-      [9, null, 6],
-      [10, null, 9],
-      [11, null, 9],
-      [12, null, 9],
-      [13, null, 9],
+      [0, 1, null],
+      [1, 4, 0],
+      [2, 4, 1],
+      [3, 4, 1],
+      [4, 5, 1],
+      [5, 8, 4],
+      [6, 8, 5],
+      [7, 8, 5],
+      [8, 11, 5],
+      [9, 11, 8],
+      [10, 11, 8],
+      [11, null, 8],
+      [12, null, 11],
+      [13, null, 11],
+      [14, null, 11],
+      [15, null, 11],
     ]);
     expect(await rows(CHAPTER, CHAPTER_SRC)).toEqual([
       [0, 1, null],
@@ -231,18 +217,12 @@ describe("previous and next beat navigation", () => {
     const program = compile("", FLOWS);
     const at = (line: number, offset: number) =>
       getOffsetSourceLocation(program, ownBeats(program), CHAPTER, line, offset);
-    // Past a divert at the scene's own level, onto the line below it.
     expect(await at(lineOf(FLOWS, "Hello."), 1)).toEqual({ file: CHAPTER, line: lineOf(FLOWS, "Unreached.") });
-    // A divert inside an `if` is a stop of its own.
     expect(await at(lineOf(FLOWS, "if n > 0"), 1)).toEqual({ file: CHAPTER, line: lineOf(FLOWS, "    -> B") });
-    // Past `fin`, onto the branch header.
     expect(await at(lineOf(FLOWS, "& n = n + 1"), 1)).toEqual({ file: CHAPTER, line: lineOf(FLOWS, "branch side") });
-    // Nothing past the last beat before `done`.
     expect(await at(lineOf(FLOWS, "Bye."), 1)).toBeNull();
   });
 
-  // A divert's arguments are expressions, which compute what they compute
-  // (an operator, a call, several values) before the divert leaves.
   const ARGS = [
     "store n = 0",
     "store s = \"abc\"",
@@ -282,9 +262,6 @@ describe("previous and next beat navigation", () => {
     "",
   ].join(NEWLINE);
 
-  // A `choose` is a block statement, which a divert in its preamble does not
-  // make a divert: its caption is a beat of its own, whether the divert is
-  // written before it or in a branch of an `if` the preamble skips.
   test("keeps a choose block's caption a beat when its preamble diverts first", async () => {
     const CHOOSE = [
       "store n = 0",
@@ -330,14 +307,9 @@ describe("previous and next beat navigation", () => {
     expect(await at(lineOf(CHOOSE, "* Onward"), -1)).toEqual({ file: CHAPTER, line: lineOf(CHOOSE, "Second caption.") });
   });
 
-  // The stops are beats, choice bodies, headers and the logic an author
-  // writes as a statement of its own; a tunnel call or return, a label, a
-  // choice's own line, an `elseif` or `else` and a loop's header are none
-  // (#1677).
   test("stops around tunnels, labels, choices, elseif, else and while", async () => {
     const STOPS = [
-      "-> main",
-      "scene main",
+      "scene start",
       "  Start.",
       "  -> T ->",
       "  After tunnel.",
@@ -369,31 +341,29 @@ describe("previous and next beat navigation", () => {
       "end",
       "",
     ].join(NEWLINE);
-    // Next and previous from every line: [line, next, previous], null for
-    // nowhere.
     const expected: [number, number | null, number | null][] = [
-      [2, 4, 1],
-      [3, 4, 2],
-      [4, 6, 2],
-      [5, 6, 4],
-      [6, 9, 4],
-      [7, 9, 6],
-      [8, 9, 6],
-      [9, 11, 6],
-      [10, 11, 9],
-      [11, 14, 9],
-      [14, 15, 11],
-      [15, 17, 14],
-      [16, 17, 15],
-      [17, 19, 15],
-      [18, 19, 17],
-      [19, 22, 17],
-      [20, 22, 19],
-      [21, 22, 19],
-      [22, 23, 19],
+      [1, 3, 0],
+      [2, 3, 1],
+      [3, 5, 1],
+      [4, 5, 3],
+      [5, 8, 3],
+      [6, 8, 5],
+      [7, 8, 5],
+      [8, 10, 5],
+      [9, 10, 8],
+      [10, 13, 8],
+      [13, 14, 10],
+      [14, 16, 13],
+      [15, 16, 14],
+      [16, 18, 14],
+      [17, 18, 16],
+      [18, 21, 16],
+      [19, 21, 18],
+      [20, 21, 18],
+      [21, 22, 18],
+      [27, null, 26],
       [28, null, 27],
-      [29, null, 28],
-      [30, null, 28],
+      [29, null, 27],
     ];
     const program = compile(STOPS, "");
     for (const [line, next, previous] of expected) {
@@ -404,11 +374,6 @@ describe("previous and next beat navigation", () => {
     }
   });
 
-  // A `choose` preamble's logic is written into the `choose` statement's own
-  // code, so it stands at addresses past the statement's start; an
-  // assignment and an `if` there are stops as they are elsewhere, and a
-  // `store` there is none (round 1 of PR #1680). Four compiles, one per
-  // script.
   test("stops on an assignment and an if inside a choose preamble", { timeout: 60000 }, async () => {
     const PREAMBLE = [
       "store gate = true",
@@ -441,8 +406,6 @@ describe("previous and next beat navigation", () => {
       "end",
       "",
     ].join(NEWLINE);
-    // Logic written after an `if` the preamble inlines follows the jump
-    // that ends the `if`'s last branch (round 1, comment 6049466824).
     const AFTER_IF = [
       "store gate = true",
       "scene start",
@@ -466,12 +429,9 @@ describe("previous and next beat navigation", () => {
       "end",
       "",
     ].join(NEWLINE);
-    // A loop the preamble inlines ends in a jump back to its condition,
-    // which the logic written after it follows (round 2, comment
-    // 6049680360).
     const AFTER_LOOP = [
       "store n = 0",
-      "scene main",
+      "scene start",
       "  Start.",
       "  choose",
       "    while n < 1 do",
@@ -499,8 +459,6 @@ describe("previous and next beat navigation", () => {
         (await getOffsetSourceLocation(afterIf, ownBeats(afterIf), MAIN, line, offset))?.line;
       expect(await at(lineOf(AFTER_IF, "Continue body."), 1)).toBe(lineOf(AFTER_IF, "& gate = false"));
       expect(await at(lineOf(AFTER_IF, "& gate = false"), 1)).toBe(lineOf(AFTER_IF, "& gate = false") + 1);
-      // Past the `elseif`, onto the next branch's body: a choice's line
-      // inside a preamble's `if` (`+ Instead`) is no stop.
       expect(await at(lineOf(AFTER_IF, "Again body."), 1)).toBe(lineOf(AFTER_IF, "Instead body."));
     }
     {
@@ -527,12 +485,9 @@ describe("previous and next beat navigation", () => {
     expect(await at(lineOf(ARGS, "After."), -1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Before.") });
     expect(await at(lineOf(ARGS, "After."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Later.") });
     expect(await at(lineOf(ARGS, "Later."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Last.") });
-    // A captured string's text and a method call's stashed receiver are the
-    // argument's computation, not a beat or an assignment of the author's.
     expect(await at(lineOf(ARGS, "Last."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Captured.") });
     expect(await at(lineOf(ARGS, "Captured."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Method.") });
     expect(await at(lineOf(ARGS, "Method."), -1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Captured.") });
-    // A function an argument writes is entry code after the divert leaves.
     expect(await at(lineOf(ARGS, "Method."), 1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Function.") });
     expect(await at(lineOf(ARGS, "Function."), -1)).toEqual({ file: CHAPTER, line: lineOf(ARGS, "Method.") });
   });

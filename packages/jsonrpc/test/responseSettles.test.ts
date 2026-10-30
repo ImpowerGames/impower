@@ -4,16 +4,12 @@ import { RequestError } from "../src/common/classes/RequestError";
 import { RequestMessage } from "../src/common/types/RequestMessage";
 import { MessageProtocolRequestType } from "../src/common/classes/MessageProtocolRequestType";
 
-// A pair of in-memory connections. `MessageConnection` is abstract over the
-// transport, so this needs no worker, port or DOM — and it lets the tests
-// assert that the response listener is actually torn down.
 class TestConnection extends MessageConnection {
   protected _listeners = new Set<(e: MessageEvent) => void>();
   peer?: TestConnection;
 
   constructor() {
     super((message: any) => {
-      // Deliver asynchronously, like a real port would.
       queueMicrotask(() => this.peer?.receive(message));
     });
   }
@@ -54,7 +50,6 @@ const requestMessage = (method: string): RequestMessage<string, {}, any> =>
     params: {},
   }) as RequestMessage<string, {}, any>;
 
-// Answer whatever the peer asks with `handler`, then let the request settle.
 const serve = (b: TestConnection, handler: () => any) => {
   b.addEventListener("message", (e: MessageEvent) => {
     const message = (e as any).data;
@@ -64,7 +59,6 @@ const serve = (b: TestConnection, handler: () => any) => {
   });
 };
 
-// A request that never settles would hang the test runner, so race it.
 const TIMED_OUT = Symbol("timed out");
 const settlesWithin = async (promise: Promise<unknown>, ms = 500) => {
   let timer: ReturnType<typeof setTimeout>;
@@ -163,10 +157,6 @@ describe("MessageConnection response handling", () => {
     expect(a.listenerCount).toBe(0);
   });
 
-  // The bug: `WorkspaceFileSystem.executeCommand` returns undefined for an
-  // unknown uri or an unrecognized command, so the response carried neither
-  // `result` nor `error`, `isResponse` rejected it, and the awaiting promise
-  // never settled.
   it("settles when the handler returns undefined", async () => {
     const { a, b } = pair();
     serve(b, () => undefined);
@@ -209,15 +199,11 @@ describe("MessageConnection response handling", () => {
       a.request(requestMessage("test/throw-error")),
     );
     expect((outcome as any).status).toBe("rejected");
-    // An Error's own numeric `code` (DOMException uses 8, 20, 25 …) is not a
-    // JSON-RPC code and must not be forwarded as one.
     expect((outcome as any).error.code).toBe(-32603);
     expect((outcome as any).error.message).toBe("kaboom");
   });
 
   it("does not settle on a progress message for the same request", async () => {
-    // Bare-method progress is an accepted internal compatibility form.
-    // It retains the listener until a final reply arrives.
     const { a, b } = pair();
     const request = requestMessage("test/progress");
     const pending = a.request(request);
@@ -231,9 +217,7 @@ describe("MessageConnection response handling", () => {
     );
     const outcome = await settlesWithin(pending, 200);
     expect(outcome).toBe(TIMED_OUT);
-    // Still waiting for the real response, listener intact.
     expect(a.listenerCount).toBe(1);
-    // …which then settles it normally.
     b.sendResponse(request as any, () => ({ ok: true }));
     expect(await settlesWithin(pending)).toEqual({
       status: "resolved",
@@ -288,9 +272,6 @@ describe("MessageConnection response handling", () => {
   });
 
   it("does not settle on an echo of the request itself", async () => {
-    // The editor relays messages between window and iframe without filtering
-    // by origin, so a request can come back to its own sender with a matching
-    // id and method.
     const { a } = pair();
     const request = requestMessage("test/echo-self");
     const pending = a.request(request);
@@ -300,8 +281,6 @@ describe("MessageConnection response handling", () => {
     expect(a.listenerCount).toBe(1);
   });
 
-  // Defence in depth for an empty final envelope, excluding request echoes
-  // and value-only traffic (which still requires a valid final reply).
   it("rejects a hand-crafted response carrying neither result nor error", async () => {
     const { a } = pair();
     const request = requestMessage("test/malformed");
@@ -316,8 +295,6 @@ describe("MessageConnection response handling", () => {
     expect(a.listenerCount).toBe(0);
   });
 
-  // `sendResponse`'s catch only built a ResponseError for objects carrying a
-  // `message` property, so a bare string left both fields absent.
   it("settles when the handler throws a value that is not an Error", async () => {
     const { a, b } = pair();
     serve(b, () => {
@@ -332,8 +309,6 @@ describe("MessageConnection response handling", () => {
     expect(a.listenerCount).toBe(0);
   });
 
-  // The coercion runs inside the catch that builds the error response, so if it
-  // throws, no response is sent at all and the caller hangs — the original bug.
   it("settles when the handler throws a value that cannot be stringified", async () => {
     const { a, b } = pair();
     serve(b, () => {

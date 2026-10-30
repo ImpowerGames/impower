@@ -110,7 +110,7 @@ describe("DuplicateFunction at a script's top level", () => {
   // second, and the compiler reports no duplicate story function.
   test("lints a scene's second local function of one name as Luau does, with no duplicate identifier", () => {
     const found = diagnoseDetailed(
-      "-> S\nscene S\n  local function x() return 1 end\n  local function x() return 2 end\n  Value {x()}.\nend\n",
+      "\nscene start\n  local function x() return 1 end\n  local function x() return 2 end\n  Value {x()}.\nend\n",
     );
     expect(found.filter((d) => d.message.startsWith("Duplicate identifier"))).toEqual([]);
     expect(found.filter((d) => d.code === "DuplicateFunction").map((d) => [d.severity, d.range?.start.line, d.message])).toEqual([
@@ -124,7 +124,7 @@ describe("DuplicateFunction at a script's top level", () => {
 });
 
 describe("DuplicateFunction across scripts", () => {
-  const sources = (chapter: string) => ({ "main.sd": "store T = {}\nfunction T.x() end\n& T.x()\n", "chapter.sd": chapter });
+  const sources = (chapter: string) => ({ "main.sd": "store T = {}\nfunction T.x() end\nscene start\n  & T.x()\nend\n", "chapter.sd": chapter });
 
   test("a member of a global table defined at two scripts' top levels warns in the later script by URI, naming the other", () => {
     expect(programDuplicates(sources("\nfunction T.x() end\n"))).toEqual([`main.sd:1: ${message("T.x", 2)} in 'chapter.sd'`]);
@@ -135,7 +135,7 @@ describe("DuplicateFunction across scripts", () => {
   });
 
   test("a story constant's table is a global table", () => {
-    expect(programDuplicates({ "main.sd": "const T = {}\nfunction T.x() end\n& T.x()\n", "chapter.sd": "function T.x() end\n" })).toEqual([`main.sd:1: ${message("T.x", 1)} in 'chapter.sd'`]);
+    expect(programDuplicates({ "main.sd": "const T = {}\nfunction T.x() end\nscene start\n  & T.x()\nend\n", "chapter.sd": "function T.x() end\n" })).toEqual([`main.sd:1: ${message("T.x", 1)} in 'chapter.sd'`]);
   });
 
   test.each([

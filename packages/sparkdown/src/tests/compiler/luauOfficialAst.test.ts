@@ -196,7 +196,7 @@ describe.skipIf(!officialLuauAvailable)(
       if (expectedIntegerErrors) {
         // Pin suffix-induced recovery too: a positive count alone would hide
         // unrelated syntax errors in an intentionally unsupported fixture.
-        expect(ours.flows).toEqual([]);
+        expect(ours.flows.flatMap((flow) => flow.errors)).toEqual([]);
         expect(ours.prelude.errors.map(({ location, message }) =>
           `${location.begin.line}:${location.begin.column}-${location.end.line}:${location.end.column} ${message}`,
         )).toEqual(expectedIntegerErrors);

@@ -1,1 +1,3 @@
-They walk forward.
+scene start
+  They walk forward.
+end

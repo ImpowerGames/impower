@@ -1,4 +1,6 @@
--> top
+scene start
+  -> top
+end
 scene top
   if count.visits(-> main) > 0 then
     & -> done

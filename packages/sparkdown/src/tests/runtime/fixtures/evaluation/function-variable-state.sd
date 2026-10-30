@@ -1,7 +1,9 @@
-Start
--> tunnel ->
-End
-fin
+scene start
+  Start
+  -> tunnel ->
+  End
+  fin
+end
 
 scene tunnel
   In tunnel.

@@ -63,27 +63,13 @@ const NEWLINE_REGEX = /\r\n|\r|\n/g;
 
 const LANGUAGE_ID = "sparkdown";
 
-/** The language of a script file: a `.luau` file a `run` statement reads is
- *  Luau, registered as a text document so the compiler can resolve it
- *  (#1389), and every other script is Sparkdown. */
 const languageIdOf = (uri: string): string =>
   uri.endsWith(".luau") ? "luau" : LANGUAGE_ID;
 
-// Recycle-bin: a user delete MOVES files here (reversible) instead of hard
-// removeEntry. Lives at `<project>/.trash/<batchId>/<originalRelPath>` with a
-// per-batch `__manifest.json`. Excluded from the normal file pipeline by
-// getAllFilesRecursive([TRASH_DIR]) so it never leaks into bundles/sync/UI.
 const TRASH_DIR = ".trash";
 const TRASH_MANIFEST = "__manifest.json";
-// Trashed batches older than this are purged on project load (local-only trash).
 const DEFAULT_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
-// Import-time thumbnail generation. When an image is written we decode + resize
-// it here (off the page's main thread) and stash a webp in the shared
-// `asset-thumbnails` Cache Storage bucket, under the SAME key the service worker
-// computes when it serves `?thumb=<w>` — so the file list never has to decode
-// art while the user scrolls. Keep these in sync with `impower-dev/src/workers/
-// sw.ts` (cache name, width, tv, key format).
 const THUMB_CACHE_NAME = "asset-thumbnails";
 const THUMB_WIDTH = 144;
 const THUMB_VERSION = 2;
@@ -301,18 +287,12 @@ onmessage = async (e) => {
   if (WillDeleteFilesMessage.type.isRequest(message)) {
     try {
       const { files, mode } = message.params;
-      // User deletes ("trash") move the bytes to the recycle bin instead of
-      // hard-removing them; everything else (bundle/sync diff-deletes, the
-      // default) permanently removes. Either way the broadcasts below describe
-      // only the originals leaving their project location.
       let removed = files;
       let deletedFiles;
       let failure: PromiseRejectedResult | undefined;
       if (mode === "trash") {
         deletedFiles = await moveFilesToTrash(files);
       } else {
-        // Each removal is independent: publish every actual deletion even if
-        // another path fails, and wait for all outcomes before answering.
         const outcomes = await Promise.allSettled(files.map(file => deleteFiles([file])));
         removed = files.filter((_file, index) => outcomes[index]?.status === "fulfilled");
         deletedFiles = outcomes.flatMap(outcome => outcome.status === "fulfilled" ? outcome.value : []);
@@ -354,8 +334,6 @@ onmessage = async (e) => {
         );
       }
       respond(TrashFilesMessage.type.response(message.id, result));
-      // A restore re-creates files at their original locations — tell the page
-      // (and the LSP) so its _files cache + the file list pick them back up.
       if (action === "restore" && result.restored && result.restored.length > 0) {
         broadcast(
           DidWriteFilesMessage.type.notification({
@@ -365,10 +343,6 @@ onmessage = async (e) => {
         );
         broadcast(
           DidChangeWatchedFilesMessage.type.notification({
-            // `Changed`, not `Created` — a restored file is reappearing, not a
-            // brand-new authored one. (FileList opens single-`.sd` *Created*
-            // events straight into inline rename; a restore must not do that,
-            // or an Escape would re-delete the just-recovered file.)
             changes: result.restored.map((f) => ({
               uri: f.uri,
               type: FileChangeType.Changed,
@@ -436,8 +410,6 @@ onmessage = async (e) => {
     }
   }
   if (ApplyWorkspaceEditMessage.type.isRequest(message)) {
-    // TODO: Use zenfs to support workspace.workspaceEdit.failureHandling === "transactional"
-    // Currently only supports workspace.workspaceEdit.failureHandling === "abort"
     const { edit } = message.params;
 
     const writeFileMap = new Map<string, FileData>();
@@ -612,15 +584,12 @@ const readDirectoryFiles = async (directoryUri: string) => {
   const directoryEntries = await getAllFilesRecursive(
     directoryHandle,
     directoryPath,
-    // Trashed files live in `<project>/.trash/`; keep them out of the normal
-    // file pipeline (_files, bundles, sync, UI). The trash is read separately.
     [TRASH_DIR],
   );
   const files = await Promise.all(
     directoryEntries.map(async (entry) => {
       const uri = getUriFromPath(entry.path);
       if (!State.files.get(uri)) {
-        // Enumerate binary assets from metadata; only read what needs text.
         if (needsTextAtEnumeration(uri)) {
           await readFile(uri);
         } else {
@@ -633,32 +602,12 @@ const readDirectoryFiles = async (directoryUri: string) => {
   return files;
 };
 
-/**
- * Which files must have their BYTES read at enumeration time.
- *
- * Only text matters here: the compiler needs script and text contents, SVG
- * source (it filters/recolors the markup rather than just showing the file),
- * and a `.url` file's body IS its remote URL. Everything else -- images,
- * audio, video, fonts -- is served straight from OPFS by the resource
- * protocol, so reading it now buys nothing.
- */
 const needsTextAtEnumeration = (fileUri: string) => {
   const ext = getFileExtension(fileUri);
   const type = getFileType(fileUri);
   return type === "script" || type === "text" || ext === "svg" || ext === "url";
 };
 
-/**
- * Records a file WITHOUT reading its contents (#227).
- *
- * `src` is derived from the uri (`getSrcFromUri`), never from the bytes, so a
- * binary asset is fully usable from metadata alone -- the resource protocol
- * fetches it from OPFS when something actually renders it. Size and mtime come
- * off the file handle, which does not read the file either.
- *
- * On the real Raffles & Bunny project this is the difference between reading
- * 187MB and 7.5MB to open a project: 539 of its 630 files are binary assets.
- */
 const statFile = async (fileUri: string) => {
   const root = await navigator.storage.getDirectory();
   const fileHandle = await getFileHandleFromUri(root, fileUri, false);
@@ -672,8 +621,6 @@ const readFile = async (fileUri: string) => {
   const fileRef = await fileHandle.getFile();
   const buffer = await fileRef.arrayBuffer();
   updateFileCache(fileUri, buffer, false, undefined, fileRef.lastModified);
-  // Refine an extension-less `.url` asset's type via a HEAD probe before the
-  // caller reads it back out of the cache.
   await enrichUrlAssetType(fileUri);
   return buffer;
 };
@@ -685,10 +632,6 @@ const zipFiles = async (files: { uri: string; path?: string }[]) => {
       const fileHandle = await getFileHandleFromUri(root, uri, false);
       const fileRef = await fileHandle.getFile();
       const data = await fileRef.arrayBuffer();
-      // Key by the caller-provided project-relative path so folders survive;
-      // fall back to the bare filename for path-less (legacy) callers. NOTE: the
-      // field MUST be `data` — buildZippable reads `entry.data`; a `{arrayBuffer}`
-      // here silently zipped EMPTY entries (new Uint8Array(undefined)).
       return { path: path || fileRef.name, data };
     }),
   );
@@ -705,9 +648,6 @@ const zipFiles = async (files: { uri: string; path?: string }[]) => {
 
 const unzipFiles = async (data: ArrayBuffer) => {
   const unzipped = unzipSync(new Uint8Array(data));
-  // Keep the full archive path as `filename` so nested folders survive (callers
-  // rebuild the uri via getFileUri(projectId, filename)); pure-directory entries
-  // are dropped inside parseUnzipEntries.
   const files = parseUnzipEntries(unzipped);
   console.log(MAGENTA, "UNZIPPED", `${files.length} files`);
   return files;
@@ -754,14 +694,6 @@ const editTextFiles = async (textDocumentEdits: TextDocumentEdit[]) => {
       if (!syncedDocument) {
         throw new Error(`File does not exist: ${td.uri}`);
       }
-      // The edit's ranges were computed by the language server against the
-      // document's CURRENT text. `State.documents` is only seeded at load and
-      // mutated by this function — editor autosaves land in `State.files` (via
-      // writeFiles → updateFileCache) WITHOUT refreshing it, so it can lag the
-      // real content. Applying ranges to a stale snapshot clamps/corrupts (a
-      // multi-line reference edit applied to a one-line snapshot wipes the
-      // tail). Re-sync from the latest saved text before applying so the ranges
-      // line up with what the server saw.
       const latestText = State.files.get(td.uri)?.text;
       if (
         latestText != null &&
@@ -836,8 +768,6 @@ const enqueueWrite = async (
   });
 };
 
-// Generation runs one image at a time so a bulk import (hundreds of files at
-// once) doesn't fire hundreds of concurrent decodes.
 let thumbnailChain: Promise<void> = Promise.resolve();
 
 const enqueueThumbnail = (fileUri: string): Promise<void> => {
@@ -855,9 +785,6 @@ const generateThumbnail = async (fileUri: string): Promise<void> => {
   const relativePath = getPathFromUri(fileUri);
   const directoryPath = getParentPath(relativePath);
   const filename = getFileName(relativePath);
-  // Re-read the just-written file (its write lock is already released) rather
-  // than holding the import buffer around — and read its actual lastModified/
-  // size for the cache key so it matches what the SW computes.
   let file: File;
   try {
     const directoryHandle = await getDirectoryHandleFromPath(
@@ -878,7 +805,7 @@ const generateThumbnail = async (fileUri: string): Promise<void> => {
       resizeQuality: "low",
     });
   } catch {
-    return; // not a decodable raster image
+    return;
   }
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
   const ctx = canvas.getContext("2d");
@@ -954,13 +881,9 @@ const write = async (fileUri: string) => {
     syncAccessHandle.close();
     syncAccessHandle = undefined;
     const arrayBuffer = buffer.buffer as ArrayBuffer;
-    // A fresh write happened now — stamp the modified time accordingly.
     const file = updateFileCache(fileUri, arrayBuffer, true, version, Date.now());
-    // Refine an extension-less `.url` asset's type via a HEAD probe so listeners
-    // (the URLs panel/preview) get the right media kind on first notification.
     await enrichUrlAssetType(fileUri);
     const notifyFile = State.files.get(fileUri) ?? file;
-    // Import completion must survive an immediate page/worker reload.
     await enqueueThumbnail(fileUri);
     listeners.forEach((l) => {
       l.resolve({ file: notifyFile, created });
@@ -976,7 +899,6 @@ const write = async (fileUri: string) => {
     listeners.forEach((listener) => listener.reject(failure));
   } finally {
     queued.writing = false;
-    // Writes queued during an awaited operation own a separate completion.
     if (queued.listeners.length) queued.handler(fileUri);
   }
 };
@@ -985,45 +907,27 @@ const createFiles = async (files: (FileCreate & { data?: ArrayBuffer })[]) => {
   const result = await Promise.all(
     files.map(async (file) => {
       const buffer = new DataView(file.data ?? new ArrayBuffer());
-      // Explicit file creation/import is not a stream of incremental edits.
       return enqueueWrite(file.uri, 0, buffer, true);
     }),
   );
   return result;
 };
 
-// Move files into the project trash (a REVERSIBLE delete). The bytes are
-// copied to `<project>/.trash/<batchId>/<originalRelPath>` and the originals
-// hard-removed; a `__manifest.json` records each entry's original uri + type so
-// restore is exact (incl. nested folder substructure). Returns the originals'
-// FileData[] (for the delete response). Does NOT broadcast — the caller
-// (WillDeleteFiles handler) emits the Did* notifications for the originals only,
-// so the trash copies never enter the page's _files cache / LSP / bundles.
 const moveFilesToTrash = async (files: { uri: string }[]) => {
   const deleted: (FileData | undefined)[] = [];
   if (files.length === 0) {
     return deleted;
   }
-  // De-dup uris defensively: trashing the same path twice would read a
-  // now-deleted source on the second pass (and previously aborted the whole
-  // batch before its manifest was written — see the try/catch + finally below).
   const seen = new Set<string>();
   const uniqueFiles = files.filter((f) =>
     seen.has(f.uri) ? false : (seen.add(f.uri), true),
   );
-  // One OPFS root for all uris; projectId is the first path segment.
   const projectId = getPathFromUri(uniqueFiles[0]!.uri).split("/")[0]!;
   const deletedAt = Date.now();
-  // `<deletedAt>__<uuid>` — the uuid makes two deletes in the same millisecond
-  // collision-proof (deletedAt is still parseable for purge).
   const batchId = `${deletedAt}__${crypto.randomUUID()}`;
   const trashPrefix = `${projectId}/${TRASH_DIR}/${batchId}`;
   const entries: { relPath: string; originalUri: string; type: string }[] = [];
   for (const file of uniqueFiles) {
-    // Tolerate a missing/unreadable source (a stale or duplicate uri): skip it
-    // rather than abort the batch. An abort here used to escape BEFORE the
-    // manifest write, stranding a manifest-less batch — listTrash skips those,
-    // so every already-copied original became unrestorable (data loss).
     try {
       const relPath = getPathFromUri(file.uri).slice(projectId.length + 1);
       const existing = State.files.get(file.uri);
@@ -1038,8 +942,6 @@ const moveFilesToTrash = async (files: { uri: string }[]) => {
       console.error(`moveFilesToTrash: skipping ${file.uri}`, e);
     }
   }
-  // Always write the manifest (even if some entries were skipped) so the batch is
-  // listable/restorable and never stranded.
   const manifest = JSON.stringify({ deletedAt, entries });
   const manifestUri = getUriFromPath(`${trashPrefix}/${TRASH_MANIFEST}`);
   await createFiles([
@@ -1057,8 +959,6 @@ const getTrashDirHandle = async (projectId: string) =>
     `${projectId}/${TRASH_DIR}`,
   );
 
-// Evict any cached State.files entries under a trash path (so a removed batch
-// doesn't leave stale entries behind).
 const evictTrashCache = (uriPrefix: string) => {
   for (const uri of [...State.files.keys()]) {
     if (uri.startsWith(uriPrefix)) {
@@ -1067,7 +967,6 @@ const evictTrashCache = (uriPrefix: string) => {
   }
 };
 
-// Every trash batch (newest first), read from each batch's manifest.
 const listTrash = async (projectId: string): Promise<TrashBatch[]> => {
   const trash = await getTrashDirHandle(projectId);
   const batches: TrashBatch[] = [];
@@ -1082,7 +981,6 @@ const listTrash = async (projectId: string): Promise<TrashBatch[]> => {
       const m = JSON.parse(await file.text()) as Omit<TrashBatch, "batchId">;
       batches.push({ batchId: handle.name, deletedAt: m.deletedAt, entries: m.entries });
     } catch {
-      // Incomplete/corrupt batch (no readable manifest) — skip it.
     }
   }
   batches.sort((a, b) => b.deletedAt - a.deletedAt);
@@ -1105,8 +1003,6 @@ const fileExists = async (uri: string): Promise<boolean> => {
   }
 };
 
-// A non-colliding restore target — `name (restored).ext`, then `(restored 2)`,
-// … — so restoring NEVER clobbers a file the user recreated at the same path.
 const deconflictRestoreUri = async (uri: string): Promise<string> => {
   const path = getPathFromUri(uri);
   const slash = path.lastIndexOf("/");
@@ -1124,10 +1020,6 @@ const deconflictRestoreUri = async (uri: string): Promise<string> => {
   }
 };
 
-// Move a batch's files back to their original locations, then drop the batch.
-// Returns the restored FileData[] so the page can update its caches/UI. A file
-// already living at an entry's original path is NOT overwritten — that entry
-// restores to a `(restored)` name instead. Tolerant of an already-gone batch.
 const restoreTrashBatch = async (
   projectId: string,
   batchId: string,
@@ -1137,8 +1029,6 @@ const restoreTrashBatch = async (
   try {
     batchHandle = await trash.getDirectoryHandle(batchId);
   } catch {
-    // The batch was already restored/emptied (e.g. via the Trash panel) — a
-    // no-op so a stale undo action still resolves cleanly.
     return [];
   }
   const manifestFile = await (
@@ -1172,7 +1062,6 @@ const emptyTrash = async (projectId: string) => {
   await proj.removeEntry(TRASH_DIR, { recursive: true }).catch(() => {});
 };
 
-// Drop batches older than retentionMs (deletedAt is encoded in the batch name).
 const purgeExpiredTrash = async (projectId: string, retentionMs: number) => {
   const trash = await getTrashDirHandle(projectId);
   const cutoff = Date.now() - retentionMs;
@@ -1251,13 +1140,8 @@ const getMimeType = (type: string, ext: string) => {
   return `${type}/${encoding}`;
 };
 
-// HEAD-probed media category per remote URL (`""` = probed but unresolvable).
-// A `.url` whose target has no path extension (e.g. a CDN URL like
-// `https://img.host/abc123`) can't infer its type from the path, so we ask the
-// server via a HEAD request and map the `Content-Type` header to a category.
 const headTypeCache = new Map<string, string>();
 
-/** Map a `Content-Type` header to one of our media categories (`""` if none). */
 const categoryFromContentType = (contentType: string): string => {
   const t = (contentType.split(";")[0] || "").trim().toLowerCase();
   if (t.startsWith("image/")) return "image";
@@ -1268,11 +1152,6 @@ const categoryFromContentType = (contentType: string): string => {
   return "";
 };
 
-/**
- * Resolve a remote URL's media category from a HEAD request's `Content-Type`,
- * memoized per URL. Bounded by a 4s timeout and swallows all errors (CORS,
- * network, timeout) — an unresolvable probe caches `""` so we never re-request.
- */
 const resolveUrlTypeViaHead = async (url: string): Promise<string> => {
   const cached = headTypeCache.get(url);
   if (cached !== undefined) {
@@ -1292,13 +1171,6 @@ const resolveUrlTypeViaHead = async (url: string): Promise<string> => {
   return category;
 };
 
-/**
- * Refine a `.url` asset's `type` for an extension-less remote URL via a HEAD
- * probe, then patch the cached file. No-op when the URL already carries a path
- * extension (type is known) or the probe can't resolve a category. Awaited
- * before the file is surfaced so the URLs panel/preview never flash the wrong
- * media kind.
- */
 const enrichUrlAssetType = async (uri: string): Promise<void> => {
   if (getFileExtension(uri) !== "url") {
     return;
@@ -1310,29 +1182,15 @@ const enrichUrlAssetType = async (uri: string): Promise<void> => {
   }
   const urlPath = url.split(/[?#]/)[0] || "";
   if (getFileExtension(urlPath)) {
-    return; // URL path has an extension → type already inferred from it.
+    return;
   }
   const category = await resolveUrlTypeViaHead(url);
-  // Re-check identity: the file may have been replaced/deleted during the await.
   if (category && State.files.get(uri) === file) {
     file.type = category;
     State.files.set(uri, file);
   }
 };
 
-/**
- * Cache entry for a file whose bytes were never read (#227).
- *
- * Deliberately mirrors the non-`.url` tail of `updateFileCache`, minus the
- * text decode: `src` is uri-derived, `size`/`modified` come from the file
- * handle. `text` stays undefined, which is what every consumer already
- * expects for a binary asset -- `updateFileCache` only ever set it for
- * script/text/svg.
- *
- * If this file is later read for real, `updateFileCache` overwrites the entry
- * and preserves `src` (it reuses `existingFile.src`), so warming an asset does
- * not change its identity or bust the resource URL.
- */
 const updateFileMetaCache = (
   uri: string,
   size: number,
@@ -1343,14 +1201,6 @@ const updateFileMetaCache = (
   const name = getName(uri);
   const ext = getFileExtension(uri);
   const type = getFileType(uri);
-  // The `?v=` stamp is the file's CONTENT SIGNATURE (mtime-size), not a
-  // mint-time timestamp. The stamp's job is to bust the service worker's
-  // `immutable` responses when the bytes change — a signature does that
-  // while staying IDENTICAL across sessions for an unchanged file, so the
-  // browser's HTTP/renderer caches (and any URL-keyed downstream cache) keep
-  // working across reloads instead of re-fetching every asset because every
-  // load minted a fresh `Date.now()`. Falls back to a mint-time stamp only
-  // when no mtime is known (degrades to the old always-fresh behavior).
   const resolvedModified = modified ?? existingFile?.modified ?? Date.now();
   let src = existingFile?.src || "";
   if (name && !src) {
@@ -1385,22 +1235,10 @@ const updateFileCache = (
   const ext = getFileExtension(uri);
   const type = getFileType(uri);
 
-  // A `.url` file is a remote/CDN asset reference: its text content IS the
-  // remote URL, and its media type is inferred from that URL's own extension
-  // (not the `.url` extension). The asset name/identity is the filename minus
-  // `.url` (already computed above as `name`). Resolving `src` straight to the
-  // remote URL means the service worker is never involved and everything
-  // downstream — the compiler's populateAssets, the runtime <img>/<audio>/
-  // <video> elements — is transparent. This is Layer A1 of
-  // docs/file-manager/url-assets-plan.md.
   if (ext === "url") {
     const url = new TextDecoder("utf-8").decode(buffer).trim();
-    // Infer type/ext from the URL's path only (ignore query/hash so signed
-    // URLs don't false-match on a `.png` hiding in a token).
     const urlPath = url.split(/[?#]/)[0] || "";
     const urlExt = getFileExtension(urlPath);
-    // No extension in the URL path (a bare CDN URL): fall back to a HEAD-probed
-    // content-type if `enrichUrlAssetType` has resolved one for this URL.
     const headType = !urlExt ? headTypeCache.get(url) : undefined;
     const file = {
       uri,
@@ -1410,10 +1248,7 @@ const updateFileCache = (
       src: url,
       version: version ?? existingFile?.version ?? 0,
       languageId: null,
-      // Keep the raw URL as text so the URL editor (preview pane) can read it.
       text: url,
-      // The on-disk file is the URL string; surface its byte size + mtime so the
-      // URLs pane caption ("Modified <age> | <size>") renders like other assets.
       size: buffer.byteLength,
       modified: modified ?? existingFile?.modified ?? Date.now(),
     };
@@ -1421,13 +1256,6 @@ const updateFileCache = (
     return file;
   }
 
-  // Content-signature stamp (see updateFileMetaCache). On a write the caller
-  // passes the write time as `modified`, so the signature — and therefore the
-  // URL — advances and busts the `immutable` caches; on load it derives from
-  // the OPFS file's lastModified, so an unchanged file keeps the SAME url
-  // across sessions. (A write session stamps its own clock time, which can
-  // differ from the mtime OPFS persists by a few ms — costing at most one
-  // extra bust on the next load, never a stale serve.)
   const resolvedModified = modified ?? existingFile?.modified ?? Date.now();
   if (name) {
     if (!src || overwrite) {
@@ -1446,8 +1274,6 @@ const updateFileCache = (
     type,
     src,
     version: version ?? existingFile?.version ?? 0,
-    // Size from the buffer; modified from the OPFS file's lastModified on load
-    // or the write time on a fresh write (falls back to the cached value).
     size: buffer.byteLength,
     modified: resolvedModified,
     languageId: type === "script" ? languageIdOf(uri) : null,

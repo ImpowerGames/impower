@@ -62,7 +62,7 @@ function screenplay(beats = 8): { text: string; at: Marks } {
   push("store trust = 0");
   push("store key = false", "keyDeclaration");
   push("");
-  push("-> act_one");
+  push("");
   push("");
   push("scene act_one", "actOneHeader");
   for (let i = 0; i < beats; i += 1) {
@@ -84,6 +84,9 @@ function screenplay(beats = 8): { text: string; at: Marks } {
   for (let i = 0; i < beats; i += 1) {
     push(`  Beat ${i} of the second act.`, `two_${i}`);
   }
+  push("end");
+  push("scene start");
+  push("  -> act_one");
   push("end");
   push("");
   return { text: lines.join("\n"), at };
@@ -897,7 +900,7 @@ describe("on the program engine", () => {
   // tunnel onward out of the scene looked like leaving it for good.
   test("a route through a fork's tunnel onward comes back to its scene", () => {
     const lines = [
-      "-> A",
+      "",
       "",
       "scene A",
       "  Before the tunnel.",
@@ -921,6 +924,9 @@ describe("on the program engine", () => {
       "  In D.",
       "  done",
       "end",
+      "scene start",
+      "  -> A",
+      "end",
       "",
     ];
     const session = new Session(lines.join("\n"));
@@ -941,7 +947,7 @@ describe("on the program engine", () => {
       const lines = [
         "store score = 0",
         "",
-        tunnel ? "-> LEAD" : "-> MAIN",
+        "",
         "",
         ...(tunnel
           ? [
@@ -958,6 +964,9 @@ describe("on the program engine", () => {
         ...Array.from({ length: 30 }, (_, i) => `    Beat ${i} of the branch, score {score}.`),
         ...(tunnel ? ["    ->->"] : []),
         "  end",
+        "end",
+        "scene start",
+        tunnel ? "  -> LEAD" : "  -> MAIN",
         "end",
         "",
       ];
@@ -1201,13 +1210,16 @@ describe("on the program engine, a compile that edits an initializer", () => {
     "",
   ];
   const SCENE = [
-    "-> act_one",
+    "",
     "",
     "scene act_one",
     ...Array.from({ length: 6 }, (_, i) => `  Beat ${i} of the first act.`),
     "  & trust = trust + bonus",
     "  Trust is {trust} and the bonus {bonus}.",
     ...Array.from({ length: 6 }, (_, i) => `  Beat ${i} of the long tail.`),
+    "end",
+    "scene start",
+    "  -> act_one",
     "end",
     "",
   ];

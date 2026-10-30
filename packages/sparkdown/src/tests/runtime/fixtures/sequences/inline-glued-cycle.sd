@@ -1,10 +1,12 @@
--> main
+scene start
+  -> main
+end
 scene main
-  label start
+  label again
   Before .. cycle|A|B|C .. After.
   & i = i + 1
   if i < 7 then
-    -> start
+    -> again
   end
   fin
 

@@ -67,7 +67,7 @@ describe("an animation or theme written inside a function (I-1405)", () => {
     for (const [where, shape] of Object.entries(SHAPES)) {
       test(`\`${kind.keyword}\` in ${where} is not registered when it runs`, () => {
         const ctx = makeRuntimeStoryFromSource(
-          `${kind.sibling}\n${shape.source(kind.lines)}\nGo {${shape.call}}. Registered {${kind.path} ~= nil}.\n`,
+          `${kind.sibling}\n${shape.source(kind.lines)}\nscene start\n  Go {${shape.call}}. Registered {${kind.path} ~= nil}.\nend\n`,
         );
         const text = ctx.story.Continue();
         expect([...ctx.errorMessages]).toEqual([MISPLACED(kind.keyword)]);
@@ -77,7 +77,7 @@ describe("an animation or theme written inside a function (I-1405)", () => {
 
     test(`\`${kind.keyword}\` at the top level is registered when the story runs`, () => {
       const ctx = makeRuntimeStoryFromSource(
-        `${kind.lines.join("\n")}\nfunction f()\n  return 0\nend\nGo {f()}. Registered {${kind.value}}.\n`,
+        `${kind.lines.join("\n")}\nfunction f()\n  return 0\nend\nscene start\n  Go {f()}. Registered {${kind.value}}.\nend\n`,
       );
       const text = ctx.story.Continue();
       expect([...ctx.errorMessages]).toEqual([]);

@@ -1,3 +1,5 @@
 store x = "world"
-Hello {x}.
-done
+scene start
+  Hello {x}.
+  done
+end

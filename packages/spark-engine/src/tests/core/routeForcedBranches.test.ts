@@ -80,7 +80,7 @@ describe("a route that forces a verdict follows the program everywhere else", ()
     const src = [
       "store flag = false",
       "store total = 0",
-      "-> start",
+      "",
       "scene start",
       "  if flag then",
       "    for i = 1, 3 do",
@@ -103,7 +103,7 @@ describe("a route that forces a verdict follows the program everywhere else", ()
       "store b = false",
       "store laps = 0",
       "store total = 0",
-      "-> start",
+      "",
       "scene start",
       "  if a then",
       "    if b then",
@@ -132,7 +132,7 @@ describe("a route that forces a verdict follows the program everywhere else", ()
     const lines = [
       "store flag = false",
       "store total = 0",
-      "-> start",
+      "",
       "scene start",
       "  for i = 1, 60000 do",
       "    if i % 3 == 0 then",
@@ -155,7 +155,7 @@ describe("a verdict kept for a later level belongs to the route that kept it", (
   // after one of them is the way to the line, after the other it is not.
   const MENU = [
     "store total = 0",
-    "-> start",
+    "",
     "scene start",
     "  choose",
     "  + [Safe]",
@@ -198,7 +198,7 @@ describe("a verdict kept for a later level belongs to the route that kept it", (
     const lines = [
       "store total = 0",
       "store path = 0",
-      "-> start",
+      "",
       "scene start",
       "  for i = 1, 3 do",
       "    choose",

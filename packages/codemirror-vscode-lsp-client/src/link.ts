@@ -66,8 +66,6 @@ const documentLinksState = StateField.define<DecorationSet>({
     decorations = decorations.map(tr.changes);
     for (const effect of tr.effects) {
       if (effect.is(updateDocumentLinksEffect)) {
-        // A link whose text an edit since the request deleted maps to an
-        // empty range, which no mark may have.
         const marks = effect.value.filter((link) => link.from < link.to).map((link) => {
           return Decoration.mark({
             class: "cm-lsp-link",
@@ -98,7 +96,6 @@ async function documentLinkTooltipSource(
   view: EditorView,
   pos: number,
 ): Promise<Tooltip | null> {
-  // Iterate through decorations at the hovered position
   const activeDecorations = view.state.field(documentLinksState);
   let foundRange: { from: number; to: number } | null = null;
 
@@ -140,7 +137,6 @@ async function documentLinkTooltipSource(
         if (link!.target) {
           followLink(view, link!.target);
         } else {
-          // Resolve if the target wasn't provided initially
           followEl.style.opacity = "0.5";
           const plugin = LSPPlugin.get(view);
           plugin!.client
@@ -267,8 +263,6 @@ export async function updateDocumentLinks(client: LSPClient, uri: string) {
   >("textDocument/documentLink", {
     textDocument: { uri: plugin.uri },
   });
-  // A result for a version the editor has moved past is dropped: the change
-  // that moved it pulled again (#1785).
   if (client.workspace.getFile(uri)?.version !== version) return;
   if (LSPPlugin.get(view) !== plugin) return;
   view.dispatch(

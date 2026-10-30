@@ -10,7 +10,6 @@ describe("an onward return with arguments to a variable target", () => {
     const { program } = compileScript(
       [
         "store goal = -> after",
-        "-> start",
         "scene start",
         "  -> tunnel ->",
         "end",

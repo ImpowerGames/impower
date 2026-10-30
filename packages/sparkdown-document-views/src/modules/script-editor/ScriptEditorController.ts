@@ -125,19 +125,8 @@ export interface ScriptEditorOptions {
   languageServerConnection: MessageConnection;
 }
 
-// How long a load may keep the editor hidden before it is revealed anyway.
-// The normal reveal comes from `onViewportParsed` (the syntax tree covers the
-// visible region, usually within a few hundred ms) or, on small documents,
-// from the parse-idle signal. This backstop only exists for loads where
-// neither signal arrives (a wedged parse, or a deep saved scroll position on
-// a document that parses slowly) -- short enough that a broken load
-// self-heals well inside the "is this broken?" threshold.
 const LOAD_REVEAL_TIMEOUT_MS = 5000;
 
-// Numbers every `textDocument/previewCompletion` sent from this page, so the
-// preview can tell a stale one from a newer one. Page-wide rather than per
-// editor: an editor that is replaced while the preview stays loaded continues
-// the count instead of restarting it below what the preview has seen.
 let completionPreviewRequests = 0;
 
 export class ScriptEditorController {
@@ -177,15 +166,7 @@ export class ScriptEditorController {
   protected _bottom: number = 0;
   protected _focusIntervalTimeout = 0;
 
-  // Backstop for the fade-in. The idle signal that reveals the editor rides on
-  // `EditorView.updateListener`, which stops firing once updates stop -- so on
-  // a large document whose parse outlives the initial flurry of updates, the
-  // signal can simply never arrive and the editor stays invisible forever
-  // while being fully interactive underneath. An editor the user cannot see is
-  // strictly worse than one showing a still-parsing document, so reveal
-  // regardless once this elapses.
   protected _revealTimeout = 0;
-  // Owns every protocol-bus subscription; `dispose()` detaches them all.
   protected _protocols = new ProtocolObserver();
 
   constructor(
@@ -209,9 +190,6 @@ export class ScriptEditorController {
       passive: true,
     });
     this.registerProtocolHandlers();
-    // Announce ourselves so the parent can replay any startup LoadEditorMessage
-    // it sent before our window listener was attached. (preact-custom-element
-    // mount + dynamic Controller import are several microtasks late.)
     sendProtocolMessage(
       ConnectedEditorMessage.type.notification({}),
       this.host,
@@ -252,22 +230,14 @@ export class ScriptEditorController {
     }
   }
 
-  // Called by the .tsx when the `readonly` prop changes. Replaces
-  // onAttributeChanged from the spec-component lifecycle.
   setReadonly(readonly: boolean): void {
     this.options.readonly = readonly;
     this.allowEditing(!readonly);
   }
 
-  // Wire every protocol message to its handler through the ProtocolObserver:
-  // `onNotification` for notifications, `onRequest` for requests (the handler's
-  // return type is the message's Response, so a forgotten `return` is a compile
-  // error). Replies dispatch on `this.host` so they bubble out of the shadow
-  // host / are forwarded by the VS Code webview relay.
   protected registerProtocolHandlers(): void {
     const p = this._protocols;
 
-    // Notifications.
     p.onNotification(SelectEditorMessage.type, (m) =>
       this.handleSelectEditor(m),
     );
@@ -295,7 +265,6 @@ export class ScriptEditorController {
       }
     });
 
-    // Requests (handler must return the message's Response; replied on host).
     p.onRequest(ReadEditorMessage.type, async (message) => {
       const view = this._view;
       const uri = this._textDocument?.uri;
@@ -419,10 +388,6 @@ export class ScriptEditorController {
       const range = params.visibleRange;
       const target = params.target;
       if (textDocument.uri === this._textDocument?.uri) {
-        // Always cache so handleDidCollapsePreviewPane can restore the
-        // preview's visible range to the editor on mobile toggle. Without
-        // the cache, scrolls that happen while the editor is hidden would
-        // be lost. See ScreenplayPreviewController.handleScrolledEditor.
         this.cacheVisibleRange(range);
         if (target === "element") {
           this.scrollToRange(range);
@@ -588,15 +553,12 @@ export class ScriptEditorController {
       preserveEditor,
     } = params;
     if (preserveEditor && this._view) {
-      // We are loading a new text document, but the old editor should be preserved
-      // (This is necessary when renaming a file)
       this._textDocument = textDocument;
       const uri = textDocument.uri;
       const plugin = LSPPlugin.get(this._view);
       if (plugin) {
         plugin.uri = uri;
       }
-      // Notify that selection has changed to the new text document
       const state = this._view.state;
       const cursorRange = state.selection.main;
       const anchor = cursorRange.anchor;
@@ -622,8 +584,6 @@ export class ScriptEditorController {
     } else {
       this.refs.editor.style.visibility = "hidden";
       this.refs.loading.style.opacity = "1";
-      // Arm the backstop the moment we hide, so a load whose idle signal never
-      // arrives still ends up visible rather than blank forever.
       if (this._revealTimeout) {
         clearTimeout(this._revealTimeout);
       }
@@ -704,7 +664,6 @@ export class ScriptEditorController {
                 });
               },
               onWillApplyWorkspaceEdit: () => {
-                // TODO: Block all script edits AND asset changes until workspace edit has been fully applied
                 this.allowEditing(false);
               },
               onDidApplyWorkspaceEdit: () => {
@@ -740,7 +699,6 @@ export class ScriptEditorController {
             this._editing = false;
             if (this._textDocument) {
               if (!this._searchInputFocused) {
-                // Editor is still considered focused if focus was moved to search input
                 sendProtocolMessage(
                   UnfocusedEditorMessage.type.notification({
                     textDocument: this._textDocument,
@@ -761,8 +719,6 @@ export class ScriptEditorController {
                   tr.startState.doc,
                   tr.changes,
                 );
-                // What `onSelectionChanged` sends after the edit, which the
-                // editor's work on the edit can hold back (#1881).
                 const selection = tr.selection
                   ? {
                       selectedRange: {
@@ -937,7 +893,6 @@ export class ScriptEditorController {
               customGotoLinePanelOpen(update.state)
             ) {
               if (!this._searching) {
-                // Opened panel
                 const findInput = this.host.querySelector(
                   ".cm-search input[name='search']",
                 );
@@ -947,7 +902,6 @@ export class ScriptEditorController {
                     this.handleFocusFindInput,
                   );
                   findInput.addEventListener("blur", this.handleBlurFindInput);
-                  // findInput starts focused
                   this.handleFocusFindInput();
                 }
                 const replaceInput = this.host.querySelector(
@@ -974,7 +928,6 @@ export class ScriptEditorController {
                     "blur",
                     this.handleBlurGotoLineInput,
                   );
-                  // gotoLineInput starts focused
                   this.handleFocusGotoLineInput();
                 }
               }
@@ -1039,9 +992,6 @@ export class ScriptEditorController {
         'url("/fonts/noto-color-emoji.ttf") format("truetype")',
         { style: "normal", weight: "normal", display: "swap" },
       );
-      // Register the emoji font so it is available, but do NOT eagerly load it:
-      // the 24MB file would block editor startup. The browser fetches it lazily,
-      // only when an emoji is actually rendered (system emoji shows meanwhile).
       if ("add" in document.fonts && typeof document.fonts.add === "function") {
         document.fonts.add(notoColorEmoji);
       }
@@ -1139,16 +1089,13 @@ export class ScriptEditorController {
       const from = convertFromPosition(doc, range.start);
       const to = convertFromPosition(doc, range.end);
 
-      // Get the bounding box of the selection
       const startCoords = view.coordsAtPos(from);
       const endCoords = view.coordsAtPos(to);
 
-      // If the selection isn't rendered, coordsAtPos might return null
       if (!startCoords || !endCoords) return false;
 
       const editorRect = view.scrollDOM.getBoundingClientRect();
 
-      // Check if the vertical positions are within the editor's visible window
       const isAbove = endCoords.bottom < editorRect.top;
       const isBelow = startCoords.top > editorRect.bottom;
 
@@ -1164,15 +1111,6 @@ export class ScriptEditorController {
     }
   }
 
-  /**
-   * Fade the editor in. Idempotent, and deliberately NOT gated on a pending
-   * load request: `_loadingRequest` tracks whether a load was initiated by a
-   * protocol request, which says nothing about whether the editor is
-   * currently hidden. Gating visibility on it meant any path that reached
-   * `handleIdle` without an outstanding request -- notably the remount that
-   * `formatDocument` triggers on Ctrl+S -- marked the editor loaded while
-   * leaving it invisible, with no way back short of a page reload.
-   */
   protected revealEditor = () => {
     if (this._revealTimeout) {
       clearTimeout(this._revealTimeout);
@@ -1189,20 +1127,10 @@ export class ScriptEditorController {
     this._loadingRequest = undefined;
   };
 
-  /**
-   * The syntax tree covers the visible viewport (and the restored scroll
-   * target) while the rest of the document is still parsing. That is enough
-   * to finish loading: restore scroll/focus and reveal now instead of hiding
-   * the editor behind the multi-second full-document parse. Runs the same
-   * completion path as the idle signal, so whichever fires first wins and the
-   * other becomes a no-op.
-   */
   protected handleViewportParsed = () => {
     if (this._loaded) {
       return;
     }
-    // Wait for fonts before the first reveal so the just-shown viewport
-    // doesn't immediately reflow under a late-loading editor font.
     const fonts = document.fonts;
     if (fonts && fonts.status !== "loaded") {
       const view = this._view;
@@ -1229,9 +1157,7 @@ export class ScriptEditorController {
         typeof this._initialVisibleRange === "string"
           ? this._initialVisibleRange
           : undefined;
-      // Restore visible range
       this.scrollToRange(initialVisibleRange, scrollStrategy);
-      // Try to restore focus
       const view = this._view;
       if (document.hasFocus() && this._view) {
         clearInterval(this._focusIntervalTimeout);
@@ -1256,9 +1182,6 @@ export class ScriptEditorController {
         }, 100);
       }
       if (this._textDocument) {
-        // Formatting has been applied and the height is stable, so this is the
-        // preferred moment to fade in -- but it is no longer the only one, see
-        // `revealEditor` and the load watchdog.
         this.revealEditor();
       }
       if (this._view) {

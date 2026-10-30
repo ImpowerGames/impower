@@ -1,1 +1,3 @@
-& x = pluralizations[category]
+scene start
+  & x = pluralizations[category]
+end

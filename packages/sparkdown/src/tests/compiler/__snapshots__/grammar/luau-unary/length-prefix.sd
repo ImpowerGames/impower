@@ -1,1 +1,3 @@
-& x = #TIME_OF_DAY
+scene start
+  & x = #TIME_OF_DAY
+end

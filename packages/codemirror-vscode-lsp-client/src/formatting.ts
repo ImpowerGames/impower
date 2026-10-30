@@ -16,8 +16,6 @@ function getFormatting(plugin: LSPPlugin, options: lsp.FormattingOptions) {
   });
 }
 
-/// This command asks the language server to reformat the document,
-/// and then applies the changes it returns.
 export const formatDocument: Command = (view) => {
   const plugin = LSPPlugin.get(view);
   if (!plugin) return false;
@@ -35,7 +33,6 @@ export const formatDocument: Command = (view) => {
           let from = mapping.mapPosition(plugin.uri, change.range.start);
           let to = mapping.mapPosition(plugin.uri, change.range.end);
           if (changed) {
-            // Don't try to apply the changes if code inside of any of them was touched
             if (changed.touchesRange(from, to)) return;
             from = changed.mapPos(from, 1);
             to = changed.mapPos(to, -1);
@@ -55,8 +52,6 @@ export const formatDocument: Command = (view) => {
   return true;
 };
 
-/// A keymap that binds Shift-Alt-f to
-/// [`formatDocument`](#lsp-client.formatDocument).
 export const formatKeymap: readonly KeyBinding[] = [
   { key: "Shift-Alt-f", run: formatDocument, preventDefault: true },
 ];

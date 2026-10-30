@@ -1,5 +1,7 @@
-for --[[ x ]] i in pairs(t) do
-  x = i
+scene start
+  for --[[ x ]] i in pairs(t) do
+    x = i
+  end
 end
 function f(t)
   for --[[ x ]] k, v in pairs(t) do

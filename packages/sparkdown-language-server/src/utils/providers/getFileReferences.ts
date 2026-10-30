@@ -4,13 +4,6 @@ import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguag
 import { getFileSymbol } from "./getFileSymbol";
 import { collectReferencesForTarget } from "./getReferences";
 
-/**
- * Every script location that references the asset at `uri` (find-usages /
- * "where-used"). Reuses the same matcher as rename, so the count shown always
- * matches what a rename would rewrite. Returns `null` when the file isn't a
- * bare-name-referenced asset (no usages to find). The asset file itself is NOT
- * included (addAssetFiles:false) — only the referencing scripts.
- */
 export const getFileReferences = (
   workspace: SparkdownLanguageServerWorkspace,
   program: SparkProgram | undefined,

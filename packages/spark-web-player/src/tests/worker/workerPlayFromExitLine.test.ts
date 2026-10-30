@@ -7,20 +7,16 @@
 import { describe, expect, it } from "vitest";
 import { BRANCHES, playFrom, previewAt } from "./playFromLine";
 
-const DONE = `scene start(x)
+const DONE = `scene start
   Hello.
   done
 end
 `;
 
-const FIN = `scene start(x)
+const FIN = `scene start
   Hello.
   fin
 end
-`;
-
-const FIN_TOP = `Hello.
-fin
 `;
 
 // A line between the beat on screen and the `done` writes the story's state.
@@ -61,7 +57,6 @@ describe("PLAY from a line that ends the story inside a scene", () => {
     ["a done", DONE, 2, "Hello."],
     ["the closing end after a done", DONE, 3, "Hello."],
     ["a fin", FIN, 2, "Hello."],
-    ["a top-level fin", FIN_TOP, 1, "Hello."],
     ["a done below a beat the run skips", SKIPPED, 5, "Shown."],
   ])(
     "from %s, waits on the last beat the run displayed",
@@ -108,13 +103,13 @@ describe("PLAY inside a branch only a divert from outside its scene enters", () 
   it.each([
     // The control: the branch's first line, whose argument the route from
     // the story's start binds.
-    ["the branch's first line", 3, "Inner 1."],
-    ["a tunnel divert", 4, "Visit 2 t."],
-    ["a tunnel return", 11, "Aside 3."],
-    ["a done after a tunnel's onward divert", 29, "Last 5."],
+    ["the branch's first line", 5, "Inner 1."],
+    ["a tunnel divert", 6, "Visit 2 t."],
+    ["a tunnel return", 13, "Aside 3."],
+    ["a done after a tunnel's onward divert", 31, "Last 5."],
     // No run reaches it: PLAY jumps to the line above whose jumped run shows
     // a beat.
-    ["a done no run reaches", 21, "Never shown."],
+    ["a done no run reaches", 23, "Never shown."],
   ])("from %s, runs with the divert's arguments", async (_name, line, shown) => {
     const outcome = await playFrom(BRANCHES, line);
     expect(outcome.started).toBe(true);

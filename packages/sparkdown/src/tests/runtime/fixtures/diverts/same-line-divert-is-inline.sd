@@ -1,4 +1,6 @@
--> hurry_home
+scene start
+  -> hurry_home
+end
 scene hurry_home
   We hurried home to Savile Row -> as_fast_as_we_could
 end

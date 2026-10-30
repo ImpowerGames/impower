@@ -1,4 +1,6 @@
--> main
+scene start
+  -> main
+end
 scene main
   {math.floor(1.2)}
   {math.ceil(1.2)}

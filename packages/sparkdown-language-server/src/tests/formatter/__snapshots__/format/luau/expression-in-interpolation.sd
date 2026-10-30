@@ -1,4 +1,6 @@
-N: Total is {x+y}.
-N: Result {a*b+c}.
-N: Compare {x==y and "yes" or "no"}.
-N: Call {foo(a,b)}.
+scene start
+  N: Total is {x+y}.
+  N: Result {a*b+c}.
+  N: Compare {x==y and "yes" or "no"}.
+  N: Call {foo(a,b)}.
+end

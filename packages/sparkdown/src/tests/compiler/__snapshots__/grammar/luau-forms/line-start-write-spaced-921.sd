@@ -1,1 +1,3 @@
-@ hud: text
+scene start
+  @ hud: text
+end

@@ -20,7 +20,7 @@ function nodeNames(text: string): string[] {
   return names;
 }
 
-const STORY = "Hello.\n";
+const STORY = "scene start\n  Hello.\nend\n";
 
 // The bodies between `define X with` and the define's own `end`, which a
 // story line follows.

@@ -73,12 +73,9 @@ export function foldingPlaceholderDOM(
   _prepared: boolean,
 ) {
   const { ranges } = view.state.field(foldingRangeField);
-  // prepared is usually the placeholder text if default logic is used
-  // but we fetch our specific match from state
   const match =
     ranges.find((r) => {
       try {
-        // We find the range that corresponds to the visible fold location
         return (
           r.from ===
           view.posAtDOM(
@@ -130,9 +127,6 @@ export function setDocumentFoldingRanges(
 }
 
 interface FoldingRangeSet {
-  /** Sorted by `from`; mapping through a change keeps that order, so the
-   * per-line foldService query is a binary search and an edit only maps the
-   * ranges instead of re-indexing them by line (#1815). */
   ranges: DocumentFoldingRange[];
 }
 
@@ -147,9 +141,6 @@ const sortFoldingRanges = (
   return ranges;
 };
 
-/** Maps folds through an edit, dropping any the edit erased: a fold whose
- * whole range was deleted maps to an empty range, which would otherwise be
- * the first range on its line and shadow the fold that now starts there. */
 const mapFoldingRanges = (
   ranges: readonly DocumentFoldingRange[],
   changes: ChangeDesc,
@@ -163,7 +154,6 @@ const mapFoldingRanges = (
   return mapped;
 };
 
-/** The first range (in order) whose `from` lies in `[lineFrom, lineTo]`. */
 const findFoldingRange = (
   ranges: readonly DocumentFoldingRange[],
   lineFrom: number,
@@ -206,7 +196,6 @@ const foldingRangesService = foldService.of((state, lineStart, lineEnd) => {
   return null;
 });
 
-/** Whether `next` holds the same folds, in the same order, as `prev`. */
 const sameFoldingRanges = (
   prev: readonly DocumentFoldingRange[],
   next: readonly DocumentFoldingRange[],
@@ -227,7 +216,6 @@ const sameFoldingRanges = (
   return true;
 };
 
-/** The folding ranges the editor currently holds. */
 const documentFoldingRanges = (
   state: EditorState,
 ): readonly DocumentFoldingRange[] =>
@@ -238,16 +226,10 @@ export function convertFromServerFoldingRanges(
   ranges: lsp.FoldingRange[],
 ): DocumentFoldingRange[] {
   const doc = plugin.syncedDoc;
-  // An LSP line out of the document's bounds clamps to the nearest line, as
-  // `convertFromPosition` does.
   const lineEnd = (line: number) =>
     doc.line(Math.min(Math.max(line + 1, 1), doc.lines)).to;
   const result: DocumentFoldingRange[] = [];
   for (const r of ranges) {
-    // CodeMirror folding ranges start at the END of the first line, so the
-    // first line stays visible while the rest is collapsed, and end at the end
-    // of the final line. Only the lines matter, so the characters are not
-    // converted.
     const from = lineEnd(r.startLine);
     const to = lineEnd(r.endLine);
     if (from < to) {
@@ -281,21 +263,13 @@ export async function updateDocumentFoldingRanges(
     >("textDocument/foldingRange", {
       textDocument: { uri },
     });
-    // A result for a version the editor has already moved past is dropped:
-    // its lines would be read against the newer synced document. The change
-    // that moved the version past it asked for folding ranges again, and the
-    // coalescer runs that pull once this one settles.
     if (client.workspace.getFile(uri)?.version !== version) return;
     if (LSPPlugin.get(view) !== plugin) return;
     let foldables = convertFromServerFoldingRanges(plugin, result ?? []);
     const unsynced = plugin.unsyncedChanges;
     if (!unsynced.empty) {
-      // Edits made since the last sync: carry the folds into the editor's
-      // document, as diagnostics are.
       foldables = mapFoldingRanges(foldables, unsynced);
     }
-    // Most pulls while typing return the folds the editor already holds,
-    // mapped through the edit; dispatching those again would only redraw.
     if (sameFoldingRanges(documentFoldingRanges(view.state), foldables)) return;
     view.dispatch(setDocumentFoldingRanges(view.state, foldables));
   });

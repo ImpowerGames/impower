@@ -1,4 +1,6 @@
--> hub
+scene start
+  -> hub
+end
 scene hub
   You arrive at the town square.
   <- merchant

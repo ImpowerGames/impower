@@ -1,5 +1,7 @@
-queue
-  | First arm.
-  | Second arm.
-  | Third arm.
+scene start
+  queue
+    | First arm.
+    | Second arm.
+    | Third arm.
+  end
 end

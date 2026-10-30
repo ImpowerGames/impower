@@ -15,15 +15,15 @@ const URI = "inmemory:///main.sd";
 const CONTINUES_WARNING =
   "This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.";
 
-const lines = ["store x = 0", "A", "& x = 1", ".. B"];
+const lines = ["store x = 0", "scene start", "  A", "  & x = 1", "  .. B"];
 for (let i = 0; i < 12; i += 1) {
-  lines.push(`Beat ${i} of the long tail.`);
+  lines.push(`  Beat ${i} of the long tail.`);
 }
-lines.push("");
+lines.push("end", "");
 const SOURCE = lines.join("\n");
-const WARNED = lines.indexOf(".. B");
-const TARGET = lines.indexOf("Beat 10 of the long tail.");
-const EDITED = lines.indexOf("Beat 11 of the long tail.");
+const WARNED = lines.indexOf("  .. B");
+const TARGET = lines.indexOf("  Beat 10 of the long tail.");
+const EDITED = lines.indexOf("  Beat 11 of the long tail.");
 
 const quiet = <T>(fn: () => T): T => {
   const { warn, error } = console;
@@ -83,8 +83,8 @@ describe("route errors", () => {
         contentChanges: [
           {
             range: {
-              start: { line: EDITED, character: 0 },
-              end: { line: EDITED, character: 4 },
+              start: { line: EDITED, character: 2 },
+              end: { line: EDITED, character: 6 },
             },
             text: "Last",
           },

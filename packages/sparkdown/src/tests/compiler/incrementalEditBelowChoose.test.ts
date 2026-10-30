@@ -106,7 +106,9 @@ function screenplay(block: string[]): string {
   L.push("store trust = 0");
   L.push("store key = false");
   L.push("");
-  L.push("-> act_one");
+  L.push("scene start");
+  L.push("  -> act_one");
+  L.push("end");
   L.push("");
   L.push("scene act_one");
   for (let i = 0; i < 4; i++) L.push(`  Beat ${i} before.`);
@@ -328,7 +330,10 @@ describe("an incremental compile of an edit in a scene", () => {
     // then regenerated from those stamps.
     const choose = BLOCKS["a choose block"]!;
     const base = [
-      "-> earlier",
+      "scene start",
+      "  -> earlier",
+      "end",
+      "",
       "scene earlier",
       ...choose,
       "& local g = 1",

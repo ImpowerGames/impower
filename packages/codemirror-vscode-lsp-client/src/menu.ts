@@ -164,8 +164,6 @@ export interface ContextMenuSpec {
   end?: number;
   page?: number;
   clip?: boolean;
-  /** Client rectangle of the menu that opened this page. An overflow page
-   *  opens over it, aligned to its right edge where the ⋮ button was. */
   origin?: MenuRect;
 }
 
@@ -176,25 +174,10 @@ export interface MenuRect {
   bottom: number;
 }
 
-/** Space kept between the selection's top edge and a menu placed above it. */
 const MENU_GAP_ABOVE = 8;
-/** Space kept between the selection's bottom edge and a menu placed below it,
- *  enough to clear the selection handles drawn under the text. */
 const MENU_GAP_BELOW = 32;
-/** Space kept between the menu and the edges of the visual viewport. */
 const MENU_VIEWPORT_MARGIN = 4;
 
-/**
- * Where the touch text-selection menu goes, following Android's floating
- * selection toolbar: centred over the selection, above its top edge when that
- * fits inside the visual viewport, otherwise below its bottom edge, and pinned
- * to the top of the viewport when neither fits or nothing of the selection is
- * visible. The menu may leave the editor and cover the page around it, but it
- * never covers a selection it can sit beside.
- *
- * `selection` is the visible part of the selection's bounding box, or null
- * when none of it is visible.
- */
 function placeSelectionMenu(
   selection: MenuRect | null,
   menu: { width: number; height: number },
@@ -218,10 +201,6 @@ function placeSelectionMenu(
   return { left: clampMenuLeft(centre - menu.width / 2, menu, viewport), top };
 }
 
-/**
- * Where an overflow page goes: over the menu that opened it, with the two
- * right edges aligned, moved up only as far as it must to fit the viewport.
- */
 function placeOverflowMenu(
   origin: MenuRect,
   menu: { width: number; height: number },
@@ -263,8 +242,6 @@ function visualViewportRect(): MenuRect {
   };
 }
 
-/** The part of the selection `from`..`to` visible inside the editor's
- *  scroller, as a bounding box, or null when none of it is visible. */
 function visibleSelectionRect(
   view: EditorView,
   from: number,
@@ -275,8 +252,6 @@ function visibleSelectionRect(
   let start: ReturnType<EditorView["coordsAtPos"]>;
   let end: ReturnType<EditorView["coordsAtPos"]>;
   if (from === to) {
-    // A caret is measured once, on the side CodeMirror draws it: at a soft
-    // wrap its two sides are on different visual lines.
     const main = view.state.selection.main;
     const side = main.empty && main.head === from ? main.assoc || 1 : 1;
     start = end = view.coordsAtPos(from, side);
@@ -284,8 +259,6 @@ function visibleSelectionRect(
     start = view.coordsAtPos(from, 1);
     end = view.coordsAtPos(to, -1);
   }
-  // A position outside the rendered viewport has no coordinates; it lies
-  // beyond the scroller's top or bottom edge.
   const top = start
     ? start.top
     : from < view.viewport.from
@@ -309,7 +282,6 @@ function visibleSelectionRect(
       bottom: visibleBottom,
     };
   }
-  // A selection over several lines spans the text's full width.
   return {
     left: Math.max(content.left, scroller.left),
     top: visibleTop,
@@ -318,8 +290,6 @@ function visibleSelectionRect(
   };
 }
 
-/** Re-reads the disabled state of every open menu's items. A copy can fill
- *  the menu's clipboard while a menu is open, enabling its Paste. */
 const openMenuRefreshers = new Set<() => void>();
 
 const openContextMenu = StateEffect.define<ContextMenuSpec>();
@@ -331,10 +301,6 @@ const contextMenuState = StateField.define<Tooltip | null>({
   },
   update(value, tr) {
     if (value && tr.docChanged) {
-      // An edit the user makes closes the menu, as typing over a selection
-      // closes Android's selection toolbar. Other changes move it with the
-      // text, mapping its range as CodeMirror maps a selection range: a
-      // non-empty range keeps text inserted at either edge outside it.
       const empty = value.end == null || value.end === value.pos;
       value = tr.annotation(Transaction.userEvent)
         ? null
@@ -359,8 +325,6 @@ const contextMenuState = StateField.define<Tooltip | null>({
 
 function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
   const { x, y, pos, end, origin, clip = false, page = 0 } = spec;
-  // A menu for a selection places itself: getCoords returns its top-left
-  // corner, so the tooltip must neither flip nor shrink it.
   const placesItself = (x === undefined || y === undefined) && !clip;
   return {
     pos,
@@ -371,12 +335,8 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
     create(view: EditorView) {
       const dom = document.createElement("div");
       dom.className = "cm-context-menu";
-      // Pressing the menu must not move focus: on a touch screen, losing
-      // focus closes the keyboard, and paste needs the page focused.
       dom.addEventListener("mousedown", (e) => e.preventDefault());
 
-      // The spec with the range as it is now: edits the user did not make map
-      // the range after the menu opened, and a page change keeps it.
       const currentSpec = (): ContextMenuSpec => {
         const current = view.state.field(contextMenuState, false);
         return current ? { ...spec, pos: current.pos, end: current.end } : spec;
@@ -386,31 +346,23 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
       const items = config.items || [];
       const moreItems = config.moreItems || [];
 
-      // Detect desktop environment (has hover capability)
       const isDesktop = !isMobile();
 
-      // On desktop, we force vertical mode and combine all items
       const isVertical = isDesktop || page > 0;
 
-      // Set classes
       dom.classList.toggle("cm-desktop", isDesktop);
       dom.classList.toggle("cm-mobile", !isDesktop);
       dom.classList.toggle("cm-vertical", isVertical);
       dom.classList.toggle("cm-horizontal", !isVertical);
 
-      // Determine which items to show
       let displayItems: ContextMenuItem[] = [];
       if (isDesktop) {
-        // Desktop shows all primary items, then a separator, then all "more" items
         displayItems = [...items];
         if (moreItems.length > 0) {
           displayItems.push({ type: "separator" });
           displayItems.push(...moreItems);
         }
       } else if (page === 0) {
-        // Mobile uses the page state. With nothing selected, the first page
-        // leaves out items that act on a selection, as Android's insertion
-        // menu does.
         const empty = view.state.selection.main.empty;
         displayItems = items.filter(
           (item) => !(empty && "needsSelection" in item && item.needsSelection),
@@ -422,7 +374,6 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
       const hasPrev = !isDesktop && page > 0;
       const hasMore = !isDesktop && page === 0 && moreItems.length > 0;
 
-      // 1. Back Button (Mobile only)
       if (hasPrev) {
         const backBtn = document.createElement("div");
         backBtn.className = "cm-menu-item cm-menu-back";
@@ -453,7 +404,6 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
         dom.appendChild(sep);
       }
 
-      // 2. Items
       const refreshers: (() => void)[] = [];
       const refresh = () => refreshers.forEach((f) => f());
       openMenuRefreshers.add(refresh);
@@ -466,7 +416,6 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
           labelSpan.textContent = view.state.phrase(item.label!);
           itemEl.appendChild(labelSpan);
 
-          // Add shortcut label on desktop
           if (isDesktop && item.shortcut) {
             const shortcutSpan = document.createElement("span");
             shortcutSpan.className = "cm-menu-shortcut";
@@ -490,8 +439,6 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
             view.dispatch({ effects: closeContextMenu.of() });
             item.command(view);
             if (!isDesktop && item.keepsMenuOpen) {
-              // The selection the item made is shown with the menu, so it
-              // gets the selection handles a touch selection has.
               const selection = view.state.selection.main;
               view.dispatch({
                 selection: view.state.selection,
@@ -511,7 +458,6 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
         }
       });
 
-      // 3. More Button (Mobile only)
       if (hasMore) {
         const sep = document.createElement("div");
         sep.className = "cm-menu-separator";
@@ -552,8 +498,6 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
             : clip
               ? undefined
               : (from: number) => {
-                  // The tooltip view outlives edits that map the menu's
-                  // range, so the range comes from the current state.
                   const to = view.state.field(contextMenuState, false)?.end;
                   const { width, height } = dom.getBoundingClientRect();
                   const viewport = visualViewportRect();
@@ -601,19 +545,11 @@ const contextMenuHandlers = EditorView.domEventHandlers({
 
     return true;
   },
-  // A keyboard or browser copy or cut also fills the menu's buffer, so menu
-  // Paste pastes what Ctrl+C copied. The selection is read here, before
-  // CodeMirror's own handler runs, and the event is left to that handler.
   copy: recordNativeCopy,
   cut: recordNativeCopy,
 });
 
-/** Records what CodeMirror's native copy and cut take: the selected ranges,
- *  or with only carets selected, their whole lines. */
 function recordNativeCopy(_event: ClipboardEvent, view: EditorView) {
-  // CodeMirror copies only when the DOM selection is inside the editor, and
-  // it keeps a DOM selection there only while the editor is focused, so
-  // focus stands in for its check, which it does not export.
   if (!view.hasFocus) {
     return false;
   }

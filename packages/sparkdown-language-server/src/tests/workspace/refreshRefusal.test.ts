@@ -1,7 +1,3 @@
-// The refreshes the server sends after a compile reach the web editor's
-// connection before the editor's client has registered for them, and the
-// connection refuses them as unhandled (#1785). A refresh carries no result,
-// so the refusal must not surface as an uncaught rejection.
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }));
@@ -23,7 +19,6 @@ function setup() {
     _programStates: new Map(),
     _entryPrograms: new Map(),
     sendNotification: vi.fn(),
-    // What vscode-jsonrpc answers for a method nobody registered.
     _connection: {
       sendRequest: (method: string) => {
         refused.push(method);

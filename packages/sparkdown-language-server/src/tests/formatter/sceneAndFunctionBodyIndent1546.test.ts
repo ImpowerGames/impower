@@ -9,7 +9,6 @@ import { getDocumentFormattingEdits } from "../../utils/providers/getDocumentFor
 import { diffDirtyRange } from "../../utils/providers/getFormatDirtyRange";
 import { formatSource } from "./formatSource";
 
-// Formatting gives `expected`, and formatting that result changes nothing.
 function expectFormatsTo(source: string, expected: string) {
   expect(formatSource(source)).toBe(expected);
   expect(formatSource(expected)).toBe(expected);
@@ -17,8 +16,6 @@ function expectFormatsTo(source: string, expected: string) {
 
 const parser = new TextmateGrammarParser(GRAMMAR_DEFINITION as any);
 
-// Formats `source` through the incremental (delta) path, as format-on-save
-// does after an earlier format whose output was `baseline`.
 function formatAfter(baseline: string, source: string): string {
   const tree = parser.parse(source);
   const doc = new SparkdownDocument("test://f.sd", "sparkdown", 1, source);
@@ -51,12 +48,6 @@ function formatAfter(baseline: string, source: string): string {
   }
   return result;
 }
-
-// I-1546: a Luau line in a scene or function body is indented by the block
-// that holds it.
-
-// I-1544: the compiler closes a scene only at its own `end`, so a function
-// written inside a scene closed with `end` stays in the scene's body.
 
 test("a local function inside a scene keeps the scene's indent and the lines after it", () => {
   const source = `scene main
@@ -146,9 +137,6 @@ end
   expectFormatsTo(source, source);
 });
 
-// Whether a declaration ends a scene's body depends on an `end` after it, so
-// format-on-save's delta path must give what a full format gives when an edit
-// changes which scene a declaration belongs to.
 describe("delta formatting after an edit to a scene's closing", () => {
   const BASELINE = formatSource(`local function before() end
 
@@ -197,9 +185,6 @@ end
     });
   }
 });
-
-// I-1545: a function body line that starts at column 0 has no whitespace
-// node or `Newline` node at its start to carry its indent.
 
 test("a column-0 call line in a function body is indented", () => {
   expectFormatsTo(

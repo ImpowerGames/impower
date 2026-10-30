@@ -1,17 +1,3 @@
-// Luau-conformance test harness — runs Luau's official conformance
-// suite (https://github.com/luau-lang/luau/tree/master/tests/conformance,
-// MIT-licensed; vendored under `upstream/conformance/`) against
-// sparkdown's Luau-superset implementation.
-//
-// Sparkdown is a Luau superset *inside function bodies* — at the top
-// level, sparkdown interprets text as narrative. So the harness wraps
-// every fixture body in a `function run() ... end` block and calls
-// it from main flow. That puts the fixture in Luau-superset territory:
-// bare statement-level calls work without the `&` discard-call prefix.
-//
-// `assert(...)` resolves to the native stdlib entry (which throws via
-// `story.Error` on falsy), so failures arrive through `story.onError`
-// and end up in `errorMessages` alongside compile-time errors.
 
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -36,20 +22,15 @@ export interface ConformanceResult {
 // won't collide with anything an author might emit deliberately.
 const OK_MARKER = "__LUAU_CONFORMANCE_OK__";
 
-// Preamble: invokes `run()` from main flow and prints the OK marker
-// before declaring `run`. The call has to come BEFORE the function
-// declaration because top-level `function ... end` creates a knot
-// and the first knot ends the implicit main flow — anything after it
-// is unreachable.
-const PREAMBLE = `& run()
-: ${OK_MARKER}
-done
+const PREAMBLE = `scene start
+  & run()
+  : ${OK_MARKER}
+  done
+end
 
 function run()
 `;
 
-// Epilogue closes the wrapping `run` function. Main flow has already
-// emitted the OK marker before reaching here.
 const EPILOGUE = `
 end
 `;
@@ -67,10 +48,6 @@ end
 const PREAMBLE_LINE_COUNT =
   (PREAMBLE.match(/\n/g)?.length ?? 0) + 1;
 
-/**
- * A conformance fixture as the document the harness compiles: its body inside
- * `function run() ... end`, which main flow calls.
- */
 export function wrapConformanceSource(fixtureSource: string): string {
   return `${PREAMBLE}\n${fixtureSource}\n${EPILOGUE}`;
 }

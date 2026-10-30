@@ -1,7 +1,3 @@
-// An alternator in a candidate's head whose `end` stands against the outer
-// `|` reads as the spaced spelling does (I-1408), so formatting gives the
-// two spellings the same output.
-
 import { describe, expect, test } from "vitest";
 import { formatSource } from "./formatSource";
 

@@ -53,9 +53,10 @@ interface Recorded {
 /** The construct an unsupported construct's error names, or null for any
  *  other diagnostic. */
 const unsupportedConstructOf = (message: string): string | null => {
-  // The record names the class that fell back, `Divert`, where the compile
-  // now names the construct, a divert to a function.
-  if (message === unsupportedConstructMessage(FUNCTION_DIVERT)) {
+  if (
+    message === unsupportedConstructMessage(FUNCTION_DIVERT) ||
+    message.startsWith("A function can't be diverted to: call `")
+  ) {
     return "Divert";
   }
   for (const construct of ["external", "list"]) {

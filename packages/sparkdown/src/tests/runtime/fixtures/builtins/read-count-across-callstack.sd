@@ -1,4 +1,6 @@
--> first
+scene start
+  -> first
+end
 scene first
   1) Seen first {first} times.
   -> second ->

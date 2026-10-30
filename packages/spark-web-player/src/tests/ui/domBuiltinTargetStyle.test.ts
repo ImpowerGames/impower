@@ -81,7 +81,7 @@ ${TARGETS.map((t) => `    text.${t} "Inventory ${t}"`).join("\n")}
   }
 end
 
--> start
+
 
 scene start
   [[open inventory]]
@@ -115,7 +115,7 @@ end
   }
 end
 
--> start
+
 
 scene start
   ^: Chapter One
@@ -144,7 +144,7 @@ end
   }
 end
 
--> start
+
 
 scene start
   [[open inventory]]
@@ -194,7 +194,7 @@ layout main with
   }
 end
 
--> start
+
 
 scene start
   HERO: Hello from the dialogue slot.

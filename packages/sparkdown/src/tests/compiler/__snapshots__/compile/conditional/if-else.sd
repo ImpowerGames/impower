@@ -1,5 +1,7 @@
-if trust >= 1 then
-  -> Alley
-else
-  fin
+scene start
+  if trust >= 1 then
+    -> Alley
+  else
+    fin
+  end
 end

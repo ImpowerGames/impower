@@ -1,5 +1,7 @@
-cycle
-  | -> A
-  | -> B
-  | -> C
+scene start
+  cycle
+    | -> A
+    | -> B
+    | -> C
+  end
 end

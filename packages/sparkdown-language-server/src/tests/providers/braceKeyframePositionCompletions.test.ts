@@ -7,10 +7,6 @@ import {
   insideBraces,
 } from "./braceCompletionHarness";
 
-// The cases of `keyframePositionCompletions.test.ts`, written in brace bodies
-// (#1228): whether the cursor is directly inside `keyframes` is read from the
-// blocks around it, and a position inserts `from { }` with the cursor inside.
-
 const program = {
   context: {
     animation: { $default: {} },

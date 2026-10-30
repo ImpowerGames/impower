@@ -113,11 +113,14 @@ end
 
 type Image = { name: string; svg: string };
 
+const withStart = (text: string) =>
+  /^scene start$/m.test(text) ? text : `${text}${text.endsWith("\n") ? "" : "\n"}scene start\nend\n`;
+
 function compile(text: string, images: Image[] = [{ name: "bunny", svg: PORTRAIT }]) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [
-      { uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" },
+      { uri: URI, type: "script", name: "main", ext: "sd", text: withStart(text), version: 1, languageId: "sparkdown" },
       ...images.map((image) => ({
         uri: `file:///${image.name}.svg`,
         type: "image",
@@ -658,7 +661,7 @@ end
   });
 
   test("the builtin prototype itself is not checked", () => {
-    const program = compile("Hello\n");
+    const program = compile("");
     expect(program.context?.["morph"]?.["$default"]).toBeDefined();
     expect(program.diagnostics?.[URI] ?? []).toEqual([]);
   });

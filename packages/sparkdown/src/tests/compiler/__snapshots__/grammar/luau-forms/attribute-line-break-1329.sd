@@ -30,4 +30,6 @@ function g()
     @checked function() return 8 end
   return f() + h()
 end
-Value {stored()} {g()}.
+scene start
+  Value {stored()} {g()}.
+end

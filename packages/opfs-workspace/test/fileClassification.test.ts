@@ -1,22 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-// AREA 8: File type / MIME classification.
-//
-// `getFileType` and `getMimeType` live module-private inside
-// `src/opfs-workspace.ts`, which is a Web Worker entry point: importing it runs
-// top-level side effects (`new BroadcastChannel(...)`, `postMessage(...)`,
-// `navigator.storage.getDirectory()`) that don't exist in node/jsdom, and it
-// exports nothing. So we cannot import these functions directly.
-//
-// Instead we replicate the EXACT logic from `src/opfs-workspace.ts`
-// (`globToRegex`, `getFileType`, `getMimeType`) and drive it with the
-// production default glob patterns from
-// `impower-dev/src/modules/spark-editor/workspace/WorkspaceConfiguration.ts`.
-// These tests assert the desired classification contract; if the replicated
-// logic ever drifts from source, the path-util / src-derivation suites that DO
-// import real code will still anchor the behavior.
-
-// --- replicated verbatim from src/opfs-workspace.ts ---
 const globToRegex = (glob: string) => {
   return RegExp(
     glob
@@ -27,7 +10,6 @@ const globToRegex = (glob: string) => {
   );
 };
 
-// Production defaults (WorkspaceConfiguration.ts).
 const scriptFilePattern = globToRegex("*.{sd}");
 const imageFilePattern = globToRegex(
   "*.{png,apng,jpeg,jpg,gif,bmp,svg,webp}",
@@ -47,7 +29,6 @@ const getMimeType = (type: string, ext: string) => {
   const encoding = type === "text" ? "plain" : ext === "svg" ? "svg+xml" : ext;
   return `${type}/${encoding}`;
 };
-// --- end replication ---
 
 describe("getFileType classification", () => {
   it("classifies a .sd file as script", () => {

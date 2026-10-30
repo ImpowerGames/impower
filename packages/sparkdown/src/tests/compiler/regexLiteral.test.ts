@@ -28,7 +28,7 @@ function compile(text: string) {
         type: "script",
         name: "main",
         ext: "sd",
-        text,
+        text: `${text}scene start\nend\n`,
         version: 1,
         languageId: "sparkdown",
       },

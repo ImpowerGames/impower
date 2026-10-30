@@ -22,7 +22,10 @@ import {
 const URI = "inmemory:///main.sd";
 
 const compile = (lines: string[]) => {
-  const ctx = makeRuntimeStoryFromSource([...lines, ""].join("\n"), URI);
+  const ctx = makeRuntimeStoryFromSource(
+    ["scene start", ...lines.map((line) => `  ${line}`), "end", ""].join("\n"),
+    URI,
+  );
   expect(ctx.errorMessages).toEqual([]);
   return ctx;
 };
@@ -97,11 +100,11 @@ describe("a tag written after a line's text", () => {
 
   test("leaves the line one beat, whose last address is its first", () => {
     const { root } = compile(["You see a door# t", "After."]);
-    const first = root.addressAt(URI, 0)!;
-    const last = root.addressAt(URI, 0, { beat: "last" })!;
+    const first = root.addressAt(URI, 1)!;
+    const last = root.addressAt(URI, 1, { beat: "last" })!;
     expect(last).toBe(first);
     expect(opAt(root, last)).toBe(Op.LineStart);
-    expect(root.addressAt(URI, 1)).not.toBe(last);
+    expect(root.addressAt(URI, 2)).not.toBe(last);
     // What a story stopped at that address shows is the line with its tag.
     const story = new ProgramStory(root);
     story.ChooseAddress(last);
@@ -112,7 +115,9 @@ describe("a tag written after a line's text", () => {
   // compiled again from the edited window, and gives the same beats as a cold
   // compile of the edited script.
   test("is the beat's own after an edit that writes it, as on a cold compile", () => {
-    const session = programSession("You see a door\nAfter.\n");
+    const session = programSession(
+      "scene start\n  You see a door\n  After.\nend\n",
+    );
     for (const [before, after, tags] of [
       ["door", "door# t", ["t"]],
       ["door# t", "door # t", ["t"]],
@@ -134,11 +139,11 @@ describe("a tag written after a line's text", () => {
 
   test("leaves a continuation one statement, whose last address is its first", () => {
     const { root } = compile(["You see a ..", ".. door# t", "After."]);
-    const first = root.addressAt(URI, 1)!;
-    expect(root.addressAt(URI, 1, { beat: "last" })).toBe(first);
-    expect(root.addressAt(URI, 2)).not.toBe(first);
+    const first = root.addressAt(URI, 2)!;
+    expect(root.addressAt(URI, 2, { beat: "last" })).toBe(first);
+    expect(root.addressAt(URI, 3)).not.toBe(first);
     // The address's location is the continuation's own line.
-    expect(root.locationOf(first)).toMatchObject({ startLine: 1, endLine: 1 });
+    expect(root.locationOf(first)).toMatchObject({ startLine: 2, endLine: 2 });
   });
 
   // Every kind of line that ended at a `#` shows the same beats, tags and
@@ -155,7 +160,17 @@ describe("a tag written after a line's text", () => {
       [["store n = 8", "Room# pic{n}"], ["store n = 8", "Room # pic{n}"]],
     ];
     for (const [touching, spaced] of pairs) {
-      const script = (lines: string[]) => [...lines, "After.", ""].join("\n");
+      const script = (lines: string[]) => {
+        const declared = lines.filter((line) => line.startsWith("store "));
+        const story = [...lines.filter((line) => !declared.includes(line)), "After."];
+        return [
+          ...declared,
+          "scene start",
+          ...story.map((line) => `  ${line}`),
+          "end",
+          "",
+        ].join("\n");
+      };
       const shown = (lines: string[]) =>
         storyBeats(
           new ProgramStory(compileScript(script(lines)).program.chunks!),
@@ -166,7 +181,7 @@ describe("a tag written after a line's text", () => {
       expect(expected.beats.at(-2)?.tags.length, label).toBeGreaterThan(0);
       expect(shown(touching), label).toEqual(expected);
       const root = compileScript(script(touching)).program.chunks!;
-      const line = touching.length - 1;
+      const line = touching.length;
       const last = root.addressAt(URI, line, { beat: "last" })!;
       expect(root.locationOf(last), label).toMatchObject({
         startLine: line,

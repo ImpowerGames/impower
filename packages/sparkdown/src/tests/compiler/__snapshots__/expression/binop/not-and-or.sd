@@ -1,1 +1,3 @@
-not a and b or c
+scene start
+  not a and b or c
+end

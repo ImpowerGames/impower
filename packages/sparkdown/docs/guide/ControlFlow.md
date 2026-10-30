@@ -50,7 +50,9 @@ layout bag with
   end
 end
 
-[[open bag]]
+scene start
+  [[open bag]]
+end
 
 store player = {
   inventory = {

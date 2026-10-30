@@ -1,13 +1,3 @@
-// The language server compiles with the binary program back end (#704): its
-// compiler builds statement chunks, so its diagnostics come from the program
-// path's resolver and its global initializers run as the declaration
-// sequences, and its program is located by the chunks' root, which stays in
-// the compiler's worker. The copy of the program the language server holds
-// has no root, so the address of a line, where an address stands and the
-// previous and next beat are asked of the worker (`locatorOf`).
-//
-// The workspace is the language server's own, with its compiler's worker in
-// this process (`languageServerWorker.ts`).
 import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/AddCompilerFileMessage";
 import { RemoveCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemoveCompilerFileMessage";
 import { UpdateCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/UpdateCompilerDocumentMessage";
@@ -33,8 +23,6 @@ const scriptFile = (text: string) => ({
   languageId: "sparkdown",
 });
 
-/** What the language server's hosts configure its compiler with, less the
- *  definitions only the editor's completions read. */
 const hostConfig = (text: string) => ({
   files: [scriptFile(text)],
   workspace: "file:///project",
@@ -45,7 +33,6 @@ const posAt = (text: string, offset: number) => {
   return { line: before.length - 1, character: before.at(-1)!.length };
 };
 
-/** The language server's workspace over one script, compiled. */
 async function languageServer(initial: string) {
   const workspace = new TestWorkspace(silentConnection);
   let text = initial;
@@ -66,14 +53,12 @@ async function languageServer(initial: string) {
     get text() {
       return text;
     },
-    /** The program the worker compiled, which the copy above was made from. */
     get compiled(): SparkProgram {
       return (workspace.worker.compiler as any)._lastCompileResult.program;
     },
     get compiler(): SparkdownCompiler {
       return workspace.worker.compiler;
     },
-    /** Replaces the first `find` with `replace` as one edit, and compiles. */
     async edit(find: string, replace: string) {
       const offset = text.indexOf(find);
       expect(offset, `"${find}" is in the script`).toBeGreaterThanOrEqual(0);
@@ -94,8 +79,6 @@ async function languageServer(initial: string) {
   };
 }
 
-/** A cold compile of `text` with the configuration the language server's
- *  compiler holds. */
 const coldCompile = (text: string) => {
   const compiler = new SparkdownCompiler();
   compiler.configure(hostConfig(text) as never);
@@ -120,7 +103,9 @@ const globalsOf = (program: SparkProgram, names: readonly string[]) => {
 const BEATS = [
   "store trust = 0",
   "",
-  "Raffles waits by the door.",
+  "scene start",
+  "  Raffles waits by the door.",
+  "end",
   "",
   "scene A",
   "  He looks around.",
@@ -156,12 +141,9 @@ const lineOf = (text: string, needle: string) =>
 describe("the language server's compiler", () => {
   it("builds statement chunks, which stay in its worker", async () => {
     const ls = await languageServer(BEATS);
-    // The worker's program runs from its chunks, and the copy the language
-    // server holds carries no root.
     expect(ls.compiled.chunks).toBeDefined();
     expect(ls.compiled.chunks == null).toBe(false);
     expect(ls.program.chunks == null).toBe(true);
-    // Its diagnostics are those of a cold compile.
     expect(diagnosticsOf(ls.program)).toEqual(diagnosticsOf(coldCompile(BEATS)));
   });
 });
@@ -183,8 +165,6 @@ describe("the language server's locations", () => {
         addresses.push(address);
       }
     }
-    // A program of statement chunks names its positions by number, and the
-    // script's beats are found.
     expect(addresses.length).toBeGreaterThan(5);
     expect(addresses.every((a) => typeof a === "number")).toBe(true);
   });
@@ -194,8 +174,6 @@ describe("the language server's locations", () => {
     const remote = ls.workspace.locatorOf(ls.program);
     const at = (line: number, offset: number) =>
       getOffsetSourceLocation(ls.program, remote, MAIN, line, offset);
-    // A dialogue's lines are one beat, which starts where its location
-    // starts (`offsetSourceLocation.test.ts`).
     expect(await at(lineOf(BEATS, "He looks around."), 1)).toEqual({
       file: MAIN,
       line: lineOf(BEATS, "(quietly)"),
@@ -208,7 +186,6 @@ describe("the language server's locations", () => {
       file: MAIN,
       line: lineOf(BEATS, "Bunny leaves."),
     });
-    // A scene's header is a stop of its own, as a branch's is.
     expect(await at(lineOf(BEATS, "Bunny arrives."), -1)).toEqual({
       file: MAIN,
       line: lineOf(BEATS, "scene B"),
@@ -217,8 +194,6 @@ describe("the language server's locations", () => {
       file: MAIN,
       line: lineOf(BEATS, "branch hall"),
     });
-    // Every question is a message to the worker and its answer, each a task
-    // later here.
   }, 60_000);
 
   it("give the previous and next beat around diverts that pass arguments", async () => {
@@ -273,7 +248,6 @@ describe("the language server's locations", () => {
       file: { uri: OTHER },
     });
     expect(await remote.addressAt(OTHER, 1)).toBeUndefined();
-    // The main script's program is still held.
     expect(typeof (await ls.workspace.locatorOf(ls.program).addressAt(MAIN, lineOf(BEATS, "Bunny arrives.")))).toBe("number");
   });
 
@@ -291,7 +265,7 @@ describe("the language server's global initializers", () => {
     "const C = 2",
     "const D = C + 1",
     "",
-    "scene MAIN",
+    "scene start",
     "  Values {a} {b} {D}.",
     "  if a > 0 then",
     "    Positive.",
@@ -344,7 +318,7 @@ describe("the language server's diagnostics", () => {
       "store tally = 0",
       "store tally = 1",
       "",
-      "scene MAIN",
+      "scene start",
       "  Count {tally}.",
       "end",
       "",

@@ -22,7 +22,7 @@ function errors(text: string) {
 describe("struct bodies use blocks and ignore indentation", () => {
   test.each(["layout", "style"])("%s rejects colon headers and dash items", (type) => {
     for (const [line, token, message] of [["title:", ":", "Expected '=' when parsing field, got ':'"], ["- title", "-", "Invalid syntax"]]) {
-      const text = `${type} example with\n  ${line}\nend`;
+      const text = `${type} example with\n  ${line}\nend\nscene start\nend`;
       const found = errors(text);
       expect(found).toHaveLength(1);
       expect(typeof found[0]!.message === "string" ? found[0]!.message : found[0]!.message.value).toBe(message);
@@ -33,7 +33,7 @@ describe("struct bodies use blocks and ignore indentation", () => {
   });
 
   test("each bare word starts an element, including on the same line", () => {
-    const source = 'layout example with\n title { stroke text }\n text title "x"\nend';
+    const source = 'layout example with\n title { stroke text }\n text title "x"\nend\nscene start\nend';
     expect(errors(source)).toEqual([]);
     const entry = compileSource(source).find((e) => e.block?.sparkle?.layouts?.['example']);
     const layout = entry!.block!.sparkle!.layouts!['example'] as any;

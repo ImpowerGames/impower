@@ -40,9 +40,17 @@ function continueBeats(
   return beats;
 }
 
+const storyInStart = (source: string) =>
+  makeRuntimeStoryFromSource(
+    `scene start\n${source
+      .split("\n")
+      .map((line) => (line ? `  ${line}` : line))
+      .join("\n")}end\n`,
+  );
+
 describe("spaced `>` break", () => {
   test("a mid-line break splits a dialogue line into two beats with the same cue", () => {
-    const ctx = makeRuntimeStoryFromSource(`HERO: Hi. > Bye.\n`);
+    const ctx = storyInStart(`HERO: Hi. > Bye.\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(continueBeats(ctx.story)).toEqual([
       { text: "Hi.\n", routing: "dialogue:HERO", pause: true },
@@ -51,7 +59,7 @@ describe("spaced `>` break", () => {
   });
 
   test("a mid-line break splits every display line type", () => {
-    const ctx = makeRuntimeStoryFromSource(
+    const ctx = storyInStart(
       `A > B
 ^: C > D
 $: E > F
@@ -77,7 +85,7 @@ $: E > F
   });
 
   test("a lone `>` after a dialogue line is a beat with no text that pauses", () => {
-    const ctx = makeRuntimeStoryFromSource(`HERO: Hi.\n>\nHERO: Bye.\n`);
+    const ctx = storyInStart(`HERO: Hi.\n>\nHERO: Bye.\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(continueBeats(ctx.story)).toEqual([
       { text: "Hi.\n", routing: "dialogue:HERO", pause: false },
@@ -87,7 +95,7 @@ $: E > F
   });
 
   test("`> Hello` is a lone `>` followed by a `Hello` line", () => {
-    const ctx = makeRuntimeStoryFromSource(`> Hello\n`);
+    const ctx = storyInStart(`> Hello\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(continueBeats(ctx.story)).toEqual([
       { text: "\n", routing: "action:", pause: true },
@@ -96,7 +104,7 @@ $: E > F
   });
 
   test("a lone `>` inside a block splits it without an empty beat", () => {
-    const ctx = makeRuntimeStoryFromSource(
+    const ctx = storyInStart(
       `HERO:
   Hi.
   >
@@ -115,7 +123,7 @@ $: E > F
       `HERO: Hi. ..\n.. more > Bye.\n`,
       `HERO: Hi. ..\nHERO: .. more > Bye.\n`,
     ]) {
-      const ctx = makeRuntimeStoryFromSource(source);
+      const ctx = storyInStart(source);
       expect(ctx.errorMessages).toEqual([]);
       expect(ctx.story.Continue()).toBe("Hi. more\n");
       expect(displayRouting(ctx.story).find((r) => r.target)).toEqual({
@@ -138,7 +146,7 @@ $: E > F
   });
 
   test("two breaks in a row keep the empty beat between them", () => {
-    const ctx = makeRuntimeStoryFromSource(`HERO: A > >\nNext.\n`);
+    const ctx = storyInStart(`HERO: A > >\nNext.\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(continueBeats(ctx.story)).toEqual([
       { text: "A\n", routing: "dialogue:HERO", pause: true },
@@ -148,7 +156,7 @@ $: E > F
   });
 
   test("a block whose body is only `>` adds no beat that waits", () => {
-    const ctx = makeRuntimeStoryFromSource(`HERO:\n  >\nNext.\n`);
+    const ctx = storyInStart(`HERO:\n  >\nNext.\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(continueBeats(ctx.story).map((beat) => beat.pause)).toEqual([
       false,
@@ -161,7 +169,7 @@ $: E > F
       `HERO: A ..\n.. B ..\n.. C > D\n`,
       `HERO: A ..\nHERO: .. B ..\n.. C > D\n`,
     ]) {
-      const ctx = makeRuntimeStoryFromSource(source);
+      const ctx = storyInStart(source);
       expect(ctx.errorMessages).toEqual([]);
       expect(ctx.story.Continue()).toBe("A B C\n");
       expect(ctx.story.Continue()).toBe("D\n");
@@ -200,7 +208,7 @@ $: E > F
   });
 
   test("a line's tags stay with the beat its line-end break ends", () => {
-    const ctx = makeRuntimeStoryFromSource(
+    const ctx = storyInStart(
       `HERO:\n  Hi. > # first\n  Bye. # second\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
@@ -211,7 +219,7 @@ $: E > F
   });
 
   test("a picture line ending in `>` pauses", () => {
-    const ctx = makeRuntimeStoryFromSource(`[[cg_sunset]] >\nNext.\n`);
+    const ctx = storyInStart(`[[cg_sunset]] >\nNext.\n`);
     expect(ctx.errorMessages).toEqual([]);
     const beats = continueBeats(ctx.story);
     expect(beats.map((beat) => beat.pause)).toEqual([true, false]);
@@ -219,7 +227,7 @@ $: E > F
   });
 
   test("`\\>` writes a literal spaced `>`", () => {
-    const ctx = makeRuntimeStoryFromSource(`HERO: Hi \\> Bye.\n`);
+    const ctx = storyInStart(`HERO: Hi \\> Bye.\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(continueBeats(ctx.story)).toEqual([
       { text: "Hi > Bye.\n", routing: "dialogue:HERO", pause: false },
@@ -227,7 +235,7 @@ $: E > F
   });
 
   test("each `>` of `>>` and the `>` of `>=` is a break", () => {
-    const ctx = makeRuntimeStoryFromSource(`HERO: c >> d, e >= f.\n`);
+    const ctx = storyInStart(`HERO: c >> d, e >= f.\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(continueBeats(ctx.story)).toEqual([
       { text: "c\n", routing: "dialogue:HERO", pause: true },
@@ -238,7 +246,7 @@ $: E > F
   });
 
   test("the `>` that closes a text command is not a break", () => {
-    const ctx = makeRuntimeStoryFromSource(`HERO: Go <wait 1 > now.\n`);
+    const ctx = storyInStart(`HERO: Go <wait 1 > now.\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(continueBeats(ctx.story)).toEqual([
       { text: "Go <wait 1 > now.\n", routing: "dialogue:HERO", pause: false },
@@ -246,7 +254,7 @@ $: E > F
   });
 
   test("`>` stays literal in expressions and choice text", () => {
-    const ctx = makeRuntimeStoryFromSource(
+    const ctx = storyInStart(
       `HERO: {2 > 1} is true.
 choose
   + [Go > there] You go > there.

@@ -23,8 +23,7 @@ describe("a gated choice's branch on the program engine", () => {
   // its body and the line after the block read the global.
   const GATED = [
     "store open = false",
-    "-> main",
-    "scene main",
+    "scene start",
     "  choose",
     "    if true then",
     "      local open = true",
@@ -51,8 +50,7 @@ describe("a gated choice's branch on the program engine", () => {
   it("drops the branch's local after the block when a choice the branch gated is taken", () => {
     const text = [
       "store open = false",
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    if true then",
       "      local open = true",
@@ -77,8 +75,7 @@ describe("a do block of a choose block's preamble on the program engine", () => 
   it("drops its local at its end, so a choice's condition, text and body and the line after the block read the global", () => {
     const text = [
       "store x = \"global\"",
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    do",
       "      local x = \"local\"",
@@ -104,8 +101,7 @@ describe("then clauses of blocks written in a preamble on the program engine", (
   // around it; never while the choices are presented.
   const NESTED = (gated: boolean) =>
     [
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    choose",
       "      choose",
@@ -148,8 +144,7 @@ describe("then clauses of blocks written in a preamble on the program engine", (
   it("runs a clause inside the branch its block is written in, with the branch's locals", () => {
     const text = [
       "store inner = 0",
-      "-> main",
-      "scene main",
+      "scene start",
       "  choose",
       "    if true then",
       "      local inner = 3",
@@ -180,8 +175,7 @@ describe("the depth of scopes inside a choose chunk", () => {
   // choice's body would count the scope of the branch that did not run.
   const RESTORED = [
     "store open = false",
-    "-> main",
-    "scene main",
+    "scene start",
     "  choose",
     "    if false then",
     "      * Hidden",
@@ -241,8 +235,7 @@ describe("the depth of scopes inside a choose chunk", () => {
       const text = [
         "store open = false",
         "store n = 0",
-        "-> main",
-        "scene main",
+        "scene start",
         "  choose",
         ...preamble,
         "    if n > 5 then",

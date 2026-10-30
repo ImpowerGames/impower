@@ -1,3 +1,5 @@
 const CONST_STR = "ConstantString"
 store varStr = CONST_STR
-{varStr == CONST_STR and "success" or ""}
+scene start
+  {varStr == CONST_STR and "success" or ""}
+end

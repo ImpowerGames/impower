@@ -3,26 +3,6 @@ import { getFileExtension } from "../src/utils/getFileExtension";
 import { getName } from "../src/utils/getName";
 import { getSrcFromUri } from "../src/utils/getSrcFromUri";
 
-// AREA 7: Cache-busting / src versioning (explicitly requested).
-//
-// The contract lives in `updateFileCache` (src/opfs-workspace.ts), which is
-// module-private inside the Web Worker entry and cannot be imported (top-level
-// BroadcastChannel/postMessage/navigator side effects, no exports). We
-// reconstruct the EXACT src + version logic from that function using the REAL
-// importable utilities (`getSrcFromUri`, `getName`, `getFileExtension`) plus a
-// minimal in-memory `files` map standing in for `State.files`.
-//
-// The desired CONTRACT (per sw.ts serving assets `max-age, immutable`):
-//   (a) an asset's src carries a `?v=` query that is the file's CONTENT
-//       SIGNATURE (`<modified>-<size>`), not a mint-time timestamp;
-//   (b) a real write (new modified) yields a DIFFERENT src (busts the
-//       immutable cache), while re-resolving an UNCHANGED file — even from an
-//       empty cache, i.e. a fresh session — yields the SAME src, so browser
-//       and URL-keyed caches survive reloads;
-//   (c) `version` advances on write;
-//   (d) when no mtime is known, the stamp falls back to `Date.now()`
-//       (old always-fresh behavior — over-invalidates, never stale).
-
 interface CachedFile {
   uri: string;
   name: string;
@@ -33,7 +13,6 @@ interface CachedFile {
   modified: number;
 }
 
-// Faithful reconstruction of the src/version portion of updateFileCache.
 function updateFileCache(
   files: Map<string, CachedFile>,
   uri: string,
@@ -85,7 +64,6 @@ describe("cache-busting src versioning", () => {
     const uri = "file://proj/images/logo.png";
     const file = updateFileCache(files, uri, true, 1, 2048, 555);
     expect(queryParam(file.src, "v")).toBe("555-2048");
-    // The path portion is still the resource URL.
     expect(file.src.startsWith(getSrcFromUri(uri))).toBe(true);
   });
 
@@ -102,7 +80,6 @@ describe("cache-busting src versioning", () => {
     const sessionOne = new Map<string, CachedFile>();
     const sessionTwo = new Map<string, CachedFile>();
     const uri = "file://proj/images/logo.png";
-    // Both sessions derive the stamp from the file's OPFS mtime + size.
     const first = updateFileCache(sessionOne, uri, false, 0, 2048, 555);
     const second = updateFileCache(sessionTwo, uri, false, 0, 2048, 555);
     expect(second.src).toBe(first.src);
@@ -137,7 +114,6 @@ describe("cache-busting src versioning", () => {
     const files = new Map<string, CachedFile>();
     const uri = "file://proj/images/logo.png";
     const file = updateFileCache(files, uri, true, 1, 2048, undefined);
-    // Date.now() is stubbed to advance; the stamp exists and is time-derived.
     expect(queryParam(file.src, "v")).toMatch(/^\d+-2048$/);
   });
 
