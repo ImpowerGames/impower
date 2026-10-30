@@ -166,7 +166,7 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.deepEqual(comments("s = '# no' + \"\"\"\n# no\n\"\"\"  # yes", "a.py"), ["# yes"]);
     assert.deepEqual(comments("$a = 'x # no' + \"y `\" # no\" ; a#no # yes\n<# yes #>\n@'\n# no\n'@", "a.ps1"), ["# yes", "<# yes #>"]);
     assert.deepEqual(comments("a: 'x # no' # yes\nb: c#no\nbody: |\n  ## Heading, not a comment\n  text # no\nsteps:\n  - shell: pwsh\n    run: |\n      Write-Output \"foo `\" # no\" # yes\n# lookaround: yes", "a.yml"), ["# yes", "# yes", "# lookaround: yes"], "a run block is scanned in its shell's language and other block scalars are text");
-    assert.deepEqual(comments("a: (?:\"(?:[^\"])*\")\n# yes\nb: [\"q # no\", 'r'] # yes\nc: x - \"y\" # yes\nd:\n  - \"e # no\" # yes\n", "a.yml"), ["# yes", "# yes", "# yes", "# yes"], "a quote opens a quoted scalar only where a value starts, so a quote inside a plain scalar hides no later comment");
+    assert.deepEqual(comments("a: (?:\"x|[^\"])(?:\"|$)\n# yes\nb: [\"q # no\", 'r'] # yes\nc: x - \"y\" # yes\nd:\n  - \"e # no\" # yes\n", "a.yml"), ["# yes", "# yes", "# yes", "# yes"], "a quote opens a quoted scalar only where a value starts, so a quote inside a plain scalar hides no later comment");
     const workflow = ({ top = [], job = [], step = [] } = {}) => [
       ...top,
       "jobs:",
