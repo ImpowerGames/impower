@@ -73,6 +73,21 @@ describe("a program has no root flow (I-1752)", () => {
     expect(story.variablesState.$("count")).toBe(1);
   });
 
+  it.each([
+    ["an if block", "count = 1\nif true then\n  count = 3\nend\n", 3],
+    ["a do block", "count = 1\ndo\n  count = 4\nend\n", 4],
+    ["a for loop", "count = 1\nfor i = 1, 3 do\n  count = count + 1\nend\n", 4],
+    ["a while loop", "count = 1\nwhile count < 5 do\n  count = count + 1\nend\n", 5],
+    ["a local read by a later statement", "local a = 5\ncount = a + 1\n", 6],
+    ["a return inside a block", "count = 1\nif true then\n  return 42\nend\ncount = 2\n", 1],
+    ["a return its condition skips", "count = 1\nif false then\n  return 42\nend\ncount = 2\n", 2],
+  ])("runs a .luau entry's top level with %s", (_, text, count) => {
+    const { program, errors } = compile("inmemory:///main.luau", text);
+    expect(errors).toEqual([]);
+    const story = testStory(program.chunks);
+    expect(story.variablesState.$("count")).toBe(count);
+  });
+
   it("ends a .luau entry's top level at its return", () => {
     const { program, errors } = compile(
       "inmemory:///main.luau",

@@ -538,6 +538,7 @@ export class ProgramStory implements StoryEngine {
    *  how many globals its own frame has declared, which is the index of the
    *  global whose value it is running. */
   protected _declarationRunning: number | null = null;
+  protected _declarationReturned = false;
   protected _declarationDepth = 0;
   protected _declarationGlobals = 0;
 
@@ -3298,6 +3299,7 @@ export class ProgramStory implements StoryEngine {
       return;
     }
     if (this._declarationRunning !== null && !callStack.canPop) {
+      this._declarationReturned = true;
       state.position = null;
       state.evaluationStack.length = 0;
       return;
@@ -3912,6 +3914,8 @@ export class ProgramStory implements StoryEngine {
     this.beatLog = null;
     const depth = state.callStack.elements.length;
     this._declarationDepth = depth;
+    const returned = new Set<string>();
+    this._declarationReturned = false;
     for (const chunk of this.root.initialization) {
       this._declarationRunning = chunkId(chunk);
       this._declarationGlobals = 0;
@@ -3927,6 +3931,9 @@ export class ProgramStory implements StoryEngine {
         );
         break;
       }
+      if (returned.has(at.sequence.uri)) {
+        continue;
+      }
       state.position = { sequence: at.sequence, entry: at.entry, offset: 0 };
       state.blockStack = [];
       // Whether the declaration's own frame stands past the chunk's code,
@@ -3937,6 +3944,7 @@ export class ProgramStory implements StoryEngine {
         return (
           p === null ||
           (state.callStack.elements.length <= depth &&
+            state.blockStack.length === 0 &&
             (p.sequence !== at.sequence ||
               p.entry !== at.entry ||
               p.offset >= codeWords(chunk)))
@@ -3945,6 +3953,10 @@ export class ProgramStory implements StoryEngine {
       try {
         while (!finished()) {
           this.Step();
+        }
+        if (this._declarationReturned) {
+          this._declarationReturned = false;
+          returned.add(at.sequence.uri);
         }
         this.declarationsRun += 1;
       } catch (e) {
