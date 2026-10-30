@@ -803,12 +803,25 @@ function codeOutside(text, comments, from, to) {
   return code + text.slice(at, to);
 }
 
+const POWERSHELL_FUNCTION_HEAD = /(?:^|[\s;])(?:function|filter|workflow)[ \t]+[^\s{(]+(?:\s*\([^)]*\))?\s*$/i;
+
+function openingBrace(code) {
+  let depth = 0;
+  for (let i = code.length - 1; i >= 0; i--) {
+    if (code[i] === "}") depth++;
+    else if (code[i] === "{" && depth-- === 0) return i;
+  }
+  return -1;
+}
+
 function powershellHelpPlaced(text, comment, comments) {
   const before = codeOutside(text, comments, 0, comment.start);
   const after = codeOutside(text, comments, comment.end, text.length);
   if (!before.trim() || !after.trim()) return true;
   if (/^[ \t]*(?:\r?\n[ \t]*){1,2}(?:function|filter|workflow)[ \t]/i.test(after)) return true;
-  return /(?:^|\n)[ \t]*(?:function|filter|workflow)[ \t]+[^\s{(]+[^{\n]*\{\s*$/i.test(before);
+  const open = openingBrace(before);
+  if (open < 0 || !POWERSHELL_FUNCTION_HEAD.test(before.slice(0, open))) return false;
+  return !before.slice(open + 1).trim() || /^\s*\}/.test(after);
 }
 
 const JS_DOC_EXTENSIONS = new Set([".js", ".mjs", ".cjs"]);
