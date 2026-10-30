@@ -273,7 +273,7 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
       const jsx = (text) => stripComments(text, "src/a.tsx");
       assert.equal(jsx("const v = (\n  <>\n    {/* a note */}\n    <A />\n    {\n      // a note\n    }\n    <B />\n  </>\n);\n"), "const v = (\n  <>\n    <A />\n    <B />\n  </>\n);\n", "a JSX container that held only a stripped comment goes with it");
       assert.equal(jsx("const v = (\n  <p>\n    text\n    {/* a note */}\n    more\n  </p>\n);\n"), "const v = (\n  <p>\n    text\n    {}\n    more\n  </p>\n);\n", "a container between JSX text stays, since removing it would join the text");
-      assert.equal(jsx("const v = (\n  <>\n    {/* @ts-expect-error */}\n    <A />\n  </>\n);\n"), "const v = (\n  <>\n    {/* @ts-expect-error */}\n    <A />\n  </>\n);\n");
+      assert.equal(jsx("const v = (\n  <>\n    {/* a note */}\n    {/* @ts-expect-error */}\n    <A />\n    {\n      // a note\n      /* @ts-expect-error */\n    }\n    <B />\n  </>\n);\n"), "const v = (\n  <>\n    {/* @ts-expect-error */}\n    <A />\n    {\n      /* @ts-expect-error */\n    }\n    <B />\n  </>\n);\n", "a container holding a kept directive stays when the file has comments to strip");
       assert.equal(jsx("const v = (\n  <>\n    <A />{/* a note */}\n  </>\n);\n"), "const v = (\n  <>\n    <A />{}\n  </>\n);\n", "a container sharing its line with markup stays");
     }
     const source = [
