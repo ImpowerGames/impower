@@ -38,7 +38,9 @@ export default function SnackbarHost() {
             variant="ghost"
             onClick={() => {
               shown.onAction?.();
-              dismissSnackbar();
+              if (!shown.persistent) {
+                dismissSnackbar(shown);
+              }
             }}
             class="h-7 flex-none rounded px-2 text-sm font-medium text-primary hover:bg-primary/10"
           >
@@ -49,7 +51,7 @@ export default function SnackbarHost() {
           <Button
             variant="ghost"
             aria-label="Dismiss"
-            onClick={dismissSnackbar}
+            onClick={() => dismissSnackbar(shown)}
             class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:bg-foreground/10 hover:text-foreground"
           >
             <X class="size-4" />

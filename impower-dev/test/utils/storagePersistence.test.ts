@@ -5,6 +5,7 @@ import {
   snackbar,
 } from "../../src/modules/spark-editor/utils/snackbar";
 import {
+  STORAGE_EXPORT_FAILED_MESSAGE,
   STORAGE_NOT_PERSISTED_MESSAGE,
   isStoragePersisted,
   warnIfStorageNotPersisted,
@@ -15,20 +16,33 @@ const storage = (persisted: boolean, granted: boolean) => ({
   persist: vi.fn(async () => granted),
 });
 
+const clearSnackbars = () => {
+  while (snackbar.value) {
+    dismissSnackbar();
+  }
+};
+
+const warnDenied = (exportProject = vi.fn(async () => true)) =>
+  warnIfStorageNotPersisted({
+    storage: storage(false, false),
+    projectId: "local",
+    exportProject,
+  });
+
 describe("storage persistence warning", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    dismissSnackbar();
+    clearSnackbars();
   });
 
   afterEach(() => {
-    dismissSnackbar();
+    clearSnackbars();
     vi.useRealTimers();
   });
 
   it("warns with an export action that stays until dismissed when the browser denies persistence", async () => {
     const denied = storage(false, false);
-    const exportProject = vi.fn();
+    const exportProject = vi.fn(async () => true);
 
     const warned = await warnIfStorageNotPersisted({
       storage: denied,
@@ -45,7 +59,51 @@ describe("storage persistence warning", () => {
     expect(snackbar.value?.message).toBe(STORAGE_NOT_PERSISTED_MESSAGE);
 
     snackbar.value?.onAction?.();
+    await vi.advanceTimersByTimeAsync(0);
     expect(exportProject).toHaveBeenCalledTimes(1);
+    expect(snackbar.value).toBeNull();
+  });
+
+  it("comes back after an ordinary snackbar shown over it expires or is acted on", async () => {
+    await warnDenied();
+
+    showSnackbar({ message: "Deleted scene.sd", actionLabel: "Undo" });
+    expect(snackbar.value?.message).toBe("Deleted scene.sd");
+    vi.advanceTimersByTime(6000);
+    expect(snackbar.value?.message).toBe(STORAGE_NOT_PERSISTED_MESSAGE);
+
+    const undo = { message: "Deleted art.png", actionLabel: "Undo" };
+    showSnackbar(undo);
+    dismissSnackbar(undo);
+    expect(snackbar.value?.message).toBe(STORAGE_NOT_PERSISTED_MESSAGE);
+  });
+
+  it("keeps the warning and reports the failure when the export produces nothing or throws", async () => {
+    const exportProject = vi
+      .fn<() => Promise<boolean>>()
+      .mockResolvedValueOnce(false)
+      .mockRejectedValueOnce(new Error("OPFS read failed"));
+    await warnDenied(exportProject);
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      snackbar.value?.onAction?.();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(snackbar.value?.message).toBe(STORAGE_EXPORT_FAILED_MESSAGE);
+      vi.advanceTimersByTime(6000);
+      expect(snackbar.value?.message).toBe(STORAGE_NOT_PERSISTED_MESSAGE);
+    }
+    expect(exportProject).toHaveBeenCalledTimes(2);
+  });
+
+  it("goes away for good when the author dismisses it", async () => {
+    await warnDenied();
+    const warning = snackbar.value;
+
+    dismissSnackbar(warning);
+    expect(snackbar.value).toBeNull();
+    showSnackbar({ message: "Deleted scene.sd" });
+    vi.advanceTimersByTime(6000);
+    expect(snackbar.value).toBeNull();
   });
 
   it("stays silent when storage is already persisted or the grant succeeds", async () => {
@@ -56,7 +114,7 @@ describe("storage persistence warning", () => {
       await warnIfStorageNotPersisted({
         storage: already,
         projectId: "local",
-        exportProject: vi.fn(),
+        exportProject: vi.fn(async () => true),
       }),
     ).toBe(false);
     expect(already.persist).not.toHaveBeenCalled();
@@ -64,7 +122,7 @@ describe("storage persistence warning", () => {
       await warnIfStorageNotPersisted({
         storage: granted,
         projectId: "local",
-        exportProject: vi.fn(),
+        exportProject: vi.fn(async () => true),
       }),
     ).toBe(false);
     expect(snackbar.value).toBeNull();
@@ -76,7 +134,7 @@ describe("storage persistence warning", () => {
     const warned = await warnIfStorageNotPersisted({
       storage: denied,
       projectId: "drive-file-id",
-      exportProject: vi.fn(),
+      exportProject: vi.fn(async () => true),
     });
 
     expect(warned).toBe(false);
@@ -88,7 +146,7 @@ describe("storage persistence warning", () => {
     const warned = await warnIfStorageNotPersisted({
       storage: storage(false, false),
       projectId: undefined,
-      exportProject: vi.fn(),
+      exportProject: vi.fn(async () => true),
     });
 
     expect(warned).toBe(true);
