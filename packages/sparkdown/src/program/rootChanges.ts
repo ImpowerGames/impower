@@ -116,7 +116,10 @@ const wholeRootChanges = (
       emitted.push(id);
     }
   }
-  let initializers = !before || !sameInitialization(before, after);
+  let initializers =
+    !before ||
+    !sameInitialization(before, after) ||
+    !before.tables?.luauEntry !== !after.tables?.luauEntry;
   if (!initializers) {
     const was = functionChunksOf(before!);
     const is = functionChunksOf(after);

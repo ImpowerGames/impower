@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
 import { blockCount } from "../../program/ProgramChunk";
-import { SymbolKind } from "../../program/ProgramSymbols";
 import {
   lines,
   SHIFT_CASES,
@@ -54,11 +53,7 @@ const positions = (root: ProgramRoot): [string, number][] => {
     .flowSequences()
     .sort((a, b) => root.table.symbols[a.flow]!.localeCompare(root.table.symbols[b.flow]!));
   for (const flow of flows) {
-    if (flow.kind !== SymbolKind.Root) {
-      out.push([flow.uri, root.firstLineOf(flow)]);
-    } else {
-      expect(root.firstLineOf(flow)).toBe(0);
-    }
+    out.push([flow.uri, root.firstLineOf(flow)]);
     visit(flow);
   }
   for (const row of [...root.sequences()]

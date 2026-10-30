@@ -6,6 +6,7 @@ import type {
   RouteResumePoint,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
+import { START_FLOW_NAME } from "@impower/sparkdown/src/program/ProgramSymbols";
 import { profile } from "../../utils/profile";
 import { programIdentity } from "../../utils/programIdentity";
 import type { RouteSearchLog } from "./RouteSearchLog";
@@ -49,7 +50,7 @@ export const searchRouteFor = (
     return searchRouteFor(game, to, log, { ...settings, startSearched: true });
   }
   const searchedFromStart = fromStart || startSearched;
-  const from = fromStart ? "0" : game.routeStartOf(to);
+  const from = fromStart ? START_FLOW_NAME : game.routeStartOf(to);
   profile("start", profilerId + " " + "game/routeResumption");
   const resumption = game.routeResumption(from, to);
   profile("end", profilerId + " " + "game/routeResumption");

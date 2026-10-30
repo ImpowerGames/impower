@@ -8,7 +8,7 @@ import {
   SymbolKind,
   UNDEFINED_KIND,
   readableSymbolLabel,
-  type SymbolKindValue,
+  type SequenceKind,
 } from "./ProgramSymbols";
 import { DONE_HOLD, Op, flagsOf, opOf } from "./ProgramInstructions";
 import {
@@ -41,7 +41,7 @@ export interface SequenceRow {
   readonly id: number;
   readonly arrays: SequenceArrays;
   readonly flow: number;
-  readonly kind: SymbolKindValue;
+  readonly kind: SequenceKind;
   readonly owner: number;
   readonly block: number;
   readonly uri: string;
@@ -150,6 +150,7 @@ export const holdsChunkIn = (
 export interface ProgramStoryTables {
   readonly structDefinitions: StructDefinitionTable;
   readonly constantNames: ReadonlySet<string>;
+  readonly luauEntry?: boolean;
 }
 
 export interface RunFile {
@@ -866,9 +867,6 @@ export class ProgramRoot {
     if (!row || row.flow < 0) {
       return undefined;
     }
-    if (row.kind === SymbolKind.Root) {
-      return "0";
-    }
     let symbol = row.flow;
     if (row.kind === SymbolKind.Branch) {
       const scene = this.parentOf(symbol);
@@ -876,8 +874,7 @@ export class ProgramRoot {
         symbol = scene;
       }
     }
-    const name = this.table.symbols[symbol] ?? "";
-    return name === "" ? "0" : name;
+    return this.table.symbols[symbol];
   }
 }
 
