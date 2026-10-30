@@ -14,6 +14,7 @@ import {
   MORPH_EASING_KEYWORDS,
   MORPH_FALLBACKS,
   MORPH_FIELD_DOCS,
+  MORPH_LAYER_FIELDS,
   MORPH_METHODS,
   MORPH_PAINT_FIELDS,
   MORPH_POLICY_FIELDS,
@@ -121,6 +122,7 @@ export function getMorphCompletions(
   );
   const labelImages = candidates.length > 0 ? candidates : images;
 
+  const labelsOf = (from: typeof images) => new Set(from.flatMap((image) => [...morphImageLabels(image.vocabulary)]));
   const items: CompletionItem[] = [];
   const add = (item: CompletionItem) => {
     if (!items.some((existing) => existing.label === item.label)) items.push(item);
@@ -219,6 +221,18 @@ export function getMorphCompletions(
       return items;
     }
     const policyPlace = path.length === 0 || (path[0] === "layers" && path.length === 2);
+    if (key === "partner" && path[0] === "layers" && path.length === 2) {
+      for (const label of labelsOf(labelImages)) {
+        add({
+          label,
+          kind: CompletionItemKind.EnumMember,
+          detail: "layer label",
+          documentation: docs("partner"),
+          textEdit: { range: replaceRange(typed.length), newText: label },
+        });
+      }
+      return items;
+    }
     if (key === "depth" && policyPlace) {
       const dot = typed.indexOf(".");
       const choices =
@@ -268,7 +282,7 @@ export function getMorphCompletions(
   const keyMatch = /^\s*([\w.%-]*)$/.exec(before);
   if (!keyMatch) return [];
   const typed = keyMatch[1]!;
-  const labels = new Set(labelImages.flatMap((image) => [...morphImageLabels(image.vocabulary)]));
+  const labels = labelsOf(labelImages);
   const snippet = (suffix: string) =>
     suffix.includes("$0") ? { insertTextFormat: InsertTextFormat.Snippet } : {};
   const addField = (name: string) => {
@@ -305,6 +319,9 @@ export function getMorphCompletions(
     for (const label of labels) addLabel(label, containerSuffix, "layer label");
   } else if (first === "layers" && path.length === 2) {
     MORPH_POLICY_FIELDS.forEach(addField);
+    MORPH_LAYER_FIELDS.forEach(addField);
+  } else if (first === "layers" && third === "partner" && (path.length === 3 || (path.length === 4 && fourth === "-"))) {
+    for (const label of labels) addLabel(label, "", "layer label");
   } else if (first === "keyframes" && path.length === 1) {
     for (const position of KEYFRAME_POSITIONS) {
       add({

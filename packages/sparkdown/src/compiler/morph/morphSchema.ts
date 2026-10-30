@@ -53,6 +53,8 @@ export const MORPH_ROOT_FIELDS = [
 /** Transition-policy fields: at the root, or under a label in `layers { … }`. */
 export const MORPH_POLICY_FIELDS = ["blend", "method", "fallback", "depth"] as const;
 
+export const MORPH_LAYER_FIELDS = ["partner"] as const;
+
 /** The `depth` that keeps each moving shape at its place in the rest pose. */
 export const MORPH_DEPTH_REST = "rest";
 
@@ -65,6 +67,11 @@ export function parseMorphDepth(
 ): typeof MORPH_DEPTH_REST | { group: string; state: string } | undefined {
   if (value === MORPH_DEPTH_REST) return MORPH_DEPTH_REST;
   return parseMorphQualifiedState(value);
+}
+
+export function parseMorphPartner(value: unknown): string[] | undefined {
+  const list = typeof value === "string" ? [value] : Array.isArray(value) ? value : [];
+  return list.length > 0 && list.every((label) => typeof label === "string" && label.trim() !== "") ? (list as string[]) : undefined;
 }
 
 /** The group and state of a qualified state such as `eyes.closed`; undefined for any other value. */
@@ -122,11 +129,12 @@ export const MORPH_PAINT_FIELDS = ["targets", "state", "when", "fill", "stroke",
 export const MORPH_PAINT_SPAN_DEFAULT = 1;
 
 /** Keys whose values are literal text rather than numbers or references. */
-export const MORPH_LITERAL_KEYS: ReadonlySet<string> = new Set(["state", "depth", "when", "fill", "stroke"]);
+export const MORPH_LITERAL_KEYS: ReadonlySet<string> = new Set(["state", "depth", "when", "fill", "stroke", "partner"]);
 /** Keys whose list values are literal labels. */
-export const MORPH_LITERAL_LIST_KEYS: ReadonlySet<string> = new Set(
-  MORPH_CLIP_FIELDS,
-);
+export const MORPH_LITERAL_LIST_KEYS: ReadonlySet<string> = new Set([
+  ...MORPH_CLIP_FIELDS,
+  ...MORPH_LAYER_FIELDS,
+]);
 
 export const MORPH_TIMING_DEFAULTS = {
   duration: 0.25,
@@ -145,7 +153,9 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
     "What happens to a shape with no usable morph pair: `fade` (default), `cut` or `scale`.",
   depth:
     "The pose whose stacking a moving shape keeps between keyframes: `rest` (default), the pose the still image shows, or a state the keyframes name, written with its group, such as `eyes.closed`. Each moving shape is drawn where its label's drawing sits in that pose; a shape that pose does not draw keeps its place in the rest pose.",
-  layers: "Per-label overrides of `blend`, `method`, `fallback` and `depth`, keyed by artwork layer label.",
+  layers: "Per-label overrides of `blend`, `method`, `fallback` and `depth`, and each label's `partner`, keyed by artwork layer label.",
+  partner:
+    "The labels whose drawing this label's drawings take in a pose that draws none of them: one label, such as `eyelash-left`, or a list in priority order, such as `{ eyeball-shadow-left; eyelash-left }`. The first listed label the pose draws decides, and the label's own name in the list pairs by name at that rank. The drawing moves into the shape of that label's drawing nearest it, keeping its own paint and its place in paint order, and stays in that shape while the pose holds.",
   keyframes:
     "The poses, as `{ … }` entries with an `offset` or as positions (`from { … }`, `50% { … }`, `to { … }`). Each pose holds containers such as `eyes { … }` with a `state` and layer properties. As in CSS keyframes, a pose that leaves a group or property out moves between the nearest poses that set it, and a first or last pose that leaves it out uses the image's resting value there.",
   timing: "When and how often the morph plays.",
