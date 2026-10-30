@@ -155,6 +155,10 @@ describe("one resolver owns each name and its value", () => {
     ["inset", "auto 0", [["inset", "auto 0px"]]],
     ["padding", "md lg", [["padding", "8px 16px"]]],
     ["padding", [4, 8], [["padding", "4px 8px"]]],
+    ["corner", "10px / 20px", [["border-radius", "10px / 20px"]]],
+    ["border_radius", "4 8 / 2", [["border-radius", "4px 8px / 2px"]]],
+    ["border-radius", "md / lg", [["border-radius", "8px / 16px"]]],
+    ["corner", "10px/20px", [["border-radius", "10px/20px"]]],
   ])("compound size %s = %j resolves each part", (key, value, expected) => {
     expect(getCssEquivalent(key, value)).toEqual(expected);
   });

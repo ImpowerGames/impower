@@ -931,7 +931,7 @@ export const getCssSize = (
     return value
       .trim()
       .split(WHITESPACE_REGEX)
-      .map((part) => getCssSize(part, defaultUnit))
+      .map((part) => (part === "/" ? part : getCssSize(part, defaultUnit)))
       .join(" ");
   }
   if (value === "xs") {
