@@ -122,6 +122,24 @@ describe("PLAY in the worker reaching the end of the story", () => {
     }, 120_000);
   }
 
+  it("clears the ended run's badge when a newer PLAY takes over", async () => {
+    const { h } = await start(RAN_OUT, HELLO);
+    try {
+      await click(h);
+      expect(h.refs.endingStatus.hidden).toBe(false);
+      await h.select(1);
+      await settle(20);
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      await settle(40);
+      expect(launchStates(h).at(-1)).toBe("play");
+      expect(h.refs.endingStatus.hidden).toBe(true);
+      expect(h.refs.endingStatus.textContent).toBe("");
+    } finally {
+      await h.controller.destroyGameAndApp();
+      h.dispose();
+    }
+  }, 120_000);
+
   it("replays from the line PLAY started on after the selection has moved", async () => {
     const { h, plays } = await start(RAN_OUT, HELLO);
     try {

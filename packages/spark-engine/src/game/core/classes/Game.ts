@@ -2350,8 +2350,9 @@ export class Game<T extends M = {}> {
     if (watchedCells && watchedCells.length > 0) {
       saveData.watchedCells = watchedCells;
     }
-    if (this._story.ending) {
-      saveData.ending = this._story.ending;
+    const ending = this._ending?.kind ?? this._story.ending;
+    if (ending) {
+      saveData.ending = ending;
     }
     for (const k of this._moduleNames) {
       const module = this._modules[k];
@@ -3045,6 +3046,7 @@ export class Game<T extends M = {}> {
       location: error?.location ?? this.getLastExecutedDocumentLocation(),
       ...(error ? { error } : {}),
     };
+    this._announcedStop = true;
     this.module.ui.style.update("continue_indicator", { display: "none" });
     if (kind === "fin") {
       this.module.ui.openEnding();

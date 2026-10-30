@@ -119,7 +119,7 @@ describe("a preview that recurses without end (#1072)", () => {
 });
 
 describe("PLAY that recurses without end (#1072)", () => {
-  test("stops on a stack overflow and does not report the story finished", async () => {
+  test("stops on a stack overflow and ends the story by an error", async () => {
     const h = createHarness(SELF_CALL, 0);
     await h.ready;
     h.reset();
@@ -128,7 +128,10 @@ describe("PLAY that recurses without end (#1072)", () => {
     game.setStartFrom({ file: MAIN_URI, line: 0 }, "first");
     game.start();
     expect(runtimeErrors(h.messages).join("\n")).toContain("stack overflow");
-    expect(h.messages.map((m) => m.method)).not.toContain("game/finished");
+    const finished = h.messages.filter((m) => m.method === "game/finished");
+    expect(finished.map((m) => m.params.kind)).toEqual(["error"]);
+    expect(finished[0].params.error.message).toContain("stack overflow");
+    expect(game.ending?.kind).toBe("error");
   }, 120_000);
 });
 

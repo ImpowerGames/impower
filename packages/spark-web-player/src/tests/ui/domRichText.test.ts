@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
+const firstText = (h: any): any =>
+  [...h.overlay.querySelectorAll(".text")].find(
+    (el: Element) => !el.closest(".end_mark"),
+  );
+
 async function render(src: string) {
   const h = createDOMHarness(src, 0, { autoOpenAll: true });
   await h.ready;
@@ -11,7 +16,7 @@ async function render(src: string) {
 const RUN_SELECTOR = "span, sub, sup";
 
 function runNodes(h: any): Element[] {
-  const el = h.overlay.querySelector(".text");
+  const el = firstText(h);
   return [...el.querySelectorAll(RUN_SELECTOR)]
     .filter((s: Element) => s.querySelector(RUN_SELECTOR) === null)
     .filter((s: Element) => (s.textContent ?? "") !== "");

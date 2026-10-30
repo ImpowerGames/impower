@@ -1906,7 +1906,6 @@ export class ProgramStory implements StoryEngine {
     const address = addressOf(chunkId(chunk), position.offset);
     state.previousAddress = address;
     this.endedAt = null;
-    this.ending = null;
     if (this.onExecute !== null) this.onExecute(address);
     if (this.executedLog !== null) this.executedLog.push(address);
     if (state.holdsAddresses) {
@@ -3163,7 +3162,16 @@ export class ProgramStory implements StoryEngine {
 
   endedAt: number | null = null;
 
-  ending: StoryEnding | null = null;
+  protected _ending: StoryEnding | null = null;
+  get ending(): StoryEnding | null {
+    return this._state.position === null &&
+      this._state.currentChoices.length === 0
+      ? this._ending
+      : null;
+  }
+  set ending(ending: StoryEnding | null) {
+    this._ending = ending;
+  }
 
   protected startSymbol(): number | undefined {
     if (this.root.tables?.luauEntry) {

@@ -3,6 +3,7 @@
  *--------------------------------------------------------*/
 
 import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import { DidChangeGameStateMessage, type GameState } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
 import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
@@ -15,7 +16,6 @@ import { GameEndedMessage } from "@impower/spark-engine/src/game/core/classes/me
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameExitedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedThreadMessage";
 import { GameHitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameHitBreakpointMessage";
-import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
 import { GameStartedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedThreadMessage";
 import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
 import { GetGameEvaluationContextMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameEvaluationContextMessage";
@@ -96,6 +96,8 @@ export class SparkDebugSession extends LoggingDebugSession {
   private _useInvalidatedEvent = false;
 
   private _stoppedReason = new Map<number, string>();
+
+  private _launchState: GameState["launchState"] = null;
 
   public constructor(fileAccessor: FileAccessor, connection: Connection) {
     super("mock-debug.txt");
@@ -183,8 +185,12 @@ export class SparkDebugSession extends LoggingDebugSession {
     if (GameChosePathToContinueMessage.type.isNotification(message)) {
       this.sendContinuedEvent();
     }
-    if (GameReloadedMessage.type.isNotification(message)) {
-      this.sendContinuedEvent();
+    if (DidChangeGameStateMessage.type.isNotification(message)) {
+      const { launchState } = message.params;
+      if (this._launchState === "ended" && launchState !== "ended") {
+        this.sendContinuedEvent();
+      }
+      this._launchState = launchState;
     }
   }
 
@@ -334,7 +340,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     );
 
     this.sendResponse(response);
-    this.sendContinuedEvent();
   }
 
   protected override async launchRequest(

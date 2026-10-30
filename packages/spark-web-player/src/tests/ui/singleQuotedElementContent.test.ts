@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
+const firstText = (h: any): any =>
+  [...h.overlay.querySelectorAll(".text")].find(
+    (el: Element) => !el.closest(".end_mark"),
+  );
+
 async function render(source: string) {
   const h = createDOMHarness(source, 0, { autoOpenAll: true });
   await flushMicrotasks();
@@ -18,7 +23,7 @@ describe("single-quoted element content", () => {
         "end",
       ].join("\n"),
     );
-    const text = h.overlay.querySelector(".text");
+    const text = firstText(h);
     expect(text, "expected a .text element").toBeTruthy();
     expect(text!.textContent).toBe('"Maecenas vehicula metus tellus."');
   });
@@ -29,7 +34,7 @@ describe("single-quoted element content", () => {
         "\n",
       ),
     );
-    expect(h.overlay.querySelector(".text")!.textContent).toBe("{x {y} z}");
+    expect(firstText(h)!.textContent).toBe("{x {y} z}");
   });
 
   test("double-quoted content still interpolates", async () => {
@@ -43,6 +48,6 @@ describe("single-quoted element content", () => {
         "end",
       ].join("\n"),
     );
-    expect(h.overlay.querySelector(".text")!.textContent).toBe("hello world");
+    expect(firstText(h)!.textContent).toBe("hello world");
   });
 });

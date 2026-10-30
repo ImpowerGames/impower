@@ -212,6 +212,9 @@ export class Coordinator<G extends Game> {
       if (choiceTargets) {
         choiceTargets.forEach((target, index) => {
           const handleClick = (): void => {
+            if (game.ending) {
+              return;
+            }
             game.module.ui.text.clearAll(choiceTargets);
             game.module.ui.image.clearAll(choiceTargets);
             game.module.ui.unobserve("click", target);

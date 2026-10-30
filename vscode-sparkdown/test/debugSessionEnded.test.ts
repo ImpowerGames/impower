@@ -4,10 +4,21 @@ vi.mock("../src/managers/SparkdownDebugManager", () => ({
   SparkdownDebugManager: { instance: {} },
 }));
 
+import { DidChangeGameStateMessage } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
 import { GameEndedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEndedMessage";
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
 import { SparkDebugSession } from "../src/debugger/SparkDebugSession";
+
+const launch = (launchState: "play" | "pause" | "ended" | "preview") =>
+  DidChangeGameStateMessage.type.notification({
+    mounted: true,
+    programLoaded: true,
+    programVersion: 1,
+    launchState,
+    position: null,
+    completion: null,
+  });
 
 const location = (line: number) => ({
   uri: "file:///main.sd",
@@ -74,16 +85,39 @@ describe("the debug adapter at the end of the story", () => {
     expect(events.some((e) => e.event === "exited" || e.event === "terminated")).toBe(false);
   });
 
-  it("reports the game running again after Restart and after a reload", async () => {
+  it("reports the game running once the held run is torn down, before the replay's own stop", async () => {
     const { notify, events, sent, restart } = await session();
+    await notify(launch("play"));
     await notify(
-      GameEndedMessage.type.notification({ kind: "out", location: location(3) }),
+      GameEndedMessage.type.notification({ kind: "fin", location: location(1) }),
     );
+    await notify(launch("ended"));
     await restart();
     expect(sent.map((m) => m.method)).toContain("game/restart");
-    expect(events.map((e) => e.event)).toEqual(["stopped", "response", "continued"]);
+    expect(events.map((e) => e.event)).toEqual(["stopped", "response"]);
+    await notify(launch("preview"));
+    await notify(launch("ended"));
+    await notify(
+      GameEndedMessage.type.notification({ kind: "fin", location: location(1) }),
+    );
+    expect(events.map((e) => [e.event, e.body?.reason ?? null])).toEqual([
+      ["stopped", "end"],
+      ["response", null],
+      ["continued", null],
+      ["stopped", "end"],
+    ]);
     await notify(GameReloadedMessage.type.notification({}));
-    expect(events.at(-1)!.event).toBe("continued");
+    expect(events).toHaveLength(4);
+  });
+
+  it("sends no continued event while launch states change without leaving an ended run", async () => {
+    const { notify, events } = await session();
+    await notify(launch("preview"));
+    await notify(launch("play"));
+    await notify(launch("pause"));
+    await notify(launch("play"));
+    await notify(launch("preview"));
+    expect(events).toEqual([]);
   });
 
   it("still ends the session on game/exited", async () => {

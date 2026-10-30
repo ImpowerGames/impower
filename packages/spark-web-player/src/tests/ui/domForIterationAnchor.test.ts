@@ -64,7 +64,7 @@ describe("anchorFor escaping a for-iteration", () => {
       [...h.overlay.querySelectorAll("span, .text")]
         .filter((el: Element) => el.querySelector("span, .text") === null)
         .map((el: Element) => (el.textContent ?? "").trim())
-        .filter((t: string) => t !== "");
+        .filter((t: string) => t !== "" && t !== "■");
 
     expect(textOrder()).toEqual(["A1", "A2"]);
     (h.game.story as any).EvaluateFunction("reveal", []);

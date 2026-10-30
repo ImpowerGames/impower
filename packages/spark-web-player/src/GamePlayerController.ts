@@ -2144,6 +2144,7 @@ export class GamePlayerController {
       ...(startFrom ? { startFrom } : {}),
     };
     this._workerPlay = play;
+    this.setEndingStatus(null);
     this._routeState = { ...this._routeState, lastRun: undefined };
     const current = () => this._workerPlay === play;
     let stopListening: (() => void) | undefined;
