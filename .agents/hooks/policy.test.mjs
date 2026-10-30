@@ -385,6 +385,9 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     const header = (line) => `${"x();\n".repeat(line - 1)}// agent-tooling-timeout-ms: 600000\n`;
     assert.deepEqual(refusedLines(header(10), "scripts/x.test.mjs"), [], "scripts/check-agent-tooling.mjs reads a header in a check's first ten lines");
     assert.deepEqual(refusedLines(header(11), "scripts/x.test.mjs"), [11], "a header below the tenth line is never read");
+    assert.deepEqual(refusedLines("  // agent-tooling-timeout-ms: 600000\n", "scripts/x.test.mjs"), [1], "scripts/check-agent-tooling.mjs reads a header only at the start of its line");
+    assert.deepEqual(refusedLines("\t// agent-tooling-serial: holds a lock\n", "scripts/x.test.mjs"), [1]);
+    assert.deepEqual(refusedLines("x(); // agent-tooling-timeout-ms: 600000\n", "scripts/x.test.mjs"), [1]);
     assert.deepEqual(refusedLines("// workaround(webkit): first line\n// continues the note\n// still the note\nx();\n// @ts-ignore\n// not a continuation\n  // indented differently"), [6, 7]);
     assert.deepEqual(refusedLines("// workaround(webkit): note\nx(); // not a continuation"), [2]);
     const grammar = "# prose above\n# lookaround: steps aside for\n  # LuauRival, since it\n#\n# owns the suffix\nA:\n  match: x # trailing\n# lookaround: Rival\nB: 1\n# after code\n# lookaround: inside a comment\n";
@@ -464,6 +467,14 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     }
     const ifEnd = `$x = 1\nfunction Merge-Folder {\n  if ($x) {\n    '}'\n    ${help}\n  }\n}\n$y = 2\n`;
     assert.equal(strip(ifEnd, "scripts/merge.ps1"), "$x = 1\nfunction Merge-Folder {\n  if ($x) {\n    '}'\n  }\n}\n$y = 2\n", "a quoted brace does not turn help closing an if block into function help");
+    for (const [source, where] of [
+      [`'before'\n${help}\n$x = 1\n`, "after a string at the start of the script"],
+      [`$x = 1\n${help}\n'after'\n`, "before a string at the end of the script"],
+      [`\`$x = 1\n${help}\n$y = 2\n`, "after an escaped statement at the start of the script"],
+      [`$x = 1\nfunction Merge-Folder {\n  'first'\n  ${help}\n  'last'\n}\n`, "between strings in a function body"],
+    ]) {
+      assert.equal(strip(source, "scripts/merge.ps1").includes(".SYNOPSIS"), false, `help ${where} is not where Get-Help reads it`);
+    }
     for (const head of ["($n = (1 + 2))", "($n = ')')", "($n = '{')"]) {
       const source = `$x = 1\nfunction Merge-Folder ${head} {\n  ${help}\n}\n$y = 2\n`;
       assert.equal(strip(source, "scripts/merge.ps1"), source, `a function head ${head} still opens a function body`);

@@ -17,8 +17,8 @@
     { "form": "^not a node name$", "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs"] },
     { "form": "^Luau: [A-Za-z_][\\w.*]*(?: \\(adapted\\))?(?: / [A-Za-z_][\\w.*]*(?: \\(adapted\\))?)*(?: /)?$", "extensions": [".ts"] },
     { "form": "^Sparkdown-specific$", "extensions": [".ts"] },
-    { "comment": "^// agent-tooling-timeout-ms: \\d+$", "extensions": [".js", ".mjs", ".cjs"], "firstLines": 10 },
-    { "comment": "^// agent-tooling-serial: .+$", "extensions": [".js", ".mjs", ".cjs"], "firstLines": 10 },
+    { "comment": "^// agent-tooling-timeout-ms: \\d+$", "extensions": [".js", ".mjs", ".cjs"], "firstLines": 10, "startOfLine": true },
+    { "comment": "^// agent-tooling-serial: .+$", "extensions": [".js", ".mjs", ".cjs"], "firstLines": 10, "startOfLine": true },
     { "comment": "^/\\* windows-hide: caller \\*/$", "extensions": [".js", ".mjs", ".cjs"] }
   ],
   "licences": [

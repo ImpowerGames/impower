@@ -8,7 +8,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const configFile = "comment-policy.json";
 const config = JSON.parse(fs.readFileSync(path.join(here, configFile), "utf8"));
 const directives = config.directives.filter((d) => d.form).map((d) => ({ form: new RegExp(d.form), extensions: d.extensions, throughBlock: d.throughBlock === true }));
-const commentDirectives = config.directives.filter((d) => d.comment).map((d) => ({ form: new RegExp(d.comment), extensions: d.extensions, firstLines: d.firstLines }));
+const commentDirectives = config.directives.filter((d) => d.comment).map((d) => ({ form: new RegExp(d.comment), extensions: d.extensions, firstLines: d.firstLines, startOfLine: d.startOfLine === true }));
 const licences = config.licences.map((l) => ({ form: new RegExp(l.form, "m"), file: l.file }));
 const platforms = new Set(config.platforms);
 
@@ -863,9 +863,11 @@ function powershellHelp(text) {
 function powershellStructure(text) {
   const literals = [];
   const chars = text.split("");
-  for (const { start, end } of [...scanPs1(text, 0, literals), ...literals]) {
-    for (let i = start; i < end && i < chars.length; i++) if (chars[i] !== "\n" && chars[i] !== "\r") chars[i] = " ";
-  }
+  const blank = (spans, fill) => {
+    for (const { start, end } of spans) for (let i = start; i < end && i < chars.length; i++) if (chars[i] !== "\n" && chars[i] !== "\r") chars[i] = fill;
+  };
+  blank(scanPs1(text, 0, literals), " ");
+  blank(literals, "_");
   return chars.join("");
 }
 
@@ -961,7 +963,7 @@ export function classifyComment(text, file, options = {}) {
   }
   if (extension === ".ps1" && powershellHelp(text)) return { kind: "directive", reason: POWERSHELL_HELP };
   const commentDirective = commentDirectives.find((d) => (!d.extensions || d.extensions.includes(extension)) && d.form.test(text));
-  if (commentDirective) return { kind: "directive", reason: "a directive a tool reads", ...(commentDirective.firstLines && { firstLines: commentDirective.firstLines }) };
+  if (commentDirective) return { kind: "directive", reason: "a directive a tool reads", ...(commentDirective.firstLines && { firstLines: commentDirective.firstLines }), ...(commentDirective.startOfLine && { startOfLine: true }) };
   if (lines.every((line) => directiveLine(line, extension))) return { kind: "directive", reason: "a directive a tool reads" };
   return { kind: "refused", reason: "neither a directive a tool reads nor a `workaround(<name>):` note" };
 }
@@ -983,6 +985,7 @@ export function judgeComments(text, file, options = {}) {
     Object.assign(comment, classifyComment(comment.text, file, options));
     if (comment.reason === POWERSHELL_HELP && !powershellHelpPlaced((structure ??= powershellStructure(text)), comment)) Object.assign(comment, { kind: "refused", reason: "comment-based help where Get-Help does not read it" });
     if (comment.firstLines && comment.line > comment.firstLines) Object.assign(comment, { kind: "refused", reason: `a directive its tool reads only in a file's first ${comment.firstLines} lines` });
+    if (comment.startOfLine && comment.column !== 0) Object.assign(comment, { kind: "refused", reason: "a directive its tool reads only at the start of a line" });
     if (block && single(comment) && comment.line === previous.endLine + 1) {
       if (comment.kind === "refused") Object.assign(comment, { kind: "directive", reason: `continues the directive on line ${block.line}, whose reader takes the rest of its comment block` });
     } else block = null;
