@@ -214,6 +214,7 @@ export const holdsChunkIn = (
 export interface ProgramStoryTables {
   readonly structDefinitions: StructDefinitionTable;
   readonly constantNames: ReadonlySet<string>;
+  readonly luauEntry?: boolean;
 }
 
 /** The file the wrapper function of a `run` statement wraps, as the compile

@@ -4051,6 +4051,9 @@ export class ProgramStory implements StoryEngine {
   endedAt: number | null = null;
 
   protected startSymbol(): number | undefined {
+    if (this.root.tables?.luauEntry) {
+      return undefined;
+    }
     const symbol = this.root.table.symbolIds.get(START_FLOW_NAME);
     return symbol !== undefined && this.root.kindOf(symbol) === SymbolKind.Scene
       ? symbol

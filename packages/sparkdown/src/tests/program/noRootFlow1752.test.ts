@@ -81,12 +81,18 @@ describe("a program compiled from a .luau file runs nothing (I-1752)", () => {
     expect(errors.filter((e: string) => e.includes("compile stopped"))).toEqual([]);
   });
 
-  it("leaves no local for another script's start scene to read", () => {
-    const { program } = compile("inmemory:///main.luau", "local n = 99\ncount = n\n", {
-      "inmemory:///other.sd": "scene start\n  Value {n}.\n  done\nend\n",
-    });
+  it("runs no scene another script declares, start included", () => {
+    const { program, errors } = compile(
+      "inmemory:///entry.luau",
+      "local n = 99\ncount = n\nif true then\n  count = 100\nend\n",
+      { "inmemory:///main.sd": "store m = 2\n\nscene start\n  Value {m}.\n  done\nend\n" },
+    );
+    expect(errors).toEqual([]);
     const story = testStory(program.chunks);
-    expect(story.Continue()?.trim()).toBe("Value nil.");
+    expect(story.canContinue).toBe(false);
+    expect(story.variablesState.$("count") == null).toBe(true);
+    story.ChooseStart();
+    expect(story.canContinue).toBe(false);
   });
 
   it("still runs a .luau file a run line loads", () => {

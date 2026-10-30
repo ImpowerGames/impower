@@ -4466,7 +4466,7 @@ export class SparkdownCompiler {
         ),
       },
       !this._previewing && !flows.unsupported,
-      tables,
+      { ...tables, luauEntry: hasLuauExtension(uri) },
     );
     if (build.root && this._chunkStore.current === build.root) {
       this._chunkStoreBlocks = this._compilationIds;
