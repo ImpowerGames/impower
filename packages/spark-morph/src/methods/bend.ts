@@ -26,7 +26,6 @@ export interface BendOptions {
   tipDistance?: number;
   handoff?: boolean;
   handoffPoints?: number;
-  tipFoldDegrees?: number;
   thicknessRatio?: number;
   reconstructionTolerance?: number;
   seamTolerance?: number;
@@ -38,7 +37,6 @@ export const BEND_DEFAULTS: Required<BendOptions> = {
   tipDistance: NaN,
   handoff: true,
   handoffPoints: 48,
-  tipFoldDegrees: 90,
   thicknessRatio: 0.62,
   reconstructionTolerance: 0.5,
   seamTolerance: 0.02,
@@ -50,8 +48,6 @@ export interface TaperTips {
   f2: number;
   p1: Point;
   p2: Point;
-  fold1: number;
-  fold2: number;
 }
 
 export function findTips(loop: Cubic[]): TaperTips {
@@ -83,7 +79,7 @@ export function findTips(loop: Cubic[]): TaperTips {
       break;
     }
   }
-  return { f1: t1.f, f2: t2.f, p1: t1.pt, p2: t2.pt, fold1: t1.k, fold2: t2.k };
+  return { f1: t1.f, f2: t2.f, p1: t1.pt, p2: t2.pt };
 }
 
 const TIP_DISTANCE_SPAN = 0.08;
@@ -457,23 +453,8 @@ export function bendTrack(fromRaw: Cubic[], toRaw: Cubic[], options: BendOptions
     toArt = snapClosed(toTrim, o.seamTolerance * new ArcLoop(toTrim).total);
   const open = smoothAnchors(fromArt),
     closed = smoothAnchors(toArt);
-  const minFold = (o.tipFoldDegrees * Math.PI) / 180;
   const tipsOpen = findTips(open),
     tipsClosed = findTips(closed);
-  for (const [tips, which] of [
-    [tipsOpen, "from"],
-    [tipsClosed, "to"],
-  ] as const) {
-    if (Math.min(tips.fold1, tips.fold2) < minFold) {
-      return {
-        ok: false,
-        failure: {
-          code: "tips-not-found",
-          message: `the ${which} loop has no two tapered tips folding by at least ${o.tipFoldDegrees} degrees`,
-        },
-      };
-    }
-  }
   const tipPx = (tips: TaperTips) => (Number.isFinite(o.tipDistance) ? o.tipDistance : TIP_DISTANCE_SPAN * dist(tips.p1, tips.p2));
   const tipPxOpen = tipPx(tipsOpen),
     tipPxClosed = tipPx(tipsClosed);

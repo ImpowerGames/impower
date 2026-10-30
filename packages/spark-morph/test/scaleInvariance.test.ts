@@ -6,6 +6,7 @@ import type { MorphMethod, Subpath, BendTrack } from "../src/index";
 import {
   circle,
   closedLash,
+  dumbbell,
   loop,
   lowerOpen,
   offKilterQuad,
@@ -47,8 +48,8 @@ describe("scale invariance", () => {
     ["bend: rotating crease", rotatingOpen, rotatingClosed, "bend"],
     ["bend: rounded tips", roundedOpen, roundedClosed, "bend"],
     ["bend: ribbon lash", ribbonOpen, ribbonClosed, "bend"],
-    ["bend: one cusp (fails)", oneCusp, oneCuspNarrow, "bend"],
-    ["bend: circle (fails)", circle, closedLash, "bend"],
+    ["bend: one cusp", oneCusp, oneCuspNarrow, "bend"],
+    ["bend: dumbbell (fails)", dumbbell, closedLash, "bend"],
     ["trace: square to star", square, star, "trace"],
     ["trace: star to circle", star, circle, "trace"],
     ["trace: square to triangle", square, triangle, "trace"],

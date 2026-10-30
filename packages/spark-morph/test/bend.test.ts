@@ -5,9 +5,12 @@ import type { Point } from "../src/types";
 import { BEND_DEFAULTS, morphSubpaths, parsePathData, bendTrack } from "../src/index";
 import {
   anchors,
+  bluntHighlightClosed,
+  bluntHighlightOpen,
   circle,
   closedLash,
   closedLashReversed,
+  dumbbell,
   loop,
   lowerOpen,
   maxDistanceToLoop,
@@ -22,7 +25,9 @@ import {
   roundedOpen,
   runtimeProgress,
   scaled,
+  shift,
   square,
+  teardrop,
   tiltedClosed,
   tiltedOpen,
   upperOpen,
@@ -37,13 +42,19 @@ describe("findTips", () => {
     const pts = [tips.p1, tips.p2].sort((a, b) => a[0] - b[0]);
     expect(pts[0]![0]).toBeCloseTo(0, 0);
     expect(pts[1]![0]).toBeCloseTo(100, 0);
-    expect(tips.fold1).toBeGreaterThan((160 * Math.PI) / 180);
-    expect(tips.fold2).toBeGreaterThan((160 * Math.PI) / 180);
   });
 
-  test("still ranks candidates on a blob, with small folds the method must reject", () => {
+  test("takes a gently folding blunt end as the second tip", () => {
+    const tips = findTips(loop(bluntHighlightOpen));
+    const pts = [tips.p1, tips.p2].sort((a, b) => a[0] - b[0]);
+    expect(pts[0]![0]).toBeCloseTo(0, 0);
+    expect(pts[1]![0]).toBeGreaterThan(90);
+  });
+
+  test("on a circle the two tips are a quarter of the perimeter or more apart", () => {
     const tips = findTips(loop(circle));
-    expect(Math.max(tips.fold1, tips.fold2)).toBeLessThan((30 * Math.PI) / 180);
+    const apart = Math.abs(tips.f1 - tips.f2);
+    expect(Math.min(apart, 1 - apart)).toBeGreaterThan(0.25);
   });
 });
 
@@ -186,24 +197,78 @@ describe("bendTrack", () => {
     expect(Math.abs(e1[6]![1] - e2[6]![1])).toBeGreaterThan(5);
   });
 
-  test("a drawing without two tapered tips fails with tips-not-found rather than switching method", () => {
+  test("a highlight whose blunt tip folds under 90 degrees bends onto its closed pose and stays on its path", () => {
+    const r = bendTrack(loop(bluntHighlightOpen), loop(bluntHighlightClosed));
+    expect(r.ok ? "ok" : r.failure.message).toBe("ok");
+    if (!r.ok) return;
+    expect(r.track.thickness).toBeGreaterThanOrEqual(BEND_DEFAULTS.thicknessRatio);
+    expect(maxDistanceToLoop(anchors(r.track.frame(0)), loop(bluntHighlightOpen))).toBeLessThan(ENDPOINT_TOLERANCE);
+    expect(maxDistanceToLoop(anchors(r.track.frame(1)), loop(bluntHighlightClosed))).toBeLessThan(ENDPOINT_TOLERANCE);
+    const [a0, b0] = r.track.tips(0),
+      [a1, b1] = r.track.tips(1);
+    for (const t of runtimeProgress) {
+      expect(selfIntersects(r.track.frame(t)), `frame ${t}`).toBe(false);
+      const [a, b] = r.track.tips(t);
+      for (const [p, from, to] of [
+        [a, a0, a1],
+        [b, b0, b1],
+      ] as const) {
+        const onPath: Point = [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t];
+        expect(Math.hypot(p[0] - onPath[0], p[1] - onPath[1]), `tip at ${t}`).toBeLessThan(2);
+      }
+    }
+  });
+
+  test("a circle's folds tie, so against a lash it either bends without crossing or fails with self-intersection", () => {
+    for (const k of [1e-9, 1e-6, 0.01, 1, 100, 1e6, 1e9]) {
+      for (const [from, to] of [
+        [circle, closedLash],
+        [closedLash, circle],
+      ] as const) {
+        const r = bendTrack(loop(scaled(from, k)), loop(scaled(to, k)));
+        if (k === 1) expect(r.ok ? "ok" : r.failure.code).toBe("self-intersection");
+        if (!r.ok) {
+          expect(r.failure.code, `${k}x`).toBe("self-intersection");
+          continue;
+        }
+        for (const t of runtimeProgress) expect(selfIntersects(r.track.frame(t)), `${k}x frame ${t}`).toBe(false);
+      }
+    }
+  });
+
+  test("a square and a teardrop bend between their best-ranked folds", () => {
     for (const [from, to] of [
-      [circle, closedLash],
-      [upperOpen, circle],
-      [square, circle],
+      [square, closedLash],
+      [teardrop, closedLash],
+      [upperOpen, teardrop],
+    ] as const) {
+      const r = bendTrack(loop(from), loop(to));
+      expect(r.ok ? "ok" : r.failure.message).toBe("ok");
+      if (!r.ok) return;
+      expect(maxDistanceToLoop(anchors(r.track.frame(0)), loop(from))).toBeLessThan(ENDPOINT_TOLERANCE);
+      expect(maxDistanceToLoop(anchors(r.track.frame(1)), loop(to))).toBeLessThan(ENDPOINT_TOLERANCE);
+      for (const t of runtimeProgress) expect(selfIntersects(r.track.frame(t)), `frame ${t}`).toBe(false);
+    }
+  });
+
+  test("a single-segment loop with one cusp bends between its cusp and its round end", () => {
+    const r = bendTrack(loop(oneCusp), loop(oneCuspNarrow));
+    expect(r.ok ? "ok" : r.failure.message).toBe("ok");
+    if (!r.ok) return;
+    for (const t of runtimeProgress) expect(selfIntersects(r.track.frame(t)), `frame ${t}`).toBe(false);
+  });
+
+  test("a loop whose reconstruction between its best folds cannot hold its area fails with tips-not-found", () => {
+    for (const [from, to, which] of [
+      [dumbbell, closedLash, "from"],
+      [closedLash, dumbbell, "to"],
     ] as const) {
       const r = bendTrack(loop(from), loop(to));
       expect(r.ok).toBe(false);
       if (r.ok) return;
       expect(r.failure.code).toBe("tips-not-found");
+      expect(r.failure.message).toContain(`the ${which} loop`);
     }
-  });
-
-  test("a single-segment loop with one cusp is not a taper: its reconstruction cannot hold the drawing's area", () => {
-    const r = bendTrack(loop(oneCusp), loop(oneCuspNarrow));
-    expect(r.ok).toBe(false);
-    if (r.ok) return;
-    expect(r.failure.code).toBe("tips-not-found");
   });
 
   test("empty geometry is a structured failure, not an exception", () => {
@@ -264,7 +329,7 @@ describe("bendTrack", () => {
 
 describe("morphSubpaths with the bend method", () => {
   test("reports the failing subpath index and never substitutes another method", () => {
-    const r = morphSubpaths(parsePathData(upperOpen + circle), parsePathData(closedLash + square), { method: "bend" });
+    const r = morphSubpaths(parsePathData(upperOpen + dumbbell), parsePathData(closedLash + shift(closedLash, 0, 60)), { method: "bend" });
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.failure).toMatchObject({ code: "tips-not-found", subpath: 1 });
