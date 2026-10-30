@@ -1,24 +1,4 @@
 #!/usr/bin/env node
-// Type-checks every TypeScript project in the monorepo and fails if any of them
-// reports an error.
-//
-// The list of projects is derived from the repository itself -- every tracked
-// `tsconfig*.json` is checked unless it appears in IGNORED below with a reason.
-// Deriving rather than enumerating is deliberate: a new workspace that arrives
-// with a tsconfig is gated the day it lands, instead of quietly sitting outside
-// the gate until someone remembers to add it.
-//
-// Usage:
-//   node scripts/typecheck.mjs                 check everything
-//   node scripts/typecheck.mjs --list          print the projects, check nothing
-//   node scripts/typecheck.mjs sparkdown       check only projects whose path
-//                                              contains "sparkdown"
-//   node scripts/typecheck.mjs --jobs 4        run 4 checks concurrently
-//
-// Concurrency defaults to 2. Each `tsc` run is its own process holding a full
-// program in memory, and the largest projects here peak above 1 GB, so raising
-// this on a small machine trades wall-clock for the risk of an out-of-memory
-// kill -- which surfaces as a project that "passed" without printing anything.
 
 import { spawn } from "node:child_process";
 import { execFileSync } from "node:child_process";
@@ -29,8 +9,6 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-// Tracked tsconfigs that are deliberately outside the gate. The value is the
-// reason, printed by --list so the exclusion has to justify itself.
 const IGNORED = new Map([
   [
     "admin/tsconfig.json",

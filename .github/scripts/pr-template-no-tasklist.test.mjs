@@ -1,11 +1,3 @@
-// Pins #465: the pull request template must carry no GitHub task-list syntax,
-// because any such line makes GitHub render a task counter ("n of m tasks")
-// in the pull request list and header, even after the pull request is
-// finished and nobody is ever going to tick the box. The detection itself is
-// `findTaskList` from check-no-tasklist.mjs, exercised on its own fixtures in
-// check-no-tasklist.test.mjs; this file only pins the template's own content.
-//
-// Run: node .github/scripts/pr-template-no-tasklist.test.mjs
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";

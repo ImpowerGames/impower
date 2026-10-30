@@ -38,14 +38,12 @@ function locate(body, isFenced) {
   if (!Buffer.from(json, 'utf8').equals(bytes)) throw new Error('Reports ledger is not valid UTF-8.');
   let parsed;
   try { parsed = JSON.parse(json); } catch { throw new Error('Reports ledger contains invalid JSON.'); }
-  // The writer emits compact JSON; exact round-trip also rejects duplicate JSON keys.
   if (JSON.stringify(parsed) !== json) throw new Error('Reports ledger must use compact canonical JSON without duplicate keys.');
   if (!record(parsed) || parsed.version !== 1 || Object.keys(parsed).length !== 2 || !Object.hasOwn(parsed, 'problems')) throw new Error('Unsupported reports ledger envelope.');
   validate(parsed.problems);
   return { index, length: match[0].length, problems: parsed.problems };
 }
 
-// The caller supplies the same fence predicate used for the canonical table.
 export function readReports(body, isFenced = () => false) {
   return locate(body, isFenced)?.problems || {};
 }

@@ -11,12 +11,15 @@
     { "form": "^@(?:type|param|returns?|property|prop)\\s*\\{", "extensions": [".js", ".mjs", ".cjs"] },
     { "form": "^@type\\s+[A-Za-z_$]", "extensions": [".js", ".mjs", ".cjs"] },
     { "form": "^@(?:typedef|template)\\b", "extensions": [".js", ".mjs", ".cjs"] },
-    { "form": "^lookaround:", "extensions": [".yaml", ".yml"] },
+    { "form": "^lookaround:", "extensions": [".yaml", ".yml"], "throughBlock": true },
+    { "form": "^referenced-from:\\s*\\S", "extensions": [".yaml", ".yml"] },
     { "form": "^value-level:", "extensions": [".ts"] },
     { "form": "^not a node name$", "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs"] },
     { "form": "^Luau: [A-Za-z_][\\w.*]*(?: \\(adapted\\))?(?: / [A-Za-z_][\\w.*]*(?: \\(adapted\\))?)*(?: /)?$", "extensions": [".ts"] },
     { "form": "^Sparkdown-specific$", "extensions": [".ts"] },
-    { "form": "^agent-tooling-(?:timeout-ms|serial):", "extensions": [".js", ".mjs", ".cjs"] }
+    { "comment": "^// agent-tooling-timeout-ms: \\d+$", "extensions": [".js", ".mjs", ".cjs"], "firstLines": 10, "startOfLine": true },
+    { "comment": "^// agent-tooling-serial: .+$", "extensions": [".js", ".mjs", ".cjs"], "firstLines": 10, "startOfLine": true },
+    { "comment": "^/\\* windows-hide: caller \\*/$", "extensions": [".js", ".mjs", ".cjs"] }
   ],
   "licences": [
     { "form": "\\bSPDX-(?:License-Identifier|FileCopyrightText):\\s*\\S" },

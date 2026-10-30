@@ -1,15 +1,7 @@
-// How a Screenplay Preview that VS Code restores when a workspace reopens is
-// given its content (#1888). VS Code hands the extension's serializer the
-// panel and the state the webview last saved, which may be none at all. The
-// serializer initialized the panel only when the saved script had an open
-// editor and otherwise left it alone, so the restored tab stayed empty.
-
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
-  /** The documents already open in the workspace. */
   textDocuments: [] as { uri: { toString(): string } }[],
-  /** The documents `openTextDocument` can open, by uri. */
   openable: new Map<string, unknown>(),
   manager: {
     panel: undefined as unknown,

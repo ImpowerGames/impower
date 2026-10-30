@@ -1,17 +1,3 @@
-/**
- * The response for a project file, honouring a single-range `Range` header.
- *
- * Split out of `sw.ts` so it can be tested, as `swCaches.ts` is. A media
- * element asks for byte ranges: `<video preload="metadata">` in the preview
- * reads the container's header and index without the rest of the file, and a
- * seek asks for the bytes at the new position. A 200 answer to a ranged
- * request streams the whole file instead.
- *
- * One range is served as 206 with its `Content-Range`. A range that starts at
- * or past the end of the file is 416. A header this does not parse, and a
- * request for several ranges, get the whole file, which RFC 9110 permits a
- * server to send for any range request.
- */
 export const fileResponse = (
   file: Blob,
   rangeHeader: string | null,
@@ -39,12 +25,6 @@ export const fileResponse = (
   });
 };
 
-/**
- * The inclusive byte range a `Range` header asks for in a file of `size`
- * bytes, `"unsatisfiable"` when no byte of the file is in it, or `undefined`
- * when the whole file should be sent: no header, a header that is not one
- * `bytes` range, or several ranges.
- */
 export const parseByteRange = (
   header: string | null,
   size: number,
@@ -61,7 +41,6 @@ export const parseByteRange = (
     return undefined;
   }
   if (!first) {
-    // A suffix: the last `last` bytes.
     const length = Number(last);
     if (length === 0 || size === 0) {
       return "unsatisfiable";

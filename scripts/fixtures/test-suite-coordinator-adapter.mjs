@@ -1,6 +1,3 @@
-// Coordinator unit adapter only. Its helper/proof fields are synthetic protocol
-// inputs, never OS containment evidence. Actual Job/subreaper behavior and
-// cancellation are exercised by test-suite-child and installed API checks.
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";

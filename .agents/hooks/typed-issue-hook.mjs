@@ -1,57 +1,6 @@
-// PreToolUse hook for the Bash and PowerShell tools: refuses any command
-// that would create an issue in this repo's tracker without an issue type.
-//
-// Every ticket here carries one of Bug, Feature, or Task. `gh issue create`
-// is allowed only with `--type <value>`, and a `gh api` call that creates an
-// issue only when one of its field flags is `type=<value>`. `gh api`
-// switches to POST on its own as soon as a field flag is present, so the
-// check looks at what the call does, not at whether `-X POST` was typed.
-//
-// The payload arrives on stdin as JSON. tool_input.command is the text
-// checked and tool_name says which shell it is written for (PowerShell or
-// Bash); without a tool name the command is read both ways and refused if
-// either reading refuses it. The command is split into shell-style tokens
-// (Bash and PowerShell quoting, Bash line continuations, comments, here-doc
-// bodies, and a `-Parameter`'s parenthesised, hashtable, or `$(...)` value
-// in either shell, with every backslash literal and every backtick an escape
-// in a PowerShell command), so a mention of the phrase in a quoted string, a
-// comment, or a here-doc body is not a match. A `gh`
-// or `curl` token counts as an invocation only at command position: the
-// start of a segment, after a shell keyword such as `do` or `then`, after
-// environment assignments or redirections, or after a wrapper such as sudo,
-// env, xargs, or timeout and that wrapper's own flags. A string handed to a
-// shell's `-c` (in any cluster, with the shell's own options before it), to
-// `cmd /c`, to `pwsh -Command`, to `eval`, to `env -S`, or to a shell's
-// stdin with `<<<` is analysed as a command of its own, as is a `$(...)` or
-// backquote substitution inside double quotes.
-//
-// The repositories come from .agents/repos.json. While its cutover switch is
-// off, the typed-creation rule applies to the code repository and every
-// other repository passes. While it is on, the rule applies to the internal
-// repository, and the hook is also the public-repository guard: on the code
-// repository, named, given as `{owner}/{repo}`, or implied by a gh command
-// that names no repository, it refuses every `gh issue` command, `gh pr
-// comment`, `gh pr review`, label, assignee, reviewer and project edits, a
-// `gh pr view` that reads comments or reviews, `gh pr list` without
-// `--author`, `gh search issues` and `gh search prs`, the issue, pull request
-// comment and review, review request and discussion endpoints, and a GraphQL
-// query that names the code repository with issue, comment, review or
-// discussion fields, through gh api, curl, and Invoke-RestMethod or
-// Invoke-WebRequest alike. Pull requests, checks, CI runs and git data stay
-// open to it.
-//
-// This is a guardrail against forgetting the type or the repository, not
-// against evasion: an endpoint or method built from a shell variable, a
-// GraphQL query read from a file, a gh alias, or a wrapper script is not
-// seen.
-//
-// Decision tables and runner wiring checks exercise this shared policy.
-
 import { pathToFileURL } from "node:url";
 import { readRepos, ticketsRepo } from "../repos.mjs";
 
-// The repositories the command under analysis is checked against, set by
-// decide() from the repos file or from the caller's override.
 let repos = null;
 let defaultRepos = null;
 
@@ -59,18 +8,13 @@ function recipe() {
   return `gh api -X POST repos/${ticketsRepo(repos)}/issues -f title="<title>" -F body=@ticket.md -f type=Bug -f "labels[]=<label>"   # type is Bug, Feature, or Task; repeat labels[] per label`;
 }
 
-// gh api flags that take a value which is not a request field.
 const GH_API_VALUE_FLAGS = new Set(["-H", "--header", "-p", "--preview", "-q", "--jq", "-t", "--template", "--cache", "--hostname"]);
 const GH_API_FIELD_FLAGS = new Set(["-f", "--raw-field", "-F", "--field"]);
-// gh issue create flags that take a value.
 const GH_ISSUE_CREATE_VALUE_FLAGS = new Set([
   "-t", "--title", "-b", "--body", "-F", "--body-file", "-l", "--label", "-a", "--assignee",
   "-m", "--milestone", "-p", "--project", "-T", "--template", "-R", "--repo", "--recover",
 ]);
 
-// Words that may precede a program name in a segment without being the
-// program, with the flags of each that take a value. `positional` is the
-// number of non-flag words the wrapper consumes before the program.
 const WRAPPERS = new Map([
   ["sudo", { flags: new Set(["-u", "-g", "-p", "-h", "-C", "-D", "-r", "-t", "-T", "-U", "--user", "--group", "--host", "--prompt", "--chdir"]) }],
   ["doas", { flags: new Set(["-u", "-C"]) }],
@@ -87,24 +31,13 @@ const WRAPPERS = new Map([
   ["exec", { flags: new Set(["-a"]) }],
   ["winpty", { flags: new Set() }],
 ]);
-// Shell keywords after which a command starts.
 const KEYWORDS = new Set(["do", "then", "else", "elif", "if", "while", "until", "!", "%", "foreach-object"]);
 const SHELLS = new Set(["bash", "sh", "zsh", "dash", "ksh", "ash", "busybox", "pwsh", "powershell", "cmd"]);
-// Redirections: a descriptor duplication that takes no target (`2>&1`,
-// `<&0`, `2>&-`), a bare operator whose target is the next token (`>`,
-// `2>`, `>>`, `<`, `&>`, `&>>`, `>&`), and an operator glued to its target.
 const REDIRECT_DUP = /^\d*[<>]{1,2}&[\d-]+$/;
 const REDIRECT_OP = /^(\d*[<>]{1,2}|&>>?|>&)$/;
 const REDIRECT_GLUED = /^(\d*[<>]{1,2}&?|&>>?)[^<>&]/;
-// A PowerShell variable assignment target: `$x`, `${x}`, `$x=`, `$x+=`, `$x=value`.
 const PS_ASSIGN = /^\$([A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})([+-]?=(.*))?$/;
 
-/**
- * Split a command line into tokens the way Bash or PowerShell roughly would.
- * Each token carries its `start` and `end` offsets in the command. The
- * returned array also has a `subs` property: the text of every `$(...)` or
- * backquote substitution found inside double quotes.
- */
 function tokenize(command) {
   const tokens = [];
   tokens.subs = [];
@@ -129,8 +62,6 @@ function tokenize(command) {
     if (!started) start = at;
     started = true;
   };
-  // A parenthesised or hashtable group that follows a `-Flag` token is that
-  // flag's value and stays one token.
   const lastIsFlag = () => {
     const last = tokens[tokens.length - 1];
     return Boolean(last && !last.sep && !last.quoted && /^-[A-Za-z]/.test(last.text));
@@ -140,7 +71,6 @@ function tokenize(command) {
   while (i < n) {
     const c = command[i];
     if (c === "@" && (command[i + 1] === '"' || command[i + 1] === "'") && !started && /^\r?\n/.test(command.slice(i + 2, i + 4))) {
-      // PowerShell here-string: @" ... "@ or @' ... '@, one quoted token.
       const q = command[i + 1];
       const close = command.indexOf(`\n${q}@`, i + 2);
       const end = close < 0 ? n : close + 3;
@@ -155,7 +85,7 @@ function tokenize(command) {
       while (i < n) {
         if (command[i] === "'") {
           if (command[i + 1] === "'") {
-            text += "'"; // PowerShell doubled quote
+            text += "'";
             i += 2;
             continue;
           }
@@ -169,11 +99,6 @@ function tokenize(command) {
     if (c === '"') {
       begin(i);
       quoted = true;
-      // In a PowerShell command a backslash is literal. In a Bash command
-      // backslash escapes apply only when they lead to a closing quote;
-      // otherwise the string is PowerShell text typed into a Bash command.
-      // Once the escaping reading fails from some offset, it fails from
-      // every later one, so the scan is not repeated.
       const backslashEscapes = currentShell !== "powershell" && i < noEscapedCloseFrom && scanQuote(command, i, true) >= 0;
       if (!backslashEscapes) noEscapedCloseFrom = Math.min(noEscapedCloseFrom, i);
       i++;
@@ -192,9 +117,6 @@ function tokenize(command) {
           continue;
         }
         if (command[i] === "`") {
-          // In a PowerShell command a backtick escapes the next character.
-          // In a Bash command a backtick with a partner later opens a
-          // substitution; alone, it is literal.
           const next = command[i + 1] ?? "";
           const close = currentShell === "powershell" ? -1 : command.indexOf("`", i + 1);
           if (close < 0) {
@@ -213,17 +135,8 @@ function tokenize(command) {
       continue;
     }
     const opensGroup = c === "(" || (c === "$" && command[i + 1] === "(") || (c === "@" && (command[i + 1] === "(" || command[i + 1] === "{"));
-    // -Body:@{...}; tested only at an opener so a long bare word is not
-    // re-read at every character.
     const flagPrefix = opensGroup && started && text.startsWith("-") && text.endsWith(":");
     if (opensGroup && ((!started && lastIsFlag()) || flagPrefix)) {
-      // A balanced group that is a parameter's value (`-Body (...)`,
-      // `-Headers @{...}`, `-Body:@{...}`) stays one token so the invocation
-      // continues after it, in either shell, so PowerShell text typed into
-      // the Bash tool reads the same way. Its contents are still analysed
-      // as a command of their own, since a sub-expression or a hashtable
-      // value may run one. An unbalanced group falls through to the
-      // ordinary separator handling.
       const openAt = c === "(" ? i : i + 1;
       const close = matchBracket(command, openAt);
       if (close < n) {
@@ -242,7 +155,7 @@ function tokenize(command) {
       if (i + 1 < n) {
         const next = command[i + 1];
         if (next === "\n") {
-          i += 2; // Bash line continuation; PowerShell runs the lines apart
+          i += 2;
           continue;
         }
         if (next === "\r" && command[i + 2] === "\n") {
@@ -250,9 +163,6 @@ function tokenize(command) {
           continue;
         }
         begin(i);
-        // A backslash before a quote, space, or another backslash escapes
-        // it; anywhere else it is kept, so a Windows path from the
-        // PowerShell tool keeps its separators.
         text += '"\'\\ $`'.includes(next) ? next : c + next;
         i += 2;
         continue;
@@ -262,16 +172,13 @@ function tokenize(command) {
     }
     if (c === "`") {
       if (command[i + 1] === "\n") {
-        i += 2; // PowerShell line continuation
+        i += 2;
         continue;
       }
       if (command[i + 1] === "\r" && command[i + 2] === "\n") {
         i += 3;
         continue;
       }
-      // At the start of a word or anywhere in an assignment, a backtick is a
-      // Bash command substitution and opens a new segment. Inside another
-      // bare word it is a PowerShell escape and keeps its character.
       if (started && !text.includes("=") && i + 1 < n && !" \t".includes(command[i + 1])) {
         text += command[i + 1];
         i += 2;
@@ -282,7 +189,7 @@ function tokenize(command) {
       continue;
     }
     if (c === "#" && !started) {
-      while (i < n && command[i] !== "\n") i++; // comment to end of line
+      while (i < n && command[i] !== "\n") i++;
       continue;
     }
     if (c === "<" && command[i + 1] === "<" && command[i + 2] === "<") {
@@ -292,10 +199,6 @@ function tokenize(command) {
       continue;
     }
     if (c === "<" && command[i + 1] === "<" && arith === 0) {
-      // Here-doc operator. The delimiter is recorded and the body is skipped
-      // at the next newline; a body with no terminator runs to the end of
-      // the command, as it does in the shell. A purely numeric delimiter is
-      // a shift operator, not a here-doc.
       flush(i);
       const doc = readHeredocOperator(command, i);
       if (doc) {
@@ -331,12 +234,12 @@ function tokenize(command) {
       continue;
     }
     if (c === "&" && started && /[<>]$/.test(text)) {
-      text += c; // 2>&1, >&2
+      text += c;
       i++;
       continue;
     }
     if (c === "&" && !started && command[i + 1] === ">") {
-      begin(i); // &>file
+      begin(i);
       text += "&>";
       i += 2;
       continue;
@@ -347,7 +250,7 @@ function tokenize(command) {
       continue;
     }
     if ((c === "{" || c === "}") && !started) {
-      sep(i); // a brace that starts a word groups commands, in Bash and in PowerShell
+      sep(i);
       i++;
       continue;
     }
@@ -368,17 +271,10 @@ function tokenize(command) {
   return tokens;
 }
 
-/** Index of the `)` matching the `(` at `open`, or the end of the string. */
 function matchParen(command, open) {
   return matchBracket(command, open);
 }
 
-/**
- * Reads a here-doc operator at `i` (`<<`, `<<-`, then the delimiter, with
- * quotes and backslashes stripped). Returns the delimiter, whether leading
- * tabs are stripped from body lines, and the index after the delimiter, or
- * null when the delimiter is empty or purely numeric (a shift operator).
- */
 function readHeredocOperator(command, i) {
   const n = command.length;
   let j = i + 2;
@@ -402,7 +298,6 @@ function readHeredocOperator(command, i) {
   return { delim, strip, next: j };
 }
 
-/** Skips the bodies of the pending here-docs starting at line offset `i`; returns the offset after the last terminator. */
 function skipHeredocBodies(command, i, heredocs) {
   const n = command.length;
   while (heredocs.length && i < n) {
@@ -420,12 +315,6 @@ function skipHeredocBodies(command, i, heredocs) {
   return i;
 }
 
-/**
- * Index of the closing bracket matching the opener at `open`, or the end of
- * the string when unbalanced. Partners come from one pass over the command
- * (cached for the last command seen), so every lookup is constant time and
- * a run of unbalanced openers costs nothing extra.
- */
 function matchBracket(command, open) {
   const partner = bracketPartners(command).get(open);
   return partner === undefined ? command.length : partner;
@@ -435,22 +324,10 @@ let partnerCacheKey = null;
 let partnerCacheShell = null;
 let partnerCache = null;
 
-// The shell the command under analysis is written for: "powershell" or
-// "bash". Set by decide() from the tool name in the payload.
 let currentShell = "bash";
 
-/**
- * Map from the index of every balanced `(` or `{` to the index of its
- * partner. The pass skips what the tokenizer skips: quoted text, comments,
- * and here-doc bodies. A `$(` inside double quotes opens a substitution
- * whose contents are code again until its partner. A quote with no
- * partner is an ordinary character, so a stray apostrophe in prose does
- * not unbalance everything after it.
- */
 function bracketPartners(command) {
   if (partnerCacheKey === command && partnerCacheShell === currentShell) return partnerCache;
-  // A flag-value opener that never closes would keep the PowerShell reading
-  // on for the rest of the command, so the pass runs again without it.
   let result = computePartners(command, new Set());
   if (result.unclosedFlagValues.length) result = computePartners(command, new Set(result.unclosedFlagValues));
   partnerCacheKey = command;
@@ -461,20 +338,14 @@ function bracketPartners(command) {
 
 function computePartners(command, suppressed) {
   const map = new Map();
-  const stack = []; // { ch, at, resumesString }
+  const stack = [];
   const heredocs = [];
   const n = command.length;
-  let inString = false; // inside double quotes
+  let inString = false;
   let backslashEscapes = true;
-  let wordStart = true; // at the start of a word, where `#` opens a comment
-  let arith = 0; // inside `$((...))` or `((...))`, where `<<` is a shift
-  let noCloseFrom = n; // offset from which no `"` has a closing partner
-  // In a PowerShell command, a group after a `-Parameter` word (`-Body
-  // (...)`, `-Headers @{...}`, `-Body:@{...}`, `-InFile $(...)`) is that
-  // parameter's value, where a backslash inside a string is literal. A
-  // backtick line continuation may separate the parameter from its group.
-  // In a Bash command no group is read this way: its `$(` is a substitution
-  // and a backslash inside any group escapes as usual.
+  let wordStart = true;
+  let arith = 0;
+  let noCloseFrom = n;
   const powershell = currentShell === "powershell";
   const flagValue = (at) => {
     if (!powershell || suppressed.has(at)) return false;
@@ -493,8 +364,6 @@ function computePartners(command, suppressed) {
     const word = command.slice(start + 1, j + 1);
     return /^-[A-Za-z][\w-]*:?$/.test(word);
   };
-  // Each stack entry carries whether it or any entry below it is a flag
-  // value, so the test is constant time.
   const inFlagValue = () => stack.length > 0 && stack[stack.length - 1].psIn;
   const push = (ch, at, resumesString, ps) => {
     stack.push({ ch, at, resumesString, ps, psIn: ps || (stack.length > 0 && stack[stack.length - 1].psIn) });
@@ -515,7 +384,7 @@ function computePartners(command, suppressed) {
         inString = false;
         k++;
         if (command[k + 1] === "(") {
-          arith++; // "$((1 << n))": a shift, not a here-doc
+          arith++;
           push("(", k + 1, false, false);
           k++;
         }
@@ -534,10 +403,6 @@ function computePartners(command, suppressed) {
       continue;
     }
     if (ch === '"') {
-      // The literal reading finds a partner whenever the escaping one does,
-      // so it is tried first; once it fails, no later quote closes either.
-      // In a PowerShell command, and inside a parameter's value group in
-      // any command, the string is PowerShell and the backslash is literal.
       if (k < noCloseFrom && scanQuote(command, k, false) >= 0) {
         backslashEscapes = !powershell && !inFlagValue() && scanQuote(command, k, true) >= 0;
         inString = true;
@@ -565,9 +430,6 @@ function computePartners(command, suppressed) {
       if (heredocs.length) k = skipHeredocBodies(command, k + 1, heredocs) - 1;
       continue;
     }
-    // Arithmetic is counted exactly as the tokenizer counts it: any `((`
-    // opens a context and any `))` while one is open closes it. Both
-    // parentheses are still paired normally.
     if (ch === "(" && command[k + 1] === "(") {
       arith++;
       push(ch, k, false, flagValue(k));
@@ -581,8 +443,6 @@ function computePartners(command, suppressed) {
       push(ch, k, false, flagValue(k));
     } else if (ch === ")" || ch === "}") {
       const want = ch === ")" ? "(" : "{";
-      // Pop back to the nearest opener of this kind; an unmatched closer
-      // of the other kind is ignored.
       let j = stack.length - 1;
       while (j >= 0 && stack[j].ch !== want) j--;
       if (j >= 0) {
@@ -606,7 +466,7 @@ function scanQuote(command, open, backslashEscapes) {
     }
     if (ch === q) {
       if (q === "'" && command[k + 1] === "'") {
-        k++; // doubled apostrophe
+        k++;
         continue;
       }
       return k;
@@ -625,18 +485,15 @@ function normalizeRepo(value) {
   return m ? m[1] : v;
 }
 
-/** True for the code repository, by name or by gh's placeholders for the checkout's repository. */
 function isCodeRepo(repo) {
   const r = normalizeRepo(repo);
   return r === repos.code.toLowerCase() || r === "{owner}/{repo}" || r === ":owner/:repo";
 }
 
-/** True for the repository whose issue creation must carry a type. */
 function isTypedRepo(repo) {
   return repos.cutover ? normalizeRepo(repo) === repos.internal.toLowerCase() : isCodeRepo(repo);
 }
 
-/** Reads `--flag value`, `--flag=value`, `-Xvalue`, `-X=value`; returns [value, tokensConsumed]. */
 function flagValue(args, i) {
   const t = args[i].text;
   const eq = t.indexOf("=");
@@ -651,19 +508,10 @@ function flagName(t) {
   return null;
 }
 
-/** True when the flag token carries no joined value, so the next token is its value. */
 function takesNextToken(t, name) {
   return !t.includes("=") && t.length === name.length;
 }
 
-/**
- * Reads the arguments after `gh`: the subcommand words (`api`, or `issue`,
- * `pr` or `search` plus its action), the remaining tokens in order, and a
- * repo given by `-R`/`--repo` before the action. gh accepts those flags
- * before the subcommand, so `gh -R o/r issue create` and `gh issue -R o/r
- * create` both resolve here; `--hostname` is consumed the same way so its
- * value is not mistaken for a subcommand.
- */
 function ghInvocation(args) {
   const words = [];
   const rest = [];
@@ -717,8 +565,6 @@ function checkGhIssueCreate(args, presetRepo) {
   );
 }
 
-// gh issue, pr and search flags that take a value, so the value is never
-// read as a repository flag or a positional argument.
 const GH_VALUE_FLAGS = new Set([
   ...GH_ISSUE_CREATE_VALUE_FLAGS,
   "-A", "--author", "-B", "--base", "-H", "--head", "-r", "--reviewer", "-q", "--jq", "--json", "-S", "--search",
@@ -729,12 +575,6 @@ const GH_VALUE_FLAGS = new Set([
   "--duplicate-of", "--subject", "--match-head-commit", "--body-file", "--template",
 ]);
 
-/**
- * The flags and positional words of a gh issue, pr or search invocation:
- * `flags` maps each lower-cased long name or short name to its values (an
- * empty string for a flag without one), `repos` holds the `-R`/`--repo`
- * values in argument order, and `positional` holds the rest.
- */
 function ghArgs(args) {
   const flags = new Map();
   const repos = [];
@@ -749,8 +589,6 @@ function ghArgs(args) {
       positional.push(...args.slice(i + 1).map((a) => a.text));
       break;
     }
-    // gh reads any argument that starts with a dash as a flag, quoted or
-    // not, with its value attached after `=` or after a short name.
     const name = flagName(t);
     if (name === null) {
       positional.push(t);
@@ -766,21 +604,10 @@ function ghArgs(args) {
   return { flags, repos, positional };
 }
 
-// An issue, pull request or discussion URL on github.com, with any scheme,
-// user information, `www.` or port.
 const GITHUB_ITEM_URL = /(?:^|[^\w.-])(?:https?:\/\/)?(?:[^@/\s"']*@)?(?:www\.)?github\.com(?::\d+)?\/([^/\s"'#?]+\/[^/\s"'#?]+)\/(?:issues|pull|discussions)\/\d+/gi;
 
-// gh's built-in aliases of the actions the guard reads.
 const GH_ACTION_ALIASES = new Map([["ls", "list"], ["new", "create"], ["co", "checkout"]]);
 
-/**
- * The repository a gh issue or pr invocation targets, read so that it fails
- * closed rather than following gh's precedence: the code repository when any
- * `-R`/`--repo` value, or any issue or pull request URL among the positional
- * arguments, names it; otherwise a selector argument that is wholly such a
- * URL, else the last non-empty repo flag, else the `GH_REPO` gh inherits.
- * Null stands for the checkout's own repository, the code repository.
- */
 function ghTargetRepo(invocation, parsed, envRepo) {
   const named = [invocation.repo ?? "", ...parsed.repos].filter((r) => r.trim() !== "");
   const linked = parsed.positional.flatMap((p) => [...p.matchAll(GITHUB_ITEM_URL)].map((m) => m[1]));
@@ -792,19 +619,8 @@ function ghTargetRepo(invocation, parsed, envRepo) {
   return envRepo?.trim() ? envRepo : null;
 }
 
-// Wrappers that run the program with the environment they were given.
 const ENV_PRESERVING = new Set(["env", "nohup", "command", "time"]);
 
-/**
- * The `GH_REPO` a program at index `at` of a segment runs with: the last
- * assignment before it, walking back over other assignments, redirections,
- * shell keywords and wrappers that keep the environment (`env`, `nohup`,
- * `command`, `time`) when they carry no flags. Any other word between them
- * (sudo, `env -i`, `env -u`), which may drop it, ends the walk with null.
- * Without an assignment, `inherited` (the value a nested command gets from
- * its enclosing command) applies. Null when gh would read no repository
- * from the environment, or the hook cannot tell.
- */
 function assignedRepo(seg, at, inherited) {
   for (let k = at - 1; k >= 0; k--) {
     const tok = seg[k];
@@ -817,7 +633,7 @@ function assignedRepo(seg, at, inherited) {
     if (tok.quoted) return null;
     if (REDIRECT_DUP.test(t) || REDIRECT_OP.test(t) || REDIRECT_GLUED.test(t)) continue;
     if (k > 0 && !seg[k - 1].quoted && REDIRECT_OP.test(seg[k - 1].text)) {
-      k--; // a redirection's target, then its operator
+      k--;
       continue;
     }
     if (KEYWORDS.has(t.toLowerCase()) || ENV_PRESERVING.has(baseName(tok))) continue;
@@ -826,7 +642,6 @@ function assignedRepo(seg, at, inherited) {
   return inherited;
 }
 
-/** The `GH_REPO` a nested command inherits: none when its text mentions the variable, since it may unset or replace it. */
 function inheritedRepo(text, envRepo) {
   return /GH_REPO/i.test(text) ? null : envRepo;
 }
@@ -853,7 +668,6 @@ const GUARD = {
   web: () => guardReason("a web page of issues, pull request conversations or discussions", "Read the pull request's permitted fields through gh pr view --json or the API instead."),
 };
 
-/** The guard's reason for a gh issue, pr, discussion or search invocation, or null. */
 function checkGhGuarded(invocation, envRepo) {
   const command = invocation.words[0];
   const action = GH_ACTION_ALIASES.get(invocation.words[1]) ?? invocation.words[1];
@@ -861,7 +675,6 @@ function checkGhGuarded(invocation, envRepo) {
   const parsed = ghArgs(invocation.rest);
   if (command === "search") {
     if (action !== "issues" && action !== "prs") return null;
-    // gh search reads --repo and --owner as string slices, which split on commas.
     const csv = (values) => values.flatMap((v) => v.split(",")).map((v) => v.trim()).filter(Boolean);
     const named = csv([invocation.repo ?? "", ...parsed.repos]);
     const owners = csv(parsed.flags.get("--owner") ?? []).map((o) => `owner:${o}`);
@@ -875,12 +688,9 @@ function checkGhGuarded(invocation, envRepo) {
   if (action === "comment") return GUARD.prComment();
   if (action === "review") return GUARD.prReview();
   if (action === "edit") return has("--add-label", "--remove-label", "--add-assignee", "--add-reviewer", "--add-project") ? GUARD.prEdit() : null;
-  // Any gh pr subcommand that exports JSON (view, list, status) may not
-  // export comment or review text, whatever else selects the pull requests.
   const fields = (parsed.flags.get("--json") ?? []).join(",").toLowerCase().split(/[\s,]+/);
   if (fields.some((f) => ["comments", "reviews", "latestreviews", "reviewrequests"].includes(f))) return GUARD.prView();
   if (action === "view") {
-    // A boolean flag given false (`--comments=false`) is off; any other value, or none, is on.
     const comments = [...(parsed.flags.get("--comments") ?? []), ...(parsed.flags.get("-c") ?? [])].some((v) => !/^(false|f|0)$/i.test(v));
     return comments || !parsed.flags.has("--json") ? GUARD.prView() : null;
   }
@@ -888,43 +698,25 @@ function checkGhGuarded(invocation, envRepo) {
   return null;
 }
 
-/**
- * True when a search names at least one repository, by flag or by `repo:`
- * qualifier, none of them is the code repository, no `org:`, `user:` or
- * `owner:` qualifier names the code repository's owner, and no `OR` joins
- * a branch that could lack a repository of its own. An unscoped search
- * covers the code repository too.
- */
 function searchScoped(text, named = []) {
   let decoded = text;
   try {
     decoded = decodeURIComponent(text.replace(/\+/g, " "));
   } catch {
-    // A malformed escape: read the text as it is.
   }
-  // A qualifier's value may be quoted (`repo:"owner/name"`).
   const qualifier = (key) => [...decoded.matchAll(new RegExp(`(?:^|[\\s"'&=(+])${key}:(?:"([^"]*)"|'([^']*)'|([^\\s"'&)]+))`, "gi"))].map((m) => m[1] ?? m[2] ?? m[3]);
   const all = [...named, ...qualifier("repo")];
   const owner = repos.code.split("/")[0].toLowerCase();
   const ownerNamed = qualifier("(?:org|user|owner)").some((o) => o.toLowerCase() === owner);
-  // An OR branch without its own repository searches everywhere, so a
-  // boolean OR is never proven scoped.
   const or = /(^|[\s(])OR([\s)]|$)/.test(decoded);
   return all.length > 0 && !all.some(isCodeRepo) && !ownerNamed && !or;
 }
 
-/**
- * An API path as GitHub resolves it, for the guard: the host, fragment and
- * query cut, percent-escapes decoded, empty and `.` segments dropped and `..`
- * applied, lower-cased. The typed-creation rule with the switch off keeps
- * normalizeEndpoint, so that position decides exactly as before.
- */
 function canonicalEndpoint(raw) {
   let path = raw.replace(/^https?:\/\/[^/]+\//i, "").split("#")[0].split("?")[0];
   try {
     path = decodeURIComponent(path);
   } catch {
-    // A malformed escape: read the path as it is.
   }
   const out = [];
   for (const part of path.split("/")) {
@@ -935,13 +727,6 @@ function canonicalEndpoint(raw) {
   return out.join("/").toLowerCase();
 }
 
-/**
- * True when an API path reaches outsider-writable text on the code
- * repository: its issue, review, review request and discussion endpoints,
- * its event feed, and any feed that gathers issues or events across
- * repositories (`issues`, `user/issues`, `orgs/<o>/issues`, notifications,
- * events) or names a repository by ID, which the hook cannot resolve.
- */
 function guardedEndpoint(endpoint) {
   if (/^(issues|user\/issues|orgs\/[^/]+\/issues|notifications)(\/|$)/.test(endpoint)) return true;
   if (/^(events|networks\/[^/]+\/[^/]+\/events|orgs\/[^/]+\/events|users\/[^/]+\/(received_)?events)(\/|$)/.test(endpoint)) return true;
@@ -952,28 +737,10 @@ function guardedEndpoint(endpoint) {
   return guardedPath(m[2] ?? "");
 }
 
-/** True when a path under one repository reaches its outsider-writable text. */
 function guardedPath(path) {
-  // `pulls/comments` is the repository-wide list of review comments; the
-  // event feed carries issue and comment payloads.
   return /^(issues|pulls\/comments|events|notifications)(\/|$)/.test(path) || /^pulls\/[^/]+\/(comments|reviews|requested_reviewers)(\/|$)/.test(path) || /^discussion/.test(path);
 }
 
-/**
- * True when GraphQL text reads issues, comments, reviews, discussions or a
- * timeline, of any repository. With the switch on, GraphQL may not read
- * them at all: a selection can reach the code repository from any starting
- * point (an owner's repositories, a fork's parent or head repository, a
- * pull request's closing references, a timeline's cross-references, a
- * node ID, a search), so naming another repository proves nothing. The
- * internal repository's tickets are read through gh issue or REST instead.
- * The field test matches inside camel-case names (`closingIssuesReferences`,
- * `IssueComment`, `PullRequestReview`, `reviewDecision`). Operation names,
- * aliases, argument names, variables and the keys of gh's field flags
- * (`query ReviewTitle`, `reviewish: title`, `$reviewId`, `-F reviewId=1`)
- * are left out of it; string values and comments stay in, because the query
- * itself may sit inside a JSON string.
- */
 function graphqlReadsText(text) {
   const selections = text
     .replace(/\b(query|mutation|subscription|fragment)\s+[A-Za-z_]\w*/g, "$1")
@@ -983,22 +750,12 @@ function graphqlReadsText(text) {
   return /issue|comment|review|discussion|timeline/i.test(selections);
 }
 
-/**
- * The guard's reason for an API URL path and the request around it, or
- * null. `text` is every argument of the request; `searchQuery` is only the
- * effective `q` of a REST search, since other fields do not scope it.
- */
 function checkGuardedRequest(endpoint, text, searchQuery) {
   if (endpoint === "graphql") return graphqlReadsText(text) ? GUARD.graphql() : null;
   if (endpoint === "search/issues") return searchScoped(searchQuery ?? "") ? null : GUARD.search();
   return guardedEndpoint(endpoint) ? GUARD.api() : null;
 }
 
-/**
- * The effective `q` of a REST search: the `q` parameters of the URL's
- * query string and the `q=` request fields (gh's `-f q=...`, curl's `-d
- * q=...` or `--data-urlencode q=...`, a PowerShell `q = '...'` entry).
- */
 function searchQueryOf(url, fields) {
   const out = [];
   const query = url.split("#")[0].split("?")[1];
@@ -1033,8 +790,6 @@ function checkGhApi(args) {
       positional.push(...args.slice(i + 1).map((a) => a.text));
       break;
     }
-    // Long flags are case-insensitive here; short flags keep their case
-    // because -f and -F are different flags to gh.
     const name = flagName(t);
     if (name === null) {
       positional.push(t);
@@ -1063,10 +818,7 @@ function checkGhApi(args) {
       i += used - 1;
       continue;
     }
-    // boolean flag: --paginate, --slurp, --silent, -i, --verbose, ...
   }
-  // With the switch on, the path is read as GitHub resolves it, for the
-  // guard and the typed-creation rule alike.
   const endpoint = repos.cutover ? canonicalEndpoint(positional[0] ?? "") : normalizeEndpoint(positional[0] ?? "");
 
   if (endpoint === "graphql" && fields.some((f) => /createissue/i.test(f.value))) {
@@ -1094,8 +846,6 @@ function checkGhApi(args) {
       "(field flags next to --input go to the query string, not the body). Use field flags instead: " + recipe()
     );
   }
-  // -F converts true, false, null, and integers to JSON values and reads
-  // `@file` from a file, so none of those is a type name the hook can see.
   const typed = fields.some((f) => {
     const v = f.value.match(/^type=(.+)$/)?.[1];
     if (!v) return false;
@@ -1109,17 +859,8 @@ function checkGhApi(args) {
 }
 
 const COLLECTION_URL = /api\.github\.com\/repos\/([^/\s"']+\/[^/\s"']+)\/issues\/?(\?|$)/i;
-// A `type` entry in a non-JSON body once string values are blanked: a
-// hashtable entry (`type=`) after `{`, `;`, `,`, `(`, or `&`, or a quoted
-// JSON key in text that did not parse. Lowercase, because keys are
-// case-sensitive.
 const TYPE_ENTRY = /(["']type["']\s*[:=]\s*\S|(^|[{;,(&\n\r])\s*type\s*=\s*\S)/;
 
-/**
- * True when a request body carries a top-level `type` field with a value.
- * A JSON body is parsed; anything else has its string values blanked first,
- * so prose inside a title or a body text does not count.
- */
 function bodyHasTypeField(body) {
   const inner = unwrapBody(body);
   if (/^[{[]/.test(inner)) {
@@ -1128,37 +869,17 @@ function bodyHasTypeField(body) {
       if (obj && typeof obj === "object" && !Array.isArray(obj)) return typeof obj.type === "string" && obj.type.length > 0;
       return false;
     } catch {
-      // Not valid JSON (a trailing comma, a comment): fall through to the
-      // lenient text check below.
     }
   }
   if (/^&?[A-Za-z0-9_][^{@(\s"'=]*=/.test(inner)) {
-    // Form-encoded data: title=x&type=Bug, labels[]=bug&type=Bug
     const type = new URLSearchParams(inner).get("type");
     return typeof type === "string" && type.length > 0;
   }
-  // Anything else is a hashtable or JSON-like text; prose is not a body.
   if (!/^(@?\{|\[)/.test(inner)) return false;
-  // Every quoted or here-string value is blanked first (a one-character
-  // placeholder when it has content, an empty string otherwise), then empty
-  // type entries are dropped, then the entry regex runs on what is left.
   const blanked = blankValues(inner).replace(/["']?type["']?\s*[:=]\s*(["'])\1/g, "");
   return TYPE_ENTRY.test(blanked);
 }
 
-/**
- * One forward pass over a hashtable or object-literal body that replaces
- * every quoted string except a key (one followed by `=` or `:`) with `"h"`
- * when it has content and `""` when empty, and does the same for a
- * here-string (`@"` or `@'` at a line end, through the matching `"@` or
- * `'@` at a line start); a here-string with no terminator is text. Quoted
- * text is consumed as a unit, so an `= @"` inside a value is never taken
- * for an opener, and every character is visited once. A hashtable literal
- * is PowerShell, where a backslash is literal; any other body is JSON-like,
- * where a backslash escapes while that reading keeps reaching closing
- * quotes and is literal from the first time it does not, so each quote is
- * scanned at most twice over the whole body.
- */
 function blankValues(text) {
   const n = text.length;
   let backslashEscapes = !text.startsWith("@{");
@@ -1202,24 +923,11 @@ function blankValues(text) {
   return out;
 }
 
-/**
- * Strips the wrappers a body may sit in: `(...)`, `$(...)`, `@(...)`, one
- * layer of quotes, Bash `$'...'` (or the bare `$` the tokenizer leaves
- * after removing its quotes), a `ConvertTo-Json` call (prefix with flags
- * before or after the object, or a trailing pipe), and a `[Type]`
- * accelerator before a hashtable literal; unescapes the quotes inside.
- */
 function unwrapBody(body) {
   let s = body.trim();
-  // `ConvertTo-Json`, with any flags (`-Depth 10`, `-Depth:10`), before or
-  // after the object, or after a pipe. The pipe form is tested only on the
-  // text after the last `|`, anchored, so no whitespace run is backtracked.
   const toJsonFlags = String.raw`(?:\s+-[\w-]+(?:(?:\s+|[:=]\s*)(?!-)[^\s@{(]\S*)?)*`;
   const toJsonPrefix = new RegExp(String.raw`^convertto-json${toJsonFlags}\s+(?=[$@(\[]?[{(\[])`, "i");
   const toJsonTail = new RegExp(String.raw`^\|\s*convertto-json${toJsonFlags}\s*$`, "i");
-  // Greedy, so a closer inside a value cannot end the object early; the
-  // flag run is anchored to the end, so the object's own closer is found
-  // from the right.
   const trailingFlags = new RegExp(String.raw`^([$@(\[].*[)}\]])${toJsonFlags}\s*$`, "is");
   for (let guard = 0; guard < 8; guard++) {
     if (/^[$@]?\(/.test(s) && s.endsWith(")")) {
@@ -1233,21 +941,20 @@ function unwrapBody(body) {
     }
     if (toJsonPrefix.test(s)) {
       s = s.replace(toJsonPrefix, "").trim();
-      // `ConvertTo-Json (...) -Depth 10`: flags after the object.
       const m = /^([$@(\[])/.test(s) && !/[)}\]]$/.test(s) ? s.match(trailingFlags) : null;
       if (m) s = m[1];
       continue;
     }
     if (/^\[[^\][]+\]\s*@\{/.test(s)) {
-      s = s.replace(/^\[[^\][]+\]\s*/, ""); // [ordered]@{...}, [pscustomobject]@{...}
+      s = s.replace(/^\[[^\][]+\]\s*/, "");
       continue;
     }
     if (s.length >= 3 && s.startsWith("$'") && s.endsWith("'")) {
-      s = s.slice(2, -1).replace(/\\(["'\\])/g, "$1"); // Bash ANSI-C quoting
+      s = s.slice(2, -1).replace(/\\(["'\\])/g, "$1");
       continue;
     }
     if (/^\$([{[]|&?[A-Za-z0-9_][^{@(\s"'=]*=)/.test(s)) {
-      s = s.slice(1); // ANSI-C quoting after the tokenizer removed the quotes
+      s = s.slice(1);
       continue;
     }
     if (s.length >= 2 && s.startsWith("'") && s.endsWith("'")) {
@@ -1263,37 +970,14 @@ function unwrapBody(body) {
   return s;
 }
 
-// curl short flags that take a value; every other letter in a cluster is
-// taken as a boolean, so an unlisted flag cannot swallow the next token.
 const CURL_VALUE = "AbcCdDeEFHKmoQrtTuUwxXyYzP";
 const CURL_DATA_LONG = /^--(data(-ascii|-raw|-binary|-urlencode)?|form(-string)?|json)(=|$)/;
 
-// An argument that starts with a URL on api.github.com or github.com, with
-// any scheme, user information or port, after an optional `-Uri:`, `-Url:`
-// or `--url=`. Group 1 is the host, group 2 everything after it, quotes and
-// spaces included, so a query string cannot hide the destination.
 const HTTP_URL = /^(?:-uri:|-url:|--url=)?(?:https?:\/\/)?(?:[^@/\s"']*@)?(api\.github\.com|(?:www\.)?github\.com)(?::\d+)?\/([\s\S]*)$/i;
 
-/**
- * The guard's reason for an HTTP client invocation whose request URL reaches
- * a guarded API path or a web page of the code repository's issues, pull
- * request conversations or discussions, or null. Every argument that is
- * wholly such a URL counts as a destination, whichever flag precedes it,
- * since telling a flag's value from the URL would mean modelling every
- * option of every client; a link inside a body is part of a longer argument
- * and does not count. A curl argument that names GitHub and holds a URL glob
- * (`{a,b}`, `[x-y]`, in the host or the path) is refused outright: curl
- * expands it unless globbing is off, and reading the expansion and curl's
- * option clusters soundly is not worth the guard's complexity. The request
- * text the GraphQL check reads is every argument; a REST search is scoped
- * only by its effective `q`.
- */
 function checkGuardedUrl(args, curl) {
   const texts = args.map((a) => a.text);
   const text = texts.join("\n");
-  // A URL glob is an argument holding a glob character whose text before its
-  // first quote or space names GitHub; a body (JSON, prose) names it, if at
-  // all, only after a quote or a space.
   if (curl && texts.some((t) => /[{}[\]]/.test(t) && /github/i.test(t.split(/["\s]/)[0]))) return GUARD.api();
   for (const arg of texts) {
     const m = arg.match(HTTP_URL);
@@ -1309,15 +993,6 @@ function checkGuardedUrl(args, curl) {
   return null;
 }
 
-/**
- * The repository whose issue collection an HTTP client's arguments post to,
- * for the typed-creation rule, or null. With the switch on, every
- * destination counts, since curl sends the method and body to each URL it
- * is given, and each is read as the guard reads it (user information, port,
- * escapes, dot segments); the first that is a typed repository is returned,
- * else the first collection. With the switch off, exactly as before: the
- * first argument holding an issue collection URL.
- */
 function collectionRepo(args) {
   if (!repos.cutover) {
     const token = args.find((a) => COLLECTION_URL.test(a.text));
@@ -1336,9 +1011,6 @@ function collectionRepo(args) {
 function checkCurl(args) {
   const target = collectionRepo(args);
   if (target === null || !isTypedRepo(target)) return null;
-  // With the switch on, a batch of transfers (`--next`, `-:`) that reaches a
-  // typed collection is refused: each transfer has its own method and body,
-  // and the hook does not split them.
   if (repos.cutover && args.some((a) => a.text === "--next" || a.text === "-:")) {
     return "This curl batch (--next) posts to an issue collection, and the hook cannot tell which transfer carries which body. Create each issue in its own call: " + recipe();
   }
@@ -1357,8 +1029,6 @@ function checkCurl(args) {
       const eq = t.indexOf("=");
       bodies.push(eq > 0 ? t.slice(eq + 1) : (args[++i]?.text ?? ""));
     } else if (t.startsWith("-") && !t.startsWith("--")) {
-      // Walk a short-flag cluster: booleans continue, the first flag that
-      // takes a value ends it and takes the rest of the token or the next one.
       for (let p = 1; p < t.length; p++) {
         const ch = t[p];
         if (!CURL_VALUE.includes(ch)) {
@@ -1382,18 +1052,12 @@ function checkCurl(args) {
   );
 }
 
-/**
- * The `-Body` value of a PowerShell invocation: the token after `-Body`,
- * which the tokenizer keeps whole for a quoted string, a here-string, a
- * parenthesised group, or a hashtable literal. Null when there is no
- * `-Body` in the segment.
- */
 function bodyText(seg) {
   const bodyIndex = seg.findIndex((t) => /^-body(:|$)/i.test(t.text));
   if (bodyIndex < 0) return null;
   const colon = seg[bodyIndex].text.match(/^-body:([\s\S]*)$/i);
   if (colon && colon[1]) return colon[1];
-  const next = seg[bodyIndex + 1]; // `-Body value` or `-Body: value`
+  const next = seg[bodyIndex + 1];
   return next ? next.text : "";
 }
 
@@ -1411,11 +1075,6 @@ function checkInvokeRestMethod(args) {
   );
 }
 
-/**
- * The indices in a segment where a program name may stand: after any run of
- * shell keywords, environment assignments, redirections, and wrappers with
- * their own flags, flag values, and positional arguments. One forward pass.
- */
 function commandPositions(seg) {
   const positions = new Set();
   let k = 0;
@@ -1432,7 +1091,6 @@ function commandPositions(seg) {
       continue;
     }
     if (!tok.quoted && PS_ASSIGN.test(t)) {
-      // `$x = cmd`, `$x= cmd`, `$x =cmd`, `$x += cmd`
       k++;
       if (!t.includes("=") && /^[+-]?=$/.test(seg[k]?.text ?? "")) k++;
       continue;
@@ -1472,12 +1130,6 @@ function commandPositions(seg) {
   return positions;
 }
 
-/**
- * True when the quoted token at index i is run as a command: it follows a
- * shell's `-c` (in any short-flag cluster, after the shell's own options),
- * `cmd /c`, a PowerShell `-Command`, `env -S`, `eval`, or a shell's `<<<`,
- * and that shell itself stands at command position.
- */
 function isShellCommandString(seg, i, positions) {
   const prev = seg[i - 1];
   if (!prev) return false;
@@ -1491,11 +1143,6 @@ function isShellCommandString(seg, i, positions) {
   return /^-[a-z]*c[a-z]*$/.test(p);
 }
 
-/**
- * The index of the shell (or env) whose options run up to `flagIndex`,
- * walking back over options and their values, or -1. `--` ends a shell's
- * options, and `-File` hands control to a script, so both stop the walk.
- */
 function programBefore(seg, flagIndex) {
   for (let k = flagIndex - 1, steps = 0; k >= 0 && steps < 16; k--, steps++) {
     const t = seg[k].text;
@@ -1506,19 +1153,12 @@ function programBefore(seg, flagIndex) {
       if (SHELLS.has(base) || base === "env") return k;
       if (t.startsWith("-") || t.startsWith("/")) continue;
     }
-    if (k > 0 && seg[k - 1].text.startsWith("-") && seg[k - 1].text !== "--") continue; // an option's value
+    if (k > 0 && seg[k - 1].text.startsWith("-") && seg[k - 1].text !== "--") continue;
     return -1;
   }
   return -1;
 }
 
-/**
- * Reads `command` the way `shell` writes it and returns its segments, each
- * with the token indices where a program name may stand, together with the
- * text of every substitution found inside double quotes. One reading of a
- * command line serves every hook that has to find an invocation in it, so a
- * quoting rule learned here holds for all of them.
- */
 export function readCommand(command, shell) {
   currentShell = shell === "powershell" ? "powershell" : "bash";
   const tokens = tokenize(command);
@@ -1542,29 +1182,17 @@ export function readCommand(command, shell) {
 
 export { baseName, isShellCommandString, programBefore };
 
-/**
- * Returns a deny reason for the command, or null to allow it. `shell` is
- * "powershell" or "bash"; when omitted the command is read both ways and
- * refused if either reading refuses it. Substitutions and -c strings are
- * analysed to a depth of three; a create nested deeper is not seen.
- * `options.repos` replaces the repos file, so a test can decide under
- * either position of the cutover switch.
- */
 export function decide(command, shell, options = {}) {
   repos = options.repos ?? (defaultRepos ??= readRepos());
   return decideAt(command, shell, 0, null);
 }
 
-// `envRepo` is the GH_REPO the command inherits from an enclosing command,
-// or null.
 function decideAt(command, shell, depth, envRepo) {
   if (typeof command !== "string" || command.length === 0 || depth > 3) return null;
   if (shell !== "powershell" && shell !== "bash") return decideAt(command, "bash", depth, envRepo) ?? decideAt(command, "powershell", depth, envRepo);
   const { segments, subs } = readCommand(command, shell);
   const outerShell = shell;
   for (const sub of subs) {
-    // A substitution runs in the enclosing shell, before any assignment
-    // that prefixes the command it appears in.
     const inner = decideAt(sub, outerShell, depth + 1, inheritedRepo(sub, envRepo));
     currentShell = outerShell;
     if (inner) return inner;
@@ -1574,10 +1202,8 @@ function decideAt(command, shell, depth, envRepo) {
     for (let i = 0; i < seg.length; i++) {
       const tok = seg[i];
       if (tok.quoted && isShellCommandString(seg, i, positions)) {
-        // A string handed to a shell's -c is written for that shell.
         const program = programBefore(seg, i - 1);
         const innerShell = program >= 0 && /^(pwsh|powershell)$/.test(baseName(seg[program])) ? "powershell" : program >= 0 ? "bash" : outerShell;
-        // The nested shell inherits the environment its own program runs with.
         const innerEnv = inheritedRepo(tok.text, assignedRepo(seg, program >= 0 ? program : i - 1, envRepo));
         const inner = decideAt(tok.text, innerShell, depth + 1, innerEnv);
         currentShell = outerShell;
@@ -1591,13 +1217,11 @@ function decideAt(command, shell, depth, envRepo) {
         const { words, rest } = invocation;
         let repo = invocation.repo;
         if (repos.cutover) {
-          // gh reads GH_REPO when no flag names a repository.
           const ghEnv = assignedRepo(seg, i, envRepo);
           reason = checkGhGuarded(invocation, ghEnv);
           if (repo === null && words[0] === "issue") repo = ghTargetRepo(invocation, ghArgs(rest), ghEnv);
         }
         if (reason) return reason;
-        // With the switch on, gh's alias `issue new` creates as `issue create` does.
         const action = repos.cutover ? (GH_ACTION_ALIASES.get(words[1]) ?? words[1]) : words[1];
         if (words[0] === "issue" && action === "create") reason = checkGhIssueCreate(rest, repo);
         else if (words[0] === "api") reason = checkGhApi(rest);
@@ -1612,7 +1236,6 @@ function decideAt(command, shell, depth, envRepo) {
   return null;
 }
 
-/** Splits a glued PowerShell assignment (`$x=gh ...`, or `$x =gh ...`) into the assignment and the program token, in place. */
 function splitPsAssignments(seg) {
   const out = [];
   const head = /^\$(?:[A-Za-z_][A-Za-z0-9_:]*|\{[^}]+\})[+-]?=/;
@@ -1624,8 +1247,6 @@ function splitPsAssignments(seg) {
     }
     let m = tok.text.match(head);
     if (!m && k > 0 && PS_ASSIGN.test(seg[k - 1].text) && !seg[k - 1].text.includes("=")) m = tok.text.match(/^[+-]?=/);
-    // A chained `$x=$y=gh` splits once per assignment; each step shortens
-    // the tail, and only the head is matched, so the cost is linear.
     while (m && m[0].length < tok.text.length) {
       const len = m[0].length;
       out.push({ ...tok, text: m[0], end: tok.start + len });
@@ -1661,10 +1282,6 @@ export async function main() {
     const tool = String(payload?.tool_name ?? "").toLowerCase();
     shell = tool === "powershell" ? "powershell" : tool === "bash" ? "bash" : undefined;
   } catch {
-    // An unparseable payload is refused only when it looks like it carries a
-    // gh call the hook checks, so a broken harness cannot let an untyped
-    // create or a guarded call through and cannot block unrelated commands
-    // either.
     repos = defaultRepos ??= readRepos();
     const checked = repos.cutover ? /\bgh\s+(issue|api|pr|search)\b/i : /\bgh\s+(issue|api)\b/i;
     const risk = repos.cutover ? `creates an untyped issue or reaches issues, comments or reviews on ${repos.code}` : "creates an untyped issue";

@@ -1,35 +1,15 @@
-// A Codex reviewer clones and installs the reviewed head and base into its
-// private directory (about 2.5 GB each), and a container's disk is shared by
-// every concurrent round (#1451). Once the reviewer has exited, those probe
-// checkouts and temp directories are scratch. The launcher snapshots the
-// directory's top-level names before the reviewer starts and records them in
-// its `launching` row. Among the entries that appeared after, this removes the
-// Git repositories, `node_modules` installs and links, never what the plan or
-// another round already had there and never a regular file the reviewer wrote
-// outside a repository or install (its report, its first pass, wherever it
-// put them).
-//
-// The launcher calls removeProbeCheckouts on every path after the exit is
-// confirmed. The adjudicating writer runs the same removal from the journal:
-//   node scripts/reviewer-probe-cleanup.mjs <absolute-journal>
 import fs from 'node:fs';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {withProbeCleanupGuard} from './test-suite-process.mjs';
 
-// The names the directory holds now; the launcher takes this before the spawn.
 export const snapshotReviewerDirectory=(directory)=>new Set(fs.readdirSync(directory));
 
 const fold=(value)=>process.platform==='win32'?value.toLowerCase():value;
 const isInside=(parent,child)=>{const relative=path.relative(parent,child);return relative!==''&&relative!=='..'&&!relative.startsWith(`..${path.sep}`)&&!path.isAbsolute(relative);};
-// Whether two absolute paths are the same or one holds the other.
 const overlaps=(a,b)=>{const x=fold(path.resolve(a)),y=fold(path.resolve(b));return x===y||isInside(x,y)||isInside(y,x);};
 
-// The physical path a named path reaches: the real path of its nearest
-// existing ancestor, through every junction, link and Windows 8.3 alias, with
-// the missing remainder appended. A component that exists but cannot be
-// resolved (a broken link, a denied read) throws, so its owner is kept.
 function physicalPath(value) {
   const absolute=path.resolve(value);
   try{return fs.realpathSync.native(absolute);}
@@ -43,17 +23,10 @@ function physicalPath(value) {
   }
 }
 
-// Removes one entry without following links. A symbolic link or Windows
-// junction is unlinked itself, never entered; a directory is emptied first. A
-// file is removed with unlinkSync: on Node 23 for Windows, rmSync returns
-// without error and without deleting a file whose path holds a non-ASCII
-// character. An entry that cannot be removed is recorded in `failures` and the
-// walk continues with its siblings.
 function removeEntry(target,counts,failures) {
   try{
     const stat=fs.lstatSync(target);
     if(stat.isSymbolicLink()){
-      // A Windows junction reports as a symbolic link and unlinks as a directory.
       try{fs.unlinkSync(target);}catch(error){if(process.platform!=='win32'||!['EPERM','EISDIR','EACCES'].includes(error.code))throw error;fs.rmdirSync(target);}
       counts.links++;
       return;
@@ -61,7 +34,6 @@ function removeEntry(target,counts,failures) {
     if(stat.isDirectory()){
       const before=failures.length;
       for(const name of fs.readdirSync(target))removeEntry(path.join(target,name),counts,failures);
-      // A directory still holding a failed entry stays; that entry is the one reported.
       if(failures.length===before)fs.rmdirSync(target);
       return;
     }
@@ -70,8 +42,6 @@ function removeEntry(target,counts,failures) {
   }catch(error){failures.push({target,error});}
 }
 
-// Every absolute path a reservation entry names, and those its run journal
-// names (a direct run's journal holds the package root it tests).
 function reservedPaths(file) {
   let record;
   try{record=JSON.parse(fs.readFileSync(file,'utf8'));}
@@ -89,8 +59,6 @@ function reservedPaths(file) {
   return found;
 }
 
-// The first reserved path that reaches the reviewer directory, as named or
-// physically, or undefined. One that cannot be resolved throws.
 function reservationNaming(file,directory,root) {
   for(const value of reservedPaths(file)){
     if(overlaps(value,directory)||overlaps(value,root))return value;
@@ -102,58 +70,23 @@ function reservationNaming(file,directory,root) {
   return undefined;
 }
 
-// `preserve` holds the top-level names that existed before the reviewer ran;
-// `keep` the files to keep wherever they are (the final report). A kept file
-// inside the directory must be a regular file, matched by its real path
-// (another case or a Windows 8.3 short name still matches): a link would need
-// every link component and target kept to stay readable, so one refuses the
-// whole cleanup before anything is removed. A kept file elsewhere needs no
-// protection here.
-//
-// The machine test reservation's slots and waiting rows are read under its
-// guard. An entry that names this directory, holds it, or lies inside it (a
-// run testing a probe clone, or a run journal kept there), as named or through
-// any junction or link, preserves the whole directory, since deleting it would
-// remove that run's ownership evidence; so does an entry or run journal that
-// cannot be read or a named path that cannot be resolved. An entry naming
-// anything else does not delay the cleanup. Still under the guard, every entry
-// to remove is renamed into one `.probe-cleanup-<id>` directory, so no run can
-// start in a probe clone after the check; the guard is then released and that
-// directory is deleted, so test admission never waits on the deletion.
-//
-// Returns the removed file and link counts and the elapsed time, plus
-// `skipped` and `reason` when a reservation preserved the directory. Throws
-// when the directory is not an existing real directory, so a plan pointing the
-// reviewer at a link never makes this walk somewhere else, and when an entry
-// could not be moved aside or deleted, naming what remains; the walk removes
-// everything else first.
 export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reservationRoot}={}) {
   const began=Date.now();
   if(!fs.lstatSync(directory).isDirectory())throw new Error(`Reviewer directory ${directory} is not a directory`);
   const root=fs.realpathSync.native(directory);
   const kept=new Set();
   for(const file of keep){
-    // lstat of the path as given sees a link or a directory; the real path is the
-    // name the directory lists (another case, or a Windows 8.3 short name, resolves to it).
     const stat=fs.lstatSync(file),target=fs.realpathSync.native(file);
     if(!isInside(root,target))continue;
     if(!stat.isFile())throw new Error(`Kept file ${file} is not a regular file; nothing was removed`);
     kept.add(target);
   }
-  // What to remove: every link, every Git repository (a directory holding a
-  // `.git` entry, or a bare layout), every `node_modules` install and any
-  // `.probe-cleanup-` directory an earlier cleanup left. Any other directory is
-  // walked, so the regular files a reviewer wrote anywhere stay; a directory
-  // holding a kept file is walked even when it is a repository.
   const targets=[],walked=[];
   const scratch=(target,name,top)=>{
     if(name==='node_modules'||top&&name.startsWith('.probe-cleanup-'))return true;
     const names=new Set(fs.readdirSync(target).map(entry=>entry.toLowerCase()));
     return names.has('.git')||names.has('head')&&names.has('objects')&&names.has('refs');
   };
-  // An entry that cannot be read is left in place and reported; discovery
-  // carries on with its siblings, so one denied directory never keeps a
-  // healthy clone beside it.
   const unreadable=[];
   const visit=(current,top)=>{
     let names;
@@ -171,7 +104,6 @@ export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reser
     }
   };
   visit(root,true);
-  // A walked directory the removal leaves empty goes too; one holding a file stays.
   const pruneEmpty=()=>{for(const dir of walked.reverse()){try{fs.rmdirSync(dir);}catch(error){if(!['ENOTEMPTY','EEXIST','ENOENT'].includes(error.code))throw error;}}};
   const counts={files:0,links:0};
   const stuck=unreadable.map(entry=>`unreadable ${entry}`);
@@ -203,13 +135,6 @@ export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reser
   return {...counts,elapsedMs:Date.now()-began};
 }
 
-// The removal the launcher performs, run again from its journal once every
-// reviewer it launched has exited. Every review launch must have recorded its
-// directory and snapshot and have a later `exited` row, or nothing is removed.
-// Launches that shared a directory are cleaned once, against the earliest
-// snapshot, keeping every report those launches named. The journal, the plan
-// and the launch directory lie outside the reviewer directory and are never
-// touched; nothing is appended to the journal.
 export function cleanupFromJournal(journal,{reservationRoot}={}) {
   if(!path.isAbsolute(journal))throw new Error('Name the launch journal by its absolute path');
   const rows=fs.readFileSync(journal,'utf8').split('\n').filter(Boolean).map(line=>JSON.parse(line));

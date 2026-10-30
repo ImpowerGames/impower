@@ -11,20 +11,7 @@ const getFileText = async (uri: string) => {
   return text;
 };
 
-/**
- * Raw bytes as base64, for the language server's asset previews.
- *
- * The server runs in a worker and cannot `fetch` a workspace uri, and a hover
- * cannot render one either — so previews are inlined `data:` URIs built from
- * bytes read here. Base64 because the LSP transport is JSON.
- *
- * Which workspace uris need this is measured, not assumed — see the scheme
- * allowlist in `getImageComposite`. The short version: the markdown sanitizer
- * strips `vscode-vfs:` (VS Code for Web's workspace scheme) and its relatives
- * off the element, so those need inlining. A desktop `file:` uri does not:
- * the workbench rewrites it to `vscode-file:` and renders it, so desktop keeps
- * its original image and never reaches this command.
- */
+// workaround(vscode): the hover markdown sanitizer strips vscode-vfs: and related image schemes, so previews are inlined as base64 data: URIs
 const getFileBytes = async (uri: string) => {
   const buffer = await vscode.workspace.fs.readFile(vscode.Uri.parse(uri));
   return bytesToBase64(buffer);

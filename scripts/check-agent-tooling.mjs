@@ -9,44 +9,25 @@ import { useWorktreeTemp } from "../.agents/skills/drive-web-editor/worktree-tem
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 useWorktreeTemp(root);
-// Several checks read the skills through the discovery links, which the root
-// postinstall creates. A checkout that skipped the install has none, and those
-// checks would fail late for a reason unrelated to the change under test.
 const skillsSource = fs.realpathSync(path.join(root, ".agents", "skills"));
 const unlinked = toolDirectories.map((tool) => `${tool}/skills`).filter((link) => {
   try { return fs.realpathSync(path.join(root, link)) !== skillsSource; }
   catch (error) { if (error.code === "ENOENT") return true; throw error; }
 });
 if (unlinked.length) throw new Error(`Skill discovery links missing or foreign: ${unlinked.join(", ")}; run node scripts/link-agent-skills.mjs from this checkout, then rerun`);
-// The notifier installs npm dependencies in its own Windows/Linux test workflow.
 const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8", windowsHide: true }).split("\0").filter(Boolean).filter((f) => !f.startsWith("scripts/agent-notification-alerts/"));
-// Derived from the tracked runnable set. Update this count when adding checks;
-// deleting or renaming a check must not silently reduce the expected coverage.
 const EXPECTED_CHECKS = 80;
-// The grammar and lowerer scanners need the full tree and run in typecheck.yml.
 const FULL_TREE_CHECKS = ["scripts/check-node-names.test.mjs", "scripts/check-lowerer-conventions.test.mjs"];
 const checks = files.filter((f) => /^(?:\.agents\/|\.claude\/hooks\/|\.github\/scripts\/|scripts\/)/.test(f) && /\.test\./.test(f) && !FULL_TREE_CHECKS.includes(f));
 const runnable = checks.filter((f) => /\.test\.(?:mjs|sh)$/.test(f));
 const fixtures = checks.filter((f) => /\.(?:json|snap|md|txt)$/.test(f));
 const discovered = checks.filter((f) => !fixtures.includes(f));
 if (runnable.length !== EXPECTED_CHECKS || !checks.some((f) => f.startsWith(".agents/")) || !checks.some((f) => f.startsWith(".claude/hooks/")) || !checks.includes("scripts/link-agent-skills.test.mjs")) throw new Error(`Incomplete tooling check discovery: ${runnable.length} runnable, exactly ${EXPECTED_CHECKS} expected; stage checks and verify the checkout`);
-// Two tiers split the inventory by what a check exercises, so a change to
-// skill prose or a hook can run the seconds-long checks alone. The `drivers`
-// tier holds the checks that drive real git worktrees, browsers, benches and
-// reviewer processes; everything else (skill prose, hooks, GitHub scripts) is
-// the `skills` tier. Discovery and the expected count always cover the whole
-// inventory; the tier and `--only` filters select what runs afterwards.
 const DRIVER_PREFIXES = [".agents/skills/clean-worktrees/", ".agents/skills/drive-vscode-web/", ".agents/skills/drive-web-editor/", "scripts/"];
 const tierOf = (file) => (DRIVER_PREFIXES.some((prefix) => file.startsWith(prefix)) ? "drivers" : "skills");
 const args = process.argv.slice(2);
 let tier = "all";
 const only = [];
-// Checks run as independent child processes, several at a time. The default
-// is the machine's core count capped at four, the size of a hosted runner;
-// AGENT_TOOLING_CONCURRENCY or --concurrency overrides it, and 1 restores the
-// serial order for local debugging. A check that cannot share the machine
-// declares `agent-tooling-serial: <reason>` in its first lines and then runs
-// with no other check active.
 let concurrencyArg = process.env.AGENT_TOOLING_CONCURRENCY || undefined;
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
@@ -70,7 +51,6 @@ if (bash === true) throw new Error("Git for Windows bash is required for shell c
 const probe = execFileSync(bash, ["-c", 'test -n "$BASH_VERSION" && printf agent-tooling-bash'], { encoding: "utf8", timeout: 10000, windowsHide: true });
 if (probe !== "agent-tooling-bash") throw new Error("Required Bash probe failed");
 const env = { ...process.env, NODE_OPTIONS: "--max-old-space-size=1024", AGENT_TOOLING_BASH: bash };
-// Node inherits the first case-insensitive PATH key on Windows.
 const pathKey = Object.keys(env).find((key) => key.toLowerCase() === "path") || "PATH";
 if (path.isAbsolute(bash)) {
   env[pathKey] = [path.dirname(bash), path.resolve(path.dirname(bash), "../usr/bin"), env[pathKey] || ""].join(path.delimiter);
@@ -88,9 +68,6 @@ for (const file of fixtures) {
   if (!fs.existsSync(path.join(root, file))) { console.error(`FAILED: missing data fixture ${file}`); missingFixtures.push(file); failed++; }
   else console.log(`FIXTURE: ${file}: non-executable data, excluded from check coverage`);
 }
-// A check's lines are buffered and written together once it completes, so
-// concurrent checks stay grouped in the log; only the RUNNING heartbeat is
-// written live, since its job is to show that a long check is still alive.
 const header = (file) => fs.readFileSync(path.join(root, file), "utf8").split(/\r?\n/, 10).join("\n");
 const serialOf = (file) => header(file).match(/^(?:\/\/|#) agent-tooling-serial: (.+)$/m)?.[1];
 async function runCheck(file, onTimeout) {
@@ -102,8 +79,6 @@ async function runCheck(file, onTimeout) {
     const hint = /\.(?:json|snap|md|txt)$/i.test(file) ? "; data fixture extensions must be lowercase (.json, .snap, .md, .txt)" : "";
     err(`FAILED: unsupported or missing check ${file}${hint}`); failed++; flush(); return {};
   }
-  // A check whose honest run time is close to the default declares its own
-  // bound in its first lines, so machine load does not turn a pass into a timeout.
   const declared = header(file).match(/^(?:\/\/|#) agent-tooling-timeout-ms: (\d+)$/m);
   const checkTimeoutMs = declared ? Number(declared[1]) : timeoutMs;
   if (!Number.isSafeInteger(checkTimeoutMs) || checkTimeoutMs < 100 || checkTimeoutMs > 3600000) { err(`FAILED: ${file}: declared agent-tooling-timeout-ms must be an integer from 100 to 3600000`); failed++; flush(); return {}; }
@@ -120,10 +95,6 @@ async function runCheck(file, onTimeout) {
     const progress = setInterval(() => console.log(`RUNNING: ${file}: ${Date.now() - started} ms; awaiting exit`), 30000);
     const timer = setTimeout(() => {
       timedOut = true;
-      // The scheduler stops launching now, not when the child's close is
-      // confirmed: that can take up to the cleanup deadline, during which
-      // another check's completion would otherwise admit queued checks
-      // beside a child whose cleanup is still unconfirmed.
       onTimeout();
       err(`TIMEOUT: ${file}; stopping launched ${process.platform === "win32" ? "process tree" : "process group"} ${child.pid}`);
       try {
@@ -158,10 +129,6 @@ async function runCheck(file, onTimeout) {
   flush();
   return { abort };
 }
-// Launch in inventory order, at most `concurrency` at a time. A serial-only
-// check waits for every running check to finish and holds the machine until
-// it exits. An abort (a timeout the moment it fires, or an unconfirmed
-// cleanup) stops further launches; checks already running finish.
 await new Promise((resolve) => {
   const queue = [...candidates];
   let active = 0, exclusive = false, aborted = false;

@@ -1,23 +1,6 @@
-// The projects `driver.mjs timing` plays (#683). Development-only fixtures:
-// nothing ships them, and each is generated the same way on every run, so two
-// checkouts measure the same thing.
-//
-// - `input`: a scene that offers the same two choices for ever. Clicking a
-//   choice is input the running game answers as soon as it arrives, by taking
-//   the choices off the page, so the time from the click to the page handling
-//   that answer is the hop through the game and back.
-// - `metronome`: a run of beats that each play one click and show one flash,
-//   through the engine's ordinary `((play sound ...))` and `[[show ...]]`, so
-//   each click carries the beat's stamp as a real beat does. A beat with a
-//   sound waits for input to advance, so the command advances each one on a
-//   timer at the tempo; the flashes alternate between two images because a
-//   write of the image already showing changes nothing on the page.
-
 import fs from "node:fs";
 import path from "node:path";
 
-/** A mono 16-bit WAV: a decaying 1 kHz tone whose first sample is already at
- *  full level, so the click's first audible frame is the file's first frame. */
 export function clickWav({ sampleRate = 48_000, ms = 40 } = {}) {
   const frames = Math.round((sampleRate * ms) / 1000);
   const data = Buffer.alloc(frames * 2);
@@ -45,8 +28,6 @@ export function clickWav({ sampleRate = 48_000, ms = 40 } = {}) {
 
 const square = (fill) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="${fill}"/></svg>\n`;
 
-/** `beats` beats of one click and one flash each. `startLine` is the line
- *  PLAY starts from, counting from one. */
 export function buildMetronomeFixture({ beats = 120 } = {}) {
   const lines = ["scene start", "  Ready.", ""];
   for (let i = 0; i < beats; i++) lines.push(`  [[show backdrop flash_${i % 2 ? "b" : "a"}]]`, "  ((play sound click))", "  >", "");
@@ -59,7 +40,6 @@ export function buildMetronomeFixture({ beats = 120 } = {}) {
   return { files, startLine: 2, beats };
 }
 
-/** A scene that offers `Left` and `Right` for ever. */
 export function buildInputFixture() {
   const lines = ["scene start", "  Ready.", "  -> PICK", "end", "", "scene PICK", "  choose", "    + [Left]", "    + [Right]", "  then", "  -> PICK", "  end", "end", ""];
   const files = new Map();
@@ -67,7 +47,6 @@ export function buildInputFixture() {
   return { files, startLine: 2, choices: ["Left", "Right"] };
 }
 
-/** Writes a fixture into `dir`, which must be missing or empty. */
 export function writeTimingFixture(dir, { files }) {
   if (fs.existsSync(dir) && fs.readdirSync(dir).length > 0) throw new Error(`refusing to write the fixture into non-empty ${dir}`);
   for (const [rel, content] of files) {

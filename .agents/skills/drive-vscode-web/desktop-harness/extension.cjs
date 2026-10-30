@@ -1,5 +1,3 @@
-// Installed only in the driver's private extensions directory. Exercise the
-// public VS Code API and the shipped extension's commands in the real host.
 const vscode = require("vscode");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -46,9 +44,6 @@ async function run() {
   try {
     const extension = vscode.extensions.getExtension("impowergames.sparkdown");
     if (extension) await extension.activate();
-    // A browser-only extension runs in the web worker host and is absent
-    // from this Node host's extensions collection. The driver identifies
-    // that loaded bundle through the worker debugger's script URL/hash.
     report.extension = extension ? { path: extension.extensionPath, active: extension.isActive, version: extension.packageJSON.version } : { host: "web worker" };
     const document = await vscode.workspace.openTextDocument(vscode.Uri.file(path.resolve(spec.project, spec.file)));
     if (document.languageId !== "sparkdown") throw new Error(`Wrong language: ${document.languageId}`);
@@ -69,8 +64,6 @@ async function run() {
       } catch (e) { report.failed.push(String(e.message ?? e)); }
     }
     report.diagnostics = await settledDiagnostics();
-    // The initial selection can precede browser-extension activation. Make a
-    // real subsequent selection after language registration, as an author does.
     editor.selection = new vscode.Selection(line, 1, line, 1);
     await sleep(100);
     await vscode.commands.executeCommand("sparkdown.previewGame");
@@ -109,22 +102,16 @@ async function debug() {
       return next.stackFrames?.length && location(next.stackFrames) !== location(report.stack) ? next : null;
     }, "Step did not change the stack location");
     await session.customRequest("continue", { threadId });
-    // A successful DAP response only acknowledges the command. Observe the
-    // engine reaching another location before recording successful execution.
     report.afterContinue = await until(async () => {
       const next = await session.customRequest("stackTrace", { threadId });
       return next.stackFrames?.length && location(next.stackFrames) !== location(report.stepped.stackFrames) ? next : null;
     }, "Continue did not advance beyond the stepped stack location");
     report.continued = true;
-    // The owned desktop host shuts the session down after evidence collection.
-    // Stopping here can race VS Code's stack reads for the new stopped event.
   } catch (e) { report.failed.push(String(e.stack ?? e)); }
   save("debug-report.json", report);
 }
 
 exports.activate = context => {
-  // Supply the scenario folder to the real checked-in F5 configuration. Opening
-  // it at launch avoids replacing the development window and ending its session.
   context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider("extensionHost", {
     resolveDebugConfiguration(_folder, configuration) {
       const spec = config();

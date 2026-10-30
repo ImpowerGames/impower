@@ -1,17 +1,7 @@
 // @vitest-environment node
-// The editor's service worker, end to end: a `Range` request for a project
-// file goes through the worker's own fetch listener and comes back with only
-// the requested bytes.
-//
-// The preview's `<video preload="metadata">` reads a video's start through
-// ranged requests to `/file:/…`, which this worker answers from OPFS. The
-// worker is loaded as it ships, with its globals stubbed: its event
-// registrations land on a fake `self`, and OPFS is an in-memory directory.
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-// The generated-variant services the worker imports are not on the path
-// a plain project file takes.
 vi.mock("@impower/sparkdown/src/filters/filteredSvg", () => ({
   getOrCreateFilteredSvg: vi.fn(),
 }));

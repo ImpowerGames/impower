@@ -1,9 +1,3 @@
-// Exercises the shared-stash hook two ways: the decision table runs against
-// decide() directly, and a set of payloads run through the literal PreToolUse
-// "command" string that .claude/settings.json ships, under bash and, when one
-// is installed, under dash as a plain POSIX shell. Run:
-//   node .claude/hooks/shared-stash-hook.test.mjs
-
 import { testShell } from "../../.agents/skills/drive-web-editor/redgreen.mjs";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -36,8 +30,6 @@ const denies = [
   ["a stash branch", "git stash branch wip"],
   ["a stash with only options", "git stash -u"],
   ["a stash whose message stands where a subcommand would", "git stash -m wip"],
-  // After `--` every token is a pathspec, so these push a file whose name
-  // happens to read like a subcommand that only reads the stack.
   ["a stash of a file named list", "git stash -- list"],
   ["a stash of a file named show", "git stash -- show"],
   ["a stash of a file named create", "git stash -- create"],
@@ -67,8 +59,6 @@ const allows = [
   ["a stash list with options", "git stash list --oneline -n 5"],
   ["a stash show", "git stash show -p stash@{0}"],
   ["a stash create", "git stash create"],
-  // The subcommand stands before the `--`, so it is the subcommand and what
-  // follows only limits what it reads.
   ["a stash list limited to a path", "git stash list -- packages"],
   ["a commit", "git commit -F msg.txt"],
   ["a status", "git status --short"],
@@ -91,8 +81,6 @@ for (const [label, command] of allows) {
   check(reason === null, `allowed: ${label}`, JSON.stringify(reason));
 }
 
-// The reason has to name what to do instead, because the skills no longer
-// carry a sentence saying it.
 {
   const reason = decide("git stash pop");
   check(/copy it aside and copy it back/.test(reason), "the reason names copying the file aside", JSON.stringify(reason));
@@ -100,9 +88,6 @@ for (const [label, command] of allows) {
   check(/git stash list/.test(reason), "the reason names what is still allowed", JSON.stringify(reason));
 }
 
-// The two hooks share one reading of the command line, so a quoting rule
-// holds for both. A stash inside a substitution and a create inside one are
-// each seen by their own hook and by neither of the other's.
 {
   check(typeof decide('N="$(git stash pop)"') === "string", "the shared reader finds a stash inside double quotes");
   check(decide('gh api -X POST repos/ImpowerGames/impower/issues -f title=x') === null, "the stash hook is silent on an untyped create");
@@ -110,7 +95,6 @@ for (const [label, command] of allows) {
   check(typedDecide("git stash pop") === null, "the typed-issue hook is silent on a stash");
 }
 
-// The wired command string, under bash and under a plain POSIX shell.
 {
   const settings = JSON.parse(readFileSync(resolve(root, ".claude", "settings.json"), "utf8"));
   const entry = (settings.hooks?.PreToolUse ?? []).find(

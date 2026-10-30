@@ -12,9 +12,6 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "writer-route-preflight-"));
 const only = (result) => result.verdicts.map(({ ticket, verdict }) => `${ticket}:${verdict}`).join(" ");
 
 try {
-  // The retired Claude routes need a user-begun turn, an approval card or the
-  // coordinator's own session, so every ticket on them is blocked with the
-  // reason the runner configuration gives, whatever evidence comes with it.
   const retired = JSON.parse(fs.readFileSync(path.join(here, "..", ".claude", "writer-defaults.json"), "utf8")).retiredRoutes;
   for (const route of ["claude-agent", "claude-desktop", "claude-adopted"]) {
     const result = preflight({ route, model: "claude-opus-5-5", tickets: [{ number: 1, effort: "medium" }, { number: 2, effort: "high" }], evidence: { agents: ["writer-opus-5-5-medium"], coordinator: { model: "claude-opus-5-5", effort: "high" } } });
@@ -23,8 +20,6 @@ try {
     assert.equal(result.verdicts[0].launch, undefined, "a blocked ticket names no substitute launch");
   }
 
-  // App collaboration: the host's advertised models and efforts, read from the
-  // model parameter description of the captured host fixture.
   const fixture = JSON.parse(fs.readFileSync(path.join(here, "codex-app-tools.fixture.json"), "utf8"));
   const modelParameter = fixture.tools.find((tool) => tool.name === "send_message_to_thread").inputSchema.properties.model.description;
   const advertised = parseAdvertisedModels(modelParameter);
@@ -35,12 +30,6 @@ try {
   assert.match(preflight({ route: "codex-app", model: "gpt-6.1-sol", tickets: [{ number: 10, effort: "low" }], evidence: { modelParameter } }).verdicts[0].reason, /does not offer gpt-6\.1-sol/);
   assert.throws(() => preflight({ route: "codex-app", model: "gpt-6-astra", tickets: [{ number: 11, effort: "low" }], evidence: { modelParameter: "no models here" } }), /lists no models/);
 
-  // CLI: the model catalog must list the effort, and a probe launch with the
-  // exact model and effort must succeed, once per effort. The stand-in
-  // accepts any catalog-unsupported effort at launch, as the real CLI does,
-  // refuses gpt-5.6-terra at medium so a probe of the wrong effort shows, and
-  // refuses gpt-6.1-sol the way a ChatGPT account does although its catalog
-  // lists it.
   const fake = path.join(tmp, "fake-codex.mjs"), calls = path.join(tmp, "calls.log");
   const levels = (...list) => list.map((effort) => ({ effort, description: "" }));
   const catalog = { models: [{ slug: "gpt-5.6-terra", supported_reasoning_levels: levels("low", "medium", "high") }, { slug: "gpt-6.1-sol", supported_reasoning_levels: levels("low") }] };
@@ -66,11 +55,6 @@ try {
   assert.match(preflight({ route: "codex-cli", model: "gpt-6-astra", tickets: [{ number: 27, effort: "low" }], evidence: { codex } }).verdicts[0].reason, /catalog does not list gpt-6-astra/);
   assert.match(preflight({ route: "codex-cli", model: "gpt-6-astra", tickets: [{ number: 16, effort: "low" }], evidence: { codex: path.join(tmp, "missing-codex") } }).verdicts[0].reason, /catalog could not run/);
 
-  // Detached Claude CLI: one probe launch per effort with the exact model and
-  // effort, without the coordinator's CLAUDE* variables, which a detached
-  // writer does not inherit. The stand-in answers with the model it was
-  // given, except that it serves claude-sonnet-5-5 in place of
-  // claude-fable-5-1 and fails at max effort.
   const fakeClaude = path.join(tmp, "fake-claude.mjs"), claudeCalls = path.join(tmp, "claude-calls.log");
   fs.writeFileSync(fakeClaude, [
     'import fs from "node:fs";',
@@ -95,8 +79,6 @@ try {
     assert.equal(only(preflight({ route: "claude-cli", model: "claude-opus-5-5", tickets: [{ number: 45, effort: "high", observed: { model: "claude-opus-5-5", effort: "high" } }, { number: 46, effort: "high", observed: { model: "claude-opus-5-5", effort: "low" } }] })), "45:confirmed 46:blocked", "a launched CLI writer is confirmed from its own model and shell effort");
   } finally { delete process.env.CLAUDE_EFFORT; }
 
-  // After launch: the writer's own metadata or rollout confirms the route. A
-  // Claude session's metadata needs no pre-launch evidence.
   const rolloutOf = (name, ...contexts) => {
     const file = path.join(tmp, name);
     fs.writeFileSync(file, [{ type: "session_meta", payload: {} }, ...contexts.map((payload) => ({ type: "turn_context", payload }))].map((row) => JSON.stringify(row)).join("\n") + "\n");
@@ -106,10 +88,7 @@ try {
   const confirmed = preflight({ route: "codex-app", model: "gpt-6-astra", tickets: [{ number: 17, effort: "high", observed: { rollout } }, { number: 18, effort: "medium", observed: { rollout } }], evidence: { modelParameter } });
   assert.equal(only(confirmed), "17:confirmed 18:blocked", "the latest turn_context row is current");
   assert.match(confirmed.verdicts[1].reason, /runs gpt-6-astra at high, not gpt-6-astra at medium/);
-  // An existing writer on a retired route, adopted with its work, is still
-  // confirmed against what it runs.
   assert.equal(only(preflight({ route: "claude-desktop", model: "claude-opus-5-5", tickets: [{ number: 19, effort: "medium", observed: { model: "claude-opus-5-5", effort: "medium" } }, { number: 20, effort: "medium", observed: { model: "claude-sonnet-5-5", effort: "medium" } }] })), "19:confirmed 20:blocked");
-  // A live writer may be mid-append: an unfinished last record is ignored.
   const active = path.join(tmp, "active.jsonl");
   fs.writeFileSync(active, fs.readFileSync(rollout, "utf8") + '{"type":"event_msg","payload":');
   assert.equal(only(preflight({ route: "codex-app", model: "gpt-6-astra", tickets: [{ number: 37, effort: "high", observed: { rollout: active } }], evidence: { modelParameter } })), "37:confirmed");
@@ -117,9 +96,6 @@ try {
   fs.writeFileSync(unfinishedContext, fs.readFileSync(rollout, "utf8") + JSON.stringify({ type: "turn_context", payload: { model: "gpt-6-astra", effort: "low" } }));
   assert.equal(only(preflight({ route: "codex-app", model: "gpt-6-astra", tickets: [{ number: 38, effort: "high", observed: { rollout: unfinishedContext } }], evidence: { modelParameter } })), "38:confirmed", "a context row without its newline is not yet a record");
 
-  // A Codex rollout records an unsupported effort unchanged, so a matching
-  // observation is still checked against the host's supported efforts: the
-  // CLI catalog (without a paid probe) or the app's advertised list.
   fs.writeFileSync(calls, "");
   const unsupported = preflight({ route: "codex-cli", model: "gpt-5.6-terra", tickets: [{ number: 28, effort: "ultra", observed: { rollout: rolloutOf("ultra.jsonl", { model: "gpt-5.6-terra", effort: "ultra" }) } }, { number: 29, effort: "high", observed: { rollout: rolloutOf("high.jsonl", { model: "gpt-5.6-terra", effort: "high" }) } }], evidence: { codex } });
   assert.equal(only(unsupported), "28:blocked 29:confirmed");
@@ -129,23 +105,18 @@ try {
   assert.match(appUnsupported.verdicts[0].reason, /only at low, medium, high, xhigh, not max/);
   assert.throws(() => preflight({ route: "codex-app", model: "gpt-6-astra", tickets: [{ number: 31, effort: "high", observed: { rollout } }] }), /evidence\.modelParameter/);
 
-  // Malformed observations are refused before any catalog read or probe runs,
-  // even when an earlier ticket in the batch would launch one.
   for (const observed of [{}, null, [], { model: "gpt-5.6-terra" }, { rollout: "relative.jsonl" }, { rollout: rolloutOf("bare.jsonl", { model: "gpt-5.6-terra" }) }]) {
     fs.writeFileSync(calls, "");
     assert.throws(() => preflight({ route: "codex-cli", model: "gpt-5.6-terra", tickets: [{ number: 32, effort: "low" }, { number: 33, effort: "low", observed }], evidence: { codex } }), /Ticket 33 |needs a model and an effort/, JSON.stringify(observed));
     assert.equal(fs.readFileSync(calls, "utf8"), "", `no catalog read or probe for ${JSON.stringify(observed)}`);
   }
 
-  // Malformed requests are refused rather than judged.
   assert.throws(() => preflight({ route: "claude-agent", model: "gpt-6-astra", tickets: [{ number: 21, effort: "low" }] }), /claude model id/);
   assert.throws(() => preflight({ route: "claude-agent", model: "claude-opus-5-5", tickets: [{ number: 22, effort: "ultra" }] }), /effort must be one of/);
   assert.throws(() => preflight({ route: "claude-cli", model: "gpt-6-astra", tickets: [{ number: 39, effort: "low" }] }), /claude model id/);
   assert.throws(() => preflight({ route: "codex-exec", model: "gpt-6-astra", tickets: [{ number: 23, effort: "low" }] }), /route must be one of/);
   assert.throws(() => preflight({ route: "claude-agent", model: "claude-opus-5-5", tickets: [] }), /at least one/);
 
-  // The command line prints the verdicts and exits 0 when every ticket can
-  // run, 1 when any is blocked and 2 for a malformed request.
   const run = (request) => {
     const file = path.join(tmp, "request.json");
     fs.writeFileSync(file, JSON.stringify(request));

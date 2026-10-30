@@ -7,12 +7,6 @@ import path from "path";
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
 
-/**
- * Honor Vite's `?raw` query in esbuild: resolve a `*?raw` import to the real
- * file in a dedicated namespace, then load its contents as a text string.
- * Gives esbuild parity with Vite/vitest (which support `?raw` natively) so the
- * same `import text from "./some.file?raw"` works in code bundled by either.
- */
 const rawPlugin = (): esbuild.Plugin => ({
   name: "raw",
   setup(build) {
@@ -65,7 +59,6 @@ const config: esbuild.BuildOptions = {
   outdir: "out",
   external: ["vscode", "child_process", "crypto", "fs"],
   logLevel: "warning",
-  // Node.js global to browser globalThis
   define: {
     global: "globalThis",
   },
@@ -97,10 +90,6 @@ const config: esbuild.BuildOptions = {
     js: `const window = {};`,
   },
 
-  // esbuild is installed twice and always will be: `tsx` pins ~0.18 and wins
-  // the hoist, while this extension needs ^0.25. Plugins from packages that
-  // depend on the hoisted copy therefore carry its `Plugin` type, which is
-  // structurally the same but nominally distinct.
   plugins: [
     rawPlugin(),
     polyfill.NodeGlobalsPolyfillPlugin({
@@ -111,12 +100,6 @@ const config: esbuild.BuildOptions = {
       paths: [
         { from: "./data/*", to: "./data" },
         { from: "../packages/spark-web-player/types/*", to: "./data" },
-        // After the npm-workspaces migration these deps are hoisted to the
-        // monorepo ROOT node_modules, so the old `./node_modules/...` (local)
-        // paths resolve to nothing and silently copy zero files. Read the
-        // workspace package dists straight from `../packages/<pkg>/dist`
-        // (deterministic regardless of hoisting, like the spark-web-player
-        // entry above) and the external codicons from the root node_modules.
         {
           from: "../node_modules/@vscode/codicons/dist/*",
           to: "./data",
@@ -135,7 +118,7 @@ const config: esbuild.BuildOptions = {
         },
       ],
     }) as unknown as esbuild.Plugin,
-    esbuildProblemMatcher() /* add to the end of plugins array */,
+    esbuildProblemMatcher(),
   ],
   metafile: true,
 };
@@ -143,9 +126,6 @@ const config: esbuild.BuildOptions = {
 async function main() {
   const ctx = await esbuild.context(config);
   if (WATCH) {
-    // Not ctx.watch(), which polls the build graph's files; the helper watches
-    // them from change notifications. The copy plugin keeps its own watcher. A
-    // failed rebuild is logged and watching continues.
     const { watchBuild } = await import("../../scripts/esbuild-watch.mjs");
     await watchBuild(ctx, {
       onError: (e) =>

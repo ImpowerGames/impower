@@ -1,27 +1,4 @@
 #!/usr/bin/env node
-// Pins the decisions behind the driver's state file: where it lives, whether a
-// recorded pid is alive, whether the record still names its launcher, and
-// what `status`, `up` and `down` do with each kind of record.
-// Run:
-//   node .agents/skills/drive-web-editor/state-path.test.mjs
-//
-// hereOrPrevious picks where the state file and the Chromium profile live:
-// beside the driver, unless nothing is there and a copy sits under the
-// resolve-issue skill, where a dev-server tree launched from the driver's
-// previous location left it. pidAlive asks the system whether a pid exists,
-// and counts a pid it may not signal (EPERM) as alive. recordStands is what
-// keeps `up` from deleting the record of a tree that is still building, and
-// what stops `down` killing a process the system handed a freed pid to: a live
-// pid vouches for the record only when the process behind it started when the
-// record was written.
-//
-// The pure parts take their inputs as parameters (hereOrPrevious its `exists`
-// predicate, pidAlive its `kill`, recordStands its `probe`), so the tables are
-// pinned without a process or a file. The live probe is pinned against a child
-// this check spawns. The commands are pinned by copying the driver into a
-// scratch repository, running the copy over records this check writes. The
-// launch starts a fixture launcher that starts three process generations;
-// every process signalled belongs to the fixture. Node's built-in assert only.
 
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
@@ -107,11 +84,6 @@ await check("state lookup checks canonical paths before migration paths", () => 
 });
 
 await check("with no predicate, the disk decides: a tracked file at only the previous location is found there", () => {
-  // landing-pad.test.sh is the one tracked file that sits under resolve-issue
-  // and not beside the driver; SKILL.md is tracked at both; the last name is
-  // at neither. A default predicate that answers false for everything would
-  // put the first of these beside the driver. If landing-pad.test.sh moves,
-  // this pin needs another file that sits only under resolve-issue.
   assert.ok(under(hereOrPrevious("landing-pad.test.sh"), "resolve-issue"), "landing-pad.test.sh was not found under resolve-issue alone; this pin depends on that file sitting only there");
   assert.ok(under(hereOrPrevious("SKILL.md"), "drive-web-editor"));
   assert.ok(under(hereOrPrevious("no-such-file.probe"), "drive-web-editor"));
@@ -145,7 +117,6 @@ await check("pidAlive counts a pid it may not signal (EPERM) as alive, and any o
   assert.equal(pidAlive(4, () => undefined), true);
 });
 
-// A probe whose answers are fixed, recording what it was asked.
 const probe = ({ alive, started, written = null }) => {
   const asked = [];
   return {
@@ -255,8 +226,6 @@ await check("a record with no startedAt is dated by its file, and stands only wh
   assert.ok(!withDate.asked.includes("written"));
 });
 
-// ---------------------------------------------------------- the live probe ---
-
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const idle = () => spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore", detached: process.platform !== "win32", windowsHide: true });
 const untilGone = async (pid, ms = 5_000) => {
@@ -272,7 +241,6 @@ const stop = (child) => {
     if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
     else process.kill(-child.pid, "SIGKILL");
   } catch {
-    /* already gone */
   }
 };
 
@@ -299,8 +267,6 @@ await check("the live probe reports no start for a process that has exited or a 
   }
 });
 
-// ------------------------------------------------------- session storage ---
-
 await check("the session comes from the first variable set, and none means the shared slot", () => {
   assert.equal(driverSession({}), null);
   assert.equal(driverSession({ CLAUDE_CODE_SESSION_ID: "b", CODEX_THREAD_ID: "c" }), "b");
@@ -322,7 +288,6 @@ await check("two sessions in one checkout get different directories, both short 
 });
 
 await check("a profile whose Cache Storage paths pass 259 characters is refused on Windows only", () => {
-  // The profile location #742 measured: 277 characters with the suffix.
   const deep = "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\refactor\\689-690-display-only-lowering\\.agents\\skills\\drive-web-editor\\.chrome-profile";
   assert.ok(deep.length + CACHE_STORAGE_SUFFIX > WINDOWS_PATH_LIMIT);
   assert.match(profilePathProblem(deep, "win32"), /too deep.*past Windows' 259/);
@@ -382,9 +347,6 @@ await check("the browser launch refuses a too-deep or claimed profile before Pla
     const claim = JSON.parse(fs.readFileSync(path.join(dir, PROFILE_CLAIM_FILE), "utf8"));
     assert.equal(typeof claim.at, "number");
     assert.deepEqual(fs.readdirSync(dir).sort(), [PROFILE_CLAIM_FILE], "the claim left a temporary or lock file behind");
-    // A launch that finds another's lock is refused, whatever the claim says,
-    // so two launches at once cannot both pass the check; a stale lock is
-    // taken over.
     fs.rmSync(path.join(dir, PROFILE_CLAIM_FILE));
     const lock = path.join(dir, PROFILE_CLAIM_FILE + ".lock");
     fs.writeFileSync(lock, "");
@@ -399,16 +361,12 @@ await check("the browser launch refuses a too-deep or claimed profile before Pla
     age(PROFILE_LOCK_STALE_MS + 5_000);
     assert.deepEqual(await launchEditorBrowser({ headless: true, dir, platform: "linux", playwright }), { dir });
     assert.deepEqual(fs.readdirSync(dir).sort(), [PROFILE_CLAIM_FILE]);
-    // A stale lock another launch replaced between the read and the removal
-    // is not removed, and its new holder is left to finish.
     fs.rmSync(path.join(dir, PROFILE_CLAIM_FILE));
     fs.writeFileSync(lock, "stale-holder");
     age(PROFILE_LOCK_STALE_MS + 5_000);
     assert.throws(() => claimProfile(dir, { session: "me", beforeTakeover: () => fs.writeFileSync(lock, "newer-holder") }), /is held/);
     assert.equal(fs.readFileSync(lock, "utf8"), "newer-holder", "the takeover removed a lock it had not read");
     assert.equal(fs.existsSync(path.join(dir, PROFILE_CLAIM_FILE)), false);
-    // A holder stalled past the takeover window writes nothing: the lock it
-    // reads back belongs to whoever took it over.
     fs.rmSync(lock);
     assert.throws(() => claimProfile(dir, { session: "me", beforeWrite: () => fs.writeFileSync(lock, "took-over") }), /is held/);
     assert.equal(fs.existsSync(path.join(dir, PROFILE_CLAIM_FILE)), false, "a holder that lost its lock still wrote a claim");
@@ -418,16 +376,6 @@ await check("the browser launch refuses a too-deep or claimed profile before Pla
     fs.rmSync(base, { recursive: true, force: true });
   }
 });
-
-// ------------------------------------------------------------ the commands ---
-//
-// A copy of the driver laid out as `.agents/skills/drive-web-editor/` under a
-// scratch repository root beside an empty `resolve-issue/`, with the
-// `scripts/detached-launch.mjs` it imports. REPO_ROOT resolves
-// three directories up from the copy. The final case supplies a fixture
-// scripts/dev-preview.mjs, with the package.json `web:dev` script that runs it
-// in the repository, and exercises the real launch path with fixture-only TCP
-// listeners.
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "state-path-"));
@@ -439,8 +387,6 @@ for (const name of ["driver.mjs", "redgreen.mjs", "session-dir.mjs", "worktree-t
 fs.mkdirSync(path.join(scratch, "repo", "scripts"));
 fs.copyFileSync(path.join(here, "..", "..", "..", "scripts", "detached-launch.mjs"), path.join(scratch, "repo", "scripts", "detached-launch.mjs"));
 const copy = path.join(copyDir, "driver.mjs");
-// The copy keeps its records under a home inside the scratch directory, as
-// the session this check names; every command below inherits both.
 process.env.IMPOWER_DRIVER_HOME = path.join(scratch, "home");
 process.env.IMPOWER_DRIVER_SESSION = "state-path-session";
 const stateFile = path.join(sessionDir({ root: path.join(scratch, "repo"), session: "state-path-session", env: process.env }), "state.json");
@@ -481,16 +427,11 @@ const writeRecord = (record, file = stateFile) => {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, typeof record === "string" ? record : JSON.stringify(record));
 };
-// A record that must name no live process takes the pid of a child that has
-// already exited. A fixed small pid names a kernel thread on some Linux hosts
-// and the System process on Windows, and the driver refuses to stop those.
 const deadPid = () => {
   const child = spawnSync(process.execPath, ["-e", "0"], { windowsHide: true });
   assert.ok(child.pid > 0 && !pidAlive(child.pid), `fixture pid ${String(child.pid)} still names a live process`);
   return child.pid;
 };
-// Each command case starts with no record in either location, so a record one
-// failed case leaves behind cannot fail the next.
 const freshCheck = (name, fn) =>
   check(name, () => {
     for (const file of [stateFile, legacyStateFile]) fs.rmSync(file, { force: true });
@@ -500,8 +441,6 @@ const run = (cmd, ...args) => {
   const r = spawnSync(process.execPath, [copy, cmd, ...args], { encoding: "utf8", windowsHide: true, timeout: 60_000 });
   return { status: r.status, out: (r.stdout ?? "") + (r.stderr ?? "") };
 };
-// For a command that must reach a server this process is running: spawnSync
-// blocks the event loop, and a server here cannot answer while it is blocked.
 const runWhileServing = (cmd) =>
   new Promise((resolve) => {
     const p = spawn(process.execPath, [copy, cmd], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
@@ -513,8 +452,6 @@ const runWhileServing = (cmd) =>
 const listen = () =>
   new Promise((resolve) => {
     const server = http.createServer((_req, res) => res.end("ok"));
-    // The record names the address the listener bound; `localhost` would
-    // resolve to ::1 first and miss a server on 127.0.0.1.
     server.listen(0, "127.0.0.1", () => resolve({ server, url: `http://127.0.0.1:${server.address().port}` }));
   });
 const closed = (server) => new Promise((resolve) => server.close(resolve));

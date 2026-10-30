@@ -1,5 +1,3 @@
-// Session-local hook, explicitly installed by the owner before starting their
-// writer. It records observations, never starts a model or dispatches work.
 import fs from 'node:fs';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
@@ -11,8 +9,6 @@ import {claimCommandDigest} from './claude-claim-proof.mjs';
 
 export function appendClaudeReceipt(file,row,{lockTimeout=10000}={}) {
   const lock=file+'.lock',until=Date.now()+lockTimeout;
-  // Windows answers EPERM, not EEXIST, while another writer's rmdir of the lock
-  // is still pending, so both codes mean a held lock.
   for(;;){try{fs.mkdirSync(lock);break;}catch(error){if(!['EEXIST','EPERM'].includes(error.code)||Date.now()>until)throw new Error(`Claude receipt storage busy (${error.code}); retry after inspecting its lock`);Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10);}}
   const temporary=file+'.'+randomUUID();
   try {
@@ -32,11 +28,8 @@ export function appendClaudeReceipt(file,row,{lockTimeout=10000}={}) {
       if(['PostToolUse','PostToolUseFailure'].includes(value.hook_event_name)&&value.tool_use_id)closed.set(value.tool_use_id,index);
     });
     for(const marker of markers)retained.add(finals.get(messageKey(marker)));
-    // Never let old acknowledgment evidence outlive its latest invalidating
-    // boundary. Outstanding admissions also remain visible to uniqueness checks.
     for(const event of ['Stop','SessionEnd','UserPromptSubmit'])retained.add(rows.findLast(value=>value.hook_event_name===event));
     rows.forEach((value,index)=>{if(value.hook_event_name==='PreToolUse'&&!(closed.get(value.tool_use_id)>index))retained.add(value);});
-    // Set insertion order is selection order, not native append order.
     const ordered=rows.filter(value=>retained.has(value));
     if(ordered.length>4096)throw new Error('Compact Claude receipt count exceeds recovery bound');
     const output=ordered.map(JSON.stringify).join('\n')+'\n';

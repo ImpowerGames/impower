@@ -1,29 +1,4 @@
 #!/usr/bin/env node
-// Runs the story engine measurements of #664 under bare node: bundles each
-// entry with the repository's esbuild, then runs every mode in a process of
-// its own, because a shared process inflates whatever runs second.
-//
-//   node scripts/bench/engine-bench.mjs --fixture
-//   node scripts/bench/engine-bench.mjs --project <dir> --line <N>
-//
-// Options:
-//   --project <dir>   a project directory holding main.sd
-//   --fixture         generate the fixture project (preview-fixture.mjs) into a
-//                     temporary directory and measure its target line
-//   --line <N>        the line of main.sd the route ends at, counting from one
-//   --mode <m,..>     any of program, symbols, order, images, search, or all
-//                     (the default); see MODES below
-//   --samples <K>     measured samples per mode (default 12)
-//   --warmup <W>      discarded samples first (default 4)
-//   --cpu-prof <dir>  also write a V8 CPU profile of each candidate's process
-//                     there, with the bundle's source map. A profiled bundle
-//                     keeps function names, which slows the engine, so read
-//                     times from a run without this flag
-//   --json <file>     also write every report, as <file>.<mode>.json for a mode
-//                     with one candidate and <file>.<mode>.<candidate>.json
-//                     for the others
-//
-// How to read the output: .agents/skills/drive-web-editor/references/performance.md.
 
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -33,11 +8,6 @@ import { fileURLToPath } from "node:url";
 import { bundleBench, count, value } from "./benchLauncher.mjs";
 import { buildBeatsFixture, buildChunksFixture, writePreviewFixture } from "./preview-fixture.mjs";
 
-// Each mode: the entry that implements it, the candidates it runs (each in a
-// process of its own) and the project it runs on. `route` is the project named
-// on the command line; `beats` is always the generated beats-only scene, and
-// `chunks` the generated scene of mixed statements. What each measures is in
-// .agents/skills/drive-web-editor/references/performance.md.
 export const MODES = {
   program: { entry: "programStepBench.ts", project: "beats", candidates: ["program-step", "program-line"] },
   symbols: { entry: "chunkSymbolBench.ts", project: "route", candidates: ["symbol", "direct"] },
@@ -90,10 +60,6 @@ export function parseEngineBenchArgs(args) {
   return out;
 }
 
-// Why the candidates of `program` did not do the same work, or undefined: the
-// lines must be the same whichever way the engine was driven, and it must have
-// run each instruction of the scene's chunks once, and the step that finds the
-// scene ended, so that every display beat ran once.
 export function programMismatch(reports) {
   const problem = outputMismatch(reports);
   if (problem) return problem;
@@ -103,7 +69,6 @@ export function programMismatch(reports) {
   return undefined;
 }
 
-// Why the candidates did not produce the same lines, or undefined.
 export function outputMismatch(reports) {
   const digests = new Set(reports.map((r) => r.outputDigest));
   if (digests.size !== 1) return `outputs differ: ${reports.map((r) => `${r.candidate} ${r.outputDigest.slice(0, 12)}`).join(", ")}`;
@@ -123,7 +88,6 @@ async function main(args) {
       console.log(`fixture: ${project}`);
     }
     project = path.resolve(project);
-    // The scenes a mode generates for itself, whatever project was named.
     const generated = { beats: buildBeatsFixture, chunks: buildChunksFixture };
     const bundles = new Map();
     let failed = false;
@@ -188,7 +152,6 @@ async function main(args) {
     }
     process.exitCode = failed ? 1 : 0;
   } finally {
-    // Only the directory this run created: the fixture and the bundles.
     fs.rmSync(scratch, { recursive: true, force: true });
   }
 }

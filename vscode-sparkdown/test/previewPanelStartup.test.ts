@@ -1,11 +1,3 @@
-// How the Game Preview panel starts its player (#1874, #1875). The webview
-// posts an empty message once its script has loaded and a connected message
-// once its player has mounted; on a cold start the player was initialized for
-// each, so it read and compiled the whole project twice and the burst of
-// programs that followed could leave the preview black for good. The player
-// also asked for every file's address one request at a time before it could
-// compile, and the files were read only after it had mounted.
-
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { FakeVscode } from "./fakeVscode";
 
@@ -13,12 +5,9 @@ const state = vi.hoisted(() => ({
   vscode: null as unknown as FakeVscode,
   errors: [] as string[],
   reads: 0,
-  /** While set, each read waits until its release is called. */
   holding: false,
   releases: [] as (() => void)[],
-  /** Files the project holds beside the two every read finds. */
   extraFiles: [] as { type: string; uri: string; name: string; ext: string; version: null; languageId: null }[],
-  /** What the preview's file watcher was asked to call on a creation. */
   onCreate: [] as ((uri: { toString(): string }) => void)[],
 }));
 
@@ -73,11 +62,6 @@ const CONNECTED = {
   params: { type: "game" },
 };
 
-/** A manager whose panel records what it is sent and answers each request
- *  the way `answer` says, with the webview's message handler exposed. */
-/** The extension's context as the panel reads it: where its files are, and
- *  the state it keeps for the author across windows (the route list's
- *  toggles), which starts empty. */
 const extensionContext = {
   extensionUri: "ext",
   globalState: {
@@ -104,7 +88,6 @@ const open = async (
       postMessage: (message: any) => {
         posted.push(message);
         if (message?.id != null && message.method) {
-          // The player answers each request on the webview's channel.
           queueMicrotask(() =>
             receive({
               jsonrpc: "2.0",
@@ -142,8 +125,6 @@ describe("starting the Game Preview's player", () => {
   it("initializes the player once, when it has mounted, not also when the script loads", async () => {
     const { receive, initializations } = await open();
 
-    // The order a cold start sends them in: the script's empty message, then
-    // the player's.
     await Promise.all([receive({}), receive(CONNECTED)]);
 
     expect(initializations()).toHaveLength(1);
@@ -159,15 +140,11 @@ describe("starting the Game Preview's player", () => {
   });
 
   it("initializes a webview reloaded while the first read is under way once", async () => {
-    // Requests go to whichever webview the panel holds, so an initialization
-    // overtaken by a reload would otherwise initialize the new player too.
     state.holding = true;
     const { receive, initializations } = await open();
 
     const first = receive(CONNECTED);
     await Promise.resolve();
-    // The tab is moved while the project is still being read: the new
-    // webview's player connects and reads it again.
     const second = receive(CONNECTED);
     await Promise.resolve();
     for (const release of state.releases) release();
@@ -177,22 +154,16 @@ describe("starting the Game Preview's player", () => {
   });
 
   it("initializes a webview reloaded while the first read is under way once, when the old read ends first", async () => {
-    // The replacement webview's script says it has loaded before its player
-    // mounts; the first read ends in between. The first initialization would
-    // otherwise go on to initialize the replacement's player before it asks,
-    // and then that player's own initialization would follow.
     state.holding = true;
     const { receive, initializations } = await open();
 
     const first = receive(CONNECTED);
     await Promise.resolve();
-    // The tab is moved: the replacement's script loads and says so.
     await receive({});
     for (const release of state.releases.splice(0)) release();
     await first;
     expect(initializations()).toHaveLength(0);
 
-    // Its player mounts and asks.
     const second = receive(CONNECTED);
     await Promise.resolve();
     for (const release of state.releases.splice(0)) release();
@@ -229,14 +200,10 @@ describe("starting the Game Preview's player", () => {
   it("reads the project's files while the webview loads", async () => {
     await open();
 
-    // Before the player has mounted and asked for anything.
     expect(state.reads).toBe(1);
   });
 
   it("gives the player a file created after the early read, before it mounted", async () => {
-    // The project is read as the webview loads. A file an exporter writes
-    // after that read and before the player mounts is in neither the read
-    // nor any change the player could have heard of.
     const { receive, initializations } = await open();
     await Promise.resolve();
     const room = {

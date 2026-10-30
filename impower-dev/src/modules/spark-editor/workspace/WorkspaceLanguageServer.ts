@@ -56,16 +56,9 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
         snippetSupport: true,
         commitCharactersSupport: true,
         documentationFormat: ["plaintext", "markdown"],
-        // deprecatedSupport: true,
-        // preselectSupport: true,
-        // tagSupport: { valueSet: [] },
-        // insertReplaceSupport: true,
-        // resolveSupport: { properties: ["documentation", "detail"] },
-        // insertTextModeSupport: { valueSet: [] },
         labelDetailsSupport: true,
       },
       completionItemKind: { valueSet: [] },
-      // insertTextMode: InsertTextMode.asIs,
       contextSupport: true,
       completionList: {
         itemDefaults: ["commitCharacters", "editRange", "insertTextFormat"],
@@ -131,31 +124,9 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
     foldingRange: {
       dynamicRegistration: true,
     },
-    // documentHighlight: {
-    //   dynamicRegistration: true,
-    // },
-    // codeAction: {
-    //   dynamicRegistration: true,
-    //   dataSupport: true,
-    //   codeActionLiteralSupport: {
-    //     codeActionKind: {
-    //       valueSet: [CodeActionKind.Source],
-    //     },
-    //   },
-    // },
-    // codeLens: {},
-    // documentLink: {
-    //   dynamicRegistration: true,
-    //   tooltipSupport: false,
-    // },
-    // rangeFormatting: {},
-    // onTypeFormatting: {},
-    // selectionRange: {},
-    // moniker: {},
   },
 };
 
-/** A reference location returned by `sparkdown/fileReferences` (find-usages). */
 export interface FileReferenceLocation {
   uri: string;
   range: {
@@ -242,9 +213,6 @@ export default class WorkspaceLanguageServer {
     this._connection.onNotification(
       CompiledProgramMessage.method,
       (params: CompiledProgramParams) => {
-        // Via the shared helper rather than raw marks: this fires once per
-        // compile for the life of the page, and user-timing entries are never
-        // evicted by the platform.
         profilePhase("start", `CompiledProgramMessage`);
         this.updateProgram(params.program);
         sendProtocolMessage(CompiledProgramMessage.type.notification(params));
@@ -270,28 +238,14 @@ export default class WorkspaceLanguageServer {
         settings: Workspace.configuration.settings,
         files,
         definitions: {
-          // builtins now come from the implicitly-imported builtins prelude
-          // (useBuiltinsPrelude is the compiler default); only the LSP-side
-          // optionals/schemas/descriptions are still supplied here.
           optionals: DEFAULT_OPTIONAL_DEFINITIONS,
           schemas: DEFAULT_SCHEMA_DEFINITIONS,
           descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
         },
         uri,
         workspace: projectPath,
-        // The editor main thread only reads diagnostics + scripts
-        // from `compiler/didCompile` (see SparkdownWorkspace.compile), so have
-        // the language server relay a slim program instead of the whole ~9MB
-        // per keystroke. The VS Code extension asks for the slim relay too; the
-        // player compiles in its own worker and keeps the full one.
         slimProgramNotifications: true,
-        // Filtered images resolve through the service worker's on-demand
-        // `?filters=` route in this host (#299), so the program doesn't need
-        // the inlined SVG source that dominated its payload. LS previews
-        // re-source it lazily from watched files.
         stripImageData: true,
-        // This host's URIs are `file://` and the OPFS path as written
-        // (`getUriFromPath`), so a `%` in one is part of a file name.
         uriPathsAsWritten: true,
       },
       workspaceFolders: [
@@ -348,7 +302,6 @@ export default class WorkspaceLanguageServer {
     return this._program;
   }
 
-  /** Read messages for the selected asset without requesting a full program. */
   async getFileDiagnostics(uri: string): Promise<SparkDiagnostic[]> {
     await this.initialization();
     return (await this._connection.sendRequest<SparkDiagnostic[]>(
@@ -356,7 +309,6 @@ export default class WorkspaceLanguageServer {
     )) ?? [];
   }
 
-  /** Script locations that reference the asset at uri (find-usages). */
   async getFileReferences(uri: string): Promise<FileReferenceLocation[]> {
     await this.initialization();
     return (
@@ -367,11 +319,6 @@ export default class WorkspaceLanguageServer {
     );
   }
 
-  /**
-   * The `WorkspaceEdit` to rename the asset at `oldUri` to `newName` AND rewrite
-   * every reference to it. `null` when nothing applies. See the language
-   * server's `sparkdown/fileRenameEdits`.
-   */
   async getFileRenameEdits(
     oldUri: string,
     newName: string,
@@ -383,12 +330,6 @@ export default class WorkspaceLanguageServer {
     );
   }
 
-  /**
-   * The source position `offset` beats away from (`uri`, `line`) — used by
-   * PageUp/PageDown navigation in the game preview. Resolved on demand by the
-   * language server so the program's locations never have
-   * to be shipped to the main thread with every compile.
-   */
   async getOffsetSourceLocation(
     uri: string,
     line: number,

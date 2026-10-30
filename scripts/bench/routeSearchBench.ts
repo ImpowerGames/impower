@@ -1,14 +1,3 @@
-// A full route search to a line (#700): `Game.planRoute`, the `game/planRoute`
-// phase of the player's worker, from the top of the scene the line stands in
-// to the beat the line starts, on the program engine, whose steps are
-// addresses.
-//
-// Run through engine-bench.mjs, in a process of its own, with the
-// configuration as one JSON argument: { project, line, samples, warmup, json }.
-// Each sample resets the story and searches the whole scene again, as a
-// compile that resumes nothing does; only the search is timed. It reports the
-// route's length in steps and whether the search found it, and engine-bench.mjs
-// requires it to find one.
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
 import { SparkdownCompiler } from "../../packages/sparkdown/src/compiler/classes/SparkdownCompiler";
@@ -18,7 +7,6 @@ import { MAIN_URI, benchSystem, configurePlayerCompiler, loadProjectFiles, silen
 
 interface RouteSearchBenchConfig {
   project: string;
-  /** The line of main.sd the route ends at, counting from one. */
   line: number;
   samples: number;
   warmup: number;
@@ -45,13 +33,9 @@ function main() {
   let stepsUsed = 0;
   let found = false;
   for (let i = 0; i < config.warmup + config.samples; i++) {
-    // Each search starts from a story reset, as one that resumes nothing does.
     game.story.CancelAsyncContinue();
     game.story.ResetState();
     const t0 = performance.now();
-    // As the player's worker searches (`searchRouteTo`): the replay that
-    // follows replaces the state, so a search that finds the route leaves
-    // the story where it stopped.
     const route = Game.planRoute(game.story, game.program, from, to, {
       callerResetsStory: true,
     });

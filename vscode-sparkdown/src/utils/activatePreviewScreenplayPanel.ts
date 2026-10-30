@@ -8,7 +8,6 @@ import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";
 export const activatePreviewScreenplayPanel = (
   context: vscode.ExtensionContext,
 ): void => {
-  // Register screenplay preview command
   context.subscriptions.push(
     vscode.commands.registerCommand("sparkdown.previewScreenplay", () => {
       const uri = getActiveSparkdownDocument();
@@ -25,7 +24,6 @@ export const activatePreviewScreenplayPanel = (
       );
     }),
   );
-  // Notify screenplay preview whenever screenplay configuration is changed
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((change) => {
       if (change.affectsConfiguration("sparkdown")) {
@@ -36,7 +34,6 @@ export const activatePreviewScreenplayPanel = (
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       if (editor?.document.languageId === "sparkdown") {
-        // We have to delay this slightly so that visibleRanges has time to be correctly updated
         setTimeout(() => {
           SparkdownPreviewScreenplayPanelManager.instance.notifyChangedActiveEditor(
             editor,
@@ -55,7 +52,6 @@ export const activatePreviewScreenplayPanel = (
       }
     }),
   );
-  // Notify screenplay preview whenever text editor selection (i.e. cursor position) changed
   context.subscriptions.push(
     vscode.window.onDidChangeTextEditorSelection((change) => {
       const document = change.textEditor.document;
@@ -75,7 +71,6 @@ export const activatePreviewScreenplayPanel = (
       }
     }),
   );
-  // Notify screenplay preview whenever text editor is scrolled
   context.subscriptions.push(
     vscode.window.onDidChangeTextEditorVisibleRanges((change) => {
       const document = change.textEditor.document;

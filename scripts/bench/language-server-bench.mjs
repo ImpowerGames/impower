@@ -1,20 +1,4 @@
 #!/usr/bin/env node
-// Runs the language server's typing benchmark (languageServerBench.ts, #704)
-// under bare node: bundles it with the repository's esbuild, then runs it in a
-// process of its own.
-//
-//   node scripts/bench/language-server-bench.mjs --project <dir> --line <N> --word <text>
-//
-// Options:
-//   --project <dir>     a project directory holding main.sd
-//   --line <N>          the line of main.sd to edit, counting from one
-//   --word <text>       the word on that line an edit replaces; the whole
-//                       identifier around it is what gets replaced
-//   --options <a,b,..>  replacements, whole identifiers; default: every image
-//                       file whose name starts like the identifier
-//   --samples <K>       measured samples (default 12)
-//   --warmup <W>        discarded samples first (default 4)
-//   --json <file>       also write the report to <file>
 
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -84,7 +68,6 @@ async function main(args) {
     const run = spawnSync(process.execPath, ["--max-old-space-size=4096", script, JSON.stringify(config)], { stdio: "inherit", windowsHide: true });
     process.exitCode = run.status === 0 ? 0 : 1;
   } finally {
-    // Only the directory this run created: the bundle.
     fs.rmSync(scratch, { recursive: true, force: true });
   }
 }

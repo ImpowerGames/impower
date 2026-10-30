@@ -7,22 +7,6 @@ import HeaderSyncConflictToolbar from "../header-sync-conflict-toolbar/HeaderSyn
 export const propDefaults = {};
 export type HeaderSyncToolbarProps = Partial<typeof propDefaults>;
 
-/**
- * Sync button in the top header. Hidden entirely for the local-only
- * project (nothing to sync to). Otherwise renders one of:
- *
- *   - The conflict resolution toolbar (push/pull) when
- *     `sync.status === "sync_conflict"`.
- *   - A refresh icon button whose color + animation reflects the
- *     current sync state:
- *       * spinning while loading/syncing/importing/exporting (disabled)
- *       * red on any error state
- *       * primary (sky) when there are unsynced local changes
- *       * warning (yellow) when offline
- *       * foreground (default) when synced or idle.
- *
- * Click triggers `Workspace.window.syncProject()`.
- */
 export default function HeaderSyncToolbar(_p: HeaderSyncToolbarProps) {
   const projectId = useComputed(
     () => workspace.state.value.project?.id || "",

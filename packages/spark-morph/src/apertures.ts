@@ -283,16 +283,7 @@ function makeAperture(A: EdgeTrack, B: EdgeTrack, flipB: boolean, points: number
       facingB = dist(mean(eb[0]), mA) <= dist(mean(eb[1]), mA) ? 0 : 1;
     }
   }
-  const restGaps = [0, 1].map((t) => {
-    const a = A.track.edges(t, points)[facingA]!;
-    let b = B.track.edges(t, points)[facingB]!;
-    if (flipB) b = b.slice().reverse();
-    return [dist(a[0]!, b[0]!), dist(a[points - 1]!, b[points - 1]!)] as const;
-  });
-  const startGap = Math.max(restGaps[0]![0], restGaps[1]![0]),
-    endGap = Math.max(restGaps[0]![1], restGaps[1]![1]);
-  const loop = (tRaw: number): Point[] => {
-    const t = clamp01(tRaw);
+  const ribs = (t: number) => {
     const ea = A.track.edges(t, points),
       eb = B.track.edges(t, points);
     const a = ea[facingA]!;
@@ -309,26 +300,41 @@ function makeAperture(A: EdgeTrack, B: EdgeTrack, flipB: boolean, points: number
     const cx = a[points - 1]![0] - a[0]![0],
       cy = a[points - 1]![1] - a[0]![1];
     const facing = Math.sign(cx * dir[1] - cy * dir[0]) || 1;
+    const measured = a.map((p, i) => {
+      const q = b[i]!;
+      const qSide = sideOf(a, q),
+        pSide = sideOf(b, p);
+      return [qSide === undefined ? undefined : facing * qSide, pSide === undefined ? undefined : -facing * pSide];
+    });
+    const gaps = measured.map((sides) => (closed ? 0 : Math.min(...sides.map((side) => side ?? 0))));
+    const touching = 1e-9 * extent * extent;
+    const ribOpens = (sides: (number | undefined)[]) => sides.every((side) => side === undefined || side > touching);
+    const open = !closed && measured.some((sides, i) => i > 0 && i < points - 1 && ribOpens(sides));
+    return { a, b, gaps, open, facing, extent };
+  };
+  const openRestGaps = [0, 1].map((t) => {
+    const { a, b, open } = ribs(t);
+    return open ? [dist(a[0]!, b[0]!), dist(a[points - 1]!, b[points - 1]!)] : [0, 0];
+  });
+  const startGap = Math.max(openRestGaps[0]![0]!, openRestGaps[1]![0]!),
+    endGap = Math.max(openRestGaps[0]![1]!, openRestGaps[1]![1]!);
+  const loop = (tRaw: number): Point[] => {
+    const { a, b, gaps, open, facing, extent } = ribs(clamp01(tRaw));
     const top: Point[] = [],
       bottom: Point[] = [];
-    let anyOpen = false;
     for (let i = 0; i < points; i++) {
       const p = a[i]!,
         q = b[i]!;
-      const qSide = sideOf(a, q),
-        pSide = sideOf(b, p);
-      const gap = closed ? 0 : Math.min(qSide === undefined ? 0 : facing * qSide, pSide === undefined ? 0 : -facing * pSide);
-      if (closed || gap < 0) {
+      if (open && gaps[i]! >= 0) {
+        top.push(p);
+        bottom.push(q);
+      } else {
         const m: Point = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
         top.push(m);
         bottom.push(m);
-      } else {
-        anyOpen = true;
-        top.push(p);
-        bottom.push(q);
       }
     }
-    if (!anyOpen) return [...top, ...bottom.reverse()];
+    if (!open) return [...top, ...bottom.reverse()];
     const last = points - 1;
     const end = corner(top[last]!, bottom[last]!, facing, extent, endGap);
     const start = corner(bottom[0]!, top[0]!, facing, extent, startGap);

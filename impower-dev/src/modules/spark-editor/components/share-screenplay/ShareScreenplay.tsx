@@ -28,14 +28,6 @@ const ROWS: Row[] = [
   { key: "copy-skin", label: "Copy Work Skin", icon: BrandAo3 },
 ];
 
-/**
- * "Screenplay" panel of the Share pane: PDF + HTML export rows, each
- * with an inline progress bar that scales horizontally while the export
- * runs. Copy-work rows are placeholders (no wiring in legacy either).
- *
- * Progress is rendered via `transform: scaleX(...)` so the animation runs
- * on the compositor and doesn't conflict with the row's own transitions.
- */
 export default function ShareScreenplay(_props: ShareScreenplayProps) {
   const [progress, setProgress] = useState<Record<ExportFormat, number>>({
     pdf: 0,
@@ -65,8 +57,6 @@ export default function ShareScreenplay(_props: ShareScreenplayProps) {
       const projectName = store.project?.name;
       if (!projectId || !projectName) return;
 
-      // Screenplay export parses the raw .sd text (not the compiled program),
-      // so bundle the project's script files into the script list.
       const scriptBundle =
         await Workspace.fs.readProjectScriptBundle(projectId);
       const programs = [scriptBundle];
@@ -103,8 +93,7 @@ export default function ShareScreenplay(_props: ShareScreenplayProps) {
               onClick={fmt ? () => runExport(fmt) : undefined}
               class="overflow-hidden"
             >
-              {/* Compositor-animated progress bar — sits below the
-                  row content via z-index. Scales from the left edge. */}
+
               {fmt && (
                 <span
                   aria-hidden="true"
@@ -118,9 +107,7 @@ export default function ShareScreenplay(_props: ShareScreenplayProps) {
               </span>
               <span class="relative z-[1] flex flex-row items-center gap-4 opacity-50">
                 {row.ext}
-                {/* Raw <button> (not <Button>) because this nests inside
-                    the OptionButton row, which is itself a button. Manual
-                    <Ripple /> keeps press feedback consistent. */}
+
                 <button
                   type="button"
                   aria-label="Settings"

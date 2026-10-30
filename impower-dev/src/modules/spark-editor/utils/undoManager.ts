@@ -1,10 +1,5 @@
 import { signal } from "@preact/signals";
 
-/**
- * One reversible file operation. `undo` inverts it; `redo` re-applies it. Both
- * are closures so an op can mutate captured state across cycles (e.g. a delete
- * lands in a NEW trash batch each redo, so its `undo` must target the latest).
- */
 export interface UndoableAction {
   label: string;
   undo: () => Promise<void>;
@@ -15,10 +10,8 @@ const MAX_DEPTH = 50;
 const undoStack: UndoableAction[] = [];
 const redoStack: UndoableAction[] = [];
 
-/** Reactive flags for keybinding/menu enablement. */
 export const canUndo = signal(false);
 export const canRedo = signal(false);
-/** Label of the action Ctrl+Z would reverse (for tooltips / the snackbar). */
 export const nextUndoLabel = signal<string | null>(null);
 
 const sync = () => {
@@ -27,7 +20,6 @@ const sync = () => {
   nextUndoLabel.value = undoStack[undoStack.length - 1]?.label ?? null;
 };
 
-/** Record a new reversible action. Clears the redo stack (a new branch). */
 export function pushUndo(action: UndoableAction) {
   undoStack.push(action);
   if (undoStack.length > MAX_DEPTH) {
@@ -37,8 +29,6 @@ export function pushUndo(action: UndoableAction) {
   sync();
 }
 
-// Serialize undo/redo so a rapid Ctrl+Z burst (or snackbar + keypress) can't
-// interleave two async inversions over the same files.
 let running = false;
 
 export async function undo(): Promise<boolean> {
@@ -52,7 +42,6 @@ export async function undo(): Promise<boolean> {
     redoStack.push(action);
     return true;
   } catch {
-    // Inversion failed — keep the action so a retry is possible.
     undoStack.push(action);
     return false;
   } finally {
@@ -80,7 +69,6 @@ export async function redo(): Promise<boolean> {
   }
 }
 
-/** Drop all history (e.g. on project switch — undo across projects is unsafe). */
 export function clearUndoHistory() {
   undoStack.length = 0;
   redoStack.length = 0;

@@ -1,12 +1,4 @@
 // agent-tooling-timeout-ms: 780000
-// Prior complete21-case Windows CI measured417.6s; four added local controls
-// measured about102.7s. Allow9s for the longer genuine-event stimulus, leaving
-// about250s margin. One additional pure fixture-error control brings the CI
-// inventory to 26 cases; this is not a measured 26-case full run. One pure
-// cadence/density control adds a case without another native run. A Linux-only
-// prerequisite-refusal service control adds one case on that platform, within
-// the existing margin; its actual duration is retained separately.
-// Other checks and per-operation budgets stay unchanged.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -26,8 +18,6 @@ import {machineRoot,read as readReservation,acquire,acquireWaiting,reservationSt
 function assertCoalescedProgress(journal,nativeProgress) {
   const started=Date.parse(journal?.startedAt),ended=Date.parse(journal?.endedAt);
   const elapsedMs=ended-started,sequence=journal?.progress?.sequence,publications=journal?.progressPublications;
-  // ownedChild samples every1000ms; confirmed exit flushes the final event.
-  // The whole attempt conservatively includes launch and exit reconciliation.
   const allowance=Math.ceil(elapsedMs/1000)+1;
   console.log('Task progress batching '+JSON.stringify({sequence,publications,elapsedMs,allowance}));
   assert.ok(typeof journal?.startedAt==='string'&&typeof journal?.endedAt==='string'
@@ -49,8 +39,6 @@ const scratch=()=>fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(),'v
 const terminalSummary=result=>result.stdout.split(/\r?\n/).flatMap(line=>{
   try{const value=JSON.parse(line);return value.evidence&&typeof value.exit==='number'?[value]:[]}catch{return []}
 }).at(-1);
-// A confirmed process tree is not a released reservation. Only this fixture's
-// independently authenticated operation may use ordinary guarded recovery.
 async function settleFixtureReservation(records,directory,root=machineRoot) {
   const file=path.join(root,'reservation.json');
   let previous;
@@ -59,7 +47,7 @@ async function settleFixtureReservation(records,directory,root=machineRoot) {
   const tokens=records.flatMap(record=>record.attempts.map(attempt=>attempt.supervision.reservationToken));
   if(!tokens.includes(previous?.token)) {
     assert.ok(['running','interrupted'].includes(reservationState(previous)),'Preserve unknown foreign reservation');
-    return; // Another admitted caller already consumed this fixture's record.
+    return;
   }
   const matched=records.some(record=>same(record.coordinator,previous.owner)&&record.attempts.some(attempt=>{
     const expected=attempt.supervision,actual=previous.supervision;
@@ -77,8 +65,6 @@ async function settleFixtureReservation(records,directory,root=machineRoot) {
     delete recovered.recoveredAt;
     assert.deepEqual(recovered,previous,'Ordinary recovery retains exact prior ownership evidence');
   } finally {lease.release();}
-  // release() confirmed removal of this lease under the guard. A legitimate
-  // foreign admission may already have appeared; never require global absence.
 }
 async function finishFixtureCleanup(primary,reconcile,persist) {
   let failure;
@@ -91,8 +77,6 @@ async function finishFixtureCleanup(primary,reconcile,persist) {
   }
   return !failure;
 }
-// Copy only inspected fixture evidence after independent disposition. Never
-// retain authorization requests, executables or dependency/source trees.
 function retainNativeEvidence(directory,key,disposition) {
   if(!disposition.confirmed||!disposition.record)return;
   assert.match(key,/^[a-zA-Z0-9-]+$/);
@@ -124,7 +108,6 @@ const waitForAck='const fs=require("node:fs");const until=Date.now()+10000;const
 const admissionControls=[];
 admissionControls.push(test('measured progress cadence requires genuine density and the exact terminal event',()=>{
   const progress={version:1,mode:'run-direct',file:'/private/src/tasks.test.ts',sequence:104,event:'finished',at:'2026-10-10T20:15:02.159Z'};
-  // Retained Windows Vitest3.2.6 CI: genuine104/publications26 over56.966s.
   const measured={startedAt:'2026-10-10T20:14:09.631Z',endedAt:'2026-10-10T20:15:06.597Z',progress,progressPublications:26};
   assert.deepEqual(assertCoalescedProgress(measured,progress),{sequence:104,publications:26,elapsedMs:56966,allowance:58});
   const nominal={...measured,endedAt:'2026-10-10T20:14:20.631Z',progressPublications:12,
@@ -218,8 +201,6 @@ admissionControls.push(test('private installer timeout retains actual owned clos
   assert.notDeepEqual(processIdentity(result.pid),result.identity);
 }));
 
-// Finish every owned fixture before dependency validation can throw. Required
-// admission failure must not abandon a concurrently running fixture child.
 await Promise.all(admissionControls);
 const dependencies=process.env.IMPOWER_TEST_VITEST_DEPENDENCIES?path.resolve(process.env.IMPOWER_TEST_VITEST_DEPENDENCIES):undefined;
 const runner=fileURLToPath(new URL('./test-suite.mjs',import.meta.url));
@@ -275,13 +256,10 @@ async function publicRunner(directory,argv,{observe=false,priorAttempts=[]}={}) 
     argv=[...argv,'--internal-receipt',authored.file];
   }
   const began=Date.now();
-  // A node:test deadline may cancel this promise before the outer cutoff.
-  // Admission is latched before spawn and stays blocked until actual close
-  // AND independent owned disposition, even if the test advances meanwhile.
   incompleteOwnership='In-flight authored operation: '+evidence;
   let child;
   try {child=spawn(process.execPath,[runner,...argv],{windowsHide:true,stdio:['ignore','pipe','pipe']});}
-  catch(error) {incompleteOwnership=null;throw error;} // no child was returned
+  catch(error) {incompleteOwnership=null;throw error;}
   let stdout='',stderr='',launchError=null,outerCutoff=false,coordinator=null,identityError=null;
   const completion=new Promise(resolve=>{
     child.once('error',error=>{launchError=error.message;});
@@ -299,7 +277,7 @@ async function publicRunner(directory,argv,{observe=false,priorAttempts=[]}={}) 
       if(current?.mode!=='run-direct')return;
       const journal=JSON.parse(fs.readFileSync(path.join(current.directory,'attempt.json'),'utf8'));
       if(journal.progress)observations.push({observedAt:Date.now(),id:current.id,progress:journal.progress});
-    } catch { /* Missing atomically published initial progress is not fabricated. */ }
+    } catch {}
   },200):undefined;
   const timer=setTimeout(()=>{outerCutoff=true;incompleteOwnership='Outer coordinator cutoff: owned tree unconfirmed';child.kill();},120000);
   const close=await completion;clearTimeout(timer);clearInterval(observer);
@@ -500,8 +478,6 @@ if(!dependencies) {
       assert.equal(readReceiptDisposition(result.authored,{coordinator:result.coordinator}).confirmed,true);
       assert.equal(readReceiptDisposition(result.authored,{coordinator:{...result.coordinator,start:'wrong'}}).confirmed,false);
       assert.equal(readReceiptDisposition(result.authored,{coordinator:result.coordinator,identify:()=>result.coordinator}).confirmed,false,'Live original coordinator cannot release');
-      // Same authored public route can subsequently execute the admitted real
-      // version. Actual execution-service continuity is covered separately.
       const successor=realPackage('version-successor',{}, {'src/one.test.ts':'one'});
       const green=await publicRunner(successor,['run',successor,'src/one.test.ts','--wait','30']);
       assert.equal(green.close.exit,0);assert.deepEqual(markers(successor),['one']);
@@ -597,8 +573,6 @@ if(!dependencies) {
         successor=await requestExecution('successor',{env:service.environment,pollMs:100});
         assert.equal(successor.passed,true,JSON.stringify(successor));
         assert.equal(nativeDisposition(successor).confirmed,true);
-        // Fault injection is in the caller's receipt read only. The real
-        // coordinator/helper still publish untouched independently valid proof.
         fs.readFileSync=function(file,...args) {
           const bytes=read(file,...args);
           if(typeof file==='string'&&path.basename(file)==='receipt.json'&&path.basename(path.dirname(file)).startsWith('fault-supervision-')) {
@@ -620,8 +594,6 @@ if(!dependencies) {
         await assert.rejects(requestExecution('blocked',{env:service.environment,pollMs:100}),/binding or lifecycle/);
         await assert.rejects(service.close(),/binding or lifecycle/);
         assert.equal(fs.existsSync(path.join(evidence,'blocked.started.json')),false);
-        // Missing/partial/bound-to-another-coordinator receipts cannot borrow a
-        // completed real proof. Restore exact bytes before fixture completion.
         const receiptFile=authoredNegative.descriptor.receiptFile,bytes=read(receiptFile);
         for(const kind of ['missing','partial','coordinator','attempt-id','attempt-directory','borrowed-supervision']) {
           const saved=receiptFile+'.saved-'+kind;
@@ -646,8 +618,6 @@ if(!dependencies) {
         let admitted=[],outcomes=[];
         const completed=await finishFixtureCleanup(originalFailure,async()=>{
           if(service)try{await service.close();}catch(error){if(!negative&&!originalFailure)throw error;}
-          // Service close drains its retained original child before returning or
-          // rejecting. Independently reconcile every actual launched operation.
           admitted=fs.readdirSync(evidence).filter(name=>/-supervision-/.test(name)).map(name=>name.split('-supervision-')[0]);
           outcomes=[positive,successor,negative].filter(Boolean);
           for(const id of admitted)if(!outcomes.some(result=>result.id===id)) {
@@ -660,8 +630,6 @@ if(!dependencies) {
           assert.equal(cleanupConfirmed,true,'Every admitted fixture operation must have independently confirmed disposition before cleanup');
           if(cleanupConfirmed) {
             await settleFixtureReservation(dispositions.map(value=>value.record),directory);
-            // Validator negatives use private stores and preserve their exact
-            // input bytes; none can recover or alter the machine reservation.
             const original=dispositions.at(-1).record,attempt=original.attempts.at(-1);
             for(const kind of ['missing-supervision','foreign-attempt','unknown-proof']) {
               const root=path.join(evidence,'reservation-negative-'+kind);fs.mkdirSync(root);
@@ -794,8 +762,6 @@ if(!dependencies) {
     });
     test('frequent genuine task progress batches shared persistence',{timeout:90000},async()=>{
       const directory=realPackage('batched-progress',{}, {'src/tasks.test.ts':'tasks'});
-      // Vitest 3 throttles task delivery at100ms; Vitest 2 debounces at10ms.
-      // Reach the SAME >=50 genuine-event assertion with both native runners.
       fs.writeFileSync(path.join(directory,'src','tasks.test.ts'),'import {it} from "vitest";for(let i=0;i<100;i++)it("task"+i,async()=>{await new Promise(resolve=>setTimeout(resolve,110))});');
       const result=await publicRunner(directory,['run',directory,'src/tasks.test.ts','--wait','30']);
       assert.equal(result.close.exit,0,result.stderr);
@@ -903,8 +869,6 @@ if(!dependencies) {
       const coverageFile=path.join(directory,'.git','coverage','coverage-final.json');
       const values=()=>Object.values(JSON.parse(fs.readFileSync(coverageFile,'utf8')))[0];
       assert.deepEqual(Object.values(values().f),[1,1],'Both functions contribute to one threshold evaluation');
-      // Pure validator controls consume copies of blobs from this completed
-      // actual pinned merge; they do not execute Vitest once per mutation.
       const finalizer=combined.disposition.record.attempts.find(row=>row.mode==='merge');
       const nativeRequest=JSON.parse(fs.readFileSync(finalizer.file,'utf8'));
       const nativeHashes=nativeRequest.blobs.map(blob=>({file:path.join(nativeRequest.directory,blob.name),sha256:blob.sha256}));
@@ -1029,6 +993,4 @@ if(!dependencies) {
   } else if(process.env.IMPOWER_REQUIRE_VITEST_INTEGRATION==='1') {
     test('required real API cases cannot be skipped',()=>assert.fail('Required configured API cases cannot be skipped outside CI'));
   } else console.log('SKIP: durable configured API/coverage cases require CI; local named-file baseline is separately explicit');
-  // Multi-project, timeout/retry and authored outer-cancellation recovery are
-  // separate controls; combined coverage is not their acceptance evidence.
 }
