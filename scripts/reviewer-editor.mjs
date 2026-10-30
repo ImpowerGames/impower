@@ -61,7 +61,7 @@ export function createEditorSession(command, root, directory, run) {
       fs.writeFileSync(path.join(requestDirectory, "request.json"), JSON.stringify(request, null, 2), { flag: "wx" });
       if (!started) {
         started = true;
-        const result = await invoke("up", ["up"], sessionDirectory);
+        const result = await invoke("up", ["up", "--keep"], sessionDirectory);
         if (!executionPassed(result)) throw new Error(`Editor startup failed; inspect ${result.log ?? sessionDirectory}`);
       }
       const args = [request.command], screenshots = [];

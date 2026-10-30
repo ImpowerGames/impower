@@ -168,6 +168,8 @@ function parseIdleExitSeconds() {
 }
 
 const portOf = (address) => Number(address.slice(address.lastIndexOf(":") + 1));
+const hostOf = (address) => address.slice(0, address.lastIndexOf(":"));
+const loopback = (host) => /^\[?(?:127\.\d+\.\d+\.\d+|::1|::ffff:127\.\d+\.\d+\.\d+)\]?$/.test(host);
 
 function parseNetstat(text) {
   const listeners = [];
@@ -176,7 +178,7 @@ function parseNetstat(text) {
     const [proto, local, foreign, state, pid] = line.trim().split(/\s+/);
     if (proto !== "TCP") continue;
     if (state === "LISTENING") listeners.push({ port: portOf(local), pid: Number(pid) });
-    else if (state === "ESTABLISHED") established.push({ localPort: portOf(local), foreignPort: portOf(foreign), pid: Number(pid) });
+    else if (state === "ESTABLISHED") established.push({ localPort: portOf(local), foreignPort: portOf(foreign), foreignHost: hostOf(foreign), pid: Number(pid) });
   }
   return { listeners, established };
 }
@@ -189,7 +191,7 @@ function parseSs(text) {
     if (!local || !peer) continue;
     const pid = Number(/pid=(\d+)/.exec(rest.join(" "))?.[1] ?? NaN);
     if (state === "LISTEN") listeners.push({ port: portOf(local), pid });
-    else if (state === "ESTAB") established.push({ localPort: portOf(local), foreignPort: portOf(peer), pid });
+    else if (state === "ESTAB") established.push({ localPort: portOf(local), foreignPort: portOf(peer), foreignHost: hostOf(peer), pid });
   }
   return { listeners, established };
 }
@@ -211,7 +213,9 @@ function readConnections() {
 
 function clientConnections(table, ports) {
   const servers = new Set(table.listeners.filter((row) => ports.includes(row.port) && Number.isInteger(row.pid)).map((row) => row.pid));
-  return table.established.filter((row) => (ports.includes(row.localPort) || ports.includes(row.foreignPort)) && !servers.has(row.pid));
+  const localClient = (row) => ports.includes(row.foreignPort) && loopback(row.foreignHost) && !servers.has(row.pid);
+  const remoteClient = (row) => ports.includes(row.localPort) && !loopback(row.foreignHost);
+  return table.established.filter((row) => localClient(row) || remoteClient(row));
 }
 
 function stopWhenIdle(seconds, ports) {
