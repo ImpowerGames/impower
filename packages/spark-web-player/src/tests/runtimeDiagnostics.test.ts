@@ -187,18 +187,19 @@ describe("runtime diagnostics", () => {
       expect(lastReported(h.toEditor)).toEqual([
         [lineOf(".. B"), 2, CONTINUES_WARNING, "runtime"],
       ]);
-      // An error PLAY raises joins its run, and stops it.
-      await h.playing()!.connection.emit(
-        GameEncounteredRuntimeErrorMessage.type.notification({
-          type: ErrorType.Error,
-          message: "boom",
-          location: raisedAt,
-          state: "running",
-        } as any),
-      );
-      for (let i = 0; i < 100 && !h.toEditor.some((m) => m.method === "game/exited"); i++) {
+      const script = (h.playing() as any)._scripts.indexOf(MAIN_URI);
+      (h.playing() as any).Error("boom", ErrorType.Error, [
+        script,
+        raisedAt.range.start.line,
+        raisedAt.range.start.character,
+        raisedAt.range.end.line,
+        raisedAt.range.end.character,
+      ]);
+      for (let i = 0; i < 100 && !h.toEditor.some((m) => m.method === "game/ended"); i++) {
         await settle(2);
       }
+      await h.controller.handleStopGame({ id: 1, params: {} });
+      await settle(20);
       // The editor selects the line the error names, as STOP asks it to.
       await h.select(raisedAt.range.start.line);
       await settle(20);

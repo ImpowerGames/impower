@@ -591,6 +591,10 @@ spark-web-player #launch-state-icon[icon="pause"] {
   mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M4.5 3H6v10H4.5V3zm7 0v10H10V3h1.5z"/></svg>');
 }
 
+spark-web-player #launch-state-icon[icon="ended"] {
+  mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M4 4h8v8H4z"/></svg>');
+}
+
 spark-web-player #fullscreen-icon {
   mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M2.5 2H6V3H3V6H2V2.5L2.5 2ZM3 10H2V13.5L2.5 14H6V13H3V10ZM13 13H10V14H13.5L14 13.5V10H13V13ZM13.5 2H10V3H13V6H14V2.5L13.5 2Z"/></svg>');
 }
@@ -709,6 +713,39 @@ spark-web-player #completion-status[hidden] {
 spark-web-player #completion-status[state="unavailable"],
 spark-web-player #completion-status[state="stale"] {
   color: var(--swp-pause-color);
+}
+
+spark-web-player #ending-status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: var(--swp-toolbar-label-padding);
+  position: relative;
+  z-index: 1;
+  background-color: var(--swp-background-color);
+  color: color-mix(in srgb, currentColor 80%, transparent);
+}
+
+spark-web-player #viewport:not(.fullscreen) #ending-status {
+  pointer-events: auto;
+}
+
+spark-web-player #ending-status[hidden] {
+  display: none;
+}
+
+spark-web-player #toolbar:has(#ending-status:not([hidden])) #left-items {
+  min-width: 0;
+  overflow: hidden;
+  justify-content: flex-start;
+}
+
+spark-web-player #middle-items:has(#ending-status:not([hidden])) {
+  flex: 1 0 auto;
+}
+
+spark-web-player #ending-status[kind="error"] {
+  color: var(--swp-error-color);
 }
 
 spark-web-player #toolbar .choice {

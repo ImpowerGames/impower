@@ -11,6 +11,7 @@ import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkPr
 import {
   type CarriedDeclarations,
   ProgramStory,
+  type StoryEnding,
 } from "@impower/sparkdown/src/program/ProgramStory";
 import type { ProgramImage } from "@impower/sparkdown/src/program/ProgramImages";
 import type { ProgramRoot } from "@impower/sparkdown/src/program/ProgramRoot";
@@ -68,6 +69,7 @@ import { beatIndexIn } from "../../modules/assets/utils/previewWindow";
 import { ErrorType } from "../enums/ErrorType";
 import type { Breakpoint } from "../types/Breakpoint";
 import type { DocumentLocation } from "../types/DocumentLocation";
+import type { GameEnding } from "../types/GameEnding";
 import type {
   PreviewRoute,
   PreviewRouteDecision,
@@ -404,6 +406,16 @@ export class Game<T extends M = {}> {
   /** Whether the debugger has heard a stop (a step's or a breakpoint's)
    *  since the current `step` began. */
   protected _announcedStop = false;
+
+  protected _ending: GameEnding | null = null;
+  get ending(): GameEnding | null {
+    return this._ending;
+  }
+
+  protected _errorEnding: { message: string; location: DocumentLocation } | null =
+    null;
+
+  protected _stepping = false;
 
   protected _nextObjectVariableRef = 2000; // Start at 2000 to avoid conflicts with scope handles
 
@@ -2977,6 +2989,8 @@ export class Game<T extends M = {}> {
     // run.
     this.cancelPreview();
     this._state = "running";
+    this._ending = null;
+    this._errorEnding = null;
     this.endSimulation();
     this.notifyStarted();
     this._context.system.previewing = undefined;
@@ -3554,6 +3568,8 @@ export class Game<T extends M = {}> {
 
   reset() {
     this.cancelPreview();
+    this._ending = null;
+    this._errorEnding = null;
     this.rewindStory();
     this._sceneTracker.reset();
     // Reset modules to their initial state
@@ -3577,9 +3593,20 @@ export class Game<T extends M = {}> {
     this.clearVariableReferences();
     this._coordinator = null;
     let done = false;
-    do {
-      done = this.stepWithinBudget();
-    } while (!done);
+    const outer = !this._stepping;
+    this._stepping = true;
+    try {
+      do {
+        done = this.stepWithinBudget();
+      } while (!done);
+    } finally {
+      if (outer) {
+        this._stepping = false;
+      }
+    }
+    if (outer) {
+      this.endOnError();
+    }
 
     // A preview whose flush is held reports its execution once the beat
     // displays (`preview`), after what it displays, as this does.
@@ -3620,9 +3647,21 @@ export class Game<T extends M = {}> {
     };
     this._announcedStop = false;
     this._steppingInThroughEntry = false;
-    let done = this.stepWithinBudget(traversal, origin);
-    while (!done && traversal !== "continue") {
+    const outer = !this._stepping;
+    this._stepping = true;
+    let done = false;
+    try {
       done = this.stepWithinBudget(traversal, origin);
+      while (!done && traversal !== "continue") {
+        done = this.stepWithinBudget(traversal, origin);
+      }
+    } finally {
+      if (outer) {
+        this._stepping = false;
+      }
+    }
+    if (outer) {
+      this.endOnError();
     }
     if (traversal !== "continue" && !this._announcedStop) {
       this.notifyStepped();
@@ -3714,6 +3753,7 @@ export class Game<T extends M = {}> {
           this._held = { instructions: instructions ?? null };
           return true;
         }
+        const ending = this.storyEnding(instructions ?? null);
         if (instructions) {
           this._coordinator = new Coordinator(this, instructions);
           if (this._simulation !== "simulating") {
@@ -3723,6 +3763,7 @@ export class Game<T extends M = {}> {
             this._shownBeat = instructions;
           }
           if (
+            !ending &&
             !this._coordinator.shouldContinue() &&
             this._simulation !== "simulating" &&
             // A load beat is loading and a cutscene beat playing, not waiting
@@ -3732,20 +3773,14 @@ export class Game<T extends M = {}> {
           ) {
             this.notifyAwaitingInteraction();
           }
-        } else if (
-          !this._story.canContinue &&
-          this._simulation !== "simulating" &&
-          this._state === "running"
-        ) {
-          // Nothing buffered left to display and no flow left to run, so the
-          // story is over. Note this only fires once the final beat has been
-          // consumed -- a last beat still waiting to be read flushes above.
-          this.notifyFinished();
         }
         // A replay takes one checkpoint per beat. The continue after its last
         // line can end the story with nothing to flush, and that is no beat.
         if (instructions || this._simulation !== "simulating") {
           this.checkpoint();
+        }
+        if (ending) {
+          this.endStory(ending);
         }
         if (this._simulation === "simulating") {
           if (!this._story.canContinue) {
@@ -3960,16 +3995,25 @@ export class Game<T extends M = {}> {
   }
 
   autoAdvancedToContinue() {
+    if (this._ending) {
+      return;
+    }
     this.continue();
     this.notifyAutoAdvancedToContinue();
   }
 
   clickedToContinue() {
+    if (this._ending) {
+      return;
+    }
     this.continue();
     this.notifyClickedToContinue();
   }
 
   chosePathToContinue(index: number) {
+    if (this._ending) {
+      return;
+    }
     // The coordinator's click handler took the choices off the page.
     this._shownChoices = [];
     // Tell the story where to go next
@@ -4068,8 +4112,44 @@ export class Game<T extends M = {}> {
     this.connection.emit(GameStartedMessage.type.notification({}));
   }
 
-  protected notifyFinished() {
-    this.connection.emit(GameFinishedMessage.type.notification({}));
+  protected storyEnding(instructions: Instructions | null): StoryEnding | null {
+    if (
+      this._ending ||
+      this._simulation === "simulating" ||
+      this._state !== "running" ||
+      this._story.canContinue
+    ) {
+      return null;
+    }
+    if (this._errorEnding) {
+      return "error";
+    }
+    return instructions ? null : (this._story.ending ?? "out");
+  }
+
+  protected endOnError() {
+    if (
+      this._errorEnding &&
+      !this._ending &&
+      this._state === "running" &&
+      this._simulation !== "simulating"
+    ) {
+      this.endStory("error");
+    }
+  }
+
+  protected endStory(kind: StoryEnding) {
+    const error = kind === "error" ? this._errorEnding : null;
+    this._ending = {
+      kind,
+      location: error?.location ?? this.getLastExecutedDocumentLocation(),
+      ...(error ? { error } : {}),
+    };
+    this.module.ui.style.update("continue_indicator", { display: "none" });
+    if (kind === "fin") {
+      this.module.ui.openEnding();
+    }
+    this.connection.emit(GameFinishedMessage.type.notification(this._ending));
   }
 
   protected notifyStartedThread(threadIndex: number) {
@@ -4898,14 +4978,30 @@ export class Game<T extends M = {}> {
       });
       return;
     }
+    const documentLocation = this.getDocumentLocation(location);
     this.connection.emit(
       GameEncounteredRuntimeErrorMessage.type.notification({
         message,
         type,
-        location: this.getDocumentLocation(location),
+        location: documentLocation,
         state: this._state,
       }),
     );
+    if (
+      type === ErrorType.Error &&
+      this._state === "running" &&
+      this._simulation !== "simulating" &&
+      !this._ending &&
+      !this._errorEnding
+    ) {
+      this._errorEnding = { message, location: documentLocation };
+      if (this._story.canContinue && this._story.asyncContinueComplete) {
+        this._story.state.ForceEnd();
+      }
+      if (!this._stepping) {
+        this.endStory("error");
+      }
+    }
   }
 
   log(message: unknown, severity: "info" | "warning" | "error" = "info") {

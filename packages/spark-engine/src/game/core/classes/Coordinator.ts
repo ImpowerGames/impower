@@ -120,6 +120,9 @@ export class Coordinator<G extends Game> {
    */
   shouldContinue(): number {
     const game = this._game;
+    if (game.ending) {
+      return 0;
+    }
     const instructions = this._instructions;
     const waitingForChoice =
       instructions.choices && instructions.choices.length > 0;
@@ -245,7 +248,7 @@ export class Coordinator<G extends Game> {
 
       // Display click indicator
       const indicatorStyle: Record<string, string | null> = {};
-      if (autoAdvance) {
+      if (autoAdvance || game.ending) {
         indicatorStyle["display"] = "none";
       } else {
         indicatorStyle["transition"] = "none";

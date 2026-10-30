@@ -178,7 +178,8 @@ describe("PLAY and the preview at an empty scene or branch", () => {
     async (_name, source, line) => {
       const outcome = await playFrom(source, line);
       expect(outcome.started).toBe(true);
-      expect(outcome.exited).toEqual(["finished"]);
+      expect(outcome.exited).toEqual([]);
+      expect(outcome.ended).toEqual(["out"]);
       expect(outcome.text).not.toContain("Other.");
     },
     120_000,
@@ -262,7 +263,8 @@ describe("PLAY and the preview at the end of a scene whose branches it does not 
   it("PLAY starts and ends without a branch's beat or the flow below", async () => {
     const outcome = await playFrom(UNENTERED_BRANCH, 5);
     expect(outcome.started).toBe(true);
-    expect(outcome.exited).toEqual(["finished"]);
+    expect(outcome.exited).toEqual([]);
+    expect(outcome.ended).toEqual(["out"]);
     expect(outcome.text).not.toContain("Unused");
     expect(outcome.text).not.toContain("Other.");
   }, 120_000);
@@ -290,7 +292,8 @@ describe("PLAY and the preview at the end of a scene whose branches it does not 
   it("PLAY starts and ends at the end of the script, though a divert ran the scene's branches", async () => {
     const outcome = await playFrom(BRANCHES_DIVERTED_AT_END, 12);
     expect(outcome.started).toBe(true);
-    expect(outcome.exited).toEqual(["finished"]);
+    expect(outcome.exited).toEqual([]);
+    expect(outcome.ended).toEqual(["out"]);
     expect(outcome.text).not.toContain("Inner");
     expect(outcome.text).not.toContain("Last");
     const preview = await previewAt(BRANCHES_DIVERTED_AT_END, 12);

@@ -1,8 +1,5 @@
-// #815 — a runtime warning marks something the runtime recovered from, so it
-// leaves PLAY running; a runtime error ends it and leaves the editor on the
-// line the error names. PLAY's game runs in the worker, whose reports the
-// controller relays through `listenToWorker`.
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
+import { GameFinishedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameFinishedMessage";
 import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GamePlayerController } from "../GamePlayerController";
@@ -21,18 +18,20 @@ const report = (type: ErrorType) =>
     state: "running",
   } as any);
 
-/** A controller whose `stopGame` only records how it was asked to stop. */
 const controller = () => {
   const stops: unknown[][] = [];
+  const holds: unknown[][] = [];
   const c = Object.create(GamePlayerController.prototype);
   c.stopGame = async (...args: unknown[]) => {
     stops.push(args);
   };
-  return { c: c as GamePlayerController, stops };
+  c.holdEndedPlay = (...args: unknown[]) => {
+    holds.push(args);
+  };
+  c.recordRuntimeError = () => {};
+  return { c: c as GamePlayerController, stops, holds };
 };
 
-/** Listeners by method, as a game's outgoing connection or a worker link
- *  holds them. */
 const listeners = () => {
   const byMethod = new Map<string, ((msg: any) => void)[]>();
   const add = (method: string, listener: (msg: any) => void) => {
@@ -45,14 +44,13 @@ const listeners = () => {
   return { add, emit };
 };
 
-/** Wire a running game in the worker to a fresh controller, and deliver one
- *  report of `type`. */
-const deliver = async (type: ErrorType) => {
-  const { c, stops } = controller();
+const deliver = async (message: any) => {
+  const { c, stops, holds } = controller();
   const { add, emit } = listeners();
-  c.listenToWorker({ addListener: add } as any, () => "running");
-  await emit(report(type));
-  return stops;
+  const owner = {};
+  c.listenToWorker({ addListener: add } as any, owner);
+  await emit(message);
+  return { stops, holds, owner };
 };
 
 describe("PLAY's game in the worker", () => {
@@ -64,21 +62,29 @@ describe("PLAY's game in the worker", () => {
     vi.restoreAllMocks();
   });
 
-  it("stops on a runtime error, with the error's message and location", async () => {
-    expect(await deliver(ErrorType.Error)).toEqual([
-      ["error", { message: "Something happened.", location: LOCATION }],
-    ]);
+  it("leaves a runtime error's ending to the game's game/finished, and does not stop PLAY", async () => {
+    expect((await deliver(report(ErrorType.Error))).stops).toEqual([]);
+    expect((await deliver(report(ErrorType.Warning))).stops).toEqual([]);
   });
 
-  it("keeps running through a runtime warning", async () => {
-    expect(await deliver(ErrorType.Warning)).toEqual([]);
+  it("holds PLAY on game/finished, with the ending the game reports", async () => {
+    const ending = {
+      kind: "error",
+      location: LOCATION,
+      error: { message: "boom", location: LOCATION },
+    } as const;
+    const { stops, holds, owner } = await deliver(
+      GameFinishedMessage.type.notification(ending),
+    );
+    expect(stops).toEqual([]);
+    expect(holds).toEqual([[owner, ending]]);
   });
 });
 
-describe("PLAY in the worker stopped by a runtime error", () => {
+describe("PLAY in the worker ended by a runtime error", () => {
   const SOURCE = `scene start\n  The first line.\n  The second line.\n  The third line.\nend\n`;
 
-  it("leaves the editor on the line the error names", async () => {
+  it("leaves the editor on the line the error names once STOP ends it", async () => {
     const h = await createPlayerHarness({
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: 1 },
@@ -87,37 +93,29 @@ describe("PLAY in the worker stopped by a runtime error", () => {
     win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
     const error = console.error;
     console.error = () => {};
-    // The line a handler's function raised its error on, which is not a line
-    // the story has executed.
-    const raisedAt = {
-      uri: MAIN_URI,
-      range: { start: { line: 3, character: 0 }, end: { line: 3, character: 17 } },
-    };
     try {
       await h.compile();
       await h.select(1);
       expect(await h.controller.startGameAndApp()).toBe(true);
       await settle(10);
       h.workspace.selections.length = 0;
-      await h.workerState.gameState.running!.connection.emit(
-        GameEncounteredRuntimeErrorMessage.type.notification({
-          type: ErrorType.Error,
-          message: "boom",
-          location: raisedAt,
-          state: "running",
-        } as any),
-      );
-      for (let i = 0; i < 100 && !h.toEditor.some((m) => m.method === "game/exited"); i++) {
+      const game = h.workerState.gameState.running! as any;
+      game.Error("boom", ErrorType.Error, null);
+      for (let i = 0; i < 100 && !h.toEditor.some((m) => m.method === "game/ended"); i++) {
         await settle(2);
       }
+      const ended = h.toEditor.find((m) => m.method === "game/ended");
+      expect(ended?.params?.kind).toBe("error");
+      expect(ended?.params?.error?.message).toBe("boom");
+      expect(h.toEditor.some((m) => m.method === "game/exited")).toBe(false);
+      expect(h.workspace.selections).toEqual([]);
+      const errorAt = ended!.params.error.location;
+      await h.controller.handleStopGame({ id: 1, params: {} });
       await settle(10);
       const exited = h.toEditor.find((m) => m.method === "game/exited");
-      expect(exited?.params).toEqual({
-        reason: "error",
-        error: { message: "boom", location: raisedAt },
-      });
+      expect(exited?.params).toEqual({ reason: "error" });
       expect(h.workspace.selections.map((s: any) => s.selectedRange)).toEqual([
-        raisedAt.range,
+        errorAt.range,
       ]);
     } finally {
       console.error = error;

@@ -2668,6 +2668,7 @@ export async function pressInEditor(page, combo, { wait = waitForDomQuiet, comma
 
 const INSERT_TEXT_LIMIT = 4096;
 const PLAY_BUDGET_MS = 30_000;
+const running = (s) => s?.launchState === "play" || s?.launchState === "pause" || s?.launchState === "ended";
 
 // Poll `preview/gameState` until `reached` holds or the budget runs out.
 async function waitGameState(request, reached, { timeout, now = Date.now, pause }) {
@@ -2680,19 +2681,11 @@ async function waitGameState(request, reached, { timeout, now = Date.now, pause 
   return state;
 }
 
-/**
- * A `ui --play start|stop` step: click the preview's PLAY or Stop control
- * with a real pointer (as timing.mjs's startPlay does), then wait for the
- * game's launch state to say it is running (`play` or `pause`) or back in
- * `preview`, and for the opposite control to be on screen. A click whose
- * state never arrives is a failed step, so `clicked: true` alone is never
- * the evidence.
- */
 export async function playPreview(page, action, { request = (method, params) => protocolRequest(page, method, params), timeout = PLAY_BUDGET_MS, now = Date.now, pause = (ms) => page.waitForTimeout(ms) } = {}) {
   const start = action === "start";
   const label = start ? "Play Game" : "Stop Game";
   const other = start ? "Stop Game" : "Play Game";
-  const reached = (s) => (start ? s?.launchState === "play" || s?.launchState === "pause" : s?.launchState === "preview");
+  const reached = (s) => (start ? running(s) : s?.launchState === "preview");
   const before = await request("preview/gameState");
   const out = { play: action, clicked: false, reached: false, launchStateBefore: before?.launchState ?? null };
   const button = page.locator(`[aria-label="${label}"]`).first();
@@ -2703,14 +2696,12 @@ export async function playPreview(page, action, { request = (method, params) => 
   out.clicked = true;
   const state = await waitGameState(request, reached, { timeout, now, pause });
   out.launchState = state?.launchState ?? null;
-  out.running = out.launchState === "play" || out.launchState === "pause";
+  out.running = running(state);
   out.control = (await page.locator(`[aria-label="${other}"]`).first().isVisible().catch(() => false)) ? other : label;
   out.reached = reached(state) && out.control === other;
   if (!out.reached) out.reason = `PLAY was clicked but the game did not ${start ? "start" : "stop"} within ${seconds(timeout)} (launch state ${out.launchState}, control showing ${out.control})`;
   return out;
 }
-
-const running = (s) => s?.launchState === "play" || s?.launchState === "pause";
 
 async function gameNotifications(page) {
   await waitForProtocol(page);

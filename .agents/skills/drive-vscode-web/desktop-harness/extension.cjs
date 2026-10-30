@@ -122,7 +122,34 @@ async function debug() {
   save("debug-report.json", report);
 }
 
+const terminated = new Set();
+
+async function ending() {
+  const report = { failed: [] };
+  try {
+    const session = await until(() => vscode.debug.activeDebugSession, "No Sparkdown debug session");
+    report.type = session.type;
+    report.session = session.id;
+    if (terminated.has(session.id)) throw new Error("The debug session ended at the end of the story");
+    await vscode.commands.executeCommand("workbench.action.debug.restart");
+    report.restarted = true;
+    report.sameSessionAfterRestart = vscode.debug.activeDebugSession?.id === session.id;
+  } catch (e) { report.failed.push(String(e.stack ?? e)); }
+  save("ending-report.json", report);
+}
+
+async function endingStop() {
+  const report = { failed: [] };
+  try {
+    const session = await until(() => vscode.debug.activeDebugSession, "No Sparkdown debug session");
+    await vscode.commands.executeCommand("workbench.action.debug.stop");
+    report.terminated = await until(() => terminated.has(session.id), "Stop did not end the debug session", 30000);
+  } catch (e) { report.failed.push(String(e.stack ?? e)); }
+  save("ending-stop-report.json", report);
+}
+
 exports.activate = context => {
+  context.subscriptions.push(vscode.debug.onDidTerminateDebugSession(session => terminated.add(session.id)));
   // Supply the scenario folder to the real checked-in F5 configuration. Opening
   // it at launch avoids replacing the development window and ending its session.
   context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider("extensionHost", {
@@ -138,4 +165,6 @@ exports.activate = context => {
   context.subscriptions.push(vscode.commands.registerCommand("impower.driver.run", run));
   context.subscriptions.push(vscode.commands.registerCommand("impower.driver.debug", debug));
   context.subscriptions.push(vscode.commands.registerCommand("impower.driver.diagnostics", finalDiagnostics));
+  context.subscriptions.push(vscode.commands.registerCommand("impower.driver.ending", ending));
+  context.subscriptions.push(vscode.commands.registerCommand("impower.driver.endingStop", endingStop));
 };

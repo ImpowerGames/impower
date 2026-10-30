@@ -39,6 +39,7 @@ import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/m
 import { GameWorkerRestartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage";
 import { GameExitedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedThreadMessage";
 import { GameFinishedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameFinishedMessage";
+import { GameEndedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEndedMessage";
 import { GameHitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameHitBreakpointMessage";
 import { GamePreviewedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GamePreviewedMessage";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
@@ -67,6 +68,7 @@ import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/mes
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
+import type { GameEnding } from "@impower/spark-engine/src/game/core/types/GameEnding";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { RemovedCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemovedCompilerFileMessage";
 import { SelectedCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectedCompilerDocumentMessage";
@@ -203,6 +205,28 @@ const reportUnlessRestarted = (e: unknown) => {
   }
 };
 
+const endingStatusText = (ending: GameEnding): string =>
+  ending.kind === "fin"
+    ? "End of story"
+    : ending.kind === "error"
+      ? "Stopped by an error"
+      : "Story ran out";
+
+const endingStatusHover = (ending: GameEnding): string => {
+  if (ending.kind === "error") {
+    const at = ending.error?.location ?? ending.location;
+    const message = ending.error?.message ?? "";
+    return at ? `${message} (line ${at.range.start.line + 1})` : message;
+  }
+  if (ending.kind === "out") {
+    const after = ending.location
+      ? `Nothing runs after line ${ending.location.range.start.line + 1}.`
+      : "Nothing runs after this.";
+    return `${after} End the story with fin to show the ending screen.`;
+  }
+  return "";
+};
+
 /** PLAY's game in the worker, as the page follows it. */
 interface WorkerPlay {
   /** The summary of the program it runs. */
@@ -219,10 +243,8 @@ interface WorkerPlay {
   /** `player/startPlay` is sent: the game runs in the worker, whatever the
    *  start still brings it to. */
   startSent?: boolean;
-  /** The story finished, which ends the run as STOP would: a run that
-   *  finishes while it starts (a line no beat was displayed before, such
-   *  as an empty scene's) started and ended. */
-  finished?: boolean;
+  startFrom?: { file: string; line: number };
+  ended?: GameEnding;
 }
 
 export interface GamePlayerRefs {
@@ -247,6 +269,7 @@ export interface GamePlayerRefs {
   fullscreenButton: HTMLElement | null;
   /** Where the autocomplete suggestion preview reports its state. */
   completionStatus?: HTMLElement | null;
+  endingStatus?: HTMLElement | null;
   /** Where the route button goes, in place of the location labels while the
    *  preview shows a line; without it the labels show the route. */
   routeButton?: HTMLElement | null;
@@ -614,11 +637,13 @@ export class GamePlayerController {
     if (this._disposed) {
       return;
     }
-    const icon = this._app?.paused
-      ? "pause"
-      : this._workerPlay?.state === "running"
-        ? "play"
-        : "preview";
+    const icon = this._workerPlay?.ended
+      ? "ended"
+      : this._app?.paused
+        ? "pause"
+        : this._workerPlay?.state === "running"
+          ? "play"
+          : "preview";
     this.refs.launchStateIcon?.setAttribute("icon", icon);
     this._launchState = icon;
     this.publishGameState();
@@ -1064,6 +1089,11 @@ export class GamePlayerController {
       return;
     }
     const plays = this._plays + 1;
+    if (this._workerPlay?.ended) {
+      this.hidePlayButton();
+      await this.restartGame();
+      return;
+    }
     await this.startGameAndApp();
     // STOP, a newer PLAY or the controller going ended this PLAY while it
     // started, and the editor hears about that one instead.
@@ -1804,12 +1834,30 @@ export class GamePlayerController {
   };
 
   protected handleStopGame = async (message: StopGameMessage.Request) => {
-    await this.stopGame("quit");
+    const ended = this._workerPlay?.ended;
+    await this.stopGame(
+      !ended ? "quit" : ended.kind === "error" ? "error" : "finished",
+    );
     return StopGameMessage.type.response(message.id, {});
   };
 
   protected handleRestartGame = async (message: RestartGameMessage.Request) => {
-    await this.restartGame();
+    const stops = this._stops;
+    const plays = this._plays;
+    const ended = this._workerPlay?.ended;
+    const restarted = await this.restartGame(true);
+    if (
+      !restarted &&
+      ended &&
+      stops === this._stops &&
+      plays + 1 === this._plays &&
+      this._mounted &&
+      !this.playing
+    ) {
+      await this.stopGame("invalidated", undefined, {
+        at: ended.error?.location ?? ended.location,
+      });
+    }
     return RestartGameMessage.type.response(message.id, {});
   };
 
@@ -2326,7 +2374,10 @@ export class GamePlayerController {
    *  PLAY and its application alone. */
   protected _plays = 0;
 
-  async startGameAndApp(restarted?: boolean) {
+  async startGameAndApp(
+    restarted?: boolean,
+    startFrom?: { file: string; line: number },
+  ) {
     const plays = ++this._plays;
     const stops = this._stops;
     if (this._disposed) {
@@ -2374,7 +2425,7 @@ export class GamePlayerController {
     }
     // The page holds only the program's summary: PLAY runs in the worker,
     // which holds the program itself.
-    return this.startWorkerPlay(this._program, link, restarted);
+    return this.startWorkerPlay(this._program, link, restarted, startFrom);
   }
 
   /**
@@ -2389,8 +2440,15 @@ export class GamePlayerController {
     program: SparkProgram,
     link: WorkerGameLink,
     restarted?: boolean,
+    startFrom: { file: string; line: number } | undefined = this._options
+      ?.startFrom ?? undefined,
   ): Promise<boolean> {
-    const play: WorkerPlay = { program, state: "starting", stepped: 0 };
+    const play: WorkerPlay = {
+      program,
+      state: "starting",
+      stepped: 0,
+      ...(startFrom ? { startFrom } : {}),
+    };
     this._workerPlay = play;
     this._routeState = { ...this._routeState, lastRun: undefined };
     // STOP, a restart or the controller going ends this start at whichever
@@ -2427,7 +2485,7 @@ export class GamePlayerController {
       }
       const built = await link.request(PlayMessage.type, {
         program: programIdentity(program)!,
-        startFrom: this._options?.startFrom ?? undefined,
+        startFrom,
         restarted,
       });
       play.run = built.run;
@@ -2447,16 +2505,7 @@ export class GamePlayerController {
       // run attaches its own channel once its application connects.
       link.detach();
       this.beginRuntimeRun(program, play, built.errors ?? []);
-      stopListening = this.listenToWorker(
-        link,
-        () =>
-          this._workerPlay !== play
-            ? "stopped"
-            : play.startSent
-              ? "running"
-              : play.state,
-        play,
-      );
+      stopListening = this.listenToWorker(link, play);
       // A PLAY this one replaced may still have listeners; only this one's
       // game is heard from now on.
       this._stopListeningToPlay?.();
@@ -2524,8 +2573,7 @@ export class GamePlayerController {
       });
       for (;;) {
         if (!current()) {
-          // A story that finished as it started ran: PLAY started and ended.
-          return play.finished === true;
+          return false;
         }
         if (app.paused !== workerPaused) {
           workerPaused = app.paused;
@@ -2680,6 +2728,40 @@ export class GamePlayerController {
     }
   }
 
+  protected holdEndedPlay(owner: unknown, params: GameEnding) {
+    const play = this._workerPlay;
+    if (!play || play !== owner || play.ended) {
+      return;
+    }
+    const ending: GameEnding = {
+      kind: params.kind,
+      location: params.location,
+      ...(params.error ? { error: params.error } : {}),
+    };
+    play.ended = ending;
+    this.updateLaunchStateIcon();
+    this.setEndingStatus(ending);
+    sendProtocolMessage(GameEndedMessage.type.notification(ending), this.host);
+    if (!this.refs.toolbar) {
+      this.showPlayButton();
+    }
+  }
+
+  protected setEndingStatus(ending: GameEnding | null) {
+    const element = this.refs.endingStatus;
+    if (!element) {
+      return;
+    }
+    element.textContent = ending ? endingStatusText(ending) : "";
+    element.title = ending ? endingStatusHover(ending) : "";
+    element.hidden = !ending;
+    if (ending) {
+      element.setAttribute("kind", ending.kind);
+    } else {
+      element.removeAttribute("kind");
+    }
+  }
+
   async stopGame(
     reason: "finished" | "quit" | "invalidated" | "error" | "restart",
     error?: {
@@ -2690,13 +2772,14 @@ export class GamePlayerController {
       /** Select where the run ended, as STOP does unless the line it ended
        *  on is one the preview must not run again (`handleWorkerHang`). */
       select?: boolean;
+      at?: DocumentLocation | null;
     },
   ) {
     this._stops += 1;
     const plays = this._plays;
-    if (reason === "finished" && this._workerPlay) {
-      this._workerPlay.finished = true;
-    }
+    const endedAt =
+      options?.at ?? this._workerPlay?.ended?.error?.location ?? null;
+    this.setEndingStatus(null);
     // PLAY's game in the worker answers where it last executed as it stops.
     const lastExecutedLocation = await this.endWorkerPlay();
     // The author can press PLAY again at any step of this STOP: the new run
@@ -2728,7 +2811,7 @@ export class GamePlayerController {
     }
     // A run that ended in an error leaves the author on the statement that
     // raised it; any other run, where it last executed.
-    const selected = error?.location ?? lastExecutedLocation;
+    const selected = error?.location ?? endedAt ?? lastExecutedLocation;
     // The preview at that line shows where the run ended rather than
     // beginning a run of its own, so PLAY's diagnostics stay. That holds only
     // for a preview of the program the run ran: an edit that compiled while
@@ -2812,15 +2895,17 @@ export class GamePlayerController {
    *  controller going came while the old game was torn down or the new one
    *  started, and nothing restarted: a newer PLAY is the author's, and the
    *  restart leaves it alone. */
-  async restartGame(): Promise<boolean> {
+  async restartGame(fromRunStart = false): Promise<boolean> {
     const stops = this._stops;
     const plays = this._plays;
+    const startFrom = fromRunStart ? this._workerPlay?.startFrom : undefined;
+    this.setEndingStatus(null);
     await this.destroyGameAndApp();
     if (stops !== this._stops || plays !== this._plays || !this._mounted) {
       return false;
     }
     const restarted = plays + 1;
-    await this.startGameAndApp(true);
+    await this.startGameAndApp(true, startFrom);
     return (
       stops === this._stops &&
       restarted === this._plays &&
@@ -2934,7 +3019,6 @@ export class GamePlayerController {
   /** Relay what a game in the worker reports (`listenToWorker`). */
   listen(
     game: {
-      state?: string;
       connection: {
         outgoing: { addListener(method: string, listener: (msg: any) => void): unknown };
       };
@@ -2957,23 +3041,14 @@ export class GamePlayerController {
           } else {
             console.log(message, location);
           }
-          // A warning marks something the runtime recovered from, so only an
-          // error ends the run.
-          if (type === ErrorType.Error && game && game.state === "running") {
-            const error = {
-              message,
-              location,
-            };
-            await this.stopGame("error", error);
-          }
         }
       },
     );
     game.connection.outgoing.addListener(
       GameFinishedMessage.method,
-      async (msg) => {
+      (msg) => {
         if (GameFinishedMessage.type.isNotification(msg)) {
-          await this.stopGame("finished");
+          this.holdEndedPlay(owner, msg.params);
         }
       },
     );
@@ -3089,11 +3164,8 @@ export class GamePlayerController {
     );
   }
 
-  /** Relay what a game in the worker reports until the returned function is
-   *  called. `state` reads the game's state as the page knows it. */
   listenToWorker(
     link: WorkerGameLink,
-    state: () => string = () => "previewing",
     /** What the game's runtime errors are reported as coming from: the
      *  worker's preview game, reported through the link, unless named. */
     owner: unknown = link,
@@ -3101,9 +3173,6 @@ export class GamePlayerController {
     const stops: (() => void)[] = [];
     this.listen(
       {
-        get state() {
-          return state();
-        },
         connection: {
           outgoing: {
             addListener: (method, listener) =>

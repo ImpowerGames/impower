@@ -52,6 +52,7 @@ import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/cla
 import { EnableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnableGameDebugMessage";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
+import { RestartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
 import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameClockMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
@@ -972,11 +973,47 @@ export default class WorkspaceWindow {
               ...this.store.preview.modes.game,
               loading: false,
               running: false,
+              ended: false,
             },
           },
         },
       });
     }
+  }
+
+  syncGameEnded(ended: boolean) {
+    const game = this.store.preview.modes.game;
+    if (!game.running || (Boolean(game.ended) === ended && !game.loading)) {
+      return;
+    }
+    this.update({
+      ...this.store,
+      preview: {
+        ...this.store.preview,
+        modes: {
+          ...this.store.preview.modes,
+          game: { ...game, ended, loading: false },
+        },
+      },
+    });
+  }
+
+  replayGame() {
+    const game = this.store.preview.modes.game;
+    if (!game.running || !game.ended || game.loading) {
+      return;
+    }
+    this.update({
+      ...this.store,
+      preview: {
+        ...this.store.preview,
+        modes: {
+          ...this.store.preview.modes,
+          game: { ...game, loading: true },
+        },
+      },
+    });
+    sendProtocolMessage(RestartGameMessage.type.request({}));
   }
 
   stopGame() {

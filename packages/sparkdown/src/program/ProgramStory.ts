@@ -347,6 +347,8 @@ export interface CarriedDeclarations {
   readonly globals: ReadonlyMap<string, InkObject>;
 }
 
+export type StoryEnding = "fin" | "out" | "error";
+
 export class ProgramStory implements StoryEngine {
   collapseWhitespace = true;
   processEscapes = true;
@@ -925,8 +927,10 @@ export class ProgramStory implements StoryEngine {
       },
       callStack,
     );
+    this.ending = null;
     this._state.onBeginLoad = () => {
       this._currentBeat = null;
+      this.ending = null;
       this.ownDeclarations();
       this._state.variablesState.ConstantsMayHaveChanged();
     };
@@ -1642,7 +1646,10 @@ export class ProgramStory implements StoryEngine {
     }
     this.tellDeclarationIssue(isWarning);
     this._state.AddError(message, isWarning, raised);
-    if (!isWarning) this._state.ForceEnd();
+    if (!isWarning) {
+      this._state.ForceEnd();
+      this.ending = "error";
+    }
   }
 
   protected runningAddress(): number | undefined {
@@ -1899,6 +1906,7 @@ export class ProgramStory implements StoryEngine {
     const address = addressOf(chunkId(chunk), position.offset);
     state.previousAddress = address;
     this.endedAt = null;
+    this.ending = null;
     if (this.onExecute !== null) this.onExecute(address);
     if (this.executedLog !== null) this.executedLog.push(address);
     if (state.holdsAddresses) {
@@ -2325,6 +2333,7 @@ export class ProgramStory implements StoryEngine {
       case Op.End:
         state.ForceEnd();
         this.endedAt = this.runningAddress() ?? null;
+        this.ending = "fin";
         break;
       case Op.JumpSym:
         if (!(flags & JUMP_ARGUMENTS)) {
@@ -2694,6 +2703,7 @@ export class ProgramStory implements StoryEngine {
     state.position = null;
     state.blockStack = [];
     state.didSafeExit = true;
+    this.ending = "out";
   }
 
 
@@ -3151,6 +3161,8 @@ export class ProgramStory implements StoryEngine {
   protected _running: RunningInstruction | null = null;
 
   endedAt: number | null = null;
+
+  ending: StoryEnding | null = null;
 
   protected startSymbol(): number | undefined {
     const symbol = this.root.table.symbolIds.get(START_FLOW_NAME);

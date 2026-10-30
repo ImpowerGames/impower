@@ -19,9 +19,11 @@ import { GameAutoAdvancedToContinueMessage } from "@impower/spark-engine/src/gam
 import { GameAwaitingInteractionMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameAwaitingInteractionMessage";
 import { GameChosePathToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameChosePathToContinueMessage";
 import { GameClickedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameClickedToContinueMessage";
+import { GameEndedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEndedMessage";
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameExitedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedThreadMessage";
 import { GameHitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameHitBreakpointMessage";
+import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
 import { GameStartedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedThreadMessage";
 import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
 import { GetGameEvaluationContextMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameEvaluationContextMessage";
@@ -177,6 +179,13 @@ export class SparkDebugSession extends LoggingDebugSession {
       this.sendEvent(new ExitedEvent(exitCode));
       this.sendEvent(new TerminatedEvent());
     }
+    if (GameEndedMessage.type.isNotification(message)) {
+      const { error } = message.params;
+      if (error) {
+        this.sendErrorOutputEvent(error.message, error.location);
+      }
+      await this.sendStoppedEvent("end");
+    }
     if (GameStartedThreadMessage.type.isNotification(message)) {
       const { threadId } = message.params;
       this.sendEvent(new ThreadEvent("started", threadId));
@@ -205,6 +214,9 @@ export class SparkDebugSession extends LoggingDebugSession {
     if (GameChosePathToContinueMessage.type.isNotification(message)) {
       this.sendContinuedEvent();
     }
+    if (GameReloadedMessage.type.isNotification(message)) {
+      this.sendContinuedEvent();
+    }
   }
 
   protected async onReceiveRequest(
@@ -229,7 +241,8 @@ export class SparkDebugSession extends LoggingDebugSession {
       | "function breakpoint"
       | "data breakpoint"
       | "instruction breakpoint"
-      | "awaiting interaction",
+      | "awaiting interaction"
+      | "end",
   ) {
     const { threads } = await this._connection.emit(
       GetGameThreadsMessage.type.request({}),
@@ -411,6 +424,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     );
 
     this.sendResponse(response);
+    this.sendContinuedEvent();
   }
 
   protected override async launchRequest(

@@ -56,6 +56,8 @@ define ui as config with
   -- Prefer a percentage over px so a reader who has raised their browser's
   -- default font size keeps that adjustment.
   root_text_size = ""
+  -- Transition the `ending` layout opens with when the story ends with `fin`.
+  ending_transition = "fade"
 end
 
 define interpreter as config with
@@ -121,6 +123,9 @@ define game with
   -- number the load waits for. `progress`: loaded / total from 0 to 1.
   -- `percent`: the same as a whole number from 0 to 100.
   loading = { active = false, name = "", loaded = 0, total = 0, progress = 0, percent = 0 }
+  -- `game.ending.active`: whether the `ending` layout is open, which it is
+  -- once the story has ended with `fin`.
+  ending = { active = false }
 end
 
 define image with
@@ -3633,6 +3638,26 @@ style continue_indicator with
   animation_play_state = paused
 end
 
+style ending with
+  -- The engine-managed ending screen, which `fin` opens over the last frame.
+  -- An author may replace it (`layout ending with … end`) or restyle its mark
+  -- (`style end_mark with … end`). It lets clicks through to the game's own
+  -- layouts.
+  z_index = 900
+end
+
+style end_mark with
+  line_height = 1
+  width = 16px
+  height = 16px
+  position = absolute
+  right = 16px
+  bottom = 16px
+  font_size = 16px
+  text_align = center
+  color = white
+end
+
 define screen with
   ["$recursive"] = true
 end
@@ -3643,6 +3668,12 @@ layout loading with
     loading_bar {
       loading_fill #transform="scaleX({game.loading.progress})"
     }
+  }
+end
+
+layout ending with
+  end_mark {
+    text = ■
   }
 end
 

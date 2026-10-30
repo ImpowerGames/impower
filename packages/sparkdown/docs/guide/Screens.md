@@ -44,7 +44,7 @@ scene explore
 
 `open` mounts and reveals the layout; `close` hides and tears it down (freeing its state). Reopening builds it fresh.
 
-The built-in `loading` layout is engine-managed: `load` opens and closes it, navigation never closes it, and it is never recorded in a checkpoint. Keep it out of any `screen`. See [Loading & Preloading](./Loading.md).
+The built-in `loading` and `ending` layouts are engine-managed: `load` opens and closes `loading`, `fin` opens `ending`, navigation never closes either, and neither is recorded in a checkpoint. Keep them out of any `screen`. See [Loading & Preloading](./Loading.md) and [6.5 The ending screen](#65-the-ending-screen).
 
 ---
 
@@ -117,6 +117,53 @@ scene start
   [[open inventory with fade over 0.3s]]
   [[close inventory with fade over 0.2s wait]]
   [[navigate menu to settings with slide over 0.25s ease ease_out]]
+end
+```
+
+---
+
+## 6.5 The ending screen
+
+When the story ends with `fin`, the engine opens the built-in `ending` layout over the last frame. By default it holds one element, `end_mark`: a small ■ in the corner where the continue arrow (▼) sits while the game waits for a click. Its root is transparent and lets clicks through, so your own layouts stay visible and usable underneath.
+
+```sparkdown
+scene start
+  Hello.
+  fin
+end
+```
+
+Every other ending holds the last frame without opening the ending screen: a `done` with nothing to return to, the closing `end` of a scene that nothing follows, running off the end of the script, and a runtime error. In each case the ▼ disappears and clicks no longer advance the story, because there is nothing left to show. To give players an ending screen, end the story with `fin`.
+
+Replace the ending screen with your own `layout ending` (an empty one shows nothing), or restyle the default mark with `style end_mark`:
+
+```sparkdown
+layout ending with
+  column.thanks {
+    text "Thanks for playing!"
+  }
+end
+
+style thanks with
+  position = absolute
+  inset = 0
+  align_items = center
+  justify_content = center
+  background_color = rgb(0 0 0 / 60%)
+end
+
+style end_mark with
+  color = sky_60
+end
+```
+
+While the ending screen is open, `game.ending.active` is `true`, so any layout can react to it through a binding such as `{game.ending.active}`. Nothing about the ending is saved into checkpoints.
+
+The ending screen opens with the transition named by `ending_transition` in `define ui as config`, which is `"fade"` unless you change it:
+
+```sparkdown
+define ui as config with
+  ending_transition = "fade"
 end
 ```
 
