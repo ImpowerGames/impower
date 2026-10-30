@@ -1,8 +1,10 @@
 import { describe, expect, test, vi } from "vitest";
 import AnimationPlayer from "../../../../spark-dom/src/classes/AnimationPlayer";
+import { getAnimationContent } from "../../../../spark-dom/src/utils/getAnimationContent";
 import { getStyleContent } from "../../../../spark-dom/src/utils/getStyleContent";
 import {
   parseSparkle,
+  renderCssVDOM,
   renderHtmlVDOM,
 } from "../../../../sparkle-screen-renderer/src";
 import { CSS_ALIASES } from "../../../../sparkle-style-transformer/src/constants/CSS_ALIASES";
@@ -82,6 +84,24 @@ describe("one resolver owns each name and its value", () => {
     expect(getCssPropertyNames(key)).toEqual(expected);
   });
 
+  describe.each(["filter", "backdrop-filter"])(
+    "a CSS-wide keyword on %s passes through",
+    (key) => {
+      test.each(["none", "initial", "inherit", "unset", "revert"])(
+        "%s",
+        (keyword) => {
+          expect(getCssEquivalent(key, keyword)).toEqual([[key, keyword]]);
+        },
+      );
+
+      test("a theme filter name still becomes a theme var", () => {
+        expect(getCssEquivalent(key, "dim")).toEqual([
+          [key, "var(--theme-filter-dim)"],
+        ]);
+      });
+    },
+  );
+
   test("an unrecognized name is dropped when unrecognized names are excluded", () => {
     expect(getCssEquivalent("data-foo", "1", false)).toEqual([]);
   });
@@ -116,6 +136,34 @@ describe("an animation player keyframe resolves through the same table", () => {
     });
   });
 
+  test.each([
+    [{ filter: "none" }, { filter: "none" }, "filter: none;"],
+    [
+      { clip: "rect(0px, 10px, 10px, 0px)" },
+      { clipPath: "rect(0px, 10px, 10px, 0px)" },
+      "clip-path: rect(0px, 10px, 10px, 0px);",
+    ],
+    [
+      { pointer_events: "none" },
+      { pointerEvents: "none", cursor: "default" },
+      "pointer-events: none; cursor: default;",
+    ],
+  ])(
+    "%j plays as its CSS keyframe and stylesheet do",
+    (keyframe, played, css) => {
+      expect(playKeyframe(keyframe)).toEqual(played);
+      expect(
+        getAnimationContent({
+          a: { keyframes: [keyframe], timing: {} } as any,
+        }),
+      ).toContain(`to { ${css} }`);
+      const [k, v] = Object.entries(keyframe)[0]!;
+      expect(getStyleContent({ s: { [k]: v } })).toContain(
+        css.replace("; ", ";\n  "),
+      );
+    },
+  );
+
   test("a size alias resolves its name and its size", () => {
     expect(playKeyframe({ w: "md" })).toEqual({ width: "8px" });
   });
@@ -138,6 +186,20 @@ describe("a screen element attribute resolves through the same table", () => {
 
   test("an animation name", () => {
     expect(renderStyle("duration=2")).toContain("animation-duration:2s;");
+  });
+
+  test("an animation name in a screen style", () => {
+    const css = JSON.stringify(
+      renderCssVDOM(
+        parseSparkle("style fade\n  duration = 2\n  easing = ease-in"),
+        {
+          components: {},
+          state: {},
+        },
+      ),
+    );
+    expect(css).toContain("animation-duration:2s;");
+    expect(css).toContain("animation-timing-function:ease-in;");
   });
 });
 
