@@ -365,16 +365,42 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       }
     }
   }
-  for (const write of writes) {
-    if (write.bodies?.some((body) => body.fn && globalFunctions.has(body.fn))) {
-      (write as { bodies?: BodySource[] }).bodies = write.bodies.filter(
-        (body) => !body.fn || !globalFunctions.has(body.fn),
-      );
-    }
+  if (globalFunctions.size === 0) {
+    out.declarations.push(...writes);
+    return out;
   }
-  out.declarations.push(...writes);
+  for (const flow of flows) {
+    flow.statements = withoutBodiesOf(flow.statements, globalFunctions);
+  }
+  out.declarations.push(...withoutBodiesOf(writes, globalFunctions));
   return out;
 };
+
+const withoutBodiesOf = <T extends StatementSource>(
+  statements: readonly T[],
+  owned: ReadonlySet<ParsedObject>,
+): T[] =>
+  statements.map((statement) => {
+    if (!statement.bodies?.length) {
+      return statement;
+    }
+    let changed = false;
+    const bodies: BodySource[] = [];
+    for (const body of statement.bodies) {
+      if (body.fn && owned.has(body.fn)) {
+        changed = true;
+        continue;
+      }
+      const nested = withoutBodiesOf(body.statements, owned);
+      if (nested.some((s, i) => s !== body.statements[i])) {
+        changed = true;
+        bodies.push({ ...body, statements: nested });
+      } else {
+        bodies.push(body);
+      }
+    }
+    return changed ? { ...statement, bodies } : statement;
+  });
 
 export class FlowEntry extends ParsedObject {
   constructor(
