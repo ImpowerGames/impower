@@ -81,16 +81,21 @@ describe("a program compiled from a .luau file runs nothing (I-1752)", () => {
     expect(errors.filter((e: string) => e.includes("compile stopped"))).toEqual([]);
   });
 
-  it("runs no scene another script declares, start included", () => {
+  it("runs nothing another script declares, start and a top-level run included", () => {
     const { program, errors } = compile(
       "inmemory:///entry.luau",
       "local n = 99\ncount = n\nif true then\n  count = 100\nend\n",
-      { "inmemory:///main.sd": "store m = 2\n\nscene start\n  Value {m}.\n  done\nend\n" },
+      {
+        "inmemory:///main.sd": 'run "helper"\n\nstore m = 2\n\nscene start\n  Value {m}.\n  done\nend\n',
+        "inmemory:///helper.luau": "helped = 7\nif true then\n  helped = helped + 1\nend\n",
+      },
     );
     expect(errors).toEqual([]);
     const story = testStory(program.chunks);
     expect(story.canContinue).toBe(false);
     expect(story.variablesState.$("count") == null).toBe(true);
+    expect(story.variablesState.$("helped") == null).toBe(true);
+    expect(story.variablesState.$("m") == null).toBe(true);
     story.ChooseStart();
     expect(story.canContinue).toBe(false);
   });

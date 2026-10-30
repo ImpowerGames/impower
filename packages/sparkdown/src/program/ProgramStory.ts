@@ -1,5 +1,4 @@
 import { debugFileName } from "../compiler/utils/debugFileName";
-import { hasLuauExtension } from "../compiler/utils/projectMembership";
 import { ControlCommand } from "../runtime/ControlCommand";
 import { DebugMetadata } from "../runtime/DebugMetadata";
 import { ErrorType, type RaisedError } from "../runtime/Error";
@@ -3036,7 +3035,8 @@ export class ProgramStory implements StoryEngine {
     this.beatLog = null;
     const depth = state.callStack.elements.length;
     this._declarationDepth = depth;
-    for (const chunk of this.root.initialization) {
+    const initialization = this.root.tables?.luauEntry ? [] : this.root.initialization;
+    for (const chunk of initialization) {
       this._declarationRunning = chunkId(chunk);
       this._declarationGlobals = 0;
       const at = this.root.position(chunkId(chunk));
@@ -3046,9 +3046,6 @@ export class ProgramStory implements StoryEngine {
           `The program has no place for declaration chunk ${chunkId(chunk)}.`,
         );
         break;
-      }
-      if (hasLuauExtension(at.sequence.uri)) {
-        continue;
       }
       state.position = { sequence: at.sequence, entry: at.entry, offset: 0 };
       state.blockStack = [];
