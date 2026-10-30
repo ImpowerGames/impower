@@ -236,7 +236,7 @@ function RunToggle({
       onClick={onClick}
       class={
         refusal
-          ? "h-12 w-12 cursor-not-allowed flex-col gap-0 rounded-full py-0 px-4 text-[11px] font-medium text-primary/30 hover:bg-transparent hover:text-primary/30"
+          ? "h-12 w-12 cursor-not-allowed flex-col gap-0 rounded-full py-0 px-4 text-[11px] font-medium text-primary/30 hover:after:opacity-0 active:after:opacity-0 hover:text-primary/30"
           : "h-12 w-12 flex-col gap-0 rounded-full py-0 px-4 text-[11px] font-medium text-primary/70"
       }
     >

@@ -370,7 +370,7 @@ export default function AssetInspectorPanel({
                     variant="ghost"
                     aria-label="Save URL"
                     onClick={commitUrl}
-                    class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:bg-foreground/10 hover:text-foreground"
+                    class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:text-foreground"
                   >
                     <Check class="size-4" />
                   </Button>
@@ -378,7 +378,7 @@ export default function AssetInspectorPanel({
                     variant="ghost"
                     aria-label="Cancel"
                     onClick={() => setEditingUrl(null)}
-                    class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:bg-foreground/10 hover:text-foreground"
+                    class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:text-foreground"
                   >
                     <X class="size-4" />
                   </Button>
@@ -404,7 +404,7 @@ export default function AssetInspectorPanel({
                       variant="ghost"
                       aria-label="Edit URL"
                       onClick={() => setEditingUrl(url ?? "")}
-                      class="size-7 flex-none rounded-full p-0 text-foreground/50 hover:bg-foreground/10 hover:text-foreground"
+                      class="size-7 flex-none rounded-full p-0 text-foreground/50 hover:text-foreground"
                     >
                       <Pencil class="size-4" />
                     </Button>
