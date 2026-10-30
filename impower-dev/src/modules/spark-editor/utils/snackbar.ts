@@ -4,6 +4,7 @@ export interface Snackbar {
   message: string;
   actionLabel?: string;
   onAction?: () => void;
+  persistent?: boolean;
 }
 
 export const snackbar = signal<Snackbar | null>(null);
@@ -17,6 +18,10 @@ export function showSnackbar(s: Snackbar) {
   snackbar.value = s;
   if (dismissTimer) {
     clearTimeout(dismissTimer);
+    dismissTimer = 0;
+  }
+  if (s.persistent) {
+    return;
   }
   dismissTimer = setTimeout(() => {
     if (token === mine) {
