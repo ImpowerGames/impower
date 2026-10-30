@@ -800,6 +800,34 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     return program ? this.getDiagnostics(program, uri) : [];
   }
 
+  async pullDocumentDiagnostics(
+    params: DocumentDiagnosticParams,
+  ): Promise<DocumentDiagnosticReport> {
+    const uri = params.textDocument.uri;
+    const document = this._documents.get(uri);
+    if (!document || !this.isScriptDocument(uri)) {
+      const published = this._lastPublishedDiagnostics.get(uri);
+      const publishedVersion =
+        published?.owner === LUAU_DOCUMENT_OWNER ? published.version : undefined;
+      return {
+        kind: "full",
+        ...(publishedVersion != null ? { resultId: `${publishedVersion}` } : {}),
+        items: this.getFileDiagnostics(uri),
+      } as DocumentDiagnosticReport;
+    }
+    const program = await this.compile(uri, false);
+    const resultId = `${document?.version ?? -1}`;
+    if (document && program) {
+      const items = this.getDiagnostics(program, uri);
+      return {
+        kind: "full",
+        resultId,
+        items,
+      } as DocumentDiagnosticReport;
+    }
+    return { kind: "unchanged", resultId };
+  }
+
   override async compile(uri: string, force: boolean): Promise<SparkProgram | undefined> {
     if (hasLuauExtension(uri)) {
       const entries = new Map<string, boolean>();
@@ -849,29 +877,8 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     disposables.push(
       this._connection.onRequest(
         DocumentDiagnosticRequest.method,
-        async (
-          params: DocumentDiagnosticParams,
-        ): Promise<DocumentDiagnosticReport> => {
-          const uri = params.textDocument.uri;
-          const document = this._documents.get(uri);
-          if (!document || !this.isScriptDocument(uri)) {
-            return {
-              kind: "full",
-              items: this.getFileDiagnostics(uri),
-            } as DocumentDiagnosticReport;
-          }
-          const program = await this.compile(uri, false);
-          const resultId = `${document?.version ?? -1}`;
-          if (document && program) {
-            const items = this.getDiagnostics(program, uri);
-            return {
-              kind: "full",
-              resultId,
-              items,
-            } as DocumentDiagnosticReport;
-          }
-          return { kind: "unchanged", resultId };
-        },
+        (params: DocumentDiagnosticParams) =>
+          this.pullDocumentDiagnostics(params),
       ),
     );
     disposables.push(

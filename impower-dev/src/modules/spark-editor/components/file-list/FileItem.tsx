@@ -25,6 +25,7 @@ import {
   recordTrashDeletion,
 } from "../../utils/fileUndo";
 import { formatModified, getFileSizeDisplayValue } from "../../utils/fileMeta";
+import { isScriptExtension } from "../../utils/scriptFiles";
 import workspace from "../../workspace/WorkspaceStore";
 import DiagnosticsLabel from "./DiagnosticsLabel";
 import FileMenuItems from "./FileMenuItems";
@@ -229,7 +230,7 @@ function FileItem({
           },
         ],
       });
-      if (ext === "sd") {
+      if (isScriptExtension(ext)) {
         await Workspace.window.recordScriptChange();
       } else {
         await Workspace.window.recordAssetChange();
