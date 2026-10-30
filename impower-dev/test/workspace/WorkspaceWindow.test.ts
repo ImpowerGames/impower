@@ -15,6 +15,13 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
       writeProjectMetadata: vi.fn(),
       getFileUri: (projectId: string, filename: string) =>
         `file://${projectId}/${filename}`,
+      getFilename: (uri: string) => uri.split("/").slice(-1).join(""),
+      getRelativePath: (projectId: string, uri: string) => {
+        const prefix = `file://${projectId}/`;
+        return uri.startsWith(prefix)
+          ? uri.slice(prefix.length)
+          : uri.split("/").slice(-1).join("");
+      },
     },
     get window() {
       return current.window;
@@ -152,6 +159,21 @@ describe("WorkspaceWindow store transitions", () => {
     expect(active?.filename).toBe("chapters/intro.sd");
     expect(active?.uri.endsWith("/chapters/intro.sd")).toBe(true);
     expect(win.getActiveEditorForFile("acts/intro.sd")).toBeUndefined();
+  });
+
+  it("showDocument stores the project-relative path of a nested script", () => {
+    const projectId = workspace.current.project.id;
+    void win.showDocument(`file://${projectId}/scripts/intro.sd`);
+    const editor = workspace.current.panes.logic.panels.scripts!.activeEditor;
+    expect(editor?.filename).toBe("scripts/intro.sd");
+  });
+
+  it("showDocument keeps main.sd in the logic/main panel", () => {
+    const projectId = workspace.current.project.id;
+    void win.showDocument(`file://${projectId}/main.sd`);
+    expect(workspace.current.panes.logic.panels.main!.activeEditor?.filename).toBe(
+      "main.sd",
+    );
   });
 
   it("closeFileEditor by nested path closes that editor", () => {
