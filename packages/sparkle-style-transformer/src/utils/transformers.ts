@@ -2,13 +2,6 @@ import { SPARKLE_TO_CSS_NAME_MAP } from "../constants/CSS_ALIASES.js";
 
 const WHITESPACE_REGEX = /[\t ]+/;
 const VALUE_UNIT_REGEX = /^(\d+(?:\.\d+)?)([a-z]+)?$/;
-const CSS_WIDE_FILTER_KEYWORDS = new Set([
-  "none",
-  "initial",
-  "inherit",
-  "unset",
-  "revert",
-]);
 const GRADIENT_KEYWORDS = new Set([
   "left",
   "right",
@@ -553,7 +546,7 @@ export const getCssEase = (
 };
 
 export const getCssFilter = (value: string): string => {
-  if (CSS_WIDE_FILTER_KEYWORDS.has(value)) {
+  if (value === "none") {
     return value;
   }
   if (
@@ -922,6 +915,9 @@ export const getCssSize = (
 ): string => {
   if (value === "none") {
     return "0";
+  }
+  if (value === "auto") {
+    return value;
   }
   if (value === "") {
     return defaultUnit === "px" ? "8px" : "0.5rem";

@@ -84,21 +84,39 @@ describe("one resolver owns each name and its value", () => {
     expect(getCssPropertyNames(key)).toEqual(expected);
   });
 
-  describe.each(["filter", "backdrop-filter"])(
-    "a CSS-wide keyword on %s passes through",
-    (key) => {
-      test.each(["none", "initial", "inherit", "unset", "revert"])(
-        "%s",
-        (keyword) => {
-          expect(getCssEquivalent(key, keyword)).toEqual([[key, keyword]]);
-        },
-      );
-
-      test("a theme filter name still becomes a theme var", () => {
-        expect(getCssEquivalent(key, "dim")).toEqual([
-          [key, "var(--theme-filter-dim)"],
-        ]);
+  describe.each(["initial", "inherit", "unset", "revert", "revert-layer"])(
+    "the CSS-wide keyword %s passes through every table entry",
+    (keyword) => {
+      test.each(Object.keys(CSS_UTILITIES))("%s", (key) => {
+        const slots = Object.entries(
+          (
+            CSS_UTILITIES as Record<
+              string,
+              Record<string, Record<string, string>>
+            >
+          )[key]![""] ?? {},
+        ).filter(([, v]) => v === "");
+        const entries = new Map(getCssEquivalent(key, keyword));
+        for (const [prop] of slots) {
+          expect(entries.get(prop)).toBe(keyword);
+        }
       });
+    },
+  );
+
+  test.each([
+    ["filter", "none", [["filter", "none"]]],
+    ["backdrop-filter", "none", [["backdrop-filter", "none"]]],
+    ["filter", "dim", [["filter", "var(--theme-filter-dim)"]]],
+    ["margin", "auto", [["margin", "auto"]]],
+    ["margin-left", "auto", [["margin-left", "auto"]]],
+    ["top", "auto", [["top", "auto"]]],
+    ["margin", "md", [["margin", "8px"]]],
+    ["margin", "gutter", [["margin", "var(--theme-size-gutter)"]]],
+  ])(
+    "%s = %s keeps its native keyword or theme meaning",
+    (key, value, expected) => {
+      expect(getCssEquivalent(key, value)).toEqual(expected);
     },
   );
 
@@ -166,6 +184,29 @@ describe("an animation player keyframe resolves through the same table", () => {
 
   test("a size alias resolves its name and its size", () => {
     expect(playKeyframe({ w: "md" })).toEqual({ width: "8px" });
+  });
+
+  test.each([
+    [{ color: "initial" }, { color: "initial" }],
+    [{ width: "inherit" }, { width: "inherit" }],
+    [{ filter: "revert-layer" }, { filter: "revert-layer" }],
+    [{ margin: "auto" }, { margin: "auto" }],
+  ])("the native keyword in %j plays unchanged", (keyframe, played) => {
+    expect(playKeyframe(keyframe)).toEqual(played);
+  });
+
+  test.each([
+    [
+      { spinner_color: "sky_60" },
+      { "--spinner-color": "var(--theme-color-sky_60)" },
+    ],
+    [
+      { fill_color: "red_60" },
+      { "--_fill-color": "var(--theme-color-red_60)" },
+    ],
+    [{ "--x": "1" }, { "--x": "1" }],
+  ])("the custom property from %j keeps its name", (keyframe, played) => {
+    expect(playKeyframe(keyframe)).toEqual(played);
   });
 });
 

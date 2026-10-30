@@ -6,6 +6,16 @@ import { getCssPropertyName } from "./getCssPropertyName.js";
 
 const LENGTH_PROPERTY_SUFFIX = /-(width|height|top|bottom|left|right)$/;
 
+const CSS_WIDE_KEYWORDS = new Set([
+  "initial",
+  "inherit",
+  "unset",
+  "revert",
+  "revert-layer",
+]);
+
+const keep = (v: string) => v;
+
 const isNumber = (value: unknown): boolean => !Number.isNaN(Number(value));
 
 const getCssValueText = (value: unknown): string => {
@@ -61,9 +71,11 @@ export const getCssEquivalent = (
   const entries: [string, string][] = [];
 
   const sparklePropName = getSparklePropertyName(key);
-  const resolve = styleTransformers[sparklePropName] ?? ((v: string) => v);
   const cssUtility = cssUtilities[sparklePropName];
   const text = getCssValueText(value);
+  const resolve = CSS_WIDE_KEYWORDS.has(text)
+    ? keep
+    : (styleTransformers[sparklePropName] ?? keep);
   if (cssUtility) {
     const defaultSelector = cssUtility[""];
     if (defaultSelector) {

@@ -43,12 +43,14 @@ export default class AnimationPlayer {
                 k,
                 getCssTokenValue(v),
               )) {
-                const camelCasedPropName = prop
-                  .toLowerCase()
-                  .replace(/([-_][\p{Ll}])/gu, (group) =>
-                    group.toUpperCase().replace("-", "").replace("_", ""),
-                  );
-                convertedKeyframe[camelCasedPropName] = value;
+                const keyframeProp = prop.startsWith("--")
+                  ? prop
+                  : prop
+                      .toLowerCase()
+                      .replace(/([-_][\p{Ll}])/gu, (group) =>
+                        group.toUpperCase().replace("-", "").replace("_", ""),
+                      );
+                convertedKeyframe[keyframeProp] = value;
               }
             }
             convertedKeyframes.push(convertedKeyframe);
