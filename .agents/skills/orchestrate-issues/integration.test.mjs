@@ -877,7 +877,7 @@ try {
   change((r) => run.filed(r, { filed: 49, ticket: 43, pr: 143, source: "PR #143's report, Notes for reviewers" }), dstRecord, "local_dst");
   assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, false, "an untriaged filed ticket is not completion");
   assert.throws(() => close(done.id), /no longer holds: #49 was filed during the run and has no triage outcome; triage it with issue-run\.mjs triage/);
-  change((r) => run.triage(r, { filed: 49, outcome: "separate", reason: "a worktree-cleanup defect outside the parent issue's scope" }), dstRecord, "local_dst");
+  change((r) => run.triage(r, { filed: 49, outcome: "separate", under: 1243, reason: "a worktree-cleanup defect outside the parent issue's scope" }), dstRecord, "local_dst");
   assert.equal(plan(run.readRecord(dstRecord), snapshotNow(dst)).complete, true);
   const body = gh.issues.get(ISSUE).body;
   gh.issues.get(ISSUE).body = body.replace("## Additional context", "- [ ] A criterion added after the verification.\n\n## Additional context");

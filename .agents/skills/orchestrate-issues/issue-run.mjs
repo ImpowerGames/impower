@@ -1768,9 +1768,8 @@ export function triage(record, { filed: number, outcome: kind, slice, under, rea
     if (!Number.isSafeInteger(under) || !reason) throw new Error("--under must name the issue in the parent's tree it was attached under, and --reason what of the parent's goal or criteria needs it");
     outcome = { kind, under, reason };
   } else if (kind === "separate") {
-    if (!reason) throw new Error("--reason must say why the ticket is separate work");
-    if (under !== undefined && !Number.isSafeInteger(under)) throw new Error("--under must be an issue number");
-    outcome = { kind, reason, ...(under !== undefined && { under }) };
+    if (!Number.isSafeInteger(under) || !reason) throw new Error("--under must name the umbrella outside the parent's tree it was attached under, and --reason say why the ticket is separate work; when no umbrella exists, record maintainer instead");
+    outcome = { kind, under, reason };
   } else {
     if (!question) throw new Error("--question must give the question raised with the maintainer");
     if (slice !== undefined && !Number.isSafeInteger(slice)) throw new Error("--slice must be the number of the slice whose PR holds on the answer");
