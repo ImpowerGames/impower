@@ -75,7 +75,7 @@ text.source.sparkdown [0..161]
  │           ├─ punctuation.whitespace.optional.sd [116..117]: " "
  │           ├─ variable.other.readwrite.luau [117..118]: "t"
  │           ├─ meta.template.expression.accessor.sd [118..119]: ":"
- │           ├─ variable.other.property.luau [119..120]: "m"
+ │           ├─ entity.name.function.luau [119..120]: "m"
  │           ├─ punctuation.definition.template-expression.begin.sd [120..121]: "<"
  │           ├─ entity.name.type.luau [121..122]: "T"
  │           ├─ punctuation.definition.template-expression.end.sd [122..123]: ">"

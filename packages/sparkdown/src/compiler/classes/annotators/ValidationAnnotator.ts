@@ -21,6 +21,7 @@ import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
+import { FIELD_COLON } from "../../lower/utils/fieldColon";
 import { authoredIslandEnd, nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
 import { luauPositionOffset, readLuauBlock, readLuauExpressionAfter, readLuauMethod, readLuauStatements } from "../../typecheck/readLuauAst";
 import { closureReadingErrors } from "../../typecheck/closureReading";
@@ -185,11 +186,8 @@ const LINE_BREAK_BINARY_OPERATORS = new Set(
 // Worded like the missing-`end` message of a define (validateDefineStructure).
 const UNCLOSED_STRUCT_BLOCK =
   "This block is missing its closing `}`. Without it, every line up to the declaration's `end`, the next `scene` or `branch`, or the end of the file is read as part of this block.";
-// Tokens a brace block cannot hold: a `}` that closes no block, and an
-// indented-form `key:` header or `-` item inside a block.
 const INVALID_STRUCT_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
   "LuauStructStrayBlockClose",
-  "LuauStructInvalidColon",
   "LuauStructBlockItemMark",
 ]);
 // In a layout or component block: text that starts no entry, and a character
@@ -836,6 +834,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // edit that makes or fixes one can stand after the place it is reported.
     if (INVALID_SPARKLE_BLOCK_TOKENS.has(nodeRef.name)) {
       this.error(annotations, "Invalid syntax", nodeRef.from, nodeRef.to);
+      return true;
+    }
+    if (nodeRef.name === "LuauStructInvalidColon") {
+      this.error(annotations, FIELD_COLON, nodeRef.from, nodeRef.to);
       return true;
     }
     if (INVALID_STRUCT_BLOCK_TOKENS.has(nodeRef.name)) {
