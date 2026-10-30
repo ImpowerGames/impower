@@ -96,7 +96,7 @@ export const MORPH_CONTAINER_FIELDS = [
 
 export const MORPH_CLIP_FIELDS = ["between", "targets"] as const;
 
-export const MORPH_PAINT_FIELDS = ["targets", "state", "when", "fill", "stroke", "span"] as const;
+export const MORPH_PAINT_FIELDS = ["targets", "state", "when", "fill", "stroke", "opacity", "span"] as const;
 
 export const MORPH_PAINT_SPAN_DEFAULT = 1;
 
@@ -151,13 +151,15 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
   between: "The layer labels this aperture accepts as edges, such as `eyelash-right`, `eyelash-top-right` and `eyelash-bottom-right`. An image may draw any of them; the ones it draws must form the aperture.",
   targets: "The layers the aperture clips.",
   paints:
-    "Colours that layers take at one pose, as `{ … }` entries with `targets`, `state`, an optional `when`, a `fill` or `stroke`, and an optional `span`: `{ targets { eyelash-left }; state = eyes.closed; when = mask.on; fill = #c9c9c9; span = 40% }`. Where two entries recolour one drawing, the later wins.",
-  "paints.targets": "The layer labels whose drawings this entry recolours, such as `eyelash-left`.",
+    "Colours and opacities that layers take at one pose, as `{ … }` entries with `targets`, `state`, an optional `when`, at least one of `fill`, `stroke` and `opacity`, and an optional `span`: `{ targets { eyelash-left }; state = eyes.closed; when = mask.on; fill = #c9c9c9; span = 40% }`. Where two entries recolour one drawing, the later wins.",
+  "paints.targets": "The layer labels whose drawings this entry paints, such as `eyelash-left`.",
   "paints.state":
     "The pose the colour belongs to, written with its group, such as `eyes.closed`: a state the keyframes name, other than the one the morph starts from. The colour shows while the pose is held and moves in over the neighbouring segments.",
   when: "Applies the entry only in variants that draw a layer needing this state, written with its group, such as `mask.on`: a state of a group the morph does not drive. Without it the entry applies wherever the morph plays.",
   fill: "The fill colour the drawings take at the pose: hex, `rgb()`, `rgba()`, `hsl()`, `hsla()` or a named colour.",
   stroke: "The stroke colour the drawings take at the pose: hex, `rgb()`, `rgba()`, `hsl()`, `hsla()` or a named colour.",
+  "paints.opacity":
+    "The opacity the drawings take at the pose, in place of their own: a number from 0 to 1 or a percentage from `0%` to `100%`, such as `opacity = 0`. A drawing fading in or out at the pose fades from this value.",
   span: "How much of each segment next to the pose the colour change takes: a percentage from `0%` to `100%`, or a number from 0 to 1. Default `100%`; `0%` changes the colour only where the pose's own drawings show.",
 };
 
