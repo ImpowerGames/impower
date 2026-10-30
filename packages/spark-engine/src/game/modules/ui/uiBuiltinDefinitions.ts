@@ -28,6 +28,7 @@ export const uiBuiltinDefinitions = () => ({
         xl: 1280,
       },
       root_text_size: "",
+      ending_transition: "fade",
     },
     movie: {
       stop_music: true,
@@ -720,6 +721,22 @@ export const uiBuiltinDefinitions = () => ({
       animation: "0.5s infinite bounce",
       animation_play_state: "paused",
     }),
+    ending: default_style({
+      $name: "ending",
+      z_index: "900",
+    }),
+    end_mark: default_style({
+      $name: "end_mark",
+      line_height: "1",
+      width: "16px",
+      height: "16px",
+      position: "absolute",
+      right: "16px",
+      bottom: "16px",
+      font_size: "16px",
+      text_align: "center",
+      color: "white",
+    }),
   } as Record<string, ReturnType<typeof default_style>>,
   layout: {
     $default: default_layout(),
@@ -730,6 +747,12 @@ export const uiBuiltinDefinitions = () => ({
         loading_bar: {
           loading_fill: {},
         },
+      },
+    }),
+    ending: default_layout({
+      $name: "ending",
+      end_mark: {
+        text: "■",
       },
     }),
     main: default_layout({

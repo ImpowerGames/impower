@@ -12,7 +12,7 @@ const visibleText = (h: any): string => {
   const root = (h.overlay.querySelector("#game") ?? h.overlay) as HTMLElement;
   const clone = root.cloneNode(true) as HTMLElement;
   clone.querySelectorAll("style, script").forEach((e) => e.remove());
-  return (clone.textContent ?? "").replace(/\s+/g, "").replace(/[▼▲]/g, "");
+  return (clone.textContent ?? "").replace(/\s+/g, "").replace(/[▼▲■]/g, "");
 };
 
 describe("dom control flow (wrapperless)", () => {

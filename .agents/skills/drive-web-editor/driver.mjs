@@ -2035,6 +2035,7 @@ export async function pressInEditor(page, combo, { wait = waitForDomQuiet, comma
 
 const INSERT_TEXT_LIMIT = 4096;
 const PLAY_BUDGET_MS = 30_000;
+const running = (s) => s?.launchState === "play" || s?.launchState === "pause" || s?.launchState === "ended";
 
 async function waitGameState(request, reached, { timeout, now = Date.now, pause }) {
   const end = now() + timeout;
@@ -2050,7 +2051,7 @@ export async function playPreview(page, action, { request = (method, params) => 
   const start = action === "start";
   const label = start ? "Play Game" : "Stop Game";
   const other = start ? "Stop Game" : "Play Game";
-  const reached = (s) => (start ? s?.launchState === "play" || s?.launchState === "pause" : s?.launchState === "preview");
+  const reached = (s) => (start ? running(s) : s?.launchState === "preview");
   const before = await request("preview/gameState");
   const out = { play: action, clicked: false, reached: false, launchStateBefore: before?.launchState ?? null };
   const button = page.locator(`[aria-label="${label}"]`).first();
@@ -2061,14 +2062,12 @@ export async function playPreview(page, action, { request = (method, params) => 
   out.clicked = true;
   const state = await waitGameState(request, reached, { timeout, now, pause });
   out.launchState = state?.launchState ?? null;
-  out.running = out.launchState === "play" || out.launchState === "pause";
+  out.running = running(state);
   out.control = (await page.locator(`[aria-label="${other}"]`).first().isVisible().catch(() => false)) ? other : label;
   out.reached = reached(state) && out.control === other;
   if (!out.reached) out.reason = `PLAY was clicked but the game did not ${start ? "start" : "stop"} within ${seconds(timeout)} (launch state ${out.launchState}, control showing ${out.control})`;
   return out;
 }
-
-const running = (s) => s?.launchState === "play" || s?.launchState === "pause";
 
 async function gameNotifications(page) {
   await waitForProtocol(page);

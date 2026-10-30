@@ -672,6 +672,43 @@ await asyncCheck("advance reports each click's text, launch state and game notif
   assert.match(noFrame.reason, /player frame/);
 });
 
+await asyncCheck("an ended PLAY counts as running: advance clicks it, and play stop leaves it for the preview", async () => {
+  let state = { launchState: "play" }, made = 0;
+  const notes = [
+    [{ method: "game/finished", params: { kind: "out" } }, { method: "game/ended", params: { kind: "out" } }],
+    [],
+  ];
+  let pending = [];
+  const deps = {
+    request: async () => state,
+    click: async () => {
+      pending.push(...notes[made++]);
+      state = { launchState: "ended" };
+      return { clicked: true, at: { x: 1, y: 2 } };
+    },
+    settle: async () => ({ settled: true, text: "Hello." }),
+    notifications: async () => async () => pending.splice(0),
+  };
+  const out = await advanceGame({}, 2, deps);
+  assert.equal(out.reason, undefined);
+  assert.equal(out.clicked, 2);
+  assert.deepEqual(out.clicks.map((c) => c.launchState), ["ended", "ended"]);
+  assert.deepEqual(out.clicks[0].notifications.map((n) => n.method), ["game/finished", "game/ended"]);
+  assert.deepEqual(out.clicks[1].notifications, []);
+  let launchState = "ended";
+  const { page, clicks } = playPage((sel) => sel.includes(launchState === "preview" ? "Play Game" : "Stop Game"));
+  let clock = 0;
+  const opts = { now: () => clock, pause: async (ms) => { clock += ms; }, timeout: 1000 };
+  const stopped = await playPreview(page, "stop", { ...opts, request: async () => { if (clicks.length) launchState = "preview"; return { launchState }; } });
+  assert.equal(stopped.launchStateBefore, "ended");
+  assert.equal(stopped.reached, true);
+  assert.equal(stopped.running, false);
+  const quick = playPage(() => true);
+  const started = await playPreview(quick.page, "start", { ...opts, request: async () => ({ launchState: quick.clicks.length ? "ended" : "preview" }) });
+  assert.equal(started.launchState, "ended");
+  assert.equal(started.running, true);
+});
+
 function gamePage({ frameUrl = "http://localhost:1/__player/index.html", box = { x: 800, y: 100, width: 400, height: 600 } } = {}) {
   const clicks = [];
   const listeners = [];

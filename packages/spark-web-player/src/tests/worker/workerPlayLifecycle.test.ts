@@ -1,4 +1,3 @@
-import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
 import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameClockMessage";
 import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
@@ -421,7 +420,7 @@ describe("the controls that move time while PLAY in the worker is starting", () 
 });
 
 describe("a runtime error as PLAY's game in the worker starts", () => {
-  it("stops PLAY and tells the editor why", async () => {
+  it("holds PLAY on the frame it ended on and tells the editor why", async () => {
     const h = await createPlayerHarness({
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
@@ -439,26 +438,22 @@ describe("a runtime error as PLAY's game in the worker starts", () => {
           const start = game.start.bind(game);
           game.start = (...args: any[]) => {
             start(...args);
-            void game.connection.emit(
-              GameEncounteredRuntimeErrorMessage.type.notification({
-                type: ErrorType.Error,
-                message: "The first beat failed.",
-                location: { uri: MAIN_URI, range: { start: { line: AFTER, character: 0 }, end: { line: AFTER, character: 0 } } },
-                state: "running",
-              } as any),
-            );
+            (game as any).Error("The first beat failed.", ErrorType.Error, null);
           };
         }
         return game;
       };
       await h.controller.startGameAndApp();
-      for (let i = 0; i < 100 && !h.toEditor.some((m) => m.method === "game/exited"); i++) {
+      for (let i = 0; i < 100 && !h.toEditor.some((m) => m.method === "game/ended"); i++) {
         await settle(2);
       }
-      const exited = h.toEditor.find((m) => m.method === "game/exited");
-      expect(exited?.params?.reason).toBe("error");
-      expect(h.workerState.gameState.running == null).toBe(true);
-      expect(h.controller.playing).toBe(false);
+      const ended = h.toEditor.find((m) => m.method === "game/ended");
+      expect(ended?.params?.kind).toBe("error");
+      expect(ended?.params?.error?.message).toBe("The first beat failed.");
+      expect(h.toEditor.filter((m) => m.method === "game/exited")).toEqual([]);
+      expect(h.workerState.gameState.running).toBeTruthy();
+      expect(h.controller.playing).toBe(true);
+      await h.controller.destroyGameAndApp();
     } finally {
       console.error = error;
       h.workerState.gameState.running?.destroy();

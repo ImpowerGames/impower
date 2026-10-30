@@ -39,6 +39,7 @@ import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/m
 import { GameWorkerRestartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage";
 import { GameExitedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedThreadMessage";
 import { GameFinishedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameFinishedMessage";
+import { GameEndedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEndedMessage";
 import { GameHitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameHitBreakpointMessage";
 import { GamePreviewedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GamePreviewedMessage";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
@@ -67,6 +68,7 @@ import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/mes
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
+import type { GameEnding } from "@impower/spark-engine/src/game/core/types/GameEnding";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { RemovedCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemovedCompilerFileMessage";
 import { SelectedCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectedCompilerDocumentMessage";
@@ -181,6 +183,28 @@ const reportUnlessRestarted = (e: unknown) => {
   }
 };
 
+const endingStatusText = (ending: GameEnding): string =>
+  ending.kind === "fin"
+    ? "End of story"
+    : ending.kind === "error"
+      ? "Stopped by an error"
+      : "Story ran out";
+
+const endingStatusHover = (ending: GameEnding): string => {
+  if (ending.kind === "error") {
+    const at = ending.error?.location ?? ending.location;
+    const message = ending.error?.message ?? "";
+    return at ? `${message} (line ${at.range.start.line + 1})` : message;
+  }
+  if (ending.kind === "out") {
+    const after = ending.location
+      ? `Nothing runs after line ${ending.location.range.start.line + 1}.`
+      : "Nothing runs after this.";
+    return `${after} End the story with fin to show the ending screen.`;
+  }
+  return "";
+};
+
 interface WorkerPlay {
   program: SparkProgram;
   state: "starting" | "running";
@@ -188,7 +212,8 @@ interface WorkerPlay {
   sink?: (message: Message) => void;
   stepped: number;
   startSent?: boolean;
-  finished?: boolean;
+  startFrom?: { file: string; line: number };
+  ended?: GameEnding;
 }
 
 export interface GamePlayerRefs {
@@ -212,6 +237,7 @@ export interface GamePlayerRefs {
   resetButton: HTMLElement | null;
   fullscreenButton: HTMLElement | null;
   completionStatus?: HTMLElement | null;
+  endingStatus?: HTMLElement | null;
   routeButton?: HTMLElement | null;
   routeList?: HTMLElement | null;
 }
@@ -500,11 +526,13 @@ export class GamePlayerController {
     if (this._disposed) {
       return;
     }
-    const icon = this._app?.paused
-      ? "pause"
-      : this._workerPlay?.state === "running"
-        ? "play"
-        : "preview";
+    const icon = this._workerPlay?.ended
+      ? "ended"
+      : this._app?.paused
+        ? "pause"
+        : this._workerPlay?.state === "running"
+          ? "play"
+          : "preview";
     this.refs.launchStateIcon?.setAttribute("icon", icon);
     this._launchState = icon;
     this.publishGameState();
@@ -922,6 +950,11 @@ export class GamePlayerController {
       return;
     }
     const plays = this._plays + 1;
+    if (this._workerPlay?.ended) {
+      this.hidePlayButton();
+      await this.restartGame();
+      return;
+    }
     await this.startGameAndApp();
     if (plays !== this._plays || !this._mounted || !this.playing) {
       return;
@@ -1578,12 +1611,30 @@ export class GamePlayerController {
   };
 
   protected handleStopGame = async (message: StopGameMessage.Request) => {
-    await this.stopGame("quit");
+    const ended = this._workerPlay?.ended;
+    await this.stopGame(
+      !ended ? "quit" : ended.kind === "error" ? "error" : "finished",
+    );
     return StopGameMessage.type.response(message.id, {});
   };
 
   protected handleRestartGame = async (message: RestartGameMessage.Request) => {
-    await this.restartGame();
+    const stops = this._stops;
+    const plays = this._plays;
+    const ended = this._workerPlay?.ended;
+    const restarted = await this.restartGame(true);
+    if (
+      !restarted &&
+      ended &&
+      stops === this._stops &&
+      plays + 1 === this._plays &&
+      this._mounted &&
+      !this.playing
+    ) {
+      await this.stopGame("invalidated", undefined, {
+        at: ended.error?.location ?? ended.location,
+      });
+    }
     return RestartGameMessage.type.response(message.id, {});
   };
 
@@ -2036,7 +2087,10 @@ export class GamePlayerController {
 
   protected _plays = 0;
 
-  async startGameAndApp(restarted?: boolean) {
+  async startGameAndApp(
+    restarted?: boolean,
+    startFrom?: { file: string; line: number },
+  ) {
     const plays = ++this._plays;
     const stops = this._stops;
     if (this._disposed) {
@@ -2073,16 +2127,24 @@ export class GamePlayerController {
     if (!link) {
       return false;
     }
-    return this.startWorkerPlay(this._program, link, restarted);
+    return this.startWorkerPlay(this._program, link, restarted, startFrom);
   }
 
   protected async startWorkerPlay(
     program: SparkProgram,
     link: WorkerGameLink,
     restarted?: boolean,
+    startFrom: { file: string; line: number } | undefined = this._options
+      ?.startFrom ?? undefined,
   ): Promise<boolean> {
-    const play: WorkerPlay = { program, state: "starting", stepped: 0 };
+    const play: WorkerPlay = {
+      program,
+      state: "starting",
+      stepped: 0,
+      ...(startFrom ? { startFrom } : {}),
+    };
     this._workerPlay = play;
+    this.setEndingStatus(null);
     this._routeState = { ...this._routeState, lastRun: undefined };
     const current = () => this._workerPlay === play;
     let stopListening: (() => void) | undefined;
@@ -2110,7 +2172,7 @@ export class GamePlayerController {
       }
       const built = await link.request(PlayMessage.type, {
         program: programIdentity(program)!,
-        startFrom: this._options?.startFrom ?? undefined,
+        startFrom,
         restarted,
       });
       play.run = built.run;
@@ -2126,16 +2188,7 @@ export class GamePlayerController {
       }
       link.detach();
       this.beginRuntimeRun(program, play, built.errors ?? []);
-      stopListening = this.listenToWorker(
-        link,
-        () =>
-          this._workerPlay !== play
-            ? "stopped"
-            : play.startSent
-              ? "running"
-              : play.state,
-        play,
-      );
+      stopListening = this.listenToWorker(link, play);
       this._stopListeningToPlay?.();
       this._stopListeningToPlay = stopListening;
       await this._workerAppSettling;
@@ -2188,7 +2241,7 @@ export class GamePlayerController {
       });
       for (;;) {
         if (!current()) {
-          return play.finished === true;
+          return false;
         }
         if (app.paused !== workerPaused) {
           workerPaused = app.paused;
@@ -2321,6 +2374,40 @@ export class GamePlayerController {
     }
   }
 
+  protected holdEndedPlay(owner: unknown, params: GameEnding) {
+    const play = this._workerPlay;
+    if (!play || play !== owner || play.ended) {
+      return;
+    }
+    const ending: GameEnding = {
+      kind: params.kind,
+      location: params.location,
+      ...(params.error ? { error: params.error } : {}),
+    };
+    play.ended = ending;
+    this.updateLaunchStateIcon();
+    this.setEndingStatus(ending);
+    sendProtocolMessage(GameEndedMessage.type.notification(ending), this.host);
+    if (!this.refs.toolbar) {
+      this.showPlayButton();
+    }
+  }
+
+  protected setEndingStatus(ending: GameEnding | null) {
+    const element = this.refs.endingStatus;
+    if (!element) {
+      return;
+    }
+    element.textContent = ending ? endingStatusText(ending) : "";
+    element.title = ending ? endingStatusHover(ending) : "";
+    element.hidden = !ending;
+    if (ending) {
+      element.setAttribute("kind", ending.kind);
+    } else {
+      element.removeAttribute("kind");
+    }
+  }
+
   async stopGame(
     reason: "finished" | "quit" | "invalidated" | "error" | "restart",
     error?: {
@@ -2329,13 +2416,14 @@ export class GamePlayerController {
     },
     options?: {
       select?: boolean;
+      at?: DocumentLocation | null;
     },
   ) {
     this._stops += 1;
     const plays = this._plays;
-    if (reason === "finished" && this._workerPlay) {
-      this._workerPlay.finished = true;
-    }
+    const endedAt =
+      options?.at ?? this._workerPlay?.ended?.error?.location ?? null;
+    this.setEndingStatus(null);
     const lastExecutedLocation = await this.endWorkerPlay();
     const overtaken = () => plays !== this._plays || !this._mounted;
     if (overtaken()) {
@@ -2361,7 +2449,7 @@ export class GamePlayerController {
     if (overtaken()) {
       return;
     }
-    const selected = error?.location ?? lastExecutedLocation;
+    const selected = error?.location ?? endedAt ?? lastExecutedLocation;
     const run = this._runtimeRun;
     this._runtimeRunPosition =
       selected && run
@@ -2421,15 +2509,17 @@ export class GamePlayerController {
 
   protected _stops = 0;
 
-  async restartGame(): Promise<boolean> {
+  async restartGame(fromRunStart = false): Promise<boolean> {
     const stops = this._stops;
     const plays = this._plays;
+    const startFrom = fromRunStart ? this._workerPlay?.startFrom : undefined;
+    this.setEndingStatus(null);
     await this.destroyGameAndApp();
     if (stops !== this._stops || plays !== this._plays || !this._mounted) {
       return false;
     }
     const restarted = plays + 1;
-    await this.startGameAndApp(true);
+    await this.startGameAndApp(true, startFrom);
     return (
       stops === this._stops &&
       restarted === this._plays &&
@@ -2518,7 +2608,6 @@ export class GamePlayerController {
 
   listen(
     game: {
-      state?: string;
       connection: {
         outgoing: { addListener(method: string, listener: (msg: any) => void): unknown };
       };
@@ -2540,21 +2629,14 @@ export class GamePlayerController {
           } else {
             console.log(message, location);
           }
-          if (type === ErrorType.Error && game && game.state === "running") {
-            const error = {
-              message,
-              location,
-            };
-            await this.stopGame("error", error);
-          }
         }
       },
     );
     game.connection.outgoing.addListener(
       GameFinishedMessage.method,
-      async (msg) => {
+      (msg) => {
         if (GameFinishedMessage.type.isNotification(msg)) {
-          await this.stopGame("finished");
+          this.holdEndedPlay(owner, msg.params);
         }
       },
     );
@@ -2670,15 +2752,11 @@ export class GamePlayerController {
 
   listenToWorker(
     link: WorkerGameLink,
-    state: () => string = () => "previewing",
     owner: unknown = link,
   ): () => void {
     const stops: (() => void)[] = [];
     this.listen(
       {
-        get state() {
-          return state();
-        },
         connection: {
           outgoing: {
             addListener: (method, listener) =>

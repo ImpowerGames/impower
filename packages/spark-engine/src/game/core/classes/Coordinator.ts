@@ -102,6 +102,9 @@ export class Coordinator<G extends Game> {
 
   shouldContinue(): number {
     const game = this._game;
+    if (game.ending) {
+      return 0;
+    }
     const instructions = this._instructions;
     const waitingForChoice =
       instructions.choices && instructions.choices.length > 0;
@@ -195,7 +198,7 @@ export class Coordinator<G extends Game> {
       game.module.ui.reveal();
 
       const indicatorStyle: Record<string, string | null> = {};
-      if (autoAdvance) {
+      if (autoAdvance || game.ending) {
         indicatorStyle["display"] = "none";
       } else {
         indicatorStyle["transition"] = "none";
@@ -209,6 +212,9 @@ export class Coordinator<G extends Game> {
       if (choiceTargets) {
         choiceTargets.forEach((target, index) => {
           const handleClick = (): void => {
+            if (game.ending) {
+              return;
+            }
             game.module.ui.text.clearAll(choiceTargets);
             game.module.ui.image.clearAll(choiceTargets);
             game.module.ui.unobserve("click", target);

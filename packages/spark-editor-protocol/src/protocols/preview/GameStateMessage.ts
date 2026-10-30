@@ -5,7 +5,7 @@ export interface GameState {
   mounted: boolean;
   programLoaded: boolean;
   programVersion: number | null;
-  launchState: "pause" | "play" | "preview" | null;
+  launchState: "pause" | "play" | "ended" | "preview" | null;
   position: { uri: string; line: number } | null;
   completion: {
     request: number;

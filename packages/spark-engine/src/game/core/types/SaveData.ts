@@ -1,3 +1,5 @@
+import type { StoryEnding } from "@impower/sparkdown/src/program/ProgramStory";
+
 export interface SaveData {
   modules: Record<string, any>;
   context: any;
@@ -11,4 +13,5 @@ export interface SaveData {
    *  when the watch still holds the cell the tag names. Written only while
    *  such a breakpoint is set. */
   watchedCells?: { dataId: string; cell: number; tag: string }[];
+  ending?: StoryEnding;
 }

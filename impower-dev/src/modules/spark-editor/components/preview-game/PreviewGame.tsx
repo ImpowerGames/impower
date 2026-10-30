@@ -69,10 +69,12 @@ export default function PreviewGame(_props: PreviewGameProps) {
       import("@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage"),
       import("@impower/spark-editor-protocol/src/protocols/workspace/RuntimeDiagnosticsMessage"),
       import("@impower/spark-editor-protocol/src/protocols/preview/ChangeRoutePinsMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/EnterGameFullscreenModeMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/ExitGameFullscreenModeMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/FetchGameAssetMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage"),
+      import("@impower/spark-engine/src/game/core/classes/messages/GameEndedMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameToggledFullscreenModeMessage"),
@@ -93,10 +95,12 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { ExecuteCommandMessage },
         { RuntimeDiagnosticsMessage },
         { ChangeRoutePinsMessage },
+        { DidChangeGameStateMessage },
         { EnterGameFullscreenModeMessage },
         { ExitGameFullscreenModeMessage },
         { FetchGameAssetMessage },
         { GameExecutedMessage },
+        { GameEndedMessage },
         { GameExitedMessage },
         { GameStartedMessage },
         { GameToggledFullscreenModeMessage },
@@ -269,6 +273,17 @@ export default function PreviewGame(_props: PreviewGameProps) {
                   );
                 }
               }
+            }
+          }
+          if (GameEndedMessage.type.is(message)) {
+            Workspace.window.syncGameEnded(true);
+          }
+          if (DidChangeGameStateMessage.type.is(message)) {
+            const { launchState } = message.params;
+            if (launchState === "ended") {
+              Workspace.window.syncGameEnded(true);
+            } else if (launchState === "play" || launchState === "pause") {
+              Workspace.window.syncGameEnded(false);
             }
           }
           if (GameExitedMessage.type.is(message)) {

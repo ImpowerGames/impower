@@ -2135,6 +2135,20 @@ spark-web-player #game .continue_indicator {
   transition: opacity 0.25s linear;
   animation: var(--theme-animation-0.5s), var(--theme-animation-infinite), var(--theme-animation-bounce);
   animation-play-state: paused;
+}
+spark-web-player #game .ending {
+  z-index: 900;
+}
+spark-web-player #game .end_mark {
+  line-height: 1;
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  font-size: 16px;
+  text-align: center;
+  color: white;
 }",
             },
           ],
@@ -2168,6 +2182,30 @@ spark-web-player #game .continue_indicator {
                 },
               ],
               "class": "loading",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "style": "display: inline;",
+                          "tag": "span",
+                          "text": "■",
+                        },
+                      ],
+                      "class": "text",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "end_mark",
+                  "tag": "div",
+                },
+              ],
+              "class": "ending",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
@@ -4439,6 +4477,20 @@ spark-web-player #game .continue_indicator {
   transition: opacity 0.25s linear;
   animation: var(--theme-animation-0.5s), var(--theme-animation-infinite), var(--theme-animation-bounce);
   animation-play-state: paused;
+}
+spark-web-player #game .ending {
+  z-index: 900;
+}
+spark-web-player #game .end_mark {
+  line-height: 1;
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  font-size: 16px;
+  text-align: center;
+  color: white;
 }",
             },
           ],
@@ -4472,6 +4524,30 @@ spark-web-player #game .continue_indicator {
                 },
               ],
               "class": "loading",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "style": "display: inline;",
+                          "tag": "span",
+                          "text": "■",
+                        },
+                      ],
+                      "class": "text",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "end_mark",
+                  "tag": "div",
+                },
+              ],
+              "class": "ending",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
@@ -6709,6 +6785,20 @@ spark-web-player #game .continue_indicator {
   transition: opacity 0.25s linear;
   animation: var(--theme-animation-0.5s), var(--theme-animation-infinite), var(--theme-animation-bounce);
   animation-play-state: paused;
+}
+spark-web-player #game .ending {
+  z-index: 900;
+}
+spark-web-player #game .end_mark {
+  line-height: 1;
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  font-size: 16px;
+  text-align: center;
+  color: white;
 }",
             },
           ],
@@ -6742,6 +6832,30 @@ spark-web-player #game .continue_indicator {
                 },
               ],
               "class": "loading",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "style": "display: inline;",
+                          "tag": "span",
+                          "text": "■",
+                        },
+                      ],
+                      "class": "text",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "end_mark",
+                  "tag": "div",
+                },
+              ],
+              "class": "ending",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
@@ -9097,6 +9211,20 @@ spark-web-player #game .continue_indicator {
   transition: opacity 0.25s linear;
   animation: var(--theme-animation-0.5s), var(--theme-animation-infinite), var(--theme-animation-bounce);
   animation-play-state: paused;
+}
+spark-web-player #game .ending {
+  z-index: 900;
+}
+spark-web-player #game .end_mark {
+  line-height: 1;
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  font-size: 16px;
+  text-align: center;
+  color: white;
 }",
             },
           ],
@@ -9130,6 +9258,30 @@ spark-web-player #game .continue_indicator {
                 },
               ],
               "class": "loading",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "style": "display: inline;",
+                          "tag": "span",
+                          "text": "■",
+                        },
+                      ],
+                      "class": "text",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "end_mark",
+                  "tag": "div",
+                },
+              ],
+              "class": "ending",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
@@ -11348,6 +11500,20 @@ spark-web-player #game .continue_indicator {
   transition: opacity 0.25s linear;
   animation: var(--theme-animation-0.5s), var(--theme-animation-infinite), var(--theme-animation-bounce);
   animation-play-state: paused;
+}
+spark-web-player #game .ending {
+  z-index: 900;
+}
+spark-web-player #game .end_mark {
+  line-height: 1;
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  font-size: 16px;
+  text-align: center;
+  color: white;
 }",
             },
           ],
@@ -11381,6 +11547,30 @@ spark-web-player #game .continue_indicator {
                 },
               ],
               "class": "loading",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "style": "display: inline;",
+                          "tag": "span",
+                          "text": "■",
+                        },
+                      ],
+                      "class": "text",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "end_mark",
+                  "tag": "div",
+                },
+              ],
+              "class": "ending",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
@@ -13583,6 +13773,20 @@ spark-web-player #game .continue_indicator {
   transition: opacity 0.25s linear;
   animation: var(--theme-animation-0.5s), var(--theme-animation-infinite), var(--theme-animation-bounce);
   animation-play-state: paused;
+}
+spark-web-player #game .ending {
+  z-index: 900;
+}
+spark-web-player #game .end_mark {
+  line-height: 1;
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  font-size: 16px;
+  text-align: center;
+  color: white;
 }",
             },
           ],
@@ -13616,6 +13820,30 @@ spark-web-player #game .continue_indicator {
                 },
               ],
               "class": "loading",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "style": "display: inline;",
+                          "tag": "span",
+                          "text": "■",
+                        },
+                      ],
+                      "class": "text",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "end_mark",
+                  "tag": "div",
+                },
+              ],
+              "class": "ending",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
@@ -15862,6 +16090,20 @@ spark-web-player #game .continue_indicator {
   transition: opacity 0.25s linear;
   animation: var(--theme-animation-0.5s), var(--theme-animation-infinite), var(--theme-animation-bounce);
   animation-play-state: paused;
+}
+spark-web-player #game .ending {
+  z-index: 900;
+}
+spark-web-player #game .end_mark {
+  line-height: 1;
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  font-size: 16px;
+  text-align: center;
+  color: white;
 }",
             },
           ],
@@ -15895,6 +16137,30 @@ spark-web-player #game .continue_indicator {
                 },
               ],
               "class": "loading",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "style": "display: inline;",
+                          "tag": "span",
+                          "text": "■",
+                        },
+                      ],
+                      "class": "text",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "end_mark",
+                  "tag": "div",
+                },
+              ],
+              "class": "ending",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
@@ -18109,6 +18375,20 @@ spark-web-player #game .continue_indicator {
   transition: opacity 0.25s linear;
   animation: var(--theme-animation-0.5s), var(--theme-animation-infinite), var(--theme-animation-bounce);
   animation-play-state: paused;
+}
+spark-web-player #game .ending {
+  z-index: 900;
+}
+spark-web-player #game .end_mark {
+  line-height: 1;
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  font-size: 16px;
+  text-align: center;
+  color: white;
 }",
             },
           ],
@@ -18142,6 +18422,30 @@ spark-web-player #game .continue_indicator {
                 },
               ],
               "class": "loading",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "style": "display: inline;",
+                          "tag": "span",
+                          "text": "■",
+                        },
+                      ],
+                      "class": "text",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "end_mark",
+                  "tag": "div",
+                },
+              ],
+              "class": "ending",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
@@ -20356,6 +20660,20 @@ spark-web-player #game .continue_indicator {
   transition: opacity 0.25s linear;
   animation: var(--theme-animation-0.5s), var(--theme-animation-infinite), var(--theme-animation-bounce);
   animation-play-state: paused;
+}
+spark-web-player #game .ending {
+  z-index: 900;
+}
+spark-web-player #game .end_mark {
+  line-height: 1;
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  font-size: 16px;
+  text-align: center;
+  color: white;
 }",
             },
           ],
@@ -20389,6 +20707,30 @@ spark-web-player #game .continue_indicator {
                 },
               ],
               "class": "loading",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "style": "display: inline;",
+                          "tag": "span",
+                          "text": "■",
+                        },
+                      ],
+                      "class": "text",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "end_mark",
+                  "tag": "div",
+                },
+              ],
+              "class": "ending",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
@@ -22603,6 +22945,20 @@ spark-web-player #game .continue_indicator {
   transition: opacity 0.25s linear;
   animation: var(--theme-animation-0.5s), var(--theme-animation-infinite), var(--theme-animation-bounce);
   animation-play-state: paused;
+}
+spark-web-player #game .ending {
+  z-index: 900;
+}
+spark-web-player #game .end_mark {
+  line-height: 1;
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  font-size: 16px;
+  text-align: center;
+  color: white;
 }",
             },
           ],
@@ -22636,6 +22992,30 @@ spark-web-player #game .continue_indicator {
                 },
               ],
               "class": "loading",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "style": "display: inline;",
+                          "tag": "span",
+                          "text": "■",
+                        },
+                      ],
+                      "class": "text",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "end_mark",
+                  "tag": "div",
+                },
+              ],
+              "class": "ending",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
@@ -24850,6 +25230,20 @@ spark-web-player #game .continue_indicator {
   transition: opacity 0.25s linear;
   animation: var(--theme-animation-0.5s), var(--theme-animation-infinite), var(--theme-animation-bounce);
   animation-play-state: paused;
+}
+spark-web-player #game .ending {
+  z-index: 900;
+}
+spark-web-player #game .end_mark {
+  line-height: 1;
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  font-size: 16px;
+  text-align: center;
+  color: white;
 }",
             },
           ],
@@ -24883,6 +25277,30 @@ spark-web-player #game .continue_indicator {
                 },
               ],
               "class": "loading",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "style": "display: inline;",
+                          "tag": "span",
+                          "text": "■",
+                        },
+                      ],
+                      "class": "text",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "end_mark",
+                  "tag": "div",
+                },
+              ],
+              "class": "ending",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },

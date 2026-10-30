@@ -18,6 +18,7 @@ import {
   PlayerStop,
   PlayerTrackNextFill,
   PlayerTrackPreviousFill,
+  Repeat,
 } from "@impower/impower-ui/components";
 import type { IconComponent } from "@impower/impower-ui/components";
 import { useEffect, useRef } from "preact/hooks";
@@ -30,6 +31,7 @@ export type PreviewGameToolbarProps = Partial<typeof propDefaults>;
 export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
   const game = workspace.state.value.preview?.modes?.game;
   const running = !!game?.running;
+  const ended = running && !!game?.ended;
   const paused = !!game?.paused;
   const debugging = !!game?.debugging;
   const loading = !!game?.loading;
@@ -69,6 +71,11 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
     Workspace.window.toggleGameRunning();
   };
 
+  const onPlayAgain = async () => {
+    const { Workspace } = await import("../../workspace/Workspace");
+    Workspace.window.replayGame();
+  };
+
   const onModeToggle = async () => {
     const { Workspace } = await import("../../workspace/Workspace");
     Workspace.window.setPreviewMode("screenplay");
@@ -102,7 +109,17 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
       <span class="flex-1" />
 
 
-      {running ? (
+      {ended ? (
+        <Button
+          variant="ghost"
+          aria-label="Play Again"
+          onClick={loading ? undefined : onPlayAgain}
+          class="h-10 gap-2 px-3 text-sm text-foreground"
+        >
+          <Repeat class="size-4" />
+          Play Again
+        </Button>
+      ) : running ? (
         <div class="flex flex-row items-center">
           <PointerHoldButton
             ariaLabel="Step Backward"

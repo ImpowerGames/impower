@@ -112,6 +112,7 @@ export function validateScenario(spec) {
   if (!spec.preview?.text || !Array.isArray(spec.preview.steps) || !spec.preview.steps.length) throw new Error("Scenario needs preview.text and at least one preview interaction step");
   for (const d of spec.expectedDiagnostics) if (!["file", "message", "severity", "source"].every(k => typeof d[k] === "string")) throw new Error("Expected diagnostics need file, message, severity and source");
   for (const s of spec.preview.steps) if (!(s.selector || s.textButton) || !s.text) throw new Error("Each preview step needs a selector or textButton and resulting text");
+  if (spec.ending !== undefined && (typeof spec.ending?.badge !== "string" || typeof spec.ending?.restartText !== "string")) throw new Error("An ending check needs the badge text the last step ends on and the text Restart shows");
 }
 
 async function freePort() {
@@ -165,6 +166,7 @@ export function previewRead(step) {
   return {
     visible: visible(d.querySelector("spark-web-player")), text: leafText,
     playing: d.querySelector("#play-button")?.style?.display === "none",
+    ending: visible(d.querySelector("#ending-status")) && d.querySelector("#ending-status").getBoundingClientRect().right <= w.innerWidth ? d.querySelector("#ending-status").textContent : null,
     bodyText: d.body.innerText, bodyClass: d.body.className,
     target: box && visible(element) ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null,
     images: [...d.images].filter(visible).map(img => ({ src: img.src, width: img.getBoundingClientRect().width, height: img.getBoundingClientRect().height, loaded: img.complete && img.naturalWidth > 0 })),
@@ -310,6 +312,30 @@ export async function desktop(args) {
       const after = await wait(() => textVisible(step.text), `Preview interaction never displayed: ${step.text}`);
       report.preview.steps.push({ action: step.selector ?? step.textButton, after });
       await page.screenshot({ path: path.join(evidence, `preview-step-${report.preview.steps.length}.png`) });
+    }
+    if (spec.ending) {
+      report.ending = { badge: await wait(async () => (await readPreview())?.ending === spec.ending.badge ? spec.ending.badge : null, `Game Preview never showed the badge: ${spec.ending.badge}`) };
+      await page.screenshot({ path: path.join(evidence, "ending.png") });
+      await command(page, "View: Run and Debug", "workbench.view.debug");
+      report.ending.callStack = await wait(async () => {
+        const text = await page.locator(".pane-header").filter({ hasText: "Call Stack" }).first().innerText().catch(() => "");
+        return /paused on end/i.test(text) ? text : null;
+      }, "The Call Stack never showed the session paused on end");
+      await page.screenshot({ path: path.join(evidence, "ending-debug.png") });
+      await command(page, "Impower Driver: Verify Ending", "impower.driver.ending");
+      report.ending.session = await wait(() => readJson(path.join(evidence, "ending-report.json")), "Ending verification timed out");
+      report.failed.push(...report.ending.session.failed);
+      report.ending.restarted = await wait(async () => { const s = await readPreview(); return s?.playing && !s.ending && s.text?.includes(spec.ending.restartText) ? s : null; }, `Restart never replayed to: ${spec.ending.restartText}`);
+      report.ending.callStackAfterRestart = await wait(async () => {
+        const text = await page.locator(".pane-header").filter({ hasText: "Call Stack" }).first().innerText().catch(() => null);
+        return text != null && !/paused on end/i.test(text) ? text : null;
+      }, "The Call Stack still showed the session paused on end after Restart");
+      await page.screenshot({ path: path.join(evidence, "ending-restarted.png") });
+      await command(page, "Impower Driver: Stop After Ending", "impower.driver.endingStop");
+      report.ending.stop = await wait(() => readJson(path.join(evidence, "ending-stop-report.json")), "Stop verification timed out");
+      report.failed.push(...report.ending.stop.failed);
+      report.ending.stopped = await wait(async () => { const s = await readPreview(); return s && !s.playing && !s.ending ? s : null; }, "Stop never returned the preview to editing");
+      await page.screenshot({ path: path.join(evidence, "ending-stopped.png") });
     }
     if (spec.debug) {
       await command(page, "Impower Driver: Verify Debugger", "impower.driver.debug");

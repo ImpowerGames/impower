@@ -8,6 +8,8 @@
   "contributes": { "commands": [
     { "command": "impower.driver.run", "title": "Impower Driver: Run Scenario" },
     { "command": "impower.driver.debug", "title": "Impower Driver: Verify Debugger" },
-    { "command": "impower.driver.diagnostics", "title": "Impower Driver: Read Final Diagnostics" }
+    { "command": "impower.driver.diagnostics", "title": "Impower Driver: Read Final Diagnostics" },
+    { "command": "impower.driver.ending", "title": "Impower Driver: Verify Ending" },
+    { "command": "impower.driver.endingStop", "title": "Impower Driver: Stop After Ending" }
   ] }
 }

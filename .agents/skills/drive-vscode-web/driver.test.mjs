@@ -314,6 +314,10 @@ await check("desktop rejects unexpected diagnostics but accepts the exact expect
   assert.equal(health.semanticResponses[1].failed, true);
   assert.equal(health.failed.length, 2);
   assert.throws(() => validateScenario({ file: "main.sd", expectedDiagnostics: [] }), /interaction/);
+  const playable = { file: "main.sd", expectedDiagnostics: [], preview: { text: "First.", steps: [{ selector: "#game", text: "Hello." }] } };
+  validateScenario(playable);
+  validateScenario({ ...playable, ending: { badge: "Story ran out", restartText: "First." } });
+  assert.throws(() => validateScenario({ ...playable, ending: { badge: "Story ran out" } }), /ending check/);
 });
 
 await check("the rebuild command runs the steps of the artifacts named, each once, the language server's build before the extension's script", () => {
@@ -1858,7 +1862,7 @@ async function desktopDebugReport(advances) {
   };
   const vscode = {
     debug: {
-      activeDebugSession: session, registerDebugConfigurationProvider: () => ({}), stopDebugging: async () => true,
+      activeDebugSession: session, registerDebugConfigurationProvider: () => ({}), onDidTerminateDebugSession: () => ({ dispose() {} }), stopDebugging: async () => true,
     },
     commands: { registerCommand: (id, command) => { commands.set(id, command); return {}; } },
   };
