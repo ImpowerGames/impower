@@ -571,10 +571,10 @@ function scanYaml(text) {
 }
 
 function blockScalarComments(text, lineStart, i, code, records) {
-  const header = /^(\s*(?:-\s+)*)(?:(?:[^\s#][^#]*?)?:\s+)?([|>])([-+1-9]*)\s*$/.exec(code);
+  const header = /^(\s*(?:-\s+)*)(?:(?:[^\s#][^#]*?)?:\s+)?(?:[!&][^\s#]*\s+)*([|>])([-+1-9]*)\s*$/.exec(code);
   if (!header) return null;
   const comments = [];
-  const parent = /^(\s*)(?:-\s+)*/.exec(code)[0].length + (/:\s+[|>]/.test(code) ? 0 : -1);
+  const parent = /^(\s*)(?:-\s+)*/.exec(code)[0].length + (/:\s+(?:[!&][^\s#]*\s+)*[|>]/.test(code) ? 0 : -1);
   const indicator = /[1-9]/.exec(header[3]);
   const indentOf = (line) => /^ */.exec(line)[0].length;
   let content = indicator ? Math.max(parent, 0) + Number(indicator[0]) : null;
@@ -599,12 +599,16 @@ function blockScalarComments(text, lineStart, i, code, records) {
 function scanYamlLexed(yaml, text) {
   const comments = [];
   const control = new Set([yaml.CST.DOCUMENT, yaml.CST.FLOW_END, yaml.CST.SCALAR]);
-  let offset = 0, records = null;
+  let offset = 0, records = null, keep = null;
   for (const token of new yaml.Lexer().lex(text)) {
     if (control.has(token)) continue;
     const type = yaml.CST.tokenType(token);
-    if (type === "comment") comments.push({ start: offset, end: offset + token.length });
+    if (keep === "header" && type === "newline") keep = "content";
+    else if (keep === "content") keep = "after";
+    else if (keep === "after" && type !== "comment" && type !== "newline" && type !== "space") keep = null;
+    if (type === "comment") comments.push({ start: offset, end: offset + token.length, afterKeep: keep === "after" });
     else if (type === "block-scalar-header") {
+      keep = token.includes("+") ? "header" : null;
       const lineStart = text.lastIndexOf("\n", offset - 1) + 1;
       const stop = lineEnd(text, offset);
       const next = Math.min(text.indexOf("\n", stop) + 1 || text.length, text.length);
@@ -765,10 +769,10 @@ export function scanComments(text, file, options = {}) {
   const { scanner, comments } = scanFamily(text, file, family, options);
   return comments
     .sort((a, b) => a.start - b.start)
-    .map(({ start, end }) => {
+    .map(({ start, end, afterKeep }) => {
       const line = lineOf(start), endLine = lineOf(Math.max(start, end - 1));
       const lineStart = starts[line];
-      return { start, end, line: line + 1, endLine: endLine + 1, column: start - lineStart, lineStart, lineStop: ends[endLine], text: text.slice(start, end), scanner };
+      return { start, end, line: line + 1, endLine: endLine + 1, column: start - lineStart, lineStart, lineStop: ends[endLine], text: text.slice(start, end), scanner, ...(afterKeep ? { afterKeep } : {}) };
     });
 }
 
@@ -1012,7 +1016,7 @@ export function stripComments(text, file, options = {}) {
   const nextLine = (offset) => starts[lineOf(offset) + 1] ?? text.length;
   for (const c of removals) {
     const leading = code(c.lineStart, c.start), following = code(c.end, c.lineStop);
-    if (!leading && !following) cuts.push({ from: c.lineStart, to: nextLine(c.lineStop), whole: true });
+    if (!leading && !following) cuts.push({ from: c.lineStart, to: nextLine(c.lineStop), whole: true, afterKeep: c.afterKeep });
     else if (!following) {
       let from = c.start;
       while (from > c.lineStart && /[ \t]/.test(text[from - 1])) from--;
@@ -1043,6 +1047,7 @@ export function stripComments(text, file, options = {}) {
     if (last && (cut.from < last.to || (cut.from === last.to && !cut.rewrite && !last.rewrite))) {
       last.to = Math.max(last.to, cut.to);
       last.whole ||= cut.whole;
+      last.afterKeep ||= cut.afterKeep;
       if (strength(cut.replacement) > strength(last.replacement)) last.replacement = cut.replacement;
     } else merged.push({ ...cut });
   }
@@ -1050,6 +1055,10 @@ export function stripComments(text, file, options = {}) {
   const lineText = (k) => (k >= 0 && k < starts.length ? text.slice(starts[k], ends[k]) : "");
   for (const cut of merged) {
     if (!cut.whole) continue;
+    if (cut.afterKeep) {
+      while (cut.to < text.length && blankLine(lineOf(cut.to))) cut.to = nextLine(cut.to);
+      continue;
+    }
     const first = lineOf(cut.from);
     const after = cut.to < text.length ? lineOf(cut.to) : -1;
     const blankBefore = first === 0 || blankLine(first - 1);

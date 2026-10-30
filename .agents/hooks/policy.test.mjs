@@ -196,6 +196,19 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
         const docs = yamlLexer.parseAllDocuments(text);
         return docs.some((d) => d.errors.length || d.warnings.length) ? null : JSON.stringify(docs.map((d) => plain(d.toJS({ maxAliasCount: -1, mapAsMap: true }))));
       };
+      for (const [text, stripped] of [
+        ["a: |+\n  content\n\n# prose\n", "a: |+\n  content\n\n"],
+        ["a: |+\n  content\n\n# prose\n\nb: 1\n", "a: |+\n  content\n\nb: 1\n"],
+        ["a: >+\n  x\n# one\n\n# two\n\nb: 1\n", "a: >+\n  x\nb: 1\n"],
+        ["a: |+ # header\n  x\n\n# c\n", "a: |+\n  x\n\n"],
+      ]) {
+        assert.equal(stripComments(text, "a.yml"), stripped, `a comment after a keep-chomped block scalar leaves its kept blank lines as they were: ${JSON.stringify(text)}`);
+        assert.equal(data(stripped), data(text));
+      }
+      for (const header of ["&script |", "!!str |", "&script !!str |"]) {
+        assert.deepEqual(comments(`steps:\n  - run: ${header}\n      # prose\n      echo ok\n`, "w.yml"), ["# prose"], `a run block whose header carries ${header} is scanned in its shell's language`);
+      }
+      assert.deepEqual(comments("steps:\n  - run: !!str >\n      # prose\n      echo ok\n", "w.yml"), ["# prose\n      echo ok"], "a folded run block with a tag folds its next line into the comment");
       const withoutYamlComments = (text) => {
         let out = "";
         const control = new Set([yamlLexer.CST.DOCUMENT, yamlLexer.CST.FLOW_END, yamlLexer.CST.SCALAR]);
@@ -221,7 +234,7 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
         return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
       };
       const pick = (xs) => xs[Math.floor(next() * xs.length)];
-      const atoms = ["a", "b:c", "x?y", "w:\"t", "q'r", "(?:\"", "[", "]", "{", "}", ",", ":", "? ", ": ", " ", "\"s # h\"", "'s # h'", "\"k\"", "'k'", "\"\"", " # c", "-", "- ", "#", "\\", "\"e\\\"f\"", "!!str ", "&a ", "\n  "];
+      const atoms = ["a", "b:c", "x?y", "w:\"t", "q'r", "(?:\"", "[", "]", "{", "}", ",", ":", "? ", ": ", " ", "\"s # h\"", "'s # h'", "\"k\"", "'k'", "\"\"", " # c", "-", "- ", "#", "\\", "\"e\\\"f\"", "!!str ", "&a ", "\n  ", "|+\n  x\n\n", ">+\n  x\n", "|-\n  x\n", "|\n  # x\n\n"];
       let parsed = 0, commentDependent = 0;
       const losses = [];
       for (let k = 0; k < 6000; k++) {
