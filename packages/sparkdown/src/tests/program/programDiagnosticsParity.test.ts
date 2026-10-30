@@ -1,23 +1,3 @@
-// The diagnostics of the program path's resolver (#1607) against those the
-// current engine's `ExportRuntime` reported. Each fixture of the differential
-// run (every script under `src/tests/runtime/fixtures`, the beats fixture and
-// the screenplays) is compiled with the language server's configuration,
-// which runs the validation the player's compiler skips, with statement
-// chunks on, and its diagnostics, in the order they were reported, with
-// their ranges, must be the ones `fixtures/resolver-diagnostics.json`
-// records. The file was recorded at 99397ed89, the commit before the
-// resolver, where `ExportRuntime` resolved every program:
-//   SPARKDOWN_RECORD_DIAGNOSTICS=1 node scripts/test-suite.mjs run packages/sparkdown src/tests/program/programDiagnosticsParity.test.ts --wait 900
-// A fixture main added since is recorded by the same command once its
-// diagnostics on main's `ExportRuntime` are checked to be the resolver's
-// (`diverts/dotted-divert-targets-with-arguments.sd`, at bbc912833).
-// A fixture whose locals #1673 moved into a scene records the resolver's
-// diagnostics for its scene form (`newlines/value-returning-function-eval.sd`,
-// `scoping/preamble-do-local.sd`, `scoping/preamble-do-statement-after.sd`).
-// A record's `fallback` names the construct the program fell back for. Since
-// #705 such a compile builds no chunks and reports the construct as an error
-// at its statement, unless the statement's line already holds an error;
-// those errors are not the resolver's and are left out of the comparison.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -44,14 +24,10 @@ function stable(value: unknown): string {
 }
 
 interface Recorded {
-  /** The construct the compile reports it cannot compile, or none. */
   fallback: string | null;
-  /** Each diagnostic as it was reported, by script. */
   diagnostics: string[];
 }
 
-/** The construct an unsupported construct's error names, or null for any
- *  other diagnostic. */
 const unsupportedConstructOf = (message: string): string | null => {
   if (
     message === unsupportedConstructMessage(FUNCTION_DIVERT) ||
@@ -85,10 +61,6 @@ const recorded = (program: SparkProgram): Recorded => {
   return { fallback, diagnostics };
 };
 
-/** A cold compile of `text` with the language server's configuration: its
- *  record, whether it built its chunks, and whether it finished, building
- *  them or reporting an error (a compile that threw answers with neither, and
- *  with the diagnostics it reached before it stopped). */
 const compiled = (text: string): { record: Recorded; chunks: boolean; finished: boolean } => {
   const { warn, error } = console;
   console.warn = console.error = () => {};
@@ -128,8 +100,6 @@ describe("the resolver's diagnostics", () => {
     expect(existsSync(RECORD), "the recorded diagnostics").toBe(true);
     const expected = JSON.parse(readFileSync(RECORD, "utf8")) as Record<string, Recorded>;
     expect(Object.keys(actual)).toEqual(Object.keys(expected));
-    // The fixtures that fell back are the ones that build no chunks, and a
-    // construct an error names is the one each fell back for.
     expect(withoutChunks).toEqual(
       Object.keys(expected).filter((name) => expected[name]!.fallback !== null),
     );
@@ -148,7 +118,6 @@ describe("the resolver's diagnostics", () => {
         expected[name],
       );
     }
-    // Some fixtures report diagnostics, so the comparison covers some.
     expect(Object.values(expected).filter((r) => r.diagnostics.length > 0).length).toBeGreaterThan(0);
   }, 600_000);
 });

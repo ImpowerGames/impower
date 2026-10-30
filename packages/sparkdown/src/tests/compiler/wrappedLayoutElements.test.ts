@@ -2,18 +2,8 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { compileSource } from "./compileSnapshot";
 
-// #1225: in a `layout` or `component` body an element's parts may go on over
-// later lines (#1222). A line that starts with `.`, `#`, `@` or a quote
-// continues the element above it, the element's `{` may sit on a later line,
-// and an `@event={ … }` closure may span lines. A wrapped element lowers to
-// the layout tree (`program.sparkle`) and the static struct
-// (`program.context`) of the same element written on one line, ignoring
-// source positions and the binding names derived from them.
-
 type UiType = "layout" | "component";
 
-/** A layout tree without source positions or the binding names derived
- *  from them. */
 function normalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(normalize);
   if (value && typeof value === "object") {
@@ -41,7 +31,6 @@ function lowered(source: string, type: UiType, name: string) {
   };
 }
 
-/** Both outputs of every layout and component a source declares. */
 function everything(source: string) {
   return compileSource(source)
     .filter(
@@ -63,7 +52,6 @@ interface Found {
   text: string;
 }
 
-/** Every diagnostic a full compile reports, with the text it underlines. */
 function diagnosticsOf(text: string): Found[] {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -114,7 +102,6 @@ end
 `;
 
 describe("an element's parts on later lines", () => {
-  // Each kind of part on a line of its own, and the `{` on a line of its own.
   const WRAPPED = `    button
       .fancy
       .large
@@ -180,8 +167,6 @@ describe("an element's parts on later lines", () => {
       ["input", "closure"],
     ]);
     expect(button.children.map((c: any) => c.content[0].text)).toEqual(["Confirm"]);
-    // The static struct keys the element by its tag, classes and content, as
-    // a one-line header with a block is keyed.
     expect(struct['button fancy large "Okay {score}"']).toEqual({
       text: "Confirm",
       color: "white",
@@ -256,14 +241,12 @@ end
     expect(column.children[0].props).toEqual({});
     expect(column.children[0].classes).toEqual([]);
     expect(struct.column).toEqual({ text: "a", color: "white" });
-    // The part after the property continues no element.
     expect(errorsOf(text).map((e) => [e.line, e.text, e.message.split(".")[0]])).toEqual([
       [5, ".after", "There is no element for this line to continue"],
     ]);
   });
 
   test("a property with a quoted key is a property, and ends the element before it", () => {
-    // Round 1 (comment 5940793507, finding 1).
     const text = `layout hud with
   column {
     button
@@ -277,7 +260,6 @@ end
     expect(column.children).toHaveLength(1);
     expect(column.children[0]).toMatchObject({ tag: "button", classes: [] });
     expect(column.children[0].content).toBeUndefined();
-    // A quoted key sets no layout prop, as on origin/main.
     expect(column.props).toEqual({});
     expect(struct.column.button).toEqual({});
     expect(errorsOf(text).map((e) => [e.line, e.text, e.message.split(".")[0]])).toEqual([
@@ -286,7 +268,6 @@ end
   });
 
   test("a `}` that closes no block ends the element before it", () => {
-    // Round 1 (comment 5940793507, finding 2).
     const text = `layout hud with
   text
   }
@@ -339,8 +320,6 @@ end
       ["element", "row", []],
       ["element", "image", []],
     ]);
-    // Past the declaration's `end`, a dotted line is display text, not part of
-    // the layout.
     expect(lowered(text, "layout", "tail").tree.children).toHaveLength(1);
   });
 
@@ -371,7 +350,6 @@ end
   });
 
   test("a slot's or a fill's name may stand on a continuation line", () => {
-    // Round 1 (comment 5940170624, finding 3).
     const wrapped = `component card(title) with
   column {
     slot
@@ -462,9 +440,6 @@ end
   });
 
   test("a long string, a long comment or a backtick interpolation on the closure's first line keeps it open", () => {
-    // Round 1 (comment 5939804102): only `[[…]]` and interpolation-free
-    // backtick strings were read on the first line, so these handlers were
-    // cut at their first line and reported as missing their `}`.
     const tick = "`";
     const text = `store message = ""
 layout hud with
@@ -490,11 +465,6 @@ end
   });
 
   test("parts glued to a closure's closing `}` are read as on one line", () => {
-    // Round 1 (comment 5940170624, finding 2): the element ended at the
-    // closure's `}` as it ends at its block's, and `"Hi"` was invalid.
-    // (On one line a `.class` glued to a closed closure is read into the
-    // handler's value, as #1224 reads an unquoted value; after a closure that
-    // spans lines it is a class. The comparison below spaces it.)
     const wrapped = `${STATE}
 layout hud with
   column {

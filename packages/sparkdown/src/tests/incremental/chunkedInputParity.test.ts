@@ -2,15 +2,6 @@ import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTr
 import { describe, expect, it } from "vitest";
 import { getParser } from "../compiler/grammarSnapshot";
 
-// #1638: the parser reads an `Input` a chunk at a time up to the next line
-// break. It advanced its read position by the length of everything read so
-// far rather than by the chunk just read, so an `Input` that served a line
-// in three or more chunks skipped text and built a different tree than the
-// same text parsed as a string. A chunk that ended between the `\r` and the
-// `\n` of a line break also ended the read at the `\r`, which split the
-// break in two. The tree must not depend on how the `Input` splits the text.
-
-/** An `Input` that serves `text` in chunks of `size` characters. */
 function fixedChunkInput(text: string, size: number) {
   return {
     length: text.length,

@@ -1,22 +1,3 @@
-// The set of names used as a define TYPE (`define D as X`, `new X()`) steers
-// two things: the shadow warning in `validateDefineTypeShadow`, and which
-// defines `scopeDefineInstances` moves to a synthetic `$<type>_<name>` key. It
-// is needed in full before any chunk of a document lowers, so it was recollected
-// by walking the document's whole syntax tree after every edit, and every
-// script's tree again on every compile (#649).
-//
-// These checks pin the two halves of the contract:
-//
-//  - COST. After an edit, the collector visits only the nodes the parser
-//    rebuilt, not the document. `defineTypeNameWalkStats` counts the nodes the
-//    walk stepped over, so a full-document walk is visible as a count near the
-//    cold-parse one. The compiler's whole-program pass reuses the same
-//    per-document sets rather than walking each script again, and the builtins
-//    prelude, whose text never changes, is walked once.
-//  - RESULT. The set the incremental path produces equals the set a cold parse
-//    of the same text produces, for edits that add, remove and rename an
-//    `as`-parent and a `new X()` target deep inside a function body, and a name
-//    entering or leaving the set changes how chunks far from the edit lower.
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
@@ -43,11 +24,6 @@ function posAt(text: string, offset: number) {
   return { line, character: offset - lineStart };
 }
 
-/**
- * A long document whose define types sit at the top, whose `new X()` targets sit
- * deep inside function bodies far below them, and whose bulk is prose an edit
- * can land in without changing any binding.
- */
 function fixture() {
   const L: string[] = [];
   L.push("title: Define Type Fixture");
@@ -74,8 +50,6 @@ function fixture() {
     for (let i = 0; i < 30; i++) {
       L.push(`  local pad_${b}_${i} = ${i} + 1`);
     }
-    // A `new X()` target nested two blocks deep, which is why the walk cannot
-    // stop at the top-level children.
     L.push("  if pad_" + b + "_1 > 0 then");
     L.push("    for i = 1, 3 do");
     L.push(`      local made_${b} = new spawner()`);
@@ -156,12 +130,10 @@ function configured(text: string) {
   return compiler;
 }
 
-/** The set the registry now holds for `uri`. */
 function names(registry: SparkdownDocumentRegistry) {
   return [...registry.defineTypeNames(URI)].sort();
 }
 
-/** The set a full walk of the registry's current tree produces. */
 function coldNames(registry: SparkdownDocumentRegistry) {
   const tree = registry.tree(URI)!;
   const text = registry.get(URI)!.getText();
@@ -170,10 +142,6 @@ function coldNames(registry: SparkdownDocumentRegistry) {
 
 describe("define type names are collected incrementally (#649)", () => {
   it("costs a registry that does not lower nothing per edit", () => {
-    // The language server's registry and the VS Code document manager's both
-    // annotate for editor features only, with no `compilations`. The names
-    // steer lowering and nothing else, so neither may pay for an index on
-    // every keystroke.
     let text = fixture();
     const registry = new SparkdownDocumentRegistry([
       "declarations",
@@ -195,21 +163,17 @@ describe("define type names are collected incrementally (#649)", () => {
       `a registry with no compilation annotator walked ${edited.nodes} nodes over ${JSON.stringify(edited.ranges)}`,
     ).toBe(0);
 
-    // A caller that asks anyway still gets the right answer, by walking.
     expect(names(registry)).toEqual(coldNames(registry));
   });
 
   it("visits only the rebuilt region after an edit", () => {
     let text = fixture();
     const registry = open(text);
-    // The cold parse's walk is the ceiling an edit must stay far below.
     resetDefineTypeNameWalkStats();
     coldNames(registry);
     const fullWalkNodes = defineTypeNameWalkStats().nodes;
     expect(fullWalkNodes).toBeGreaterThan(2000);
 
-    // Extend a prose word in the LAST scene — as far from the defines at the
-    // top of the document as the fixture allows.
     const offset = text.lastIndexOf("careful") + "careful".length;
     resetDefineTypeNameWalkStats();
     text = insert(registry, text, offset, "z");
@@ -227,12 +191,9 @@ describe("define type names are collected incrementally (#649)", () => {
     let text = fixture();
     const registry = open(text);
 
-    // An `as`-parent gains a type name.
     text = replace(registry, text, "define spawner as object with", "define spawner as base_actor with");
     expect(names(registry)).toEqual(coldNames(registry));
 
-    // A `new X()` target deep inside a function body is renamed. Renaming the
-    // define it names as well keeps the document's bindings intact.
     text = replace(registry, text, "define spawner as base_actor with", "define maker as base_actor with");
     while (text.includes("new spawner()")) {
       text = replace(registry, text, "new spawner()", "new maker()");
@@ -241,14 +202,12 @@ describe("define type names are collected incrementally (#649)", () => {
     expect(names(registry)).toContain("maker");
     expect(names(registry)).not.toContain("spawner");
 
-    // The last `new X()` target for `base_actor` leaves the set.
     text = replace(registry, text, "define hero as base_actor with", "define hero as object with");
     text = replace(registry, text, "define villain as base_actor with", "define villain as object with");
     text = replace(registry, text, "define maker as base_actor with", "define maker as object with");
     expect(names(registry)).toEqual(coldNames(registry));
     expect(names(registry)).not.toContain("base_actor");
 
-    // And a type name is added back by a brand new `new X()` deep in a body.
     text = replace(registry, text, "local made_0 = new maker()", "local made_0 = new maker()\n      local also_0 = new hero()");
     expect(names(registry)).toEqual(coldNames(registry));
     expect(names(registry)).toContain("hero");
@@ -259,14 +218,10 @@ describe("define type names are collected incrementally (#649)", () => {
     const compiler = configured(text);
     compiler.compile({ textDocument: { uri: URI } });
 
-    // A second compile of untouched documents: the whole-program scoping pass
-    // reads the sets the registry already holds, including the builtins
-    // prelude's, whose text never changes.
     resetDefineTypeNameWalkStats();
     compiler.compile({ textDocument: { uri: URI } });
     expect(defineTypeNameWalkStats().nodes).toBe(0);
 
-    // And after an edit, only that document's rebuilt region is walked.
     const offset = text.lastIndexOf("careful") + "careful".length;
     const at = posAt(text, offset);
     resetDefineTypeNameWalkStats();
@@ -287,10 +242,6 @@ describe("define type names are collected incrementally (#649)", () => {
     const incremental = configured(text);
     incremental.compile({ textDocument: { uri: URI } });
 
-    // `hero` is used only as an `as`-parent target here — it enters the type
-    // set through a `new hero()` twenty blocks away from its own define, which
-    // changes how the `define hero` chunk must lower even though that chunk is
-    // untouched.
     const find = "local made_0 = new spawner()";
     const offset = text.indexOf(find);
     expect(offset).toBeGreaterThanOrEqual(0);
@@ -309,8 +260,6 @@ describe("define type names are collected incrementally (#649)", () => {
       textDocument: { uri: URI },
     }).program;
 
-    // The scoping this change steers shows up in the compiled ink's global
-    // keys, so compare the compiled output rather than the set alone.
     expect(programContent(incrementalProgram.chunks)).toEqual(
       programContent(coldProgram.chunks),
     );

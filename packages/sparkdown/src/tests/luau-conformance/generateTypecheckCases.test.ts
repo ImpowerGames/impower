@@ -1,7 +1,3 @@
-// Tests for how `scripts/generateTypecheckCases.ts` reads Luau's C++ test
-// files into `upstream/typecheck-cases.json`: which cases it finds, and what
-// it records about each.
-
 import { describe, expect, test } from "vitest";
 import { maskCpp, parseErrorKinds, parseTestFile } from "../../../scripts/generateTypecheckCases.ts";
 

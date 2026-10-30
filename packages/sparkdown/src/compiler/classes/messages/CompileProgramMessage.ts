@@ -13,17 +13,8 @@ export interface CompileProgramParams {
 }
 
 export interface CompileProgramResult {
-  /**
-   * The document that was parsed.
-   */
   textDocument: VersionedTextDocumentIdentifier;
-  /**
-   * The parsed program.
-   */
   program: SparkProgram;
-  /**
-   * The simulated checkpoint for the new program.
-   */
   checkpoint?: string;
 }
 

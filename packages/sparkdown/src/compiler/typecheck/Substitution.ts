@@ -1,11 +1,6 @@
 // Substituting types within a type graph, ported from Luau's
 // `Substitution.h`/`Substitution.cpp`; Luau is MIT-licensed (see
 // `LICENSE-luau.txt`).
-//
-// A substitution walks the strongly connected components of a type graph
-// (Tarjan's algorithm) to find every type that is dirty or reaches a dirty
-// type, replaces dirty types with `clean` and copies the ones that only reach
-// them, then points the copies' children at the replacements.
 
 import { copyPackVariant } from "./Clone";
 import {
@@ -18,7 +13,6 @@ import {
   type TypeVariant,
 } from "./Type";
 
-// Luau's `LuauTarjanChildLimit`.
 const TARJAN_CHILD_LIMIT = 10000;
 
 export const enum TarjanResult {
@@ -288,7 +282,6 @@ export abstract class Tarjan {
   }
 }
 
-/** A copy of a type's contents for substitution, as Substitution.cpp's `shallowClone`. */
 function substitutionClone(ty: TypeId, dest: TypeArena): TypeId {
   ty = follow(ty);
   const v = ty.ty;
@@ -368,7 +361,6 @@ export abstract class Substitution extends Tarjan {
   abstract clean(ty: TypeId): TypeId;
   abstract cleanPack(tp: TypePackId): TypePackId;
 
-  /** Prevents substitution inside a type that `clean` returned and that must not be mutated. */
   protected dontTraverseInto(ty: TypeId): void {
     this.noTraverseTypes.add(ty);
   }

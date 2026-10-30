@@ -1,20 +1,3 @@
-// Luau expressions lowered to ink's `Expression` hierarchy.
-//
-// An expression is read by the converter in `typecheck/readLuauAst.ts`,
-// which reads the syntax tree's tokens and decides what the tree leaves
-// flat (operator precedence and associativity, call and method chains, call
-// sugar) as Luau's parser decides it, building the `AstExpr` classes of
-// `typecheck/Ast.ts`. This module lowers that AST. What it decides is the
-// runtime's: how a name, a call or a method reaches its target (a local
-// value, a variadic sibling function, a knot, a stdlib builtin), how many
-// values a call gives where one is taken, and how a literal's text becomes a
-// runtime value.
-//
-// Sparkdown's lowerers hold syntax nodes: `lowerExpressionFromContainer`
-// and `lowerExpressionFromNodes` read the expression those nodes hold and
-// lower it. The Luau statement lowerers hold the statement's AST and lower
-// its expressions with `lowerExpression`.
-
 import { lineBreakValues } from "../utils/assignmentLineBreak";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -119,17 +102,6 @@ import {
   stripQuotes,
 } from "../../utils/stringLiteralValue";
 
-// ============================================================================
-// Reading an expression from syntax nodes
-// ============================================================================
-
-// `{{fn}}` / `{{fn(args)}}` function-call shorthand containers (issue #223).
-// One per string-bounding context (see the grammar); all three carry the SAME
-// semantics: the body must be a function call, and a bare name is coerced to
-// a nullary call. Consumers that scan for interpolation nodes treat these as
-// interpolations; the coercion lives in `lowerExpressionFromContainer` so
-// every context (display text, content strings, prop values, Luau strings,
-// Sparkle bindings) picks it up through the one funnel they already call.
 const FUNCTION_CALL_SHORTHAND_NODE_LIST: SparkdownNodeName[] = [
   "LuauFunctionCallShorthand",
   "LuauDoubleQuotedFunctionCallShorthand",
@@ -139,14 +111,9 @@ export const FUNCTION_CALL_SHORTHAND_NODES = nodeNameSet(
   FUNCTION_CALL_SHORTHAND_NODE_LIST,
 );
 
-// The nodes a rule puts around its content (`{` and `}` of an
-// interpolation), and the operator before a value, which are no part of the
-// value a container holds. The line break after an `=` stands for the value
-// it holds, an if expression that begins a later line, if any.
 const RULE_DELIMITER = /_(begin|end)(_c\d+)*$/;
 const NOT_VALUE = nodeNameSet(["LuauAssignmentOperator"]);
 
-/** The nodes that hold the value of a container node: its content's children, without its delimiters or an assignment's operator. */
 export function containerValueNodes(parent: SyntaxNode): SyntaxNode[] {
   let content: SyntaxNode | null = null;
   for (let child = parent.firstChild; child; child = child.nextSibling) {
@@ -162,29 +129,16 @@ export function containerValueNodes(parent: SyntaxNode): SyntaxNode[] {
   return nodes;
 }
 
-/**
- * The document offset of the token that closes a container node, its
- * written `}` (`Hello {x.}.`), or undefined where the author wrote none.
- */
 export function closingTokenOf(parent: SyntaxNode): number | undefined {
   const close = parent.getChild(`${parent.name}_end`);
   return close && close.from < close.to ? close.from : undefined;
 }
 
-/**
- * Lowers the value a container node holds (an interpolation, a condition,
- * the operation after `=`): the expression its content reads as, reporting
- * the errors of its reading in `scope` (`reportReadingErrors`): story
- * braces (`Hello {1 2}.`) pass `"expression"`, and their reading ends at
- * the brace's `}` (`closingTokenOf`, `readExpressionAst`).
- */
 export function lowerExpressionFromContainer(
   parent: SyntaxNode,
   ctx: LowerContext,
   scope: ReadingErrorScope | null = "string",
 ): Expression | null {
-  // A brace that holds an if expression whole reports its reading's errors
-  // as one (`reportInlineIfReading`).
   if (scope === "expression" && inlineIfOf(parent)) {
     reportInlineIfReading(parent, ctx);
     scope = null;
@@ -197,10 +151,8 @@ export function lowerExpressionFromContainer(
   return expr;
 }
 
-// The trivia between an if expression's clauses.
 const IF_CLAUSE_TRIVIA = new Set(["ExtraWhitespace", "Whitespace", "OptionalWhitespace", "RequiredWhitespace", "Newline"]);
 
-/** The child of a node of a kind, not looking into its `_content` wrapper. */
 function directChild(parent: SyntaxNode, name: string): SyntaxNode | null {
   for (let child = parent.firstChild; child; child = child.nextSibling) {
     if (isExplicitRuleName(child.name, name)) return child;
@@ -208,13 +160,6 @@ function directChild(parent: SyntaxNode, name: string): SyntaxNode | null {
   return null;
 }
 
-/**
- * The value nodes of an if expression's `then` or `else` clause
- * (`LuauThenExpression`, `LuauElseExpression`): its `_content`'s children
- * but its keyword (`LuauThenOperator`, `LuauElseOperator`) and whitespace.
- * A then arm whose `then` ends its line holds its keyword and first value in
- * a part of its own (`LuauThenNextLineArm`), whose children are the arm's.
- */
 export function ifClauseValueNodes(clause: SyntaxNode): SyntaxNode[] {
   const body: SyntaxNode[] = [];
   const content = directChild(clause, `${clause.name}_content`) ?? clause;
@@ -232,12 +177,6 @@ export function ifClauseValueNodes(clause: SyntaxNode): SyntaxNode[] {
   return body;
 }
 
-/**
- * The if expression a story brace holds whole (`{if c then a else b}`), in
- * story text, dialogue or choice text, which may leave out its `else`
- * (`{if c then a}` shows nothing when `c` is false), or null for any other
- * brace.
- */
 function inlineIfOf(brace: SyntaxNode): SyntaxNode | null {
   if (FUNCTION_CALL_SHORTHAND_NODES.has(brace.name)) return null;
   const content = directChild(brace, `${brace.name}_content`) ?? brace;
@@ -245,18 +184,6 @@ function inlineIfOf(brace: SyntaxNode): SyntaxNode | null {
   return ifExpr && getDescendent("LuauTernaryExpressionCondition_content", ifExpr) ? ifExpr : null;
 }
 
-/**
- * Reports the errors of a story brace that holds an if expression whole
- * (`inlineIfOf`), from one reading of the brace, which ends at its `}`
- * (`readExpressionAst`), as every story brace's reading does (I-1445).
- * Where the tree's if expression has no `else` clause, which story text may
- * leave out, and its last branch has its `then` and a value, what the
- * reading meets at the `}` is that value's own, from the reading of the
- * value alone (`{if c then (1}`'s unclosed parenthesis), and not the `else`
- * Luau would expect there. A last `elseif` without its `then` or value
- * (`{if c then 1 elseif x.}`) lacks more than the `else`, and the whole
- * reading's errors stand.
- */
 export function reportInlineIfReading(brace: SyntaxNode, ctx: LowerContext): void {
   const ifExpr = inlineIfOf(brace);
   const nodes = containerValueNodes(brace);
@@ -271,7 +198,6 @@ export function reportInlineIfReading(brace: SyntaxNode, ctx: LowerContext): voi
   for (let child = ifContent.firstChild; child; child = child.nextSibling) {
     if (isExplicitRuleName(child.name, "LuauThenExpression")) lastClause = child;
     else if (isExplicitRuleName(child.name, "LuauElseExpression")) hasElse = true;
-    // An `elseif` begins a branch whose `then` is still to come.
     else if (child.name === "LuauElseifKeyword") lastClause = null;
   }
   const lastValue = lastClause ? ifClauseValueNodes(lastClause) : [];
@@ -283,13 +209,6 @@ export function reportInlineIfReading(brace: SyntaxNode, ctx: LowerContext): voi
   reportReadingErrors(errors, nodes[0]!, ctx, "expression");
 }
 
-/**
- * Lowers the one expression some sibling nodes hold, reporting the errors of
- * its reading in `scope` (`reportReadingErrors`), or none where the nodes
- * are part of an expression another reading reads whole (an alternator's
- * arm, `lowerArms`); `end` is the offset of the token that ends it
- * (`readExpressionAst`).
- */
 export function lowerExpressionFromNodes(
   nodes: readonly SyntaxNode[],
   ctx: LowerContext,
@@ -301,16 +220,6 @@ export function lowerExpressionFromNodes(
   return reading ? lowerExpression(reading.expr, reading.source, ctx) : null;
 }
 
-// ============================================================================
-// Lowering the AST
-// ============================================================================
-
-/**
- * Lowers an expression of the converter's AST; `source` is what it was
- * read from. Returns null for an expression with nothing to lower (a syntax
- * error, which the type checker reports, or a construct that has no value
- * here).
- */
 export function lowerExpression(
   expr: AstExpr,
   source: LuauSource,
@@ -320,9 +229,6 @@ export function lowerExpression(
     return lowerNamePath(pathNames(expr)!, expr.location, ctx);
   }
   if (expr instanceof AstExprIndexName) {
-    // A `.` with no name after it (`t.a.` before the line's end) is the
-    // converter's error, reported by the type checker; the value is the
-    // path before the `.`.
     if (expr.index === MISSING_NAME) return lowerExpression(expr.expr, source, ctx);
     const names = pathNames(expr);
     if (names) return lowerNamePath(names, expr.location, ctx);
@@ -338,9 +244,6 @@ export function lowerExpression(
   }
   if (expr instanceof AstExprCall) return lowerCall(expr, source, ctx);
   if (expr instanceof AstExprGroup) {
-    // Lua adjusts `(expr)` to exactly ONE value — a parenthesized
-    // multi-return call truncates (`(ret2(f()))` is one value,
-    // calls.luau line 210).
     reportValueInVain(expr.expr, source, ctx);
     const inner = lowerExpression(expr.expr, source, ctx);
     return inner ? asOneValue(inner) : null;
@@ -365,15 +268,9 @@ export function lowerExpression(
     return new NumberExpression(expr.value, "bool");
   }
   if (expr instanceof AstExprConstantNil) {
-    // First-class nil — emits a runtime `NullValue` with its own
-    // `ValueType.Null`. Falsy in conditionals and equality-distinct
-    // from `0` (`nil == 0` is false).
     return new NullExpression();
   }
   if (expr instanceof AstExprVarargs) {
-    // `...` reads the synthetic varargs local bound at function entry,
-    // which holds a `MultiValue`; receiving contexts spread or truncate
-    // it (see `lowerArguments.ts`).
     return new VariableReference([new Identifier(VARARGS_LOCAL_NAME)]);
   }
   if (expr instanceof AstExprTable) return lowerTable(expr, source, ctx);
@@ -387,7 +284,6 @@ export function lowerExpression(
   ) {
     return lowerInterpolatedString(expr, source, ctx);
   }
-  // A cast and an explicit type instantiation give their value as it is.
   if (
     expr instanceof AstExprTypeAssertion ||
     expr instanceof AstExprInstantiate
@@ -398,11 +294,6 @@ export function lowerExpression(
     return lowerDivertTargetLiteral(expr.source.node as SyntaxNode, ctx);
   }
   if (expr instanceof AstExprSparkdownRegex) {
-    // `@/pattern/flags` lowers to the VERBATIM `/pattern/flags` string —
-    // sigil dropped, delimiters kept — which is the value `Matcher` (which
-    // splits `/source/flags`) reads. No escape processing: a regex is raw,
-    // which is the whole point of having a literal (`\p{L}` instead of
-    // `"\\p{L}"`, and `{2,}` without it reading as an interpolation).
     return new StringExpression([
       new Text(
         ctx.read(expr.source.from, expr.source.to).trim().replace(/^@/, ""),
@@ -423,22 +314,13 @@ export function lowerExpression(
     );
   }
   if (expr instanceof AstExprError) return lowerMalformedString(expr, source, ctx);
-  // An alternator used as a value runs as a displayed one does, its selected
-  // arm giving the value (I-1284); its reading reads its head and arms
-  // (`readExpressionAst`).
   if (expr instanceof AstExprSparkdownSequentialAlternator || expr instanceof AstExprSparkdownConditionalAlternator) {
     const node = expr.source.node as SyntaxNode | undefined;
     return (node ? lowerAlternatorValue(node, ctx, false, soleLocalAlternators.has(expr)) : null) ?? new NullExpression();
   }
-  // A syntax error, which the type checker reports, and a branch's argument,
-  // which only the type checker reads.
   return null;
 }
 
-// A string literal with an escape Luau's parser rejects. A `\u{...}` escape
-// above U+10FFFF, which Luau encodes as extended UTF-8 and a JS string cannot
-// hold, lowers to U+FFFD (DIVERGENCES.md); any other escape lowers as
-// `processLuauEscapes` reads it. Any other syntax error lowers to nothing.
 function lowerMalformedString(
   expr: AstExprError,
   source: LuauSource,
@@ -457,14 +339,6 @@ function lowerMalformedString(
 
 const MALFORMED_STRING = "String literal contains malformed escape sequence";
 
-/**
- * `expr` adjusted to exactly one value where Luau takes one (a parenthesis,
- * an if expression's arm, a table's key and keyed value): a call or `...`
- * may give several values or none, and is wrapped in a
- * `SingleValueExpression`; literals, operators and the like are
- * single-valued by construction and pass through unwrapped (keeps `(42)`
- * structurally identical to `42`).
- */
 export function asOneValue(expr: Expression): Expression {
   const maybeMultiValued =
     expr instanceof FunctionCall ||
@@ -474,23 +348,11 @@ export function asOneValue(expr: Expression): Expression {
   return maybeMultiValued ? new SingleValueExpression(expr) : expr;
 }
 
-// ============================================================================
-// Names and paths
-// ============================================================================
-
-/** A name in a dotted path, and where it is written. */
 export interface PathName {
   name: string;
   location: Location;
 }
 
-/**
- * The names of a dotted path, root first, when `expr` is one: a name,
- * followed by any number of `.name` fields (`a`, `a.b.c`). Null for any
- * other expression.
- */
-// The name the converter gives a name it could not read, as Luau's parser
-// does (`kParseNameError`).
 const MISSING_NAME = "%error-id%";
 
 export function pathNames(expr: AstExpr): PathName[] | null {
@@ -510,7 +372,6 @@ export function pathNames(expr: AstExpr): PathName[] | null {
   return names;
 }
 
-/** An `Identifier` for a name, positioned where it is written, so a diagnostic about the name points at it. */
 export function astIdentifier(
   name: PathName,
   ctx: LowerContext,
@@ -521,20 +382,12 @@ export function astIdentifier(
   return identifier;
 }
 
-// A dotted path (`a`, `a.b.c`) as a value. A path is one
-// `VariableReference`, so ink's hierarchical name resolution (knot and
-// stitch lookup, function parameters) keeps working; a path naming a stdlib
-// constant (`math.pi`, `_VERSION`) is that constant.
 function lowerNamePath(
   names: PathName[],
   location: Location,
   ctx: LowerContext,
 ): Expression {
   const identifiers = names.map((name) => astIdentifier(name, ctx));
-  // Stdlib constant short-circuit: when the dotted path matches a
-  // registered constant (`math.pi`, `math.huge`, `_VERSION`, ...),
-  // emit the value directly instead of a `VariableReference` that
-  // would fail to resolve at runtime.
   const dotted = identifiers.map((id) => id.name).join(".");
   const constVal = lookupStdLibConstant(dotted);
   if (constVal !== undefined) {
@@ -552,9 +405,6 @@ function lowerNamePath(
     }
   }
   const ref = new VariableReference(identifiers);
-  // In a Sparkle binding, stamp the reference with its own token span, which
-  // its hoisted binding function has no statement to inherit from (see
-  // LowerContext.stampExpressionSpans).
   if (ctx.stampExpressionSpans) {
     const span = rangeOf(location, ctx);
     stampDebugMetadata([ref], span.from, span.to, ctx);
@@ -562,12 +412,6 @@ function lowerNamePath(
   return ref;
 }
 
-/**
- * The value an index or field is read from (`t` in `t[k]`, `f()` in
- * `f().x`). A dotted path there is the variable it names, without the
- * substitutions a path read as a value takes: `_G['foo']` indexes the
- * globals-table proxy.
- */
 export function lowerChainBase(
   expr: AstExpr,
   source: LuauSource,
@@ -580,11 +424,6 @@ export function lowerChainBase(
   return lowerExpression(expr, source, ctx);
 }
 
-// ============================================================================
-// Calls
-// ============================================================================
-
-/** The values a call passes, each lowered; one that lowers to nothing is left out. */
 export function lowerCallArguments(
   args: readonly AstExpr[],
   source: LuauSource,
@@ -598,8 +437,6 @@ export function lowerCallArguments(
   return out;
 }
 
-// A call's arguments, lowered, with a continuation line where an argument
-// should begin reported (`tostring(` then `.a)`).
 function callArguments(
   args: readonly AstExpr[],
   source: LuauSource,
@@ -615,8 +452,6 @@ function lowerCall(
   ctx: LowerContext,
 ): Expression | null {
   const func = call.func;
-  // `obj:m(args)` and `obj.m(args)`: a method of the value, or a stdlib
-  // builtin when `obj` names a stdlib library.
   if (func instanceof AstExprIndexName) {
     return lowerMethodCall(call, func, source, ctx);
   }
@@ -628,17 +463,9 @@ function lowerCall(
         ? func.local.name
         : null;
   if (name === null) {
-    // A call of any other value: `(f)(x)`, `f(a)(b)`, `t[k](x)`, the
-    // IIFE shape `(function() ... end)(args)`.
     const callee = lowerExpression(func, source, ctx);
     return callee ? new CallValueExpression(callee, args) : null;
   }
-  // A name that is a local of an enclosing function, or that an assignment
-  // rebound (not a stdlib name or a knot), holds a value: the call
-  // dispatches through it, which handles closures, `__call` metamethods
-  // and `__stdlib_fn` markers. A static `FunctionCall` would divert to a
-  // knot of the name, which does not exist. So does a stdlib name a local
-  // in scope hides, a top-level one included (I-1372).
   if (callsLocal(name, args.length, offsetAt(call.location.begin, ctx), ctx)) {
     return new CallValueExpression(
       new VariableReference([new Identifier(name)]),
@@ -651,17 +478,10 @@ function lowerCall(
     rangeOf(call.location, ctx),
     ctx,
   );
-  // An argument list Luau could not read is reported there; the arguments
-  // read before its error are not the call's to check against the
-  // function's parameters (I-1428).
   functionCall.proxyDivert.argumentsMalformed = call.malformed;
   return functionCall;
 }
 
-// Whether a call of the bare `name` written at `at` dispatches through a
-// local's value (`resolveCallableBinding`): a stdlib name, which would
-// otherwise reach the builtin (`makeGlobalFunctionCall`), asks whether a
-// local in scope hides it (`localHidesStdLib`).
 function callsLocal(
   name: string,
   argCount: number,
@@ -675,14 +495,10 @@ function callsLocal(
   );
 }
 
-// The libraries the grammar reads as stdlib namespaces
-// (`LUAU_STANDARD_LIB_CONSTANTS`), whose fields a dot call reaches by path.
 const STDLIB_NAMESPACES: ReadonlySet<string> = new Set(
   GRAMMAR_DEFINITION.variables.LUAU_STANDARD_LIB_CONSTANTS as string[],
 );
 
-// `obj:method(args)` and `obj.method(args)`. A colon call passes the
-// receiver as the first argument, evaluated once; a dot call does not.
 function lowerMethodCall(
   call: AstExprCall,
   func: AstExprIndexName,
@@ -693,14 +509,8 @@ function lowerMethodCall(
   const isColonForm = func.op === ":";
   const args = callArguments(call.args, source, ctx);
 
-  // Luau stdlib mapping: when the receiver is a single name (`math`,
-  // `string`, `story`, ...) AND the `<receiver>.<method>` pair maps to a
-  // runtime builtin (e.g. `math.floor` → `FLOOR`), emit a direct builtin
-  // call with the args alone — no receiver-threading.
   const receiverNames = pathNames(func.expr);
   let stdlibMember: Identifier | null = null;
-  // A dot call through a local in scope that hides the library calls the
-  // local's field, as any table's dot call does (I-1372).
   const receiverName = receiverNames?.length === 1 ? receiverNames[0]!.name : null;
   if (
     receiverName !== null &&
@@ -724,14 +534,8 @@ function lowerMethodCall(
   if (receiverName !== null) {
     const builtin = mapStdLibCallToBuiltin(receiverName, methodName, args.length);
     if (builtin) {
-      // Editor-side strikethrough for deprecated stdlib calls (e.g.
-      // `table.getn(t)`, `math.pow(a, b)`). Runtime still dispatches
-      // normally; the diagnostic is purely a hint.
       validateStdLibDeprecation(builtin, rangeOf(func.location, ctx), ctx);
       const builtinCall = new FunctionCall(new Identifier(builtin), args);
-      // `count.visited(-> t)` — boolean shorthand: wrap the READ_COUNT
-      // call in `> 0` so authors get a genuine boolean ("has the reader
-      // been here?") instead of a count.
       if (receiverName === "count" && methodName === "visited") {
         return new BinaryExpression(
           builtinCall,
@@ -743,11 +547,6 @@ function lowerMethodCall(
     }
     const method = { name: methodName, location: func.indexLocation };
     if (STDLIB_NAMESPACES.has(receiverName)) {
-      // `table.nogetn()`: a dot call on a stdlib library with no such
-      // builtin. The callee is the dotted path itself, so an unresolved
-      // path reports the member (`Cannot find item or path named
-      // \`table.nogetn\``) rather than the library, which exists. A local
-      // that shadows the library resolves the path at run time.
       if (!isColonForm) {
         return new CallValueExpression(
           new VariableReference([
@@ -757,10 +556,6 @@ function lowerMethodCall(
           args,
         );
       }
-      // `table:nogetn()` lowers like any other colon call below, so a
-      // local that shadows the library keeps builtin method dispatch and
-      // its receiver is evaluated once. The receiver names the member, so
-      // an unresolved library reports `table.nogetn` as the dot form does.
       stdlibMember = astIdentifier(method, ctx);
     }
   }
@@ -771,12 +566,6 @@ function lowerMethodCall(
     receiver.unresolvedMember = stdlibMember;
   }
 
-  // Builtin method dispatch (`s:upper()`, `t:find(x)`, `t:union(other)`,
-  // ...). When the method name matches a registered builtin in
-  // `METHOD_DISPATCH`, emit a FunctionCall to the synthetic
-  // `__method_<name>` instead of the bare method name — the runtime
-  // recognizes the prefix and routes to per-receiver-type dispatch in
-  // `callBuiltinMethod`.
   if (isBuiltinMethod(methodName)) {
     return new FunctionCall(
       new Identifier(`${METHOD_PREFIX}${methodName}`),
@@ -784,19 +573,8 @@ function lowerMethodCall(
     );
   }
 
-  // A user-defined method lives at `receiver.<name>` as a table key (a
-  // closure or a divert target): the call evaluates the index and
-  // dispatches through `CallValueAsFunction`.
   const key = new StringExpression([new Text(methodName)]);
   if (isColonForm) {
-    // The colon form needs the receiver TWICE (method lookup + threaded
-    // `self` arg) but Lua evaluates it exactly ONCE. Stash it in a temp
-    // via the first generated arg (CallValueExpression generates args
-    // before the target), and read the temp for the index lookup —
-    // `a:add(10):add(20)` must not run `add(10)` twice (calls.luau line
-    // 47). The temp is named after the call's `:`, which no other call
-    // shares. The call names its method, so a receiver that lacks it
-    // reports the method and the receiver's type, as Luau does.
     const tempName = `__mcall_${syntheticId(offsetAt(func.opPosition, ctx), ctx)}`;
     return new CallValueExpression(
       new IndexExpression(new StashedTempReadExpression(tempName), key),
@@ -807,11 +585,6 @@ function lowerMethodCall(
   return new CallValueExpression(new IndexExpression(receiver, key), args);
 }
 
-// `new ClassName(args)` — instance construction for `define`-declared
-// classes. Lowers to the hidden stdlib constructor `__new(ClassTable,
-// ...args)` (see StdLib.ts), which builds a fresh table whose metatable
-// `__index`es the class, copies `store`-marked defaults, and forwards args
-// to an `init` method when the class defines one.
 function lowerNew(
   expr: AstExprSparkdownNew,
   source: LuauSource,
@@ -823,17 +596,6 @@ function lowerNew(
   ]);
 }
 
-// Apply the `{{...}}` shorthand semantics to the lowered body expression:
-//   - `{{fn(a, b)}}` — already a call; pass it through unchanged (identical
-//     to `{fn(a, b)}`).
-//   - `{{fn}}` — the shorthand's whole point: a bare name becomes a nullary
-//     call, dispatched exactly like a written-out `fn()` (local binding →
-//     value call; global/knot/stdlib → FunctionCall).
-//   - `{{obj.fn}}` — a dotted path calls the referenced VALUE (`math.random`
-//     works without being a registered global).
-//   - anything else (`{{1 + 2}}`, bare `{{}}`) — the classic "expected a
-//     function name" error the old InkParser raised for a bare `{{`.
-// `range` is the shorthand's, braces included.
 function coerceFunctionCallShorthand(
   expr: Expression | null,
   range: { from: number; to: number },
@@ -879,17 +641,6 @@ function coerceFunctionCallShorthand(
   return null;
 }
 
-// ============================================================================
-// If expressions
-// ============================================================================
-
-// Luau's `if cond then a elseif cond2 then b else c` EXPRESSION lowers to
-// a `TernaryExpression`, one branch per arm, whose jump layout evaluates
-// only the arm it takes. An `elseif` arm is a branch of the same
-// expression; an `else` arm that is itself an if expression (`else if`) is
-// a value of its own. Each arm's value is one value, whatever it is (`if c
-// then f() else 0` is f()'s first value). The clause-less interpolation
-// `{if x}` shows the value of `x`.
 function lowerIfElse(
   expr: AstExprIfElse,
   source: LuauSource,
@@ -898,9 +649,6 @@ function lowerIfElse(
   if (!expr.hasThen) return lowerExpression(expr.condition, source, ctx);
   const branches: TernaryBranch[] = [];
   for (let arm: AstExprIfElse = expr; ; ) {
-    // An unfinished elseif has no value to evaluate. Keep the completed
-    // branches, falling through to nil when none matches, so the next
-    // statement can still run while the author finishes this clause.
     if (!arm.hasThen) break;
     const condition = lowerExpression(arm.condition, source, ctx);
     if (!condition) return null;
@@ -921,20 +669,11 @@ function lowerIfElse(
   return new TernaryExpression(branches);
 }
 
-// Whether an if expression is an `elseif` arm of the one before it, which
-// begins at its `elseif`, rather than an `else` arm's value (`else if`).
 function isElseifArm(expr: AstExprIfElse, ctx: LowerContext): boolean {
   const from = offsetAt(expr.location.begin, ctx);
   return ctx.read(from, from + 6) === "elseif";
 }
 
-// ============================================================================
-// Literals
-// ============================================================================
-
-// A number's value and kind, from its text as written: hexadecimal and
-// binary numbers are integers, and a decimal one is a float when it has a
-// fraction or an exponent. Underscores separate digits.
 function lowerNumber(
   expr: AstExprConstantNumber,
   ctx: LowerContext,
@@ -951,7 +690,6 @@ function lowerNumber(
   return new NumberExpression(value, isFloat ? "float" : "int");
 }
 
-// A string literal's value (`stringLiteralValue`).
 function lowerString(
   expr: AstExprConstantString,
   ctx: LowerContext,
@@ -964,9 +702,6 @@ function lowerString(
   return new StringExpression([new Text(value)]);
 }
 
-// `"..."` uses its own interpolation rule (bounded by the closing quote), so
-// both node names count as an interpolation. The `{{fn}}` call-shorthand
-// containers interpolate their call's return value the same way.
 const INTERPOLATION_NODES = nodeNameSet([
   "LuauInterpolatedStringExpression",
   "LuauDoubleQuotedStringInterpolation",
@@ -979,12 +714,6 @@ const INTERPOLATING_STRINGS = nodeNameSet([
   "LuauDoubleQuotedString",
 ]);
 
-// A string that interpolates (a backtick string, or a double-quoted one
-// with an interpolation in it): its text between the interpolations, with
-// its escapes read, and each interpolated value, the expressions of the
-// AST in order. The runtime's BeginString..EndString frame emitted by
-// StringExpression concatenates them; each value is written as one value
-// (a call's first, or nil for a call that returns none).
 function lowerInterpolatedString(
   expr: AstExprInterpString | AstExprSparkdownInterpString,
   source: LuauSource,
@@ -1031,9 +760,6 @@ function lowerInterpolatedString(
   return new StringExpression(parts);
 }
 
-// `-> name(.path)*` as a value: a `DivertTarget`, which runs as the symbol
-// value of the function, flow or label it names, and can be stored, compared
-// with `==`, or diverted to with `-> x`.
 function lowerDivertTargetLiteral(
   node: SyntaxNode,
   ctx: LowerContext,

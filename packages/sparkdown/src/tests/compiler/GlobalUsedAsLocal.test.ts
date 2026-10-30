@@ -1,9 +1,3 @@
-// GlobalUsedAsLocal (I-607): a global only one function uses, or one every
-// function writes before it reads. The upstream cases are in
-// `luau-conformance/LintCandidatesScope.test.ts`; these are the controls
-// around them and the program-wide form. An accidental global is story state
-// that goes into save files, so a use the reading may not show silences it.
-
 import { describe, expect, test } from "vitest";
 import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import { testCompiler } from "../engineUnderTest";
@@ -19,9 +13,7 @@ const only = (name: string, fn: string) => `Global '${name}' is only used in the
 const onlyAt = (name: string, line: number) => `Global '${name}' is only used in the enclosing function defined at line ${line}; consider changing it to local`;
 const never = (name: string) => `Global '${name}' is never read before being written. Consider changing it to local`;
 
-// `score` is written and read only inside `f`.
 const SCORE = "function f()\n  score = 1\n  return score\nend\n& f()\n";
-// `score` is written, then read, in each of two functions.
 const SCORE_TWICE = "function f()\n  score = 1\n  return score\nend\nfunction g()\n  score = 2\n  return score\nend\n& f()\n& g()\n";
 
 describe("GlobalUsedAsLocal in one function", () => {
@@ -71,8 +63,6 @@ describe("GlobalUsedAsLocal in one function", () => {
   ])("%s the author names run is reported, unlike the harness's wrapper", (_label, header) => {
     const outer = `function outer()\n  ${header}\n    score = 1\n    return score\n  end\n  return run(1)\nend\n`;
     expect(messages(`${outer}& outer()\n`)).toEqual([only("score", "run")]);
-    // The harness hides only the wrapper it wrote, and not even that when
-    // the snippet names a function run of its own.
     expect(lintMessagesInFunction(`\n${outer}return outer()`, "GlobalUsedAsLocal")).toEqual([only("outer", "run"), only("score", "run")]);
   });
 
@@ -123,7 +113,6 @@ describe("GlobalUsedAsLocal is silent for a declared or unknown global", () => {
     expect(messages(`${declaration}${SCORE}`)).toEqual([]);
   });
 
-  // Only main holds a top-level local, so the other script's is a scene's.
   test("a local in another script's outermost block", () => {
     expect(programFound({ "main.sd": SCORE, "other.sd": "scene other\n  & local score = 0\nend\n" })).toEqual([]);
   });

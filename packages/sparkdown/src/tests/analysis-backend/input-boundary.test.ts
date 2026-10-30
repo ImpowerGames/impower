@@ -30,7 +30,6 @@ test("definition dependencies preserve registration order and batches replace at
       { name: "a-values", version: 1, source: "declare BatchValue: Shared" },
     ], documents: [{ module: "main.luau", version: 1, source: "local value: number = BatchValue\nreturn value" }] })).status).toBe("ok");
     expect((await p.check("main.luau")).diagnostics).toEqual([]);
-    // The old dependent references Shared; applying only z-types first would be invalid.
     expect((await p.update({ projectVersion: 2, definitions: [
       { name: "z-types", version: 2, source: "export type Replacement = string" },
       { name: "a-values", version: 2, source: "declare BatchValue: Replacement" },

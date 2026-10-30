@@ -1,21 +1,3 @@
-// Regression tests for the final basic.luau batch (lines 765-1018):
-//   - Lua's index-type rule: indexing nil / functions raises
-//     (trappable), while a missing table member is still nil.
-//   - String values keep literal newlines (string evaluation no
-//     longer routes whitespace-only text through display trimming);
-//     long `[[...]]` strings normalize line endings and drop the
-//     newline immediately after the opening bracket.
-//   - Variadic nested functions capture upvalues (prepended params +
-//     pointer args at call sites), with sibling-subflow precedence
-//     over same-named outer locals in the free-variable scan.
-//   - Pure number stdlib ops follow Lua argument semantics: numeric
-//     strings coerce, missing args raise "missing argument #1",
-//     wrong types raise "invalid argument #1" — all pcall-trappable.
-//   - type/typeof require an argument; newproxy values report
-//     "userdata" (not spoofable via a `__type` metatable field).
-//   - getfenv() returns the environment; assigning
-//     `getfenv().math = {...}` overrides statically-lowered math.*
-//     call sites.
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
@@ -143,9 +125,6 @@ end
     expect(recorded).toEqual([5]);
   });
 
-  // A variadic `function foo` naming an outer local assigns it (#1349), so a
-  // sibling's call and the outer function's later call both reach it: Lua
-  // records 7, then 1 (`foo(1, 2)` returns 1, 2).
   test("a variadic definition over a same-named outer local assigns it", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 scene start

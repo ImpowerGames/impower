@@ -1,18 +1,7 @@
-// #1126 — a closure over a variable a `<-` thread also binds.
-//
-// A `<-` thread, and the thread a choice continues on, start as copies of the
-// thread that made them, so each copy binds its own copy of the variables in
-// scope. A closure's upvalue cell reads the binding of whichever thread holds
-// it: the parent while it still binds the variable, a taken choice's thread
-// once that replaces the parent, and a finished thread's own value once the
-// thread ends.
-
 import { describe, expect, test } from "vitest";
 import { testStory } from "../engineUnderTest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
-// Runs to the first choice, takes it and runs the rest; again from a save
-// taken at the choice, loaded into a fresh story.
 function chooseFirst(source: string): {
   beforeChoice: string;
   afterChoice: string;
@@ -37,8 +26,6 @@ function chooseFirst(source: string): {
   return { beforeChoice, afterChoice, afterLoad, errors };
 }
 
-// Runs straight through; again with a save after the first line, loaded into
-// a fresh story that runs the rest.
 function straightAndRestored(source: string): {
   straight: string;
   restored: string;

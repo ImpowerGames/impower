@@ -1,10 +1,3 @@
-// A malformed type typed one keystroke at a time reports what a cold compile
-// of the same text reports (#1174). The type checker caches each Luau unit
-// by its text and the validator re-annotates only the reparsed window, so a
-// second keystroke is where a stale syntax error, or a missing one, would
-// show. One compiler takes each keystroke as a minimal edit and compiles
-// after it; each compile's diagnostics must equal a fresh compiler's, on the
-// way to the malformed type and back.
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { diagnoseDetailed, diagnosticMessage } from "./diagnosticTestHarness";
@@ -25,7 +18,6 @@ function posAt(text: string, offset: number) {
   return { line, character: offset - lineStart };
 }
 
-/** Every diagnostic of a compile of `URI`, sorted, as text. */
 function diagnosticsOf(compiler: SparkdownCompiler): string[] {
   const program = compiler.compile({ textDocument: { uri: URI } }).program;
   return (program.diagnostics?.[URI] ?? [])
@@ -39,11 +31,6 @@ function cold(text: string): string[] {
   return diagnosticsOf(compiler);
 }
 
-/**
- * The texts on the way from `from` to `to`, one keystroke apart: the
- * characters between their common prefix and suffix deleted from the right,
- * then the new ones typed from the left.
- */
 function keystrokes(from: string, to: string): { at: number; remove: number; insert: string; text: string }[] {
   let prefix = 0;
   while (prefix < from.length && prefix < to.length && from[prefix] === to[prefix]) prefix++;
@@ -62,12 +49,8 @@ function keystrokes(from: string, to: string): { at: number; remove: number; ins
   return steps;
 }
 
-// A scene before the one edited, so the compile has flows to carry.
 const BEFORE = "scene start\n  Hello.\nend\n\n";
 
-// Each case's name, valid text, malformed text, the malformed text's errors,
-// and whether the edit leaves the other flows' checked units to the cache.
-// A function is global, so editing one checks every flow again.
 const cases: [string, string, string, string[], boolean][] = [
   ["a missing local type in a scene", `${BEFORE}scene s\n  local x: number = 1\nend\n`, `${BEFORE}scene s\n  local x: = 1\nend\n`, ["5:10-5:12 Expected type, got '='"], true],
   ["a `::` for a local's `:`", `${BEFORE}scene s\n  local x: number = 1\nend\n`, `${BEFORE}scene s\n  local x :: number = 1\nend\n`, ["5:10-5:12 Expected identifier when parsing expression, got '::'"], true],
@@ -79,7 +62,6 @@ const cases: [string, string, string, string[], boolean][] = [
 
 describe("a malformed type typed one keystroke at a time", () => {
   test.each(cases)("%s reports what a cold compile reports at each keystroke", (_name, valid, malformed, errors, reuses) => {
-    // The malformed end state is the one pinned, so the comparison is not vacuous.
     expect(
       diagnoseDetailed(malformed)
         .filter((d) => d.code !== "LocalUnused")
@@ -102,8 +84,6 @@ describe("a malformed type typed one keystroke at a time", () => {
       reused += compiler.typecheckStats.reused;
     }
     expect(text).toBe(valid);
-    // Where the edit stays in its flow, the unchanged scene's unit came from
-    // the checker's cache, so the comparison covered compiles that reused it.
     if (reuses) expect(reused).toBeGreaterThan(0);
   });
 });

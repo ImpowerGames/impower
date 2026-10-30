@@ -1,8 +1,3 @@
-// A `..` right after a mid-line `>` break is a glue mark in both TextMate
-// engines (I-557): vscode-textmate, reading the grammar the extension ships,
-// and textmate-grammar-tree, reading the grammar the web editor ships, give
-// it the same `keyword.other.glue.sd` scope as the `..` that ends `A > ..`. A
-// third dot makes an ellipsis, and dots inside a word are text.
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import grammar from "../../../language/sparkdown.language-grammar.json";
@@ -17,7 +12,6 @@ const extensionGrammar = JSON.parse(
 
 const GLUE = "keyword.other.glue.sd";
 
-/** The scopes of the `..` at `from` in `text`, per editor. */
 const scopesAt = async (text: string, from: number) => {
   const vscode = await vscodeScopes(extensionGrammar, text);
   const tree = treeScopes(grammar, text);

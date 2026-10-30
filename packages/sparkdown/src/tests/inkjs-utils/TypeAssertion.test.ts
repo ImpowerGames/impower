@@ -1,14 +1,3 @@
-// Ported from inkjs `src/tests/specs/inkjs/utils/TypeAssertion.spec.ts`.
-//
-// `TypeAssertion` is the runtime's narrow-or-fail helper module.
-// `asOrNull(x, Class)` / `asOrThrows(x, Class)` are the most-used —
-// they appear throughout `Story.ts`, `JsonSerialisation.ts`, `Container.ts`,
-// etc. for safe down-casting. `nullIfUndefined`, `isEquatable`, and
-// `asINamedContentOrNull` are smaller helpers used in specific paths
-// (named-content lookup, equality checks across InkObject subclasses).
-//
-// All pure utility tests — no Story / compile pipeline involvement.
-
 import { describe, expect, it } from "vitest";
 import {
   asINamedContentOrNull,
@@ -88,9 +77,6 @@ describe("TypeAssertion", () => {
 
   describe("asINamedContentOrNull", () => {
     it("returns the object if it matches INamedContent", () => {
-      // `INamedContent` is structural: any object with `hasValidName`
-      // and `name` properties qualifies. The helper short-circuits the
-      // need for an `instanceof` check on every InkObject subclass.
       const content = {
         hasValidName: "valid.name",
         name: "name",
@@ -130,11 +116,6 @@ describe("TypeAssertion", () => {
     });
 
     it("returns the value if it is defined", () => {
-      // Note that falsy values (`""`, `0`, `false`) are still defined —
-      // the helper only collapses the literal `undefined` to `null`.
-      // Used in JSON deserialization paths where `undefined` would
-      // round-trip badly (`JSON.stringify({x: undefined})` drops the
-      // key entirely).
       const string = "";
       const number = 10;
       const object = {};

@@ -2,23 +2,6 @@ import { ErrorType, type SourceMetadata } from "../../../runtime/Error";
 import { getBuiltinTypeNames } from "../../utils/builtinTypeNames";
 import type { LowerContext } from "../context";
 
-// A global (`store` / `const`) variable whose name collides with a define
-// TYPE name — an `as`-parent or a `new X()` target, i.e. a name that KEEPS
-// its bare Luau global after leaf-instance scoping — fights the type table
-// over the same global slot. `type.name` member access, `new T()`, and
-// `instances(T)` all resolve `T` as a bare global, so the user variable
-// silently shadows the type (or, once both bind at story init, one clobbers
-// the other). Emit a Warning so the clash is visible in the editor.
-//
-// Two sources of type names are checked:
-//   - `ctx.defineTypeNames` — types defined in THIS document.
-//   - `getBuiltinTypeNames()` — the builtin namespace/type roots (color,
-//     character, animation, …) from the compiled prelude. Reserved.
-//
-// Leaf instances are NOT flagged: Phase 1 scopes them to a synthetic
-// `$<type>_<name>` key, so `store red` / `store show` no longer clash with
-// the builtin `red` / `show` defines — they're free names again.
-// See [[project_define_namespace_scoping]].
 export function validateDefineTypeShadow(
   name: string,
   range: { from: number; to: number },

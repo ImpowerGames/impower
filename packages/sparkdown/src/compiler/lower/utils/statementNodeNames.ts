@@ -1,8 +1,5 @@
 import { nodeNameSet } from "../../utils/nodeNameSet";
 
-// Grammar nodes used to classify statement boundaries and callable values.
-// Keep the names explicit so the typecheck catches renamed or removed rules.
-
 export const LUAU_BLOCK_NAMES = nodeNameSet([
   "LuauStructBlock",
   "LuauStructListBlock",

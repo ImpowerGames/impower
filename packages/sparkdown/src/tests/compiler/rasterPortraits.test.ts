@@ -9,8 +9,6 @@ const asset = (path: string): File => ({
   uri: `file://proj/assets/${path}`,
   type: "image",
   name: path.split("/").at(-1)!.split(".")[0]!,
-  // Exercise the host's filename reader; dotted layer conditions must not be
-  // mistaken for the extension before the compiler sees this file.
   ext: SparkdownWorkspace.prototype.getFileExtension(`file://proj/assets/${path}`),
   src: `/file:/local/assets/${path}?v=1`,
 });

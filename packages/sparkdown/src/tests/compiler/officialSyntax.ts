@@ -1,17 +1,11 @@
 import { loadOfficialLuau } from "./officialLuau";
 
-// Test-only oracle. Production code never loads the official parser artifact.
 export const parseOfficialSyntax = await loadOfficialLuau();
 
 export function officialSyntaxErrors(source: string) {
   return parseOfficialSyntax(source).diagnostics;
 }
 
-/**
- * Errors written `line:column-line:column message` (or with a code before
- * the message), in the order of where each begins, those that begin
- * together by their text, so two lists of one set compare equal.
- */
 export function inPositionOrder(errors: readonly string[]): string[] {
   const start = (e: string) => e.split("-", 1)[0]!.split(":").map(Number) as [number, number];
   return [...errors].sort((a, b) => {
@@ -21,15 +15,6 @@ export function inPositionOrder(errors: readonly string[]): string[] {
   });
 }
 
-/**
- * Every error the official parser reports for a source, as
- * `line:column-line:column message`, in the order it reports them, as
- * Sparkdown reports every one (I-1322). In a `.sd` document (`luauFile`
- * false) an error at the end of the input begins, as Sparkdown places it,
- * where the source's last token ends, since the Luau a unit holds ends
- * there, and ends where the input ends, as the official parser's does; in a
- * `.luau` file, whose whole text is the unit, it is the official parser's.
- */
 export function officialErrorsInReportOrder(source: string, { luauFile = false }: { luauFile?: boolean } = {}): string[] {
   const lines = source.split("\n");
   const last = { line: lines.length - 1, column: lines[lines.length - 1]!.length };
@@ -42,7 +27,6 @@ export function officialErrorsInReportOrder(source: string, { luauFile = false }
   });
 }
 
-/** The official parser's errors for a source (`officialErrorsInReportOrder`), in position order (`inPositionOrder`). */
 export function officialErrorList(source: string, options: { luauFile?: boolean } = {}): string[] {
   return inPositionOrder(officialErrorsInReportOrder(source, options));
 }

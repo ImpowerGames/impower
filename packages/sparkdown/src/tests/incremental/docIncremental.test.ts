@@ -1,20 +1,3 @@
-// SparkdownDocument-driven INCREMENTAL parity net.
-//
-// productionInputParity guards from-scratch parses on both input types; this
-// suite guards the INCREMENTAL path on the production input (SparkdownDocument,
-// lineChunks=true): every incremental reparse must be byte-identical to a
-// from-scratch parse of the edited text — on the SAME input type AND on string
-// input (cross-input identity).
-//
-// Includes the cases the in-scope split/resume machinery is most exposed to:
-// - edits deep inside a large block (restart from a mid-block line boundary
-//   via a resume snapshot instead of the block start);
-// - DEPTH-CHANGE edits: inserting/deleting `end`, opening a new nested block
-//   mid-body — the scope structure after the edit differs from the structure
-//   the old chunks were built under;
-// - sequential edit bursts (each reparse chains off the previous incremental
-//   tree, like real typing).
-
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { type Tree, TreeFragment } from "@lezer/common";
 import { describe, expect, test } from "vitest";
@@ -40,7 +23,6 @@ function dump(tree: Tree, text: string): string {
   return stripAnsi(printTree(tree, text));
 }
 
-/** One incremental doc-input reparse; returns trees + the reparsed span. */
 function docEditAndReparse(text: string, edit: Edit) {
   const parser = getParser();
   const fullTree = parser.parse(doc(text) as any);
@@ -60,7 +42,6 @@ function docEditAndReparse(text: string, edit: Edit) {
   return { newText, incTree, span: reparsedSpan(incTree) };
 }
 
-/** Asserts the incremental doc tree matches scratch parses on BOTH inputs. */
 function expectIdentical(
   name: string,
   newText: string,
@@ -77,10 +58,6 @@ function expectIdentical(
     scratchStr,
   );
 }
-
-// ---------------------------------------------------------------------------
-// Fixtures
-// ---------------------------------------------------------------------------
 
 function bigThenBlock(bodyLines: number): string {
   const body: string[] = [];
@@ -132,10 +109,6 @@ const deleteLineEdit = (src: string, find: string): Edit => {
   const lineEnd = src.indexOf("\n", at) + 1;
   return { from: lineStart, to: lineEnd, insert: "" };
 };
-
-// ---------------------------------------------------------------------------
-// In-block edits on the production input
-// ---------------------------------------------------------------------------
 
 describe("doc-input incremental — in-block edits", () => {
   const text = bigThenBlock(40);
@@ -191,10 +164,6 @@ describe("doc-input incremental — in-block edits", () => {
   }
 
   test("mid-block edit restarts from a mid-block line boundary (boundedness)", () => {
-    // A from-scratch parse keeps whole-block chunks (TreeBuffer-fast), so
-    // the FIRST edit in a block is a warm-up: it reparses from the block's
-    // pure boundary and mints the in-block split points. Perform the
-    // warm-up, then measure the SECOND edit — the steady-state typing cost.
     const parser = getParser();
     const fullTree = parser.parse(doc(text) as any);
     const warmupEdit = replaceEdit(
@@ -242,19 +211,11 @@ describe("doc-input incremental — in-block edits", () => {
     console.log(
       `[doc-incremental] reparsed=${spanLen} chars; block=${blockLen}; span/block=${(spanLen / blockLen).toFixed(2)}`,
     );
-    // The restart must engage INSIDE the block (< the whole block plus its
-    // surroundings): restart ~2 lines above the edit, splice back in at
-    // the line boundary past it.
     expect(spanLen).toBeLessThan(blockLen);
-    // And the restart point must be AFTER the block's start (mid-block).
     expect(span).not.toBeNull();
     expect(span!.from).toBeGreaterThan(blockFrom);
   });
 });
-
-// ---------------------------------------------------------------------------
-// Depth-change edits: the scope structure itself changes
-// ---------------------------------------------------------------------------
 
 describe("doc-input incremental — depth-change edits", () => {
   const big = bigThenBlock(30);
@@ -316,32 +277,19 @@ describe("doc-input incremental — depth-change edits", () => {
   }
 });
 
-// ---------------------------------------------------------------------------
-// Sequential edit bursts (chained incremental trees, like real typing)
-// ---------------------------------------------------------------------------
-
 describe("doc-input incremental — no-op continuation parses", () => {
   test("a fragments-only reparse (no edit) reuses the whole packet without truncating it", () => {
-    // CodeMirror re-runs the parser with fragments but NO change for
-    // scroll-continuation; the fragment analysis maps that to a zero-width
-    // zero-offset "edit" at the document end. This must NOT rewind the
-    // cached packet: in a document whose tail is one giant root scope with
-    // no internal pure boundaries, rewinding discards most of the cache and
-    // the next real keystroke pays a near-full re-tokenization.
     const parser = getParser();
     const text = bigThenBlock(40);
     const tree = parser.parse(doc(text) as any);
     const fragments = TreeFragment.addTree(tree);
     const tree2 = parser.parse(doc(text) as any, fragments);
     expect(dump(tree2, text)).toBe(dump(parser.parse(doc(text) as any), text));
-    // the cached packet must still cover the whole document
     const cached: any = Object.values((tree2 as any).props ?? {}).find(
       (v: any) => v && v.packet,
     );
     expect(cached, "tree2 should carry a cached compiler").toBeTruthy();
     expect(cached.packet.last?.to).toBe(text.length);
-    // and a subsequent real edit must still restart near the edit, not at
-    // the document start
     const edit = replaceEdit(
       text,
       "This is dialogue line number 20 inside the block.",
@@ -368,8 +316,6 @@ describe("doc-input incremental — sequential edits", () => {
     let text = bigThenBlock(40);
     let tree = parser.parse(doc(text) as any);
 
-    // Simulate typing a short sentence, one character at a time, at the end
-    // of body line 20, then deleting a chunk of it.
     const target = "This is dialogue line number 20 inside the block.";
     let insertAt = text.indexOf(target) + target.length;
     const typed = " And typed!";
@@ -384,7 +330,6 @@ describe("doc-input incremental — sequential edits", () => {
       text = newText;
       insertAt += 1;
     }
-    // then delete " typed!" (7 chars) back off the end
     const delFrom = insertAt - 7;
     let fragments = TreeFragment.addTree(tree);
     fragments = TreeFragment.applyChanges(fragments, [

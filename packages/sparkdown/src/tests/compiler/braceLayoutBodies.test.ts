@@ -2,12 +2,6 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { compileSource } from "./compileSnapshot";
 
-// #1224: `layout` and `component` bodies accept brace blocks and dotted
-// classes (#1222). A brace body lowers to the layout tree
-// (`program.sparkle`) and the static struct (`program.context`) its indented
-// form lowers to, ignoring source positions and the binding names derived
-// from them.
-
 
 type UiType = "layout" | "component";
 
@@ -25,8 +19,6 @@ function lowered(source: string, type: UiType, name: string) {
   };
 }
 
-/** A layout tree without source positions or the binding names derived
- *  from them. */
 function normalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(normalize);
   if (value && typeof value === "object") {
@@ -40,7 +32,6 @@ function normalize(value: unknown): unknown {
   return value;
 }
 
-/** Both outputs of every layout and component a source declares. */
 function everything(source: string) {
   return compileSource(source)
     .filter(
@@ -228,7 +219,6 @@ end
     const b = lowered(braced, "layout", "inventory");
     expect(b.tree).toEqual(a.tree);
     expect(b.struct).toEqual(a.struct);
-    // Every child is under the right parent.
     const column = b.tree.children[0];
     expect(column.children.map((c: any) => c.kind)).toEqual([
       "if",
@@ -337,7 +327,6 @@ describe("dotted classes", () => {
     expect(Object.keys(lowered(spaced, "layout", "hud").struct)).toEqual(
       expect.arrayContaining(["choice 0", "mask shadow_1", "row a b"]),
     );
-    // An attribute or a comment between the name and a class leaves one space.
     const after = `layout hud with\n  column {\n    image @click=go .b\n    text #w=1 --[[ c ]] .h1 "Hi"\n  }\nend\n`;
     const before = `layout hud with\n  column {\n    image.b @click=go\n    text.h1 #w=1 "Hi"\n  }\nend\n`;
     expect(lowered(after, "layout", "hud").struct).toEqual(lowered(before, "layout", "hud").struct);
@@ -425,8 +414,6 @@ end
   });
 
   test("a brace inside a value's run is part of the value", () => {
-    // The indented form reads `#label=a{b}` as one literal, so the brace
-    // form does too; a block after a value needs whitespace before it.
     const text = `layout hud with
   text #label=a{b} { stroke }
   row { text #label=a{b}; text "next" }
@@ -618,8 +605,6 @@ layout e with
 end
 `;
       const errors = errorsOf(text);
-      // Every overflowing line is reported on its own line, and what follows
-      // the value is never read as more of the element.
       for (const line of [10, 16, 22, 28, 34]) {
         expect(errors.some((e) => e.line === line)).toBe(true);
       }
@@ -663,8 +648,6 @@ end
   });
 
   test("`text \"a\" \"b\"` in a block is keyed `text`, as on an indented line", () => {
-    // The indented form reads `name "content" …` as adjacency content, keyed
-    // by the name alone whatever follows the first string.
     const braced = `layout hud with
   row { text "a" "b"; text "c" #x=1 "d"; label "e" @click=go }
 end
@@ -718,7 +701,6 @@ describe("indentation inside a brace block", () => {
   const referenceDiagnostics = diagnosticsOf(source(BODY));
 
   test("the reference reports only that `bag` is not declared", () => {
-    // So no line is an orphan, and no brace is out of place.
     expect(referenceDiagnostics.map((d) => d.message)).toEqual([
       "Cannot find variable named `bag`",
     ]);
@@ -830,9 +812,6 @@ end
   });
 
   test("a stray `}`, an indented header, a `-` item and a block with no element are invalid", () => {
-    // A block on a line of its own is the block of the element before it
-    // (#1225); the invalid `row:` ends the `text` element, so the block after
-    // it has none.
     const text = `layout hud with
   column {
     - text

@@ -1,12 +1,3 @@
-// A name on a later line of a `local` list continued after a trailing comma
-// is a value or a target depending on an EARLIER name's `=` (#1116). An edit
-// that adds or removes that `=` reparses only its own line once the function
-// has been edited before (the parser then has split points inside it), so
-// the later name lies outside the reparsed range. The annotations must still
-// equal a cold parse's, on every annotation channel:
-// `SparkdownCombinedAnnotator.update` runs its window to the end of the list's
-// last name (a bare name, or one with a type or an `=` of its own), and no
-// further.
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -50,7 +41,6 @@ function snapshot(registry: SparkdownDocumentRegistry) {
   for (const key of CHANNELS) {
     const iter = annotations[key]!.iter(0);
     while (iter.value) {
-      // A compiled chunk's payload is circular; its range still compares.
       let value: string;
       try {
         value = JSON.stringify(iter.value.type) ?? "undefined";
@@ -86,7 +76,6 @@ function script(declaration: string) {
   ].join("\n");
 }
 
-// Replaces the first `find` in the document with `replace`, incrementally.
 function edit(registry: SparkdownDocumentRegistry, text: string, find: string, replace: string) {
   const from = text.indexOf(find);
   expect(from, `"${find}" is in the document`).toBeGreaterThanOrEqual(0);
@@ -109,8 +98,6 @@ describe("a continued local list after an incremental edit to its `=`", () => {
     ["gaining its `=` before a name and a comment", "local aa, bb == 1,\n  helper -- note", "bb ==", "bb ="],
     ["pasting `= 1` into it", "local aa, bb == 7,\n  helper", "bb == 7", "bb = 1"],
     ["deleting `= 1` from it", "local aa, bb = 1, 2,\n  helper", "bb = 1, 2", "bb == 1, 2"],
-    // The list sits inside a delimited value that is itself followed by a
-    // name, so the outer declaration adds nothing but the inner one must.
     [
       "gaining its `=` inside a closure value",
       "local g, h = function()\n  local aa, bb == 1,\n    helper\n  helper()\nend, 1",
@@ -126,14 +113,11 @@ describe("a continued local list after an incremental edit to its `=`", () => {
   ])("annotates a later-line name as a cold parse does when %s", (_, declaration, find, replace) => {
     let text = script(declaration);
     const incremental = open(text);
-    // A first edit inside the function gives the parser split points there.
     text = edit(incremental, text, "pre_10 = 10 + 1", "pre_10 = 10 +  1");
     text = edit(incremental, text, find, replace);
 
     const cold = open(text);
     expect(incremental.tree(URI)!.toString()).toBe(cold.tree(URI)!.toString());
-    // Non-vacuity: the parser's reparsed range stops before the later-line
-    // name, so only the widened window re-annotates it.
     const name = text.indexOf("helper", text.indexOf("aa, bb"));
     expect(reparsedTo(incremental)).not.toBeNull();
     expect(reparsedTo(incremental)!).toBeLessThan(name);
@@ -141,12 +125,10 @@ describe("a continued local list after an incremental edit to its `=`", () => {
   });
 });
 
-// The window the annotators re-run over after each edit.
 function annotatedWindows(run: () => void): (number | undefined)[] {
   const spy = vi.spyOn(SparkdownCombinedAnnotator.prototype as any, "reannotate");
   try {
     run();
-    // Only the edit's own window maps the carried annotations through it.
     return spy.mock.calls.filter((args) => args[6] != null).map((args) => args[2] as number | undefined);
   } finally {
     spy.mockRestore();
@@ -167,8 +149,6 @@ describe("the re-annotation window after an edit inside a declaration", () => {
     expect(windows[0]!).toBeLessThan(text.indexOf("helper()", name));
   });
 
-  // An edit inside a value changes no `=` and no name in the list, so the
-  // window stays the reparsed range even when a name follows the value.
   it.each([
     ["a table", "local t = {", "}"],
     ["a closure", "local g = function()", "end"],

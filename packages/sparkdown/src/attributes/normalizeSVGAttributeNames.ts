@@ -1,5 +1,3 @@
-/** Add original export labels without changing IDs, references or geometry.
- * Copy the original quoted XML value verbatim, keeping entity escaping intact. */
 export const normalizeSVGAttributeNames = (svg: string): string =>
   svg.replace(
     /<[A-Za-z][\w:.-]*(?:\s+(?:[^<>"']|"[^"]*"|'[^']*')*)?\s*\/?>/g,

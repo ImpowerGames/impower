@@ -1,6 +1,3 @@
-// The false-positive corpus run for the Luau lints, which
-// `lintCorpus.mjs` bundles and runs; see that file for usage.
-
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -10,10 +7,8 @@ import { isLuauFile } from "../src/compiler/typecheck/LuauUnitNodes";
 import type { SparkDiagnostic } from "../src/compiler/types/SparkDiagnostic";
 
 export interface Script {
-  /** What the finding prints as its file. */
   label: string;
   text: string;
-  /** Lines the corpus added above the file's own first line. */
   offset: number;
 }
 
@@ -27,21 +22,14 @@ export interface Finding {
 
 const LINT_CODES = new Set<string>(LUAU_LINT_CODES);
 
-/** A script's URI. A wrapped conformance file is the `.sd` script its
- *  wrapper makes, so its URI ends in `.sd`: with its own `.luau` ending, the
- *  compiler would read it as a `.luau` file (`isLuauFile`). */
 function uriOf(script: Script) {
   return `file:///corpus/${encodeURIComponent(script.label)}${script.offset ? ".sd" : ""}`;
 }
 
-/** A Luau conformance file as the corpus compiles it, wrapped in a function
- *  (sparkdown is Luau only inside one), with its line numbers kept. */
 export function conformanceScript(label: string, fileText: string): Script {
   return { label, text: `function run()\n${fileText}\nend\n`, offset: 1 };
 }
 
-/** Runs `fn` with the console silenced: the compiler logs the diagnostics
- *  it hides from authors, which would bury the findings. */
 function quietly<T>(fn: () => T): T {
   const saved = { ...console };
   for (const key of ["log", "info", "warn", "error", "debug"] as const) {
@@ -54,7 +42,6 @@ function quietly<T>(fn: () => T): T {
   }
 }
 
-/** Compiles `scripts` as one program and returns the lints each reports. */
 export function lint(scripts: Script[], entries: Script[]): Finding[] {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -88,8 +75,6 @@ export function lint(scripts: Script[], entries: Script[]): Finding[] {
     if (!script) continue;
     for (const d of diagnostics) {
       if (!LINT_CODES.has(String(d.code))) continue;
-      // The wrapper a conformance file is read in is the corpus's, and
-      // nothing calls it; its GlobalUsedAsLocal is read below instead.
       if (script.offset && d.code === "FunctionUnused" && d.range.start.line === 0) continue;
       if (script.offset && d.code === "GlobalUsedAsLocal") continue;
       out.push({
@@ -105,15 +90,6 @@ export function lint(scripts: Script[], entries: Script[]): Finding[] {
   return out;
 }
 
-/**
- * GlobalUsedAsLocal for a wrapped conformance file at Luau's module level:
- * the program-wide rule run again over the script's cached facts with the
- * corpus's wrapper dropped from every reference's enclosing functions, so
- * the file's own top level is outside every function, as a Luau chunk's is
- * and as a script's top level is. Both of the rule's messages can then
- * report, and a function the file names `run` is still a function. Lines,
- * a "defined at line N" included, are the file's own.
- */
 function moduleLevelGlobals(compiler: SparkdownCompiler, uri: string, script: Script): Finding[] {
   const doc = compiler.documents.get(uri);
   const tree = compiler.documents.tree(uri);
@@ -144,8 +120,6 @@ function walk(dir: string, out: string[] = []) {
 
 const slash = (path: string) => path.split("\\").join("/");
 
-/** Prints the findings for the repository at `repo` and, when given, the
- *  project directory `project`. */
 export function main(repo: string, project?: string) {
   const findings: Finding[] = [];
   const counts: string[] = [];
@@ -154,7 +128,6 @@ export function main(repo: string, project?: string) {
     counts.push(`${name}: ${files} files, ${list.length} findings`);
   };
 
-  // Each repository script on its own, as the tests and examples are written.
   const tracked = execFileSync("git", ["ls-files", "-z", "--", "*.sd"], {
     cwd: repo,
     encoding: "utf8",
@@ -173,9 +146,6 @@ export function main(repo: string, project?: string) {
   }
   run("repository .sd files", repoFindings, tracked.length);
 
-  // Luau is sparkdown only inside a function, so each conformance file is
-  // wrapped in one, as the conformance tests wrap their snippets; its
-  // GlobalUsedAsLocal is read at module level (`moduleLevelGlobals`).
   const conformance = "packages/sparkdown/src/tests/luau-conformance/upstream/conformance";
   const luau = walk(join(repo, conformance))
     .filter((f) => f.endsWith(".luau"))
@@ -187,8 +157,6 @@ export function main(repo: string, project?: string) {
   }
   run("Luau conformance files", luauFindings, luau.length);
 
-  // A project compiles as one program, from `main.sd` and then any script
-  // `main.sd` does not include.
   if (project) {
     const scripts = walk(project)
       .filter((f) => f.endsWith(".sd"))

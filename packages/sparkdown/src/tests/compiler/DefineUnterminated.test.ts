@@ -1,10 +1,3 @@
-// A `define` whose block never reaches `end`, or whose header ends in
-// something other than `with`, must be reported instead of compiling silently.
-// An unclosed define runs on to the next `scene` / `branch` or the end of the
-// file and takes the top-level lines in between as its body (`store trust = 5`
-// becomes a property of the define, so `{trust}` reads nil); a `:` header
-// leaves the indented properties outside the header, where the lowerer drops
-// them. See issue #836.
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { officialErrorList } from "./officialSyntax";
@@ -246,11 +239,6 @@ describe("define header the grammar cannot read", () => {
 
   test("text the header cannot read after `with` is not blamed on the name", () => {
     const errs = errors("define X with )\nHi.\nscene start\nend\n");
-    // The body goes on past the `)` it leaves unread (#1905), so `Hi.` is a
-    // line of the body, whose `.` no name follows. The body is read in a
-    // define of any structure (I-1489), so the line reports Luau's
-    // incomplete statement too, as the official parser does, and the
-    // validator the `.`.
     expect(errs.map((e) => [e.startLine, e.startCharacter])).toEqual([[0, 0], [1, 0], [1, 2]]);
     expect(errs[1]!.message).toContain("Incomplete statement");
     expect(officialErrorList("do\nHi.\n").map((e) => e.split(" ", 1)[0]!.split("-", 1)[0])).toContain("1:0");
@@ -336,11 +324,6 @@ describe("valid define forms stay clean", () => {
   }
 });
 
-// The define diagnostics are raised while a chunk is lowered, and an
-// incremental compile re-lowers only the chunks an edit touches. Each step
-// below applies one edit incrementally and compares the diagnostics with a
-// cold compile of the same text, including steps whose edit is far from the
-// define.
 describe("define diagnostics across incremental edits", () => {
   test("match a cold compile as a define breaks and is repaired", () => {
     const uri = "inmemory:///main.sd";
@@ -415,7 +398,6 @@ describe("define diagnostics across incremental edits", () => {
       );
       seen.push(...incremental);
     }
-    // The steps did produce both define errors, so the comparison covered them.
     expect(seen.some((m) => m.includes(MISSING_END))).toBe(true);
     expect(seen.some((m) => m.includes("Unexpected `:`"))).toBe(true);
   });

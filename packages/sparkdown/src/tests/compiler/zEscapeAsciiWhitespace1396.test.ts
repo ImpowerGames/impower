@@ -1,6 +1,3 @@
-// A `\z` escape skips only Luau's whitespace, a space or `\t` through `\r`
-// (I-1396): a no-break space or any other Unicode space after it stays in
-// the string, in a quoted string, an interpolated one and a story line.
 import { describe, expect, test } from "vitest";
 import { processLuauEscapes } from "../../compiler/utils/stringLiteralValue";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";

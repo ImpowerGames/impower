@@ -15,19 +15,6 @@ const CONDITIONAL_ALTERNATORS: ReadonlySet<string> = new Set(
   ].flatMap(explicitRuleNames),
 );
 
-/**
- * Lowers an alternator Luau code uses as a value or writes as a statement
- * (`local line = cycle | "a" | "b" end`, I-1284; `queue` / `| touch()` /
- * `end` in a function's body, I-1397) as a displayed one runs: through the
- * display lowerers, whose `Sequence` or `Conditional` selects the arm with
- * the counting of the alternator's own symbol, and whose arms here each push
- * one value (`lowerArms` `valued`). The value is the selected arm's, or nil
- * for an empty arm or one no `match` arm takes; a statement (`discarded`)
- * pops it after the arm's statements ran. Null for an alternator with no arm.
- * Unless `exitsAllowed` (a statement, or the sole value of a `local`, where
- * nothing waits on the evaluation stack), a `break`, `continue` or `return`
- * in an arm is an error (`reportArmExits`).
- */
 export function lowerAlternatorValue(
   node: SyntaxNode,
   ctx: LowerContext,
@@ -47,24 +34,9 @@ export function lowerAlternatorValue(
     : lowerSparkdownSequentialAlternatorBlock(nodeRef, ctx, mode);
   forwardBlockDiagnostics(block, ctx);
   const [alternator] = unwrapBlockContent(block);
-  // An alternator with no arm is an error its lowerer reports, and lowers to
-  // nothing.
   return alternator ? new AlternatorExpression(alternator, discarded) : null;
 }
 
-/**
- * How an alternator Luau code holds runs its arms (`lowerArms`): each pushes
- * one value, and with `"value"` an arm may not leave its loop or function,
- * since the expression around the alternator has values waiting on the
- * evaluation stack that the exit would leave there (`reportArmExits`);
- * with `"exits"` it may.
- */
 export type ValuedArms = "value" | "exits";
 
-/**
- * The alternators a statement runs with nothing waiting on the evaluation
- * stack, as the sole value of a `local` (`local v = cycle | break end`) or
- * as a statement (`armRunAlternator`), whose arms may leave their loop or
- * function; `lowerLuauStatement` records them.
- */
 export const soleLocalAlternators = new WeakSet<AstNode>();

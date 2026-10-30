@@ -13,7 +13,6 @@ export const getPossibleStringIdentifiers = (
   const structProperty = declaration?.property;
   if (structType && structProperty) {
     const possibleStringIdentifiers = new Set<string>();
-    // Use the default property value specified in $default and $optional to infer main type
     const propertyPath = program.context?.[structType]?.["$default"]?.[
       "$recursive"
     ]
@@ -26,7 +25,6 @@ export const getPossibleStringIdentifiers = (
       .split(".")
       .map((x) => (!Number.isNaN(Number(x)) ? 0 : x))
       .join(".");
-    // Use the property value array specified in $schema to infer additional possible types
     const schemaPropertyValueArrays = [
       readProperty(
         expectedPropertyPath,

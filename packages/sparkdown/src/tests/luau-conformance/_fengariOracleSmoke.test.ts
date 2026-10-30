@@ -1,7 +1,3 @@
-// Smoke test for the fengari oracle harness itself. If these fail
-// it means our Lua-binding setup is wrong, not that our pattern
-// engine is wrong. Real conformance tests are in StringPatterns.test.ts.
-
 import { describe, expect, test } from "vitest";
 import {
   fengariFind,

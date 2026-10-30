@@ -1,4 +1,3 @@
-// Parse definition sources once. Runtime consumers load the resulting JSON.
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
@@ -11,7 +10,6 @@ if (check.some((arg) => arg !== "--check") || check.length > 1)
   throw new Error("Usage: node packages/sparkdown/scripts/buildDefinitionAst.mjs [--check]");
 
 const upstream = JSON.parse(readFileSync(new URL("../src/tests/luau-conformance/upstream/ast/build.json", import.meta.url), "utf8")).upstream;
-// loadOfficialLuau verifies the conformance pin and every artifact hash.
 const parse = await loadOfficialLuau();
 const inputs = [
   ["builtin", getBuiltinDefinitionSource(), "../src/compiler/typecheck/definitions/builtin.json"],
@@ -19,8 +17,6 @@ const inputs = [
   ["checked-abs test fixture", readFileSync(new URL("../src/tests/compiler/definition-fixtures/checked-abs.luau", import.meta.url), "utf8"), "../src/tests/compiler/definition-fixtures/checked-abs.json"],
 ];
 
-// Parse all inputs before writing any artifact, so a rejected source cannot
-// leave a partly refreshed build. The JSON uses the official oracle's schema.
 const outputs = inputs.map(([name, source, target]) => {
   const parsed = parse(source);
   if (parsed.errors) throw new Error(`Cannot generate ${name}: official Luau parser reported ${parsed.errors} syntax error(s)`);

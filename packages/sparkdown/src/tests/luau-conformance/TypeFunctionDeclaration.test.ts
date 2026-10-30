@@ -1,15 +1,8 @@
-// A Luau user-defined type function, `type function F(t) ... end`, is one
-// declaration: its body belongs to it, its `end` closes it, and the code
-// after it stays in the enclosing function. A type function runs only while
-// types are checked, so the compiled story contains nothing for it.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
 import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
 import { testCompiler, testStory } from "../engineUnderTest";
 
-// The editor's annotations of each occurrence of the whole word `word` in
-// `text`, by annotation set.
 function annotationsOf(text: string, word: string) {
   const uri = "inmemory:///main.sd";
   const registry = new SparkdownDocumentRegistry(["semantics", "references"]);
@@ -135,8 +128,6 @@ end
 `,
       },
     ]);
-    // The parameter `t` is named like the global read after the type
-    // function, which Luau's LocalShadow reports as well.
     expect(warnings).toEqual(["Cannot find variable named `t`", "Variable 't' shadows a global variable used at line 9"]);
   });
 
@@ -148,9 +139,6 @@ end
   return t
 end
 `;
-    // The last `t` is the one after `end`. With nothing bound it reads as it
-    // does when the type function's parameter has another name: a reference
-    // to an unresolved name.
     const control = annotationsOf(script("p"), "t").at(-1);
     expect(control).toHaveProperty("references");
     expect(annotationsOf(script("t"), "t").at(-1)).toEqual(control);
@@ -187,9 +175,6 @@ end
       const before = text.slice(0, offset);
       return { line: before.split("\n").length - 1, character: offset - (before.lastIndexOf("\n") + 1) };
     };
-    // A digit in a value before the declaration, a space in its header, then
-    // typing its parameter and its local into `math` and `string`, which a
-    // later line uses as the standard library, and a digit after it.
     const edits: [string, number, string][] = [
       ["  local v3 = 3", "  local v3 = ".length, "1"],
       ["  type function Wrap(mat)", "  type function".length, " "],
@@ -224,7 +209,6 @@ end
 `;
     const shadowing = script("math", "string");
     const control = script("p", "q");
-    // The last occurrence of each name is its use after the type function.
     expect(annotationsOf(shadowing, "math").at(-1)).toEqual(annotationsOf(control, "math").at(-1));
     expect(annotationsOf(shadowing, "string").at(-1)).toEqual(annotationsOf(control, "string").at(-1));
   });
@@ -262,7 +246,6 @@ end
   });
 });
 
-// Every diagnostic a compile of one `.sd` script gives, with its range.
 function scriptDiagnostics(text: string): string[] {
   const uri = "inmemory:///main.sd";
   const compiler = testCompiler();
@@ -274,16 +257,8 @@ function scriptDiagnostics(text: string): string[] {
   });
 }
 
-// The checker binds a type function's name as a type and checks its body in
-// the type function environment. Sparkdown has no VM to evaluate the function
-// with, so a type that uses one reports that it cannot be evaluated, as Luau
-// does without one, and reduces to `never`. Luau's own type function tests
-// use `BuiltinsFixture`, whose type function environment has the `types`
-// library.
 describe("type function in the type checker", () => {
   const CANNOT_EVALUATE = "'F' type function: cannot be evaluated in this context";
-  // These layout expectations use product source ordering, independently of
-  // the fixture API's fresh checker insertion order.
   const check = (source: string) => checkLuau(source, { fixture: "BuiltinsFixture" })
     .diagnostics.slice().sort((a, b) => a.line - b.line || a.column - b.column)
     .map(describeDiagnostic);
@@ -314,8 +289,6 @@ local x: number = 1
     ).toEqual([]);
   });
 
-  // Luau's `udtf_recovery_no_upvalues`: a use of a declaration with a parse
-  // error reduces to the error type and reports nothing more.
   test("one with a parse error reports only the parse error", () => {
     expect(
       check(`
@@ -371,8 +344,6 @@ end
     ).toEqual(["2:0-4:3 DuplicateTypeDefinition:"]);
   });
 
-  // A nameless declaration is an editing state; its placeholder name is not a
-  // name an author wrote, so two of them are not a duplicate.
   test("two nameless declarations are not a duplicate", () => {
     const diagnostics = check(`
 type function (t)
@@ -398,8 +369,6 @@ function f()
     return g()
 end
 `);
-    // The enclosing functions and the call of `g` carry the instance too, and
-    // a call of `g` is not a mismatch for it.
     expect(diagnostics).toEqual([
       `5:24-5:33 UserDefinedTypeFunctionError: ${CANNOT_EVALUATE}`,
       "6:15-6:16 TypeMismatch: Expected this to be 'F<string>', but got 'number'; \nthe reduced type is `never`, and `number` is not a subtype of `never`",
@@ -443,9 +412,6 @@ local y: F<number>? = nil
     ]);
   });
 
-  // Every use of the same application is one instance, and the checker
-  // reports once per instance, as Luau's seen-set does, so only the first
-  // use of `F<string>` reports.
   test("the same application used twice reports that it cannot be evaluated once", () => {
     expect(
       check(`
@@ -459,8 +425,6 @@ type C = F<number>
     ).toEqual([`4:9-4:18 UserDefinedTypeFunctionError: ${CANNOT_EVALUATE}`, `6:9-6:18 UserDefinedTypeFunctionError: ${CANNOT_EVALUATE}`]);
   });
 
-  // A builtin type function's error is reported once per instance, as Luau
-  // does, however many annotations and expressions carry the instance.
   test("a builtin type function that cannot be reduced reports once", () => {
     expect(
       check(`
@@ -493,9 +457,6 @@ end
     expect(scriptDiagnostics(text).filter((d) => d.includes(CANNOT_EVALUATE))).toEqual([`8:22-8:31 ${CANNOT_EVALUATE}`]);
   });
 
-  // A script is checked in non-strict mode unless it asks for strict. Luau's
-  // non-strict mode does not report a type function that cannot be reduced,
-  // for a builtin type function as for a user-defined one.
   test("a script in the default mode reports nothing for a use", () => {
     const text = `type function F(t)
     return t

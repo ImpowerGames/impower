@@ -1,9 +1,3 @@
-// #299/#479: filtered images resolve to on-demand `?attributes=` URLs (service-worker
-// generated, signature-cached) instead of the program embedding every SVG's
-// source. These tests pin the three seams: the compiler strip (opt-in,
-// per-host), filterImage's URL fallback when a root carries no data, and the
-// shared cached generator both service workers delegate to.
-
 import { describe, expect, it } from "vitest";
 import { buildSVGAttributeVocabulary, decodeSVGSource } from "../../attributes";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -61,9 +55,6 @@ describe("stripImageData", () => {
     const program: any = compileWith({ stripImageData: true });
     const image = program.context?.image?.portrait;
     expect(image).toBeDefined();
-    // Falsy, not strictly undefined: the `image` type's `$default` declares
-    // `data = ""`, so default-inheritance refills the stripped field with an
-    // empty string. What #299 requires is that the PAYLOAD is gone.
     expect(image.data).toBeFalsy();
     expect(image.src).toBe("/file:/local/assets/portrait.svg?v=1");
   });
@@ -188,13 +179,9 @@ describe("getOrCreateFilteredSvg", () => {
     await getOrCreateFilteredSvg(
       cache,
       "local/assets/portrait.svg",
-      svgFile(222), // the file was edited
+      svgFile(222),
       PARAM,
     );
-    // Pruning runs AFTER the response, off the critical path — `cache.keys()`
-    // enumerates the whole bucket and warming generates the project's entire
-    // variant set, so on the critical path that is O(n^2) on the thread serving
-    // the image the user is waiting for.
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(cache.store.size).toBe(1);
     expect(Array.from(cache.store.keys())[0]).toContain("sig=222-");
@@ -253,7 +240,6 @@ describe("getOrCreateFilteredSvg", () => {
       expect(text).not.toContain("id='hat'");
     }
     expect(cache.store.size).toBe(0);
-    // The failed persistence must not strand the finished in-flight entry.
     expect(
       await getOrCreateFilteredSvg(
         cache,
@@ -262,7 +248,6 @@ describe("getOrCreateFilteredSvg", () => {
         PARAM,
       ),
     ).toBeDefined();
-    // The immutable Blob can reuse its successful read, but storage is retried.
     expect(reads).toBe(1);
     expect(writes).toBe(2);
   });
@@ -324,10 +309,6 @@ describe("getOrCreateFilteredSvg", () => {
   });
 
   it("runs ONE generation for concurrent requests of the same variant", async () => {
-    // Showing an image asks for the variant twice at once (element
-    // `background-image` + the hidden <img> child `UIModule.createImage` adds),
-    // and a preload can race both. Each miss used to do its own read + filter
-    // + prune, so a first display paid the work 2-3x (#344).
     const cache = makeCache();
     let reads = 0;
     const counted = (lastModified: number): FilteredSvgFile => {
@@ -335,7 +316,6 @@ describe("getOrCreateFilteredSvg", () => {
       return Object.assign(blob, {
         text: async () => {
           reads += 1;
-          // Yield, so the second caller definitely arrives mid-generation.
           await Promise.resolve();
           return SVG;
         },
@@ -364,25 +344,17 @@ describe("getOrCreateFilteredSvg", () => {
     ]);
     expect(reads).toBe(1);
     expect(cache.store.size).toBe(1);
-    // Distinct, independently readable responses. (This does NOT distinguish a
-    // fresh Response from a `clone()` — clones are distinct and readable too.
-    // Why the implementation avoids clone() is a browser-only stall that no
-    // Node test can observe; see the note on `filteredSvgResponse`.)
     expect(new Set(responses).size).toBe(3);
     const texts = await Promise.all(responses.map((r) => r!.text()));
     for (const text of texts) {
       expect(text).toContain("id='body'");
       expect(text).not.toContain("id='hat'");
     }
-    // ...and the stored entry is still independently readable afterwards.
     const stored = Array.from(cache.store.values())[0]!;
     expect(await stored.clone().text()).toContain("id='body'");
   });
 
   it("lets a caller regenerate when the generation it shared failed", async () => {
-    // Sharing must never turn ONE transient read failure into every concurrent
-    // caller serving unfiltered art: `sw.ts` treats `undefined` as "serve the
-    // original", which draws every filter-tagged node.
     const cache = makeCache();
     let attempt = 0;
     const flaky = (): FilteredSvgFile =>
@@ -411,8 +383,6 @@ describe("getOrCreateFilteredSvg", () => {
         PARAM,
       ),
     ]);
-    // One of the two owned the failing generation; the other must not have
-    // inherited it.
     const survivors = [first, second].filter(Boolean);
     expect(survivors).toHaveLength(1);
     expect(await survivors[0]!.text()).toContain("id='body'");
@@ -434,7 +404,6 @@ describe("getOrCreateFilteredSvg", () => {
         PARAM,
       ),
     ).toBeUndefined();
-    // The key must be released, or the variant can never be generated again.
     const recovered = await getOrCreateFilteredSvg(
       cache,
       "local/assets/portrait.svg",
@@ -446,11 +415,6 @@ describe("getOrCreateFilteredSvg", () => {
   });
 
   it("serves the filtered art when the cache refuses to store it (#477)", async () => {
-    // A rejected `cache.put` is a STORAGE failure, not a filtering failure:
-    // the markup is already in hand. Discarding it makes `sw.ts` fall through
-    // to the unfiltered original, which draws every filter-tagged node at once
-    // (both eye directions, both arms) with a 200 and nothing logged. Failing
-    // to memoise must cost a cache hit, not the picture.
     const cache = makeCache();
     const refusing = {
       ...cache,
@@ -472,8 +436,6 @@ describe("getOrCreateFilteredSvg", () => {
     expect(text).not.toContain("id='hat'");
     expect(text).toContain("id='body'");
     expect(cache.store.size).toBe(0);
-    // Nothing was memoised, so the next request must generate again rather
-    // than find a stranded in-flight key and give up.
     const second = await getOrCreateFilteredSvg(
       refusing,
       "local/assets/portrait.svg",
@@ -485,8 +447,6 @@ describe("getOrCreateFilteredSvg", () => {
   });
 
   it("hands every concurrent caller filtered art when the cache refuses (#477)", async () => {
-    // The waiters read the shared generation's result, so a rejection inside
-    // it turns one storage failure into unfiltered art for all of them at once.
     const cache = makeCache();
     const refusing = {
       ...cache,

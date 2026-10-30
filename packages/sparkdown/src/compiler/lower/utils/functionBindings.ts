@@ -15,13 +15,6 @@ import { alternatorScopesOf } from "./alternatorArms";
 import type { LowerContext } from "../context";
 import { offsetAt } from "./luauAst";
 
-/**
- * A name a function's body binds: a parameter, a `local`, a `const`, a local
- * function or a loop variable, with the document range it binds over (its
- * block, a `repeat`'s through its `until`) and the offset it binds from (after
- * its declaration, as Luau binds a local; a local function from its own
- * body).
- */
 export interface FunctionBinding {
   name: string;
   isConst: boolean;
@@ -30,15 +23,6 @@ export interface FunctionBinding {
   blockTo: number;
 }
 
-/**
- * The names a function's body binds, its nested functions' aside (each has
- * its own frame when it lowers), read from the body's AST before any of it
- * lowers, as `immediateBodyDeclarations` reads the names it declares. The
- * frame is pushed on `LowerContext.functionBindingsStack` while the body
- * lowers, so that an assignment read without the binding it targets (in a
- * nested function, a define's property or method, a Sparkle handler, each
- * read on its own) resolves it by position (`resolveFunctionBinding`).
- */
 export function functionBindings(
   params: readonly { name: string }[],
   body: AstStatBlock | null,
@@ -86,21 +70,16 @@ export function functionBindings(
       return;
     }
     if (s instanceof AstStatRepeat) {
-      // The body's names are in scope through the `until` condition.
       walkBlock(s.body, { from: offsetAt(s.body.location.begin, ctx), to: offsetAt(s.location.end, ctx) });
       return;
     }
     nested(s);
   };
-  // The blocks inside a statement (an `if`'s arms, a `while`'s body), not
-  // those of the functions in it.
   const nested = (stat: AstNode): void => {
     visitAst(stat, {
       visit: (node) => {
         if (node === stat) return true;
         if (node instanceof AstExprFunction) return false;
-        // What an alternator runs binds a statement's locals over the rest
-        // of its arm (`alternatorPartsAst`).
         const scopes = alternatorScopesOf(node, ctx);
         if (scopes) {
           for (const scope of scopes) {
@@ -127,12 +106,6 @@ export function functionBindings(
   return out;
 }
 
-/**
- * The binding a name at an offset resolves to among the functions lowering
- * around it: in the innermost function frame that binds it there, the one
- * declared last before the offset whose range holds it. Undefined for a
- * name no enclosing function binds there (a global, or the story's).
- */
 export function resolveFunctionBinding(
   name: string,
   at: number,

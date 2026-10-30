@@ -1,9 +1,3 @@
-// A one-line `repeat ... until cond` whose last body statement is a `local`
-// declaration runs its body once and leaves the statements after it to run:
-// the declaration ends before `until`, which the loop takes, and the
-// condition is the loop's next sibling rather than a part of the
-// declaration (#1092).
-
 import { describe, expect, test } from "vitest";
 import { dumpTree, stripAnsi } from "../compiler/grammarSnapshot";
 import { makeRuntimeStoryFromSource, runToEnd } from "./runtimeTestHarness";
@@ -46,8 +40,6 @@ describe("a repeat loop whose body ends with a local declaration", () => {
     expect(r.output).toBe("Result 3.\n");
   });
 
-  // A loop nested directly in another is #1195; a block between them keeps
-  // each `until` with its own loop.
   test("a loop nested in a block inside another loop runs without an error", () => {
     const r = run(
       "function f()\n  local n = 0\n  repeat\n    do repeat n = n + 1 local z = 1 until true end\n  until true\n  return n\nend\n\nscene start\n  Result {f()}.\nend\n",
@@ -71,23 +63,15 @@ describe("a repeat loop whose body ends with a local declaration", () => {
     expect(tree).not.toContain("ERROR_INCOMPLETE");
     expect(tree).toMatch(/^ [├└]─ LuauSparkdownRepeatLoop \[12\.\.46\]$/m);
     expect(tree).toMatch(/─ LuauSparkdownRepeatLoop_end_c2 \[41\.\.46\]\n.*─ LuauUntilKeyword \[41\.\.46\]: "until"$/m);
-    // A story `until` condition ends at its line, read with the bounded rule (#1907).
     expect(tree).toMatch(/^ [├└]─ LuauSparkdownExplicitUntilCondition \[46\.\.51\]$/m);
   });
 });
 
-// An `until` after a statement on the loop's line, a declaration or an `&`
-// statement, is never read into the statement: no rule reads `until` but a
-// loop's end (#1906), so the statement ends before it and the loop takes it,
-// as Luau reads it.
 describe("a repeat loop whose until follows a statement on its line", () => {
   test("inside a block left without its end, reports Luau's error at the until", () => {
     const ctx = makeRuntimeStoryFromSource(
       "function f()\n  repeat\n    if true then\n      local z = 1 until true\n    end\nend\n\nscene start\nend\n",
     );
-    // The `until` closes the `if` and the `repeat`, so the `end` written for
-    // the `if` closes the function, and the function's own `end` closes
-    // nothing (#774), past Luau's first error, where its parser has stopped.
     expect([...ctx.errorMessages].sort()).toEqual([
       "Expected 'end' (to close 'then' at line 3), got 'until'",
       "Expected <eof>, got 'end'",

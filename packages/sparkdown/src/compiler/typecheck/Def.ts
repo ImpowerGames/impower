@@ -1,16 +1,11 @@
 // Definitions and refinements for the data-flow graph, ported from Luau's
 // `Def.h`/`Def.cpp` and `Refinement.h`/`Refinement.cpp`; Luau is
 // MIT-licensed (see `LICENSE-luau.txt`).
-//
-// A def is a symbolic value the data-flow graph binds to a place that can
-// hold a Luau value: a cell for a single value, or a phi for the values that
-// may flow into a place where branches join.
 
 import type { AstLocal } from "./Ast";
 import type { Location } from "./Location";
 import type { TypeId } from "./Type";
 
-/** A local (by its declaration) or a global (by its name). */
 export type LuauSymbol = AstLocal | string;
 
 export function symbolName(sym: LuauSymbol | undefined): string | undefined {
@@ -54,7 +49,6 @@ export function containsSubscriptedDefinition(def: DefId): boolean {
   return false;
 }
 
-/** The cells a def stands for: the def itself when it is a cell, or the operands of a phi, recursively (Luau's `collectOperands`). */
 export function collectOperands(def: DefId, operands: DefId[]): void {
   if (operands.includes(def)) return;
   if (getCell(def)) {
@@ -63,7 +57,6 @@ export function collectOperands(def: DefId, operands: DefId[]): void {
   }
   const phi = getPhi(def);
   if (phi) {
-    // A trivial phi has no operands, so it stands for itself.
     if (phi.operands.length === 0) {
       operands.push(def);
       return;
@@ -80,20 +73,11 @@ export class DefArena {
   phi(defs: DefId[]): DefId {
     const operands: DefId[] = [];
     for (const operand of defs) collectOperands(operand, operands);
-    // A phi of one operand is that operand.
     if (operands.length === 1) return operands[0]!;
     return new Def({ kind: "Phi", operands }, undefined, undefined);
   }
 }
 
-// ---------------------------------------------------------------------------
-// Refinement keys and refinements
-// ---------------------------------------------------------------------------
-
-/**
- * The place a refinement applies to: a def, or a property reached through a
- * chain of property accesses from one (`a.b.c` refines `c` of `b` of `a`).
- */
 export class RefinementKey {
   constructor(
     public parent: RefinementKey | undefined,
@@ -120,7 +104,6 @@ export type Refinement =
   | { readonly kind: "Equivalence"; lhs: RefinementId; rhs: RefinementId }
   | { readonly kind: "Proposition"; key: RefinementKey; discriminantTy: TypeId; implicitFromCall: boolean };
 
-/** A refinement, or undefined for none, as Luau's nullable `RefinementId`. */
 export type RefinementId = Refinement | undefined;
 
 export class RefinementArena {

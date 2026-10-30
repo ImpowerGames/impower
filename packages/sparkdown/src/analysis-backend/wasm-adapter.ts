@@ -4,7 +4,6 @@ import type {
   AnalysisRequest, AnalysisStatus, AnalysisTiming, AnalysisUpdate,
 } from "./contract";
 
-/** Internal transport boundary; host loaders own worker and artifact mechanics. */
 export interface AnalysisTransport {
   send(message: unknown): void;
   listen(receive: (message: WorkerResult) => void, fail: (message: string) => void): void;
@@ -190,7 +189,6 @@ class WasmProject implements AnalysisProject {
       } else r = await this.request("update", update, options);
       if (r.status === "ok") { this.documents = documents; this.definitions = definitions; this.projectVersion = update.projectVersion; this.checked.clear(); }
       else { this.failed = true; this.checked.clear(); }
-      // Update diagnostics originate from definition loading, even when a document shares its ID.
       const result = this.outcome(r, new Map(), definitions);
       result.timings.totalMs = performance.now() - start;
       return result;

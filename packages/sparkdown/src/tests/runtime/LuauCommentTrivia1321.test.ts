@@ -2,9 +2,6 @@ import { describe, expect, test } from "vitest";
 import { parseSource } from "../compiler/grammarSnapshot";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
-// A Luau comment is trivia at every position (I-1321): it does not end a
-// value, end a type, turn a modifier into a variable, or play as story text.
-
 function play(source: string) {
   const ctx = makeRuntimeStoryFromSource(source);
   const lines: string[] = [];
@@ -18,7 +15,6 @@ function play(source: string) {
   };
 }
 
-/** The names of the top-level nodes of a document, without line breaks. */
 function topLevel(source: string): string[] {
   const names: string[] = [];
   for (
@@ -39,7 +35,6 @@ function inScene(lines: string): string {
   return `scene start\n${body}\nend\n`;
 }
 
-// I-1305: a block comment between a scope modifier and `function`.
 describe("a comment between a modifier and `function` keeps the function", () => {
   test.each([
     ["local", "local", "local --[[c]]"],
@@ -49,7 +44,6 @@ describe("a comment between a modifier and `function` keeps the function", () =>
     ["a level-four comment holding a level-five close", "local", "local --[====[a]=====]b]====]"],
     ["a level-five comment holding a level-four close", "local", "local --[=====[a]====]b]=====]"],
     ["a level-nine comment holding a level-four close", "local", "local --[=========[a]====]b]=========]"],
-    // I-1362: a level of nine or more closes at its own level too.
     ["a level-nine comment holding a level-ten close", "local", "local --[=========[a]==========]b]=========]"],
   ])("%s", (_name, plain, commented) => {
     for (const head of [plain, commented]) {
@@ -73,11 +67,8 @@ describe("a comment between a modifier and `function` keeps the function", () =>
   });
 });
 
-// I-1362: a comment of level nine or more holding the close of another such
-// level is one comment before `function` and after `end`.
 describe("a level-nine comment holding a level-ten close", () => {
   const comment = "--[=========[a]==========]b]=========]";
-  // The comment plays nothing: the lines are those of the story without it.
   const control = play(
     `function k() return 5 end\nscene start\n  Value {k()}.\nend\n`,
   );
@@ -102,7 +93,6 @@ describe("a level-nine comment holding a level-ten close", () => {
   });
 });
 
-// I-1298: comments between `=` and a value that begins with a statement word.
 describe("comments between `=` and a value are not a value", () => {
   test.each([
     ["twoIf", "--[[ c ]] --[[ d ]] if c then\n    1\n  else 2", "w", "1"],
@@ -121,9 +111,6 @@ describe("comments between `=` and a value are not a value", () => {
     expect(result.lines[0]).toBe(`Value ${expected}.\n`);
   });
 
-  // The comments are no part of the operator: `=` stays a plain `=`, so a
-  // list of targets keeps its assignment (validateAssignmentValue reads the
-  // operator's own token).
   test("a multiple assignment", () => {
     const source =
       "function f()\n  local a, w = 0, 0\n  a, w = --[[ c ]] --[[ d ]] 1, 2\n  return a + w\nend\nscene start\n  Value {f()}.\nend\n";
@@ -140,8 +127,6 @@ describe("comments between `=` and a value are not a value", () => {
     expect(result.lines[0]).toBe("Value 1.\n");
   });
 
-  // At story scope the declaration ended between the comments (#1298); a
-  // comment of any level counts, closing at its own level.
   test("a scene-body `local` declaration", () => {
     const result = play(
       inScene("local w = --[[ c ]] --[[ d ]] if true then 1 else 2\nValue {w}."),
@@ -165,10 +150,6 @@ describe("comments between `=` and a value are not a value", () => {
   });
 });
 
-// I-1299: a comment after a type operator, `:` or a type's `=`, before the
-// type, compiles as the type without it.
-// The same in story statements, where a statement's type ends at its line: a
-// top-level type alias, then a scene's `local` statement.
 describe("a comment after a type operator in a story statement keeps the type", () => {
   test.each([
     ["an annotation", "", "local id: --[[c]] <T>(T) -> T = function(x) return x end", "Value {id(5)}."],
@@ -193,7 +174,6 @@ describe("a comment after a type operator keeps the type", () => {
     ["a return type", "  local id = function(): --[[c]] <T>(T) -> T return function(v) return v end end\n  local w = id()(5)"],
     ["a union", "  local w: number | --[[c]] string = 5"],
     ["a plain alias", "  type K = --[[c]] number\n  local w: K = 5"],
-    // A comment holding the close of another level closes at its own.
     ["an alias, foreign close", "  type F = () -> --[====[a]=====]b]====] <T>(T) -> T\n  local id: F = function(v) return v end\n  local w = id(5)"],
     ["a generic alias, foreign close", "  type F = --[====[a]=====]b]====] <T>(T) -> T\n  local id: F = function(v) return v end\n  local w = id(5)"],
     ["an annotation, foreign close", "  local id: --[====[a]=====]b]====] <T>(T) -> T = function(v) return v end\n  local w = id(5)"],
@@ -207,8 +187,6 @@ describe("a comment after a type operator keeps the type", () => {
   });
 });
 
-// I-1314: a comment after a block's closing `end` on the same line belongs to
-// the block, so nothing is displayed for it.
 describe("a comment after a closing `end` is not story text", () => {
   const declaration =
     (block: string, line: string) =>

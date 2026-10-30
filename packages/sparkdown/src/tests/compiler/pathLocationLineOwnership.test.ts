@@ -1,18 +1,3 @@
-// A statement's recorded source range must not claim the line after it.
-//
-// A program's root maps every address to a source range
-// (`ProgramRoot.locationOf`), and the editor resolves a preview point, a
-// breakpoint and a stack frame by asking which address stands on a line
-// (`ProgramRoot.addressAt`) and where it stands. A display beat's range that
-// reached column 0 of the following content line would claim a line it does
-// not own, and a line-keyed lookup would hand back the previous statement.
-//
-// A range that reaches only the start of `endLine` records an end column of
-// 0 or below. Such a range stops at or before `endLine`'s first column, and
-// these assertions refuse it when that line carries a statement.
-//
-// Compiled the way the player compiles, with the builtins prelude. Each line
-// lowers to a `display()` call.
 import { describe, expect, it } from "vitest";
 import type { SourceLocation } from "../../compiler/types/ProgramAddress";
 import { testCompiler } from "../engineUnderTest";
@@ -50,7 +35,6 @@ const inStart = (body: string): string =>
     "",
   ].join("\n");
 
-/** The reproduction from issue #490: an action line below a dialogue block. */
 const FLAT = inStart(`RAFFLES:
   Wow.
 
@@ -60,8 +44,6 @@ BUNNY:
   Okay, okay!
 `);
 
-/** The topology the ticket's real case has: the action line sits in the body of
- *  a `choose … then`, one blank line under a dialogue block. */
 const NESTED = inStart(`RAFFLES:
   Wow.
 
@@ -81,10 +63,6 @@ then
     Fine.
 `);
 
-/** Statements packed with no blank line between them, and line types other than
- *  dialogue and action: a heading and a transition. Nothing separates one
- *  statement's end from the next statement's start here, so every range is one
- *  that would reach onto the next line unpulled. */
 const TIGHT = inStart(`RAFFLES:
   Wow.
 Raffles turns on his heel.
@@ -95,8 +73,6 @@ BUNNY:
   Wait!
 `);
 
-/** The range of each address a line of main.sd resolves to, once each, as
- *  `[address, location]`. */
 const rangesOf = (program: any, source: string): [number, SourceLocation][] => {
   const root = program.chunks;
   expect(root, "the compile built statement chunks").toBeDefined();
@@ -111,14 +87,11 @@ const rangesOf = (program: any, source: string): [number, SourceLocation][] => {
   return [...out];
 };
 
-/** The addresses whose range holds `line`, by the line-only test an editor's
- *  lookup applies. */
 const claiming = (program: any, source: string, line: number): [number, SourceLocation][] =>
   rangesOf(program, source).filter(
     ([, { startLine, endLine }]) => line >= startLine && line <= endLine,
   );
 
-/** 0-based index of the fixture line containing `needle`. */
 const lineOf = (source: string, needle: string): number => {
   const line = source.split("\n").findIndex((l) => l.includes(needle));
   if (line < 0) {
@@ -127,9 +100,6 @@ const lineOf = (source: string, needle: string): number => {
   return line;
 };
 
-/** Ranges that stop at the start of a later line carrying a statement of its
- *  own — the defect, in general form. A range can still end at a blank
- *  line's column 0, which owns nothing and is nobody's preview point. */
 const overreaching = (program: any, source: string): string[] => {
   const lines = source.split("\n");
   return rangesOf(program, source)
@@ -142,7 +112,6 @@ const overreaching = (program: any, source: string): string[] => {
     .map(([address, location]) => `${address} @ ${JSON.stringify(location)}`);
 };
 
-/** Assert every address claiming each named content line starts on it. */
 function expectLinesOwned(program: any, source: string, needles: string[]) {
   for (const needle of needles) {
     const line = lineOf(source, needle);
@@ -198,7 +167,6 @@ describe("addresses own only their own lines (#490)", () => {
   }
 
   it("a dialogue block still owns the line its spoken text sits on", () => {
-    // The range must not shrink off its own content.
     const program = compile(FLAT);
     expect(claiming(program, FLAT, lineOf(FLAT, "Okay, okay!")).length).toBeGreaterThan(0);
   });
@@ -240,8 +208,6 @@ describe("addresses own only their own lines (#490)", () => {
     ).program;
 
     const coldProgram = compile(after);
-    // An address counts the chunks a compiler has made, so the ranges are
-    // compared without them.
     const ranges = (program: any) => rangesOf(program, after).map(([, location]) => location);
     expect(ranges(incrementalProgram)).toEqual(ranges(coldProgram));
     expect(overreaching(incrementalProgram, after)).toEqual([]);

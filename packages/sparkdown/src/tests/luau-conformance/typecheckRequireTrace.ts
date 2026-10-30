@@ -18,9 +18,6 @@ import {
   type AstStatBlock,
 } from "../../compiler/typecheck/Ast";
 
-// Test-only port of pinned RequireTracer.cpp and Fixture.cpp's file resolver.
-// Both checker call sites query this exact node map: the generator supplies
-// the argument; MagicRequire supplies the full call. No recursive call peeling.
 export function traceFixtureRequires(root: AstStatBlock, current: string) {
   const calls: AstExprCall[] = [];
   const locals = new Map<AstLocal, AstExpr | undefined>();
@@ -108,8 +105,6 @@ export function traceFixtureRequires(root: AstStatBlock, current: string) {
     if (name !== undefined) expressions.set(node, name);
   }
   const dependencies: string[] = [];
-  // Preserve upstream preorder and its unresolved empty-name sentinel. In a
-  // nested require, the inner call acquires its map entry after the outer call.
   for (const call of calls) {
     const name = expressions.get(call.args[0]!);
     if (name !== undefined) dependencies.push(name);
@@ -118,9 +113,6 @@ export function traceFixtureRequires(root: AstStatBlock, current: string) {
   return { expressions, dependencies };
 }
 
-// AST strings contain bytes; moduleSources keys are Unicode JS text. Preserve
-// valid UTF-8 including NUL; reject invalid bytes rather than invent a path.
-// A leading BOM is path text, not an encoding signature (ignoreBOM preserves it).
 function stringPath(bytes: string): string {
   return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(
     Uint8Array.from(bytes, (c) => c.charCodeAt(0)),

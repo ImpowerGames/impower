@@ -1,7 +1,3 @@
-// A diagnostic reported on an indented statement starts at the statement's
-// first character, not at column 0 under its indentation, and stays on the
-// statement's line. Diagnostics that carry their own position keep it.
-
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
@@ -15,8 +11,6 @@ const scene = (body: string) =>
 const message = (d: any): string =>
   typeof d?.message === "string" ? d.message : (d?.message?.value ?? "");
 
-// The zero-based range of every diagnostic whose message holds `fragment`, as
-// [line, start character, end character].
 const diagnosticRanges = (source: string, fragment: string) => {
   const uri = "file:///main.sd";
   const compiler = new SparkdownCompiler();

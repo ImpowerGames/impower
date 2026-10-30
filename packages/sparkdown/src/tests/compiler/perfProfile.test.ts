@@ -9,13 +9,9 @@ interface PhaseStat {
   count: number;
 }
 
-// Read all "measure" entries synchronously, aggregate by method label, then
-// clear so the next phase starts fresh. (PerformanceObserver delivers entries
-// asynchronously, which never flushes inside a synchronous test.)
 function collectMeasures(): Map<string, PhaseStat> {
   const stats = new Map<string, PhaseStat>();
   for (const entry of performance.getEntriesByType("measure")) {
-    // name format: `${profilerId} ${method} ${uri}` — keep the method label.
     const parts = entry.name.split(" ");
     const method = parts[1] ?? entry.name;
     const stat = stats.get(method) ?? { total: 0, count: 0 };
@@ -41,24 +37,19 @@ function report(label: string, stats: Map<string, PhaseStat>) {
 }
 
 describe("compiler perf profile", () => {
-  // `profile()` clears each mark/measure pair as soon as it measures, so a
-  // long-lived worker doesn't retain them forever. This report aggregates
-  // measures retrospectively and is the one caller that needs them kept.
   beforeAll(() => setRetainProfilerEntries(true));
   afterAll(() => setRetainProfilerEntries(false));
 
   it("profiles cold compile + per-edit recompile", () => {
     const PROFILER_ID = "perf";
     const uri = "inmemory:///main.sd";
-    const sceneCount = 280; // ~150KB, ~8800 lines
+    const sceneCount = 280;
     const source = generatePerfScreenplay(sceneCount);
     const lineCount = source.split("\n").length;
     console.log(
       `\nFixture: ${lineCount} lines, ${(source.length / 1024).toFixed(1)}KB`,
     );
 
-    // Silence the compiler's verbose diagnostic logging (console.warn/error)
-    // so the profile report is readable. Keep console.log for our output.
     const realWarn = console.warn;
     const realError = console.error;
     console.warn = () => {};
@@ -71,7 +62,6 @@ describe("compiler perf profile", () => {
     const compiler = new SparkdownCompiler();
     compiler.profilerId = PROFILER_ID;
 
-    // ---- Configure (registers + full-parses the doc) ----
     {
       performance.clearMeasures();
       performance.clearMarks();
@@ -94,7 +84,6 @@ describe("compiler perf profile", () => {
       report("CONFIGURE (full parse + annotate)", collectMeasures());
     }
 
-    // ---- Cold compile ----
     {
       const t0 = performance.now();
       compiler.compile({ textDocument: { uri } });
@@ -103,17 +92,11 @@ describe("compiler perf profile", () => {
       report("COLD COMPILE", collectMeasures());
     }
 
-    // ---- Per-edit recompile (the HMR path) ----
-    // Insert one character into the middle of a dialogue line each iteration,
-    // bumping the document version, then recompile — mirrors a keystroke.
-    // Report MIN (robust to background interference on this noisy machine) and
-    // median, with a few warmup iterations discarded.
     const WARMUP = 3;
     const EDITS = 10;
     const editWalls: number[] = [];
     const updateWalls: number[] = [];
     const compileWalls: number[] = [];
-    // Pick a stable insertion offset roughly in the middle of the doc.
     const marker = `This is dialogue line one in scene ${Math.floor(
       sceneCount / 2,
     )}.`;
@@ -121,10 +104,6 @@ describe("compiler perf profile", () => {
     let doc = source;
     for (let e = 0; e < WARMUP + EDITS; e++) {
       version += 1;
-      // Insert immediately AFTER the marker so the marker string itself stays
-      // intact across iterations (inserting inside it would break indexOf on the
-      // next pass and silently relocate the edit to the top of the document,
-      // which would invalidate the const guard and stop exercising flow reuse).
       const markerIndex = doc.indexOf(marker);
       if (markerIndex < 0) {
         throw new Error("perf marker not found — edit relocated unexpectedly");

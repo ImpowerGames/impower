@@ -1,25 +1,4 @@
 #!/usr/bin/env node
-// The false-positive corpus run for the Luau lints: compiles a fixed corpus
-// and prints every lint it reports as `file:line:column Code message`, one
-// per line in a stable order, with a count per corpus on stderr. Every lint
-// change reads the findings for false ones, and diffs the output against a
-// run on the base commit to see exactly what the change added or removed.
-//
-// The corpus:
-//   - every tracked `.sd` file in the repository, each compiled on its own;
-//   - Luau's vendored conformance files, each wrapped in
-//     `function run() ... end` (sparkdown is Luau only inside a function),
-//     with line numbers still those of the `.luau` file;
-//   - with `--project <dir>`, every `.sd` file of a sparkdown project such as
-//     R&B, compiled as one program from its `main.sd`.
-//
-// From the repository root:
-//
-//   node packages/sparkdown/scripts/lintCorpus.mjs [--project <dir>] > findings.txt
-//
-// The compiler is TypeScript that imports grammar JSON, so this bundles
-// `lintCorpus.ts` into a temporary directory the way the benchmarks under
-// `scripts/bench` are bundled, and runs the bundle.
 
 import { mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";

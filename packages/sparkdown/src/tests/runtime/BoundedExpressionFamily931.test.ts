@@ -6,8 +6,6 @@ import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { parseOfficialTree } from "../compiler/officialAstTestUtils";
 
-// Independent grammar inventory: do not use the compiler's alias whitelist
-// to decide which rules the source grammar must bound.
 const repository = GRAMMAR.repository as Record<string, Record<string, unknown>>;
 const pairs = Object.keys(repository).flatMap(name => {
   const original =
@@ -32,11 +30,6 @@ function captureScopes(value: unknown): unknown {
 
 describe("closed narrative expression family", () => {
   test("all recursive counterparts keep scopes and never escape to an ordinary expression child", () => {
-    // A story statement's brackets are the Luau ones, which carry it on to
-    // their closer or the next header (#1907), so they have no counterpart.
-    // The type function parameters' named-parameter twin went with them.
-    // The comments after a type operator have a twin (I-1321), and so do
-    // an alternator's head and arms (I-1310).
     expect(pairs).toHaveLength(74);
     const originals = new Set(pairs.map(([original]) => original));
     for (const [original, twin] of pairs) {
@@ -45,8 +38,6 @@ describe("closed narrative expression family", () => {
       expect(includes(repository[twin]).filter(name => ["Newline", "LuauReturnLineBreak", "LuauCommaLineBreak"].includes(name))).toEqual([]);
       if (repository[twin]!["begin"]) expect(String(repository[twin]!["end"])).toContain("$");
     }
-    // Only actual opaque roots and genuine structured/function contexts may
-    // stop the closure walk. Helpers named AfterComment are ordinary code.
     const barriers = new Set([
       "LuauComment", "LuauLineComment", "LuauDocLineComment", "LuauBlockComment",
       "LuauTypeTrailingBlockComment", "LuauValueTrailingBlockComment",
@@ -55,7 +46,6 @@ describe("closed narrative expression family", () => {
       "LuauMultilineString", "LuauInterpolatedString", "LuauRegexLiteral",
       "LuauFunctionBody", "LuauFunctionDefinition", "LuauFunctionTypeDeclaration",
       "LuauStyle", "LuauLayout", "LuauScreen", "LuauComponent", "LuauAnimation", "LuauTheme", "LuauMorph", "LuauDefine",
-      // The brackets, the one place a story statement goes on past its line (#1907).
       "LuauParenthetical", "LuauTable", "LuauPropertyIndexer", "LuauFunctionCallParameters",
       "LuauTypeTableStruct", "LuauTypeFunctionParameters", "LuauTypeofFunctionParameters", "LuauAttributeList",
     ]);
@@ -72,10 +62,6 @@ describe("closed narrative expression family", () => {
     visit("LuauSparkdownExplicitReassignment");
     for (const [, twin] of pairs) visit(twin);
   });
-  // A bracket left open is the one thing that carries a story statement on
-  // past its line (#1907): the next lines are the bracket's, up to its
-  // closer or the next header, which stays a header, and the story after
-  // the header is story again.
   test.each([
     "& local value = math.abs(", "& local value = (5", "& local value = {5",
     "& local value = math[1", "& do x = f(", "& do x = t[", "& do x = {", "& do x = if f(",
@@ -113,9 +99,6 @@ describe("closed narrative expression family", () => {
     }
     expect((await compareEnginesFull(source)).divergences).toEqual([]);
   });
-  // The open `(` reads the next line (#1907), so Luau's reading stops at
-  // that line's first token, or at the island's end where a closer or the
-  // end of the file follows.
   test.each(["file", "scene", "branch"])("missing marked-call value is published where the reading stops at %s boundary", scope => {
     for (const [tail, got] of [["", "<eof>"], ["return to the village\n", "'return'"], ["& math.abs(5)\n", "'&'"]] as const) {
       const prefix = scope === "file" ? "" : scope === "scene" ? "scene a\n" : "scene a\nbranch b\n";

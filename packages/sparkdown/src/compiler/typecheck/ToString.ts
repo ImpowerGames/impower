@@ -38,29 +38,19 @@ export interface ToStringNameMap {
 }
 
 export interface ToStringOptions {
-  /** Produce complete output rather than comprehensible output. */
   exhaustive?: boolean;
-  /** Put long results, such as table entries, on lines of their own. */
   useLineBreaks?: boolean;
-  /** Print function argument names where they are known. */
   functionTypeArguments?: boolean;
-  /** Print every table with plain braces. */
   hideTableKind?: boolean;
-  /** Leave out the type parameters of a named function at the top level. */
   hideNamedFunctionTypeParameters?: boolean;
-  /** Leave out `self: X` from a method's signature. */
   hideFunctionSelfArgument?: boolean;
-  /** Print table aliases by name even in exhaustive output. */
   hideTableAliasExpansions?: boolean;
-  /** Write optional types with a postfix `?` rather than as unions with nil. Defaults to true. */
   useQuestionMarks?: boolean;
-  /** Ignore synthetic names on table types. */
   ignoreSyntheticName?: boolean;
   maxTableLength?: number;
   maxTypeLength?: number;
   compositeTypesSingleLineLimit?: number;
   nameMap?: ToStringNameMap;
-  /** When present, qualifies names with their module and marks types not visible in the scope as invalid. */
   scope?: Scope;
   namedFunctionOverrideArgNames?: string[];
 }
@@ -83,8 +73,6 @@ interface ResolvedOptions {
   namedFunctionOverrideArgNames: string[];
 }
 
-// Luau's defaults for `LuauTypeMaximumStringifierLength` and
-// `LuauTableTypeMaximumStringifierLength`.
 const DEFAULT_MAX_TYPE_LENGTH = 500;
 const DEFAULT_MAX_TABLE_LENGTH = 0;
 
@@ -116,20 +104,10 @@ export interface ToStringResult {
   truncated: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// Strings
-// ---------------------------------------------------------------------------
-
-/** Luau's `isIdentifier`: every character is a letter, digit or underscore. */
 export function isIdentifier(s: string): boolean {
   return /^[A-Za-z0-9_]*$/.test(s);
 }
 
-/**
- * Luau's `escape`, over a string whose characters are bytes: control
- * characters, quotes, backslashes, backticks and braces are escaped, the
- * common ones by letter and the rest as three decimal digits.
- */
 export function escape(s: string, escapeForInterpString = false): string {
   let r = "";
   for (let i = 0; i < s.length; i++) {
@@ -206,10 +184,6 @@ export function toHumanReadableIndex(number: number): string {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Cycles
-// ---------------------------------------------------------------------------
-
 class FindCyclicTypes extends TypeVisitor {
   readonly visited = new Set<TypeId>();
   readonly visitedPacks = new Set<TypePackId>();
@@ -269,10 +243,6 @@ class FindCyclicTypes extends TypeVisitor {
 function bySerial<T extends { serial: number }>(a: T, b: T): number {
   return a.serial - b.serial;
 }
-
-// ---------------------------------------------------------------------------
-// The stringifier
-// ---------------------------------------------------------------------------
 
 function canUseTypeNameInScope(scope: Scope | undefined, name: string): { success: boolean; moduleName?: string } {
   for (let curr = scope; curr; curr = curr.parent) {
@@ -684,7 +654,6 @@ class TypeStringifier {
         closedbrace = "+}";
         break;
     }
-    // An array prints as {T}.
     if (ttv.indexer && ttv.props.size === 0 && isNumber(ttv.indexer.indexType)) {
       state.emit("{");
       if (ttv.indexer.isReadOnly) state.emit("read ");
@@ -961,7 +930,6 @@ function assignCycleNames(cycles: TypeId[], cycleTPs: TypePackId[], state: Strin
   for (const cycleTy of cycles) {
     const ttv = get(follow(cycleTy), "TableType");
     if (!exhaustive && ttv && (ttv.syntheticName !== undefined || ttv.name !== undefined)) {
-      // A named table whose type parameters are cyclic is named after itself.
       if (ttv.instantiatedTypeParams.some((el) => cycleSet.has(follow(el)))) {
         state.cycleNames.set(cycleTy, ttv.name ?? ttv.syntheticName!);
       }
@@ -1110,7 +1078,6 @@ export function toStringTypeOrPack(x: TypeId | TypePackId, options: ToStringOpti
   return isTypeId(x) ? toString(x, options) : toStringPack(x, options);
 }
 
-/** A named function's signature, as `name(arg: T): R`. */
 export function toStringNamedFunction(funcName: string, ftv: FunctionType, options: ToStringOptions = {}): string {
   const opts = resolveOptions(options);
   const result: ToStringResult = { name: "", invalid: false, error: false, cycle: false, truncated: false };

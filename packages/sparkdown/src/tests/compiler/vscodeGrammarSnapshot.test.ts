@@ -4,18 +4,6 @@ import { fileURLToPath } from "url";
 import { describe, expect, test } from "vitest";
 import { formatTokens, tokenize } from "./vscodeGrammarSnapshot";
 
-// VSCode uses vscode-textmate + vscode-oniguruma. The textmate-grammar-tree
-// library used by `grammarSnapshot.test.ts` is a re-implementation of TextMate
-// in TypeScript — close but not identical. Some grammar bugs only surface
-// under the real engine (see the bug where `LuauTypeLiteral`'s `end` pattern
-// didn't stop before `)`, leaving `LuauFunctionParameters` open across every
-// subsequent line).
-//
-// This test reuses the same `.sd` source fixtures as the tree-based snapshot
-// test and produces a parallel `<name>.vsc.snap` containing the token/scope
-// stream the actual TextMate engine emits. The two snapshots together cover
-// both "is the structural tree right?" and "will VSCode highlight it right?".
-
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SNAPSHOTS_DIR = join(__dirname, "__snapshots__/grammar");
 

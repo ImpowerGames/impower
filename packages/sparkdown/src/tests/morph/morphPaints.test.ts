@@ -23,7 +23,6 @@ const elements = (svg: string): Element[] => {
   return out;
 };
 
-/** The fill each shown drawing of `name` paints with at `offset`: its last inline declaration, else its attribute. */
 const fills = (artifact: MorphArtifact, offset: number, name = "eyelash-left"): string[] =>
   elements(renderMorphAt(artifact, offset))
     .filter((e) => e.attributes["data-name"] === name && e.attributes["data-morph"] && !/display:none/.test(e.attributes["style"] ?? ""))
@@ -63,8 +62,6 @@ const bake = (variant: Variant, paints: Record<string, unknown>[] = [ENTRY]) =>
     uri: "file:///masked.svg",
   });
 
-// `steps(3)` over the play: the open pose, the closed pose and the halfway
-// reopening frame.
 const steps = parseMorphEasing("steps(3)")!;
 const [OPEN, CLOSED, HALFWAY] = [0, 0.4, 0.7].map(steps) as [number, number, number];
 
@@ -94,12 +91,9 @@ describe("`paints` recolours a pose's drawings where its condition holds", () =>
 
   test("both tracks of the converging pair take the colour over the last `span` of the closing", () => {
     const artifact = bake("masked");
-    // 80% through the closing is halfway through its last 40%.
     const mixed = fills(artifact, 0.8 / 3);
     expect(mixed).toEqual(["rgba(109,109,109,1)", "rgba(109,109,109,1)"]);
-    // Before the window the tracks keep the lash's own colour.
     expect(fills(artifact, 0.5 / 3)).toEqual(["#111", "#111"]);
-    // The reopening mirrors it: 20% of the way out is halfway back.
     expect(fills(artifact, 1 / 3 + 0.2 * (2 / 3))).toEqual(["rgba(109,109,109,1)", "rgba(109,109,109,1)"]);
   });
 
@@ -149,7 +143,6 @@ describe("`paints` recolours a pose's drawings where its condition holds", () =>
   });
 
   test("a target drawing no driven group switches takes the colour at the pose and over the span", () => {
-    // An always-shown drawing labelled `shared`, drawn above the eyes.
     const source = maskedPortrait().replace("</svg>", '<path data-name="shared" d="M0,0H10V10H0Z" fill="#111"/>\n</svg>');
     const shared = (paints: Record<string, unknown>[]) =>
       bakeMorphArtifact({ source, selection: { ...MASKED_VARIANTS.masked }, recipe: maskedBlink(paints), key: "shared", variant: "masked" });
@@ -157,10 +150,8 @@ describe("`paints` recolours a pose's drawings where its condition holds", () =>
     expect(artifact.status).toBe("live");
     expect(artifact.diagnostics).toEqual([]);
     expect(fills(artifact, CLOSED, "shared")).toEqual(["rgba(255,0,0,1)"]);
-    // Halfway through the last 40% of the closing: the sRGB midpoint of #111 and red.
     expect(fills(artifact, 0.8 / 3, "shared")).toEqual(["rgba(136,8,8,1)"]);
     for (const offset of [OPEN, 0.5 / 3, HALFWAY, 1]) expect(fills(artifact, offset, "shared"), String(offset)).toEqual(["#111"]);
-    // Live so a frame can recolour it; the rest render is the same.
     expect(artifact.rest).toBe(shared([]).rest);
   });
 

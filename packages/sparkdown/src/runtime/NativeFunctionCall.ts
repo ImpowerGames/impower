@@ -32,9 +32,6 @@ import { throwNullException } from "./NullException";
 
 type BinaryOp<T> = (left: T, right: T) => any;
 
-// Ops that trigger Lua's numeric-string coercion (`1 + "2"` → 3).
-// Comparison / logical ops are NOT included — Lua does not coerce
-// strings for `<` / `==` etc.
 const ARITHMETIC_OP_NAMES: ReadonlySet<string> = new Set([
   "+",
   "-",
@@ -43,11 +40,9 @@ const ARITHMETIC_OP_NAMES: ReadonlySet<string> = new Set([
   "%",
   "POW",
   "//",
-  "_", // unary negate — `-" 10 "` is -10
+  "_",
 ]);
 
-// Luau's name for each arithmetic op in its error message: the op's
-// metamethod without the `__` (`luaG_aritherror`).
 const LUAU_ARITH_NAMES: Readonly<Record<string, string>> = {
   "+": "add",
   "-": "sub",
@@ -66,16 +61,11 @@ const COMPARISON_OP_NAMES: ReadonlySet<string> = new Set([
   ">=",
 ]);
 
-// The operand types arithmetic takes once the metamethods have had their
-// turn (`tryBinaryMetamethod`): a string is converted by tonumber's rules
-// below, and anything else raises.
 const ARITHMETIC_OPERAND_TYPES: ReadonlySet<string> = new Set([
   "number",
   "string",
 ]);
 
-// Luau's error for arithmetic `op` on `operands`, named by their types:
-// one type when they share it, else both (`luaG_aritherror`).
 function luauArithError(op: string, operands: InkObject[]): StoryException {
   const t1 = luauTypeOf(operands[0]);
   const t2 = operands.length > 1 ? luauTypeOf(operands[1]) : t1;
@@ -87,9 +77,6 @@ function luauArithError(op: string, operands: InkObject[]): StoryException {
   );
 }
 
-// Luau's error for comparing `a` with `b` (`luaG_ordererror`). Luau runs
-// `a > b` as `b < a` and `a >= b` as `b <= a`, and names the operands in
-// that order.
 function luauOrderError(op: string, a: InkObject, b: InkObject): StoryException {
   const swapped = op === ">" || op === ">=";
   const [l, r] = swapped ? [b, a] : [a, b];
@@ -99,9 +86,6 @@ function luauOrderError(op: string, a: InkObject, b: InkObject): StoryException 
   );
 }
 
-// Raises Luau's error when arithmetic or a comparison has operands it
-// cannot take. Arithmetic takes numbers and strings; a comparison takes
-// two numbers or two strings, never a mix and never two booleans.
 function luauOperandCheck(op: string, operands: InkObject[]): void {
   if (ARITHMETIC_OP_NAMES.has(op)) {
     if (!operands.every((p) => ARITHMETIC_OPERAND_TYPES.has(luauTypeOf(p)))) {
@@ -132,33 +116,10 @@ export class NativeFunctionCall extends InkObject {
   public static readonly GreaterThanOrEquals: string = ">=";
   public static readonly LessThanOrEquals: string = "<=";
   public static readonly NotEquals: string = "!=";
-  // Logical operators — named after the source keywords (`not` /
-  // `and` / `or`) rather than the ink-style symbols (`!` / `&&` /
-  // `||`), since sparkdown's grammar only exposes the keyword form.
-  // Removing the layer of aliasing means runtime errors mention the
-  // operator the user actually wrote. Ink's membership operators
-  // (`?` / `!?`, also briefly exposed in sparkdown as `has` / `hasnt`)
-  // are intentionally absent — membership checks go through the
-  // method-call dispatch path (`list:find(item)`, `set:contains(sub)`)
-  // instead. See docs/runtime/DIVERGENCES.md.
   public static readonly Not: string = "not";
   public static readonly And: string = "and";
   public static readonly Or: string = "or";
-  // Lua-truthiness normalize op. Pops one value and pushes
-  // `BoolValue(isLuauTruthy(v))`. The compiler wraps Luau `if` /
-  // `elseif` / `while` condition expressions in this op so the
-  // conditional-divert test (`Story.IsTruthy`, which keeps ink
-  // semantics for narrative constructs) only ever sees a real
-  // boolean for Luau control flow — `if 0 then` / `if "" then` /
-  // `if {} then` are all truthy per Lua, where ink would treat
-  // them as falsy.
   public static readonly LuauTruthy: string = "TRUTHY";
-  // Lua `..` string concatenation — a first-class op (formerly
-  // aliased to `+`, which silently ADDED numeric operands: `1 .. 2`
-  // produced 3 instead of "12"). Numbers stringify via
-  // `luauNumberToString`; nil / boolean / table operands raise Lua's
-  // "attempt to concatenate <type> with <type>" error, which pcall
-  // fixtures pattern-match (basic.luau line 123).
   public static readonly Concat: string = "..";
   public static readonly Min: string = "MIN";
   public static readonly Max: string = "MAX";
@@ -167,24 +128,8 @@ export class NativeFunctionCall extends InkObject {
   public static readonly Ceiling: string = "CEILING";
   public static readonly Int: string = "INT";
   public static readonly Float: string = "FLOAT";
-  // Sparkdown removed `has`/`hasnt` (and the ink-symbol `?`/`!?` aliases)
-  // when builtin method dispatch landed. Containment is now expressed via
-  // `s:find(sub)` (truthy when found) and `t:find(value)` (1-based
-  // position or `nil`). Set intersection — which ink wrote as `^` and
-  // sparkdown formerly inherited — was likewise replaced by the
-  // `t:intersection(other)` method. The `^` symbol is now Luau
-  // exponentiation (aliased to `POW` in `BinaryExpression.NativeNameForOp`).
-  // See docs/runtime/METHODS.md for the full method set.
-  // Luau `#x` length operator. Works on strings (chars) and objects (entry
-  // count). The runtime dispatches to the registered unary op
-  // matching the operand's value type.
   public static readonly Length: string = "LEN";
 
-  // Build a call-site instance pointing at the prototype registered for
-  // `functionName`. For variadic prototypes (currently the `__method_*`
-  // family), the caller passes `actualArity` so the runtime knows how
-  // many parameters to pop off the eval stack. For fixed-arity natives
-  // the actualArity argument is ignored — the prototype's arity wins.
   public static CallWithName(functionName: string, actualArity?: number) {
     const call = new NativeFunctionCall(functionName);
     if (actualArity !== undefined) {
@@ -218,11 +163,6 @@ export class NativeFunctionCall extends InkObject {
   get numberOfParameters() {
     if (this._prototype) {
       const prototypeArity = this._prototype.numberOfParameters;
-      // Variadic prototypes (currently the `__method_*` family): the
-      // actual arg count for this call site is stored on the instance
-      // (`CallWithName` sets it when it constructs the call). Falling
-      // back to the prototype's `-1` would make `PopEvaluationStack`
-      // pop nothing, so call-site arity is required here.
       if (prototypeArity === VARIADIC_ARITY) {
         return this._numberOfParameters;
       }
@@ -232,10 +172,6 @@ export class NativeFunctionCall extends InkObject {
     }
   }
 
-  // Whether this native (call-site or prototype) is variadic. Variadic
-  // natives validate arity at runtime inside the method impl rather
-  // than at compile time, so the call's compile-time arity check
-  // (`FunctionCall.CheckNativeArity`) skips them when this returns true.
   get isVariadic(): boolean {
     const arity = this._prototype
       ? this._prototype._numberOfParameters
@@ -252,24 +188,10 @@ export class NativeFunctionCall extends InkObject {
       return this._prototype.Call(parameters);
     }
 
-    // Builtin method dispatch (`obj:method(args)`). The lowerer emits
-    // `__method_<name>` function names; we route those through
-    // `callBuiltinMethod` for receiver-type-aware dispatch, bypassing
-    // the operator-style numeric/string coercion path below. Each
-    // method impl handles its own arity check, so we never consult
-    // `this.numberOfParameters` (which is `VARIADIC_ARITY` for these).
     if (this._name !== null && this._name.startsWith(METHOD_PREFIX)) {
       return callBuiltinMethod(this._name, parameters);
     }
 
-    // The call-site instance forwarded to its prototype via the
-    // `if (this._prototype) return this._prototype.Call(parameters)`
-    // guard above; by here `this` is the prototype itself. For
-    // variadic prototypes (`_numberOfParameters === VARIADIC_ARITY`),
-    // skip the arity check — the caller already popped the correct
-    // number of params using the call-site instance's overridden
-    // arity. The prototype just dispatches the type-coerced op,
-    // which handles any number of args via the variadic JS spread.
     if (
       this._numberOfParameters !== VARIADIC_ARITY &&
       this.numberOfParameters != parameters.length
@@ -277,15 +199,6 @@ export class NativeFunctionCall extends InkObject {
       throw new Error("Unexpected number of parameters");
     }
 
-    // Lua call-site spread for VARIADIC natives
-    // (`math.max(unpack(t))` — vararg.luau line 80): the
-    // syntactically LAST argument's multi-return spreads into
-    // individual parameters. Earlier MultiValues still truncate to
-    // their first value (the per-arg loops below). Must run before
-    // the pure-number coercion, which would otherwise truncate the
-    // pack to one value. A last call that returned nothing (`Void`)
-    // gives no arguments (`math.max(2, g0())` is 2); a `Void` before
-    // it stays and reads as a missing argument below.
     if (this._numberOfParameters === VARIADIC_ARITY && parameters.length > 0) {
       const last = parameters[parameters.length - 1];
       if (last instanceof MultiValue) {
@@ -295,18 +208,6 @@ export class NativeFunctionCall extends InkObject {
       }
     }
 
-    // Lua argument semantics for PURE number stdlib ops (`math.abs`,
-    // `math.floor`, ...): numeric strings coerce to numbers
-    // (`math.abs('-5')` is 5); a missing argument — the `Void`
-    // sentinel padded in for
-    // under-applied call sites, or an empty multi-return — raises
-    // "missing argument #N to 'abs'"; nil / tables / non-numeric
-    // strings raise "invalid argument #N to 'abs'". Both are Lua's
-    // message shapes (basic.luau pattern-matches them through pcall)
-    // and both are StoryExceptions so pcall traps them. Uses the
-    // SHORT name (`abs`, not `math.abs`) like Lua. Runs BEFORE the
-    // generic Void→nil coercion below, which would otherwise make a
-    // missing argument indistinguishable from an explicit nil.
     if (isPureNumberStdLibOp(this.name)) {
       const shortName = this.name.includes(".")
         ? this.name.slice(this.name.lastIndexOf(".") + 1)
@@ -325,8 +226,6 @@ export class NativeFunctionCall extends InkObject {
       for (let i = 0; i < parameters.length; i++) {
         let p = parameters[i];
         if (p instanceof MultiValue) {
-          // Single-value context truncation; an empty pack is a
-          // missing argument (Lua adjusts it to zero values).
           if (p.values.length === 0) {
             throw new StoryException(
               `missing argument #${i + 1} to '${shortName}'`,
@@ -360,38 +259,15 @@ export class NativeFunctionCall extends InkObject {
     for (let i = 0; i < parameters.length; i++) {
       const p = parameters[i];
       if (p instanceof Void) {
-        // Luau-superset semantics: a function with no return values
-        // produces `nil` in single-value contexts. The runtime
-        // pushes a `Void` sentinel at `Return` time so multi-
-        // return / `select('#', ...)` callers can distinguish
-        // "returned no values" from "returned nil"; for ordinary
-        // single-value consumers (binary ops, comparisons) we
-        // coerce Void to `nil` here so `(function() end)() == nil`
-        // evaluates to true instead of erroring.
         parameters[i] = new NullValue();
         continue;
       }
-      // Lua single-value context: a multi-return operand truncates to
-      // its FIRST value; an EMPTY pack (a variadic function returning
-      // zero values — `function foo(...) return ... end; foo() == nil`)
-      // is nil. basic.luau line 355.
       if (p instanceof MultiValue) {
         parameters[i] = p.values[0] ?? new NullValue();
         continue;
       }
     }
 
-    // Luau short-circuit semantics for `and`/`or`. Unlike the other native
-    // functions, these return one of the operands rather than a coerced
-    // result, so we bypass `CoerceValuesToSingleType` entirely:
-    //   `a and b` → `a` if `a` is falsy, else `b`
-    //   `a or b`  → `a` if `a` is truthy, else `b`
-    // This lets idioms like `cond and "yes" or "no"` work across mixed
-    // operand types, matching the keyword-based source syntax users write.
-    // The predicate is LUA truthiness (only nil/false falsy) — `0 and x`
-    // returns x, `"" or y` returns "", `{} or y` returns the table —
-    // NOT ink's `isTruthy` (which treats 0 / "" / empty containers as
-    // falsy). basic.luau lines 132-140.
     if (
       parameters.length === 2 &&
       (this.name === NativeFunctionCall.And ||
@@ -405,13 +281,6 @@ export class NativeFunctionCall extends InkObject {
       return pickA ? a! : b!;
     }
 
-    // Luau `not` — always returns a genuine boolean, with Lua
-    // truthiness: `not 0` is false, `not ""` is false, `not nil` is
-    // true, `not {}` is false. Handled here (before the nil-operand
-    // guard and type coercion) because the legacy numeric unary ops
-    // returned ink-truthiness Ints, crashed on tables ("Cannot perform
-    // operation not on Object"), and silently returned null for nil
-    // operands. basic.luau lines 149-151.
     if (
       parameters.length === 1 &&
       this.name === NativeFunctionCall.Not
@@ -419,7 +288,6 @@ export class NativeFunctionCall extends InkObject {
       return new BoolValue(!isLuauTruthy(parameters[0]));
     }
 
-    // Lua-truthiness normalize op (see the `LuauTruthy` declaration).
     if (
       parameters.length === 1 &&
       this.name === NativeFunctionCall.LuauTruthy
@@ -427,11 +295,6 @@ export class NativeFunctionCall extends InkObject {
       return new BoolValue(isLuauTruthy(parameters[0]));
     }
 
-    // Lua `..` concatenation (see the `Concat` declaration). Strings
-    // pass through; numbers stringify Lua-style (nan / inf / -0
-    // formatting included); anything else — nil, booleans, tables,
-    // functions — raises Lua's concat error naming both operand
-    // types, e.g. "attempt to concatenate nil with string".
     if (
       parameters.length === 2 &&
       this.name === NativeFunctionCall.Concat
@@ -453,15 +316,6 @@ export class NativeFunctionCall extends InkObject {
       return new StringValue(l + r);
     }
 
-    // First-class `nil` semantics (matches Luau):
-    //   - `nil == nil` is true; `nil == anything-else` is false.
-    //   - `nil != X` is the inverse.
-    //   - Any other op with a `nil` operand is an error (matches
-    //     "attempt to perform arithmetic on a nil value" in Luau).
-    // Handled here BEFORE `CoerceValuesToSingleType` because the
-    // coercion would try to cast across types via `Cast(ValueType.Null)`
-    // and crash — and we want a clean semantic answer for the
-    // equality case regardless of types.
     if (parameters.length === 2) {
       const aIsNull = parameters[0] instanceof NullValue;
       const bIsNull = parameters[1] instanceof NullValue;
@@ -479,11 +333,6 @@ export class NativeFunctionCall extends InkObject {
       }
     }
 
-    // A single nil operand is an error too: without this guard it falls
-    // through coercion with no matching type and `Call` returns null,
-    // which the engine pushes and a later line dereferences. `not` is
-    // handled above, so nil is valid there. Luau's messages for `#` and
-    // unary minus; any other one-operand op keeps the binary wording.
     if (parameters.length === 1 && parameters[0] instanceof NullValue) {
       if (this.name === NativeFunctionCall.Length) {
         throw luauRuntimeError("attempt to get length of a nil value");
@@ -498,8 +347,6 @@ export class NativeFunctionCall extends InkObject {
       );
     }
 
-    // `#` takes a string or a table; any other operand (a number, a
-    // boolean, a function, a userdata) raises Luau's type error.
     if (parameters.length === 1 && this.name === NativeFunctionCall.Length) {
       const type = luauTypeOf(parameters[0]);
       if (type !== "string" && type !== "table") {
@@ -507,10 +354,6 @@ export class NativeFunctionCall extends InkObject {
       }
     }
 
-    // Luau equality never converts: values of different types are not
-    // equal, and comparing them never raises (`1 == "1"` is false,
-    // `{} ~= "x"` is true). Same-type operands fall through to the
-    // typed comparison below.
     if (
       parameters.length === 2 &&
       (this.name === NativeFunctionCall.Equal ||
@@ -520,15 +363,6 @@ export class NativeFunctionCall extends InkObject {
       return new BoolValue(this.name === NativeFunctionCall.NotEquals);
     }
 
-    // (set defined at module scope below the class — see
-    // ARITHMETIC_OP_NAMES)
-    // Lua arithmetic string coercion: numeric-string operands of the
-    // ARITHMETIC ops convert via tonumber rules — `"2" + " 3e0 " == 5`,
-    // `-" 10  " == -10` (math.luau lines 5-10; whitespace-padded
-    // strings included). `..`/comparisons/equality keep their own
-    // string semantics, so only the arithmetic op names coerce.
-    // An operand the op cannot take (a boolean, a table, a function, or a
-    // number compared with a string) raises Luau's error first.
     luauOperandCheck(this.name, parameters);
     if (ARITHMETIC_OP_NAMES.has(this.name)) {
       const operands = [...parameters];
@@ -545,12 +379,6 @@ export class NativeFunctionCall extends InkObject {
       }
     }
 
-    // Zero-args case for variadic ops (e.g. `bit32.band()`,
-    // `math.max()` — though the latter errors at runtime). We can't
-    // coerce nothing, so dispatch the registered Int variadic op
-    // directly with an empty args list and let the impl decide.
-    // bit32 ops return the identity element (`band()` → 0xffffffff,
-    // `bor() / bxor()` → 0); math.max / math.min raise.
     if (parameters.length === 0) {
       if (this._operationFuncs === null)
         return throwNullException("NativeFunctionCall._operationFuncs");
@@ -604,12 +432,6 @@ export class NativeFunctionCall extends InkObject {
       }
 
       if (paramCount >= 3) {
-        // N-ary (arity >= 3) — extract all values and spread into the
-        // registered op. The op signature is `(...args: T[]) => any`,
-        // which subsumes the unary and binary cases below: calling
-        // `op(a)` is the same as `op(...[a])`, and the registered fn
-        // sees a fixed arity matching `numberOfParameters` (enforced
-        // upstream in `Call()`).
         const values = parametersOfSingleType.map((p) => {
           const v = (p as Value<T>).value;
           if (v === null)
@@ -642,19 +464,6 @@ export class NativeFunctionCall extends InkObject {
           return throwNullException("NativeFunctionCall.Call UnaryOp value");
         let resultVal = opForType(val1.value);
 
-        // This code is different from upstream. Since JavaScript treats
-        // integers and floats as the same numbers, it's impossible
-        // to force an number to be either an integer or a float.
-        //
-        // It can be useful to force a specific number type
-        // (especially for divisions), so the result of INT() & FLOAT()
-        // is coerced to the the proper value type.
-        //
-        // Note that we also force all other unary operation to
-        // return the same value type when they return a number. A
-        // boolean result stays a boolean: forcing it made
-        // `math.isnan(math.huge)` the float 0, which only compared
-        // equal to false while equality cast across types (I-1413).
         if (this.name === NativeFunctionCall.Int) {
           return Value.Create(resultVal, ValueType.Int);
         } else if (this.name === NativeFunctionCall.Float) {
@@ -724,20 +533,10 @@ export class NativeFunctionCall extends InkObject {
     if (this._nativeFunctions == null) {
       this._nativeFunctions = new Map();
 
-      // Int operations
       this.AddIntBinaryOp(this.Add, (x, y) => x + y);
       this.AddIntBinaryOp(this.Subtract, (x, y) => x - y);
       this.AddIntBinaryOp(this.Multiply, (x, y) => x * y);
-      // Lua `/` is ALWAYS true (float) division — `1 / 2` is 0.5 even
-      // for integer operands (basic.luau line 93). The fractional
-      // result auto-promotes to FloatValue via `Value.Create`'s
-      // preferred-type fallthrough; `1 / 0` promotes to
-      // FloatValue(Infinity), matching Lua's inf. Floor division is
-      // the separate `//` op below.
       this.AddIntBinaryOp(this.Divide, (x, y) => x / y);
-      // Lua `%` is FLOOR-mod (`a - floor(a/b)*b`), not JS's truncated
-      // remainder — they differ for negative operands: `-5 % 3` is 1
-      // in Lua, -2 in JS.
       this.AddIntBinaryOp(this.Mod, (x, y) => x - Math.floor(x / y) * y);
       this.AddIntUnaryOp(this.Negate, (x) => -x);
 
@@ -748,10 +547,6 @@ export class NativeFunctionCall extends InkObject {
       this.AddIntBinaryOp(this.LessThanOrEquals, (x, y) => x <= y);
       this.AddIntBinaryOp(this.NotEquals, (x, y) => x != y);
       this.AddIntUnaryOp(this.Not, (x) => x == 0);
-      // `TRUTHY` and `..` are fully handled by Lua-semantics special
-      // cases in `Call` — these registrations only exist so the names
-      // are known to `CallWithName` / `CallExistsWithName` (JSON
-      // round-trip). The op bodies are unreachable.
       this.AddIntUnaryOp(this.LuauTruthy, (x) => x != 0);
       this.AddIntBinaryOp(this.Concat, (x, y) => `${x}${y}`);
 
@@ -762,21 +557,16 @@ export class NativeFunctionCall extends InkObject {
       this.AddIntBinaryOp(this.Min, (x, y) => Math.min(x, y));
 
       this.AddIntBinaryOp(this.Pow, (x, y) => Math.pow(x, y));
-      // Luau `//` floor division (rounds toward -infinity): `1 // 2`
-      // is 0, `-3 // 2` is -2. Distinct from `/`, which is always
-      // true float division.
       this.AddIntBinaryOp("//", (x, y) => Math.floor(x / y));
       this.AddIntUnaryOp(this.Floor, NativeFunctionCall.Identity);
       this.AddIntUnaryOp(this.Ceiling, NativeFunctionCall.Identity);
       this.AddIntUnaryOp(this.Int, NativeFunctionCall.Identity);
       this.AddIntUnaryOp(this.Float, (x) => x);
 
-      // Float operations
       this.AddFloatBinaryOp(this.Add, (x, y) => x + y);
       this.AddFloatBinaryOp(this.Subtract, (x, y) => x - y);
       this.AddFloatBinaryOp(this.Multiply, (x, y) => x * y);
       this.AddFloatBinaryOp(this.Divide, (x, y) => x / y);
-      // Lua floor-mod (see the Int registration above).
       this.AddFloatBinaryOp(this.Mod, (x, y) => x - Math.floor(x / y) * y);
       this.AddFloatUnaryOp(this.Negate, (x) => -x);
 
@@ -795,30 +585,20 @@ export class NativeFunctionCall extends InkObject {
       this.AddFloatBinaryOp(this.Min, (x, y) => Math.min(x, y));
 
       this.AddFloatBinaryOp(this.Pow, (x, y) => Math.pow(x, y));
-      // Luau `//` floor division on floats: `7.5 // 2 = 3`, `-7.5 // 2 = -4`.
       this.AddFloatBinaryOp("//", (x, y) => Math.floor(x / y));
       this.AddFloatUnaryOp(this.Floor, (x) => Math.floor(x));
       this.AddFloatUnaryOp(this.Ceiling, (x) => Math.ceil(x));
       this.AddFloatUnaryOp(this.Int, (x) => Math.floor(x));
       this.AddFloatUnaryOp(this.Float, NativeFunctionCall.Identity);
 
-      // String operations
-      this.AddStringBinaryOp(this.Add, (x, y) => x + y); // concat
+      this.AddStringBinaryOp(this.Add, (x, y) => x + y);
       this.AddStringBinaryOp(this.Equal, (x, y) => x === y);
       this.AddStringBinaryOp(this.NotEquals, (x, y) => !(x === y));
-      // Lua relational comparison on strings (lexicographic byte
-      // order — JS code-unit comparison matches for the single-byte
-      // strings Luau fixtures exercise, incl. embedded \0 and \200).
       this.AddStringBinaryOp(this.Less, (x, y) => x < y);
       this.AddStringBinaryOp(this.Greater, (x, y) => x > y);
       this.AddStringBinaryOp(this.LessThanOrEquals, (x, y) => x <= y);
       this.AddStringBinaryOp(this.GreaterThanOrEquals, (x, y) => x >= y);
 
-      // Object (table) equality — Lua semantics: reference equality on
-      // the underlying Map. Two ObjectValues with identical content
-      // but distinct map objects are NOT equal. Without these
-      // registrations, `t1 == t2` throws "Cannot perform operation
-      // == on Object" at runtime.
       this.AddOpToNativeFunc(
         this.Equal,
         2,
@@ -831,24 +611,8 @@ export class NativeFunctionCall extends InkObject {
         ValueType.Object,
         (x: Map<string, any>, y: Map<string, any>) => x !== y,
       );
-      // String containment is now via `s:find(sub)` (returns 1-based
-      // position or nil) — no `has`/`hasnt` operator registration.
 
-      // Luau `#` length: number of characters in a string, or entries in an
-      // object.
       this.AddStringUnaryOp(this.Length, (x) => x.length);
-      // Lua `#t` is a BORDER (t[n] ~= nil and t[n+1] == nil), not the
-      // total entry count: `#{1,2}` is 2 but `#{a=1,b=2}` is 0 — and
-      // `#_G` is 0 (its marker key is non-numeric). Luau resolves
-      // ambiguous borders through a per-table boundary cache tied to
-      // the array part's capacity; we model that with a cached
-      // boundary stashed on the underlying Map (seeded by
-      // `table.create`, adjusted here by walking down from the cache
-      // while that slot is empty, then up while the next is filled).
-      // This reproduces the fixture-observable behaviors: deleting
-      // t[10] of a filled create(10) gives 9 (walk down), reverse-
-      // filling 5..2 gives 0 until t[1] lands (walk up from 0), and
-      // create(5,42) keeps #t == 5 after t[1] is cleared (cache).
       this.AddObjectUnaryOp(this.Length, luauTableBorder);
 
       let divertTargetsEqual = (d1: SymbolRef, d2: SymbolRef) => d1.Equals(d2);
@@ -867,20 +631,6 @@ export class NativeFunctionCall extends InkObject {
         divertTargetsNotEqual,
       );
 
-      // Pure Luau stdlib (`math.floor`, `string.contains`, ...). The
-      // unified STDLIB registry holds these as entries with a `pure`
-      // field — either `true` (shorthand for the classic numeric pair
-      // `["Int", "Float"]`) or an explicit operand-type list like
-      // `["String"]`. Adding a new pure entry there auto-registers
-      // it here under every type the entry accepts, so the runtime's
-      // type-dispatcher resolves it regardless of how the caller's
-      // value is typed. The wrapper converts the registry's
-      // `(_, args)` signature into the operator-style calling
-      // convention (`(a)`, `(a, b)`, `(...args)` for n-ary).
-      // Lua's `type()` names → concrete `ValueType` slots to register
-      // under. `"number"` fans out to both `Int` and `Float` so callers
-      // get the same op regardless of how their numeric literal was
-      // typed; `"string"` is a single slot.
       const PURE_TYPE_TO_VALUE_TYPES: Record<string, ValueType[]> = {
         number: [ValueType.Int, ValueType.Float],
         string: [ValueType.String],
@@ -911,14 +661,6 @@ export class NativeFunctionCall extends InkObject {
         }
       }
 
-      // Builtin method dispatch (`obj:method(args)` → `__method_<name>`).
-      // Each entry from `METHOD_DISPATCH` registers as a variadic native:
-      // `numberOfParameters` is set to `VARIADIC_ARITY` so neither the
-      // compiler's call-site arity check
-      // nor `Call`'s runtime check rejects calls. The actual arity and
-      // receiver-type validation happens inside each method impl. See
-      // `MethodDispatch.ts` for the implementations and docs/runtime/METHODS.md for
-      // the design rationale.
       for (const methodName of Object.keys(METHOD_DISPATCH)) {
         const fullName = `${METHOD_PREFIX}${methodName}`;
         const native = new NativeFunctionCall(fullName, VARIADIC_ARITY);
@@ -969,10 +711,6 @@ export class NativeFunctionCall extends InkObject {
     this.AddOpToNativeFunc(name, 1, ValueType.Float, op);
   }
 
-  // N-ary (arity >= 3) numeric op. Used by `math.clamp`, `math.map`,
-  // and any future pure-numeric stdlib entry with more than two
-  // arguments. `CallType` spreads the coerced values into `op(...)`,
-  // so the registered fn receives them in source order.
   public static AddIntNaryOp(
     name: string,
     arity: number,

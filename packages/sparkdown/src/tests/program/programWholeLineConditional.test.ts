@@ -1,6 +1,3 @@
-// A display line that is only an inline conditional shows what the same
-// conditional shows when other text shares the line (#1103): its matching
-// branch, or nothing at all, never the text `nil`.
 import { describe, expect, it } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, storyBeats } from "./programHarness";

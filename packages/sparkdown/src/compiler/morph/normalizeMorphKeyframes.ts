@@ -5,14 +5,6 @@ const readOffset = (keyframe: unknown): number | null => {
     : null;
 };
 
-/**
- * Every keyframe's position from 0 to 1. Authored offsets are kept; the first
- * and last keyframes default to 0 and 1, and the rest are spaced evenly between
- * the authored positions around them. This is the Web Animations rule
- * `animation` keyframes follow, so a list with omitted offsets, the same list
- * with every offset written, and the `from:`/`50%:`/`to:` spelling all
- * normalize to the same poses.
- */
 export function resolveMorphKeyframeOffsets(
   keyframes: readonly unknown[],
 ): number[] {
@@ -38,7 +30,6 @@ export function resolveMorphKeyframeOffsets(
   return resolved as number[];
 }
 
-/** The keyframes with every `offset` filled in by `resolveMorphKeyframeOffsets`. */
 export function normalizeMorphKeyframes(
   keyframes: readonly unknown[],
 ): Record<string, unknown>[] {

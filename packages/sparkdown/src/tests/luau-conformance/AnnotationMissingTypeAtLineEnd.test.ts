@@ -2,14 +2,6 @@ import { describe, expect, test } from "vitest";
 import { diagnoseFilesDetailed } from "./diagnosticTestHarness";
 import { checkLuau, describeDiagnostic, expectLuauSyntax } from "./typecheckTestHarness";
 
-// A type annotation `:` with nothing after it on its line takes its type from
-// the next line, so a next line that starts a statement, closes a block or
-// does not exist leaves the annotation empty. Luau reports that with the
-// token it found instead of a type, for a variable's annotation and a
-// function's return type alike (#1152), from the end of the colon (#1174)
-// to the end of the colon's line, where the type should stand, rather than
-// to the token on a later line that Luau's parser recovers with (#1286).
-
 describe("a type annotation left empty at the end of its line", () => {
   test.each([
     ["local w:\nlocal z = 1\n", "0:8-1:0 SyntaxError: Expected type, got 'local'"],
@@ -29,14 +21,11 @@ describe("a type annotation left empty at the end of its line", () => {
     expectLuauSyntax(source, [message]);
   });
 
-  // Every error a script's compile reports, with its range.
   const errorsIn = (file: string, sources: Record<string, string>) =>
     diagnoseFilesDetailed(sources)
       .filter((d) => d.file === file && d.severity === 1)
       .map(({ range, message }) => `${range!.start.line}:${range!.start.character}-${range!.end.line}:${range!.end.character} ${message}`);
 
-  // A `.luau` file is also validated as it is, where its last line is the
-  // end of the text rather than the `end` of the function `run` wraps it in.
   test.each([
     ["local w:", "0:8-0:8 Expected type, got <eof>"],
     ["local w:\n", "0:8-1:0 Expected type, got <eof>"],
@@ -46,9 +35,6 @@ describe("a type annotation left empty at the end of its line", () => {
     expect(errorsIn("snippet.luau", { "snippet.luau": source })).toEqual([message]);
   });
 
-  // A function whose header ends the file is unclosed too, which in a
-  // `.luau` file Luau's own error alone reports, as every error there
-  // (I-1322).
   test("a return type that ends a .luau file", () => {
     expect(errorsIn("snippet.luau", { "snippet.luau": "function g():\n" })).toEqual([
       "0:13-1:0 Expected type, got <eof>",
@@ -56,9 +42,6 @@ describe("a type annotation left empty at the end of its line", () => {
     ]);
   });
 
-  // The language server hands the parser about 16 KB at a time, ending each
-  // piece at a line end, so the parser cannot look past `local w:` when it
-  // ends the first piece.
   test("an annotation whose next line starts the next piece of the text", () => {
     const filler = "-- filler\n".repeat(1638);
     expect(filler.length).toBe(16380);
@@ -68,9 +51,6 @@ describe("a type annotation left empty at the end of its line", () => {
     ]);
   });
 
-  // The implicit `function` of a method in a `define` block, whose errors
-  // are those Luau reports for the function it stands for, its recovery's
-  // included (I-1368).
   test.each([
     ["  greet():\n    return 1\n  end\n", ["1:10-2:0 Expected type, got 'return'"]],
     ["  greet(): = nil end\n", ["1:10-1:12 Expected type, got '='", "1:11-1:12 Expected identifier when parsing expression, got '='"]],
@@ -97,8 +77,6 @@ describe("a type annotation left empty at the end of its line", () => {
     expect(checkLuau(source).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
   });
 
-  // Only a missing type's range ends with its line; another error that runs
-  // over several lines keeps the range Luau gives it.
   test("an error other than a missing type keeps its range across lines", () => {
     expect(errorsIn("main.sd", { "main.sd": "function f()\n  (1 +\n    2)\nend\n" })).toEqual([
       "1:2-2:6 Incomplete statement: expected assignment or a function call",

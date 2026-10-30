@@ -1,23 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
-// Table + iterator semantics (basic.luau lines 219-328):
-//
-//   - nil entries don't EXIST: constructors drop them (EndObject),
-//     later duplicate fields assigning nil DELETE earlier values,
-//     and `t[k] = nil` removes the key (StoreIndex).
-//   - ipairs stops at the first nil VALUE, not just a missing key.
-//   - `pairs(t)` / `ipairs(t)` return Lua's full iterator triple
-//     `(fn, state, control)`; the builtin-iterator dispatch honors
-//     explicitly-passed (state, control), making manual invocation
-//     work: `local inext = ipairs(t)` then `inext(t, 2)`.
-//   - `for k in next, t do` works: the generic-for lowerer splits the
-//     post-`in` expression list on commas, calls the iterator via
-//     CallValueExpression (carries the call-site arg count so the
-//     VARIADIC stdlib `next` can dispatch as a first-class value).
-//   - Computed bracket keys `{[1+2] = 4}` evaluate at runtime
-//     (readStaticBracketKey only accepts single-literal brackets).
-
 describe("nil entries don't exist", () => {
   test("constructor gaps (basic.luau lines 224-226)", () => {
     const r = runConformanceSource(

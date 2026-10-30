@@ -67,8 +67,6 @@ export function logicScreenplay(scenes = 5): string {
   return L.join("\n");
 }
 
-// Edits the logic fuzz inserts: text inside lines, new lines and blocks,
-// fragments that open or close a block, and a constant.
 export const LOGIC_INSERTS = [
   "x",
   "\n",
@@ -86,7 +84,5 @@ export const LOGIC_INSERTS = [
   "if ",
   "\n  Plain line.\n",
   "-- c",
-  // A constant, which changes how the story interleaves the block
-  // statement's constant and variable with the other declarations.
   "const EXTRA = 1\n",
 ];

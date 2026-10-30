@@ -34,15 +34,10 @@ import {
 import { RecursionLimitError } from "./VisitType";
 
 export const enum Relation {
-  /** No A is a B or vice versa. */
   Disjoint,
-  /** Every A is a B and vice versa. */
   Coincident,
-  /** Some As are Bs and some Bs are As. */
   Intersects,
-  /** Every A is a B. */
   Subset,
-  /** Every B is an A. */
   Superset,
 }
 
@@ -51,7 +46,6 @@ export interface SimplifyResult {
   blockedTypes: Set<TypeId>;
 }
 
-// Luau's `LuauSimplificationComplexityLimit`.
 const SIMPLIFICATION_COMPLEXITY_LIMIT = 8;
 
 function flip(rel: Relation): Relation {
@@ -67,7 +61,6 @@ function isTypeVariable(ty: TypeId): boolean {
 type SeenPairs = Set<string>;
 
 function relateTableToExternType(table: TableType, cls: ExternType, seen: SeenPairs): Relation {
-  // Indexers on either side are not worth reasoning about.
   if (table.indexer || cls.indexer) return Relation.Intersects;
   for (const [name, prop] of table.props) {
     const propInExternType = lookupExternTypeProp(cls, name);
@@ -90,7 +83,6 @@ function relateTableToExternType(table: TableType, cls: ExternType, seen: SeenPa
   return Relation.Superset;
 }
 
-/** How the left table's property relates to the single property on the right. */
 function relateTableToProp(leftTable: TableType, propName: string, rightProp: Property, seen: SeenPairs): Relation {
   const leftProp = leftTable.props.get(propName);
   if (!leftProp) return Relation.Intersects;
@@ -104,7 +96,6 @@ function relateTableToProp(leftTable: TableType, propName: string, rightProp: Pr
         return Relation.Intersects;
     }
   }
-  // Only `{ x: T } & { read x: U }` and `{ read x: T } & { read x: U }` relate by T and U.
   if (!leftProp.readTy || !rightProp.isReadOnly()) return Relation.Intersects;
   switch (relateSeen(leftProp.readTy, rightProp.readTy!, seen)) {
     case Relation.Disjoint:
@@ -123,7 +114,6 @@ function relateTables(leftTable: TableType, rightTable: TableType, seen: SeenPai
   if (rightTable.props.size === 1 && !rightTable.indexer) {
     const [name, prop] = rightTable.props.entries()[0]!;
     const res = relateTableToProp(leftTable, name, prop, seen);
-    // By width subtyping, the left table is then a subset.
     return res === Relation.Coincident ? Relation.Subset : res;
   }
   if (leftTable.props.size === 1 && !leftTable.indexer) {
@@ -160,7 +150,6 @@ function relateSeen(left: TypeId, right: TypeId, seen: SeenPairs): Relation {
   right = follow(right);
   if (left === right) return Relation.Coincident;
   const key = `${left.serial}:${right.serial}`;
-  // A pair seen again is a cycle, taken as coincident.
   if (seen.has(key)) return Relation.Coincident;
   seen.add(key);
 
@@ -284,7 +273,6 @@ function relateSeen(left: TypeId, right: TypeId, seen: SeenPairs): Relation {
   return Relation.Intersects;
 }
 
-/** A cheap and approximate subtype test. */
 export function relate(left: TypeId, right: TypeId): Relation {
   return relateSeen(left, right, new Set());
 }
@@ -412,7 +400,6 @@ class TypeSimplifier {
     return ub.build();
   }
 
-  /** `~(A | B) & C`, as `(~A & C) & (~B & C)`. */
   private intersectNegatedUnion(left: TypeId, right: TypeId): TypeId {
     const negatedTy = follow(get(left, "NegationType")!.ty);
     const negatedUnion = get(negatedTy, "UnionType")!;
@@ -486,7 +473,6 @@ class TypeSimplifier {
     if (negatedTy === right) return b.neverType;
     const ut = get(negatedTy, "UnionType");
     if (ut) {
-      // ~(A | B) & C is (~A & C) & (~B & C).
       let changed = false;
       const newParts = new TypeIds();
       for (const part of flatOptions(ut)) {
@@ -510,7 +496,6 @@ class TypeSimplifier {
     }
     const rightUnion = get(right, "UnionType");
     if (rightUnion) {
-      // ~A & (B | C)
       let changed = false;
       const newParts = new Set<TypeId>();
       for (const part of flatOptions(rightUnion)) {
@@ -594,13 +579,11 @@ class TypeSimplifier {
           continue;
       }
     }
-    // Only the type variables that remain in the result are reported as blocking.
     for (const part of newParts) if (isTypeVariable(part)) this.blockedTypes.add(part);
     if (!changed) return left;
     return this.intersectFromParts(newParts);
   }
 
-  /** Intersects two types without recursing, or gives up; unions, intersections and negations are not handled. */
   basicIntersect(left: TypeId, right: TypeId): TypeId | undefined {
     left = follow(left);
     right = follow(right);
@@ -656,7 +639,6 @@ class TypeSimplifier {
       } else if (rt.props.size === 1) {
         return this.basicIntersect(right, left);
       }
-      // Two sealed tables with disjoint properties and no indexers merge.
       if (!lt.indexer && !rt.indexer && lt.state === TableState.Sealed && rt.state === TableState.Sealed) {
         if (rt.props.size === 0) return left;
         const areDisjoint = !lt.props.keys().some((name) => rt.props.has(name));
@@ -783,7 +765,6 @@ class TypeSimplifier {
           }
         }
         if (!changed) return left;
-        // A changed union with no parts left was uninhabited.
         if (ub.size === 0) return right;
         return ub.build();
       } else if (get(right, "UnionType")) {
@@ -802,9 +783,6 @@ class TypeSimplifier {
         const [propName, leftProp] = lt.props.entries()[0]!;
         const [rightPropName, rightProp] = rt.props.entries()[0]!;
         if (rightPropName !== propName) return this.arena.addType(unionType([left, right]));
-        // Sharing a property is not enough to merge, or `{ prop: number? }`
-        // could be laundered into `{ prop: string? }`; only two read-only
-        // properties of sealed tables merge.
         if (!leftProp.isReadOnly() || !rightProp.isReadOnly() || lt.state !== TableState.Sealed || rt.state !== TableState.Sealed) {
           return this.arena.addType(unionType([left, right]));
         }
@@ -840,7 +818,6 @@ class TypeSimplifier {
         const nnt = get(negatedTy, "NegationType");
         if (nnt) return this.simplify(nnt.ty, seen);
       }
-      // {x: never} is never.
       const tt = get(ty, "TableType");
       if (tt && tt.props.size === 1) {
         const readTy = tt.props.entries()[0]![1].readTy;
@@ -939,7 +916,6 @@ class TypeSimplifier {
     if (ttv) {
       const discTtv = get(discriminant, "TableType");
       if (discTtv) {
-        // A simple table discriminant has one property and no indexer.
         const [discName, discProp] = discTtv.props.entries()[0]!;
         const tyProp = ttv.props.get(discName);
         if (tyProp) {
@@ -960,7 +936,6 @@ class TypeSimplifier {
         resultTtv.scope = ttv.scope;
         return result;
       }
-      // Otherwise, as `{ ... } & ~nil`, fall through.
     }
     if (
       get(target, "FreeType") ||
@@ -985,7 +960,6 @@ class TypeSimplifier {
 
 function isSimpleDiscriminantSeen(ty: TypeId, seen: Set<TypeId>): boolean {
   ty = follow(ty);
-  // A recursive type is never simple.
   if (seen.has(ty)) return false;
   seen.add(ty);
   const ttv = get(ty, "TableType");
@@ -1013,7 +987,6 @@ export function simplifyUnion(builtinTypes: BuiltinTypes, arena: TypeArena, left
   return { result: s.union(left, right), blockedTypes: s.blockedTypes };
 }
 
-/** Intersects a type with a simple discriminant (a primitive, singleton, extern type or one-property table), or gives up. */
 export function intersectWithSimpleDiscriminant(
   builtinTypes: BuiltinTypes,
   arena: TypeArena,

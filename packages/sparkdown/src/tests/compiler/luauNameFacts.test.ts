@@ -13,15 +13,12 @@ function script(text: string) {
   return { tree, text, result: lint.collectLuauLints(tree, (from, to) => text.slice(from, to)) };
 }
 
-// Access through the existing entry point so the base fails a behavioral
-// assertion for its absent facts, rather than failing to import a new module.
 function names(value: ReturnType<typeof script>) {
   expect(value.result).toHaveProperty("names");
   expect(value.result).toHaveProperty("roots");
   return (value.result as any).names;
 }
 
-/** The same public Lezer tree with its packed forests expanded to trees. */
 function unpack(part: Tree | TreeBuffer): Tree {
   if (part instanceof Tree) return new Tree(part.type, part.children.map(unpack), part.positions, part.length);
   const { buffer, set } = part;
@@ -44,13 +41,10 @@ function unpack(part: Tree | TreeBuffer): Tree {
 }
 
 describe("shared AST name facts", () => {
-  // A structural word with no construct after it is a name (#1906), so the
-  // AST represents its uses.
   test.each([
     ["style", "function inspect() local style = {}; setStyle(style) end\n"],
     ["layout", "function inspect() local layout = {}; return layout.x end\n"],
     ["match", "function inspect() local match = true; if match then print(1) end end\n"],
-    // A structural word whose rule holds no arms is a call (I-1304, I-1310).
     ["match", "function inspect() local match = print; match(1) end\n"],
     ["match", "function inspect() local match = print; match(\"a\") end\n"],
   ])("represents %s used as a name, with no uncertainty", (name, source) => {
@@ -62,8 +56,6 @@ describe("shared AST name facts", () => {
     expect(value.result.lints).toEqual([]);
   });
 
-  // Where the word opens an alternator, which Luau has no syntax for, the
-  // word stays uncertain.
   test.each([
     ["match", "function inspect() local match = print; return match(1) | a = 1 end end\n"],
     ["match", "function inspect() local match = print; return match(\"a\") | a = 1 end end\n"],
@@ -138,8 +130,6 @@ describe("shared AST name facts", () => {
     expect(facts.references.filter((r: any) => r.name === "storedCallback").map((r: any) => [r.access, !!r.local])).toEqual([["write", false], ["read", false]]); // not a node name
   });
 
-  // A const in a function is Luau's: a local that shadows the binding before
-  // it, to the end of its block (#1319).
   test.each([
     ["local", "function inspect() local n = 1; const n = 2; return n end", "inspect()", 2, true],
     ["parameter", "function inspect(n) const n = 2; return n end", "inspect(7)", 2, true],
@@ -254,8 +244,6 @@ describe("shared AST name facts", () => {
     const nodeNames = new Set<string>();
     value.tree.iterate({ enter(node) { nodeNames.add(node.name); } });
     expect(nodeNames.has("LuauSparkdownExplicitAccessPath")).toBe(bounded);
-    // A story statement's brackets are the Luau ones, which span lines
-    // (#1907), so what the call's parentheses hold is read as Luau.
     expect(nodeNames.has("LuauTable")).toBe(true);
     expect(nodeNames.has("LuauLogicalOperator")).toBe(true);
     const facts = names(value);

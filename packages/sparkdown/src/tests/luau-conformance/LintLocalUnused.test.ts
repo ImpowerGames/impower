@@ -1,9 +1,3 @@
-// Ported from Luau's linter tests (`luau/tests/Linter.test.cpp`), the
-// LocalUnused rule. Snippets and expected messages are quoted verbatim and
-// placed inside a function body; the upstream test-case name is in the
-// comment above each group. Line numbers are 0-based, as upstream checks
-// them. The rule is implemented in `compiler/lint/collectLuauLints.ts`.
-
 import { describe, expect, test } from "vitest";
 import {
   diagnoseDetailed,
@@ -12,7 +6,6 @@ import {
   lintMessagesInFunction as lintAllMessagesInFunction,
 } from "./diagnosticTestHarness";
 
-// Upstream runs this group with the LocalUnused rule mask.
 const lintInFunction = (body: string) => lintAllInFunction(body, "LocalUnused");
 const lintMessagesInFunction = (body: string) => lintAllMessagesInFunction(body, "LocalUnused");
 
@@ -40,7 +33,7 @@ return bar()
   });
 });
 
-// Sparkdown (#1139): a type annotation on one name does not end the names.
+// Sparkdown-specific
 describe("names after a typed name in one local", () => {
   test("untyped control", () => {
     expect(
@@ -62,10 +55,6 @@ return a
 });
 
 // Luau: ImportOnlyUsedInTypeAnnotation (adapted)
-// Sparkdown has no `require`; a plain local stands in for the import. The
-// grammar does not read a dotted type name (`Foo.Y`) and leaves the function
-// unfinished, so the type is the bare name. A name read only in a type
-// annotation still counts as used.
 describe("a local read only in another local's type annotation", () => {
   test("only the annotated, unread local is reported", () => {
     expect(
@@ -90,7 +79,7 @@ function foo() end
   });
 });
 
-// Sparkdown-specific: what does and does not count as a read.
+// Sparkdown-specific
 describe("reads the rule recognizes", () => {
   test.each([
     ["a read in a nested function", "\nlocal x = 1\nlocal f = function() return x end\nreturn f\n"],
@@ -100,12 +89,8 @@ describe("reads the rule recognizes", () => {
     ["a read in a repeat's until", "\nrepeat\n    local done = true\nuntil done\n"],
     ["a call through the local", "\nlocal f = print\nf(1)\n"],
     ["an index through the local", "\nlocal t = {}\nt.k = 1\n"],
-    // Statements after a declaration on its line; these shapes are from
-    // Luau's conformance suite.
     ["a read later on the same line", "\nlocal s, r = pcall(print) return s, r\n"],
     ["a read in a function statement on the same line", "\nlocal a = 1 function foo() return a end return foo()\n"],
-    // The grammar marks Sparkdown's structural words as keywords even where
-    // they are names.
     ["a read of a local named `style`", "\nlocal style = {}\nsetStyle(style)\n"],
     ["a read of a local named `layout`", "\nlocal layout = {}\nreturn layout.x\n"],
     ["a read of a local named `match` in a condition", "\nlocal match = true\nif match then return 1 end\n"],
@@ -130,8 +115,6 @@ describe("reads the rule recognizes", () => {
     ]);
   });
 
-  // A declaration after another on the same line is its own statement, as
-  // in Luau, so it hides the earlier local from the next line on.
   const unused = (line: number) => ({
     line,
     message: "Variable 'x' is never used; prefix with '_' to silence",
@@ -155,9 +138,6 @@ describe("names the rule does not report", () => {
     expect(lintInFunction(body)).toEqual([]);
   });
 
-  // A function without its `end` (one being typed, or one the parser gave up
-  // on) ends early in the tree, and the lines after the break are parsed as
-  // top-level code, so the reads there are out of its reach.
   test("locals in a function that is missing its end", () => {
     expect(
       diagnoseWithLints("function f()\n  local x = 1\n  if x then\n    print(x)\n").filter(
@@ -166,9 +146,6 @@ describe("names the rule does not report", () => {
     ).toEqual([]);
   });
 
-  // Top-level code is narrative with embedded logic, and a top-level local
-  // can be read from interpolated text or later lines the rule cannot scope,
-  // so only locals inside functions are checked.
   test("a local outside any function", () => {
     expect(
       diagnoseWithLints("local x = 1\nHello there.\n").filter((m) =>
@@ -178,9 +155,7 @@ describe("names the rule does not report", () => {
   });
 });
 
-// Sparkdown (I-1371): a define written in a function reads the function's
-// locals from its methods, which the converter's reading of the function's
-// body leaves out.
+// Sparkdown-specific
 describe("a local read only by a method of a define in its function", () => {
   const localUnused = (source: string) =>
     diagnoseDetailed(source)
@@ -272,7 +247,6 @@ describe("a local read only by a method of a define in its function", () => {
     ).toEqual([{ line: 2, message: "Variable 'c' is never used; prefix with '_' to silence" }]);
   });
 
-  // The method's read is of the method's own local, not the function's.
   test("leaves a local unused that the method's own local of its name hides", () => {
     expect(
       localUnused(
@@ -293,7 +267,6 @@ describe("a local read only by a method of a define in its function", () => {
     ).toEqual([{ line: 1, message: "Variable 'b' is never used; prefix with '_' to silence" }]);
   });
 
-  // A plain write is no use, in a method as in the function.
   test.each([
     ["the implicit form", "    get()"],
     ["the function form", "    function get()"],
@@ -337,7 +310,6 @@ describe("a local read only by a method of a define in its function", () => {
     ).toEqual([]);
   });
 
-  // A method's `self` is its own receiver, never a local around the define.
   test.each([
     ["the implicit form", "    get()"],
     ["the function form", "    function get()"],
@@ -360,7 +332,6 @@ describe("a local read only by a method of a define in its function", () => {
     ).toEqual([{ line: 1, message: "Variable 'self' is never used; prefix with '_' to silence" }]);
   });
 
-  // The inner define's method reads the outer method's local, not the function's.
   test("leaves a local unused that a method around the define hides", () => {
     expect(
       localUnused(
@@ -386,8 +357,6 @@ describe("a local read only by a method of a define in its function", () => {
     ).toEqual([{ line: 1, message: "Variable 'b' is never used; prefix with '_' to silence" }]);
   });
 
-  // A local whose block ended before the define is not the one its method
-  // reads.
   test("leaves an ended block's local unused", () => {
     expect(
       localUnused(

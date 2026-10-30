@@ -72,7 +72,6 @@ describe("bounded authored islands retain one syntax diagnostic owner", () => {
     expect(published[0]!.range.start).toEqual({ line: prefix.split("\n").length - 1, character: island.length });
   });
 
-  // The marked local sits in a scene, the place a local belongs.
   test.each([
     ["function f()\n local n = 1,\n 2\n return n\nend\n", "", "scene start\nend\n"],
     ["& local f = function()\n local n = 1,\n 2\n return n\nend\n", "scene start\n", "end\n"],
@@ -84,9 +83,6 @@ describe("bounded authored islands retain one syntax diagnostic owner", () => {
     const measure = (count: number) => {
       const lines = Array.from({ length: count }, (_, n) => `& local n${n} =`);
       const source = lines.join("\n") + "\nThe hero returns.\n";
-      // The lookups carry tokens over from the document before (#1724), and
-      // the shorter document begins with the longer one's lines: start each
-      // measurement from an empty document's.
       nextLuauToken(0, "");
       const startsWith = String.prototype.startsWith;
       let scans = 0;

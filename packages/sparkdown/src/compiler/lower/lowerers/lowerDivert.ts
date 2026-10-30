@@ -14,9 +14,6 @@ import {
 import { statementSource } from "../utils/statementSource";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
-// `->` with no target outside of a choice is meaningless: there's nothing to
-// divert to. Inkjs's parser emits the same diagnostic. Inside a choice, `* ->`
-// is the fallback-choice form and `lowerChoice` handles it without one.
 export function emptyDivertDiagnostic(
   node: { from: number; to: number },
   ctx: LowerContext,
