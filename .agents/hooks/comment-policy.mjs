@@ -530,7 +530,7 @@ function scanYaml(text) {
   const valueStart = (code) => {
     const before = code.trimEnd(), last = before.slice(-1), spaced = before.length < code.length;
     if (!before.trim()) return true;
-    if (flow > 0 && /[[{,]/.test(last)) return true;
+    if (flow > 0 && /[[{,:?]/.test(last)) return true;
     return spaced && (last === ":" || /^\s*(?:-\s+)*[-?]$/.test(before));
   };
   while (i < text.length) {
