@@ -565,7 +565,9 @@ function paintPose(artifact: MorphArtifact, entry: MorphPaintPose, pose: MorphGr
     write(node, base, both ? w : 1);
   }
   for (const t of segment.transitions) {
-    if (t.kind === "scale" && t.node in entry.nodes && drawing.has(t.draw)) write(t.draw, undefined, 1);
+    if (t.kind !== "scale" || !(t.node in entry.nodes) || !drawing.has(t.draw)) continue;
+    if (posed.has(t.node)) write(t.draw, undefined, 1);
+    else write(t.draw, entry.nodes[t.node], w);
   }
   if (p <= 0 || p >= 1) return;
   for (const track of entry.tracks) {

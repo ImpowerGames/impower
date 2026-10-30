@@ -512,7 +512,7 @@ describe("a drawing carried in its partner's shape", () => {
 });
 
 describe("a `paints` entry on a drawing carried in its partner's shape", () => {
-  const bakeWith = (fill: string) =>
+  const bakeWith = (fill: string, layer: Record<string, unknown> = {}) =>
     bakeMorphArtifact({
       source: partnerPortrait(),
       selection: {},
@@ -520,7 +520,7 @@ describe("a `paints` entry on a drawing carried in its partner's shape", () => {
         blend: "morph",
         method: "bend",
         fallback: "fade",
-        layers: { "eyeball-shadow-left": { partner: "eyelash-left" } },
+        layers: { "eyeball-shadow-left": { partner: "eyelash-left", ...layer } },
         keyframes: [
           { offset: 0, eyes: { state: "open" } },
           { offset: 0.3, eyes: { state: "closed" } },
@@ -553,5 +553,20 @@ describe("a `paints` entry on a drawing carried in its partner's shape", () => {
     const artifact = bakeWith("rgba(10, 20, 30, 0.5)");
     expect(artifact.diagnostics).toEqual([]);
     expect(fillAt(artifact, 0.45)).toBe("rgba(10,20,30,0.5)");
+  });
+
+  test.each(["scale", "fade"])("a carried arrival frame that blends in and out by %s takes the colour over the span, not at once", (blend) => {
+    const artifact = bakeWith("transparent", { blend });
+    expect(artifact.diagnostics).toEqual([]);
+    const [arrival] = Object.keys(artifact.segments[0]!.carry!.to!);
+    expect(Object.keys(artifact.segments[1]!.carry!.from!)).toEqual([arrival]);
+    expect(artifact.segments[0]!.transitions).toContainEqual(expect.objectContaining(blend === "scale" ? { kind: "scale", node: arrival, draw: arrival, direction: "grow" } : { kind: "fade", to: arrival }));
+    const carriedFill = (offset: number) => morphFrameState(artifact, morphPosesAt(artifact, offset)).paint.get(arrival!)?.["fill"];
+    expect(carriedFill(0.15)).toBeUndefined();
+    expect(alpha(carriedFill(0.21))).toBeCloseTo(0.75, 2);
+    expect(alpha(carriedFill(0.27))).toBeCloseTo(0.25, 2);
+    expect(alpha(carriedFill(0.45))).toBe(0);
+    expect(alpha(carriedFill(0.64))).toBeCloseTo(0.25, 2);
+    expect(carriedFill(0.8)).toBeUndefined();
   });
 });
