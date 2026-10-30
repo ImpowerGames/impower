@@ -1153,7 +1153,6 @@ await check("withEditor hands the callback the URL and the mode from how the ser
       newPage: async () => assert.fail("a page was opened beside the profile's own"),
       newCDPSession: async (target) => ({
         send: async (method, params) => cdpCalls.push({ target, method, params }),
-        detach: async () => cdpCalls.push({ detached: true }),
       }),
       close: async () => closes.push(1),
     };
