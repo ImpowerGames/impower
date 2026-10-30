@@ -3,7 +3,8 @@ import {
   ARIA_ATTRIBUTE_ALIASES,
 } from "../../../sparkdown/src/compiler/constants/dataAttributeProps";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
-import { getCSSPropertyKeyValue } from "./getCSSPropertyKeyValue";
+import { getCssPropertyName } from "../../../sparkle-style-transformer/src/utils/getCssPropertyName";
+import { getCssTokenValue } from "./getCssTokenValue";
 
 const DESCENDANT_REGEX = /[ ]*[>][>][ ]*/g;
 const SPACE_BEFORE_IDENTIFIER_REGEX = /(?:^|[ ]+)(?=[_\p{L}])/gu;
@@ -229,9 +230,12 @@ export const getStyleContent = (
           level--;
           styleContent += `\n${indent}}`;
         } else {
-          const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v);
-          if (cssValue || (cssProp === "content" && cssValue === "")) {
-            const cssEntries = getCssEquivalent(cssProp, cssValue);
+          const value = getCssTokenValue(v);
+          if (
+            (value != null && String(value) !== "") ||
+            getCssPropertyName(k) === "content"
+          ) {
+            const cssEntries = getCssEquivalent(k, value);
             for (const [k, v] of cssEntries) {
               styleContent += `\n${indent}${k}: ${v};`;
             }

@@ -1,5 +1,6 @@
 import type { Animation as AnimationDefinition } from "../../../spark-engine/src/game/modules/ui/types/Animation";
-import { getCSSPropertyKeyValue } from "../utils/getCSSPropertyKeyValue";
+import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
+import { getCssTokenValue } from "../utils/getCssTokenValue";
 import { getMilliseconds } from "../utils/getMilliseconds";
 
 export interface AnimationInstance {
@@ -38,28 +39,10 @@ export default class AnimationPlayer {
           if (keyframe) {
             const convertedKeyframe: Keyframe = {};
             for (const [k, v] of Object.entries(keyframe)) {
-              const [prop, value] = getCSSPropertyKeyValue(k, v);
-              if (prop === "iterations" && value === "infinite") {
-                convertedKeyframe["iterations"] = Infinity;
-              } else if (prop === "delay") {
-                if (typeof value === "number") {
-                  convertedKeyframe["delay"] = value * 1000;
-                } else if (typeof value === "string") {
-                  const ms = getMilliseconds(value);
-                  if (ms != null) {
-                    convertedKeyframe["delay"] = ms;
-                  }
-                }
-              } else if (prop === "duration") {
-                if (typeof value === "number") {
-                  convertedKeyframe["duration"] = value * 1000;
-                } else if (typeof value === "string") {
-                  const ms = getMilliseconds(value);
-                  if (ms != null) {
-                    convertedKeyframe["duration"] = ms;
-                  }
-                }
-              } else {
+              for (const [prop, value] of getCssEquivalent(
+                k,
+                getCssTokenValue(v),
+              )) {
                 const camelCasedPropName = prop
                   .toLowerCase()
                   .replace(/([-_][\p{Ll}])/gu, (group) =>
