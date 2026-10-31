@@ -8,7 +8,7 @@ import { readJson } from "../../../scripts/review-job-store.mjs";
 import { reviewJobFiles } from "../../../scripts/review-job-root.mjs";
 import { readJournalRows, reviewAccounting } from "../../../scripts/agent-handoff.mjs";
 import { readRepos } from "../../repos.mjs";
-import { branchTicket, launchDirOf, readRecord, repositoriesOf, startRepositories, streamSession, updateRecord } from "./issue-run.mjs";
+import { branchTicket, launchDirOf, readRecord, repositoriesOf, startRepositories, updateRecord } from "./issue-run.mjs";
 
 export const FIRST_CHECKPOINT_ROUND = 3;
 export const MAX_REVIEW_ROUNDS = 10;
