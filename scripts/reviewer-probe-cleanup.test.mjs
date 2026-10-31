@@ -131,6 +131,60 @@ console.log('PASS: transient staging rename retries release the guard and preser
 }
 console.log('PASS: a reservation admitted during staging backoff preserves the pending probe');
 
+if(!process.argv.includes('--parent-recovery-only'))for(const code of ['EPERM','EBUSY','ENOTEMPTY']){
+  const outer=path.join(directory,'nested-wrapper'),inner=path.join(outer,'inner');
+  fs.mkdirSync(path.join(inner,'probe','.git'),{recursive:true});
+  const rmdir=fs.rmdirSync,wait=Atomics.wait;let attempts=0;
+  fs.rmdirSync=target=>{if(target===inner&&attempts++===0)throw Object.assign(new Error('temporary parent handle'),{code});return rmdir(target);};
+  Atomics.wait=(...args)=>{assert.equal(fs.existsSync(path.join(reservationRoot,'guard.json')),false,'parent backoff releases guard');return wait(...args);};
+  try{assert.doesNotThrow(()=>removeProbeCheckouts(directory,{reservationRoot,retryDelays:[0,0]}),'transient empty-parent removal must retry');}
+  finally{fs.rmdirSync=rmdir;Atomics.wait=wait;}
+  assert.equal(attempts,2);assert.equal(fs.existsSync(outer),false,'retry also prunes newly empty ancestors');
+}
+
+{
+  const wrapper=path.join(directory,'recovery-wrapper');
+  fs.mkdirSync(path.join(wrapper,'probe','.git'),{recursive:true});
+  const rmdir=fs.rmdirSync;let failure,attempts=0;
+  fs.rmdirSync=target=>{if(target===wrapper){attempts++;throw Object.assign(new Error('persistent parent handle'),{code:'EBUSY'});}return rmdir(target);};
+  try{assert.throws(()=>removeProbeCheckouts(directory,{reservationRoot,retryDelays:[0,0]}),error=>{failure=error.message;return /could not remove/.test(failure);});}
+  finally{fs.rmdirSync=rmdir;}
+  removeProbeCheckouts(directory,{reservationRoot,retryDelays:[0,0]});
+  assert.equal(fs.existsSync(wrapper),false,'targetless recovery must prune the emptied parent');
+  assert.equal(attempts,3);assert.ok(failure.includes(wrapper),'exhausted parent removal names the actual path');
+}
+
+{
+  const wrapper=path.join(directory,'reserved-empty'),preexisting=path.join(directory,'preexisting-empty'),reservation=path.join(reservationRoot,'reservation.json');
+  fs.mkdirSync(wrapper);fs.mkdirSync(preexisting);
+  fs.writeFileSync(reservation,JSON.stringify({path:wrapper}));
+  const preserve=new Set(['evidence','preexisting-empty']);
+  try{assert.equal(removeProbeCheckouts(directory,{reservationRoot,preserve}).skipped,true,'targetless pruning must check reservations');}
+  finally{fs.unlinkSync(reservation);}
+  assert.ok(fs.existsSync(wrapper));
+  removeProbeCheckouts(directory,{reservationRoot,preserve});
+  assert.equal(fs.existsSync(wrapper),false);assert.ok(fs.existsSync(preexisting));
+  fs.rmdirSync(preexisting);
+}
+console.log('PASS: empty parents retry with guard release, retain named residue, recover without targets and preserve reservations/prelaunch entries');
+
+{
+  const wrapper=path.join(directory,'parent-backoff'),reservation=path.join(reservationRoot,'reservation.json');
+  fs.mkdirSync(path.join(wrapper,'probe','.git'),{recursive:true});
+  fs.writeFileSync(path.join(wrapper,'probe','proof'),'staged proof');
+  const rmdir=fs.rmdirSync,wait=Atomics.wait;
+  fs.rmdirSync=target=>{if(target===wrapper)throw Object.assign(new Error('temporary parent handle'),{code:'EBUSY'});return rmdir(target);};
+  Atomics.wait=(...args)=>{assert.equal(fs.existsSync(path.join(reservationRoot,'guard.json')),false);fs.writeFileSync(reservation,JSON.stringify({path:wrapper}));return wait(...args);};
+  try{assert.equal(removeProbeCheckouts(directory,{reservationRoot,retryDelays:[0,0]}).skipped,true,'parent retries must recheck newly admitted reservations');}
+  finally{fs.rmdirSync=rmdir;Atomics.wait=wait;fs.unlinkSync(reservation);}
+  const trash=fs.readdirSync(directory).find(name=>name.startsWith('.probe-cleanup-'));
+  assert.equal(fs.readFileSync(path.join(directory,trash,'0','proof'),'utf8'),'staged proof');
+  assert.ok(fs.existsSync(wrapper));
+  assert.equal(removeProbeCheckouts(directory,{reservationRoot,retryDelays:[0,0]}).files,1);
+  assert.equal(fs.existsSync(wrapper),false);
+}
+console.log('PASS: parent backoff rechecks reservations and retains staged proof until supported recovery');
+
 fs.mkdirSync(path.join(directory,'contended','.git'),{recursive:true});
 const guard=path.join(reservationRoot,'guard.json');
 fs.writeFileSync(guard,JSON.stringify({owner:coordinator}));

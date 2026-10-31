@@ -7,10 +7,11 @@ import {processIdentity} from './reviewer-slots.mjs';
 
 const sleeper=new Int32Array(new SharedArrayBuffer(4));
 const retryable=new Set(['EPERM','EBUSY','ENOTEMPTY']);
+const canRetry=(error,attempt,delays)=>retryable.has(error.code)&&attempt<delays.length;
 function removal(action,delays) {
   for(let attempt=0;;attempt++){
     try{return action();}
-    catch(error){if(!retryable.has(error.code)||attempt>=delays.length)throw error;Atomics.wait(sleeper,0,0,delays[attempt]);}
+    catch(error){if(!canRetry(error,attempt,delays))throw error;Atomics.wait(sleeper,0,0,delays[attempt]);}
   }
 }
 
@@ -124,53 +125,72 @@ export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reser
     }
   };
   visit(root,true);
-  const pruneEmpty=()=>{for(const dir of walked.reverse()){try{fs.rmdirSync(dir);}catch(error){if(!['ENOTEMPTY','EEXIST','ENOENT'].includes(error.code))throw error;}}};
   const counts={files:0,links:0};
   const stuck=unreadable.map(entry=>`unreadable ${entry}`);
-  if(!targets.length){
+  if(!targets.length&&!walked.length){
     if(stuck.length)throw new Error(`Probe cleanup removed nothing and could not read ${stuck.join(', ')}`);
     return {...counts,elapsedMs:Date.now()-began};
   }
   const trash=path.join(root,`.probe-cleanup-${randomUUID()}`);
-  let moved,trashCreated=false,pending=targets.map((target,index)=>({target,index}));
-  for(let attempt=0;;attempt++){
-    try{moved=withProbeCleanupGuard((files)=>{
+  const underGuard=(action)=>{
+    try{return withProbeCleanupGuard((files)=>{
       for(const file of files){
         let named;
         try{named=reservationNaming(file,directory,root);}
         catch(error){return {skipped:true,reason:error.message};}
         if(named)return {skipped:true,reason:`Reservation entry at ${file} names ${named}, which overlaps this reviewer directory; preserve reviewer scratch`};
       }
-      if(!trashCreated){fs.mkdirSync(trash);trashCreated=true;}
-      const failed=[];
-      pending.forEach(({target,index})=>{
-        try{fs.renameSync(target,path.join(trash,String(index)));}
-        catch(error){failed.push({target,index,error});}
-      });
-      return {skipped:false,failed};
+      return action();
     },{root:reservationRoot});}
     catch(error){
       if(error.guardHeld){
         const guard=path.join(reservationRoot??machineRoot,'guard.json');
         let owner;
         try{owner=JSON.parse(fs.readFileSync(guard,'utf8')).owner;}
-        catch(readError){throw new Error(`${error.message}; guard owner unavailable (${readError.message}); nothing was removed`);}
-        throw new Error(`${error.message}; recorded guard owner PID ${owner?.pid??'unknown'}, start ${owner?.start??'unknown'}; nothing was removed`);
+        catch(readError){throw new Error(`${error.message}; guard owner unavailable (${readError.message}); removed ${counts.files} files and ${counts.links} links; preserve remaining reviewer scratch`);}
+        throw new Error(`${error.message}; recorded guard owner PID ${owner?.pid??'unknown'}, start ${owner?.start??'unknown'}; removed ${counts.files} files and ${counts.links} links; preserve remaining reviewer scratch`);
       }
       throw error;
     }
-    if(moved.skipped)return {...counts,skipped:true,reason:moved.reason,elapsedMs:Date.now()-began};
-    pending=[];
-    for(const failure of moved.failed){
-      if(retryable.has(failure.error.code)&&attempt<retryDelays.length)pending.push(failure);
-      else stuck.push(`${failure.target} (${failure.error.code??failure.error.message})`);
+  };
+  const guardedBatch=(entries,action,{repeatAll=false}={})=>{
+    let pending=entries;
+    for(let attempt=0;pending.length;attempt++){
+      const result=underGuard(()=>{
+        const failed=[];
+        for(const entry of pending){try{action(entry);}catch(error){failed.push({...entry,error});}}
+        return {skipped:false,failed};
+      });
+      if(result.skipped)return result;
+      const retry=[];
+      for(const failure of result.failed){
+        if(canRetry(failure.error,attempt,retryDelays))retry.push(failure);
+        else stuck.push(`${failure.target} (${failure.error.code??failure.error.message})`);
+      }
+      if(!retry.length)break;
+      pending=repeatAll?entries:retry;
+      Atomics.wait(sleeper,0,0,retryDelays[attempt]);
     }
-    if(!pending.length)break;
-    Atomics.wait(sleeper,0,0,retryDelays[attempt]);
-  }
+    return {skipped:false};
+  };
+  const skipped=(result)=>({...counts,skipped:true,reason:result.reason+(stuck.length?`; retained residue: ${stuck.join(', ')}`:''),elapsedMs:Date.now()-began});
+  let trashCreated=false;
+  const moved=guardedBatch(targets.map((target,index)=>({target,index})),({target,index})=>{
+    if(!trashCreated){fs.mkdirSync(trash);trashCreated=true;}
+    fs.renameSync(target,path.join(trash,String(index)));
+  });
+  if(moved.skipped)return skipped(moved);
+  const pruned=guardedBatch(walked.reverse().map(target=>({target})),({target})=>{
+    try{fs.rmdirSync(target);}
+    catch(error){
+      if(error.code==='ENOENT')return;
+      if(['ENOTEMPTY','EEXIST'].includes(error.code)&&fs.readdirSync(target).length)return;
+      throw error;
+    }
+  },{repeatAll:true});
+  if(pruned.skipped)return skipped(pruned);
   const failures=[];
-  removeEntry(trash,counts,failures,retryDelays);
-  try{pruneEmpty();}catch(error){stuck.push(`an emptied directory (${error.code??error.message})`);}
+  if(trashCreated)removeEntry(trash,counts,failures,retryDelays);
   if(failures.length)for(const {target,error,residual} of failures)stuck.push(`${target} (${error.code??error.message}); residual entries ${JSON.stringify(residual)}`);
   if(stuck.length)throw new Error(`Probe cleanup removed ${counts.files} files and ${counts.links} links but could not remove ${stuck.join(', ')}`);
   return {...counts,elapsedMs:Date.now()-began};
