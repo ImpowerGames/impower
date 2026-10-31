@@ -214,10 +214,11 @@ function setupArguments(args, shell, command) {
 function setupTargets(args, shell, command, npm = false) {
   const { operands, redirects } = setupArguments(args, shell, command);
   const targets = npm ? npmSetupTargets(operands, shell, command) : literalArguments(operands, shell, command);
-  targets.push(...redirects);
+  targets.redirects = redirects;
   targets.error ??= redirects.error;
   return targets;
 }
+const targetCandidates = targets => [...(targets.pathOperands ? targets : targets.filter(text => !text.startsWith("-"))), ...(targets.redirects ?? [])];
 function itemLinkTargets(args, targets, command) {
   const selectors = args.flatMap((arg, at) => powerShellParameter(arg, command) && /^-(?:itemtype|type)(?::|$)/i.test(powerShellFlag(arg)) ? [at] : []);
   if (!selectors.length) {
@@ -506,14 +507,14 @@ function inspectAt(op) {
     return `Cleanup ownership cannot be checked: ${error.message}. ${route}`;
   }
   if (op.kind === "cmd-boundary") return (fromRepository || op.contextKnown) ? `Explicit CMD execution is refused in a known repository; use direct PowerShell/Bash or the guarded lifecycle. ${route}` : null;
-  const originalPaths = op.linkSpec ? [...(op.linkSpec.operands ?? []), op.linkSpec.directory, op.linkSpec.destination, op.linkSpec.target, op.linkSpec.name] : op.targets;
+  const originalPaths = op.linkSpec ? [...(op.linkSpec.operands ?? []), op.linkSpec.directory, op.linkSpec.destination, op.linkSpec.target, op.linkSpec.name] : [...op.targets, ...(op.targets.redirects ?? [])];
   if ((fromRepository || op.contextKnown) && originalPaths.some(volumeLessRooted)) return `Windows rooted cleanup/setup path has no volume and cannot be verified; use a fully qualified path. ${route}`;
   if (op.linkSpec) {
     try { op = { ...op, targets: linkPaths(op.linkSpec, op.cwd) }; }
     catch (error) { op = { ...op, targets: Object.assign([], { error: `Link setup identity cannot be checked: ${error.message}` }) }; }
   }
   if (op.targets.error || op.locationError) return (fromRepository || op.contextKnown) ? `${op.targets.error ?? op.locationError}; direct operation is refused. ${route}` : null;
-  const candidates = op.targets.pathOperands ? [...op.targets] : op.targets.filter(s => !s.startsWith("-"));
+  const candidates = targetCandidates(op.targets);
   if ((fromRepository || op.contextKnown) && candidates.some(text => /[`$*?\[]/.test(text))) return `Cleanup/setup target syntax cannot be verified in this repository. ${route}`;
   if (op.kind === "delete" && !candidates.length && (fromRepository || op.contextKnown)) return `Cleanup target is missing or cannot be verified. ${route}`;
   for (const candidate of candidates) {
@@ -534,7 +535,7 @@ function inspectAt(op) {
   return null;
 }
 function inspect(op) {
-  const candidates = op.targets.pathOperands ? op.targets : op.targets.filter(text => !text.startsWith("-"));
+  const candidates = targetCandidates(op.targets);
   const independentAbsolute = text => path.isAbsolute(text) && !volumeLessRooted(text);
   const relative = ["setup", "link-setup"].includes(op.kind) || candidates.some(text => !independentAbsolute(text));
   for (const cwd of relative ? op.cwds : [op.cwd]) {

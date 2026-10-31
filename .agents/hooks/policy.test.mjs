@@ -734,6 +734,17 @@ for (const [command, blocked] of [
     assert.match(judge(`${location} npm ci`, shell) ?? "", /owned filing/, "setup cannot bypass filer ownership");
     fs.unlinkSync(path.join(admin, "filer-owner.json"));
     assert.match(judge(`git worktree remove '${spelling}'`, shell) ?? "", /Direct git worktree remove is refused/);
+    const redirectLink = `-redirect-${index}`;
+    fs.symlinkSync(tree, path.join(main, redirectLink), process.platform === "win32" ? "junction" : "dir");
+    for (const setup of ["npm ci", `git worktree add -b redirect-${index} './new-writer-${index}' HEAD`]) {
+      const operator = shell === "powershell" ? "*>" : ">";
+      for (const prefix of ["", "./"]) {
+        const command = `${setup} ${operator} '${prefix}${redirectLink}/install.log'`;
+        assert.match(judge(command, shell) ?? "", /Linked cleanup\/setup path refused/, command);
+      }
+      const ordinary = `${setup} ${operator} '-ordinary.log'`;
+      assert.equal(judge(ordinary, shell), null, ordinary);
+    }
   }
   if (process.platform === "win32") {
     assert.match(judge('cmd /c "npm install"', "powershell") ?? "", /Explicit CMD execution is refused.*direct PowerShell:/);
