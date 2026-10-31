@@ -178,4 +178,56 @@ await check("an update retries only its own file operation and preserves a same-
   assert.equal(read(reservation.file).run, "replacement");assert.equal(read(reservation.file).exit, 0);
 });
 
+await check("ownership loss takes priority over an unconfirmed local phase", () => {
+  const root = path.join(scratch, "release-priority"), reservation = acquire("old owner", options(root));
+  reservation.update({ phase: "running" });
+  fs.writeFileSync(reservation.file, JSON.stringify({ token: "replacement" }));
+  assert.throws(() => reservation.release(), /Reservation ownership changed/);
+  assert.equal(read(reservation.file).token, "replacement");
+});
+
+for (const boundary of ["claim", "atomic"]) {
+  await check(`${boundary} cleanup cannot extend a bounded admission or admit after expiry`, async () => {
+    const root = path.join(scratch, `deadline-${boundary}`);fs.mkdirSync(root);
+    if (boundary === "claim") fs.writeFileSync(path.join(root, "guard.json"), JSON.stringify({ owner: { pid: 800001, start: "gone" } }));
+    const unlink = fs.unlinkSync, write = fs.writeFileSync, open = fs.openSync;let began, fd, publications = 0;
+    fs.openSync = (file, ...args) => { const value = open(file, ...args);if (String(file).startsWith(path.join(root, "reservation.json."))) fd = value;return value; };
+    fs.writeFileSync = (target, ...args) => { if (boundary === "atomic" && target === fd && publications++ === 0) throw fault("EBUSY");return write(target, ...args); };
+    fs.unlinkSync = file => {
+      const affected = boundary === "claim" ? file === path.join(root, "guard-recovery.json") : String(file).startsWith(path.join(root, "reservation.json."));
+      if (affected) { began ??= Date.now();if (Date.now() - began < 350) throw fault("EBUSY"); }
+      return unlink(file);
+    };
+    try { await assert.rejects(acquireWaiting("deadline", { ...options(root), waitMs: 100, pollMs: 5 }), /EBUSY|expired|waited/); }
+    finally { fs.unlinkSync = unlink;fs.writeFileSync = write;fs.openSync = open; }
+    assert.ok(began);assert.ok(Date.now() - began < 300, "nested cleanup must share the original bound");
+    assert.equal(fs.existsSync(path.join(root, "reservation.json")), false);
+  });
+}
+
+await check("a failed slot publication does not consume a pool turn", async () => {
+  const root = path.join(scratch, "alternation");fs.mkdirSync(root);
+  fs.writeFileSync(path.join(root, "last-admitted.json"), JSON.stringify({ pool: "reviewer", token: "prior", at: "2020-01-01T00:00:00Z" }));
+  fs.writeFileSync(path.join(root, "waiting-reviewer.json"), JSON.stringify({ token: "reviewer", owner, pool: "reviewer", run: "reviewer B", arrivedAt: "2020-01-01T00:00:00Z" }));
+  const rename = fs.renameSync;let failures = 0, waits = 0;
+  fs.renameSync = (from, to) => { if (to === path.join(root, "reservation.json") && failures++ === 0) throw fault("EPERM");return rename(from, to); };
+  let reservation;
+  try { reservation = await acquireWaiting("writer A", { ...options(root), waitMs: 1000, pollMs: 5,
+    onWait: event => { waits++;assert.notEqual(event.waiting, "queue", "an unsuccessful admission cannot hand the turn back to reviewers"); } }); }
+  finally { fs.renameSync = rename; }
+  assert.ok(waits > 0);assert.equal(reservation.record.pool, "writer");reservation.release();
+  assert.equal(read(path.join(root, "last-admitted.json")).pool, "writer");
+});
+
+await check("a transient published-file identity read retries without replaying publication", async () => {
+  const root = path.join(scratch, "published-identity"), file = path.join(root, "reservation.json");
+  const lstat = fs.lstatSync, rename = fs.renameSync;let publications = 0, failures = 0;
+  fs.renameSync = (from, to) => { const result = rename(from, to);if (to === file) publications++;return result; };
+  fs.lstatSync = (target, ...args) => { if (target === file && publications > 0 && failures++ === 0) throw fault("EBUSY");return lstat(target, ...args); };
+  let reservation;
+  try { reservation = await acquireWaiting("one publication", { ...options(root), waitMs: 1000 }); }
+  finally { fs.lstatSync = lstat;fs.renameSync = rename; }
+  assert.equal(publications, 1);assert.ok(failures >= 2);reservation.release();
+});
+
 assert.equal(cases.length, 0, cases.map(value => value.name).join("; "));
