@@ -3,7 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { scanTree, linkReason, parseWorktreeList } from "../.agents/skills/clean-worktrees/clean-worktrees.mjs";
+import { scanTree, linkReason, parseWorktreeList, liveDeps, usersOf } from "../.agents/skills/clean-worktrees/clean-worktrees.mjs";
 import { useWorktreeTemp } from "../.agents/skills/drive-web-editor/worktree-temp.mjs";
 
 const guard = fileURLToPath(new URL("../.agents/skills/clean-worktrees/clean-worktrees.mjs", import.meta.url));
@@ -17,7 +17,7 @@ function run(executable, args, cwd, env = process.env) {
 }
 function gitEnvironment() {
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^GIT_/i.test(key) && !/^(?:LC_ALL|LANG|LANGUAGE)$/i.test(key)));
-  return { ...env, LC_ALL: "C", LANG: "C", LANGUAGE: "C" };
+  return { ...env, LC_ALL: "C", LANG: "C", LANGUAGE: "C", GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.longpaths", GIT_CONFIG_VALUE_0: "true" };
 }
 const git = (cwd, args) => run("git", args, cwd, gitEnvironment());
 function noLinks(p) {
@@ -124,8 +124,41 @@ async function installOwned(recordPath, owner) {
   const saved = read(recordPath); saved.installed = true;
   fs.writeFileSync(recordPath, JSON.stringify(saved, null, 2) + "\n");
 }
-export async function remove(recordPath, owner) {
-  return exclusive(recordPath, owner, () => removeOwned(recordPath, owner));
+export async function remove(recordPath, owner, options = {}) {
+  return exclusive(recordPath, owner, () => removeOwned(recordPath, owner, options));
+}
+export function ownShellUsers(tree, list, selfPid = process.pid) {
+  const byPid = new Map(list.map(p => [p.pid, p]));
+  const shell = p => /^(?:bash|sh|zsh|dash|fish|powershell|pwsh|cmd)(?:\.exe)?$/i.test(p.name);
+  const parentOf = p => {
+    const parent = byPid.get(p?.ppid);
+    return p?.age != null && parent?.age != null && parent.age >= p.age ? parent : null;
+  };
+  const session = new Set([selfPid]);
+  let current = byPid.get(selfPid);
+  while (current) {
+    const parent = parentOf(current);
+    if (!parent || session.has(parent.pid)) break;
+    session.add(parent.pid);
+    if (!shell(parent)) break;
+    current = parent;
+  }
+  const own = p => {
+    if (!shell(p)) return false;
+    const seen = new Set();
+    while (p && !seen.has(p.pid)) {
+      if (session.has(p.pid)) return true;
+      seen.add(p.pid);
+      const parent = parentOf(p);
+      if (!parent) return false;
+      if (session.has(parent.pid)) return true;
+      if (!shell(parent)) return false;
+      p = parent;
+    }
+    return false;
+  };
+  const users = usersOf(tree, list, selfPid);
+  return { users, onlyOwnShells: users.length > 0 && users.every(own) };
 }
 function statusLines(tree) {
   const status = spawnSync("git", ["status", "--porcelain", "--untracked-files=all"], { cwd: tree, env: gitEnvironment(), encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
@@ -150,10 +183,22 @@ function saveLeftovers(r, recordPath) {
   fs.writeFileSync(recordPath, JSON.stringify(saved, null, 2) + "\n");
   return patch;
 }
-async function removeOwned(recordPath, owner) {
+async function removeOwned(recordPath, owner, { defer = false }) {
   const r = owned(recordPath, owner);
   if (git(r.tree, ["rev-parse", "HEAD"]) !== r.head) throw new Error("Filer has committed work; preserve it for a person");
   await checkLinks(r.tree);
+  const processes = liveDeps.processes();
+  if (!processes.ok) throw new Error("Cleanup processes could not be listed; preserve ownership and artifacts");
+  const { users, onlyOwnShells } = ownShellUsers(r.tree, processes.list);
+  if (users.length) {
+    if (!onlyOwnShells) throw new Error(`Cleanup is in use by other or unverifiable processes (${users.map(p => `pid ${p.pid} (${p.name})`).join(", ")}); preserve ownership and artifacts`);
+    if (!defer) throw new Error("Cleanup held by the filer's own shells; retry remove with --defer to record pending cleanup without stopping them");
+    saveLeftovers(r, recordPath);
+    const saved = read(recordPath);
+    saved.cleanupPending = { at: new Date().toISOString(), shells: users.map(({ pid, name }) => ({ pid, name })) };
+    fs.writeFileSync(recordPath, JSON.stringify(saved, null, 2) + "\n");
+    return `cleanup pending: ${r.tree} ${r.branch}`;
+  }
   const leftovers = saveLeftovers(r, recordPath);
   const result = spawnSync(process.execPath, [guard, "--apply", "--root", r.root, "--remove", r.tree], { cwd: r.root, env: gitEnvironment(), encoding: "utf8", windowsHide: true });
   if (result.error || result.status !== 0) throw new Error(`Guarded cleanup refused or failed; preserve ownership and artifacts${leftovers ? ` (leftover changes were saved to ${leftovers})` : ""}: ${result.error?.message ?? result.stdout + result.stderr}`);
@@ -161,23 +206,28 @@ async function removeOwned(recordPath, owner) {
   if (git(r.root, ["rev-parse", `refs/heads/${r.branch}`]) !== r.head) throw new Error("Owned branch moved; preserve it");
   git(r.root, ["branch", "-D", r.branch]);
   const saved = read(recordPath); saved.state = "removed";
+  delete saved.cleanupPending;
   fs.writeFileSync(recordPath, JSON.stringify(saved, null, 2) + "\n");
-  return leftovers ? `${result.stdout.trim()}\nleftover changes saved to ${leftovers}` : result.stdout.trim();
+  return `${result.stdout.trim()}\nowned branch removed: ${r.branch}${leftovers ? `\nleftover changes saved to ${leftovers}` : ""}`;
 }
 export async function main(argv) {
   const command = argv.shift(), options = {};
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--tooling-only") options.toolingOnly = true;
+    else if (argv[i] === "--defer" && command === "remove") options.defer = true;
     else if (["--root", "--owner", "--record"].includes(argv[i]) && argv[i + 1]) options[argv[i].slice(2)] = argv[++i];
     else throw new Error(`Unknown or incomplete option ${argv[i]}`);
   }
   if (command === "create") return create(options);
   if (command === "install") return install(options.record, options.owner);
   if (command === "check") { const r = owned(options.record, options.owner); await checkLinks(r.tree); return { tree: r.tree, safe: true }; }
-  if (command === "remove") return remove(options.record, options.owner);
+  if (command === "remove") return remove(options.record, options.owner, options);
   throw new Error("Use create, install, check or remove");
 }
 if (process.argv[1] && pathToFileURL(process.argv[1]).href.toLowerCase() === import.meta.url.toLowerCase()) {
   useWorktreeTemp();
-  main(process.argv.slice(2)).then(result => console.log(JSON.stringify(result))).catch(error => { console.error(error.message); process.exitCode = 1; });
+  main(process.argv.slice(2)).then(result => {
+    const pending = typeof result === "string" && result.startsWith("cleanup pending: ");
+    console.log(pending ? result : JSON.stringify(result));
+  }).catch(error => { console.error(error.message); process.exitCode = 1; });
 }
