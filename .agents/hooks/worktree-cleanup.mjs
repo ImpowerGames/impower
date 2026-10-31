@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { baseName, isShellCommandString, programBefore, readCommand } from "./typed-issue-hook.mjs";
 
 const route = "Use node scripts/filer-worktree.mjs remove --record <absolute-owner.json> --owner <filing-session> for owned filing trees, or the guarded clean-worktrees --remove route for other trees.";
+const literalCleanupRoute = "For scratch cleanup, replace variables or expansions with a quoted absolute literal target and retry the identity checks. Single-file forms: rm -f -- '/absolute/scratch/file.log' (Bash), or Remove-Item -LiteralPath 'C:/absolute/scratch/file.log' -Force (PowerShell). A temporary location does not exempt repositories, worktrees, ownership or links from protection. " + route;
 const setupRoute = "For an ordinary writer worktree, use direct Git Bash: cd \"C:/absolute/worktree\" && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install; or direct PowerShell: Set-Location 'C:/absolute/worktree'; $env:PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD='1'; npm install. To create it, use direct PowerShell: git worktree add -b fix/N-slug 'C:/absolute/worktree' origin/main. Use literal paths; do not wrap these commands in cmd /c.";
 function hasAncestorMetadata(cwd) {
   // workaround(git): discovery silently skips incomplete repository metadata (e.g. a missing HEAD) and reports not a git repository
@@ -513,9 +514,9 @@ function inspectAt(op) {
     try { op = { ...op, targets: linkPaths(op.linkSpec, op.cwd) }; }
     catch (error) { op = { ...op, targets: Object.assign([], { error: `Link setup identity cannot be checked: ${error.message}` }) }; }
   }
-  if (op.targets.error || op.locationError) return (fromRepository || op.contextKnown) ? `${op.targets.error ?? op.locationError}; direct operation is refused. ${route}` : null;
+  if (op.targets.error || op.locationError) return (fromRepository || op.contextKnown) ? `${op.targets.error ?? op.locationError}; direct operation is refused. ${op.kind === "delete" ? literalCleanupRoute : route}` : null;
   const candidates = targetCandidates(op.targets);
-  if ((fromRepository || op.contextKnown) && candidates.some(text => /[`$*?\[]/.test(text))) return `Cleanup/setup target syntax cannot be verified in this repository. ${route}`;
+  if ((fromRepository || op.contextKnown) && candidates.some(text => /[`$*?\[]/.test(text))) return `Cleanup/setup target syntax cannot be verified in this repository. ${op.kind === "delete" ? literalCleanupRoute : route}`;
   if (op.kind === "delete" && !candidates.length && (fromRepository || op.contextKnown)) return `Cleanup target is missing or cannot be verified. ${route}`;
   for (const candidate of candidates) {
     const target = absoluteLiteral(op.cwd, candidate);
