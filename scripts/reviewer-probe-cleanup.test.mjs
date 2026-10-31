@@ -91,6 +91,46 @@ for(const code of ['EPERM','ENOTEMPTY']){
 }
 console.log('PASS: transient EPERM and ENOTEMPTY directory removals retry within the bound');
 
+for(const code of ['EPERM','EBUSY']){
+  const probe=path.join(directory,'rename-probe');
+  fs.mkdirSync(path.join(probe,'.git'),{recursive:true});
+  fs.writeFileSync(path.join(probe,'proof'),'disposable');
+  fs.symlinkSync(external,path.join(probe,'outside'),process.platform==='win32'?'junction':'dir');
+  const rename=fs.renameSync,wait=Atomics.wait;
+  let attempts=0,backoffs=0;
+  fs.renameSync=(source,...args)=>{
+    if(source===probe&&attempts++===0)throw Object.assign(new Error('temporary staging handle'),{code});
+    return rename(source,...args);
+  };
+  Atomics.wait=(...args)=>{assert.equal(fs.existsSync(path.join(reservationRoot,'guard.json')),false,'staging backoff must release the reservation guard');backoffs++;return wait(...args);};
+  try{assert.doesNotThrow(()=>assert.equal(removeProbeCheckouts(directory,{reservationRoot,retryDelays:[0,0]}).links,1),'transient staging rename must be retried');}
+  finally{fs.renameSync=rename;Atomics.wait=wait;}
+  assert.equal(attempts,2);assert.equal(backoffs,1);
+  assert.equal(fs.existsSync(probe),false);
+  assert.equal(fs.readFileSync(path.join(external,'keep'),'utf8'),'external proof');
+}
+console.log('PASS: transient staging rename retries release the guard and preserve external targets');
+
+{
+  const probe=path.join(directory,'retry-reservation'),reservation=path.join(reservationRoot,'reservation.json');
+  fs.mkdirSync(path.join(probe,'.git'),{recursive:true});
+  fs.writeFileSync(path.join(probe,'proof'),'reserved');
+  const rename=fs.renameSync,wait=Atomics.wait;
+  let attempts=0;
+  fs.renameSync=(source,...args)=>{if(source===probe){attempts++;throw Object.assign(new Error('temporary staging handle'),{code:'EBUSY'});}return rename(source,...args);};
+  Atomics.wait=(...args)=>{
+    assert.equal(fs.existsSync(path.join(reservationRoot,'guard.json')),false);
+    fs.writeFileSync(reservation,JSON.stringify({path:probe}));
+    return wait(...args);
+  };
+  try{assert.equal(removeProbeCheckouts(directory,{reservationRoot,retryDelays:[0,0]}).skipped,true,'each retry must recheck newly admitted reservations');}
+  finally{fs.renameSync=rename;Atomics.wait=wait;fs.unlinkSync(reservation);}
+  assert.equal(attempts,1);
+  assert.equal(fs.readFileSync(path.join(probe,'proof'),'utf8'),'reserved');
+  removeProbeCheckouts(directory,{reservationRoot,retryDelays:[0,0]});
+}
+console.log('PASS: a reservation admitted during staging backoff preserves the pending probe');
+
 fs.mkdirSync(path.join(directory,'contended','.git'),{recursive:true});
 const guard=path.join(reservationRoot,'guard.json');
 fs.writeFileSync(guard,JSON.stringify({owner:coordinator}));

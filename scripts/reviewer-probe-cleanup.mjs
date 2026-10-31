@@ -132,32 +132,42 @@ export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reser
     return {...counts,elapsedMs:Date.now()-began};
   }
   const trash=path.join(root,`.probe-cleanup-${randomUUID()}`);
-  let moved;
-  try{moved=withProbeCleanupGuard((files)=>{
-    for(const file of files){
-      let named;
-      try{named=reservationNaming(file,directory,root);}
-      catch(error){return {skipped:true,reason:error.message};}
-      if(named)return {skipped:true,reason:`Reservation entry at ${file} names ${named}, which overlaps this reviewer directory; preserve reviewer scratch`};
+  let moved,trashCreated=false,pending=targets.map((target,index)=>({target,index}));
+  for(let attempt=0;;attempt++){
+    try{moved=withProbeCleanupGuard((files)=>{
+      for(const file of files){
+        let named;
+        try{named=reservationNaming(file,directory,root);}
+        catch(error){return {skipped:true,reason:error.message};}
+        if(named)return {skipped:true,reason:`Reservation entry at ${file} names ${named}, which overlaps this reviewer directory; preserve reviewer scratch`};
+      }
+      if(!trashCreated){fs.mkdirSync(trash);trashCreated=true;}
+      const failed=[];
+      pending.forEach(({target,index})=>{
+        try{fs.renameSync(target,path.join(trash,String(index)));}
+        catch(error){failed.push({target,index,error});}
+      });
+      return {skipped:false,failed};
+    },{root:reservationRoot});}
+    catch(error){
+      if(error.guardHeld){
+        const guard=path.join(reservationRoot??machineRoot,'guard.json');
+        let owner;
+        try{owner=JSON.parse(fs.readFileSync(guard,'utf8')).owner;}
+        catch(readError){throw new Error(`${error.message}; guard owner unavailable (${readError.message}); nothing was removed`);}
+        throw new Error(`${error.message}; recorded guard owner PID ${owner?.pid??'unknown'}, start ${owner?.start??'unknown'}; nothing was removed`);
+      }
+      throw error;
     }
-    fs.mkdirSync(trash);
-    targets.forEach((target,index)=>{
-      try{fs.renameSync(target,path.join(trash,String(index)));}
-      catch(error){stuck.push(`${target} (${error.code??error.message})`);}
-    });
-    return {skipped:false};
-  },{root:reservationRoot});}
-  catch(error){
-    if(error.guardHeld){
-      const guard=path.join(reservationRoot??machineRoot,'guard.json');
-      let owner;
-      try{owner=JSON.parse(fs.readFileSync(guard,'utf8')).owner;}
-      catch(readError){throw new Error(`${error.message}; guard owner unavailable (${readError.message}); nothing was removed`);}
-      throw new Error(`${error.message}; recorded guard owner PID ${owner?.pid??'unknown'}, start ${owner?.start??'unknown'}; nothing was removed`);
+    if(moved.skipped)return {...counts,skipped:true,reason:moved.reason,elapsedMs:Date.now()-began};
+    pending=[];
+    for(const failure of moved.failed){
+      if(retryable.has(failure.error.code)&&attempt<retryDelays.length)pending.push(failure);
+      else stuck.push(`${failure.target} (${failure.error.code??failure.error.message})`);
     }
-    throw error;
+    if(!pending.length)break;
+    Atomics.wait(sleeper,0,0,retryDelays[attempt]);
   }
-  if(moved.skipped)return {...counts,skipped:true,reason:moved.reason,elapsedMs:Date.now()-began};
   const failures=[];
   removeEntry(trash,counts,failures,retryDelays);
   try{pruneEmpty();}catch(error){stuck.push(`an emptied directory (${error.code??error.message})`);}
