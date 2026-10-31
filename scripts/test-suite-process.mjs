@@ -575,7 +575,7 @@ function waitingQueue(root, identify, holders = []) {
     const file = path.join(root, name);
     let row;
     try { row = read(file); } catch (error) { if (error.code !== "ENOENT" && transientFileError(error)) throw error;continue; }
-    if (!row?.token || !row.owner?.pid || !row.owner.start || !pools.includes(row.pool) || !Number.isFinite(Date.parse(row.arrivedAt))) continue;
+    if (typeof row?.token !== "string" || name !== `waiting-${row.token}.json` || !row.owner?.pid || !row.owner.start || !pools.includes(row.pool) || !Number.isFinite(Date.parse(row.arrivedAt))) continue;
     if (holders.some(holder => same(holder.owner, row.owner) && holder.run === row.run)) { try { fs.unlinkSync(file); } catch {} continue; }
     let alive;
     try { alive = same(row.owner, identify(row.owner.pid)); } catch { continue; }

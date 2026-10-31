@@ -382,4 +382,28 @@ for (const disposition of ["published", "not-published", "foreign"]) {
   });
 }
 
+for (const token of ["/../../outside", "\\..\\..\\outside", "another-row", { value: "safe-row" }, true]) {
+  await check(`a malformed waiting-row identity preserves its original evidence: ${JSON.stringify(token)}`, () => {
+    const parent = fs.mkdtempSync(path.join(scratch, "waiting-identity-")), root = path.join(parent, "store");fs.mkdirSync(root);
+    const file = path.join(root, "waiting-safe-row.json"), outside = path.join(parent, "outside.json");
+    const bytes = JSON.stringify({ token, owner: { pid: 800001, start: "gone" }, pool: "writer", run: "dead waiter", arrivedAt: "2020-01-01T00:00:00Z" });
+    fs.writeFileSync(file, bytes);
+    const reservation = acquire("preserve malformed waiter", options(root));reservation.release();
+    assert.equal(fs.existsSync(outside), false, "recovery must not publish outside the store");
+    assert.equal(fs.existsSync(file), true, "a mismatched token must retain the original row");
+    assert.equal(fs.readFileSync(file, "utf8"), bytes, "a mismatched token cannot move the original row");
+    assert.equal(fs.readdirSync(root).some(name => name.startsWith("recovered-waiting-")), false);
+  });
+}
+
+await check("a matching dead waiting-row identity is recovered inside its store", () => {
+  const root = path.join(scratch, "valid-waiting-identity");fs.mkdirSync(root);
+  const file = path.join(root, "waiting-safe-row.json");
+  const bytes = JSON.stringify({ token: "safe-row", owner: { pid: 800001, start: "gone" }, pool: "writer", run: "dead waiter", arrivedAt: "2020-01-01T00:00:00Z" });
+  fs.writeFileSync(file, bytes);
+  const reservation = acquire("recover valid waiter", options(root));reservation.release();
+  assert.equal(fs.existsSync(file), false);
+  assert.equal(fs.readFileSync(path.join(root, "recovered-waiting-safe-row.json"), "utf8"), bytes);
+});
+
 assert.equal(cases.length, 0, cases.map(value => value.name).join("; "));
