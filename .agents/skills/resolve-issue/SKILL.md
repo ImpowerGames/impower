@@ -34,7 +34,7 @@ Establish the reported failure before editing and retain before-evidence.
 
 ## 4. Fix it
 
-Make the scoped change. Follow repository-wide artifact, generated-source, concurrency and comment rules; a comment the code seems to need means the code is unfinished. Note out-of-scope findings in one line with a `file:line`; reproducing, investigating or filing them waits for the sweep after review. For new standalone checks, stage them and confirm discovery by `node scripts/check-agent-tooling.mjs`; review its expected count, CI triggers and sparse-checkout inputs together.
+Make the scoped change. Follow repository-wide artifact, generated-source, concurrency and comment rules; a comment the code seems to need means the code is unfinished. Note out-of-scope findings in one line with a `file:line`; reproducing, investigating or filing them waits for the sweep after review. For new standalone checks, stage them and confirm discovery by `node scripts/check-agent-tooling.mjs`; review its manifest validation, CI triggers and sparse-checkout inputs together.
 
 ## 5. Regression test
 
