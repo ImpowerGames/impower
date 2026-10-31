@@ -160,6 +160,41 @@ assert.throws(() => linkAgentSkills(copyCase, { adoptCopy: backupParent }), /Ref
 assert.equal(fs.readFileSync(path.join(canonical, "example", "SKILL.md"), "utf8"), "current\ncontent\n");
 fs.unlinkSync(path.join(copied, "example", "linked"));
 fs.writeFileSync(path.join(copied, "example", "SKILL.md"), "stale content");
+for (const name of [".state.json", ".state.json.tmp", ".chrome-profile"]) {
+  const localArtifact = path.join(copied, "example", name);
+  const sharedArtifact = path.join(canonical, "example", name);
+  if (name === ".chrome-profile") {
+    fs.mkdirSync(localArtifact);
+    fs.mkdirSync(sharedArtifact);
+    fs.writeFileSync(path.join(localArtifact, "profile"), "local profile");
+    fs.writeFileSync(path.join(sharedArtifact, "profile"), "canonical profile");
+  } else {
+    fs.writeFileSync(localArtifact, "local state");
+    fs.writeFileSync(sharedArtifact, "canonical state");
+  }
+  const beforeBackups = fs.readdirSync(backupParent);
+  assert.throws(() => linkAgentSkills(copyCase, { adoptCopy: backupParent }), /Refusing populated/);
+  assert.deepEqual(fs.readdirSync(backupParent), beforeBackups);
+  assert.ok(fs.lstatSync(copied).isDirectory());
+  const localData = name === ".chrome-profile" ? path.join(localArtifact, "profile") : localArtifact;
+  const sharedData = name === ".chrome-profile" ? path.join(sharedArtifact, "profile") : sharedArtifact;
+  assert.equal(fs.readFileSync(localData, "utf8"), name === ".chrome-profile" ? "local profile" : "local state");
+  assert.equal(fs.readFileSync(sharedData, "utf8"), name === ".chrome-profile" ? "canonical profile" : "canonical state");
+  fs.unlinkSync(localData);
+  fs.unlinkSync(sharedData);
+  if (name === ".chrome-profile") { fs.rmdirSync(localArtifact); fs.rmdirSync(sharedArtifact); }
+}
+const lstat = fs.lstatSync;
+try {
+  fs.lstatSync = (file, ...args) => {
+    const stat = lstat(file, ...args);
+    return file === path.join(copied, "example", "SKILL.md") ? Object.assign(Object.create(stat), { isFile: () => false }) : stat;
+  };
+  assert.throws(() => linkAgentSkills(copyCase, { adoptCopy: backupParent }), /Refusing populated/);
+} finally { fs.lstatSync = lstat; }
+assert.throws(() => linkAgentSkills(copyCase, { adoptCopy: backupParent, reportPlan: () => fs.writeFileSync(path.join(copied, "example", "SKILL.md"), "changed while planning") }), /changed during planning/);
+assert.equal(fs.readFileSync(path.join(copied, "example", "SKILL.md"), "utf8"), "changed while planning");
+fs.writeFileSync(path.join(copied, "example", "SKILL.md"), "stale content");
 assert.throws(() => linkAgentSkills(copyCase, { adoptCopy: copyCase }), /outside the checkout/);
 const backupLink = path.join(backupParent, "linked-parent");
 fs.symlinkSync(backupParent, backupLink, process.platform === "win32" ? "junction" : "dir");
@@ -188,3 +223,4 @@ assert.equal(repairedInstall.status, 0, repairedInstall.stdout + repairedInstall
 assert.ok(toolDirectories.every((tool) => fs.realpathSync(path.join(copyCase, tool, "skills")) === fs.realpathSync(canonical)));
 console.log("PASS: normalized and stale copies are backed up intact; extra paths, hardlinks and nested links remain protected");
 console.log("PASS: unsafe backup parents refused; planned backup survives creation failure; CLI adoption and subsequent npm postinstall succeed");
+console.log("PASS: matching driver state/profile artifacts, injected special-file metadata and changed-during-planning copies are refused before replacement");

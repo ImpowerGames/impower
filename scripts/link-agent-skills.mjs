@@ -9,6 +9,7 @@ export const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.met
 function copiedTree(directory, canonical) {
   const rows = [];
   function visit(local, shared) {
+    if ([".state.json", ".state.json.tmp", ".chrome-profile"].includes(path.basename(local))) return false;
     const stat = fs.lstatSync(local);
     const source = fs.lstatSync(shared, { throwIfNoEntry: false });
     if (!source || stat.isSymbolicLink() || source.isSymbolicLink()) return false;
