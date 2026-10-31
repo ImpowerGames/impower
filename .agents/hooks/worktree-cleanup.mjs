@@ -52,8 +52,10 @@ function identity(target) {
   const visitedLinks = new Set();
   const inspectAncestors = (candidate, initial = false) => {
     for (let at = entrySpelling(candidate); ; at = entrySpelling(path.dirname(at))) {
-      try {
-        const stat = fs.lstatSync(at);
+      let stat;
+      try { stat = fs.lstatSync(at); }
+      catch (error) { if (error.code !== "ENOENT") throw error; }
+      if (stat) {
         if (stat.isSymbolicLink()) {
           const key = process.platform === "win32" ? at.toLowerCase() : at;
           if (!visitedLinks.has(key)) {
@@ -64,7 +66,7 @@ function identity(target) {
           }
         }
         if (initial && !nearest) nearest = at;
-      } catch (error) { if (error.code !== "ENOENT") throw error; }
+      }
       if (at === entrySpelling(path.dirname(at))) break;
     }
   };
@@ -495,6 +497,7 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
 function inspectAt(op) {
   if (op.kind === "remove") return `Direct git worktree remove is refused: it can follow dependency junctions. ${route}`;
   let roots, registryCwd = op.contextKnown ? op.registryCwd : op.cwd, fromRepository = true;
+  const missingRoots = [];
   try { git(registryCwd, ["rev-parse", "--show-toplevel"]); }
   catch (error) {
     if (!error.outsideRepository) return `Cleanup repository discovery cannot be checked: ${error.message}. ${route}`;
@@ -503,7 +506,17 @@ function inspectAt(op) {
   try {
     const top = real(git(registryCwd, ["rev-parse", "--show-toplevel"]));
     if (fromRepository && owned(top)) return `Direct setup or cleanup in owned filing checkout ${top} is refused, including ambiguous targets. ${route}`;
-    roots = git(registryCwd, ["worktree", "list", "--porcelain"]).split(/\r?\n/).filter(line => line.startsWith("worktree ")).map(line => real(line.slice(9)));
+    roots = git(registryCwd, ["worktree", "list", "--porcelain", "-z"]).split("\0").filter(line => line.startsWith("worktree ")).map(line => {
+      const root = line.slice(9);
+      try { return real(root); }
+      catch (error) {
+        if (error.code !== "ENOENT" || exists(root)) throw error;
+        const id = identity(root);
+        if (id.traversals.length) throw error;
+        missingRoots.push(id.physical);
+        return id.physical;
+      }
+    });
   } catch (error) {
     return `Cleanup ownership cannot be checked: ${error.message}. ${route}`;
   }
@@ -522,6 +535,8 @@ function inspectAt(op) {
     const target = absoluteLiteral(op.cwd, candidate);
     try {
       const id = identity(target);
+      const missingRoot = missingRoots.find(tree => under(id.physical, tree) || under(tree, id.physical) || id.traversals.some(link => under(link.source, tree) || under(tree, link.source) || under(link.target, tree) || under(tree, link.target)));
+      if (missingRoot) return `Cleanup/setup target ${target} overlaps missing registered checkout ${missingRoot}. ${route}`;
       const containing = roots.find(tree => under(id.physical, tree));
       const reachesCheckout = containing || roots.some(tree => under(tree, id.physical)) || id.traversals.some(link => roots.some(tree => under(link.source, tree) || under(link.target, tree)));
       if (!reachesCheckout) continue;

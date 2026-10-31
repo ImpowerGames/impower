@@ -655,6 +655,45 @@ assert.throws(() => normalize(event("apply_patch", {}), "codex"), /missing/);
 assert.throws(() => normalize(event("Bash", {}), "codex"), /missing/);
 assert.throws(() => normalize({}, "unknown"), /adapter/);
 
+{
+  const scratch = fs.mkdtempSync(path.join(process.env.IMPOWER_WRITER_ARTIFACT_DIR || os.tmpdir(), "stale-registry-"));
+  console.log(`Stale registry scratch repository: ${scratch}`);
+  const main = path.join(scratch, "main"), stale = path.join(scratch, "stale writer"), live = path.join(scratch, "live");
+  fs.mkdirSync(main);
+  const git = args => {
+    const result = spawnSync("git", args, { cwd: main, encoding: "utf8", windowsHide: true });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout;
+  };
+  git(["init"]);
+  git(["-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "--allow-empty", "-m", "fixture"]);
+  git(["worktree", "add", "--detach", stale, "HEAD"]);
+  git(["worktree", "add", "--detach", live, "HEAD"]);
+  fs.renameSync(stale, path.join(scratch, "moved"));
+  assert.match(git(["worktree", "list", "--porcelain"]), /prunable/);
+  const slash = value => value.split(path.sep).join("/");
+  for (const shell of ["bash", "powershell"]) {
+    const judge = command => decide({ kind: "shell", command, shell, cwd: main });
+    assert.equal(judge(`git worktree add -b writer '${slash(path.join(scratch, "new writer"))}' HEAD`), null, `${shell}: unrelated stale registration allows setup`);
+    assert.equal(judge(`npm --prefix '${slash(live)}' install`), null, `${shell}: existing checkout setup survives an unrelated stale registration`);
+    for (const target of [stale, path.join(stale, "child"), scratch]) {
+      assert.match(judge(`git worktree add -b writer '${slash(target)}' HEAD`) ?? "", /overlaps missing registered checkout/, `${shell}: missing target and ancestor/descendant overlaps stay protected`);
+    }
+    const admin = git(["-C", live, "rev-parse", "--absolute-git-dir"]).trim();
+    fs.writeFileSync(path.join(admin, "filer-owner.json"), "{}");
+    assert.match(judge(`npm --prefix '${slash(live)}' install`) ?? "", /owned filing/, `${shell}: existing owned checkout stays protected`);
+    fs.unlinkSync(path.join(admin, "filer-owner.json"));
+  }
+  fs.symlinkSync(path.join(scratch, "absent"), stale, process.platform === "win32" ? "junction" : "dir");
+  assert.match(decide({ kind: "shell", command: "npm install", shell: "powershell", cwd: main }) ?? "", /ownership cannot be checked/, "an existing entry with unknown physical identity stays conservative");
+  fs.unlinkSync(stale);
+  const staleParent = path.join(scratch, "stale parent"), nested = path.join(staleParent, "nested");
+  fs.mkdirSync(staleParent);
+  git(["worktree", "add", "--detach", nested, "HEAD"]);
+  fs.renameSync(staleParent, path.join(scratch, "moved parent"));
+  fs.symlinkSync(path.join(scratch, "absent parent"), staleParent, process.platform === "win32" ? "junction" : "dir");
+  assert.match(decide({ kind: "shell", command: "npm install", shell: "powershell", cwd: main }) ?? "", /ownership cannot be checked/, "an existing dangling ancestor cannot establish a missing registration's identity");
+}
 const bash = process.platform === "win32" ? testShell() : "bash";
 const portable = spawnSync(bash, ["-c", hook.command], { cwd: path.join(root, "scripts"), input: JSON.stringify(checks[0][0]), encoding: "utf8", windowsHide: true });
 assert.equal(portable.status, 0, portable.stderr);
