@@ -464,11 +464,12 @@ check("dead recorded servers refuse before launching a browser through the defau
     const dir = sessionDir({ root: path.resolve(SKILL_DIR, "../../.."), session: "refusal", env });
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, "state.json"), JSON.stringify({ url: "http://127.0.0.1:1", pid: 42, idleExitSeconds: 900 }));
-    const script = `import { withEditor } from ${JSON.stringify(new URL("./driver.mjs", import.meta.url).href)}; await withEditor(() => {}, { launch: async () => { console.log("BROWSER_LAUNCHED"); throw new Error("browser should not launch"); } });`;
+    const script = `import { withEditor } from ${JSON.stringify(new URL("./driver.mjs", import.meta.url).href)}; const fetch = globalThis.fetch; globalThis.fetch = (...args) => { console.log("PROBED " + args[0]); return fetch(...args); }; await withEditor(() => {}, { launch: async () => { console.log("BROWSER_LAUNCHED"); throw new Error("browser should not launch"); } });`;
     const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], { env, encoding: "utf8", windowsHide: true, timeout: 15_000 });
     assert.equal(result.error, undefined);
     assert.equal(result.status, 1, result.stderr);
     assert.doesNotMatch(result.stdout, /BROWSER_LAUNCHED/);
+    assert.match(result.stdout, /PROBED http:\/\/127\.0\.0\.1:1/);
     assert.match(result.stderr, /are not answering; they stop themselves after 15 min/);
     assert.match(result.stderr, /Run `up` to start them again/);
     assert.match(result.stderr, /down` removes one whose launcher has exited/);

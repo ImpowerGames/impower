@@ -24,6 +24,7 @@ const copy = (from, to) => {
 };
 const launcher = path.join(repo, "scripts", "dev-preview.mjs");
 copy(path.join(here, "dev-preview.mjs"), launcher);
+copy(path.join(here, "linux-processes.mjs"), path.join(repo, "scripts", "linux-processes.mjs"));
 copy(path.join(here, "detached-launch.mjs"), path.join(repo, "scripts", "detached-launch.mjs"));
 const driver = path.join(repo, ".agents", "skills", "drive-web-editor", "driver.mjs");
 for (const name of ["driver.mjs", "redgreen.mjs", "session-dir.mjs", "worktree-temp.mjs"]) copy(path.join(skill, name), path.join(path.dirname(driver), name));
@@ -322,11 +323,11 @@ try {
       const run = startLauncher(file);
       try {
         await serving(file, run.output, true);
-        const before = await census(run.child.pid);
+        const before = process.platform === "linux" ? await census(run.child.pid) : null;
         process.kill(run.child.pid, "SIGHUP");
         const result = await within(run.exited, 15_000);
         assert.deepEqual(result, { code: 0, signal: null }, `the launcher did not stop itself on SIGHUP:\n${run.output()}`);
-        await assertTreeGone(before, run.child.pid, run.output());
+        if (before) await assertTreeGone(before, run.child.pid, run.output());
       } finally {
         try { process.kill(-run.child.pid, "SIGKILL"); } catch {}
       }

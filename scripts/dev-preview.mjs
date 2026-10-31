@@ -1,5 +1,5 @@
 import { execFile, spawn, spawnSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { linuxProcesses } from "./linux-processes.mjs";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -72,17 +72,7 @@ function spawnServer(label, cwd, args, env) {
 
 let shuttingDown = false;
 function linuxTree(known = new Map()) {
-  const rows = [];
-  for (const name of readdirSync("/proc")) {
-    if (!/^\d+$/.test(name)) continue;
-    try {
-      const stat = readFileSync(`/proc/${name}/stat`, "utf8");
-      const fields = stat.slice(stat.lastIndexOf(")") + 2).trim().split(/\s+/);
-      rows.push({ pid: Number(name), parent: Number(fields[1]), group: Number(fields[2]), start: fields[19], state: fields[0] });
-    } catch (error) {
-      if (!["ENOENT", "ESRCH", "EACCES", "EPERM"].includes(error.code)) throw error;
-    }
-  }
+  const rows = linuxProcesses();
   const owned = new Set([process.pid, ...rows.filter((row) => known.get(row.pid) === row.start).map((row) => row.pid)]);
   let changed;
   do {

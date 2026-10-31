@@ -7,6 +7,8 @@ import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnDetached } from "../../../scripts/detached-launch.mjs";
+import { linuxProcesses } from "../../../scripts/linux-processes.mjs";
+export { linuxProcesses } from "../../../scripts/linux-processes.mjs";
 import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen.mjs";
 import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, SESSION_VARIABLES, checkoutStateFiles, driverSession, recordCheckoutOwner, sessionDir } from "./session-dir.mjs";
 
@@ -524,30 +526,6 @@ async function statusAll() {
   const lines = [...up.map((l) => `UP  ${l}`), ...unreadable, ...(unreadable.length ? [] : down.map((l) => `DOWN  ${l}`))];
   log(lines.length ? lines.join("\n") : "down (no state file)");
   process.exitCode = up.length ? 0 : 1;
-}
-
-export function linuxProcesses({ io = fs, uid = process.getuid?.() } = {}) {
-  const rows = [];
-  for (const name of io.readdirSync("/proc")) {
-    if (!/^\d+$/.test(name)) continue;
-    try {
-      const owner = io.statSync(`/proc/${name}`).uid;
-      let stat;
-      try { stat = io.readFileSync(`/proc/${name}/stat`, "utf8"); }
-      catch (error) {
-        if ((error.code === "EACCES" || error.code === "EPERM") && owner !== uid) {
-          rows.push({ pid: Number(name), uid: owner, unreadable: true });
-          continue;
-        }
-        throw error;
-      }
-      const fields = stat.slice(stat.lastIndexOf(")") + 2).trim().split(/\s+/);
-      rows.push({ pid: Number(name), parent: Number(fields[1]), group: Number(fields[2]), session: Number(fields[3]), state: fields[0], start: fields[19], uid: owner });
-    } catch (error) {
-      if (error.code !== "ENOENT" && error.code !== "ESRCH") throw error;
-    }
-  }
-  return rows;
 }
 
 const runningProcess = (row) => row.state !== "Z" && row.state !== "X";
