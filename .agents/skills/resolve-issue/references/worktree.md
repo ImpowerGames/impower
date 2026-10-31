@@ -63,4 +63,6 @@ The install takes several minutes and roughly 2–3 GB. Run the preflight again 
 
 Everything from here runs inside the new worktree.
 
+If postinstall or the standalone installer refuses a copied canonical skills directory in an app-created worktree, follow [copy adoption](../../references/runner-recovery.md) using the refusal's `--adopt-copy` command and an existing private backup parent outside the checkout, then rerun the installer and preflight. A postinstall refusal alone does not establish that dependencies are missing.
+
 ---
