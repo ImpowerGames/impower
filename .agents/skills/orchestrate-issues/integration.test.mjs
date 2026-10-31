@@ -300,6 +300,24 @@ try {
   assert.deepEqual(g41.blockers, [], "a reviewed head with passed CI, current main, every reviewer exited and nothing outstanding is admitted");
   assert.deepEqual([g41.admitted, g41.disposition, g41.reviewedHead, g41.mergedSince], [true, "reviewed", h41, []]);
   assert.deepEqual(g41.checks.map((c) => [c.name, c.result, c.required]), [["test-suite", "passed", true], ["packages (sparkdown)", "skipped", false], ["hook-tests", "passed", false]], "a skipped package job is reported as skipped, not as a check that ran");
+  {
+    const facts = ig.gatherFacts({ record: record(), pr: 141, client, git: gitOf(src) });
+    for (const completion of ["historical", "delivered", "unfinished"]) {
+      const snapshot = snapshotNow();
+      snapshot.tickets.push({
+        number: 49, state: completion === "unfinished" ? "open" : "closed", stateReason: "completed", closedAt: completion === "historical" ? "2020-01-01T00:00:00Z" : "2030-01-01T00:00:00Z",
+        deliveredBy: { ticket: 41, via: "sub-issue", pr: null }, delivered: completion === "delivered", prs: [], worktrees: [],
+        blockers: [{ number: 900, state: "closed", delivered: false }],
+      });
+      const result = ig.admission(record(), { ticket: 41, pr: 141, snapshot, facts, git: gitOf(src) });
+      if (completion === "unfinished") blocked(result, /#49 is blocked by #900/, "an unfinished delivered Bug's external blocker still holds its Task");
+      else assert.equal(result.admitted, true, `${completion} child dependencies do not block an otherwise admissible Task: ${result.blockers.join(" | ")}`);
+      const changed = structuredClone(snapshot);
+      changed.tickets.find((t) => t.number === 49).blockers = [{ number: 901, state: "open", delivered: false }];
+      if (completion === "unfinished") assert.notDeepEqual(ig.mergeScope(snapshot, 41, record()), ig.mergeScope(changed, 41, record()), "unfinished child dependencies remain final-check premises");
+      else assert.deepEqual(ig.mergeScope(snapshot, 41, record()), ig.mergeScope(changed, 41, record()), `${completion} child dependencies are excluded from the final comparison`);
+    }
+  }
   const split41 = threadGate(41, true);
   assert.deepEqual([split41.result.blockers, split41.asked], [[], [[141, 41]]], "the gate asks for PR #141's review thread on ticket #41 and admits the head from it");
   blocked(threadGate(41, false).result, new RegExp(`report \\d+ \\(round 1, undirected\\) is not on review thread ${INTERNAL}#41`), "a report left on the PR alone, once tickets live apart");
