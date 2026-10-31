@@ -170,7 +170,7 @@ function instruction(entry, sessionId, harness) {
   const what = forSession(entry)
     ? `This session coordinates a parent issue as "${title}", the title its run record holds. Rename the session to exactly that title before running further shell commands.`
     : `This session creates the worktree for "${title}" at ${entry.worktree}. Rename the session to exactly that title before running further shell commands in that worktree.`;
-  return `${what} ${call} Only if this runner offers no rename tool, run \`${ackFor(sessionId, entry.id)}\` instead.`;
+  return `${what} ${call} If the rename tool is unavailable or refuses (including for a subagent writer), run \`${ackFor(sessionId, entry.id)}\` instead.`;
 }
 
 const settle = (entries, done) => (forSession(done) ? entries.map((entry) => (entry === done ? { ...entry, acknowledged: true } : entry)) : entries.filter((entry) => entry !== done));
@@ -241,11 +241,17 @@ export function gate(payload, harness) {
   const sessionId = sessionOf(payload);
   const entry = open(pending(sessionId)).find((candidate) => touches(candidate, payload));
   if (!entry) return null;
-  return isAck(payload.tool_input?.command, sessionId, entry) ? null : instruction(entry, sessionId, harness);
+  return isAck(payload.tool_input?.command, sessionId, entry, tool) ? null : instruction(entry, sessionId, harness);
 }
 
-function isAck(command, sessionId, entry) {
-  const match = String(command ?? "").trim().match(/^node\s+(?:"([^"]+)"|([^\s"';&|]+))\s+confirm\s+([0-9a-f]{64})\s+([0-9a-f]{16})$/);
+function isAck(command, sessionId, entry, tool) {
+  const value = /(?:'[^'\r\n]*'|"[^"$`\\\r\n]*"|[a-zA-Z0-9_./:-]+)/.source;
+  const assignment = tool === "powershell"
+    ? new RegExp(`^\\$env:[a-zA-Z_][a-zA-Z0-9_]*[ \\t]*=[ \\t]*${value}[ \\t]*;[ \\t]*`, "i")
+    : new RegExp(`^[a-zA-Z_][a-zA-Z0-9_]*=${value}[ \\t]+`);
+  let text = String(command ?? "").trim();
+  for (let prefix; (prefix = text.match(assignment)); ) text = text.slice(prefix[0].length);
+  const match = text.match(/^node\s+(?:"([^"]+)"|([^\s"';&|]+))\s+confirm\s+([0-9a-f]{64})\s+([0-9a-f]{16})$/);
   return Boolean(match) && match[3] === sessionKey(sessionId) && match[4] === entry.id && samePath(match[1] ?? match[2], self);
 }
 
