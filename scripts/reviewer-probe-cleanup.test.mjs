@@ -208,9 +208,34 @@ const guard=path.join(reservationRoot,'guard.json');
 fs.writeFileSync(guard,JSON.stringify({owner:coordinator}));
 const began=Date.now();
 try{
-  assert.throws(()=>removeProbeCheckouts(directory,{reservationRoot}),error=>error.message.includes(`recorded guard owner PID ${coordinator.pid}, start ${coordinator.start}`));
+  assert.throws(()=>removeProbeCheckouts(directory,{reservationRoot}),error=>{
+    assert.ok(error.message.includes(`recorded guard owner PID ${coordinator.pid}, start ${coordinator.start}`));
+    assert.ok(error.message.includes(directory),'guard refusal must name the preserved reviewer directory');
+    assert.ok(error.message.includes('removed 0 files and 0 links'));
+    return true;
+  });
 }finally{fs.unlinkSync(guard);}
 assert.ok(Date.now()-began>=4900,'existing reservation guard contention waits within its bound');
 assert.ok(fs.existsSync(path.join(directory,'contended','.git')),'exhausted contention removes nothing');
 removeProbeCheckouts(directory,{reservationRoot});
 console.log('PASS: exhausted reservation contention names its recorded owner and preserves probes');
+
+for(const [record,state] of [['{}','recorded guard owner PID unknown, start unknown'],['{','guard owner unavailable']]){
+  const probe=path.join(directory,'unknown-guard');
+  fs.mkdirSync(path.join(probe,'.git'),{recursive:true});
+  fs.writeFileSync(path.join(probe,'proof'),'retained');
+  fs.writeFileSync(guard,record);
+  try{
+    assert.throws(()=>removeProbeCheckouts(directory,{reservationRoot}),error=>{
+      assert.ok(error.message.includes(guard));
+      assert.ok(error.message.includes(state));
+      assert.ok(error.message.includes(directory));
+      assert.ok(error.message.includes('removed 0 files and 0 links'));
+      return true;
+    });
+    assert.equal(fs.readFileSync(guard,'utf8'),record);
+    assert.equal(fs.readFileSync(path.join(probe,'proof'),'utf8'),'retained');
+  }finally{fs.unlinkSync(guard);}
+  removeProbeCheckouts(directory,{reservationRoot});
+}
+console.log('PASS: unknown and unreadable guard owners name preserved scratch without removing guard or probe evidence');
