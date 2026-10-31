@@ -1126,7 +1126,11 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
     try {
       const result = probeCleanup(directory, { preserve, keep: keep && fs.existsSync(keep) ? [keep] : [] });
       append({ event: result.skipped ? "probe-cleanup-skipped" : "probe-checkouts-removed", index, step, directory, ...result });
-    } catch (error) { append({ event: "probe-cleanup-failed", index, step, directory, reason: error.message }); }
+    } catch (error) {
+      const recoveryCommand = `node scripts/reviewer-probe-cleanup.mjs ${JSON.stringify(journal.split(path.sep).join('/'))}`;
+      append({ event: "probe-cleanup-failed", index, step, directory, reason: error.message, recoveryCommand });
+      console.error(`Probe cleanup incomplete: ${error.message}. Recovery: ${recoveryCommand}`);
+    }
   };
   const usedReports=new Set();
   const coordinatorPosts = config.reportPosting === "coordinator";

@@ -71,6 +71,7 @@ scripts/list-rationale-comments.test.mjs
 scripts/review-supervisor.test.mjs
 scripts/reviewer-defaults.test.mjs
 scripts/reviewer-execution.test.mjs
+scripts/reviewer-probe-cleanup.test.mjs
 scripts/reviewer-slots.test.mjs
 scripts/start-coordinator.test.mjs
 scripts/test-suite-admission.test.mjs
