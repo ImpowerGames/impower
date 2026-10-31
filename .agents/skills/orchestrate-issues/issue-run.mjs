@@ -1180,8 +1180,8 @@ export function answer(record, { ticket: number, request: id, text, retry = fals
   const owner = ticketOf(record, number).owner, to = record.coordinator.session;
   r.answer = { state: "intent", text: words, deliveryId: randomUUID().slice(0, 8), attempts: (r.answer?.attempts ?? 0) + 1, time: new Date().toISOString(), to };
   log(record, "answer-intent", { ticket: number, id, deliveryId: r.answer.deliveryId, attempt: r.answer.attempts });
-  const moved = owner?.coordinator && owner.coordinator !== to ? `\n${contactLine(record, owner)}` : "";
-  return { message: `Answer to your request ${id}, which asked: "${r.text}" (delivery ${r.answer.deliveryId}):\n${words}\nIf you already received an answer to request ${id}, ignore this copy.${moved}` };
+  const contactNote = owner ? `\n${contactLine(record, owner)}` : "";
+  return { message: `Answer to your request ${id}, which asked: "${r.text}" (delivery ${r.answer.deliveryId}):\n${words}\nIf you already received an answer to request ${id}, ignore this copy.${contactNote}` };
 }
 export function answered(record, { ticket: number, request: id, evidence }) {
   const r = findRequest(record, number, id);
@@ -1524,7 +1524,7 @@ export function resumeWriter(file, { coordinator, expectRevision, ticket: number
     if (UNSAFE.test(launchDir) || UNSAFE.test(r.checkout)) throw new Error(`${launchDir} holds a character the command line would interpret`);
     owner.sessionId = sessionId;
     const moved = owner.coordinator && owner.coordinator !== r.coordinator.session ? r.coordinator.session : null;
-    owner.resuming = { id, launchDir, time: new Date().toISOString(), ...(moved && { contactTo: moved, contactNote: contactLine(r, owner) }) };
+    owner.resuming = { id, launchDir, time: new Date().toISOString(), contactNote: contactLine(r, owner), ...(moved && { contactTo: moved }) };
     log(r, "resume-intent", { ticket: number, id, sessionId });
   });
   const { id, launchDir, contactNote } = intent.record.tickets[number].owner.resuming;

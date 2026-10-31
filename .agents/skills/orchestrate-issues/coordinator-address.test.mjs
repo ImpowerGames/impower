@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { brief, contact, deliver, answer, readWriterDefaults } from "./issue-run.mjs";
+import { execFileSync } from "node:child_process";
+import { brief, contact, deliver, answer, readWriterDefaults, initRecord, readRecord, updateRecord, resumeWriter } from "./issue-run.mjs";
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "coordinator-address-"));
 console.log(`scratch: ${tmp}`);
@@ -19,6 +20,8 @@ const plan = path.join(tmp, "plan.json");
 fs.writeFileSync(plan, JSON.stringify({ tickets: [{ number: 301, title: "contact" }] }));
 const owner = record.tickets[301].owner;
 const stored = owner.brief;
+const failures = [];
+const scenario = (name, run) => { try { run(); } catch (error) { failures.push(name); console.log(`FAIL ${name}: ${error.message}`); } };
 const check = (text) => {
   assert.ok(text.includes(title), "the reachable title accompanies the coordinator identity");
   assert.ok(text.includes(current), "the current session identity is retained");
@@ -42,6 +45,12 @@ try {
   check(contact(record, { ticket: 301, retry: true, defaults }).message);
   check(answer(record, { ticket: 301, request: "question", text: "Proceed." }).message);
   check(answer(record, { ticket: 301, request: "question", retry: true }).message);
+  owner.coordinator = current;
+  record.tickets[301].requests.push({ id: "same", text: "Continue with the same coordinator?" });
+  scenario("same-coordinator legacy answer and retry refresh contact", () => {
+    check(answer(record, { ticket: 301, request: "same", text: "Proceed." }).message);
+    check(answer(record, { ticket: 301, request: "same", retry: true }).message);
+  });
   delete record.title;
   assert.throws(() => brief(record, plan, 301, [], defaults), /no recorded ListAgents title/);
   record.title = title;
@@ -61,6 +70,27 @@ try {
   const separate = brief(record, plan, 301, [], defaults);
   assert.doesNotMatch(separate, /collaboration.send_message/);
   assert.match(separate, /cannot message.*coordinator reads the end of your transcript/);
+  const repo = path.join(tmp, "repo"), artifacts = path.join(tmp, "artifacts");
+  fs.mkdirSync(repo);
+  fs.mkdirSync(artifacts);
+  execFileSync("git", ["init", "-q", "-b", "main", repo], { windowsHide: true });
+  execFileSync("git", ["-C", repo, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base"], { windowsHide: true });
+  const state = path.join(artifacts, "run.json");
+  initRecord({ record: state, checkout: repo, repository: "acme/widgets", issue: 300, coordinator: current, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", slug: "reliable-coordinator-delivery", invocation: "Use orchestrate-issues for #300." }, { defaults, freeBytes: 100 * 2 ** 30, totalMemory: 64 * 2 ** 30 });
+  const session = "33333333-3333-4333-8333-333333333333";
+  updateRecord(state, { expectRevision: readRecord(state).revision, coordinator: current }, (r) => {
+    r.tickets[301] = { owner: { route: "claude-cli", model: "claude-opus-5-5", effort: "low", permissionMode: "bypassPermissions", coordinator: current, sessionId: session, artifactParent: artifacts, acknowledged: { time: "before-fix" }, brief: stored, handle: { kind: "process", pid: null, start: null, host: os.hostname(), launchDir: path.join(artifacts, "old-launch") } }, history: [], results: [] };
+  });
+  const prompt = path.join(artifacts, "continue.txt");
+  fs.writeFileSync(prompt, "Continue the assignment.");
+  let sent;
+  const resumed = resumeWriter(state, { coordinator: current, expectRevision: readRecord(state).revision, ticket: 301, executable: process.execPath, args: ["-p", "--resume", session, "--model", "claude-opus-5-5", "--effort", "low", "--permission-mode", "bypassPermissions"], prompt, identify: () => null, census: () => [], spawner: (spec) => { sent = fs.readFileSync(path.join(spec.launchDir, "prompt.txt"), "utf8"); return { started: false, reason: "contract probe: no child launched" }; } });
+  assert.equal(resumed.started, false);
+  scenario("same-coordinator acknowledged legacy resume refreshes contact", () => {
+    check(sent);
+    assert.ok(sent.startsWith("Continue the assignment."));
+  });
+  assert.deepEqual(failures, []);
   console.log("PASS: first brief, stored brief, repeated resend, contact, answer and retry use route-specific coordinator addresses");
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
