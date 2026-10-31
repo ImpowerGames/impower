@@ -499,8 +499,89 @@ try {
   assert.deepEqual(run.startRepositories("acme/other", ON), {}, "a repository the file does not name keeps its own tickets");
 
   const ghCalls = (names, reply) => { const calls = []; return { calls, client: run.githubClient(names, checkout, { run: (cmd, args) => { calls.push(`${cmd} ${args.join(" ")}`); return reply(args); } }) }; };
-  const replies = (pulls, comments = {}) => (args) => (args[0] === "api" && args[1] === "user" ? "shared\n" : args[0] === "pr" && args[1] === "list" ? JSON.stringify(typeof pulls === "function" ? pulls(args[args.indexOf("--search") + 1]) : pulls) : args[0] === "pr" ? JSON.stringify({ statusCheckRollup: [] }) : args.includes("--slurp") ? JSON.stringify([comments[args.at(-1)] ?? []]) : "{}");
+  const accountPages = (pulls, { totalCount = pulls.length, hasNextPage = false, login = "shared", endCursor = hasNextPage ? "next" : null } = {}) => [{ data: { viewer: { login, pullRequests: { totalCount, pageInfo: { hasNextPage, endCursor }, nodes: pulls.map((p) => ({ createdAt: "2026-10-20T00:00:00Z", ...p, repository: { nameWithOwner: p.repository?.nameWithOwner ?? "acme/widgets" }, closingIssuesReferences: { nodes: (p.closingIssuesReferences ?? []).map((r) => ({ number: r.number, url: `https://github.com/${r.repository?.owner?.login ?? "acme"}/${r.repository?.name ?? "widgets"}/issues/${r.number}` })), pageInfo: { hasNextPage: false } } })) } } } }];
+  const replies = (pulls, comments = {}) => (args) => (args[0] === "api" && args[1] === "graphql" ? JSON.stringify(accountPages(typeof pulls === "function" ? pulls(null) : pulls)) : args[0] === "api" && args[1] === "user" ? "shared\n" : args[0] === "pr" && args[1] === "list" ? JSON.stringify(typeof pulls === "function" ? pulls(args[args.indexOf("--search") + 1]) : pulls) : args[0] === "pr" ? JSON.stringify({ statusCheckRollup: [] }) : args.includes("--slurp") ? JSON.stringify([comments[args.at(-1)] ?? []]) : "{}");
   const listFields = "number,state,isDraft,headRefName,headRefOid,baseRefName,closingIssuesReferences,mergeCommit,createdAt";
+  {
+    const pull = (number, ticket) => ({ number, state: "MERGED", isDraft: false, headRefName: `codex/perf/${ticket}-work`, headRefOid: `h${number}`, baseRefName: "main", mergeCommit: { oid: `m${number}` }, author: { login: "shared" }, closingIssuesReferences: [{ number: ticket, repository: { name: "internal", owner: { login: "acme" } } }] });
+    const historical = Array.from({ length: 1001 }, (_, i) => pull(2000 + i, 3000 + i));
+    const last = { ...pull(4001, 9999), closingIssuesReferences: [{ number: 22, repository: { name: "internal", owner: { login: "acme" } } }] };
+    historical[1000] = last;
+    const pages = historical.flatMap((_, i) => i % 100 === 0 ? accountPages(historical.slice(i, i + 100), { totalCount: historical.length, hasNextPage: i + 100 < historical.length, endCursor: `page-${i}` }) : []);
+    const { client, calls } = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, (args) => {
+      if (args[1] === "user") return "shared\n";
+      if (args[1] === "graphql") return JSON.stringify(pages);
+      if (args[0] === "pr" && args[1] === "list") return JSON.stringify(args[args.indexOf("--search") + 1] === "22" ? [last] : []);
+      throw new Error(`Unexpected discovery call: ${args.join(" ")}`);
+    });
+    const snapshot = run.takeSnapshot({ repository: "acme/widgets", tickets: "acme/internal", issue: 100 }, { ...client, fetchMain: () => "main", worktrees: () => [], onMain: () => true, issue: (number) => ({ number, state: "open", title: "Task", body: "" }), subIssues: (number) => number === 100 ? Array.from({ length: 22 }, (_, i) => ({ number: i + 1, state: "open", title: "slice" })) : [], blockedBy: () => [], effort: () => "Medium" });
+    assert.equal(calls.length, 1, "a 22-ticket snapshot shares one completely paginated account listing");
+    assert.ok(!calls.some((call) => call.includes("--search") || call.includes("search(")));
+    assert.deepEqual(snapshot.tickets.find((t) => t.number === 22).prs.map((p) => p.number), [4001], "a closing-reference-only PR beyond 1000 historical PRs is found");
+    for (const incomplete of [accountPages([], { totalCount: 1 }), accountPages([], { hasNextPage: true })]) {
+      const fallback = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, (args) => args[1] === "graphql" ? JSON.stringify(incomplete) : JSON.stringify([last]));
+      assert.deepEqual(fallback.client.pulls(22).map((p) => p.number), [4001]);
+      fallback.client.pulls(21);
+      assert.equal(fallback.calls.filter((call) => call.startsWith("gh api graphql")).length, 1);
+      assert.equal(fallback.calls.filter((call) => call.includes("--search")).length, 4, "only a truncated listing invokes the two legacy searches per ticket");
+    }
+    const broken = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, () => JSON.stringify([{ errors: [{ message: "temporary failure" }] }]));
+    assert.throws(() => broken.client.pulls(22), /incomplete page/, "an API failure cannot masquerade as no deliverable");
+    for (const [label, change] of [
+      ["partial API error", (page) => { page.errors = [{ message: "partial response" }]; }],
+      ["opaque API error", (page) => { page.errors = {}; }],
+      ["missing account", (page) => { delete page.data.viewer.login; }],
+      ["missing count", (page) => { delete page.data.viewer.pullRequests.totalCount; }],
+      ["negative count", (page) => { page.data.viewer.pullRequests.totalCount = -1; }],
+      ["missing outer cursor", (page) => { delete page.data.viewer.pullRequests.pageInfo.endCursor; }],
+      ["missing author", (page) => { delete page.data.viewer.pullRequests.nodes[0].author; }],
+      ["missing state", (page) => { delete page.data.viewer.pullRequests.nodes[0].state; }],
+      ["missing head", (page) => { delete page.data.viewer.pullRequests.nodes[0].headRefName; }],
+      ["missing head revision", (page) => { delete page.data.viewer.pullRequests.nodes[0].headRefOid; }],
+      ["missing draft state", (page) => { delete page.data.viewer.pullRequests.nodes[0].isDraft; }],
+      ["missing base", (page) => { delete page.data.viewer.pullRequests.nodes[0].baseRefName; }],
+      ["missing creation date", (page) => { delete page.data.viewer.pullRequests.nodes[0].createdAt; }],
+      ["invalid creation date", (page) => { page.data.viewer.pullRequests.nodes[0].createdAt = "invalid"; }],
+      ["missing merge identity", (page) => { delete page.data.viewer.pullRequests.nodes[0].mergeCommit; }],
+      ["missing closing references", (page) => { delete page.data.viewer.pullRequests.nodes[0].closingIssuesReferences; }],
+      ["missing nested completeness", (page) => { delete page.data.viewer.pullRequests.nodes[0].closingIssuesReferences.pageInfo; }],
+      ["partial closing reference", (page) => { delete page.data.viewer.pullRequests.nodes[0].closingIssuesReferences.nodes[0].url; }],
+      ["mismatched closing identity", (page) => { page.data.viewer.pullRequests.nodes[0].closingIssuesReferences.nodes[0].number++; }],
+    ]) {
+      const malformed = accountPages([last]);
+      change(malformed[0]);
+      const failed = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, () => JSON.stringify(malformed));
+      assert.throws(() => failed.client.pulls(22), /account pull request listing/, `${label} cannot silently omit a pull request`);
+      assert.equal(failed.calls.length, 1, `${label} refuses without Search fallback`);
+    }
+    for (const malformed of [null, {}, [], [null]]) {
+      const failed = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, () => JSON.stringify(malformed));
+      assert.throws(() => failed.client.pulls(22), /account pull request listing/);
+    }
+    for (const malformed of [
+      accountPages([last], { hasNextPage: true, endCursor: null }),
+      [...accountPages([last]), ...accountPages([last])],
+      [...accountPages([last], { hasNextPage: true }), ...accountPages([last], { endCursor: "next" })],
+      [...accountPages([last], { hasNextPage: true }), ...accountPages([last], { login: "other" })],
+    ]) {
+      const failed = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, () => JSON.stringify(malformed));
+      assert.throws(() => failed.client.pulls(22), /invalid pagination|account changed/, "invalid pagination and account changes cannot become a complete inventory");
+    }
+    const malformedJson = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, () => "{");
+    assert.throws(() => malformedJson.client.pulls(22), SyntaxError);
+    const nested = accountPages([last]);
+    nested[0].data.viewer.pullRequests.nodes[0].closingIssuesReferences.pageInfo.hasNextPage = true;
+    const nestedFallback = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, (args) => JSON.stringify(args[1] === "graphql" ? nested : [last]));
+    assert.deepEqual(nestedFallback.client.pulls(22).map((p) => p.number), [4001]);
+    assert.equal(nestedFallback.calls.filter((call) => call.includes("--search")).length, 2, "nested truncation preserves the legacy fallback");
+    const unrelated = { ...last, repository: { nameWithOwner: "other/repo" } };
+    const mixed = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, () => JSON.stringify(accountPages([unrelated, last])));
+    assert.deepEqual(mixed.client.pulls(22).map((p) => p.number), [4001], "same PR numbers in distinct repositories are distinct inventory entries");
+    assert.equal(mixed.calls.length, 1, "repository filtering happens after completeness counting");
+    const nextSnapshot = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, () => JSON.stringify(accountPages([])));
+    assert.deepEqual(nextSnapshot.client.pulls(22), [], "a later client does not retain an earlier inventory");
+    assert.equal(nextSnapshot.calls.length, 1);
+  }
   {
     const { client: one, calls } = ghCalls({ repository: "acme/widgets" }, replies([]));
     one.issue(200); one.subIssues(200); one.blockedBy(201); one.effort(201); one.pulls(201); one.comments(401, 201); one.checks(401);
@@ -520,24 +601,26 @@ try {
     const listed = [pr(701, "feat/7-thing", "shared", [ref(INTERNAL, 7), ref("acme/widgets", 7)]), pr(702, "fix/7-thing", "someone-else", [ref(INTERNAL, 7)]), pr(703, "feat/70-other", "shared", [ref(INTERNAL, 70)])];
     const prefixed = pr(704, "codex/fix/7-prefixed", "shared", [ref(INTERNAL, 7)]);
     const heads = run.DISCOVERY_TYPES.map((t) => `head:${t}/7-`).join(" ");
-    const { client: split, calls } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies((search) => (search === heads ? listed : search === "7" ? [prefixed, listed[0], pr(705, "fix/77-other", "shared", [])] : []), { [`repos/${INTERNAL}/issues/7/comments`]: [{ body: "### Review round 2 state\n" }], "repos/acme/widgets/issues/701/comments": [{ body: "### Review round 5 state\n" }] }));
+    const { client: split, calls } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies((search) => (search === null ? [...listed, prefixed, pr(705, "fix/77-other", "shared", [])] : search === heads ? listed : search === "7" ? [prefixed, listed[0], pr(705, "fix/77-other", "shared", [])] : []), { [`repos/${INTERNAL}/issues/7/comments`]: [{ body: "### Review round 2 state\n" }], "repos/acme/widgets/issues/701/comments": [{ body: "### Review round 5 state\n" }] }));
     split.issue(6); split.subIssues(6); split.blockedBy(7); split.effort(7);
     const found = split.pulls(7);
     assert.deepEqual(found.map((p) => [p.number, p.closingIssuesReferences.map((r) => `${r.repository.owner.login}/${r.repository.name}#${r.number}`)]), [[704, [`${INTERNAL}#7`]], [701, [`${INTERNAL}#7`]]], "only the shared account's PRs on the ticket's own branch, prefixed or not, are the ticket's, once each, with their references to the tickets repository");
     assert.ok(!("author" in found[0]), "the author is read for discovery only");
     split.comments(701, 7); split.checks(701);
+    const listingCall = calls[4];
+    assert.match(listingCall, /^gh api graphql --paginate --slurp -f query=/);
+    assert.match(listingCall, /viewer\s*\{\s*login\s*pullRequests/);
+    assert.ok(!listingCall.includes("search("));
     assert.deepEqual(calls, [
       `gh api repos/${INTERNAL}/issues/6`,
       `gh api --paginate --slurp repos/${INTERNAL}/issues/6/sub_issues`,
       `gh api --paginate --slurp repos/${INTERNAL}/issues/7/dependencies/blocked_by`,
       `gh api --paginate --slurp -H X-GitHub-Api-Version: 2026-03-10 repos/${INTERNAL}/issues/7/issue-field-values`,
-      "gh api user --jq .login",
-      `gh pr list --repo acme/widgets --author @me --state all --search ${heads} --limit 100 --json ${listFields},author`,
-      `gh pr list --repo acme/widgets --author @me --state all --search 7 --limit 100 --json ${listFields},author`,
+      listingCall,
       `gh api --paginate --slurp repos/${INTERNAL}/issues/7/comments`,
       "gh pr view 701 --repo acme/widgets --json statusCheckRollup",
     ]);
-    assert.ok(!calls.some((c) => /graphql|^gh issue|repos\/acme\/widgets\//.test(c)), "nothing reads tickets or comments of the code repository, and nothing uses GraphQL for them");
+    assert.ok(!calls.some((c) => /^gh issue|repos\/acme\/widgets\//.test(c)), "nothing reads tickets or comments of the code repository");
     assert.throws(() => split.comments(701), /Supply ticket/, "a PR's review thread needs its ticket once tickets live apart");
     const splitSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 6 }, { ...split, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Feature", body: "" }), subIssues: (n) => (n === 6 ? [{ number: 7, state: "open", title: "slice" }] : []), blockedBy: () => [], effort: () => "Medium" });
     assert.deepEqual(splitSnap.tickets[0].prs.map((p) => [p.number, p.rounds]), [[704, 2], [701, 2]], "the PRs' rounds come from the round-state comments on their ticket");
@@ -561,7 +644,7 @@ try {
     run.updateRecord(file, { expectRevision: 1, coordinator: "local_split" }, (r) => run.claim(r, { plan: splitPlanFile, ticket: 7, worktree: path.join(dir, "wt-7"), branch: "feat/7-thing", artifactParent: dir }));
     {
       const listedWith8 = [pr(701, "feat/7-thing", "shared", [ref(INTERNAL, 7), ref(INTERNAL, 8)])];
-      const { client: split8 } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies((search) => (search === heads || search === "7" ? listedWith8 : []), { [`repos/${INTERNAL}/issues/7/comments`]: [] }));
+      const { client: split8 } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies(listedWith8, { [`repos/${INTERNAL}/issues/7/comments`]: [] }));
       const split8Snap = run.takeSnapshot({ repository: "acme/widgets", issue: 6, tickets: INTERNAL }, { ...split8, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Widgets", type: { name: "Task" }, body: "" }), subIssues: (n) => (n === 6 ? [{ number: 7, state: "open", title: "slice", type: { name: "Task" } }, { number: 8, state: "open", title: "bug the slice closes", type: { name: "Bug" } }] : []), blockedBy: () => [], effort: () => "Medium" });
       const eight = split8Snap.tickets.find((t) => t.number === 8);
       assert.deepEqual([eight.prs, eight.deliveredBy], [[], { ticket: 7, via: "pr", pr: 701, merged: false }], "the sibling's PR is absent from the Bug's own list and still delivers it");
