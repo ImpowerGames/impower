@@ -52,7 +52,11 @@ export function atomic(file, value, { admissionRoot } = {}) {
       if (admissionRoot) identity = fs.fstatSync(fd, { bigint: true });
       fs.writeFileSync(fd, JSON.stringify(value, null, 2) + "\n", "utf8");
       fs.fsyncSync(fd);
-    } finally { fs.closeSync(fd); }
+    } catch (error) { throw admissionRoot ? admissionFailure(admissionRoot, error) : error; }
+    finally {
+      try { fs.closeSync(fd); }
+      catch (error) { throw Object.assign(error, { reservationRetryUnsafe: true }); }
+    }
     const deadline = Date.now() + 1000;
     for (;;) {
       try { fs.renameSync(temp, file); published = true; break; }
@@ -65,7 +69,8 @@ export function atomic(file, value, { admissionRoot } = {}) {
   } finally {
     if (admissionRoot && !published) {
       if (!identity) throw new Error(`Private reservation file identity unavailable at ${temp}; preserve it for inspection`);
-      unlinkOwned(temp, identity);
+      try { removeGuard(temp, identity); }
+      catch (error) { throw Object.assign(error, { reservationRetryUnsafe: true }); }
     }
   }
 }
@@ -94,15 +99,28 @@ function stillOwned(file, identity) {
   catch (error) { if (error.code === "ENOENT") return false; throw error; }
 }
 
-function removeGuard(file, identity) {
+function removeGuard(file, identity, waitMs = guardWaitMs) {
   if (!identity) throw new Error(`Reservation guard identity unavailable at ${file}; preserve it for inspection`);
-  try { unlinkOwned(file, identity); }
-  catch (error) { if (error.code !== "ENOENT") throw error; }
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    try { unlinkOwned(file, identity); return; }
+    catch (error) {
+      if (error.code === "ENOENT") {
+        let current;
+        try { current = fs.lstatSync(file, { bigint: true }); }
+        catch (inspection) { if (inspection.code === "ENOENT") return;throw inspection; }
+        if (!sameFile(current, identity)) throw new Error(`Private reservation file ownership changed at ${file}; preserve it for inspection`);
+      }
+      if (!transientFileError(error) || Date.now() >= deadline) throw error;
+      Atomics.wait(sleeper, 0, 0, 10);
+    }
+  }
 }
 
 const storeDenied = (root, error) => new Error(`Reservation store not writable at ${root} (${error.code}); this process cannot take the machine-wide Vitest reservation, so it cannot run Vitest here`);
+const transientFileError = error => ["EEXIST", "ENOENT", "EPERM", "EACCES", "EBUSY"].includes(error.code);
 function admissionFailure(root, error) {
-  if (process.platform !== "win32" || !["EPERM", "EACCES", "EBUSY"].includes(error.code)) return error;
+  if (error.reservationRetryUnsafe || !transientFileError(error)) return error;
   const probe = path.join(root, `write-probe-${randomUUID()}.tmp`);
   let fd, identity;
   try {
@@ -116,7 +134,8 @@ function admissionFailure(root, error) {
     if (fd !== undefined) {
       fs.closeSync(fd);
       if (!identity) throw new Error(`Private reservation probe identity unavailable at ${probe}`);
-      unlinkOwned(probe, identity);
+      try { unlinkOwned(probe, identity); }
+      catch (error) { throw Object.assign(error, { reservationRetryUnsafe: true }); }
     }
   }
   return Object.assign(new Error(`Reservation files busy at ${root} (${error.code}); writable store confirmed, but acquisition did not complete`), { reservationFilesBusy: true });
@@ -262,9 +281,20 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
   for (;;) {
     try { identity = publishOwned(root, guard); break; }
     catch (error) {
-      if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
-      if (error.code === "EEXIST" && recover && recoverAbandonedGuard(root, guard, identify, admitting)) continue;
-      if (error.code === "EEXIST" && Date.now() < deadline) { Atomics.wait(sleeper, 0, 0, 10); continue; }
+      if (error.code === "EEXIST" && recover) {
+        try { if (recoverAbandonedGuard(root, guard, identify, admitting)) continue; }
+        catch (recoveryError) { error = recoveryError; }
+      }
+      if (error.reservationRetryUnsafe) throw error;
+      if (error.reservationFilesBusy) {
+        if (admitting || Date.now() >= deadline) throw error;
+        Atomics.wait(sleeper, 0, 0, 10);continue;
+      }
+      if (error.code !== "EEXIST" && transientFileError(error)) {
+        const failure = admissionFailure(root, error);
+        if (admitting || !failure.reservationFilesBusy || Date.now() >= deadline) throw failure;
+      }
+      if (transientFileError(error) && Date.now() < deadline) { Atomics.wait(sleeper, 0, 0, 10); continue; }
       const refusal = denied(error);
       if (refusal) throw refusal;
       throw Object.assign(new Error(`Reservation transaction unavailable at ${guard}: ${error.message}`), { guardHeld: error.code === "EEXIST" });
@@ -274,9 +304,13 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
     return action(path.join(root, "reservation.json"));
   } catch (error) { cause = error; throw error; }
   finally {
-    try { removeGuard(guard, identity); }
+    try { removeGuard(guard, identity, Math.max(0, deadline - Date.now())); }
     catch (error) {
       if (!cause) throw error;
+      delete cause.reservationFilesBusy;
+      delete cause.reservationRecordUnreadable;
+      delete cause.reservationUnknown;
+      delete cause.waitable;
       cause.guardCleanupError = error.message;
       console.error(`Reservation guard cleanup failed after ${cause.message}: ${error.message}`);
     }
@@ -390,7 +424,10 @@ function withClaim(root, file, identify, admitting, action, depth = 0) {
     }
   }
   try { return action(); }
-  finally { if (stillOwned(file, identity)) fs.unlinkSync(file); }
+  finally {
+    try { removeGuard(file, identity); }
+    catch (error) { throw Object.assign(error, { reservationRetryUnsafe: true }); }
+  }
 }
 
 function recoverAbandonedGuard(root, guard, identify, admitting = false) {
@@ -484,7 +521,7 @@ function waitingQueue(root, identify, holders = []) {
     if (!waitingName.test(name)) continue;
     const file = path.join(root, name);
     let row;
-    try { row = read(file); } catch { continue; }
+    try { row = read(file); } catch (error) { if (error.code !== "ENOENT" && transientFileError(error)) throw error;continue; }
     if (!row?.token || !row.owner?.pid || !row.owner.start || !pools.includes(row.pool) || !Number.isFinite(Date.parse(row.arrivedAt))) continue;
     if (holders.some(holder => same(holder.owner, row.owner) && holder.run === row.run)) { try { fs.unlinkSync(file); } catch {} continue; }
     let alive;
@@ -500,7 +537,9 @@ export function acquire(run, { root = machineRoot, pool = "writer", identify = p
   if (!pools.includes(pool)) throw new Error(`Unknown test pool ${JSON.stringify(pool)}; the pools are writer and reviewer`);
   const freeMb = memory();
   if (!Number.isFinite(freeMb)) throw new Error(`Free memory reading unavailable: ${String(freeMb)}`);
+  let published = false;
   return guarded(root, () => {
+    try {
     const observedAt = Date.now();
     const lookup = memoized(identify);
     const holders = [], interrupted = [];
@@ -554,7 +593,8 @@ export function acquire(run, { root = machineRoot, pool = "writer", identify = p
     if (foreign.length) throw blocked("vitest processes", `Vitest processes already running: ${foreign.join(", ")}`);
     const admissible = candidates.filter(row => poolHolders(row.pool) < poolSlotLimit && !holders.some(holder => holder.record.run === row.run));
     let last = null;
-    try { last = read(lastAdmittedFile(root)).pool ?? null; } catch {}
+    try { last = read(lastAdmittedFile(root)).pool ?? null; }
+    catch (error) { if (error.code !== "ENOENT" && transientFileError(error)) throw error; }
     const preferred = admissible.filter(row => row.pool !== last);
     const next = (preferred.length ? preferred : admissible)[0];
     if (next && (!mine || next.token !== mine.token)) throw blocked("queue", `Queued behind the ${next.pool} run ${next.run}`);
@@ -564,22 +604,49 @@ export function acquire(run, { root = machineRoot, pool = "writer", identify = p
       heldSince: new Date().toISOString(), heldUptime: uptime(), phase: "reserved" };
     atomic(lastAdmittedFile(root), { pool, token: record.token, at: record.heldSince }, { admissionRoot: root });
     atomic(file, record, { admissionRoot: root });
+    published = true;
+    let fileIdentity = fs.lstatSync(file, { bigint: true });
     if (waiting?.published) {
       try { fs.unlinkSync(waitingFile(root, mine.token)); }
       catch (error) { if (error.code !== "ENOENT") console.error(`Waiting row not removed after admission: ${error.message}`); }
     }
+    const verifyOwned = () => {
+      if (!stillOwned(file, fileIdentity) || read(file).token !== record.token || !stillOwned(file, fileIdentity)) throw new Error("Reservation ownership changed");
+    };
     const update = (values) => {
-      if (read(file).token !== record.token) throw new Error("Reservation ownership changed");
-      Object.assign(record, values);
-      atomic(file, record);
+      const deadline = Date.now() + waitMs;
+      for (;;) {
+        let written = false;
+        try {
+          verifyOwned();
+          Object.assign(record, values);
+          atomic(file, record, { admissionRoot: root });
+          written = true;
+          fileIdentity = fs.lstatSync(file, { bigint: true });
+          return;
+        } catch (error) {
+          if (written || error.reservationRetryUnsafe || (!transientFileError(error) && !error.reservationFilesBusy) || Date.now() >= deadline) throw error;
+          Atomics.wait(sleeper, 0, 0, 10);
+        }
+      }
     };
     return { record, slot: index, file, freeMb, update, release() {
       guarded(root, () => {
-        if (read(file).token !== record.token) throw new Error("Reservation ownership changed");
         if (!["reserved", "exited"].includes(record.phase)) throw new Error("Child exit unconfirmed; preserve reservation");
-        fs.unlinkSync(file);
+        const deadline = Date.now() + waitMs;
+        for (;;) {
+          try {
+            verifyOwned();
+            fs.unlinkSync(file);
+            break;
+          } catch (error) {
+            if (!transientFileError(error) || error.code === "ENOENT" || Date.now() >= deadline) throw error;
+            Atomics.wait(sleeper, 0, 0, 10);
+          }
+        }
       }, waitMs, identify);
     } };
+    } catch (error) { throw published ? error : admissionFailure(root, error); }
   }, admitWaitMs, identify, true);
 }
 
@@ -673,8 +740,8 @@ export async function waitForUnit(reservation, { deadline = Date.now(), pollMs =
         return census({ accounted: accountedPids(records, lookup) });
       }, Math.min(guardWaitMs, Math.max(0, deadline - Date.now())), identify, false, true);
     } catch (error) {
-      if (!error.guardHeld || Date.now() >= deadline) throw error;
-      onWait({ waiting: "guard", detail: error.message });
+      if ((!error.guardHeld && !error.reservationFilesBusy) || Date.now() >= deadline) throw error;
+      onWait({ waiting: error.guardHeld ? "guard" : "reservation files", detail: error.message });
       await pause(pollMs, deadline);
       continue;
     }

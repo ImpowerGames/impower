@@ -76,6 +76,7 @@ scripts/start-coordinator.test.mjs
 scripts/test-suite-admission.test.mjs
 scripts/test-suite-api-integration.test.mjs
 scripts/test-suite-child.test.mjs
+scripts/test-suite-contention.test.mjs
 scripts/test-suite.test.mjs
 scripts/windows-hide.test.mjs
 scripts/writer-route-preflight.test.mjs
