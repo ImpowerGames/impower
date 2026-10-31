@@ -12,6 +12,7 @@ import { writerRoutes } from "../../../scripts/writer-route-preflight.mjs";
 import { reviewJobFiles } from "../../../scripts/review-job-root.mjs";
 import { liveDeps, removeJobDir, usersOf } from "../clean-worktrees/clean-worktrees.mjs";
 import { readRepos, reviewThread, ticketsRepo } from "../../repos.mjs";
+import { ACCOUNT_PULL_METADATA_QUERY, requestAccountPullMetadata } from "../../hooks/typed-issue-hook.mjs";
 import { autoCheckpoint, ensureSaved } from "./checkpoint.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -399,12 +400,54 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
   const { code, tickets, split, thread } = repositoriesOf(names);
   const pages = (args) => JSON.parse(run("gh", ["api", "--paginate", "--slurp", ...args])).flat();
   const fields = "number,state,isDraft,headRefName,headRefOid,baseRefName,closingIssuesReferences,mergeCommit,createdAt";
-  let account;
-  const accountPulls = (n) => {
-    account ??= run("gh", ["api", "user", "--jq", ".login"]).trim();
-    const heads = DISCOVERY_TYPES.map((type) => `head:${type}/${n}-`).join(" ");
+  let account, listing;
+  const listAccountPulls = () => {
+    const responses = JSON.parse(requestAccountPullMetadata(ACCOUNT_PULL_METADATA_QUERY, (query) => run("gh", ["api", "graphql", "--paginate", "--slurp", "-f", `query=${query}`])));
+    if (!Array.isArray(responses) || !responses.length) throw new Error("The account pull request listing returned no pages");
     const found = new Map();
-    for (const search of [heads, String(n)]) for (const p of JSON.parse(run("gh", ["pr", "list", "--repo", code, "--author", "@me", "--state", "all", "--search", search, "--limit", "100", "--json", `${fields},author`]))) found.set(p.number, p);
+    const cursors = new Set();
+    const text = (value) => typeof value === "string" && value.trim().length > 0;
+    let total = 0;
+    for (const [index, response] of responses.entries()) {
+      const viewer = response?.data?.viewer, connection = viewer?.pullRequests;
+      if (!response || (Object.hasOwn(response, "errors") && (!Array.isArray(response.errors) || response.errors.length)) || !text(viewer?.login) || !Array.isArray(connection?.nodes) || !Number.isSafeInteger(connection.totalCount) || connection.totalCount < 0 || typeof connection.pageInfo?.hasNextPage !== "boolean") throw new Error("The account pull request listing returned an incomplete page");
+      const { hasNextPage, endCursor } = connection.pageInfo;
+      if ((endCursor !== null && !text(endCursor)) || (hasNextPage && !text(endCursor)) || (index < responses.length - 1 && !hasNextPage) || (endCursor !== null && cursors.has(endCursor))) throw new Error("The account pull request listing returned invalid pagination");
+      if (endCursor !== null) cursors.add(endCursor);
+      account ??= viewer.login;
+      if (account !== viewer.login) throw new Error("The account changed during pull request discovery");
+      total = Math.max(total, connection.totalCount);
+      for (const p of connection.nodes) {
+        if (!p || !Number.isSafeInteger(p.number) || p.number <= 0 || !/^[\w.-]+\/[\w.-]+$/.test(p.repository?.nameWithOwner ?? "") || !["OPEN", "CLOSED", "MERGED"].includes(p.state) || typeof p.isDraft !== "boolean" || !text(p.headRefName) || !text(p.headRefOid) || !text(p.baseRefName) || !text(p.createdAt) || !Number.isFinite(Date.parse(p.createdAt)) || !Object.hasOwn(p, "author") || (p.author !== null && !text(p.author?.login)) || !Object.hasOwn(p, "mergeCommit") || (p.mergeCommit !== null && !text(p.mergeCommit?.oid))) throw new Error("The account pull request listing returned an incomplete pull request");
+        if (!Array.isArray(p.closingIssuesReferences?.nodes) || typeof p.closingIssuesReferences.pageInfo?.hasNextPage !== "boolean") throw new Error("The account pull request listing returned incomplete closing references");
+        for (const ref of p.closingIssuesReferences.nodes) {
+          const match = /^https:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/issues\/(\d+)$/.exec(ref?.url ?? "");
+          if (!Number.isSafeInteger(ref?.number) || ref.number <= 0 || !match || Number(match[3]) !== ref.number) throw new Error("The account pull request listing returned an invalid closing reference");
+        }
+        found.set(`${p.repository.nameWithOwner.toLowerCase()}#${p.number}`, p);
+      }
+    }
+    let truncated = responses.at(-1).data.viewer.pullRequests.pageInfo.hasNextPage || found.size !== total;
+    const pulls = [...found.values()].filter((p) => sameRepository(p.repository.nameWithOwner, code));
+    if (pulls.some((p) => p.closingIssuesReferences.pageInfo.hasNextPage)) truncated = true;
+    return {
+      pulls: pulls.map(({ repository, closingIssuesReferences, ...p }) => ({
+        ...p,
+        closingIssuesReferences: closingIssuesReferences.nodes.map((r) => {
+          const [, owner, name] = /^https:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/issues\/(\d+)$/.exec(r.url);
+          return { number: r.number, url: r.url, repository: { name, owner: { login: owner } } };
+        }),
+      })),
+      truncated,
+    };
+  };
+  const accountPulls = (n) => {
+    listing ??= listAccountPulls();
+    const found = new Map((listing.truncated ? [] : listing.pulls).map((p) => [p.number, p]));
+    if (listing.truncated) {
+      const heads = DISCOVERY_TYPES.map((type) => `head:${type}/${n}-`).join(" ");
+      for (const search of [heads, String(n)]) for (const p of JSON.parse(run("gh", ["pr", "list", "--repo", code, "--author", "@me", "--state", "all", "--search", search, "--limit", "100", "--json", `${fields},author`]))) found.set(p.number, p);
+    }
     return [...found.values()].sort((a, b) => b.number - a.number)
       .filter((p) => p.author?.login === account)
       .map(({ author, ...p }) => ({ ...p, closingIssuesReferences: closingIn(p.closingIssuesReferences, tickets, code) }))

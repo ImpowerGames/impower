@@ -10,9 +10,21 @@ import { normalize } from "./pre-tool-use.mjs";
 import { createRequire } from "node:module";
 import { classifyComment, loadTypescript, loadYaml, refusedComments, scanComments, stripComments } from "./comment-policy.mjs";
 import { testShell } from "../skills/drive-web-editor/redgreen.mjs";
+import { ACCOUNT_PULL_METADATA_QUERY } from "./typed-issue-hook.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name, tool_input });
+
+{
+  const query = ACCOUNT_PULL_METADATA_QUERY;
+  for (const harness of ["claude", "codex"]) for (const tool of ["Bash", "PowerShell"]) {
+    const command = `gh api graphql --paginate --slurp -f 'query=${query}'`;
+    const request = normalize({ ...event(tool, { command }), cwd: root }, harness);
+    assert.equal(decide(request), null, `the normalized ${harness} ${tool} adapter permits account closing-reference metadata`);
+    const forbidden = command.replace("nodes { number url }", "nodes { number url body }");
+    assert.match(decide(normalize({ ...event(tool, { command: forbidden }), cwd: root }, harness)) ?? "", /GraphQL query.*refused/, `the normalized ${harness} ${tool} adapter refuses issue text`);
+  }
+}
 
 {
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "scratch-cleanup-"));

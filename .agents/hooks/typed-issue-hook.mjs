@@ -741,6 +741,34 @@ function guardedPath(path) {
   return /^(issues|pulls\/comments|events|notifications)(\/|$)/.test(path) || /^pulls\/[^/]+\/(comments|reviews|requested_reviewers)(\/|$)/.test(path) || /^discussion/.test(path);
 }
 
+export const ACCOUNT_PULL_METADATA_QUERY = `query($endCursor: String) {
+  viewer {
+    login
+    pullRequests(first: 100, after: $endCursor, orderBy: {field: CREATED_AT, direction: DESC}) {
+      totalCount
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        number state isDraft headRefName headRefOid baseRefName createdAt
+        repository { nameWithOwner }
+        author { login }
+        mergeCommit { oid }
+        closingIssuesReferences(first: 100) {
+          nodes { number url }
+          pageInfo { hasNextPage }
+        }
+      }
+    }
+  }
+}`;
+
+const metadataTokens = (query) => typeof query === "string" && query.replace(/[ \t\r\n,]/g, "");
+export const accountPullMetadataAllowed = (query) => metadataTokens(query) === metadataTokens(ACCOUNT_PULL_METADATA_QUERY);
+
+export function requestAccountPullMetadata(query, transport) {
+  if (!accountPullMetadataAllowed(query)) throw new Error("Account pull request metadata policy refused the query before transport");
+  return transport(query);
+}
+
 function graphqlReadsText(text) {
   const selections = text
     .replace(/\b(query|mutation|subscription|fragment)\s+[A-Za-z_]\w*/g, "$1")
@@ -750,8 +778,8 @@ function graphqlReadsText(text) {
   return /issue|comment|review|discussion|timeline/i.test(selections);
 }
 
-function checkGuardedRequest(endpoint, text, searchQuery) {
-  if (endpoint === "graphql") return graphqlReadsText(text) ? GUARD.graphql() : null;
+function checkGuardedRequest(endpoint, text, searchQuery, metadataQuery = null) {
+  if (endpoint === "graphql") return accountPullMetadataAllowed(metadataQuery) ? null : graphqlReadsText(text) ? GUARD.graphql() : null;
   if (endpoint === "search/issues") return searchScoped(searchQuery ?? "") ? null : GUARD.search();
   return guardedEndpoint(endpoint) ? GUARD.api() : null;
 }
@@ -829,7 +857,8 @@ function checkGhApi(args) {
   }
   if (repos.cutover) {
     const values = fields.map((f) => f.value);
-    const guarded = checkGuardedRequest(endpoint, [positional[0] ?? "", ...values].join("\n"), searchQueryOf(positional[0] ?? "", values));
+    const metadataQuery = positional.length === 1 && positional[0] === "graphql" && !input && (method === null || method === "POST") && fields.length === 1 && fields[0].value.startsWith("query=") ? fields[0].value.slice(6) : null;
+    const guarded = checkGuardedRequest(endpoint, [positional[0] ?? "", ...values].join("\n"), searchQueryOf(positional[0] ?? "", values), metadataQuery);
     if (guarded) return guarded;
   }
   if (endpoint === "graphql") return null;
