@@ -140,7 +140,7 @@ await check("persistent file contention consumes the wait and leaves no admissio
   const root = path.join(scratch, "persistent"), rename = fs.renameSync;let waits = 0;
   fs.renameSync = (from, to) => { if (to === path.join(root, "reservation.json")) throw fault("EPERM");return rename(from, to); };
   const began = Date.now();
-  try { await assert.rejects(acquireWaiting("persistent", { ...options(root), waitMs: 120, pollMs: 5, onWait: () => waits++ }), /Reservation files busy.*waited.*Test Suite workflow/); }
+  try { await assert.rejects(acquireWaiting("persistent", { ...options(root), waitMs: 120, pollMs: 5, onWait: () => waits++ }), /Reservation files busy.*EPERM.*waited.*Test Suite workflow/); }
   finally { fs.renameSync = rename; }
   assert.ok(Date.now() - began >= 120);assert.ok(waits > 0);
   assert.equal(fs.existsSync(path.join(root, "reservation.json")), false);
@@ -228,6 +228,108 @@ await check("a transient published-file identity read retries without replaying 
   try { reservation = await acquireWaiting("one publication", { ...options(root), waitMs: 1000 }); }
   finally { fs.lstatSync = lstat;fs.renameSync = rename; }
   assert.equal(publications, 1);assert.ok(failures >= 2);reservation.release();
+});
+
+for (const code of [null, "EPERM"]) {
+  await check(`published update failure ${code ?? "untyped"} retains ownership without replay`, () => {
+    const root = path.join(scratch, `published-update-${code}`), reservation = acquire("no child", options(root));
+    const rename = fs.renameSync;let publications = 0;
+    fs.renameSync = (from, to) => {
+      const result = rename(from, to);
+      if (to === reservation.file && publications++ === 0) throw Object.assign(new Error("controlled fault after publication"), code ? { code } : {});
+      return result;
+    };
+    try { assert.throws(() => reservation.update({ phase: "launching" }), /controlled fault after publication/); }
+    finally { fs.renameSync = rename; }
+    assert.equal(publications, 1);assert.equal(read(reservation.file).token, reservation.record.token);
+    reservation.update({ phase: "exited" });reservation.release();
+    assert.equal(fs.existsSync(reservation.file), false);
+  });
+}
+
+await check("uncertain initial publication never retries admission", async () => {
+  const root = path.join(scratch, "uncertain-admission"), file = path.join(root, "reservation.json"), rename = fs.renameSync;let publications = 0;
+  fs.renameSync = (from, to) => { const result = rename(from, to);if (to === file) { publications++;throw fault("EPERM"); }return result; };
+  try { await assert.rejects(acquireWaiting("published but refused", { ...options(root), waitMs: 1000,
+    onWait: () => assert.fail("a published reservation was retried") }), /EPERM/); }
+  finally { fs.renameSync = rename; }
+  assert.equal(publications, 1);assert.equal(read(file).run, "published but refused");
+});
+
+await check("a foreign replacement is never adopted after a publication fault", () => {
+  const root = path.join(scratch, "uncertain-replacement"), reservation = acquire("original", options(root));
+  const replacement = path.join(root, "replacement"), peer = { ...reservation.record, run: "foreign generation" };
+  fs.writeFileSync(replacement, JSON.stringify(peer));
+  const rename = fs.renameSync;let injected = false;
+  fs.renameSync = (from, to) => {
+    const result = rename(from, to);
+    if (to === reservation.file && !injected) { injected = true;rename(replacement, to);throw fault("EPERM"); }
+    return result;
+  };
+  try { assert.throws(() => reservation.update({ phase: "launching" })); }
+  finally { fs.renameSync = rename; }
+  assert.throws(() => reservation.update({ phase: "exited" }), /ownership changed/);
+  assert.throws(() => reservation.release(), /ownership changed/);
+  assert.deepEqual(read(reservation.file), peer);
+});
+
+for (const bytes of ['{"pending":', "null", '{"pending":true,"pool":"writer"}']) {
+  await check(`malformed admission marker stays intact: ${bytes}`, async () => {
+    const root = fs.mkdtempSync(path.join(scratch, "malformed-marker-")), file = path.join(root, "last-admitted.json");
+    fs.writeFileSync(file, bytes);
+    await assert.rejects(acquireWaiting("cannot discard marker", { ...options(root), waitMs: 80, pollMs: 5 }), /record|marker/i);
+    assert.equal(fs.readFileSync(file, "utf8"), bytes);assert.equal(fs.existsSync(path.join(root, "reservation.json")), false);
+  });
+}
+
+await check("withdrawing a published waiter shares its deadline with a real live guard holder", async () => {
+  const root = path.join(scratch, "withdraw-deadline"), config = { ...options(root), slots: 1 };
+  const holder = acquire("occupied", config), guard = path.join(root, "guard.json"), start = path.join(root, "start"), stop = path.join(root, "stop");
+  const source = `import fs from 'node:fs';import {processIdentity} from ${JSON.stringify(new URL("./test-suite-process.mjs", import.meta.url).href)};
+const owner=processIdentity(process.pid);process.send(owner);const deadline=Date.now()+20000;
+while(!fs.existsSync(process.argv[3])&&!fs.existsSync(process.argv[4])&&Date.now()<deadline)Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,5);
+fs.writeFileSync(process.argv[2],JSON.stringify({owner}),{flag:'wx'});const end=Date.now()+400;
+while(!fs.existsSync(process.argv[4])&&Date.now()<end)Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,5);
+fs.unlinkSync(process.argv[2]);process.disconnect();`;
+  const child = spawn(process.execPath, ["--input-type=module", "-e", source, process.argv[1], guard, start, stop], { windowsHide: true, stdio: ["ignore", "ignore", "pipe", "ipc"] });
+  let stderr = "";child.stderr.on("data", value => { stderr += value; });
+  const closed = new Promise((resolve, reject) => { child.once("error", reject);child.once("close", (code, signal) => resolve({ code, signal })); });
+  try {
+    const peer = await new Promise((resolve, reject) => { child.once("message", resolve);child.once("exit", () => reject(new Error(stderr || "holder exited before readiness"))); });
+    let waits = 0;const began = Date.now();
+    await assert.rejects(acquireWaiting("expired waiter", { ...config, waitMs: 100, pollMs: 5,
+      identify: pid => pid === peer.pid ? peer : pid === owner.pid ? owner : null,
+      onWait: () => { if (waits++ === 0) { assert.equal(fs.readdirSync(root).filter(file => file.startsWith("waiting-")).length, 1);fs.writeFileSync(start, "start"); } } }), /waited/);
+    assert.ok(waits > 0);assert.ok(Date.now() - began < 300, "withdrawal cannot add another guard wait");
+    assert.equal(fs.readdirSync(root).filter(file => file.startsWith("waiting-")).length, 1, "unavailable withdrawal preserves the waiting evidence");
+  } finally { fs.writeFileSync(stop, "stop");assert.deepEqual(await closed, { code: 0, signal: null }, stderr);holder.release(); }
+});
+
+for (const code of ["EPERM", "EACCES", "EBUSY", "ENOENT"]) {
+  await check(`owned write-probe cleanup ${code} retries without replaying a transaction`, async () => {
+    const root = path.join(scratch, `probe-cleanup-${code}`), link = fs.linkSync, unlink = fs.unlinkSync;let guardFailures = 0, cleanupFailures = 0;
+    fs.linkSync = (from, to) => { if (to === path.join(root, "guard.json") && guardFailures++ === 0) throw fault("EPERM");return link(from, to); };
+    fs.unlinkSync = file => { if (path.basename(file).startsWith("write-probe-") && cleanupFailures++ === 0) throw fault(code);return unlink(file); };
+    let reservation;
+    try { reservation = await acquireWaiting("safe probe cleanup", { ...options(root), waitMs: 1000, pollMs: 5 }); }
+    finally { fs.linkSync = link;fs.unlinkSync = unlink; }
+    assert.ok(cleanupFailures >= 2);reservation.release();
+    assert.equal(fs.readdirSync(root).some(file => file.startsWith("write-probe-")), false);
+  });
+}
+
+await check("a waiting-row publication fault retains withdrawal bookkeeping at expiry", async () => {
+  const root = path.join(scratch, "published-waiter"), config = { ...options(root), slots: 1 }, holder = acquire("occupied", config);
+  const rename = fs.renameSync;let injected = false;
+  fs.renameSync = (from, to) => {
+    const result = rename(from, to);
+    if (path.basename(to).startsWith("waiting-") && !injected) { injected = true;Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 90);throw fault("EBUSY"); }
+    return result;
+  };
+  try { await assert.rejects(acquireWaiting("no child", { ...config, waitMs: 60 }), /EBUSY|waited/); }
+  finally { fs.renameSync = rename; }
+  assert.equal(injected, true);assert.equal(fs.readdirSync(root).some(file => file.startsWith("waiting-")), false);
+  assert.equal(read(holder.file).token, holder.record.token);holder.release();
 });
 
 assert.equal(cases.length, 0, cases.map(value => value.name).join("; "));
