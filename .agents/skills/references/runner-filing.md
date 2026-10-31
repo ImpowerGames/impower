@@ -37,8 +37,10 @@ Target and raw link-destination spellings retain parent components until linked 
 
 Both routes use `scripts/filer-worktree.mjs` from the main checkout. Include this lifecycle in each item's prompt, including the stable filing session identity as `--owner`:
 
+Pass the reproduction base or head as `--commit`. Create resolves it to a commit before allocating ownership and starts the owned branch there; the record stores that resolved initial commit. Omitting it retains the `origin/main` default. Never check out another commit, detach HEAD or move the owned branch inside the returned tree; create a separate owned tree for a different reproduction commit.
+
 ```sh
-node scripts/filer-worktree.mjs create --root <absolute-main-checkout> --owner <filing-session>
+node scripts/filer-worktree.mjs create --root <absolute-main-checkout> --owner <filing-session> --commit <reproduction-base-or-head>
 node scripts/filer-worktree.mjs check --record <absolute-owner.json> --owner <filing-session>
 node scripts/filer-worktree.mjs remove --record <absolute-owner.json> --owner <filing-session>
 ```

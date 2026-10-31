@@ -44,6 +44,42 @@ export async function verifyRemoval(selected = "all") {
     assert.equal(JSON.parse(fs.readFileSync(record.record)).cleanupPending, undefined);
     preserved();
   };
+  if (["all", "commit"].includes(selected)) {
+    const base = git(["rev-parse", "HEAD"]);
+    fs.writeFileSync(path.join(root, "tracked.txt"), "new main sentinel\n");
+    git(["commit", "-am", "advance main"]);
+    git(["update-ref", "refs/remotes/origin/main", "HEAD"]);
+    const owner = "commit-filer";
+    const record = await create({ root, owner, toolingOnly: true, commit: base });
+    assert.equal(git(["rev-parse", "HEAD"], record.tree), base, "requested reproduction commit must be checked out");
+    assert.equal(git(["symbolic-ref", "--short", "HEAD"], record.tree), record.branch);
+    assert.equal(JSON.parse(fs.readFileSync(record.record)).head, base);
+    fs.writeFileSync(path.join(record.tree, "probe.txt"), "commit probe\n");
+    const link = path.join(record.tree, "borrowed");
+    fs.symlinkSync(external, link, process.platform === "win32" ? "junction" : "dir");
+    await assert.rejects(remove(record.record, owner), /outside|External/);
+    preserved();
+    assert.ok(fs.existsSync(path.join(record.tree, "probe.txt")));
+    fs.unlinkSync(link);
+    await remove(record.record, owner);
+    removed(record);
+    assert.match(fs.readFileSync(JSON.parse(fs.readFileSync(record.record)).leftovers[0].patch, "utf8"), /commit probe/);
+    const defaultRecord = await create({ root, owner, toolingOnly: true });
+    assert.equal(git(["rev-parse", "HEAD"], defaultRecord.tree), git(["rev-parse", "origin/main"]));
+    await remove(defaultRecord.record, owner);
+    removed(defaultRecord);
+    const inventory = () => JSON.stringify({ jobs: fs.readdirSync(`${root}.filer-jobs`), trees: git(["worktree", "list", "--porcelain"]), branches: git(["for-each-ref", "refs/heads"]) });
+    const before = inventory();
+    for (const commit of ["missing-commit", "--help", "", "HEAD:tracked.txt", 42]) {
+      await assert.rejects(create({ root, owner, toolingOnly: true, commit }));
+      assert.equal(inventory(), before, "invalid commits must not allocate ownership or branches");
+    }
+    const cli = await filer.main(["create", "--root", root, "--owner", owner, "--tooling-only", "--commit", "HEAD~1"]);
+    assert.equal(JSON.parse(fs.readFileSync(cli.record)).head, base);
+    await remove(cli.record, owner);
+    removed(cli);
+    console.log("PASS: specified and default commits, attached ownership, invalid-input preservation, CLI and probe/branch removal");
+  }
   if (["all", "long-paths"].includes(selected)) {
     const owner = "long-path-filer", record = await create({ root, owner, toolingOnly: true });
     const probe = path.join(...Array.from({ length: 5 }, (_, i) => `${i}-${"long-path".repeat(5)}`), "probe.txt");
