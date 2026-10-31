@@ -15,6 +15,33 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name, tool_input });
 
 {
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "scratch-cleanup-"));
+  console.log(`Scratch cleanup repository: ${scratch}`);
+  const initialized = spawnSync("git", ["init", scratch], { encoding: "utf8", windowsHide: true });
+  assert.equal(initialized.status, 0, initialized.stderr);
+  const judge = (command, shell) => decide({ kind: "shell", command, shell, cwd: scratch });
+  for (const [shell, command] of [
+    ["bash", 'rm -rf "$A/copy"'],
+    ["powershell", "Remove-Item -LiteralPath $d -Recurse -Force"],
+  ]) {
+    const reason = judge(command, shell);
+    assert.match(reason ?? "", /quoted absolute literal/, "unverifiable scratch targets name the supported literal retry");
+    assert.match(reason, /rm -f --/);
+    assert.match(reason, /Remove-Item -LiteralPath/);
+  }
+  const log = path.join(path.dirname(scratch), `${path.basename(scratch)} log.txt`).replaceAll(path.sep, "/");
+  fs.writeFileSync(log, "scratch log");
+  for (const [shell, command] of [
+    ["bash", `rm -f -- '${log}' && time node --version`],
+    ["powershell", `Remove-Item -LiteralPath '${log}' -Force; node --version`],
+  ]) assert.equal(judge(command, shell), null, "literal single-file cleanup with spaces and a following command passes");
+  for (const [shell, command] of [
+    ["bash", `rm -rf '${scratch.replaceAll(path.sep, "/")}'`],
+    ["powershell", `Remove-Item -LiteralPath '${scratch}' -Recurse -Force`],
+  ]) assert.match(judge(command, shell) ?? "", /contains registered checkout/, "a repository under temp stays protected");
+}
+
+{
   const checkout = fs.mkdtempSync(path.join(os.tmpdir(), "comment-policy-"));
   const outside = fs.mkdtempSync(path.join(process.env.IMPOWER_SYSTEM_TMPDIR || os.tmpdir(), "comment-policy-outside-"));
   try {
