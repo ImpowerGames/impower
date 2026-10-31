@@ -43,6 +43,20 @@ A fresh worktree has no `node_modules`. Install dependencies when the work will 
 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install
 ```
 
+On Windows, Git Bash accepts a literal MSYS `/c/...` or drive-qualified `C:/...` worktree path, including a log redirect:
+
+```bash
+cd "C:/absolute/worktree" && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install > "C:/absolute/artifacts/npm-install.log" 2>&1
+```
+
+PowerShell accepts the direct shell form:
+
+```powershell
+Set-Location 'C:/absolute/worktree'; $env:PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD='1'; npm install *> 'C:/absolute/artifacts/npm-install.log'
+```
+
+Replace the paths with literal absolute paths whose parent directories exist. Both forms also accept `npm ci` when a lockfile exists. Git Bash accepts `> /dev/null 2>&1`, and PowerShell accepts `*> $null`. Run directly in the named shell; `cmd /c` remains refused. Owned filing trees use their guarded lifecycle.
+
 A bare `npm install` fails outright here: a workspace pulls in `@playwright/browser-chromium`, whose install script fetches a Chromium build from `cdn.playwright.dev`, a host outside this network's allowlist, and npm aborts the whole install on that 403. Skipping the download is safe; the driver runs against the Chromium build the sandbox pre-installs under `PLAYWRIGHT_BROWSERS_PATH`.
 
 The install takes several minutes and roughly 2–3 GB. Run the preflight again afterwards: its `node_modules` line executes `esbuild` and `vitest` rather than measuring them, because a full disk leaves an install that looks complete and is not (truncated binaries, empty package directories, a missing `dist/*.mjs`) and surfaces much later as a baffling build error. A `FAIL` there names the one-pass repair; the line also passes, with a note, in a worktree that deliberately has no install.

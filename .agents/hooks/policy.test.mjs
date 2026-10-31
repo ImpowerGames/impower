@@ -1,3 +1,4 @@
+// agent-tooling-timeout-ms: 600000
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -670,5 +671,84 @@ for (const [command, blocked] of [
   const run = spawnSync(bash, ["-c", jqHook], { cwd: root, input: JSON.stringify(event("PowerShell", { command })), env: { ...process.env, CLAUDE_PROJECT_DIR: root }, encoding: "utf8", windowsHide: true });
   assert.equal(run.status, 0, run.stderr);
   assert.equal(/permissionDecision.*deny/.test(run.stdout), blocked, command + " through the shipped hook");
+}
+{
+  const scratch = fs.mkdtempSync(path.join(process.env.IMPOWER_WRITER_ARTIFACT_DIR || os.tmpdir(), "windows-setup-"));
+  console.log(`Setup shell integration scratch repository: ${scratch}`);
+  const main = path.join(scratch, "main"), log = path.join(scratch, "install output.log");
+  fs.mkdirSync(main);
+  const git = args => {
+    const result = spawnSync("git", args, { cwd: main, encoding: "utf8", windowsHide: true });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  git(["init"]);
+  fs.writeFileSync(path.join(main, "package.json"), JSON.stringify({ name: "setup-fixture", version: "1.0.0", scripts: { postinstall: "node verify.cjs" } }));
+  fs.writeFileSync(path.join(main, "verify.cjs"), 'require("node:assert/strict").equal(process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD, "1"); require("node:fs").writeFileSync("installed.txt", process.cwd());');
+  git(["add", "package.json", "verify.cjs"]);
+  git(["-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-m", "fixture"]);
+  const slash = value => value.replaceAll(path.sep, "/");
+  const msys = value => process.platform === "win32" ? slash(value).replace(/^([A-Za-z]):/, (_, drive) => `/${drive.toLowerCase()}`) : value;
+  const judge = (command, shell, cwd = main) => decide({ kind: "shell", command, shell, cwd });
+  const run = (command, shell) => {
+    assert.equal(judge(command, shell), null, command);
+    console.log(`Accepted ${shell} setup: ${command}`);
+    const executable = shell === "powershell" ? "powershell.exe" : bash;
+    const args = shell === "powershell" ? ["-NoProfile", "-NonInteractive", "-Command", `${command}; exit $LASTEXITCODE`] : ["-c", `set -o pipefail; ${command}`];
+    const result = spawnSync(executable, args, { cwd: main, encoding: "utf8", windowsHide: true, timeout: 60000 });
+    assert.equal(result.status, 0, `${command}\n${result.error ?? ""}\n${result.stdout}\n${result.stderr}`);
+  };
+  const shells = process.platform === "win32" ? ["bash", "powershell", "bash"] : ["bash"];
+  for (const [index, shell] of shells.entries()) {
+    const tree = path.join(scratch, `writer ${index}`), spelling = index === 0 ? msys(tree) : slash(tree);
+    const add = `git worktree add -b setup-${index} '${spelling}' HEAD ${shell === "powershell" ? "*>" : ">"} '${slash(log)}' ${shell === "bash" ? "2>&1" : ""}`;
+    run(add, shell);
+    const location = shell === "bash" ? `cd '${spelling}' && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` : `Set-Location '${spelling}'; $env:PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD='1';`;
+    for (const selector of ["install", "ci"]) {
+      const install = `${location} npm ${selector} --no-audit --no-fund ${shell === "powershell" ? "*>" : ">"} '${index === 0 ? msys(log) : slash(log)}' ${shell === "bash" ? "2>&1" : ""}`;
+      if (selector === "ci") assert.equal(judge(install, shell), null, install);
+      else {
+        run(install, shell);
+        assert.equal(fs.readFileSync(path.join(tree, "installed.txt"), "utf8").toLowerCase(), tree.toLowerCase());
+        assert.ok(fs.statSync(log).isFile());
+      }
+    }
+    const sink = shell === "bash" ? "/dev/null 2>&1" : "$null";
+    const nullOutput = `${location} npm ci --no-audit --no-fund ${shell === "powershell" ? "*>" : ">"} ${sink}`;
+    if (index < 2) {
+      fs.unlinkSync(path.join(tree, "installed.txt"));
+      run(nullOutput, shell);
+      assert.equal(fs.readFileSync(path.join(tree, "installed.txt"), "utf8").toLowerCase(), tree.toLowerCase());
+    } else assert.equal(judge(nullOutput, shell), null, nullOutput);
+    if (shell === "bash") {
+      assert.equal(judge(`${location} npm ci --no-audit --no-fund >'${slash(log)}' 2>&1`, shell), null);
+      assert.equal(judge(`${location} npm ci --no-audit --no-fund 2>&1 | tail -5`, shell), null);
+    }
+    for (const command of [
+      `${location} npm ci > '$computed'`,
+      `${location} npm ci >`,
+      shell === "bash" ? "cd '$unknown' && npm ci" : "Set-Location $unknown; npm ci",
+    ]) assert.match(judge(command, shell) ?? "", /direct Git Bash: cd.*npm install.*direct PowerShell:/, command);
+    const admin = git(["-C", tree, "rev-parse", "--absolute-git-dir"]);
+    fs.writeFileSync(path.join(admin, "filer-owner.json"), "{}");
+    assert.match(judge(`${location} npm ci`, shell) ?? "", /owned filing/, "setup cannot bypass filer ownership");
+    fs.unlinkSync(path.join(admin, "filer-owner.json"));
+    assert.match(judge(`git worktree remove '${spelling}'`, shell) ?? "", /Direct git worktree remove is refused/);
+    const redirectLink = `-redirect-${index}`;
+    fs.symlinkSync(tree, path.join(main, redirectLink), process.platform === "win32" ? "junction" : "dir");
+    for (const setup of ["npm ci", `git worktree add -b redirect-${index} './new-writer-${index}' HEAD`]) {
+      const operator = shell === "powershell" ? "*>" : ">";
+      for (const prefix of ["", "./"]) {
+        const command = `${setup} ${operator} '${prefix}${redirectLink}/install.log'`;
+        assert.match(judge(command, shell) ?? "", /Linked cleanup\/setup path refused/, command);
+      }
+      const ordinary = `${setup} ${operator} '-ordinary.log'`;
+      assert.equal(judge(ordinary, shell), null, ordinary);
+    }
+  }
+  if (process.platform === "win32") {
+    assert.match(judge('cmd /c "npm install"', "powershell") ?? "", /Explicit CMD execution is refused.*direct PowerShell:/);
+    assert.match(judge("npm --prefix /unqualified ci", "bash") ?? "", /no volume.*npm install/);
+  } else console.log("SKIP: Windows PowerShell and drive-qualified/MSYS setup spellings require Windows");
 }
 console.log("PASS: shared policy, complete multi-file patches, native hook configuration, nested cwd and blocking failures");
