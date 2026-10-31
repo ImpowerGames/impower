@@ -68,6 +68,9 @@ const malformed = [
   ["missing first", (plan) => { delete plan.first; plan.firstStep = "first"; }, /top-level first/],
   ["empty first", (plan) => { plan.first = ""; }, /top-level first/],
   ["unknown first", (plan) => { plan.first = "frist"; }, /Unknown step: frist/],
+  ["step transport", (plan) => { plan.steps.first.transport = "native-codex-jsonl"; }, /Unknown step field transport on step first.*nativeResult.*codex-jsonl/],
+  ["unknown step field", (plan) => { plan.steps.second.reviwers = 2; }, /Unknown step field reviwers on step second/],
+  ["non-object step", (plan) => { plan.steps.second = null; }, /Step second must be an object/],
   ["execution grant on writer", (plan) => { plan.steps.first.execution = [{ id: "tests", kind: "vitest", package: "packages/sparkdown", files: ["a.test.ts"] }]; }, /execution is only supported on review steps/],
   ["step-level completedReviewRound", (plan) => { delete plan.completedReviewRound; plan.steps.first.completedReviewRound = 0; }, /Move completedReviewRound from step first to the top level/],
   ["ticket before the cutover", (plan) => { plan.ticket = 12; }, /ticket applies once the cutover switch .* is on/],
@@ -86,6 +89,33 @@ for (const [label, change, message, repos = OFF] of malformed) {
   assert.equal(fs.existsSync(launchMarker), false, `${label} must launch no child`);
   assert.equal(fs.existsSync(plan.journal), false, `${label} must leave no journal to block the corrected plan`);
   assert.equal(fs.existsSync(git("rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock").trim()), false, `${label} must not take the lock`);
+}
+
+{
+  const reviewer = path.join(scratch, "awaited-reviewer");
+  const state = path.join(scratch, "awaited-state");
+  fs.mkdirSync(reviewer);
+  fs.mkdirSync(state);
+  fs.writeFileSync(path.join(reviewer, "prior.md"), "preserve");
+  fs.writeFileSync(path.join(worktree, "exec"), `import fs from "node:fs";import path from "node:path";import {execFileSync} from "node:child_process";let p="";for await(const c of process.stdin)p+=c;if(p.startsWith("Reviewer route probe")){console.log("OK");process.exit(0);}const dir=process.argv[process.argv.indexOf("--cd")+1];execFileSync("git",["clone","--quiet",process.cwd(),path.join(dir,"probe")],{windowsHide:true});fs.writeFileSync(path.join(dir,"report.md"),"report");const head=/reviewed head=([a-f0-9]+)/.exec(p)[1];fs.writeFileSync(/Write (.*?) with the editor tool/.exec(p)[1],JSON.stringify({head,next:null,commentIds:[123],summary:"complete"}));`);
+  git("add", "exec");
+  git("commit", "-m", "awaited Codex fixture");
+  const plan = { ...config, reviewer: "gpt-test", maxSteps: 1, journal: path.join(state, "journal.jsonl"), steps: { first: { role: "review", round: 1, model: "gpt-test", executable: process.execPath, args: ["exec", "--model", "gpt-test", "--cd", reviewer, "--output-last-message", path.join(reviewer, "report.md")], permissions: { cwd: reviewer }, prompt, next: [null] } } };
+  const planFile = path.join(state, "plan.json");
+  fs.writeFileSync(planFile, JSON.stringify(plan));
+  const originalExec = childProcess.execFileSync;
+  childProcess.execFileSync = (exe, args, options) => exe === "gh" ? JSON.stringify({ issue_url: reviewThread(plan, OFF).issueUrl, body: git("rev-parse", "HEAD").trim(), created_at: new Date().toISOString() }) : originalExec(exe, args, options);
+  syncBuiltinESMExports();
+  try { await runHandoff(planFile); }
+  finally { childProcess.execFileSync = originalExec; syncBuiltinESMExports(); }
+  const rows = fs.readFileSync(plan.journal, "utf8").trim().split("\n").map(JSON.parse);
+  const launching = rows.find((row) => row.event === "launching");
+  assert.equal(launching.reviewerDirectory, reviewer, "awaited Codex records its reviewer directory");
+  assert.deepEqual(launching.reviewerHad, ["prior.md"], "awaited Codex records pre-launch contents");
+  assert.equal(fs.existsSync(path.join(reviewer, "probe")), false, "the exited reviewer's clone is removed");
+  assert.equal(fs.readFileSync(path.join(reviewer, "prior.md"), "utf8"), "preserve");
+  assert.equal(fs.readFileSync(path.join(reviewer, "report.md"), "utf8"), "report");
+  assert.ok(rows.findIndex((row) => row.event === "exited") < rows.findIndex((row) => row.event === "probe-checkouts-removed"), "cleanup follows confirmed exit");
 }
 
 {
