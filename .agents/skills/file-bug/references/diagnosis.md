@@ -4,7 +4,7 @@ All commands run from the worktree root unless stated otherwise.
 
 ## 2. Build the reproduction
 
-Delegated filing uses the [checked reproduction lifecycle](../../references/runner-filing.md#checked-reproduction-lifecycle) for its isolated worktree, independent dependencies, ownership artifacts and guarded cleanup.
+Delegated filing uses the [checked reproduction lifecycle](../../references/runner-filing.md#checked-reproduction-lifecycle) for its isolated worktree, independent dependencies, ownership artifacts and guarded cleanup. Pass the reproduction base or head to `create --commit <commit>`; never move HEAD or the owned branch inside that tree.
 
 The technique here is adapted from Matt Pocock's diagnosing-bugs skill (github.com/mattpocock/skills, MIT): build a tight pass/fail signal first, then minimise. The repo has three seams that reach most bugs. Any report, from a person or from a reviewer subagent, is a claim to reproduce before filing; a reviewer's finding gets the same loop as a user's.
 

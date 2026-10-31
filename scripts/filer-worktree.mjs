@@ -63,15 +63,17 @@ function owned(recordPath, owner) {
   if (!same(gitdir, r.gitdir) || JSON.stringify(read(path.join(gitdir, markerName))) !== JSON.stringify({ id: r.id, owner, record: recordPath })) throw new Error("Worktree ownership marker changed");
   return { ...r, root, tree, recordPath };
 }
-export async function create({ root, owner, toolingOnly = false }) {
+export async function create({ root, owner, toolingOnly = false, commit = "origin/main" }) {
   root = mainRoot(root);
   if (typeof owner !== "string" || !owner.trim() || owner.length > 500) throw new Error("Supply the stable filing session identity as --owner");
+  if (typeof commit !== "string" || !commit.trim()) throw new Error("Supply a commit revision as --commit");
+  const head = git(root, ["rev-parse", "--verify", "--end-of-options", `${commit}^{commit}`]);
   const id = randomUUID(), branch = `repro/filer-${id}`, tree = path.join(`${root}.worktrees`, "repro", `filer-${id.replaceAll("-", "")}`);
   const artifacts = path.join(jobs(root), id), recordPath = path.join(artifacts, "owner.json");
   noLinks(tree); noLinks(artifacts);
   if (entries(root).some(e => same(e.path, tree) || under(tree, e.path) || under(e.path, tree))) throw new Error("Proposed filer tree overlaps a registered checkout");
   fs.mkdirSync(artifacts, { recursive: true });
-  git(root, ["worktree", "add", "-b", branch, tree, "origin/main"]);
+  git(root, ["worktree", "add", "-b", branch, tree, head]);
   const gitdir = absolute(git(tree, ["rev-parse", "--absolute-git-dir"]));
   const record = { version: 2, id, owner, root, tree, branch, gitdir, head: git(tree, ["rev-parse", "HEAD"]), state: "active", toolingOnly, installed: false };
   fs.writeFileSync(recordPath, JSON.stringify(record, null, 2) + "\n", { flag: "wx" });
@@ -215,6 +217,7 @@ export async function main(argv) {
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--tooling-only") options.toolingOnly = true;
     else if (argv[i] === "--defer" && command === "remove") options.defer = true;
+    else if (argv[i] === "--commit" && command === "create" && argv[i + 1]) options.commit = argv[++i];
     else if (["--root", "--owner", "--record"].includes(argv[i]) && argv[i + 1]) options[argv[i].slice(2)] = argv[++i];
     else throw new Error(`Unknown or incomplete option ${argv[i]}`);
   }
