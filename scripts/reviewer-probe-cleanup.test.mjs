@@ -102,4 +102,3 @@ assert.ok(Date.now()-began>=4900,'existing reservation guard contention waits wi
 assert.ok(fs.existsSync(path.join(directory,'contended','.git')),'exhausted contention removes nothing');
 removeProbeCheckouts(directory,{reservationRoot});
 console.log('PASS: exhausted reservation contention names its recorded owner and preserves probes');
-
