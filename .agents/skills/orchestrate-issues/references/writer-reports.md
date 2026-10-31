@@ -14,6 +14,10 @@ Run it at every periodic check-in, on the first wake after the coordinator itsel
 6. Dispatch the dependency-eligible tickets the plan admits, and act on its `checkIn` entry; after the coordinator's own restart or resume it reports `rearm`, and the coordinator re-arms the job as its next step names.
 7. Record the outcome with `checked-in --outcome "<what was done>"`, or `--outcome "no change"` when nothing needed action.
 
+The plan's dead-launch sweep, the checkpoint's journal reader and the launcher's plan lookup share the review-job scan boundary. They skip `reviewer-*` workspaces, `codex-home-*` and `gh-config-*` tool homes, Git checkouts (directories containing `.git`), `node_modules` and package caches (`npm-cache`, `.npm`, `_cacache`). Entries that disappear during directory listing or file stat are treated as absent, so a reviewer can remove its probe checkout while the coordinator plans.
+
+Keep plans and journals in a separate launch-state directory, such as `pr-<P>/round-<R>/launch-<reviewer-id>-<attempt>`, under the review-job root. The launcher refuses state inside the excluded directories because the wake routine cannot discover it there. Keep reviewer checkouts and their temporary probes inside the reviewer's workspace; their size then adds no scan work.
+
 ## How writers reach the coordinator
 
 Each route's way of messaging the coordinator is in the runner configuration (`reports` in `.claude/writer-defaults.json`, keyed by the coordinator's runner). The brief carries the recorded session identity and title beside the contact instruction. A title-addressed writer resolves the current title through its runner's session listing, stops on ambiguous or missing matches, and retains the id and host as identity cross-checks. Every answer and resume refreshes that instruction, including for an existing writer whose coordinator has not changed.
