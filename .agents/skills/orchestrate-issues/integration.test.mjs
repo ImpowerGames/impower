@@ -52,7 +52,7 @@ try {
   };
   checkGate(ig.finalGate);
   const source = fs.readFileSync(new URL("./integration.mjs", import.meta.url), "utf8");
-  const readLines = ["    owned = ownership(current(), opId);", "    snapshot = takeSnapshot();", "    held = premises(current(), snapshot);", "    scope = readScope();", "    now = (git.fetch(), git.main());"];
+  const readLines = ["      owned = ownership(current(), opId);", "      snapshot = takeSnapshot();", "      held = premises(current(), snapshot);", "      scope = readScope();", "      now = (git.fetch(), git.main());"];
   const block = readLines.join("\n");
   assert.equal(source.split(block).length, 2, "the final gate's five reads appear once, in order");
   const permutations = (items) => (items.length <= 1 ? [items] : items.flatMap((item, i) => permutations([...items.slice(0, i), ...items.slice(i + 1)]).map((rest) => [item, ...rest])));
@@ -73,6 +73,36 @@ try {
     assert.throws(() => checkGate(gate), Error, `the order check catches the mutant with ${mutant.name}`);
   }
   console.log(`final gate: ${mutants.length} reordered or removed reads, each caught`);
+  for (const change of ["unrelated", "main", "red-main", "ownership", "head", "blocker", "delivered"]) {
+    let passes = 0, called = false;
+    const initial = { originMain: "m1", tickets: [{ number: 41, state: "open", container: false, blockers: [] }] };
+    const latest = structuredClone(initial);
+    latest.tickets.push({ number: 49, state: "open", container: false, blockers: [] });
+    if (change === "blocker") latest.tickets[0].blockers.push({ number: 49, state: "open", delivered: false });
+    if (change === "delivered") latest.tickets[1].deliveredBy = { ticket: 41, via: "pr", pr: 141 };
+    const refresh = ["main", "red-main", "ownership", "head"].includes(change);
+    const result = ig.finalGate({
+      current: () => ({}), opId: "refresh",
+      ownership: () => change === "ownership" && passes > 0 ? ["taken over"] : [],
+      takeSnapshot: () => ({ ...initial, originMain: refresh && passes > 0 ? "m2" : "m1" }),
+      premises: () => {
+        passes++;
+        return { blockers: passes > 1 && ["red-main", "head"].includes(change) ? [change] : [], again: { originMain: refresh && passes > 1 ? "m2" : "m1" } };
+      },
+      readScope: () => ig.mergeScope(latest, 41), scopeOf: (s) => ig.mergeScope(s, 41), refreshMain: true,
+      git: { fetch() {}, main: () => refresh ? "m2" : "m1" }, main: "m1",
+      call: () => { called = true; },
+    });
+    assert.equal(called, ["unrelated", "main"].includes(change), `${change}: ${JSON.stringify(result)}`);
+    assert.equal(passes, refresh ? 2 : 1, `${change} reruns all premises only when main moved`);
+  }
+  const historicalBlocker = { tickets: [
+    { number: 41, state: "open", blockers: [{ number: 49, state: "closed", delivered: false }] },
+    { number: 49, state: "closed", stateReason: "completed", closedAt: "2020-01-01T00:00:00Z", prs: [], worktrees: [] },
+  ] };
+  const reclosed = structuredClone(historicalBlocker);
+  reclosed.tickets[1].closedAt = "2030-01-01T00:00:00Z";
+  assert.notDeepEqual(ig.mergeScope(historicalBlocker, 41), ig.mergeScope(reclosed, 41), "a blocker's changed history remains a relevant premise");
 
   const remote = path.join(tmp, "remote.git");
   git(tmp, "init", "-q", "--bare", "-b", "main", remote);
@@ -151,7 +181,7 @@ try {
     fetchMain: () => originMain(dir), worktrees: () => [],
     issue: (n) => ({ ...gh.issues.get(n), number: n }),
     subIssues: (n) => (n === ISSUE && gh.onSubIssues?.(), n === ISSUE ? [...gh.slices].map((k) => ({ number: k, title: `slice ${k}`, state: gh.issues.get(k).state })) : []),
-    blockedBy: (n) => (n === 42 ? [{ number: 41, state: gh.issues.get(41).state }] : []),
+    blockedBy: (n) => gh.blockers?.get(n) ?? (n === 42 ? [{ number: 41, state: gh.issues.get(41).state }] : []),
     effort: () => "High",
     pulls: (n) => [...gh.pulls.values()].filter((p) => p.closes.includes(n)).map((p) => ({ number: p.number, state: p.state, isDraft: p.isDraft, headRefName: p.branch, headRefOid: p.head, baseRefName: p.base, closingIssuesReferences: p.closes.map((c) => ({ number: c })), mergeCommit: p.mergeCommit ? { oid: p.mergeCommit } : null })),
     comments: (pr) => client.comments(pr),
@@ -270,6 +300,24 @@ try {
   assert.deepEqual(g41.blockers, [], "a reviewed head with passed CI, current main, every reviewer exited and nothing outstanding is admitted");
   assert.deepEqual([g41.admitted, g41.disposition, g41.reviewedHead, g41.mergedSince], [true, "reviewed", h41, []]);
   assert.deepEqual(g41.checks.map((c) => [c.name, c.result, c.required]), [["test-suite", "passed", true], ["packages (sparkdown)", "skipped", false], ["hook-tests", "passed", false]], "a skipped package job is reported as skipped, not as a check that ran");
+  {
+    const facts = ig.gatherFacts({ record: record(), pr: 141, client, git: gitOf(src) });
+    for (const completion of ["historical", "delivered", "unfinished"]) {
+      const snapshot = snapshotNow();
+      snapshot.tickets.push({
+        number: 49, state: completion === "unfinished" ? "open" : "closed", stateReason: "completed", closedAt: completion === "historical" ? "2020-01-01T00:00:00Z" : "2030-01-01T00:00:00Z",
+        deliveredBy: { ticket: 41, via: "sub-issue", pr: null }, delivered: completion === "delivered", prs: [], worktrees: [],
+        blockers: [{ number: 900, state: "closed", delivered: false }],
+      });
+      const result = ig.admission(record(), { ticket: 41, pr: 141, snapshot, facts, git: gitOf(src) });
+      if (completion === "unfinished") blocked(result, /#49 is blocked by #900/, "an unfinished delivered Bug's external blocker still holds its Task");
+      else assert.equal(result.admitted, true, `${completion} child dependencies do not block an otherwise admissible Task: ${result.blockers.join(" | ")}`);
+      const changed = structuredClone(snapshot);
+      changed.tickets.find((t) => t.number === 49).blockers = [{ number: 901, state: "open", delivered: false }];
+      if (completion === "unfinished") assert.notDeepEqual(ig.mergeScope(snapshot, 41, record()), ig.mergeScope(changed, 41, record()), "unfinished child dependencies remain final-check premises");
+      else assert.deepEqual(ig.mergeScope(snapshot, 41, record()), ig.mergeScope(changed, 41, record()), `${completion} child dependencies are excluded from the final comparison`);
+    }
+  }
   const split41 = threadGate(41, true);
   assert.deepEqual([split41.result.blockers, split41.asked], [[], [[141, 41]]], "the gate asks for PR #141's review thread on ticket #41 and admits the head from it");
   blocked(threadGate(41, false).result, new RegExp(`report \\d+ \\(round 1, undirected\\) is not on review thread ${INTERNAL}#41`), "a report left on the PR alone, once tickets live apart");
@@ -434,7 +482,7 @@ try {
   assert.match(stopPlan.tickets.find((t) => t.number === 41).reason, /the invocation stops at ready, so the maintainer merges it/);
   assert.match(stopPlan.remaining.join(" "), /wait for the maintainer to merge them/);
 
-  const callsBeforeSave = gh.mergeCalls.length;
+  let callsBeforeSave = gh.mergeCalls.length;
   assert.throws(() => ig.mergeAdmitted(recordFile, { coordinator: "local_coord", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), readScope: () => scopeNow(), client, git: gitOf(src), afterIntent: () => { throw new Error("the remote is unreachable"); } }), /the remote is unreachable/);
   assert.equal(gh.mergeCalls.length, callsBeforeSave, "no merge call without a saved intent");
   assert.deepEqual([record().operations.at(-1).state, record().operations.at(-1).evidence], ["failed", "not run: the remote is unreachable"]);
@@ -442,21 +490,45 @@ try {
   gh.slices.add(41);
   assert.deepEqual([unscoped.merged, unscoped.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], unscoped.evidence);
   assert.match(unscoped.evidence, /not run: #41 is not a sub-issue of issue #40/);
+  gh.mode = "refuse";
+  const unrelated = merge(41, recordFile, "local_coord", src, () => {
+    cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC });
+    gh.onComments = () => {
+      gh.onComments = null;
+      gh.issues.set(49, { state: "open", title: "unrelated Bug", body: "" });
+      gh.slices.add(49);
+    };
+  });
+  trace("merge-unrelated-sibling", unrelated);
+  assert.equal(gh.mergeCalls.length, callsBeforeSave + 1, "an unrelated sibling added during the final checks does not void an admitted merge");
+  assert.match(unrelated.evidence, /was refused by GitHub/);
+  callsBeforeSave = gh.mergeCalls.length;
+  gh.slices.delete(49);
+  gh.issues.delete(49);
+  gh.mode = "ok";
+  gh.mode = "refuse";
   const moved = merge(41, recordFile, "local_coord", src, () => { advanceMain("other2.txt", "another PR\n", "feat: a PR merged during the save"); cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }); });
-  assert.deepEqual([moved.merged, moved.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], moved.evidence);
-  assert.match(moved.evidence, /not run: .*origin\/main moved from [0-9a-f]{40} to [0-9a-f]{40}/);
+  assert.deepEqual([moved.merged, moved.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave + 1], moved.evidence);
+  assert.match(moved.evidence, /was refused by GitHub/);
+  trace("merge-main-moved-during-save", moved);
+  callsBeforeSave = gh.mergeCalls.length;
   git(worktrees[41], "fetch", "-q", "origin");
   git(worktrees[41], "merge", "-q", "--no-edit", "origin/main");
   let h41n = push(41);
   setHead(41, h41n);
   const catchUp = () => { git(worktrees[41], "fetch", "-q", "origin"); git(worktrees[41], "merge", "-q", "--no-edit", "origin/main"); h41n = push(41); setHead(41, h41n); };
   const duringReads = merge(41, recordFile, "local_coord", src, () => { cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }); gh.onComments = () => { gh.onComments = null; advanceMain("during-reads.txt", "lands during the gate's reads\n", "feat: a PR merged during the second gate"); }; });
-  assert.deepEqual([duringReads.merged, duringReads.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], duringReads.evidence);
-  assert.match(duringReads.evidence, /not run: .*origin\/main moved from [0-9a-f]{40} to [0-9a-f]{40}/);
+  assert.deepEqual([duringReads.merged, duringReads.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave + 1], duringReads.evidence);
+  assert.match(duringReads.evidence, /was refused by GitHub/);
+  trace("merge-main-moved-during-reads", duringReads);
+  callsBeforeSave = gh.mergeCalls.length;
   catchUp();
   const beforeCall = merge(41, recordFile, "local_coord", src, () => { cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }); gh.onFetch = (pr) => { if (pr === undefined) { gh.onFetch = null; advanceMain("before-call.txt", "lands just before the call\n", "feat: a PR merged just before the call"); } }; });
-  assert.deepEqual([beforeCall.merged, beforeCall.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], beforeCall.evidence);
-  assert.match(beforeCall.evidence, /not run: origin\/main moved from [0-9a-f]{40} to [0-9a-f]{40}/);
+  assert.deepEqual([beforeCall.merged, beforeCall.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave + 1], beforeCall.evidence);
+  assert.match(beforeCall.evidence, /was refused by GitHub/);
+  trace("merge-main-moved-before-call", beforeCall);
+  callsBeforeSave = gh.mergeCalls.length;
+  gh.mode = "ok";
   catchUp();
   const disowned = ig.mergeAdmitted(recordFile, { coordinator: "local_coord", expectRevision: record().revision, ticket: 41, pr: 141, takeSnapshot: () => snapshotNow(), readScope: () => scopeNow(), client, git: gitOf(src), afterIntent: () => cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC }), ownership: () => ["issue #40 has been taken over: checkpoint 99 names coordinator local_other"] });
   assert.deepEqual([disowned.merged, disowned.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], disowned.evidence);
@@ -469,6 +541,32 @@ try {
   gh.slices.add(41);
   assert.deepEqual([leftDuringReads.merged, leftDuringReads.state, gh.mergeCalls.length], [false, "failed", callsBeforeSave], leftDuringReads.evidence);
   assert.match(leftDuringReads.evidence, /not run: .*the parent issue's slices changed during the final checks/);
+  gh.blockers = new Map();
+  const blockedDuringReads = merge(41, recordFile, "local_coord", src, () => {
+    cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC });
+    gh.onComments = () => { gh.onComments = null; gh.blockers.set(41, [{ number: 43, state: "open" }]); };
+  });
+  assert.equal(gh.mergeCalls.length, callsBeforeSave, "a new relevant blocker still stops the call");
+  assert.match(blockedDuringReads.evidence, /not run: .*(slices changed|#41 is blocked by #43)/);
+  blocked(gate(41), /#41 is blocked by #43/, "a stable relevant blocker refuses admission");
+  gh.blockers.clear();
+  const deliveredDuringReads = merge(41, recordFile, "local_coord", src, () => {
+    cp.ensureSaved(recordFile, { coordinator: "local_coord", github: statusGithub, host: SRC });
+    gh.onComments = () => {
+      gh.onComments = null;
+      gh.issues.set(49, { state: "open", title: "delivered Bug", body: "" });
+      gh.slices.add(49);
+      gh.pulls.get(141).closes.push(49);
+    };
+  });
+  assert.equal(gh.mergeCalls.length, callsBeforeSave, "new deliverer membership still stops the call");
+  assert.match(deliveredDuringReads.evidence, /not run: .*slices changed/);
+  gh.blockers.set(49, [{ number: 43, state: "open" }]);
+  blocked(gate(41), /#49 is blocked by #43/, "a delivered Bug's blocker holds its deliverer");
+  gh.blockers.clear();
+  gh.pulls.get(141).closes = [41];
+  gh.slices.delete(49);
+  gh.issues.delete(49);
 
   const merged41 = ig.main(["merge", "--record", recordFile, "--coordinator", "local_coord", "--expect-revision", String(record().revision), "--ticket", "41", "--pr", "141"], { clientFor: () => client, gitFor: () => gitOf(src), github: statusGithub, snapshotFor: () => () => snapshotNow(), scopeFor: () => () => scopeNow() });
   trace("merge-41", merged41);
