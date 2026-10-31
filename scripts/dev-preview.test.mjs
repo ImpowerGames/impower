@@ -4,8 +4,9 @@ import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
+import vm from "node:vm";
 import { fileURLToPath } from "node:url";
-import { treeStopped, treeSurvivors, windowsProcessTable } from "../.agents/skills/drive-web-editor/driver.mjs";
+import { linuxProcesses, treeStopped, treeSurvivors, windowsProcessTable } from "../.agents/skills/drive-web-editor/driver.mjs";
 import { sessionDir } from "../.agents/skills/drive-web-editor/session-dir.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -86,6 +87,7 @@ function startLauncher(file, args = []) {
 
 const trees = [];
 async function census(root) {
+  if (!IS_WIN) return linuxProcesses().filter((row) => row.group === root);
   const before = await windowsProcessTable();
   trees.push({ before, root });
   return before;
@@ -93,6 +95,15 @@ async function census(root) {
 const censused = (root) => trees.some((tree) => tree.root === root);
 const stopTree = (pid) => spawnSync("taskkill", ["/pid", String(pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
 async function assertTreeGone(before, root, context) {
+  if (!IS_WIN) {
+    for (let i = 0; i < 20; i++) {
+      const survivors = linuxProcesses().filter((row) => row.state !== "Z" && row.state !== "X" && (row.group === root || before.some((old) => old.pid === row.pid && old.start === row.start)));
+      if (!survivors.length) return;
+      if (i === 19) assert.fail(`shutdown left Linux descendants: ${JSON.stringify(survivors)}\n${context}`);
+      await sleep(100);
+    }
+    return;
+  }
   const result = await treeStopped(before, root, { attempts: 20, waitMs: 500 });
   assert.ok(result.stopped, `${result.reason}\n${context}`);
 }
@@ -177,6 +188,34 @@ fs.writeFileSync(ptyScript, [
 ].join("\n"));
 
 try {
+  await check("a build ready after four minutes still acquires its idle watchdog", async () => {
+    let now = 0;
+    let output = "";
+    const exits = [];
+    const timers = [];
+    const code = fs.readFileSync(launcher, "utf8").replace(/^import .*;\r?\n/gm, "").replace(/main\(\)\.catch\([\s\S]*$/, "main();").replaceAll("import.meta.url", '"file:///fixture/scripts/dev-preview.mjs"');
+    vm.runInNewContext(code, {
+      Buffer,
+      join: path.join, dirname: path.dirname, fileURLToPath: () => launcher,
+      process: { platform: "win32", argv: ["node", "launcher", "--idle-exit-seconds", "900"], env: { EDITOR_PORT: "4000", PLAYER_PORT: "4001", HMR_PORT: "4002" }, stdout: { write: (text) => { output += text; } }, stderr: { write: () => {} }, on: () => {}, exit: (code) => exits.push(code) },
+      spawnSync: () => ({ status: 0, stdout: "" }),
+      spawn: () => ({ pid: 123, on: () => {}, kill: () => {}, stdout: null, stderr: null }),
+      execFile: (command, args, options, done) => done(null, "TCP 127.0.0.1:4000 0.0.0.0:0 LISTENING 123"),
+      fetch: async () => { if (now < 240_000) throw new Error("still building"); return {}; },
+      Date: { now: () => now },
+      setTimeout: (fn, delay) => { timers.push({ at: now + delay, fn }); },
+    });
+    for (let i = 0; i < 20_000 && !exits.length; i++) {
+      await Promise.resolve();
+      timers.sort((a, b) => a.at - b.at);
+      const timer = timers.shift();
+      if (timer) { now = timer.at; await timer.fn(); }
+      if (now > 1_200_000) break;
+    }
+    assert.match(output, /Live preview ready/);
+    assert.deepEqual(exits, [0], `late readiness must still stop idle servers: ${output}`);
+    assert.ok(now >= 1_140_000, "the idle period starts after readiness");
+  });
   if (IS_WIN || process.platform === "linux") {
     await check("a launcher with an idle exit stops its tree once no client is connected, and not while one is", async () => {
       const file = rowsFile();
@@ -188,17 +227,16 @@ try {
         assert.ok(port > 0, `the launcher printed no editor port:\n${run.output()}`);
         const client = net.connect({ port, host: "localhost" });
         await new Promise((resolve, reject) => { client.once("connect", resolve); client.once("error", (error) => reject(new Error(`the client could not connect to the fixture editor: ${error.message}\n${run.output()}`))); });
-        if (IS_WIN) before = await census(run.child.pid);
+        before = await census(run.child.pid);
+        assert.ok(rows(file).every((row) => before.some((old) => old.pid === row.pid)), "the census must include both servers and their workers");
         assert.equal(await within(run.exited, 14_000), null, `the launcher stopped while a client was connected:\n${run.output()}`);
         client.destroy();
         assert.deepEqual(await within(run.exited, 40_000), { code: 0, signal: null }, `the launcher did not stop itself once the client left:\n${run.output()}`);
         assert.match(run.output(), /Idle exit: no client held a connection to the servers for 10 s/);
-        if (before) await assertTreeGone(before, run.child.pid, run.output());
+        await assertTreeGone(before, run.child.pid, run.output());
       } finally {
-        if (run.child.exitCode === null) {
-          if (!IS_WIN) try { process.kill(-run.child.pid, "SIGKILL"); } catch {}
-          else if (!censused(run.child.pid)) stopTree(run.child.pid);
-        }
+        if (!IS_WIN) try { process.kill(-run.child.pid, "SIGKILL"); } catch {}
+        else if (run.child.exitCode === null && !censused(run.child.pid)) stopTree(run.child.pid);
       }
     });
   } else {
@@ -284,9 +322,11 @@ try {
       const run = startLauncher(file);
       try {
         await serving(file, run.output, true);
+        const before = await census(run.child.pid);
         process.kill(run.child.pid, "SIGHUP");
         const result = await within(run.exited, 15_000);
         assert.deepEqual(result, { code: 0, signal: null }, `the launcher did not stop itself on SIGHUP:\n${run.output()}`);
+        await assertTreeGone(before, run.child.pid, run.output());
       } finally {
         try { process.kill(-run.child.pid, "SIGKILL"); } catch {}
       }

@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { sessionDir } from "./session-dir.mjs";
 import {
   EDITOR_NAVIGATION,
   KNOWN_CONSOLE_NOISE,
@@ -456,10 +457,24 @@ check("the missing-record refusal names the hand-launch that renders the preview
   carriesAdvice("no editor URL", "baked into each bundle at build time");
 });
 
-check("the silent-record refusal names the idle stop, the relaunch and the record's cleanup", () => {
-  carriesAdvice("are not answering", "stop themselves after");
-  carriesAdvice("are not answering", "up` to start them again");
-  carriesAdvice("are not answering", "down` removes one whose launcher has exited");
+check("dead recorded servers refuse before launching a browser through the default probe", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "driver-refusal-"));
+  try {
+    const env = { ...process.env, IMPOWER_DRIVER_HOME: root, IMPOWER_DRIVER_SESSION: "refusal" };
+    const dir = sessionDir({ root: path.resolve(SKILL_DIR, "../../.."), session: "refusal", env });
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "state.json"), JSON.stringify({ url: "http://127.0.0.1:1", pid: 42, idleExitSeconds: 900 }));
+    const script = `import { withEditor } from ${JSON.stringify(new URL("./driver.mjs", import.meta.url).href)}; await withEditor(() => {}, { launch: async () => { console.log("BROWSER_LAUNCHED"); throw new Error("browser should not launch"); } });`;
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], { env, encoding: "utf8", windowsHide: true, timeout: 15_000 });
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 1, result.stderr);
+    assert.doesNotMatch(result.stdout, /BROWSER_LAUNCHED/);
+    assert.match(result.stderr, /are not answering; they stop themselves after 15 min/);
+    assert.match(result.stderr, /Run `up` to start them again/);
+    assert.match(result.stderr, /down` removes one whose launcher has exited/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 check("a seed refused because the editor remembers another project names how to forget it", () => {

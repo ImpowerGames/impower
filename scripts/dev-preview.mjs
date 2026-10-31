@@ -1,4 +1,5 @@
 import { execFile, spawn, spawnSync } from "node:child_process";
+import { readdirSync, readFileSync } from "node:fs";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -70,9 +71,44 @@ function spawnServer(label, cwd, args, env) {
 }
 
 let shuttingDown = false;
+function linuxTree(known = new Map()) {
+  const rows = [];
+  for (const name of readdirSync("/proc")) {
+    if (!/^\d+$/.test(name)) continue;
+    try {
+      const stat = readFileSync(`/proc/${name}/stat`, "utf8");
+      const fields = stat.slice(stat.lastIndexOf(")") + 2).trim().split(/\s+/);
+      rows.push({ pid: Number(name), parent: Number(fields[1]), group: Number(fields[2]), start: fields[19], state: fields[0] });
+    } catch (error) {
+      if (!["ENOENT", "ESRCH", "EACCES", "EPERM"].includes(error.code)) throw error;
+    }
+  }
+  const owned = new Set([process.pid, ...rows.filter((row) => known.get(row.pid) === row.start).map((row) => row.pid)]);
+  let changed;
+  do {
+    changed = false;
+    for (const row of rows) {
+      if (!owned.has(row.pid) && (owned.has(row.parent) || row.group === process.pid)) {
+        owned.add(row.pid);
+        changed = true;
+      }
+    }
+  } while (changed);
+  return rows.filter((row) => row.pid !== process.pid && owned.has(row.pid) && row.state !== "Z" && row.state !== "X");
+}
+
 function shutdown(code) {
   if (shuttingDown) return;
   shuttingDown = true;
+  const tracked = new Map();
+  const stopLinux = (signal) => {
+    for (const row of linuxTree(tracked).reverse()) {
+      tracked.set(row.pid, row.start);
+      try { process.kill(row.pid, signal); }
+      catch (error) { if (error.code !== "ESRCH") throw error; }
+    }
+  };
+  if (process.platform === "linux") stopLinux("SIGTERM");
   for (const child of children) {
     if (child.pid == null || child.killed) continue;
     if (IS_WIN) {
@@ -80,14 +116,17 @@ function shutdown(code) {
         stdio: "ignore",
         windowsHide: true,
       });
-    } else {
+    } else if (process.platform !== "linux") {
       try {
         child.kill("SIGTERM");
       } catch {
       }
     }
   }
-  setTimeout(() => process.exit(code), 500);
+  setTimeout(() => {
+    if (process.platform === "linux") stopLinux("SIGKILL");
+    process.exit(code);
+  }, 500);
 }
 
 process.on("SIGINT", () => shutdown(0));
@@ -295,7 +334,7 @@ async function main() {
     });
   }
 
-  const ready = await waitForHttp(editorOrigin + "/");
+  const ready = await waitForHttp(editorOrigin + "/", idleExitSeconds === null ? {} : { timeoutMs: Infinity });
   if (ready) {
     process.stdout.write(
       `\n  ✓ Live preview ready → ${editorOrigin}\n` +
