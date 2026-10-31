@@ -24,7 +24,9 @@ const copy = (from, to) => {
 };
 const launcher = path.join(repo, "scripts", "dev-preview.mjs");
 copy(path.join(here, "dev-preview.mjs"), launcher);
-copy(path.join(here, "linux-processes.mjs"), path.join(repo, "scripts", "linux-processes.mjs"));
+copy(path.join(here, "process-table.mjs"), path.join(repo, "scripts", "process-table.mjs"));
+const processHelper = /from "\.\/([^"\n]+)"/.exec(fs.readFileSync(launcher, "utf8"))?.[1];
+if (processHelper) copy(path.join(here, "process-table.mjs"), path.join(repo, "scripts", processHelper));
 copy(path.join(here, "detached-launch.mjs"), path.join(repo, "scripts", "detached-launch.mjs"));
 const driver = path.join(repo, ".agents", "skills", "drive-web-editor", "driver.mjs");
 for (const name of ["driver.mjs", "redgreen.mjs", "session-dir.mjs", "worktree-temp.mjs"]) copy(path.join(skill, name), path.join(path.dirname(driver), name));
@@ -32,6 +34,7 @@ fs.writeFileSync(path.join(repo, "package.json"), JSON.stringify({ private: true
 fs.writeFileSync(path.join(repo, "server.mjs"), [
   'import fs from "node:fs";',
   'import http from "node:http";',
+  'import net from "node:net";',
   'import { spawn } from "node:child_process";',
   "const role = process.argv[2];",
   'const record = () => fs.appendFileSync(process.env.DEV_PREVIEW_ROWS, JSON.stringify({ role, pid: process.pid }) + "\\n");',
@@ -39,8 +42,12 @@ fs.writeFileSync(path.join(repo, "server.mjs"), [
   'if (role.endsWith("-worker")) { record(); idle(); }',
   "else {",
   '  spawn(process.execPath, [process.argv[1], role + "-worker"], { stdio: "ignore", windowsHide: true });',
-  '  if (role === "editor") http.createServer((request, response) => response.end("ok")).listen(Number(process.env.PORT), record);',
-  "  else { record(); idle(); }",
+  '  if (role === "editor") {',
+  '    http.createServer((request, response) => response.end("ok")).listen(Number(process.env.PORT), record);',
+  '    const connect = () => { const socket = net.connect({ host: "127.0.0.1", port: Number(new URL(process.env.SPARKDOWN_PLAYER_DEV_ORIGIN).port) }); socket.once("error", () => setTimeout(connect, 100)); socket.once("connect", () => fs.writeFileSync(process.env.DEV_PREVIEW_ROWS + ".proxy", String(process.pid))); };',
+  "    connect();",
+  "  }",
+  '  else http.createServer((request, response) => response.end("ok")).listen(Number(process.env.SPARKDOWN_PLAYER_PORT), "127.0.0.1", record);',
   "}",
 ].join("\n"));
 for (const [dir, role] of [["impower-dev", "editor"], ["sparkdown-player-app", "player"]]) {
@@ -62,7 +69,7 @@ const rowsFile = () => path.join(scratch, `rows-${++runs}.jsonl`);
 const rows = (file) => (fs.existsSync(file) ? fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse) : []);
 async function serving(file, output = () => "", needReady = false) {
   for (let i = 0; i < 1800; i++) {
-    if (rows(file).length === 4 && (!needReady || /Live preview ready/.test(output()))) return;
+    if (rows(file).length === 4 && fs.existsSync(file + ".proxy") && (!needReady || /Live preview ready/.test(output()))) return;
     await sleep(100);
   }
   throw new Error(`the fixture servers did not start: ${JSON.stringify(rows(file))}\n${output()}`);
@@ -189,7 +196,7 @@ fs.writeFileSync(ptyScript, [
 ].join("\n"));
 
 try {
-  const delayedStartup = async (established = "") => {
+  const delayedStartup = async (established = "", { processes = [{ pid: 100, ppid: 50, start: "10" }, { pid: 123, ppid: 100, start: "20" }], processError = false, connectionError = false, stops = true } = {}) => {
     let now = 0;
     let output = "";
     const exits = [];
@@ -198,10 +205,12 @@ try {
     vm.runInNewContext(code, {
       Buffer,
       join: path.join, dirname: path.dirname, fileURLToPath: () => launcher,
-      process: { platform: "win32", argv: ["node", "launcher", "--idle-exit-seconds", "900"], env: { EDITOR_PORT: "4000", PLAYER_PORT: "4001", HMR_PORT: "4002" }, stdout: { write: (text) => { output += text; } }, stderr: { write: () => {} }, on: () => {}, exit: (code) => exits.push(code) },
+      process: { pid: 100, platform: "win32", argv: ["node", "launcher", "--idle-exit-seconds", "900"], env: { EDITOR_PORT: "4000", PLAYER_PORT: "4001", HMR_PORT: "4002" }, stdout: { write: (text) => { output += text; } }, stderr: { write: () => {} }, on: () => {}, exit: (code) => exits.push(code) },
+      treeSurvivors,
+      windowsProcessTable: async () => { if (processError) throw new Error("process census unavailable"); return processes; },
       spawnSync: () => ({ status: 0, stdout: "" }),
       spawn: () => ({ pid: 123, on: () => {}, kill: () => {}, stdout: null, stderr: null }),
-      execFile: (command, args, options, done) => done(null, "TCP 127.0.0.1:4000 0.0.0.0:0 LISTENING 123" + established),
+      execFile: (command, args, options, done) => done(connectionError ? new Error("connection census unavailable") : null, "TCP 127.0.0.1:4000 0.0.0.0:0 LISTENING 123" + established),
       fetch: async () => { if (now < 240_000) throw new Error("still building"); return {}; },
       Date: { now: () => now },
       setTimeout: (fn, delay) => { timers.push({ at: now + delay, fn }); },
@@ -214,31 +223,80 @@ try {
       if (now > 1_200_000) break;
     }
     assert.match(output, /Live preview ready/);
-    assert.deepEqual(exits, [0], `late readiness must still stop idle servers: ${output}`);
+    assert.deepEqual(exits, stops ? [0] : [], `idle exit must respect known clients and inspection failures: ${output}`);
     assert.ok(now >= 1_140_000, "the idle period starts after readiness");
   };
   await check("a build ready after four minutes still acquires its idle watchdog", () => delayedStartup());
   await check("an unrelated outbound source-port collision does not keep an idle launcher running", () => delayedStartup("\nTCP 10.0.0.1:4000 203.0.113.1:443 ESTABLISHED 456"));
+  await check("failed process or connection inspection suspends idle shutdown", async () => {
+    await delayedStartup("", { processError: true, stops: false });
+    await delayedStartup("", { connectionError: true, stops: false });
+  });
+  await check("missing root, unknown start identity and reused ancestry cannot authorize idle shutdown", async () => {
+    await delayedStartup("", { processes: [], stops: false });
+    await delayedStartup("", { processes: [{ pid: 100, ppid: 50, start: null }, { pid: 123, ppid: 100, start: "20" }], stops: false });
+    await delayedStartup("", { processes: [{ pid: 100, ppid: 50, start: "10" }, { pid: 123, ppid: 100, start: null }], stops: false });
+    await delayedStartup("", { processes: [{ pid: 100, ppid: 50, start: "30" }, { pid: 123, ppid: 100, start: "20" }], stops: false });
+  });
+  await check("a sibling proxy remains a client when it listens on the same port outside the launcher tree", () => {
+    const source = fs.readFileSync(launcher, "utf8");
+    const part = (start, end) => source.slice(source.indexOf(start), source.indexOf(end, source.indexOf(start)));
+    const pure = part("const portOf", "const CENSUS") + part("function clientConnections", "function stopWhenIdle");
+    const clients = new Function(pure + "; return clientConnections;")();
+    const table = {
+      listeners: [{ port: 4000, pid: 123 }, { port: 4000, pid: 456 }],
+      established: [
+        { localPort: 4000, foreignPort: 5000, foreignHost: "127.0.0.1", pid: 123 },
+        { localPort: 5000, foreignPort: 4000, foreignHost: "127.0.0.1", pid: 456 },
+      ],
+    };
+    assert.equal(clients(table, [4000], new Set([100, 123])).length, 1, "a genuine external proxy client must not disappear because its unrelated listener shares the server port");
+    table.listeners.pop();
+    assert.equal(clients(table, [4000], new Set([100, 123])).length, 1, "the same proxy remains a client without its listener");
+  });
   await check("remote clients keep servers alive when either socket or listener ownership is unknown", () => {
     const source = fs.readFileSync(launcher, "utf8");
     const part = (start, end) => source.slice(source.indexOf(start), source.indexOf(end, source.indexOf(start)));
     const pure = part("const portOf", "const CENSUS") + part("function clientConnections", "function stopWhenIdle");
     const clients = new Function(pure + "; return clientConnections;")();
     const row = { localPort: 4000, foreignPort: 5000, foreignHost: "203.0.113.1", pid: 123 };
-    const count = (listeners, established) => clients({ listeners, established: [established] }, [4000]).length;
+    const count = (listeners, established) => (clients({ listeners, established: [established] }, [4000], new Set([100, 123])) ?? [{}]).length;
     assert.equal(count([{ port: 4000, pid: 123 }], row), 1);
     assert.equal(count([{ port: 4000, pid: 123 }], { ...row, pid: NaN }), 1);
     assert.equal(count([{ port: 4000, pid: NaN }], { ...row, pid: 456 }), 1);
     assert.equal(count([], { ...row, pid: 456 }), 1);
     assert.equal(count([{ port: 4000, pid: 123 }], { ...row, pid: 456 }), 0);
   });
+  await check("server-to-server sockets do not count, but local, remote and reused-PID external clients do", () => {
+    const source = fs.readFileSync(launcher, "utf8");
+    const part = (start, end) => source.slice(source.indexOf(start), source.indexOf(end, source.indexOf(start)));
+    const pure = part("const portOf", "const CENSUS") + part("function clientConnections", "function stopWhenIdle");
+    const clients = new Function(pure + "; return clientConnections;")();
+    const root = { pid: 100, ppid: 50, start: "10" };
+    const server = { pid: 123, ppid: 100, start: "20" };
+    const former = { pid: 456, ppid: 100, start: "20" };
+    const reused = { pid: 456, ppid: 90, start: "30" };
+    const owned = new Set(treeSurvivors([root, server, former], [root, server, reused], 100).map((row) => row.pid));
+    assert.equal(owned.has(456), false);
+    const table = { listeners: [{ port: 4000, pid: 123 }], established: [] };
+    const socket = { localPort: 5000, foreignPort: 4000, foreignHost: "127.0.0.1", pid: 123 };
+    table.established = [socket];
+    assert.equal(clients(table, [4000], owned).length, 0);
+    table.established = [{ ...socket, pid: 456 }];
+    assert.equal(clients(table, [4000], owned).length, 1);
+    table.established = [{ ...socket, pid: NaN }];
+    assert.equal(clients(table, [4000], owned).length, 1);
+    table.established = [{ ...socket, localPort: 4000, foreignPort: 5000, foreignHost: "203.0.113.1" }];
+    assert.equal(clients(table, [4000], owned).length, 1);
+  });
   if (IS_WIN || process.platform === "linux") {
-    await check("a launcher with an idle exit stops its tree once no client is connected, and not while one is", async () => {
+    await check("a launcher stops its tree with only a genuine server-to-server socket, and not while an external client is connected", async () => {
       const file = rowsFile();
       const run = startLauncher(file, ["--idle-exit-seconds", "10"]);
       let before = null;
       try {
         await serving(file, run.output, true);
+        assert.equal(Number(fs.readFileSync(file + ".proxy", "utf8")), rows(file).find((row) => row.role === "editor").pid, "the editor must hold a real connection to the player");
         const port = Number(run.output().match(/editor\s+http:\/\/localhost:(\d+)/)?.[1]);
         assert.ok(port > 0, `the launcher printed no editor port:\n${run.output()}`);
         const client = net.connect({ port, host: "localhost" });

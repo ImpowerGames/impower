@@ -17,7 +17,7 @@ fs.mkdirSync(path.join(scratch, "repo", ".agents", "skills", "resolve-issue"), {
 for (const name of fs.readdirSync(here).filter((n) => n.endsWith(".mjs") && !n.includes(".test."))) fs.copyFileSync(path.join(here, name), path.join(copyDir, name));
 fs.mkdirSync(path.join(scratch, "repo", "scripts"));
 fs.copyFileSync(path.join(here, "..", "..", "..", "scripts", "detached-launch.mjs"), path.join(scratch, "repo", "scripts", "detached-launch.mjs"));
-fs.copyFileSync(path.join(here, "..", "..", "..", "scripts", "linux-processes.mjs"), path.join(scratch, "repo", "scripts", "linux-processes.mjs"));
+fs.copyFileSync(path.join(here, "..", "..", "..", "scripts", "process-table.mjs"), path.join(scratch, "repo", "scripts", "process-table.mjs"));
 const driver = path.join(copyDir, "driver.mjs");
 
 const fixture = path.join(scratch, "tree.mjs");

@@ -1,5 +1,5 @@
 import { execFile, spawn, spawnSync } from "node:child_process";
-import { linuxProcesses } from "./linux-processes.mjs";
+import { linuxProcesses, treeSurvivors, windowsProcessTable } from "./process-table.mjs";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -240,13 +240,26 @@ function readConnections() {
   });
 }
 
-function clientConnections(table, ports) {
-  const servers = new Set(table.listeners.filter((row) => ports.includes(row.port) && Number.isInteger(row.pid)).map((row) => row.pid));
-  const localClient = (row) => ports.includes(row.foreignPort) && loopback(row.foreignHost) && !servers.has(row.pid);
+async function readOwnedProcesses() {
+  try {
+    const rows = IS_WIN ? await windowsProcessTable() : process.platform === "linux"
+      ? linuxProcesses().map((row) => ({ ...row, ppid: row.parent })) : [];
+    const owned = treeSurvivors(rows, rows, process.pid);
+    if (!owned?.length || owned.some((row) => !/^\d+$/.test(row.start ?? ""))) return null;
+    return new Set(owned.map((row) => row.pid));
+  } catch {
+    return null;
+  }
+}
+
+function clientConnections(table, ports, owned) {
+  if (!owned?.size) return null;
+  const listeners = table.listeners.filter((row) => ports.includes(row.port));
+  if (!listeners.some((row) => owned.has(row.pid)) || listeners.some((row) => !Number.isInteger(row.pid))) return null;
+  const localClient = (row) => ports.includes(row.foreignPort) && loopback(row.foreignHost) && !owned.has(row.pid);
   const remoteClient = (row) => {
     if (!ports.includes(row.localPort) || loopback(row.foreignHost)) return false;
-    const owners = table.listeners.filter((listener) => listener.port === row.localPort);
-    return !Number.isInteger(row.pid) || !owners.length || owners.some((owner) => !Number.isInteger(owner.pid) || owner.pid === row.pid);
+    return !Number.isInteger(row.pid) || owned.has(row.pid);
   };
   return table.established.filter((row) => localClient(row) || remoteClient(row));
 }
@@ -257,12 +270,14 @@ function stopWhenIdle(seconds, ports) {
   let censusFailed = false;
   const poll = async () => {
     if (shuttingDown) return;
+    const owned = await readOwnedProcesses();
     const table = await readConnections();
-    if (table === null || !table.listeners.some((row) => ports.includes(row.port))) {
-      if (!censusFailed) process.stdout.write(`\n  ! Idle exit suspended: the connection census (${CENSUS ? CENSUS.command : process.platform}) ${table === null ? "is unavailable" : "does not list the servers"}.\n\n`);
+    const clients = table === null ? null : clientConnections(table, ports, owned);
+    if (clients === null) {
+      if (!censusFailed) process.stdout.write(`\n  ! Idle exit suspended: the process/connection census (${CENSUS ? CENSUS.command : process.platform}) cannot establish the servers' ownership and connections.\n\n`);
       censusFailed = true;
       idleSince = Date.now();
-    } else if (clientConnections(table, ports).length) {
+    } else if (clients.length) {
       idleSince = Date.now();
     } else if (Date.now() - idleSince >= seconds * 1000) {
       process.stdout.write(`\n  Idle exit: no client held a connection to the servers for ${seconds} s; stopping both.\n\n`);
