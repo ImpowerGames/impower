@@ -101,14 +101,14 @@ const ack = codexContext.match(/`(node [^`]+ confirm [^`]+)`/)?.[1];
 assert.ok(ack, codexContext);
 assert.ok(gate(inWt("c", "git status"), "codex"));
 assert.equal(gate(inWt("c", ack), "codex"), null);
-for (const [tool, prefix] of [["Bash", "CLAUDE_EFFORT=medium "], ["Bash", "CLAUDE_EFFORT='medium' OTHER=two "], ["PowerShell", "$env:CLAUDE_EFFORT='medium'; "], ["PowerShell", '$env:CLAUDE_EFFORT = "medium"; $env:OTHER=two; ']]) {
+for (const [tool, prefix] of [["Bash", "CLAUDE_EFFORT=medium "], ["Bash", "CLAUDE_EFFORT='medium' OTHER=two "], ["PowerShell", "$env:CLAUDE_EFFORT='medium'; "], ["PowerShell", '$env:CLAUDE_EFFORT = "medium"; $env:OTHER=\'two\'; ']]) {
   assert.equal(gate(inWt("c", prefix + ack, tool), "codex"), null, prefix);
   for (const suffix of [" && git status", "; git status", " extra", " | cat"]) assert.ok(gate(inWt("c", prefix + ack + suffix, tool), "codex"), prefix + suffix);
   assert.ok(gate(inWt("c", prefix + ack.replace(sessionKey("c"), sessionKey("other")), tool), "codex"));
   assert.ok(gate(inWt("c", prefix + ack.replace(worktreeId(wt302), worktreeId(wtY)), tool), "codex"));
   assert.ok(gate(inWt("c", prefix + ack.replace(/"[^"]+"/, '"C:/elsewhere/session-title.mjs"'), tool), "codex"));
 }
-for (const [tool, prefix] of [["Bash", "echo medium; "], ["Bash", "CLAUDE_EFFORT=$(echo medium) "], ["Bash", 'CLAUDE_EFFORT="$(echo medium)" '], ["Bash", "CLAUDE_EFFORT=medium; "], ["PowerShell", "$env:CLAUDE_EFFORT=(Write-Output medium); "], ["PowerShell", '$env:CLAUDE_EFFORT="$(Write-Output medium)"; '], ["PowerShell", "$env:CLAUDE_EFFORT='medium'; Get-ChildItem; "]]) {
+for (const [tool, prefix] of [["Bash", "echo medium; "], ["Bash", "CLAUDE_EFFORT=$(echo medium) "], ["Bash", 'CLAUDE_EFFORT="$(echo medium)" '], ["Bash", "CLAUDE_EFFORT=medium; "], ["PowerShell", "$env:OTHER=Get-Location; "], ["PowerShell", "$env:CLAUDE_EFFORT='medium'; $env:OTHER=Get-Location; "], ["PowerShell", "$env:CLAUDE_EFFORT=(Write-Output medium); "], ["PowerShell", '$env:CLAUDE_EFFORT="$(Write-Output medium)"; '], ["PowerShell", "$env:CLAUDE_EFFORT='medium'; Get-ChildItem; "]]) {
   assert.ok(gate(inWt("c", prefix + ack, tool), "codex"), prefix);
 }
 for (const harness of ["claude", "codex"]) {
@@ -148,6 +148,13 @@ for (const [tool, executable, args, prefix] of [
 ]) {
   const session = "prefix-" + tool;
   afterTool(shell(session, create, tool), "codex");
+  if (tool === "PowerShell") {
+    const bare = "$env:IMPOWER_TITLE_PROBE=Get-Location; ";
+    const evaluated = spawnSync(executable, [...args, bare + "[Console]::Write($env:IMPOWER_TITLE_PROBE)"], { cwd: repo, encoding: "utf8", env: process.env, windowsHide: true });
+    assert.equal(evaluated.status, 0, evaluated.stderr);
+    assert.equal(evaluated.stdout, repo);
+    assert.ok(gate(inWt(session, bare + ackCommand(session, wt302), tool), "codex"));
+  }
   const command = prefix + ackCommand(session, wt302);
   assert.equal(gate(inWt(session, command, tool), "codex"), null);
   const result = spawnSync(executable, [...args, command], { encoding: "utf8", env: process.env, windowsHide: true });

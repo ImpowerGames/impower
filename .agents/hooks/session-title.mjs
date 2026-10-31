@@ -245,7 +245,8 @@ export function gate(payload, harness) {
 }
 
 function isAck(command, sessionId, entry, tool) {
-  const value = /(?:'[^'\r\n]*'|"[^"$`\\\r\n]*"|[a-zA-Z0-9_./:-]+)/.source;
+  const quoted = /(?:'[^'\r\n]*'|"[^"$`\\\r\n]*")/.source;
+  const value = tool === "powershell" ? quoted : `(?:${quoted}|[a-zA-Z0-9_./:-]+)`;
   const assignment = tool === "powershell"
     ? new RegExp(`^\\$env:[a-zA-Z_][a-zA-Z0-9_]*[ \\t]*=[ \\t]*${value}[ \\t]*;[ \\t]*`, "i")
     : new RegExp(`^[a-zA-Z_][a-zA-Z0-9_]*=${value}[ \\t]+`);
