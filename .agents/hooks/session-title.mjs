@@ -251,7 +251,10 @@ function isAck(command, sessionId, entry, tool) {
     ? new RegExp(`^\\$env:[a-zA-Z_][a-zA-Z0-9_]*[ \\t]*=[ \\t]*${value}[ \\t]*;[ \\t]*`, "i")
     : new RegExp(`^[a-zA-Z_][a-zA-Z0-9_]*=${value}[ \\t]+`);
   let text = String(command ?? "").trim();
-  for (let prefix; (prefix = text.match(assignment)); ) text = text.slice(prefix[0].length);
+  for (let prefix; (prefix = text.match(assignment)); ) {
+    if (tool === "powershell" && /[^\t\x20-\x7e]/.test(prefix[0])) return false;
+    text = text.slice(prefix[0].length);
+  }
   const match = text.match(/^node\s+(?:"([^"]+)"|([^\s"';&|]+))\s+confirm\s+([0-9a-f]{64})\s+([0-9a-f]{16})$/);
   return Boolean(match) && match[3] === sessionKey(sessionId) && match[4] === entry.id && samePath(match[1] ?? match[2], self);
 }

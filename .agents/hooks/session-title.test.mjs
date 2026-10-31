@@ -50,6 +50,7 @@ assert.deepEqual(deriveWorktree("git worktree add --lock --reason 'x y' -b docs/
 const shell = (session_id, command, tool_name = "Bash") => ({ session_id, cwd: repo, tool_name, tool_input: { command } });
 const inWt = (session_id, command, tool_name = "Bash", cwd = wt302) => ({ ...shell(session_id, command, tool_name), cwd });
 const rename = (session_id, title, tool_name = "mcp__ccd_session_mgmt__set_session_title", target = "self") => ({ session_id, tool_name, tool_input: tool_name.endsWith("set_thread_title") ? { title } : { session_id: target, title } });
+const smartPrefixes = ["$env:IMPOWER_TITLE_PROBE='safe\u2019; Write-Output IMPOWER_EXTRA; Write-Output \u2018safe'; ", '$env:IMPOWER_TITLE_PROBE="safe\u201d; Write-Output IMPOWER_EXTRA; Write-Output \u201csafe"; '];
 
 assert.equal(afterTool(shell("failed", "git worktree add -b fix/303-never-created ../z origin/main"), "codex"), null);
 assert.equal(gate(inWt("failed", "git status"), "codex"), null);
@@ -117,6 +118,7 @@ for (const harness of ["claude", "codex"]) {
   assert.ok(message.includes(ackCommand("subagent-" + harness, wt302)));
   assert.match(gate(inWt("subagent-" + harness, "git status"), harness), /rename tool.*unavailable or refuses/i);
 }
+for (const prefix of smartPrefixes) assert.ok(gate(inWt("c", prefix + ack, "PowerShell"), "codex"), prefix);
 const hookPath = path.join(root, ".agents/hooks/session-title.mjs");
 const keyC = sessionKey("c");
 const idC = worktreeId(wt302);
@@ -152,8 +154,14 @@ for (const [tool, executable, args, prefix] of [
     const bare = "$env:IMPOWER_TITLE_PROBE=Get-Location; ";
     const evaluated = spawnSync(executable, [...args, bare + "[Console]::Write($env:IMPOWER_TITLE_PROBE)"], { cwd: repo, encoding: "utf8", env: process.env, windowsHide: true });
     assert.equal(evaluated.status, 0, evaluated.stderr);
-    assert.equal(evaluated.stdout, repo);
+    assert.equal(fs.realpathSync.native(evaluated.stdout), fs.realpathSync.native(repo));
     assert.ok(gate(inWt(session, bare + ackCommand(session, wt302), tool), "codex"));
+    for (const smart of smartPrefixes) {
+      const extra = spawnSync(executable, [...args, smart], { cwd: repo, encoding: "utf8", env: process.env, windowsHide: true });
+      assert.equal(extra.status, 0, extra.stderr);
+      assert.match(extra.stdout, /IMPOWER_EXTRA/);
+      assert.ok(gate(inWt(session, smart + ackCommand(session, wt302), tool), "codex"));
+    }
   }
   const command = prefix + ackCommand(session, wt302);
   assert.equal(gate(inWt(session, command, tool), "codex"), null);
