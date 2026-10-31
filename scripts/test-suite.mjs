@@ -4,7 +4,7 @@ import os from "node:os";
 import { randomUUID, createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { acquireWaiting, waitForUnit, runPool, releaseKeeping, atomic, read, processIdentity, reservationState, vitestProcesses, same } from "./test-suite-process.mjs";
+import { acquireWaiting, waitForUnit, runPool, releaseKeeping, releaseDiagnostic, recoverReservations, atomic, read, processIdentity, reservationState, vitestProcesses, same } from "./test-suite-process.mjs";
 import { git, tracked, fingerprinter, canonicalPath, childEnvironment, isWithinDirectory } from "./test-suite-identity.mjs";
 import { prepareOwnedRuntime, prepareOwnedChild, runOwnedChild, readTreeProof, assertAttemptBinding } from "./test-suite-child.mjs";
 import { openReceipt } from "./test-suite-receipt.mjs";
@@ -467,9 +467,10 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
     }
     try { reservation.release(); }
     catch (error) {
-      if (summary) summary.releaseError = error.message;
-      if (failureInFlight) failureInFlight.releaseError = error.message;
-      console.error(`Reservation not released; the next acquirer recovers it: ${error.message}`);
+      const diagnostic = releaseDiagnostic(reservation, error);
+      if (summary) summary.releaseError = diagnostic;
+      if (failureInFlight) failureInFlight.releaseError = diagnostic;
+      console.error(`Reservation release failed: ${diagnostic}`);
     }
   }
 }
@@ -583,7 +584,11 @@ export async function runVitest({ packageRoot, files = [], waitMs = 0, stdio = "
     try { if (!reservationError && !journalError) { run.active = false; save(); } }
     catch (error) { if (result) result.journalError = error.message; }
     try { reservation.release(); }
-    catch (error) { if (result) result.releaseError = error.message; console.error("Reservation not released: " + error.message); }
+    catch (error) {
+      const diagnostic = releaseDiagnostic(reservation, error);
+      if (result) result.releaseError = diagnostic;
+      console.error("Reservation release failed: " + diagnostic);
+    }
   }
 }
 
@@ -686,6 +691,11 @@ function packageDirectory(target) {
 
 export async function main(argv, dependencies = {}) {
   const [command, target, ...rest] = argv;
+  if (command === "recover-reservation") {
+    if (target || rest.length) throw new Error("recover-reservation takes no arguments");
+    console.log(JSON.stringify({ status: "recovered", reservations: recoverReservations(dependencies) }));
+    return 0;
+  }
   const waited = waitOption(rest);
   const budget = fileTimeoutOption(waited.args), { args, receiptPath } = receiptOption(budget.args);
   const { fileTimeoutMs } = budget, { waitMs } = waited;
@@ -713,7 +723,7 @@ export async function main(argv, dependencies = {}) {
     const run = read(path.join(target, "run.json"));
     result = await execute({ ...dependencies, pool: runPool({ directory: run.packageRoot }), directory: target, waitMs, fileTimeoutMs, retry: args.slice(1).map(f => path.resolve(run.packageRoot, f)) });
   } else if (command === "status" && target && !args.length) result = status(target);
-  else throw new Error("Usage: node scripts/test-suite.mjs run <package-dir> <test-file> [<test-file> ...] [--wait <seconds>] [--file-timeout <seconds>] | start <package-dir> [--wait <seconds>] [--file-timeout <seconds>] | status <run-directory> | resume <run-directory> [--retry <failed-file> ...] [--wait <seconds>] [--file-timeout <seconds>]; <package-dir> is a directory such as packages/sparkdown");
+  else throw new Error("Usage: node scripts/test-suite.mjs run <package-dir> <test-file> [<test-file> ...] [--wait <seconds>] [--file-timeout <seconds>] | start <package-dir> [--wait <seconds>] [--file-timeout <seconds>] | status <run-directory> | resume <run-directory> [--retry <failed-file> ...] [--wait <seconds>] [--file-timeout <seconds>] | recover-reservation; <package-dir> is a directory such as packages/sparkdown");
   console.log(JSON.stringify(result, null, 2));
   if (result.status === "unknown" || result.status === "stale") return 1;
   if (result.unitTimeouts?.length) return 124;
@@ -721,7 +731,13 @@ export async function main(argv, dependencies = {}) {
   return result.status === "passed" ? 0 : 1;
 }
 
+export function tolerateClosedOutput(stream = process.stdout) {
+  stream.on("error", error => { if (error.code !== "EPIPE") throw error; });
+}
+
 if (process.argv[1] && canonicalPath(process.argv[1]) === canonicalPath(fileURLToPath(import.meta.url))) {
+  tolerateClosedOutput();
+  tolerateClosedOutput(process.stderr);
   useWorktreeTemp();
   try { process.exitCode = await main(process.argv.slice(2)); }
   catch (error) { process.exitCode = notRunExit(error); }

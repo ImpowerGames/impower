@@ -8,6 +8,10 @@ import { acquire, acquireWaiting, waitForUnit, runPool, slotFile, slotFiles, adm
 import { main } from "./test-suite.mjs";
 import { removeProbeCheckouts } from "./reviewer-probe-cleanup.mjs";
 import { canonicalPath } from "./test-suite-identity.mjs";
+import * as processApi from "./test-suite-process.mjs";
+import * as suiteApi from "./test-suite.mjs";
+import { spawn } from "node:child_process";
+import { EventEmitter } from "node:events";
 
 const coordinator = await import("./fixtures/test-suite-coordinator-adapter.mjs");
 delete process.env.IMPOWER_TEST_POOL;
@@ -18,6 +22,69 @@ const owner = processIdentity(process.pid);
 assert.ok(owner, "this process has an identity");
 const live = { root: store, identify: pid => pid === owner.pid ? owner : null, census: () => [], memory: () => 8192 };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const { recoverReservations, releaseDiagnostic } = processApi;
+const { tolerateClosedOutput } = suiteApi;
+{
+  const root = path.join(scratch, "unknown-reservation");fs.mkdirSync(root);
+  acquire("identity warmup", { ...live, root }).release();
+  const file = slotFile(root, 2), token = "75937960-789a-4906-9fc3-7da9fd21a0a2";
+  const unknown = { version: 2, token, owner: { pid: 800004, start: "dead" }, phase: "launching", run: "missing-proof" };
+  const bytes = JSON.stringify(unknown);fs.writeFileSync(file, bytes);
+  const waits = [], began = Date.now();
+  await assert.rejects(acquireWaiting("bounded unknown", { ...live, root, waitMs: 80, pollMs: 10,
+    onWait: row => waits.push(row) }), /recover-reservation.*waited.*Test Suite workflow/);
+  assert.ok(Date.now() - began >= 80);
+  assert.ok(waits.length > 0);assert.equal(waits[0].waiting, "unknown reservation");
+  assert.equal(fs.readFileSync(file, "utf8"), bytes);
+  assert.throws(() => recoverReservations({ ...live, root }), /Recovery refused.*unknown/);
+  assert.equal(fs.readFileSync(file, "utf8"), bytes);
+  const completed = { ...unknown, phase: "reserved" };fs.writeFileSync(file, JSON.stringify(completed));
+  assert.throws(() => recoverReservations({ ...live, root, census: () => [123] }), /Vitest processes still present/);
+  assert.equal(read(file).token, token);
+  assert.equal(await main(["recover-reservation"], { ...live, root }), 0);
+  assert.equal(fs.existsSync(file), false);
+  assert.equal(read(path.join(root, `recovered-${token}.json`)).token, token);
+  const archive = path.join(root, `recovered-${token}.json`), archiveBytes = fs.readFileSync(archive, "utf8");
+  fs.writeFileSync(file, JSON.stringify(completed));
+  recoverReservations({ ...live, root });
+  assert.equal(fs.readFileSync(archive, "utf8"), archiveBytes, "Interrupted archive/remove finishes without replacing the original archive");
+  fs.writeFileSync(file, JSON.stringify({ ...completed, exit: 1 }));
+  assert.throws(() => recoverReservations({ ...live, root }), /archive differs/);
+  assert.equal(read(file).exit, 1);assert.equal(fs.readFileSync(archive, "utf8"), archiveBytes);
+  fs.unlinkSync(file);
+  assert.deepEqual(recoverReservations({ ...live, root }), []);
+  await assert.rejects(main(["recover-reservation", "unexpected"], { ...live, root }), /takes no arguments/);
+  fs.writeFileSync(file, JSON.stringify(unknown));
+  const reservation = await acquireWaiting("unknown resolves", { ...live, root, waitMs: 1000, pollMs: 10,
+    onWait: () => fs.writeFileSync(file, JSON.stringify(completed)) });
+  reservation.release();
+  const fake = { file, record: { token } }, error = new Error("guard busy");
+  assert.match(releaseDiagnostic(fake, error), /slot is absent/);
+  fs.writeFileSync(file, JSON.stringify(completed));
+  assert.match(releaseDiagnostic(fake, error), /slot still holds this token.*recover-reservation/);
+  fs.writeFileSync(file, JSON.stringify({ token: "replacement" }));
+  assert.match(releaseDiagnostic(fake, error), /another token; preserve it/);
+  assert.equal(read(file).token, "replacement");
+  fs.writeFileSync(file, "{");
+  assert.match(releaseDiagnostic(fake, error), /slot state unavailable/);
+  console.log("PASS: unknown reservations wait within their bound, guarded recovery preserves records, and release diagnostics name actual slot state");
+}
+{
+  const stream = new EventEmitter();tolerateClosedOutput(stream);
+  stream.emit("error", Object.assign(new Error("closed reader"), { code: "EPIPE" }));
+  assert.throws(() => stream.emit("error", new Error("unrelated output fault")), /unrelated output fault/);
+  const marker = path.join(scratch, "broken-output-finished");
+  fs.writeFileSync(marker, "pending");
+  const source = `import fs from 'node:fs';import {tolerateClosedOutput} from ${JSON.stringify(new URL("./test-suite.mjs", import.meta.url).href)};
+tolerateClosedOutput();tolerateClosedOutput(process.stderr);console.log('reader may close');setTimeout(()=>{for(let n=0;n<100;n++){console.log('later output');console.error('later diagnostic');}setTimeout(()=>fs.writeFileSync(process.argv[1],'released'),50);},100);`;
+  const child = spawn(process.execPath, ["--input-type=module", "-e", source, marker], { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+  let diagnostics = "";child.stderr.on("data", chunk => { diagnostics += chunk; });
+  child.stdout.once("data", () => { child.stdout.destroy();child.stderr.destroy(); });
+  const exit = await new Promise((resolve, reject) => { child.once("error", reject);child.once("close", (code, signal) => resolve({ code, signal })); });
+  assert.deepEqual(exit, { code: 0, signal: null }, diagnostics);
+  assert.equal(fs.readFileSync(marker, "utf8"), "released");
+  console.log("PASS: an early-closing stdout reader cannot interrupt later cleanup");
+}
 {
   const root = path.join(scratch, "partial-record");
   fs.mkdirSync(root);

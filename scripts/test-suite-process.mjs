@@ -4,7 +4,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { processIdentity } from "./reviewer-slots.mjs";
-import { readTreeProof, assertAttemptBinding } from "./test-suite-child.mjs";
+import { readTreeProof, readRecordedTreeProof, readWindowsJobRecovery, assertAttemptBinding } from "./test-suite-child.mjs";
 
 export { processIdentity };
 export const machineRoot = process.platform === "win32"
@@ -180,36 +180,73 @@ export function vitestProcesses({ within, accounted } = {}) {
 
 export function reservationState(record, identify = processIdentity, { uptime = os.uptime } = {}) {
   if (!record?.owner?.pid || !record.owner.start) return "unknown";
-  const owner = identify(record.owner.pid);
+  const valid = value => Number.isSafeInteger(value?.pid) && value.pid > 0 && typeof value.start === "string" && value.start.length > 0;
+  if (!valid(record.owner) || record.version !== undefined && ![1, 2].includes(record.version)) return "unknown";
+  let owner;
+  try { owner = identify(record.owner.pid); }
+  catch (error) { if (record.version === 2) return "unknown"; throw error; }
   if (same(record.owner, owner)) return "running";
+  if (owner !== null && !valid(owner)) return "unknown";
+  for (const original of [record.child, record.root].filter(value => value !== undefined && value !== null)) {
+    if (!valid(original)) return "unknown";
+    let current;
+    try { current = identify(original.pid); }
+    catch { return "unknown"; }
+    if (current !== null && !valid(current)) return "unknown";
+    if (same(original, current)) return "running";
+  }
   if (record.version === 2) {
-    if (owner !== null && (!owner?.pid || !owner.start)) return "unknown";
     const preBoot = () => Number.isFinite(record.heldUptime) && uptime() < record.heldUptime;
-    if (!record.supervision) return record.phase === "reserved" || preBoot() ? "interrupted" : "unknown";
+    if (!record.supervision) return record.phase === "reserved" && !record.child && !record.root || preBoot() ? "interrupted" : "unknown";
     const expected = record.supervision;
     if (expected.reservationToken !== record.token) return "unknown";
     try {
       assertAttemptBinding(expected,{id:record.attempt,
         ...(typeof record.run==="string"&&path.isAbsolute(record.run)?{directory:path.join(record.run,record.attempt)}:{})});
-      for (const original of [expected.launcher, expected.helper]) {
-        if (!original?.pid || !original.start) return "unknown";
+      const noLaunch = record.phase === "launching" && expected.version === 1
+        && expected.authorizationPhase === "no-launch" && [undefined, false].includes(expected.launchAuthorized) && !expected.root && !record.child
+        && ["win32", "linux"].includes(expected.platform)
+        && typeof record.run === "string" && path.isAbsolute(record.run)
+        && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(expected.launchNonce)
+        && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(expected.reservationToken);
+      for (const original of [expected.launcher, expected.helper, ...[expected.root].filter(value => value !== undefined && value !== null)]) {
+        if (noLaunch && (original === undefined || original === null)) continue;
+        if (!valid(original)) return "unknown";
         const current = identify(original.pid);
-        if (current !== null && (!current?.pid || !current.start)) return "unknown";
+        if (current !== null && !valid(current)) return "unknown";
         if (same(original, current)) return "running";
       }
+      if (record.child && !same(record.child, expected.root)) return "unknown";
       if (preBoot()) return "interrupted";
+      if (noLaunch) {
+        if (expected.platform === "linux" && expected.launcher && expected.helper && !same(expected.launcher, expected.helper)) return "unknown";
+        if (expected.proofFile !== undefined) {
+          if (expected.proofFile !== path.join(expected.directory, "tree-proof.json")) return "unknown";
+          let exists = true;
+          try { fs.lstatSync(expected.proofFile); }
+          catch (error) { if (error.code !== "ENOENT") throw error; exists = false; }
+          if (exists) readTreeProof(expected, { identify, close: expected.launcherClose });
+        }
+        return "interrupted";
+      }
       if (expected.authorizationPhase === "no-launch" && expected.launchAuthorized === false
         && expected.status === "not-run" && !expected.root && expected.exitConfirmed === true
         && expected.helperExitEvidence?.observation === "original-identity-absent"
         && same(expected.helperExitEvidence.identity, expected.helper)
         && Number.isInteger(expected.launcherClose?.exit) && !expected.launcherClose.signal) return "interrupted";
-      readTreeProof(expected, { identify, close: expected.launcherClose });
+      try { readTreeProof(expected, { identify, close: expected.launcherClose }); }
+      catch (error) {
+        if (error.code !== "ENOENT") throw error;
+        if (typeof record.run !== "string" || !path.isAbsolute(record.run)) return "unknown";
+        if (expected.exitConfirmed === true) readRecordedTreeProof(expected, { identify });
+        else readWindowsJobRecovery(expected);
+      }
       return "interrupted";
     } catch { return "unknown"; }
   }
   if (["reserved", "exited"].includes(record.phase)) return "interrupted";
   if (record.phase !== "running" || !record.child?.start) return "unknown";
-  return same(record.child, identify(record.child.pid)) ? "running" : "interrupted";
+  return "interrupted";
 }
 
 function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity, admitting = false, recover = true) {
@@ -429,6 +466,18 @@ const accountedPids = (records, lookup) => {
 
 const byArrival = (a, b) => Date.parse(a.arrivedAt) - Date.parse(b.arrivedAt) || (a.token < b.token ? -1 : a.token > b.token ? 1 : 0);
 
+function archiveReservation(root, record, options) {
+  if (typeof record.token !== "string" || !/^[A-Za-z0-9-]+$/.test(record.token)) throw new Error("Invalid recovery token; preserve the reservation");
+  const file = path.join(root, `recovered-${record.token}.json`);
+  let prior, exists = true;
+  try { prior = read(file); }
+  catch (error) { if (error.code !== "ENOENT") throw options?.admissionRoot ? admissionFailure(root, error) : error; exists = false; }
+  if (exists) {
+    const { recoveredAt, ...saved } = prior;
+    if (JSON.stringify(saved) !== JSON.stringify(record)) throw new Error(`Recovery archive differs at ${file}; preserve both records`);
+  } else atomic(file, { ...record, recoveredAt: new Date().toISOString() }, options);
+}
+
 function waitingQueue(root, identify, holders = []) {
   const rows = [];
   for (const name of fs.readdirSync(root)) {
@@ -461,13 +510,17 @@ export function acquire(run, { root = machineRoot, pool = "writer", identify = p
       const previous = readAdmissionRecord(file);
       const state = reservationState(previous, lookup, { uptime });
       if (state === "running") { holders.push({ index, file, record: previous }); continue; }
-      if (state !== "interrupted") throw Object.assign(new Error(`Existing suite ${state}; inspect ${file} and ${previous.run}`), { holder: holderSummary(previous, index, observedAt) });
+      if (state !== "interrupted") throw Object.assign(new Error(`Existing suite ${state}; inspect ${file} and ${previous.run}; node scripts/test-suite.mjs recover-reservation rechecks containment under the guard and preserves recoverable records; ambiguous evidence stays protected`), { reservationUnknown: true, holder: holderSummary(previous, index, observedAt) });
       interrupted.push({ index, file, record: previous });
     }
     const foreign = census({ accounted: accountedPids(holders.map(holder => holder.record), lookup) });
     if (interrupted.length) {
       if (foreign.length) throw new Error(`Vitest processes still present: ${foreign.join(", ")}`);
-      for (const { record: previous } of interrupted) atomic(path.join(root, `recovered-${previous.token}.json`), { ...previous, recoveredAt: new Date().toISOString() }, { admissionRoot: root });
+      for (const { file, record: previous } of interrupted) {
+        archiveReservation(root, previous, { admissionRoot: root });
+        try { fs.unlinkSync(file); }
+        catch (error) { throw admissionFailure(root, error); }
+      }
     }
     const summaries = holders.map(holder => holderSummary(holder.record, holder.index, observedAt));
     const owner = lookup(process.pid);
@@ -532,7 +585,33 @@ export function acquire(run, { root = machineRoot, pool = "writer", identify = p
 
 export function releaseKeeping(reservation, cause) {
   try { reservation.release(); }
-  catch (error) { console.error(`Reservation not released after ${cause.message}; the next acquirer recovers it: ${error.message}`); }
+  catch (error) { console.error(`Release failed after ${cause.message}: ${releaseDiagnostic(reservation, error)}`); }
+}
+
+export function releaseDiagnostic(reservation, error) {
+  let state;
+  try { state = read(reservation.file).token === reservation.record.token ? "slot still holds this token" : "slot now holds another token; preserve it"; }
+  catch (inspection) { state = inspection.code === "ENOENT" ? "slot is absent" : `slot state unavailable: ${inspection.message}`; }
+  return `${error.message}; ${state}; node scripts/test-suite.mjs recover-reservation rechecks containment under the guard; never delete reservation records`;
+}
+
+export function recoverReservations({ root = machineRoot, slots = admissionSlots, identify = processIdentity, uptime = os.uptime, census = vitestProcesses } = {}) {
+  return guarded(root, () => {
+    const lookup = memoized(identify), records = [];
+    for (const file of slotFiles(root, slots)) {
+      if (!fs.existsSync(file)) continue;
+      const record = readAdmissionRecord(file), state = reservationState(record, lookup, { uptime });
+      if (state !== "interrupted") throw new Error(`Recovery refused: suite ${state} at ${file}; preserve the record and its attempt evidence`);
+      records.push({ file, record });
+    }
+    const foreign = census();
+    if (foreign.length) throw new Error(`Recovery refused: Vitest processes still present: ${foreign.join(", ")}`);
+    for (const { file, record } of records) {
+      archiveReservation(root, record);
+      fs.unlinkSync(file);
+    }
+    return records.map(({ file, record }) => ({ file, token: record.token, run: record.run }));
+  }, guardWaitMs, identify);
 }
 
 const pause = (ms, deadline) => new Promise(resolve => setTimeout(resolve, Math.max(0, Math.min(ms, deadline - Date.now()))));
@@ -565,7 +644,7 @@ export async function acquireWaiting(run, { waitMs = 0, pollMs = 2000, onWait = 
     const admitWaitMs = waitMs > 0 ? Math.min(transactionMs, Math.max(0, deadline - Date.now())) : transactionMs;
     try { return acquire(run, { ...options, admitWaitMs, waiting }); }
     catch (error) {
-      const reason = error.reservationRecordUnreadable ? "reservation record" : error.reservationFilesBusy ? "reservation files" : error.guardHeld ? "guard" : error.waitable ?? null;
+      const reason = error.reservationRecordUnreadable ? "reservation record" : error.reservationUnknown ? "unknown reservation" : error.reservationFilesBusy ? "reservation files" : error.guardHeld ? "guard" : error.waitable ?? null;
       if (!reason || Date.now() >= deadline) {
         if (waiting?.published) withdraw(options.root ?? machineRoot, waiting.token, options.identify ?? processIdentity);
         throw reason ? expired(error, Date.now() - began) : error;
