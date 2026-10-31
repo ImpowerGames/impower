@@ -243,7 +243,11 @@ function readConnections() {
 function clientConnections(table, ports) {
   const servers = new Set(table.listeners.filter((row) => ports.includes(row.port) && Number.isInteger(row.pid)).map((row) => row.pid));
   const localClient = (row) => ports.includes(row.foreignPort) && loopback(row.foreignHost) && !servers.has(row.pid);
-  const remoteClient = (row) => ports.includes(row.localPort) && !loopback(row.foreignHost);
+  const remoteClient = (row) => {
+    if (!ports.includes(row.localPort) || loopback(row.foreignHost)) return false;
+    const owners = table.listeners.filter((listener) => listener.port === row.localPort);
+    return !Number.isInteger(row.pid) || !owners.length || owners.some((owner) => !Number.isInteger(owner.pid) || owner.pid === row.pid);
+  };
   return table.established.filter((row) => localClient(row) || remoteClient(row));
 }
 

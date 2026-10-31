@@ -189,7 +189,7 @@ fs.writeFileSync(ptyScript, [
 ].join("\n"));
 
 try {
-  await check("a build ready after four minutes still acquires its idle watchdog", async () => {
+  const delayedStartup = async (established = "") => {
     let now = 0;
     let output = "";
     const exits = [];
@@ -201,7 +201,7 @@ try {
       process: { platform: "win32", argv: ["node", "launcher", "--idle-exit-seconds", "900"], env: { EDITOR_PORT: "4000", PLAYER_PORT: "4001", HMR_PORT: "4002" }, stdout: { write: (text) => { output += text; } }, stderr: { write: () => {} }, on: () => {}, exit: (code) => exits.push(code) },
       spawnSync: () => ({ status: 0, stdout: "" }),
       spawn: () => ({ pid: 123, on: () => {}, kill: () => {}, stdout: null, stderr: null }),
-      execFile: (command, args, options, done) => done(null, "TCP 127.0.0.1:4000 0.0.0.0:0 LISTENING 123"),
+      execFile: (command, args, options, done) => done(null, "TCP 127.0.0.1:4000 0.0.0.0:0 LISTENING 123" + established),
       fetch: async () => { if (now < 240_000) throw new Error("still building"); return {}; },
       Date: { now: () => now },
       setTimeout: (fn, delay) => { timers.push({ at: now + delay, fn }); },
@@ -216,6 +216,21 @@ try {
     assert.match(output, /Live preview ready/);
     assert.deepEqual(exits, [0], `late readiness must still stop idle servers: ${output}`);
     assert.ok(now >= 1_140_000, "the idle period starts after readiness");
+  };
+  await check("a build ready after four minutes still acquires its idle watchdog", () => delayedStartup());
+  await check("an unrelated outbound source-port collision does not keep an idle launcher running", () => delayedStartup("\nTCP 10.0.0.1:4000 203.0.113.1:443 ESTABLISHED 456"));
+  await check("remote clients keep servers alive when either socket or listener ownership is unknown", () => {
+    const source = fs.readFileSync(launcher, "utf8");
+    const part = (start, end) => source.slice(source.indexOf(start), source.indexOf(end, source.indexOf(start)));
+    const pure = part("const portOf", "const CENSUS") + part("function clientConnections", "function stopWhenIdle");
+    const clients = new Function(pure + "; return clientConnections;")();
+    const row = { localPort: 4000, foreignPort: 5000, foreignHost: "203.0.113.1", pid: 123 };
+    const count = (listeners, established) => clients({ listeners, established: [established] }, [4000]).length;
+    assert.equal(count([{ port: 4000, pid: 123 }], row), 1);
+    assert.equal(count([{ port: 4000, pid: 123 }], { ...row, pid: NaN }), 1);
+    assert.equal(count([{ port: 4000, pid: NaN }], { ...row, pid: 456 }), 1);
+    assert.equal(count([], { ...row, pid: 456 }), 1);
+    assert.equal(count([{ port: 4000, pid: 123 }], { ...row, pid: 456 }), 0);
   });
   if (IS_WIN || process.platform === "linux") {
     await check("a launcher with an idle exit stops its tree once no client is connected, and not while one is", async () => {
