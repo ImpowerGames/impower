@@ -685,7 +685,7 @@ function readyAction(record, pr, why = "") {
 
 const reportedSince = (own) => { const started = Date.parse(own.owner.resumes?.at(-1)?.time ?? own.owner.since); return (own.results ?? []).some((r) => Date.parse(r.time) >= started); };
 
-const writerKnownEnded = (own) => !own.owner && !own.pending && Boolean(own.history?.some((h) => h.released || h.ended || h.priorEnded));
+export const writerKnownEnded = (own) => !own.owner && !own.pending && Boolean(own.history?.some((h) => h.released || h.ended || h.priorEnded));
 
 export function planDispatch({ record, snapshot, observations = {}, preflights = [], freeBytes, defaults, host = os.hostname(), identify = processIdentity, now = Date.now(), reviewJobs = `${record.checkout}.review-jobs`, census = processCensus, env = process.env }) {
   if (snapshot.repository !== record.repository || snapshot.issue.number !== record.issue) throw new Error("The snapshot is of another repository or parent issue");

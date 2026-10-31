@@ -5,7 +5,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
 import { readRepos } from "../../repos.mjs";
-import { readRecord, updateRecord, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, closedBeforeRun, HISTORY, takeSnapshot, readIssueScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs, completingTickets, filedActions } from "./issue-run.mjs";
+import { readRecord, updateRecord, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, closedBeforeRun, writerKnownEnded, HISTORY, takeSnapshot, readIssueScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs, completingTickets, filedActions } from "./issue-run.mjs";
 import { intent, outcome, ensureSaved, autoCheckpoint, operationText, landing, landingText, fetchState, stateBranch } from "./checkpoint.mjs";
 import { FIRST_CHECKPOINT_ROUND, roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit, threadName } from "./review-checkpoint.mjs";
 
@@ -134,8 +134,7 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
     if (x.number === number) continue;
     if (!(pull.closes ?? []).includes(x.number)) blockers.push(`PR #${pr} delivers #${x.number} but does not close it`);
     const held = record.tickets[x.number] ?? {};
-    const ended = !held.owner && !held.pending && held.history?.some((h) => h.released || h.ended || h.priorEnded);
-    if (held.owner || held.pending || (x.worktrees?.length && !ended)) blockers.push(`#${x.number}, delivered by #${number}, still holds a writer, pending start or unsettled worktree`);
+    if (held.owner || held.pending || (x.worktrees?.length && !writerKnownEnded(held))) blockers.push(`#${x.number}, delivered by #${number}, still holds a writer, pending start or unsettled worktree`);
   }
   for (const e of completingTickets(record, number)) {
     const fref = names.split ? `${names.tickets}#${e.number}` : `#${e.number}`;
