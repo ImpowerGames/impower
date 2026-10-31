@@ -43,17 +43,23 @@ export function assertAttemptBinding(expected,{id,directory}={}) {
 export function readTreeProof(expected,{identify=processIdentity,close}={}) {
   if(!identity(expected.launcher))throw new Error('Recorded launcher identity is missing or invalid');
   if(expected.platform==='linux'&&!same(expected.launcher,expected.helper))throw new Error('Linux launcher/helper identity differs');
-  const current=pid=>{
-    const value=identify(pid);
-    if(value!==null&&!identity(value))throw new Error('Process identity inspection is unknown');
-    return value;
-  };
   const directory=fs.realpathSync.native(expected.directory);
   if(directory!==expected.directory)throw new Error('Recorded attempt directory changed');
   if(path.resolve(expected.proofFile)!==path.join(path.resolve(expected.directory),'tree-proof.json'))throw new Error('Unexpected tree-proof path');
   ordinary(expected.proofFile);
   if(path.dirname(fs.realpathSync.native(expected.proofFile))!==directory)throw new Error('Tree proof redirected outside its attempt');
   const proof=JSON.parse(fs.readFileSync(expected.proofFile,'utf8'));
+  return validateTreeProof(expected,proof,{identify,close});
+}
+
+function validateTreeProof(expected,proof,{identify=processIdentity,close}={}) {
+  if(!identity(expected.launcher)||!identity(expected.helper))throw new Error('Recorded supervisor identity missing');
+  if(expected.platform==='linux'&&!same(expected.launcher,expected.helper))throw new Error('Linux launcher/helper identity differs');
+  const current=pid=>{
+    const value=identify(pid);
+    if(value!==null&&!identity(value))throw new Error('Process identity inspection is unknown');
+    return value;
+  };
   if(proof.version!==1||!uuid(expected.attemptId)||!uuid(expected.reservationToken)||!uuid(expected.launchNonce)
     ||['attemptId','reservationToken','launchNonce'].some(key=>proof[key]!==expected[key])
     ||!same(proof.helper,expected.helper))throw new Error('Tree proof does not match the recorded attempt/token/helper identity');
@@ -88,6 +94,15 @@ export function readTreeProof(expected,{identify=processIdentity,close}={}) {
   return proof;
 }
 
+export function readRecordedTreeProof(expected,{identify=processIdentity}={}) {
+  if(expected.exitConfirmed!==true||typeof expected.launchAuthorized!=='boolean'
+    ||expected.helperExitEvidence?.observation!=='original-identity-absent'
+    ||!same(expected.helperExitEvidence.identity,expected.helper)
+    ||!path.isAbsolute(expected.directory)||expected.proofFile!==path.join(expected.directory,'tree-proof.json'))
+    throw new Error('Missing independently confirmed recorded tree proof');
+  return validateTreeProof(expected,expected,{identify,close:expected.launcherClose});
+}
+
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const environmentDigest=env=>digest(JSON.stringify(Object.entries(env).sort(([a],[b])=>a.localeCompare(b))));
 const fileBinding=file=>{
@@ -100,6 +115,42 @@ const validateBindings=bindings=>{
     if(current.file!==binding.file||current.sha256!==binding.sha256)throw new Error('Prepared supervisor artifact changed');
   }
 };
+export function readWindowsJobRecovery(expected) {
+  if(process.platform!=='win32'||expected.platform!=='win32'||!identity(expected.helper)
+    ||!identity(expected.launcher)||!uuid(expected.reservationToken)||!uuid(expected.launchNonce))
+    throw new Error('Missing Windows job identity/binding');
+  const directory=fs.realpathSync.native(expected.directory);
+  if(directory!==expected.directory||expected.proofFile!==path.join(directory,'tree-proof.json'))
+    throw new Error('Recovery attempt directory/proof binding changed');
+  try {fs.lstatSync(expected.proofFile);throw new Error('Existing terminal proof must be validated');}
+  catch(error) {if(error.code!=='ENOENT')throw error;}
+  const load=name=>{
+    const file=path.join(directory,name);ordinary(file);
+    if(fs.realpathSync.native(file)!==file)throw new Error('Recovery artifact redirected');
+    return JSON.parse(fs.readFileSync(file,'utf8'));
+  };
+  const prepared=load('prepared.json'),request=load('child-request.json');
+  if(prepared.version!==1||prepared.status!=='prepared'||prepared.platform!=='win32'
+    ||['attemptId','launchNonce','directory'].some(key=>prepared[key]!==expected[key])
+    ||['attemptId','launchNonce','reservationToken','directory','proofFile','platform'].some(key=>request[key]!==expected[key])
+    ||['command','args','cwd','timeoutMs','startupMs'].some(key=>JSON.stringify(request[key])!==JSON.stringify(prepared[key]))
+    ||prepared.runtime?.version!==1||prepared.runtime.status!=='prepared'||prepared.runtime.platform!=='win32'
+    ||prepared.helper!==prepared.runtime.helper||prepared.executable!==prepared.runtime.executable
+    ||JSON.stringify(prepared.bindings)!==JSON.stringify(prepared.runtime.bindings))
+    throw new Error('Recovery preparation/request binding changed');
+  validateBindings(prepared.bindings);
+  const includes=binding=>prepared.bindings.some(saved=>saved.file===binding.file&&saved.sha256===binding.sha256);
+  for(const name of ['test-suite-child-windows.cs','test-suite-child-windows.ps1','detached-launch.mjs']) {
+    const audited=fileBinding(path.join(here,name));
+    const matches=prepared.bindings.filter(saved=>path.basename(saved.file)===name&&saved.sha256===audited.sha256);
+    if(matches.length!==1||name==='test-suite-child-windows.ps1'&&matches[0].file!==prepared.helper
+      ||name==='test-suite-child-windows.cs'&&path.dirname(matches[0].file)!==path.dirname(prepared.helper))
+      throw new Error('Recovery requires audited Windows job artifacts');
+  }
+  if(!includes(fileBinding(prepared.executable)))throw new Error('Recovery assembly binding missing');
+  validateAssembly(prepared.executable,fs.realpathSync.native(prepared.runtime.directory));
+  return {mechanism:'windows-job',observation:'sole-non-inherited-job-handle-owner-exited'};
+}
 const validateAssembly=(assembly,directory)=>{
   ordinary(assembly);
   const descriptor=fs.openSync(assembly,'r'),signature=Buffer.alloc(2);
