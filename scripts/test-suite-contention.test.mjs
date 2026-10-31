@@ -332,4 +332,54 @@ await check("a waiting-row publication fault retains withdrawal bookkeeping at e
   assert.equal(read(holder.file).token, holder.record.token);holder.release();
 });
 
+for (const method of ["lstatSync", "readFileSync"]) for (const code of ["EPERM", "EACCES", "EBUSY"]) {
+  await check(`a published generation survives ${method} ${code} through authentication expiry`, () => {
+    const root = path.join(scratch, `pending-${method}-${code}`), reservation = acquire("no child", options(root));
+    const original = fs[method], rename = fs.renameSync;let publications = 0, busy = true;
+    fs.renameSync = (from, to) => { const result = rename(from, to);if (to === reservation.file) publications++;return result; };
+    fs[method] = (target, ...args) => { if (target === reservation.file && publications > 0 && busy) throw fault(code);return original(target, ...args); };
+    try {
+      assert.throws(() => reservation.update({ phase: "launching" }), /injected transient/);
+      assert.equal(publications, 1, "authentication failure must not replay the publication");
+      busy = false;
+      reservation.update({ phase: "exited" });reservation.release();
+      assert.equal(publications, 2, "only the explicit settlement writes again");
+      assert.equal(fs.existsSync(reservation.file), false);
+    } finally { fs[method] = original;fs.renameSync = rename; }
+  });
+}
+
+for (const disposition of ["published", "not-published", "foreign"]) {
+  await check(`uncertain publication retains authentication evidence: ${disposition}`, () => {
+    const root = path.join(scratch, `pending-uncertain-${disposition}`), reservation = acquire("original", options(root));
+    const readFile = fs.readFileSync, rename = fs.renameSync;let attempted = false, busy = true, publications = 0;
+    const replacement = path.join(root, "foreign");
+    const peer = { ...reservation.record, run: "foreign generation" };fs.writeFileSync(replacement, JSON.stringify(peer));
+    fs.renameSync = (from, to) => {
+      if (to === reservation.file && !attempted) {
+        attempted = true;
+        if (disposition === "not-published") fs.unlinkSync(from);
+        else { rename(from, to);publications++; }
+        if (disposition === "foreign") rename(replacement, to);
+        throw fault("EPERM");
+      }
+      const result = rename(from, to);if (to === reservation.file) publications++;return result;
+    };
+    fs.readFileSync = (target, ...args) => { if (target === reservation.file && attempted && busy) throw fault("EBUSY");return readFile(target, ...args); };
+    try {
+      assert.throws(() => reservation.update({ phase: "launching" }), /EPERM/);
+      assert.equal(publications, disposition === "not-published" ? 0 : 1);
+      busy = false;
+      if (disposition === "foreign") {
+        assert.throws(() => reservation.update({ phase: "exited" }), /ownership changed/);
+        assert.throws(() => reservation.release(), /ownership changed/);
+        assert.deepEqual(read(reservation.file), peer);
+      } else {
+        reservation.update({ phase: "exited" });reservation.release();
+        assert.equal(fs.existsSync(reservation.file), false);
+      }
+    } finally { fs.readFileSync = readFile;fs.renameSync = rename; }
+  });
+}
+
 assert.equal(cases.length, 0, cases.map(value => value.name).join("; "));

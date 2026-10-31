@@ -67,6 +67,7 @@ export function atomic(file, value, { admissionRoot, deadline: callerDeadline, a
           try { privateFilePresent = stillOwned(temp, identity); }
           catch { throw Object.assign(error, { reservationRetryUnsafe: true }); }
           if (!privateFilePresent) {
+            Object.defineProperty(error, "atomicPublicationCandidate", { value: { file, identity }, configurable: true });
             let current;
             try { current = publishedIdentity(file, identity, value?.token, callerDeadline ?? Date.now() + guardWaitMs); }
             catch { throw Object.assign(error, { reservationRetryUnsafe: true }); }
@@ -662,12 +663,19 @@ export function acquire(run, { root = machineRoot, pool = "writer", identify = p
     checkDeadline();
     const writtenIdentity = atomic(file, record, { ...publication, admissionDeadline });
     published = true;
-    let fileIdentity = publishedIdentity(file, writtenIdentity, record.token, publication.deadline);
+    let fileIdentity = publishedIdentity(file, writtenIdentity, record.token, publication.deadline), pendingIdentity;
     if (waiting?.published) {
       try { fs.unlinkSync(waitingFile(root, mine.token)); }
       catch (error) { if (error.code !== "ENOENT") console.error(`Waiting row not removed after admission: ${error.message}`); }
     }
-    const verifyOwned = () => {
+    const verifyOwned = (deadline) => {
+      if (pendingIdentity) {
+        try { fileIdentity = publishedIdentity(file, pendingIdentity, record.token, deadline); }
+        catch (error) {
+          if (!stillOwned(file, fileIdentity) || read(file)?.token !== record.token || !stillOwned(file, fileIdentity)) throw error;
+        }
+        pendingIdentity = undefined;
+      }
       if (!stillOwned(file, fileIdentity) || read(file).token !== record.token || !stillOwned(file, fileIdentity)) throw new Error("Reservation ownership changed");
     };
     const update = (values) => {
@@ -675,14 +683,17 @@ export function acquire(run, { root = machineRoot, pool = "writer", identify = p
       for (;;) {
         let written = false;
         try {
-          verifyOwned();
+          verifyOwned(deadline);
           Object.assign(record, values);
           const updatedIdentity = atomic(file, record, { admissionRoot: root, deadline });
           written = true;
+          pendingIdentity = updatedIdentity;
           fileIdentity = publishedIdentity(file, updatedIdentity, record.token, deadline);
+          pendingIdentity = undefined;
           return;
         } catch (error) {
-          if (error.atomicPublication?.file === file) { fileIdentity = error.atomicPublication.identity;written = true; }
+          if (error.atomicPublication?.file === file) { fileIdentity = error.atomicPublication.identity;pendingIdentity = undefined;written = true; }
+          else if (error.atomicPublicationCandidate?.file === file) pendingIdentity = error.atomicPublicationCandidate.identity;
           if (written || error.reservationRetryUnsafe || (!transientFileError(error) && !error.reservationFilesBusy) || Date.now() >= deadline) throw error;
           Atomics.wait(sleeper, 0, 0, 10);
         }
@@ -693,7 +704,7 @@ export function acquire(run, { root = machineRoot, pool = "writer", identify = p
         const deadline = Date.now() + waitMs;
         for (;;) {
           try {
-            verifyOwned();
+            verifyOwned(deadline);
             reconcileAdmission(root, { admissionRoot: root, deadline });
             if (!["reserved", "exited"].includes(record.phase)) throw new Error("Child exit unconfirmed; preserve reservation");
             fs.unlinkSync(file);
