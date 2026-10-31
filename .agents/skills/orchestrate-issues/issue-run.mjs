@@ -1627,16 +1627,19 @@ const assignmentHeader = (owner) => `Assignment ${owner.launchId} (delivery ${ow
 
 export function brief(record, planFile, number, decisions = [], defaults = readWriterDefaults()) {
   const owner = record.tickets[number]?.owner;
-  if (owner?.brief?.text) return `${assignmentHeader(owner)}\n${namingCoordinator(owner, record, owner.brief.text)}`;
+  if (owner?.brief?.text) return `${assignmentHeader(owner)}\n${namingCoordinator(owner, record, owner.brief.text, defaults)}`;
   return briefBody(record, planFile, number, decisions, defaults);
 }
 
-function namingCoordinator(owner, record, text) {
+function namingCoordinator(owner, record, text, defaults = readWriterDefaults()) {
   const from = owner.brief?.coordinator ?? owner.coordinator, to = record.coordinator.session;
-  const original = text.split("\n").filter((line) => !line.startsWith("Your coordinator is now session ") && !line.startsWith("Coordinator contact: ")).join("\n");
+  const original = text.split("\n").filter((line) => !line.startsWith("Your coordinator is now session ") && !line.startsWith("Coordinator contact: ")).map((line) => {
+    if (owner.route === "codex-app" && record.coordinator.harness === "codex" && /^(You cannot message|Since you cannot message)/.test(line)) return `Use the current coordinator contact instruction below for ${line.startsWith("You cannot") ? "your first acknowledgement, naming your assignment and confirmed model and effort" : "every report, blocker and question"}.`;
+    return line;
+  }).join("\n");
   const renamed = from && from !== to ? original.split(from).join(to) : original;
   const updated = renamed.replace(/coordinator session ([\w-]+) \(title "(?:\\.|[^"\\])*"\)/g, (_, session) => session === to ? coordinatorName(record) : _);
-  return `${updated.replaceAll("SendMessage with to set to that session id", "SendMessage using the current contact instruction below")}\n${contactLine(record, owner)}`;
+  return `${updated.replaceAll("SendMessage with to set to that session id", "SendMessage using the current contact instruction below")}\n${contactLine(record, owner, defaults)}`;
 }
 
 function briefBody(record, planFile, number, decisions, defaults) {

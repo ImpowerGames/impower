@@ -52,6 +52,11 @@ try {
   const native = brief(record, plan, 301, [], defaults);
   assert.match(native, /native child.*collaboration.send_message.*parent native task address/);
   assert.match(native, /outside that native tree.*transcript/);
+  owner.brief = { ...stored, text: `You cannot message coordinator session ${current}: no message from a Codex writer to another Codex thread has been verified.\nSince you cannot message coordinator session ${current}, end with your report.` };
+  const nativeRetry = brief(record, plan, 301, [], defaults);
+  assert.match(nativeRetry, /collaboration.send_message/);
+  assert.doesNotMatch(nativeRetry, /cannot message|no message from a Codex writer/);
+  delete owner.brief;
   owner.route = "codex-cli";
   const separate = brief(record, plan, 301, [], defaults);
   assert.doesNotMatch(separate, /collaboration.send_message/);
