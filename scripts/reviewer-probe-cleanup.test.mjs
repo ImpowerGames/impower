@@ -185,6 +185,24 @@ console.log('PASS: empty parents retry with guard release, retain named residue,
 }
 console.log('PASS: parent backoff rechecks reservations and retains staged proof until supported recovery');
 
+{
+  const permanent=path.join(directory,'a-permanent-parent'),transient=path.join(directory,'b-transient-parent');
+  fs.mkdirSync(permanent);fs.mkdirSync(transient);
+  const rmdir=fs.rmdirSync;let permanentAttempts=0,transientAttempts=0,failure;
+  fs.rmdirSync=target=>{
+    if(target===permanent&&permanentAttempts++===0)throw Object.assign(new Error('permanent refusal'),{code:'EACCES'});
+    if(target===transient&&transientAttempts++===0)throw Object.assign(new Error('temporary refusal'),{code:'EBUSY'});
+    return rmdir(target);
+  };
+  try{assert.throws(()=>removeProbeCheckouts(directory,{reservationRoot,retryDelays:[0,0]}),error=>{failure=error.message;return failure.includes(permanent);});}
+  finally{fs.rmdirSync=rmdir;}
+  assert.equal(fs.existsSync(permanent),true,'permanent parent refusal must remain preserved when a sibling retries');
+  assert.equal(permanentAttempts,1);assert.equal(transientAttempts,2);assert.equal(fs.existsSync(transient),false);
+  removeProbeCheckouts(directory,{reservationRoot,retryDelays:[0,0]});
+  assert.equal(fs.existsSync(permanent),false);
+}
+console.log('PASS: permanent parent failures are not replayed by sibling retries or left as stale diagnostics');
+
 fs.mkdirSync(path.join(directory,'contended','.git'),{recursive:true});
 const guard=path.join(reservationRoot,'guard.json');
 fs.writeFileSync(guard,JSON.stringify({owner:coordinator}));

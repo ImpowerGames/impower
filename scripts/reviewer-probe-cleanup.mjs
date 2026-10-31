@@ -155,6 +155,7 @@ export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reser
   };
   const guardedBatch=(entries,action,{repeatAll=false}={})=>{
     let pending=entries;
+    const terminal=new Set();
     for(let attempt=0;pending.length;attempt++){
       const result=underGuard(()=>{
         const failed=[];
@@ -165,10 +166,10 @@ export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reser
       const retry=[];
       for(const failure of result.failed){
         if(canRetry(failure.error,attempt,retryDelays))retry.push(failure);
-        else stuck.push(`${failure.target} (${failure.error.code??failure.error.message})`);
+        else{terminal.add(failure.target);stuck.push(`${failure.target} (${failure.error.code??failure.error.message})`);}
       }
       if(!retry.length)break;
-      pending=repeatAll?entries:retry;
+      pending=repeatAll?entries.filter(entry=>!terminal.has(entry.target)):retry;
       Atomics.wait(sleeper,0,0,retryDelays[attempt]);
     }
     return {skipped:false};
