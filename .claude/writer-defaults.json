@@ -20,7 +20,7 @@
         "selfCheck": "the command line that started your claude process carries --model, --effort and --permission-mode, and CLAUDE_EFFORT in your own shell reports the effort",
         "turns": "Your process exits when your turn ends, and only the coordinator resuming your session with its answer starts it again. Never end a turn waiting on a background task, a reviewer journal or CI: wait in the foreground inside one tool call (a polling loop on the journal or output file with a bounded sleep), or repeat foreground checks within the same turn. End a turn only for a decision request to the coordinator, a blocker or completion, each sent by message first.",
         "reports": {
-          "claude": { "mechanism": "SendMessage with to set to that session id" },
+          "claude": { "mechanism": "SendMessage with to set to the coordinator's current ListAgents title, using its listed ref to distinguish matching titles; the session id is an identity cross-check only" },
           "codex": { "unsupported": "a Claude session cannot message a Codex thread" }
         }
       }
@@ -39,7 +39,7 @@
         "selfCheck": "the latest turn_context row of your rollout reports the model and effort",
         "reports": {
           "claude": { "unsupported": "a Codex writer cannot message a Claude session" },
-          "codex": { "unsupported": "no message from a Codex writer to another Codex thread has been verified" }
+          "codex": { "mechanism": "when launched as a native child of this coordinator, use collaboration.send_message to the parent native task address supplied at launch (normally /root); confirm that parent identity before sending, never use the desktop UUID or title as a native target; outside that native tree, report in your transcript for the coordinator's periodic check-in" }
         }
       }
     ]

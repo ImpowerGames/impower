@@ -89,7 +89,7 @@ try {
   }
 
   const record = path.join(artifacts, "run.json");
-  const init = (extra = {}) => run.initRecord({ record, checkout, repository: "acme/widgets", issue: 100, coordinator: "local_a", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #100.", ...extra }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+  const init = (extra = {}) => run.initRecord({ record, checkout, repository: "acme/widgets", issue: 100, coordinator: "local_a", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", slug: "coordinator-contact", invocation: "Use orchestrate-issues for #100.", ...extra }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
   const first = init();
   assert.equal(first.action, "init");
   assert.equal(first.record.writer.model, "claude-opus-5-5");
@@ -412,7 +412,7 @@ try {
   {
     assert.deepEqual([snap.issue.number, snap.issue.type, snap.issue.criteria.map((c) => c.text)], [200, "Task", ["Widgets work."]], "the snapshot carries the parent's type and criteria");
     const taskRecord = path.join(artifacts, "run-200.json");
-    assert.equal(run.initRecord({ record: taskRecord, checkout, repository: "acme/widgets", issue: 200, coordinator: "local_a", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #200.", concurrency: 4 }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB }).action, "init");
+    assert.equal(run.initRecord({ record: taskRecord, checkout, repository: "acme/widgets", issue: 200, coordinator: "local_a", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", slug: "coordinator-contact", invocation: "Use orchestrate-issues for #200.", concurrency: 4 }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB }).action, "init");
     const taskPlan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: snap, preflights: [available("claude-cli", "claude-opus-5-5", [211, 212])], freeBytes: 100 * GB, defaults, census: () => [] });
     assert.deepEqual([taskPlan.parent, actions(taskPlan)[211]], [{ type: "Task", title: "Widgets" }, "dispatch"], "the plan carries the parent's type and admits the nested slice");
     assert.deepEqual([213, 214, 215, 221].map((n) => actions(taskPlan)[n]), ["delivered-by", "delivered-by", "delivered-by", "delivered-by"]);
@@ -545,7 +545,7 @@ try {
     git(tmp, "init", "-q", "-b", "main", dir);
     git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
     const file = path.join(dir, "run.json");
-    run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", ...run.startRepositories("acme/widgets", ON), issue: 6, coordinator: "local_split", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #6." }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB });
+    run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", ...run.startRepositories("acme/widgets", ON), issue: 6, coordinator: "local_split", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", slug: "coordinator-contact", invocation: "Use orchestrate-issues for #6." }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB });
     assert.throws(() => run.initRecord({ record: path.join(dir, "bad.json"), checkout: dir, repository: "acme/widgets", ticketsRepository: "acme/widgets", issue: 9, coordinator: "local_split", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "x" }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB }), /another owner\/name than --repo/);
     const splitRecord = run.readRecord(file);
     assert.equal(splitRecord.ticketsRepository, INTERNAL);
@@ -675,7 +675,7 @@ try {
     git(tmp, "init", "-q", "-b", "main", dir);
     git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
     const file = path.join(dir, "artifacts", "run.json");
-    run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", issue, coordinator: "local_r", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: `Use orchestrate-issues for #${issue}.` }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", issue, coordinator: "local_r", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", slug: "coordinator-contact", invocation: `Use orchestrate-issues for #${issue}.` }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
     const change = (fn) => run.updateRecord(file, { expectRevision: run.readRecord(file).revision, coordinator: "local_r" }, fn).output;
     return { dir, file, artifacts: path.join(dir, "artifacts"), change };
   };

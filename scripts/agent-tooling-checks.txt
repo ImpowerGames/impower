@@ -24,6 +24,7 @@
 .agents/skills/link-paths.test.mjs
 .agents/skills/mechanism-counts.test.mjs
 .agents/skills/orchestrate-issues/checkpoint.test.mjs
+.agents/skills/orchestrate-issues/coordinator-address.test.mjs
 .agents/skills/orchestrate-issues/integration.test.mjs
 .agents/skills/orchestrate-issues/issue-run.test.mjs
 .agents/skills/orchestrate-issues/review-checkpoint.test.mjs

@@ -1160,7 +1160,15 @@ export function relay(record, { ticket: number, request: id, to }) {
   r.relayed = { time: new Date().toISOString(), to };
   log(record, "relayed", { ticket: number, id, to });
 }
-const contactLine = (to, host) => `Your coordinator is now session ${to} on ${host}; send every further report, blocker and question there. This holds even if you set the rest of this message aside as a copy you already have.`;
+const coordinatorName = (record) => `coordinator session ${record.coordinator.session}${record.title ? ` (title ${JSON.stringify(record.title)})` : ""}`;
+function reportContact(record, owner, defaults = readWriterDefaults()) {
+  const how = defaults.routes[routeVendor(owner.model)]?.find((r) => r.route === owner.route)?.reports?.[record.coordinator.harness];
+  if (!how?.mechanism) return `${how?.unsupported ?? "this route cannot message it"}; report in your transcript, and ${defaults.reportFallback}`;
+  if (record.coordinator.harness !== "claude") return how.mechanism;
+  if (!record.title) throw new Error("The coordinator has no recorded ListAgents title; run init to record its title before briefing writers");
+  return `${how.mechanism}. Resolve ${JSON.stringify(record.title)} with ListAgents before sending; if multiple matches are ambiguous, or the recorded title is missing or renamed, stop and report the address blocker in your transcript rather than guessing. Cross-check the coordinator identity ${record.coordinator.session} and host ${record.coordinator.host} against your assignment; do not send to the session id`;
+}
+const contactLine = (record, owner, defaults) => `Your coordinator is now session ${record.coordinator.session} on ${record.coordinator.host}, title ${JSON.stringify(record.title ?? null)}; send every further report, blocker and question using this contact instruction: ${reportContact(record, owner, defaults)}. This holds even if you set the rest of this message aside as a copy you already have.`;
 
 export function answer(record, { ticket: number, request: id, text, retry = false }) {
   const r = findRequest(record, number, id);
@@ -1172,8 +1180,8 @@ export function answer(record, { ticket: number, request: id, text, retry = fals
   const owner = ticketOf(record, number).owner, to = record.coordinator.session;
   r.answer = { state: "intent", text: words, deliveryId: randomUUID().slice(0, 8), attempts: (r.answer?.attempts ?? 0) + 1, time: new Date().toISOString(), to };
   log(record, "answer-intent", { ticket: number, id, deliveryId: r.answer.deliveryId, attempt: r.answer.attempts });
-  const moved = owner?.coordinator && owner.coordinator !== to ? `\n${contactLine(to, record.coordinator.host)}` : "";
-  return { message: `Answer to your request ${id}, which asked: "${r.text}" (delivery ${r.answer.deliveryId}):\n${words}\nIf you already received an answer to request ${id}, ignore this copy.${moved}` };
+  const contactNote = owner ? `\n${contactLine(record, owner)}` : "";
+  return { message: `Answer to your request ${id}, which asked: "${r.text}" (delivery ${r.answer.deliveryId}):\n${words}\nIf you already received an answer to request ${id}, ignore this copy.${contactNote}` };
 }
 export function answered(record, { ticket: number, request: id, evidence }) {
   const r = findRequest(record, number, id);
@@ -1197,9 +1205,7 @@ export function contact(record, { ticket: number, retry = false, defaults = read
   if (retry && owner.contact?.state !== "intent") throw new Error(`#${number} has no contact notice to retry`);
   owner.contact = { state: "intent", to, deliveryId: randomUUID().slice(0, 8), attempts: (owner.contact?.attempts ?? 0) + 1, time: new Date().toISOString() };
   log(record, "contact-intent", { ticket: number, to, deliveryId: owner.contact.deliveryId, attempt: owner.contact.attempts });
-  const how = defaults.routes[routeVendor(owner.model)]?.find((r) => r.route === owner.route)?.reports?.[record.coordinator.harness];
-  const way = how?.mechanism ? ` as a cross-session message (${how.mechanism})` : `; ${how?.unsupported ?? "this route cannot message it"}, so end each decision point with the report as your turn's last message, and ${defaults.reportFallback}`;
-  return { message: `Assignment ${owner.launchId} (contact notice ${owner.contact.deliveryId}): your coordinator is now session ${to} on ${record.coordinator.host}, which took over from ${owner.coordinator}. Send every further report, blocker and question to ${to}${way}. A second copy of this notice says the same and needs nothing more.` };
+  return { message: `Assignment ${owner.launchId} (contact notice ${owner.contact.deliveryId}): your coordinator is now session ${to} on ${record.coordinator.host}, which took over from ${owner.coordinator}. ${contactLine(record, owner, defaults)} A second copy of this notice says the same and needs nothing more.` };
 }
 export function contacted(record, { ticket: number, evidence }) {
   const owner = ticketOf(record, number).owner;
@@ -1518,7 +1524,7 @@ export function resumeWriter(file, { coordinator, expectRevision, ticket: number
     if (UNSAFE.test(launchDir) || UNSAFE.test(r.checkout)) throw new Error(`${launchDir} holds a character the command line would interpret`);
     owner.sessionId = sessionId;
     const moved = owner.coordinator && owner.coordinator !== r.coordinator.session ? r.coordinator.session : null;
-    owner.resuming = { id, launchDir, time: new Date().toISOString(), ...(moved && { contactTo: moved, contactNote: contactLine(moved, r.coordinator.host) }) };
+    owner.resuming = { id, launchDir, time: new Date().toISOString(), contactNote: contactLine(r, owner), ...(moved && { contactTo: moved }) };
     log(r, "resume-intent", { ticket: number, id, sessionId });
   });
   const { id, launchDir, contactNote } = intent.record.tickets[number].owner.resuming;
@@ -1621,13 +1627,19 @@ const assignmentHeader = (owner) => `Assignment ${owner.launchId} (delivery ${ow
 
 export function brief(record, planFile, number, decisions = [], defaults = readWriterDefaults()) {
   const owner = record.tickets[number]?.owner;
-  if (owner?.brief?.text) return `${assignmentHeader(owner)}\n${namingCoordinator(owner, record, owner.brief.text)}`;
+  if (owner?.brief?.text) return `${assignmentHeader(owner)}\n${namingCoordinator(owner, record, owner.brief.text, defaults)}`;
   return briefBody(record, planFile, number, decisions, defaults);
 }
 
-function namingCoordinator(owner, record, text) {
+function namingCoordinator(owner, record, text, defaults = readWriterDefaults()) {
   const from = owner.brief?.coordinator ?? owner.coordinator, to = record.coordinator.session;
-  return from && from !== to ? text.split(from).join(to) : text;
+  const original = text.split("\n").filter((line) => !line.startsWith("Your coordinator is now session ") && !line.startsWith("Coordinator contact: ")).map((line) => {
+    if (owner.route === "codex-app" && record.coordinator.harness === "codex" && /^(You cannot message|Since you cannot message)/.test(line)) return `Use the current coordinator contact instruction below for ${line.startsWith("You cannot") ? "your first acknowledgement, naming your assignment and confirmed model and effort" : "every report, blocker and question"}.`;
+    return line;
+  }).join("\n");
+  const renamed = from && from !== to ? original.split(from).join(to) : original;
+  const updated = renamed.replace(/coordinator session ([\w-]+) \(title "(?:\\.|[^"\\])*"\)/g, (_, session) => session === to ? coordinatorName(record) : _);
+  return `${updated.replaceAll("SendMessage with to set to that session id", "SendMessage using the current contact instruction below")}\n${contactLine(record, owner, defaults)}`;
 }
 
 function briefBody(record, planFile, number, decisions, defaults) {
@@ -1639,7 +1651,7 @@ function briefBody(record, planFile, number, decisions, defaults) {
   if (!route) throw new Error(`${retiredReason(work.route, defaults) ?? `${work.route} is not a configured route for ${work.model}`}; it has no brief`);
   const adopted = ticket.owner?.adopted ?? work.continues;
   const place = !work.continues || work.continues.worktreeExists ? `in ${work.worktree}` : `on a worktree at ${work.worktree} checked out from the existing origin branch`;
-  const coordinator = `coordinator session ${record.coordinator.session}`;
+  const coordinator = coordinatorName(record);
   const how = route.reports?.[record.coordinator.harness] ?? { unsupported: `no message from ${work.route} to a ${record.coordinator.harness} coordinator is configured` };
   const mode = work.permissionMode ? ` in permission mode ${work.permissionMode}` : "";
   const confirmed = work.permissionMode ? "model, effort and permission mode" : "model and effort";
@@ -1648,6 +1660,7 @@ function briefBody(record, planFile, number, decisions, defaults) {
   return [
     `${work.launchId ? `Assignment ${work.launchId}. ` : ""}You are the writer for ${tickets} ticket #${number} (${entry.title}), a sub-issue of ${parent}, coordinated by ${coordinator} on ${record.coordinator.host}.`,
     `Route: ${work.route}, model ${work.model} at effort ${work.effort}${mode}. Before any work and before building any reviewer plan, confirm your own ${confirmed}: ${route.selfCheck}. If any of them differs, stop and report the mismatch as a blocker; never substitute another model, effort or mode.`,
+    `Coordinator contact: ${reportContact(record, work, defaults)}.`,
     how.mechanism
       ? `Your first act after reading this brief: send ${coordinator} an acknowledgement naming ${work.launchId ? `assignment ${work.launchId}` : `ticket #${number}`} and the ${confirmed} you confirmed (${how.mechanism}). A brief left unacknowledged for one check-in interval is treated as undelivered.`
       : `You cannot message ${coordinator}: ${how.unsupported}. Write your acknowledgement, naming ${work.launchId ? `assignment ${work.launchId}` : `ticket #${number}`} and the ${confirmed} you confirmed, as your first message instead; ${defaults.reportFallback}.`,
@@ -1666,7 +1679,7 @@ function briefBody(record, planFile, number, decisions, defaults) {
     `The root-cause fix of #${number}'s own defect is never filed: it belongs in your PR even when it crosses subsystems, and only an unsettled behavior decision turns it into a question to ${coordinator}, never a ticket. Every filing prompt you or your outstanding-work sweep send names ${parent} as the coordinated parent, and each filed ticket states how it relates to that parent's goal and to the fix it came from.`,
     `Final report, as fields: ${REPORT_FIELDS.join(", ")} (your model, effort and permission mode as you read them yourself; the PR number; the last independently reviewed commit; rounds used per reviewer route; outstanding findings or None; the verification evidence; the state of each CI check on the final head; the tickets you, your filing routes or review-pr filed or reused, as a list of { number, reading } entries giving your reading of how each relates to your fix, or None; your next action), plus each follow-up you proposed in your handoff without filing and any changes after the reviewed commit.`,
     how.mechanism
-      ? `Send every report, blocker and question to ${coordinator} as a cross-session message (${how.mechanism}), then end your turn: what you end a turn with does not reach it.`
+      ? `Send every report, blocker and question to ${coordinator} using the coordinator contact instruction (${how.mechanism}), then end your turn after delivery or the stated transcript fallback.`
       : `Since you cannot message ${coordinator}, end each decision point with the report, blocker or question as your turn's last message; ${defaults.reportFallback}.`,
   ].join("\n");
 }

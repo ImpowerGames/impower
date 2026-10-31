@@ -16,9 +16,11 @@ Run it at every periodic check-in, on the first wake after the coordinator itsel
 
 ## How writers reach the coordinator
 
-Each route's way of messaging the coordinator is in the runner configuration (`reports` in `.claude/writer-defaults.json`, keyed by the coordinator's runner), and the brief carries it with the coordinator's session id from the record; no command takes the id per call. A writer sends every report, blocker and question by message, then ends its turn. A Codex writer cannot message a Claude coordinator, and no message from a Codex writer to another Codex thread has been verified; such a writer ends each decision point with the report as its turn's last message, and the check-in reads it from its transcript.
+Each route's way of messaging the coordinator is in the runner configuration (`reports` in `.claude/writer-defaults.json`, keyed by the coordinator's runner). The brief carries the recorded session identity and title beside the contact instruction. A title-addressed writer resolves the current title through its runner's session listing, stops on ambiguous or missing matches, and retains the id and host as identity cross-checks. Every answer and resume refreshes that instruction, including for an existing writer whose coordinator has not changed.
 
-The writer's first act is an acknowledgement naming its assignment and the model, effort and permission mode it confirmed from its own metadata. Record it with `acknowledged --ticket N --model --effort --permission-mode --evidence "<where it was read>"`. It shows the brief arrived and the coordinator id reaches this session; a confirmation that differs from the start plans as `stop-writer`.
+A writer sends every report, blocker and question through its configured route, then ends its turn. Native child writers use the parent task address supplied at launch after confirming its identity; that address is distinct from the desktop thread UUID and title. App writers outside that native tree and separate CLI processes retain transcript reporting where no messaging route has been verified. Cross-runner routes marked unsupported also use that fallback: end each decision point with the report as the turn's last message, and the check-in reads it from the transcript.
+
+The writer's first act is an acknowledgement naming its assignment and the model, effort and permission mode it confirmed from its own metadata. Record it with `acknowledged --ticket N --model --effort --permission-mode --evidence "<where it was read>"`. It shows the brief arrived and its configured contact route reaches this coordinator; a confirmation that differs from the start plans as `stop-writer`.
 
 ## Read a writer's report in full
 
