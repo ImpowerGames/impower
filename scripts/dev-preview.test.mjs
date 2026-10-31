@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
+import vm from "node:vm";
 import { fileURLToPath } from "node:url";
-import { treeStopped, treeSurvivors, windowsProcessTable } from "../.agents/skills/drive-web-editor/driver.mjs";
+import { linuxProcesses, treeStopped, treeSurvivors, windowsProcessTable } from "../.agents/skills/drive-web-editor/driver.mjs";
+import { sessionDir } from "../.agents/skills/drive-web-editor/session-dir.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skill = path.join(here, "..", ".agents", "skills", "drive-web-editor");
@@ -21,6 +24,9 @@ const copy = (from, to) => {
 };
 const launcher = path.join(repo, "scripts", "dev-preview.mjs");
 copy(path.join(here, "dev-preview.mjs"), launcher);
+copy(path.join(here, "process-table.mjs"), path.join(repo, "scripts", "process-table.mjs"));
+const processHelper = /from "\.\/([^"\n]+)"/.exec(fs.readFileSync(launcher, "utf8"))?.[1];
+if (processHelper) copy(path.join(here, "process-table.mjs"), path.join(repo, "scripts", processHelper));
 copy(path.join(here, "detached-launch.mjs"), path.join(repo, "scripts", "detached-launch.mjs"));
 const driver = path.join(repo, ".agents", "skills", "drive-web-editor", "driver.mjs");
 for (const name of ["driver.mjs", "redgreen.mjs", "session-dir.mjs", "worktree-temp.mjs"]) copy(path.join(skill, name), path.join(path.dirname(driver), name));
@@ -28,6 +34,7 @@ fs.writeFileSync(path.join(repo, "package.json"), JSON.stringify({ private: true
 fs.writeFileSync(path.join(repo, "server.mjs"), [
   'import fs from "node:fs";',
   'import http from "node:http";',
+  'import net from "node:net";',
   'import { spawn } from "node:child_process";',
   "const role = process.argv[2];",
   'const record = () => fs.appendFileSync(process.env.DEV_PREVIEW_ROWS, JSON.stringify({ role, pid: process.pid }) + "\\n");',
@@ -35,8 +42,12 @@ fs.writeFileSync(path.join(repo, "server.mjs"), [
   'if (role.endsWith("-worker")) { record(); idle(); }',
   "else {",
   '  spawn(process.execPath, [process.argv[1], role + "-worker"], { stdio: "ignore", windowsHide: true });',
-  '  if (role === "editor") http.createServer((request, response) => response.end("ok")).listen(Number(process.env.PORT), record);',
-  "  else { record(); idle(); }",
+  '  if (role === "editor") {',
+  '    http.createServer((request, response) => response.end("ok")).listen(Number(process.env.PORT), record);',
+  '    const connect = () => { const socket = net.connect({ host: "127.0.0.1", port: Number(new URL(process.env.SPARKDOWN_PLAYER_DEV_ORIGIN).port) }); socket.once("error", () => setTimeout(connect, 100)); socket.once("connect", () => fs.writeFileSync(process.env.DEV_PREVIEW_ROWS + ".proxy", String(process.pid))); };',
+  "    connect();",
+  "  }",
+  '  else http.createServer((request, response) => response.end("ok")).listen(Number(process.env.SPARKDOWN_PLAYER_PORT), "127.0.0.1", record);',
   "}",
 ].join("\n"));
 for (const [dir, role] of [["impower-dev", "editor"], ["sparkdown-player-app", "player"]]) {
@@ -46,12 +57,19 @@ for (const [dir, role] of [["impower-dev", "editor"], ["sparkdown-player-app", "
 
 const baseEnv = { ...process.env };
 for (const name of ["EDITOR_PORT", "PLAYER_PORT", "HMR_PORT", "CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID"]) delete baseEnv[name];
+const driverEnv = { ...baseEnv, IMPOWER_DRIVER_HOME: path.join(scratch, "home"), IMPOWER_DRIVER_SESSION: "dev-preview-test" };
+const stateFile = path.join(sessionDir({ root: repo, session: "dev-preview-test", env: driverEnv }), "state.json");
+const record = () => JSON.parse(fs.readFileSync(stateFile, "utf8"));
+const runDriver = (file, ...args) => {
+  const result = spawnSync(process.execPath, [driver, ...args], { cwd: repo, encoding: "utf8", windowsHide: true, timeout: 180_000, env: { ...driverEnv, DEV_PREVIEW_ROWS: file } });
+  return { status: result.status, out: `${result.stdout ?? ""}${result.stderr ?? ""}` };
+};
 let runs = 0;
 const rowsFile = () => path.join(scratch, `rows-${++runs}.jsonl`);
 const rows = (file) => (fs.existsSync(file) ? fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse) : []);
 async function serving(file, output = () => "", needReady = false) {
   for (let i = 0; i < 1800; i++) {
-    if (rows(file).length === 4 && (!needReady || /Live preview ready/.test(output()))) return;
+    if (rows(file).length === 4 && fs.existsSync(file + ".proxy") && (!needReady || /Live preview ready/.test(output()))) return;
     await sleep(100);
   }
   throw new Error(`the fixture servers did not start: ${JSON.stringify(rows(file))}\n${output()}`);
@@ -64,8 +82,8 @@ const collect = (child) => {
 };
 const exitOf = (child) => new Promise((resolve) => child.once("exit", (code, signal) => resolve({ code, signal })));
 const within = (promise, ms) => Promise.race([promise, sleep(ms).then(() => null)]);
-function startLauncher(file) {
-  const child = spawn(process.execPath, [launcher, "--mode", "same-origin"], {
+function startLauncher(file, args = []) {
+  const child = spawn(process.execPath, [launcher, "--mode", "same-origin", ...args], {
     cwd: repo,
     env: { ...baseEnv, DEV_PREVIEW_ROWS: file },
     stdio: ["ignore", "pipe", "pipe"],
@@ -77,6 +95,7 @@ function startLauncher(file) {
 
 const trees = [];
 async function census(root) {
+  if (!IS_WIN) return linuxProcesses().filter((row) => row.group === root);
   const before = await windowsProcessTable();
   trees.push({ before, root });
   return before;
@@ -84,6 +103,15 @@ async function census(root) {
 const censused = (root) => trees.some((tree) => tree.root === root);
 const stopTree = (pid) => spawnSync("taskkill", ["/pid", String(pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
 async function assertTreeGone(before, root, context) {
+  if (!IS_WIN) {
+    for (let i = 0; i < 20; i++) {
+      const survivors = linuxProcesses().filter((row) => row.state !== "Z" && row.state !== "X" && (row.group === root || before.some((old) => old.pid === row.pid && old.start === row.start)));
+      if (!survivors.length) return;
+      if (i === 19) assert.fail(`shutdown left Linux descendants: ${JSON.stringify(survivors)}\n${context}`);
+      await sleep(100);
+    }
+    return;
+  }
   const result = await treeStopped(before, root, { attempts: 20, waitMs: 500 });
   assert.ok(result.stopped, `${result.reason}\n${context}`);
 }
@@ -168,6 +196,127 @@ fs.writeFileSync(ptyScript, [
 ].join("\n"));
 
 try {
+  const delayedStartup = async (established = "", { processes = [{ pid: 100, ppid: 50, start: "10" }, { pid: 123, ppid: 100, start: "20" }], processError = false, connectionError = false, stops = true } = {}) => {
+    let now = 0;
+    let output = "";
+    const exits = [];
+    const timers = [];
+    const code = fs.readFileSync(launcher, "utf8").replace(/^import .*;\r?\n/gm, "").replace(/main\(\)\.catch\([\s\S]*$/, "main();").replaceAll("import.meta.url", '"file:///fixture/scripts/dev-preview.mjs"');
+    vm.runInNewContext(code, {
+      Buffer,
+      join: path.join, dirname: path.dirname, fileURLToPath: () => launcher,
+      process: { pid: 100, platform: "win32", argv: ["node", "launcher", "--idle-exit-seconds", "900"], env: { EDITOR_PORT: "4000", PLAYER_PORT: "4001", HMR_PORT: "4002" }, stdout: { write: (text) => { output += text; } }, stderr: { write: () => {} }, on: () => {}, exit: (code) => exits.push(code) },
+      treeSurvivors,
+      windowsProcessTable: async () => { if (processError) throw new Error("process census unavailable"); return processes; },
+      spawnSync: () => ({ status: 0, stdout: "" }),
+      spawn: () => ({ pid: 123, on: () => {}, kill: () => {}, stdout: null, stderr: null }),
+      execFile: (command, args, options, done) => done(connectionError ? new Error("connection census unavailable") : null, "TCP 127.0.0.1:4000 0.0.0.0:0 LISTENING 123" + established),
+      fetch: async () => { if (now < 240_000) throw new Error("still building"); return {}; },
+      Date: { now: () => now },
+      setTimeout: (fn, delay) => { timers.push({ at: now + delay, fn }); },
+    });
+    for (let i = 0; i < 20_000 && !exits.length; i++) {
+      await Promise.resolve();
+      timers.sort((a, b) => a.at - b.at);
+      const timer = timers.shift();
+      if (timer) { now = timer.at; await timer.fn(); }
+      if (now > 1_200_000) break;
+    }
+    assert.match(output, /Live preview ready/);
+    assert.deepEqual(exits, stops ? [0] : [], `idle exit must respect known clients and inspection failures: ${output}`);
+    assert.ok(now >= 1_140_000, "the idle period starts after readiness");
+  };
+  await check("a build ready after four minutes still acquires its idle watchdog", () => delayedStartup());
+  await check("an unrelated outbound source-port collision does not keep an idle launcher running", () => delayedStartup("\nTCP 10.0.0.1:4000 203.0.113.1:443 ESTABLISHED 456"));
+  await check("failed process or connection inspection suspends idle shutdown", async () => {
+    await delayedStartup("", { processError: true, stops: false });
+    await delayedStartup("", { connectionError: true, stops: false });
+  });
+  await check("missing root, unknown start identity and reused ancestry cannot authorize idle shutdown", async () => {
+    await delayedStartup("", { processes: [], stops: false });
+    await delayedStartup("", { processes: [{ pid: 100, ppid: 50, start: null }, { pid: 123, ppid: 100, start: "20" }], stops: false });
+    await delayedStartup("", { processes: [{ pid: 100, ppid: 50, start: "10" }, { pid: 123, ppid: 100, start: null }], stops: false });
+    await delayedStartup("", { processes: [{ pid: 100, ppid: 50, start: "30" }, { pid: 123, ppid: 100, start: "20" }], stops: false });
+  });
+  await check("a sibling proxy remains a client when it listens on the same port outside the launcher tree", () => {
+    const source = fs.readFileSync(launcher, "utf8");
+    const part = (start, end) => source.slice(source.indexOf(start), source.indexOf(end, source.indexOf(start)));
+    const pure = part("const portOf", "const CENSUS") + part("function clientConnections", "function stopWhenIdle");
+    const clients = new Function(pure + "; return clientConnections;")();
+    const table = {
+      listeners: [{ port: 4000, pid: 123 }, { port: 4000, pid: 456 }],
+      established: [
+        { localPort: 4000, foreignPort: 5000, foreignHost: "127.0.0.1", pid: 123 },
+        { localPort: 5000, foreignPort: 4000, foreignHost: "127.0.0.1", pid: 456 },
+      ],
+    };
+    assert.equal(clients(table, [4000], new Set([100, 123])).length, 1, "a genuine external proxy client must not disappear because its unrelated listener shares the server port");
+    table.listeners.pop();
+    assert.equal(clients(table, [4000], new Set([100, 123])).length, 1, "the same proxy remains a client without its listener");
+  });
+  await check("remote clients keep servers alive when either socket or listener ownership is unknown", () => {
+    const source = fs.readFileSync(launcher, "utf8");
+    const part = (start, end) => source.slice(source.indexOf(start), source.indexOf(end, source.indexOf(start)));
+    const pure = part("const portOf", "const CENSUS") + part("function clientConnections", "function stopWhenIdle");
+    const clients = new Function(pure + "; return clientConnections;")();
+    const row = { localPort: 4000, foreignPort: 5000, foreignHost: "203.0.113.1", pid: 123 };
+    const count = (listeners, established) => (clients({ listeners, established: [established] }, [4000], new Set([100, 123])) ?? [{}]).length;
+    assert.equal(count([{ port: 4000, pid: 123 }], row), 1);
+    assert.equal(count([{ port: 4000, pid: 123 }], { ...row, pid: NaN }), 1);
+    assert.equal(count([{ port: 4000, pid: NaN }], { ...row, pid: 456 }), 1);
+    assert.equal(count([], { ...row, pid: 456 }), 1);
+    assert.equal(count([{ port: 4000, pid: 123 }], { ...row, pid: 456 }), 0);
+  });
+  await check("server-to-server sockets do not count, but local, remote and reused-PID external clients do", () => {
+    const source = fs.readFileSync(launcher, "utf8");
+    const part = (start, end) => source.slice(source.indexOf(start), source.indexOf(end, source.indexOf(start)));
+    const pure = part("const portOf", "const CENSUS") + part("function clientConnections", "function stopWhenIdle");
+    const clients = new Function(pure + "; return clientConnections;")();
+    const root = { pid: 100, ppid: 50, start: "10" };
+    const server = { pid: 123, ppid: 100, start: "20" };
+    const former = { pid: 456, ppid: 100, start: "20" };
+    const reused = { pid: 456, ppid: 90, start: "30" };
+    const owned = new Set(treeSurvivors([root, server, former], [root, server, reused], 100).map((row) => row.pid));
+    assert.equal(owned.has(456), false);
+    const table = { listeners: [{ port: 4000, pid: 123 }], established: [] };
+    const socket = { localPort: 5000, foreignPort: 4000, foreignHost: "127.0.0.1", pid: 123 };
+    table.established = [socket];
+    assert.equal(clients(table, [4000], owned).length, 0);
+    table.established = [{ ...socket, pid: 456 }];
+    assert.equal(clients(table, [4000], owned).length, 1);
+    table.established = [{ ...socket, pid: NaN }];
+    assert.equal(clients(table, [4000], owned).length, 1);
+    table.established = [{ ...socket, localPort: 4000, foreignPort: 5000, foreignHost: "203.0.113.1" }];
+    assert.equal(clients(table, [4000], owned).length, 1);
+  });
+  if (IS_WIN || process.platform === "linux") {
+    await check("a launcher stops its tree with only a genuine server-to-server socket, and not while an external client is connected", async () => {
+      const file = rowsFile();
+      const run = startLauncher(file, ["--idle-exit-seconds", "10"]);
+      let before = null;
+      try {
+        await serving(file, run.output, true);
+        assert.equal(Number(fs.readFileSync(file + ".proxy", "utf8")), rows(file).find((row) => row.role === "editor").pid, "the editor must hold a real connection to the player");
+        const port = Number(run.output().match(/editor\s+http:\/\/localhost:(\d+)/)?.[1]);
+        assert.ok(port > 0, `the launcher printed no editor port:\n${run.output()}`);
+        const client = net.connect({ port, host: "localhost" });
+        await new Promise((resolve, reject) => { client.once("connect", resolve); client.once("error", (error) => reject(new Error(`the client could not connect to the fixture editor: ${error.message}\n${run.output()}`))); });
+        before = await census(run.child.pid);
+        assert.ok(rows(file).every((row) => before.some((old) => old.pid === row.pid)), "the census must include both servers and their workers");
+        assert.equal(await within(run.exited, 14_000), null, `the launcher stopped while a client was connected:\n${run.output()}`);
+        client.destroy();
+        assert.deepEqual(await within(run.exited, 40_000), { code: 0, signal: null }, `the launcher did not stop itself once the client left:\n${run.output()}`);
+        assert.match(run.output(), /Idle exit: no client held a connection to the servers for 10 s/);
+        await assertTreeGone(before, run.child.pid, run.output());
+      } finally {
+        if (!IS_WIN) try { process.kill(-run.child.pid, "SIGKILL"); } catch {}
+        else if (run.child.exitCode === null && !censused(run.child.pid)) stopTree(run.child.pid);
+      }
+    });
+  } else {
+    console.log("SKIP: the idle exit reads the TCP table through netstat or ss, which only Windows and Linux supply");
+  }
+
   if (IS_WIN) {
     await check("a launcher killed outright leaves no process of its tree running", async () => {
       const file = rowsFile();
@@ -214,21 +363,31 @@ try {
 
     await check("killing the driver's wrapper without its tree leaves no process of that tree running", async () => {
       const file = rowsFile();
-      const up = spawnSync(process.execPath, [driver, "up"], {
-        cwd: repo,
-        encoding: "utf8",
-        windowsHide: true,
-        timeout: 180_000,
-        env: { ...baseEnv, DEV_PREVIEW_ROWS: file, IMPOWER_DRIVER_HOME: path.join(scratch, "home"), IMPOWER_DRIVER_SESSION: "dev-preview-test" },
-      });
-      const out = `${up.stdout ?? ""}${up.stderr ?? ""}`;
+      const { out } = runDriver(file, "up");
       const pid = Number(out.match(/launching dev servers \(same-origin\) pid (\d+)/)?.[1]);
       assert.ok(pid > 0, `up named no launcher pid:\n${out}`);
       const before = await census(pid);
       assert.match(out, /READY/, out);
+      assert.match(out, /stop themselves after 15 min without a browser connection/, out);
+      assert.equal(record().idleExitSeconds, 900, "up did not record the launcher's idle exit");
       await serving(file);
       process.kill(pid);
       await assertTreeGone(before, pid, out);
+    });
+
+    await check("up --keep starts a launcher with no idle exit, and down stops its tree", async () => {
+      const file = rowsFile();
+      const { out } = runDriver(file, "up", "--keep");
+      const pid = Number(out.match(/launching dev servers \(same-origin\) pid (\d+)/)?.[1]);
+      assert.ok(pid > 0, `up --keep named no launcher pid:\n${out}`);
+      const before = await census(pid);
+      assert.match(out, /READY/, out);
+      assert.doesNotMatch(out, /stop themselves/, out);
+      assert.equal(record().idleExitSeconds, undefined, "up --keep recorded an idle exit");
+      await serving(file);
+      const down = runDriver(file, "down");
+      assert.equal(down.status, 0, down.out);
+      await assertTreeGone(before, pid, `${out}\n${down.out}`);
     });
     console.log("SKIP: SIGHUP from a signal; Windows delivers a terminal close as CTRL_CLOSE_EVENT, checked above through a pseudo-console");
   } else {
@@ -237,9 +396,11 @@ try {
       const run = startLauncher(file);
       try {
         await serving(file, run.output, true);
+        const before = process.platform === "linux" ? await census(run.child.pid) : null;
         process.kill(run.child.pid, "SIGHUP");
         const result = await within(run.exited, 15_000);
         assert.deepEqual(result, { code: 0, signal: null }, `the launcher did not stop itself on SIGHUP:\n${run.output()}`);
+        if (before) await assertTreeGone(before, run.child.pid, run.output());
       } finally {
         try { process.kill(-run.child.pid, "SIGKILL"); } catch {}
       }

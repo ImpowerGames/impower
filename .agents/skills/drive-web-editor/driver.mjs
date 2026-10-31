@@ -7,6 +7,8 @@ import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnDetached } from "../../../scripts/detached-launch.mjs";
+import { linuxProcesses, treeSurvivors, windowsProcessTable } from "../../../scripts/process-table.mjs";
+export { linuxProcesses, treeSurvivors, windowsProcessTable } from "../../../scripts/process-table.mjs";
 import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen.mjs";
 import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, SESSION_VARIABLES, checkoutStateFiles, driverSession, recordCheckoutOwner, sessionDir } from "./session-dir.mjs";
 
@@ -138,6 +140,8 @@ function pidAlive(pid, kill = process.kill) {
 
 const READY_WAIT_MS = 15 * 60_000;
 
+const IDLE_EXIT_SECONDS = 15 * 60;
+
 const LAUNCH_SLACK_MS = 60_000;
 const START_GRAIN_MS = 2_000;
 async function recordStands(record, probe = liveProbe) {
@@ -235,55 +239,6 @@ export function stopExitHandler(file, pid, { remove = () => removeState(file), l
     }
     if (removeStoppedState(file, { remove, log: report, fail, context: `Stop command for pid ${pid} succeeded; server exit has not been independently verified` })) report("stopped");
   };
-}
-
-export function windowsProcessTable() {
-  const script = "Get-CimInstance Win32_Process | ForEach-Object { '{0} {1} {2}' -f $_.ProcessId, $_.ParentProcessId, $(if ($_.CreationDate) { $_.CreationDate.ToUniversalTime().Ticks } else { '-' }) }";
-  return new Promise((resolve, reject) => {
-    const p = spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
-    let out = "";
-    p.stdout.on("data", (d) => (out += d));
-    p.on("error", reject);
-    p.on("close", (code) => {
-      const rows = out.split(/\r?\n/).filter(Boolean).map((line) => {
-        const [pid, ppid, start] = line.trim().split(" ");
-        return { pid: Number(pid), ppid: Number(ppid), start: /^\d+$/.test(start ?? "") ? start : null };
-      });
-      if (code !== 0 || !rows.length || rows.some((row) => !Number.isSafeInteger(row.pid) || !Number.isSafeInteger(row.ppid))) reject(new Error(`the process census failed (exit ${code})`));
-      else resolve(rows);
-    });
-  });
-}
-
-export function treeSurvivors(before, after, root) {
-  const rootRow = before.find((row) => row.pid === root);
-  if (!rootRow) return null;
-  const key = (row) => `${row.pid}:${row.start}`;
-  const notAfter = (a, b) => a.start === null || b.start === null || BigInt(a.start) <= BigInt(b.start);
-  const rows = [...before, ...after];
-  const byPid = new Map();
-  for (const row of rows) byPid.set(row.pid, [...(byPid.get(row.pid) ?? []), row]);
-  const parentOf = (row) => {
-    let parent = null;
-    for (const other of byPid.get(row.ppid) ?? []) {
-      if (key(other) === key(row) || !notAfter(other, row)) continue;
-      if (!parent || (parent.start !== null && other.start !== null && BigInt(other.start) > BigInt(parent.start))) parent = other;
-    }
-    return parent;
-  };
-  const tree = new Set([key(rootRow)]);
-  for (let grew = true; grew; ) {
-    grew = false;
-    for (const row of rows) {
-      if (tree.has(key(row))) continue;
-      const parent = parentOf(row);
-      if (!parent || !tree.has(key(parent))) continue;
-      tree.add(key(row));
-      grew = true;
-    }
-  }
-  const memberPids = new Set([...tree].map((member) => Number(member.split(":")[0])));
-  return after.filter((row) => tree.has(key(row)) || (memberPids.has(row.pid) && (row.start === null || tree.has(`${row.pid}:null`))));
 }
 
 export async function treeStopped(before, root, { table = windowsProcessTable, attempts = 6, waitMs = 500 } = {}) {
@@ -434,12 +389,13 @@ export async function up(args) {
   removeState();
 
   const mode = args.includes("--cross-origin") ? "cross-origin" : "same-origin";
+  const idleExitSeconds = args.includes("--keep") ? null : IDLE_EXIT_SECONDS;
   const ports = await pickPorts();
   const url = `http://localhost:${ports.editor}`;
 
   const child = spawnDetached(
     process.execPath,
-    [path.join(REPO_ROOT, "scripts", "dev-preview.mjs"), "--mode", mode],
+    [path.join(REPO_ROOT, "scripts", "dev-preview.mjs"), "--mode", mode, ...(idleExitSeconds === null ? [] : ["--idle-exit-seconds", String(idleExitSeconds)])],
     {
       cwd: REPO_ROOT,
       env: {
@@ -455,9 +411,10 @@ export async function up(args) {
   observeLauncherExit(child);
   child.unref();
 
-  writeState({ url, pid: child.pid, mode, ports, startedAt: Date.now(), session: SESSION });
+  writeState({ url, pid: child.pid, mode, ports, startedAt: Date.now(), session: SESSION, ...(idleExitSeconds === null ? {} : { idleExitSeconds }) });
 
   log(`launching dev servers (${mode}) pid ${child.pid} → ${url}`);
+  if (idleExitSeconds !== null) log(`the servers stop themselves after ${idleExitSeconds / 60} min without a browser connection; \`up\` starts them again, and \`up --keep\` launches servers that keep running`);
   await waitReady(url, mode);
 }
 
@@ -520,30 +477,6 @@ async function statusAll() {
   const lines = [...up.map((l) => `UP  ${l}`), ...unreadable, ...(unreadable.length ? [] : down.map((l) => `DOWN  ${l}`))];
   log(lines.length ? lines.join("\n") : "down (no state file)");
   process.exitCode = up.length ? 0 : 1;
-}
-
-export function linuxProcesses({ io = fs, uid = process.getuid?.() } = {}) {
-  const rows = [];
-  for (const name of io.readdirSync("/proc")) {
-    if (!/^\d+$/.test(name)) continue;
-    try {
-      const owner = io.statSync(`/proc/${name}`).uid;
-      let stat;
-      try { stat = io.readFileSync(`/proc/${name}/stat`, "utf8"); }
-      catch (error) {
-        if ((error.code === "EACCES" || error.code === "EPERM") && owner !== uid) {
-          rows.push({ pid: Number(name), uid: owner, unreadable: true });
-          continue;
-        }
-        throw error;
-      }
-      const fields = stat.slice(stat.lastIndexOf(")") + 2).trim().split(/\s+/);
-      rows.push({ pid: Number(name), parent: Number(fields[1]), group: Number(fields[2]), session: Number(fields[3]), state: fields[0], start: fields[19], uid: owner });
-    } catch (error) {
-      if (error.code !== "ENOENT" && error.code !== "ESRCH") throw error;
-    }
-  }
-  return rows;
 }
 
 const runningProcess = (row) => row.state !== "Z" && row.state !== "X";
@@ -786,7 +719,7 @@ export async function grantDurableStorage(ctx, page) {
   await cdp.send("Browser.grantPermissions", { permissions: ["durableStorage"] });
 }
 
-async function withEditor(fn, { headless = true, launch = launchEditorBrowser, state = readState } = {}) {
+async function withEditor(fn, { headless = true, launch = launchEditorBrowser, state = readState, probe = state === readState ? isUp : async () => true } = {}) {
   const record = state();
   if (!record?.url)
     die(
@@ -796,6 +729,11 @@ async function withEditor(fn, { headless = true, launch = launchEditorBrowser, s
         "whose values are baked into each bundle at build time, so a reload cannot fix a mismatched one.",
     );
   const { url } = record;
+  if (!(await probe(url)))
+    die(
+      `the recorded servers at ${url} (pid ${record.pid}) are not answering${record.idleExitSeconds ? `; they stop themselves after ${record.idleExitSeconds / 60} min without a browser connection` : ""}. ` +
+        "Run `up` to start them again (`up --keep` launches servers that keep running); `status` shows the record, and `down` removes one whose launcher has exited.",
+    );
   const mode = record.mode ?? "same-origin";
   const ctx = await launch({ headless });
   const page = ctx.pages()[0] ?? (await ctx.newPage());
@@ -3448,7 +3386,7 @@ switch (cmd) {
         "usage: node .agents/skills/drive-web-editor/driver.mjs <command>",
         "",
         "  preflight [--tooling-only]  check disk headroom, playwright, gh auth BEFORE doing work; --tooling-only skips the browser and install probes",
-        "  up [--cross-origin]   boot both dev servers, wait for ready, record the URL",
+        "  up [--cross-origin] [--keep]   boot both dev servers, wait for ready, record the URL; they stop themselves after 15 min without a browser connection unless --keep",
         "  status [--all]        is it up? prints the editor URL (--all: every session's servers for this checkout)",
         "  down [--force]        kill the server tree this session launched (--force: any session's)",
         "  verify [options]      drive the game preview and print a JSON report",

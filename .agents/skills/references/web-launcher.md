@@ -14,7 +14,11 @@ It auto-picks free ports (never colliding with another worktree's servers),
 wires every cross-referencing env var consistently, waits for readiness, and
 prints the editor URL. `Ctrl+C` stops both. Override ports with `EDITOR_PORT` /
 `PLAYER_PORT` / `HMR_PORT` if needed. Same-origin mode (the default) lets you
-inspect the live game DOM from the editor page via `window.__preview`.
+inspect the live game DOM from the editor page via `window.__preview`. Add
+`--idle-exit-seconds <n>` (`node scripts/dev-preview.mjs --mode same-origin
+--idle-exit-seconds 900`) to have both servers stop themselves once no process
+other than the two servers has held a TCP connection to them for that long; the
+driver's `up` passes it, a hand launch gets none by default.
 
 **Do NOT hand-launch the editor (`impower-dev`) and player (`sparkdown-player-app`)
 separately** unless you fully understand the handshake below — it's a footgun.

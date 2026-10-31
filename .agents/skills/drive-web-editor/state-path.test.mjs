@@ -386,6 +386,7 @@ fs.mkdirSync(path.join(scratch, "repo", ".agents", "skills", "resolve-issue"), {
 for (const name of ["driver.mjs", "redgreen.mjs", "session-dir.mjs", "worktree-temp.mjs"]) fs.copyFileSync(path.join(here, name), path.join(copyDir, name));
 fs.mkdirSync(path.join(scratch, "repo", "scripts"));
 fs.copyFileSync(path.join(here, "..", "..", "..", "scripts", "detached-launch.mjs"), path.join(scratch, "repo", "scripts", "detached-launch.mjs"));
+fs.copyFileSync(path.join(here, "..", "..", "..", "scripts", "process-table.mjs"), path.join(scratch, "repo", "scripts", "process-table.mjs"));
 const copy = path.join(copyDir, "driver.mjs");
 process.env.IMPOWER_DRIVER_HOME = path.join(scratch, "home");
 process.env.IMPOWER_DRIVER_SESSION = "state-path-session";

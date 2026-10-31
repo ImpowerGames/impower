@@ -49,7 +49,7 @@ function trackedProjects() {
 
 function parseArgs(argv) {
   const filters = [];
-  let jobs = 2;
+  let jobs = 1;
   let list = false;
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
