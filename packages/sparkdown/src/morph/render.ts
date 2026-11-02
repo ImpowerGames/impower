@@ -3,7 +3,7 @@ import type { Point } from "@impower/spark-morph/src/index";
 import { parse, stringify, type Node } from "../txml/txml";
 import { own, table } from "./own";
 import { blendColor, formatColor, readAlpha, readColor } from "./color";
-import { overlapsItself, pathContours } from "./contour";
+import { contourOverlapsItself, pathContours } from "./contour";
 import { setStyleProperty, styleDeclaration } from "./svgDocument";
 import type {
   MorphArtifact,
@@ -109,6 +109,22 @@ export interface MorphSpreadMaskPose {
   spread: number;
   d: string;
 }
+
+const SHRINKABLE_CACHE_LIMIT = 256;
+
+const shrinkableCache = new Map<string, boolean>();
+
+const shrinkable = (d: string, evenodd: boolean): boolean => {
+  const key = `${evenodd ? "evenodd" : "nonzero"} ${d}`;
+  let result = shrinkableCache.get(key);
+  if (result === undefined) {
+    const contours = pathContours(d);
+    result = contours.length === 1 && !contourOverlapsItself(contours[0]!, evenodd);
+    if (shrinkableCache.size >= SHRINKABLE_CACHE_LIMIT) shrinkableCache.clear();
+    shrinkableCache.set(key, result);
+  }
+  return result;
+};
 
 const closeSubpaths = (d: string): string =>
   d
@@ -460,8 +476,7 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
     if (amount < 0) {
       if (!record.mask) continue;
       const d = closeSubpaths(geometry.get(node) ?? record.outline);
-      const contours = pathContours(d);
-      if (contours.length !== 1 || overlapsItself(contours[0]!, !!record.evenodd)) continue;
+      if (!shrinkable(d, !!record.evenodd)) continue;
       values["mask"] = `url(#${record.mask})`;
       state.masks.set(record.mask, { spread: amount, d });
       state.paint.set(node, values);

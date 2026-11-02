@@ -1,76 +1,60 @@
-import type { Point, Subpath } from "@impower/spark-morph/src/index";
+import { cubicDoublePoint, isLine, splitCubic } from "@impower/spark-morph/src/geometry/cubic";
+import { parsePathData, type Point, type Subpath } from "@impower/spark-morph/src/index";
 
 type Cubic = Subpath["segments"][number];
 
-const CURVE_STEPS = 16;
+const FLATNESS = 1e-4;
+const MAX_DEPTH = 16;
 
-const cubicAt = (p0: Point, c1: Point, c2: Point, p1: Point, t: number): Point => {
-  const u = 1 - t;
-  const a = u * u * u;
-  const b = 3 * u * u * t;
-  const d = 3 * u * t * t;
-  const e = t * t * t;
-  return [a * p0[0] + b * c1[0] + d * c2[0] + e * p1[0], a * p0[1] + b * c1[1] + d * c2[1] + e * p1[1]];
-};
+export const pathContours = (d: string): Subpath[] => parsePathData(d).filter((subpath) => subpath.segments.length > 0);
 
 const same = (a: Point, b: Point) => a[0] === b[0] && a[1] === b[1];
 
-const isLine = (p0: Point, c1: Point, c2: Point, p1: Point) => same(c1, p0) && same(c2, p1);
+const distanceToChord = (p: Point, a: Point, b: Point): number => {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const length = Math.hypot(dx, dy);
+  if (length === 0) return Math.hypot(p[0] - a[0], p[1] - a[1]);
+  return Math.abs(dx * (p[1] - a[1]) - dy * (p[0] - a[0])) / length;
+};
 
-function flatten(segments: [Point, Point, Point, Point][]): Point[] {
+function flattenInto(c: Cubic, tolerance: number, out: Point[], depth = 0) {
+  const flat = Math.max(distanceToChord(c.c1, c.p0, c.p1), distanceToChord(c.c2, c.p0, c.p1)) <= tolerance;
+  if (flat || isLine(c) || depth >= MAX_DEPTH) {
+    out.push(c.p0);
+    return;
+  }
+  const [a, b] = splitCubic(c, 0.5);
+  flattenInto(a, tolerance, out, depth + 1);
+  flattenInto(b, tolerance, out, depth + 1);
+}
+
+const loopsOnItself = (c: Cubic): boolean => {
+  const double = cubicDoublePoint(c);
+  return !!double && double[0] > 0 && double[1] < 1;
+};
+
+export function contourOverlapsItself(contour: Subpath, evenodd: boolean): boolean {
+  const { segments } = contour;
+  if (!segments.length) return false;
+  if (segments.some(loopsOnItself)) return true;
+  const xs = segments.flatMap((c) => [c.p0[0], c.c1[0], c.c2[0], c.p1[0]]);
+  const ys = segments.flatMap((c) => [c.p0[1], c.c1[1], c.c2[1], c.p1[1]]);
+  const size = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+  if (!(size > 0)) return false;
   const points: Point[] = [];
-  for (const [p0, c1, c2, p1] of segments) {
-    if (isLine(p0, c1, c2, p1)) points.push(p0);
-    else for (let k = 0; k < CURVE_STEPS; k++) points.push(cubicAt(p0, c1, c2, p1, k / CURVE_STEPS));
-  }
-  const last = segments[segments.length - 1];
-  if (last) points.push(last[3]);
-  return points.filter((p, i) => !same(p, points[(i + 1) % points.length]!));
-}
-
-export function contourPoints(subpath: Subpath): Point[] {
-  return flatten(subpath.segments.map((c: Cubic) => [c.p0, c.c1, c.c2, c.p1]));
-}
-
-export function pathContours(d: string): Point[][] {
-  const contours: Point[][] = [];
-  let segments: [Point, Point, Point, Point][] = [];
-  let start: Point = [0, 0];
-  let at: Point = [0, 0];
-  const close = () => {
-    if (segments.length) contours.push(flatten(segments));
-    segments = [];
-  };
-  for (const [, command, body] of d.matchAll(/([MLCZ])([^MLCZ]*)/g)) {
-    const n = (body!.match(/-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi) ?? []).map(Number);
-    if (command === "M") {
-      close();
-      start = at = [n[0]!, n[1]!];
-    } else if (command === "L") {
-      for (let i = 0; i + 1 < n.length; i += 2) {
-        const next: Point = [n[i]!, n[i + 1]!];
-        segments.push([at, at, next, next]);
-        at = next;
-      }
-    } else if (command === "C") {
-      for (let i = 0; i + 5 < n.length; i += 6) {
-        const next: Point = [n[i + 4]!, n[i + 5]!];
-        segments.push([at, [n[i]!, n[i + 1]!], [n[i + 2]!, n[i + 3]!], next]);
-        at = next;
-      }
-    } else {
-      if (!same(at, start)) segments.push([at, at, start, start]);
-      at = start;
-    }
-  }
-  close();
-  return contours;
+  for (const c of segments) flattenInto(c, size * FLATNESS, points);
+  points.push(segments[segments.length - 1]!.p1);
+  return polygonOverlapsItself(
+    points.filter((p, i) => !same(p, points[(i + 1) % points.length]!)),
+    evenodd,
+  );
 }
 
 const cross = (a: Point, b: Point) => a[0] * b[1] - a[1] * b[0];
 const minus = (a: Point, b: Point): Point => [a[0] - b[0], a[1] - b[1]];
 
-export function overlapsItself(points: Point[], evenodd: boolean): boolean {
+function polygonOverlapsItself(points: Point[], evenodd: boolean): boolean {
   const n = points.length;
   if (n < 4) return false;
   const xs = points.map(([x]) => x);
@@ -79,30 +63,41 @@ export function overlapsItself(points: Point[], evenodd: boolean): boolean {
   if (!(size > 0)) return false;
   const tiny = size * 1e-12;
   const edge = (i: number): [Point, Point] => [points[i]!, points[(i + 1) % n]!];
+  const bounds = points.map((_, i) => {
+    const [a, b] = edge(i);
+    return { i, minX: Math.min(a[0], b[0]), maxX: Math.max(a[0], b[0]), minY: Math.min(a[1], b[1]), maxY: Math.max(a[1], b[1]) };
+  });
+  const order = [...bounds].sort((p, q) => p.minX - q.minX);
   const splits: number[][] = points.map(() => [0, 1]);
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
+  let active: typeof bounds = [];
+  for (const e of order) {
+    active = active.filter((a) => a.maxX >= e.minX);
+    for (const a of active) {
+      const i = Math.min(a.i, e.i);
+      const j = Math.max(a.i, e.i);
       if (j === i + 1 || (i === 0 && j === n - 1)) continue;
-      const [a, b] = edge(i);
+      if (a.maxY < e.minY || e.maxY < a.minY) continue;
+      const [p, q] = edge(i);
       const [c, d] = edge(j);
-      const r = minus(b, a);
+      const r = minus(q, p);
       const s = minus(d, c);
       const denominator = cross(r, s);
-      const ca = minus(c, a);
+      const cp = minus(c, p);
       if (Math.abs(denominator) <= tiny * Math.hypot(...r) * Math.hypot(...s)) {
-        if (Math.abs(cross(ca, r)) > tiny * Math.hypot(...r)) continue;
+        if (Math.abs(cross(cp, r)) > tiny * Math.hypot(...r)) continue;
         const length = r[0] * r[0] + r[1] * r[1];
-        const t0 = (ca[0] * r[0] + ca[1] * r[1]) / length;
+        const t0 = (cp[0] * r[0] + cp[1] * r[1]) / length;
         const t1 = t0 + (s[0] * r[0] + s[1] * r[1]) / length;
         if (Math.min(Math.max(t0, t1), 1) - Math.max(Math.min(t0, t1), 0) > 1e-12) return true;
         continue;
       }
-      const t = cross(ca, s) / denominator;
-      const u = cross(ca, r) / denominator;
+      const t = cross(cp, s) / denominator;
+      const u = cross(cp, r) / denominator;
       if (t < 0 || t > 1 || u < 0 || u > 1) continue;
       splits[i]!.push(t);
       splits[j]!.push(u);
     }
+    active.push(e);
   }
   if (splits.every((list) => list.length === 2)) return false;
   const inside = ([x, y]: Point): boolean => {

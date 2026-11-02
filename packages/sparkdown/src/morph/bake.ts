@@ -32,7 +32,7 @@ import { readEntryColor } from "./color";
 import { gradientCopy, gradientNumbers, gradientsMatch, readGradient } from "./gradient";
 import { hashText } from "./hash";
 import { own, table } from "./own";
-import { contourPoints, overlapsItself } from "./contour";
+import { contourOverlapsItself } from "./contour";
 import { effectivePaint, fillRule, paintBlend, type EffectivePaint } from "./paint";
 import { recipeAsMorph } from "./recipe";
 import { APERTURE_REACH, APERTURE_REACH_ID_SUFFIX, spreadStroke } from "./render";
@@ -925,7 +925,7 @@ export function* bakeSteps(
       if (contours.some(({ contours }) => contours.length !== 1)) {
         return ignored("is more than one contour, and shrinking cuts along every contour's edge, even one with fill on both sides; draw each contour as a layer of its own to shrink it");
       }
-      if (contours.some(({ contours: [contour], evenodd }) => overlapsItself(contourPoints(contour!), evenodd))) {
+      if (contours.some(({ contours: [contour], evenodd }) => contourOverlapsItself(contour!, evenodd))) {
         return ignored("has a contour that overlaps itself with fill on both sides, which shrinking would cut open");
       }
     }

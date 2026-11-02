@@ -347,6 +347,7 @@ export function spreadPortrait(): string {
       `<path data-name="folding" d="${slotted(180, 100 + dy, closed ? [6.3, 5.1] : [7.6, 6.8], closed ? [7.9, 8.9] : [6, 3.1])}" fill="#264"/>`,
       `<path data-name="looped" d="${slotted(150, 105 + dy, [6, 4], [4, 4])}" fill="#426"/>`,
       `<path data-name="loopedodd" d="${slotted(165, 105 + dy, [6, 4], [4, 4])}" fill="#426" fill-rule="evenodd"/>`,
+      `<path data-name="curled" d="M150.004,${165 + dy}C149.837333,${165.001333 + dy} 153.004,${164.836 + dy} 159.504,${174.504 + dy}L140,${175 + dy}L140,${155 + dy}Z" fill="#462"/>`,
       closed
         ? `<path data-name="mixedfade" d="M120,${105 + dy}H130V${115 + dy}H120Z" fill="#624"/>`
         : `<path data-name="mixedfade" d="${slotted(120, 105 + dy, [6, 4], [4, 4])}" fill="#624" fill-rule="evenodd"/>`,
@@ -375,7 +376,7 @@ ${pose(5, true)}
 }
 
 export function spreadBlink(layers: Record<string, Record<string, unknown>> = {}, overrides: Record<string, unknown> = {}, states = ["open", "closed", "open"]): MorphRecipe {
-  const merged: Record<string, Record<string, unknown>> = { ghost: { fallback: "scale" }, fader: { blend: "fade" }, still: { blend: "cut" }, opened: { blend: "fade" }, polylined: { blend: "fade" }, implicitloop: { blend: "fade" }, mixedfade: { blend: "fade" } };
+  const merged: Record<string, Record<string, unknown>> = { ghost: { fallback: "scale" }, fader: { blend: "fade" }, still: { blend: "cut" }, opened: { blend: "fade" }, polylined: { blend: "fade" }, implicitloop: { blend: "fade" }, mixedfade: { blend: "fade" }, curled: { blend: "fade" } };
   for (const [label, policy] of Object.entries(layers)) merged[label] = { ...merged[label], ...policy };
   return paintBlink({ layers: merged, ...overrides }, states);
 }
