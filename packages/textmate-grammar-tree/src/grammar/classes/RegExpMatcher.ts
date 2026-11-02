@@ -28,11 +28,18 @@ const anchorAt = (before: number) =>
 const resolveAnchor = (pattern: string, replacement: string) => {
   let resolved = "";
   let from = 0;
+  let inClass = false;
   for (let i = 0; i < pattern.length; i++) {
-    if (pattern.charCodeAt(i) !== 92) {
+    const c = pattern.charCodeAt(i);
+    if (c === 91) {
+      inClass = true;
+    } else if (c === 93) {
+      inClass = false;
+    }
+    if (c !== 92) {
       continue;
     }
-    if (pattern[i + 1] === "G") {
+    if (!inClass && pattern[i + 1] === "G") {
       resolved += pattern.slice(from, i) + replacement;
       from = i + 2;
     }

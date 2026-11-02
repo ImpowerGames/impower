@@ -1,3 +1,4 @@
+import { RegExpMatcher } from "@impower/textmate-grammar-tree/src/grammar/classes/RegExpMatcher";
 import { ResumableTokenizer } from "@impower/textmate-grammar-tree/src/grammar/classes/ResumableTokenizer";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
@@ -182,6 +183,25 @@ describe("textmate-grammar-tree reads `\\G` as vscode-textmate does (I-1813)", (
     const firsts = [...text].flatMap((_, i) => (vscode[i]!.split(" ").includes(FIRST) ? [i] : []));
     expect(firsts.map((i) => text[i]).join("")).toBe("aacc");
     expect(treeScopes(GRAMMARS.capturedLineBreak, text)).toEqual(vscode);
+  });
+});
+
+describe("a `\\G` inside a character class is a literal `G` (I-1813)", () => {
+  test("the class keeps matching `G`, anchored or not", () => {
+    const literal = new RegExpMatcher("[\\G]", "my");
+    expect(literal.hasAnchor).toBe(false);
+    expect(literal.match("G!", 0)).toEqual(["G"]);
+    expect(literal.match("G!", 0, true)).toEqual(["G"]);
+    expect(literal.match("!G", 0)).toBeNull();
+  });
+
+  test("an anchor beside the class still holds only at the anchor", () => {
+    const anchored = new RegExpMatcher("[\\G]\\G", "my");
+    expect(anchored.hasAnchor).toBe(true);
+    expect(anchored.match("G!", 0, true)).toBeNull();
+    const leading = new RegExpMatcher("\\G[\\G]", "my");
+    expect(leading.match("G!", 0, true)).toEqual(["G"]);
+    expect(leading.match("G!", 0, false)).toBeNull();
   });
 });
 
