@@ -6,6 +6,8 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRepos, ticketsRepo } from "../../.agents/repos.mjs";
 import { decide as decideWith } from "./typed-issue-hook.mjs";
+import { githubClient } from "../../.agents/skills/orchestrate-issues/issue-run.mjs";
+import { ACCOUNT_PULL_METADATA_QUERY, requestAccountPullMetadata } from "../../.agents/hooks/typed-issue-hook.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const OFF = { ...readRepos(), cutover: false };
@@ -34,6 +36,47 @@ function check(ok, label, detail) {
   else {
     failed++;
     console.log(`FAIL: ${label}${detail ? ` -- ${detail}` : ""}`);
+  }
+}
+
+{
+  let query;
+  githubClient({ repository: ON.code, ticketsRepository: ON.internal }, root, { run: (cmd, args) => {
+    query = args.find((arg) => arg.startsWith("query="))?.slice(6);
+    return JSON.stringify([{ data: { viewer: { login: "shared", pullRequests: { totalCount: 0, pageInfo: { hasNextPage: false, endCursor: null }, nodes: [] } } } }]);
+  } }).pulls(1);
+  const command = (selection) => `gh api graphql --paginate --slurp -f 'query=${selection}'`;
+  check(typeof query === "string" && query.includes("closingIssuesReferences"), "capture the production account discovery query");
+  for (const shell of ["bash", "powershell"]) {
+    check(decideWith(command(query), shell, { repos: ON }) === null, `allow the exact production account closing-reference metadata query in ${shell}`);
+  }
+  let transports = 0;
+  check(requestAccountPullMetadata(query, (accepted) => { transports++; return accepted; }) === query && transports === 1, "the approved query reaches the guarded transport unchanged");
+  for (const [label, forbidden] of [
+    ["issue body", query.replace("nodes { number url }", "nodes { number url body }")],
+    ["issue title", query.replace("nodes { number url }", "nodes { number url title }")],
+    ["issue comments", query.replace("nodes { number url }", "nodes { number url comments(first: 1) { nodes { body } } }")],
+    ["pull request reviews", query.replace("mergeCommit { oid }", "mergeCommit { oid } reviews(first: 1) { nodes { body } }")],
+    ["companion viewer issues", query.replace("login\n", "login issues(first: 1) { nodes { body } }\n")],
+    ["another account", query.replace("viewer {", 'user(login: "other") {')],
+    ["repository scope", query.replace("viewer {", 'repository(owner: "ImpowerGames", name: "impower") {')],
+    ["aliased closing references", query.replace("closingIssuesReferences(", "refs: closingIssuesReferences(")],
+    ["closing-reference directive", query.replace("closingIssuesReferences(first: 100)", "closingIssuesReferences(first: 100) @include(if: true)")],
+    ["closing-reference fragment", query.replace("nodes { number url }", "nodes { ...Reference }") + " fragment Reference on Issue { number url }"],
+    ["second query field", query + " query { viewer { issues(first: 1) { nodes { body } } } }"],
+  ]) {
+    check(decideWith(command(forbidden), "bash", { repos: ON }) !== null, `refuse account metadata query with ${label}`);
+    let denied = false;
+    try { requestAccountPullMetadata(forbidden, () => { transports++; }); } catch (error) { denied = /policy refused.*before transport/.test(error.message); }
+    check(denied && transports === 1, `metadata policy denial prevents transport with ${label}`);
+  }
+  for (const [label, args] of [
+    ["companion forbidden field", "-f extra='query { viewer { issues(first: 1) { nodes { body } } } }'"],
+    ["second query parameter", `-f 'query=${query}'`],
+    ["opaque body input", "--input body.json"],
+    ["operation name parameter", "-f operationName=other"],
+  ]) {
+    check(decideWith(`${command(query)} ${args}`, "bash", { repos: ON }) !== null, `metadata exception refuses ${label}`);
   }
 }
 
@@ -970,6 +1013,7 @@ for (const [label, command, shell] of allows) {
     ["GraphQL createIssue on the internal repository", "gh api graphql -f query='mutation { createIssue(input: {repositoryId: \"x\", title: \"y\"}) { issue { id } } }'", "createIssue"],
   ];
   const allowances = [
+    ["GraphQL account closing-reference metadata", `gh api graphql --paginate --slurp -f 'query=${ACCOUNT_PULL_METADATA_QUERY}'`],
     ["gh pr create --draft", "gh pr create --draft --title x --body-file b.md"],
     ["gh pr ready", "gh pr ready 12"],
     ["gh pr ready --undo", "gh pr ready 12 --undo"],

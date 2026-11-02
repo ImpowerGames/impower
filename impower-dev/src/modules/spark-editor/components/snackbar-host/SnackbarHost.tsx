@@ -42,7 +42,7 @@ export default function SnackbarHost() {
                 dismissSnackbar(shown);
               }
             }}
-            class="h-7 flex-none rounded px-2 text-sm font-medium text-primary hover:bg-primary/10"
+            class="h-7 flex-none rounded px-2 text-sm font-medium text-primary"
           >
             {shown.actionLabel}
           </Button>
@@ -52,7 +52,7 @@ export default function SnackbarHost() {
             variant="ghost"
             aria-label="Dismiss"
             onClick={() => dismissSnackbar(shown)}
-            class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:bg-foreground/10 hover:text-foreground"
+            class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:text-foreground"
           >
             <X class="size-4" />
           </Button>

@@ -8,11 +8,15 @@ import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { decide } from "../.agents/hooks/policy.mjs";
 import { relevantFiles } from "../.github/scripts/changed-paths.mjs";
+import { verifyRemoval } from "./fixtures/filer-removal.mjs";
+
+await verifyRemoval();
+if (process.argv.includes("--removal-only")) process.exit(0);
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const scratch = fs.mkdtempSync(path.join(process.env.IMPOWER_SYSTEM_TMPDIR || os.tmpdir(), "filer-1766-"));
-console.log(`Scratch repository: ${scratch}`);
 const main = path.join(scratch, "repo");
+console.log(`Scratch repository: ${main}`);
 fs.mkdirSync(main);
 function git(args, cwd = main) {
   const r = spawnSync("git", args, { cwd, encoding: "utf8", windowsHide: true });
