@@ -7887,8 +7887,8 @@ repository:
     end: (?=$)|(?!{{WS}})
 
   LuauSparkdownExplicitConditionalAlternatorCondition:
-    # lookaround: `{{LUAU_EXPRESSION_START}}` leaves a line end, and the whitespace where the arms begin, to LuauAlternatorSeparator.
-    begin: "\\G{{LUAU_EXPRESSION_START}}"
+    # lookaround: the lookbehind opens the condition only after `match` or `plural`, since LuauSparkdownExplicitAlternatorHead also opens after a sequential keyword, whose head LuauComment reads; `{{LUAU_EXPRESSION_START}}` leaves a line end, and the whitespace where the arms begin, to LuauAlternatorSeparator.
+    begin: "(?<={{LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD}}{{WS}}*){{LUAU_EXPRESSION_START}}"
     patterns:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
@@ -8856,9 +8856,9 @@ repository:
       - { include: "#LuauAlternatorLineStartHead" }
     end: "{{LUAU_LINE_START_CANDIDATE_END}}"
 
-  # lookaround: `{{LUAU_EXPRESSION_START}}` leaves a line end, and the whitespace where the arms begin, to LuauAlternatorSeparator.
+  # lookaround: the lookbehind opens the condition only after `match` or `plural`, since LuauAlternatorHead and LuauAlternatorLineStartHead also open after a sequential keyword, whose head LuauComment reads; `{{LUAU_EXPRESSION_START}}` leaves a line end, and the whitespace where the arms begin, to LuauAlternatorSeparator.
   LuauConditionalAlternatorCondition:
-    begin: "\\G{{LUAU_EXPRESSION_START}}"
+    begin: "(?<={{LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD}}{{WS}}*){{LUAU_EXPRESSION_START}}"
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
