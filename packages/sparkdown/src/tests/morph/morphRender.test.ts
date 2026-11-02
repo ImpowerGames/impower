@@ -845,6 +845,35 @@ describe("a drawing's `spread` between poses", () => {
     }
   });
 
+  test("a drawing refused for its contours draws exactly what it draws without spread, so no slit is cut", () => {
+    const plain = spreadBake({});
+    for (const label of ["ringed", "cornered", "crossing"]) {
+      const spread = spreadBake({ [label]: { spread: "-1px" } });
+      expect(spread.diagnostics, label).toEqual([expect.objectContaining({ code: "spread-ignored", layer: label })]);
+      for (const progress of [0.25, 3 / 7, 0.5, 0.75]) {
+        expect(renderMorphFrame(spread, { segment: 0, progress }), `${label} ${progress}`).toBe(renderMorphFrame(plain, { segment: 0, progress }));
+      }
+    }
+  });
+
+  test("a single contour that folds over itself between stored frames keeps its mask on its unfolded frames and drops it on the folded ones", () => {
+    const artifact = spreadBake({ folding: { spread: "-1px" } });
+    expect(artifact.diagnostics).toEqual([]);
+    const draw = drawOf(artifact, "folding");
+    const mask = artifact.spreads![draw]!.mask!;
+    for (const progress of [0.2, 0.43, 0.52, 0.8]) {
+      const state = at(artifact, progress);
+      expect(state.masks.get(mask), String(progress)).toEqual({ spread: -1, d: state.geometry.get(draw) });
+      expect(state.paint.get(draw)?.["mask"], String(progress)).toBe(`url(#${mask})`);
+    }
+    for (const progress of [0.46, 0.48, 0.5]) {
+      const state = at(artifact, progress);
+      expect(state.masks.has(mask), String(progress)).toBe(false);
+      expect(state.paint.get(draw)?.["mask"], String(progress)).toBeUndefined();
+      expect(renderMorphFrame(artifact, { segment: 0, progress }), String(progress)).not.toContain(`mask:url(#${mask})`);
+    }
+  });
+
   test("an edge label's `spread` leaves the clip's opening and its reach unchanged", () => {
     const plain = bakeMorphArtifact({ source: portrait(), selection: {}, recipe: blink(), key: "edge", variant: "edge" });
     const spread = bakeMorphArtifact({ source: portrait(), selection: {}, recipe: blink({ layers: { "eyelash-left": { spread: "-1px" } } }), key: "edge", variant: "edge" });

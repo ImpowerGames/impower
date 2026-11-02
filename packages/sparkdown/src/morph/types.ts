@@ -206,6 +206,7 @@ export type MorphSpreadFill =
 export interface MorphSpreadNode {
   outline: string;
   mask?: string;
+  evenodd?: true;
   grow?: MorphSpreadFill;
 }
 

@@ -32,6 +32,7 @@ import { readEntryColor } from "./color";
 import { gradientCopy, gradientNumbers, gradientsMatch, readGradient } from "./gradient";
 import { hashText } from "./hash";
 import { own, table } from "./own";
+import { contourPoints, overlapsItself } from "./contour";
 import { effectivePaint, fillRule, paintBlend, type EffectivePaint } from "./paint";
 import { recipeAsMorph } from "./recipe";
 import { APERTURE_REACH, APERTURE_REACH_ID_SUFFIX, spreadStroke } from "./render";
@@ -191,15 +192,6 @@ const closedPathData = (subpaths: Subpath[]): string => pathData(subpaths.map((s
 
 type Cubic = Subpath["segments"][number];
 
-const cubicAt = (c: Cubic, t: number): Point => {
-  const u = 1 - t;
-  const a = u * u * u;
-  const b = 3 * u * u * t;
-  const d = 3 * u * t * t;
-  const e = t * t * t;
-  return [a * c.p0[0] + b * c.c1[0] + d * c.c2[0] + e * c.p1[0], a * c.p0[1] + b * c.c1[1] + d * c.c2[1] + e * c.p1[1]];
-};
-
 function frameSubpaths(frames: MorphFrames, values: number[]): Subpath[] {
   const out: Subpath[] = [];
   let k = 0;
@@ -220,46 +212,6 @@ function frameSubpaths(frames: MorphFrames, values: number[]): Subpath[] {
     out.push({ segments, closed: frames.closed[si] ?? true });
   });
   return out;
-}
-
-const INNER_EDGE_FRACTION = 0.01;
-
-function hasInnerEdge(subpaths: Subpath[]): boolean {
-  const polygons = subpaths
-    .map((s) => s.segments.flatMap((c) => [0, 0.25, 0.5, 0.75].map((t) => cubicAt(c, t))))
-    .filter((polygon) => polygon.length >= 3);
-  const xs = polygons.flat().map(([x]) => x);
-  const ys = polygons.flat().map(([, y]) => y);
-  const size = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
-  if (!(size > 0)) return false;
-  const eps = size * 1e-4;
-  const winding = ([x, y]: Point): number => {
-    let w = 0;
-    for (const polygon of polygons) {
-      for (let i = 0; i < polygon.length; i++) {
-        const [ax, ay] = polygon[i]!;
-        const [bx, by] = polygon[(i + 1) % polygon.length]!;
-        const side = (bx - ax) * (y - ay) - (x - ax) * (by - ay);
-        if (ay <= y) {
-          if (by > y && side > 0) w++;
-        } else if (by <= y && side < 0) w--;
-      }
-    }
-    return w;
-  };
-  let inner = 0;
-  for (const polygon of polygons) {
-    for (let i = 0; i < polygon.length; i++) {
-      const [ax, ay] = polygon[i]!;
-      const [bx, by] = polygon[(i + 1) % polygon.length]!;
-      const length = Math.hypot(bx - ax, by - ay);
-      if (length <= eps) continue;
-      const [mx, my] = [(ax + bx) / 2, (ay + by) / 2];
-      const [nx, ny] = [(-(by - ay) / length) * eps, ((bx - ax) / length) * eps];
-      if (winding([mx + nx, my + ny]) !== 0 && winding([mx - nx, my - ny]) !== 0) inner += length;
-    }
-  }
-  return inner > size * INNER_EDGE_FRACTION;
 }
 
 function loopArea(flat: number[]): number {
@@ -959,14 +911,19 @@ export function* bakeSteps(
       return ignored("is a `polyline`, whose closing edge a stroke leaves out, so it cannot be grown evenly");
     }
     if (spread < 0 && markups.some(ownMask)) return ignored("has its own `mask`, and shrinking needs a mask of its own on the drawing");
-    if (spread < 0 && !markups.every((leaf) => fillRule(doc!, leaf.element) === "evenodd")) {
+    if (spread < 0) {
       const outlines = [...ends, ...markups, ...(shown.shapes ?? [])].map((leaf) => rootGeometry(leaf)!);
       for (const ref of shown.frames ?? []) {
         const sampled = frames[ref.index]!;
         for (const values of sampled.frames) outlines.push(frameSubpaths(sampled, values));
       }
-      if (outlines.some(hasInnerEdge)) {
-        return ignored("has an edge with fill on both sides (overlapping or touching subpaths under a nonzero fill), which shrinking would cut open");
+      const contours = outlines.map((outline) => outline.filter((subpath) => subpath.segments.length > 0));
+      if (contours.some((outline) => outline.length !== 1)) {
+        return ignored("is more than one contour, and shrinking cuts along every contour's edge, even one with fill on both sides; draw each contour as a layer of its own to shrink it");
+      }
+      const evenodd = markups.every((leaf) => fillRule(doc!, leaf.element) === "evenodd");
+      if (contours.some(([contour]) => overlapsItself(contourPoints(contour!), evenodd))) {
+        return ignored("has a contour that overlaps itself with fill on both sides, which shrinking would cut open");
       }
     }
     return spread;
@@ -1723,6 +1680,7 @@ export function* bakeSteps(
   for (const [node, { grow, shrink }] of spreadNodes) {
     const leaf = markupOf.get(node)!;
     const record: MorphSpreadNode = { outline: closedPathData(localGeometry(leaf.element) ?? []) };
+    if (shrink !== undefined && fillRule(doc, leaf.element) === "evenodd") record.evenodd = true;
     if (shrink !== undefined) {
       let id = `morph-spread-${spreadSerial++}`;
       while (doc.byId.has(id)) id = `morph-spread-${spreadSerial++}`;

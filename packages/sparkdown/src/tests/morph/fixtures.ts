@@ -310,6 +310,9 @@ export function paintBlink(overrides: Record<string, unknown> = {}, states = ["o
 
 export const SPREAD_LABELS = ["flat", "blended", "sheer", "graded", "veiled", "tinted", "fader", "ghost", "stroked", "patterned", "mottled", "masked", "still"] as const;
 
+const slotted = (x: number, y: number, a: [number, number], b: [number, number]) =>
+  `M${x},${y}L${x + 4},${y}L${x + a[0]},${y + a[1]}L${x + b[0]},${y + b[1]}L${x + 6},${y}L${x + 10},${y}L${x + 10},${y + 10}L${x},${y + 10}Z`;
+
 export function spreadPortrait(): string {
   const two = (a: string, b: string, opacity = "1") =>
     `<stop offset="0" stop-color="${a}" stop-opacity="${opacity}"/><stop offset="1" stop-color="${b}" stop-opacity="${opacity}"/>`;
@@ -339,6 +342,11 @@ export function spreadPortrait(): string {
       `<path data-name="crossing" d="M${closed ? 40 : 10},${148 + dy}H${closed ? 50 : 20}V${158 + dy}H${closed ? 40 : 10}Z M${closed ? 10 : 40},${148 + dy}H${closed ? 20 : 50}V${158 + dy}H${closed ? 10 : 40}Z" fill="#264"/>`,
       `<polyline data-name="polylined" points="60,${148 + dy} 80,${148 + dy} 80,${158 + dy} 60,${158 + dy}" fill="#426"/>`,
       `<path data-name="speck" d="M115,${148 + dy}H140V${158 + dy}H115Z M120,${150 + dy}H120.04V${150.04 + dy}H120Z" fill="#462"/>`,
+      `<path data-name="ringed" d="M120,${80 + dy}H140V${100 + dy}H120Z M125,${85 + dy}H135V${95 + dy}H125Z M125,${85 + dy}H135V${95 + dy}H125Z" fill="#624" fill-rule="evenodd"/>`,
+      `<path data-name="cornered" d="M150,${80 + dy}H160V${90 + dy}H150Z M159,${89 + dy}H169V${99 + dy}H159Z" fill="#246"/>`,
+      `<path data-name="folding" d="${slotted(180, 100 + dy, closed ? [6.3, 5.1] : [7.6, 6.8], closed ? [7.9, 8.9] : [6, 3.1])}" fill="#264"/>`,
+      `<path data-name="looped" d="${slotted(150, 105 + dy, [6, 4], [4, 4])}" fill="#426"/>`,
+      `<path data-name="loopedodd" d="${slotted(165, 105 + dy, [6, 4], [4, 4])}" fill="#426" fill-rule="evenodd"/>`,
     ];
     return [...SPREAD_LABELS.flatMap((label, i) => (drawings[label] ? [`<path data-name="${label}" d="${at(i)}" ${drawings[label]}/>`] : [])), ...extra, lettered].join("\n");
   };

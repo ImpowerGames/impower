@@ -123,6 +123,7 @@ end
     const drawing = "Grows (positive) or shrinks (negative) the outline of drawings";
     expect(await hoverAt(SPREAD, "spread = 0.5px")).toEqual({ value: expect.stringContaining(drawing), marked: "spread" });
     expect(await hoverAt(SPREAD, "spread = -1px")).toEqual({ value: expect.stringContaining(drawing), marked: "spread" });
+    expect((await hoverAt(SPREAD, "spread = -1px"))?.value).toContain("shrinks only when it is a single contour that does not overlap itself; split a drawing of several contours into one layer per contour");
     expect(await hoverAt(SPREAD, "spread = 1px")).toEqual({ value: expect.stringContaining("How far this clip's opening reaches past its outline"), marked: "spread" });
   });
 });

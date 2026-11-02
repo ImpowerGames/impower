@@ -3,6 +3,7 @@ import type { Point } from "@impower/spark-morph/src/index";
 import { parse, stringify, type Node } from "../txml/txml";
 import { own, table } from "./own";
 import { blendColor, formatColor, readAlpha, readColor } from "./color";
+import { overlapsItself, pathContours } from "./contour";
 import { setStyleProperty, styleDeclaration } from "./svgDocument";
 import type {
   MorphArtifact,
@@ -458,8 +459,11 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
     const values = state.paint.get(node) ?? table<string>();
     if (amount < 0) {
       if (!record.mask) continue;
+      const d = closeSubpaths(geometry.get(node) ?? record.outline);
+      const contours = pathContours(d);
+      if (contours.length !== 1 || overlapsItself(contours[0]!, !!record.evenodd)) continue;
       values["mask"] = `url(#${record.mask})`;
-      state.masks.set(record.mask, { spread: amount, d: closeSubpaths(geometry.get(node) ?? record.outline) });
+      state.masks.set(record.mask, { spread: amount, d });
       state.paint.set(node, values);
       continue;
     }
