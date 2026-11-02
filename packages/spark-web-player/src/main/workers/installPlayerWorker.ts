@@ -432,10 +432,10 @@ export function installPlayerWorker(connection: MessageConnection) {
       point,
       beat,
       entry.log,
-      searchIn(entry, false),
+      searchIn(entry),
       compiler.profilerId,
     );
-    const outcome = showingOutcome(game, entry, to);
+    const outcome = entry.log.outcomeFor(to);
     const shown =
       outcome && !outcome.reachedTarget && !outcome.checkpoint
         ? jumpedShownRoute(game, entry, outcome)
@@ -453,31 +453,12 @@ export function installPlayerWorker(connection: MessageConnection) {
   };
 
   const searchIn =
-    (entry: DisplayableProgram, fromStart: boolean) =>
+    (entry: DisplayableProgram) =>
     (searched: Game, address: ProgramAddress) =>
       searchRouteFor(searched, address, entry.log, {
         profilerId: compiler.profilerId,
-        fromStart,
         source,
       });
-
-  const showingOutcome = (
-    game: Game,
-    entry: DisplayableProgram,
-    to: ProgramAddress | null | undefined,
-  ): RouteSearchOutcome | undefined => {
-    const outcome = entry.log.outcomeFor(to);
-    if (to == null || outcome?.shows !== false || outcome.fromStart) {
-      return outcome;
-    }
-    searchIn(entry, true)(game, to);
-    const fromStart = entry.log.outcomeFor(to);
-    if (fromStart?.reachedTarget) {
-      return fromStart;
-    }
-    entry.log.record({ ...outcome, fromStart: true });
-    return entry.log.outcomeFor(to);
-  };
 
   const jumpedShownRoute = (
     game: Game,
@@ -525,7 +506,7 @@ export function installPlayerWorker(connection: MessageConnection) {
           point,
           "last",
           entry.log,
-          searchIn(entry, false),
+          searchIn(entry),
           compiler.profilerId,
         ),
       );

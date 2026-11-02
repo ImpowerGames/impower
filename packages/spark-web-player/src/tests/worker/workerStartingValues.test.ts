@@ -40,7 +40,7 @@ describe("starting values the host sends", () => {
       await h.compile();
       await h.select(6);
       await settle(40);
-      expect(writtenText(h.toRouter)).toContain("Where were you at nine?");
+      expect(writtenText(h.toRouter)).toContain("Where were you at nil?");
 
       const sentBefore = h.toRouter.length;
       await (h.controller as any).handleSetStartingValues(

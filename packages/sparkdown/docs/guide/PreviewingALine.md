@@ -10,7 +10,7 @@ The preview's toolbar names the route it took: the scene it starts in, the scene
 interrogation (4 → 21)
 ```
 
-A route that starts in the content before any scene names the script instead (`main (1 → 21)`), and a route that ends in another script names that script (`interrogation (4 → chapter_2 : 12)`).
+A route that starts at a branch's top names the branch (`outer.visit (12 → 14)`), and a route that ends in another script names that script (`interrogation (4 → chapter_2 : 12)`).
 
 One icon before the name says how the route differs from play, the first that applies. When there is none, its place stays empty, so the name never moves:
 
@@ -28,7 +28,7 @@ When no route reaches your line, the button turns the error colour and shows a w
 The route panel opens below the toolbar, inside the preview, and the game shrinks to make room. It has two tabs, "Route to line 21" and "Starting values" (described below), and opens on the one you used last. The route tab lists, in the order the route took them:
 
 - one entry for each menu the route met, each `if` it forced and each loop it left early;
-- Target line, the line you are previewing.
+- Target line, the line you are previewing, or "Tunnel ends here, with nothing to return to in the preview" when that line is a tunnel's `->->` with nothing to return to (see Starting values below).
 
 The route button already names where the route starts.
 
@@ -79,7 +79,7 @@ A scene the story reaches late is seldom in its first state when a player gets t
 
 The tab lists what the scene of the line you are previewing can take, in four groups:
 
-- Parameters: each parameter of the scene. An unset parameter reads nil, which the tab marks with a warning.
+- Parameters: each parameter of the scene, or of the branch when the route starts at a branch's top. An unset parameter reads nil, which the tab marks with a warning.
 - Stores: every `store`, and each `store` field of a `define` by its dotted name (`define guide with store mood = 1` gives `guide.mood`). A table store lists its fields under it, and a field set on its own applies over the store's first value. A `const` cannot be set.
 - Visits, the counts before the scene starts: each scene, branch and label; each once-only option, by its text and line, with how many times it was taken; and each alternator, by its first alternative and line. Entering the scene adds one to its own count, as it does in a run, and a place given a count above zero reads as visited on the turn before the scene starts.
 - Randomization: the seed. When it is unset, the preview and Play from a line use the seed 0, so a line shows the same random results every time. Setting the seed also resets the last draw, as `math.randomseed` does.
@@ -99,7 +99,9 @@ An option's or an alternator's value is kept on its line, and follows the line a
 
 Starting values apply wherever a route starts at the top of the scene: the preview, Play from a line, which starts from the preview's route, and the suggestion preview. A Play that started in an earlier scene carries its own values into later scenes, and applies none.
 
-While none of a scene's parameters is set, a line in a scene that takes parameters is still reached from the story's start, through the divert that enters the scene with its arguments; setting any of its parameters starts the route at the top of the scene with the values you set.
+A route always starts at the top of the scene the line is in, with the scene's parameters from its starting values; an unset parameter reads nil, as it does when a divert enters the scene without arguments. A line in the start scene starts at the story's start, which is the top of that scene.
+
+A line in a branch the scene never enters, one that only a divert from elsewhere enters, starts at the top of that branch, with the branch's parameters from the branch's own starting values; the tab then lists the branch's parameters. When such a branch is entered only as a tunnel, its `->->` has nothing to return to in the preview, so it ends the run as `done` does, in the preview and in Play from a line, and the route list's last entry reads "Tunnel ends here, with nothing to return to in the preview". A `->->` that names where to go on, such as `->-> outer.last(k + 1)`, goes there.
 
 ## Saves
 

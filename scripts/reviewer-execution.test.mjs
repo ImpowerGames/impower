@@ -183,6 +183,7 @@ for (const step of [
   const fakeDirectory = path.join(scratch, "editor-argv"); fs.mkdirSync(fakeDirectory);
   const session = createEditorSession({ id: "argv", args: ["driver.mjs"], timeoutSeconds: 1 }, root, fakeDirectory, async (command) => { calls.push(command.args); return { exit: 0 }; });
   await session.run({ requestId: "argv", command: "ui", steps: playInsertScrub });
+  assert.deepEqual(calls[0], ["driver.mjs", "up", "--keep"], "the delegated editor session starts servers that the coordinator stops itself");
   assert.deepEqual(calls[1].slice(1, 9), ["ui", "--play", "start", "--insert", "2:1=a" + String.fromCharCode(92) + "nb", "--scrub", "3", "--play"]);
   const { parseUiSteps } = await import("../.agents/skills/drive-web-editor/driver.mjs");
   const slash = String.fromCharCode(92);

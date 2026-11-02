@@ -288,6 +288,27 @@ describe("the route panel's tabs", () => {
       "Target line",
     ]);
   });
+
+  test("a route whose tunnel ends at the target ends with the tunnel's entry", async () => {
+    const p = player();
+    await p.hostSends({});
+    p.report({
+      route: {
+        start: { scene: "outer.visit", location: at(12) },
+        target: at(14),
+        decisions: [],
+        valuesStart: "outer.visit",
+        tunnelEnds: true,
+      },
+    });
+    p.open();
+    await Promise.resolve();
+    await Promise.resolve();
+    const entries = [...p.routeList.querySelectorAll(".route-entry")];
+    expect(entries.at(-1)!.querySelector(".route-text")!.textContent).toBe(
+      "Tunnel ends here, with nothing to return to in the preview",
+    );
+  });
 });
 
 describe("the Starting values tab", () => {

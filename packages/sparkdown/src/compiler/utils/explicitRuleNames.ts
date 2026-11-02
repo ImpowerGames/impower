@@ -16,6 +16,7 @@ const EXPLICIT_RULE_NAMES: Partial<Record<SparkdownNodeName, SparkdownNodeName>>
   "LuauThenOperator": "LuauSparkdownExplicitThenOperator",
   "LuauElseOperator": "LuauSparkdownExplicitElseOperator",
   "LuauTernaryExpressionCondition": "LuauSparkdownExplicitTernaryExpressionCondition",
+  "LuauTernaryElseifClause": "LuauSparkdownExplicitTernaryElseifClause",
   "LuauLineContinuation": "LuauSparkdownExplicitLineContinuation",
   "LuauIndexerLineContinuation": "LuauSparkdownExplicitIndexerLineContinuation",
   "LuauTypeLiteral": "LuauSparkdownExplicitTypeLiteral",
