@@ -216,8 +216,10 @@ describe("saves made while playing", () => {
     expect(before.map(([key]) => key)).toEqual([`place:0:4:${URI}`]);
 
     recompile(compiler, game, ["", "", ...lines].join("\n"));
-    expect(game.countKeysOf(save.values.places)).toEqual({
-      [`place:0:2:${URI}`]: `place:0:4:${URI}`,
+    expect(Object.keys(JSON.parse(save.values.places!).forms)).toEqual([
+      `place:0:4:${URI}`,
+    ]);
+    expect(game.countKeysOf(save.values.places!)).toEqual({
       [`place:0:4:${URI}`]: `place:0:6:${URI}`,
     });
 
@@ -226,7 +228,7 @@ describe("saves made while playing", () => {
       game,
       ["", "", ...lines.filter((line) => !line.includes("Stay"))].join("\n"),
     );
-    expect(game.countKeysOf(save.values.places)).toEqual({
+    expect(game.countKeysOf(save.values.places!)).toEqual({
       [`place:0:4:${URI}`]: `place:0:4:${URI}`,
     });
   });

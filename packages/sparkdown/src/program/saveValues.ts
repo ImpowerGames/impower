@@ -106,8 +106,11 @@ export const readStoryValues = (
   }
   const places = new Map<string, number>();
   for (const [key, countId] of targets.counts) {
-    values[key] = String(story.state.VisitCount(countId));
-    if (key.startsWith("place:")) {
+    const visits = story.state.VisitCount(countId);
+    if (!key.startsWith("place:")) {
+      values[key] = String(visits);
+    } else if (visits > 0) {
+      values[key] = String(visits);
       places.set(key, countId);
     }
   }

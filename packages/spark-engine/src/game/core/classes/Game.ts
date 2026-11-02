@@ -2526,7 +2526,7 @@ export class Game<T extends M = {}> {
     return this.loadProgramSave(this._story, saveJSON);
   }
 
-  saveHere(): GameSave | null {
+  saveHere(values?: SaveValues): GameSave | null {
     const scene = this._sceneTracker.current;
     const location = this.getLastExecutedDocumentLocation();
     if (!scene || !location) {
@@ -2551,7 +2551,7 @@ export class Game<T extends M = {}> {
       scene,
       uri: location.uri,
       line: location.range.start.line,
-      values: readStoryValues(this._story, this.startingValueSource()),
+      values: values ?? readStoryValues(this._story, this.startingValueSource()),
     };
   }
 
@@ -2569,10 +2569,7 @@ export class Game<T extends M = {}> {
     if (due === null || this._sceneTracker.current !== due) {
       return;
     }
-    const save = this.saveHere();
-    if (save && entered) {
-      save.values = entered;
-    }
+    const save = this.saveHere(entered);
     if (save) {
       this.connection.emit(GameSavedSceneEntryMessage.type.notification({ save }));
     }
