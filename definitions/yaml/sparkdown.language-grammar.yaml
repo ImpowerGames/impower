@@ -632,7 +632,7 @@ variables:
   STRUCT_BLOCK_PROPERTY_KEY: (?:\[[^\]\n]*\]|[$]?(?:{{INTEGER}}|{{IDENTIFIER_START}}{{IDENTIFIER_END}}(?<![-])|{{QUOTED_STRING}}))
   STRUCT_BLOCK_PROPERTY_HEAD: (?:{{STRUCT_BLOCK_PROPERTY_KEY}}{{ASSIGN_EQUAL_OPERATOR}})
   STRUCT_BLOCK_BAIL: (?:{{BEAT}}|^{{END}})
-  STRUCT_DECLARATION_LINE: (?:^{{LUAU_FILE_SPARKDOWN_WORDS}}{{WS}}+{{LUAU_STRUCTURE_NAME}})
+  STRUCT_DECLARATION_LINE: (?:^{{LUAU_FILE_SPARKDOWN_WORDS}}{{WS}}+{{LUAU_STRUCTURE_NAME_AHEAD}})
   STRUCT_KEYWORD_BODY_BAIL: (?:{{STRUCT_BLOCK_BAIL}}|{{STRUCT_DECLARATION_LINE}})
   # lookaround: LuauStructBraceBody and LuauSparkleBraceBody take a `{` that opens the line after a header written without `with`, and the keyword rule's end takes a beat, an `end` line or the next declaration. A body that opened at the header's line break would hold that line before any of them could claim it, so it opens on the first line none of them claims.
   STRUCT_WITHOUT_WITH_LINE: ^(?!{{WS}}*(?:[{]|$))(?!{{STRUCT_KEYWORD_BODY_BAIL}})

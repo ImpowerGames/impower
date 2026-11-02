@@ -253,6 +253,35 @@ describe("an unclosed brace body", () => {
     expect(context?.theme?.open?.color).toBe("red");
   });
 
+  test("stops before a declaration whose header carries a block comment", () => {
+    for (const comment of ["--[[ note ]]", "--[=[ note ]=]"]) {
+      const commented = [
+        "style broken {",
+        "  color = red",
+        "",
+        `style ${comment} after {`,
+        "  corner = 8px",
+        "}",
+        "",
+        "layout list {",
+        '  row { text "a" }',
+        "",
+        `component ${comment} chip {`,
+        '  text "b"',
+        "}",
+        SCENE,
+      ].join("\n");
+      const missing = errors(commented).filter((e) =>
+        e.message.includes("missing its closing `}`"),
+      );
+      expect(missing.map((e) => e.startLine), comment).toEqual([0, 7]);
+      const context = compile(commented).program.context as any;
+      expect(context?.style?.after?.corner, comment).toBe("8px");
+      expect(context?.style?.broken?.color, comment).toBe("red");
+      expect(context?.component?.chip, comment).toBeDefined();
+    }
+  });
+
   test("an `end` does not close it", () => {
     const missing = errors(`style s {\n  color = red\nend\n${SCENE}`).filter((e) =>
       e.message.includes("missing its closing `}`"),

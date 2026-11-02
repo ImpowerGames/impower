@@ -15,6 +15,13 @@ component chip {
 
 theme open { color = red
 
+screen --[[ note ]] menu {}
+
+style unfinished {
+  corner = 2px
+
+morph --[=[ note ]=] blink {}
+
 scene start
   Hi.
 end
