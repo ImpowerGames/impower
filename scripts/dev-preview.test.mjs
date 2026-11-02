@@ -196,21 +196,69 @@ fs.writeFileSync(ptyScript, [
 ].join("\n"));
 
 try {
-  const delayedStartup = async (established = "", { processes = [{ pid: 100, ppid: 50, start: "10" }, { pid: 123, ppid: 100, start: "20" }], processError = false, connectionError = false, stops = true } = {}) => {
+  await check("Linux shutdown ignores an unreadable stranger and retains only usable tracked start identities", () => {
+    const source = fs.readFileSync(launcher, "utf8");
+    const code = source.slice(source.indexOf("let shuttingDown = false;"), source.indexOf('process.on("SIGINT"'));
+    let reparented = false;
+    const io = {
+      readdirSync: () => ["100", "101", "102", "103", "933"],
+      statSync: (file) => ({ uid: file === "/proc/933" ? 20 : 10 }),
+      readFileSync: (file) => {
+        const pid = Number(file.split("/")[2]);
+        if (pid === 933) throw Object.assign(new Error("protected stranger"), { code: "EACCES" });
+        const fields = Array(20).fill("0");
+        fields[0] = "S";
+        fields[1] = String(pid === 100 || (pid === 103 && reparented) ? 1 : pid === 103 ? 101 : 100);
+        fields[2] = fields[3] = String(pid === 103 && reparented ? 103 : 100);
+        fields[19] = String((pid - 99) * 10);
+        return `${pid} (fixture) ${fields.join(" ")}`;
+      },
+    };
+    const signals = [];
+    const timers = [];
+    const exits = [];
+    const context = {
+      linuxProcesses: () => linuxProcesses({ io, uid: 10 }),
+      children: [], IS_WIN: false,
+      process: { pid: 100, platform: "linux", kill: (pid, signal) => { signals.push([pid, signal]); if (pid === 933) throw Object.assign(new Error("protected stranger"), { code: "EPERM" }); }, exit: (code) => exits.push(code) },
+      setTimeout: (fn, delay) => timers.push({ fn, delay }),
+    };
+    vm.runInNewContext(code, context);
+    assert.doesNotThrow(() => context.shutdown(0), "an unreadable foreign process must not abort owned-server cleanup");
+    assert.deepEqual(signals, [[103, "SIGTERM"], [102, "SIGTERM"], [101, "SIGTERM"]]);
+    assert.equal(timers.length, 1);
+    assert.equal(timers[0].delay, 500);
+    reparented = true;
+    assert.equal(context.linuxTree(new Map([[933, undefined]])).some((row) => row.pid === 933), false);
+    assert.equal(context.linuxTree(new Map([[103, "39"]])).some((row) => row.pid === 103), false, "a reused tracked PID must not retain ownership");
+    timers[0].fn();
+    assert.deepEqual(signals.slice(3), [[103, "SIGKILL"], [102, "SIGKILL"], [101, "SIGKILL"]]);
+    assert.deepEqual(exits, [0]);
+  });
+  const delayedStartup = async (established = "", { processes = [{ pid: 100, ppid: 50, start: "10" }, { pid: 123, ppid: 100, start: "20" }], processError = false, connectionError = false, reusedDuringCensus = false, stops = true } = {}) => {
     let now = 0;
     let output = "";
     const exits = [];
     const timers = [];
+    let lastProcessRead = -1;
     const code = fs.readFileSync(launcher, "utf8").replace(/^import .*;\r?\n/gm, "").replace(/main\(\)\.catch\([\s\S]*$/, "main();").replaceAll("import.meta.url", '"file:///fixture/scripts/dev-preview.mjs"');
     vm.runInNewContext(code, {
       Buffer,
       join: path.join, dirname: path.dirname, fileURLToPath: () => launcher,
       process: { pid: 100, platform: "win32", argv: ["node", "launcher", "--idle-exit-seconds", "900"], env: { EDITOR_PORT: "4000", PLAYER_PORT: "4001", HMR_PORT: "4002" }, stdout: { write: (text) => { output += text; } }, stderr: { write: () => {} }, on: () => {}, exit: (code) => exits.push(code) },
       treeSurvivors,
-      windowsProcessTable: async () => { if (processError) throw new Error("process census unavailable"); return processes; },
+      windowsProcessTable: async () => {
+        if (processError) throw new Error("process census unavailable");
+        const afterConnectionRead = lastProcessRead === now;
+        lastProcessRead = now;
+        return reusedDuringCensus ? [...processes, { pid: 456, ppid: now >= 1_140_000 && afterConnectionRead ? 50 : 100, start: now >= 1_140_000 && afterConnectionRead ? "30" : "20" }] : processes;
+      },
       spawnSync: () => ({ status: 0, stdout: "" }),
       spawn: () => ({ pid: 123, on: () => {}, kill: () => {}, stdout: null, stderr: null }),
-      execFile: (command, args, options, done) => done(connectionError ? new Error("connection census unavailable") : null, "TCP 127.0.0.1:4000 0.0.0.0:0 LISTENING 123" + established),
+      execFile: (command, args, options, done) => {
+        const active = reusedDuringCensus && now >= 1_140_000 ? "\nTCP 127.0.0.1:5000 127.0.0.1:4000 ESTABLISHED 456" : established;
+        done(connectionError ? new Error("connection census unavailable") : null, "TCP 127.0.0.1:4000 0.0.0.0:0 LISTENING 123" + active);
+      },
       fetch: async () => { if (now < 240_000) throw new Error("still building"); return {}; },
       Date: { now: () => now },
       setTimeout: (fn, delay) => { timers.push({ at: now + delay, fn }); },
@@ -228,6 +276,7 @@ try {
   };
   await check("a build ready after four minutes still acquires its idle watchdog", () => delayedStartup());
   await check("an unrelated outbound source-port collision does not keep an idle launcher running", () => delayedStartup("\nTCP 10.0.0.1:4000 203.0.113.1:443 ESTABLISHED 456"));
+  await check("PID reuse between process and connection observations cannot hide a new external client at the idle boundary", () => delayedStartup("", { reusedDuringCensus: true, stops: false }));
   await check("failed process or connection inspection suspends idle shutdown", async () => {
     await delayedStartup("", { processError: true, stops: false });
     await delayedStartup("", { connectionError: true, stops: false });

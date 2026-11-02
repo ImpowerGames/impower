@@ -73,7 +73,8 @@ function spawnServer(label, cwd, args, env) {
 let shuttingDown = false;
 function linuxTree(known = new Map()) {
   const rows = linuxProcesses();
-  const owned = new Set([process.pid, ...rows.filter((row) => known.get(row.pid) === row.start).map((row) => row.pid)]);
+  const retained = rows.filter((row) => known.has(row.pid) && /^\d+$/.test(row.start ?? "") && known.get(row.pid) === row.start);
+  const owned = new Set([process.pid, ...retained.map((row) => row.pid)]);
   let changed;
   do {
     changed = false;
@@ -246,10 +247,15 @@ async function readOwnedProcesses() {
       ? linuxProcesses().map((row) => ({ ...row, ppid: row.parent })) : [];
     const owned = treeSurvivors(rows, rows, process.pid);
     if (!owned?.length || owned.some((row) => !/^\d+$/.test(row.start ?? ""))) return null;
-    return new Set(owned.map((row) => row.pid));
+    return new Map(owned.map((row) => [row.pid, row.start]));
   } catch {
     return null;
   }
+}
+
+function stableOwnership(before, after) {
+  if (!before || !after) return null;
+  return new Set([...before].filter(([pid, start]) => after.get(pid) === start).map(([pid]) => pid));
 }
 
 function clientConnections(table, ports, owned) {
@@ -270,8 +276,9 @@ function stopWhenIdle(seconds, ports) {
   let censusFailed = false;
   const poll = async () => {
     if (shuttingDown) return;
-    const owned = await readOwnedProcesses();
+    const before = await readOwnedProcesses();
     const table = await readConnections();
+    const owned = stableOwnership(before, await readOwnedProcesses());
     const clients = table === null ? null : clientConnections(table, ports, owned);
     if (clients === null) {
       if (!censusFailed) process.stdout.write(`\n  ! Idle exit suspended: the process/connection census (${CENSUS ? CENSUS.command : process.platform}) cannot establish the servers' ownership and connections.\n\n`);
