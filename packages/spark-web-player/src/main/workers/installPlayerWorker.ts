@@ -63,6 +63,9 @@ import {
   type StopPlayResult,
 } from "./messages/StopPlayMessage";
 import { LastRunMessage } from "./messages/LastRunMessage";
+import { EditSaveMessage } from "./messages/EditSaveMessage";
+import { SaveHereMessage } from "./messages/SaveHereMessage";
+import { SaveRefusalsMessage } from "./messages/SaveRefusalsMessage";
 import { putAtStartPoint } from "./putAtStartPoint";
 import { planRouteForSelection, routeGameTo } from "./planRouteForSelection";
 import {
@@ -80,6 +83,8 @@ interface DisplayableProgram {
 }
 
 type StartPoint = { file: string; line: number; address?: ProgramAddress };
+
+const PLAY_SAVES = { saveHistory: 1, savesSceneEntries: true };
 
 export function installPlayerWorker(connection: MessageConnection) {
   const player = {
@@ -677,6 +682,9 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (game.program !== entry.program) {
       updateGameProgram(game, entry.program);
     }
+    if (params.save !== undefined) {
+      return playSave(game, program, params.save);
+    }
     const start = params.startFrom
       ? startPoint(program, params.startFrom, "first")
       : undefined;
@@ -690,6 +698,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       program,
       startFrom: params.startFrom,
       restarted: params.restarted,
+      ...PLAY_SAVES,
     });
     running.setRoutePins(routePins);
     profile("end", compiler.profilerId + " " + "play/create");
@@ -712,22 +721,44 @@ export function installPlayerWorker(connection: MessageConnection) {
       },
       compiler.profilerId,
     );
-    gameState.running = running;
-    let stop!: () => void;
-    const stopped = new Promise<void>((resolve) => (stop = resolve));
-    current = {
-      run: ++runs,
-      game: running,
-      prefix: route.menus ?? [],
-      stopped,
-      stop,
-    };
     return {
       built: true,
       compiled: isRunnableProgram(program),
-      run: current.run,
+      run: beginRun(running, route.menus ?? []),
       errors,
     };
+  };
+
+  const beginRun = (running: Game, prefix: RunMenu[]): number => {
+    gameState.running = running;
+    let stop!: () => void;
+    const stopped = new Promise<void>((resolve) => (stop = resolve));
+    const run = ++runs;
+    current = { run, game: running, prefix, stopped, stop };
+    return run;
+  };
+
+  const playSave = (
+    game: Game,
+    program: SparkProgram,
+    save: string,
+  ): PlayResult => {
+    const compiled = isRunnableProgram(program);
+    const refusal = game.saveRefusal(save);
+    if (refusal) {
+      return { built: true, compiled, refusal };
+    }
+    lastRun = [];
+    releaseUnneeded();
+    const running = gameState.createGame({
+      program,
+      ...PLAY_SAVES,
+    });
+    if (!running.loadToResume(save)) {
+      running.destroy();
+      return { built: true, compiled, refusal: "The save could not be loaded." };
+    }
+    return { built: true, compiled, run: beginRun(running, []), errors: [] };
   };
 
   const startPoint = (
@@ -896,6 +927,39 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     if (StopPlayMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => stopPlay(message.params));
+      return;
+    }
+    if (SaveHereMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => ({
+        save: runningAs(message.params.run).game.saveHere(),
+      }));
+      return;
+    }
+    if (SaveRefusalsMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => {
+        const game = gameState.game;
+        if (!game) {
+          throw new NoGameError();
+        }
+        const refusals: Record<string, string> = {};
+        for (const { id, data } of message.params.saves) {
+          const refusal = game.saveRefusal(data);
+          if (refusal) {
+            refusals[id] = refusal;
+          }
+        }
+        return { refusals };
+      });
+      return;
+    }
+    if (EditSaveMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => {
+        const game = gameState.game;
+        if (!game) {
+          throw new NoGameError();
+        }
+        return game.editSave(message.params.data, message.params.changes);
+      });
       return;
     }
     if (SetRoutePinsMessage.type.isRequest(message)) {

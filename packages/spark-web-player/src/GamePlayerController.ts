@@ -120,11 +120,15 @@ import { SetGameStartingValuesMessage } from "@impower/spark-engine/src/game/cor
 import { GetGameStartingValueListingMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameStartingValueListingMessage";
 import {
   listingItems,
+  ownEntry,
   startingValuesFrom,
   type StartingValueListing,
   type StartingValues,
+  type StartingValueSet,
 } from "@impower/sparkdown/src/program/startingValueLiterals";
+import { saveStartingValues } from "@impower/sparkdown/src/program/saveValueSet";
 import { START_FLOW_NAME } from "@impower/sparkdown/src/program/ProgramSymbols";
+import { GameSavedSceneEntryMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSavedSceneEntryMessage";
 import type { RouteTab } from "./route/startingValuesView";
 import {
   answered,
@@ -134,10 +138,13 @@ import {
   fieldsView,
   hostSent,
   resetAll,
+  shownValues,
   startChanged,
   type StartingValuesFields,
 } from "./route/startingValuesFields";
 import type { StartingValuesEvents } from "./route/StartingValuesViews";
+import { SavesController } from "./saves/SavesController";
+import { renderSavesViews } from "./saves/renderSavesViews";
 
 const COMMON_ASPECT_RATIOS = [
   [16, 9],
@@ -222,6 +229,7 @@ interface WorkerPlay {
   startSent?: boolean;
   finished?: boolean;
   exitClaimed?: boolean;
+  save?: string;
 }
 
 export interface GamePlayerRefs {
@@ -247,6 +255,9 @@ export interface GamePlayerRefs {
   completionStatus?: HTMLElement | null;
   routeButton?: HTMLElement | null;
   routeList?: HTMLElement | null;
+  savesButton?: HTMLElement | null;
+  savesMenu?: HTMLElement | null;
+  saveNote?: HTMLElement | null;
 }
 
 export class GamePlayerController {
@@ -285,6 +296,32 @@ export class GamePlayerController {
 
   protected _valuesSearch = "";
   protected _listing?: { key: string; listing?: StartingValueListing };
+
+  protected _saves = new SavesController({
+    requestHost: (type, params) => this.requestHost(type, params),
+    askWorker: (type, params) => this.askWorkerGame(type, params),
+    playing: () => this._workerPlay?.state === "running",
+    canPlace: () => this._program != null,
+    run: () => this._workerPlay?.run,
+    playFromSave: (data) => this.playFromSave(data),
+    listing: (start) => this.listingFor(start),
+    changed: () => {
+      this.renderSaves();
+      this.renderRoute();
+    },
+  });
+
+  protected _loadSaveOpen = false;
+
+  protected _loaded?: {
+    start: string;
+    name: string;
+    before: StartingValueSet;
+    after: StartingValueSet;
+    failed?: boolean;
+  };
+
+  protected _playSave?: string;
   _previewUpdates = 0;
 
   protected _runtimeRun?: RuntimeDiagnosticsRun;
@@ -445,6 +482,10 @@ export class GamePlayerController {
     this._gameResizeObserver = new ResizeObserver(this.handleResize);
     this._gameResizeObserver.observe(this.refs.game);
     this.updateSizeAndAspectRatioDisplay();
+    window.addEventListener("pointerdown", this.handleSavesPointerDown, true);
+    window.addEventListener("keydown", this.handleSavesKeyDown, true);
+    this.renderSaves();
+    void this._saves.load();
     sendProtocolMessage(
       ConnectedPreviewMessage.type.notification({ type: "game" }),
       this.host,
@@ -460,7 +501,11 @@ export class GamePlayerController {
     this._disposed = true;
     this._stops += 1;
     window.removeEventListener("keydown", this.handleRouteKeyDown, true);
+    window.removeEventListener("pointerdown", this.handleSavesPointerDown, true);
+    window.removeEventListener("keydown", this.handleSavesKeyDown, true);
     renderRouteViews(this.routeViewTargets(), null);
+    renderSavesViews(this.savesTargets(), null);
+    this._saves.dispose();
     this._previewPosition = null;
     this._selectionVersion++;
     this._launchState = null;
@@ -795,7 +840,10 @@ export class GamePlayerController {
     if (this._valuesShownStart !== start) {
       this._valuesShownStart = start;
       this._valueFields = startChanged(this._valueFields, start);
+      this._loaded = undefined;
+      this._loadSaveOpen = false;
     }
+    const loaded = this._loaded;
     const values =
       this._valueFields.kept && start !== undefined
         ? {
@@ -806,6 +854,15 @@ export class GamePlayerController {
                 ? this._listing.listing
                 : undefined,
             search: this._valuesSearch,
+            ...(loaded
+              ? {
+                  loaded: {
+                    count: Object.keys(loaded.after).length,
+                    name: loaded.name,
+                    ...(loaded.failed ? { failed: true } : {}),
+                  },
+                }
+              : {}),
           }
         : undefined;
     this._routeState = { ...this._routeState, values };
@@ -820,7 +877,21 @@ export class GamePlayerController {
       onToggle: this.handleRouteToggle,
       onShowLine: this.handleRouteShowLine,
       onTab: this.handleRouteTab,
-      values: values ? this.valuesEvents : undefined,
+      values: values
+        ? {
+            ...this.valuesEvents,
+            onUndoLoad: this.undoLoad,
+            load: {
+              saves: this._saves.rows(),
+              open: this._loadSaveOpen,
+              onOpen: (open) => {
+                this._loadSaveOpen = open;
+                this.renderRoute();
+              },
+              onPick: (id) => void this.loadSave(id),
+            },
+          }
+        : undefined,
       onChangePins: this.handleRouteChangePins,
       onPinLastRun: this.handleRoutePinLastRun,
     });
@@ -860,8 +931,14 @@ export class GamePlayerController {
   }
 
   protected valuesEvents: StartingValuesEvents = {
-    onSet: (key, value) => void this.changeValues({ [key]: value }),
-    onClear: (key) => void this.changeValues({ [key]: null }),
+    onSet: (key, value) => {
+      this._loaded = undefined;
+      void this.changeValues({ [key]: value });
+    },
+    onClear: (key) => {
+      this._loaded = undefined;
+      void this.changeValues({ [key]: null });
+    },
     onDraft: (key, text) => {
       const start = this.valuesStart();
       if (start !== undefined) {
@@ -876,6 +953,7 @@ export class GamePlayerController {
       }
       const reset = resetAll(this._valueFields, start);
       this._valueFields = reset.state;
+      this._loaded = undefined;
       this.renderRoute();
       if (Object.keys(reset.changes).length > 0) {
         void this.changeValues(reset.changes);
@@ -891,10 +969,12 @@ export class GamePlayerController {
     listingItems(this._listing?.listing).find((item) => item.key === key)
       ?.first;
 
-  protected async changeValues(changes: Record<string, string | null>) {
+  protected async changeValues(
+    changes: Record<string, string | null>,
+  ): Promise<boolean> {
     const start = this.valuesStart();
     if (start === undefined || !this._valueFields.kept) {
-      return;
+      return false;
     }
     const change = changed(this._valueFields, start, changes);
     this._valueFields = change.state;
@@ -913,6 +993,151 @@ export class GamePlayerController {
     if (saved && this._valueFields.kept) {
       await this.applyStartingValues(this._valueFields.kept);
     }
+    return saved;
+  }
+
+  protected async listingFor(
+    start: string,
+  ): Promise<StartingValueListing | undefined> {
+    if (this._listing?.listing?.start === start) {
+      return this._listing.listing;
+    }
+    try {
+      return (
+        await this.askWorkerGame(GetGameStartingValueListingMessage.type, {
+          start,
+        })
+      )?.listing;
+    } catch {
+      return undefined;
+    }
+  }
+
+  protected async loadSave(id: string) {
+    this._loadSaveOpen = false;
+    const start = this.valuesStart();
+    const record = this._saves.record(id);
+    if (start === undefined || !record || !this._valueFields.kept) {
+      this.renderRoute();
+      return;
+    }
+    const listing = await this.listingFor(start);
+    if (!listing || this.valuesStart() !== start) {
+      this.renderRoute();
+      return;
+    }
+    const before = {
+      ...ownEntry(shownValues(this._valueFields), start),
+    };
+    const after = saveStartingValues(record.values, listing);
+    const changes: Record<string, string | null> = {
+      ...Object.fromEntries(Object.keys(before).map((key) => [key, null])),
+      ...after,
+    };
+    this._loaded = { start, name: record.name, before, after };
+    const loaded = this._loaded;
+    const saved = await this.changeValues(changes);
+    if (this._loaded === loaded && !saved) {
+      this._loaded = { ...loaded, failed: true };
+      this.renderRoute();
+    }
+  }
+
+  protected undoLoad = () => {
+    const loaded = this._loaded;
+    this._loaded = undefined;
+    if (!loaded || loaded.failed || this.valuesStart() !== loaded.start) {
+      this.renderRoute();
+      return;
+    }
+    void this.changeValues({
+      ...Object.fromEntries(Object.keys(loaded.after).map((key) => [key, null])),
+      ...loaded.before,
+    });
+  };
+
+  protected savesTargets() {
+    return {
+      button: this.refs.savesButton ?? null,
+      menu: this.refs.savesMenu ?? null,
+      note: this.refs.saveNote ?? null,
+    };
+  }
+
+  protected renderSaves() {
+    if (this._disposed) {
+      return;
+    }
+    renderSavesViews(this.savesTargets(), {
+      state: this._saves.viewState(),
+      note: this._saves.note(),
+      events: this._saves.events,
+    });
+  }
+
+  protected handleSavesPointerDown = (e: PointerEvent) => {
+    const target = e.target as Node | null;
+    const inside = (element: HTMLElement | null | undefined) =>
+      !!element && !!target && element.contains(target);
+    if (
+      this._saves.open &&
+      !inside(this.refs.savesMenu) &&
+      !inside(this.refs.savesButton)
+    ) {
+      this._saves.events.onOpen(false);
+    }
+    if (
+      this._loadSaveOpen &&
+      !(target instanceof Element && target.closest(".sv-load"))
+    ) {
+      this._loadSaveOpen = false;
+      this.renderRoute();
+    }
+  };
+
+  protected handleSavesKeyDown = (e: KeyboardEvent) => {
+    if (e.key !== "Escape") {
+      return;
+    }
+    if (this._loadSaveOpen) {
+      e.stopImmediatePropagation();
+      this._loadSaveOpen = false;
+      this.renderRoute();
+      return;
+    }
+    if (this._saves.open) {
+      const view = this._saves.viewState();
+      const key = (e.target as Element | null)
+        ?.closest?.(".saves-value-row")
+        ?.getAttribute("data-key");
+      if (view.renaming || (key && view.values?.drafts[key] !== undefined)) {
+        return;
+      }
+      e.stopImmediatePropagation();
+      if (view.values) {
+        this._saves.events.onBack();
+      } else {
+        this._saves.events.onOpen(false);
+      }
+    }
+  };
+
+  protected async playFromSave(data: string) {
+    await this.ensureAudioContext();
+    if (this._disposed) {
+      return;
+    }
+    if (this.playing) {
+      await this.destroyGameAndApp();
+    }
+    this._playSave = data;
+    const plays = this._plays + 1;
+    await this.startPlay();
+    if (plays !== this._plays || !this._mounted || !this.playing) {
+      return;
+    }
+    this.hidePlayButton();
+    sendProtocolMessage(GameStartedMessage.type.notification({}), this.host);
   }
 
   protected handleRouteTab = (tab: RouteTab) => {
@@ -1774,6 +1999,9 @@ export class GamePlayerController {
   };
 
   protected handleStartGame = async (message: StartGameMessage.Request) => {
+    if (this._workerPlay?.save !== undefined) {
+      return StartGameMessage.type.response(message.id, { success: true });
+    }
     const hid = !this._playRefusal;
     if (hid) {
       this.hidePlayButton();
@@ -2296,6 +2524,7 @@ export class GamePlayerController {
           }
         }
       }
+      void this._saves.checkPlaceable();
       this.updateLaunchStateIcon();
       if (isInitialProgram) {
         this._resolveLoadingInitialProgram();
@@ -2390,7 +2619,14 @@ export class GamePlayerController {
     restarted?: boolean,
     refused?: { refusal?: string },
   ): Promise<boolean> {
-    const play: WorkerPlay = { program, state: "starting", stepped: 0 };
+    const save = this._playSave;
+    this._playSave = undefined;
+    const play: WorkerPlay = {
+      program,
+      state: "starting",
+      stepped: 0,
+      ...(save !== undefined ? { save } : {}),
+    };
     this._workerPlay = play;
     this._routeState = { ...this._routeState, lastRun: undefined };
     const current = () => this._workerPlay === play;
@@ -2421,8 +2657,18 @@ export class GamePlayerController {
         program: programIdentity(program)!,
         startFrom: this._options?.startFrom ?? undefined,
         restarted,
+        ...(save !== undefined ? { save } : {}),
       });
       play.run = built.run;
+      if (built.refusal) {
+        if (current()) {
+          this._workerPlay = undefined;
+          if (refused) {
+            refused.refusal = built.refusal;
+          }
+        }
+        return false;
+      }
       if (!built.built) {
         console.error("The worker no longer holds the program to play");
         if (current()) {
@@ -2433,6 +2679,7 @@ export class GamePlayerController {
       if (!current()) {
         return abandon();
       }
+      void this._saves.playStarted();
       link.detach();
       this.beginRuntimeRun(program, play, built.errors ?? []);
       stopListening = this.listenToWorker(
@@ -2528,6 +2775,7 @@ export class GamePlayerController {
         app.start();
       }
       this.updateLaunchStateIcon();
+      this.renderSaves();
       return built.compiled === true;
     } catch (e) {
       reportUnlessRestarted(e);
@@ -2554,6 +2802,7 @@ export class GamePlayerController {
     if (play.state === "starting") {
       this._startingPlay = false;
     }
+    this.renderSaves();
     this._stopListeningToPlay?.();
     this._stopListeningToPlay = undefined;
     const link = workspace?.gameLink;
@@ -2748,10 +2997,12 @@ export class GamePlayerController {
   protected async restartPlay(): Promise<PlayOutcome> {
     const stops = this._stops;
     const plays = this._plays;
+    const save = this._workerPlay?.save;
     await this.destroyGameAndApp();
     if (stops !== this._stops || plays !== this._plays || !this._mounted) {
       return { started: false };
     }
+    this._playSave = save;
     const restarted = plays + 1;
     const outcome = await this.startPlay(true);
     if (
@@ -2993,6 +3244,17 @@ export class GamePlayerController {
             GameClickedToContinueMessage.type.notification(msg.params),
             this.host,
           );
+        }
+      },
+    );
+    game.connection.outgoing.addListener(
+      GameSavedSceneEntryMessage.method,
+      (msg) => {
+        if (
+          GameSavedSceneEntryMessage.type.isNotification(msg) &&
+          owner === this._workerPlay
+        ) {
+          this._saves.sceneEntered(msg.params.save).catch(() => {});
         }
       },
     );

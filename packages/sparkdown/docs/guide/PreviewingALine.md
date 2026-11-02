@@ -101,6 +101,24 @@ Starting values apply wherever a route starts at the top of the scene: the previ
 
 While none of a scene's parameters is set, a line in a scene that takes parameters is still reached from the story's start, through the divert that enters the scene with its arguments; setting any of its parameters starts the route at the top of the scene with the values you set.
 
+## Saves
+
+A save holds a moment of a Play: where the story stands, every value it holds and what is on screen. The Saves button in the player's toolbar opens the Saves menu. Saves are kept for you in this project, and are never written into the project's files.
+
+- Save here, first in the menu, saves the game where it stands while you play, named after its scene and line, such as `interrogation, line 11`. A note over the game says what it was saved as and offers Rename. Save here is off while you preview, so the menu keeps its shape when Play starts or stops.
+- Last run holds one save for each scene the last Play entered, such as `Entering interrogation`, taken at the first line the scene shows. The next Play replaces them.
+- Saved lists the saves you made with Save here.
+
+Each row has Play from here, and a menu of Edit values, Rename and Delete. With no saves, the menu reads "No saves yet".
+
+Play from here plays on from the save's line with what was on screen, with the save's own values and seed. Starting values and pins do not apply to it.
+
+Edit values shows the save's values in the menu's place: its stores, visits and seed, as the Starting values tab lists them, and under "Locals at line N" the locals and parameters of every call open where the save was made. A row is marked when its value differs from its first value, and the line at the foot counts them. A changed value is written into the save, which keeps its line and what was on screen. The back arrow or Escape returns to the list.
+
+When the line a save was made on is deleted, the row says "Its line is gone" and Play from here is off. Its values can still be read and loaded, since they are kept by name.
+
+Load a save, at the foot of the Starting values tab, replaces the scene's starting values with a save's: its stores, its visit counts and its seed, and the scene's parameters when the save was made in that scene. A value equal to its first value stays unset, and the save's own entry into the scene is not counted as a visit before it starts. The line at the tab's foot says how many values were loaded and from which save, with Undo to put back the values before. Editing the save later leaves the scene's values as they are. With no saves, Load a save is off.
+
 ## An example
 
 ```sparkdown

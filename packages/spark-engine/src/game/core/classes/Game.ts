@@ -18,6 +18,8 @@ import type { ProgramStoryState } from "@impower/sparkdown/src/program/ProgramSt
 import {
   durableAddress,
   placeDurableAddress,
+  placesStatement,
+  statementSave,
 } from "@impower/sparkdown/src/program/ProgramSave";
 import { chunkOfAddress } from "@impower/sparkdown/src/program/ProgramChunk";
 import { START_FLOW_NAME } from "@impower/sparkdown/src/program/ProgramSymbols";
@@ -56,8 +58,14 @@ import {
 import {
   ownEntry,
   type StartingValueListing,
+  type StartingValueSet,
   type StartingValues,
 } from "@impower/sparkdown/src/program/startingValueLiterals";
+import {
+  applySaveValueChanges,
+  readStoryValues,
+} from "@impower/sparkdown/src/program/saveValues";
+import type { SaveValues } from "@impower/sparkdown/src/program/saveValueSet";
 import {
   pinnedNotOffered,
   pinnedOptionsOf,
@@ -103,6 +111,7 @@ import type { InstanceMap } from "../types/InstanceMap";
 import type { Instructions } from "../types/Instructions";
 import type { RouteResumption } from "../types/RouteResumption";
 import { SceneTracker } from "./SceneTracker";
+import type { GameSave } from "../types/GameSave";
 import type { SaveData } from "../types/SaveData";
 import type { ScriptLocation } from "../types/ScriptLocation";
 import type { StackFrame } from "../types/StackFrame";
@@ -141,6 +150,7 @@ import { GameExitedThreadMessage } from "./messages/GameExitedThreadMessage";
 import { GameFinishedMessage } from "./messages/GameFinishedMessage";
 import { GameHitBreakpointMessage } from "./messages/GameHitBreakpointMessage";
 import { GamePreviewedMessage } from "./messages/GamePreviewedMessage";
+import { GameSavedSceneEntryMessage } from "./messages/GameSavedSceneEntryMessage";
 import { GameStartedMessage } from "./messages/GameStartedMessage";
 import { GameStartedThreadMessage } from "./messages/GameStartedThreadMessage";
 import { GameSteppedMessage } from "./messages/GameSteppedMessage";
@@ -308,6 +318,14 @@ export class Game<T extends M = {}> {
   protected _executingLocation: ScriptLocation | null = null;
 
   protected _awaiting: ScriptLocation | null = null;
+
+  protected _shownBeatOnScreen?: Instructions;
+
+  protected _sceneSaveDue: string | null = null;
+
+  protected _resumeShown?: Instructions | null;
+
+  protected _savesSceneEntries = false;
 
   protected _runtimeErrorsReported = 0;
   get runtimeErrorsReported() {
@@ -617,6 +635,7 @@ export class Game<T extends M = {}> {
 
     this.updateBreakpointsMap(options?.breakpoints ?? []);
     this._startingValues = options?.startingValues ?? {};
+    this._savesSceneEntries = options?.savesSceneEntries ?? false;
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
     this.updateDataBreakpointsMap(options?.dataBreakpoints ?? []);
 
@@ -1238,6 +1257,13 @@ export class Game<T extends M = {}> {
           transition.previous,
           transition.stack,
         );
+      }
+      if (
+        this._savesSceneEntries &&
+        this._state === "running" &&
+        !this._context.system.previewing
+      ) {
+        this._sceneSaveDue = transition.scene;
       }
     }
   }
@@ -2286,8 +2312,18 @@ export class Game<T extends M = {}> {
     for (const k of this._moduleNames) {
       this._modules[k]?.onStart();
     }
-    if (this._simulation === "success") {
+    const resumed = this._resumeShown;
+    this._resumeShown = undefined;
+    if (resumed !== undefined) {
       this.observeScene(this._positions.current());
+      this._sceneSaveDue = null;
+      if (resumed && !resumed.choices?.length) {
+        this.module.interpreter.requeue(resumed);
+      }
+      this.continue(true);
+    } else if (this._simulation === "success") {
+      this.observeScene(this._positions.current());
+      this.saveFirstScene();
       this.continue(true);
     } else if (this._simulation === "fail") {
       this.module.interpreter.clearQueuedBeats();
@@ -2297,6 +2333,7 @@ export class Game<T extends M = {}> {
         this.jumpTo(this._startAddress, true);
       }
       this.observeScene(this._startAddress);
+      this.saveFirstScene();
       this.continue();
     } else {
       if (save) {
@@ -2306,6 +2343,7 @@ export class Game<T extends M = {}> {
         this.jumpTo(this._startAddress);
         this.observeScene(this._startAddress);
       }
+      this.saveFirstScene();
       this.continue();
     }
     if (this._clock) {
@@ -2474,6 +2512,104 @@ export class Game<T extends M = {}> {
 
   load(saveJSON: string) {
     return this.loadProgramSave(this._story, saveJSON);
+  }
+
+  saveHere(): GameSave | null {
+    const scene = this._sceneTracker.current;
+    const location = this.getLastExecutedDocumentLocation();
+    if (!scene || !location) {
+      return null;
+    }
+    const saveData = JSON.parse(this.buildSave(false)) as SaveData;
+    if (!saveData.story) {
+      return null;
+    }
+    delete saveData.simulatedFrom;
+    if (this._shownBeatOnScreen) {
+      saveData.shown = this._shownBeatOnScreen;
+    }
+    const beat = this.lastExecutedAddress();
+    const statement =
+      beat !== undefined ? statementSave(this._story.root, beat) : undefined;
+    if (statement) {
+      saveData.beat = statement;
+    }
+    return {
+      data: JSON.stringify(saveData),
+      scene,
+      uri: location.uri,
+      line: location.range.start.line,
+      values: readStoryValues(this._story, this.startingValueSource()),
+    };
+  }
+
+  protected saveFirstScene(): void {
+    if (this._savesSceneEntries) {
+      this._sceneSaveDue = this._sceneTracker.current;
+    }
+  }
+
+  protected writeSceneSave(): void {
+    const due = this._sceneSaveDue;
+    this._sceneSaveDue = null;
+    if (due === null || this._sceneTracker.current !== due) {
+      return;
+    }
+    const save = this.saveHere();
+    if (save) {
+      this.connection.emit(GameSavedSceneEntryMessage.type.notification({ save }));
+    }
+  }
+
+  loadToResume(saveJSON: string): boolean {
+    if (!this.load(saveJSON)) {
+      return false;
+    }
+    this._resumeShown = (JSON.parse(saveJSON) as SaveData).shown ?? null;
+    return true;
+  }
+
+  protected scratchStory(): ProgramStory {
+    const story = new ProgramStory(this._story.root, {
+      saveHistory: this._saveHistory,
+    });
+    story.keepBeatImages = true;
+    return story;
+  }
+
+  saveRefusal(saveJSON: string): string | null {
+    try {
+      const saveData = JSON.parse(saveJSON) as SaveData;
+      this._story.checkSave(saveData.story);
+      if (saveData.beat && !placesStatement(this._story.root, saveData.beat)) {
+        return "The saved line is gone.";
+      }
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  saveValuesOf(saveJSON: string): SaveValues {
+    const story = this.scratchStory();
+    story.loadSave((JSON.parse(saveJSON) as SaveData).story);
+    return readStoryValues(story, this.startingValueSource());
+  }
+
+  editSave(
+    saveJSON: string,
+    changes: StartingValueSet,
+  ): { data: string; values: SaveValues } {
+    const saveData = JSON.parse(saveJSON) as SaveData;
+    const story = this.scratchStory();
+    const source = this.startingValueSource();
+    saveData.story = story.editedSave(saveData.story, () =>
+      applySaveValueChanges(story, source, changes),
+    );
+    return {
+      data: JSON.stringify(saveData),
+      values: readStoryValues(story, source),
+    };
   }
 
   newestCheckpoint(): StoredCheckpoint | null {
@@ -2818,6 +2954,7 @@ export class Game<T extends M = {}> {
           this._coordinator = new Coordinator(this, instructions);
           if (this._simulation !== "simulating") {
             this.noteShownChoices(instructions);
+            this._shownBeatOnScreen = instructions;
           } else {
             this._shownBeat = instructions;
           }
@@ -2838,6 +2975,13 @@ export class Game<T extends M = {}> {
         }
         if (instructions || this._simulation !== "simulating") {
           this.checkpoint();
+        }
+        if (
+          instructions &&
+          this._sceneSaveDue !== null &&
+          this._simulation !== "simulating"
+        ) {
+          this.writeSceneSave();
         }
         if (this._simulation === "simulating") {
           if (!this._story.canContinue) {
@@ -4011,14 +4155,18 @@ export class Game<T extends M = {}> {
     return location ? this.getDocumentLocation(location) : null;
   }
 
-  protected lastExecutedScriptLocation(): ScriptLocation | null {
-    const lastExecuted = this._runtimeState.pathsExecutedThisFrame
+  protected lastExecutedAddress(): ProgramAddress | undefined {
+    return this._runtimeState.pathsExecutedThisFrame
       .toArray()
       .findLast(
         (entry): entry is ProgramAddress =>
           typeof entry === "number" &&
           this.scriptLocationOf(entry) !== undefined,
       );
+  }
+
+  protected lastExecutedScriptLocation(): ScriptLocation | null {
+    const lastExecuted = this.lastExecutedAddress();
     return lastExecuted != null
       ? (this.scriptLocationOf(lastExecuted) ?? null)
       : null;

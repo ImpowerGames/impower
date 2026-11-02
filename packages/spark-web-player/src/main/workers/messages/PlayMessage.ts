@@ -8,6 +8,7 @@ export interface PlayParams {
   program: string;
   startFrom?: { file: string; line: number };
   restarted?: boolean;
+  save?: string;
 }
 
 export interface PlayResult {
@@ -15,6 +16,7 @@ export interface PlayResult {
   compiled?: boolean;
   run?: number;
   errors?: SimulationError[];
+  refusal?: string;
 }
 
 export class PlayMessage {

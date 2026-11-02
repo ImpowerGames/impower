@@ -2448,3 +2448,29 @@ export const placeDurableAddress = (
   }
   return addressOf(chunkId(chunk), form.o);
 };
+
+export const statementSave = (root: ProgramRoot, address: number): string | undefined => {
+  const at = root.position(chunkOfAddress(address));
+  if (!at) {
+    return undefined;
+  }
+  const forms = new FormWriter(root);
+  const st = forms.statementForm(at.sequence, at.entry);
+  return JSON.stringify({ st, listings: forms.listings(), parts: forms.parts() });
+};
+
+export const placesStatement = (root: ProgramRoot, saved: string): boolean => {
+  let form: { st?: SavedStatement; listings?: SavedListing[]; parts?: SavedParts[] };
+  try {
+    form = JSON.parse(saved);
+  } catch {
+    return false;
+  }
+  if (!form?.st) {
+    return false;
+  }
+  return (
+    new FormPlacer(root, form.listings ?? [], form.parts ?? []).placeStatement(form.st) !==
+    undefined
+  );
+};

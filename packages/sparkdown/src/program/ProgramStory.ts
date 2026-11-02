@@ -796,6 +796,13 @@ export class ProgramStory implements StoryEngine {
     return load.header;
   }
 
+  editedSave(json: string, edit: () => void): string {
+    const header = this.loadSave(json);
+    edit();
+    this.notMovedSince(null);
+    return this.toSave(header.gameVersion);
+  }
+
   loadImage(image: ProgramImage): boolean {
     if (this._recursiveContinueCount > 0) {
       throw new Error("Can't load a save from inside a Continue.");

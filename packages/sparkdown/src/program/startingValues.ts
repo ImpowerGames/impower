@@ -188,7 +188,7 @@ const scriptNameOf = (
     : undefined;
 };
 
-const fieldOf = (table: ObjectValue, field: string): AbstractValue | undefined => {
+export const fieldOf = (table: ObjectValue, field: string): AbstractValue | undefined => {
   let current: ObjectValue | null = table;
   for (let guard = 0; current && guard < 64; guard++) {
     const own = (current.value as Map<string, AbstractValue>).get(field);
@@ -331,7 +331,7 @@ export const carryStoreListing = (
   }
 };
 
-const parametersOf = (root: ProgramRoot, from: string): string[] => {
+export const parametersOf = (root: ProgramRoot, from: string): string[] => {
   const flow = root.flowNamed(from);
   return (flow ? entryParameters(root, flow) : [])
     .filter((param) => !param.vararg)
@@ -528,6 +528,17 @@ const placesOf = (
   program.places = part;
   return part;
 };
+
+export const startingValueTargets = (
+  story: ProgramStory,
+  source: StartingValueSource,
+): { stores: Map<string, string[]>; counts: Map<string, number> } => ({
+  stores: storesOf(story, source).targets,
+  counts: new Map([
+    ...flowsOf(story, source).targets,
+    ...placesOf(story, source).targets,
+  ]),
+});
 
 export const startingValueListing = (
   story: ProgramStory,
