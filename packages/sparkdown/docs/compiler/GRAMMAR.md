@@ -703,6 +703,10 @@ A child that opens only right after its parent's keyword (`style NAME`, `layout 
 
 `\G` alone does not reach a name after a comment: once a comment rule, whether begin/end or match, has read the comment, the position is past the anchor, so dropping the comment lookbehind takes a parent begin that takes the comment too, on every header rule. Two keyword lookbehinds read context rather than a parent's begin, and stay: `LuauFunctionDeclarationName`, which `LuauAccessPart` also includes, where `\G` would hold at the first name of every access path, and a ternary condition after a clause `elseif` (`if a then 1 elseif b then 2 else 3`), which no scope begins.
 
+`LuauFunctionDeclarationName` keeps `(?!{{LUAU_ACCESSOR_OPERATOR}})` too, which leaves a dotted or method name (`function a.b()`, `function a:m()`) to `LuauBlockBody`'s access path, where `LuauPropertyAccessor` and `LuauFunctionAccessor` read its parts and `lowerLuauFunctionDefinition` reads it as a path. Tried first, the access path would also take a plain name, which must stay this rule's; `a` in `a.b` and a plain name are the same identifier, so no tightened variable separates them; and a name has no end that could stop before a `.` it has not reached. Only the character after the name tells the two apart.
+
+`INLINE_LEADING_GLUE` excludes the opening `..` of an inline glued alternator with a lookahead (`BUNNY: .. queue | Hi | Hello ..`), and `\G` does not replace it. The mark is the last capture of the inline display rules' begins (`InlineTitle`, `InlineHeading`, `InlineTransitional`, `InlineWrite`, `InlineDialogue`), because the display lowerer reads `LeadingGlue` from `<rule>_begin` (`leadingGlue` in `lowerDisplay.ts`). Read from the body instead, behind `\G`, it would still have to refuse the alternator's `..`, since the alternators are read inside `LineEnd`, which the body tries after it; tried after `LineEnd` it is never reached. `LEADING_GLUE` cannot refuse the mark by itself, since `.. Wait.` is leading glue.
+
 > **Debugging anecdotes that motivated this section.**
 >
 > _The `then` case (split a Switch rule)._ A multi-line `if` block in scene context wasn't parsing — `then` was being consumed by `LuauKeyword` (inside `LuauExpression`) before the surrounding `LuauIfBlockCondition`'s `end:` pattern could see it. The first instinct was `(?!then\b)` inside `LuauKeyword` — a textbook anti-pattern. The right answer was the second bullet above: split `then`/`else`/`elseif` out of `LuauKeyword` into a narrower `LuauTernaryKeyword` rule, and re-include only from the inline-ternary expression where those tokens are genuinely keyword-shaped.
@@ -877,9 +881,9 @@ The same trick works inside a single rule when you don't need a separate Operato
 
 ```yaml
 LuauIfBlockCondition:
-  # Intra-line lookbehind. Fires immediately after `if` regardless of
-  # whether the condition starts on the same line or on a continuation.
-  begin: (?<=if\b{{WS}}*)(?!{{BEAT}}|then\b)
+  # Opens where the `if` block's begin ended, whether the condition
+  # starts on the same line or on a continuation.
+  begin: \G
   patterns:
     - { include: "#LuauExpression" }
     - { include: "#LuauCommaSeparator" }

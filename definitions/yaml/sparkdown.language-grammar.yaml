@@ -420,7 +420,7 @@ variables:
   GLUE: (?:(?<![.])[.][.]{{GLUE_END}})
   GLUE_END: (?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{BREAK_MARK}}))
   LEADING_GLUE: "(?:[.][.]{{LUAU_SHARED_SINGLE_DOT_GUARD}})"
-  # lookaround: `(?!{{INLINE_GLUED_ALTERNATOR_START}})` leaves an opening `..` to LuauSparkdownInlineGluedSequentialAlternatorBlock and LuauSparkdownInlineGluedConditionalAlternatorBlock.
+  # lookaround: `(?!{{INLINE_GLUED_ALTERNATOR_START}})` leaves an opening `..` to LuauSparkdownInlineGluedSequentialAlternatorBlock and LuauSparkdownInlineGluedConditionalAlternatorBlock; GRAMMAR.md §10.1 gives why neither ordering nor `\G` replaces it.
   INLINE_LEADING_GLUE: (?:(?!{{INLINE_GLUED_ALTERNATOR_START}}){{LEADING_GLUE}})
   ALTERNATOR_GLUE: (?:(?<=^|{{WS}})[.][.](?=$|{{WS}}))
   # lookaround: `(?={{LUAU_SHARED_SEQUENTIAL_HEAD}})`, `(?=[|])` and
@@ -5862,14 +5862,9 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
-  # lookaround: the lookbehind opens the expression once (see
-  # `LuauIfBlockCondition`). Its parents try it first at every position, so
-  # without it the expression takes the block's `case` arms and, in a brace
-  # block, its entries (`LuauSparkleCaseClause`, `LuauSparkleBlockEntries`;
-  # fixture sparkle/layout-match). `(?!do\b)` is as in
-  # `LuauForCondition`, leaving `do` to `LuauSparkleDoMark`.
+  # lookaround: `(?!do\b)` leaves a `do` right after `match` to LuauSparkleDoMark.
   LuauSparkleMatchCondition:
-    begin: (?<=match\b{{WS}}*)(?!do\b)
+    begin: \G(?!do\b)
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
@@ -5897,15 +5892,9 @@ repository:
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?={{WS}}*{{LUAU_MATCH_CASE_END_KEYWORDS}})
 
-  # lookaround: the lookbehind opens the value once (see
-  # `LuauIfBlockCondition`). Without it the empty begin opens again on the
-  # arm's element lines and, in a brace block, its entries
-  # (`LuauSparkleBlockLine`, `LuauSparkleBlockEntries`; fixture
-  # sparkle/layout-match). `(?!$)` leaves a `case` with nothing
-  # after it on its line without a value, so the line break goes to
-  # `LuauSparkleCaseClause`'s `Newline`.
+  # lookaround: `(?!$)` leaves the line break after a bare `case` to LuauSparkleCaseClause's Newline.
   LuauSparkleCaseValue:
-    begin: (?<=case\b{{WS}}*)(?!$)
+    begin: \G(?!$)
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
@@ -7898,9 +7887,8 @@ repository:
     end: (?=$)|(?!{{WS}})
 
   LuauSparkdownExplicitConditionalAlternatorCondition:
-    # lookaround: LuauConditionalAlternatorBlock owns its keyword; this condition opens only immediately after that introducer.
-    # See bounded-entry rationale above for the structural alternatives.
-    begin: "(?<={{LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD}}{{WS}}*){{LUAU_EXPRESSION_START}}"
+    # lookaround: `{{LUAU_EXPRESSION_START}}` leaves a line end, and the whitespace where the arms begin, to LuauAlternatorSeparator.
+    begin: "\\G{{LUAU_EXPRESSION_START}}"
     patterns:
       - { include: "#LuauSparkdownExplicitExpression" }
       - { include: "#ExtraWhitespace" }
@@ -8868,16 +8856,9 @@ repository:
       - { include: "#LuauAlternatorLineStartHead" }
     end: "{{LUAU_LINE_START_CANDIDATE_END}}"
 
-  # lookaround: the lookbehind opens the condition once, after the `match` or
-  # `plural` its parent's begin took (see `LuauIfBlockCondition`). The
-  # parents try it before the arms (`LuauSparkdownBlockBody`,
-  # `LuauBlockBody`), so without it the condition takes each arm's first
-  # token (fixture alternator/match-paren-less). `(?!$|{{WS}})` keeps an
-  # empty condition from opening at a line end (`match` alone on its line)
-  # or before whitespace, where the arms and
-  # `LuauAlternatorSeparator` begin.
+  # lookaround: `{{LUAU_EXPRESSION_START}}` leaves a line end, and the whitespace where the arms begin, to LuauAlternatorSeparator.
   LuauConditionalAlternatorCondition:
-    begin: "(?<={{LUAU_SHARED_CONDITIONAL_ALTERNATOR_HEAD}}{{WS}}*){{LUAU_EXPRESSION_START}}"
+    begin: "\\G{{LUAU_EXPRESSION_START}}"
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
@@ -9497,7 +9478,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
 
-  # lookaround: the lookbehind reads a name only after `function` or `external`, since LuauAccessPart includes this rule and would otherwise declare every path's first name; `(?!{{LUAU_ACCESSOR_OPERATOR}})` leaves a dotted or method name to LuauPropertyAccessor and LuauFunctionAccessor.
+  # lookaround: the lookbehind reads a name only after `function` or `external`, since LuauAccessPart includes this rule and would otherwise declare every path's first name; `(?!{{LUAU_ACCESSOR_OPERATOR}})` leaves a dotted or method name to LuauPropertyAccessor and LuauFunctionAccessor; GRAMMAR.md §10.1 gives why neither ordering nor a tighter variable replaces either.
   LuauFunctionDeclarationName:
     match: (?<={{LUAU_DECLARATION_KEYWORDS}}\b{{WS}}*|{{LUAU_HEADER_LINE_START}}{{LUAU_DECLARATION_KEYWORDS}}\b{{LUAU_HEADER_COMMENTS}})({{LUAU_IDENTIFIER}})\b({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
     captures:

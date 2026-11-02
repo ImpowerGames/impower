@@ -16,9 +16,14 @@ export type RegExpMatchResult = (string | undefined)[] & {
 
 const BACK_REFERENCE = /\\(\d+)/g;
 
-const ANCHOR_ALLOWED = "(?:)";
+const ANCHOR = "\\G";
 
 const ANCHOR_REFUSED = "(?!)";
+
+const LEADING_ANCHOR_ALLOWED = "(?:)";
+
+const anchorAt = (before: number) =>
+  `(?<![\\s\\S]{${before + 1}})(?<=[\\s\\S]{${before}})`;
 
 const resolveAnchor = (pattern: string, replacement: string) => {
   let resolved = "";
@@ -36,6 +41,20 @@ const resolveAnchor = (pattern: string, replacement: string) => {
   return from === 0 ? null : resolved + pattern.slice(from);
 };
 
+const codePointsBefore = (str: string, pos: number) => {
+  let count = pos;
+  for (let i = 1; i < pos; i++) {
+    const c = str.charCodeAt(i);
+    if (c >= 0xdc00 && c <= 0xdfff) {
+      const p = str.charCodeAt(i - 1);
+      if (p >= 0xd800 && p <= 0xdbff) {
+        count--;
+      }
+    }
+  }
+  return count;
+};
+
 const compile = (pattern: string, flags: string) => {
   try {
     return new RegExp(pattern, flags);
@@ -47,11 +66,11 @@ const compile = (pattern: string, flags: string) => {
 export class RegExpMatcher implements Matcher {
   declare regexp: RegExp;
 
-  declare private anchoredRegexp: RegExp;
+  declare private leadingAnchoredRegexp: RegExp | undefined;
 
-  declare private indicesRegexp: RegExp | undefined;
+  private anchoredByPosition = new Map<number, RegExp>();
 
-  declare private anchoredIndicesRegexp: RegExp | undefined;
+  private indicesRegexps = new WeakMap<RegExp, RegExp>();
 
   declare private hasCapturingGroups: boolean;
 
@@ -100,25 +119,54 @@ export class RegExpMatcher implements Matcher {
   }
 
   protected compileSource(source: string) {
-    this.indicesRegexp = undefined;
-    this.anchoredIndicesRegexp = undefined;
+    this.anchoredByPosition.clear();
+    this.leadingAnchoredRegexp = undefined;
     if (!this.hasAnchor) {
       this.regexp = compile(source, this._flags);
-      this.anchoredRegexp = this.regexp;
       return;
     }
     this.regexp = compile(
       resolveAnchor(source, ANCHOR_REFUSED) ?? source,
       this._flags,
     );
-    this.anchoredRegexp = compile(
-      resolveAnchor(source, ANCHOR_ALLOWED) ?? source,
-      this._flags,
-    );
+    const rest = source.slice(ANCHOR.length);
+    if (
+      source.startsWith(ANCHOR) &&
+      resolveAnchor(rest, ANCHOR_REFUSED) == null
+    ) {
+      this.leadingAnchoredRegexp = compile(
+        LEADING_ANCHOR_ALLOWED + rest,
+        this._flags,
+      );
+    }
+  }
+
+  private select(str: string, pos: number, anchored: boolean) {
+    if (!anchored || !this.hasAnchor) {
+      return this.regexp;
+    }
+    if (this.leadingAnchoredRegexp) {
+      return this.leadingAnchoredRegexp;
+    }
+    const before = /[uv]/.test(this._flags)
+      ? codePointsBefore(str, pos)
+      : pos;
+    let regexp = this.anchoredByPosition.get(before);
+    if (!regexp) {
+      regexp = compile(
+        resolveAnchor(this._source, anchorAt(before)) ?? this._source,
+        this._flags,
+      );
+      this.anchoredByPosition.set(before, regexp);
+    }
+    return regexp;
   }
 
   test(str: string, pos: number, anchored = false) {
-    const regexp = anchored ? this.anchoredRegexp : this.regexp;
+    return this.testWith(this.select(str, pos, anchored), str, pos);
+  }
+
+  private testWith(regexp: RegExp, str: string, pos: number) {
     if (!regexp) {
       throw new Error(`Invalid RegExp: ${this._pattern}`);
     }
@@ -126,29 +174,21 @@ export class RegExpMatcher implements Matcher {
     return regexp.test(str);
   }
 
-  private exec(str: string, pos: number, anchored: boolean) {
-    const regexp = anchored ? this.anchoredRegexp : this.regexp;
+  private exec(regexp: RegExp, str: string, pos: number) {
     regexp.lastIndex = pos;
     return regexp.exec(str);
   }
 
-  private execIndices(str: string, pos: number, anchored: boolean) {
-    let regexp: RegExp;
-    if (anchored) {
-      regexp = this.anchoredIndicesRegexp ??= this.withIndices(
-        this.anchoredRegexp,
-      );
-    } else {
-      regexp = this.indicesRegexp ??= this.withIndices(this.regexp);
+  private execIndices(regexp: RegExp, str: string, pos: number) {
+    let indicesRegexp = this.indicesRegexps.get(regexp);
+    if (!indicesRegexp) {
+      indicesRegexp = regexp.hasIndices
+        ? regexp
+        : new RegExp(regexp.source, this._flags + "d");
+      this.indicesRegexps.set(regexp, indicesRegexp);
     }
-    regexp.lastIndex = pos;
-    return regexp.exec(str);
-  }
-
-  private withIndices(regexp: RegExp) {
-    return regexp.hasIndices
-      ? regexp
-      : new RegExp(regexp.source, this._flags + "d");
+    indicesRegexp.lastIndex = pos;
+    return indicesRegexp.exec(str);
   }
 
   match(
@@ -156,9 +196,9 @@ export class RegExpMatcher implements Matcher {
     pos: number,
     anchored = false,
   ): RegExpMatchResult | null {
+    const regexp = this.select(str, pos, anchored);
     if (!this.hasCapturingGroups) {
-      if (this.test(str, pos, anchored)) {
-        const regexp = anchored ? this.anchoredRegexp : this.regexp;
+      if (this.testWith(regexp, str, pos)) {
         const length = regexp.lastIndex - pos;
         const total = str.slice(pos, pos + length);
         return [total];
@@ -166,9 +206,9 @@ export class RegExpMatcher implements Matcher {
       return null;
     }
 
-    if (this.test(str, pos, anchored)) {
+    if (this.testWith(regexp, str, pos)) {
       if (this.flatGroups) {
-        const match = this.exec(str, pos, anchored);
+        const match = this.exec(regexp, str, pos);
         if (match) {
           let capturedLength = 0;
           for (let i = 1; i < match.length; i++) {
@@ -179,7 +219,7 @@ export class RegExpMatcher implements Matcher {
           }
         }
       }
-      const match = this.execIndices(str, pos, anchored);
+      const match = this.execIndices(regexp, str, pos);
       if (match) {
         const result: RegExpMatchResult = match.slice();
         result.indices = match.indices!.slice();

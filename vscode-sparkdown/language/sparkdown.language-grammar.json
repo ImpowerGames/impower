@@ -9962,7 +9962,7 @@
       }
     },
     "LuauSparkleMatchCondition": {
-      "begin": "(?<=match\\b(?:[^\\S\\n\\r])*)(?!do\\b)",
+      "begin": "\\G(?!do\\b)",
       "patterns": [
         {
           "include": "#LuauExpression"
@@ -10022,7 +10022,7 @@
       "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=(?:[^\\S\\n\\r])*\\b(?:case|else|end)\\b)"
     },
     "LuauSparkleCaseValue": {
-      "begin": "(?<=case\\b(?:[^\\S\\n\\r])*)(?!$)",
+      "begin": "\\G(?!$)",
       "patterns": [
         {
           "include": "#LuauExpression"
@@ -13808,7 +13808,7 @@
       "end": "(?=$)|(?!(?:[^\\S\\n\\r]))"
     },
     "LuauSparkdownExplicitConditionalAlternatorCondition": {
-      "begin": "(?<=(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*)(?=[a-zA-Z0-9_\"'`({#@-]|\\[=*\\[|[.][0-9.])(?!\\b(?:and|break|do|else|elseif|end|for|in|local|or|repeat|return|then|until|while)\\b)",
+      "begin": "\\G(?=[a-zA-Z0-9_\"'`({#@-]|\\[=*\\[|[.][0-9.])(?!\\b(?:and|break|do|else|elseif|end|for|in|local|or|repeat|return|then|until|while)\\b)",
       "patterns": [
         {
           "include": "#LuauSparkdownExplicitExpression"
@@ -15614,7 +15614,7 @@
       "end": "(?:(?!(?:(?<=\\bend[|](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*(?:[^\\S\\n\\r])*[=](?:[^\\S\\n\\r])*)?)(?=(?:[^\\S\\n\\r])*(?:end(?![a-zA-Z0-9_])|$))))(?:(?:(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?<=\\bend)|(?=[,;)\\]}])|(?=(?:[^\\S\\n\\r])*(?:(?:end|else|elseif|until)(?![a-zA-Z0-9_]))))|^(?!(?:[^\\S\\n\\r])*(?:[|]|--|$))))"
     },
     "LuauConditionalAlternatorCondition": {
-      "begin": "(?<=(?:\\b(?:match|plural)\\b)(?:[^\\S\\n\\r])*)(?=[a-zA-Z0-9_\"'`({#@-]|\\[=*\\[|[.][0-9.])(?!\\b(?:and|break|do|else|elseif|end|for|in|local|or|repeat|return|then|until|while)\\b)",
+      "begin": "\\G(?=[a-zA-Z0-9_\"'`({#@-]|\\[=*\\[|[.][0-9.])(?!\\b(?:and|break|do|else|elseif|end|for|in|local|or|repeat|return|then|until|while)\\b)",
       "patterns": [
         {
           "include": "#LuauExpression"

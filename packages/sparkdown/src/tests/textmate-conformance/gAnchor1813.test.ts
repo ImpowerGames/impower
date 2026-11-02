@@ -81,6 +81,59 @@ const GRAMMARS = {
       patterns: [{ include: "#Word" }, { name: "bang.mini", match: "!" }, { include: "#Gap" }],
     },
   }),
+  afterConsumedEnd: grammarOf({
+    Block: {
+      name: "block.mini",
+      begin: "<",
+      end: "a\\G|>",
+      patterns: [{ include: "#Word" }, { include: "#Gap" }],
+    },
+  }),
+  afterConsumedMatch: grammarOf({
+    Block: {
+      name: "block.mini",
+      begin: "<",
+      end: ">",
+      patterns: [{ include: "#Late" }, { include: "#Word" }, { include: "#Gap" }],
+    },
+    Late: { name: FIRST, match: "a\\G" },
+  }),
+  negatedAfterConsumed: grammarOf({
+    Block: {
+      name: "block.mini",
+      begin: "<",
+      end: ">",
+      patterns: [{ include: "#Pair" }, { include: "#Word" }, { include: "#Gap" }],
+    },
+    Pair: { name: "pair.mini", match: "a(?!\\G)b" },
+  }),
+  lookaheadAfterConsumed: grammarOf({
+    Block: {
+      name: "block.mini",
+      begin: "<",
+      end: ">",
+      patterns: [{ include: "#Ahead" }, { include: "#Word" }, { include: "#Gap" }],
+    },
+    Ahead: { name: FIRST, match: "(?=a\\G)a" },
+  }),
+  repeatedGroup: grammarOf({
+    Block: {
+      name: "block.mini",
+      begin: "<",
+      end: ">",
+      patterns: [{ include: "#Run" }, { include: "#Word" }, { include: "#Gap" }],
+    },
+    Run: { name: FIRST, match: "(?:\\Ga)+" },
+  }),
+  groupedAfterAstral: grammarOf({
+    Block: {
+      name: "block.mini",
+      begin: "<",
+      end: ">",
+      patterns: [{ include: "#Grouped" }, { include: "#Word" }, { include: "#Gap" }],
+    },
+    Grouped: { name: FIRST, match: "(?:\\G)[a-z]+" },
+  }),
   escapedBackslash: grammarOf(
     { Literal: { name: "literal.mini", match: "\\\\G" } },
     [{ include: "#Literal" }, { include: "#Word" }, { include: "#Gap" }],
@@ -104,6 +157,12 @@ const CASES: [keyof typeof GRAMMARS, string, string | null][] = [
   ["anchoredEnd", "{!a!;\n", null],
   ["anchoredEnd", "{a!b;\n", null],
   ["escapedBackslash", "a\\Gb\n", null],
+  ["afterConsumedEnd", "<ab>\n", null],
+  ["afterConsumedMatch", "<a>\n", null],
+  ["negatedAfterConsumed", "<ab>\n", null],
+  ["lookaheadAfterConsumed", "<ab>\n", null],
+  ["repeatedGroup", "<aa>\n", "a"],
+  ["groupedAfterAstral", "\u{1F600}<ab>\n", "ab"],
 ];
 
 describe("textmate-grammar-tree reads `\\G` as vscode-textmate does (I-1813)", () => {
