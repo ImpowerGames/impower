@@ -3,8 +3,6 @@ import { ErrorType } from "../../runtime/Error";
 import type { ProgramStory as Story } from "../../program/ProgramStory";
 import { StepLimitExceeded } from "../../runtime/StoryException";
 import { imageDigest } from "../../program/ProgramImages";
-import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
-import { chunkOfAddress } from "../../program/ProgramChunk";
 import { type StartPlan } from "../../program/startingValues";
 import { TOP_LEVEL_START, type ProgramAddress } from "../types/ProgramAddress";
 import {
@@ -26,6 +24,9 @@ import {
   type SearchError,
   type SearchOptions,
   type SearchState,
+  exitedKnot,
+  storyPositions,
+  type StoryPositions,
 } from "./planRoute";
 import {
   gateWinsMenu,
@@ -45,68 +46,6 @@ interface FallbackNode {
   choices: RouteChoice[];
   overrides: RouteOverride[];
 }
-
-interface StoryPositions {
-  previous(): ProgramAddress | undefined;
-  knot(): string;
-  stackHolds(knot: string): boolean;
-  errorAddress(
-    raised: { path?: string | null; address?: number } | null | undefined,
-  ): ProgramAddress | null;
-}
-
-const chunkScenes = new WeakMap<ProgramRoot, Map<number, string>>();
-
-const sceneOfAddress = (root: ProgramRoot, address: number): string => {
-  if (address < 0) {
-    return "0";
-  }
-  let scenes = chunkScenes.get(root);
-  if (!scenes) {
-    scenes = new Map();
-    chunkScenes.set(root, scenes);
-  }
-  const id = chunkOfAddress(address);
-  let scene = scenes.get(id);
-  if (scene === undefined) {
-    scene = root.sceneAt(address) ?? "0";
-    scenes.set(id, scene);
-  }
-  return scene;
-};
-
-const storyPositions = (story: Story): StoryPositions => {
-  let lastSequence: SequenceRow | null = null;
-  let lastScene = "0";
-  return {
-    previous: () => {
-      const address = story.previousAddress;
-      return address >= 0 ? address : (story.endedAt ?? undefined);
-    },
-    knot: () => {
-      const sequence = story.state.position?.sequence ?? null;
-      if (!sequence) {
-        return "0";
-      }
-      if (sequence !== lastSequence) {
-        lastSequence = sequence;
-        lastScene = story.root.sceneOf(sequence) ?? "0";
-      }
-      return lastScene;
-    },
-    stackHolds: (knot) =>
-      story
-        .stackAddresses()
-        .some((address) => sceneOfAddress(story.root, address) === knot),
-    errorAddress: (raised) => {
-      if (raised?.address !== undefined) {
-        return raised.address;
-      }
-      const address = story.previousAddress;
-      return address >= 0 ? address : null;
-    },
-  };
-};
 
 interface StatePort {
   fork(): { state: SearchState; key: string };
@@ -241,7 +180,7 @@ export const planRouteFallback = (
     cut: null,
     visited: new Set(),
   };
-  const fromKnotName = from.split(".")[0] || "0";
+  const fromKnotName = from.split(".")[0] || undefined;
   const positions = storyPositions(story);
 
   let routePlan: RoutePlan | null = null;
@@ -359,7 +298,7 @@ const runUntilDecisionOrBranch = (
   port: StatePort,
   node: FallbackNode,
   positions: StoryPositions,
-  fromKnotName: string,
+  fromKnotName: string | undefined,
   target: ProgramAddress | null,
   stayWithinKnot: boolean,
   functions: string[],
@@ -615,32 +554,6 @@ const makeResumeNode = (resumeFrom: RouteResumePoint): FallbackNode => ({
   choices: [...resumeFrom.choices],
   overrides: [...resumeFrom.decisions],
 });
-
-const isRootLevel = (knot: string): boolean =>
-  knot === "0" || /^\d+$/.test(knot);
-
-const exitedKnot = (
-  _story: Story,
-  positions: StoryPositions,
-  knotName: string,
-  functions: string[],
-): boolean => {
-  const curKnot = positions.knot();
-
-  if (curKnot === knotName) {
-    return false;
-  }
-
-  if (isRootLevel(curKnot)) {
-    return false;
-  }
-
-  if (functions.includes(curKnot)) {
-    return false;
-  }
-
-  return !positions.stackHolds(knotName);
-};
 
 const forkCondition = (
   state: SearchState,

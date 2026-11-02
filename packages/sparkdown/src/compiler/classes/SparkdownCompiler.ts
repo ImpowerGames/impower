@@ -3491,7 +3491,7 @@ export class SparkdownCompiler {
         pending.push(...c.calls);
       }
       const result: SceneAssets = {
-        kind: name === "0" ? "root" : isInternal(name) ? "function" : "scene",
+        kind: isInternal(name) ? "function" : "scene",
         beats: [...entry.capture.beats],
         ...names,
         successors: entry.successors,
