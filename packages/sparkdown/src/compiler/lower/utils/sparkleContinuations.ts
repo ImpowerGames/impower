@@ -102,7 +102,7 @@ export function joinSparkleContinuations(
 
   const lines = (node: SyntaxNode, state: JoinState) => {
     for (let child = node.firstChild; child; child = child.nextSibling) {
-      if (child.name === "LuauSparkleBlockLine") {
+      if (child.name === "LuauSparkleBlockLine" || child.name === "LuauSparkleBraceBody") {
         entries(entryNodes(child), state);
       } else if (INDENTED_CONTROL_NAMES.has(child.name)) {
         state.open = null;

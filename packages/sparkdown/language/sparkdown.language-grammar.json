@@ -576,6 +576,9 @@
     "STRUCT_BLOCK_PROPERTY_KEY": "(?:\\[[^\\]\\n]*\\]|[$]?(?:{{INTEGER}}|{{IDENTIFIER_START}}{{IDENTIFIER_END}}(?<![-])|{{QUOTED_STRING}}))",
     "STRUCT_BLOCK_PROPERTY_HEAD": "(?:{{STRUCT_BLOCK_PROPERTY_KEY}}{{ASSIGN_EQUAL_OPERATOR}})",
     "STRUCT_BLOCK_BAIL": "(?:{{BEAT}}|^{{END}})",
+    "STRUCT_DECLARATION_LINE": "(?:^{{LUAU_FILE_SPARKDOWN_WORDS}}{{WS}}+{{LUAU_STRUCTURE_NAME}})",
+    "STRUCT_KEYWORD_BODY_BAIL": "(?:{{STRUCT_BLOCK_BAIL}}|{{STRUCT_DECLARATION_LINE}})",
+    "STRUCT_KEYWORD_BRACE_CLOSED": "(?<=[}])",
     "STRUCT_BLOCK_TRAILING_COMMA": "(?:[,]{{WS}}*(?:$|[;}]|{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))",
     "STRUCT_BLOCK_COMMA_BEFORE_ENTRY": "(?:[,]{{WS}}*(?:{{STYLE_PROPERTY_NAME}}{{WS}}*[=]|{{STRUCT_BLOCK_PROPERTY_HEAD}}|{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}}[{]))",
     "STRUCT_BLOCK_VALUE_END": "(?:{{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_TRAILING_COMMA}}|{{STRUCT_BLOCK_COMMA_BEFORE_ENTRY}}))",
@@ -648,6 +651,7 @@
     "SPARKLE_HEAD_TOKEN": "(?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE}}|{{SPARKLE_BACKTICKED}}|{{SPARKLE_ATTR}}|{{SPARKLE_PARENS}}|[)]|{{SPARKLE_COMMENT}}|[.]{{SPARKLE_CLASS_NAME}}|[=](?!{{WS}}*[{])|[,](?![\\s;}]|$)|{{WS}}+(?!{{WS}}|[;{}]|[,](?:{{WS}}|$|[;}])|[=]{{WS}}*[{]|$))",
     "SPARKLE_CONTINUATION_START": "(?:{{WS}}*(?!{{STRUCT_BLOCK_PROPERTY_HEAD}}(?!{{WS}}*[{]))[.#@\"'])",
     "SPARKLE_BLOCK_BAIL": "(?:{{BEAT}}|^{{WS}}*(?:end|else|elseif|case)(?![{{IDENTIFIER_END_CHAR}}]))",
+    "SPARKLE_KEYWORD_BODY_BAIL": "(?:{{SPARKLE_BLOCK_BAIL}}|{{STRUCT_DECLARATION_LINE}})",
     "SPARKLE_KEYWORD_END": "(?![{{IDENTIFIER_END_CHAR}}])",
     "LUAU_FUNCTION_CALL_START": "(?:<<|[({\"']|\\[=*\\[)",
     "LUAU_ATTRIBUTE_FOLLOWER": "(?=@|{{LUAU_LOCAL_PREFIX}}?function\\b)",
@@ -6212,16 +6216,16 @@
           "include": "#LuauStyleNameAndInheritance"
         },
         {
-          "include": "#LuauStructBlockLine"
+          "include": "#LuauStructWithBody"
+        },
+        {
+          "include": "#LuauStructBraceBody"
         },
         {
           "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|((?:[^\\S\\n\\r])*)(end)\\b((?:(?:[^\\S\\n\\r])*(?:(?:(?:[-][-])\\[(?<level>=*)\\[(?:[^\\]\\r\\n]|\\](?!\\k<level>\\]))*\\]\\k<level>\\](?:[^\\S\\n\\r])*)+(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*)?|(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*))$))?",
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=(?:^\\b(?:define|store|layout|style|screen|component|animation|theme|morph)\\b(?:[^\\S\\n\\r])+(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))[a-zA-Z0-9_])))|((?:[^\\S\\n\\r])*)(end\\b|(?<=[}]))((?:(?:[^\\S\\n\\r])*(?:(?:(?:[-][-])\\[(?<level>=*)\\[(?:[^\\]\\r\\n]|\\](?!\\k<level>\\]))*\\]\\k<level>\\](?:[^\\S\\n\\r])*)+(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*)?|(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*))$))?",
       "endCaptures": {
         "1": {
           "emit": true,
@@ -6283,16 +6287,16 @@
           "include": "#LuauAnimationThemeNameAndInheritance"
         },
         {
-          "include": "#LuauStructBlockLine"
+          "include": "#LuauStructWithBody"
+        },
+        {
+          "include": "#LuauStructBraceBody"
         },
         {
           "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|((?:[^\\S\\n\\r])*)(end)\\b((?:(?:[^\\S\\n\\r])*(?:(?:(?:[-][-])\\[(?<level>=*)\\[(?:[^\\]\\r\\n]|\\](?!\\k<level>\\]))*\\]\\k<level>\\](?:[^\\S\\n\\r])*)+(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*)?|(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*))$))?",
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=(?:^\\b(?:define|store|layout|style|screen|component|animation|theme|morph)\\b(?:[^\\S\\n\\r])+(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))[a-zA-Z0-9_])))|((?:[^\\S\\n\\r])*)(end\\b|(?<=[}]))((?:(?:[^\\S\\n\\r])*(?:(?:(?:[-][-])\\[(?<level>=*)\\[(?:[^\\]\\r\\n]|\\](?!\\k<level>\\]))*\\]\\k<level>\\](?:[^\\S\\n\\r])*)+(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*)?|(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*))$))?",
       "endCaptures": {
         "1": {
           "emit": true,
@@ -6354,16 +6358,16 @@
           "include": "#LuauAnimationThemeNameAndInheritance"
         },
         {
-          "include": "#LuauStructBlockLine"
+          "include": "#LuauStructWithBody"
+        },
+        {
+          "include": "#LuauStructBraceBody"
         },
         {
           "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|((?:[^\\S\\n\\r])*)(end)\\b((?:(?:[^\\S\\n\\r])*(?:(?:(?:[-][-])\\[(?<level>=*)\\[(?:[^\\]\\r\\n]|\\](?!\\k<level>\\]))*\\]\\k<level>\\](?:[^\\S\\n\\r])*)+(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*)?|(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*))$))?",
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=(?:^\\b(?:define|store|layout|style|screen|component|animation|theme|morph)\\b(?:[^\\S\\n\\r])+(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))[a-zA-Z0-9_])))|((?:[^\\S\\n\\r])*)(end\\b|(?<=[}]))((?:(?:[^\\S\\n\\r])*(?:(?:(?:[-][-])\\[(?<level>=*)\\[(?:[^\\]\\r\\n]|\\](?!\\k<level>\\]))*\\]\\k<level>\\](?:[^\\S\\n\\r])*)+(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*)?|(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*))$))?",
       "endCaptures": {
         "1": {
           "emit": true,
@@ -6425,16 +6429,16 @@
           "include": "#LuauAnimationThemeNameAndInheritance"
         },
         {
-          "include": "#LuauStructBlockLine"
+          "include": "#LuauStructWithBody"
+        },
+        {
+          "include": "#LuauStructBraceBody"
         },
         {
           "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|((?:[^\\S\\n\\r])*)(end)\\b((?:(?:[^\\S\\n\\r])*(?:(?:(?:[-][-])\\[(?<level>=*)\\[(?:[^\\]\\r\\n]|\\](?!\\k<level>\\]))*\\]\\k<level>\\](?:[^\\S\\n\\r])*)+(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*)?|(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*))$))?",
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=(?:^\\b(?:define|store|layout|style|screen|component|animation|theme|morph)\\b(?:[^\\S\\n\\r])+(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))[a-zA-Z0-9_])))|((?:[^\\S\\n\\r])*)(end\\b|(?<=[}]))((?:(?:[^\\S\\n\\r])*(?:(?:(?:[-][-])\\[(?<level>=*)\\[(?:[^\\]\\r\\n]|\\](?!\\k<level>\\]))*\\]\\k<level>\\](?:[^\\S\\n\\r])*)+(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*)?|(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*))$))?",
       "endCaptures": {
         "1": {
           "emit": true,
@@ -6460,6 +6464,76 @@
         }
       }
     },
+    "LuauStructWithBody": {
+      "begin": "((?:[^\\S\\n\\r])*)(with)\\b|((?:\\r\\n|\\r|\\n))",
+      "beginCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauWithKeyword"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauStructBlockLine"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=(?:(?:[^\\S\\n\\r])*(?:end)\\b))"
+    },
+    "LuauStructBraceBody": {
+      "brackets": true,
+      "begin": "([{])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#LuauStructBlockOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauStructBlockEntries"
+        }
+      ],
+      "end": "([}])|(?=(?:(?:(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|^(?:(?:[^\\S\\n\\r])*(?:end)\\b))|(?:^\\b(?:define|store|layout|style|screen|component|animation|theme|morph)\\b(?:[^\\S\\n\\r])+(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))[a-zA-Z0-9_]))))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#LuauStructBlockClose"
+            }
+          ]
+        }
+      }
+    },
     "LuauStyleNameAndInheritance": {
       "begin": "(?:\\G|(?<=(?:^(?:[^\\S\\n\\r])*(?:(?:(?:@(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))|@\\[(?:(?:(?:\"(?:(?:\\\\.|[^\"\\\\\\r\\n])*)\")|(?:'(?:(?:\\\\.|[^'\\\\\\r\\n])*)')|(?:`(?:(?:\\\\.|[^`\\\\\\r\\n])*)`))|(?:\\[(?:(?:\\[(?:(?:[^\\]\\r\\n])|\\](?:[^\\]\\r\\n]))*\\]\\]|=\\[(?:(?:[^\\]\\r\\n])|\\][^=\\r\\n]|\\]=(?:[^\\]\\r\\n]))*\\]?\\]=\\]|==\\[(?:(?:[^\\]\\r\\n])|\\][^=\\r\\n]|\\]=[^=\\r\\n]|\\]==(?:[^\\]\\r\\n]))*(?:\\]=?)?\\]==\\]|===\\[(?:(?:[^\\]\\r\\n])|\\][^=\\r\\n]|\\]=[^=\\r\\n]|\\]==[^=\\r\\n]|\\]===(?:[^\\]\\r\\n]))*(?:\\]={0,2})?\\]===\\])|====+\\[(?:[^\\]\\r\\n])*\\]====+\\]))|[^\\[\\]\"'`\\r\\n])*\\])(?:(?:[^\\S\\n\\r])|(?:--(?:\\[(?:(?:\\[(?:(?:[^\\]\\r\\n])|\\](?:[^\\]\\r\\n]))*\\]\\]|=\\[(?:(?:[^\\]\\r\\n])|\\][^=\\r\\n]|\\]=(?:[^\\]\\r\\n]))*\\]?\\]=\\]|==\\[(?:(?:[^\\]\\r\\n])|\\][^=\\r\\n]|\\]=[^=\\r\\n]|\\]==(?:[^\\]\\r\\n]))*(?:\\]=?)?\\]==\\]|===\\[(?:(?:[^\\]\\r\\n])|\\][^=\\r\\n]|\\]=[^=\\r\\n]|\\]==[^=\\r\\n]|\\]===(?:[^\\]\\r\\n]))*(?:\\]={0,2})?\\]===\\])|====+\\[(?:[^\\]\\r\\n])*\\]====+\\]))))*)*(?:(?:local|export|type)\\b(?:[^\\S\\n\\r])*)*)style\\b(?:(?:(?:[^\\S\\n\\r])*(?:(?:--(?:\\[(?:(?:\\[(?:(?:[^\\]\\r\\n])|\\](?:[^\\]\\r\\n]))*\\]\\]|=\\[(?:(?:[^\\]\\r\\n])|\\][^=\\r\\n]|\\]=(?:[^\\]\\r\\n]))*\\]?\\]=\\]|==\\[(?:(?:[^\\]\\r\\n])|\\][^=\\r\\n]|\\]=[^=\\r\\n]|\\]==(?:[^\\]\\r\\n]))*(?:\\]=?)?\\]==\\]|===\\[(?:(?:[^\\]\\r\\n])|\\][^=\\r\\n]|\\]=[^=\\r\\n]|\\]==[^=\\r\\n]|\\]===(?:[^\\]\\r\\n]))*(?:\\]={0,2})?\\]===\\])|====+\\[(?:[^\\]\\r\\n])*\\]====+\\])))(?:[^\\S\\n\\r])*)+))))((?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_]))))",
       "beginCaptures": {
@@ -6479,20 +6553,12 @@
           "include": "#ExtraWhitespace"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|((?:[^\\S\\n\\r])*)(with)\\b",
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=(?:[^\\S\\n\\r])*with\\b)|((?:[^\\S\\n\\r])*)(?=[{])|$",
       "endCaptures": {
         "1": {
-          "emit": true,
           "patterns": [
             {
-              "include": "#OptionalWhitespace"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#LuauWithKeyword"
+              "include": "#Whitespace"
             }
           ]
         }
@@ -6517,20 +6583,12 @@
           "include": "#ExtraWhitespace"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|((?:[^\\S\\n\\r])*)(with)\\b",
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=(?:[^\\S\\n\\r])*with\\b)|((?:[^\\S\\n\\r])*)(?=[{])|$",
       "endCaptures": {
         "1": {
-          "emit": true,
           "patterns": [
             {
-              "include": "#OptionalWhitespace"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#LuauWithKeyword"
+              "include": "#Whitespace"
             }
           ]
         }
@@ -10069,19 +10127,16 @@
           "include": "#LuauLayoutNameAndInheritance"
         },
         {
-          "include": "#LuauSparkleControlBlock"
+          "include": "#LuauSparkleWithBody"
         },
         {
-          "include": "#LuauSparkleBlockLine"
+          "include": "#LuauSparkleBraceBody"
         },
         {
           "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|((?:[^\\S\\n\\r])*)(end)\\b((?:(?:[^\\S\\n\\r])*(?:(?:(?:[-][-])\\[(?<level>=*)\\[(?:[^\\]\\r\\n]|\\](?!\\k<level>\\]))*\\]\\k<level>\\](?:[^\\S\\n\\r])*)+(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*)?|(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*))$))?",
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=(?:^\\b(?:define|store|layout|style|screen|component|animation|theme|morph)\\b(?:[^\\S\\n\\r])+(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))[a-zA-Z0-9_])))|((?:[^\\S\\n\\r])*)(end\\b|(?<=[}]))((?:(?:[^\\S\\n\\r])*(?:(?:(?:[-][-])\\[(?<level>=*)\\[(?:[^\\]\\r\\n]|\\](?!\\k<level>\\]))*\\]\\k<level>\\](?:[^\\S\\n\\r])*)+(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*)?|(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*))$))?",
       "endCaptures": {
         "1": {
           "emit": true,
@@ -10143,16 +10198,16 @@
           "include": "#LuauScreenNameHeader"
         },
         {
-          "include": "#LuauStructBlockLine"
+          "include": "#LuauStructWithBody"
+        },
+        {
+          "include": "#LuauStructBraceBody"
         },
         {
           "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|((?:[^\\S\\n\\r])*)(end)\\b((?:(?:[^\\S\\n\\r])*(?:(?:(?:[-][-])\\[(?<level>=*)\\[(?:[^\\]\\r\\n]|\\](?!\\k<level>\\]))*\\]\\k<level>\\](?:[^\\S\\n\\r])*)+(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*)?|(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*))$))?",
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=(?:^\\b(?:define|store|layout|style|screen|component|animation|theme|morph)\\b(?:[^\\S\\n\\r])+(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))[a-zA-Z0-9_])))|((?:[^\\S\\n\\r])*)(end\\b|(?<=[}]))((?:(?:[^\\S\\n\\r])*(?:(?:(?:[-][-])\\[(?<level>=*)\\[(?:[^\\]\\r\\n]|\\](?!\\k<level>\\]))*\\]\\k<level>\\](?:[^\\S\\n\\r])*)+(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*)?|(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*))$))?",
       "endCaptures": {
         "1": {
           "emit": true,
@@ -10194,20 +10249,12 @@
           "include": "#ExtraWhitespace"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|((?:[^\\S\\n\\r])*)(with)\\b",
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=(?:[^\\S\\n\\r])*with\\b)|((?:[^\\S\\n\\r])*)(?=[{])|$",
       "endCaptures": {
         "1": {
-          "emit": true,
           "patterns": [
             {
-              "include": "#OptionalWhitespace"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#LuauWithKeyword"
+              "include": "#Whitespace"
             }
           ]
         }
@@ -10249,19 +10296,16 @@
           "include": "#LuauComponentNameAndInheritance"
         },
         {
-          "include": "#LuauSparkleControlBlock"
+          "include": "#LuauSparkleWithBody"
         },
         {
-          "include": "#LuauSparkleBlockLine"
+          "include": "#LuauSparkleBraceBody"
         },
         {
           "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|((?:[^\\S\\n\\r])*)(end)\\b((?:(?:[^\\S\\n\\r])*(?:(?:(?:[-][-])\\[(?<level>=*)\\[(?:[^\\]\\r\\n]|\\](?!\\k<level>\\]))*\\]\\k<level>\\](?:[^\\S\\n\\r])*)+(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*)?|(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*))$))?",
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=(?:^\\b(?:define|store|layout|style|screen|component|animation|theme|morph)\\b(?:[^\\S\\n\\r])+(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))[a-zA-Z0-9_])))|((?:[^\\S\\n\\r])*)(end\\b|(?<=[}]))((?:(?:[^\\S\\n\\r])*(?:(?:(?:[-][-])\\[(?<level>=*)\\[(?:[^\\]\\r\\n]|\\](?!\\k<level>\\]))*\\]\\k<level>\\](?:[^\\S\\n\\r])*)+(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*)?|(?:(?:(?:[-][-])(?!\\[=*\\[))[^\\r\\n]*))$))?",
       "endCaptures": {
         "1": {
           "emit": true,
@@ -10309,20 +10353,12 @@
           "include": "#ExtraWhitespace"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|((?:[^\\S\\n\\r])*)(with)\\b",
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=(?:[^\\S\\n\\r])*with\\b)|((?:[^\\S\\n\\r])*)(?=[{])|$",
       "endCaptures": {
         "1": {
-          "emit": true,
           "patterns": [
             {
-              "include": "#OptionalWhitespace"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#LuauWithKeyword"
+              "include": "#Whitespace"
             }
           ]
         }
@@ -10350,8 +10386,20 @@
           "include": "#ExtraWhitespace"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|((?:[^\\S\\n\\r])*)(with)\\b",
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=(?:[^\\S\\n\\r])*with\\b)|((?:[^\\S\\n\\r])*)(?=[{])|$",
       "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        }
+      }
+    },
+    "LuauSparkleWithBody": {
+      "begin": "((?:[^\\S\\n\\r])*)(with)\\b|((?:\\r\\n|\\r|\\n))",
+      "beginCaptures": {
         "1": {
           "emit": true,
           "patterns": [
@@ -10364,6 +10412,59 @@
           "patterns": [
             {
               "include": "#LuauWithKeyword"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauSparkleControlBlock"
+        },
+        {
+          "include": "#LuauSparkleBlockLine"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=(?:(?:[^\\S\\n\\r])*(?:end)\\b))"
+    },
+    "LuauSparkleBraceBody": {
+      "brackets": true,
+      "begin": "([{])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#LuauStructBlockOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauSparkleBlockEntries"
+        }
+      ],
+      "end": "([}])|(?=(?:(?:(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|^(?:[^\\S\\n\\r])*(?:end|else|elseif|case)(?![0-9_\\p{L}-]))|(?:^\\b(?:define|store|layout|style|screen|component|animation|theme|morph)\\b(?:[^\\S\\n\\r])+(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))[a-zA-Z0-9_]))))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#LuauStructBlockClose"
             }
           ]
         }

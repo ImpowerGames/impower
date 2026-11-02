@@ -8,6 +8,29 @@ export const BRACE_BODY_NAMES = nodeNameSet([
   "LuauSparkleElementBlock",
 ]);
 
+export const STRUCT_KEYWORD_BLOCK_NAMES = nodeNameSet([
+  "LuauStyle",
+  "LuauAnimation",
+  "LuauTheme",
+  "LuauMorph",
+  "LuauLayout",
+  "LuauComponent",
+  "LuauScreen",
+]);
+
+export const KEYWORD_BRACE_BODY_NAMES = nodeNameSet([
+  "LuauStructBraceBody",
+  "LuauSparkleBraceBody",
+]);
+
+export function keywordBraceBody(block: SyntaxNode): SyntaxNode | null {
+  const content = findChildByName(block, `${block.name}_content`);
+  for (let child = content?.firstChild; child; child = child.nextSibling) {
+    if (KEYWORD_BRACE_BODY_NAMES.has(child.name)) return child;
+  }
+  return null;
+}
+
 export const STRUCT_KEY_TOKEN_NAMES = nodeNameSet([
   "BuiltinComponentName",
   "StylingDeclarationScalarPropertyName",
@@ -35,6 +58,18 @@ export function braceBodyParts(body: SyntaxNode): {
         begin: findChildByName(body, "LuauStructListBlock_begin"),
         content: findChildByName(body, "LuauStructListBlock_content"),
         end: findChildByName(body, "LuauStructListBlock_end"),
+      };
+    case "LuauStructBraceBody":
+      return {
+        begin: findChildByName(body, "LuauStructBraceBody_begin"),
+        content: findChildByName(body, "LuauStructBraceBody_content"),
+        end: findChildByName(body, "LuauStructBraceBody_end"),
+      };
+    case "LuauSparkleBraceBody":
+      return {
+        begin: findChildByName(body, "LuauSparkleBraceBody_begin"),
+        content: findChildByName(body, "LuauSparkleBraceBody_content"),
+        end: findChildByName(body, "LuauSparkleBraceBody_end"),
       };
     default:
       return {

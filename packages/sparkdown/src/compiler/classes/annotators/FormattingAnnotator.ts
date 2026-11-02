@@ -13,6 +13,7 @@ import {
   isInStructBlockKey,
   isSpacedBraceEdge,
   keepsSpaceBeforeClass,
+  precedesKeywordBraceBody,
 } from "../../utils/braceBodySpacing";
 import { oneLineTableBraces, tableOuterGaps } from "../../utils/oneLineTableBraces";
 import { Range } from "@codemirror/state";
@@ -563,7 +564,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       }
       if (
         keepsSpaceBeforeClass(nodeRef.node) ||
-        isSpacedBraceEdge(nodeRef.node, read)
+        isSpacedBraceEdge(nodeRef.node, read) ||
+        precedesKeywordBraceBody(nodeRef.node)
       ) {
         annotations.push(
           SparkdownAnnotation.mark<FormatType>("keyword_separator").range(

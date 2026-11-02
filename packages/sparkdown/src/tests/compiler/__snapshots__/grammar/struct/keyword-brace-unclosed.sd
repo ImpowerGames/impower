@@ -1,0 +1,20 @@
+style broken {
+  text-color = white
+
+style after {
+  corner = 8px
+}
+
+layout list {
+  row {
+    text "a"
+}
+
+component chip {
+}
+
+theme open { color = red
+
+scene start
+  Hi.
+end

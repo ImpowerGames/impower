@@ -93,3 +93,56 @@ end
     expect(folds).toEqual(expect.arrayContaining([[1, 2]]));
   });
 });
+
+describe("provider · folding struct keyword brace bodies", () => {
+  test("each keyword's brace body folds from its header to its `}`", () => {
+    const folds = foldsOf(`style card as base {
+  > text {
+    text-color = white
+  }
+}
+layout hud in menu as base {
+  column.panel {
+    text "a"
+  }
+}
+component chip(label) {
+  text label
+}
+screen menu {
+}
+animation fade {
+  timing { duration = 1 }
+}
+theme dusk {
+  color = red
+}
+morph blink {
+  method = bend
+}
+`);
+    expect(folds).toEqual(
+      expect.arrayContaining([
+        [0, 4],
+        [1, 3],
+        [5, 9],
+        [6, 8],
+        [10, 12],
+        [13, 14],
+        [15, 17],
+        [18, 20],
+        [21, 23],
+      ]),
+    );
+    for (const start of [0, 5, 10, 15, 18, 21]) {
+      expect(folds.filter(([s]) => s === start)).toHaveLength(1);
+    }
+  });
+
+  test("a body on one line does not fold", () => {
+    const folds = foldsOf(`style blue { text-color = white }
+screen menu {}
+`);
+    expect(folds).toEqual([]);
+  });
+});

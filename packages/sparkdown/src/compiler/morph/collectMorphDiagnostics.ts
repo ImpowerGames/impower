@@ -1,6 +1,7 @@
 import { type SyntaxNode, type Tree } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import type { LowerContext } from "../lower/context";
+import { keywordBraceBody } from "../utils/braceBlocks";
 import type {
   SourceSpan,
   StructSource,
@@ -204,7 +205,9 @@ export function collectMorphIssues(
         name: nameSpan,
         parent: parentSpan ?? null,
         block: morph.node,
-        withKeyword: getDescendent("LuauWithKeyword", morph.node) ?? null,
+        bodyOpener:
+          getDescendent("LuauWithKeyword", morph.node) ??
+          keywordBraceBody(morph.node),
         own: morph.own,
         effective,
         parentEffective: ancestors[0]?.written

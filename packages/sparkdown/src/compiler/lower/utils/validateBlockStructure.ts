@@ -4,7 +4,9 @@ import { ErrorType } from "../../../runtime/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { LowerContext } from "../context";
+import { keywordBraceBody } from "../../utils/braceBlocks";
 import { findChildByName } from "./alternatorArms";
+import { blockIsClosed } from "./structBodyEntries";
 import { lineTextSpan, makeSource } from "./validateDefineStructure";
 
 const HEADER_FORMS: Readonly<Partial<Record<SparkdownNodeName, string>>> = {
@@ -47,13 +49,33 @@ export function validateBlockStructure(
   if (!form) return [];
   const headerLine = lineTextSpan(node.from, node.to, ctx);
   if (!headerLine) return [];
-  const endNode = blockEnd(node);
-  if (endNode && getDescendent("LuauEndKeyword", endNode)) return [];
   const error = (message: string): InkDiagnostic => ({
     message,
     severity: ErrorType.Error,
     source: makeSource(headerLine.from, headerLine.to, ctx),
   });
+  const braceBody = keywordBraceBody(node);
+  if (braceBody) {
+    if (blockIsClosed(braceBody)) return [];
+    if (findChildByName(braceBody, "ERROR_INCOMPLETE")) {
+      return [
+        error(
+          `This ${keyword} is missing its closing \`}\`: it stops at a line its body cannot read, and the lines from there on are read outside the ${keyword}.`,
+        ),
+      ];
+    }
+    const closers =
+      braceBody.name === "LuauSparkleBraceBody"
+        ? "`end`, `else`, `elseif` or `case`"
+        : "`end`";
+    return [
+      error(
+        `This ${keyword} is missing its closing \`}\`. Without it, every line up to the next unindented declaration, the next line that starts with ${closers}, the next \`scene\` or \`branch\`, or the end of the file is read as part of this ${keyword}.`,
+      ),
+    ];
+  }
+  const endNode = blockEnd(node);
+  if (endNode && getDescendent("LuauEndKeyword", endNode)) return [];
   const stopped = !endNode && !!findChildByName(node, "ERROR_INCOMPLETE");
   if (stopped && ctx.lineNumber(node.to) === ctx.lineNumber(headerLine.from)) {
     return [
