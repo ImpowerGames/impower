@@ -30,7 +30,7 @@ function captureScopes(value: unknown): unknown {
 
 describe("closed narrative expression family", () => {
   test("all recursive counterparts keep scopes and never escape to an ordinary expression child", () => {
-    expect(pairs).toHaveLength(74);
+    expect(pairs).toHaveLength(75);
     const originals = new Set(pairs.map(([original]) => original));
     for (const [original, twin] of pairs) {
       for (const field of ["name", "contentName", "captures", "beginCaptures", "endCaptures"]) expect(captureScopes(repository[twin]![field])).toEqual(captureScopes(repository[original]![field]));
