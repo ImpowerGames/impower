@@ -2927,6 +2927,7 @@ export class ProgramStory implements StoryEngine {
         this.jumpTo(symbol, state.position?.sequence ?? null);
         return;
       }
+      this.tunnelEndedAt = this.runningAddress() ?? null;
       this.done();
       return;
     }
@@ -3169,6 +3170,8 @@ export class ProgramStory implements StoryEngine {
   endedAt: number | null = null;
 
   endsTunnelAtBase = false;
+
+  tunnelEndedAt: number | null = null;
 
   startsAtBranch(path: string): boolean {
     const symbol = this.root.table.symbolIds.get(path);

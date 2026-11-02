@@ -568,6 +568,7 @@ export class Game<T extends M = {}> {
   protected _routeSimulator: RouteSimulator | null = null;
 
   protected _routeTargetShows?: boolean;
+  protected _routeTargetTunnelEnds = false;
   get routeTargetShows() {
     return this._routeTargetShows;
   }
@@ -1741,6 +1742,8 @@ export class Game<T extends M = {}> {
     this._checkpointShownBeats.length = fromCheckpoint + 1;
     this._checkpointDecisionsTaken.length = fromCheckpoint + 1;
     this._routeTargetShows = undefined;
+    this._routeTargetTunnelEnds = false;
+    this._story.tunnelEndedAt = null;
     this._routeErrors = this._routeErrors.filter(
       (e) => e.at <= fromCheckpoint,
     );
@@ -1792,6 +1795,11 @@ export class Game<T extends M = {}> {
     if (this._simulation !== "success") {
       return;
     }
+    const ended = this._story.tunnelEndedAt;
+    this._routeTargetTunnelEnds =
+      ended !== null &&
+      this._startAddress != null &&
+      chunkOfAddress(ended) === chunkOfAddress(this._startAddress);
     if (this.module.interpreter.hasQueuedBeats) {
       this._routeTargetShows = true;
       return;
@@ -2481,6 +2489,8 @@ export class Game<T extends M = {}> {
     if (saveData.simulatedFrom) {
       this._simulation = "success";
       this.simulateFlow = saveData.simulatedFrom;
+    } else {
+      this._story.endsTunnelAtBase = false;
     }
   }
 
@@ -2572,6 +2582,8 @@ export class Game<T extends M = {}> {
     if (saveData.simulatedFrom) {
       this._simulation = "success";
       this.simulateFlow = saveData.simulatedFrom;
+    } else {
+      this._story.endsTunnelAtBase = false;
     }
     return true;
   }
@@ -2963,12 +2975,18 @@ export class Game<T extends M = {}> {
       this._story.resetSeed = plan.seed;
       this._story.ResetState();
       applyStartValues(this._story, plan);
+      this._story.endsTunnelAtBase = this.jumpEndsTunnelAtBase(address);
       this._positions.jumpTo(address);
       bindStartArguments(this._story, plan);
       return;
     }
     this._story.ResetState();
+    this._story.endsTunnelAtBase = this.jumpEndsTunnelAtBase(address);
     this._positions.jumpTo(address);
+  }
+
+  protected jumpEndsTunnelAtBase(address: ProgramAddress): boolean {
+    return this._story.root.branchAt(address) !== undefined;
   }
 
   jumpToFlow(flow: string) {
@@ -3232,12 +3250,7 @@ export class Game<T extends M = {}> {
   }
 
   protected endsAtTunnelReturn(route: RoutePlan): boolean {
-    const root = this._story.root;
-    return (
-      this._story.startsAtBranch(route.from) &&
-      root.branchAt(route.to) === route.from &&
-      root.returnsFromTunnelAt(route.to)
-    );
+    return route.to === this._plannedRoute?.to && this._routeTargetTunnelEnds;
   }
 
   protected lineLocation(uri: string, line: number): DocumentLocation {

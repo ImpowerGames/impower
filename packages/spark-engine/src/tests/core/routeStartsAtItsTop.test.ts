@@ -3,7 +3,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { paramKey } from "@impower/sparkdown/src/program/startingValueLiterals";
 import { START_FLOW_NAME } from "@impower/sparkdown/src/program/ProgramSymbols";
-import { routeTo, shown } from "../harness/startingValuesGame";
+import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
+import { URI, routeTo, shown } from "../harness/startingValuesGame";
 
 const PARAMETER_SCENE = [
   "scene start",
@@ -75,17 +76,30 @@ describe("a line in a branch only a divert from elsewhere enters", () => {
   });
 });
 
+const run = (game: any, start: () => void) => {
+  start();
+  const errors: string[] = [];
+  const text: string[] = [];
+  game.story.onError = (message: string) => errors.push(message);
+  try {
+    while (game.story.canContinue) {
+      text.push(game.story.Continue() ?? "");
+    }
+  } catch (e) {
+    errors.push(String(e));
+  }
+  return { errors, text: text.join("") };
+};
+
 describe("a tunnel's return with nothing to return to, in a route from a branch's top", () => {
   test("ends the run as done does", () => {
     const { game } = routeTo(DOTTED, 14);
     expect(game.simulation).toBe("success");
     expect(game.plannedRoute.from).toBe("outer.visit");
-    const errors: string[] = [];
-    game.story.onError = (message: string) => errors.push(message);
-    while (game.story.canContinue) {
-      game.story.Continue();
-    }
+    const { errors, text } = run(game, () => game.jumpToFlow(game.plannedRoute.from));
+    expect(text).toContain("Visit nil nil.");
     expect(errors).toEqual([]);
+    expect(game.story.canContinue).toBe(false);
     expect(game.story.currentChoices).toEqual([]);
   });
 
@@ -96,40 +110,84 @@ describe("a tunnel's return with nothing to return to, in a route from a branch'
     expect(before.previewRouteOf(before.plannedRoute).tunnelEnds).toBeUndefined();
   });
 
+  test("is not the route's last entry when the route reaches it inside a tunnel the branch entered", () => {
+    const { game } = routeTo(
+      [
+        "scene start",
+        "  Top.",
+        "end",
+        "scene outer",
+        "  branch b(a)",
+        "    if a == nil then",
+        "      -> outer.b(1) ->",
+        "      After caller.",
+        "      done",
+        "    end",
+        "    ->->",
+        "  end",
+        "end",
+      ],
+      11,
+    );
+    expect(game.simulation).toBe("success");
+    expect(game.plannedRoute.from).toBe("outer.b");
+    expect(game.previewRouteOf(game.plannedRoute).tunnelEnds).toBeUndefined();
+  });
+
   test("goes on to the divert it names", () => {
     const { game } = routeTo(DOTTED, 27, {
       "outer.leave": { [paramKey("k")]: "4" },
     });
     expect(game.simulation).toBe("success");
-    const errors: string[] = [];
-    game.story.onError = (message: string) => errors.push(message);
-    const text: string[] = [];
-    while (game.story.canContinue) {
-      text.push(game.story.Continue());
-    }
+    const { errors, text } = run(game, () => game.jumpToFlow(game.plannedRoute.from));
     expect(errors).toEqual([]);
-    expect(text.join("")).toContain("Last 5.");
+    expect(text).toContain("Leave 4.");
+    expect(text).toContain("Last 5.");
   });
 });
 
+const SCENE_TUNNEL = [
+  "scene start",
+  "  -> outer.b(1)",
+  "end",
+  "scene outer",
+  "  branch b(a)",
+  "    B {a}.",
+  "    ->->",
+  "  end",
+  "end",
+  "scene s",
+  "  Before.",
+  "  ->->",
+  "end",
+];
+
 describe("a tunnel's return with nothing to return to, in a route from a scene's top", () => {
   test("is an error, as in the game", () => {
-    const { game } = routeTo(
-      ["scene start", "  Top.", "end", "", "scene s", "  Before.", "  ->->", "end"],
-      7,
-    );
+    const { game } = routeTo(SCENE_TUNNEL, 12);
     expect(game.plannedRoute.from).toBe("s");
     expect(game.previewRouteOf(game.plannedRoute).tunnelEnds).toBeUndefined();
-    game.jumpToFlow("s");
-    const errors: string[] = [];
-    game.story.onError = (message: string) => errors.push(message);
-    try {
-      while (game.story.canContinue) {
-        game.story.Continue();
-      }
-    } catch (e) {
-      errors.push(String(e));
-    }
+    const { errors } = run(game, () => game.jumpToFlow("s"));
+    expect(errors.join(" ")).toContain("->->");
+  });
+
+  test("is an error after a route from a branch's top, when the game jumps into the scene", () => {
+    const { game } = routeTo(SCENE_TUNNEL, 7);
+    expect(game.plannedRoute.from).toBe("outer.b");
+    const before = programLocator(game.program).addressAt(URI, 10)!;
+    const { errors } = run(game, () => game.jumpTo(before, true));
+    expect(errors.join(" ")).toContain("->->");
+  });
+
+  test("is an error after a route from a branch's top, when the game loads a save made in the scene", () => {
+    const saved = routeTo(SCENE_TUNNEL, 12).game;
+    saved.jumpTo(programLocator(saved.program).addressAt(URI, 10)!, true);
+    saved.simulation = "none";
+    const save = saved.save();
+    expect(JSON.parse(save).simulatedFrom).toBeUndefined();
+    const { game } = routeTo(SCENE_TUNNEL, 7);
+    expect(game.plannedRoute.from).toBe("outer.b");
+    const { errors } = run(game, () => game.load(save));
     expect(errors.join(" ")).toContain("->->");
   });
 });
