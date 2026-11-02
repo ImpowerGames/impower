@@ -188,6 +188,7 @@ function player(options: { refusals?: Record<string, string> } = {}) {
     asked,
     routeButton,
     routeList,
+    savesButton,
     savesMenu,
     request,
     hostAnswers,
@@ -232,6 +233,43 @@ describe("the Saves menu", () => {
     p.play(false);
     expect(p.shape()).toEqual(previewing);
     expect(p.saveHere().disabled).toBe(true);
+  });
+
+  test("opens on a press without the toolbar taking the pointer", async () => {
+    const p = player();
+    await p.withSaves([saved()]);
+    const toolbar = document.createElement("div");
+    const button = p.savesButton.querySelector<HTMLButtonElement>(".saves-button")!;
+    p.savesButton.replaceWith(toolbar);
+    toolbar.append(p.savesButton);
+    const resize = (p.controller as any).handlePointerDownToolbar;
+    toolbar.addEventListener("pointerdown", resize);
+    button.dispatchEvent(new (window.PointerEvent ?? MouseEvent)("pointerdown", { bubbles: true, button: 0 }));
+    toolbar.removeEventListener("pointerdown", resize);
+    expect((p.controller as any)._isResizing).toBe(false);
+    button.click();
+    expect(p.menu()).not.toBeNull();
+  });
+
+  test("keeps keys pressed in its controls from reaching the game", async () => {
+    const p = player();
+    await p.withSaves([saved()]);
+    p.play(true);
+    const heard: string[] = [];
+    const hear = (e: KeyboardEvent) => heard.push(e.key);
+    window.addEventListener("keydown", hear);
+    try {
+      const button = p.savesButton.querySelector<HTMLButtonElement>(".saves-button")!;
+      button.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      p.openMenu();
+      p.saveHere().dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+      p.rowOf("saved-1")
+        .querySelector(".saves-play")!
+        .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    } finally {
+      window.removeEventListener("keydown", hear);
+    }
+    expect(heard).toEqual([]);
   });
 
   test("reads No saves yet with Save here first when there are none", async () => {
@@ -455,5 +493,41 @@ describe("Load a save", () => {
       "store:trust": "2",
       "visits:start": "1",
     });
+  });
+
+  test("loads a parameter edited in a save whose line is gone", async () => {
+    const p = player({ refusals: { "saved-1": "The saved line is gone." } });
+    await (p.controller as any).handleSetStartingValues(
+      SetStartingValuesMessage.type.request({ values: {} }),
+    );
+    await p.withSaves([saved()]);
+    await (p.controller as any)._saves.editValues("saved-1");
+    await settle();
+    const editing = (p.controller as any)._saves.setValue("local:0:hour", '"ten"');
+    await settle();
+    expect(p.asked.some(([method]) => method === "player/editSave")).toBe(false);
+    const written = p.request("preview/writeSave").params.save as PreviewSave;
+    expect(written.data).toBe('{"save":"saved-1"}');
+    expect(written.values.values["local:0:hour"]).toBe('"ten"');
+    expect(written.values.frames[0]!.params).toEqual({ hour: '"ten"' });
+    p.hostAnswers("preview/writeSave");
+    await editing;
+    (p.controller as any).updateExecutionLabels({
+      conditions: [],
+      choices: [],
+      state: "previewing",
+      simulation: "success",
+      route: route(),
+    });
+    p.routeButton.querySelector<HTMLButtonElement>(".route-button")!.click();
+    await settle();
+    [...p.routeList.querySelectorAll<HTMLButtonElement>(".route-tab")]
+      .find((tab) => tab.dataset["tab"] === "values")!
+      .click();
+    await settle();
+    loadButton(p).click();
+    p.routeList.querySelector<HTMLButtonElement>(".sv-load-row")!.click();
+    await settle();
+    expect(changes(p).at(-1)!.changes).toMatchObject({ "param:hour": '"ten"' });
   });
 });

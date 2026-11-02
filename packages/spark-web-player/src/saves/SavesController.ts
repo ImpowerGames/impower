@@ -7,6 +7,7 @@ import {
 import { RenameSaveMessage } from "@impower/spark-editor-protocol/src/protocols/preview/RenameSaveMessage";
 import { WriteSaveMessage } from "@impower/spark-editor-protocol/src/protocols/preview/WriteSaveMessage";
 import type { GameSave } from "@impower/spark-engine/src/game/core/types/GameSave";
+import { readLocalKey } from "@impower/sparkdown/src/program/saveValueSet";
 import type { StartingValueListing } from "@impower/sparkdown/src/program/startingValueLiterals";
 import { EditSaveMessage } from "../main/workers/messages/EditSaveMessage";
 import { SaveHereMessage } from "../main/workers/messages/SaveHereMessage";
@@ -325,7 +326,7 @@ export class SavesController {
     }
     const before = record.values.values[key];
     delete this._unsaved[key];
-    let edited: PreviewSave;
+    let data = record.data;
     if (this._refusals[record.id] === undefined) {
       try {
         const result = await this._host.askWorker(EditSaveMessage.type, {
@@ -335,21 +336,26 @@ export class SavesController {
         if (!result) {
           throw new Error("The player could not edit the save.");
         }
-        edited = { ...record, data: result.data, values: result.values };
+        data = result.data;
       } catch {
         this._unsaved[key] = before ?? "nil";
         this._host.changed();
         return;
       }
-    } else {
-      edited = {
-        ...record,
-        values: {
-          ...record.values,
-          values: { ...record.values.values, [key]: value },
-        },
-      };
     }
+    const local = readLocalKey(key);
+    const edited: PreviewSave = {
+      ...record,
+      data,
+      values: {
+        values: { ...record.values.values, [key]: value },
+        frames: record.values.frames.map((frame, i) =>
+          local && i === local.frame && Object.hasOwn(frame.params, local.name)
+            ? { ...frame, params: { ...frame.params, [local.name]: value } }
+            : frame,
+        ),
+      },
+    };
     try {
       await this.write(edited);
     } catch {

@@ -323,6 +323,8 @@ export class Game<T extends M = {}> {
 
   protected _sceneSaveDue: string | null = null;
 
+  protected _sceneEntryValues?: SaveValues;
+
   protected _resumeShown?: Instructions | null;
 
   protected _savesSceneEntries = false;
@@ -1263,9 +1265,17 @@ export class Game<T extends M = {}> {
         this._state === "running" &&
         !this._context.system.previewing
       ) {
-        this._sceneSaveDue = transition.scene;
+        this.noteSceneEntry(transition.scene);
       }
     }
+  }
+
+  protected noteSceneEntry(scene: string | null): void {
+    this._sceneSaveDue = scene;
+    this._sceneEntryValues =
+      scene !== null
+        ? readStoryValues(this._story, this.startingValueSource())
+        : undefined;
   }
 
   async connect(send: (message: Message, transfer?: ArrayBuffer[]) => void) {
@@ -2316,7 +2326,7 @@ export class Game<T extends M = {}> {
     this._resumeShown = undefined;
     if (resumed !== undefined) {
       this.observeScene(this._positions.current());
-      this._sceneSaveDue = null;
+      this.noteSceneEntry(null);
       if (resumed && !resumed.choices?.length) {
         this.module.interpreter.requeue(resumed);
       }
@@ -2545,17 +2555,22 @@ export class Game<T extends M = {}> {
 
   protected saveFirstScene(): void {
     if (this._savesSceneEntries) {
-      this._sceneSaveDue = this._sceneTracker.current;
+      this.noteSceneEntry(this._sceneTracker.current);
     }
   }
 
   protected writeSceneSave(): void {
     const due = this._sceneSaveDue;
+    const entered = this._sceneEntryValues;
     this._sceneSaveDue = null;
+    this._sceneEntryValues = undefined;
     if (due === null || this._sceneTracker.current !== due) {
       return;
     }
     const save = this.saveHere();
+    if (save && entered) {
+      save.values = entered;
+    }
     if (save) {
       this.connection.emit(GameSavedSceneEntryMessage.type.notification({ save }));
     }

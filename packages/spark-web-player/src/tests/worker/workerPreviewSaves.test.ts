@@ -113,7 +113,7 @@ describe("saves made while playing in the player", () => {
 
       await h.controller.playFromSave(saved.data);
       await settle(40);
-      const running = h.playing();
+      const running = h.playing()!;
       expect(running).toBeDefined();
       expect(shownText(running)).toContain("Where were you at nine?");
       expect(running.story.state.variablesState["trust"]).toBe(0);

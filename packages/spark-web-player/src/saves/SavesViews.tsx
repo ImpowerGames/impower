@@ -30,6 +30,8 @@ export interface SavesEvents {
   onNoteRename: () => void;
 }
 
+const keepKeys = (e: KeyboardEvent) => e.stopPropagation();
+
 export function SaveIcon({ icon }: { icon: "saves" | "back" | "more" }) {
   return (
     <svg
@@ -74,6 +76,8 @@ export function SavesButton({
       aria-haspopup="menu"
       aria-expanded={state.open}
       title="Saves"
+      onPointerDown={(e) => e.stopPropagation()}
+      onKeyDown={keepKeys}
       onClick={() => events.onOpen(!state.open)}
     >
       <SaveIcon icon="saves" />
@@ -370,14 +374,14 @@ export function SavesMenu({
   }
   if (state.values) {
     return (
-      <section class="saves-menu" aria-label="Saves">
+      <section class="saves-menu" aria-label="Saves" onKeyDown={keepKeys}>
         <SaveValuesPanel values={state.values} events={events} />
       </section>
     );
   }
   const groups = saveGroups(state.saves);
   return (
-    <section class="saves-menu" role="menu" aria-label="Saves">
+    <section class="saves-menu" role="menu" aria-label="Saves" onKeyDown={keepKeys}>
       <button
         type="button"
         role="menuitem"
@@ -422,7 +426,7 @@ export function SaveNote({
     return null;
   }
   return (
-    <div class="save-note" role="status" data-failed={note.failed ? "" : undefined}>
+    <div class="save-note" role="status" data-failed={note.failed ? "" : undefined} onKeyDown={keepKeys}>
       {note.failed !== undefined ? (
         <>
           <RouteIconSvg icon="error" />

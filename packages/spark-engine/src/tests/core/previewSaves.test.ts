@@ -143,6 +143,56 @@ describe("saves made while playing", () => {
     });
   });
 
+  it("keeps the values a scene was entered with in its Last run save", () => {
+    const lines = [
+      "store trust = 0",
+      "",
+      "scene start",
+      "  Opening.",
+      '  -> interrogation("nine")',
+      "end",
+      "",
+      "scene interrogation(hour)",
+      "  trust += 1",
+      "  INSPECTOR:",
+      "    At {hour}, trust is {trust}.",
+      "  choose",
+      "    * [Again.]",
+      "      -> hallway",
+      "    * [Stop.]",
+      "      INSPECTOR:",
+      "        Done.",
+      "  end",
+      "end",
+      "",
+      "scene hallway",
+      '  -> interrogation("ten")',
+      "end",
+    ];
+    const { program, compiler } = compileSrc(lines.join("\n"));
+    const saves: GameSave[] = [];
+    const game = playFromLine(program, compiler, 4, (save) => saves.push(save));
+    advanceTo(game, "At nine, trust is 1.");
+    game.clickedToContinue();
+    choose(game, "Again.");
+    advanceTo(game, "At ten, trust is 2.");
+    const entries = saves.filter((save) => save.scene === "interrogation");
+    expect(entries).toHaveLength(2);
+    const listing = game.startingValueListing("interrogation");
+    expect(saveStartingValues(entries[0]!.values, listing)).toEqual({
+      "param:hour": '"nine"',
+      "visits:start": "1",
+    });
+    expect(saveStartingValues(entries[1]!.values, listing)).toEqual({
+      "param:hour": '"ten"',
+      "store:trust": "1",
+      "visits:start": "1",
+      "visits:interrogation": "1",
+      "visits:hallway": "1",
+      [listing.items.find((item: { name: string }) => item.name === "Again.")!.key]: "1",
+    });
+  });
+
   it("keeps the position when a save's values are edited", () => {
     const { program, compiler } = compileSrc(example.join("\n"));
     const game = playFromLine(program, compiler, START_LINE);

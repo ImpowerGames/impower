@@ -106,7 +106,7 @@ While none of a scene's parameters is set, a line in a scene that takes paramete
 A save holds a moment of a Play: where the story stands, every value it holds and what is on screen. The Saves button in the player's toolbar opens the Saves menu. Saves are kept for you in this project, and are never written into the project's files.
 
 - Save here, first in the menu, saves the game where it stands while you play, named after its scene and line, such as `interrogation, line 11`. A note over the game says what it was saved as and offers Rename. Save here is off while you preview, so the menu keeps its shape when Play starts or stops.
-- Last run holds one save for each scene the last Play entered, such as `Entering interrogation`, taken at the first line the scene shows. The next Play replaces them.
+- Last run holds one save for each scene the last Play entered, such as `Entering interrogation`. Its values are the ones the scene was entered with, and Play from here resumes at the first line the scene shows. A scene that shows no line gets none. The next Play replaces them.
 - Saved lists the saves you made with Save here.
 
 Each row has Play from here, and a menu of Edit values, Rename and Delete. With no saves, the menu reads "No saves yet".
