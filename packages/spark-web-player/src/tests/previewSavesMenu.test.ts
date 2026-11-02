@@ -98,7 +98,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 function player(
   options: {
     refusals?: Record<string, string>;
-    durable?: Record<string, string>;
+    countKeys?: Record<string, string>;
   } = {},
 ) {
   const host = document.createElement("div");
@@ -146,8 +146,8 @@ function player(
     if (type.method === "player/saveRefusals") {
       return { refusals: options.refusals ?? {} };
     }
-    if (type.method === "player/saveValues" && options.durable) {
-      return { values: { values: options.durable, frames: [] } };
+    if (type.method === "player/countKeys") {
+      return { keys: options.countKeys ?? {} };
     }
     if (type.method === "player/editSave") {
       await settle();
@@ -330,6 +330,7 @@ describe("the Saves menu", () => {
     const field = p.rowOf("saved-1").querySelector<HTMLInputElement>(".saves-rename")!;
     field.value = "Before the lie";
     field.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    await settle();
     expect(p.request("preview/renameSave").params).toEqual({
       id: "saved-1",
       name: "Before the lie",
@@ -405,23 +406,113 @@ describe("a save's values", () => {
 });
 
 describe("edits to a save", () => {
-  const answerWrites = async (p: ReturnType<typeof player>, count: number) => {
+  const answerWrites = async (
+    p: ReturnType<typeof player>,
+    count: number,
+    ok: (message: any) => boolean = () => true,
+  ) => {
     const answered = new Set<unknown>();
     for (let i = 0; i < 50 && answered.size < count; i++) {
       await settle();
       for (const message of p.sent.filter(
-        (m) => m.method === "preview/writeSave" && !answered.has(m.id),
+        (m) =>
+          /^preview\/(writeSave|renameSave|deleteSaves)$/.test(m.method) &&
+          !answered.has(m.id),
       )) {
         answered.add(message.id);
         window.dispatchEvent(
           new CustomEvent(MessageProtocol.event, {
-            detail: { jsonrpc: "2.0", id: message.id, method: message.method, result: {} },
+            detail: ok(message)
+              ? { jsonrpc: "2.0", id: message.id, method: message.method, result: {} }
+              : {
+                  jsonrpc: "2.0",
+                  id: message.id,
+                  method: message.method,
+                  error: { code: -1, message: "not kept" },
+                },
           }),
         );
       }
     }
     return answered.size;
   };
+
+  const hostRequests = (p: ReturnType<typeof player>) =>
+    p.sent
+      .filter((m) => /^preview\/(writeSave|renameSave|deleteSaves)$/.test(m.method))
+      .map((m) => m.method.slice("preview/".length));
+
+  test("leaves a save deleted when an edit to it was pending", async () => {
+    const p = player();
+    await p.withSaves([saved()]);
+    const saves = (p.controller as any)._saves;
+    await saves.editValues("saved-1");
+    const editing = saves.setValue("store:trust", "5");
+    const deleting = saves.delete("saved-1");
+    expect(await answerWrites(p, 2)).toBe(2);
+    await Promise.all([editing, deleting]);
+    expect(saves.record("saved-1")).toBeUndefined();
+    expect(hostRequests(p)).toEqual(["writeSave", "deleteSaves"]);
+  });
+
+  test("keeps a rename made while an edit was pending", async () => {
+    const p = player();
+    await p.withSaves([saved()]);
+    const saves = (p.controller as any)._saves;
+    await saves.editValues("saved-1");
+    const editing = saves.setValue("store:trust", "5");
+    const renaming = saves.rename("saved-1", "Before the lie");
+    expect(await answerWrites(p, 2)).toBe(2);
+    await Promise.all([editing, renaming]);
+    const record = saves.record("saved-1") as PreviewSave;
+    expect(record.name).toBe("Before the lie");
+    expect(record.values.values["store:trust"]).toBe("5");
+    expect(hostRequests(p)).toEqual(["writeSave", "renameSave"]);
+  });
+
+  test("clears the last run when the next Play starts while an edit to it was pending", async () => {
+    const p = player();
+    await p.withSaves([entering(), saved()]);
+    const saves = (p.controller as any)._saves;
+    await saves.editValues("last-1");
+    const editing = saves.setValue("store:trust", "5");
+    const starting = saves.playStarted();
+    expect(await answerWrites(p, 2)).toBe(2);
+    await Promise.all([editing, starting]);
+    expect(saves.saves.map((save: PreviewSave) => save.id)).toEqual(["saved-1"]);
+    expect(hostRequests(p)).toEqual(["writeSave", "deleteSaves"]);
+  });
+
+  test("accepts a new value after a change the host did not keep", async () => {
+    const p = player();
+    await p.withSaves([saved()]);
+    const saves = (p.controller as any)._saves;
+    p.openMenu();
+    await saves.editValues("saved-1");
+    await settle();
+    const commit = (text: string) => {
+      const field = p.menu()!.querySelector<HTMLInputElement>(
+        '.sv-row[data-key="store:trust"] .sv-input',
+      )!;
+      field.value = text;
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      p.menu()!
+        .querySelector<HTMLInputElement>('.sv-row[data-key="store:trust"] .sv-input')!
+        .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    };
+    commit("5");
+    expect(await answerWrites(p, 1, () => false)).toBe(1);
+    await settle();
+    expect(
+      p.menu()!.querySelector('.sv-row[data-key="store:trust"] .sv-badge')!.getAttribute(
+        "data-status",
+      ),
+    ).toBe("error");
+    commit("6");
+    expect(await answerWrites(p, 2)).toBe(2);
+    await settle();
+    expect((saves.record("saved-1") as PreviewSave).values.values["store:trust"]).toBe("6");
+  });
 
   test("applies an edit made before an earlier one is answered after it", async () => {
     const p = player();
@@ -580,11 +671,21 @@ describe("Load a save", () => {
     });
   });
 
+  const withPlaces = (save: PreviewSave, counts: Record<string, string>) => {
+    Object.assign(save.values.values, counts);
+    save.values.places = JSON.stringify({
+      forms: Object.fromEntries(Object.keys(counts).map((key) => [key, { n: key }])),
+      listings: [],
+      parts: [],
+    });
+    return save;
+  };
+
   test("loads an option's count under the line the option is on now", async () => {
-    const moved = saved();
-    moved.values.values[`place:0:11:${URI}`] = "1";
+    const moved = withPlaces(saved(), { [`place:0:11:${URI}`]: "1" });
     const p = player({
-      durable: { ...saved().values.values, [`place:0:12:${URI}`]: "1" },
+      refusals: { "saved-1": "The saved line is gone." },
+      countKeys: { [`place:0:11:${URI}`]: `place:0:12:${URI}` },
     });
     await (p.controller as any).handleSetStartingValues(
       SetStartingValuesMessage.type.request({ values: {} }),
@@ -609,10 +710,30 @@ describe("Load a save", () => {
     const written = p.request("preview/writeSave").params.save as PreviewSave;
     expect(written.values.values[`place:0:12:${URI}`]).toBe("1");
     expect(written.values.values[`place:0:11:${URI}`]).toBeUndefined();
+    expect(Object.keys(JSON.parse(written.values.places!).forms)).toEqual([
+      `place:0:12:${URI}`,
+    ]);
     p.hostAnswers("preview/writeSave");
     await settle();
     await settle();
     expect(changes(p).at(-1)!.changes).toMatchObject({ [`place:0:12:${URI}`]: "1" });
+  });
+
+  test("keeps the counts a Last run save was entered with when it re-keys them", async () => {
+    const entry = withPlaces(entering(), { [`place:0:11:${URI}`]: "0" });
+    const p = player({
+      countKeys: { [`place:0:11:${URI}`]: `place:0:12:${URI}` },
+    });
+    await (p.controller as any).handleSetStartingValues(
+      SetStartingValuesMessage.type.request({ values: {} }),
+    );
+    await p.withSaves([entry]);
+    const reading = (p.controller as any)._saves.current("last-1");
+    await settle();
+    p.hostAnswers("preview/writeSave");
+    const record = (await reading) as PreviewSave;
+    expect(record.values.values[`place:0:12:${URI}`]).toBe("0");
+    expect(record.values.values[`place:0:11:${URI}`]).toBeUndefined();
   });
 
   test("loads a parameter edited in a save whose line is gone", async () => {

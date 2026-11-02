@@ -2474,3 +2474,41 @@ export const placesStatement = (root: ProgramRoot, saved: string): boolean => {
     undefined
   );
 };
+
+export const countsSave = (
+  root: ProgramRoot,
+  counts: ReadonlyMap<string, number>,
+): string => {
+  const forms = new FormWriter(root);
+  const symbolOf: number[] = [];
+  root.table.countIds.forEach((count, symbol) => {
+    if (count >= 0) symbolOf[count] = symbol;
+  });
+  const saved: Record<string, SavedSymbol> = {};
+  for (const [key, countId] of counts) {
+    const symbol = symbolOf[countId];
+    if (symbol !== undefined) {
+      saved[key] = forms.symbolForm(symbol, root.table.symbols[symbol]!);
+    }
+  }
+  return JSON.stringify({ forms: saved, listings: forms.listings(), parts: forms.parts() });
+};
+
+export const placeCounts = (root: ProgramRoot, saved: string): Map<string, number> => {
+  const placed = new Map<string, number>();
+  let form: { forms?: Record<string, SavedSymbol>; listings?: SavedListing[]; parts?: SavedParts[] };
+  try {
+    form = JSON.parse(saved);
+  } catch {
+    return placed;
+  }
+  const placer = new FormPlacer(root, form.listings ?? [], form.parts ?? []);
+  for (const [key, symbolForm] of Object.entries(form.forms ?? {})) {
+    const symbol = placer.decodeSymbol(symbolForm);
+    const countId = symbol === undefined ? -1 : countIdOf(root.table, symbol);
+    if (countId >= 0) {
+      placed.set(key, countId);
+    }
+  }
+  return placed;
+};

@@ -1,3 +1,4 @@
+import { checkStartingValue } from "@impower/sparkdown/src/program/startingValueLiterals";
 import { RouteIconSvg } from "../route/RouteIcons";
 import {
   SAVE_TEXT,
@@ -225,9 +226,13 @@ function ValueField({
 }) {
   const commit = (input: HTMLInputElement) => {
     const text = input.value.trim();
+    const check = checkStartingValue(
+      row.item ?? { key: row.key, group: "stores", name: row.name, first: "" },
+      text,
+    );
     if (text === "" || text === (row.value ?? row.first ?? "")) {
       events.onValueDraft(row.key, null);
-    } else if (row.badge?.status !== "error") {
+    } else if (check.status !== "error") {
       events.onValueDraft(row.key, null);
       events.onValueSet(row.key, text);
     }

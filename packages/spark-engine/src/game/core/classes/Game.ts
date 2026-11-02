@@ -18,6 +18,7 @@ import type { ProgramStoryState } from "@impower/sparkdown/src/program/ProgramSt
 import {
   durableAddress,
   placeDurableAddress,
+  placeCounts,
   placesStatement,
   statementSave,
 } from "@impower/sparkdown/src/program/ProgramSave";
@@ -52,6 +53,7 @@ import {
   startPlanOf,
   startStoryAt,
   startingValueListing,
+  startingValueTargets,
   type StartPlan,
   type StartingValueSource,
 } from "@impower/sparkdown/src/program/startingValues";
@@ -2603,6 +2605,24 @@ export class Game<T extends M = {}> {
     } catch (e) {
       return e instanceof Error ? e.message : String(e);
     }
+  }
+
+  countKeysOf(places: string): Record<string, string> {
+    const keyOf = new Map<number, string>();
+    const targets = startingValueTargets(this._story, this.startingValueSource());
+    for (const [key, countId] of targets.counts) {
+      if (key.startsWith("place:")) {
+        keyOf.set(countId, key);
+      }
+    }
+    const keys: Record<string, string> = {};
+    for (const [key, countId] of placeCounts(this._story.root, places)) {
+      const now = keyOf.get(countId);
+      if (now !== undefined) {
+        keys[key] = now;
+      }
+    }
+    return keys;
   }
 
   saveValuesOf(saveJSON: string): SaveValues {

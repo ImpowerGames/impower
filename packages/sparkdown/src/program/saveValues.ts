@@ -6,6 +6,7 @@ import {
   type AbstractValue,
 } from "../runtime/Value";
 import { addressOf, chunkId } from "./ProgramChunk";
+import { countsSave } from "./ProgramSave";
 import type { ProgramStory } from "./ProgramStory";
 import { localKey, readLocalKey, type SavedFrame, type SaveValues } from "./saveValueSet";
 import {
@@ -103,8 +104,12 @@ export const readStoryValues = (
       values[key] = text;
     }
   }
+  const places = new Map<string, number>();
   for (const [key, countId] of targets.counts) {
     values[key] = String(story.state.VisitCount(countId));
+    if (key.startsWith("place:")) {
+      places.set(key, countId);
+    }
   }
   values[SEED_KEY] = String(story.state.storySeed);
   const frames = framesOf(story).map(({ scopes, frame }, i) => {
@@ -137,7 +142,7 @@ export const readStoryValues = (
     }
     return frame;
   });
-  return { values, frames };
+  return { values, frames, places: countsSave(story.root, places) };
 };
 
 export const applySaveValueChanges = (

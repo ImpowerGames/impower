@@ -193,7 +193,7 @@ describe("saves made while playing", () => {
     });
   });
 
-  it("reads a save's option counts under the lines the options are on now", () => {
+  it("finds the lines a save's counted options are on now", () => {
     const lines = [
       "scene start",
       "  choose",
@@ -216,10 +216,19 @@ describe("saves made while playing", () => {
     expect(before.map(([key]) => key)).toEqual([`place:0:4:${URI}`]);
 
     recompile(compiler, game, ["", "", ...lines].join("\n"));
-    const after = Object.entries(game.saveValuesOf(save.data).values).filter(
-      ([key, value]) => key.startsWith("place:") && value === "1",
+    expect(game.countKeysOf(save.values.places)).toEqual({
+      [`place:0:2:${URI}`]: `place:0:4:${URI}`,
+      [`place:0:4:${URI}`]: `place:0:6:${URI}`,
+    });
+
+    recompile(
+      compiler,
+      game,
+      ["", "", ...lines.filter((line) => !line.includes("Stay"))].join("\n"),
     );
-    expect(after.map(([key]) => key)).toEqual([`place:0:6:${URI}`]);
+    expect(game.countKeysOf(save.values.places)).toEqual({
+      [`place:0:4:${URI}`]: `place:0:4:${URI}`,
+    });
   });
 
   it("keeps the position when a save's values are edited", () => {

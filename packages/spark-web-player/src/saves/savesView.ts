@@ -150,7 +150,7 @@ export const saveValueGroups = (state: SaveValuesState): SaveValueGroup[] => {
       ...extra,
       ...(value !== undefined ? { value } : {}),
     };
-    if (unsaved !== undefined) {
+    if (unsaved !== undefined && draft === undefined) {
       row.badge = {
         status: "error",
         message: `Your change was not saved, so this is back to ${unsaved}.`,

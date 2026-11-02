@@ -15,7 +15,7 @@ import type { StartingValueListing } from "@impower/sparkdown/src/program/starti
 import { EditSaveMessage } from "../main/workers/messages/EditSaveMessage";
 import { SaveHereMessage } from "../main/workers/messages/SaveHereMessage";
 import { SaveRefusalsMessage } from "../main/workers/messages/SaveRefusalsMessage";
-import { SaveValuesMessage } from "../main/workers/messages/SaveValuesMessage";
+import { CountKeysMessage } from "../main/workers/messages/CountKeysMessage";
 import type { SavesEvents } from "./SavesViews";
 import {
   enteringName,
@@ -157,7 +157,11 @@ export class SavesController {
     }
   }
 
-  async playStarted(): Promise<void> {
+  playStarted(): Promise<void> {
+    return this.serial(() => this.clearLastRun());
+  }
+
+  protected async clearLastRun(): Promise<void> {
     this._lastRunScenes.clear();
     const lastRun = this._saves.filter((save) => save.kind === "lastRun");
     if (lastRun.length === 0) {
@@ -176,7 +180,11 @@ export class SavesController {
     }
   }
 
-  async sceneEntered(save: GameSave): Promise<void> {
+  sceneEntered(save: GameSave): Promise<void> {
+    return this.serial(() => this.writeSceneEntry(save));
+  }
+
+  protected async writeSceneEntry(save: GameSave): Promise<void> {
     const id = this._lastRunScenes.get(save.scene) ?? newId();
     this._lastRunScenes.set(save.scene, id);
     await this.write({
@@ -257,7 +265,7 @@ export class SavesController {
       values: save.values,
     };
     try {
-      await this.write(record);
+      await this.serial(() => this.write(record));
       this.showNote({ name, id: record.id });
     } catch (e) {
       this.showNote({ name, failed: reasonOf(e) });
@@ -272,7 +280,11 @@ export class SavesController {
     this._unsaved = {};
   }
 
-  async rename(id: string, name: string): Promise<void> {
+  rename(id: string, name: string): Promise<void> {
+    return this.serial(() => this.renameNow(id, name));
+  }
+
+  protected async renameNow(id: string, name: string): Promise<void> {
     const record = this.record(id);
     this._renaming = undefined;
     if (!record) {
@@ -291,7 +303,11 @@ export class SavesController {
     }
   }
 
-  async delete(id: string): Promise<void> {
+  delete(id: string): Promise<void> {
+    return this.serial(() => this.deleteNow(id));
+  }
+
+  protected async deleteNow(id: string): Promise<void> {
     const record = this.record(id);
     if (!record) {
       return;
@@ -339,31 +355,40 @@ export class SavesController {
 
   protected async placeCounts(id: string): Promise<PreviewSave | undefined> {
     const record = this.record(id);
-    if (!record || this._refusals[id] !== undefined) {
+    const places = record?.values.places;
+    if (!record || !places) {
       return record;
     }
-    let durable: Record<string, string> | undefined;
+    let keys: Record<string, string> | undefined;
     try {
-      durable = (
-        await this._host.askWorker(SaveValuesMessage.type, { data: record.data })
-      )?.values.values;
+      keys = (await this._host.askWorker(CountKeysMessage.type, { places }))?.keys;
     } catch {
       return record;
     }
-    if (!durable) {
+    const moves = Object.entries(keys ?? {}).filter(([from, to]) => from !== to);
+    if (moves.length === 0) {
       return record;
     }
-    const isPlace = (key: string) => key.startsWith("place:");
-    const values = Object.fromEntries([
-      ...Object.entries(record.values.values).filter(([key]) => !isPlace(key)),
-      ...Object.entries(durable).filter(([key]) => isPlace(key)),
-    ]);
-    if (JSON.stringify(values) === JSON.stringify(record.values.values)) {
-      return record;
-    }
+    const rekey = <T>(entries: Record<string, T>): Record<string, T> => {
+      const out = { ...entries };
+      for (const [from] of moves) {
+        delete out[from];
+      }
+      for (const [from, to] of moves) {
+        if (Object.hasOwn(entries, from)) {
+          out[to] = entries[from]!;
+        }
+      }
+      return out;
+    };
+    const saved = JSON.parse(places) as { forms?: Record<string, unknown> };
     const placed: PreviewSave = {
       ...record,
-      values: { ...record.values, values },
+      values: {
+        ...record.values,
+        values: rekey(record.values.values),
+        places: JSON.stringify({ ...saved, forms: rekey(saved.forms ?? {}) }),
+      },
     };
     try {
       await this.write(placed);
@@ -407,6 +432,7 @@ export class SavesController {
       ...record,
       data,
       values: {
+        ...record.values,
         values: withSavedValue(record.values.values, key, value),
         frames: record.values.frames.map((frame, i) =>
           local && i === local.frame && Object.hasOwn(frame.params, local.name)

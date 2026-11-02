@@ -22,6 +22,7 @@ export interface PreviewSave {
   values: {
     values: Record<string, string>;
     frames: PreviewSaveFrame[];
+    places?: string;
   };
 }
 
