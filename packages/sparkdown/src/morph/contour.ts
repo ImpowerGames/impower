@@ -23,6 +23,8 @@ function flatten(segments: [Point, Point, Point, Point][]): Point[] {
     if (isLine(p0, c1, c2, p1)) points.push(p0);
     else for (let k = 0; k < CURVE_STEPS; k++) points.push(cubicAt(p0, c1, c2, p1, k / CURVE_STEPS));
   }
+  const last = segments[segments.length - 1];
+  if (last) points.push(last[3]);
   return points.filter((p, i) => !same(p, points[(i + 1) % points.length]!));
 }
 
@@ -57,6 +59,7 @@ export function pathContours(d: string): Point[][] {
         at = next;
       }
     } else {
+      if (!same(at, start)) segments.push([at, at, start, start]);
       at = start;
     }
   }
