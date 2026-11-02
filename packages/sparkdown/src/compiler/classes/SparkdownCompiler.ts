@@ -367,6 +367,54 @@ function indexOfWord(text: string, word: string): number {
   return -1;
 }
 
+function annotationAt(
+  rest: string,
+  lineAfter: (index: number) => string | undefined,
+): string | undefined {
+  const colon = /^\s*:/.exec(rest);
+  if (!colon) {
+    return undefined;
+  }
+  let text = rest.slice(colon[0].length);
+  let annotation = "";
+  let depth = 0;
+  let quote: string | undefined;
+  for (let next = 0; ; next += 1) {
+    let i = 0;
+    for (; i < text.length; i += 1) {
+      const c = text[i]!;
+      if (quote) {
+        if (c === quote) {
+          quote = undefined;
+        } else if (c === "\\") {
+          annotation += c;
+          i += 1;
+          annotation += text[i] ?? "";
+          continue;
+        }
+      } else if (text.startsWith("--", i)) {
+        break;
+      } else if (c === '"' || c === "'") {
+        quote = c;
+      } else if ("({[<".includes(c)) {
+        depth += 1;
+      } else if (")}]".includes(c) || (c === ">" && text[i - 1] !== "-")) {
+        depth -= 1;
+      } else if (depth === 0 && (c === "=" || c === ",")) {
+        return annotation.trim() || undefined;
+      }
+      annotation += c;
+    }
+    quote = undefined;
+    const line = depth > 0 && next < 200 ? lineAfter(next) : undefined;
+    if (line === undefined) {
+      return annotation.trim() || undefined;
+    }
+    annotation += "\n";
+    text = line;
+  }
+}
+
 function diagnosticMarkup(message: string): MarkupContent {
   return { kind: message.replace(/`[^`]*`/g, "").includes("<") ? "plaintext" : "markdown", value: message };
 }
@@ -768,6 +816,9 @@ export class SparkdownCompiler {
       config.startFrom !== this._config.startFrom
     ) {
       this._config.startFrom = config.startFrom;
+    }
+    if (config.startingValues !== undefined) {
+      this._config.startingValues = config.startingValues;
     }
     if (!this._documents) {
       this._compilationConfig.definitions = this._config.definitions;
@@ -3593,6 +3644,18 @@ export class SparkdownCompiler {
                 range.end.line,
                 range.end.character,
               ];
+            }
+            if (cur.value.type === "var" && scopePathParts.length === 0) {
+              const line = doc.getLineText(range.end.line) ?? "";
+              const annotation = /^\s*store\b/.test(line)
+                ? annotationAt(line.slice(range.end.character), (index) =>
+                    doc.getLineText(range.end.line + 1 + index),
+                  )
+                : undefined;
+              if (annotation) {
+                program.storeTypes ??= Object.create(null) as {};
+                program.storeTypes[name] = annotation;
+              }
             }
             if (cur.value.type === "label") {
               if (scopePathParts.at(-1)?.kind === "label") {

@@ -129,7 +129,10 @@ describe("the route button", () => {
     p.report({
       route: { ...exampleRoute(), decisions: [exampleRoute().decisions[0]!] },
     });
-    expect(p.button()!.querySelectorAll(".route-icon")).toHaveLength(0);
+    expect(p.button()!.querySelectorAll("svg.route-icon")).toHaveLength(0);
+    expect(p.button()!.firstElementChild!.classList).toContain(
+      "route-icon-slot",
+    );
   });
 
   test("names the script for the top-level content and for a target in another script", () => {
@@ -163,7 +166,7 @@ describe("the route button", () => {
 });
 
 describe("the route list", () => {
-  test("a press opens the list below the toolbar with the start, each decision and the target line", () => {
+  test("a press opens the list below the toolbar with each decision and the target line", () => {
     const p = player();
     p.report({ route: exampleRoute() });
     expect(p.routeList.hidden).toBe(true);
@@ -174,7 +177,6 @@ describe("the route list", () => {
       "Route to line 21",
     );
     expect(p.entries()).toEqual([
-      "4 | From the top of scene interrogation, line 4, with every store at its first value | ",
       "8 | Choice Tell the truth. | Auto",
       "15 | Condition trust > 3 forced true | Forced",
       "18 | Loop clipped after 12,480 passes | Clipped",

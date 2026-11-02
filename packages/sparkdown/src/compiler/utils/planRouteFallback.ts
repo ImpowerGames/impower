@@ -3,13 +3,14 @@ import { ErrorType } from "../../runtime/Error";
 import type { ProgramStory as Story } from "../../program/ProgramStory";
 import { StepLimitExceeded } from "../../runtime/StoryException";
 import { imageDigest } from "../../program/ProgramImages";
+import { type StartPlan } from "../../program/startingValues";
 import { TOP_LEVEL_START, type ProgramAddress } from "../types/ProgramAddress";
-import { START_FLOW_NAME } from "../../program/ProgramSymbols";
 import {
   buildRouteSimulator,
   DEFAULT_MAX_NODES,
   DEFAULT_MAX_STEPS,
   DEFAULT_SEARCH_TIMEOUT,
+  enterStart,
   extendSeq,
   lastSearchStats,
   type ChoiceOverride,
@@ -87,7 +88,6 @@ interface FallbackRunResult {
   terminal: boolean;
 }
 
-
 interface SearchBudget {
   stepsRemaining: number;
   nodesRemaining: number;
@@ -157,7 +157,6 @@ const claimForkSite = (
   return true;
 };
 
-
 export const planRouteFallback = (
   story: Story,
   from: string,
@@ -204,7 +203,7 @@ export const planRouteFallback = (
     queue.push(
       options?.resumeFrom
         ? makeResumeNode(options.resumeFrom)
-        : makeStartNode(story, from, port),
+        : makeStartNode(story, from, port, options?.start),
     );
 
     const raisedErrors = new Set<string>();
@@ -532,15 +531,9 @@ const makeStartNode = (
   story: Story,
   from: string,
   port: StatePort,
+  start?: StartPlan,
 ): FallbackNode => {
-  if (!story.stateIsPristine) {
-    resetStory(story);
-  }
-  if (from === START_FLOW_NAME) {
-    story.ChooseStart();
-  } else {
-    story.ChoosePathString(from);
-  }
+  enterStart(story, from, start);
   return {
     state: port.fork().state,
     seq: "",
@@ -602,7 +595,6 @@ const forkChoice = (
     overrides: [...parent.overrides, ov],
   };
 };
-
 
 const now = () =>
   typeof performance !== "undefined" && performance.now

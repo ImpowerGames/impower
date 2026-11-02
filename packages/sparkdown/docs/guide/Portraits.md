@@ -45,13 +45,17 @@ A switch is off unless the script turns it on, so nothing has to say which state
 In the script:
 
 ```
-[[mia]]
+scene start
+  [[mia]]
+end
 ```
 
 shows Mia bare-headed. Nothing mentioned the hat, so it is off. The hair top shows; the hat and the flattened hair do not.
 
 ```
-[[mia:hat]]
+scene start
+  [[mia:hat]]
+end
 ```
 
 turns the hat on. The hat and the flattened hair show, and the hair top hides. Writing a switch's name after `:` turns it on.
@@ -75,9 +79,11 @@ body
 A switch like `hat` is just a group whose two options are `on` and `off`, with `off` as its built-in default. An explicit `:default` can give it a different resting state, as the office lamp example below does.
 
 ```
-[[mia]]          neutral face
-[[mia:happy]]    happy face
-[[mia:sad]]      sad face
+scene start
+  [[mia]]          neutral face
+  [[mia:happy]]    happy face
+  [[mia:sad]]      sad face
+end
 ```
 
 You do not have to say which group `happy` belongs to. Sparkdown looks through the file, finds `happy` in the `face` group, and chooses it there. If you prefer to be explicit, `[[mia:face.happy]]` means the same thing: the condition is spelled in the script exactly as it is spelled in the layer name. `[[mia:hat]]` is short for `[[mia:hat.on]]`.
@@ -87,14 +93,18 @@ You do not have to say which group `happy` belongs to. Sparkdown looks through t
 Conditions from different groups combine freely:
 
 ```
-[[mia:happy:hat]]
-[[mia:sad:hat]]
+scene start
+  [[mia:happy:hat]]
+  [[mia:sad:hat]]
+end
 ```
 
 The order after `:` does not matter, except in one case: if you name two options from the same group, the later one wins.
 
 ```
-[[mia:happy:sad]]    sad face
+scene start
+  [[mia:happy:sad]]    sad face
+end
 ```
 
 That rule matters when you give a combination a name of its own and then adjust it, which the section on named looks covers.
@@ -142,9 +152,11 @@ Two new things are happening.
 What the script gets:
 
 ```
-[[mia]]              eyes open, looking at the camera
-[[mia:look.left]]    eyes open, looking left
-[[mia:eyes.closed]]  lids only; the whites and every pupils layer hide, because they all need eyes open
+scene start
+  [[mia]]              eyes open, looking at the camera
+  [[mia:look.left]]    eyes open, looking left
+  [[mia:eyes.closed]]  lids only; the whites and every pupils layer hide, because they all need eyes open
+end
 ```
 
 Notice that `[[mia:look.left]]` did not have to mention the eyes. The `eyes` group fell back to its default, open, on its own.
@@ -206,7 +218,9 @@ Normalization preserves IDs, SVG references, geometry, and existing names. It do
 After the portrait's name, add a colon and an option for each thing you want to set. The conditions are spelled exactly as in the layer names, colon and all:
 
 ```
-[[mia:happy:hat:look.left]]
+scene start
+  [[mia:happy:hat:look.left]]
+end
 ```
 
 What you can write after `:`:
@@ -257,10 +271,12 @@ room
 ```
 
 ```
-[[office]]                          closed door, whole vase, lamp on
-[[office:door.open]]                the door opens
-[[office:door.open:vase.broken]]    and the vase breaks
-[[office:lamp.off]]                 the lamp goes out
+scene start
+  [[office]]                          closed door, whole vase, lamp on
+  [[office:door.open]]                the door opens
+  [[office:door.open:vase.broken]]    and the vase breaks
+  [[office:lamp.off]]                 the lamp goes out
+end
 ```
 
 Write the group with the option here, `door.open`, rather than a bare `open`, because a room often has several things that can be open or broken, and a bare word would set all of them.
@@ -350,11 +366,13 @@ name:group.option.option
 Script:
 
 ```
-[[name]]
-[[name:option:option]]
-[[name:group.option]]
-[[name:switch]]
-[[name:switch.off]]
+scene start
+  [[name]]
+  [[name:option:option]]
+  [[name:group.option]]
+  [[name:switch]]
+  [[name:switch.off]]
+end
 ```
 
 File name for an image-file portrait:

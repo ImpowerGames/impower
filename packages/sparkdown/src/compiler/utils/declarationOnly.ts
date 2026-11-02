@@ -31,7 +31,7 @@ const SEPARATORS = nodeNameSet(["LuauSemicolonSeparator"]);
 
 export const FLOWS = nodeNameSet(["Scene", "Branch"]);
 
-const STRUCTURE = nodeNameSet(["LuauEndKeyword", "Include"]);
+const STRUCTURE = nodeNameSet(["LuauEndKeyword", "Include", "FrontMatter"]);
 
 export function topLevelStatements(
   top: SyntaxNode,
