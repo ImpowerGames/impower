@@ -152,7 +152,7 @@ export class ScriptEditorController {
   protected _visibleRange?: Range;
   protected _domClientY = 0;
   protected _userInitiatedScroll = false;
-  protected _searching = false;
+  protected _boundPanelInputs = new WeakSet<Element>();
   protected _searchInputFocused = false;
   protected _breakpoints: number[] = [];
   protected _highlightedLines = new Set<number>();
@@ -602,7 +602,6 @@ export class ScriptEditorController {
       this._initialVisibleRange = visibleRange;
       this._initialSelectedRange = selectedRange;
       this._loaded = false;
-      this._searching = false;
       this._searchInputFocused = false;
       this._textDocument = textDocument;
       const editorContainer = this.refs.editor;
@@ -892,48 +891,21 @@ export class ScriptEditorController {
               searchPanelOpen(update.state) ||
               customGotoLinePanelOpen(update.state)
             ) {
-              if (!this._searching) {
-                const findInput = this.host.querySelector(
-                  ".cm-search input[name='search']",
-                );
-                if (findInput) {
-                  findInput.addEventListener(
-                    "focus",
-                    this.handleFocusFindInput,
-                  );
-                  findInput.addEventListener("blur", this.handleBlurFindInput);
-                  this.handleFocusFindInput();
-                }
-                const replaceInput = this.host.querySelector(
-                  ".cm-search input[name='replace']",
-                );
-                if (replaceInput) {
-                  replaceInput.addEventListener(
-                    "focus",
-                    this.handleFocusReplaceInput,
-                  );
-                  replaceInput.addEventListener(
-                    "blur",
-                    this.handleBlurReplaceInput,
-                  );
-                }
-                const gotoLineInput =
-                  this.host.querySelector(".cm-gotoLine input");
-                if (gotoLineInput) {
-                  gotoLineInput.addEventListener(
-                    "focus",
-                    this.handleFocusGotoLineInput,
-                  );
-                  gotoLineInput.addEventListener(
-                    "blur",
-                    this.handleBlurGotoLineInput,
-                  );
-                  this.handleFocusGotoLineInput();
-                }
-              }
-              this._searching = true;
-            } else {
-              this._searching = false;
+              this.bindPanelInput(
+                ".cm-search [contenteditable][name='search']",
+                this.handleFocusFindInput,
+                this.handleBlurFindInput,
+              );
+              this.bindPanelInput(
+                ".cm-search [contenteditable][name='replace']",
+                this.handleFocusReplaceInput,
+                this.handleBlurReplaceInput,
+              );
+              this.bindPanelInput(
+                ".cm-gotoLine [contenteditable]",
+                this.handleFocusGotoLineInput,
+                this.handleBlurGotoLineInput,
+              );
             }
           },
         });
@@ -943,6 +915,22 @@ export class ScriptEditorController {
       DidOpenTextDocumentMessage.type.notification({ textDocument }),
       this.host,
     );
+  }
+
+  protected bindPanelInput(
+    selector: string,
+    onFocus: () => void,
+    onBlur: () => void,
+  ) {
+    const input = this.host.querySelector(selector);
+    if (input && !this._boundPanelInputs.has(input)) {
+      this._boundPanelInputs.add(input);
+      input.addEventListener("focus", onFocus);
+      input.addEventListener("blur", onBlur);
+      if (input === input.ownerDocument.activeElement) {
+        onFocus();
+      }
+    }
   }
 
   protected async loadFonts() {
@@ -1124,7 +1112,6 @@ export class ScriptEditorController {
     }
     this.refs.editor.style.visibility = "visible";
     this.refs.editor.style.opacity = "1";
-    this._loadingRequest = undefined;
   };
 
   protected handleViewportParsed = () => {

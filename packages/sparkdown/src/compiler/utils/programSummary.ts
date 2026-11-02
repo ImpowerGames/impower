@@ -1,4 +1,5 @@
 import type { SparkProgram } from "../types/SparkProgram";
+import { playRefusalOf } from "./startScene";
 
 export const programSummary = (
   program: SparkProgram,
@@ -13,6 +14,7 @@ export const programSummary = (
   startFrom: program.startFrom,
   summary: true,
   runnable,
+  playRefusal: playRefusalOf(program),
 });
 
 export const isSameProgram = (

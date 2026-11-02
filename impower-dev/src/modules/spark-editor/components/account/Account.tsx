@@ -8,7 +8,7 @@ import {
 } from "@impower/impower-ui/components";
 import type { ComponentChildren, JSX } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { downloadFile } from "../../utils/downloadFile";
+import { downloadProjectZip } from "../../utils/downloadProjectZip";
 import workspace from "../../workspace/WorkspaceStore";
 
 export const propDefaults = {};
@@ -73,15 +73,6 @@ export default function Account(_p: AccountProps) {
     const buffer = await file.arrayBuffer();
     await Workspace.window.importLocalProject(file.name, buffer);
     target.value = "";
-  };
-
-  const handleExportProject = async () => {
-    const { Workspace } = await import("../../workspace/Workspace");
-    const zip = await Workspace.window.exportLocalProject();
-    if (zip) {
-      const name = Workspace.window.store.project.name;
-      downloadFile(`${name}.zip`, "application/x-zip", zip);
-    }
   };
 
   const handleClearOpfs = async () => {
@@ -249,7 +240,7 @@ export default function Account(_p: AccountProps) {
           </Row>
           <Row
             icon={<Upload class="size-5" />}
-            onClick={handleExportProject}
+            onClick={downloadProjectZip}
             disabled={offline}
           >
             Export Project

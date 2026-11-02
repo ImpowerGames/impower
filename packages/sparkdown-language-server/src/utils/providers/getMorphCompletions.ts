@@ -129,7 +129,8 @@ export function getMorphCompletions(
   };
   const inPaint = path[0] === "paints";
   const docs = (name: string) => {
-    const doc = (inPaint ? MORPH_FIELD_DOCS[`paints.${name}`] : undefined) ?? MORPH_FIELD_DOCS[name];
+    const scoped = path[0] === "paints" || path[0] === "clips" ? MORPH_FIELD_DOCS[`${path[0]}.${name}`] : undefined;
+    const doc = scoped ?? MORPH_FIELD_DOCS[name];
     return doc ? { kind: MarkupKind.Markdown, value: doc } : undefined;
   };
   const replaceRange = (length: number) => ({

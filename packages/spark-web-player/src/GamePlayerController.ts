@@ -1,4 +1,5 @@
 import { isRunnableProgram } from "@impower/sparkdown/src/compiler/utils/programSummary";
+import { playRefusalOf } from "@impower/sparkdown/src/compiler/utils/startScene";
 import { getSharedAssetCache } from "./main/assets/sharedAssetCache";
 import { compiledElsewhere } from "./utils/compiledElsewhere";
 import { DisplayPreviewMessage } from "./main/workers/messages/DisplayPreviewMessage";
@@ -205,6 +206,13 @@ const endingStatusHover = (ending: GameEnding): string => {
   return "";
 };
 
+interface PlayOutcome {
+  started: boolean;
+  refusal?: string;
+  previewShown?: boolean;
+  owned?: boolean;
+}
+
 interface WorkerPlay {
   program: SparkProgram;
   state: "starting" | "running";
@@ -214,6 +222,7 @@ interface WorkerPlay {
   startSent?: boolean;
   startFrom?: { file: string; line: number };
   ended?: GameEnding;
+  exitClaimed?: boolean;
 }
 
 export interface GamePlayerRefs {
@@ -259,6 +268,8 @@ export class GamePlayerController {
   _app?: Application;
   _debugging = false;
   _program?: SparkProgram;
+  _playRefusal?: string;
+  protected _lastStartedRun?: WorkerPlay;
   private _mounted = false;
   private _disposed = false;
   private _previewPosition: GameState["position"] = null;
@@ -488,19 +499,43 @@ export class GamePlayerController {
     this._gameResizeObserver?.disconnect();
   }
 
+  protected _playButtonShows = 0;
+
   protected async hidePlayButton() {
     if (this.refs.playButton) {
+      const shows = this._playButtonShows;
       this.refs.playButton.style.pointerEvents = "none";
       this.refs.playButton.style.opacity = "0";
       const animations = this.refs.playButton.getAnimations();
       await Promise.allSettled(
         animations.map((animation) => animation.finished),
       );
-      this.refs.playButton.style.display = "none";
+      if (shows === this._playButtonShows) {
+        this.refs.playButton.style.display = "none";
+      }
+    }
+  }
+
+  protected refusePlay(refusal: string | undefined) {
+    this._playRefusal = refusal;
+    if (refusal) {
+      this._resolveLoadingInitialProgram();
+    }
+    const button = this.refs.playButton;
+    if (!button) {
+      return;
+    }
+    if (refusal) {
+      button.title = refusal;
+      button.setAttribute("aria-disabled", "true");
+    } else {
+      button.removeAttribute("title");
+      button.removeAttribute("aria-disabled");
     }
   }
 
   protected async showPlayButton() {
+    this._playButtonShows += 1;
     if (this.refs.playButton) {
       this.refs.playButton.style.pointerEvents = "";
       this.refs.playButton.style.opacity = "";
@@ -1597,16 +1632,24 @@ export class GamePlayerController {
   };
 
   protected handleStartGame = async (message: StartGameMessage.Request) => {
-    this.hidePlayButton();
-    const success = await this.startGameAndApp();
+    const hid = !this._playRefusal;
+    if (hid) {
+      this.hidePlayButton();
+    }
+    const { started: success, refusal, owned } = await this.startPlay();
+    if (!success && refusal && hid && owned) {
+      this.showPlayButton();
+    }
     this.updateLaunchStateIcon();
     return success
       ? StartGameMessage.type.response(message.id, { success })
       : StartGameMessage.type.error(message.id, {
           code: 1,
-          message: !isRunnableProgram(this._program)
-            ? "The program contains errors that prevent it from being compiled"
-            : `The game could not be started`,
+          message:
+            refusal ??
+            (!isRunnableProgram(this._program)
+              ? "The program contains errors that prevent it from being compiled"
+              : `The game could not be started`),
         });
   };
 
@@ -1622,9 +1665,10 @@ export class GamePlayerController {
     const stops = this._stops;
     const plays = this._plays;
     const ended = this._workerPlay?.ended;
-    const restarted = await this.restartGame(true);
+    const { started, refusal } = await this.restartPlay(true);
     if (
-      !restarted &&
+      !started &&
+      !refusal &&
       ended &&
       stops === this._stops &&
       plays + 1 === this._plays &&
@@ -1635,7 +1679,12 @@ export class GamePlayerController {
         at: ended.error?.location ?? ended.location,
       });
     }
-    return RestartGameMessage.type.response(message.id, {});
+    return started || !refusal
+      ? RestartGameMessage.type.response(message.id, {})
+      : RestartGameMessage.type.error(message.id, {
+          code: 1,
+          message: refusal,
+        });
   };
 
   protected async tellWorkerPlay<M extends string, P, R>(
@@ -2019,6 +2068,7 @@ export class GamePlayerController {
     ) {
       return;
     }
+    this.refusePlay(playRefusalOf(program));
     for (const arrived of [...this._programWaiters]) {
       arrived();
     }
@@ -2094,16 +2144,31 @@ export class GamePlayerController {
     restarted?: boolean,
     startFrom?: { file: string; line: number },
   ) {
-    const plays = ++this._plays;
-    const stops = this._stops;
+    return (await this.startPlay(restarted, startFrom)).started;
+  }
+
+  protected async startPlay(
+    restarted?: boolean,
+    startFrom?: { file: string; line: number },
+  ): Promise<PlayOutcome> {
     if (this._disposed) {
-      return false;
+      return { started: false };
     }
+    if (this._playRefusal) {
+      return {
+        started: false,
+        refusal: this._playRefusal,
+        owned: this._mounted && !this.playing,
+      };
+    }
+    const plays = ++this._plays;
+    const owned = () => plays === this._plays && this._mounted && !this.playing;
+    const stops = this._stops;
     this.endCompletionPreview();
     if (!this._program) {
       await this.loadingInitialProgram;
       if (plays !== this._plays || stops !== this._stops || !this._mounted) {
-        return false;
+        return { started: false };
       }
     }
     const afterRestart = this._programAfterRestart;
@@ -2120,23 +2185,51 @@ export class GamePlayerController {
         this._programAfterRestart = undefined;
       }
       if (plays !== this._plays || stops !== this._stops || !this._mounted) {
-        return false;
+        return { started: false };
       }
     }
-    if (!this._program) {
-      return false;
+    if (this._playRefusal) {
+      return { started: false, refusal: this._playRefusal, owned: owned() };
     }
     const link = workspace?.gameLink;
-    if (!link) {
-      return false;
+    if (!this._program || !link) {
+      return { started: false };
     }
-    return this.startWorkerPlay(this._program, link, restarted, startFrom);
+    const refused: { refusal?: string } = {};
+    const started = await this.startWorkerPlay(
+      this._program,
+      link,
+      restarted,
+      refused,
+      startFrom,
+    );
+    if (refused.refusal) {
+      if (plays === this._plays) {
+        await this.showPreviewAfterRefusal();
+      }
+      return {
+        started: false,
+        refusal: refused.refusal,
+        previewShown: true,
+        owned: owned(),
+      };
+    }
+    return { started };
+  }
+
+  protected async showPreviewAfterRefusal() {
+    const startFrom = this._options?.startFrom;
+    if (this.playing || !this._mounted || !this._program || !startFrom) {
+      return;
+    }
+    await this.updatePreview(this._program, startFrom.file, startFrom.line);
   }
 
   protected async startWorkerPlay(
     program: SparkProgram,
     link: WorkerGameLink,
     restarted?: boolean,
+    refused?: { refusal?: string },
     startFrom: { file: string; line: number } | undefined = this._options
       ?.startFrom ?? undefined,
   ): Promise<boolean> {
@@ -2221,7 +2314,14 @@ export class GamePlayerController {
         current,
         play,
       );
-      if (!current()) {
+      const refusal = this._playRefusal;
+      if (!current() || refusal) {
+        if (refusal && current()) {
+          this._workerPlay = undefined;
+          if (refused) {
+            refused.refusal = refusal;
+          }
+        }
         if (play.sink) {
           link.detach(play.sink);
         }
@@ -2237,6 +2337,7 @@ export class GamePlayerController {
       const seconds = play.stepped;
       play.stepped = 0;
       play.startSent = true;
+      this._lastStartedRun = play;
       await link.request(StartPlayMessage.type, {
         run: play.run!,
         paused: workerPaused,
@@ -2446,6 +2547,9 @@ export class GamePlayerController {
     if (overtaken()) {
       return;
     }
+    if (this._lastStartedRun) {
+      this._lastStartedRun.exitClaimed = true;
+    }
     sendProtocolMessage(
       GameExitedMessage.type.notification({
         reason,
@@ -2518,22 +2622,43 @@ export class GamePlayerController {
   protected _stops = 0;
 
   async restartGame(fromRunStart = false): Promise<boolean> {
+    return (await this.restartPlay(fromRunStart)).started;
+  }
+
+  protected async restartPlay(fromRunStart = false): Promise<PlayOutcome> {
     const stops = this._stops;
     const plays = this._plays;
     const startFrom = fromRunStart ? this._workerPlay?.startFrom : undefined;
     this.setEndingStatus(null);
     await this.destroyGameAndApp();
     if (stops !== this._stops || plays !== this._plays || !this._mounted) {
-      return false;
+      return { started: false };
     }
     const restarted = plays + 1;
-    await this.startGameAndApp(true, startFrom);
-    return (
+    const outcome = await this.startPlay(true, startFrom);
+    if (
       stops === this._stops &&
       restarted === this._plays &&
       this._mounted &&
       this.playing
-    );
+    ) {
+      return { started: true };
+    }
+    if (outcome.refusal && outcome.owned && stops === this._stops) {
+      const ended = this._lastStartedRun;
+      if (ended && !ended.exitClaimed) {
+        ended.exitClaimed = true;
+        sendProtocolMessage(
+          GameExitedMessage.type.notification({ reason: "invalidated" }),
+          this.host,
+        );
+      }
+      this.showPlayButton();
+      if (!outcome.previewShown) {
+        await this.showPreviewAfterRefusal();
+      }
+    }
+    return { started: false, refusal: outcome.refusal };
   }
 
   protected _restartGameTimeout?: ReturnType<typeof setTimeout>;

@@ -8,7 +8,6 @@ const PREVIEW_THEME: {
   },
   "&": {
     flex: 1,
-    backgroundSize: "auto",
     backgroundRepeat: "repeat",
     color: "#333",
   },
@@ -27,7 +26,6 @@ const PREVIEW_THEME: {
     position: "relative",
     cursor: "default",
     caretColor: "transparent",
-    pointerEvents: "auto",
     "&:before": {
       content: "''",
       position: "absolute",

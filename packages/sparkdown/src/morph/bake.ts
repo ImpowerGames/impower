@@ -34,7 +34,7 @@ import { hashText } from "./hash";
 import { own, table } from "./own";
 import { effectivePaint, paintBlend, type EffectivePaint } from "./paint";
 import { recipeAsMorph } from "./recipe";
-import { APERTURE_REACH_ID_SUFFIX, APERTURE_REACH_STROKE } from "./render";
+import { APERTURE_REACH, APERTURE_REACH_ID_SUFFIX, apertureSpreadStroke } from "./render";
 import {
   ancestry,
   cloneElement,
@@ -1328,7 +1328,8 @@ export function* bakeSteps(
       const list = wrappers.get(target) ?? [];
       list.push({ clip: clipIndex, id, matrix, space: parentSpace! });
       wrappers.set(target, list);
-      clipTargets.push({ clip: clipIndex, aperture: `${prefix}${id}`, matrix: [...matrix] });
+      const spread = recipe.clips[clipIndex]?.spread;
+      clipTargets.push({ clip: clipIndex, aperture: `${prefix}${id}`, matrix: [...matrix], ...(spread === undefined ? {} : { spread }) });
       targetOf.set(`${prefix}${id}`, target);
     }
   }
@@ -1376,6 +1377,15 @@ export function* bakeSteps(
     const size = Math.max(Math.abs(minX), Math.abs(minY), Math.abs(maxX), Math.abs(maxY), ...[matrix, space].flatMap((m) => [Math.abs(m[4]), Math.abs(m[5])]));
     return 2 ** -24 * conditionOf(space) * size <= ROOTED_ERROR_FRACTION * Math.max(maxX - minX, maxY - minY);
   };
+  for (const [index, clip] of recipe.clips.entries()) {
+    if (clip.spread === undefined || ![...wrappers.values()].flat().some((wrapper) => wrapper.clip === index && !rooted(wrapper))) continue;
+    report(
+      "spread-ignored",
+      "warning",
+      `Clip ${index + 1}'s opening is cut as a clip path in a target's coordinate space, so \`spread = ${clip.spread}px\` does not apply to it.`,
+      { layer: clip.between[0] },
+    );
+  }
   const apertureElement = (wrapper: Wrapper): Element => {
     const { id, clip, matrix } = wrapper;
     const loops = restLoops[clip] ?? [];
@@ -1389,10 +1399,11 @@ export function* bakeSteps(
     const { minX, minY, maxX, maxY, widest } = apertureBounds[clip]!;
     const pad = Math.max(maxX - minX, maxY - minY);
     const open = loops.filter((flat) => loopArea(flat) > CLOSED_FRACTION * widest);
+    const spread = recipe.clips[clip]?.spread ?? APERTURE_REACH;
     const path = (d: string, reach: boolean): Element => ({
       tagName: "path",
       attributes: {
-        style: `fill:#fff;fill-opacity:1;fill-rule:nonzero;${reach ? APERTURE_REACH_STROKE.map(([name, value]) => `${name}:${value}`).join(";") : "stroke:none"};visibility:visible;vector-effect:non-scaling-stroke`,
+        style: `fill:#fff;fill-opacity:1;fill-rule:nonzero;${reach && spread !== 0 ? apertureSpreadStroke(spread).map(([name, value]) => `${name}:${value}`).join(";") : "stroke:none"};visibility:visible;vector-effect:non-scaling-stroke`,
         d,
       },
       children: [],
@@ -1408,7 +1419,7 @@ export function* bakeSteps(
         width: `${maxX - minX + 2 * pad}`,
         height: `${maxY - minY + 2 * pad}`,
       },
-      children: [path(loopsPathData(loops), all && open.length > 0), ...(all || !open.length ? [] : [path(loopsPathData(open), true)])],
+      children: [path(loopsPathData(loops), all && open.length > 0), ...(all || !open.length || spread === 0 ? [] : [path(loopsPathData(open), true)])],
     };
   };
   const wrap = (element: Element) => (clone: Element): Element => {

@@ -53,4 +53,27 @@ describe("the generated grammar matches its YAML source", () => {
   test("the player and VS Code copies carry the same rules", () => {
     expect(names(VSCODE)).toEqual(names(GENERATED));
   });
+
+  test("every YAML rule's pattern parses as a string", () => {
+    const nonString = Object.entries(
+      SOURCE.repository as Record<string, Record<string, unknown>>,
+    ).flatMap(([name, rule]) =>
+      ["match", "begin", "end", "while"]
+        .filter((key) => key in rule && typeof rule[key] !== "string")
+        .map((key) => `${name}.${key}`),
+    );
+    expect(
+      nonString,
+      `an unquoted \`{{VARIABLE}}\` value parses as a YAML flow mapping; quote it.`,
+    ).toEqual([]);
+  });
+
+  test("LuauTargetTypeCastOperator matches the `::` operator in both copies", () => {
+    expect(GENERATED.repository.LuauTargetTypeCastOperator.match).toBe(
+      "(?:[:][:])",
+    );
+    expect(VSCODE.repository.LuauTargetTypeCastOperator.match).toBe(
+      "(?:[:][:])",
+    );
+  });
 });

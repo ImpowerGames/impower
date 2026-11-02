@@ -1,6 +1,7 @@
 import { isExplicitRuleName } from "@impower/sparkdown/src/compiler/utils/explicitRuleNames";
 import { ALTERNATOR_CANDIDATES, opensAlternator } from "@impower/sparkdown/src/compiler/utils/alternatorDecision";
 import { CALL_LIKE_OPENERS } from "@impower/sparkdown/src/compiler/utils/callLikeOpeners";
+import { isNameChar, JOINING_PAIRS } from "@impower/sparkdown/src/compiler/utils/lexicalJoin";
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import { oneLineTableBraces } from "@impower/sparkdown/src/compiler/utils/oneLineTableBraces";
 import { reassignmentParts } from "@impower/sparkdown/src/compiler/utils/reassignmentNames";
@@ -31,28 +32,7 @@ function isWordChar(c: string): boolean {
   return /[a-zA-Z0-9_]/.test(c);
 }
 
-const JOINING_PAIRS = new Set([
-  "--",
-  "..",
-  "==",
-  "~=",
-  "<=",
-  ">=",
-  "//",
-  "::",
-  "->",
-  "[[",
-  "[=",
-  "+=",
-  "-=",
-  "*=",
-  "/=",
-  "%=",
-  "^=",
-  ".=",
-]);
-
-const NAME_CHAR_REGEX = /[\p{L}\p{N}_]/u;
+const FORMATTER_ONLY_JOINING_PAIRS = new Set([".="]);
 
 const NUMBER_NODE_REGEX = /^(?:LuauNumeric[A-Za-z]*|NumberLiteral|NumberValue)(?:_|$)/;
 
@@ -80,15 +60,18 @@ function mustKeepSpaceBetween(
   nextChar: string,
   afterNumber: boolean,
 ): boolean {
-  const nextIsName = NAME_CHAR_REGEX.test(nextChar);
+  const nextIsName = isNameChar(nextChar);
   if (
     nextIsName &&
-    (NAME_CHAR_REGEX.test(prevChar) || prevChar === ")" || prevChar === "]")
+    (isNameChar(prevChar) || prevChar === ")" || prevChar === "]")
   ) {
     return true;
   }
   if (afterNumber && (nextIsName || nextChar === ".")) return true;
-  return JOINING_PAIRS.has(prevChar + nextChar);
+  return (
+    JOINING_PAIRS.has(prevChar + nextChar) ||
+    FORMATTER_ONLY_JOINING_PAIRS.has(prevChar + nextChar)
+  );
 }
 
 function shouldInsertSpaceBetween(
@@ -943,7 +926,7 @@ export const getFormatting = (
     return mustKeepSpaceBetween(
       prevChar,
       nextChar,
-      (NAME_CHAR_REGEX.test(nextChar) || nextChar === ".") &&
+      (isNameChar(nextChar) || nextChar === ".") &&
         endsNumberAt(tree, from),
     );
   };

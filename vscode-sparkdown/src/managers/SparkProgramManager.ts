@@ -8,6 +8,7 @@ import type {
   SourceLocation,
 } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { playRefusalOf } from "@impower/sparkdown/src/compiler/utils/startScene";
 import * as vscode from "vscode";
 import {
   CancellationToken,
@@ -24,6 +25,7 @@ export interface SlimProgram {
   scripts: SparkProgram["scripts"];
   files?: SparkProgram["files"];
   version?: number;
+  playRefusal?: string;
 }
 
 export class SparkProgramManager {
@@ -50,6 +52,8 @@ export class SparkProgramManager {
 
   protected _compiledUris = new Set<vscode.Uri>();
 
+  protected _playRefusals = new Map<string, string | undefined>();
+
   private _listeners = new Set<ProgramCompiledListener>();
 
   protected _languageClient?: LanguageClient;
@@ -66,6 +70,7 @@ export class SparkProgramManager {
     this._lastCompiledUri = uri.toString();
     for (const scriptUri of Object.keys(program.scripts)) {
       this._compiledPrograms.set(scriptUri, program);
+      this._playRefusals.set(scriptUri, playRefusalOf(program));
       this._compiledUris.add(vscode.Uri.parse(scriptUri));
       this._listeners.forEach((listener) =>
         listener(vscode.Uri.parse(scriptUri), program),
@@ -78,6 +83,7 @@ export class SparkProgramManager {
     this._lastCompiledUri = uri.toString();
     for (const scriptUri of Object.keys(program.scripts)) {
       this._compiledPrograms.delete(scriptUri);
+      this._playRefusals.set(scriptUri, program.playRefusal);
       this._compiledUris.add(vscode.Uri.parse(scriptUri));
       this._listeners.forEach((listener) =>
         listener(vscode.Uri.parse(scriptUri), undefined),
@@ -116,6 +122,10 @@ export class SparkProgramManager {
       return program;
     }
     return await this.compile(uri);
+  }
+
+  playRefusal(uri: vscode.Uri) {
+    return this._playRefusals.get(uri.toString());
   }
 
   getLastCompiled() {
@@ -178,6 +188,7 @@ export class SparkProgramManager {
     if (program?.scripts) {
       for (const scriptUri of Object.keys(program.scripts)) {
         this._compiledPrograms.set(scriptUri, program);
+        this._playRefusals.set(scriptUri, playRefusalOf(program));
       }
     }
     return program;

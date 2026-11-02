@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { bindMorph } from "../../compiler/morph/bindMorph";
 import { normalizeMorphKeyframes } from "../../compiler/morph/normalizeMorphKeyframes";
+import { parseMorphRecipe } from "../../morph/recipe";
 import { compileSource } from "./compileSnapshot";
 
 const URI = "file:///main.sd";
@@ -1594,5 +1595,70 @@ end
 `;
     const found = morphDiagnostics(text).filter((d) => d.severity === 1);
     expect(found).toEqual([expect.objectContaining({ line: 6, text: "base", message: expect.stringContaining("`layers.eyeball-shadow-left.partner`, inherited from `base`") })]);
+  });
+});
+
+describe("a clip entry's `spread`", () => {
+  const CLIPPED = (spread = "", extra = "", keyframes = "from { eyes { state = open } }\n    50% { eyes { state = closed } }\n    to { eyes { state = open } }") => `morph m with
+  method = bend
+${extra}  keyframes {
+    ${keyframes}
+  }
+  clips {
+    { between { eyelash-left }; targets { eyeball-white-left; pupil-left }${spread} }
+  }
+end
+`;
+  const recipeText = (text: string, name = "m") => compile(text).morphs!.recipes[name]!;
+  const errors = (text: string) => morphDiagnostics(text).filter((d) => d.severity === 1);
+
+  test("an entry without `spread` and one with `spread = 1px` give the same recipe, with no `spread` in it", () => {
+    expect(errors(CLIPPED())).toEqual([]);
+    expect(errors(CLIPPED("; spread = 1px"))).toEqual([]);
+    expect(recipeText(CLIPPED("; spread = 1px"))).toBe(recipeText(CLIPPED()));
+    expect(JSON.parse(recipeText(CLIPPED())).clips).toEqual([{ between: ["eyelash-left"], targets: ["eyeball-white-left", "pupil-left"] }]);
+  });
+
+  test.each([
+    ["2px", 2],
+    ["0.5px", 0.5],
+    ["0", 0],
+    ["-1px", -1],
+  ])("`spread = %s` lowers to %s pixels", (value, pixels) => {
+    const text = CLIPPED(`; spread = ${value}`);
+    expect(errors(text)).toEqual([]);
+    expect(JSON.parse(recipeText(text)).clips[0].spread).toBe(pixels);
+    expect(parseMorphRecipe(recipeText(text))).toEqual(JSON.parse(recipeText(text)));
+  });
+
+  test.each(["2", "1em", "wide", "1e999px"])("`spread = %s` is reported on its value", (value) => {
+    const found = errors(CLIPPED(`; spread = ${value}`));
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ text: value, severity: 1 });
+    expect(found[0]!.message).toContain("`spread` is a length in `px` or `0`");
+  });
+
+  test.each([
+    ["a keyframe container", CLIPPED("", "", "from { eyes { state = open; spread = 1px } }\n    50% { eyes { state = closed } }\n    to { eyes { state = open } }")],
+    [
+      "a `paints` entry",
+      CLIPPED().replace(/\nend\n$/, "\n  paints {\n    { targets { eyelash-left }; state = eyes.closed; fill = red; spread = 1px }\n  }\nend\n"),
+    ],
+  ])("`spread` in %s names its three places", (_where, text) => {
+    const all = errors(text);
+    const found = all.filter((d) => d.text === "spread");
+    expect(found, JSON.stringify(all.map((d) => [d.text, d.message]))).toHaveLength(1);
+    expect(found[0]!.message).toContain("at the morph root, under a label in `layers { … }` or in a `clips { … }` entry");
+  });
+
+  test("a child morph inherits its parent's clip entry with its `spread`", () => {
+    const text = `${CLIPPED("; spread = -0.5px")}
+morph child as m with
+  fallback = cut
+end
+`;
+    expect(errors(text)).toEqual([]);
+    expect(JSON.parse(recipeText(text, "child")).clips).toEqual(JSON.parse(recipeText(text)).clips);
+    expect(JSON.parse(recipeText(text, "child")).clips[0].spread).toBe(-0.5);
   });
 });

@@ -38,7 +38,7 @@ function minToPx(minSize: number | string, trackPx: number): number {
 }
 
 const SEPARATOR_BASE =
-  "relative z-10 shrink-0 self-stretch select-none bg-transparent pointer-events-auto touch-none " +
+  "relative z-10 shrink-0 self-stretch select-none bg-transparent touch-none " +
   "before:content-[''] before:absolute before:pointer-events-none before:bg-white/[0.06] " +
   "after:content-[''] after:absolute after:pointer-events-none after:bg-primary " +
   "after:opacity-0 after:transition-opacity after:duration-150 after:ease-in-out " +

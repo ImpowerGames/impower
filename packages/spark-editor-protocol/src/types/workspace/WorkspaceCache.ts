@@ -42,6 +42,7 @@ export interface GameState {
   paused?: boolean;
   debugging?: boolean;
   compiling?: boolean;
+  playRefusal?: string;
 }
 
 export interface ScreenplayState {

@@ -288,6 +288,27 @@ end
     expect(ids.every((id) => !id.startsWith(artifact.idPrefix))).toBe(true);
   });
 
+  test.each([
+    ["3px", /stroke:#fff;stroke-opacity:1;stroke-width:6px/, true],
+    ["-1px", /stroke:#000;stroke-opacity:1;stroke-width:2px/, false],
+  ])("a moving aperture's stroke follows its clip's `spread = %s`", async (spread, stroke, reached) => {
+    const clip = "      between {\n        eyelash-left\n      }";
+    expect(SOURCE).toContain(clip);
+    const { h, frames, playback } = await previewed(SOURCE.replace(clip, `${clip}\n      spread = ${spread}`));
+    await until(() => playback.stats.live === 1, "the artifact");
+    const shadow = shadowOf(portraitSpan(h.overlay))!;
+    const artifact = (playback as any).layers.values().next().value.plays[0].slot.artifact as MorphArtifact;
+    frames.run(1000);
+    frames.run(1000 + 0.4 * 250);
+    const apertures = apertureStates(shadow);
+    expect(apertures).toEqual(referenceApertures(artifact, 0.4));
+    expect(apertures.length).toBeGreaterThan(0);
+    for (const [first] of apertures) {
+      expect(first!.style).toMatch(stroke);
+      expect(first!.reach !== undefined).toBe(reached);
+    }
+  });
+
   test("a drawing carried in its partner's shape shows at the held pose as the reference renderer draws it", async () => {
     const source = SOURCE.replace(blinkScript(TIMING), `morph blink with
   method = bend

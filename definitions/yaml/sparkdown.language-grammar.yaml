@@ -10678,7 +10678,7 @@ repository:
   LuauTargetTypeCastOperator:
     tag: invalid
     name: invalid.illegal.luau
-    match: {{LUAU_TYPECAST_OPERATOR}}
+    match: "{{LUAU_TYPECAST_OPERATOR}}"
 
   LuauArithmeticOperation:
     begin: ({{WS}}*)(?={{LUAU_ARITHMETIC_OPERATORS}})

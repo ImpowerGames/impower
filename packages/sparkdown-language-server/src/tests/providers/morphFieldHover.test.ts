@@ -41,7 +41,7 @@ const MORPH = `morph blink with
     duration = 3
   }
   clips {
-    { between { eyelash-left }; targets { pupil-left } }
+    { between { eyelash-left }; targets { pupil-left }; spread = 1px }
   }
   paints {
     {
@@ -80,6 +80,10 @@ describe("morph field hover", () => {
   it("documents the fields a `paints` entry shares with other places by where they are written", async () => {
     expect((await hoverAt(MORPH, "targets {"))?.value).toBe("The layers the aperture clips.");
     expect((await hoverAt(MORPH, "state = open"))?.value).toContain("The attribute state this group shows at this pose");
+  });
+
+  it("documents a clip entry's `spread` with the clip text", async () => {
+    expect(await hoverAt(MORPH, "spread =")).toEqual({ value: expect.stringContaining("How far this clip's opening reaches past its outline"), marked: "spread" });
   });
 
   it("documents the morph's other fields", async () => {

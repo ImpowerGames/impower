@@ -1,5 +1,7 @@
 import { setLanguageServer as setScriptEditorLanguageServer } from "@impower/sparkdown-document-views/src/modules/script-editor/SparkdownScriptEditor";
 import SparkEditor from "../modules/spark-editor/index";
+import { downloadProjectZip } from "../modules/spark-editor/utils/downloadProjectZip";
+import { warnIfStorageNotPersisted } from "../modules/spark-editor/utils/storagePersistence";
 import { Workspace } from "../modules/spark-editor/workspace/Workspace";
 
 const load = async () => {
@@ -31,12 +33,10 @@ const startDevAssetMirror = () => {
   });
 };
 
-navigator.storage?.persist?.().then((granted) => {
-  if (!granted) {
-    console.warn(
-      "Storage persistence not granted — origin storage may be evicted by the browser.",
-    );
-  }
+void warnIfStorageNotPersisted({
+  storage: navigator.storage,
+  projectId: Workspace.window.store.project.id,
+  exportProject: downloadProjectZip,
 });
 
 if ("serviceWorker" in navigator) {

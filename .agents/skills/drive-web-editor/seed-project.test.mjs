@@ -1144,12 +1144,21 @@ fs.writeFileSync(probe, "return 42;");
 await check("withEditor hands the callback the URL and the mode from how the servers were launched, same-origin when the record has no mode, and closes the browser after the callback", async () => {
   const launches = [];
   const closes = [];
+  const cdpCalls = [];
   const page = stubPage(stubGlobals(stubStorage({})));
   const launch = async (opts) => {
     launches.push(opts);
-    return { pages: () => [page], newPage: async () => assert.fail("a page was opened beside the profile's own"), close: async () => closes.push(1) };
+    return {
+      pages: () => [page],
+      newPage: async () => assert.fail("a page was opened beside the profile's own"),
+      newCDPSession: async (target) => ({
+        send: async (method, params) => cdpCalls.push({ target, method, params }),
+      }),
+      close: async () => closes.push(1),
+    };
   };
   const seen = await withEditor(async (editor) => editor, { launch, state: () => ({ url: "http://stub.test:40072", mode: "cross-origin", pid: 1 }) });
+  assert.deepEqual(cdpCalls, [{ target: page, method: "Browser.grantPermissions", params: { permissions: ["durableStorage"] } }], "the browser was not granted durable storage for the whole run, so the editor's storage warning covers the page");
   assert.equal(seen.page, page);
   assert.equal(seen.url, "http://stub.test:40072");
   assert.equal(seen.mode, "cross-origin");

@@ -290,8 +290,11 @@ ${line}| }
   }
 end
 `;
-    expect(labelsAt(fieldsSource)).toEqual(["between", "targets"]);
+    expect(labelsAt(fieldsSource)).toEqual(["between", "targets", "spread"]);
     expectBlockInserted(fieldsSource, "between");
+    const spread = itemAt(fieldsSource, "spread");
+    expect(insertedText(spread)).toBe("spread = ");
+    expect(spread.documentation).toEqual(expect.objectContaining({ value: expect.stringContaining("How far this clip's opening reaches past its outline") }));
     const labels = labelsAt(`morph blink with
   keyframes {
     from {

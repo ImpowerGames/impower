@@ -647,3 +647,80 @@ describe("a `paints` entry's `opacity` on a drawing that fades at its pose", () 
     expect(opacityAt(0.8)).toBeUndefined();
   });
 });
+
+describe("a clip entry's `spread` between poses", () => {
+  const bake = (spread?: string | number) =>
+    bakeMorphArtifact({
+      source: portrait(),
+      selection: {},
+      recipe: blink({ clips: [{ between: ["eyelash-left"], targets: ["eyeball-white-left", "pupil-left"], ...(spread === undefined ? {} : { spread }) }] }),
+      key: "spread",
+      variant: "open",
+    });
+  const MOVING = [0.1, 0.2, 0.5, 0.8];
+  const firstPaths = (svg: string) =>
+    elements(svg)
+      .filter((e) => e.tagName === "mask" && /morph-clip-/.test(e.attributes["id"] ?? ""))
+      .map((mask) => ({
+        style: (mask.children.find((c) => !!c && typeof c === "object" && (c as Element).tagName === "path") as Element).attributes["style"] ?? "",
+        reach: mask.children.some((c) => !!c && typeof c === "object" && (c as Element).tagName === "clipPath"),
+      }));
+  const base = bake();
+
+  test("a positive spread strokes the aperture at twice its value through the default's trimmed reach", () => {
+    expect(base.status).toBe("live");
+    const wide = bake("3px");
+    expect(wide.status).toBe("live");
+    let reached = 0;
+    for (const offset of MOVING) {
+      const a = morphFrameState(base, morphPosesAt(base, offset));
+      const b = morphFrameState(wide, morphPosesAt(wide, offset));
+      expect([...b.reaches.keys()], String(offset)).toEqual([...a.reaches.keys()]);
+      for (const [id, reach] of a.reaches) {
+        reached += 1;
+        expect(reach.spread).toBe(1);
+        expect(b.reaches.get(id)).toEqual({ spread: 3, d: reach.d });
+      }
+      for (const path of firstPaths(renderMorphAt(wide, offset)).filter((p) => p.reach)) expect(path.style).toContain("stroke-width:6px");
+    }
+    expect(reached).toBeGreaterThan(0);
+  });
+
+  test("a negative spread strokes black with no reach clip", () => {
+    const narrow = bake("-1px");
+    let stroked = 0;
+    for (const offset of MOVING) {
+      const state = morphFrameState(narrow, morphPosesAt(narrow, offset));
+      for (const reach of state.reaches.values()) expect(reach).toEqual({ spread: -1 });
+      const paths = firstPaths(renderMorphAt(narrow, offset));
+      for (const path of paths) {
+        expect(path.reach).toBe(false);
+        expect(path.style).toContain("stroke:#000;stroke-opacity:1;stroke-width:2px");
+        stroked += 1;
+      }
+    }
+    expect(stroked).toBeGreaterThan(0);
+  });
+
+  test("a zero spread draws the aperture's area alone", () => {
+    const none = bake(0);
+    for (const offset of MOVING) {
+      expect(morphFrameState(none, morphPosesAt(none, offset)).reaches.size, String(offset)).toBe(0);
+      for (const path of firstPaths(renderMorphAt(none, offset))) {
+        expect(path.reach).toBe(false);
+        expect(path.style).toMatch(/stroke:none/);
+      }
+    }
+  });
+
+  test.each(["3px", "-1px", 0, undefined])("a held pose other than rest draws the area alone at spread %s", (spread) => {
+    const artifact = bake(spread);
+    const state = morphFrameState(artifact, morphPosesAt(artifact, 0.333));
+    expect(state.clips.size).toBeGreaterThan(0);
+    expect(state.reaches.size).toBe(0);
+    for (const path of firstPaths(renderMorphAt(artifact, 0.333))) {
+      expect(path.reach).toBe(false);
+      expect(path.style).toMatch(/stroke:none/);
+    }
+  });
+});

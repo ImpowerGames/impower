@@ -1,6 +1,7 @@
 import type { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 import { createSparkdownParser } from "./createSparkdownParser";
+import { joinsAcrossSpace } from "./lexicalJoin";
 
 export interface TextRange {
   from: number;
@@ -57,29 +58,10 @@ const kindsByName = (): Map<string, number> => {
 const isWhitespace = (code: number): boolean =>
   code === 32 || (code >= 9 && code <= 13);
 
-const WORD = /[\p{L}\p{N}_]/u;
-
-const JOINED = new Set([
-  "--",
-  "..",
-  "==",
-  "<=",
-  ">=",
-  "~=",
-  "//",
-  "::",
-  "[[",
+const NORMALIZER_ONLY_JOINING_PAIRS = new Set([
   "]]",
-  "[=",
   "=]",
-  "->",
   "<-",
-  "+=",
-  "-=",
-  "*=",
-  "/=",
-  "%=",
-  "^=",
   "=>",
   "!=",
   "&&",
@@ -89,7 +71,8 @@ const JOINED = new Set([
 ]);
 
 const keepsSpace = (before: string, after: string): boolean =>
-  (WORD.test(before) && WORD.test(after)) || JOINED.has(before + after);
+  joinsAcrossSpace(before, after) ||
+  NORMALIZER_ONLY_JOINING_PAIRS.has(before + after);
 
 export const fingerprintSource = (
   tree: Tree | undefined,

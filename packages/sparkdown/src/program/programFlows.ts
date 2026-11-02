@@ -365,15 +365,46 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       }
     }
   }
-  for (const write of writes) {
-    if (write.bodies?.some((body) => body.fn && globalFunctions.has(body.fn))) {
-      (write as { bodies?: BodySource[] }).bodies = write.bodies.filter(
-        (body) => !body.fn || !globalFunctions.has(body.fn),
+  if (globalFunctions.size === 0) {
+    out.declarations.push(...writes);
+    return out;
+  }
+  for (const flow of flows) {
+    flow.statements = withoutBodiesOf(flow.statements, globalFunctions);
+  }
+  for (const declaration of out.declarations) {
+    if (declaration.bodies) {
+      (declaration as { bodies?: BodySource[] }).bodies = declaration.bodies.map(
+        (body) => withinBody(body, globalFunctions),
       );
     }
   }
-  out.declarations.push(...writes);
+  out.declarations.push(...withoutBodiesOf(writes, globalFunctions));
   return out;
+};
+
+const withoutBodiesOf = <T extends StatementSource>(
+  statements: readonly T[],
+  owned: ReadonlySet<ParsedObject>,
+): T[] =>
+  statements.map((statement) => {
+    if (!statement.bodies?.length) {
+      return statement;
+    }
+    const bodies = statement.bodies
+      .filter((body) => !body.fn || !owned.has(body.fn))
+      .map((body) => withinBody(body, owned));
+    return bodies.length === statement.bodies.length &&
+      bodies.every((body, k) => body === statement.bodies![k])
+      ? statement
+      : { ...statement, bodies };
+  });
+
+const withinBody = (body: BodySource, owned: ReadonlySet<ParsedObject>): BodySource => {
+  const statements = withoutBodiesOf(body.statements, owned);
+  return statements.every((statement, i) => statement === body.statements[i])
+    ? body
+    : { ...body, statements };
 };
 
 export class FlowEntry extends ParsedObject {
@@ -536,7 +567,7 @@ const evaluatorFlow = (
   const text = record.text!;
   const range = flow.ownDebugMetadata;
   const firstLine = lineAt(own.from);
-  const statements = bodyStatements(own.body).map((nested) => {
+  const statements = sourceStatementsOf(own.body).map((nested) => {
     const statement = nestedStatement(nested, record);
     return statement.range ? statement : { ...statement, range };
   });
@@ -584,7 +615,7 @@ const functionBodiesOf = (
       const fn = target ? functionShapeOf.get(target) : undefined;
       if (target && fn && !seen.has(target)) {
         seen.add(target);
-        const statements = bodyStatements(fn.body).map((nested) =>
+        const statements = sourceStatementsOf(fn.body).map((nested) =>
           nestedStatement(nested, record),
         );
         out.push(
@@ -712,7 +743,7 @@ const statementOf = (
   const cuts: { from: number; to: number }[] = [];
   const ordered = [...shape.bodies].sort((a, b) => a.headEnd - b.headEnd);
   for (const body of ordered) {
-    const statements = bodyStatements(body).map((nested) =>
+    const statements = sourceStatementsOf(body).map((nested) =>
       nestedStatement(nested, record),
     );
     const source = bodyOf(body, statements, lineAt, above, record.fingerprintOf, inPlace);
@@ -917,6 +948,12 @@ export const bodyStatements = (body: BodyShape): StatementShape[] =>
   body.statements.filter(
     (statement) =>
       statement.objects.length === 0 || !statement.objects.every(isStoryFlow),
+  );
+
+const sourceStatementsOf = (body: BodyShape): StatementShape[] =>
+  bodyStatements(body).filter(
+    (statement) =>
+      statement.objects.length === 0 || !statement.objects.every(isDeclaration),
   );
 
 export const heldObjectsOf = (body: BodyShape): ParsedObject[] =>
