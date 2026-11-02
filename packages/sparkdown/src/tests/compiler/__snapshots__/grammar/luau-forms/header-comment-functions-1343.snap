@@ -144,30 +144,31 @@ sparkdown [0..248]
  │   │       │   │   │   │   └─ OptionalWhitespace [82..83]: " "
  │   │       │   │   │   ├─ LuauFunctionTypeDeclaration_begin_c6 [83..91]
  │   │       │   │   │   │   └─ LuauFunctionKeyword [83..91]: "function"
- │   │       │   │   │   └─ LuauFunctionTypeDeclaration_begin_c7 [91..102]
- │   │       │   │   │       └─ LuauFunctionTypeDeclaration_begin_c7 [91..102]
- │   │       │   │   │           └─ LuauBlockComment [91..102]
- │   │       │   │   │               ├─ LuauBlockComment_begin [91..96]
- │   │       │   │   │               │   ├─ LuauBlockComment_begin_c1 [91..92]
- │   │       │   │   │               │   │   └─ Whitespace [91..92]: " "
- │   │       │   │   │               │   ├─ LuauBlockComment_begin_c2 [92..95]
- │   │       │   │   │               │   │   └─ LuauCommentMark [92..95]: "--["
- │   │       │   │   │               │   ├─ LuauBlockComment_begin_c3 95
- │   │       │   │   │               │   └─ LuauBlockComment_begin_c4 [95..96]
- │   │       │   │   │               │       └─ LuauCommentMark [95..96]: "["
- │   │       │   │   │               ├─ LuauBlockComment_content [96..99]
- │   │       │   │   │               │   ├─ LuauBlockCommentContent [96..97]: " "
- │   │       │   │   │               │   ├─ LuauBlockCommentContent [97..98]: "c"
- │   │       │   │   │               │   └─ LuauBlockCommentContent [98..99]: " "
- │   │       │   │   │               └─ LuauBlockComment_end [99..102]
- │   │       │   │   │                   ├─ LuauBlockComment_end_c1 [99..100]
- │   │       │   │   │                   │   └─ LuauCommentMark [99..100]: "]"
- │   │       │   │   │                   ├─ LuauBlockComment_end_c2 100
- │   │       │   │   │                   ├─ LuauBlockComment_end_c3 [100..101]
- │   │       │   │   │                   │   └─ LuauCommentMark [100..101]: "]"
+ │   │       │   │   │   ├─ LuauFunctionTypeDeclaration_begin_c7 [91..92]
+ │   │       │   │   │   │   └─ LuauFunctionTypeDeclaration_begin_c7 [91..92]
+ │   │       │   │   │   │       └─ OptionalWhitespace [91..92]: " "
+ │   │       │   │   │   └─ LuauFunctionTypeDeclaration_begin_c9 [92..102]
+ │   │       │   │   │       └─ LuauBlockComment [92..102]
+ │   │       │   │   │           ├─ LuauBlockComment_begin [92..96]
+ │   │       │   │   │           │   ├─ LuauBlockComment_begin_c1 92
+ │   │       │   │   │           │   ├─ LuauBlockComment_begin_c2 [92..95]
+ │   │       │   │   │           │   │   └─ LuauCommentMark [92..95]: "--["
+ │   │       │   │   │           │   ├─ LuauBlockComment_begin_c3 95
+ │   │       │   │   │           │   └─ LuauBlockComment_begin_c4 [95..96]
+ │   │       │   │   │           │       └─ LuauCommentMark [95..96]: "["
+ │   │       │   │   │           ├─ LuauBlockComment_content [96..99]
+ │   │       │   │   │           │   ├─ LuauBlockCommentContent [96..97]: " "
+ │   │       │   │   │           │   ├─ LuauBlockCommentContent [97..98]: "c"
+ │   │       │   │   │           │   └─ LuauBlockCommentContent [98..99]: " "
+ │   │       │   │   │           └─ LuauBlockComment_end [99..102]
+ │   │       │   │   │               ├─ LuauBlockComment_end_c1 [99..100]
+ │   │       │   │   │               │   └─ LuauCommentMark [99..100]: "]"
+ │   │       │   │   │               ├─ LuauBlockComment_end_c2 100
+ │   │       │   │   │               ├─ LuauBlockComment_end_c3 [100..101]
+ │   │       │   │   │               │   └─ LuauCommentMark [100..101]: "]"
+ │   │       │   │   │               └─ LuauBlockComment_end_c4 [101..102]
  │   │       │   │   │                   └─ LuauBlockComment_end_c4 [101..102]
- │   │       │   │   │                       └─ LuauBlockComment_end_c4 [101..102]
- │   │       │   │   │                           └─ OptionalWhitespace [101..102]: " "
+ │   │       │   │   │                       └─ OptionalWhitespace [101..102]: " "
  │   │       │   │   ├─ LuauFunctionTypeDeclaration_content [102..121]
  │   │       │   │   │   ├─ LuauTypeFunctionName [102..106]
  │   │       │   │   │   │   ├─ LuauTypeFunctionName_c1 [102..106]: "Keys"

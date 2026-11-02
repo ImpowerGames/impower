@@ -1,8 +1,8 @@
 text.source.sparkdown [0..197]
  ├─ meta.style.luau [0..30]
  │   ├─ keyword.control.style.luau [0..5]: "style"
- │   ├─ comment.block.luau [5..19]
- │   │   ├─ punctuation.whitespace.sd [5..6]: " "
+ │   ├─ punctuation.whitespace.optional.sd [5..6]: " "
+ │   ├─ comment.block.luau [6..19]
  │   │   ├─ comment.luau [6..9]: "--["
  │   │   ├─ comment.luau [9..10]: "["
  │   │   ├─ punctuation.definition.comment.content.sd [10..11]: " "
@@ -32,8 +32,8 @@ text.source.sparkdown [0..197]
  ├─ Newline [49..50]: "\n"
  ├─ meta.layout.luau [50..78]
  │   ├─ keyword.control.layout.luau [50..56]: "layout"
- │   ├─ comment.block.luau [56..70]
- │   │   ├─ punctuation.whitespace.sd [56..57]: " "
+ │   ├─ punctuation.whitespace.optional.sd [56..57]: " "
+ │   ├─ comment.block.luau [57..70]
  │   │   ├─ comment.luau [57..60]: "--["
  │   │   ├─ comment.luau [60..61]: "["
  │   │   ├─ punctuation.definition.comment.content.sd [61..62]: " "
@@ -65,8 +65,8 @@ text.source.sparkdown [0..197]
  ├─ Newline [95..96]: "\n"
  ├─ meta.component.luau [96..128]
  │   ├─ keyword.control.component.luau [96..105]: "component"
- │   ├─ comment.block.luau [105..119]
- │   │   ├─ punctuation.whitespace.sd [105..106]: " "
+ │   ├─ punctuation.whitespace.optional.sd [105..106]: " "
+ │   ├─ comment.block.luau [106..119]
  │   │   ├─ comment.luau [106..109]: "--["
  │   │   ├─ comment.luau [109..110]: "["
  │   │   ├─ punctuation.definition.comment.content.sd [110..111]: " "

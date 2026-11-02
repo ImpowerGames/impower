@@ -55,8 +55,6 @@ variables:
   LUAU_SHARED_TERNARY_NEXT_LINE_GUARD: "(?!{{WS}}*{{LUAU_IF_BLOCK_KEYWORDS}})"
   # lookaround: LuauElseifBlock owns elseif; LuauTernaryExpression must not treat its suffix as a separate if.
   LUAU_SHARED_NOT_ELSEIF: "(?<!\\belseif)"
-  # lookaround: LuauTernaryElseifClause ends once LuauTernaryExpressionCondition has read past its `elseif`, and at once where no condition opens, leaving a line end or `then` to LuauTernaryExpression.
-  LUAU_SHARED_TERNARY_ELSEIF_CLAUSE_END: "(?!\\G)|(?={{WS}}*(?:$|then\\b))"
   LUAU_SHARED_WRITTEN_BLOCK_CLOSER_KEYWORDS: "(?:end|until)"
   LUAU_SHARED_CONDITION_CLOSER_KEYWORDS: "(?:then|do)"
   LUAU_SHARED_TERNARY_CONTEXT: "(?:{{AFTER_LUAU_TERNARY_PRECEDING_TOKEN}}|{{LUAU_TERNARY_WITH_ELSE_AHEAD}})"
@@ -890,6 +888,10 @@ variables:
   LUAU_PLAIN_BLOCK_COMMENT_LEVEL_3: ===\[(?:{{LUAU_PLAIN_COMMENT_CHAR}}|\][^=\r\n]|\]=[^=\r\n]|\]==[^=\r\n]|\]==={{LUAU_PLAIN_COMMENT_CHAR}})*(?:\]={0,2})?\]===\]
   LUAU_PLAIN_BLOCK_COMMENTS: (?:{{WS}}*(?:{{LUAU_PLAIN_BLOCK_COMMENT}}{{WS}}*)+)
   LUAU_HEADER_COMMENTS: (?:{{LUAU_PLAIN_BLOCK_COMMENTS}})
+  # lookaround: `(?!\]\6\])` reads a comment's text up to the close of its own level, as LuauBlockComment's end does with its `\3`, so a header's begin takes each comment whole and LuauStyleNameAndInheritance and the other header names open after it; the level is the sixth group of the begins that use it (LuauStyle and the other structures, LuauDefine).
+  _LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_: (?:--\[(=*)\[(?:(?!\]\6\])[^\r\n])*\]\6\]{{WS}}*)+
+  # lookaround: as _LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_, for LuauFunctionTypeDeclaration, whose comments' level is its tenth group, so LuauTypeFunctionName opens after them.
+  _LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_10_: (?:--\[(=*)\[(?:(?!\]\10\])[^\r\n])*\]\10\]{{WS}}*)+
   LUAU_LINE_LEADING_BLOCK_COMMENTS: (?:{{LUAU_PLAIN_BLOCK_COMMENTS}}|{{LUAU_PLAIN_BLOCK_COMMENTS}}?{{WS}}*{{LUAU_LONGER_LEVEL_COMMENT_TO_LAST_CLOSE}}{{LUAU_PLAIN_BLOCK_COMMENTS}}?{{WS}}*)
   LUAU_DEFINE_HEADER_TO_WITH: (?:{{LUAU_CODE_BEFORE_DEFINE_HEADER}}\bdefine{{LUAU_DEFINE_HEADER_GAP}}{{LUAU_NAME_BEHIND}}{{LUAU_DEFINE_HEADER_PARENT}}*{{LUAU_DEFINE_HEADER_GAP}}with\b{{WS}}*{{LUAU_LINE_LEADING_BLOCK_COMMENTS}}?)
   LUAU_CODE_BEFORE_DEFINE_HEADER: (?:^{{LUAU_CODE_CHAR_OR_CLOSED_COMMENT}}*)
@@ -3644,7 +3646,7 @@ repository:
   LuauDefine:
     tag: meta
     name: meta.function.luau
-    begin: ({{WS}}*)(define)\b{{LUAU_DEFINE_AHEAD}}({{WS}}*{{LUAU_HEADER_COMMENTS}}?)
+    begin: ({{WS}}*)(define)\b{{LUAU_DEFINE_AHEAD}}({{WS}}*)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?)
     beginCaptures:
       1:
         patterns:
@@ -3655,8 +3657,10 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#LuauComment" }
           - { include: "#OptionalWhitespace" }
+      5:
+        patterns:
+          - { include: "#LuauComment" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauDefineNameAndInheritance" }
@@ -3844,7 +3848,7 @@ repository:
   LuauStyle:
     tag: meta
     name: meta.style.luau
-    begin: ({{WS}}*)(style)({{WS}}+{{LUAU_HEADER_COMMENTS}}?){{LUAU_STRUCTURE_NAME_AHEAD}}
+    begin: ({{WS}}*)(style)({{WS}}+)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?){{LUAU_STRUCTURE_NAME_AHEAD}}
     beginCaptures:
       1:
         patterns:
@@ -3855,8 +3859,10 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#LuauComment" }
           - { include: "#OptionalWhitespace" }
+      5:
+        patterns:
+          - { include: "#LuauComment" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauStyleNameAndInheritance" }
@@ -3879,7 +3885,7 @@ repository:
   LuauAnimation:
     tag: meta
     name: meta.animation.luau
-    begin: ({{WS}}*)(animation)({{WS}}+{{LUAU_HEADER_COMMENTS}}?){{LUAU_STRUCTURE_NAME_AHEAD}}
+    begin: ({{WS}}*)(animation)({{WS}}+)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?){{LUAU_STRUCTURE_NAME_AHEAD}}
     beginCaptures:
       1:
         patterns:
@@ -3890,8 +3896,10 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#LuauComment" }
           - { include: "#OptionalWhitespace" }
+      5:
+        patterns:
+          - { include: "#LuauComment" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAnimationThemeNameAndInheritance" }
@@ -3914,7 +3922,7 @@ repository:
   LuauTheme:
     tag: meta
     name: meta.theme.luau
-    begin: ({{WS}}*)(theme)({{WS}}+{{LUAU_HEADER_COMMENTS}}?){{LUAU_STRUCTURE_NAME_AHEAD}}
+    begin: ({{WS}}*)(theme)({{WS}}+)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?){{LUAU_STRUCTURE_NAME_AHEAD}}
     beginCaptures:
       1:
         patterns:
@@ -3925,8 +3933,10 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#LuauComment" }
           - { include: "#OptionalWhitespace" }
+      5:
+        patterns:
+          - { include: "#LuauComment" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAnimationThemeNameAndInheritance" }
@@ -3949,7 +3959,7 @@ repository:
   LuauMorph:
     tag: meta
     name: meta.morph.luau
-    begin: ({{WS}}*)(morph)({{WS}}+{{LUAU_HEADER_COMMENTS}}?){{LUAU_STRUCTURE_NAME_AHEAD}}
+    begin: ({{WS}}*)(morph)({{WS}}+)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?){{LUAU_STRUCTURE_NAME_AHEAD}}
     beginCaptures:
       1:
         patterns:
@@ -3960,8 +3970,10 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#LuauComment" }
           - { include: "#OptionalWhitespace" }
+      5:
+        patterns:
+          - { include: "#LuauComment" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAnimationThemeNameAndInheritance" }
@@ -5906,7 +5918,7 @@ repository:
   LuauLayout:
     tag: meta
     name: meta.layout.luau
-    begin: ({{WS}}*)(layout)({{WS}}+{{LUAU_HEADER_COMMENTS}}?){{LUAU_STRUCTURE_NAME_AHEAD}}
+    begin: ({{WS}}*)(layout)({{WS}}+)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?){{LUAU_STRUCTURE_NAME_AHEAD}}
     beginCaptures:
       1:
         patterns:
@@ -5917,8 +5929,10 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#LuauComment" }
           - { include: "#OptionalWhitespace" }
+      5:
+        patterns:
+          - { include: "#LuauComment" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauLayoutNameAndInheritance" }
@@ -5942,7 +5956,7 @@ repository:
   LuauScreen:
     tag: meta
     name: meta.screen.luau
-    begin: ({{WS}}*)(screen)({{WS}}+{{LUAU_HEADER_COMMENTS}}?){{LUAU_STRUCTURE_NAME_AHEAD}}
+    begin: ({{WS}}*)(screen)({{WS}}+)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?){{LUAU_STRUCTURE_NAME_AHEAD}}
     beginCaptures:
       1:
         patterns:
@@ -5953,8 +5967,10 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#LuauComment" }
           - { include: "#OptionalWhitespace" }
+      5:
+        patterns:
+          - { include: "#LuauComment" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauScreenNameHeader" }
@@ -5995,7 +6011,7 @@ repository:
   LuauComponent:
     tag: meta
     name: meta.component.luau
-    begin: ({{WS}}*)(component)({{WS}}+{{LUAU_HEADER_COMMENTS}}?){{LUAU_STRUCTURE_NAME_AHEAD}}
+    begin: ({{WS}}*)(component)({{WS}}+)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?){{LUAU_STRUCTURE_NAME_AHEAD}}
     beginCaptures:
       1:
         patterns:
@@ -6006,8 +6022,10 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#LuauComment" }
           - { include: "#OptionalWhitespace" }
+      5:
+        patterns:
+          - { include: "#LuauComment" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauComponentNameAndInheritance" }
@@ -6920,7 +6938,8 @@ repository:
           - { include: "#LuauElseifKeyword" }
     patterns:
       - { include: "#LuauSparkdownExplicitTernaryExpressionCondition" }
-    end: "{{LUAU_SHARED_TERNARY_ELSEIF_CLAUSE_END}}"
+    applyEndPatternLast: true
+    end: (?=$|.)
 
   LuauSparkdownExplicitTernaryExpressionCondition:
     # lookaround: LuauSparkdownExplicitThenExpression owns `then`; the condition opens where the `if` or a clause `elseif` ended, never at a line end or before `then`.
@@ -8346,7 +8365,8 @@ repository:
           - { include: "#LuauElseifKeyword" }
     patterns:
       - { include: "#LuauTernaryExpressionCondition" }
-    end: "{{LUAU_SHARED_TERNARY_ELSEIF_CLAUSE_END}}"
+    applyEndPatternLast: true
+    end: (?=$|.)
 
   # lookaround: LuauThenExpression owns `then`; the condition opens where the `if` or a clause `elseif` ended, never at a line end or before `then`.
   LuauTernaryExpressionCondition:
@@ -10846,7 +10866,7 @@ repository:
   LuauFunctionTypeDeclaration:
     tag: meta
     name: meta.function.luau
-    begin: "({{WS}}*){{_LUAU_SHARED_EXPORTED_TYPE_PREFIX_}}?(type)\\b({{WS}}*)(function)\\b({{WS}}*{{LUAU_HEADER_COMMENTS}}?)"
+    begin: "({{WS}}*){{_LUAU_SHARED_EXPORTED_TYPE_PREFIX_}}?(type)\\b({{WS}}*)(function)\\b({{WS}}*)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_10_}})?)"
     beginCaptures:
       1:
         patterns:
@@ -10869,8 +10889,10 @@ repository:
       7:
         emit: true
         patterns:
-          - { include: "#LuauComment" }
           - { include: "#OptionalWhitespace" }
+      9:
+        patterns:
+          - { include: "#LuauComment" }
     patterns:
       - { include: "#LuauFunctionBody" }
       - { include: "#LuauComment" }

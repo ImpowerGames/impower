@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, errorsOf, storyBeats } from "../program/programHarness";
-import { parseSource } from "./grammarSnapshot";
+import { dumpTree, parseSource, stripAnsi } from "./grammarSnapshot";
 
 const repository = GRAMMAR_DEFINITION.repository as Record<string, { begin?: string; match?: string }>;
 
@@ -46,6 +46,16 @@ describe("a header's block comments belong to its keyword's begin", () => {
     const [comment] = nodesNamed(source, "LuauBlockComment");
     expect(ancestorNames(comment!)).toContain("LuauFunctionTypeDeclaration_begin");
     expect(nodesNamed(source, "LuauTypeFunctionName").map((node) => source.slice(node.from, node.to))).toEqual(["Keys"]);
+  });
+
+  test.each([
+    ["a close of another level inside it", "style --[====[a]=====] hidden ]====] banner with\n  color = red\nend\n", "--[====[a]=====] hidden ]====] ", "banner"],
+    ["a close of its level's prefix inside it", "style --[=[a]]=] --[====[b]====] two with\n  color = red\nend\n", "--[=[a]]=] ", "two"],
+  ])("a comment with %s ends at its own level's close, and the name after it reads", (_, source, comment, name) => {
+    const comments = nodesNamed(source, "LuauBlockComment");
+    expect(source.slice(comments[0]!.from, comments[0]!.to)).toBe(comment);
+    expect(nodesNamed(source, "LuauDefineName").map((node) => source.slice(node.from, node.to))).toEqual([name]);
+    expect(stripAnsi(dumpTree(source))).not.toContain("ERROR_");
   });
 
   test.each([
