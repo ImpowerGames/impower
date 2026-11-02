@@ -865,7 +865,13 @@ export function* bakeSteps(
       );
       return undefined;
     };
-    if (ends.some((leaf) => paintOf(leaf).stroke !== "none")) return ignored("paints a stroke, and `spread` grows or shrinks fills only");
+    if (markups.some((leaf) => !rootGeometry(leaf))) {
+      return ignored("has no outline the bake reads exactly (text, an image, a reference, or a shape whose geometry it cannot read)");
+    }
+    const strokedByPaints = (leaf: Leaf) => appliedPaints.some(({ entry }) => entry.stroke !== undefined && labelledAny(leaf.element, entry.targets));
+    if (ends.some((leaf) => paintOf(leaf).stroke !== "none" || strokedByPaints(leaf))) {
+      return ignored("paints a stroke, its own or a `paints` entry's, and `spread` grows or shrinks fills only");
+    }
     if (spread > 0 && [...ends, ...markups].some((leaf) => !growFillOf(leaf, false))) {
       return ignored("has a fill that cannot be grown: a pattern, a gradient whose stops differ in opacity, or paint the bake cannot read");
     }

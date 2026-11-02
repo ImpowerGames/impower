@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { filterSVGAttributes } from "../../attributes";
 import { bakeMorphArtifact, MORPH_BAKE_SAMPLES } from "../../morph/bake";
+import { morphFrameState } from "../../morph/render";
 import { parse } from "../../txml/txml";
 import type { MorphArtifact, MorphTransition } from "../../morph/types";
 import { blink, CLOSED, portrait, spreadBlink, spreadPortrait, UPPER_OPEN } from "./fixtures";
@@ -223,6 +224,8 @@ describe("a drawing's `spread` in the bake", () => {
     ["mottled", "1px", "has a fill that cannot be grown"],
     ["masked", "-1px", "has its own `mask`"],
     ["still", "-1px", "none of its drawings is drawn between poses or carried"],
+    ["lettered", "-1px", "has no outline the bake reads exactly"],
+    ["lettered", "1px", "has no outline the bake reads exactly"],
   ])("`spread-ignored` on %s at `spread = %s` is reported once per artwork with one message for every variant, and the drawing keeps its own size", (label, spread, why) => {
     const messages = ["bunny", "raffles"].map((variant) => {
       const artifact = spreadBake({ [label]: { spread } }, {}, variant);
@@ -237,6 +240,19 @@ describe("a drawing's `spread` in the bake", () => {
     expect(messages[0]).toBe(messages[1]);
   });
 
+  test("a `paints` entry that strokes a growing drawing keeps it its own size, with `spread-ignored`, and its stroke shows between poses", () => {
+    const paints = [{ targets: ["flat"], state: "eyes.closed", stroke: "#f00" }];
+    const artifact = spreadBake({ flat: { spread: "1px" } }, { paints });
+    const found = ignored(artifact);
+    expect(found).toEqual([expect.objectContaining({ severity: "warning", layer: "flat" })]);
+    expect(found[0]!.message).toContain("a `paints` entry's");
+    expect(spreadRecorded(artifact)).toBe(false);
+    const draw = (transitionOf(artifact, "flat") as { draw: string }).draw;
+    const paint = morphFrameState(artifact, { eyes: { segment: 0, progress: 0.5 } }).paint.get(draw)!;
+    expect(paint["stroke"]).toBe("rgba(255,0,0,0.5)");
+    expect(paint).not.toHaveProperty("stroke-width");
+  });
+
   test("shrinking works whatever the fill is", () => {
     const artifact = spreadBake({ patterned: { spread: "-1px" }, mottled: { spread: "-1px" } });
     expect(ignored(artifact)).toEqual([]);
@@ -245,7 +261,7 @@ describe("a drawing's `spread` in the bake", () => {
   });
 
   test("a root `spread` applies where no label sets one, and a label's `0` keeps its drawings their own size", () => {
-    const artifact = spreadBake({ flat: { spread: 0 }, stroked: { spread: 0 }, masked: { spread: 0 } }, { spread: "-1px" });
+    const artifact = spreadBake({ flat: { spread: 0 }, stroked: { spread: 0 }, masked: { spread: 0 }, lettered: { spread: 0 } }, { spread: "-1px" });
     expect(ignored(artifact)).toEqual([]);
     expect(transitionOf(artifact, "flat")).not.toHaveProperty("spread");
     expect(transitionOf(artifact, "blended")).toMatchObject({ spread: -1 });

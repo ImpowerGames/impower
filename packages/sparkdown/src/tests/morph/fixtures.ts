@@ -330,7 +330,8 @@ export function spreadPortrait(): string {
       still: 'fill="#222"',
     };
     if (!closed) drawings["ghost"] = 'fill="#456"';
-    return SPREAD_LABELS.flatMap((label, i) => (drawings[label] ? [`<path data-name="${label}" d="${at(i)}" ${drawings[label]}/>`] : [])).join("\n");
+    const lettered = `<text data-name="lettered" x="10" y="${170 + dy}" fill="#000">TEST</text>`;
+    return [...SPREAD_LABELS.flatMap((label, i) => (drawings[label] ? [`<path data-name="${label}" d="${at(i)}" ${drawings[label]}/>`] : [])), lettered].join("\n");
   };
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 180" width="200" height="180">
 <defs>
