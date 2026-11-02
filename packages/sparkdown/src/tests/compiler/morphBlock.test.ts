@@ -1723,6 +1723,16 @@ end
     }
   });
 
+  test("a label written as a value names `spread` among the fields a label takes", () => {
+    const text = SPREAD().replace("    eyeball-shadow-left { partner = eyelash-left }", "    eyeball-shadow-left = -1px");
+    expect(text).toContain("eyeball-shadow-left = -1px");
+    const found = errors(text);
+    expect(found).toEqual([expect.objectContaining({ line: 3 })]);
+    expect(found[0]!.message).toBe(
+      "`eyeball-shadow-left` in `layers { … }` is a label: write `eyeball-shadow-left { … }` with its `blend`, `method`, `fallback`, `depth`, `spread` or `partner` inside.",
+    );
+  });
+
   test("a root `spread` leaves every clip entry's recipe unchanged", () => {
     const plain = JSON.parse(recipeText(SPREAD()));
     const spread = JSON.parse(recipeText(SPREAD("  spread = -1px\n")));

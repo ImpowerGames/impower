@@ -374,14 +374,14 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     if (!isRecord(layers)) {
       push(
         valueSpan(own, "layers"),
-        "`layers` holds labels, each with its own `blend`, `method`, `fallback` or `depth`: `layers { creases { fallback = scale } }`.",
+        `\`layers\` holds labels, each with its own ${quoteList(ALLOWED.layer)}: \`layers { creases { fallback = scale } }\`.`,
       );
     } else {
       for (const [label, policy] of Object.entries(layers)) {
         if (!isRecord(policy)) {
           push(
             src(layers)?.lines.get(label),
-            `\`${label}\` in \`layers { … }\` is a label: write \`${label} { … }\` with its \`blend\`, \`method\`, \`fallback\` or \`depth\` inside.`,
+            `\`${label}\` in \`layers { … }\` is a label: write \`${label} { … }\` with its ${quoteList(ALLOWED.layer)} inside.`,
           );
           continue;
         }
