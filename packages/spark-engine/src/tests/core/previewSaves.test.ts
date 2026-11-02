@@ -231,6 +231,15 @@ describe("saves made while playing", () => {
     expect(game.countKeysOf(save.values.places!)).toEqual({
       [`place:0:4:${URI}`]: `place:0:4:${URI}`,
     });
+
+    recompile(
+      compiler,
+      game,
+      ["", "", ...lines.filter((line) => !/Leave|Left/.test(line))].join("\n"),
+    );
+    expect(game.countKeysOf(save.values.places!)).toEqual({});
+    expect(game.countForms([`place:0:4:${URI}`])).toBeDefined();
+    expect(game.countForms([`place:0:9:${URI}`])).toBeUndefined();
   });
 
   it("keeps the position when a save's values are edited", () => {

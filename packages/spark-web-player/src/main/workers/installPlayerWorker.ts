@@ -66,6 +66,7 @@ import { LastRunMessage } from "./messages/LastRunMessage";
 import { EditSaveMessage } from "./messages/EditSaveMessage";
 import { SaveHereMessage } from "./messages/SaveHereMessage";
 import { SaveRefusalsMessage } from "./messages/SaveRefusalsMessage";
+import { CountFormsMessage } from "./messages/CountFormsMessage";
 import { CountKeysMessage } from "./messages/CountKeysMessage";
 import { putAtStartPoint } from "./putAtStartPoint";
 import { planRouteForSelection, routeGameTo } from "./planRouteForSelection";
@@ -941,6 +942,17 @@ export function installPlayerWorker(connection: MessageConnection) {
           throw new NoGameError();
         }
         return { keys: game.countKeysOf(message.params.places) };
+      });
+      return;
+    }
+    if (CountFormsMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => {
+        const game = gameState.game;
+        if (!game) {
+          throw new NoGameError();
+        }
+        const places = game.countForms(message.params.keys);
+        return places !== undefined ? { places } : {};
       });
       return;
     }

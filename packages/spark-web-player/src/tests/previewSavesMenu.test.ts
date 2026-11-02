@@ -532,6 +532,56 @@ describe("edits to a save", () => {
     expect(edits[1]![1].data).toBe(edits[0]![1].data + '+{"store:trust":"5"}');
   });
 
+  test("closes on Play from here after Escape leaves a value just set", async () => {
+    const p = player();
+    await p.withSaves([saved()]);
+    const saves = (p.controller as any)._saves;
+    const played: string[] = [];
+    (p.controller as any).playFromSave = async (data: string) => {
+      played.push(data);
+    };
+    p.openMenu();
+    await saves.editValues("saved-1");
+    await settle();
+    const field = () =>
+      p.menu()!.querySelector<HTMLInputElement>('.sv-row[data-key="store:trust"] .sv-input')!;
+    field().focus();
+    field().value = "5";
+    field().dispatchEvent(new Event("input", { bubbles: true }));
+    field().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    const escape = (p.controller as any).handleSavesKeyDown;
+    const { removeChild } = Node.prototype;
+    const { remove } = Element.prototype;
+    const blurIn = (node: Node) => {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && node.contains(active)) {
+        active.blur();
+      }
+    };
+    Node.prototype.removeChild = function <T extends Node>(this: Node, child: T): T {
+      blurIn(child);
+      return removeChild.call(this, child) as T;
+    };
+    Element.prototype.remove = function (this: Element) {
+      blurIn(this);
+      remove.call(this);
+    };
+    window.addEventListener("keydown", escape, true);
+    try {
+      field().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    } finally {
+      window.removeEventListener("keydown", escape, true);
+      Node.prototype.removeChild = removeChild;
+      Element.prototype.remove = remove;
+    }
+    expect(p.menu()!.querySelector(".saves-values")).toBeNull();
+    p.rowOf("saved-1").querySelector<HTMLButtonElement>(".saves-play")!.click();
+    expect(p.menu()).toBeNull();
+    expect(await answerWrites(p, 1)).toBe(1);
+    await settle();
+    expect(played).toEqual([`{"save":"saved-1"}+{"store:trust":"5"}`]);
+  });
+
   test("keeps a table store and its fields in step", () => {
     const values = { "store:bag": "{ coins = 1 }", "store:bag.coins": "1" };
     expect(withSavedValue(values, "store:bag", "{ coins = 5 }")).toEqual({

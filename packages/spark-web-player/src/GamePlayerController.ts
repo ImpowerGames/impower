@@ -313,6 +313,10 @@ export class GamePlayerController {
 
   protected _loadSaveOpen = false;
 
+  protected _renderingSaves = false;
+
+  protected _savesRenderDue = false;
+
   protected _loaded?: {
     start: string;
     name: string;
@@ -1068,11 +1072,23 @@ export class GamePlayerController {
     if (this._disposed) {
       return;
     }
-    renderSavesViews(this.savesTargets(), {
-      state: this._saves.viewState(),
-      note: this._saves.note(),
-      events: this._saves.events,
-    });
+    if (this._renderingSaves) {
+      this._savesRenderDue = true;
+      return;
+    }
+    this._renderingSaves = true;
+    try {
+      do {
+        this._savesRenderDue = false;
+        renderSavesViews(this.savesTargets(), {
+          state: this._saves.viewState(),
+          note: this._saves.note(),
+          events: this._saves.events,
+        });
+      } while (this._savesRenderDue && !this._disposed);
+    } finally {
+      this._renderingSaves = false;
+    }
   }
 
   protected handleSavesPointerDown = (e: PointerEvent) => {
@@ -2524,7 +2540,7 @@ export class GamePlayerController {
           }
         }
       }
-      void this._saves.checkPlaceable();
+      void this._saves.programChanged();
       this.updateLaunchStateIcon();
       if (isInitialProgram) {
         this._resolveLoadingInitialProgram();

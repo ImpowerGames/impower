@@ -15,6 +15,7 @@ import type { StartingValueListing } from "@impower/sparkdown/src/program/starti
 import { EditSaveMessage } from "../main/workers/messages/EditSaveMessage";
 import { SaveHereMessage } from "../main/workers/messages/SaveHereMessage";
 import { SaveRefusalsMessage } from "../main/workers/messages/SaveRefusalsMessage";
+import { CountFormsMessage } from "../main/workers/messages/CountFormsMessage";
 import { CountKeysMessage } from "../main/workers/messages/CountKeysMessage";
 import type { SavesEvents } from "./SavesViews";
 import {
@@ -335,8 +336,20 @@ export class SavesController {
     this.closeValues();
     this._valuesId = id;
     this._host.changed();
-    await this.current(id);
-    const listing = await this._host.listing(record.scene);
+    await this.listValues(id);
+  }
+
+  async programChanged(): Promise<void> {
+    await this.checkPlaceable();
+    const id = this._valuesId;
+    if (id) {
+      await this.listValues(id);
+    }
+  }
+
+  protected async listValues(id: string): Promise<void> {
+    const record = await this.current(id);
+    const listing = record ? await this._host.listing(record.scene) : undefined;
     if (this._valuesId === id) {
       this._valuesListing = listing;
       this._host.changed();
@@ -365,14 +378,19 @@ export class SavesController {
     } catch {
       return record;
     }
-    const moves = Object.entries(keys ?? {}).filter(([from, to]) => from !== to);
-    if (moves.length === 0) {
+    if (!keys) {
+      return record;
+    }
+    const saved = JSON.parse(places) as { forms?: Record<string, unknown> };
+    const gone = Object.keys(saved.forms ?? {}).filter((key) => !Object.hasOwn(keys, key));
+    const moves = Object.entries(keys).filter(([from, to]) => from !== to);
+    if (moves.length === 0 && gone.length === 0) {
       return record;
     }
     const rekey = <T>(entries: Record<string, T>): Record<string, T> => {
       const out = { ...entries };
-      for (const [from] of moves) {
-        delete out[from];
+      for (const key of [...gone, ...moves.map(([from]) => from)]) {
+        delete out[key];
       }
       for (const [from, to] of moves) {
         if (Object.hasOwn(entries, from)) {
@@ -381,7 +399,6 @@ export class SavesController {
       }
       return out;
     };
-    const saved = JSON.parse(places) as { forms?: Record<string, unknown> };
     const placed: PreviewSave = {
       ...record,
       values: {
@@ -404,16 +421,17 @@ export class SavesController {
   }
 
   protected async writeValue(id: string, key: string, value: string): Promise<void> {
-    const record = this.record(id);
+    const record = await this.placeCounts(id);
     if (!record) {
       return;
     }
     const before = record.values.values[key];
     delete this._unsaved[key];
+    const values = withSavedValue(record.values.values, key, value);
     let data = record.data;
     let places = record.values.places;
-    if (this._refusals[record.id] === undefined) {
-      try {
+    try {
+      if (this._refusals[record.id] === undefined) {
         const result = await this._host.askWorker(EditSaveMessage.type, {
           data: record.data,
           changes: { [key]: value },
@@ -422,26 +440,33 @@ export class SavesController {
           throw new Error("The player could not edit the save.");
         }
         data = result.data;
-        places = result.values.places ?? places;
-      } catch {
-        this._unsaved[key] = before ?? "nil";
-        this._host.changed();
-        return;
       }
+      if (key.startsWith("place:")) {
+        const result = await this._host.askWorker(CountFormsMessage.type, {
+          keys: Object.keys(values).filter((k) => k.startsWith("place:")),
+        });
+        if (!result) {
+          throw new Error("The player could not place the save's counts.");
+        }
+        places = result.places;
+      }
+    } catch {
+      this._unsaved[key] = before ?? "nil";
+      this._host.changed();
+      return;
     }
     const local = readLocalKey(key);
     const edited: PreviewSave = {
       ...record,
       data,
       values: {
-        ...record.values,
-        ...(places !== undefined ? { places } : {}),
-        values: withSavedValue(record.values.values, key, value),
+        values,
         frames: record.values.frames.map((frame, i) =>
           local && i === local.frame && Object.hasOwn(frame.params, local.name)
             ? { ...frame, params: { ...frame.params, [local.name]: value } }
             : frame,
         ),
+        ...(places !== undefined ? { places } : {}),
       },
     };
     try {
@@ -464,15 +489,18 @@ export class SavesController {
     },
     onSaveHere: () => void this.saveHere(),
     onPlay: (id) => {
-      const record = this.record(id);
-      if (!record || this._refusals[id] !== undefined) {
+      if (!this.record(id) || this._refusals[id] !== undefined) {
         return;
       }
       this._open = false;
       this._rowMenu = undefined;
       this.closeValues();
       this._host.changed();
-      void this._host.playFromSave(record.data);
+      void this.serial(async () => this.record(id)).then((record) =>
+        record && this._refusals[id] === undefined
+          ? this._host.playFromSave(record.data)
+          : undefined,
+      );
     },
     onRowMenu: (id) => {
       this._rowMenu = id ?? undefined;
