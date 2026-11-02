@@ -301,7 +301,11 @@ export function RouteList({
                 <li class="route-entry route-target">
                   <div class="route-entry-row">
                     {lineLink(route.target)}
-                    <span class="route-text">Target line</span>
+                    <span class="route-text">
+                      {route.tunnelEnds
+                        ? "Tunnel ends here, with nothing to return to in the preview"
+                        : "Target line"}
+                    </span>
                   </div>
                 </li>
               </ol>

@@ -17,7 +17,6 @@ export interface RouteSearchOutcome {
   shows?: boolean;
   route?: PreviewRoute;
   menus?: RunMenu[];
-  fromStart?: boolean;
   jumpShows?: boolean;
   shown?: {
     point: { file: string; line: number };
