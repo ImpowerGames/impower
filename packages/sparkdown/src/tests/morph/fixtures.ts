@@ -9,6 +9,8 @@ export const SPLIT_CLOSED_BOTTOM_OVERLAPPING_TOP = "M0,50 C30,45 70,45 100,47 C7
 export const EYEBALL = "M-5,50 C-5,20 105,20 105,50 C105,80 -5,80 -5,50Z";
 export const PUPIL = "M40,50 C40,40 60,40 60,50 C60,60 40,60 40,50Z";
 
+const sliver = (x: number, y: number, h: number) => `M${x + 4},${y + 2 * h}L${x + 6},${y}L${x + 10},${y}L${x + 10},${y + 10}L${x},${y + 10}L${x},${y}L${x + 4},${y}L${x + 6},${y + 2 * h}Z`;
+
 const shift = (d: string, dx: number, dy = 0) =>
   d.replace(/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g, (_, x, y) => `${Number(x) + dx},${Number(y) + dy}`);
 
@@ -347,7 +349,9 @@ export function spreadPortrait(): string {
       `<path data-name="folding" d="${slotted(180, 100 + dy, closed ? [6.3, 5.1] : [7.6, 6.8], closed ? [7.9, 8.9] : [6, 3.1])}" fill="#264"/>`,
       `<path data-name="looped" d="${slotted(150, 105 + dy, [6, 4], [4, 4])}" fill="#426"/>`,
       `<path data-name="loopedodd" d="${slotted(165, 105 + dy, [6, 4], [4, 4])}" fill="#426" fill-rule="evenodd"/>`,
-      `<path data-name="curled" d="M150.004,${165 + dy}C149.837333,${165.001333 + dy} 153.004,${164.836 + dy} 159.504,${174.504 + dy}L140,${175 + dy}L140,${155 + dy}Z" fill="#462"/>`,
+      `<path data-name="curled" d="M150,${175 + dy}C165,${169 + dy} 145,${169 + dy} 160,${175 + dy}L160,${165 + dy}L150,${165 + dy}Z" fill="#462"/>`,
+      `<path data-name="slivered" d="${sliver(60, 160 + dy, 0.0008)}" fill="#246"/>`,
+      `<path data-name="wedged" d="${sliver(80, 160 + dy, 0.0012)}" fill="#246"/>`,
       closed
         ? `<path data-name="mixedfade" d="M120,${105 + dy}H130V${115 + dy}H120Z" fill="#624"/>`
         : `<path data-name="mixedfade" d="${slotted(120, 105 + dy, [6, 4], [4, 4])}" fill="#624" fill-rule="evenodd"/>`,
@@ -376,7 +380,7 @@ ${pose(5, true)}
 }
 
 export function spreadBlink(layers: Record<string, Record<string, unknown>> = {}, overrides: Record<string, unknown> = {}, states = ["open", "closed", "open"]): MorphRecipe {
-  const merged: Record<string, Record<string, unknown>> = { ghost: { fallback: "scale" }, fader: { blend: "fade" }, still: { blend: "cut" }, opened: { blend: "fade" }, polylined: { blend: "fade" }, implicitloop: { blend: "fade" }, mixedfade: { blend: "fade" }, curled: { blend: "fade" } };
+  const merged: Record<string, Record<string, unknown>> = { ghost: { fallback: "scale" }, fader: { blend: "fade" }, still: { blend: "cut" }, opened: { blend: "fade" }, polylined: { blend: "fade" }, implicitloop: { blend: "fade" }, mixedfade: { blend: "fade" }, curled: { blend: "fade" }, slivered: { blend: "fade" }, wedged: { blend: "fade" } };
   for (const [label, policy] of Object.entries(layers)) merged[label] = { ...merged[label], ...policy };
   return paintBlink({ layers: merged, ...overrides }, states);
 }

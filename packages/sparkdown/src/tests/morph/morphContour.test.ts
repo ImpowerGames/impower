@@ -5,6 +5,10 @@ const LOOP = "M60,60L80,20L120,20L120,120L20,120L20,20L60,20L80,60";
 
 const CURL = "M0.4,0C-16.266666666666666,0.13333333333333333 300.4,-16.400000000000002 950.4,950.4L-1000,1000L-1000,-1000Z";
 
+const WIDE_CURL = "M0,0C150,-60 -50,-60 100,0L100,-100L0,-100Z";
+
+const sliver = (h: number) => `M106,${102 + 2 * h}L108,102L112,102L112,112L102,112L102,102L106,102L108,${102 + 2 * h}Z`;
+
 const line = (p0: [number, number], p1: [number, number]) => ({ p0, c1: p0, c2: p1, p1 });
 
 const only = (d: string) => {
@@ -25,9 +29,29 @@ describe("a spread contour", () => {
     expect(contourOverlapsItself({ segments, closed: false }, false)).toBe(true);
   });
 
-  test("a curve that loops on itself, however small the loop, overlaps itself", () => {
-    expect(contourOverlapsItself(only(CURL), false)).toBe(true);
-    expect(contourOverlapsItself(only(CURL), true)).toBe(true);
+  test("a curve's own loop filled twice and wider than a ten-thousandth of the drawing's size overlaps itself, and under even-odd, where the loop is a hole, it does not", () => {
+    expect(contourOverlapsItself(only(WIDE_CURL), false)).toBe(true);
+    expect(contourOverlapsItself(only(WIDE_CURL), true)).toBe(false);
+  });
+
+  test("a curve's own loop that no circle a ten-thousandth of the drawing's size across fits in reads as touching, though it is longer than that", () => {
+    expect(contourOverlapsItself(only(CURL), false)).toBe(false);
+    expect(contourOverlapsItself(only(CURL), true)).toBe(false);
+  });
+
+  test("an end overshooting its start by a sliver wound with the drawing reads as touching below a ten-thousandth of the drawing's size and overlaps above it", () => {
+    expect(contourOverlapsItself(only(sliver(0.0008)), false)).toBe(false);
+    expect(contourOverlapsItself(only(sliver(0.0012)), false)).toBe(true);
+    expect(contourOverlapsItself(only(sliver(0.0012)), true)).toBe(false);
+  });
+
+  test("a contour that crosses itself at a vertex it passes through twice overlaps itself where the loop is filled twice", () => {
+    expect(contourOverlapsItself(only("M60,60L70,40L80,20L120,20L120,120L20,120L20,20L60,20L70,40L80,60"), false)).toBe(true);
+    expect(contourOverlapsItself(only("M60.3,60.7L70.1,40.3L80.9,20.2L120,20L120,120L20,120L20,20L60.3,20.6L70.1,40.3L80.2,60.9"), false)).toBe(true);
+  });
+
+  test("an edge drawn back along itself has no width and reads as touching", () => {
+    expect(contourOverlapsItself(only("M0,0L100,0L100,100L50,100L50,40L50,100L0,100Z"), false)).toBe(false);
   });
 
   test("a simple contour of lines or curves, and a loop that is a hole under even-odd, do not overlap themselves", () => {

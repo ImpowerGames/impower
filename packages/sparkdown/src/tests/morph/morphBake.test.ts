@@ -237,6 +237,7 @@ describe("a drawing's `spread` in the bake", () => {
     ["looped", "-1px", "has a contour that overlaps itself with fill on both sides"],
     ["implicitloop", "-1px", "has a contour that overlaps itself with fill on both sides"],
     ["curled", "-1px", "has a contour that overlaps itself with fill on both sides"],
+    ["wedged", "-1px", "has a contour that overlaps itself with fill on both sides"],
     ["polylined", "1px", "is a `polyline`"],
   ])("`spread-ignored` on %s at `spread = %s` is reported once per artwork with one message for every variant, and the drawing keeps its own size", (label, spread, why) => {
     const messages = ["bunny", "raffles"].map((variant) => {
@@ -282,6 +283,16 @@ describe("a drawing's `spread` in the bake", () => {
     expect(state.paint.get(track.draw)?.["mask"]).toBe(`url(#${artifact.spreads![track.draw]!.mask})`);
   });
 
+  test("a contour whose end overshoots its start by a sliver wound with the drawing, narrower than a ten-thousandth of the drawing's size, reads as touching and shrinks", () => {
+    const artifact = spreadBake({ slivered: { spread: "-1px" } });
+    expect(ignored(artifact)).toEqual([]);
+    const fade = transitionOf(artifact, "slivered");
+    expect(fade).toMatchObject({ kind: "fade", spread: -1 });
+    if (fade.kind !== "fade") throw new Error("not a fade");
+    const state = morphFrameState(artifact, { eyes: { segment: 0, progress: 0.5 } });
+    for (const node of [fade.from!, fade.to!]) expect(state.paint.get(node)?.["mask"], node).toBe(`url(#${artifact.spreads![node]!.mask})`);
+  });
+
   test("each drawing of a fade is tested with its own fill rule: an even-odd loop fading to a nonzero rectangle shrinks", () => {
     const artifact = spreadBake({ mixedfade: { spread: "-1px" } });
     expect(ignored(artifact)).toEqual([]);
@@ -320,7 +331,7 @@ describe("a drawing's `spread` in the bake", () => {
   });
 
   test("a root `spread` applies where no label sets one, and a label's `0` keeps its drawings their own size", () => {
-    const artifact = spreadBake({ flat: { spread: 0 }, stroked: { spread: 0 }, masked: { spread: 0 }, lettered: { spread: 0 }, ...Object.fromEntries(["doubled", "crossing", "ringed", "cornered", "holed", "speck", "looped", "implicitloop", "curled"].map((label) => [label, { spread: 0 }])) }, { spread: "-1px" });
+    const artifact = spreadBake({ flat: { spread: 0 }, stroked: { spread: 0 }, masked: { spread: 0 }, lettered: { spread: 0 }, ...Object.fromEntries(["doubled", "crossing", "ringed", "cornered", "holed", "speck", "looped", "implicitloop", "curled", "wedged"].map((label) => [label, { spread: 0 }])) }, { spread: "-1px" });
     expect(ignored(artifact)).toEqual([]);
     expect(transitionOf(artifact, "flat")).not.toHaveProperty("spread");
     expect(transitionOf(artifact, "blended")).toMatchObject({ spread: -1 });
