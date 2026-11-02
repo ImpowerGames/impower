@@ -12,8 +12,14 @@ export class GrammarState {
     {
       node: GrammarNode.None,
       beginCaptures: [],
+      enclosingAnchor: -1,
+      beginCapturedLineBreak: false,
     },
   ]);
+
+  anchor = -1;
+
+  protected _anchorLineStart = -1;
 
   visited: CallFrame[] = [];
 
@@ -106,6 +112,46 @@ export class GrammarState {
 
   get lineText() {
     return this._lineText;
+  }
+
+  protected syncAnchor(from: number) {
+    this.line(from);
+    if (this._lineStart !== this._anchorLineStart) {
+      this._anchorLineStart = this._lineStart;
+      this.anchor = this.stack.at(-1)?.beginCapturedLineBreak
+        ? this._lineStart
+        : -1;
+    }
+  }
+
+  isAnchor(from: number) {
+    this.syncAnchor(from);
+    return this.anchor === from;
+  }
+
+  pushScope(
+    node: GrammarNode,
+    beginCaptures: string[],
+    from: number,
+    to: number,
+  ) {
+    this.syncAnchor(from);
+    this.stack.push(
+      node,
+      beginCaptures,
+      this.anchor,
+      to > from && to === this._lineEnd && endsWithBreak(this._lineText),
+    );
+    this.anchor = to;
+  }
+
+  popScope(at: number) {
+    this.syncAnchor(at);
+    const popped = this.stack.pop();
+    if (popped) {
+      this.anchor = popped.enclosingAnchor;
+    }
+    return popped;
   }
 
   possibleStackOverflow(ruleId: string, position: number): boolean {

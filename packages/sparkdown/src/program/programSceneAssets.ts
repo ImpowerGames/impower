@@ -42,8 +42,7 @@ export const captureProgramAssets = (
     if (name === undefined) {
       return undefined;
     }
-    const head = name.split(".")[0] ?? "";
-    return head === "" ? "0" : head;
+    return name.split(".")[0] || undefined;
   };
   const visitChunk = (chunk: ProgramChunk, capture: SceneAssetCapture) => {
     const id = chunkId(chunk);
@@ -137,7 +136,10 @@ export const captureProgramAssets = (
           symbol = scene;
         }
       }
-      const name = flowOfName(symbols[symbol]) ?? "0";
+      const name = flowOfName(symbols[symbol]);
+      if (name === undefined) {
+        continue;
+      }
       let capture = captures.get(name);
       if (!capture) {
         capture = createSceneAssetCapture();
@@ -166,9 +168,6 @@ export const captureProgramAssets = (
       const kb = keys.get(b)!;
       return ka[0] - kb[0] || ka[1] - kb[1] || ka[2] - kb[2];
     });
-  }
-  if (!captures.has("0")) {
-    captures.set("0", createSceneAssetCapture());
   }
   return captures;
 };

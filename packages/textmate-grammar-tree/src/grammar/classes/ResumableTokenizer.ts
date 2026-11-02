@@ -30,7 +30,11 @@ interface TokenizerFrame {
 }
 
 export interface TokenizerResume {
-  stack: { node: GrammarNode; beginCaptures: string[] }[];
+  stack: {
+    node: GrammarNode;
+    beginCaptures: string[];
+    beginCapturedLineBreak: boolean;
+  }[];
   frames: {
     rule: ScopedRule;
     openedAtAbs: number;
@@ -288,7 +292,7 @@ export class ResumableTokenizer {
         }
       }
     }
-    this.state.stack.pop();
+    this.state.popScope(this.pos);
     this.popFrame();
     this.updateParentCounter(out, frame, !atEof);
   }
@@ -351,6 +355,7 @@ export class ResumableTokenizer {
       stack: this.state.stack.stack.slice(1).map((el) => ({
         node: el.node,
         beginCaptures: el.beginCaptures.slice(),
+        beginCapturedLineBreak: el.beginCapturedLineBreak,
       })),
       frames: this.frames.map((f) => ({
         rule: f.rule,
@@ -368,7 +373,12 @@ export class ResumableTokenizer {
     this.lastSplitCheckPos = 0;
     const stack = this.state.stack;
     for (const el of resume.stack) {
-      stack.push(el.node, el.beginCaptures.slice());
+      stack.push(
+        el.node,
+        el.beginCaptures.slice(),
+        -1,
+        el.beginCapturedLineBreak,
+      );
     }
     for (const f of resume.frames) {
       const openedAt = f.openedAtAbs - this.anchor;
@@ -488,6 +498,9 @@ export class ResumableTokenizer {
       const a = stack[i + 1]!;
       const b = resume.stack[i]!;
       if (a.node !== b.node) {
+        return false;
+      }
+      if (a.beginCapturedLineBreak !== b.beginCapturedLineBreak) {
         return false;
       }
       if (a.beginCaptures.length !== b.beginCaptures.length) {

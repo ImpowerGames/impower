@@ -92,11 +92,10 @@ describe("program.sceneAssets", () => {
   const program = compile(FIXTURE);
   const sceneAssets = program.sceneAssets!;
 
-  it("has an entry per top-level flow, including root content and functions", () => {
+  it("has an entry per top-level flow, including functions, and none for a no-scene placeholder", () => {
     expect(Object.keys(sceneAssets).sort()).toEqual(
-      ["0", "A", "B", "Fn", "Other", "start"].sort(),
+      ["A", "B", "Fn", "Other", "start"].sort(),
     );
-    expect(sceneAssets["0"]!.kind).toBe("root");
     expect(sceneAssets["A"]!.kind).toBe("scene");
     expect(sceneAssets["Fn"]!.kind).toBe("function");
   });
@@ -105,7 +104,6 @@ describe("program.sceneAssets", () => {
     expect(sceneAssets["start"]!.kind).toBe("scene");
     expect(sceneAssets["start"]!.image).toEqual(["room"]);
     expect(sceneAssets["start"]!.successors).toEqual(["A"]);
-    expect(sceneAssets["0"]!.image).toEqual([]);
   });
 
   it("unions a scene's names in first-use order and records the functions it calls", () => {
@@ -168,7 +166,6 @@ class Probe extends SparkdownCompiler {
 describe("populateSceneAssets", () => {
   it("widens a flow by the functions it calls, transitively, and classifies edges", () => {
     const captures: Record<string, SceneAssetCapture> = {
-      "0": createSceneAssetCapture(),
       A: {
         beats: [{ address: 1, image: ["a1"], audio: ["m"] }],
         edges: [
@@ -202,7 +199,6 @@ describe("populateSceneAssets", () => {
     const result = new Probe().build(captures, ["Helper", "Deeper"]);
     expect(result["A"]!.kind).toBe("scene");
     expect(result["Helper"]!.kind).toBe("function");
-    expect(result["0"]!.kind).toBe("root");
     expect(result["A"]!.image).toEqual(["a1", "h1", "d1"]);
     expect(result["A"]!.audio).toEqual(["m"]);
     expect(result["A"]!.layouts).toEqual(["hud"]);
