@@ -29,8 +29,6 @@ export abstract class Expression extends ParsedObject {
     return "Expression";
   }
 
-  // The expression's value, then `Out` when the value is output, as
-  // `EvalOutput` follows the expression's runtime objects.
   public override EmitProgram(emitter: ProgramEmitter): void {
     this.EmitExpression(emitter);
     if (this.outputWhenComplete) {

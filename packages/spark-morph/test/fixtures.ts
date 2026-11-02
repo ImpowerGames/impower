@@ -32,7 +32,11 @@ export const ribbonLash = (length: number, bow: number, thickness: number): stri
 };
 export const ribbonOpen = ribbonLash(160, 14, 14);
 export const ribbonClosed = ribbonLash(168, 1, 6.3);
-export const oneCusp = "M0,0 C100,0 100,100 0,0Z";
+export const bluntHighlightOpen = "M0,50 C30,30 60,25 85,32 C98,38 98,52 85,52 C60,45 30,48 0,50Z";
+export const bluntHighlightClosed = "M0,62 C30,56 60,55 85,56 C93,57 93,64 85,64 C60,62 30,63 0,62Z";
+export const dumbbell = "M0,40 C0,0 40,0 40,40 L60,45 C60,0 100,0 100,50 C100,100 60,100 60,55 L40,60 C40,100 0,100 0,60Z";
+export const teardrop ="M0,50 C30,20 70,10 90,30 C110,50 90,80 60,70 C40,62 20,55 0,50Z";
+export const oneCusp ="M0,0 C100,0 100,100 0,0Z";
 export const oneCuspNarrow = "M0,0 C60,0 60,100 0,0Z";
 
 export const circle = "M90,50A40,40 0 0 1 50,90A40,40 0 0 1 10,50A40,40 0 0 1 50,10A40,40 0 0 1 90,50Z";

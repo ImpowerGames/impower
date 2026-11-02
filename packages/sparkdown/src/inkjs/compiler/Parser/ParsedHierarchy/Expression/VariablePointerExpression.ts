@@ -4,11 +4,7 @@ import { Op, ROOT_GLOBAL, ROOT_SLOT } from "../../../../../program/ProgramInstru
 import type { RootCapture } from "../../../../../compiler/lower/expression/lowerFunction";
 
 // A parsed expression that, when emitted into a runtime container,
-// produces a `VariablePointerValue` for the named variable. At
-// runtime, when this pointer reaches `Story.Step`'s eval-stack push
-// path with `contextIndex === -1`, it is automatically resolved to
-// the current frame's index AND registered as an "open upvalue" with
-// that frame (see `Story.ts` auto-resolve and `CallStack.Pop`).
+// produces a `VariablePointerValue` for the named variable.
 //
 // This is the closure-capture primitive — it lets us put a live
 // reference to an outer-scope variable into a closure's

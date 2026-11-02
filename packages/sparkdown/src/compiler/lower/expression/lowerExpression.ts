@@ -198,7 +198,7 @@ export function reportInlineIfReading(brace: SyntaxNode, ctx: LowerContext): voi
   for (let child = ifContent.firstChild; child; child = child.nextSibling) {
     if (isExplicitRuleName(child.name, "LuauThenExpression")) lastClause = child;
     else if (isExplicitRuleName(child.name, "LuauElseExpression")) hasElse = true;
-    else if (child.name === "LuauElseifKeyword") lastClause = null;
+    else if (isExplicitRuleName(child.name, "LuauTernaryElseifClause")) lastClause = null;
   }
   const lastValue = lastClause ? ifClauseValueNodes(lastClause) : [];
   if (end !== undefined && !hasElse && lastValue.length > 0) {

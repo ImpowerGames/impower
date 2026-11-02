@@ -360,6 +360,7 @@ export class ProgramStory implements StoryEngine {
   executedLog: number[] | null = null;
   beatLog: number[] | null = null;
   onChoosePathString: ((path: string, args: unknown[]) => void) | null = null;
+  resetSeed: number | null = null;
 
   errorMessageFormatter?: (story: any, message: string) => string;
 
@@ -928,6 +929,9 @@ export class ProgramStory implements StoryEngine {
       callStack,
     );
     this.ending = null;
+    if (this.resetSeed !== null) {
+      this._state.storySeed = this.resetSeed;
+    }
     this._state.onBeginLoad = () => {
       this._currentBeat = null;
       this.ending = null;
@@ -2711,7 +2715,6 @@ export class ProgramStory implements StoryEngine {
     this.ending = "out";
   }
 
-
   protected land(
     target: ProgramPosition,
     from: readonly BlockEntry[],
@@ -2928,6 +2931,19 @@ export class ProgramStory implements StoryEngine {
     if (element.type == PushPopType.FunctionEvaluationFromGame) {
       state.position = null;
       state.didSafeExit = true;
+      return;
+    }
+    if (!callStack.canPop && this.endsTunnelAtBase) {
+      if (override) {
+        const symbol = this.symbolIn(override.ref);
+        if (symbol === undefined) {
+          this.Error("Divert target not found.");
+        }
+        this.jumpTo(symbol, state.position?.sequence ?? null);
+        return;
+      }
+      this.tunnelEndedAt = this.runningAddress() ?? null;
+      this.done();
       return;
     }
     if (element.type != PushPopType.Tunnel || !callStack.canPop) {
@@ -3177,6 +3193,15 @@ export class ProgramStory implements StoryEngine {
   }
   set ending(ending: StoryEnding | null) {
     this._ending = ending;
+  }
+
+  endsTunnelAtBase = false;
+
+  tunnelEndedAt: number | null = null;
+
+  startsAtBranch(path: string): boolean {
+    const symbol = this.root.table.symbolIds.get(path);
+    return symbol !== undefined && this.root.kindOf(symbol) === SymbolKind.Branch;
   }
 
   protected startSymbol(): number | undefined {

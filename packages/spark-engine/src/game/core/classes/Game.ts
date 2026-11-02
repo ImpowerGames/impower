@@ -43,6 +43,22 @@ import {
   type ScriptStructure,
 } from "@impower/sparkdown/src/compiler/utils/routeDecisions";
 import {
+  applyStartValues,
+  bindStartArguments,
+  carryStoreListing,
+  startPlanKey,
+  startPlanOf,
+  startStoryAt,
+  startingValueListing,
+  type StartPlan,
+  type StartingValueSource,
+} from "@impower/sparkdown/src/program/startingValues";
+import {
+  ownEntry,
+  type StartingValueListing,
+  type StartingValues,
+} from "@impower/sparkdown/src/program/startingValueLiterals";
+import {
   pinnedNotOffered,
   pinnedOptionsOf,
   type PinnedOptions,
@@ -138,6 +154,10 @@ export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
 export type GameModules = InstanceMap<DefaultModuleConstructors>;
 
 export type M = { [name: string]: Module };
+
+export interface RouteStarts {
+  startPlans?: (from: string) => StartPlan | undefined;
+}
 
 const restsAfter = (
   state: unknown,
@@ -353,6 +373,8 @@ export class Game<T extends M = {}> {
   }
   set simulateFlow(value) {
     this._simulateFlow = value;
+    this._story.endsTunnelAtBase =
+      value != null && this._story.startsAtBranch(value);
   }
 
   protected _playedMenus: { sources: string[]; taken: string }[] = [];
@@ -535,6 +557,16 @@ export class Game<T extends M = {}> {
 
   protected _levelZeroChangeId?: number;
 
+  protected _startingValues: StartingValues = {};
+
+  protected _scriptLineText?: (uri: string, line: number) => string | undefined;
+
+  protected _plannedRouteStart?: string;
+
+  protected _startPlans = new Map<string, { plan: StartPlan; json: string }>();
+
+  protected _startPlansRoot?: ProgramRoot | null;
+
   protected _plannedRouteStepMap: Map<string, number> | null = null;
 
   protected _checkpointStepCursors: (number | undefined)[] = [];
@@ -548,6 +580,7 @@ export class Game<T extends M = {}> {
   protected _routeSimulator: RouteSimulator | null = null;
 
   protected _routeTargetShows?: boolean;
+  protected _routeTargetTunnelEnds = false;
   get routeTargetShows() {
     return this._routeTargetShows;
   }
@@ -597,6 +630,7 @@ export class Game<T extends M = {}> {
     this._executingLocation = null;
 
     this.updateBreakpointsMap(options?.breakpoints ?? []);
+    this._startingValues = options?.startingValues ?? {};
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
     this.updateDataBreakpointsMap(options?.dataBreakpoints ?? []);
 
@@ -711,6 +745,13 @@ export class Game<T extends M = {}> {
     engine.keepBeatImages = true;
     if (!engine.declarationsCarried) {
       this._declarationsRun += 1;
+    } else if (previous?.root && engine.root) {
+      carryStoreListing(
+        previous.root,
+        engine.root,
+        before?.storeTypes,
+        program.storeTypes,
+      );
     }
     this.noteChangedFlows(before, program);
     this._story = engine;
@@ -1024,22 +1065,17 @@ export class Game<T extends M = {}> {
     this._simulationFailure = undefined;
     if (this._startAddress != null) {
       const to = this._startAddress;
-      const from = this.routeStartOf(to);
-      const budget = { callerResetsStory: true, pins: this.pinnedOptions };
-      let route;
-      if (this.routesFromStartFirst(to)) {
-        route = Game.planRouteFromStart(this._story, this._program, to, budget);
-        if (!route && lastSearchStats.endReason === "exhausted") {
-          route = Game.planRouteInFlow(
-            this._story,
-            this._program,
-            from,
-            to,
-            budget,
-          );
-        }
-      } else {
+      const budget = {
+        callerResetsStory: true,
+        startPlans: this.startPlans,
+        pins: this.pinnedOptions,
+      };
+      let route = null;
+      for (const from of this.routeStartsOf(to)) {
         route = Game.planRoute(this._story, this._program, from, to, budget);
+        if (route || lastSearchStats.endReason !== "exhausted") {
+          break;
+        }
       }
       if (route) {
         this.simulateRoute(route, 0);
@@ -1094,9 +1130,80 @@ export class Game<T extends M = {}> {
     return this.sceneOf(address) ?? START_FLOW_NAME;
   }
 
-  routesFromStartFirst(address: ProgramAddress): boolean {
-    const scene = this.sceneOf(address);
-    return scene !== null && this._story.takesParameters(scene);
+  routeStartsOf(address: ProgramAddress): string[] {
+    const scene = this.routeStartOf(address);
+    const branch = this._story.root.branchAt(address);
+    return branch === undefined || branch === scene ? [scene] : [scene, branch];
+  }
+
+  get startingValues(): StartingValues {
+    return this._startingValues;
+  }
+
+  setStartingValues(values: StartingValues): boolean {
+    if (JSON.stringify(values) === JSON.stringify(this._startingValues)) {
+      return false;
+    }
+    this._startingValues = values;
+    this._startPlans.clear();
+    return true;
+  }
+
+  set scriptLineText(lineText: (uri: string, line: number) => string | undefined) {
+    this._scriptLineText = lineText;
+  }
+
+  protected startingValueSource(): StartingValueSource {
+    const uris = Object.keys(this._program.scripts ?? {});
+    const flows: { name: string; uri: string; line: number }[] = [];
+    for (const locations of [
+      this._program.sceneLocations,
+      this._program.branchLocations,
+      this._program.labelLocations,
+    ]) {
+      for (const [name, location] of Object.entries(locations ?? {})) {
+        const uri = uris[location[0]];
+        if (uri !== undefined) {
+          flows.push({ name, uri, line: location[1] });
+        }
+      }
+    }
+    return {
+      uris,
+      flows,
+      lineText: (uri, line) => this._scriptLineText?.(uri, line),
+      storeTypes: this._program.storeTypes,
+    };
+  }
+
+  startPlan(from: string): StartPlan {
+    return this.keptStartPlan(from).plan;
+  }
+
+  protected keptStartPlan(from: string): { plan: StartPlan; json: string } {
+    const root = this._story.root;
+    if (this._startPlansRoot !== root) {
+      this._startPlans.clear();
+      this._startPlansRoot = root;
+    }
+    let kept = this._startPlans.get(from);
+    if (!kept) {
+      const plan = startPlanOf(
+        this._story,
+        from,
+        this.startingValueSource(),
+        ownEntry(this._startingValues, from),
+      );
+      kept = { plan, json: startPlanKey(plan) };
+      this._startPlans.set(from, kept);
+    }
+    return kept;
+  }
+
+  readonly startPlans = (from: string): StartPlan => this.startPlan(from);
+
+  startingValueListing(from: string): StartingValueListing {
+    return startingValueListing(this._story, from, this.startingValueSource());
   }
 
   protected callStackScenes(): string[] {
@@ -1556,61 +1663,14 @@ export class Game<T extends M = {}> {
       | "resumeFrom"
       | "levelZeroStore"
       | "pins"
-    >,
+    > & RouteStarts,
   ) {
-    const route = Game.planRouteInFlow(story, program, from, to, budget);
-    if (
-      route ||
-      budget?.resumeFrom ||
-      lastSearchStats.endReason !== "exhausted"
-    ) {
-      return route;
-    }
-    return Game.planRouteFromStart(story, program, to, budget);
-  }
-
-  static planRouteInFlow(
-    story: ProgramStory,
-    program: SparkProgram,
-    from: string,
-    to: ProgramAddress,
-    budget?: Pick<
-      SearchOptions,
-      | "maxSteps"
-      | "maxNodes"
-      | "searchTimeout"
-      | "callerResetsStory"
-      | "resumeFrom"
-      | "levelZeroStore"
-      | "pins"
-    >,
-  ) {
+    const { startPlans, ...rest } = budget ?? {};
     return planRoute(story, from, to, {
-      ...budget,
+      ...rest,
+      start: startPlans?.(from),
       functions: Object.keys(program.functionLocations || {}),
       stayWithinKnot: true,
-    });
-  }
-
-  static planRouteFromStart(
-    story: ProgramStory,
-    program: SparkProgram,
-    to: ProgramAddress,
-    budget?: Pick<
-      SearchOptions,
-      | "maxSteps"
-      | "maxNodes"
-      | "searchTimeout"
-      | "callerResetsStory"
-      | "resumeFrom"
-      | "levelZeroStore"
-      | "pins"
-    >,
-  ) {
-    return planRoute(story, START_FLOW_NAME, to, {
-      ...budget,
-      functions: Object.keys(program.functionLocations || {}),
-      stayWithinKnot: false,
     });
   }
 
@@ -1694,13 +1754,16 @@ export class Game<T extends M = {}> {
     this._checkpointShownBeats.length = fromCheckpoint + 1;
     this._checkpointDecisionsTaken.length = fromCheckpoint + 1;
     this._routeTargetShows = undefined;
+    this._routeTargetTunnelEnds = false;
+    this._story.tunnelEndedAt = null;
     this._routeErrors = this._routeErrors.filter(
       (e) => e.at <= fromCheckpoint,
     );
     this._plannedRoute = route;
     this._plannedRouteChangeId = this._program.changes?.id;
     this._plannedRouteRoot = this._story.root;
-    this._simulateFlow = route.from;
+    this._plannedRouteStart = this.keptStartPlan(route.from).json;
+    this.simulateFlow = route.from;
     this._startAddress = route.to;
     this._routeSimulator = buildRouteSimulator(route.decisions, fromDecision);
     this._story.simulator = this._routeSimulator;
@@ -1744,6 +1807,11 @@ export class Game<T extends M = {}> {
     if (this._simulation !== "success") {
       return;
     }
+    const ended = this._story.tunnelEndedAt;
+    this._routeTargetTunnelEnds =
+      ended !== null &&
+      this._startAddress != null &&
+      chunkOfAddress(ended) === chunkOfAddress(this._startAddress);
     if (this.module.interpreter.hasQueuedBeats) {
       this._routeTargetShows = true;
       return;
@@ -1767,7 +1835,7 @@ export class Game<T extends M = {}> {
   }
 
   jumpShowsBeat(address: ProgramAddress): boolean {
-    this.jumpTo(address);
+    this.jumpTo(address, true);
     return showsBeatAhead(this._story);
   }
 
@@ -1815,9 +1883,16 @@ export class Game<T extends M = {}> {
     this._routeSimulator = null;
   }
 
+  protected plannedRouteStartsAs(from: string): boolean {
+    return (
+      this._plannedRoute?.from === from &&
+      this.keptStartPlan(from).json === this._plannedRouteStart
+    );
+  }
+
   routeResumption(from: string, to: ProgramAddress): RouteResumption {
     const route = this._plannedRoute;
-    if (!route || route.from !== from) {
+    if (!route || !this.plannedRouteStartsAs(from)) {
       return { replayOnly: false };
     }
     if ((route.pins ?? "") !== this.pinnedOptions.key) {
@@ -2110,10 +2185,7 @@ export class Game<T extends M = {}> {
     newRoute: RoutePlan,
     limits?: { steps: number; checkpoint: number },
   ): StoredCheckpoint | null {
-    if (
-      !this._plannedRoute ||
-      this._plannedRoute.from !== newRoute.from
-    ) {
+    if (!this._plannedRoute || !this.plannedRouteStartsAs(newRoute.from)) {
       this._runtimeState = new RuntimeState();
       this.simulateRoute(newRoute);
       return this.newestCheckpoint();
@@ -2182,7 +2254,7 @@ export class Game<T extends M = {}> {
       this.rewindStory();
       this.clearChoices();
       if (this._startAddress != null) {
-        this.jumpTo(this._startAddress);
+        this.jumpTo(this._startAddress, true);
       }
       this.observeScene(this._startAddress);
       this.continue();
@@ -2435,7 +2507,9 @@ export class Game<T extends M = {}> {
     this._story.ending = Game.savedEnding(saveData);
     if (saveData.simulatedFrom) {
       this._simulation = "success";
-      this._simulateFlow = saveData.simulatedFrom;
+      this.simulateFlow = saveData.simulatedFrom;
+    } else {
+      this._story.endsTunnelAtBase = false;
     }
   }
 
@@ -2535,7 +2609,9 @@ export class Game<T extends M = {}> {
     story.ending = Game.savedEnding(saveData);
     if (saveData.simulatedFrom) {
       this._simulation = "success";
-      this._simulateFlow = saveData.simulatedFrom;
+      this.simulateFlow = saveData.simulatedFrom;
+    } else {
+      this._story.endsTunnelAtBase = false;
     }
     return true;
   }
@@ -2959,16 +3035,34 @@ export class Game<T extends M = {}> {
     this._shownChoices = [...(instructions?.choices ?? [])];
   }
 
-  jumpTo(address: ProgramAddress) {
+  jumpTo(address: ProgramAddress, withStartingValues = false) {
     this.discardOpenStoryLine();
+    if (withStartingValues) {
+      const plan = this.startPlan(this.routeStartOf(address));
+      this._story.resetSeed = plan.seed;
+      this._story.ResetState();
+      applyStartValues(this._story, plan);
+      this._story.endsTunnelAtBase = this.jumpEndsTunnelAtBase(address);
+      this._positions.jumpTo(address);
+      bindStartArguments(this._story, plan);
+      return;
+    }
     this._story.ResetState();
+    this._story.endsTunnelAtBase = this.jumpEndsTunnelAtBase(address);
     this._positions.jumpTo(address);
+  }
+
+  protected jumpEndsTunnelAtBase(address: ProgramAddress): boolean {
+    return this._story.root.branchAt(address) !== undefined;
   }
 
   jumpToFlow(flow: string) {
     this.discardOpenStoryLine();
+    const plan = this.startPlan(flow);
+    this._story.resetSeed = plan.seed;
     this._story.ResetState();
-    this._positions.jumpToFlow(flow);
+    this._story.endsTunnelAtBase = this._story.startsAtBranch(flow);
+    startStoryAt(this._story, plan);
   }
 
   protected notifyHitBreakpoint() {
@@ -3251,10 +3345,16 @@ export class Game<T extends M = {}> {
       start,
       target,
       decisions,
+      valuesStart: route.from,
+      ...(this.endsAtTunnelReturn(route) ? { tunnelEnds: true as const } : {}),
       ...(pinned.unresolved.length > 0
         ? { unresolvedPins: [...pinned.unresolved] }
         : {}),
     };
+  }
+
+  protected endsAtTunnelReturn(route: RoutePlan): boolean {
+    return route.to === this._plannedRoute?.to && this._routeTargetTunnelEnds;
   }
 
   protected lineLocation(uri: string, line: number): DocumentLocation {
@@ -3833,7 +3933,7 @@ export class Game<T extends M = {}> {
     }
     this.module.interpreter.clearQueuedBeats();
     this._startAddress = previewAddress;
-    this.jumpTo(previewAddress);
+    this.jumpTo(previewAddress, true);
     this.restoreReactiveTracking();
     this.continue();
   }

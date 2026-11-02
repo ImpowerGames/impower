@@ -67,6 +67,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
       import("@impower/spark-editor-protocol/src/protocols/InitializeMessage"),
       import("@impower/spark-editor-protocol/src/protocols/MessageProtocol"),
       import("@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/preview/ChangeStartingValuesMessage"),
       import("@impower/spark-editor-protocol/src/protocols/workspace/RuntimeDiagnosticsMessage"),
       import("@impower/spark-editor-protocol/src/protocols/preview/ChangeRoutePinsMessage"),
       import("@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage"),
@@ -93,6 +94,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { InitializeMessage },
         { MessageProtocol, sendProtocolMessage },
         { ExecuteCommandMessage },
+        { ChangeStartingValuesMessage },
         { RuntimeDiagnosticsMessage },
         { ChangeRoutePinsMessage },
         { DidChangeGameStateMessage },
@@ -121,6 +123,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
           return {
             workspace: Workspace.window.store.project.directory,
             startFrom: { file: uri, line: startLine },
+            startingValues: Workspace.window.startingValues,
           };
         };
 
@@ -132,6 +135,12 @@ export default function PreviewGame(_props: PreviewGameProps) {
         const onChannelMessage = async (e: MessageEvent) => {
           const message = e.data;
           preferences.received(message);
+          if (ChangeStartingValuesMessage.type.isRequest(message)) {
+            const { start, changes } = message.params;
+            Workspace.window.changeStartingValues(start, changes);
+            iframeChannelRef.current?.sendResponse(message, {});
+            return;
+          }
           if (ChangeRoutePinsMessage.type.isRequest(message)) {
             iframeChannelRef.current?.sendResponse(message, () => ({
               pins: Workspace.window.changeRoutePins(message.params),

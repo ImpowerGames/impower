@@ -7,6 +7,7 @@ export type DidChangeRouteTogglesMethod =
 
 export interface DidChangeRouteTogglesParams {
   toggles: RouteTogglesParams;
+  tab?: "route" | "values";
 }
 
 export class DidChangeRouteTogglesMessage {

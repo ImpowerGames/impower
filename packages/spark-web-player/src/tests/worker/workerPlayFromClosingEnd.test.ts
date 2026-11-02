@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarness";
+import { paramKey } from "@impower/sparkdown/src/program/startingValueLiterals";
 import { BRANCHES, playFrom, previewAt } from "./playFromLine";
 
 const SCENES = `scene start
@@ -73,21 +74,21 @@ end
 `;
 
 const CASES = [
-  ["a scene's end", SCENES, 3, "First.", ["Other."]],
-  ["a scene's end below a branch it holds", SCENE_WITH_BRANCH, 7, "Main.", ["Unused.", "Other."]],
-  ["the end of a scene that enters its first branch", BRANCHES_ONLY, 9, "First.", ["Unused.", "Other."]],
-  ["the end of a scene that binds a parameter and enters its first branch", PARAMETER_SCENE_BRANCHES, 12, "First.", ["Unused.", "Other."]],
-  ["the end of a scene whose first branch has an empty parameter list", EMPTY_PARAMETER_LIST, 9, "First.", ["Unused.", "Other."]],
-  ["the end of a scene whose first branch has a long empty parameter list", EMPTY_PARAMETER_LIST.replace("first()", `first(${" ".repeat(100)})`), 9, "First.", ["Unused.", "Other."]],
-  ["the end of a branch that diverts out", BRANCHES, 10, "Second 4 b.", ["Visit"]],
-  ["the end of a branch below a done no run reaches", BRANCHES, 24, "Never shown.", ["Leave"]],
+  ["a scene's end", SCENES, 3, "First.", ["Other."], undefined],
+  ["a scene's end below a branch it holds", SCENE_WITH_BRANCH, 7, "Main.", ["Unused.", "Other."], undefined],
+  ["the end of a scene that enters its first branch", BRANCHES_ONLY, 9, "First.", ["Unused.", "Other."], undefined],
+  ["the end of a scene that binds a parameter and enters its first branch", PARAMETER_SCENE_BRANCHES, 12, "First.", ["Unused.", "Other."], undefined],
+  ["the end of a scene whose first branch has an empty parameter list", EMPTY_PARAMETER_LIST, 9, "First.", ["Unused.", "Other."], undefined],
+  ["the end of a scene whose first branch has a long empty parameter list", EMPTY_PARAMETER_LIST.replace("first()", `first(${" ".repeat(100)})`), 9, "First.", ["Unused.", "Other."], undefined],
+  ["the end of a branch that diverts out", BRANCHES, 10, "Second 4 b.", ["Visit"], { "outer.inner": { [paramKey("a")]: "1" } }],
+  ["the end of a branch below a done no run reaches", BRANCHES, 24, "Never shown.", ["Leave"], undefined],
 ] as const;
 
 describe("PLAY from the end that closes a flow with more script below", () => {
   it.each(CASES)(
     "from %s, waits on the beat its own flow left on screen",
-    async (_name, source, line, shown, notShown) => {
-      const outcome = await playFrom(source, line);
+    async (_name, source, line, shown, notShown, values) => {
+      const outcome = await playFrom(source, line, values);
       expect(outcome.started).toBe(true);
       expect(outcome.exited).toEqual([]);
       expect(outcome.state).toBe("running");
@@ -103,8 +104,8 @@ describe("PLAY from the end that closes a flow with more script below", () => {
 describe("the preview at the end that closes a flow with more script below", () => {
   it.each(CASES)(
     "at %s, shows the beat its own flow left on screen",
-    async (_name, source, line, shown, notShown) => {
-      const text = await previewAt(source, line);
+    async (_name, source, line, shown, notShown, values) => {
+      const text = await previewAt(source, line, values);
       expect(text).toContain(shown);
       for (const other of notShown) {
         expect(text).not.toContain(other);
@@ -174,16 +175,15 @@ describe("PLAY and the preview at an empty scene or branch", () => {
     ["header", 4],
     ["end", 5],
   ] as const)(
-    "PLAY and the preview at the %s of an empty scene a run enters wait on the beat it displayed",
+    "PLAY and the preview at the %s of an empty scene a run enters start at its top, with nothing before it",
     async (_name, line) => {
       const outcome = await playFrom(EMPTY_AFTER_BEAT, line);
       expect(outcome.started).toBe(true);
-      expect(outcome.exited).toEqual([]);
-      expect(outcome.state).toBe("running");
-      expect(outcome.text).toContain("First.");
+      expect(outcome.exited).toEqual(["finished"]);
+      expect(outcome.text).not.toContain("First.");
       expect(outcome.text).not.toContain("Other.");
       const preview = await previewAt(EMPTY_AFTER_BEAT, line);
-      expect(preview).toContain("First.");
+      expect(preview).not.toContain("First.");
       expect(preview).not.toContain("Other.");
     },
     120_000,
@@ -247,16 +247,15 @@ describe("PLAY and the preview at the end of a scene whose branches it does not 
     expect(text).not.toContain("Other.");
   }, 120_000);
 
-  it("PLAY and the preview wait on the beat the run displayed before the scene", async () => {
+  it("PLAY and the preview start at the scene's top, with nothing of the scene before it", async () => {
     const outcome = await playFrom(UNENTERED_AFTER_BEAT, 9);
     expect(outcome.started).toBe(true);
-    expect(outcome.exited).toEqual([]);
-    expect(outcome.state).toBe("running");
-    expect(outcome.text).toContain("Before.");
+    expect(outcome.exited).toEqual(["finished"]);
+    expect(outcome.text).not.toContain("Before.");
     expect(outcome.text).not.toContain("Unused");
     expect(outcome.text).not.toContain("Other.");
     const preview = await previewAt(UNENTERED_AFTER_BEAT, 9);
-    expect(preview).toContain("Before.");
+    expect(preview).not.toContain("Before.");
     expect(preview).not.toContain("Unused");
     expect(preview).not.toContain("Other.");
   }, 120_000);
@@ -288,7 +287,7 @@ describe("the preview after the end of a scene whose branches it does not enter"
       await h.compile();
       await h.select(9);
       await settle(40);
-      expect(writtenText(h.toRouter)).toContain("Before.");
+      expect(writtenText(h.toRouter)).not.toContain("Unused");
       const before = h.toRouter.length;
       await h.select(0, empty);
       await settle(40);

@@ -5,6 +5,7 @@ import { explicitRuleNames, isExplicitRuleName } from "../utils/explicitRuleName
 import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
 import { RUN_QUERY, runWrapperName } from "../utils/runWrapper";
 import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
+import { RESERVED } from "../utils/luauReservedWords";
 
 export const LUAU_STATEMENTS = new Set([
   ...VARIABLE_DEFINITION_NAMES,
@@ -169,29 +170,7 @@ export function isCheckedLuauAt(anyNode: SyntaxNode, position: number, read: (fr
   return isCheckedLuau(root.resolveInner(position, 1), read);
 }
 
-export const RESERVED: ReadonlySet<string> = new Set([
-  "and",
-  "break",
-  "do",
-  "else",
-  "elseif",
-  "end",
-  "false",
-  "for",
-  "function",
-  "if",
-  "in",
-  "local",
-  "nil",
-  "not",
-  "or",
-  "repeat",
-  "return",
-  "then",
-  "true",
-  "until",
-  "while",
-]);
+export { RESERVED };
 
 export const STATEMENT_BREAKS = new Set([
   ...VARIABLE_DEFINITION_NAMES,

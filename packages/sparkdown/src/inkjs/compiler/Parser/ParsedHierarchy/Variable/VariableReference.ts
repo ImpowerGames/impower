@@ -139,9 +139,7 @@ export class VariableReference extends Expression {
       // variable (sparkdown extension — `result.value` where `result`
       // is a stored table). If the FIRST segment resolves as a variable
       // (arg / temp / global), treat the remaining segments as key
-      // lookups. The runtime side (`Story.ts > VariableReference`
-      // branch) handles the actual indexing — see the
-      // "property-access via dotted name" comment there.
+      // lookups.
       const baseName = this.path[0];
       if (baseName) {
         const baseResolve = context.ResolveVariableWithName(baseName, this);

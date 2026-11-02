@@ -14,7 +14,7 @@ export const HINT_BEATS = 2;
 export interface PreviewHintState {
   uri: string;
   version: number | undefined;
-  scene: string;
+  scene: string | undefined;
   beat: number;
   line: number;
   nearBeat: number;
@@ -63,8 +63,8 @@ export function planPreviewHint(
   }
   const locator = programLocator(program);
   const address = locator.addressAt(uri, line, { beat: "last" });
-  const scene = locator.sceneAt(address) ?? "0";
-  const entry = sceneAssets[scene];
+  const scene = locator.sceneAt(address);
+  const entry = scene === undefined ? undefined : sceneAssets[scene];
   const known = locator.locationOf(address) !== undefined;
   const beat =
     entry && known

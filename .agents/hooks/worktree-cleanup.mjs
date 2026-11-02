@@ -5,6 +5,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { baseName, isShellCommandString, programBefore, readCommand } from "./typed-issue-hook.mjs";
 
 const route = "Use node scripts/filer-worktree.mjs remove --record <absolute-owner.json> --owner <filing-session> for owned filing trees, or the guarded clean-worktrees --remove route for other trees.";
+const literalCleanupRoute = "For scratch cleanup, replace variables or expansions with a quoted absolute literal target and retry the identity checks. Single-file forms: rm -f -- '/absolute/scratch/file.log' (Bash), or Remove-Item -LiteralPath 'C:/absolute/scratch/file.log' -Force (PowerShell). A temporary location does not exempt repositories, worktrees, ownership or links from protection. " + route;
+const setupRoute = "For an ordinary writer worktree, use direct Git Bash: cd \"C:/absolute/worktree\" && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install; or direct PowerShell: Set-Location 'C:/absolute/worktree'; $env:PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD='1'; npm install. To create it, use direct PowerShell: git worktree add -b fix/N-slug 'C:/absolute/worktree' origin/main. Use literal paths; do not wrap these commands in cmd /c.";
 function hasAncestorMetadata(cwd) {
   // workaround(git): discovery silently skips incomplete repository metadata (e.g. a missing HEAD) and reports not a git repository
   for (const start of new Set([path.resolve(cwd), fs.realpathSync.native(cwd)])) {
@@ -50,8 +52,10 @@ function identity(target) {
   const visitedLinks = new Set();
   const inspectAncestors = (candidate, initial = false) => {
     for (let at = entrySpelling(candidate); ; at = entrySpelling(path.dirname(at))) {
-      try {
-        const stat = fs.lstatSync(at);
+      let stat;
+      try { stat = fs.lstatSync(at); }
+      catch (error) { if (error.code !== "ENOENT") throw error; }
+      if (stat) {
         if (stat.isSymbolicLink()) {
           const key = process.platform === "win32" ? at.toLowerCase() : at;
           if (!visitedLinks.has(key)) {
@@ -62,7 +66,7 @@ function identity(target) {
           }
         }
         if (initial && !nearest) nearest = at;
-      } catch (error) { if (error.code !== "ENOENT") throw error; }
+      }
       if (at === entrySpelling(path.dirname(at))) break;
     }
   };
@@ -127,7 +131,7 @@ function literalArguments(tokens, shell, command) {
       if (!token.quoted && /\\[^ "'\\$`]/.test(raw)) values.error = "Bash cleanup/setup escape cannot be verified";
       if (!token.quoted && /^~|[{}]/.test(text)) values.error = "Shell-expanded cleanup/setup target cannot be verified";
     }
-    values.push(text);
+    values.push(process.platform === "win32" && shell === "bash" ? text.replace(/^\/([a-z])\//i, (_, drive) => `${drive.toUpperCase()}:/`) : text);
   }
   return values;
 }
@@ -191,6 +195,33 @@ function npmSetupTargets(args, shell, command) {
   }
   return targets;
 }
+function setupArguments(args, shell, command) {
+  const operands = [], redirects = [];
+  for (let at = 0; at < args.length; at++) {
+    const token = args[at], raw = command.slice(token.start, token.end);
+    if (/^\d*>&\d+$/.test(raw) || (shell === "powershell" && /^\*>&\d+$/.test(raw))) continue;
+    const operator = raw.match(shell === "powershell" ? /^(?:\d*|\*)>>?/ : /^(?:\d*|&)>>?/);
+    if (!operator) { operands.push(token); continue; }
+    const prefix = operator[0];
+    const target = raw.length === prefix.length ? args[++at] : { ...token, text: token.text.slice(prefix.length), start: token.start + prefix.length, quoted: /^["']/.test(raw.slice(prefix.length)) };
+    if (!target) { redirects.error = "Setup output redirection target is missing"; continue; }
+    const literal = literalArguments([target], shell, command);
+    if (literal.error) redirects.error = literal.error;
+    const value = literal[0];
+    if ((shell === "bash" && value === "/dev/null") || (shell === "powershell" && !target.quoted && value.toLowerCase() === "$null")) continue;
+    if (!value || /[`$*?\[<>|&]/.test(value)) redirects.error = "Setup output redirection target cannot be verified";
+    redirects.push(value);
+  }
+  return { operands, redirects };
+}
+function setupTargets(args, shell, command, npm = false) {
+  const { operands, redirects } = setupArguments(args, shell, command);
+  const targets = npm ? npmSetupTargets(operands, shell, command) : literalArguments(operands, shell, command);
+  targets.redirects = redirects;
+  targets.error ??= redirects.error;
+  return targets;
+}
+const targetCandidates = targets => [...(targets.pathOperands ? targets : targets.filter(text => !text.startsWith("-"))), ...(targets.redirects ?? [])];
 function itemLinkTargets(args, targets, command) {
   const selectors = args.flatMap((arg, at) => powerShellParameter(arg, command) && /^-(?:itemtype|type)(?::|$)/i.test(powerShellFlag(arg)) ? [at] : []);
   if (!selectors.length) {
@@ -422,7 +453,10 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
         let k = 0;
         while (args[k]?.text.startsWith("-")) { const value = args[k].text; k += gitValueOptions.has(value) ? 2 : 1; }
         if (shell === "bash" && (encodedLiteral(args[k], command) || (args[k]?.text.toLowerCase() === "worktree" && encodedLiteral(args[k + 1], command)))) emit({ kind: "analysis-limit", targets: Object.assign([], { error: "Encoded Git operation selector literal cannot be verified" }) });
-        else if (args[k]?.text.toLowerCase() === "worktree" && ["remove", "add"].includes(args[k + 1]?.text.toLowerCase())) emit({ kind: args[k + 1].text.toLowerCase() === "remove" ? "remove" : "setup", targets });
+        else if (args[k]?.text.toLowerCase() === "worktree" && ["remove", "add"].includes(args[k + 1]?.text.toLowerCase())) {
+          const removing = args[k + 1].text.toLowerCase() === "remove";
+          emit({ kind: removing ? "remove" : "setup", targets: removing ? targets : setupTargets(args, argumentShell, command) });
+        }
         else if (shell === "bash") {
           const candidates = args.map(arg => literalArguments([arg], shell, command).error ? rawCandidate(arg, command) : arg.text);
           let at = 0;
@@ -445,7 +479,7 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
         if (shell === "bash" && (encodedLiteral(args[at], command) || (uncertain && args.slice(at).some(arg => encodedLiteral(arg, command))))) emit({ kind: "analysis-limit", targets: Object.assign([], { error: "Encoded npm operation selector literal cannot be verified" }) });
         else if (npmSetupSelectors.has(candidates[at]?.toLowerCase()) || (uncertain && candidates.slice(at).some(text => npmSetupSelectors.has(text.toLowerCase())))) {
           if (uncertain || args[at]?.text !== candidates[at]) emit({ kind: "analysis-limit", targets: Object.assign([], { error: "npm setup operation selector cannot be verified" }) });
-          else emit({ kind: "setup", targets: npmSetupTargets(args, argumentShell, command) });
+          else emit({ kind: "setup", targets: setupTargets(args, argumentShell, command, true) });
         }
       }
       if (name === "ln") { const linkSpec = lnLink(args, argumentShell, command); if (linkSpec) emit({ kind: "link-setup", targets: [], linkSpec }); }
@@ -463,6 +497,7 @@ function operations(command, shell, cwd, depth = 0, locationState = null) {
 function inspectAt(op) {
   if (op.kind === "remove") return `Direct git worktree remove is refused: it can follow dependency junctions. ${route}`;
   let roots, registryCwd = op.contextKnown ? op.registryCwd : op.cwd, fromRepository = true;
+  const missingRoots = [];
   try { git(registryCwd, ["rev-parse", "--show-toplevel"]); }
   catch (error) {
     if (!error.outsideRepository) return `Cleanup repository discovery cannot be checked: ${error.message}. ${route}`;
@@ -471,25 +506,37 @@ function inspectAt(op) {
   try {
     const top = real(git(registryCwd, ["rev-parse", "--show-toplevel"]));
     if (fromRepository && owned(top)) return `Direct setup or cleanup in owned filing checkout ${top} is refused, including ambiguous targets. ${route}`;
-    roots = git(registryCwd, ["worktree", "list", "--porcelain"]).split(/\r?\n/).filter(line => line.startsWith("worktree ")).map(line => real(line.slice(9)));
+    roots = git(registryCwd, ["worktree", "list", "--porcelain", "-z"]).split("\0").filter(line => line.startsWith("worktree ")).map(line => {
+      const root = line.slice(9);
+      try { return real(root); }
+      catch (error) {
+        if (error.code !== "ENOENT" || exists(root)) throw error;
+        const id = identity(root);
+        if (id.traversals.length) throw error;
+        missingRoots.push(id.physical);
+        return id.physical;
+      }
+    });
   } catch (error) {
     return `Cleanup ownership cannot be checked: ${error.message}. ${route}`;
   }
   if (op.kind === "cmd-boundary") return (fromRepository || op.contextKnown) ? `Explicit CMD execution is refused in a known repository; use direct PowerShell/Bash or the guarded lifecycle. ${route}` : null;
-  const originalPaths = op.linkSpec ? [...(op.linkSpec.operands ?? []), op.linkSpec.directory, op.linkSpec.destination, op.linkSpec.target, op.linkSpec.name] : op.targets;
+  const originalPaths = op.linkSpec ? [...(op.linkSpec.operands ?? []), op.linkSpec.directory, op.linkSpec.destination, op.linkSpec.target, op.linkSpec.name] : [...op.targets, ...(op.targets.redirects ?? [])];
   if ((fromRepository || op.contextKnown) && originalPaths.some(volumeLessRooted)) return `Windows rooted cleanup/setup path has no volume and cannot be verified; use a fully qualified path. ${route}`;
   if (op.linkSpec) {
     try { op = { ...op, targets: linkPaths(op.linkSpec, op.cwd) }; }
     catch (error) { op = { ...op, targets: Object.assign([], { error: `Link setup identity cannot be checked: ${error.message}` }) }; }
   }
-  if (op.targets.error || op.locationError) return (fromRepository || op.contextKnown) ? `${op.targets.error ?? op.locationError}; direct operation is refused. ${route}` : null;
-  const candidates = op.targets.pathOperands ? [...op.targets] : op.targets.filter(s => !s.startsWith("-"));
-  if ((fromRepository || op.contextKnown) && candidates.some(text => /[`$*?\[]/.test(text))) return `Cleanup/setup target syntax cannot be verified in this repository. ${route}`;
+  if (op.targets.error || op.locationError) return (fromRepository || op.contextKnown) ? `${op.targets.error ?? op.locationError}; direct operation is refused. ${op.kind === "delete" ? literalCleanupRoute : route}` : null;
+  const candidates = targetCandidates(op.targets);
+  if ((fromRepository || op.contextKnown) && candidates.some(text => /[`$*?\[]/.test(text))) return `Cleanup/setup target syntax cannot be verified in this repository. ${op.kind === "delete" ? literalCleanupRoute : route}`;
   if (op.kind === "delete" && !candidates.length && (fromRepository || op.contextKnown)) return `Cleanup target is missing or cannot be verified. ${route}`;
   for (const candidate of candidates) {
     const target = absoluteLiteral(op.cwd, candidate);
     try {
       const id = identity(target);
+      const missingRoot = missingRoots.find(tree => under(id.physical, tree) || under(tree, id.physical) || id.traversals.some(link => under(link.source, tree) || under(tree, link.source) || under(link.target, tree) || under(tree, link.target)));
+      if (missingRoot) return `Cleanup/setup target ${target} overlaps missing registered checkout ${missingRoot}. ${route}`;
       const containing = roots.find(tree => under(id.physical, tree));
       const reachesCheckout = containing || roots.some(tree => under(tree, id.physical)) || id.traversals.some(link => roots.some(tree => under(link.source, tree) || under(link.target, tree)));
       if (!reachesCheckout) continue;
@@ -504,7 +551,7 @@ function inspectAt(op) {
   return null;
 }
 function inspect(op) {
-  const candidates = op.targets.pathOperands ? op.targets : op.targets.filter(text => !text.startsWith("-"));
+  const candidates = targetCandidates(op.targets);
   const independentAbsolute = text => path.isAbsolute(text) && !volumeLessRooted(text);
   const relative = ["setup", "link-setup"].includes(op.kind) || candidates.some(text => !independentAbsolute(text));
   for (const cwd of relative ? op.cwds : [op.cwd]) {
@@ -519,17 +566,18 @@ export function decide(command, shell, cwd = process.cwd()) {
     return decide(command, "bash", cwd) ?? decide(command, "powershell", cwd);
   }
   const ops = operations(command, shell, cwd);
+  const refusal = reason => reason && !ops.some(op => ["delete", "remove", "link-setup"].includes(op.kind)) ? `${reason} ${setupRoute}` : reason;
   if (ops.length) {
     try {
       const top = real(git(cwd, ["rev-parse", "--show-toplevel"]));
       for (const op of ops) { op.contextKnown = true; op.registryCwd = cwd; }
-      if (owned(top)) return `Direct setup/cleanup from an owned filing context is refused, including changed or ambiguous locations. ${route}`;
+      if (owned(top)) return refusal(`Direct setup/cleanup from an owned filing context is refused, including changed or ambiguous locations. ${route}`);
     }
     catch (error) {
-      if (!error.outsideRepository) return `Cleanup repository discovery cannot be checked: ${error.message}. ${route}`;
+      if (!error.outsideRepository) return refusal(`Cleanup repository discovery cannot be checked: ${error.message}. ${route}`);
     }
   }
-  for (const op of ops) { const reason = inspect(op); if (reason) return reason; }
+  for (const op of ops) { const reason = inspect(op); if (reason) return refusal(reason); }
   return null;
 }
 export async function main() {

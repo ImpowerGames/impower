@@ -859,6 +859,13 @@ export class ProgramRoot {
     return at ? this.sceneOf(at.sequence) : undefined;
   }
 
+  branchAt(address: number): string | undefined {
+    const row = this.flowAt(address);
+    return row && row.flow >= 0 && row.kind === SymbolKind.Branch
+      ? this.table.symbols[row.flow]
+      : undefined;
+  }
+
   sceneOf(sequence: SequenceRow): string | undefined {
     let row: SequenceRow | undefined = sequence;
     while (row && row.owner >= 0) {
