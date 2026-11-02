@@ -222,6 +222,8 @@ function frameSubpaths(frames: MorphFrames, values: number[]): Subpath[] {
   return out;
 }
 
+const INNER_EDGE_FRACTION = 0.01;
+
 function hasInnerEdge(subpaths: Subpath[]): boolean {
   const polygons = subpaths
     .map((s) => s.segments.flatMap((c) => [0, 0.25, 0.5, 0.75].map((t) => cubicAt(c, t))))
@@ -245,6 +247,7 @@ function hasInnerEdge(subpaths: Subpath[]): boolean {
     }
     return w;
   };
+  let inner = 0;
   for (const polygon of polygons) {
     for (let i = 0; i < polygon.length; i++) {
       const [ax, ay] = polygon[i]!;
@@ -253,10 +256,10 @@ function hasInnerEdge(subpaths: Subpath[]): boolean {
       if (length <= eps) continue;
       const [mx, my] = [(ax + bx) / 2, (ay + by) / 2];
       const [nx, ny] = [(-(by - ay) / length) * eps, ((bx - ax) / length) * eps];
-      if (winding([mx + nx, my + ny]) !== 0 && winding([mx - nx, my - ny]) !== 0) return true;
+      if (winding([mx + nx, my + ny]) !== 0 && winding([mx - nx, my - ny]) !== 0) inner += length;
     }
   }
-  return false;
+  return inner > size * INNER_EDGE_FRACTION;
 }
 
 function loopArea(flat: number[]): number {

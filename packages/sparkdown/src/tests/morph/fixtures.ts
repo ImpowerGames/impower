@@ -338,6 +338,7 @@ export function spreadPortrait(): string {
       `<path data-name="opened" d="M150,${125 + dy}H175V${140 + dy}H150" fill="#642"/>`,
       `<path data-name="crossing" d="M${closed ? 40 : 10},${148 + dy}H${closed ? 50 : 20}V${158 + dy}H${closed ? 40 : 10}Z M${closed ? 10 : 40},${148 + dy}H${closed ? 20 : 50}V${158 + dy}H${closed ? 10 : 40}Z" fill="#264"/>`,
       `<polyline data-name="polylined" points="60,${148 + dy} 80,${148 + dy} 80,${158 + dy} 60,${158 + dy}" fill="#426"/>`,
+      `<path data-name="speck" d="M115,${148 + dy}H140V${158 + dy}H115Z M120,${150 + dy}H120.04V${150.04 + dy}H120Z" fill="#462"/>`,
     ];
     return [...SPREAD_LABELS.flatMap((label, i) => (drawings[label] ? [`<path data-name="${label}" d="${at(i)}" ${drawings[label]}/>`] : [])), ...extra, lettered].join("\n");
   };

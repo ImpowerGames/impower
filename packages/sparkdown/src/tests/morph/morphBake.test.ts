@@ -259,9 +259,10 @@ describe("a drawing's `spread` in the bake", () => {
   });
 
   test("an inner edge stops only shrinking under a nonzero fill: an even-odd fill shrinks, and growing is unaffected", () => {
-    const artifact = spreadBake({ holed: { spread: "-1px" }, doubled: { spread: "1px" }, crossing: { spread: "1px" } });
+    const artifact = spreadBake({ holed: { spread: "-1px" }, doubled: { spread: "1px" }, crossing: { spread: "1px" }, speck: { spread: "-1px" } });
     expect(ignored(artifact)).toEqual([]);
     expect(transitionOf(artifact, "holed")).toMatchObject({ kind: "morph", spread: -1 });
+    expect(transitionOf(artifact, "speck")).toMatchObject({ kind: "morph", spread: -1 });
     expect(transitionOf(artifact, "doubled")).toMatchObject({ kind: "morph", spread: 1 });
     expect(transitionOf(artifact, "crossing")).toMatchObject({ kind: "morph", spread: 1 });
   });
