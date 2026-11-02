@@ -10,7 +10,7 @@ The preview's toolbar names the route it took: the scene it starts in, the scene
 interrogation (4 → 21)
 ```
 
-A route that starts in the content before any scene names the script instead (`main (1 → 21)`), and a route that ends in another script names that script (`interrogation (4 → chapter_2 : 12)`).
+A route that starts at a branch's top names the branch (`outer.visit (12 → 14)`), and a route that ends in another script names that script (`interrogation (4 → chapter_2 : 12)`).
 
 One icon before the name says how the route differs from play, the first that applies. When there is none, its place stays empty, so the name never moves:
 
