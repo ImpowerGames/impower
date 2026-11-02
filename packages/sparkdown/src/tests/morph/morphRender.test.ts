@@ -817,6 +817,34 @@ describe("a drawing's `spread` between poses", () => {
     for (const progress of [0, 1]) expect(at(artifact, progress).masks.size, String(progress)).toBe(0);
   });
 
+  test("a drawing closed only implicitly spreads along its closing edge: the mask and the grown geometry close every subpath", () => {
+    const shrink = spreadBake({ opened: { spread: "-1px", blend: "fade" } });
+    expect(shrink.diagnostics).toEqual([]);
+    const node = drawOf(shrink, "opened");
+    const record = shrink.spreads![node]!;
+    expect(record.outline.endsWith("Z")).toBe(true);
+    expect(at(shrink, 0.5).masks.get(record.mask!)).toEqual({ spread: -1, d: record.outline });
+    const grow = spreadBake({ opened: { spread: "1px", blend: "fade" } });
+    const grown = drawOf(grow, "opened");
+    expect(at(grow, 0.5).geometry.get(grown)).toBe(grow.spreads![grown]!.outline);
+    expect(at(grow, 0).geometry.has(grown)).toBe(false);
+    const moving = spreadBake({ flat: { spread: "1px" } });
+    const draw = drawOf(moving, "flat");
+    const state = at(moving, 0.5);
+    expect(state.geometry.get(draw)).toMatch(/Z$/);
+    const scaled = spreadBake({ opened: { spread: "-1px", blend: "scale" } });
+    expect(scaled.diagnostics).toEqual([]);
+    const scales = scaled.segments[0]!.transitions.filter((t) => t.kind === "scale" && t.spread === -1);
+    expect(scales).toHaveLength(2);
+    const scaledState = at(scaled, 0.5);
+    for (const t of scales) {
+      if (t.kind !== "scale") continue;
+      const frame = scaledState.geometry.get(t.draw)!;
+      expect(frame.endsWith("Z")).toBe(false);
+      expect(scaledState.masks.get(scaled.spreads![t.draw]!.mask!)).toEqual({ spread: -1, d: `${frame}Z` });
+    }
+  });
+
   test("an edge label's `spread` leaves the clip's opening and its reach unchanged", () => {
     const plain = bakeMorphArtifact({ source: portrait(), selection: {}, recipe: blink(), key: "edge", variant: "edge" });
     const spread = bakeMorphArtifact({ source: portrait(), selection: {}, recipe: blink({ layers: { "eyelash-left": { spread: "-1px" } } }), key: "edge", variant: "edge" });

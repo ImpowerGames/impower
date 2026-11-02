@@ -106,8 +106,14 @@ export interface MorphApertureReach {
 
 export interface MorphSpreadMaskPose {
   spread: number;
-  d?: string;
+  d: string;
 }
+
+const closeSubpaths = (d: string): string =>
+  d
+    .split(/(?=M)/)
+    .map((part) => (part && !part.endsWith("Z") ? `${part}Z` : part))
+    .join("");
 
 export const APERTURE_REACH_ID_SUFFIX = "-reach";
 
@@ -453,13 +459,13 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
     if (amount < 0) {
       if (!record.mask) continue;
       values["mask"] = `url(#${record.mask})`;
-      const d = geometry.get(node);
-      state.masks.set(record.mask, { spread: amount, ...(d === undefined ? {} : { d }) });
+      state.masks.set(record.mask, { spread: amount, d: closeSubpaths(geometry.get(node) ?? record.outline) });
       state.paint.set(node, values);
       continue;
     }
     const fill = record.grow && growFill(values["fill"], record.grow, alphas);
     if (!record.grow || !fill) continue;
+    geometry.set(node, closeSubpaths(geometry.get(node) ?? record.outline));
     const fillOpacity = values["fill-opacity"] === undefined ? record.grow["fill-opacity"] : Number(values["fill-opacity"]);
     Object.assign(values, {
       fill: fill.paint,
@@ -613,7 +619,7 @@ export function poseAperture(aperture: Element, d: string, reach?: MorphAperture
 export function poseSpreadMask(mask: Element, pose: MorphSpreadMaskPose) {
   const path = elementsOf(mask.children).find((child) => child.tagName === "path");
   if (!path) return;
-  if (pose.d !== undefined) path.attributes["d"] = pose.d;
+  path.attributes["d"] = pose.d;
   for (const [name, value] of spreadStroke(pose.spread)) setStyleProperty(path, name, value);
 }
 

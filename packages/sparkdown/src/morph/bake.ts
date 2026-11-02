@@ -32,7 +32,7 @@ import { readEntryColor } from "./color";
 import { gradientCopy, gradientNumbers, gradientsMatch, readGradient } from "./gradient";
 import { hashText } from "./hash";
 import { own, table } from "./own";
-import { effectivePaint, paintBlend, type EffectivePaint } from "./paint";
+import { effectivePaint, fillRule, paintBlend, type EffectivePaint } from "./paint";
 import { recipeAsMorph } from "./recipe";
 import { APERTURE_REACH, APERTURE_REACH_ID_SUFFIX, spreadStroke } from "./render";
 import {
@@ -186,6 +186,78 @@ const pathData = (subpaths: Subpath[]): string =>
       return s.closed ? `${d}Z` : d;
     })
     .join("");
+
+const closedPathData = (subpaths: Subpath[]): string => pathData(subpaths.map((s) => ({ ...s, closed: true })));
+
+type Cubic = Subpath["segments"][number];
+
+const cubicAt = (c: Cubic, t: number): Point => {
+  const u = 1 - t;
+  const a = u * u * u;
+  const b = 3 * u * u * t;
+  const d = 3 * u * t * t;
+  const e = t * t * t;
+  return [a * c.p0[0] + b * c.c1[0] + d * c.c2[0] + e * c.p1[0], a * c.p0[1] + b * c.c1[1] + d * c.c2[1] + e * c.p1[1]];
+};
+
+function frameSubpaths(frames: MorphFrames, values: number[]): Subpath[] {
+  const out: Subpath[] = [];
+  let k = 0;
+  frames.segmentCounts.forEach((count, si) => {
+    const segments: Cubic[] = [];
+    for (let i = 0; i < count; i++) {
+      if (frames.lines) {
+        const j = (i + 1) % count;
+        const p0: Point = [values[k + 2 * i]!, values[k + 2 * i + 1]!];
+        const p1: Point = [values[k + 2 * j]!, values[k + 2 * j + 1]!];
+        segments.push({ p0, c1: p0, c2: p1, p1 });
+      } else {
+        const o = k + 8 * i;
+        segments.push({ p0: [values[o]!, values[o + 1]!], c1: [values[o + 2]!, values[o + 3]!], c2: [values[o + 4]!, values[o + 5]!], p1: [values[o + 6]!, values[o + 7]!] });
+      }
+    }
+    k += (frames.lines ? 2 : 8) * count;
+    out.push({ segments, closed: frames.closed[si] ?? true });
+  });
+  return out;
+}
+
+function hasInnerEdge(subpaths: Subpath[]): boolean {
+  const polygons = subpaths
+    .map((s) => s.segments.flatMap((c) => [0, 0.25, 0.5, 0.75].map((t) => cubicAt(c, t))))
+    .filter((polygon) => polygon.length >= 3);
+  const xs = polygons.flat().map(([x]) => x);
+  const ys = polygons.flat().map(([, y]) => y);
+  const size = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+  if (!(size > 0)) return false;
+  const eps = size * 1e-4;
+  const winding = ([x, y]: Point): number => {
+    let w = 0;
+    for (const polygon of polygons) {
+      for (let i = 0; i < polygon.length; i++) {
+        const [ax, ay] = polygon[i]!;
+        const [bx, by] = polygon[(i + 1) % polygon.length]!;
+        const side = (bx - ax) * (y - ay) - (x - ax) * (by - ay);
+        if (ay <= y) {
+          if (by > y && side > 0) w++;
+        } else if (by <= y && side < 0) w--;
+      }
+    }
+    return w;
+  };
+  for (const polygon of polygons) {
+    for (let i = 0; i < polygon.length; i++) {
+      const [ax, ay] = polygon[i]!;
+      const [bx, by] = polygon[(i + 1) % polygon.length]!;
+      const length = Math.hypot(bx - ax, by - ay);
+      if (length <= eps) continue;
+      const [mx, my] = [(ax + bx) / 2, (ay + by) / 2];
+      const [nx, ny] = [(-(by - ay) / length) * eps, ((bx - ax) / length) * eps];
+      if (winding([mx + nx, my + ny]) !== 0 && winding([mx - nx, my - ny]) !== 0) return true;
+    }
+  }
+  return false;
+}
 
 function loopArea(flat: number[]): number {
   let twice = 0;
@@ -852,7 +924,12 @@ export function* bakeSteps(
     else entry.shrink ??= spread;
     spreadNodes.set(node, entry);
   };
-  const takeSpread = (source: Leaf, ends: readonly Leaf[], markups: readonly Leaf[]): number | undefined => {
+  const takeSpread = (
+    source: Leaf,
+    ends: readonly Leaf[],
+    markups: readonly Leaf[],
+    shown: { shapes?: readonly Leaf[]; frames?: readonly MorphGeometryRef[] } = {},
+  ): number | undefined => {
     const { spread, label } = spreadOf(source);
     if (!spread) return undefined;
     if (label) spreadUse.set(label, true);
@@ -875,7 +952,20 @@ export function* bakeSteps(
     if (spread > 0 && [...ends, ...markups].some((leaf) => !growFillOf(leaf, false))) {
       return ignored("has a fill that cannot be grown: a pattern, a gradient whose stops differ in opacity, or paint the bake cannot read");
     }
+    if (spread > 0 && markups.some((leaf) => leaf.element.tagName.toLowerCase() === "polyline")) {
+      return ignored("is a `polyline`, whose closing edge a stroke leaves out, so it cannot be grown evenly");
+    }
     if (spread < 0 && markups.some(ownMask)) return ignored("has its own `mask`, and shrinking needs a mask of its own on the drawing");
+    if (spread < 0 && !markups.every((leaf) => fillRule(doc!, leaf.element) === "evenodd")) {
+      const outlines = [...ends, ...markups, ...(shown.shapes ?? [])].map((leaf) => rootGeometry(leaf)!);
+      for (const ref of shown.frames ?? []) {
+        const sampled = frames[ref.index]!;
+        for (const values of sampled.frames) outlines.push(frameSubpaths(sampled, values));
+      }
+      if (outlines.some(hasInnerEdge)) {
+        return ignored("has an edge with fill on both sides (overlapping or touching subpaths under a nonzero fill), which shrinking would cut open");
+      }
+    }
     return spread;
   };
 
@@ -1118,7 +1208,7 @@ export function* bakeSteps(
         const ref = addFrames(cacheKey, morph, space, reversed);
         const { gradients, matched } = gradientBlends(from, to, home, draw, space);
         const paint = paintBlend(paintOf(from), paintOf(to), paintOf(home), matched);
-        const spread = takeSpread(from, [from, to], [home]);
+        const spread = takeSpread(from, [from, to], [home], { frames: [ref] });
         spreadOn(draw, spread);
         transitions.push({
           kind: "morph",
@@ -1181,8 +1271,10 @@ export function* bakeSteps(
         const drawingAt = (end: Exclude<PartnerEnd, undefined>) => ("own" in end ? end.own : end.shape);
         const nodeAt = (end: Exclude<PartnerEnd, undefined>) => nodeOf(drawingAt(end));
         const painted = [...new Set([from, to].flatMap((end) => (!end ? [] : "own" in end ? [end.own] : [leaf])))];
+        const carriedShapes = [from, to].flatMap((end) => (end && "shape" in end ? [end.shape] : []));
         let moveSpread: number | undefined | null = null;
-        const spreadHere = () => (moveSpread === null ? (moveSpread = takeSpread(leaf, painted, painted)) : moveSpread);
+        const spreadHere = (frames: MorphGeometryRef[] = []) =>
+          moveSpread === null ? (moveSpread = takeSpread(leaf, painted, painted, { shapes: carriedShapes, frames })) : moveSpread;
         const carriedAt = (node: string) => {
           const spread = spreadHere();
           if (!spread) return;
@@ -1223,7 +1315,7 @@ export function* bakeSteps(
           const blended = named ? gradientBlends(leaf, named, leaf, draw, space) : undefined;
           const paint = named ? paintBlend(paintOf(leaf), paintOf(named), paintOf(leaf), blended!.matched) : undefined;
           const gradients = blended?.gradients;
-          const spread = spreadHere();
+          const spread = spreadHere([ref]);
           spreadOn(draw, spread);
           transitions.push({
             kind: "morph",
@@ -1253,19 +1345,21 @@ export function* bakeSteps(
           if (end) spreadOn(end, spread);
           transitions.push({ kind: "fade", ...(start ? { from: start } : {}), ...(end ? { to: end } : {}), ...(spread ? { spread } : {}) });
         } else if (action === "scale") {
-          for (const [end, direction] of [[from, "shrink"], [to, "grow"]] as const) {
-            if (!end) continue;
+          const scaled = ([[from, "shrink"], [to, "grow"]] as const).flatMap(([end, direction]) => {
+            if (!end) return [];
+            const drawing = "own" in end ? end.own : end.shape;
+            const frames = addFrames(`${drawing.key}:${direction}`, morphScale(rootGeometry(drawing)!, direction), "own" in end ? elementSpace(drawing)! : space, false);
+            return [{ end, direction, frames }];
+          });
+          const spread = spreadHere(scaled.map(({ frames }) => frames));
+          for (const { end, direction, frames } of scaled) {
             if ("own" in end) {
               const drawing = end.own;
-              const frames = addFrames(`${drawing.key}:${direction}`, morphScale(rootGeometry(drawing)!, direction), elementSpace(drawing)!, false);
               const draw = isPath(drawing) && !slotsOf(drawing).node ? slot(drawing, true) : slot(drawing, false);
-              const spread = spreadHere();
               spreadOn(draw, spread);
               transitions.push({ kind: "scale", node: drawing.node, draw, direction, frames, ...(spread ? { spread } : {}) });
             } else {
               const node = onCarrier(end, direction === "shrink" ? carryFrom : carryTo);
-              const frames = addFrames(`${end.shape.key}:${direction}`, morphScale(rootGeometry(end.shape)!, direction), space, false);
-              const spread = spreadHere();
               transitions.push({ kind: "scale", node, draw: node, direction, frames, ...(spread ? { spread } : {}) });
             }
           }
@@ -1290,7 +1384,7 @@ export function* bakeSteps(
             const slots = homed.get(leaf) ?? { node: false, carriers: 0 };
             homed.set(leaf, slots);
             const draw = isPath(leaf) ? nodeOf(leaf) : carrierOf(leaf, slots.carriers++);
-            const spread = takeSpread(leaf, [leaf], [leaf]);
+            const spread = takeSpread(leaf, [leaf], [leaf], { frames: [ref] });
             spreadOn(draw, spread);
             transitions.push({ kind: "scale", node: nodeOf(leaf), draw, direction, frames: ref, ...(spread ? { spread } : {}) });
             return;
@@ -1625,7 +1719,7 @@ export function* bakeSteps(
   let spreadSerial = 0;
   for (const [node, { grow, shrink }] of spreadNodes) {
     const leaf = markupOf.get(node)!;
-    const record: MorphSpreadNode = {};
+    const record: MorphSpreadNode = { outline: closedPathData(localGeometry(leaf.element) ?? []) };
     if (shrink !== undefined) {
       let id = `morph-spread-${spreadSerial++}`;
       while (doc.byId.has(id)) id = `morph-spread-${spreadSerial++}`;
@@ -1644,7 +1738,7 @@ export function* bakeSteps(
         tagName: "path",
         attributes: {
           style: `fill:#fff;fill-opacity:1;fill-rule:nonzero;${spreadStroke(spread).map(([name, value]) => `${name}:${value}`).join(";")};visibility:visible;vector-effect:non-scaling-stroke`,
-          d: (isPath(leaf) ? leaf.element.attributes["d"] : undefined) ?? pathData(localGeometry(leaf.element) ?? []),
+          d: closedPathData(localGeometry(leaf.element) ?? []),
         },
         children: [],
       },

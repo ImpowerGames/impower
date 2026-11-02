@@ -204,6 +204,7 @@ export type MorphSpreadFill =
   | { gradient: string; alpha: number; "fill-opacity": number };
 
 export interface MorphSpreadNode {
+  outline: string;
   mask?: string;
   grow?: MorphSpreadFill;
 }

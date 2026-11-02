@@ -331,7 +331,15 @@ export function spreadPortrait(): string {
     };
     if (!closed) drawings["ghost"] = 'fill="#456"';
     const lettered = `<text data-name="lettered" x="10" y="${170 + dy}" fill="#000">TEST</text>`;
-    return [...SPREAD_LABELS.flatMap((label, i) => (drawings[label] ? [`<path data-name="${label}" d="${at(i)}" ${drawings[label]}/>`] : [])), lettered].join("\n");
+    const overlapping = (x: number) => `M${x},${125 + dy}H${x + 15}V${140 + dy}H${x}Z M${x + 10},${125 + dy}H${x + 25}V${140 + dy}H${x + 10}Z`;
+    const extra = [
+      `<path data-name="doubled" d="${overlapping(80)}" fill="#246"/>`,
+      `<path data-name="holed" d="${overlapping(115)}" fill="#246" fill-rule="evenodd"/>`,
+      `<path data-name="opened" d="M150,${125 + dy}H175V${140 + dy}H150" fill="#642"/>`,
+      `<path data-name="crossing" d="M${closed ? 40 : 10},${148 + dy}H${closed ? 50 : 20}V${158 + dy}H${closed ? 40 : 10}Z M${closed ? 10 : 40},${148 + dy}H${closed ? 20 : 50}V${158 + dy}H${closed ? 10 : 40}Z" fill="#264"/>`,
+      `<polyline data-name="polylined" points="60,${148 + dy} 80,${148 + dy} 80,${158 + dy} 60,${158 + dy}" fill="#426"/>`,
+    ];
+    return [...SPREAD_LABELS.flatMap((label, i) => (drawings[label] ? [`<path data-name="${label}" d="${at(i)}" ${drawings[label]}/>`] : [])), ...extra, lettered].join("\n");
   };
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 180" width="200" height="180">
 <defs>
@@ -354,7 +362,7 @@ ${pose(5, true)}
 }
 
 export function spreadBlink(layers: Record<string, Record<string, unknown>> = {}, overrides: Record<string, unknown> = {}, states = ["open", "closed", "open"]): MorphRecipe {
-  const merged: Record<string, Record<string, unknown>> = { ghost: { fallback: "scale" }, fader: { blend: "fade" }, still: { blend: "cut" } };
+  const merged: Record<string, Record<string, unknown>> = { ghost: { fallback: "scale" }, fader: { blend: "fade" }, still: { blend: "cut" }, opened: { blend: "fade" }, polylined: { blend: "fade" } };
   for (const [label, policy] of Object.entries(layers)) merged[label] = { ...merged[label], ...policy };
   return paintBlink({ layers: merged, ...overrides }, states);
 }
