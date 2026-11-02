@@ -72,7 +72,11 @@ export class MatchRule implements Rule {
     state.line(from);
     const lineStart = state.lineStart;
     const lineText = state.lineText;
-    const result = this.matcher.match(lineText, from - lineStart);
+    const result = this.matcher.match(
+      lineText,
+      from - lineStart,
+      this.matcher.hasAnchor && state.isAnchor(from),
+    );
     if (!result) {
       state.exit(this.id, from);
       return null;
