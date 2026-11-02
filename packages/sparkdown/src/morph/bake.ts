@@ -883,7 +883,7 @@ export function* bakeSteps(
     source: Leaf,
     ends: readonly Leaf[],
     markups: readonly Leaf[],
-    shown: { shapes?: readonly Leaf[]; frames?: readonly MorphGeometryRef[] } = {},
+    shown: { shapes?: readonly Leaf[]; frames?: readonly { ref: MorphGeometryRef; leaf: Leaf }[] } = {},
   ): number | undefined => {
     const { spread, label } = spreadOf(source);
     if (!spread) return undefined;
@@ -912,17 +912,20 @@ export function* bakeSteps(
     }
     if (spread < 0 && markups.some(ownMask)) return ignored("has its own `mask`, and shrinking needs a mask of its own on the drawing");
     if (spread < 0) {
-      const outlines = [...ends, ...markups, ...(shown.shapes ?? [])].map((leaf) => rootGeometry(leaf)!);
-      for (const ref of shown.frames ?? []) {
+      const evenodd = (leaf: Leaf) => fillRule(doc!, leaf.element) === "evenodd";
+      const outlines: { outline: Subpath[]; evenodd: boolean }[] = [
+        ...[...ends, ...markups].map((leaf) => ({ outline: rootGeometry(leaf)!, evenodd: evenodd(leaf) })),
+        ...(shown.shapes ?? []).map((shape) => ({ outline: rootGeometry(shape)!, evenodd: evenodd(source) })),
+      ];
+      for (const { ref, leaf } of shown.frames ?? []) {
         const sampled = frames[ref.index]!;
-        for (const values of sampled.frames) outlines.push(frameSubpaths(sampled, values));
+        for (const values of sampled.frames) outlines.push({ outline: frameSubpaths(sampled, values), evenodd: evenodd(leaf) });
       }
-      const contours = outlines.map((outline) => outline.filter((subpath) => subpath.segments.length > 0));
-      if (contours.some((outline) => outline.length !== 1)) {
+      const contours = outlines.map(({ outline, evenodd }) => ({ contours: outline.filter((subpath) => subpath.segments.length > 0), evenodd }));
+      if (contours.some(({ contours }) => contours.length !== 1)) {
         return ignored("is more than one contour, and shrinking cuts along every contour's edge, even one with fill on both sides; draw each contour as a layer of its own to shrink it");
       }
-      const evenodd = markups.every((leaf) => fillRule(doc!, leaf.element) === "evenodd");
-      if (contours.some(([contour]) => overlapsItself(contourPoints(contour!), evenodd))) {
+      if (contours.some(({ contours: [contour], evenodd }) => overlapsItself(contourPoints(contour!), evenodd))) {
         return ignored("has a contour that overlaps itself with fill on both sides, which shrinking would cut open");
       }
     }
@@ -1168,7 +1171,7 @@ export function* bakeSteps(
         const ref = addFrames(cacheKey, morph, space, reversed);
         const { gradients, matched } = gradientBlends(from, to, home, draw, space);
         const paint = paintBlend(paintOf(from), paintOf(to), paintOf(home), matched);
-        const spread = takeSpread(from, [from, to], [home], { frames: [ref] });
+        const spread = takeSpread(from, [from, to], [home], { frames: [{ ref, leaf: home }] });
         spreadOn(draw, spread);
         transitions.push({
           kind: "morph",
@@ -1233,7 +1236,7 @@ export function* bakeSteps(
         const painted = [...new Set([from, to].flatMap((end) => (!end ? [] : "own" in end ? [end.own] : [leaf])))];
         const carriedShapes = [from, to].flatMap((end) => (end && "shape" in end ? [end.shape] : []));
         let moveSpread: number | undefined | null = null;
-        const spreadHere = (frames: MorphGeometryRef[] = []) =>
+        const spreadHere = (frames: { ref: MorphGeometryRef; leaf: Leaf }[] = []) =>
           moveSpread === null ? (moveSpread = takeSpread(leaf, painted, painted, { shapes: carriedShapes, frames })) : moveSpread;
         const carriedAt = (node: string) => {
           const spread = spreadHere();
@@ -1275,7 +1278,7 @@ export function* bakeSteps(
           const blended = named ? gradientBlends(leaf, named, leaf, draw, space) : undefined;
           const paint = named ? paintBlend(paintOf(leaf), paintOf(named), paintOf(leaf), blended!.matched) : undefined;
           const gradients = blended?.gradients;
-          const spread = spreadHere([ref]);
+          const spread = spreadHere([{ ref, leaf }]);
           spreadOn(draw, spread);
           transitions.push({
             kind: "morph",
@@ -1311,7 +1314,7 @@ export function* bakeSteps(
             const frames = addFrames(`${drawing.key}:${direction}`, morphScale(rootGeometry(drawing)!, direction), "own" in end ? elementSpace(drawing)! : space, false);
             return [{ end, direction, frames }];
           });
-          const spread = spreadHere(scaled.map(({ frames }) => frames));
+          const spread = spreadHere(scaled.map(({ end, frames }) => ({ ref: frames, leaf: "own" in end ? end.own : leaf })));
           for (const { end, direction, frames } of scaled) {
             if ("own" in end) {
               const drawing = end.own;
@@ -1344,7 +1347,7 @@ export function* bakeSteps(
             const slots = homed.get(leaf) ?? { node: false, carriers: 0 };
             homed.set(leaf, slots);
             const draw = isPath(leaf) ? nodeOf(leaf) : carrierOf(leaf, slots.carriers++);
-            const spread = takeSpread(leaf, [leaf], [leaf], { frames: [ref] });
+            const spread = takeSpread(leaf, [leaf], [leaf], { frames: [{ ref, leaf }] });
             spreadOn(draw, spread);
             transitions.push({ kind: "scale", node: nodeOf(leaf), draw, direction, frames: ref, ...(spread ? { spread } : {}) });
             return;

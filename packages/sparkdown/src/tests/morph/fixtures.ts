@@ -347,6 +347,9 @@ export function spreadPortrait(): string {
       `<path data-name="folding" d="${slotted(180, 100 + dy, closed ? [6.3, 5.1] : [7.6, 6.8], closed ? [7.9, 8.9] : [6, 3.1])}" fill="#264"/>`,
       `<path data-name="looped" d="${slotted(150, 105 + dy, [6, 4], [4, 4])}" fill="#426"/>`,
       `<path data-name="loopedodd" d="${slotted(165, 105 + dy, [6, 4], [4, 4])}" fill="#426" fill-rule="evenodd"/>`,
+      closed
+        ? `<path data-name="mixedfade" d="M120,${105 + dy}H130V${115 + dy}H120Z" fill="#624"/>`
+        : `<path data-name="mixedfade" d="${slotted(120, 105 + dy, [6, 4], [4, 4])}" fill="#624" fill-rule="evenodd"/>`,
       `<path data-name="implicitloop" d="M106,${106 + dy}L108,${102 + dy}L112,${102 + dy}L112,${112 + dy}L102,${112 + dy}L102,${102 + dy}L106,${102 + dy}L108,${106 + dy}" fill="#264"/>`,
     ];
     return [...SPREAD_LABELS.flatMap((label, i) => (drawings[label] ? [`<path data-name="${label}" d="${at(i)}" ${drawings[label]}/>`] : [])), ...extra, lettered].join("\n");
@@ -372,7 +375,7 @@ ${pose(5, true)}
 }
 
 export function spreadBlink(layers: Record<string, Record<string, unknown>> = {}, overrides: Record<string, unknown> = {}, states = ["open", "closed", "open"]): MorphRecipe {
-  const merged: Record<string, Record<string, unknown>> = { ghost: { fallback: "scale" }, fader: { blend: "fade" }, still: { blend: "cut" }, opened: { blend: "fade" }, polylined: { blend: "fade" }, implicitloop: { blend: "fade" } };
+  const merged: Record<string, Record<string, unknown>> = { ghost: { fallback: "scale" }, fader: { blend: "fade" }, still: { blend: "cut" }, opened: { blend: "fade" }, polylined: { blend: "fade" }, implicitloop: { blend: "fade" }, mixedfade: { blend: "fade" } };
   for (const [label, policy] of Object.entries(layers)) merged[label] = { ...merged[label], ...policy };
   return paintBlink({ layers: merged, ...overrides }, states);
 }

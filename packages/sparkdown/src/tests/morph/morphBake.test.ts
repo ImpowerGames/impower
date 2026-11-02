@@ -281,6 +281,18 @@ describe("a drawing's `spread` in the bake", () => {
     expect(state.paint.get(track.draw)?.["mask"]).toBe(`url(#${artifact.spreads![track.draw]!.mask})`);
   });
 
+  test("each drawing of a fade is tested with its own fill rule: an even-odd loop fading to a nonzero rectangle shrinks", () => {
+    const artifact = spreadBake({ mixedfade: { spread: "-1px" } });
+    expect(ignored(artifact)).toEqual([]);
+    const fade = transitionOf(artifact, "mixedfade");
+    expect(fade).toMatchObject({ kind: "fade", spread: -1 });
+    if (fade.kind !== "fade") throw new Error("not a fade");
+    expect(artifact.spreads![fade.from!]).toMatchObject({ evenodd: true });
+    expect(artifact.spreads![fade.to!]).not.toHaveProperty("evenodd");
+    const state = morphFrameState(artifact, { eyes: { segment: 0, progress: 0.5 } });
+    for (const node of [fade.from!, fade.to!]) expect(state.paint.get(node)?.["mask"], node).toBe(`url(#${artifact.spreads![node]!.mask})`);
+  });
+
   test("a single contour that folds over itself only between stored frames shrinks, with no `spread-ignored`", () => {
     const artifact = spreadBake({ folding: { spread: "-1px" } });
     expect(ignored(artifact)).toEqual([]);
