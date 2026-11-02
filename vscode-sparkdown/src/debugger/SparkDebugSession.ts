@@ -314,11 +314,20 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.RestartResponse,
     args: DebugProtocol.RestartArguments,
   ): Promise<void> {
-    await this._connection.emit(
-      RestartGameMessage.type.request(
-        (args.arguments || {}) as RestartGameParams,
-      ),
-    );
+    try {
+      await this._connection.emit(
+        RestartGameMessage.type.request(
+          (args.arguments || {}) as RestartGameParams,
+        ),
+      );
+    } catch (e) {
+      this.sendErrorResponse(response, {
+        id: 2002,
+        format: (e as { message?: string })?.message ?? String(e),
+        showUser: true,
+      });
+      return;
+    }
 
     this.sendResponse(response);
   }

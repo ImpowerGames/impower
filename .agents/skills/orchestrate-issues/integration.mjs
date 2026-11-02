@@ -5,7 +5,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
 import { readRepos } from "../../repos.mjs";
-import { readRecord, updateRecord, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, closedBeforeRun, HISTORY, takeSnapshot, readIssueScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs, completingTickets, filedActions } from "./issue-run.mjs";
+import { readRecord, updateRecord, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, closedBeforeRun, writerKnownEnded, HISTORY, takeSnapshot, readIssueScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs, completingTickets, filedActions } from "./issue-run.mjs";
 import { intent, outcome, ensureSaved, autoCheckpoint, operationText, landing, landingText, fetchState, stateBranch } from "./checkpoint.mjs";
 import { FIRST_CHECKPOINT_ROUND, roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit, threadName } from "./review-checkpoint.mjs";
 
@@ -99,6 +99,8 @@ function acceptanceOn(decisions, chain) {
   return there.applies ? { ...there, reason: `${there.reason}; the head adds only clean merges of ${TARGET} after it` } : direct;
 }
 
+const requiresDependencies = (record, t, ticket) => t.number === ticket || (!t.delivered && !closedBeforeRun(record, t));
+
 export function admission(record, { ticket: number, pr, snapshot, facts, git, running = null }) {
   const { pull, state, comments, originMain, chain, protection, ciMain, containsMain } = facts;
   const head = pull.head, blockers = [];
@@ -120,6 +122,20 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
   if (branchTicket(pull.branch) !== number) blockers.push(`PR #${pr}'s branch ${pull.branch} is not #${number}'s`);
   const names = repositoriesOf(record), ref = names.split ? `${names.tickets}#${number}` : `#${number}`;
   if (!(pull.closes ?? []).includes(number)) blockers.push(`PR #${pr} does not close ${ref} (its body has no Closes ${ref}), so merging it would leave the ticket open`);
+  const delivered = snapshot.tickets.filter((x) => x.deliveredBy?.ticket === number);
+  const carried = new Set([number, ...delivered.map((x) => x.number)]);
+  const historic = new Set(snapshot.tickets.filter((x) => closedBeforeRun(record, x)).map((x) => x.number));
+  for (const x of [t, ...delivered].filter(Boolean)) {
+    if (!requiresDependencies(record, x, number)) continue;
+    for (const b of x.blockers ?? []) {
+      if (b.delivered || historic.has(b.number) || (x.number !== number && carried.has(b.number))) continue;
+      blockers.push(`#${x.number} is blocked by #${b.number} (${b.state}); its deliverable must be on origin/${TARGET} before PR #${pr} merges`);
+    }
+    if (x.number === number) continue;
+    if (!(pull.closes ?? []).includes(x.number)) blockers.push(`PR #${pr} delivers #${x.number} but does not close it`);
+    const held = record.tickets[x.number] ?? {};
+    if (held.owner || held.pending || (x.worktrees?.length && !writerKnownEnded(held))) blockers.push(`#${x.number}, delivered by #${number}, still holds a writer, pending start or unsettled worktree`);
+  }
   for (const e of completingTickets(record, number)) {
     const fref = names.split ? `${names.tickets}#${e.number}` : `#${e.number}`;
     if (e.outcome.kind === "maintainer") { blockers.push(`${fref}, filed during the run, waits on the maintainer's answer to "${e.outcome.question}", and the PR holds until it is recorded (triage, or interim for an accepted narrow fix)`); continue; }
@@ -184,30 +200,51 @@ export function remoteOwnership(record, opId) {
   return [];
 }
 
-export function finalGate({ current, opId, ownership, takeSnapshot, premises, readScope, git, main, call }) {
-  let owned, snapshot, held, scope, now;
-  try {
-    owned = ownership(current(), opId);
-    snapshot = takeSnapshot();
-    held = premises(current(), snapshot);
-    scope = readScope();
-    now = (git.fetch(), git.main());
-  } catch (error) { return { called: false, error }; }
-  const judged = snapshotScope(snapshot);
-  const moved = [
-    ...(scope.slices.join() === judged.slices.join() ? [] : [`the parent issue's slices changed during the final checks, from ${judged.slices.join(", ") || "none"} to ${scope.slices.join(", ") || "none"}`]),
-    ...(scope.acceptanceSha256 === judged.acceptanceSha256 ? [] : ["the parent issue's acceptance criteria changed during the final checks"]),
-  ];
-  const blockers = [...owned, ...held.blockers, ...moved, ...(now === main ? [] : [`origin/${TARGET} moved from ${main} to ${now}`])];
-  if (blockers.length) return { called: false, blockers, held };
-  try { return { called: true, value: call(), held }; }
-  catch (error) { return { called: true, error, held }; }
+export function finalGate({ current, opId, ownership, takeSnapshot, premises, readScope, git, main, call, scopeOf = snapshotScope, refreshMain = false }) {
+  for (;;) {
+    let owned, snapshot, held, scope, now;
+    try {
+      owned = ownership(current(), opId);
+      snapshot = takeSnapshot();
+      held = premises(current(), snapshot);
+      scope = readScope();
+      now = (git.fetch(), git.main());
+    } catch (error) { return { called: false, error }; }
+    const judged = scopeOf(snapshot);
+    const moved = [
+      ...(scope.slices.join() === judged.slices.join() ? [] : [`the parent issue's slices changed during the final checks, from ${judged.slices.join(", ") || "none"} to ${scope.slices.join(", ") || "none"}`]),
+      ...(scope.acceptanceSha256 === judged.acceptanceSha256 ? [] : ["the parent issue's acceptance criteria changed during the final checks"]),
+    ];
+    const admittedMain = refreshMain ? held.again.originMain : main;
+    if (refreshMain && !owned.length && (now !== admittedMain || (snapshot.originMain && snapshot.originMain !== now))) continue;
+    const blockers = [...owned, ...held.blockers, ...moved, ...(now === admittedMain ? [] : [`origin/${TARGET} moved from ${admittedMain} to ${now}`])];
+    if (blockers.length) return { called: false, blockers, held };
+    try { return { called: true, value: call(), held }; }
+    catch (error) { return { called: true, error, held }; }
+  }
+}
+
+export function mergeScope(snapshot, ticket, record = {}) {
+  const members = snapshot.tickets.filter((t) => t.number === ticket || t.deliveredBy?.ticket === ticket);
+  const history = (t) => t ? {
+    state: t.state, stateReason: t.stateReason ?? null, closedAt: t.closedAt ?? null,
+    prs: (t.prs ?? []).filter((p) => branchTicket(p.branch) === t.number && ["OPEN", "MERGED"].includes(p.state)).map((p) => [p.number, p.state]).sort((a, b) => a[0] - b[0]),
+    worktrees: t.worktrees?.length ?? 0,
+  } : null;
+  const slices = members.map((t) => JSON.stringify({
+    number: t.number, state: t.state, stateReason: t.stateReason ?? null, closedAt: t.closedAt ?? null,
+    container: t.container, deliveredBy: t.deliveredBy ? { ticket: t.deliveredBy.ticket, via: t.deliveredBy.via, pr: t.deliveredBy.pr } : null,
+    blockers: [...(requiresDependencies(record, t, ticket) ? t.blockers ?? [] : [])].sort((a, b) => a.number - b.number).map((b) => ({ ...b, history: history(snapshot.tickets.find((x) => x.number === b.number)) })),
+    delivered: t.delivered ?? false, worktrees: (t.worktrees ?? []).map((w) => w.path).sort(),
+    prs: (t.prs ?? []).map((p) => ({ number: p.number, state: p.state, head: p.head, branch: p.branch })).sort((a, b) => a.number - b.number),
+  })).sort();
+  return { slices, acceptanceSha256: null };
 }
 
 export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, takeSnapshot, readScope, client, git, afterIntent, ownership = remoteOwnership }) {
   const record = readRecord(file);
   if (record.coordinator.session !== coordinator) throw new Error(`Issue #${record.issue} is coordinated by ${record.coordinator.session}; ${coordinator} may not merge for it`);
-  const gate = admission(record, { ticket, pr, snapshot: takeSnapshot(), facts: gatherFacts({ record, ticket, pr, client, git }), git });
+  let gate = admission(record, { ticket, pr, snapshot: takeSnapshot(), facts: gatherFacts({ record, ticket, pr, client, git }), git });
   if (!gate.admitted) return { admitted: false, merged: false, gate };
   const planned = updateRecord(file, { expectRevision, coordinator }, (r) => {
     const op = intent(r, { kind: "merge", ticket, pr, expectHead: gate.head, evidence: `admitted as ${gate.disposition}` });
@@ -219,10 +256,11 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, t
   try { afterIntent?.(); }
   catch (error) { notRun(error.message); throw error; }
   const final = finalGate({
-    current: () => readRecord(file), opId: op.id, ownership, takeSnapshot, readScope, git, main: gate.originMain,
+    current: () => readRecord(file), opId: op.id, ownership, takeSnapshot, git, main: gate.originMain,
+    readScope: () => mergeScope(takeSnapshot(), ticket, readRecord(file)), scopeOf: (snapshot) => mergeScope(snapshot, ticket, readRecord(file)), refreshMain: true,
     premises: (rec, snapshot) => {
       const again = admission(rec, { ticket, pr, snapshot, facts: gatherFacts({ record: rec, ticket, pr, client, git }), git, running: op.id });
-      const blockers = !again.admitted ? again.blockers : again.head !== gate.head ? [`the head moved from ${gate.head} to ${again.head}`] : again.originMain !== gate.originMain ? [`origin/${TARGET} moved from ${gate.originMain} to ${again.originMain}`] : [];
+      const blockers = !again.admitted ? again.blockers : again.head !== gate.head ? [`the head moved from ${gate.head} to ${again.head}`] : [];
       return { blockers, again };
     },
     call: () => client.merge(pr, gate.head),
@@ -233,6 +271,7 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, t
     notRun(`while the intent was saved, ${why}; run the gate again`);
     return { admitted: true, merged: false, operation: op.id, state: "failed", evidence: `not run: ${why}`, gate, recheck: final.held?.again };
   }
+  gate = final.held.again;
   const call = final.error ? { ok: false, interrupted: true, message: final.error.message } : final.value;
   let back = null, readError = null;
   try { back = client.pull(pr); } catch (error) { readError = error.message; }
@@ -249,7 +288,7 @@ export function mergeAdmitted(file, { coordinator, expectRevision, ticket, pr, t
   } else if (back.state === "MERGED") { state = "uncertain"; evidence = `PR #${pr} reads back merged at ${back.head}, not at ${gate.head}; reconcile-operations settles it`; }
   else if (refused) { state = "failed"; evidence = `the merge call ${said}, and PR #${pr} reads back ${back.state} at ${back.head}; nothing was merged`; }
   else { state = "uncertain"; evidence = `the merge call ${said}, and PR #${pr} reads back ${back.state} at ${back.head}; the request may still land, so reconcile-operations settles it`; }
-  const settled = updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { const o = outcome(r, { id: op.id, state, evidence }); if (merged) Object.assign(o, merged); });
+  const settled = updateRecord(file, { expectRevision: planned.record.revision, coordinator }, (r) => { const o = outcome(r, { id: op.id, state, evidence }); o.gate = gateSummary(gate); if (merged) Object.assign(o, merged); });
   return { admitted: true, merged: state === "confirmed", operation: op.id, state, evidence, ...(merged ?? {}), revision: settled.record.revision, gate };
 }
 

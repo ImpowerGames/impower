@@ -118,7 +118,7 @@ describe("the store-inside-a-flow quick fix", () => {
     documents.add({
       textDocument: { uri: MAIN, languageId: "sparkdown", version: 1, text },
     });
-    Object.assign(workspace, { _documents: documents });
+    Object.assign(workspace, { _documents: documents, _watchedFiles: new Map() });
     const store = workspace
       .getDiagnostics(program, MAIN)
       .find(

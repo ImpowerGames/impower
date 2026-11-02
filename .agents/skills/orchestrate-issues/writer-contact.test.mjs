@@ -158,6 +158,11 @@ try {
           assert.match(text, /If any of them differs, stop and report the mismatch as a blocker/, label);
           assert.match(text, /read the launcher's exit and its .*\.coordinator\.err\.log at once/, `${label}: the dead-launch rule`);
           if (how.mechanism) {
+            if (harness === "claude") {
+              assert.ok(text.includes(rec.title), `${label}: the brief gives the ListAgents title`);
+              assert.match(text, /ListAgents.*(ambiguous|multiple).*stop/i, `${label}: ambiguous addresses stop delivery`);
+              assert.doesNotMatch(text, /to set to that session id/, `${label}: identity is not a message address`);
+            }
             assert.ok(text.includes(how.mechanism), `${label}: the mechanism comes from the configuration`);
             assert.match(text, /Your first act after reading this brief: send coordinator session .* an acknowledgement/, label);
             assert.match(text, /Send every report, blocker and question to coordinator session/, label);
@@ -209,7 +214,8 @@ try {
     const resent = w.f.change((r) => run.deliver(r, { ticket: 333, retry: true }));
     const assignment = run.readRecord(w.f.file).tickets[333].owner.launchId;
     assert.match(resent.message, new RegExp(`^Assignment ${assignment} \\(delivery \\w+\\)\\. If you have already received assignment ${assignment}, ignore this copy`));
-    assert.ok(resent.message.endsWith(fs.readFileSync(w.prompt, "utf8")), "the retry carries the stored brief exactly");
+    const firstLines = fs.readFileSync(w.prompt, "utf8").split("\n").filter((line) => !line.startsWith("Coordinator contact: "));
+    assert.ok(firstLines.every((line) => resent.message.includes(line)), "the retry preserves the assignment while refreshing its contact instruction");
     assert.ok(fs.readFileSync(w.prompt, "utf8").includes(`Assignment ${assignment}`), "the first copy already named its assignment");
     assert.equal(at(Date.now() + 31 * MINUTE).action, "reconcile-pending", "an unconfirmed resend is settled before anything else");
     w.f.change((r) => run.delivered(r, { ticket: 333, evidence: "sent to the writer's session" }));
@@ -514,7 +520,9 @@ try {
     assert.throws(() => t.change((r) => run.deliver(r, { ticket: 374, retry: true })), /acknowledged its brief/);
     const notice = t.change((r) => run.contact(r, { ticket: 374, defaults })).message;
     assert.doesNotMatch(notice, /ignore/i, "a contact notice is never one the writer is told to ignore");
-    assert.match(notice, new RegExp(`your coordinator is now session ${NEXT} .*took over from ${COORDINATOR}\\. Send every further report, blocker and question to ${NEXT} as a cross-session message \\(SendMessage`));
+    assert.ok(notice.includes(`your coordinator is now session ${NEXT}`) && notice.includes(`took over from ${COORDINATOR}`));
+    assert.match(notice, /SendMessage with to set to the coordinator's current ListAgents title/);
+    assert.ok(notice.includes(run.readRecord(t.file).title));
     const queued = t.plan(374);
     assert.equal(queued.action, "reconcile-pending");
     assert.doesNotMatch(queued.reason, /transcript/, "a running writer's transcript is not read");

@@ -2,14 +2,12 @@ sparkdown-screenplay-preview {
   display: flex;
   flex: 1;
   flex-direction: column;
-  pointer-events: auto;
 }
 
 .sparkdown-screenplay-preview-root {
   display: flex;
   flex: 1;
   flex-direction: column;
-  pointer-events: auto;
 }
 
 .sparkdown-screenplay-preview-root * {
@@ -22,5 +20,4 @@ sparkdown-screenplay-preview {
   flex-direction: column;
   opacity: 0;
   transition: opacity 0.25s;
-  pointer-events: auto;
 }

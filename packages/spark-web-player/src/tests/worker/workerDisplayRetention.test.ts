@@ -10,6 +10,10 @@ const TEXT = [
   `  name = "Hero"`,
   "end",
   "",
+  "scene start",
+  "  -> scene_0",
+  "end",
+  "",
   ...Array.from({ length: 6 }, (_, s) => [
     `scene scene_${s}`,
     `= INT. ROOM ${s} - DAY`,

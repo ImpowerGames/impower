@@ -2013,6 +2013,7 @@ export class ChunkStore {
       info.defines !== statement.defines ||
       info.placement !== this.placementOf(statement) ||
       !holdsChunkIn(previous, chunk) ||
+      blockCount(chunk) !== (statement.bodies?.length ?? 0) ||
       (statement.bodies ?? []).some(
         (body, k) =>
           previous.body(chunk, k)?.arrays.chunks.length !== body.statements.length,

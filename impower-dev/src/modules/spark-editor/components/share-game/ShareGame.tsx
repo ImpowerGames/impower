@@ -44,7 +44,7 @@ export default function ShareGame(_props: ShareGameProps) {
                 <button
                   type="button"
                   aria-label="Settings"
-                  class="relative -mr-6 inline-flex size-10 cursor-pointer pointer-events-auto items-center justify-center overflow-hidden rounded-full text-foreground/50 hover:bg-foreground/5 hover:text-foreground active:bg-foreground/[0.12]"
+                  class="relative -mr-6 inline-flex size-10 cursor-pointer items-center justify-center overflow-hidden rounded-full text-foreground/50 hover:bg-foreground/5 hover:text-foreground active:bg-foreground/[0.12]"
                   onClick={(e) => {
                     e.stopPropagation();
                   }}

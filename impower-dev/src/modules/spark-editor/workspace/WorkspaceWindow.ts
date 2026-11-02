@@ -57,6 +57,7 @@ import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classe
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
+import { playRefusalOf } from "@impower/sparkdown/src/compiler/utils/startScene";
 import { type ShowDocumentResult } from "vscode-languageserver-protocol";
 import { debounce } from "../utils/debounce";
 import SingletonPromise from "./SingletonPromise";
@@ -134,8 +135,25 @@ export default class WorkspaceWindow {
       onProtocolMessage(CompiledProgramMessage.type, (m) =>
         this.handleCompiledProgram(m),
       ),
+      onProtocolMessage(
+        {
+          is: (m: unknown): m is StartGameMessage.Response =>
+            this._startGameRequestId !== undefined &&
+            StartGameMessage.type.isResponse(m, this._startGameRequestId),
+        },
+        (m) => this.handleStartGameResponse(m),
+      ),
     );
   }
+
+  protected _startGameRequestId?: string | number;
+
+  protected handleStartGameResponse = (message: StartGameMessage.Response) => {
+    this._startGameRequestId = undefined;
+    if ("error" in message && message.error) {
+      this.endGame();
+    }
+  };
 
   get store() {
     return workspace.current;
@@ -346,11 +364,26 @@ export default class WorkspaceWindow {
           },
         ),
       );
+    const projectId = this.store.project.id;
+    const game = this.store.preview.modes.game;
+    const story =
+      !!projectId &&
+      program.uri === Workspace.fs.getFileUri(projectId, "main.sd");
     this.update({
       ...this.store,
       debug: {
         ...this.store.debug,
         diagnosticsSummary: summary,
+      },
+      preview: {
+        ...this.store.preview,
+        modes: {
+          ...this.store.preview.modes,
+          game: {
+            ...game,
+            playRefusal: story ? playRefusalOf(program) : game.playRefusal,
+          },
+        },
       },
     });
   };
@@ -856,7 +889,9 @@ export default class WorkspaceWindow {
           },
         },
       });
-      sendProtocolMessage(StartGameMessage.type.request({}));
+      const request = StartGameMessage.type.request({});
+      this._startGameRequestId = request.id;
+      sendProtocolMessage(request);
       if (this.store.preview.modes.game.paused) {
         this.unpauseGame();
       }
@@ -940,7 +975,7 @@ export default class WorkspaceWindow {
   toggleGameRunning() {
     if (this.store.preview.modes.game.running) {
       this.stopGame();
-    } else {
+    } else if (!this.store.preview.modes.game.playRefusal) {
       this.startGame();
     }
   }
