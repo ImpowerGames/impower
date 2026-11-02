@@ -386,7 +386,7 @@ const traceStep = (trace: LevelZeroTrace, address: ProgramAddress) => {
   trace.last = chunk;
 };
 
-interface StoryPositions {
+export interface StoryPositions {
   previous(): ProgramAddress | undefined;
   knot(): string | undefined;
   stackHolds(knot: string | undefined): boolean;
@@ -419,7 +419,7 @@ const sceneOfAddress = (
   return scenes.get(id);
 };
 
-const storyPositions = (story: Story): StoryPositions => {
+export const storyPositions = (story: Story): StoryPositions => {
   let lastSequence: SequenceRow | null = null;
   let lastScene: string | undefined;
   return {
@@ -1601,7 +1601,7 @@ const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => {
   };
 };
 
-const exitedKnot = (
+export const exitedKnot = (
   _story: Story,
   positions: StoryPositions,
   knotName: string | undefined,

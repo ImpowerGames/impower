@@ -3,8 +3,6 @@ import { ErrorType } from "../../runtime/Error";
 import type { ProgramStory as Story } from "../../program/ProgramStory";
 import { StepLimitExceeded } from "../../runtime/StoryException";
 import { imageDigest } from "../../program/ProgramImages";
-import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
-import { chunkOfAddress } from "../../program/ProgramChunk";
 import { TOP_LEVEL_START, type ProgramAddress } from "../types/ProgramAddress";
 import { START_FLOW_NAME } from "../../program/ProgramSymbols";
 import {
@@ -25,6 +23,9 @@ import {
   type SearchError,
   type SearchOptions,
   type SearchState,
+  exitedKnot,
+  storyPositions,
+  type StoryPositions,
 } from "./planRoute";
 import {
   gateWinsMenu,
@@ -44,72 +45,6 @@ interface FallbackNode {
   choices: RouteChoice[];
   overrides: RouteOverride[];
 }
-
-interface StoryPositions {
-  previous(): ProgramAddress | undefined;
-  knot(): string | undefined;
-  stackHolds(knot: string | undefined): boolean;
-  errorAddress(
-    raised: { path?: string | null; address?: number } | null | undefined,
-  ): ProgramAddress | null;
-}
-
-const chunkScenes = new WeakMap<
-  ProgramRoot,
-  Map<number, string | undefined>
->();
-
-const sceneOfAddress = (
-  root: ProgramRoot,
-  address: number,
-): string | undefined => {
-  if (address < 0) {
-    return undefined;
-  }
-  let scenes = chunkScenes.get(root);
-  if (!scenes) {
-    scenes = new Map();
-    chunkScenes.set(root, scenes);
-  }
-  const id = chunkOfAddress(address);
-  if (!scenes.has(id)) {
-    scenes.set(id, root.sceneAt(address));
-  }
-  return scenes.get(id);
-};
-
-const storyPositions = (story: Story): StoryPositions => {
-  let lastSequence: SequenceRow | null = null;
-  let lastScene: string | undefined;
-  return {
-    previous: () => {
-      const address = story.previousAddress;
-      return address >= 0 ? address : (story.endedAt ?? undefined);
-    },
-    knot: () => {
-      const sequence = story.state.position?.sequence ?? null;
-      if (!sequence) {
-        return undefined;
-      }
-      if (sequence !== lastSequence) {
-        lastSequence = sequence;
-        lastScene = story.root.sceneOf(sequence);
-      }
-      return lastScene;
-    },
-    stackHolds: (knot) =>
-      story
-        .stackAddresses()
-        .some((address) => sceneOfAddress(story.root, address) === knot),
-    errorAddress: (raised) => {
-      if (raised?.address !== undefined) {
-        return raised.address;
-      }
-      const address = story.previousAddress;
-      return address >= 0 ? address : null;
-    },
-  };
-};
 
 interface StatePort {
   fork(): { state: SearchState; key: string };
@@ -626,29 +561,6 @@ const makeResumeNode = (resumeFrom: RouteResumePoint): FallbackNode => ({
   choices: [...resumeFrom.choices],
   overrides: [...resumeFrom.decisions],
 });
-
-const exitedKnot = (
-  _story: Story,
-  positions: StoryPositions,
-  knotName: string | undefined,
-  functions: string[],
-): boolean => {
-  const curKnot = positions.knot();
-
-  if (curKnot === knotName) {
-    return false;
-  }
-
-  if (curKnot === undefined) {
-    return false;
-  }
-
-  if (functions.includes(curKnot)) {
-    return false;
-  }
-
-  return !positions.stackHolds(knotName);
-};
 
 const forkCondition = (
   state: SearchState,
