@@ -257,6 +257,7 @@ end
   it("hints nothing for a line the program places no address at", () => {
     const first = plan(3)!;
     const nowhere = planPreviewHint(program, URI, 999, first.state)!;
+    expect(nowhere.state.scene).toBeUndefined();
     expect(nowhere.cursor).toEqual([]);
     expect(nowhere.near).toEqual([]);
     expect(nowhere.rest).toBeNull();

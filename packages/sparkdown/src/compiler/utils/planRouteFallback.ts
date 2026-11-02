@@ -47,18 +47,24 @@ interface FallbackNode {
 
 interface StoryPositions {
   previous(): ProgramAddress | undefined;
-  knot(): string;
-  stackHolds(knot: string): boolean;
+  knot(): string | undefined;
+  stackHolds(knot: string | undefined): boolean;
   errorAddress(
     raised: { path?: string | null; address?: number } | null | undefined,
   ): ProgramAddress | null;
 }
 
-const chunkScenes = new WeakMap<ProgramRoot, Map<number, string>>();
+const chunkScenes = new WeakMap<
+  ProgramRoot,
+  Map<number, string | undefined>
+>();
 
-const sceneOfAddress = (root: ProgramRoot, address: number): string => {
+const sceneOfAddress = (
+  root: ProgramRoot,
+  address: number,
+): string | undefined => {
   if (address < 0) {
-    return "0";
+    return undefined;
   }
   let scenes = chunkScenes.get(root);
   if (!scenes) {
@@ -66,17 +72,15 @@ const sceneOfAddress = (root: ProgramRoot, address: number): string => {
     chunkScenes.set(root, scenes);
   }
   const id = chunkOfAddress(address);
-  let scene = scenes.get(id);
-  if (scene === undefined) {
-    scene = root.sceneAt(address) ?? "0";
-    scenes.set(id, scene);
+  if (!scenes.has(id)) {
+    scenes.set(id, root.sceneAt(address));
   }
-  return scene;
+  return scenes.get(id);
 };
 
 const storyPositions = (story: Story): StoryPositions => {
   let lastSequence: SequenceRow | null = null;
-  let lastScene = "0";
+  let lastScene: string | undefined;
   return {
     previous: () => {
       const address = story.previousAddress;
@@ -85,11 +89,11 @@ const storyPositions = (story: Story): StoryPositions => {
     knot: () => {
       const sequence = story.state.position?.sequence ?? null;
       if (!sequence) {
-        return "0";
+        return undefined;
       }
       if (sequence !== lastSequence) {
         lastSequence = sequence;
-        lastScene = story.root.sceneOf(sequence) ?? "0";
+        lastScene = story.root.sceneOf(sequence);
       }
       return lastScene;
     },
@@ -242,7 +246,7 @@ export const planRouteFallback = (
     cut: null,
     visited: new Set(),
   };
-  const fromKnotName = from.split(".")[0] || "0";
+  const fromKnotName = from.split(".")[0] || undefined;
   const positions = storyPositions(story);
 
   let routePlan: RoutePlan | null = null;
@@ -360,7 +364,7 @@ const runUntilDecisionOrBranch = (
   port: StatePort,
   node: FallbackNode,
   positions: StoryPositions,
-  fromKnotName: string,
+  fromKnotName: string | undefined,
   target: ProgramAddress | null,
   stayWithinKnot: boolean,
   functions: string[],
@@ -623,13 +627,10 @@ const makeResumeNode = (resumeFrom: RouteResumePoint): FallbackNode => ({
   overrides: [...resumeFrom.decisions],
 });
 
-const isRootLevel = (knot: string): boolean =>
-  knot === "0" || /^\d+$/.test(knot);
-
 const exitedKnot = (
   _story: Story,
   positions: StoryPositions,
-  knotName: string,
+  knotName: string | undefined,
   functions: string[],
 ): boolean => {
   const curKnot = positions.knot();
@@ -638,7 +639,7 @@ const exitedKnot = (
     return false;
   }
 
-  if (isRootLevel(curKnot)) {
+  if (curKnot === undefined) {
     return false;
   }
 
