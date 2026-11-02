@@ -21,8 +21,7 @@ export const ANY_GLOBAL = "_G[]";
 //      indexable value for `[expr]` access.
 //   3. `value` — the right-hand-side expression.
 //
-// Wrapped in `EvalStart`/`EvalEnd`, the runtime evaluates all three, then
-// `StoreIndex` pops them and mutates the container in place. Because
+// The runtime evaluates all three, then `StoreIndex` pops them and mutates the container in place. Because
 // `ObjectValue.value` is a `Map<string, AbstractValue>` shared by reference,
 // the change is visible through the original variable.
 //
