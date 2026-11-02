@@ -1,0 +1,11 @@
+layout main {
+theme --[[ note ]]
+theme --[====[ note ] extra ]====]
+screen label
+style
+}
+
+style unclosed {
+  corner = 2px
+
+store trust = 5

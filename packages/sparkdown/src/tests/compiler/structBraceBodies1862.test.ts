@@ -148,6 +148,25 @@ describe("a struct keyword's brace body compiles as its `with … end` body does
   });
 });
 
+describe("an unindented entry named like a declaration keyword", () => {
+  const COMPONENT = "component theme(label) with\n  text label\nend\n";
+  for (const [label, entries] of [
+    ["with a block comment after it", ["theme --[[ note ]]", "theme --[====[ note ] extra ]====]"]],
+    ["with a word after it", ["theme label", "screen label"]],
+  ] as const) {
+    test(`${label} stays in the brace body`, () => {
+      const body = `${entries.join("\n")}\n`;
+      const extra = "component screen(label) with\n  text label\nend\n";
+      const withForm = compile(`${COMPONENT}${extra}layout main with\n${body}end\n${SCENE}`);
+      const braceForm = compile(`${COMPONENT}${extra}layout main    {\n${body}}\n${SCENE}`);
+      const expected = compiled(withForm.program, "layout", "main");
+      expect((expected.sparkle as any)?.children?.length).toBeGreaterThanOrEqual(entries.length);
+      expect(compiled(braceForm.program, "layout", "main")).toEqual(expected);
+      expect(messages(braceForm.diags)).toEqual(messages(withForm.diags));
+    });
+  }
+});
+
 describe("valid brace bodies report nothing", () => {
   const FORMS = [
     ["style", "style s", "  color = red"],
@@ -285,6 +304,15 @@ describe("an unclosed brace body", () => {
       expect(context?.style?.broken?.color, comment).toBe("red");
       expect(context?.component?.chip, comment).toBeDefined();
     }
+  });
+
+  test("stops before a store declaration", () => {
+    const source = `style broken {\n  color = red\n\nstore trust = 5\n\nscene start\n  Trust is {trust}.\nend\n`;
+    const missing = errors(source).filter((e) =>
+      e.message.includes("missing its closing `}`"),
+    );
+    expect(missing.map((e) => e.startLine)).toEqual([0]);
+    expect(errors(source).filter((e) => !e.message.includes("missing its closing `}`"))).toEqual([]);
   });
 
   test("an `end` does not close it", () => {
