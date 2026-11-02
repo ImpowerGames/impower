@@ -254,7 +254,12 @@ describe("an unclosed brace body", () => {
   });
 
   test("stops before a declaration whose header carries a block comment", () => {
-    for (const comment of ["--[[ note ]]", "--[=[ note ]=]"]) {
+    for (const comment of [
+      "--[[ note ]]",
+      "--[=[ note ]=]",
+      "--[====[ note ] extra ]====]",
+      "--[[ one ]] --[==[ two ]==]",
+    ]) {
       const commented = [
         "style broken {",
         "  color = red",

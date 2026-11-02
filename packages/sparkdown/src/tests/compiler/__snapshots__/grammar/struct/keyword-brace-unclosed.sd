@@ -22,6 +22,10 @@ style unfinished {
 
 morph --[=[ note ]=] blink {}
 
+theme half { color = blue
+
+layout --[====[ note ] extra ]====] after {}
+
 scene start
   Hi.
 end
