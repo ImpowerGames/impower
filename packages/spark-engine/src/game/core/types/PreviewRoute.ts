@@ -70,6 +70,7 @@ export interface PreviewRoute {
   target: DocumentLocation;
   /** Its decisions, in route order. */
   decisions: PreviewRouteDecision[];
+  valuesStart?: string;
   /** The pins whose line holds no option, which the route ignored. */
   unresolvedPins?: RoutePin[];
 }

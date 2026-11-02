@@ -1,5 +1,6 @@
 import type { File } from "./File";
 import type { SparkdownCompilerDefinitions } from "./SparkdownCompilerDefinitions";
+import type { StartingValues } from "../../program/startingValueLiterals";
 
 export interface SparkdownCompilerConfig {
   definitions?: SparkdownCompilerDefinitions;
@@ -12,4 +13,5 @@ export interface SparkdownCompilerConfig {
   mainScriptFilename?: string;
   uriPathsAsWritten?: boolean;
   startFrom?: { file: string; line: number };
+  startingValues?: StartingValues;
 }

@@ -24,6 +24,17 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { SetEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorHighlightsMessage";
 import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorPinpointsMessage";
+import { SetEditorStartingValueLinesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorStartingValueLinesMessage";
+import { ChangedEditorStartingValueLinesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorStartingValueLinesMessage";
+import { SetStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetStartingValuesMessage";
+import {
+  changeStartingValues,
+  movePlaceLines,
+  placeLinesOf,
+  readPlaceKey,
+  startingValuesFrom,
+  type StartingValues,
+} from "@impower/sparkdown/src/program/startingValueLiterals";
 import { ChangedEditorRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorRoutePinsMessage";
 import { SetEditorRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorRoutePinsMessage";
 import {
@@ -131,6 +142,9 @@ export default class WorkspaceWindow {
       ),
       onProtocolMessage(ChangedEditorHighlightsMessage.type, (m) =>
         this.handleChangedEditorHighlights(m),
+      ),
+      onProtocolMessage(ChangedEditorStartingValueLinesMessage.type, (m) =>
+        this.handleChangedEditorStartingValueLines(m),
       ),
       onProtocolMessage(CompiledProgramMessage.type, (m) =>
         this.handleCompiledProgram(m),
@@ -307,6 +321,17 @@ export default class WorkspaceWindow {
     });
   };
 
+  protected handleChangedEditorStartingValueLines = (
+    message: ChangedEditorStartingValueLinesMessage.Notification,
+  ) => {
+    const { textDocument, moves } = message.params;
+    const values = this.startingValues;
+    const moved = movePlaceLines(values, textDocument.uri, new Map(moves));
+    if (moved !== values) {
+      this.setStartingValues(moved, false);
+    }
+  };
+
   protected handleChangedEditorPinpoints = (
     message: ChangedEditorPinpointsMessage.Notification,
   ) => {
@@ -432,6 +457,56 @@ export default class WorkspaceWindow {
     sendProtocolMessage(SetEditorPinpointsMessage.type.request({ locations }));
   }
 
+  get startingValues(): StartingValues {
+    return startingValuesFrom(this.store.debug.startingValues);
+  }
+
+  changeStartingValues(start: string, changes: Record<string, string | null>) {
+    this.setStartingValues(
+      changeStartingValues(this.startingValues, start, changes),
+      true,
+    );
+  }
+
+  protected setStartingValues(values: StartingValues, lines: boolean) {
+    this.update({
+      ...this.store,
+      debug: {
+        ...this.store.debug,
+        startingValues: values,
+      },
+    });
+    this.publishStartingValues(lines);
+  }
+
+  publishStartingValues(lines = true) {
+    const values = this.startingValues;
+    sendProtocolMessage(SetStartingValuesMessage.type.request({ values }));
+    if (lines) {
+      const uris = new Set<string>();
+      for (const set of Object.values(values)) {
+        for (const key of Object.keys(set)) {
+          const place = readPlaceKey(key);
+          if (place) {
+            uris.add(place.uri);
+          }
+        }
+      }
+      const uri = this.getOpenedDocumentUri();
+      if (uri) {
+        uris.add(uri);
+      }
+      sendProtocolMessage(
+        SetEditorStartingValueLinesMessage.type.request({
+          scripts: [...uris].map((uri) => ({
+            uri,
+            lines: placeLinesOf(values, uri),
+          })),
+        }),
+      );
+    }
+  }
+
   getRoutePins(): RoutePin[] {
     return Object.entries(this.store.debug.routePins ?? {}).flatMap(
       ([uri, pins]) => pins.map(({ line, offer }) => ({ uri, line, offer })),
@@ -540,6 +615,7 @@ export default class WorkspaceWindow {
         breakpointLines: number[] | undefined;
         pinpointLines: number[] | undefined;
         highlightLines: number[] | undefined;
+        startingValueLines: number[];
         routePins: { line: number; offer: number }[] | undefined;
       })
     | undefined {
@@ -560,6 +636,7 @@ export default class WorkspaceWindow {
             breakpointLines: this.store.debug?.breakpoints?.[uri],
             pinpointLines: this.store.debug?.pinpoints?.[uri],
             highlightLines: this.store.debug?.highlights?.[uri],
+            startingValueLines: placeLinesOf(this.startingValues, uri),
             routePins: this.store.debug?.routePins?.[uri],
           };
         }
@@ -582,6 +659,7 @@ export default class WorkspaceWindow {
         selectedRange: Range | undefined;
         breakpointLines: number[] | undefined;
         pinpointLines: number[] | undefined;
+        startingValueLines: number[];
       })
     | undefined {
     const projectId = this.store.project.id;
@@ -602,6 +680,7 @@ export default class WorkspaceWindow {
           selectedRange: openEditor.selectedRange,
           breakpointLines: this.store.debug?.breakpoints?.[uri],
           pinpointLines: this.store.debug?.pinpoints?.[uri],
+          startingValueLines: placeLinesOf(this.startingValues, uri),
         };
       }
     }

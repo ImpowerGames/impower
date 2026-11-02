@@ -134,6 +134,7 @@ export interface DebugState {
   routePins?: Record<string, { line: number; offer: number }[]>;
   pinpoints?: Record<string, number[]>;
   highlights?: Record<string, number[]>;
+  startingValues?: Record<string, Record<string, string>>;
   diagnosticsSummary?: Record<
     string,
     { errors: number; warnings: number; infos: number }

@@ -23,6 +23,7 @@ import {
 import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/AddCompilerFileMessage";
 import { RemoveCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemoveCompilerFileMessage";
 import { SelectCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectCompilerDocumentMessage";
+import { SetGameStartingValuesMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameStartingValuesMessage";
 import { UpdateCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/UpdateCompilerFileMessage";
 import {
   TOP_LEVEL_START,
@@ -103,6 +104,13 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (SelectCompilerDocumentMessage.type.is(message)) {
       sendPreviewHint(message.params);
     }
+    if (SetGameStartingValuesMessage.type.isRequest(message)) {
+      routeSearches.forget();
+      for (const entry of displayable.values()) {
+        entry.log.forget();
+      }
+      displayedId = undefined;
+    }
   });
 
   const compilerState = installSparkdownWorker(connection, {
@@ -119,6 +127,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     lineText: (uri, line) => compiler.documents.get(uri)?.getLineText(line),
     structure: (uri) => compiler.structureOf(uri),
   };
+  gameState.scriptLineText = source.lineText;
 
   let routeSearches = new RouteSearchLog();
 
@@ -182,6 +191,9 @@ export function installPlayerWorker(connection: MessageConnection) {
 
   const createOrUpdateGame = (program: SparkProgram) => {
     const profilerId = compiler.profilerId;
+    if (!gameState.hasStartingValues() && compiler.config.startingValues) {
+      gameState.setStartingValues(compiler.config.startingValues);
+    }
     if (!gameState.game) {
       profile("start", profilerId + " " + "game/create");
       gameState.game = gameState.createGame({ program });

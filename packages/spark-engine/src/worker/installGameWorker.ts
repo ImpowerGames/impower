@@ -25,6 +25,9 @@ import { PageFramedMessage } from "../game/core/classes/messages/PageFramedMessa
 import { PauseGameMessage } from "../game/core/classes/messages/PauseGameMessage";
 import { PreviewGameMessage } from "../game/core/classes/messages/PreviewGameMessage";
 import { SetGameBreakpointsMessage } from "../game/core/classes/messages/SetGameBreakpointsMessage";
+import { SetGameStartingValuesMessage } from "../game/core/classes/messages/SetGameStartingValuesMessage";
+import { GetGameStartingValueListingMessage } from "../game/core/classes/messages/GetGameStartingValueListingMessage";
+import type { StartingValues } from "@impower/sparkdown/src/program/startingValueLiterals";
 import { SetGameDataBreakpointsMessage } from "../game/core/classes/messages/SetGameDataBreakpointsMessage";
 import { SetGameFunctionBreakpointsMessage } from "../game/core/classes/messages/SetGameFunctionBreakpointsMessage";
 import { SetGameStartFromMessage } from "../game/core/classes/messages/SetGameStartFromMessage";
@@ -109,6 +112,7 @@ export function installGameWorker(connection: MessageConnection) {
     breakpoints?: { file: string; line: number }[];
     functionBreakpoints?: { name: string }[];
     dataBreakpoints?: { dataId: string }[];
+    startingValues?: StartingValues;
   } = {};
 
   const createGame = (
@@ -121,21 +125,39 @@ export function installGameWorker(connection: MessageConnection) {
       functionBreakpoints:
         options.functionBreakpoints ?? pending.functionBreakpoints,
       dataBreakpoints: options.dataBreakpoints ?? pending.dataBreakpoints,
+      startingValues: options.startingValues ?? pending.startingValues,
     });
+    if (state.scriptLineText) {
+      game.scriptLineText = state.scriptLineText;
+    }
     if (pending.debugging) {
       game.startDebugging();
     }
     return game;
   };
 
+  const setStartingValues = (values: StartingValues) => {
+    pending.startingValues = values;
+    for (const game of games()) {
+      game.setStartingValues(values);
+    }
+  };
+
+  const hasStartingValues = () => pending.startingValues !== undefined;
+
   const state: {
     systemConfiguration: SystemConfiguration;
     game?: Game;
     running?: Game;
     createGame: typeof createGame;
+    setStartingValues: typeof setStartingValues;
+    hasStartingValues: typeof hasStartingValues;
+    scriptLineText?: (uri: string, line: number) => string | undefined;
   } = {
     systemConfiguration,
     createGame,
+    setStartingValues,
+    hasStartingValues,
   };
 
   const target = () => state.running ?? state.game;
@@ -329,6 +351,19 @@ export function installGameWorker(connection: MessageConnection) {
           breakpoints: game ? game.setBreakpoints(breakpoints) : [],
         };
       });
+      return;
+    }
+    if (SetGameStartingValuesMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => {
+        setStartingValues(message.params.values);
+        return {};
+      });
+      return;
+    }
+    if (GetGameStartingValueListingMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => ({
+        listing: state.game?.startingValueListing(message.params.start),
+      }));
       return;
     }
     if (SetGameDataBreakpointsMessage.type.isRequest(message)) {

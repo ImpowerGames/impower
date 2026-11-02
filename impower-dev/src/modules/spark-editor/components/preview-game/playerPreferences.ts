@@ -9,6 +9,8 @@ import {
   type RoutePin,
 } from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
+import { SetStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetStartingValuesMessage";
+import { startingValuesFrom } from "@impower/sparkdown/src/program/startingValueLiterals";
 import workspace from "../../workspace/WorkspaceStore";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 
@@ -24,6 +26,11 @@ const storedRouteToggles = (): RouteTogglesParams => {
   }
 };
 
+const storedRouteTab = (): "route" | "values" | undefined => {
+  const tab = localStorage.getItem(WorkspaceConstants.ROUTE_TAB_STORAGE_KEY);
+  return tab === "route" || tab === "values" ? tab : undefined;
+};
+
 export const createPlayerPreferenceSync = (
   post: (message: unknown) => void,
   routePins: () => RoutePin[] = () => [],
@@ -35,7 +42,15 @@ export const createPlayerPreferenceSync = (
       }),
     );
     post(
-      SetRouteTogglesMessage.type.request({ toggles: storedRouteToggles() }),
+      SetRouteTogglesMessage.type.request({
+        toggles: storedRouteToggles(),
+        tab: storedRouteTab(),
+      }),
+    );
+    post(
+      SetStartingValuesMessage.type.request({
+        values: startingValuesFrom(workspace.current.debug?.startingValues),
+      }),
     );
     post(SetRoutePinsMessage.type.request({ pins: routePins() }));
   };
@@ -53,6 +68,12 @@ export const createPlayerPreferenceSync = (
           WorkspaceConstants.ROUTE_TOGGLES_STORAGE_KEY,
           JSON.stringify(message.params.toggles),
         );
+        if (message.params.tab) {
+          localStorage.setItem(
+            WorkspaceConstants.ROUTE_TAB_STORAGE_KEY,
+            message.params.tab,
+          );
+        }
       }
     },
   };

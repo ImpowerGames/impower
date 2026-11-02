@@ -111,6 +111,7 @@ export default function LogicScriptEditor({
           breakpointLines: editor.breakpointLines,
           pinpointLines: editor.pinpointLines,
           highlightLines: editor.highlightLines,
+          startingValueLines: editor.startingValueLines,
           routePins: editor.routePins,
           languageServerInitializeParams,
           languageServerInitializeResult,

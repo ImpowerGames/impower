@@ -42,6 +42,23 @@ import {
   type ScriptStructure,
 } from "@impower/sparkdown/src/compiler/utils/routeDecisions";
 import {
+  applyStartValues,
+  bindStartArguments,
+  carryStoreListing,
+  planSetsParameters,
+  startPlanKey,
+  startPlanOf,
+  startStoryAt,
+  startingValueListing,
+  type StartPlan,
+  type StartingValueSource,
+} from "@impower/sparkdown/src/program/startingValues";
+import {
+  ownEntry,
+  type StartingValueListing,
+  type StartingValues,
+} from "@impower/sparkdown/src/program/startingValueLiterals";
+import {
   pinnedNotOffered,
   pinnedOptionsOf,
   type PinnedOptions,
@@ -136,6 +153,10 @@ export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
 export type GameModules = InstanceMap<DefaultModuleConstructors>;
 
 export type M = { [name: string]: Module };
+
+export interface RouteStarts {
+  startPlans?: (from: string) => StartPlan | undefined;
+}
 
 const restsAfter = (
   state: unknown,
@@ -523,6 +544,16 @@ export class Game<T extends M = {}> {
 
   protected _levelZeroChangeId?: number;
 
+  protected _startingValues: StartingValues = {};
+
+  protected _scriptLineText?: (uri: string, line: number) => string | undefined;
+
+  protected _plannedRouteStart?: string;
+
+  protected _startPlans = new Map<string, { plan: StartPlan; json: string }>();
+
+  protected _startPlansRoot?: ProgramRoot | null;
+
   protected _plannedRouteStepMap: Map<string, number> | null = null;
 
   protected _checkpointStepCursors: (number | undefined)[] = [];
@@ -585,6 +616,7 @@ export class Game<T extends M = {}> {
     this._executingLocation = null;
 
     this.updateBreakpointsMap(options?.breakpoints ?? []);
+    this._startingValues = options?.startingValues ?? {};
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
     this.updateDataBreakpointsMap(options?.dataBreakpoints ?? []);
 
@@ -699,6 +731,13 @@ export class Game<T extends M = {}> {
     engine.keepBeatImages = true;
     if (!engine.declarationsCarried) {
       this._declarationsRun += 1;
+    } else if (previous?.root && engine.root) {
+      carryStoreListing(
+        previous.root,
+        engine.root,
+        before?.storeTypes,
+        program.storeTypes,
+      );
     }
     this.noteChangedFlows(before, program);
     this._story = engine;
@@ -1013,7 +1052,11 @@ export class Game<T extends M = {}> {
     if (this._startAddress != null) {
       const to = this._startAddress;
       const from = this.routeStartOf(to);
-      const budget = { callerResetsStory: true, pins: this.pinnedOptions };
+      const budget = {
+        callerResetsStory: true,
+        startPlans: this.startPlans,
+        pins: this.pinnedOptions,
+      };
       let route;
       if (this.routesFromStartFirst(to)) {
         route = Game.planRouteFromStart(this._story, this._program, to, budget);
@@ -1084,7 +1127,81 @@ export class Game<T extends M = {}> {
 
   routesFromStartFirst(address: ProgramAddress): boolean {
     const scene = this.sceneOf(address);
-    return scene !== null && this._story.takesParameters(scene);
+    return (
+      scene !== null &&
+      this._story.takesParameters(scene) &&
+      !planSetsParameters(this.startPlan(scene))
+    );
+  }
+
+  get startingValues(): StartingValues {
+    return this._startingValues;
+  }
+
+  setStartingValues(values: StartingValues): boolean {
+    if (JSON.stringify(values) === JSON.stringify(this._startingValues)) {
+      return false;
+    }
+    this._startingValues = values;
+    this._startPlans.clear();
+    return true;
+  }
+
+  set scriptLineText(lineText: (uri: string, line: number) => string | undefined) {
+    this._scriptLineText = lineText;
+  }
+
+  protected startingValueSource(): StartingValueSource {
+    const uris = Object.keys(this._program.scripts ?? {});
+    const flows: { name: string; uri: string; line: number }[] = [];
+    for (const locations of [
+      this._program.sceneLocations,
+      this._program.branchLocations,
+      this._program.labelLocations,
+    ]) {
+      for (const [name, location] of Object.entries(locations ?? {})) {
+        const uri = uris[location[0]];
+        if (uri !== undefined) {
+          flows.push({ name, uri, line: location[1] });
+        }
+      }
+    }
+    return {
+      uris,
+      flows,
+      lineText: (uri, line) => this._scriptLineText?.(uri, line),
+      storeTypes: this._program.storeTypes,
+    };
+  }
+
+  startPlan(from: string): StartPlan {
+    return this.keptStartPlan(from).plan;
+  }
+
+  protected keptStartPlan(from: string): { plan: StartPlan; json: string } {
+    const root = this._story.root;
+    if (this._startPlansRoot !== root) {
+      this._startPlans.clear();
+      this._startPlansRoot = root;
+    }
+    let kept = this._startPlans.get(from);
+    if (!kept) {
+      const plan = startPlanOf(
+        this._story,
+        from,
+        this.startingValueSource(),
+        ownEntry(this._startingValues, from),
+      );
+      kept = { plan, json: startPlanKey(plan) };
+      this._startPlans.set(from, kept);
+    }
+    return kept;
+  }
+
+  readonly startPlans = (from: string): StartPlan => this.startPlan(from);
+
+  startingValueListing(from: string): StartingValueListing {
+    return startingValueListing(this._story, from, this.startingValueSource());
   }
 
   protected callStackScenes(): string[] {
@@ -1544,7 +1661,7 @@ export class Game<T extends M = {}> {
       | "resumeFrom"
       | "levelZeroStore"
       | "pins"
-    >,
+    > & RouteStarts,
   ) {
     const route = Game.planRouteInFlow(story, program, from, to, budget);
     if (
@@ -1571,10 +1688,12 @@ export class Game<T extends M = {}> {
       | "resumeFrom"
       | "levelZeroStore"
       | "pins"
-    >,
+    > & RouteStarts,
   ) {
+    const { startPlans, ...rest } = budget ?? {};
     return planRoute(story, from, to, {
-      ...budget,
+      ...rest,
+      start: startPlans?.(from),
       functions: Object.keys(program.functionLocations || {}),
       stayWithinKnot: true,
     });
@@ -1593,10 +1712,12 @@ export class Game<T extends M = {}> {
       | "resumeFrom"
       | "levelZeroStore"
       | "pins"
-    >,
+    > & RouteStarts,
   ) {
+    const { startPlans, ...rest } = budget ?? {};
     return planRoute(story, START_FLOW_NAME, to, {
-      ...budget,
+      ...rest,
+      start: startPlans?.(START_FLOW_NAME),
       functions: Object.keys(program.functionLocations || {}),
       stayWithinKnot: false,
     });
@@ -1688,6 +1809,7 @@ export class Game<T extends M = {}> {
     this._plannedRoute = route;
     this._plannedRouteChangeId = this._program.changes?.id;
     this._plannedRouteRoot = this._story.root;
+    this._plannedRouteStart = this.keptStartPlan(route.from).json;
     this._simulateFlow = route.from;
     this._startAddress = route.to;
     this._routeSimulator = buildRouteSimulator(route.decisions, fromDecision);
@@ -1755,7 +1877,7 @@ export class Game<T extends M = {}> {
   }
 
   jumpShowsBeat(address: ProgramAddress): boolean {
-    this.jumpTo(address);
+    this.jumpTo(address, true);
     return showsBeatAhead(this._story);
   }
 
@@ -1803,9 +1925,16 @@ export class Game<T extends M = {}> {
     this._routeSimulator = null;
   }
 
+  protected plannedRouteStartsAs(from: string): boolean {
+    return (
+      this._plannedRoute?.from === from &&
+      this.keptStartPlan(from).json === this._plannedRouteStart
+    );
+  }
+
   routeResumption(from: string, to: ProgramAddress): RouteResumption {
     const route = this._plannedRoute;
-    if (!route || route.from !== from) {
+    if (!route || !this.plannedRouteStartsAs(from)) {
       return { replayOnly: false };
     }
     if ((route.pins ?? "") !== this.pinnedOptions.key) {
@@ -2098,10 +2227,7 @@ export class Game<T extends M = {}> {
     newRoute: RoutePlan,
     limits?: { steps: number; checkpoint: number },
   ): StoredCheckpoint | null {
-    if (
-      !this._plannedRoute ||
-      this._plannedRoute.from !== newRoute.from
-    ) {
+    if (!this._plannedRoute || !this.plannedRouteStartsAs(newRoute.from)) {
       this._runtimeState = new RuntimeState();
       this.simulateRoute(newRoute);
       return this.newestCheckpoint();
@@ -2168,7 +2294,7 @@ export class Game<T extends M = {}> {
       this.rewindStory();
       this.clearChoices();
       if (this._startAddress != null) {
-        this.jumpTo(this._startAddress);
+        this.jumpTo(this._startAddress, true);
       }
       this.observeScene(this._startAddress);
       this.continue();
@@ -2892,16 +3018,27 @@ export class Game<T extends M = {}> {
     this._shownChoices = [...(instructions?.choices ?? [])];
   }
 
-  jumpTo(address: ProgramAddress) {
+  jumpTo(address: ProgramAddress, withStartingValues = false) {
     this.discardOpenStoryLine();
+    if (withStartingValues) {
+      const plan = this.startPlan(this.routeStartOf(address));
+      this._story.resetSeed = plan.seed;
+      this._story.ResetState();
+      applyStartValues(this._story, plan);
+      this._positions.jumpTo(address);
+      bindStartArguments(this._story, plan);
+      return;
+    }
     this._story.ResetState();
     this._positions.jumpTo(address);
   }
 
   jumpToFlow(flow: string) {
     this.discardOpenStoryLine();
+    const plan = this.startPlan(flow);
+    this._story.resetSeed = plan.seed;
     this._story.ResetState();
-    this._positions.jumpToFlow(flow);
+    startStoryAt(this._story, plan);
   }
 
   protected notifyHitBreakpoint() {
@@ -3147,6 +3284,7 @@ export class Game<T extends M = {}> {
       start,
       target,
       decisions,
+      valuesStart: this.routeStartOf(route.to),
       ...(pinned.unresolved.length > 0
         ? { unresolvedPins: [...pinned.unresolved] }
         : {}),
@@ -3710,7 +3848,7 @@ export class Game<T extends M = {}> {
     }
     this.module.interpreter.clearQueuedBeats();
     this._startAddress = previewAddress;
-    this.jumpTo(previewAddress);
+    this.jumpTo(previewAddress, true);
     this.restoreReactiveTracking();
     this.continue();
   }

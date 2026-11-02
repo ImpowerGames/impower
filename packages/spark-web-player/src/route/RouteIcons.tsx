@@ -1,6 +1,10 @@
 import type { RouteIcon, RouteKind } from "./routeView";
 
-export function RouteIconSvg({ icon }: { icon: RouteKind | NonNullable<RouteIcon> }) {
+export function RouteIconSvg({
+  icon,
+}: {
+  icon: RouteKind | NonNullable<RouteIcon> | "sliders" | "warning" | "error";
+}) {
   return (
     <svg
       class="route-icon"
@@ -35,6 +39,18 @@ export function RouteIconSvg({ icon }: { icon: RouteKind | NonNullable<RouteIcon
           <circle cx="3" cy="4" r="0.6" fill="currentColor" />
           <circle cx="3" cy="8" r="0.6" fill="currentColor" />
           <circle cx="3" cy="12" r="0.6" fill="currentColor" />
+        </>
+      ) : icon === "sliders" ? (
+        <>
+          <path d="M2 4.5h6.5M11.5 4.5H14M2 11.5h2.5M7.5 11.5H14" />
+          <circle cx="10" cy="4.5" r="1.5" />
+          <circle cx="6" cy="11.5" r="1.5" />
+        </>
+      ) : icon === "error" ? (
+        <>
+          <circle cx="8" cy="8" r="6" />
+          <path d="M8 4.8v3.8" />
+          <circle cx="8" cy="11" r="0.5" fill="currentColor" />
         </>
       ) : icon === "pinned" ? (
         <>
