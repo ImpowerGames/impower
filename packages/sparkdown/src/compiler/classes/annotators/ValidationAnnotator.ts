@@ -251,6 +251,7 @@ const LUAU_IF_KEYWORD = nodeNameSet(["LuauIfKeyword"]);
 const LUAU_THEN_KEYWORD = nodeNameSet(["LuauThenKeyword"]);
 const LUAU_UNTIL_KEYWORD = nodeNameSet(["LuauUntilKeyword"]);
 const LUAU_ELSE_KEYWORD = nodeNameSet(["LuauElseKeyword"]);
+const LUAU_ELSEIF_KEYWORD = nodeNameSet(["LuauElseifKeyword"]);
 const IF_CLAUSE_TRIVIA = new Set([
   "LuauThenOperator",
   "LuauElseOperator",
@@ -337,7 +338,7 @@ function missingIfExpressionPart(
           : IF_EXPRESSION_WITHOUT_ELSE,
     at,
   });
-  for (let c = content?.firstChild; c; c = c.nextSibling) {
+  for (const c of ifExpressionParts(content)) {
     if (isExplicitRuleName(c.name, "LuauTernaryExpressionCondition")) {
       if (expecting !== "condition") return missing();
       if (!clauseHasValue(c, read)) return { message: IF_EXPRESSION_WITHOUT_VALUE, at };
@@ -370,6 +371,19 @@ function missingIfExpressionPart(
     }
   }
   return missing();
+}
+
+function* ifExpressionParts(content: any): Generator<any> {
+  for (let c = content?.firstChild; c; c = c.nextSibling) {
+    if (!isExplicitRuleName(c.name, "LuauTernaryElseifClause")) {
+      yield c;
+      continue;
+    }
+    yield firstDescendant(c, LUAU_ELSEIF_KEYWORD);
+    for (let part = childNamed(c, `${c.name}_content`)?.firstChild; part; part = part.nextSibling) {
+      yield part;
+    }
+  }
 }
 
 const MAX_UNICODE_ESCAPE = 0x7fffffff;

@@ -57,8 +57,8 @@ text.source.sparkdown [0..248]
  │           ├─ storage.type.luau [78..82]: "type"
  │           ├─ punctuation.whitespace.optional.sd [82..83]: " "
  │           ├─ keyword.control.luau [83..91]: "function"
- │           ├─ punctuation.whitespace.optional.sd [91..92]: " "
- │           ├─ comment.block.luau [92..102]
+ │           ├─ comment.block.luau [91..102]
+ │           │   ├─ punctuation.whitespace.sd [91..92]: " "
  │           │   ├─ comment.luau [92..95]: "--["
  │           │   ├─ comment.luau [95..96]: "["
  │           │   ├─ punctuation.definition.comment.content.sd [96..97]: " "
