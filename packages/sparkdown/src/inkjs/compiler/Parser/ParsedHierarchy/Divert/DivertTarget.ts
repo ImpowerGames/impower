@@ -159,8 +159,6 @@ export class DivertTarget extends Expression {
         // Luau-superset semantics: an authored `-> target` used as a
         // value in a non-call expression is only a hint that the user
         // forgot the `()`, so it is a warning rather than an error.
-        // Function values (`isFunctionValue`) are called through
-        // `CallValueAsFunction` / closure dispatch and get no hint.
         this.Error(
           `Can't use a divert target like that. Did you intend to call \`${this.divert.target}\` as a function: \`likeThis()\`, or check the read count: \`likeThis\`, with no arrows?`,
           this.targetName,

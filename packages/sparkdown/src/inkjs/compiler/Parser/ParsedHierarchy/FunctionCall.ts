@@ -40,10 +40,6 @@ export class FunctionCall extends Expression {
     }
 
     return (
-      // Legacy per-function ControlCommand builtins that still have
-      // compile-time setup not yet migrated to the STDLIB
-      // dispatcher: TURNS_SINCE / READ_COUNT take their target's
-      // count; the LIST_* builtins are reported unsupported.
       name === "TURNS_SINCE" ||
       name === "READ_COUNT" ||
       INK_LIST_BUILTINS.has(name) ||

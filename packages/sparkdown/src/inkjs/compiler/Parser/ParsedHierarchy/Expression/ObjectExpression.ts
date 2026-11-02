@@ -7,9 +7,7 @@ import { Op } from "../../../../../program/ProgramInstructions";
 
 // An entry in an ObjectExpression. The `key` is either a plain string
 // (identifier keys, static bracket keys, array positions) or an
-// Expression for COMPUTED bracket keys (`{[1+2] = 4}`) — evaluated at
-// runtime, with EndObject stringifying the popped key value to the
-// canonical map-key form.
+// Expression for COMPUTED bracket keys (`{[1+2] = 4}`).
 export class ObjectExpressionEntry {
   constructor(
     public readonly key: string | Expression,
@@ -17,11 +15,6 @@ export class ObjectExpressionEntry {
   ) {}
 }
 
-// Lowering of Luau table literals. Built at compile time as a list of
-// (key, value-expression) pairs; emitted at runtime as a BeginObject marker,
-// then for each entry the key (a StringValue for static keys, or the
-// computed key expression's result) plus the evaluated value-expression,
-// followed by EndObject which assembles the ObjectValue.
 export class ObjectExpression extends Expression {
   private _entries: ObjectExpressionEntry[];
 
@@ -68,9 +61,6 @@ export class ObjectExpression extends Expression {
     }
   }
 
-  // Each key, then its value, then `MakeTable` with the pair count, which
-  // builds the table as `EndObject` does: a computed key's value is the
-  // key, and a last value that is a multiple value spreads.
   public override EmitExpression(emitter: ProgramEmitter): void {
     for (const entry of this._entries) {
       if (entry.key instanceof Expression) {
