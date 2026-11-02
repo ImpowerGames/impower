@@ -1,4 +1,4 @@
-export const MORPH_BAKE_FORMAT = 23;
+export const MORPH_BAKE_FORMAT = 24;
 
 export type MorphBlend = "morph" | "fade" | "cut" | "scale";
 export type MorphFallback = "fade" | "cut" | "scale";
