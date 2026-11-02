@@ -433,35 +433,40 @@ sparkdown [0..308]
  │   │       │   │   │       │       │       │   │   │   └─ Newline [168..169]: "\n"
  │   │       │   │   │       │       │       │   │   └─ LuauThenExpression_end 169
  │   │       │   │   │       │       │       │   ├─ RequiredWhitespace [169..171]: "  "
- │   │       │   │   │       │       │       │   ├─ LuauElseifKeyword [171..177]: "elseif"
- │   │       │   │   │       │       │       │   ├─ LuauTernaryExpressionCondition [177..185]
- │   │       │   │   │       │       │       │   │   ├─ LuauTernaryExpressionCondition_begin [177..178]
- │   │       │   │   │       │       │       │   │   │   └─ LuauTernaryExpressionCondition_begin_c1 [177..178]
- │   │       │   │   │       │       │       │   │   │       └─ LuauTernaryExpressionCondition_begin_c1 [177..178]
- │   │       │   │   │       │       │       │   │   │           └─ OptionalWhitespace [177..178]: " "
- │   │       │   │   │       │       │       │   │   ├─ LuauTernaryExpressionCondition_content [178..181]
- │   │       │   │   │       │       │       │   │   │   └─ LuauParenthetical [178..181]
- │   │       │   │   │       │       │       │   │   │       ├─ LuauParenthetical_begin [178..179]
- │   │       │   │   │       │       │       │   │   │       │   └─ LuauParenthetical_begin_c1 [178..179]
- │   │       │   │   │       │       │       │   │   │       │       └─ PunctuationParenOpen [178..179]: "("
- │   │       │   │   │       │       │       │   │   │       ├─ LuauParenthetical_content [179..180]
- │   │       │   │   │       │       │       │   │   │       │   └─ LuauAccessPath [179..180]
- │   │       │   │   │       │       │       │   │   │       │       ├─ LuauAccessPath_begin 179
- │   │       │   │   │       │       │       │   │   │       │       ├─ LuauAccessPath_content [179..180]
- │   │       │   │   │       │       │       │   │   │       │       │   └─ LuauAccessPart [179..180]
- │   │       │   │   │       │       │       │   │   │       │       │       └─ LuauVariable [179..180]
- │   │       │   │   │       │       │       │   │   │       │       │           └─ LuauVariable_c1 [179..180]
- │   │       │   │   │       │       │       │   │   │       │       │               └─ LuauVariableName [179..180]: "c"
- │   │       │   │   │       │       │       │   │   │       │       └─ LuauAccessPath_end 180
- │   │       │   │   │       │       │       │   │   │       │           └─ LuauAccessPath_end_c1 180
- │   │       │   │   │       │       │       │   │   │       └─ LuauParenthetical_end [180..181]
- │   │       │   │   │       │       │       │   │   │           ├─ LuauParenthetical_end_c1 [180..181]
- │   │       │   │   │       │       │       │   │   │           │   └─ PunctuationParenClose [180..181]: ")"
- │   │       │   │   │       │       │       │   │   │           └─ LuauParenthetical_end_c2 181
- │   │       │   │   │       │       │       │   │   └─ LuauTernaryExpressionCondition_end [181..185]
- │   │       │   │   │       │       │       │   │       ├─ LuauTernaryExpressionCondition_end_c1 181
- │   │       │   │   │       │       │       │   │       └─ LuauTernaryExpressionCondition_end_c2 [181..185]
- │   │       │   │   │       │       │       │   │           └─ LuauThenKeyword [181..185]: "then"
+ │   │       │   │   │       │       │       │   ├─ LuauTernaryElseifClause [171..185]
+ │   │       │   │   │       │       │       │   │   ├─ LuauTernaryElseifClause_begin [171..177]
+ │   │       │   │   │       │       │       │   │   │   └─ LuauTernaryElseifClause_begin_c1 [171..177]
+ │   │       │   │   │       │       │       │   │   │       └─ LuauElseifKeyword [171..177]: "elseif"
+ │   │       │   │   │       │       │       │   │   ├─ LuauTernaryElseifClause_content [177..185]
+ │   │       │   │   │       │       │       │   │   │   └─ LuauTernaryExpressionCondition [177..185]
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauTernaryExpressionCondition_begin [177..178]
+ │   │       │   │   │       │       │       │   │   │       │   └─ LuauTernaryExpressionCondition_begin_c1 [177..178]
+ │   │       │   │   │       │       │       │   │   │       │       └─ LuauTernaryExpressionCondition_begin_c1 [177..178]
+ │   │       │   │   │       │       │       │   │   │       │           └─ OptionalWhitespace [177..178]: " "
+ │   │       │   │   │       │       │       │   │   │       ├─ LuauTernaryExpressionCondition_content [178..181]
+ │   │       │   │   │       │       │       │   │   │       │   └─ LuauParenthetical [178..181]
+ │   │       │   │   │       │       │       │   │   │       │       ├─ LuauParenthetical_begin [178..179]
+ │   │       │   │   │       │       │       │   │   │       │       │   └─ LuauParenthetical_begin_c1 [178..179]
+ │   │       │   │   │       │       │       │   │   │       │       │       └─ PunctuationParenOpen [178..179]: "("
+ │   │       │   │   │       │       │       │   │   │       │       ├─ LuauParenthetical_content [179..180]
+ │   │       │   │   │       │       │       │   │   │       │       │   └─ LuauAccessPath [179..180]
+ │   │       │   │   │       │       │       │   │   │       │       │       ├─ LuauAccessPath_begin 179
+ │   │       │   │   │       │       │       │   │   │       │       │       ├─ LuauAccessPath_content [179..180]
+ │   │       │   │   │       │       │       │   │   │       │       │       │   └─ LuauAccessPart [179..180]
+ │   │       │   │   │       │       │       │   │   │       │       │       │       └─ LuauVariable [179..180]
+ │   │       │   │   │       │       │       │   │   │       │       │       │           └─ LuauVariable_c1 [179..180]
+ │   │       │   │   │       │       │       │   │   │       │       │       │               └─ LuauVariableName [179..180]: "c"
+ │   │       │   │   │       │       │       │   │   │       │       │       └─ LuauAccessPath_end 180
+ │   │       │   │   │       │       │       │   │   │       │       │           └─ LuauAccessPath_end_c1 180
+ │   │       │   │   │       │       │       │   │   │       │       └─ LuauParenthetical_end [180..181]
+ │   │       │   │   │       │       │       │   │   │       │           ├─ LuauParenthetical_end_c1 [180..181]
+ │   │       │   │   │       │       │       │   │   │       │           │   └─ PunctuationParenClose [180..181]: ")"
+ │   │       │   │   │       │       │       │   │   │       │           └─ LuauParenthetical_end_c2 181
+ │   │       │   │   │       │       │       │   │   │       └─ LuauTernaryExpressionCondition_end [181..185]
+ │   │       │   │   │       │       │       │   │   │           ├─ LuauTernaryExpressionCondition_end_c1 181
+ │   │       │   │   │       │       │       │   │   │           └─ LuauTernaryExpressionCondition_end_c2 [181..185]
+ │   │       │   │   │       │       │       │   │   │               └─ LuauThenKeyword [181..185]: "then"
+ │   │       │   │   │       │       │       │   │   └─ LuauTernaryElseifClause_end 185
  │   │       │   │   │       │       │       │   ├─ LuauThenExpression [185..192]
  │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_begin 185
  │   │       │   │   │       │       │       │   │   ├─ LuauThenExpression_content [185..192]

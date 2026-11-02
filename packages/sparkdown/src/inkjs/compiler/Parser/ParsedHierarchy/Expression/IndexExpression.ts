@@ -5,8 +5,7 @@ import { Op } from "../../../../../program/ProgramInstructions";
 
 // Index access — `base[key]`. The base is any Expression that puts a value
 // on the eval stack (e.g. an ObjectValue from a table literal, a string,
-// the result of a function call). At runtime IndexValue pops `key` and
-// `base` and pushes `base[key]`.
+// the result of a function call).
 export class IndexExpression extends Expression {
   public readonly baseExpression: Expression;
   public readonly keyExpression: Expression;
