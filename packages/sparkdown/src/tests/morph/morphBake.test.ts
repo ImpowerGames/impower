@@ -3,7 +3,7 @@ import { filterSVGAttributes } from "../../attributes";
 import { bakeMorphArtifact, MORPH_BAKE_SAMPLES } from "../../morph/bake";
 import { parse } from "../../txml/txml";
 import type { MorphArtifact, MorphTransition } from "../../morph/types";
-import { blink, CLOSED, portrait, UPPER_OPEN } from "./fixtures";
+import { blink, CLOSED, portrait, spreadBlink, spreadPortrait, UPPER_OPEN } from "./fixtures";
 
 const bake = (svg: string, recipe = blink(), selection: Record<string, string> = {}) =>
   bakeMorphArtifact({ source: svg, selection, recipe, key: "k1", variant: "bunny", uri: "file:///bunny.svg" });
@@ -158,5 +158,99 @@ describe("morph bake", () => {
     expect(Math.min(...xs)).toBeGreaterThanOrEqual(-0.5);
     expect(Math.max(...xs)).toBeLessThanOrEqual(100.5);
     expect(UPPER_OPEN.startsWith("M0,50")).toBe(true);
+  });
+});
+
+describe("a drawing's `spread` in the bake", () => {
+  const spreadBake = (layers: Parameters<typeof spreadBlink>[0] = {}, overrides: Record<string, unknown> = {}, variant = "bunny") =>
+    bakeMorphArtifact({ source: spreadPortrait(), selection: {}, recipe: spreadBlink(layers, overrides), key: `k-${variant}`, variant, uri: "file:///spread.svg" });
+  const live = (artifact: MorphArtifact) => artifact.parts.filter((p) => p.kind === "live").flatMap((p) => elements(p.svg));
+  const nodeNamed = (artifact: MorphArtifact, label: string) => live(artifact).find((e) => e.attributes["data-name"] === label && e.attributes["data-morph"])!.attributes["data-morph"]!;
+  const transitionOf = (artifact: MorphArtifact, label: string, segment = 0) => {
+    const node = nodeNamed(artifact, label);
+    return artifact.segments[segment]!.transitions.find((t) => ("from" in t && t.from === node) || ("node" in t && t.node === node))!;
+  };
+  const ignored = (artifact: MorphArtifact) => artifact.diagnostics.filter((d) => d.code === "spread-ignored");
+  const spreadRecorded = (artifact: MorphArtifact) => artifact.segments.some((s) => "spread" in s || s.transitions.some((t) => "spread" in t));
+
+  test("a morph whose drawings set no `spread`, or set `0`, bakes exactly what it bakes without the field", () => {
+    const plain = spreadBake();
+    expect(plain.diagnostics).toEqual([]);
+    expect(plain).not.toHaveProperty("spreads");
+    expect(spreadRecorded(plain)).toBe(false);
+    const zero = spreadBake({ flat: { spread: 0 }, sheer: { spread: 0 } }, { spread: 0 });
+    expect(zero).toEqual(plain);
+  });
+
+  test("a shrinking track records its spread and a mask in its live part, filled white and stroked black by twice the amount with a round, non-scaling stroke", () => {
+    const artifact = spreadBake({ flat: { spread: "-1px" } });
+    expect(ignored(artifact)).toEqual([]);
+    const track = transitionOf(artifact, "flat");
+    expect(track).toMatchObject({ kind: "morph", spread: -1 });
+    if (track.kind !== "morph") throw new Error("not a morph");
+    const record = artifact.spreads?.[track.draw];
+    expect(record?.mask).toMatch(new RegExp(`^${artifact.idPrefix}morph-spread-`));
+    expect(record).not.toHaveProperty("grow");
+    const mask = live(artifact).find((e) => e.tagName === "mask" && e.attributes["id"] === record!.mask)!;
+    expect(mask).toBeDefined();
+    const path = mask.children[0] as Element;
+    expect(path.attributes["style"]).toBe(
+      "fill:#fff;fill-opacity:1;fill-rule:nonzero;stroke:#000;stroke-opacity:1;stroke-width:2px;stroke-dasharray:none;stroke-linejoin:round;visibility:visible;vector-effect:non-scaling-stroke",
+    );
+    const drawn = live(artifact).find((e) => e.attributes["data-morph"] === track.draw)!;
+    expect(path.attributes["d"]).toBe(drawn.attributes["d"]);
+    expect(drawn.attributes["style"] ?? "").not.toContain("mask");
+    expect(artifact.rest).not.toContain("morph-spread");
+  });
+
+  test("a growing track records the paint its fill has: a colour, or an opaque gradient copy with the stops' shared opacity", () => {
+    const artifact = spreadBake({ flat: { spread: "1px" }, sheer: { spread: "1px" }, veiled: { spread: "1px" }, mottled: { spread: "-1px" } });
+    expect(ignored(artifact)).toEqual([]);
+    const draw = (label: string) => (transitionOf(artifact, label) as { draw: string }).draw;
+    expect(artifact.spreads?.[draw("flat")]).toEqual({ grow: { fill: [51, 68, 85, 1], "fill-opacity": 1 } });
+    expect(artifact.spreads?.[draw("sheer")]).toEqual({ grow: { fill: [0, 170, 0, 1], "fill-opacity": 0.5 } });
+    const veiled = artifact.spreads?.[draw("veiled")]?.grow;
+    expect(veiled).toMatchObject({ alpha: 0.5, "fill-opacity": 1 });
+    const copy = live(artifact).find((e) => !!veiled && "gradient" in veiled && e.attributes["id"] === veiled.gradient)!;
+    expect(copy.tagName).toBe("linearGradient");
+    expect(copy.children.map((stop) => (stop as Element).attributes["stop-color"])).toEqual(["rgba(255,0,0,1)", "rgba(255,255,0,1)"]);
+    expect(artifact.spreads?.[draw("mottled")]?.mask).toBeDefined();
+  });
+
+  test.each([
+    ["stroked", "-1px", "paints a stroke"],
+    ["patterned", "1px", "has a fill that cannot be grown"],
+    ["mottled", "1px", "has a fill that cannot be grown"],
+    ["masked", "-1px", "has its own `mask`"],
+    ["still", "-1px", "none of its drawings is drawn between poses or carried"],
+  ])("`spread-ignored` on %s at `spread = %s` is reported once per artwork with one message for every variant, and the drawing keeps its own size", (label, spread, why) => {
+    const messages = ["bunny", "raffles"].map((variant) => {
+      const artifact = spreadBake({ [label]: { spread } }, {}, variant);
+      const found = ignored(artifact);
+      expect(found, variant).toEqual([expect.objectContaining({ severity: "warning", layer: label, variant })]);
+      expect(found[0]!.message).toContain(why);
+      expect(found[0]!.message).toContain(`\`spread = ${spread}\``);
+      expect(spreadRecorded(artifact)).toBe(false);
+      expect(artifact).not.toHaveProperty("spreads");
+      return found[0]!.message;
+    });
+    expect(messages[0]).toBe(messages[1]);
+  });
+
+  test("shrinking works whatever the fill is", () => {
+    const artifact = spreadBake({ patterned: { spread: "-1px" }, mottled: { spread: "-1px" } });
+    expect(ignored(artifact)).toEqual([]);
+    expect(transitionOf(artifact, "patterned")).toMatchObject({ spread: -1 });
+    expect(transitionOf(artifact, "mottled")).toMatchObject({ spread: -1 });
+  });
+
+  test("a root `spread` applies where no label sets one, and a label's `0` keeps its drawings their own size", () => {
+    const artifact = spreadBake({ flat: { spread: 0 }, stroked: { spread: 0 }, masked: { spread: 0 } }, { spread: "-1px" });
+    expect(ignored(artifact)).toEqual([]);
+    expect(transitionOf(artifact, "flat")).not.toHaveProperty("spread");
+    expect(transitionOf(artifact, "blended")).toMatchObject({ spread: -1 });
+    expect(transitionOf(artifact, "fader")).toMatchObject({ kind: "fade", spread: -1 });
+    expect(transitionOf(artifact, "ghost")).toMatchObject({ kind: "scale", spread: -1 });
+    expect(transitionOf(artifact, "still")).not.toHaveProperty("spread");
   });
 });

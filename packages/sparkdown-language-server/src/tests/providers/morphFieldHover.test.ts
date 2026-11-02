@@ -100,3 +100,29 @@ describe("morph field hover", () => {
     expect(await hoverAt(MORPH, "fill = 2")).toBeNull();
   });
 });
+
+describe("a drawing's `spread` hover", () => {
+  const SPREAD = `morph blink with
+  method = bend
+  spread = 0.5px
+  layers {
+    eyeball-shadow-left { partner = eyelash-left; spread = -1px }
+  }
+  keyframes {
+    from { eyes { state = open } }
+    50% { eyes { state = closed } }
+    to { eyes { state = open } }
+  }
+  clips {
+    { between { eyelash-left }; targets { pupil-left }; spread = 1px }
+  }
+end
+`;
+
+  it("documents `spread` at the root and under a label with the drawing text, and in a clip entry with the clip text", async () => {
+    const drawing = "Grows (positive) or shrinks (negative) the outline of drawings";
+    expect(await hoverAt(SPREAD, "spread = 0.5px")).toEqual({ value: expect.stringContaining(drawing), marked: "spread" });
+    expect(await hoverAt(SPREAD, "spread = -1px")).toEqual({ value: expect.stringContaining(drawing), marked: "spread" });
+    expect(await hoverAt(SPREAD, "spread = 1px")).toEqual({ value: expect.stringContaining("How far this clip's opening reaches past its outline"), marked: "spread" });
+  });
+});

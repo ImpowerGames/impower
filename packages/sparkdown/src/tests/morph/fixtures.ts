@@ -307,3 +307,53 @@ export function paintBlink(overrides: Record<string, unknown> = {}, states = ["o
     ...overrides,
   });
 }
+
+export const SPREAD_LABELS = ["flat", "blended", "sheer", "graded", "veiled", "tinted", "fader", "ghost", "stroked", "patterned", "mottled", "masked", "still"] as const;
+
+export function spreadPortrait(): string {
+  const two = (a: string, b: string, opacity = "1") =>
+    `<stop offset="0" stop-color="${a}" stop-opacity="${opacity}"/><stop offset="1" stop-color="${b}" stop-opacity="${opacity}"/>`;
+  const pose = (dy: number, closed: boolean) => {
+    const at = (i: number) => box(10 + (i % 5) * 35, 10 + Math.floor(i / 5) * 35 + dy, 25, 15);
+    const drawings: Record<string, string> = {
+      flat: 'fill="#345"',
+      blended: `fill="${closed ? "#00f" : "#f00"}"`,
+      sheer: 'fill="#0a0" fill-opacity="0.5"',
+      graded: `fill="url(#graded-${closed ? "closed" : "open"})"`,
+      veiled: `fill="url(#veiled-${closed ? "closed" : "open"})"`,
+      tinted: 'fill="#888"',
+      fader: 'fill="#eee"',
+      stroked: 'fill="#000" stroke="#f00"',
+      patterned: 'fill="url(#dots)"',
+      mottled: 'fill="url(#mottle)"',
+      masked: 'fill="#111" mask="url(#own)"',
+      still: 'fill="#222"',
+    };
+    if (!closed) drawings["ghost"] = 'fill="#456"';
+    return SPREAD_LABELS.flatMap((label, i) => (drawings[label] ? [`<path data-name="${label}" d="${at(i)}" ${drawings[label]}/>`] : [])).join("\n");
+  };
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 180" width="200" height="180">
+<defs>
+<linearGradient id="graded-open">${two("#f00", "#ff0")}</linearGradient>
+<linearGradient id="graded-closed">${two("#00f", "#0ff")}</linearGradient>
+<linearGradient id="veiled-open">${two("#f00", "#ff0", "0.5")}</linearGradient>
+<linearGradient id="veiled-closed">${two("#00f", "#0ff", "0.5")}</linearGradient>
+<linearGradient id="mottle"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#000" stop-opacity="0.5"/></linearGradient>
+<pattern id="dots" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0,0H2V2H0Z" fill="#000"/></pattern>
+<mask id="own"><path d="M0,0H200V180H0Z" fill="#fff"/></mask>
+</defs>
+<path data-name="face" d="M0,0H200V180H0Z" fill="#fdb"/>
+<g data-name="eyes.open:default">
+${pose(0, false)}
+</g>
+<g data-name="eyes.closed">
+${pose(5, true)}
+</g>
+</svg>`;
+}
+
+export function spreadBlink(layers: Record<string, Record<string, unknown>> = {}, overrides: Record<string, unknown> = {}, states = ["open", "closed", "open"]): MorphRecipe {
+  const merged: Record<string, Record<string, unknown>> = { ghost: { fallback: "scale" }, fader: { blend: "fade" }, still: { blend: "cut" } };
+  for (const [label, policy] of Object.entries(layers)) merged[label] = { ...merged[label], ...policy };
+  return paintBlink({ layers: merged, ...overrides }, states);
+}

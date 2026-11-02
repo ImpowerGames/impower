@@ -2,9 +2,21 @@ import { untangle } from "@impower/spark-morph/src/apertures";
 import type { Point } from "@impower/spark-morph/src/index";
 import { parse, stringify, type Node } from "../txml/txml";
 import { own, table } from "./own";
-import { blendColor, formatColor, readAlpha } from "./color";
+import { blendColor, formatColor, readAlpha, readColor } from "./color";
 import { setStyleProperty, styleDeclaration } from "./svgDocument";
-import type { MorphArtifact, MorphClipFrames, MorphColor, MorphFrames, MorphGeometryRef, MorphGradient, MorphGradientBlend, MorphPaint, MorphPaintBase, MorphPaintPose } from "./types";
+import type {
+  MorphArtifact,
+  MorphClipFrames,
+  MorphColor,
+  MorphFrames,
+  MorphGeometryRef,
+  MorphGradient,
+  MorphGradientBlend,
+  MorphPaint,
+  MorphPaintBase,
+  MorphPaintPose,
+  MorphSpreadFill,
+} from "./types";
 
 type Element = Exclude<Node, string | null>;
 
@@ -77,7 +89,7 @@ const reverseFlat = (flat: number[]): number[] => {
 
 export const APERTURE_REACH = 1;
 
-export const apertureSpreadStroke = (spread: number): readonly (readonly [string, string])[] => [
+export const spreadStroke = (spread: number): readonly (readonly [string, string])[] => [
   ["stroke", spread < 0 ? "#000" : "#fff"],
   ["stroke-opacity", "1"],
   ["stroke-width", `${Math.abs(spread) * 2}px`],
@@ -85,9 +97,14 @@ export const apertureSpreadStroke = (spread: number): readonly (readonly [string
   ["stroke-linejoin", "round"],
 ];
 
-export const APERTURE_REACH_STROKE = apertureSpreadStroke(APERTURE_REACH);
+export const APERTURE_REACH_STROKE = spreadStroke(APERTURE_REACH);
 
 export interface MorphApertureReach {
+  spread: number;
+  d?: string;
+}
+
+export interface MorphSpreadMaskPose {
   spread: number;
   d?: string;
 }
@@ -196,18 +213,34 @@ export function gradientAttributes(gradient: MorphGradient): MorphGradientState 
   return { attributes, stops: gradient.stops.map(([offset, color]) => ({ offset: fine(offset), "stop-color": formatColor(color) })) };
 }
 
-export function gradientAt(blend: MorphGradientBlend, progress: number): MorphGradientState {
+function gradientBlendAt(blend: MorphGradientBlend, progress: number): MorphGradient {
   const t = clamp01(progress);
   const [a, b] = blend.ends;
   const lerp = (v: number, w: number) => v * (1 - t) + w * t;
   const mix = (x: number[], y: number[]) => x.map((v, i) => lerp(v, y[i]!));
-  return gradientAttributes({
+  return {
     ...a,
     geometry: mix(a.geometry, b.geometry),
     transform: mix(a.transform, b.transform),
     stops: a.stops.map(([offset, color], i) => [lerp(offset, b.stops[i]![0]), blendColor(color, b.stops[i]![1], t)]),
-  });
+  };
 }
+
+export function gradientAt(blend: MorphGradientBlend, progress: number): MorphGradientState {
+  return gradientAttributes(gradientBlendAt(blend, progress));
+}
+
+const opaque = ([r, g, b]: MorphColor): MorphColor => [r, g, b, 1];
+
+const growFill = (value: string | undefined, base: MorphSpreadFill, alphas: ReadonlyMap<string, number>): { paint: string; alpha: number } | undefined => {
+  if (value === undefined) {
+    return "fill" in base ? { paint: formatColor(opaque(base.fill)), alpha: base.fill[3] } : { paint: `url(#${base.gradient})`, alpha: base.alpha };
+  }
+  const server = /^url\(#(.*)\)$/.exec(value)?.[1];
+  if (server !== undefined) return { paint: value, alpha: alphas.get(server) ?? 1 };
+  const read = readColor(value);
+  return read?.kind === "color" ? { paint: formatColor(opaque(read.color)), alpha: read.color[3] } : undefined;
+};
 
 export function poseGradient(element: Element, state: MorphGradientState) {
   Object.assign(element.attributes, state.attributes);
@@ -257,6 +290,8 @@ export interface MorphFrameState {
   opacity: Map<string, number>;
   clips: Map<string, string>;
   reaches: Map<string, MorphApertureReach>;
+  spread: Map<string, number>;
+  masks: Map<string, MorphSpreadMaskPose>;
 }
 
 export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<string, MorphGroupPose>>): MorphFrameState {
@@ -269,17 +304,24 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
     opacity: new Map(),
     clips: new Map(),
     reaches: new Map(),
+    spread: new Map(),
+    masks: new Map(),
   };
-  const { shown, hidden, geometry, opacity } = state;
+  const { shown, hidden, geometry, opacity, spread } = state;
+  const alphas = new Map<string, number>();
   const show = (node: string | undefined) => {
     if (!node) return;
     hidden.delete(node);
     shown.add(node);
   };
-  const showShapes = (carried: Record<string, string> | undefined) => {
+  const spreadAt = (node: string | undefined, amount: number | undefined) => {
+    if (node && amount && !spread.has(node)) spread.set(node, amount);
+  };
+  const showShapes = (carried: Record<string, string> | undefined, spreads: Record<string, number> | undefined) => {
     for (const [node, d] of Object.entries(carried ?? {})) {
       show(node);
       geometry.set(node, d);
+      spreadAt(node, spreads?.[node]);
     }
   };
   const writeClip = (clip: number, loops: MorphGeometryRef, p: number, reachable: MorphClipFrames["reach"] = []) => {
@@ -314,7 +356,7 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
       const last = pose && "state" in pose ? pose.last : undefined;
       if (last !== undefined) {
         holdApertures(artifact, group, last + 1, writeClip);
-        showShapes(artifact.segments[last]?.carry?.to);
+        showShapes(artifact.segments[last]?.carry?.to, artifact.segments[last]?.spread);
       }
       continue;
     }
@@ -336,6 +378,7 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
             break;
           }
           show(t.draw);
+          spreadAt(t.draw, t.spread);
           const frames = artifact.frames[t.frames.index]!;
           geometry.set(t.draw, framePathData(frames, sampleAt(frames.frames, t.frames, p)));
           const values = t.paint ? paintAt(t.paint, p) : table<string>();
@@ -343,7 +386,10 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
             const gradient = t.gradients?.[name];
             if (!gradient) continue;
             values[name] = `url(#${gradient.id})`;
-            state.gradients.set(gradient.id, gradientAt(gradient, p));
+            const blended = gradientBlendAt(gradient, p);
+            const grows = name === "fill" && t.spread !== undefined && t.spread > 0;
+            if (grows) alphas.set(gradient.id, blended.stops[0]?.[1][3] ?? 1);
+            state.gradients.set(gradient.id, gradientAttributes(grows ? { ...blended, stops: blended.stops.map(([offset, color]) => [offset, opaque(color)]) } : blended));
           }
           if (Object.keys(values).length) state.paint.set(t.draw, values);
           break;
@@ -356,6 +402,10 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
           if (t.to && p > 0) {
             show(t.to);
             opacity.set(t.to, p);
+          }
+          if (p > 0 && p < 1) {
+            spreadAt(t.from, t.spread);
+            spreadAt(t.to, t.spread);
           }
           break;
         case "cut":
@@ -371,6 +421,7 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
             break;
           }
           show(t.draw);
+          spreadAt(t.draw, t.spread);
           const frames = artifact.frames[t.frames.index]!;
           geometry.set(t.draw, framePathData(frames, sampleAt(frames.frames, t.frames, p)));
           break;
@@ -384,16 +435,46 @@ export function morphFrameState(artifact: MorphArtifact, poses: Readonly<Record<
       if (p <= 0 || p >= 1) {
         shown.delete(node);
         hidden.add(node);
-      } else if (shown.has(node) && !geometry.has(node)) {
-        geometry.set(node, d);
+      } else if (shown.has(node)) {
+        if (!geometry.has(node)) geometry.set(node, d);
+        spreadAt(node, segment.spread?.[node]);
       }
     }
-    if (p <= 0) showShapes(segment.carry?.from);
-    if (p >= 1) showShapes(segment.carry?.to);
+    if (p <= 0) showShapes(segment.carry?.from, segment.spread);
+    if (p >= 1) showShapes(segment.carry?.to, segment.spread);
     holdApertures(artifact, group, pose.segment, writeClip);
     for (const clip of segment.clips) writeClip(clip.clip, clip.loops, p, clip.reach);
   }
   for (const entry of artifact.paints ?? []) paintPose(artifact, entry, own(poses, entry.group), state);
+  for (const [node, amount] of spread) {
+    const record = own(artifact.spreads ?? {}, node);
+    if (!shown.has(node) || hidden.has(node) || !record) continue;
+    const values = state.paint.get(node) ?? table<string>();
+    if (amount < 0) {
+      if (!record.mask) continue;
+      values["mask"] = `url(#${record.mask})`;
+      const d = geometry.get(node);
+      state.masks.set(record.mask, { spread: amount, ...(d === undefined ? {} : { d }) });
+      state.paint.set(node, values);
+      continue;
+    }
+    const fill = record.grow && growFill(values["fill"], record.grow, alphas);
+    if (!record.grow || !fill) continue;
+    const fillOpacity = values["fill-opacity"] === undefined ? record.grow["fill-opacity"] : Number(values["fill-opacity"]);
+    Object.assign(values, {
+      fill: fill.paint,
+      "fill-opacity": "1",
+      stroke: fill.paint,
+      "stroke-opacity": "1",
+      "stroke-width": `${amount * 2}px`,
+      "stroke-dasharray": "none",
+      "stroke-linejoin": "round",
+      "vector-effect": "non-scaling-stroke",
+    });
+    state.paint.set(node, values);
+    const alpha = fill.alpha * fillOpacity;
+    if (alpha < 1) opacity.set(node, (opacity.get(node) ?? 1) * alpha);
+  }
   return state;
 }
 
@@ -510,7 +591,7 @@ export function poseAperture(aperture: Element, d: string, reach?: MorphAperture
   }
   if (aperture.tagName !== "mask" || reach === undefined) return undefined;
   const first = paths[0]!;
-  const stroke = apertureSpreadStroke(reach.spread);
+  const stroke = spreadStroke(reach.spread);
   if (reach.d === undefined) {
     for (const [name, value] of stroke) setStyleProperty(first, name, value);
     return undefined;
@@ -527,6 +608,13 @@ export function poseAperture(aperture: Element, d: string, reach?: MorphAperture
   for (const [name, value] of stroke) setStyleProperty(first, name, value);
   setStyleProperty(first, "clip-path", `url(#${id})`);
   return { id, d: reach.d };
+}
+
+export function poseSpreadMask(mask: Element, pose: MorphSpreadMaskPose) {
+  const path = elementsOf(mask.children).find((child) => child.tagName === "path");
+  if (!path) return;
+  if (pose.d !== undefined) path.attributes["d"] = pose.d;
+  for (const [name, value] of spreadStroke(pose.spread)) setStyleProperty(path, name, value);
 }
 
 function renderMorphState(artifact: MorphArtifact, state: MorphFrameState): string {
@@ -555,6 +643,8 @@ function renderMorphState(artifact: MorphArtifact, state: MorphFrameState): stri
           const id = element.attributes["id"] ?? "";
           const d = clipData.get(id);
           if (d !== undefined) poseAperture(element, d, state.reaches.get(id));
+          const spreadMask = state.masks.get(id);
+          if (spreadMask) poseSpreadMask(element, spreadMask);
         }
       }
     }

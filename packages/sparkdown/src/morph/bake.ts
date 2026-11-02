@@ -34,7 +34,7 @@ import { hashText } from "./hash";
 import { own, table } from "./own";
 import { effectivePaint, paintBlend, type EffectivePaint } from "./paint";
 import { recipeAsMorph } from "./recipe";
-import { APERTURE_REACH, APERTURE_REACH_ID_SUFFIX, apertureSpreadStroke } from "./render";
+import { APERTURE_REACH, APERTURE_REACH_ID_SUFFIX, spreadStroke } from "./render";
 import {
   ancestry,
   cloneElement,
@@ -52,6 +52,7 @@ import {
   readArtDocument,
   serialize,
   setStyleProperty,
+  styleDeclaration,
   subtree,
   unreadableGeometry,
   unreadableStyle,
@@ -77,6 +78,8 @@ import {
   type MorphPart,
   type MorphRecipe,
   type MorphSegment,
+  type MorphSpreadFill,
+  type MorphSpreadNode,
   type MorphTransition,
 } from "./types";
 
@@ -564,6 +567,14 @@ export function* bakeSteps(
     }
     return { depth: recipe.depth ?? MORPH_DEPTH_REST };
   };
+  const spreadOf = (leaf: Leaf): { spread: number; label?: string } => {
+    for (const entry of ancestry(doc!, leaf.element)) {
+      const label = entry.layer?.parsed.label;
+      const spread = label ? own(recipe.layers, label)?.spread : undefined;
+      if (spread !== undefined) return { spread, label };
+    }
+    return { spread: recipe.spread ?? 0 };
+  };
   const depthPose = (depth: string, group: string): Record<string, boolean> | undefined => {
     const pose = parseMorphDepth(depth);
     if (!pose || pose === MORPH_DEPTH_REST) return restVisible;
@@ -806,6 +817,62 @@ export function* bakeSteps(
     return { gradients: out, matched };
   };
 
+  const growFillOf = (leaf: Leaf, write: boolean): MorphSpreadFill | undefined => {
+    const paint = paintOf(leaf);
+    const fillOpacity = paint["fill-opacity"];
+    if (fillOpacity === undefined) return undefined;
+    const id = paint.server.fill;
+    if (id === undefined) {
+      if (paint.fill === undefined) return undefined;
+      return { fill: paint.fill === "none" ? [0, 0, 0, 0] : paint.fill, "fill-opacity": fillOpacity };
+    }
+    const space = elementSpace(leaf);
+    const gradient = space ? gradientIn(leaf, "fill", space) : undefined;
+    const alpha = gradient?.stops[0]?.[1][3];
+    if (!gradient || alpha === undefined || gradient.stops.some(([, color]) => color[3] !== alpha)) return undefined;
+    if (!write) return { gradient: "", alpha, "fill-opacity": fillOpacity };
+    const key = `${leaf.node}:spread`;
+    let copy = gradientCopies.get(key);
+    if (!copy) {
+      let copyId = `morph-gradient-${gradientSerial++}`;
+      while (doc!.byId.has(copyId)) copyId = `morph-gradient-${gradientSerial++}`;
+      copy = { id: copyId, home: leaf, gradient: { ...gradient, stops: gradient.stops.map(([offset, [r, g, b]]) => [offset, [r, g, b, 1]]) } };
+      gradientCopies.set(key, copy);
+    }
+    return { gradient: `${prefix}${copy.id}`, alpha, "fill-opacity": fillOpacity };
+  };
+  const ownMask = (leaf: Leaf) => leaf.element.attributes["mask"] !== undefined || styleDeclaration(leaf.element, "mask") !== undefined;
+  const spreadUse = new Map<string, boolean>();
+  for (const [label, layer] of Object.entries(recipe.layers)) if (layer.spread) spreadUse.set(label, false);
+  const spreadNodes = new Map<string, { grow: boolean; shrink?: number }>();
+  const spreadOn = (node: string, spread: number | undefined) => {
+    if (!spread) return;
+    const entry = spreadNodes.get(node) ?? { grow: false };
+    if (spread > 0) entry.grow = true;
+    else entry.shrink ??= spread;
+    spreadNodes.set(node, entry);
+  };
+  const takeSpread = (source: Leaf, ends: readonly Leaf[], markups: readonly Leaf[]): number | undefined => {
+    const { spread, label } = spreadOf(source);
+    if (!spread) return undefined;
+    if (label) spreadUse.set(label, true);
+    const ignored = (why: string) => {
+      report(
+        "spread-ignored",
+        "warning",
+        `"${source.label || source.key}" ${why}, so \`spread = ${spread}px\` does not apply and it keeps its own size between poses.`,
+        source.label ? { layer: source.label } : {},
+      );
+      return undefined;
+    };
+    if (ends.some((leaf) => paintOf(leaf).stroke !== "none")) return ignored("paints a stroke, and `spread` grows or shrinks fills only");
+    if (spread > 0 && [...ends, ...markups].some((leaf) => !growFillOf(leaf, false))) {
+      return ignored("has a fill that cannot be grown: a pattern, a gradient whose stops differ in opacity, or paint the bake cannot read");
+    }
+    if (spread < 0 && markups.some(ownMask)) return ignored("has its own `mask`, and shrinking needs a mask of its own on the drawing");
+    return spread;
+  };
+
   const geometryCache: MorphGeometryCache = options.geometry ?? new Map();
   const frames: MorphFrames[] = [];
   const frameIndex = new Map<string, number>();
@@ -992,7 +1059,10 @@ export function* bakeSteps(
         }
         const blend: MorphBlend = policy(from, "blend");
         if (blend === "fade" || blend === "cut") {
-          transitions.push({ kind: blend, from: nodeOf(from), to: nodeOf(to) });
+          const spread = blend === "fade" ? takeSpread(from, [from, to], [from, to]) : undefined;
+          spreadOn(nodeOf(from), spread);
+          spreadOn(nodeOf(to), spread);
+          transitions.push({ kind: blend, from: nodeOf(from), to: nodeOf(to), ...(spread ? { spread } : {}) });
           continue;
         }
         if (blend === "scale") {
@@ -1042,6 +1112,8 @@ export function* bakeSteps(
         const ref = addFrames(cacheKey, morph, space, reversed);
         const { gradients, matched } = gradientBlends(from, to, home, draw, space);
         const paint = paintBlend(paintOf(from), paintOf(to), paintOf(home), matched);
+        const spread = takeSpread(from, [from, to], [home]);
+        spreadOn(draw, spread);
         transitions.push({
           kind: "morph",
           from: nodeOf(from),
@@ -1051,6 +1123,7 @@ export function* bakeSteps(
           frames: ref,
           ...(paint ? { paint } : {}),
           ...(gradients.fill || gradients.stroke ? { gradients } : {}),
+          ...(spread ? { spread } : {}),
         });
         for (const [clipIndex, clip] of recipe.clips.entries()) {
           if (!clip.between.includes(from.label)) continue;
@@ -1084,6 +1157,7 @@ export function* bakeSteps(
       const shapes: Record<string, string> = table();
       const carryFrom: Record<string, string> = table();
       const carryTo: Record<string, string> = table();
+      const carriedSpread: Record<string, number> = table();
       const slotsOf = (leaf: Leaf) => {
         const slots = homed.get(leaf) ?? { node: false, carriers: 0 };
         homed.set(leaf, slots);
@@ -1100,16 +1174,27 @@ export function* bakeSteps(
         const space = elementSpace(leaf)!;
         const drawingAt = (end: Exclude<PartnerEnd, undefined>) => ("own" in end ? end.own : end.shape);
         const nodeAt = (end: Exclude<PartnerEnd, undefined>) => nodeOf(drawingAt(end));
+        const painted = [...new Set([from, to].flatMap((end) => (!end ? [] : "own" in end ? [end.own] : [leaf])))];
+        let moveSpread: number | undefined | null = null;
+        const spreadHere = () => (moveSpread === null ? (moveSpread = takeSpread(leaf, painted, painted)) : moveSpread);
+        const carriedAt = (node: string) => {
+          const spread = spreadHere();
+          if (!spread) return;
+          carriedSpread[node] = spread;
+          spreadOn(node, spread);
+        };
         const carry = (end: PartnerEnd, node: string, side: Record<string, string>) => {
           if (!end || !("shape" in end) || !end.held) return;
           side[node] = shapeIn(leaf, end.shape);
           const sources = carriedSources.get(side) ?? new Map<string, Leaf>();
           carriedSources.set(side, sources.set(node, leaf));
+          carriedAt(node);
         };
         const onCarrier = (end: { shape: Leaf; held: boolean }, side: Record<string, string>) => {
           const node = slot(leaf, false);
           shapes[node] = shapeIn(leaf, end.shape);
           carry(end, node, side);
+          carriedAt(node);
           return node;
         };
         const blend = policy(leaf, "blend");
@@ -1132,6 +1217,8 @@ export function* bakeSteps(
           const blended = named ? gradientBlends(leaf, named, leaf, draw, space) : undefined;
           const paint = named ? paintBlend(paintOf(leaf), paintOf(named), paintOf(leaf), blended!.matched) : undefined;
           const gradients = blended?.gradients;
+          const spread = spreadHere();
+          spreadOn(draw, spread);
           transitions.push({
             kind: "morph",
             from: nodeAt(from),
@@ -1142,6 +1229,7 @@ export function* bakeSteps(
             ...(paint ? { paint } : {}),
             ...(gradients?.fill || gradients?.stroke ? { gradients } : {}),
             partner: true,
+            ...(spread ? { spread } : {}),
           });
           carry(from, draw, carryFrom);
           carry(to, draw, carryTo);
@@ -1154,7 +1242,10 @@ export function* bakeSteps(
           for (const end of [from, to]) if (end && "own" in end) slotsOf(end.own).node = true;
           const start = from && ("own" in from ? from.own.node : onCarrier(from, carryFrom));
           const end = to && ("own" in to ? to.own.node : onCarrier(to, carryTo));
-          transitions.push({ kind: "fade", ...(start ? { from: start } : {}), ...(end ? { to: end } : {}) });
+          const spread = spreadHere();
+          if (start) spreadOn(start, spread);
+          if (end) spreadOn(end, spread);
+          transitions.push({ kind: "fade", ...(start ? { from: start } : {}), ...(end ? { to: end } : {}), ...(spread ? { spread } : {}) });
         } else if (action === "scale") {
           for (const [end, direction] of [[from, "shrink"], [to, "grow"]] as const) {
             if (!end) continue;
@@ -1162,11 +1253,14 @@ export function* bakeSteps(
               const drawing = end.own;
               const frames = addFrames(`${drawing.key}:${direction}`, morphScale(rootGeometry(drawing)!, direction), elementSpace(drawing)!, false);
               const draw = isPath(drawing) && !slotsOf(drawing).node ? slot(drawing, true) : slot(drawing, false);
-              transitions.push({ kind: "scale", node: drawing.node, draw, direction, frames });
+              const spread = spreadHere();
+              spreadOn(draw, spread);
+              transitions.push({ kind: "scale", node: drawing.node, draw, direction, frames, ...(spread ? { spread } : {}) });
             } else {
               const node = onCarrier(end, direction === "shrink" ? carryFrom : carryTo);
               const frames = addFrames(`${end.shape.key}:${direction}`, morphScale(rootGeometry(end.shape)!, direction), space, false);
-              transitions.push({ kind: "scale", node, draw: node, direction, frames });
+              const spread = spreadHere();
+              transitions.push({ kind: "scale", node, draw: node, direction, frames, ...(spread ? { spread } : {}) });
             }
           }
         } else if (action === "hold" && from && "shape" in from) {
@@ -1190,16 +1284,19 @@ export function* bakeSteps(
             const slots = homed.get(leaf) ?? { node: false, carriers: 0 };
             homed.set(leaf, slots);
             const draw = isPath(leaf) ? nodeOf(leaf) : carrierOf(leaf, slots.carriers++);
-            transitions.push({ kind: "scale", node: nodeOf(leaf), draw, direction, frames: ref });
+            const spread = takeSpread(leaf, [leaf], [leaf]);
+            spreadOn(draw, spread);
+            transitions.push({ kind: "scale", node: nodeOf(leaf), draw, direction, frames: ref, ...(spread ? { spread } : {}) });
             return;
           }
           if (!(isShape(leaf.element) && unreadableGeometry(leaf.element))) {
             report("unsupported-element", "warning", `"${leaf.label || leaf.key}" has no shape geometry to scale, so it fades.`, { layer: leaf.label, path: leaf.key });
           }
-          transitions.push(side === "from" ? { kind: "fade", from: nodeOf(leaf) } : { kind: "fade", to: nodeOf(leaf) });
-          return;
         }
-        transitions.push(side === "from" ? { kind: action, from: nodeOf(leaf) } : { kind: action, to: nodeOf(leaf) });
+        const kind = action === "scale" ? "fade" : action;
+        const spread = kind === "fade" ? takeSpread(leaf, [leaf], [leaf]) : undefined;
+        spreadOn(nodeOf(leaf), spread);
+        transitions.push({ kind, ...(side === "from" ? { from: nodeOf(leaf) } : { to: nodeOf(leaf) }), ...(spread ? { spread } : {}) });
       };
       for (const leaf of unpairedFrom) oneSided(leaf, "from");
       for (const leaf of unpairedTo) oneSided(leaf, "to");
@@ -1281,6 +1378,7 @@ export function* bakeSteps(
         ...(Object.keys(carryFrom).length || Object.keys(carryTo).length
           ? { carry: { ...(Object.keys(carryFrom).length ? { from: carryFrom } : {}), ...(Object.keys(carryTo).length ? { to: carryTo } : {}) } }
           : {}),
+        ...(Object.keys(carriedSpread).length ? { spread: carriedSpread } : {}),
       });
       carried = nextCarried;
     }
@@ -1296,6 +1394,15 @@ export function* bakeSteps(
       others.length === groups.size
         ? `"${label}" changes with ${others.map((g) => `\`${g}\``).join(" and ")}, not \`${group}\`, so \`depth = ${depth}\` does not apply and it keeps its place in the rest pose.`
         : `\`depth = ${depth}\` draws none of the moving shapes of "${label}", so they keep their place in the rest pose.`,
+      { layer: label },
+    );
+  }
+  for (const [label, used] of spreadUse) {
+    if (used || !leaves.some((leaf) => labelledAny(leaf.element, [label]))) continue;
+    report(
+      "spread-ignored",
+      "warning",
+      `"${label}" sets \`spread = ${recipe.layers[label]!.spread}px\`, but none of its drawings is drawn between poses or carried to a partner's pose, so it changes nothing.`,
       { layer: label },
     );
   }
@@ -1403,7 +1510,7 @@ export function* bakeSteps(
     const path = (d: string, reach: boolean): Element => ({
       tagName: "path",
       attributes: {
-        style: `fill:#fff;fill-opacity:1;fill-rule:nonzero;${reach && spread !== 0 ? apertureSpreadStroke(spread).map(([name, value]) => `${name}:${value}`).join(";") : "stroke:none"};visibility:visible;vector-effect:non-scaling-stroke`,
+        style: `fill:#fff;fill-opacity:1;fill-rule:nonzero;${reach && spread !== 0 ? spreadStroke(spread).map(([name, value]) => `${name}:${value}`).join(";") : "stroke:none"};visibility:visible;vector-effect:non-scaling-stroke`,
         d,
       },
       children: [],
@@ -1504,6 +1611,39 @@ export function* bakeSteps(
       }
     }
   }
+  const markupOf = new Map<string, Leaf>();
+  for (const leaf of leaves) if (leaf.live) markupOf.set(leaf.node, leaf);
+  for (const [leaf, list] of carriers) for (const node of list) markupOf.set(node, leaf);
+  const spreads: Record<string, MorphSpreadNode> = table();
+  const spreadMasks: { id: string; leaf: Leaf; spread: number }[] = [];
+  let spreadSerial = 0;
+  for (const [node, { grow, shrink }] of spreadNodes) {
+    const leaf = markupOf.get(node)!;
+    const record: MorphSpreadNode = {};
+    if (shrink !== undefined) {
+      let id = `morph-spread-${spreadSerial++}`;
+      while (doc.byId.has(id)) id = `morph-spread-${spreadSerial++}`;
+      spreadMasks.push({ id, leaf, spread: shrink });
+      record.mask = `${prefix}${id}`;
+    }
+    const fill = grow ? growFillOf(leaf, true) : undefined;
+    if (fill) record.grow = fill;
+    spreads[node] = record;
+  }
+  const spreadMask = ({ id, leaf, spread }: (typeof spreadMasks)[number]): Element => ({
+    tagName: "mask",
+    attributes: { id },
+    children: [
+      {
+        tagName: "path",
+        attributes: {
+          style: `fill:#fff;fill-opacity:1;fill-rule:nonzero;${spreadStroke(spread).map(([name, value]) => `${name}:${value}`).join(";")};visibility:visible;vector-effect:non-scaling-stroke`,
+          d: (isPath(leaf) ? leaf.element.attributes["d"] : undefined) ?? pathData(localGeometry(leaf.element) ?? []),
+        },
+        children: [],
+      },
+    ],
+  });
   const missing = new Set<string>();
   const parts: MorphPart[] = runs.map((run) => {
     const keep = new Set(run.leaves.map((l) => l.element));
@@ -1548,15 +1688,17 @@ export function* bakeSteps(
     }
     const { root, ids } = extractTree(doc!, keep, { extra, missing });
     const copies = run.live ? [...gradientCopies.values()].filter((copy) => keep.has(copy.home.element)) : [];
-    if (used.length || copies.length) {
+    const masks = run.live ? spreadMasks.filter((mask) => keep.has(mask.leaf.element)) : [];
+    if (used.length || copies.length || masks.length) {
       const defs: Element = {
         tagName: "defs",
         attributes: {},
-        children: [...used.map((w) => apertureElement(w)), ...copies.map((copy) => gradientCopy(copy.id, copy.gradient))],
+        children: [...used.map((w) => apertureElement(w)), ...copies.map((copy) => gradientCopy(copy.id, copy.gradient)), ...masks.map(spreadMask)],
       };
       root.children.unshift(defs);
       for (const w of used) ids.add(w.id);
       for (const copy of copies) ids.add(copy.id);
+      for (const mask of masks) ids.add(mask.id);
     }
     namespaceTree(root, prefix, ids);
     return { kind: run.live ? "live" : "static", svg: serialize(root) };
@@ -1601,6 +1743,7 @@ export function* bakeSteps(
     apertureEdges,
     clipTargets,
     ...(paintPoses.length ? { paints: paintPoses } : {}),
+    ...(Object.keys(spreads).length ? { spreads } : {}),
     diagnostics,
   };
 }

@@ -1662,3 +1662,84 @@ end
     expect(JSON.parse(recipeText(text, "child")).clips[0].spread).toBe(-0.5);
   });
 });
+describe("a drawing's `spread`", () => {
+  const SPREAD = (root = "", layer = "", clip = "") => `morph m with
+  method = bend
+${root}  layers {
+    eyeball-shadow-left { partner = eyelash-left${layer} }
+  }
+  keyframes {
+    from { eyes { state = open } }
+    50% { eyes { state = closed } }
+    to { eyes { state = open } }
+  }
+  clips {
+    { between { eyelash-left }; targets { eyeball-white-left; pupil-left }${clip} }
+  }
+end
+`;
+  const recipeText = (text: string, name = "m") => compile(text).morphs!.recipes[name]!;
+  const errors = (text: string) => morphDiagnostics(text).filter((d) => d.severity === 1);
+
+  test("a morph without `spread` and one with `spread = 0` at the root and under a label keep the same recipe, with no `spread` in it", () => {
+    expect(errors(SPREAD())).toEqual([]);
+    const zero = SPREAD("  spread = 0\n", "; spread = 0");
+    expect(errors(zero)).toEqual([]);
+    expect(recipeText(zero)).toBe(recipeText(SPREAD()));
+    expect(recipeText(SPREAD())).not.toContain("spread");
+  });
+
+  test.each([
+    ["2px", 2],
+    ["0.5px", 0.5],
+    ["-1px", -1],
+  ])("`spread = %s` lowers to %s pixels at the root and under a label", (value, pixels) => {
+    const root = SPREAD(`  spread = ${value}\n`);
+    expect(errors(root)).toEqual([]);
+    expect(JSON.parse(recipeText(root)).spread).toBe(pixels);
+    expect(parseMorphRecipe(recipeText(root))).toEqual(JSON.parse(recipeText(root)));
+    const layer = SPREAD("", `; spread = ${value}`);
+    expect(errors(layer)).toEqual([]);
+    expect(JSON.parse(recipeText(layer)).layers["eyeball-shadow-left"].spread).toBe(pixels);
+    expect(JSON.parse(recipeText(layer))).not.toHaveProperty("spread");
+    expect(parseMorphRecipe(recipeText(layer))).toEqual(JSON.parse(recipeText(layer)));
+  });
+
+  test("a label's `spread = 0` is kept where a root `spread` would otherwise apply to it", () => {
+    const text = SPREAD("  spread = -1px\n", "; spread = 0");
+    expect(errors(text)).toEqual([]);
+    const recipe = JSON.parse(recipeText(text));
+    expect(recipe.spread).toBe(-1);
+    expect(recipe.layers["eyeball-shadow-left"].spread).toBe(0);
+    expect(parseMorphRecipe(recipeText(text))).toEqual(recipe);
+  });
+
+  test.each(["2", "1em", "wide", "1e999px"])("`spread = %s` is reported on its value at the root and under a label", (value) => {
+    for (const text of [SPREAD(`  spread = ${value}\n`), SPREAD("", `; spread = ${value}`)]) {
+      const found = errors(text);
+      expect(found).toHaveLength(1);
+      expect(found[0]).toMatchObject({ text: value, severity: 1 });
+      expect(found[0]!.message).toContain("`spread` is a length in `px` or `0`");
+    }
+  });
+
+  test("a root `spread` leaves every clip entry's recipe unchanged", () => {
+    const plain = JSON.parse(recipeText(SPREAD()));
+    const spread = JSON.parse(recipeText(SPREAD("  spread = -1px\n")));
+    expect(spread.clips).toEqual(plain.clips);
+    const clipped = JSON.parse(recipeText(SPREAD("  spread = -1px\n", "", "; spread = 2px")));
+    expect(clipped.clips).toEqual([{ between: ["eyelash-left"], targets: ["eyeball-white-left", "pupil-left"], spread: 2 }]);
+  });
+
+  test("a child morph inherits its parent's root and label `spread`", () => {
+    const text = `${SPREAD("  spread = 0.5px\n", "; spread = -1px")}
+morph child as m with
+  fallback = cut
+end
+`;
+    expect(errors(text)).toEqual([]);
+    const child = JSON.parse(recipeText(text, "child"));
+    expect(child.spread).toBe(0.5);
+    expect(child.layers["eyeball-shadow-left"].spread).toBe(-1);
+  });
+});
