@@ -1,3 +1,11 @@
+morph base{
+method = bend
+  keyframes   {
+{ offset = 0;eyes{state = eyes.open} }
+      {offset = 1 ; eyes { state = eyes.open }}
+}
+   }
+
 morph blink   as base{
    method = bend
    keyframes{

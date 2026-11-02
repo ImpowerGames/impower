@@ -2,6 +2,10 @@ store difficulty = "easy"
 
 function go_back() end
 
+function save() end
+
+screen hud {}
+
 layout settings in hud as base {
   column.menu #child-gap=16 {
     text.title "Settings"

@@ -61,7 +61,7 @@ function program(text: string) {
 
 describe("formatting a brace body keeps its program", () => {
   test("the brace-body fixtures are all here", () => {
-    expect(FIXTURES.length).toBe(21);
+    expect(FIXTURES.length).toBe(28);
   });
 
   for (const file of FIXTURES) {
