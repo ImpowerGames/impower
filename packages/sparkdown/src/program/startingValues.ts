@@ -638,9 +638,6 @@ export const startPlanOf = (
   return plan;
 };
 
-export const planSetsParameters = (plan: StartPlan | undefined): boolean =>
-  plan?.args !== undefined;
-
 export const startStoryAt = (story: ProgramStory, plan: StartPlan): void => {
   story.resetSeed = plan.seed;
   const reseed = story.state.storySeed !== plan.seed;

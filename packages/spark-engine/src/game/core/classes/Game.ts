@@ -45,7 +45,6 @@ import {
   applyStartValues,
   bindStartArguments,
   carryStoreListing,
-  planSetsParameters,
   startPlanKey,
   startPlanOf,
   startStoryAt,
@@ -362,6 +361,8 @@ export class Game<T extends M = {}> {
   }
   set simulateFlow(value) {
     this._simulateFlow = value;
+    this._story.endsTunnelAtBase =
+      value != null && this._story.startsAtBranch(value);
   }
 
   protected _playedMenus: { sources: string[]; taken: string }[] = [];
@@ -1051,26 +1052,17 @@ export class Game<T extends M = {}> {
     this._simulationFailure = undefined;
     if (this._startAddress != null) {
       const to = this._startAddress;
-      const from = this.routeStartOf(to);
       const budget = {
         callerResetsStory: true,
         startPlans: this.startPlans,
         pins: this.pinnedOptions,
       };
-      let route;
-      if (this.routesFromStartFirst(to)) {
-        route = Game.planRouteFromStart(this._story, this._program, to, budget);
-        if (!route && lastSearchStats.endReason === "exhausted") {
-          route = Game.planRouteInFlow(
-            this._story,
-            this._program,
-            from,
-            to,
-            budget,
-          );
-        }
-      } else {
+      let route = null;
+      for (const from of this.routeStartsOf(to)) {
         route = Game.planRoute(this._story, this._program, from, to, budget);
+        if (route || lastSearchStats.endReason !== "exhausted") {
+          break;
+        }
       }
       if (route) {
         this.simulateRoute(route, 0);
@@ -1125,13 +1117,10 @@ export class Game<T extends M = {}> {
     return this.sceneOf(address) ?? START_FLOW_NAME;
   }
 
-  routesFromStartFirst(address: ProgramAddress): boolean {
-    const scene = this.sceneOf(address);
-    return (
-      scene !== null &&
-      this._story.takesParameters(scene) &&
-      !planSetsParameters(this.startPlan(scene))
-    );
+  routeStartsOf(address: ProgramAddress): string[] {
+    const scene = this.routeStartOf(address);
+    const branch = this._story.root.branchAt(address);
+    return branch === undefined || branch === scene ? [scene] : [scene, branch];
   }
 
   get startingValues(): StartingValues {
@@ -1663,63 +1652,12 @@ export class Game<T extends M = {}> {
       | "pins"
     > & RouteStarts,
   ) {
-    const route = Game.planRouteInFlow(story, program, from, to, budget);
-    if (
-      route ||
-      budget?.resumeFrom ||
-      lastSearchStats.endReason !== "exhausted"
-    ) {
-      return route;
-    }
-    return Game.planRouteFromStart(story, program, to, budget);
-  }
-
-  static planRouteInFlow(
-    story: ProgramStory,
-    program: SparkProgram,
-    from: string,
-    to: ProgramAddress,
-    budget?: Pick<
-      SearchOptions,
-      | "maxSteps"
-      | "maxNodes"
-      | "searchTimeout"
-      | "callerResetsStory"
-      | "resumeFrom"
-      | "levelZeroStore"
-      | "pins"
-    > & RouteStarts,
-  ) {
     const { startPlans, ...rest } = budget ?? {};
     return planRoute(story, from, to, {
       ...rest,
       start: startPlans?.(from),
       functions: Object.keys(program.functionLocations || {}),
       stayWithinKnot: true,
-    });
-  }
-
-  static planRouteFromStart(
-    story: ProgramStory,
-    program: SparkProgram,
-    to: ProgramAddress,
-    budget?: Pick<
-      SearchOptions,
-      | "maxSteps"
-      | "maxNodes"
-      | "searchTimeout"
-      | "callerResetsStory"
-      | "resumeFrom"
-      | "levelZeroStore"
-      | "pins"
-    > & RouteStarts,
-  ) {
-    const { startPlans, ...rest } = budget ?? {};
-    return planRoute(story, START_FLOW_NAME, to, {
-      ...rest,
-      start: startPlans?.(START_FLOW_NAME),
-      functions: Object.keys(program.functionLocations || {}),
-      stayWithinKnot: false,
     });
   }
 
@@ -1810,7 +1748,7 @@ export class Game<T extends M = {}> {
     this._plannedRouteChangeId = this._program.changes?.id;
     this._plannedRouteRoot = this._story.root;
     this._plannedRouteStart = this.keptStartPlan(route.from).json;
-    this._simulateFlow = route.from;
+    this.simulateFlow = route.from;
     this._startAddress = route.to;
     this._routeSimulator = buildRouteSimulator(route.decisions, fromDecision);
     this._story.simulator = this._routeSimulator;
@@ -2542,7 +2480,7 @@ export class Game<T extends M = {}> {
     this._awaiting = this.lastExecutedScriptLocation();
     if (saveData.simulatedFrom) {
       this._simulation = "success";
-      this._simulateFlow = saveData.simulatedFrom;
+      this.simulateFlow = saveData.simulatedFrom;
     }
   }
 
@@ -2633,7 +2571,7 @@ export class Game<T extends M = {}> {
     this._runtimeState = RuntimeState.of(entry.runtime);
     if (saveData.simulatedFrom) {
       this._simulation = "success";
-      this._simulateFlow = saveData.simulatedFrom;
+      this.simulateFlow = saveData.simulatedFrom;
     }
     return true;
   }
@@ -3038,6 +2976,7 @@ export class Game<T extends M = {}> {
     const plan = this.startPlan(flow);
     this._story.resetSeed = plan.seed;
     this._story.ResetState();
+    this._story.endsTunnelAtBase = this._story.startsAtBranch(flow);
     startStoryAt(this._story, plan);
   }
 
@@ -3284,11 +3223,21 @@ export class Game<T extends M = {}> {
       start,
       target,
       decisions,
-      valuesStart: this.routeStartOf(route.to),
+      valuesStart: route.from,
+      ...(this.endsAtTunnelReturn(route) ? { tunnelEnds: true as const } : {}),
       ...(pinned.unresolved.length > 0
         ? { unresolvedPins: [...pinned.unresolved] }
         : {}),
     };
+  }
+
+  protected endsAtTunnelReturn(route: RoutePlan): boolean {
+    const root = this._story.root;
+    return (
+      this._story.startsAtBranch(route.from) &&
+      root.branchAt(route.to) === route.from &&
+      root.returnsFromTunnelAt(route.to)
+    );
   }
 
   protected lineLocation(uri: string, line: number): DocumentLocation {

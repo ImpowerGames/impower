@@ -39,11 +39,11 @@ describe("a route starts with the scene's starting values", () => {
     expect(shown(game)).toContain("Where were you at later?");
   });
 
-  test("with no parameter set, the story-start route for a scene with parameters stands", () => {
+  test("with no parameter set, the route starts at the scene's top with the parameter nil", () => {
     const { game } = routeTo(example, 11);
     expect(game.simulation).toBe("success");
-    expect(game.plannedRoute.from).toBe(START_FLOW_NAME);
-    expect(shown(game)).toContain("Where were you at nine?");
+    expect(game.plannedRoute.from).toBe("interrogation");
+    expect(shown(game)).toContain("Where were you at nil?");
   });
 
   test("a store's value makes the route take the option with nothing forced", () => {

@@ -10,7 +10,14 @@ import {
   readableSymbolLabel,
   type SequenceKind,
 } from "./ProgramSymbols";
-import { DONE_HOLD, Op, flagsOf, opOf } from "./ProgramInstructions";
+import {
+  ConstValue,
+  DONE_HOLD,
+  Op,
+  auxOf,
+  flagsOf,
+  opOf,
+} from "./ProgramInstructions";
 import {
   ANCHOR_STATEMENT,
   BLOCK_FUNCTION,
@@ -857,6 +864,39 @@ export class ProgramRoot {
   sceneAt(address: number): string | undefined {
     const at = this.position(chunkOfAddress(address));
     return at ? this.sceneOf(at.sequence) : undefined;
+  }
+
+  returnsFromTunnelAt(address: number): boolean {
+    const at = this.position(chunkOfAddress(address));
+    if (!at) {
+      return false;
+    }
+    const chunk = at.sequence.arrays.chunks[at.entry]!;
+    const words = codeWords(chunk);
+    const offset = offsetOfAddress(address);
+    const line = this.rangeAt(at.sequence, at.entry, offset)?.startLine;
+    for (let step = offset; step < words; step += 2) {
+      if (this.rangeAt(at.sequence, at.entry, step)?.startLine !== line) {
+        return false;
+      }
+      const op = opOf(chunk[HEADER_WORDS + step]!);
+      if (op === Op.TunnelReturn) {
+        const before = step > 0 ? chunk[HEADER_WORDS + step - 2]! : -1;
+        return (
+          before >= 0 &&
+          opOf(before) === Op.Const &&
+          auxOf(before) === ConstValue.Void
+        );
+      }
+    }
+    return false;
+  }
+
+  branchAt(address: number): string | undefined {
+    const row = this.flowAt(address);
+    return row && row.flow >= 0 && row.kind === SymbolKind.Branch
+      ? this.table.symbols[row.flow]
+      : undefined;
   }
 
   sceneOf(sequence: SequenceRow): string | undefined {

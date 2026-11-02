@@ -2918,6 +2918,18 @@ export class ProgramStory implements StoryEngine {
       state.didSafeExit = true;
       return;
     }
+    if (!callStack.canPop && this.endsTunnelAtBase) {
+      if (override) {
+        const symbol = this.symbolIn(override.ref);
+        if (symbol === undefined) {
+          this.Error("Divert target not found.");
+        }
+        this.jumpTo(symbol, state.position?.sequence ?? null);
+        return;
+      }
+      this.done();
+      return;
+    }
     if (element.type != PushPopType.Tunnel || !callStack.canPop) {
       let expected =
         element.type == PushPopType.Function
@@ -3155,6 +3167,13 @@ export class ProgramStory implements StoryEngine {
   protected _running: RunningInstruction | null = null;
 
   endedAt: number | null = null;
+
+  endsTunnelAtBase = false;
+
+  startsAtBranch(path: string): boolean {
+    const symbol = this.root.table.symbolIds.get(path);
+    return symbol !== undefined && this.root.kindOf(symbol) === SymbolKind.Branch;
+  }
 
   protected startSymbol(): number | undefined {
     if (this.root.tables?.luauEntry) {

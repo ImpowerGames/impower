@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { TOP_LEVEL_START } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import { programLocator } from "@impower/sparkdown/src/compiler/utils/programLocator";
+import { START_FLOW_NAME } from "@impower/sparkdown/src/program/ProgramSymbols";
 import { Game } from "../../game/core/classes/Game";
 import { requireChunks } from "../harness/compileProgram";
 
@@ -75,11 +76,12 @@ describe("the top-level start is the first address of start (I-1752)", () => {
     expect(String(game.story.Continue() ?? "").trim()).toBe("Start beat.");
   }, 120_000);
 
-  test("a route from the story's start starts at start", () => {
+  test("a route to a line of start starts at start", () => {
     const program = requireChunks(compile({ [MAIN]: INTRO_THEN_START }));
-    const to = programLocator(program as any).addressAt(MAIN, 11)!;
+    const to = programLocator(program as any).addressAt(MAIN, 6)!;
     const game: any = newGame(program);
-    const route = Game.planRouteFromStart(game.story, program as any, to);
+    expect(game.routeStartsOf(to)).toEqual([START_FLOW_NAME]);
+    const route = Game.planRoute(game.story, program as any, START_FLOW_NAME, to);
     expect(route?.from).toBe("start");
     game.jumpToFlow(route!.from);
     expect(String(game.story.Continue() ?? "").trim()).toBe("Start beat.");
