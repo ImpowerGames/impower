@@ -9,7 +9,7 @@ export interface SceneBeat {
 }
 
 export interface SceneAssets {
-  kind: "scene" | "function" | "root";
+  kind: "scene" | "function";
   beats: SceneBeat[];
   image: string[];
   audio: string[];
