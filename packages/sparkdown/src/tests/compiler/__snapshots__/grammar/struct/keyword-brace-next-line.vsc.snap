@@ -1,0 +1,87 @@
+text.source.sparkdown [0..134]
+ ├─ meta.style.luau [0..11]
+ │   ├─ keyword.control.style.luau [0..5]: "style"
+ │   ├─ punctuation.whitespace.optional.sd [5..6]: " "
+ │   └─ entity.name.type.define.luau [6..11]: "panel"
+ ├─ Newline [11..12]: "\n"
+ ├─ meta.style.luau [12..13]
+ │   └─ punctuation.definition.template-expression.begin.sd [12..13]: "{"
+ ├─ Newline [13..14]: "\n"
+ ├─ meta.style.luau [14..28]
+ │   ├─ punctuation.whitespace.sd [14..16]: "  "
+ │   ├─ variable.other.property.define.sd [16..22]: "corner"
+ │   ├─ markup.raw.whitespace.separator.optional.sd [22..23]: " "
+ │   ├─ keyword.operator.assignment.sd [23..24]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [24..25]: " "
+ │   ├─ constant.numeric.amount.sd [25..26]: "8"
+ │   └─ constant.numeric.unit.sd [26..28]: "px"
+ ├─ Newline [28..29]: "\n"
+ ├─ meta.style.luau [29..30]
+ │   └─ punctuation.definition.template-expression.end.sd [29..30]: "}"
+ ├─ Newline [30..31]: "\n"
+ ├─ Newline [31..32]: "\n"
+ ├─ meta.layout.luau [32..42]
+ │   ├─ keyword.control.layout.luau [32..38]: "layout"
+ │   ├─ punctuation.whitespace.optional.sd [38..39]: " "
+ │   └─ entity.name.type.define.luau [39..42]: "hud"
+ ├─ Newline [42..43]: "\n"
+ ├─ meta.layout.luau [43..46]
+ │   ├─ punctuation.whitespace.extra.sd [43..45]: "  "
+ │   └─ punctuation.definition.template-expression.begin.sd [45..46]: "{"
+ ├─ Newline [46..47]: "\n"
+ ├─ meta.layout.luau [47..67]
+ │   ├─ punctuation.whitespace.sd [47..51]: "    "
+ │   ├─ entity.name.type.class.view.sd [51..54]: "row"
+ │   ├─ punctuation.whitespace.sd [54..55]: " "
+ │   ├─ punctuation.definition.template-expression.begin.sd [55..56]: "{"
+ │   ├─ punctuation.whitespace.sd [56..57]: " "
+ │   ├─ keyword.other.component.builtin.name.sd [57..61]: "text"
+ │   ├─ punctuation.whitespace.required.sd [61..62]: " "
+ │   ├─ string.quoted.double.sd [62..65]
+ │   │   ├─ punctuation.definition.string.begin.sd [62..63]: "\""
+ │   │   ├─ markup.raw.whitespace.sd [63..64]: "a"
+ │   │   └─ punctuation.definition.string.end.sd [64..65]: "\""
+ │   ├─ punctuation.whitespace.sd [65..66]: " "
+ │   └─ punctuation.definition.template-expression.end.sd [66..67]: "}"
+ ├─ Newline [67..68]: "\n"
+ ├─ meta.layout.luau [68..71]
+ │   ├─ punctuation.whitespace.sd [68..70]: "  "
+ │   └─ punctuation.definition.template-expression.end.sd [70..71]: "}"
+ ├─ Newline [71..72]: "\n"
+ ├─ Newline [72..73]: "\n"
+ ├─ meta.style.luau [73..86]
+ │   ├─ keyword.control.style.luau [73..78]: "style"
+ │   ├─ punctuation.whitespace.optional.sd [78..79]: " "
+ │   ├─ entity.name.type.define.luau [79..84]: "after"
+ │   ├─ punctuation.whitespace.sd [84..85]: " "
+ │   └─ punctuation.definition.template-expression.begin.sd [85..86]: "{"
+ ├─ Newline [86..87]: "\n"
+ ├─ meta.style.luau [87..101]
+ │   ├─ punctuation.whitespace.sd [87..89]: "  "
+ │   ├─ variable.other.property.define.sd [89..95]: "corner"
+ │   ├─ markup.raw.whitespace.separator.optional.sd [95..96]: " "
+ │   ├─ keyword.operator.assignment.sd [96..97]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [97..98]: " "
+ │   ├─ constant.numeric.amount.sd [98..99]: "4"
+ │   └─ constant.numeric.unit.sd [99..101]: "px"
+ ├─ Newline [101..102]: "\n"
+ ├─ meta.style.luau [102..103]
+ │   └─ punctuation.definition.template-expression.end.sd [102..103]: "}"
+ ├─ Newline [103..104]: "\n"
+ ├─ Newline [104..105]: "\n"
+ ├─ meta.theme.luau [105..115]
+ │   ├─ keyword.control.theme.luau [105..110]: "theme"
+ │   ├─ punctuation.whitespace.optional.sd [110..111]: " "
+ │   └─ entity.name.type.define.luau [111..115]: "bare"
+ ├─ Newline [115..116]: "\n"
+ ├─ meta.theme.luau [116..129]
+ │   ├─ punctuation.whitespace.sd [116..118]: "  "
+ │   ├─ variable.other.property.define.sd [118..123]: "color"
+ │   ├─ markup.raw.whitespace.separator.optional.sd [123..124]: " "
+ │   ├─ keyword.operator.assignment.sd [124..125]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [125..126]: " "
+ │   └─ string.unquoted.identifier.sd [126..129]: "red"
+ ├─ Newline [129..130]: "\n"
+ ├─ meta.theme.luau [130..133]
+ │   └─ keyword.control.end.luau [130..133]: "end"
+ └─ Newline [133..134]: "\n"

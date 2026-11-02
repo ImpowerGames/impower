@@ -170,6 +170,41 @@ describe("valid brace bodies report nothing", () => {
   }
 });
 
+describe("a brace body opened in the wrong place", () => {
+  test("a `{` on the line after the header is an error at the brace, and the next block compiles on its own", () => {
+    const source = `style panel\n{\n  corner = 8px\n}\n\nstyle after {\n  corner = 4px\n}\n${SCENE}`;
+    const errs = errors(source);
+    expect(errs.map((e) => [e.startLine, e.message])).toEqual([
+      [1, "A style's `{` goes at the end of its header line: `style NAME [as PARENT] {`."],
+    ]);
+    const context = compile(source).program.context as any;
+    expect(context?.style?.panel?.corner).toBe("8px");
+    expect(context?.style?.after?.corner).toBe("4px");
+  });
+
+  test("a header with both `with` and `{` is an error on the header", () => {
+    for (const [header, keyword] of [
+      ["style panel with {", "style"],
+      ["layout hud with {", "layout"],
+    ]) {
+      const errs = errors(`${header}\n  corner = 8px\n}\n${SCENE}`);
+      expect(errs).toHaveLength(1);
+      expect(errs[0]!.startLine).toBe(0);
+      expect(errs[0]!.message).toContain(
+        `This ${keyword} opens its body with both \`with\` and \`{\``,
+      );
+    }
+  });
+
+  test("an unreadable header names the brace form", () => {
+    const errs = errors(`style panel: {\n  corner = 8px\n}\n${SCENE}`).filter((e) =>
+      e.message.includes("cannot be read past"),
+    );
+    expect(errs).toHaveLength(1);
+    expect(errs[0]!.message).toContain("`style NAME [as PARENT] {`");
+  });
+});
+
 describe("an unclosed brace body", () => {
   const source = [
     "style broken {",

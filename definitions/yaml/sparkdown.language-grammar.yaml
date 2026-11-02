@@ -637,6 +637,8 @@ variables:
   STRUCT_BLOCK_BAIL: (?:{{BEAT}}|^{{END}})
   STRUCT_DECLARATION_LINE: (?:^{{LUAU_FILE_SPARKDOWN_WORDS}}{{WS}}+{{LUAU_STRUCTURE_NAME}})
   STRUCT_KEYWORD_BODY_BAIL: (?:{{STRUCT_BLOCK_BAIL}}|{{STRUCT_DECLARATION_LINE}})
+  # lookaround: LuauStructBraceBody and LuauSparkleBraceBody take a `{` that opens the line after a header written without `with`, and the keyword rule's end takes a beat, an `end` line or the next declaration. A body that opened at the header's line break would hold that line before any of them could claim it, so it opens on the first line none of them claims.
+  STRUCT_WITHOUT_WITH_LINE: ^(?!{{WS}}*(?:[{]|$))(?!{{STRUCT_KEYWORD_BODY_BAIL}})
   # lookaround: LuauStructBraceBody and LuauSparkleBraceBody read a struct keyword's `}`, and the keyword's block ends right after it; LuauStructWithBody and LuauSparkleWithBody end before their `end`. A line of a `with` body may end in a `}` too, so the rule around the bodies can only tell the two apart by holding each body as one child.
   STRUCT_KEYWORD_BRACE_CLOSED: (?<=[}])
   STRUCT_BLOCK_TRAILING_COMMA: (?:[,]{{WS}}*(?:$|[;}]|{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))
@@ -3868,6 +3870,7 @@ repository:
       - { include: "#LuauStructWithBody" }
       - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
     end: (?={{BEAT}})|(?={{STRUCT_DECLARATION_LINE}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
@@ -3902,6 +3905,7 @@ repository:
       - { include: "#LuauStructWithBody" }
       - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
     end: (?={{BEAT}})|(?={{STRUCT_DECLARATION_LINE}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
@@ -3936,6 +3940,7 @@ repository:
       - { include: "#LuauStructWithBody" }
       - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
     end: (?={{BEAT}})|(?={{STRUCT_DECLARATION_LINE}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
@@ -3970,6 +3975,7 @@ repository:
       - { include: "#LuauStructWithBody" }
       - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
     end: (?={{BEAT}})|(?={{STRUCT_DECLARATION_LINE}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
@@ -3985,7 +3991,7 @@ repository:
 
 
   LuauStructWithBody:
-    begin: ({{WS}}*)(with)\b|({{NL}})
+    begin: ({{WS}}*)(with)\b|{{STRUCT_WITHOUT_WITH_LINE}}
     beginCaptures:
       1:
         emit: true
@@ -3994,9 +4000,6 @@ repository:
       2:
         patterns:
           - { include: "#LuauWithKeyword" }
-      3:
-        patterns:
-          - { include: "#Newline" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauStructBlockLine" }
@@ -5954,6 +5957,7 @@ repository:
       - { include: "#LuauSparkleWithBody" }
       - { include: "#LuauSparkleBraceBody" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
     end: (?={{BEAT}})|(?={{STRUCT_DECLARATION_LINE}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
@@ -5988,6 +5992,7 @@ repository:
       - { include: "#LuauStructWithBody" }
       - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
     end: (?={{BEAT}})|(?={{STRUCT_DECLARATION_LINE}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
@@ -6037,6 +6042,7 @@ repository:
       - { include: "#LuauSparkleWithBody" }
       - { include: "#LuauSparkleBraceBody" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
     end: (?={{BEAT}})|(?={{STRUCT_DECLARATION_LINE}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
@@ -6085,7 +6091,7 @@ repository:
           - { include: "#Whitespace" }
 
   LuauSparkleWithBody:
-    begin: ({{WS}}*)(with)\b|({{NL}})
+    begin: ({{WS}}*)(with)\b|{{STRUCT_WITHOUT_WITH_LINE}}
     beginCaptures:
       1:
         emit: true
@@ -6094,9 +6100,6 @@ repository:
       2:
         patterns:
           - { include: "#LuauWithKeyword" }
-      3:
-        patterns:
-          - { include: "#Newline" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauSparkleControlBlock" }

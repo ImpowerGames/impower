@@ -20,9 +20,8 @@ sparkdown [0..1181]
  │   │       │   ├─ LuauSparkleWithBody_begin_c1 [15..16]
  │   │       │   │   └─ LuauSparkleWithBody_begin_c1 [15..16]
  │   │       │   │       └─ OptionalWhitespace [15..16]: " "
- │   │       │   ├─ LuauSparkleWithBody_begin_c2 [16..20]
- │   │       │   │   └─ LuauWithKeyword [16..20]: "with"
- │   │       │   └─ LuauSparkleWithBody_begin_c3 20
+ │   │       │   └─ LuauSparkleWithBody_begin_c2 [16..20]
+ │   │       │       └─ LuauWithKeyword [16..20]: "with"
  │   │       ├─ LuauSparkleWithBody_content [20..1053]
  │   │       │   ├─ Newline [20..21]: "\n"
  │   │       │   ├─ LuauSparkleBlockLine [21..83]
@@ -2177,9 +2176,8 @@ sparkdown [0..1181]
  │   │       │   ├─ LuauSparkleWithBody_begin_c1 [1073..1074]
  │   │       │   │   └─ LuauSparkleWithBody_begin_c1 [1073..1074]
  │   │       │   │       └─ OptionalWhitespace [1073..1074]: " "
- │   │       │   ├─ LuauSparkleWithBody_begin_c2 [1074..1078]
- │   │       │   │   └─ LuauWithKeyword [1074..1078]: "with"
- │   │       │   └─ LuauSparkleWithBody_begin_c3 1078
+ │   │       │   └─ LuauSparkleWithBody_begin_c2 [1074..1078]
+ │   │       │       └─ LuauWithKeyword [1074..1078]: "with"
  │   │       ├─ LuauSparkleWithBody_content [1078..1136]
  │   │       │   ├─ Newline [1078..1079]: "\n"
  │   │       │   └─ LuauSparkleBlockLine [1079..1136]
@@ -2324,9 +2322,8 @@ sparkdown [0..1181]
  │   │       │   ├─ LuauSparkleWithBody_begin_c1 [1153..1154]
  │   │       │   │   └─ LuauSparkleWithBody_begin_c1 [1153..1154]
  │   │       │   │       └─ OptionalWhitespace [1153..1154]: " "
- │   │       │   ├─ LuauSparkleWithBody_begin_c2 [1154..1158]
- │   │       │   │   └─ LuauWithKeyword [1154..1158]: "with"
- │   │       │   └─ LuauSparkleWithBody_begin_c3 1158
+ │   │       │   └─ LuauSparkleWithBody_begin_c2 [1154..1158]
+ │   │       │       └─ LuauWithKeyword [1154..1158]: "with"
  │   │       ├─ LuauSparkleWithBody_content [1158..1177]
  │   │       │   ├─ Newline [1158..1159]: "\n"
  │   │       │   ├─ LuauSparkleBlockLine [1159..1176]

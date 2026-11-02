@@ -20,9 +20,8 @@ sparkdown [0..142]
  │   │       │   ├─ LuauStructWithBody_begin_c1 [16..17]
  │   │       │   │   └─ LuauStructWithBody_begin_c1 [16..17]
  │   │       │   │       └─ OptionalWhitespace [16..17]: " "
- │   │       │   ├─ LuauStructWithBody_begin_c2 [17..21]
- │   │       │   │   └─ LuauWithKeyword [17..21]: "with"
- │   │       │   └─ LuauStructWithBody_begin_c3 21
+ │   │       │   └─ LuauStructWithBody_begin_c2 [17..21]
+ │   │       │       └─ LuauWithKeyword [17..21]: "with"
  │   │       ├─ LuauStructWithBody_content [21..86]
  │   │       │   ├─ Newline [21..22]: "\n"
  │   │       │   └─ LuauStructBlockLine [22..86]
@@ -166,9 +165,8 @@ sparkdown [0..142]
  │   │       │   ├─ LuauStructWithBody_begin_c1 [106..107]
  │   │       │   │   └─ LuauStructWithBody_begin_c1 [106..107]
  │   │       │   │       └─ OptionalWhitespace [106..107]: " "
- │   │       │   ├─ LuauStructWithBody_begin_c2 [107..111]
- │   │       │   │   └─ LuauWithKeyword [107..111]: "with"
- │   │       │   └─ LuauStructWithBody_begin_c3 111
+ │   │       │   └─ LuauStructWithBody_begin_c2 [107..111]
+ │   │       │       └─ LuauWithKeyword [107..111]: "with"
  │   │       ├─ LuauStructWithBody_content [111..138]
  │   │       │   ├─ Newline [111..112]: "\n"
  │   │       │   ├─ LuauStructBlockLine [112..137]

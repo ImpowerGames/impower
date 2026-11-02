@@ -20,9 +20,8 @@ sparkdown [0..673]
  │   │       │   ├─ LuauStructWithBody_begin_c1 [7..8]
  │   │       │   │   └─ LuauStructWithBody_begin_c1 [7..8]
  │   │       │   │       └─ OptionalWhitespace [7..8]: " "
- │   │       │   ├─ LuauStructWithBody_begin_c2 [8..12]
- │   │       │   │   └─ LuauWithKeyword [8..12]: "with"
- │   │       │   └─ LuauStructWithBody_begin_c3 12
+ │   │       │   └─ LuauStructWithBody_begin_c2 [8..12]
+ │   │       │       └─ LuauWithKeyword [8..12]: "with"
  │   │       ├─ LuauStructWithBody_content [12..669]
  │   │       │   ├─ Newline [12..13]: "\n"
  │   │       │   ├─ LuauStructBlockLine [13..57]

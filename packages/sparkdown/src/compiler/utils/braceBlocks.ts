@@ -23,12 +23,25 @@ export const KEYWORD_BRACE_BODY_NAMES = nodeNameSet([
   "LuauSparkleBraceBody",
 ]);
 
-export function keywordBraceBody(block: SyntaxNode): SyntaxNode | null {
+const KEYWORD_WITH_BODY_NAMES = nodeNameSet([
+  "LuauStructWithBody",
+  "LuauSparkleWithBody",
+]);
+
+function keywordBody(block: SyntaxNode, names: Set<string>): SyntaxNode | null {
   const content = findChildByName(block, `${block.name}_content`);
   for (let child = content?.firstChild; child; child = child.nextSibling) {
-    if (KEYWORD_BRACE_BODY_NAMES.has(child.name)) return child;
+    if (names.has(child.name)) return child;
   }
   return null;
+}
+
+export function keywordBraceBody(block: SyntaxNode): SyntaxNode | null {
+  return keywordBody(block, KEYWORD_BRACE_BODY_NAMES);
+}
+
+export function keywordWithBody(block: SyntaxNode): SyntaxNode | null {
+  return keywordBody(block, KEYWORD_WITH_BODY_NAMES);
 }
 
 export const STRUCT_KEY_TOKEN_NAMES = nodeNameSet([

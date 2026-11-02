@@ -297,9 +297,8 @@ sparkdown [0..191]
  │   │       │   ├─ LuauStructWithBody_begin_c1 [140..141]
  │   │       │   │   └─ LuauStructWithBody_begin_c1 [140..141]
  │   │       │   │       └─ OptionalWhitespace [140..141]: " "
- │   │       │   ├─ LuauStructWithBody_begin_c2 [141..145]
- │   │       │   │   └─ LuauWithKeyword [141..145]: "with"
- │   │       │   └─ LuauStructWithBody_begin_c3 145
+ │   │       │   └─ LuauStructWithBody_begin_c2 [141..145]
+ │   │       │       └─ LuauWithKeyword [141..145]: "with"
  │   │       ├─ LuauStructWithBody_content [145..187]
  │   │       │   ├─ Newline [145..146]: "\n"
  │   │       │   ├─ LuauStructBlockLine [146..186]
