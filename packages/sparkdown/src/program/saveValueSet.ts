@@ -1,6 +1,8 @@
 import {
   formatLiteral,
+  isLiteralTable,
   listingItems,
+  literalTableFields,
   parseLiteral,
   visitsKey,
   type StartingValueListing,
@@ -67,6 +69,46 @@ export const savedValueOf = (
     }
   }
   return value;
+};
+
+export const withSavedValue = (
+  values: Readonly<StartingValueSet>,
+  key: string,
+  text: string,
+): StartingValueSet => {
+  const out: StartingValueSet = { ...values, [key]: text };
+  if (!key.startsWith("store:")) {
+    return out;
+  }
+  const parsed = parseLiteral(text);
+  const prefix = `${key}.`;
+  for (const child of Object.keys(out)) {
+    const name = child.slice(prefix.length);
+    if (!child.startsWith(prefix) || name.includes(".")) {
+      continue;
+    }
+    const field =
+      parsed.ok && isLiteralTable(parsed.value)
+        ? literalTableFields(parsed.value).get(`s:${name}`)
+        : undefined;
+    out[child] = field ? formatLiteral(field.value) : "nil";
+  }
+  const path = key.slice("store:".length);
+  const dot = path.lastIndexOf(".");
+  const parentKey = `store:${path.slice(0, dot)}`;
+  const parent =
+    dot > 0 && Object.hasOwn(out, parentKey) ? parseLiteral(out[parentKey]!) : undefined;
+  if (parsed.ok && parent?.ok && isLiteralTable(parent.value)) {
+    const name = path.slice(dot + 1);
+    const entries = parent.value.entries.filter(
+      (entry) => !("key" in entry && entry.key === name),
+    );
+    if (parsed.value !== null) {
+      entries.push({ key: name, value: parsed.value });
+    }
+    out[parentKey] = formatLiteral({ ...parent.value, entries });
+  }
+  return out;
 };
 
 export const saveStartingValues = (

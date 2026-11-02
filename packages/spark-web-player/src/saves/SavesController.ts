@@ -7,11 +7,15 @@ import {
 import { RenameSaveMessage } from "@impower/spark-editor-protocol/src/protocols/preview/RenameSaveMessage";
 import { WriteSaveMessage } from "@impower/spark-editor-protocol/src/protocols/preview/WriteSaveMessage";
 import type { GameSave } from "@impower/spark-engine/src/game/core/types/GameSave";
-import { readLocalKey } from "@impower/sparkdown/src/program/saveValueSet";
+import {
+  readLocalKey,
+  withSavedValue,
+} from "@impower/sparkdown/src/program/saveValueSet";
 import type { StartingValueListing } from "@impower/sparkdown/src/program/startingValueLiterals";
 import { EditSaveMessage } from "../main/workers/messages/EditSaveMessage";
 import { SaveHereMessage } from "../main/workers/messages/SaveHereMessage";
 import { SaveRefusalsMessage } from "../main/workers/messages/SaveRefusalsMessage";
+import { SaveValuesMessage } from "../main/workers/messages/SaveValuesMessage";
 import type { SavesEvents } from "./SavesViews";
 import {
   enteringName,
@@ -59,6 +63,7 @@ export class SavesController {
   protected _note: (SaveNoteState & { id?: string }) | null = null;
   protected _noteTimer?: ReturnType<typeof setTimeout>;
   protected _lastRunScenes = new Map<string, string>();
+  protected _changes: Promise<unknown> = Promise.resolve();
   protected _checks = 0;
 
   constructor(protected _host: SavesHost) {}
@@ -194,7 +199,9 @@ export class SavesController {
       at >= 0
         ? this._saves.map((save, i) => (i === at ? record : save))
         : [...this._saves, record];
-    delete this._refusals[record.id];
+    if (before?.data !== record.data) {
+      delete this._refusals[record.id];
+    }
     this._host.changed();
     try {
       await this._host.requestHost(WriteSaveMessage.type, { save: record });
@@ -312,6 +319,7 @@ export class SavesController {
     this.closeValues();
     this._valuesId = id;
     this._host.changed();
+    await this.current(id);
     const listing = await this._host.listing(record.scene);
     if (this._valuesId === id) {
       this._valuesListing = listing;
@@ -319,8 +327,59 @@ export class SavesController {
     }
   }
 
-  async setValue(key: string, value: string): Promise<void> {
-    const record = this._valuesId ? this.record(this._valuesId) : undefined;
+  protected serial<T>(work: () => Promise<T>): Promise<T> {
+    const next = this._changes.then(work);
+    this._changes = next.catch(() => undefined);
+    return next;
+  }
+
+  current(id: string): Promise<PreviewSave | undefined> {
+    return this.serial(() => this.placeCounts(id));
+  }
+
+  protected async placeCounts(id: string): Promise<PreviewSave | undefined> {
+    const record = this.record(id);
+    if (!record || this._refusals[id] !== undefined) {
+      return record;
+    }
+    let durable: Record<string, string> | undefined;
+    try {
+      durable = (
+        await this._host.askWorker(SaveValuesMessage.type, { data: record.data })
+      )?.values.values;
+    } catch {
+      return record;
+    }
+    if (!durable) {
+      return record;
+    }
+    const isPlace = (key: string) => key.startsWith("place:");
+    const values = Object.fromEntries([
+      ...Object.entries(record.values.values).filter(([key]) => !isPlace(key)),
+      ...Object.entries(durable).filter(([key]) => isPlace(key)),
+    ]);
+    if (JSON.stringify(values) === JSON.stringify(record.values.values)) {
+      return record;
+    }
+    const placed: PreviewSave = {
+      ...record,
+      values: { ...record.values, values },
+    };
+    try {
+      await this.write(placed);
+    } catch {
+      return record;
+    }
+    return placed;
+  }
+
+  setValue(key: string, value: string): Promise<void> {
+    const id = this._valuesId;
+    return id ? this.serial(() => this.writeValue(id, key, value)) : Promise.resolve();
+  }
+
+  protected async writeValue(id: string, key: string, value: string): Promise<void> {
+    const record = this.record(id);
     if (!record) {
       return;
     }
@@ -348,7 +407,7 @@ export class SavesController {
       ...record,
       data,
       values: {
-        values: { ...record.values.values, [key]: value },
+        values: withSavedValue(record.values.values, key, value),
         frames: record.values.frames.map((frame, i) =>
           local && i === local.frame && Object.hasOwn(frame.params, local.name)
             ? { ...frame, params: { ...frame.params, [local.name]: value } }

@@ -193,6 +193,35 @@ describe("saves made while playing", () => {
     });
   });
 
+  it("reads a save's option counts under the lines the options are on now", () => {
+    const lines = [
+      "scene start",
+      "  choose",
+      "    * [Stay.]",
+      "      Stayed.",
+      "    * [Leave.]",
+      "      Left.",
+      "  end",
+      "  Done.",
+      "end",
+    ];
+    const { program, compiler } = compileSrc(lines.join("\n"));
+    const game = playFromLine(program, compiler, 2);
+    choose(game, "Leave.");
+    advanceTo(game, "Left.");
+    const save: GameSave = game.saveHere();
+    const before = Object.entries(save.values.values).filter(
+      ([key, value]) => key.startsWith("place:") && value === "1",
+    );
+    expect(before.map(([key]) => key)).toEqual([`place:0:4:${URI}`]);
+
+    recompile(compiler, game, ["", "", ...lines].join("\n"));
+    const after = Object.entries(game.saveValuesOf(save.data).values).filter(
+      ([key, value]) => key.startsWith("place:") && value === "1",
+    );
+    expect(after.map(([key]) => key)).toEqual([`place:0:6:${URI}`]);
+  });
+
   it("keeps the position when a save's values are edited", () => {
     const { program, compiler } = compileSrc(example.join("\n"));
     const game = playFromLine(program, compiler, START_LINE);

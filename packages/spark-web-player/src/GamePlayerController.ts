@@ -1016,7 +1016,7 @@ export class GamePlayerController {
   protected async loadSave(id: string) {
     this._loadSaveOpen = false;
     const start = this.valuesStart();
-    const record = this._saves.record(id);
+    const record = await this._saves.current(id);
     if (start === undefined || !record || !this._valueFields.kept) {
       this.renderRoute();
       return;

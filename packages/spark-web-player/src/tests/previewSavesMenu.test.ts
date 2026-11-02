@@ -3,6 +3,7 @@ import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/Me
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
 import { SetStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetStartingValuesMessage";
 import type { PreviewRoute } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
+import { withSavedValue } from "@impower/sparkdown/src/program/saveValueSet";
 import type {
   StartingValueListing,
   StartingValues,
@@ -34,6 +35,15 @@ const listing: StartingValueListing = {
     { key: "store:suspect", group: "stores", name: "suspect", first: '"Ana"', type: "string" },
     { key: "visits:interrogation", group: "visits", name: "interrogation", first: "0", type: "number" },
     { key: "visits:start", group: "visits", name: "start", first: "0", type: "number" },
+    {
+      key: `place:0:12:${URI}`,
+      group: "visits",
+      name: "Tell the truth.",
+      uri: URI,
+      line: 12,
+      first: "0",
+      type: "number",
+    },
     { key: "seed", group: "randomization", name: "seed", first: "0", type: "number" },
   ],
 };
@@ -85,7 +95,12 @@ const controllers: GamePlayerController[] = [];
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-function player(options: { refusals?: Record<string, string> } = {}) {
+function player(
+  options: {
+    refusals?: Record<string, string>;
+    durable?: Record<string, string>;
+  } = {},
+) {
   const host = document.createElement("div");
   const viewport = document.createElement("div");
   const leftItems = document.createElement("div");
@@ -131,9 +146,13 @@ function player(options: { refusals?: Record<string, string> } = {}) {
     if (type.method === "player/saveRefusals") {
       return { refusals: options.refusals ?? {} };
     }
+    if (type.method === "player/saveValues" && options.durable) {
+      return { values: { values: options.durable, frames: [] } };
+    }
     if (type.method === "player/editSave") {
+      await settle();
       return {
-        data: `${params.data}+edited`,
+        data: `${params.data}+${JSON.stringify(params.changes)}`,
         values: {
           values: { ...saved().values.values, ...params.changes },
           frames: saved().values.frames,
@@ -345,7 +364,7 @@ describe("a save's values", () => {
     expect(value("store:trust").value).toBe("2");
     expect(value("local:0:hour").value).toBe('"nine"');
     expect(panel.querySelector(".sv-status")!.textContent).toBe(
-      "3 of 5 values differ from their first values",
+      "3 of 6 values differ from their first values",
     );
     expect(
       [...panel.querySelectorAll(".sv-row[data-set]")].map((row) => row.getAttribute("data-key")),
@@ -368,12 +387,13 @@ describe("a save's values", () => {
       .querySelector<HTMLInputElement>('.sv-row[data-key="store:trust"] .sv-input')!
       .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     await settle();
+    await settle();
     expect(p.asked).toContainEqual([
       "player/editSave",
       { data: '{"save":"saved-1"}', changes: { "store:trust": "5" } },
     ]);
     const written = p.request("preview/writeSave").params.save as PreviewSave;
-    expect(written.data).toBe('{"save":"saved-1"}+edited');
+    expect(written.data).toBe('{"save":"saved-1"}+{"store:trust":"5"}');
     expect(written.values.values["store:trust"]).toBe("5");
     expect(written.line).toBe(10);
     p.hostAnswers("preview/writeSave");
@@ -381,6 +401,71 @@ describe("a save's values", () => {
     expect(
       p.menu()!.querySelector<HTMLInputElement>('.sv-row[data-key="store:trust"] .sv-input')!.value,
     ).toBe("5");
+  });
+});
+
+describe("edits to a save", () => {
+  const answerWrites = async (p: ReturnType<typeof player>, count: number) => {
+    const answered = new Set<unknown>();
+    for (let i = 0; i < 50 && answered.size < count; i++) {
+      await settle();
+      for (const message of p.sent.filter(
+        (m) => m.method === "preview/writeSave" && !answered.has(m.id),
+      )) {
+        answered.add(message.id);
+        window.dispatchEvent(
+          new CustomEvent(MessageProtocol.event, {
+            detail: { jsonrpc: "2.0", id: message.id, method: message.method, result: {} },
+          }),
+        );
+      }
+    }
+    return answered.size;
+  };
+
+  test("applies an edit made before an earlier one is answered after it", async () => {
+    const p = player();
+    await p.withSaves([saved()]);
+    const saves = (p.controller as any)._saves;
+    await saves.editValues("saved-1");
+    const first = saves.setValue("store:trust", "5");
+    const second = saves.setValue("store:suspect", '"Bo"');
+    expect(await answerWrites(p, 2)).toBe(2);
+    await Promise.all([first, second]);
+    const record = saves.record("saved-1") as PreviewSave;
+    expect(record.data).toContain('{"store:trust":"5"}');
+    expect(record.data).toContain("store:suspect");
+    expect(record.values.values["store:trust"]).toBe("5");
+    expect(record.values.values["store:suspect"]).toBe('"Bo"');
+    const edits = p.asked.filter(([method]) => method === "player/editSave");
+    expect(edits[1]![1].data).toBe(edits[0]![1].data + '+{"store:trust":"5"}');
+  });
+
+  test("keeps a table store and its fields in step", () => {
+    const values = { "store:bag": "{ coins = 1 }", "store:bag.coins": "1" };
+    expect(withSavedValue(values, "store:bag", "{ coins = 5 }")).toEqual({
+      "store:bag": "{ coins = 5 }",
+      "store:bag.coins": "5",
+    });
+    expect(withSavedValue(values, "store:bag.coins", "3")).toEqual({
+      "store:bag": "{ coins = 3 }",
+      "store:bag.coins": "3",
+    });
+    expect(withSavedValue(values, "store:bag", "{ }")).toEqual({
+      "store:bag": "{ }",
+      "store:bag.coins": "nil",
+    });
+  });
+
+  test("leaves a save whose line is gone unplayable after an edit", async () => {
+    const p = player({ refusals: { "saved-1": "The saved line is gone." } });
+    await p.withSaves([saved()]);
+    const saves = (p.controller as any)._saves;
+    await saves.editValues("saved-1");
+    const editing = saves.setValue("store:trust", "4");
+    expect(await answerWrites(p, 1)).toBe(1);
+    await editing;
+    expect(saves.rows().find((row: any) => row.id === "saved-1").gone).toBe(true);
   });
 });
 
@@ -461,7 +546,7 @@ describe("Load a save", () => {
     await settle();
     expect(field("store:suspect")).toBe('"Bo"');
     expect(field("param:hour")).toBe("");
-    expect(status(p)).toBe("1 of 6 values set");
+    expect(status(p)).toBe("1 of 7 values set");
   });
 
   test("still sets the values of a save whose line is gone", async () => {
@@ -493,6 +578,41 @@ describe("Load a save", () => {
       "store:trust": "2",
       "visits:start": "1",
     });
+  });
+
+  test("loads an option's count under the line the option is on now", async () => {
+    const moved = saved();
+    moved.values.values[`place:0:11:${URI}`] = "1";
+    const p = player({
+      durable: { ...saved().values.values, [`place:0:12:${URI}`]: "1" },
+    });
+    await (p.controller as any).handleSetStartingValues(
+      SetStartingValuesMessage.type.request({ values: {} }),
+    );
+    await p.withSaves([moved]);
+    (p.controller as any).updateExecutionLabels({
+      conditions: [],
+      choices: [],
+      state: "previewing",
+      simulation: "success",
+      route: route(),
+    });
+    p.routeButton.querySelector<HTMLButtonElement>(".route-button")!.click();
+    await settle();
+    [...p.routeList.querySelectorAll<HTMLButtonElement>(".route-tab")]
+      .find((tab) => tab.dataset["tab"] === "values")!
+      .click();
+    await settle();
+    loadButton(p).click();
+    p.routeList.querySelector<HTMLButtonElement>(".sv-load-row")!.click();
+    await settle();
+    const written = p.request("preview/writeSave").params.save as PreviewSave;
+    expect(written.values.values[`place:0:12:${URI}`]).toBe("1");
+    expect(written.values.values[`place:0:11:${URI}`]).toBeUndefined();
+    p.hostAnswers("preview/writeSave");
+    await settle();
+    await settle();
+    expect(changes(p).at(-1)!.changes).toMatchObject({ [`place:0:12:${URI}`]: "1" });
   });
 
   test("loads a parameter edited in a save whose line is gone", async () => {
