@@ -4,7 +4,9 @@ import type { GameEnding } from "../../types/GameEnding";
 
 export type GameEndedMethod = typeof GameEndedMessage.method;
 
-export interface GameEndedParams extends GameEnding {}
+export interface GameEndedParams extends GameEnding {
+  run?: number;
+}
 
 export class GameEndedMessage {
   static readonly method = "game/ended";

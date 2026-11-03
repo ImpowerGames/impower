@@ -113,7 +113,10 @@ describe("PLAY in the worker ended by a runtime error", () => {
       await h.controller.handleStopGame({ id: 1, params: {} });
       await settle(10);
       const exited = h.toEditor.find((m) => m.method === "game/exited");
-      expect(exited?.params).toEqual({ reason: "error" });
+      expect(exited?.params).toEqual({
+        reason: "error",
+        run: expect.any(Number),
+      });
       expect(h.workspace.selections.map((s: any) => s.selectedRange)).toEqual([
         errorAt.range,
       ]);

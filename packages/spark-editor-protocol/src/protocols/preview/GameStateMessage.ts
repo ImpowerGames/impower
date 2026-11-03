@@ -6,6 +6,7 @@ export interface GameState {
   programLoaded: boolean;
   programVersion: number | null;
   launchState: "pause" | "play" | "ended" | "preview" | null;
+  run?: number | null;
   position: { uri: string; line: number } | null;
   completion: {
     request: number;

@@ -216,7 +216,12 @@ describe("PLAY in the worker reaching the end of the story", () => {
       h.workspace.selections.length = 0;
       await h.controller.handleStopGame({ id: 1, params: {} });
       await settle(20);
-      expect(sent(h, "game/exited")).toEqual([{ reason: "finished" }]);
+      expect(sent(h, "game/exited")).toEqual([
+        expect.objectContaining({
+          reason: "finished",
+          run: expect.any(Number),
+        }),
+      ]);
       expect(launchStates(h).at(-1)).toBe("preview");
       expect(h.controller.playing).toBe(false);
       expect(h.refs.endingStatus.hidden).toBe(true);
@@ -238,7 +243,12 @@ describe("PLAY in the worker reaching the end of the story", () => {
       h.workspace.selections.length = 0;
       await h.controller.handleStopGame({ id: 1, params: {} });
       await settle(20);
-      expect(sent(h, "game/exited")).toEqual([{ reason: "error" }]);
+      expect(sent(h, "game/exited")).toEqual([
+        expect.objectContaining({
+          reason: "error",
+          run: expect.any(Number),
+        }),
+      ]);
       expect(h.workspace.selections.map((s: any) => s.selectedRange)).toEqual([
         ended.error.location.range,
       ]);

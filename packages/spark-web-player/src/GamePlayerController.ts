@@ -611,6 +611,7 @@ export class GamePlayerController {
       programLoaded: this._mounted && this._program != null && this._launchState != null,
       programVersion: this._program?.version ?? null,
       launchState: this._launchState,
+      run: this._workerPlay?.run ?? null,
       position: this._previewPosition,
       completion: this._completionStatus
         ? { request: this._completionRequest, status: this._completionStatus }
@@ -2088,13 +2089,17 @@ export class GamePlayerController {
   protected handlePauseGame = async (message: PauseGameMessage.Request) => {
     const app = this.controlledApp;
     if (app && this._workerPlay?.ended) {
-      return PauseGameMessage.type.response(message.id, {});
+      return PauseGameMessage.type.response(message.id, {
+        run: this._workerPlay.run,
+      });
     }
     app?.pause();
     const told = app && (await this.tellWorkerPlay(PauseGameMessage.type, {}));
     this.updateLaunchStateIcon();
     return told
-      ? PauseGameMessage.type.response(message.id, {})
+      ? PauseGameMessage.type.response(message.id, {
+          run: this._workerPlay?.run,
+        })
       : PauseGameMessage.type.error(message.id, {
           code: 1,
           message: "no game loaded",
@@ -2144,7 +2149,10 @@ export class GamePlayerController {
       return StepGameMessage.type.error(message.id, toResponseError(e));
     }
     if (answer) {
-      return StepGameMessage.type.response(message.id, answer);
+      return StepGameMessage.type.response(message.id, {
+        ...answer,
+        run: this._workerPlay?.run,
+      });
     }
     return StepGameMessage.type.error(message.id, {
       code: 1,
@@ -2165,7 +2173,10 @@ export class GamePlayerController {
       return ContinueGameMessage.type.error(message.id, toResponseError(e));
     }
     if (answer) {
-      return ContinueGameMessage.type.response(message.id, answer);
+      return ContinueGameMessage.type.response(message.id, {
+        ...answer,
+        run: this._workerPlay?.run,
+      });
     }
     return ContinueGameMessage.type.error(message.id, {
       code: 1,
@@ -2194,7 +2205,10 @@ export class GamePlayerController {
       message.params,
     );
     if (answer) {
-      return GetGameThreadsMessage.type.response(message.id, answer);
+      return GetGameThreadsMessage.type.response(message.id, {
+        ...answer,
+        run: this._workerPlay?.run,
+      });
     }
     return GetGameThreadsMessage.type.error(message.id, {
       code: 1,
@@ -2703,7 +2717,10 @@ export class GamePlayerController {
     }
     this.updateLaunchStateIcon();
     this.setEndingStatus(ending);
-    sendProtocolMessage(GameEndedMessage.type.notification(ending), this.host);
+    sendProtocolMessage(
+      GameEndedMessage.type.notification({ ...ending, run: play.run }),
+      this.host,
+    );
     if (!this.refs.toolbar) {
       this.showPlayButton();
     }
@@ -2737,6 +2754,7 @@ export class GamePlayerController {
   ) {
     this._stops += 1;
     const plays = this._plays;
+    const stoppedRun = this._workerPlay?.run;
     const endedAt =
       options?.at ?? this._workerPlay?.ended?.error?.location ?? null;
     this.setEndingStatus(null);
@@ -2761,6 +2779,7 @@ export class GamePlayerController {
       GameExitedMessage.type.notification({
         reason,
         error,
+        run: stoppedRun,
       }),
       this.host,
     );
@@ -2857,7 +2876,10 @@ export class GamePlayerController {
       if (ended && !ended.exitClaimed) {
         ended.exitClaimed = true;
         sendProtocolMessage(
-          GameExitedMessage.type.notification({ reason: "invalidated" }),
+          GameExitedMessage.type.notification({
+            reason: "invalidated",
+            run: ended.run,
+          }),
           this.host,
         );
       }
@@ -3040,7 +3062,10 @@ export class GamePlayerController {
     game.connection.outgoing.addListener(GameSteppedMessage.method, (msg) => {
       if (GameSteppedMessage.type.isNotification(msg)) {
         sendProtocolMessage(
-          GameSteppedMessage.type.notification(msg.params),
+          GameSteppedMessage.type.notification({
+            ...msg.params,
+            run: this.runOf(owner),
+          }),
           this.host,
         );
       }
@@ -3050,7 +3075,10 @@ export class GamePlayerController {
       (msg) => {
         if (GameHitBreakpointMessage.type.isNotification(msg)) {
           sendProtocolMessage(
-            GameHitBreakpointMessage.type.notification(msg.params),
+            GameHitBreakpointMessage.type.notification({
+              ...msg.params,
+              run: this.runOf(owner),
+            }),
             this.host,
           );
         }
@@ -3061,7 +3089,10 @@ export class GamePlayerController {
       (msg) => {
         if (GameAwaitingInteractionMessage.type.isNotification(msg)) {
           sendProtocolMessage(
-            GameAwaitingInteractionMessage.type.notification(msg.params),
+            GameAwaitingInteractionMessage.type.notification({
+              ...msg.params,
+              run: this.runOf(owner),
+            }),
             this.host,
           );
         }
@@ -3072,7 +3103,10 @@ export class GamePlayerController {
       (msg) => {
         if (GameAutoAdvancedToContinueMessage.type.isNotification(msg)) {
           sendProtocolMessage(
-            GameAutoAdvancedToContinueMessage.type.notification(msg.params),
+            GameAutoAdvancedToContinueMessage.type.notification({
+              ...msg.params,
+              run: this.runOf(owner),
+            }),
             this.host,
           );
         }
@@ -3083,7 +3117,10 @@ export class GamePlayerController {
       (msg) => {
         if (GameClickedToContinueMessage.type.isNotification(msg)) {
           sendProtocolMessage(
-            GameClickedToContinueMessage.type.notification(msg.params),
+            GameClickedToContinueMessage.type.notification({
+              ...msg.params,
+              run: this.runOf(owner),
+            }),
             this.host,
           );
         }
@@ -3094,12 +3131,20 @@ export class GamePlayerController {
       (msg) => {
         if (GameChosePathToContinueMessage.type.isNotification(msg)) {
           sendProtocolMessage(
-            GameChosePathToContinueMessage.type.notification(msg.params),
+            GameChosePathToContinueMessage.type.notification({
+              ...msg.params,
+              run: this.runOf(owner),
+            }),
             this.host,
           );
         }
       },
     );
+  }
+
+  protected runOf(owner: unknown): number | undefined {
+    const run = (owner as { run?: unknown } | null)?.run;
+    return typeof run === "number" ? run : undefined;
   }
 
   listenToWorker(

@@ -11,6 +11,7 @@ export interface StepGameParams {
 
 export interface StepGameResult {
   done: boolean;
+  run?: number;
 }
 
 export class StepGameMessage {

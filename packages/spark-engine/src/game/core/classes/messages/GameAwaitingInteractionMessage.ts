@@ -7,6 +7,7 @@ export type GameAwaitingInteractionMethod =
 
 export interface GameAwaitingInteractionParams {
   location: DocumentLocation;
+  run?: number;
 }
 
 export class GameAwaitingInteractionMessage {
