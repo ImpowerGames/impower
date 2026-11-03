@@ -294,3 +294,97 @@ describe("PLAY in the worker reaching the end of the story", () => {
     }
   }, 120_000);
 });
+
+const standalone = async (source: string) => {
+  const h = await createPlayerHarness({
+    files: [{ uri: MAIN_URI, text: source }],
+    startFrom: { file: MAIN_URI, line: 0 },
+    manualClock: true,
+  });
+  const doc = h.overlay.ownerDocument;
+  const win = doc.defaultView as any;
+  win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
+  h.refs.playButton = doc.createElement("div");
+  h.refs.playButton.getAnimations = () => [];
+  await h.compile();
+  await h.select(0);
+  await settle(40);
+  return h;
+};
+
+describe("PLAY in the worker ending as it starts, or failing to replay an ending", () => {
+  beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  for (const [last, kind] of [
+    ["fin", "fin"],
+    ["done", "out"],
+  ] as const) {
+    it(`without an editor host, keeps the Play button over a story that ends by ${last} as the first click starts it`, async () => {
+      const h = await standalone(`scene start\n  ${last}\nend\n`);
+      try {
+        await h.controller.handleClickPlayButton();
+        await settle(40);
+        await h.tick(1000 / 60, 10);
+        expect(sent(h, "game/ended").at(-1)).toEqual(
+          expect.objectContaining({ kind }),
+        );
+        expect(launchStates(h).at(-1)).toBe("ended");
+        expect(h.refs.playButton.style.display).not.toBe("none");
+        expect(h.refs.playButton.style.pointerEvents).not.toBe("none");
+      } finally {
+        await h.controller.destroyGameAndApp();
+        h.dispose();
+      }
+    }, 120_000);
+  }
+
+  for (const caller of [
+    "handleRestartGame",
+    "handleClickPlayButton",
+    "scheduleRestartGame",
+    "restartGame",
+  ] as const) {
+    it(`returns to editing through ${caller} when the replay of an ended run cannot start`, async () => {
+      const h = await standalone("scene start\n  fin\nend\n");
+      try {
+        expect(await h.controller.startGameAndApp()).toBe(true);
+        await settle(40);
+        expect(launchStates(h).at(-1)).toBe("ended");
+        const request = h.link.request.bind(h.link);
+        let attempted!: () => void;
+        const attempt = new Promise<void>((resolve) => (attempted = resolve));
+        h.link.request = ((type: any, params: any) => {
+          if (type.method === PlayMessage.method) {
+            attempted();
+            return Promise.resolve({ built: false });
+          }
+          return request(type, params);
+        }) as typeof h.link.request;
+        if (caller === "handleRestartGame") {
+          await h.controller.handleRestartGame({ id: 1, params: {} });
+        } else if (caller === "handleClickPlayButton") {
+          await h.controller.handleClickPlayButton();
+        } else if (caller === "scheduleRestartGame") {
+          h.controller.scheduleRestartGame();
+          await attempt;
+        } else {
+          expect(await h.controller.restartGame()).toBe(false);
+        }
+        await settle(40);
+        expect(h.controller.playing).toBe(false);
+        expect(sent(h, "game/exited").map((p: any) => p.reason)).toEqual([
+          "invalidated",
+        ]);
+        expect(h.refs.playButton.style.display).not.toBe("none");
+      } finally {
+        await h.controller.destroyGameAndApp();
+        h.dispose();
+      }
+    }, 120_000);
+  }
+});

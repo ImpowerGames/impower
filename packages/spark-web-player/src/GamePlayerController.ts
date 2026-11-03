@@ -1164,7 +1164,9 @@ export class GamePlayerController {
     if (plays !== this._plays || !this._mounted || !this.playing) {
       return;
     }
-    this.hidePlayButton();
+    if (!this._workerPlay?.ended) {
+      this.hidePlayButton();
+    }
     sendProtocolMessage(GameStartedMessage.type.notification({}), this.host);
   };
 
@@ -1837,23 +1839,7 @@ export class GamePlayerController {
   };
 
   protected handleRestartGame = async (message: RestartGameMessage.Request) => {
-    const stops = this._stops;
-    const plays = this._plays;
-    const ended = this._workerPlay?.ended;
     const { started, refusal } = await this.restartPlay(true);
-    if (
-      !started &&
-      !refusal &&
-      ended &&
-      stops === this._stops &&
-      plays + 1 === this._plays &&
-      this._mounted &&
-      !this.playing
-    ) {
-      await this.stopGame("invalidated", undefined, {
-        at: ended.error?.location ?? ended.location,
-      });
-    }
     return started || !refusal
       ? RestartGameMessage.type.response(message.id, {})
       : RestartGameMessage.type.error(message.id, {
@@ -2850,6 +2836,7 @@ export class GamePlayerController {
     const stops = this._stops;
     const plays = this._plays;
     const startFrom = fromRunStart ? this._workerPlay?.startFrom : undefined;
+    const ended = this._workerPlay?.ended;
     this.setEndingStatus(null);
     await this.destroyGameAndApp();
     if (stops !== this._stops || plays !== this._plays || !this._mounted) {
@@ -2878,6 +2865,17 @@ export class GamePlayerController {
       if (!outcome.previewShown) {
         await this.showPreviewAfterRefusal();
       }
+    } else if (
+      !outcome.refusal &&
+      ended &&
+      stops === this._stops &&
+      restarted === this._plays &&
+      this._mounted &&
+      !this.playing
+    ) {
+      await this.stopGame("invalidated", undefined, {
+        at: ended.error?.location ?? ended.location,
+      });
     }
     return { started: false, refusal: outcome.refusal };
   }
