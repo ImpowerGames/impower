@@ -15,18 +15,23 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 it("prompts concurrent uploads with conflicts one at a time and completes both", async () => {
-  const { conflictRequest, resolveUploadConflicts } =
-    await import("../../src/modules/spark-editor/utils/uploadConflicts");
+  const { conflictRequest, resolveUploadConflicts } = await import(
+    "../../src/modules/spark-editor/utils/uploadConflicts"
+  );
   const written: string[][] = [];
-  const upload = (payload: string) =>
+  let finishFirstWrite!: () => void;
+  const firstWriteGate = new Promise<void>((resolve) => {
+    finishFirstWrite = resolve;
+  });
+  const upload = (payload: string, gate: Promise<void>) =>
     resolveUploadConflicts("p", [{ rel: "a.png", payload }], async (r) => {
-      await settle();
+      await gate;
       written.push(r.survivors.map((s) => `${s.payload}:${s.uri}`));
       return payload;
     });
 
-  const first = upload("first");
-  const second = upload("second");
+  const first = upload("first", firstWriteGate);
+  const second = upload("second", Promise.resolve());
 
   await settle();
   const firstRequest = conflictRequest.peek();
@@ -37,6 +42,11 @@ it("prompts concurrent uploads with conflicts one at a time and completes both",
 
   firstRequest!.resolve({ action: "keepboth", applyToAll: false });
   conflictRequest.value = null;
+  await settle();
+  await settle();
+  expect(conflictRequest.peek()).toBeNull();
+
+  finishFirstWrite();
   await settle();
   await settle();
   const secondRequest = conflictRequest.peek();
