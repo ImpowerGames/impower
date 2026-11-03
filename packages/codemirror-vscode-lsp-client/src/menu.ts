@@ -39,7 +39,6 @@ const contextMenuTheme = EditorView.baseTheme({
     fontSize: "14px",
   },
   ".cm-context-menu.cm-horizontal": {
-    flexDirection: "row",
     alignItems: "center",
     fontWeight: "500",
     padding: "2px 6px",
@@ -56,7 +55,6 @@ const contextMenuTheme = EditorView.baseTheme({
     position: "relative",
     cursor: "pointer",
     display: "flex",
-    flexDirection: "row",
     alignItems: "center",
     transition: "background-color 0.1s ease",
   },

@@ -133,8 +133,6 @@ export default function SplitPane({
 
   return (
     <div class={cn(splitPaneRoot({ collapseActive }), className)}>
-      {
-}
       {collapseBelow != null && (
         <style>{`
           @media (max-width: ${breakpoint}px) {
@@ -156,13 +154,15 @@ export default function SplitPane({
       )}
       <div
         ref={containerRef}
-        class="flex flex-1 w-full h-full min-h-0 min-w-0"
-        style={{ flexDirection: horizontal ? "row" : "column" }}
+        class={cn(
+          "flex flex-1 w-full h-full min-h-0 min-w-0",
+          horizontal ? "flex-row" : "flex-col",
+        )}
       >
         <div
           data-panel
           class="overflow-hidden min-h-0 min-w-0"
-          style={{ flexGrow: size, flexShrink: 1, flexBasis: 0 }}
+          style={{ flexGrow: size, flexBasis: 0 }}
         >
           {start}
         </div>
@@ -188,7 +188,7 @@ export default function SplitPane({
         <div
           data-panel
           class="overflow-hidden min-h-0 min-w-0"
-          style={{ flexGrow: 100 - size, flexShrink: 1, flexBasis: 0 }}
+          style={{ flexGrow: 100 - size, flexBasis: 0 }}
         >
           {end}
         </div>

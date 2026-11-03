@@ -17,7 +17,7 @@ const UNFILLED_OVERLAY =
 export const buttonVariants = cva(
   [
     "relative",
-    "inline-flex flex-row items-center justify-center gap-2 whitespace-nowrap",
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap [&_svg]:shrink-0",
     "rounded-md text-sm font-medium select-none cursor-pointer",
     "transition-[color,background-color,border-color,box-shadow] duration-100",
     "outline-none focus-visible:[outline:3px_solid_#0c4a6e] focus-visible:[outline-offset:-3px]",

@@ -1,17 +1,3 @@
-@layer normalize {
-  * {
-    flex-shrink: 0;
-    min-width: 0;
-    max-width: 100%;
-  }
-  .sparkdown-script-editor-root,
-  .sparkdown-script-editor-root *,
-  .sparkdown-screenplay-preview-root,
-  .sparkdown-screenplay-preview-root * {
-    flex-direction: column;
-  }
-}
-
 *::-webkit-scrollbar {
   width: var(--theme-scrollbar-size, 8px);
   height: var(--theme-scrollbar-size, 8px);
