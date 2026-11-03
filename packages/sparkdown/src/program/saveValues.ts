@@ -34,10 +34,8 @@ const storeValue = (
   story: ProgramStory,
   path: string[],
 ): InkObject | null | undefined => {
-  let value = story.state.variablesState.GetVariableWithName(path[0]!) as
-    | InkObject
-    | null
-    | undefined;
+  let value: InkObject | null | undefined =
+    story.state.variablesState.GetGlobalVariableValue(path[0]!);
   for (const field of path.slice(1)) {
     value = value instanceof ObjectValue ? (fieldOf(value, field) ?? null) : undefined;
   }

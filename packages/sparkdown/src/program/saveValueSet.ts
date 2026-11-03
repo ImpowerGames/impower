@@ -42,25 +42,20 @@ export const sameLiteral = (a: string, b: string): boolean => {
   );
 };
 
-export const frameIn = (
-  save: SaveValues,
-  start: string,
-): SavedFrame | undefined =>
-  save.frames.find((frame) => frame.flow === start) ??
-  save.frames.find((frame) => frame.scene === start);
+const framesIn = (save: SaveValues, start: string): SavedFrame[] =>
+  save.frames.filter((frame) => frame.flow === start || frame.scene === start);
 
 export const savedValueOf = (
   save: SaveValues,
   start: string,
   key: string,
 ): string | undefined => {
-  const frame = frameIn(save, start);
+  const frames = framesIn(save, start);
   if (key.startsWith("param:")) {
     const name = key.slice("param:".length);
-    return frame && Object.hasOwn(frame.params, name)
-      ? frame.params[name]
-      : undefined;
+    return frames.findLast((frame) => Object.hasOwn(frame.params, name))?.params[name];
   }
+  const frame = frames.at(-1);
   const value = Object.hasOwn(save.values, key) ? save.values[key] : undefined;
   if (frame && key === visitsKey(start) && value !== undefined) {
     const parsed = parseLiteral(value);

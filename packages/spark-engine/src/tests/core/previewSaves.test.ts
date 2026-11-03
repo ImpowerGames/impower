@@ -327,4 +327,74 @@ describe("saves made while playing", () => {
       "visits:start": "1",
     });
   });
+
+  it("reads and edits a store, not a local of the same name", () => {
+    const lines = [
+      "store trust = 1",
+      "store bag = { coins = 1 }",
+      "scene start",
+      "  local trust = 9",
+      "  local bag = { coins = 9 }",
+      "  Saved {trust} {bag.coins}.",
+      "  Next.",
+      "end",
+    ];
+    const { program, compiler } = compileSrc(lines.join("\n"));
+    const game = playFromLine(program, compiler, 4);
+    advanceTo(game, "Saved 9 9.");
+    const save: GameSave = game.saveHere();
+    const before = game.saveListing(save, "start").values.values;
+    expect(before["store:trust"]).toBe("1");
+    expect(before["store:bag.coins"]).toBe("1");
+    expect(before["local:0:trust"]).toBe("9");
+
+    const edited = game.editSave(save, "store:bag.coins", "5");
+    const after = game.saveListing(edited, "start").values.values;
+    expect(after["store:bag.coins"]).toBe("5");
+    expect(after["local:0:bag"]).toBe(before["local:0:bag"]);
+    expect(game.saveStartingValuesOf(edited, "start")).toMatchObject({
+      "store:bag.coins": "5",
+    });
+    expect(game.saveStartingValuesOf(edited, "start")["store:trust"]).toBeUndefined();
+
+    const other = resumed(program, edited.data);
+    other.clickedToContinue();
+    const variables = other.story.state.variablesState;
+    expect(variables.GetGlobalVariableValue("bag").value.get("coins").value).toBe(5);
+    expect(variables.GetVariableWithName("bag").value.get("coins").value).toBe(9);
+  });
+
+  it("loads the parameters of the scene's innermost call", () => {
+    const lines = [
+      "scene start",
+      "  Opening.",
+      "  -> visit(1) ->",
+      "  After.",
+      "end",
+      "scene visit(n)",
+      "  At {n}.",
+      "  if n == 1 then",
+      "    -> visit(2) ->",
+      "  end",
+      "  Saved {n}.",
+      "  ->->",
+      "end",
+    ];
+    const { program, compiler } = compileSrc(lines.join("\n"));
+    const game = playFromLine(program, compiler, 2);
+    advanceTo(game, "Saved 2.");
+    const save: GameSave = game.saveHere();
+    expect(save.scene).toBe("visit");
+    expect(
+      game
+        .saveListing(save, "visit")
+        .values.frames.filter((frame: { flow?: string }) => frame.flow === "visit")
+        .map((frame: { params: Record<string, string> }) => frame.params["n"]),
+    ).toEqual(["1", "2"]);
+    expect(game.saveStartingValuesOf(save, "visit")["param:n"]).toBe("2");
+
+    recompile(compiler, game, [...lines.slice(0, 6), "  Replacement.", "  ->->", "end"].join("\n"));
+    expect(game.saveRefusal(save.data)).toMatch(/cannot be placed/);
+    expect(game.saveStartingValuesOf(save, "visit")["param:n"]).toBe("2");
+  });
 });
