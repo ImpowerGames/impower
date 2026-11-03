@@ -2773,6 +2773,7 @@ export class Game<T extends M = {}> {
         module.load(saveData.modules[k]);
       }
     }
+    this.discardMenusTheStoryLacks();
     this._runtimeState = runtime;
     this._awaiting = this.lastExecutedScriptLocation();
     if (saveData.simulatedFrom) {
@@ -2780,6 +2781,12 @@ export class Game<T extends M = {}> {
       this.simulateFlow = saveData.simulatedFrom;
     } else {
       this._story.endsTunnelAtBase = false;
+    }
+  }
+
+  protected discardMenusTheStoryLacks(): void {
+    if (this._story.currentChoices.length === 0) {
+      this.module.interpreter.discardQueuedMenus();
     }
   }
 
@@ -2867,6 +2874,7 @@ export class Game<T extends M = {}> {
     for (const k of this._moduleNames) {
       this._modules[k]?.load(saveData.modules[k]);
     }
+    this.discardMenusTheStoryLacks();
     this._runtimeState = RuntimeState.of(entry.runtime);
     if (saveData.simulatedFrom) {
       this._simulation = "success";
