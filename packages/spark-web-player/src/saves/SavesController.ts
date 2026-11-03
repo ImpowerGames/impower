@@ -68,7 +68,8 @@ export class SavesController {
   protected _changes: Promise<unknown> = Promise.resolve();
   protected _checks = 0;
   protected _edits = 0;
-  protected _pending = new Set<number>();
+  protected _pending = new Map<number, string>();
+  protected _forms: Record<string, string> = {};
   protected _failed = new Map<number, string>();
   protected _undeleted = new Set<string>();
 
@@ -301,6 +302,7 @@ export class SavesController {
     this._search = "";
     this._drafts = {};
     this._unsaved = {};
+    this._forms = {};
   }
 
   rename(id: string, name: string): Promise<void> {
@@ -379,35 +381,56 @@ export class SavesController {
     return this.serial(() => this.listValuesNow(id));
   }
 
-  protected async listValuesNow(id: string): Promise<void> {
-    const record = this.record(id);
-    const forms = this._listed?.forms ?? {};
-    const carry = Object.fromEntries(
+  protected carryOf(): Record<string, string> {
+    return Object.fromEntries(
       [...Object.keys(this._drafts), ...Object.keys(this._unsaved)].flatMap((key) =>
-        forms[key] !== undefined ? [[key, forms[key]]] : [],
+        this._forms[key] !== undefined ? [[key, this._forms[key]]] : [],
       ),
     );
-    let listed: SaveListed | undefined;
-    try {
-      listed = record
-        ? (
-            await this._host.askWorker(SaveListingMessage.type, {
-              save: sourceOf(record),
-              start: record.scene,
-              ...(Object.keys(carry).length > 0 ? { carry } : {}),
-            })
-          )?.listed
-        : undefined;
-    } catch {
-      listed = undefined;
-    }
-    if (this._valuesId === id) {
+  }
+
+  protected async listValuesNow(id: string): Promise<void> {
+    for (let tries = 0; ; tries += 1) {
+      const record = this.record(id);
+      const carry = this.carryOf();
+      let listed: SaveListed | undefined;
+      try {
+        listed = record
+          ? (
+              await this._host.askWorker(SaveListingMessage.type, {
+                save: sourceOf(record),
+                start: record.scene,
+                ...(Object.keys(carry).length > 0 ? { carry } : {}),
+              })
+            )?.listed
+          : undefined;
+      } catch {
+        listed = undefined;
+      }
+      if (this._valuesId !== id) {
+        return;
+      }
+      const typed = Object.keys(this.carryOf()).some((key) => !Object.hasOwn(carry, key));
+      if (listed && typed && tries < 3) {
+        continue;
+      }
       if (listed) {
-        this._drafts = carried(this._drafts, carry, listed.carried);
-        this._unsaved = carried(this._unsaved, carry, listed.carried);
+        const moved = listed.carried ?? {};
+        this._drafts = carried(this._drafts, carry, moved);
+        this._unsaved = carried(this._unsaved, carry, moved);
+        this._forms = Object.fromEntries(
+          Object.entries(this._forms).flatMap(([key, form]) =>
+            !Object.hasOwn(carry, key)
+              ? [[key, form]]
+              : moved[key] !== undefined
+                ? [[moved[key], form]]
+                : [],
+          ),
+        );
       }
       this._listed = listed;
       this._host.changed();
+      return;
     }
   }
 
@@ -442,11 +465,8 @@ export class SavesController {
   ): Promise<PreviewSave | undefined> {
     const record = this.record(id);
     const failed = awaited.map((edit) => this._failed.get(edit)).find((reason) => reason);
-    const last = Math.max(0, ...awaited);
-    for (const edit of [...this._failed.keys()]) {
-      if (edit <= last) {
-        this._failed.delete(edit);
-      }
+    for (const edit of awaited) {
+      this._failed.delete(edit);
     }
     if (record && failed) {
       this.showNote({ name: record.name, failed, play: true });
@@ -478,7 +498,7 @@ export class SavesController {
       return Promise.resolve();
     }
     const edit = ++this._edits;
-    this._pending.add(edit);
+    this._pending.set(edit, id);
     return this.serial(() => this.writeValue(id, key, value, listed, edit)).finally(() => {
       this._pending.delete(edit);
     });
@@ -495,7 +515,9 @@ export class SavesController {
     if (!record) {
       return;
     }
-    delete this._unsaved[shown];
+    if (this._valuesId === id) {
+      delete this._unsaved[shown];
+    }
     const before = listed?.values.values[shown];
     try {
       const save = (
@@ -510,7 +532,13 @@ export class SavesController {
       }
       await this.write(withSource(record, save));
     } catch (e) {
-      this._unsaved[shown] = before ?? "nil";
+      if (this._valuesId === id) {
+        this._unsaved[shown] = before ?? "nil";
+        const form = listed?.forms[shown];
+        if (form !== undefined) {
+          this._forms[shown] = form;
+        }
+      }
       this._failed.set(edit, reasonOf(e));
       this._host.changed();
       return;
@@ -537,7 +565,9 @@ export class SavesController {
       this._rowMenu = undefined;
       this.closeValues();
       this._host.changed();
-      const awaited = [...this._pending];
+      const awaited = [...this._pending].flatMap(([edit, saveId]) =>
+        saveId === id ? [edit] : [],
+      );
       void this.serial(() => this.playable(id, awaited)).then((record) =>
         record && this._refusals[id] === undefined
           ? this._host.playFromSave(record.data)
@@ -561,10 +591,17 @@ export class SavesController {
       this._host.changed();
     },
     onValueDraft: (key, text) => {
+      const form = this._listed?.forms[key];
       if (text === null) {
         delete this._drafts[key];
+        if (!Object.hasOwn(this._unsaved, key)) {
+          delete this._forms[key];
+        }
       } else {
         this._drafts[key] = text;
+        if (form !== undefined) {
+          this._forms[key] = form;
+        }
       }
       this._drafts = { ...this._drafts };
       this._host.changed();

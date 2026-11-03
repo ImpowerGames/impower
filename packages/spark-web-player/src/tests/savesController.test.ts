@@ -82,6 +82,7 @@ const sourceOf = (record: PreviewSave): SaveSource => ({
 
 interface TestHost {
   edits?: Promise<void>;
+  listings?: () => Promise<void>;
   played?: (data: string) => void;
   refuses?: (method: string) => boolean;
 }
@@ -125,8 +126,11 @@ const savesFor = (game: any, store: Map<string, PreviewSave>, host: TestHost = {
               }),
             ),
           };
-        case "player/saveListing":
-          return { listed: game.saveListing(params.save, params.start, params.carry) };
+        case "player/saveListing": {
+          const listed = game.saveListing(params.save, params.start, params.carry);
+          await host.listings?.();
+          return { listed };
+        }
         case "player/saveStartingValues":
           return { values: game.saveStartingValuesOf(params.save, params.start) };
         case "player/editSave":
@@ -258,6 +262,57 @@ describe("a save's values", () => {
     await controller.setValue(leave, "3");
     expect(listedValue(controller, "Leave.")).toBe("3");
     expect(listedValue(controller, "Stay.")).toBeUndefined();
+  });
+
+  test("keep a count typed while the values are being listed again on the option it was typed on", async () => {
+    const { game, compiler } = playing(lines);
+    chooseLeave(game);
+    const record = preview(game.saveHere());
+    let hold: Promise<void> | undefined;
+    let release!: () => void;
+    const controller = await controllerFor(game, record, { listings: () => hold ?? Promise.resolve() });
+    await controller.editValues(record.id);
+
+    recompile(compiler, game, ["", "", ...lines].join("\n"));
+    hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const refreshing = controller.programChanged();
+    for (let i = 0; i < 20; i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    controller.events.onValueDraft(`place:0:4:${URI}`, "3");
+    hold = undefined;
+    release();
+    await refreshing;
+    const leave = keyOf(game, "Leave.");
+    expect(controller.viewState().values!.drafts).toEqual({ [leave]: "3" });
+    await controller.setValue(leave, "3");
+    expect(listedValue(controller, "Leave.")).toBe("3");
+    expect(listedValue(controller, "Stay.")).toBeUndefined();
+  });
+
+  test("keep a failed edit's mark on the save it was made on", async () => {
+    const { game } = playing(["store trust = 0", "scene start", "  Saved.", "  Next.", "end"], 3);
+    const a = { ...preview(game.saveHere()), id: "save-a", name: "Save A" };
+    const b = { ...preview(game.saveHere()), id: "save-b", name: "Save B" };
+    let release!: () => void;
+    const edits = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const controller = savesFor(game, new Map([[a.id, a], [b.id, b]]), {
+      edits,
+      refuses: (method) => method === "preview/writeSave",
+    });
+    await controller.load();
+    await controller.editValues(a.id);
+    const editing = controller.setValue("store:trust", "5");
+    void controller.editValues(b.id);
+    release();
+    await editing;
+    await controller.startingValuesOf(b.id, "start");
+    expect(controller.viewState().values!.save.id).toBe(b.id);
+    expect(controller.viewState().values!.unsaved).toEqual({});
   });
 
   test("list the saved locals of a save none of whose beats places, and keep their edits", async () => {
@@ -435,6 +490,35 @@ describe("Play from here", () => {
     await controller.startingValuesOf(record.id, "start");
     expect(played).toBeDefined();
     expect(game.saveValuesOf(played!).values["store:trust"]).toBe("0");
+    controller.dispose();
+  });
+
+  test("plays a save while another save's edit fails, with no note for it", async () => {
+    const { game } = playing(["store trust = 0", "scene start", "  Saved.", "  Next.", "end"], 3);
+    const a = { ...preview(game.saveHere()), id: "save-a", name: "Save A" };
+    const b = { ...preview(game.saveHere()), id: "save-b", name: "Save B" };
+    let release!: () => void;
+    const edits = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let played: string | undefined;
+    const controller = savesFor(game, new Map([[a.id, a], [b.id, b]]), {
+      edits,
+      played: (data) => {
+        played = data;
+      },
+      refuses: (method) => method === "preview/writeSave",
+    });
+    await controller.load();
+    await controller.editValues(a.id);
+    const editing = controller.setValue("store:trust", "5");
+    controller.events.onBack();
+    controller.events.onPlay(b.id);
+    release();
+    await editing;
+    await controller.startingValuesOf(b.id, "start");
+    expect(played).toBe(b.data);
+    expect(controller.note()).toBeNull();
     controller.dispose();
   });
 
