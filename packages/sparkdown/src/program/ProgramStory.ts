@@ -117,6 +117,7 @@ import {
   ProgramChoice,
   ProgramStoryState,
   blockStackOf,
+  flowScopeOwners,
   flowScopesOf,
   flowSequenceOf,
   scopeDepthAt,
@@ -2784,19 +2785,8 @@ export class ProgramStory implements StoryEngine {
   protected keptFlowScopes(target: ProgramPosition, symbol?: number): number {
     const kind = symbol === undefined ? UNDEFINED_KIND : this.root.kindOf(symbol);
     const at = this._state.position;
-    if (kind === SymbolKind.Branch && at) {
-      const from = at.sequence;
-      const entry = from.arrays.chunks[0];
-      if (
-        from.owner < 0 &&
-        from.kind === SymbolKind.Scene &&
-        from.flow === this.root.parentOf(symbol!) &&
-        at.entry === 0 &&
-        entry &&
-        entryBindings(entry, 0).bindings > 0
-      ) {
-        return 1;
-      }
+    if (symbol !== undefined && this.inSceneOf(symbol, at)) {
+      return 1;
     }
     if (kind === SymbolKind.Scene || kind === SymbolKind.Branch) {
       return 0;
@@ -2805,6 +2795,36 @@ export class ProgramStory implements StoryEngine {
     return at && flow && flowSequenceOf(this.root, at.sequence) === flow
       ? flowScopesOf(this.root, target.sequence)
       : 0;
+  }
+
+  protected inSceneOf(symbol: number, at: ProgramPosition | null): boolean {
+    if (!at || this.root.kindOf(symbol) !== SymbolKind.Branch) {
+      return false;
+    }
+    const scene = this.root.parentOf(symbol);
+    return scene >= 0 && flowScopeOwners(this.root, at.sequence)[0] === scene;
+  }
+
+  protected shareSceneScope(callerIndex: number): void {
+    const callStack = this._state.callStack;
+    const context = callerIndex + 1;
+    const from = callStack.elements[callerIndex]?.temporaryScopes[1];
+    const into = this._state.frame?.temporaryScopes[1];
+    if (!from || !into) {
+      return;
+    }
+    for (const [name, value] of from) {
+      let cell =
+        value instanceof VariablePointerValue
+          ? value
+          : callStack.FindOpenUpvalue(context, name, 1);
+      if (!cell) {
+        cell = new VariablePointerValue(name, context);
+        cell.scopeIndex = 1;
+        callStack.RegisterOpenUpvalue(cell, context);
+      }
+      into.set(name, cell);
+    }
   }
 
   protected padVariadicFlow(symbol: number): void {
@@ -2914,6 +2934,9 @@ export class ProgramStory implements StoryEngine {
       first && place.offset === 0 && this.root.flow(symbol) === place.sequence
         ? entryBindings(first, 0).bindings
         : 0;
+    const caller = this.inSceneOf(symbol, state.position)
+      ? state.callStack.currentElementIndex
+      : -1;
     state.PushFrame(
       PushPopType.Tunnel,
       {
@@ -2924,6 +2947,9 @@ export class ProgramStory implements StoryEngine {
       Math.max(0, state.evaluationStack.length - bound),
     );
     this.land(place, [], 0);
+    if (caller >= 0) {
+      this.shareSceneScope(caller);
+    }
     this.countEntered(place.sequence, left?.flow ?? -1);
     this.countLabelsAbove(place);
     this.enterStart(symbol, place.sequence);

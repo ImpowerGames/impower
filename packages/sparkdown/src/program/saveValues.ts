@@ -54,13 +54,56 @@ interface FrameScopes {
   frame: SavedFrame;
 }
 
-const savedScopesOf = (scopes: readonly Map<string, InkObject>[]): SavedScope[] =>
+type FrameMaps = readonly (readonly Map<string, InkObject>[])[];
+
+const pointedScope = (
+  frames: FrameMaps,
+  pointer: VariablePointerValue,
+): Map<string, InkObject> | undefined => {
+  const scope = pointer.isClosed
+    ? undefined
+    : frames[pointer.contextIndex - 1]?.[pointer.scopeIndex];
+  return scope?.has(pointer.variableName) ? scope : undefined;
+};
+
+const slotOf = (
+  frames: FrameMaps,
+  scope: Map<string, InkObject>,
+  name: string,
+): { scope: Map<string, InkObject>; name: string } | undefined => {
+  for (let hops = 0; hops <= frames.length; hops += 1) {
+    const value = scope.get(name);
+    if (!(value instanceof VariablePointerValue)) {
+      return { scope, name };
+    }
+    const next = pointedScope(frames, value);
+    if (!next) {
+      return undefined;
+    }
+    scope = next;
+    name = value.variableName;
+  }
+  return undefined;
+};
+
+const pointedValue = (
+  frames: FrameMaps,
+  value: InkObject | null | undefined,
+): InkObject | null | undefined => {
+  for (let hops = 0; value instanceof VariablePointerValue && hops <= frames.length; hops += 1) {
+    value = value.isClosed
+      ? value.closedValue
+      : pointedScope(frames, value)?.get(value.variableName);
+  }
+  return value instanceof VariablePointerValue ? undefined : value;
+};
+
+const savedScopesOf = (frames: FrameMaps, scopes: readonly Map<string, InkObject>[]): SavedScope[] =>
   scopes.map((scope) => {
     const saved: SavedScope = {};
     for (const [name, value] of scope) {
       if (!name.includes("$")) {
-        saved[name] =
-          value instanceof VariablePointerValue ? null : (literalText(value) ?? null);
+        saved[name] = literalText(pointedValue(frames, value)) ?? null;
       }
     }
     return saved;
@@ -73,7 +116,8 @@ const framesOf = (story: ProgramStory): FrameScopes[] => {
   const state = story.state;
   const root = story.root;
   const elements = state.callStack.currentThread.callstack;
-  return elements.map((element, i) => {
+  const maps = elements.map((element) => element.temporaryScopes as Map<string, InkObject>[]);
+  return elements.map((_, i) => {
     const position =
       i === elements.length - 1
         ? state.position
@@ -81,9 +125,9 @@ const framesOf = (story: ProgramStory): FrameScopes[] => {
     const chunk = position?.sequence.arrays.chunks[position.entry];
     const address =
       position && chunk ? addressOf(chunkId(chunk), position.offset) : undefined;
-    const scopes = element.temporaryScopes as Map<string, InkObject>[];
+    const scopes = maps[i]!;
     const frame: SavedFrame = {
-      scopes: savedScopesOf(scopes),
+      scopes: savedScopesOf(maps, scopes),
       scopeFlows: position ? scopeFlowsOf(root, position.sequence) : [],
     };
     if (address !== undefined) {
@@ -182,11 +226,13 @@ export const applySaveValueChanges = (
     const scopes = local ? frames[local.frame]?.scopes : undefined;
     if (local && scopes) {
       for (let s = scopes.length - 1; s >= 0; s -= 1) {
-        const current = scopes[s]!.get(local.name);
         if (scopes[s]!.has(local.name)) {
-          if (!(current instanceof VariablePointerValue)) {
-            scopes[s]!.set(local.name, valueOfLiteral(literal));
-          }
+          const slot = slotOf(
+            frames.map((frame) => frame.scopes),
+            scopes[s]!,
+            local.name,
+          );
+          slot?.scope.set(slot.name, valueOfLiteral(literal));
           break;
         }
       }
@@ -257,7 +303,10 @@ export const savedFrameValues = (
     return {
       ...(flow ? { flow } : {}),
       ...(scene ? { scene } : {}),
-      scopes: savedScopesOf(scopes as Map<string, InkObject>[]),
+      scopes: savedScopesOf(
+        frames.map((frame) => frame.scopes as Map<string, InkObject>[]),
+        scopes as Map<string, InkObject>[],
+      ),
       scopeFlows: sequence ? scopeFlowsOf(story.root, sequence) : [],
     };
   });

@@ -105,7 +105,7 @@ const expectEngineParameters = (game: any, program: unknown, save: GameSave) => 
   const parameters = (flow: string): string[] => parametersOf(root, flow);
   const engineValue = (i: number, j: number, name: string): string | undefined =>
     elements[i].temporaryScopes[j + 1]?.has(name)
-      ? engineLiteral(state.callStack.GetTemporaryVariableWithName(name, i + 1, j + 1))
+      ? engineLiteral(state.variablesState.GetVariableWithName(name, i + 1, j + 1))
       : undefined;
   const expected = new Map<string, [string, string, string | undefined]>();
   for (let i = elements.length - 1; i >= 0; i -= 1) {
@@ -518,6 +518,40 @@ describe("saves made while playing", () => {
     },
   );
 
+  it("edits the scene's parameter for the scene and its branch from a save made in a tunnel into that branch", () => {
+    const lines = [
+      "scene start",
+      "  Opening.",
+      "  -> visit(3) ->",
+      "  After.",
+      "end",
+      "scene visit(n)",
+      "  -> visit.inner ->",
+      "  Back {n}.",
+      "  ->->",
+      "  branch inner",
+      "    Saved {n}.",
+      "    Next {n}.",
+      "    ->->",
+      "  end",
+      "end",
+    ];
+    const { program, compiler } = compileSrc(lines.join("\n"));
+    const game = playFromLine(program, compiler, 2);
+    advanceTo(game, "Saved 3.");
+    const save: GameSave = game.saveHere();
+    const values = game.saveValuesOf(save.data).values;
+    const keys = Object.keys(values).filter((key) => /^local:\d+:n$/.test(key));
+    expect(keys.map((key) => values[key])).toEqual(["3", "3"]);
+
+    const edited = game.editSave(save, keys.at(-1)!, "8");
+    const other = resumed(program, edited.data);
+    other.clickedToContinue();
+    expect(shownText(other)).toContain("Next 8.");
+    other.clickedToContinue();
+    expect(shownText(other)).toContain("Back 8.");
+  });
+
   it("loads the scene's parameters from the call it returns to when another scene diverts into its branch", () => {
     const lines = [
       "scene start",
@@ -623,7 +657,7 @@ describe("saves made while playing", () => {
     expect(game.saveListing(save, "visit").values.values["local:0:n"]).toBe("7");
   });
 
-  it("takes no scene parameter from a branch the scene diverts into, as the game reads none there", () => {
+  it("takes the scene's parameter in a branch the scene diverts into, as the game reads it there", () => {
     const lines = [
       "scene start",
       "  Opening.",
@@ -642,7 +676,7 @@ describe("saves made while playing", () => {
     advanceTo(game, "Saved 7.");
     const save: GameSave = game.saveHere();
     expectEngineParameters(game, program, save);
-    expect(game.saveStartingValuesOf(save, "visit")["param:n"]).toBeUndefined();
+    expect(game.saveStartingValuesOf(save, "visit")["param:n"]).toBe("3");
     expect(game.saveStartingValuesOf(save, "visit.inner")["param:n"]).toBe("7");
   });
 });
