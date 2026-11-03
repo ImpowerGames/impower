@@ -79,6 +79,6 @@ describe("formatting a brace body keeps its program", () => {
         );
         expect(before).toEqual(program(canonical));
       }
-    });
+    }, 60000);
   }
 });

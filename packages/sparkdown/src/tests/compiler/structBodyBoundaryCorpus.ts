@@ -8,7 +8,6 @@ import {
   keywordWithBody,
   STRUCT_KEYWORD_BLOCK_NAMES,
 } from "../../compiler/utils/braceBlocks";
-import { declares } from "../../compiler/utils/declarationOnly";
 import { parseSource } from "./grammarSnapshot";
 import { tokenize, type VsTokenDump } from "./vscodeGrammarSnapshot";
 
@@ -30,22 +29,9 @@ const KEYWORDS: Record<string, string> = {
   LuauScreen: "screen",
 };
 
-const UNCLOSED: Record<string, string> = {
-  style: "style open_probe {\n  color = red\n\n",
-  layout: 'layout open_probe {\n  row { text "a" }\n\n',
-};
-
-const CLOSED = "style closed_probe {}\n\n";
-
 export interface CorpusFile {
   path: string;
   text: string;
-}
-
-export interface DeclarationLine {
-  path: string;
-  line: string;
-  node: string;
 }
 
 export interface BodyProbe {
@@ -79,38 +65,6 @@ export function readCorpus(root: string): CorpusFile[] {
   }));
 }
 
-function lineAt(text: string, from: number): { start: number; text: string } {
-  const start = text.lastIndexOf("\n", from - 1) + 1;
-  const end = text.indexOf("\n", start);
-  return { start, text: text.slice(start, end < 0 ? undefined : end) };
-}
-
-function topLevelAt(text: string, offset: number): SyntaxNode | null {
-  const tree = parseSource(text);
-  for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
-    if (node.from <= offset && offset < node.to) return node;
-  }
-  return null;
-}
-
-export function declarationLines(corpus: CorpusFile[]): DeclarationLine[] {
-  const seen = new Set<string>();
-  const lines: DeclarationLine[] = [];
-  for (const file of corpus) {
-    const read = (from: number, to: number) => file.text.slice(from, to);
-    const tree = parseSource(file.text);
-    for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
-      if (!declares(node, read)) continue;
-      const line = lineAt(file.text, node.from);
-      if (line.start !== node.from || /^\s/.test(line.text)) continue;
-      if (seen.has(line.text)) continue;
-      seen.add(line.text);
-      lines.push({ path: file.path, line: line.text, node: node.name });
-    }
-  }
-  return lines;
-}
-
 function bodyRange(node: SyntaxNode): { from: number; to: number } | null {
   const brace = keywordBraceBody(node);
   if (brace) {
@@ -125,6 +79,13 @@ function bodyRange(node: SyntaxNode): { from: number; to: number } | null {
   return { from: begin?.to ?? withBody.from, to: withBody.to };
 }
 
+export function bodyProbe(path: string, keyword: string, lines: string[]): BodyProbe {
+  const wrap = (body: string[]) => `${keyword} probe {\n${body.join("\n")}\n}\n`;
+  const dedented = lines.map((line) => line.trimStart());
+  const indented = dedented.map((line) => (line ? `  ${line}` : line));
+  return { path, keyword, probe: wrap(dedented), indented: wrap(indented) };
+}
+
 export function bodyProbes(corpus: CorpusFile[]): BodyProbe[] {
   const seen = new Set<string>();
   const probes: BodyProbe[] = [];
@@ -136,48 +97,13 @@ export function bodyProbes(corpus: CorpusFile[]): BodyProbe[] {
       if (!range) continue;
       const lines = file.text.slice(range.from, range.to).split("\n");
       if (!lines.some((line) => line.trim())) continue;
-      const keyword = KEYWORDS[node.name]!;
-      const wrap = (body: string[]) => `${keyword} probe {\n${body.join("\n")}\n}\n`;
-      const dedented = lines.map((line) => line.trimStart());
-      const probe = wrap(dedented);
-      if (seen.has(probe)) continue;
-      seen.add(probe);
-      const indented = wrap(dedented.map((line) => (line ? `  ${line}` : line)));
-      probes.push({ path: file.path, keyword, probe, indented });
+      const probe = bodyProbe(file.path, KEYWORDS[node.name]!, lines);
+      if (seen.has(probe.probe)) continue;
+      seen.add(probe.probe);
+      probes.push(probe);
     }
   }
   return probes;
-}
-
-export function treeDeclarationFailures(lines: DeclarationLine[]): BoundaryFailure[] {
-  const failures: BoundaryFailure[] = [];
-  for (const { path, line } of lines) {
-    const expected = topLevelAt(`${CLOSED}${line}\n`, CLOSED.length)?.name;
-    for (const [opened, prefix] of Object.entries(UNCLOSED)) {
-      const found = topLevelAt(`${prefix}${line}\n`, prefix.length);
-      if (!found || found.from !== prefix.length || found.name !== expected) {
-        failures.push({ check: `tree after an unclosed ${opened}`, path, text: line });
-      }
-    }
-  }
-  return failures;
-}
-
-const lineTokens = (dumps: VsTokenDump[], index: number) =>
-  JSON.stringify(dumps[index]?.tokens.map((token) => [token.text, token.scopes]));
-
-export async function vscodeDeclarationFailures(lines: DeclarationLine[]): Promise<BoundaryFailure[]> {
-  const failures: BoundaryFailure[] = [];
-  for (const { path, line } of lines) {
-    const expected = lineTokens(await tokenize(`${CLOSED}${line}\n`), 2);
-    for (const [opened, prefix] of Object.entries(UNCLOSED)) {
-      const index = prefix.split("\n").length - 1;
-      if (lineTokens(await tokenize(`${prefix}${line}\n`), index) !== expected) {
-        failures.push({ check: `vscode after an unclosed ${opened}`, path, text: line });
-      }
-    }
-  }
-  return failures;
 }
 
 function bodyExtent(probe: string): string {
@@ -191,6 +117,11 @@ function bodyExtent(probe: string): string {
   ]);
 }
 
+export function closesAtItsBrace({ keyword, probe }: BodyProbe): boolean {
+  const name = Object.keys(KEYWORDS).find((key) => KEYWORDS[key] === keyword);
+  return bodyExtent(probe) === JSON.stringify([name, probe.split("\n").length - 1, true]);
+}
+
 export function treeBodyFailures(probes: BodyProbe[]): BoundaryFailure[] {
   const failures: BoundaryFailure[] = [];
   for (const { path, keyword, probe, indented } of probes) {
@@ -201,7 +132,8 @@ export function treeBodyFailures(probes: BodyProbe[]): BoundaryFailure[] {
   return failures;
 }
 
-const lastLineTokens = (dumps: VsTokenDump[]) => lineTokens(dumps, dumps.length - 2);
+const lastLineTokens = (dumps: VsTokenDump[]) =>
+  JSON.stringify(dumps[dumps.length - 2]?.tokens.map((token) => [token.text, token.scopes]));
 
 export async function vscodeBodyFailures(probes: BodyProbe[]): Promise<BoundaryFailure[]> {
   const failures: BoundaryFailure[] = [];

@@ -100,7 +100,7 @@ const runsWholly = (
   return !declares(node, read);
 };
 
-export const declares = (
+const declares = (
   node: SyntaxNode,
   read: (from: number, to: number) => string,
 ): boolean => {

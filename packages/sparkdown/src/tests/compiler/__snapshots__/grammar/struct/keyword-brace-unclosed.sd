@@ -4,28 +4,25 @@ style broken {
 style after {
   corner = 8px
 }
+store trust: number = 5
+
+scene start
+  Hi.
+end
 
 layout list {
   row {
     text "a"
 }
 
-component chip {
-}
+branch side
+  Hey.
+end
 
 theme open { color = red
-
-screen --[[ note ]] menu {}
-
-style unfinished {
-  corner = 2px
+    end
 
 morph --[=[ note ]=] blink {}
 
-theme half { color = blue
-
-layout --[====[ note ] extra ]====] after {}
-
-scene start
-  Hi.
-end
+screen tail {
+  x = 1

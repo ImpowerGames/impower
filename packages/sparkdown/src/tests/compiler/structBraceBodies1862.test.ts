@@ -167,6 +167,42 @@ describe("an unindented entry named like a declaration keyword", () => {
   }
 });
 
+describe("a closed brace body whose entries are shaped like declaration headers", () => {
+  const ENTRIES = [
+    "theme label {",
+    "}",
+    "function f()",
+    "run x",
+    "include shared.sd",
+    "store label",
+    "store trust: number = 5",
+    "style panel as base {",
+    "}",
+    "define hero as character with",
+    "type K = number",
+    "& store x = 5",
+  ];
+  const at = (indent: string) => ENTRIES.map((entry) => `${indent}${entry}`).join("\n");
+  for (const [kind, name] of [
+    ["style", "panel"],
+    ["layout", "main"],
+    ["theme", "dusk"],
+  ] as const) {
+    test(`compiles the same in a ${kind} at column 0 as indented`, () => {
+      const columnZero = compile(`${kind} ${name} {\n${at("")}\n}\n${SCENE}`);
+      const indented = compile(`${kind} ${name} {\n${at("  ")}\n}\n${SCENE}`);
+      expect(compiled(columnZero.program, kind, name).context).toBeDefined();
+      expect(compiled(columnZero.program, kind, name)).toEqual(
+        compiled(indented.program, kind, name),
+      );
+      expect(messages(columnZero.diags)).toEqual(messages(indented.diags));
+      expect(
+        columnZero.diags.filter((d) => d.message.includes("missing its closing `}`")),
+      ).toEqual([]);
+    });
+  }
+});
+
 describe("valid brace bodies report nothing", () => {
   const FORMS = [
     ["style", "style s", "  color = red"],
@@ -225,118 +261,53 @@ describe("a brace body opened in the wrong place", () => {
 });
 
 describe("an unclosed brace body", () => {
-  const source = [
-    "style broken {",
-    "  text-color = white",
-    "",
-    "style after {",
-    "  corner = 8px",
-    "}",
-    "",
-    "layout list {",
-    "  row {",
-    '    text "a"',
-    "}",
-    "",
-    "component chip {",
-    "}",
-    "",
-    "theme open { color = red",
-    "",
-    "scene start",
-    "  Hi.",
-    "end",
-    "",
-  ].join("\n");
+  const MESSAGE = (keyword: string, closers: string) =>
+    `This ${keyword} is missing its closing \`}\`. Without it, every line up to the next \`scene\` or \`branch\`, line that starts with ${closers}, or the end of the file is read as part of this ${keyword}.`;
+  const missing = (source: string) =>
+    errors(source).filter((e) => e.message.includes("missing its closing `}`"));
 
-  test("is an error on its header line", () => {
-    const missing = errors(source).filter((e) =>
-      e.message.includes("missing its closing `}`"),
-    );
-    expect(missing.map((e) => [e.startLine, e.endLine, e.endCharacter])).toEqual([
-      [0, 0, "style broken {".length],
-      [7, 7, "layout list {".length],
-      [15, 15, "theme open { color = red".length],
+  test("is an error on its header line that says where the block runs to", () => {
+    const struct = missing(`style broken {\n  text-color = white\n${SCENE}`);
+    expect(struct.map((e) => [e.startLine, e.endLine, e.endCharacter, e.message])).toEqual([
+      [0, 0, "style broken {".length, MESSAGE("style", "`end`")],
     ]);
-    expect(missing[0]!.message).toContain("This style is missing its closing `}`");
-    expect(missing[1]!.message).toContain("`end`, `else`, `elseif` or `case`");
+    const sparkle = missing(`layout list {\n  row {\n    text "a"\n  }\n${SCENE}`);
+    expect(sparkle.map((e) => [e.startLine, e.message])).toEqual([
+      [0, MESSAGE("layout", "`end`, `else`, `elseif` or `case`")],
+    ]);
   });
 
-  test("leaves the lines after it to compile outside it", () => {
-    const { program } = compile(source);
-    const context = program.context as any;
-    expect(context?.style?.broken?.["text-color"]).toBe("white");
-    expect(context?.style?.after?.corner).toBe("8px");
-    expect(context?.style?.broken?.after).toBeUndefined();
-    expect(context?.component?.chip).toBeDefined();
-    expect(context?.theme?.open?.color).toBe("red");
+  test("runs to the next scene, whatever the lines before it hold or how they are indented", () => {
+    const source = [
+      "style broken {",
+      "  text-color = white",
+      "",
+      "style after {",
+      "  corner = 8px",
+      "}",
+      "store trust: number = 5",
+      "function f() end",
+      SCENE,
+    ].join("\n");
+    const { program, diags } = compile(source);
+    expect(messages(diags)).toEqual([`1 0 ${MESSAGE("style", "`end`")}`]);
+    expect((program.context as any)?.style?.after).toBeUndefined();
   });
 
-  test("stops before a declaration whose header carries a block comment", () => {
-    for (const comment of [
-      "--[[ note ]]",
-      "--[=[ note ]=]",
-      "--[====[ note ] extra ]====]",
-      "--[[ one ]] --[==[ two ]==]",
-    ]) {
-      const commented = [
-        "style broken {",
-        "  color = red",
-        "",
-        `style ${comment} after {`,
-        "  corner = 8px",
-        "}",
-        "",
-        "layout list {",
-        '  row { text "a" }',
-        "",
-        `component ${comment} chip {`,
-        '  text "b"',
-        "}",
-        SCENE,
-      ].join("\n");
-      const missing = errors(commented).filter((e) =>
-        e.message.includes("missing its closing `}`"),
-      );
-      expect(missing.map((e) => e.startLine), comment).toEqual([0, 7]);
-      const context = compile(commented).program.context as any;
-      expect(context?.style?.after?.corner, comment).toBe("8px");
-      expect(context?.style?.broken?.color, comment).toBe("red");
-      expect(context?.component?.chip, comment).toBeDefined();
+  test("runs to the next branch", () => {
+    const source = `layout list {\n  row { text "a" }\n\nbranch side\n  Hey.\nend\n${SCENE}`;
+    expect(missing(source).map((e) => e.startLine)).toEqual([0]);
+  });
+
+  test("runs to a line that starts with `end`, indented or not", () => {
+    for (const end of ["end", "    end"]) {
+      const source = `theme open { color = red\n${end}\n${SCENE}`;
+      expect(missing(source).map((e) => e.startLine), end).toEqual([0]);
+      expect((compile(source).program.context as any)?.theme?.open?.color, end).toBe("red");
     }
   });
 
-  test("stops before a typed store declaration", () => {
-    for (const declaration of ["store trust: number = 5", "store trust: number"]) {
-      for (const [opened, body] of [
-        ["style broken {", "  color = red"],
-        ["layout broken {", '  row { text "a" }'],
-      ] as const) {
-        const source = `${opened}\n${body}\n\n${declaration}\n\nscene start\n  Hi.\nend\n`;
-        const errs = errors(source);
-        expect(errs.map((e) => e.startLine), `${opened} ${declaration}`).toEqual([0]);
-        expect(errs[0]!.message).toContain("missing its closing `}`");
-        if (opened.startsWith("style")) {
-          expect((compile(source).program.context as any)?.style?.broken?.color).toBe("red");
-        }
-      }
-    }
-  });
-
-  test("stops before a store declaration", () => {
-    const source = `style broken {\n  color = red\n\nstore trust = 5\n\nscene start\n  Trust is {trust}.\nend\n`;
-    const missing = errors(source).filter((e) =>
-      e.message.includes("missing its closing `}`"),
-    );
-    expect(missing.map((e) => e.startLine)).toEqual([0]);
-    expect(errors(source).filter((e) => !e.message.includes("missing its closing `}`"))).toEqual([]);
-  });
-
-  test("an `end` does not close it", () => {
-    const missing = errors(`style s {\n  color = red\nend\n${SCENE}`).filter((e) =>
-      e.message.includes("missing its closing `}`"),
-    );
-    expect(missing).toHaveLength(1);
-    expect(missing[0]!.startLine).toBe(0);
+  test("runs to the end of the file", () => {
+    expect(missing(`${SCENE}\nscreen tail {\n  x = 1\n`).map((e) => e.startLine)).toEqual([5]);
   });
 });
