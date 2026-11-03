@@ -147,8 +147,8 @@ export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reser
         const guard=path.join(reservationRoot??machineRoot,'guard.json');
         let owner;
         try{owner=JSON.parse(fs.readFileSync(guard,'utf8')).owner;}
-        catch(readError){throw new Error(`${error.message}; guard owner unavailable (${readError.message}); removed ${counts.files} files and ${counts.links} links; preserve remaining reviewer scratch`);}
-        throw new Error(`${error.message}; recorded guard owner PID ${owner?.pid??'unknown'}, start ${owner?.start??'unknown'}; removed ${counts.files} files and ${counts.links} links; preserve remaining reviewer scratch`);
+        catch(readError){throw new Error(`${error.message}; guard owner unavailable (${readError.message}); removed ${counts.files} files and ${counts.links} links; preserve remaining reviewer scratch at ${directory}`);}
+        throw new Error(`${error.message}; recorded guard owner PID ${owner?.pid??'unknown'}, start ${owner?.start??'unknown'}; removed ${counts.files} files and ${counts.links} links; preserve remaining reviewer scratch at ${directory}`);
       }
       throw error;
     }
