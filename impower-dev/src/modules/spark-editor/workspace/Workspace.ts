@@ -8,14 +8,19 @@ import { registerWorkspaceProtocol } from "./workspaceProtocol";
 
 export namespace Workspace {
   export const configuration = new WorkspaceConfiguration();
-  export const window = new WorkspaceWindow();
-  export const ls = new WorkspaceLanguageServer();
-  export const fs = new WorkspaceFileSystem(ls, configuration);
+  export const window: WorkspaceWindow = new WorkspaceWindow(Workspace);
+  export const ls: WorkspaceLanguageServer = new WorkspaceLanguageServer(
+    Workspace,
+  );
+  export const fs: WorkspaceFileSystem = new WorkspaceFileSystem(
+    ls,
+    configuration,
+  );
   export const sync = new WorkspaceSync();
   export const print = new WorkspacePrint();
 }
 
-registerWorkspaceProtocol();
+registerWorkspaceProtocol(Workspace);
 if (import.meta.env.DEV) {
   void import("./devProtocolBridge").then(({ installProtocolBridge }) => {
     const dispose = installProtocolBridge();

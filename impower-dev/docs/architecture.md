@@ -172,17 +172,17 @@ anti-pattern — use a signal instead.
 ```ts
 export namespace Workspace {
   export const configuration = new WorkspaceConfiguration();
-  export const window = new WorkspaceWindow();   // window/UI state + the protocol bridge
-  export const ls = new WorkspaceLanguageServer(); //  new Worker("/sparkdown-language-server.js")
-  export const fs = new WorkspaceFileSystem();     //  new Worker("/opfs-workspace.js")
+  export const window: WorkspaceWindow = new WorkspaceWindow(Workspace); // window/UI state + the protocol bridge
+  export const ls: WorkspaceLanguageServer = new WorkspaceLanguageServer(Workspace); // new Worker("/sparkdown-language-server.js")
+  export const fs: WorkspaceFileSystem = new WorkspaceFileSystem(ls, configuration); // new Worker("/opfs-workspace.js")
   export const sync = new WorkspaceSync();         //  Google Drive sync
   export const print = new WorkspacePrint();       //  new Worker("/sparkdown-screenplay-pdf.js")
 }
 ```
 
-Importing `Workspace` instantiates three Workers, so it's import-time-heavy and
-circular with `WorkspaceWindow` — tests mock it (see
-[`adding-an-editor-feature.md`](./adding-an-editor-feature.md#testing)).
+The controllers never import `Workspace` at runtime. Each receives what it uses through its constructor: `WorkspaceFileSystem` the language server and configuration, `WorkspaceWindow` and `WorkspaceLanguageServer` the namespace object itself, because the services they read (`fs` and `sync`, `configuration` and `window`) are constructed after them; they read those members only when a handler or method runs, by which time every member is assigned. `registerWorkspaceProtocol`, which `Workspace.ts` calls once the namespace is built, receives it the same way for the `ls` and `fs` its handlers use. The explicit member types stop TypeScript inferring them through the namespace they are passed.
+
+Importing `Workspace` instantiates three Workers, so it's import-time-heavy: tests construct the controllers directly with stubbed services, and mock `Workspace` only where the code under test reads the singleton (see [`adding-an-editor-feature.md`](./adding-an-editor-feature.md#testing)).
 
 `WorkspaceWindow` is the largest controller (~1600 lines); it's sectioned by
 concern and its class header documents the data-flow contract. A future split

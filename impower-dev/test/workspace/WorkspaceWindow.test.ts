@@ -113,7 +113,7 @@ describe("WorkspaceWindow store transitions", () => {
 
   beforeEach(() => {
     localStorage.clear();
-    win = new WorkspaceWindow();
+    win = new WorkspaceWindow(Workspace);
   });
 
   afterEach(() => {
@@ -288,7 +288,7 @@ describe("Animate portraits preference", () => {
   };
 
   const load = () => {
-    const win = new WorkspaceWindow();
+    const win = new WorkspaceWindow(Workspace);
     windows.push(win);
     return win;
   };
@@ -552,7 +552,7 @@ describe("Route pins", () => {
   };
 
   const load = () => {
-    const win = new WorkspaceWindow();
+    const win = new WorkspaceWindow(Workspace);
     windows.push(win);
     return win;
   };
@@ -681,7 +681,7 @@ describe("Starting values", () => {
     }
   };
   const load = () => {
-    const win = new WorkspaceWindow();
+    const win = new WorkspaceWindow(Workspace);
     windows.push(win);
     return win;
   };
@@ -829,7 +829,7 @@ describe("PLAY for a story with no start scene", () => {
     localStorage.clear();
     started = [];
     window.addEventListener(MessageProtocol.event, listener);
-    win = new WorkspaceWindow();
+    win = new WorkspaceWindow(Workspace);
     current.window = win;
     workspace.current = {
       ...workspace.current,
