@@ -1,0 +1,158 @@
+import { describe, expect, test } from "vitest";
+import type { SparkProgram } from "../../compiler/types/SparkProgram";
+import { MAIN_URI, programCompiler } from "../program/programHarness";
+import { parseSource } from "./grammarSnapshot";
+
+function nestedTable(depth: number): string {
+  let value = "{}";
+  for (let i = 1; i < depth; i++) {
+    value = `{k${i}=${value}}`;
+  }
+  return value;
+}
+
+function topLevelNames(source: string): string[] {
+  const cursor = parseSource(source).topNode.cursor();
+  const names: string[] = [];
+  if (cursor.firstChild()) {
+    do {
+      if (cursor.name !== "Newline") names.push(cursor.name);
+    } while (cursor.nextSibling());
+  }
+  return names;
+}
+
+function compile(source: string): {
+  program: SparkProgram;
+  errors: { line: number; message: string }[];
+} {
+  const { program } = programCompiler({
+    [MAIN_URI]: `${source}\nscene start\n  Hi.\nend\n`,
+  }).compile();
+  const errors: { line: number; message: string }[] = [];
+  for (const diagnostics of Object.values(program.diagnostics ?? {})) {
+    for (const d of diagnostics as any[]) {
+      if (d.severity !== 1) continue;
+      errors.push({
+        line: d.range?.start?.line,
+        message: typeof d.message === "string" ? d.message : d.message?.value,
+      });
+    }
+  }
+  return { program, errors };
+}
+
+const strip = (value: unknown): any =>
+  JSON.parse(
+    JSON.stringify(value, (key, v) =>
+      key === "span" || key === "exprId" ? undefined : v,
+    ),
+  );
+
+const layoutTree = (program: SparkProgram, name: string) =>
+  strip((program as any).sparkle?.layouts?.[name]);
+
+const twoStructs = (keyword: string, line: string) =>
+  [
+    `${keyword} first {`,
+    `  ${line}`,
+    "}",
+    "",
+    `${keyword} second {`,
+    '  text "x"',
+    "}",
+    "",
+  ].join("\n");
+
+const DEPTHS = [8, 9, 12, 20];
+
+describe("a struct brace body closes at its own } however deep an inner value nests", () => {
+  for (const keyword of ["layout", "component"]) {
+    const node = keyword === "layout" ? "LuauLayout" : "LuauComponent";
+
+    test.each(DEPTHS)(`${keyword}: an event handler holding a depth-%i table`, (depth) => {
+      const source = twoStructs(
+        keyword,
+        `row { button @click={ t = ${nestedTable(depth)} } "Over"; text "after" }`,
+      );
+      expect(topLevelNames(source)).toEqual([node, node]);
+    });
+
+    test.each(DEPTHS)(`${keyword}: a prop holding a depth-%i table`, (depth) => {
+      const source = twoStructs(
+        keyword,
+        `row { button #items=${nestedTable(depth)} "Over"; text "after" }`,
+      );
+      expect(topLevelNames(source)).toEqual([node, node]);
+    });
+  }
+
+  test.each(DEPTHS)("style: a property holding a depth-%i table", (depth) => {
+    const source = `style first {\n  t = ${nestedTable(depth)}\n}\n\nstyle second {\n  x = 1\n}\n`;
+    expect(topLevelNames(source)).toEqual(["LuauStyle", "LuauStyle"]);
+  });
+
+  test("a deep handler and a deep prop lower with the parts after them", () => {
+    const deep = nestedTable(12);
+    const { program, errors } = compile(
+      [
+        "layout first {",
+        `  row { button @click={ t = ${deep} } #items=${deep} "Over"; text "after" }`,
+        "}",
+        "",
+        "layout second {",
+        '  text "x"',
+        "}",
+      ].join("\n"),
+    );
+    expect(errors).toEqual([]);
+    const [row] = layoutTree(program, "first").children;
+    expect(row.children.map((c: any) => c.tag)).toEqual(["button", "text"]);
+    const [button, after] = row.children;
+    expect(button.content).toEqual([{ kind: "literal", text: "Over" }]);
+    expect(button.events.map((e: any) => [e.event, e.handler.kind])).toEqual([
+      ["click", "closure"],
+    ]);
+    expect(button.props.items).toEqual({
+      kind: "binding",
+      binding: { source: deep },
+    });
+    expect(after.content).toEqual([{ kind: "literal", text: "after" }]);
+    expect(layoutTree(program, "second").children.map((c: any) => c.tag)).toEqual([
+      "text",
+    ]);
+  });
+
+  test("a prop's braces may continue onto later lines and close there", () => {
+    const { program, errors } = compile(
+      [
+        "layout first {",
+        "  row {",
+        "    text #items={",
+        "      {a = 1, b = 2}",
+        '    } "Over"',
+        '    text "after"',
+        "  }",
+        "}",
+      ].join("\n"),
+    );
+    expect(errors).toEqual([]);
+    const [row] = layoutTree(program, "first").children;
+    expect(row.children.map((c: any) => c.tag)).toEqual(["text", "text"]);
+    expect(row.children[0].props.items).toEqual({
+      kind: "binding",
+      binding: { source: "{\n      {a = 1, b = 2}\n    }" },
+    });
+    expect(row.children[0].content).toEqual([{ kind: "literal", text: "Over" }]);
+    expect(row.children[1].content).toEqual([{ kind: "literal", text: "after" }]);
+  });
+
+  test("a prop whose braces never close is reported", () => {
+    const { errors } = compile(
+      ["layout first {", "  row {", "    text #items={ {a = 1}", "  }", "}"].join(
+        "\n",
+      ),
+    );
+    expect(errors).not.toEqual([]);
+  });
+});

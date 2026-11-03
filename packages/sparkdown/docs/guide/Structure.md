@@ -310,6 +310,19 @@ layout arcade {
 }
 ```
 
+A prop's braced value can span lines in the same way, and its `}` closes it however deep the braces inside it nest:
+
+```sparkdown
+store score = 0
+store best = 0
+
+layout arcade {
+  field #value={
+    score > best and "New best!" or "Keep going"
+  }
+}
+```
+
 ---
 
 ## 2.8 Scripts and projects

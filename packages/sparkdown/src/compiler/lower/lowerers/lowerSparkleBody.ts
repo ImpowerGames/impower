@@ -137,6 +137,7 @@ const ATTRIBUTE_NODES = nodeNameSet([
   "LuauSparkleEventAttribute",
   "LuauSparklePropAttribute",
   "LuauSparkleEventClosureAttribute",
+  "LuauSparklePropClosureAttribute",
 ]);
 
 function isContinuation(entry: SyntaxNode, ctx: LowerContext): boolean {
@@ -428,7 +429,12 @@ function lowerHandlerClosure(
   };
 }
 
-const PROP_ATTR = nodeNameSet(["LuauPropAttribute", "LuauSparklePropAttribute"]);
+const PROP_ATTR = nodeNameSet([
+  "LuauPropAttribute",
+  "LuauSparklePropAttribute",
+  "LuauSparklePropClosureAttribute",
+]);
+const PROP_CLOSURE = nodeNameSet(["LuauSparklePropClosure"]);
 const PROP_NAME = nodeNameSet(["StyleAttributeName"]);
 const PROP_INTERP = nodeNameSet([
   "LuauInterpolatedStringExpression",
@@ -440,6 +446,7 @@ const PROP_LITERAL = nodeNameSet([
 ]);
 
 function propAttributes(node: SyntaxNode): SyntaxNode[] {
+  if (PROP_ATTR.has(node.name)) return [node];
   const out: SyntaxNode[] = [];
   const walk = (n: SyntaxNode) => {
     let c = n.firstChild;
@@ -462,6 +469,11 @@ function readProps(
     const nameNode = firstDescendant(attr, PROP_NAME);
     const name = nameNode ? ctx.read(nameNode.from, nameNode.to).trim() : "";
     if (!name) continue;
+    const closure = firstDescendant(attr, PROP_CLOSURE);
+    if (closure) {
+      props[name] = { kind: "binding", binding: lowerBinding(closure, ctx) };
+      continue;
+    }
     const contentStr = firstDescendant(attr, INTERP_CONTENT_NODES);
     if (contentStr) {
       props[name] = { kind: "content", content: readContentParts(contentStr, ctx) };
@@ -573,6 +585,10 @@ interface ElementParts {
 function readParts(parts: SyntaxNode[], ctx: LowerContext): ElementParts {
   const out: ElementParts = { classes: partClasses(parts, ctx), props: {}, events: [] };
   for (const part of parts) {
+    if (part.name === "LuauSparklePropClosureAttribute") {
+      Object.assign(out.props, readProps(part, ctx));
+      continue;
+    }
     if (part.name !== "LuauSparkleEventClosureAttribute") {
       if (!out.content) {
         const contentNode = firstContentDescendant(part, FIELD_VALUE_NAMES);
@@ -585,9 +601,14 @@ function readParts(parts: SyntaxNode[], ctx: LowerContext): ElementParts {
   return out;
 }
 
+const CLOSURE_ATTRIBUTES = nodeNameSet([
+  "LuauSparkleEventClosureAttribute",
+  "LuauSparklePropClosureAttribute",
+]);
+
 function partClasses(parts: SyntaxNode[], ctx: LowerContext): string[] {
   return parts.flatMap((part) =>
-    part.name === "LuauSparkleEventClosureAttribute"
+    CLOSURE_ATTRIBUTES.has(part.name)
       ? []
       : descendants(part, HEAD_CLASS_NAMES)
           .map((t) => ctx.read(t.from, t.to).trim())

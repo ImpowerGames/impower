@@ -269,6 +269,7 @@ const IF_CLAUSE_TRIVIA = new Set([
 const LUAU_BINDING_INTERPOLATION_HOSTS = nodeNameSet([
   "LuauPropAttribute",
   "LuauSparklePropAttribute",
+  "LuauSparklePropClosureAttribute",
   "StringFieldValueInterpolated",
   "LuauElementContentStringInterpolated",
 ]);
@@ -1520,7 +1521,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const context = getContextNames(nodeRef.node);
       const inPropValue =
         context.includes("LuauPropAttribute") ||
-        context.includes("LuauSparklePropAttribute");
+        context.includes("LuauSparklePropAttribute") ||
+        context.includes("LuauSparklePropClosureAttribute");
       if (name && !inPropValue) {
         const message = `Unrecognized rich text tag \`<${name}>\` — not a known inline tag, so it renders literally instead of styling anything\n> Styling tags are \`<b>\`, \`<i>\`, \`<u>\`, \`<s>\`, \`<sub>\`, \`<sup>\`, \`<mark=…>\`, \`<color=…>\`, \`<size=…>\`; wrap text in \`<noparse>…</noparse>\` to keep angle brackets literal`;
         annotations.push(
