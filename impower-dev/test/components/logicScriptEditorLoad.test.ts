@@ -86,6 +86,11 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   },
 }));
 
+vi.mock("../../src/modules/spark-editor/workspace/WorkspaceWindow", () => {
+  Error.stackTraceLimit = 80;
+  throw new Error(`DIAGNOSTIC real WorkspaceWindow loaded at ${new Date().toISOString()}: ${new Error().stack}`);
+});
+
 vi.mock("../../src/modules/spark-editor/workspace/WorkspaceStore", () => ({
   default: { state: signal({ project: { id: "project" }, sync: {} }) },
 }));
