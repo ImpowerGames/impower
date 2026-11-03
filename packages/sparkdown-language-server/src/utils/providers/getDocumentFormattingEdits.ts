@@ -477,6 +477,7 @@ const BRACE_INDENTERS = nodeNameSet([
   "LuauStructBraceBody",
   "LuauSparkleBraceBody",
   "LuauSparkleHandlerClosure",
+  "LuauSparklePropClosure",
   "LuauSparkleElementContinuation",
 ]);
 

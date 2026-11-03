@@ -565,7 +565,7 @@ layout hud {
       expect(errorsOf(braced)).toEqual([]);
     });
 
-    test("inside a block, a value nested deeper than that runs to the end of its line, and is reported", () => {
+    test("inside a block, a call nested deeper than that runs to the end of its line, and is reported, while braces nested deeper are read whole", () => {
       const text = `component card(t) {
   slot
 }
@@ -605,14 +605,27 @@ layout e {
 }
 `;
       const errors = errorsOf(text);
-      for (const line of [10, 16, 22, 28, 34]) {
+      for (const line of [16, 22, 28]) {
         expect(errors.some((e) => e.line === line)).toBe(true);
       }
-      for (const name of ["a", "b", "c", "d", "e"]) {
+      expect(errors.filter((e) => e.line === 10 || e.line === 34)).toEqual([]);
+      for (const name of ["b", "c", "d"]) {
         const [column] = lowered(text, "layout", name).tree.children;
         expect(column.children).toHaveLength(1);
         expect(column.children[0].children).toEqual([]);
       }
+      const [handlerColumn] = lowered(text, "layout", "a").tree.children;
+      expect(
+        handlerColumn.children.map((c: any) => [c.tag, c.content[0].text]),
+      ).toEqual([
+        ["button", "Go"],
+        ["text", "after"],
+      ]);
+      const [propColumn] = lowered(text, "layout", "e").tree.children;
+      expect(propColumn.children).toHaveLength(1);
+      expect(
+        propColumn.children[0].children.map((c: any) => c.content[0].text),
+      ).toEqual(["body"]);
     });
 
     test("an inline long comment ends at its `]]`", () => {

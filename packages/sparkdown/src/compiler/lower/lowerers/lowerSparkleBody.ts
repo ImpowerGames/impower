@@ -15,6 +15,7 @@ import {
 import {
   inFunctionScopes,
   reportBodySyntaxErrors,
+  type ReadingErrorScope,
 } from "../expression/lowerFunction";
 import { closureBodyAst, closureSyntaxErrors, documentText } from "../utils/luauAst";
 import { closureReadingErrors } from "../../typecheck/closureReading";
@@ -48,6 +49,7 @@ import {
   sparklePartNodes,
 } from "../utils/sparkleBlockEntries";
 import { joinSparkleContinuations } from "../utils/sparkleContinuations";
+import { propClosureHoldsExpression } from "../../utils/propClosureHoldsExpression";
 
 const CONTROL_BLOCK_NAMES = nodeNameSet([
   "LuauSparkleIfBlock", "LuauSparkleForLoop", "LuauSparkleMatchBlock",
@@ -137,6 +139,7 @@ const ATTRIBUTE_NODES = nodeNameSet([
   "LuauSparkleEventAttribute",
   "LuauSparklePropAttribute",
   "LuauSparkleEventClosureAttribute",
+  "LuauSparklePropClosureAttribute",
 ]);
 
 function isContinuation(entry: SyntaxNode, ctx: LowerContext): boolean {
@@ -183,6 +186,7 @@ function lowerBinding(
   interpNode: SyntaxNode,
   ctx: LowerContext,
   extraParams: string[] = [],
+  scope: ReadingErrorScope = "string",
 ): Binding {
   const exprId = bindingId(interpNode.from, ctx);
   const source = ctx.read(interpNode.from, interpNode.to);
@@ -196,7 +200,7 @@ function lowerBinding(
     const fn = new Function(
       new Identifier(exprId),
       lowerEvaluatorStatement(ctx, body, interpNode, interpNode, () => [
-        new ReturnType(lowerExpressionFromContainer(interpNode, ctx) ?? null),
+        new ReturnType(lowerExpressionFromContainer(interpNode, ctx, scope) ?? null),
       ]),
       loopVars.map((n) => new Argument(new Identifier(n), false, false)),
     );
@@ -428,7 +432,12 @@ function lowerHandlerClosure(
   };
 }
 
-const PROP_ATTR = nodeNameSet(["LuauPropAttribute", "LuauSparklePropAttribute"]);
+const PROP_ATTR = nodeNameSet([
+  "LuauPropAttribute",
+  "LuauSparklePropAttribute",
+  "LuauSparklePropClosureAttribute",
+]);
+const PROP_CLOSURE = nodeNameSet(["LuauSparklePropClosure"]);
 const PROP_NAME = nodeNameSet(["StyleAttributeName"]);
 const PROP_INTERP = nodeNameSet([
   "LuauInterpolatedStringExpression",
@@ -440,6 +449,7 @@ const PROP_LITERAL = nodeNameSet([
 ]);
 
 function propAttributes(node: SyntaxNode): SyntaxNode[] {
+  if (PROP_ATTR.has(node.name)) return [node];
   const out: SyntaxNode[] = [];
   const walk = (n: SyntaxNode) => {
     let c = n.firstChild;
@@ -462,6 +472,22 @@ function readProps(
     const nameNode = firstDescendant(attr, PROP_NAME);
     const name = nameNode ? ctx.read(nameNode.from, nameNode.to).trim() : "";
     if (!name) continue;
+    const closure = firstDescendant(attr, PROP_CLOSURE);
+    if (closure) {
+      if (!propClosureHoldsExpression(closure)) continue;
+      const spansLines =
+        ctx.lineNumber(closure.from) !== ctx.lineNumber(closure.to);
+      props[name] = {
+        kind: "binding",
+        binding: lowerBinding(
+          closure,
+          ctx,
+          [],
+          spansLines ? "expression" : "string",
+        ),
+      };
+      continue;
+    }
     const contentStr = firstDescendant(attr, INTERP_CONTENT_NODES);
     if (contentStr) {
       props[name] = { kind: "content", content: readContentParts(contentStr, ctx) };
@@ -573,6 +599,10 @@ interface ElementParts {
 function readParts(parts: SyntaxNode[], ctx: LowerContext): ElementParts {
   const out: ElementParts = { classes: partClasses(parts, ctx), props: {}, events: [] };
   for (const part of parts) {
+    if (part.name === "LuauSparklePropClosureAttribute") {
+      Object.assign(out.props, readProps(part, ctx));
+      continue;
+    }
     if (part.name !== "LuauSparkleEventClosureAttribute") {
       if (!out.content) {
         const contentNode = firstContentDescendant(part, FIELD_VALUE_NAMES);
@@ -585,9 +615,14 @@ function readParts(parts: SyntaxNode[], ctx: LowerContext): ElementParts {
   return out;
 }
 
+const CLOSURE_ATTRIBUTES = nodeNameSet([
+  "LuauSparkleEventClosureAttribute",
+  "LuauSparklePropClosureAttribute",
+]);
+
 function partClasses(parts: SyntaxNode[], ctx: LowerContext): string[] {
   return parts.flatMap((part) =>
-    part.name === "LuauSparkleEventClosureAttribute"
+    CLOSURE_ATTRIBUTES.has(part.name)
       ? []
       : descendants(part, HEAD_CLASS_NAMES)
           .map((t) => ctx.read(t.from, t.to).trim())

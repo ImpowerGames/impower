@@ -101,9 +101,15 @@ export function sparkleBlockHasElement(block: SyntaxNode): boolean {
   return true;
 }
 
+const CLOSURE_VALUES: Record<string, string> = {
+  LuauSparkleEventClosureAttribute: "LuauSparkleHandlerClosure",
+  LuauSparklePropClosureAttribute: "LuauSparklePropClosure",
+};
+
 const LATER_PART_NAMES = nodeNameSet([
   "LuauSparkleElementParts",
   "LuauSparkleEventClosureAttribute",
+  "LuauSparklePropClosureAttribute",
 ]);
 
 export function sparklePartNodes(node: SyntaxNode): SyntaxNode[] {
@@ -115,11 +121,8 @@ export function sparklePartNodes(node: SyntaxNode): SyntaxNode[] {
   for (let child = content?.firstChild; child; child = child.nextSibling) {
     if (!LATER_PART_NAMES.has(child.name)) continue;
     out.push(child);
-    if (child.name === "LuauSparkleEventClosureAttribute") {
-      const inner = findChildByName(
-        child,
-        "LuauSparkleEventClosureAttribute_content",
-      );
+    if (CLOSURE_VALUES[child.name]) {
+      const inner = findChildByName(child, `${child.name}_content`);
       for (let part = inner?.firstChild; part; part = part.nextSibling) {
         if (part.name === "LuauSparkleElementParts") out.push(part);
       }
@@ -129,13 +132,9 @@ export function sparklePartNodes(node: SyntaxNode): SyntaxNode[] {
 }
 
 export function sparkleClosureAttributeEnd(attribute: SyntaxNode): number {
-  const inner = findChildByName(
-    attribute,
-    "LuauSparkleEventClosureAttribute_content",
-  );
-  const closure = inner
-    ? findChildByName(inner, "LuauSparkleHandlerClosure")
-    : null;
+  const inner = findChildByName(attribute, `${attribute.name}_content`);
+  const value = CLOSURE_VALUES[attribute.name];
+  const closure = inner && value ? findChildByName(inner, value) : null;
   return closure?.to ?? attribute.to;
 }
 
