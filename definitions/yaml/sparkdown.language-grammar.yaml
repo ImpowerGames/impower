@@ -632,8 +632,24 @@ variables:
   STRUCT_BLOCK_PROPERTY_KEY: (?:\[[^\]\n]*\]|[$]?(?:{{INTEGER}}|{{IDENTIFIER_START}}{{IDENTIFIER_END}}(?<![-])|{{QUOTED_STRING}}))
   STRUCT_BLOCK_PROPERTY_HEAD: (?:{{STRUCT_BLOCK_PROPERTY_KEY}}{{ASSIGN_EQUAL_OPERATOR}})
   STRUCT_BLOCK_BAIL: (?:{{BEAT}}|^{{END}})
+  STRUCT_KEYWORD_WORDS: ["layout", "style", "screen", "component", "animation", "theme", "morph"]
   STRUCT_HEADER_CLAUSE_WORDS: ["with", "as", "in"]
-  STRUCT_DECLARATION_LINE: (?:^{{LUAU_FILE_SPARKDOWN_WORDS}}{{WS}}+{{LUAU_METHOD_TRIVIA}}{{LUAU_IDENTIFIER}}{{WS}}*(?:[({=]|{{STRUCT_HEADER_CLAUSE_WORDS}}))
+  DEFINE_HEADER_CLAUSE_WORDS: ["with", "as"]
+  STORE_DECLARATION_WORDS: ["store", "const"]
+  SCRIPT_REFERENCE_WORDS: ["run", "include"]
+  STRUCT_KEYWORD_HEADER: (?:{{STRUCT_KEYWORD_WORDS}}{{WS}}+{{LUAU_METHOD_TRIVIA}}{{LUAU_IDENTIFIER}}{{WS}}*(?:[({]|{{STRUCT_HEADER_CLAUSE_WORDS}}))
+  DEFINE_HEADER: (?:define{{WS}}+{{LUAU_METHOD_TRIVIA}}{{LUAU_IDENTIFIER}}{{WS}}*{{DEFINE_HEADER_CLAUSE_WORDS}})
+  STORE_HEADER_AFTER_NAME: (?:{{WS}}*(?:[:=,]|$|{{LUAU_COMMENT_START}}))
+  STORE_HEADER: (?:{{STORE_DECLARATION_WORDS}}{{WS}}+{{LUAU_METHOD_TRIVIA}}(?:function\b|{{LUAU_IDENTIFIER}}{{STORE_HEADER_AFTER_NAME}}))
+  FUNCTION_HEADER: (?:{{LUAU_HEADER_ATTRIBUTE}}*function{{WS}}+{{LUAU_METHOD_TRIVIA}}{{LUAU_IDENTIFIER}})
+  LUAU_EXPORT_PREFIX: (?:export{{WS}}+)
+  TYPE_HEADER_AFTER_TYPE: (?:function\b|{{LUAU_IDENTIFIER}}{{WS}}*[=<])
+  TYPE_HEADER: (?:{{LUAU_EXPORT_PREFIX}}?type{{WS}}+{{TYPE_HEADER_AFTER_TYPE}})
+  EXTERNAL_HEADER: (?:external{{WS}}+{{LUAU_METHOD_TRIVIA}}{{LUAU_IDENTIFIER}}{{WS}}*[(])
+  SCRIPT_REFERENCE_HEADER: (?:{{SCRIPT_REFERENCE_WORDS}}{{WS}}+[^\t\r\n ])
+  EXPLICIT_MARK_PREFIX: (?:&{{WS}}*)
+  DECLARATION_HEADER: (?:{{STRUCT_KEYWORD_HEADER}}|{{DEFINE_HEADER}}|{{STORE_HEADER}}|{{FUNCTION_HEADER}}|{{TYPE_HEADER}}|{{EXTERNAL_HEADER}}|{{SCRIPT_REFERENCE_HEADER}})
+  STRUCT_DECLARATION_LINE: (?:^{{EXPLICIT_MARK_PREFIX}}?{{DECLARATION_HEADER}})
   STRUCT_KEYWORD_BODY_BAIL: (?:{{STRUCT_BLOCK_BAIL}}|{{STRUCT_DECLARATION_LINE}})
   # lookaround: LuauStructBraceBody and LuauSparkleBraceBody take a `{` that opens the line after a header written without `with`, and the keyword rule's end takes a beat, an `end` line or the next declaration. A body that opened at the header's line break would hold that line before any of them could claim it, so it opens on the first line none of them claims.
   STRUCT_WITHOUT_WITH_LINE: ^(?!{{WS}}*(?:[{]|$))(?!{{STRUCT_KEYWORD_BODY_BAIL}})
@@ -800,7 +816,7 @@ variables:
   LUAU_TYPE_OPTIONAL_OPERATOR: (?:[?])
   LUAU_TYPE_END: (?:[\w)}\]"'`?]|[^-]>|^>)
   LUAU_FUNCTION_HEADER: (?:(?:\b{{LUAU_HEADER_KEYWORDS}}\b{{WS}}*|{{LUAU_HEADER_LINE_START}}{{LUAU_HEADER_KEYWORDS}}\b{{LUAU_HEADER_COMMENTS}})(?:{{LUAU_NAME_BEHIND}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_NAME_BEHIND}})*)?(?:{{WS}}*<[^<>\n]*>)?)
-  LUAU_DECLARATION_STOP: (?:(?:end|else|elseif|until|return|break|goto|local|do|while|repeat|for)\b|{{LUAU_NAMED_DECLARATION_WORD}}|(?:export{{WS}}+)?type{{WS}}+{{LUAU_IDENTIFIER}})
+  LUAU_DECLARATION_STOP: (?:(?:end|else|elseif|until|return|break|goto|local|do|while|repeat|for)\b|{{LUAU_NAMED_DECLARATION_WORD}}|{{LUAU_EXPORT_PREFIX}}?type{{WS}}+{{LUAU_IDENTIFIER}})
   # lookaround: before those, `continue` is a name that `LuauReassignment`
   # or `LuauAccessPath` reads, after `LuauContinueStatement` in
   # `LuauDeclarations`. A begin cannot read the name first and decide after,

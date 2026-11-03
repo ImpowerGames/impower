@@ -306,6 +306,23 @@ describe("an unclosed brace body", () => {
     }
   });
 
+  test("stops before a typed store declaration", () => {
+    for (const declaration of ["store trust: number = 5", "store trust: number"]) {
+      for (const [opened, body] of [
+        ["style broken {", "  color = red"],
+        ["layout broken {", '  row { text "a" }'],
+      ] as const) {
+        const source = `${opened}\n${body}\n\n${declaration}\n\nscene start\n  Hi.\nend\n`;
+        const errs = errors(source);
+        expect(errs.map((e) => e.startLine), `${opened} ${declaration}`).toEqual([0]);
+        expect(errs[0]!.message).toContain("missing its closing `}`");
+        if (opened.startsWith("style")) {
+          expect((compile(source).program.context as any)?.style?.broken?.color).toBe("red");
+        }
+      }
+    }
+  });
+
   test("stops before a store declaration", () => {
     const source = `style broken {\n  color = red\n\nstore trust = 5\n\nscene start\n  Trust is {trust}.\nend\n`;
     const missing = errors(source).filter((e) =>

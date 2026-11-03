@@ -97,7 +97,7 @@ export function validateBlockStructure(
         : "`end`";
     diagnostics.push(
       error(
-        `This ${keyword} is missing its closing \`}\`. Without it, every line up to the next unindented declaration, the next line that starts with ${closers}, the next \`scene\` or \`branch\`, or the end of the file is read as part of this ${keyword}.`,
+        `This ${keyword} is missing its closing \`}\`. Until it is added, the lines below its header can be read as part of this ${keyword}, up to the next \`scene\` or \`branch\`, line that starts with ${closers}, or the end of the file at the latest.`,
       ),
     );
     return diagnostics;

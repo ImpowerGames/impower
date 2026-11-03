@@ -9,3 +9,12 @@ style unclosed {
   corner = 2px
 
 store trust = 5
+
+theme loose { color = red
+
+store level: number = 1
+
+layout open {
+  row { text "a" }
+
+store mood: string
