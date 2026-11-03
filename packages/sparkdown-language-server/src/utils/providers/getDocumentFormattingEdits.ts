@@ -1,5 +1,6 @@
 import { isExplicitRuleName } from "@impower/sparkdown/src/compiler/utils/explicitRuleNames";
 import { ALTERNATOR_CANDIDATES, opensAlternator } from "@impower/sparkdown/src/compiler/utils/alternatorDecision";
+import { KEYWORD_BRACE_BODY_NAMES } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
 import { CALL_LIKE_OPENERS } from "@impower/sparkdown/src/compiler/utils/callLikeOpeners";
 import { isNameChar, JOINING_PAIRS } from "@impower/sparkdown/src/compiler/utils/lexicalJoin";
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
@@ -473,6 +474,8 @@ const BRACE_INDENTERS = nodeNameSet([
   "LuauSparkleElementBlock",
   "LuauStructBlockBody",
   "LuauStructListBlock",
+  "LuauStructBraceBody",
+  "LuauSparkleBraceBody",
   "LuauSparkleHandlerClosure",
   "LuauSparkleElementContinuation",
 ]);
@@ -719,6 +722,21 @@ export const getFormatting = (
             };
           }
           commentsContinuation = commentRun.continues;
+        }
+        const keywordBodyIndex = stack.findIndex(
+          (n) => !!n && KEYWORD_BRACE_BODY_NAMES.has(n.name),
+        );
+        if (keywordBodyIndex >= 0) {
+          const headerLevel =
+            computeBlockIndent(stack.slice(keywordBodyIndex)) +
+            (sceneActive ? 1 : 0) +
+            (branchActive ? 1 : 0);
+          emitLevel(
+            headerLevel +
+              braceDepth(stack, keywordBodyIndex + 1, lineStart, listSource) +
+              (commentsContinuation ? 1 : 0),
+          );
+          return;
         }
         const braceLineIndex = findBraceLine(stack);
         const braceLine =

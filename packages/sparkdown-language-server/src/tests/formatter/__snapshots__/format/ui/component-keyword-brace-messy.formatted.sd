@@ -1,0 +1,11 @@
+component card(title) as box {
+  column.card {
+    text.title "{title}"
+    row.body { slot }
+    fill.footer {
+      text "footer"
+    }
+  }
+}
+
+component chip(label) { text label }

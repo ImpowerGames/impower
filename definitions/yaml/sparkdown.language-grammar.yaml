@@ -632,6 +632,10 @@ variables:
   STRUCT_BLOCK_PROPERTY_KEY: (?:\[[^\]\n]*\]|[$]?(?:{{INTEGER}}|{{IDENTIFIER_START}}{{IDENTIFIER_END}}(?<![-])|{{QUOTED_STRING}}))
   STRUCT_BLOCK_PROPERTY_HEAD: (?:{{STRUCT_BLOCK_PROPERTY_KEY}}{{ASSIGN_EQUAL_OPERATOR}})
   STRUCT_BLOCK_BAIL: (?:{{BEAT}}|^{{END}})
+  # lookaround: LuauStructBraceBody and LuauSparkleBraceBody take a `{` that opens the line after a header written without `with`, and the keyword rule's end takes a beat or an `end` line. A body that opened at the header's line break would hold that line before either could claim it, so it opens on the first line neither claims.
+  STRUCT_WITHOUT_WITH_LINE: ^(?!{{WS}}*(?:[{]|$))(?!{{STRUCT_BLOCK_BAIL}})
+  # lookaround: LuauStructBraceBody and LuauSparkleBraceBody read a struct keyword's `}`, and the keyword's block ends right after it; LuauStructWithBody and LuauSparkleWithBody end before their `end`. A line of a `with` body may end in a `}` too, so the rule around the bodies can only tell the two apart by holding each body as one child.
+  STRUCT_KEYWORD_BRACE_CLOSED: (?<=[}])
   STRUCT_BLOCK_TRAILING_COMMA: (?:[,]{{WS}}*(?:$|[;}]|{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))
   STRUCT_BLOCK_COMMA_BEFORE_ENTRY: (?:[,]{{WS}}*(?:{{STYLE_PROPERTY_NAME}}{{WS}}*[=]|{{STRUCT_BLOCK_PROPERTY_HEAD}}|{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}}[{]))
   STRUCT_BLOCK_VALUE_END: (?:{{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_TRAILING_COMMA}}|{{STRUCT_BLOCK_COMMA_BEFORE_ENTRY}}))
@@ -3866,10 +3870,11 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauStyleNameAndInheritance" }
-      - { include: "#LuauStructBlockLine" }
+      - { include: "#LuauStructWithBody" }
+      - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         emit: true
@@ -3903,10 +3908,11 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAnimationThemeNameAndInheritance" }
-      - { include: "#LuauStructBlockLine" }
+      - { include: "#LuauStructWithBody" }
+      - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         emit: true
@@ -3940,10 +3946,11 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAnimationThemeNameAndInheritance" }
-      - { include: "#LuauStructBlockLine" }
+      - { include: "#LuauStructWithBody" }
+      - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         emit: true
@@ -3977,10 +3984,11 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAnimationThemeNameAndInheritance" }
-      - { include: "#LuauStructBlockLine" }
+      - { include: "#LuauStructWithBody" }
+      - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         emit: true
@@ -3994,6 +4002,37 @@ repository:
           - { include: "#LuauComment" }
 
 
+  LuauStructWithBody:
+    begin: ({{WS}}*)(with)\b|{{STRUCT_WITHOUT_WITH_LINE}}
+    beginCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauWithKeyword" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauStructBlockLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?={{END}})
+
+  LuauStructBraceBody:
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockOpen" }
+    patterns:
+      - { include: "#LuauStructBlockEntries" }
+    end: ([}])|(?={{STRUCT_BLOCK_BAIL}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockClose" }
 
   LuauStyleNameAndInheritance:
     begin: \G({{LUAU_IDENTIFIER}})
@@ -4004,15 +4043,11 @@ repository:
     patterns:
       - { include: "#LuauInheritanceOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    end: (?={{BEAT}})|(?={{WS}}*with\b)|({{WS}}*)(?=[{])|$
     endCaptures:
       1:
-        emit: true
         patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauWithKeyword" }
+          - { include: "#Whitespace" }
 
   LuauAnimationThemeNameAndInheritance:
     begin: \G({{LUAU_IDENTIFIER}})
@@ -4023,15 +4058,11 @@ repository:
     patterns:
       - { include: "#LuauInheritanceOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    end: (?={{BEAT}})|(?={{WS}}*with\b)|({{WS}}*)(?=[{])|$
     endCaptures:
       1:
-        emit: true
         patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauWithKeyword" }
+          - { include: "#Whitespace" }
 
   LuauStyleKeyword:
     tag: controlKeyword
@@ -5936,11 +5967,11 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauLayoutNameAndInheritance" }
-      - { include: "#LuauSparkleControlBlock" }
-      - { include: "#LuauSparkleBlockLine" }
+      - { include: "#LuauSparkleWithBody" }
+      - { include: "#LuauSparkleBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         emit: true
@@ -5974,10 +6005,11 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauScreenNameHeader" }
-      - { include: "#LuauStructBlockLine" }
+      - { include: "#LuauStructWithBody" }
+      - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         emit: true
@@ -5998,15 +6030,11 @@ repository:
           - { include: "#LuauDefineName" }
     patterns:
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    end: (?={{BEAT}})|(?={{WS}}*with\b)|({{WS}}*)(?=[{])|$
     endCaptures:
       1:
-        emit: true
         patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauWithKeyword" }
+          - { include: "#Whitespace" }
 
   LuauComponent:
     tag: meta
@@ -6029,11 +6057,11 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauComponentNameAndInheritance" }
-      - { include: "#LuauSparkleControlBlock" }
-      - { include: "#LuauSparkleBlockLine" }
+      - { include: "#LuauSparkleWithBody" }
+      - { include: "#LuauSparkleBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         emit: true
@@ -6056,15 +6084,11 @@ repository:
       - { include: "#LuauInheritanceOperation" }
       - { include: "#LuauLayoutScreenOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    end: (?={{BEAT}})|(?={{WS}}*with\b)|({{WS}}*)(?=[{])|$
     endCaptures:
       1:
-        emit: true
         patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauWithKeyword" }
+          - { include: "#Whitespace" }
 
   LuauComponentNameAndInheritance:
     begin: \G({{LUAU_IDENTIFIER}})
@@ -6076,8 +6100,15 @@ repository:
       - { include: "#LuauFunctionParameters" }
       - { include: "#LuauInheritanceOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    end: (?={{BEAT}})|(?={{WS}}*with\b)|({{WS}}*)(?=[{])|$
     endCaptures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+
+  LuauSparkleWithBody:
+    begin: ({{WS}}*)(with)\b|{{STRUCT_WITHOUT_WITH_LINE}}
+    beginCaptures:
       1:
         emit: true
         patterns:
@@ -6085,6 +6116,28 @@ repository:
       2:
         patterns:
           - { include: "#LuauWithKeyword" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauSparkleControlBlock" }
+      - { include: "#LuauSparkleBlockLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?={{END}})
+
+  LuauSparkleBraceBody:
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockOpen" }
+    patterns:
+      - { include: "#LuauSparkleBlockEntries" }
+    end: ([}])|(?={{SPARKLE_BLOCK_BAIL}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockClose" }
 
   LuauLayoutScreenOperation:
     match: ({{WS}}*)(in)\b({{WS}}*)($|{{LUAU_IDENTIFIER}})($|{{WS}}*)

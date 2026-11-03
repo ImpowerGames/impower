@@ -49,51 +49,56 @@ sparkdown [0..323]
  │   │                   └─ LuauBlockComment_end_c4 [33..34]
  │   │                       └─ OptionalWhitespace [33..34]: " "
  │   ├─ LuauStyle_content [34..60]
- │   │   ├─ LuauStyleNameAndInheritance [34..45]
+ │   │   ├─ LuauStyleNameAndInheritance [34..40]
  │   │   │   ├─ LuauStyleNameAndInheritance_begin [34..40]
  │   │   │   │   └─ LuauStyleNameAndInheritance_begin_c1 [34..40]
  │   │   │   │       └─ LuauDefineName [34..40]: "banner"
- │   │   │   └─ LuauStyleNameAndInheritance_end [40..45]
- │   │   │       ├─ LuauStyleNameAndInheritance_end_c1 [40..41]
- │   │   │       │   └─ LuauStyleNameAndInheritance_end_c1 [40..41]
- │   │   │       │       └─ OptionalWhitespace [40..41]: " "
- │   │   │       └─ LuauStyleNameAndInheritance_end_c2 [41..45]
- │   │   │           └─ LuauWithKeyword [41..45]: "with"
- │   │   ├─ Newline [45..46]: "\n"
- │   │   ├─ LuauStructBlockLine [46..59]
- │   │   │   ├─ LuauStructBlockLine_begin 46
- │   │   │   ├─ LuauStructBlockLine_content [46..59]
- │   │   │   │   ├─ Whitespace [46..48]: "  "
- │   │   │   │   └─ LuauStructBlockProperty [48..59]
- │   │   │   │       ├─ LuauStructBlockProperty_c1 [48..53]
- │   │   │   │       │   └─ StylingDeclarationScalarPropertyName [48..53]
- │   │   │   │       │       └─ StylingDeclarationScalarPropertyName_c1 [48..53]
- │   │   │   │       │           └─ DeclarationScalarPropertyKey [48..53]: "color"
- │   │   │   │       ├─ LuauStructBlockProperty_c2 [53..56]
- │   │   │   │       │   └─ AssignEqualOperator [53..56]
- │   │   │   │       │       ├─ AssignEqualOperator_c1 [53..54]
- │   │   │   │       │       │   └─ AssignEqualOperator_c1 [53..54]
- │   │   │   │       │       │       └─ OptionalSeparator [53..54]: " "
- │   │   │   │       │       ├─ AssignEqualOperator_c2 [54..55]
- │   │   │   │       │       │   └─ EqualOperator [54..55]: "="
- │   │   │   │       │       └─ AssignEqualOperator_c3 [55..56]
- │   │   │   │       │           └─ AssignEqualOperator_c3 [55..56]
- │   │   │   │       │               └─ OptionalSeparator [55..56]: " "
- │   │   │   │       ├─ LuauStructBlockProperty_c3 [56..59]
- │   │   │   │       │   └─ StylingValue [56..59]
- │   │   │   │       │       ├─ StylingValue_c1 56
- │   │   │   │       │       ├─ StylingValue_c2 56
- │   │   │   │       │       ├─ StylingValue_c3 56
- │   │   │   │       │       ├─ StylingValue_c4 [56..59]
- │   │   │   │       │       │   └─ StylingValueContent [56..59]
- │   │   │   │       │       │       └─ StylingValueContent_c1 [56..59]
- │   │   │   │       │       │           └─ StylingStringIdentifier [56..59]: "red"
- │   │   │   │       │       ├─ StylingValue_c5 59
- │   │   │   │       │       ├─ StylingValue_c6 59
- │   │   │   │       │       └─ StylingValue_c7 59
- │   │   │   │       └─ LuauStructBlockProperty_c4 59
- │   │   │   └─ LuauStructBlockLine_end 59
- │   │   └─ Newline [59..60]: "\n"
+ │   │   │   └─ LuauStyleNameAndInheritance_end 40
+ │   │   │       └─ LuauStyleNameAndInheritance_end_c1 40
+ │   │   └─ LuauStructWithBody [40..60]
+ │   │       ├─ LuauStructWithBody_begin [40..45]
+ │   │       │   ├─ LuauStructWithBody_begin_c1 [40..41]
+ │   │       │   │   └─ LuauStructWithBody_begin_c1 [40..41]
+ │   │       │   │       └─ OptionalWhitespace [40..41]: " "
+ │   │       │   └─ LuauStructWithBody_begin_c2 [41..45]
+ │   │       │       └─ LuauWithKeyword [41..45]: "with"
+ │   │       ├─ LuauStructWithBody_content [45..60]
+ │   │       │   ├─ Newline [45..46]: "\n"
+ │   │       │   ├─ LuauStructBlockLine [46..59]
+ │   │       │   │   ├─ LuauStructBlockLine_begin 46
+ │   │       │   │   ├─ LuauStructBlockLine_content [46..59]
+ │   │       │   │   │   ├─ Whitespace [46..48]: "  "
+ │   │       │   │   │   └─ LuauStructBlockProperty [48..59]
+ │   │       │   │   │       ├─ LuauStructBlockProperty_c1 [48..53]
+ │   │       │   │   │       │   └─ StylingDeclarationScalarPropertyName [48..53]
+ │   │       │   │   │       │       └─ StylingDeclarationScalarPropertyName_c1 [48..53]
+ │   │       │   │   │       │           └─ DeclarationScalarPropertyKey [48..53]: "color"
+ │   │       │   │   │       ├─ LuauStructBlockProperty_c2 [53..56]
+ │   │       │   │   │       │   └─ AssignEqualOperator [53..56]
+ │   │       │   │   │       │       ├─ AssignEqualOperator_c1 [53..54]
+ │   │       │   │   │       │       │   └─ AssignEqualOperator_c1 [53..54]
+ │   │       │   │   │       │       │       └─ OptionalSeparator [53..54]: " "
+ │   │       │   │   │       │       ├─ AssignEqualOperator_c2 [54..55]
+ │   │       │   │   │       │       │   └─ EqualOperator [54..55]: "="
+ │   │       │   │   │       │       └─ AssignEqualOperator_c3 [55..56]
+ │   │       │   │   │       │           └─ AssignEqualOperator_c3 [55..56]
+ │   │       │   │   │       │               └─ OptionalSeparator [55..56]: " "
+ │   │       │   │   │       ├─ LuauStructBlockProperty_c3 [56..59]
+ │   │       │   │   │       │   └─ StylingValue [56..59]
+ │   │       │   │   │       │       ├─ StylingValue_c1 56
+ │   │       │   │   │       │       ├─ StylingValue_c2 56
+ │   │       │   │   │       │       ├─ StylingValue_c3 56
+ │   │       │   │   │       │       ├─ StylingValue_c4 [56..59]
+ │   │       │   │   │       │       │   └─ StylingValueContent [56..59]
+ │   │       │   │   │       │       │       └─ StylingValueContent_c1 [56..59]
+ │   │       │   │   │       │       │           └─ StylingStringIdentifier [56..59]: "red"
+ │   │       │   │   │       │       ├─ StylingValue_c5 59
+ │   │       │   │   │       │       ├─ StylingValue_c6 59
+ │   │       │   │   │       │       └─ StylingValue_c7 59
+ │   │       │   │   │       └─ LuauStructBlockProperty_c4 59
+ │   │       │   │   └─ LuauStructBlockLine_end 59
+ │   │       │   └─ Newline [59..60]: "\n"
+ │   │       └─ LuauStructWithBody_end 60
  │   └─ LuauStyle_end [60..63]
  │       ├─ LuauStyle_end_c1 60
  │       │   └─ LuauStyle_end_c1 60
@@ -147,51 +152,56 @@ sparkdown [0..323]
  │   │                   └─ LuauBlockComment_end_c4 [94..95]
  │   │                       └─ OptionalWhitespace [94..95]: " "
  │   ├─ LuauStyle_content [95..121]
- │   │   ├─ LuauStyleNameAndInheritance [95..105]
+ │   │   ├─ LuauStyleNameAndInheritance [95..100]
  │   │   │   ├─ LuauStyleNameAndInheritance_begin [95..100]
  │   │   │   │   └─ LuauStyleNameAndInheritance_begin_c1 [95..100]
  │   │   │   │       └─ LuauDefineName [95..100]: "other"
- │   │   │   └─ LuauStyleNameAndInheritance_end [100..105]
- │   │   │       ├─ LuauStyleNameAndInheritance_end_c1 [100..101]
- │   │   │       │   └─ LuauStyleNameAndInheritance_end_c1 [100..101]
- │   │   │       │       └─ OptionalWhitespace [100..101]: " "
- │   │   │       └─ LuauStyleNameAndInheritance_end_c2 [101..105]
- │   │   │           └─ LuauWithKeyword [101..105]: "with"
- │   │   ├─ Newline [105..106]: "\n"
- │   │   ├─ LuauStructBlockLine [106..120]
- │   │   │   ├─ LuauStructBlockLine_begin 106
- │   │   │   ├─ LuauStructBlockLine_content [106..120]
- │   │   │   │   ├─ Whitespace [106..108]: "  "
- │   │   │   │   └─ LuauStructBlockProperty [108..120]
- │   │   │   │       ├─ LuauStructBlockProperty_c1 [108..113]
- │   │   │   │       │   └─ StylingDeclarationScalarPropertyName [108..113]
- │   │   │   │       │       └─ StylingDeclarationScalarPropertyName_c1 [108..113]
- │   │   │   │       │           └─ DeclarationScalarPropertyKey [108..113]: "color"
- │   │   │   │       ├─ LuauStructBlockProperty_c2 [113..116]
- │   │   │   │       │   └─ AssignEqualOperator [113..116]
- │   │   │   │       │       ├─ AssignEqualOperator_c1 [113..114]
- │   │   │   │       │       │   └─ AssignEqualOperator_c1 [113..114]
- │   │   │   │       │       │       └─ OptionalSeparator [113..114]: " "
- │   │   │   │       │       ├─ AssignEqualOperator_c2 [114..115]
- │   │   │   │       │       │   └─ EqualOperator [114..115]: "="
- │   │   │   │       │       └─ AssignEqualOperator_c3 [115..116]
- │   │   │   │       │           └─ AssignEqualOperator_c3 [115..116]
- │   │   │   │       │               └─ OptionalSeparator [115..116]: " "
- │   │   │   │       ├─ LuauStructBlockProperty_c3 [116..120]
- │   │   │   │       │   └─ StylingValue [116..120]
- │   │   │   │       │       ├─ StylingValue_c1 116
- │   │   │   │       │       ├─ StylingValue_c2 116
- │   │   │   │       │       ├─ StylingValue_c3 116
- │   │   │   │       │       ├─ StylingValue_c4 [116..120]
- │   │   │   │       │       │   └─ StylingValueContent [116..120]
- │   │   │   │       │       │       └─ StylingValueContent_c1 [116..120]
- │   │   │   │       │       │           └─ StylingStringIdentifier [116..120]: "blue"
- │   │   │   │       │       ├─ StylingValue_c5 120
- │   │   │   │       │       ├─ StylingValue_c6 120
- │   │   │   │       │       └─ StylingValue_c7 120
- │   │   │   │       └─ LuauStructBlockProperty_c4 120
- │   │   │   └─ LuauStructBlockLine_end 120
- │   │   └─ Newline [120..121]: "\n"
+ │   │   │   └─ LuauStyleNameAndInheritance_end 100
+ │   │   │       └─ LuauStyleNameAndInheritance_end_c1 100
+ │   │   └─ LuauStructWithBody [100..121]
+ │   │       ├─ LuauStructWithBody_begin [100..105]
+ │   │       │   ├─ LuauStructWithBody_begin_c1 [100..101]
+ │   │       │   │   └─ LuauStructWithBody_begin_c1 [100..101]
+ │   │       │   │       └─ OptionalWhitespace [100..101]: " "
+ │   │       │   └─ LuauStructWithBody_begin_c2 [101..105]
+ │   │       │       └─ LuauWithKeyword [101..105]: "with"
+ │   │       ├─ LuauStructWithBody_content [105..121]
+ │   │       │   ├─ Newline [105..106]: "\n"
+ │   │       │   ├─ LuauStructBlockLine [106..120]
+ │   │       │   │   ├─ LuauStructBlockLine_begin 106
+ │   │       │   │   ├─ LuauStructBlockLine_content [106..120]
+ │   │       │   │   │   ├─ Whitespace [106..108]: "  "
+ │   │       │   │   │   └─ LuauStructBlockProperty [108..120]
+ │   │       │   │   │       ├─ LuauStructBlockProperty_c1 [108..113]
+ │   │       │   │   │       │   └─ StylingDeclarationScalarPropertyName [108..113]
+ │   │       │   │   │       │       └─ StylingDeclarationScalarPropertyName_c1 [108..113]
+ │   │       │   │   │       │           └─ DeclarationScalarPropertyKey [108..113]: "color"
+ │   │       │   │   │       ├─ LuauStructBlockProperty_c2 [113..116]
+ │   │       │   │   │       │   └─ AssignEqualOperator [113..116]
+ │   │       │   │   │       │       ├─ AssignEqualOperator_c1 [113..114]
+ │   │       │   │   │       │       │   └─ AssignEqualOperator_c1 [113..114]
+ │   │       │   │   │       │       │       └─ OptionalSeparator [113..114]: " "
+ │   │       │   │   │       │       ├─ AssignEqualOperator_c2 [114..115]
+ │   │       │   │   │       │       │   └─ EqualOperator [114..115]: "="
+ │   │       │   │   │       │       └─ AssignEqualOperator_c3 [115..116]
+ │   │       │   │   │       │           └─ AssignEqualOperator_c3 [115..116]
+ │   │       │   │   │       │               └─ OptionalSeparator [115..116]: " "
+ │   │       │   │   │       ├─ LuauStructBlockProperty_c3 [116..120]
+ │   │       │   │   │       │   └─ StylingValue [116..120]
+ │   │       │   │   │       │       ├─ StylingValue_c1 116
+ │   │       │   │   │       │       ├─ StylingValue_c2 116
+ │   │       │   │   │       │       ├─ StylingValue_c3 116
+ │   │       │   │   │       │       ├─ StylingValue_c4 [116..120]
+ │   │       │   │   │       │       │   └─ StylingValueContent [116..120]
+ │   │       │   │   │       │       │       └─ StylingValueContent_c1 [116..120]
+ │   │       │   │   │       │       │           └─ StylingStringIdentifier [116..120]: "blue"
+ │   │       │   │   │       │       ├─ StylingValue_c5 120
+ │   │       │   │   │       │       ├─ StylingValue_c6 120
+ │   │       │   │   │       │       └─ StylingValue_c7 120
+ │   │       │   │   │       └─ LuauStructBlockProperty_c4 120
+ │   │       │   │   └─ LuauStructBlockLine_end 120
+ │   │       │   └─ Newline [120..121]: "\n"
+ │   │       └─ LuauStructWithBody_end 121
  │   └─ LuauStyle_end [121..124]
  │       ├─ LuauStyle_end_c1 121
  │       │   └─ LuauStyle_end_c1 121
@@ -233,51 +243,56 @@ sparkdown [0..323]
  │   │                   └─ LuauBlockComment_end_c4 [141..142]
  │   │                       └─ OptionalWhitespace [141..142]: " "
  │   ├─ LuauStyle_content [142..169]
- │   │   ├─ LuauStyleNameAndInheritance [142..152]
+ │   │   ├─ LuauStyleNameAndInheritance [142..147]
  │   │   │   ├─ LuauStyleNameAndInheritance_begin [142..147]
  │   │   │   │   └─ LuauStyleNameAndInheritance_begin_c1 [142..147]
  │   │   │   │       └─ LuauDefineName [142..147]: "third"
- │   │   │   └─ LuauStyleNameAndInheritance_end [147..152]
- │   │   │       ├─ LuauStyleNameAndInheritance_end_c1 [147..148]
- │   │   │       │   └─ LuauStyleNameAndInheritance_end_c1 [147..148]
- │   │   │       │       └─ OptionalWhitespace [147..148]: " "
- │   │   │       └─ LuauStyleNameAndInheritance_end_c2 [148..152]
- │   │   │           └─ LuauWithKeyword [148..152]: "with"
- │   │   ├─ Newline [152..153]: "\n"
- │   │   ├─ LuauStructBlockLine [153..168]
- │   │   │   ├─ LuauStructBlockLine_begin 153
- │   │   │   ├─ LuauStructBlockLine_content [153..168]
- │   │   │   │   ├─ Whitespace [153..155]: "  "
- │   │   │   │   └─ LuauStructBlockProperty [155..168]
- │   │   │   │       ├─ LuauStructBlockProperty_c1 [155..160]
- │   │   │   │       │   └─ StylingDeclarationScalarPropertyName [155..160]
- │   │   │   │       │       └─ StylingDeclarationScalarPropertyName_c1 [155..160]
- │   │   │   │       │           └─ DeclarationScalarPropertyKey [155..160]: "color"
- │   │   │   │       ├─ LuauStructBlockProperty_c2 [160..163]
- │   │   │   │       │   └─ AssignEqualOperator [160..163]
- │   │   │   │       │       ├─ AssignEqualOperator_c1 [160..161]
- │   │   │   │       │       │   └─ AssignEqualOperator_c1 [160..161]
- │   │   │   │       │       │       └─ OptionalSeparator [160..161]: " "
- │   │   │   │       │       ├─ AssignEqualOperator_c2 [161..162]
- │   │   │   │       │       │   └─ EqualOperator [161..162]: "="
- │   │   │   │       │       └─ AssignEqualOperator_c3 [162..163]
- │   │   │   │       │           └─ AssignEqualOperator_c3 [162..163]
- │   │   │   │       │               └─ OptionalSeparator [162..163]: " "
- │   │   │   │       ├─ LuauStructBlockProperty_c3 [163..168]
- │   │   │   │       │   └─ StylingValue [163..168]
- │   │   │   │       │       ├─ StylingValue_c1 163
- │   │   │   │       │       ├─ StylingValue_c2 163
- │   │   │   │       │       ├─ StylingValue_c3 163
- │   │   │   │       │       ├─ StylingValue_c4 [163..168]
- │   │   │   │       │       │   └─ StylingValueContent [163..168]
- │   │   │   │       │       │       └─ StylingValueContent_c1 [163..168]
- │   │   │   │       │       │           └─ StylingStringIdentifier [163..168]: "green"
- │   │   │   │       │       ├─ StylingValue_c5 168
- │   │   │   │       │       ├─ StylingValue_c6 168
- │   │   │   │       │       └─ StylingValue_c7 168
- │   │   │   │       └─ LuauStructBlockProperty_c4 168
- │   │   │   └─ LuauStructBlockLine_end 168
- │   │   └─ Newline [168..169]: "\n"
+ │   │   │   └─ LuauStyleNameAndInheritance_end 147
+ │   │   │       └─ LuauStyleNameAndInheritance_end_c1 147
+ │   │   └─ LuauStructWithBody [147..169]
+ │   │       ├─ LuauStructWithBody_begin [147..152]
+ │   │       │   ├─ LuauStructWithBody_begin_c1 [147..148]
+ │   │       │   │   └─ LuauStructWithBody_begin_c1 [147..148]
+ │   │       │   │       └─ OptionalWhitespace [147..148]: " "
+ │   │       │   └─ LuauStructWithBody_begin_c2 [148..152]
+ │   │       │       └─ LuauWithKeyword [148..152]: "with"
+ │   │       ├─ LuauStructWithBody_content [152..169]
+ │   │       │   ├─ Newline [152..153]: "\n"
+ │   │       │   ├─ LuauStructBlockLine [153..168]
+ │   │       │   │   ├─ LuauStructBlockLine_begin 153
+ │   │       │   │   ├─ LuauStructBlockLine_content [153..168]
+ │   │       │   │   │   ├─ Whitespace [153..155]: "  "
+ │   │       │   │   │   └─ LuauStructBlockProperty [155..168]
+ │   │       │   │   │       ├─ LuauStructBlockProperty_c1 [155..160]
+ │   │       │   │   │       │   └─ StylingDeclarationScalarPropertyName [155..160]
+ │   │       │   │   │       │       └─ StylingDeclarationScalarPropertyName_c1 [155..160]
+ │   │       │   │   │       │           └─ DeclarationScalarPropertyKey [155..160]: "color"
+ │   │       │   │   │       ├─ LuauStructBlockProperty_c2 [160..163]
+ │   │       │   │   │       │   └─ AssignEqualOperator [160..163]
+ │   │       │   │   │       │       ├─ AssignEqualOperator_c1 [160..161]
+ │   │       │   │   │       │       │   └─ AssignEqualOperator_c1 [160..161]
+ │   │       │   │   │       │       │       └─ OptionalSeparator [160..161]: " "
+ │   │       │   │   │       │       ├─ AssignEqualOperator_c2 [161..162]
+ │   │       │   │   │       │       │   └─ EqualOperator [161..162]: "="
+ │   │       │   │   │       │       └─ AssignEqualOperator_c3 [162..163]
+ │   │       │   │   │       │           └─ AssignEqualOperator_c3 [162..163]
+ │   │       │   │   │       │               └─ OptionalSeparator [162..163]: " "
+ │   │       │   │   │       ├─ LuauStructBlockProperty_c3 [163..168]
+ │   │       │   │   │       │   └─ StylingValue [163..168]
+ │   │       │   │   │       │       ├─ StylingValue_c1 163
+ │   │       │   │   │       │       ├─ StylingValue_c2 163
+ │   │       │   │   │       │       ├─ StylingValue_c3 163
+ │   │       │   │   │       │       ├─ StylingValue_c4 [163..168]
+ │   │       │   │   │       │       │   └─ StylingValueContent [163..168]
+ │   │       │   │   │       │       │       └─ StylingValueContent_c1 [163..168]
+ │   │       │   │   │       │       │           └─ StylingStringIdentifier [163..168]: "green"
+ │   │       │   │   │       │       ├─ StylingValue_c5 168
+ │   │       │   │   │       │       ├─ StylingValue_c6 168
+ │   │       │   │   │       │       └─ StylingValue_c7 168
+ │   │       │   │   │       └─ LuauStructBlockProperty_c4 168
+ │   │       │   │   └─ LuauStructBlockLine_end 168
+ │   │       │   └─ Newline [168..169]: "\n"
+ │   │       └─ LuauStructWithBody_end 169
  │   └─ LuauStyle_end [169..172]
  │       ├─ LuauStyle_end_c1 169
  │       │   └─ LuauStyle_end_c1 169
@@ -318,51 +333,56 @@ sparkdown [0..323]
  │   │                   └─ LuauBlockComment_end_c4 [194..195]
  │   │                       └─ OptionalWhitespace [194..195]: " "
  │   ├─ LuauStyle_content [195..223]
- │   │   ├─ LuauStyleNameAndInheritance [195..206]
+ │   │   ├─ LuauStyleNameAndInheritance [195..201]
  │   │   │   ├─ LuauStyleNameAndInheritance_begin [195..201]
  │   │   │   │   └─ LuauStyleNameAndInheritance_begin_c1 [195..201]
  │   │   │   │       └─ LuauDefineName [195..201]: "fourth"
- │   │   │   └─ LuauStyleNameAndInheritance_end [201..206]
- │   │   │       ├─ LuauStyleNameAndInheritance_end_c1 [201..202]
- │   │   │       │   └─ LuauStyleNameAndInheritance_end_c1 [201..202]
- │   │   │       │       └─ OptionalWhitespace [201..202]: " "
- │   │   │       └─ LuauStyleNameAndInheritance_end_c2 [202..206]
- │   │   │           └─ LuauWithKeyword [202..206]: "with"
- │   │   ├─ Newline [206..207]: "\n"
- │   │   ├─ LuauStructBlockLine [207..222]
- │   │   │   ├─ LuauStructBlockLine_begin 207
- │   │   │   ├─ LuauStructBlockLine_content [207..222]
- │   │   │   │   ├─ Whitespace [207..209]: "  "
- │   │   │   │   └─ LuauStructBlockProperty [209..222]
- │   │   │   │       ├─ LuauStructBlockProperty_c1 [209..214]
- │   │   │   │       │   └─ StylingDeclarationScalarPropertyName [209..214]
- │   │   │   │       │       └─ StylingDeclarationScalarPropertyName_c1 [209..214]
- │   │   │   │       │           └─ DeclarationScalarPropertyKey [209..214]: "color"
- │   │   │   │       ├─ LuauStructBlockProperty_c2 [214..217]
- │   │   │   │       │   └─ AssignEqualOperator [214..217]
- │   │   │   │       │       ├─ AssignEqualOperator_c1 [214..215]
- │   │   │   │       │       │   └─ AssignEqualOperator_c1 [214..215]
- │   │   │   │       │       │       └─ OptionalSeparator [214..215]: " "
- │   │   │   │       │       ├─ AssignEqualOperator_c2 [215..216]
- │   │   │   │       │       │   └─ EqualOperator [215..216]: "="
- │   │   │   │       │       └─ AssignEqualOperator_c3 [216..217]
- │   │   │   │       │           └─ AssignEqualOperator_c3 [216..217]
- │   │   │   │       │               └─ OptionalSeparator [216..217]: " "
- │   │   │   │       ├─ LuauStructBlockProperty_c3 [217..222]
- │   │   │   │       │   └─ StylingValue [217..222]
- │   │   │   │       │       ├─ StylingValue_c1 217
- │   │   │   │       │       ├─ StylingValue_c2 217
- │   │   │   │       │       ├─ StylingValue_c3 217
- │   │   │   │       │       ├─ StylingValue_c4 [217..222]
- │   │   │   │       │       │   └─ StylingValueContent [217..222]
- │   │   │   │       │       │       └─ StylingValueContent_c1 [217..222]
- │   │   │   │       │       │           └─ StylingStringIdentifier [217..222]: "green"
- │   │   │   │       │       ├─ StylingValue_c5 222
- │   │   │   │       │       ├─ StylingValue_c6 222
- │   │   │   │       │       └─ StylingValue_c7 222
- │   │   │   │       └─ LuauStructBlockProperty_c4 222
- │   │   │   └─ LuauStructBlockLine_end 222
- │   │   └─ Newline [222..223]: "\n"
+ │   │   │   └─ LuauStyleNameAndInheritance_end 201
+ │   │   │       └─ LuauStyleNameAndInheritance_end_c1 201
+ │   │   └─ LuauStructWithBody [201..223]
+ │   │       ├─ LuauStructWithBody_begin [201..206]
+ │   │       │   ├─ LuauStructWithBody_begin_c1 [201..202]
+ │   │       │   │   └─ LuauStructWithBody_begin_c1 [201..202]
+ │   │       │   │       └─ OptionalWhitespace [201..202]: " "
+ │   │       │   └─ LuauStructWithBody_begin_c2 [202..206]
+ │   │       │       └─ LuauWithKeyword [202..206]: "with"
+ │   │       ├─ LuauStructWithBody_content [206..223]
+ │   │       │   ├─ Newline [206..207]: "\n"
+ │   │       │   ├─ LuauStructBlockLine [207..222]
+ │   │       │   │   ├─ LuauStructBlockLine_begin 207
+ │   │       │   │   ├─ LuauStructBlockLine_content [207..222]
+ │   │       │   │   │   ├─ Whitespace [207..209]: "  "
+ │   │       │   │   │   └─ LuauStructBlockProperty [209..222]
+ │   │       │   │   │       ├─ LuauStructBlockProperty_c1 [209..214]
+ │   │       │   │   │       │   └─ StylingDeclarationScalarPropertyName [209..214]
+ │   │       │   │   │       │       └─ StylingDeclarationScalarPropertyName_c1 [209..214]
+ │   │       │   │   │       │           └─ DeclarationScalarPropertyKey [209..214]: "color"
+ │   │       │   │   │       ├─ LuauStructBlockProperty_c2 [214..217]
+ │   │       │   │   │       │   └─ AssignEqualOperator [214..217]
+ │   │       │   │   │       │       ├─ AssignEqualOperator_c1 [214..215]
+ │   │       │   │   │       │       │   └─ AssignEqualOperator_c1 [214..215]
+ │   │       │   │   │       │       │       └─ OptionalSeparator [214..215]: " "
+ │   │       │   │   │       │       ├─ AssignEqualOperator_c2 [215..216]
+ │   │       │   │   │       │       │   └─ EqualOperator [215..216]: "="
+ │   │       │   │   │       │       └─ AssignEqualOperator_c3 [216..217]
+ │   │       │   │   │       │           └─ AssignEqualOperator_c3 [216..217]
+ │   │       │   │   │       │               └─ OptionalSeparator [216..217]: " "
+ │   │       │   │   │       ├─ LuauStructBlockProperty_c3 [217..222]
+ │   │       │   │   │       │   └─ StylingValue [217..222]
+ │   │       │   │   │       │       ├─ StylingValue_c1 217
+ │   │       │   │   │       │       ├─ StylingValue_c2 217
+ │   │       │   │   │       │       ├─ StylingValue_c3 217
+ │   │       │   │   │       │       ├─ StylingValue_c4 [217..222]
+ │   │       │   │   │       │       │   └─ StylingValueContent [217..222]
+ │   │       │   │   │       │       │       └─ StylingValueContent_c1 [217..222]
+ │   │       │   │   │       │       │           └─ StylingStringIdentifier [217..222]: "green"
+ │   │       │   │   │       │       ├─ StylingValue_c5 222
+ │   │       │   │   │       │       ├─ StylingValue_c6 222
+ │   │       │   │   │       │       └─ StylingValue_c7 222
+ │   │       │   │   │       └─ LuauStructBlockProperty_c4 222
+ │   │       │   │   └─ LuauStructBlockLine_end 222
+ │   │       │   └─ Newline [222..223]: "\n"
+ │   │       └─ LuauStructWithBody_end 223
  │   └─ LuauStyle_end [223..226]
  │       ├─ LuauStyle_end_c1 223
  │       │   └─ LuauStyle_end_c1 223

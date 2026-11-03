@@ -1,0 +1,28 @@
+style broken {
+  text-color = white
+
+style after {
+  corner = 8px
+}
+store trust: number = 5
+
+scene start
+  Hi.
+end
+
+layout list {
+  row {
+    text "a"
+}
+
+branch side
+  Hey.
+end
+
+theme open { color = red
+    end
+
+morph --[=[ note ]=] blink {}
+
+screen tail {
+  x = 1

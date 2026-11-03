@@ -6,6 +6,7 @@ import {
   BRACE_BODY_NAMES,
   STRUCT_KEY_TOKEN_NAMES,
   braceBodyKey,
+  KEYWORD_BRACE_BODY_NAMES,
   sparkleElementKeyParts,
   sparklePartWords,
   structBlockKeyNode,
@@ -205,7 +206,11 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
   private braceBlockPath(node: SyntaxNode): string[] {
     const keys: string[] = [];
     for (let n = node.parent; n; n = n.parent) {
-      if (n.name === "LuauStructBlockLine" || n.name === "LuauSparkleBlockLine") {
+      if (
+        n.name === "LuauStructBlockLine" ||
+        n.name === "LuauSparkleBlockLine" ||
+        KEYWORD_BRACE_BODY_NAMES.has(n.name)
+      ) {
         break;
       }
       if (!BRACE_BODY_NAMES.has(n.name)) continue;

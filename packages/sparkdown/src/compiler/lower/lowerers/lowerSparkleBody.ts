@@ -61,7 +61,7 @@ function buildBodyEntries(content: SyntaxNode | null, ctx: LowerContext): BodyNo
   const children: BodyNode[] = [];
   const walk = (node: SyntaxNode) => {
     for (let child = node.firstChild; child; child = child.nextSibling) {
-      if (child.name === "LuauSparkleBlockLine") children.push(...buildBracedEntries(child, ctx).children);
+      if (child.name === "LuauSparkleBlockLine" || child.name === "LuauSparkleBraceBody") children.push(...buildBracedEntries(child, ctx).children);
       else if (CONTROL_BLOCK_NAMES.has(child.name)) children.push(buildControl(child, ctx));
       else if (!CONTROL_CLAUSE_NAMES.has(child.name)) walk(child);
     }
