@@ -8,14 +8,14 @@ const SOURCE = `scene main
   Hello.
 end
 
-component card(title) {
+component card(title) with
   column.card {
     text.title "{title}"
     slot
   }
-}
+end
 
-layout inventory {
+layout inventory with
   column.panel #child-gap=8 {
     text.title "Inventory"
     choice.0 { text }
@@ -30,7 +30,7 @@ layout inventory {
     title { stroke; text }
     card("Inventory") { text "body" }
   }
-}
+end
 
 scene after
   Goodbye.

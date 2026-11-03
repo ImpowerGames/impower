@@ -307,19 +307,19 @@ describe("a brace body lowers to the struct of its multiline blocks", () => {
     );
     expect(errorsOf(single)).toEqual([]);
     for (const type of ["theme", "style"] as const) {
-      const quotedKey = `${type} t with
+      const quotedKey = `${type} t {
   "quoted key" { v = 1 }
   "other" = { w = 2 }
-end
+}
 `;
-      const quotedKeyMultiline = `${type} t with
+      const quotedKeyMultiline = `${type} t {
   "quoted key" {
     v = 1
   }
   "other" {
     w = 2
   }
-end
+}
 `;
       expect(structOf(quotedKey, type, "t"), type).toEqual(
         structOf(quotedKeyMultiline, type, "t"),
@@ -371,13 +371,13 @@ end
 
 describe("block spellings", () => {
   test.each(["theme", "style"] as const)("%s bare list values preserve embedded colons", (type) => {
-    const source = `${type} t with
+    const source = `${type} t {
 links {
 https://example.com
 12:30
 asset:icon
 }
-end
+}
 `;
     expect(errorsOf(source)).toEqual([]);
     expect(structOf(source, type, "t").links).toEqual([

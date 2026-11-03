@@ -23,10 +23,10 @@ const clickSetsG = async (source: string) => {
 };
 
 const layout = (handler: string, after = "") => `store g = 0
-${after}layout form with
+${after}layout form {
   text "G: {g}"
   button "Go" @click={ ${handler} }
-end
+}
 `;
 
 describe("a function declared in a handler's closure", () => {

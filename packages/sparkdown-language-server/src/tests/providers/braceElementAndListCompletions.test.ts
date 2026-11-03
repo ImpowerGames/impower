@@ -42,7 +42,7 @@ describe.each(["layout", "component"])("%s independent element completions", key
     "text #label='a;b' ro|", "text @click={ go() } ro|",
     "row { text } ro|",
   ])("each grammar element owns its completion: %s", body => {
-    const source = `${keyword} hud with\n${body}\nend\n`;
+    const source = `${keyword} hud {\n${body}\n}\n`;
     const item = completeAt(source, program).find(i => i.label === "row");
     expect(item).toBeDefined();
     const result = accept(source, item!);

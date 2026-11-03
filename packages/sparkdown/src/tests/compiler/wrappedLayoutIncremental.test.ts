@@ -194,7 +194,7 @@ describe("deleting and retyping the `}` of a closure that spans lines", () => {
     const afterDeleting = pick(c.compile({ textDocument: { uri: URI } }).program);
     const coldDeleted = coldCompile(deleted);
     expect(stable(afterDeleting)).toBe(stable(coldDeleted));
-    const open = SOURCE.indexOf("column.panel {") + "column.panel ".length;
+    const open = SOURCE.indexOf("layout inventory {");
     expect(
       ((coldDeleted.diagnostics as any)?.[URI] ?? [])
         .filter((d: any) =>

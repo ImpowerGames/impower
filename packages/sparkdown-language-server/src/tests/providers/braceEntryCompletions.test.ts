@@ -134,7 +134,7 @@ describe("morph completion: where a brace entry starts", () => {
 });
 
 describe.each(["layout", "component"])("%s element completion: where a brace entry starts", (keyword) => {
-  const brace = (body: string) => `${keyword} hud with\n  ${body}\nend\n`;
+  const brace = (body: string) => `${keyword} hud {\n  ${body}\n}\n`;
   const rows: Row[] = [
     { name: "inside closed single-quoted content", body: `row { text 'a; te|' }`, omits: ["text", "row"] },
     { name: "inside closed single-quoted content glued to the name", body: `row { text'a; te|' }`, omits: ["text", "row"] },
@@ -160,7 +160,7 @@ describe.each(["layout", "component"])("%s element completion: where a brace ent
   );
 
   test("root: an element line", () =>
-    run((body) => `${keyword} hud with\n${body}\nend\n`, elementProgram, {
+    run((body) => `${keyword} hud {\n${body}\n}\n`, elementProgram, {
       name: "an element line",
       body: `  te|`,
       offers: ["text"],

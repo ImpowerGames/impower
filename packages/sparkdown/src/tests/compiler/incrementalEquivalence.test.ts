@@ -32,7 +32,7 @@ const constructMarkers = (p = "") => ({
   "store named after an edit's define": `store ${p}thing = 1`,
   "store holding a method": `store ${p}acc =`,
   "function with assignments, loops and a closure": `function ${p}reckon()`,
-  "layout with bindings": `layout ${p}hud with`,
+  "layout with bindings": `layout ${p}hud {`,
 });
 
 type Construct = keyof ReturnType<typeof constructMarkers>;

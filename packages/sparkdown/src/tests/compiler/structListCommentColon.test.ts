@@ -3,7 +3,7 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { compileSource } from "./compileSnapshot";
 
 test.each(["theme", "style"])("%s list literals retain comments ending in a colon", type => {
-  const source = `${type} sample with
+  const source = `${type} sample {
 values {
 2-- note:
 true// note:
@@ -16,7 +16,7 @@ true // note:
 }
 end
 scene start
-end
+}
 `;
   const uri = "file:///main.sd";
   const compiler = new SparkdownCompiler();

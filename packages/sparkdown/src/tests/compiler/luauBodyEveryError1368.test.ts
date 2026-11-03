@@ -76,7 +76,7 @@ describe("a Sparkle handler's closure reports every error Luau reports for its b
   });
 
   const closure = (body: string) =>
-    `store a, g, x = 0, 0, 0\nlayout form {\n  button "Go" @click={\n    ${body}\n  }\n}\n`;
+    `store a, g, x = 0, 0, 0\nlayout form with\n  button "Go" @click={\n    ${body}\n  }\nend\n`;
   const LAYOUT_OPEN =
     "1:0-1:16 This layout is missing its closing `end` keyword. Without it, every line up to the next `scene`, `branch` or the end of the file is read as part of this layout.";
   const HANDLER_OPEN = "2:21-2:22 This handler is missing its closing `}`.";

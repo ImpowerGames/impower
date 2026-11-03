@@ -111,7 +111,7 @@ end
     "does not accept a structural %s instance as an OOP parent",
     (keyword) => {
       const diagnostics = diagnosticsFor(
-        `${keyword} card with\nend\ndefine O as card with\n  name = "Orion"\nend\n`,
+        `${keyword} card {\n}\ndefine O as card with\n  name = "Orion"\nend\n`,
       );
       expect(missingType(diagnostics, "card")).toBe(true);
     },

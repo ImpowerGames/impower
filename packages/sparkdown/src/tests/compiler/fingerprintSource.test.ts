@@ -28,8 +28,8 @@ const COMMENTS: [string, string][] = [
   ["Hello there. // a note", "Hello there."],
   ["Hello *there*. // a note", "Hello *there*."],
   [
-    "layout main {\n  if ok then // a note\n  end\n}",
-    "layout main {\n  if ok then\n  end\n}",
+    "layout main with\n  if ok then // a note\n  end\nend",
+    "layout main with\n  if ok then\n  end\nend",
   ],
   [
     "style card {\n  color = red // a note\n}",

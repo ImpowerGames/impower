@@ -1358,7 +1358,7 @@ morph child as m {
   });
 
   test("a `paints` block missing its closing brace is reported on the brace", () => {
-    const text = PAINTED(["{ targets { eyelash-left }; state = eyes.closed; fill = #c9c9c9 }"]).replace("\n  }\nend", "\nend");
+    const text = PAINTED(["{ targets { eyelash-left }; state = eyes.closed; fill = #c9c9c9 }"]).replace("morph m {", "morph m with").replace("\n  }\n}", "\nend");
     const found = diagnosticsOf(text).filter((d) => d.message.includes("missing its closing"));
     expect(found).toEqual([expect.objectContaining({ text: "{", line: 7 })]);
   });
@@ -1642,7 +1642,7 @@ ${extra}  keyframes {
     ["a keyframe container", CLIPPED("", "", "from { eyes { state = open; spread = 1px } }\n    50% { eyes { state = closed } }\n    to { eyes { state = open } }")],
     [
       "a `paints` entry",
-      CLIPPED().replace(/\nend\n$/, "\n  paints {\n    { targets { eyelash-left }; state = eyes.closed; fill = red; spread = 1px }\n  }\nend\n"),
+      CLIPPED().replace(/\n}\n$/, "\n  paints {\n    { targets { eyelash-left }; state = eyes.closed; fill = red; spread = 1px }\n  }\n}\n"),
     ],
   ])("`spread` in %s names its three places", (_where, text) => {
     const all = errors(text);

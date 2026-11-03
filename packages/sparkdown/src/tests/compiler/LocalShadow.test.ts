@@ -137,7 +137,7 @@ describe("LocalShadow of a global", () => {
 
   test.each([
     ["a scene parameter after the use", `${inScene("& state = 1\n")}scene inspect(state)\n State: {state}.\nend\n`, {}],
-    ["a Sparkle handler's local", `${inScene("& state = 1\n")}layout main with\n button @click={ local state = 3; print(state) }\nend\n`, {}],
+    ["a Sparkle handler's local", `${inScene("& state = 1\n")}layout main {\n button @click={ local state = 3; print(state) }\n}\n`, {}],
     ["another script's scene parameter", inScene("& state = 1\n"), { "flow.sd": "scene inspect(state)\n & print(state)\nend\n" }],
     ["another script's nested branch parameter", inScene("& state = 1\n"), { "flow.sd": "scene inspect()\n branch inner(state)\n  State: {state}.\n end\nend\n" }],
   ])("%s does not hide a global use elsewhere", (_label, use, more) => {
