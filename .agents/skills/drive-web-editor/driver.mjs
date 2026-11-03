@@ -1481,10 +1481,14 @@ async function clickLine(page, line) {
   await protocolNotify(page, "editor/select", { textDocument: { uri: editor.textDocument.uri }, range, takeFocus: true, scrollIntoView: "center" });
   await protocolNotify(page, "textDocument/didSelect", { textDocument: { uri: editor.textDocument.uri }, selectedRange: range, docChanged: false, userEvent: true, hasFocus: true });
   const budget = state.launchState === "preview" ? 30_000 : PROGRAM_BUDGET_MS;
-  const selected = await waitForProtocolState(page, "preview/gameState", "preview/didChangeGameState", "position", budget, { uri: editor.textDocument.uri, line: clamped - 1 }).catch(() => null);
+  let positionError = null;
+  const selected = await waitForProtocolState(page, "preview/gameState", "preview/didChangeGameState", "position", budget, { uri: editor.textDocument.uri, line: clamped - 1 }).catch((error) => {
+    positionError = String(error?.message ?? error).split("\n")[0];
+    return null;
+  });
   const after = await protocolRequest(page, "editor/read", { textDocument: { uri: editor.textDocument.uri }, position: range.start });
   const coordinates = after.coordinates;
-  return { clicked: true, line: clamped, totalLines: lines.length, cursorLine: after.selection.start.line + 1, x: coordinates ? coordinates.left + 1 : null, y: coordinates ? (coordinates.top + coordinates.bottom) / 2 : null, previousPosition: state.position, position: selected?.position ?? null };
+  return { clicked: true, line: clamped, totalLines: lines.length, cursorLine: after.selection.start.line + 1, x: coordinates ? coordinates.left + 1 : null, y: coordinates ? (coordinates.top + coordinates.bottom) / 2 : null, previousPosition: state.position, position: selected?.position ?? null, ...(positionError ? { positionError } : {}) };
 }
 
 const GAME_MOUNT_BUDGET_MS = 45_000;
@@ -2122,7 +2126,7 @@ export function scrubReport(target, { scrub, settle, route, scrubCheck }) {
   delete out.reason;
   if (!scrub.clicked) out.reason = `the scrub to line ${target} did not run: ${scrub.reason}`;
   else if (scrub.line !== target) out.reason = `line ${target} is past the end of the document (${scrub.totalLines} lines)`;
-  else if (scrub.position?.line !== scrub.line - 1) out.reason = `the preview did not move to line ${scrub.line} (position ${JSON.stringify(scrub.position)})`;
+  else if (scrub.position?.line !== scrub.line - 1) out.reason = `the preview did not move to line ${scrub.line} (position ${JSON.stringify(scrub.position)}${scrub.positionError ? `; ${scrub.positionError}` : ""})`;
   else if (scrubCheck.outcome === "elsewhere") out.reason = `the scrub to line ${target} is not confirmed by the rendered text: ${scrubCheck.reason}`;
   return out;
 }
