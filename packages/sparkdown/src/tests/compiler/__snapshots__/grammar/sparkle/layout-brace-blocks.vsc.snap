@@ -1180,8 +1180,8 @@ text.source.sparkdown [0..2675]
  │   ├─ entity.name.function.attribute.name.view.sd [1988..1989]: "@"
  │   ├─ entity.name.function.attribute.name.view.sd [1989..1994]: "click"
  │   ├─ keyword.operator.assignment.sd [1994..1995]: "="
- │   ├─ entity.name.function.luau [1995..1996]: "f"
- │   └─ meta.parameter.luau [1996..2020]
+ │   └─ meta.parameter.luau [1995..2020]
+ │       ├─ entity.name.function.luau [1995..1996]: "f"
  │       ├─ punctuation.definition.template-expression.begin.sd [1996..1997]: "("
  │       └─ comment.line.double-dash.luau [1997..2020]
  │           ├─ comment.luau [1997..1999]: "--"

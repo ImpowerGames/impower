@@ -10,6 +10,7 @@ import {
 } from "../../utils/inlineAlternators";
 import {
   braceBodySpacing,
+  endsParenValue,
   isInStructBlockKey,
   isSpacedBraceEdge,
   keepsSpaceBeforeClass,
@@ -564,6 +565,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       }
       if (
         keepsSpaceBeforeClass(nodeRef.node) ||
+        endsParenValue(nodeRef.node) ||
         isSpacedBraceEdge(nodeRef.node, read) ||
         precedesKeywordBraceBody(nodeRef.node)
       ) {

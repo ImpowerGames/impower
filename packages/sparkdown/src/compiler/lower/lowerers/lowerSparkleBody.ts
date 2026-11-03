@@ -481,10 +481,7 @@ function readProps(
     if (!name) continue;
     if (attr.name === "LuauSparklePropParenAttribute") {
       const [value] = childrenByName(attr, PROP_PAREN_VALUE);
-      props[name] = {
-        kind: "literal",
-        value: value ? ctx.read(value.from, value.to) : "",
-      };
+      if (value) props[name] = { kind: "literal", value: ctx.read(value.from, value.to) };
       continue;
     }
     const closure = firstDescendant(attr, PROP_CLOSURE);

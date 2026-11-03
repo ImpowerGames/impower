@@ -298,23 +298,23 @@ text.source.sparkdown [0..903]
  │   ├─ punctuation.whitespace.sd [439..443]: "    "
  │   ├─ entity.name.type.class.view.sd [443..447]: "card"
  │   ├─ punctuation.definition.template-expression.begin.sd [447..448]: "("
- │   ├─ entity.name.function.luau [448..449]: "f"
- │   ├─ meta.parameter.luau [449..467]
+ │   ├─ meta.parameter.luau [448..467]
+ │   │   ├─ entity.name.function.luau [448..449]: "f"
  │   │   ├─ punctuation.definition.template-expression.begin.sd [449..450]: "("
- │   │   ├─ entity.name.function.luau [450..451]: "f"
- │   │   ├─ meta.parameter.luau [451..466]
+ │   │   ├─ meta.parameter.luau [450..466]
+ │   │   │   ├─ entity.name.function.luau [450..451]: "f"
  │   │   │   ├─ punctuation.definition.template-expression.begin.sd [451..452]: "("
- │   │   │   ├─ entity.name.function.luau [452..453]: "f"
- │   │   │   ├─ meta.parameter.luau [453..465]
+ │   │   │   ├─ meta.parameter.luau [452..465]
+ │   │   │   │   ├─ entity.name.function.luau [452..453]: "f"
  │   │   │   │   ├─ punctuation.definition.template-expression.begin.sd [453..454]: "("
- │   │   │   │   ├─ entity.name.function.luau [454..455]: "f"
- │   │   │   │   ├─ meta.parameter.luau [455..464]
+ │   │   │   │   ├─ meta.parameter.luau [454..464]
+ │   │   │   │   │   ├─ entity.name.function.luau [454..455]: "f"
  │   │   │   │   │   ├─ punctuation.definition.template-expression.begin.sd [455..456]: "("
- │   │   │   │   │   ├─ entity.name.function.luau [456..457]: "f"
- │   │   │   │   │   ├─ meta.parameter.luau [457..463]
+ │   │   │   │   │   ├─ meta.parameter.luau [456..463]
+ │   │   │   │   │   │   ├─ entity.name.function.luau [456..457]: "f"
  │   │   │   │   │   │   ├─ punctuation.definition.template-expression.begin.sd [457..458]: "("
- │   │   │   │   │   │   ├─ entity.name.function.luau [458..459]: "f"
- │   │   │   │   │   │   ├─ meta.parameter.luau [459..462]
+ │   │   │   │   │   │   ├─ meta.parameter.luau [458..462]
+ │   │   │   │   │   │   │   ├─ entity.name.function.luau [458..459]: "f"
  │   │   │   │   │   │   │   ├─ punctuation.definition.template-expression.begin.sd [459..460]: "("
  │   │   │   │   │   │   │   ├─ constant.numeric.decimal.luau [460..461]: "1"
  │   │   │   │   │   │   │   └─ punctuation.definition.template-expression.end.sd [461..462]: ")"
@@ -356,26 +356,26 @@ text.source.sparkdown [0..903]
  │   ├─ entity.name.function.attribute.name.view.sd [511..512]: "@"
  │   ├─ entity.name.function.attribute.name.view.sd [512..517]: "click"
  │   ├─ keyword.operator.assignment.sd [517..518]: "="
- │   ├─ entity.name.function.luau [518..519]: "f"
- │   ├─ meta.parameter.luau [519..540]
+ │   ├─ meta.parameter.luau [518..540]
+ │   │   ├─ entity.name.function.luau [518..519]: "f"
  │   │   ├─ punctuation.definition.template-expression.begin.sd [519..520]: "("
- │   │   ├─ entity.name.function.luau [520..521]: "f"
- │   │   ├─ meta.parameter.luau [521..539]
+ │   │   ├─ meta.parameter.luau [520..539]
+ │   │   │   ├─ entity.name.function.luau [520..521]: "f"
  │   │   │   ├─ punctuation.definition.template-expression.begin.sd [521..522]: "("
- │   │   │   ├─ entity.name.function.luau [522..523]: "f"
- │   │   │   ├─ meta.parameter.luau [523..538]
+ │   │   │   ├─ meta.parameter.luau [522..538]
+ │   │   │   │   ├─ entity.name.function.luau [522..523]: "f"
  │   │   │   │   ├─ punctuation.definition.template-expression.begin.sd [523..524]: "("
- │   │   │   │   ├─ entity.name.function.luau [524..525]: "f"
- │   │   │   │   ├─ meta.parameter.luau [525..537]
+ │   │   │   │   ├─ meta.parameter.luau [524..537]
+ │   │   │   │   │   ├─ entity.name.function.luau [524..525]: "f"
  │   │   │   │   │   ├─ punctuation.definition.template-expression.begin.sd [525..526]: "("
- │   │   │   │   │   ├─ entity.name.function.luau [526..527]: "f"
- │   │   │   │   │   ├─ meta.parameter.luau [527..536]
+ │   │   │   │   │   ├─ meta.parameter.luau [526..536]
+ │   │   │   │   │   │   ├─ entity.name.function.luau [526..527]: "f"
  │   │   │   │   │   │   ├─ punctuation.definition.template-expression.begin.sd [527..528]: "("
- │   │   │   │   │   │   ├─ entity.name.function.luau [528..529]: "f"
- │   │   │   │   │   │   ├─ meta.parameter.luau [529..535]
+ │   │   │   │   │   │   ├─ meta.parameter.luau [528..535]
+ │   │   │   │   │   │   │   ├─ entity.name.function.luau [528..529]: "f"
  │   │   │   │   │   │   │   ├─ punctuation.definition.template-expression.begin.sd [529..530]: "("
- │   │   │   │   │   │   │   ├─ entity.name.function.luau [530..531]: "f"
- │   │   │   │   │   │   │   ├─ meta.parameter.luau [531..534]
+ │   │   │   │   │   │   │   ├─ meta.parameter.luau [530..534]
+ │   │   │   │   │   │   │   │   ├─ entity.name.function.luau [530..531]: "f"
  │   │   │   │   │   │   │   │   ├─ punctuation.definition.template-expression.begin.sd [531..532]: "("
  │   │   │   │   │   │   │   │   ├─ constant.numeric.decimal.luau [532..533]: "1"
  │   │   │   │   │   │   │   │   └─ punctuation.definition.template-expression.end.sd [533..534]: ")"
@@ -385,7 +385,7 @@ text.source.sparkdown [0..903]
  │   │   │   │   └─ punctuation.definition.template-expression.end.sd [537..538]: ")"
  │   │   │   └─ punctuation.definition.template-expression.end.sd [538..539]: ")"
  │   │   └─ punctuation.definition.template-expression.end.sd [539..540]: ")"
- │   ├─ punctuation.whitespace.sd [540..541]: " "
+ │   ├─ punctuation.whitespace.required.sd [540..541]: " "
  │   ├─ punctuation.definition.template-expression.begin.sd [541..542]: "{"
  │   ├─ punctuation.whitespace.sd [542..543]: " "
  │   ├─ keyword.other.component.builtin.name.sd [543..547]: "text"
@@ -418,35 +418,28 @@ text.source.sparkdown [0..903]
  │   ├─ variable.other.constant.attribute.style.sd [582..583]: "x"
  │   ├─ keyword.operator.assignment.sd [583..584]: "="
  │   ├─ string.unquoted.sd [584..585]: "f"
- │   ├─ meta.parameter.luau [585..606]
- │   │   ├─ punctuation.definition.template-expression.begin.sd [585..586]: "("
- │   │   ├─ string.unquoted.sd [586..587]: "f"
- │   │   ├─ meta.parameter.luau [587..605]
- │   │   │   ├─ punctuation.definition.template-expression.begin.sd [587..588]: "("
- │   │   │   ├─ string.unquoted.sd [588..589]: "f"
- │   │   │   ├─ meta.parameter.luau [589..604]
- │   │   │   │   ├─ punctuation.definition.template-expression.begin.sd [589..590]: "("
- │   │   │   │   ├─ string.unquoted.sd [590..591]: "f"
- │   │   │   │   ├─ meta.parameter.luau [591..603]
- │   │   │   │   │   ├─ punctuation.definition.template-expression.begin.sd [591..592]: "("
- │   │   │   │   │   ├─ string.unquoted.sd [592..593]: "f"
- │   │   │   │   │   ├─ meta.parameter.luau [593..602]
- │   │   │   │   │   │   ├─ punctuation.definition.template-expression.begin.sd [593..594]: "("
- │   │   │   │   │   │   ├─ string.unquoted.sd [594..595]: "f"
- │   │   │   │   │   │   ├─ meta.parameter.luau [595..601]
- │   │   │   │   │   │   │   ├─ punctuation.definition.template-expression.begin.sd [595..596]: "("
- │   │   │   │   │   │   │   ├─ string.unquoted.sd [596..597]: "f"
- │   │   │   │   │   │   │   ├─ meta.parameter.luau [597..600]
- │   │   │   │   │   │   │   │   ├─ punctuation.definition.template-expression.begin.sd [597..598]: "("
- │   │   │   │   │   │   │   │   ├─ string.unquoted.sd [598..599]: "1"
- │   │   │   │   │   │   │   │   └─ punctuation.definition.template-expression.end.sd [599..600]: ")"
- │   │   │   │   │   │   │   └─ punctuation.definition.template-expression.end.sd [600..601]: ")"
- │   │   │   │   │   │   └─ punctuation.definition.template-expression.end.sd [601..602]: ")"
- │   │   │   │   │   └─ punctuation.definition.template-expression.end.sd [602..603]: ")"
- │   │   │   │   └─ punctuation.definition.template-expression.end.sd [603..604]: ")"
- │   │   │   └─ punctuation.definition.template-expression.end.sd [604..605]: ")"
- │   │   └─ punctuation.definition.template-expression.end.sd [605..606]: ")"
- │   ├─ punctuation.whitespace.sd [606..607]: " "
+ │   ├─ punctuation.definition.template-expression.begin.sd [585..586]: "("
+ │   ├─ string.unquoted.sd [586..587]: "f"
+ │   ├─ punctuation.definition.template-expression.begin.sd [587..588]: "("
+ │   ├─ string.unquoted.sd [588..589]: "f"
+ │   ├─ punctuation.definition.template-expression.begin.sd [589..590]: "("
+ │   ├─ string.unquoted.sd [590..591]: "f"
+ │   ├─ punctuation.definition.template-expression.begin.sd [591..592]: "("
+ │   ├─ string.unquoted.sd [592..593]: "f"
+ │   ├─ punctuation.definition.template-expression.begin.sd [593..594]: "("
+ │   ├─ string.unquoted.sd [594..595]: "f"
+ │   ├─ punctuation.definition.template-expression.begin.sd [595..596]: "("
+ │   ├─ string.unquoted.sd [596..597]: "f"
+ │   ├─ punctuation.definition.template-expression.begin.sd [597..598]: "("
+ │   ├─ string.unquoted.sd [598..599]: "1"
+ │   ├─ punctuation.definition.template-expression.end.sd [599..600]: ")"
+ │   ├─ punctuation.definition.template-expression.end.sd [600..601]: ")"
+ │   ├─ punctuation.definition.template-expression.end.sd [601..602]: ")"
+ │   ├─ punctuation.definition.template-expression.end.sd [602..603]: ")"
+ │   ├─ punctuation.definition.template-expression.end.sd [603..604]: ")"
+ │   ├─ punctuation.definition.template-expression.end.sd [604..605]: ")"
+ │   ├─ punctuation.definition.template-expression.end.sd [605..606]: ")"
+ │   ├─ punctuation.whitespace.required.sd [606..607]: " "
  │   ├─ punctuation.definition.template-expression.begin.sd [607..608]: "{"
  │   ├─ punctuation.whitespace.sd [608..609]: " "
  │   ├─ keyword.other.component.builtin.name.sd [609..613]: "text"

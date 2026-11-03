@@ -188,6 +188,40 @@ describe("a struct brace body closes at its own } however deep a line's parenthe
     ]);
   });
 
+  const firstChild = (head: string) => {
+    const { program, errors } = compile(
+      twoStructs("layout", `row { ${head} "Over"; text "after" }`),
+    );
+    const [row] = layoutTree(program, "first").children;
+    return { child: row.children[0], errors, second: layoutTree(program, "second") };
+  };
+
+  const wrap = (depth: number, inner: string) =>
+    "f(".repeat(depth) + inner + ")".repeat(depth);
+
+  test.each([
+    ["a function whose body returns two values", (d: number) => `card(${wrap(d, "1")}, function(a, b) return a, b end)`],
+    ["a method call and a table", (d: number) => `card(${wrap(d, "t:m({ a = 1 })")})`],
+    ["an event's operators and a string", (d: number) => `button @click=${wrap(d, 'x .. "a,b" + 1')}`],
+    ["a prop suffix", (d: number) => `text #x=${wrap(d, "1")}+2 .wide`],
+    ["a prop with a comma inside it", (d: number) => `text #x=${wrap(d, "1")},red .wide`],
+    ["a prop with a braced suffix", (d: number) => `text #x=${wrap(d, "1")}+{a=1} .wide`],
+    ["a prop holding a backtick string with a brace", (d: number) => `text #x=${wrap(d, "`}`")}`],
+    ["a prop holding a quoted closer", (d: number) => `text #x=${wrap(d, '")}"')}`],
+  ])("%s lowers at depth seven as it does at depth one", (_, head) => {
+    const shallow = firstChild(head(1));
+    const deep = firstChild(head(7));
+    expect(shallow.errors).toEqual([]);
+    expect(deep.errors).toEqual([]);
+    const asShallow = JSON.stringify(deep.child)
+      .split("f(".repeat(7))
+      .join("f(")
+      .split(")".repeat(7))
+      .join(")");
+    expect(JSON.parse(asShallow)).toEqual(shallow.child);
+    expect(deep.second.children.map((c: any) => c.tag)).toEqual(["text"]);
+  });
+
   test("a deep event value on a continuation line joins its element", () => {
     const deep = nestedCall(9);
     const { program, errors } = compile(
