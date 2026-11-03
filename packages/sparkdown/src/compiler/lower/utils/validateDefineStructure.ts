@@ -54,8 +54,10 @@ export function lineTextSpan(
 }
 
 
+const VOWELS: ReadonlySet<string> = new Set(["a", "e", "i", "o", "u"]);
+
 export function capitalizedArticle(word: string): string {
-  return /^[aeiou]/i.test(word) ? "An" : "A";
+  return VOWELS.has(word.charAt(0).toLowerCase()) ? "An" : "A";
 }
 
 const STRUCT_KEYWORD_TYPES: ReadonlySet<string> = new Set([

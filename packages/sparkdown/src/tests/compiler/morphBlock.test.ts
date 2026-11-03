@@ -449,10 +449,10 @@ morph slow as blink {
     expect(morphDiagnostics(text)).toEqual([]);
   });
 
-  test("a parent written as `define … as morph` supplies what the child leaves out", () => {
-    const text = `define base as morph with
-  method = "bend"
-end
+  test("a parent morph supplies what the child leaves out", () => {
+    const text = `morph base {
+  method = bend
+}
 
 morph child as base {
   keyframes {
@@ -469,14 +469,14 @@ morph child as base {
   }
 }
 `;
-    expect(morphDiagnostics(text)).toEqual([]);
+    expect(morphDiagnostics(text).filter((d) => d.line > 2)).toEqual([]);
   });
 
-  test("invalid values inherited from a `define … as morph` parent are reported on the child's `as`", () => {
-    const text = `define base as morph with
-  method = "bogus"
-  timing = { duration = -1 }
-end
+  test("invalid values in a parent morph are reported where the parent writes them, not on the child's `as`", () => {
+    const text = `morph base {
+  method = bogus
+  timing { duration = -1 }
+}
 
 morph child as base {
   keyframes {
@@ -493,9 +493,9 @@ morph child as base {
   }
 }
 `;
-    const found = morphDiagnostics(text);
-    expect(found.find((d) => d.message.includes("`method`, inherited from `base`: `bogus` is not a `method`"))).toMatchObject({ line: 5, text: "base", severity: 1 });
-    expect(found.find((d) => d.message.includes("`timing.duration`, inherited from `base`"))).toMatchObject({ line: 5, text: "base" });
+    const found = morphDiagnostics(text).filter((d) => d.severity === 1);
+    expect(found.map((d) => d.line)).toEqual(expect.arrayContaining([1, 2]));
+    expect(found.filter((d) => d.line > 3)).toEqual([]);
   });
 
   const CHILD_KEYFRAMES = `  keyframes {
@@ -513,10 +513,10 @@ morph child as base {
 `;
 
   test("a value the child sets itself is not reported as inherited", () => {
-    const text = `define base as morph with
-  method = "bogus"
-  timing = { duration = -1 }
-end
+    const text = `morph base {
+  method = bogus
+  timing { duration = -1 }
+}
 
 morph child as base {
   method = match
@@ -528,41 +528,43 @@ ${CHILD_KEYFRAMES}}
     expect(morphDiagnostics(text).filter((d) => d.message.includes("inherited from"))).toEqual([]);
   });
 
-  test("values inherited through a longer chain of `define`s are checked and name their source", () => {
-    const text = `define base as morph with
-  method = "bogus"
-end
+  test("a value invalid in a grandparent morph is reported only where it is written", () => {
+    const text = `morph base {
+  method = bogus
+}
 
-define middle as base with
-  fallback = "cut"
-end
+morph middle as base {
+  fallback = cut
+}
 
 morph child as middle {
 ${CHILD_KEYFRAMES}}
 `;
-    const found = morphDiagnostics(text).filter((d) => d.message.includes("inherited from"));
-    expect(found).toHaveLength(1);
-    expect(found[0]).toMatchObject({ line: 8, text: "middle" });
-    expect(found[0]!.message).toContain("`method`, inherited from `base`: `bogus` is not a `method`");
+    const found = morphDiagnostics(text).filter((d) => d.severity === 1);
+    expect(found.map((d) => d.line)).toContain(1);
+    expect(found.filter((d) => d.line > 7)).toEqual([]);
   });
 
-  test("an inherited delay range is reported on the `as` that brings it in", () => {
-    const text = `define base as morph with
-  method = "bend"
-  timing = { iteration_delay_min = 5, iteration_delay_max = 1 }
-end
+  test("an inherited delay range is reported where the parent writes it and on the `as` that brings it in", () => {
+    const text = `morph base {
+  method = bend
+  timing { iteration_delay_min = 5; iteration_delay_max = 1 }
+}
 
 morph child as base {
 ${CHILD_KEYFRAMES}}
 `;
-    const found = morphDiagnostics(text).find((d) => d.message.includes("must be at least"));
-    expect(found).toMatchObject({ line: 5, text: "base" });
+    const found = morphDiagnostics(text).filter((d) => d.message.includes("must be at least"));
+    expect(found).toEqual([
+      expect.objectContaining({ line: 2, text: "iteration_delay_max" }),
+      expect.objectContaining({ line: 5, text: "base" }),
+    ]);
   });
 
-  test("a morph block's parent is only reported once, by the block that names it", () => {
-    const text = `define base as morph with
-  method = "bogus"
-end
+  test("a parent morph's invalid value is reported once, where it is written", () => {
+    const text = `morph base {
+  method = bogus
+}
 
 morph middle as base {
 ${CHILD_KEYFRAMES}}
@@ -571,8 +573,9 @@ morph child as middle {
   fallback = cut
 }
 `;
-    const found = morphDiagnostics(text).filter((d) => d.message.includes("inherited from"));
-    expect(found.map((d) => d.line)).toEqual([4]);
+    const found = morphDiagnostics(text).filter((d) => d.severity === 1);
+    expect(found.map((d) => d.line)).toContain(1);
+    expect(found.filter((d) => d.line > 2)).toEqual([]);
   });
 
   test("an unknown parent is reported", () => {
@@ -1214,12 +1217,15 @@ morph child as m {
     expect(found[0]!.message).toContain("inherited");
   });
 
-  test("a `depth` a `define` parent supplies with its keyframes is checked against them on the child's `as`", () => {
-    const text = `define base as morph with
-  method = "bend"
-  depth = "eyes.missing"
-  keyframes = { { offset = 0, eyes = { state = "open" } }, { offset = 1, eyes = { state = "closed" } } }
-end
+  test("a parent morph's `depth` is checked against its own keyframes where it is written", () => {
+    const text = `morph base {
+  method = bend
+  depth = eyes.missing
+  keyframes {
+    { offset = 0; eyes { state = open } }
+    { offset = 1; eyes { state = closed } }
+  }
+}
 
 morph child as base {
   fallback = fade
@@ -1227,7 +1233,7 @@ morph child as base {
 `;
     const found = depthErrors(text);
     expect(found).toHaveLength(1);
-    expect(found[0]).toMatchObject({ line: 6, text: "base", severity: 1 });
+    expect(found[0]).toMatchObject({ line: 2, text: "eyes.missing", severity: 1 });
     expect(found[0]!.message).toContain("never shows `eyes.missing`");
   });
 
@@ -1387,12 +1393,17 @@ morph child as m {
     expect(found[0]!.message).toContain("never shows `eyes.closed`");
   });
 
-  test("an entry a `define` parent supplies is checked on the child's `as`", () => {
-    const text = `define base as morph with
-  method = "bend"
-  keyframes = { { offset = 0, eyes = { state = "open" } }, { offset = 1, eyes = { state = "closed" } } }
-  paints = { { targets = { "eyelash-left" }, state = "eyes.closed", fill = "nocolour" } }
-end
+  test("a parent morph's `paints` entry is checked where the parent writes it", () => {
+    const text = `morph base {
+  method = bend
+  keyframes {
+    { offset = 0; eyes { state = open } }
+    { offset = 1; eyes { state = closed } }
+  }
+  paints {
+    { targets { eyelash-left }; state = eyes.closed; fill = nocolour }
+  }
+}
 
 morph child as base {
   fallback = fade
@@ -1400,31 +1411,34 @@ morph child as base {
 `;
     const found = paintErrors(text);
     expect(found).toHaveLength(1);
-    expect(found[0]).toMatchObject({ line: 6, text: "base" });
-    expect(found[0]!.message).toContain("`paints`, inherited from `base`: entry 1:");
+    expect(found[0]).toMatchObject({ line: 7, text: "nocolour" });
     expect(found[0]!.message).toContain("not a `fill` colour");
   });
 
   test.each([
-    ["missing `targets`", '{ state = "eyes.closed", fill = "red" }', "needs `targets { … }`"],
-    ["empty `targets`", '{ targets = {}, state = "eyes.closed", fill = "red" }', "`targets` is a list of layer labels"],
-    ["a bare `state`", '{ targets = { "eyelash-left" }, state = "closed", fill = "red" }', "`closed` is not a pose"],
-    ["an unknown field", '{ targets = { "eyelash-left" }, state = "eyes.closed", fill = "red", colour = "red" }', "Unknown morph field `colour`"],
-    ["an entry that is not a block", '"eyelash-left"', "A `paints` entry is a `{ … }` entry"],
-  ])("a `define` parent's entry with %s is reported on the child's `as`", (_, entry, message) => {
-    const text = `define base as morph with
-  method = "bend"
-  keyframes = { { offset = 0, eyes = { state = "open" } }, { offset = 1, eyes = { state = "closed" } } }
-  paints = { ${entry} }
-end
+    ["missing `targets`", "{ state = eyes.closed; fill = red }", "needs `targets { … }`"],
+    ["empty `targets`", "{ targets {}; state = eyes.closed; fill = red }", "`targets` is a list of layer labels"],
+    ["a bare `state`", "{ targets { eyelash-left }; state = closed; fill = red }", "names a state with its group"],
+    ["an unknown field", "{ targets { eyelash-left }; state = eyes.closed; fill = red; colour = red }", "Unknown morph field `colour`"],
+    ["an entry that is not a block", "eyelash-left", "A `paints` entry is a `{ … }` entry"],
+  ])("a parent morph's entry with %s is reported where the parent writes it", (_, entry, message) => {
+    const text = `morph base {
+  method = bend
+  keyframes {
+    { offset = 0; eyes { state = open } }
+    { offset = 1; eyes { state = closed } }
+  }
+  paints {
+    ${entry}
+  }
+}
 
 morph child as base {
   fallback = fade
 }
 `;
     const found = paintErrors(text);
-    expect(found).toEqual([expect.objectContaining({ line: 6, text: "base", message: expect.stringContaining(message) })]);
-    expect(found[0]!.message).toContain("`paints`, inherited from `base`: entry 1:");
+    expect(found).toEqual([expect.objectContaining({ line: 7, message: expect.stringContaining(message) })]);
   });
 });
 
@@ -1488,12 +1502,17 @@ morph child as m {
     expect(recipeOf(text, "child").layers["eyeball-shadow-left"]).toEqual({ fallback: "cut", partner: ["eyeball-shadow-left", "eyelash-left"] });
   });
 
-  test("a child morph inherits `partner` from a `define` parent", () => {
-    const text = `define base as morph with
-  method = "bend"
-  keyframes = { { offset = 0, eyes = { state = "open" } }, { offset = 1, eyes = { state = "closed" } } }
-  layers = { ["eyeball-shadow-left"] = { partner = { "eyeball-shadow-left", "eyelash-left" } } }
-end
+  test("a child morph inherits `partner` from its parent", () => {
+    const text = `morph base {
+  method = bend
+  keyframes {
+    { offset = 0; eyes { state = open } }
+    { offset = 1; eyes { state = closed } }
+  }
+  layers {
+    eyeball-shadow-left { partner { eyeball-shadow-left; eyelash-left } }
+  }
+}
 
 morph child as base {
   fallback = cut
@@ -1576,19 +1595,24 @@ morph child as m {
     expect(recipeOf(PARTNERED("eyeball-shadow-left { partner = eyeball-shadow-left }")).layers["eyeball-shadow-left"]).toBeUndefined();
   });
 
-  test("an invalid `partner` a `define` parent supplies is reported on the child's `as`", () => {
-    const text = `define base as morph with
-  method = "bend"
-  keyframes = { { offset = 0, eyes = { state = "open" } }, { offset = 1, eyes = { state = "closed" } } }
-  layers = { ["eyeball-shadow-left"] = { partner = {} } }
-end
+  test("a parent morph's invalid `partner` is reported where the parent writes it", () => {
+    const text = `morph base {
+  method = bend
+  keyframes {
+    { offset = 0; eyes { state = open } }
+    { offset = 1; eyes { state = closed } }
+  }
+  layers {
+    eyeball-shadow-left { partner {} }
+  }
+}
 
 morph child as base {
   fallback = cut
 }
 `;
     const found = morphDiagnostics(text).filter((d) => d.severity === 1);
-    expect(found).toEqual([expect.objectContaining({ line: 6, text: "base", message: expect.stringContaining("`layers.eyeball-shadow-left.partner`, inherited from `base`") })]);
+    expect(found).toEqual([expect.objectContaining({ line: 7, text: "partner", message: expect.stringContaining("`partner` needs at least one label") })]);
   });
 });
 

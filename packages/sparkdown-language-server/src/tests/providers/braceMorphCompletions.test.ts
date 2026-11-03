@@ -433,20 +433,26 @@ ${root}  layers { eyelash-left { ${layer} } }
 }
 `),
     ).toEqual(["rest", "eyes.open", "eyes.half"]);
-    const defines = `define base as morph with
-  keyframes = { { offset = 0, eyes = { state = "open" } }, { offset = 1, eyes = { state = "closed" } } }
-end
-define middle as base with
-  keyframes = { { offset = 0, arm = { state = "down" } }, { offset = 1, arm = { state = "raised" } } }
-end
+    const parents = `morph base {
+  keyframes {
+    { offset = 0; eyes { state = open } }
+    { offset = 1; eyes { state = closed } }
+  }
+}
+morph middle as base {
+  keyframes {
+    { offset = 0; arm { state = down } }
+    { offset = 1; arm { state = raised } }
+  }
+}
 morph child as middle {
   method = match
   depth = |
 }
 `;
-    const compiled = compileProject(defines.replace("|", "rest"));
-    expect(compiled.context?.["base"]?.["middle"]).toBeDefined();
-    expect(completeAt(defines, compiled).map((item) => String(item.label))).toEqual([
+    const compiled = compileProject(parents.replace("|", "rest"));
+    expect(compiled.context?.["morph"]?.["middle"]).toBeDefined();
+    expect(completeAt(parents, compiled).map((item) => String(item.label))).toEqual([
       "rest",
       "arm.down",
       "arm.raised",

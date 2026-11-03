@@ -107,7 +107,7 @@ end
     },
   );
 
-  test.each(["style", "screen", "component", "animation", "theme"])(
+  test.each(["style", "screen", "component", "animation", "theme", "morph", "layout"])(
     "does not accept a structural %s instance as an OOP parent",
     (keyword) => {
       const diagnostics = diagnosticsFor(
