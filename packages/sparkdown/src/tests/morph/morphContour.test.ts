@@ -9,6 +9,20 @@ const WIDE_CURL = "M0,0C150,-60 -50,-60 100,0L100,-100L0,-100Z";
 
 const sliver = (h: number) => `M106,${102 + 2 * h}L108,102L112,102L112,112L102,112L102,102L106,102L108,${102 + 2 * h}Z`;
 
+const circle = (n: number) => {
+  const k = (4 / 3) * Math.tan(Math.PI / (2 * n));
+  const at = (a: number): [number, number] => [100 * Math.cos(a), 100 * Math.sin(a)];
+  let d = `M${at(0).join(",")}`;
+  for (let i = 0; i < n; i++) {
+    const a0 = (2 * Math.PI * i) / n;
+    const a1 = (2 * Math.PI * (i + 1)) / n;
+    const [x0, y0] = at(a0);
+    const [x1, y1] = at(a1);
+    d += `C${x0 - k * 100 * Math.sin(a0)},${y0 + k * 100 * Math.cos(a0)} ${x1 + k * 100 * Math.sin(a1)},${y1 - k * 100 * Math.cos(a1)} ${x1},${y1}`;
+  }
+  return d;
+};
+
 const line = (p0: [number, number], p1: [number, number]) => ({ p0, c1: p0, c2: p1, p1 });
 
 const only = (d: string) => {
@@ -50,6 +64,12 @@ describe("a spread contour", () => {
     expect(contourOverlapsItself(only("M60.3,60.7L70.1,40.3L80.9,20.2L120,20L120,120L20,120L20,20L60.3,20.6L70.1,40.3L80.2,60.9"), false)).toBe(true);
   });
 
+  test("a loop traced twice the same way, filled three deep across a region wider than the tolerance, overlaps itself under either fill rule", () => {
+    const twice = "M0,0L100,0L100,100L0,100L0,0L20,20L80,20L80,80L20,80L20,20L80,20L80,80L20,80L20,20L0,0Z";
+    expect(contourOverlapsItself(only(twice), false)).toBe(true);
+    expect(contourOverlapsItself(only(twice), true)).toBe(true);
+  });
+
   test("an edge drawn back along itself has no width and reads as touching", () => {
     expect(contourOverlapsItself(only("M0,0L100,0L100,100L50,100L50,40L50,100L0,100Z"), false)).toBe(false);
   });
@@ -61,21 +81,29 @@ describe("a spread contour", () => {
   });
 
   test("a detailed outline is checked in time for a frame: a 128-curve circle in well under one frame", () => {
-    const n = 128;
-    const k = (4 / 3) * Math.tan(Math.PI / (2 * n));
-    const at = (a: number): [number, number] => [100 * Math.cos(a), 100 * Math.sin(a)];
-    let d = `M${at(0).join(",")}`;
-    for (let i = 0; i < n; i++) {
-      const a0 = (2 * Math.PI * i) / n;
-      const a1 = (2 * Math.PI * (i + 1)) / n;
-      const [x0, y0] = at(a0);
-      const [x1, y1] = at(a1);
-      d += `C${x0 - k * 100 * Math.sin(a0)},${y0 + k * 100 * Math.cos(a0)} ${x1 + k * 100 * Math.sin(a1)},${y1 - k * 100 * Math.cos(a1)} ${x1},${y1}`;
-    }
-    const contour = only(`${d}Z`);
+    const contour = only(`${circle(128)}Z`);
     expect(contourOverlapsItself(contour, false)).toBe(false);
     const start = performance.now();
     for (let i = 0; i < 10; i++) contourOverlapsItself(contour, false);
     expect((performance.now() - start) / 10).toBeLessThan(50);
+  });
+
+  test("an edge drawn out to the centre of a 2048-curve circle and back costs a few times the circle alone, not a scan of every edge per piece", () => {
+    const plain = only(`${circle(2048)}Z`);
+    const touched = only(`${circle(2048)}L0,0L100,0Z`);
+    expect(contourOverlapsItself(touched, false)).toBe(false);
+    const median = (times: number[]) => times.sort((a, b) => a - b)[times.length >> 1]!;
+    const timed = (contour: ReturnType<typeof only>) => {
+      const start = performance.now();
+      contourOverlapsItself(contour, false);
+      return performance.now() - start;
+    };
+    const plainTimes: number[] = [];
+    const touchedTimes: number[] = [];
+    for (let i = 0; i < 15; i++) {
+      plainTimes.push(timed(plain));
+      touchedTimes.push(timed(touched));
+    }
+    expect(median(touchedTimes)).toBeLessThan(4 * median(plainTimes));
   });
 });

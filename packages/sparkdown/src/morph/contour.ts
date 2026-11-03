@@ -95,9 +95,12 @@ function polygonOverlapsItself(points: Point[], evenodd: boolean, tolerance: num
   });
   const order = [...bounds].sort((p, q) => p.minX - q.minX);
   const splits: number[][] = points.map(() => [0, 1]);
-  let active: typeof bounds = [];
+  const overlapped = points.map(() => false);
+  const active: typeof bounds = [];
   for (const e of order) {
-    active = active.filter((a) => a.maxX >= e.minX);
+    let kept = 0;
+    for (const a of active) if (a.maxX >= e.minX) active[kept++] = a;
+    active.length = kept;
     for (const a of active) {
       const i = Math.min(a.i, e.i);
       const j = Math.max(a.i, e.i);
@@ -121,6 +124,7 @@ function polygonOverlapsItself(points: Point[], evenodd: boolean, tolerance: num
         if (to - from <= 1e-12) continue;
         splits[i]!.push(from, to);
         splits[j]!.push((from - t0) / (t1 - t0), (to - t0) / (t1 - t0));
+        overlapped[i] = overlapped[j] = true;
         continue;
       }
       const t = cross(cp, s) / denominator;
@@ -132,10 +136,21 @@ function polygonOverlapsItself(points: Point[], evenodd: boolean, tolerance: num
     active.push(e);
   }
   if (splits.every((list) => list.length === 2)) return false;
+  const top = Math.min(...ys);
+  const height = Math.max(...ys) - top;
+  const strips = Math.min(512, Math.ceil(n / 4));
+  const stripOf = (y: number) => (height > 0 ? Math.min(strips - 1, Math.max(0, Math.floor(((y - top) / height) * strips))) : 0);
+  const spanning: number[][] = Array.from({ length: strips }, () => []);
+  for (const { i, minY, maxY } of bounds) for (let k = stripOf(minY); k <= stripOf(maxY); k++) spanning[k]!.push(i);
+  const coordinates = Float64Array.from(points.flat());
   const winding = ([x, y]: Point): number => {
     let total = 0;
-    for (let i = 0; i < n; i++) {
-      const [[ax, ay], [bx, by]] = edge(i);
+    for (const i of spanning[stripOf(y)]!) {
+      const j = (i + 1) % n;
+      const ax = coordinates[2 * i]!;
+      const ay = coordinates[2 * i + 1]!;
+      const bx = coordinates[2 * j]!;
+      const by = coordinates[2 * j + 1]!;
       const side = (bx - ax) * (y - ay) - (x - ax) * (by - ay);
       if (ay <= y) {
         if (by > y && side > 0) total++;
@@ -145,7 +160,7 @@ function polygonOverlapsItself(points: Point[], evenodd: boolean, tolerance: num
   };
   const filled = (w: number) => (evenodd ? w % 2 !== 0 : w !== 0);
   const eps = size * 1e-7;
-  type Piece = { a: Point; b: Point; lo: number; hi: number; deep: number; deepOnLeft: boolean };
+  type Piece = { a: Point; b: Point; lo: number; hi: number; deepOnLeft: boolean; minX: number; maxX: number; minY: number; maxY: number };
   const pieces: Piece[] = [];
   for (let i = 0; i < n; i++) {
     const [a, b] = edge(i);
@@ -153,25 +168,38 @@ function polygonOverlapsItself(points: Point[], evenodd: boolean, tolerance: num
     const length = Math.hypot(...r);
     const left: Point = [-r[1] / length, r[0] / length];
     const at = (t: number): Point => [a[0] + r[0] * t, a[1] + r[1] * t];
-    const ts = [...new Set(splits[i])].sort((x, y) => x - y);
+    const ts = splits[i]!.length === 2 ? splits[i]! : [...new Set(splits[i])].sort((x, y) => x - y);
     for (let k = 0; k + 1 < ts.length; k++) {
       if ((ts[k + 1]! - ts[k]!) * length <= eps * 4) continue;
       const p = at((ts[k]! + ts[k + 1]!) / 2);
-      const onLeft = winding([p[0] + left[0] * eps, p[1] + left[1] * eps]);
       const onRight = winding([p[0] - left[0] * eps, p[1] - left[1] * eps]);
-      const deepOnLeft = Math.abs(onLeft) > Math.abs(onRight);
-      pieces.push({ a: at(ts[k]!), b: at(ts[k + 1]!), lo: Math.min(onLeft, onRight), hi: Math.max(onLeft, onRight), deep: deepOnLeft ? onLeft : onRight, deepOnLeft });
+      const onLeft = overlapped[i] ? winding([p[0] + left[0] * eps, p[1] + left[1] * eps]) : onRight + 1;
+      const [from, to] = [at(ts[k]!), at(ts[k + 1]!)];
+      pieces.push({
+        a: from,
+        b: to,
+        lo: Math.min(onLeft, onRight),
+        hi: Math.max(onLeft, onRight),
+        deepOnLeft: Math.abs(onLeft) > Math.abs(onRight),
+        minX: Math.min(from[0], to[0]),
+        maxX: Math.max(from[0], to[0]),
+        minY: Math.min(from[1], to[1]),
+        maxY: Math.max(from[1], to[1]),
+      });
     }
   }
   const radius = tolerance / 2;
   const narrow = (piece: Piece): boolean => {
+    const level = piece.lo > 0 ? piece.lo + 1 : piece.hi - 1;
+    const bounding = (other: Piece) => (level > 0 ? other.lo < level && level <= other.hi : other.lo <= level && level < other.hi);
     const r = minus(piece.b, piece.a);
     const length = Math.hypot(...r);
     const along: Point = [r[0] / length, r[1] / length];
     const normal: Point = piece.deepOnLeft ? [-along[1], along[0]] : [along[1], -along[0]];
     const spans: [number, number][] = [];
     for (const other of pieces) {
-      if (other === piece || !(piece.deep > 0 ? other.lo < piece.deep && piece.deep <= other.hi : other.lo <= piece.deep && piece.deep < other.hi)) continue;
+      if (other === piece || other.maxX < piece.minX - tolerance || other.minX > piece.maxX + tolerance || other.maxY < piece.minY - tolerance || other.minY > piece.maxY + tolerance) continue;
+      if (!bounding(other)) continue;
       const [a, b] = [other.a, other.b].map((p): Point => {
         const v = minus(p, piece.a);
         return [dot(v, along), dot(v, normal)];
@@ -190,5 +218,5 @@ function polygonOverlapsItself(points: Point[], evenodd: boolean, tolerance: num
     }
     return false;
   };
-  return pieces.some((piece) => piece.hi - piece.lo === 1 && filled(piece.lo) && filled(piece.hi) && !narrow(piece));
+  return pieces.some((piece) => piece.lo < piece.hi && (piece.lo > 0 || piece.hi < 0) && filled(piece.lo) && filled(piece.hi) && !narrow(piece));
 }

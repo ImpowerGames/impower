@@ -352,6 +352,7 @@ export function spreadPortrait(): string {
       `<path data-name="curled" d="M150,${175 + dy}C165,${169 + dy} 145,${169 + dy} 160,${175 + dy}L160,${165 + dy}L150,${165 + dy}Z" fill="#462"/>`,
       `<path data-name="slivered" d="${sliver(60, 160 + dy, 0.0008)}" fill="#246"/>`,
       `<path data-name="wedged" d="${sliver(80, 160 + dy, 0.0012)}" fill="#246"/>`,
+      `<path data-name="retraced" d="M100,${160 + dy}L110,${160 + dy}L110,${170 + dy}L100,${170 + dy}L100,${160 + dy}L102,${162 + dy}L108,${162 + dy}L108,${168 + dy}L102,${168 + dy}L102,${162 + dy}L108,${162 + dy}L108,${168 + dy}L102,${168 + dy}L102,${162 + dy}L100,${160 + dy}Z" fill="#462"/>`,
       closed
         ? `<path data-name="mixedfade" d="M120,${105 + dy}H130V${115 + dy}H120Z" fill="#624"/>`
         : `<path data-name="mixedfade" d="${slotted(120, 105 + dy, [6, 4], [4, 4])}" fill="#624" fill-rule="evenodd"/>`,
@@ -380,7 +381,7 @@ ${pose(5, true)}
 }
 
 export function spreadBlink(layers: Record<string, Record<string, unknown>> = {}, overrides: Record<string, unknown> = {}, states = ["open", "closed", "open"]): MorphRecipe {
-  const merged: Record<string, Record<string, unknown>> = { ghost: { fallback: "scale" }, fader: { blend: "fade" }, still: { blend: "cut" }, opened: { blend: "fade" }, polylined: { blend: "fade" }, implicitloop: { blend: "fade" }, mixedfade: { blend: "fade" }, curled: { blend: "fade" }, slivered: { blend: "fade" }, wedged: { blend: "fade" } };
+  const merged: Record<string, Record<string, unknown>> = { ghost: { fallback: "scale" }, fader: { blend: "fade" }, still: { blend: "cut" }, opened: { blend: "fade" }, polylined: { blend: "fade" }, implicitloop: { blend: "fade" }, mixedfade: { blend: "fade" }, curled: { blend: "fade" }, slivered: { blend: "fade" }, wedged: { blend: "fade" }, retraced: { blend: "fade" } };
   for (const [label, policy] of Object.entries(layers)) merged[label] = { ...merged[label], ...policy };
   return paintBlink({ layers: merged, ...overrides }, states);
 }
