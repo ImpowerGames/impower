@@ -2,9 +2,9 @@ import { describe, expect, test } from "vitest";
 import { createHarness } from "./harness/uiTestHarness";
 
 const HUD = `store hp = 100
-layout hud with
+layout hud {
   text "HP: {hp}"
-end
+}
 `;
 
 describe("reactive content binding (Phase 3 I2)", () => {
@@ -48,9 +48,9 @@ describe("reactive content binding (Phase 3 I2)", () => {
 
   test("static (binding-free) content is not registered for re-eval", async () => {
     const h = createHarness(
-      `layout hud with
+      `layout hud {
   text "static label"
-end
+}
 `,
       0,
       { reactive: true },

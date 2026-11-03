@@ -1,23 +1,23 @@
 define --[[ c ]] Person with
   name = "a"
 end
-animation --[=[ c ]=] fade with
+animation --[=[ c ]=] fade {
   keyframes {
     from { opacity = 0 }
   }
-end
-theme --[[ a]b ]] t with
+}
+theme --[[ a]b ]] t {
   colors { primary = red }
-end
-morph --[[ c ]] --[[ d ]] m with
+}
+morph --[[ c ]] --[[ d ]] m {
   method = bend
   keyframes {
     { offset = 0; eyes { state = eyes.open } }
     { offset = 0.4; eyes { state = eyes.closed } }
   }
-end
-screen --[[ c ]] hud with
-end
+}
+screen --[[ c ]] hud {
+}
 external --[[ c ]] message(x)
 scene start
   Hi.

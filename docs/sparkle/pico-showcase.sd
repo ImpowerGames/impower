@@ -162,7 +162,7 @@ function toggle_busy()
   busy = not busy
 end
 
-layout main with
+layout main {
   scroller #height=100% #overflow-y=auto #background-color="#13171f" #color-scheme="dark" {
     -- `block`, not `column`. The `section`s below are SEMANTIC blocks carrying
     -- their own bottom margin, so a flex container would be wrong twice over:
@@ -588,7 +588,7 @@ layout main with
       }
     }
   }
-end
+}
 
 // The story starts here; the `main` layout above shows on its own.
 scene start

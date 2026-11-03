@@ -25,7 +25,7 @@ describe("FormatString in Sparkdown", () => {
     ["an interpolation in a scene", 'scene s\n  Hi {string.pack("?")}.\nend\n', ['1: "?"']],
     ["a narrative if's condition", 'if string.find("x", "[") then\n  Hi.\nend\n', ['0: "["']],
     ["a define's property", 'define hero as character with\n  v = string.match("x", "%")\nend\nHi.\n', ['1: "%"']],
-    ["a Sparkle handler", 'layout main with\n  button @click=print(string.gsub("x", "", "%"))\nend\n', ['1: "%"']],
+    ["a Sparkle handler", 'layout main {\n  button @click=print(string.gsub("x", "", "%"))\n}\n', ['1: "%"']],
   ])("%s", (_name, source, expected) => {
     expect(covered(source)).toEqual(expected);
   });

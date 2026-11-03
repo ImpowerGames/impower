@@ -36,11 +36,11 @@ const itemAt = (source: string, label: string) => {
 };
 
 describe("provider · animation property completion in brace bodies", () => {
-  const ROOT = `animation fade with
+  const ROOT = `animation fade {
   target = layer.self
   keyframes { from { opacity = 0 } }
   tim|
-end
+}
 `;
 
   test("a container property inserts a balanced block with the cursor inside", () => {
@@ -64,15 +64,15 @@ end
 
   test("inside a block, the block's own properties complete", () => {
     for (const source of [
-      `animation fade with
+      `animation fade {
   timing {
     dur|
   }
-end
+}
 `,
-      `animation fade with
+      `animation fade {
   timing { delay = 1; dur| }
-end
+}
 `,
     ]) {
       const labels = completeAt(source, program).map((i) => String(i.label));
@@ -97,9 +97,9 @@ end
       },
     };
     const labels = completeAt(
-      `animation fade with
+      `animation fade {
   timing { easing = | }
-end
+}
 `,
       schemaProgram,
     ).map((i) => String(i.label));
@@ -108,13 +108,13 @@ end
 
   test("a `;` or brace inside a quoted value starts no new entry", () => {
     for (const source of [
-      `animation fade with
+      `animation fade {
   timing { easing = "custom; dur|" }
-end
+}
 `,
-      `animation fade with
+      `animation fade {
   timing { easing = "a { dur|" }
-end
+}
 `,
     ]) {
       const labels = completeAt(source, program).map((i) => String(i.label));
@@ -125,9 +125,9 @@ end
   test("a single quote in a value is text, so the entry after its `;` completes", () => {
     for (const value of ["don't", "'tis", "ease-'", "ease[", "[data[a]"]) {
       const labels = completeAt(
-        `animation fade with
+        `animation fade {
   timing { easing = ${value}; dur| }
-end
+}
 `,
         program,
       ).map((i) => String(i.label));
@@ -164,12 +164,12 @@ describe("provider · element completion in layout and component brace blocks", 
 
   test("a `;` inside quoted element content starts no new element", () => {
     for (const source of [
-      `layout hud with\n  row { text "a; te|" }\nend\n`,
-      `layout hud with\n  row { text 'a; te|' }\nend\n`,
-      `layout hud with\n  row { text'a; te|' }\nend\n`,
-      `layout hud with\n  row { text.title'a; te|' }\nend\n`,
-      `layout hud with\n  row { text #label='a; te|' }\nend\n`,
-      `component hud with\n  row { text #label='a; te|' }\nend\n`,
+      `layout hud {\n  row { text "a; te|" }\n}\n`,
+      `layout hud {\n  row { text 'a; te|' }\n}\n`,
+      `layout hud {\n  row { text'a; te|' }\n}\n`,
+      `layout hud {\n  row { text.title'a; te|' }\n}\n`,
+      `layout hud {\n  row { text #label='a; te|' }\n}\n`,
+      `component hud {\n  row { text #label='a; te|' }\n}\n`,
     ]) {
       expect(labelsIn(source), source).not.toContain("text");
     }

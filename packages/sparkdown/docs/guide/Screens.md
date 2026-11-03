@@ -13,12 +13,12 @@ A layout named `main` is shown from the start — it's your always-on view (the 
 ```sparkdown
 store player = { hp = 8, max_hp = 10, gold = 20 }
 
-layout main with
+layout main {
   row.hud #child-gap=12 {
     text "Health: {player.hp}/{player.max_hp}"
     text "Gold: {player.gold}"
   }
-end
+}
 ```
 
 ---
@@ -28,12 +28,12 @@ end
 Any other layout can be shown **on top of** what's already there — a dialog, an inventory panel, a tooltip — with `[[open]]`, and dismissed with `[[close]]`:
 
 ```sparkdown
-layout inventory with
+layout inventory {
   column.panel #child-gap=8 {
     text.headline "Inventory"
     -- …
   }
-end
+}
 
 scene explore
   You rummage through your pack.
@@ -59,23 +59,23 @@ function go_settings() end
 
 function go_back() end
 
-screen menu with
-end
+screen menu {
+}
 
-layout title in menu with
+layout title in menu {
   column #child-gap=16 {
     text "My Game"
     button "Play" @click=start
     button "Settings" @click=go_settings
   }
-end
+}
 
-layout settings in menu with
+layout settings in menu {
   column #child-gap=16 {
     text "Settings"
     button "Back" @click=go_back
   }
-end
+}
 ```
 
 > A screen's body is reserved for future screen-level config — leave it empty for

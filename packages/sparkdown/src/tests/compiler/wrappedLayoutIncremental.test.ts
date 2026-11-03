@@ -10,16 +10,16 @@ end
 
 store score = 0
 
-component card(title) with
+component card(title) {
   column.card {
     text
       .title
       "{title}"
     slot
   }
-end
+}
 
-layout inventory with
+layout inventory {
   button
     .primary
     "Use"
@@ -34,7 +34,7 @@ layout inventory with
     }
     text "after"
   }
-end
+}
 
 scene after
   Goodbye.

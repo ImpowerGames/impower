@@ -42,7 +42,7 @@ function fixture() {
   for (let i = 0; i < 40; i++) {
     lines.push(`store pad_${i} = ${i}`);
   }
-  lines.push(`layout hud with
+  lines.push(`layout hud {
   column.panel #gap=4 {
     row { text "a"; text "b" }
     text "c" .note
@@ -50,11 +50,11 @@ function fixture() {
     button @click={ pad_1 = 2 } "Go"
     style_me = { width = 1 }
   }
-end
+}
 
-style panel with
+style panel {
   &.wide { width = 100% }
-end
+}
 `);
   return lines.join("\n");
 }

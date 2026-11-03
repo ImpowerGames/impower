@@ -5,6 +5,6 @@ animation broken with
   }
 end
 
-animation after with
+animation after {
   timing { duration = 2 }
-end
+}

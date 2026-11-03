@@ -80,26 +80,26 @@ The directive loads each named scene or world in turn behind the loading screen.
 The loading screen is the built-in `loading` layout. Restyle it the way you restyle any layout:
 
 ```sparkdown
-style loading_backdrop with
+style loading_backdrop {
   background_color = black
-end
+}
 
-style loading_fill with
+style loading_fill {
   background_color = gold
-end
+}
 ```
 
 Or replace it entirely:
 
 ```sparkdown
-layout loading with
+layout loading {
   column {
     text "Loading {game.loading.name}… {game.loading.percent}%"
     loading_bar {
       loading_fill #transform="scaleX({game.loading.progress})"
     }
   }
-end
+}
 ```
 
 While a load runs, the engine keeps the `game.loading` table up to date, and any binding in your layout can read it: `game.loading.percent` is a whole number from 0 to 100, `game.loading.progress` the same value from 0 to 1, `game.loading.loaded` and `game.loading.total` the counts behind it, `game.loading.name` the scene or world being loaded, and `game.loading.active` whether a load is running. The built-in bar is nothing more than `loading_fill #transform="scaleX({game.loading.progress})"`, so a replaced layout can scale, show, or hide anything the same way. None of it is saved into checkpoints.

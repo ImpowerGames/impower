@@ -9,11 +9,11 @@ function layouts(source: string): any {
 describe("an inline custom property", () => {
   test("parses, and does not swallow the props after it", () => {
     const props =
-      layouts(`layout main with
+      layouts(`layout main {
   row #--my-var=4 #gap=12 {
     text "x"
   }
-end
+}
 `)?.main?.children?.[0]?.props ?? {};
     expect(Object.keys(props).sort()).toEqual(["--my-var", "gap"]);
   });

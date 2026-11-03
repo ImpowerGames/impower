@@ -93,12 +93,12 @@ end
   });
 
   test("style: name, property, interdependent layer ids", () => {
-    const refs = collectReferences(`style my_button with
+    const refs = collectReferences(`style my_button {
   background-color = blue
   hovered {
     color = red
   }
-end
+}
 `);
     const name = find(refs, "my_button", "define_variable_name");
     expect(name?.symbolIds).toContain("style.my_button");
@@ -115,13 +115,13 @@ end
   });
 
   test("screen: layer names emit layer ids + interdependent style ids", () => {
-    const refs = collectReferences(`layout title_screen with
+    const refs = collectReferences(`layout title_screen {
   stage {
     backdrop {
       image = "bg"
     }
   }
-end
+}
 `);
     const screenName = find(refs, "title_screen", "define_variable_name");
     expect(screenName?.symbolIds).toContain("layout.title_screen");
@@ -135,14 +135,14 @@ end
   });
 
   test("screen layer interdependency links to a same-named style block", () => {
-    const refs = collectReferences(`layout s with
+    const refs = collectReferences(`layout s {
   backdrop {
     image = "bg"
   }
-end
-style backdrop with
+}
+style backdrop {
   background-color = black
-end
+}
 `);
     const layer = find(refs, "backdrop", "property");
     expect(layer?.interdependentIds).toContain("style.backdrop");
@@ -151,14 +151,14 @@ end
   });
 
   test("animation: $extends parent is a read-ref to the same type", () => {
-    const refs = collectReferences(`animation pan_right as animation with
+    const refs = collectReferences(`animation pan_right as animation {
   target = layer.self
   keyframes {
     {
       background_position = "right"
     }
   }
-end
+}
 `);
     const name = find(refs, "pan_right", "define_variable_name");
     expect(name?.symbolIds).toContain("animation.pan_right");

@@ -17,13 +17,13 @@ describe("provider · define completions (D2)", () => {
   });
 
   test("does not throw inside a structural struct body", () => {
-    const source = `layout s with
+    const source = `layout s {
   stage {
     backdrop {
       @0
     }
   }
-end
+}
 `;
     expect(() =>
       complete(source, { program }),
@@ -31,9 +31,9 @@ end
   });
 
   test("does not throw on a struct scalar value", () => {
-    const source = `style b with
+    const source = `style b {
   background-color = @0
-end
+}
 `;
     expect(() =>
       complete(source, { program }),

@@ -110,8 +110,8 @@ describe("unsupported Luau integer literals (#1309)", () => {
 
   test.each([
     "The code example uses 123i.\n",
-    "style my_style with\n  padding = 8i\nend\n",
-    "theme my_theme with\n  gap = 1i\nend\n",
+    "style my_style {\n  padding = 8i\n}\n",
+    "theme my_theme {\n  gap = 1i\n}\n",
     "Hello <1i:there> friend.\n",
     "function f()\n  return '123i'\nend\n",
     "function f()\n  -- 123i\n  return 123\nend\n",

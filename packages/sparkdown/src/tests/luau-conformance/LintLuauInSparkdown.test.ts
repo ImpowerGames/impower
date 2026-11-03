@@ -33,13 +33,13 @@ describe("Luau in Sparkdown's text", () => {
     ["a match block's selector in a scene", "store a = true\nscene s\n  match (a or a)\n    | true = \"x\"\n    | other = \"y\"\n  end\nend\n", ["2:14 DuplicateCondition"]],
     ["an inline alternator's selector", "store a = true\nYou have {plural(a and a)|one=apple|other=apples}.\n", ["1:23 DuplicateCondition"]],
     ["a glued alternator's selector", "store a = true\nx .. plural(a and a)|one=apple|other=apples ..\n", ["1:18 DuplicateCondition"]],
-    ["a Sparkle handler", "store a = true\nlayout main with\n  button @click=print(a and a)\nend\n", ["2:28 DuplicateCondition"]],
+    ["a Sparkle handler", "store a = true\nlayout main {\n  button @click=print(a and a)\n}\n", ["2:28 DuplicateCondition"]],
     [
       "the statements of a Sparkle handler's closure",
-      "store a = true\nlayout main with\n  button \"Check\" @click={ for i = 3, 1 do print(i) end; if a then print(1) elseif a then print(2) end }\nend\nReady.\n",
+      "store a = true\nlayout main {\n  button \"Check\" @click={ for i = 3, 1 do print(i) end; if a then print(1) elseif a then print(2) end }\n}\nReady.\n",
       ["2:34 ForRange", "2:82 DuplicateCondition"],
     ],
-    ["a chain in a Sparkle handler's closure", "store a = true\nlayout main with\n  button \"Check\" @click={ print(a and a) }\nend\nReady.\n", ["2:38 DuplicateCondition"]],
+    ["a chain in a Sparkle handler's closure", "store a = true\nlayout main {\n  button \"Check\" @click={ print(a and a) }\n}\nReady.\n", ["2:38 DuplicateCondition"]],
   ])("%s", (_name, source, expected) => {
     expect(conditionLints(source)).toEqual(expected);
   });

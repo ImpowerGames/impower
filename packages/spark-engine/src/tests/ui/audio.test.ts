@@ -9,7 +9,7 @@ define beep as audio with
   src = "https://example.com/beep.wav"
 end
 
-layout main with
+layout main {
   textbox {
     character_info {
       character_name {
@@ -20,7 +20,7 @@ layout main with
       text
     }
   }
-end
+}
 `;
 
 function story(body: string) {

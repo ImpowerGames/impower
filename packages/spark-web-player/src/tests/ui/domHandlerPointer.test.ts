@@ -8,10 +8,10 @@ function ruleAt(css: string, selector: string): { at: number; body: string } {
 }
 
 const SOURCE = `store n = 0
-style locked with
+style locked {
   interactable = false
-end
-layout main with
+}
+layout main {
   column {
     button.locked "Class lock" @click={ n = n + 1 }
     button "Prop lock" #interactable=false @click={ n = n + 1 }
@@ -19,7 +19,7 @@ layout main with
     checkbox "Labelled" @change={ n = n + 1 }
     box "No handler"
   }
-end
+}
 `;
 
 async function render(source: string) {
@@ -77,10 +77,10 @@ describe("handler pointer opt-in in the page", () => {
 
   test("the builtin styles that turn the pointer off leave handler elements out", async () => {
     const { h, css } = await render(`store n = 0
-layout main with
+layout main {
   stroke "Outline" @click={ n = n + 1 }
   box #data-ui-handler="forged"
-end
+}
 `);
     const stroke = h.overlay.querySelector<HTMLElement>(".stroke");
     expect(stroke?.hasAttribute("data-ui-handler"), h.overlay.innerHTML).toBe(true);

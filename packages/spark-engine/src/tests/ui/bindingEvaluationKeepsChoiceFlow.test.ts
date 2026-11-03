@@ -3,7 +3,7 @@ import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
 const STORY = `store stamp = 7
 
-layout main with
+layout main {
   badge {
     text "{stamp}"
   }
@@ -13,7 +13,7 @@ layout main with
   dialogue {
     text
   }
-end
+}
 
 
 

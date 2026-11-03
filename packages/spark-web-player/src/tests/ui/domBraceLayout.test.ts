@@ -6,7 +6,7 @@ store busy = true
 `;
 
 const BRACED = `${STATE}
-layout hud with
+layout hud {
   column.panel #child-gap=8 {
     text.title "Inventory"
     for item in items do
@@ -21,7 +21,7 @@ layout hud with
   stage {
     mask.shadow_1
   }
-end
+}
 `;
 
 async function render(source: string) {

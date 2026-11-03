@@ -3,7 +3,7 @@ store done = false
 store mode = 1
 store items = {}
 
-layout inventory with
+layout inventory {
     column.panel{
 if busy then
           text "busy"
@@ -28,4 +28,4 @@ text "one"
     text "other"
         end
  }
-end
+}

@@ -32,9 +32,9 @@ function findFirstBinding(sparkle: any): any {
 describe("UIModule.evalBinding (Phase 3 I0)", () => {
   test("evaluates a hoisted {expr} binding to its live value", async () => {
     const h = createHarness(`store hp = 100
-layout hud with
+layout hud {
   text "HP: {hp}"
-end
+}
 `);
     await h.ready;
     const binding = findFirstBinding((h.game.program as any).sparkle);
@@ -44,9 +44,9 @@ end
   });
 
   test("returns undefined for a binding the story never hoisted (HasFunction guard)", () => {
-    const h = createHarness(`layout hud with
+    const h = createHarness(`layout hud {
   text "static"
-end
+}
 `);
     const value = (h.game.module.ui as any).evalBinding({
       exprId: "__binding$999999",

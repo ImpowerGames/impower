@@ -1,4 +1,4 @@
-layout panel with
+layout panel {
   column #gap=16 #child-align=center {
     text "Inventory"
     row #background-color={team_color} {
@@ -6,4 +6,4 @@ layout panel with
       text "{count} items" #opacity=0.5
     }
   }
-end
+}

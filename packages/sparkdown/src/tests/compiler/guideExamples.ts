@@ -66,8 +66,8 @@ export function isLayoutFragment(code: string): boolean {
   return !/^(\[\[|->|<-|---)/m.test(code);
 }
 
-const WRAP_OPEN = "layout guide_example with\n  box {\n";
-const WRAP_CLOSE = "  }\nend\n";
+const WRAP_OPEN = "layout guide_example {\n  box {\n";
+const WRAP_CLOSE = "  }\n}\n";
 const WRAP_INDENT = "    ";
 
 export function wrapFragment(code: string): string {

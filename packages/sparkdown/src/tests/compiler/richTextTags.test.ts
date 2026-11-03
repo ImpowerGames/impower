@@ -38,7 +38,7 @@ function diagnose(source: string): string[] {
   return out;
 }
 
-const layout = (line: string) => `layout main with\n  ${line}\nend\n`;
+const layout = (line: string) => `layout main {\n  ${line}\n}\n`;
 
 describe("rich text tags · tokenization", () => {
   test("recognized tags are their own nodes, not string characters", () => {

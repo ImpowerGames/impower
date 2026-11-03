@@ -285,7 +285,7 @@ describe("the errors are Luau's, in Luau's words at Luau's ranges", () => {
       ...attribute(2, 10),
       "3:4-3:9 Incomplete statement: expected assignment or a function call",
     ].sort());
-    expect(read("layout main with\n  button @click={ x = 1 @@ 2 }\nend\n").errors).toEqual(attribute(1, 24).sort());
+    expect(read("layout main {\n  button @click={ x = 1 @@ 2 }\n}\n").errors).toEqual(attribute(1, 24).sort());
   });
 
   it("a method's errors are those of the function it stands for, its end included", () => {
@@ -311,7 +311,7 @@ describe("each error has one reader", () => {
     expect(nested("")).toEqual([outer]);
     expect(nested("      @\n")).toContain(outer);
     expect(read("function g()\n  local x: = function()\n    @\n  end\nend\n").errors).toContain("1:10-1:12 Expected type, got '='");
-    expect(read("layout main with\n  button @click={ local x: = function() @ end }\nend\n").errors).toContain(
+    expect(read("layout main {\n  button @click={ local x: = function() @ end }\n}\n").errors).toContain(
       "1:26-1:28 Expected type, got '='",
     );
   });
@@ -333,7 +333,7 @@ describe("each error has one reader", () => {
     ];
     expect(officialErrors("local f = function() @ x = (if c) end\n")).toEqual(luau(21).sort());
     const shifted = (line: number, at: number) => luau(at).map((e) => e.replace(/^0:(\d+)-0:/, `${line}:$1-${line}:`)).sort();
-    expect(read("layout main with\n  button @click={ @ x = (if c) }\nend\n").errors).toEqual(shifted(1, 18));
+    expect(read("layout main {\n  button @click={ @ x = (if c) }\n}\n").errors).toEqual(shifted(1, 18));
     expect(read('scene start\n  Value {cycle | function() @ x = (if c) end | "b" end}.\nend\n').errors).toEqual(shifted(1, 28));
   });
 
@@ -346,7 +346,7 @@ describe("each error has one reader", () => {
       const shift = "  button @click={ ".length - "local f = function() ".length;
       const expected = officialErrors(luau).map((e) => e.replace(/^0:(\d+)-0:\d+/, (_, from) => `1:${Number(from) + shift}`));
       expect(expected.length).toBeGreaterThan(0);
-      expect(starts(read(`layout main with\n  button @click={ ${statement} }\nend\n`).errors)).toEqual(expected);
+      expect(starts(read(`layout main {\n  button @click={ ${statement} }\n}\n`).errors)).toEqual(expected);
     }
   });
 
@@ -369,7 +369,7 @@ describe("each error has one reader", () => {
     }
     const interpolated = read("function f()\n  local s = `{function(@) end}`\nend\n").errors;
     expect(interpolated).toEqual(["1:23-1:24 Expected identifier when parsing variable name, got ''"]);
-    const closure = (body: string) => read(`layout main with\n  button @click={ ${body}}\nend\n`).errors;
+    const closure = (body: string) => read(`layout main {\n  button @click={ ${body}}\n}\n`).errors;
     expect(closure("local x = @")).toEqual(closure("local x = @ "));
     expect(closure("local x = @").join("\n")).not.toContain("@end");
     expect(read("function f()\n  local x: @native = 1\nend\n").errors).toContain(

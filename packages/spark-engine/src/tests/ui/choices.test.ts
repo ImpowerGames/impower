@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
-const SCREEN = `layout main with
+const SCREEN = `layout main {
   dialogue {
     text
   }
@@ -14,7 +14,7 @@ const SCREEN = `layout main with
   choice.2 {
     text
   }
-end
+}
 `;
 
 const CHOICE_STORY = `${SCREEN}

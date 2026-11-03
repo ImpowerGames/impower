@@ -152,9 +152,9 @@ describe("synthetic names after an edit", () => {
         "  Third line.",
         "end",
         "",
-        "layout la with",
+        "layout la {",
         '  text "{a}"',
-        "end",
+        "}",
         "",
       ].join("\n"),
     };
@@ -183,9 +183,9 @@ describe("synthetic names after an edit", () => {
       "  Third line.",
       "end",
       "",
-      "layout la with",
+      "layout la {",
       '  text "{a}"',
-      "end",
+      "}",
       "",
     ].join("\n");
     const spanOf = (source: string) => {
@@ -218,7 +218,7 @@ describe("synthetic names after an edit", () => {
   });
 
   it("a match with no condition keeps its empty placeholder span", () => {
-    const main = ["store a = 1", "", "scene one", "  First line.", "end", "", "layout la with", "  match do", "    case 1", '      text "{a}"', "  end", "end", ""].join("\n");
+    const main = ["store a = 1", "", "scene one", "  First line.", "end", "", "layout la {", "  match do", "    case 1", '      text "{a}"', "  end", "}", ""].join("\n");
     const program = compileOnce(main);
     const placeholders: unknown[] = [];
     JSON.stringify(program.sparkle, function (this: any, key, value) {
@@ -229,7 +229,7 @@ describe("synthetic names after an edit", () => {
   });
 
   it("a binding handle's span gives its position in the document", () => {
-    const main = ["store a = 1", "", "scene one", "  First line.", "end", "", "layout la with", '  text "{a}"', "end", ""].join("\n");
+    const main = ["store a = 1", "", "scene one", "  First line.", "end", "", "layout la {", '  text "{a}"', "}", ""].join("\n");
     const [before, incremental, cold] = incrementalAndCold({ main }, "main", main.indexOf("  First line.") + 2, "Longer ");
     const at = (text: string) => {
       const from = text.indexOf("{a}");
@@ -249,15 +249,15 @@ describe("binding evaluator names", () => {
         "store a = 1",
         "store b = 2",
         "",
-        "layout la with",
+        "layout la {",
         '  text "{a}"',
         '  text "A03cka"',
-        "end",
+        "}",
         "",
-        "layout lb with",
+        "layout lb {",
         '  text "{b}"',
         '  text "B05101"',
-        "end",
+        "}",
         "",
       ].join("\n"),
     );
@@ -267,13 +267,13 @@ describe("binding evaluator names", () => {
   });
 
   it("a layout declared twice in one file compiles, and the later one is kept", () => {
-    const copy = ["layout la with", '  text "{a}"', "end", ""];
+    const copy = ["layout la {", '  text "{a}"', "}", ""];
     const identical = compileOnce(["store a = 1", "", ...copy, ...copy].join("\n"));
     expect(diagnostics(identical).filter((m) => m.includes("Duplicate identifier"))).toEqual([]);
     expect(firstBindingValue(identical, "la")).toBe(1);
 
     const adapted = compileOnce(
-      ["store a = 1", "store b = 2", "", ...copy, "layout la with", '  text "{b}"', "end", ""].join("\n"),
+      ["store a = 1", "store b = 2", "", ...copy, "layout la {", '  text "{b}"', "}", ""].join("\n"),
     );
     expect(diagnostics(adapted).filter((m) => m.includes("Duplicate identifier"))).toEqual([]);
     expect(firstBindingValue(adapted, "la")).toBe(2);
@@ -281,8 +281,8 @@ describe("binding evaluator names", () => {
 
   it("layouts declared in two files whose paths hash alike get an evaluator each", () => {
     const program = compileOnce(["store a = 1", "store b = 2", ""].join("\n"), {
-      f19349: ["layout shared_a with", '  text "{a}"', "end", ""].join("\n"),
-      f1238112: ["", "", "layout shared_b with", '  text "{b}"', "end", ""].join("\n"),
+      f19349: ["layout shared_a {", '  text "{a}"', "}", ""].join("\n"),
+      f1238112: ["", "", "layout shared_b {", '  text "{b}"', "}", ""].join("\n"),
     });
     expect(diagnostics(program).filter((m) => m.includes("Duplicate identifier"))).toEqual([]);
     expect(firstBindingValue(program, "shared_a")).toBe(1);

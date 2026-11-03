@@ -15,11 +15,11 @@ describe("reactive for (Phase 3 I4)", () => {
   test("mounts one item per element, binding the loop variable", async () => {
     const h = createHarness(
       `store items = {10, 20, 30}
-layout bag with
+layout bag {
   for n in items do
     text "n={n}"
   end
-end
+}
 `,
       0,
       { reactive: true },
@@ -33,11 +33,11 @@ end
   test("iterates a table of tables with member access", async () => {
     const h = createHarness(
       `store items = { {name = "sword"}, {name = "shield"} }
-layout bag with
+layout bag {
   for it in items do
     text "{it.name}"
   end
-end
+}
 `,
       0,
       { reactive: true },
@@ -51,11 +51,11 @@ end
   test("two-variable `for k, v` binds key + value", async () => {
     const h = createHarness(
       `store scores = { alice = 10, bob = 20 }
-layout board with
+layout board {
   for name, pts in scores do
     text "{name}={pts}"
   end
-end
+}
 `,
       0,
       { reactive: true },
@@ -71,11 +71,11 @@ end
 function reverse()
   items = { items[3], items[2], items[1] }
 end
-layout bag with
+layout bag {
   for it in items do
     text "n={it.n}"
   end
-end
+}
 `,
       0,
       { reactive: true },
@@ -96,12 +96,12 @@ store items = { {n = 1}, {n = 2}, {n = 3} }
 function nudge()
   tick = tick + 1
 end
-layout bag with
+layout bag {
   for it in items do
     text "a{it.n}"
     text "b{it.n}"
   end
-end
+}
 `,
       0,
       { reactive: true },
@@ -121,12 +121,12 @@ end
 function reverse()
   items = { items[3], items[2], items[1] }
 end
-layout bag with
+layout bag {
   for it in items do
     text "a{it.n}"
     text "b{it.n}"
   end
-end
+}
 `,
       0,
       { reactive: true },
@@ -145,11 +145,11 @@ end
 function bump()
   items[1].n = 99
 end
-layout bag with
+layout bag {
   for it in items do
     text "n={it.n}"
   end
-end
+}
 `,
       0,
       { reactive: true },
@@ -179,11 +179,11 @@ end
 function shrink()
   items = {10}
 end
-layout bag with
+layout bag {
   for n in items do
     text "n={n}"
   end
-end
+}
 `,
       0,
       { reactive: true },
@@ -207,13 +207,13 @@ end
 function fill()
   items = {10}
 end
-layout bag with
+layout bag {
   for n in items do
     text "n={n}"
   else
     text "empty"
   end
-end
+}
 `,
       0,
       { reactive: true },
@@ -229,11 +229,11 @@ end
 
   test("numeric `for i = 1, 3` mounts one row per counter value (D6)", async () => {
     const h = createHarness(
-      `layout bag with
+      `layout bag {
   for i = 1, 3 do
     text "n={i}"
   end
-end
+}
 `,
       0,
       { reactive: true },
@@ -246,11 +246,11 @@ end
 
   test("numeric `for i = 0, 10, 5` honors the step", async () => {
     const h = createHarness(
-      `layout bag with
+      `layout bag {
   for i = 0, 10, 5 do
     text "n={i}"
   end
-end
+}
 `,
       0,
       { reactive: true },
@@ -268,11 +268,11 @@ end
 function grow()
   count = count + 2
 end
-layout bag with
+layout bag {
   for i = 1, count do
     text "n={i}"
   end
-end
+}
 `,
       0,
       { reactive: true },

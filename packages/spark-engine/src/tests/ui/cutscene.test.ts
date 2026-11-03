@@ -415,7 +415,7 @@ describe("a cutscene: the builtins", () => {
     const h = createHarness(
       story(
         "  A line.",
-        "style cutscene with\n  background_color = white\nend\n",
+        "style cutscene {\n  background_color = white\n}\n",
       ),
       0,
       { assets: ASSETS },

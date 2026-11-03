@@ -3,14 +3,14 @@ import { formatSource } from "./formatSource";
 
 describe("formatting a layout body written with brace blocks", () => {
   test("well-formed source round-trips unchanged", () => {
-    const source = `component card(title) with
+    const source = `component card(title) {
   column.card {
     text.title "{title}"
     slot
   }
-end
+}
 
-layout inventory with
+layout inventory {
   column.panel #child-gap=8 {
     text.title "Inventory"
     for item in player.bag do
@@ -30,13 +30,13 @@ layout inventory with
   stage {
     mask.shadow_1
   }
-end
+}
 `;
     expect(formatSource(source)).toBe(source);
   });
 
   test("an element whose parts go on over later lines round-trips unchanged", () => {
-    const source = `layout popup with
+    const source = `layout popup {
   button
     .fancy
     #bg-color=green
@@ -56,13 +56,13 @@ end
       score = score + 1
     }
   }
-end
+}
 `;
     expect(formatSource(source)).toBe(source);
   });
 
   test("a handler that spans lines is formatted as the Luau code it is", () => {
-    const source = `layout popup with
+    const source = `layout popup {
   button
     .fancy
     @click={
@@ -74,9 +74,9 @@ end
       score=0
     } "Done"
   }
-end
+}
 `;
-    expect(formatSource(source)).toBe(`layout popup with
+    expect(formatSource(source)).toBe(`layout popup {
   button
     .fancy
     @click={
@@ -88,12 +88,12 @@ end
       score = 0
     } "Done"
   }
-end
+}
 `);
   });
 
   test("lines inside a block indent by its braces, and the lines after it keep their level", () => {
-    const source = `layout hud with
+    const source = `layout hud {
       column.panel {
 text.title "Inventory"
           row.item {
@@ -103,9 +103,9 @@ text.title "Inventory"
     stage {
       mask.shadow_1
     }
-end
+}
 `;
-    expect(formatSource(source)).toBe(`layout hud with
+    expect(formatSource(source)).toBe(`layout hud {
   column.panel {
     text.title "Inventory"
     row.item {
@@ -115,7 +115,7 @@ end
   stage {
     mask.shadow_1
   }
-end
+}
 `);
   });
 });

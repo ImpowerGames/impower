@@ -5,13 +5,13 @@ const SOURCE = `define theme as audio with
   src = "https://example.com/theme.wav"
 end
 
-layout main with
+layout main {
   textbox {
     dialogue {
       text
     }
   }
-end
+}
 
 
 

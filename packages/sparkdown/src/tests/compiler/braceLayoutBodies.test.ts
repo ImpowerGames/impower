@@ -88,7 +88,7 @@ const errorsOf = (text: string) =>
 
 describe("a brace body lowers as its multiline blocks", () => {
   test("bare words remain separate elements before quoted content", () => {
-    const source = 'layout main with\ncolumn row text "First"\nend\n';
+    const source = 'layout main {\ncolumn row text "First"\n}\n';
     const tree = lowered(source, "layout", "main").tree;
     expect(tree.children.map((child: any) => child.tag)).toEqual(["column", "row", "text"]);
     expect(tree.children[2].content).toEqual([{ kind: "literal", text: "First" }]);
@@ -96,7 +96,7 @@ describe("a brace body lowers as its multiline blocks", () => {
   });
 
   test("trailing comments preserve both text children and block ownership", () => {
-    const source = 'layout main with\ncolumn { // ignored }\ntext "First" // ignored }\ntext "Last"\n}\nend\n';
+    const source = 'layout main {\ncolumn { // ignored }\ntext "First" // ignored }\ntext "Last"\n}\n}\n';
     const column = lowered(source, "layout", "main").tree.children[0];
     expect(column.children.map((child: any) => child.content)).toEqual([
       [{ kind: "literal", text: "First" }],
@@ -107,7 +107,7 @@ describe("a brace body lowers as its multiline blocks", () => {
 
   test("nested blocks, classes, content and props", () => {
     const indented = lowered(
-      `layout hud with
+      `layout hud {
   column.panel #child-gap=8 {
     text.title "Inventory"
     row.item {
@@ -122,13 +122,13 @@ describe("a brace body lowers as its multiline blocks", () => {
       text
     }
   }
-end
+}
 `,
       "layout",
       "hud",
     );
     const braced = lowered(
-      `layout hud with
+      `layout hud {
   column.panel #child-gap=8 {
     text.title "Inventory"
     row.item {
@@ -138,7 +138,7 @@ end
     choice.0 { text }
     title { stroke; text }
   }
-end
+}
 `,
       "layout",
       "hud",
@@ -149,7 +149,7 @@ end
   });
 
   test("`if`, `for` with `else` and `match` inside a block, with blocks in their branches", () => {
-    const indented = `layout inventory with
+    const indented = `layout inventory {
   column.panel {
     if busy then
       text "busy"
@@ -181,9 +181,9 @@ end
     end
     text "after"
   }
-end
+}
 `;
-    const braced = `layout inventory with
+    const braced = `layout inventory {
   column.panel {
     if busy then
       text "busy"
@@ -213,7 +213,7 @@ end
     end
     text "after"
   }
-end
+}
 `;
     const a = lowered(indented, "layout", "inventory");
     const b = lowered(braced, "layout", "inventory");
@@ -242,37 +242,37 @@ end
   });
 
   test("a component call with a block fills the default slot, and `fill footer { … }` the named one", () => {
-    const indented = `component card(title) with
+    const indented = `component card(title) {
   column {
     text "{title}"
     slot
     slot.footer
   }
-end
+}
 
-layout main with
+layout main {
   card("Inventory") {
     text "body"
     fill.footer {
       button "Ok"
     }
   }
-end
+}
 `;
-    const braced = `component card(title) with
+    const braced = `component card(title) {
   column {
     text "{title}"
     slot
     slot.footer
   }
-end
+}
 
-layout main with
+layout main {
   card("Inventory") {
     text "body"
     fill.footer { button "Ok" }
   }
-end
+}
 `;
     expect(everything(braced)).toEqual(everything(indented));
     const call = lowered(braced, "layout", "main").tree.children[0];
@@ -295,8 +295,8 @@ end
 describe("dotted classes", () => {
   test("`button.primary.large` is a button with two classes", () => {
     for (const source of [
-      `layout hud with\n  button.primary.large "Save"\nend\n`,
-      `layout hud with\n  row { button.primary.large "Save" }\nend\n`,
+      `layout hud {\n  button.primary.large "Save"\n}\n`,
+      `layout hud {\n  row { button.primary.large "Save" }\n}\n`,
     ]) {
       const { tree, struct } = lowered(source, "layout", "hud");
       const button = source.includes("row")
@@ -311,7 +311,7 @@ describe("dotted classes", () => {
 
   test("`choice.0 { text }` is keyed `choice 0` in the static struct", () => {
     const { struct, tree } = lowered(
-      `layout hud with\n  choice.0 { text }\nend\n`,
+      `layout hud {\n  choice.0 { text }\n}\n`,
       "layout",
       "hud",
     );
@@ -321,23 +321,23 @@ describe("dotted classes", () => {
   });
 
   test("a class written after a space is keyed as a glued one", () => {
-    const glued = `layout hud with\n  choice.0 { text }\n  mask.shadow_1\n  row.a.b {\n    text\n  }\nend\n`;
-    const spaced = `layout hud with\n  choice .0 { text }\n  mask .shadow_1\n  row .a .b {\n    text\n  }\nend\n`;
+    const glued = `layout hud {\n  choice.0 { text }\n  mask.shadow_1\n  row.a.b {\n    text\n  }\n}\n`;
+    const spaced = `layout hud {\n  choice .0 { text }\n  mask .shadow_1\n  row .a .b {\n    text\n  }\n}\n`;
     expect(everything(spaced)).toEqual(everything(glued));
     expect(Object.keys(lowered(spaced, "layout", "hud").struct)).toEqual(
       expect.arrayContaining(["choice 0", "mask shadow_1", "row a b"]),
     );
-    const after = `layout hud with\n  column {\n    image @click=go .b\n    text #w=1 --[[ c ]] .h1 "Hi"\n  }\nend\n`;
-    const before = `layout hud with\n  column {\n    image.b @click=go\n    text.h1 #w=1 "Hi"\n  }\nend\n`;
+    const after = `layout hud {\n  column {\n    image @click=go .b\n    text #w=1 --[[ c ]] .h1 "Hi"\n  }\n}\n`;
+    const before = `layout hud {\n  column {\n    image.b @click=go\n    text.h1 #w=1 "Hi"\n  }\n}\n`;
     expect(lowered(after, "layout", "hud").struct).toEqual(lowered(before, "layout", "hud").struct);
     expect(lowered(after, "layout", "hud").struct.column).toEqual({ "image b": {}, "text h1": "Hi" });
   });
 
   test("a dotted class is no longer warned about", () => {
     for (const source of [
-      `layout main with\n  row.hud #gap=12 {\n    text "x"\n  }\nend\n`,
-      `layout main with\n  text.title "Hi"\nend\n`,
-      `layout main with\n  row.hud #gap=12 { text.title "x" }\nend\n`,
+      `layout main {\n  row.hud #gap=12 {\n    text "x"\n  }\n}\n`,
+      `layout main {\n  text.title "Hi"\n}\n`,
+      `layout main {\n  row.hud #gap=12 { text.title "x" }\n}\n`,
     ]) {
       expect(diagnosticsOf(source)).toEqual([]);
     }
@@ -345,7 +345,7 @@ describe("dotted classes", () => {
 
   test("a style selector keeps its dots", () => {
     const style = compileSource(
-      `style card with\n  &.secondary {\n    color = blue\n  }\n  > text.label { color = red }\nend\n`,
+      `style card {\n  &.secondary {\n    color = blue\n  }\n  > text.label { color = red }\n}\n`,
     ).find((e) => e.block?.context?.["style"])?.block?.context?.["style"]?.[
       "card"
     ];
@@ -357,7 +357,7 @@ describe("dotted classes", () => {
 describe("one-line blocks and the optional `=`", () => {
   test("`title { stroke; text }` has two children", () => {
     const { tree, struct } = lowered(
-      `layout hud with\n  title { stroke; text }\nend\n`,
+      `layout hud {\n  title { stroke; text }\n}\n`,
       "layout",
       "hud",
     );
@@ -370,13 +370,13 @@ describe("one-line blocks and the optional `=`", () => {
 
   test("`row = { … }` lowers as `row { … }`", () => {
     expect(
-      lowered(`layout hud with\n  row = { text "a" }\nend\n`, "layout", "hud"),
-    ).toEqual(lowered(`layout hud with\n  row { text "a" }\nend\n`, "layout", "hud"));
+      lowered(`layout hud {\n  row = { text "a" }\n}\n`, "layout", "hud"),
+    ).toEqual(lowered(`layout hud {\n  row { text "a" }\n}\n`, "layout", "hud"));
   });
 
   test("`#value = {x}` is still a binding", () => {
     const { tree } = lowered(
-      `layout hud with\n  row { input #value = {x} }\nend\n`,
+      `layout hud {\n  row { input #value = {x} }\n}\n`,
       "layout",
       "hud",
     );
@@ -387,13 +387,13 @@ describe("one-line blocks and the optional `=`", () => {
 
   test("an unquoted prop value or handler name ends at whitespace, `;` or `}`", () => {
     const { tree } = lowered(
-      `layout hud with
+      `layout hud {
   row { text "a" #width=5; text "b" }
   row { button @click=go; button @click=stop }
   column #gap=4 { text "c" }
   column #gap=4 .wide { text "d" }
   row { text #width=5}
-end
+}
 `,
       "layout",
       "hud",
@@ -414,10 +414,10 @@ end
   });
 
   test("a brace inside a value's run is part of the value", () => {
-    const text = `layout hud with
+    const text = `layout hud {
   text #label=a{b} { stroke }
   row { text #label=a{b}; text "next" }
-end
+}
 `;
     const [label, row] = lowered(text, "layout", "hud").tree.children;
     expect(label.props.label).toEqual({ kind: "literal", value: "a{b}" });
@@ -428,7 +428,7 @@ end
   });
 
   test("a comma after an unquoted prop value separates two entries", () => {
-    const text = `layout hud with\n  row { text "x" #y=1, text "z"; text #font=a,b }\nend\n`;
+    const text = `layout hud {\n  row { text "x" #y=1, text "z"; text #font=a,b }\n}\n`;
     const row = lowered(text, "layout", "hud").tree.children[0];
     expect(row.children.map((c: any) => c.content?.[0]?.text)).toEqual([
       "x",
@@ -441,12 +441,12 @@ end
   });
 
   test("attribute values nest calls three deep and bindings four deep", () => {
-    const text = `layout hud with
+    const text = `layout hud {
   row {
     button "Go" @click=use(item, max(1, min(2, x))) .wide
     text #x={ {a = {b = {c = 1}}} } "after"
   }
-end
+}
 `;
     const [button, label] = lowered(text, "layout", "hud").tree.children[0].children;
     expect(button.events[0].handler.binding.source).toBe(
@@ -462,10 +462,10 @@ end
     const closure = (button: any) => button.events[0].handler.binding.source;
 
     test("a closure with tables nested five deep, on an indented line and in a block", () => {
-      const text = `layout hud with
+      const text = `layout hud {
   button "Go" @click={ local t = {a={b={c={}}}} }
   row { button "Go" @click={ local t = {a={b={c={}}}} }; text "after" }
-end
+}
 `;
       const [button, row] = lowered(text, "layout", "hud").tree.children;
       expect(closure(button)).toBe("{ local t = {a={b={c={}}}} }");
@@ -476,10 +476,10 @@ end
     });
 
     test("a single-quoted attribute value", () => {
-      const text = `layout hud with
+      const text = `layout hud {
   text #--label='a{b}c'
   row { text #--label='a{b}c' "q" }
-end
+}
 `;
       const [label, row] = lowered(text, "layout", "hud").tree.children;
       expect(label.props["--label"]).toEqual({ kind: "literal", value: "'a{b}c'" });
@@ -493,16 +493,16 @@ end
     });
 
     test("Luau long strings and long comments in a closure or a call", () => {
-      const text = `component card(t) with
+      const text = `component card(t) {
   text "{t}"
-end
+}
 
-layout hud with
+layout hud {
   button @click={ print([[a}b]]) }
   button @click={ hp = 1 --[[ } ]] ; hp = 2 }
   card([[a)b{c]])
   row { button @click={ print([==[a}b]==]) } "B"; text "after" }
-end
+}
 `;
       const [print, comment, call, row] = lowered(text, "layout", "hud").tree.children;
       expect(closure(print)).toBe("{ print([[a}b]]) }");
@@ -515,10 +515,10 @@ end
     });
 
     test("a long string of any level, on an indented line and in a block", () => {
-      const text = `layout hud with
+      const text = `layout hud {
   button @click={ print([====[a}b]====]) }
   row { button @click={ print([=======[a}b]=======]) } "Go"; text "after" }
-end
+}
 `;
       const [button, row] = lowered(text, "layout", "hud").tree.children;
       expect(closure(button)).toBe("{ print([====[a}b]====]) }");
@@ -530,22 +530,22 @@ end
     });
 
     test("calls nested six deep and closures nested eight deep keep the rest of the line", () => {
-      const declarations = `component card(t) with
+      const declarations = `component card(t) {
   slot
-end
+}
 
 function f(x)
   return x
 end
 `;
       const braced = `${declarations}
-layout hud with
+layout hud {
   card(f(f(f(f(f(1)))))) { text "body" }
   row { button @click={ local t = {a={b={c={d={e={f={}}}}}}} } "Go"; text "after" }
-end
+}
 `;
       const indented = `${declarations}
-layout hud with
+layout hud {
   card(f(f(f(f(f(1)))))) {
     text "body"
   }
@@ -553,7 +553,7 @@ layout hud with
     button @click={ local t = {a={b={c={d={e={f={}}}}}}} } "Go"
     text "after"
   }
-end
+}
 `;
       expect(everything(braced)).toEqual(everything(indented));
       const [call, row] = lowered(braced, "layout", "hud").tree.children;
@@ -566,43 +566,43 @@ end
     });
 
     test("inside a block, a value nested deeper than that runs to the end of its line, and is reported", () => {
-      const text = `component card(t) with
+      const text = `component card(t) {
   slot
-end
+}
 
 function f(x)
   return x
 end
 
-layout a with
+layout a {
   column {
     button @click={ t = {a={b={c={d={e={f={g={h={}}}}}}}}} } "Go"; text "after"
   }
-end
+}
 
-layout b with
+layout b {
   column {
     card(f(f(f(f(f(f(1))))))) { text "body" }
   }
-end
+}
 
-layout c with
+layout c {
   column {
     button @click=f(f(f(f(f(f(f(1))))))) { text "body" }
   }
-end
+}
 
-layout d with
+layout d {
   column {
     text #x=f(f(f(f(f(f(f(1))))))) { text "body" }
   }
-end
+}
 
-layout e with
+layout e {
   column {
     text #x={ {a={b={c={d={e={f={g={h={i=1}}}}}}}}} } { text "body" }
   }
-end
+}
 `;
       const errors = errorsOf(text);
       for (const line of [10, 16, 22, 28, 34]) {
@@ -616,7 +616,7 @@ end
     });
 
     test("an inline long comment ends at its `]]`", () => {
-      const text = `layout hud with\n  row { text "a" --[[ comment ]] ; text "b" }\nend\n`;
+      const text = `layout hud {\n  row { text "a" --[[ comment ]] ; text "b" }\n}\n`;
       const row = lowered(text, "layout", "hud").tree.children[0];
       expect(row.children.map((c: any) => c.content[0].text)).toEqual(["a", "b"]);
       expect(row.children[0].classes).toEqual([]);
@@ -625,7 +625,7 @@ end
   });
 
   test("a second block after an element's block is invalid", () => {
-    const text = `layout hud with\n  row { text "a" } { text "b" }\nend\n`;
+    const text = `layout hud {\n  row { text "a" } { text "b" }\n}\n`;
     const row = lowered(text, "layout", "hud").tree.children[0];
     expect(row.children.map((c: any) => c.content[0].text)).toEqual(["a"]);
     expect(errorsOf(text).map((e) => [e.message, e.text])).toEqual([
@@ -635,7 +635,7 @@ end
 
   test("`foldout \"Level {n}\" { … }` binds `{n}`", () => {
     const { tree } = lowered(
-      `layout hud with\n  foldout "Level {n}" { text "x" }\nend\n`,
+      `layout hud {\n  foldout "Level {n}" { text "x" }\n}\n`,
       "layout",
       "hud",
     );
@@ -648,17 +648,17 @@ end
   });
 
   test("`text \"a\" \"b\"` in a block is keyed `text`, as on an indented line", () => {
-    const braced = `layout hud with
+    const braced = `layout hud {
   row { text "a" "b"; text "c" #x=1 "d"; label "e" @click=go }
-end
+}
 `;
-    const indented = `layout hud with
+    const indented = `layout hud {
   row {
     text "a" "b"
     text "c" #x=1 "d"
     label "e" @click=go
   }
-end
+}
 `;
     expect(everything(braced)).toEqual(everything(indented));
     expect(lowered(braced, "layout", "hud").struct.row).toEqual({ text: "c", label: "e" });
@@ -666,7 +666,7 @@ end
 
   test("`name = value` lines inside a block keep their meaning", () => {
     const { tree, struct } = lowered(
-      `layout hud with\n  row {\n    image = "black"\n    color = white\n  }\nend\n`,
+      `layout hud {\n  row {\n    image = "black"\n    color = white\n  }\n}\n`,
       "layout",
       "hud",
     );
@@ -696,7 +696,7 @@ describe("indentation inside a brace block", () => {
     "  }",
   ];
   const source = (lines: string[]) =>
-    `layout hud with\n${lines.join("\n")}\nend\n`;
+    `layout hud {\n${lines.join("\n")}\n}\n`;
   const reference = lowered(source(BODY), "layout", "hud");
   const referenceDiagnostics = diagnosticsOf(source(BODY));
 
@@ -736,7 +736,7 @@ describe("indentation inside a brace block", () => {
 
 describe("mismatched braces and `end`", () => {
   test("a missing `}` inside a branch is reported and the next declaration compiles", () => {
-    const text = `layout hud with
+    const text = `layout hud {
   column {
     if busy then
       row {
@@ -745,11 +745,11 @@ describe("mismatched braces and `end`", () => {
       text "idle"
     end
   }
-end
+}
 
-layout after with
+layout after {
   text "after"
-end
+}
 `;
     const errors = errorsOf(text);
     expect(errors).toEqual([
@@ -767,17 +767,17 @@ end
   });
 
   test("a missing `end` inside a block is reported and the next declaration compiles", () => {
-    const text = `layout hud with
+    const text = `layout hud {
   column {
     for item in bag do
       text "{item}"
   }
   text "after column"
-end
+}
 
-layout after with
+layout after {
   text "after"
-end
+}
 `;
     const errors = errorsOf(text);
     expect(errors).toEqual([
@@ -798,9 +798,9 @@ end
     text "a"
 end
 
-layout after with
+layout after {
   text "after"
-end
+}
 `;
     expect(errorsOf(text)).toEqual([
       expect.objectContaining({ line: 1, text: "{" }),

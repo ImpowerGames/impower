@@ -38,11 +38,11 @@ end
   test("a filtered asset WITH a `with` clause still creates the SAME clean key", () => {
     const result = compile(`-> main
 
-define flip as animation with
-  keyframes = {
-    transform = "scaleX(-1)"
+animation flip {
+  keyframes {
+    transform = scaleX(-1)
   }
-end
+}
 
 scene main
   [[bunny_suspicious~phone~look.left with flip]]

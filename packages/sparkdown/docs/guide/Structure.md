@@ -7,12 +7,12 @@
 Here's a quick example of what a Sparkle layout looks like:
 
 ```sparkdown
-layout main with -- a layout named main
+layout main { -- a layout named main
   column #child-gap=24 { -- an element with a prop, and a block of children
     text "Welcome, {player.name}!" -- an element with an interpolated {value}
     button.start "Begin" @click=start_game -- an element with a class and a bound event
   }
-end
+}
 
 store player = { name = "Hero" }
 
@@ -38,14 +38,14 @@ A **layout** is a tree of UI — a menu, a HUD, a dialog, an inventory panel.
 You create one with the `layout` keyword, and everything inside `with … end` is what it displays:
 
 ```sparkdown
-layout main with
+layout main {
   column #child-gap=24 #child-align=center {
     text "Feature Creeper"
     button "Start" @click=start_game
     button "Options" @click=open_settings
     button "Quit" @click=quit_game
   }
-end
+}
 
 function start_game() end
 
@@ -89,14 +89,14 @@ Story image directives such as `[[mia]]` can also select a layered portrait's ex
 The first word of an element names it. A built-in element (`text`, `button`, …) or one of your own [components](./Components.md) does what it always does. Any other name makes a **plain container**: an element that holds its children and is named after what it is.
 
 ```sparkdown
-layout hud with
+layout hud {
   stage {
     toolbar {
       button "Map" @click=open_map
       button "Bag" @click=open_bag
     }
   }
-end
+}
 
 function open_map() end
 
@@ -198,10 +198,10 @@ column.panel.scrollable {
 A `style` block then targets the class:
 
 ```sparkdown
-style primary with
+style primary {
   background-color = blue
   text-color = white
-end
+}
 ```
 
 In the editor, renaming a class also renames the `style` of the same name.
@@ -280,7 +280,7 @@ An element doesn't have to fit on one line. A line that starts with a `.class`, 
 ```sparkdown
 store difficulty = "easy"
 
-layout options with
+layout options {
   dropdown
     .wide
     #value={difficulty}
@@ -289,7 +289,7 @@ layout options with
     option "Easy"
     option "Hard"
   }
-end
+}
 ```
 
 Such a line must start the line: after a `;`, a `.class` is not read as part of the element before it.
@@ -300,12 +300,12 @@ An inline handler can span lines too. Its statements go between its braces, one 
 store score = 0
 store combo = 0
 
-layout arcade with
+layout arcade {
   button "Hit" @click={
     score = score + 10
     combo = combo + 1
   }
-end
+}
 ```
 
 ---

@@ -5,28 +5,28 @@ const DEFS = `define BG as image with
   src = "https://example.com/bg.png"
 end
 
-define pan_right as animation with
-  keyframes = {
-    background_position = "right"
+animation pan_right {
+  keyframes {
+    background_position = right
   }
-end
+}
 
-define slow_pan as animation with
-  keyframes = {
-    background_position = "right"
+animation slow_pan {
+  keyframes {
+    background_position = right
   }
-  timing = {
-    duration = "3s"
+  timing {
+    duration = 3s
   }
-end
+}
 
-layout main with
+layout main {
   stage {
     backdrop {
       image
     }
   }
-end
+}
 `;
 
 function story(body: string) {
@@ -57,8 +57,8 @@ function findAnimateAnimation(harness: Awaited<ReturnType<typeof runInstant>>) {
   return animateInstr.targetAnimations[0];
 }
 
-describe("authored define inherits its type's $default (compiler)", () => {
-  test("`define X as animation` with no timing inherits the full default timing", () => {
+describe("an authored animation inherits its type's $default (compiler)", () => {
+  test("`animation X` with no timing inherits the full default timing", () => {
     const { program } = compileUI(story(`  [[show backdrop BG]]`));
     const panRight = (program as any).context?.animation?.["pan_right"];
     expect(panRight).toBeDefined();

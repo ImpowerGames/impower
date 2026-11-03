@@ -1,0 +1,16 @@
+layout hud {
+  row {
+    text "a"
+  }
+}
+
+theme bare { -- a header without with
+  color = red
+}
+
+define hero as character with
+  name = "Hero"
+end
+
+style unclosed with
+  corner = 8px

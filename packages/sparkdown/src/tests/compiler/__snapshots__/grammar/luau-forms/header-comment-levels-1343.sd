@@ -1,15 +1,15 @@
-style --[=[ example ]] inside ]=] banner with
+style --[=[ example ]] inside ]=] banner {
   color = red
-end
-style --[==[ a ]=] b ]] c ]==] other with
+}
+style --[==[ a ]=] b ]] c ]==] other {
   color = blue
-end
-style --[=[a]]=] third with
+}
+style --[=[a]]=] third {
   color = green
-end
-style --[====[c]====] fourth with
+}
+style --[====[c]====] fourth {
   color = green
-end
+}
 function --[=[a]]=] h(x: number) return x end
 
 scene start

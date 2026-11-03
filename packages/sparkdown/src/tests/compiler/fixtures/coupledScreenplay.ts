@@ -35,9 +35,9 @@ export function constructs(p = ""): string[] {
     `  return g() + ${p}acc:add(3).n + x`,
     "end",
     "",
-    `layout ${p}hud with`,
+    `layout ${p}hud {`,
     `  text "{trust} {${p}t.a}"`,
-    "end",
+    "}",
     "",
   ];
 }

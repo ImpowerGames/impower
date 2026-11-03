@@ -328,7 +328,7 @@ describe("Luau code: a compound assignment with a list", () => {
 
 describe("Sparkle handler closures", () => {
   const layout = (handler: string) =>
-    `store a, g = 0, 0\nlayout form with\n  button "Go" @click={ ${handler} }\nend\nscene start\n  Value {g}.\nend\n`;
+    `store a, g = 0, 0\nlayout form {\n  button "Go" @click={ ${handler} }\n}\nscene start\n  Value {g}.\nend\n`;
 
   test.each([
     ["a complete list", "a, g = 1, 2", []],

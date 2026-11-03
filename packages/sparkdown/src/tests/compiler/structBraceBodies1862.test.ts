@@ -69,7 +69,7 @@ const PAIRS: {
     name: "panel",
     header: "style panel as base",
     body: "  text-color = white\n  corner = 8px\n  background-color = rgb(0 0 0 / 40%)\n  > text { text-size = 24px }\n  @hovered { opacity = 0.5 }\n",
-    extra: "style base with\nend\n",
+    extra: "style base {\n}\n",
   },
   {
     label: "an animation with `to { … }` keyframes",
@@ -98,7 +98,7 @@ const PAIRS: {
     name: "title",
     header: "layout title in menu as base",
     body: '  column #child-gap=16 {\n    text "My Game"\n    button "Play" @click=start\n    if visible then\n      text "Shown"\n    end\n  }\n  for item in items do\n    text item\n  end\n  row.footer { text "v1" }\n',
-    extra: "screen menu with\nend\nlayout base with\nend\n",
+    extra: "screen menu {\n}\nlayout base {\n}\n",
   },
   {
     label: "a component with parameters and a parent",
@@ -106,7 +106,7 @@ const PAIRS: {
     name: "card",
     header: "component card(title) as box",
     body: "  box.card {\n    text title\n    slot\n  }\n",
-    extra: "component box with\nend\n",
+    extra: "component box {\n}\n",
   },
   {
     label: "an empty screen",
@@ -132,7 +132,7 @@ describe("a struct keyword's brace body compiles as its `with … end` body does
 
   test("a one-line style separates its entries as an inner block does", () => {
     const oneLine = compile(`style blue { text-color = white; corner = 8px }\n${SCENE}`);
-    const lines = compile(`style blue with\n  text-color = white\n  corner = 8px\nend\n${SCENE}`);
+    const lines = compile(`style blue {\n  text-color = white\n  corner = 8px\n}\n${SCENE}`);
     expect((oneLine.program.context as any)?.style?.blue).toEqual(
       (lines.program.context as any)?.style?.blue,
     );
@@ -149,14 +149,14 @@ describe("a struct keyword's brace body compiles as its `with … end` body does
 });
 
 describe("an unindented entry named like a declaration keyword", () => {
-  const COMPONENT = "component theme(label) with\n  text label\nend\n";
+  const COMPONENT = "component theme(label) {\n  text label\n}\n";
   for (const [label, entries] of [
     ["with a block comment after it", ["theme --[[ note ]]", "theme --[====[ note ] extra ]====]"]],
     ["with a word after it", ["theme label", "screen label"]],
   ] as const) {
     test(`${label} stays in the brace body`, () => {
       const body = `${entries.join("\n")}\n`;
-      const extra = "component screen(label) with\n  text label\nend\n";
+      const extra = "component screen(label) {\n  text label\n}\n";
       const withForm = compile(`${COMPONENT}${extra}layout main with\n${body}end\n${SCENE}`);
       const braceForm = compile(`${COMPONENT}${extra}layout main    {\n${body}}\n${SCENE}`);
       const expected = compiled(withForm.program, "layout", "main");

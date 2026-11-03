@@ -69,19 +69,21 @@ text.source.sparkdown [0..134]
  │   └─ punctuation.definition.template-expression.end.sd [102..103]: "}"
  ├─ Newline [103..104]: "\n"
  ├─ Newline [104..105]: "\n"
- ├─ meta.theme.luau [105..115]
+ ├─ meta.theme.luau [105..117]
  │   ├─ keyword.control.theme.luau [105..110]: "theme"
  │   ├─ punctuation.whitespace.optional.sd [110..111]: " "
- │   └─ entity.name.type.define.luau [111..115]: "bare"
- ├─ Newline [115..116]: "\n"
- ├─ meta.theme.luau [116..129]
- │   ├─ punctuation.whitespace.sd [116..118]: "  "
- │   ├─ variable.other.property.define.sd [118..123]: "color"
- │   ├─ markup.raw.whitespace.separator.optional.sd [123..124]: " "
- │   ├─ keyword.operator.assignment.sd [124..125]: "="
+ │   ├─ entity.name.type.define.luau [111..115]: "bare"
+ │   ├─ punctuation.whitespace.sd [115..116]: " "
+ │   └─ punctuation.definition.template-expression.begin.sd [116..117]: "{"
+ ├─ Newline [117..118]: "\n"
+ ├─ meta.theme.luau [118..131]
+ │   ├─ punctuation.whitespace.sd [118..120]: "  "
+ │   ├─ variable.other.property.define.sd [120..125]: "color"
  │   ├─ markup.raw.whitespace.separator.optional.sd [125..126]: " "
- │   └─ string.unquoted.identifier.sd [126..129]: "red"
- ├─ Newline [129..130]: "\n"
- ├─ meta.theme.luau [130..133]
- │   └─ keyword.control.end.luau [130..133]: "end"
+ │   ├─ keyword.operator.assignment.sd [126..127]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [127..128]: " "
+ │   └─ string.unquoted.identifier.sd [128..131]: "red"
+ ├─ Newline [131..132]: "\n"
+ ├─ meta.theme.luau [132..133]
+ │   └─ punctuation.definition.template-expression.end.sd [132..133]: "}"
  └─ Newline [133..134]: "\n"

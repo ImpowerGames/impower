@@ -369,8 +369,8 @@ describe("a structural word is a name outside its shape (#984)", () => {
 
   test("each construct still opens in its shape", () => {
     const tree = (source: string) => stripAnsi(dumpTree(source));
-    expect(tree("style button with\n  color = red\nend\n")).toMatch(/─ LuauStyle \[/);
-    expect(tree("theme dusk with\n  g = 1\nend\n")).toMatch(/─ LuauTheme \[/);
+    expect(tree("style button {\n  color = red\n}\n")).toMatch(/─ LuauStyle \[/);
+    expect(tree("theme dusk {\n  g = 1\n}\n")).toMatch(/─ LuauTheme \[/);
     expect(tree("Hi {match(x) | 1 = \"a\" | 2 = \"b\"}.\n")).toMatch(/─ LuauConditionalAlternatorBlock \[/);
     expect(tree("Hi {match x|1 = \"a\"|2 = \"b\"}.\n")).toMatch(/─ LuauConditionalAlternatorBlock \[/);
     expect(tree("Hi {cycle \"a\" | \"b\" end}.\n")).toMatch(/─ LuauSequentialAlternatorBlock \[/);
@@ -385,7 +385,7 @@ describe("a structural word is a name outside its shape (#984)", () => {
 describe("a name's boundary", () => {
   test("#1266 a struct key with a non-ASCII letter is a property, as an ASCII one is", () => {
     const struct = (key: string) => {
-      const source = `theme t with\n  g:\n    ${key} = 2\n    tail = 3\nend\n`;
+      const source = `theme t {\n  g:\n    ${key} = 2\n    tail = 3\n}\n`;
       const theme = (e: { block?: { context?: any } }) => e.block?.context?.["theme"]?.["t"];
       const entry = compileSource(source).find(theme);
       return entry ? theme(entry) : undefined;

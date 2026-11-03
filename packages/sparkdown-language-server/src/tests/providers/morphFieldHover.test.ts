@@ -26,7 +26,7 @@ const hoverAt = async (text: string, needle: string, within = 1, n = 0) => {
   return { value: (hover.contents as { value: string }).value, marked: document.getText(hover.range) };
 };
 
-const MORPH = `morph blink with
+const MORPH = `morph blink {
   method = bend
   layers {
     fill { fallback = cut }
@@ -54,7 +54,7 @@ const MORPH = `morph blink with
       span = 40%
     }
   }
-end
+}
 
 fill = 2
 `;
@@ -102,7 +102,7 @@ describe("morph field hover", () => {
 });
 
 describe("a drawing's `spread` hover", () => {
-  const SPREAD = `morph blink with
+  const SPREAD = `morph blink {
   method = bend
   spread = 0.5px
   layers {
@@ -116,7 +116,7 @@ describe("a drawing's `spread` hover", () => {
   clips {
     { between { eyelash-left }; targets { pupil-left }; spread = 1px }
   }
-end
+}
 `;
 
   it("documents `spread` at the root and under a label with the drawing text, and in a clip entry with the clip text", async () => {

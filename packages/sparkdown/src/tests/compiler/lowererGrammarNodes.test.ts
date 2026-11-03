@@ -32,7 +32,7 @@ describe("lowerer grammar distinctions", () => {
   });
 
   test("unquoted props distinguish whole numeric, boolean and word values", () => {
-    const source = 'layout main with\n  text #gap=-1.5 #enabled=true #hidden=false #width=16px #label=trueish\nend\n';
+    const source = 'layout main {\n  text #gap=-1.5 #enabled=true #hidden=false #width=16px #label=trueish\n}\n';
     const tree = stripAnsi(dumpTree(source));
     expect(tree).toContain("InlinePropNumericValue");
     expect(tree).toContain("InlinePropBooleanValue");
@@ -88,7 +88,7 @@ describe("lowerer grammar distinctions", () => {
 
   test("break glue and named event handlers already have nodes", () => {
     expect(stripAnsi(dumpTree("A .. > .. B\n"))).toContain("LeadingGlue");
-    expect(stripAnsi(dumpTree("layout main with\n  button @click=go\nend\n"))).toContain("LuauSparkleEventHandlerName");
+    expect(stripAnsi(dumpTree("layout main {\n  button @click=go\n}\n"))).toContain("LuauSparkleEventHandlerName");
   });
 
   test.each([
@@ -137,7 +137,7 @@ describe("lowerer grammar distinctions", () => {
   });
 
   test("named handlers retain reference semantics", () => {
-    const source = "layout main with\n  button @click=go\nend\n";
+    const source = "layout main {\n  button @click=go\n}\n";
     const layouts = compileSource(source).find((e) => e.block?.sparkle?.layouts)?.block?.sparkle?.layouts;
     expect((layouts as any)?.main.children[0].events).toEqual([
       { event: "click", handler: { kind: "ref", name: "go" } },

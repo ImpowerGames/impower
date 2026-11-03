@@ -149,7 +149,7 @@ ${more}
 
 export const shiftPath = shift;
 
-export const blinkScript = (extra = "") => `morph blink with
+export const blinkScript = (extra = "") => `morph blink {
   method = bend
 ${extra}  keyframes {
     0% {
@@ -179,7 +179,7 @@ ${extra}  keyframes {
       }
     }
   }
-end
+}
 `;
 
 export function blink(overrides: Record<string, unknown> = {}, right = false): MorphRecipe {

@@ -64,7 +64,7 @@ describe("UninitializedLocal", () => {
   });
 
   test("a function in a Sparkle handler is read", () => {
-    expect(messages(uninitialized("layout main with\n  button @click={ local g = function() local x; return x end; g() }\nend\n"))).toEqual([never("x", 2)]);
+    expect(messages(uninitialized("layout main {\n  button @click={ local g = function() local x; return x end; g() }\n}\n"))).toEqual([never("x", 2)]);
   });
 });
 
@@ -120,7 +120,7 @@ describe("UnbalancedAssignment", () => {
   test.each([
     ["a logic line", "& a, b, c = 1, 2\n"],
     ["a scene's Luau", "scene s()\n  & a, b, c = 1, 2\nend\n"],
-    ["a Sparkle handler", "layout main with\n  button @click={ a, b, c = 1, 2 }\nend\n"],
+    ["a Sparkle handler", "layout main {\n  button @click={ a, b, c = 1, 2 }\n}\n"],
   ])("reads %s", (_label, source) => {
     expect(messages(unbalanced(source))).toEqual([FEWER]);
   });

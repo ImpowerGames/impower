@@ -8,7 +8,7 @@ const SOURCE = `scene main
   Hello.
 end
 
-animation fade with
+animation fade {
   keyframes {
     from { opacity = 0 }
     40% { opacity = 0.5 }
@@ -18,23 +18,23 @@ animation fade with
     duration = 0.4
     easing = ease-in-out
   }
-end
+}
 
-style button with
+style button {
   cursor = pointer
   &.secondary { background-color = slate_50 }
   @hovered, @pressed {
     background-color = sky_50
   }
-end
+}
 
-morph blink with
+morph blink {
   method = bend
   keyframes {
     from { eyes { state = open } }
     to { eyes { state = closed } }
   }
-end
+}
 
 scene after
   Goodbye.

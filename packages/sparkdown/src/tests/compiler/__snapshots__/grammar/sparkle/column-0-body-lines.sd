@@ -1,4 +1,4 @@
-layout main with
+layout main {
 if busy then
   text "busy"
 end
@@ -10,10 +10,10 @@ match mode do
     text "one"
 end
 row.top { text "top" }
-end
-component card(title) with
+}
+component card(title) {
 if title then
   text "{title}"
 end
 column { text "x" }
-end
+}

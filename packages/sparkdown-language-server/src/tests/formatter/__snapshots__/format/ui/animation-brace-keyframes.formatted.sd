@@ -1,4 +1,4 @@
-animation fade with
+animation fade {
   target = layer.self
   keyframes {
     from { opacity = 0 }
@@ -11,9 +11,9 @@ animation fade with
     duration = 0.4
     easing = ease-in-out
   }
-end
+}
 
-animation pulse with
+animation pulse {
   keyframes {
     { offset = 0; opacity = 0 }
     {
@@ -21,4 +21,4 @@ animation pulse with
       transform = "scale(1.1)"
     }
   }
-end
+}

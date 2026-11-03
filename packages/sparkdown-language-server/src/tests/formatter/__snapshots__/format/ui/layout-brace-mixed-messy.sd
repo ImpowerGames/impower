@@ -1,4 +1,4 @@
-layout hud with
+layout hud {
        stage {
  backdrop {
         image = "black"
@@ -13,4 +13,4 @@ layout hud with
       textbox {
 text
        }
- end
+ }

@@ -46,9 +46,9 @@ const body = (indent: string) =>
 
 describe("a trailing comment ends an unquoted struct value", () => {
   const program = compile(
-    `style card with\n${body("  ")}end\n` +
-      `animation slide with\n${body("  ")}end\n` +
-      `theme dusk with\n${body("  ")}end\n`,
+    `style card {\n${body("  ")}}\n` +
+      `animation slide {\n${body("  ")}}\n` +
+      `theme dusk {\n${body("  ")}}\n`,
   );
   const bodies = {
     style: program.styles?.["card"],
@@ -65,14 +65,14 @@ describe("a trailing comment ends an unquoted struct value", () => {
 
   test("a block property reads the same value", () => {
     const blocks = compile(
-      `animation pulse with\n` +
+      `animation pulse {\n` +
         `  keyframes {\n` +
         `    { offset = 0; color = red -- note\n` +
         `    }\n` +
         `    { offset = 1; gap = 5-- note\n` +
         `    }\n` +
         `  }\n` +
-        `end\n`,
+        `}\n`,
     ).context?.animation?.pulse?.keyframes;
     expect(blocks?.[0]?.color).toBe("red");
     expect(blocks?.[1]?.gap).toBe(5);
@@ -105,7 +105,7 @@ describe("the value node stops before the comment", () => {
     ["color = red // note", "red"],
   ] as const) {
     test(line, () => {
-      const source = `style card with\n  ${line}\nend\n`;
+      const source = `style card {\n  ${line}\n}\n`;
       const nodes = [...walk(parseSource(source).topNode)];
       const valueNode = nodes.find((n) => VALUE_NODES.has(n.name));
       const comment = nodes.find(

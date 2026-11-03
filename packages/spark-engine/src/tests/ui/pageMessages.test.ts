@@ -23,7 +23,7 @@ define SHADOW as image with
   src = "https://example.com/shadow.png"
 end
 
-layout main with
+layout main {
   stage {
     portrait {
       image
@@ -39,7 +39,7 @@ layout main with
       text
     }
   }
-end
+}
 `;
 
 function story(body: string) {
@@ -90,7 +90,7 @@ describe("page messages", () => {
       } as File,
     ];
     const harness = createHarness(
-      `style main with\n  font_family = "Fancy"\nend\n\n${story("  Hi.")}`,
+      `style main {\n  font_family = "Fancy"\n}\n\n${story("  Hi.")}`,
       0,
       { assets: fonts, holdAssets: true },
     );
@@ -134,7 +134,7 @@ describe("page messages", () => {
         src: "/file:/proj/fancy.ttf?v=1",
       } as File,
     ];
-    const source = `style hud with\n  font_family = "Fancy"\nend\n\nlayout hud with\n  stats {\n    text\n  }\nend\n\n${story("  Hi.")}`;
+    const source = `style hud {\n  font_family = "Fancy"\n}\n\nlayout hud {\n  stats {\n    text\n  }\n}\n\n${story("  Hi.")}`;
     const restoreHud = async (supersede: boolean) => {
       const harness = createHarness(source, 0, {
         assets: fonts,

@@ -10,21 +10,21 @@ function structOf(source: string, type: string, name: string): any {
 describe("trailing comments in animation and theme blocks", () => {
   test("a comment after a container header does not become part of the key", () => {
     const withComment = structOf(
-      `animation fade with
+      `animation fade {
   timing { -- how it plays
     duration = 1
   }
-end
+}
 `,
       "animation",
       "fade",
     );
     const withoutComment = structOf(
-      `animation fade with
+      `animation fade {
   timing {
     duration = 1
   }
-end
+}
 `,
       "animation",
       "fade",
@@ -35,9 +35,9 @@ end
 
   test("a comment after an empty container header does not become part of the key", () => {
     const struct = structOf(
-      `theme dusk with
+      `theme dusk {
   spacing {} // nothing yet
-end
+}
 `,
       "theme",
       "dusk",
@@ -48,7 +48,7 @@ end
 
   test("numbers and booleans followed by a comment keep their type at every depth", () => {
     const struct = structOf(
-      `theme dusk with
+      `theme dusk {
   enabled = false -- off for now
   radius = 8 -- corner size
   scale = -0.5 // shrink
@@ -56,7 +56,7 @@ end
     gap = 4 -- between items
     wrap = true -- allow wrapping
   }
-end
+}
 `,
       "theme",
       "dusk",
@@ -69,23 +69,23 @@ end
 
   test("a commented value lowers the same as the uncommented one", () => {
     const withComment = structOf(
-      `animation fade with
+      `animation fade {
   timing {
     duration = 1 -- a second
     iterations = 2 -- twice
   }
-end
+}
 `,
       "animation",
       "fade",
     );
     const withoutComment = structOf(
-      `animation fade with
+      `animation fade {
   timing {
     duration = 1
     iterations = 2
   }
-end
+}
 `,
       "animation",
       "fade",
@@ -95,12 +95,12 @@ end
 
   test("a commented list item keeps its number", () => {
     const struct = structOf(
-      `animation fade with
+      `animation fade {
   steps {
     3 -- first
     4
   }
-end
+}
 `,
       "animation",
       "fade",
@@ -110,7 +110,7 @@ end
 
   test("unit values and CSS keywords stay strings with a comment", () => {
     const struct = structOf(
-      `animation fade with
+      `animation fade {
   timing {
     easing = ease-in -- smooth
   }
@@ -120,7 +120,7 @@ end
       width = 8px -- start narrow
     }
   }
-end
+}
 `,
       "animation",
       "fade",
@@ -131,11 +131,11 @@ end
 
   test("a comment written directly after a literal is still a comment", () => {
     const struct = structOf(
-      `theme dusk with
+      `theme dusk {
   radius = 1-- note
   enabled = false-- note
   label = "one"-- note
-end
+}
 `,
       "theme",
       "dusk",
@@ -153,12 +153,12 @@ end
       "target = layer.self",
     ];
     const withComment = structOf(
-      `animation fade with\n${body.map((l) => `  ${l} -- note`).join("\n")}\nend\n`,
+      `animation fade {\n${body.map((l) => `  ${l} -- note`).join("\n")}\n}\n`,
       "animation",
       "fade",
     );
     const withoutComment = structOf(
-      `animation fade with\n${body.map((l) => `  ${l}`).join("\n")}\nend\n`,
+      `animation fade {\n${body.map((l) => `  ${l}`).join("\n")}\n}\n`,
       "animation",
       "fade",
     );
@@ -170,7 +170,7 @@ end
 
   test("a CSS custom property keeps its dashes", () => {
     const struct = structOf(
-      `animation fade with
+      `animation fade {
   keyframes {
     {
       offset = 0
@@ -178,7 +178,7 @@ end
       width = var(--size) -- from the theme
     }
   }
-end
+}
 `,
       "animation",
       "fade",
@@ -192,7 +192,7 @@ end
 
   test("quoted values followed by a comment lose their quotes, not their type", () => {
     const struct = structOf(
-      `animation fade with
+      `animation fade {
   keyframes {
     {
       offset = 0
@@ -201,7 +201,7 @@ end
       label = "a -- b" -- dashes inside the quotes
     }
   }
-end
+}
 `,
       "animation",
       "fade",

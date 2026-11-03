@@ -33,7 +33,7 @@ describe("struct bodies use blocks and ignore indentation", () => {
   });
 
   test("each bare word starts an element, including on the same line", () => {
-    const source = 'layout example with\n title { stroke text }\n text title "x"\nend\nscene start\nend';
+    const source = 'layout example {\n title { stroke text }\n text title "x"\n}\nscene start\nend';
     expect(errors(source)).toEqual([]);
     const entry = compileSource(source).find((e) => e.block?.sparkle?.layouts?.['example']);
     const layout = entry!.block!.sparkle!.layouts!['example'] as any;

@@ -86,7 +86,7 @@ describe("the .luau root's tree and scopes", () => {
     expect(stripAnsi(printTree(tree, LUAU_FILE))).toMatchSnapshot();
   });
 
-  for (const source of [LUAU_FILE, CONTINUED, "layout main with\nend\n", "if x then\n  y()\nelse\n  z()\nend\n"]) {
+  for (const source of [LUAU_FILE, CONTINUED, "layout main {\n}\n", "if x then\n  y()\nelse\n  z()\nend\n"]) {
     test(`VS Code's scopes are the tree's: ${JSON.stringify(source.slice(0, 24))}`, async () => {
       const comparison = await compareEnginesFull(source, { luauFile: true });
       expect(comparison.divergences, formatDivergences(comparison.source, comparison.divergences)).toEqual([]);
@@ -100,7 +100,7 @@ describe("a .luau file's Sparkdown-looking lines get the official parser's error
       .filter((d) => d.file === "snippet.luau" && d.severity === DiagnosticSeverity.Error)
       .map(({ range, message }) => `${range!.start.line}:${range!.start.character}-${range!.end.line}:${range!.end.character} ${message}`)
       .sort();
-  for (const snippet of ["define X with\nend\n", "define X with\n", "store x = 1\n", "-> start\n", "layout main with\nend\n"]) {
+  for (const snippet of ["define X with\nend\n", "define X with\n", "store x = 1\n", "-> start\n", "layout main {\n}\n"]) {
     test(JSON.stringify(snippet), () => {
       const official = officialErrorList(snippet, { luauFile: true }).sort();
       expect(official.length).toBeGreaterThan(0);

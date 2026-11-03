@@ -8,7 +8,7 @@ function ruleBody(css: string, selector: string): string | undefined {
   return css.slice(start, end);
 }
 
-const LOCKED_BESIDE_AUTHOR = `layout main with
+const LOCKED_BESIDE_AUTHOR = `layout main {
   column {
     checkbox "Locked" #interactable=false #tooltip="Help"
     checkbox "Open" #tooltip="Help"
@@ -17,7 +17,7 @@ const LOCKED_BESIDE_AUTHOR = `layout main with
     }
     box.control "Author box" #tooltip="Help"
   }
-end
+}
 `;
 
 async function render(source: string) {
@@ -32,12 +32,12 @@ async function render(source: string) {
 
 describe("labelled input widgets in the page", () => {
   test("a widget's name finds it labelled or bare alike", async () => {
-    const { h } = await render(`layout settings with
+    const { h } = await render(`layout settings {
   column {
     slider "Named volume" #value=50
     slider #value=50
   }
-end
+}
 `);
     const label = h.overlay.querySelector<HTMLElement>("label");
     expect(label, h.overlay.innerHTML).not.toBeNull();

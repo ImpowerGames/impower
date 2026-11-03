@@ -1,4 +1,4 @@
-layout main with
+layout main {
   stage {
     mask.shadow_1
     choice.0 {
@@ -9,9 +9,9 @@ layout main with
       text.title "Hi"
     }
   }
-end
+}
 
-style card with
+style card {
   &.secondary {
     color = blue
   }
@@ -19,4 +19,4 @@ style card with
     color = red
   }
   &.outline.secondary { color = green }
-end
+}

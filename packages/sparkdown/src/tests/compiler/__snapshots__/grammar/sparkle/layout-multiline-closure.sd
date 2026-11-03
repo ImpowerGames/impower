@@ -1,4 +1,4 @@
-layout handlers with
+layout handlers {
   button "Go" @click={
     score = 0
     combo = combo + 1
@@ -52,7 +52,7 @@ layout handlers with
           }
     end
   }
-end
+}
 
 layout unclosed with
   button "Stop" @click={
@@ -60,6 +60,6 @@ layout unclosed with
   text "taken in"
 end
 
-layout still with
+layout still {
   text "compiles"
-end
+}

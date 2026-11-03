@@ -37,8 +37,8 @@ const bindingIds = (program: unknown): string[] => [
 describe("binding ids are unique across files", () => {
   const FILES = {
     main: `-> END\n`,
-    fa: `store a = 1\nlayout la with\n  text "{a}"\nend\n`,
-    fb: `store b = 2\nlayout lb with\n  text "{b}"\nend\n`,
+    fa: `store a = 1\nlayout la {\n  text "{a}"\n}\n`,
+    fb: `store b = 2\nlayout lb {\n  text "{b}"\n}\n`,
   };
 
   test("two files colliding on byte offset get distinct evaluators", () => {
@@ -62,13 +62,13 @@ describe("a shadowed loop variable is not a compile error", () => {
     const { diagnostics } = compileFiles({
       main: `store rows = { 1 }
 store cols = { 2 }
-layout main with
+layout main {
   for i in rows do
     for i in cols do
       text "{i}"
     end
   end
-end
+}
 `,
     });
     expect(
@@ -79,14 +79,14 @@ end
   test("a loop re-binding a component param compiles clean", () => {
     const { diagnostics } = compileFiles({
       main: `store items = { 1 }
-component card(item) with
+component card(item) {
   for item in items do
     text "{item}"
   end
-end
-layout main with
+}
+layout main {
   card(1)
-end
+}
 `,
     });
     expect(

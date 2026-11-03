@@ -52,7 +52,7 @@ describe("the loading layout", () => {
 
   test("lets a replaced tree bind the progress itself", async () => {
     const h = await render(
-      `layout loading with\n  text "Loading {game.loading.percent}%"\nend\n\n${STORY}`,
+      `layout loading {\n  text "Loading {game.loading.percent}%"\n}\n\n${STORY}`,
     );
     const root = h.overlay.querySelector(".loading") as HTMLElement | null;
     expect(root).not.toBeNull();

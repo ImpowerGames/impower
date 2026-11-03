@@ -265,14 +265,14 @@ describe("a composed beat on the page (#1820)", () => {
   });
 });
 
-const LAYOUT = (dialogue: string, leaf: string) => `layout main with
+const LAYOUT = (dialogue: string, leaf: string) => `layout main {
   textbox {
     ${dialogue} {
       ${leaf}
       stroke
     }
   }
-end
+}
 
 ${SOURCE}`;
 
@@ -364,7 +364,7 @@ describe("a composed beat on the page, round 1 of PR #1865", () => {
   });
 });
 
-const HUD = `layout main with
+const HUD = `layout main {
   textbox {
     character_info {
       character_name {
@@ -375,15 +375,15 @@ const HUD = `layout main with
       text
     }
   }
-end
+}
 
-layout hud with
+layout hud {
   panel {
     dialogue {
       text "HUD label"
     }
   }
-end
+}
 
 
 
@@ -454,7 +454,7 @@ describe("a composed beat applies its ops in order, round 2 of PR #1865", () => 
   test("a write keeps its place before the structure that follows it", async () => {
     const h = await playing(`store alternate = false
 
-layout main with
+layout main {
   textbox {
     character_info {
       character_name {
@@ -468,7 +468,7 @@ layout main with
       end
     }
   }
-end
+}
 
 
 
@@ -495,7 +495,7 @@ end
   });
 
   test("a write to an indexed target reaches the element it named, though the beat moves it after", async () => {
-    const h = await playing(`layout main with
+    const h = await playing(`layout main {
   textbox {
     dialogue {
       text
@@ -504,7 +504,7 @@ end
       text
     }
   }
-end
+}
 
 
 
@@ -540,7 +540,7 @@ end
   });
 });
 
-const TRANSITIONS = `layout main with
+const TRANSITIONS = `layout main {
   textbox {
     character_info {
       character_name {
@@ -551,15 +551,15 @@ const TRANSITIONS = `layout main with
       text
     }
   }
-end
+}
 
-layout hud with
+layout hud {
   panel {
     stats {
       text "HUD"
     }
   }
-end
+}
 
 
 
@@ -1041,7 +1041,7 @@ describe("round 5 of PR #1865", () => {
   });
 });
 
-const NAMED = `layout main with
+const NAMED = `layout main {
   textbox {
     character_name {
       text "Name:"
@@ -1050,7 +1050,7 @@ const NAMED = `layout main with
       text
     }
   }
-end
+}
 
 ${SOURCE}`;
 

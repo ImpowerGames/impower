@@ -121,13 +121,13 @@ describe("a level-nine comment holding another level-nine close", () => {
     ["& if true then local x = 1 end", "LuauSparkdownExplicitIfBlock"],
     ["& do local x = 1 end", "LuauSparkdownExplicitDoBlock"],
     ["define D with\nend", "LuauDefine"],
-    ["style S with\nend", "LuauStyle"],
-    ["animation A with\nend", "LuauAnimation"],
-    ["theme T with\nend", "LuauTheme"],
-    ["morph M with\nend", "LuauMorph"],
-    ["layout L with\nend", "LuauLayout"],
-    ["screen C with\nend", "LuauScreen"],
-    ["component P with\nend", "LuauComponent"],
+    ["style S {\n}", "LuauStyle"],
+    ["animation A {\n}", "LuauAnimation"],
+    ["theme T {\n}", "LuauTheme"],
+    ["morph M {\n}", "LuauMorph"],
+    ["layout L {\n}", "LuauLayout"],
+    ["screen C {\n}", "LuauScreen"],
+    ["component P {\n}", "LuauComponent"],
   ])("after the `end` of %j", (block, name) => {
     const source = `${block} ${comment}\nStory.\n`;
     const { tree } = read(source);

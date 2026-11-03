@@ -23,9 +23,9 @@ scene start
 end
 `;
 
-const LAYOUT_ONLY = `layout hud with
+const LAYOUT_ONLY = `layout hud {
   text "Static."
-end
+}
 scene start
   [[open hud]]
   done

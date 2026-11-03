@@ -1,14 +1,14 @@
-style --[[ note ]] banner with
+style --[[ note ]] banner {
   color = red
-end
+}
 
-layout --[[ note ]] hud with
+layout --[[ note ]] hud {
   text "hi"
-end
+}
 
-component --[[ note ]] card with
+component --[[ note ]] card {
   text "card"
-end
+}
 
 scene start
   The rain stops on the rooftop.

@@ -394,10 +394,10 @@ const FORMS: Record<string, Form> = {
     fixture: "header-comment-other-blocks-1343",
     control:
       'define Person with\n  name = "a"\nend\n' +
-      "animation fade with\n  keyframes {\n    from { opacity = 0 }\n  }\nend\n" +
-      "theme t with\n  colors { primary = red }\nend\n" +
-      "morph m with\n  method = bend\n  keyframes {\n    { offset = 0; eyes { state = eyes.open } }\n    { offset = 0.4; eyes { state = eyes.closed } }\n  }\nend\n" +
-      "screen hud with\nend\n" +
+      "animation fade {\n  keyframes {\n    from { opacity = 0 }\n  }\n}\n" +
+      "theme t {\n  colors { primary = red }\n}\n" +
+      "morph m {\n  method = bend\n  keyframes {\n    { offset = 0; eyes { state = eyes.open } }\n    { offset = 0.4; eyes { state = eyes.closed } }\n  }\n}\n" +
+      "screen hud {\n}\n" +
       "external message(x)\nscene start\n  Hi.\nend\n",
     scopes: [
       ["Person", DEFINE_NAME],
@@ -664,7 +664,7 @@ test("an attribute argument that is not a literal reports Luau's errors (#1924)"
 });
 
 test("a header keyword inside a body line's comment declares no name (#1924)", () => {
-  const source = "style banner with\n  --[[style --[[note]] accidental\nend\nHello.\n";
+  const source = "style banner {\n  --[[style --[[note]] accidental\n}\nHello.\n";
   const names: string[] = [];
   parseSource(source).iterate({
     enter: (node) => {

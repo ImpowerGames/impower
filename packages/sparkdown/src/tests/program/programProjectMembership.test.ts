@@ -317,8 +317,8 @@ describe("declaration order", () => {
   it("reports a layout declared in two scripts, naming both", () => {
     const UI = `${ROOT}scripts/ui.sd`;
     const program = compileProject({
-      [MAIN]: lines("layout hud with", '  text "Main"', "end", "scene start", "  Main.", "end"),
-      [UI]: lines("layout hud with", '  text "UI"', "end"),
+      [MAIN]: lines("layout hud {", '  text "Main"', "}", "scene start", "  Main.", "end"),
+      [UI]: lines("layout hud {", '  text "UI"', "}"),
     });
     const errors = Object.entries(program.diagnostics ?? {}).flatMap(
       ([uri, diagnostics]) =>
@@ -348,8 +348,8 @@ describe("declaration order", () => {
   it("reports a component declared in two scripts, and keeps the first in both its definitions", () => {
     const UI = `${ROOT}scripts/ui.sd`;
     const program = compileProject({
-      [MAIN]: lines("component badge with", '  text "Main"', "end", "scene start", "  Main.", "end"),
-      [UI]: lines("component badge with", '  text "UI"', "end"),
+      [MAIN]: lines("component badge {", '  text "Main"', "}", "scene start", "  Main.", "end"),
+      [UI]: lines("component badge {", '  text "UI"', "}"),
     });
     expect(reported(program, `Component \`badge\` is declared in main.sd and in scripts/ui.sd. Declare it in one script.`)).toEqual([
       [MAIN, 0],
@@ -364,12 +364,12 @@ describe("declaration order", () => {
   it("keeps a layout declared twice in one script as the later declaration, with no report", () => {
     const program = compileProject({
       [MAIN]: lines(
-        "layout hud with",
+        "layout hud {",
         '  text "First"',
-        "end",
-        "layout hud with",
+        "}",
+        "layout hud {",
         '  text "Second"',
-        "end",
+        "}",
         "scene start",
         "  Main.",
         "end",
@@ -430,8 +430,8 @@ describe("declaration order", () => {
     const other = `${ROOT}scripts/${spelled}`;
     const program = compileProject(
       {
-        [MAIN]: lines("layout hud with", '  text "Main"', "end", "scene start", "  Main.", "end"),
-        [other]: lines("layout hud with", '  text "Other"', "end"),
+        [MAIN]: lines("layout hud {", '  text "Main"', "}", "scene start", "  Main.", "end"),
+        [other]: lines("layout hud {", '  text "Other"', "}"),
       },
       MAIN,
       hosts[host],
@@ -445,9 +445,9 @@ describe("declaration order", () => {
 
   it("registers main's declarations first and then each script's by path", () => {
     const program = compileProject({
-      [MAIN]: lines("layout zeta with", '  text "Z"', "end", "scene start", "  Main.", "end"),
-      [`${ROOT}scripts/b.sd`]: lines("layout beta with", '  text "B"', "end"),
-      [`${ROOT}scripts/a.sd`]: lines("layout alpha with", '  text "A"', "end"),
+      [MAIN]: lines("layout zeta {", '  text "Z"', "}", "scene start", "  Main.", "end"),
+      [`${ROOT}scripts/b.sd`]: lines("layout beta {", '  text "B"', "}"),
+      [`${ROOT}scripts/a.sd`]: lines("layout alpha {", '  text "A"', "}"),
     });
     expect(errorsOf(program)).toEqual([]);
     expect(

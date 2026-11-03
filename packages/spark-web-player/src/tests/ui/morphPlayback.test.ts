@@ -365,7 +365,7 @@ end
   });
 
   test("a drawing carried in its partner's shape shows at the held pose as the reference renderer draws it", async () => {
-    const source = SOURCE.replace(blinkScript(TIMING), `morph blink with
+    const source = SOURCE.replace(blinkScript(TIMING), `morph blink {
   method = bend
   layers {
     eyeball-shadow-left { partner = eyelash-left }
@@ -379,7 +379,7 @@ end
 ${TIMING}  clips {
     { between { eyelash-left }; targets { eyeball-white-left; eyeball-shadow-left; pupil-left } }
   }
-end
+}
 `);
     const files = [{ ...FILES[0]!, data: partnerPortrait() }];
     const { h, frames, playback } = await previewed(source, files);

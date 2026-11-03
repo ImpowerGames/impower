@@ -5,12 +5,12 @@ import {
   flushMicrotasks,
 } from "./harness/uiTestHarness";
 
-const inventory = (element: string) => `layout inventory with
+const inventory = (element: string) => `layout inventory {
   column.panel #child-gap=8 {
     ${element}
     text "Rope"
   }
-end
+}
 
 scene start
   [[open inventory]]
@@ -100,12 +100,12 @@ describe("an author's element whose class names a builtin target", () => {
 
   test("`text.title` in a layout that replaces `main` is not written by the story's title", async () => {
     const { h, hidden, writes, idsNamed, created } = await run(
-      `layout main with
+      `layout main {
   column.panel {
     text.title "Inventory"
     text "Rope"
   }
-end
+}
 
 scene start
   ^: Chapter One
@@ -125,12 +125,12 @@ end
 describe("a target no element is named after", () => {
   test("takes a container carrying its class as its slot in a layout that replaces `main`", async () => {
     const { h, writes, idsNamed, created } = await run(
-      `layout main with
+      `layout main {
   column.panel {
     row.title { text "Inventory" }
     text "Rope"
   }
-end
+}
 
 scene start
   ^: Chapter One
@@ -157,12 +157,12 @@ end
 
   test("still reveals an author's `text.continue_indicator` in a layout that replaces `main`", async () => {
     const { hidden, idsNamed, created, h } = await run(
-      `layout main with
+      `layout main {
   column.panel {
     text "Rope"
     text.continue_indicator "Next"
   }
-end
+}
 
 scene start
   You rummage through your pack.
@@ -189,10 +189,10 @@ end
 
   test("reaches the layer with its classes and not a label with them, and the write names it", async () => {
     const { h, hidden, writes, idsNamed, created } = await run(
-      `layout hud with
+      `layout hud {
   box.avatar { image }
   text.avatar "Label"
-end
+}
 
 define HERO as image with
   src = "https://example.com/hero.png"

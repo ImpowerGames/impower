@@ -30,7 +30,7 @@ define b as image with
   src = "https://example.com/b.png"
 end
 
-layout main with
+layout main {
   stage {
     portrait {
       image
@@ -52,7 +52,7 @@ layout main with
       text
     }
   }
-end
+}
 `;
 
 function story(body: string) {

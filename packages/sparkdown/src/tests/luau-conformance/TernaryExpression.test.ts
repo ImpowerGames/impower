@@ -776,7 +776,7 @@ describe("if expression without an else", () => {
 
   test("in a Sparkle prop binding", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `layout main with\n  text "x" #opacity={if true then 1}\nend\n`,
+      `layout main {\n  text "x" #opacity={if true then 1}\n}\n`,
     );
     expect(ctx.errorMessages.filter((m) => m.includes(MISSING_ELSE))).toHaveLength(1);
   });

@@ -1245,20 +1245,20 @@ define style with
   ["$recursive"] = true
 end
 
-style main with
+style main {
   text-font = "system-ui, -apple-system, \"Segoe UI\", Roboto, Oxygen, Ubuntu, Cantarell, Helvetica, Arial, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\""
   text-size = 1rem
   text-leading = 1.5
   text-weight = 400
   text-color = slate_80
-end
+}
 
 // `layouts` is the container the engine puts every layout inside, so it is the
 // one place a rule can reach the WHOLE ui. Reserved for behaviour that belongs
 // to any element regardless of what it is or which layout it sits in; keep it
 // to `& >> …` descendant rules, since the element itself is positioned by the
 // engine with inline styles.
-style layouts with
+style layouts {
   -- HANDLERS. The ui marks every element it attaches an event handler to with
   -- `data-ui-handler`, and this rule opts it into the pointer, which the
   -- overlay leaves off by default (see spark-web-player.css). `:where()` keeps
@@ -1410,16 +1410,16 @@ style layouts with
       animation-iteration-count = infinite
     }
   }
-end
+}
 
-style row with
+style row {
   display = flex
   flex_direction = row
   -- A row is a BLOCK in the flow, so it takes the rhythm itself...
   -- Named for the same reason as `text`: `> *` only TIES with `.button` on
   -- specificity and `style button` is declared later, so a bare `> *` would
   -- lose and every button in a row would carry a rhythm step above it.
-end
+}
 
 // The generic BLOCK wrapper: a plain container with no meaning attached.
 //
@@ -1441,28 +1441,28 @@ end
 //
 // Reach for whichever matches the rhythm you want; mixing the two inside one
 // container is what double-spaces things.
-style block with
+style block {
   display = block
-end
+}
 
-style column with
+style column {
   display = flex
   flex_direction = column
-end
+}
 
-style stack with
+style stack {
   > * {
     position = absolute
     inset = 0
   }
-end
+}
 
-style overlay with
+style overlay {
   position = absolute
   inset = 0
-end
+}
 
-style text with
+style text {
   display = block
   pointer_events = auto
   user_select = none
@@ -1471,9 +1471,9 @@ style text with
   >> * {
     display = inline
   }
-end
+}
 
-style stroke with
+style stroke {
   display = block
   -- An element with a handler (`data-ui-handler`) keeps the pointer the
   -- `layouts` rule gives it.
@@ -1490,25 +1490,25 @@ style stroke with
   >> * {
     display = inline
   }
-end
+}
 
-style text_line with
+style text_line {
   display = block
   text_wrap = wrap
-end
+}
 
-style text_word with
+style text_word {
   display = inline-block
-end
+}
 
-style text_space with
+style text_space {
   display = inline
-end
+}
 
-style text_letter with
-end
+style text_letter {
+}
 
-style image with
+style image {
   display = block
   pointer_events = auto
   position = absolute
@@ -1526,15 +1526,15 @@ style image with
     will_change = transform
     min_width = 100%
   }
-end
+}
 
-style object with
+style object {
   height = 100%
   object_fit = cover
   visibility = hidden
-end
+}
 
-style mask with
+style mask {
   display = block
   pointer_events = auto
   position = absolute
@@ -1550,9 +1550,9 @@ style mask with
     mask_size = auto 100%
     will_change = transform
   }
-end
+}
 
-style loading with
+style loading {
   -- The engine-managed loading screen, opened and closed by `load`. A normal
   -- layout an author may replace (`layout loading with … end`) or restyle
   -- (`style loading with … end`). Progress reaches it through the reactive
@@ -1563,41 +1563,41 @@ style loading with
   pointer_events = auto
   align_items = center
   justify_content = center
-end
+}
 
-style loading_backdrop with
+style loading_backdrop {
   position = absolute
   inset = 0
   background_color = black
-end
+}
 
-style loading_content with
+style loading_content {
   position = relative
   display = flex
   flex_direction = column
   align_items = center
   gap = 1rem
   width = min(60%, 320px)
-end
+}
 
-style loading_bar with
+style loading_bar {
   position = relative
   width = 100%
   height = 4px
   overflow = hidden
   background_color = rgb(255 255 255 / 20%)
-end
+}
 
-style loading_fill with
+style loading_fill {
   width = 100%
   height = 100%
   background_color = cyan_60
   transform = scaleX(0)
   transform_origin = left
   transition = transform 0.15s linear
-end
+}
 
-style cutscene with
+style cutscene {
   -- The full-screen backdrop a `[[play NAME]]` cutscene plays on, above every
   -- layout and the loading screen. An author may restyle it (`style cutscene
   -- with … end`).
@@ -1606,18 +1606,18 @@ style cutscene with
   z_index = 2000
   background_color = black
   pointer_events = auto
-end
+}
 
-style cutscene_video with
+style cutscene_video {
   position = absolute
   inset = 0
   width = 100%
   height = 100%
   object_fit = contain
   pointer_events = auto
-end
+}
 
-style screen with
+style screen {
   position = absolute
   inset = 0
   -- An element with a handler (`data-ui-handler`) keeps the pointer the
@@ -1628,14 +1628,14 @@ style screen with
   >> :where(:not(#data-ui-handler)) {
     pointer_events = none
   }
-end
+}
 
-style stage with
+style stage {
   position = absolute
   inset = 0
   display = flex
   flex_direction = column
-end
+}
 
 // The style named after each of the story's display targets (`backdrop`,
 // `portrait`, and the textbox's `character_name` through `action` below)
@@ -1648,16 +1648,16 @@ end
 // target's absolute, centered box, and a `row.dialogue.title` that is only
 // the dialogue slot takes the dialogue style alone. The `:where` adds no
 // specificity, so each style keeps the specificity of its class.
-style backdrop with
+style backdrop {
   &:where(#data-display-target~=backdrop) {
     position = absolute
     inset = 0
     background_position = center
     background_size = cover
   }
-end
+}
 
-style portrait with
+style portrait {
   &:where(#data-display-target~=portrait) {
     position = absolute
     top = 10%
@@ -1672,9 +1672,9 @@ style portrait with
       mix_blend_mode = plus-lighter
     }
   }
-end
+}
 
-style choices with
+style choices {
   position = relative
   flex = 1
   display = flex
@@ -1687,13 +1687,13 @@ style choices with
   @screen_size(sm) {
     margin_bottom = 120px
   }
-end
+}
 
 // The story writes each choice to `choice 0`, `choice 1` and so on, and the
 // ui marks every element those writes reach with `choice`, so this style
 // reaches the story's choices and not an author's `button.choice`, as
 // `style backdrop` describes for the other display targets.
-style choice with
+style choice {
   &:where(#data-display-target~=choice) {
     display = flex
     flex_direction = row
@@ -1712,9 +1712,9 @@ style choice with
       transition = all 0.15s linear
     }
   }
-end
+}
 
-style button with
+style button {
   pointer_events = auto
   -- INLINE-flex. A button is an inline-level control -- the reference's own
   -- submit is an `<input type=submit>`, which is inline-block -- and that
@@ -1844,7 +1844,7 @@ style button with
       margin-right = 0.5rem
     }
   }
-end
+}
 
 // A form control with quoted content (`slider "Master Volume"`) renders as a
 // `label` holding its wording and a `control`. The label carries the widget's
@@ -1878,7 +1878,7 @@ end
 //   specificity, while `@disabled` and an author's own `> control` rule still
 //   win over it. The engine and the tooltip rule in `style layouts` leave
 //   such a control's pointer to its label for the same reason.
-style checkbox with
+style checkbox {
   &:where(label) {
     pointer_events = auto
     text-weight = 400
@@ -1928,7 +1928,7 @@ style checkbox with
   > :where(#data-widget-control) {
     pointer_events = inherit
   }
-end
+}
 
 // `input` is the generic form control (`input #type="email|search|date|…"`).
 // It needs the same chrome as `field`, which is just `input #type="text"` under
@@ -1945,7 +1945,7 @@ end
 // game menu, where a `row` of dropdowns and sliders would carry a rhythm step
 // under each one that nothing asked for and no gap accounts for. Spacing a
 // form is the FORM's business, and the showcase states it per control.
-style input with
+style input {
   &:where(label) {
     pointer_events = auto
     text-weight = 400
@@ -2037,9 +2037,9 @@ style input with
   > :where(#data-widget-control) {
     pointer_events = inherit
   }
-end
+}
 
-style radio with
+style radio {
   &:where(label) {
     pointer_events = auto
     text-weight = 400
@@ -2081,13 +2081,13 @@ style radio with
   > :where(#data-widget-control) {
     pointer_events = inherit
   }
-end
+}
 
 // A `switch` is a checkbox carrying role="switch". Pico draws it as a pill
 // TRACK with a sliding THUMB rather than a box, so the native checkbox
 // appearance is dropped and the thumb is an `@before` pseudo-element that
 // translates across on `@checked`.
-style switch with
+style switch {
   &:where(label) {
     pointer_events = auto
     text-weight = 400
@@ -2144,9 +2144,9 @@ style switch with
   > :where(#data-widget-control) {
     pointer_events = inherit
   }
-end
+}
 
-style textarea with
+style textarea {
   -- A form control fills its form. This was free while the form was a flex
   -- column -- `align-items: stretch` sized every child -- and became invisible
   -- the moment the form became a block: `width: auto` on a form control means
@@ -2184,9 +2184,9 @@ style textarea with
     border-color = slate_40
     shadow = none
   }
-end
+}
 
-style slider with
+style slider {
   &:where(label) {
     pointer_events = auto
     text-weight = 400
@@ -2307,9 +2307,9 @@ style slider with
   > :where(#data-widget-control) {
     pointer_events = inherit
   }
-end
+}
 
-style link with
+style link {
   -- Softer than the text it belongs to, and clear of the descenders.
   text-decoration-color = color-mix(in srgb, currentColor 50%, transparent)
   text-underline-offset = 0.125rem
@@ -2345,9 +2345,9 @@ style link with
       text-decoration-color = currentColor
     }
   }
-end
+}
 
-style dropdown with
+style dropdown {
   -- A form control fills its form. This was free while the form was a flex
   -- column -- `align-items: stretch` sized every child -- and became invisible
   -- the moment the form became a block: `width: auto` on a form control means
@@ -2399,15 +2399,15 @@ style dropdown with
   &.valid {
     background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
   }
-end
+}
 
-style option with
+style option {
   pointer_events = auto
-end
+}
 
 // Pico UI component classes ------------------------------------------------
 
-style h1 with
+style h1 {
   text-size = 2rem
   text-weight = 700
   text-leading = 1.125
@@ -2421,9 +2421,9 @@ style h1 with
     margin-top = 0
   }
   margin-bottom = 1rem
-end
+}
 
-style h2 with
+style h2 {
   text-size = 1.75rem
   text-weight = 700
   text-leading = 1.15
@@ -2437,9 +2437,9 @@ style h2 with
     margin-top = 0
   }
   margin-bottom = 1rem
-end
+}
 
-style h3 with
+style h3 {
   text-size = 1.5rem
   text-weight = 700
   text-leading = 1.175
@@ -2452,9 +2452,9 @@ style h3 with
     margin-top = 0
   }
   margin-bottom = 1rem
-end
+}
 
-style h4 with
+style h4 {
   text-size = 1.25rem
   text-weight = 700
   text-leading = 1.2
@@ -2468,9 +2468,9 @@ style h4 with
   }
   text-color = slate_75
   margin-bottom = 1rem
-end
+}
 
-style h5 with
+style h5 {
   text-size = 1.125rem
   text-weight = 700
   text-leading = 1.225
@@ -2484,9 +2484,9 @@ style h5 with
     margin-top = 0
   }
   margin-bottom = 1rem
-end
+}
 
-style h6 with
+style h6 {
   text-size = 1rem
   text-weight = 700
   text-leading = 1.25
@@ -2500,11 +2500,11 @@ style h6 with
     margin-top = 0
   }
   margin-bottom = 1rem
-end
+}
 
-style muted with
+style muted {
   text-color = slate_60
-end
+}
 
 // A document paragraph, and the one block builtin that keeps a MARGIN.
 //
@@ -2516,23 +2516,23 @@ end
 //
 // That is also the difference a reader can see between `paragraph` and `text`:
 // `text` is a bare div that takes its rhythm from its parent's gap.
-style paragraph with
+style paragraph {
   display = block
   margin-bottom = 1rem
-end
+}
 
-style small with
+style small {
   text-size = 0.875em
-end
+}
 
-style container with
+style container {
   width = 100%
   -- Pico's container caps at a fixed 700px at this breakpoint and adds no
   -- horizontal padding, so the text column is exactly 700px wide.
   width-max = 700px
   margin = 0 auto
   padding = 1rem 0
-end
+}
 
 // Inline text CLASSES -------------------------------------------------------
 //
@@ -2544,49 +2544,49 @@ end
 // `sup` / `abbr` inside a `row` or `column` compute to `display: block` and
 // stack instead of flowing inline, no matter what their own rule says. Put them
 // in a `prose` box (the only non-flex text container) to get real inline flow.
-style prose with
+style prose {
   display = block
   text-color = slate_90
-end
+}
 
 // `strong` / `emphasis` are ELEMENTS (they mean importance / stress emphasis);
 // `bold` / `italic` are the purely visual CLASSES. Same rendering, different
 // meaning — mirroring HTML's own <strong>/<em> vs <b>/<i> split.
-style strong with
+style strong {
   display = inline
   text-weight = 700
-end
+}
 
-style emphasis with
+style emphasis {
   display = inline
   text-style = italic
-end
+}
 
-style bold with
+style bold {
   text-weight = 700
-end
+}
 
-style italic with
+style italic {
   text-style = italic
-end
+}
 
-style underline with
+style underline {
   text-decoration-line = underline
-end
+}
 
-style strikethrough with
+style strikethrough {
   text-decoration-line = line-through
-end
+}
 
-style code with
+style code {
   font-family = ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace
   text-size = 0.875rem
   background-color = slate_30
   corner = 0.25rem
   padding = 0.125rem 0.375rem
-end
+}
 
-style kbd with
+style kbd {
   display = inline-block
   justify-self = start
   align-self = start
@@ -2599,9 +2599,9 @@ style kbd with
   padding = 0.375rem
   -- Hugs its own font box the way an inline element does.
   text-leading = normal
-end
+}
 
-style highlight with
+style highlight {
   display = inline-block
   justify-self = start
   align-self = start
@@ -2610,18 +2610,18 @@ style highlight with
   padding = 0.125rem 0.25rem
   -- Hugs its own font box the way an inline element does.
   text-leading = normal
-end
+}
 
-style deleted with
+style deleted {
   text-decoration = line-through
   text-color = #ce7e7b
-end
+}
 
-style inserted with
+style inserted {
   text-color = #62af9a
-end
+}
 
-style abbreviation with
+style abbreviation {
   -- Hugs its text: `text` is a block, so a border-bottom would otherwise rule
   -- the full column width instead of underlining just the word.
   display = inline-block
@@ -2632,11 +2632,11 @@ style abbreviation with
   cursor = help
   -- Hugs its own font box the way an inline element does.
   text-leading = normal
-end
+}
 
 // `divider` renders an <hr>. The overlay's flex default would collapse it, so
 // it is an explicit block rule.
-style divider with
+style divider {
   display = block
   width = 100%
   height = 0
@@ -2645,9 +2645,9 @@ style divider with
   border-top-width = 0.0625rem
   border-top-style = solid
   border-top-color = slate_40
-end
+}
 
-style citation with
+style citation {
   -- An attribution sits slightly apart from the quotation it credits -- the
   -- reference gets the same half-step by wrapping its <cite> in a <footer>.
   -- Without it the citation reads as the quote's last line rather than as a
@@ -2655,9 +2655,9 @@ style citation with
   margin-top = 0.5rem
   text-style = italic
   text-color = slate_60
-end
+}
 
-style quote with
+style quote {
   display = block
   margin-top = 1rem
   margin-bottom = 1rem
@@ -2674,7 +2674,7 @@ style quote with
   > :last-child {
     margin-bottom = 0
   }
-end
+}
 
 // Lists ---------------------------------------------------------------------
 
@@ -2682,7 +2682,7 @@ end
 // overlay lays everything out as flex, and a flex `<li>` renders NO marker (a
 // marker needs `display: list-item`). `child-gap` likewise does nothing on a
 // non-flex parent, so list spacing is per-item margin.
-style list with
+style list {
   display = block
   -- No marker and no indent by DEFAULT. A game's lists are overwhelmingly
   -- plain stacks -- menus, inventories, option rows -- and every one of those
@@ -2691,7 +2691,7 @@ style list with
   list-style = none
   padding-left = 0
   margin-bottom = 1rem
-end
+}
 
 // The document look for a plain `list`, in one word -- marker AND the indent it
 // needs, since a marker with no padding renders outside the content box:
@@ -2704,41 +2704,41 @@ end
 // mean restating the indent:
 //
 //   list.bulleted #list-mark="circle" { … }
-style bulleted with
+style bulleted {
   -- The LONGHAND, so `#list-mark` (an inline style setting the same longhand)
   -- cleanly wins over it. The `list-style` shorthand would also reset
   -- position/image, which is not this class's business.
   list-style-type = disc
   padding-left = 40px
-end
+}
 
 // An ordered list arrives NUMBERED -- that is what it is for. `#list-mark`
 // changes or drops the numerals without giving up the ordering:
 //
 //   ordered_list #list-mark="lower-roman" { … }
 //   ordered_list #list-mark="none" { … }    -- still an <ol>, still announced ordered
-style ordered_list with
+style ordered_list {
   display = block
   list-style = decimal
   padding-left = 40px
   margin-bottom = 1rem
-end
+}
 
-style item with
+style item {
   display = list-item
   margin-bottom = 0.25rem
   -- Trailing space belongs BETWEEN items, not after the last one.
   @last {
     margin-bottom = 0
   }
-end
+}
 
 // Tables --------------------------------------------------------------------
 
 // The table family needs its native display values spelled out: the overlay
 // lays every element out as FLEX, and a flex table/row/cell does no table
 // layout at all (columns stop aligning across rows).
-style table_header with
+style table_header {
   display = table-header-group
   >> head {
     text-weight = 600
@@ -2748,70 +2748,70 @@ style table_header with
     text-weight = 600
     border-bottom-width = 0.1875rem
   }
-end
+}
 
-style table_body with
+style table_body {
   display = table-row-group
-end
+}
 
-style table_footer with
+style table_footer {
   display = table-footer-group
-end
+}
 
-style table_row with
+style table_row {
   display = table-row
-end
+}
 
-style table with
+style table {
   display = table
   width = 100%
   border-collapse = collapse
   text-align = left
   margin-bottom = 1rem
-end
+}
 
-style head with
+style head {
   display = table-cell
   text-weight = 400
   padding = 0.5rem 1rem
   border-bottom-width = 0.0625rem
   border-bottom-style = solid
   border-bottom-color = slate_30
-end
+}
 
-style cell with
+style cell {
   display = table-cell
   padding = 0.5rem 1rem
   border-bottom-width = 0.0625rem
   border-bottom-style = solid
   border-bottom-color = slate_30
-end
+}
 
 // `table.striped` tints alternate BODY rows. `@odd` is the nth-child alias, so
 // this needs no per-row authoring.
-style striped with
+style striped {
   > table_body {
     > @odd {
       background-color = rgb(111 120 135 / 3.75%)
     }
   }
-end
+}
 
 // A captioned figure. The overlay forces every element to flex, so the
 // column direction has to be stated rather than inherited from `display:block`.
-style figure with
+style figure {
   display = block
-end
+}
 
-style picture with
+style picture {
   display = block
   align-self = start
   width-max = 100%
   height = auto
   border-style = none
-end
+}
 
-style caption with
+style caption {
   padding = 0.5rem 0
   text-color = slate_60
   -- Spans the figure rather than shrink-wrapping: the figure aligns its
@@ -2830,11 +2830,11 @@ style caption with
   > * {
     display = inline
   }
-end
+}
 
 // Foldout: a native <details>/<summary> disclosure. One foldout; an
 // "accordion" is a GROUP of these, which is why the element is not named that.
-style foldout_label with
+style foldout_label {
   pointer_events = auto
   display = list-item
   text-leading = 1
@@ -2882,8 +2882,8 @@ style foldout_label with
       border-color = slate_60
     }
   }
-end
-style foldout with
+}
+style foldout {
   -- No margin. A `foldout` is BOTH a document disclosure and a menu control --
   -- the nav dropdown is one -- and no single default is right for both. It used
   -- to carry `margin-bottom: 1rem` plus a `&.menu` rule undoing it, which is
@@ -2906,11 +2906,11 @@ style foldout with
       }
     }
   }
-end
+}
 // `menu` is a `foldout` styled as a nav dropdown — Pico names the class
 // `dropdown`, but here that word is already the <select> ELEMENT. The panel is
 // absolutely positioned so opening it does not reflow the nav.
-style menu with
+style menu {
   position = relative
   -- `display = none` is stated because the overlay forces every element to
   -- flex, which overrides the hiding <details> would otherwise do itself.
@@ -2998,11 +2998,11 @@ style menu with
       text-color = slate_90
     }
   }
-end
+}
 
 // Pico marks a search field with an inline magnifier and indents the text
 // past it, so the field reads as a search box before it is focused.
-style search with
+style search {
   &:where(:not(label)), > :where(.control) {
     corner = 5rem
     background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E")
@@ -3011,11 +3011,11 @@ style search with
     background-size = 1rem auto
     padding-left = 2.75rem
   }
-end
+}
 
 // A file input draws its own button, so the surrounding field chrome the
 // other `input` types get would be a box around a box. Pico leaves it bare.
-style file_input with
+style file_input {
   &:where(:not(label)), > :where(.control) {
     background-color = transparent
     border-style = none
@@ -3050,7 +3050,7 @@ style file_input with
       pointer-events = none
     }
   }
-end
+}
 
 // SCROLLING IS AN INTERACTION, so a scroller has to be hit-testable.
 //
@@ -3065,13 +3065,13 @@ end
 // gesture DOES land whenever the pointer happens to be over a control that had
 // opted in; it stuck over any stretch of plain content, and never scrolled at
 // all over a wide region with no controls in it, like a table.
-style scroller with
+style scroller {
   pointer_events = auto
-end
+}
 
 // A horizontal scroll box for a table too wide for its container. The overlay
 // makes everything flex, so `display` is stated explicitly.
-style overflow_auto with
+style overflow_auto {
   display = block
   overflow-x = auto
   width = 100%
@@ -3080,13 +3080,13 @@ style overflow_auto with
   -- genuinely overflows -- it simply cannot be grabbed or wheeled, which reads
   -- as "overflow is broken" rather than as a pointer problem.
   pointer_events = auto
-end
+}
 
 // Structure -----------------------------------------------------------------
 
 // Pico's article is a card whose own `header`/`footer` are tinted sectioning
 // bands separated by a rule, so they are targeted as direct children.
-style article with
+style article {
   display = block
   margin-bottom = 1rem
   background-color = slate_30
@@ -3143,17 +3143,17 @@ style article with
     child-justify = center
     min-height = 3.5rem
   }
-end
+}
 
-style header with
+style header {
   display = block
-end
+}
 
-style footer with
+style footer {
   display = block
-end
+}
 
-style section with
+style section {
   -- BLOCK, not flex. A semantic grouping element is document flow, so its
   -- children space themselves with margins that COLLAPSE: two blocks meeting
   -- give one step rather than two, and a last child's trailing margin passes
@@ -3165,9 +3165,9 @@ style section with
   -- collapse with a margin, it adds to it.
   display = block
   margin-bottom = 1rem
-end
+}
 
-style form with
+style form {
   display = block
   -- A button that the form itself lays out spans it, as the fields do. Not on
   -- `button` generally: a button inside a `row` or a `group` is sized by that
@@ -3175,10 +3175,10 @@ style form with
   > button {
     width = 100%
   }
-end
+}
 
 // Pico strips the default fieldset chrome and uses it purely as a grouping box.
-style fieldset with
+style fieldset {
   display = block
   border-width = 0
   padding = 0
@@ -3189,16 +3189,16 @@ style fieldset with
   -- control at 0.375rem while controls stand a full step apart.
   margin = 0
   margin-bottom = 1rem
-end
+}
 
-style legend with
+style legend {
   text-weight = 600
   padding = 0
   -- A legend introduces the controls under it, so it owns the space between
   -- itself and the first one. Half a step, not a full one: the pair reads as
   -- one unit rather than two stacked blocks.
   margin-bottom = 0.5rem
-end
+}
 
 
 // Modal: authored as `modal`, rendering a native <dialog>, opened
@@ -3218,7 +3218,7 @@ end
 // A `<dialog>` with no `open` attribute is `display: none` natively, but the
 // base rule here has to restate that: setting `display: flex` unconditionally
 // would make a CLOSED modal visible.
-style modal with
+style modal {
   display = none
   position = fixed
   anchor = 0
@@ -3248,9 +3248,9 @@ style modal with
       text-align = right
     }
   }
-end
+}
 
-style card with
+style card {
   display = flex
   child-layout = column
   child-gap = 1rem
@@ -3260,9 +3260,9 @@ style card with
   border-width = 0.0625rem
   border-style = solid
   border-color = slate_40
-end
+}
 
-style nav with
+style nav {
   display = flex
   child-layout = row
   child-align = center
@@ -3286,14 +3286,14 @@ style nav with
       text-decoration = underline
     }
   }
-end
+}
 
 // `secondary` / `contrast` / `outline` carry no styling of their own — they are
 // MODIFIERS, and each element defines what they mean via compound selectors
 // (see `button` and `link`). Defining them standalone is what previously made
 // `link.secondary` render as a filled button.
 
-style badge with
+style badge {
   display = flex
   child-layout = row
   child-align = center
@@ -3304,12 +3304,12 @@ style badge with
   text-color = white
   text-size = 0.75rem
   text-weight = 600
-end
+}
 
 // Pico's `group` JOINS its children into one control (a field welded to its
 // button): no gap, and the inner corners squared off so they read as a single
 // unit. Use a plain `row #child-gap=…` for merely spaced children.
-style group with
+style group {
   -- INLINE-flex, matching the reference's `<fieldset>`. Not cosmetic: an
   -- inline-level box does not margin-collapse, so the group's own
   -- `margin-bottom` below STAYS INSIDE its form. As a block-level flex it
@@ -3370,21 +3370,21 @@ style group with
     corner-top-left = 0
     corner-bottom-left = 0
   }
-end
+}
 
 // Pico's `.grid` auto-fits however many children it has into ONE row of equal
 // columns (a fixed `1fr 1fr` wrapped a 3-up form onto two lines). `minmax(0,1fr)`
 // rather than plain `1fr` so a long child can shrink instead of overflowing.
-style grid with
+style grid {
   child-layout = grid
   child-columns = repeat(auto-fit, minmax(0, 1fr))
   child-gap = 1rem
-end
+}
 
 // A native <progress value max>. `accent-color` is what tints the filled part
 // of the native control; `progress_fill` below stays available for the
 // div-track-plus-fill construction.
-style progress with
+style progress {
   display = inline-block
   appearance = none
   overflow = hidden
@@ -3417,15 +3417,15 @@ style progress with
   text-color = sky_40
   border-style = none
   border-width = 0
-end
+}
 
-style progress_fill with
+style progress_fill {
   height = 100%
   corner = 0.25rem
   background-color = sky_60
-end
+}
 
-style label with
+style label {
   pointer_events = auto
   text-weight = 400
   margin-bottom = 0.375rem
@@ -3445,14 +3445,14 @@ style label with
   > input, > slider, > dropdown, > textarea {
     margin-top = 0.25rem
   }
-end
+}
 
-style hint with
+style hint {
   text-color = slate_60
   text-size = 0.875rem
-end
+}
 
-style invalid with
+style invalid {
   &:where(:not(label)), > :where(.control) {
     border-color = #964a50
     padding-right = 2.5rem
@@ -3465,9 +3465,9 @@ style invalid with
       shadow = 0 0 0 0.0625rem #ce7e7b
     }
   }
-end
+}
 
-style valid with
+style valid {
   &:where(:not(label)), > :where(.control) {
     border-color = #2a7b6f
     padding-right = 2.5rem
@@ -3480,9 +3480,9 @@ style valid with
       shadow = 0 0 0 0.0625rem #62af9a
     }
   }
-end
+}
 
-style textbox with
+style textbox {
   position = absolute
   bottom = 0
   left = 0
@@ -3492,15 +3492,15 @@ style textbox with
   align_items = center
   color = white
   flex = 1
-end
+}
 
-style textbox_background with
+style textbox_background {
   position = absolute
   inset = 0
   background_image = linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%)
-end
+}
 
-style textbox_content with
+style textbox_content {
   position = relative
   flex = 1
   display = flex
@@ -3514,9 +3514,9 @@ style textbox_content with
     min_height = 240px
     padding = 16px
   }
-end
+}
 
-style character_info with
+style character_info {
   display = flex
   flex_direction = row
   justify_content = center
@@ -3527,18 +3527,18 @@ style character_info with
   @screen_size(sm) {
     font_size = 1.5rem
   }
-end
+}
 
 // The textbox's display targets, scoped to `data-display-target` as
 // `style backdrop` describes.
-style character_name with
+style character_name {
   &:where(#data-display-target~=character_name) {
     padding_bottom = 8px
     font_weight = 600
   }
-end
+}
 
-style character_parenthetical with
+style character_parenthetical {
   &:where(#data-display-target~=character_parenthetical) {
     padding_bottom = 8px
     font_weight = 400
@@ -3547,9 +3547,9 @@ style character_parenthetical with
       font_size = 0.875rem
     }
   }
-end
+}
 
-style title with
+style title {
   &:where(#data-display-target~=title) {
     position = absolute
     inset = 0
@@ -3562,9 +3562,9 @@ style title with
     text_align = center
     font_weight = bold
   }
-end
+}
 
-style heading with
+style heading {
   &:where(#data-display-target~=heading) {
     position = absolute
     inset = 0
@@ -3577,9 +3577,9 @@ style heading with
     text_align = center
     font_weight = bold
   }
-end
+}
 
-style transitional with
+style transitional {
   &:where(#data-display-target~=transitional) {
     position = absolute
     inset = 0
@@ -3593,9 +3593,9 @@ style transitional with
     text_align = right
     width = 100%
   }
-end
+}
 
-style dialogue with
+style dialogue {
   &:where(#data-display-target~=dialogue) {
     margin = 0 auto
     width = 68%
@@ -3603,9 +3603,9 @@ style dialogue with
       width = 80%
     }
   }
-end
+}
 
-style action with
+style action {
   &:where(#data-display-target~=action) {
     position = absolute
     inset = 0
@@ -3617,9 +3617,9 @@ style action with
     align_self = center
     text_align = center
   }
-end
+}
 
-style continue_indicator with
+style continue_indicator {
   opacity = 0
   line_height = 1
   width = 16px
@@ -3631,22 +3631,22 @@ style continue_indicator with
   transition = opacity 0.25s linear
   animation = 0.5s infinite bounce
   animation_play_state = paused
-end
+}
 
 define screen with
   ["$recursive"] = true
 end
 
-layout loading with
+layout loading {
   loading_backdrop
   loading_content {
     loading_bar {
       loading_fill #transform="scaleX({game.loading.progress})"
     }
   }
-end
+}
 
-layout main with
+layout main {
   stage {
     animation
     backdrop {
@@ -3717,7 +3717,7 @@ layout main with
   screen {
     animation
   }
-end
+}
 
 define layer with
 end
@@ -3737,7 +3737,7 @@ define animation with
   timing = { delay = 0, duration = 0, easing = "ease", iterations = 1, fill = "both", direction = "normal" }
 end
 
-animation show with
+animation show {
   target = layer.self
   keyframes {
     {
@@ -3752,9 +3752,9 @@ animation show with
     fill = "both"
     direction = "normal"
   }
-end
+}
 
-animation hide with
+animation hide {
   target = layer.self
   keyframes {
     {
@@ -3769,9 +3769,9 @@ animation hide with
     fill = "both"
     direction = "normal"
   }
-end
+}
 
-animation align_left with
+animation align_left {
   target = layer.instance
   keyframes {
     {
@@ -3786,9 +3786,9 @@ animation align_left with
     fill = "both"
     direction = "normal"
   }
-end
+}
 
-animation align_center with
+animation align_center {
   target = layer.instance
   keyframes {
     {
@@ -3803,9 +3803,9 @@ animation align_center with
     fill = "both"
     direction = "normal"
   }
-end
+}
 
-animation align_right with
+animation align_right {
   target = layer.instance
   keyframes {
     {
@@ -3820,9 +3820,9 @@ animation align_right with
     fill = "both"
     direction = "normal"
   }
-end
+}
 
-animation spin with
+animation spin {
   target = layer.self
   keyframes {
     {
@@ -3837,12 +3837,12 @@ animation spin with
     fill = "none"
     direction = "normal"
   }
-end
+}
 
 // A tooltip bubble rises the last quarter-rem into place as it fades in, and
 // its caret follows. Two animations rather than one because the bubble and the
 // caret rest at different offsets (the caret sits flush against the element).
-animation tooltip_slide with
+animation tooltip_slide {
   target = layer.self
   keyframes {
     {
@@ -3862,9 +3862,9 @@ animation tooltip_slide with
     fill = "forwards"
     direction = "normal"
   }
-end
+}
 
-animation tooltip_caret_slide with
+animation tooltip_caret_slide {
   target = layer.self
   keyframes {
     {
@@ -3884,13 +3884,13 @@ animation tooltip_caret_slide with
     fill = "forwards"
     direction = "normal"
   }
-end
+}
 
 // Sweeps the coloured segment of an INDETERMINATE progress bar across its
 // track. `style progress` referenced this animation by name before it existed,
 // so the bar declared an animation that resolved to nothing and simply sat
 // still — a dangling @keyframes name is silently ignored, with no warning.
-animation progress_indeterminate with
+animation progress_indeterminate {
   target = layer.self
   -- No `offset` on these frames: two frames distribute to 0%/100% on their own,
   -- which is what's wanted, and `offset` currently does NOT drive the keyframe
@@ -3912,9 +3912,9 @@ animation progress_indeterminate with
     fill = "none"
     direction = "normal"
   }
-end
+}
 
-animation ping with
+animation ping {
   target = layer.self
   keyframes {
     {
@@ -3936,9 +3936,9 @@ animation ping with
     fill = "both"
     direction = "normal"
   }
-end
+}
 
-animation bounce with
+animation bounce {
   target = layer.self
   keyframes {
     {
@@ -3962,9 +3962,9 @@ animation bounce with
     fill = "none"
     direction = "normal"
   }
-end
+}
 
-animation wave with
+animation wave {
   target = layer.self
   keyframes {
     {
@@ -3985,9 +3985,9 @@ animation wave with
     fill = "both"
     direction = "normal"
   }
-end
+}
 
-animation wavy with
+animation wavy {
   target = layer.self
   keyframes {
     {
@@ -4008,9 +4008,9 @@ animation wavy with
     fill = "none"
     direction = "normal"
   }
-end
+}
 
-animation shaky with
+animation shaky {
   target = layer.self
   keyframes {
     {
@@ -4066,9 +4066,9 @@ animation shaky with
     fill = "none"
     direction = "normal"
   }
-end
+}
 
-animation shake with
+animation shake {
   target = layer.self
   keyframes {
     {
@@ -4113,9 +4113,9 @@ animation shake with
     fill = "none"
     direction = "normal"
   }
-end
+}
 
-animation shaking with
+animation shaking {
   target = layer.self
   keyframes {
     {
@@ -4160,9 +4160,9 @@ animation shaking with
     fill = "both"
     direction = "normal"
   }
-end
+}
 
-animation shiver with
+animation shiver {
   target = layer.self
   keyframes {
     {
@@ -4207,9 +4207,9 @@ animation shiver with
     fill = "none"
     direction = "normal"
   }
-end
+}
 
-animation shivering with
+animation shivering {
   target = layer.self
   keyframes {
     {
@@ -4254,9 +4254,9 @@ animation shivering with
     fill = "none"
     direction = "normal"
   }
-end
+}
 
-animation waitout with
+animation waitout {
   target = layer.self
   keyframes {
     {
@@ -4271,9 +4271,9 @@ animation waitout with
     fill = "both"
     direction = "normal"
   }
-end
+}
 
-animation waitin with
+animation waitin {
   target = layer.self
   keyframes {
     {
@@ -4291,9 +4291,9 @@ animation waitin with
     fill = "both"
     direction = "normal"
   }
-end
+}
 
-animation fadeout with
+animation fadeout {
   target = layer.self
   keyframes {
     {
@@ -4308,9 +4308,9 @@ animation fadeout with
     fill = "both"
     direction = "normal"
   }
-end
+}
 
-animation fadein with
+animation fadein {
   target = layer.self
   keyframes {
     {
@@ -4328,9 +4328,9 @@ animation fadein with
     fill = "both"
     direction = "normal"
   }
-end
+}
 
-animation pulse with
+animation pulse {
   target = layer.self
   keyframes {
     {
@@ -4351,9 +4351,9 @@ animation pulse with
     fill = "both"
     direction = "normal"
   }
-end
+}
 
-animation blackout with
+animation blackout {
   target = layer.self
   keyframes {
     {
@@ -4373,9 +4373,9 @@ animation blackout with
     fill = "both"
     direction = "normal"
   }
-end
+}
 
-animation blackin with
+animation blackin {
   target = layer.self
   keyframes {
     {
@@ -4395,9 +4395,9 @@ animation blackin with
     fill = "both"
     direction = "normal"
   }
-end
+}
 
-animation blackpulse with
+animation blackpulse {
   target = layer.self
   keyframes {
     {
@@ -4421,9 +4421,9 @@ animation blackpulse with
     fill = "both"
     direction = "normal"
   }
-end
+}
 
-animation whiteout with
+animation whiteout {
   target = layer.self
   keyframes {
     {
@@ -4443,9 +4443,9 @@ animation whiteout with
     fill = "both"
     direction = "normal"
   }
-end
+}
 
-animation whitein with
+animation whitein {
   target = layer.self
   keyframes {
     {
@@ -4465,9 +4465,9 @@ animation whitein with
     fill = "both"
     direction = "normal"
   }
-end
+}
 
-animation whitepulse with
+animation whitepulse {
   target = layer.self
   keyframes {
     {
@@ -4491,7 +4491,7 @@ animation whitepulse with
     fill = "both"
     direction = "normal"
   }
-end
+}
 
 // `method` has no default: every morph chooses one (match, bend or trace)
 // wherever `blend = morph` applies. `iteration_delay_min`/`_max` are absent,

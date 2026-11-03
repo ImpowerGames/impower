@@ -16,7 +16,7 @@ Show one branch depending on a condition:
 ```sparkdown
 store player = { dead = false, hp = 8 }
 
-layout hud with
+layout hud {
   if player.dead then
     text "GAME OVER"
   elseif player.hp < 10 then
@@ -24,7 +24,7 @@ layout hud with
   else
     text "HP: {player.hp}"
   end
-end
+}
 ```
 
 - The condition is any Luau expression.
@@ -39,7 +39,7 @@ end
 Render one copy of a block per item:
 
 ```sparkdown
-layout bag with
+layout bag {
   for key, item in player.inventory do
     row #child-gap=16 {
       text "{item.name}"
@@ -48,7 +48,7 @@ layout bag with
   else
     text "Your bag is empty."
   end
-end
+}
 
 scene start
   [[open bag]]
@@ -108,7 +108,7 @@ cleanly than a chain of `elseif`s:
 ```sparkdown
 store player = { class = "knight" }
 
-layout badge with
+layout badge {
   match player.class do
     case "knight"
       text "⚔ Knight"
@@ -117,7 +117,7 @@ layout badge with
     else
       text "Adventurer"
   end
-end
+}
 ```
 
 - **`match <expr> do  case <value> …  end`** — the first matching `case` wins.
@@ -132,7 +132,7 @@ Control-flow blocks nest freely inside each other and inside elements:
 ```sparkdown
 store party = { { name = "Ana", hp = 10 }, { name = "Bo", hp = 0 } }
 
-layout roster with
+layout roster {
   column #child-gap=8 {
     for member in party do
       row #child-gap=8 {
@@ -143,7 +143,7 @@ layout roster with
       }
     end
   }
-end
+}
 ```
 
 Next up: [Components](./Components.md) — packaging UI you reuse.

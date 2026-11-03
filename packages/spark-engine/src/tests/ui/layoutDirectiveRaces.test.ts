@@ -11,16 +11,16 @@ const drive = async (h: any, instant = true) => {
 };
 
 describe("navigate never closes `main`", () => {
-  const SOURCE = `layout main with
+  const SOURCE = `layout main {
   textbox {
     dialogue {
       text
     }
   }
-end
-layout menu with
+}
+layout menu {
   text "Menu"
-end
+}
 
 scene start
   [[navigate to menu]]
@@ -44,16 +44,16 @@ end
 });
 
 describe("close and open of the SAME layout in one beat", () => {
-  const SOURCE = `layout main with
+  const SOURCE = `layout main {
   textbox {
     dialogue {
       text
     }
   }
-end
-layout hud with
+}
+layout hud {
   text "HUD"
-end
+}
 
 scene start
   [[open hud]]
@@ -80,19 +80,19 @@ end
 });
 
 describe("navigate is a barrier across DIFFERENT layout names", () => {
-  const SOURCE = `layout main with
+  const SOURCE = `layout main {
   textbox {
     dialogue {
       text
     }
   }
-end
-layout hud with
+}
+layout hud {
   text "HUD"
-end
-layout menu with
+}
+layout menu {
   text "Menu"
-end
+}
 
 scene start
   [[open hud with fade over 0.5s]] [[navigate to menu]]

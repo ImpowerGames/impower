@@ -89,7 +89,7 @@ function set_pic(name)
   return ""
 end
 
-layout main with
+layout main {
   stage {
     badge {
       image "{pic}"
@@ -100,7 +100,7 @@ layout main with
       text
     }
   }
-end
+}
 
 
 
@@ -118,7 +118,7 @@ function set_mode(v)
   return ""
 end
 
-layout main with
+layout main {
   textbox {
     if mode then
       dialogue {
@@ -130,7 +130,7 @@ layout main with
       }
     end
   }
-end
+}
 
 
 
@@ -160,13 +160,13 @@ const BRANCHED_INSIDE = BRANCHED.replace(
     }`,
 );
 
-const SHARED = `layout main with
+const SHARED = `layout main {
   textbox {
     character_name.dialogue {
       text
     }
   }
-end
+}
 
 
 
@@ -185,7 +185,7 @@ function set_mode(v)
   return ""
 end
 
-layout main with
+layout main {
   textbox {
     if mode then
       title.action {
@@ -200,7 +200,7 @@ layout main with
       }
     end
   }
-end
+}
 
 
 
@@ -238,7 +238,7 @@ function bump()
   return evaluations
 end
 
-layout main with
+layout main {
   textbox {
     badge {
       text "{bump()}"
@@ -255,7 +255,7 @@ layout main with
       text "{bump()}"
     }
   }
-end
+}
 
 
 
@@ -268,7 +268,7 @@ const SWAPPED = `define HAPPY as image with
   src = "https://example.com/happy.png"
 end
 
-layout main with
+layout main {
   stage {
     backdrop.portrait {
       image
@@ -279,7 +279,7 @@ layout main with
       text
     }
   }
-end
+}
 
 
 
@@ -301,13 +301,13 @@ function set_word(v)
   return ""
 end
 
-layout main with
+layout main {
   textbox {
     dialogue {
       text "Says:"
     }
   }
-end
+}
 
 
 
@@ -318,7 +318,7 @@ end
 `;
 const ACTS = lineIn(PERSISTENT, "> Second.");
 
-const PLACEHOLDER = `layout main with
+const PLACEHOLDER = `layout main {
   textbox {
     character_name {
       text
@@ -330,7 +330,7 @@ const PLACEHOLDER = `layout main with
       text
     }
   }
-end
+}
 
 
 
@@ -346,7 +346,7 @@ const IMPLIED = `define HAPPY as image with
   src = "https://example.com/happy.png"
 end
 
-layout main with
+layout main {
   stage {
     portrait {
       image
@@ -360,7 +360,7 @@ layout main with
       text
     }
   }
-end
+}
 
 
 
@@ -373,19 +373,19 @@ end
 `;
 const IMPLIES = lineIn(IMPLIED, "[[show portrait HAPPY:sad]]");
 
-const OPENS = `layout main with
+const OPENS = `layout main {
   textbox {
     dialogue {
       text
     }
   }
-end
+}
 
-layout hud with
+layout hud {
   stats {
     text "HUD"
   }
-end
+}
 
 
 
@@ -432,7 +432,7 @@ function set_mode(v)
   return ""
 end
 
-layout main with
+layout main {
   button "Unset" @click=set_mode(false)
   badge {
     text "{mode}"
@@ -442,7 +442,7 @@ layout main with
       text
     }
   }
-end
+}
 
 
 
@@ -472,7 +472,7 @@ function bump()
   return ""
 end
 
-layout main with
+layout main {
   badge {
     text "{bump()}"
   }
@@ -484,7 +484,7 @@ layout main with
       text
     }
   }
-end
+}
 
 
 
@@ -494,7 +494,7 @@ scene start
 end
 `;
 
-const READS = (binding: string) => `layout main with
+const READS = (binding: string) => `layout main {
   badge {
     text "{${binding}}"
   }
@@ -503,7 +503,7 @@ const READS = (binding: string) => `layout main with
       text
     }
   }
-end
+}
 
 
 
@@ -517,7 +517,7 @@ const VISITED = `function f()
   return ""
 end
 
-layout main with
+layout main {
   badge {
     text "{count.visits(-> f)}"
   }
@@ -526,7 +526,7 @@ layout main with
       text
     }
   }
-end
+}
 
 
 
@@ -540,7 +540,7 @@ const CALLING = (call: string, bound: string) => `function shout(s)
   return s
 end
 
-layout main with
+layout main {
   badge {
     text "{${bound}}"
   }
@@ -549,7 +549,7 @@ layout main with
       text
     }
   }
-end
+}
 
 
 
@@ -561,7 +561,7 @@ end
 
 const STAMPED = (value: string) => `store stamp = 0
 
-layout main with
+layout main {
   badge {
     text "{stamp}"
   }
@@ -570,7 +570,7 @@ layout main with
       text
     }
   }
-end
+}
 
 
 
@@ -583,7 +583,7 @@ end
 const RETAINED = `store stamp = 7
 store skip = true
 
-layout main with
+layout main {
   badge {
     text "{stamp}"
   }
@@ -600,7 +600,7 @@ layout main with
       text
     }
   }
-end
+}
 
 
 
@@ -620,14 +620,14 @@ end
 
 const TYPED = `store name = "Zelda"
 
-layout main with
+layout main {
   input #value={name} @input={ }
   textbox {
     dialogue {
       text
     }
   }
-end
+}
 
 
 
