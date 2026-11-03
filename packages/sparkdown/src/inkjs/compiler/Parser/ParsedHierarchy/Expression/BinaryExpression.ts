@@ -32,9 +32,6 @@ export class BinaryExpression extends Expression {
     this.rightExpression.PrepareIntoContainer();
   }
 
-  // `and` and `or` keep the left value and jump past the right when it
-  // decides the result, as `ShortCircuit` does, and the right value adjusts
-  // to one value. Any other operator is its native function.
   public override EmitExpression(emitter: ProgramEmitter): void {
     const op = this.NativeNameForOp(this.opName);
     emitter.emitObject(this.leftExpression);

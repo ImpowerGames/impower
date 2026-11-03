@@ -6,15 +6,12 @@ import type {
   RouteResumePoint,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
-import { START_FLOW_NAME } from "@impower/sparkdown/src/program/ProgramSymbols";
 import { profile } from "../../utils/profile";
 import { programIdentity } from "../../utils/programIdentity";
 import type { RouteSearchLog } from "./RouteSearchLog";
 
 export interface RouteSearchSettings {
   profilerId?: string;
-  fromStart?: boolean;
-  startSearched?: boolean;
   source?: ScriptSource;
 }
 
@@ -33,24 +30,25 @@ export const searchRouteFor = (
   log: RouteSearchLog,
   settings: RouteSearchSettings,
 ): StoredCheckpoint | undefined => {
-  const {
-    profilerId,
-    fromStart = false,
-    startSearched = false,
-    source,
-  } = settings;
-  if (!fromStart && !startSearched && game.routesFromStartFirst(to)) {
-    const checkpoint = searchRouteFor(game, to, log, {
-      ...settings,
-      fromStart: true,
-    });
+  const starts = game.routeStartsOf(to);
+  let checkpoint: StoredCheckpoint | undefined;
+  for (const from of starts) {
+    checkpoint = searchRouteFrom(game, from, to, log, settings);
     if (log.outcomeFor(to)?.simulationFailure !== "exhausted") {
-      return checkpoint;
+      break;
     }
-    return searchRouteFor(game, to, log, { ...settings, startSearched: true });
   }
-  const searchedFromStart = fromStart || startSearched;
-  const from = fromStart ? START_FLOW_NAME : game.routeStartOf(to);
+  return checkpoint;
+};
+
+const searchRouteFrom = (
+  game: Game,
+  from: string,
+  to: ProgramAddress,
+  log: RouteSearchLog,
+  settings: RouteSearchSettings,
+): StoredCheckpoint | undefined => {
+  const { profilerId, source } = settings;
   profile("start", profilerId + " " + "game/routeResumption");
   const resumption = game.routeResumption(from, to);
   profile("end", profilerId + " " + "game/routeResumption");
@@ -62,13 +60,10 @@ export const searchRouteFor = (
       callerResetsStory: true,
       resumeFrom,
       levelZeroStore: game.levelZeroStore,
+      startPlans: game.startPlans,
       pins: game.pinnedOptions,
     };
-    const route = fromStart
-      ? Game.planRouteFromStart(game.story, game.program, to, budget)
-      : startSearched
-        ? Game.planRouteInFlow(game.story, game.program, from, to, budget)
-        : Game.planRoute(game.story, game.program, from, to, budget);
+    const route = Game.planRoute(game.story, game.program, from, to, budget);
     profile("end", profilerId + " " + "game/planRoute");
     return route;
   };
@@ -97,7 +92,6 @@ export const searchRouteFor = (
       shows: reachedTarget ? game.routeTargetShows : undefined,
       route: report,
       menus: reachedTarget ? Game.routeMenus(route) : undefined,
-      fromStart: searchedFromStart,
     });
     return checkpoint ?? undefined;
   };
@@ -136,7 +130,6 @@ export const searchRouteFor = (
       reachedTarget: false,
       simulationFailure: game.describeFailedRouteSearch(to),
       errors: game.searchErrors(),
-      fromStart: searchedFromStart,
     });
     return undefined;
   }

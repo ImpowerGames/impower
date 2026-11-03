@@ -164,7 +164,7 @@ end
   }
 end
 `),
-    ).toEqual(["blend", "method", "fallback", "depth", "partner"]);
+    ).toEqual(["blend", "method", "fallback", "depth", "spread", "partner"]);
   });
 
   test("`partner` under a label offers the candidate artwork's labels in its value", () => {
@@ -564,5 +564,32 @@ end
     expect(docOf(PAINTED("|"), "span")).toContain("Default `100%`");
     expect(docOf(PAINTED("state = |"), "eyes.closed")).toContain("The pose the colour belongs to");
     expect(docOf(PAINTED("when = |"), "mask.on")).toContain("does not drive");
+  });
+});
+
+describe("a drawing's `spread` in brace bodies", () => {
+  test("`spread` is offered at the root and under a label with the drawing text, and inside a clip entry with the clip text", () => {
+    const root = `morph blink with
+  |
+end
+`;
+    const label = `morph blink with
+  layers {
+    eyeball-shadow-left { | }
+  }
+end
+`;
+    for (const source of [root, label]) {
+      const spread = itemAt(source, "spread");
+      expect(insertedText(spread)).toBe("spread = ");
+      expect(spread.documentation).toEqual(expect.objectContaining({ value: expect.stringContaining("Grows (positive) or shrinks (negative) the outline of drawings") }));
+    }
+    const clip = itemAt(`morph blink with
+  clips {
+    { | }
+  }
+end
+`, "spread");
+    expect(clip.documentation).toEqual(expect.objectContaining({ value: expect.stringContaining("How far this clip's opening reaches past its outline") }));
   });
 });

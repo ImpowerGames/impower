@@ -18,6 +18,8 @@ import {
   shadowedPortrait,
   SPLIT_CLOSED_BOTTOM_OVERLAPPING_TOP,
   SPLIT_CLOSED_TOP_SHORT_OF_OUTER_TIP,
+  spreadBlink,
+  spreadPortrait,
   UPPER_OPEN,
 } from "./fixtures";
 
@@ -722,5 +724,168 @@ describe("a clip entry's `spread` between poses", () => {
       expect(path.reach).toBe(false);
       expect(path.style).toMatch(/stroke:none/);
     }
+  });
+});
+
+describe("a drawing's `spread` between poses", () => {
+  const spreadBake = (layers: Parameters<typeof spreadBlink>[0], overrides: Record<string, unknown> = {}, states?: string[]) =>
+    bakeMorphArtifact({ source: spreadPortrait(), selection: {}, recipe: spreadBlink(layers, overrides, states), key: "spread", variant: "spread", uri: "file:///spread.svg" });
+  const live = (artifact: MorphArtifact) => artifact.parts.filter((p) => p.kind === "live").flatMap((p) => elements(p.svg));
+  const drawOf = (artifact: MorphArtifact, label: string, segment = 0) => {
+    const node = live(artifact).find((e) => e.attributes["data-name"] === label && e.attributes["data-morph"])!.attributes["data-morph"]!;
+    const t = artifact.segments[segment]!.transitions.find((t) => ("from" in t && t.from === node) || ("to" in t && t.to === node) || ("node" in t && t.node === node))!;
+    return t.kind === "morph" || t.kind === "scale" ? t.draw : node;
+  };
+  const at = (artifact: MorphArtifact, progress: number, segment = 0) => morphFrameState(artifact, { eyes: { segment, progress } });
+  const MOVING = [0.125, 0.5, 0.875];
+  const GROWN = { "fill-opacity": "1", "stroke-opacity": "1", "stroke-width": "2px", "stroke-dasharray": "none", "stroke-linejoin": "round", "vector-effect": "non-scaling-stroke" };
+
+  test("a shrinking track sets its drawing's mask strictly between the ends, with the frame's geometry, and none at either end, while held or at rest", () => {
+    const artifact = spreadBake({ flat: { spread: "-1px" } }, {}, ["open", "closed", "closed", "open"]);
+    const draw = drawOf(artifact, "flat");
+    const mask = artifact.spreads![draw]!.mask!;
+    for (const progress of MOVING) {
+      const state = at(artifact, progress);
+      expect(state.paint.get(draw)).toEqual({ mask: `url(#${mask})` });
+      expect(state.masks.get(mask)).toEqual({ spread: -1, d: state.geometry.get(draw) });
+      const rendered = elements(renderMorphFrame(artifact, { segment: 0, progress }));
+      const posed = rendered.find((e) => e.tagName === "mask" && e.attributes["id"] === mask)!;
+      expect((posed.children[0] as Element).attributes["d"]).toBe(state.geometry.get(draw));
+      expect((posed.children[0] as Element).attributes["style"]).toContain("stroke:#000;stroke-opacity:1;stroke-width:2px");
+      expect(rendered.find((e) => e.attributes["data-morph"] === draw)!.attributes["style"]).toContain(`mask:url(#${mask})`);
+    }
+    for (const progress of [0, 1]) {
+      const state = at(artifact, progress);
+      expect(state.masks.size, String(progress)).toBe(0);
+      expect(state.paint.get(draw)?.["mask"], String(progress)).toBeUndefined();
+    }
+    const held = morphFrameState(artifact, morphPosesAt(artifact, 0.5));
+    expect(held.masks.size).toBe(0);
+    expect(held.spread.size).toBe(0);
+    expect(renderMorphFrame(artifact, "rest")).toBe(artifact.rest);
+    expect(renderMorphAt(artifact, 0)).not.toContain(`mask:url(#${mask})`);
+    expect(renderMorphAt(artifact, 1)).not.toContain(`mask:url(#${mask})`);
+  });
+
+  test("a growing track writes a round, non-scaling stroke twice the amount wide in its fill's paint for a flat colour, a blended paint, a gradient copy and a `paints` colour", () => {
+    const artifact = spreadBake(
+      { flat: { spread: "1px" }, blended: { spread: "1px" }, graded: { spread: "1px" }, tinted: { spread: "1px" } },
+      { paints: [{ targets: ["tinted"], state: "eyes.closed", fill: "#0f0" }] },
+    );
+    expect(artifact.diagnostics).toEqual([]);
+    const state = at(artifact, 0.5);
+    expect(state.paint.get(drawOf(artifact, "flat"))).toEqual({ fill: "rgba(51,68,85,1)", stroke: "rgba(51,68,85,1)", ...GROWN });
+    expect(state.paint.get(drawOf(artifact, "blended"))).toEqual({ fill: "rgba(128,0,128,1)", stroke: "rgba(128,0,128,1)", ...GROWN });
+    const graded = state.paint.get(drawOf(artifact, "graded"))!;
+    expect(graded["fill"]).toMatch(/^url\(#.*morph-gradient-\d+\)$/);
+    expect(graded).toEqual({ fill: graded["fill"], stroke: graded["fill"], ...GROWN });
+    const tinted = state.paint.get(drawOf(artifact, "tinted"))!;
+    expect(tinted).toEqual({ fill: "rgba(68,196,68,1)", stroke: "rgba(68,196,68,1)", ...GROWN });
+    for (const label of ["flat", "blended", "graded", "tinted"]) expect(state.opacity.get(drawOf(artifact, label)), label).toBeUndefined();
+    for (const progress of [0, 1]) expect(at(artifact, progress).paint.get(drawOf(artifact, "flat")), String(progress)).toBeUndefined();
+  });
+
+  test("a see-through fill grows opaque with its alpha moved onto the drawing's opacity, so the band and the fill composite once", () => {
+    const artifact = spreadBake({ sheer: { spread: "2px" }, veiled: { spread: "1px" } });
+    expect(artifact.diagnostics).toEqual([]);
+    const state = at(artifact, 0.5);
+    const sheer = drawOf(artifact, "sheer");
+    expect(state.paint.get(sheer)).toEqual({ fill: "rgba(0,170,0,1)", stroke: "rgba(0,170,0,1)", ...GROWN, "stroke-width": "4px" });
+    expect(state.opacity.get(sheer)).toBe(0.5);
+    const veiled = drawOf(artifact, "veiled");
+    const fill = state.paint.get(veiled)!["fill"]!;
+    expect(state.paint.get(veiled)).toEqual({ fill, stroke: fill, ...GROWN });
+    const copy = /^url\(#(.*)\)$/.exec(fill)![1]!;
+    expect(state.gradients.get(copy)!.stops.map((stop) => stop["stop-color"])).toEqual(["rgba(128,0,128,1)", "rgba(128,255,128,1)"]);
+    expect(state.opacity.get(veiled)).toBe(0.5);
+    const rendered = elements(renderMorphFrame(artifact, { segment: 0, progress: 0.5 })).find((e) => e.attributes["data-morph"] === sheer)!;
+    expect(rendered.attributes["style"]).toContain("opacity:0.5");
+  });
+
+  test("both drawings of a fade and the `draw` leaf of a scale take their spread between the ends only", () => {
+    const artifact = spreadBake({ fader: { spread: "-1px" }, ghost: { spread: "-1px" } });
+    const fader = artifact.segments[0]!.transitions.find((t) => t.kind === "fade")!;
+    const ghost = drawOf(artifact, "ghost");
+    if (fader.kind !== "fade") throw new Error("not a fade");
+    for (const progress of MOVING) {
+      const state = at(artifact, progress);
+      for (const node of [fader.from!, fader.to!, ghost]) {
+        expect(state.paint.get(node)?.["mask"], `${node} ${progress}`).toBe(`url(#${artifact.spreads![node]!.mask})`);
+      }
+      expect(state.masks.get(artifact.spreads![ghost]!.mask!)).toEqual({ spread: -1, d: state.geometry.get(ghost) });
+    }
+    for (const progress of [0, 1]) expect(at(artifact, progress).masks.size, String(progress)).toBe(0);
+  });
+
+  test("a drawing closed only implicitly spreads along its closing edge: the mask and the grown geometry close every subpath", () => {
+    const shrink = spreadBake({ opened: { spread: "-1px", blend: "fade" } });
+    expect(shrink.diagnostics).toEqual([]);
+    const node = drawOf(shrink, "opened");
+    const record = shrink.spreads![node]!;
+    expect(record.outline.endsWith("Z")).toBe(true);
+    expect(at(shrink, 0.5).masks.get(record.mask!)).toEqual({ spread: -1, d: record.outline });
+    const grow = spreadBake({ opened: { spread: "1px", blend: "fade" } });
+    const grown = drawOf(grow, "opened");
+    expect(at(grow, 0.5).geometry.get(grown)).toBe(grow.spreads![grown]!.outline);
+    expect(at(grow, 0).geometry.has(grown)).toBe(false);
+    const moving = spreadBake({ flat: { spread: "1px" } });
+    const draw = drawOf(moving, "flat");
+    const state = at(moving, 0.5);
+    expect(state.geometry.get(draw)).toMatch(/Z$/);
+    const scaled = spreadBake({ opened: { spread: "-1px", blend: "scale" } });
+    expect(scaled.diagnostics).toEqual([]);
+    const scales = scaled.segments[0]!.transitions.filter((t) => t.kind === "scale" && t.spread === -1);
+    expect(scales).toHaveLength(2);
+    const scaledState = at(scaled, 0.5);
+    for (const t of scales) {
+      if (t.kind !== "scale") continue;
+      const frame = scaledState.geometry.get(t.draw)!;
+      expect(frame.endsWith("Z")).toBe(false);
+      expect(scaledState.masks.get(scaled.spreads![t.draw]!.mask!)).toEqual({ spread: -1, d: `${frame}Z` });
+    }
+  });
+
+  test("a drawing refused for its contours draws exactly what it draws without spread, so no slit is cut", () => {
+    const plain = spreadBake({});
+    for (const label of ["ringed", "cornered", "crossing"]) {
+      const spread = spreadBake({ [label]: { spread: "-1px" } });
+      expect(spread.diagnostics, label).toEqual([expect.objectContaining({ code: "spread-ignored", layer: label })]);
+      for (const progress of [0.25, 3 / 7, 0.5, 0.75]) {
+        expect(renderMorphFrame(spread, { segment: 0, progress }), `${label} ${progress}`).toBe(renderMorphFrame(plain, { segment: 0, progress }));
+      }
+    }
+  });
+
+  test("a single contour that folds over itself between stored frames keeps its mask on its unfolded frames and drops it on the folded ones", () => {
+    const artifact = spreadBake({ folding: { spread: "-1px" } });
+    expect(artifact.diagnostics).toEqual([]);
+    const draw = drawOf(artifact, "folding");
+    const mask = artifact.spreads![draw]!.mask!;
+    for (const progress of [0.2, 0.43, 0.52, 0.8]) {
+      const state = at(artifact, progress);
+      expect(state.masks.get(mask), String(progress)).toEqual({ spread: -1, d: state.geometry.get(draw) });
+      expect(state.paint.get(draw)?.["mask"], String(progress)).toBe(`url(#${mask})`);
+    }
+    for (const progress of [0.46, 0.48, 0.5]) {
+      const state = at(artifact, progress);
+      expect(state.masks.has(mask), String(progress)).toBe(false);
+      expect(state.paint.get(draw)?.["mask"], String(progress)).toBeUndefined();
+      expect(renderMorphFrame(artifact, { segment: 0, progress }), String(progress)).not.toContain(`mask:url(#${mask})`);
+    }
+  });
+
+  test("an edge label's `spread` leaves the clip's opening and its reach unchanged", () => {
+    const plain = bakeMorphArtifact({ source: portrait(), selection: {}, recipe: blink(), key: "edge", variant: "edge" });
+    const spread = bakeMorphArtifact({ source: portrait(), selection: {}, recipe: blink({ layers: { "eyelash-left": { spread: "-1px" } } }), key: "edge", variant: "edge" });
+    expect(spread.diagnostics).toEqual(plain.diagnostics);
+    expect(spread.apertures).toEqual(plain.apertures);
+    expect(spread.apertureEdges).toEqual(plain.apertureEdges);
+    for (const offset of [0.05, 0.15, 0.25, 0.5, 0.8]) {
+      const a = morphFrameState(plain, morphPosesAt(plain, offset));
+      const b = morphFrameState(spread, morphPosesAt(spread, offset));
+      expect(b.clips, String(offset)).toEqual(a.clips);
+      expect(b.reaches, String(offset)).toEqual(a.reaches);
+    }
+    expect(morphFrameState(spread, morphPosesAt(spread, 0.15)).masks.size).toBeGreaterThan(0);
   });
 });

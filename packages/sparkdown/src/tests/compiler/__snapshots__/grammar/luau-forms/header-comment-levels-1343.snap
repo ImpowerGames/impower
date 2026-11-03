@@ -1,53 +1,54 @@
 sparkdown [0..323]
  ├─ LuauStyle [0..63]
- │   ├─ LuauStyle_begin [0..6]
+ │   ├─ LuauStyle_begin [0..34]
  │   │   ├─ LuauStyle_begin_c1 0
  │   │   │   └─ OptionalWhitespace 0
  │   │   ├─ LuauStyle_begin_c2 [0..5]
  │   │   │   └─ LuauStyleKeyword [0..5]: "style"
- │   │   └─ LuauStyle_begin_c3 [5..6]
- │   │       └─ LuauStyle_begin_c3 [5..6]
- │   │           └─ OptionalWhitespace [5..6]: " "
- │   ├─ LuauStyle_content [6..60]
- │   │   ├─ LuauBlockComment [6..34]
- │   │   │   ├─ LuauBlockComment_begin [6..11]
- │   │   │   │   ├─ LuauBlockComment_begin_c1 6
- │   │   │   │   ├─ LuauBlockComment_begin_c2 [6..9]
- │   │   │   │   │   └─ LuauCommentMark [6..9]: "--["
- │   │   │   │   ├─ LuauBlockComment_begin_c3 [9..10]
- │   │   │   │   │   └─ LuauCommentMark [9..10]: "="
- │   │   │   │   └─ LuauBlockComment_begin_c4 [10..11]
- │   │   │   │       └─ LuauCommentMark [10..11]: "["
- │   │   │   ├─ LuauBlockComment_content [11..30]
- │   │   │   │   ├─ LuauBlockCommentContent [11..12]: " "
- │   │   │   │   ├─ LuauBlockCommentContent [12..13]: "e"
- │   │   │   │   ├─ LuauBlockCommentContent [13..14]: "x"
- │   │   │   │   ├─ LuauBlockCommentContent [14..15]: "a"
- │   │   │   │   ├─ LuauBlockCommentContent [15..16]: "m"
- │   │   │   │   ├─ LuauBlockCommentContent [16..17]: "p"
- │   │   │   │   ├─ LuauBlockCommentContent [17..18]: "l"
- │   │   │   │   ├─ LuauBlockCommentContent [18..19]: "e"
- │   │   │   │   ├─ LuauBlockCommentContent [19..20]: " "
- │   │   │   │   ├─ LuauBlockCommentContent [20..21]: "]"
- │   │   │   │   ├─ LuauBlockCommentContent [21..22]: "]"
- │   │   │   │   ├─ LuauBlockCommentContent [22..23]: " "
- │   │   │   │   ├─ LuauBlockCommentContent [23..24]: "i"
- │   │   │   │   ├─ LuauBlockCommentContent [24..25]: "n"
- │   │   │   │   ├─ LuauBlockCommentContent [25..26]: "s"
- │   │   │   │   ├─ LuauBlockCommentContent [26..27]: "i"
- │   │   │   │   ├─ LuauBlockCommentContent [27..28]: "d"
- │   │   │   │   ├─ LuauBlockCommentContent [28..29]: "e"
- │   │   │   │   └─ LuauBlockCommentContent [29..30]: " "
- │   │   │   └─ LuauBlockComment_end [30..34]
- │   │   │       ├─ LuauBlockComment_end_c1 [30..31]
- │   │   │       │   └─ LuauCommentMark [30..31]: "]"
- │   │   │       ├─ LuauBlockComment_end_c2 [31..32]
- │   │   │       │   └─ LuauCommentMark [31..32]: "="
- │   │   │       ├─ LuauBlockComment_end_c3 [32..33]
- │   │   │       │   └─ LuauCommentMark [32..33]: "]"
- │   │   │       └─ LuauBlockComment_end_c4 [33..34]
- │   │   │           └─ LuauBlockComment_end_c4 [33..34]
- │   │   │               └─ OptionalWhitespace [33..34]: " "
+ │   │   ├─ LuauStyle_begin_c3 [5..6]
+ │   │   │   └─ LuauStyle_begin_c3 [5..6]
+ │   │   │       └─ OptionalWhitespace [5..6]: " "
+ │   │   └─ LuauStyle_begin_c5 [6..34]
+ │   │       └─ LuauBlockComment [6..34]
+ │   │           ├─ LuauBlockComment_begin [6..11]
+ │   │           │   ├─ LuauBlockComment_begin_c1 6
+ │   │           │   ├─ LuauBlockComment_begin_c2 [6..9]
+ │   │           │   │   └─ LuauCommentMark [6..9]: "--["
+ │   │           │   ├─ LuauBlockComment_begin_c3 [9..10]
+ │   │           │   │   └─ LuauCommentMark [9..10]: "="
+ │   │           │   └─ LuauBlockComment_begin_c4 [10..11]
+ │   │           │       └─ LuauCommentMark [10..11]: "["
+ │   │           ├─ LuauBlockComment_content [11..30]
+ │   │           │   ├─ LuauBlockCommentContent [11..12]: " "
+ │   │           │   ├─ LuauBlockCommentContent [12..13]: "e"
+ │   │           │   ├─ LuauBlockCommentContent [13..14]: "x"
+ │   │           │   ├─ LuauBlockCommentContent [14..15]: "a"
+ │   │           │   ├─ LuauBlockCommentContent [15..16]: "m"
+ │   │           │   ├─ LuauBlockCommentContent [16..17]: "p"
+ │   │           │   ├─ LuauBlockCommentContent [17..18]: "l"
+ │   │           │   ├─ LuauBlockCommentContent [18..19]: "e"
+ │   │           │   ├─ LuauBlockCommentContent [19..20]: " "
+ │   │           │   ├─ LuauBlockCommentContent [20..21]: "]"
+ │   │           │   ├─ LuauBlockCommentContent [21..22]: "]"
+ │   │           │   ├─ LuauBlockCommentContent [22..23]: " "
+ │   │           │   ├─ LuauBlockCommentContent [23..24]: "i"
+ │   │           │   ├─ LuauBlockCommentContent [24..25]: "n"
+ │   │           │   ├─ LuauBlockCommentContent [25..26]: "s"
+ │   │           │   ├─ LuauBlockCommentContent [26..27]: "i"
+ │   │           │   ├─ LuauBlockCommentContent [27..28]: "d"
+ │   │           │   ├─ LuauBlockCommentContent [28..29]: "e"
+ │   │           │   └─ LuauBlockCommentContent [29..30]: " "
+ │   │           └─ LuauBlockComment_end [30..34]
+ │   │               ├─ LuauBlockComment_end_c1 [30..31]
+ │   │               │   └─ LuauCommentMark [30..31]: "]"
+ │   │               ├─ LuauBlockComment_end_c2 [31..32]
+ │   │               │   └─ LuauCommentMark [31..32]: "="
+ │   │               ├─ LuauBlockComment_end_c3 [32..33]
+ │   │               │   └─ LuauCommentMark [32..33]: "]"
+ │   │               └─ LuauBlockComment_end_c4 [33..34]
+ │   │                   └─ LuauBlockComment_end_c4 [33..34]
+ │   │                       └─ OptionalWhitespace [33..34]: " "
+ │   ├─ LuauStyle_content [34..60]
  │   │   ├─ LuauStyleNameAndInheritance [34..45]
  │   │   │   ├─ LuauStyleNameAndInheritance_begin [34..40]
  │   │   │   │   └─ LuauStyleNameAndInheritance_begin_c1 [34..40]
@@ -102,49 +103,50 @@ sparkdown [0..323]
  │       └─ LuauStyle_end_c3 63
  ├─ Newline [63..64]: "\n"
  ├─ LuauStyle [64..124]
- │   ├─ LuauStyle_begin [64..70]
+ │   ├─ LuauStyle_begin [64..95]
  │   │   ├─ LuauStyle_begin_c1 64
  │   │   │   └─ OptionalWhitespace 64
  │   │   ├─ LuauStyle_begin_c2 [64..69]
  │   │   │   └─ LuauStyleKeyword [64..69]: "style"
- │   │   └─ LuauStyle_begin_c3 [69..70]
- │   │       └─ LuauStyle_begin_c3 [69..70]
- │   │           └─ OptionalWhitespace [69..70]: " "
- │   ├─ LuauStyle_content [70..121]
- │   │   ├─ LuauBlockComment [70..95]
- │   │   │   ├─ LuauBlockComment_begin [70..76]
- │   │   │   │   ├─ LuauBlockComment_begin_c1 70
- │   │   │   │   ├─ LuauBlockComment_begin_c2 [70..73]
- │   │   │   │   │   └─ LuauCommentMark [70..73]: "--["
- │   │   │   │   ├─ LuauBlockComment_begin_c3 [73..75]
- │   │   │   │   │   └─ LuauCommentMark [73..75]: "=="
- │   │   │   │   └─ LuauBlockComment_begin_c4 [75..76]
- │   │   │   │       └─ LuauCommentMark [75..76]: "["
- │   │   │   ├─ LuauBlockComment_content [76..90]
- │   │   │   │   ├─ LuauBlockCommentContent [76..77]: " "
- │   │   │   │   ├─ LuauBlockCommentContent [77..78]: "a"
- │   │   │   │   ├─ LuauBlockCommentContent [78..79]: " "
- │   │   │   │   ├─ LuauBlockCommentContent [79..80]: "]"
- │   │   │   │   ├─ LuauBlockCommentContent [80..81]: "="
- │   │   │   │   ├─ LuauBlockCommentContent [81..82]: "]"
- │   │   │   │   ├─ LuauBlockCommentContent [82..83]: " "
- │   │   │   │   ├─ LuauBlockCommentContent [83..84]: "b"
- │   │   │   │   ├─ LuauBlockCommentContent [84..85]: " "
- │   │   │   │   ├─ LuauBlockCommentContent [85..86]: "]"
- │   │   │   │   ├─ LuauBlockCommentContent [86..87]: "]"
- │   │   │   │   ├─ LuauBlockCommentContent [87..88]: " "
- │   │   │   │   ├─ LuauBlockCommentContent [88..89]: "c"
- │   │   │   │   └─ LuauBlockCommentContent [89..90]: " "
- │   │   │   └─ LuauBlockComment_end [90..95]
- │   │   │       ├─ LuauBlockComment_end_c1 [90..91]
- │   │   │       │   └─ LuauCommentMark [90..91]: "]"
- │   │   │       ├─ LuauBlockComment_end_c2 [91..93]
- │   │   │       │   └─ LuauCommentMark [91..93]: "=="
- │   │   │       ├─ LuauBlockComment_end_c3 [93..94]
- │   │   │       │   └─ LuauCommentMark [93..94]: "]"
- │   │   │       └─ LuauBlockComment_end_c4 [94..95]
- │   │   │           └─ LuauBlockComment_end_c4 [94..95]
- │   │   │               └─ OptionalWhitespace [94..95]: " "
+ │   │   ├─ LuauStyle_begin_c3 [69..70]
+ │   │   │   └─ LuauStyle_begin_c3 [69..70]
+ │   │   │       └─ OptionalWhitespace [69..70]: " "
+ │   │   └─ LuauStyle_begin_c5 [70..95]
+ │   │       └─ LuauBlockComment [70..95]
+ │   │           ├─ LuauBlockComment_begin [70..76]
+ │   │           │   ├─ LuauBlockComment_begin_c1 70
+ │   │           │   ├─ LuauBlockComment_begin_c2 [70..73]
+ │   │           │   │   └─ LuauCommentMark [70..73]: "--["
+ │   │           │   ├─ LuauBlockComment_begin_c3 [73..75]
+ │   │           │   │   └─ LuauCommentMark [73..75]: "=="
+ │   │           │   └─ LuauBlockComment_begin_c4 [75..76]
+ │   │           │       └─ LuauCommentMark [75..76]: "["
+ │   │           ├─ LuauBlockComment_content [76..90]
+ │   │           │   ├─ LuauBlockCommentContent [76..77]: " "
+ │   │           │   ├─ LuauBlockCommentContent [77..78]: "a"
+ │   │           │   ├─ LuauBlockCommentContent [78..79]: " "
+ │   │           │   ├─ LuauBlockCommentContent [79..80]: "]"
+ │   │           │   ├─ LuauBlockCommentContent [80..81]: "="
+ │   │           │   ├─ LuauBlockCommentContent [81..82]: "]"
+ │   │           │   ├─ LuauBlockCommentContent [82..83]: " "
+ │   │           │   ├─ LuauBlockCommentContent [83..84]: "b"
+ │   │           │   ├─ LuauBlockCommentContent [84..85]: " "
+ │   │           │   ├─ LuauBlockCommentContent [85..86]: "]"
+ │   │           │   ├─ LuauBlockCommentContent [86..87]: "]"
+ │   │           │   ├─ LuauBlockCommentContent [87..88]: " "
+ │   │           │   ├─ LuauBlockCommentContent [88..89]: "c"
+ │   │           │   └─ LuauBlockCommentContent [89..90]: " "
+ │   │           └─ LuauBlockComment_end [90..95]
+ │   │               ├─ LuauBlockComment_end_c1 [90..91]
+ │   │               │   └─ LuauCommentMark [90..91]: "]"
+ │   │               ├─ LuauBlockComment_end_c2 [91..93]
+ │   │               │   └─ LuauCommentMark [91..93]: "=="
+ │   │               ├─ LuauBlockComment_end_c3 [93..94]
+ │   │               │   └─ LuauCommentMark [93..94]: "]"
+ │   │               └─ LuauBlockComment_end_c4 [94..95]
+ │   │                   └─ LuauBlockComment_end_c4 [94..95]
+ │   │                       └─ OptionalWhitespace [94..95]: " "
+ │   ├─ LuauStyle_content [95..121]
  │   │   ├─ LuauStyleNameAndInheritance [95..105]
  │   │   │   ├─ LuauStyleNameAndInheritance_begin [95..100]
  │   │   │   │   └─ LuauStyleNameAndInheritance_begin_c1 [95..100]
@@ -199,37 +201,38 @@ sparkdown [0..323]
  │       └─ LuauStyle_end_c3 124
  ├─ Newline [124..125]: "\n"
  ├─ LuauStyle [125..172]
- │   ├─ LuauStyle_begin [125..131]
+ │   ├─ LuauStyle_begin [125..142]
  │   │   ├─ LuauStyle_begin_c1 125
  │   │   │   └─ OptionalWhitespace 125
  │   │   ├─ LuauStyle_begin_c2 [125..130]
  │   │   │   └─ LuauStyleKeyword [125..130]: "style"
- │   │   └─ LuauStyle_begin_c3 [130..131]
- │   │       └─ LuauStyle_begin_c3 [130..131]
- │   │           └─ OptionalWhitespace [130..131]: " "
- │   ├─ LuauStyle_content [131..169]
- │   │   ├─ LuauBlockComment [131..142]
- │   │   │   ├─ LuauBlockComment_begin [131..136]
- │   │   │   │   ├─ LuauBlockComment_begin_c1 131
- │   │   │   │   ├─ LuauBlockComment_begin_c2 [131..134]
- │   │   │   │   │   └─ LuauCommentMark [131..134]: "--["
- │   │   │   │   ├─ LuauBlockComment_begin_c3 [134..135]
- │   │   │   │   │   └─ LuauCommentMark [134..135]: "="
- │   │   │   │   └─ LuauBlockComment_begin_c4 [135..136]
- │   │   │   │       └─ LuauCommentMark [135..136]: "["
- │   │   │   ├─ LuauBlockComment_content [136..138]
- │   │   │   │   ├─ LuauBlockCommentContent [136..137]: "a"
- │   │   │   │   └─ LuauBlockCommentContent [137..138]: "]"
- │   │   │   └─ LuauBlockComment_end [138..142]
- │   │   │       ├─ LuauBlockComment_end_c1 [138..139]
- │   │   │       │   └─ LuauCommentMark [138..139]: "]"
- │   │   │       ├─ LuauBlockComment_end_c2 [139..140]
- │   │   │       │   └─ LuauCommentMark [139..140]: "="
- │   │   │       ├─ LuauBlockComment_end_c3 [140..141]
- │   │   │       │   └─ LuauCommentMark [140..141]: "]"
- │   │   │       └─ LuauBlockComment_end_c4 [141..142]
- │   │   │           └─ LuauBlockComment_end_c4 [141..142]
- │   │   │               └─ OptionalWhitespace [141..142]: " "
+ │   │   ├─ LuauStyle_begin_c3 [130..131]
+ │   │   │   └─ LuauStyle_begin_c3 [130..131]
+ │   │   │       └─ OptionalWhitespace [130..131]: " "
+ │   │   └─ LuauStyle_begin_c5 [131..142]
+ │   │       └─ LuauBlockComment [131..142]
+ │   │           ├─ LuauBlockComment_begin [131..136]
+ │   │           │   ├─ LuauBlockComment_begin_c1 131
+ │   │           │   ├─ LuauBlockComment_begin_c2 [131..134]
+ │   │           │   │   └─ LuauCommentMark [131..134]: "--["
+ │   │           │   ├─ LuauBlockComment_begin_c3 [134..135]
+ │   │           │   │   └─ LuauCommentMark [134..135]: "="
+ │   │           │   └─ LuauBlockComment_begin_c4 [135..136]
+ │   │           │       └─ LuauCommentMark [135..136]: "["
+ │   │           ├─ LuauBlockComment_content [136..138]
+ │   │           │   ├─ LuauBlockCommentContent [136..137]: "a"
+ │   │           │   └─ LuauBlockCommentContent [137..138]: "]"
+ │   │           └─ LuauBlockComment_end [138..142]
+ │   │               ├─ LuauBlockComment_end_c1 [138..139]
+ │   │               │   └─ LuauCommentMark [138..139]: "]"
+ │   │               ├─ LuauBlockComment_end_c2 [139..140]
+ │   │               │   └─ LuauCommentMark [139..140]: "="
+ │   │               ├─ LuauBlockComment_end_c3 [140..141]
+ │   │               │   └─ LuauCommentMark [140..141]: "]"
+ │   │               └─ LuauBlockComment_end_c4 [141..142]
+ │   │                   └─ LuauBlockComment_end_c4 [141..142]
+ │   │                       └─ OptionalWhitespace [141..142]: " "
+ │   ├─ LuauStyle_content [142..169]
  │   │   ├─ LuauStyleNameAndInheritance [142..152]
  │   │   │   ├─ LuauStyleNameAndInheritance_begin [142..147]
  │   │   │   │   └─ LuauStyleNameAndInheritance_begin_c1 [142..147]
@@ -284,36 +287,37 @@ sparkdown [0..323]
  │       └─ LuauStyle_end_c3 172
  ├─ Newline [172..173]: "\n"
  ├─ LuauStyle [173..226]
- │   ├─ LuauStyle_begin [173..179]
+ │   ├─ LuauStyle_begin [173..195]
  │   │   ├─ LuauStyle_begin_c1 173
  │   │   │   └─ OptionalWhitespace 173
  │   │   ├─ LuauStyle_begin_c2 [173..178]
  │   │   │   └─ LuauStyleKeyword [173..178]: "style"
- │   │   └─ LuauStyle_begin_c3 [178..179]
- │   │       └─ LuauStyle_begin_c3 [178..179]
- │   │           └─ OptionalWhitespace [178..179]: " "
- │   ├─ LuauStyle_content [179..223]
- │   │   ├─ LuauBlockComment [179..195]
- │   │   │   ├─ LuauBlockComment_begin [179..187]
- │   │   │   │   ├─ LuauBlockComment_begin_c1 179
- │   │   │   │   ├─ LuauBlockComment_begin_c2 [179..182]
- │   │   │   │   │   └─ LuauCommentMark [179..182]: "--["
- │   │   │   │   ├─ LuauBlockComment_begin_c3 [182..186]
- │   │   │   │   │   └─ LuauCommentMark [182..186]: "===="
- │   │   │   │   └─ LuauBlockComment_begin_c4 [186..187]
- │   │   │   │       └─ LuauCommentMark [186..187]: "["
- │   │   │   ├─ LuauBlockComment_content [187..188]
- │   │   │   │   └─ LuauBlockCommentContent [187..188]: "c"
- │   │   │   └─ LuauBlockComment_end [188..195]
- │   │   │       ├─ LuauBlockComment_end_c1 [188..189]
- │   │   │       │   └─ LuauCommentMark [188..189]: "]"
- │   │   │       ├─ LuauBlockComment_end_c2 [189..193]
- │   │   │       │   └─ LuauCommentMark [189..193]: "===="
- │   │   │       ├─ LuauBlockComment_end_c3 [193..194]
- │   │   │       │   └─ LuauCommentMark [193..194]: "]"
- │   │   │       └─ LuauBlockComment_end_c4 [194..195]
- │   │   │           └─ LuauBlockComment_end_c4 [194..195]
- │   │   │               └─ OptionalWhitespace [194..195]: " "
+ │   │   ├─ LuauStyle_begin_c3 [178..179]
+ │   │   │   └─ LuauStyle_begin_c3 [178..179]
+ │   │   │       └─ OptionalWhitespace [178..179]: " "
+ │   │   └─ LuauStyle_begin_c5 [179..195]
+ │   │       └─ LuauBlockComment [179..195]
+ │   │           ├─ LuauBlockComment_begin [179..187]
+ │   │           │   ├─ LuauBlockComment_begin_c1 179
+ │   │           │   ├─ LuauBlockComment_begin_c2 [179..182]
+ │   │           │   │   └─ LuauCommentMark [179..182]: "--["
+ │   │           │   ├─ LuauBlockComment_begin_c3 [182..186]
+ │   │           │   │   └─ LuauCommentMark [182..186]: "===="
+ │   │           │   └─ LuauBlockComment_begin_c4 [186..187]
+ │   │           │       └─ LuauCommentMark [186..187]: "["
+ │   │           ├─ LuauBlockComment_content [187..188]
+ │   │           │   └─ LuauBlockCommentContent [187..188]: "c"
+ │   │           └─ LuauBlockComment_end [188..195]
+ │   │               ├─ LuauBlockComment_end_c1 [188..189]
+ │   │               │   └─ LuauCommentMark [188..189]: "]"
+ │   │               ├─ LuauBlockComment_end_c2 [189..193]
+ │   │               │   └─ LuauCommentMark [189..193]: "===="
+ │   │               ├─ LuauBlockComment_end_c3 [193..194]
+ │   │               │   └─ LuauCommentMark [193..194]: "]"
+ │   │               └─ LuauBlockComment_end_c4 [194..195]
+ │   │                   └─ LuauBlockComment_end_c4 [194..195]
+ │   │                       └─ OptionalWhitespace [194..195]: " "
+ │   ├─ LuauStyle_content [195..223]
  │   │   ├─ LuauStyleNameAndInheritance [195..206]
  │   │   │   ├─ LuauStyleNameAndInheritance_begin [195..201]
  │   │   │   │   └─ LuauStyleNameAndInheritance_begin_c1 [195..201]

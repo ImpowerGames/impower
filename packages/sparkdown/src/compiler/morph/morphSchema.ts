@@ -30,6 +30,7 @@ export const MORPH_ROOT_FIELDS = [
   "method",
   "fallback",
   "depth",
+  "spread",
   "layers",
   "keyframes",
   "timing",
@@ -37,7 +38,7 @@ export const MORPH_ROOT_FIELDS = [
   "paints",
 ] as const;
 
-export const MORPH_POLICY_FIELDS = ["blend", "method", "fallback", "depth"] as const;
+export const MORPH_POLICY_FIELDS = ["blend", "method", "fallback", "depth", "spread"] as const;
 
 export const MORPH_LAYER_FIELDS = ["partner"] as const;
 
@@ -100,6 +101,8 @@ export const MORPH_CLIP_FIELDS = [...MORPH_CLIP_LIST_FIELDS, "spread"] as const;
 
 export const MORPH_CLIP_SPREAD_DEFAULT = 1;
 
+export const MORPH_SPREAD_PROBLEM = "`spread` is a length in `px` or `0`, such as `spread = 1px` or `spread = -0.5px`.";
+
 export function parseMorphSpread(value: unknown): number | undefined {
   if (value === 0) return 0;
   if (typeof value !== "string") return undefined;
@@ -134,7 +137,9 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
     "What happens to a shape with no usable morph pair: `fade` (default), `cut` or `scale`.",
   depth:
     "The pose whose stacking a moving shape keeps between keyframes: `rest` (default), the pose the still image shows, or a state the keyframes name, written with its group, such as `eyes.closed`. Each moving shape is drawn where its label's drawing sits in that pose; a shape that pose does not draw keeps its place in the rest pose.",
-  layers: "Per-label overrides of `blend`, `method`, `fallback` and `depth`, and each label's `partner`, keyed by artwork layer label.",
+  spread:
+    "Grows (positive) or shrinks (negative) the outline of drawings in screen pixels while they are between poses or carried to a partner's pose, such as `-1px`, so an edge that lands on another drawing's outline hides under it. Fills only. A drawing shrinks only when it is a single contour that does not overlap itself; split a drawing of several contours into one layer per contour. The overlap check is exact to a ten-thousandth of the drawing's size: an overlap narrower than that counts as touching, and shrinking cuts along it as along touching edges. Default `0`.",
+  layers: "Per-label overrides of `blend`, `method`, `fallback`, `depth` and `spread`, and each label's `partner`, keyed by artwork layer label.",
   partner:
     "The labels whose drawing this label's drawings take in a pose that draws none of them: one label, such as `eyelash-left`, or a list in priority order, such as `{ eyeball-shadow-left; eyelash-left }`. The first listed label the pose draws decides, and the label's own name in the list pairs by name at that rank. The drawing moves into the shape of that label's drawing nearest it, keeping its own paint and its place in paint order, and stays in that shape while the pose holds.",
   keyframes:

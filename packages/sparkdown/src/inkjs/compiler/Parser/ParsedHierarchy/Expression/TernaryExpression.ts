@@ -54,9 +54,6 @@ export class TernaryExpression extends Expression {
     this.prepareFrom(index + 1);
   }
 
-  // Each condition tested by Luau truthiness, the taken branch's value, and a
-  // jump past the rest, as the `ShortCircuit` "if" and "jump" commands do; a
-  // chain with no `else` is nil when no condition holds.
   public override EmitExpression(emitter: ProgramEmitter): void {
     const ends: ProgramLabel[] = [];
     for (const branch of this.branches) {

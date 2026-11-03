@@ -1198,17 +1198,10 @@ function tryLowerInlineConditional(
 
   const ifContent =
     findChildByNameDirect(ifExpr, "LuauTernaryExpression_content") ?? ifExpr;
-  let seenFirstCond = false;
   let elseifCondNode: SyntaxNode | null = null;
   let child = ifContent.firstChild;
   while (child) {
-    if (isExplicitRuleName(child.name, "LuauTernaryExpressionCondition")) {
-      if (!seenFirstCond) {
-        seenFirstCond = true;
-      } else if (phase === "in-elseif-cond") {
-        elseifCondNode = child;
-      }
-    } else if (isExplicitRuleName(child.name, "LuauThenExpression")) {
+    if (isExplicitRuleName(child.name, "LuauThenExpression")) {
       if (phase === "in-elseif-cond") {
         const cond = elseifCondNode
           ? lowerExpressionFromContainer(
@@ -1231,10 +1224,10 @@ function tryLowerInlineConditional(
       branches.push(current);
       current = { cond: null, body: ifClauseValueNodes(child) };
       phase = "wait-next";
-    } else if (child.name === "LuauElseifKeyword") {
+    } else if (isExplicitRuleName(child.name, "LuauTernaryElseifClause")) {
       branches.push(current);
       phase = "in-elseif-cond";
-      elseifCondNode = null;
+      elseifCondNode = findFirstDirectChild(child, "LuauTernaryExpressionCondition");
       elseifCondNodes = [];
     } else if (isWhitespaceNode(child.name)) {
     } else if (phase === "in-elseif-cond") {

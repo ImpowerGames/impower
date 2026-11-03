@@ -1,5 +1,11 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
+import {
+  paramKey,
+  type StartingValues,
+} from "@impower/sparkdown/src/program/startingValueLiterals";
 import { describe, expect, it, vi } from "vitest";
 import { RouteSearchLog } from "../../main/workers/RouteSearchLog";
 import { searchRouteFor } from "../../main/workers/searchRouteTo";
@@ -36,18 +42,31 @@ scene s(a)
 end
 `;
 
-const playFrom = async (source: string, line: number) => {
+const harnessAt = async (
+  source: string,
+  line: number,
+  values: StartingValues | undefined,
+  manualClock = false,
+) => {
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text: source }],
     startFrom: { file: MAIN_URI, line },
-    manualClock: true,
+    manualClock,
   });
+  await h.compile();
+  if (values) {
+    await (h.controller as any).applyStartingValues(values);
+  }
+  await h.select(line);
+  await settle(40);
+  return h;
+};
+
+const playFrom = async (source: string, line: number, values?: StartingValues) => {
+  const h = await harnessAt(source, line, values, true);
   const win = h.overlay.ownerDocument.defaultView as any;
   win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
   try {
-    await h.compile();
-    await h.select(line);
-    await settle(40);
     const sentBefore = h.toRouter.length;
     const started = await h.controller.startGameAndApp();
     await settle(40);
@@ -72,37 +91,38 @@ const playFrom = async (source: string, line: number) => {
   }
 };
 
-const previewAt = async (source: string, line: number) => {
-  const h = await createPlayerHarness({
-    files: [{ uri: MAIN_URI, text: source }],
-    startFrom: { file: MAIN_URI, line },
-  });
+const previewAt = async (source: string, line: number, values?: StartingValues) => {
+  const h = await harnessAt(source, line, values);
   try {
-    await h.compile();
-    await h.select(line);
-    await settle(40);
     return writtenText(h.toRouter);
   } finally {
     h.dispose();
   }
 };
 
+const A_IS_10 = { s: { [paramKey("a")]: "10" } };
+
 describe("PLAY inside a scene a divert enters with arguments", () => {
   it.each([
-    ["the divert", ONE, 1, "First 10."],
-    ["the scene's first line", ONE, 5, "First 10."],
-    ["the scene's second line", ONE, 6, "Second 10."],
-    ["a line that reads two parameters", TWO, 7, "First 10 10."],
-    ["the next line that reads them", TWO, 8, "Second 10 10."],
-  ])("from %s, runs with the divert's arguments", async (_name, source, line, shown) => {
-    const outcome = await playFrom(source, line);
+    ["the scene's first line", ONE, 5, undefined, "First nil."],
+    ["the scene's first line, with a set", ONE, 5, A_IS_10, "First 10."],
+    ["the scene's second line, with a set", ONE, 6, A_IS_10, "Second 10."],
+    ["a line that reads two parameters", TWO, 7, A_IS_10, "First 10 10."],
+  ])("from %s, starts at the scene's top with its starting values", async (_name, source, line, values, shown) => {
+    const outcome = await playFrom(source, line, values);
     expect(outcome.started).toBe(true);
     expect(outcome.exited).toEqual([]);
     expect(outcome.state).toBe("running");
     expect(outcome.text).toContain(shown);
-    expect(outcome.text).not.toContain("nil");
     expect(outcome.saved).toBe(true);
     expect(outcome.session).toBeDefined();
+  }, 120_000);
+
+  it("from the divert in the start scene, runs with the divert's arguments", async () => {
+    const outcome = await playFrom(ONE, 1);
+    expect(outcome.started).toBe(true);
+    expect(outcome.state).toBe("running");
+    expect(outcome.text).toContain("First 10.");
   }, 120_000);
 
   it("from a scene no run reaches, binds nil and still saves", async () => {
@@ -117,39 +137,13 @@ describe("PLAY inside a scene a divert enters with arguments", () => {
 
 describe("the preview inside a scene a divert enters with arguments", () => {
   it.each([
-    [ONE, 5, "First 10."],
-    [ONE, 6, "Second 10."],
-    [TWO, 7, "First 10 10."],
-  ])("at line %#, shows the divert's arguments", async (source, line, shown) => {
-    const text = await previewAt(source, line);
+    [ONE, 5, undefined, "First nil."],
+    [ONE, 5, A_IS_10, "First 10."],
+    [ONE, 6, A_IS_10, "Second 10."],
+    [TWO, 7, undefined, "First nil nil."],
+  ])("at line %#, shows the scene's starting values", async (source, line, values, shown) => {
+    const text = await previewAt(source, line, values);
     expect(text).toContain(shown);
-    expect(text).not.toContain("nil");
-  }, 120_000);
-
-  it("after an edit adds the divert that enters the scene, shows its arguments", async () => {
-    const h = await createPlayerHarness({
-      files: [{ uri: MAIN_URI, text: UNREACHED.replace("First {a}.", "First {a}.\n  Second {a}.") }],
-      startFrom: { file: MAIN_URI, line: 6 },
-    });
-    try {
-      await h.compile();
-      await h.select(6);
-      await settle(40);
-      expect(writtenText(h.toRouter)).toContain("Second nil.");
-      const sentBefore = h.toRouter.length;
-      await h.edit([
-        {
-          range: { start: { line: 1, character: 2 }, end: { line: 1, character: 6 } },
-          text: "-> s(10)",
-        },
-      ]);
-      await h.compile();
-      await h.select(6);
-      await settle(40);
-      expect(writtenText(h.toRouter.slice(sentBefore))).toContain("Second 10.");
-    } finally {
-      h.dispose();
-    }
   }, 120_000);
 });
 
@@ -192,55 +186,88 @@ const gameAt = (source: string, line: number) => {
   return { compiler, game, to: game.startAddress! };
 };
 
-const limitStartSearch = () => {
-  const original = Game.planRouteFromStart.bind(Game);
-  return vi
-    .spyOn(Game, "planRouteFromStart")
-    .mockImplementation((story, program, to, budget) =>
-      original(story, program, to, { ...budget, maxSteps: 20 }),
-    );
-};
-
 describe("the route to a line inside a scene that takes parameters", () => {
-  it("is not the scene's own route when the search from the start is cut short", () => {
+  it("starts at the scene's top, in the worker's search and in PLAY", () => {
     const { game, to } = gameAt(DEEP, 45);
-    const spy = limitStartSearch();
+    const planned = vi.spyOn(Game, "planRoute");
     try {
       game.simulate();
-      expect(game.simulation).not.toBe("success");
-      expect(game.simulationFailure).toBe("timeout");
-    } finally {
-      spy.mockRestore();
-    }
-    const log = new RouteSearchLog();
-    const worker = gameAt(DEEP, 45).game;
-    const limited = limitStartSearch();
-    try {
+      expect(game.simulation).toBe("success");
+      expect(game.plannedRoute?.from).toBe("s");
+      const log = new RouteSearchLog();
+      const worker = gameAt(DEEP, 45).game;
       searchRouteFor(worker, to, log, {});
-      expect(log.outcomeFor(to)?.reachedTarget).toBe(false);
-      expect(log.outcomeFor(to)?.simulationFailure).toBe("timeout");
+      expect(log.outcomeFor(to)?.reachedTarget).toBe(true);
+      expect(worker.plannedRoute?.from).toBe("s");
+      expect(planned.mock.calls.map((call) => call[2])).toEqual(["s", "s"]);
     } finally {
-      limited.mockRestore();
+      planned.mockRestore();
     }
   }, 120_000);
 
-  it("is replayed from the story's start after a compile that changes nothing", () => {
+  it("starts at the scene's top again after a compile that changes nothing", () => {
     const { compiler, game, to } = gameAt(DEEP, 45);
     const log = new RouteSearchLog();
     searchRouteFor(game, to, log, {});
     expect(log.outcomeFor(to)?.reachedTarget).toBe(true);
-    expect(log.outcomeFor(to)?.fromStart).toBe(true);
-    expect(game.plannedRoute?.from).toBe("start");
     game.updateProgram(
       compiler.compile({ textDocument: { uri: MAIN_URI } } as never).program,
     );
-    const spy = vi.spyOn(Game, "planRouteFromStart");
+    const spy = vi.spyOn(Game, "planRoute");
     try {
       searchRouteFor(game, to, log, {});
-      expect(spy).not.toHaveBeenCalled();
+      expect(spy.mock.calls.map((call) => call[2])).not.toContain("start");
       expect(log.outcomeFor(to)?.reachedTarget).toBe(true);
+      expect(game.plannedRoute?.from).toBe("s");
     } finally {
       spy.mockRestore();
     }
+  }, 120_000);
+});
+
+const DOTTED = readFileSync(
+  join(
+    process.cwd(),
+    "..",
+    "sparkdown/src/tests/runtime/fixtures/diverts/dotted-divert-targets-with-arguments.sd",
+  ),
+  "utf8",
+).replace(/\r\n/g, "\n");
+
+describe("a line in a branch only a divert from elsewhere enters", () => {
+  it("starts at the branch's top in the worker's search", () => {
+    const { game, to } = gameAt(DOTTED, 5);
+    const log = new RouteSearchLog();
+    searchRouteFor(game, to, log, {});
+    expect(log.outcomeFor(to)?.reachedTarget).toBe(true);
+    expect(game.plannedRoute?.from).toBe("outer.inner");
+    expect(log.outcomeFor(to)?.route?.valuesStart).toBe("outer.inner");
+  }, 120_000);
+
+  it.each([
+    [undefined, "Inner nil."],
+    [{ "outer.inner": { [paramKey("a")]: "5" } }, "Inner 5."],
+  ])("previews with the branch's own starting values (%j)", async (values, shown) => {
+    const text = await previewAt(DOTTED, 5, values);
+    expect(text).toContain(shown);
+  }, 120_000);
+
+  it("previews a tunnel's return with nothing to return to as the route's end", () => {
+    const { game, to } = gameAt(DOTTED, 13);
+    const log = new RouteSearchLog();
+    searchRouteFor(game, to, log, {});
+    expect(log.outcomeFor(to)?.reachedTarget).toBe(true);
+    expect(log.outcomeFor(to)?.route?.tunnelEnds).toBe(true);
+    expect(log.outcomeFor(to)?.errors ?? []).toEqual([]);
+  }, 120_000);
+
+  it.each([
+    [5, "Inner nil."],
+    [13, "Visit nil nil."],
+  ])("PLAY from line %i starts at the branch's top", async (line, shown) => {
+    const outcome = await playFrom(DOTTED, line);
+    expect(outcome.started).toBe(true);
+    expect(outcome.exited).toEqual([]);
+    expect(outcome.text).toContain(shown);
   }, 120_000);
 });

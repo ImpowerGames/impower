@@ -213,7 +213,7 @@ export default function AudioPreview({ src }: AudioPreviewProps) {
             variant="ghost"
             aria-label="Skip to start"
             onClick={restart}
-            class="size-9 rounded-full p-0 text-white/70 hover:bg-white/10 hover:text-white"
+            class="size-9 rounded-full p-0 text-white/70 hover:text-white"
           >
             <PlayerSkipBackwardFill class="size-4" />
           </Button>
@@ -221,7 +221,7 @@ export default function AudioPreview({ src }: AudioPreviewProps) {
             variant="ghost"
             aria-label={playing ? "Pause" : "Play"}
             onClick={togglePlay}
-            class="size-12 rounded-full p-0 text-white hover:bg-white/10"
+            class="size-12 rounded-full p-0 text-white"
           >
             {playing ? (
               <PlayerPauseFill class="size-7" />
@@ -234,7 +234,7 @@ export default function AudioPreview({ src }: AudioPreviewProps) {
             aria-label="Loop"
             aria-pressed={looping}
             onClick={() => setLooping((v) => !v)}
-            class={`size-9 rounded-full p-0 hover:bg-white/10 ${
+            class={`size-9 rounded-full p-0 ${
               looping ? "text-primary hover:text-primary" : "text-white/70 hover:text-white"
             }`}
           >

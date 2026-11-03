@@ -136,7 +136,7 @@ export default function FilePreviewOverlay({
                   variant="ghost"
                   aria-label="Save URL"
                   onClick={commitUrl}
-                  class="size-6 flex-none rounded-full p-0 text-white/70 hover:bg-white/10 hover:text-white"
+                  class="size-6 flex-none rounded-full p-0 text-white/70 hover:text-white"
                 >
                   <Check class="size-3.5" />
                 </Button>
@@ -144,7 +144,7 @@ export default function FilePreviewOverlay({
                   variant="ghost"
                   aria-label="Cancel"
                   onClick={() => setEditingUrl(null)}
-                  class="size-6 flex-none rounded-full p-0 text-white/70 hover:bg-white/10 hover:text-white"
+                  class="size-6 flex-none rounded-full p-0 text-white/70 hover:text-white"
                 >
                   <X class="size-3.5" />
                 </Button>
@@ -157,7 +157,7 @@ export default function FilePreviewOverlay({
                     variant="ghost"
                     aria-label="Edit URL"
                     onClick={() => setEditingUrl(item.url ?? "")}
-                    class="size-6 flex-none rounded-full p-0 text-white/50 hover:bg-white/10 hover:text-white"
+                    class="size-6 flex-none rounded-full p-0 text-white/50 hover:text-white"
                   >
                     <Pencil class="size-3.5" />
                   </Button>
@@ -169,7 +169,7 @@ export default function FilePreviewOverlay({
           variant="ghost"
           aria-label="Close preview"
           onClick={onClose}
-          class="size-9 flex-none rounded-full p-0 text-white/70 hover:bg-white/10 hover:text-white"
+          class="size-9 flex-none rounded-full p-0 text-white/70 hover:text-white"
         >
           <X class="size-5" />
         </Button>
@@ -186,7 +186,7 @@ export default function FilePreviewOverlay({
             aria-label="Previous"
             disabled={index === 0}
             onClick={() => onIndexChange(index - 1)}
-            class="size-9 rounded-full p-0 text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-25"
+            class="size-9 rounded-full p-0 text-white/70 hover:text-white disabled:opacity-25"
           >
             <ChevronRight class="size-5 rotate-180" />
           </Button>
@@ -198,7 +198,7 @@ export default function FilePreviewOverlay({
             aria-label="Next"
             disabled={index === total - 1}
             onClick={() => onIndexChange(index + 1)}
-            class="size-9 rounded-full p-0 text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-25"
+            class="size-9 rounded-full p-0 text-white/70 hover:text-white disabled:opacity-25"
           >
             <ChevronRight class="size-5" />
           </Button>

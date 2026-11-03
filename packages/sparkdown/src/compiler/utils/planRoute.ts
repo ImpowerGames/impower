@@ -9,6 +9,11 @@ import { TOP_LEVEL_START, type ProgramAddress } from "../types/ProgramAddress";
 import { START_FLOW_NAME } from "../../program/ProgramSymbols";
 import { planRouteFallback } from "./planRouteFallback";
 import {
+  startPlanKey,
+  startStoryAt,
+  type StartPlan,
+} from "../../program/startingValues";
+import {
   gateWinsMenu,
   NO_PINS,
   pinnedAtMenu,
@@ -304,6 +309,8 @@ export interface SearchOptions {
 
   resumeFrom?: RouteResumePoint;
 
+  start?: StartPlan;
+
   stateImages?: boolean;
 
   levelZeroStore?: LevelZeroStore;
@@ -363,6 +370,7 @@ const levelZeroKey = (
     maxNodes,
     faithfulBudget.steps,
     LEVEL_SHARE,
+    startPlanKey(options?.start),
     options?.pins?.key ?? "",
     PIN_SHARE,
   ]);
@@ -386,20 +394,26 @@ const traceStep = (trace: LevelZeroTrace, address: ProgramAddress) => {
   trace.last = chunk;
 };
 
-interface StoryPositions {
+export interface StoryPositions {
   previous(): ProgramAddress | undefined;
-  knot(): string;
-  stackHolds(knot: string): boolean;
+  knot(): string | undefined;
+  stackHolds(knot: string | undefined): boolean;
   errorAddress(
     raised: { path?: string | null; address?: number } | null | undefined,
   ): ProgramAddress | null;
 }
 
-const chunkScenes = new WeakMap<ProgramRoot, Map<number, string>>();
+const chunkScenes = new WeakMap<
+  ProgramRoot,
+  Map<number, string | undefined>
+>();
 
-const sceneOfAddress = (root: ProgramRoot, address: number): string => {
+const sceneOfAddress = (
+  root: ProgramRoot,
+  address: number,
+): string | undefined => {
   if (address < 0) {
-    return "0";
+    return undefined;
   }
   let scenes = chunkScenes.get(root);
   if (!scenes) {
@@ -407,17 +421,15 @@ const sceneOfAddress = (root: ProgramRoot, address: number): string => {
     chunkScenes.set(root, scenes);
   }
   const id = chunkOfAddress(address);
-  let scene = scenes.get(id);
-  if (scene === undefined) {
-    scene = root.sceneAt(address) ?? "0";
-    scenes.set(id, scene);
+  if (!scenes.has(id)) {
+    scenes.set(id, root.sceneAt(address));
   }
-  return scene;
+  return scenes.get(id);
 };
 
-const storyPositions = (story: Story): StoryPositions => {
+export const storyPositions = (story: Story): StoryPositions => {
   let lastSequence: SequenceRow | null = null;
-  let lastScene = "0";
+  let lastScene: string | undefined;
   return {
     previous: () => {
       const address = story.previousAddress;
@@ -426,11 +438,11 @@ const storyPositions = (story: Story): StoryPositions => {
     knot: () => {
       const sequence = story.state.position?.sequence ?? null;
       if (!sequence) {
-        return "0";
+        return undefined;
       }
       if (sequence !== lastSequence) {
         lastSequence = sequence;
-        lastScene = story.root.sceneOf(sequence) ?? "0";
+        lastScene = story.root.sceneOf(sequence);
       }
       return lastScene;
     },
@@ -783,7 +795,7 @@ const planRouteFaithful = (
     startFaithfulBudget(budget, charge.levelZero.startSteps);
   }
   const pinned = options?.pins ?? NO_PINS;
-  const fromKnotName = from.split(".")[0] || "0";
+  const fromKnotName = from.split(".")[0] || undefined;
   const positions = storyPositions(story);
 
   const store =
@@ -818,11 +830,12 @@ const planRouteFaithful = (
   }
 
   try {
+    story.endsTunnelAtBase = story.startsAtBranch(from);
     const start = reuse
       ? null
       : options?.resumeFrom
         ? makeResumeNode(options.resumeFrom)
-        : makeStartNode(story, from, port);
+        : makeStartNode(story, from, port, options?.start);
 
     const raisedErrors = new Set<string>(
       reuse?.errors.map((e) => `${e.address} ${e.message}`),
@@ -1116,7 +1129,7 @@ const runUntilDecisionOrBranch = (
   port: StatePort,
   node: SearchNode,
   positions: StoryPositions,
-  fromKnotName: string,
+  fromKnotName: string | undefined,
   target: ProgramAddress | null,
   stayWithinKnot: boolean,
   functions: string[],
@@ -1557,15 +1570,9 @@ const makeStartNode = (
   story: Story,
   from: string,
   port: StatePort,
+  start?: StartPlan,
 ): SearchNode => {
-  if (!story.stateIsPristine) {
-    resetStory(story);
-  }
-  if (from === START_FLOW_NAME) {
-    story.ChooseStart();
-  } else {
-    story.ChoosePathString(from);
-  }
+  enterStart(story, from, start);
   return {
     state: port.fork().state,
     seq: "",
@@ -1579,6 +1586,22 @@ const makeStartNode = (
     metPins: [],
     route: newRoute(),
   };
+};
+
+export const enterStart = (story: Story, from: string, start?: StartPlan) => {
+  story.endsTunnelAtBase = story.startsAtBranch(from);
+  if (start) {
+    startStoryAt(story, { ...start, from });
+    return;
+  }
+  if (!story.stateIsPristine) {
+    resetStory(story);
+  }
+  if (from === START_FLOW_NAME) {
+    story.ChooseStart();
+  } else {
+    story.ChoosePathString(from);
+  }
 };
 
 const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => {
@@ -1597,13 +1620,10 @@ const makeResumeNode = (resumeFrom: RouteResumePoint): SearchNode => {
   };
 };
 
-const isRootLevel = (knot: string): boolean =>
-  knot === "0" || /^\d+$/.test(knot);
-
-const exitedKnot = (
+export const exitedKnot = (
   _story: Story,
   positions: StoryPositions,
-  knotName: string,
+  knotName: string | undefined,
   functions: string[],
 ): boolean => {
   const curKnot = positions.knot();
@@ -1612,7 +1632,7 @@ const exitedKnot = (
     return false;
   }
 
-  if (isRootLevel(curKnot)) {
+  if (curKnot === undefined) {
     return false;
   }
 

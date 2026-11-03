@@ -196,7 +196,7 @@ export default function TrashPanel() {
             variant="ghost"
             aria-label="Close"
             onClick={close}
-            class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:bg-foreground/10 hover:text-foreground"
+            class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:text-foreground"
           >
             <X class="size-4" />
           </Button>
@@ -232,7 +232,7 @@ export default function TrashPanel() {
                     title="Restore"
                     disabled={busy}
                     onClick={() => void restore(batch.batchId)}
-                    class="size-8 flex-none rounded-full p-0 text-foreground/60 hover:bg-foreground/10 hover:text-foreground"
+                    class="size-8 flex-none rounded-full p-0 text-foreground/60 hover:text-foreground"
                   >
                     <ArrowBackUp class="size-4" />
                   </Button>
@@ -248,7 +248,7 @@ export default function TrashPanel() {
                         label: batchLabel(batch),
                       })
                     }
-                    class="size-8 flex-none rounded-full p-0 text-foreground/60 hover:bg-danger-500/15 hover:text-danger-500"
+                    class="size-8 flex-none rounded-full p-0 text-foreground/60 hover:text-danger-500"
                   >
                     <Trash class="size-4" />
                   </Button>

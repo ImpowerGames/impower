@@ -8,6 +8,7 @@ import type {
   WorkerHang,
 } from "./main/workers/WorkerDisplayWorkspace";
 import {
+  MessageProtocol,
   ProtocolObserver,
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
@@ -111,9 +112,32 @@ import {
   type RoutePin,
 } from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
 import { ChangeRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ChangeRoutePinsMessage";
-import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { DidChangeRouteTogglesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/DidChangeRouteTogglesMessage";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
+import { SetStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetStartingValuesMessage";
+import { ChangeStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ChangeStartingValuesMessage";
+import { SetGameStartingValuesMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameStartingValuesMessage";
+import { GetGameStartingValueListingMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameStartingValueListingMessage";
+import {
+  listingItems,
+  startingValuesFrom,
+  type StartingValueListing,
+  type StartingValues,
+} from "@impower/sparkdown/src/program/startingValueLiterals";
+import { START_FLOW_NAME } from "@impower/sparkdown/src/program/ProgramSymbols";
+import type { RouteTab } from "./route/startingValuesView";
+import {
+  answered,
+  changed,
+  drafted,
+  emptyFields,
+  fieldsView,
+  hostSent,
+  resetAll,
+  startChanged,
+  type StartingValuesFields,
+} from "./route/startingValuesFields";
+import type { StartingValuesEvents } from "./route/StartingValuesViews";
 
 const COMMON_ASPECT_RATIOS = [
   [16, 9],
@@ -252,8 +276,15 @@ export class GamePlayerController {
   protected _routeState: RouteViewState = {
     open: false,
     toggles: { ...DEFAULT_ROUTE_TOGGLES },
+    tab: "route",
     pins: [],
   };
+  protected _valueFields: StartingValuesFields = emptyFields();
+
+  protected _valuesShownStart?: string;
+
+  protected _valuesSearch = "";
+  protected _listing?: { key: string; listing?: StartingValueListing };
   _previewUpdates = 0;
 
   protected _runtimeRun?: RuntimeDiagnosticsRun;
@@ -338,6 +369,7 @@ export class GamePlayerController {
     functionBreakpoints?: { name: string }[];
     dataBreakpoints?: { dataId: string }[];
     debugging?: boolean;
+    startingValues?: StartingValues;
   };
 
   private _resolveLoadingInitialProgram!: () => void;
@@ -759,6 +791,27 @@ export class GamePlayerController {
     if (this.refs.routeList) {
       this.refs.routeList.hidden = !open;
     }
+    const start = this.valuesStart();
+    if (this._valuesShownStart !== start) {
+      this._valuesShownStart = start;
+      this._valueFields = startChanged(this._valueFields, start);
+    }
+    const values =
+      this._valueFields.kept && start !== undefined
+        ? {
+            ...fieldsView(this._valueFields, start, this.firstValueOf),
+            start,
+            listing:
+              this._listing?.listing?.start === start
+                ? this._listing.listing
+                : undefined,
+            search: this._valuesSearch,
+          }
+        : undefined;
+    this._routeState = { ...this._routeState, values };
+    if (open && values && start !== undefined) {
+      void this.fetchListing(start);
+    }
     renderRouteViews(this.routeViewTargets(), {
       state: this._routeState,
       nameOf: (uri) => this.getRelativeFilePath(uri) ?? uri,
@@ -766,10 +819,113 @@ export class GamePlayerController {
       onClose: () => this.setRouteOpen(false),
       onToggle: this.handleRouteToggle,
       onShowLine: this.handleRouteShowLine,
+      onTab: this.handleRouteTab,
+      values: values ? this.valuesEvents : undefined,
       onChangePins: this.handleRouteChangePins,
       onPinLastRun: this.handleRoutePinLastRun,
     });
   }
+
+  protected valuesStart(): string | undefined {
+    const { route, failure } = this._routeState;
+    if (route) {
+      return route.valuesStart ?? route.start.scene ?? START_FLOW_NAME;
+    }
+    if (failure) {
+      return failure.scene ?? START_FLOW_NAME;
+    }
+    return undefined;
+  }
+
+  protected async fetchListing(start: string) {
+    const key = `${programIdentity(this._program) ?? ""}:${start}`;
+    if (this._listing?.key === key) {
+      return;
+    }
+    this._listing = { key, listing: this._listing?.listing };
+    try {
+      const result = await this.askWorkerGame(
+        GetGameStartingValueListingMessage.type,
+        { start },
+      );
+      if (this._listing?.key === key && result?.listing) {
+        this._listing = { key, listing: result.listing };
+        this.renderRoute();
+      }
+    } catch {
+      if (this._listing?.key === key) {
+        this._listing = undefined;
+      }
+    }
+  }
+
+  protected valuesEvents: StartingValuesEvents = {
+    onSet: (key, value) => void this.changeValues({ [key]: value }),
+    onClear: (key) => void this.changeValues({ [key]: null }),
+    onDraft: (key, text) => {
+      const start = this.valuesStart();
+      if (start !== undefined) {
+        this._valueFields = drafted(this._valueFields, start, key, text);
+        this.renderRoute();
+      }
+    },
+    onResetAll: () => {
+      const start = this.valuesStart();
+      if (start === undefined) {
+        return;
+      }
+      const reset = resetAll(this._valueFields, start);
+      this._valueFields = reset.state;
+      this.renderRoute();
+      if (Object.keys(reset.changes).length > 0) {
+        void this.changeValues(reset.changes);
+      }
+    },
+    onSearch: (search) => {
+      this._valuesSearch = search;
+      this.renderRoute();
+    },
+  };
+
+  protected firstValueOf = (key: string) =>
+    listingItems(this._listing?.listing).find((item) => item.key === key)
+      ?.first;
+
+  protected async changeValues(changes: Record<string, string | null>) {
+    const start = this.valuesStart();
+    if (start === undefined || !this._valueFields.kept) {
+      return;
+    }
+    const change = changed(this._valueFields, start, changes);
+    this._valueFields = change.state;
+    this.renderRoute();
+    let saved = true;
+    try {
+      await this.requestHost(ChangeStartingValuesMessage.type, {
+        start,
+        changes,
+      });
+    } catch {
+      saved = false;
+    }
+    this._valueFields = answered(this._valueFields, start, change, saved);
+    this.renderRoute();
+    if (saved && this._valueFields.kept) {
+      await this.applyStartingValues(this._valueFields.kept);
+    }
+  }
+
+  protected handleRouteTab = (tab: RouteTab) => {
+    this._routeState = { ...this._routeState, tab };
+    this.renderRoute();
+    sendProtocolMessage(
+      DidChangeRouteTogglesMessage.type.notification({
+        toggles: this._routeState.toggles,
+        tab,
+      }),
+      this.host,
+    );
+  };
 
   protected setRouteOpen(open: boolean) {
     if (this._routeState.open === open) {
@@ -786,6 +942,17 @@ export class GamePlayerController {
 
   protected handleRouteKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape" && this._routeState.open) {
+      const field = (e.target as Element | null)?.closest?.(".sv-row");
+      const key = field?.getAttribute("data-key");
+      const start = this.valuesStart();
+      if (
+        key != null &&
+        start !== undefined &&
+        fieldsView(this._valueFields, start, this.firstValueOf).drafts[key] !==
+          undefined
+      ) {
+        return;
+      }
       e.stopPropagation();
       this.setRouteOpen(false);
     }
@@ -796,7 +963,10 @@ export class GamePlayerController {
     this._routeState = { ...this._routeState, toggles };
     this.renderRoute();
     sendProtocolMessage(
-      DidChangeRouteTogglesMessage.type.notification({ toggles }),
+      DidChangeRouteTogglesMessage.type.notification({
+        toggles,
+        tab: this._routeState.tab,
+      }),
       this.host,
     );
   };
@@ -1035,6 +1205,11 @@ export class GamePlayerController {
     p.onRequest(
       SetRouteTogglesMessage.type,
       this.handleSetRouteToggles,
+      this.host,
+    );
+    p.onRequest(
+      SetStartingValuesMessage.type,
+      this.handleSetStartingValues,
       this.host,
     );
     p.onRequest(SetRoutePinsMessage.type, this.handleSetRoutePins, this.host);
@@ -1680,13 +1855,59 @@ export class GamePlayerController {
   protected handleSetRouteToggles = async (
     message: SetRouteTogglesMessage.Request,
   ) => {
+    const tab = message.params.tab;
     this._routeState = {
       ...this._routeState,
       toggles: routeTogglesFrom(message.params.toggles),
+      tab: tab === "values" || tab === "route" ? tab : this._routeState.tab,
     };
     this.renderRoute();
     return SetRouteTogglesMessage.type.response(message.id, {});
   };
+
+  protected handleSetStartingValues = async (
+    message: SetStartingValuesMessage.Request,
+  ) => {
+    const values = startingValuesFrom(message.params.values);
+    this._valueFields = hostSent(this._valueFields, values);
+    this.renderRoute();
+    await this.applyStartingValues(values);
+    return SetStartingValuesMessage.type.response(message.id, {});
+  };
+
+  protected async applyStartingValues(values: StartingValues) {
+    if (
+      JSON.stringify(values) ===
+      JSON.stringify(this._options?.startingValues ?? null)
+    ) {
+      return;
+    }
+    if (this._options) {
+      this._options.startingValues = values;
+    } else {
+      this._options = { startingValues: values };
+    }
+    try {
+      await this.askWorkerGame(SetGameStartingValuesMessage.type, { values });
+    } catch (e) {
+      reportUnlessRestarted(e);
+    }
+    if (this.playing) {
+      return;
+    }
+    if (this.completionPreviewHoldsScreen()) {
+      const shown = this._completionShown;
+      if (shown) {
+        const { evaluation, ...result } = shown;
+        await this.drawCompletion(evaluation, result);
+      }
+      return;
+    }
+    const startFrom = this._options.startFrom;
+    if (this._program && startFrom) {
+      void this.updatePreview(this._program, startFrom.file, startFrom.line);
+    }
+  }
 
   protected handleSetRoutePins = async (message: SetRoutePinsMessage.Request) => {
     await this.applyRoutePins(message.params.pins);
@@ -2952,6 +3173,13 @@ export class GamePlayerController {
   protected restoreWorkerDebugger(link: WorkerGameLink) {
     const options = this._options;
     const sent: Promise<unknown>[] = [];
+    if (options?.startingValues) {
+      sent.push(
+        link.request(SetGameStartingValuesMessage.type, {
+          values: options.startingValues,
+        }),
+      );
+    }
     if (options?.breakpoints) {
       sent.push(
         link.request(SetGameBreakpointsMessage.type, {

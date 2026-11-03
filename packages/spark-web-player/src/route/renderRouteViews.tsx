@@ -7,6 +7,8 @@ import type {
   RouteViewState,
   ScriptName,
 } from "./routeView";
+import type { RouteTab } from "./startingValuesView";
+import type { StartingValuesEvents } from "./StartingValuesViews";
 
 export interface RouteViewProps {
   state: RouteViewState;
@@ -15,6 +17,8 @@ export interface RouteViewProps {
   onClose: () => void;
   onToggle: (kind: RouteKind, shown: boolean) => void;
   onShowLine: (location: DocumentLocation) => void;
+  onTab?: (tab: RouteTab) => void;
+  values?: StartingValuesEvents;
   onChangePins: (change: RoutePinChange) => void;
   onPinLastRun: () => void;
 }

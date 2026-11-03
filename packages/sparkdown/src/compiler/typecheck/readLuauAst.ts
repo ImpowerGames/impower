@@ -349,7 +349,7 @@ const METHOD_COLON_RULES = new Set(["LuauLoopHeaderMethodColon", "LuauIfHeaderMe
 
 const TYPE_KEYWORDS = new Set(["nil", "true", "false"]);
 
-const IF_EXPRESSION_RULES = ["LuauTernaryExpression", "LuauElseOperator"];
+const IF_EXPRESSION_RULES = ["LuauTernaryExpression", "LuauTernaryElseifClause", "LuauElseOperator"];
 
 function isIfExpressionKeyword(node: SyntaxNode | undefined): boolean {
   let rule = node?.parent;
