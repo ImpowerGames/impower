@@ -12,14 +12,6 @@ const SPACE_BEFORE_SELECTOR_OPERATOR_REGEX = /[ ]+(?=[^_\p{L}])/gu;
 const ATTRIBUTE_SELECTOR_REGEX =
   /[#]((?:[_\p{L}][_\p{L}0-9-]*)?(?:(?:[~]|[|]|[\^]|[$]|[*])?[=](?:["](?:\\.|[^"\r\n])*["]|.*?(?=$|[\s"'`<>=:(){}\[\]]))?)?)/gu;
 
-export const DEFAULT_BREAKPOINTS = {
-  xs: 400,
-  sm: 640,
-  md: 768,
-  lg: 1024,
-  xl: 1280,
-};
-
 const PSEUDO_ALIASES = {
   "@hovered": ":hover",
   "@focused": ":focus",
@@ -121,7 +113,7 @@ const DATA_ATTRIBUTE_SELECTOR_REGEX = /[#]([_\p{L}][_\p{L}0-9-]*)/gu;
 
 export function getCSSSelector(
   selector: string,
-  breakpoints: Record<string, number> = DEFAULT_BREAKPOINTS,
+  breakpoints: Record<string, number>,
 ): string {
   selector = selector.replace(
     DATA_ATTRIBUTE_SELECTOR_REGEX,
@@ -205,12 +197,12 @@ export function anchorSelfTargeted(selector: string): string {
 
 export const getStyleContent = (
   styles: Record<string, any>,
-  options?: {
-    breakpoints?: Record<string, number>;
+  options: {
+    breakpoints: Record<string, number>;
     scope?: string;
   },
 ): string => {
-  const scope = options?.scope;
+  const scope = options.scope;
   const scopeSelector = scope ? scope + " " : "";
   let textContent = "";
   Object.entries(styles).forEach(([name, style]) => {
@@ -220,7 +212,7 @@ export const getStyleContent = (
       const indent = "  ".repeat(level);
       if (!k.startsWith("$")) {
         if (v && typeof v === "object" && !("$name" in v)) {
-          const elementSelector = getCSSSelector(k, options?.breakpoints);
+          const elementSelector = getCSSSelector(k, options.breakpoints);
           const selfTargetedSelector = anchorSelfTargeted(elementSelector);
           styleContent += `\n${indent}${selfTargetedSelector} {`;
           level++;
@@ -248,7 +240,7 @@ export const getStyleContent = (
     });
     styleContent = styleContent.trim();
     if (styleContent) {
-      const elementSelector = getCSSSelector(name, options?.breakpoints);
+      const elementSelector = getCSSSelector(name, options.breakpoints);
       textContent += `${scopeSelector}${elementSelector} {\n  ${styleContent}\n}\n`;
     }
   });

@@ -4,14 +4,6 @@ const SPACE_BEFORE_SELECTOR_OPERATOR_REGEX = /[ ]+(?=[^_\p{L}])/gu;
 const ATTRIBUTE_SELECTOR_REGEX =
   /[#]((?:[_\p{L}][_\p{L}0-9-]*)?(?:(?:[~]|[|]|[\^]|[$]|[*])?[=](?:["](?:\\.|[^"\r\n])*["]|.*?(?=$|[\s"'`<>=:(){}\[\]]))?)?)/gu;
 
-export const DEFAULT_BREAKPOINTS = {
-  xs: 400,
-  sm: 600,
-  md: 960,
-  lg: 1280,
-  xl: 1920,
-};
-
 const PSEUDO_ALIASES = {
   "@hovered": ":hover",
   "@focused": ":focus",
@@ -91,7 +83,7 @@ function breakpointRegex(name: string) {
 
 export function sparkleSelectorToCssSelector(
   selector: string,
-  breakpoints: Record<string, number> = DEFAULT_BREAKPOINTS,
+  breakpoints: Record<string, number>,
 ): string {
   const OUT: string[] = [];
   const parts = selector.split(/(["](?:\\.|[^"])*["]|['](?:\\.|[^'])*['])/);
