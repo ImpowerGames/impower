@@ -274,7 +274,6 @@ export interface MorphDeclaration {
   name: Span;
   parent: Span | null;
   block: Span;
-  bodyOpener: Span | null;
   own: MorphBody;
   effective: Record<string, unknown>;
   parentEffective: Record<string, unknown> | null;
@@ -298,13 +297,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
   const valueSpan = (obj: unknown, key: string): SourceSpan | undefined =>
     src(obj)?.values.get(key) ?? src(obj)?.lines.get(key);
   const lineSpan = (obj: unknown): SourceSpan | undefined => src(obj)?.line;
-
-  if (!decl.bodyOpener) {
-    push(
-      decl.name,
-      "Expected `{` or `with` after the morph's name: `morph NAME { … }` or `morph NAME with … end`.",
-    );
-  }
 
   const checkFields = (
     obj: Record<string, unknown>,

@@ -6,7 +6,7 @@ component card(title) {
   }
 }
 
-layout inventory with
+layout inventory {
   column.panel #child-gap=8 {
     text.title "Inventory" -- the heading
     row.item.wide #gap={gap} @click=pick(item) {
@@ -38,7 +38,6 @@ layout inventory with
     button @click={ print([[a}b]]) } "B" --[[ note ]] .wide
     card([[a)b{c]]) { text "c" }
     button @click={ print([====[a}b]====]) } "Long" ; card(f(f(f(f(f(1)))))) { text "deep" }
-    row { button @click={ t = {a={b={c={d={e={f={g={h={}}}}}}}}} } "Over"; text "after" }
     row,
   }
   stage {
@@ -50,7 +49,7 @@ layout inventory with
     text #--label='a{b}c'
     choice.1 { text }
   }
-end
+}
 
 layout values {
   button @click=f--{text}

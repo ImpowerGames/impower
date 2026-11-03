@@ -18,6 +18,8 @@ const UNREAD = [
   "SparkdownExplicitTag",
   "SparkdownExplicitTag_c2",
   "SparkdownExplicitTags",
+  "SparkleTrailingLineComment",
+  "SparkleTrailingLineComment_c3",
 ];
 
 const COMMENTS: [string, string][] = [
@@ -28,8 +30,8 @@ const COMMENTS: [string, string][] = [
   ["Hello there. // a note", "Hello there."],
   ["Hello *there*. // a note", "Hello *there*."],
   [
-    "layout main with\n  if ok then // a note\n  end\nend",
-    "layout main with\n  if ok then\n  end\nend",
+    "layout main {\n  if ok then // a note\n  end\n}",
+    "layout main {\n  if ok then\n  end\n}",
   ],
   [
     "style card {\n  color = red // a note\n}",

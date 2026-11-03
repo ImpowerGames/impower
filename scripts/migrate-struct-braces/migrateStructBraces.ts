@@ -101,7 +101,7 @@ function planMigration(
     return { line, keyword, reason: "the block has no closing end" };
   }
   const begin = body ? findChildByName(body, `${body.name}_begin`) : null;
-  const withKeyword = begin ? find(begin, "LuauWithKeyword") : null;
+  const withKeyword = begin ? find(begin, "LuauStructWithKeyword") : null;
   const open: Edit = withKeyword
     ? { from: withKeyword.from, to: withKeyword.to, insert: "{" }
     : (() => {

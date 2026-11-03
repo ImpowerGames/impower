@@ -58,6 +58,8 @@ function quit_game() end
 - **A layout named `main` shows automatically** when the game starts. Other layouts are shown on demand — see [Screens & Navigation](./Screens.md). A layout named `loading` is the loading screen the `load` arrow shows — see [Loading & Preloading](./Loading.md).
 - **Everything between `{` and `}`** is the element tree.
 
+The keywords that declare configuration, `layout`, `component`, `screen`, `style`, `animation`, `theme` and `morph`, all take a brace body: `layout main { … }`. A `define` (`define hero as character with … end`) and the story's `scene` and `branch` close with `end`, and a Luau block inside a function or a handler keeps Luau's own openers, such as `then` and `do`, and closes with `end`.
+
 > Layouts belong to _screens_ (navigation groups). You rarely need to think about screens until you have more than one full-screen view — [Screens & Navigation](./Screens.md) covers that.
 
 ---

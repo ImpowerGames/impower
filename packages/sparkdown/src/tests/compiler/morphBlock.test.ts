@@ -1357,12 +1357,6 @@ morph child as m {
     expect(diagnosticsOf(text).filter((d) => d.severity === 1)).toEqual(expect.arrayContaining([expect.objectContaining({ text: ":", message: "Expected '=' when parsing field, got ':'" })]));
   });
 
-  test("a `paints` block missing its closing brace is reported on the brace", () => {
-    const text = PAINTED(["{ targets { eyelash-left }; state = eyes.closed; fill = #c9c9c9 }"]).replace("morph m {", "morph m with").replace("\n  }\n}", "\nend");
-    const found = diagnosticsOf(text).filter((d) => d.message.includes("missing its closing"));
-    expect(found).toEqual([expect.objectContaining({ text: "{", line: 7 })]);
-  });
-
   test("`paints` that is not a list is reported", () => {
     const found = paintErrors(PAINTED(null, KEYFRAMES, "  paints = 2\n"));
     expect(found).toEqual([expect.objectContaining({ text: "paints", message: expect.stringContaining("`paints` is a list") })]);

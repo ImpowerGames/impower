@@ -46,7 +46,7 @@ describe("type vs same-named instance coexistence", () => {
 
   test("two SAME-type same-name defines still error", () => {
     const r = compile(
-      `define image as style with\n  display = "block"\nend\n\ndefine image as style with\n  display = "none"\nend\n`,
+      `define hero as character with\n  name = "Hero"\nend\n\ndefine hero as character with\n  name = "Other"\nend\n`,
     );
     expect(r.errors).toBeGreaterThan(0);
   });

@@ -54,12 +54,6 @@ layout handlers {
   }
 }
 
-layout unclosed with
-  button "Stop" @click={
-    score = 0
-  text "taken in"
-end
-
 layout still {
   text "compiles"
 }

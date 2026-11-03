@@ -51,11 +51,10 @@ describe("inline handler closure termination", () => {
   });
 
   test("a closure with no `}` is flagged", () => {
-    const src = `layout form with
+    const src = `layout form {
   button "x" @click={ score = 0
     combo = 0
-end
 `;
-    expect(unterminated(src)).toHaveLength(1);
+    expect(unterminated(src).filter((m) => m.startsWith("This handler"))).toHaveLength(1);
   });
 });

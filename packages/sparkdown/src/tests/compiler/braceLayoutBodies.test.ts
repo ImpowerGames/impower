@@ -792,34 +792,14 @@ layout after {
     expect(lowered(text, "layout", "after").tree.children[0].tag).toBe("text");
   });
 
-  test("an unclosed `{` at the top of the body ends at the declaration's `end`", () => {
-    const text = `layout hud with
-  column {
-    text "a"
-end
-
-layout after {
-  text "after"
-}
-`;
-    expect(errorsOf(text)).toEqual([
-      expect.objectContaining({ line: 1, text: "{" }),
-    ]);
-    expect(lowered(text, "layout", "hud").tree.children[0].children[0].tag).toBe(
-      "text",
-    );
-    expect(lowered(text, "layout", "after").tree.children[0].tag).toBe("text");
-  });
-
-  test("a stray `}`, an indented header, a `-` item and a block with no element are invalid", () => {
-    const text = `layout hud with
+  test("an indented header, a `-` item and a block with no element are invalid", () => {
+    const text = `layout hud {
   column {
     - text
     row:
     { text "x" }
   }
-  }
-end
+}
 `;
     expect(
       errorsOf(text)
@@ -829,7 +809,6 @@ end
       ["Invalid syntax", 2, "-"],
       ["Expected '=' when parsing field, got ':'", 3, ":"],
       ["Invalid syntax", 4, "{"],
-      ["Invalid syntax", 6, "}"],
     ]);
   });
 });

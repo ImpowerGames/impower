@@ -117,16 +117,13 @@ const PAIRS: {
   },
 ];
 
-describe("a struct keyword's brace body compiles as its `with … end` body does", () => {
+describe("a struct keyword's brace body compiles", () => {
   for (const pair of PAIRS) {
     test(pair.label, () => {
       const extra = pair.extra ?? "";
-      const withForm = compile(`${pair.header} with\n${pair.body}end\n${extra}${SCENE}`);
-      const braceForm = compile(`${pair.header} {\n${pair.body}}\n${extra}${SCENE}`);
-      const expected = compiled(withForm.program, pair.kind, pair.name);
-      expect(expected.context).toBeDefined();
-      expect(compiled(braceForm.program, pair.kind, pair.name)).toEqual(expected);
-      expect(messages(braceForm.diags)).toEqual(messages(withForm.diags));
+      const source = `${pair.header} {\n${pair.body}}\n${extra}${SCENE}`;
+      expect(compiled(compile(source).program, pair.kind, pair.name).context).toBeDefined();
+      expect(errors(source)).toEqual([]);
     });
   }
 
@@ -137,14 +134,6 @@ describe("a struct keyword's brace body compiles as its `with … end` body does
       (lines.program.context as any)?.style?.blue,
     );
     expect(errors(`style blue { text-color = white; corner = 8px }\n${SCENE}`)).toEqual([]);
-  });
-
-  test("a morph's brace body counts as its body opener", () => {
-    const morph = PAIRS.find((pair) => pair.kind === "morph")!;
-    const found = errors(`${morph.header} {\n${morph.body}}\n${SCENE}`).filter((e) =>
-      e.message.includes("after the morph's name"),
-    );
-    expect(found).toEqual([]);
   });
 });
 
@@ -157,12 +146,10 @@ describe("an unindented entry named like a declaration keyword", () => {
     test(`${label} stays in the brace body`, () => {
       const body = `${entries.join("\n")}\n`;
       const extra = "component screen(label) {\n  text label\n}\n";
-      const withForm = compile(`${COMPONENT}${extra}layout main with\n${body}end\n${SCENE}`);
       const braceForm = compile(`${COMPONENT}${extra}layout main    {\n${body}}\n${SCENE}`);
-      const expected = compiled(withForm.program, "layout", "main");
-      expect((expected.sparkle as any)?.children?.length).toBeGreaterThanOrEqual(entries.length);
-      expect(compiled(braceForm.program, "layout", "main")).toEqual(expected);
-      expect(messages(braceForm.diags)).toEqual(messages(withForm.diags));
+      const layout = compiled(braceForm.program, "layout", "main");
+      expect((layout.sparkle as any)?.children?.length).toBeGreaterThanOrEqual(entries.length);
+      expect(braceForm.diags.filter((d) => d.message.includes("missing its closing"))).toEqual([]);
     });
   }
 });
@@ -245,8 +232,8 @@ describe("a brace body opened in the wrong place", () => {
       const errs = errors(`${header}\n  corner = 8px\n}\n${SCENE}`);
       expect(errs).toHaveLength(1);
       expect(errs[0]!.startLine).toBe(0);
-      expect(errs[0]!.message).toContain(
-        `This ${keyword} opens its body with both \`with\` and \`{\``,
+      expect(errs[0]!.message).toBe(
+        `A ${keyword} body goes in braces: \`${keyword} NAME { … }\`.`,
       );
     }
   });

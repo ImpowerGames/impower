@@ -83,7 +83,7 @@ const TARGETED: Record<string, string> = {
   "struct-brace-quoted-container":
     'theme t {\n  "quoted key" { v = 1 }\n  "other" = { w = 2 }\n  outer {\n    accents:,\n      v = 1\n  }\n}\n',
   "struct-brace-value-starts-with-comment-mark":
-    "theme t with\n  k = --gap }\n  j = // x }\n  g {\n    k = --gap\n    j = // note\n  }\nend\n",
+    "theme t {\n  g {\n    k = --gap\n    j = // note\n  }\n}\n",
 
   "tag-interpolation": "# pic{amount}{color}.jpg\n",
   "tag-interpolation-midbody": "# a tag {var} more\n",

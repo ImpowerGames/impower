@@ -55,7 +55,7 @@ end
 // builtins.
 //
 // A colour is a `define … as color`, and `--theme-color-<name>` is generated
-// from those. (The `theme NAME with` keyword is a separate token struct and
+// from those. (The `theme NAME { … }` keyword is a separate token struct and
 // does not feed this — worth knowing before reaching for it.) So overriding the
 // ~16 tokens the builtin styles actually reference repaints everything built on
 // them, without touching a single style rule.

@@ -88,12 +88,26 @@ describe("scripts/migrate-struct-braces.mjs", () => {
 });
 
 describe("migrateStructBraces", () => {
-  test("each keyword's brace form compiles to the same context as its with form", { timeout: 60_000 }, () => {
+  test("each keyword's brace form compiles to the same context as its with form, without its errors", { timeout: 60_000 }, () => {
     const input = readFileSync(join(FIXTURES, "input/keywords.sd"), "utf8");
     const before = contextOf(input);
     const after = contextOf(migrateStructBraces(input).text);
     expect(after.errors).toEqual([]);
-    expect(before.errors).toEqual([]);
+    expect(before.errors.map((d: any) => [d.range.start.line, d.message.value ?? d.message])).toEqual(
+      [
+        [2, "style"],
+        [8, "animation"],
+        [14, "theme"],
+        [18, "morph"],
+        [26, "layout"],
+        [37, "component"],
+        [41, "screen"],
+        [43, "screen"],
+      ].map(([line, keyword]) => [
+        line,
+        `${keyword === "animation" ? "An" : "A"} ${keyword} body goes in braces: \`${keyword} NAME { … }\`.`,
+      ]),
+    );
     expect(after.context).toEqual(before.context);
   });
 

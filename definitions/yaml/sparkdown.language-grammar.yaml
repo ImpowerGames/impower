@@ -4011,7 +4011,7 @@ repository:
           - { include: "#OptionalWhitespace" }
       2:
         patterns:
-          - { include: "#LuauWithKeyword" }
+          - { include: "#LuauStructWithKeyword" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauStructBlockLine" }
@@ -6115,7 +6115,7 @@ repository:
           - { include: "#OptionalWhitespace" }
       2:
         patterns:
-          - { include: "#LuauWithKeyword" }
+          - { include: "#LuauStructWithKeyword" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauSparkleControlBlock" }
@@ -6214,6 +6214,11 @@ repository:
   LuauWithKeyword:
     tag: controlKeyword
     name: keyword.control.as.luau
+    match: (with)\b
+
+  LuauStructWithKeyword:
+    tag: invalid
+    name: invalid.illegal.with.luau
     match: (with)\b
 
   LuauDefineName:

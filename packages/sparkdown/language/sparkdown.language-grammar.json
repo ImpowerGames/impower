@@ -6519,7 +6519,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#LuauWithKeyword"
+              "include": "#LuauStructWithKeyword"
             }
           ]
         }
@@ -10475,7 +10475,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#LuauWithKeyword"
+              "include": "#LuauStructWithKeyword"
             }
           ]
         }
@@ -10636,6 +10636,11 @@
     "LuauWithKeyword": {
       "tag": "controlKeyword",
       "name": "keyword.control.as.luau",
+      "match": "(with)\\b"
+    },
+    "LuauStructWithKeyword": {
+      "tag": "invalid",
+      "name": "invalid.illegal.with.luau",
       "match": "(with)\\b"
     },
     "LuauDefineName": {
