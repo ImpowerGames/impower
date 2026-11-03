@@ -62,14 +62,15 @@ describe("a struct keyword written with `with … end` reports the brace form on
     });
   }
 
-  test("a header with neither `with` nor `{` reports the same error", () => {
-    expect(errors(`layout main\n  text "a"\nend\n${SCENE}`).map((e) => [e.startLine, e.message])).toEqual([
-      [0, braceForm("layout")],
-    ]);
-    expect(errors(`screen menu\nend\n${SCENE}`).map((e) => [e.startLine, e.message])).toEqual([
-      [0, braceForm("screen")],
-    ]);
-  });
+  for (const [keyword, source] of CASES) {
+    test(`a ${keyword} header with neither \`with\` nor \`{\` reports the same error`, () => {
+      const bare = source.replace(" with end\n", "\nend\n").replace(" with\n", "\n");
+      expect(bare.split("\n")[0]).not.toContain("with");
+      expect(errors(`${bare}${SCENE}`).map((e) => [e.startLine, e.message])).toEqual([
+        [0, braceForm(keyword)],
+      ]);
+    });
+  }
 
   test("a header with both `with` and `{` reports the same error", () => {
     expect(errors(`style panel with {\n  text-color = white\n}\n${SCENE}`).map((e) => [e.startLine, e.message])).toEqual([
@@ -83,6 +84,10 @@ describe("`define … as` a struct type reports the keyword form on its parent",
     ["style", 'define panel as style with\n  color = "red"\nend\n'],
     ["animation", "define flip as animation with\n  timing = { duration = 0.2 }\nend\n"],
     ["morph", "define base as morph with\n  method = \"bend\"\nend\n"],
+    ["theme", "define dusk as theme with\n  color = \"#112233\"\nend\n"],
+    ["layout", "define main as layout with\n  value = 1\nend\n"],
+    ["component", "define card as component with\n  value = 1\nend\n"],
+    ["screen", "define menu as screen with\n  value = 1\nend\n"],
   ] as const) {
     test(type, () => {
       const from = source.indexOf(` as ${type}`) + " as ".length;
