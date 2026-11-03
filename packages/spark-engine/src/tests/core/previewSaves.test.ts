@@ -274,6 +274,34 @@ describe("saves made while playing", () => {
     expect(game.saveRefusal(save.data)).toBe("The saved line is gone.");
   });
 
+  it("reads the scene's parameters by name when none of a save's beats places", () => {
+    const lines = [
+      "store trust = 0",
+      "scene start",
+      '  -> interrogation("nine")',
+      "end",
+      "scene interrogation(hour)",
+      "  Saved {hour}.",
+      "  Next.",
+      "end",
+    ];
+    const { program, compiler } = compileSrc(lines.join("\n"));
+    const game = playFromLine(program, compiler, 3);
+    advanceTo(game, "Saved nine.");
+    const save: GameSave = game.saveHere();
+
+    recompile(compiler, game, [...lines.slice(0, 5), "  Replacement.", "end"].join("\n"));
+    expect(game.saveRefusal(save.data)).toMatch(/cannot be placed/);
+    expect(game.saveStartingValuesOf(save, "interrogation")).toMatchObject({
+      "param:hour": '"nine"',
+    });
+    const edited = game.editSave(save, "local:0:hour", '"ten"');
+    expect(edited.data).toBe(save.data);
+    expect(game.saveStartingValuesOf(edited, "interrogation")).toMatchObject({
+      "param:hour": '"ten"',
+    });
+  });
+
   it("reads a save's values by name when none of its beats places", () => {
     const { program, compiler } = compileSrc(example.join("\n"));
     const game = playFromLine(program, compiler, START_LINE);

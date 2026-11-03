@@ -7,7 +7,7 @@ import {
 } from "../runtime/Value";
 import { addressOf, chunkId } from "./ProgramChunk";
 import type { ProgramRoot } from "./ProgramRoot";
-import { countsSave, placeCounts } from "./ProgramSave";
+import { countsSave, placeCounts, type SavedFrameScopes } from "./ProgramSave";
 import type { ProgramStory } from "./ProgramStory";
 import { localKey, readLocalKey, type SavedFrame, type SaveValues } from "./saveValueSet";
 import {
@@ -281,3 +281,28 @@ export const countFormKeys = (
   }
   return forms;
 };
+
+export const savedFrames = (
+  story: ProgramStory,
+  frames: readonly SavedFrameScopes[],
+  edits: readonly [string, string][] = [],
+): SavedFrame[] =>
+  frames.map(({ flow, scopes }, i) => {
+    const params: Record<string, string> = {};
+    for (const name of flow ? parametersOf(story.root, flow) : []) {
+      const value = scopedValue(scopes, name);
+      const text = value === undefined ? undefined : literalText(value);
+      if (text !== undefined) {
+        params[name] = text;
+      }
+    }
+    for (const [key, value] of edits) {
+      const local = readLocalKey(key);
+      if (local?.frame === i && Object.hasOwn(params, local.name)) {
+        params[local.name] = value;
+      }
+    }
+    const sequence = flow ? story.root.flowNamed(flow) : undefined;
+    const scene = sequence ? story.root.sceneOf(sequence) : undefined;
+    return { ...(flow ? { flow } : {}), ...(scene ? { scene } : {}), params };
+  });

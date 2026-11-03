@@ -67,6 +67,10 @@ export class SavesController {
   protected _run = newId();
   protected _changes: Promise<unknown> = Promise.resolve();
   protected _checks = 0;
+  protected _edits = 0;
+  protected _pending = new Set<number>();
+  protected _failed = new Map<number, string>();
+  protected _undeleted = new Set<string>();
 
   constructor(protected _host: SavesHost) {}
 
@@ -141,10 +145,14 @@ export class SavesController {
   }
 
   protected async deleteQuietly(ids: string[]): Promise<void> {
+    const all = [...new Set([...this._undeleted, ...ids])];
     try {
-      await this._host.requestHost(DeleteSavesMessage.type, { ids });
+      await this._host.requestHost(DeleteSavesMessage.type, { ids: all });
+      this._undeleted.clear();
     } catch {
-      return;
+      for (const id of all) {
+        this._undeleted.add(id);
+      }
     }
   }
 
@@ -351,6 +359,9 @@ export class SavesController {
   }
 
   async programChanged(): Promise<void> {
+    if (this._undeleted.size > 0) {
+      void this.serial(() => this.deleteQuietly([]));
+    }
     await this.checkPlaceable();
     const id = this._valuesId;
     if (id) {
@@ -408,8 +419,22 @@ export class SavesController {
     });
   }
 
-  protected async playable(id: string): Promise<PreviewSave | undefined> {
+  protected async playable(
+    id: string,
+    awaited: readonly number[],
+  ): Promise<PreviewSave | undefined> {
     const record = this.record(id);
+    const failed = awaited.map((edit) => this._failed.get(edit)).find((reason) => reason);
+    const last = Math.max(0, ...awaited);
+    for (const edit of [...this._failed.keys()]) {
+      if (edit <= last) {
+        this._failed.delete(edit);
+      }
+    }
+    if (record && failed) {
+      this.showNote({ name: record.name, failed, play: true });
+      return undefined;
+    }
     if (!record || this._refusals[id] !== undefined || !record.edits?.length) {
       return record;
     }
@@ -432,9 +457,14 @@ export class SavesController {
   setValue(key: string, value: string): Promise<void> {
     const id = this._valuesId;
     const listed = this._listed;
-    return id
-      ? this.serial(() => this.writeValue(id, key, value, listed))
-      : Promise.resolve();
+    if (!id) {
+      return Promise.resolve();
+    }
+    const edit = ++this._edits;
+    this._pending.add(edit);
+    return this.serial(() => this.writeValue(id, key, value, listed, edit)).finally(() => {
+      this._pending.delete(edit);
+    });
   }
 
   protected async writeValue(
@@ -442,6 +472,7 @@ export class SavesController {
     shown: string,
     value: string,
     listed: SaveListed | undefined,
+    edit: number,
   ): Promise<void> {
     const record = this.record(id);
     if (!record) {
@@ -461,8 +492,9 @@ export class SavesController {
         throw new Error("The player could not edit the save.");
       }
       await this.write(withSource(record, save));
-    } catch {
+    } catch (e) {
       this._unsaved[shown] = before ?? "nil";
+      this._failed.set(edit, reasonOf(e));
       this._host.changed();
       return;
     }
@@ -488,7 +520,8 @@ export class SavesController {
       this._rowMenu = undefined;
       this.closeValues();
       this._host.changed();
-      void this.serial(() => this.playable(id)).then((record) =>
+      const awaited = [...this._pending];
+      void this.serial(() => this.playable(id, awaited)).then((record) =>
         record && this._refusals[id] === undefined
           ? this._host.playFromSave(record.data)
           : undefined,

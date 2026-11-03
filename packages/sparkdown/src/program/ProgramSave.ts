@@ -2163,11 +2163,16 @@ export const readSave = (
   };
 };
 
+export interface SavedFrameScopes {
+  flow: string;
+  scopes: ReturnType<typeof JsonSerialisation.JObjectToDictionaryRuntimeObjs>[];
+}
+
 export const readSaveValues = (
   state: ProgramStoryState,
   json: string,
   symbolValue: (symbol: number) => SymbolValue,
-): void => {
+): SavedFrameScopes[] => {
   const { save } = parseSave(json);
   const reader = new SaveReader(state, save, symbolValue);
   const beats = reader.beats;
@@ -2175,9 +2180,22 @@ export const readSaveValues = (
     throw new SaveRefused("The save holds no beat.");
   }
   const plans = beats.map((beat) => ({ ...reader.planBeat(beat), placed: false }));
+  const framed = [...beats].reverse().find((beat) => Array.isArray(beat["frames"]));
+  const saved: Record<string, any>[] = framed ? framed["frames"] : [];
+  let frames: SavedFrameScopes[];
   state.beginLoad();
   try {
     reader.apply(beats.length - 1, plans, () => {});
+    frames = saved.map((frame, i) => {
+      const position = (i === saved.length - 1 ? framed!["position"] : saved[i + 1]!["returnTo"]) as
+        | SavedPosition
+        | undefined;
+      const temps: unknown[] = Array.isArray(frame["temps"]) ? frame["temps"] : [];
+      return {
+        flow: position?.st?.levels?.[0]?.flow ?? "",
+        scopes: temps.map((scope) => JsonSerialisation.JObjectToDictionaryRuntimeObjs(scope as any)),
+      };
+    });
   } finally {
     JsonSerialisation.ResetObjectLoadSession();
   }
@@ -2187,6 +2205,7 @@ export const readSaveValues = (
     }
   }
   state.ResetErrors();
+  return frames;
 };
 
 export const checkSave = (state: ProgramStoryState, json: string): void => {

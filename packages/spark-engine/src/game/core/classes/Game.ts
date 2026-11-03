@@ -20,6 +20,7 @@ import {
   placeDurableAddress,
   placesStatement,
   statementSave,
+  type SavedFrameScopes,
 } from "@impower/sparkdown/src/program/ProgramSave";
 import { chunkOfAddress } from "@impower/sparkdown/src/program/ProgramChunk";
 import { START_FLOW_NAME } from "@impower/sparkdown/src/program/ProgramSymbols";
@@ -68,6 +69,7 @@ import {
   isFormKey,
   lineKeyedValues,
   readStoryValues,
+  savedFrames,
 } from "@impower/sparkdown/src/program/saveValues";
 import {
   readLocalKey,
@@ -2581,18 +2583,23 @@ export class Game<T extends M = {}> {
     }
     const story = this.scratchStory();
     const json = (JSON.parse(save.data) as SaveData).story;
-    let placed = true;
+    let unplaced: SavedFrameScopes[] | undefined;
     try {
       story.loadSave(json);
     } catch {
-      story.loadSaveValues(json);
-      placed = false;
+      unplaced = story.loadSaveValues(json);
     }
     if (save.edits?.length) {
       applySaveValueChanges(story, source, Object.fromEntries(save.edits));
     }
     const read = readStoryValues(story, source);
-    return placed ? read : { values: read.values, frames: [] };
+    if (!unplaced) {
+      return read;
+    }
+    return {
+      values: Object.fromEntries(Object.entries(read.values).filter(([key]) => !readLocalKey(key))),
+      frames: savedFrames(story, unplaced, save.edits),
+    };
   }
 
   saveListing(save: SaveSource, start: string): SaveListed {

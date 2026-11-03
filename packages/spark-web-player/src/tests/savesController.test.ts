@@ -360,6 +360,39 @@ describe("Play from here", () => {
     expect(values[keyOf(game, "Stay.")]).toBeUndefined();
   });
 
+  test("does not play a save after an edit queued before it could not be written, and says so", async () => {
+    const { game } = playing(["store trust = 0", "scene start", "  Saved.", "  Next.", "end"], 3);
+    const record = preview(game.saveHere());
+    let release!: () => void;
+    const edits = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let played: string | undefined;
+    let refuse = true;
+    const controller = await controllerFor(game, record, {
+      edits,
+      played: (data) => {
+        played = data;
+      },
+      refuses: (method) => method === "preview/writeSave" && refuse,
+    });
+    await controller.editValues(record.id);
+    const editing = controller.setValue("store:trust", "5");
+    controller.events.onPlay(record.id);
+    release();
+    await editing;
+    await controller.startingValuesOf(record.id, "start");
+    expect(played).toBeUndefined();
+    expect(controller.note()).toMatchObject({ failed: "not kept", play: true });
+
+    refuse = false;
+    controller.events.onPlay(record.id);
+    await controller.startingValuesOf(record.id, "start");
+    expect(played).toBeDefined();
+    expect(game.saveValuesOf(played!).values["store:trust"]).toBe("0");
+    controller.dispose();
+  });
+
   test("does not play pending edits it could not write, and plays them on their options once written", async () => {
     const source = [...lines.slice(0, 7), "  Saved.", ...lines.slice(7)];
     const { game, compiler } = playing(source);
@@ -425,6 +458,36 @@ describe("Last run", () => {
     await controller.editValues(record.id);
     expect(listedValue(controller, "Stay.")).toBe("2");
     expect(listedValue(controller, "Leave.")).toBeUndefined();
+  });
+
+  test("deletes an earlier run's saves on the next program change after the host refused it", async () => {
+    const { game } = playing(["scene start", "  Saved.", "  Next.", "end"], 2);
+    const save: GameSave = game.saveHere();
+    const earlier: PreviewSave = {
+      ...save,
+      id: "earlier-run",
+      kind: "lastRun",
+      name: "Entering start",
+      time: 1,
+      run: "earlier",
+    };
+    const store = new Map([[earlier.id, earlier]]);
+    let deletes = true;
+    const controller = savesFor(game, store, {
+      refuses: (method) => method === "preview/deleteSaves" && deletes,
+    });
+    await controller.load();
+    await controller.playStarted();
+    expect(controller.rows()).toEqual([]);
+    expect(store.has("earlier-run")).toBe(true);
+
+    deletes = false;
+    await controller.programChanged();
+    await controller.startingValuesOf("earlier-run", "start");
+    expect(store.has("earlier-run")).toBe(false);
+    const reloaded = savesFor(game, store);
+    await reloaded.load();
+    expect(reloaded.rows()).toEqual([]);
   });
 
   test("keeps only the latest run's saves when an earlier run's could not be deleted", async () => {
