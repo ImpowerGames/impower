@@ -47,7 +47,6 @@ const completionTheme = EditorView.baseTheme({
   },
   "& .cm-tooltip.cm-tooltip-autocomplete > ul > li": {
     display: "flex",
-    flexDirection: "row",
     alignItems: "center",
     padding: "3px 10px 3px 2px",
   },

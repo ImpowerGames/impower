@@ -36,7 +36,6 @@ const keyboardToolbarTheme = EditorView.theme({
     borderTop: "1px rgba(255, 255, 255, 0.1) solid",
     padding: "0 8px",
     display: "flex",
-    flexDirection: "row",
     alignItems: "stretch",
     justifyContent: "space-around",
     overflowX: "auto",
@@ -52,7 +51,6 @@ const keyboardToolbarTheme = EditorView.theme({
   ".cm-keyboard-toolbar .cm-button": {
     position: "relative",
     display: "flex",
-    flexDirection: "row",
     border: "none",
     fontSize: "14px",
     touchAction: "manipulation",

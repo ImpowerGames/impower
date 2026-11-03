@@ -33,7 +33,6 @@ export const stickyScrollTheme = EditorView.theme({
   },
   ".cm-sticky-header-row": {
     display: "flex",
-    flexDirection: "row",
     backgroundColor: "inherit",
     width: "100%",
   },
