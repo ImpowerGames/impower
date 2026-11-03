@@ -1,33 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
-import { Game } from "../../game/core/classes/Game";
-import { requireChunks } from "../harness/compileProgram";
-
-const URI = "inmemory:///main.sd";
-
-function compileSrc(src: string) {
-  const compiler = new SparkdownCompiler();
-  compiler.configure({
-    useBuiltinsPrelude: true,
-    seedBuiltinsIntoStory: true,
-    files: [
-      { uri: URI, type: "script", name: "main", ext: "sd", text: src, version: 1, languageId: "sparkdown" },
-    ],
-  });
-  const result = compiler.compile({ textDocument: { uri: URI } });
-  return requireChunks(result.program, "menu checkpoint fixture");
-}
-
-function newGame(program: unknown) {
-  return new Game({
-    program: program as any,
-    now: () => 0,
-    setTimeout: ((fn: Function, _ms?: number, ...a: any[]) => {
-      fn(...a);
-      return 0;
-    }) as any,
-  } as any);
-}
+import type { Game } from "../../game/core/classes/Game";
+import { compileSrc, newGame, URI } from "../harness/startingValuesGame";
 
 const CHOOSE_FIRST = `scene start
   choose
@@ -57,7 +30,7 @@ end
 type Resume = "live" | "json" | "stored" | "restored";
 
 function playFrom(src: string, line: number, resume: Resume): Game {
-  const program = compileSrc(src);
+  const { program } = compileSrc(src);
   const routed = newGame(program);
   routed.setStartFrom({ file: URI, line });
   routed.simulate();
