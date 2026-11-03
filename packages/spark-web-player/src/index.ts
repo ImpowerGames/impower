@@ -1,2 +1,2 @@
 export * from "./SparkWebPlayer.elem";
-export { setWorkspace } from "./GamePlayerController";
+export { setWorkspace, whenControllerListening } from "./GamePlayerController";

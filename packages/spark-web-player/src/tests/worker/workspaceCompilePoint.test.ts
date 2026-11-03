@@ -38,7 +38,7 @@ const createWorkspace = () => {
     request: () => new Promise(() => {}),
     sendRequest: () => new Promise(() => {}),
   };
-  return installWorkspaceWorker(host as any).workspace;
+  return installWorkspaceWorker(host as any, Promise.resolve()).workspace;
 };
 
 const select = (uri: string, line: number, userEvent: boolean) => ({

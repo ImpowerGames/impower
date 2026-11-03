@@ -526,19 +526,22 @@ await asyncCheck("scrubbing refuses playback modes and waits for the selected so
   };
   const context = vm.createContext({ ...globals, setTimeout, clearTimeout });
   const page = { waitForFunction: async () => {}, evaluate: async (fn, arg) => { context.arg = arg; return vm.runInContext("(" + fn.toString() + ")(arg)", context); } };
-  for (const launchState of ["play", "pause", null]) {
+  for (const launchState of ["play", "pause"]) {
     game.launchState = launchState;
     assert.equal((await liveDeps.clickLine(page, 2)).clicked, false);
   }
   assert.equal(globals.protocolState.messages.filter(m => m.method === "editor/select").length, 0);
-  game.launchState = "preview";
-  const result = await liveDeps.clickLine(page, 2);
-  assert.equal(result.cursorLine, 2);
-  assert.equal(result.x, 173);
-  assert.equal(result.y, 50);
-  assert.equal(result.previousPosition.line, 0);
-  assert.equal(result.position.line, 1);
-  assert.equal(subscribers.size, 0);
+  for (const launchState of [null, "preview"]) {
+    game = { launchState, position: { uri: "file://local/main.sd", line: 0 } };
+    const result = await liveDeps.clickLine(page, 2);
+    assert.equal(result.clicked, true, `a ${launchState} game state refused the scrub`);
+    assert.equal(result.cursorLine, 2);
+    assert.equal(result.x, 173);
+    assert.equal(result.y, 50);
+    assert.equal(result.previousPosition.line, 0);
+    assert.equal(result.position.line, 1);
+    assert.equal(subscribers.size, 0);
+  }
 });
 
 await asyncCheck("a press focuses the script editor first and reports whether the document text changed", async () => {

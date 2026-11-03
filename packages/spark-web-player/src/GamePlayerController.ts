@@ -200,6 +200,16 @@ export function setWorkspace(
   workspace = ws;
 }
 
+let markControllerListening: () => void = () => {};
+
+const controllerListening = new Promise<void>((resolve) => {
+  markControllerListening = resolve;
+});
+
+export function whenControllerListening(): Promise<void> {
+  return controllerListening;
+}
+
 const reportUnlessRestarted = (e: unknown) => {
   if (!(e instanceof CompilerRestartedError)) {
     console.error(e);
@@ -449,6 +459,7 @@ export class GamePlayerController {
       ConnectedPreviewMessage.type.notification({ type: "game" }),
       this.host,
     );
+    markControllerListening();
   }
 
   dispose(): void {
