@@ -138,6 +138,60 @@ it("attributes a workspace edit coalesced under the editor's autosave to the edi
   expect(didWrites(h.messages.slice(before))).toEqual([{ origin: "editor", bytes: [3] }, { origin: "editor", bytes: [3] }]);
 });
 
+const gatedWorker = async () => {
+  let blockAt = 0;
+  let calls = 0;
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const h = await worker({ acquire: async () => { calls += 1; if (calls === blockAt) await gate; } });
+  void (globalThis as any).onmessage({ data: { jsonrpc: "2.0", method: "workspace/didChangeConfiguration", params: { settings: { scriptFiles: "*.sd" } } } });
+  return { ...h, blockCall: (offset: number) => { blockAt = calls + offset; }, release };
+};
+const insertAtEnd = (uri: string, character: number, newText: string) => ({ textDocument: { uri, version: null }, edits: [{ range: { start: { line: 0, character }, end: { line: 0, character } }, newText }] });
+const didWriteFiles = (messages: any[]) => messages.filter(message => message.method === "workspace/didWriteFiles").map(message => ({ origin: message.params.origin, files: message.params.files.map((f: any) => [f.uri, f.size]) }));
+
+it("reports the current committed bytes and writer for a workspace edit whose later file was still writing", async () => {
+  const h = await gatedWorker();
+  await h.send("a", [65], "file://local/a.sd");
+  await h.send("b", [66], "file://local/b.sd");
+  const before = h.messages.length;
+  h.blockCall(2);
+  await h.request("edit", "workspace/applyWorkspaceEdit", { edit: { documentChanges: [insertAtEnd("file://local/a.sd", 1, "!"), insertAtEnd("file://local/b.sd", 1, "!")] } }, 250);
+  await h.request("autosave", "workspace/willWriteFiles", { files: [{ uri: "file://local/a.sd", version: 3, data: new Uint8Array([65, 33, 67, 68]).buffer }], origin: "editor" });
+  expect(h.messages.find(message => message.id === "autosave")).toHaveProperty("result");
+  expect(h.messages.find(message => message.id === "edit")).toBeUndefined();
+  h.release();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(h.messages.find(message => message.id === "edit")).toMatchObject({ result: { applied: true } });
+  expect(didWriteFiles(h.messages.slice(before))).toEqual([
+    { origin: "editor", files: [["file://local/a.sd", 4]] },
+    { origin: "editor", files: [["file://local/a.sd", 4]] },
+    { origin: undefined, files: [["file://local/b.sd", 2]] },
+  ]);
+});
+
+it("attributes a rename onto a file to the editor when the editor's autosave replaced the rename's queued bytes", async () => {
+  const h = await gatedWorker();
+  await h.send("x", [88], "file://local/x.sd");
+  await h.send("main", [65], "file://local/main.sd");
+  const before = h.messages.length;
+  h.blockCall(1);
+  await h.request("inflight", "workspace/willWriteFiles", { files: [{ uri: "file://local/main.sd", version: 2, data: new Uint8Array([65, 1]).buffer }] });
+  await h.request("rename", "workspace/willRenameFiles", { files: [{ oldUri: "file://local/x.sd", newUri: "file://local/main.sd" }] }, 0);
+  await h.request("autosave", "workspace/willWriteFiles", { files: [{ uri: "file://local/main.sd", version: 3, data: new Uint8Array([65, 66, 67]).buffer }], origin: "editor" }, 0);
+  h.release();
+  await vi.advanceTimersByTimeAsync(250);
+  expect(h.messages.find(message => message.id === "rename")).toHaveProperty("result");
+  expect(h.messages.find(message => message.id === "autosave")).toHaveProperty("result");
+  const writes = didWriteFiles(h.messages.slice(before));
+  expect(writes).toHaveLength(3);
+  expect(writes).toEqual(expect.arrayContaining([
+    { origin: undefined, files: [["file://local/main.sd", 2]] },
+    { origin: "editor", files: [["file://local/main.sd", 3]] },
+  ]));
+  expect(writes.filter(write => write.origin === "editor")).toHaveLength(2);
+});
+
 it("keeps a raster import pending until its thumbnail is cached", async () => {
   let finish!: () => void;
   const h = await worker({ thumbnail: new Promise<void>(resolve => { finish = resolve; }) });

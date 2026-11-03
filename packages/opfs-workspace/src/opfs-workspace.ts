@@ -71,8 +71,6 @@ const TRASH_DIR = ".trash";
 const TRASH_MANIFEST = "__manifest.json";
 const DEFAULT_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
-type WrittenFile = { file: FileData; created: boolean; origin?: string };
-
 const THUMB_CACHE_NAME = "asset-thumbnails";
 const THUMB_WIDTH = 144;
 const RESOURCE_PROTOCOL = "/file:/";
@@ -106,10 +104,11 @@ abstract class State {
       buffer: DataView | Uint8Array;
       origin?: string;
       writing?: boolean;
-      listeners: { resolve(result: WrittenFile): void; reject(error: unknown): void }[];
+      listeners: { resolve(result: { file: FileData; created: boolean }): void; reject(error: unknown): void }[];
     }
   >();
   static files = new Map<string, FileData>();
+  static fileOrigins = new Map<string, string>();
   static documents = new Map<string, TextDocument>();
 }
 
@@ -123,9 +122,14 @@ const broadcast = (message: NotificationMessage<string, object>) => {
   remoteMessage.params.remote = true;
   channel.postMessage(remoteMessage);
 };
-const broadcastWrittenFiles = (written: { file: FileData; origin?: string }[]) => {
+const broadcastWrittenFiles = (uris: string[]) => {
   const filesByOrigin = new Map<string | undefined, FileData[]>();
-  for (const { file, origin } of written) {
+  for (const uri of new Set(uris)) {
+    const file = State.files.get(uri);
+    if (!file) {
+      continue;
+    }
+    const origin = State.fileOrigins.get(uri);
     filesByOrigin.set(origin, [...(filesByOrigin.get(origin) ?? []), file]);
   }
   if (filesByOrigin.size === 0) {
@@ -241,7 +245,7 @@ onmessage = async (e) => {
         result.map((r) => r.file),
       );
       respond(response);
-      broadcastWrittenFiles(result);
+      broadcastWrittenFiles(result.map((r) => r.file.uri));
       broadcast(
         DidChangeWatchedFilesMessage.type.notification({
           changes: result.map((r) => ({
@@ -268,7 +272,7 @@ onmessage = async (e) => {
         result.map((r) => r.file),
       );
       respond(response);
-      broadcastWrittenFiles(result);
+      broadcastWrittenFiles(result.map((r) => r.file.uri));
       const createdResult = result.filter((r) => r.created);
       if (createdResult.length > 0) {
         broadcast(
@@ -347,12 +351,7 @@ onmessage = async (e) => {
       }
       respond(TrashFilesMessage.type.response(message.id, result));
       if (action === "restore" && result.restored && result.restored.length > 0) {
-        broadcast(
-          DidWriteFilesMessage.type.notification({
-            files: result.restored,
-            remote: false,
-          }),
-        );
+        broadcastWrittenFiles(result.restored.map((f) => f.uri));
         broadcast(
           DidChangeWatchedFilesMessage.type.notification({
             changes: result.restored.map((f) => ({
@@ -381,12 +380,7 @@ onmessage = async (e) => {
         renamedFiles.map((f) => f.file),
       );
       respond(response);
-      broadcast(
-        DidWriteFilesMessage.type.notification({
-          files: files.map((r) => State.files.get(r.newUri)!),
-          remote: false,
-        }),
-      );
+      broadcastWrittenFiles(files.map((r) => r.newUri));
       broadcast(DidRenameFilesMessage.type.notification({ files }));
       broadcast(
         DidChangeWatchedFilesMessage.type.notification({
@@ -424,7 +418,7 @@ onmessage = async (e) => {
   if (ApplyWorkspaceEditMessage.type.isRequest(message)) {
     const { edit } = message.params;
 
-    const writeFileMap = new Map<string, { file: FileData; origin?: string }>();
+    const writtenUris: string[] = [];
     const fileEvents: FileEvent[] = [];
     const createEvents: CreateFile[] = [];
     const deleteEvents: DeleteFile[] = [];
@@ -447,7 +441,7 @@ onmessage = async (e) => {
                   uri,
                   type: FileChangeType.Created,
                 });
-                writeFileMap.set(uri, create);
+                writtenUris.push(uri);
               }
               for (const change of changed) {
                 const uri = change.file.uri;
@@ -455,7 +449,7 @@ onmessage = async (e) => {
                   uri,
                   type: FileChangeType.Changed,
                 });
-                writeFileMap.set(uri, change);
+                writtenUris.push(uri);
               }
             } else if (c.kind === "delete") {
               await deleteFiles([c]);
@@ -473,10 +467,7 @@ onmessage = async (e) => {
                 uri: c.newUri,
                 type: FileChangeType.Created,
               });
-              const file = State.files.get(c.newUri);
-              if (file) {
-                writeFileMap.set(c.newUri, { file });
-              }
+              writtenUris.push(c.newUri);
             }
           } else {
             const uri = c.textDocument.uri;
@@ -486,7 +477,7 @@ onmessage = async (e) => {
               type: FileChangeType.Changed,
             });
             if (written) {
-              writeFileMap.set(uri, written);
+              writtenUris.push(uri);
             }
           }
           changeIndex++;
@@ -502,7 +493,7 @@ onmessage = async (e) => {
             type: FileChangeType.Changed,
           });
           if (written) {
-            writeFileMap.set(uri, written);
+            writtenUris.push(uri);
           }
         }
       }
@@ -529,7 +520,7 @@ onmessage = async (e) => {
         );
       }
 
-      broadcastWrittenFiles(Array.from(writeFileMap.values()));
+      broadcastWrittenFiles(writtenUris);
 
       broadcast(
         DidChangeWatchedFilesMessage.type.notification({
@@ -747,7 +738,7 @@ const enqueueWrite = async (
     const normalized = normalizeSVGAttributeNames(source);
     if (normalized !== source) buffer = new TextEncoder().encode(normalized);
   }
-  return new Promise<WrittenFile>((resolve, reject) => {
+  return new Promise<{ file: FileData; created: boolean }>((resolve, reject) => {
     if (!State.writeQueue.get(fileUri)) {
       State.writeQueue.set(fileUri, {
         buffer,
@@ -857,11 +848,16 @@ const write = async (fileUri: string) => {
     syncAccessHandle = undefined;
     const arrayBuffer = buffer.buffer as ArrayBuffer;
     const file = updateFileCache(fileUri, arrayBuffer, true, version, Date.now());
+    if (origin != null) {
+      State.fileOrigins.set(fileUri, origin);
+    } else {
+      State.fileOrigins.delete(fileUri);
+    }
     await enrichUrlAssetType(fileUri);
     const notifyFile = State.files.get(fileUri) ?? file;
     await enqueueThumbnail(fileUri);
     listeners.forEach((l) => {
-      l.resolve({ file: notifyFile, created, origin });
+      l.resolve({ file: notifyFile, created });
     });
   } catch (err: any) {
     let failure = err;
@@ -938,6 +934,7 @@ const evictTrashCache = (uriPrefix: string) => {
   for (const uri of [...State.files.keys()]) {
     if (uri.startsWith(uriPrefix)) {
       State.files.delete(uri);
+      State.fileOrigins.delete(uri);
     }
   }
 };
@@ -1072,6 +1069,7 @@ const deleteFiles = async (files: { uri: string }[]) => {
       if (existingFile) {
         URL.revokeObjectURL(existingFile.src);
         State.files.delete(file.uri);
+        State.fileOrigins.delete(file.uri);
       }
       return existingFile;
     }),
