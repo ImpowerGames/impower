@@ -207,6 +207,7 @@ describe("a story that ends", () => {
     await flushMicrotasks(20);
     const methods = gameMessages(h.messages).map((m) => m.method);
     expect(methods).toContain("game/finished");
+    expect(methods).toContain("game/clickedToContinue");
     expect(methods.indexOf("game/clickedToContinue")).toBeLessThan(
       methods.indexOf("game/finished"),
     );

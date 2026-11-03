@@ -157,7 +157,7 @@ style end_mark with
 end
 ```
 
-While the ending screen is open, `game.ending.active` is `true`, so any layout can react to it through a binding such as `{game.ending.active}`. Nothing about the ending is saved into checkpoints.
+While the ending screen is open, `game.ending.active` is `true`, so any layout can react to it through a binding such as `{game.ending.active}`. A checkpoint keeps neither the open ending screen nor `game.ending.active`; it records only how the story ended, so a story that ended with `fin` opens its ending screen again when it resumes from there.
 
 The ending screen opens with the transition named by `ending_transition` in `define ui as config`, which is `"fade"` unless you change it:
 
