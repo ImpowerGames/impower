@@ -2907,7 +2907,6 @@ export class Game<T extends M = {}> {
   }
 
   protected discardOpenStoryLine() {
-    this._story.CancelAsyncContinue();
     this._awaiting = null;
   }
 

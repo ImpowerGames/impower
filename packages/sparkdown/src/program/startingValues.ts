@@ -655,7 +655,6 @@ export const startStoryAt = (story: ProgramStory, plan: StartPlan): void => {
   if (story.stateIsPristine && reseed && story.state.previousRandom === 0) {
     story.state.storySeed = plan.seed;
   } else if (!story.stateIsPristine || reseed) {
-    story.CancelAsyncContinue();
     story.ResetState();
   }
   applyStartValues(story, plan);

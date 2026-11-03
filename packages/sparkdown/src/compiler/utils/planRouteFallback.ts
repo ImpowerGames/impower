@@ -276,8 +276,6 @@ export const planRouteFallback = (
     try {
       if (!routePlan || !options?.callerResetsStory) {
         resetStory(story);
-      } else {
-        story.CancelAsyncContinue();
       }
     } finally {
       story.onError = prevOnError;
@@ -523,7 +521,6 @@ const runUntilDecisionOrBranch = (
 };
 
 const resetStory = (story: Story) => {
-  story.CancelAsyncContinue();
   story.ResetState();
 };
 
