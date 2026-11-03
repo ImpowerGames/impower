@@ -328,8 +328,8 @@ export async function desktop(args) {
       report.ending.restarted = await wait(async () => { const s = await readPreview(); return s?.playing && !s.ending && s.text?.includes(spec.ending.restartText) ? s : null; }, `Restart never replayed to: ${spec.ending.restartText}`);
       report.ending.callStackAfterRestart = await wait(async () => {
         const text = await page.locator(".pane-header").filter({ hasText: "Call Stack" }).first().innerText().catch(() => null);
-        return text != null && !/paused on end/i.test(text) ? text : null;
-      }, "The Call Stack still showed the session paused on end after Restart");
+        return text != null && /paused on awaiting interaction/i.test(text) ? text : null;
+      }, "The Call Stack never showed the replay paused on awaiting interaction after Restart");
       await page.screenshot({ path: path.join(evidence, "ending-restarted.png") });
       await command(page, "Impower Driver: Stop After Ending", "impower.driver.endingStop");
       report.ending.stop = await wait(() => readJson(path.join(evidence, "ending-stop-report.json")), "Stop verification timed out");
