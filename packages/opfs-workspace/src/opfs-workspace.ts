@@ -114,7 +114,27 @@ abstract class State {
 
 const channel = new BroadcastChannel("opfs-workspace");
 channel.onmessage = (event) => {
-  postMessage(event.data);
+  const message = event.data;
+  if (DidWriteFilesMessage.type.isNotification(message)) {
+    for (const file of message.params.files) {
+      const cached = State.files.get(file.uri);
+      if (
+        cached?.modified != null &&
+        file.modified != null &&
+        cached.modified > file.modified
+      ) {
+        continue;
+      }
+      State.files.set(file.uri, file);
+      State.fileOrigins.delete(file.uri);
+    }
+  } else if (DidDeleteFilesMessage.type.isNotification(message)) {
+    for (const { uri } of message.params.files) {
+      State.files.delete(uri);
+      State.fileOrigins.delete(uri);
+    }
+  }
+  postMessage(message);
 };
 const broadcast = (message: NotificationMessage<string, object>) => {
   postMessage(message);
