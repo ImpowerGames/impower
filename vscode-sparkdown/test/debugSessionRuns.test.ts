@@ -51,7 +51,7 @@ const stop = (reason: "breakpoint" | "step" | "awaiting interaction", run: numbe
         });
 
 const session = () => {
-  const player = { run: 1 as number | undefined };
+  const player = { run: 1 as number | null };
   const sent: string[] = [];
   const events: [string, string | null][] = [];
   let during: ((method: string) => Promise<void> | void) | undefined;
@@ -61,6 +61,7 @@ const session = () => {
     connectInput() {},
     emit: async (message: { method: string }) => {
       sent.push(message.method);
+      const run = player.run;
       if (during) {
         const act = during;
         during = undefined;
@@ -72,8 +73,8 @@ const session = () => {
         await wait;
       }
       return message.method === "game/threads"
-        ? { threads: [{ id: 0, name: "main" }], run: player.run }
-        : { run: player.run, done: false };
+        ? { threads: [{ id: 0, name: "main" }], run }
+        : { run, done: false };
     },
   };
   const fileAccessor = {
@@ -91,6 +92,7 @@ const session = () => {
     sent,
     events,
     notify: (message: any) => (s as any).onReceiveNotification(message),
+    current: () => (s as any)._run,
     request: (name: string) => (s as any)[name]({ body: {} }, {}),
     duringNext: (act: (method: string) => Promise<void> | void) => {
       during = act;
@@ -114,7 +116,7 @@ describe("the debug adapter judging stops by the run they belong to", () => {
     await s.notify(ended(1));
     await s.notify(state("ended", 1));
     await s.request("restartRequest");
-    s.player.run = undefined;
+    s.player.run = null;
     await s.notify(state("preview", null));
     s.player.run = 2;
     s.events.length = 0;
@@ -147,7 +149,7 @@ describe("the debug adapter judging stops by the run they belong to", () => {
     await s.notify(ended(1));
     await s.notify(state("ended", 1));
     await s.request("restartRequest");
-    s.player.run = undefined;
+    s.player.run = null;
     await s.notify(state("preview", null));
     s.player.run = 2;
     await s.notify(state("play", 2));
@@ -161,7 +163,7 @@ describe("the debug adapter judging stops by the run they belong to", () => {
     ]);
   });
 
-  it("drops an old run's stop when an edit restarts the running game during its lookup", async () => {
+  it("drops an old run's stop whose lookup was answered for its run after an edit restarted the game", async () => {
     const s = session();
     await s.notify(state("play", 1));
     s.duringNext(async () => {
@@ -172,6 +174,42 @@ describe("the debug adapter judging stops by the run they belong to", () => {
     expect(s.events).toEqual([]);
     await s.notify(stop("awaiting interaction", 2));
     expect(s.events).toEqual([["stopped", "awaiting interaction"]]);
+  });
+
+  it("drops a pending pause stop of the ended run while teardown has named no replacement run", async () => {
+    const s = session();
+    await s.notify(state("play", 1));
+    const release = s.holdNextLookup();
+    const paused = s.request("pauseRequest");
+    await s.lookupHeld();
+    await s.notify(ended(1));
+    await s.notify(state("ended", 1));
+    await s.request("restartRequest");
+    s.player.run = null;
+    await s.notify(state("preview", null));
+    expect(s.current()).toBeNull();
+    release();
+    await paused;
+    expect(s.events).toEqual([
+      ["response", null],
+      ["stopped", "end"],
+      ["response", null],
+      ["continued", null],
+    ]);
+  });
+
+  it("keeps the newer run current when an answer for the older run arrives after it is named", async () => {
+    const s = session();
+    await s.notify(state("play", 1));
+    s.duringNext(async () => {
+      s.player.run = 2;
+      await s.notify(state("play", 2));
+    });
+    await s.request("nextRequest");
+    expect(s.sent).toContain("game/step");
+    expect(s.current()).toBe(2);
+    await s.notify(stop("step", 1));
+    expect(s.events.filter(([event]) => event === "stopped")).toEqual([]);
   });
 
   it("publishes the end stop once when the ended launch state arrives during game/ended's lookup", async () => {
