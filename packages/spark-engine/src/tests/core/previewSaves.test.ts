@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { saveStartingValues } from "@impower/sparkdown/src/program/saveValueSet";
 import { Game } from "../../game/core/classes/Game";
 import { GameSavedSceneEntryMessage } from "../../game/core/classes/messages/GameSavedSceneEntryMessage";
 import type { GameSave } from "../../game/core/types/GameSave";
@@ -136,8 +135,7 @@ describe("saves made while playing", () => {
     );
     const entering = saves.find((save) => save.scene === "interrogation")!;
     expect(entering).toBeDefined();
-    const listing = game.startingValueListing("interrogation");
-    expect(saveStartingValues(entering.values, listing)).toEqual({
+    expect(game.saveStartingValuesOf(entering, "interrogation")).toEqual({
       "param:hour": '"nine"',
       "visits:start": "1",
     });
@@ -179,11 +177,11 @@ describe("saves made while playing", () => {
     const entries = saves.filter((save) => save.scene === "interrogation");
     expect(entries).toHaveLength(2);
     const listing = game.startingValueListing("interrogation");
-    expect(saveStartingValues(entries[0]!.values, listing)).toEqual({
+    expect(game.saveStartingValuesOf(entries[0]!, "interrogation")).toEqual({
       "param:hour": '"nine"',
       "visits:start": "1",
     });
-    expect(saveStartingValues(entries[1]!.values, listing)).toEqual({
+    expect(game.saveStartingValuesOf(entries[1]!, "interrogation")).toEqual({
       "param:hour": '"ten"',
       "store:trust": "1",
       "visits:start": "1",
@@ -210,36 +208,28 @@ describe("saves made while playing", () => {
     choose(game, "Leave.");
     advanceTo(game, "Left.");
     const save: GameSave = game.saveHere();
-    const before = Object.entries(save.values.values).filter(
-      ([key, value]) => key.startsWith("place:") && value === "1",
-    );
-    expect(before.map(([key]) => key)).toEqual([`place:0:4:${URI}`]);
+    const counted = () =>
+      Object.entries(game.saveStartingValuesOf(save, "start")).filter(([key]) =>
+        key.startsWith("place:"),
+      );
+    expect(counted()).toEqual([[`place:0:4:${URI}`, "1"]]);
 
     recompile(compiler, game, ["", "", ...lines].join("\n"));
-    expect(Object.keys(JSON.parse(save.values.places!).forms)).toEqual([
-      `place:0:4:${URI}`,
-    ]);
-    expect(game.countKeysOf(save.values.places!)).toEqual({
-      [`place:0:4:${URI}`]: `place:0:6:${URI}`,
-    });
+    expect(counted()).toEqual([[`place:0:6:${URI}`, "1"]]);
 
     recompile(
       compiler,
       game,
       ["", "", ...lines.filter((line) => !line.includes("Stay"))].join("\n"),
     );
-    expect(game.countKeysOf(save.values.places!)).toEqual({
-      [`place:0:4:${URI}`]: `place:0:4:${URI}`,
-    });
+    expect(counted()).toEqual([[`place:0:4:${URI}`, "1"]]);
 
     recompile(
       compiler,
       game,
       ["", "", ...lines.filter((line) => !/Leave|Left/.test(line))].join("\n"),
     );
-    expect(game.countKeysOf(save.values.places!)).toEqual({});
-    expect(game.countForms([`place:0:4:${URI}`])).toBeDefined();
-    expect(game.countForms([`place:0:9:${URI}`])).toBeUndefined();
+    expect(counted()).toEqual([]);
   });
 
   it("keeps the position when a save's values are edited", () => {
@@ -247,10 +237,10 @@ describe("saves made while playing", () => {
     const game = playFromLine(program, compiler, START_LINE);
     advanceTo(game, "Where were you at nine?");
     const save: GameSave = game.saveHere();
-    expect(save.values.values["store:trust"]).toBe("0");
+    expect(game.saveValuesOf(save.data).values["store:trust"]).toBe("0");
 
-    const edited = game.editSave(save.data, { "store:trust": "5" });
-    expect(edited.values.values["store:trust"]).toBe("5");
+    const edited = game.editSave(save, "store:trust", "5");
+    expect(edited.edits).toBeUndefined();
     expect(game.saveValuesOf(edited.data).values["store:trust"]).toBe("5");
     expect(JSON.parse(edited.data).modules).toEqual(JSON.parse(save.data).modules);
 
@@ -282,5 +272,31 @@ describe("saves made while playing", () => {
     const without = example.filter((_, i) => i !== 9 && i !== 10);
     recompile(compiler, game, without.join("\n"));
     expect(game.saveRefusal(save.data)).toBe("The saved line is gone.");
+  });
+
+  it("reads a save's values by name when none of its beats places", () => {
+    const { program, compiler } = compileSrc(example.join("\n"));
+    const game = playFromLine(program, compiler, START_LINE);
+    advanceTo(game, "Where were you at nine?");
+    const save = game.editSave(game.saveHere(), "store:trust", "4");
+
+    recompile(
+      compiler,
+      game,
+      ["store trust = 0", 'store suspect = "Ana"', "", "scene start", "  Gone.", "end"].join("\n"),
+    );
+    expect(game.saveRefusal(save.data)).toMatch(/cannot be placed/);
+    expect(game.saveStartingValuesOf(save, "start")).toEqual({
+      "store:trust": "4",
+      "visits:start": "1",
+    });
+    const kept = game.editSave(save, "store:suspect", '"Bo"');
+    expect(kept.data).toBe(save.data);
+    expect(kept.edits).toEqual([["store:suspect", '"Bo"']]);
+    expect(game.saveStartingValuesOf(kept, "start")).toEqual({
+      "store:trust": "4",
+      "store:suspect": '"Bo"',
+      "visits:start": "1",
+    });
   });
 });

@@ -3,7 +3,13 @@ import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/Me
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
 import { SetStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetStartingValuesMessage";
 import type { PreviewRoute } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
-import { withSavedValue } from "@impower/sparkdown/src/program/saveValueSet";
+import type { SaveSource } from "@impower/spark-engine/src/game/core/types/GameSave";
+import {
+  readLocalKey,
+  saveStartingValues,
+  withSavedValue,
+  type SaveValues,
+} from "@impower/sparkdown/src/program/saveValueSet";
 import type {
   StartingValueListing,
   StartingValues,
@@ -48,28 +54,73 @@ const listing: StartingValueListing = {
   ],
 };
 
+const FIXTURES = new Map<string, SaveValues>();
+
 const save = (
   id: string,
   kind: PreviewSave["kind"],
   name: string,
   values: Record<string, string>,
   line = 10,
-): PreviewSave => ({
-  id,
-  kind,
-  name,
-  scene: "interrogation",
-  uri: URI,
-  line,
-  time: Date.UTC(2026, 10, 2, 9, 30),
-  data: `{"save":"${id}"}`,
-  values: {
+): PreviewSave => {
+  const saved: SaveValues = {
     values,
     frames: [
       { flow: "interrogation", scene: "interrogation", uri: URI, line, params: { hour: '"nine"' } },
     ],
-  },
-});
+  };
+  FIXTURES.set(id, saved);
+  return {
+    id,
+    kind,
+    name,
+    scene: "interrogation",
+    uri: URI,
+    line,
+    time: Date.UTC(2026, 10, 2, 9, 30),
+    data: `{"save":"${id}"}`,
+    ...(kind === "lastRun" ? { entry: saved } : {}),
+  };
+};
+
+const edited = (saved: SaveValues, key: string, value: string): SaveValues => {
+  const local = readLocalKey(key);
+  return {
+    values: withSavedValue(saved.values, key, value),
+    frames: saved.frames.map((frame, i) =>
+      local && i === local.frame && Object.hasOwn(frame.params, local.name)
+        ? { ...frame, params: { ...frame.params, [local.name]: value } }
+        : frame,
+    ),
+  };
+};
+
+const idOf = (data: string): string => JSON.parse(data.split("+")[0]!).save;
+
+const durableOf = (data: string): SaveValues => {
+  const [, ...written] = data.split("+");
+  let saved = FIXTURES.get(idOf(data))!;
+  for (const change of written) {
+    for (const [key, value] of Object.entries(JSON.parse(change) as Record<string, string>)) {
+      saved = edited(saved, key, value);
+    }
+  }
+  return saved;
+};
+
+const valuesOf = (source: SaveSource): SaveValues => {
+  if (source.entry) {
+    return source.entry;
+  }
+  let saved = durableOf(source.data);
+  for (const [key, value] of source.edits ?? []) {
+    saved = edited(saved, key, value);
+  }
+  return saved;
+};
+
+const written = (data: string, edits: readonly [string, string][]) =>
+  data + edits.map(([key, value]) => `+${JSON.stringify({ [key]: value })}`).join("");
 
 const entering = () =>
   save("last-1", "lastRun", "Entering interrogation", {
@@ -98,9 +149,9 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 function player(
   options: {
     refusals?: Record<string, string>;
-    countKeys?: Record<string, string>;
   } = {},
 ) {
+  const refusals: Record<string, string> = { ...(options.refusals ?? {}) };
   const host = document.createElement("div");
   const viewport = document.createElement("div");
   const leftItems = document.createElement("div");
@@ -144,18 +195,46 @@ function player(
       return { listing: { ...listing, start: params.start } };
     }
     if (type.method === "player/saveRefusals") {
-      return { refusals: options.refusals ?? {} };
+      return { refusals: { ...refusals } };
     }
-    if (type.method === "player/countKeys") {
-      return { keys: options.countKeys ?? {} };
+    if (type.method === "player/saveListing") {
+      return {
+        listed: {
+          listing: { ...listing, start: params.start },
+          values: valuesOf(params.save),
+          forms: {},
+        },
+      };
+    }
+    if (type.method === "player/saveStartingValues") {
+      return {
+        values: saveStartingValues(valuesOf(params.save), { ...listing, start: params.start }),
+      };
     }
     if (type.method === "player/editSave") {
       await settle();
+      const source = params.save as SaveSource;
+      const entry = source.entry && edited(source.entry, params.key, params.value);
+      const edits: [string, string][] = [
+        ...(source.edits ?? []).filter(([key]) => key !== params.key),
+        [params.key, params.value],
+      ];
       return {
-        data: `${params.data}+${JSON.stringify(params.changes)}`,
-        values: {
-          values: { ...saved().values.values, ...params.changes },
-          frames: saved().values.frames,
+        save: refusals[idOf(source.data)]
+          ? { data: source.data, ...(entry ? { entry } : {}), edits }
+          : { data: written(source.data, edits), ...(entry ? { entry } : {}) },
+      };
+    }
+    if (type.method === "player/playableSave") {
+      const source = params.save as SaveSource;
+      const refusal = refusals[idOf(source.data)];
+      if (refusal) {
+        throw new Error(refusal);
+      }
+      return {
+        save: {
+          data: written(source.data, source.edits ?? []),
+          ...(source.entry ? { entry: source.entry } : {}),
         },
       };
     }
@@ -203,6 +282,7 @@ function player(
   };
   return {
     controller,
+    refusals,
     sent,
     asked,
     routeButton,
@@ -405,13 +485,13 @@ describe("a save's values", () => {
     await settle();
     expect(p.asked).toContainEqual([
       "player/editSave",
-      { data: '{"save":"saved-1"}', changes: { "store:trust": "5" } },
+      { save: { data: '{"save":"saved-1"}' }, key: "store:trust", value: "5" },
     ]);
-    const written = p.request("preview/writeSave").params.save as PreviewSave;
-    expect(written.data).toBe('{"save":"saved-1"}+{"store:trust":"5"}');
-    expect(written.values.values["store:trust"]).toBe("5");
-    expect(written.line).toBe(10);
+    const writing = p.request("preview/writeSave").params.save as PreviewSave;
+    expect(writing.data).toBe('{"save":"saved-1"}+{"store:trust":"5"}');
+    expect(writing.line).toBe(10);
     p.hostAnswers("preview/writeSave");
+    await settle();
     await settle();
     expect(
       p.menu()!.querySelector<HTMLInputElement>('.sv-row[data-key="store:trust"] .sv-input')!.value,
@@ -480,7 +560,7 @@ describe("edits to a save", () => {
     await Promise.all([editing, renaming]);
     const record = saves.record("saved-1") as PreviewSave;
     expect(record.name).toBe("Before the lie");
-    expect(record.values.values["store:trust"]).toBe("5");
+    expect(record.data).toBe('{"save":"saved-1"}+{"store:trust":"5"}');
     expect(hostRequests(p)).toEqual(["writeSave", "renameSave"]);
   });
 
@@ -525,7 +605,9 @@ describe("edits to a save", () => {
     commit("6");
     expect(await answerWrites(p, 2)).toBe(2);
     await settle();
-    expect((saves.record("saved-1") as PreviewSave).values.values["store:trust"]).toBe("6");
+    expect((saves.record("saved-1") as PreviewSave).data).toBe(
+      '{"save":"saved-1"}+{"store:trust":"6"}',
+    );
   });
 
   test("applies an edit made before an earlier one is answered after it", async () => {
@@ -538,12 +620,11 @@ describe("edits to a save", () => {
     expect(await answerWrites(p, 2)).toBe(2);
     await Promise.all([first, second]);
     const record = saves.record("saved-1") as PreviewSave;
-    expect(record.data).toContain('{"store:trust":"5"}');
-    expect(record.data).toContain("store:suspect");
-    expect(record.values.values["store:trust"]).toBe("5");
-    expect(record.values.values["store:suspect"]).toBe('"Bo"');
+    expect(record.data).toBe(
+      `{"save":"saved-1"}+{"store:trust":"5"}+${JSON.stringify({ "store:suspect": '"Bo"' })}`,
+    );
     const edits = p.asked.filter(([method]) => method === "player/editSave");
-    expect(edits[1]![1].data).toBe(edits[0]![1].data + '+{"store:trust":"5"}');
+    expect(edits[1]![1].save.data).toBe(edits[0]![1].save.data + '+{"store:trust":"5"}');
   });
 
   test("closes on Play from here after Escape leaves a value just set", async () => {
@@ -604,7 +685,8 @@ describe("edits to a save", () => {
     const editing = saves.setValue("store:trust", "5");
     expect(await answerWrites(p, 1)).toBe(1);
     await editing;
-    expect((saves.record("saved-1") as PreviewSave).unapplied).toEqual(["store:trust"]);
+    expect((saves.record("saved-1") as PreviewSave).edits).toEqual([["store:trust", "5"]]);
+    delete p.refusals["saved-1"];
     saves._refusals = {};
     const played: string[] = [];
     (p.controller as any).playFromSave = async (data: string) => {
@@ -620,7 +702,7 @@ describe("edits to a save", () => {
     await settle();
     expect(played).toEqual([]);
     expect(document.querySelector(".save-note")?.textContent).toBe("Not played: not kept");
-    expect((saves.record("saved-1") as PreviewSave).unapplied).toEqual(["store:trust"]);
+    expect((saves.record("saved-1") as PreviewSave).edits).toEqual([["store:trust", "5"]]);
   });
 
   test("keeps a table store and its fields in step", () => {
@@ -762,71 +844,6 @@ describe("Load a save", () => {
     });
   });
 
-  const withPlaces = (save: PreviewSave, counts: Record<string, string>) => {
-    Object.assign(save.values.values, counts);
-    save.values.places = JSON.stringify({
-      forms: Object.fromEntries(Object.keys(counts).map((key) => [key, { n: key }])),
-      listings: [],
-      parts: [],
-    });
-    return save;
-  };
-
-  test("loads an option's count under the line the option is on now", async () => {
-    const moved = withPlaces(saved(), { [`place:0:11:${URI}`]: "1" });
-    const p = player({
-      refusals: { "saved-1": "The saved line is gone." },
-      countKeys: { [`place:0:11:${URI}`]: `place:0:12:${URI}` },
-    });
-    await (p.controller as any).handleSetStartingValues(
-      SetStartingValuesMessage.type.request({ values: {} }),
-    );
-    await p.withSaves([moved]);
-    (p.controller as any).updateExecutionLabels({
-      conditions: [],
-      choices: [],
-      state: "previewing",
-      simulation: "success",
-      route: route(),
-    });
-    p.routeButton.querySelector<HTMLButtonElement>(".route-button")!.click();
-    await settle();
-    [...p.routeList.querySelectorAll<HTMLButtonElement>(".route-tab")]
-      .find((tab) => tab.dataset["tab"] === "values")!
-      .click();
-    await settle();
-    loadButton(p).click();
-    p.routeList.querySelector<HTMLButtonElement>(".sv-load-row")!.click();
-    await settle();
-    const written = p.request("preview/writeSave").params.save as PreviewSave;
-    expect(written.values.values[`place:0:12:${URI}`]).toBe("1");
-    expect(written.values.values[`place:0:11:${URI}`]).toBeUndefined();
-    expect(Object.keys(JSON.parse(written.values.places!).forms)).toEqual([
-      `place:0:12:${URI}`,
-    ]);
-    p.hostAnswers("preview/writeSave");
-    await settle();
-    await settle();
-    expect(changes(p).at(-1)!.changes).toMatchObject({ [`place:0:12:${URI}`]: "1" });
-  });
-
-  test("keeps the counts a Last run save was entered with when it re-keys them", async () => {
-    const entry = withPlaces(entering(), { [`place:0:11:${URI}`]: "0" });
-    const p = player({
-      countKeys: { [`place:0:11:${URI}`]: `place:0:12:${URI}` },
-    });
-    await (p.controller as any).handleSetStartingValues(
-      SetStartingValuesMessage.type.request({ values: {} }),
-    );
-    await p.withSaves([entry]);
-    const reading = (p.controller as any)._saves.current("last-1");
-    await settle();
-    p.hostAnswers("preview/writeSave");
-    const record = (await reading) as PreviewSave;
-    expect(record.values.values[`place:0:12:${URI}`]).toBe("0");
-    expect(record.values.values[`place:0:11:${URI}`]).toBeUndefined();
-  });
-
   test("loads a parameter edited in a save whose line is gone", async () => {
     const p = player({ refusals: { "saved-1": "The saved line is gone." } });
     await (p.controller as any).handleSetStartingValues(
@@ -837,11 +854,10 @@ describe("Load a save", () => {
     await settle();
     const editing = (p.controller as any)._saves.setValue("local:0:hour", '"ten"');
     await settle();
-    expect(p.asked.some(([method]) => method === "player/editSave")).toBe(false);
-    const written = p.request("preview/writeSave").params.save as PreviewSave;
-    expect(written.data).toBe('{"save":"saved-1"}');
-    expect(written.values.values["local:0:hour"]).toBe('"ten"');
-    expect(written.values.frames[0]!.params).toEqual({ hour: '"ten"' });
+    await settle();
+    const writing = p.request("preview/writeSave").params.save as PreviewSave;
+    expect(writing.data).toBe('{"save":"saved-1"}');
+    expect(writing.edits).toEqual([["local:0:hour", '"ten"']]);
     p.hostAnswers("preview/writeSave");
     await editing;
     (p.controller as any).updateExecutionLabels({

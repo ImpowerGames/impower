@@ -29,7 +29,6 @@ export interface SavedFrame {
 export interface SaveValues {
   values: StartingValueSet;
   frames: SavedFrame[];
-  places?: string;
 }
 
 export const sameLiteral = (a: string, b: string): boolean => {

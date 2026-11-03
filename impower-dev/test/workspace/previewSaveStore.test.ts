@@ -25,7 +25,9 @@ const save = (id: string, kind: PreviewSave["kind"] = "saved"): PreviewSave => (
   line: 10,
   time: 1,
   data: "{}",
-  values: { values: { "store:trust": "2" }, frames: [] },
+  ...(kind === "lastRun"
+    ? { entry: { values: { "store:trust": "2" }, frames: [] } }
+    : { edits: [["store:trust", "2"] as [string, string]] }),
 });
 
 describe("the editor's preview saves", () => {

@@ -1,13 +1,16 @@
 import { describe, expect, test } from "vitest";
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
-import type { GameSave } from "@impower/spark-engine/src/game/core/types/GameSave";
+import type { GameSave, SaveSource } from "@impower/spark-engine/src/game/core/types/GameSave";
 import {
   compileSrc,
   recompile,
   URI,
 } from "@impower/spark-engine/src/tests/harness/startingValuesGame";
-import { saveStartingValues } from "@impower/sparkdown/src/program/saveValueSet";
+import type {
+  StartingValueListing,
+  StartingValueSet,
+} from "@impower/sparkdown/src/program/startingValueLiterals";
 import { SavesController } from "../saves/SavesController";
 
 const lines = [
@@ -71,6 +74,12 @@ const preview = (save: GameSave): PreviewSave => ({
   time: 1,
 });
 
+const sourceOf = (record: PreviewSave): SaveSource => ({
+  data: record.data,
+  ...(record.entry ? { entry: record.entry } : {}),
+  ...(record.edits ? { edits: record.edits } : {}),
+});
+
 interface TestHost {
   edits?: Promise<void>;
   played?: (data: string) => void;
@@ -89,6 +98,13 @@ const savesFor = (game: any, store: Map<string, PreviewSave>, host: TestHost = {
         case "preview/writeSave":
           store.set(params.save.id, params.save);
           return {};
+        case "preview/renameSave": {
+          const save = store.get(params.id);
+          if (save) {
+            store.set(params.id, { ...save, name: params.name });
+          }
+          return {};
+        }
         case "preview/deleteSaves":
           for (const id of params.ids) {
             store.delete(id);
@@ -109,15 +125,15 @@ const savesFor = (game: any, store: Map<string, PreviewSave>, host: TestHost = {
               }),
             ),
           };
-        case "player/countKeys":
-          return { keys: game.countKeysOf(params.places) };
-        case "player/countForms": {
-          const places = game.countForms(params.keys);
-          return places !== undefined ? { places } : {};
-        }
+        case "player/saveListing":
+          return { listed: game.saveListing(params.save, params.start) };
+        case "player/saveStartingValues":
+          return { values: game.saveStartingValuesOf(params.save, params.start) };
         case "player/editSave":
           await host.edits;
-          return game.editSave(params.data, params.changes);
+          return { save: game.editSave(params.save, params.key, params.value) };
+        case "player/playableSave":
+          return { save: game.playableSave(params.save) };
         default:
           return undefined;
       }
@@ -127,9 +143,6 @@ const savesFor = (game: any, store: Map<string, PreviewSave>, host: TestHost = {
     run: () => 1,
     async playFromSave(data: string) {
       host.played?.(data);
-    },
-    async listing(start: string) {
-      return game.startingValueListing(start);
     },
     changed() {},
   });
@@ -143,13 +156,19 @@ const controllerFor = async (game: any, record: PreviewSave, host: TestHost = {}
 const keyOf = (game: any, name: string): string =>
   game.startingValueListing("start").items.find((item: any) => item.name === name)!.key;
 
+const listedValue = (controller: SavesController, name: string): string | undefined => {
+  const view = controller.viewState().values!;
+  const key = view.listing!.items.find((item) => item.name === name)!.key;
+  return view.values.values[key];
+};
+
 describe("a save's option counts", () => {
   test("are not loaded onto another option after the counted option is deleted", async () => {
     const { game, compiler } = playing(lines);
     chooseLeave(game);
     const save = preview(game.saveHere());
     const leave = `place:0:4:${URI}`;
-    expect(save.values.values[leave]).toBe("1");
+    expect(game.saveValuesOf(save.data).values[leave]).toBe("1");
 
     recompile(
       compiler,
@@ -158,9 +177,7 @@ describe("a save's option counts", () => {
     );
     expect(keyOf(game, "Stay.")).toBe(leave);
     const controller = await controllerFor(game, save);
-    const current = await controller.current(save.id);
-    expect(current!.values.values[leave]).toBeUndefined();
-    expect(saveStartingValues(current!.values, game.startingValueListing("start"))).not.toHaveProperty(leave);
+    expect(await controller.startingValuesOf(save.id, "start")).not.toHaveProperty(leave);
   });
 
   test("follow their option's line when the count was edited into a save whose line is gone", async () => {
@@ -169,7 +186,6 @@ describe("a save's option counts", () => {
     advanceTo(game, "Done.");
     const save = preview(game.saveHere());
     const stay = `place:0:2:${URI}`;
-    expect(save.values.values[stay]).toBeUndefined();
 
     const withoutDone = lines.filter((line) => !line.includes("Done."));
     recompile(compiler, game, withoutDone.join("\n"));
@@ -177,12 +193,12 @@ describe("a save's option counts", () => {
     const controller = await controllerFor(game, save);
     await controller.editValues(save.id);
     await controller.setValue(stay, "1");
-    expect(controller.record(save.id)!.values.values[stay]).toBe("1");
+    expect(listedValue(controller, "Stay.")).toBe("1");
+    expect(controller.record(save.id)!.data).toBe(save.data);
+    expect(controller.record(save.id)!.edits?.map(([key]) => key.slice(0, 5))).toEqual(["form:"]);
 
     recompile(compiler, game, ["", "", ...withoutDone].join("\n"));
-    const listing = game.startingValueListing("start");
-    const current = await controller.current(save.id);
-    expect(saveStartingValues(current!.values, listing)).toMatchObject({
+    expect(await controller.startingValuesOf(save.id, "start")).toMatchObject({
       [keyOf(game, "Stay.")]: "1",
       [keyOf(game, "Leave.")]: "1",
     });
@@ -203,7 +219,7 @@ describe("a save's values", () => {
     recompile(compiler, game, ["", "", ...lines].join("\n"));
     await controller.programChanged();
     expect(listed()).toBe(`place:0:6:${URI}`);
-    expect(controller.viewState().values!.values.values[listed()]).toBe("1");
+    expect(listedValue(controller, "Leave.")).toBe("1");
   });
 
   test("write an edit made on the values listed before lines moved to the option it was made on", async () => {
@@ -219,12 +235,32 @@ describe("a save's values", () => {
 
     recompile(compiler, game, ["", "", ...lines].join("\n"));
     await controller.setValue(listedLeave, "3");
-    const saved = controller.record(record.id)!;
-    expect(saved.values.values[keyOf(game, "Leave.")]).toBe("3");
-    expect(saved.values.values[keyOf(game, "Stay.")]).toBeUndefined();
-    const durable = game.saveValuesOf(saved.data).values;
+    const durable = game.saveValuesOf(controller.record(record.id)!.data).values;
     expect(durable[keyOf(game, "Leave.")]).toBe("3");
     expect(durable[keyOf(game, "Stay.")]).toBeUndefined();
+    expect(listedValue(controller, "Leave.")).toBe("3");
+    expect(listedValue(controller, "Stay.")).toBeUndefined();
+  });
+
+  test("refuse an edit to an option that is no longer in the script", async () => {
+    const { game, compiler } = playing(lines);
+    chooseLeave(game);
+    const record = preview(game.saveHere());
+    const controller = await controllerFor(game, record);
+    await controller.editValues(record.id);
+    const listedLeave = `place:0:4:${URI}`;
+
+    recompile(
+      compiler,
+      game,
+      ["", "", ...lines.filter((line) => !/Leave|Left/.test(line))].join("\n"),
+    );
+    await controller.setValue(listedLeave, "3");
+    expect(controller.record(record.id)!.data).toBe(record.data);
+    expect(controller.viewState().values!.unsaved).toHaveProperty(listedLeave);
+    expect(await controller.startingValuesOf(record.id, "start")).not.toHaveProperty(
+      keyOf(game, "Stay."),
+    );
   });
 });
 
@@ -249,12 +285,12 @@ describe("Play from here", () => {
     controller.events.onPlay(record.id);
     release();
     await editing;
-    await controller.current(record.id);
+    await controller.startingValuesOf(record.id, "start");
     expect(played).toBeDefined();
     expect(game.saveValuesOf(played!).values["store:trust"]).toBe("5");
   });
 
-  test("plays the edits made while its line was gone once the line is back", async () => {
+  test("plays the edits made while its line was gone once the line is back, and only those", async () => {
     const source = [
       "store trust = 0",
       'store suspect = "Ana"',
@@ -264,8 +300,11 @@ describe("Play from here", () => {
       "end",
     ];
     const { game, compiler } = playing(source, 4);
-    const record = preview(game.saveHere());
-    record.values.values["store:suspect"] = '"Bo"';
+    const record: PreviewSave = {
+      ...preview(game.saveHere()),
+      kind: "lastRun",
+      entry: { values: { "store:trust": "0", "store:suspect": '"Bo"' }, frames: [] },
+    };
     recompile(compiler, game, source.filter((line) => !line.includes("Saved.")).join("\n"));
     let played: string | undefined;
     const controller = await controllerFor(game, record, {
@@ -276,16 +315,19 @@ describe("Play from here", () => {
     expect(controller.rows()[0]!.gone).toBe(true);
     await controller.editValues(record.id);
     await controller.setValue("store:trust", "5");
+    expect(listedValue(controller, "trust")).toBe("5");
+    expect(listedValue(controller, "suspect")).toBe('"Bo"');
 
     recompile(compiler, game, source.join("\n"));
     await controller.programChanged();
     expect(controller.rows()[0]!.gone).toBe(false);
     controller.events.onPlay(record.id);
-    await controller.current(record.id);
+    await controller.startingValuesOf(record.id, "start");
     expect(played).toBeDefined();
     const values = game.saveValuesOf(played!).values;
     expect(values["store:trust"]).toBe("5");
     expect(values["store:suspect"]).toBe('"Ana"');
+    expect(controller.record(record.id)!.edits).toBeUndefined();
   });
 
   test("plays a count edited while its line was gone on the option it counts after lines move", async () => {
@@ -295,7 +337,6 @@ describe("Play from here", () => {
     advanceTo(game, "Saved.");
     const record = preview(game.saveHere());
     const leave = `place:0:4:${URI}`;
-    expect(record.values.values[leave]).toBe("1");
     recompile(compiler, game, source.filter((line) => !line.includes("Saved.")).join("\n"));
     let played: string | undefined;
     const controller = await controllerFor(game, record, {
@@ -312,14 +353,14 @@ describe("Play from here", () => {
     await controller.programChanged();
     expect(controller.rows()[0]!.gone).toBe(false);
     controller.events.onPlay(record.id);
-    await controller.current(record.id);
+    await controller.startingValuesOf(record.id, "start");
     expect(played).toBeDefined();
     const values = game.saveValuesOf(played!).values;
     expect(values[keyOf(game, "Leave.")]).toBe("3");
     expect(values[keyOf(game, "Stay.")]).toBeUndefined();
   });
 
-  test("plays pending count edits on their options when the moved counts are not kept", async () => {
+  test("does not play pending edits it could not write, and plays them on their options once written", async () => {
     const source = [...lines.slice(0, 7), "  Saved.", ...lines.slice(7)];
     const { game, compiler } = playing(source);
     chooseLeave(game);
@@ -329,7 +370,6 @@ describe("Play from here", () => {
     recompile(compiler, game, source.filter((line) => !line.includes("Saved.")).join("\n"));
     let played: string | undefined;
     let refusals = 0;
-    let refused = 0;
     const controller = await controllerFor(game, record, {
       played: (data) => {
         played = data;
@@ -339,7 +379,6 @@ describe("Play from here", () => {
           return false;
         }
         refusals -= 1;
-        refused += 1;
         return true;
       },
     });
@@ -351,16 +390,43 @@ describe("Play from here", () => {
     await controller.programChanged();
     refusals = 1;
     controller.events.onPlay(record.id);
-    await controller.current(record.id);
-    expect(refused).toBe(1);
+    await controller.startingValuesOf(record.id, "start");
+    expect(played).toBeUndefined();
+    expect(controller.note()).toMatchObject({ failed: "not kept", play: true });
+    expect(controller.record(record.id)!.edits).toHaveLength(1);
+
+    controller.events.onPlay(record.id);
+    await controller.startingValuesOf(record.id, "start");
     expect(played).toBeDefined();
     const values = game.saveValuesOf(played!).values;
     expect(values[keyOf(game, "Leave.")]).toBe("3");
     expect(values[keyOf(game, "Stay.")]).toBeUndefined();
+    controller.dispose();
   });
 });
 
 describe("Last run", () => {
+  test("loads the counts a save was entered with on the lines their options are on now", async () => {
+    const { game, compiler } = playing(lines);
+    chooseLeave(game);
+    const durable: GameSave = game.saveHere();
+    const stay = game.saveListing({ data: durable.data }, "start").forms[`place:0:2:${URI}`];
+    const record: PreviewSave = {
+      ...preview(durable),
+      kind: "lastRun",
+      entry: { values: { [stay]: "2" }, frames: [] },
+    };
+
+    recompile(compiler, game, ["", "", ...lines].join("\n"));
+    const controller = await controllerFor(game, record);
+    expect(await controller.startingValuesOf(record.id, "start")).toEqual({
+      [keyOf(game, "Stay.")]: "2",
+    });
+    await controller.editValues(record.id);
+    expect(listedValue(controller, "Stay.")).toBe("2");
+    expect(listedValue(controller, "Leave.")).toBeUndefined();
+  });
+
   test("keeps only the latest run's saves when an earlier run's could not be deleted", async () => {
     const { game } = playing(["scene start", "  Saved.", "  Next.", "end"], 2);
     const save: GameSave = game.saveHere();
@@ -388,7 +454,195 @@ describe("Last run", () => {
     const latest = reloaded.rows().filter((row) => row.kind === "lastRun");
     expect(latest).toHaveLength(1);
     expect(latest[0]!.id).not.toBe("earlier-run");
-    await reloaded.current(latest[0]!.id);
+    await reloaded.startingValuesOf(latest[0]!.id, "start");
     expect([...store.keys()]).toEqual([latest[0]!.id]);
   });
+});
+
+describe("a save through a sequence of edits, program changes and refused writes", () => {
+  type Name = "trust" | "Stay." | "Leave.";
+  const NAMES: Name[] = ["trust", "Stay.", "Leave."];
+
+  const script = (pad: number, saved: boolean) => [
+    ...Array.from({ length: pad }, () => ""),
+    "store trust = 0",
+    "scene start",
+    "  choose",
+    "    * [Stay.]",
+    "      Stayed.",
+    "    * [Leave.]",
+    "      Left.",
+    "  end",
+    ...(saved ? ["  Saved."] : []),
+    "  Next.",
+    "end",
+  ];
+
+  const keyIn = (listing: StartingValueListing, name: Name) =>
+    name === "trust"
+      ? "store:trust"
+      : listing.items.find((item) => item.name === name)!.key;
+
+  const named = (values: StartingValueSet, listing: StartingValueListing) =>
+    Object.fromEntries(NAMES.map((name) => [name, values[keyIn(listing, name)] ?? "0"]));
+
+  test("keeps the listed values, Load a save's set, the durable save and Play from here in agreement", async () => {
+    const { game, compiler } = playing(script(0, true), 4);
+    chooseLeave(game);
+    advanceTo(game, "Saved.");
+    const record = preview(game.saveHere());
+    const store = new Map([[record.id, record]]);
+    let refuseNext = false;
+    let played: string | undefined;
+    const controller = savesFor(game, store, {
+      played: (data) => {
+        played = data;
+      },
+      refuses: (method) => {
+        if (method === "preview/writeSave" && refuseNext) {
+          refuseNext = false;
+          return true;
+        }
+        return false;
+      },
+    });
+    await controller.load();
+
+    const expected: Record<Name, string> = { trust: "0", "Stay.": "0", "Leave.": "1" };
+    let pad = 0;
+    let saved = true;
+    let seed = 1668;
+    const next = (n: number) => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return Math.floor(seed / 65536) % n;
+    };
+    const covered = new Set<string>();
+    const pendingCount = () =>
+      (controller.record(record.id)!.edits ?? []).some(([key]) => key.startsWith("form:"));
+    const swap = (keep?: boolean) => {
+      pad = (pad + 1 + next(3)) % 4;
+      const was = saved;
+      saved = keep ?? next(3) !== 0;
+      covered.add(was === saved ? "lines moved" : saved ? "saved line restored" : "saved line deleted");
+      recompile(compiler, game, script(pad, saved).join("\n"));
+    };
+    const listedKey = (name: Name) => keyIn(controller.viewState().values!.listing!, name);
+
+    const check = async (step: string) => {
+      const listing = game.startingValueListing("start");
+      await controller.editValues(record.id);
+      const view = controller.viewState().values!;
+      expect(named(view.values.values, view.listing!), `${step}: listed`).toEqual(expected);
+      const set = await controller.startingValuesOf(record.id, "start");
+      expect(named(set!, listing), `${step}: Load a save`).toEqual(expected);
+      const current = controller.record(record.id)!;
+      expect(store.get(record.id), `${step}: stored`).toEqual(current);
+      const durable = game.saveListing(sourceOf(current), "start");
+      expect(named(durable.values.values, durable.listing), `${step}: durable`).toEqual(expected);
+      if (!current.edits && game.saveRefusal(current.data) === null) {
+        expect(named(game.saveValuesOf(current.data).values, listing), `${step}: written`).toEqual(expected);
+      }
+      expect(controller.rows()[0]!.gone, `${step}: placeability`).toBe(!saved);
+    };
+
+    const step = async (i: number, op: number, name: Name, value: string, keep?: boolean) => {
+      switch (op) {
+        case 0:
+        case 1: {
+          await controller.editValues(record.id);
+          await controller.setValue(listedKey(name), value);
+          expected[name] = value;
+          covered.add(saved ? "edit" : name === "trust" ? "edit while gone" : "count edit while gone");
+          await check(`${i} edit ${name} ${value}`);
+          break;
+        }
+        case 2: {
+          await controller.editValues(record.id);
+          const stale = listedKey(name);
+          swap(keep);
+          await controller.setValue(stale, value);
+          expected[name] = value;
+          covered.add(name === "trust" ? "store edit before a change" : "count edit before a change");
+          await controller.programChanged();
+          await check(`${i} edit ${name} ${value} on the listing before a change`);
+          break;
+        }
+        case 3: {
+          swap(keep);
+          await controller.programChanged();
+          await check(`${i} change to ${pad} blank lines, saved line ${saved}`);
+          break;
+        }
+        case 4: {
+          await controller.editValues(record.id);
+          refuseNext = true;
+          await controller.setValue(listedKey(name), value);
+          expect(controller.viewState().values!.unsaved, `${i} refused`).toHaveProperty(
+            listedKey(name),
+          );
+          covered.add("refused write");
+          await check(`${i} refused edit ${name} ${value}`);
+          break;
+        }
+        case 5: {
+          await controller.rename(record.id, `Saved ${i}`);
+          covered.add("rename");
+          expect(controller.record(record.id)!.name).toBe(`Saved ${i}`);
+          await check(`${i} rename`);
+          break;
+        }
+        default: {
+          played = undefined;
+          covered.add(!saved ? "play while gone" : pendingCount() ? "play with pending count edits" : "play");
+          controller.events.onPlay(record.id);
+          await controller.startingValuesOf(record.id, "start");
+          if (saved) {
+            expect(played, `${i} play`).toBeDefined();
+            expect(
+              named(game.saveValuesOf(played!).values, game.startingValueListing("start")),
+              `${i} play`,
+            ).toEqual(expected);
+          } else {
+            expect(played, `${i} play while the line is gone`).toBeUndefined();
+          }
+          await check(`${i} play`);
+        }
+      }
+    };
+
+    await check("start");
+    for (let i = 0; i < 60; i += 1) {
+      const name = NAMES[next(NAMES.length)]!;
+      const value = String(next(6));
+      await step(i, next(7), name, value);
+    }
+    await step(60, 2, "trust", "4", saved);
+    await step(61, 3, "trust", "0", false);
+    await step(62, 0, "Stay.", "2");
+    await step(63, 2, "Leave.", "5", false);
+    await step(64, 3, "trust", "0", true);
+    await step(65, 6, "trust", "0");
+
+    expect([...covered].sort()).toEqual([
+      "count edit before a change",
+      "count edit while gone",
+      "edit",
+      "edit while gone",
+      "lines moved",
+      "play",
+      "play while gone",
+      "play with pending count edits",
+      "refused write",
+      "rename",
+      "saved line deleted",
+      "saved line restored",
+      "store edit before a change",
+    ]);
+
+    await controller.delete(record.id);
+    expect(controller.record(record.id)).toBeUndefined();
+    expect(store.has(record.id)).toBe(false);
+    expect(controller.viewState().values).toBeUndefined();
+    controller.dispose();
+  }, 180000);
 });

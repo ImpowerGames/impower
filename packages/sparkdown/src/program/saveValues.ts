@@ -6,7 +6,8 @@ import {
   type AbstractValue,
 } from "../runtime/Value";
 import { addressOf, chunkId } from "./ProgramChunk";
-import { countsSave } from "./ProgramSave";
+import type { ProgramRoot } from "./ProgramRoot";
+import { countsSave, placeCounts } from "./ProgramSave";
 import type { ProgramStory } from "./ProgramStory";
 import { localKey, readLocalKey, type SavedFrame, type SaveValues } from "./saveValueSet";
 import {
@@ -104,14 +105,10 @@ export const readStoryValues = (
       values[key] = text;
     }
   }
-  const places = new Map<string, number>();
   for (const [key, countId] of targets.counts) {
     const visits = story.state.VisitCount(countId);
-    if (!key.startsWith("place:")) {
+    if (!isPlaceKey(key) || visits > 0) {
       values[key] = String(visits);
-    } else if (visits > 0) {
-      values[key] = String(visits);
-      places.set(key, countId);
     }
   }
   values[SEED_KEY] = String(story.state.storySeed);
@@ -145,7 +142,7 @@ export const readStoryValues = (
     }
     return frame;
   });
-  return { values, frames, places: countsSave(story.root, places) };
+  return { values, frames };
 };
 
 export const applySaveValueChanges = (
@@ -170,7 +167,7 @@ export const applySaveValueChanges = (
       }
       continue;
     }
-    const countId = targets.counts.get(key);
+    const countId = isFormKey(key) ? countOfFormKey(story.root, key) : targets.counts.get(key);
     if (countId !== undefined) {
       if (typeof literal === "number" && Number.isInteger(literal) && literal >= 0) {
         const unvisited = state.VisitCount(countId) === 0;
@@ -215,4 +212,72 @@ export const applySaveValueChanges = (
       }
     }
   }
+};
+
+const FORM_PREFIX = "form:";
+
+export const isPlaceKey = (key: string): boolean => key.startsWith("place:");
+
+export const isFormKey = (key: string): boolean => key.startsWith(FORM_PREFIX);
+
+export const countFormKey = (root: ProgramRoot, countId: number): string =>
+  `${FORM_PREFIX}${countsSave(root, new Map([["c", countId]]))}`;
+
+export const countOfFormKey = (root: ProgramRoot, key: string): number | undefined =>
+  placeCounts(root, key.slice(FORM_PREFIX.length)).get("c");
+
+export const formKeyedValues = (
+  story: ProgramStory,
+  source: StartingValueSource,
+  values: Readonly<StartingValueSet>,
+): StartingValueSet => {
+  const counts = startingValueTargets(story, source).counts;
+  const out: StartingValueSet = {};
+  for (const [key, value] of Object.entries(values)) {
+    const countId = isPlaceKey(key) ? counts.get(key) : undefined;
+    out[countId === undefined ? key : countFormKey(story.root, countId)] = value;
+  }
+  return out;
+};
+
+export const lineKeyedValues = (
+  story: ProgramStory,
+  source: StartingValueSource,
+  values: Readonly<StartingValueSet>,
+): StartingValueSet => {
+  const lineKeyOf = new Map<number, string>();
+  for (const [key, countId] of startingValueTargets(story, source).counts) {
+    if (isPlaceKey(key)) {
+      lineKeyOf.set(countId, key);
+    }
+  }
+  const out: StartingValueSet = {};
+  for (const [key, value] of Object.entries(values)) {
+    if (!isFormKey(key)) {
+      out[key] = value;
+      continue;
+    }
+    const countId = countOfFormKey(story.root, key);
+    const lineKey = countId === undefined ? undefined : lineKeyOf.get(countId);
+    if (lineKey !== undefined) {
+      out[lineKey] = value;
+    }
+  }
+  return out;
+};
+
+export const countFormKeys = (
+  story: ProgramStory,
+  source: StartingValueSource,
+  keys: readonly string[],
+): Record<string, string> => {
+  const counts = startingValueTargets(story, source).counts;
+  const forms: Record<string, string> = {};
+  for (const key of keys) {
+    const countId = isPlaceKey(key) ? counts.get(key) : undefined;
+    if (countId !== undefined) {
+      forms[key] = countFormKey(story.root, countId);
+    }
+  }
+  return forms;
 };

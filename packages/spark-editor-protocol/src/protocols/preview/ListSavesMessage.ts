@@ -19,12 +19,11 @@ export interface PreviewSave {
   line: number;
   time: number;
   data: string;
-  values: {
+  entry?: {
     values: Record<string, string>;
     frames: PreviewSaveFrame[];
-    places?: string;
   };
-  unapplied?: string[];
+  edits?: [string, string][];
   run?: string;
 }
 

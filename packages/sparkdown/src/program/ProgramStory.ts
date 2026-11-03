@@ -55,6 +55,7 @@ import {
   BEAT_WAITED,
   checkSave,
   readSave,
+  readSaveValues,
   translateChoiceAddress,
   translatePositional,
   writeSave,
@@ -794,6 +795,22 @@ export class ProgramStory implements StoryEngine {
     this.loadedSaveHeader = load.header;
     this.loadedSaveReport = report;
     return load.header;
+  }
+
+  loadSaveValues(json: string): void {
+    if (this._recursiveContinueCount > 0) {
+      throw new Error("Can't load a save from inside a Continue.");
+    }
+    this.enableImages();
+    const held = this._state.beatImage;
+    const before = this.capture();
+    try {
+      readSaveValues(this._state, json, (symbol) => this.symbolValue(symbol));
+    } catch (e) {
+      this.restoreInPlace(before);
+      this._state.beatImage = held;
+      throw e;
+    }
   }
 
   editedSave(json: string, edit: () => void): string {

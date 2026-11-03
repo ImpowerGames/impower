@@ -46,9 +46,7 @@ const isSave = (value: unknown): value is PreviewSave => {
     typeof save.scene === "string" &&
     typeof save.data === "string" &&
     typeof save.time === "number" &&
-    typeof save.line === "number" &&
-    !!save.values &&
-    typeof save.values === "object"
+    typeof save.line === "number"
   );
 };
 

@@ -66,8 +66,9 @@ import { LastRunMessage } from "./messages/LastRunMessage";
 import { EditSaveMessage } from "./messages/EditSaveMessage";
 import { SaveHereMessage } from "./messages/SaveHereMessage";
 import { SaveRefusalsMessage } from "./messages/SaveRefusalsMessage";
-import { CountFormsMessage } from "./messages/CountFormsMessage";
-import { CountKeysMessage } from "./messages/CountKeysMessage";
+import { PlayableSaveMessage } from "./messages/PlayableSaveMessage";
+import { SaveListingMessage } from "./messages/SaveListingMessage";
+import { SaveStartingValuesMessage } from "./messages/SaveStartingValuesMessage";
 import { putAtStartPoint } from "./putAtStartPoint";
 import { planRouteForSelection, routeGameTo } from "./planRouteForSelection";
 import {
@@ -935,24 +936,23 @@ export function installPlayerWorker(connection: MessageConnection) {
       });
       return;
     }
-    if (CountKeysMessage.type.isRequest(message)) {
+    if (SaveListingMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
         const game = gameState.game;
         if (!game) {
           throw new NoGameError();
         }
-        return { keys: game.countKeysOf(message.params.places) };
+        return { listed: game.saveListing(message.params.save, message.params.start) };
       });
       return;
     }
-    if (CountFormsMessage.type.isRequest(message)) {
+    if (SaveStartingValuesMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
         const game = gameState.game;
         if (!game) {
           throw new NoGameError();
         }
-        const places = game.countForms(message.params.keys);
-        return places !== undefined ? { places } : {};
+        return { values: game.saveStartingValuesOf(message.params.save, message.params.start) };
       });
       return;
     }
@@ -962,7 +962,17 @@ export function installPlayerWorker(connection: MessageConnection) {
         if (!game) {
           throw new NoGameError();
         }
-        return game.editSave(message.params.data, message.params.changes);
+        return { save: game.editSave(message.params.save, message.params.key, message.params.value) };
+      });
+      return;
+    }
+    if (PlayableSaveMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => {
+        const game = gameState.game;
+        if (!game) {
+          throw new NoGameError();
+        }
+        return { save: game.playableSave(message.params.save) };
       });
       return;
     }

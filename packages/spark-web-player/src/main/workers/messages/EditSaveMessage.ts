@@ -1,17 +1,17 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
-import type { SaveValues } from "@impower/sparkdown/src/program/saveValueSet";
+import type { SaveSource } from "@impower/spark-engine/src/game/core/types/GameSave";
 
 export type EditSaveMethod = typeof EditSaveMessage.method;
 
 export interface EditSaveParams {
-  data: string;
-  changes: Record<string, string>;
+  save: SaveSource;
+  key: string;
+  value: string;
 }
 
 export interface EditSaveResult {
-  data: string;
-  values: SaveValues;
+  save: SaveSource;
 }
 
 export class EditSaveMessage {

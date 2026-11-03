@@ -16,10 +16,8 @@ import type { ProgramImage } from "@impower/sparkdown/src/program/ProgramImages"
 import type { ProgramRoot } from "@impower/sparkdown/src/program/ProgramRoot";
 import type { ProgramStoryState } from "@impower/sparkdown/src/program/ProgramStoryState";
 import {
-  countsSave,
   durableAddress,
   placeDurableAddress,
-  placeCounts,
   placesStatement,
   statementSave,
 } from "@impower/sparkdown/src/program/ProgramSave";
@@ -53,7 +51,6 @@ import {
   startPlanOf,
   startStoryAt,
   startingValueListing,
-  startingValueTargets,
   type StartPlan,
   type StartingValueSource,
 } from "@impower/sparkdown/src/program/startingValues";
@@ -65,9 +62,19 @@ import {
 } from "@impower/sparkdown/src/program/startingValueLiterals";
 import {
   applySaveValueChanges,
+  countFormKeys,
+  countOfFormKey,
+  formKeyedValues,
+  isFormKey,
+  lineKeyedValues,
   readStoryValues,
 } from "@impower/sparkdown/src/program/saveValues";
-import type { SaveValues } from "@impower/sparkdown/src/program/saveValueSet";
+import {
+  readLocalKey,
+  saveStartingValues,
+  withSavedValue,
+  type SaveValues,
+} from "@impower/sparkdown/src/program/saveValueSet";
 import {
   pinnedNotOffered,
   pinnedOptionsOf,
@@ -113,7 +120,7 @@ import type { InstanceMap } from "../types/InstanceMap";
 import type { Instructions } from "../types/Instructions";
 import type { RouteResumption } from "../types/RouteResumption";
 import { SceneTracker } from "./SceneTracker";
-import type { GameSave } from "../types/GameSave";
+import type { GameSave, SaveListed, SaveSource } from "../types/GameSave";
 import type { SaveData } from "../types/SaveData";
 import type { ScriptLocation } from "../types/ScriptLocation";
 import type { StackFrame } from "../types/StackFrame";
@@ -1266,9 +1273,7 @@ export class Game<T extends M = {}> {
   protected noteSceneEntry(scene: string | null): void {
     this._sceneSaveDue = scene;
     this._sceneEntryValues =
-      scene !== null
-        ? readStoryValues(this._story, this.startingValueSource())
-        : undefined;
+      scene !== null ? this.formKeyedStoryValues() : undefined;
   }
 
   async connect(send: (message: Message, transfer?: ArrayBuffer[]) => void) {
@@ -2473,7 +2478,16 @@ export class Game<T extends M = {}> {
     return this.loadProgramSave(this._story, saveJSON);
   }
 
-  saveHere(values?: SaveValues): GameSave | null {
+  protected formKeyedStoryValues(): SaveValues {
+    const source = this.startingValueSource();
+    const read = readStoryValues(this._story, source);
+    return {
+      values: formKeyedValues(this._story, source, read.values),
+      frames: read.frames,
+    };
+  }
+
+  saveHere(entry?: SaveValues): GameSave | null {
     const scene = this._sceneTracker.current;
     const location = this.getLastExecutedDocumentLocation();
     if (!scene || !location) {
@@ -2498,7 +2512,7 @@ export class Game<T extends M = {}> {
       scene,
       uri: location.uri,
       line: location.range.start.line,
-      values: values ?? readStoryValues(this._story, this.startingValueSource()),
+      ...(entry ? { entry } : {}),
     };
   }
 
@@ -2551,55 +2565,115 @@ export class Game<T extends M = {}> {
     }
   }
 
-  countKeysOf(places: string): Record<string, string> {
-    const keyOf = new Map<number, string>();
-    const targets = startingValueTargets(this._story, this.startingValueSource());
-    for (const [key, countId] of targets.counts) {
-      if (key.startsWith("place:")) {
-        keyOf.set(countId, key);
-      }
-    }
-    const keys: Record<string, string> = {};
-    for (const [key, countId] of placeCounts(this._story.root, places)) {
-      const now = keyOf.get(countId);
-      if (now !== undefined) {
-        keys[key] = now;
-      }
-    }
-    return keys;
-  }
-
-  countForms(keys: readonly string[]): string | undefined {
-    const targets = startingValueTargets(this._story, this.startingValueSource());
-    const counts = new Map<string, number>();
-    for (const key of keys) {
-      const countId = targets.counts.get(key);
-      if (key.startsWith("place:") && countId !== undefined) {
-        counts.set(key, countId);
-      }
-    }
-    return counts.size > 0 ? countsSave(this._story.root, counts) : undefined;
-  }
-
   saveValuesOf(saveJSON: string): SaveValues {
     const story = this.scratchStory();
     story.loadSave((JSON.parse(saveJSON) as SaveData).story);
     return readStoryValues(story, this.startingValueSource());
   }
 
-  editSave(
-    saveJSON: string,
-    changes: StartingValueSet,
-  ): { data: string; values: SaveValues } {
-    const saveData = JSON.parse(saveJSON) as SaveData;
+  protected valuesOfSave(save: SaveSource): SaveValues {
+    const source = this.startingValueSource();
+    if (save.entry) {
+      return {
+        values: lineKeyedValues(this._story, source, save.entry.values),
+        frames: save.entry.frames,
+      };
+    }
+    const story = this.scratchStory();
+    const json = (JSON.parse(save.data) as SaveData).story;
+    let placed = true;
+    try {
+      story.loadSave(json);
+    } catch {
+      story.loadSaveValues(json);
+      placed = false;
+    }
+    if (save.edits?.length) {
+      applySaveValueChanges(story, source, Object.fromEntries(save.edits));
+    }
+    const read = readStoryValues(story, source);
+    return placed ? read : { values: read.values, frames: [] };
+  }
+
+  saveListing(save: SaveSource, start: string): SaveListed {
+    const listing = this.startingValueListing(start);
+    return {
+      listing,
+      values: this.valuesOfSave(save),
+      forms: countFormKeys(
+        this._story,
+        this.startingValueSource(),
+        listing.items.map((item) => item.key),
+      ),
+    };
+  }
+
+  saveStartingValuesOf(save: SaveSource, start: string): StartingValueSet {
+    return saveStartingValues(this.valuesOfSave(save), this.startingValueListing(start));
+  }
+
+  protected sameValueKey(a: string, b: string): boolean {
+    if (a === b) {
+      return true;
+    }
+    if (!isFormKey(a) || !isFormKey(b)) {
+      return false;
+    }
+    const count = countOfFormKey(this._story.root, a);
+    return count !== undefined && count === countOfFormKey(this._story.root, b);
+  }
+
+  protected editedData(save: SaveSource, edits: readonly [string, string][]): string {
+    const saveData = JSON.parse(save.data) as SaveData;
     const story = this.scratchStory();
     const source = this.startingValueSource();
     saveData.story = story.editedSave(saveData.story, () =>
-      applySaveValueChanges(story, source, changes),
+      applySaveValueChanges(story, source, Object.fromEntries(edits)),
     );
+    return JSON.stringify(saveData);
+  }
+
+  editSave(save: SaveSource, key: string, value: string): SaveSource {
+    if (isFormKey(key) && countOfFormKey(this._story.root, key) === undefined) {
+      throw new Error("The option or alternator is no longer in the script.");
+    }
+    const edits: [string, string][] = [
+      ...(save.edits ?? []).filter(([edited]) => !this.sameValueKey(edited, key)),
+      [key, value],
+    ];
+    const local = readLocalKey(key);
+    const entry: SaveValues | undefined = save.entry && {
+      values: withSavedValue(
+        Object.fromEntries(
+          Object.entries(save.entry.values).filter(([entered]) => !this.sameValueKey(entered, key)),
+        ),
+        key,
+        value,
+      ),
+      frames: save.entry.frames.map((frame, i) =>
+        local && i === local.frame && Object.hasOwn(frame.params, local.name)
+          ? { ...frame, params: { ...frame.params, [local.name]: value } }
+          : frame,
+      ),
+    };
+    const kept = entry ? { entry } : {};
+    if (this.saveRefusal(save.data) !== null) {
+      return { data: save.data, ...kept, edits };
+    }
+    return { data: this.editedData(save, edits), ...kept };
+  }
+
+  playableSave(save: SaveSource): SaveSource {
+    const refusal = this.saveRefusal(save.data);
+    if (refusal !== null) {
+      throw new Error(refusal);
+    }
+    if (!save.edits?.length) {
+      return save;
+    }
     return {
-      data: JSON.stringify(saveData),
-      values: readStoryValues(story, source),
+      data: this.editedData(save, save.edits),
+      ...(save.entry ? { entry: save.entry } : {}),
     };
   }
 

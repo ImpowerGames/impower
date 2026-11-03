@@ -6,17 +6,18 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
 import { RenameSaveMessage } from "@impower/spark-editor-protocol/src/protocols/preview/RenameSaveMessage";
 import { WriteSaveMessage } from "@impower/spark-editor-protocol/src/protocols/preview/WriteSaveMessage";
-import type { GameSave } from "@impower/spark-engine/src/game/core/types/GameSave";
-import {
-  readLocalKey,
-  withSavedValue,
-} from "@impower/sparkdown/src/program/saveValueSet";
-import type { StartingValueListing } from "@impower/sparkdown/src/program/startingValueLiterals";
+import type {
+  GameSave,
+  SaveListed,
+  SaveSource,
+} from "@impower/spark-engine/src/game/core/types/GameSave";
+import type { StartingValueSet } from "@impower/sparkdown/src/program/startingValueLiterals";
 import { EditSaveMessage } from "../main/workers/messages/EditSaveMessage";
+import { PlayableSaveMessage } from "../main/workers/messages/PlayableSaveMessage";
 import { SaveHereMessage } from "../main/workers/messages/SaveHereMessage";
+import { SaveListingMessage } from "../main/workers/messages/SaveListingMessage";
 import { SaveRefusalsMessage } from "../main/workers/messages/SaveRefusalsMessage";
-import { CountFormsMessage } from "../main/workers/messages/CountFormsMessage";
-import { CountKeysMessage } from "../main/workers/messages/CountKeysMessage";
+import { SaveStartingValuesMessage } from "../main/workers/messages/SaveStartingValuesMessage";
 import type { SavesEvents } from "./SavesViews";
 import {
   enteringName,
@@ -39,7 +40,6 @@ export interface SavesHost {
   canPlace(): boolean;
   run(): number | undefined;
   playFromSave(data: string): Promise<void>;
-  listing(start: string): Promise<StartingValueListing | undefined>;
   changed(): void;
 }
 
@@ -57,7 +57,7 @@ export class SavesController {
   protected _rowMenu?: string;
   protected _renaming?: string;
   protected _valuesId?: string;
-  protected _valuesListing?: StartingValueListing;
+  protected _listed?: SaveListed;
   protected _search = "";
   protected _drafts: Record<string, string> = {};
   protected _unsaved: Record<string, string> = {};
@@ -65,7 +65,6 @@ export class SavesController {
   protected _noteTimer?: ReturnType<typeof setTimeout>;
   protected _lastRunScenes = new Map<string, string>();
   protected _run = newId();
-  protected _valuesPlaces?: string;
   protected _changes: Promise<unknown> = Promise.resolve();
   protected _checks = 0;
 
@@ -110,8 +109,8 @@ export class SavesController {
         ? {
             values: {
               save: valuesRow,
-              values: valuesRecord.values,
-              ...(this._valuesListing ? { listing: this._valuesListing } : {}),
+              values: this._listed?.values ?? { values: {}, frames: [] },
+              ...(this._listed ? { listing: this._listed.listing } : {}),
               search: this._search,
               drafts: this._drafts,
               unsaved: this._unsaved,
@@ -209,7 +208,7 @@ export class SavesController {
       line: save.line,
       time: Date.now(),
       data: save.data,
-      values: save.values,
+      ...(save.entry ? { entry: save.entry } : {}),
       run: this._run,
     });
   }
@@ -276,7 +275,6 @@ export class SavesController {
       line: save.line,
       time: Date.now(),
       data: save.data,
-      values: save.values,
     };
     try {
       await this.serial(() => this.write(record));
@@ -288,8 +286,7 @@ export class SavesController {
 
   protected closeValues() {
     this._valuesId = undefined;
-    this._valuesListing = undefined;
-    this._valuesPlaces = undefined;
+    this._listed = undefined;
     this._search = "";
     this._drafts = {};
     this._unsaved = {};
@@ -361,22 +358,27 @@ export class SavesController {
     }
   }
 
-  protected async listValues(id: string): Promise<void> {
-    const record = await this.current(id);
-    const listing = record ? await this._host.listing(record.scene) : undefined;
-    const counts = listing?.items.map((item) => item.key).filter(isPlaceKey) ?? [];
-    let places: string | undefined;
+  protected listValues(id: string): Promise<void> {
+    return this.serial(() => this.listValuesNow(id));
+  }
+
+  protected async listValuesNow(id: string): Promise<void> {
+    const record = this.record(id);
+    let listed: SaveListed | undefined;
     try {
-      places =
-        counts.length > 0
-          ? (await this._host.askWorker(CountFormsMessage.type, { keys: counts }))?.places
-          : undefined;
+      listed = record
+        ? (
+            await this._host.askWorker(SaveListingMessage.type, {
+              save: sourceOf(record),
+              start: record.scene,
+            })
+          )?.listed
+        : undefined;
     } catch {
-      places = undefined;
+      listed = undefined;
     }
     if (this._valuesId === id) {
-      this._valuesListing = listing;
-      this._valuesPlaces = places;
+      this._listed = listed;
       this._host.changed();
     }
   }
@@ -387,94 +389,38 @@ export class SavesController {
     return next;
   }
 
-  current(id: string): Promise<PreviewSave | undefined> {
-    return this.serial(() => this.placeCounts(id));
-  }
-
-  protected async placeCounts(id: string): Promise<PreviewSave | undefined> {
-    const record = this.record(id);
-    const places = record?.values.places;
-    if (!record || !places) {
-      return record;
-    }
-    let keys: Record<string, string> | undefined;
-    try {
-      keys = (await this._host.askWorker(CountKeysMessage.type, { places }))?.keys;
-    } catch {
-      return record;
-    }
-    if (!keys) {
-      return record;
-    }
-    const saved = JSON.parse(places) as { forms?: Record<string, unknown> };
-    const gone = Object.keys(saved.forms ?? {}).filter((key) => !Object.hasOwn(keys, key));
-    const moves = Object.entries(keys).filter(([from, to]) => from !== to);
-    if (moves.length === 0 && gone.length === 0) {
-      return record;
-    }
-    const rekey = <T>(entries: Record<string, T>): Record<string, T> => {
-      const out = { ...entries };
-      for (const key of [...gone, ...moves.map(([from]) => from)]) {
-        delete out[key];
+  startingValuesOf(id: string, start: string): Promise<StartingValueSet | undefined> {
+    return this.serial(async () => {
+      const record = this.record(id);
+      if (!record) {
+        return undefined;
       }
-      for (const [from, to] of moves) {
-        if (Object.hasOwn(entries, from)) {
-          out[to] = entries[from]!;
-        }
+      try {
+        return (
+          await this._host.askWorker(SaveStartingValuesMessage.type, {
+            save: sourceOf(record),
+            start,
+          })
+        )?.values;
+      } catch {
+        return undefined;
       }
-      return out;
-    };
-    const placed = withUnapplied(
-      {
-        ...record,
-        values: {
-          ...record.values,
-          values: rekey(record.values.values),
-          places: JSON.stringify({ ...saved, forms: rekey(saved.forms ?? {}) }),
-        },
-      },
-      (record.unapplied ?? []).flatMap((key) =>
-        gone.includes(key) ? [] : [keys[key] ?? key],
-      ),
-    );
-    try {
-      await this.write(placed);
-    } catch {
-      return placed;
-    }
-    return placed;
-  }
-
-  protected async applied(
-    data: string,
-    values: Record<string, string>,
-    keys: readonly string[],
-  ): Promise<string> {
-    const result = await this._host.askWorker(EditSaveMessage.type, {
-      data,
-      changes: Object.fromEntries(
-        keys.flatMap((key) => (values[key] !== undefined ? [[key, values[key]]] : [])),
-      ),
     });
-    if (!result) {
-      throw new Error("The player could not edit the save.");
-    }
-    return result.data;
   }
 
   protected async playable(id: string): Promise<PreviewSave | undefined> {
-    const record = await this.placeCounts(id);
-    if (!record || this._refusals[id] !== undefined || !record.unapplied?.length) {
+    const record = this.record(id);
+    if (!record || this._refusals[id] !== undefined || !record.edits?.length) {
       return record;
     }
     try {
-      const edited = withUnapplied(
-        {
-          ...record,
-          data: await this.applied(record.data, record.values.values, record.unapplied),
-        },
-        [],
-      );
+      const save = (
+        await this._host.askWorker(PlayableSaveMessage.type, { save: sourceOf(record) })
+      )?.save;
+      if (!save) {
+        throw new Error("The player could not write the save's edits.");
+      }
+      const edited = withSource(record, save);
       await this.write(edited);
       return edited;
     } catch (e) {
@@ -485,87 +431,42 @@ export class SavesController {
 
   setValue(key: string, value: string): Promise<void> {
     const id = this._valuesId;
-    const places = this._valuesPlaces;
+    const listed = this._listed;
     return id
-      ? this.serial(() => this.writeValue(id, key, value, places))
+      ? this.serial(() => this.writeValue(id, key, value, listed))
       : Promise.resolve();
-  }
-
-  protected async currentKey(key: string, places: string | undefined): Promise<string | undefined> {
-    if (!isPlaceKey(key) || places === undefined) {
-      return key;
-    }
-    try {
-      return (await this._host.askWorker(CountKeysMessage.type, { places }))?.keys[key];
-    } catch {
-      return undefined;
-    }
   }
 
   protected async writeValue(
     id: string,
     shown: string,
     value: string,
-    shownPlaces: string | undefined,
+    listed: SaveListed | undefined,
   ): Promise<void> {
-    const record = await this.placeCounts(id);
+    const record = this.record(id);
     if (!record) {
       return;
     }
     delete this._unsaved[shown];
-    const key = await this.currentKey(shown, shownPlaces);
-    if (key === undefined) {
-      this._unsaved[shown] = record.values.values[shown] ?? "nil";
-      this._host.changed();
-      return;
-    }
-    const before = record.values.values[key];
-    const values = withSavedValue(record.values.values, key, value);
-    let unapplied = [...new Set([...(record.unapplied ?? []), key])];
-    let data = record.data;
-    let places = record.values.places;
+    const before = listed?.values.values[shown];
     try {
-      if (this._refusals[record.id] === undefined) {
-        data = await this.applied(record.data, values, unapplied);
-        unapplied = [];
+      const save = (
+        await this._host.askWorker(EditSaveMessage.type, {
+          save: sourceOf(record),
+          key: listed?.forms[shown] ?? shown,
+          value,
+        })
+      )?.save;
+      if (!save) {
+        throw new Error("The player could not edit the save.");
       }
-      if (isPlaceKey(key)) {
-        const result = await this._host.askWorker(CountFormsMessage.type, {
-          keys: Object.keys(values).filter(isPlaceKey),
-        });
-        if (!result) {
-          throw new Error("The player could not place the save's counts.");
-        }
-        places = result.places;
-      }
+      await this.write(withSource(record, save));
     } catch {
       this._unsaved[shown] = before ?? "nil";
       this._host.changed();
       return;
     }
-    const local = readLocalKey(key);
-    const edited = withUnapplied(
-      {
-        ...record,
-        data,
-        values: {
-          values,
-          frames: record.values.frames.map((frame, i) =>
-            local && i === local.frame && Object.hasOwn(frame.params, local.name)
-              ? { ...frame, params: { ...frame.params, [local.name]: value } }
-              : frame,
-          ),
-          ...(places !== undefined ? { places } : {}),
-        },
-      },
-      unapplied,
-    );
-    try {
-      await this.write(edited);
-    } catch {
-      this._unsaved[shown] = before ?? "nil";
-      this._host.changed();
-    }
+    await this.listValuesNow(id);
   }
 
   readonly events: SavesEvents = {
@@ -660,16 +561,21 @@ const earlierRuns = (saves: readonly PreviewSave[]): string[] => {
     .map((save) => save.id);
 };
 
-const isPlaceKey = (key: string) => key.startsWith("place:");
+const sourceOf = (record: PreviewSave): SaveSource => ({
+  data: record.data,
+  ...(record.entry ? { entry: record.entry } : {}),
+  ...(record.edits?.length ? { edits: record.edits } : {}),
+});
 
-const withUnapplied = (record: PreviewSave, keys: string[]): PreviewSave => {
-  const out: PreviewSave = { ...record };
-  if (keys.length > 0) {
-    out.unapplied = keys;
-  } else {
-    delete out.unapplied;
-  }
-  return out;
+const withSource = (record: PreviewSave, save: SaveSource): PreviewSave => {
+  const out: PreviewSave = { ...record, data: save.data };
+  delete out.entry;
+  delete out.edits;
+  return {
+    ...out,
+    ...(save.entry ? { entry: save.entry } : {}),
+    ...(save.edits?.length ? { edits: save.edits } : {}),
+  };
 };
 
 const reasonOf = (e: unknown): string =>

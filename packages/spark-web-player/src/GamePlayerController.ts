@@ -126,7 +126,6 @@ import {
   type StartingValues,
   type StartingValueSet,
 } from "@impower/sparkdown/src/program/startingValueLiterals";
-import { saveStartingValues } from "@impower/sparkdown/src/program/saveValueSet";
 import { START_FLOW_NAME } from "@impower/sparkdown/src/program/ProgramSymbols";
 import { GameSavedSceneEntryMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSavedSceneEntryMessage";
 import type { RouteTab } from "./route/startingValuesView";
@@ -304,7 +303,6 @@ export class GamePlayerController {
     canPlace: () => this._program != null,
     run: () => this._workerPlay?.run,
     playFromSave: (data) => this.playFromSave(data),
-    listing: (start) => this.listingFor(start),
     changed: () => {
       this.renderSaves();
       this.renderRoute();
@@ -1000,37 +998,25 @@ export class GamePlayerController {
     return saved;
   }
 
-  protected async listingFor(
-    start: string,
-  ): Promise<StartingValueListing | undefined> {
-    try {
-      return (
-        await this.askWorkerGame(GetGameStartingValueListingMessage.type, {
-          start,
-        })
-      )?.listing;
-    } catch {
-      return undefined;
-    }
-  }
-
   protected async loadSave(id: string) {
     this._loadSaveOpen = false;
     const start = this.valuesStart();
-    const record = await this._saves.current(id);
-    if (start === undefined || !record || !this._valueFields.kept) {
-      this.renderRoute();
-      return;
-    }
-    const listing = await this.listingFor(start);
-    if (!listing || this.valuesStart() !== start) {
+    const record = this._saves.record(id);
+    const after =
+      start !== undefined && record ? await this._saves.startingValuesOf(id, start) : undefined;
+    if (
+      start === undefined ||
+      !record ||
+      !after ||
+      !this._valueFields.kept ||
+      this.valuesStart() !== start
+    ) {
       this.renderRoute();
       return;
     }
     const before = {
       ...ownEntry(shownValues(this._valueFields), start),
     };
-    const after = saveStartingValues(record.values, listing);
     const changes: Record<string, string | null> = {
       ...Object.fromEntries(Object.keys(before).map((key) => [key, null])),
       ...after,

@@ -2163,6 +2163,32 @@ export const readSave = (
   };
 };
 
+export const readSaveValues = (
+  state: ProgramStoryState,
+  json: string,
+  symbolValue: (symbol: number) => SymbolValue,
+): void => {
+  const { save } = parseSave(json);
+  const reader = new SaveReader(state, save, symbolValue);
+  const beats = reader.beats;
+  if (beats.length === 0) {
+    throw new SaveRefused("The save holds no beat.");
+  }
+  const plans = beats.map((beat) => ({ ...reader.planBeat(beat), placed: false }));
+  state.beginLoad();
+  try {
+    reader.apply(beats.length - 1, plans, () => {});
+  } finally {
+    JsonSerialisation.ResetObjectLoadSession();
+  }
+  for (const beat of beats) {
+    if (typeof beat["storySeed"] === "number") {
+      state.storySeed = beat["storySeed"];
+    }
+  }
+  state.ResetErrors();
+};
+
 export const checkSave = (state: ProgramStoryState, json: string): void => {
   const { save } = parseSave(json);
   new SaveReader(state, save, () => {
