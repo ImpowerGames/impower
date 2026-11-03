@@ -126,7 +126,7 @@ const savesFor = (game: any, store: Map<string, PreviewSave>, host: TestHost = {
             ),
           };
         case "player/saveListing":
-          return { listed: game.saveListing(params.save, params.start) };
+          return { listed: game.saveListing(params.save, params.start, params.carry) };
         case "player/saveStartingValues":
           return { values: game.saveStartingValuesOf(params.save, params.start) };
         case "player/editSave":
@@ -240,6 +240,51 @@ describe("a save's values", () => {
     expect(durable[keyOf(game, "Stay.")]).toBeUndefined();
     expect(listedValue(controller, "Leave.")).toBe("3");
     expect(listedValue(controller, "Stay.")).toBeUndefined();
+  });
+
+  test("keep a count typed before lines moved on the option it was typed on", async () => {
+    const { game, compiler } = playing(lines);
+    chooseLeave(game);
+    const record = preview(game.saveHere());
+    const controller = await controllerFor(game, record);
+    await controller.editValues(record.id);
+    controller.events.onValueDraft(`place:0:4:${URI}`, "3");
+
+    recompile(compiler, game, ["", "", ...lines].join("\n"));
+    await controller.programChanged();
+    const leave = keyOf(game, "Leave.");
+    expect(leave).toBe(`place:0:6:${URI}`);
+    expect(controller.viewState().values!.drafts).toEqual({ [leave]: "3" });
+    await controller.setValue(leave, "3");
+    expect(listedValue(controller, "Leave.")).toBe("3");
+    expect(listedValue(controller, "Stay.")).toBeUndefined();
+  });
+
+  test("list the saved locals of a save none of whose beats places, and keep their edits", async () => {
+    const source = [
+      "store trust = 0",
+      "scene start",
+      '  -> interrogation("nine")',
+      "end",
+      "scene interrogation(hour)",
+      "  Saved {hour}.",
+      "  Next.",
+      "end",
+    ];
+    const { game, compiler } = playing(source, 3);
+    advanceTo(game, "Saved nine.");
+    const record = preview(game.saveHere());
+    recompile(compiler, game, [...source.slice(0, 5), "  Replacement.", "end"].join("\n"));
+    expect(game.saveRefusal(record.data)).toMatch(/cannot be placed/);
+    const controller = await controllerFor(game, record);
+    await controller.editValues(record.id);
+    expect(controller.viewState().values!.values.values["local:0:hour"]).toBe('"nine"');
+
+    await controller.setValue("local:0:hour", '"ten"');
+    expect(controller.viewState().values!.values.values["local:0:hour"]).toBe('"ten"');
+    expect(await controller.startingValuesOf(record.id, "interrogation")).toMatchObject({
+      "param:hour": '"ten"',
+    });
   });
 
   test("refuse an edit to an option that is no longer in the script", async () => {
@@ -458,6 +503,38 @@ describe("Last run", () => {
     await controller.editValues(record.id);
     expect(listedValue(controller, "Stay.")).toBe("2");
     expect(listedValue(controller, "Leave.")).toBeUndefined();
+  });
+
+  test("deletes an earlier run's saves with the next Delete after the host refused it", async () => {
+    const { game } = playing(["scene start", "  Saved.", "  Next.", "end"], 2);
+    const save: GameSave = game.saveHere();
+    const earlier: PreviewSave = {
+      ...save,
+      id: "earlier-run",
+      kind: "lastRun",
+      name: "Entering start",
+      time: 1,
+      run: "earlier",
+    };
+    const own = preview(save);
+    const store = new Map([
+      [earlier.id, earlier],
+      [own.id, own],
+    ]);
+    let deletes = true;
+    const controller = savesFor(game, store, {
+      refuses: (method) => method === "preview/deleteSaves" && deletes,
+    });
+    await controller.load();
+    await controller.playStarted();
+    expect(store.has("earlier-run")).toBe(true);
+
+    deletes = false;
+    await controller.delete(own.id);
+    expect([...store.keys()]).toEqual([]);
+    const reloaded = savesFor(game, store);
+    await reloaded.load();
+    expect(reloaded.rows()).toEqual([]);
   });
 
   test("deletes an earlier run's saves on the next program change after the host refused it", async () => {

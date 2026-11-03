@@ -189,6 +189,9 @@ export class SavesController {
     this._run = newId();
     const lastRun = this._saves.filter((save) => save.kind === "lastRun");
     if (lastRun.length === 0) {
+      if (this._undeleted.size > 0) {
+        await this.deleteQuietly([]);
+      }
       return;
     }
     const ids = lastRun.map((save) => save.id);
@@ -339,7 +342,10 @@ export class SavesController {
     this._saves = this._saves.filter((save) => save.id !== id);
     this._host.changed();
     try {
-      await this._host.requestHost(DeleteSavesMessage.type, { ids: [id] });
+      await this._host.requestHost(DeleteSavesMessage.type, {
+        ids: [...new Set([id, ...this._undeleted])],
+      });
+      this._undeleted.clear();
     } catch {
       this._saves = [...this._saves, record];
       this._host.changed();
@@ -375,6 +381,12 @@ export class SavesController {
 
   protected async listValuesNow(id: string): Promise<void> {
     const record = this.record(id);
+    const forms = this._listed?.forms ?? {};
+    const carry = Object.fromEntries(
+      [...Object.keys(this._drafts), ...Object.keys(this._unsaved)].flatMap((key) =>
+        forms[key] !== undefined ? [[key, forms[key]]] : [],
+      ),
+    );
     let listed: SaveListed | undefined;
     try {
       listed = record
@@ -382,6 +394,7 @@ export class SavesController {
             await this._host.askWorker(SaveListingMessage.type, {
               save: sourceOf(record),
               start: record.scene,
+              ...(Object.keys(carry).length > 0 ? { carry } : {}),
             })
           )?.listed
         : undefined;
@@ -389,6 +402,10 @@ export class SavesController {
       listed = undefined;
     }
     if (this._valuesId === id) {
+      if (listed) {
+        this._drafts = carried(this._drafts, carry, listed.carried);
+        this._unsaved = carried(this._unsaved, carry, listed.carried);
+      }
       this._listed = listed;
       this._host.changed();
     }
@@ -593,6 +610,21 @@ const earlierRuns = (saves: readonly PreviewSave[]): string[] => {
     .filter((save) => save !== newest && (save.run === undefined || save.run !== newest.run))
     .map((save) => save.id);
 };
+
+const carried = (
+  entries: Readonly<Record<string, string>>,
+  carry: Readonly<Record<string, string>>,
+  moved: Readonly<Record<string, string>> = {},
+): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(entries).flatMap(([key, value]) =>
+      !Object.hasOwn(carry, key)
+        ? [[key, value]]
+        : moved[key] !== undefined
+          ? [[moved[key], value]]
+          : [],
+    ),
+  );
 
 const sourceOf = (record: PreviewSave): SaveSource => ({
   data: record.data,

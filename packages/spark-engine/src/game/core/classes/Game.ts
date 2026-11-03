@@ -69,7 +69,7 @@ import {
   isFormKey,
   lineKeyedValues,
   readStoryValues,
-  savedFrames,
+  savedFrameValues,
 } from "@impower/sparkdown/src/program/saveValues";
 import {
   readLocalKey,
@@ -2596,22 +2596,39 @@ export class Game<T extends M = {}> {
     if (!unplaced) {
       return read;
     }
+    const saved = savedFrameValues(story, unplaced, save.edits);
     return {
-      values: Object.fromEntries(Object.entries(read.values).filter(([key]) => !readLocalKey(key))),
-      frames: savedFrames(story, unplaced, save.edits),
+      values: {
+        ...Object.fromEntries(Object.entries(read.values).filter(([key]) => !readLocalKey(key))),
+        ...saved.values,
+      },
+      frames: saved.frames,
     };
   }
 
-  saveListing(save: SaveSource, start: string): SaveListed {
+  saveListing(
+    save: SaveSource,
+    start: string,
+    carry: Readonly<Record<string, string>> = {},
+  ): SaveListed {
     const listing = this.startingValueListing(start);
+    const source = this.startingValueSource();
+    const carried: Record<string, string> = {};
+    for (const [shown, form] of Object.entries(carry)) {
+      const moved = Object.keys(lineKeyedValues(this._story, source, { [form]: "" }))[0];
+      if (moved !== undefined) {
+        carried[shown] = moved;
+      }
+    }
     return {
       listing,
       values: this.valuesOfSave(save),
       forms: countFormKeys(
         this._story,
-        this.startingValueSource(),
+        source,
         listing.items.map((item) => item.key),
       ),
+      ...(Object.keys(carry).length > 0 ? { carried } : {}),
     };
   }
 

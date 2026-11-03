@@ -282,12 +282,29 @@ export const countFormKeys = (
   return forms;
 };
 
-export const savedFrames = (
+export const savedFrameValues = (
   story: ProgramStory,
   frames: readonly SavedFrameScopes[],
   edits: readonly [string, string][] = [],
-): SavedFrame[] =>
-  frames.map(({ flow, scopes }, i) => {
+): SaveValues => {
+  const values: StartingValueSet = {};
+  const saved = frames.map(({ flow, scopes }, i) => {
+    const seen = new Set<string>();
+    for (let s = scopes.length - 1; s >= 0; s -= 1) {
+      for (const [name, value] of scopes[s]!) {
+        if (name.includes("$") || seen.has(name)) {
+          continue;
+        }
+        seen.add(name);
+        if (value instanceof VariablePointerValue) {
+          continue;
+        }
+        const text = literalText(value);
+        if (text !== undefined) {
+          values[localKey(i, name)] = text;
+        }
+      }
+    }
     const params: Record<string, string> = {};
     for (const name of flow ? parametersOf(story.root, flow) : []) {
       const value = scopedValue(scopes, name);
@@ -296,13 +313,20 @@ export const savedFrames = (
         params[name] = text;
       }
     }
-    for (const [key, value] of edits) {
-      const local = readLocalKey(key);
-      if (local?.frame === i && Object.hasOwn(params, local.name)) {
-        params[local.name] = value;
-      }
-    }
     const sequence = flow ? story.root.flowNamed(flow) : undefined;
     const scene = sequence ? story.root.sceneOf(sequence) : undefined;
-    return { ...(flow ? { flow } : {}), ...(scene ? { scene } : {}), params };
+    return { ...(flow ? { flow } : {}), ...(scene ? { scene } : {}), params } as SavedFrame;
   });
+  for (const [key, value] of edits) {
+    const local = readLocalKey(key);
+    if (!local || !Object.hasOwn(values, key)) {
+      continue;
+    }
+    values[key] = value;
+    const frame = saved[local.frame];
+    if (frame && Object.hasOwn(frame.params, local.name)) {
+      frame.params[local.name] = value;
+    }
+  }
+  return { values, frames: saved };
+};

@@ -942,7 +942,13 @@ export function installPlayerWorker(connection: MessageConnection) {
         if (!game) {
           throw new NoGameError();
         }
-        return { listed: game.saveListing(message.params.save, message.params.start) };
+        return {
+          listed: game.saveListing(
+            message.params.save,
+            message.params.start,
+            message.params.carry,
+          ),
+        };
       });
       return;
     }
