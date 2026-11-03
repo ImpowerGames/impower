@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { InitializeMessage } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
+import { DidSelectTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSelectTextDocumentMessage";
+import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
+import { SelectedCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectedCompilerDocumentMessage";
 
 vi.mock("../main/workers/workspace.worker", () => ({ default: "" }));
 
@@ -34,7 +37,9 @@ afterEach(() => {
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 50));
 
-it("answers the editor's Initialize only once the player's controller is listening", async () => {
+const MAIN = "file:///local/main.sd";
+
+it("compiles and answers the editor's Initialize only once the controller listens, so the first program and an early selection reach it", async () => {
   const listeners: ((e: { data: unknown }) => void)[] = [];
   const answered: unknown[] = [];
   const connection = {
@@ -48,25 +53,34 @@ it("answers the editor's Initialize only once the player's controller is listeni
     request: () => new Promise(() => {}),
     sendRequest: () => new Promise(() => {}),
   };
+  const deliver = (message: unknown) => {
+    for (const listener of [...listeners]) {
+      listener({ data: message });
+    }
+  };
   const { workspace } = installWorkspaceWorker(
     connection as any,
     whenControllerListening(),
   );
-  vi.spyOn(workspace, "initialize").mockResolvedValue(undefined as any);
+  setWorkspace(workspace);
+  const program = { uri: MAIN, scripts: { [MAIN]: 1 } };
+  vi.spyOn(workspace, "loadCompiler").mockResolvedValue(undefined as any);
+  vi.spyOn(workspace, "compile").mockImplementation(async () => {
+    await workspace.sendNotification(CompiledProgramMessage.method, {
+      program,
+    });
+    return program as any;
+  });
+  vi.spyOn(workspace, "selectTextDocument").mockImplementation(
+    async (params: any) => {
+      await workspace.sendNotification(
+        SelectedCompilerDocumentMessage.method,
+        params,
+      );
+      return params;
+    },
+  );
 
-  const initialize = InitializeMessage.type.request({
-    processId: 0,
-    rootUri: null,
-    capabilities: {},
-  } as any);
-  for (const listener of [...listeners]) {
-    listener({ data: initialize });
-  }
-  await settle();
-  expect(workspace.initialize).toHaveBeenCalledTimes(1);
-  expect(answered).toEqual([]);
-
-  setWorkspace({ gameLink: { detach() {} }, programHeld: async () => {} } as any);
   const host = document.createElement("div");
   document.body.append(host);
   const controller: any = new GamePlayerController(host, {
@@ -74,12 +88,57 @@ it("answers the editor's Initialize only once the player's controller is listeni
     viewport: host,
   } as any);
   controller.updateSizeAndAspectRatioDisplay = () => {};
+  const loaded = vi
+    .spyOn(controller, "loadProgram")
+    .mockResolvedValue(undefined);
+  let setUp = false;
   try {
+    deliver(
+      InitializeMessage.type.request({
+        processId: 0,
+        rootUri: null,
+        capabilities: {},
+        initializationOptions: {
+          settings: { scriptFiles: "**/*.sd" },
+          uri: MAIN,
+          files: [
+            {
+              uri: MAIN,
+              src: MAIN,
+              text: "First beat.\nSecond beat.",
+              version: 1,
+              languageId: "sparkdown",
+            },
+          ],
+        },
+      } as any),
+    );
+    await settle();
+    expect(answered).toEqual([]);
+
     controller.setup();
+    setUp = true;
     await settle();
     expect(answered).toEqual([{ capabilities: {} }]);
+    expect(loaded).toHaveBeenCalledWith(program);
+
+    deliver(
+      DidSelectTextDocumentMessage.type.notification({
+        textDocument: { uri: MAIN },
+        selectedRange: {
+          start: { line: 1, character: 0 },
+          end: { line: 1, character: 0 },
+        },
+        docChanged: false,
+        userEvent: true,
+      } as any),
+    );
+    await settle();
+    expect(controller._options?.startFrom).toEqual({ file: MAIN, line: 1 });
   } finally {
-    controller.dispose();
+    if (setUp) {
+      controller.dispose();
+    }
     host.remove();
   }
 });

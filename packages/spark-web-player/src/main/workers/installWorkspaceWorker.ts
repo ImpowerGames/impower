@@ -254,10 +254,8 @@ export function installWorkspaceWorker(
     const message = e.data;
     if (InitializeMessage.type.is(message)) {
       connection.sendResponse(message, async () => {
-        await Promise.all([
-          state.workspace.initialize(message.params),
-          controllerListening,
-        ]);
+        await controllerListening;
+        await state.workspace.initialize(message.params);
         return {
           capabilities: {},
         };
