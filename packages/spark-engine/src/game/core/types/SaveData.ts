@@ -1,9 +1,13 @@
+import type { Instructions } from "./Instructions";
+
 export interface SaveData {
   modules: Record<string, any>;
   context: any;
   story: string;
   runtime: string;
   simulatedFrom?: string | null;
+  shown?: Instructions;
+  beat?: string;
   /** For each data breakpoint that watched a variable a closure captured
    *  when the save was written, the breakpoint's data id, the id the
    *  story's save gave the variable's cell, and the tag the game gave that
