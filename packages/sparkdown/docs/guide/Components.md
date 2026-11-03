@@ -8,7 +8,7 @@ your own element, built from the built-in ones.
 
 ## 4.1 Defining a component
 
-Use the `component` keyword. Everything between `with` and `end` is the
+Use the `component` keyword. Everything between `{` and `}` is the
 component's body:
 
 ```sparkdown

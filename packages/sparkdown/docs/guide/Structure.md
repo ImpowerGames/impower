@@ -35,7 +35,7 @@ end
 
 A **layout** is a tree of UI — a menu, a HUD, a dialog, an inventory panel.
 
-You create one with the `layout` keyword, and everything inside `with … end` is what it displays:
+You create one with the `layout` keyword, and everything inside its `{ … }` is what it displays:
 
 ```sparkdown
 layout main {
@@ -56,7 +56,7 @@ function quit_game() end
 
 - **The layout's name** (like `main`) identifies it.
 - **A layout named `main` shows automatically** when the game starts. Other layouts are shown on demand — see [Screens & Navigation](./Screens.md). A layout named `loading` is the loading screen the `load` arrow shows — see [Loading & Preloading](./Loading.md).
-- **Everything between `with` and `end`** is the element tree.
+- **Everything between `{` and `}`** is the element tree.
 
 > Layouts belong to _screens_ (navigation groups). You rarely need to think about screens until you have more than one full-screen view — [Screens & Navigation](./Screens.md) covers that.
 
@@ -193,7 +193,7 @@ column.panel.scrollable {
 }
 ```
 
-> The element name itself counts as a class, so `style button with …` styles every button.
+> The element name itself counts as a class, so `style button { … }` styles every button.
 
 A `style` block then targets the class:
 

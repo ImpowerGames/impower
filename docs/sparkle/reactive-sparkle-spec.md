@@ -10,7 +10,7 @@
 
 > **Terminology (post-spec rename, commit `cfb300cff`).** This doc originally called the
 > mountable element-tree block `screen`. It is now the **`layout`** keyword
-> (`layout NAME [in SCREEN] with … end`); the AST node is `LayoutNode (kind "layout")`.
+> (`layout NAME [in SCREEN] { … }`); the AST node is `LayoutNode (kind "layout")`.
 > The word **`screen`** is now a *separate* top-level keyword — an explicit navigation group
 > that layouts join via `in SCREEN`, driven by `[[open]]` / `[[close]]` /
 > `[[navigate SCREEN to LAYOUT]]`. That navigation feature postdates this reactive spec and
@@ -87,7 +87,7 @@ path and migrates to runtime Luau objects only after reactivity is verified.
 
 | # | Decision | Source |
 |---|----------|--------|
-| L1 | Block header is `keyword NAME [as PARENT] with … end`. `as` = inherits. | current grammar + formatter |
+| L1 | Block header is `keyword NAME [as PARENT] { … }`. `as` = inherits. | current grammar + formatter |
 | L2 | `layout` / `screen` / `component` / `style` / `animation` / `theme` are top-level keywords (not `define`). Written inside a function's body, at any depth (a nested function, a block, a define's method), one is a compile error on its keyword, `'layout' is a top-level declaration and cannot be written inside a function`, and registers nothing. | grammar; I-1405 |
 | L3 | Reactivity is **engine-side**, emitting the `ElementMessage` protocol. | this session |
 | L4 | Expressions evaluate through **Luau**, not JS. | this session |

@@ -411,7 +411,7 @@ describe("a cutscene: the builtins", () => {
     });
   });
 
-  test("an author restyles the cutscene with `style cutscene with … end`", async () => {
+  test("an author restyles the cutscene with `style cutscene { … }`", async () => {
     const h = createHarness(
       story(
         "  A line.",

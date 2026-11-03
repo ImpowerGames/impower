@@ -79,7 +79,7 @@ layout settings in menu {
 ```
 
 > A screen's body is reserved for future screen-level config — leave it empty for
-> now (the `with … end` is still required). Layouts join the screen with
+> now (the `{ }` is still required). Layouts join the screen with
 > `in <screen>`, and referencing a screen you never defined is a compile error,
 > which catches typos.
 

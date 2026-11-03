@@ -286,7 +286,7 @@ end
     ]);
   });
 
-  test("a control block, a block, a stray `-` or header, and the declaration's `end` end it", () => {
+  test("a control block, a block, a stray `-` or header, and the declaration's `}` end it", () => {
     const text = `store busy = false
 layout hud {
   column {

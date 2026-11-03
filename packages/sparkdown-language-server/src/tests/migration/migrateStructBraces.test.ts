@@ -115,8 +115,10 @@ describe("migrateStructBraces", () => {
   });
 
   test("a Luau end inside a layout is not taken for the block's closer", () => {
-    const input = "layout main with\n  if a then\n    text \"a\"\n  end\nend\n";
-    expect(migrateStructBraces(input).text).toBe("layout main {\n  if a then\n    text \"a\"\n  end\n}\n");
+    const input = "layout main with\nif a then\ntext \"a\"\nend\nfor i = 1, 2 do\ntext \"b\"\nend\nend\n";
+    expect(migrateStructBraces(input, { keepIndent: true }).text).toBe(
+      "layout main {\nif a then\ntext \"a\"\nend\nfor i = 1, 2 do\ntext \"b\"\nend\n}\n",
+    );
   });
 
   test("a block whose body would not close at its own end in the brace form is left unchanged", () => {

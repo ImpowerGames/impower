@@ -49,7 +49,7 @@ describe("provider · `{` completion on struct keyword headers", () => {
 
   test("a body line does not offer `{`", () => {
     expect(labelsAt("style panel {\n  |\n}\n")).not.toContain("{");
-    expect(labelsAt("style panel {\n  |\n}\n")).not.toContain("{");
+    expect(labelsAt("style panel with\n  |\nend\n")).not.toContain("{");
   });
 });
 
@@ -57,17 +57,17 @@ describe("provider · completion inside a struct keyword brace body", () => {
   const CASES: [string, string, string][] = [
     [
       "an animation's root property",
-      "animation fade {\n  tim|\n}\n",
+      "animation fade with\n  tim|\nend\n",
       "animation fade {\n  tim|\n}\n",
     ],
     [
       "an animation's nested timing property",
-      "animation fade {\n  timing { dur| }\n}\n",
+      "animation fade with\n  timing { dur| }\nend\n",
       "animation fade {\n  timing { dur| }\n}\n",
     ],
     [
       "a property on the brace's own line",
-      "animation fade {\n  tim|\n}\n",
+      "animation fade with\n  tim|\nend\n",
       "animation fade { tim| }\n",
     ],
   ];
