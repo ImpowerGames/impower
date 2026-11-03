@@ -1153,9 +1153,7 @@ function consoleLine(m) {
   return `[${m.type()}] ${text}${url && !text.includes(url) ? ` (${url})` : ""}`;
 }
 
-const KNOWN_CONSOLE_NOISE = [
-  { name: "/api/auth/account 404", match: /Failed to load resource: the server responded with a status of 404\b[^\n]*\(https?:\/\/[^/\s)]+\/api\/auth\/account(?:[?#][^\s)]*)?\)$/ },
-];
+const KNOWN_CONSOLE_NOISE = [];
 
 function partitionConsole(lines, known = KNOWN_CONSOLE_NOISE, limit = 25) {
   const errors = [];
