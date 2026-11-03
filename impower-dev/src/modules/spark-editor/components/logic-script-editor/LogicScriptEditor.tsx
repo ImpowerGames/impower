@@ -76,7 +76,11 @@ export default function LogicScriptEditor({
       ]);
       if (disposed) return;
 
-      const loadFile = async () => {
+      let connection = 0;
+      let sentOnConnection = -1;
+      let pendingLoad: Promise<void> = Promise.resolve();
+
+      const sendLoadEditor = async () => {
         const { Workspace } = await import("../../workspace/Workspace");
         if (disposed) return;
         const pid = workspace.state.peek().project?.id;
@@ -116,8 +120,10 @@ export default function LogicScriptEditor({
           languageServerInitializeResult,
           preserveEditor: Boolean(editor.originalFilename),
         });
+        sentOnConnection = connection;
         sendProtocolMessage(detail);
       };
+      const loadFile = () => (pendingLoad = sendLoadEditor());
       loadFileRef.current = loadFile;
 
       const debouncedSave = debounce(async () => {
@@ -188,7 +194,12 @@ export default function LogicScriptEditor({
             debouncedSave();
           }
         }),
-        onProtocolMessage(ConnectedEditorMessage.type, () => {
+        onProtocolMessage(ConnectedEditorMessage.type, async () => {
+          const current = ++connection;
+          await pendingLoad.catch(() => undefined);
+          if (disposed || current !== connection || sentOnConnection === current) {
+            return;
+          }
           loadFile();
         }),
       ];

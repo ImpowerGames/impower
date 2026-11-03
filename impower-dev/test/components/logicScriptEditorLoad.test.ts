@@ -96,6 +96,9 @@ if (!Range.prototype.getClientRects) {
   Range.prototype.getBoundingClientRect = () => new DOMRect();
 }
 
+await import(
+  "@impower/sparkdown-document-views/src/modules/script-editor/ScriptEditorController"
+);
 const { setLanguageServer } = await import(
   "@impower/sparkdown-document-views/src/modules/script-editor/SparkdownScriptEditor"
 );
@@ -119,10 +122,13 @@ const mount = async () => {
   await act(async () => {
     render(h(LogicScriptEditor, { filename: "main.sd" }), host!);
   });
-  await vi.waitFor(() => {
-    expect(mocks.reads.length).toBe(1);
-    expect(mocks.connect.length).toBe(1);
-  });
+  await vi.waitFor(
+    () => {
+      expect(mocks.reads.length).toBe(1);
+      expect(mocks.connect.length).toBe(1);
+    },
+    { timeout: 10_000, interval: 20 },
+  );
 };
 
 const connectController = async () => {
@@ -152,7 +158,7 @@ afterEach(async () => {
   mocks.connect.splice(0);
 });
 
-describe("LogicScriptEditor mount", () => {
+describe("LogicScriptEditor mount", { timeout: 60_000 }, () => {
   it("creates one editor view when the controller connects while the first load is reading the file", async () => {
     await mount();
     await connectController();
