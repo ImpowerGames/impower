@@ -49,6 +49,7 @@ import {
   sparklePartNodes,
 } from "../utils/sparkleBlockEntries";
 import { joinSparkleContinuations } from "../utils/sparkleContinuations";
+import { propClosureHoldsExpression } from "../../utils/propClosureHoldsExpression";
 
 const CONTROL_BLOCK_NAMES = nodeNameSet([
   "LuauSparkleIfBlock", "LuauSparkleForLoop", "LuauSparkleMatchBlock",
@@ -447,16 +448,6 @@ const PROP_LITERAL = nodeNameSet([
   "InlinePropNumericValue", "InlinePropBooleanValue", "InlinePropWordValue",
 ]);
 
-const PROP_CLOSURE_TRIVIA = nodeNameSet(["Newline", "ExtraWhitespace"]);
-
-function hasPropExpression(closure: SyntaxNode): boolean {
-  const content = closure.getChild("LuauSparklePropClosure_content");
-  for (let c = content?.firstChild; c; c = c.nextSibling) {
-    if (!PROP_CLOSURE_TRIVIA.has(c.name)) return true;
-  }
-  return false;
-}
-
 function propAttributes(node: SyntaxNode): SyntaxNode[] {
   if (PROP_ATTR.has(node.name)) return [node];
   const out: SyntaxNode[] = [];
@@ -483,7 +474,7 @@ function readProps(
     if (!name) continue;
     const closure = firstDescendant(attr, PROP_CLOSURE);
     if (closure) {
-      if (!hasPropExpression(closure)) continue;
+      if (!propClosureHoldsExpression(closure)) continue;
       const spansLines =
         ctx.lineNumber(closure.from) !== ctx.lineNumber(closure.to);
       props[name] = {

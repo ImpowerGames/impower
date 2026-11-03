@@ -39,6 +39,7 @@ import {
   blockOpenBrace,
 } from "../../lower/utils/structBodyEntries";
 import { RUN_WRAPPER_SUFFIX, runWrapperName } from "../../utils/runWrapper";
+import { propClosureHoldsExpression } from "../../utils/propClosureHoldsExpression";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
@@ -1478,7 +1479,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         );
         return annotations;
       }
-      if (/^\{\s*\}$/.test(this.read(nodeRef.from, nodeRef.to))) {
+      if (!propClosureHoldsExpression(nodeRef.node)) {
         this.error(
           annotations,
           "This prop's braces hold no expression; write its value between `{` and `}`.",

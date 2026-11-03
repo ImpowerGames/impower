@@ -190,9 +190,13 @@ describe("a struct brace body closes at its own } however deep an inner value ne
     ]);
   });
 
-  test("a prop's braces that hold nothing across lines are reported", () => {
+  test.each([
+    ["nothing", []],
+    ["only a line comment", ["    -- just a comment"]],
+    ["only a block comment", ["    --[[ only a comment ]]"]],
+  ])("a prop's braces that hold %s across lines are reported on the braces", (_, inner) => {
     const { errors } = compile(
-      ["layout first {", "  text #items={", "  }", "}"].join("\n"),
+      ["layout first {", "  text #items={", ...inner, "  }", "}"].join("\n"),
     );
     expect(errors).toEqual([
       {
