@@ -9,6 +9,7 @@ export interface WillWriteFilesParams {
     version: number;
     data: ArrayBuffer;
   }[];
+  origin?: string;
 }
 
 export class WillWriteFilesMessage {
