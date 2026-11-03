@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from "vitest";
 import AnimationPlayer from "../../../../spark-dom/src/classes/AnimationPlayer";
 import { getAnimationContent } from "../../../../spark-dom/src/utils/getAnimationContent";
 import { getStyleContent } from "../../../../spark-dom/src/utils/getStyleContent";
+import { uiBuiltinDefinitions } from "../../../../spark-engine/src/game/modules/ui/uiBuiltinDefinitions";
 import {
   parseSparkle,
   renderCssVDOM,
@@ -19,6 +20,8 @@ import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/util
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
 
 const ALIASES: Record<string, string> = { ...STYLE_ALIASES, ...CSS_ALIASES };
+
+const breakpoints = uiBuiltinDefinitions().config.ui.breakpoints;
 
 const SAMPLE_VALUES = ["sky_60", "10", "md", "none", "ease-in", "2s", ""];
 
@@ -249,7 +252,7 @@ describe("an animation player keyframe resolves through the same table", () => {
         }),
       ).toContain(`to { ${css} }`);
       const [k, v] = Object.entries(keyframe)[0]!;
-      expect(getStyleContent({ s: { [k]: v } })).toContain(
+      expect(getStyleContent({ s: { [k]: v } }, { breakpoints })).toContain(
         css.replace("; ", ";\n  "),
       );
     },
@@ -296,7 +299,11 @@ describe("a screen element attribute resolves through the same table", () => {
   const renderStyle = (attributes: string) => {
     const parsed = parseSparkle(`screen main\n  box ${attributes}`);
     const html = JSON.stringify(
-      renderHtmlVDOM(parsed, { components: {}, state: {} }),
+      renderHtmlVDOM(parsed, {
+        components: {},
+        state: {},
+        options: { breakpoints },
+      }),
     );
     return /"style":"([^"]*)"/.exec(html)?.[1] ?? "";
   };
@@ -318,6 +325,7 @@ describe("a screen element attribute resolves through the same table", () => {
         {
           components: {},
           state: {},
+          options: { breakpoints },
         },
       ),
     );
@@ -328,14 +336,18 @@ describe("a screen element attribute resolves through the same table", () => {
 
 describe("style content resolves tokens through the same table", () => {
   test("a spinner-color token becomes a theme var", () => {
-    const css = getStyleContent({
-      busy: { spinner_color: { $type: "color", $name: "sky_60" } },
-    });
+    const css = getStyleContent(
+      { busy: { spinner_color: { $type: "color", $name: "sky_60" } } },
+      { breakpoints },
+    );
     expect(css).toContain("--spinner-color: var(--theme-color-sky_60);");
   });
 
   test("an animation duration number gains its unit", () => {
-    const css = getStyleContent({ fade: { duration: 2, delay: 0.5 } });
+    const css = getStyleContent(
+      { fade: { duration: 2, delay: 0.5 } },
+      { breakpoints },
+    );
     expect(css).toContain("animation-duration: 2s;");
     expect(css).toContain("animation-delay: 0.5s;");
   });

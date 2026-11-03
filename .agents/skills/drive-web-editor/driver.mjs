@@ -1153,9 +1153,7 @@ function consoleLine(m) {
   return `[${m.type()}] ${text}${url && !text.includes(url) ? ` (${url})` : ""}`;
 }
 
-const KNOWN_CONSOLE_NOISE = [
-  { name: "/api/auth/account 404", match: /Failed to load resource: the server responded with a status of 404\b[^\n]*\(https?:\/\/[^/\s)]+\/api\/auth\/account(?:[?#][^\s)]*)?\)$/ },
-];
+const KNOWN_CONSOLE_NOISE = [];
 
 function partitionConsole(lines, known = KNOWN_CONSOLE_NOISE, limit = 25) {
   const errors = [];
@@ -1479,13 +1477,18 @@ async function clickLine(page, line) {
   const clamped = Math.min(Math.max(1, line), lines.length);
   const range = { start: { line: clamped - 1, character: 0 }, end: { line: clamped - 1, character: 0 } };
   const state = await protocolRequest(page, "preview/gameState");
-  if (state.launchState !== "preview") return { clicked: false, reason: "Stop the running preview before scrubbing" };
+  if (state.launchState === "play" || state.launchState === "pause") return { clicked: false, reason: "Stop the running preview before scrubbing" };
   await protocolNotify(page, "editor/select", { textDocument: { uri: editor.textDocument.uri }, range, takeFocus: true, scrollIntoView: "center" });
   await protocolNotify(page, "textDocument/didSelect", { textDocument: { uri: editor.textDocument.uri }, selectedRange: range, docChanged: false, userEvent: true, hasFocus: true });
-  const selected = await waitForProtocolState(page, "preview/gameState", "preview/didChangeGameState", "position", 30_000, { uri: editor.textDocument.uri, line: clamped - 1 });
+  const budget = state.launchState === "preview" ? 30_000 : PROGRAM_BUDGET_MS;
+  let positionError = null;
+  const selected = await waitForProtocolState(page, "preview/gameState", "preview/didChangeGameState", "position", budget, { uri: editor.textDocument.uri, line: clamped - 1 }).catch((error) => {
+    positionError = String(error?.message ?? error).split("\n")[0];
+    return null;
+  });
   const after = await protocolRequest(page, "editor/read", { textDocument: { uri: editor.textDocument.uri }, position: range.start });
   const coordinates = after.coordinates;
-  return { clicked: true, line: clamped, totalLines: lines.length, cursorLine: after.selection.start.line + 1, x: coordinates ? coordinates.left + 1 : null, y: coordinates ? (coordinates.top + coordinates.bottom) / 2 : null, previousPosition: state.position, position: selected.position };
+  return { clicked: true, line: clamped, totalLines: lines.length, cursorLine: after.selection.start.line + 1, x: coordinates ? coordinates.left + 1 : null, y: coordinates ? (coordinates.top + coordinates.bottom) / 2 : null, previousPosition: state.position, position: selected?.position ?? null, ...(positionError ? { positionError } : {}) };
 }
 
 const GAME_MOUNT_BUDGET_MS = 45_000;
@@ -1621,7 +1624,7 @@ function programWarning(program, budget = PROGRAM_BUDGET_MS) {
   if (program.errors > 0) {
     return `the script does not compile: settled diagnostics report ${program.errors} error${program.errors === 1 ? "" : "s"} in the open document, so no program reached the player within ${seconds(budget)}. The preview shows the last program the player had, or nothing, and a scrub is dropped; that is the picture of a script that does not compile, which is evidence only when that is the bug.`;
   }
-  return `the player had not loaded a program within ${seconds(budget)} according to preview/gameState, and settled diagnostics report no errors in the open document: either the harness was not ready (the first compile was still running or never reached the player), or a file that is not open does not compile (an included script, on a --project run; this diagnostic read covers the open document alone). A scrub sent now is dropped and the preview is not evidence; re-run, or open the included scripts in the editor to see their errors.`;
+  return `the player had not loaded a program within ${seconds(budget)} according to preview/gameState, and settled diagnostics report no errors in the open document: either the harness was not ready (the first compile was still running or never reached the player), or a file that is not open does not compile (an included script, on a --project run; this diagnostic read covers the open document alone). A scrub has no program to land on and the preview is not evidence; re-run, or open the included scripts in the editor to see their errors.`;
 }
 
 function scriptsViewWarning({ projectPath, sdPath }) {
@@ -1797,13 +1800,12 @@ async function verify(args, deps = liveDeps) {
         process.exitCode = 1;
       }
 
-      result.program = mount.mounted ? await deps.waitForProgram(page) : { loaded: null, reason: "the game never mounted" };
-      if (result.program.loaded === false) result.programWarning = programWarning(result.program);
-      let settle = await deps.waitForPreviewSettle(page);
+      const program = mount.mounted ? deps.waitForProgram(page) : Promise.resolve({ loaded: null, reason: "the game never mounted" });
+      let settle;
 
       if (line) {
         const target = Number(line);
-        const scrubbed = await scrubPreview(page, target, deps);
+        const scrubbed = await scrubPreview(page, target, deps, program);
         result.scrub = scrubbed.scrub;
         settle = scrubbed.settle;
         result.route = scrubbed.route;
@@ -1836,9 +1838,13 @@ async function verify(args, deps = liveDeps) {
             `execution reached, not the line requested.)`;
         }
       } else {
+        await program;
+        settle = await deps.waitForPreviewSettle(page);
         result.route = await deps.routeLabel(page);
       }
 
+      result.program = await program;
+      if (result.program.loaded === false) result.programWarning = programWarning(result.program);
       result.settled = settle.settled;
       result.preview = await deps.previewSummary(page);
       result.visible = settle.text;
@@ -2101,12 +2107,13 @@ export async function insertText(page, position, text, { request = (method, para
   return out;
 }
 
-export async function scrubPreview(page, target, deps) {
+export async function scrubPreview(page, target, deps, program) {
   let scrub = await deps.clickLine(page, target);
   if (!scrub.clicked && !/Stop the running preview/.test(scrub.reason ?? "")) {
     await page.waitForTimeout(1500);
     scrub = await deps.clickLine(page, target);
   }
+  await program;
   const settle = await deps.waitForPreviewSettle(page);
   const route = await deps.routeLabel(page);
   const scrubCheck = classifyScrub(await deps.documentLines(page), target, settle.text);
@@ -2118,7 +2125,7 @@ export function scrubReport(target, { scrub, settle, route, scrubCheck }) {
   delete out.reason;
   if (!scrub.clicked) out.reason = `the scrub to line ${target} did not run: ${scrub.reason}`;
   else if (scrub.line !== target) out.reason = `line ${target} is past the end of the document (${scrub.totalLines} lines)`;
-  else if (scrub.position?.line !== scrub.line - 1) out.reason = `the preview did not move to line ${scrub.line} (position ${JSON.stringify(scrub.position)})`;
+  else if (scrub.position?.line !== scrub.line - 1) out.reason = `the preview did not move to line ${scrub.line} (position ${JSON.stringify(scrub.position)}${scrub.positionError ? `; ${scrub.positionError}` : ""})`;
   else if (scrubCheck.outcome === "elsewhere") out.reason = `the scrub to line ${target} is not confirmed by the rendered text: ${scrubCheck.reason}`;
   return out;
 }

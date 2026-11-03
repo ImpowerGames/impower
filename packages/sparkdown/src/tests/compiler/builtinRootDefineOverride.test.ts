@@ -424,13 +424,13 @@ end
 
   test("a structural block keeps inheriting from its sibling parent", () => {
     shows(
-      `animation base with
+      `animation base {
   probe_field = 8
-end
+}
 
-animation child as base with
+animation child as base {
   own = 1
-end
+}
 
 define animation with
   probe_field = 7
@@ -443,17 +443,17 @@ end
 
   test("a structural block waiting for its parent links to it after the override", () => {
     shows(
-      `animation child as later with
+      `animation child as later {
   own = 1
-end
+}
 
 define animation with
   probe_field = 7
 end
 
-animation later with
+animation later {
   probe_field = 8
-end
+}
 `,
       "{animation.child.probe_field} {animation.later.probe_field}",
       "8 8",

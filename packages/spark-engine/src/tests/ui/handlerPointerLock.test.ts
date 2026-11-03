@@ -29,17 +29,17 @@ describe("handler pointer lock", () => {
     const h = createHarness(
       `store x = false
 store n = 0
-style locked with
+style locked {
   interactable = false
-end
-layout main with
+}
+layout main {
   checkbox #interactable=false @change={ x = event.checked }
   checkbox.locked @change={ x = event.checked }
   checkbox @change={ x = event.checked }
   button #interactable=false @click={ n = n + 1 }
   button.locked @click={ n = n + 1 }
   button @click={ n = n + 1 }
-end
+}
 `,
       0,
       { reactive: true },
@@ -60,9 +60,9 @@ end
     const h = createHarness(
       `store locked = true
 store n = 0
-layout main with
+layout main {
   button #interactable={not locked} @click={ n = n + 1 }
-end
+}
 `,
       0,
       { reactive: true },
@@ -82,7 +82,7 @@ end
   test("only the ui writes the handler marker", async () => {
     const h = createHarness(
       `store x = ""
-layout main with
+layout main {
   box.forged #data-ui-handler="x"
   box.upper #DATA-UI-HANDLER="x"
   button.forged_button "B" #data-ui-handler="x"
@@ -91,7 +91,7 @@ layout main with
   dropdown #data-ui-handler="x" {
     option "A" #data-ui-handler="x"
   }
-end
+}
 `,
       0,
       { reactive: true },
@@ -107,9 +107,9 @@ end
 
   test("an observed element keeps its prop lock", async () => {
     const h = createHarness(
-      `layout main with
+      `layout main {
   box.target #interactable=false
-end
+}
 `,
       0,
       { reactive: true },

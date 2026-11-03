@@ -20,10 +20,13 @@ type Inherited = keyof typeof INHERITED;
 
 const KEYWORDS = new Set(["inherit", "initial"]);
 
+const FILL_RULES = new Set(["nonzero", "evenodd"]);
+
 const inGrammar = (name: string, value: string): boolean => {
   if (KEYWORDS.has(value.toLowerCase())) return true;
   if (name === "fill" || name === "stroke") return readColor(value) !== undefined || serverId(value) !== undefined;
   if (name === "color" || name === "stop-color") return ["color", "current"].includes(readColor(value)?.kind ?? "");
+  if (name === "fill-rule") return FILL_RULES.has(value.toLowerCase());
   return readAlpha(value) !== undefined;
 };
 
@@ -92,6 +95,22 @@ export function effectivePaint(doc: ArtDocument, element: Element): EffectivePai
     opacity: alpha(uninherited(doc, element, "opacity", "1")),
     server,
   };
+}
+
+export function fillRule(doc: ArtDocument, element: Element): "nonzero" | "evenodd" | undefined {
+  let value: string | null = "nonzero";
+  for (const { element: e } of [...ancestry(doc, element)].reverse()) {
+    const declaredValue = declared(e, "fill-rule");
+    if (declaredValue === undefined) continue;
+    if (declaredValue === null) {
+      value = null;
+      continue;
+    }
+    const keyword = declaredValue.toLowerCase();
+    if (keyword === "inherit") continue;
+    value = keyword === "initial" ? "nonzero" : keyword;
+  }
+  return value === "nonzero" || value === "evenodd" ? value : undefined;
 }
 
 const STOP_PROPERTIES = new Set(["stop-color", "stop-opacity", "color"]);

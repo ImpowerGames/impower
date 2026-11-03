@@ -1,4 +1,4 @@
-layout wrapped with
+layout wrapped {
   button
     .fancy
     .large
@@ -51,9 +51,9 @@ layout wrapped with
   "after the block"
   title
     = { text }
-end
+}
 
-component tile(label) with
+component tile(label) {
   for item in items do
     text
       .item
@@ -61,4 +61,4 @@ component tile(label) with
   end
   text "{label}"
   .last
-end
+}

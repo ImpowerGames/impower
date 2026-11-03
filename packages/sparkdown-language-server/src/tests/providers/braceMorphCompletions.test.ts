@@ -60,20 +60,20 @@ const expectBlockInserted = (source: string, label: string) => {
   expect(text.slice(0, cursor).endsWith(`${label} { `), text).toBe(true);
 };
 
-const KEYFRAMES = (body: string) => `morph blink with
+const KEYFRAMES = (body: string) => `morph blink {
   method = bend
   keyframes {
 ${body}
   }
-end
+}
 `;
 
 describe("morph completion in brace bodies", () => {
   test("root fields in a body written with blocks insert blocks", () => {
-    const source = `morph blink with
+    const source = `morph blink {
   layers { creases { fallback = scale } }
   |
-end
+}
 `;
     const labels = labelsAt(source);
     expect(labels).toEqual(
@@ -97,106 +97,106 @@ end
       "iteration_delay_max",
     ];
     expect(
-      labelsAt(`morph blink with
+      labelsAt(`morph blink {
   timing {
     |
   }
-end
+}
 `),
     ).toEqual(fields);
     expect(
-      labelsAt(`morph blink with
+      labelsAt(`morph blink {
   timing { | }
-end
+}
 `),
     ).toEqual(fields);
     expect(
-      labelsAt(`morph blink with
+      labelsAt(`morph blink {
   timing { duration = 1; | }
-end
+}
 `),
     ).toEqual(fields);
     expect(
-      labelsAt(`morph blink with
+      labelsAt(`morph blink {
   timing { duration = 1, | }
-end
+}
 `),
     ).toEqual(fields);
     expect(
-      labelsAt(`morph blink with
+      labelsAt(`morph blink {
   timing {
     easing = |
   }
-end
+}
 `),
     ).toEqual(expect.arrayContaining(["ease-out", "linear", "steps()", "cubic-bezier()"]));
     expect(
-      labelsAt(`morph blink with
+      labelsAt(`morph blink {
   timing { iterations = | }
-end
+}
 `),
     ).toEqual(["infinite"]);
   });
 
   test("policy values and fields under a hyphenated label", () => {
     expect(
-      labelsAt(`morph blink with
+      labelsAt(`morph blink {
   layers {
     eyelash-left {
       fallback = |
     }
   }
-end
+}
 `),
     ).toEqual(["fade", "cut", "scale"]);
     expect(
-      labelsAt(`morph blink with
+      labelsAt(`morph blink {
   layers { eyelash-left { fallback = | } }
-end
+}
 `),
     ).toEqual(["fade", "cut", "scale"]);
     expect(
-      labelsAt(`morph blink with
+      labelsAt(`morph blink {
   layers {
     eyelash-left {
       |
     }
   }
-end
+}
 `),
-    ).toEqual(["blend", "method", "fallback", "depth", "partner"]);
+    ).toEqual(["blend", "method", "fallback", "depth", "spread", "partner"]);
   });
 
   test("`partner` under a label offers the candidate artwork's labels in its value", () => {
     const keyframes = "  keyframes {\n    from { eyes { state = open } }\n  }\n";
     for (const value of ["partner = |", "partner = { eye| }", "partner { eye| }", "partner {\n        pupil-left\n        eye|\n      }"]) {
-      const labels = labelsAt(`morph blink with
+      const labels = labelsAt(`morph blink {
   layers {
     pupil-left {
       ${value}
     }
   }
-${keyframes}end
+${keyframes}}
 `);
       expect(labels, value).toEqual(expect.arrayContaining(["eyelash-left", "pupil-left", "creases"]));
       expect(labels, value).not.toContain("leaves");
     }
-    const item = itemAt(`morph blink with
+    const item = itemAt(`morph blink {
   layers { pupil-left { partner = | } }
-${keyframes}end
+${keyframes}}
 `, "eyelash-left");
     expect(insertedText(item)).toBe("eyelash-left");
-    expect(itemAt(`morph blink with
+    expect(itemAt(`morph blink {
   layers { pupil-left { | } }
-end
+}
 `, "partner").documentation).toEqual(expect.objectContaining({ value: expect.stringContaining("priority order") }));
   });
 
   test("a `=` typed without a space gets one before the value", () => {
     const [item] = completeAt(
-      `morph blink with
+      `morph blink {
   layers { eyelash-left { method =| } }
-end
+}
 `,
       program,
       "=",
@@ -205,7 +205,7 @@ end
   });
 
   test("layer labels under `layers` come from the candidate artwork and insert blocks", () => {
-    const source = `morph blink with
+    const source = `morph blink {
   layers {
     eye|
   }
@@ -214,7 +214,7 @@ end
       eyes { state = open }
     }
   }
-end
+}
 `;
     const labels = labelsAt(source);
     expect(labels).toEqual(expect.arrayContaining(["eyelash-left", "pupil-left", "creases", "lids"]));
@@ -282,20 +282,20 @@ ${line}| }
   });
 
   test("clip fields and labels in nested lists", () => {
-    const fieldsSource = `morph blink with
+    const fieldsSource = `morph blink {
   clips {
     {
       |
     }
   }
-end
+}
 `;
     expect(labelsAt(fieldsSource)).toEqual(["between", "targets", "spread"]);
     expectBlockInserted(fieldsSource, "between");
     const spread = itemAt(fieldsSource, "spread");
     expect(insertedText(spread)).toBe("spread = ");
     expect(spread.documentation).toEqual(expect.objectContaining({ value: expect.stringContaining("How far this clip's opening reaches past its outline") }));
-    const labels = labelsAt(`morph blink with
+    const labels = labelsAt(`morph blink {
   keyframes {
     from {
       eyes { state = open }
@@ -304,7 +304,7 @@ end
   clips {
     { between { eyelash-left }; targets { pup| } }
   }
-end
+}
 `);
     expect(labels).toEqual(expect.arrayContaining(["pupil-left", "eyelash-left"]));
   });
@@ -325,11 +325,11 @@ end
       },
     };
     const labels = completeAt(
-      `morph child as base with
+      `morph child as base {
   layers {
     |
   }
-end
+}
 `,
       inherited,
     ).map((item) => String(item.label));
@@ -339,9 +339,9 @@ end
 
   test("a `;` or brace inside a quoted value starts no new entry", () => {
     expect(
-      labelsAt(`morph blink with
+      labelsAt(`morph blink {
   timing { easing = "custom; dur|" }
-end
+}
 `),
     ).not.toContain("duration");
   });
@@ -349,9 +349,9 @@ end
   test("a single quote in a value is text, so the entry after its `;` completes", () => {
     for (const value of ["don't", "'tis", "ease-'", "ease[", "[data[a]"]) {
       expect(
-        labelsAt(`morph blink with
+        labelsAt(`morph blink {
   timing { easing = ${value}; dur| }
-end
+}
 `),
         value,
       ).toContain("duration");
@@ -360,9 +360,9 @@ end
 
   test("a `=` typed without a space after a `;` still gets one", () => {
     const [item] = completeAt(
-      `morph blink with
+      `morph blink {
   layers { eyelash-left { blend = morph; method =| } }
-end
+}
 `,
       program,
       "=",
@@ -371,21 +371,21 @@ end
   });
 
   test("a state written in a block drives its group's candidates", () => {
-    const labels = labelsAt(`morph blink with
+    const labels = labelsAt(`morph blink {
   layers {
     |
   }
   keyframes {
     from { mouth { state = open } }
   }
-end
+}
 `);
     expect(labels).toEqual(expect.arrayContaining(["lids", "lips"]));
     expect(labels).not.toContain("creases");
   });
 
   test("`depth` after `=` offers `rest` and each `group.state` the keyframes name", () => {
-    const raise = (layer: string, root = "") => `morph blink with
+    const raise = (layer: string, root = "") => `morph blink {
   method = bend
 ${root}  layers { eyelash-left { ${layer} } }
   keyframes {
@@ -393,7 +393,7 @@ ${root}  layers { eyelash-left { ${layer} } }
     50% { eyes { state = eyes.closed } }
     to { eyes { state = open } }
   }
-end
+}
 `;
     expect(labelsAt(raise("depth = |"))).toEqual(["rest", "eyes.open", "eyes.closed"]);
     expect(labelsAt(raise("", "  depth = |\n"))).toEqual(["rest", "eyes.open", "eyes.closed"]);
@@ -424,47 +424,53 @@ end
     };
     const depthAt = (source: string) => completeAt(source, chain).map((item) => String(item.label));
     expect(
-      depthAt(`morph child as middle with
+      depthAt(`morph child as middle {
   depth = |
   keyframes {
     from { eyes { state = open } }
     to { eyes { state = half } }
   }
-end
+}
 `),
     ).toEqual(["rest", "eyes.open", "eyes.half"]);
-    const defines = `define base as morph with
-  keyframes = { { offset = 0, eyes = { state = "open" } }, { offset = 1, eyes = { state = "closed" } } }
-end
-define middle as base with
-  keyframes = { { offset = 0, arm = { state = "down" } }, { offset = 1, arm = { state = "raised" } } }
-end
-morph child as middle with
+    const parents = `morph base {
+  keyframes {
+    { offset = 0; eyes { state = open } }
+    { offset = 1; eyes { state = closed } }
+  }
+}
+morph middle as base {
+  keyframes {
+    { offset = 0; arm { state = down } }
+    { offset = 1; arm { state = raised } }
+  }
+}
+morph child as middle {
   method = match
   depth = |
-end
+}
 `;
-    const compiled = compileProject(defines.replace("|", "rest"));
-    expect(compiled.context?.["base"]?.["middle"]).toBeDefined();
-    expect(completeAt(defines, compiled).map((item) => String(item.label))).toEqual([
+    const compiled = compileProject(parents.replace("|", "rest"));
+    expect(compiled.context?.["morph"]?.["middle"]).toBeDefined();
+    expect(completeAt(parents, compiled).map((item) => String(item.label))).toEqual([
       "rest",
       "arm.down",
       "arm.raised",
     ]);
     expect(
-      depthAt(`morph child as middle with
+      depthAt(`morph child as middle {
   depth = |
   keyframes {
     from { brow { translate = 0 0 } }
     to { brow { translate = 0 1 } }
   }
-end
+}
 `),
     ).toEqual(["rest"]);
     expect(
-      depthAt(`morph child as middle with
+      depthAt(`morph child as middle {
   layers { eyelash-left { depth = | } }
-end
+}
 `),
     ).toEqual(["rest", "eyes.open", "eyes.squint"]);
   }, 60_000);
@@ -481,7 +487,7 @@ describe("`paints` completion", () => {
   const masked = {
     context: { morph: { $default: {} }, image: { masked: image("masked", MASKED), tree: image("tree", TREE) } },
   } as any;
-  const PAINTED = (entry: string, root = "") => `morph blink with
+  const PAINTED = (entry: string, root = "") => `morph blink {
   method = bend
   keyframes {
     from { eyes { state = open } }
@@ -491,15 +497,15 @@ describe("`paints` completion", () => {
 ${root}  paints {
     { ${entry} }
   }
-end
+}
 `;
   const at = (source: string) => completeAt(source, masked);
   const labels = (source: string) => at(source).map((item) => String(item.label));
 
   test("`paints` is offered at the root and inserts a block", () => {
-    const source = `morph blink with
+    const source = `morph blink {
   |
-end
+}
 `;
     expect(labelsAt(source)).toContain("paints");
     expectBlockInserted(source, "paints");
@@ -526,7 +532,7 @@ end
     const items = stateAt(PAINTED("state = eyes.cl|"));
     expect(items.map((i) => i.label)).toEqual(["closed"]);
     expect(insertedText(items[0]!)).toBe("closed");
-    const omitted = (entry: string) => `morph blink with
+    const omitted = (entry: string) => `morph blink {
   method = bend
   keyframes {
     from { mouth { state = open } }
@@ -536,7 +542,7 @@ end
   paints {
     { ${entry} }
   }
-end
+}
 `;
     const late = compileProject(omitted("targets { eyelash-left }; state = eyes.closed; fill = red"));
     expect(completeAt(omitted("state = |"), late).map((i) => String(i.label))).toEqual(["mouth.closed", "eyes.closed", "eyes.open"]);
@@ -551,9 +557,9 @@ end
 
   test("each field's documentation comes with it", () => {
     const docOf = (source: string, label: string) => (at(source).find((i) => i.label === label)?.documentation as any)?.value as string;
-    expect(docOf(`morph blink with
+    expect(docOf(`morph blink {
   |
-end
+}
 `, "paints")).toContain("Colours and opacities that layers take at one pose");
     expect(docOf(PAINTED("|"), "targets")).toContain("whose drawings this entry paints");
     expect(docOf(PAINTED("|"), "state")).toContain("The pose the colour belongs to");
@@ -564,5 +570,32 @@ end
     expect(docOf(PAINTED("|"), "span")).toContain("Default `100%`");
     expect(docOf(PAINTED("state = |"), "eyes.closed")).toContain("The pose the colour belongs to");
     expect(docOf(PAINTED("when = |"), "mask.on")).toContain("does not drive");
+  });
+});
+
+describe("a drawing's `spread` in brace bodies", () => {
+  test("`spread` is offered at the root and under a label with the drawing text, and inside a clip entry with the clip text", () => {
+    const root = `morph blink {
+  |
+}
+`;
+    const label = `morph blink {
+  layers {
+    eyeball-shadow-left { | }
+  }
+}
+`;
+    for (const source of [root, label]) {
+      const spread = itemAt(source, "spread");
+      expect(insertedText(spread)).toBe("spread = ");
+      expect(spread.documentation).toEqual(expect.objectContaining({ value: expect.stringContaining("Grows (positive) or shrinks (negative) the outline of drawings") }));
+    }
+    const clip = itemAt(`morph blink {
+  clips {
+    { | }
+  }
+}
+`, "spread");
+    expect(clip.documentation).toEqual(expect.objectContaining({ value: expect.stringContaining("How far this clip's opening reaches past its outline") }));
   });
 });

@@ -1,4 +1,4 @@
-style panel with
+style panel {
   position = absolute
   font_size = 3.4cqh
-end
+}

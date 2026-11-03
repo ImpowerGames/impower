@@ -15,6 +15,7 @@ import {
   MORPH_PAINT_FIELDS,
   MORPH_POLICY_FIELDS,
   MORPH_ROOT_FIELDS,
+  MORPH_SPREAD_PROBLEM,
   MORPH_TIMING_FIELDS,
   easingProblem,
   parseMorphDepth,
@@ -94,6 +95,8 @@ const POLICY_VOCABULARY: Record<string, readonly string[]> = {
   method: MORPH_METHODS,
   fallback: MORPH_FALLBACKS,
 };
+
+const spreadProblem = (value: unknown): string | null => (parseMorphSpread(value) === undefined ? MORPH_SPREAD_PROBLEM : null);
 
 const DEPTH_FORMS =
   "Use `rest` or a state the keyframes name, written with its group, such as `eyes.closed`.";
@@ -271,7 +274,6 @@ export interface MorphDeclaration {
   name: Span;
   parent: Span | null;
   block: Span;
-  withKeyword: Span | null;
   own: MorphBody;
   effective: Record<string, unknown>;
   parentEffective: Record<string, unknown> | null;
@@ -295,13 +297,6 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
   const valueSpan = (obj: unknown, key: string): SourceSpan | undefined =>
     src(obj)?.values.get(key) ?? src(obj)?.lines.get(key);
   const lineSpan = (obj: unknown): SourceSpan | undefined => src(obj)?.line;
-
-  if (!decl.withKeyword) {
-    push(
-      decl.name,
-      "Expected `with` after the morph's name: `morph NAME with … end`.",
-    );
-  }
 
   const checkFields = (
     obj: Record<string, unknown>,
@@ -327,11 +322,14 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       if (!(field in obj)) continue;
       const value = obj[field];
       const vocab = POLICY_VOCABULARY[field];
-      const problem = vocab
-        ? has(vocab, value)
-          ? null
-          : `${describeValue(value)} is not a \`${field}\`. Use ${quoteList(vocab)}.`
-        : depthProblem(value, driven);
+      const problem =
+        field === "spread"
+          ? spreadProblem(value)
+          : vocab
+            ? has(vocab, value)
+              ? null
+              : `${describeValue(value)} is not a \`${field}\`. Use ${quoteList(vocab)}.`
+            : depthProblem(value, driven);
       if (problem) push(valueSpan(obj, field), problem);
     }
   };
@@ -368,14 +366,14 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     if (!isRecord(layers)) {
       push(
         valueSpan(own, "layers"),
-        "`layers` holds labels, each with its own `blend`, `method`, `fallback` or `depth`: `layers { creases { fallback = scale } }`.",
+        `\`layers\` holds labels, each with its own ${quoteList(ALLOWED.layer)}: \`layers { creases { fallback = scale } }\`.`,
       );
     } else {
       for (const [label, policy] of Object.entries(layers)) {
         if (!isRecord(policy)) {
           push(
             src(layers)?.lines.get(label),
-            `\`${label}\` in \`layers { … }\` is a label: write \`${label} { … }\` with its \`blend\`, \`method\`, \`fallback\` or \`depth\` inside.`,
+            `\`${label}\` in \`layers { … }\` is a label: write \`${label} { … }\` with its ${quoteList(ALLOWED.layer)} inside.`,
           );
           continue;
         }
@@ -510,7 +508,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
         checkFields(clip, "clip");
         const lists: Record<string, string[]> = {};
         if ("spread" in clip && parseMorphSpread(clip["spread"]) === undefined) {
-          push(valueSpan(clip, "spread"), "`spread` is a length in `px` or `0`, such as `spread = 1px` or `spread = -0.5px`.");
+          push(valueSpan(clip, "spread"), MORPH_SPREAD_PROBLEM);
         }
         for (const field of MORPH_CLIP_LIST_FIELDS) {
           const list = clip[field];
@@ -710,11 +708,14 @@ export function morphValueProblems(
     for (const field of MORPH_POLICY_FIELDS) {
       if (!(field in obj)) continue;
       const vocab = POLICY_VOCABULARY[field];
-      const message = vocab
-        ? has(vocab, obj[field])
-          ? null
-          : `${describeValue(obj[field])} is not a \`${field}\`. Use ${quoteList(vocab)}.`
-        : depthFormProblem(obj[field]);
+      const message =
+        field === "spread"
+          ? spreadProblem(obj[field])
+          : vocab
+            ? has(vocab, obj[field])
+              ? null
+              : `${describeValue(obj[field])} is not a \`${field}\`. Use ${quoteList(vocab)}.`
+            : depthFormProblem(obj[field]);
       if (message) problems.push({ field: `${prefix}${field}`, message });
     }
   };

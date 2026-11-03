@@ -243,9 +243,9 @@ end
   });
 
   test("a connected game sends nothing for a route that closes and reopens a layout", async () => {
-    const source = `layout hud with
+    const source = `layout hud {
   text "HUD"
-end
+}
 
 
 
@@ -276,9 +276,9 @@ end
   });
 
   test("a connected game sends nothing for a route through an animated layout", async () => {
-    const source = `layout hud with
+    const source = `layout hud {
   text "HUD"
-end
+}
 
 
 

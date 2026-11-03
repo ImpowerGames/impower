@@ -98,7 +98,7 @@ describe("overwriting a builtin global across sparkdown's units and scripts (Bui
     "& if true then local math = {} end\n& math = {}\nReady.\n",
     "& for math = 1, 2 do end\n& math = {}\nReady.\n",
     "scene intro()\n  & do local math = {} end\n  & math = {}\nend\n",
-    "& math = {}\nlayout main with\n  button \"Check\" @click={ local math = {} }\nend\nReady.\n",
+    "& math = {}\nlayout main {\n  button \"Check\" @click={ local math = {} }\n}\nReady.\n",
   ])("a local in a nested top-level block or a handler does not silence another write: %s", (source) => {
     const ds = diagnoseDetailed(source).filter((d) => d.code === "BuiltinGlobalWrite");
     const lines = source.split("\n");

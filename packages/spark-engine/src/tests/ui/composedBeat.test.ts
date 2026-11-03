@@ -13,7 +13,7 @@ const LAYOUT = `define HERO as character with
   name = "HERO"
 end
 
-layout main with
+layout main {
   textbox {
     character_info {
       character_name {
@@ -24,7 +24,7 @@ layout main with
       text
     }
   }
-end
+}
 `;
 
 const STORY = `${LAYOUT}
@@ -47,15 +47,15 @@ const FONTS: File[] = [
   } as File,
 ];
 
-const hudStory = (directives: string) => `style hud with
+const hudStory = (directives: string) => `style hud {
   font_family = "Fancy"
-end
+}
 
-layout hud with
+layout hud {
   stats {
     text
   }
-end
+}
 
 ${LAYOUT}
 

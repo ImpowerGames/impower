@@ -3,12 +3,12 @@ import {
   diffAndPatch,
   getComponents,
   parseSparkle,
-  RenderContext,
   renderCssVDOM,
   renderHtmlVDOM,
   VNode,
 } from "../../../sparkle-screen-renderer/src";
 import { Component } from "../../../spec-component/src/component";
+import { createScreenRenderContext } from "../utils/createScreenRenderContext";
 import { throttle } from "../utils/throttle";
 import spec from "./_sparkle-screen-preview";
 
@@ -39,10 +39,7 @@ export default class SparkdownScreenPreview extends Component(spec) {
         const stateInputEl = this.refs.state as HTMLInputElement;
         const update = throttle(() => {
           const state = JSON.parse(stateInputEl.value || "{}");
-          const ctx: RenderContext = {
-            components,
-            state,
-          };
+          const ctx = createScreenRenderContext(components, state);
           const renderStyles = () => {
             const container = this.refs.css;
             const newVDOM = renderCssVDOM(parsed, ctx);

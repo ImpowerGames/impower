@@ -3,15 +3,15 @@ import { formatSource } from "./formatSource";
 
 describe("formatting a body written with brace blocks", () => {
   test("well-formed source round-trips unchanged", () => {
-    const source = `style button with
+    const source = `style button {
   cursor = pointer
   &.secondary { background-color = slate_50 }
   @hovered, @pressed {
     background-color = sky_50
   }
-end
+}
 
-animation fade with
+animation fade {
   keyframes {
     from { opacity = 0 }
     to { opacity = 1 }
@@ -20,9 +20,9 @@ animation fade with
     duration = 0.4,
     easing = ease-in-out,
   }
-end
+}
 
-morph blink with
+morph blink {
   method = bend
   keyframes {
     { offset = 0; eyes { state = eyes.open } }
@@ -31,13 +31,13 @@ morph blink with
   clips {
     { between { eyelash-left }; targets { eyeball-white-left; pupil-left } }
   }
-end
+}
 `;
     expect(formatSource(source)).toBe(source);
   });
 
   test("lines inside a block indent by its braces, and the lines after it keep their level", () => {
-    const source = `animation fade with
+    const source = `animation fade {
       keyframes {
 from { opacity = 0 }
           to {
@@ -45,9 +45,9 @@ from { opacity = 0 }
         }
   }
   timing={duration=1;delay = 2,}
-end
+}
 `;
-    expect(formatSource(source)).toBe(`animation fade with
+    expect(formatSource(source)).toBe(`animation fade {
   keyframes {
     from { opacity = 0 }
     to {
@@ -55,7 +55,7 @@ end
     }
   }
   timing = { duration=1; delay = 2, }
-end
+}
 `);
   });
 });

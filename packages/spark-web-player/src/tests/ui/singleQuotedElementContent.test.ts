@@ -16,11 +16,11 @@ describe("single-quoted element content", () => {
   test("renders, and keeps the double quotes it contains", async () => {
     const h = await render(
       [
-        "layout main with",
+        "layout main {",
         "  column {",
         `    text '"Maecenas vehicula metus tellus."'`,
         "  }",
-        "end",
+        "}",
       ].join("\n"),
     );
     const text = firstText(h);
@@ -30,7 +30,7 @@ describe("single-quoted element content", () => {
 
   test.skip("is literal — braces survive (runtime display parse still eats them)", async () => {
     const h = await render(
-      ["layout main with", "  column {", `    text '{x {y} z}'`, "  }", "end"].join(
+      ["layout main {", "  column {", `    text '{x {y} z}'`, "  }", "}"].join(
         "\n",
       ),
     );
@@ -41,11 +41,11 @@ describe("single-quoted element content", () => {
     const h = await render(
       [
         "store who = \"world\"",
-        "layout main with",
+        "layout main {",
         "  column {",
         '    text "hello {who}"',
         "  }",
-        "end",
+        "}",
       ].join("\n"),
     );
     expect(firstText(h)!.textContent).toBe("hello world");

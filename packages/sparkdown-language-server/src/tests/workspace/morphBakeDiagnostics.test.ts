@@ -25,7 +25,7 @@ const SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100">
 <g data-name="eyes.closed"><path data-name="eyelash-left" d="${CLOSED}" fill="#111"/></g>
 </svg>`;
 
-const SCRIPT = `morph blink with
+const SCRIPT = `morph blink {
   method = bend
   keyframes {
     0% {
@@ -54,7 +54,7 @@ const SCRIPT = `morph blink with
       }
     }
   }
-end
+}
 
 [[bunny]]
 `;

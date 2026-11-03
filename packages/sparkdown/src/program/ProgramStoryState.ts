@@ -270,16 +270,20 @@ export const flowSequenceOf = (
   return at;
 };
 
-export const flowScopesOf = (root: ProgramRoot, sequence: SequenceRow): number => {
+export const flowScopeOwners = (root: ProgramRoot, sequence: SequenceRow): number[] => {
   const flow = flowSequenceOf(root, sequence);
   if (flow?.kind === SymbolKind.Scene) {
-    return 1;
+    return [flow.flow];
   }
   if (flow?.kind === SymbolKind.Branch) {
-    return root.parentOf(flow.flow) >= 0 ? 2 : 1;
+    const parent = root.parentOf(flow.flow);
+    return parent >= 0 ? [parent, flow.flow] : [flow.flow];
   }
-  return 0;
+  return [];
 };
+
+export const flowScopesOf = (root: ProgramRoot, sequence: SequenceRow): number =>
+  flowScopeOwners(root, sequence).length;
 
 export const scopeDepthAt = (
   root: ProgramRoot,

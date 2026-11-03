@@ -32,11 +32,7 @@ export default function HeaderTitleButton(_p: HeaderTitleButtonProps) {
 
   return (
     <div class="flex w-full flex-row items-center">
-
-      <div
-        class="relative -mx-1 h-7 flex-1 overflow-hidden rounded px-1 text-foreground hover:bg-foreground/5"
-        style={{ maxWidth: "600px" }}
-      >
+      <div class="relative -mx-1 h-7 max-w-[600px] flex-1 overflow-hidden rounded px-1 text-foreground hover:bg-foreground/5">
         <div class="absolute inset-y-0 inset-x-1">
           {ready ? (
             <input

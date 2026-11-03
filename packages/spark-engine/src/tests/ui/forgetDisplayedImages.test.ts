@@ -5,7 +5,7 @@ const SOURCE = `define BG as image with
   src = "https://example.com/bg.png"
 end
 
-layout main with
+layout main {
   stage {
     backdrop {
       image
@@ -16,7 +16,7 @@ layout main with
       text
     }
   }
-end
+}
 
 
 

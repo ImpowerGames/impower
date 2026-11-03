@@ -1,4 +1,4 @@
-layout hud with
+layout hud {
   stage {
     if player.dead then
       text "GAME OVER"
@@ -8,4 +8,4 @@ layout hud with
       text "HP: {player.hp}"
     end
   }
-end
+}

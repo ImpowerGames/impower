@@ -1,0 +1,12 @@
+theme dusk as base {
+  color = #112233
+  radius = 8px
+  links {
+    https://example.com
+    12:30
+  }
+}
+
+theme plain { color = black; radius = 0 }
+
+theme none {}

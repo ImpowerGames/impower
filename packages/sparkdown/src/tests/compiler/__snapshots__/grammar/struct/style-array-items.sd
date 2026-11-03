@@ -1,6 +1,6 @@
-style list with
+style list {
   items {
     first
     second
   }
-end
+}

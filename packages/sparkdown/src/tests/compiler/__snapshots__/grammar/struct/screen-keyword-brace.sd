@@ -1,0 +1,6 @@
+screen menu {}
+
+screen hud {
+}
+
+screen --[[ the pause overlay ]] pause {} -- shown over the game

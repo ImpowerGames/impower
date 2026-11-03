@@ -111,11 +111,11 @@ store i = 0
 
 describe("the markers still make references to the builtins resolve", () => {
   test("`game.loading.percent` and `config.assets.predict_distance` compile clean", () => {
-    const program = compileUnseeded(`layout loading with
+    const program = compileUnseeded(`layout loading {
   loading_content {
     text "Loading {game.loading.percent}% ahead {config.assets.predict_distance}"
   }
-end
+}
 
 scene start
   & local ahead = 1 + config.assets.predict_distance
@@ -129,11 +129,11 @@ end
   });
 
   test("a bare instance name is not a global: `assets.predict_distance` warns", () => {
-    const program = compileUnseeded(`layout loading with
+    const program = compileUnseeded(`layout loading {
   loading_content {
     text "Ahead {assets.predict_distance}"
   }
-end
+}
 
 scene start
   Hi.

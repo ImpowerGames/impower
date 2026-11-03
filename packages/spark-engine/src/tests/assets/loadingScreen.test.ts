@@ -13,9 +13,9 @@ const ASSETS: File[] = [
   },
 ];
 
-const STORY = `layout menu with
+const STORY = `layout menu {
   text "Menu"
-end
+}
 
 scene A
   Hi there.
@@ -114,9 +114,9 @@ describe("the loading layout", () => {
 
   it("publishes its progress through game.loading, which a replaced layout can bind", async () => {
     const h = createHarness(
-      `layout loading with
+      `layout loading {
   text "Loading {game.loading.percent}%"
-end
+}
 
 ${STORY}`,
       0,

@@ -1,4 +1,4 @@
-layout main with
+layout main {
   stage {
     backdrop {
       image "black"
@@ -11,4 +11,4 @@ layout main with
       text "HP: {hp}"
     }
   }
-end
+}

@@ -23,10 +23,10 @@ function compile(source: string): any {
 describe("Sparkle struct/style value trailing comments", () => {
   test("style scalar values drop a trailing --/// comment", () => {
     const style = compile(
-      `style card with\n` +
+      `style card {\n` +
         `  background-color = red -- swap later\n` +
         `  note = blue // done\n` +
-        `end\n`,
+        `}\n`,
     ).styles?.["card"];
     expect(style?.["background-color"]).toBe("red");
     expect(style?.["note"]).toBe("blue");
@@ -34,11 +34,11 @@ describe("Sparkle struct/style value trailing comments", () => {
 
   test("values without a whitespace-delimited comment are untouched", () => {
     const style = compile(
-      `style card with\n` +
+      `style card {\n` +
         `  transition = all 0.2s ease-in\n` +
         `  grid-template = auto-fill\n` +
         `  bg = url(http://x.com/y)\n` +
-        `end\n`,
+        `}\n`,
     ).styles?.["card"];
     expect(style?.["transition"]).toBe("all 0.2s ease-in");
     expect(style?.["grid-template"]).toBe("auto-fill");
@@ -47,7 +47,7 @@ describe("Sparkle struct/style value trailing comments", () => {
 
   test("a quoted value keeps a `--` inside the quotes", () => {
     const style = compile(
-      `style card with\n  quip = "a -- b"\nend\n`,
+      `style card {\n  quip = "a -- b"\n}\n`,
     ).styles?.["card"];
     expect(style?.["quip"]).toBe("a -- b");
   });
@@ -55,9 +55,9 @@ describe("Sparkle struct/style value trailing comments", () => {
   test("a `://` URL in a prop value is not mistaken for a block header", () => {
     const layouts = (
       compile(
-        `layout main with\n` +
+        `layout main {\n` +
           `  link "Docs" #href="https://example.com/a/b?x=1"\n` +
-          `end\n`,
+          `}\n`,
       ) as any
     ).sparkle?.layouts;
     const link = layouts?.main?.children?.[0];
@@ -68,9 +68,9 @@ describe("Sparkle struct/style value trailing comments", () => {
   test("a protocol-relative `//` URL survives too", () => {
     const layouts = (
       compile(
-        `layout main with\n` +
+        `layout main {\n` +
           `  image #src="//cdn.example.com/x.png"\n` +
-          `end\n`,
+          `}\n`,
       ) as any
     ).sparkle?.layouts;
     expect(layouts?.main?.children?.[0]?.props?.src?.value).toBe(
@@ -81,14 +81,14 @@ describe("Sparkle struct/style value trailing comments", () => {
   test("a block header still accepts `//` and `--` trailing comments", () => {
     const layouts = (
       compile(
-        `layout main with\n` +
+        `layout main {\n` +
           `  column #child-gap=8 { // spaced comment\n` +
           `    text "a"\n` +
           `  }\n` +
           `  row #child-gap=4 { -- dash comment\n` +
           `    text "b"\n` +
           `  }\n` +
-          `end\n`,
+          `}\n`,
       ) as any
     ).sparkle?.layouts;
     const kids = layouts?.main?.children ?? [];
@@ -100,14 +100,14 @@ describe("Sparkle struct/style value trailing comments", () => {
 
   test("typed (animation) keyframe values drop a trailing comment", () => {
     const kf = compile(
-      `animation slide as animation with\n` +
+      `animation slide as animation {\n` +
         `  target = layer.self\n` +
         `  keyframes {\n` +
         `    {\n` +
         `      background_position = right -- move it\n` +
         `    }\n` +
         `  }\n` +
-        `end\n`,
+        `}\n`,
     ).context?.animation?.slide?.keyframes;
     expect(kf?.[0]?.["background_position"]).toBe("right");
   });

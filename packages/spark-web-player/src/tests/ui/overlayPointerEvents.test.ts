@@ -47,4 +47,25 @@ describe("overlay pointer-events", () => {
         "land on nothing. Set it on the overlay ROOT and let it inherit.",
     ).toEqual([]);
   });
+
+  test("toolbar groups inherit pointer-events from the toolbar", () => {
+    const groups = blocksDisablingPointerEvents().filter((sel) =>
+      /#(left|right|middle|location)-items\b/.test(sel),
+    );
+    expect(groups).toEqual([]);
+    expect(CSS).not.toMatch(/#location-items\.error\s*\{[^}]*pointer-events/);
+  });
+
+  test("empty stage containers are transparent to the pointer", () => {
+    const disabled = blocksDisablingPointerEvents();
+    const emptyRule = disabled.find(
+      (sel) =>
+        sel.includes("spark-web-player #game-background:empty") &&
+        sel.includes("spark-web-player #game-view:empty"),
+    );
+    expect(emptyRule).toBeDefined();
+    expect(
+      disabled.filter((sel) => /#game-(background|view)(?!:empty)\b/.test(sel)),
+    ).toEqual([]);
+  });
 });

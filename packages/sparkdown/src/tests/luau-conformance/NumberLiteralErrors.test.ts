@@ -61,8 +61,8 @@ describe("number contexts", () => {
   });
 
   test.each([
-    ["style field with a unit", "style my_style with\n  padding = 8px\nend\n"],
-    ["theme field with a unit", "theme my_theme with\n  gap = 1rem\nend\n"],
+    ["style field with a unit", "style my_style {\n  padding = 8px\n}\n"],
+    ["theme field with a unit", "theme my_theme {\n  gap = 1rem\n}\n"],
     ["narrative text", "He ran 5k today, version 1.0.2, from 1..2.\n"],
     ["inline text command control", "Hello <1.5x:there> friend.\n"],
   ])("%s is not checked", (_label, source) => {

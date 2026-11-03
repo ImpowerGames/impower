@@ -8,6 +8,7 @@ import { GameResizedMessage } from "@impower/spark-engine/src/game/core/classes/
 import {
   SparkWebPlayerElement,
   setWorkspace,
+  whenControllerListening,
 } from "@impower/spark-web-player/src/index.js";
 import { installWorkspaceWorker } from "@impower/spark-web-player/src/main/workers/installWorkspaceWorker";
 import { previewedDocumentUri } from "./previewedDocumentUri";
@@ -33,7 +34,10 @@ const connection = new WindowMessageConnection((message: any) =>
 );
 connection.listen();
 
-const workspaceState = installWorkspaceWorker(connection);
+const workspaceState = installWorkspaceWorker(
+  connection,
+  whenControllerListening(),
+);
 
 connection.addEventListener("message", async (e: MessageEvent) => {
   const message = e.data;

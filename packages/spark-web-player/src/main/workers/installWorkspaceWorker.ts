@@ -30,7 +30,10 @@ import WORKSPACE_INLINE_WORKER_STRING from "./workspace.worker";
 
 const ASSET_FILE_TYPES = new Set(["image", "audio", "font", "video"]);
 
-export function installWorkspaceWorker(connection: MessageConnection) {
+export function installWorkspaceWorker(
+  connection: MessageConnection,
+  controllerListening: Promise<void>,
+) {
   const cache = getSharedAssetCache();
 
   class SparkdownGameWorkspace
@@ -251,6 +254,7 @@ export function installWorkspaceWorker(connection: MessageConnection) {
     const message = e.data;
     if (InitializeMessage.type.is(message)) {
       connection.sendResponse(message, async () => {
+        await controllerListening;
         await state.workspace.initialize(message.params);
         return {
           capabilities: {},

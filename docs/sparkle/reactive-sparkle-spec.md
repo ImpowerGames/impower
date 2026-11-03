@@ -10,7 +10,7 @@
 
 > **Terminology (post-spec rename, commit `cfb300cff`).** This doc originally called the
 > mountable element-tree block `screen`. It is now the **`layout`** keyword
-> (`layout NAME [in SCREEN] with … end`); the AST node is `LayoutNode (kind "layout")`.
+> (`layout NAME [in SCREEN] { … }`); the AST node is `LayoutNode (kind "layout")`.
 > The word **`screen`** is now a *separate* top-level keyword — an explicit navigation group
 > that layouts join via `in SCREEN`, driven by `[[open]]` / `[[close]]` /
 > `[[navigate SCREEN to LAYOUT]]`. That navigation feature postdates this reactive spec and
@@ -87,7 +87,7 @@ path and migrates to runtime Luau objects only after reactivity is verified.
 
 | # | Decision | Source |
 |---|----------|--------|
-| L1 | Block header is `keyword NAME [as PARENT] with … end`. `as` = inherits. | current grammar + formatter |
+| L1 | Block header is `keyword NAME [as PARENT] { … }`. `as` = inherits. | current grammar + formatter |
 | L2 | `layout` / `screen` / `component` / `style` / `animation` / `theme` are top-level keywords (not `define`). Written inside a function's body, at any depth (a nested function, a block, a define's method), one is a compile error on its keyword, `'layout' is a top-level declaration and cannot be written inside a function`, and registers nothing. | grammar; I-1405 |
 | L3 | Reactivity is **engine-side**, emitting the `ElementMessage` protocol. | this session |
 | L4 | Expressions evaluate through **Luau**, not JS. | this session |
@@ -103,12 +103,12 @@ path and migrates to runtime Luau objects only after reactivity is verified.
 ### 4.1 Block headers
 
 ```
-layout    NAME [in SCREEN] [as PARENT] with … end
-screen    NAME with … end
-component NAME [as PARENT] with … end
-style     NAME [as PARENT] with … end
-animation NAME with … end
-theme     NAME with … end
+layout    NAME [in SCREEN] [as PARENT] { … }
+screen    NAME { … }
+component NAME [as PARENT] { … }
+style     NAME [as PARENT] { … }
+animation NAME { … }
+theme     NAME { … }
 ```
 
 - `NAME` is a Luau identifier (snake_case recommended for authors).
@@ -136,7 +136,7 @@ The atom of a `layout`/`component` body is an **element**:
   ~~Classes are bare words after the tag (not dot-prefixed): `button primary`, `text title`.~~
   **SUPERSEDED ([#1222](https://github.com/ImpowerGames/impower/issues/1222)):** each class
   is written with a dot after the tag: `button.primary`, `row.hud`.
-  Tag-as-class: the tag name is itself a class, so `style button with …` styles every button.
+  Tag-as-class: the tag name is itself a class, so `style button { … }` styles every button.
 - **`"content"`** — quoted text content (for text-like elements) or `src`/value for
   `image`/`mask`. May contain `{interp}` (§4.4). Exactly one content string per element.
 - **`#prop=value`** — an inline style/attribute (the inline equivalent of a `style` rule).
@@ -163,7 +163,7 @@ The atom of a `layout`/`component` body is an **element**:
 Example:
 
 ```
-layout inventory with
+layout inventory {
   column.panel #gap=16 {
     text.headline "Inventory"
     row {
@@ -171,7 +171,7 @@ layout inventory with
       button "Drop" @click=drop_item
     }
   }
-end
+}
 ```
 
 ### 4.3 Named structural elements
@@ -180,7 +180,7 @@ A leading name turns a generic container into a named, styleable node (this is t
 dialogue/stage pattern the production `ui.sd` uses):
 
 ```
-layout main with
+layout main {
   stage {
     backdrop { image "black" }
     portrait {
@@ -188,7 +188,7 @@ layout main with
       image
     }
   }
-end
+}
 ```
 
 `stage` / `backdrop` / `portrait` are builtin structural styles (§7). `mask.shadow_1` is a
@@ -305,29 +305,29 @@ end
 ### 4.7 Components & slots
 
 ```
-component stat_row(label, value) with
+component stat_row(label, value) {
   row.stat {
     text.label "{label}"
     text.value "{value}"
   }
-end
+}
 
-component card(title) with
+component card(title) {
   box.card {
     text.card_title "{title}"
     slot -- default slot: where children passed to <card> land
     slot.footer -- named slot
   }
-end
+}
 
-layout sheet with
+layout sheet {
   card("Inventory") {
     text "10 / 20 slots" -- fills the default slot
     fill.footer {
       button "Sort" @click=sort_bag
     }
   }
-end
+}
 ```
 
 - **Parameters** `component name(p1, p2)` are in scope inside the body as reactive values.
@@ -340,7 +340,7 @@ end
 `style` blocks keep the CSS-like body that exists today (this part is already good):
 
 ```
-style dialogue with
+style dialogue {
   height = 100%
   @screen-size(sm) { width = 100% }
   > text {
@@ -348,7 +348,7 @@ style dialogue with
     font-size = 3cqh
   }
   > text.headline { font-size = 4cqh }
-end
+}
 ```
 
 - `key = value` properties; `> selector { … }` nested rules, with a selector's classes
@@ -745,17 +745,17 @@ The lowerer (rewritten from scratch, L5) must:
 
 **HUD (interpolation):**
 ```
-layout hud with
+layout hud {
   row.hud #gap=12 {
     text "❤ {player.hp}/{player.max_hp}"
     text "⛀ {player.gold}"
   }
-end
+}
 ```
 
 **Settings (events + form controls, one-way):**
 ```
-layout settings with
+layout settings {
   column.menu #gap=16 {
     text.headline "Settings"
     slider "Master Volume" #min=0 #max=100 #value={volume} @input={ volume = event.value }
@@ -765,12 +765,12 @@ layout settings with
       button "Apply" @click=save_settings
     }
   }
-end
+}
 ```
 
 **Inventory (control flow + keyed list):**
 ```
-layout inventory with
+layout inventory {
   column.panel #gap=8 {
     text.headline "Inventory"
     for item in player.bag do
@@ -786,7 +786,7 @@ layout inventory with
       text.empty "Your bag is empty."
     end
   }
-end
+}
 ```
 
 ---

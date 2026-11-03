@@ -1,4 +1,4 @@
-morph blink with
+morph blink {
   method = bend
   keyframes {
     { offset = 0; eyes { state = eyes.open } }
@@ -12,4 +12,4 @@ morph blink with
   clips {
     { between { eyelash-left }; targets { eyeball-white-left; pupil-left } }
   }
-end
+}

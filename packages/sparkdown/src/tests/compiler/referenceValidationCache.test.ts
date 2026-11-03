@@ -33,11 +33,11 @@ function screenplay(): string {
   L.push("  speed = 5");
   L.push("end");
   L.push("");
-  L.push("layout hud with");
+  L.push("layout hud {");
   L.push("  column {");
   L.push('    button "Go" @click=go_on');
   L.push("  }");
-  L.push("end");
+  L.push("}");
   L.push("");
   for (let s = 0; s < SCENES; s++) {
     L.push(`scene scene_${s}`);

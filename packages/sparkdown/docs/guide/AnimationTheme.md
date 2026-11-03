@@ -38,7 +38,7 @@ Use the `animation` keyword. An animation has **keyframes** (a list of states to
 move through) and **timing** (how it plays):
 
 ```sparkdown
-animation pulse with
+animation pulse {
   keyframes {
     { scale = "1" }
     { scale = "1.1" }
@@ -50,7 +50,7 @@ animation pulse with
     iterations = 1
     fill = "both"
   }
-end
+}
 ```
 
 - **`keyframes { … }`** is a list. A list's entries are bare: they have no
@@ -69,27 +69,27 @@ instead of as an `offset` property inside it. Write `from` for the start, `to`
 for the end, or a percentage for anywhere in between:
 
 ```sparkdown
-animation fade with
+animation fade {
   keyframes {
     from { opacity = "0" }
     40% { opacity = "1" }
     to { opacity = "0" }
   }
   timing { duration = 0.4 }
-end
+}
 ```
 
 That block means exactly the same thing as the list with explicit offsets:
 
 ```sparkdown
-animation fade with
+animation fade {
   keyframes {
     { offset = 0; opacity = "0" }
     { offset = 0.4; opacity = "1" }
     { offset = 1; opacity = "0" }
   }
   timing { duration = 0.4 }
-end
+}
 ```
 
 - `from` is `0%` and `to` is `100%`; a percentage becomes the matching
@@ -109,10 +109,10 @@ place, so your UI stays consistent and is easy to re-skin. It's static config:
 define it with the `theme` keyword and reference its values from your styles.
 
 ```sparkdown
-theme dusk with
+theme dusk {
   color = #112233
   radius = 8px
-end
+}
 ```
 
 <!-- TODO(docs): how styles reference theme values isn't documented yet — add it once settled. -->

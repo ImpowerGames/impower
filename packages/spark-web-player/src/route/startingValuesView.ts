@@ -24,6 +24,7 @@ export interface StartingValuesViewState {
   drafts: Record<string, string>;
   unsaved: Record<string, string>;
   search: string;
+  loaded?: { count: number; name: string; failed?: boolean };
 }
 
 export const emptyValuesState = (): StartingValuesViewState => ({

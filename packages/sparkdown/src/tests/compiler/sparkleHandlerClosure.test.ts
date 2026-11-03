@@ -34,28 +34,27 @@ const unterminated = (source: string): string[] =>
 
 describe("inline handler closure termination", () => {
   test("a single-line closure compiles cleanly (no diagnostic)", () => {
-    const src = `layout form with
+    const src = `layout form {
   field @input={ name = event.value }
-end
+}
 `;
     expect(unterminated(src)).toHaveLength(0);
   });
 
   test("a closure whose `}` is on a later line compiles cleanly", () => {
-    const src = `layout form with
+    const src = `layout form {
   button "x" @click={ score = 0
     combo = 0 }
-end
+}
 `;
     expect(unterminated(src)).toHaveLength(0);
   });
 
   test("a closure with no `}` is flagged", () => {
-    const src = `layout form with
+    const src = `layout form {
   button "x" @click={ score = 0
     combo = 0
-end
 `;
-    expect(unterminated(src)).toHaveLength(1);
+    expect(unterminated(src).filter((m) => m.startsWith("This handler"))).toHaveLength(1);
   });
 });

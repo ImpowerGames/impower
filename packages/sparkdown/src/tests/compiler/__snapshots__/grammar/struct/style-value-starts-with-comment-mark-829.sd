@@ -1,6 +1,6 @@
-style card with
+style card {
   gap = --gap
   margin = --gap -- note
   padding = 1 -- note
   g { gap = --gap }
-end
+}

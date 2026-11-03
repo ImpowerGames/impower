@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
-const V1 = `layout main with
+const V1 = `layout main {
   stage {
     backdrop {
       image
@@ -15,10 +15,10 @@ const V1 = `layout main with
       text
     }
   }
-end
+}
 `;
 
-const V2 = `layout main with
+const V2 = `layout main {
   stage {
     backdrop {
       image
@@ -29,16 +29,16 @@ const V2 = `layout main with
       text
     }
   }
-end
+}
 `;
 
 const BTN = `store hp = 100
 function heal()
   hp = hp + 5
 end
-layout main with
+layout main {
   button "Heal" @click=heal
-end
+}
 `;
 
 describe("UIManager reconcile (live-preview DOM patching)", () => {
@@ -92,11 +92,11 @@ describe("UIManager reconcile (live-preview DOM patching)", () => {
 
   test("a resent create writes back the content a ui/update replaced on the reused node (#1223)", async () => {
     const SRC = `store mode = false
-layout main with
+layout main {
   badge {
     text "{mode}"
   }
-end
+}
 `;
     const h = createDOMHarness(SRC, 0, { reactive: true });
     await h.ready;

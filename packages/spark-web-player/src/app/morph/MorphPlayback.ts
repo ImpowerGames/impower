@@ -7,6 +7,7 @@ import {
   poseAperture,
   poseGradient,
   poseLeaf,
+  poseSpreadMask,
   type MorphFrameState,
 } from "../../../../sparkdown/src/morph/render";
 import { MorphBakeService } from "../../../../sparkdown/src/morph/service";
@@ -49,6 +50,7 @@ interface LiveView {
     attributes: Record<string, string>;
     stops: { element: Element; attributes: Record<string, string> }[];
   }[];
+  masks: { id: string; path: Element; d: string | null; style: string | null }[];
   last?: string;
 }
 
@@ -613,6 +615,8 @@ export class MorphLayer {
       });
     }
     const clips: LiveView["clips"] = [];
+    const masks: LiveView["masks"] = [];
+    const spreadMasks = new Set(Object.values(artifact.spreads ?? {}).flatMap((spread) => (spread.mask ? [spread.mask] : [])));
     const apertures = [...Array.from(outer.getElementsByTagNameNS(SVG_NS, "mask")), ...Array.from(outer.getElementsByTagNameNS(SVG_NS, "clipPath"))];
     for (const aperture of apertures) {
       const id = aperture.getAttribute("id");
@@ -620,7 +624,9 @@ export class MorphLayer {
       const paths = Array.from(aperture.children)
         .filter((child) => child.localName === "path")
         .map((element) => ({ element, d: element.getAttribute("d"), style: element.getAttribute("style") }));
-      clips.push({ id: id.split(prefix).join(artifact.idPrefix), element: aperture, paths });
+      const named = id.split(prefix).join(artifact.idPrefix);
+      if (!spreadMasks.has(named)) clips.push({ id: named, element: aperture, paths });
+      else if (paths[0]) masks.push({ id: named, path: paths[0].element, d: paths[0].d, style: paths[0].style });
     }
     const markup = (element: Element) => Object.fromEntries(Array.from(element.attributes, (a) => [a.name, a.value]));
     const gradients: LiveView["gradients"] = [];
@@ -635,7 +641,7 @@ export class MorphLayer {
         .map((stop) => ({ element: stop, attributes: markup(stop) }));
       gradients.push({ id, element, attributes: markup(element), stops });
     }
-    return { box, artifact, prefix, parts, leaves, clips, gradients };
+    return { box, artifact, prefix, parts, leaves, clips, gradients, masks };
   }
 
   protected placement(
@@ -704,6 +710,8 @@ export class MorphLayer {
               opacity: new Map(),
               clips: new Map(),
               reaches: new Map(),
+              spread: new Map(),
+              masks: new Map(),
             }
           : morphFrameState(view.artifact, morphPosesAt(view.artifact, at));
       applyFrame(view, frame);
@@ -799,6 +807,20 @@ function applyFrame(view: LiveView, frame: MorphFrameState) {
     gradient.stops.forEach((stop, i) => {
       for (const [name, value] of Object.entries(element.children[i]!.attributes)) write(stop.element, name, value);
     });
+  }
+  for (const mask of view.masks) {
+    const path = {
+      tagName: "path",
+      attributes: {
+        ...(mask.style === null ? {} : { style: mask.style }),
+        ...(mask.d === null ? {} : { d: mask.d }),
+      } as Record<string, string>,
+      children: [],
+    };
+    const posed = frame.masks.get(mask.id);
+    if (posed) poseSpreadMask({ tagName: "mask", attributes: {}, children: [path] }, posed);
+    write(mask.path, "style", path.attributes["style"] ?? null);
+    write(mask.path, "d", path.attributes["d"] ?? null);
   }
   for (const clip of view.clips) {
     const paths = clip.paths.map((path) => ({

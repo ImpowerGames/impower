@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
-const SCREEN = `layout main with
+const SCREEN = `layout main {
   stage {
     backdrop {
       image
@@ -26,7 +26,7 @@ const SCREEN = `layout main with
     }
     continue_indicator
   }
-end
+}
 `;
 
 const STORY = `${SCREEN}\n-> start\n\nscene start\n  Hi.\nend\n`;

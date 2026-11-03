@@ -1,0 +1,20 @@
+layout main {
+theme --[[ note ]]
+theme --[====[ note ] extra ]====]
+screen label
+style
+run x
+include shared.sd
+function f()
+store label
+store trust: number = 5
+theme label {
+}
+}
+
+style panel {
+store label
+define hero as character with
+style inner as base {
+}
+}

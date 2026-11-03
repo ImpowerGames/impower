@@ -13,7 +13,7 @@ end
 
 store hp = 0
 
-layout main with
+layout main {
   column #child-gap=12 {
     text "Health: {hp}"
     row #child-gap=8 {
@@ -21,7 +21,7 @@ layout main with
       button "+ Heal" @click={ hp = hp + 1 }
     }
   }
-end
+}
 ```
 
 Here's what each piece does:

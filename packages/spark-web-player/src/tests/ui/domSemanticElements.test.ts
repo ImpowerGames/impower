@@ -10,13 +10,13 @@ async function render(src: string) {
 
 describe("dom semantic elements", () => {
   test("interactive builtins render as their real HTML tags", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   link "Home"
   button "Go"
   label "Name"
   span "inline"
   divider
-end
+}
 `);
     expect(h.overlay.querySelector("a")?.textContent).toBe("Home");
     expect(h.overlay.querySelector("button")?.textContent).toBe("Go");
@@ -26,7 +26,7 @@ end
   });
 
   test("lists render as real ul/ol/li", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   list {
     item "Alpha"
     item "Beta"
@@ -34,7 +34,7 @@ end
   ordered_list {
     item "First"
   }
-end
+}
 `);
     const ul = h.overlay.querySelector("ul");
     const ol = h.overlay.querySelector("ol");
@@ -47,7 +47,7 @@ end
   });
 
   test("quote/citation are tags; inline styling is CLASSES, not tags", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   quote {
     text "Quoted."
     citation "- Someone"
@@ -68,7 +68,7 @@ end
   text.deleted "gone"
   text.inserted "added"
   text.abbreviation "HTML"
-end
+}
 `);
     expect(h.overlay.querySelector("blockquote")).toBeTruthy();
     expect(h.overlay.querySelector("cite")?.textContent).toBe("- Someone");
@@ -116,7 +116,7 @@ end
   });
 
   test("structure builtins render as their tags", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   article {
     header "Title"
     text "Body"
@@ -134,7 +134,7 @@ end
   foldout "More" {
     text "Hidden detail"
   }
-end
+}
 `);
     for (const tag of [
       "article",
@@ -153,7 +153,7 @@ end
   });
 
   test("tables render as a real table with direct-child rows and cells", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   table {
     table_header {
       table_row {
@@ -172,7 +172,7 @@ end
       }
     }
   }
-end
+}
 `);
     const table = h.overlay.querySelector("table");
     expect(table).toBeTruthy();
@@ -185,12 +185,12 @@ end
   });
 
   test("style-class names are NOT promoted to tags (no bogus warning path)", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   text.small "Small print"
   row.nav #child-gap=8 {
     link "Home"
   }
-end
+}
 `);
     expect(h.overlay.querySelector("small")).toBeNull();
     expect(h.overlay.querySelector(".text.small")?.textContent).toBe(
@@ -201,7 +201,7 @@ end
   });
 
   test("the new semantic builtins ship default styles", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   list {
     item "x"
   }
@@ -209,7 +209,7 @@ end
     text "q"
   }
   text.code "c"
-end
+}
 `);
     const css = [...h.overlay.querySelectorAll("style")]
       .map((s) => s.textContent ?? "")

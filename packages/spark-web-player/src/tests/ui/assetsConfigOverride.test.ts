@@ -5,11 +5,11 @@ import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 function source(defines: string): string {
   return [
     defines,
-    "layout main with",
+    "layout main {",
     "  column {",
     '    text "hello"',
     "  }",
-    "end",
+    "}",
   ].join("\n");
 }
 

@@ -112,7 +112,7 @@ describe("a script of a project of three scripts", () => {
 
   it("declares its layout's binding evaluators once", () => {
     const program = compileOnce(
-      threeScripts(["store a = 1", "", "layout la with", '  text "{a}"', "end", ""].join("\n")),
+      threeScripts(["store a = 1", "", "layout la {", '  text "{a}"', "}", ""].join("\n")),
     );
     expect(errors(program)).toEqual([]);
     const id = JSON.stringify(program.sparkle?.layouts?.["la"]).match(/__binding\$\w+/)?.[0];

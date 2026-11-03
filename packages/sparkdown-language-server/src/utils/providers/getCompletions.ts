@@ -16,6 +16,7 @@ import {
   structKeyToken,
 } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
 import { getProperty } from "@impower/sparkdown/src/compiler/utils/getProperty";
+import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import {
   luauFileName,
   projectLuauFiles,
@@ -118,6 +119,20 @@ const STRUCTURAL_DEFINE_TYPE: Partial<Record<SparkdownNodeName, string>> = {
   LuauTheme: "theme",
   LuauMorph: "morph",
 };
+
+const STRUCT_KEYWORD_HEADER_NAMES = nodeNameSet([
+  "LuauStyleNameAndInheritance",
+  "LuauAnimationThemeNameAndInheritance",
+  "LuauLayoutNameAndInheritance",
+  "LuauComponentNameAndInheritance",
+  "LuauScreenNameHeader",
+]);
+
+const STRUCT_KEYWORD_HEADER_END_NAMES = nodeNameSet([
+  "LuauDefineName",
+  "LuauDefineParentName",
+  "LuauLayoutScreenName",
+]);
 
 const getDefineContext = (
   leftStack: GrammarSyntaxNode<SparkdownNodeName>[],
@@ -1929,6 +1944,22 @@ export const getCompletions = (
       const type = parentNode ? getNodeText(parentNode) : "";
       addStructTypeNameCompletions(completions, program, type);
     }
+    return buildCompletions();
+  }
+
+  if (
+    isWhitespaceNode(leftStack[0]?.name) &&
+    leftStack.some((n) => STRUCT_KEYWORD_HEADER_NAMES.has(n.name)) &&
+    (STRUCT_KEYWORD_HEADER_END_NAMES.has(prevNode?.name) ||
+      read(leftStack[0].from - 1, leftStack[0].from) === ")")
+  ) {
+    completions.set("{", {
+      label: "{",
+      insertText: "{\n\t$0\n}",
+      insertTextFormat: InsertTextFormat.Snippet,
+      labelDetails: { description: "body" },
+      kind: CompletionItemKind.Keyword,
+    });
     return buildCompletions();
   }
 

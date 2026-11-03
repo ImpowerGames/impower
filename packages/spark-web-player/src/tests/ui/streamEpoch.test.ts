@@ -4,22 +4,22 @@ import { describe, expect, test } from "vitest";
 import { MessageRouter } from "../../app/MessageRouter";
 import { createDOMHarness, flushMicrotasks, serializeDOM } from "./domTestHarness";
 
-const EARLIER = `layout main with
+const EARLIER = `layout main {
   stage {
     earlier_panel {
       text
     }
   }
-end
+}
 `;
 
-const LATER = `layout main with
+const LATER = `layout main {
   stage {
     later_panel {
       text
     }
   }
-end
+}
 `;
 
 describe("stream epochs", () => {

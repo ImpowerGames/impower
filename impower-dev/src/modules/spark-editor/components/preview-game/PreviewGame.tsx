@@ -71,6 +71,10 @@ export default function PreviewGame(_props: PreviewGameProps) {
       import("@impower/spark-editor-protocol/src/protocols/workspace/RuntimeDiagnosticsMessage"),
       import("@impower/spark-editor-protocol/src/protocols/preview/ChangeRoutePinsMessage"),
       import("@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/preview/WriteSaveMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/preview/RenameSaveMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/preview/DeleteSavesMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/EnterGameFullscreenModeMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/ExitGameFullscreenModeMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/FetchGameAssetMessage"),
@@ -98,6 +102,10 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { RuntimeDiagnosticsMessage },
         { ChangeRoutePinsMessage },
         { DidChangeGameStateMessage },
+        { ListSavesMessage },
+        { WriteSaveMessage },
+        { RenameSaveMessage },
+        { DeleteSavesMessage },
         { EnterGameFullscreenModeMessage },
         { ExitGameFullscreenModeMessage },
         { FetchGameAssetMessage },
@@ -145,6 +153,34 @@ export default function PreviewGame(_props: PreviewGameProps) {
             iframeChannelRef.current?.sendResponse(message, () => ({
               pins: Workspace.window.changeRoutePins(message.params),
             }));
+            return;
+          }
+          if (ListSavesMessage.type.isRequest(message)) {
+            iframeChannelRef.current?.sendResponse(message, async () => ({
+              saves: await Workspace.window.previewSaves.list(),
+            }));
+            return;
+          }
+          if (WriteSaveMessage.type.isRequest(message)) {
+            iframeChannelRef.current?.sendResponse(message, async () => {
+              await Workspace.window.previewSaves.write(message.params.save);
+              return {};
+            });
+            return;
+          }
+          if (RenameSaveMessage.type.isRequest(message)) {
+            iframeChannelRef.current?.sendResponse(message, async () => {
+              const { id, name } = message.params;
+              await Workspace.window.previewSaves.rename(id, name);
+              return {};
+            });
+            return;
+          }
+          if (DeleteSavesMessage.type.isRequest(message)) {
+            iframeChannelRef.current?.sendResponse(message, async () => {
+              await Workspace.window.previewSaves.delete(message.params.ids);
+              return {};
+            });
             return;
           }
           if (ExecuteCommandMessage.type.is(message)) {
@@ -405,9 +441,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
           sandbox="allow-scripts allow-forms allow-same-origin"
           allow="autoplay"
           referrerpolicy="no-referrer"
-          style={{ visibility: "hidden" }}
-          onLoad={(e) => {
-            (e.currentTarget as HTMLIFrameElement).style.visibility = "visible";
+          onLoad={() => {
             if (onLoadRef.current) {
               onLoadRef.current();
             } else {

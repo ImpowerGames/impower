@@ -1,0 +1,17 @@
+layout title in menu as base {
+  column #child-gap=16 {
+    text "My Game"
+    button "Play" @click=start
+    if visible then
+      text "Shown"
+    end
+  }
+  for item in items do
+    text item
+  end
+  row.footer { text "v1" }
+}
+
+layout badge { text "New" }
+
+layout blank {}

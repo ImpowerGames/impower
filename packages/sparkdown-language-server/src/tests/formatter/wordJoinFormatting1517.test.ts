@@ -78,19 +78,19 @@ end
 
 test("formatting still glues a class to a name that ends in a digit", () => {
   expectFormatsTo(
-    `layout a with
+    `layout a {
   column {
     text2 .title
     text .level2 .big
   }
-end
+}
 `,
-    `layout a with
+    `layout a {
   column {
     text2.title
     text.level2.big
   }
-end
+}
 `,
   );
 });
@@ -166,21 +166,21 @@ end
 test("formatting glues a class to a hyphenated or long name ending in a digit", () => {
   const long = "text" + "1".repeat(65);
   expectFormatsTo(
-    `layout a with
+    `layout a {
   column {
     text-2 .title
     text.level-2 .title
     ${long} .title
   }
-end
+}
 `,
-    `layout a with
+    `layout a {
   column {
     text-2.title
     text.level-2.title
     ${long}.title
   }
-end
+}
 `,
   );
 });

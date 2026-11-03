@@ -1,5 +1,5 @@
-sparkdown [0..105]
- ├─ LuauLayout [0..104]
+sparkdown [0..100]
+ ├─ LuauLayout [0..99]
  │   ├─ LuauLayout_begin [0..7]
  │   │   ├─ LuauLayout_begin_c1 0
  │   │   │   └─ OptionalWhitespace 0
@@ -8,114 +8,114 @@ sparkdown [0..105]
  │   │   └─ LuauLayout_begin_c3 [6..7]
  │   │       └─ LuauLayout_begin_c3 [6..7]
  │   │           └─ OptionalWhitespace [6..7]: " "
- │   ├─ LuauLayout_content [7..101]
- │   │   ├─ LuauLayoutNameAndInheritance [7..16]
+ │   ├─ LuauLayout_content [7..99]
+ │   │   ├─ LuauLayoutNameAndInheritance [7..12]
  │   │   │   ├─ LuauLayoutNameAndInheritance_begin [7..11]
  │   │   │   │   └─ LuauLayoutNameAndInheritance_begin_c1 [7..11]
  │   │   │   │       └─ LuauDefineName [7..11]: "main"
- │   │   │   └─ LuauLayoutNameAndInheritance_end [11..16]
- │   │   │       ├─ LuauLayoutNameAndInheritance_end_c1 [11..12]
- │   │   │       │   └─ LuauLayoutNameAndInheritance_end_c1 [11..12]
- │   │   │       │       └─ OptionalWhitespace [11..12]: " "
- │   │   │       └─ LuauLayoutNameAndInheritance_end_c2 [12..16]
- │   │   │           └─ LuauWithKeyword [12..16]: "with"
- │   │   ├─ Newline [16..17]: "\n"
- │   │   ├─ LuauSparkleBlockLine [17..100]
- │   │   │   ├─ LuauSparkleBlockLine_begin 17
- │   │   │   ├─ LuauSparkleBlockLine_content [17..100]
- │   │   │   │   ├─ Whitespace [17..19]: "  "
- │   │   │   │   └─ LuauSparkleElement [19..100]
- │   │   │   │       ├─ LuauSparkleElement_begin [19..25]
- │   │   │   │       │   ├─ LuauSparkleElement_begin_c1 [19..25]
- │   │   │   │       │   │   └─ BuiltinComponentName [19..25]: "button"
- │   │   │   │       │   └─ LuauSparkleElement_begin_c2 25
- │   │   │   │       ├─ LuauSparkleElement_content [25..100]
- │   │   │   │       │   └─ LuauSparkleElementParts [25..100]
- │   │   │   │       │       └─ LuauSparkleElementParts_c1 [25..100]
- │   │   │   │       │           ├─ RequiredWhitespace [25..26]: " "
- │   │   │   │       │           ├─ LuauSparklePropAttribute [26..35]
- │   │   │   │       │           │   ├─ LuauSparklePropAttribute_c1 [26..27]
- │   │   │   │       │           │   │   └─ StyleAttributeOperator [26..27]: "#"
- │   │   │   │       │           │   ├─ LuauSparklePropAttribute_c2 [27..30]
- │   │   │   │       │           │   │   └─ StyleAttributeName [27..30]: "gap"
- │   │   │   │       │           │   ├─ LuauSparklePropAttribute_c4 [30..31]
- │   │   │   │       │           │   │   └─ EqualOperator [30..31]: "="
- │   │   │   │       │           │   └─ LuauSparklePropAttribute_c6 [31..35]
- │   │   │   │       │           │       └─ InlinePropLiteralValue [31..35]
- │   │   │   │       │           │           └─ InlinePropLiteralValue_c1 [31..35]
- │   │   │   │       │           │               └─ InlinePropNumericValue [31..35]: "-1.5"
- │   │   │   │       │           ├─ RequiredWhitespace [35..36]: " "
- │   │   │   │       │           ├─ LuauSparklePropAttribute [36..49]
- │   │   │   │       │           │   ├─ LuauSparklePropAttribute_c1 [36..37]
- │   │   │   │       │           │   │   └─ StyleAttributeOperator [36..37]: "#"
- │   │   │   │       │           │   ├─ LuauSparklePropAttribute_c2 [37..44]
- │   │   │   │       │           │   │   └─ StyleAttributeName [37..44]: "enabled"
- │   │   │   │       │           │   ├─ LuauSparklePropAttribute_c4 [44..45]
- │   │   │   │       │           │   │   └─ EqualOperator [44..45]: "="
- │   │   │   │       │           │   └─ LuauSparklePropAttribute_c6 [45..49]
- │   │   │   │       │           │       └─ InlinePropLiteralValue [45..49]
- │   │   │   │       │           │           └─ InlinePropLiteralValue_c1 [45..49]
- │   │   │   │       │           │               └─ InlinePropBooleanValue [45..49]: "true"
- │   │   │   │       │           ├─ RequiredWhitespace [49..50]: " "
- │   │   │   │       │           ├─ LuauSparklePropAttribute [50..63]
- │   │   │   │       │           │   ├─ LuauSparklePropAttribute_c1 [50..51]
- │   │   │   │       │           │   │   └─ StyleAttributeOperator [50..51]: "#"
- │   │   │   │       │           │   ├─ LuauSparklePropAttribute_c2 [51..57]
- │   │   │   │       │           │   │   └─ StyleAttributeName [51..57]: "hidden"
- │   │   │   │       │           │   ├─ LuauSparklePropAttribute_c4 [57..58]
- │   │   │   │       │           │   │   └─ EqualOperator [57..58]: "="
- │   │   │   │       │           │   └─ LuauSparklePropAttribute_c6 [58..63]
- │   │   │   │       │           │       └─ InlinePropLiteralValue [58..63]
- │   │   │   │       │           │           └─ InlinePropLiteralValue_c1 [58..63]
- │   │   │   │       │           │               └─ InlinePropBooleanValue [58..63]: "false"
- │   │   │   │       │           ├─ RequiredWhitespace [63..64]: " "
- │   │   │   │       │           ├─ LuauSparklePropAttribute [64..75]
- │   │   │   │       │           │   ├─ LuauSparklePropAttribute_c1 [64..65]
- │   │   │   │       │           │   │   └─ StyleAttributeOperator [64..65]: "#"
- │   │   │   │       │           │   ├─ LuauSparklePropAttribute_c2 [65..70]
- │   │   │   │       │           │   │   └─ StyleAttributeName [65..70]: "width"
- │   │   │   │       │           │   ├─ LuauSparklePropAttribute_c4 [70..71]
- │   │   │   │       │           │   │   └─ EqualOperator [70..71]: "="
- │   │   │   │       │           │   └─ LuauSparklePropAttribute_c6 [71..75]
- │   │   │   │       │           │       └─ InlinePropLiteralValue [71..75]
- │   │   │   │       │           │           └─ InlinePropLiteralValue_c1 [71..75]
- │   │   │   │       │           │               └─ InlinePropWordValue [71..75]
- │   │   │   │       │           │                   └─ InlinePropWordValue_c1 [71..75]
- │   │   │   │       │           │                       └─ UnquotedString [71..75]: "16px"
- │   │   │   │       │           ├─ RequiredWhitespace [75..76]: " "
- │   │   │   │       │           ├─ LuauSparklePropAttribute [76..90]
- │   │   │   │       │           │   ├─ LuauSparklePropAttribute_c1 [76..77]
- │   │   │   │       │           │   │   └─ StyleAttributeOperator [76..77]: "#"
- │   │   │   │       │           │   ├─ LuauSparklePropAttribute_c2 [77..82]
- │   │   │   │       │           │   │   └─ StyleAttributeName [77..82]: "label"
- │   │   │   │       │           │   ├─ LuauSparklePropAttribute_c4 [82..83]
- │   │   │   │       │           │   │   └─ EqualOperator [82..83]: "="
- │   │   │   │       │           │   └─ LuauSparklePropAttribute_c6 [83..90]
- │   │   │   │       │           │       └─ InlinePropLiteralValue [83..90]
- │   │   │   │       │           │           └─ InlinePropLiteralValue_c1 [83..90]
- │   │   │   │       │           │               └─ InlinePropWordValue [83..90]
- │   │   │   │       │           │                   └─ InlinePropWordValue_c1 [83..90]
- │   │   │   │       │           │                       └─ UnquotedString [83..90]: "trueish"
- │   │   │   │       │           ├─ RequiredWhitespace [90..91]: " "
- │   │   │   │       │           └─ LuauSparkleEventAttribute [91..100]
- │   │   │   │       │               ├─ LuauSparkleEventAttribute_c1 [91..92]
- │   │   │   │       │               │   └─ EventAttributeOperator [91..92]: "@"
- │   │   │   │       │               ├─ LuauSparkleEventAttribute_c2 [92..97]
- │   │   │   │       │               │   └─ EventAttributeName [92..97]: "click"
- │   │   │   │       │               ├─ LuauSparkleEventAttribute_c4 [97..98]
- │   │   │   │       │               │   └─ EqualOperator [97..98]: "="
- │   │   │   │       │               └─ LuauSparkleEventAttribute_c6 [98..100]
- │   │   │   │       │                   └─ LuauSparkleEventHandler [98..100]
- │   │   │   │       │                       └─ LuauSparkleEventHandler_c1 [98..100]
- │   │   │   │       │                           └─ LuauSparkleEventHandlerName [98..100]: "go"
- │   │   │   │       └─ LuauSparkleElement_end 100
- │   │   │   └─ LuauSparkleBlockLine_end 100
- │   │   └─ Newline [100..101]: "\n"
- │   └─ LuauLayout_end [101..104]
- │       ├─ LuauLayout_end_c1 101
- │       │   └─ LuauLayout_end_c1 101
- │       │       └─ OptionalWhitespace 101
- │       ├─ LuauLayout_end_c2 [101..104]
- │       │   └─ LuauEndKeyword [101..104]: "end"
- │       └─ LuauLayout_end_c3 104
- └─ Newline [104..105]: "\n"
+ │   │   │   └─ LuauLayoutNameAndInheritance_end [11..12]
+ │   │   │       └─ LuauLayoutNameAndInheritance_end_c1 [11..12]
+ │   │   │           └─ Whitespace [11..12]: " "
+ │   │   └─ LuauSparkleBraceBody [12..99]
+ │   │       ├─ LuauSparkleBraceBody_begin [12..13]
+ │   │       │   └─ LuauSparkleBraceBody_begin_c1 [12..13]
+ │   │       │       └─ LuauStructBlockOpen [12..13]: "{"
+ │   │       ├─ LuauSparkleBraceBody_content [13..98]
+ │   │       │   ├─ Newline [13..14]: "\n"
+ │   │       │   ├─ Whitespace [14..16]: "  "
+ │   │       │   ├─ LuauSparkleElement [16..97]
+ │   │       │   │   ├─ LuauSparkleElement_begin [16..22]
+ │   │       │   │   │   ├─ LuauSparkleElement_begin_c1 [16..22]
+ │   │       │   │   │   │   └─ BuiltinComponentName [16..22]: "button"
+ │   │       │   │   │   └─ LuauSparkleElement_begin_c2 22
+ │   │       │   │   ├─ LuauSparkleElement_content [22..97]
+ │   │       │   │   │   └─ LuauSparkleElementParts [22..97]
+ │   │       │   │   │       └─ LuauSparkleElementParts_c1 [22..97]
+ │   │       │   │   │           ├─ RequiredWhitespace [22..23]: " "
+ │   │       │   │   │           ├─ LuauSparklePropAttribute [23..32]
+ │   │       │   │   │           │   ├─ LuauSparklePropAttribute_c1 [23..24]
+ │   │       │   │   │           │   │   └─ StyleAttributeOperator [23..24]: "#"
+ │   │       │   │   │           │   ├─ LuauSparklePropAttribute_c2 [24..27]
+ │   │       │   │   │           │   │   └─ StyleAttributeName [24..27]: "gap"
+ │   │       │   │   │           │   ├─ LuauSparklePropAttribute_c4 [27..28]
+ │   │       │   │   │           │   │   └─ EqualOperator [27..28]: "="
+ │   │       │   │   │           │   └─ LuauSparklePropAttribute_c6 [28..32]
+ │   │       │   │   │           │       └─ InlinePropLiteralValue [28..32]
+ │   │       │   │   │           │           └─ InlinePropLiteralValue_c1 [28..32]
+ │   │       │   │   │           │               └─ InlinePropNumericValue [28..32]: "-1.5"
+ │   │       │   │   │           ├─ RequiredWhitespace [32..33]: " "
+ │   │       │   │   │           ├─ LuauSparklePropAttribute [33..46]
+ │   │       │   │   │           │   ├─ LuauSparklePropAttribute_c1 [33..34]
+ │   │       │   │   │           │   │   └─ StyleAttributeOperator [33..34]: "#"
+ │   │       │   │   │           │   ├─ LuauSparklePropAttribute_c2 [34..41]
+ │   │       │   │   │           │   │   └─ StyleAttributeName [34..41]: "enabled"
+ │   │       │   │   │           │   ├─ LuauSparklePropAttribute_c4 [41..42]
+ │   │       │   │   │           │   │   └─ EqualOperator [41..42]: "="
+ │   │       │   │   │           │   └─ LuauSparklePropAttribute_c6 [42..46]
+ │   │       │   │   │           │       └─ InlinePropLiteralValue [42..46]
+ │   │       │   │   │           │           └─ InlinePropLiteralValue_c1 [42..46]
+ │   │       │   │   │           │               └─ InlinePropBooleanValue [42..46]: "true"
+ │   │       │   │   │           ├─ RequiredWhitespace [46..47]: " "
+ │   │       │   │   │           ├─ LuauSparklePropAttribute [47..60]
+ │   │       │   │   │           │   ├─ LuauSparklePropAttribute_c1 [47..48]
+ │   │       │   │   │           │   │   └─ StyleAttributeOperator [47..48]: "#"
+ │   │       │   │   │           │   ├─ LuauSparklePropAttribute_c2 [48..54]
+ │   │       │   │   │           │   │   └─ StyleAttributeName [48..54]: "hidden"
+ │   │       │   │   │           │   ├─ LuauSparklePropAttribute_c4 [54..55]
+ │   │       │   │   │           │   │   └─ EqualOperator [54..55]: "="
+ │   │       │   │   │           │   └─ LuauSparklePropAttribute_c6 [55..60]
+ │   │       │   │   │           │       └─ InlinePropLiteralValue [55..60]
+ │   │       │   │   │           │           └─ InlinePropLiteralValue_c1 [55..60]
+ │   │       │   │   │           │               └─ InlinePropBooleanValue [55..60]: "false"
+ │   │       │   │   │           ├─ RequiredWhitespace [60..61]: " "
+ │   │       │   │   │           ├─ LuauSparklePropAttribute [61..72]
+ │   │       │   │   │           │   ├─ LuauSparklePropAttribute_c1 [61..62]
+ │   │       │   │   │           │   │   └─ StyleAttributeOperator [61..62]: "#"
+ │   │       │   │   │           │   ├─ LuauSparklePropAttribute_c2 [62..67]
+ │   │       │   │   │           │   │   └─ StyleAttributeName [62..67]: "width"
+ │   │       │   │   │           │   ├─ LuauSparklePropAttribute_c4 [67..68]
+ │   │       │   │   │           │   │   └─ EqualOperator [67..68]: "="
+ │   │       │   │   │           │   └─ LuauSparklePropAttribute_c6 [68..72]
+ │   │       │   │   │           │       └─ InlinePropLiteralValue [68..72]
+ │   │       │   │   │           │           └─ InlinePropLiteralValue_c1 [68..72]
+ │   │       │   │   │           │               └─ InlinePropWordValue [68..72]
+ │   │       │   │   │           │                   └─ InlinePropWordValue_c1 [68..72]
+ │   │       │   │   │           │                       └─ UnquotedString [68..72]: "16px"
+ │   │       │   │   │           ├─ RequiredWhitespace [72..73]: " "
+ │   │       │   │   │           ├─ LuauSparklePropAttribute [73..87]
+ │   │       │   │   │           │   ├─ LuauSparklePropAttribute_c1 [73..74]
+ │   │       │   │   │           │   │   └─ StyleAttributeOperator [73..74]: "#"
+ │   │       │   │   │           │   ├─ LuauSparklePropAttribute_c2 [74..79]
+ │   │       │   │   │           │   │   └─ StyleAttributeName [74..79]: "label"
+ │   │       │   │   │           │   ├─ LuauSparklePropAttribute_c4 [79..80]
+ │   │       │   │   │           │   │   └─ EqualOperator [79..80]: "="
+ │   │       │   │   │           │   └─ LuauSparklePropAttribute_c6 [80..87]
+ │   │       │   │   │           │       └─ InlinePropLiteralValue [80..87]
+ │   │       │   │   │           │           └─ InlinePropLiteralValue_c1 [80..87]
+ │   │       │   │   │           │               └─ InlinePropWordValue [80..87]
+ │   │       │   │   │           │                   └─ InlinePropWordValue_c1 [80..87]
+ │   │       │   │   │           │                       └─ UnquotedString [80..87]: "trueish"
+ │   │       │   │   │           ├─ RequiredWhitespace [87..88]: " "
+ │   │       │   │   │           └─ LuauSparkleEventAttribute [88..97]
+ │   │       │   │   │               ├─ LuauSparkleEventAttribute_c1 [88..89]
+ │   │       │   │   │               │   └─ EventAttributeOperator [88..89]: "@"
+ │   │       │   │   │               ├─ LuauSparkleEventAttribute_c2 [89..94]
+ │   │       │   │   │               │   └─ EventAttributeName [89..94]: "click"
+ │   │       │   │   │               ├─ LuauSparkleEventAttribute_c4 [94..95]
+ │   │       │   │   │               │   └─ EqualOperator [94..95]: "="
+ │   │       │   │   │               └─ LuauSparkleEventAttribute_c6 [95..97]
+ │   │       │   │   │                   └─ LuauSparkleEventHandler [95..97]
+ │   │       │   │   │                       └─ LuauSparkleEventHandler_c1 [95..97]
+ │   │       │   │   │                           └─ LuauSparkleEventHandlerName [95..97]: "go"
+ │   │       │   │   └─ LuauSparkleElement_end 97
+ │   │       │   └─ Newline [97..98]: "\n"
+ │   │       └─ LuauSparkleBraceBody_end [98..99]
+ │   │           └─ LuauSparkleBraceBody_end_c1 [98..99]
+ │   │               └─ LuauStructBlockClose [98..99]: "}"
+ │   └─ LuauLayout_end 99
+ │       ├─ LuauLayout_end_c1 99
+ │       │   └─ LuauLayout_end_c1 99
+ │       │       └─ OptionalWhitespace 99
+ │       ├─ LuauLayout_end_c2 99
+ │       └─ LuauLayout_end_c3 99
+ └─ Newline [99..100]: "\n"

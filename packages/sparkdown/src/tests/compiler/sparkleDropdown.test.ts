@@ -32,13 +32,13 @@ function diagnosticMessages(source: string): string[] {
 describe("dropdown dynamic option lists", () => {
   test("`for` inside a dropdown compiles without a dynamic-options warning", () => {
     const src = `list opts = "a", "b"
-layout form with
+layout form {
   dropdown {
     for o in opts do
       option "{o}"
     end
   }
-end
+}
 `;
     expect(
       diagnosticMessages(src).filter((m) => m.includes("Dynamic option lists")),
@@ -47,14 +47,14 @@ end
 
   test("`if` inside a dropdown compiles without a dynamic-options warning", () => {
     const src = `store unlocked = true
-layout form with
+layout form {
   dropdown {
     option "Easy" #value="easy"
     if unlocked then
       option "Hard" #value="hard"
     end
   }
-end
+}
 `;
     expect(
       diagnosticMessages(src).filter((m) => m.includes("Dynamic option lists")),

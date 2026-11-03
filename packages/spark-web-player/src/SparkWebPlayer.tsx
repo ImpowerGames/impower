@@ -41,6 +41,9 @@ export default function SparkWebPlayer({
   const endingStatusRef = useRef<HTMLSpanElement>(null);
   const routeButtonRef = useRef<HTMLDivElement>(null);
   const routeListRef = useRef<HTMLDivElement>(null);
+  const savesButtonRef = useRef<HTMLDivElement>(null);
+  const savesMenuRef = useRef<HTMLDivElement>(null);
+  const saveNoteRef = useRef<HTMLDivElement>(null);
 
   const controllerRef = useRef<GamePlayerControllerType | null>(null);
 
@@ -86,6 +89,9 @@ export default function SparkWebPlayer({
         endingStatus: endingStatusRef.current,
         routeButton: routeButtonRef.current,
         routeList: routeListRef.current,
+        savesButton: savesButtonRef.current,
+        savesMenu: savesMenuRef.current,
+        saveNote: saveNoteRef.current,
       });
       controller.setup();
       controllerRef.current = controller;
@@ -104,6 +110,8 @@ export default function SparkWebPlayer({
         <div id="game-background" ref={gameBackgroundRef} />
         <div id="game-view" ref={gameViewRef} />
         <div id="game-ui" ref={gameUIRef} />
+        {flag(toolbar) ? <div id="save-note" ref={saveNoteRef} /> : null}
+        {flag(toolbar) ? <div id="saves-menu" ref={savesMenuRef} /> : null}
         {flag(playButton) ? (
           <div id="play-button" ref={playButtonRef}>
             <svg
@@ -153,6 +161,7 @@ export default function SparkWebPlayer({
             />
           </div>
           <div id="right-items">
+            <div id="saves-button" ref={savesButtonRef} />
             <div id="aspect-ratio-label" ref={aspectRatioLabelRef} />
             <div id="size-label" ref={sizeLabelRef} />
             {flag(fullscreenButton) ? (

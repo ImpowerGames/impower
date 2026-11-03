@@ -1,4 +1,4 @@
-style button with
+style button {
   cursor = pointer
   &.secondary { background-color = slate_50 }
   > text.label = { text-weight = 600; color = white }
@@ -9,4 +9,4 @@ style button with
     width = 100%
     > text { font-size = 12px }
   }
-end
+}

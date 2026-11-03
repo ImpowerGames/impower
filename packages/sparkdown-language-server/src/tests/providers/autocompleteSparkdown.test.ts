@@ -111,7 +111,7 @@ describe("autocomplete · sparkdown surfaces", () => {
     });
 
     sparkdownBug(BUG.defineFields, "a struct-reference field's value offers the structs of that type", () => {
-      const labels = labelsAt("define fade as animation with\n  target = @1\nend\n", { program });
+      const labels = labelsAt("animation fade {\n  target = @1\n}\n", { program });
       expect(labels).toContain("self");
     });
 
@@ -123,7 +123,7 @@ describe("autocomplete · sparkdown surfaces", () => {
 
     test("identifier completion works in a script that declares a layout", () => {
       const source =
-        'layout main with\n  column {\n    text "hi"\n  }\nend\n\nstore hp = 100\nfunction main()\n  return h@1\nend\n';
+        'layout main {\n  column {\n    text "hi"\n  }\n}\n\nstore hp = 100\nfunction main()\n  return h@1\nend\n';
       expect(labelsAt(source, { program })).toContain("hp");
     });
   });
@@ -187,12 +187,12 @@ describe("autocomplete · sparkdown surfaces", () => {
     const program = compileProject("");
 
     sparkdownBug(BUG.sparkleAttributes, "a `#` after an element offers its props", () => {
-      const labels = labelsAt("layout hud with\n  row #@1\nend\n", { program });
+      const labels = labelsAt("layout hud {\n  row #@1\n}\n", { program });
       expect(labels).toContain("child-gap");
     });
 
     sparkdownBug(BUG.sparkleAttributes, "an `@` after an element offers its events", () => {
-      const labels = labelsAt('layout hud with\n  button "Go" @@1\nend\n', { program });
+      const labels = labelsAt('layout hud {\n  button "Go" @@1\n}\n', { program });
       expect(labels).toContain("click");
     });
   });

@@ -80,6 +80,8 @@ import type { AccountInfo } from "./types/AccountInfo";
 import { RemoteStorage } from "./types/RemoteStorageTypes";
 import createTextFile from "./utils/createTextFile";
 import createZipFile from "./utils/createZipFile";
+import { PreviewSaveStore } from "./PreviewSaveStore";
+import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
 
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
@@ -457,6 +459,26 @@ export default class WorkspaceWindow {
     );
     sendProtocolMessage(SetEditorPinpointsMessage.type.request({ locations }));
   }
+
+  protected _previewSaveStore = new PreviewSaveStore();
+
+  protected previewSaveProject(): string {
+    const id = this.store.project.id;
+    if (!id) {
+      throw new Error("No project is open to keep saves for.");
+    }
+    return id;
+  }
+
+  readonly previewSaves = {
+    list: () => this._previewSaveStore.list(this.previewSaveProject()),
+    write: (save: PreviewSave) =>
+      this._previewSaveStore.write(this.previewSaveProject(), save),
+    rename: (id: string, name: string) =>
+      this._previewSaveStore.rename(this.previewSaveProject(), id, name),
+    delete: (ids: readonly string[]) =>
+      this._previewSaveStore.delete(this.previewSaveProject(), ids),
+  };
 
   get startingValues(): StartingValues {
     return startingValuesFrom(this.store.debug.startingValues);

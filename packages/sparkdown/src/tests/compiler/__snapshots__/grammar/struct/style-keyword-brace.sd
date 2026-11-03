@@ -1,0 +1,11 @@
+style panel as base {
+  text-color = white
+  corner = 8px
+  background-color = rgb(0 0 0 / 40%)
+  > text { text-size = 24px }
+  @hovered { opacity = 0.5 }
+}
+
+style blue { text-color = white; corner = 8px }
+
+style empty {}

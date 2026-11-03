@@ -8,9 +8,9 @@ describe("two-way binding (input write-back)", () => {
   test("input renders as <input> with its bound value", async () => {
     const h = createHarness(
       `store name = "Zelda"
-layout form with
+layout form {
   input #value={name}
-end
+}
 `,
       0,
       { reactive: true },
@@ -30,9 +30,9 @@ end
 function set_name(event)
   name = event.value
 end
-layout form with
+layout form {
   input #value={name} @input=set_name
-end
+}
 `,
       0,
       { reactive: true },
@@ -50,9 +50,9 @@ end
 function set_muted(event)
   muted = event.checked
 end
-layout form with
+layout form {
   checkbox #checked={muted} @change=set_muted(event)
-end
+}
 `,
       0,
       { reactive: true },
@@ -67,9 +67,9 @@ end
   test("@input inline-closure writes the typed value back (event.value)", async () => {
     const h = createHarness(
       `store name = "Zelda"
-layout form with
+layout form {
   input #value={name} @input={ name = event.value }
-end
+}
 `,
       0,
       { reactive: true },
@@ -84,9 +84,9 @@ end
   test("@change inline-closure reading event.checked toggles a boolean", async () => {
     const h = createHarness(
       `store muted = false
-layout form with
+layout form {
   checkbox #checked={muted} @change={ muted = event.checked }
-end
+}
 `,
       0,
       { reactive: true },
@@ -102,9 +102,9 @@ end
     const h = createHarness(
       `store score = 10
 store combo = 3
-layout form with
+layout form {
   button "Reset" @click={ score = 0; combo = 0 }
-end
+}
 `,
       0,
       { reactive: true },
@@ -120,9 +120,9 @@ end
   test("a numeric input writes a NUMBER back (store keeps its type)", async () => {
     const h = createHarness(
       `store volume = 50
-layout form with
+layout form {
   slider #value={volume} #min=0 #max=100 @input={ volume = event.value }
-end
+}
 `,
       0,
       { reactive: true },
@@ -138,9 +138,9 @@ end
   test("a fractional numeric input writes a float", async () => {
     const h = createHarness(
       `store rate = 1
-layout form with
+layout form {
   slider #value={rate} #min=0 #max=2 @input={ rate = event.value }
-end
+}
 `,
       0,
       { reactive: true },
@@ -154,9 +154,9 @@ end
   test("a text input still writes a string", async () => {
     const h = createHarness(
       `store name = "Zelda"
-layout form with
+layout form {
   input #value={name} @input={ name = event.value }
-end
+}
 `,
       0,
       { reactive: true },
@@ -174,9 +174,9 @@ end
 function reset_score()
   score = 0
 end
-layout form with
+layout form {
   button "Reset" @click={ reset_score() }
-end
+}
 `,
       0,
       { reactive: true },
@@ -191,9 +191,9 @@ end
   test("@input inline-closure writes a property target (`obj.field = event.value`)", async () => {
     const h = createHarness(
       `store player = { name = "Zelda" }
-layout form with
+layout form {
   input #value={player.name} @input={ player.name = event.value }
-end
+}
 `,
       0,
       { reactive: true },
@@ -217,10 +217,10 @@ end
 function clear_name(event)
   name = ""
 end
-layout form with
+layout form {
   input #value={name} @input=set_name
   button "Clear" @click=clear_name
-end
+}
 `,
       0,
       { reactive: true },

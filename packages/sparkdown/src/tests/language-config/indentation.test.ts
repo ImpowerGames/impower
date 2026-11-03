@@ -109,7 +109,7 @@ const enterRuleFor = (previousLine: string, before: string, after: string) =>
 
 describe("Enter between `{` and `}` in a brace body (#1228)", () => {
   const cases: [string, string, string, string][] = [
-    ["layout", "layout hud with", "  column.panel {", "}"],
+    ["layout", "layout hud {", "  column.panel {", "}"],
     ["layout", "  column.panel {", "    row.item {", "}"],
     ["layout", "  column.panel {", "    row.item #gap=4 {", " }"],
     ["layout", "  column {", '    button.primary "Save" @click=save() {', "}"],
@@ -117,10 +117,10 @@ describe("Enter between `{` and `}` in a brace body (#1228)", () => {
     ["layout", "  column {", "    row = {", "}"],
     ["layout", "  column {", '    row { text "a"; text "b" }; row {', "}"],
     ["layout", "  if open then", "    row.busy {", "}"],
-    ["style", "style card with", "  > text {", "}"],
-    ["style", "style card with", "  &.wide {", " }"],
-    ["style", "style card with", "  @hovered, @pressed {", "}"],
-    ["style", "style card with", "  &[data-label='a;b'] {", "}"],
+    ["style", "style card {", "  > text {", "}"],
+    ["style", "style card {", "  &.wide {", " }"],
+    ["style", "style card {", "  @hovered, @pressed {", "}"],
+    ["style", "style card {", "  &[data-label='a;b'] {", "}"],
     ["style", "  @hovered {", "    > text {", "}"],
   ];
 

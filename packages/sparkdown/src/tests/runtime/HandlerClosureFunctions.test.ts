@@ -13,9 +13,9 @@ end
 
 function f()
   local a = 1
-  layout form with
+  layout form {
     button "Go" @click={ ${handler} }
-  end
+  }
   return a
 end
 `);

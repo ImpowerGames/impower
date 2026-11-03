@@ -63,7 +63,7 @@ describe("statement layout diagnostics", () => {
 
   test.each([
     "& do print(1) print(2) end\n",
-    "layout main with\n button @click={ print(1) print(2) }\nend\n",
+    "layout main {\n button @click={ print(1) print(2) }\n}\n",
   ])("checks statements in bounded islands and cached handler roots: %s", (source) => {
     expect(layout(source).map((d) => d.code)).toEqual(["SameLineStatement"]);
   });
@@ -76,7 +76,7 @@ describe("statement layout diagnostics", () => {
   });
 
   test("leaves a malformed handler's converter error boundary alone", () => {
-    const source = "layout main with\n button @click={ print(1) print( }\nend\n";
+    const source = "layout main {\n button @click={ print(1) print( }\n}\n";
     const tree = getParser().parse(source);
     let errors = 0;
     tree.iterate({ enter(node) {

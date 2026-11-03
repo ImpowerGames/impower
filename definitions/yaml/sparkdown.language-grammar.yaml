@@ -632,6 +632,10 @@ variables:
   STRUCT_BLOCK_PROPERTY_KEY: (?:\[[^\]\n]*\]|[$]?(?:{{INTEGER}}|{{IDENTIFIER_START}}{{IDENTIFIER_END}}(?<![-])|{{QUOTED_STRING}}))
   STRUCT_BLOCK_PROPERTY_HEAD: (?:{{STRUCT_BLOCK_PROPERTY_KEY}}{{ASSIGN_EQUAL_OPERATOR}})
   STRUCT_BLOCK_BAIL: (?:{{BEAT}}|^{{END}})
+  # lookaround: LuauStructBraceBody and LuauSparkleBraceBody take a `{` that opens the line after a header written without `with`, and the keyword rule's end takes a beat or an `end` line. A body that opened at the header's line break would hold that line before either could claim it, so it opens on the first line neither claims.
+  STRUCT_WITHOUT_WITH_LINE: ^(?!{{WS}}*(?:[{]|$))(?!{{STRUCT_BLOCK_BAIL}})
+  # lookaround: LuauStructBraceBody and LuauSparkleBraceBody read a struct keyword's `}`, and the keyword's block ends right after it; LuauStructWithBody and LuauSparkleWithBody end before their `end`. A line of a `with` body may end in a `}` too, so the rule around the bodies can only tell the two apart by holding each body as one child.
+  STRUCT_KEYWORD_BRACE_CLOSED: (?<=[}])
   STRUCT_BLOCK_TRAILING_COMMA: (?:[,]{{WS}}*(?:$|[;}]|{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))
   STRUCT_BLOCK_COMMA_BEFORE_ENTRY: (?:[,]{{WS}}*(?:{{STYLE_PROPERTY_NAME}}{{WS}}*[=]|{{STRUCT_BLOCK_PROPERTY_HEAD}}|{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}}[{]))
   STRUCT_BLOCK_VALUE_END: (?:{{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_TRAILING_COMMA}}|{{STRUCT_BLOCK_COMMA_BEFORE_ENTRY}}))
@@ -665,7 +669,7 @@ variables:
   SPARKLE_BRACED: (?:[{](?:{{SPARKLE_BRACED_2}}|{{SPARKLE_BRACED_PART}})*(?:[}]|$))
   SPARKLE_CLOSED_LONG_BRACKET: (?:[\[][\[](?:[^\]\n]|[\]](?![\]]))*[\]][\]]|[\[][=]{1}[\[](?:[^\]\n]|[\]](?![=]{1}[\]]))*[\]][=]{1}[\]]|[\[][=]{2}[\[](?:[^\]\n]|[\]](?![=]{2}[\]]))*[\]][=]{2}[\]]|[\[][=]{3}[\[](?:[^\]\n]|[\]](?![=]{3}[\]]))*[\]][=]{3}[\]]|[\[][=]{4}[\[](?:[^\]\n]|[\]](?![=]{4}[\]]))*[\]][=]{4}[\]]|[\[][=]{5}[\[](?:[^\]\n]|[\]](?![=]{5}[\]]))*[\]][=]{5}[\]]|[\[][=]{6}[\[](?:[^\]\n]|[\]](?![=]{6}[\]]))*[\]][=]{6}[\]]|[\[][=]{7}[\[](?:[^\]\n]|[\]](?![=]{7}[\]]))*[\]][=]{7}[\]])
   SPARKLE_OPEN_CODE_TOKEN: (?:"(?:\\.|[^"\\\n])*"|{{SPARKLE_SQUOTED}}|`(?:\\.|[^`\\{\n]|{{SPARKLE_BACKTICK_INTERPOLATION}})*`|(?:[-][-])?{{SPARKLE_CLOSED_LONG_BRACKET}}|[-][-](?![\[][=]*[\[])[^\n]*$|[^{}"'`\n\[-]|[-](?![-])|[\[](?![=]*[\[]))
-  SPARKLE_OPEN_BRACED_8: (?:[{](?:{{SPARKLE_OPEN_CODE_TOKEN}})*(?:[}]|$))
+  SPARKLE_OPEN_BRACED_8: (?:[{](?:{{SPARKLE_BRACED_9}}|{{SPARKLE_OPEN_CODE_TOKEN}})*(?:[}]|$))
   SPARKLE_OPEN_BRACED_7: (?:[{](?:{{SPARKLE_OPEN_BRACED_8}}|{{SPARKLE_OPEN_CODE_TOKEN}})*(?:[}]|$))
   SPARKLE_OPEN_BRACED_6: (?:[{](?:{{SPARKLE_OPEN_BRACED_7}}|{{SPARKLE_OPEN_CODE_TOKEN}})*(?:[}]|$))
   SPARKLE_OPEN_BRACED_5: (?:[{](?:{{SPARKLE_OPEN_BRACED_6}}|{{SPARKLE_OPEN_CODE_TOKEN}})*(?:[}]|$))
@@ -697,7 +701,29 @@ variables:
   SPARKLE_EVENT_UNQUOTED_VALUE: (?:(?!{{SPARKLE_SQUOTED}})(?:{{SPARKLE_BACKTICKED}}|(?:[-][-])?{{SPARKLE_LONG_BRACKET}}|[-][-](?![\[][=]*[\[])[^\n]*$|[^\s;{}"(,`\[-]|[-](?![-])|[\[](?![=]*[\[])|[,](?![\s;}]|$)|{{SPARKLE_PARENS}}|{{SPARKLE_BRACED}})+{{SPARKLE_VALUE_END}})
   SPARKLE_ATTR_VALUE: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_UNQUOTED_VALUE}})
   SPARKLE_EVENT_VALUE: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_EVENT_UNQUOTED_VALUE}})
-  SPARKLE_ATTR: (?:{{SPARKLE_PROP_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_ATTR_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=]))|{{SPARKLE_EVENT_NAME}}(?:{{WS}}*[=](?:{{WS}}*(?!{{SPARKLE_OPEN_BRACED}}){{SPARKLE_EVENT_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=])))
+  SPARKLE_OPEN_ATTR: (?:(?:{{SPARKLE_PROP_NAME}}|{{SPARKLE_EVENT_NAME}}){{WS}}*[=]{{WS}}*{{SPARKLE_OPEN_BRACED}})
+  # lookaround: LuauSparkleEventClosureAttribute and LuauSparklePropClosureAttribute own a value whose braces the scan cannot close on its line; LuauSparkleElementParts must leave it to them.
+  # Reordering cannot do it: the head is one match that starts at the
+  # whitespace before the attribute, ahead of the closure rule's start, so it
+  # wins whatever the patterns order. It is a capture with no end for a parent
+  # to carry, and a positive closed-on-the-line variable would repeat the
+  # eight-level brace chain without its line-end and ninth-level arms.
+  SPARKLE_NOT_OPEN_BRACED: (?!{{SPARKLE_OPEN_BRACED}})
+  # lookaround: LuauSparkleElementParts owns an attribute whose braces close on its line; a closure attribute opens only where it declines.
+  # The closure rules come first in the element's and the continuation's
+  # patterns, so where both start at the same `@` or `#` (right after the
+  # element's name, or at a continuation line's start) the closure rule would
+  # otherwise take a closed value too. The begin cannot consume the brace,
+  # which LuauSparkleHandlerClosure and LuauSparklePropClosure open.
+  SPARKLE_OPEN_BRACED_AHEAD: (?={{SPARKLE_OPEN_BRACED}})
+  # lookaround: LuauSparkleElementParts reads the parts after a closure's brace; a closure attribute ends only where an element's head would, before the next closure attribute, or at SPARKLE_BLOCK_BAIL.
+  # The parent element cannot read those parts: its end, `(?<=[}])`, closes
+  # it after any `}`, and only this scope knows the brace was a closure's
+  # rather than a block's. So the attribute holds the parts and ends at the
+  # head's terminators after a non-blank, or before the next open attribute,
+  # which the element then reads with its own closure rule.
+  SPARKLE_CLOSURE_ATTR_END: (?:(?<![=\s])(?={{WS}}*(?:[;{},]|$|[=]{{WS}}*[{]))|(?={{SPARKLE_OPEN_ATTR}})|(?={{SPARKLE_BLOCK_BAIL}}))
+  SPARKLE_ATTR: (?:{{SPARKLE_PROP_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_NOT_OPEN_BRACED}}{{SPARKLE_ATTR_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=]))|{{SPARKLE_EVENT_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_NOT_OPEN_BRACED}}{{SPARKLE_EVENT_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=])))
   SPARKLE_COMMENT: (?:{{SPARKLE_LUAU_COMMENT}}|[/][/](?={{WS}}|$)[^\n]*$)
   SPARKLE_ELEMENT_NAME: (?:{{IDENTIFIER_START}}{{IDENTIFIER_END}})
   SPARKLE_CLASS_NAME: (?:[0-9_\p{L}][0-9_\p{L}-]*)
@@ -3866,10 +3892,11 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauStyleNameAndInheritance" }
-      - { include: "#LuauStructBlockLine" }
+      - { include: "#LuauStructWithBody" }
+      - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         emit: true
@@ -3903,10 +3930,11 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAnimationThemeNameAndInheritance" }
-      - { include: "#LuauStructBlockLine" }
+      - { include: "#LuauStructWithBody" }
+      - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         emit: true
@@ -3940,10 +3968,11 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAnimationThemeNameAndInheritance" }
-      - { include: "#LuauStructBlockLine" }
+      - { include: "#LuauStructWithBody" }
+      - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         emit: true
@@ -3977,10 +4006,11 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAnimationThemeNameAndInheritance" }
-      - { include: "#LuauStructBlockLine" }
+      - { include: "#LuauStructWithBody" }
+      - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         emit: true
@@ -3994,6 +4024,37 @@ repository:
           - { include: "#LuauComment" }
 
 
+  LuauStructWithBody:
+    begin: ({{WS}}*)(with)\b|{{STRUCT_WITHOUT_WITH_LINE}}
+    beginCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauStructWithKeyword" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauStructBlockLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?={{END}})
+
+  LuauStructBraceBody:
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockOpen" }
+    patterns:
+      - { include: "#LuauStructBlockEntries" }
+    end: ([}])|(?={{STRUCT_BLOCK_BAIL}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockClose" }
 
   LuauStyleNameAndInheritance:
     begin: \G({{LUAU_IDENTIFIER}})
@@ -4004,15 +4065,11 @@ repository:
     patterns:
       - { include: "#LuauInheritanceOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    end: (?={{BEAT}})|(?={{WS}}*with\b)|({{WS}}*)(?=[{])|$
     endCaptures:
       1:
-        emit: true
         patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauWithKeyword" }
+          - { include: "#Whitespace" }
 
   LuauAnimationThemeNameAndInheritance:
     begin: \G({{LUAU_IDENTIFIER}})
@@ -4023,15 +4080,11 @@ repository:
     patterns:
       - { include: "#LuauInheritanceOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    end: (?={{BEAT}})|(?={{WS}}*with\b)|({{WS}}*)(?=[{])|$
     endCaptures:
       1:
-        emit: true
         patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauWithKeyword" }
+          - { include: "#Whitespace" }
 
   LuauStyleKeyword:
     tag: controlKeyword
@@ -5401,6 +5454,7 @@ repository:
           - { include: "#LuauSparkleElementInvalid" }
     patterns:
       - { include: "#LuauSparkleEventClosureAttribute" }
+      - { include: "#LuauSparklePropClosureAttribute" }
       - { include: "#LuauSparkleElementParts" }
       - { include: "#LuauSparkleElementAssign" }
       - { include: "#LuauSparkleElementBlock" }
@@ -5415,6 +5469,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauSparkleEventClosureAttribute" }
+      - { include: "#LuauSparklePropClosureAttribute" }
       - { include: "#LuauSparkleElementParts" }
       - { include: "#LuauSparkleElementAssign" }
       - { include: "#LuauSparkleElementBlock" }
@@ -5428,7 +5483,7 @@ repository:
           - { include: "#LuauSparkleElementPart" }
 
   LuauSparkleEventClosureAttribute:
-    begin: ([@])([^\s=;{}"'(),]*)({{WS}}*)([=])({{WS}}*)(?={{SPARKLE_OPEN_BRACED}})
+    begin: ([@])([^\s=;{}"'(),]*)({{WS}}*)([=])({{WS}}*){{SPARKLE_OPEN_BRACED_AHEAD}}
     beginCaptures:
       1:
         patterns:
@@ -5448,7 +5503,52 @@ repository:
     patterns:
       - { include: "#LuauSparkleHandlerClosure" }
       - { include: "#LuauSparkleElementParts" }
-    end: (?<![=\s])(?={{WS}}*(?:[;{},]|$|[=]{{WS}}*[{]))|(?={{SPARKLE_EVENT_NAME}}{{WS}}*[=]{{WS}}*{{SPARKLE_OPEN_BRACED}})|(?={{SPARKLE_BLOCK_BAIL}})
+    end: "{{SPARKLE_CLOSURE_ATTR_END}}"
+
+  LuauSparklePropClosureAttribute:
+    begin: ([#])([^\s=;{}"'(),]*)({{WS}}*)([=])({{WS}}*){{SPARKLE_OPEN_BRACED_AHEAD}}
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StyleAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#StyleAttributeName" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      4:
+        patterns:
+          - { include: "#EqualOperator" }
+      5:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauSparklePropClosure" }
+      - { include: "#LuauSparkleElementParts" }
+    end: "{{SPARKLE_CLOSURE_ATTR_END}}"
+
+  LuauSparklePropClosure:
+    tag: meta
+    name: meta.template.expression.luau
+    contentName: meta.embedded.line.luau
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+      - { include: "#LuauStrayCloser" }
+      - { include: "#LuauUnreadToken" }
+    end: ([}])|(?={{SPARKLE_BLOCK_BAIL}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
 
   LuauSparkleElementName:
     tag: className
@@ -5936,11 +6036,11 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauLayoutNameAndInheritance" }
-      - { include: "#LuauSparkleControlBlock" }
-      - { include: "#LuauSparkleBlockLine" }
+      - { include: "#LuauSparkleWithBody" }
+      - { include: "#LuauSparkleBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         emit: true
@@ -5974,10 +6074,11 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauScreenNameHeader" }
-      - { include: "#LuauStructBlockLine" }
+      - { include: "#LuauStructWithBody" }
+      - { include: "#LuauStructBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         emit: true
@@ -5998,15 +6099,11 @@ repository:
           - { include: "#LuauDefineName" }
     patterns:
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    end: (?={{BEAT}})|(?={{WS}}*with\b)|({{WS}}*)(?=[{])|$
     endCaptures:
       1:
-        emit: true
         patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauWithKeyword" }
+          - { include: "#Whitespace" }
 
   LuauComponent:
     tag: meta
@@ -6029,11 +6126,11 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauComponentNameAndInheritance" }
-      - { include: "#LuauSparkleControlBlock" }
-      - { include: "#LuauSparkleBlockLine" }
+      - { include: "#LuauSparkleWithBody" }
+      - { include: "#LuauSparkleBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b({{_LUAU_END_TRAILING_COMMENTS_}})?
+    end: (?={{BEAT}})|({{WS}}*)(end\b|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
     endCaptures:
       1:
         emit: true
@@ -6056,15 +6153,11 @@ repository:
       - { include: "#LuauInheritanceOperation" }
       - { include: "#LuauLayoutScreenOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    end: (?={{BEAT}})|(?={{WS}}*with\b)|({{WS}}*)(?=[{])|$
     endCaptures:
       1:
-        emit: true
         patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauWithKeyword" }
+          - { include: "#Whitespace" }
 
   LuauComponentNameAndInheritance:
     begin: \G({{LUAU_IDENTIFIER}})
@@ -6076,15 +6169,44 @@ repository:
       - { include: "#LuauFunctionParameters" }
       - { include: "#LuauInheritanceOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    end: (?={{BEAT}})|(?={{WS}}*with\b)|({{WS}}*)(?=[{])|$
     endCaptures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+
+  LuauSparkleWithBody:
+    begin: ({{WS}}*)(with)\b|{{STRUCT_WITHOUT_WITH_LINE}}
+    beginCaptures:
       1:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
       2:
         patterns:
-          - { include: "#LuauWithKeyword" }
+          - { include: "#LuauStructWithKeyword" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauSparkleControlBlock" }
+      - { include: "#LuauSparkleBlockLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?={{END}})
+
+  LuauSparkleBraceBody:
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockOpen" }
+    patterns:
+      - { include: "#LuauSparkleBlockEntries" }
+    end: ([}])|(?={{SPARKLE_BLOCK_BAIL}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockClose" }
 
   LuauLayoutScreenOperation:
     match: ({{WS}}*)(in)\b({{WS}}*)($|{{LUAU_IDENTIFIER}})($|{{WS}}*)
@@ -6161,6 +6283,11 @@ repository:
   LuauWithKeyword:
     tag: controlKeyword
     name: keyword.control.as.luau
+    match: (with)\b
+
+  LuauStructWithKeyword:
+    tag: invalid
+    name: invalid.illegal.with.luau
     match: (with)\b
 
   LuauDefineName:

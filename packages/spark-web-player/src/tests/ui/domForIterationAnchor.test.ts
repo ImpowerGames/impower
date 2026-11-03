@@ -6,14 +6,14 @@ store shown = ""
 function reveal()
   shown = "1"
 end
-layout main with
+layout main {
   for r in rows do
     text "A{r}"
     if shown == r then
       text "B{r}"
     end
   end
-end
+}
 `;
 
 function regionsOf(h: any, index: number) {

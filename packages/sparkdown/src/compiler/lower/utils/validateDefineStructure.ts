@@ -54,6 +54,22 @@ export function lineTextSpan(
 }
 
 
+const VOWELS: ReadonlySet<string> = new Set(["a", "e", "i", "o", "u"]);
+
+export function capitalizedArticle(word: string): string {
+  return VOWELS.has(word.charAt(0).toLowerCase()) ? "An" : "A";
+}
+
+const STRUCT_KEYWORD_TYPES: ReadonlySet<string> = new Set([
+  "style",
+  "animation",
+  "theme",
+  "morph",
+  "layout",
+  "component",
+  "screen",
+]);
+
 const WITH_FORM = "`define hero as character with` … `end`";
 const NAME_RULE =
   "Define names and `as` parents use only A–Z, a–z, 0–9 and `_`, and start with a letter or `_`.";
@@ -130,6 +146,17 @@ export function validateDefineStructure(
   }
 
   const diagnostics: InkDiagnostic[] = [];
+  const parentNode = header ? getDescendent("LuauDefineParentName", header) : null;
+  const parentType = parentNode ? ctx.read(parentNode.from, parentNode.to).trim() : "";
+  if (parentNode && STRUCT_KEYWORD_TYPES.has(parentType)) {
+    diagnostics.push(
+      error(
+        `${capitalizedArticle(parentType)} ${parentType} is declared with its own keyword: \`${parentType} NAME { … }\`. \`define\` bodies are Luau and cannot hold style values.`,
+        parentNode.from,
+        parentNode.to,
+      ),
+    );
+  }
   if (!hasEnd) {
     diagnostics.push(
       error(

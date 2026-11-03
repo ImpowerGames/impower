@@ -15,7 +15,7 @@ async function css(src: string): Promise<string> {
 
 describe("style emission", () => {
   test("`content` is emitted, and quoted", async () => {
-    const out = await css(`style thumbed with
+    const out = await css(`style thumbed {
   position = relative
   @before {
     content = ""
@@ -24,10 +24,10 @@ describe("style emission", () => {
   @after {
     content = "New"
   }
-end
-layout main with
+}
+layout main {
   box.thumbed
-end
+}
 `);
     const block = out.slice(out.indexOf(".thumbed"));
     expect(block).toContain('content: "";');
@@ -37,30 +37,30 @@ end
   });
 
   test("`content` keywords and functions stay unquoted", async () => {
-    const out = await css(`style k with
+    const out = await css(`style k {
   @before {
     content = none
   }
   @after {
     content = attr(data-label)
   }
-end
-layout main with
+}
+layout main {
   box.k
-end
+}
 `);
     expect(out).toContain("content: none;");
     expect(out).toContain("content: attr(data-label);");
   });
 
   test("accent-color / caret-color resolve theme colors", async () => {
-    const out = await css(`style tinted with
+    const out = await css(`style tinted {
   accent-color = sky_60
   caret-color = amber_60
-end
-layout main with
+}
+layout main {
   box.tinted
-end
+}
 `);
     expect(out).toContain("accent-color: var(--theme-color-sky_60);");
     expect(out).toContain("caret-color: var(--theme-color-amber_60);");
@@ -69,13 +69,13 @@ end
 
   test("dialog is hidden until `open`, then becomes a centred scrim", async () => {
     const out = await css(`store shown = false
-layout main with
+layout main {
   modal #open={shown} {
     article {
       text "hi"
     }
   }
-end
+}
 `);
     const block = out.slice(out.indexOf(".modal {"));
     expect(block).toContain("display: none;");
@@ -86,9 +86,9 @@ end
 
   test("@busy lowers to an attribute selector with a spinner", async () => {
     const out = await css(`store busy = true
-layout main with
+layout main {
   button "Wait" #aria-busy={busy}
-end
+}
 `);
     const block = out.slice(out.indexOf('&[aria-busy="true"]'));
     expect(out).toContain('&[aria-busy="true"]');
@@ -105,7 +105,7 @@ end
   });
 
   test("keyframe `offset` sets the selector and is never a declaration", async () => {
-    const out = await css(`animation slide with
+    const out = await css(`animation slide {
   target = layer.self
   keyframes {
     {
@@ -126,10 +126,10 @@ end
     fill = "none"
     direction = "normal"
   }
-end
-layout main with
+}
+layout main {
   text "x"
-end
+}
 `);
     const block = out.slice(out.indexOf("@keyframes slide"));
     const frames = block.slice(0, block.indexOf("\n}") + 2);
@@ -140,7 +140,7 @@ end
   });
 
   test("keyframes with no offsets are still spaced evenly", async () => {
-    const out = await css(`animation evenly with
+    const out = await css(`animation evenly {
   target = layer.self
   keyframes {
     {
@@ -160,10 +160,10 @@ end
     fill = "none"
     direction = "normal"
   }
-end
-layout main with
+}
+layout main {
   text "x"
-end
+}
 `);
     const block = out.slice(out.indexOf("@keyframes evenly"));
     const frames = block.slice(0, block.indexOf("\n}") + 2);
@@ -173,9 +173,9 @@ end
   });
 
   test("tooltip emits a bubble, a caret, and a hover/focus reveal", async () => {
-    const out = await css(`layout main with
+    const out = await css(`layout main {
   text "Abbr." #tooltip="Abbreviation"
-end
+}
 `);
     const block = out.slice(out.indexOf(".layouts"));
     const rule = block.slice(0, block.indexOf("\n}\n") + 3);
@@ -192,16 +192,16 @@ end
   });
 
   test("a leading `>>` is a descendant, not a compound", async () => {
-    const out = await css(`style probe with
+    const out = await css(`style probe {
   >> text {
     letter-spacing = 0.123rem
   }
-end
-layout main with
+}
+layout main {
   box.probe {
     text "x"
   }
-end
+}
 `);
     const rule = out.slice(out.indexOf(".probe {"), out.indexOf(".probe {") + 200);
     expect(rule).toMatch(/&\s+\.text\s*\{/);
@@ -209,9 +209,9 @@ end
   });
 
   test("`#tooltip` is written and selected as `data-tooltip`", async () => {
-    const out = await css(`layout main with
+    const out = await css(`layout main {
   text "Abbr." #tooltip="Abbreviation"
-end
+}
 `);
     const block = out.slice(out.indexOf(".layouts"));
     const rule = block.slice(0, block.indexOf("\n}\n") + 3);
@@ -220,7 +220,7 @@ end
   });
 
   test("`list` is bare, `ordered_list` is numbered, `#list-mark` overrides", async () => {
-    const src = `layout main with
+    const src = `layout main {
   list {
     item "a"
   }
@@ -239,7 +239,7 @@ end
   list.bulleted #list-mark="circle" {
     item "f"
   }
-end
+}
 `;
     const out = await css(src);
     const ruleFor = (sel: string) => {
@@ -266,7 +266,7 @@ end
 
   test("controls carry no margin of their own, and take one when asked", async () => {
     const h = createDOMHarness(
-      `layout main with
+      `layout main {
   row {
     input #placeholder="a"
     dropdown {
@@ -275,7 +275,7 @@ end
     slider #min=0 #max=100
   }
   input #placeholder="b" #margin-bottom=18
-end
+}
 `,
       0,
       { autoOpenAll: true },
@@ -300,7 +300,7 @@ end
   });
 
   test("`> child` selectors compose article sections and joined groups", async () => {
-    const out = await css(`layout main with
+    const out = await css(`layout main {
   article {
     header "H"
     text "b"
@@ -310,7 +310,7 @@ end
     input
     button "Go"
   }
-end
+}
 `);
     const article = out.slice(out.indexOf(".article {"));
     expect(article).toContain(">.header");
@@ -327,9 +327,9 @@ end
 
   test("the builtin switch has a real thumb that moves when checked", async () => {
     const out = await css(`store on = true
-layout main with
+layout main {
   switch #checked={on}
-end
+}
 `);
     const block = out.slice(out.indexOf(".switch"));
     expect(block).toContain("appearance: none;");
@@ -340,14 +340,14 @@ end
   });
 
   test("a colour prop takes a CSS function instead of mangling it into a token", async () => {
-    const out = await css(`style linky with
+    const out = await css(`style linky {
   text-decoration-color = color-mix(in srgb, currentColor 50%, transparent)
   border-color = oklch(70% 0.1 200)
   background-color = slate_30
-end
-layout main with
+}
+layout main {
   box.linky
-end
+}
 `);
     const block = out.slice(out.indexOf(".linky"));
     expect(block).toContain(
@@ -376,15 +376,15 @@ end
   });
 
   test("clip-path, fill, stroke and stroke-width emit the authored value", async () => {
-    const out = await css(`style shaped with
+    const out = await css(`style shaped {
   clip-path = circle(50%)
   fill = sky_60
   stroke = #ff0000
   stroke-width = 2
-end
-layout main with
+}
+layout main {
   box.shaped
-end
+}
 `);
     const block = out.slice(out.indexOf(".shaped"));
     expect(block).toContain("clip-path: circle(50%);");
@@ -394,13 +394,13 @@ end
   });
 
   test("numbers inside a CSS function in a size prop keep their unit", async () => {
-    const out = await css(`style shaped with
+    const out = await css(`style shaped {
   stroke-width = calc(1px * 2 * 3)
   margin = calc(1px * 2) 4
-end
-layout main with
+}
+layout main {
   box.shaped
-end
+}
 `);
     const block = out.slice(out.indexOf(".shaped"));
     expect(block).toContain("stroke-width: calc(1px * 2 * 3);");

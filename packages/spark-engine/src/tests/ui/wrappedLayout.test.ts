@@ -43,13 +43,13 @@ describe("a closure handler over several lines", () => {
     test(`${label} runs each statement`, async () => {
       const h = createHarness(
         `${STATE}
-layout hud with
+layout hud {
   column.panel {
     text "HP: {hp}"
     text "Clicks: {clicks}"
     ${button}
   }
-end
+}
 `,
         0,
         { reactive: true },
@@ -72,7 +72,7 @@ end
 describe("a wrapped layout mounts as its one-line form", () => {
   test("same elements, names and classes, and the same message stream", async () => {
     const wrapped = createHarness(`${STATE}
-layout hud with
+layout hud {
   column
     .panel
     #child-gap=8
@@ -87,15 +87,15 @@ layout hud with
       text "inside"
     }
   }
-end
+}
 `);
     const oneLine = createHarness(`${STATE}
-layout hud with
+layout hud {
   column.panel #child-gap=8 {
     text.title "Inventory"
     button.primary "Use" { text "inside" }
   }
-end
+}
 `);
     await Promise.all([wrapped.ready, oneLine.ready]);
     const created = (h: ReturnType<typeof createHarness>) =>

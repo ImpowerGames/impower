@@ -23,16 +23,12 @@ function requestResolution(
   remaining: number,
 ): Promise<ConflictResolution> {
   return new Promise((resolve) => {
-    const prev = conflictRequest.peek();
-    if (prev) {
-      prev.resolve({ action: "skip", applyToAll: false });
-    }
     conflictRequest.value = { name, location, remaining, resolve };
   });
 }
 
 let uploadChain: Promise<unknown> = Promise.resolve();
-export function withUploadLock<T>(fn: () => Promise<T>): Promise<T> {
+function withUploadLock<T>(fn: () => Promise<T>): Promise<T> {
   const run = uploadChain.then(fn, fn);
   uploadChain = run.then(
     () => undefined,
@@ -62,7 +58,17 @@ export interface ResolvedUpload<T> {
   since: number;
 }
 
-export async function resolveUploadConflicts<T>(
+export function resolveUploadConflicts<T, R>(
+  projectId: string,
+  items: { rel: string; payload: T }[],
+  write: (resolved: ResolvedUpload<T>) => Promise<R>,
+): Promise<R> {
+  return withUploadLock(async () =>
+    write(await resolveLocked(projectId, items)),
+  );
+}
+
+async function resolveLocked<T>(
   projectId: string,
   items: { rel: string; payload: T }[],
 ): Promise<ResolvedUpload<T>> {

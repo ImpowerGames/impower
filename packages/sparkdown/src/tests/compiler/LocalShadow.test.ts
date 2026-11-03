@@ -137,7 +137,7 @@ describe("LocalShadow of a global", () => {
 
   test.each([
     ["a scene parameter after the use", `${inScene("& state = 1\n")}scene inspect(state)\n State: {state}.\nend\n`, {}],
-    ["a Sparkle handler's local", `${inScene("& state = 1\n")}layout main with\n button @click={ local state = 3; print(state) }\nend\n`, {}],
+    ["a Sparkle handler's local", `${inScene("& state = 1\n")}layout main {\n button @click={ local state = 3; print(state) }\n}\n`, {}],
     ["another script's scene parameter", inScene("& state = 1\n"), { "flow.sd": "scene inspect(state)\n & print(state)\nend\n" }],
     ["another script's nested branch parameter", inScene("& state = 1\n"), { "flow.sd": "scene inspect()\n branch inner(state)\n  State: {state}.\n end\nend\n" }],
   ])("%s does not hide a global use elsewhere", (_label, use, more) => {
@@ -151,7 +151,7 @@ describe("LocalShadow of a global", () => {
   });
 
   test("a handler local's own initializer is a global use", () => {
-    expect(messages(`layout main with\n  button @click={ local state = state; print(state) }\nend\n${subject}`)).toEqual(["Variable 'state' shadows a global variable used at line 2"]);
+    expect(messages(`layout main {\n  button @click={ local state = state; print(state) }\n}\n${subject}`)).toEqual(["Variable 'state' shadows a global variable used at line 2"]);
   });
 
   test("a type in a scene's parameter list is not a parameter", () => {
@@ -177,7 +177,7 @@ describe("LocalShadow of a global", () => {
   });
 
   test("a Sparkle handler is a use", () => {
-    expect(programShadows({ "main.sd": "Ready.\n", "subject.sd": subject, "use.sd": "layout main with\n button @click={ print(state) }\nend\n" })).toEqual([
+    expect(programShadows({ "main.sd": "Ready.\n", "subject.sd": subject, "use.sd": "layout main {\n button @click={ print(state) }\n}\n" })).toEqual([
       "subject.sd: Variable 'state' shadows a global variable used at line 2 in 'use.sd'",
     ]);
   });

@@ -18,54 +18,54 @@ const labelsAt = (source: string) =>
 
 describe("provider · keyframe position completions in brace bodies", () => {
   test("offers `from` and `to` on a line inside a `keyframes` block", () => {
-    const labels = labelsAt(`animation fade with
+    const labels = labelsAt(`animation fade {
   keyframes {
     |
   }
-end
+}
 `);
     expect(labels).toContain("from");
     expect(labels).toContain("to");
   });
 
   test("offers them inside a one-line `keyframes` block and after a `;`", () => {
-    expect(labelsAt(`animation fade with
+    expect(labelsAt(`animation fade {
   keyframes { | }
-end
+}
 `)).toEqual(expect.arrayContaining(["from", "to"]));
-    expect(labelsAt(`animation fade with
+    expect(labelsAt(`animation fade {
   keyframes { from { opacity = 0 }; | }
-end
+}
 `)).toEqual(expect.arrayContaining(["from", "to"]));
   });
 
   test("offers them after a partly typed position", () => {
-    const labels = labelsAt(`animation fade with
+    const labels = labelsAt(`animation fade {
   keyframes {
     fr|
   }
-end
+}
 `);
     expect(labels).toContain("from");
   });
 
   test("inserts the position as a balanced block with the cursor inside", () => {
     for (const source of [
-      `animation fade with
+      `animation fade {
   keyframes {
     |
   }
-end
+}
 `,
-      `animation fade with
+      `animation fade {
   keyframes {
     fr|
   }
-end
+}
 `,
-      `animation fade with
+      `animation fade {
   keyframes { | }
-end
+}
 `,
     ]) {
       const items = completeAt(source, program);
@@ -82,25 +82,25 @@ end
   });
 
   test("offers them on the line after an existing keyframe block", () => {
-    const labels = labelsAt(`animation fade with
+    const labels = labelsAt(`animation fade {
   keyframes {
     from {
       opacity = 0
     }
     |
   }
-end
+}
 `);
     expect(labels).toContain("from");
     expect(labels).toContain("to");
   });
 
   test("does not offer them inside a sibling block", () => {
-    const labels = labelsAt(`animation fade with
+    const labels = labelsAt(`animation fade {
   timing {
     |
   }
-end
+}
 `);
     expect(labels).not.toContain("from");
     expect(labels).not.toContain("to");
@@ -108,17 +108,17 @@ end
 
   test("does not offer them one level deeper, among a keyframe's properties", () => {
     for (const source of [
-      `animation fade with
+      `animation fade {
   keyframes {
     from {
       |
     }
   }
-end
+}
 `,
-      `animation fade with
+      `animation fade {
   keyframes { from { | } }
-end
+}
 `,
     ]) {
       expect(labelsAt(source)).not.toContain("from");
@@ -126,10 +126,10 @@ end
   });
 
   test("does not offer them after the `keyframes` block closes", () => {
-    const labels = labelsAt(`animation fade with
+    const labels = labelsAt(`animation fade {
   keyframes { from { opacity = 0 } }
   |
-end
+}
 `);
     expect(labels).not.toContain("from");
   });

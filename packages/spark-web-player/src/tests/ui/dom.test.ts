@@ -9,7 +9,7 @@ define BG as image with
   src = "https://example.com/bg.png"
 end
 
-layout main with
+layout main {
   stage {
     backdrop {
       image
@@ -25,7 +25,7 @@ layout main with
       text
     }
   }
-end
+}
 `;
 
 function story(body: string) {
@@ -86,7 +86,7 @@ define SHADOW as image with
   src = "https://example.com/shadow.png"
 end
 
-layout main with
+layout main {
   stage {
     backdrop {
       image
@@ -95,7 +95,7 @@ layout main with
       image
     }
   }
-end
+}
 `;
 
 function imageStory(body: string) {
@@ -156,7 +156,7 @@ describe("dom render · image lifecycle", () => {
   });
 });
 
-const CHOICE_SCREEN = `layout main with
+const CHOICE_SCREEN = `layout main {
   dialogue {
     text
   }
@@ -166,7 +166,7 @@ const CHOICE_SCREEN = `layout main with
   choice.1 {
     text
   }
-end
+}
 `;
 
 const CHOICE_STORY = `${CHOICE_SCREEN}

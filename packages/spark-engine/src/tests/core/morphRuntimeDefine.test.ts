@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { buildDefinesContext } from "../../game/core/utils/buildContextFromStory";
 import { createHarness } from "../ui/harness/uiTestHarness";
 
-const SRC = `morph blink with
+const SRC = `morph blink {
   method = bend
   layers {
     creases {
@@ -31,7 +31,7 @@ const SRC = `morph blink with
     iteration_delay_min = 0.2
     iteration_delay_max = 6
   }
-end
+}
 
 
 scene start

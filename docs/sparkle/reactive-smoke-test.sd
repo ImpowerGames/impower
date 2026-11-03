@@ -42,7 +42,7 @@ function set_loud(event)
   loud = event.checked
 end
 
-layout main with
+layout main {
   column {
     text "Welcome, {hero}!"
     text "HP: {hp}"
@@ -67,7 +67,7 @@ layout main with
       text "Loud mode is {loud}"
     }
   }
-end
+}
 
 
 scene start

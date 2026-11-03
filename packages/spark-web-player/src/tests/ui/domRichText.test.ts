@@ -31,9 +31,9 @@ function runs(h: any): [string, string][] {
 
 describe("inline rich text", () => {
   test("plain text is still a single unstyled run", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   text "Just words."
-end
+}
 `);
     const r = runs(h);
     expect(r.length).toBe(1);
@@ -42,9 +42,9 @@ end
   });
 
   test("mixed runs flow inside one line", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   text "Some <b>bold</b> and <i>italic</i> here."
-end
+}
 `);
     const r = runs(h);
     expect(r.map((x) => x[0])).toEqual([
@@ -60,9 +60,9 @@ end
   });
 
   test("nested tags merge, and the whole set of flag tags maps", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   text "<b><i>bi</i></b><u>u</u><s>s</s><sup>up</sup><nobr>nb</nobr>"
-end
+}
 `);
     const r = runs(h);
     const byText = Object.fromEntries(r);
@@ -79,9 +79,9 @@ end
   });
 
   test("value tags resolve theme colors and sizes", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   text "<color=sky_60>tinted</color><mark=amber_60>hl</mark><size=2rem>big</size>"
-end
+}
 `);
     const byText = Object.fromEntries(runs(h));
     expect(byText["tinted"]).toContain("var(--theme-color-sky_60)");
@@ -90,9 +90,9 @@ end
   });
 
   test("a quoted value survives whitespace on either side of it", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   text '<color= "red">spaced</color><color="blue" >tight</color>'
-end
+}
 `);
     const byText = Object.fromEntries(runs(h));
     expect(byText["spaced"]).toContain("red");
@@ -101,9 +101,9 @@ end
   });
 
   test("`<noparse>` and unknown tags stay literal", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   text "<noparse><b>kept</b></noparse> 5 < 6 <notatag>x"
-end
+}
 `);
     const r = runs(h);
     expect(r.length).toBe(1);
@@ -111,9 +111,9 @@ end
   });
 
   test("`<br>` becomes a line break", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   text "a<br>b"
-end
+}
 `);
     expect(runs(h)[0]![0]).toBe("a\nb");
   });
@@ -123,10 +123,10 @@ end
 function plain()
   label = "plain"
 end
-layout main with
+layout main {
   text "x {label}"
   button "Go" @click=plain
-end
+}
 `);
     expect(runs(h).map((x) => x[0])).toEqual(["x ", "bold"]);
     const ui: any = (h.game as any).module.ui;

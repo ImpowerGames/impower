@@ -38,6 +38,8 @@ const policyOf = (struct: Record<string, unknown>): MorphPolicy => {
   if (method) policy.method = method;
   if (fallback) policy.fallback = fallback;
   if (parseMorphDepth(struct["depth"])) policy.depth = struct["depth"] as string;
+  const spread = parseMorphSpread(struct["spread"]);
+  if (spread !== undefined) policy.spread = spread;
   return policy;
 };
 
@@ -88,6 +90,12 @@ export function buildMorphRecipe(name: string, morph: Record<string, unknown>): 
       const partner = partnerOf(label, entry, edges);
       if (partner) policy.partner = partner;
       if (Object.keys(policy).length > 0) layers[label] = policy;
+    }
+  }
+  if (!root.spread && Object.values(layers).every((policy) => !policy.spread)) {
+    for (const [label, policy] of Object.entries(layers)) {
+      delete policy.spread;
+      if (Object.keys(policy).length === 0) delete layers[label];
     }
   }
   const keyframes: MorphRecipe["keyframes"] = [];
@@ -142,6 +150,7 @@ export function buildMorphRecipe(name: string, morph: Record<string, unknown>): 
     ...(root.method ? { method: root.method } : {}),
     fallback: root.fallback ?? "fade",
     ...(root.depth && root.depth !== MORPH_DEPTH_REST ? { depth: root.depth } : {}),
+    ...(root.spread ? { spread: root.spread } : {}),
     layers,
     keyframes,
     clips,
@@ -183,12 +192,13 @@ export function parseMorphRecipe(text: string): MorphRecipe | undefined {
     return undefined;
   }
   if (!isRecord(value) || typeof value["name"] !== "string") return undefined;
+  const pixels = <T,>(struct: T): T =>
+    isRecord(struct) && typeof struct["spread"] === "number" ? { ...struct, spread: `${struct["spread"]}px` } : struct;
   const recipe = buildMorphRecipe(value["name"], {
-    ...value,
+    ...pixels(value),
+    layers: isRecord(value["layers"]) ? Object.fromEntries(Object.entries(value["layers"]).map(([label, policy]) => [label, pixels(policy)])) : value["layers"],
     clips: Array.isArray(value["clips"])
-      ? value["clips"].map((clip) =>
-          isRecord(clip) && typeof clip["spread"] === "number" ? { ...clip, spread: `${clip["spread"]}px` } : clip,
-        )
+      ? value["clips"].map(pixels)
       : value["clips"],
     keyframes: Array.isArray(value["keyframes"])
       ? value["keyframes"].map((k) => {

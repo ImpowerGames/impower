@@ -1,4 +1,4 @@
-theme sample with
+theme sample {
 values {
 2-- note:
 true// note:
@@ -9,4 +9,4 @@ true // note:
 "hi" -- note:
 "hi" // note:
 }
-end
+}

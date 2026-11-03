@@ -60,25 +60,25 @@ describe("a Sparkle handler's closure reports every error Luau reports for its b
         .map((e) => e.replace(/^1:(\d+)-1:(\d+)/, "2:$1-2:$2"))
         .sort();
       expect(official.length, "the official parser reports the form").toBeGreaterThan(0);
-      expect(sparkdownErrors(`layout main with\n  button @click={\n    ${line}\n  }\nend\n`)).toEqual(official);
+      expect(sparkdownErrors(`layout main {\n  button @click={\n    ${line}\n  }\n}\n`)).toEqual(official);
     });
   }
 
   test('"return 1 2" in a closure', () => {
-    expect(sparkdownErrors(`layout main with\n  button @click={\n    return 1 2\n  }\nend\n`)).toEqual([
+    expect(sparkdownErrors(`layout main {\n  button @click={\n    return 1 2\n  }\n}\n`)).toEqual([
       "2:13-2:14 Expected 'end' (to close 'function' at line 2), got '2'",
     ]);
   });
 
   test('"local s = \\"abc" in a closure is reported once', () => {
-    const errors = sparkdownErrors('layout main with\n  button @click={ local s = "abc }\nend\n');
+    const errors = sparkdownErrors('layout main {\n  button @click={ local s = "abc }\n}\n');
     expect(errors.filter((e) => e.endsWith("Malformed string; did you forget to finish it?")), errors.join("\n")).toHaveLength(1);
   });
 
   const closure = (body: string) =>
-    `store a, g, x = 0, 0, 0\nlayout form with\n  button "Go" @click={\n    ${body}\n  }\nend\n`;
+    `store a, g, x = 0, 0, 0\nlayout form {\n  button "Go" @click={\n    ${body}\n  }\n}\n`;
   const LAYOUT_OPEN =
-    "1:0-1:16 This layout is missing its closing `end` keyword. Without it, every line up to the next `scene`, `branch` or the end of the file is read as part of this layout.";
+    "1:0-1:13 This layout is missing its closing `}`. Without it, every line up to the next `scene` or `branch`, line that starts with `end`, `else`, `elseif` or `case`, or the end of the file is read as part of this layout.";
   const HANDLER_OPEN = "2:21-2:22 This handler is missing its closing `}`.";
   const MISSING_AT_BRACE = "4:2-4:3 Expected identifier when parsing expression, got '}'";
   test.each([
@@ -93,14 +93,14 @@ describe("a Sparkle handler's closure reports every error Luau reports for its b
     ["a.b.", ["3:4-4:2 Incomplete statement: expected assignment or a function call", "4:2-4:3 Expected identifier, got '}'"]],
     ["x = (if c)then", ["3:13-3:14 Expected 'then' when parsing if then else expression, got ')'", MISSING_AT_BRACE]],
     ['local s = "abc', ["3:14-3:18 Malformed string; did you forget to finish it?"]],
-    ["if c then x = 1", [LAYOUT_OPEN, HANDLER_OPEN, "4:2-4:3 Expected identifier when parsing expression, got '}'"]],
-    ["while true do", [LAYOUT_OPEN, HANDLER_OPEN, "4:2-4:3 Expected identifier when parsing expression, got '}'"]],
+    ["if c then x = 1", [LAYOUT_OPEN, HANDLER_OPEN, MISSING_AT_BRACE, "5:0-5:1 Expected identifier when parsing expression, got '}'"]],
+    ["while true do", [LAYOUT_OPEN, HANDLER_OPEN, MISSING_AT_BRACE, "5:0-5:1 Expected identifier when parsing expression, got '}'"]],
   ])("%j at the closure's `}` is reported once", (body, expected) => {
     expect(sparkdownErrors(closure(body))).toEqual(expected);
   });
 
   test('"a:" on the closure\'s line names only the `}`', () => {
-    expect(sparkdownErrors(`layout main with\n  button @click={ a: }\nend\n`)).toEqual([
+    expect(sparkdownErrors(`layout main {\n  button @click={ a: }\n}\n`)).toEqual([
       "1:21-1:22 Expected identifier when parsing method name, got '}'",
     ]);
   });
@@ -118,7 +118,7 @@ describe("an alternator's arm in these bodies is reported as in a function (I-13
     });
   }
   test("a handler closure", () => {
-    expect(sparkdownErrors(`layout main with\n  button @click={\n    ${ARM}\n  }\nend\n`)).toEqual([`2:28-2:29 ${MISSING}`]);
+    expect(sparkdownErrors(`layout main {\n  button @click={\n    ${ARM}\n  }\n}\n`)).toEqual([`2:28-2:29 ${MISSING}`]);
   });
 });
 

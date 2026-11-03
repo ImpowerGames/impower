@@ -1,3 +1,5 @@
+import { LoadSave, type LoadSaveProps } from "../saves/SavesViews";
+import { loadedStatus, notLoadedStatus } from "../saves/savesView";
 import { RouteIconSvg } from "./RouteIcons";
 import {
   fieldChange,
@@ -15,6 +17,8 @@ export interface StartingValuesEvents {
   onDraft: (key: string, text: string | null) => void;
   onResetAll: () => void;
   onSearch: (search: string) => void;
+  onUndoLoad?: () => void;
+  load?: LoadSaveProps;
 }
 
 export interface StartingValuesTabLabelProps {
@@ -174,9 +178,21 @@ export function StartingValuesTab({ state, events }: StartingValuesTabProps) {
         ))}
       </div>
       <div class="sv-status" role="status">
-        {valuesStatus(state)}
+        {state.loaded?.failed ? (
+          notLoadedStatus(state.loaded.name)
+        ) : state.loaded ? (
+          <>
+            <span>{loadedStatus(state.loaded.count, state.loaded.name)}</span>
+            <button type="button" class="sv-undo" onClick={events.onUndoLoad}>
+              Undo
+            </button>
+          </>
+        ) : (
+          valuesStatus(state)
+        )}
       </div>
       <footer class="sv-foot">
+        {events.load ? <LoadSave {...events.load} /> : null}
         <button
           type="button"
           class="sv-reset"
