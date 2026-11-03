@@ -596,6 +596,8 @@ export class Game<T extends M = {}> {
 
   protected _shownBeat?: Instructions;
 
+  protected _beatStartInterpreter: unknown = null;
+
   protected _checkpointShownBeats: (Instructions | undefined)[] = [];
 
   protected _checkpointDecisionsTaken: (number | undefined)[] = [];
@@ -2469,10 +2471,17 @@ export class Game<T extends M = {}> {
     if (watchedCells && watchedCells.length > 0) {
       saveData.watchedCells = watchedCells;
     }
+    const beatStart =
+      this.programStory.state.beatImage === null
+        ? null
+        : this._beatStartInterpreter;
     for (const k of this._moduleNames) {
       const module = this._modules[k];
       if (module) {
-        saveData.modules[k] = module.state;
+        saveData.modules[k] =
+          beatStart !== null && module === this.module.interpreter
+            ? beatStart
+            : module.state;
       }
     }
     const serialized = JSON.stringify(saveData);
@@ -2773,7 +2782,6 @@ export class Game<T extends M = {}> {
         module.load(saveData.modules[k]);
       }
     }
-    this.discardMenusTheStoryLacks();
     this._runtimeState = runtime;
     this._awaiting = this.lastExecutedScriptLocation();
     if (saveData.simulatedFrom) {
@@ -2781,12 +2789,6 @@ export class Game<T extends M = {}> {
       this.simulateFlow = saveData.simulatedFrom;
     } else {
       this._story.endsTunnelAtBase = false;
-    }
-  }
-
-  protected discardMenusTheStoryLacks(): void {
-    if (this._story.currentChoices.length === 0) {
-      this.module.interpreter.discardQueuedMenus();
     }
   }
 
@@ -2874,7 +2876,6 @@ export class Game<T extends M = {}> {
     for (const k of this._moduleNames) {
       this._modules[k]?.load(saveData.modules[k]);
     }
-    this.discardMenusTheStoryLacks();
     this._runtimeState = RuntimeState.of(entry.runtime);
     if (saveData.simulatedFrom) {
       this._simulation = "success";
@@ -3119,6 +3120,11 @@ export class Game<T extends M = {}> {
         this._story.stepLimit =
           stepsBefore + 1 + this._executionStepsRemaining;
         let stopped = false;
+        if (this._story.asyncContinueComplete) {
+          this._beatStartInterpreter = structuredClone(
+            this.module.interpreter.state,
+          );
+        }
         try {
           this._story.ContinueAsync();
         } catch (e) {

@@ -27,7 +27,24 @@ const DIALOGUE_FIRST = `scene start
 end
 `;
 
-type Resume = "live" | "json" | "stored" | "restored";
+const EXTENDED_CAPTION = `define HERO as character with
+  name = "HERO"
+end
+
+scene start
+  choose
+    HERO: Pick .. >
+    .. one.
+    * [Stay.]
+      Stayed.
+    * [Leave.]
+      Left.
+  end
+  After.
+end
+`;
+
+type Resume ="live" | "json" | "stored" | "restored";
 
 function playFrom(src: string, line: number, resume: Resume): Game {
   const { program } = compileSrc(src);
@@ -62,6 +79,11 @@ function shownChoices(game: Game): string[] {
   return game.story.currentChoices.map((choice) => choice.text);
 }
 
+function shownText(game: Game, target: string): string {
+  const shown = (game as any)._shownBeatOnScreen;
+  return (shown?.text?.[target] ?? []).map((e: any) => e.text ?? "").join("");
+}
+
 function pressLeave(game: Game): string {
   expect(shownChoices(game)).toEqual(["Stay.", "Leave."]);
   expect(() => game.chosePathToContinue(1)).not.toThrow();
@@ -80,6 +102,13 @@ describe("a Play whose first beat is a menu takes the pressed option", () => {
 
     test(`from a choose line after dialogue, resumed ${resume}`, () => {
       expect(pressLeave(playFrom(DIALOGUE_FIRST, 2, resume))).toBe("Left.");
+    });
+
+    test(`from a menu's extended caption, resumed ${resume}`, () => {
+      const game = playFrom(EXTENDED_CAPTION, 7, resume);
+      expect(shownText(game, "character_name")).toBe("HERO");
+      expect(shownText(game, "dialogue")).toBe("Pick one.");
+      expect(pressLeave(game)).toBe("Left.");
     });
   }
 

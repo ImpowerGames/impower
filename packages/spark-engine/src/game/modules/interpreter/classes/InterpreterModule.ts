@@ -625,14 +625,6 @@ export class InterpreterModule extends Module<
     return this._state.buffer?.shift();
   }
 
-  discardQueuedMenus(): void {
-    if (this._state.buffer) {
-      this._state.buffer = this._state.buffer.filter(
-        (beat) => !beat.choices?.length,
-      );
-    }
-  }
-
   clearQueuedBeats(): void {
     this._state.buffer = [];
     delete this._routing;
