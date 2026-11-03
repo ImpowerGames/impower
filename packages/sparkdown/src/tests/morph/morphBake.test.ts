@@ -239,6 +239,7 @@ describe("a drawing's `spread` in the bake", () => {
     ["curled", "-1px", "has a contour that overlaps itself with fill on both sides"],
     ["wedged", "-1px", "has a contour that overlaps itself with fill on both sides"],
     ["retraced", "-1px", "has a contour that overlaps itself with fill on both sides"],
+    ["lined", "-1px", "has a contour that overlaps itself with fill on both sides"],
     ["polylined", "1px", "is a `polyline`"],
   ])("`spread-ignored` on %s at `spread = %s` is reported once per artwork with one message for every variant, and the drawing keeps its own size", (label, spread, why) => {
     const messages = ["bunny", "raffles"].map((variant) => {
@@ -332,7 +333,7 @@ describe("a drawing's `spread` in the bake", () => {
   });
 
   test("a root `spread` applies where no label sets one, and a label's `0` keeps its drawings their own size", () => {
-    const artifact = spreadBake({ flat: { spread: 0 }, stroked: { spread: 0 }, masked: { spread: 0 }, lettered: { spread: 0 }, ...Object.fromEntries(["doubled", "crossing", "ringed", "cornered", "holed", "speck", "looped", "implicitloop", "curled", "wedged", "retraced"].map((label) => [label, { spread: 0 }])) }, { spread: "-1px" });
+    const artifact = spreadBake({ flat: { spread: 0 }, stroked: { spread: 0 }, masked: { spread: 0 }, lettered: { spread: 0 }, ...Object.fromEntries(["doubled", "crossing", "ringed", "cornered", "holed", "speck", "looped", "implicitloop", "curled", "wedged", "retraced", "lined"].map((label) => [label, { spread: 0 }])) }, { spread: "-1px" });
     expect(ignored(artifact)).toEqual([]);
     expect(transitionOf(artifact, "flat")).not.toHaveProperty("spread");
     expect(transitionOf(artifact, "blended")).toMatchObject({ spread: -1 });

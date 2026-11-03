@@ -9,6 +9,22 @@ export const SPLIT_CLOSED_BOTTOM_OVERLAPPING_TOP = "M0,50 C30,45 70,45 100,47 C7
 export const EYEBALL = "M-5,50 C-5,20 105,20 105,50 C105,80 -5,80 -5,50Z";
 export const PUPIL = "M40,50 C40,40 60,40 60,50 C60,60 40,60 40,50Z";
 
+export const linedSquare = (x: number, y: number, scale: number, inset: number) => {
+  const p = (px: number, py: number) => `${x + px * scale},${y + py * scale}`;
+  const d = inset;
+  return [
+    `M${p(0, 0)}L${p(100, 0)}L${p(100, 100)}L${p(0, 100)}L${p(0, 0)}L${p(20, 20)}`,
+    `L${p(20 + d, 20 + d)}L${p(80 - d, 20 + d)}L${p(80 - d, 20 + 2 * d)}L${p(20 + d, 20 + 2 * d)}L${p(20 + d, 20 + d)}L${p(20, 20)}`,
+    `L${p(80, 20)}`,
+    `L${p(80 - d, 20 + 3 * d)}L${p(80 - d, 80 - 3 * d)}L${p(80 - 2 * d, 80 - 3 * d)}L${p(80 - 2 * d, 20 + 3 * d)}L${p(80 - d, 20 + 3 * d)}L${p(80, 20)}`,
+    `L${p(80, 80)}`,
+    `L${p(80 - 3 * d, 80 - d)}L${p(20 + d, 80 - d)}L${p(20 + d, 80 - 2 * d)}L${p(80 - 3 * d, 80 - 2 * d)}L${p(80 - 3 * d, 80 - d)}L${p(80, 80)}`,
+    `L${p(20, 80)}`,
+    `L${p(20 + d, 80 - 3 * d)}L${p(20 + d, 20 + 3 * d)}L${p(20 + 2 * d, 20 + 3 * d)}L${p(20 + 2 * d, 80 - 3 * d)}L${p(20 + d, 80 - 3 * d)}L${p(20, 80)}`,
+    `L${p(20, 20)}L${p(0, 0)}Z`,
+  ].join("");
+};
+
 const sliver = (x: number, y: number, h: number) => `M${x + 4},${y + 2 * h}L${x + 6},${y}L${x + 10},${y}L${x + 10},${y + 10}L${x},${y + 10}L${x},${y}L${x + 4},${y}L${x + 6},${y + 2 * h}Z`;
 
 const shift = (d: string, dx: number, dy = 0) =>
@@ -352,6 +368,7 @@ export function spreadPortrait(): string {
       `<path data-name="curled" d="M150,${175 + dy}C165,${169 + dy} 145,${169 + dy} 160,${175 + dy}L160,${165 + dy}L150,${165 + dy}Z" fill="#462"/>`,
       `<path data-name="slivered" d="${sliver(60, 160 + dy, 0.0008)}" fill="#246"/>`,
       `<path data-name="wedged" d="${sliver(80, 160 + dy, 0.0012)}" fill="#246"/>`,
+      `<path data-name="lined" d="${linedSquare(120, 160 + dy, 0.1, 0.001)}" fill="#264"/>`,
       `<path data-name="retraced" d="M100,${160 + dy}L110,${160 + dy}L110,${170 + dy}L100,${170 + dy}L100,${160 + dy}L102,${162 + dy}L108,${162 + dy}L108,${168 + dy}L102,${168 + dy}L102,${162 + dy}L108,${162 + dy}L108,${168 + dy}L102,${168 + dy}L102,${162 + dy}L100,${160 + dy}Z" fill="#462"/>`,
       closed
         ? `<path data-name="mixedfade" d="M120,${105 + dy}H130V${115 + dy}H120Z" fill="#624"/>`
@@ -381,7 +398,7 @@ ${pose(5, true)}
 }
 
 export function spreadBlink(layers: Record<string, Record<string, unknown>> = {}, overrides: Record<string, unknown> = {}, states = ["open", "closed", "open"]): MorphRecipe {
-  const merged: Record<string, Record<string, unknown>> = { ghost: { fallback: "scale" }, fader: { blend: "fade" }, still: { blend: "cut" }, opened: { blend: "fade" }, polylined: { blend: "fade" }, implicitloop: { blend: "fade" }, mixedfade: { blend: "fade" }, curled: { blend: "fade" }, slivered: { blend: "fade" }, wedged: { blend: "fade" }, retraced: { blend: "fade" } };
+  const merged: Record<string, Record<string, unknown>> = { ghost: { fallback: "scale" }, fader: { blend: "fade" }, still: { blend: "cut" }, opened: { blend: "fade" }, polylined: { blend: "fade" }, implicitloop: { blend: "fade" }, mixedfade: { blend: "fade" }, curled: { blend: "fade" }, slivered: { blend: "fade" }, wedged: { blend: "fade" }, retraced: { blend: "fade" }, lined: { blend: "fade" } };
   for (const [label, policy] of Object.entries(layers)) merged[label] = { ...merged[label], ...policy };
   return paintBlink({ layers: merged, ...overrides }, states);
 }

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { contourOverlapsItself, pathContours } from "../../morph/contour";
+import { linedSquare } from "./fixtures";
 
 const LOOP = "M60,60L80,20L120,20L120,120L20,120L20,20L60,20L80,60";
 
@@ -68,6 +69,11 @@ describe("a spread contour", () => {
     const twice = "M0,0L100,0L100,100L0,100L0,0L20,20L80,20L80,80L20,80L20,20L80,20L80,80L20,80L20,20L0,0Z";
     expect(contourOverlapsItself(only(twice), false)).toBe(true);
     expect(contourOverlapsItself(only(twice), true)).toBe(true);
+  });
+
+  test("a wide overlap lined inside with thin deeper loops is measured by its own boundary, so the deeper loops' edges do not make it read as narrow", () => {
+    expect(contourOverlapsItself(only(linedSquare(0, 0, 1, 0.001)), false)).toBe(true);
+    expect(contourOverlapsItself(only("M0,0L100,0L100,100L0,100L0,0L20,20L80,20L80,80L20,80L20,20L0,0Z"), false)).toBe(true);
   });
 
   test("an edge drawn back along itself has no width and reads as touching", () => {
