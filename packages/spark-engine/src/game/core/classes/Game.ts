@@ -3268,7 +3268,7 @@ export class Game<T extends M = {}> {
   jumpTo(address: ProgramAddress, withStartingValues = false) {
     this.discardOpenStoryLine();
     if (withStartingValues) {
-      const plan = this.startPlan(this.routeStartOf(address));
+      const plan = this.startPlan(this.routeStartsOf(address).at(-1)!);
       this._story.resetSeed = plan.seed;
       this._story.ResetState();
       applyStartValues(this._story, plan);

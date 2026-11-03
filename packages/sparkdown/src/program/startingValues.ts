@@ -30,7 +30,7 @@ import {
 import type { ProgramRoot } from "./ProgramRoot";
 import { entryParameters } from "./ProgramSave";
 import { ProgramStory } from "./ProgramStory";
-import { flowScopesOf } from "./ProgramStoryState";
+import { flowScopeOwners } from "./ProgramStoryState";
 import { START_FLOW_NAME, SymbolKind, countIdOf } from "./ProgramSymbols";
 import {
   SEED_KEY,
@@ -712,17 +712,17 @@ export const bindStartArguments = (
   }
   const scopes = story.state.frame?.temporaryScopes;
   const position = story.state.position;
-  const sceneScope =
-    scopes &&
-    scopes.length > 1 &&
-    position &&
-    flowScopesOf(story.root!, position.sequence) > 0
-      ? scopes[1]
-      : undefined;
+  const root = story.root!;
+  const owner = position
+    ? flowScopeOwners(root, position.sequence).findIndex(
+        (symbol) => root.table.symbols[symbol] === plan.from,
+      )
+    : -1;
+  const flowScope = owner >= 0 ? scopes?.[1 + owner] : undefined;
   params.forEach((name, i) => {
     const value = valueOfLiteral(plan.args?.[i] ?? null);
-    if (sceneScope) {
-      sceneScope.set(name, value);
+    if (flowScope) {
+      flowScope.set(name, value);
     } else {
       story.state.variablesState.Assign(
         new VariableAssignment(name, true, false, false),
