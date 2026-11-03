@@ -213,7 +213,7 @@ onmessage = async (e) => {
   }
   if (WillWriteFilesMessage.type.isRequest(message)) {
     try {
-      const { files } = message.params;
+      const { files, origin } = message.params;
       const result = await writeFiles(files);
       const response = WillWriteFilesMessage.type.response(
         message.id,
@@ -224,6 +224,7 @@ onmessage = async (e) => {
         DidWriteFilesMessage.type.notification({
           files: result.map((r) => r.file),
           remote: false,
+          origin,
         }),
       );
       broadcast(

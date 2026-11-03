@@ -97,6 +97,14 @@ it("retains the debounce for ordinary file edits", async () => {
   expect(h.messages.find(message => message.id === "edit")).toHaveProperty("result");
 });
 
+it("echoes a write's origin into its write notification and omits it for writes without one", async () => {
+  const h = await worker();
+  await h.request("tagged", "workspace/willWriteFiles", { files: [{ uri: "file://local/main.sd", version: 1, data: new Uint8Array([4]).buffer }], origin: "editor" });
+  await h.request("untagged", "workspace/willWriteFiles", { files: [{ uri: "file://local/main.sd", version: 2, data: new Uint8Array([5]).buffer }] });
+  const notifications = h.messages.filter(message => message.method === "workspace/didWriteFiles");
+  expect(notifications.map(message => message.params.origin)).toEqual(["editor", undefined]);
+});
+
 it("keeps a raster import pending until its thumbnail is cached", async () => {
   let finish!: () => void;
   const h = await worker({ thumbnail: new Promise<void>(resolve => { finish = resolve; }) });
