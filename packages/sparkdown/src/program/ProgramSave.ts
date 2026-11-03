@@ -2163,6 +2163,51 @@ export const readSave = (
   };
 };
 
+export interface SavedFrameScopes {
+  flow: string;
+  scopes: ReturnType<typeof JsonSerialisation.JObjectToDictionaryRuntimeObjs>[];
+}
+
+export const readSaveValues = (
+  state: ProgramStoryState,
+  json: string,
+  symbolValue: (symbol: number) => SymbolValue,
+): SavedFrameScopes[] => {
+  const { save } = parseSave(json);
+  const reader = new SaveReader(state, save, symbolValue);
+  const beats = reader.beats;
+  if (beats.length === 0) {
+    throw new SaveRefused("The save holds no beat.");
+  }
+  const plans = beats.map((beat) => ({ ...reader.planBeat(beat), placed: false }));
+  const framed = [...beats].reverse().find((beat) => Array.isArray(beat["frames"]));
+  const saved: Record<string, any>[] = framed ? framed["frames"] : [];
+  let frames: SavedFrameScopes[];
+  state.beginLoad();
+  try {
+    reader.apply(beats.length - 1, plans, () => {});
+    frames = saved.map((frame, i) => {
+      const position = (i === saved.length - 1 ? framed!["position"] : saved[i + 1]!["returnTo"]) as
+        | SavedPosition
+        | undefined;
+      const temps: unknown[] = Array.isArray(frame["temps"]) ? frame["temps"] : [];
+      return {
+        flow: position?.st?.levels?.[0]?.flow ?? "",
+        scopes: temps.map((scope) => JsonSerialisation.JObjectToDictionaryRuntimeObjs(scope as any)),
+      };
+    });
+  } finally {
+    JsonSerialisation.ResetObjectLoadSession();
+  }
+  for (const beat of beats) {
+    if (typeof beat["storySeed"] === "number") {
+      state.storySeed = beat["storySeed"];
+    }
+  }
+  state.ResetErrors();
+  return frames;
+};
+
 export const checkSave = (state: ProgramStoryState, json: string): void => {
   const { save } = parseSave(json);
   new SaveReader(state, save, () => {
@@ -2447,4 +2492,68 @@ export const placeDurableAddress = (
     return undefined;
   }
   return addressOf(chunkId(chunk), form.o);
+};
+
+export const statementSave = (root: ProgramRoot, address: number): string | undefined => {
+  const at = root.position(chunkOfAddress(address));
+  if (!at) {
+    return undefined;
+  }
+  const forms = new FormWriter(root);
+  const st = forms.statementForm(at.sequence, at.entry);
+  return JSON.stringify({ st, listings: forms.listings(), parts: forms.parts() });
+};
+
+export const placesStatement = (root: ProgramRoot, saved: string): boolean => {
+  let form: { st?: SavedStatement; listings?: SavedListing[]; parts?: SavedParts[] };
+  try {
+    form = JSON.parse(saved);
+  } catch {
+    return false;
+  }
+  if (!form?.st) {
+    return false;
+  }
+  return (
+    new FormPlacer(root, form.listings ?? [], form.parts ?? []).placeStatement(form.st) !==
+    undefined
+  );
+};
+
+export const countsSave = (
+  root: ProgramRoot,
+  counts: ReadonlyMap<string, number>,
+): string => {
+  const forms = new FormWriter(root);
+  const symbolOf: number[] = [];
+  root.table.countIds.forEach((count, symbol) => {
+    if (count >= 0) symbolOf[count] = symbol;
+  });
+  const saved: Record<string, SavedSymbol> = {};
+  for (const [key, countId] of counts) {
+    const symbol = symbolOf[countId];
+    if (symbol !== undefined) {
+      saved[key] = forms.symbolForm(symbol, root.table.symbols[symbol]!);
+    }
+  }
+  return JSON.stringify({ forms: saved, listings: forms.listings(), parts: forms.parts() });
+};
+
+export const placeCounts = (root: ProgramRoot, saved: string): Map<string, number> => {
+  const placed = new Map<string, number>();
+  let form: { forms?: Record<string, SavedSymbol>; listings?: SavedListing[]; parts?: SavedParts[] };
+  try {
+    form = JSON.parse(saved);
+  } catch {
+    return placed;
+  }
+  const placer = new FormPlacer(root, form.listings ?? [], form.parts ?? []);
+  for (const [key, symbolForm] of Object.entries(form.forms ?? {})) {
+    const symbol = placer.decodeSymbol(symbolForm);
+    const countId = symbol === undefined ? -1 : countIdOf(root.table, symbol);
+    if (countId >= 0) {
+      placed.set(key, countId);
+    }
+  }
+  return placed;
 };

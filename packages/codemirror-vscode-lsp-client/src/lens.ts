@@ -22,7 +22,6 @@ export const CODELENS_SEPARATOR_CLASS_NAME = "cm-codeLens-separator";
 export const codeLensWidgetTheme = EditorView.baseTheme({
   [`.${CODELENS_WRAPPER_CLASS_NAME}`]: {
     display: "flex",
-    flexDirection: "row",
     alignItems: "center",
     color: "#999999",
     fontSize: "14px",

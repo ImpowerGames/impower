@@ -35,7 +35,6 @@ export const referencesTheme = EditorView.baseTheme({
   ".cm-lsp-reference-file": {
     padding: "4px 8px",
     display: "flex",
-    flexDirection: "row",
     alignItems: "center",
     position: "sticky",
     top: 0,
@@ -53,7 +52,6 @@ export const referencesTheme = EditorView.baseTheme({
     overflow: "clip",
     textOverflow: "ellipsis",
     display: "flex",
-    flexDirection: "row",
     gap: "8px",
     "&[aria-selected]": {
       backgroundColor: "#04395e",
