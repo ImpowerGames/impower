@@ -14,7 +14,6 @@ import { LSPPlugin } from "./plugin";
 export const renameTheme = EditorView.baseTheme({
   ".cm-lsp-rename-tooltip": {
     display: "flex",
-    flexDirection: "row",
     alignItems: "stretch",
     gap: "4px",
     padding: "8px",

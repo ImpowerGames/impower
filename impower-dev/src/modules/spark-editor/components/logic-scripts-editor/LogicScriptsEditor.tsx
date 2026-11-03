@@ -62,7 +62,6 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
   return (
     <div class="flex flex-1 flex-col min-h-0">
       <FileEditorNavigation onBack={handleBack}>
-
         <div class="relative inline-block h-10 overflow-hidden rounded px-2 text-foreground hover:bg-foreground/5">
           <input
             ref={inputRef}

@@ -23,7 +23,6 @@ const documentLinkTheme = EditorView.baseTheme({
   },
   ".cm-lsp-link-tooltip": {
     display: "flex",
-    flexDirection: "row",
     gap: "4px",
     padding: "5px 9px",
   },

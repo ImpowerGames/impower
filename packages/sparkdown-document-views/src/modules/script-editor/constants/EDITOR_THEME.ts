@@ -294,7 +294,6 @@ const EDITOR_THEME: {
     backgroundColor: EDITOR_COLORS.panel,
     padding: "8px",
     display: "flex",
-    flexDirection: "row",
     gap: "8px",
     "& .cm-textfield": {
       height: "32px",
@@ -333,7 +332,6 @@ const EDITOR_THEME: {
       right: "186px",
       height: "30px",
       display: "flex",
-      flexDirection: "row",
       padding: "0 8px",
       justifyContent: "center",
       alignItems: "center",
@@ -516,7 +514,6 @@ const EDITOR_THEME: {
     fontSize: "14px",
     marginRight: "16px",
     display: "flex",
-    flexDirection: "row",
   },
   "& .cm-diagnosticAction": {
     backgroundColor: "transparent",
