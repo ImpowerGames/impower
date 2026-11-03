@@ -300,6 +300,46 @@ describe("a save's values", () => {
     expect(listedValue(controller, "Stay.")).toBeUndefined();
   });
 
+  test("keep a typed count and a not-saved mark on their options when a refresh fails and the next one succeeds", async () => {
+    const { game, compiler } = playing(lines);
+    chooseLeave(game);
+    const record = preview(game.saveHere());
+    let failListing = false;
+    let refuseWrite = false;
+    const controller = await controllerFor(game, record, {
+      listings: () => {
+        if (failListing) {
+          failListing = false;
+          return Promise.reject(new Error("no listing"));
+        }
+        return Promise.resolve();
+      },
+      refuses: (method) => method === "preview/writeSave" && refuseWrite,
+    });
+    await controller.editValues(record.id);
+    const leave = rowKey(controller, "Leave.");
+    const stay = rowKey(controller, "Stay.");
+    controller.events.onValueDraft(leave, "3");
+    refuseWrite = true;
+    await controller.setValue(stay, "2");
+    refuseWrite = false;
+    expect(controller.viewState().values!.unsaved).toHaveProperty(stay);
+
+    recompile(compiler, game, [lines[0]!, "  Hello.", ...lines.slice(1)].join("\n"));
+    failListing = true;
+    await controller.programChanged();
+    await controller.programChanged();
+    const view = controller.viewState().values!;
+    expect(view.drafts).toEqual({ [leave]: "3" });
+    expect(rowName(controller, leave)).toBe("Leave.");
+    expect(rowLine(controller, leave)).toBe(5);
+    expect(Object.keys(view.unsaved)).toEqual([stay]);
+    expect(rowName(controller, stay)).toBe("Stay.");
+    await controller.setValue(leave, "3");
+    expect(listedValue(controller, "Leave.")).toBe("3");
+    expect(listedValue(controller, "Stay.")).toBeUndefined();
+  });
+
   test("keep a failed edit's mark on the save it was made on", async () => {
     const { game } = playing(["store trust = 0", "scene start", "  Saved.", "  Next.", "end"], 3);
     const a = { ...preview(game.saveHere()), id: "save-a", name: "Save A" };
@@ -696,9 +736,9 @@ describe("two saves through a sequence of edits, drafts, program changes and ref
   const NAMES: Name[] = ["trust", "Stay.", "Leave."];
 
   const script = (pad: number, saved: boolean) => [
-    ...Array.from({ length: pad }, () => ""),
     "store trust = 0",
     "scene start",
+    ...Array.from({ length: pad }, (_, i) => `  Said ${i}.`),
     "  choose",
     "    * [Stay.]",
     "      Stayed.",

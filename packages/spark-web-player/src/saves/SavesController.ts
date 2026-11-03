@@ -381,9 +381,13 @@ export class SavesController {
 
   protected async listValuesNow(id: string): Promise<void> {
     const record = this.record(id);
-    const keep = (this._listed?.listing.items ?? [])
-      .map((item) => item.key)
-      .filter((key) => key.startsWith("form:"));
+    const keep = [
+      ...new Set([
+        ...(this._listed?.listing.items ?? []).map((item) => item.key),
+        ...Object.keys(this._drafts),
+        ...Object.keys(this._unsaved),
+      ]),
+    ].filter((key) => key.startsWith("form:"));
     let listed: SaveListed | undefined;
     try {
       listed = record
@@ -399,7 +403,7 @@ export class SavesController {
       listed = undefined;
     }
     if (this._valuesId === id) {
-      this._listed = listed;
+      this._listed = listed ?? this._listed;
       this._host.changed();
     }
   }
