@@ -71,9 +71,9 @@ function lineOf(text: string, offset: number): number {
   return line;
 }
 
-function headerInsertion(block: SyntaxNode, body: SyntaxNode, text: string): number {
-  const lineEnd = text.lastIndexOf("\n", body.from - 1);
-  let limit = lineEnd >= block.from ? lineEnd : body.from;
+function headerInsertion(block: SyntaxNode, bodyFrom: number, text: string): number {
+  const lineEnd = text.lastIndexOf("\n", bodyFrom - 1);
+  let limit = lineEnd >= block.from ? lineEnd : bodyFrom;
   const content = findChildByName(block, `${block.name}_content`);
   for (let child = content?.firstChild; child; child = child.nextSibling) {
     if (child.from >= limit) break;
@@ -91,8 +91,8 @@ function planMigration(
   block: SyntaxNode,
   text: string,
 ): Migration | StructBraceSkip | null {
+  if (keywordBraceBody(block)) return null;
   const body = keywordWithBody(block);
-  if (!body) return null;
   const keyword = keywordOf(block, text);
   const line = lineOf(text, block.from);
   const end = findChildByName(block, `${block.name}_end`);
@@ -100,12 +100,12 @@ function planMigration(
   if (!endKeyword) {
     return { line, keyword, reason: "the block has no closing end" };
   }
-  const begin = findChildByName(body, `${body.name}_begin`);
+  const begin = body ? findChildByName(body, `${body.name}_begin`) : null;
   const withKeyword = begin ? find(begin, "LuauWithKeyword") : null;
   const open: Edit = withKeyword
     ? { from: withKeyword.from, to: withKeyword.to, insert: "{" }
     : (() => {
-        const at = headerInsertion(block, body, text);
+        const at = headerInsertion(block, body?.from ?? endKeyword.from, text);
         return { from: at, to: at, insert: " {" };
       })();
   const empty = /^[^\S\n]*$/.test(text.slice(open.to, endKeyword.from));
@@ -197,12 +197,40 @@ export interface StructBraceOptions {
   keepIndent?: boolean;
 }
 
+function splitLines(source: string): { lines: string[]; separators: string[] } {
+  const parts = source.split(/(\r\n|\n)/);
+  const lines: string[] = [];
+  const separators: string[] = [];
+  for (let i = 0; i < parts.length; i += 2) {
+    lines.push(parts[i]!);
+    separators.push(parts[i + 1] ?? "");
+  }
+  return { lines, separators };
+}
+
+function joinLines(lines: string[], separators: string[]): string {
+  if (lines.length !== separators.length) {
+    throw new Error("the rewrite changed the number of lines");
+  }
+  return lines.map((line, i) => line + separators[i]).join("");
+}
+
 export function migrateStructBraces(
   source: string,
-  { keepIndent = false }: StructBraceOptions = {},
+  options: StructBraceOptions = {},
 ): StructBraceResult {
-  const crlf = /\r\n/.test(source) && !/(^|[^\r])\n/.test(source);
-  const text = crlf ? source.replace(/\r\n/g, "\n") : source;
+  const { lines, separators } = splitLines(source);
+  const result = migrateLfText(lines.join("\n"), options);
+  if (result.migrated === 0) {
+    return { ...result, text: source };
+  }
+  return { ...result, text: joinLines(result.text.split("\n"), separators) };
+}
+
+function migrateLfText(
+  text: string,
+  { keepIndent = false }: StructBraceOptions,
+): StructBraceResult {
   const skipped: StructBraceSkip[] = [];
   const migrations: Migration[] = [];
   for (const block of structBlocks(parser.parse(text))) {
@@ -218,7 +246,7 @@ export function migrateStructBraces(
         ? rewrite.text
         : reindent(rewrite.text, rewrite.spans);
       return {
-        text: crlf ? result.replace(/\n/g, "\r\n") : result,
+        text: result,
         migrated: pending.length,
         skipped: skipped.sort((a, b) => a.line - b.line),
       };
@@ -231,7 +259,7 @@ export function migrateStructBraces(
     });
     pending = pending.filter((m) => m !== first);
   }
-  return { text: source, migrated: 0, skipped: skipped.sort((a, b) => a.line - b.line) };
+  return { text, migrated: 0, skipped: skipped.sort((a, b) => a.line - b.line) };
 }
 
 function attempt(
@@ -271,8 +299,7 @@ export function migrateMarkdownStructBraces(
   source: string,
   options: StructBraceOptions = {},
 ): StructBraceResult {
-  const crlf = /\r\n/.test(source);
-  const lines = (crlf ? source.replace(/\r\n/g, "\n") : source).split("\n");
+  const { lines, separators } = splitLines(source);
   const skipped: StructBraceSkip[] = [];
   let migrated = 0;
   for (let i = 0; i < lines.length; i += 1) {
@@ -291,20 +318,25 @@ export function migrateMarkdownStructBraces(
       continue;
     }
     const body = lines.slice(i + 1, close);
-    const strip = (line: string) => (line.startsWith(indent!) ? line.slice(indent!.length) : line.trimStart());
-    const code = body.map(strip).join("\n") + "\n";
-    const result = migrateStructBraces(code, options);
+    const prefixes = body.map((line) =>
+      line.startsWith(indent!) ? indent! : /^[ \t]*/.exec(line)![0],
+    );
+    const code = body.map((line, k) => line.slice(prefixes[k]!.length)).join("\n");
+    const result = migrateLfText(code, options);
     for (const skip of result.skipped) {
       skipped.push({ ...skip, line: skip.line + i + 1 });
     }
     if (result.migrated > 0) {
       migrated += result.migrated;
-      const rewritten = result.text.slice(0, -1).split("\n").map((line) => (line ? indent + line : line));
-      lines.splice(i + 1, body.length, ...rewritten);
-      close = i + 1 + rewritten.length;
+      const rewritten = result.text.split("\n");
+      if (rewritten.length !== body.length) {
+        throw new Error("the rewrite changed the number of lines");
+      }
+      rewritten.forEach((line, k) => {
+        lines[i + 1 + k] = prefixes[k] + line;
+      });
     }
     i = close;
   }
-  const text = lines.join("\n");
-  return { text: crlf ? text.replace(/\n/g, "\r\n") : text, migrated, skipped };
+  return { text: joinLines(lines, separators), migrated, skipped };
 }

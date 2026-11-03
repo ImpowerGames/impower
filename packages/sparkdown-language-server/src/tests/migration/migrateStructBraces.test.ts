@@ -3,7 +3,7 @@ import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
-import { migrateStructBraces } from "../../../../../scripts/migrate-struct-braces/migrateStructBraces";
+import { migrateMarkdownStructBraces, migrateStructBraces } from "../../../../../scripts/migrate-struct-braces/migrateStructBraces";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 
 const ROOT = resolve(__dirname, "../../../../..");
@@ -130,7 +130,47 @@ describe("migrateStructBraces", () => {
     expect(result.text).toBe(input.replace("style after with\n  corner = 8px\nend", "style after {\n  corner = 8px\n}"));
   });
 
-  test("CRLF line endings are kept", () => {
+  test("a block whose body a stray `}` would close early is left unchanged", () => {
+    const input = "style broken with\n  }\nend\n";
+    expect(migrateStructBraces(input)).toEqual({
+      text: input,
+      migrated: 0,
+      skipped: [{ line: 1, keyword: "style", reason: "its body would not close at its own end in the brace form" }],
+    });
+  });
+
+  test("an empty block written without `with` is migrated", () => {
+    expect(migrateStructBraces("screen menu\nend\n").text).toBe("screen menu {\n}\n");
+    expect(migrateStructBraces("screen menu -- note\nend\n").text).toBe("screen menu { -- note\n}\n");
+    expect(migrateStructBraces("screen menu end\n").text).toBe("screen menu {}\n");
+  });
+
+  test("a header with no closing end is reported", () => {
+    expect(migrateStructBraces("screen menu\n")).toEqual({
+      text: "screen menu\n",
+      migrated: 0,
+      skipped: [{ line: 1, keyword: "screen", reason: "the block has no closing end" }],
+    });
+  });
+
+  test("each line keeps its own line ending", () => {
     expect(migrateStructBraces("style s with\r\n  corner = 8px\r\nend\r\n").text).toBe("style s {\r\n  corner = 8px\r\n}\r\n");
+    expect(migrateStructBraces("style s with\r\n  corner = 8px\nend\r\n").text).toBe("style s {\r\n  corner = 8px\n}\r\n");
+  });
+});
+
+describe("migrateMarkdownStructBraces", () => {
+  test("a document with nothing to migrate is returned byte for byte", () => {
+    const input = "# Title\r\n\nPlain prose.\n";
+    expect(migrateMarkdownStructBraces(input)).toEqual({ text: input, migrated: 0, skipped: [] });
+  });
+
+  test("an indented fence keeps every line's indentation and line ending", () => {
+    expect(
+      migrateMarkdownStructBraces("- item\n\n  ~~~sd\n  style a with\n  \n    corner = 1px\n  end\n  ~~~\n", { keepIndent: true }).text,
+    ).toBe("- item\n\n  ~~~sd\n  style a {\n  \n    corner = 1px\n  }\n  ~~~\n");
+    expect(migrateMarkdownStructBraces("Intro\r\n\r\n```sparkdown\r\nstyle a with\r\n  corner = 1px\r\nend\r\n```\r\n").text).toBe(
+      "Intro\r\n\r\n```sparkdown\r\nstyle a {\r\n  corner = 1px\r\n}\r\n```\r\n",
+    );
   });
 });
