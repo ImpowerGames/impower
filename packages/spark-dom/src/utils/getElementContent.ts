@@ -5,8 +5,8 @@ import { getStyleContent } from "./getStyleContent";
 
 export const getElementContent = (
   content: ElementContent,
-  options?: {
-    breakpoints?: Record<string, number>;
+  options: {
+    breakpoints: Record<string, number>;
     scope?: string;
   },
 ): string => {

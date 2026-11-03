@@ -4,6 +4,10 @@
   "description": "Renders Sparkle screens using a virtual DOM.",
   "version": "0.0.1",
   "scripts": {
+    "test": "vitest run",
     "typecheck": "node ../../scripts/typecheck.mjs packages/sparkle-screen-renderer/"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.9"
   }
 }

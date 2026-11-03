@@ -1,11 +1,11 @@
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { type SparkleNode } from "../parser/parser";
 import { builtins } from "./builtins";
-import { DEFAULT_BREAKPOINTS, sparkleSelectorToCssSelector } from "./css";
+import { sparkleSelectorToCssSelector } from "./css";
 import { VElement, VNode } from "./vnode";
 
 export interface RendererOptions {
-  breakpoints?: Record<string, number>;
+  breakpoints: Record<string, number>;
   attrAliases?: Record<string, string>;
   cssAliases?: Record<string, string>;
   interpolate?: (template: string, context: Record<string, any>) => string;
@@ -22,7 +22,7 @@ export interface RenderContext {
   components: Record<string, SparkleNode>;
   state: Record<string, any>;
   scope?: Record<string, any>;
-  options?: RendererOptions;
+  options: RendererOptions;
 }
 
 export function renderCssVDOM(
@@ -63,10 +63,10 @@ export function renderVNode(
 ): VNode {
   const { type, args, children } = el;
   const components = ctx.components;
-  const breakpoints = ctx.options?.breakpoints ?? DEFAULT_BREAKPOINTS;
-  const cssAliases = ctx.options?.cssAliases;
-  const evaluate = ctx.options?.evaluate ?? defaultEvaluate;
-  const interpolate = ctx.options?.interpolate ?? defaultInterpolate;
+  const breakpoints = ctx.options.breakpoints;
+  const cssAliases = ctx.options.cssAliases;
+  const evaluate = ctx.options.evaluate ?? defaultEvaluate;
+  const interpolate = ctx.options.interpolate ?? defaultInterpolate;
 
   switch (type) {
     case "if": {
@@ -403,7 +403,7 @@ function renderBuiltinVNode(
   const { type, args = {}, children } = el;
 
   const components = ctx.components;
-  const interpolate = ctx.options?.interpolate ?? defaultInterpolate;
+  const interpolate = ctx.options.interpolate ?? defaultInterpolate;
 
   if (!builtin) {
     console.error("Un-recognised builtin:", type);
@@ -521,7 +521,7 @@ function injectSlots(
   owner: SparkleNode,
 ): VNode {
   const evalCtx = getContext(ctx);
-  const interpolate = ctx.options?.interpolate ?? defaultInterpolate;
+  const interpolate = ctx.options.interpolate ?? defaultInterpolate;
 
   return {
     ...vnode,

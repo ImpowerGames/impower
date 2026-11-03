@@ -8,7 +8,7 @@ export interface UpdateElementParams {
   content?: ElementContent;
   style?: Record<string, string | number | null> | null;
   attributes?: Record<string, string | null> | null;
-  breakpoints?: Record<string, number>;
+  breakpoints: Record<string, number>;
 }
 
 export class UpdateElementMessage {

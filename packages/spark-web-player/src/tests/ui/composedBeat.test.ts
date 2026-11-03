@@ -10,6 +10,7 @@ import { MoveElementMessage } from "@impower/spark-engine/src/game/modules/ui/cl
 import { UpdateElementMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/UpdateElementMessage";
 import { WriteImageMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { WriteTextMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
+import { uiBuiltinDefinitions } from "@impower/spark-engine/src/game/modules/ui/uiBuiltinDefinitions";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import AssetManager from "../../app/managers/AssetManager";
 import {
@@ -25,6 +26,8 @@ scene start
   HERO: Do you understand?
 end
 `;
+
+const breakpoints = uiBuiltinDefinitions().config.ui.breakpoints;
 
 const LINE = SOURCE.split("\n").findIndex((l) => l.includes("Do you understand?"));
 
@@ -669,19 +672,19 @@ type Ids = { dialogue: string; leaf: string; tag: string };
 const MUTATIONS: [string, { setup?: (ids: Ids) => any[]; mutate: (ids: Ids) => any[] }][] = [
   [
     "a node created in it",
-    { mutate: ({ dialogue }) => [CreateElementMessage.type.request({ parent: dialogue, element: `${dialogue}-extra`, type: "span", name: "extra" })] },
+    { mutate: ({ dialogue }) => [CreateElementMessage.type.request({ parent: dialogue, element: `${dialogue}-extra`, type: "span", name: "extra", breakpoints })] },
   ],
   [
     "a node destroyed in it",
     {
-      setup: ({ dialogue }) => [CreateElementMessage.type.request({ parent: dialogue, element: `${dialogue}-extra`, type: "span", name: "extra" })],
+      setup: ({ dialogue }) => [CreateElementMessage.type.request({ parent: dialogue, element: `${dialogue}-extra`, type: "span", name: "extra", breakpoints })],
       mutate: ({ dialogue }) => [DestroyElementMessage.type.request({ element: `${dialogue}-extra` })],
     },
   ],
   [
     "a node moved in it",
     {
-      setup: ({ dialogue }) => [CreateElementMessage.type.request({ parent: dialogue, element: `${dialogue}-extra`, type: "span", name: "extra" })],
+      setup: ({ dialogue }) => [CreateElementMessage.type.request({ parent: dialogue, element: `${dialogue}-extra`, type: "span", name: "extra", breakpoints })],
       mutate: ({ leaf }) => [MoveElementMessage.type.request({ element: leaf, before: null } as any)],
     },
   ],
@@ -701,7 +704,7 @@ const MUTATIONS: [string, { setup?: (ids: Ids) => any[]; mutate: (ids: Ids) => a
     "a leaf replaced in it",
     {
       mutate: ({ dialogue, leaf, tag }) => [
-        CreateElementMessage.type.request({ parent: dialogue, element: leaf, type: tag === "div" ? "span" : "div", name: "text" }),
+        CreateElementMessage.type.request({ parent: dialogue, element: leaf, type: tag === "div" ? "span" : "div", name: "text", breakpoints }),
       ],
     },
   ],
@@ -746,8 +749,8 @@ describe("a composed beat's dedupe after a structural change, round 3 of PR #186
     const { h } = await showing();
     apply(
       h,
-      CreateElementMessage.type.request({ parent: null, element: "probe-portrait", type: "div", name: "probe_portrait" }),
-      CreateElementMessage.type.request({ parent: "probe-portrait", element: "probe-portrait-image", type: "span", name: "image" }),
+      CreateElementMessage.type.request({ parent: null, element: "probe-portrait", type: "div", name: "probe_portrait", breakpoints }),
+      CreateElementMessage.type.request({ parent: "probe-portrait", element: "probe-portrait-image", type: "span", name: "image", breakpoints }),
     );
     const show = () =>
       beat({
@@ -769,7 +772,7 @@ describe("a composed beat's dedupe after a structural change, round 3 of PR #186
     await flushMicrotasks(10);
     expect(h.overlay.querySelector(".probe_portrait > .image")?.children.length).toBe(1);
 
-    apply(h, CreateElementMessage.type.request({ parent: "probe-portrait", element: "probe-portrait-mask", type: "span", name: "mask" }));
+    apply(h, CreateElementMessage.type.request({ parent: "probe-portrait", element: "probe-portrait-mask", type: "span", name: "mask", breakpoints }));
     h.ui.onReceiveNotification(show());
     await flushMicrotasks(10);
 
@@ -789,7 +792,7 @@ const outcome = (answered: Promise<unknown>) =>
 describe("the retirement path on the page, round 3 of PR #1865", () => {
   test("a layout going once it has retired leaves a beat waiting for its commit waiting", async () => {
     const { h, dialogue } = await showing();
-    apply(h, CreateElementMessage.type.request({ parent: null, element: "probe-retiring", type: "div", name: "probe_retiring" }));
+    apply(h, CreateElementMessage.type.request({ parent: null, element: "probe-retiring", type: "div", name: "probe_retiring", breakpoints }));
     const time = controlTime(h);
     try {
       h.ui.onReceiveNotification(
@@ -939,8 +942,8 @@ describe("one decision per beat, round 4 of PR #1865", () => {
     const { h } = await showing();
     apply(
       h,
-      CreateElementMessage.type.request({ parent: null, element: "probe-portrait", type: "div", name: "probe_portrait" }),
-      CreateElementMessage.type.request({ parent: "probe-portrait", element: "probe-portrait-image", type: "span", name: "image" }),
+      CreateElementMessage.type.request({ parent: null, element: "probe-portrait", type: "div", name: "probe_portrait", breakpoints }),
+      CreateElementMessage.type.request({ parent: "probe-portrait", element: "probe-portrait-image", type: "span", name: "image", breakpoints }),
     );
     const picture = () =>
       WriteImageMessage.type.request({
@@ -957,7 +960,7 @@ describe("one decision per beat, round 4 of PR #1865", () => {
     await flushMicrotasks(10);
     expect(h.overlay.querySelector(".probe_portrait > .image")?.children.length).toBe(1);
 
-    apply(h, CreateElementMessage.type.request({ parent: "probe-portrait", element: "probe-portrait-mask", type: "span", name: "mask" }));
+    apply(h, CreateElementMessage.type.request({ parent: "probe-portrait", element: "probe-portrait-mask", type: "span", name: "mask", breakpoints }));
     h.ui.onReceiveNotification(beat({ image: [picture()] }));
     await flushMicrotasks(10);
 
@@ -979,8 +982,8 @@ describe("round 5 of PR #1865", () => {
       beat({
         text: [
           [
-            CreateElementMessage.type.request({ parent: null, element: "probe-made", type: "div", name: "probe_made" }),
-            CreateElementMessage.type.request({ parent: "probe-made", element: "probe-made-text", type: "span", name: "text" }),
+            CreateElementMessage.type.request({ parent: null, element: "probe-made", type: "div", name: "probe_made", breakpoints }),
+            CreateElementMessage.type.request({ parent: "probe-made", element: "probe-made-text", type: "span", name: "text", breakpoints }),
           ],
           [text([{ text: "A" }]), text([{ text: "A" }])],
         ],

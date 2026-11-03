@@ -1,3 +1,4 @@
+import { uiBuiltinDefinitions } from "../../../spark-engine/src/game/modules/ui/uiBuiltinDefinitions";
 import {
   createElement,
   diffAndPatch,
@@ -36,12 +37,14 @@ export default class SparkdownScreenPreview extends Component(spec) {
         const input = text;
         const parsed = parseSparkle(input);
         const components = getComponents(parsed);
+        const breakpoints = uiBuiltinDefinitions().config.ui.breakpoints;
         const stateInputEl = this.refs.state as HTMLInputElement;
         const update = throttle(() => {
           const state = JSON.parse(stateInputEl.value || "{}");
           const ctx: RenderContext = {
             components,
             state,
+            options: { breakpoints },
           };
           const renderStyles = () => {
             const container = this.refs.css;

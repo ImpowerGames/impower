@@ -1041,6 +1041,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             UpdateElementMessage.type.request({
               element: element.id,
               attributes: { [DISPLAY_TARGET_ATTRIBUTE]: mark },
+              breakpoints: this.context.config!.ui.breakpoints,
             }),
           );
         }
@@ -1286,7 +1287,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const content = state?.content;
     const style = state?.style;
     const attributes = state?.attributes;
-    const breakpoints = this.context.config?.ui?.breakpoints;
+    const breakpoints = this.context.config!.ui.breakpoints;
     const el = new Element(parent, id, type, name, before);
     this._screenEdits += 1;
     if (this.carriesDisplayTarget(el)) {
@@ -1416,7 +1417,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const content = state?.content;
     const style = state?.style;
     const attributes = state?.attributes;
-    const breakpoints = this.context.config?.ui?.breakpoints;
+    const breakpoints = this.context.config!.ui.breakpoints;
     if (this._refreshing) {
       this._screenEdits += 1;
     }
