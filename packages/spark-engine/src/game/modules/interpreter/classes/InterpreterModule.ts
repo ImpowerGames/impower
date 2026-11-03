@@ -27,6 +27,7 @@ export interface InterpreterConfig {}
 export interface InterpreterState {
   buffer?: Instructions[];
   box?: ShownBox;
+  routing?: { target: string; character?: string; group?: string };
 }
 
 export interface Cue {
@@ -129,8 +130,6 @@ export class InterpreterModule extends Module<
 
   protected _matcherCache = new Map<string, Matcher>();
 
-  protected _routing?: { target: string; character?: string; group?: string };
-
   protected getMatcher(pattern: string | undefined): Matcher | undefined {
     if (!pattern) {
       return undefined;
@@ -157,7 +156,7 @@ export class InterpreterModule extends Module<
 
   override onProgramUpdate() {
     this.setup();
-    delete this._routing;
+    delete this._state.routing;
     delete this._state.box;
   }
 
@@ -565,7 +564,7 @@ export class InterpreterModule extends Module<
       tables.find((table) => read(table, "inherit") === true),
     );
     const group = tables.map(groupOf).filter((value) => value != null).at(-1);
-    const remembered = this._routing;
+    const remembered = this._state.routing;
     const inherits =
       inheritGroup != null && remembered?.group === inheritGroup;
     let routing: { target: string; character?: string } = { target: "" };
@@ -580,7 +579,7 @@ export class InterpreterModule extends Module<
       }
     }
     if (tables.length > 0) {
-      this._routing = group == null ? routing : { ...routing, group };
+      this._state.routing = group == null ? routing : { ...routing, group };
     }
     const extending = tables.findLast((table) => read(table, "extend") === true);
     const extendText = read(extending, "text");
@@ -627,7 +626,7 @@ export class InterpreterModule extends Module<
 
   clearQueuedBeats(): void {
     this._state.buffer = [];
-    delete this._routing;
+    delete this._state.routing;
     delete this._state.box;
   }
 
