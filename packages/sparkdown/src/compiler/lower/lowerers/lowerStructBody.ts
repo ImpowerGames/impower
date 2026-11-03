@@ -50,7 +50,6 @@ const ATTRIBUTE_NAMES: ReadonlySet<string> = nodeNameSet([
   "LuauSparkleEventAttribute",
   "LuauSparklePropAttribute",
   "LuauSparkleEventClosureAttribute",
-  "LuauSparklePropClosureAttribute",
 ]);
 
 function attributeRanges(node: SyntaxNode): TextEdit[] {
@@ -155,10 +154,7 @@ interface ElementSegment {
   value: SyntaxNode | null;
 }
 
-const CLOSURE_ATTRIBUTES = nodeNameSet([
-  "LuauSparkleEventClosureAttribute",
-  "LuauSparklePropClosureAttribute",
-]);
+const CLOSURE_ATTRIBUTE = "LuauSparkleEventClosureAttribute";
 
 function joinSegments(
   segments: ElementSegment[],
@@ -184,7 +180,7 @@ function joinSegments(
 
 function elementSegments(entry: StructEntry): ElementSegment[] {
   const part = (node: SyntaxNode): ElementSegment =>
-    CLOSURE_ATTRIBUTES.has(node.name)
+    node.name === CLOSURE_ATTRIBUTE
       ?
         { node, to: sparkleClosureAttributeEnd(node), edits: [], value: null }
       : {
@@ -218,7 +214,7 @@ function evaluateElement(
     oneSpace(
       joinSegments(
         segments
-          .filter((s) => !CLOSURE_ATTRIBUTES.has(s.node.name))
+          .filter((s) => s.node.name !== CLOSURE_ATTRIBUTE)
           .map((s) => value && s.value ? {
             ...s,
             edits: [...s.edits, ...nodesOutsideAttributes(s.node, FIELD_VALUE_NAMES)],
@@ -241,7 +237,7 @@ function evaluateElement(
   let valueNode: SyntaxNode | null = null;
   for (const segment of segments) {
     if (valueNode) break;
-    if (segment.value && !CLOSURE_ATTRIBUTES.has(segment.node.name)) {
+    if (segment.value && segment.node.name !== CLOSURE_ATTRIBUTE) {
       valueNode = firstDescendant(segment.value, FIELD_VALUE_NAMES);
     }
   }

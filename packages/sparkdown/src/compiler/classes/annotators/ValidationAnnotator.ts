@@ -1467,6 +1467,27 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
+    if (nodeRef.name === "LuauSparklePropClosure") {
+      const close = nodeRef.node.getChild("LuauSparklePropClosure_end");
+      if (!close || close.from === close.to) {
+        this.error(
+          annotations,
+          "This prop's value is missing its closing `}`. Without it, the value runs to the next line that starts with `end`, `else`, `elseif` or `case`, the next `scene` or `branch`, or the end of the file.",
+          nodeRef.from,
+          nodeRef.from + 1,
+        );
+        return annotations;
+      }
+      if (/^\{\s*\}$/.test(this.read(nodeRef.from, nodeRef.to))) {
+        this.error(
+          annotations,
+          "This prop's braces hold no expression; write its value between `{` and `}`.",
+          nodeRef.from,
+          nodeRef.to,
+        );
+        return annotations;
+      }
+    }
     if (
       isExplicitRuleName(nodeRef.name, "LuauInterpolatedStringExpression") ||
       nodeRef.name === "LuauDoubleQuotedStringInterpolation" ||

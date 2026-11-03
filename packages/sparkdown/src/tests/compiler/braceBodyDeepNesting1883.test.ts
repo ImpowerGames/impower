@@ -24,17 +24,18 @@ function topLevelNames(source: string): string[] {
 
 function compile(source: string): {
   program: SparkProgram;
-  errors: { line: number; message: string }[];
+  errors: { line: number; character: number; message: string }[];
 } {
   const { program } = programCompiler({
     [MAIN_URI]: `${source}\nscene start\n  Hi.\nend\n`,
   }).compile();
-  const errors: { line: number; message: string }[] = [];
+  const errors: { line: number; character: number; message: string }[] = [];
   for (const diagnostics of Object.values(program.diagnostics ?? {})) {
     for (const d of diagnostics as any[]) {
       if (d.severity !== 1) continue;
       errors.push({
         line: d.range?.start?.line,
+        character: d.range?.start?.character,
         message: typeof d.message === "string" ? d.message : d.message?.value,
       });
     }
@@ -147,12 +148,59 @@ describe("a struct brace body closes at its own } however deep an inner value ne
     expect(row.children[1].content).toEqual([{ kind: "literal", text: "after" }]);
   });
 
-  test("a prop whose braces never close is reported", () => {
+  test("a prop whose braces never close is reported on its `{`", () => {
     const { errors } = compile(
-      ["layout first {", "  row {", "    text #items={ {a = 1}", "  }", "}"].join(
-        "\n",
-      ),
+      ["layout first {", "  row {", "    text #items={ {a = 1}"].join("\n"),
     );
-    expect(errors).not.toEqual([]);
+    expect(errors).toContainEqual({
+      line: 2,
+      character: 16,
+      message:
+        "This prop's value is missing its closing `}`. Without it, the value runs to the next line that starts with `end`, `else`, `elseif` or `case`, the next `scene` or `branch`, or the end of the file.",
+    });
+  });
+
+  test("an unfinished expression inside a prop's braces that span lines is reported once, where Luau stops", () => {
+    const { errors } = compile(
+      ["layout first {", "  text #items={", "    1 +", "  }", "}"].join("\n"),
+    );
+    expect(errors).toEqual([
+      {
+        line: 3,
+        character: 2,
+        message: "Expected identifier when parsing expression, got '}'",
+      },
+    ]);
+  });
+
+  test("an unfinished expression inside a prop nested past eight braces is reported once", () => {
+    const { errors } = compile(
+      [
+        "layout first {",
+        "  text #items={ {a={b={c={d={e={f={g={h={i=1 +}}}}}}}}} }",
+        "}",
+      ].join("\n"),
+    );
+    expect(errors).toEqual([
+      {
+        line: 1,
+        character: 46,
+        message: "Expected identifier when parsing expression, got '}'",
+      },
+    ]);
+  });
+
+  test("a prop's braces that hold nothing across lines are reported", () => {
+    const { errors } = compile(
+      ["layout first {", "  text #items={", "  }", "}"].join("\n"),
+    );
+    expect(errors).toEqual([
+      {
+        line: 1,
+        character: 14,
+        message:
+          "This prop's braces hold no expression; write its value between `{` and `}`.",
+      },
+    ]);
   });
 });

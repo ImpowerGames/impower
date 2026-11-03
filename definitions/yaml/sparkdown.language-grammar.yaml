@@ -703,10 +703,25 @@ variables:
   SPARKLE_EVENT_VALUE: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_EVENT_UNQUOTED_VALUE}})
   SPARKLE_OPEN_ATTR: (?:(?:{{SPARKLE_PROP_NAME}}|{{SPARKLE_EVENT_NAME}}){{WS}}*[=]{{WS}}*{{SPARKLE_OPEN_BRACED}})
   # lookaround: LuauSparkleEventClosureAttribute and LuauSparklePropClosureAttribute own a value whose braces the scan cannot close on its line; LuauSparkleElementParts must leave it to them.
+  # Reordering cannot do it: the head is one match that starts at the
+  # whitespace before the attribute, ahead of the closure rule's start, so it
+  # wins whatever the patterns order. It is a capture with no end for a parent
+  # to carry, and a positive closed-on-the-line variable would repeat the
+  # eight-level brace chain without its line-end and ninth-level arms.
   SPARKLE_NOT_OPEN_BRACED: (?!{{SPARKLE_OPEN_BRACED}})
   # lookaround: LuauSparkleElementParts owns an attribute whose braces close on its line; a closure attribute opens only where it declines.
+  # The closure rules come first in the element's and the continuation's
+  # patterns, so where both start at the same `@` or `#` (right after the
+  # element's name, or at a continuation line's start) the closure rule would
+  # otherwise take a closed value too. The begin cannot consume the brace,
+  # which LuauSparkleHandlerClosure and LuauSparklePropClosure open.
   SPARKLE_OPEN_BRACED_AHEAD: (?={{SPARKLE_OPEN_BRACED}})
   # lookaround: LuauSparkleElementParts reads the parts after a closure's brace; a closure attribute ends only where an element's head would, before the next closure attribute, or at SPARKLE_BLOCK_BAIL.
+  # The parent element cannot read those parts: its end, `(?<=[}])`, closes
+  # it after any `}`, and only this scope knows the brace was a closure's
+  # rather than a block's. So the attribute holds the parts and ends at the
+  # head's terminators after a non-blank, or before the next open attribute,
+  # which the element then reads with its own closure rule.
   SPARKLE_CLOSURE_ATTR_END: (?:(?<![=\s])(?={{WS}}*(?:[;{},]|$|[=]{{WS}}*[{]))|(?={{SPARKLE_OPEN_ATTR}})|(?={{SPARKLE_BLOCK_BAIL}}))
   SPARKLE_ATTR: (?:{{SPARKLE_PROP_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_NOT_OPEN_BRACED}}{{SPARKLE_ATTR_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=]))|{{SPARKLE_EVENT_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_NOT_OPEN_BRACED}}{{SPARKLE_EVENT_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=])))
   SPARKLE_COMMENT: (?:{{SPARKLE_LUAU_COMMENT}}|[/][/](?={{WS}}|$)[^\n]*$)

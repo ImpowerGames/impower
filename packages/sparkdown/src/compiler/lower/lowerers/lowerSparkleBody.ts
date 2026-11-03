@@ -15,6 +15,7 @@ import {
 import {
   inFunctionScopes,
   reportBodySyntaxErrors,
+  type ReadingErrorScope,
 } from "../expression/lowerFunction";
 import { closureBodyAst, closureSyntaxErrors, documentText } from "../utils/luauAst";
 import { closureReadingErrors } from "../../typecheck/closureReading";
@@ -184,6 +185,7 @@ function lowerBinding(
   interpNode: SyntaxNode,
   ctx: LowerContext,
   extraParams: string[] = [],
+  scope: ReadingErrorScope = "string",
 ): Binding {
   const exprId = bindingId(interpNode.from, ctx);
   const source = ctx.read(interpNode.from, interpNode.to);
@@ -197,7 +199,7 @@ function lowerBinding(
     const fn = new Function(
       new Identifier(exprId),
       lowerEvaluatorStatement(ctx, body, interpNode, interpNode, () => [
-        new ReturnType(lowerExpressionFromContainer(interpNode, ctx) ?? null),
+        new ReturnType(lowerExpressionFromContainer(interpNode, ctx, scope) ?? null),
       ]),
       loopVars.map((n) => new Argument(new Identifier(n), false, false)),
     );
@@ -445,6 +447,16 @@ const PROP_LITERAL = nodeNameSet([
   "InlinePropNumericValue", "InlinePropBooleanValue", "InlinePropWordValue",
 ]);
 
+const PROP_CLOSURE_TRIVIA = nodeNameSet(["Newline", "ExtraWhitespace"]);
+
+function hasPropExpression(closure: SyntaxNode): boolean {
+  const content = closure.getChild("LuauSparklePropClosure_content");
+  for (let c = content?.firstChild; c; c = c.nextSibling) {
+    if (!PROP_CLOSURE_TRIVIA.has(c.name)) return true;
+  }
+  return false;
+}
+
 function propAttributes(node: SyntaxNode): SyntaxNode[] {
   if (PROP_ATTR.has(node.name)) return [node];
   const out: SyntaxNode[] = [];
@@ -471,7 +483,18 @@ function readProps(
     if (!name) continue;
     const closure = firstDescendant(attr, PROP_CLOSURE);
     if (closure) {
-      props[name] = { kind: "binding", binding: lowerBinding(closure, ctx) };
+      if (!hasPropExpression(closure)) continue;
+      const spansLines =
+        ctx.lineNumber(closure.from) !== ctx.lineNumber(closure.to);
+      props[name] = {
+        kind: "binding",
+        binding: lowerBinding(
+          closure,
+          ctx,
+          [],
+          spansLines ? "expression" : "string",
+        ),
+      };
       continue;
     }
     const contentStr = firstDescendant(attr, INTERP_CONTENT_NODES);

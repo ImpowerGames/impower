@@ -178,7 +178,6 @@ export function sparklePartWords(content: SyntaxNode): SyntaxNode[] {
         case "LuauSparklePropAttribute":
         case "LuauSparkleEventAttribute":
         case "LuauSparkleEventClosureAttribute":
-        case "LuauSparklePropClosureAttribute":
         case "LuauElementContentStringPlain":
         case "LuauSparkleElementBlock":
           break;
@@ -190,11 +189,11 @@ export function sparklePartWords(content: SyntaxNode): SyntaxNode[] {
   for (let child = content.firstChild; child; child = child.nextSibling) {
     if (child.name === "LuauSparkleElementParts") {
       walk(child);
-    } else if (
-      child.name === "LuauSparkleEventClosureAttribute" ||
-      child.name === "LuauSparklePropClosureAttribute"
-    ) {
-      const inner = findChildByName(child, `${child.name}_content`);
+    } else if (child.name === "LuauSparkleEventClosureAttribute") {
+      const inner = findChildByName(
+        child,
+        "LuauSparkleEventClosureAttribute_content",
+      );
       for (let part = inner?.firstChild; part; part = part.nextSibling) {
         if (part.name === "LuauSparkleElementParts") walk(part);
       }
@@ -290,8 +289,6 @@ const ELEMENT_VALUE_NAMES = nodeNameSet([
   "LuauSparkleEventAttribute",
   "LuauSparkleEventClosureAttribute",
   "LuauSparkleHandlerClosure",
-  "LuauSparklePropClosureAttribute",
-  "LuauSparklePropClosure",
 ]);
 
 export function insideElementValue(tree: Tree, offset: number): boolean {
