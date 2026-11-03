@@ -22,15 +22,23 @@ vi.mock("@impower/impower-ui/components", () => {
   );
 });
 
+const hosts: HTMLElement[] = [];
+
 const mount = () => {
   const host = document.createElement("div");
   document.body.append(host);
+  hosts.push(host);
   return host;
 };
 
 describe("FileItem draft row name", () => {
-  afterEach(() => {
-    document.body.innerHTML = "";
+  afterEach(async () => {
+    for (const host of hosts.splice(0)) {
+      await act(async () => {
+        render(null, host);
+      });
+      host.remove();
+    }
   });
 
   it("renders the name and extension it is given instead of parsing the path", () => {

@@ -81,9 +81,12 @@ const settle = async () => {
   }
 };
 
+const hosts: HTMLElement[] = [];
+
 const mountWithDraft = async (rootDir: string, ext: string) => {
   const host = document.createElement("div");
   document.body.append(host);
+  hosts.push(host);
   await act(async () => {
     render(h(FileList, { rootDir }), host);
   });
@@ -100,9 +103,14 @@ describe("FileList new-file draft row", () => {
     fs.createFiles.mockClear();
   });
 
-  afterEach(() => {
-    render(null, document.body);
-    document.body.innerHTML = "";
+  afterEach(async () => {
+    for (const host of hosts.splice(0)) {
+      await act(async () => {
+        render(null, host);
+      });
+      host.remove();
+    }
+    await settle();
   });
 
   it.each([
