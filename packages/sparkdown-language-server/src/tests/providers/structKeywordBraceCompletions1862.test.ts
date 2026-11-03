@@ -49,33 +49,20 @@ describe("provider · `{` completion on struct keyword headers", () => {
 
   test("a body line does not offer `{`", () => {
     expect(labelsAt("style panel {\n  |\n}\n")).not.toContain("{");
-    expect(labelsAt("style panel with\n  |\nend\n")).not.toContain("{");
   });
 });
 
 describe("provider · completion inside a struct keyword brace body", () => {
-  const CASES: [string, string, string][] = [
-    [
-      "an animation's root property",
-      "animation fade with\n  tim|\nend\n",
-      "animation fade {\n  tim|\n}\n",
-    ],
-    [
-      "an animation's nested timing property",
-      "animation fade with\n  timing { dur| }\nend\n",
-      "animation fade {\n  timing { dur| }\n}\n",
-    ],
-    [
-      "a property on the brace's own line",
-      "animation fade with\n  tim|\nend\n",
-      "animation fade { tim| }\n",
-    ],
-  ];
-  for (const [label, withForm, braceForm] of CASES) {
-    test(`${label} offers what the \`with … end\` body offers`, () => {
-      const expected = labelsAt(withForm);
-      expect(expected.length).toBeGreaterThan(0);
-      expect(labelsAt(braceForm).sort()).toEqual([...expected].sort());
-    });
-  }
+  test("an animation's root property", () => {
+    expect(labelsAt("animation fade {\n  tim|\n}\n")).toContain("timing");
+  });
+
+  test("an animation's nested timing property", () => {
+    expect(labelsAt("animation fade {\n  timing { dur| }\n}\n")).toContain("duration");
+  });
+
+  test("a property on the brace's own line offers what a body line offers", () => {
+    const expected = labelsAt("animation fade {\n  tim|\n}\n");
+    expect(labelsAt("animation fade { tim| }\n").sort()).toEqual([...expected].sort());
+  });
 });

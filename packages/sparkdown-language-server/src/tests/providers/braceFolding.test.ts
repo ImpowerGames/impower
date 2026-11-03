@@ -85,10 +85,9 @@ opacity = 0
   });
 
   test("an unclosed block folds to its last line", () => {
-    const folds = foldsOf(`style card with
+    const folds = foldsOf(`style card {
 > text {
 text-color = white
-end
 `);
     expect(folds).toEqual(expect.arrayContaining([[1, 2]]));
   });

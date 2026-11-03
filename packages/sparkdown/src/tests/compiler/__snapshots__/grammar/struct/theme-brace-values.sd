@@ -1,4 +1,4 @@
-theme dusk with
+theme dusk {
   colors {
     primary = red
     surface = "#101010"
@@ -10,7 +10,6 @@ theme dusk with
     y = true-- }
     w = var(--gap)
   }
-  plain = 1 }
   values {
     2-- } note
     "q"-- { note
@@ -18,5 +17,4 @@ theme dusk with
   group {
     k = 4-- } note
   }
-  gap = --gap }
-end
+}

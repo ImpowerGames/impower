@@ -111,7 +111,7 @@ describe("autocomplete · sparkdown surfaces", () => {
     });
 
     sparkdownBug(BUG.defineFields, "a struct-reference field's value offers the structs of that type", () => {
-      const labels = labelsAt("define fade as animation with\n  target = @1\nend\n", { program });
+      const labels = labelsAt("animation fade {\n  target = @1\n}\n", { program });
       expect(labels).toContain("self");
     });
 

@@ -267,25 +267,6 @@ describe("where a wrapped element ends", () => {
     ]);
   });
 
-  test("a `}` that closes no block ends the element before it", () => {
-    const text = `layout hud with
-  text
-  }
-  .after
-end
-`;
-    const [element] = lowered(text, "layout", "hud").tree.children;
-    expect(element.classes).toEqual([]);
-    expect(
-      errorsOf(text)
-        .map((e) => [e.line, e.text, e.message.split(".")[0]])
-        .sort((a, b) => (a[0] as number) - (b[0] as number)),
-    ).toEqual([
-      [2, "}", "Invalid syntax"],
-      [3, ".after", "There is no element for this line to continue"],
-    ]);
-  });
-
   test("a control block, a block, a stray `-` or header, and the declaration's `}` end it", () => {
     const text = `store busy = false
 layout hud {
@@ -518,28 +499,4 @@ layout hud {
     expect(errorsOf(text)).toEqual([]);
   });
 
-  test("a closure with no closing `}` is reported on its `{`, and the next declaration compiles", () => {
-    const text = `${STATE}
-layout hud with
-  button "Stop" @click={
-    score = 0
-  text "taken in"
-end
-
-layout next {
-  text "compiles"
-}
-`;
-    const errors = errorsOf(text);
-    const lines = text.split("\n");
-    const open = lines.findIndex((l) => l.includes("@click={"));
-    expect(errors.map((e) => [e.line, e.character, e.text])).toEqual([
-      [open, lines[open]!.indexOf("{"), "{"],
-    ]);
-    expect(errors[0]!.message).toMatch(/^This handler is missing its closing `\}`\./);
-    expect(errors[0]!.message).not.toMatch(/one line/);
-    expect(lowered(text, "layout", "next").tree.children[0].content).toEqual([
-      { kind: "literal", text: "compiles" },
-    ]);
-  });
 });

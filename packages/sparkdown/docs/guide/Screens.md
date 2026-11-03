@@ -78,10 +78,7 @@ layout settings in menu {
 }
 ```
 
-> A screen's body is reserved for future screen-level config — leave it empty for
-> now (the `{ }` is still required). Layouts join the screen with
-> `in <screen>`, and referencing a screen you never defined is a compile error,
-> which catches typos.
+> A screen's body is reserved for future screen-level config, so leave it empty for now. Layouts join the screen with `in <screen>`, and referencing a screen you never defined is a compile error, which catches typos.
 
 Move to a layout within a screen with **`[[navigate <screen> to <layout>]]`** — this is full-screen routing: it replaces whatever that screen was showing.
 

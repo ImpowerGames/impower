@@ -1554,8 +1554,8 @@ style mask {
 
 style loading {
   -- The engine-managed loading screen, opened and closed by `load`. A normal
-  -- layout an author may replace (`layout loading with … end`) or restyle
-  -- (`style loading with … end`). Progress reaches it through the reactive
+  -- layout an author may replace (`layout loading { … }`) or restyle
+  -- (`style loading { … }`). Progress reaches it through the reactive
   -- `game.loading` table (`{game.loading.percent}`, `{game.loading.progress}`),
   -- which is how the built-in bar below scales itself. Its styles must not name
   -- a project font.
@@ -1600,7 +1600,7 @@ style loading_fill {
 style cutscene {
   -- The full-screen backdrop a `[[play NAME]]` cutscene plays on, above every
   -- layout and the loading screen. An author may restyle it (`style cutscene
-  -- with … end`).
+  -- { … }`).
   position = absolute
   inset = 0
   z_index = 2000
