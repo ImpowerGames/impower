@@ -6,7 +6,9 @@ import { GameClickedToContinueMessage } from "@impower/spark-engine/src/game/cor
 import { GameHitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameHitBreakpointMessage";
 import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
 import { GetGameThreadsMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameThreadsMessage";
+import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
+import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
@@ -127,6 +129,86 @@ describe("PLAY in the worker naming its run", () => {
         expect.objectContaining({ reason: "finished", run }),
       );
       expect(h.controller.getGameState().run).toBeNull();
+    } finally {
+      await h.controller.destroyGameAndApp();
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("answers each request with the run captured when it arrived, though a replacement starts before it answers", async () => {
+    const h = await start();
+    const play = h.controller._workerPlay;
+    try {
+      const run = play.run;
+      expect(typeof run).toBe("number");
+      const replace = () => {
+        h.controller._workerPlay = { ...play, run: run + 100 };
+      };
+      h.controller.askWorkerGame = async (type: any) => {
+        replace();
+        return type.method === GetGameThreadsMessage.method
+          ? { threads: [] }
+          : { done: false };
+      };
+      h.controller.tellWorkerPlay = async () => {
+        replace();
+        return true;
+      };
+      const requests = [
+        () =>
+          h.controller.handleGetGameThreads(
+            GetGameThreadsMessage.type.request({}),
+          ),
+        () =>
+          h.controller.handleStepGame(
+            StepGameMessage.type.request({ traversal: "over" }),
+          ),
+        () =>
+          h.controller.handleContinueGame(ContinueGameMessage.type.request({})),
+        () => h.controller.handlePauseGame(PauseGameMessage.type.request({})),
+      ];
+      for (const request of requests) {
+        h.controller._workerPlay = play;
+        const answer = await request();
+        expect(h.controller._workerPlay.run).toBe(run + 100);
+        expect(answer.result).toEqual(expect.objectContaining({ run }));
+      }
+    } finally {
+      h.controller._workerPlay = play;
+      await h.controller.destroyGameAndApp();
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("answers with no run when no PLAY run exists", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: FIN }],
+      startFrom: { file: MAIN_URI, line: HELLO },
+      manualClock: true,
+    });
+    try {
+      await h.compile();
+      await settle(40);
+      expect(h.controller._workerPlay).toBeUndefined();
+      expect(h.controller.getGameState().run).toBeNull();
+      h.controller.askWorkerGame = async (type: any) =>
+        type.method === GetGameThreadsMessage.method
+          ? { threads: [] }
+          : { done: false };
+      const answers = [
+        await h.controller.handleGetGameThreads(
+          GetGameThreadsMessage.type.request({}),
+        ),
+        await h.controller.handleStepGame(
+          StepGameMessage.type.request({ traversal: "over" }),
+        ),
+        await h.controller.handleContinueGame(
+          ContinueGameMessage.type.request({}),
+        ),
+      ];
+      for (const answer of answers) {
+        expect(answer.result).toEqual(expect.objectContaining({ run: null }));
+      }
     } finally {
       await h.controller.destroyGameAndApp();
       h.dispose();

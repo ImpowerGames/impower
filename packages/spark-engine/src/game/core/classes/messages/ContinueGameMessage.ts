@@ -10,7 +10,7 @@ export interface ContinueGameParams {
 
 export interface ContinueGameResult {
   done: boolean;
-  run?: number;
+  run?: number | null;
 }
 
 export class ContinueGameMessage {

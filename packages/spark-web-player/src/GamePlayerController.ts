@@ -2325,19 +2325,16 @@ export class GamePlayerController {
   }
 
   protected handlePauseGame = async (message: PauseGameMessage.Request) => {
+    const run = this._workerPlay?.run ?? null;
     const app = this.controlledApp;
     if (app && this._workerPlay?.ended) {
-      return PauseGameMessage.type.response(message.id, {
-        run: this._workerPlay.run,
-      });
+      return PauseGameMessage.type.response(message.id, { run });
     }
     app?.pause();
     const told = app && (await this.tellWorkerPlay(PauseGameMessage.type, {}));
     this.updateLaunchStateIcon();
     return told
-      ? PauseGameMessage.type.response(message.id, {
-          run: this._workerPlay?.run,
-        })
+      ? PauseGameMessage.type.response(message.id, { run })
       : PauseGameMessage.type.error(message.id, {
           code: 1,
           message: "no game loaded",
@@ -2380,6 +2377,7 @@ export class GamePlayerController {
 
   protected handleStepGame = async (message: StepGameMessage.Request) => {
     const { traversal } = message.params;
+    const run = this._workerPlay?.run ?? null;
     let answer: { done: boolean } | undefined;
     try {
       answer = await this.askWorkerGame(StepGameMessage.type, { traversal });
@@ -2387,10 +2385,7 @@ export class GamePlayerController {
       return StepGameMessage.type.error(message.id, toResponseError(e));
     }
     if (answer) {
-      return StepGameMessage.type.response(message.id, {
-        ...answer,
-        run: this._workerPlay?.run,
-      });
+      return StepGameMessage.type.response(message.id, { ...answer, run });
     }
     return StepGameMessage.type.error(message.id, {
       code: 1,
@@ -2401,6 +2396,7 @@ export class GamePlayerController {
   protected handleContinueGame = async (
     message: ContinueGameMessage.Request,
   ) => {
+    const run = this._workerPlay?.run ?? null;
     let answer: { done: boolean } | undefined;
     try {
       answer = await this.askWorkerGame(
@@ -2411,10 +2407,7 @@ export class GamePlayerController {
       return ContinueGameMessage.type.error(message.id, toResponseError(e));
     }
     if (answer) {
-      return ContinueGameMessage.type.response(message.id, {
-        ...answer,
-        run: this._workerPlay?.run,
-      });
+      return ContinueGameMessage.type.response(message.id, { ...answer, run });
     }
     return ContinueGameMessage.type.error(message.id, {
       code: 1,
@@ -2438,15 +2431,13 @@ export class GamePlayerController {
   protected handleGetGameThreads = async (
     message: GetGameThreadsMessage.Request,
   ) => {
+    const run = this._workerPlay?.run ?? null;
     const answer = await this.askWorkerGame(
       GetGameThreadsMessage.type,
       message.params,
     );
     if (answer) {
-      return GetGameThreadsMessage.type.response(message.id, {
-        ...answer,
-        run: this._workerPlay?.run,
-      });
+      return GetGameThreadsMessage.type.response(message.id, { ...answer, run });
     }
     return GetGameThreadsMessage.type.error(message.id, {
       code: 1,
@@ -2755,6 +2746,7 @@ export class GamePlayerController {
       if (!current()) {
         return abandon();
       }
+      this.publishGameState();
       void this._saves.playStarted();
       link.detach();
       this.beginRuntimeRun(program, play, built.errors ?? []);

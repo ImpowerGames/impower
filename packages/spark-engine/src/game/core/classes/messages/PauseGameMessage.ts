@@ -7,7 +7,7 @@ export type PauseGameMethod = typeof PauseGameMessage.method;
 export interface PauseGameParams {}
 
 export interface PauseGameResult {
-  run?: number;
+  run?: number | null;
 }
 
 export class PauseGameMessage {
