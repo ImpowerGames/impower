@@ -105,6 +105,39 @@ it("echoes a write's origin into its write notification and omits it for writes 
   expect(notifications.map(message => message.params.origin)).toEqual(["editor", undefined]);
 });
 
+const writeRequest = (data: number[], origin?: string) => ({ files: [{ uri: "file://local/main.sd", version: 1, data: new Uint8Array(data).buffer }], origin });
+const didWrites = (messages: any[]) => messages.filter(message => message.method === "workspace/didWriteFiles").map(message => ({ origin: message.params.origin, bytes: message.params.files.map((f: any) => f.size) }));
+
+it("attributes a write coalesced over an untagged write to the origin whose bytes were committed", async () => {
+  const h = await worker();
+  await h.request("external", "workspace/willWriteFiles", writeRequest([1]), 0);
+  await h.request("autosave", "workspace/willWriteFiles", writeRequest([1, 2], "editor"));
+  expect(h.bytes()).toEqual(new Uint8Array([1, 2]));
+  expect(didWrites(h.messages)).toEqual([{ origin: "editor", bytes: [2] }, { origin: "editor", bytes: [2] }]);
+});
+
+it("does not attribute an untagged write coalesced over the editor's autosave to the editor", async () => {
+  const h = await worker();
+  await h.request("autosave", "workspace/willWriteFiles", writeRequest([1, 2], "editor"), 0);
+  await h.request("external", "workspace/willWriteFiles", writeRequest([3]));
+  expect(h.bytes()).toEqual(new Uint8Array([3]));
+  expect(didWrites(h.messages)).toEqual([{ origin: undefined, bytes: [1] }, { origin: undefined, bytes: [1] }]);
+});
+
+it("attributes a workspace edit coalesced under the editor's autosave to the editor", async () => {
+  const h = await worker();
+  void (globalThis as any).onmessage({ data: { jsonrpc: "2.0", method: "workspace/didChangeConfiguration", params: { settings: { scriptFiles: "*.sd" } } } });
+  await h.send("create", [65]);
+  const before = h.messages.length;
+  await h.request("edit", "workspace/applyWorkspaceEdit", { edit: { documentChanges: [{ textDocument: { uri: "file://local/main.sd", version: null }, edits: [{ range: { start: { line: 0, character: 1 }, end: { line: 0, character: 1 } }, newText: "B" }] }] } }, 0);
+  await h.request("autosave", "workspace/willWriteFiles", writeRequest([65, 66, 67], "editor"));
+  await vi.advanceTimersByTimeAsync(0);
+  expect(h.messages.find(message => message.id === "edit")).toMatchObject({ result: { applied: true } });
+  expect(h.messages.find(message => message.id === "autosave")).toHaveProperty("result");
+  expect(h.bytes()).toEqual(new Uint8Array([65, 66, 67]));
+  expect(didWrites(h.messages.slice(before))).toEqual([{ origin: "editor", bytes: [3] }, { origin: "editor", bytes: [3] }]);
+});
+
 it("keeps a raster import pending until its thumbnail is cached", async () => {
   let finish!: () => void;
   const h = await worker({ thumbnail: new Promise<void>(resolve => { finish = resolve; }) });
