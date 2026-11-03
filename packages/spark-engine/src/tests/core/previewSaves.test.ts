@@ -103,14 +103,10 @@ const expectEngineParameters = (game: any, program: unknown, save: GameSave) => 
       : [];
   });
   const parameters = (flow: string): string[] => parametersOf(root, flow);
-  const engineValue = (i: number, j: number, name: string): string | undefined => {
-    const flows: string[] = flowsAt[i];
-    if (flows.slice(j + 1).some((inner) => parameters(inner).includes(name))) {
-      const scope = elements[i].temporaryScopes[j + 1];
-      return scope?.has(name) ? engineLiteral(scope.get(name)) : undefined;
-    }
-    return engineLiteral(state.callStack.GetTemporaryVariableWithName(name, i + 1));
-  };
+  const engineValue = (i: number, j: number, name: string): string | undefined =>
+    elements[i].temporaryScopes[j + 1]?.has(name)
+      ? engineLiteral(state.callStack.GetTemporaryVariableWithName(name, i + 1, j + 1))
+      : undefined;
   const expected = new Map<string, [string, string, string | undefined]>();
   for (let i = elements.length - 1; i >= 0; i -= 1) {
     (flowsAt[i] as string[]).forEach((flow, j) => {
@@ -601,6 +597,30 @@ describe("saves made while playing", () => {
     expect(
       ["a", "b", "c"].map((scene) => game.saveStartingValuesOf(save, scene)["param:p"]),
     ).toEqual(["1", "2", "3"]);
+  });
+
+  it("loads the scene's parameter, not a block local of the same name", () => {
+    const lines = [
+      "scene start",
+      "  Opening.",
+      "  -> visit(3)",
+      "end",
+      "scene visit(n)",
+      "  At {n}.",
+      "  if true then",
+      "    local n = 7",
+      "    Saved {n}.",
+      "    Next.",
+      "  end",
+      "end",
+    ];
+    const { program, compiler } = compileSrc(lines.join("\n"));
+    const game = playFromLine(program, compiler, 2);
+    advanceTo(game, "Saved 7.");
+    const save: GameSave = game.saveHere();
+    expectEngineParameters(game, program, save);
+    expect(game.saveStartingValuesOf(save, "visit")["param:n"]).toBe("3");
+    expect(game.saveListing(save, "visit").values.values["local:0:n"]).toBe("7");
   });
 
   it("takes no scene parameter from a branch the scene diverts into, as the game reads none there", () => {
