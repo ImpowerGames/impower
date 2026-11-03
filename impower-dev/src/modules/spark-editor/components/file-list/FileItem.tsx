@@ -192,8 +192,8 @@ function FileItem({
         commit();
       }
     };
-    document.addEventListener("click", onDoc, true);
-    return () => document.removeEventListener("click", onDoc, true);
+    document.addEventListener("click", onDoc);
+    return () => document.removeEventListener("click", onDoc);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renaming, inputValue]);
 
@@ -395,7 +395,6 @@ function FileItem({
 
   async function onRowClick(e: MouseEvent) {
     if (renaming) {
-      e.stopPropagation();
       commit();
       if (isDirectory) {
         onReplaceSelect?.(path);
@@ -403,7 +402,6 @@ function FileItem({
       }
       return;
     }
-    e.stopPropagation();
     if (selectMode) {
       onToggleSelect?.(path, isDirectory);
       return;
