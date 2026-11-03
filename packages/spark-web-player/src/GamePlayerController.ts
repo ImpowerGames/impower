@@ -1003,9 +1003,6 @@ export class GamePlayerController {
   protected async listingFor(
     start: string,
   ): Promise<StartingValueListing | undefined> {
-    if (this._listing?.listing?.start === start) {
-      return this._listing.listing;
-    }
     try {
       return (
         await this.askWorkerGame(GetGameStartingValueListingMessage.type, {

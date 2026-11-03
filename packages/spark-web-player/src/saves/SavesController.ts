@@ -399,20 +399,63 @@ export class SavesController {
       }
       return out;
     };
-    const placed: PreviewSave = {
-      ...record,
-      values: {
-        ...record.values,
-        values: rekey(record.values.values),
-        places: JSON.stringify({ ...saved, forms: rekey(saved.forms ?? {}) }),
+    const placed = withUnapplied(
+      {
+        ...record,
+        values: {
+          ...record.values,
+          values: rekey(record.values.values),
+          places: JSON.stringify({ ...saved, forms: rekey(saved.forms ?? {}) }),
+        },
       },
-    };
+      (record.unapplied ?? []).flatMap((key) =>
+        gone.includes(key) ? [] : [keys[key] ?? key],
+      ),
+    );
     try {
       await this.write(placed);
     } catch {
       return record;
     }
     return placed;
+  }
+
+  protected async applied(
+    data: string,
+    values: Record<string, string>,
+    keys: readonly string[],
+  ): Promise<string> {
+    const result = await this._host.askWorker(EditSaveMessage.type, {
+      data,
+      changes: Object.fromEntries(
+        keys.flatMap((key) => (values[key] !== undefined ? [[key, values[key]]] : [])),
+      ),
+    });
+    if (!result) {
+      throw new Error("The player could not edit the save.");
+    }
+    return result.data;
+  }
+
+  protected async playable(id: string): Promise<PreviewSave | undefined> {
+    const record = this.record(id);
+    if (!record || this._refusals[id] !== undefined || !record.unapplied?.length) {
+      return record;
+    }
+    let edited: PreviewSave;
+    try {
+      edited = withUnapplied(
+        {
+          ...record,
+          data: await this.applied(record.data, record.values.values, record.unapplied),
+        },
+        [],
+      );
+      await this.write(edited);
+    } catch {
+      return record;
+    }
+    return edited;
   }
 
   setValue(key: string, value: string): Promise<void> {
@@ -428,18 +471,13 @@ export class SavesController {
     const before = record.values.values[key];
     delete this._unsaved[key];
     const values = withSavedValue(record.values.values, key, value);
+    let unapplied = [...new Set([...(record.unapplied ?? []), key])];
     let data = record.data;
     let places = record.values.places;
     try {
       if (this._refusals[record.id] === undefined) {
-        const result = await this._host.askWorker(EditSaveMessage.type, {
-          data: record.data,
-          changes: { [key]: value },
-        });
-        if (!result) {
-          throw new Error("The player could not edit the save.");
-        }
-        data = result.data;
+        data = await this.applied(record.data, values, unapplied);
+        unapplied = [];
       }
       if (key.startsWith("place:")) {
         const result = await this._host.askWorker(CountFormsMessage.type, {
@@ -456,19 +494,22 @@ export class SavesController {
       return;
     }
     const local = readLocalKey(key);
-    const edited: PreviewSave = {
-      ...record,
-      data,
-      values: {
-        values,
-        frames: record.values.frames.map((frame, i) =>
-          local && i === local.frame && Object.hasOwn(frame.params, local.name)
-            ? { ...frame, params: { ...frame.params, [local.name]: value } }
-            : frame,
-        ),
-        ...(places !== undefined ? { places } : {}),
+    const edited = withUnapplied(
+      {
+        ...record,
+        data,
+        values: {
+          values,
+          frames: record.values.frames.map((frame, i) =>
+            local && i === local.frame && Object.hasOwn(frame.params, local.name)
+              ? { ...frame, params: { ...frame.params, [local.name]: value } }
+              : frame,
+          ),
+          ...(places !== undefined ? { places } : {}),
+        },
       },
-    };
+      unapplied,
+    );
     try {
       await this.write(edited);
     } catch {
@@ -496,7 +537,7 @@ export class SavesController {
       this._rowMenu = undefined;
       this.closeValues();
       this._host.changed();
-      void this.serial(async () => this.record(id)).then((record) =>
+      void this.serial(() => this.playable(id)).then((record) =>
         record && this._refusals[id] === undefined
           ? this._host.playFromSave(record.data)
           : undefined,
@@ -557,6 +598,16 @@ export class SavesController {
     }
   }
 }
+
+const withUnapplied = (record: PreviewSave, keys: string[]): PreviewSave => {
+  const out: PreviewSave = { ...record };
+  if (keys.length > 0) {
+    out.unapplied = keys;
+  } else {
+    delete out.unapplied;
+  }
+  return out;
+};
 
 const reasonOf = (e: unknown): string =>
   e && typeof e === "object" && "message" in e && typeof e.message === "string"

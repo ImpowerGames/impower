@@ -24,6 +24,7 @@ export interface PreviewSave {
     frames: PreviewSaveFrame[];
     places?: string;
   };
+  unapplied?: string[];
 }
 
 export type ListSavesMethod = typeof ListSavesMessage.method;

@@ -372,6 +372,20 @@ describe("a save's values", () => {
     ).toEqual(["store:trust", "visits:interrogation", "visits:start"]);
   });
 
+  test("lists them from the program, not the route panel's earlier listing", async () => {
+    const p = player();
+    await p.withSaves([saved()]);
+    (p.controller as any)._listing = {
+      key: "earlier:interrogation",
+      listing: { start: "interrogation", items: [listing.items[1]] },
+    };
+    const saves = (p.controller as any)._saves;
+    await saves.editValues("saved-1");
+    expect(saves.viewState().values.listing.items.map((item: any) => item.key)).toEqual(
+      listing.items.map((item) => item.key),
+    );
+  });
+
   test("writes an edited value into the save and back to the host", async () => {
     const p = player();
     await p.withSaves([saved()]);

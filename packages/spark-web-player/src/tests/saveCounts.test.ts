@@ -211,4 +211,38 @@ describe("Play from here", () => {
     expect(played).toBeDefined();
     expect(game.saveValuesOf(played!).values["store:trust"]).toBe("5");
   });
+
+  test("plays the edits made while its line was gone once the line is back", async () => {
+    const source = [
+      "store trust = 0",
+      'store suspect = "Ana"',
+      "scene start",
+      "  Saved.",
+      "  Next.",
+      "end",
+    ];
+    const { game, compiler } = playing(source, 4);
+    const record = preview(game.saveHere());
+    record.values.values["store:suspect"] = '"Bo"';
+    recompile(compiler, game, source.filter((line) => !line.includes("Saved.")).join("\n"));
+    let played: string | undefined;
+    const controller = await controllerFor(game, record, {
+      played: (data) => {
+        played = data;
+      },
+    });
+    expect(controller.rows()[0]!.gone).toBe(true);
+    await controller.editValues(record.id);
+    await controller.setValue("store:trust", "5");
+
+    recompile(compiler, game, source.join("\n"));
+    await controller.programChanged();
+    expect(controller.rows()[0]!.gone).toBe(false);
+    controller.events.onPlay(record.id);
+    await controller.current(record.id);
+    expect(played).toBeDefined();
+    const values = game.saveValuesOf(played!).values;
+    expect(values["store:trust"]).toBe("5");
+    expect(values["store:suspect"]).toBe('"Ana"');
+  });
 });
