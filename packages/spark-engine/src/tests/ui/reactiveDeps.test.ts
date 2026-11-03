@@ -11,10 +11,10 @@ describe("reactive dependency primitive (Phase 4 I7)", () => {
     const h = createHarness(
       `store hp = 100
 store player = { hp = 50 }
-layout hud with
+layout hud {
   text "{hp}"
   text "{player.hp}"
-end
+}
 `,
       0,
       { reactive: true },
@@ -40,9 +40,9 @@ end
   test("a global write registers as a global change", async () => {
     const h = createHarness(
       `store hp = 100
-layout hud with
+layout hud {
   text "{hp}"
-end
+}
 `,
       0,
       { reactive: true },
@@ -62,9 +62,9 @@ end
 function hurt()
   player.hp = 10
 end
-layout hud with
+layout hud {
   text "{player.hp}"
-end
+}
 `,
       0,
       { reactive: true },
@@ -92,9 +92,9 @@ end
   test("dep tracking is enabled once reactive screens mount", async () => {
     const h = createHarness(
       `store hp = 100
-layout hud with
+layout hud {
   text "{hp}"
-end
+}
 `,
     );
     await h.ready;

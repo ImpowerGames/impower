@@ -24,7 +24,7 @@ const TARGETED: Record<string, string> = {
   "long-string-call-chains":
     "function run()\n  a.b [=[x]=]\n  a:m [==[x]==]\n  f() [===[x]===]\n  a[1] [=[x]=]\n  local value = a[ [=[key]=] ]\nend\n",
   "struct-list-embedded-colons":
-    "theme t with\nlinks {\nhttps://example.com\n12:30\nasset:icon\n}\nend\n",
+    "theme t {\nlinks {\nhttps://example.com\n12:30\nasset:icon\n}\n}\n",
   "scene-trailing-colon":
     "scene TEASER:\n\n    $: CLOSEUP - ACE OF SPADES\n\n    BUNNY:\n      Hello.\n",
   "branch-trailing-colon": "branch X:\n  Hello.\n",
@@ -65,23 +65,23 @@ const TARGETED: Record<string, string> = {
   "plain-action": "Just a line of action.\n\nAnother paragraph.\n",
 
   "struct-scalar-props":
-    "style panel with\n  position = absolute\n  font_size = 3.4cqh\nend\n",
+    "style panel {\n  position = absolute\n  font_size = 3.4cqh\n}\n",
   "struct-scalar-dash-value":
-    "style panel with\n  margin = -3px\n  aspect_ratio = 4/3\nend\n",
+    "style panel {\n  margin = -3px\n  aspect_ratio = 4/3\n}\n",
   "struct-object-headers":
-    "style dialogue with\n  @screen-size(sm):\n    width = 100%\n  > text:\n    color = black\nend\n",
+    "style dialogue {\n  @screen-size(sm):\n    width = 100%\n  > text:\n    color = black\n}\n",
   "struct-attr-selector-with-equals":
-    "style shadow with\n  > #image^=raffles_:\n    background_color = #E5323E\nend\n",
+    "style shadow {\n  > #image^=raffles_:\n    background_color = #E5323E\n}\n",
   "struct-bare-markers":
-    "layout main with\n  portrait:\n    mask shadow_1\n    image\nend\n",
+    "layout main {\n  portrait:\n    mask shadow_1\n    image\n}\n",
   "struct-array-items":
-    "style list with\n  items:\n    - first\n    - second\nend\n",
+    "style list {\n  items:\n    - first\n    - second\n}\n",
   "struct-comment-line":
-    "style panel with\n  position = absolute\n  -- background_color = rgba(0,0,0,0.8)\n  font_size = 3.4cqh\nend\n",
+    "style panel {\n  position = absolute\n  -- background_color = rgba(0,0,0,0.8)\n  font_size = 3.4cqh\n}\n",
   "struct-brace-quoted-selector":
-    "style panel with\n  &[data-label=\"a b;{\"] { color = red }\n  &[data-label=\"x\" i], &.on { color = blue }\n  &[data-label='a;b'] { opacity = 0.5 }\n  &[data-label='space ; { --'], &[data-kind=\"x\"] = { opacity = 0.25 }\nend\n",
+    "style panel {\n  &[data-label=\"a b;{\"] { color = red }\n  &[data-label=\"x\" i], &.on { color = blue }\n  &[data-label='a;b'] { opacity = 0.5 }\n  &[data-label='space ; { --'], &[data-kind=\"x\"] = { opacity = 0.25 }\n}\n",
   "struct-brace-quoted-container":
-    'theme t with\n  "quoted key" { v = 1 }\n  "other" = { w = 2 }\n  outer {\n    accents:,\n      v = 1\n  }\nend\n',
+    'theme t {\n  "quoted key" { v = 1 }\n  "other" = { w = 2 }\n  outer {\n    accents:,\n      v = 1\n  }\n}\n',
   "struct-brace-value-starts-with-comment-mark":
     "theme t with\n  k = --gap }\n  j = // x }\n  g {\n    k = --gap\n    j = // note\n  }\nend\n",
 
@@ -92,7 +92,7 @@ const TARGETED: Record<string, string> = {
   "tag-midline-required-whitespace-886": "Text # a {var}\n",
 
   "struct-dollar-key-828":
-    "theme t with\n  g:\n    $c = 3\nend\ntheme u with\n  g { $c = 3 }\nend\n",
+    "theme t {\n  g:\n    $c = 3\n}\ntheme u {\n  g { $c = 3 }\n}\n",
 
   "unread-attribute-list-921":
     "Value {g()}.\nfunction g()\n  @[deprecated]\n  local function f()\n    return 1\n  end\n  return f()\nend\n",
@@ -108,7 +108,7 @@ const TARGETED: Record<string, string> = {
   "unread-if-expression-after-comment-1647":
     "function f(c)\n  local x = --[[ c ]] if c then\n    1\n  else 2\n  return x\nend\nValue {f(true)}.\n",
   "non-ascii-names-1266":
-    "theme t with\n  g:\n    名 = 2\n    tail = 3\nend\nscene 場面\n  Hello.\nend\nfunction f()\n  local x名 = 1\nend\n",
+    "theme t {\n  g:\n    名 = 2\n    tail = 3\n}\nscene 場面\n  Hello.\nend\nfunction f()\n  local x名 = 1\nend\n",
   "token-classes-1906":
     "function f(c)\n  local style, match, queue, continue = 1, 2, 3, 4\n  local y = style + match + queue + continue\n  if match then y = layout end\n  if match == (2)then y = 2 end\n  while y == (0)do y = 1 end\n  repeat\n    repeat y = (y + 1)until true\n  until y > 2\n  local z =\n    if c then 1 else 2\n  do local w = (1)end\n  if c then\n    while c do y = 1 else y = 2 end\n  end\n  return y\nend\n",
   "story-line-rule-trailing-operator-1254":
@@ -124,7 +124,7 @@ const TARGETED: Record<string, string> = {
   "story-line-rule-type-lines":
     "local v: number?\n| string\nlocal w: number\n& w = 2\nstore second = @[native]\nfunction() return 9 end\n",
   "unread-character-in-open-statement":
-    "function f()\n  x = 1 @@ 2\n  y = $5\nend\ndefine X with\n  b = $5\nend\nlayout main with\n  button @click={ x = 1 @@ 2 }\nend\n",
+    "function f()\n  x = 1 @@ 2\n  y = $5\nend\ndefine X with\n  b = $5\nend\nlayout main {\n  button @click={ x = 1 @@ 2 }\n}\n",
   "capture-context-trailing-whitespace-1566":
     "BUNNY:   \nHello there.   \n@ ACE  \n  Hi.  \n(quietly)  \nscene main\n  BUNNY:  \n  Hello.  \n  (beat)  \nend\n",
   "capture-context-doc-param-1566":

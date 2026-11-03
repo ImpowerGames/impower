@@ -1,156 +1,156 @@
-text.source.sparkdown [0..242]
- ├─ meta.layout.luau [0..16]
+text.source.sparkdown [0..232]
+ ├─ meta.layout.luau [0..13]
  │   ├─ keyword.control.layout.luau [0..6]: "layout"
  │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
  │   ├─ entity.name.type.define.luau [7..11]: "main"
- │   ├─ punctuation.whitespace.optional.sd [11..12]: " "
- │   └─ keyword.control.as.luau [12..16]: "with"
- ├─ Newline [16..17]: "\n"
- ├─ meta.layout.luau [17..29]
- │   ├─ keyword.control.if.luau [17..19]: "if"
- │   ├─ punctuation.whitespace.optional.sd [19..20]: " "
- │   ├─ variable.other.readwrite.luau [20..24]: "busy"
- │   ├─ punctuation.whitespace.optional.sd [24..25]: " "
- │   └─ keyword.control.then.luau [25..29]: "then"
- ├─ Newline [29..30]: "\n"
- ├─ meta.layout.luau [30..43]
- │   ├─ punctuation.whitespace.sd [30..32]: "  "
- │   ├─ keyword.other.component.builtin.name.sd [32..36]: "text"
- │   ├─ punctuation.whitespace.required.sd [36..37]: " "
- │   └─ string.quoted.double.sd [37..43]
- │       ├─ punctuation.definition.string.begin.sd [37..38]: "\""
- │       ├─ markup.raw.whitespace.sd [38..39]: "b"
- │       ├─ markup.raw.whitespace.sd [39..40]: "u"
- │       ├─ markup.raw.whitespace.sd [40..41]: "s"
- │       ├─ markup.raw.whitespace.sd [41..42]: "y"
- │       └─ punctuation.definition.string.end.sd [42..43]: "\""
- ├─ Newline [43..44]: "\n"
- ├─ meta.layout.luau [44..47]
- │   └─ keyword.control.end.luau [44..47]: "end"
- ├─ Newline [47..48]: "\n"
- ├─ meta.layout.luau [48..66]
- │   ├─ keyword.control.for.luau [48..51]: "for"
- │   ├─ punctuation.whitespace.optional.sd [51..52]: " "
- │   ├─ variable.other.readwrite.luau [52..56]: "item"
+ │   ├─ punctuation.whitespace.sd [11..12]: " "
+ │   └─ punctuation.definition.template-expression.begin.sd [12..13]: "{"
+ ├─ Newline [13..14]: "\n"
+ ├─ meta.layout.luau [14..26]
+ │   ├─ keyword.control.if.luau [14..16]: "if"
+ │   ├─ punctuation.whitespace.optional.sd [16..17]: " "
+ │   ├─ variable.other.readwrite.luau [17..21]: "busy"
+ │   ├─ punctuation.whitespace.optional.sd [21..22]: " "
+ │   └─ keyword.control.then.luau [22..26]: "then"
+ ├─ Newline [26..27]: "\n"
+ ├─ meta.layout.luau [27..40]
+ │   ├─ punctuation.whitespace.sd [27..29]: "  "
+ │   ├─ keyword.other.component.builtin.name.sd [29..33]: "text"
+ │   ├─ punctuation.whitespace.required.sd [33..34]: " "
+ │   └─ string.quoted.double.sd [34..40]
+ │       ├─ punctuation.definition.string.begin.sd [34..35]: "\""
+ │       ├─ markup.raw.whitespace.sd [35..36]: "b"
+ │       ├─ markup.raw.whitespace.sd [36..37]: "u"
+ │       ├─ markup.raw.whitespace.sd [37..38]: "s"
+ │       ├─ markup.raw.whitespace.sd [38..39]: "y"
+ │       └─ punctuation.definition.string.end.sd [39..40]: "\""
+ ├─ Newline [40..41]: "\n"
+ ├─ meta.layout.luau [41..44]
+ │   └─ keyword.control.end.luau [41..44]: "end"
+ ├─ Newline [44..45]: "\n"
+ ├─ meta.layout.luau [45..63]
+ │   ├─ keyword.control.for.luau [45..48]: "for"
+ │   ├─ punctuation.whitespace.optional.sd [48..49]: " "
+ │   ├─ variable.other.readwrite.luau [49..53]: "item"
+ │   ├─ punctuation.whitespace.required.sd [53..54]: " "
+ │   ├─ keyword.control.end.luau [54..56]: "in"
  │   ├─ punctuation.whitespace.required.sd [56..57]: " "
- │   ├─ keyword.control.end.luau [57..59]: "in"
- │   ├─ punctuation.whitespace.required.sd [59..60]: " "
- │   ├─ variable.other.readwrite.luau [60..63]: "bag"
- │   ├─ punctuation.whitespace.optional.sd [63..64]: " "
- │   └─ keyword.control.do.luau [64..66]: "do"
- ├─ Newline [66..67]: "\n"
- ├─ meta.layout.luau [67..82]
- │   ├─ punctuation.whitespace.sd [67..69]: "  "
- │   ├─ keyword.other.component.builtin.name.sd [69..73]: "text"
- │   ├─ punctuation.whitespace.required.sd [73..74]: " "
- │   └─ string.quoted.double.sd [74..82]
- │       ├─ punctuation.definition.string.begin.sd [74..75]: "\""
- │       ├─ meta.template.expression.luau [75..81]
- │       │   ├─ punctuation.definition.template-expression.begin.sd [75..76]: "{"
- │       │   ├─ meta.embedded.line.luau [76..80]
- │       │   │   └─ variable.other.readwrite.luau [76..80]: "item"
- │       │   └─ punctuation.definition.template-expression.end.sd [80..81]: "}"
- │       └─ punctuation.definition.string.end.sd [81..82]: "\""
- ├─ Newline [82..83]: "\n"
- ├─ meta.layout.luau [83..86]
- │   └─ keyword.control.end.luau [83..86]: "end"
- ├─ Newline [86..87]: "\n"
- ├─ meta.layout.luau [87..100]
- │   ├─ keyword.control.match.luau [87..92]: "match"
- │   ├─ punctuation.whitespace.optional.sd [92..93]: " "
- │   ├─ variable.other.readwrite.luau [93..97]: "mode"
- │   ├─ punctuation.whitespace.optional.sd [97..98]: " "
- │   └─ keyword.control.do.luau [98..100]: "do"
- ├─ Newline [100..101]: "\n"
- ├─ meta.layout.luau [101..109]
- │   ├─ punctuation.whitespace.optional.sd [101..103]: "  "
- │   ├─ keyword.control.case.luau [103..107]: "case"
- │   ├─ punctuation.whitespace.optional.sd [107..108]: " "
- │   └─ constant.numeric.decimal.luau [108..109]: "1"
- ├─ Newline [109..110]: "\n"
- ├─ meta.layout.luau [110..124]
- │   ├─ punctuation.whitespace.sd [110..114]: "    "
- │   ├─ keyword.other.component.builtin.name.sd [114..118]: "text"
- │   ├─ punctuation.whitespace.required.sd [118..119]: " "
- │   └─ string.quoted.double.sd [119..124]
- │       ├─ punctuation.definition.string.begin.sd [119..120]: "\""
- │       ├─ markup.raw.whitespace.sd [120..121]: "o"
- │       ├─ markup.raw.whitespace.sd [121..122]: "n"
- │       ├─ markup.raw.whitespace.sd [122..123]: "e"
- │       └─ punctuation.definition.string.end.sd [123..124]: "\""
- ├─ Newline [124..125]: "\n"
- ├─ meta.layout.luau [125..128]
- │   └─ keyword.control.end.luau [125..128]: "end"
- ├─ Newline [128..129]: "\n"
- ├─ meta.layout.luau [129..151]
- │   ├─ entity.name.type.class.view.sd [129..132]: "row"
- │   ├─ punctuation.definition.class.sd [132..133]: "."
- │   ├─ entity.name.type.class.view.sd [133..136]: "top"
- │   ├─ punctuation.whitespace.sd [136..137]: " "
- │   ├─ punctuation.definition.template-expression.begin.sd [137..138]: "{"
- │   ├─ punctuation.whitespace.sd [138..139]: " "
- │   ├─ keyword.other.component.builtin.name.sd [139..143]: "text"
- │   ├─ punctuation.whitespace.required.sd [143..144]: " "
- │   ├─ string.quoted.double.sd [144..149]
- │   │   ├─ punctuation.definition.string.begin.sd [144..145]: "\""
- │   │   ├─ markup.raw.whitespace.sd [145..146]: "t"
- │   │   ├─ markup.raw.whitespace.sd [146..147]: "o"
- │   │   ├─ markup.raw.whitespace.sd [147..148]: "p"
- │   │   └─ punctuation.definition.string.end.sd [148..149]: "\""
- │   ├─ punctuation.whitespace.sd [149..150]: " "
- │   └─ punctuation.definition.template-expression.end.sd [150..151]: "}"
- ├─ Newline [151..152]: "\n"
- ├─ meta.layout.luau [152..155]
- │   └─ keyword.control.end.luau [152..155]: "end"
- ├─ Newline [155..156]: "\n"
- ├─ meta.component.luau [156..182]
- │   ├─ keyword.control.component.luau [156..165]: "component"
- │   ├─ punctuation.whitespace.optional.sd [165..166]: " "
- │   ├─ entity.name.type.define.luau [166..170]: "card"
- │   ├─ meta.parameter.luau [170..177]
- │   │   ├─ punctuation.definition.template-expression.begin.sd [170..171]: "("
- │   │   ├─ variable.parameter.function.luau [171..176]: "title"
- │   │   └─ punctuation.definition.template-expression.end.sd [176..177]: ")"
+ │   ├─ variable.other.readwrite.luau [57..60]: "bag"
+ │   ├─ punctuation.whitespace.optional.sd [60..61]: " "
+ │   └─ keyword.control.do.luau [61..63]: "do"
+ ├─ Newline [63..64]: "\n"
+ ├─ meta.layout.luau [64..79]
+ │   ├─ punctuation.whitespace.sd [64..66]: "  "
+ │   ├─ keyword.other.component.builtin.name.sd [66..70]: "text"
+ │   ├─ punctuation.whitespace.required.sd [70..71]: " "
+ │   └─ string.quoted.double.sd [71..79]
+ │       ├─ punctuation.definition.string.begin.sd [71..72]: "\""
+ │       ├─ meta.template.expression.luau [72..78]
+ │       │   ├─ punctuation.definition.template-expression.begin.sd [72..73]: "{"
+ │       │   ├─ meta.embedded.line.luau [73..77]
+ │       │   │   └─ variable.other.readwrite.luau [73..77]: "item"
+ │       │   └─ punctuation.definition.template-expression.end.sd [77..78]: "}"
+ │       └─ punctuation.definition.string.end.sd [78..79]: "\""
+ ├─ Newline [79..80]: "\n"
+ ├─ meta.layout.luau [80..83]
+ │   └─ keyword.control.end.luau [80..83]: "end"
+ ├─ Newline [83..84]: "\n"
+ ├─ meta.layout.luau [84..97]
+ │   ├─ keyword.control.match.luau [84..89]: "match"
+ │   ├─ punctuation.whitespace.optional.sd [89..90]: " "
+ │   ├─ variable.other.readwrite.luau [90..94]: "mode"
+ │   ├─ punctuation.whitespace.optional.sd [94..95]: " "
+ │   └─ keyword.control.do.luau [95..97]: "do"
+ ├─ Newline [97..98]: "\n"
+ ├─ meta.layout.luau [98..106]
+ │   ├─ punctuation.whitespace.sd [98..100]: "  "
+ │   ├─ keyword.control.case.luau [100..104]: "case"
+ │   ├─ punctuation.whitespace.optional.sd [104..105]: " "
+ │   └─ constant.numeric.decimal.luau [105..106]: "1"
+ ├─ Newline [106..107]: "\n"
+ ├─ meta.layout.luau [107..121]
+ │   ├─ punctuation.whitespace.sd [107..111]: "    "
+ │   ├─ keyword.other.component.builtin.name.sd [111..115]: "text"
+ │   ├─ punctuation.whitespace.required.sd [115..116]: " "
+ │   └─ string.quoted.double.sd [116..121]
+ │       ├─ punctuation.definition.string.begin.sd [116..117]: "\""
+ │       ├─ markup.raw.whitespace.sd [117..118]: "o"
+ │       ├─ markup.raw.whitespace.sd [118..119]: "n"
+ │       ├─ markup.raw.whitespace.sd [119..120]: "e"
+ │       └─ punctuation.definition.string.end.sd [120..121]: "\""
+ ├─ Newline [121..122]: "\n"
+ ├─ meta.layout.luau [122..125]
+ │   └─ keyword.control.end.luau [122..125]: "end"
+ ├─ Newline [125..126]: "\n"
+ ├─ meta.layout.luau [126..148]
+ │   ├─ entity.name.type.class.view.sd [126..129]: "row"
+ │   ├─ punctuation.definition.class.sd [129..130]: "."
+ │   ├─ entity.name.type.class.view.sd [130..133]: "top"
+ │   ├─ punctuation.whitespace.sd [133..134]: " "
+ │   ├─ punctuation.definition.template-expression.begin.sd [134..135]: "{"
+ │   ├─ punctuation.whitespace.sd [135..136]: " "
+ │   ├─ keyword.other.component.builtin.name.sd [136..140]: "text"
+ │   ├─ punctuation.whitespace.required.sd [140..141]: " "
+ │   ├─ string.quoted.double.sd [141..146]
+ │   │   ├─ punctuation.definition.string.begin.sd [141..142]: "\""
+ │   │   ├─ markup.raw.whitespace.sd [142..143]: "t"
+ │   │   ├─ markup.raw.whitespace.sd [143..144]: "o"
+ │   │   ├─ markup.raw.whitespace.sd [144..145]: "p"
+ │   │   └─ punctuation.definition.string.end.sd [145..146]: "\""
+ │   ├─ punctuation.whitespace.sd [146..147]: " "
+ │   └─ punctuation.definition.template-expression.end.sd [147..148]: "}"
+ ├─ Newline [148..149]: "\n"
+ ├─ meta.layout.luau [149..150]
+ │   └─ punctuation.definition.template-expression.end.sd [149..150]: "}"
+ ├─ Newline [150..151]: "\n"
+ ├─ meta.component.luau [151..174]
+ │   ├─ keyword.control.component.luau [151..160]: "component"
+ │   ├─ punctuation.whitespace.optional.sd [160..161]: " "
+ │   ├─ entity.name.type.define.luau [161..165]: "card"
+ │   ├─ meta.parameter.luau [165..172]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [165..166]: "("
+ │   │   ├─ variable.parameter.function.luau [166..171]: "title"
+ │   │   └─ punctuation.definition.template-expression.end.sd [171..172]: ")"
+ │   ├─ punctuation.whitespace.sd [172..173]: " "
+ │   └─ punctuation.definition.template-expression.begin.sd [173..174]: "{"
+ ├─ Newline [174..175]: "\n"
+ ├─ meta.component.luau [175..188]
+ │   ├─ keyword.control.if.luau [175..177]: "if"
  │   ├─ punctuation.whitespace.optional.sd [177..178]: " "
- │   └─ keyword.control.as.luau [178..182]: "with"
- ├─ Newline [182..183]: "\n"
- ├─ meta.component.luau [183..196]
- │   ├─ keyword.control.if.luau [183..185]: "if"
- │   ├─ punctuation.whitespace.optional.sd [185..186]: " "
- │   ├─ variable.other.readwrite.luau [186..191]: "title"
- │   ├─ punctuation.whitespace.optional.sd [191..192]: " "
- │   └─ keyword.control.then.luau [192..196]: "then"
- ├─ Newline [196..197]: "\n"
- ├─ meta.component.luau [197..213]
- │   ├─ punctuation.whitespace.sd [197..199]: "  "
- │   ├─ keyword.other.component.builtin.name.sd [199..203]: "text"
- │   ├─ punctuation.whitespace.required.sd [203..204]: " "
- │   └─ string.quoted.double.sd [204..213]
- │       ├─ punctuation.definition.string.begin.sd [204..205]: "\""
- │       ├─ meta.template.expression.luau [205..212]
- │       │   ├─ punctuation.definition.template-expression.begin.sd [205..206]: "{"
- │       │   ├─ meta.embedded.line.luau [206..211]
- │       │   │   └─ variable.other.readwrite.luau [206..211]: "title"
- │       │   └─ punctuation.definition.template-expression.end.sd [211..212]: "}"
- │       └─ punctuation.definition.string.end.sd [212..213]: "\""
- ├─ Newline [213..214]: "\n"
- ├─ meta.component.luau [214..217]
- │   └─ keyword.control.end.luau [214..217]: "end"
- ├─ Newline [217..218]: "\n"
- ├─ meta.component.luau [218..237]
- │   ├─ entity.name.type.class.view.sd [218..224]: "column"
- │   ├─ punctuation.whitespace.sd [224..225]: " "
- │   ├─ punctuation.definition.template-expression.begin.sd [225..226]: "{"
- │   ├─ punctuation.whitespace.sd [226..227]: " "
- │   ├─ keyword.other.component.builtin.name.sd [227..231]: "text"
- │   ├─ punctuation.whitespace.required.sd [231..232]: " "
- │   ├─ string.quoted.double.sd [232..235]
- │   │   ├─ punctuation.definition.string.begin.sd [232..233]: "\""
- │   │   ├─ markup.raw.whitespace.sd [233..234]: "x"
- │   │   └─ punctuation.definition.string.end.sd [234..235]: "\""
- │   ├─ punctuation.whitespace.sd [235..236]: " "
- │   └─ punctuation.definition.template-expression.end.sd [236..237]: "}"
- ├─ Newline [237..238]: "\n"
- ├─ meta.component.luau [238..241]
- │   └─ keyword.control.end.luau [238..241]: "end"
- └─ Newline [241..242]: "\n"
+ │   ├─ variable.other.readwrite.luau [178..183]: "title"
+ │   ├─ punctuation.whitespace.optional.sd [183..184]: " "
+ │   └─ keyword.control.then.luau [184..188]: "then"
+ ├─ Newline [188..189]: "\n"
+ ├─ meta.component.luau [189..205]
+ │   ├─ punctuation.whitespace.sd [189..191]: "  "
+ │   ├─ keyword.other.component.builtin.name.sd [191..195]: "text"
+ │   ├─ punctuation.whitespace.required.sd [195..196]: " "
+ │   └─ string.quoted.double.sd [196..205]
+ │       ├─ punctuation.definition.string.begin.sd [196..197]: "\""
+ │       ├─ meta.template.expression.luau [197..204]
+ │       │   ├─ punctuation.definition.template-expression.begin.sd [197..198]: "{"
+ │       │   ├─ meta.embedded.line.luau [198..203]
+ │       │   │   └─ variable.other.readwrite.luau [198..203]: "title"
+ │       │   └─ punctuation.definition.template-expression.end.sd [203..204]: "}"
+ │       └─ punctuation.definition.string.end.sd [204..205]: "\""
+ ├─ Newline [205..206]: "\n"
+ ├─ meta.component.luau [206..209]
+ │   └─ keyword.control.end.luau [206..209]: "end"
+ ├─ Newline [209..210]: "\n"
+ ├─ meta.component.luau [210..229]
+ │   ├─ entity.name.type.class.view.sd [210..216]: "column"
+ │   ├─ punctuation.whitespace.sd [216..217]: " "
+ │   ├─ punctuation.definition.template-expression.begin.sd [217..218]: "{"
+ │   ├─ punctuation.whitespace.sd [218..219]: " "
+ │   ├─ keyword.other.component.builtin.name.sd [219..223]: "text"
+ │   ├─ punctuation.whitespace.required.sd [223..224]: " "
+ │   ├─ string.quoted.double.sd [224..227]
+ │   │   ├─ punctuation.definition.string.begin.sd [224..225]: "\""
+ │   │   ├─ markup.raw.whitespace.sd [225..226]: "x"
+ │   │   └─ punctuation.definition.string.end.sd [226..227]: "\""
+ │   ├─ punctuation.whitespace.sd [227..228]: " "
+ │   └─ punctuation.definition.template-expression.end.sd [228..229]: "}"
+ ├─ Newline [229..230]: "\n"
+ ├─ meta.component.luau [230..231]
+ │   └─ punctuation.definition.template-expression.end.sd [230..231]: "}"
+ └─ Newline [231..232]: "\n"

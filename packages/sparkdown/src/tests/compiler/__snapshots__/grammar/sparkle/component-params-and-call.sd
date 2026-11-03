@@ -1,19 +1,19 @@
-component stat_row(label, value) with
+component stat_row(label, value) {
   row {
     text "{label}"
     text "{value}"
   }
-end
+}
 
-component card(title) with
+component card(title) {
   box {
     text "{title}"
     slot
     slot.footer
   }
-end
+}
 
-layout sheet with
+layout sheet {
   card("Inventory") {
     text "10 / 20 slots"
     fill.footer {
@@ -21,4 +21,4 @@ layout sheet with
     }
   }
   stat_row(hero.name, hero.hp)
-end
+}

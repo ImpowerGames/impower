@@ -45,11 +45,11 @@ describe("layer reference validity", () => {
   it("accepts an element the author declares in their own layout", () => {
     const program = compile(
       [
-        "layout main with",
+        "layout main {",
         "  stage {",
         "    weather_overlay",
         "  }",
-        "end",
+        "}",
         "",
         scene("  [[show weather_overlay BG]]"),
       ].join("\n"),
@@ -65,13 +65,13 @@ describe("layer reference validity", () => {
   it("accepts either token of a classed element", () => {
     const program = compile(
       [
-        "layout main with",
+        "layout main {",
         "  stage {",
         "    portrait {",
         "      mask.shadow_1",
         "    }",
         "  }",
-        "end",
+        "}",
         "",
         scene("  [[hide shadow_1]]\n  [[hide mask]]"),
       ].join("\n"),
@@ -82,12 +82,12 @@ describe("layer reference validity", () => {
   it("accepts an element whose value is content rather than children", () => {
     const program = compile(
       [
-        "layout main with",
+        "layout main {",
         "  column {",
         '    text.h1 "Sparkle x Pico"',
         '    label "plain"',
         "  }",
-        "end",
+        "}",
         "",
         scene("  [[animate text with shake]]\n  [[animate label with shake]]"),
       ].join("\n"),

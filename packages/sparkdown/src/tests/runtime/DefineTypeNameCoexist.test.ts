@@ -27,7 +27,7 @@ function compile(src: string) {
 describe("type vs same-named instance coexistence", () => {
   test("`image` type + `style.image` coexist (type-first)", () => {
     const r = compile(
-      `define image with\n  src = ""\nend\n\ndefine image as style with\n  display = "block"\nend\n`,
+      `define image with\n  src = ""\nend\n\nstyle image {\n  display = block\n}\n`,
     );
     expect(r.errors).toBe(0);
     expect(r.program.context?.["image"]?.["$default"]).toBeDefined();
@@ -37,7 +37,7 @@ describe("type vs same-named instance coexistence", () => {
 
   test("coexist regardless of order (instance-first)", () => {
     const r = compile(
-      `define image as style with\n  display = "block"\nend\n\ndefine image with\n  src = ""\nend\n`,
+      `style image {\n  display = block\n}\n\ndefine image with\n  src = ""\nend\n`,
     );
     expect(r.errors).toBe(0);
     expect(r.program.context?.["image"]?.["$default"]).toBeDefined();

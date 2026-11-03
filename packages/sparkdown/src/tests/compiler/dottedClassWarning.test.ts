@@ -35,19 +35,19 @@ const warnsDotted = (diags: string[]) =>
 describe("dotted-class warning", () => {
   test("a dotted class on a container element does not warn", () => {
     const diags = diagnosticsFor(
-      `layout main with\n  row.hud #gap=12 {\n    text "x"\n  }\nend\nscene start\nend\n`,
+      `layout main {\n  row.hud #gap=12 {\n    text "x"\n  }\n}\nscene start\nend\n`,
     );
     expect(diags).toEqual([]);
   });
 
   test("a dotted class on a content element does not warn", () => {
-    const diags = diagnosticsFor(`layout main with\n  text.title "Hi"\nend\nscene start\nend\n`);
+    const diags = diagnosticsFor(`layout main {\n  text.title "Hi"\n}\nscene start\nend\n`);
     expect(diags).toEqual([]);
   });
 
   test("a dotted class in a brace block does not warn", () => {
     const diags = diagnosticsFor(
-      `layout main with\n  row.hud #gap=12 { text.title "Hi" }\nend\nscene start\nend\n`,
+      `layout main {\n  row.hud #gap=12 { text.title "Hi" }\n}\nscene start\nend\n`,
     );
     expect(diags).toEqual([]);
   });
@@ -64,7 +64,7 @@ describe("a CSS-nesting selector is not a dotted class", () => {
       expect(
         warnsDotted(
           diagnosticsFor(
-            `style card with\n  ${selector} {\n    color = blue\n  }\nend\n`,
+            `style card {\n  ${selector} {\n    color = blue\n  }\n}\n`,
           ),
         ),
       ).toBe(false);

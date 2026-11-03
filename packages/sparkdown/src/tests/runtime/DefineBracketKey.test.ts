@@ -19,13 +19,13 @@ const compile = (text: string) => {
   return compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } });
 };
 
-describe("define bracket-key properties", () => {
-  test("selector + $-prefixed bracket-keys reach context alongside identifier keys", () => {
-    const result = compile(`define text as style with
-  display = "block"
-  [">> *"] = { display = "inline" }
-  ["$link"] = { audio = {} }
-end
+describe("selector and bracket-key properties", () => {
+  test("a style's selector and $-prefixed blocks reach context alongside identifier keys", () => {
+    const result = compile(`style text {
+  display = block
+  >> * { display = inline }
+  $link { audio {} }
+}
 `);
     const s = result.program.context?.["style"]?.["text"];
     expect(s).toBeDefined();
@@ -48,9 +48,9 @@ end
   });
 
   test("compiles without diagnostics", () => {
-    const result = compile(`define text as style with
-  [">> *"] = { display = "inline" }
-end
+    const result = compile(`style text {
+  >> * { display = inline }
+}
 
 scene start
 end

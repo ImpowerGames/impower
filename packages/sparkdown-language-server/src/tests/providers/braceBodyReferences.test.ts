@@ -103,7 +103,7 @@ function structIds(source: string, type: string): string[] {
 }
 
 describe("provider · references to a nested key in a brace body", () => {
-  const source = `animation fade with
+  const source = `animation fade {
   timing {
     duration = 1
   }
@@ -111,7 +111,7 @@ describe("provider · references to a nested key in a brace body", () => {
     from { opacity = 0 }
     to { opacity = 1 }
   }
-end
+}
 `;
 
   test("a key's symbol id is its path through the blocks", () => {
@@ -126,7 +126,7 @@ end
     ]);
   });
 
-  const style = `style card with
+  const style = `style card {
   > text {
     text-color = white
   }
@@ -134,7 +134,7 @@ end
     > text { text-color = red }
   }
   > text { text-color = black }
-end
+}
 `;
 
   test("find references on a nested key finds the key at the same path and not its namesake at another", () => {
@@ -156,12 +156,12 @@ end
   });
 
   test("a nested layout element's path comes from its blocks, keyed as the static struct keys it", () => {
-    const layout = `layout hud with
+    const layout = `layout hud {
   column.panel {
     row.item.x { text "a" }
     card(1) { b }
   }
-end
+}
 `;
     expect(structIds(layout, "layout")).toEqual([
       "layout.hud.column panel",
@@ -173,17 +173,17 @@ end
 });
 
 describe("provider · a dotted class and its style", () => {
-  const source = `layout hud with
+  const source = `layout hud {
   column.panel {
     text.panel "a"
   }
-end
-layout menu with
+}
+layout menu {
   row.panel { text "b" }
-end
-style panel with
+}
+style panel {
   background-color = black
-end
+}
 `;
   const classes = spotsOf(source, ".panel").map((spot) => {
     const [line, character] = spot.split(":").map(Number);
@@ -215,16 +215,16 @@ end
   });
 
   test("a class on a line that continues an element links to its style", () => {
-    const wrapped = `layout hud with
+    const wrapped = `layout hud {
   column {
     button
       .panel
       "Use"
   }
-end
-style panel with
+}
+style panel {
   background-color = black
-end
+}
 `;
     expect(referencesAt(wrapped, "panel", 1, true)).toEqual(["3:7", "7:6"]);
     expect(referencesAt(wrapped, "panel", 2, true)).toEqual(["3:7", "7:6"]);
@@ -256,29 +256,29 @@ end
   });
 
   test("a dotted class on a component call links to its style too", () => {
-    const called = `component card(n) with
+    const called = `component card(n) {
   text "{n}"
-end
-layout hud with
+}
+layout hud {
   column {
     card(1).panel
   }
-end
-style panel with
+}
+style panel {
   background-color = black
-end
+}
 `;
     expect(referencesAt(called, "panel", 1, true)).toEqual(["5:12", "8:6"]);
     expect(referencesAt(called, "panel", 2, true)).toEqual(["5:12", "8:6"]);
   });
 
   test("an element's name links to the style of its name too", () => {
-    const named = `layout hud with
+    const named = `layout hud {
   backdrop { text "a" }
-end
-style backdrop with
+}
+style backdrop {
   background-color = black
-end
+}
 `;
     expect(referencesAt(named, "backdrop", 1, true)).toEqual(["1:2", "3:6"]);
     expect(referencesAt(named, "backdrop", 2, true)).toEqual(["1:2", "3:6"]);

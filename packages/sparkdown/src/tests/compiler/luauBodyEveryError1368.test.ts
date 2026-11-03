@@ -60,18 +60,18 @@ describe("a Sparkle handler's closure reports every error Luau reports for its b
         .map((e) => e.replace(/^1:(\d+)-1:(\d+)/, "2:$1-2:$2"))
         .sort();
       expect(official.length, "the official parser reports the form").toBeGreaterThan(0);
-      expect(sparkdownErrors(`layout main with\n  button @click={\n    ${line}\n  }\nend\n`)).toEqual(official);
+      expect(sparkdownErrors(`layout main {\n  button @click={\n    ${line}\n  }\n}\n`)).toEqual(official);
     });
   }
 
   test('"return 1 2" in a closure', () => {
-    expect(sparkdownErrors(`layout main with\n  button @click={\n    return 1 2\n  }\nend\n`)).toEqual([
+    expect(sparkdownErrors(`layout main {\n  button @click={\n    return 1 2\n  }\n}\n`)).toEqual([
       "2:13-2:14 Expected 'end' (to close 'function' at line 2), got '2'",
     ]);
   });
 
   test('"local s = \\"abc" in a closure is reported once', () => {
-    const errors = sparkdownErrors('layout main with\n  button @click={ local s = "abc }\nend\n');
+    const errors = sparkdownErrors('layout main {\n  button @click={ local s = "abc }\n}\n');
     expect(errors.filter((e) => e.endsWith("Malformed string; did you forget to finish it?")), errors.join("\n")).toHaveLength(1);
   });
 
@@ -100,7 +100,7 @@ describe("a Sparkle handler's closure reports every error Luau reports for its b
   });
 
   test('"a:" on the closure\'s line names only the `}`', () => {
-    expect(sparkdownErrors(`layout main with\n  button @click={ a: }\nend\n`)).toEqual([
+    expect(sparkdownErrors(`layout main {\n  button @click={ a: }\n}\n`)).toEqual([
       "1:21-1:22 Expected identifier when parsing method name, got '}'",
     ]);
   });
@@ -118,7 +118,7 @@ describe("an alternator's arm in these bodies is reported as in a function (I-13
     });
   }
   test("a handler closure", () => {
-    expect(sparkdownErrors(`layout main with\n  button @click={\n    ${ARM}\n  }\nend\n`)).toEqual([`2:28-2:29 ${MISSING}`]);
+    expect(sparkdownErrors(`layout main {\n  button @click={\n    ${ARM}\n  }\n}\n`)).toEqual([`2:28-2:29 ${MISSING}`]);
   });
 });
 

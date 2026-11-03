@@ -5,7 +5,7 @@ import {
   flushMicrotasks,
 } from "./harness/uiTestHarness";
 
-const SCREEN = `layout main with
+const SCREEN = `layout main {
   textbox {
     character_info {
       character_name {
@@ -16,7 +16,7 @@ const SCREEN = `layout main with
       text
     }
   }
-end
+}
 `;
 
 const beatText = (beat: any, target: string): string =>

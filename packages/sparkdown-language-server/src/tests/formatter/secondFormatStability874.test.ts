@@ -260,22 +260,22 @@ end
 });
 
 test("text a prop's value cannot hold keeps its spaces", () => {
-  const source = `layout overflow with
+  const source = `layout overflow {
   column {
     button @click=f(f(f(f(f(f(f(1))))))) { text "body" }
   }
-end
+}
 `;
   expectFormatsTo(source, source);
 });
 
 test("a Sparkle block's do is not joined to a for line above it", () => {
-  const source = `layout l with
+  const source = `layout l {
   column {
     for i in bag
   }
   row { match mode do case 1 text end }
-end
+}
 `;
   expectFormatsTo(source, source);
 });

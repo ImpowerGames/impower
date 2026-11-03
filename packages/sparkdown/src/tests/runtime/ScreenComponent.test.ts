@@ -43,7 +43,7 @@ function compileUI(source: string): {
 
 describe("screen · named-element tree", () => {
   test("nested elements + scalars + bare markers", () => {
-    const r = compileUI(`layout main with
+    const r = compileUI(`layout main {
   stage {
     backdrop {
       image = "black"
@@ -54,7 +54,7 @@ describe("screen · named-element tree", () => {
       image
     }
   }
-end
+}
 scene start
 end
 `);
@@ -77,13 +77,13 @@ end
 
 describe("screen · classed element with content", () => {
   test("`text.h1 \"…\"` splits into key = tag + classes, value = content", () => {
-    const r = compileUI(`layout main with
+    const r = compileUI(`layout main {
   column {
     text.h1 "Sparkle x Pico"
     text "plain"
     image
   }
-end
+}
 scene start
 end
 `);
@@ -101,12 +101,12 @@ end
   });
 
   test("inline attributes are still excised from a classed content line", () => {
-    const r = compileUI(`layout main with
+    const r = compileUI(`layout main {
   column {
     text.h1 #padding=8 "Titled"
     button.primary "Go" @click=noop
   }
-end
+}
 scene start
 end
 `);
@@ -122,9 +122,9 @@ describe("screen · reactive content interpolation", () => {
   test("interpolated content compiles cleanly (binding evaluators hoisted)", () => {
     const r = compileUI(`store hp = 100
 store max_hp = 100
-layout hud with
+layout hud {
   text = "HP: {hp} / {max_hp + 0}"
-end
+}
 scene start
 end
 `);
@@ -135,13 +135,13 @@ end
 
 describe("screen · adjacency content", () => {
   test("`tag \"content\"` produces the same context struct as `tag = \"content\"`", () => {
-    const r = compileUI(`layout main with
+    const r = compileUI(`layout main {
   stage {
     backdrop {
       image "black"
     }
   }
-end
+}
 scene start
 end
 `);
@@ -157,12 +157,12 @@ function use_item()
 end
 function take_damage(n)
 end
-layout hud with
+layout hud {
   row {
     button "Use" @click=use_item
     button "Hit" @click=take_damage(10)
   }
-end
+}
 scene start
 end
 `);
@@ -175,12 +175,12 @@ end
 
 describe("screen · classes", () => {
   test("classes stay in the static struct key; content is the value", () => {
-    const r = compileUI(`layout main with
+    const r = compileUI(`layout main {
   stage {
     mask.shadow_1
     text.title "Inventory"
   }
-end
+}
 scene start
 end
 `);
@@ -196,7 +196,7 @@ describe("screen · control flow", () => {
   test("if/elseif/else compiles cleanly (condition evaluators hoisted)", () => {
     const r = compileUI(`store dead = false
 store hp = 100
-layout hud with
+layout hud {
   if dead then
     text "over"
   elseif hp < 10 then
@@ -204,7 +204,7 @@ layout hud with
   else
     text "ok"
   end
-end
+}
 scene start
 end
 `);
@@ -217,13 +217,13 @@ describe("screen · for loop", () => {
     const r = compileUI(`store inventory = {}
 function use_item()
 end
-layout bag with
+layout bag {
   for item in inventory do
     button "Use" @click=use_item
   else
     text "empty"
   end
-end
+}
 scene start
 end
 `);
@@ -234,14 +234,14 @@ end
 describe("screen · match", () => {
   test("match/case/else compiles cleanly (matched expr hoisted)", () => {
     const r = compileUI(`store player_class = "knight"
-layout sheet with
+layout sheet {
   match player_class do
   case "knight"
     text "Knight"
   else
     text "Other"
   end
-end
+}
 scene start
 end
 `);
@@ -251,13 +251,13 @@ end
 
 describe("component", () => {
   test("component produces $type component", () => {
-    const r = compileUI(`component card with
+    const r = compileUI(`component card {
   body {
     title {
       text
     }
   }
-end
+}
 scene start
 end
 `);
@@ -269,11 +269,11 @@ end
   });
 
   test("component inheritance records $extends", () => {
-    const r = compileUI(`component my_button as button with
+    const r = compileUI(`component my_button as button {
   label {
     text
   }
-end
+}
 scene start
 end
 `);
@@ -284,16 +284,16 @@ end
 
 describe("screen · coexistence", () => {
   test("screen + style + narrative compile together", () => {
-    const r = compileUI(`style title with
+    const r = compileUI(`style title {
   font_size = lg
-end
-layout s with
+}
+layout s {
   textbox {
     title {
       text
     }
   }
-end
+}
 scene start
   Hi.
   done

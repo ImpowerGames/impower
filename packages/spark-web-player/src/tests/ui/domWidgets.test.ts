@@ -5,13 +5,13 @@ describe("dom widgets", () => {
   test("dropdown's <option>s are direct children of the <select> and the bound value selects", async () => {
     const h = createDOMHarness(
       `store difficulty = "hard"
-layout form with
+layout form {
   dropdown #value={difficulty} {
     option "Easy" #value="easy"
     option "Normal" #value="normal"
     option "Hard" #value="hard"
   }
-end
+}
 `,
       0,
       { reactive: true },
@@ -27,9 +27,9 @@ end
   test("field renders a real <input> whose value follows state", async () => {
     const h = createDOMHarness(
       `store name = "Zelda"
-layout form with
+layout form {
   input #value={name}
-end
+}
 `,
       0,
       { reactive: true },
@@ -44,9 +44,9 @@ end
   test("slider gets a --_fill-percentage custom property on the real element", async () => {
     const h = createDOMHarness(
       `store volume = 40
-layout form with
+layout form {
   slider #value={volume} #min=0 #max=100
-end
+}
 `,
       0,
       { reactive: true },
@@ -65,13 +65,13 @@ end
       `store name = "Zelda"
 store on = true
 store vol = 40
-layout form with
+layout form {
   button "Go" @click=noop
   link "More" @click=noop
   input #value={name}
   checkbox #checked={on}
   slider #value={vol} #min=0 #max=100
-end
+}
 function noop()
 end
 `,

@@ -1,6 +1,6 @@
-screen menu with
+screen menu {
   config {
     a = 1
     nested { b = 2; c = 3 }
   }
-end
+}

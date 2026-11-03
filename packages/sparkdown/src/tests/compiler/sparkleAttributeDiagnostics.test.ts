@@ -52,13 +52,13 @@ const has = (ds: Diag[], sub: string) =>
 
 describe("Sparkle @event name validation", () => {
   test("an unrecognized event name warns", () => {
-    const ds = diagnose(`layout main with\n  button "x" @clik=foo\nend\n`);
+    const ds = diagnose(`layout main {\n  button "x" @clik=foo\n}\n`);
     expect(has(ds, "Unrecognized event")).toBe(true);
   });
 
   test("a recognized event name does not warn about the event", () => {
     const ds = diagnose(
-      `function foo()\nend\nlayout main with\n  button "x" @click=foo\nend\n`,
+      `function foo()\nend\nlayout main {\n  button "x" @click=foo\n}\n`,
     );
     expect(has(ds, "Unrecognized event")).toBe(false);
   });
@@ -70,7 +70,7 @@ describe("Sparkle @event name validation", () => {
   for (const sel of selectors) {
     test(`the style selector \`${sel} { … }\` does not warn`, () => {
       const ds = diagnose(
-        `style card with\n  ${sel} {\n    color = blue\n  }\nend\n`,
+        `style card {\n  ${sel} {\n    color = blue\n  }\n}\n`,
       );
       expect(has(ds, "Unrecognized event")).toBe(false);
     });
@@ -82,75 +82,75 @@ describe("Sparkle #prop name validation", () => {
     has(diagnose(src), "Unrecognized prop");
 
   test("a misspelled prop warns", () => {
-    expect(propWarns(`layout main with\n  row #colr=red {\n    text "x"\n  }\nend\n`)).toBe(true);
+    expect(propWarns(`layout main {\n  row #colr=red {\n    text "x"\n  }\n}\n`)).toBe(true);
   });
 
   test("a valid sparkle vocab prop does not warn", () => {
-    expect(propWarns(`layout main with\n  row #gap=12 {\n    text "x"\n  }\nend\n`)).toBe(false);
+    expect(propWarns(`layout main {\n  row #gap=12 {\n    text "x"\n  }\n}\n`)).toBe(false);
   });
 
   test("a valid raw CSS prop (pass-through) does not warn", () => {
     expect(
-      propWarns(`layout main with\n  row #object-fit=cover {\n    text "x"\n  }\nend\n`),
+      propWarns(`layout main {\n  row #object-fit=cover {\n    text "x"\n  }\n}\n`),
     ).toBe(false);
   });
 
   test("a --custom property does not warn", () => {
     expect(
-      propWarns(`layout main with\n  row #--my-var=4 {\n    text "x"\n  }\nend\n`),
+      propWarns(`layout main {\n  row #--my-var=4 {\n    text "x"\n  }\n}\n`),
     ).toBe(false);
   });
 
 
   test("a camelCase prop that normalizes to a CSS property does not warn", () => {
     expect(
-      propWarns(`layout main with\n  row #maxWidth=10 {\n    text "x"\n  }\nend\n`),
+      propWarns(`layout main {\n  row #maxWidth=10 {\n    text "x"\n  }\n}\n`),
     ).toBe(false);
   });
 
   test("an element attribute like #src does not warn", () => {
     expect(
-      propWarns(`layout main with\n  image #src="hero.png"\nend\n`),
+      propWarns(`layout main {\n  image #src="hero.png"\n}\n`),
     ).toBe(false);
   });
 
   test("a data-* attribute does not warn", () => {
     expect(
-      propWarns(`layout main with\n  row #data-id=5 {\n    text "x"\n  }\nend\n`),
+      propWarns(`layout main {\n  row #data-id=5 {\n    text "x"\n  }\n}\n`),
     ).toBe(false);
   });
 
   test("the reserved data-widget-control attribute warns", () => {
     expect(
       propWarns(
-        `layout main with\n  row #data-widget-control=1 {\n    text "x"\n  }\nend\n`,
+        `layout main {\n  row #data-widget-control=1 {\n    text "x"\n  }\n}\n`,
       ),
     ).toBe(true);
     expect(
       propWarns(
-        `layout main with\n  row #data-Widget-Control=1 {\n    text "x"\n  }\nend\n`,
+        `layout main {\n  row #data-Widget-Control=1 {\n    text "x"\n  }\n}\n`,
       ),
     ).toBe(true);
   });
 
   test("the reserved data-ui-handler attribute warns", () => {
     expect(
-      propWarns(`layout main with\n  box #data-ui-handler=1\nend\n`),
+      propWarns(`layout main {\n  box #data-ui-handler=1\n}\n`),
     ).toBe(true);
     expect(
-      propWarns(`layout main with\n  box #Data-UI-Handler=1\nend\n`),
+      propWarns(`layout main {\n  box #Data-UI-Handler=1\n}\n`),
     ).toBe(true);
   });
 
   test("the reserved data-display-target attribute warns", () => {
     expect(
       propWarns(
-        `layout main with\n  row.title #data-display-target=1 {\n    text "x"\n  }\nend\n`,
+        `layout main {\n  row.title #data-display-target=1 {\n    text "x"\n  }\n}\n`,
       ),
     ).toBe(true);
     expect(
       propWarns(
-        `layout main with\n  row #DATA-DISPLAY-TARGET=1 {\n    text "x"\n  }\nend\n`,
+        `layout main {\n  row #DATA-DISPLAY-TARGET=1 {\n    text "x"\n  }\n}\n`,
       ),
     ).toBe(true);
   });
@@ -158,32 +158,32 @@ describe("Sparkle #prop name validation", () => {
 
 describe("Sparkle @event handler resolution", () => {
   test("a bare-ref handler to an undefined function warns", () => {
-    const ds = diagnose(`layout main with\n  button "x" @click=go_back\nend\n`);
+    const ds = diagnose(`layout main {\n  button "x" @click=go_back\n}\n`);
     expect(has(ds, "Cannot find function `go_back`")).toBe(true);
   });
 
   test("a call handler to an undefined function warns", () => {
-    const ds = diagnose(`layout main with\n  button "x" @click=use_item(1)\nend\n`);
+    const ds = diagnose(`layout main {\n  button "x" @click=use_item(1)\n}\n`);
     expect(has(ds, "Cannot find function `use_item`")).toBe(true);
   });
 
   test("a handler to a defined function does not warn", () => {
     const ds = diagnose(
-      `function increment()\nend\nlayout main with\n  button "x" @click=increment\nend\n`,
+      `function increment()\nend\nlayout main {\n  button "x" @click=increment\n}\n`,
     );
     expect(has(ds, "Cannot find function")).toBe(false);
   });
 
   test("a handler to a defined scene does not warn", () => {
     const ds = diagnose(
-      `scene menu\n  -> DONE\nend\nlayout main with\n  button "x" @click=menu\nend\n`,
+      `scene menu\n  -> DONE\nend\nlayout main {\n  button "x" @click=menu\n}\n`,
     );
     expect(has(ds, "Cannot find function")).toBe(false);
   });
 
   test("a cross-file handler (function in another script of the project) does not warn", () => {
     const ds = diagnose(
-      `layout main with\n  button "x" @click=shared\nend\n`,
+      `layout main {\n  button "x" @click=shared\n}\n`,
       { logic: `function shared()\nend\n` },
     );
     expect(has(ds, "Cannot find function")).toBe(false);
@@ -191,20 +191,20 @@ describe("Sparkle @event handler resolution", () => {
 
   test("an inline closure handler is not treated as a function ref", () => {
     const ds = diagnose(
-      `store count = 0\nlayout main with\n  button "x" @click={ count = count + 1 }\nend\n`,
+      `store count = 0\nlayout main {\n  button "x" @click={ count = count + 1 }\n}\n`,
     );
     expect(has(ds, "Cannot find function")).toBe(false);
   });
 
   test("a dotted/member target is not flagged as an undefined function", () => {
-    const ds = diagnose(`layout main with\n  button "x" @click=hero.jump\nend\n`);
+    const ds = diagnose(`layout main {\n  button "x" @click=hero.jump\n}\n`);
     expect(has(ds, "Cannot find function `hero")).toBe(false);
   });
 });
 
 describe("Sparkle binding diagnostic range", () => {
   test("an undefined reference in a for-iterable reports at the binding, not line 0", () => {
-    const src = `layout main with\n  for item in player.inventory do\n    text "{item}"\n  end\nend\n`;
+    const src = `layout main {\n  for item in player.inventory do\n    text "{item}"\n  end\n}\n`;
     const ds = diagnose(src);
     const d = ds.find((x) => x.message.includes("player.inventory"));
     expect(d).toBeDefined();
@@ -215,7 +215,7 @@ describe("Sparkle binding diagnostic range", () => {
   });
 
   test("an undefined single-name iterable reports at the binding", () => {
-    const src = `layout main with\n  for item in missingList do\n    text "{item}"\n  end\nend\n`;
+    const src = `layout main {\n  for item in missingList do\n    text "{item}"\n  end\n}\n`;
     const ds = diagnose(src);
     const d = ds.find((x) => x.message.includes("`missingList`"));
     expect(d).toBeDefined();
@@ -226,7 +226,7 @@ describe("Sparkle binding diagnostic range", () => {
   });
 
   test("an undefined reference in an interpolation points at the exact token", () => {
-    const src = `store count = 0\nlayout main with\n  text "Count: {cont}"\nend\n`;
+    const src = `store count = 0\nlayout main {\n  text "Count: {cont}"\n}\n`;
     const ds = diagnose(src);
     const d = ds.find((x) => x.message.includes("`cont`"));
     expect(d).toBeDefined();
@@ -236,7 +236,7 @@ describe("Sparkle binding diagnostic range", () => {
   });
 
   test("an undefined reference inside a closure handler points at the exact token", () => {
-    const src = `store count = 0\nlayout main with\n  button "x" @click={ count = cont - 1 }\nend\n`;
+    const src = `store count = 0\nlayout main {\n  button "x" @click={ count = cont - 1 }\n}\n`;
     const ds = diagnose(src);
     const d = ds.find((x) => x.message.includes("`cont`"));
     expect(d).toBeDefined();

@@ -1,4 +1,4 @@
-layout sheet with
+layout sheet {
   match player.class do
   case "knight"
     text "Knight"
@@ -7,4 +7,4 @@ layout sheet with
   else
     text "Adventurer"
   end
-end
+}

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { createHarness } from "./harness/uiTestHarness";
 
-const SOURCE = `style dialogue with
+const SOURCE = `style dialogue {
   height = 100%
   @screen-size(sm) {
     width = 100%
@@ -10,13 +10,13 @@ const SOURCE = `style dialogue with
     color = black
     font_size = 3cqh
   }
-end
+}
 
-style dialogue_background with
+style dialogue_background {
   background_image = image.ui_dialogue_box
   position = absolute
   aspect_ratio = 1341/381
-end
+}
 
 define ui_dialogue_box as image with
   src = "https://example.com/box.png"
@@ -26,13 +26,13 @@ define accent as color with
   value = "rgb(10,20,30)"
 end
 
-layout main with
+layout main {
   textbox {
     dialogue {
       text
     }
   }
-end
+}
 
 
 

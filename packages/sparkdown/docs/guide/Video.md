@@ -79,13 +79,13 @@ end
 The cutscene's backdrop and video are the builtin styles `cutscene` and `cutscene_video`. The backdrop is black and the video is scaled to fit inside the screen. Restyle them as you would any style:
 
 ```sparkdown
-style cutscene with
+style cutscene {
   background_color = white
-end
+}
 
-style cutscene_video with
+style cutscene_video {
   object_fit = cover
-end
+}
 ```
 
 ## 14.4 Sound, pausing and the preview

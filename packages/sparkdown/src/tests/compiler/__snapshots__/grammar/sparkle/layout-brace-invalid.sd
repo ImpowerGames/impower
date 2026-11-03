@@ -30,7 +30,7 @@ layout unclosed with
     text #x={a
 end
 
-layout overflow with
+layout overflow {
   column {
     card(f(f(f(f(f(f(1))))))) { text "body" }
   }
@@ -44,9 +44,9 @@ layout overflow with
     row #x={ {a={b={c={d={e={f={g={h={i=1}}}}}}}}} } { text "body" }
   }
   text "last"
-end
+}
 
-layout typing with
+layout typing {
   column {
     if
   }
@@ -57,8 +57,8 @@ layout typing with
     match mode
   }
   row { match mode do case 1 text end }
-end
+}
 
-layout after with
+layout after {
   text "after"
-end
+}

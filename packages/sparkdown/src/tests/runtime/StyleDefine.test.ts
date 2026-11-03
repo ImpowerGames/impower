@@ -37,11 +37,11 @@ function compileStyle(source: string): {
 
 describe("style · flat props", () => {
   test("scalar props become struct keys (raw CSS names preserved)", () => {
-    const r = compileStyle(`style panel with
+    const r = compileStyle(`style panel {
   position = absolute
   flex_direction = column
   font_size = 3.4cqh
-end
+}
 `);
     expect(r.errors).toEqual([]);
     expect(r.style["panel"]).toEqual({
@@ -54,11 +54,11 @@ end
   });
 
   test("whole-line `--` Luau comments are skipped (not bogus props)", () => {
-    const r = compileStyle(`style panel with
+    const r = compileStyle(`style panel {
   position = absolute
   -- background_color = rgba(0,0,0,0.8)
   font_size = 3.4cqh
-end
+}
 `);
     expect(r.errors).toEqual([]);
     expect(r.style["panel"]).toEqual({
@@ -72,11 +72,11 @@ end
   });
 
   test("complex CSS values kept raw; quoted strings unquoted", () => {
-    const r = compileStyle(`style bg with
+    const r = compileStyle(`style bg {
   translate = calc(cos(45deg)*1cqh) calc(sin(45deg*-1)*1cqh)
   image = "black"
   aspect_ratio = 4/3
-end
+}
 `);
     expect(r.errors).toEqual([]);
     const s = r.style["bg"];
@@ -86,12 +86,12 @@ end
   });
 
   test("`<type>.<name>` references resolve to { $type, $name } (not raw strings)", () => {
-    const r = compileStyle(`style dialogue_background with
+    const r = compileStyle(`style dialogue_background {
   background_image = image.ui_dialogue_box
   font_family = font.courier_prime_sans
   position = absolute
   aspect_ratio = 1341/381
-end
+}
 `);
     expect(r.errors).toEqual([]);
     const s = r.style["dialogue_background"];
@@ -110,7 +110,7 @@ end
 
 describe("style · nested (breakpoints + selectors)", () => {
   test("@breakpoint and > selector nest under their literal keys", () => {
-    const r = compileStyle(`style speech_box with
+    const r = compileStyle(`style speech_box {
   height = 100%
   @screen-size(sm) {
     width = 100%
@@ -119,7 +119,7 @@ describe("style · nested (breakpoints + selectors)", () => {
     color = black
     font_size = 3cqh
   }
-end
+}
 `);
     expect(r.errors).toEqual([]);
     expect(r.style["speech_box"]).toEqual({
@@ -132,14 +132,14 @@ end
   });
 
   test("attribute selectors (`> #image^=raffles_ { … }`) survive", () => {
-    const r = compileStyle(`style shadow with
+    const r = compileStyle(`style shadow {
   > #image^=raffles_ {
     background_color = #E5323E
   }
   > #image^=bunny_ {
     background_color = #48A5F2
   }
-end
+}
 `);
     expect(r.errors).toEqual([]);
     const s = r.style["shadow"];
@@ -150,26 +150,26 @@ end
 
 describe("style · inheritance + boundaries", () => {
   test("`as PARENT` records $extends", () => {
-    const r = compileStyle(`style danger as button with
+    const r = compileStyle(`style danger as button {
   background_color = red
-end
+}
 `);
     expect(r.errors).toEqual([]);
     expect(r.style["danger"]["$extends"]).toBe("button");
   });
 
   test("many style blocks coexist (no duplicate-`style` collision)", () => {
-    const r = compileStyle(`style a with
+    const r = compileStyle(`style a {
   position = absolute
-end
-style b with
+}
+style b {
   position = relative
-end
-style c with
+}
+style c {
   > text {
     color = white
   }
-end
+}
 `);
     expect(r.errors).toEqual([]);
     for (const name of ["a", "b", "c"]) {

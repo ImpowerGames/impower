@@ -27,7 +27,7 @@ function ruleBlock(css: string, selector: string): string {
 
 describe("native display", () => {
   test("the table family lays out as a real table", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   table {
     table_header {
       table_row {
@@ -40,7 +40,7 @@ describe("native display", () => {
       }
     }
   }
-end
+}
 `);
     expect(display(h, "table")).toBe("table");
     expect(display(h, "thead")).toBe("table-header-group");
@@ -52,12 +52,12 @@ end
 
   test("list + foldout builtins declare their native display", async () => {
     const css = sheet(
-      await render(`layout main with
+      await render(`layout main {
   list {
     item "a"
   }
   foldout "More" {}
-end
+}
 `),
     );
     expect(ruleBlock(css, ".list")).toContain("display: block;");
@@ -69,21 +69,21 @@ end
   });
 
   test("`prose` is a non-flex box so children can flow inline", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   box.prose {
     text "See "
     link "the docs" #href="#"
   }
-end
+}
 `);
     expect(display(h, ".prose")).toBe("block");
     expect(ruleBlock(sheet(h), ".prose")).toContain("display: block;");
   });
 
   test("divider renders a real rule", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   divider
-end
+}
 `);
     expect(h.overlay.querySelector("hr")).toBeTruthy();
     expect(ruleBlock(sheet(h), ".divider")).toContain("display: block;");

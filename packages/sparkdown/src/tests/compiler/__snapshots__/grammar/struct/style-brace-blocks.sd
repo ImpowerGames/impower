@@ -1,4 +1,4 @@
-style button with
+style button {
   cursor = pointer
   &.secondary { background-color = slate_50 }
   > text.label = { text-weight = 600; color = white }
@@ -11,4 +11,4 @@ style button with
   }
   &[data-label="a b;{"] { color = red }
   &[data-label='a;b'] { opacity = 0.5 }
-end
+}

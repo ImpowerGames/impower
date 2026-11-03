@@ -18,7 +18,7 @@ define VILLAIN as character with
   name = "VILLAIN"
 end
 
-layout main with
+layout main {
   textbox {
     character_info {
       character_name {
@@ -38,7 +38,7 @@ layout main with
   choice.1 {
     text
   }
-end
+}
 `;
 
 const table = (fields: Record<string, string | boolean>) =>

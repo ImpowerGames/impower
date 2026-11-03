@@ -6,7 +6,7 @@ store busy = true
 `;
 
 const BRACED = `${STATE}
-layout hud with
+layout hud {
   column.panel #child-gap=8 {
     text.title "Inventory"
     for item in items do
@@ -21,7 +21,7 @@ layout hud with
   stage {
     mask.shadow_1
   }
-end
+}
 `;
 
 const hpText = (h: ReturnType<typeof createHarness>): string | undefined => {
@@ -50,12 +50,12 @@ end
 function take_damage(n)
   hp = hp - n
 end
-layout hud with
+layout hud {
   column.panel {
     text "HP: {hp}"
     row { button.primary "Go" ${handler}; text "after" }
   }
-end
+}
 `,
         0,
         { reactive: true },

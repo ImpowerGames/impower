@@ -23,11 +23,11 @@ describe("a binding that throws does not blank the preview", () => {
   test("the rest of the layout still mounts", async () => {
     const h = createHarness(
       `store player = { name = "A" }
-layout main with
+layout main {
   text "before"
   text "{player.stats.hp}"
   text "after"
-end
+}
 `,
       0,
       { reactive: true },
@@ -48,12 +48,12 @@ describe("opening a layout keeps the beat's other changes", () => {
 function hurt()
   hp = 50
 end
-layout main with
+layout main {
   text "HP: {hp}"
-end
-layout hud with
+}
+layout hud {
   text "HUD"
-end
+}
 
 scene start
   [[open hud]]
@@ -88,9 +88,9 @@ describe("handlers do not outlive the id space they are keyed by", () => {
     const h = createHarness(
       `function noop()
 end
-layout main with
+layout main {
   button "Go" @click=noop
-end
+}
 `,
       0,
       { reactive: true },

@@ -1,4 +1,4 @@
-layout bag with
+layout bag {
   for item in inventory do
     row {
       text "{item.name}"
@@ -7,4 +7,4 @@ layout bag with
   else
     text "Your bag is empty."
   end
-end
+}

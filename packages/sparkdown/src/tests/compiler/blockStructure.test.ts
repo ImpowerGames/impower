@@ -212,12 +212,12 @@ describe("valid blocks report nothing new", () => {
       'define hero as character with name = "Hero"\nend\nscene start\n  Hi.\nend\n',
     "a define with a comment after `with`":
       "define hero as character with -- the lead\nend\nscene start\n  Hi.\nend\n",
-    "a style with a comment after `with`":
-      "style s with -- note\n  color = red\nend\nscene start\n  Hi.\nend\n",
+    "a style with a comment after `{`":
+      "style s { -- note\n  color = red\n}\nscene start\n  Hi.\nend\n",
     "a style with a nested block":
-      "style s with\n  &.a {\n    color = red\n  }\nend\nscene start\n  Hi.\nend\n",
+      "style s {\n  &.a {\n    color = red\n  }\n}\nscene start\n  Hi.\nend\n",
     "a layout in a screen":
-      "screen hud with\nend\nlayout main as base in hud with\n  box {\n  }\nend\nlayout base with\nend\nscene start\n  Hi.\nend\n",
+      "screen hud {\n}\nlayout main as base in hud {\n  box {\n  }\n}\nlayout base {\n}\nscene start\n  Hi.\nend\n",
   };
   for (const form of FORMS) {
     cases[`a one-line ${form.keyword}`] = `${form.header} with end\nscene start\n  Hi.\nend\n`;

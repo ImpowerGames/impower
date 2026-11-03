@@ -1,4 +1,4 @@
-component card(title) with
+component card(title) {
   column.card {
     text.title "{title}"
     row.body { slot }
@@ -6,4 +6,4 @@ component card(title) with
       text "footer"
     }
   }
-end
+}

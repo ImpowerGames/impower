@@ -12,11 +12,11 @@ const createsNamed = (h: UIHarness, tag: string): any[] =>
 describe("inline props on generic elements", () => {
   test("static #prop becomes an inline style on the create message", async () => {
     const h = createHarness(
-      `layout main with
+      `layout main {
   row #gap=20 #background-color=darkred {
     text "A"
   }
-end
+}
 `,
       0,
       { reactive: true } as any,
@@ -32,11 +32,11 @@ end
 
   test("a dotted class and inline props coexist on the same element", async () => {
     const h = createHarness(
-      `layout main with
+      `layout main {
   column.panel #gap=16 #background-color=navy {
     text.title "Hi"
   }
-end
+}
 `,
       0,
       { reactive: true } as any,
@@ -62,12 +62,12 @@ end
 function setbg()
   bg = "green"
 end
-layout main with
+layout main {
   box #background-color={bg} {
     text "C"
   }
   button "x" @click=setbg
-end
+}
 `,
       0,
       { reactive: true } as any,

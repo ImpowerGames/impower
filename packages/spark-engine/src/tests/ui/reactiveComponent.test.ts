@@ -14,12 +14,12 @@ const refresh = (h: UIHarness): void =>
 describe("reactive components (C1)", () => {
   test("a component renders its body with a literal arg bound to its param", async () => {
     const h = createHarness(
-      `component greeting(who) with
+      `component greeting(who) {
   text "Hi {who}"
-end
-layout main with
+}
+layout main {
   greeting("World")
-end
+}
 `,
       0,
       { reactive: true },
@@ -30,12 +30,12 @@ end
 
   test("a component with two params binds them positionally", async () => {
     const h = createHarness(
-      `component stat_row(label, value) with
+      `component stat_row(label, value) {
   text "{label}: {value}"
-end
-layout main with
+}
+layout main {
   stat_row("HP", 100)
-end
+}
 `,
       0,
       { reactive: true },
@@ -46,17 +46,17 @@ end
 
   test("default slot projects the caller's children", async () => {
     const h = createHarness(
-      `component card(title) with
+      `component card(title) {
   box {
     text "{title}"
     slot
   }
-end
-layout main with
+}
+layout main {
   card("Inventory") {
     text "body content"
   }
-end
+}
 `,
       0,
       { reactive: true },
@@ -70,20 +70,20 @@ end
 
   test("named slot projects a matching `fill`", async () => {
     const h = createHarness(
-      `component panel with
+      `component panel {
   box {
     slot
     slot.footer
   }
-end
-layout main with
+}
+layout main {
   panel {
     text "main body"
     fill.footer {
       text "footer body"
     }
   }
-end
+}
 `,
       0,
       { reactive: true },
@@ -101,12 +101,12 @@ end
 function inc()
   score = score + 1
 end
-component badge(n) with
+component badge(n) {
   text "score: {n}"
-end
-layout main with
+}
+layout main {
   badge(score)
-end
+}
 `,
       0,
       { reactive: true },
@@ -126,14 +126,14 @@ end
   test("a component called inside a `for` receives the loop var as an arg", async () => {
     const h = createHarness(
       `store items = {"a", "b"}
-component row_item(x) with
+component row_item(x) {
   text "item: {x}"
-end
-layout main with
+}
+layout main {
   for it in items do
     row_item(it)
   end
-end
+}
 `,
       0,
       { reactive: true },
@@ -149,12 +149,12 @@ end
 function inc()
   score = score + 1
 end
-component card(title) with
+component card(title) {
   text "{title}"
-end
-layout main with
+}
+layout main {
   card("Score is {score}")
-end
+}
 `,
       0,
       { reactive: true },

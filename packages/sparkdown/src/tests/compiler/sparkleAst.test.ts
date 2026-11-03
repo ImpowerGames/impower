@@ -15,11 +15,11 @@ function componentAst(source: string): any {
 
 describe("reactive sparkle AST", () => {
   test("numeric `for i = from, to` lowers to a ForNode.numeric (no `each`)", () => {
-    const ast = screenAst(`layout main with
+    const ast = screenAst(`layout main {
   for i = 1, 3 do
     text "n={i}"
   end
-end
+}
 `);
     const forNode = ast?.main?.children?.[0];
     expect(forNode.kind).toBe("for");
@@ -32,11 +32,11 @@ end
   });
 
   test("numeric `for i = from, to, step` captures the step bound", () => {
-    const ast = screenAst(`layout main with
+    const ast = screenAst(`layout main {
   for i = 0, 10, 2 do
     text "n={i}"
   end
-end
+}
 `);
     const forNode = ast?.main?.children?.[0];
     expect(forNode.numeric?.from?.source).toBe("0");
@@ -45,7 +45,7 @@ end
   });
 
   test("screen body lowers to a typed element tree (read from grammar tokens)", () => {
-    const ast = screenAst(`layout main with
+    const ast = screenAst(`layout main {
   stage {
     backdrop {
       image = "black"
@@ -58,7 +58,7 @@ end
       text
     }
   }
-end
+}
 `);
     expect(ast).toEqual({
       main: {
@@ -140,9 +140,9 @@ end
   });
 
   test("interpolated content lowers to ordered literal + binding parts", () => {
-    const ast = screenAst(`layout hud with
+    const ast = screenAst(`layout hud {
   text = "HP: {hp} / {max_hp}"
-end
+}
 `);
     const text = ast.hud.children[0];
     expect(text.tag).toBe("text");
@@ -172,12 +172,12 @@ end
   });
 
   test("adjacency content `tag \"...\"` lowers to an element with content", () => {
-    const ast = screenAst(`layout main with
+    const ast = screenAst(`layout main {
   stage {
     image "black"
     text "HP: {hp}"
   }
-end
+}
 `);
     const stage = ast.main.children[0];
     expect(stage.tag).toBe("stage");
@@ -199,12 +199,12 @@ end
   });
 
   test("`@event=handler` lowers to EventBindings (ref + call)", () => {
-    const ast = screenAst(`layout hud with
+    const ast = screenAst(`layout hud {
   row {
     button "Use" @click=use_item
     button "Hit" @click=take_damage(10)
   }
-end
+}
 `);
     const [useBtn, hitBtn] = ast.hud.children[0].children;
     expect(useBtn.tag).toBe("button");
@@ -229,10 +229,10 @@ end
   });
 
   test("`@event={ ... }` lowers to a closure EventBinding (statements, not a table)", () => {
-    const ast = screenAst(`layout form with
+    const ast = screenAst(`layout form {
   field @input={ name = event.value }
   button "Reset" @click={ score = 0; combo = 0 }
-end
+}
 `);
     const [field, button] = ast.form.children;
     expect(field.tag).toBe("field");
@@ -257,12 +257,12 @@ end
   });
 
   test("`#prop=value` lowers to literal + binding PropValues (header/marker/adjacency)", () => {
-    const ast = screenAst(`layout panel with
+    const ast = screenAst(`layout panel {
   column #gap=16 {
     image #src="icon.png"
     text "hi" #opacity=0.5 #color={team_color}
   }
-end
+}
 `);
     const column = ast.panel.children[0];
     expect(column.tag).toBe("column");
@@ -285,12 +285,12 @@ end
   });
 
   test("class + adjacency content + trailing attribute coexist on one line", () => {
-    const ast = screenAst(`layout main with
+    const ast = screenAst(`layout main {
   stage {
     button.primary "Use" @click=use_item
     label.big "HP: {hp}" #color={team_color}
   }
-end
+}
 `);
     const [btn, lbl] = ast.main.children[0].children;
     expect(btn).toMatchObject({ tag: "button", classes: ["primary"] });
@@ -313,7 +313,7 @@ end
   });
 
   test("if/elseif/else lowers to an IfNode (branches + else, grammar children)", () => {
-    const ast = screenAst(`layout hud with
+    const ast = screenAst(`layout hud {
   stage {
     if player.dead then
       text "GAME OVER"
@@ -323,7 +323,7 @@ end
       text "OK"
     end
   }
-end
+}
 `);
     const stage = ast.hud.children[0];
     expect(stage.tag).toBe("stage");
@@ -343,11 +343,11 @@ end
   });
 
   test("`if` with no else omits the else branch", () => {
-    const ast = screenAst(`layout hud with
+    const ast = screenAst(`layout hud {
   if ready then
     text "Go"
   end
-end
+}
 `);
     const ifNode = ast.hud.children[0];
     expect(ifNode.kind).toBe("if");
@@ -359,13 +359,13 @@ end
   });
 
   test("for...in...do...else lowers to a ForNode (bindings + each + else)", () => {
-    const ast = screenAst(`layout bag with
+    const ast = screenAst(`layout bag {
   for item in inventory do
     text "{item.name}"
   else
     text "empty"
   end
-end
+}
 `);
     const forNode = ast.bag.children[0];
     expect(forNode.kind).toBe("for");
@@ -380,11 +380,11 @@ end
   });
 
   test("for with two bindings (`k, v`) and no else", () => {
-    const ast = screenAst(`layout t with
+    const ast = screenAst(`layout t {
   for k, v in scores do
     text "{k}"
   end
-end
+}
 `);
     const forNode = ast.t.children[0];
     expect(forNode.kind).toBe("for");
@@ -399,17 +399,17 @@ end
     ["function-typed", "for k: (number, string) -> nil, v in scores do", ["k", "v"]],
     ["numeric", "for i: number = 1, 3 do", ["i"]],
   ])("a %s for's annotated bindings are their names", (_kind, header, bindings) => {
-    const ast = screenAst(`layout t with
+    const ast = screenAst(`layout t {
   ${header}
     text "{${bindings[0]}}"
   end
-end
+}
 `);
     expect(ast.t.children[0].bindings).toEqual(bindings);
   });
 
   test("match/case/else lowers to a MatchNode (expr + case arms + else)", () => {
-    const ast = screenAst(`layout sheet with
+    const ast = screenAst(`layout sheet {
   match player.class do
   case "knight"
     text "Knight"
@@ -418,7 +418,7 @@ end
   else
     text "Other"
   end
-end
+}
 `);
     const matchNode = ast.sheet.children[0];
     expect(matchNode.kind).toBe("match");
@@ -435,12 +435,12 @@ end
   });
 
   test("slot lowers to SlotNode (default + named)", () => {
-    const ast = componentAst(`component card with
+    const ast = componentAst(`component card {
   box {
     slot
     slot.footer
   }
-end
+}
 `);
     const box = ast.card.children[0];
     expect(box.tag).toBe("box");
@@ -449,11 +449,11 @@ end
   });
 
   test("fill lowers to FillNode with a name + children", () => {
-    const ast = screenAst(`layout s with
+    const ast = screenAst(`layout s {
   fill.footer {
     button "Sort"
   }
-end
+}
 `);
     const fill = ast.s.children[0];
     expect(fill.kind).toBe("fill");
@@ -462,12 +462,12 @@ end
   });
 
   test("slot/fill still lower when the NAME collides with a builtin tag", () => {
-    const ast = componentAst(`component card with
+    const ast = componentAst(`component card {
   box {
     slot.text
     slot.button
   }
-end
+}
 `);
     const box = ast.card.children[0];
     expect(box.children[0]).toEqual({ kind: "slot", name: "text" });
@@ -475,11 +475,11 @@ end
   });
 
   test("fill still lowers when the NAME collides with a builtin tag", () => {
-    const ast = screenAst(`layout s with
+    const ast = screenAst(`layout s {
   fill.header {
     button "Sort"
   }
-end
+}
 `);
     const fill = ast.s.children[0];
     expect(fill.kind).toBe("fill");
@@ -488,9 +488,9 @@ end
   });
 
   test("literal `\\{`/`\\}` brace escapes unescape, no binding emitted", () => {
-    const ast = screenAst(`layout hud with
+    const ast = screenAst(`layout hud {
   text = "literal \\{braces\\} kept"
-end
+}
 `);
     expect(ast.hud.children[0].content).toEqual([
       { kind: "literal", text: "literal {braces} kept" },
@@ -498,9 +498,9 @@ end
   });
 
   test("`{{fn}}` call shorthand in content lowers to a binding calling fn", () => {
-    const ast = screenAst(`layout hud with
+    const ast = screenAst(`layout hud {
   text = "Cry: {{shout}}!"
-end
+}
 `);
     const parts = ast.hud.children[0].content;
     expect(parts[0]).toEqual({ kind: "literal", text: "Cry: " });
@@ -510,9 +510,9 @@ end
   });
 
   test("`{{fn(args)}}` call shorthand in a prop value lowers to a binding", () => {
-    const ast = screenAst(`layout hud with
+    const ast = screenAst(`layout hud {
   text #label={{format_hp(hp, max_hp)}}
-end
+}
 `);
     const label = ast.hud.children[0].props.label;
     expect(label.kind).toBe("binding");
@@ -520,28 +520,28 @@ end
   });
 
   test("`as PARENT` carries inheritance onto the screen node", () => {
-    const ast = screenAst(`layout pause as main with
+    const ast = screenAst(`layout pause as main {
   text
-end
+}
 `);
     expect(ast.pause.extends).toBe("main");
     expect(ast.pause.children[0].tag).toBe("text");
   });
 
   test("component header params lower to ComponentNode.params", () => {
-    const ast = componentAst(`component stat_row(label, value) with
+    const ast = componentAst(`component stat_row(label, value) {
   row {
     text "{value}"
   }
-end
+}
 `);
     expect(ast.stat_row.params).toEqual(["label", "value"]);
   });
 
   test("a component-body binding captures the params as evaluator args", () => {
-    const ast = componentAst(`component card(title) with
+    const ast = componentAst(`component card(title) {
   text "{title}"
-end
+}
 `);
     const text = ast.card.children[0];
     const part = text.content.find((p: any) => p.kind === "binding");
@@ -549,7 +549,7 @@ end
   });
 
   test("component call site lowers to an element with positional arg Bindings", () => {
-    const ast = screenAst(`layout sheet with
+    const ast = screenAst(`layout sheet {
   card("Inventory") {
     text "10 / 20 slots"
     fill.footer {
@@ -557,7 +557,7 @@ end
     }
   }
   stat_row(hero.name, hero.hp)
-end
+}
 `);
     const card = ast.sheet.children[0];
     expect(card.tag).toBe("card");
@@ -581,10 +581,10 @@ end
   });
 
   test("an interpolated quoted-string arg lowers to a `content` PropValue", () => {
-    const ast = screenAst(`layout sheet with
+    const ast = screenAst(`layout sheet {
   card("Score is {score}!")
   card("Inventory")
-end
+}
 `);
     const interp = ast.sheet.children[0].params[0];
     expect(interp.kind).toBe("content");
@@ -605,9 +605,9 @@ end
   });
 
   test("an interpolated #prop value lowers to a `content` PropValue", () => {
-    const ast = screenAst(`layout hud with
+    const ast = screenAst(`layout hud {
   text "x" #label="HP: {hp}"
-end
+}
 `);
     const el = ast.hud.children[0];
     expect(el.props.label.kind).toBe("content");
@@ -621,9 +621,9 @@ end
   });
 
   test("a plain #prop value (no interpolation) stays a literal", () => {
-    const ast = screenAst(`layout hud with
+    const ast = screenAst(`layout hud {
   text "x" #color="red"
-end
+}
 `);
     expect(ast.hud.children[0].props.color).toEqual({
       kind: "literal",

@@ -12,6 +12,6 @@ style after {
   corner = 4px
 }
 
-theme bare
+theme bare {
   color = red
-end
+}

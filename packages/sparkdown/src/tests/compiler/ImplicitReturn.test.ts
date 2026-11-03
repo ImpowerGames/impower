@@ -67,7 +67,7 @@ describe("ImplicitReturn", () => {
   });
 
   test("a function in a Sparkle handler is read", () => {
-    expect(messages(implicit("layout main with\n  button @click={ local g = function(a) if a then return 1 end end; g() }\nend\n"))).toEqual([falls("", 2)]);
+    expect(messages(implicit("layout main {\n  button @click={ local g = function(a) if a then return 1 end end; g() }\n}\n"))).toEqual([falls("", 2)]);
   });
 });
 

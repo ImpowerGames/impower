@@ -1,10 +1,10 @@
-component card(title) with
+component card(title) {
   column.card {
     text.title "{title}"
     slot
     slot.footer
   }
-end
+}
 
 layout inventory with
   column.panel #child-gap=8 {
@@ -52,7 +52,7 @@ layout inventory with
   }
 end
 
-layout values with
+layout values {
   button @click=f--{text}
   button @click=f--{comment
   button @click=f--note { text }
@@ -82,4 +82,4 @@ layout values with
   text = Hello {who}
   text = [[a{b}]]
   items { Hello {who}; { a } }
-end
+}

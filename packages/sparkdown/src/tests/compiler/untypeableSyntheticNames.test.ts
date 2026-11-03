@@ -98,9 +98,9 @@ const EVERY_FAMILY = [
   "  repeat total += 1 until total > 12",
   "end",
   "",
-  "layout hud with",
+  "layout hud {",
   '  text "{total}"',
-  "end",
+  "}",
   "",
   "scene start",
   "  & obj:add(1)",
@@ -179,7 +179,7 @@ describe("names the compiler generates", () => {
 
   it("show a binding's evaluator as anonymous in its frame", () => {
     const program = compile(
-      ["layout hud with", '  text "{debug.info(1, \'n\')}"', "end", "", "scene start", "end", ""].join("\n"),
+      ["layout hud {", '  text "{debug.info(1, \'n\')}"', "}", "", "scene start", "end", ""].join("\n"),
     );
     expect(errors(program)).toEqual([]);
     const exprId = JSON.stringify(program.sparkle?.layouts?.["hud"]).match(

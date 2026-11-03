@@ -1,4 +1,4 @@
-text.source.sparkdown [0..142]
+text.source.sparkdown [0..137]
  ├─ meta.animation.luau [0..21]
  │   ├─ keyword.control.animation.luau [0..9]: "animation"
  │   ├─ punctuation.whitespace.optional.sd [9..10]: " "
@@ -48,28 +48,28 @@ text.source.sparkdown [0..142]
  │   └─ keyword.control.end.luau [86..89]: "end"
  ├─ Newline [89..90]: "\n"
  ├─ Newline [90..91]: "\n"
- ├─ meta.animation.luau [91..111]
+ ├─ meta.animation.luau [91..108]
  │   ├─ keyword.control.animation.luau [91..100]: "animation"
  │   ├─ punctuation.whitespace.optional.sd [100..101]: " "
  │   ├─ entity.name.type.define.luau [101..106]: "after"
- │   ├─ punctuation.whitespace.optional.sd [106..107]: " "
- │   └─ keyword.control.as.luau [107..111]: "with"
- ├─ Newline [111..112]: "\n"
- ├─ meta.animation.luau [112..137]
- │   ├─ punctuation.whitespace.sd [112..114]: "  "
- │   ├─ entity.name.type.class.view.sd [114..120]: "timing"
- │   ├─ punctuation.whitespace.sd [120..121]: " "
- │   ├─ punctuation.definition.template-expression.begin.sd [121..122]: "{"
- │   ├─ punctuation.whitespace.sd [122..123]: " "
- │   ├─ variable.other.property.define.sd [123..131]: "duration"
- │   ├─ markup.raw.whitespace.separator.optional.sd [131..132]: " "
- │   ├─ keyword.operator.assignment.sd [132..133]: "="
- │   ├─ markup.raw.whitespace.separator.optional.sd [133..134]: " "
- │   ├─ constant.numeric.sd [134..135]
- │   │   └─ constant.numeric.sd [134..135]: "2"
- │   ├─ punctuation.whitespace.sd [135..136]: " "
- │   └─ punctuation.definition.template-expression.end.sd [136..137]: "}"
- ├─ Newline [137..138]: "\n"
- ├─ meta.animation.luau [138..141]
- │   └─ keyword.control.end.luau [138..141]: "end"
- └─ Newline [141..142]: "\n"
+ │   ├─ punctuation.whitespace.sd [106..107]: " "
+ │   └─ punctuation.definition.template-expression.begin.sd [107..108]: "{"
+ ├─ Newline [108..109]: "\n"
+ ├─ meta.animation.luau [109..134]
+ │   ├─ punctuation.whitespace.sd [109..111]: "  "
+ │   ├─ entity.name.type.class.view.sd [111..117]: "timing"
+ │   ├─ punctuation.whitespace.sd [117..118]: " "
+ │   ├─ punctuation.definition.template-expression.begin.sd [118..119]: "{"
+ │   ├─ punctuation.whitespace.sd [119..120]: " "
+ │   ├─ variable.other.property.define.sd [120..128]: "duration"
+ │   ├─ markup.raw.whitespace.separator.optional.sd [128..129]: " "
+ │   ├─ keyword.operator.assignment.sd [129..130]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [130..131]: " "
+ │   ├─ constant.numeric.sd [131..132]
+ │   │   └─ constant.numeric.sd [131..132]: "2"
+ │   ├─ punctuation.whitespace.sd [132..133]: " "
+ │   └─ punctuation.definition.template-expression.end.sd [133..134]: "}"
+ ├─ Newline [134..135]: "\n"
+ ├─ meta.animation.luau [135..136]
+ │   └─ punctuation.definition.template-expression.end.sd [135..136]: "}"
+ └─ Newline [136..137]: "\n"

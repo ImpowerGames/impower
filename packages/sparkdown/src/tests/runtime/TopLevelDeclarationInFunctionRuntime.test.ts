@@ -7,15 +7,15 @@ const MISPLACED = (keyword: string) =>
 const KINDS = [
   {
     keyword: "animation",
-    lines: ["animation wobble with", "  duration = 7", "end"],
-    sibling: "animation still with\n  duration = 1\nend",
+    lines: ["animation wobble {", "  duration = 7", "}"],
+    sibling: "animation still {\n  duration = 1\n}",
     path: "animation.wobble",
     value: "animation.wobble.duration",
   },
   {
     keyword: "theme",
-    lines: ["theme dusk with", "  g = 7", "end"],
-    sibling: "theme dawn with\n  g = 1\nend",
+    lines: ["theme dusk {", "  g = 7", "}"],
+    sibling: "theme dawn {\n  g = 1\n}",
     path: "theme.dusk",
     value: "theme.dusk.g",
   },

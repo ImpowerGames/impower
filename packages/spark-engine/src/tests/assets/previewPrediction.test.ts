@@ -1010,10 +1010,10 @@ end
 function heal()
   hp = hp + 5
 end
-layout hud with
+layout hud {
   text "HP: {hp}"
   button "Heal" @click=heal
-end
+}
 
 scene A
   [[show backdrop room]]
@@ -1090,7 +1090,7 @@ end
   });
 
   it("keeps the abandoned pin through a connect's own gates, and lets it go with the next beat's", async () => {
-    const story = `style main with\n  font_family = "Fancy"\nend\n\n${STORY}`;
+    const story = `style main {\n  font_family = "Fancy"\n}\n\n${STORY}`;
     const h = connected(story, 7);
     await flushMicrotasks(20);
     expect(h.releaseAssets("layout:main")).toBe(1);
@@ -1256,11 +1256,11 @@ store pings = 0
 function ping()
   pings = pings + 1
 end
-layout hud with
+layout hud {
   text "HP {hp}"
   text "P {pings}"
   button "Ping" @click=ping
-end
+}
 
 scene A
   [[show backdrop room]]

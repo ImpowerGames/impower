@@ -26,13 +26,13 @@ function ancestorNames(node: SyntaxNode): string[] {
 describe("a header's block comments belong to its keyword's begin", () => {
   test.each([
     ["define", "LuauDefine", "define --[[ c ]] Person with\n  name = \"a\"\nend\n", "Person"],
-    ["style", "LuauStyle", "style --[[ note ]] banner with\n  color = red\nend\n", "banner"],
-    ["animation", "LuauAnimation", "animation --[=[ c ]=] fade with\n  keyframes {\n    from { opacity = 0 }\n  }\nend\n", "fade"],
-    ["theme", "LuauTheme", "theme --[[ a]b ]] t with\n  colors { primary = red }\nend\n", "t"],
-    ["morph", "LuauMorph", "morph --[[ c ]] --[[ d ]] m with\n  method = bend\nend\n", "m"],
-    ["layout", "LuauLayout", "layout --[[ note ]] hud with\n  text \"hi\"\nend\n", "hud"],
-    ["screen", "LuauScreen", "screen --[[ c ]] hud with\nend\n", "hud"],
-    ["component", "LuauComponent", "component --[[ note ]] card with\n  text \"card\"\nend\n", "card"],
+    ["style", "LuauStyle", "style --[[ note ]] banner {\n  color = red\n}\n", "banner"],
+    ["animation", "LuauAnimation", "animation --[=[ c ]=] fade {\n  keyframes {\n    from { opacity = 0 }\n  }\n}\n", "fade"],
+    ["theme", "LuauTheme", "theme --[[ a]b ]] t {\n  colors { primary = red }\n}\n", "t"],
+    ["morph", "LuauMorph", "morph --[[ c ]] --[[ d ]] m {\n  method = bend\n}\n", "m"],
+    ["layout", "LuauLayout", "layout --[[ note ]] hud {\n  text \"hi\"\n}\n", "hud"],
+    ["screen", "LuauScreen", "screen --[[ c ]] hud {\n}\n", "hud"],
+    ["component", "LuauComponent", "component --[[ note ]] card {\n  text \"card\"\n}\n", "card"],
   ])("%s reads its name after the comment, which its begin holds", (_, rule, source, name) => {
     const comments = nodesNamed(source, "LuauBlockComment");
     expect(comments.length).toBeGreaterThan(0);
@@ -49,8 +49,8 @@ describe("a header's block comments belong to its keyword's begin", () => {
   });
 
   test.each([
-    ["a close of another level inside it", "style --[====[a]=====] hidden ]====] banner with\n  color = red\nend\n", "--[====[a]=====] hidden ]====] ", "banner"],
-    ["a close of its level's prefix inside it", "style --[=[a]]=] --[====[b]====] two with\n  color = red\nend\n", "--[=[a]]=] ", "two"],
+    ["a close of another level inside it", "style --[====[a]=====] hidden ]====] banner {\n  color = red\n}\n", "--[====[a]=====] hidden ]====] ", "banner"],
+    ["a close of its level's prefix inside it", "style --[=[a]]=] --[====[b]====] two {\n  color = red\n}\n", "--[=[a]]=] ", "two"],
   ])("a comment with %s ends at its own level's close, and the name after it reads", (_, source, comment, name) => {
     const comments = nodesNamed(source, "LuauBlockComment");
     expect(source.slice(comments[0]!.from, comments[0]!.to)).toBe(comment);

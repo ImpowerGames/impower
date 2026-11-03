@@ -26,7 +26,7 @@ const compile = (text: string, seed: boolean) => {
   return { program: result.program, messages: messages(result.program) };
 };
 
-const LAYOUT = `layout loading with
+const LAYOUT = `layout loading {
   loading_backdrop
   loading_content {
     text "Loading {game.loading.name}... {game.loading.percent}% ahead {config.assets.predict_distance}"
@@ -34,7 +34,7 @@ const LAYOUT = `layout loading with
       loading_fill #transform="scaleX({game.loading.progress})"
     }
   }
-end
+}
 
 scene A
   & local ahead = 1 + config.assets.predict_distance
@@ -42,11 +42,11 @@ scene A
 end
 `;
 
-const BARE_INSTANCE = `layout loading with
+const BARE_INSTANCE = `layout loading {
   loading_content {
     text "Ahead {assets.predict_distance}"
   }
-end
+}
 
 scene A
   Hi.
@@ -77,7 +77,7 @@ describe("references to builtin defines", () => {
 
   test("an unknown name still warns in an unseeded compile", () => {
     const { messages } = compile(
-      `layout loading with\n  text "{nope.field}"\nend\n\nscene A\n  Hi.\nend\n`,
+      `layout loading {\n  text "{nope.field}"\n}\n\nscene A\n  Hi.\nend\n`,
       false,
     );
     expect(messages.some((m) => m.includes("Cannot find item or path named `nope.field`"))).toBe(true);
@@ -85,7 +85,7 @@ describe("references to builtin defines", () => {
 
   test("an authored define may still take a builtin's name in an unseeded compile", () => {
     const { program, messages } = compile(
-      `define assets as config with\n  predict_distance = 4\nend\n\nlayout loading with\n  text "{config.assets.predict_distance}"\nend\n\nscene A\n  Hi.\nend\n`,
+      `define assets as config with\n  predict_distance = 4\nend\n\nlayout loading {\n  text "{config.assets.predict_distance}"\n}\n\nscene A\n  Hi.\nend\n`,
       false,
     );
     expect(program.chunks).toBeTruthy();

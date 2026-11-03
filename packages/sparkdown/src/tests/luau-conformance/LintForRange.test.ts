@@ -122,7 +122,7 @@ describe("a loop in a Sparkle layout is not checked", () => {
   test("for i = 8, 1 in a layout", () => {
     expect(
       diagnoseWithLints(
-        'layout main with\n  for i = 8, 1 do\n    text "n={i}"\n  end\nend\n',
+        'layout main {\n  for i = 8, 1 do\n    text "n={i}"\n  end\n}\n',
       ).filter((m) => m.startsWith("For loop")),
     ).toEqual([]);
   });

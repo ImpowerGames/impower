@@ -17,7 +17,7 @@ define SHADOW as image with
   src = "https://example.com/shadow.png"
 end
 
-layout main with
+layout main {
   stage {
     backdrop {
       image
@@ -26,7 +26,7 @@ layout main with
       image
     }
   }
-end
+}
 `;
 
 function story(body: string) {

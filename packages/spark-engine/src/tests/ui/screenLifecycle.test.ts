@@ -6,16 +6,16 @@ import {
 } from "./harness/uiTestHarness";
 
 const SOURCE = `store hp = 100
-layout main with
+layout main {
   textbox {
     dialogue {
       text
     }
   }
-end
-layout hud with
+}
+layout hud {
   text "HP: {hp}"
-end
+}
 
 scene start
   [[open hud]]
@@ -112,16 +112,16 @@ describe("screen lifecycle ([[open/close SCREEN]])", () => {
 
   test("clauses (with/over/after/ease) reach the enter animation", async () => {
     const h = createHarness(
-      `layout main with
+      `layout main {
   textbox {
     dialogue {
       text
     }
   }
-end
-layout hud with
+}
+layout hud {
   text "static"
-end
+}
 
 scene start
   [[open hud with fade over 0.5s after 0.2s ease ease_out]]
@@ -149,16 +149,16 @@ end
 
   test("`wait` clause inflates the beat duration so advance blocks", async () => {
     const h = createHarness(
-      `layout main with
+      `layout main {
   textbox {
     dialogue {
       text
     }
   }
-end
-layout hud with
+}
+layout hud {
   text "static"
-end
+}
 
 scene start
   [[open hud with fade over 1s wait]]
@@ -197,26 +197,26 @@ end
 });
 
 const NAV_SOURCE = `store hp = 100
-layout main with
+layout main {
   textbox {
     dialogue {
       text
     }
   }
-end
-screen overlay with
-end
-screen menu with
-end
-layout hud in overlay with
+}
+screen overlay {
+}
+screen menu {
+}
+layout hud in overlay {
   text "HP: {hp}"
-end
-layout pause in menu with
+}
+layout pause in menu {
   text "Paused"
-end
-layout settings in menu with
+}
+layout settings in menu {
   text "Settings"
-end
+}
 
 scene start
   [[open hud]]
@@ -289,16 +289,16 @@ describe("screen navigation ([[navigate <container> to <screen>]])", () => {
 
   test("incomplete `[[navigate <container>]]` (no `to`) is a runtime no-op", async () => {
     const h = createHarness(
-      `layout main with
+      `layout main {
   textbox {
     dialogue {
       text
     }
   }
-end
-layout pause in menu with
+}
+layout pause in menu {
   text "Paused"
-end
+}
 
 scene start
   [[open pause]]

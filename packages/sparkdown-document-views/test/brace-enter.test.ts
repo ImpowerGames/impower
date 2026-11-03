@@ -34,23 +34,23 @@ describe("Enter between `{` and `}` in a brace body", () => {
   it.each([
     [
       "an accepted block completion, `{ | }`",
-      "layout hud with\n  column.panel {\n    row.item { | }\n  }\nend\n",
-      "layout hud with\n  column.panel {\n    row.item {\n      |\n    }\n  }\nend\n",
+      "layout hud {\n  column.panel {\n    row.item { | }\n  }\n}\n",
+      "layout hud {\n  column.panel {\n    row.item {\n      |\n    }\n  }\n}\n",
     ],
     [
       "an auto-closed `{|}`",
-      "style card with\n  &.wide {|}\nend\n",
-      "style card with\n  &.wide {\n    |\n  }\nend\n",
+      "style card {\n  &.wide {|}\n}\n",
+      "style card {\n  &.wide {\n    |\n  }\n}\n",
     ],
     [
       "a block in a body with no indentation",
-      "animation fade with\ntiming {  |  }\nend\n",
-      "animation fade with\ntiming {\n  |\n}\nend\n",
+      "animation fade {\ntiming {  |  }\n}\n",
+      "animation fade {\ntiming {\n  |\n}\n}\n",
     ],
     [
       "a block opened inside another on one line",
-      "morph blink with\n  keyframes { from { |} }\nend\n",
-      "morph blink with\n  keyframes { from {\n    |\n  } }\nend\n",
+      "morph blink {\n  keyframes { from { |} }\n}\n",
+      "morph blink {\n  keyframes { from {\n    |\n  } }\n}\n",
     ],
   ])("%s", (_name, before, after) => {
     expect(pressEnter(before)).toBe(after);

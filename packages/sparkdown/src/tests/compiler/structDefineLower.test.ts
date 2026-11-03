@@ -10,7 +10,7 @@ function ctxOf(source: string, type: string, name: string): any {
 describe("animation/theme structural lowering", () => {
   test("typed body: numbers stay numbers, quoted CSS stays string, refs resolve, keyframes array", () => {
     const struct = ctxOf(
-      `animation ping with
+      `animation ping {
   target = layer.self
   keyframes {
     {
@@ -30,7 +30,7 @@ describe("animation/theme structural lowering", () => {
     iterations = 1
     fill = "both"
   }
-end
+}
 `,
       "animation",
       "ping",
@@ -55,11 +55,11 @@ end
 
   test("`as PARENT` overrides the implicit type extend", () => {
     const struct = ctxOf(
-      `animation fast_show as show with
+      `animation fast_show as show {
   timing {
     duration = "200ms"
   }
-end
+}
 `,
       "animation",
       "fast_show",
@@ -70,10 +70,10 @@ end
 
   test("theme tokens lower with unquoted CSS values as strings", () => {
     const struct = ctxOf(
-      `theme dusk with
+      `theme dusk {
   color = #112233
   radius = 8px
-end
+}
 `,
       "theme",
       "dusk",
@@ -90,12 +90,12 @@ end
 describe("screen/component structural lowering (static context channel)", () => {
   test("static screen body excises inline `@event` / `#prop` attributes", () => {
     const struct = ctxOf(
-      `layout hud with
+      `layout hud {
   column #gap=16 {
     button "Use" @click=use_item
     text "HP: {hp}" #color=red
   }
-end
+}
 `,
       "layout",
       "hud",

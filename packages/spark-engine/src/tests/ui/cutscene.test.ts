@@ -411,11 +411,11 @@ describe("a cutscene: the builtins", () => {
     });
   });
 
-  test("an author restyles the cutscene with `style cutscene with … end`", async () => {
+  test("an author restyles the cutscene with `style cutscene { … }`", async () => {
     const h = createHarness(
       story(
         "  A line.",
-        "style cutscene with\n  background_color = white\nend\n",
+        "style cutscene {\n  background_color = white\n}\n",
       ),
       0,
       { assets: ASSETS },
