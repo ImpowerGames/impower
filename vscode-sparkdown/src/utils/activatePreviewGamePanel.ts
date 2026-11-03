@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
 import { SparkdownPreviewGamePanelSerializer } from "../managers/SparkdownPreviewGamePanelSerializer";
 import { SparkdownRoutePinsManager } from "../managers/SparkdownRoutePinsManager";
+import { SparkdownStartingValuesManager } from "../managers/SparkdownStartingValuesManager";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
 import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";
@@ -58,6 +59,7 @@ export const activatePreviewGamePanel = async (
         change.contentChanges,
       );
       SparkdownRoutePinsManager.instance.moveThroughEdit(change);
+      SparkdownStartingValuesManager.instance.moveThroughEdit(change);
     }),
   );
   context.subscriptions.push(

@@ -7,8 +7,15 @@ import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protoc
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { INTERNAL_ERROR } from "@impower/jsonrpc/src/common/utils/toResponseError";
 import { ChangeRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ChangeRoutePinsMessage";
+import { ChangeStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ChangeStartingValuesMessage";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
-import { DidChangeRouteTogglesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/DidChangeRouteTogglesMessage";
+import { DeleteSavesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/DeleteSavesMessage";
+import {
+  DidChangeRouteTogglesMessage,
+  type DidChangeRouteTogglesParams,
+} from "@impower/spark-editor-protocol/src/protocols/preview/DidChangeRouteTogglesMessage";
+import { ListSavesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
+import { RenameSaveMessage } from "@impower/spark-editor-protocol/src/protocols/preview/RenameSaveMessage";
 import {
   SetRoutePinsMessage,
   type RoutePin,
@@ -17,6 +24,9 @@ import {
   SetRouteTogglesMessage,
   type RouteTogglesParams,
 } from "@impower/spark-editor-protocol/src/protocols/preview/SetRouteTogglesMessage";
+import { SetStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetStartingValuesMessage";
+import { WriteSaveMessage } from "@impower/spark-editor-protocol/src/protocols/preview/WriteSaveMessage";
+import type { StartingValues } from "@impower/sparkdown/src/program/startingValueLiterals";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
 import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage";
 import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
@@ -54,7 +64,9 @@ import { getUri } from "../utils/getUri";
 import { getWebviewUri } from "../utils/getWebviewUri";
 import { getWorkspaceFileWatchers } from "../utils/getWorkspaceFileWatchers";
 import { getWorkspaceFiles } from "../utils/getWorkspaceFiles";
+import { SparkdownPreviewSavesManager } from "./SparkdownPreviewSavesManager";
 import { SparkdownRoutePinsManager } from "./SparkdownRoutePinsManager";
+import { SparkdownStartingValuesManager } from "./SparkdownStartingValuesManager";
 
 const isWebviewHello = (message: unknown) =>
   message != null &&
@@ -62,6 +74,8 @@ const isWebviewHello = (message: unknown) =>
   Object.keys(message).length === 0;
 
 const ROUTE_TOGGLES_STATE_KEY = "sparkdown.gamePreview.routeToggles";
+
+const ROUTE_TAB_STATE_KEY = "sparkdown.gamePreview.routeTab";
 
 export class SparkdownPreviewGamePanelManager {
   private static _instance: SparkdownPreviewGamePanelManager;
@@ -147,12 +161,38 @@ export class SparkdownPreviewGamePanelManager {
     SparkdownRoutePinsManager.instance.onDidChangePins((pins) =>
       this.sendRoutePins(pins),
     );
+    SparkdownStartingValuesManager.instance.onDidChangeValues((values) =>
+      this.sendStartingValues(values),
+    );
   }
 
   protected sendRoutePins(pins: RoutePin[]) {
     this._panel?.webview.postMessage(
       SetRoutePinsMessage.type.request({ pins }),
     );
+  }
+
+  protected sendStartingValues(values: StartingValues) {
+    this._panel?.webview.postMessage(
+      SetStartingValuesMessage.type.request({ values }),
+    );
+  }
+
+  protected async answerRequest<M extends string, P, R>(
+    type: MessageProtocolRequestType<M, P, R>,
+    id: string | number,
+    answer: () => Promise<R>,
+  ) {
+    try {
+      this.sendResponse(type, id, await answer());
+    } catch (e) {
+      this._panel?.webview.postMessage(
+        type.error(id, {
+          code: INTERNAL_ERROR,
+          message: e instanceof Error ? e.message : String(e),
+        }),
+      );
+    }
   }
 
   async showPanel(
@@ -229,7 +269,11 @@ export class SparkdownPreviewGamePanelManager {
             ROUTE_TOGGLES_STATE_KEY,
             {},
           ),
+          tab: context.globalState.get<DidChangeRouteTogglesParams["tab"]>(
+            ROUTE_TAB_STATE_KEY,
+          ),
         }).catch(console.error);
+        this.sendStartingValues(SparkdownStartingValuesManager.instance.values);
         this.sendRoutePins(SparkdownRoutePinsManager.instance.pins);
         try {
           await this.connectAndInitializeWebview(document, canvasHeight);
@@ -247,21 +291,74 @@ export class SparkdownPreviewGamePanelManager {
           ROUTE_TOGGLES_STATE_KEY,
           message.params.toggles,
         );
+        if (message.params.tab) {
+          context.globalState.update(ROUTE_TAB_STATE_KEY, message.params.tab);
+        }
       }
       if (ChangeRoutePinsMessage.type.isRequest(message)) {
-        try {
-          const pins = await SparkdownRoutePinsManager.instance.change(
-            message.params,
+        await this.answerRequest(
+          ChangeRoutePinsMessage.type,
+          message.id,
+          async () => ({
+            pins: await SparkdownRoutePinsManager.instance.change(
+              message.params,
+            ),
+          }),
+        );
+      }
+      if (ChangeStartingValuesMessage.type.isRequest(message)) {
+        const { start, changes } = message.params;
+        await this.answerRequest(
+          ChangeStartingValuesMessage.type,
+          message.id,
+          async () => {
+            await SparkdownStartingValuesManager.instance.change(
+              start,
+              changes,
+            );
+            return {};
+          },
+        );
+      }
+      if (ListSavesMessage.type.isRequest(message)) {
+        await this.answerRequest(
+          ListSavesMessage.type,
+          message.id,
+          async () => ({
+            saves: await SparkdownPreviewSavesManager.instance.list(),
+          }),
+        );
+      }
+      if (WriteSaveMessage.type.isRequest(message)) {
+        await this.answerRequest(WriteSaveMessage.type, message.id, async () => {
+          await SparkdownPreviewSavesManager.instance.write(
+            message.params.save,
           );
-          this.sendResponse(ChangeRoutePinsMessage.type, message.id, { pins });
-        } catch (e) {
-          panel.webview.postMessage(
-            ChangeRoutePinsMessage.type.error(message.id, {
-              code: INTERNAL_ERROR,
-              message: e instanceof Error ? e.message : String(e),
-            }),
-          );
-        }
+          return {};
+        });
+      }
+      if (RenameSaveMessage.type.isRequest(message)) {
+        const { id, name } = message.params;
+        await this.answerRequest(
+          RenameSaveMessage.type,
+          message.id,
+          async () => {
+            await SparkdownPreviewSavesManager.instance.rename(id, name);
+            return {};
+          },
+        );
+      }
+      if (DeleteSavesMessage.type.isRequest(message)) {
+        await this.answerRequest(
+          DeleteSavesMessage.type,
+          message.id,
+          async () => {
+            await SparkdownPreviewSavesManager.instance.delete(
+              message.params.ids,
+            );
+            return {};
+          },
+        );
       }
       if (ShowDocumentMessage.type.isRequest(message)) {
         const { uri, selection, takeFocus } = message.params;
@@ -494,6 +591,7 @@ export class SparkdownPreviewGamePanelManager {
     return {
       workspace: this.getWorkspace(editor.document.uri),
       startFrom,
+      startingValues: SparkdownStartingValuesManager.instance.values,
     };
   }
 

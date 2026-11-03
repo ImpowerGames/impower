@@ -5,28 +5,16 @@ import {
   type RoutePinsByScript,
 } from "@impower/spark-editor-protocol/src/utils/changedRoutePins";
 import * as vscode from "vscode";
+import { documentLines } from "../utils/documentLines";
 import {
   allRoutePins,
   mapRoutePinMarks,
   routePinMarks,
   routePinsOfMarks,
-  type DocumentLines,
   type RoutePinMark,
 } from "../utils/routePins";
 
 const ROUTE_PINS_STATE_KEY = "sparkdown.gamePreview.routePins";
-
-const documentLines = (document: vscode.TextDocument): DocumentLines => ({
-  lineCount: document.lineCount,
-  lineSpan: (line) => {
-    const range = document.lineAt(line).range;
-    return {
-      lineStart: document.offsetAt(range.start),
-      lineEnd: document.offsetAt(range.end),
-    };
-  },
-  lineAt: (offset) => document.positionAt(offset).line,
-});
 
 export class SparkdownRoutePinsManager {
   private static _instance: SparkdownRoutePinsManager;

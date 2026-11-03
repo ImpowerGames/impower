@@ -1,40 +1,9 @@
-import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
-
-export const PREVIEW_SAVES_DIRECTORY = "preview-saves";
+import type { PreviewSave } from "../protocols/preview/ListSavesMessage";
 
 export interface PreviewSaveFiles {
   read(name: string): Promise<string | null>;
   write(name: string, text: string): Promise<void>;
 }
-
-export const opfsSaveFiles = (): PreviewSaveFiles => {
-  const directory = async () =>
-    (await navigator.storage.getDirectory()).getDirectoryHandle(
-      PREVIEW_SAVES_DIRECTORY,
-      { create: true },
-    );
-  return {
-    async read(name) {
-      try {
-        const handle = await (await directory()).getFileHandle(name);
-        return await (await handle.getFile()).text();
-      } catch (e) {
-        if (e instanceof DOMException && e.name === "NotFoundError") {
-          return null;
-        }
-        throw e;
-      }
-    },
-    async write(name, text) {
-      const handle = await (
-        await directory()
-      ).getFileHandle(name, { create: true });
-      const writable = await handle.createWritable();
-      await writable.write(text);
-      await writable.close();
-    },
-  };
-};
 
 const isSave = (value: unknown): value is PreviewSave => {
   const save = value as Partial<PreviewSave> | null;
@@ -53,7 +22,7 @@ const isSave = (value: unknown): value is PreviewSave => {
 export class PreviewSaveStore {
   protected _queue: Promise<unknown> = Promise.resolve();
 
-  constructor(protected _files: PreviewSaveFiles = opfsSaveFiles()) {}
+  constructor(protected _files: PreviewSaveFiles) {}
 
   protected fileOf(projectId: string) {
     return `${encodeURIComponent(projectId)}.json`;

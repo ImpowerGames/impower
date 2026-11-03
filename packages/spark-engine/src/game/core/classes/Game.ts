@@ -608,6 +608,8 @@ export class Game<T extends M = {}> {
 
   protected _shownBeat?: Instructions;
 
+  protected _beatStartInterpreter: unknown = null;
+
   protected _checkpointShownBeats: (Instructions | undefined)[] = [];
 
   protected _checkpointDecisionsTaken: (number | undefined)[] = [];
@@ -2487,10 +2489,17 @@ export class Game<T extends M = {}> {
     if (ending) {
       saveData.ending = ending;
     }
+    const beatStart =
+      this.programStory.state.beatImage === null
+        ? null
+        : this._beatStartInterpreter;
     for (const k of this._moduleNames) {
       const module = this._modules[k];
       if (module) {
-        saveData.modules[k] = module.state;
+        saveData.modules[k] =
+          beatStart !== null && module === this.module.interpreter
+            ? beatStart
+            : module.state;
       }
     }
     const serialized = JSON.stringify(saveData);
@@ -3169,6 +3178,11 @@ export class Game<T extends M = {}> {
         this._story.stepLimit =
           stepsBefore + 1 + this._executionStepsRemaining;
         let stopped = false;
+        if (this._story.asyncContinueComplete) {
+          this._beatStartInterpreter = structuredClone(
+            this.module.interpreter.state,
+          );
+        }
         try {
           this._story.ContinueAsync();
         } catch (e) {
