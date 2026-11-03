@@ -99,6 +99,10 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   private _launchState: GameState["launchState"] = null;
 
+  private _runEpoch = 0;
+
+  private _runBoundaries = 0;
+
   public constructor(fileAccessor: FileAccessor, connection: Connection) {
     super("mock-debug.txt");
 
@@ -147,6 +151,8 @@ export class SparkDebugSession extends LoggingDebugSession {
       if (error) {
         this.sendErrorOutputEvent(error.message, error.location);
       }
+      this._runEpoch += 1;
+      this._runBoundaries += 1;
       this.sendEvent(new ExitedEvent(exitCode));
       this.sendEvent(new TerminatedEvent());
     }
@@ -155,7 +161,7 @@ export class SparkDebugSession extends LoggingDebugSession {
       if (error) {
         this.sendErrorOutputEvent(error.message, error.location);
       }
-      this._launchState = "ended";
+      this.setLaunchState("ended");
       await this.sendStoppedEvent("end");
     }
     if (GameStartedThreadMessage.type.isNotification(message)) {
@@ -187,11 +193,22 @@ export class SparkDebugSession extends LoggingDebugSession {
       this.sendContinuedEvent();
     }
     if (DidChangeGameStateMessage.type.isNotification(message)) {
-      const { launchState } = message.params;
-      if (this._launchState === "ended" && launchState !== "ended") {
-        this.sendContinuedEvent();
-      }
-      this._launchState = launchState;
+      this.setLaunchState(message.params.launchState);
+    }
+  }
+
+  protected setLaunchState(launchState: GameState["launchState"]) {
+    if (launchState === this._launchState) {
+      return;
+    }
+    const leftEnd = this._launchState === "ended";
+    this._launchState = launchState;
+    this._runEpoch += 1;
+    if (leftEnd || launchState === "ended") {
+      this._runBoundaries += 1;
+    }
+    if (leftEnd) {
+      this.sendContinuedEvent();
     }
   }
 
@@ -219,10 +236,11 @@ export class SparkDebugSession extends LoggingDebugSession {
       | "awaiting interaction"
       | "end",
   ) {
+    const epoch = ++this._runEpoch;
     const { threads } = await this._connection.emit(
       GetGameThreadsMessage.type.request({}),
     );
-    if ((reason === "end") !== (this._launchState === "ended")) {
+    if (epoch !== this._runEpoch) {
       return;
     }
     for (const thread of threads) {
@@ -232,6 +250,7 @@ export class SparkDebugSession extends LoggingDebugSession {
   }
 
   protected async sendContinuedEvent() {
+    this._runEpoch += 1;
     this.sendEvent(new ContinuedEvent(0, true));
   }
 
@@ -377,9 +396,12 @@ export class SparkDebugSession extends LoggingDebugSession {
     if (await this.answerEnded(response)) {
       return;
     }
+    const run = this._runBoundaries;
     await this._connection.emit(PauseGameMessage.type.request({}));
     this.sendResponse(response);
-    await this.sendStoppedEvent("pause");
+    if (run === this._runBoundaries) {
+      await this.sendStoppedEvent("pause");
+    }
   }
 
   protected override async continueRequest(

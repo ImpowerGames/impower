@@ -165,11 +165,7 @@ describe("the debug adapter at the end of the story", () => {
     });
     await s.notify(launch("play"));
     await s.request("pauseRequest");
-    expect(s.sent.map((m) => m.method)).toEqual([
-      "game/pause",
-      "game/threads",
-      "game/threads",
-    ]);
+    expect(s.sent.map((m) => m.method)).toEqual(["game/pause", "game/threads"]);
     expect(s.events.map((e) => [e.event, e.body?.reason ?? null])).toEqual([
       ["stopped", "end"],
       ["response", null],
@@ -216,6 +212,104 @@ describe("the debug adapter at the end of the story", () => {
     expect(s.events.map((e) => [e.event, e.body?.reason ?? null])).toEqual([
       ["response", null],
       ["continued", null],
+    ]);
+  });
+
+  it("publishes the end stop once when the ended launch state arrives during game/ended's lookup", async () => {
+    let s: ReturnType<typeof session>;
+    let hold = true;
+    s = session(async (method) => {
+      if (method === "game/threads" && hold) {
+        hold = false;
+        await s.notify(launch("ended"));
+      }
+    });
+    await s.notify(launch("play"));
+    await s.notify(
+      GameEndedMessage.type.notification({ kind: "fin", location: location(1) }),
+    );
+    await s.notify(launch("ended"));
+    expect(s.events.map((e) => [e.event, e.body?.reason ?? null])).toEqual([
+      ["stopped", "end"],
+    ]);
+  });
+
+  it("publishes the end stop once when the ended launch state arrives before game/ended", async () => {
+    const { notify, events } = session();
+    await notify(launch("play"));
+    await notify(launch("ended"));
+    expect(events).toEqual([]);
+    await notify(
+      GameEndedMessage.type.notification({ kind: "fin", location: location(1) }),
+    );
+    await notify(launch("ended"));
+    expect(events.map((e) => [e.event, e.body?.reason ?? null])).toEqual([
+      ["stopped", "end"],
+    ]);
+  });
+
+  it("re-sends the end stop for a request on an ended run", async () => {
+    const { notify, events, request } = session();
+    await notify(launch("play"));
+    await notify(
+      GameEndedMessage.type.notification({ kind: "fin", location: location(1) }),
+    );
+    await notify(launch("ended"));
+    events.length = 0;
+    await request("continueRequest");
+    await request("pauseRequest");
+    expect(events.map((e) => [e.event, e.body?.reason ?? null])).toEqual([
+      ["response", null],
+      ["stopped", "end"],
+      ["response", null],
+      ["stopped", "end"],
+    ]);
+  });
+
+  it("publishes no pause stop whose lookup outlives the run's end and its replay", async () => {
+    let s: ReturnType<typeof session>;
+    let release!: () => void;
+    let held: Promise<void> | undefined;
+    s = session(async (method) => {
+      if (method === "game/threads" && !held) {
+        held = new Promise<void>((resolve) => (release = resolve));
+        await held;
+      }
+    });
+    await s.notify(launch("play"));
+    const paused = s.request("pauseRequest");
+    while (!held) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    await s.notify(
+      GameEndedMessage.type.notification({ kind: "fin", location: location(1) }),
+    );
+    await s.notify(launch("ended"));
+    await s.restart();
+    await s.notify(launch("preview"));
+    await s.notify(launch("play"));
+    release();
+    await paused;
+    expect(s.events.map((e) => [e.event, e.body?.reason ?? null])).toEqual([
+      ["response", null],
+      ["stopped", "end"],
+      ["response", null],
+      ["continued", null],
+    ]);
+  });
+
+  it("still publishes the pause stop of a running game that the player reports paused", async () => {
+    let s: ReturnType<typeof session>;
+    s = session(async (method) => {
+      if (method === "game/pause") {
+        await s.notify(launch("pause"));
+      }
+    });
+    await s.notify(launch("play"));
+    await s.request("pauseRequest");
+    expect(s.events.map((e) => [e.event, e.body?.reason ?? null])).toEqual([
+      ["response", null],
+      ["stopped", "pause"],
     ]);
   });
 
