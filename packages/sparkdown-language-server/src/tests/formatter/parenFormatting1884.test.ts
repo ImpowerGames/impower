@@ -41,6 +41,28 @@ describe("formatting a line whose parentheses nest past the head's scan", () => 
     },
   );
 
+  test.each([
+    ["text #x=", ",red .wide"],
+    ["text #x=", ",#ffffff .wide"],
+    ["text #x=", ",var(--accent) .wide"],
+    ["button @click=", ",g .wide"],
+  ])("a deep `%s…%s` formats as its shallow form does", (head, suffix) => {
+    const at = (depth: number) =>
+      [
+        "layout first {",
+        `  row { ${head}${"f(".repeat(depth)}1${")".repeat(depth)}${suffix} "Over"; text "after" }`,
+        "}",
+        "",
+      ].join("\n");
+    const deep = formatSource(at(7))
+      .split("f(".repeat(7))
+      .join("f(")
+      .split(")".repeat(7))
+      .join(")");
+    expect(deep).toBe(formatSource(at(1)));
+    if (head.startsWith("text")) expect(formatSource(at(7))).toBe(at(7));
+  });
+
   test("the lines after a deep line are indented by the struct's braces", () => {
     const messy = [
       "layout first {",

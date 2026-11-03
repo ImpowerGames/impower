@@ -9350,7 +9350,7 @@
           "include": "#LuauTable"
         },
         {
-          "include": "#LuauCommaSeparator"
+          "include": "#LuauSparkleValueComma"
         },
         {
           "include": "#LuauSparkleEventValueRun"
@@ -9414,7 +9414,7 @@
           "include": "#LuauSparklePropValueBraces"
         },
         {
-          "include": "#LuauCommaSeparator"
+          "include": "#LuauSparkleValueComma"
         },
         {
           "include": "#LuauSparklePropValueRun"
@@ -9454,6 +9454,9 @@
           ]
         }
       }
+    },
+    "LuauSparkleValueComma": {
+      "match": "([,])"
     },
     "LuauSparkleValueParens": {
       "tag": "meta",

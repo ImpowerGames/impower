@@ -5578,7 +5578,7 @@ repository:
     patterns:
       - { include: "#LuauSparkleValueParens" }
       - { include: "#LuauTable" }
-      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauSparkleValueComma" }
       - { include: "#LuauSparkleEventValueRun" }
     end: ({{WS}}+)|(?=[;}"]|[,](?:[\s;}]|$)|$)
     endCaptures:
@@ -5607,7 +5607,7 @@ repository:
     patterns:
       - { include: "#LuauSparklePropValueParens" }
       - { include: "#LuauSparklePropValueBraces" }
-      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauSparkleValueComma" }
       - { include: "#LuauSparklePropValueRun" }
     end: ({{WS}}+)|(?=[;}"]|[,](?:[\s;}]|$)|$)
     endCaptures:
@@ -5628,6 +5628,9 @@ repository:
       1:
         patterns:
           - { include: "#InlinePropWordValue" }
+
+  LuauSparkleValueComma:
+    match: ([,])
 
   LuauSparkleValueParens:
     tag: meta
