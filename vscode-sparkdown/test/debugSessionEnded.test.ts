@@ -5,6 +5,7 @@ vi.mock("../src/managers/SparkdownDebugManager", () => ({
 }));
 
 import { DidChangeGameStateMessage } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
+import { GameClickedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameClickedToContinueMessage";
 import { GameEndedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEndedMessage";
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
@@ -244,6 +245,22 @@ describe("the debug adapter at the end of the story", () => {
     );
     await notify(launch("ended"));
     expect(events.map((e) => [e.event, e.body?.reason ?? null])).toEqual([
+      ["stopped", "end"],
+    ]);
+  });
+
+  it("stops on the end that a click's continue leads to", async () => {
+    const { notify, events } = session();
+    await notify(launch("play"));
+    await notify(
+      GameClickedToContinueMessage.type.notification({ location: location(2) }),
+    );
+    await notify(
+      GameEndedMessage.type.notification({ kind: "out", location: location(3) }),
+    );
+    await notify(launch("ended"));
+    expect(events.map((e) => [e.event, e.body?.reason ?? null])).toEqual([
+      ["continued", null],
       ["stopped", "end"],
     ]);
   });

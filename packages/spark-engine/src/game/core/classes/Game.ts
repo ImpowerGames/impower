@@ -2997,16 +2997,16 @@ export class Game<T extends M = {}> {
     if (this._ending) {
       return;
     }
-    this.continue();
     this.notifyAutoAdvancedToContinue();
+    this.continue();
   }
 
   clickedToContinue() {
     if (this._ending) {
       return;
     }
-    this.continue();
     this.notifyClickedToContinue();
+    this.continue();
   }
 
   chosePathToContinue(index: number) {
@@ -3016,8 +3016,8 @@ export class Game<T extends M = {}> {
     this._shownChoices = [];
     this._story.ChooseChoiceIndex(index);
     this.checkpoint();
-    this.continue();
     this.notifyChosePathToContinue();
+    this.continue();
   }
 
   clearChoices() {

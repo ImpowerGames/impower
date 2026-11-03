@@ -200,6 +200,18 @@ describe("a story that ends", () => {
     expect(mounted(h.game).has("ending")).toBe(true);
   });
 
+  it("announces the click that reaches the end before the end it causes", async () => {
+    const h = await play("scene start\n  Hello.\n  fin\nend\n");
+    h.reset();
+    h.game.clickedToContinue();
+    await flushMicrotasks(20);
+    const methods = gameMessages(h.messages).map((m) => m.method);
+    expect(methods).toContain("game/finished");
+    expect(methods.indexOf("game/clickedToContinue")).toBeLessThan(
+      methods.indexOf("game/finished"),
+    );
+  });
+
   it("announces a debugger step that reaches the end as the end, not as a step", async () => {
     const h = await play("scene start\n  Hello.\n  fin\nend\n");
     h.reset();
