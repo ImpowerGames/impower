@@ -397,4 +397,57 @@ describe("saves made while playing", () => {
     expect(game.saveRefusal(save.data)).toMatch(/cannot be placed/);
     expect(game.saveStartingValuesOf(save, "visit")["param:n"]).toBe("2");
   });
+
+  it.each([
+    ["a parameter of its own name", "m"],
+    ["a parameter named like the scene's", "n"],
+  ])(
+    "loads the scene's parameters, and its branch's, from a save made in a tunnel into the scene's own branch with %s",
+    (_, branchParameter) => {
+      const lines = [
+        "scene start",
+        "  Opening.",
+        "  -> visit(3) ->",
+        "  After.",
+        "end",
+        "scene visit(n)",
+        "  At {n}.",
+        "  -> visit.inner(7) ->",
+        "  Back {n}.",
+        "  ->->",
+        `  branch inner(${branchParameter})`,
+        `    Saved {${branchParameter}}.`,
+        "    ->->",
+        "  end",
+        "end",
+      ];
+      const { program, compiler } = compileSrc(lines.join("\n"));
+      const game = playFromLine(program, compiler, 2);
+      advanceTo(game, "Saved 7.");
+      const save: GameSave = game.saveHere();
+      const expected = () => {
+        expect(game.saveStartingValuesOf(save, "visit")["param:n"]).toBe("3");
+        expect(game.saveStartingValuesOf(save, "visit.inner")[`param:${branchParameter}`]).toBe(
+          "7",
+        );
+      };
+      expected();
+
+      recompile(
+        compiler,
+        game,
+        [
+          ...lines.slice(0, 6),
+          "  Replacement.",
+          "  ->->",
+          `  branch inner(${branchParameter})`,
+          "    ->->",
+          "  end",
+          "end",
+        ].join("\n"),
+      );
+      expect(game.saveRefusal(save.data)).toMatch(/cannot be placed/);
+      expected();
+    },
+  );
 });

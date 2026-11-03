@@ -47,6 +47,18 @@ interface FrameScopes {
   frame: SavedFrame;
 }
 
+const entryOf = (
+  root: ProgramRoot,
+  entry: string | undefined,
+): Pick<SavedFrame, "entry" | "entryScene"> => {
+  const sequence = entry ? root.flowNamed(entry) : undefined;
+  const entryScene = sequence ? root.sceneOf(sequence) : undefined;
+  return {
+    ...(entry ? { entry } : {}),
+    ...(entryScene ? { entryScene } : {}),
+  };
+};
+
 const framesOf = (story: ProgramStory): FrameScopes[] => {
   const state = story.state;
   const root = story.root;
@@ -71,6 +83,10 @@ const framesOf = (story: ProgramStory): FrameScopes[] => {
         frame.flow = root.table.symbols[flow.flow];
       }
       frame.scene = root.sceneAt(address);
+    }
+    const symbol = state.frameOf(element)?.symbol;
+    if (symbol !== undefined) {
+      Object.assign(frame, entryOf(root, root.table.symbols[symbol]));
     }
     return {
       scopes: element.temporaryScopes as Map<string, InkObject>[],
@@ -270,7 +286,7 @@ export const savedFrameValues = (
   edits: readonly [string, string][] = [],
 ): SaveValues => {
   const values: StartingValueSet = {};
-  const saved = frames.map(({ flow, scopes }, i) => {
+  const saved = frames.map(({ flow, entry, scopes }, i) => {
     const seen = new Set<string>();
     for (let s = scopes.length - 1; s >= 0; s -= 1) {
       for (const [name, value] of scopes[s]!) {
@@ -287,17 +303,26 @@ export const savedFrameValues = (
         }
       }
     }
+    const sequence = flow ? story.root.flowNamed(flow) : undefined;
+    const scene = sequence ? story.root.sceneOf(sequence) : undefined;
     const params: Record<string, string> = {};
-    for (const name of flow ? parametersOf(story.root, flow) : []) {
+    const names = new Set([
+      ...(flow ? parametersOf(story.root, flow) : []),
+      ...(scene ? parametersOf(story.root, scene) : []),
+    ]);
+    for (const name of names) {
       const value = scopedValue(scopes, name);
       const text = value === undefined ? undefined : literalText(value);
       if (text !== undefined) {
         params[name] = text;
       }
     }
-    const sequence = flow ? story.root.flowNamed(flow) : undefined;
-    const scene = sequence ? story.root.sceneOf(sequence) : undefined;
-    return { ...(flow ? { flow } : {}), ...(scene ? { scene } : {}), params } as SavedFrame;
+    return {
+      ...(flow ? { flow } : {}),
+      ...(scene ? { scene } : {}),
+      ...entryOf(story.root, entry),
+      params,
+    } as SavedFrame;
   });
   for (const [key, value] of edits) {
     const local = readLocalKey(key);

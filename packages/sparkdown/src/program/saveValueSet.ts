@@ -23,6 +23,8 @@ export interface SavedFrame {
   scene?: string;
   uri?: string;
   line?: number;
+  entry?: string;
+  entryScene?: string;
   params: Record<string, string>;
 }
 
@@ -45,6 +47,12 @@ export const sameLiteral = (a: string, b: string): boolean => {
 const framesIn = (save: SaveValues, start: string): SavedFrame[] =>
   save.frames.filter((frame) => frame.flow === start || frame.scene === start);
 
+const boundIn = (frame: SavedFrame, start: string): boolean =>
+  frame.flow === start ||
+  frame.entry === undefined ||
+  frame.entry === start ||
+  frame.entryScene !== start;
+
 export const savedValueOf = (
   save: SaveValues,
   start: string,
@@ -53,7 +61,9 @@ export const savedValueOf = (
   const frames = framesIn(save, start);
   if (key.startsWith("param:")) {
     const name = key.slice("param:".length);
-    return frames.findLast((frame) => Object.hasOwn(frame.params, name))?.params[name];
+    return frames.findLast(
+      (frame) => boundIn(frame, start) && Object.hasOwn(frame.params, name),
+    )?.params[name];
   }
   const frame = frames.at(-1);
   const value = Object.hasOwn(save.values, key) ? save.values[key] : undefined;

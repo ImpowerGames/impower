@@ -1721,6 +1721,10 @@ class SaveReader {
     return level?.flow ?? level?.decl ?? "";
   }
 
+  frameSymbol(saved: Record<string, any>): number | undefined {
+    return this._placer.decodeSymbol(saved["fn"]);
+  }
+
   protected dropsFrame(saved: Record<string, any>): boolean {
     const form = saved?.["fn"] as SavedSymbol | undefined;
     if (!form || typeof form !== "object") {
@@ -2165,6 +2169,7 @@ export const readSave = (
 
 export interface SavedFrameScopes {
   flow: string;
+  entry?: string;
   scopes: ReturnType<typeof JsonSerialisation.JObjectToDictionaryRuntimeObjs>[];
 }
 
@@ -2191,8 +2196,11 @@ export const readSaveValues = (
         | SavedPosition
         | undefined;
       const temps: unknown[] = Array.isArray(frame["temps"]) ? frame["temps"] : [];
+      const symbol = reader.frameSymbol(frame);
+      const entry = symbol === undefined ? undefined : state.root.table.symbols[symbol];
       return {
         flow: position?.st?.levels?.[0]?.flow ?? "",
+        ...(entry ? { entry } : {}),
         scopes: temps.map((scope) => JsonSerialisation.JObjectToDictionaryRuntimeObjs(scope as any)),
       };
     });
