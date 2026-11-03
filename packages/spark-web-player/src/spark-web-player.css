@@ -561,6 +561,7 @@ spark-web-player #completion-status[state="stale"] {
 }
 
 spark-web-player #ending-status {
+  margin-left: auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
