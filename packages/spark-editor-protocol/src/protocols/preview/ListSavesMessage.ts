@@ -7,7 +7,8 @@ export interface PreviewSaveFrame {
   scene?: string;
   uri?: string;
   line?: number;
-  params: Record<string, string>;
+  scopes: Record<string, string | null>[];
+  scopeFlows: string[];
 }
 
 export interface PreviewSave {

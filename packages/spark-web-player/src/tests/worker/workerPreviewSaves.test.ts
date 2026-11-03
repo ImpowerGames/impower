@@ -98,7 +98,10 @@ describe("saves made while playing in the player", () => {
         ["lastRun", "Entering start"],
         ["lastRun", "Entering interrogation"],
       ]);
-      expect(host.saves[1]!.entry!.frames.at(-1)!.params).toEqual({ hour: '"nine"' });
+      expect(host.saves[1]!.entry!.frames.at(-1)).toMatchObject({
+        scopeFlows: ["interrogation"],
+        scopes: [{}, { hour: '"nine"' }],
+      });
       expect(host.saves.every((save) => !("values" in save))).toBe(true);
 
       await h.controller._saves.saveHere();

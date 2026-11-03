@@ -7,6 +7,7 @@ import type { SaveSource } from "@impower/spark-engine/src/game/core/types/GameS
 import {
   readLocalKey,
   saveStartingValues,
+  withSavedLocal,
   withSavedValue,
   type SaveValues,
 } from "@impower/sparkdown/src/program/saveValueSet";
@@ -66,7 +67,14 @@ const save = (
   const saved: SaveValues = {
     values,
     frames: [
-      { flow: "interrogation", scene: "interrogation", uri: URI, line, params: { hour: '"nine"' } },
+      {
+        flow: "interrogation",
+        scene: "interrogation",
+        uri: URI,
+        line,
+        scopes: [{}, { hour: '"nine"' }],
+        scopeFlows: ["interrogation"],
+      },
     ],
   };
   FIXTURES.set(id, saved);
@@ -88,9 +96,7 @@ const edited = (saved: SaveValues, key: string, value: string): SaveValues => {
   return {
     values: withSavedValue(saved.values, key, value),
     frames: saved.frames.map((frame, i) =>
-      local && i === local.frame && Object.hasOwn(frame.params, local.name)
-        ? { ...frame, params: { ...frame.params, [local.name]: value } }
-        : frame,
+      local && i === local.frame ? withSavedLocal(frame, local.name, value) : frame,
     ),
   };
 };

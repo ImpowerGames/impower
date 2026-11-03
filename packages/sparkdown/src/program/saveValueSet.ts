@@ -18,14 +18,15 @@ export const readLocalKey = (
   return match ? { frame: Number(match[1]), name: match[2]! } : undefined;
 };
 
+export type SavedScope = Record<string, string | null>;
+
 export interface SavedFrame {
   flow?: string;
   scene?: string;
   uri?: string;
   line?: number;
-  entry?: string;
-  entryScene?: string;
-  params: Record<string, string>;
+  scopes: SavedScope[];
+  scopeFlows: string[];
 }
 
 export interface SaveValues {
@@ -44,30 +45,70 @@ export const sameLiteral = (a: string, b: string): boolean => {
   );
 };
 
-const framesIn = (save: SaveValues, start: string): SavedFrame[] =>
-  save.frames.filter((frame) => frame.flow === start || frame.scene === start);
+export const savedLocals = (frames: readonly SavedFrame[]): StartingValueSet => {
+  const values: StartingValueSet = {};
+  frames.forEach((frame, i) => {
+    const seen = new Set<string>();
+    for (let s = frame.scopes.length - 1; s >= 0; s -= 1) {
+      for (const [name, text] of Object.entries(frame.scopes[s]!)) {
+        if (seen.has(name)) {
+          continue;
+        }
+        seen.add(name);
+        if (text !== null) {
+          values[localKey(i, name)] = text;
+        }
+      }
+    }
+  });
+  return values;
+};
 
-const boundIn = (frame: SavedFrame, start: string): boolean =>
-  frame.flow === start ||
-  frame.entry === undefined ||
-  frame.entry === start ||
-  frame.entryScene !== start;
+export const withSavedLocal = (frame: SavedFrame, name: string, text: string): SavedFrame => {
+  for (let s = frame.scopes.length - 1; s >= 0; s -= 1) {
+    const scope = frame.scopes[s]!;
+    if (Object.hasOwn(scope, name)) {
+      if (scope[name] === null) {
+        return frame;
+      }
+      const scopes = frame.scopes.slice();
+      scopes[s] = { ...scope, [name]: text };
+      return { ...frame, scopes };
+    }
+  }
+  return frame;
+};
+
+export const savedParameterOf = (
+  frames: readonly SavedFrame[],
+  flow: string,
+  name: string,
+): string | undefined => {
+  for (let i = frames.length - 1; i >= 0; i -= 1) {
+    const frame = frames[i]!;
+    const owner = frame.scopeFlows.indexOf(flow);
+    const scope = owner < 0 ? undefined : frame.scopes[owner + 1];
+    if (scope && Object.hasOwn(scope, name)) {
+      return scope[name] ?? undefined;
+    }
+  }
+  return undefined;
+};
 
 export const savedValueOf = (
   save: SaveValues,
   start: string,
   key: string,
 ): string | undefined => {
-  const frames = framesIn(save, start);
   if (key.startsWith("param:")) {
-    const name = key.slice("param:".length);
-    return frames.findLast(
-      (frame) => boundIn(frame, start) && Object.hasOwn(frame.params, name),
-    )?.params[name];
+    return savedParameterOf(save.frames, start, key.slice("param:".length));
   }
-  const frame = frames.at(-1);
   const value = Object.hasOwn(save.values, key) ? save.values[key] : undefined;
-  if (frame && key === visitsKey(start) && value !== undefined) {
+  if (
+    key === visitsKey(start) &&
+    value !== undefined &&
+    save.frames.some((frame) => frame.flow === start || frame.scene === start)
+  ) {
     const parsed = parseLiteral(value);
     if (parsed.ok && typeof parsed.value === "number") {
       return String(Math.max(0, parsed.value - 1));

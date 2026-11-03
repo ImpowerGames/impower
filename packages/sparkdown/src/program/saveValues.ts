@@ -6,10 +6,18 @@ import {
   type AbstractValue,
 } from "../runtime/Value";
 import { addressOf, chunkId } from "./ProgramChunk";
-import type { ProgramRoot } from "./ProgramRoot";
+import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
 import { countsSave, placeCounts, type SavedFrameScopes } from "./ProgramSave";
 import type { ProgramStory } from "./ProgramStory";
-import { localKey, readLocalKey, type SavedFrame, type SaveValues } from "./saveValueSet";
+import { flowScopeOwners } from "./ProgramStoryState";
+import {
+  readLocalKey,
+  savedLocals,
+  withSavedLocal,
+  type SavedFrame,
+  type SavedScope,
+  type SaveValues,
+} from "./saveValueSet";
 import {
   SEED_KEY,
   formatLiteral,
@@ -19,7 +27,6 @@ import {
 import {
   fieldOf,
   literalOfValue,
-  parametersOf,
   startingValueTargets,
   valueOfLiteral,
   type StartingValueSource,
@@ -47,17 +54,20 @@ interface FrameScopes {
   frame: SavedFrame;
 }
 
-const entryOf = (
-  root: ProgramRoot,
-  entry: string | undefined,
-): Pick<SavedFrame, "entry" | "entryScene"> => {
-  const sequence = entry ? root.flowNamed(entry) : undefined;
-  const entryScene = sequence ? root.sceneOf(sequence) : undefined;
-  return {
-    ...(entry ? { entry } : {}),
-    ...(entryScene ? { entryScene } : {}),
-  };
-};
+const savedScopesOf = (scopes: readonly Map<string, InkObject>[]): SavedScope[] =>
+  scopes.map((scope) => {
+    const saved: SavedScope = {};
+    for (const [name, value] of scope) {
+      if (!name.includes("$")) {
+        saved[name] =
+          value instanceof VariablePointerValue ? null : (literalText(value) ?? null);
+      }
+    }
+    return saved;
+  });
+
+const scopeFlowsOf = (root: ProgramRoot, sequence: SequenceRow): string[] =>
+  flowScopeOwners(root, sequence).map((symbol) => root.table.symbols[symbol] ?? "");
 
 const framesOf = (story: ProgramStory): FrameScopes[] => {
   const state = story.state;
@@ -71,7 +81,11 @@ const framesOf = (story: ProgramStory): FrameScopes[] => {
     const chunk = position?.sequence.arrays.chunks[position.entry];
     const address =
       position && chunk ? addressOf(chunkId(chunk), position.offset) : undefined;
-    const frame: SavedFrame = { params: {} };
+    const scopes = element.temporaryScopes as Map<string, InkObject>[];
+    const frame: SavedFrame = {
+      scopes: savedScopesOf(scopes),
+      scopeFlows: position ? scopeFlowsOf(root, position.sequence) : [],
+    };
     if (address !== undefined) {
       const location = root.locationOf(address);
       if (location) {
@@ -84,27 +98,8 @@ const framesOf = (story: ProgramStory): FrameScopes[] => {
       }
       frame.scene = root.sceneAt(address);
     }
-    const symbol = state.frameOf(element)?.symbol;
-    if (symbol !== undefined) {
-      Object.assign(frame, entryOf(root, root.table.symbols[symbol]));
-    }
-    return {
-      scopes: element.temporaryScopes as Map<string, InkObject>[],
-      frame,
-    };
+    return { scopes, frame };
   });
-};
-
-const scopedValue = (
-  scopes: Map<string, InkObject>[],
-  name: string,
-): InkObject | null | undefined => {
-  for (let s = scopes.length - 1; s >= 0; s -= 1) {
-    if (scopes[s]!.has(name)) {
-      return scopes[s]!.get(name) ?? null;
-    }
-  }
-  return undefined;
 };
 
 export const readStoryValues = (
@@ -126,37 +121,8 @@ export const readStoryValues = (
     }
   }
   values[SEED_KEY] = String(story.state.storySeed);
-  const frames = framesOf(story).map(({ scopes, frame }, i) => {
-    const seen = new Set<string>();
-    for (let s = scopes.length - 1; s >= 0; s -= 1) {
-      for (const [name, value] of scopes[s]!) {
-        if (name.includes("$") || seen.has(name)) {
-          continue;
-        }
-        seen.add(name);
-        if (value instanceof VariablePointerValue) {
-          continue;
-        }
-        const text = literalText(value);
-        if (text !== undefined) {
-          values[localKey(i, name)] = text;
-        }
-      }
-    }
-    const names = new Set([
-      ...(frame.flow ? parametersOf(story.root, frame.flow) : []),
-      ...(frame.scene ? parametersOf(story.root, frame.scene) : []),
-    ]);
-    for (const name of names) {
-      const value = scopedValue(scopes, name);
-      const text = value === undefined ? undefined : literalText(value);
-      if (text !== undefined) {
-        frame.params[name] = text;
-      }
-    }
-    return frame;
-  });
-  return { values, frames };
+  const frames = framesOf(story).map(({ frame }) => frame);
+  return { values: { ...values, ...savedLocals(frames) }, frames };
 };
 
 export const applySaveValueChanges = (
@@ -285,55 +251,22 @@ export const savedFrameValues = (
   frames: readonly SavedFrameScopes[],
   edits: readonly [string, string][] = [],
 ): SaveValues => {
-  const values: StartingValueSet = {};
-  const saved = frames.map(({ flow, entry, scopes }, i) => {
-    const seen = new Set<string>();
-    for (let s = scopes.length - 1; s >= 0; s -= 1) {
-      for (const [name, value] of scopes[s]!) {
-        if (name.includes("$") || seen.has(name)) {
-          continue;
-        }
-        seen.add(name);
-        if (value instanceof VariablePointerValue) {
-          continue;
-        }
-        const text = literalText(value);
-        if (text !== undefined) {
-          values[localKey(i, name)] = text;
-        }
-      }
-    }
+  const saved = frames.map(({ flow, scopes }): SavedFrame => {
     const sequence = flow ? story.root.flowNamed(flow) : undefined;
     const scene = sequence ? story.root.sceneOf(sequence) : undefined;
-    const params: Record<string, string> = {};
-    const names = new Set([
-      ...(flow ? parametersOf(story.root, flow) : []),
-      ...(scene ? parametersOf(story.root, scene) : []),
-    ]);
-    for (const name of names) {
-      const value = scopedValue(scopes, name);
-      const text = value === undefined ? undefined : literalText(value);
-      if (text !== undefined) {
-        params[name] = text;
-      }
-    }
     return {
       ...(flow ? { flow } : {}),
       ...(scene ? { scene } : {}),
-      ...entryOf(story.root, entry),
-      params,
-    } as SavedFrame;
+      scopes: savedScopesOf(scopes as Map<string, InkObject>[]),
+      scopeFlows: sequence ? scopeFlowsOf(story.root, sequence) : [],
+    };
   });
   for (const [key, value] of edits) {
     const local = readLocalKey(key);
-    if (!local || !Object.hasOwn(values, key)) {
-      continue;
-    }
-    values[key] = value;
-    const frame = saved[local.frame];
-    if (frame && Object.hasOwn(frame.params, local.name)) {
-      frame.params[local.name] = value;
+    const frame = local ? saved[local.frame] : undefined;
+    if (local && frame) {
+      saved[local.frame] = withSavedLocal(frame, local.name, value);
     }
   }
-  return { values, frames: saved };
+  return { values: savedLocals(saved), frames: saved };
 };

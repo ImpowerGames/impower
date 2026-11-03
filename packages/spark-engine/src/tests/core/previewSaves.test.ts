@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { Game } from "../../game/core/classes/Game";
 import { GameSavedSceneEntryMessage } from "../../game/core/classes/messages/GameSavedSceneEntryMessage";
-import type { GameSave } from "../../game/core/types/GameSave";
+import type { GameSave, SaveSource } from "../../game/core/types/GameSave";
+import { flowScopeOwners } from "@impower/sparkdown/src/program/ProgramStoryState";
+import { savedParameterOf, type SavedFrame } from "@impower/sparkdown/src/program/saveValueSet";
+import { formatLiteral } from "@impower/sparkdown/src/program/startingValueLiterals";
+import { literalOfValue, parametersOf } from "@impower/sparkdown/src/program/startingValues";
 import {
   compileSrc,
   example,
@@ -81,12 +85,70 @@ const resumed = (program: unknown, data: string) => {
   return game;
 };
 
+const engineLiteral = (value: unknown): string | undefined => {
+  const literal = value == null ? undefined : literalOfValue(value as any);
+  return literal === undefined ? undefined : formatLiteral(literal);
+};
+
+const expectEngineParameters = (game: any, program: unknown, save: GameSave) => {
+  const root = game.story.root;
+  const engine = playGame(program);
+  expect(engine.loadToResume(save.data)).toBe(true);
+  const state = engine.story.state;
+  const elements = state.callStack.currentThread.callstack;
+  const flowsAt = elements.map((_: unknown, i: number) => {
+    const position = i === elements.length - 1 ? state.position : state.frameOf(elements[i + 1])?.returnTo;
+    return position
+      ? flowScopeOwners(root, position.sequence).map((symbol) => root.table.symbols[symbol])
+      : [];
+  });
+  const parameters = (flow: string): string[] => parametersOf(root, flow);
+  const engineValue = (i: number, j: number, name: string): string | undefined => {
+    const flows: string[] = flowsAt[i];
+    if (flows.slice(j + 1).some((inner) => parameters(inner).includes(name))) {
+      const scope = elements[i].temporaryScopes[j + 1];
+      return scope?.has(name) ? engineLiteral(scope.get(name)) : undefined;
+    }
+    return engineLiteral(state.callStack.GetTemporaryVariableWithName(name, i + 1));
+  };
+  const expected = new Map<string, [string, string, string | undefined]>();
+  for (let i = elements.length - 1; i >= 0; i -= 1) {
+    (flowsAt[i] as string[]).forEach((flow, j) => {
+      for (const name of parameters(flow)) {
+        const id = `${flow} ${name}`;
+        if (expected.get(id)?.[2] !== undefined) {
+          continue;
+        }
+        expected.set(id, [flow, name, engineValue(i, j, name)]);
+      }
+    });
+  }
+  const sources: SaveSource[] = save.entry ? [{ data: save.data }, save] : [{ data: save.data }];
+  for (const source of sources) {
+    const frames: SavedFrame[] = game.saveListing(source, save.scene).values.frames;
+    expect(frames.map((frame) => frame.scopeFlows)).toEqual(flowsAt);
+    frames.forEach((frame, i) => {
+      frame.scopeFlows.forEach((flow, j) => {
+        for (const name of parameters(flow)) {
+          expect(frame.scopes[j + 1]?.[name] ?? undefined, `frame ${i} ${flow} ${name}`).toBe(
+            engineValue(i, j, name),
+          );
+        }
+      });
+    });
+    for (const [flow, name, value] of expected.values()) {
+      expect(savedParameterOf(frames, flow, name), `Load a save ${flow} ${name}`).toBe(value);
+    }
+  }
+};
+
 describe("saves made while playing", () => {
   it("plays on from the saved beat with its state", () => {
     const { program, compiler } = compileSrc(example.join("\n"));
     const game = playFromLine(program, compiler, START_LINE);
     advanceTo(game, "Where were you at nine?");
     const save: GameSave = game.saveHere();
+    expectEngineParameters(game, program, save);
     expect(save.scene).toBe("interrogation");
     expect(save.line).toBe(10);
 
@@ -121,6 +183,9 @@ describe("saves made while playing", () => {
     choose(game, "Tell the truth.");
     expect(saves.map((save) => save.scene)).toEqual(["start", "interrogation"]);
     expect(saves.map((save) => save.line)).toEqual([3, 13]);
+    for (const save of saves) {
+      expectEngineParameters(game, program, save);
+    }
 
     const next: GameSave[] = [];
     playFromLine(program, compiler, 4, (save) => next.push(save));
@@ -135,6 +200,7 @@ describe("saves made while playing", () => {
     );
     const entering = saves.find((save) => save.scene === "interrogation")!;
     expect(entering).toBeDefined();
+    expectEngineParameters(game, program, entering);
     expect(game.saveStartingValuesOf(entering, "interrogation")).toEqual({
       "param:hour": '"nine"',
       "visits:start": "1",
@@ -176,6 +242,9 @@ describe("saves made while playing", () => {
     advanceTo(game, "At ten, trust is 2.");
     const entries = saves.filter((save) => save.scene === "interrogation");
     expect(entries).toHaveLength(2);
+    for (const save of entries) {
+      expectEngineParameters(game, program, save);
+    }
     const listing = game.startingValueListing("interrogation");
     expect(game.saveStartingValuesOf(entries[0]!, "interrogation")).toEqual({
       "param:hour": '"nine"',
@@ -208,6 +277,7 @@ describe("saves made while playing", () => {
     choose(game, "Leave.");
     advanceTo(game, "Left.");
     const save: GameSave = game.saveHere();
+    expectEngineParameters(game, program, save);
     const counted = () =>
       Object.entries(game.saveStartingValuesOf(save, "start")).filter(([key]) =>
         key.startsWith("place:"),
@@ -237,6 +307,7 @@ describe("saves made while playing", () => {
     const game = playFromLine(program, compiler, START_LINE);
     advanceTo(game, "Where were you at nine?");
     const save: GameSave = game.saveHere();
+    expectEngineParameters(game, program, save);
     expect(game.saveValuesOf(save.data).values["store:trust"]).toBe("0");
 
     const edited = game.editSave(save, "store:trust", "5");
@@ -261,6 +332,7 @@ describe("saves made while playing", () => {
     const game = playFromLine(program, compiler, START_LINE);
     advanceTo(game, "Where were you at nine?");
     const save: GameSave = game.saveHere();
+    expectEngineParameters(game, program, save);
     expect(game.saveRefusal(save.data)).toBeNull();
 
     const edited = example.map((line, i) =>
@@ -289,6 +361,7 @@ describe("saves made while playing", () => {
     const game = playFromLine(program, compiler, 3);
     advanceTo(game, "Saved nine.");
     const save: GameSave = game.saveHere();
+    expectEngineParameters(game, program, save);
 
     recompile(compiler, game, [...lines.slice(0, 5), "  Replacement.", "end"].join("\n"));
     expect(game.saveRefusal(save.data)).toMatch(/cannot be placed/);
@@ -307,6 +380,7 @@ describe("saves made while playing", () => {
     const game = playFromLine(program, compiler, START_LINE);
     advanceTo(game, "Where were you at nine?");
     const save = game.editSave(game.saveHere(), "store:trust", "4");
+    expectEngineParameters(game, program, save);
 
     recompile(
       compiler,
@@ -343,6 +417,7 @@ describe("saves made while playing", () => {
     const game = playFromLine(program, compiler, 4);
     advanceTo(game, "Saved 9 9.");
     const save: GameSave = game.saveHere();
+    expectEngineParameters(game, program, save);
     const before = game.saveListing(save, "start").values.values;
     expect(before["store:trust"]).toBe("1");
     expect(before["store:bag.coins"]).toBe("1");
@@ -385,12 +460,7 @@ describe("saves made while playing", () => {
     advanceTo(game, "Saved 2.");
     const save: GameSave = game.saveHere();
     expect(save.scene).toBe("visit");
-    expect(
-      game
-        .saveListing(save, "visit")
-        .values.frames.filter((frame: { flow?: string }) => frame.flow === "visit")
-        .map((frame: { params: Record<string, string> }) => frame.params["n"]),
-    ).toEqual(["1", "2"]);
+    expectEngineParameters(game, program, save);
     expect(game.saveStartingValuesOf(save, "visit")["param:n"]).toBe("2");
 
     recompile(compiler, game, [...lines.slice(0, 6), "  Replacement.", "  ->->", "end"].join("\n"));
@@ -425,6 +495,7 @@ describe("saves made while playing", () => {
       const game = playFromLine(program, compiler, 2);
       advanceTo(game, "Saved 7.");
       const save: GameSave = game.saveHere();
+      expectEngineParameters(game, program, save);
       const expected = () => {
         expect(game.saveStartingValuesOf(save, "visit")["param:n"]).toBe("3");
         expect(game.saveStartingValuesOf(save, "visit.inner")[`param:${branchParameter}`]).toBe(
@@ -450,4 +521,108 @@ describe("saves made while playing", () => {
       expected();
     },
   );
+
+  it("loads the scene's parameters from the call it returns to when another scene diverts into its branch", () => {
+    const lines = [
+      "scene start",
+      "  Opening.",
+      "  -> visit(3) ->",
+      "  After.",
+      "end",
+      "scene visit(n)",
+      "  At {n}.",
+      "  -> bridge(5) ->",
+      "  Back {n}.",
+      "  ->->",
+      "  branch inner(n)",
+      "    Saved {n}.",
+      "    ->->",
+      "  end",
+      "end",
+      "scene bridge(m)",
+      "  Over {m}.",
+      "  -> visit.inner(7)",
+      "end",
+    ];
+    const { program, compiler } = compileSrc(lines.join("\n"));
+    const game = playFromLine(program, compiler, 2);
+    advanceTo(game, "Saved 7.");
+    const save: GameSave = game.saveHere();
+    expectEngineParameters(game, program, save);
+    const expected = () => {
+      expect(game.saveStartingValuesOf(save, "visit")["param:n"]).toBe("3");
+      expect(game.saveStartingValuesOf(save, "visit.inner")["param:n"]).toBe("7");
+      expect(game.saveStartingValuesOf(save, "bridge")["param:m"]).toBeUndefined();
+    };
+    expected();
+
+    recompile(
+      compiler,
+      game,
+      [
+        ...lines.slice(0, 6),
+        "  Replacement.",
+        "  ->->",
+        "  branch inner(n)",
+        "    ->->",
+        "  end",
+        "end",
+        ...lines.slice(15),
+      ].join("\n"),
+    );
+    expect(game.saveRefusal(save.data)).toMatch(/cannot be placed/);
+    expected();
+  });
+
+  it("loads each nested scene's parameter from its own call", () => {
+    const lines = [
+      "scene start",
+      "  Opening.",
+      "  -> a(1) ->",
+      "end",
+      "scene a(p)",
+      "  -> b(2) ->",
+      "  ->->",
+      "end",
+      "scene b(p)",
+      "  -> c(3) ->",
+      "  ->->",
+      "end",
+      "scene c(p)",
+      "  Saved {p}.",
+      "  ->->",
+      "end",
+    ];
+    const { program, compiler } = compileSrc(lines.join("\n"));
+    const game = playFromLine(program, compiler, 2);
+    advanceTo(game, "Saved 3.");
+    const save: GameSave = game.saveHere();
+    expectEngineParameters(game, program, save);
+    expect(
+      ["a", "b", "c"].map((scene) => game.saveStartingValuesOf(save, scene)["param:p"]),
+    ).toEqual(["1", "2", "3"]);
+  });
+
+  it("takes no scene parameter from a branch the scene diverts into, as the game reads none there", () => {
+    const lines = [
+      "scene start",
+      "  Opening.",
+      "  -> visit(3)",
+      "end",
+      "scene visit(n)",
+      "  -> visit.inner(7)",
+      "  branch inner(n)",
+      "    Saved {n}.",
+      "    Next.",
+      "  end",
+      "end",
+    ];
+    const { program, compiler } = compileSrc(lines.join("\n"));
+    const game = playFromLine(program, compiler, 2);
+    advanceTo(game, "Saved 7.");
+    const save: GameSave = game.saveHere();
+    expectEngineParameters(game, program, save);
+    expect(game.saveStartingValuesOf(save, "visit")["param:n"]).toBeUndefined();
+    expect(game.saveStartingValuesOf(save, "visit.inner")["param:n"]).toBe("7");
+  });
 });
