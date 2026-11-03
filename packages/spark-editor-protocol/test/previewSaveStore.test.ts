@@ -1,9 +1,9 @@
-import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
 import { describe, expect, it } from "vitest";
+import type { PreviewSave } from "../src/protocols/preview/ListSavesMessage";
 import {
   PreviewSaveStore,
   type PreviewSaveFiles,
-} from "../../src/modules/spark-editor/workspace/PreviewSaveStore";
+} from "../src/utils/PreviewSaveStore";
 
 const memoryFiles = () => {
   const files = new Map<string, string>();

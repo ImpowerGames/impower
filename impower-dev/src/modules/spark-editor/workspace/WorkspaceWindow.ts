@@ -80,7 +80,8 @@ import type { AccountInfo } from "./types/AccountInfo";
 import { RemoteStorage } from "./types/RemoteStorageTypes";
 import createTextFile from "./utils/createTextFile";
 import createZipFile from "./utils/createZipFile";
-import { PreviewSaveStore } from "./PreviewSaveStore";
+import { PreviewSaveStore } from "@impower/spark-editor-protocol/src/utils/PreviewSaveStore";
+import { opfsSaveFiles } from "./opfsSaveFiles";
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
 
 export default class WorkspaceWindow {
@@ -467,7 +468,7 @@ export default class WorkspaceWindow {
     sendProtocolMessage(SetEditorPinpointsMessage.type.request({ locations }));
   }
 
-  protected _previewSaveStore = new PreviewSaveStore();
+  protected _previewSaveStore = new PreviewSaveStore(opfsSaveFiles());
 
   protected previewSaveProject(): string {
     const id = this.store.project.id;
