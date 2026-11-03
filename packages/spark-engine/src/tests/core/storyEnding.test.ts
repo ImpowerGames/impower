@@ -178,7 +178,7 @@ describe("a story that ends", () => {
 
   it("keeps a fin ending in a save written after the ending layout's bindings ran", async () => {
     const source =
-      'scene start\n  Hello.\n  fin\nend\n\nlayout ending with\n  text "Ended: {game.ending.active}"\nend\n';
+      'scene start\n  Hello.\n  fin\nend\n\nlayout ending {\n  text "Ended: {game.ending.active}"\n}\n';
     const route = await play(source);
     route.game.clickedToContinue();
     await flushMicrotasks(20);

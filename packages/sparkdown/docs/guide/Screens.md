@@ -135,23 +135,23 @@ Every other ending holds the last frame without opening the ending screen: a `do
 Replace the ending screen with your own `layout ending` (an empty one shows nothing), or restyle the default mark with `style end_mark`:
 
 ```sparkdown
-layout ending with
+layout ending {
   column.thanks {
     text "Thanks for playing!"
   }
-end
+}
 
-style thanks with
+style thanks {
   position = absolute
   inset = 0
   align_items = center
   justify_content = center
   background_color = rgb(0 0 0 / 60%)
-end
+}
 
-style end_mark with
+style end_mark {
   color = sky_60
-end
+}
 ```
 
 While the ending screen is open, `game.ending.active` is `true`, so any layout can react to it through a binding such as `{game.ending.active}`. A checkpoint keeps neither the open ending screen nor `game.ending.active`; it records only how the story ended, so a story that ended with `fin` opens its ending screen again when it resumes from there.
