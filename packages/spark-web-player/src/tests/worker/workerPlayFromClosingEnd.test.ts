@@ -179,7 +179,8 @@ describe("PLAY and the preview at an empty scene or branch", () => {
     async (_name, line) => {
       const outcome = await playFrom(EMPTY_AFTER_BEAT, line);
       expect(outcome.started).toBe(true);
-      expect(outcome.exited).toEqual(["finished"]);
+      expect(outcome.exited).toEqual([]);
+      expect(outcome.ended).toEqual(["out"]);
       expect(outcome.text).not.toContain("First.");
       expect(outcome.text).not.toContain("Other.");
       const preview = await previewAt(EMPTY_AFTER_BEAT, line);
@@ -250,7 +251,8 @@ describe("PLAY and the preview at the end of a scene whose branches it does not 
   it("PLAY and the preview start at the scene's top, with nothing of the scene before it", async () => {
     const outcome = await playFrom(UNENTERED_AFTER_BEAT, 9);
     expect(outcome.started).toBe(true);
-    expect(outcome.exited).toEqual(["finished"]);
+    expect(outcome.exited).toEqual([]);
+    expect(outcome.ended).toEqual(["out"]);
     expect(outcome.text).not.toContain("Before.");
     expect(outcome.text).not.toContain("Unused");
     expect(outcome.text).not.toContain("Other.");
