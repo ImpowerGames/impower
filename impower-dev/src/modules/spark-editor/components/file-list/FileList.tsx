@@ -1179,6 +1179,10 @@ export default function FileList({
                     bulkSelected={selectedPaths.has(row.path)}
                     isNew={editingNewPath === row.path}
                     isDraft={draftPath === row.path}
+                    displayName={
+                      draftPath === row.path ? (draftNew?.name ?? "") : undefined
+                    }
+                    displayExt={draftPath === row.path ? draftNew?.ext : undefined}
                     selectionCount={selectedPaths.size}
                     onToggle={onItemActivate}
                     onToggleSelect={toggleSelected}
