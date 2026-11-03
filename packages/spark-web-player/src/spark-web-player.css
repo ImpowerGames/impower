@@ -299,6 +299,11 @@ spark-web-player #game-view {
   inset: 0;
 }
 
+spark-web-player #game-background:empty,
+spark-web-player #game-view:empty {
+  pointer-events: none;
+}
+
 spark-web-player #game-ui {
   position: absolute;
   inset: 0;
@@ -407,7 +412,6 @@ spark-web-player #right-items {
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  pointer-events: none;
 }
 
 spark-web-player #left-items {
@@ -498,10 +502,6 @@ spark-web-player #location-items.error {
   color: var(--swp-error-color);
 }
 
-spark-web-player #viewport:not(.fullscreen) #location-items.error {
-  pointer-events: auto;
-}
-
 spark-web-player #toolbar.snapping #size-label,
 spark-web-player #toolbar.snapping #aspect-ratio-label {
   color: var(--swp-accent-color);
@@ -534,7 +534,6 @@ spark-web-player #middle-items {
   display: flex;
   flex-direction: row;
   align-items: center;
-  pointer-events: none;
 }
 
 spark-web-player #completion-status {

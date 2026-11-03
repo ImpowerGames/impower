@@ -50,6 +50,7 @@ jobs:
           - { package: packages/sparkdown, shard: 4, shards: 4 }
           - { package: packages/sparkdown-document-views, shard: 1, shards: 1 }
           - { package: packages/sparkdown-language-server, shard: 1, shards: 1 }
+          - { package: packages/sparkle-screen-renderer, shard: 1, shards: 1 }
           - { package: vscode-sparkdown, shard: 1, shards: 1 }
     name: ${{ matrix.package }}${{ matrix.shards > 1 && format(' ({0}/{1})', matrix.shard, matrix.shards) || '' }}
     runs-on: ubuntu-latest

@@ -439,6 +439,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _refreshing = false;
 
+  protected _builtinBreakpoints?: Record<string, number>;
+
   protected _tree?: UITree;
 
   protected _treeBuilds = 0;
@@ -507,6 +509,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   override getBuiltins() {
     return uiBuiltinDefinitions();
+  }
+
+  protected get breakpoints(): Record<string, number> {
+    return (
+      this.context.config?.ui?.breakpoints ??
+      (this._builtinBreakpoints ??= this.getBuiltins().config.ui.breakpoints)
+    );
   }
 
   override getStored(): string[] {
@@ -1041,6 +1050,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             UpdateElementMessage.type.request({
               element: element.id,
               attributes: { [DISPLAY_TARGET_ATTRIBUTE]: mark },
+              breakpoints: this.breakpoints,
             }),
           );
         }
@@ -1286,7 +1296,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const content = state?.content;
     const style = state?.style;
     const attributes = state?.attributes;
-    const breakpoints = this.context.config?.ui?.breakpoints;
+    const breakpoints = this.breakpoints;
     const el = new Element(parent, id, type, name, before);
     this._screenEdits += 1;
     if (this.carriesDisplayTarget(el)) {
@@ -1416,7 +1426,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const content = state?.content;
     const style = state?.style;
     const attributes = state?.attributes;
-    const breakpoints = this.context.config?.ui?.breakpoints;
+    const breakpoints = this.breakpoints;
     if (this._refreshing) {
       this._screenEdits += 1;
     }
