@@ -309,6 +309,61 @@ end
     }
   });
 
+  test("a shrinking drawing's mask is written and posed between poses and removed at the pose, as the reference renderer draws it", async () => {
+    const source = SOURCE.replace(blinkScript(TIMING), blinkScript(`  layers {\n    eyelash-left {\n      spread = -1px\n    }\n  }\n${TIMING}`));
+    const { h, frames, playback } = await previewed(source);
+    await until(() => playback.stats.live === 1, "the artifact");
+    const shadow = shadowOf(portraitSpan(h.overlay))!;
+    const view = (playback as any).layers.values().next().value.plays[0].view;
+    const artifact = view.artifact as MorphArtifact;
+    const masks = Object.values(artifact.spreads ?? {}).flatMap((spread) => (spread.mask ? [spread.mask.split(artifact.idPrefix).join(view.prefix)] : []));
+    expect(masks.length).toBeGreaterThan(0);
+    const swapped = (offset: number) =>
+      Object.fromEntries(Object.entries(referencePaint(artifact, offset)).map(([node, styles]) => [node, styles.map((s) => s.split(artifact.idPrefix).join(view.prefix))]));
+    const maskPaths = (root: ParentNode) => masks.map((id) => root.querySelector(`mask[id="${id}"] > path`)?.getAttribute("d") ?? null);
+    const markup = maskPaths(shadow);
+    expect(markup.every((d) => !!d)).toBe(true);
+    frames.run(1000);
+    expect(paintStates(shadow)).toEqual(swapped(0));
+    expect(Object.values(paintStates(shadow)).flat().some((style) => /mask:/.test(style))).toBe(false);
+    frames.run(1000 + 0.15 * 250);
+    expect(paintStates(shadow)).toEqual(swapped(0.15));
+    expect(apertureStates(shadow)).toEqual(referenceApertures(artifact, 0.15));
+    const masked = Array.from(shadow.querySelectorAll("[data-morph]")).filter((e) => /mask:url\(#/.test(e.getAttribute("style") ?? ""));
+    expect(masked.map((e) => /mask:url\(#([^)]+)\)/.exec(e.getAttribute("style")!)![1]).sort()).toEqual([...masks].sort());
+    for (const element of masked) {
+      const id = /mask:url\(#([^)]+)\)/.exec(element.getAttribute("style")!)![1]!;
+      expect(shadow.querySelector(`mask[id="${id}"] > path`)!.getAttribute("d")).toBe(element.getAttribute("d"));
+    }
+    frames.run(1000 + 250);
+    expect(paintStates(shadow)).toEqual(swapped(0));
+    expect(Object.values(paintStates(shadow)).flat().some((style) => /mask:/.test(style))).toBe(false);
+    expect(maskPaths(shadow)).toEqual(markup);
+  });
+
+  test("a growing drawing takes a stroke in its fill's paint between poses, as the reference renderer draws it", async () => {
+    const source = SOURCE.replace(blinkScript(TIMING), blinkScript(`  layers {\n    eyelash-left {\n      spread = 1px\n    }\n  }\n${TIMING}`));
+    const { h, frames, playback } = await previewed(source);
+    await until(() => playback.stats.live === 1, "the artifact");
+    const shadow = shadowOf(portraitSpan(h.overlay))!;
+    const artifact = (playback as any).layers.values().next().value.plays[0].slot.artifact as MorphArtifact;
+    frames.run(1000);
+    expect(paintStates(shadow)).toEqual(referencePaint(artifact, 0));
+    expect(Object.values(paintStates(shadow)).flat().some((style) => /stroke-width/.test(style))).toBe(false);
+    frames.run(1000 + 0.15 * 250);
+    const moving = paintStates(shadow);
+    expect(moving).toEqual(referencePaint(artifact, 0.15));
+    const grown = Object.values(moving).flat().filter((style) => /stroke-width:2px/.test(style));
+    expect(grown.length).toBeGreaterThan(0);
+    for (const style of grown) {
+      expect(style).toContain("stroke:rgba(17,17,17,1)");
+      expect(style).toContain("stroke-linejoin:round");
+      expect(style).toContain("vector-effect:non-scaling-stroke");
+    }
+    frames.run(1000 + 250);
+    expect(paintStates(shadow)).toEqual(referencePaint(artifact, 0));
+  });
+
   test("a drawing carried in its partner's shape shows at the held pose as the reference renderer draws it", async () => {
     const source = SOURCE.replace(blinkScript(TIMING), `morph blink with
   method = bend

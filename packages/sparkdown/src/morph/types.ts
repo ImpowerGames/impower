@@ -1,4 +1,4 @@
-export const MORPH_BAKE_FORMAT = 23;
+export const MORPH_BAKE_FORMAT = 24;
 
 export type MorphBlend = "morph" | "fade" | "cut" | "scale";
 export type MorphFallback = "fade" | "cut" | "scale";
@@ -9,6 +9,7 @@ export interface MorphPolicy {
   method?: MorphMethodName;
   fallback?: MorphFallback;
   depth?: string;
+  spread?: number;
   partner?: string[];
 }
 
@@ -18,6 +19,7 @@ export interface MorphRecipe {
   method?: MorphMethodName;
   fallback: MorphFallback;
   depth?: string;
+  spread?: number;
   layers: Record<string, MorphPolicy>;
   keyframes: { offset: number; states: Record<string, string> }[];
   clips: { between: string[]; targets: string[]; spread?: number }[];
@@ -121,10 +123,11 @@ export type MorphTransition =
       paint?: MorphPaint;
       gradients?: { fill?: MorphGradientBlend; stroke?: MorphGradientBlend };
       partner?: true;
+      spread?: number;
     }
-  | { kind: "fade"; from?: string; to?: string }
+  | { kind: "fade"; from?: string; to?: string; spread?: number }
   | { kind: "cut"; from?: string; to?: string }
-  | { kind: "scale"; node: string; draw: string; direction: "shrink" | "grow"; frames: MorphGeometryRef }
+  | { kind: "scale"; node: string; draw: string; direction: "shrink" | "grow"; frames: MorphGeometryRef; spread?: number }
   | { kind: "hold"; node: string };
 
 export type MorphColor = [number, number, number, number];
@@ -186,6 +189,7 @@ export interface MorphSegment {
   clips: MorphClipFrames[];
   shapes?: Record<string, string>;
   carry?: { from?: Record<string, string>; to?: Record<string, string> };
+  spread?: Record<string, number>;
 }
 
 export interface MorphClipTarget {
@@ -193,6 +197,17 @@ export interface MorphClipTarget {
   aperture: string;
   matrix: number[];
   spread?: number;
+}
+
+export type MorphSpreadFill =
+  | { fill: MorphColor; "fill-opacity": number }
+  | { gradient: string; alpha: number; "fill-opacity": number };
+
+export interface MorphSpreadNode {
+  outline: string;
+  mask?: string;
+  evenodd?: true;
+  grow?: MorphSpreadFill;
 }
 
 export interface MorphArtifact {
@@ -215,5 +230,6 @@ export interface MorphArtifact {
   apertureEdges: number[][][][][];
   clipTargets: MorphClipTarget[];
   paints?: MorphPaintPose[];
+  spreads?: Record<string, MorphSpreadNode>;
   diagnostics: MorphBakeDiagnostic[];
 }

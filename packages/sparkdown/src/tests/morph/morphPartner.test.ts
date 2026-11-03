@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { bakeMorphArtifact } from "../../morph/bake";
 import { buildMorphRecipe } from "../../morph/recipe";
 import type { MorphArtifact, MorphSegment, MorphTransition } from "../../morph/types";
+import { morphFrameState, morphPosesAt } from "../../morph/render";
 import { parse } from "../../txml/txml";
 import { CLOSED, partnerPortrait, shiftPath, type PartnerEyeOptions } from "./fixtures";
 
@@ -267,5 +268,52 @@ describe("a label's `partner` lends it another label's drawing where its own pos
     });
     expect(messages[0]).toBe(messages[1]);
     expect(messages[0]).toContain('"eyelash-middle"');
+  });
+});
+
+describe("a drawing carried in its partner's shape takes its label's `spread`", () => {
+  const states = ["open", "closed", "closed", "open"];
+
+  test("a shrinking shadow is masked while it moves onto the lash, at the segment's end and while the pose holds, and not at the open pose", () => {
+    const artifact = bake(partnerBlink(["eyelash-left"], { layer: { spread: "-1px" }, states }));
+    expect(artifact.diagnostics).toEqual([]);
+    const shadow = leafOf(artifact, "open", "eyeball-shadow-left");
+    const closing = artifact.segments[0]!;
+    expect(tracksOf(artifact, 0, shadow)).toEqual([expect.objectContaining({ kind: "morph", draw: shadow, partner: true, spread: -1 })]);
+    expect(closing.spread).toEqual({ [shadow]: -1 });
+    const mask = artifact.spreads![shadow]!.mask!;
+    const carried = closing.carry!.to![shadow]!;
+    const arrived = morphFrameState(artifact, { eyes: { segment: 0, progress: 1 } });
+    expect(arrived.masks.get(mask)).toEqual({ spread: -1, d: carried });
+    expect(arrived.paint.get(shadow)).toEqual({ mask: `url(#${mask})` });
+    const moving = morphFrameState(artifact, { eyes: { segment: 0, progress: 0.5 } });
+    expect(moving.masks.get(mask)).toEqual({ spread: -1, d: moving.geometry.get(shadow) });
+    const held = morphFrameState(artifact, morphPosesAt(artifact, 0.5));
+    expect(held.masks.get(mask)).toEqual({ spread: -1, d: carried });
+    const leaving = morphFrameState(artifact, { eyes: { segment: 1, progress: 0 } });
+    expect(leaving.masks.get(mask)).toEqual({ spread: -1, d: carried });
+    for (const pose of [{ segment: 0, progress: 0 }, { segment: 1, progress: 1 }]) {
+      expect(morphFrameState(artifact, { eyes: pose }).masks.size, JSON.stringify(pose)).toBe(0);
+    }
+  });
+
+  test("a shadow fading onto the lash takes its spread on the carrier that arrives there", () => {
+    const artifact = bake(partnerBlink(["eyelash-left"], { layer: { spread: "-1px", blend: "fade" }, states }));
+    expect(artifact.diagnostics).toEqual([]);
+    const [arrival] = Object.keys(artifact.segments[0]!.carry!.to!);
+    const mask = artifact.spreads![arrival!]!.mask!;
+    expect(morphFrameState(artifact, { eyes: { segment: 0, progress: 1 } }).masks.get(mask)).toEqual({ spread: -1, d: artifact.segments[0]!.carry!.to![arrival!] });
+    expect(morphFrameState(artifact, { eyes: { segment: 0, progress: 0.5 } }).paint.get(arrival!)).toEqual({ mask: `url(#${mask})` });
+  });
+
+  test("a morph resting at the partner's pose carries nothing at rest, and spreads only between poses", () => {
+    const artifact = bake(partnerBlink(["eyelash-left"], { layer: { spread: "-1px" }, states: ["closed", "open", "closed"] }), {}, { eyes: "closed" });
+    expect(artifact.diagnostics).toEqual([]);
+    const shadow = leafOf(artifact, "open", "eyeball-shadow-left");
+    expect(artifact.segments.map((s) => s.spread)).toEqual([undefined, undefined]);
+    for (const pose of [{ segment: 0, progress: 0 }, { segment: 0, progress: 1 }, { segment: 1, progress: 1 }]) {
+      expect(morphFrameState(artifact, { eyes: pose }).masks.size, JSON.stringify(pose)).toBe(0);
+    }
+    expect(morphFrameState(artifact, { eyes: { segment: 0, progress: 0.5 } }).paint.get(shadow)).toEqual({ mask: `url(#${artifact.spreads![shadow]!.mask})` });
   });
 });
