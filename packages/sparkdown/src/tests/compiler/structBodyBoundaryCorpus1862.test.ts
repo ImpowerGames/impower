@@ -13,7 +13,7 @@ import {
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../../../..");
 
-const CORPUS_BODIES = 252;
+const CORPUS_BODIES = 249;
 
 const HEADER_SHAPED_ENTRIES = [
   "theme label {",
