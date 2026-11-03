@@ -125,23 +125,24 @@ tool — use the store.
 
 ## Testing
 
-Tests run under vitest + jsdom (`npm test`). The `Workspace` singleton
-instantiates Workers and circular-imports `WorkspaceWindow`, so **mock it**:
+Tests run under vitest + jsdom (`npm test`). `WorkspaceWindow` receives the services it reads (`fs`, `sync`) through its constructor, so a test passes stubs for the ones it calls:
 
 ```ts
-vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
-  Workspace: { fs: { writeProjectMetadata: vi.fn() } }, // stub only what you call
-}));
-
 import workspace from "…/WorkspaceStore";
 import WorkspaceWindow from "…/WorkspaceWindow";
 
+const services = {
+  fs: { writeProjectMetadata: vi.fn() }, // stub only what you call
+} as unknown as ConstructorParameters<typeof WorkspaceWindow>[0];
+
 it("openPane updates the store", () => {
-  const win = new WorkspaceWindow();
+  const win = new WorkspaceWindow(services);
   win.openPane("assets");
   expect(workspace.current.pane).toBe("assets");
 });
 ```
+
+Importing the `Workspace` singleton instantiates Workers, so a test whose code under test reads `Workspace` itself (a component, for instance) mocks it with `vi.mock("../../src/modules/spark-editor/workspace/Workspace", …)`, stubbing only what that code calls.
 
 See `test/workspace/WorkspaceWindow.test.ts` for the established patterns
 (store-transition assertions, inbound protocol-event folding, the
