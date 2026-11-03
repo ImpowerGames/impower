@@ -526,18 +526,36 @@ await asyncCheck("scrubbing refuses playback modes and waits for the selected so
   };
   const context = vm.createContext({ ...globals, setTimeout, clearTimeout });
   const page = { waitForFunction: async () => {}, evaluate: async (fn, arg) => { context.arg = arg; return vm.runInContext("(" + fn.toString() + ")(arg)", context); } };
-  for (const launchState of ["play", "pause", null]) {
+  for (const launchState of ["play", "pause"]) {
     game.launchState = launchState;
     assert.equal((await liveDeps.clickLine(page, 2)).clicked, false);
   }
   assert.equal(globals.protocolState.messages.filter(m => m.method === "editor/select").length, 0);
-  game.launchState = "preview";
-  const result = await liveDeps.clickLine(page, 2);
-  assert.equal(result.cursorLine, 2);
-  assert.equal(result.x, 173);
-  assert.equal(result.y, 50);
-  assert.equal(result.previousPosition.line, 0);
-  assert.equal(result.position.line, 1);
+  for (const launchState of [null, "preview"]) {
+    game = { launchState, position: { uri: "file://local/main.sd", line: 0 } };
+    const result = await liveDeps.clickLine(page, 2);
+    assert.equal(result.clicked, true, `a ${launchState} game state refused the scrub`);
+    assert.equal(result.cursorLine, 2);
+    assert.equal(result.x, 173);
+    assert.equal(result.y, 50);
+    assert.equal(result.previousPosition.line, 0);
+    assert.equal(result.position.line, 1);
+    assert.equal(result.positionError, undefined);
+    assert.equal(subscribers.size, 0);
+  }
+  let reads = 0;
+  bridge.send = async (message) => {
+    if (message.method === "preview/gameState") {
+      if (++reads > 1) throw new Error("preview/gameState handler failed");
+      return { launchState: "preview", position: { uri: "file://local/main.sd", line: 0 } };
+    }
+    if (message.method === "textDocument/didSelect") return;
+    return originalSend(message);
+  };
+  const failed = await liveDeps.clickLine(page, 2);
+  assert.equal(failed.clicked, true);
+  assert.equal(failed.position, null);
+  assert.match(failed.positionError, /preview\/gameState handler failed/);
   assert.equal(subscribers.size, 0);
 });
 
@@ -757,6 +775,7 @@ check("a scrub report fails when the click, the position or the rendered text sa
   assert.match(scrubReport(3, { ...base, scrub: { clicked: false, reason: "Stop the running preview before scrubbing" } }).reason, /did not run: Stop the running preview/);
   assert.match(scrubReport(9, { ...base, scrub: { clicked: true, line: 5, totalLines: 5, position: { line: 4 } } }).reason, /past the end/);
   assert.match(scrubReport(3, { ...base, scrub: { clicked: true, line: 3, position: { line: 0 } } }).reason, /did not move/);
+  assert.match(scrubReport(3, { ...base, scrub: { clicked: true, line: 3, position: null, positionError: "preview/gameState handler failed" } }).reason, /did not move to line 3 \(position null; preview\/gameState handler failed\)/);
   assert.match(scrubReport(3, { ...base, scrub: { clicked: true, line: 3, position: { line: 2 } }, scrubCheck: { outcome: "elsewhere", reason: "showing 1" } }).reason, /not confirmed/);
   assert.equal(scrubReport(3, { ...base, scrub: { clicked: true, line: 3, position: { line: 2 } }, scrubCheck: { outcome: "inconclusive", reason: "?" } }).reason, undefined);
 });

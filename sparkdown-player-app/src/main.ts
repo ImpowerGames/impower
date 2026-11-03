@@ -11,6 +11,7 @@ import { DroppedFilesMessage } from "@impower/spark-editor-protocol/src/protocol
 import {
   SparkWebPlayerElement,
   setWorkspace,
+  whenControllerListening,
 } from "@impower/spark-web-player/src/index.js";
 import { installWorkspaceWorker } from "@impower/spark-web-player/src/main/workers/installWorkspaceWorker";
 import { enableOnsetTap } from "@impower/spark-web-player/src/app/managers/AudioProbe";
@@ -77,7 +78,10 @@ connection.addEventListener("message", async (e) => {
   }
 });
 
-const workspaceState = installWorkspaceWorker(connection);
+const workspaceState = installWorkspaceWorker(
+  connection,
+  whenControllerListening(),
+);
 
 window.addEventListener(MessageProtocol.event, (e) => {
   if (e instanceof CustomEvent) {

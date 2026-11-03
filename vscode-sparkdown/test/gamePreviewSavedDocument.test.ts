@@ -28,6 +28,7 @@ vi.mock("@impower/jsonrpc/src/browser/classes/WindowMessageConnection", () => ({
 vi.mock("@impower/spark-web-player/src/index.js", () => ({
   SparkWebPlayerElement: { register: async () => {} },
   setWorkspace: () => {},
+  whenControllerListening: () => Promise.resolve(),
 }));
 vi.mock(
   "@impower/spark-web-player/src/main/workers/installWorkspaceWorker",
