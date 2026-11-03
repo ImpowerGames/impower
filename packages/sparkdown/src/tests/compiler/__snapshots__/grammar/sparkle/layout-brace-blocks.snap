@@ -3151,40 +3151,43 @@ sparkdown [0..2675]
  │   │       │   ├─ Newline [1863..1864]: "\n"
  │   │       │   ├─ Whitespace [1864..1866]: "  "
  │   │       │   ├─ LuauSparkleElement [1866..1894]
- │   │       │   │   ├─ LuauSparkleElement_begin [1866..1894]
+ │   │       │   │   ├─ LuauSparkleElement_begin [1866..1870]
  │   │       │   │   │   ├─ LuauSparkleElement_begin_c1 [1866..1870]
  │   │       │   │   │   │   └─ LuauSparkleElementName [1866..1870]: "card"
- │   │       │   │   │   └─ LuauSparkleElement_begin_c2 [1870..1894]
- │   │       │   │   │       └─ LuauSparkleCallArguments [1870..1894]
- │   │       │   │   │           ├─ LuauSparkleCallArguments_begin [1870..1871]
- │   │       │   │   │           │   ├─ LuauSparkleCallArguments_begin_c1 1870
- │   │       │   │   │           │   └─ LuauSparkleCallArguments_begin_c2 [1870..1871]
- │   │       │   │   │           │       └─ PunctuationParenOpen [1870..1871]: "("
- │   │       │   │   │           └─ LuauSparkleCallArguments_content [1871..1894]
- │   │       │   │   │               └─ LuauSingleQuotedString [1871..1894]
- │   │       │   │   │                   ├─ LuauSingleQuotedString_begin [1871..1872]
- │   │       │   │   │                   │   └─ LuauSingleQuotedString_begin_c1 [1871..1872]
- │   │       │   │   │                   │       └─ PunctuationStringSingleQuoteOpen [1871..1872]: "'"
- │   │       │   │   │                   ├─ LuauSingleQuotedString_content [1872..1894]
- │   │       │   │   │                   │   ├─ Word [1872..1873]: "a"
- │   │       │   │   │                   │   ├─ Punctuation [1873..1874]: ")"
- │   │       │   │   │                   │   ├─ Word [1874..1875]: "b"
- │   │       │   │   │                   │   ├─ Punctuation [1875..1876]: "{"
- │   │       │   │   │                   │   ├─ Word [1876..1877]: "c"
- │   │       │   │   │                   │   ├─ Punctuation [1877..1878]: ")"
- │   │       │   │   │                   │   ├─ Space [1878..1879]: " "
- │   │       │   │   │                   │   ├─ Punctuation [1879..1880]: "{"
- │   │       │   │   │                   │   ├─ Space [1880..1881]: " "
- │   │       │   │   │                   │   ├─ Word [1881..1885]: "text"
- │   │       │   │   │                   │   ├─ Space [1885..1886]: " "
- │   │       │   │   │                   │   ├─ Punctuation [1886..1887]: "\""
- │   │       │   │   │                   │   ├─ Word [1887..1891]: "body"
- │   │       │   │   │                   │   ├─ Punctuation [1891..1892]: "\""
- │   │       │   │   │                   │   ├─ Space [1892..1893]: " "
- │   │       │   │   │                   │   └─ Punctuation [1893..1894]: "}"
- │   │       │   │   │                   └─ LuauSingleQuotedString_end 1894
- │   │       │   │   │                       ├─ LuauSingleQuotedString_end_c1 1894
- │   │       │   │   │                       └─ LuauSingleQuotedString_end_c2 1894
+ │   │       │   │   │   └─ LuauSparkleElement_begin_c2 1870
+ │   │       │   │   ├─ LuauSparkleElement_content [1870..1894]
+ │   │       │   │   │   └─ LuauSparkleOpenCallArguments [1870..1894]
+ │   │       │   │   │       ├─ LuauSparkleOpenCallArguments_begin [1870..1871]
+ │   │       │   │   │       │   ├─ LuauSparkleOpenCallArguments_begin_c1 1870
+ │   │       │   │   │       │   └─ LuauSparkleOpenCallArguments_begin_c2 [1870..1871]
+ │   │       │   │   │       │       └─ PunctuationParenOpen [1870..1871]: "("
+ │   │       │   │   │       ├─ LuauSparkleOpenCallArguments_content [1871..1894]
+ │   │       │   │   │       │   └─ LuauSingleQuotedString [1871..1894]
+ │   │       │   │   │       │       ├─ LuauSingleQuotedString_begin [1871..1872]
+ │   │       │   │   │       │       │   └─ LuauSingleQuotedString_begin_c1 [1871..1872]
+ │   │       │   │   │       │       │       └─ PunctuationStringSingleQuoteOpen [1871..1872]: "'"
+ │   │       │   │   │       │       ├─ LuauSingleQuotedString_content [1872..1894]
+ │   │       │   │   │       │       │   ├─ Word [1872..1873]: "a"
+ │   │       │   │   │       │       │   ├─ Punctuation [1873..1874]: ")"
+ │   │       │   │   │       │       │   ├─ Word [1874..1875]: "b"
+ │   │       │   │   │       │       │   ├─ Punctuation [1875..1876]: "{"
+ │   │       │   │   │       │       │   ├─ Word [1876..1877]: "c"
+ │   │       │   │   │       │       │   ├─ Punctuation [1877..1878]: ")"
+ │   │       │   │   │       │       │   ├─ Space [1878..1879]: " "
+ │   │       │   │   │       │       │   ├─ Punctuation [1879..1880]: "{"
+ │   │       │   │   │       │       │   ├─ Space [1880..1881]: " "
+ │   │       │   │   │       │       │   ├─ Word [1881..1885]: "text"
+ │   │       │   │   │       │       │   ├─ Space [1885..1886]: " "
+ │   │       │   │   │       │       │   ├─ Punctuation [1886..1887]: "\""
+ │   │       │   │   │       │       │   ├─ Word [1887..1891]: "body"
+ │   │       │   │   │       │       │   ├─ Punctuation [1891..1892]: "\""
+ │   │       │   │   │       │       │   ├─ Space [1892..1893]: " "
+ │   │       │   │   │       │       │   └─ Punctuation [1893..1894]: "}"
+ │   │       │   │   │       │       └─ LuauSingleQuotedString_end 1894
+ │   │       │   │   │       │           ├─ LuauSingleQuotedString_end_c1 1894
+ │   │       │   │   │       │           └─ LuauSingleQuotedString_end_c2 1894
+ │   │       │   │   │       └─ LuauSparkleOpenCallArguments_end 1894
+ │   │       │   │   │           └─ LuauSparkleOpenCallArguments_end_c1 1894
  │   │       │   │   └─ LuauSparkleElement_end 1894
  │   │       │   ├─ Newline [1894..1895]: "\n"
  │   │       │   ├─ Whitespace [1895..1897]: "  "
@@ -3320,126 +3323,124 @@ sparkdown [0..2675]
  │   │       │   │   │   │   └─ BuiltinComponentName [1981..1987]: "button"
  │   │       │   │   │   └─ LuauSparkleElement_begin_c2 1987
  │   │       │   │   ├─ LuauSparkleElement_content [1987..2020]
- │   │       │   │   │   └─ LuauSparkleElementParts [1987..2020]
- │   │       │   │   │       └─ LuauSparkleElementParts_c1 [1987..2020]
- │   │       │   │   │           ├─ RequiredWhitespace [1987..1988]: " "
- │   │       │   │   │           └─ LuauSparkleEventAttribute [1988..2020]
- │   │       │   │   │               ├─ LuauSparkleEventAttribute_c1 [1988..1989]
- │   │       │   │   │               │   └─ EventAttributeOperator [1988..1989]: "@"
- │   │       │   │   │               ├─ LuauSparkleEventAttribute_c2 [1989..1994]
- │   │       │   │   │               │   └─ EventAttributeName [1989..1994]: "click"
- │   │       │   │   │               ├─ LuauSparkleEventAttribute_c4 [1994..1995]
- │   │       │   │   │               │   └─ EqualOperator [1994..1995]: "="
- │   │       │   │   │               └─ LuauSparkleEventAttribute_c6 [1995..2020]
- │   │       │   │   │                   └─ LuauSparkleEventHandler [1995..2020]
- │   │       │   │   │                       └─ LuauSparkleEventHandler_c1 [1995..2020]
- │   │       │   │   │                           └─ LuauAccessPath [1995..2020]
- │   │       │   │   │                               ├─ LuauAccessPath_begin 1995
- │   │       │   │   │                               ├─ LuauAccessPath_content [1995..2020]
- │   │       │   │   │                               │   └─ LuauAccessPart [1995..2020]
- │   │       │   │   │                               │       └─ LuauFunctionCall [1995..2020]
- │   │       │   │   │                               │           ├─ LuauFunctionCall_begin [1995..1996]
- │   │       │   │   │                               │           │   ├─ LuauFunctionCall_begin_c1 [1995..1996]
- │   │       │   │   │                               │           │   │   └─ LuauFunctionName [1995..1996]: "f"
- │   │       │   │   │                               │           │   └─ LuauFunctionCall_begin_c2 1996
- │   │       │   │   │                               │           ├─ LuauFunctionCall_content [1996..2020]
- │   │       │   │   │                               │           │   └─ LuauFunctionCallParameters [1996..2020]
- │   │       │   │   │                               │           │       ├─ LuauFunctionCallParameters_begin [1996..1997]
- │   │       │   │   │                               │           │       │   └─ LuauFunctionCallParameters_begin_c1 [1996..1997]
- │   │       │   │   │                               │           │       │       └─ PunctuationParenOpen [1996..1997]: "("
- │   │       │   │   │                               │           │       └─ LuauFunctionCallParameters_content [1997..2020]
- │   │       │   │   │                               │           │           └─ LuauLineComment [1997..2020]
- │   │       │   │   │                               │           │               ├─ LuauLineComment_begin [1997..1999]
- │   │       │   │   │                               │           │               │   ├─ LuauLineComment_begin_c1 1997
- │   │       │   │   │                               │           │               │   └─ LuauLineComment_begin_c2 [1997..1999]
- │   │       │   │   │                               │           │               │       └─ LuauCommentMark [1997..1999]: "--"
- │   │       │   │   │                               │           │               ├─ LuauLineComment_content [1999..2020]
- │   │       │   │   │                               │           │               │   └─ LuauLineCommentContent [1999..2020]: " ) { text \"comment\" }"
- │   │       │   │   │                               │           │               └─ LuauLineComment_end 2020
- │   │       │   │   │                               │           └─ LuauFunctionCall_end 2020
- │   │       │   │   │                               └─ LuauAccessPath_end 2020
- │   │       │   │   │                                   └─ LuauAccessPath_end_c1 2020
+ │   │       │   │   │   ├─ LuauSparkleElementParts [1987..1988]
+ │   │       │   │   │   │   └─ LuauSparkleElementParts_c1 [1987..1988]
+ │   │       │   │   │   │       └─ RequiredWhitespace [1987..1988]: " "
+ │   │       │   │   │   └─ LuauSparkleEventParenAttribute [1988..2020]
+ │   │       │   │   │       ├─ LuauSparkleEventParenAttribute_begin [1988..1995]
+ │   │       │   │   │       │   ├─ LuauSparkleEventParenAttribute_begin_c1 [1988..1989]
+ │   │       │   │   │       │   │   └─ EventAttributeOperator [1988..1989]: "@"
+ │   │       │   │   │       │   ├─ LuauSparkleEventParenAttribute_begin_c2 [1989..1994]
+ │   │       │   │   │       │   │   └─ EventAttributeName [1989..1994]: "click"
+ │   │       │   │   │       │   ├─ LuauSparkleEventParenAttribute_begin_c3 1994
+ │   │       │   │   │       │   ├─ LuauSparkleEventParenAttribute_begin_c4 [1994..1995]
+ │   │       │   │   │       │   │   └─ EqualOperator [1994..1995]: "="
+ │   │       │   │   │       │   └─ LuauSparkleEventParenAttribute_begin_c5 1995
+ │   │       │   │   │       ├─ LuauSparkleEventParenAttribute_content [1995..2020]
+ │   │       │   │   │       │   ├─ LuauSparkleParenCallee [1995..1996]
+ │   │       │   │   │       │   │   └─ LuauSparkleParenCallee_c1 [1995..1996]
+ │   │       │   │   │       │   │       └─ LuauFunctionName [1995..1996]: "f"
+ │   │       │   │   │       │   └─ LuauSparkleValueParens [1996..2020]
+ │   │       │   │   │       │       ├─ LuauSparkleValueParens_begin [1996..1997]
+ │   │       │   │   │       │       │   └─ LuauSparkleValueParens_begin_c1 [1996..1997]
+ │   │       │   │   │       │       │       └─ PunctuationParenOpen [1996..1997]: "("
+ │   │       │   │   │       │       ├─ LuauSparkleValueParens_content [1997..2020]
+ │   │       │   │   │       │       │   └─ LuauLineComment [1997..2020]
+ │   │       │   │   │       │       │       ├─ LuauLineComment_begin [1997..1999]
+ │   │       │   │   │       │       │       │   ├─ LuauLineComment_begin_c1 1997
+ │   │       │   │   │       │       │       │   └─ LuauLineComment_begin_c2 [1997..1999]
+ │   │       │   │   │       │       │       │       └─ LuauCommentMark [1997..1999]: "--"
+ │   │       │   │   │       │       │       ├─ LuauLineComment_content [1999..2020]
+ │   │       │   │   │       │       │       │   └─ LuauLineCommentContent [1999..2020]: " ) { text \"comment\" }"
+ │   │       │   │   │       │       │       └─ LuauLineComment_end 2020
+ │   │       │   │   │       │       └─ LuauSparkleValueParens_end 2020
+ │   │       │   │   │       │           └─ LuauSparkleValueParens_end_c1 2020
+ │   │       │   │   │       └─ LuauSparkleEventParenAttribute_end 2020
  │   │       │   │   └─ LuauSparkleElement_end 2020
  │   │       │   ├─ Newline [2020..2021]: "\n"
  │   │       │   ├─ Whitespace [2021..2023]: "  "
  │   │       │   ├─ LuauSparkleElement [2023..2051]
- │   │       │   │   ├─ LuauSparkleElement_begin [2023..2051]
+ │   │       │   │   ├─ LuauSparkleElement_begin [2023..2027]
  │   │       │   │   │   ├─ LuauSparkleElement_begin_c1 [2023..2027]
  │   │       │   │   │   │   └─ LuauSparkleElementName [2023..2027]: "card"
- │   │       │   │   │   └─ LuauSparkleElement_begin_c2 [2027..2051]
- │   │       │   │   │       └─ LuauSparkleCallArguments [2027..2051]
- │   │       │   │   │           ├─ LuauSparkleCallArguments_begin [2027..2028]
- │   │       │   │   │           │   ├─ LuauSparkleCallArguments_begin_c1 2027
- │   │       │   │   │           │   └─ LuauSparkleCallArguments_begin_c2 [2027..2028]
- │   │       │   │   │           │       └─ PunctuationParenOpen [2027..2028]: "("
- │   │       │   │   │           └─ LuauSparkleCallArguments_content [2028..2051]
- │   │       │   │   │               └─ LuauLineComment [2028..2051]
- │   │       │   │   │                   ├─ LuauLineComment_begin [2028..2030]
- │   │       │   │   │                   │   ├─ LuauLineComment_begin_c1 2028
- │   │       │   │   │                   │   └─ LuauLineComment_begin_c2 [2028..2030]
- │   │       │   │   │                   │       └─ LuauCommentMark [2028..2030]: "--"
- │   │       │   │   │                   ├─ LuauLineComment_content [2030..2051]
- │   │       │   │   │                   │   └─ LuauLineCommentContent [2030..2051]: " ) { text \"comment\" }"
- │   │       │   │   │                   └─ LuauLineComment_end 2051
+ │   │       │   │   │   └─ LuauSparkleElement_begin_c2 2027
+ │   │       │   │   ├─ LuauSparkleElement_content [2027..2051]
+ │   │       │   │   │   └─ LuauSparkleOpenCallArguments [2027..2051]
+ │   │       │   │   │       ├─ LuauSparkleOpenCallArguments_begin [2027..2028]
+ │   │       │   │   │       │   ├─ LuauSparkleOpenCallArguments_begin_c1 2027
+ │   │       │   │   │       │   └─ LuauSparkleOpenCallArguments_begin_c2 [2027..2028]
+ │   │       │   │   │       │       └─ PunctuationParenOpen [2027..2028]: "("
+ │   │       │   │   │       ├─ LuauSparkleOpenCallArguments_content [2028..2051]
+ │   │       │   │   │       │   └─ LuauLineComment [2028..2051]
+ │   │       │   │   │       │       ├─ LuauLineComment_begin [2028..2030]
+ │   │       │   │   │       │       │   ├─ LuauLineComment_begin_c1 2028
+ │   │       │   │   │       │       │   └─ LuauLineComment_begin_c2 [2028..2030]
+ │   │       │   │   │       │       │       └─ LuauCommentMark [2028..2030]: "--"
+ │   │       │   │   │       │       ├─ LuauLineComment_content [2030..2051]
+ │   │       │   │   │       │       │   └─ LuauLineCommentContent [2030..2051]: " ) { text \"comment\" }"
+ │   │       │   │   │       │       └─ LuauLineComment_end 2051
+ │   │       │   │   │       └─ LuauSparkleOpenCallArguments_end 2051
+ │   │       │   │   │           └─ LuauSparkleOpenCallArguments_end_c1 2051
  │   │       │   │   └─ LuauSparkleElement_end 2051
  │   │       │   ├─ Newline [2051..2052]: "\n"
  │   │       │   ├─ Whitespace [2052..2054]: "  "
  │   │       │   ├─ LuauSparkleElement [2054..2113]
- │   │       │   │   ├─ LuauSparkleElement_begin [2054..2113]
+ │   │       │   │   ├─ LuauSparkleElement_begin [2054..2058]
  │   │       │   │   │   ├─ LuauSparkleElement_begin_c1 [2054..2058]
  │   │       │   │   │   │   └─ LuauSparkleElementName [2054..2058]: "card"
- │   │       │   │   │   └─ LuauSparkleElement_begin_c2 [2058..2113]
- │   │       │   │   │       └─ LuauSparkleCallArguments [2058..2113]
- │   │       │   │   │           ├─ LuauSparkleCallArguments_begin [2058..2059]
- │   │       │   │   │           │   ├─ LuauSparkleCallArguments_begin_c1 2058
- │   │       │   │   │           │   └─ LuauSparkleCallArguments_begin_c2 [2058..2059]
- │   │       │   │   │           │       └─ PunctuationParenOpen [2058..2059]: "("
- │   │       │   │   │           ├─ LuauSparkleCallArguments_content [2059..2112]
- │   │       │   │   │           │   └─ LuauMultilineString [2059..2112]
- │   │       │   │   │           │       ├─ LuauMultilineString_begin [2059..2069]
- │   │       │   │   │           │       │   ├─ LuauMultilineString_begin_c1 [2059..2060]
- │   │       │   │   │           │       │   │   └─ PunctuationStringBracketQuoteOpen [2059..2060]: "["
- │   │       │   │   │           │       │   ├─ LuauMultilineString_begin_c2 [2060..2068]
- │   │       │   │   │           │       │   │   └─ PunctuationStringEqualQuoteOpen [2060..2068]: "========"
- │   │       │   │   │           │       │   └─ LuauMultilineString_begin_c3 [2068..2069]
- │   │       │   │   │           │       │       └─ PunctuationStringBracketQuoteOpen [2068..2069]: "["
- │   │       │   │   │           │       ├─ LuauMultilineString_content [2069..2102]
- │   │       │   │   │           │       │   ├─ Word [2069..2070]: "a"
- │   │       │   │   │           │       │   ├─ Punctuation [2070..2071]: "]"
- │   │       │   │   │           │       │   ├─ Punctuation [2071..2072]: "="
- │   │       │   │   │           │       │   ├─ Punctuation [2072..2073]: "="
- │   │       │   │   │           │       │   ├─ Punctuation [2073..2074]: "="
- │   │       │   │   │           │       │   ├─ Punctuation [2074..2075]: "="
- │   │       │   │   │           │       │   ├─ Punctuation [2075..2076]: "="
- │   │       │   │   │           │       │   ├─ Punctuation [2076..2077]: "="
- │   │       │   │   │           │       │   ├─ Punctuation [2077..2078]: "="
- │   │       │   │   │           │       │   ├─ Punctuation [2078..2079]: "="
- │   │       │   │   │           │       │   ├─ Punctuation [2079..2080]: "="
- │   │       │   │   │           │       │   ├─ Punctuation [2080..2081]: "]"
- │   │       │   │   │           │       │   ├─ Punctuation [2081..2082]: ")"
- │   │       │   │   │           │       │   ├─ Space [2082..2083]: " "
- │   │       │   │   │           │       │   ├─ Punctuation [2083..2084]: "{"
- │   │       │   │   │           │       │   ├─ Space [2084..2085]: " "
- │   │       │   │   │           │       │   ├─ Word [2085..2089]: "text"
- │   │       │   │   │           │       │   ├─ Space [2089..2090]: " "
- │   │       │   │   │           │       │   ├─ Punctuation [2090..2091]: "\""
- │   │       │   │   │           │       │   ├─ Word [2091..2097]: "string"
- │   │       │   │   │           │       │   ├─ Punctuation [2097..2098]: "\""
- │   │       │   │   │           │       │   ├─ Space [2098..2099]: " "
- │   │       │   │   │           │       │   ├─ Punctuation [2099..2100]: "}"
- │   │       │   │   │           │       │   ├─ Space [2100..2101]: " "
- │   │       │   │   │           │       │   └─ Word [2101..2102]: "b"
- │   │       │   │   │           │       └─ LuauMultilineString_end [2102..2112]
- │   │       │   │   │           │           ├─ LuauMultilineString_end_c1 [2102..2103]
- │   │       │   │   │           │           │   └─ PunctuationStringBracketQuoteClose [2102..2103]: "]"
- │   │       │   │   │           │           ├─ LuauMultilineString_end_c2 [2103..2111]
- │   │       │   │   │           │           │   └─ PunctuationStringEqualQuoteClose [2103..2111]: "========"
- │   │       │   │   │           │           ├─ LuauMultilineString_end_c3 [2111..2112]
- │   │       │   │   │           │           │   └─ PunctuationStringBracketQuoteClose [2111..2112]: "]"
- │   │       │   │   │           │           └─ LuauMultilineString_end_c4 2112
- │   │       │   │   │           └─ LuauSparkleCallArguments_end [2112..2113]
- │   │       │   │   │               └─ LuauSparkleCallArguments_end_c1 [2112..2113]
- │   │       │   │   │                   └─ PunctuationParenClose [2112..2113]: ")"
+ │   │       │   │   │   └─ LuauSparkleElement_begin_c2 2058
+ │   │       │   │   ├─ LuauSparkleElement_content [2058..2113]
+ │   │       │   │   │   └─ LuauSparkleOpenCallArguments [2058..2113]
+ │   │       │   │   │       ├─ LuauSparkleOpenCallArguments_begin [2058..2059]
+ │   │       │   │   │       │   ├─ LuauSparkleOpenCallArguments_begin_c1 2058
+ │   │       │   │   │       │   └─ LuauSparkleOpenCallArguments_begin_c2 [2058..2059]
+ │   │       │   │   │       │       └─ PunctuationParenOpen [2058..2059]: "("
+ │   │       │   │   │       ├─ LuauSparkleOpenCallArguments_content [2059..2112]
+ │   │       │   │   │       │   └─ LuauMultilineString [2059..2112]
+ │   │       │   │   │       │       ├─ LuauMultilineString_begin [2059..2069]
+ │   │       │   │   │       │       │   ├─ LuauMultilineString_begin_c1 [2059..2060]
+ │   │       │   │   │       │       │   │   └─ PunctuationStringBracketQuoteOpen [2059..2060]: "["
+ │   │       │   │   │       │       │   ├─ LuauMultilineString_begin_c2 [2060..2068]
+ │   │       │   │   │       │       │   │   └─ PunctuationStringEqualQuoteOpen [2060..2068]: "========"
+ │   │       │   │   │       │       │   └─ LuauMultilineString_begin_c3 [2068..2069]
+ │   │       │   │   │       │       │       └─ PunctuationStringBracketQuoteOpen [2068..2069]: "["
+ │   │       │   │   │       │       ├─ LuauMultilineString_content [2069..2102]
+ │   │       │   │   │       │       │   ├─ Word [2069..2070]: "a"
+ │   │       │   │   │       │       │   ├─ Punctuation [2070..2071]: "]"
+ │   │       │   │   │       │       │   ├─ Punctuation [2071..2072]: "="
+ │   │       │   │   │       │       │   ├─ Punctuation [2072..2073]: "="
+ │   │       │   │   │       │       │   ├─ Punctuation [2073..2074]: "="
+ │   │       │   │   │       │       │   ├─ Punctuation [2074..2075]: "="
+ │   │       │   │   │       │       │   ├─ Punctuation [2075..2076]: "="
+ │   │       │   │   │       │       │   ├─ Punctuation [2076..2077]: "="
+ │   │       │   │   │       │       │   ├─ Punctuation [2077..2078]: "="
+ │   │       │   │   │       │       │   ├─ Punctuation [2078..2079]: "="
+ │   │       │   │   │       │       │   ├─ Punctuation [2079..2080]: "="
+ │   │       │   │   │       │       │   ├─ Punctuation [2080..2081]: "]"
+ │   │       │   │   │       │       │   ├─ Punctuation [2081..2082]: ")"
+ │   │       │   │   │       │       │   ├─ Space [2082..2083]: " "
+ │   │       │   │   │       │       │   ├─ Punctuation [2083..2084]: "{"
+ │   │       │   │   │       │       │   ├─ Space [2084..2085]: " "
+ │   │       │   │   │       │       │   ├─ Word [2085..2089]: "text"
+ │   │       │   │   │       │       │   ├─ Space [2089..2090]: " "
+ │   │       │   │   │       │       │   ├─ Punctuation [2090..2091]: "\""
+ │   │       │   │   │       │       │   ├─ Word [2091..2097]: "string"
+ │   │       │   │   │       │       │   ├─ Punctuation [2097..2098]: "\""
+ │   │       │   │   │       │       │   ├─ Space [2098..2099]: " "
+ │   │       │   │   │       │       │   ├─ Punctuation [2099..2100]: "}"
+ │   │       │   │   │       │       │   ├─ Space [2100..2101]: " "
+ │   │       │   │   │       │       │   └─ Word [2101..2102]: "b"
+ │   │       │   │   │       │       └─ LuauMultilineString_end [2102..2112]
+ │   │       │   │   │       │           ├─ LuauMultilineString_end_c1 [2102..2103]
+ │   │       │   │   │       │           │   └─ PunctuationStringBracketQuoteClose [2102..2103]: "]"
+ │   │       │   │   │       │           ├─ LuauMultilineString_end_c2 [2103..2111]
+ │   │       │   │   │       │           │   └─ PunctuationStringEqualQuoteClose [2103..2111]: "========"
+ │   │       │   │   │       │           ├─ LuauMultilineString_end_c3 [2111..2112]
+ │   │       │   │   │       │           │   └─ PunctuationStringBracketQuoteClose [2111..2112]: "]"
+ │   │       │   │   │       │           └─ LuauMultilineString_end_c4 2112
+ │   │       │   │   │       └─ LuauSparkleOpenCallArguments_end [2112..2113]
+ │   │       │   │   │           └─ LuauSparkleOpenCallArguments_end_c1 [2112..2113]
+ │   │       │   │   │               └─ PunctuationParenClose [2112..2113]: ")"
  │   │       │   │   └─ LuauSparkleElement_end 2113
  │   │       │   ├─ Newline [2113..2114]: "\n"
  │   │       │   ├─ Whitespace [2114..2116]: "  "

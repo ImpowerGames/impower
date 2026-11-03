@@ -163,6 +163,7 @@ export function sparkleElementKeyParts(element: SyntaxNode): {
     }
   };
   if (begin) walk(begin);
+  if (content?.firstChild?.name === "LuauSparkleOpenCallArguments") call = true;
   if (content) words.push(...sparklePartWords(content));
   return { name, words, call };
 }
@@ -179,6 +180,8 @@ export function sparklePartWords(content: SyntaxNode): SyntaxNode[] {
         case "LuauSparkleEventAttribute":
         case "LuauSparkleEventClosureAttribute":
         case "LuauSparklePropClosureAttribute":
+        case "LuauSparkleEventParenAttribute":
+        case "LuauSparklePropParenAttribute":
         case "LuauElementContentStringPlain":
         case "LuauSparkleElementBlock":
           break;
@@ -292,6 +295,8 @@ const ELEMENT_VALUE_NAMES = nodeNameSet([
   "LuauSparkleHandlerClosure",
   "LuauSparklePropClosureAttribute",
   "LuauSparklePropClosure",
+  "LuauSparkleEventParenAttribute",
+  "LuauSparklePropParenAttribute",
 ]);
 
 export function insideElementValue(tree: Tree, offset: number): boolean {

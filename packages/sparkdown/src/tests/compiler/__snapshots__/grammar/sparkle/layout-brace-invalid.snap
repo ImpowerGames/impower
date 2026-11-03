@@ -772,164 +772,126 @@ sparkdown [0..903]
  │   │       │   │   │       │   ├─ Newline [438..439]: "\n"
  │   │       │   │   │       │   ├─ Whitespace [439..443]: "    "
  │   │       │   │   │       │   ├─ LuauSparkleElement [443..484]
- │   │       │   │   │       │   │   ├─ LuauSparkleElement_begin [443..484]
+ │   │       │   │   │       │   │   ├─ LuauSparkleElement_begin [443..447]
  │   │       │   │   │       │   │   │   ├─ LuauSparkleElement_begin_c1 [443..447]
  │   │       │   │   │       │   │   │   │   └─ LuauSparkleElementName [443..447]: "card"
- │   │       │   │   │       │   │   │   └─ LuauSparkleElement_begin_c2 [447..484]
- │   │       │   │   │       │   │   │       ├─ LuauSparkleCallArguments [447..468]
- │   │       │   │   │       │   │   │       │   ├─ LuauSparkleCallArguments_begin [447..448]
- │   │       │   │   │       │   │   │       │   │   ├─ LuauSparkleCallArguments_begin_c1 447
- │   │       │   │   │       │   │   │       │   │   └─ LuauSparkleCallArguments_begin_c2 [447..448]
- │   │       │   │   │       │   │   │       │   │       └─ PunctuationParenOpen [447..448]: "("
- │   │       │   │   │       │   │   │       │   ├─ LuauSparkleCallArguments_content [448..467]
- │   │       │   │   │       │   │   │       │   │   └─ LuauAccessPath [448..467]
- │   │       │   │   │       │   │   │       │   │       ├─ LuauAccessPath_begin 448
- │   │       │   │   │       │   │   │       │   │       ├─ LuauAccessPath_content [448..467]
- │   │       │   │   │       │   │   │       │   │       │   └─ LuauAccessPart [448..467]
- │   │       │   │   │       │   │   │       │   │       │       └─ LuauFunctionCall [448..467]
- │   │       │   │   │       │   │   │       │   │       │           ├─ LuauFunctionCall_begin [448..449]
- │   │       │   │   │       │   │   │       │   │       │           │   ├─ LuauFunctionCall_begin_c1 [448..449]
- │   │       │   │   │       │   │   │       │   │       │           │   │   └─ LuauFunctionName [448..449]: "f"
- │   │       │   │   │       │   │   │       │   │       │           │   └─ LuauFunctionCall_begin_c2 449
- │   │       │   │   │       │   │   │       │   │       │           ├─ LuauFunctionCall_content [449..467]
- │   │       │   │   │       │   │   │       │   │       │           │   └─ LuauFunctionCallParameters [449..467]
- │   │       │   │   │       │   │   │       │   │       │           │       ├─ LuauFunctionCallParameters_begin [449..450]
- │   │       │   │   │       │   │   │       │   │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [449..450]
- │   │       │   │   │       │   │   │       │   │       │           │       │       └─ PunctuationParenOpen [449..450]: "("
- │   │       │   │   │       │   │   │       │   │       │           │       ├─ LuauFunctionCallParameters_content [450..466]
- │   │       │   │   │       │   │   │       │   │       │           │       │   └─ LuauAccessPath [450..466]
- │   │       │   │   │       │   │   │       │   │       │           │       │       ├─ LuauAccessPath_begin 450
- │   │       │   │   │       │   │   │       │   │       │           │       │       ├─ LuauAccessPath_content [450..466]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │   └─ LuauAccessPart [450..466]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │       └─ LuauFunctionCall [450..466]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           ├─ LuauFunctionCall_begin [450..451]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │   ├─ LuauFunctionCall_begin_c1 [450..451]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │   │   └─ LuauFunctionName [450..451]: "f"
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │   └─ LuauFunctionCall_begin_c2 451
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           ├─ LuauFunctionCall_content [451..466]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │   └─ LuauFunctionCallParameters [451..466]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       ├─ LuauFunctionCallParameters_begin [451..452]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [451..452]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       └─ PunctuationParenOpen [451..452]: "("
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       ├─ LuauFunctionCallParameters_content [452..465]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │   └─ LuauAccessPath [452..465]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       ├─ LuauAccessPath_begin 452
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       ├─ LuauAccessPath_content [452..465]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │   └─ LuauAccessPart [452..465]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │       └─ LuauFunctionCall [452..465]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           ├─ LuauFunctionCall_begin [452..453]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │   ├─ LuauFunctionCall_begin_c1 [452..453]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │   │   └─ LuauFunctionName [452..453]: "f"
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │   └─ LuauFunctionCall_begin_c2 453
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           ├─ LuauFunctionCall_content [453..465]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │   └─ LuauFunctionCallParameters [453..465]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       ├─ LuauFunctionCallParameters_begin [453..454]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [453..454]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       └─ PunctuationParenOpen [453..454]: "("
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       ├─ LuauFunctionCallParameters_content [454..464]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │   └─ LuauAccessPath [454..464]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       ├─ LuauAccessPath_begin 454
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       ├─ LuauAccessPath_content [454..464]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │   └─ LuauAccessPart [454..464]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │       └─ LuauFunctionCall [454..464]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           ├─ LuauFunctionCall_begin [454..455]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │   ├─ LuauFunctionCall_begin_c1 [454..455]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │   │   └─ LuauFunctionName [454..455]: "f"
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │   └─ LuauFunctionCall_begin_c2 455
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           ├─ LuauFunctionCall_content [455..464]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │   └─ LuauFunctionCallParameters [455..464]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       ├─ LuauFunctionCallParameters_begin [455..456]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [455..456]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       └─ PunctuationParenOpen [455..456]: "("
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       ├─ LuauFunctionCallParameters_content [456..463]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │   └─ LuauAccessPath [456..463]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       ├─ LuauAccessPath_begin 456
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       ├─ LuauAccessPath_content [456..463]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │   └─ LuauAccessPart [456..463]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │       └─ LuauFunctionCall [456..463]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           ├─ LuauFunctionCall_begin [456..457]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │   ├─ LuauFunctionCall_begin_c1 [456..457]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │   │   └─ LuauFunctionName [456..457]: "f"
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │   └─ LuauFunctionCall_begin_c2 457
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           ├─ LuauFunctionCall_content [457..463]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │   └─ LuauFunctionCallParameters [457..463]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       ├─ LuauFunctionCallParameters_begin [457..458]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [457..458]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       └─ PunctuationParenOpen [457..458]: "("
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       ├─ LuauFunctionCallParameters_content [458..462]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │   └─ LuauAccessPath [458..462]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       ├─ LuauAccessPath_begin 458
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       ├─ LuauAccessPath_content [458..462]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │   └─ LuauAccessPart [458..462]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │       └─ LuauFunctionCall [458..462]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           ├─ LuauFunctionCall_begin [458..459]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │   ├─ LuauFunctionCall_begin_c1 [458..459]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │   │   └─ LuauFunctionName [458..459]: "f"
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │   └─ LuauFunctionCall_begin_c2 459
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           ├─ LuauFunctionCall_content [459..462]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │   └─ LuauFunctionCallParameters [459..462]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       ├─ LuauFunctionCallParameters_begin [459..460]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [459..460]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       └─ PunctuationParenOpen [459..460]: "("
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       ├─ LuauFunctionCallParameters_content [460..461]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │   └─ LuauNumericDecimal [460..461]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       ├─ LuauNumericDecimal_c1 [460..461]: "1"
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       └─ LuauNumericDecimal_c2 461
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       └─ LuauFunctionCallParameters_end [461..462]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │           └─ LuauFunctionCallParameters_end_c1 [461..462]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │               └─ PunctuationParenClose [461..462]: ")"
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           └─ LuauFunctionCall_end 462
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       └─ LuauAccessPath_end 462
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │           └─ LuauAccessPath_end_c1 462
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       └─ LuauFunctionCallParameters_end [462..463]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │           └─ LuauFunctionCallParameters_end_c1 [462..463]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           │               └─ PunctuationParenClose [462..463]: ")"
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       │           └─ LuauFunctionCall_end 463
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │       └─ LuauAccessPath_end 463
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       │           └─ LuauAccessPath_end_c1 463
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │       └─ LuauFunctionCallParameters_end [463..464]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │           └─ LuauFunctionCallParameters_end_c1 [463..464]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           │               └─ PunctuationParenClose [463..464]: ")"
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       │           └─ LuauFunctionCall_end 464
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │       └─ LuauAccessPath_end 464
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       │           └─ LuauAccessPath_end_c1 464
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │       └─ LuauFunctionCallParameters_end [464..465]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │           └─ LuauFunctionCallParameters_end_c1 [464..465]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           │               └─ PunctuationParenClose [464..465]: ")"
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       │           └─ LuauFunctionCall_end 465
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │       └─ LuauAccessPath_end 465
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       │           └─ LuauAccessPath_end_c1 465
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │       └─ LuauFunctionCallParameters_end [465..466]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │           └─ LuauFunctionCallParameters_end_c1 [465..466]
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           │               └─ PunctuationParenClose [465..466]: ")"
- │   │       │   │   │       │   │   │       │   │       │           │       │       │           └─ LuauFunctionCall_end 466
- │   │       │   │   │       │   │   │       │   │       │           │       │       └─ LuauAccessPath_end 466
- │   │       │   │   │       │   │   │       │   │       │           │       │           └─ LuauAccessPath_end_c1 466
- │   │       │   │   │       │   │   │       │   │       │           │       └─ LuauFunctionCallParameters_end [466..467]
- │   │       │   │   │       │   │   │       │   │       │           │           └─ LuauFunctionCallParameters_end_c1 [466..467]
- │   │       │   │   │       │   │   │       │   │       │           │               └─ PunctuationParenClose [466..467]: ")"
- │   │       │   │   │       │   │   │       │   │       │           └─ LuauFunctionCall_end 467
- │   │       │   │   │       │   │   │       │   │       └─ LuauAccessPath_end 467
- │   │       │   │   │       │   │   │       │   │           └─ LuauAccessPath_end_c1 467
- │   │       │   │   │       │   │   │       │   └─ LuauSparkleCallArguments_end [467..468]
- │   │       │   │   │       │   │   │       │       └─ LuauSparkleCallArguments_end_c1 [467..468]
- │   │       │   │   │       │   │   │       │           └─ PunctuationParenClose [467..468]: ")"
- │   │       │   │   │       │   │   │       ├─ ExtraWhitespace [468..469]: " "
- │   │       │   │   │       │   │   │       ├─ LuauSparkleElementInvalid [469..470]: "{"
- │   │       │   │   │       │   │   │       ├─ ExtraWhitespace [470..471]: " "
- │   │       │   │   │       │   │   │       ├─ LuauSparkleElementInvalid [471..472]: "t"
- │   │       │   │   │       │   │   │       ├─ LuauSparkleElementInvalid [472..473]: "e"
- │   │       │   │   │       │   │   │       ├─ LuauSparkleElementInvalid [473..474]: "x"
- │   │       │   │   │       │   │   │       ├─ LuauSparkleElementInvalid [474..475]: "t"
- │   │       │   │   │       │   │   │       ├─ ExtraWhitespace [475..476]: " "
- │   │       │   │   │       │   │   │       ├─ LuauSparkleElementInvalid [476..477]: "\""
- │   │       │   │   │       │   │   │       ├─ LuauSparkleElementInvalid [477..478]: "b"
- │   │       │   │   │       │   │   │       ├─ LuauSparkleElementInvalid [478..479]: "o"
- │   │       │   │   │       │   │   │       ├─ LuauSparkleElementInvalid [479..480]: "d"
- │   │       │   │   │       │   │   │       ├─ LuauSparkleElementInvalid [480..481]: "y"
- │   │       │   │   │       │   │   │       ├─ LuauSparkleElementInvalid [481..482]: "\""
- │   │       │   │   │       │   │   │       ├─ ExtraWhitespace [482..483]: " "
- │   │       │   │   │       │   │   │       └─ LuauSparkleElementInvalid [483..484]: "}"
+ │   │       │   │   │       │   │   │   └─ LuauSparkleElement_begin_c2 447
+ │   │       │   │   │       │   │   ├─ LuauSparkleElement_content [447..484]
+ │   │       │   │   │       │   │   │   ├─ LuauSparkleOpenCallArguments [447..468]
+ │   │       │   │   │       │   │   │   │   ├─ LuauSparkleOpenCallArguments_begin [447..448]
+ │   │       │   │   │       │   │   │   │   │   ├─ LuauSparkleOpenCallArguments_begin_c1 447
+ │   │       │   │   │       │   │   │   │   │   └─ LuauSparkleOpenCallArguments_begin_c2 [447..448]
+ │   │       │   │   │       │   │   │   │   │       └─ PunctuationParenOpen [447..448]: "("
+ │   │       │   │   │       │   │   │   │   ├─ LuauSparkleOpenCallArguments_content [448..467]
+ │   │       │   │   │       │   │   │   │   │   ├─ LuauSparkleParenCallee [448..449]
+ │   │       │   │   │       │   │   │   │   │   │   └─ LuauSparkleParenCallee_c1 [448..449]
+ │   │       │   │   │       │   │   │   │   │   │       └─ LuauFunctionName [448..449]: "f"
+ │   │       │   │   │       │   │   │   │   │   └─ LuauSparkleValueParens [449..467]
+ │   │       │   │   │       │   │   │   │   │       ├─ LuauSparkleValueParens_begin [449..450]
+ │   │       │   │   │       │   │   │   │   │       │   └─ LuauSparkleValueParens_begin_c1 [449..450]
+ │   │       │   │   │       │   │   │   │   │       │       └─ PunctuationParenOpen [449..450]: "("
+ │   │       │   │   │       │   │   │   │   │       ├─ LuauSparkleValueParens_content [450..466]
+ │   │       │   │   │       │   │   │   │   │       │   ├─ LuauSparkleParenCallee [450..451]
+ │   │       │   │   │       │   │   │   │   │       │   │   └─ LuauSparkleParenCallee_c1 [450..451]
+ │   │       │   │   │       │   │   │   │   │       │   │       └─ LuauFunctionName [450..451]: "f"
+ │   │       │   │   │       │   │   │   │   │       │   └─ LuauSparkleValueParens [451..466]
+ │   │       │   │   │       │   │   │   │   │       │       ├─ LuauSparkleValueParens_begin [451..452]
+ │   │       │   │   │       │   │   │   │   │       │       │   └─ LuauSparkleValueParens_begin_c1 [451..452]
+ │   │       │   │   │       │   │   │   │   │       │       │       └─ PunctuationParenOpen [451..452]: "("
+ │   │       │   │   │       │   │   │   │   │       │       ├─ LuauSparkleValueParens_content [452..465]
+ │   │       │   │   │       │   │   │   │   │       │       │   ├─ LuauSparkleParenCallee [452..453]
+ │   │       │   │   │       │   │   │   │   │       │       │   │   └─ LuauSparkleParenCallee_c1 [452..453]
+ │   │       │   │   │       │   │   │   │   │       │       │   │       └─ LuauFunctionName [452..453]: "f"
+ │   │       │   │   │       │   │   │   │   │       │       │   └─ LuauSparkleValueParens [453..465]
+ │   │       │   │   │       │   │   │   │   │       │       │       ├─ LuauSparkleValueParens_begin [453..454]
+ │   │       │   │   │       │   │   │   │   │       │       │       │   └─ LuauSparkleValueParens_begin_c1 [453..454]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       └─ PunctuationParenOpen [453..454]: "("
+ │   │       │   │   │       │   │   │   │   │       │       │       ├─ LuauSparkleValueParens_content [454..464]
+ │   │       │   │   │       │   │   │   │   │       │       │       │   ├─ LuauSparkleParenCallee [454..455]
+ │   │       │   │   │       │   │   │   │   │       │       │       │   │   └─ LuauSparkleParenCallee_c1 [454..455]
+ │   │       │   │   │       │   │   │   │   │       │       │       │   │       └─ LuauFunctionName [454..455]: "f"
+ │   │       │   │   │       │   │   │   │   │       │       │       │   └─ LuauSparkleValueParens [455..464]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       ├─ LuauSparkleValueParens_begin [455..456]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │   └─ LuauSparkleValueParens_begin_c1 [455..456]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       └─ PunctuationParenOpen [455..456]: "("
+ │   │       │   │   │       │   │   │   │   │       │       │       │       ├─ LuauSparkleValueParens_content [456..463]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │   ├─ LuauSparkleParenCallee [456..457]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │   │   └─ LuauSparkleParenCallee_c1 [456..457]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │   │       └─ LuauFunctionName [456..457]: "f"
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │   └─ LuauSparkleValueParens [457..463]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       ├─ LuauSparkleValueParens_begin [457..458]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │   └─ LuauSparkleValueParens_begin_c1 [457..458]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       └─ PunctuationParenOpen [457..458]: "("
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       ├─ LuauSparkleValueParens_content [458..462]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │   ├─ LuauSparkleParenCallee [458..459]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │   │   └─ LuauSparkleParenCallee_c1 [458..459]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │   │       └─ LuauFunctionName [458..459]: "f"
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │   └─ LuauSparkleValueParens [459..462]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       ├─ LuauSparkleValueParens_begin [459..460]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │   └─ LuauSparkleValueParens_begin_c1 [459..460]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       └─ PunctuationParenOpen [459..460]: "("
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       ├─ LuauSparkleValueParens_content [460..461]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │   └─ LuauSparkleParenRun [460..461]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       └─ LuauSparkleParenRun_c1 [460..461]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │           └─ LuauNumericDecimal [460..461]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │               ├─ LuauNumericDecimal_c1 [460..461]: "1"
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │               └─ LuauNumericDecimal_c2 461
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       └─ LuauSparkleValueParens_end [461..462]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │           └─ LuauSparkleValueParens_end_c1 [461..462]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │               └─ PunctuationParenClose [461..462]: ")"
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       └─ LuauSparkleValueParens_end [462..463]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │           └─ LuauSparkleValueParens_end_c1 [462..463]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │               └─ PunctuationParenClose [462..463]: ")"
+ │   │       │   │   │       │   │   │   │   │       │       │       │       └─ LuauSparkleValueParens_end [463..464]
+ │   │       │   │   │       │   │   │   │   │       │       │       │           └─ LuauSparkleValueParens_end_c1 [463..464]
+ │   │       │   │   │       │   │   │   │   │       │       │       │               └─ PunctuationParenClose [463..464]: ")"
+ │   │       │   │   │       │   │   │   │   │       │       │       └─ LuauSparkleValueParens_end [464..465]
+ │   │       │   │   │       │   │   │   │   │       │       │           └─ LuauSparkleValueParens_end_c1 [464..465]
+ │   │       │   │   │       │   │   │   │   │       │       │               └─ PunctuationParenClose [464..465]: ")"
+ │   │       │   │   │       │   │   │   │   │       │       └─ LuauSparkleValueParens_end [465..466]
+ │   │       │   │   │       │   │   │   │   │       │           └─ LuauSparkleValueParens_end_c1 [465..466]
+ │   │       │   │   │       │   │   │   │   │       │               └─ PunctuationParenClose [465..466]: ")"
+ │   │       │   │   │       │   │   │   │   │       └─ LuauSparkleValueParens_end [466..467]
+ │   │       │   │   │       │   │   │   │   │           └─ LuauSparkleValueParens_end_c1 [466..467]
+ │   │       │   │   │       │   │   │   │   │               └─ PunctuationParenClose [466..467]: ")"
+ │   │       │   │   │       │   │   │   │   └─ LuauSparkleOpenCallArguments_end [467..468]
+ │   │       │   │   │       │   │   │   │       └─ LuauSparkleOpenCallArguments_end_c1 [467..468]
+ │   │       │   │   │       │   │   │   │           └─ PunctuationParenClose [467..468]: ")"
+ │   │       │   │   │       │   │   │   ├─ LuauSparkleElementAssign [468..469]
+ │   │       │   │   │       │   │   │   │   └─ LuauSparkleElementAssign_c1 [468..469]
+ │   │       │   │   │       │   │   │   │       └─ Whitespace [468..469]: " "
+ │   │       │   │   │       │   │   │   └─ LuauSparkleElementBlock [469..484]
+ │   │       │   │   │       │   │   │       ├─ LuauSparkleElementBlock_begin [469..470]
+ │   │       │   │   │       │   │   │       │   └─ LuauSparkleElementBlock_begin_c1 [469..470]
+ │   │       │   │   │       │   │   │       │       └─ LuauStructBlockOpen [469..470]: "{"
+ │   │       │   │   │       │   │   │       ├─ LuauSparkleElementBlock_content [470..483]
+ │   │       │   │   │       │   │   │       │   ├─ Whitespace [470..471]: " "
+ │   │       │   │   │       │   │   │       │   ├─ LuauSparkleElement [471..482]
+ │   │       │   │   │       │   │   │       │   │   ├─ LuauSparkleElement_begin [471..475]
+ │   │       │   │   │       │   │   │       │   │   │   ├─ LuauSparkleElement_begin_c1 [471..475]
+ │   │       │   │   │       │   │   │       │   │   │   │   └─ BuiltinComponentName [471..475]: "text"
+ │   │       │   │   │       │   │   │       │   │   │   └─ LuauSparkleElement_begin_c2 475
+ │   │       │   │   │       │   │   │       │   │   ├─ LuauSparkleElement_content [475..482]
+ │   │       │   │   │       │   │   │       │   │   │   └─ LuauSparkleElementParts [475..482]
+ │   │       │   │   │       │   │   │       │   │   │       └─ LuauSparkleElementParts_c1 [475..482]
+ │   │       │   │   │       │   │   │       │   │   │           ├─ RequiredWhitespace [475..476]: " "
+ │   │       │   │   │       │   │   │       │   │   │           └─ LuauElementContentStringPlain [476..482]
+ │   │       │   │   │       │   │   │       │   │   │               ├─ LuauElementContentStringPlain_c1 [476..477]
+ │   │       │   │   │       │   │   │       │   │   │               │   └─ PunctuationStringOpen [476..477]: "\""
+ │   │       │   │   │       │   │   │       │   │   │               ├─ LuauElementContentStringPlain_c2 [477..481]
+ │   │       │   │   │       │   │   │       │   │   │               │   └─ PlainStringContent [477..481]
+ │   │       │   │   │       │   │   │       │   │   │               │       └─ PlainStringContent_c1 [477..481]
+ │   │       │   │   │       │   │   │       │   │   │               │           ├─ StringCharacter [477..478]: "b"
+ │   │       │   │   │       │   │   │       │   │   │               │           ├─ StringCharacter [478..479]: "o"
+ │   │       │   │   │       │   │   │       │   │   │               │           ├─ StringCharacter [479..480]: "d"
+ │   │       │   │   │       │   │   │       │   │   │               │           └─ StringCharacter [480..481]: "y"
+ │   │       │   │   │       │   │   │       │   │   │               └─ LuauElementContentStringPlain_c3 [481..482]
+ │   │       │   │   │       │   │   │       │   │   │                   └─ PunctuationStringClose [481..482]: "\""
+ │   │       │   │   │       │   │   │       │   │   └─ LuauSparkleElement_end 482
+ │   │       │   │   │       │   │   │       │   └─ Whitespace [482..483]: " "
+ │   │       │   │   │       │   │   │       └─ LuauSparkleElementBlock_end [483..484]
+ │   │       │   │   │       │   │   │           └─ LuauSparkleElementBlock_end_c1 [483..484]
+ │   │       │   │   │       │   │   │               └─ LuauStructBlockClose [483..484]: "}"
  │   │       │   │   │       │   │   └─ LuauSparkleElement_end 484
  │   │       │   │   │       │   ├─ Newline [484..485]: "\n"
  │   │       │   │   │       │   └─ Whitespace [485..487]: "  "
@@ -961,188 +923,138 @@ sparkdown [0..903]
  │   │       │   │   │       │   │   │   │   └─ BuiltinComponentName [504..510]: "button"
  │   │       │   │   │       │   │   │   └─ LuauSparkleElement_begin_c2 510
  │   │       │   │   │       │   │   ├─ LuauSparkleElement_content [510..556]
- │   │       │   │   │       │   │   │   └─ LuauSparkleElementParts [510..556]
- │   │       │   │   │       │   │   │       └─ LuauSparkleElementParts_c1 [510..556]
- │   │       │   │   │       │   │   │           ├─ RequiredWhitespace [510..511]: " "
- │   │       │   │   │       │   │   │           └─ LuauSparkleEventAttribute [511..556]
- │   │       │   │   │       │   │   │               ├─ LuauSparkleEventAttribute_c1 [511..512]
- │   │       │   │   │       │   │   │               │   └─ EventAttributeOperator [511..512]: "@"
- │   │       │   │   │       │   │   │               ├─ LuauSparkleEventAttribute_c2 [512..517]
- │   │       │   │   │       │   │   │               │   └─ EventAttributeName [512..517]: "click"
- │   │       │   │   │       │   │   │               ├─ LuauSparkleEventAttribute_c4 [517..518]
- │   │       │   │   │       │   │   │               │   └─ EqualOperator [517..518]: "="
- │   │       │   │   │       │   │   │               └─ LuauSparkleEventAttribute_c6 [518..556]
- │   │       │   │   │       │   │   │                   └─ LuauSparkleEventHandler [518..556]
- │   │       │   │   │       │   │   │                       └─ LuauSparkleEventHandler_c1 [518..556]
- │   │       │   │   │       │   │   │                           ├─ LuauAccessPath [518..540]
- │   │       │   │   │       │   │   │                           │   ├─ LuauAccessPath_begin 518
- │   │       │   │   │       │   │   │                           │   ├─ LuauAccessPath_content [518..540]
- │   │       │   │   │       │   │   │                           │   │   └─ LuauAccessPart [518..540]
- │   │       │   │   │       │   │   │                           │   │       └─ LuauFunctionCall [518..540]
- │   │       │   │   │       │   │   │                           │   │           ├─ LuauFunctionCall_begin [518..519]
- │   │       │   │   │       │   │   │                           │   │           │   ├─ LuauFunctionCall_begin_c1 [518..519]
- │   │       │   │   │       │   │   │                           │   │           │   │   └─ LuauFunctionName [518..519]: "f"
- │   │       │   │   │       │   │   │                           │   │           │   └─ LuauFunctionCall_begin_c2 519
- │   │       │   │   │       │   │   │                           │   │           ├─ LuauFunctionCall_content [519..540]
- │   │       │   │   │       │   │   │                           │   │           │   └─ LuauFunctionCallParameters [519..540]
- │   │       │   │   │       │   │   │                           │   │           │       ├─ LuauFunctionCallParameters_begin [519..520]
- │   │       │   │   │       │   │   │                           │   │           │       │   └─ LuauFunctionCallParameters_begin_c1 [519..520]
- │   │       │   │   │       │   │   │                           │   │           │       │       └─ PunctuationParenOpen [519..520]: "("
- │   │       │   │   │       │   │   │                           │   │           │       ├─ LuauFunctionCallParameters_content [520..539]
- │   │       │   │   │       │   │   │                           │   │           │       │   └─ LuauAccessPath [520..539]
- │   │       │   │   │       │   │   │                           │   │           │       │       ├─ LuauAccessPath_begin 520
- │   │       │   │   │       │   │   │                           │   │           │       │       ├─ LuauAccessPath_content [520..539]
- │   │       │   │   │       │   │   │                           │   │           │       │       │   └─ LuauAccessPart [520..539]
- │   │       │   │   │       │   │   │                           │   │           │       │       │       └─ LuauFunctionCall [520..539]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           ├─ LuauFunctionCall_begin [520..521]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │   ├─ LuauFunctionCall_begin_c1 [520..521]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │   │   └─ LuauFunctionName [520..521]: "f"
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │   └─ LuauFunctionCall_begin_c2 521
- │   │       │   │   │       │   │   │                           │   │           │       │       │           ├─ LuauFunctionCall_content [521..539]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │   └─ LuauFunctionCallParameters [521..539]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       ├─ LuauFunctionCallParameters_begin [521..522]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [521..522]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       └─ PunctuationParenOpen [521..522]: "("
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       ├─ LuauFunctionCallParameters_content [522..538]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │   └─ LuauAccessPath [522..538]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       ├─ LuauAccessPath_begin 522
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       ├─ LuauAccessPath_content [522..538]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │   └─ LuauAccessPart [522..538]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │       └─ LuauFunctionCall [522..538]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           ├─ LuauFunctionCall_begin [522..523]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │   ├─ LuauFunctionCall_begin_c1 [522..523]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │   │   └─ LuauFunctionName [522..523]: "f"
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │   └─ LuauFunctionCall_begin_c2 523
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           ├─ LuauFunctionCall_content [523..538]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │   └─ LuauFunctionCallParameters [523..538]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       ├─ LuauFunctionCallParameters_begin [523..524]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [523..524]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       └─ PunctuationParenOpen [523..524]: "("
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       ├─ LuauFunctionCallParameters_content [524..537]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │   └─ LuauAccessPath [524..537]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       ├─ LuauAccessPath_begin 524
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       ├─ LuauAccessPath_content [524..537]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │   └─ LuauAccessPart [524..537]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │       └─ LuauFunctionCall [524..537]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           ├─ LuauFunctionCall_begin [524..525]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │   ├─ LuauFunctionCall_begin_c1 [524..525]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │   │   └─ LuauFunctionName [524..525]: "f"
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │   └─ LuauFunctionCall_begin_c2 525
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           ├─ LuauFunctionCall_content [525..537]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │   └─ LuauFunctionCallParameters [525..537]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       ├─ LuauFunctionCallParameters_begin [525..526]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [525..526]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       └─ PunctuationParenOpen [525..526]: "("
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       ├─ LuauFunctionCallParameters_content [526..536]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │   └─ LuauAccessPath [526..536]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       ├─ LuauAccessPath_begin 526
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       ├─ LuauAccessPath_content [526..536]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │   └─ LuauAccessPart [526..536]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │       └─ LuauFunctionCall [526..536]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           ├─ LuauFunctionCall_begin [526..527]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │   ├─ LuauFunctionCall_begin_c1 [526..527]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │   │   └─ LuauFunctionName [526..527]: "f"
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │   └─ LuauFunctionCall_begin_c2 527
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           ├─ LuauFunctionCall_content [527..536]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │   └─ LuauFunctionCallParameters [527..536]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       ├─ LuauFunctionCallParameters_begin [527..528]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [527..528]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       └─ PunctuationParenOpen [527..528]: "("
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       ├─ LuauFunctionCallParameters_content [528..535]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │   └─ LuauAccessPath [528..535]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       ├─ LuauAccessPath_begin 528
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       ├─ LuauAccessPath_content [528..535]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │   └─ LuauAccessPart [528..535]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │       └─ LuauFunctionCall [528..535]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           ├─ LuauFunctionCall_begin [528..529]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │   ├─ LuauFunctionCall_begin_c1 [528..529]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │   │   └─ LuauFunctionName [528..529]: "f"
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │   └─ LuauFunctionCall_begin_c2 529
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           ├─ LuauFunctionCall_content [529..535]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │   └─ LuauFunctionCallParameters [529..535]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       ├─ LuauFunctionCallParameters_begin [529..530]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [529..530]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       └─ PunctuationParenOpen [529..530]: "("
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       ├─ LuauFunctionCallParameters_content [530..534]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │   └─ LuauAccessPath [530..534]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       ├─ LuauAccessPath_begin 530
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       ├─ LuauAccessPath_content [530..534]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │   └─ LuauAccessPart [530..534]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │       └─ LuauFunctionCall [530..534]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           ├─ LuauFunctionCall_begin [530..531]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │   ├─ LuauFunctionCall_begin_c1 [530..531]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │   │   └─ LuauFunctionName [530..531]: "f"
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │   └─ LuauFunctionCall_begin_c2 531
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           ├─ LuauFunctionCall_content [531..534]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │   └─ LuauFunctionCallParameters [531..534]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       ├─ LuauFunctionCallParameters_begin [531..532]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [531..532]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       └─ PunctuationParenOpen [531..532]: "("
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       ├─ LuauFunctionCallParameters_content [532..533]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │   └─ LuauNumericDecimal [532..533]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       ├─ LuauNumericDecimal_c1 [532..533]: "1"
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       └─ LuauNumericDecimal_c2 533
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       └─ LuauFunctionCallParameters_end [533..534]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │           └─ LuauFunctionCallParameters_end_c1 [533..534]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │               └─ PunctuationParenClose [533..534]: ")"
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           └─ LuauFunctionCall_end 534
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       └─ LuauAccessPath_end 534
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       │           └─ LuauAccessPath_end_c1 534
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │       └─ LuauFunctionCallParameters_end [534..535]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │           └─ LuauFunctionCallParameters_end_c1 [534..535]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           │               └─ PunctuationParenClose [534..535]: ")"
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       │           └─ LuauFunctionCall_end 535
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │       └─ LuauAccessPath_end 535
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       │           └─ LuauAccessPath_end_c1 535
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │       └─ LuauFunctionCallParameters_end [535..536]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │           └─ LuauFunctionCallParameters_end_c1 [535..536]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           │               └─ PunctuationParenClose [535..536]: ")"
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       │           └─ LuauFunctionCall_end 536
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │       └─ LuauAccessPath_end 536
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       │           └─ LuauAccessPath_end_c1 536
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │       └─ LuauFunctionCallParameters_end [536..537]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │           └─ LuauFunctionCallParameters_end_c1 [536..537]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           │               └─ PunctuationParenClose [536..537]: ")"
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       │           └─ LuauFunctionCall_end 537
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │       └─ LuauAccessPath_end 537
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       │           └─ LuauAccessPath_end_c1 537
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │       └─ LuauFunctionCallParameters_end [537..538]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │           └─ LuauFunctionCallParameters_end_c1 [537..538]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           │               └─ PunctuationParenClose [537..538]: ")"
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       │           └─ LuauFunctionCall_end 538
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │       └─ LuauAccessPath_end 538
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       │           └─ LuauAccessPath_end_c1 538
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │       └─ LuauFunctionCallParameters_end [538..539]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │           └─ LuauFunctionCallParameters_end_c1 [538..539]
- │   │       │   │   │       │   │   │                           │   │           │       │       │           │               └─ PunctuationParenClose [538..539]: ")"
- │   │       │   │   │       │   │   │                           │   │           │       │       │           └─ LuauFunctionCall_end 539
- │   │       │   │   │       │   │   │                           │   │           │       │       └─ LuauAccessPath_end 539
- │   │       │   │   │       │   │   │                           │   │           │       │           └─ LuauAccessPath_end_c1 539
- │   │       │   │   │       │   │   │                           │   │           │       └─ LuauFunctionCallParameters_end [539..540]
- │   │       │   │   │       │   │   │                           │   │           │           └─ LuauFunctionCallParameters_end_c1 [539..540]
- │   │       │   │   │       │   │   │                           │   │           │               └─ PunctuationParenClose [539..540]: ")"
- │   │       │   │   │       │   │   │                           │   │           └─ LuauFunctionCall_end 540
- │   │       │   │   │       │   │   │                           │   └─ LuauAccessPath_end 540
- │   │       │   │   │       │   │   │                           │       └─ LuauAccessPath_end_c1 540
- │   │       │   │   │       │   │   │                           └─ LuauSparkleValueOverflow [540..556]
- │   │       │   │   │       │   │   │                               ├─ LuauSparkleValueOverflow_c1 [540..541]
- │   │       │   │   │       │   │   │                               │   └─ ExtraWhitespace [540..541]: " "
- │   │       │   │   │       │   │   │                               └─ LuauSparkleValueOverflow_c2 [541..556]
- │   │       │   │   │       │   │   │                                   ├─ LuauSparkleElementInvalid [541..542]: "{"
- │   │       │   │   │       │   │   │                                   ├─ ExtraWhitespace [542..543]: " "
- │   │       │   │   │       │   │   │                                   ├─ LuauSparkleElementInvalid [543..544]: "t"
- │   │       │   │   │       │   │   │                                   ├─ LuauSparkleElementInvalid [544..545]: "e"
- │   │       │   │   │       │   │   │                                   ├─ LuauSparkleElementInvalid [545..546]: "x"
- │   │       │   │   │       │   │   │                                   ├─ LuauSparkleElementInvalid [546..547]: "t"
- │   │       │   │   │       │   │   │                                   ├─ ExtraWhitespace [547..548]: " "
- │   │       │   │   │       │   │   │                                   ├─ LuauSparkleElementInvalid [548..549]: "\""
- │   │       │   │   │       │   │   │                                   ├─ LuauSparkleElementInvalid [549..550]: "b"
- │   │       │   │   │       │   │   │                                   ├─ LuauSparkleElementInvalid [550..551]: "o"
- │   │       │   │   │       │   │   │                                   ├─ LuauSparkleElementInvalid [551..552]: "d"
- │   │       │   │   │       │   │   │                                   ├─ LuauSparkleElementInvalid [552..553]: "y"
- │   │       │   │   │       │   │   │                                   ├─ LuauSparkleElementInvalid [553..554]: "\""
- │   │       │   │   │       │   │   │                                   ├─ ExtraWhitespace [554..555]: " "
- │   │       │   │   │       │   │   │                                   └─ LuauSparkleElementInvalid [555..556]: "}"
+ │   │       │   │   │       │   │   │   ├─ LuauSparkleElementParts [510..511]
+ │   │       │   │   │       │   │   │   │   └─ LuauSparkleElementParts_c1 [510..511]
+ │   │       │   │   │       │   │   │   │       └─ RequiredWhitespace [510..511]: " "
+ │   │       │   │   │       │   │   │   ├─ LuauSparkleEventParenAttribute [511..540]
+ │   │       │   │   │       │   │   │   │   ├─ LuauSparkleEventParenAttribute_begin [511..518]
+ │   │       │   │   │       │   │   │   │   │   ├─ LuauSparkleEventParenAttribute_begin_c1 [511..512]
+ │   │       │   │   │       │   │   │   │   │   │   └─ EventAttributeOperator [511..512]: "@"
+ │   │       │   │   │       │   │   │   │   │   ├─ LuauSparkleEventParenAttribute_begin_c2 [512..517]
+ │   │       │   │   │       │   │   │   │   │   │   └─ EventAttributeName [512..517]: "click"
+ │   │       │   │   │       │   │   │   │   │   ├─ LuauSparkleEventParenAttribute_begin_c3 517
+ │   │       │   │   │       │   │   │   │   │   ├─ LuauSparkleEventParenAttribute_begin_c4 [517..518]
+ │   │       │   │   │       │   │   │   │   │   │   └─ EqualOperator [517..518]: "="
+ │   │       │   │   │       │   │   │   │   │   └─ LuauSparkleEventParenAttribute_begin_c5 518
+ │   │       │   │   │       │   │   │   │   ├─ LuauSparkleEventParenAttribute_content [518..540]
+ │   │       │   │   │       │   │   │   │   │   ├─ LuauSparkleParenCallee [518..519]
+ │   │       │   │   │       │   │   │   │   │   │   └─ LuauSparkleParenCallee_c1 [518..519]
+ │   │       │   │   │       │   │   │   │   │   │       └─ LuauFunctionName [518..519]: "f"
+ │   │       │   │   │       │   │   │   │   │   └─ LuauSparkleValueParens [519..540]
+ │   │       │   │   │       │   │   │   │   │       ├─ LuauSparkleValueParens_begin [519..520]
+ │   │       │   │   │       │   │   │   │   │       │   └─ LuauSparkleValueParens_begin_c1 [519..520]
+ │   │       │   │   │       │   │   │   │   │       │       └─ PunctuationParenOpen [519..520]: "("
+ │   │       │   │   │       │   │   │   │   │       ├─ LuauSparkleValueParens_content [520..539]
+ │   │       │   │   │       │   │   │   │   │       │   ├─ LuauSparkleParenCallee [520..521]
+ │   │       │   │   │       │   │   │   │   │       │   │   └─ LuauSparkleParenCallee_c1 [520..521]
+ │   │       │   │   │       │   │   │   │   │       │   │       └─ LuauFunctionName [520..521]: "f"
+ │   │       │   │   │       │   │   │   │   │       │   └─ LuauSparkleValueParens [521..539]
+ │   │       │   │   │       │   │   │   │   │       │       ├─ LuauSparkleValueParens_begin [521..522]
+ │   │       │   │   │       │   │   │   │   │       │       │   └─ LuauSparkleValueParens_begin_c1 [521..522]
+ │   │       │   │   │       │   │   │   │   │       │       │       └─ PunctuationParenOpen [521..522]: "("
+ │   │       │   │   │       │   │   │   │   │       │       ├─ LuauSparkleValueParens_content [522..538]
+ │   │       │   │   │       │   │   │   │   │       │       │   ├─ LuauSparkleParenCallee [522..523]
+ │   │       │   │   │       │   │   │   │   │       │       │   │   └─ LuauSparkleParenCallee_c1 [522..523]
+ │   │       │   │   │       │   │   │   │   │       │       │   │       └─ LuauFunctionName [522..523]: "f"
+ │   │       │   │   │       │   │   │   │   │       │       │   └─ LuauSparkleValueParens [523..538]
+ │   │       │   │   │       │   │   │   │   │       │       │       ├─ LuauSparkleValueParens_begin [523..524]
+ │   │       │   │   │       │   │   │   │   │       │       │       │   └─ LuauSparkleValueParens_begin_c1 [523..524]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       └─ PunctuationParenOpen [523..524]: "("
+ │   │       │   │   │       │   │   │   │   │       │       │       ├─ LuauSparkleValueParens_content [524..537]
+ │   │       │   │   │       │   │   │   │   │       │       │       │   ├─ LuauSparkleParenCallee [524..525]
+ │   │       │   │   │       │   │   │   │   │       │       │       │   │   └─ LuauSparkleParenCallee_c1 [524..525]
+ │   │       │   │   │       │   │   │   │   │       │       │       │   │       └─ LuauFunctionName [524..525]: "f"
+ │   │       │   │   │       │   │   │   │   │       │       │       │   └─ LuauSparkleValueParens [525..537]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       ├─ LuauSparkleValueParens_begin [525..526]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │   └─ LuauSparkleValueParens_begin_c1 [525..526]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       └─ PunctuationParenOpen [525..526]: "("
+ │   │       │   │   │       │   │   │   │   │       │       │       │       ├─ LuauSparkleValueParens_content [526..536]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │   ├─ LuauSparkleParenCallee [526..527]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │   │   └─ LuauSparkleParenCallee_c1 [526..527]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │   │       └─ LuauFunctionName [526..527]: "f"
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │   └─ LuauSparkleValueParens [527..536]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       ├─ LuauSparkleValueParens_begin [527..528]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │   └─ LuauSparkleValueParens_begin_c1 [527..528]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       └─ PunctuationParenOpen [527..528]: "("
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       ├─ LuauSparkleValueParens_content [528..535]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │   ├─ LuauSparkleParenCallee [528..529]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │   │   └─ LuauSparkleParenCallee_c1 [528..529]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │   │       └─ LuauFunctionName [528..529]: "f"
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │   └─ LuauSparkleValueParens [529..535]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       ├─ LuauSparkleValueParens_begin [529..530]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │   └─ LuauSparkleValueParens_begin_c1 [529..530]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       └─ PunctuationParenOpen [529..530]: "("
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       ├─ LuauSparkleValueParens_content [530..534]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │   ├─ LuauSparkleParenCallee [530..531]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │   │   └─ LuauSparkleParenCallee_c1 [530..531]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │   │       └─ LuauFunctionName [530..531]: "f"
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │   └─ LuauSparkleValueParens [531..534]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       ├─ LuauSparkleValueParens_begin [531..532]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       │   └─ LuauSparkleValueParens_begin_c1 [531..532]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       │       └─ PunctuationParenOpen [531..532]: "("
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       ├─ LuauSparkleValueParens_content [532..533]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       │   └─ LuauSparkleParenRun [532..533]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       │       └─ LuauSparkleParenRun_c1 [532..533]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       │           └─ LuauNumericDecimal [532..533]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       │               ├─ LuauNumericDecimal_c1 [532..533]: "1"
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       │               └─ LuauNumericDecimal_c2 533
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       └─ LuauSparkleValueParens_end [533..534]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │           └─ LuauSparkleValueParens_end_c1 [533..534]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │               └─ PunctuationParenClose [533..534]: ")"
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       └─ LuauSparkleValueParens_end [534..535]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │           └─ LuauSparkleValueParens_end_c1 [534..535]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │               └─ PunctuationParenClose [534..535]: ")"
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       └─ LuauSparkleValueParens_end [535..536]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │           └─ LuauSparkleValueParens_end_c1 [535..536]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │               └─ PunctuationParenClose [535..536]: ")"
+ │   │       │   │   │       │   │   │   │   │       │       │       │       └─ LuauSparkleValueParens_end [536..537]
+ │   │       │   │   │       │   │   │   │   │       │       │       │           └─ LuauSparkleValueParens_end_c1 [536..537]
+ │   │       │   │   │       │   │   │   │   │       │       │       │               └─ PunctuationParenClose [536..537]: ")"
+ │   │       │   │   │       │   │   │   │   │       │       │       └─ LuauSparkleValueParens_end [537..538]
+ │   │       │   │   │       │   │   │   │   │       │       │           └─ LuauSparkleValueParens_end_c1 [537..538]
+ │   │       │   │   │       │   │   │   │   │       │       │               └─ PunctuationParenClose [537..538]: ")"
+ │   │       │   │   │       │   │   │   │   │       │       └─ LuauSparkleValueParens_end [538..539]
+ │   │       │   │   │       │   │   │   │   │       │           └─ LuauSparkleValueParens_end_c1 [538..539]
+ │   │       │   │   │       │   │   │   │   │       │               └─ PunctuationParenClose [538..539]: ")"
+ │   │       │   │   │       │   │   │   │   │       └─ LuauSparkleValueParens_end [539..540]
+ │   │       │   │   │       │   │   │   │   │           └─ LuauSparkleValueParens_end_c1 [539..540]
+ │   │       │   │   │       │   │   │   │   │               └─ PunctuationParenClose [539..540]: ")"
+ │   │       │   │   │       │   │   │   │   └─ LuauSparkleEventParenAttribute_end 540
+ │   │       │   │   │       │   │   │   ├─ LuauSparkleElementAssign [540..541]
+ │   │       │   │   │       │   │   │   │   └─ LuauSparkleElementAssign_c1 [540..541]
+ │   │       │   │   │       │   │   │   │       └─ Whitespace [540..541]: " "
+ │   │       │   │   │       │   │   │   └─ LuauSparkleElementBlock [541..556]
+ │   │       │   │   │       │   │   │       ├─ LuauSparkleElementBlock_begin [541..542]
+ │   │       │   │   │       │   │   │       │   └─ LuauSparkleElementBlock_begin_c1 [541..542]
+ │   │       │   │   │       │   │   │       │       └─ LuauStructBlockOpen [541..542]: "{"
+ │   │       │   │   │       │   │   │       ├─ LuauSparkleElementBlock_content [542..555]
+ │   │       │   │   │       │   │   │       │   ├─ Whitespace [542..543]: " "
+ │   │       │   │   │       │   │   │       │   ├─ LuauSparkleElement [543..554]
+ │   │       │   │   │       │   │   │       │   │   ├─ LuauSparkleElement_begin [543..547]
+ │   │       │   │   │       │   │   │       │   │   │   ├─ LuauSparkleElement_begin_c1 [543..547]
+ │   │       │   │   │       │   │   │       │   │   │   │   └─ BuiltinComponentName [543..547]: "text"
+ │   │       │   │   │       │   │   │       │   │   │   └─ LuauSparkleElement_begin_c2 547
+ │   │       │   │   │       │   │   │       │   │   ├─ LuauSparkleElement_content [547..554]
+ │   │       │   │   │       │   │   │       │   │   │   └─ LuauSparkleElementParts [547..554]
+ │   │       │   │   │       │   │   │       │   │   │       └─ LuauSparkleElementParts_c1 [547..554]
+ │   │       │   │   │       │   │   │       │   │   │           ├─ RequiredWhitespace [547..548]: " "
+ │   │       │   │   │       │   │   │       │   │   │           └─ LuauElementContentStringPlain [548..554]
+ │   │       │   │   │       │   │   │       │   │   │               ├─ LuauElementContentStringPlain_c1 [548..549]
+ │   │       │   │   │       │   │   │       │   │   │               │   └─ PunctuationStringOpen [548..549]: "\""
+ │   │       │   │   │       │   │   │       │   │   │               ├─ LuauElementContentStringPlain_c2 [549..553]
+ │   │       │   │   │       │   │   │       │   │   │               │   └─ PlainStringContent [549..553]
+ │   │       │   │   │       │   │   │       │   │   │               │       └─ PlainStringContent_c1 [549..553]
+ │   │       │   │   │       │   │   │       │   │   │               │           ├─ StringCharacter [549..550]: "b"
+ │   │       │   │   │       │   │   │       │   │   │               │           ├─ StringCharacter [550..551]: "o"
+ │   │       │   │   │       │   │   │       │   │   │               │           ├─ StringCharacter [551..552]: "d"
+ │   │       │   │   │       │   │   │       │   │   │               │           └─ StringCharacter [552..553]: "y"
+ │   │       │   │   │       │   │   │       │   │   │               └─ LuauElementContentStringPlain_c3 [553..554]
+ │   │       │   │   │       │   │   │       │   │   │                   └─ PunctuationStringClose [553..554]: "\""
+ │   │       │   │   │       │   │   │       │   │   └─ LuauSparkleElement_end 554
+ │   │       │   │   │       │   │   │       │   └─ Whitespace [554..555]: " "
+ │   │       │   │   │       │   │   │       └─ LuauSparkleElementBlock_end [555..556]
+ │   │       │   │   │       │   │   │           └─ LuauSparkleElementBlock_end_c1 [555..556]
+ │   │       │   │   │       │   │   │               └─ LuauStructBlockClose [555..556]: "}"
  │   │       │   │   │       │   │   └─ LuauSparkleElement_end 556
  │   │       │   │   │       │   ├─ Newline [556..557]: "\n"
  │   │       │   │   │       │   └─ Whitespace [557..559]: "  "
@@ -1174,41 +1086,152 @@ sparkdown [0..903]
  │   │       │   │   │       │   │   │   │   └─ BuiltinComponentName [576..580]: "text"
  │   │       │   │   │       │   │   │   └─ LuauSparkleElement_begin_c2 580
  │   │       │   │   │       │   │   ├─ LuauSparkleElement_content [580..622]
- │   │       │   │   │       │   │   │   └─ LuauSparkleElementParts [580..622]
- │   │       │   │   │       │   │   │       └─ LuauSparkleElementParts_c1 [580..622]
- │   │       │   │   │       │   │   │           ├─ RequiredWhitespace [580..581]: " "
- │   │       │   │   │       │   │   │           └─ LuauSparklePropAttribute [581..622]
- │   │       │   │   │       │   │   │               ├─ LuauSparklePropAttribute_c1 [581..582]
- │   │       │   │   │       │   │   │               │   └─ StyleAttributeOperator [581..582]: "#"
- │   │       │   │   │       │   │   │               ├─ LuauSparklePropAttribute_c2 [582..583]
- │   │       │   │   │       │   │   │               │   └─ StyleAttributeName [582..583]: "x"
- │   │       │   │   │       │   │   │               ├─ LuauSparklePropAttribute_c4 [583..584]
- │   │       │   │   │       │   │   │               │   └─ EqualOperator [583..584]: "="
- │   │       │   │   │       │   │   │               └─ LuauSparklePropAttribute_c6 [584..622]
- │   │       │   │   │       │   │   │                   ├─ InlinePropLiteralValue [584..606]
- │   │       │   │   │       │   │   │                   │   └─ InlinePropLiteralValue_c1 [584..606]
- │   │       │   │   │       │   │   │                   │       └─ InlinePropWordValue [584..606]
- │   │       │   │   │       │   │   │                   │           └─ InlinePropWordValue_c1 [584..606]
- │   │       │   │   │       │   │   │                   │               └─ UnquotedString [584..606]: "f(f(f(f(f(f(f(1)))))))"
- │   │       │   │   │       │   │   │                   └─ LuauSparkleValueOverflow [606..622]
- │   │       │   │   │       │   │   │                       ├─ LuauSparkleValueOverflow_c1 [606..607]
- │   │       │   │   │       │   │   │                       │   └─ ExtraWhitespace [606..607]: " "
- │   │       │   │   │       │   │   │                       └─ LuauSparkleValueOverflow_c2 [607..622]
- │   │       │   │   │       │   │   │                           ├─ LuauSparkleElementInvalid [607..608]: "{"
- │   │       │   │   │       │   │   │                           ├─ ExtraWhitespace [608..609]: " "
- │   │       │   │   │       │   │   │                           ├─ LuauSparkleElementInvalid [609..610]: "t"
- │   │       │   │   │       │   │   │                           ├─ LuauSparkleElementInvalid [610..611]: "e"
- │   │       │   │   │       │   │   │                           ├─ LuauSparkleElementInvalid [611..612]: "x"
- │   │       │   │   │       │   │   │                           ├─ LuauSparkleElementInvalid [612..613]: "t"
- │   │       │   │   │       │   │   │                           ├─ ExtraWhitespace [613..614]: " "
- │   │       │   │   │       │   │   │                           ├─ LuauSparkleElementInvalid [614..615]: "\""
- │   │       │   │   │       │   │   │                           ├─ LuauSparkleElementInvalid [615..616]: "b"
- │   │       │   │   │       │   │   │                           ├─ LuauSparkleElementInvalid [616..617]: "o"
- │   │       │   │   │       │   │   │                           ├─ LuauSparkleElementInvalid [617..618]: "d"
- │   │       │   │   │       │   │   │                           ├─ LuauSparkleElementInvalid [618..619]: "y"
- │   │       │   │   │       │   │   │                           ├─ LuauSparkleElementInvalid [619..620]: "\""
- │   │       │   │   │       │   │   │                           ├─ ExtraWhitespace [620..621]: " "
- │   │       │   │   │       │   │   │                           └─ LuauSparkleElementInvalid [621..622]: "}"
+ │   │       │   │   │       │   │   │   ├─ LuauSparkleElementParts [580..581]
+ │   │       │   │   │       │   │   │   │   └─ LuauSparkleElementParts_c1 [580..581]
+ │   │       │   │   │       │   │   │   │       └─ RequiredWhitespace [580..581]: " "
+ │   │       │   │   │       │   │   │   ├─ LuauSparklePropParenAttribute [581..606]
+ │   │       │   │   │       │   │   │   │   ├─ LuauSparklePropParenAttribute_begin [581..584]
+ │   │       │   │   │       │   │   │   │   │   ├─ LuauSparklePropParenAttribute_begin_c1 [581..582]
+ │   │       │   │   │       │   │   │   │   │   │   └─ StyleAttributeOperator [581..582]: "#"
+ │   │       │   │   │       │   │   │   │   │   ├─ LuauSparklePropParenAttribute_begin_c2 [582..583]
+ │   │       │   │   │       │   │   │   │   │   │   └─ StyleAttributeName [582..583]: "x"
+ │   │       │   │   │       │   │   │   │   │   ├─ LuauSparklePropParenAttribute_begin_c3 583
+ │   │       │   │   │       │   │   │   │   │   ├─ LuauSparklePropParenAttribute_begin_c4 [583..584]
+ │   │       │   │   │       │   │   │   │   │   │   └─ EqualOperator [583..584]: "="
+ │   │       │   │   │       │   │   │   │   │   └─ LuauSparklePropParenAttribute_begin_c5 584
+ │   │       │   │   │       │   │   │   │   ├─ LuauSparklePropParenAttribute_content [584..606]
+ │   │       │   │   │       │   │   │   │   │   ├─ LuauSparklePropParenRun [584..585]
+ │   │       │   │   │       │   │   │   │   │   │   └─ LuauSparklePropParenRun_c1 [584..585]
+ │   │       │   │   │       │   │   │   │   │   │       └─ InlinePropWordValue [584..585]
+ │   │       │   │   │       │   │   │   │   │   │           └─ InlinePropWordValue_c1 [584..585]
+ │   │       │   │   │       │   │   │   │   │   │               └─ UnquotedString [584..585]: "f"
+ │   │       │   │   │       │   │   │   │   │   └─ LuauSparklePropValueParens [585..606]
+ │   │       │   │   │       │   │   │   │   │       ├─ LuauSparklePropValueParens_begin [585..586]
+ │   │       │   │   │       │   │   │   │   │       │   └─ LuauSparklePropValueParens_begin_c1 [585..586]
+ │   │       │   │   │       │   │   │   │   │       │       └─ PunctuationParenOpen [585..586]: "("
+ │   │       │   │   │       │   │   │   │   │       ├─ LuauSparklePropValueParens_content [586..605]
+ │   │       │   │   │       │   │   │   │   │       │   ├─ LuauSparklePropParenRun [586..587]
+ │   │       │   │   │       │   │   │   │   │       │   │   └─ LuauSparklePropParenRun_c1 [586..587]
+ │   │       │   │   │       │   │   │   │   │       │   │       └─ InlinePropWordValue [586..587]
+ │   │       │   │   │       │   │   │   │   │       │   │           └─ InlinePropWordValue_c1 [586..587]
+ │   │       │   │   │       │   │   │   │   │       │   │               └─ UnquotedString [586..587]: "f"
+ │   │       │   │   │       │   │   │   │   │       │   └─ LuauSparklePropValueParens [587..605]
+ │   │       │   │   │       │   │   │   │   │       │       ├─ LuauSparklePropValueParens_begin [587..588]
+ │   │       │   │   │       │   │   │   │   │       │       │   └─ LuauSparklePropValueParens_begin_c1 [587..588]
+ │   │       │   │   │       │   │   │   │   │       │       │       └─ PunctuationParenOpen [587..588]: "("
+ │   │       │   │   │       │   │   │   │   │       │       ├─ LuauSparklePropValueParens_content [588..604]
+ │   │       │   │   │       │   │   │   │   │       │       │   ├─ LuauSparklePropParenRun [588..589]
+ │   │       │   │   │       │   │   │   │   │       │       │   │   └─ LuauSparklePropParenRun_c1 [588..589]
+ │   │       │   │   │       │   │   │   │   │       │       │   │       └─ InlinePropWordValue [588..589]
+ │   │       │   │   │       │   │   │   │   │       │       │   │           └─ InlinePropWordValue_c1 [588..589]
+ │   │       │   │   │       │   │   │   │   │       │       │   │               └─ UnquotedString [588..589]: "f"
+ │   │       │   │   │       │   │   │   │   │       │       │   └─ LuauSparklePropValueParens [589..604]
+ │   │       │   │   │       │   │   │   │   │       │       │       ├─ LuauSparklePropValueParens_begin [589..590]
+ │   │       │   │   │       │   │   │   │   │       │       │       │   └─ LuauSparklePropValueParens_begin_c1 [589..590]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       └─ PunctuationParenOpen [589..590]: "("
+ │   │       │   │   │       │   │   │   │   │       │       │       ├─ LuauSparklePropValueParens_content [590..603]
+ │   │       │   │   │       │   │   │   │   │       │       │       │   ├─ LuauSparklePropParenRun [590..591]
+ │   │       │   │   │       │   │   │   │   │       │       │       │   │   └─ LuauSparklePropParenRun_c1 [590..591]
+ │   │       │   │   │       │   │   │   │   │       │       │       │   │       └─ InlinePropWordValue [590..591]
+ │   │       │   │   │       │   │   │   │   │       │       │       │   │           └─ InlinePropWordValue_c1 [590..591]
+ │   │       │   │   │       │   │   │   │   │       │       │       │   │               └─ UnquotedString [590..591]: "f"
+ │   │       │   │   │       │   │   │   │   │       │       │       │   └─ LuauSparklePropValueParens [591..603]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       ├─ LuauSparklePropValueParens_begin [591..592]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │   └─ LuauSparklePropValueParens_begin_c1 [591..592]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       └─ PunctuationParenOpen [591..592]: "("
+ │   │       │   │   │       │   │   │   │   │       │       │       │       ├─ LuauSparklePropValueParens_content [592..602]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │   ├─ LuauSparklePropParenRun [592..593]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │   │   └─ LuauSparklePropParenRun_c1 [592..593]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │   │       └─ InlinePropWordValue [592..593]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │   │           └─ InlinePropWordValue_c1 [592..593]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │   │               └─ UnquotedString [592..593]: "f"
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │   └─ LuauSparklePropValueParens [593..602]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       ├─ LuauSparklePropValueParens_begin [593..594]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │   └─ LuauSparklePropValueParens_begin_c1 [593..594]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       └─ PunctuationParenOpen [593..594]: "("
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       ├─ LuauSparklePropValueParens_content [594..601]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │   ├─ LuauSparklePropParenRun [594..595]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │   │   └─ LuauSparklePropParenRun_c1 [594..595]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │   │       └─ InlinePropWordValue [594..595]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │   │           └─ InlinePropWordValue_c1 [594..595]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │   │               └─ UnquotedString [594..595]: "f"
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │   └─ LuauSparklePropValueParens [595..601]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       ├─ LuauSparklePropValueParens_begin [595..596]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │   └─ LuauSparklePropValueParens_begin_c1 [595..596]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       └─ PunctuationParenOpen [595..596]: "("
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       ├─ LuauSparklePropValueParens_content [596..600]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │   ├─ LuauSparklePropParenRun [596..597]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │   │   └─ LuauSparklePropParenRun_c1 [596..597]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │   │       └─ InlinePropWordValue [596..597]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │   │           └─ InlinePropWordValue_c1 [596..597]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │   │               └─ UnquotedString [596..597]: "f"
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │   └─ LuauSparklePropValueParens [597..600]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       ├─ LuauSparklePropValueParens_begin [597..598]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       │   └─ LuauSparklePropValueParens_begin_c1 [597..598]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       │       └─ PunctuationParenOpen [597..598]: "("
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       ├─ LuauSparklePropValueParens_content [598..599]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       │   └─ LuauSparklePropParenRun [598..599]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       │       └─ LuauSparklePropParenRun_c1 [598..599]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       │           └─ InlinePropWordValue [598..599]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       │               └─ InlinePropWordValue_c1 [598..599]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       │                   └─ UnquotedString [598..599]: "1"
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │       └─ LuauSparklePropValueParens_end [599..600]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │           └─ LuauSparklePropValueParens_end_c1 [599..600]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       │               └─ PunctuationParenClose [599..600]: ")"
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │       └─ LuauSparklePropValueParens_end [600..601]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │           └─ LuauSparklePropValueParens_end_c1 [600..601]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       │               └─ PunctuationParenClose [600..601]: ")"
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │       └─ LuauSparklePropValueParens_end [601..602]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │           └─ LuauSparklePropValueParens_end_c1 [601..602]
+ │   │       │   │   │       │   │   │   │   │       │       │       │       │               └─ PunctuationParenClose [601..602]: ")"
+ │   │       │   │   │       │   │   │   │   │       │       │       │       └─ LuauSparklePropValueParens_end [602..603]
+ │   │       │   │   │       │   │   │   │   │       │       │       │           └─ LuauSparklePropValueParens_end_c1 [602..603]
+ │   │       │   │   │       │   │   │   │   │       │       │       │               └─ PunctuationParenClose [602..603]: ")"
+ │   │       │   │   │       │   │   │   │   │       │       │       └─ LuauSparklePropValueParens_end [603..604]
+ │   │       │   │   │       │   │   │   │   │       │       │           └─ LuauSparklePropValueParens_end_c1 [603..604]
+ │   │       │   │   │       │   │   │   │   │       │       │               └─ PunctuationParenClose [603..604]: ")"
+ │   │       │   │   │       │   │   │   │   │       │       └─ LuauSparklePropValueParens_end [604..605]
+ │   │       │   │   │       │   │   │   │   │       │           └─ LuauSparklePropValueParens_end_c1 [604..605]
+ │   │       │   │   │       │   │   │   │   │       │               └─ PunctuationParenClose [604..605]: ")"
+ │   │       │   │   │       │   │   │   │   │       └─ LuauSparklePropValueParens_end [605..606]
+ │   │       │   │   │       │   │   │   │   │           └─ LuauSparklePropValueParens_end_c1 [605..606]
+ │   │       │   │   │       │   │   │   │   │               └─ PunctuationParenClose [605..606]: ")"
+ │   │       │   │   │       │   │   │   │   └─ LuauSparklePropParenAttribute_end 606
+ │   │       │   │   │       │   │   │   ├─ LuauSparkleElementAssign [606..607]
+ │   │       │   │   │       │   │   │   │   └─ LuauSparkleElementAssign_c1 [606..607]
+ │   │       │   │   │       │   │   │   │       └─ Whitespace [606..607]: " "
+ │   │       │   │   │       │   │   │   └─ LuauSparkleElementBlock [607..622]
+ │   │       │   │   │       │   │   │       ├─ LuauSparkleElementBlock_begin [607..608]
+ │   │       │   │   │       │   │   │       │   └─ LuauSparkleElementBlock_begin_c1 [607..608]
+ │   │       │   │   │       │   │   │       │       └─ LuauStructBlockOpen [607..608]: "{"
+ │   │       │   │   │       │   │   │       ├─ LuauSparkleElementBlock_content [608..621]
+ │   │       │   │   │       │   │   │       │   ├─ Whitespace [608..609]: " "
+ │   │       │   │   │       │   │   │       │   ├─ LuauSparkleElement [609..620]
+ │   │       │   │   │       │   │   │       │   │   ├─ LuauSparkleElement_begin [609..613]
+ │   │       │   │   │       │   │   │       │   │   │   ├─ LuauSparkleElement_begin_c1 [609..613]
+ │   │       │   │   │       │   │   │       │   │   │   │   └─ BuiltinComponentName [609..613]: "text"
+ │   │       │   │   │       │   │   │       │   │   │   └─ LuauSparkleElement_begin_c2 613
+ │   │       │   │   │       │   │   │       │   │   ├─ LuauSparkleElement_content [613..620]
+ │   │       │   │   │       │   │   │       │   │   │   └─ LuauSparkleElementParts [613..620]
+ │   │       │   │   │       │   │   │       │   │   │       └─ LuauSparkleElementParts_c1 [613..620]
+ │   │       │   │   │       │   │   │       │   │   │           ├─ RequiredWhitespace [613..614]: " "
+ │   │       │   │   │       │   │   │       │   │   │           └─ LuauElementContentStringPlain [614..620]
+ │   │       │   │   │       │   │   │       │   │   │               ├─ LuauElementContentStringPlain_c1 [614..615]
+ │   │       │   │   │       │   │   │       │   │   │               │   └─ PunctuationStringOpen [614..615]: "\""
+ │   │       │   │   │       │   │   │       │   │   │               ├─ LuauElementContentStringPlain_c2 [615..619]
+ │   │       │   │   │       │   │   │       │   │   │               │   └─ PlainStringContent [615..619]
+ │   │       │   │   │       │   │   │       │   │   │               │       └─ PlainStringContent_c1 [615..619]
+ │   │       │   │   │       │   │   │       │   │   │               │           ├─ StringCharacter [615..616]: "b"
+ │   │       │   │   │       │   │   │       │   │   │               │           ├─ StringCharacter [616..617]: "o"
+ │   │       │   │   │       │   │   │       │   │   │               │           ├─ StringCharacter [617..618]: "d"
+ │   │       │   │   │       │   │   │       │   │   │               │           └─ StringCharacter [618..619]: "y"
+ │   │       │   │   │       │   │   │       │   │   │               └─ LuauElementContentStringPlain_c3 [619..620]
+ │   │       │   │   │       │   │   │       │   │   │                   └─ PunctuationStringClose [619..620]: "\""
+ │   │       │   │   │       │   │   │       │   │   └─ LuauSparkleElement_end 620
+ │   │       │   │   │       │   │   │       │   └─ Whitespace [620..621]: " "
+ │   │       │   │   │       │   │   │       └─ LuauSparkleElementBlock_end [621..622]
+ │   │       │   │   │       │   │   │           └─ LuauSparkleElementBlock_end_c1 [621..622]
+ │   │       │   │   │       │   │   │               └─ LuauStructBlockClose [621..622]: "}"
  │   │       │   │   │       │   │   └─ LuauSparkleElement_end 622
  │   │       │   │   │       │   ├─ Newline [622..623]: "\n"
  │   │       │   │   │       │   └─ Whitespace [623..625]: "  "

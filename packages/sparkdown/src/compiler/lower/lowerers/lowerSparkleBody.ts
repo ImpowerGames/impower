@@ -140,6 +140,8 @@ const ATTRIBUTE_NODES = nodeNameSet([
   "LuauSparklePropAttribute",
   "LuauSparkleEventClosureAttribute",
   "LuauSparklePropClosureAttribute",
+  "LuauSparkleEventParenAttribute",
+  "LuauSparklePropParenAttribute",
 ]);
 
 function isContinuation(entry: SyntaxNode, ctx: LowerContext): boolean {
@@ -218,6 +220,7 @@ function lowerBinding(
 
 const COMPONENT_CALL_CONTENT = nodeNameSet([
   "LuauSparkleCallArguments_content",
+  "LuauSparkleOpenCallArguments_content",
 ]);
 const ARG_SKIP_RE = /Whitespace|Newline|Comment|Separator/;
 
@@ -293,11 +296,13 @@ const EVENT_ATTR = nodeNameSet([
   "LuauEventAttribute",
   "LuauSparkleEventAttribute",
   "LuauSparkleEventClosureAttribute",
+  "LuauSparkleEventParenAttribute",
 ]);
 const EVENT_NAME = nodeNameSet(["EventAttributeName"]);
 const EVENT_CONTENT = nodeNameSet([
   "LuauEventAttribute_content",
   "LuauSparkleEventHandler",
+  "LuauSparkleEventParenAttribute_content",
 ]);
 const EVENT_HANDLER_NAME = nodeNameSet(["LuauSparkleEventHandlerName"]);
 const EVENT_CLOSURE = nodeNameSet(["LuauSparkleHandlerClosure"]);
@@ -436,8 +441,10 @@ const PROP_ATTR = nodeNameSet([
   "LuauPropAttribute",
   "LuauSparklePropAttribute",
   "LuauSparklePropClosureAttribute",
+  "LuauSparklePropParenAttribute",
 ]);
 const PROP_CLOSURE = nodeNameSet(["LuauSparklePropClosure"]);
+const PROP_PAREN_VALUE = nodeNameSet(["LuauSparklePropParenAttribute_content"]);
 const PROP_NAME = nodeNameSet(["StyleAttributeName"]);
 const PROP_INTERP = nodeNameSet([
   "LuauInterpolatedStringExpression",
@@ -472,6 +479,14 @@ function readProps(
     const nameNode = firstDescendant(attr, PROP_NAME);
     const name = nameNode ? ctx.read(nameNode.from, nameNode.to).trim() : "";
     if (!name) continue;
+    if (attr.name === "LuauSparklePropParenAttribute") {
+      const [value] = childrenByName(attr, PROP_PAREN_VALUE);
+      props[name] = {
+        kind: "literal",
+        value: value ? ctx.read(value.from, value.to) : "",
+      };
+      continue;
+    }
     const closure = firstDescendant(attr, PROP_CLOSURE);
     if (closure) {
       if (!propClosureHoldsExpression(closure)) continue;

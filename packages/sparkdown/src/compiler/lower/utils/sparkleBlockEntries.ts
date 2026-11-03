@@ -55,10 +55,14 @@ export function sparkleElementParts(element: SyntaxNode): SparkleElementParts {
   const begin = findChildByName(element, "LuauSparkleElement_begin");
   const nameCapture = begin?.firstChild ?? null;
   const name = nameCapture?.firstChild ?? null;
-  const args = begin ? firstNamed(begin, CALL_ARGUMENTS) : null;
-  const beginTo = begin?.to ?? element.from;
   const content = findChildByName(element, "LuauSparkleElement_content");
-  const first = content?.firstChild ?? null;
+  const openArgs =
+    content?.firstChild?.name === "LuauSparkleOpenCallArguments"
+      ? content.firstChild
+      : null;
+  const args = openArgs ?? (begin ? firstNamed(begin, CALL_ARGUMENTS) : null);
+  const beginTo = openArgs?.to ?? begin?.to ?? element.from;
+  const first = openArgs ? openArgs.nextSibling : (content?.firstChild ?? null);
   const head =
     first?.name === "LuauSparkleElementParts" && first.from === beginTo
       ? first
@@ -110,6 +114,8 @@ const LATER_PART_NAMES = nodeNameSet([
   "LuauSparkleElementParts",
   "LuauSparkleEventClosureAttribute",
   "LuauSparklePropClosureAttribute",
+  "LuauSparkleEventParenAttribute",
+  "LuauSparklePropParenAttribute",
 ]);
 
 export function sparklePartNodes(node: SyntaxNode): SyntaxNode[] {
@@ -124,7 +130,7 @@ export function sparklePartNodes(node: SyntaxNode): SyntaxNode[] {
     if (CLOSURE_VALUES[child.name]) {
       const inner = findChildByName(child, `${child.name}_content`);
       for (let part = inner?.firstChild; part; part = part.nextSibling) {
-        if (part.name === "LuauSparkleElementParts") out.push(part);
+        if (LATER_PART_NAMES.has(part.name)) out.push(part);
       }
     }
   }
