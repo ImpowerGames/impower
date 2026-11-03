@@ -9590,15 +9590,12 @@
           "include": "#LuauMultilineString"
         },
         {
-          "include": "#ExtraWhitespace"
-        },
-        {
           "include": "#LuauSparklePropParenRun"
         }
       ]
     },
     "LuauSparklePropParenRun": {
-      "match": "((?:[^\\s,\"'(){}\\[]|[\\[](?![=]*[\\[]))+)",
+      "match": "((?:[^,\"'(){}\\[\\r\\n]|[\\[](?![=]*[\\[]))+)",
       "captures": {
         "1": {
           "patterns": [

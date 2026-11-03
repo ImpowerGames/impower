@@ -5,7 +5,11 @@ import {
 } from "./inlineAlternators";
 import { nodeNameSet } from "./nodeNameSet";
 
-const SPACED_TABLE_NAMES = nodeNameSet(["LuauTable", "LuauTypeTableStruct"]);
+const SPACED_TABLE_NAMES = nodeNameSet([
+  "LuauTable",
+  "LuauTypeTableStruct",
+  "LuauSparkleValueBraces",
+]);
 
 export function closingBrace(
   node: SyntaxNode,

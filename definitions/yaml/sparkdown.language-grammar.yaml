@@ -5702,12 +5702,11 @@ repository:
       - { include: "#LuauDoubleQuotedString" }
       - { include: "#LuauSingleQuotedString" }
       - { include: "#LuauMultilineString" }
-      - { include: "#ExtraWhitespace" }
       - { include: "#LuauSparklePropParenRun" }
 
   LuauSparklePropParenRun:
     # lookaround: LuauMultilineString reads a long string's opening bracket; the run reads every other `[`.
-    match: ((?:[^\s,"'(){}\[]|[\[](?![=]*[\[]))+)
+    match: ((?:[^,"'(){}\[\r\n]|[\[](?![=]*[\[]))+)
     captures:
       1:
         patterns:
