@@ -266,22 +266,6 @@ export const lineKeyedValues = (
   return out;
 };
 
-export const countFormKeys = (
-  story: ProgramStory,
-  source: StartingValueSource,
-  keys: readonly string[],
-): Record<string, string> => {
-  const counts = startingValueTargets(story, source).counts;
-  const forms: Record<string, string> = {};
-  for (const key of keys) {
-    const countId = isPlaceKey(key) ? counts.get(key) : undefined;
-    if (countId !== undefined) {
-      forms[key] = countFormKey(story.root, countId);
-    }
-  }
-  return forms;
-};
-
 export const savedFrameValues = (
   story: ProgramStory,
   frames: readonly SavedFrameScopes[],

@@ -202,7 +202,6 @@ function player(
         listed: {
           listing: { ...listing, start: params.start },
           values: valuesOf(params.save),
-          forms: {},
         },
       };
     }

@@ -18,6 +18,4 @@ export interface GameSave {
 export interface SaveListed {
   listing: StartingValueListing;
   values: SaveValues;
-  forms: Record<string, string>;
-  carried?: Record<string, string>;
 }

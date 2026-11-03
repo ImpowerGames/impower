@@ -69,7 +69,6 @@ export class SavesController {
   protected _checks = 0;
   protected _edits = 0;
   protected _pending = new Map<number, string>();
-  protected _forms: Record<string, string> = {};
   protected _failed = new Map<number, string>();
   protected _undeleted = new Set<string>();
 
@@ -302,7 +301,6 @@ export class SavesController {
     this._search = "";
     this._drafts = {};
     this._unsaved = {};
-    this._forms = {};
   }
 
   rename(id: string, name: string): Promise<void> {
@@ -381,56 +379,28 @@ export class SavesController {
     return this.serial(() => this.listValuesNow(id));
   }
 
-  protected carryOf(): Record<string, string> {
-    return Object.fromEntries(
-      [...Object.keys(this._drafts), ...Object.keys(this._unsaved)].flatMap((key) =>
-        this._forms[key] !== undefined ? [[key, this._forms[key]]] : [],
-      ),
-    );
-  }
-
   protected async listValuesNow(id: string): Promise<void> {
-    for (let tries = 0; ; tries += 1) {
-      const record = this.record(id);
-      const carry = this.carryOf();
-      let listed: SaveListed | undefined;
-      try {
-        listed = record
-          ? (
-              await this._host.askWorker(SaveListingMessage.type, {
-                save: sourceOf(record),
-                start: record.scene,
-                ...(Object.keys(carry).length > 0 ? { carry } : {}),
-              })
-            )?.listed
-          : undefined;
-      } catch {
-        listed = undefined;
-      }
-      if (this._valuesId !== id) {
-        return;
-      }
-      const typed = Object.keys(this.carryOf()).some((key) => !Object.hasOwn(carry, key));
-      if (listed && typed && tries < 3) {
-        continue;
-      }
-      if (listed) {
-        const moved = listed.carried ?? {};
-        this._drafts = carried(this._drafts, carry, moved);
-        this._unsaved = carried(this._unsaved, carry, moved);
-        this._forms = Object.fromEntries(
-          Object.entries(this._forms).flatMap(([key, form]) =>
-            !Object.hasOwn(carry, key)
-              ? [[key, form]]
-              : moved[key] !== undefined
-                ? [[moved[key], form]]
-                : [],
-          ),
-        );
-      }
+    const record = this.record(id);
+    const keep = (this._listed?.listing.items ?? [])
+      .map((item) => item.key)
+      .filter((key) => key.startsWith("form:"));
+    let listed: SaveListed | undefined;
+    try {
+      listed = record
+        ? (
+            await this._host.askWorker(SaveListingMessage.type, {
+              save: sourceOf(record),
+              start: record.scene,
+              ...(keep.length > 0 ? { keep } : {}),
+            })
+          )?.listed
+        : undefined;
+    } catch {
+      listed = undefined;
+    }
+    if (this._valuesId === id) {
       this._listed = listed;
       this._host.changed();
-      return;
     }
   }
 
@@ -523,7 +493,7 @@ export class SavesController {
       const save = (
         await this._host.askWorker(EditSaveMessage.type, {
           save: sourceOf(record),
-          key: listed?.forms[shown] ?? shown,
+          key: shown,
           value,
         })
       )?.save;
@@ -534,10 +504,6 @@ export class SavesController {
     } catch (e) {
       if (this._valuesId === id) {
         this._unsaved[shown] = before ?? "nil";
-        const form = listed?.forms[shown];
-        if (form !== undefined) {
-          this._forms[shown] = form;
-        }
       }
       this._failed.set(edit, reasonOf(e));
       this._host.changed();
@@ -591,17 +557,10 @@ export class SavesController {
       this._host.changed();
     },
     onValueDraft: (key, text) => {
-      const form = this._listed?.forms[key];
       if (text === null) {
         delete this._drafts[key];
-        if (!Object.hasOwn(this._unsaved, key)) {
-          delete this._forms[key];
-        }
       } else {
         this._drafts[key] = text;
-        if (form !== undefined) {
-          this._forms[key] = form;
-        }
       }
       this._drafts = { ...this._drafts };
       this._host.changed();
@@ -647,21 +606,6 @@ const earlierRuns = (saves: readonly PreviewSave[]): string[] => {
     .filter((save) => save !== newest && (save.run === undefined || save.run !== newest.run))
     .map((save) => save.id);
 };
-
-const carried = (
-  entries: Readonly<Record<string, string>>,
-  carry: Readonly<Record<string, string>>,
-  moved: Readonly<Record<string, string>> = {},
-): Record<string, string> =>
-  Object.fromEntries(
-    Object.entries(entries).flatMap(([key, value]) =>
-      !Object.hasOwn(carry, key)
-        ? [[key, value]]
-        : moved[key] !== undefined
-          ? [[moved[key], value]]
-          : [],
-    ),
-  );
 
 const sourceOf = (record: PreviewSave): SaveSource => ({
   data: record.data,

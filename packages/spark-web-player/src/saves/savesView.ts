@@ -171,7 +171,7 @@ export const saveValueGroups = (state: SaveValuesState): SaveValueGroup[] => {
         first: entry.first,
         field: i > 0,
         item: entry,
-        ...(entry.line !== undefined && entry.key.startsWith("place:")
+        ...(entry.line !== undefined && /^(place|form):/.test(entry.key)
           ? { line: entry.line + 1 }
           : {}),
       }),

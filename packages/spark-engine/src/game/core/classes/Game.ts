@@ -52,6 +52,7 @@ import {
   startPlanOf,
   startStoryAt,
   startingValueListing,
+  startingValueTargets,
   type StartPlan,
   type StartingValueSource,
 } from "@impower/sparkdown/src/program/startingValues";
@@ -63,10 +64,11 @@ import {
 } from "@impower/sparkdown/src/program/startingValueLiterals";
 import {
   applySaveValueChanges,
-  countFormKeys,
+  countFormKey,
   countOfFormKey,
   formKeyedValues,
   isFormKey,
+  isPlaceKey,
   lineKeyedValues,
   readStoryValues,
   savedFrameValues,
@@ -2606,29 +2608,38 @@ export class Game<T extends M = {}> {
     };
   }
 
-  saveListing(
-    save: SaveSource,
-    start: string,
-    carry: Readonly<Record<string, string>> = {},
-  ): SaveListed {
+  saveListing(save: SaveSource, start: string, keep: readonly string[] = []): SaveListed {
+    const root = this._story.root;
     const listing = this.startingValueListing(start);
-    const source = this.startingValueSource();
-    const carried: Record<string, string> = {};
-    for (const [shown, form] of Object.entries(carry)) {
-      const moved = Object.keys(lineKeyedValues(this._story, source, { [form]: "" }))[0];
-      if (moved !== undefined) {
-        carried[shown] = moved;
+    const counts = startingValueTargets(this._story, this.startingValueSource()).counts;
+    const kept = new Map<number, string>();
+    for (const key of keep) {
+      const countId = isFormKey(key) ? countOfFormKey(root, key) : undefined;
+      if (countId !== undefined && !kept.has(countId)) {
+        kept.set(countId, key);
       }
     }
+    const rowKeys = new Map<string, string>();
+    for (const item of listing.items) {
+      const countId = isPlaceKey(item.key) ? counts.get(item.key) : undefined;
+      if (countId !== undefined) {
+        rowKeys.set(item.key, kept.get(countId) ?? countFormKey(root, countId));
+      }
+    }
+    const values = this.valuesOfSave(save);
     return {
-      listing,
-      values: this.valuesOfSave(save),
-      forms: countFormKeys(
-        this._story,
-        source,
-        listing.items.map((item) => item.key),
-      ),
-      ...(Object.keys(carry).length > 0 ? { carried } : {}),
+      listing: {
+        ...listing,
+        items: listing.items.map((item) =>
+          rowKeys.has(item.key) ? { ...item, key: rowKeys.get(item.key)! } : item,
+        ),
+      },
+      values: {
+        ...values,
+        values: Object.fromEntries(
+          Object.entries(values.values).map(([key, value]) => [rowKeys.get(key) ?? key, value]),
+        ),
+      },
     };
   }
 

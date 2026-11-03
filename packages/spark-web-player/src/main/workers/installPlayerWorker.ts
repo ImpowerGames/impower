@@ -946,7 +946,7 @@ export function installPlayerWorker(connection: MessageConnection) {
           listed: game.saveListing(
             message.params.save,
             message.params.start,
-            message.params.carry,
+            message.params.keep,
           ),
         };
       });

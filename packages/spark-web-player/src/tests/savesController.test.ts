@@ -127,7 +127,7 @@ const savesFor = (game: any, store: Map<string, PreviewSave>, host: TestHost = {
             ),
           };
         case "player/saveListing": {
-          const listed = game.saveListing(params.save, params.start, params.carry);
+          const listed = game.saveListing(params.save, params.start, params.keep);
           await host.listings?.();
           return { listed };
         }
@@ -160,6 +160,15 @@ const controllerFor = async (game: any, record: PreviewSave, host: TestHost = {}
 const keyOf = (game: any, name: string): string =>
   game.startingValueListing("start").items.find((item: any) => item.name === name)!.key;
 
+const rowKey = (controller: SavesController, name: string): string =>
+  controller.viewState().values!.listing!.items.find((item) => item.name === name)!.key;
+
+const rowLine = (controller: SavesController, key: string): number | undefined =>
+  controller.viewState().values!.listing!.items.find((item) => item.key === key)?.line;
+
+const rowName = (controller: SavesController, key: string): string | undefined =>
+  controller.viewState().values!.listing!.items.find((item) => item.key === key)?.name;
+
 const listedValue = (controller: SavesController, name: string): string | undefined => {
   const view = controller.viewState().values!;
   const key = view.listing!.items.find((item) => item.name === name)!.key;
@@ -189,14 +198,13 @@ describe("a save's option counts", () => {
     chooseLeave(game);
     advanceTo(game, "Done.");
     const save = preview(game.saveHere());
-    const stay = `place:0:2:${URI}`;
 
     const withoutDone = lines.filter((line) => !line.includes("Done."));
     recompile(compiler, game, withoutDone.join("\n"));
     expect(game.saveRefusal(save.data)).toBe("The saved line is gone.");
     const controller = await controllerFor(game, save);
     await controller.editValues(save.id);
-    await controller.setValue(stay, "1");
+    await controller.setValue(rowKey(controller, "Stay."), "1");
     expect(listedValue(controller, "Stay.")).toBe("1");
     expect(controller.record(save.id)!.data).toBe(save.data);
     expect(controller.record(save.id)!.edits?.map(([key]) => key.slice(0, 5))).toEqual(["form:"]);
@@ -216,13 +224,14 @@ describe("a save's values", () => {
     const save = preview(game.saveHere());
     const controller = await controllerFor(game, save);
     await controller.editValues(save.id);
-    const listed = () =>
-      controller.viewState().values!.listing!.items.find((item) => item.name === "Leave.")!.key;
-    expect(listed()).toBe(`place:0:4:${URI}`);
+    const leave = rowKey(controller, "Leave.");
+    expect(leave.startsWith("form:")).toBe(true);
+    expect(rowLine(controller, leave)).toBe(4);
 
     recompile(compiler, game, ["", "", ...lines].join("\n"));
     await controller.programChanged();
-    expect(listed()).toBe(`place:0:6:${URI}`);
+    expect(rowKey(controller, "Leave.")).toBe(leave);
+    expect(rowLine(controller, leave)).toBe(6);
     expect(listedValue(controller, "Leave.")).toBe("1");
   });
 
@@ -232,10 +241,7 @@ describe("a save's values", () => {
     const record = preview(game.saveHere());
     const controller = await controllerFor(game, record);
     await controller.editValues(record.id);
-    const listedLeave = `place:0:4:${URI}`;
-    expect(
-      controller.viewState().values!.listing!.items.find((item) => item.key === listedLeave)!.name,
-    ).toBe("Leave.");
+    const listedLeave = rowKey(controller, "Leave.");
 
     recompile(compiler, game, ["", "", ...lines].join("\n"));
     await controller.setValue(listedLeave, "3");
@@ -252,13 +258,14 @@ describe("a save's values", () => {
     const record = preview(game.saveHere());
     const controller = await controllerFor(game, record);
     await controller.editValues(record.id);
-    controller.events.onValueDraft(`place:0:4:${URI}`, "3");
+    const leave = rowKey(controller, "Leave.");
+    controller.events.onValueDraft(leave, "3");
 
     recompile(compiler, game, ["", "", ...lines].join("\n"));
     await controller.programChanged();
-    const leave = keyOf(game, "Leave.");
-    expect(leave).toBe(`place:0:6:${URI}`);
     expect(controller.viewState().values!.drafts).toEqual({ [leave]: "3" });
+    expect(rowName(controller, leave)).toBe("Leave.");
+    expect(rowLine(controller, leave)).toBe(6);
     await controller.setValue(leave, "3");
     expect(listedValue(controller, "Leave.")).toBe("3");
     expect(listedValue(controller, "Stay.")).toBeUndefined();
@@ -281,12 +288,13 @@ describe("a save's values", () => {
     for (let i = 0; i < 20; i += 1) {
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
-    controller.events.onValueDraft(`place:0:4:${URI}`, "3");
+    const leave = rowKey(controller, "Leave.");
+    controller.events.onValueDraft(leave, "3");
     hold = undefined;
     release();
     await refreshing;
-    const leave = keyOf(game, "Leave.");
     expect(controller.viewState().values!.drafts).toEqual({ [leave]: "3" });
+    expect(rowName(controller, leave)).toBe("Leave.");
     await controller.setValue(leave, "3");
     expect(listedValue(controller, "Leave.")).toBe("3");
     expect(listedValue(controller, "Stay.")).toBeUndefined();
@@ -348,7 +356,7 @@ describe("a save's values", () => {
     const record = preview(game.saveHere());
     const controller = await controllerFor(game, record);
     await controller.editValues(record.id);
-    const listedLeave = `place:0:4:${URI}`;
+    const listedLeave = rowKey(controller, "Leave.");
 
     recompile(
       compiler,
@@ -436,7 +444,6 @@ describe("Play from here", () => {
     chooseLeave(game);
     advanceTo(game, "Saved.");
     const record = preview(game.saveHere());
-    const leave = `place:0:4:${URI}`;
     recompile(compiler, game, source.filter((line) => !line.includes("Saved.")).join("\n"));
     let played: string | undefined;
     const controller = await controllerFor(game, record, {
@@ -446,7 +453,7 @@ describe("Play from here", () => {
     });
     expect(controller.rows()[0]!.gone).toBe(true);
     await controller.editValues(record.id);
-    await controller.setValue(leave, "3");
+    await controller.setValue(rowKey(controller, "Leave."), "3");
     controller.events.onBack();
 
     recompile(compiler, game, ["", "", ...source].join("\n"));
@@ -528,7 +535,6 @@ describe("Play from here", () => {
     chooseLeave(game);
     advanceTo(game, "Saved.");
     const record = preview(game.saveHere());
-    const leave = `place:0:4:${URI}`;
     recompile(compiler, game, source.filter((line) => !line.includes("Saved.")).join("\n"));
     let played: string | undefined;
     let refusals = 0;
@@ -545,7 +551,7 @@ describe("Play from here", () => {
       },
     });
     await controller.editValues(record.id);
-    await controller.setValue(leave, "3");
+    await controller.setValue(rowKey(controller, "Leave."), "3");
     controller.events.onBack();
 
     recompile(compiler, game, ["", "", ...source].join("\n"));
@@ -572,7 +578,9 @@ describe("Last run", () => {
     const { game, compiler } = playing(lines);
     chooseLeave(game);
     const durable: GameSave = game.saveHere();
-    const stay = game.saveListing({ data: durable.data }, "start").forms[`place:0:2:${URI}`];
+    const stay = game
+      .saveListing({ data: durable.data }, "start")
+      .listing.items.find((item: any) => item.name === "Stay.")!.key;
     const record: PreviewSave = {
       ...preview(durable),
       kind: "lastRun",
@@ -683,7 +691,7 @@ describe("Last run", () => {
   });
 });
 
-describe("a save through a sequence of edits, program changes and refused writes", () => {
+describe("two saves through a sequence of edits, drafts, program changes and refused writes", () => {
   type Name = "trust" | "Stay." | "Leave.";
   const NAMES: Name[] = ["trust", "Stay.", "Leave."];
 
@@ -703,21 +711,30 @@ describe("a save through a sequence of edits, program changes and refused writes
   ];
 
   const keyIn = (listing: StartingValueListing, name: Name) =>
-    name === "trust"
-      ? "store:trust"
-      : listing.items.find((item) => item.name === name)!.key;
+    listing.items.find((item) => item.name === name)!.key;
+
+  const nameIn = (listing: StartingValueListing, key: string) =>
+    listing.items.find((item) => item.key === key)?.name;
 
   const named = (values: StartingValueSet, listing: StartingValueListing) =>
     Object.fromEntries(NAMES.map((name) => [name, values[keyIn(listing, name)] ?? "0"]));
 
-  test("keeps the listed values, Load a save's set, the durable save and Play from here in agreement", async () => {
+  test("keeps every listed value, draft, mark, Load a save's set, durable save and Play on its own option and save", async () => {
     const { game, compiler } = playing(script(0, true), 4);
     chooseLeave(game);
     advanceTo(game, "Saved.");
-    const record = preview(game.saveHere());
-    const store = new Map([[record.id, record]]);
+    const first: PreviewSave = { ...preview(game.saveHere()), id: "save-a", name: "Save A" };
+    const second: PreviewSave = { ...preview(game.saveHere()), id: "save-b", name: "Save B" };
+    const ids = [first.id, second.id];
+    const store = new Map([
+      [first.id, first],
+      [second.id, second],
+    ]);
     let refuseNext = false;
     let played: string | undefined;
+    let holding = false;
+    let reached = 0;
+    const held: (() => void)[] = [];
     const controller = savesFor(game, store, {
       played: (data) => {
         played = data;
@@ -729,10 +746,22 @@ describe("a save through a sequence of edits, program changes and refused writes
         }
         return false;
       },
+      listings: () =>
+        holding
+          ? new Promise<void>((resolve) => {
+              reached += 1;
+              held.push(resolve);
+            })
+          : Promise.resolve(),
     });
     await controller.load();
 
-    const expected: Record<Name, string> = { trust: "0", "Stay.": "0", "Leave.": "1" };
+    const expected: Record<string, Record<Name, string>> = {
+      [first.id]: { trust: "0", "Stay.": "0", "Leave.": "1" },
+      [second.id]: { trust: "0", "Stay.": "0", "Leave.": "1" },
+    };
+    let drafts: Record<string, { name: Name; value: string }> = {};
+    let marks: Record<string, Name> = {};
     let pad = 0;
     let saved = true;
     let seed = 1668;
@@ -741,8 +770,11 @@ describe("a save through a sequence of edits, program changes and refused writes
       return Math.floor(seed / 65536) % n;
     };
     const covered = new Set<string>();
-    const pendingCount = () =>
-      (controller.record(record.id)!.edits ?? []).some(([key]) => key.startsWith("form:"));
+    const settle = async () => {
+      for (let i = 0; i < 5; i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    };
     const swap = (keep?: boolean) => {
       pad = (pad + 1 + next(3)) % 4;
       const was = saved;
@@ -750,45 +782,88 @@ describe("a save through a sequence of edits, program changes and refused writes
       covered.add(was === saved ? "lines moved" : saved ? "saved line restored" : "saved line deleted");
       recompile(compiler, game, script(pad, saved).join("\n"));
     };
-    const listedKey = (name: Name) => keyIn(controller.viewState().values!.listing!, name);
-
-    const check = async (step: string) => {
-      const listing = game.startingValueListing("start");
-      await controller.editValues(record.id);
-      const view = controller.viewState().values!;
-      expect(named(view.values.values, view.listing!), `${step}: listed`).toEqual(expected);
-      const set = await controller.startingValuesOf(record.id, "start");
-      expect(named(set!, listing), `${step}: Load a save`).toEqual(expected);
-      const current = controller.record(record.id)!;
-      expect(store.get(record.id), `${step}: stored`).toEqual(current);
-      const durable = game.saveListing(sourceOf(current), "start");
-      expect(named(durable.values.values, durable.listing), `${step}: durable`).toEqual(expected);
-      if (!current.edits && game.saveRefusal(current.data) === null) {
-        expect(named(game.saveValuesOf(current.data).values, listing), `${step}: written`).toEqual(expected);
+    const opened = () => controller.viewState().values?.save.id;
+    const openPanel = async (id: string) => {
+      if (opened() !== id) {
+        if (opened() !== undefined) {
+          covered.add("switch saves");
+        }
+        await controller.editValues(id);
+        drafts = {};
+        marks = {};
       }
-      expect(controller.rows()[0]!.gone, `${step}: placeability`).toBe(!saved);
+    };
+    const listedKey = (name: Name) => keyIn(controller.viewState().values!.listing!, name);
+    const committed = async (id: string, key: string, name: Name, value: string, refused: boolean) => {
+      refuseNext = refused;
+      await controller.setValue(key, value);
+      if (refused) {
+        marks[key] = name;
+      } else {
+        delete marks[key];
+        expected[id]![name] = value;
+      }
     };
 
-    const step = async (i: number, op: number, name: Name, value: string, keep?: boolean) => {
+    const check = async (step: string) => {
+      await controller.programChanged();
+      const listing = game.startingValueListing("start");
+      for (const id of ids) {
+        const set = await controller.startingValuesOf(id, "start");
+        expect(named(set!, listing), `${step}: ${id} Load a save`).toEqual(expected[id]);
+        const current = controller.record(id)!;
+        expect(store.get(id), `${step}: ${id} stored`).toEqual(current);
+        const durable = game.saveListing(sourceOf(current), "start");
+        expect(named(durable.values.values, durable.listing), `${step}: ${id} durable`).toEqual(
+          expected[id],
+        );
+        if (!current.edits && game.saveRefusal(current.data) === null) {
+          expect(named(game.saveValuesOf(current.data).values, listing), `${step}: ${id} written`).toEqual(
+            expected[id],
+          );
+        }
+      }
+      expect(
+        controller.rows().map((row) => row.gone),
+        `${step}: placeability`,
+      ).toEqual([!saved, !saved]);
+      if (opened() === undefined) {
+        expect(drafts, `${step}: no drafts while closed`).toEqual({});
+        return;
+      }
+      const view = controller.viewState().values!;
+      const listed = view.listing!;
+      expect(named(view.values.values, listed), `${step}: ${view.save.id} listed`).toEqual(
+        expected[view.save.id],
+      );
+      expect(Object.keys(view.drafts).sort(), `${step}: drafts`).toEqual(Object.keys(drafts).sort());
+      for (const [key, draft] of Object.entries(drafts)) {
+        expect(nameIn(listed, key), `${step}: draft ${draft.name} ${draft.value}`).toBe(draft.name);
+        expect(view.drafts[key], `${step}: draft ${draft.name}`).toBe(draft.value);
+      }
+      expect(Object.keys(view.unsaved).sort(), `${step}: marks`).toEqual(Object.keys(marks).sort());
+      for (const [key, name] of Object.entries(marks)) {
+        expect(nameIn(listed, key), `${step}: mark ${name}`).toBe(name);
+      }
+    };
+
+    const step = async (i: number, op: number, id: string, name: Name, value: string, keep?: boolean) => {
       switch (op) {
         case 0:
         case 1: {
-          await controller.editValues(record.id);
-          await controller.setValue(listedKey(name), value);
-          expected[name] = value;
+          await openPanel(id);
+          await committed(id, listedKey(name), name, value, false);
           covered.add(saved ? "edit" : name === "trust" ? "edit while gone" : "count edit while gone");
-          await check(`${i} edit ${name} ${value}`);
+          await check(`${i} edit ${id} ${name} ${value}`);
           break;
         }
         case 2: {
-          await controller.editValues(record.id);
+          await openPanel(id);
           const stale = listedKey(name);
           swap(keep);
-          await controller.setValue(stale, value);
-          expected[name] = value;
+          await committed(id, stale, name, value, false);
           covered.add(name === "trust" ? "store edit before a change" : "count edit before a change");
-          await controller.programChanged();
-          await check(`${i} edit ${name} ${value} on the listing before a change`);
+          await check(`${i} edit ${id} ${name} ${value} on the listing before a change`);
           break;
         }
         case 3: {
@@ -798,75 +873,139 @@ describe("a save through a sequence of edits, program changes and refused writes
           break;
         }
         case 4: {
-          await controller.editValues(record.id);
-          refuseNext = true;
-          await controller.setValue(listedKey(name), value);
-          expect(controller.viewState().values!.unsaved, `${i} refused`).toHaveProperty(
-            listedKey(name),
-          );
+          await openPanel(id);
+          await committed(id, listedKey(name), name, value, true);
           covered.add("refused write");
-          await check(`${i} refused edit ${name} ${value}`);
+          await check(`${i} refused edit ${id} ${name} ${value}`);
           break;
         }
         case 5: {
-          await controller.rename(record.id, `Saved ${i}`);
+          await controller.rename(id, `Saved ${i}`);
           covered.add("rename");
-          expect(controller.record(record.id)!.name).toBe(`Saved ${i}`);
-          await check(`${i} rename`);
+          expect(controller.record(id)!.name).toBe(`Saved ${i}`);
+          await check(`${i} rename ${id}`);
+          break;
+        }
+        case 6: {
+          played = undefined;
+          covered.add(saved ? "play" : "play while gone");
+          controller.events.onPlay(id);
+          if (saved) {
+            drafts = {};
+            marks = {};
+          }
+          await controller.startingValuesOf(id, "start");
+          if (saved) {
+            expect(played, `${i} play ${id}`).toBeDefined();
+            expect(
+              named(game.saveValuesOf(played!).values, game.startingValueListing("start")),
+              `${i} play ${id}`,
+            ).toEqual(expected[id]);
+          } else {
+            expect(played, `${i} play ${id} while the line is gone`).toBeUndefined();
+          }
+          await check(`${i} play ${id}`);
+          break;
+        }
+        case 7: {
+          await openPanel(id);
+          const key = listedKey(name);
+          controller.events.onValueDraft(key, value);
+          drafts[key] = { name, value };
+          covered.add("draft");
+          await check(`${i} draft ${id} ${name} ${value}`);
+          break;
+        }
+        case 8: {
+          await openPanel(id);
+          for (let k = 0; k < 5; k += 1) {
+            holding = true;
+            const before = reached;
+            swap(keep);
+            const refreshing = controller.programChanged();
+            for (let w = 0; w < 50 && reached === before; w += 1) {
+              await settle();
+            }
+            expect(reached, `${i} listing request ${k} held`).toBe(before + 1);
+            const typed = NAMES[(next(NAMES.length) + k) % NAMES.length]!;
+            const key = listedKey(typed);
+            controller.events.onValueDraft(key, `${k}`);
+            drafts[key] = { name: typed, value: `${k}` };
+            holding = false;
+            for (const resolve of held.splice(0)) {
+              resolve();
+            }
+            await refreshing;
+          }
+          covered.add("drafts during refreshes");
+          await check(`${i} drafts ${id} during five held refreshes`);
           break;
         }
         default: {
-          played = undefined;
-          covered.add(!saved ? "play while gone" : pendingCount() ? "play with pending count edits" : "play");
-          controller.events.onPlay(record.id);
-          await controller.startingValuesOf(record.id, "start");
-          if (saved) {
-            expect(played, `${i} play`).toBeDefined();
-            expect(
-              named(game.saveValuesOf(played!).values, game.startingValueListing("start")),
-              `${i} play`,
-            ).toEqual(expected);
-          } else {
-            expect(played, `${i} play while the line is gone`).toBeUndefined();
+          await openPanel(id);
+          const [key, draft] = Object.entries(drafts)[0] ?? [];
+          if (key === undefined || draft === undefined) {
+            await check(`${i} nothing to commit`);
+            break;
           }
-          await check(`${i} play`);
+          controller.events.onValueDraft(key, null);
+          delete drafts[key];
+          await committed(id, key, draft.name, draft.value, false);
+          covered.add("commit a draft");
+          await check(`${i} commit ${id} ${draft.name} ${draft.value}`);
         }
       }
     };
 
     await check("start");
-    for (let i = 0; i < 60; i += 1) {
+    for (let i = 0; i < 70; i += 1) {
+      const id = ids[next(2)]!;
       const name = NAMES[next(NAMES.length)]!;
       const value = String(next(6));
-      await step(i, next(7), name, value);
+      await step(i, next(10), id, name, value);
     }
-    await step(60, 2, "trust", "4", saved);
-    await step(61, 3, "trust", "0", false);
-    await step(62, 0, "Stay.", "2");
-    await step(63, 2, "Leave.", "5", false);
-    await step(64, 3, "trust", "0", true);
-    await step(65, 6, "trust", "0");
+    await step(70, 7, first.id, "Leave.", "4");
+    await step(71, 8, first.id, "Stay.", "0", false);
+    await step(72, 9, first.id, "trust", "0");
+    await step(73, 8, first.id, "trust", "0", true);
+    await step(74, 9, first.id, "trust", "0");
+    await step(75, 4, second.id, "Leave.", "2");
+    await step(76, 7, second.id, "Stay.", "3");
+    await step(77, 3, first.id, "trust", "0", false);
+    await step(78, 9, second.id, "trust", "0");
+    await step(79, 2, second.id, "trust", "5", true);
+    await step(80, 3, first.id, "trust", "0", false);
+    await step(81, 0, first.id, "trust", "2");
+    await step(82, 0, second.id, "Leave.", "3");
+    await step(83, 3, first.id, "trust", "0", true);
+    await step(84, 6, first.id, "trust", "0");
+    await step(85, 6, second.id, "trust", "0");
 
     expect([...covered].sort()).toEqual([
+      "commit a draft",
       "count edit before a change",
       "count edit while gone",
+      "draft",
+      "drafts during refreshes",
       "edit",
       "edit while gone",
       "lines moved",
       "play",
       "play while gone",
-      "play with pending count edits",
       "refused write",
       "rename",
       "saved line deleted",
       "saved line restored",
       "store edit before a change",
+      "switch saves",
     ]);
 
-    await controller.delete(record.id);
-    expect(controller.record(record.id)).toBeUndefined();
-    expect(store.has(record.id)).toBe(false);
+    for (const id of ids) {
+      await controller.delete(id);
+      expect(controller.record(id)).toBeUndefined();
+      expect(store.has(id)).toBe(false);
+    }
     expect(controller.viewState().values).toBeUndefined();
     controller.dispose();
-  }, 180000);
+  }, 300000);
 });

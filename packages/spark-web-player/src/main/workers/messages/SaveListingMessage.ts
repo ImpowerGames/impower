@@ -7,7 +7,7 @@ export type SaveListingMethod = typeof SaveListingMessage.method;
 export interface SaveListingParams {
   save: SaveSource;
   start: string;
-  carry?: Record<string, string>;
+  keep?: string[];
 }
 
 export interface SaveListingResult {
