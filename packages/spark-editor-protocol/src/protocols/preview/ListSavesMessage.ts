@@ -25,6 +25,7 @@ export interface PreviewSave {
     places?: string;
   };
   unapplied?: string[];
+  run?: string;
 }
 
 export type ListSavesMethod = typeof ListSavesMessage.method;

@@ -64,6 +64,8 @@ export class SavesController {
   protected _note: (SaveNoteState & { id?: string }) | null = null;
   protected _noteTimer?: ReturnType<typeof setTimeout>;
   protected _lastRunScenes = new Map<string, string>();
+  protected _run = newId();
+  protected _valuesPlaces?: string;
   protected _changes: Promise<unknown> = Promise.resolve();
   protected _checks = 0;
 
@@ -130,8 +132,21 @@ export class SavesController {
     } catch {
       this._saves = [];
     }
+    const earlier = earlierRuns(this._saves);
+    if (earlier.length > 0) {
+      this._saves = this._saves.filter((save) => !earlier.includes(save.id));
+      void this.serial(() => this.deleteQuietly(earlier));
+    }
     this._host.changed();
     await this.checkPlaceable();
+  }
+
+  protected async deleteQuietly(ids: string[]): Promise<void> {
+    try {
+      await this._host.requestHost(DeleteSavesMessage.type, { ids });
+    } catch {
+      return;
+    }
   }
 
   async checkPlaceable(): Promise<void> {
@@ -164,6 +179,7 @@ export class SavesController {
 
   protected async clearLastRun(): Promise<void> {
     this._lastRunScenes.clear();
+    this._run = newId();
     const lastRun = this._saves.filter((save) => save.kind === "lastRun");
     if (lastRun.length === 0) {
       return;
@@ -174,11 +190,7 @@ export class SavesController {
       this.closeValues();
     }
     this._host.changed();
-    try {
-      await this._host.requestHost(DeleteSavesMessage.type, { ids });
-    } catch {
-      return;
-    }
+    await this.deleteQuietly(ids);
   }
 
   sceneEntered(save: GameSave): Promise<void> {
@@ -198,6 +210,7 @@ export class SavesController {
       time: Date.now(),
       data: save.data,
       values: save.values,
+      run: this._run,
     });
   }
 
@@ -276,6 +289,7 @@ export class SavesController {
   protected closeValues() {
     this._valuesId = undefined;
     this._valuesListing = undefined;
+    this._valuesPlaces = undefined;
     this._search = "";
     this._drafts = {};
     this._unsaved = {};
@@ -350,8 +364,19 @@ export class SavesController {
   protected async listValues(id: string): Promise<void> {
     const record = await this.current(id);
     const listing = record ? await this._host.listing(record.scene) : undefined;
+    const counts = listing?.items.map((item) => item.key).filter(isPlaceKey) ?? [];
+    let places: string | undefined;
+    try {
+      places =
+        counts.length > 0
+          ? (await this._host.askWorker(CountFormsMessage.type, { keys: counts }))?.places
+          : undefined;
+    } catch {
+      places = undefined;
+    }
     if (this._valuesId === id) {
       this._valuesListing = listing;
+      this._valuesPlaces = places;
       this._host.changed();
     }
   }
@@ -415,7 +440,7 @@ export class SavesController {
     try {
       await this.write(placed);
     } catch {
-      return record;
+      return placed;
     }
     return placed;
   }
@@ -460,16 +485,41 @@ export class SavesController {
 
   setValue(key: string, value: string): Promise<void> {
     const id = this._valuesId;
-    return id ? this.serial(() => this.writeValue(id, key, value)) : Promise.resolve();
+    const places = this._valuesPlaces;
+    return id
+      ? this.serial(() => this.writeValue(id, key, value, places))
+      : Promise.resolve();
   }
 
-  protected async writeValue(id: string, key: string, value: string): Promise<void> {
+  protected async currentKey(key: string, places: string | undefined): Promise<string | undefined> {
+    if (!isPlaceKey(key) || places === undefined) {
+      return key;
+    }
+    try {
+      return (await this._host.askWorker(CountKeysMessage.type, { places }))?.keys[key];
+    } catch {
+      return undefined;
+    }
+  }
+
+  protected async writeValue(
+    id: string,
+    shown: string,
+    value: string,
+    shownPlaces: string | undefined,
+  ): Promise<void> {
     const record = await this.placeCounts(id);
     if (!record) {
       return;
     }
+    delete this._unsaved[shown];
+    const key = await this.currentKey(shown, shownPlaces);
+    if (key === undefined) {
+      this._unsaved[shown] = record.values.values[shown] ?? "nil";
+      this._host.changed();
+      return;
+    }
     const before = record.values.values[key];
-    delete this._unsaved[key];
     const values = withSavedValue(record.values.values, key, value);
     let unapplied = [...new Set([...(record.unapplied ?? []), key])];
     let data = record.data;
@@ -479,9 +529,9 @@ export class SavesController {
         data = await this.applied(record.data, values, unapplied);
         unapplied = [];
       }
-      if (key.startsWith("place:")) {
+      if (isPlaceKey(key)) {
         const result = await this._host.askWorker(CountFormsMessage.type, {
-          keys: Object.keys(values).filter((k) => k.startsWith("place:")),
+          keys: Object.keys(values).filter(isPlaceKey),
         });
         if (!result) {
           throw new Error("The player could not place the save's counts.");
@@ -489,7 +539,7 @@ export class SavesController {
         places = result.places;
       }
     } catch {
-      this._unsaved[key] = before ?? "nil";
+      this._unsaved[shown] = before ?? "nil";
       this._host.changed();
       return;
     }
@@ -513,7 +563,7 @@ export class SavesController {
     try {
       await this.write(edited);
     } catch {
-      this._unsaved[key] = before ?? "nil";
+      this._unsaved[shown] = before ?? "nil";
       this._host.changed();
     }
   }
@@ -598,6 +648,19 @@ export class SavesController {
     }
   }
 }
+
+const earlierRuns = (saves: readonly PreviewSave[]): string[] => {
+  const lastRun = saves.filter((save) => save.kind === "lastRun");
+  if (lastRun.length === 0) {
+    return [];
+  }
+  const newest = lastRun.reduce((a, b) => (b.time > a.time ? b : a));
+  return lastRun
+    .filter((save) => save !== newest && (save.run === undefined || save.run !== newest.run))
+    .map((save) => save.id);
+};
+
+const isPlaceKey = (key: string) => key.startsWith("place:");
 
 const withUnapplied = (record: PreviewSave, keys: string[]): PreviewSave => {
   const out: PreviewSave = { ...record };

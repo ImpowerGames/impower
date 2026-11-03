@@ -71,14 +71,32 @@ const preview = (save: GameSave): PreviewSave => ({
   time: 1,
 });
 
-const controllerFor = async (
-  game: any,
-  record: PreviewSave,
-  host: { edits?: Promise<void>; played?: (data: string) => void } = {},
-) => {
-  const controller = new SavesController({
-    async requestHost(type: any): Promise<any> {
-      return type.method === "preview/listSaves" ? { saves: [record] } : {};
+interface TestHost {
+  edits?: Promise<void>;
+  played?: (data: string) => void;
+  refuses?: (method: string) => boolean;
+}
+
+const savesFor = (game: any, store: Map<string, PreviewSave>, host: TestHost = {}) =>
+  new SavesController({
+    async requestHost(type: any, params: any): Promise<any> {
+      if (host.refuses?.(type.method)) {
+        throw new Error("not kept");
+      }
+      switch (type.method) {
+        case "preview/listSaves":
+          return { saves: [...store.values()] };
+        case "preview/writeSave":
+          store.set(params.save.id, params.save);
+          return {};
+        case "preview/deleteSaves":
+          for (const id of params.ids) {
+            store.delete(id);
+          }
+          return {};
+        default:
+          return {};
+      }
     },
     async askWorker(type: any, params: any): Promise<any> {
       switch (type.method) {
@@ -115,6 +133,9 @@ const controllerFor = async (
     },
     changed() {},
   });
+
+const controllerFor = async (game: any, record: PreviewSave, host: TestHost = {}) => {
+  const controller = savesFor(game, new Map([[record.id, record]]), host);
   await controller.load();
   return controller;
 };
@@ -183,6 +204,27 @@ describe("a save's values", () => {
     await controller.programChanged();
     expect(listed()).toBe(`place:0:6:${URI}`);
     expect(controller.viewState().values!.values.values[listed()]).toBe("1");
+  });
+
+  test("write an edit made on the values listed before lines moved to the option it was made on", async () => {
+    const { game, compiler } = playing(lines);
+    chooseLeave(game);
+    const record = preview(game.saveHere());
+    const controller = await controllerFor(game, record);
+    await controller.editValues(record.id);
+    const listedLeave = `place:0:4:${URI}`;
+    expect(
+      controller.viewState().values!.listing!.items.find((item) => item.key === listedLeave)!.name,
+    ).toBe("Leave.");
+
+    recompile(compiler, game, ["", "", ...lines].join("\n"));
+    await controller.setValue(listedLeave, "3");
+    const saved = controller.record(record.id)!;
+    expect(saved.values.values[keyOf(game, "Leave.")]).toBe("3");
+    expect(saved.values.values[keyOf(game, "Stay.")]).toBeUndefined();
+    const durable = game.saveValuesOf(saved.data).values;
+    expect(durable[keyOf(game, "Leave.")]).toBe("3");
+    expect(durable[keyOf(game, "Stay.")]).toBeUndefined();
   });
 });
 
@@ -275,5 +317,78 @@ describe("Play from here", () => {
     const values = game.saveValuesOf(played!).values;
     expect(values[keyOf(game, "Leave.")]).toBe("3");
     expect(values[keyOf(game, "Stay.")]).toBeUndefined();
+  });
+
+  test("plays pending count edits on their options when the moved counts are not kept", async () => {
+    const source = [...lines.slice(0, 7), "  Saved.", ...lines.slice(7)];
+    const { game, compiler } = playing(source);
+    chooseLeave(game);
+    advanceTo(game, "Saved.");
+    const record = preview(game.saveHere());
+    const leave = `place:0:4:${URI}`;
+    recompile(compiler, game, source.filter((line) => !line.includes("Saved.")).join("\n"));
+    let played: string | undefined;
+    let refusals = 0;
+    let refused = 0;
+    const controller = await controllerFor(game, record, {
+      played: (data) => {
+        played = data;
+      },
+      refuses: (method) => {
+        if (method !== "preview/writeSave" || refusals === 0) {
+          return false;
+        }
+        refusals -= 1;
+        refused += 1;
+        return true;
+      },
+    });
+    await controller.editValues(record.id);
+    await controller.setValue(leave, "3");
+    controller.events.onBack();
+
+    recompile(compiler, game, ["", "", ...source].join("\n"));
+    await controller.programChanged();
+    refusals = 1;
+    controller.events.onPlay(record.id);
+    await controller.current(record.id);
+    expect(refused).toBe(1);
+    expect(played).toBeDefined();
+    const values = game.saveValuesOf(played!).values;
+    expect(values[keyOf(game, "Leave.")]).toBe("3");
+    expect(values[keyOf(game, "Stay.")]).toBeUndefined();
+  });
+});
+
+describe("Last run", () => {
+  test("keeps only the latest run's saves when an earlier run's could not be deleted", async () => {
+    const { game } = playing(["scene start", "  Saved.", "  Next.", "end"], 2);
+    const save: GameSave = game.saveHere();
+    const earlier: PreviewSave = {
+      ...save,
+      id: "earlier-run",
+      kind: "lastRun",
+      name: "Entering start",
+      time: 1,
+      run: "earlier",
+    };
+    const store = new Map([[earlier.id, earlier]]);
+    let deletes = true;
+    const host: TestHost = { refuses: (method) => method === "preview/deleteSaves" && deletes };
+    const controller = savesFor(game, store, host);
+    await controller.load();
+    await controller.playStarted();
+    await controller.sceneEntered(save);
+    expect(controller.rows().map((row) => row.id)).not.toContain("earlier-run");
+    expect(store.size).toBe(2);
+
+    deletes = false;
+    const reloaded = savesFor(game, store, host);
+    await reloaded.load();
+    const latest = reloaded.rows().filter((row) => row.kind === "lastRun");
+    expect(latest).toHaveLength(1);
+    expect(latest[0]!.id).not.toBe("earlier-run");
+    await reloaded.current(latest[0]!.id);
+    expect([...store.keys()]).toEqual([latest[0]!.id]);
   });
 });
