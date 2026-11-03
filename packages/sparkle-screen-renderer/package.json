@@ -8,6 +8,7 @@
     "typecheck": "node ../../scripts/typecheck.mjs packages/sparkle-screen-renderer/"
   },
   "devDependencies": {
+    "jsdom": "^27.0.1",
     "vitest": "^2.1.9"
   }
 }
