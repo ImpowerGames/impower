@@ -1,6 +1,5 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { signal } from "@preact/signals";
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -86,15 +85,6 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   },
 }));
 
-vi.mock("../../src/modules/spark-editor/workspace/WorkspaceWindow", () => {
-  Error.stackTraceLimit = 80;
-  throw new Error(`DIAGNOSTIC real WorkspaceWindow loaded at ${new Date().toISOString()}: ${new Error().stack}`);
-});
-
-vi.mock("../../src/modules/spark-editor/workspace/WorkspaceStore", () => ({
-  default: { state: signal({ project: { id: "project" }, sync: {} }) },
-}));
-
 if (!Range.prototype.getClientRects) {
   Range.prototype.getClientRects = () =>
     Object.assign([], { item: () => null }) as unknown as DOMRectList;
@@ -110,6 +100,9 @@ const { setLanguageServer } = await import(
 const { default: LogicScriptEditor } = await import(
   "../../src/modules/spark-editor/components/logic-script-editor/LogicScriptEditor"
 );
+const { default: workspace } = await import(
+  "../../src/modules/spark-editor/workspace/WorkspaceStore"
+);
 
 setLanguageServer({ worker: {} as Worker, connection: {} as never });
 
@@ -123,6 +116,11 @@ const settle = () =>
   });
 
 const mount = async () => {
+  workspace.state.value = {
+    ...workspace.state.peek(),
+    project: { ...workspace.state.peek().project, id: "project" },
+    sync: {},
+  } as typeof workspace.state.value;
   host = document.body.appendChild(document.createElement("div"));
   await act(async () => {
     render(h(LogicScriptEditor, { filename: "main.sd" }), host!);
