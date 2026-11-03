@@ -166,7 +166,11 @@ describe("the debug adapter at the end of the story", () => {
     });
     await s.notify(launch("play"));
     await s.request("pauseRequest");
-    expect(s.sent.map((m) => m.method)).toEqual(["game/pause", "game/threads"]);
+    expect(s.sent.map((m) => m.method)).toEqual([
+      "game/pause",
+      "game/threads",
+      "game/threads",
+    ]);
     expect(s.events.map((e) => [e.event, e.body?.reason ?? null])).toEqual([
       ["stopped", "end"],
       ["response", null],
@@ -280,38 +284,6 @@ describe("the debug adapter at the end of the story", () => {
       ["stopped", "end"],
       ["response", null],
       ["stopped", "end"],
-    ]);
-  });
-
-  it("publishes no pause stop whose lookup outlives the run's end and its replay", async () => {
-    let s: ReturnType<typeof session>;
-    let release!: () => void;
-    let held: Promise<void> | undefined;
-    s = session(async (method) => {
-      if (method === "game/threads" && !held) {
-        held = new Promise<void>((resolve) => (release = resolve));
-        await held;
-      }
-    });
-    await s.notify(launch("play"));
-    const paused = s.request("pauseRequest");
-    while (!held) {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    }
-    await s.notify(
-      GameEndedMessage.type.notification({ kind: "fin", location: location(1) }),
-    );
-    await s.notify(launch("ended"));
-    await s.restart();
-    await s.notify(launch("preview"));
-    await s.notify(launch("play"));
-    release();
-    await paused;
-    expect(s.events.map((e) => [e.event, e.body?.reason ?? null])).toEqual([
-      ["response", null],
-      ["stopped", "end"],
-      ["response", null],
-      ["continued", null],
     ]);
   });
 

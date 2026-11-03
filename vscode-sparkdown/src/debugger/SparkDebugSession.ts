@@ -99,9 +99,7 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   private _launchState: GameState["launchState"] = null;
 
-  private _runEpoch = 0;
-
-  private _runBoundaries = 0;
+  private _run: number | undefined;
 
   public constructor(fileAccessor: FileAccessor, connection: Connection) {
     super("mock-debug.txt");
@@ -151,8 +149,7 @@ export class SparkDebugSession extends LoggingDebugSession {
       if (error) {
         this.sendErrorOutputEvent(error.message, error.location);
       }
-      this._runEpoch += 1;
-      this._runBoundaries += 1;
+      this.noteRun(message.params.run);
       this.sendEvent(new ExitedEvent(exitCode));
       this.sendEvent(new TerminatedEvent());
     }
@@ -161,8 +158,9 @@ export class SparkDebugSession extends LoggingDebugSession {
       if (error) {
         this.sendErrorOutputEvent(error.message, error.location);
       }
+      this.noteRun(message.params.run);
       this.setLaunchState("ended");
-      await this.sendStoppedEvent("end");
+      await this.sendStoppedEvent("end", message.params.run);
     }
     if (GameStartedThreadMessage.type.isNotification(message)) {
       const { threadId } = message.params;
@@ -173,28 +171,44 @@ export class SparkDebugSession extends LoggingDebugSession {
       this.sendEvent(new ThreadEvent("exited", threadId));
     }
     if (GameSteppedMessage.type.isNotification(message)) {
-      await this.sendStoppedEvent("step");
+      this.noteRun(message.params.run);
+      await this.sendStoppedEvent("step", message.params.run);
     }
     if (GameHitBreakpointMessage.type.isNotification(message)) {
-      await this.sendStoppedEvent("breakpoint");
+      this.noteRun(message.params.run);
+      await this.sendStoppedEvent("breakpoint", message.params.run);
     }
     if (GameAwaitingInteractionMessage.type.isNotification(message)) {
+      this.noteRun(message.params.run);
       if (SparkdownDebugManager.instance.syncCursorToExecution) {
-        await this.sendStoppedEvent("awaiting interaction");
+        await this.sendStoppedEvent("awaiting interaction", message.params.run);
       }
     }
-    if (GameAutoAdvancedToContinueMessage.type.isNotification(message)) {
-      this.sendContinuedEvent();
-    }
-    if (GameClickedToContinueMessage.type.isNotification(message)) {
-      this.sendContinuedEvent();
-    }
-    if (GameChosePathToContinueMessage.type.isNotification(message)) {
+    if (
+      GameAutoAdvancedToContinueMessage.type.isNotification(message) ||
+      GameClickedToContinueMessage.type.isNotification(message) ||
+      GameChosePathToContinueMessage.type.isNotification(message)
+    ) {
+      this.noteRun(message.params.run);
       this.sendContinuedEvent();
     }
     if (DidChangeGameStateMessage.type.isNotification(message)) {
+      this.noteRun(message.params.run);
       this.setLaunchState(message.params.launchState);
     }
+  }
+
+  protected noteRun(run: number | null | undefined) {
+    if (typeof run === "number") {
+      this._run = run;
+    }
+  }
+
+  protected isCurrentStop(reason: string, run: number | undefined) {
+    if (run !== undefined && run !== this._run) {
+      return false;
+    }
+    return (reason === "end") === (this._launchState === "ended");
   }
 
   protected setLaunchState(launchState: GameState["launchState"]) {
@@ -203,10 +217,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     }
     const leftEnd = this._launchState === "ended";
     this._launchState = launchState;
-    this._runEpoch += 1;
-    if (leftEnd || launchState === "ended") {
-      this._runBoundaries += 1;
-    }
     if (leftEnd) {
       this.sendContinuedEvent();
     }
@@ -235,14 +245,16 @@ export class SparkDebugSession extends LoggingDebugSession {
       | "instruction breakpoint"
       | "awaiting interaction"
       | "end",
+    run: number | undefined = this._run,
   ) {
-    const epoch = ++this._runEpoch;
-    const { threads } = await this._connection.emit(
+    const answer = await this._connection.emit(
       GetGameThreadsMessage.type.request({}),
     );
-    if (epoch !== this._runEpoch) {
+    this.noteRun(answer.run);
+    if (!this.isCurrentStop(reason, run)) {
       return;
     }
+    const { threads } = answer;
     for (const thread of threads) {
       this._stoppedReason.set(thread.id, reason);
       this.sendEvent(new StoppedEvent(reason, thread.id));
@@ -250,7 +262,6 @@ export class SparkDebugSession extends LoggingDebugSession {
   }
 
   protected async sendContinuedEvent() {
-    this._runEpoch += 1;
     this.sendEvent(new ContinuedEvent(0, true));
   }
 
@@ -393,15 +404,14 @@ export class SparkDebugSession extends LoggingDebugSession {
     _args: DebugProtocol.PauseArguments,
     _request?: DebugProtocol.Request,
   ) {
+    const run = this._run;
     if (await this.answerEnded(response)) {
       return;
     }
-    const run = this._runBoundaries;
-    await this._connection.emit(PauseGameMessage.type.request({}));
+    const answer = await this._connection.emit(PauseGameMessage.type.request({}));
+    this.noteRun(answer.run);
     this.sendResponse(response);
-    if (run === this._runBoundaries) {
-      await this.sendStoppedEvent("pause");
-    }
+    await this.sendStoppedEvent("pause", run);
   }
 
   protected override async continueRequest(
@@ -412,7 +422,10 @@ export class SparkDebugSession extends LoggingDebugSession {
       return;
     }
     await this._connection.emit(UnpauseGameMessage.type.request({}));
-    await this._connection.emit(ContinueGameMessage.type.request({}));
+    const answer = await this._connection.emit(
+      ContinueGameMessage.type.request({}),
+    );
+    this.noteRun(answer.run);
     this.sendResponse(response);
   }
 
@@ -439,11 +452,12 @@ export class SparkDebugSession extends LoggingDebugSession {
     if (await this.answerEnded(response)) {
       return;
     }
-    await this._connection.emit(
+    const answer = await this._connection.emit(
       StepGameMessage.type.request({
         traversal: "over",
       }),
     );
+    this.noteRun(answer.run);
     this.sendResponse(response);
   }
 
@@ -454,11 +468,12 @@ export class SparkDebugSession extends LoggingDebugSession {
     if (await this.answerEnded(response)) {
       return;
     }
-    await this._connection.emit(
+    const answer = await this._connection.emit(
       StepGameMessage.type.request({
         traversal: "in",
       }),
     );
+    this.noteRun(answer.run);
     this.sendResponse(response);
   }
 
@@ -469,11 +484,12 @@ export class SparkDebugSession extends LoggingDebugSession {
     if (await this.answerEnded(response)) {
       return;
     }
-    await this._connection.emit(
+    const answer = await this._connection.emit(
       StepGameMessage.type.request({
         traversal: "out",
       }),
     );
+    this.noteRun(answer.run);
     this.sendResponse(response);
   }
 
