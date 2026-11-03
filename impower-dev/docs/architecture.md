@@ -180,7 +180,7 @@ export namespace Workspace {
 }
 ```
 
-The controllers never import `Workspace` at runtime. Each receives what it uses through its constructor: `WorkspaceFileSystem` the language server and configuration, `WorkspaceWindow` and `WorkspaceLanguageServer` the namespace object itself, because the services they read (`fs` and `sync`, `configuration` and `window`) are constructed after them; they read those members only when a handler or method runs, by which time every member is assigned. The explicit member types stop TypeScript inferring them through the namespace they are passed.
+The controllers never import `Workspace` at runtime. Each receives what it uses through its constructor: `WorkspaceFileSystem` the language server and configuration, `WorkspaceWindow` and `WorkspaceLanguageServer` the namespace object itself, because the services they read (`fs` and `sync`, `configuration` and `window`) are constructed after them; they read those members only when a handler or method runs, by which time every member is assigned. `registerWorkspaceProtocol`, which `Workspace.ts` calls once the namespace is built, receives it the same way for the `ls` and `fs` its handlers use. The explicit member types stop TypeScript inferring them through the namespace they are passed.
 
 Importing `Workspace` instantiates three Workers, so it's import-time-heavy: tests construct the controllers directly with stubbed services, and mock `Workspace` only where the code under test reads the singleton (see [`adding-an-editor-feature.md`](./adding-an-editor-feature.md#testing)).
 

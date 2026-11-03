@@ -20,7 +20,7 @@ export namespace Workspace {
   export const print = new WorkspacePrint();
 }
 
-registerWorkspaceProtocol();
+registerWorkspaceProtocol(Workspace);
 if (import.meta.env.DEV) {
   void import("./devProtocolBridge").then(({ installProtocolBridge }) => {
     const dispose = installProtocolBridge();
