@@ -435,7 +435,7 @@ export function SaveNote({
       {note.failed !== undefined ? (
         <>
           <RouteIconSvg icon="error" />
-          <span>{`${SAVE_TEXT.notSaved}: ${note.failed}`}</span>
+          <span>{`${note.play ? SAVE_TEXT.notPlayed : SAVE_TEXT.notSaved}: ${note.failed}`}</span>
         </>
       ) : (
         <>

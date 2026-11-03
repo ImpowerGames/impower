@@ -41,6 +41,7 @@ export interface SavesViewState {
 export interface SaveNoteState {
   name: string;
   failed?: string;
+  play?: boolean;
   renaming?: boolean;
 }
 
@@ -55,6 +56,7 @@ export const SAVE_TEXT = {
   gone: "Its line is gone",
   none: "No saves yet",
   notSaved: "Not saved",
+  notPlayed: "Not played",
   loadSave: "Load a save",
 } as const;
 

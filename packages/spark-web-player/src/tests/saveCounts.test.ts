@@ -245,4 +245,35 @@ describe("Play from here", () => {
     expect(values["store:trust"]).toBe("5");
     expect(values["store:suspect"]).toBe('"Ana"');
   });
+
+  test("plays a count edited while its line was gone on the option it counts after lines move", async () => {
+    const source = [...lines.slice(0, 7), "  Saved.", ...lines.slice(7)];
+    const { game, compiler } = playing(source);
+    chooseLeave(game);
+    advanceTo(game, "Saved.");
+    const record = preview(game.saveHere());
+    const leave = `place:0:4:${URI}`;
+    expect(record.values.values[leave]).toBe("1");
+    recompile(compiler, game, source.filter((line) => !line.includes("Saved.")).join("\n"));
+    let played: string | undefined;
+    const controller = await controllerFor(game, record, {
+      played: (data) => {
+        played = data;
+      },
+    });
+    expect(controller.rows()[0]!.gone).toBe(true);
+    await controller.editValues(record.id);
+    await controller.setValue(leave, "3");
+    controller.events.onBack();
+
+    recompile(compiler, game, ["", "", ...source].join("\n"));
+    await controller.programChanged();
+    expect(controller.rows()[0]!.gone).toBe(false);
+    controller.events.onPlay(record.id);
+    await controller.current(record.id);
+    expect(played).toBeDefined();
+    const values = game.saveValuesOf(played!).values;
+    expect(values[keyOf(game, "Leave.")]).toBe("3");
+    expect(values[keyOf(game, "Stay.")]).toBeUndefined();
+  });
 });

@@ -438,13 +438,12 @@ export class SavesController {
   }
 
   protected async playable(id: string): Promise<PreviewSave | undefined> {
-    const record = this.record(id);
+    const record = await this.placeCounts(id);
     if (!record || this._refusals[id] !== undefined || !record.unapplied?.length) {
       return record;
     }
-    let edited: PreviewSave;
     try {
-      edited = withUnapplied(
+      const edited = withUnapplied(
         {
           ...record,
           data: await this.applied(record.data, record.values.values, record.unapplied),
@@ -452,10 +451,11 @@ export class SavesController {
         [],
       );
       await this.write(edited);
-    } catch {
-      return record;
+      return edited;
+    } catch (e) {
+      this.showNote({ name: record.name, failed: reasonOf(e), play: true });
+      return undefined;
     }
-    return edited;
   }
 
   setValue(key: string, value: string): Promise<void> {

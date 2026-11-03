@@ -596,6 +596,33 @@ describe("edits to a save", () => {
     expect(played).toEqual([`{"save":"saved-1"}+{"store:trust":"5"}`]);
   });
 
+  test("does not play a save whose edits could not be written into it, and says so", async () => {
+    const p = player({ refusals: { "saved-1": "The saved line is gone." } });
+    await p.withSaves([saved()]);
+    const saves = (p.controller as any)._saves;
+    await saves.editValues("saved-1");
+    const editing = saves.setValue("store:trust", "5");
+    expect(await answerWrites(p, 1)).toBe(1);
+    await editing;
+    expect((saves.record("saved-1") as PreviewSave).unapplied).toEqual(["store:trust"]);
+    saves._refusals = {};
+    const played: string[] = [];
+    (p.controller as any).playFromSave = async (data: string) => {
+      played.push(data);
+    };
+    saves.events.onBack();
+    saves.events.onPlay("saved-1");
+    for (let i = 0; i < 10 && p.sent.filter((m) => m.method === "preview/writeSave").length < 2; i++) {
+      await settle();
+    }
+    p.hostAnswers("preview/writeSave", {}, false);
+    await settle();
+    await settle();
+    expect(played).toEqual([]);
+    expect(document.querySelector(".save-note")?.textContent).toBe("Not played: not kept");
+    expect((saves.record("saved-1") as PreviewSave).unapplied).toEqual(["store:trust"]);
+  });
+
   test("keeps a table store and its fields in step", () => {
     const values = { "store:bag": "{ coins = 1 }", "store:bag.coins": "1" };
     expect(withSavedValue(values, "store:bag", "{ coins = 5 }")).toEqual({
