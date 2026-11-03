@@ -390,9 +390,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
           sandbox="allow-scripts allow-forms allow-same-origin"
           allow="autoplay"
           referrerpolicy="no-referrer"
-          style={{ visibility: "hidden" }}
-          onLoad={(e) => {
-            (e.currentTarget as HTMLIFrameElement).style.visibility = "visible";
+          onLoad={() => {
             if (onLoadRef.current) {
               onLoadRef.current();
             } else {

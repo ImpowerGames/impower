@@ -503,6 +503,34 @@ describe("Animate portraits preference", () => {
       }
     }, 30000);
 
+    it("shows the player's frame from mount and connects it once it loads", async () => {
+      current.window = load();
+      Object.assign(Workspace.fs, {
+        getFiles: async () => ({}),
+        getDirectoryUri: async () => "file://local",
+      });
+      (Workspace as unknown as { configuration: unknown }).configuration = {
+        settings: {},
+      };
+      const container = document.createElement("div");
+      document.body.append(container);
+      try {
+        channels.all = [];
+        render(h(PreviewGame, {}), container);
+        const iframe = container.querySelector("iframe")!;
+        expect(getComputedStyle(iframe).visibility).toBe("visible");
+        iframe.dispatchEvent(new Event("load"));
+        await vi.waitFor(() => expect(channels.all).toHaveLength(1), {
+          timeout: 15000,
+        });
+        expect(getComputedStyle(iframe).visibility).toBe("visible");
+      } finally {
+        render(null, container);
+        container.remove();
+        current.window = undefined;
+      }
+    }, 30000);
+
     it("ignores the screenplay preview and other messages", () => {
       const posted: unknown[] = [];
       const sync = createPlayerPreferenceSync((m) => posted.push(m));
