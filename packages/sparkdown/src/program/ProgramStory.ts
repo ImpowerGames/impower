@@ -547,6 +547,7 @@ export class ProgramStory implements StoryEngine {
   }
 
   restore(image: ProgramImage, translate = true): boolean {
+    this.CancelAsyncContinue();
     if (!this.restoreInPlace(image, translate)) {
       return false;
     }
