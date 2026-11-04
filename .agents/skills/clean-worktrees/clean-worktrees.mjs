@@ -1643,7 +1643,7 @@ function pointerReason(dir, pointers) {
   return null;
 }
 
-export function classifyWriterArtifacts(dir, deps, ctx, layout = "cli") {
+export function classifyWriterArtifacts(dir, deps, ctx, layout = "cli", foreign = null) {
   const why = (err) => String(err?.code ?? err?.message ?? err).split("\n")[0];
   ctx.pointers ??= runPointers(ctx, deps);
   const [, kind, number] = SESSION_ARTIFACT.exec(path.basename(dir)) ?? [null, "writer", null];
@@ -1651,6 +1651,7 @@ export function classifyWriterArtifacts(dir, deps, ctx, layout = "cli") {
   let finished = null;
   let issue = Number(number);
   if (kind !== "writer") {
+    if (foreign) return { remove: false, reason: `its session also holds an owner.json naming ${foreign}, outside this checkout, so whose launch this was cannot be told` };
     const ticket = ticketState(issue, ctx, deps);
     if (ticket.state === "closed") finished = `whose issue ${ticket.repo}#${issue} is closed`;
     else keep.push(ticket.state === "open" ? `its issue ${ticket.repo}#${issue} is open` : `the state of its issue #${issue} could not be read (${ticket.err})`);
@@ -1760,11 +1761,13 @@ export async function cleanWriterArtifacts(ctx, deps, apply, record) {
       log(`session scratch under ${item.root} (${item.layout === "cli" ? "the CLI's checkout folder" : "a desktop app project folder"}):`);
     }
     const verdicts = [];
+    const foreignOf = () => (item.layout === "desktop" ? sessionArtifactDirs(item.scratch, deps).map((d) => readOwner(d, deps)?.worktree).find((w) => typeof w === "string" && !namesCheckout(w, ctx)) ?? null : null);
+    const foreign = foreignOf();
     for (const dir of item.dirs) {
-      const verdict = classifyWriterArtifacts(dir, deps, ctx, item.layout);
+      const verdict = classifyWriterArtifacts(dir, deps, ctx, item.layout, foreign);
       const writer = path.basename(dir).startsWith("writer-") && readOwner(dir, deps) !== null;
       const size = await deps.scan(dir).then((s) => s.bytes, () => null);
-      const { decision, why } = await settle(dir, verdict, size, () => removeJobDir(dir, recheck(() => classifyWriterArtifacts(dir, deps, ctx, item.layout))));
+      const { decision, why } = await settle(dir, verdict, size, () => removeJobDir(dir, recheck(() => classifyWriterArtifacts(dir, deps, ctx, item.layout, foreignOf()))));
       verdicts.push({ writer, remove: decision === "remove" || decision === "removed" });
       rows.push({ path: dir, decision, why, size });
       log(`${decision.padEnd(DECISION_WIDTH)}  ${path.relative(item.root, dir)}  ${formatBytes(size).padEnd(SIZE_WIDTH)}  ${why}`);
@@ -1776,7 +1779,7 @@ export async function cleanWriterArtifacts(ctx, deps, apply, record) {
       const label = path.join(path.relative(item.root, item.scratch), `(${n(item.files.length, "file")})`);
       const { decision, why } = await settle(item.scratch, verdict, size, () => {
         const fresh = { ...ctx, pointers: runPointers(ctx, deps), processes: deps.processes?.() ?? ctx.processes };
-        const now = sessionArtifactDirs(item.scratch, deps).map((dir) => ({ ...classifyWriterArtifacts(dir, deps, fresh, item.layout), writer: path.basename(dir).startsWith("writer-") && readOwner(dir, deps) !== null }));
+        const now = sessionArtifactDirs(item.scratch, deps).map((dir) => ({ ...classifyWriterArtifacts(dir, deps, fresh, item.layout, foreignOf()), writer: path.basename(dir).startsWith("writer-") && readOwner(dir, deps) !== null }));
         const again = classifySessionFiles(item.scratch, [...verdicts.filter((v) => v.writer && v.remove), ...now], deps, fresh, item.layout);
         if (!again.remove) throw new Refusal(again.reason);
         if (now.length) throw new Refusal("a directory is still in it at removal time, so its session's work is not finished");

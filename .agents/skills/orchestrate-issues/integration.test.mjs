@@ -954,7 +954,8 @@ try {
   assert.deepEqual([closed.closed, closed.state, closed.comment.reused, gh.issues.get(ISSUE).state, closed.checkpoint?.saved], [true, "confirmed", true, "closed", true]);
   assert.equal(gh.comments.get(ISSUE).filter((c) => c.body.includes(`final report: verification ${final.id}`)).length, 1, "every retried close reuses the posted report");
   assert.deepEqual([closed.retire?.retired, closed.retire?.removed, closed.retire?.checkpoint?.saved], [true, true, true], `the confirmed closure retires the run: ${JSON.stringify(closed.retire)}`);
-  assert.equal(fs.existsSync(dstPrivate), false, "the coordinator's record folder is gone");
+  assert.deepEqual(fs.readdirSync(dstPrivate), ["owner.json"], "the coordinator's record folder keeps only its owner.json, for clean-worktrees to attribute the session");
+  assert.throws(() => run.updateRecord(dstRecord, { expectRevision: 1, coordinator: "local_dst" }, () => {}), /no such file|ENOENT|retired/);
   assert.equal(fs.existsSync(run.pointerFile(dst, REPO, ISSUE)), false, "the coordinator pointer is gone");
   const last = cp.fetchState(dst, "origin", REPO, ISSUE).checkpoint;
   assert.equal(last.transition, "retiring the run");
@@ -989,6 +990,20 @@ try {
     assert.deepEqual(JSON.parse(fs.readFileSync(racedPointer, "utf8")), successor, "a successor's pointer survived retirement");
     assert.ok(fs.existsSync(racedRecord), "the record folder stays when the pointer was replaced");
     fs.unlinkSync(racedPointer);
+    const claimed = path.join(tmp, "claimed-private");
+    fs.mkdirSync(claimed);
+    fs.writeFileSync(path.join(claimed, "owner.json"), JSON.stringify({ issue: 89 }));
+    const claimedRecord = path.join(claimed, "run.json");
+    fs.writeFileSync(claimedRecord, JSON.stringify({ version: run.RECORD_VERSION, revision: 1, repository: REPO, issue: 89, checkout: dst, coordinator: { session: "local_c" }, checkpoints: { remote: "origin" }, tickets: {}, operations: [], log: [] }));
+    const claimedPointer = run.pointerFile(dst, REPO, 89);
+    fs.writeFileSync(claimedPointer, JSON.stringify({ record: claimedRecord, coordinator: "local_c", since: "t0" }));
+    let late = null;
+    const result = ig.retireRun(claimedRecord, { coordinator: "local_c", expectRevision: 1, evidence: "done", snapshot: { repository: REPO, issue: { number: 89 }, tickets: [] }, save: () => {
+      try { run.updateRecord(claimedRecord, { expectRevision: 2, coordinator: "local_c" }, (r) => { r.tickets[90] = { pending: { launchId: "late" }, history: [], results: [] }; }); } catch (error) { late = error.message; }
+      return { saved: true };
+    } });
+    assert.match(late ?? "", /run retired at .*takes no further changes/, "a claim during the retirement's save is refused");
+    assert.deepEqual([result.retired, result.removed, fs.existsSync(claimedPointer), fs.readdirSync(claimed)], [true, true, false, ["owner.json"]]);
   }
 
   assert.equal(gh.intentsSeen.length, gh.mergeCalls.length);

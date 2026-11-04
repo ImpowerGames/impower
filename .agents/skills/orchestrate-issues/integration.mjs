@@ -499,6 +499,12 @@ export function retireRun(file, { coordinator, expectRevision, evidence, snapsho
   }
   const checkpoint = record.checkpoints ? save() : null;
   if (checkpoint && !checkpoint.saved) throw new Error(`The retirement is recorded at revision ${revision}, but its checkpoint was not saved (${checkpoint.reason}); the pointer and the record folder stay. Run retire again once the remote is reachable`);
+  const releaseRecord = acquire(file);
+  try {
+    const now = readRecord(file);
+    const late = now.retired ? retireBlockers(now, snapshot) : ["the record is no longer marked retired"];
+    if (now.revision !== revision || late.length) throw new Error(`The run record changed during retirement (revision ${now.revision}, retired at ${revision}${late.length ? `; ${late.join("; ")}` : ""}); the pointer and the record folder stay`);
+  } finally { releaseRecord(); }
   if (named) {
     const release = acquire(pointer);
     try {
@@ -509,7 +515,14 @@ export function retireRun(file, { coordinator, expectRevision, evidence, snapsho
     } finally { release(); }
   }
   let removed = true, reason = null;
-  try { removeDir(dir); } catch (error) { removed = false; reason = `${error.message}; clean-worktrees removes what is left, since no pointer names it`; }
+  try {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === "owner.json") continue;
+      const target = path.join(dir, entry.name);
+      if (entry.isDirectory() && !entry.isSymbolicLink()) removeDir(target);
+      else fs.unlinkSync(target);
+    }
+  } catch (error) { removed = false; reason = `${error.message}; clean-worktrees removes what is left, since no pointer names it`; }
   return { retired: true, revision, ...(checkpoint && { checkpoint }), pointer, folder: dir, removed, ...(reason && { reason }) };
 }
 
