@@ -417,6 +417,7 @@ describe("the CSS grammar decides which words are theme colours", () => {
       "at",
       "center",
       "circle",
+      "brand(blue",
     ].map((name) => `--theme-color-${name}`),
   );
 
@@ -428,8 +429,8 @@ describe("the CSS grammar decides which words are theme colours", () => {
     ],
     [
       "background-image",
-      "linear-gradient(brand\\(blue, #fff)",
-      "linear-gradient(brand\\(blue, #fff)",
+      "linear-gradient(other\\(blue, #fff)",
+      "linear-gradient(other\\(blue, #fff)",
     ],
     [
       "background-image",
@@ -471,6 +472,27 @@ describe("the CSS grammar decides which words are theme colours", () => {
       "conic-gradient(from 90deg, sky_60, circle)",
       "conic-gradient(from 90deg, var(--theme-color-sky_60), var(--theme-color-circle))",
     ],
+    [
+      "background-image",
+      "linear-gradient(var(--shade, sky_60) 20%, #fff)",
+      "linear-gradient(var(--shade, var(--theme-color-sky_60)) 20%, #fff)",
+    ],
+    [
+      "background-image",
+      "repeating-linear-gradient(var(--shade, sky_60) 20%, #fff 40%)",
+      "repeating-linear-gradient(var(--shade, var(--theme-color-sky_60)) 20%, #fff 40%)",
+    ],
+    [
+      "background-image",
+      "conic-gradient(var(--shade, sky_60) 10deg, #fff)",
+      "conic-gradient(var(--shade, var(--theme-color-sky_60)) 10deg, #fff)",
+    ],
+    [
+      "background-image",
+      "radial-gradient(var(--size, x) 20%, sky_60)",
+      "radial-gradient(var(--size, x) 20%, var(--theme-color-sky_60))",
+    ],
+    ["color", "brand\\(blue", "var(--theme-color-brand\\(blue)"],
     ["color", "rebeccapurple/**/", "rebeccapurple/**/"],
     ["color", "\\73 ky_60", "var(--theme-color-sky_60)"],
     ["color", "sky_60/50", "rgb(from var(--theme-color-sky_60) r g b / 50)"],
@@ -548,6 +570,11 @@ describe("the CSS grammar decides which words are theme colours", () => {
   });
 
   test.each([
+    [
+      "an escaped name",
+      ":root { --theme-color-brand\\(blue: red; }",
+      ["--theme-color-brand(blue"],
+    ],
     [
       "a custom property's block value",
       ":root { --payload: { --theme-color-rebeccapurple: red; }; --theme-color-sky_60: blue; }",

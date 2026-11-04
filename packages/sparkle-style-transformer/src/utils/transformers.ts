@@ -24,7 +24,26 @@ export const getThemeVar = (
   name: string,
 ): string | undefined => {
   const variable = `--theme-${category}-${name}`;
-  return theme.has(variable) ? `var(${variable})` : undefined;
+  return theme.has(variable)
+    ? `var(--theme-${category}-${serializeNamePart(name)})`
+    : undefined;
+};
+
+const serializeNamePart = (name: string): string => {
+  let result = "";
+  for (const char of name) {
+    const code = char.codePointAt(0)!;
+    if (code === 0) {
+      result += String.fromCodePoint(0xfffd);
+    } else if (code <= 0x1f || code === 0x7f) {
+      result += `\\${code.toString(16)} `;
+    } else if (code >= 0x80 || /[\w-]/.test(char)) {
+      result += char;
+    } else {
+      result += `\\${char}`;
+    }
+  }
+  return result;
 };
 
 // eslint-disable-next-line no-useless-escape
@@ -91,7 +110,16 @@ const classifyGradientFirstArgument = (
     return "setup";
   }
   if (isFunctionNode(first) && first.getName().toLowerCase() === "var") {
-    return "unknown";
+    const positions = values.slice(1);
+    const isStop =
+      kind !== "radial" &&
+      positions.length > 0 &&
+      positions.every(
+        (value) =>
+          isNumeric(value) ||
+          (isFunctionNode(value) && MATH_FUNCTION.test(value.getName())),
+      );
+    return isStop ? "colors" : "unknown";
   }
   return "colors";
 };

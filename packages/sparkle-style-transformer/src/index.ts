@@ -1,7 +1,7 @@
-import Graphic from "./types/graphic";
-import type { ThemeVariables } from "./types/themeVariables";
-import extractAllGraphics from "./utils/extractAllGraphics";
-import generateStyledHtml from "./utils/generateStyledHtml";
+import type Graphic from "./types/graphic.js";
+import type { ThemeVariables } from "./types/themeVariables.js";
+import extractAllGraphics from "./utils/extractAllGraphics.js";
+import generateStyledHtml from "./utils/generateStyledHtml.js";
 
 const transformer = (
   html: string,
