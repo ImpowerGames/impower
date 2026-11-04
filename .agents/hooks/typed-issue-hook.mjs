@@ -649,7 +649,7 @@ function inheritedRepo(text, envRepo) {
 function guardReason(what, hint, where = `on ${repos.code}`) {
   return [
     `Public-repository guard: ${what} ${where} is refused.`,
-    `Tickets and every comment, review and discussion live in ${repos.internal}. On ${repos.code} an agent opens a pull request as a draft, pushes to it and marks it ready or back to draft, nothing else, and reads only a pull request's number, title, body, draft, merge state and checks, CI runs, files, commits, branches, rulesets and other git data.`,
+    `Tickets and every comment, review and discussion live in ${repos.internal}. On ${repos.code} an agent opens a pull request as a draft, pushes to it, edits its title and body with gh pr edit --title, --body or --body-file, and marks it ready or back to draft, nothing else, and reads only a pull request's number, title, body, draft, merge state and checks, CI runs, files, commits, branches, rulesets and other git data.`,
     hint,
   ].join("\n");
 }
