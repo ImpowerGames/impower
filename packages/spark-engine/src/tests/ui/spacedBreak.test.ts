@@ -153,6 +153,44 @@ describe("spaced `>` break", () => {
     expect(beats.map(cue)).toEqual(["HERO", "HERO", "HERO"]);
   });
 
+  test("a save loaded from JSON keeps the routing an inherited beat reads", async () => {
+    const source = `${DEFS}\n-> start\n\nscene start\n  HERO: A -> later\nend\n\nscene later\n  VILLAIN: B ..\n  .. C > D ..\n  .. E > F\nend\n`;
+    for (const saveAfter of [1, 2]) {
+      const original = createHarness(source);
+      await original.ready;
+      original.jumpToFlow("start");
+      for (let i = 0; i < saveAfter; i++) original.nextBeat();
+      const json = original.game.save();
+      const rest = [];
+      for (let i = saveAfter; i < 3; i++) rest.push(original.nextBeat());
+      const loaded = createHarness(source);
+      await loaded.ready;
+      expect(loaded.game.load(JSON.parse(JSON.stringify(json)))).toBe(true);
+      const after = [];
+      for (let i = saveAfter; i < 3; i++) after.push(loaded.nextBeat());
+      const shape = (beats: any[]) =>
+        beats.map((beat) => `${typed(beat)}|${cue(beat)}`);
+      expect(shape(after)).toEqual(shape(rest));
+      expect(after.map(cue)).toEqual(rest.map(() => "HERO"));
+    }
+  });
+
+  test("a restored checkpoint keeps the routing an inherited beat reads", async () => {
+    const source = `${DEFS}\n-> start\n\nscene start\n  HERO: A -> later\nend\n\nscene later\n  VILLAIN: B ..\n  .. C > D ..\n  .. E > F\nend\n`;
+    const harness = createHarness(source);
+    await harness.ready;
+    harness.jumpToFlow("start");
+    harness.nextBeat();
+    harness.game.checkpoint();
+    const index = (harness.game as any)._checkpoints.length - 1;
+    const rest = [harness.nextBeat(), harness.nextBeat()];
+    expect(rest.map(cue)).toEqual(["HERO", "HERO"]);
+    expect(harness.game.restoreCheckpoint(index)).toBe(true);
+    const replayed = [harness.nextBeat(), harness.nextBeat()];
+    expect(replayed.map(typed)).toEqual(rest.map(typed));
+    expect(replayed.map(cue)).toEqual(["HERO", "HERO"]);
+  });
+
   test("a comment between a line and its continuation keeps the cue", async () => {
     for (const body of [
       `  HERO: A ..\n  // note\n  .. B > C`,

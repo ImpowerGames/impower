@@ -182,7 +182,7 @@ try {
     issue: (n) => ({ ...gh.issues.get(n), number: n }),
     subIssues: (n) => (n === ISSUE && gh.onSubIssues?.(), n === ISSUE ? [...gh.slices].map((k) => ({ number: k, title: `slice ${k}`, state: gh.issues.get(k).state })) : []),
     blockedBy: (n) => gh.blockers?.get(n) ?? (n === 42 ? [{ number: 41, state: gh.issues.get(41).state }] : []),
-    effort: () => "High",
+    fields: () => ({ effort: "High", priority: null }),
     pulls: (n) => [...gh.pulls.values()].filter((p) => p.closes.includes(n)).map((p) => ({ number: p.number, state: p.state, isDraft: p.isDraft, headRefName: p.branch, headRefOid: p.head, baseRefName: p.base, closingIssuesReferences: p.closes.map((c) => ({ number: c })), mergeCommit: p.mergeCommit ? { oid: p.mergeCommit } : null })),
     comments: (pr) => client.comments(pr),
     checks: (pr) => gh.pulls.get(pr).checks.map((c) => ({ name: c.name, state: c.state })),
