@@ -1,5 +1,7 @@
 # Plan actions
 
+When delivering an answer will start a new native turn for a retained owner, run the [same-assignment start check](start.md) immediately before the external follow-up. Keep the saved answer and owner if admission refuses.
+
 The observation file `plan` reads is `{ "sessions": { "<id>": { "state": "running|idle|archived|absent" } }, "tasks": { "<id>": { "state": "running|completed|failed|stopped|<other>" } } }`, written from what your runner reports.
 
 `plan` gives every ticket one action with its reason, and reports beside them the tickets filed during the run that still need the coordinator (`filed`), the wake sweep (`sweep`: the transcripts to read, the running writers not read, and reviewer launches that died before their journal) and the periodic check-in (`checkIn`), as [writer reports](writer-reports.md) and [starting a run](start.md) describe. Act on each ticket as follows.

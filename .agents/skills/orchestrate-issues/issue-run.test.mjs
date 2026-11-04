@@ -73,6 +73,14 @@ function writerAccountingChecks() {
   assert.deepEqual(abandoned, abandonedBefore, "unknown intent remains owned for explicit reconciliation");
   const aliasesAcrossRuns = plan({ 101: held(shared) }, { machine: machine(foreign({ 201: held(structuredClone(shared)) })), observations: { ...observations, runs: { [other.runId]: observations } } });
   assert.equal(aliasesAcrossRuns.concurrency.machine.executing, 1, "the same host/session identity is one writer across records");
+  const desktopId = `local_${ids.shared}`;
+  const desktop = { ...owner(desktopId), route: "claude-desktop" };
+  const desktopObserved = { sessions: { [desktopId]: { state: "running" }, ...observations.sessions } };
+  const desktopRun = foreign({ 201: held(desktop), 202: held(shared), 203: held({ ...desktop, handle: { ...desktop.handle, host: "another-machine" } }) });
+  const desktopPlan = plan({ 101: held(desktop), 102: held(structuredClone(desktop)) }, { machine: machine(desktopRun), observations: { ...desktopObserved, runs: { [desktopRun.runId]: desktopObserved } } });
+  assert.equal(desktopPlan.concurrency.active, 1, "adopted desktop session aliases share a local place");
+  assert.equal(desktopPlan.concurrency.machine.executing, 2, "cross-run desktop aliases deduplicate without merging a bare session namespace");
+  assert.equal(desktopPlan.concurrency.machine.foreign, 1);
   const [sharedWriter] = aliasesAcrossRuns.concurrency.machine.writers;
   assert.equal(sharedWriter.state, "executing");
   assert.deepEqual(sharedWriter.references.map(({ runId, ticket }) => [runId, ticket]).sort(), [[record.runId, 101], [other.runId, 201]].sort(), "one writer retains both run and ticket references");
@@ -220,7 +228,7 @@ const timer = setInterval(() => { if (fs.existsSync(${JSON.stringify(stop)}) || 
       console.log("production resume wrapper and child absent:", liveOwner.handle.pid, readJsonFile(done).pid);
     }
   }
-  if (process.argv.includes("--writer-continuation")) {
+  if (["--writer-continuation", "--writer-native"].some((flag) => process.argv.includes(flag))) {
     const file = path.join(tmp, "continuation-run.json");
     const current = run.initRecord({ record: file, checkout, repository: "acme/widgets", issue: 110, coordinator: ids.parent, harness: "codex", coordinatorModel: "gpt-6.1-sol", coordinatorEffort: "medium", coordinatorMode: "bypassPermissions", slug: "writer-continuation", invocation: "Use orchestrate-issues for #110." }, { defaults, freeBytes: 100 * GB, totalMemory: 16 * GB }).record;
     const snapshot = { repository: current.repository, issue: { number: 110, state: "open" }, tickets: [{ ...ticket(111), parent: 110, prs: [{ number: 500, state: "OPEN", isDraft: true, branch: "fix/111-existing", head: "fixture-head", rounds: 1 }] }] };
@@ -239,12 +247,44 @@ const timer = setInterval(() => { if (fs.existsSync(${JSON.stringify(stop)}) || 
     assert.equal(check(ids.parent, update.record.revision).launchId, pendingStart.launchId);
     assert.deepEqual(run.readRecord(file), update.record, "the pre-spawn check leaves the saved intent and ownership unchanged");
     console.log("external writer continuation admission passed");
+    if (process.argv.includes("--writer-native")) {
+      const handle = "/root/writer_111";
+      const saved = run.updateRecord(file, { coordinator: ids.parent, expectRevision: update.record.revision }, (r) => {
+        run.launched(r, { ticket: 111, handleKind: "task", handle });
+        const req = run.request(r, { ticket: 111, text: "May I continue?", source: "fixture turn" });
+        run.answer(r, { ticket: 111, request: req.id, text: "Continue the same assignment." });
+      }).record;
+      const owner = saved.tickets[111].owner;
+      const ended = { state: "completed", host: os.hostname(), assignment: owner.launchId, revision: saved.revision, model: owner.model, effort: owner.effort, permissionMode: "bypassPermissions" };
+      const observed = write("native-ended.json", { tasks: { [handle]: ended } });
+      const resourceCheck = (r = saved, options = {}) => run.checkExternalStart(r, 111, {
+        assignment: owner.launchId, observations: { tasks: { [handle]: ended } }, observe: () => machine(foreign({})), freeBytes: 100 * GB, ...options,
+      });
+      assert.throws(() => resourceCheck(saved, { assignment: ids.assignment }), /no matching retained native assignment/);
+      assert.throws(() => resourceCheck(saved, { observations: undefined }), /current ended-turn observation/);
+      for (const change of [{ state: "running" }, { state: "unknown" }, { assignment: ids.assignment }, { revision: saved.revision - 1 }, { host: "another-machine" }, { model: "different-model" }, { effort: "low" }, { permissionMode: "default" }]) {
+        assert.throws(() => resourceCheck(saved, { observations: { tasks: { [handle]: { ...ended, ...change } } } }), /current ended-turn observation/);
+      }
+      assert.throws(() => resourceCheck(saved, { observations: { tasks: { "/root/wrong": ended } } }), /current ended-turn observation/);
+      assert.throws(() => resourceCheck({ ...saved, handoff: { since: saved.coordinator.since } }), /planned handoff/);
+      assert.throws(() => resourceCheck({ ...saved, coordinator: { ...saved.coordinator, permissionMode: "default" } }), /coordinator runs in default/);
+      assert.throws(() => resourceCheck({ ...saved, tickets: { 111: { owner: { ...owner, route: "codex-cli" } } } }), /no matching retained native assignment/);
+      assert.throws(() => resourceCheck({ ...saved, tickets: { 111: { owner: { ...owner, handle: { ...owner.handle, host: "another-machine" } } } } }), /claimed on another-machine/);
+      assert.throws(() => resourceCheck(saved, { observe: low({ physicalAvailableBytes: 0.4 * GB }) }), /Available physical memory/);
+      assert.throws(() => resourceCheck(saved, { observe: low({ commitHeadroomBytes: 2.4 * GB }) }), /Direct commit headroom/);
+      assert.throws(() => resourceCheck(saved, { observe: () => machine(loaded), observations: { tasks: { [handle]: ended }, runs: { [loaded.runId]: { ...observations, tasks: { "/root/writer": { state: "running" } } } } } }), /Machine writer places are full/);
+      assert.deepEqual(resourceCheck().handle, owner.handle);
+      const checked = run.main(["start-check", "--record", file, "--coordinator", ids.parent, "--expect-revision", String(saved.revision), "--ticket", "111", "--assignment", owner.launchId, "--observations", observed], { defaults });
+      assert.equal(checked.launchId, owner.launchId);
+      assert.deepEqual(run.readRecord(file), saved, "healthy admission preserves the retained owner and the saved answer");
+      console.log("same-owner native continuation admission passed");
+    }
   }
 }
 
 try {
   writerAccountingChecks();
-  if (["--writer-accounting", "--writer-continuation", "--writer-resume-live"].some((flag) => process.argv.includes(flag))) process.exit(0);
+  if (["--writer-accounting", "--writer-continuation", "--writer-resume-live", "--writer-native"].some((flag) => process.argv.includes(flag))) process.exit(0);
   const checkout = path.join(tmp, "checkout");
   fs.mkdirSync(checkout);
   git(checkout, "init", "-q", "-b", "main");
