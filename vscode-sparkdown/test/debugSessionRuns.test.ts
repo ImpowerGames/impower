@@ -54,7 +54,12 @@ const session = () => {
   const player = { run: 1 as number | null };
   const sent: string[] = [];
   const events: [string, string | null][] = [];
-  let during: ((method: string) => Promise<void> | void) | undefined;
+  let during:
+    | {
+        act: (method: string) => Promise<void> | void;
+        method: string | undefined;
+      }
+    | undefined;
   let held: Promise<void> | undefined;
   let release: (() => void) | undefined;
   const connection = {
@@ -62,8 +67,8 @@ const session = () => {
     emit: async (message: { method: string }) => {
       sent.push(message.method);
       const run = player.run;
-      if (during) {
-        const act = during;
+      if (during && (!during.method || during.method === message.method)) {
+        const { act } = during;
         during = undefined;
         await act(message.method);
       }
@@ -94,8 +99,11 @@ const session = () => {
     notify: (message: any) => (s as any).onReceiveNotification(message),
     current: () => (s as any)._run,
     request: (name: string) => (s as any)[name]({ body: {} }, {}),
-    duringNext: (act: (method: string) => Promise<void> | void) => {
-      during = act;
+    duringNext: (
+      act: (method: string) => Promise<void> | void,
+      method?: string,
+    ) => {
+      during = { act, method };
     },
     holdNextLookup: () => {
       held = new Promise<void>((resolve) => (release = resolve));
@@ -198,19 +206,30 @@ describe("the debug adapter judging stops by the run they belong to", () => {
     ]);
   });
 
-  it("keeps the newer run current when an answer for the older run arrives after it is named", async () => {
-    const s = session();
-    await s.notify(state("play", 1));
-    s.duringNext(async () => {
-      s.player.run = 2;
-      await s.notify(state("play", 2));
+  for (const [request, method] of [
+    ["nextRequest", "game/step"],
+    ["stepInRequest", "game/step"],
+    ["stepOutRequest", "game/step"],
+    ["continueRequest", "game/continue"],
+  ] as const) {
+    it(`keeps the newer run current when ${method} for the older run is answered after the newer run is named (${request})`, async () => {
+      const s = session();
+      await s.notify(state("play", 1));
+      s.duringNext(async () => {
+        s.player.run = 2;
+        await s.notify(state("play", 2));
+      }, method);
+      await s.request(request);
+      expect(s.sent).toContain(method);
+      expect(s.current()).toBe(2);
+      await s.notify(stop("step", 1));
+      expect(s.events.filter(([event]) => event === "stopped")).toEqual([]);
+      await s.notify(stop("step", 2));
+      expect(s.events.filter(([event]) => event === "stopped")).toEqual([
+        ["stopped", "step"],
+      ]);
     });
-    await s.request("nextRequest");
-    expect(s.sent).toContain("game/step");
-    expect(s.current()).toBe(2);
-    await s.notify(stop("step", 1));
-    expect(s.events.filter(([event]) => event === "stopped")).toEqual([]);
-  });
+  }
 
   it("publishes the end stop once when the ended launch state arrives during game/ended's lookup", async () => {
     const s = session();
