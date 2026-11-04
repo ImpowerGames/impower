@@ -12,8 +12,10 @@ import {
   filterPaths,
   flattenVisibleRows,
   foldersWithoutFiles,
+  isProjectMetadata,
   LAYOUT_MARKER,
   layoutSubtreeFor,
+  needsFolderMigration,
   planFolderMigration,
   resolveScopePath,
   subtreeChildren,
@@ -279,6 +281,22 @@ describe("planFolderMigration", () => {
         ],
       ).staleFolders,
     ).toEqual(["assets/kept/leftover", "chapters", "chapters/old"]);
+  });
+});
+
+describe("isProjectMetadata and needsFolderMigration", () => {
+  it("treats only dotfiles at the project root as project metadata", () => {
+    expect(isProjectMetadata(".name")).toBe(true);
+    expect(isProjectMetadata(".layout")).toBe(true);
+    expect(isProjectMetadata("assets/.folder")).toBe(false);
+    expect(isProjectMetadata("assets/notes/.hidden")).toBe(false);
+    expect(isProjectMetadata("main.sd")).toBe(false);
+  });
+
+  it("migrates folders until the .folders marker exists, whatever the layout marker says", () => {
+    expect(needsFolderMigration(["main.sd", ".layout"])).toBe(true);
+    expect(needsFolderMigration(["main.sd", ".folders"])).toBe(false);
+    expect(needsFolderMigration(["main.sd", ".folders/x"])).toBe(false);
   });
 });
 

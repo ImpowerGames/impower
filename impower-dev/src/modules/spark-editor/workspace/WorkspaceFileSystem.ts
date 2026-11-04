@@ -61,9 +61,11 @@ import {
   computeFolderMoves,
   computeLayoutMigrationBatches,
   foldersWithoutFiles,
+  canWriteLayoutMarker,
+  isProjectMetadata,
   LAYOUT_MARKER,
-  LAYOUT_VERSION,
   layoutSubtreeFor,
+  needsFolderMigration,
   planFolderMigration,
 } from "../utils/fileTree";
 
@@ -126,14 +128,9 @@ export default class WorkspaceFileSystem {
     const relativePaths = files.map((f) =>
       this.getRelativePath(projectId, f.uri),
     );
-    const layoutFile = files.find(
-      (f) => this.getRelativePath(projectId, f.uri) === LAYOUT_MARKER,
-    );
-    const migrateFolders =
-      layoutFile?.text?.trim() !== LAYOUT_VERSION &&
-      !relativePaths.some((p) => p.startsWith(`${LAYOUT_MARKER}/`));
+    const migrateFolders = needsFolderMigration(relativePaths);
+    const writeLayoutMarker = canWriteLayoutMarker(relativePaths);
     let paths = relativePaths;
-    let keptFolders: string[] = [];
     if (migrateFolders) {
       const plan = planFolderMigration(
         files.map((f) => ({
@@ -152,14 +149,14 @@ export default class WorkspaceFileSystem {
         });
       }
       await this.deleteFolders(projectId, plan.staleFolders);
-      keptFolders = plan.folders;
       paths = relativePaths.filter((p) => !plan.legacyFiles.includes(p));
       folders = await this.listFolders(projectId);
     }
+    const emptyFolders = foldersWithoutFiles(paths, folders);
     const batches = computeLayoutMigrationBatches(
       paths,
       layoutSubtreeFor,
-      foldersWithoutFiles(paths, folders),
+      emptyFolders,
     );
     for (const batch of batches) {
       await this.renameFiles({
@@ -169,28 +166,29 @@ export default class WorkspaceFileSystem {
         })),
       });
     }
-    if (batches.length > 0 || migrateFolders) {
-      files = await this.readDirectoryFiles({
+    if (batches.length > 0) {
+      const moved = await this.readDirectoryFiles({
         directory: { uri: directoryUri },
       });
+      await this.deleteFolders(
+        projectId,
+        foldersWithoutFiles(
+          moved.map((f) => this.getRelativePath(projectId, f.uri)),
+          await this.listFolders(projectId),
+          emptyFolders,
+        ),
+      );
+    }
+    if (writeLayoutMarker) {
+      await this.writeProjectMetadata(projectId, "layout", "1");
     }
     if (migrateFolders) {
-      if (batches.length > 0) {
-        await this.deleteFolders(
-          projectId,
-          foldersWithoutFiles(
-            files.map((f) => this.getRelativePath(projectId, f.uri)),
-            await this.listFolders(projectId),
-            keptFolders,
-          ),
-        );
-      }
-      await this.writeProjectMetadata(projectId, "layout", LAYOUT_VERSION);
+      await this.writeProjectMetadata(projectId, "folders", "1");
+    }
+    if (batches.length > 0 || writeLayoutMarker || migrateFolders) {
       files = await this.readDirectoryFiles({
         directory: { uri: directoryUri },
       });
-    }
-    if (batches.length > 0 || migrateFolders) {
       folders = await this.listFolders(projectId);
     }
     this._folders = new Set(folders.map((p) => this.getFileUri(projectId, p)));
@@ -429,7 +427,11 @@ export default class WorkspaceFileSystem {
     const layoutMarkerUri = this.getFileUri(projectId, LAYOUT_MARKER);
     const files = Object.values(allFiles)
       .sort((a, b) => cmp(a.ext, b.ext) || cmp(a.name, b.name))
-      .filter((file) => file.name || file.uri === layoutMarkerUri)
+      .filter(
+        (file) =>
+          !isProjectMetadata(this.getRelativePath(projectId, file.uri)) ||
+          file.uri === layoutMarkerUri,
+      )
       .map(({ uri }) => ({ uri, path: this.getRelativePath(projectId, uri) }));
     return this.zipFiles({
       files,
@@ -478,7 +480,8 @@ export default class WorkspaceFileSystem {
     const zipFilesToDelete = Object.entries(existingFiles)
       .filter(
         ([uri, fileData]) =>
-          (fileData.name || uri === layoutMarkerUri) &&
+          (!isProjectMetadata(this.getRelativePath(projectId, uri)) ||
+            uri === layoutMarkerUri) &&
           !zipFilesToWrite.some((file) => file.uri === uri),
       )
       .map(([uri]) => ({ uri }));
@@ -491,6 +494,7 @@ export default class WorkspaceFileSystem {
       }),
     ]);
     await this.replaceFolders(projectId, unzipped);
+    await this.writeProjectMetadata(projectId, "folders", "1");
   }
 
   async readProjectScriptBundle(projectId: string) {
@@ -508,7 +512,11 @@ export default class WorkspaceFileSystem {
     const allFiles = await this.getFiles(projectId);
     const files = Object.values(allFiles)
       .sort((a, b) => cmp(a.ext, b.ext) || cmp(a.name, b.name))
-      .filter((file) => file.text == null && file.name)
+      .filter(
+        (file) =>
+          file.text == null &&
+          !isProjectMetadata(this.getRelativePath(projectId, file.uri)),
+      )
       .map(({ uri }) => ({ uri, path: this.getRelativePath(projectId, uri) }));
     return this.zipFiles({
       files,
@@ -533,7 +541,7 @@ export default class WorkspaceFileSystem {
     const textFilesToDelete = Object.entries(existingFiles)
       .filter(
         ([uri, fileData]) =>
-          fileData.name &&
+          !isProjectMetadata(this.getRelativePath(projectId, uri)) &&
           fileData.text != null &&
           !textFilesToWrite.some((file) => file.uri === uri),
       )
@@ -560,7 +568,7 @@ export default class WorkspaceFileSystem {
     const zipFilesToDelete = Object.entries(existingFiles)
       .filter(
         ([uri, fileData]) =>
-          fileData.name &&
+          !isProjectMetadata(this.getRelativePath(projectId, uri)) &&
           fileData.text == null &&
           !zipFilesToWrite.some((file) => file.uri === uri),
       )

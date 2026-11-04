@@ -343,7 +343,15 @@ const MAIN_SCRIPT = "main.sd";
 
 export const LAYOUT_MARKER = ".layout";
 
-export const LAYOUT_VERSION = "2";
+export const FOLDERS_MARKER = ".folders";
+
+export const isProjectMetadata = (relativePath: string): boolean =>
+  relativePath.startsWith(".") && !relativePath.includes("/");
+
+export const needsFolderMigration = (relativePaths: string[]): boolean =>
+  !relativePaths.some(
+    (p) => p === FOLDERS_MARKER || p.startsWith(`${FOLDERS_MARKER}/`),
+  );
 
 export const canWriteLayoutMarker = (relativePaths: string[]): boolean =>
   !relativePaths.some(

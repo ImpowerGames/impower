@@ -55,6 +55,7 @@ function makeHarness(initial: Record<string, Uint8Array>): Harness {
     listFolders: async () => [],
     createFolders: async () => [],
     deleteFolders: async () => [],
+    writeProjectMetadata: async () => {},
     foldersOutside: (WorkspaceFileSystem.prototype as any).foldersOutside,
     replaceFolders: (WorkspaceFileSystem.prototype as any).replaceFolders,
 

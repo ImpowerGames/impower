@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { unzipSync } from "fflate";
+import { unzipSync, zipSync } from "fflate";
 import {
   listMemory,
   makeMemoryDirectory,
@@ -121,12 +121,14 @@ const seed = (files: Record<string, string>, folders: string[] = []) => {
   return root;
 };
 
+const MIGRATED = { ".layout": "1", ".folders": "1" };
+
 const stored = (root: MemoryDirectory) =>
   listMemory(root, PROJECT).filter((p) => !p.startsWith(".trash"));
 
 describe("empty folders are directories in the workspace store", () => {
   it("creates an empty folder as a directory, reports it, and keeps it across a reload", async () => {
-    const root = seed({ "main.sd": "x", ".layout": "2" });
+    const root = seed({ "main.sd": "x", ...MIGRATED });
     const fs = await load(root);
     await fs.createFolder(PROJECT, "assets/New Folder");
     expect(stored(root)).toContain("assets/New Folder/");
@@ -144,7 +146,7 @@ describe("empty folders are directories in the workspace store", () => {
   });
 
   it("shows a file renamed to .folder, and keeps it across a reload even when it is empty", async () => {
-    const root = seed({ "main.sd": "x", ".layout": "2", "assets/blank.txt": "" });
+    const root = seed({ "main.sd": "x", ...MIGRATED, "assets/blank.txt": "" });
     const fs = await load(root);
     await fs.moveFile(PROJECT, "assets/blank.txt", "assets/.folder");
     await settle();
@@ -157,7 +159,7 @@ describe("empty folders are directories in the workspace store", () => {
   });
 
   it("renames an empty folder by moving its directory", async () => {
-    const root = seed({ "main.sd": "x", ".layout": "2" }, ["assets/a/inner"]);
+    const root = seed({ "main.sd": "x", ...MIGRATED }, ["assets/a/inner"]);
     const fs = await load(root);
     await fs.moveFolder(PROJECT, "assets/a", "assets/b");
     expect(stored(root).filter((p) => p.startsWith("assets"))).toEqual([
@@ -174,7 +176,7 @@ describe("empty folders are directories in the workspace store", () => {
 
   it("deletes a folder's files and its directories, and reports the folders removed", async () => {
     const root = seed(
-      { "main.sd": "x", ".layout": "2", "assets/a/x.png": "p" },
+      { "main.sd": "x", ...MIGRATED, "assets/a/x.png": "p" },
       ["assets/a/inner"],
     );
     const fs = await load(root);
@@ -201,6 +203,7 @@ describe("opening a project stored with .folder files", () => {
     );
     const fs = await load(root);
     expect(stored(root)).toEqual([
+      ".folders",
       ".layout",
       "assets/",
       "assets/empty/",
@@ -216,7 +219,8 @@ describe("opening a project stored with .folder files", () => {
       { scripts: [{ chapters: ["intro.sd"] }] },
       "main.sd",
     ]);
-    expect(dec.decode(await fs.readFile({ file: { uri: "file://local/.layout" } }))).toBe("2");
+    expect(dec.decode(await fs.readFile({ file: { uri: "file://local/.folders" } }))).toBe("1");
+    expect(dec.decode(await fs.readFile({ file: { uri: "file://local/.layout" } }))).toBe("1");
   });
 
   it("still opens the project when a .folder file is already gone, as when another tab removed it first", async () => {
@@ -231,7 +235,7 @@ describe("opening a project stored with .folder files", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const fs = await load(root);
     expect(await shownTree(fs)).toEqual([{ assets: [{ gone: [] }] }, "main.sd"]);
-    expect(dec.decode(await fs.readFile({ file: { uri: "file://local/.layout" } }))).toBe("2");
+    expect(dec.decode(await fs.readFile({ file: { uri: "file://local/.folders" } }))).toBe("1");
   });
 
   it("runs once: an empty .folder made after the migration survives later loads", async () => {
@@ -260,6 +264,7 @@ describe("opening a project stored with .folder files", () => {
     );
     const fs = await load(root);
     expect(stored(root)).toEqual([
+      ".folders",
       ".layout",
       "assets/",
       "assets/art/",
@@ -281,7 +286,7 @@ describe("opening a project stored with .folder files", () => {
 describe("zip export and import carry empty folders", () => {
   it("round-trips empty folders as directory entries and replaces the importing project's folders", async () => {
     const source = await load(
-      seed({ "main.sd": "x", ".layout": "2", "assets/x.png": "p" }, [
+      seed({ "main.sd": "x", ...MIGRATED, "assets/x.png": "p" }, [
         "assets/empty",
         "scripts/a/b",
       ]),
@@ -296,7 +301,7 @@ describe("zip export and import carry empty folders", () => {
       "scripts/a/",
       "scripts/a/b/",
     ]);
-    const targetRoot = seed({ "main.sd": "old", ".layout": "2" }, ["assets/stale"]);
+    const targetRoot = seed({ "main.sd": "old", ...MIGRATED }, ["assets/stale"]);
     const target = await load(targetRoot);
     await target.writeProjectZip(PROJECT, zip);
     await settle();
@@ -308,6 +313,7 @@ describe("zip export and import carry empty folders", () => {
       "scripts/a/b",
     ]);
     expect(stored(targetRoot)).toEqual([
+      ".folders",
       ".layout",
       "assets/",
       "assets/empty/",
@@ -321,7 +327,7 @@ describe("zip export and import carry empty folders", () => {
 
   it("imports a zip entry named .folder as a file", async () => {
     const source = await load(
-      seed({ "main.sd": "x", ".layout": "2", "assets/notes.txt": "n" }),
+      seed({ "main.sd": "x", ...MIGRATED, "assets/notes.txt": "n" }),
     );
     const zip = await source.zipFiles({
       files: [
@@ -329,22 +335,110 @@ describe("zip export and import carry empty folders", () => {
         { uri: "file://local/assets/notes.txt", path: "assets/.folder" },
       ],
     });
-    const target = await load(seed({ "main.sd": "old", ".layout": "2" }));
+    const target = await load(seed({ "main.sd": "old", ...MIGRATED }));
     await target.writeProjectZip(PROJECT, zip);
     await settle();
     expect(await shownTree(target)).toEqual([{ assets: [".folder"] }, "main.sd"]);
   });
 });
 
+describe("dotfiles inside folders are ordinary files in exports, imports and Drive sync", () => {
+  it("exports a .folder file inside a folder, leaves out the project's own metadata, and an import replaces it", async () => {
+    const source = await load(
+      seed({
+        ...MIGRATED,
+        "main.sd": "x",
+        ".name": "Game",
+        "assets/notes/.folder": "keep me",
+      }),
+    );
+    const zip = await source.readProjectZip(PROJECT);
+    expect(Object.keys(unzipSync(new Uint8Array(zip))).sort()).toEqual([
+      ".layout",
+      "assets/notes/.folder",
+      "main.sd",
+    ]);
+    const targetRoot = seed({
+      ...MIGRATED,
+      "main.sd": "old",
+      ".name": "Other",
+      "assets/old/.hidden": "stale",
+    });
+    const target = await load(targetRoot);
+    await target.writeProjectZip(PROJECT, zip);
+    await settle();
+    expect(stored(targetRoot)).toEqual([
+      ".folders",
+      ".layout",
+      ".name",
+      "assets/",
+      "assets/notes/",
+      "assets/notes/.folder",
+      "main.sd",
+    ]);
+    expect(
+      dec.decode(await target.readFile({ file: { uri: "file://local/assets/notes/.folder" } })),
+    ).toBe("keep me");
+  });
+
+  it("carries a .folder file inside a folder through the Drive text bundle", async () => {
+    const local = await load(
+      seed({ ...MIGRATED, "main.sd": "x", ".name": "Game", "assets/notes/.folder": "keep me" }),
+    );
+    const bundle = await local.readProjectScriptBundle(PROJECT);
+    expect(bundle).toContain("assets/notes/.folder");
+    expect(bundle).not.toContain(".name");
+    const remoteRoot = seed({ ...MIGRATED, "main.sd": "old", "scripts/gone.txt": "g" });
+    const remote = await load(remoteRoot);
+    await remote.writeProjectScriptBundle(PROJECT, bundle);
+    await settle();
+    expect(stored(remoteRoot)).toContain("assets/notes/.folder");
+    expect(stored(remoteRoot)).not.toContain("scripts/gone.txt");
+  });
+});
+
+describe("importing a zip without the layout marker", () => {
+  it("lays the imported files out on the reload and keeps the zip's empty folders and empty .folder files", async () => {
+    const enc8 = (t: string) => enc.encode(t);
+    const zip = zipSync(
+      {
+        "main.sd": enc8("x"),
+        "hero.png": enc8("h"),
+        "art/bg.png": enc8("b"),
+        "assets/empty/": new Uint8Array(0),
+        "assets/notes/.folder": new Uint8Array(0),
+      },
+      { level: 0 },
+    ).buffer as ArrayBuffer;
+    const root = seed({ ...MIGRATED, "main.sd": "old" });
+    const before = await load(root);
+    await before.writeProjectZip(PROJECT, zip);
+    await settle();
+    await load(root);
+    expect(stored(root)).toEqual([
+      ".folders",
+      ".layout",
+      "assets/",
+      "assets/art/",
+      "assets/art/bg.png",
+      "assets/empty/",
+      "assets/hero.png",
+      "assets/notes/",
+      "assets/notes/.folder",
+      "main.sd",
+    ]);
+  });
+});
+
 describe("Drive sync's asset bundle carries empty folders", () => {
   it("pushes empty folders as directory entries and a pull creates and removes them", async () => {
     const local = await load(
-      seed({ "main.sd": "x", ".layout": "2", "assets/x.png": "p" }, ["assets/empty"]),
+      seed({ "main.sd": "x", ...MIGRATED, "assets/x.png": "p" }, ["assets/empty"]),
     );
     const bundle = await local.readProjectAssetBundle(PROJECT);
     expect(Object.keys(unzipSync(new Uint8Array(bundle)))).toContain("assets/empty/");
     const remoteRoot = seed(
-      { "main.sd": "x", ".layout": "2", "scripts/s.sd": "s" },
+      { "main.sd": "x", ...MIGRATED, "scripts/s.sd": "s" },
       ["assets/gone"],
     );
     const remote = await load(remoteRoot);
