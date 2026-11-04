@@ -424,7 +424,8 @@ export function lowerLuauDefine(
 
   const parentNode = getDescendent("LuauDefineParentName", nodeRef.node);
   const parentIdentifier = parentNode ? identifierAt(parentNode, ctx) : null;
-  if ((parentIdentifier ?? nameIdentifier).name === "animation") {
+  const defineType = (parentIdentifier ?? nameIdentifier).name;
+  if (defineType === "animation") {
     for (const prop of properties) {
       if (!prop.key && prop.name === KEYFRAMES_KEY && isMapTable(prop.expr)) {
         prop.expr = new ObjectExpression([
