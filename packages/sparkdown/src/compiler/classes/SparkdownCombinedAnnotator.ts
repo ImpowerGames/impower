@@ -344,19 +344,6 @@ export class SparkdownCombinedAnnotator {
     return add.filter((_, i) => !redundant!.has(i));
   }
 
-  protected remove<T>(
-    from: number,
-    to: number,
-    value: SparkdownAnnotation<T>,
-    annotate?: Set<keyof SparkdownAnnotators>,
-  ) {
-    for (const [key, annotator] of this._currentEntries) {
-      if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
-        annotator.remove(from, to, value);
-      }
-    }
-  }
-
   create(
     tree: Tree,
     text: Text,
@@ -377,8 +364,6 @@ export class SparkdownCombinedAnnotator {
     const cachedCompiler = tree.prop(cachedCompilerProp);
     const reparsedFrom = cachedCompiler?.reparsedFrom;
     const reparsedTo = cachedCompiler?.reparsedTo;
-    const iteratingFrom = reparsedFrom ?? 0;
-    const iteratingTo = reparsedTo ?? text.length;
     for (const [key, annotator] of this._currentEntries) {
       if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
         annotator.update(tree, text, uri);
@@ -400,7 +385,7 @@ export class SparkdownCombinedAnnotator {
           if (annotator) {
             annotator.current =
               add.length > 0 ? RangeSet.of(add, true) : RangeSet.empty;
-            annotator.end(iteratingFrom, iteratingTo, add as any, []);
+            annotator.end();
           }
         }
       }
@@ -413,13 +398,7 @@ export class SparkdownCombinedAnnotator {
       changes,
       Math.max(tree.length, length),
     ).desc;
-    let editStart = reparsedFrom;
-    changeDesc.iterChangedRanges((_fromA, _toA, fromB) => {
-      if (fromB < editStart) {
-        editStart = fromB;
-      }
-    });
-    editStart = extendToAlternatorWord(tree, editStart);
+    const editStart = extendToAlternatorWord(tree, reparsedFrom);
     if (runsCompilations) {
       this._defineTypeNames.update(
         tree,
@@ -451,8 +430,6 @@ export class SparkdownCombinedAnnotator {
       tree,
       editStart,
       windowTo,
-      iteratingFrom,
-      iteratingTo,
       annotate,
       changeDesc,
     );
@@ -467,8 +444,6 @@ export class SparkdownCombinedAnnotator {
           tree,
           wide.from,
           wide.to,
-          iteratingFrom,
-          iteratingTo,
           new Set<keyof SparkdownAnnotators>(["validations"]),
           undefined,
           wide.from > 0 ? text.lineAt(wide.from - 1).from : 0,
@@ -574,7 +549,7 @@ export class SparkdownCombinedAnnotator {
     ]);
     this.current.compilations.settle(true);
     for (const { from, to } of ranges) {
-      this.reannotate(tree, from, to, from, to, compilationsOnly);
+      this.reannotate(tree, from, to, compilationsOnly);
     }
   }
 
@@ -584,7 +559,7 @@ export class SparkdownCombinedAnnotator {
       "compilations",
     ]);
     for (const { from, to } of compilations.staleRanges()) {
-      this.reannotate(tree, from, to, from, to, compilationsOnly);
+      this.reannotate(tree, from, to, compilationsOnly);
     }
     compilations.markDocumentNamesChecked();
   }
@@ -593,8 +568,6 @@ export class SparkdownCombinedAnnotator {
     tree: Tree,
     windowFrom: number,
     windowTo: number | undefined,
-    iteratingFrom: number,
-    iteratingTo: number,
     annotate?: Set<keyof SparkdownAnnotators>,
     changes?: ChangeDesc,
     walkFrom: number = windowFrom,
@@ -607,7 +580,6 @@ export class SparkdownCombinedAnnotator {
         const annotator: SparkdownAnnotator<SparkdownAnnotation<any>> =
           this.current[key as keyof SparkdownAnnotators];
         if (annotator) {
-          const removed: Range<SparkdownAnnotation<any>>[] = [];
           if (changes) {
             annotator.current = annotator.current.map(changes);
           }
@@ -618,23 +590,11 @@ export class SparkdownCombinedAnnotator {
             filterTo,
           );
           annotator.current = annotator.current.update({
-            filter: (from, to, value) => {
-              if (to < windowFrom || from > filterTo) {
-                return true;
-              }
-              removed.push(value.range(from, to));
-              this.remove(from, to, value, annotate);
-              return false;
-            },
+            filter: (from, to) => to < windowFrom || from > filterTo,
             add: kept,
             sort: true,
           });
-          annotator.end(
-            iteratingFrom,
-            iteratingTo,
-            kept as any,
-            removed as any,
-          );
+          annotator.end();
         }
       }
     }
