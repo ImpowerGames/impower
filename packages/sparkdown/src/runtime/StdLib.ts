@@ -2587,7 +2587,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   setmetatable: {
     arity: 2,
     fn: (story, [t, mt]) => {
-      if (!(t instanceof ObjectValue)) {
+      if (!(t instanceof ObjectValue) || isStdLibMarker(t)) {
         story.Error("setmetatable: first argument must be a table");
         return;
       }
@@ -2919,7 +2919,11 @@ export const STDLIB: Record<string, StdLibEntry> = {
   rawset: {
     arity: 3,
     fn: (story, [t, k, v]) => {
-      if (!(t instanceof ObjectValue) || !(t.value instanceof Map)) {
+      if (
+        !(t instanceof ObjectValue) ||
+        !(t.value instanceof Map) ||
+        isStdLibMarker(t)
+      ) {
         story.Error("rawset: first argument must be a table");
         return null;
       }
@@ -4838,6 +4842,27 @@ export function lookupStateAwareStdLib(name: string): StdLibEntry | null {
 
 export function isStdLibFunctionName(name: string): boolean {
   return lookupAnyStdLib(name) != null;
+}
+
+const STDLIB_MARKERS = new Map<string, ObjectValue>();
+
+export function stdLibMarker(name: string): ObjectValue {
+  let marker = STDLIB_MARKERS.get(name);
+  if (marker === undefined) {
+    marker = new ObjectValue(
+      new Map<string, AbstractValue>([["__stdlib_fn", new StringValue(name)]]),
+    );
+    STDLIB_MARKERS.set(name, marker);
+  }
+  return marker;
+}
+
+export function isStdLibMarker(v: unknown): boolean {
+  return (
+    v instanceof ObjectValue &&
+    v.value instanceof Map &&
+    v.value.has("__stdlib_fn")
+  );
 }
 
 const STDLIB_NAMESPACES: Set<string> = (() => {

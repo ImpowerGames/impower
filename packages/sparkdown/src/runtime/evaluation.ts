@@ -24,7 +24,9 @@ import {
   firstMissingStdLibArg,
   isPureNumberStdLibOp,
   isStdLibFunctionName,
+  isStdLibMarker,
   isStdLibNamespaceName,
+  stdLibMarker,
   luauStringToBytes,
   luauTypeOf,
   lookupAnyStdLib,
@@ -129,8 +131,6 @@ let nextTableIdentityId = 1;
 function luauMapKeyString(v: any): string {
   if (v instanceof ObjectValue && v.value) {
     const map = v.value as Map<string, AbstractValue>;
-    const stdTag = map.get("__stdlib_fn");
-    if (stdTag instanceof StringValue) return `__stdlibfn:${stdTag.value}`;
     let id = TABLE_IDENTITY_IDS.get(map);
     if (id === undefined) {
       id = nextTableIdentityId++;
@@ -288,14 +288,7 @@ function sameLuauFunctionValue(a: any, b: any): boolean {
   }
   if (a === b) return true;
   if (a instanceof ObjectValue && b instanceof ObjectValue) {
-    if (a.value === b.value) return true;
-    const tagA = (a.value as Map<string, AbstractValue>)?.get("__stdlib_fn");
-    const tagB = (b.value as Map<string, AbstractValue>)?.get("__stdlib_fn");
-    return (
-      tagA instanceof StringValue &&
-      tagB instanceof StringValue &&
-      tagA.value === tagB.value
-    );
+    return a.value === b.value;
   }
   if (a instanceof SymbolValue && b instanceof SymbolValue) {
     return a.ref.Equals(b.ref);
@@ -1079,9 +1072,7 @@ export function tableFromPairs(
 function stringLibraryMember(key: string): ObjectValue | null {
   const libName = `string.${key}`;
   if (!isStdLibFunctionName(libName)) return null;
-  const marker = new Map<string, AbstractValue>();
-  marker.set("__stdlib_fn", new StringValue(libName));
-  return new ObjectValue(marker);
+  return stdLibMarker(libName);
 }
 
 export function indexValue(
@@ -1160,7 +1151,7 @@ export function storeIndex(
     }
     return;
   }
-  if (storeBase instanceof ObjectValue) {
+  if (storeBase instanceof ObjectValue && !isStdLibMarker(storeBase)) {
     const invalidKey = invalidKeyMessage(storeKey);
     const keyStr = invalidKey === null ? luauMapKeyString(storeKey!) : null;
     const val = asOrNull(storeValue, AbstractValue);
@@ -1267,9 +1258,7 @@ export function readVariable(story: any, name: string | null): InkObject {
   }
 
   if (foundValue == null && name && isStdLibFunctionName(name)) {
-    const marker = new Map<string, AbstractValue>();
-    marker.set("__stdlib_fn", new StringValue(name));
-    foundValue = new ObjectValue(marker);
+    foundValue = stdLibMarker(name);
   }
 
   if (foundValue == null) {
