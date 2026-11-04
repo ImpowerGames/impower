@@ -84,7 +84,7 @@ jobs:
           set -o pipefail
           used() { awk '/MemTotal/{t=$2}/MemAvailable/{a=$2}END{print int((t-a)/1024)}' /proc/meminfo; }
           echo "measure: used-before-mb $(used)"
-          ( while :; do echo "$(used) $(ps -C node -o rss= | awk '{s+=$1}END{print int(s/1024)}')"; sleep 0.5; done > "$RUNNER_TEMP/mem.txt" ) &
+          ( while :; do echo "$(used) $(ps -eo rss=,args= | awk '/node/{s+=$1}END{print int(s/1024)}')"; sleep 0.5; done > "$RUNNER_TEMP/mem.txt" ) &
           sampler=$!
           start=$(date +%s)
           status=0

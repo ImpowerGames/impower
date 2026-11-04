@@ -93,18 +93,6 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   },
 }));
 
-vi.mock("../../src/modules/spark-editor/workspace/WorkspaceWindow", () => ({
-  default: class {},
-}));
-
-vi.mock("../../src/modules/spark-editor/workspace/workspaceProtocol", () => ({
-  registerWorkspaceProtocol: () => {},
-}));
-
-vi.mock("../../src/modules/spark-editor/workspace/devProtocolBridge", () => ({
-  installProtocolBridge: () => () => {},
-}));
-
 if (!Range.prototype.getClientRects) {
   Range.prototype.getClientRects = () =>
     Object.assign([], { item: () => null }) as unknown as DOMRectList;
