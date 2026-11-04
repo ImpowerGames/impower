@@ -87,6 +87,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
     fs: {
       getFiles: vi.fn(async () => files),
+      getFolders: vi.fn(async () => [] as string[]),
       getFileUri: (projectId: string, path: string) =>
         `file://${projectId}/${path}`,
     },

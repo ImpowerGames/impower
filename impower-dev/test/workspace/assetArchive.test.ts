@@ -24,19 +24,34 @@ describe("assetArchive", () => {
     expect(z["a/b.bin"]).toEqual(new Uint8Array([9, 9]));
   });
 
-  it("parseUnzipEntries keeps the full path and drops pure-directory entries", () => {
+  it("parseUnzipEntries keeps the full path and keeps directory entries with their trailing slash", () => {
     const unzipped: Record<string, Uint8Array> = {
       "main.sd": new Uint8Array([1]),
       "backgrounds/": new Uint8Array([]),
       "backgrounds/forest.png": new Uint8Array([2]),
       "characters/forest.png": new Uint8Array([3]),
+      "/": new Uint8Array([]),
     };
     const out = parseUnzipEntries(unzipped);
     expect(out.map((e) => e.filename).sort()).toEqual([
+      "backgrounds/",
       "backgrounds/forest.png",
       "characters/forest.png",
       "main.sd",
     ]);
+  });
+
+  it("writes each directory as an empty entry ending in a slash", () => {
+    const z = buildZippable(
+      [{ path: "a/x.png", data: new Uint8Array([1]) }],
+      ["scripts/empty", "assets/also empty/"],
+    );
+    expect(Object.keys(z).sort()).toEqual([
+      "a/x.png",
+      "assets/also empty/",
+      "scripts/empty/",
+    ]);
+    expect(z["scripts/empty/"]).toEqual(new Uint8Array(0));
   });
 
   it("round-trips distinct nested basenames through the path layer (codec-agnostic)", () => {

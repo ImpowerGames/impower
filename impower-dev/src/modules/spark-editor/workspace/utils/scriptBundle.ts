@@ -1,4 +1,5 @@
 import type { FileData } from "@impower/spark-editor-protocol/src/types";
+import { isProjectMetadata } from "../../utils/fileTree";
 
 const FILE_SEPARATOR_PREFIX = "//// ";
 const FILE_SEPARATOR_SUFFIX = " ////";
@@ -19,7 +20,12 @@ export const bundleScripts = (
     content += `${main.text}`;
   }
   files
-    .filter((f) => f !== main && f.text != null && f.name)
+    .filter(
+      (f) =>
+        f !== main &&
+        f.text != null &&
+        !isProjectMetadata(getRelativePath(f.uri)),
+    )
     .sort(
       (a, b) =>
         cmp(a.ext, b.ext) ||

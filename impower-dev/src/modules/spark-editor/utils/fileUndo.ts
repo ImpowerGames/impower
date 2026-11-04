@@ -28,9 +28,10 @@ export async function recordTrashDeletion(
   deletedUris: string[],
   label: string,
   since: number,
+  deletedFolders: string[] = [],
 ) {
   let batchIds = await findBatchesForUris(projectId, deletedUris, since);
-  if (batchIds.length === 0) {
+  if (batchIds.length === 0 && deletedFolders.length === 0) {
     return;
   }
   pushUndo({
@@ -40,15 +41,19 @@ export async function recordTrashDeletion(
       for (const id of batchIds) {
         await Workspace.fs.restoreTrash(projectId, id);
       }
+      await Workspace.fs.createFolders(projectId, deletedFolders);
       await markProjectDirty();
     },
     redo: async () => {
       const redoSince = Date.now();
       const { Workspace } = await import("../workspace/Workspace");
-      await Workspace.fs.deleteFiles({
-        files: deletedUris.map((uri) => ({ uri })),
-        mode: "trash",
-      });
+      if (deletedUris.length > 0) {
+        await Workspace.fs.deleteFiles({
+          files: deletedUris.map((uri) => ({ uri })),
+          mode: "trash",
+        });
+      }
+      await Workspace.fs.deleteFolders(projectId, deletedFolders);
       batchIds = await findBatchesForUris(projectId, deletedUris, redoSince);
       await markProjectDirty();
     },

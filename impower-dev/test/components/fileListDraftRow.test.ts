@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fs = vi.hoisted(() => ({
   getFiles: vi.fn(async () => ({})),
+  getFolders: vi.fn(async () => [] as string[]),
   getFileUri: (projectId: string, path: string) => `file://${projectId}/${path}`,
   getRelativePath: (projectId: string, uri: string) =>
     uri.slice(`file://${projectId}/`.length),
