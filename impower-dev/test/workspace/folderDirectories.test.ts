@@ -219,6 +219,21 @@ describe("opening a project stored with .folder files", () => {
     expect(dec.decode(await fs.readFile({ file: { uri: "file://local/.layout" } }))).toBe("2");
   });
 
+  it("still opens the project when a .folder file is already gone, as when another tab removed it first", async () => {
+    const root = seed({ "main.sd": "x", ".layout": "1", "assets/gone/.folder": "" });
+    const gone = (root.entries.get(PROJECT) as MemoryDirectory).entries.get("assets") as MemoryDirectory;
+    const folder = gone.entries.get("gone") as MemoryDirectory;
+    folder.removeEntry = async () => {
+      folder.entries.clear();
+      throw new DOMException("already removed", "NotFoundError");
+    };
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const fs = await load(root);
+    expect(await shownTree(fs)).toEqual([{ assets: [{ gone: [] }] }, "main.sd"]);
+    expect(dec.decode(await fs.readFile({ file: { uri: "file://local/.layout" } }))).toBe("2");
+  });
+
   it("runs once: an empty .folder made after the migration survives later loads", async () => {
     const root = seed({ "main.sd": "x", ".layout": "1", "assets/empty/.folder": "" });
     const fs = await load(root);

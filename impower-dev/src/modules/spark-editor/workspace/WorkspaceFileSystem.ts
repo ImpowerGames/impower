@@ -147,6 +147,8 @@ export default class WorkspaceFileSystem {
           files: plan.legacyFiles.map((p) => ({
             uri: this.getFileUri(projectId, p),
           })),
+        }).catch((e) => {
+          console.warn("[workspace] legacy .folder files not all removed:", e);
         });
       }
       await this.deleteFolders(projectId, plan.staleFolders);
