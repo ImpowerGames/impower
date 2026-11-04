@@ -45,6 +45,7 @@ import {
   TOKEN_MODIFIERS,
   TOKEN_TYPES,
 } from "./utils/providers/getSemanticTokens";
+import { getUiBreakpoints } from "./utils/providers/getUiBreakpoints";
 
 // workaround(typescript): with the DOM lib loaded, `self` in a dedicated worker is typed as Window
 declare const self: DedicatedWorkerGlobalScope;
@@ -422,6 +423,11 @@ try {
             null)
         : null;
     },
+  );
+  connection.onRequest(
+    "sparkdown/uiBreakpoints",
+    async (params: { uri: string }) =>
+      getUiBreakpoints(await workspace.compile(params.uri, false)),
   );
   connection.onRequest(
     "sparkdown/fileRenameEdits",

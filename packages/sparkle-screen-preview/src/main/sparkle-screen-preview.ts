@@ -1,15 +1,10 @@
 import {
   createElement,
   diffAndPatch,
-  getComponents,
-  parseSparkle,
-  renderCssVDOM,
-  renderHtmlVDOM,
   VNode,
 } from "../../../sparkle-screen-renderer/src";
 import { Component } from "../../../spec-component/src/component";
-import { createScreenRenderContext } from "../utils/createScreenRenderContext";
-import { getScreenTheme } from "../utils/getScreenTheme";
+import { loadScreenPreview } from "../utils/loadScreenPreview";
 import { throttle } from "../utils/throttle";
 import spec from "./_sparkle-screen-preview";
 
@@ -32,24 +27,18 @@ export default class SparkdownScreenPreview extends Component(spec) {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (message.method === "load") {
-        const { textDocument, text } = message.params;
-        this._textDocument = textDocument;
-        const input = text;
-        const parsed = parseSparkle(input);
-        const components = getComponents(parsed);
+        this._textDocument = message.params.textDocument;
+        const { parsed, render } = loadScreenPreview({
+          ...message.params,
+          sharedCSS: spec.sharedCSS ?? {},
+        });
         const stateInputEl = this.refs.state as HTMLInputElement;
         const update = throttle(() => {
           const state = JSON.parse(stateInputEl.value || "{}");
-          const theme = getScreenTheme(
-            parsed,
-            components,
-            state,
-            spec.sharedCSS ?? {},
-          );
-          const ctx = createScreenRenderContext(components, state, theme);
+          const rendered = render(state);
           const renderStyles = () => {
             const container = this.refs.css;
-            const newVDOM = renderCssVDOM(parsed, ctx);
+            const newVDOM = rendered.css;
             if (!this._lastCssVDOM) {
               container.innerHTML = "";
               container.appendChild(createElement(newVDOM));
@@ -62,7 +51,7 @@ export default class SparkdownScreenPreview extends Component(spec) {
           };
           const renderHTML = () => {
             const container = this.refs.html;
-            const newVDOM = renderHtmlVDOM(parsed, ctx);
+            const newVDOM = rendered.html;
             if (!this._lastHtmlVDOM) {
               container.innerHTML = "";
               container.appendChild(createElement(newVDOM));

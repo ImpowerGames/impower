@@ -15,11 +15,12 @@ export const getScreenTheme = (
   components: Record<string, SparkleNode>,
   state: Record<string, any>,
   sharedCSS: Record<string, string>,
+  breakpoints?: Record<string, number> | null,
 ): ThemeVariables => {
   const shared = getThemeVariables(...Object.values(sharedCSS));
   const css = renderCssVDOM(
     parsed.filter((node) => node.type === "theme" || node.type === "animation"),
-    createScreenRenderContext(components, state, shared),
+    createScreenRenderContext(components, state, shared, breakpoints),
   );
   return new Set([...shared, ...getThemeVariables(getText(css))]);
 };
