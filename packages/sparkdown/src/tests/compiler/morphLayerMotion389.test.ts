@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { MORPH_FIELD_DOCS } from "../../compiler/morph/morphSchema";
 import { parseMorphRecipe } from "../../morph/recipe";
 
 const URI = "file:///main.sd";
@@ -66,11 +67,24 @@ describe("secondary states and layer motion in a morph declaration", () => {
     expect(program.morphs!.variants["bunny"]![0]!.groups).toEqual(["eyes", "brows"]);
   });
 
-  test("a group whose first state comes after the first keyframe is refused: every driven group starts from an explicit state", () => {
-    const issues = morphIssues(morph("eyes { state = open }", "eyes { state = closed }; brows { state = down }", "eyes { state = open }; brows { state = up }"));
+  test("a group whose first state comes after the first keyframe is refused: every driven group starts from an explicit state, and the morph plays nowhere", () => {
+    const text = morph("eyes { state = open }", "eyes { state = closed }; brows { state = down }", "eyes { state = open }; brows { state = up }");
+    const issues = morphIssues(text);
     expect(issues).toContainEqual(
       expect.objectContaining({ severity: 1, text: "down", message: expect.stringContaining("`brows` takes a `state` in a later keyframe but not in the first one") }),
     );
+    const program = compile(text);
+    expect(program.morphs!.recipes["blink"]).toBeDefined();
+    expect(program.morphs!.variants["bunny"]).toBeUndefined();
+    const fixed = compile(morph("eyes { state = open }; brows { state = up }", "eyes { state = closed }; brows { state = down }", "eyes { state = open }; brows { state = up }"));
+    expect(fixed.morphs!.variants["bunny"]).toHaveLength(1);
+  });
+
+  test("the keyframes help asks for every group's state in the first pose and keeps the identity ends for layer properties", () => {
+    const help = MORPH_FIELD_DOCS["keyframes"]!;
+    expect(help).toContain("Every group the morph drives needs its `state` in the first pose");
+    expect(help).not.toMatch(/a first or last pose that leaves (it|a group) out/);
+    expect(help).toContain("a first or last pose that leaves a layer property out uses its resting value");
   });
 
   test.each([

@@ -1074,7 +1074,7 @@ describe("morph binding", () => {
     expect(found[0]!.message).toContain("image `bunny`: it has no `mouth` group");
   });
 
-  test("a first keyframe that leaves a group out starts from each variant's own rest, as in CSS", () => {
+  test("a first keyframe that leaves a group out binds without a starting state, so the morph gets no reference and plays nowhere", () => {
     const text = `morph blink {
   method = bend
   keyframes {
@@ -1103,6 +1103,9 @@ describe("morph binding", () => {
     const closed = binding.candidates[0]!.variants.find((v) => v.name === "bunny~eyes.closed")!;
     expect(closed.status).toBe("active");
     expect(closed.rest["eyes"]).toEqual({ root: "closed" });
+    const program = compile(text, [{ name: "bunny", svg: WIDE }]);
+    expect(program.morphs?.recipes["blink"]).toBeDefined();
+    expect(Object.keys(program.morphs?.variants ?? {})).toEqual([]);
   });
 
   test("candidates are found by group before full compatibility", () => {

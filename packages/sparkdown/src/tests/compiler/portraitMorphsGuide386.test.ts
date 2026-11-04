@@ -185,6 +185,8 @@ describe("the portrait morphs guide chapter", () => {
     expect(text).toContain("`translate`, then `rotate`, then `scale`, then `transform`, all about `transform_origin`");
     expect(MORPH_MOTION_WRAPPER_STYLE).toBe("transform-box:fill-box;transform-origin:50% 50%");
     expect(text).toContain("A percentage is of the moved layer's own box");
+    expect(text).not.toMatch(/a first or last pose that leaves a group out/);
+    expect(text).toContain("Every group the morph drives needs its `state` in the first pose");
     const documented = [
       ["translate", "0 8px"],
       ["translate", "-2px"],

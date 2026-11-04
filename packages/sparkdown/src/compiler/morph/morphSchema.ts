@@ -143,7 +143,7 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
   partner:
     "The labels whose drawing this label's drawings take in a pose that draws none of them: one label, such as `eyelash-left`, or a list in priority order, such as `{ eyeball-shadow-left; eyelash-left }`. The first listed label the pose draws decides, and the label's own name in the list pairs by name at that rank. The drawing moves into the shape of that label's drawing nearest it, keeping its own paint and its place in paint order, and stays in that shape while the pose holds.",
   keyframes:
-    "The poses, as `{ … }` entries with an `offset` or as positions (`from { … }`, `50% { … }`, `to { … }`). Each pose holds containers such as `eyes { … }` with a `state` and layer properties. As in CSS keyframes, a pose that leaves a group or property out moves between the nearest poses that set it, and a first or last pose that leaves it out uses the image's resting value there.",
+    "The poses, as `{ … }` entries with an `offset` or as positions (`from { … }`, `50% { … }`, `to { … }`). Each pose holds containers such as `eyes { … }` with a `state` and layer properties. Every group the morph drives needs its `state` in the first pose, the state an image has to rest in for the morph to play. As in CSS keyframes, a pose that leaves a group or property out moves between the nearest poses that set it; a last pose that leaves a group out uses the image's resting state, and a first or last pose that leaves a layer property out uses its resting value (no movement, opacity 1).",
   timing: "When and how often the morph plays.",
   clips:
     "Apertures cut from the facing edges of `between` layers and applied to the `targets` layers.",

@@ -153,7 +153,7 @@ morph blink {
 
 A `state` is always the name of an option, never a variable or a number, so `state = closed`, `state = "closed"`, `state = 01` and `state = open-wide` are each read as written. It may also be qualified with its group, `state = eyes.closed`, the way a script line writes it. The qualifier has to be the container's own group: `state = mouth.closed` inside `eyes { … }` is an error. After you type `eyes.`, the editor completes the states the project's portraits draw.
 
-The first pose is the state a portrait has to rest in for the morph to play on it, as [Which portraits a morph plays on](#which-portraits-a-morph-plays-on) describes. Make the last pose that state too, so the portrait comes back to rest whichever direction the morph plays in. As in CSS keyframes, a first or last pose that leaves a group out uses the portrait's resting state there.
+The first pose is the state a portrait has to rest in for the morph to play on it, as [Which portraits a morph plays on](#which-portraits-a-morph-plays-on) describes. Make the last pose that state too, so the portrait comes back to rest whichever direction the morph plays in. Every group the morph drives needs its `state` in the first pose; a morph whose group first appears in a later pose is an error and plays nowhere. As in CSS keyframes, a last pose that leaves a group out uses the portrait's resting state there.
 
 An option with a hyphen is a kind of the word before it ([The naming rules](./Portraits.md#the-naming-rules)). A morph whose first pose is `open` therefore also plays on a portrait resting in `open-wide`, and returns it to `open-wide`, because each portrait keeps its own resting choice.
 
@@ -344,7 +344,7 @@ morph blink {
 }
 ```
 
-- Every group a morph drives has its `state` in the first pose, because the first pose is what a portrait has to rest in. A group whose first `state` comes in a later pose is an error on that `state`.
+- Every group a morph drives has its `state` in the first pose, because the first pose is what a portrait has to rest in. A group whose first `state` comes in a later pose is an error on that `state`, and the morph plays on no portrait until it is fixed.
 - Each group moves between the nearest poses that set it, on the same timing as the others.
 - A portrait plays the morph only when it rests at the first pose in every group. If one group rests elsewhere, the whole look stays as drawn: a morph never moves half a face.
 - A drawing belongs to at most one group the morph drives. A layer whose showing depends on two of them together, such as a crease drawn only while the eyes are closed and the brows are down, keeps the portrait still with a `mixed-groups` error on the artwork. Draw it under one group.

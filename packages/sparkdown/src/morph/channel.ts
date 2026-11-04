@@ -4,6 +4,7 @@ import {
   groupHasState,
   morphImages,
   morphRequirements,
+  type MorphRequirements,
 } from "../compiler/morph/bindMorph";
 import { resolveImageAttributes } from "../compiler/utils/filterImage";
 import { buildFilteredSrc, serializeImageFilterParam } from "../filters/filteredSvg";
@@ -28,7 +29,10 @@ const sourceToken = (image: any): string | undefined => {
   return typeof src === "string" && src ? `src:${src}` : undefined;
 };
 
-const canonicalSelection = (selection: Record<string, string>): string =>
+const startsEveryGroup = (requirements: MorphRequirements): boolean =>
+  [...requirements.groups.keys()].every((group) => requirements.rest.has(group));
+
+const canonicalSelection =(selection: Record<string, string>): string =>
   serializeImageFilterParam(selection) ??
   JSON.stringify(Object.fromEntries(Object.entries(selection).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))));
 
@@ -65,6 +69,7 @@ export function buildMorphChannel(
     const recipeText = serializeMorphRecipe(buildMorphRecipe(name, effective));
     channel.recipes[name] = recipeText;
     const binding = bindMorph(context, effective, images);
+    if (!startsEveryGroup(binding.requirements)) continue;
     const groups = [...binding.requirements.groups.keys()];
     for (const candidate of binding.candidates) {
       if (!candidate.compatible || candidate.type !== "image") continue;
@@ -99,6 +104,7 @@ export function morphRefsForStruct(
     const requirements = morphRequirements(recipeAsMorph(recipe));
     const groups = [...requirements.groups.keys()];
     const compatible =
+      startsEveryGroup(requirements) &&
       groups.length > 0 &&
       groups.every((group) => [...requirements.groups.get(group)!].every((state) => groupHasState(vocabulary, group, state)));
     if (!compatible) continue;
