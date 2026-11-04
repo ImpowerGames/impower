@@ -5,7 +5,9 @@ import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileCha
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
+import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
+import { DirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DirectoriesMessage";
 import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFilesMessage";
 import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage";
 import { DidRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidRenameFilesMessage";
@@ -43,6 +45,11 @@ import {
 } from "vscode-languageserver-textdocument";
 import { buildZippable, parseUnzipEntries } from "./utils/assetArchive";
 import debounce from "./utils/debounce";
+import {
+  createDirectory,
+  deleteEmptyDirectory,
+  getAllDirectoriesRecursive,
+} from "./utils/directories";
 import { getAllFilesRecursive } from "./utils/getAllFilesRecursive";
 import { getDirectoryHandleFromPath } from "./utils/getDirectoryHandleFromPath";
 import { getFileExtension } from "./utils/getFileExtension";
@@ -188,6 +195,36 @@ onmessage = async (e) => {
       respond(response);
     }
   }
+  if (DirectoriesMessage.type.isRequest(message)) {
+    try {
+      const params = message.params;
+      let uris: string[];
+      if (params.action === "list") {
+        uris = await listDirectories(params.directory.uri);
+      } else if (params.action === "create") {
+        uris = await createDirectories(params.uris);
+      } else {
+        uris = await deleteEmptyDirectories(params.uris);
+      }
+      respond(DirectoriesMessage.type.response(message.id, { uris }));
+      if (params.action !== "list" && uris.length > 0) {
+        broadcast(
+          DidChangeDirectoriesMessage.type.notification({
+            created: params.action === "create" ? uris : [],
+            deleted: params.action === "delete" ? uris : [],
+          }),
+        );
+      }
+    } catch (err: any) {
+      console.error(err, err.stack);
+      respond(
+        DirectoriesMessage.type.error(message.id, {
+          code: ErrorCodes.InternalError,
+          message: err.message,
+        }),
+      );
+    }
+  }
   if (ReadFileMessage.type.isRequest(message)) {
     try {
       const { file } = message.params;
@@ -204,9 +241,9 @@ onmessage = async (e) => {
     }
   }
   if (ZipFilesMessage.type.isRequest(message)) {
-    const { files } = message.params;
+    const { files, directories } = message.params;
     try {
-      const buffer = (await zipFiles(files)) as ArrayBuffer;
+      const buffer = (await zipFiles(files, directories)) as ArrayBuffer;
       const response = ZipFilesMessage.type.response(message.id, buffer);
       respond(response, [buffer]);
     } catch (err: any) {
@@ -592,6 +629,42 @@ const readDirectoryFiles = async (directoryUri: string) => {
   return files;
 };
 
+const listDirectories = async (directoryUri: string) => {
+  const root = await navigator.storage.getDirectory();
+  const directoryPath = getPathFromUri(directoryUri);
+  const directoryHandle = await getDirectoryHandleFromPath(root, directoryPath);
+  const paths = await getAllDirectoriesRecursive(
+    directoryHandle,
+    directoryPath,
+    [TRASH_DIR],
+  );
+  return paths.map(getUriFromPath);
+};
+
+const createDirectories = async (uris: string[]) => {
+  const root = await navigator.storage.getDirectory();
+  const created: string[] = [];
+  for (const uri of new Set(uris)) {
+    console.log(MAGENTA, "MKDIR", uri);
+    await createDirectory(root, getPathFromUri(uri));
+    created.push(uri);
+  }
+  return created;
+};
+
+const deleteEmptyDirectories = async (uris: string[]) => {
+  const root = await navigator.storage.getDirectory();
+  const paths = [...new Set(uris.map(getPathFromUri))].sort(
+    (a, b) => b.split("/").length - a.split("/").length,
+  );
+  const removed: string[] = [];
+  for (const path of paths) {
+    console.log(MAGENTA, "RMDIR", path);
+    removed.push(...(await deleteEmptyDirectory(root, path)));
+  }
+  return removed.map(getUriFromPath);
+};
+
 const needsTextAtEnumeration = (fileUri: string) => {
   const ext = getFileExtension(fileUri);
   const type = getFileType(fileUri);
@@ -615,7 +688,10 @@ const readFile = async (fileUri: string) => {
   return buffer;
 };
 
-const zipFiles = async (files: { uri: string; path?: string }[]) => {
+const zipFiles = async (
+  files: { uri: string; path?: string }[],
+  directories: string[] = [],
+) => {
   const root = await navigator.storage.getDirectory();
   const refs = await Promise.all(
     files.map(async ({ uri, path }) => {
@@ -625,7 +701,7 @@ const zipFiles = async (files: { uri: string; path?: string }[]) => {
       return { path: path || fileRef.name, data };
     }),
   );
-  const zipped = zipSync(buildZippable(refs), {
+  const zipped = zipSync(buildZippable(refs, directories), {
     level: 0,
   });
   console.log(

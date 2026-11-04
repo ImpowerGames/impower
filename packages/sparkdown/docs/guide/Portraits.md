@@ -353,7 +353,7 @@ Migrate the native artwork's layer names before re-exporting: export normalizati
 
 ## Making a portrait move
 
-A portrait can also move between its states on its own, such as blinking from `eyes.open` to `eyes.closed` and back. [Portrait Morphs](./PortraitMorphs.md) shows how to prepare the layers and declare the movement.
+A portrait can also move between its states on its own, such as blinking from `eyes.open` to `eyes.closed` and back. [Portrait Morphs](./PortraitMorphs.md) shows how to prepare the layers and declare the movement. A still portrait may use any SVG styling, but a portrait that moves has to avoid style sheets and the styles and transforms listed in [Art the morph can read](./PortraitMorphs.md#art-the-morph-can-read), or it shows without the morph.
 
 ## Quick reference
 

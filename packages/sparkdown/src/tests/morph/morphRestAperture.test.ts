@@ -148,7 +148,8 @@ const paintList = (svg: string, scale = 1): Painted[] => {
     const space = node.tagName === "svg" ? parentSpace : multiply(parentSpace, transformOf(node));
     const own = [...clips];
     for (const attribute of ["clip-path", "mask"]) {
-      const ref = /url\(#([^)]+)\)/.exec(node.attributes[attribute] ?? "")?.[1];
+      const inline = new RegExp(`(?:^|;)\\s*${attribute}\\s*:\\s*([^;]+)`).exec(node.attributes["style"] ?? "")?.[1];
+      const ref = /url\(#([^)]+)\)/.exec(inline ?? node.attributes[attribute] ?? "")?.[1];
       if (ref) own.push(reveals(byId.get(ref)!, space));
     }
     if (node.tagName === "path" && node.attributes["fill"]) {
@@ -446,6 +447,95 @@ describe("a live morph's aperture masks", () => {
         const cut = here.filter(({ p }) => white.clips.some((clip) => clip(p) < 1));
         expect(cut.slice(0, 5).map(({ p }) => p), `${cut.length} of ${here.length} points under the ${side} lashes cut at ${scale}px`).toEqual([]);
       }
+    }
+  });
+
+  const through = (item: Painted, p: Point) => item.clips.reduce((product, clip) => product * clip(p), 1);
+
+  const sampleInside = (shape: Point[][], step = 0.5): Point[] => {
+    const xs = shape.flat().map(([x]) => x),
+      ys = shape.flat().map(([, y]) => y);
+    const points: Point[] = [];
+    for (let x = Math.min(...xs); x <= Math.max(...xs); x += step) {
+      for (let y = Math.min(...ys); y <= Math.max(...ys); y += step) {
+        if (inside(shape, [x, y])) points.push([x, y]);
+      }
+    }
+    return points;
+  };
+
+  const wrapperOf = (svg: string, name: string): Element | undefined => {
+    const doc = parse(svg);
+    const chain: Element[] = [];
+    let found: Element[] | undefined;
+    const visit = (node: Element) => {
+      chain.push(node);
+      if (!found && node.attributes["data-name"] === name) found = [...chain];
+      elementChildren(node).forEach(visit);
+      chain.pop();
+    };
+    ((Array.isArray(doc) ? doc : [doc]) as Element[]).forEach(visit);
+    return found?.find((node) => /url\(#(_m[^_]*_)?morph-clip-\d+-\d+\)/.test(node.attributes["mask"] ?? node.attributes["clip-path"] ?? ""));
+  };
+
+  test.each([["rest"], [0.1], [0.2]] as const)("clip each subpath of one compound target spanning both eyes by the aperture over it, at %s", (when) => {
+    const both = portrait({ right: true });
+    const whites = [...both.matchAll(/<path data-name="eyeball-white-(left|right)" d="([^"]+)" fill="#fff"\/>/g)];
+    expect(whites).toHaveLength(2);
+    const source = both
+      .replace(whites[0]![0], `<path data-name="eyeball-whites" d="${whites[0]![2]}${whites[1]![2]}" fill="#fff"/>`)
+      .replace(whites[1]![0], "");
+    const recipe = blink({ clips: [{ between: ["eyelash-left", "eyelash-right"], targets: ["eyeball-whites", "pupil-left", "pupil-right"] }] });
+    const baked = bakeMorphArtifact({ source, selection: {}, recipe, key: "k", variant: "bunny" });
+    expect(baked.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(baked.status).toBe("live");
+    const svg = when === "rest" ? baked.rest : renderMorphAt(baked, when);
+    expect(wrapperOf(svg, "eyeball-whites")).toBeDefined();
+    const outline = apertureOutline(svg);
+    expect(outline).toHaveLength(2);
+    const white = paintList(svg, 20).find((item) => item.fill === "#fff")!;
+    expect(white.shape).toHaveLength(2);
+    for (const subpath of white.shape) {
+      const centre = subpath.reduce((sum, [x]) => sum + x, 0) / subpath.length;
+      const over = outline.filter((ring) => inside([subpath], ring[0]!) || ring.some((p) => inside([subpath], p)));
+      expect(over).toHaveLength(1);
+      const points = sampleInside([subpath]).filter((p) => distance(outline, p) > 0.5);
+      const shown = points.filter((p) => inside(outline, p));
+      const hiddenPoints = points.filter((p) => !inside(outline, p));
+      expect(shown.length, `points shown near x=${centre}`).toBeGreaterThan(20);
+      expect(hiddenPoints.length, `points hidden near x=${centre}`).toBeGreaterThan(20);
+      expect(shown.every((p) => inside([over[0]!], p))).toBe(true);
+      expect(shown.filter((p) => through(white, p) < 1).slice(0, 5)).toEqual([]);
+      expect(hiddenPoints.filter((p) => through(white, p) > 0).slice(0, 5)).toEqual([]);
+    }
+  });
+
+  test.each([
+    ["a mask attribute", 'mask="url(#shade)"'],
+    ["a mask style declaration", 'style="mask:url(#shade)"'],
+  ])("keep a target's own mask inside the aperture's wrapper, so the two intersect: %s", (_name, ownMask) => {
+    const source = portrait()
+      .replace("<defs>", '<defs><mask id="shade"><path d="M0,0H260V58H0Z" fill="#fff"/></mask>')
+      .replace(/(<path data-name="eyeball-white-left" d="[^"]+" fill="#fff")\/>/, `$1 ${ownMask}/>`);
+    const baked = bakeMorphArtifact({ source, selection: {}, recipe: blink(), key: "k", variant: "bunny" });
+    expect(baked.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(baked.status).toBe("live");
+    for (const svg of [baked.rest, renderMorphAt(baked, 0.1), renderMorphAt(baked, 0.2)]) {
+      expect(wrapperOf(svg, "eyeball-white-left")).toBeDefined();
+      const outline = apertureOutline(svg);
+      expect(outline.length).toBeGreaterThan(0);
+      const white = paintList(svg, 20).find((item) => item.fill === "#fff")!;
+      expect(white.clips.length).toBeGreaterThanOrEqual(2);
+      const points = sampleInside(white.shape).filter((p) => distance(outline, p) > 0.5 && Math.abs(p[1] - 58) > 0.5);
+      const groups = {
+        shown: points.filter((p) => inside(outline, p) && p[1] < 58),
+        maskedOwn: points.filter((p) => inside(outline, p) && p[1] > 58),
+        maskedAperture: points.filter((p) => !inside(outline, p) && p[1] < 58),
+      };
+      for (const [group, list] of Object.entries(groups)) expect(list.length, group).toBeGreaterThan(5);
+      expect(groups.shown.filter((p) => through(white, p) < 1).slice(0, 5)).toEqual([]);
+      expect(groups.maskedOwn.filter((p) => through(white, p) > 0).slice(0, 5)).toEqual([]);
+      expect(groups.maskedAperture.filter((p) => through(white, p) > 0).slice(0, 5)).toEqual([]);
     }
   });
 

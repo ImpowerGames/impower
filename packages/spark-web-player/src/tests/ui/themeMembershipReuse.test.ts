@@ -2,15 +2,13 @@ import { describe, expect, test } from "vitest";
 import { BeginReconcileMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/BeginReconcileMessage";
 import { CreateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/CreateElementMessage";
 import { SetThemeMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
-import { uiBuiltinDefinitions } from "../../../../spark-engine/src/game/modules/ui/uiBuiltinDefinitions";
+import breakpoints from "../../../../spark-engine/src/game/modules/ui/builtinBreakpoints.json";
 import UIManager from "../../app/managers/UIManager";
 import {
   createDOMHarness,
   createStubApp,
   installJSDOM,
 } from "./domTestHarness";
-
-const breakpoints = uiBuiltinDefinitions().config.ui.breakpoints;
 
 const styles = (overlay: HTMLElement) =>
   [...overlay.querySelectorAll("style")]

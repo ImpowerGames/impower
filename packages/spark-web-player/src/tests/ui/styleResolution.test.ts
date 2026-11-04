@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from "vitest";
 import AnimationPlayer from "../../../../spark-dom/src/classes/AnimationPlayer";
 import { getAnimationContent } from "../../../../spark-dom/src/utils/getAnimationContent";
 import { getStyleContent } from "../../../../spark-dom/src/utils/getStyleContent";
-import { uiBuiltinDefinitions } from "../../../../spark-engine/src/game/modules/ui/uiBuiltinDefinitions";
+import breakpoints from "../../../../spark-engine/src/game/modules/ui/builtinBreakpoints.json";
 import {
   getComponents,
   parseSparkle,
@@ -23,8 +23,6 @@ import { getThemeVariables } from "../../../../sparkle-style-transformer/src/uti
 import { getScreenTheme } from "../../../../sparkle-screen-preview/src/utils/getScreenTheme";
 
 const ALIASES: Record<string, string> = { ...STYLE_ALIASES, ...CSS_ALIASES };
-
-const breakpoints = uiBuiltinDefinitions().config.ui.breakpoints;
 
 const theme: ReadonlySet<string> = new Set([
   "--theme-color-sky_60",

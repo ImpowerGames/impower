@@ -77,6 +77,13 @@ describe("importDroppedFiles change recording", () => {
     expect(mocks.recordScriptChange).toHaveBeenCalledTimes(1);
   });
 
+  it("writes a dropped file named .folder under its own name", async () => {
+    await importDroppedFiles("p", [dropped("assets/notes/.folder")]);
+    expect(mocks.createFiles).toHaveBeenCalledWith({
+      files: [{ uri: "file://p/assets/notes/.folder", data: expect.any(ArrayBuffer) }],
+    });
+  });
+
   it("records a script change for a dropped .sd", async () => {
     await importDroppedFiles("p", [dropped("scripts/intro.sd")]);
     expect(mocks.recordScriptChange).toHaveBeenCalledTimes(1);

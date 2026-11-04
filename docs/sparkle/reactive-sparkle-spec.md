@@ -385,7 +385,7 @@ numeric/color style prop (`width`, `opacity`, `text-color`, `translate`, …).
 **Static surfaces:** selectors, pseudo-aliases, breakpoints, `animation`/`theme`/`font` defs.
 
 > **[BUG — B1] Breakpoint mismatch.** `getStyleContent.DEFAULT_BREAKPOINTS` is
-> `xs400 sm600 md960 lg1280 xl1920`, but `uiBuiltinDefinitions().config.ui.breakpoints` is
+> `xs400 sm600 md960 lg1280 xl1920`, but the prelude's `config.ui.breakpoints` (`builtins.sd`) is
 > `xs400 sm640 md768 lg1024 xl1280`. These must be one source of truth. **Recommend** the
 > engine `config.ui.breakpoints` wins and `getStyleContent` takes them as a parameter (it
 > already accepts a `breakpoints` arg — just always pass the engine's).
@@ -486,7 +486,7 @@ Notes:
 
 ## 7. Builtins inventory
 
-Two existing inventories must be reconciled. The **engine** (`uiBuiltinDefinitions.ts`)
+Two existing inventories must be reconciled. The **engine** prelude (`builtins.sd`)
 defines structural styles used by the running game; the **prototype** defined widget
 templates. v1 builtins = the union the reactive layouts need.
 
@@ -516,7 +516,7 @@ Each builtin declares its **surfaces**:
 | `box`,`row`,`column`,`stack`,`scroller`,`overlay` | — (children) | — | layout containers |
 
 > **[DECISION D8] Widget builtins source.** The new interactive widgets need engine-side
-> default styles (in `uiBuiltinDefinitions.ts`) and structural templates. **Recommend**
+> default styles (in `builtins.sd`) and structural templates. **Recommend**
 > porting the prototype's `builtins.ts` HTML templates into engine builtin *definitions*
 > (data, not DOM) so both web and Unity can realize them. Confirm scope for v1 (e.g. ship
 > `button`/`field`/`checkbox`/`slider` first; `dropdown` later).

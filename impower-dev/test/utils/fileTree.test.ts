@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   breadcrumbSegments,
   buildFileTree,
+  canMoveFolder,
   canWriteLayoutMarker,
   childrenRows,
   computeFolderMoves,
@@ -11,9 +12,12 @@ import {
   descendantPaths,
   filterPaths,
   flattenVisibleRows,
-  FOLDER_SENTINEL,
+  foldersWithoutFiles,
+  isProjectMetadata,
   LAYOUT_MARKER,
   layoutSubtreeFor,
+  needsFolderMigration,
+  planFolderMigration,
   resolveScopePath,
   subtreeChildren,
 } from "../../src/modules/spark-editor/utils/fileTree";
@@ -74,11 +78,41 @@ describe("buildFileTree", () => {
     expect(b.children[0]!.path).toBe("b/forest.png");
   });
 
-  it("materializes an empty folder from a sentinel without showing the sentinel", () => {
-    const tree = buildFileTree(["emptydir/.folder", "main.sd"]);
+  it("materializes an empty folder from the folder list", () => {
+    const tree = buildFileTree(["main.sd"], { folders: ["emptydir", "a/b"] });
     const empty = tree.find((n) => n.name === "emptydir")!;
     expect(empty.isDirectory).toBe(true);
     expect(empty.children).toEqual([]);
+    const a = tree.find((n) => n.name === "a")!;
+    expect(a.children.map((n) => [n.path, n.isDirectory])).toEqual([
+      ["a/b", true],
+    ]);
+  });
+
+  it("lists a file named .folder like any other file, at the top level, inside a folder and beside other files", () => {
+    const show = (nodes: ReturnType<typeof buildFileTree>): unknown[] =>
+      nodes.map((n) =>
+        n.isDirectory ? { [n.name]: show(n.children) } : n.name,
+      );
+    expect(show(buildFileTree([".folder", "main.sd"]))).toEqual([
+      ".folder",
+      "main.sd",
+    ]);
+    expect(
+      show(buildFileTree(["scripts/main.sd", "scripts/notes/.folder"])),
+    ).toEqual([{ scripts: [{ notes: [".folder"] }, "main.sd"] }]);
+    expect(show(buildFileTree(["assets/a/.folder", "assets/a/x.png"]))).toEqual(
+      [{ assets: [{ a: [".folder", "x.png"] }] }],
+    );
+  });
+
+  it("keeps a folder from the folder list that also holds files", () => {
+    const tree = buildFileTree(["art/bg.png"], { folders: ["art", "art/empty"] });
+    expect(tree).toHaveLength(1);
+    expect(tree[0]!.children.map((n) => n.path)).toEqual([
+      "art/empty",
+      "art/bg.png",
+    ]);
   });
 
   it("builds deep nesting", () => {
@@ -189,12 +223,112 @@ describe("computeFolderMoves", () => {
   });
 });
 
-describe("FOLDER_SENTINEL", () => {
-  it("materializes an empty folder and is hidden from the tree", () => {
-    const tree = buildFileTree([`emptydir/${FOLDER_SENTINEL}`, "main.sd"]);
-    const empty = tree.find((n) => n.name === "emptydir")!;
-    expect(empty.isDirectory).toBe(true);
-    expect(empty.children).toEqual([]);
+describe("planFolderMigration", () => {
+  it("removes each zero-byte .folder file and keeps its folder as a directory", () => {
+    expect(
+      planFolderMigration(
+        [
+          { path: "main.sd", size: 10 },
+          { path: "assets/empty/.folder", size: 0 },
+          { path: "scripts/a/b/.folder", size: 0 },
+        ],
+        ["assets", "assets/empty", "scripts", "scripts/a", "scripts/a/b"],
+      ),
+    ).toEqual({
+      legacyFiles: ["assets/empty/.folder", "scripts/a/b/.folder"],
+      folders: ["assets", "assets/empty", "scripts", "scripts/a", "scripts/a/b"],
+      staleFolders: [],
+    });
+  });
+
+  it("removes a zero-byte .folder that sits beside other files, since the old editor never removed it when files arrived", () => {
+    expect(
+      planFolderMigration(
+        [
+          { path: "assets/art/.folder", size: 0 },
+          { path: "assets/art/bg.png", size: 4 },
+        ],
+        ["assets", "assets/art"],
+      ).legacyFiles,
+    ).toEqual(["assets/art/.folder"]);
+  });
+
+  it("keeps a .folder file with content, which the user made", () => {
+    const plan = planFolderMigration(
+      [
+        { path: "assets/notes/.folder", size: 12 },
+        { path: ".folder", size: 3 },
+      ],
+      ["assets", "assets/notes"],
+    );
+    expect(plan.legacyFiles).toEqual([]);
+    expect(plan.staleFolders).toEqual([]);
+  });
+
+  it("marks directories that held neither a file nor a .folder as stale, since the old editor never showed them", () => {
+    expect(
+      planFolderMigration(
+        [
+          { path: "assets/kept/.folder", size: 0 },
+          { path: "assets/art/bg.png", size: 4 },
+        ],
+        [
+          "assets",
+          "assets/art",
+          "assets/kept",
+          "assets/kept/leftover",
+          "chapters",
+          "chapters/old",
+        ],
+      ).staleFolders,
+    ).toEqual(["assets/kept/leftover", "chapters", "chapters/old"]);
+  });
+});
+
+describe("canMoveFolder", () => {
+  it("refuses a destination that is the folder itself, inside it, or a folder that contains it, and allows any other", () => {
+    expect(canMoveFolder("assets/a", "assets/a")).toBe(false);
+    expect(canMoveFolder("assets/a", "assets/a/")).toBe(false);
+    expect(canMoveFolder("assets/a", "assets/a/inner")).toBe(false);
+    expect(canMoveFolder("assets/a/a", "assets/a")).toBe(false);
+    expect(canMoveFolder("assets/a/inner", "assets")).toBe(false);
+    expect(canMoveFolder("assets/a", "assets/ab")).toBe(true);
+    expect(canMoveFolder("assets/ab", "assets/a")).toBe(true);
+    expect(canMoveFolder("assets/a", "assets/b")).toBe(true);
+    expect(canMoveFolder("assets/a/inner", "assets/inner")).toBe(true);
+  });
+});
+
+describe("isProjectMetadata and needsFolderMigration", () => {
+  it("treats only the project's own metadata files as project metadata", () => {
+    expect(isProjectMetadata(".name")).toBe(true);
+    expect(isProjectMetadata(".layout")).toBe(true);
+    expect(isProjectMetadata(".folders")).toBe(true);
+    expect(isProjectMetadata(".zipSynced")).toBe(true);
+    expect(isProjectMetadata(".folder")).toBe(false);
+    expect(isProjectMetadata(".constructor")).toBe(false);
+    expect(isProjectMetadata("assets/.name")).toBe(false);
+    expect(isProjectMetadata("assets/.folder")).toBe(false);
+    expect(isProjectMetadata("assets/notes/.hidden")).toBe(false);
+    expect(isProjectMetadata("main.sd")).toBe(false);
+  });
+
+  it("migrates folders until the .folders marker exists, whatever the layout marker says", () => {
+    expect(needsFolderMigration(["main.sd", ".layout"])).toBe(true);
+    expect(needsFolderMigration(["main.sd", ".folders"])).toBe(false);
+    expect(needsFolderMigration(["main.sd", ".folders/x"])).toBe(false);
+  });
+});
+
+describe("foldersWithoutFiles", () => {
+  it("returns the directories no file sits under, minus those kept", () => {
+    expect(
+      foldersWithoutFiles(
+        ["a/x.png", "b/c/"],
+        ["a", "a/empty", "b", "b/c", "d", "e"],
+        ["e"],
+      ),
+    ).toEqual(["a/empty", "d"]);
   });
 });
 
@@ -441,10 +575,10 @@ describe("computeLayoutMigration", () => {
     expect(computeLayoutMigration(["main.sd"], subtreeFor)).toEqual([]);
   });
 
-  it("leaves dotfiles (metadata + .folder sentinels) alone", () => {
+  it("leaves dotfiles (project metadata and any other dotfile) alone", () => {
     expect(
       computeLayoutMigration(
-        [".name", ".zipSynced", "empty/.folder"],
+        [".name", ".zipSynced", "notes/.folder"],
         subtreeFor,
       ),
     ).toEqual([]);
@@ -558,15 +692,27 @@ describe("computeLayoutMigration", () => {
           "main.sd",
           "scripts/other/main.sd",
           "assets/other/tree.png",
-          "scripts/other/tree.png/.folder",
           "hero.png",
-          "assets/hero.png/.folder",
           "art/bg.png",
           "assets/art",
         ],
         subtreeFor,
+        ["scripts/other/tree.png", "assets/hero.png"],
       ),
     ).toEqual([]);
+  });
+
+  it("sees an empty folder the file listing cannot, and holds a move onto it", () => {
+    const paths = ["main.sd", "hero.png", "chapters/intro.sd"];
+    expect(computeLayoutMigration(paths, subtreeFor)).toEqual([
+      { from: "hero.png", to: "assets/hero.png" },
+      { from: "chapters/intro.sd", to: "scripts/chapters/intro.sd" },
+    ]);
+    expect(
+      computeLayoutMigration(paths, subtreeFor, ["assets/hero.png"]),
+    ).toEqual([
+      { from: "chapters/intro.sd", to: "scripts/chapters/intro.sd" },
+    ]);
   });
 
   it("keeps a sub-project whole when its folder under scripts/ is already taken", () => {
@@ -671,7 +817,11 @@ describe("computeLayoutMigration", () => {
       });
     const load = () => {
       remember();
-      const batches = computeLayoutMigrationBatches(files, subtreeFor);
+      const batches = computeLayoutMigrationBatches(
+        files,
+        subtreeFor,
+        foldersWithoutFiles(files, [...folders]),
+      );
       for (const batch of batches) {
         for (const { from, to } of batch) {
           if (folders.has(to) || files.includes(to)) lost.push(from);
