@@ -1,4 +1,4 @@
-style card with
+style card {
   delay = 5 -- note
   gap = 5-- note
   count = 5 // note
@@ -15,4 +15,4 @@ style card with
   font = "a -- b", serif -- note
   family = "a // b", serif // note
   trail = red
-end
+}

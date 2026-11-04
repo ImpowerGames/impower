@@ -55,6 +55,8 @@ export type FileItemProps = {
   bulkSelected?: boolean;
   isNew?: boolean;
   isDraft?: boolean;
+  displayName?: string;
+  displayExt?: string;
   onDraftCommitting?: (name: string, finalPath: string) => void;
   onToggle?: (path: string) => void;
   onToggleSelect?: (path: string, isDirectory: boolean) => void;
@@ -86,6 +88,8 @@ function FileItem({
   bulkSelected = false,
   isNew = false,
   isDraft = false,
+  displayName,
+  displayExt,
   onToggle,
   onToggleSelect,
   onRangeSelect,
@@ -136,8 +140,11 @@ function FileItem({
   const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
   const dotIndex = basename.lastIndexOf(".");
   const name =
-    isDirectory || dotIndex <= 0 ? basename : basename.slice(0, dotIndex);
-  const ext = !isDirectory && dotIndex > 0 ? basename.slice(dotIndex + 1) : "";
+    displayName ??
+    (isDirectory || dotIndex <= 0 ? basename : basename.slice(0, dotIndex));
+  const ext =
+    displayExt ??
+    (!isDirectory && dotIndex > 0 ? basename.slice(dotIndex + 1) : "");
   const showExt = ext && ext !== "sd" && ext !== "url";
   const caption = isDirectory
     ? ""
@@ -173,7 +180,7 @@ function FileItem({
 
   useEffect(() => {
     if (!renaming) return;
-    setInputValue(isNew && !isDirectory ? "" : (name ?? ""));
+    setInputValue(name);
     const id = requestAnimationFrame(() => {
       const el = inputRef.current;
       if (el) {
@@ -182,7 +189,7 @@ function FileItem({
       }
     });
     return () => cancelAnimationFrame(id);
-  }, [renaming, name, isNew, isDirectory]);
+  }, [renaming, name]);
 
   useEffect(() => {
     if (!renaming) return;
@@ -193,8 +200,8 @@ function FileItem({
         commit();
       }
     };
-    document.addEventListener("click", onDoc, true);
-    return () => document.removeEventListener("click", onDoc, true);
+    document.addEventListener("click", onDoc);
+    return () => document.removeEventListener("click", onDoc);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renaming, inputValue]);
 
@@ -235,29 +242,6 @@ function FileItem({
       } else {
         await Workspace.window.recordAssetChange();
       }
-      return;
-    }
-    if (isNew && !isDirectory) {
-      setRenaming(false);
-      if (!newName) {
-        void deleteEntry("permanent");
-        onEndNewEntry?.();
-        return;
-      }
-      if (renamed) setCommittedName(newName);
-      const { Workspace } = await import("../../workspace/Workspace");
-      const projectId = workspace.signals.projectId.value;
-      Workspace.window.openFileEditor(finalPath);
-      if (renamed && projectId) {
-        const moved = await Workspace.fs.moveFile(projectId, path, finalPath);
-        if (moved.some((d) => d.type === "script")) {
-          await Workspace.window.recordScriptChange();
-        } else {
-          await Workspace.window.recordAssetChange();
-        }
-        recordMove(projectId, path, finalPath, false);
-      }
-      onEndNewEntry?.();
       return;
     }
     setRenaming(false);
@@ -396,7 +380,6 @@ function FileItem({
 
   async function onRowClick(e: MouseEvent) {
     if (renaming) {
-      e.stopPropagation();
       commit();
       if (isDirectory) {
         onReplaceSelect?.(path);
@@ -404,7 +387,6 @@ function FileItem({
       }
       return;
     }
-    e.stopPropagation();
     if (selectMode) {
       onToggleSelect?.(path, isDirectory);
       return;
@@ -466,13 +448,11 @@ function FileItem({
         class={`h-16 w-full justify-start gap-0 rounded-none pl-5 text-left text-base font-normal text-foreground/80 ${
           selectMode ? "pr-5" : "pr-14"
         } ${
-          "after:pointer-events-none after:absolute after:inset-0 after:bg-foreground after:opacity-0 after:transition-opacity after:content-[''] hover:after:opacity-[0.05] active:after:opacity-[0.12]"
-        } ${
           bulkSelected || contextMenu
-            ? "bg-primary/15 hover:bg-primary/15 active:bg-primary/15"
+            ? "bg-primary/15"
             : selected
-              ? "bg-engine-800/40 hover:bg-engine-800/40 active:bg-engine-800/40 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary before:content-['']"
-              : "hover:bg-transparent active:bg-transparent"
+              ? "bg-engine-800/40 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary before:content-['']"
+              : ""
         }`}
         onClick={onRowClick}
         onContextMenu={onRowContextMenu}
@@ -538,7 +518,7 @@ function FileItem({
                 <span class="grid max-w-full grid-cols-[minmax(0,max-content)]">
                   <span
                     class={`invisible whitespace-pre text-base font-semibold [grid-area:1/1] ${
-                      isNew && !isDirectory ? "min-w-[10ch]" : "min-w-[1ch]"
+                      isDraft ? "min-w-[10ch]" : "min-w-[1ch]"
                     }`}
                     aria-hidden="true"
                   >
@@ -577,9 +557,9 @@ function FileItem({
               <div class="flex flex-row items-center overflow-hidden text-ellipsis whitespace-nowrap">
 
                 <span class="font-semibold">
-                  {committedName ?? (isNew && !isDirectory ? "" : name)}
+                  {committedName ?? name}
                 </span>
-                {showExt && !(isNew && !isDirectory) && (
+                {showExt && (
                   <span class="font-normal opacity-30">.{ext}</span>
                 )}
               </div>

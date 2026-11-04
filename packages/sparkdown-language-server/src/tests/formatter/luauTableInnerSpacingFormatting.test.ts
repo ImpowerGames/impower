@@ -119,10 +119,10 @@ test("formatting leaves interpolation and binding braces tight", () => {
 local s = \`HP: {hp}\`
 local t = "HP: {hp}"
 
-layout hud with
+layout hud {
   text "HP: {hp}" #value={volume}
   text #label={{format_hp(hp, max_hp)}}
-end
+}
 `;
   expectFormatsTo(source, source);
 });
@@ -134,20 +134,20 @@ Value: { {a=1} }
 Empty: {  {}  }
 Call: {f{1}}
 
-layout hud with
+layout hud {
   text #value={ {a=1} }
   text #items={ {1, 2}}
-end
+}
 `,
     `local s = \`v={ { a = 1 } }\`
 Value: { { a = 1 } }
 Empty: { {} }
 Call: {f{ 1 }}
 
-layout hud with
+layout hud {
   text #value={ { a = 1 } }
   text #items={ { 1, 2 } }
-end
+}
 `,
   );
 });

@@ -204,7 +204,6 @@ export function collectMorphIssues(
         name: nameSpan,
         parent: parentSpan ?? null,
         block: morph.node,
-        withKeyword: getDescendent("LuauWithKeyword", morph.node) ?? null,
         own: morph.own,
         effective,
         parentEffective: ancestors[0]?.written

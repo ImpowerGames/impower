@@ -22,6 +22,9 @@ export function validateReviewerDefaults(defaults, models) {
   const codexRoutes = new Set(defaults.codexModels ?? []);
   if (!codexRoutes.size || ![...codexRoutes].every((route) => /^gpt-[a-z0-9][a-z0-9.-]*$/.test(route))) throw new Error("Reviewer defaults need a codexModels list of gpt- routes");
   if (!Array.isArray(defaults.rows) || !defaults.rows.length) throw new Error("Reviewer defaults need rows");
+  if (!Array.isArray(defaults.writers) || !defaults.writers.length) throw new Error("Reviewer defaults need a writers registry");
+  const writers = new Set(defaults.writers);
+  if (writers.size !== defaults.writers.length || ![...writers].every((writer) => typeof writer === "string" && /^(?:claude|gpt)-[a-z0-9][a-z0-9.-]*$/.test(writer))) throw new Error("Reviewer defaults need unique valid writer routes");
   const keys = new Set();
   const checkColumn = (row, column) => {
     const list = row[column];
@@ -34,6 +37,7 @@ export function validateReviewerDefaults(defaults, models) {
   };
   for (const row of defaults.rows) {
     if (typeof row.writer !== "string" || !/^[a-z0-9][a-z0-9.-]+$/.test(row.writer)) throw new Error("Each row needs a writer route");
+    if (!writers.has(row.writer)) throw new Error(`Unregistered default writer ${row.writer}`);
     if (!writerEfforts(row.writer).includes(row.writerEffort) || !ticketEfforts.includes(row.ticketEffort)) throw new Error(`Row ${row.writer} has an unsupported writer or ticket effort`);
     const key = `${row.writer}/${row.writerEffort}/${row.ticketEffort}`;
     if (keys.has(key)) throw new Error(`Duplicate reviewer default row ${key}`);
@@ -43,9 +47,12 @@ export function validateReviewerDefaults(defaults, models) {
     if (row.primary.some(({ route }) => isClaude(route) === isClaude(row.writer))) throw new Error(`Row ${key} primary must use the other vendor`);
     if (row.fallback.some(({ route }) => isClaude(route) !== isClaude(row.writer))) throw new Error(`Row ${key} fallback must stay with the writer's vendor`);
   }
-  for (const writer of new Set(defaults.rows.map((row) => row.writer))) {
+  for (const writer of writers) {
     for (const writerEffort of writerEfforts(writer)) {
       if (!defaults.rows.some((row) => row.writer === writer && row.writerEffort === writerEffort)) throw new Error(`No reviewer default row for ${writer} at ${writerEffort} effort`);
+    }
+    for (const ticketEffort of ticketEfforts) {
+      if (!defaults.rows.some((row) => row.writer === writer && row.ticketEffort === ticketEffort)) throw new Error(`No reviewer default row for ${writer} for a ${ticketEffort} ticket`);
     }
   }
   return claudeRoutes;

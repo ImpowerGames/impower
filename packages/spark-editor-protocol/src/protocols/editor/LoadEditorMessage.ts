@@ -15,6 +15,7 @@ export interface LoadEditorParams {
   breakpointLines?: number[];
   pinpointLines?: number[];
   highlightLines?: number[];
+  startingValueLines?: number[];
   routePins?: EditorRoutePin[];
   languageServerInitializeParams: InitializeParams;
   languageServerInitializeResult: InitializeResult;

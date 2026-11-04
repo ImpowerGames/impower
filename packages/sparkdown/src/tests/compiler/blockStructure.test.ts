@@ -36,7 +36,7 @@ function compile(source: string) {
 const errors = (source: string) =>
   compile(source).diags.filter((d) => d.severity === 1);
 
-const MISSING_END = "missing its closing `end`";
+const MISSING_CLOSE = "missing its closing `}`";
 const UNREADABLE = "cannot be read past";
 
 const FORMS = [
@@ -53,14 +53,14 @@ const article = (word: string) => (/^[aeiou]/.test(word) ? "an" : "a");
 const lines = (...parts: string[]) =>
   parts.filter((part) => part !== "").join("\n");
 
-describe("a block without `end`", () => {
+describe("a block without its `}`", () => {
   for (const form of FORMS) {
     test(`an unclosed ${form.keyword} is an error on its header and still compiles`, () => {
-      const header = `${form.header} with`;
+      const header = `${form.header} {`;
       const source = lines(header, form.body, "", "store trust = 5", "", "Trust is {trust}.", "");
       const { program, diags } = compile(source);
       const missing = diags.filter(
-        (d) => d.severity === 1 && d.message.includes(MISSING_END),
+        (d) => d.severity === 1 && d.message.includes(MISSING_CLOSE),
       );
       expect(missing).toHaveLength(1);
       expect(missing[0]!.message).toContain(`this ${form.keyword}`);
@@ -77,22 +77,22 @@ describe("a block without `end`", () => {
   }
 
   test("an unclosed morph is an error on its header", () => {
-    const source = "morph m with\n  x = 1\n\nstore trust = 5\n\nHi {trust}.\n";
-    const missing = errors(source).filter((e) => e.message.includes(MISSING_END));
+    const source = "morph m {\n  x = 1\n\nstore trust = 5\n\nHi {trust}.\n";
+    const missing = errors(source).filter((e) => e.message.includes(MISSING_CLOSE));
     expect(missing).toHaveLength(1);
-    expect(missing[0]).toMatchObject({ startLine: 0, endCharacter: 12 });
+    expect(missing[0]).toMatchObject({ startLine: 0, endCharacter: 9 });
   });
 
   test("an unclosed layout that runs into a scene is an error", () => {
-    const source = "layout main with\n  box {\n  }\n\n-> s\nscene s\nHi.\nend\n";
-    const missing = errors(source).filter((e) => e.message.includes(MISSING_END));
+    const source = "layout main {\n  box {\n  }\n\n-> s\nscene s\nHi.\nend\n";
+    const missing = errors(source).filter((e) => e.message.includes(MISSING_CLOSE));
     expect(missing).toHaveLength(1);
     expect(missing[0]!.startLine).toBe(0);
   });
 
-  test("a layout that stops at a body line it cannot read is an error on its header", () => {
+  test("a layout whose body stops at an `else` is an error on its header", () => {
     const source = [
-      "layout inventory with",
+      "layout inventory {",
       "  column {",
       "    for item in bag do",
       "      row {",
@@ -104,7 +104,7 @@ describe("a block without `end`", () => {
       "    end",
       "    title",
       "  }",
-      "end",
+      "}",
       "",
       "scene start",
       "  Hi.",
@@ -112,36 +112,34 @@ describe("a block without `end`", () => {
       "",
     ].join("\n");
     const layout = errors(source).filter((e) =>
-      e.message.startsWith("This layout is missing its closing `end`"),
+      e.message.startsWith("This layout is missing its closing `}`"),
     );
     expect(layout).toHaveLength(1);
-    expect(layout[0]!.message).toContain("stops at a line its body cannot read");
+    expect(layout[0]!.message).toContain("line that starts with `end`, `else`, `elseif` or `case`");
     expect(layout[0]).toMatchObject({
       startLine: 0,
       startCharacter: 0,
       endLine: 0,
-      endCharacter: "layout inventory with".length,
+      endCharacter: "layout inventory {".length,
     });
   });
 
-  test("a body-less style with no `end` is an error", () => {
-    const missing = errors("style s\n\nHi.\n").filter((e) =>
-      e.message.includes(MISSING_END),
-    );
-    expect(missing).toHaveLength(1);
+  test("a style header with no body is an error naming the brace form", () => {
+    expect(errors("style s\n\nscene start\n  Hi.\nend\n").map((e) => e.message)).toEqual([
+      "A style body goes in braces: `style NAME { … }`.",
+    ]);
   });
 });
 
 describe("text a block header cannot read", () => {
   for (const form of FORMS) {
     for (const [label, header, readable] of [
-      ["a `:` header", `${form.header}:`, form.header],
-      ["a word after `with`", `${form.header} with junk`, `${form.header} with`],
-      ["a word before `with`", `${form.header} junk with`, form.header],
-      ["a name that starts with a digit", `${form.keyword} 2x with`, form.keyword],
+      ["a `:` header", `${form.header}: {`, form.header],
+      ["a word before `{`", `${form.header} junk {`, form.header],
+      ["a name that starts with a digit", `${form.keyword} 2x {`, form.keyword],
     ] as const) {
       test(`${label} on ${article(form.keyword)} ${form.keyword} is an error on the readable header`, () => {
-        const source = lines(header, form.body, "end", "", "scene start", "  Hi.", "end", "");
+        const source = lines(header, form.body, "}", "", "scene start", "  Hi.", "end", "");
         const unreadable = errors(source).filter((e) =>
           e.message.includes(UNREADABLE),
         );
@@ -153,7 +151,7 @@ describe("text a block header cannot read", () => {
           endLine: 0,
           endCharacter: readable.length,
         });
-        expect(errors(source).some((e) => e.message.includes(MISSING_END))).toBe(
+        expect(errors(source).some((e) => e.message.includes(MISSING_CLOSE))).toBe(
           false,
         );
       });
@@ -161,7 +159,7 @@ describe("text a block header cannot read", () => {
   }
 
   test("a morph name that starts with a digit is an error on the readable header", () => {
-    const unreadable = errors("morph 2m with\n  x = 1\nend\n\nscene start\n  Hi.\nend\n").filter((e) =>
+    const unreadable = errors("morph 2m {\n  x = 1\n}\n\nscene start\n  Hi.\nend\n").filter((e) =>
       e.message.includes(UNREADABLE),
     );
     expect(unreadable).toHaveLength(1);
@@ -170,7 +168,7 @@ describe("text a block header cannot read", () => {
   });
 
   test("a dotted style name is an error on the readable header", () => {
-    const unreadable = errors("style s.t with\n  color = red\nend\n\nscene start\n  Hi.\nend\n").filter(
+    const unreadable = errors("style s.t {\n  color = red\n}\n\nscene start\n  Hi.\nend\n").filter(
       (e) => e.message.includes(UNREADABLE),
     );
     expect(unreadable).toHaveLength(1);
@@ -212,20 +210,20 @@ describe("valid blocks report nothing new", () => {
       'define hero as character with name = "Hero"\nend\nscene start\n  Hi.\nend\n',
     "a define with a comment after `with`":
       "define hero as character with -- the lead\nend\nscene start\n  Hi.\nend\n",
-    "a style with a comment after `with`":
-      "style s with -- note\n  color = red\nend\nscene start\n  Hi.\nend\n",
+    "a style with a comment after `{`":
+      "style s { -- note\n  color = red\n}\nscene start\n  Hi.\nend\n",
     "a style with a nested block":
-      "style s with\n  &.a {\n    color = red\n  }\nend\nscene start\n  Hi.\nend\n",
+      "style s {\n  &.a {\n    color = red\n  }\n}\nscene start\n  Hi.\nend\n",
     "a layout in a screen":
-      "screen hud with\nend\nlayout main as base in hud with\n  box {\n  }\nend\nlayout base with\nend\nscene start\n  Hi.\nend\n",
+      "screen hud {\n}\nlayout main as base in hud {\n  box {\n  }\n}\nlayout base {\n}\nscene start\n  Hi.\nend\n",
   };
   for (const form of FORMS) {
-    cases[`a one-line ${form.keyword}`] = `${form.header} with end\nscene start\n  Hi.\nend\n`;
-    cases[`a body-less ${form.keyword}`] = `${form.header} with\nend\nscene start\n  Hi.\nend\n`;
+    cases[`a one-line ${form.keyword}`] = `${form.header} {}\nscene start\n  Hi.\nend\n`;
+    cases[`a body-less ${form.keyword}`] = `${form.header} {\n}\nscene start\n  Hi.\nend\n`;
     cases[`a multi-line ${form.keyword}`] = lines(
-      `${form.header} with`,
+      `${form.header} {`,
       form.body || "  -- nothing yet",
-      "end",
+      "}",
       "scene start",
       "  Hi.",
       "end",
@@ -278,12 +276,12 @@ describe("block diagnostics across incremental edits", () => {
     return seen;
   };
 
-  test("match a cold compile as a style's `end` is deleted and added", () => {
+  test("match a cold compile as a style's `}` is deleted and added", () => {
     const seen = run(
       [
-        "style s with",
+        "style s {",
         "  color = red",
-        "end",
+        "}",
         "",
         "store trust = 5",
         "",
@@ -293,25 +291,25 @@ describe("block diagnostics across incremental edits", () => {
         "",
       ].join("\n"),
       [
-        ["  color = red\nend\n", "  color = red\n"],
+        ["  color = red\n}\n", "  color = red\n"],
         ["Trust is", "Now trust is"],
-        ["style s with", "style s:"],
+        ["style s {", "style s: {"],
         ["Now trust is", "Trust is"],
-        ["style s:", "style s with"],
-        ["  color = red\n", "  color = red\nend\n"],
+        ["style s: {", "style s {"],
+        ["  color = red\n", "  color = red\n}\n"],
       ],
     );
-    expect(seen.some((m) => m.includes(MISSING_END))).toBe(true);
+    expect(seen.some((m) => m.includes(MISSING_CLOSE))).toBe(true);
     expect(seen.some((m) => m.includes(UNREADABLE))).toBe(true);
   });
 
-  test("match a cold compile as a layout's `end` is deleted and added", () => {
+  test("match a cold compile as a layout's `}` is deleted and added", () => {
     const seen = run(
       [
-        "layout main with",
+        "layout main {",
         "  box {",
         "  }",
-        "end",
+        "}",
         "",
         "store trust = 5",
         "",
@@ -321,14 +319,14 @@ describe("block diagnostics across incremental edits", () => {
         "",
       ].join("\n"),
       [
-        ["  }\nend\n", "  }\n"],
+        ["  }\n}\n", "  }\n"],
         ["Trust is", "Now trust is"],
-        ["  }\n", "  }\nend\n"],
-        ["layout main with", "layout main with junk"],
-        ["layout main with junk", "layout main with"],
+        ["  }\n", "  }\n}\n"],
+        ["layout main {", "layout main junk {"],
+        ["layout main junk {", "layout main {"],
       ],
     );
-    expect(seen.some((m) => m.includes(MISSING_END))).toBe(true);
+    expect(seen.some((m) => m.includes(MISSING_CLOSE))).toBe(true);
     expect(seen.some((m) => m.includes(UNREADABLE))).toBe(true);
   });
 });

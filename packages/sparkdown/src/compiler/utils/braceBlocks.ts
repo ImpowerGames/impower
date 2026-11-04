@@ -8,6 +8,42 @@ export const BRACE_BODY_NAMES = nodeNameSet([
   "LuauSparkleElementBlock",
 ]);
 
+export const STRUCT_KEYWORD_BLOCK_NAMES = nodeNameSet([
+  "LuauStyle",
+  "LuauAnimation",
+  "LuauTheme",
+  "LuauMorph",
+  "LuauLayout",
+  "LuauComponent",
+  "LuauScreen",
+]);
+
+export const KEYWORD_BRACE_BODY_NAMES = nodeNameSet([
+  "LuauStructBraceBody",
+  "LuauSparkleBraceBody",
+]);
+
+const KEYWORD_WITH_BODY_NAMES = nodeNameSet([
+  "LuauStructWithBody",
+  "LuauSparkleWithBody",
+]);
+
+function keywordBody(block: SyntaxNode, names: Set<string>): SyntaxNode | null {
+  const content = findChildByName(block, `${block.name}_content`);
+  for (let child = content?.firstChild; child; child = child.nextSibling) {
+    if (names.has(child.name)) return child;
+  }
+  return null;
+}
+
+export function keywordBraceBody(block: SyntaxNode): SyntaxNode | null {
+  return keywordBody(block, KEYWORD_BRACE_BODY_NAMES);
+}
+
+export function keywordWithBody(block: SyntaxNode): SyntaxNode | null {
+  return keywordBody(block, KEYWORD_WITH_BODY_NAMES);
+}
+
 export const STRUCT_KEY_TOKEN_NAMES = nodeNameSet([
   "BuiltinComponentName",
   "StylingDeclarationScalarPropertyName",
@@ -35,6 +71,18 @@ export function braceBodyParts(body: SyntaxNode): {
         begin: findChildByName(body, "LuauStructListBlock_begin"),
         content: findChildByName(body, "LuauStructListBlock_content"),
         end: findChildByName(body, "LuauStructListBlock_end"),
+      };
+    case "LuauStructBraceBody":
+      return {
+        begin: findChildByName(body, "LuauStructBraceBody_begin"),
+        content: findChildByName(body, "LuauStructBraceBody_content"),
+        end: findChildByName(body, "LuauStructBraceBody_end"),
+      };
+    case "LuauSparkleBraceBody":
+      return {
+        begin: findChildByName(body, "LuauSparkleBraceBody_begin"),
+        content: findChildByName(body, "LuauSparkleBraceBody_content"),
+        end: findChildByName(body, "LuauSparkleBraceBody_end"),
       };
     default:
       return {
@@ -130,6 +178,7 @@ export function sparklePartWords(content: SyntaxNode): SyntaxNode[] {
         case "LuauSparklePropAttribute":
         case "LuauSparkleEventAttribute":
         case "LuauSparkleEventClosureAttribute":
+        case "LuauSparklePropClosureAttribute":
         case "LuauElementContentStringPlain":
         case "LuauSparkleElementBlock":
           break;
@@ -141,11 +190,11 @@ export function sparklePartWords(content: SyntaxNode): SyntaxNode[] {
   for (let child = content.firstChild; child; child = child.nextSibling) {
     if (child.name === "LuauSparkleElementParts") {
       walk(child);
-    } else if (child.name === "LuauSparkleEventClosureAttribute") {
-      const inner = findChildByName(
-        child,
-        "LuauSparkleEventClosureAttribute_content",
-      );
+    } else if (
+      child.name === "LuauSparkleEventClosureAttribute" ||
+      child.name === "LuauSparklePropClosureAttribute"
+    ) {
+      const inner = findChildByName(child, `${child.name}_content`);
       for (let part = inner?.firstChild; part; part = part.nextSibling) {
         if (part.name === "LuauSparkleElementParts") walk(part);
       }
@@ -241,6 +290,8 @@ const ELEMENT_VALUE_NAMES = nodeNameSet([
   "LuauSparkleEventAttribute",
   "LuauSparkleEventClosureAttribute",
   "LuauSparkleHandlerClosure",
+  "LuauSparklePropClosureAttribute",
+  "LuauSparklePropClosure",
 ]);
 
 export function insideElementValue(tree: Tree, offset: number): boolean {

@@ -4,8 +4,8 @@ scene start
   HERO: It goes -> knot
   HERO (cheerful) >: Hi.
 end
-style list with
+style list {
   > list > item {
     display = flex
   }
-end
+}

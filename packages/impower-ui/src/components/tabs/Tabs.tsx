@@ -200,8 +200,6 @@ export function Tab({
   const activeColor = color || activeColorClass;
   return (
     <RadixTabs.Trigger value={value} disabled={disabled} asChild>
-      {
-}
       <button
         type="button"
         class={cn(
@@ -214,11 +212,9 @@ export function Tab({
       >
         {(icon || activeIcon) && (
           <span
-            class="relative inline-flex flex-col items-center justify-center"
+            class="relative inline-flex shrink-0 flex-col items-center justify-center"
             style={{ width: `${ctx.iconSize}px`, height: `${ctx.iconSize}px` }}
           >
-            {
-}
             {icon ? (
               <span
                 class={cn(
@@ -239,7 +235,6 @@ export function Tab({
                 })()}
               </span>
             ) : null}
-            {}
             {(activeIcon ?? icon) ? (
               <span
                 class={cn(
@@ -262,8 +257,6 @@ export function Tab({
             ) : null}
           </span>
         )}
-        {
-}
         <span
           class={cn(
             "relative inline-block leading-none transition-transform duration-100",
@@ -271,7 +264,6 @@ export function Tab({
               "scale-80 group-data-[state=active]:scale-90",
           )}
         >
-          {}
           <span
             class={cn(
               "group-data-[state=active]:opacity-0 transition-opacity duration-100",
@@ -280,8 +272,6 @@ export function Tab({
           >
             {children}
           </span>
-          {
-}
           <span
             class={cn(
               "absolute inset-0 opacity-0 group-data-[state=active]:opacity-100 transition-opacity duration-100",

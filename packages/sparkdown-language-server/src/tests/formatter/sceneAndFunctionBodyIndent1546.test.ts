@@ -114,9 +114,9 @@ end
 
 test("a style written inside a scene indents its body past the scene", () => {
   const source = `scene main
-  style panel as button with
+  style panel as button {
     bg-color = surface-2
-  end
+  }
   Hello.
 end
 `;
@@ -126,11 +126,11 @@ end
 test("a layout written inside a branch indents its body past the scene and branch", () => {
   const source = `scene main
   branch b
-    layout hud with
+    layout hud {
       column {
         text "Hello"
       }
-    end
+    }
   end
 end
 `;

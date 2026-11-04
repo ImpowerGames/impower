@@ -102,11 +102,13 @@ abstract class State {
       handler: (uri: string) => void;
       version: number;
       buffer: DataView | Uint8Array;
+      origin?: string;
       writing?: boolean;
       listeners: { resolve(result: { file: FileData; created: boolean }): void; reject(error: unknown): void }[];
     }
   >();
   static files = new Map<string, FileData>();
+  static fileOrigins = new Map<string, string>();
   static documents = new Map<string, TextDocument>();
 }
 
@@ -119,6 +121,29 @@ const broadcast = (message: NotificationMessage<string, object>) => {
   const remoteMessage = structuredClone(message);
   remoteMessage.params.remote = true;
   channel.postMessage(remoteMessage);
+};
+const broadcastWrittenFiles = (uris: string[]) => {
+  const filesByOrigin = new Map<string | undefined, FileData[]>();
+  for (const uri of new Set(uris)) {
+    const file = State.files.get(uri);
+    if (!file) {
+      continue;
+    }
+    const origin = State.fileOrigins.get(uri);
+    filesByOrigin.set(origin, [...(filesByOrigin.get(origin) ?? []), file]);
+  }
+  if (filesByOrigin.size === 0) {
+    filesByOrigin.set(undefined, []);
+  }
+  filesByOrigin.forEach((files, origin) => {
+    broadcast(
+      DidWriteFilesMessage.type.notification({
+        files,
+        remote: false,
+        origin,
+      }),
+    );
+  });
 };
 const respond = (message: ResponseMessage, transfer?: Transferable[]) => {
   if (transfer) {
@@ -213,19 +238,14 @@ onmessage = async (e) => {
   }
   if (WillWriteFilesMessage.type.isRequest(message)) {
     try {
-      const { files } = message.params;
-      const result = await writeFiles(files);
+      const { files, origin } = message.params;
+      const result = await writeFiles(files, origin);
       const response = WillWriteFilesMessage.type.response(
         message.id,
         result.map((r) => r.file),
       );
       respond(response);
-      broadcast(
-        DidWriteFilesMessage.type.notification({
-          files: result.map((r) => r.file),
-          remote: false,
-        }),
-      );
+      broadcastWrittenFiles(result.map((r) => r.file.uri));
       broadcast(
         DidChangeWatchedFilesMessage.type.notification({
           changes: result.map((r) => ({
@@ -252,12 +272,7 @@ onmessage = async (e) => {
         result.map((r) => r.file),
       );
       respond(response);
-      broadcast(
-        DidWriteFilesMessage.type.notification({
-          files: result.map((r) => r.file),
-          remote: false,
-        }),
-      );
+      broadcastWrittenFiles(result.map((r) => r.file.uri));
       const createdResult = result.filter((r) => r.created);
       if (createdResult.length > 0) {
         broadcast(
@@ -336,12 +351,7 @@ onmessage = async (e) => {
       }
       respond(TrashFilesMessage.type.response(message.id, result));
       if (action === "restore" && result.restored && result.restored.length > 0) {
-        broadcast(
-          DidWriteFilesMessage.type.notification({
-            files: result.restored,
-            remote: false,
-          }),
-        );
+        broadcastWrittenFiles(result.restored.map((f) => f.uri));
         broadcast(
           DidChangeWatchedFilesMessage.type.notification({
             changes: result.restored.map((f) => ({
@@ -370,12 +380,7 @@ onmessage = async (e) => {
         renamedFiles.map((f) => f.file),
       );
       respond(response);
-      broadcast(
-        DidWriteFilesMessage.type.notification({
-          files: files.map((r) => State.files.get(r.newUri)!),
-          remote: false,
-        }),
-      );
+      broadcastWrittenFiles(files.map((r) => r.newUri));
       broadcast(DidRenameFilesMessage.type.notification({ files }));
       broadcast(
         DidChangeWatchedFilesMessage.type.notification({
@@ -413,7 +418,7 @@ onmessage = async (e) => {
   if (ApplyWorkspaceEditMessage.type.isRequest(message)) {
     const { edit } = message.params;
 
-    const writeFileMap = new Map<string, FileData>();
+    const writtenUris: string[] = [];
     const fileEvents: FileEvent[] = [];
     const createEvents: CreateFile[] = [];
     const deleteEvents: DeleteFile[] = [];
@@ -436,10 +441,7 @@ onmessage = async (e) => {
                   uri,
                   type: FileChangeType.Created,
                 });
-                const file = State.files.get(uri);
-                if (file) {
-                  writeFileMap.set(uri, file);
-                }
+                writtenUris.push(uri);
               }
               for (const change of changed) {
                 const uri = change.file.uri;
@@ -447,10 +449,7 @@ onmessage = async (e) => {
                   uri,
                   type: FileChangeType.Changed,
                 });
-                const file = State.files.get(uri);
-                if (file) {
-                  writeFileMap.set(uri, file);
-                }
+                writtenUris.push(uri);
               }
             } else if (c.kind === "delete") {
               await deleteFiles([c]);
@@ -468,21 +467,17 @@ onmessage = async (e) => {
                 uri: c.newUri,
                 type: FileChangeType.Created,
               });
-              const file = State.files.get(c.newUri);
-              if (file) {
-                writeFileMap.set(c.newUri, file);
-              }
+              writtenUris.push(c.newUri);
             }
           } else {
             const uri = c.textDocument.uri;
-            await editTextFiles([c]);
+            const [written] = await editTextFiles([c]);
             fileEvents.push({
               uri: uri,
               type: FileChangeType.Changed,
             });
-            const file = State.files.get(uri);
-            if (file) {
-              writeFileMap.set(uri, file);
+            if (written) {
+              writtenUris.push(uri);
             }
           }
           changeIndex++;
@@ -490,16 +485,15 @@ onmessage = async (e) => {
       } else if (edit.changes) {
         for (const [uri, edits] of Object.entries(edit.changes)) {
           const beforeVersion = State.files.get(uri)?.version ?? 0;
-          await editTextFiles([
+          const [written] = await editTextFiles([
             { textDocument: { uri, version: beforeVersion }, edits },
           ]);
           fileEvents.push({
             uri: uri,
             type: FileChangeType.Changed,
           });
-          const file = State.files.get(uri);
-          if (file) {
-            writeFileMap.set(uri, file);
+          if (written) {
+            writtenUris.push(uri);
           }
         }
       }
@@ -526,12 +520,7 @@ onmessage = async (e) => {
         );
       }
 
-      broadcast(
-        DidWriteFilesMessage.type.notification({
-          files: Array.from(writeFileMap.values()),
-          remote: false,
-        }),
-      );
+      broadcastWrittenFiles(writtenUris);
 
       broadcast(
         DidChangeWatchedFilesMessage.type.notification({
@@ -686,10 +675,7 @@ const editTextFiles = async (textDocumentEdits: TextDocumentEdit[]) => {
         (e): e is TextEdit | AnnotatedTextEdit => "newText" in e,
       );
       if (changes.length === 0) {
-        return {
-          file: { uri: td.uri } as FileData,
-          created: false,
-        };
+        return null;
       }
       let syncedDocument = State.documents.get(td.uri);
       if (!syncedDocument) {
@@ -745,6 +731,7 @@ const enqueueWrite = async (
   version: number,
   buffer: DataView | Uint8Array,
   immediate = false,
+  origin?: string,
 ) => {
   if (/\.svg$/i.test(fileUri)) {
     const source = new TextDecoder().decode(buffer);
@@ -763,6 +750,7 @@ const enqueueWrite = async (
     const entry = State.writeQueue.get(fileUri);
     entry!.buffer = buffer;
     entry!.version = version;
+    entry!.origin = origin;
     entry!.listeners.push({ resolve, reject });
     if (immediate) void write(fileUri);
     else entry!.handler(fileUri);
@@ -811,11 +799,12 @@ const generateThumbnail = async (fileUri: string): Promise<void> => {
 
 const writeFiles = async (
   files: { uri: string; version: number; data: ArrayBuffer }[],
+  origin?: string,
 ) => {
   const result = await Promise.all(
     files.map(async (file) => {
       const buffer = new DataView(file.data);
-      return enqueueWrite(file.uri, file.version, buffer);
+      return enqueueWrite(file.uri, file.version, buffer, false, origin);
     }),
   );
   return result;
@@ -828,6 +817,7 @@ const write = async (fileUri: string) => {
   queued.writing = true;
   const buffer = queued.buffer;
   const version = queued.version;
+  const origin = queued.origin;
   const listeners = queued.listeners.splice(0);
   const relativePath = getPathFromUri(fileUri);
   const directoryPath = getParentPath(relativePath);
@@ -858,6 +848,11 @@ const write = async (fileUri: string) => {
     syncAccessHandle = undefined;
     const arrayBuffer = buffer.buffer as ArrayBuffer;
     const file = updateFileCache(fileUri, arrayBuffer, true, version, Date.now());
+    if (origin != null) {
+      State.fileOrigins.set(fileUri, origin);
+    } else {
+      State.fileOrigins.delete(fileUri);
+    }
     await enrichUrlAssetType(fileUri);
     const notifyFile = State.files.get(fileUri) ?? file;
     await enqueueThumbnail(fileUri);
@@ -939,6 +934,7 @@ const evictTrashCache = (uriPrefix: string) => {
   for (const uri of [...State.files.keys()]) {
     if (uri.startsWith(uriPrefix)) {
       State.files.delete(uri);
+      State.fileOrigins.delete(uri);
     }
   }
 };
@@ -1073,6 +1069,7 @@ const deleteFiles = async (files: { uri: string }[]) => {
       if (existingFile) {
         URL.revokeObjectURL(existingFile.src);
         State.files.delete(file.uri);
+        State.fileOrigins.delete(file.uri);
       }
       return existingFile;
     }),

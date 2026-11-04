@@ -1,3 +1,4 @@
+import { paramKey } from "@impower/sparkdown/src/program/startingValueLiterals";
 import { describe, expect, it } from "vitest";
 import { BRANCHES, playFrom, previewAt } from "./playFromLine";
 
@@ -22,9 +23,9 @@ scene start
 end
 `;
 
-const LAYOUT_ONLY = `layout hud with
+const LAYOUT_ONLY = `layout hud {
   text "Static."
-end
+}
 scene start
   [[open hud]]
   done
@@ -88,17 +89,33 @@ describe("the preview at a line whose run shows nothing", () => {
 });
 
 describe("PLAY inside a branch only a divert from outside its scene enters", () => {
+  const INNER = { "outer.inner": { [paramKey("a")]: "1" } };
   it.each([
-    ["the branch's first line", 5, "Inner 1."],
-    ["a tunnel divert", 6, "Visit 2 t."],
-    ["a tunnel return", 13, "Aside 3."],
-    ["a done after a tunnel's onward divert", 31, "Last 5."],
-    ["a done no run reaches", 23, "Never shown."],
-  ])("from %s, runs with the divert's arguments", async (_name, line, shown) => {
-    const outcome = await playFrom(BRANCHES, line);
-    expect(outcome.started).toBe(true);
-    expect(outcome.exited).toEqual([]);
-    expect(outcome.state).toBe("running");
-    expect(outcome.text).toContain(shown);
-  }, 120_000);
+    ["the branch's first line", 5, undefined, "Inner nil.", []],
+    ["the branch's first line, with its parameter set", 5, INNER, "Inner 1.", []],
+    ["a tunnel divert, with its branch's parameter set", 6, INNER, "Visit 2 t.", []],
+    ["a tunnel return", 13, undefined, "Visit nil nil.", ["Aside"]],
+    [
+      "a tunnel return, with its branch's parameters set",
+      13,
+      { "outer.visit": { [paramKey("n")]: "2", [paramKey("s")]: '"t"' } },
+      "Visit 2 t.",
+      ["Aside"],
+    ],
+    ["a done after a tunnel's onward divert", 31, undefined, "Last nil.", []],
+    ["a done no run reaches", 23, undefined, "Never shown.", []],
+  ] as const)(
+    "from %s, starts at the branch's top",
+    async (_name, line, values, shown, notShown) => {
+      const outcome = await playFrom(BRANCHES, line, values);
+      expect(outcome.started).toBe(true);
+      expect(outcome.exited).toEqual([]);
+      expect(outcome.state).toBe("running");
+      expect(outcome.text).toContain(shown);
+      for (const text of notShown) {
+        expect(outcome.text).not.toContain(text);
+      }
+    },
+    120_000,
+  );
 });

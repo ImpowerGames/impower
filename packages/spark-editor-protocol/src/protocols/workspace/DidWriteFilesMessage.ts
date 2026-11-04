@@ -6,6 +6,7 @@ export type DidWriteFilesMethod = typeof DidWriteFilesMessage.method;
 export interface DidWriteFilesParams {
   files: FileData[];
   remote: boolean;
+  origin?: string;
 }
 
 export class DidWriteFilesMessage {

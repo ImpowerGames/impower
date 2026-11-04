@@ -36,11 +36,11 @@ const itemAt = (source: string, label: string) => {
 };
 
 describe("provider · animation property completion in brace bodies", () => {
-  const ROOT = `animation fade with
+  const ROOT = `animation fade {
   target = layer.self
   keyframes { from { opacity = 0 } }
   tim|
-end
+}
 `;
 
   test("a container property inserts a balanced block with the cursor inside", () => {
@@ -50,7 +50,7 @@ end
       const { text, cursor } = accept(ROOT, item);
       expect(bracesBalanced(text), text).toBe(true);
       expect(insideBraces(text, cursor), text).toBe(true);
-      expect(text).toContain(`\n  ${label} {  }\nend`);
+      expect(text).toContain(`\n  ${label} {  }\n}`);
     }
   });
 
@@ -59,20 +59,20 @@ end
     expect(insertedText(item)).toBe("target = ");
     const { text } = accept(ROOT, item);
     expect(bracesBalanced(text)).toBe(true);
-    expect(text).toContain("\n  target = \nend");
+    expect(text).toContain("\n  target = \n}");
   });
 
   test("inside a block, the block's own properties complete", () => {
     for (const source of [
-      `animation fade with
+      `animation fade {
   timing {
     dur|
   }
-end
+}
 `,
-      `animation fade with
+      `animation fade {
   timing { delay = 1; dur| }
-end
+}
 `,
     ]) {
       const labels = completeAt(source, program).map((i) => String(i.label));
@@ -97,9 +97,9 @@ end
       },
     };
     const labels = completeAt(
-      `animation fade with
+      `animation fade {
   timing { easing = | }
-end
+}
 `,
       schemaProgram,
     ).map((i) => String(i.label));
@@ -108,13 +108,13 @@ end
 
   test("a `;` or brace inside a quoted value starts no new entry", () => {
     for (const source of [
-      `animation fade with
+      `animation fade {
   timing { easing = "custom; dur|" }
-end
+}
 `,
-      `animation fade with
+      `animation fade {
   timing { easing = "a { dur|" }
-end
+}
 `,
     ]) {
       const labels = completeAt(source, program).map((i) => String(i.label));
@@ -125,9 +125,9 @@ end
   test("a single quote in a value is text, so the entry after its `;` completes", () => {
     for (const value of ["don't", "'tis", "ease-'", "ease[", "[data[a]"]) {
       const labels = completeAt(
-        `animation fade with
+        `animation fade {
   timing { easing = ${value}; dur| }
-end
+}
 `,
         program,
       ).map((i) => String(i.label));
@@ -152,11 +152,11 @@ describe("provider · element completion in layout and component brace blocks", 
   test.each(["layout", "component"])(
     "a %s block offers elements at the root and inside blocks",
     (keyword) => {
-      expect(labelsIn(`${keyword} hud with\n  te|\nend\n`)).toContain("text");
-      expect(labelsIn(`${keyword} hud with\n  row {\n    te|\n  }\nend\n`)).toContain(
+      expect(labelsIn(`${keyword} hud {\n  te|\n}\n`)).toContain("text");
+      expect(labelsIn(`${keyword} hud {\n  row {\n    te|\n  }\n}\n`)).toContain(
         "text",
       );
-      expect(labelsIn(`${keyword} hud with\n  row.item { te| }\nend\n`)).toContain(
+      expect(labelsIn(`${keyword} hud {\n  row.item { te| }\n}\n`)).toContain(
         "text",
       );
     },
@@ -164,12 +164,12 @@ describe("provider · element completion in layout and component brace blocks", 
 
   test("a `;` inside quoted element content starts no new element", () => {
     for (const source of [
-      `layout hud with\n  row { text "a; te|" }\nend\n`,
-      `layout hud with\n  row { text 'a; te|' }\nend\n`,
-      `layout hud with\n  row { text'a; te|' }\nend\n`,
-      `layout hud with\n  row { text.title'a; te|' }\nend\n`,
-      `layout hud with\n  row { text #label='a; te|' }\nend\n`,
-      `component hud with\n  row { text #label='a; te|' }\nend\n`,
+      `layout hud {\n  row { text "a; te|" }\n}\n`,
+      `layout hud {\n  row { text 'a; te|' }\n}\n`,
+      `layout hud {\n  row { text'a; te|' }\n}\n`,
+      `layout hud {\n  row { text.title'a; te|' }\n}\n`,
+      `layout hud {\n  row { text #label='a; te|' }\n}\n`,
+      `component hud {\n  row { text #label='a; te|' }\n}\n`,
     ]) {
       expect(labelsIn(source), source).not.toContain("text");
     }
@@ -179,7 +179,7 @@ describe("provider · element completion in layout and component brace blocks", 
     "after closed content holding a quote or bracket, the next %s entry completes",
     (keyword) => {
       for (const content of [`'a"b'`, "'a`b'", "'a[b'", `"a'b"`]) {
-        const source = `${keyword} hud with\n  row { text ${content}; te| }\nend\n`;
+        const source = `${keyword} hud {\n  row { text ${content}; te| }\n}\n`;
         expect(labelsIn(source), source).toContain("text");
       }
     },

@@ -11,7 +11,7 @@ export interface CreateElementParams {
   content?: ElementContent;
   style?: Record<string, string | number | null> | null;
   attributes?: Record<string, string | null> | null;
-  breakpoints?: Record<string, number>;
+  breakpoints: Record<string, number>;
   before?: string | null;
 }
 

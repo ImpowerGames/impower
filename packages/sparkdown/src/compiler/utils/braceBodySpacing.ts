@@ -1,4 +1,5 @@
 import type { SyntaxNode } from "@lezer/common";
+import { keywordBraceBody, STRUCT_KEYWORD_BLOCK_NAMES } from "./braceBlocks";
 import { nodeNameSet } from "./nodeNameSet";
 import { closingBrace } from "./oneLineTableBraces";
 
@@ -14,6 +15,8 @@ const BLOCK_NAMES = nodeNameSet([
   "LuauSparkleElementBlock",
   "LuauStructBlockBody",
   "LuauStructListBlock",
+  "LuauStructBraceBody",
+  "LuauSparkleBraceBody",
 ]);
 
 const HANDLER_CLOSURE = "LuauSparkleHandlerClosure";
@@ -21,6 +24,8 @@ const HANDLER_CLOSURE = "LuauSparkleHandlerClosure";
 const BRACE_LINE_NAMES = nodeNameSet([
   "LuauSparkleBlockLine",
   "LuauStructBlockLine",
+  "LuauStructBraceBody",
+  "LuauSparkleBraceBody",
 ]);
 
 const isBlank = (c: string) => c === " " || c === "\t";
@@ -136,6 +141,15 @@ export function braceBodySpacing(
     spacingAroundSeparator(node, read, marks);
   }
   return marks;
+}
+
+export function precedesKeywordBraceBody(node: SyntaxNode): boolean {
+  for (let p = node.parent; p; p = p.parent) {
+    if (STRUCT_KEYWORD_BLOCK_NAMES.has(p.name)) {
+      return keywordBraceBody(p)?.from === node.to;
+    }
+  }
+  return false;
 }
 
 export function isInStructBlockKey(node: SyntaxNode): boolean {

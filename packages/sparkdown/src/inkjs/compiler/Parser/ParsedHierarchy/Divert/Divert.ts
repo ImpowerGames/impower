@@ -174,9 +174,6 @@ export class Divert extends ParsedObject {
     if (this._isExternal) {
       emitter.unsupported("external");
     }
-    // The arguments go on the stack before the thread forks, as the current
-    // engine pushes them before `StartThread`, and the flow the jump enters
-    // binds them.
     const passes = this.EmitArguments(emitter);
     const thread = this.isThread ? emitter.jump(Op.Thread) : null;
     this.EmitJump(

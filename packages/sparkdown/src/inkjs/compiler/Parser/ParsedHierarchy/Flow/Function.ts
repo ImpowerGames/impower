@@ -4,9 +4,8 @@ import { FlowLevel } from "./FlowLevel";
 import { Identifier } from "../Identifier";
 import { ParsedObject } from "../Object";
 
-// A nestable callable scope. Compiles to a named runtime Container
-// with arg binding at entry and PopFunction at flow end — same shape
-// as a top-level function knot. Unlike Knot/Stitch, a `Function` can
+// A nestable callable scope, the same shape as a top-level function
+// knot. Unlike Knot/Stitch, a `Function` can
 // live inside any other FlowBase (Knot, Stitch, or another Function)
 // and at arbitrary nesting depth. Path resolution permits same-level
 // Function-after-Function lookup (see Path.ResolveTailComponents).

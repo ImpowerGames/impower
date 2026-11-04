@@ -6,10 +6,7 @@ import { Op } from "../../../../../program/ProgramInstructions";
 // evaluates to exactly ONE value. A multi-return call truncates to
 // its first value and a no-value call adjusts to nil —
 // `pack(ret2(f()), (ret2(f())))` packs {1, 1}, NOT {1, 1, 2}
-// (calls.luau line 210). Runtime `UnpackTuple(1)` implements exactly
-// this adjustment (MultiValue → first inner value, Void → nil,
-// scalar → unchanged), so the wrapper just appends it after the
-// inner expression's ops.
+// (calls.luau line 210).
 export class SingleValueExpression extends Expression {
   public readonly innerExpression: Expression;
 

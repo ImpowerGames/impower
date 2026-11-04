@@ -1,0 +1,10 @@
+animation flip as base {
+  keyframes {
+    from { transform = scaleX(1) }
+    40% { opacity = 0.5 } -- halfway
+    to { transform = scaleX(-1) }
+  }
+  timing { duration = 0.4 }
+}
+
+animation still {}

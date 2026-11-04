@@ -1,0 +1,11 @@
+screen menu {
+  config {
+    a = 1
+    nested { b = 2; c = 3 }
+  }
+}
+
+screen hud {}
+
+screen pause {
+}

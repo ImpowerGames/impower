@@ -17,7 +17,7 @@ describe("reactive if/match (Phase 3 I3)", () => {
     const h = createHarness(
       `store dead = false
 store hp = 100
-layout hud with
+layout hud {
   if dead then
     text "GAME OVER"
   elseif hp < 10 then
@@ -25,7 +25,7 @@ layout hud with
   else
     text "OK"
   end
-end
+}
 `,
       0,
       { reactive: true },
@@ -49,13 +49,13 @@ end
   test("no churn when the selected branch is unchanged", async () => {
     const h = createHarness(
       `store hp = 100
-layout hud with
+layout hud {
   if hp < 10 then
     text "Low"
   else
     text "OK"
   end
-end
+}
 `,
       0,
       { reactive: true },
@@ -70,7 +70,7 @@ end
   test("match/case/else selects the matching arm and swaps on change", async () => {
     const h = createHarness(
       `store cls = "knight"
-layout sheet with
+layout sheet {
   match cls do
   case "knight"
     text "Knight"
@@ -79,7 +79,7 @@ layout sheet with
   else
     text "Other"
   end
-end
+}
 `,
       0,
       { reactive: true },
@@ -102,13 +102,13 @@ end
   test("reactive bindings inside a branch update without a branch swap", async () => {
     const h = createHarness(
       `store hp = 100
-layout hud with
+layout hud {
   if hp > 0 then
     text "HP: {hp}"
   else
     text "DEAD"
   end
-end
+}
 `,
       0,
       { reactive: true },

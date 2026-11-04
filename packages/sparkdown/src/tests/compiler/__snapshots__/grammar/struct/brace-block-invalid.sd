@@ -1,4 +1,4 @@
-theme t with
+theme t {
   colors { primary = red, secondary = blue }
   names { a, b }
   card { opacity = 0.5, > text { color = red }, @hovered, @pressed = { color = blue } }
@@ -7,11 +7,7 @@ theme t with
       - red
   }
   marks { - { a = 1 }; accents: { value = red } }
-  }
   x { y = 1 } z = 2
-  width = var(--gap) }
-  link = http://example.com }
-  a = blue--gap }
   &.card--large { opacity = 0.5 }
   slashes {
     value = 1 // } note
@@ -31,4 +27,4 @@ theme t with
   }
   values:
     - 2 -- } note
-end
+}

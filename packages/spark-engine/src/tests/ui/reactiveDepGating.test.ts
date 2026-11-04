@@ -35,10 +35,10 @@ store b = 2
 function bumpA()
   a = a + 1
 end
-layout hud with
+layout hud {
   text "a={a}"
   text "b={b}"
-end
+}
 `,
       0,
       { reactive: true },
@@ -66,10 +66,10 @@ store score = 0
 function hurt()
   player.hp = player.hp - 10
 end
-layout hud with
+layout hud {
   text "hp={player.hp}"
   text "score={score}"
-end
+}
 `,
       0,
       { reactive: true },
@@ -96,9 +96,9 @@ store b = 2
 function bumpHidden()
   b = b
 end
-layout hud with
+layout hud {
   text "a={a}"
-end
+}
 `,
       0,
       { reactive: true },

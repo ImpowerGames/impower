@@ -82,7 +82,7 @@ describe("a runtime error", () => {
 
   test("raised inside a function a click handler calls is reported once, where the function raised it", async () => {
     const h = createHarness(
-      `scene start\n  A\n  B\n  C\nend\n\nstore hp = 100\nfunction heal()\n  hp = hp + 5\n  error("broken heal")\nend\nlayout hud with\n  button "Heal" @click=heal\nend\n`,
+      `scene start\n  A\n  B\n  C\nend\n\nstore hp = 100\nfunction heal()\n  hp = hp + 5\n  error("broken heal")\nend\nlayout hud {\n  button "Heal" @click=heal\n}\n`,
       0,
     );
     await h.ready;
@@ -124,14 +124,14 @@ describe("a runtime error", () => {
     source.split("\n").findIndex((line) => line.includes(text));
 
   test("raised inside a metamethod a click handler reaches is reported where the metamethod raised it", async () => {
-    const source = `scene start\n  A\n  B\nend\n\n${METAMETHOD}\nlayout hud with\n  button "Read" @click=read_item\nend\n`;
+    const source = `scene start\n  A\n  B\nend\n\n${METAMETHOD}\nlayout hud {\n  button "Read" @click=read_item\n}\n`;
     expect(await clickReports(source)).toEqual([
       [lineOf(source, `error("bad index")`), "bad index"],
     ]);
   });
 
   test("raised inside a comparator a click handler's sort calls is reported where the comparator raised it", async () => {
-    const source = `scene start\n  A\n  B\nend\n\n${COMPARATOR}\nlayout hud with\n  button "Sort" @click=sort_items\nend\n`;
+    const source = `scene start\n  A\n  B\nend\n\n${COMPARATOR}\nlayout hud {\n  button "Sort" @click=sort_items\n}\n`;
     expect(await clickReports(source)).toEqual([
       [
         lineOf(source, `error("bad compare")`),
@@ -158,7 +158,7 @@ describe("a runtime error", () => {
   });
 
   test("raised inside a comparator a metamethod's sort calls is reported where the comparator raised it", async () => {
-    const source = `store items = {3, 1, 2}\n\nfunction compare(a, b)\n  error("bad compare")\nend\n\nstore obj = setmetatable({}, { __index = function(t, k)\n  table.sort(items, compare)\nend })\n\nfunction read_item()\n  local value = obj.missing\nend\n\nlayout hud with\n  button "Read" @click=read_item\nend\n\nscene start\n  A\n  B\nend\n`;
+    const source = `store items = {3, 1, 2}\n\nfunction compare(a, b)\n  error("bad compare")\nend\n\nstore obj = setmetatable({}, { __index = function(t, k)\n  table.sort(items, compare)\nend })\n\nfunction read_item()\n  local value = obj.missing\nend\n\nlayout hud {\n  button "Read" @click=read_item\n}\n\nscene start\n  A\n  B\nend\n`;
     expect(await clickReports(source)).toEqual([
       [
         lineOf(source, `error("bad compare")`),

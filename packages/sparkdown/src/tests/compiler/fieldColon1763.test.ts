@@ -36,12 +36,12 @@ const colon = (line: number) => ({ message: FIELD_COLON, line, text: ":" });
 
 describe("a field written with `:`", () => {
   test.each([
-    ["the root of a `morph`", "morph m with\n  method: bend\n  keyframes {\n    from { eyes { state = open } }\n    to { eyes { state = closed } }\n  }\nend\n", [1]],
-    ["a `morph`'s nested block", "morph m with\n  method = bend\n  timing {\n    duration: 3\n  }\n  keyframes {\n    from { eyes { state: open } }\n    to { eyes { state = closed } }\n  }\nend\n", [3, 6]],
-    ["an `animation`", "animation after with\n  duration: 2\n  timing {\n    delay: 1\n  }\nend\n", [1, 3]],
-    ["a `theme`", "theme base with\n  primary: red\n  colors {\n    secondary: blue\n  }\nend\n", [1, 3]],
-    ["a `style`", "style panel with\n  width: 100%\nend\n", [1]],
-    ["a `layout`", "layout main with\n  column {\n    image: black\n    text \"a\"\n  }\nend\n", [2]],
+    ["the root of a `morph`", "morph m {\n  method: bend\n  keyframes {\n    from { eyes { state = open } }\n    to { eyes { state = closed } }\n  }\n}\n", [1]],
+    ["a `morph`'s nested block", "morph m {\n  method = bend\n  timing {\n    duration: 3\n  }\n  keyframes {\n    from { eyes { state: open } }\n    to { eyes { state = closed } }\n  }\n}\n", [3, 6]],
+    ["an `animation`", "animation after {\n  duration: 2\n  timing {\n    delay: 1\n  }\n}\n", [1, 3]],
+    ["a `theme`", "theme base {\n  primary: red\n  colors {\n    secondary: blue\n  }\n}\n", [1, 3]],
+    ["a `style`", "style panel {\n  width: 100%\n}\n", [1]],
+    ["a `layout`", "layout main {\n  column {\n    image: black\n    text \"a\"\n  }\n}\n", [2]],
     ["a `define`", "define config with\n  speed: 2\n  name : \"x\"\nend\n", [1, 2]],
     ["a `define` keyed by reserved words, modifiers and brackets", "define config with\n  if : 3\n  repeat: 3\n  local : 3\n  store: \"s\"\n  [\"speed\"] : { 1 }\nend\n", [1, 2, 3, 4, 5]],
   ])("in %s is reported on its colon alone", (_, text, lines) => {
@@ -49,11 +49,11 @@ describe("a field written with `:`", () => {
   });
 
   test("a header written `key:` is reported on its colon in the same words", () => {
-    expect(diagnosticsOf("theme base with\n  colors: {\n    primary = red\n  }\nend\n")).toEqual([colon(1)]);
+    expect(diagnosticsOf("theme base {\n  colors: {\n    primary = red\n  }\n}\n")).toEqual([colon(1)]);
   });
 
   test("the morph from the ticket keeps its keyframes and its `method`", () => {
-    const text = "morph m with\n  method: bend\n  keyframes {\n    from { eyes { state = open } }\n    to { eyes { state = closed } }\n  }\nend\n";
+    const text = "morph m {\n  method: bend\n  keyframes {\n    from { eyes { state = open } }\n    to { eyes { state = closed } }\n  }\n}\n";
     const struct = compileSource(text).find((e) => e.block?.context?.["morph"]?.["m"])?.block?.context?.["morph"]?.["m"] as any;
     expect(struct.method).toBe("bend");
     expect(struct.keyframes).toHaveLength(2);
@@ -102,8 +102,8 @@ describe("a field written with `:`", () => {
     ["a method call with a level-four comment before its arguments in a `define`", "define config with\n  speed: go --[====[ note ]====] ()\nend\n"],
     ["a method call on a modifier-named receiver in a `define`", "define config with\n  store: go(1)\n  const: go \"s\"\n  read: go { 1 }\nend\n"],
     ["a name after the colon in a `define`, left to Luau's reading", "define items with\n  first = 2\nend\n\ndefine config with\n  typo: items[\"first\"]\n  other: bend\nend\n"],
-    ["a label with a colon in a `morph`", "morph m with\n  method = bend\n  keyframes {\n    from { eyes { state = open } }\n    to { eyes { state = closed } }\n  }\n  clips {\n    {\n      between { eyelash-left:eyes }\n      targets { pupil-left }\n    }\n  }\nend\n"],
-    ["a URL value in a `theme`", "theme t with\n  link = http://example.com\nend\n"],
+    ["a label with a colon in a `morph`", "morph m {\n  method = bend\n  keyframes {\n    from { eyes { state = open } }\n    to { eyes { state = closed } }\n  }\n  clips {\n    {\n      between { eyelash-left:eyes }\n      targets { pupil-left }\n    }\n  }\n}\n"],
+    ["a URL value in a `theme`", "theme t {\n  link = http://example.com\n}\n"],
   ])("%s is no field colon", (_, text) => {
     expect(diagnosticsOf(text).filter((d) => d.message === FIELD_COLON)).toEqual([]);
   });

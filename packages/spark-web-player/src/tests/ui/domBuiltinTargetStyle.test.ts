@@ -58,13 +58,13 @@ async function play(source: string): Promise<{ h: DOMHarness; css: string }> {
 
 describe("a builtin target's style", () => {
   test("reaches the builtin target and not an author's element with its class", async () => {
-    const { h, css } = await play(`layout inventory with
+    const { h, css } = await play(`layout inventory {
   column.panel #child-gap=8 {
 ${TARGETS.map((t) => `    text.${t} "Inventory ${t}"`).join("\n")}
     row.title { text "Row" }
     text "Rope"
   }
-end
+}
 
 
 
@@ -92,12 +92,12 @@ end
   });
 
   test("reaches a container that is the target's slot in a layout that replaces `main`", async () => {
-    const { h, css } = await play(`layout main with
+    const { h, css } = await play(`layout main {
   column.panel {
     row.title { text "Inventory" }
     text.heading "Rope"
   }
-end
+}
 
 
 
@@ -121,12 +121,12 @@ end
 
   test("reaches the story's choices and not an author's element with the choice class", async () => {
     const h = createDOMHarness(
-      `layout inventory with
+      `layout inventory {
   column.panel {
     button.choice "Use"
     text "Rope"
   }
-end
+}
 
 
 
@@ -169,14 +169,14 @@ end
   name = "HERO"
 end
 
-layout main with
+layout main {
   column.panel {
     title { text }
     row.dialogue.title { text }
     row.dialogue.control { text }
     text "Rope"
   }
-end
+}
 
 
 
@@ -209,14 +209,14 @@ end
     const h = createDOMHarness(
       `store named = false
 
-layout main with
+layout main {
   column.panel {
     row.title { text "Inventory" }
     if named then
       title { text "Named" }
     end
   }
-end
+}
 `,
       0,
       { reactive: true },

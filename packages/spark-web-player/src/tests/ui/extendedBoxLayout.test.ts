@@ -6,7 +6,7 @@ const SCREEN = `define HERO as character with
   name = "HERO"
 end
 
-layout main with
+layout main {
   textbox {
     character_info {
       character_name {
@@ -17,7 +17,7 @@ layout main with
       text
     }
   }
-end
+}
 `;
 
 function story(body: string) {

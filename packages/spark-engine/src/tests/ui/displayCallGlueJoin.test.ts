@@ -5,7 +5,7 @@ const SCREEN = `define HERO as character with
   name = "HERO"
 end
 
-layout main with
+layout main {
   action {
     text
   }
@@ -23,7 +23,7 @@ layout main with
   choice.1 {
     text
   }
-end
+}
 `;
 
 function story(body: string) {

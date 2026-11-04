@@ -23,6 +23,7 @@ import {
 import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/AddCompilerFileMessage";
 import { RemoveCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemoveCompilerFileMessage";
 import { SelectCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectCompilerDocumentMessage";
+import { SetGameStartingValuesMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameStartingValuesMessage";
 import { UpdateCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/UpdateCompilerFileMessage";
 import {
   TOP_LEVEL_START,
@@ -62,6 +63,12 @@ import {
   type StopPlayResult,
 } from "./messages/StopPlayMessage";
 import { LastRunMessage } from "./messages/LastRunMessage";
+import { EditSaveMessage } from "./messages/EditSaveMessage";
+import { SaveHereMessage } from "./messages/SaveHereMessage";
+import { SaveRefusalsMessage } from "./messages/SaveRefusalsMessage";
+import { PlayableSaveMessage } from "./messages/PlayableSaveMessage";
+import { SaveListingMessage } from "./messages/SaveListingMessage";
+import { SaveStartingValuesMessage } from "./messages/SaveStartingValuesMessage";
 import { putAtStartPoint } from "./putAtStartPoint";
 import { planRouteForSelection, routeGameTo } from "./planRouteForSelection";
 import {
@@ -79,6 +86,8 @@ interface DisplayableProgram {
 }
 
 type StartPoint = { file: string; line: number; address?: ProgramAddress };
+
+const PLAY_SAVES = { saveHistory: 1, savesSceneEntries: true };
 
 export function installPlayerWorker(connection: MessageConnection) {
   const player = {
@@ -103,6 +112,13 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (SelectCompilerDocumentMessage.type.is(message)) {
       sendPreviewHint(message.params);
     }
+    if (SetGameStartingValuesMessage.type.isRequest(message)) {
+      routeSearches.forget();
+      for (const entry of displayable.values()) {
+        entry.log.forget();
+      }
+      displayedId = undefined;
+    }
   });
 
   const compilerState = installSparkdownWorker(connection, {
@@ -119,6 +135,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     lineText: (uri, line) => compiler.documents.get(uri)?.getLineText(line),
     structure: (uri) => compiler.structureOf(uri),
   };
+  gameState.scriptLineText = source.lineText;
 
   let routeSearches = new RouteSearchLog();
 
@@ -182,6 +199,9 @@ export function installPlayerWorker(connection: MessageConnection) {
 
   const createOrUpdateGame = (program: SparkProgram) => {
     const profilerId = compiler.profilerId;
+    if (!gameState.hasStartingValues() && compiler.config.startingValues) {
+      gameState.setStartingValues(compiler.config.startingValues);
+    }
     if (!gameState.game) {
       profile("start", profilerId + " " + "game/create");
       gameState.game = gameState.createGame({ program });
@@ -414,10 +434,10 @@ export function installPlayerWorker(connection: MessageConnection) {
       point,
       beat,
       entry.log,
-      searchIn(entry, false),
+      searchIn(entry),
       compiler.profilerId,
     );
-    const outcome = showingOutcome(game, entry, to);
+    const outcome = entry.log.outcomeFor(to);
     const shown =
       outcome && !outcome.reachedTarget && !outcome.checkpoint
         ? jumpedShownRoute(game, entry, outcome)
@@ -435,31 +455,12 @@ export function installPlayerWorker(connection: MessageConnection) {
   };
 
   const searchIn =
-    (entry: DisplayableProgram, fromStart: boolean) =>
+    (entry: DisplayableProgram) =>
     (searched: Game, address: ProgramAddress) =>
       searchRouteFor(searched, address, entry.log, {
         profilerId: compiler.profilerId,
-        fromStart,
         source,
       });
-
-  const showingOutcome = (
-    game: Game,
-    entry: DisplayableProgram,
-    to: ProgramAddress | null | undefined,
-  ): RouteSearchOutcome | undefined => {
-    const outcome = entry.log.outcomeFor(to);
-    if (to == null || outcome?.shows !== false || outcome.fromStart) {
-      return outcome;
-    }
-    searchIn(entry, true)(game, to);
-    const fromStart = entry.log.outcomeFor(to);
-    if (fromStart?.reachedTarget) {
-      return fromStart;
-    }
-    entry.log.record({ ...outcome, fromStart: true });
-    return entry.log.outcomeFor(to);
-  };
 
   const jumpedShownRoute = (
     game: Game,
@@ -507,7 +508,7 @@ export function installPlayerWorker(connection: MessageConnection) {
           point,
           "last",
           entry.log,
-          searchIn(entry, false),
+          searchIn(entry),
           compiler.profilerId,
         ),
       );
@@ -665,6 +666,9 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (game.program !== entry.program) {
       updateGameProgram(game, entry.program);
     }
+    if (params.save !== undefined) {
+      return playSave(game, program, params.save);
+    }
     const start = params.startFrom
       ? startPoint(program, params.startFrom, "first")
       : undefined;
@@ -678,6 +682,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       program,
       startFrom: params.startFrom,
       restarted: params.restarted,
+      ...PLAY_SAVES,
     });
     running.setRoutePins(routePins);
     profile("end", compiler.profilerId + " " + "play/create");
@@ -700,22 +705,44 @@ export function installPlayerWorker(connection: MessageConnection) {
       },
       compiler.profilerId,
     );
-    gameState.running = running;
-    let stop!: () => void;
-    const stopped = new Promise<void>((resolve) => (stop = resolve));
-    current = {
-      run: ++runs,
-      game: running,
-      prefix: route.menus ?? [],
-      stopped,
-      stop,
-    };
     return {
       built: true,
       compiled: isRunnableProgram(program),
-      run: current.run,
+      run: beginRun(running, route.menus ?? []),
       errors,
     };
+  };
+
+  const beginRun = (running: Game, prefix: RunMenu[]): number => {
+    gameState.running = running;
+    let stop!: () => void;
+    const stopped = new Promise<void>((resolve) => (stop = resolve));
+    const run = ++runs;
+    current = { run, game: running, prefix, stopped, stop };
+    return run;
+  };
+
+  const playSave = (
+    game: Game,
+    program: SparkProgram,
+    save: string,
+  ): PlayResult => {
+    const compiled = isRunnableProgram(program);
+    const refusal = game.saveRefusal(save);
+    if (refusal) {
+      return { built: true, compiled, refusal };
+    }
+    lastRun = [];
+    releaseUnneeded();
+    const running = gameState.createGame({
+      program,
+      ...PLAY_SAVES,
+    });
+    if (!running.loadToResume(save)) {
+      running.destroy();
+      return { built: true, compiled, refusal: "The save could not be loaded." };
+    }
+    return { built: true, compiled, run: beginRun(running, []), errors: [] };
   };
 
   const startPoint = (
@@ -884,6 +911,75 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     if (StopPlayMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => stopPlay(message.params));
+      return;
+    }
+    if (SaveHereMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => ({
+        save: runningAs(message.params.run).game.saveHere(),
+      }));
+      return;
+    }
+    if (SaveRefusalsMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => {
+        const game = gameState.game;
+        if (!game) {
+          throw new NoGameError();
+        }
+        const refusals: Record<string, string> = {};
+        for (const { id, data } of message.params.saves) {
+          const refusal = game.saveRefusal(data);
+          if (refusal) {
+            refusals[id] = refusal;
+          }
+        }
+        return { refusals };
+      });
+      return;
+    }
+    if (SaveListingMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => {
+        const game = gameState.game;
+        if (!game) {
+          throw new NoGameError();
+        }
+        return {
+          listed: game.saveListing(
+            message.params.save,
+            message.params.start,
+            message.params.keep,
+          ),
+        };
+      });
+      return;
+    }
+    if (SaveStartingValuesMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => {
+        const game = gameState.game;
+        if (!game) {
+          throw new NoGameError();
+        }
+        return { values: game.saveStartingValuesOf(message.params.save, message.params.start) };
+      });
+      return;
+    }
+    if (EditSaveMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => {
+        const game = gameState.game;
+        if (!game) {
+          throw new NoGameError();
+        }
+        return { save: game.editSave(message.params.save, message.params.key, message.params.value) };
+      });
+      return;
+    }
+    if (PlayableSaveMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => {
+        const game = gameState.game;
+        if (!game) {
+          throw new NoGameError();
+        }
+        return { save: game.playableSave(message.params.save) };
+      });
       return;
     }
     if (SetRoutePinsMessage.type.isRequest(message)) {

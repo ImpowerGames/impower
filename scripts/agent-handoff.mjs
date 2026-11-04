@@ -227,19 +227,40 @@ export function verifyNativeReviewResult(output,format='claude-json') {
   if(result.type!=='result'||result.subtype!=='success'||result.is_error!==false||result.stop_reason!=='end_turn')throw new Error('Native reviewer failed or interrupted');
 }
 
+function pendingRecoveryReviewer(config) {
+  const step = config.steps?.[config.first];
+  if (step?.role !== "review" || !plannedReviewerPending(step.round, config.completedReviewRound, config.completedRoundReviews, step.reviewers)) return false;
+  const { completedRoundReviewers, plannedRoundReviewers } = config;
+  if (!plannedRoundReviewers) return Number.isInteger(step.reviewers) && step.reviewers <= 3 && step.reviewerId === undefined && step.attempt === undefined;
+  return Array.isArray(step.reviewers) &&
+    step.reviewers.length === plannedRoundReviewers.length &&
+    plannedRoundReviewers.every((id, index) => id === step.reviewers[index]) &&
+    plannedRoundReviewers.includes(step.reviewerId) &&
+    !Object.hasOwn(completedRoundReviewers, step.reviewerId) &&
+    (step.attempt === undefined || (Number.isSafeInteger(step.attempt) && step.attempt >= 1));
+}
+
 export function validateReviewRecovery(config) {
   const limit=config.reviewRoundLimit??3;
   if(!Number.isInteger(limit)||limit<1||limit>10)throw new Error('reviewRoundLimit must be an integer from 1 through 10');
   if(limit>3&&(typeof config.extendedReviewAuthorization!=='string'||!config.extendedReviewAuthorization.trim()))throw new Error('Rounds beyond 3 require explicit user authorization in extendedReviewAuthorization');
   if(limit<=3&&config.extendedReviewAuthorization!==undefined)throw new Error('extendedReviewAuthorization is only valid when reviewRoundLimit exceeds 3');
   if(!Number.isInteger(config.completedReviewRound)||config.completedReviewRound<0||config.completedReviewRound>limit)throw new Error(`Supply completedReviewRound from 0 through ${limit}, including on recovery`);
-  if((config.completedReviewRound===limit&&typeof config.finalCorrections!=='boolean')||(config.finalCorrections!==undefined&&typeof config.finalCorrections!=='boolean')||(config.finalCorrections&&config.completedReviewRound<3))throw new Error(`Supply the journal's boolean finalCorrections (valid at round 3 or later); recovery at the configured limit ${limit}, including a pending serial reviewer, requires it. Carry completedReviewRound, reviewedHead and completedRoundReviews forward too; unchanged HEAD does not establish correction state`);
   if(config.completedReviewRound>0&&!/^[a-f0-9]{40}$/.test(config.reviewedHead??''))throw new Error('Supply reviewedHead from the journal when recovering a review round');
   if(config.completedRoundReviews!=null&&(!Number.isInteger(config.completedRoundReviews)||config.completedRoundReviews<1||config.completedReviewRound<1))throw new Error('Supply completedRoundReviews from the journal as a positive integer, and only with a nonzero completedReviewRound');
   validateCompletedRoundReviewers(config);
+  if (config.finalCorrections !== undefined) {
+    if (typeof config.finalCorrections !== "boolean" || (config.finalCorrections && config.completedReviewRound < 3)) throw new Error("Supply the journal's boolean finalCorrections; true is valid at round 3 or later");
+    return config.finalCorrections;
+  }
+  if (config.completedReviewRound !== limit) return false;
+  if (config.completedReviewRound >= 3 && pendingRecoveryReviewer(config)) return true;
+  throw new Error(`Supply the journal's boolean finalCorrections at the configured limit ${limit}. Only a valid pending serial reviewer in round 3 or later may omit it. Unchanged HEAD does not establish correction state`);
 }
 
 const planFields = ["pr", "ticket", "first", "completedReviewRound", "reviewedHead", "completedRoundReviews", "completedRoundReviewers", "plannedRoundReviewers", "finalCorrections", "reviewRoundLimit", "extendedReviewAuthorization", "slotWaitSeconds", "reportPosting"];
+const stepFields = new Set(["role", "model", "executable", "args", "prompt", "next", "round", "reviewers", "reviewerId", "attempt", "nativeResult", "effort", "permissions", "execution", "lens"]);
+const isCodexStep = (step) => step.nativeResult === "codex-jsonl" || step.args?.[0] === "exec";
 
 export const authorExperienceLenses = ["author-experience", "author-experience (short)"];
 export const authorEditorGrant = Object.freeze({ id: "author", kind: "editor", maxRequests: 20, timeoutSeconds: 600 });
@@ -281,9 +302,13 @@ export function validatePlanShape(config) {
   if (typeof config.first !== "string" || !config.first) throw new Error("Supply the top-level first as the name of a step");
   if (!Object.hasOwn(config.steps, config.first)) throw new Error(`Unknown step: ${config.first}`);
   for (const [name, step] of Object.entries(config.steps)) {
+    if (!step || typeof step !== "object" || Array.isArray(step)) throw new Error(`Step ${name} must be an object`);
     validateExecutionShape(step);
     const misplaced = planFields.filter((field) => Object.hasOwn(step ?? {}, field));
     if (misplaced.length) throw new Error(`Move ${misplaced.join(", ")} from step ${name} to the top level of the plan; only round and reviewers, not completedReviewRound, belong on a review step`);
+    const unknown = Object.keys(step).filter((field) => !stepFields.has(field));
+    if (unknown.length) throw new Error(`Unknown step field${unknown.length === 1 ? "" : "s"} ${unknown.join(", ")} on step ${name}; use nativeResult: "codex-jsonl" for native Codex handling. The supervised route's transport is not a handoff step field`);
+    if (step.role === "review" && isCodexStep(step) && (typeof step.permissions?.cwd !== "string" || !path.isAbsolute(step.permissions.cwd))) throw new Error(`Codex review step ${name} needs an absolute permissions.cwd reviewer directory for its pre-launch snapshot`);
     if (step?.reviewers !== undefined && !Array.isArray(step.reviewers) && (!Number.isInteger(step.reviewers) || step.reviewers < 1 || step.reviewers > 3)) throw new Error(`Step ${name} reviewers must be its round's planned reviewer count, an integer from 1 through 3, or its planned reviewer ids`);
     validateReviewerIdentity(name, step);
   }
@@ -991,7 +1016,7 @@ export function checkCrossVendor(config, root, now = Date.now()) {
 }
 
 export async function probeReviewerRoute(step, args, { cwd, env, timeoutMs = 120000 }) {
-  const codex = step.nativeResult === "codex-jsonl" || step.args[0] === "exec";
+  const codex = isCodexStep(step);
   const probeArgs = [];
   for (let index = 0; index < args.length; index++) {
     if (codex && ["--output-last-message", "-o"].includes(args[index])) index++;
@@ -1053,7 +1078,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
   const sameVendor = checkCrossVendor(config, root);
   const reviewerRow = { ...(selection.resolved ? { reviewerEffort: selection.reviewerEffort, reviewerResolved: { writerEffort: config.writerEffort, rowWriterEffort: selection.rowWriterEffort, matchedOn: selection.matchedOn, ticketEffort: selection.ticketEffort, fallback: selection.fallback, index: selection.index } } : {}), ...(sameVendor ? { sameVendor } : {}) };
   const reviewRoundLimit = config.reviewRoundLimit ?? 3;
-  validateReviewRecovery(config);
+  let finalCorrections = validateReviewRecovery(config);
   if (!Number.isInteger(config.maxSteps) || config.maxSteps < 1 || config.maxSteps > 30) throw new Error("maxSteps must be 1..30");
   validateSlotWait(config.slotWaitSeconds);
   const slotWaitSeconds = config.slotWaitSeconds ?? 0;
@@ -1109,7 +1134,6 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
   let completedRoundReviews = config.completedRoundReviews ?? null;
   let completedRoundReviewers = config.completedRoundReviewers ?? null;
   let plannedRoundReviewers = config.plannedRoundReviewers ?? null;
-  let finalCorrections = config.finalCorrections ?? false;
   let activeChild, pendingReport;
   let pendingProbeCleanup = null;
   const runProbeCleanup = () => {
@@ -1120,7 +1144,11 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
     try {
       const result = probeCleanup(directory, { preserve, keep: keep && fs.existsSync(keep) ? [keep] : [] });
       append({ event: result.skipped ? "probe-cleanup-skipped" : "probe-checkouts-removed", index, step, directory, ...result });
-    } catch (error) { append({ event: "probe-cleanup-failed", index, step, directory, reason: error.message }); }
+    } catch (error) {
+      const recoveryCommand = `node scripts/reviewer-probe-cleanup.mjs ${JSON.stringify(journal.split(path.sep).join('/'))}`;
+      append({ event: "probe-cleanup-failed", index, step, directory, reason: error.message, recoveryCommand });
+      console.error(`Probe cleanup incomplete: ${error.message}. Recovery: ${recoveryCommand}`);
+    }
   };
   const usedReports=new Set();
   const coordinatorPosts = config.reportPosting === "coordinator";
@@ -1160,7 +1188,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         : `\n\nHandoff contract: role=${step.role}, configured model=${step.model}, reviewed head=${head}.${step.role === "review" ? ` End your posted report with the line \`${reportToken}\`.` : ""} Write ${completion} with the editor tool as JSON: {"head":"<actual HEAD>","next":"<declared transition or null>","commentIds":[<numeric GitHub comment IDs>],"summary":"<result>"}. Allowed next steps: ${JSON.stringify(step.next)}. Review and adjudication must post their complete report/dispositions before completion; include those IDs. Do not mark ready or merge. Do not modify repository files during review.\n`);
       const diagnostics=step.nativeResult?path.join(artifacts,'stderr.log'):output;
       const reportNotBefore=new Date().toISOString();
-      const reviewerHad = step.role === "review" && step.nativeResult === "codex-jsonl" ? snapshotReviewerDirectory(step.permissions.cwd) : null;
+      const reviewerHad = step.role === "review" && isCodexStep(step) ? snapshotReviewerDirectory(step.permissions.cwd) : null;
       append({ event: "launching", index, step: current, role: step.role, model: step.model, ...(step.role === "review" ? reviewerRow : {}), ...(reviewerHad ? { reviewerDirectory: step.permissions.cwd, reviewerHad: [...reviewerHad] } : {}), round: step.round, ...(step.reviewerId !== undefined ? { reviewerId: step.reviewerId, attempt: step.attempt ?? 1, plannedReviewers: step.reviewers } : {}), completedRound, reviewedHead, completedRoundReviews, completedRoundReviewers, plannedRoundReviewers, finalCorrections, head, output, diagnostics, completion, args,reportNotBefore,reportToken,...(coordinatorPosts ? { reportPosting: "coordinator", report: reportFile } : {}) });
       const log = fs.openSync(output, "wx");
       let stderr;

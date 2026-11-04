@@ -24,8 +24,19 @@ export const rule =
 
 const posix = (file) => String(file).replaceAll("\\", "/").replace(/^\.\//, "");
 
+export const generatedReason = "This file is generated from a YAML source under definitions/yaml/. Edit the matching YAML source, then regenerate both output locations with: cd definitions && npm run language";
+const reviewerGeneratedReason = "This file is a generated reviewer definition. Edit .claude/reviewer-models.json or the template in scripts/generate-reviewer-agents.mjs, then regenerate with: node scripts/generate-reviewer-agents.mjs";
+
+export function generatedFileReason(file) {
+  if (typeof file !== "string") return null;
+  const rel = posix(file);
+  if (/(?:^|\/)language\/sparkdown\.language-(?:grammar|config|snippets)\.json$/i.test(rel)) return generatedReason;
+  if (/(?:^|\/)\.claude\/agents\/reviewer-[^/]*\.md$/i.test(rel)) return reviewerGeneratedReason;
+  return null;
+}
+
 export function generatedFile(file) {
-  return typeof file === "string" && /(?:^|\/)language\/sparkdown\.language-(?:grammar|config|snippets)\.json$/i.test(posix(file));
+  return generatedFileReason(file) !== null;
 }
 
 export function exemptPath(file) {

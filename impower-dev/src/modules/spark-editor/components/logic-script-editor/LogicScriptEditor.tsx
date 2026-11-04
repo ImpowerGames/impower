@@ -11,16 +11,14 @@ export type LogicScriptEditorProps = Partial<typeof propDefaults>;
 
 const AUTOSAVE_DELAY = 200;
 
+let editorCount = 0;
+
 export default function LogicScriptEditor({
   filename = "",
 }: LogicScriptEditorProps) {
   const uriRef = useRef<string | undefined>(undefined);
   const versionRef = useRef<number | undefined>(undefined);
   const textRef = useRef<string | undefined>(undefined);
-
-  const ownWritesRef = useRef<Set<string>>(new Set<string>());
-  const OWN_WRITES_LIMIT = 16;
-  const normalizeText = (s: string) => s.replace(/\r\n|\r/g, "\n");
 
   const filenameRef = useRef(filename);
   filenameRef.current = filename;
@@ -76,7 +74,12 @@ export default function LogicScriptEditor({
       ]);
       if (disposed) return;
 
-      const loadFile = async () => {
+      const origin = `LogicScriptEditor:${++editorCount}`;
+      let connection = 0;
+      let sentOnConnection = -1;
+      let pendingLoad: Promise<void> = Promise.resolve();
+
+      const sendLoadEditor = async () => {
         const { Workspace } = await import("../../workspace/Workspace");
         if (disposed) return;
         const pid = workspace.state.peek().project?.id;
@@ -111,32 +114,29 @@ export default function LogicScriptEditor({
           breakpointLines: editor.breakpointLines,
           pinpointLines: editor.pinpointLines,
           highlightLines: editor.highlightLines,
+          startingValueLines: editor.startingValueLines,
           routePins: editor.routePins,
           languageServerInitializeParams,
           languageServerInitializeResult,
           preserveEditor: Boolean(editor.originalFilename),
         });
+        sentOnConnection = connection;
         sendProtocolMessage(detail);
       };
+      const loadFile = () => (pendingLoad = sendLoadEditor());
       loadFileRef.current = loadFile;
 
       const debouncedSave = debounce(async () => {
         if (uriRef.current && versionRef.current && textRef.current != null) {
-          const written = textRef.current;
-          ownWritesRef.current.add(normalizeText(written));
-          if (ownWritesRef.current.size > OWN_WRITES_LIMIT) {
-            ownWritesRef.current = new Set(
-              [...ownWritesRef.current].slice(-OWN_WRITES_LIMIT),
-            );
-          }
           const { Workspace } = await import("../../workspace/Workspace");
           if (disposed) return;
           await Workspace.fs.writeTextDocument({
             textDocument: {
               uri: uriRef.current,
               version: versionRef.current,
-              text: written,
+              text: textRef.current,
             },
+            origin,
           });
           await Workspace.window.recordScriptChange();
         }
@@ -158,15 +158,11 @@ export default function LogicScriptEditor({
           if (!changed) {
             return;
           }
-          const changedText =
-            changed.text != null ? normalizeText(changed.text) : null;
-          const isOwnWrite =
-            changedText != null && ownWritesRef.current.has(changedText);
           const diverged =
-            changedText != null &&
+            changed.text != null &&
             textRef.current != null &&
-            changedText !== normalizeText(textRef.current);
-          if (params.remote || (diverged && !isOwnWrite)) {
+            changed.text !== textRef.current;
+          if (params.remote || (diverged && params.origin !== origin)) {
             loadFile();
           }
         }),
@@ -188,7 +184,12 @@ export default function LogicScriptEditor({
             debouncedSave();
           }
         }),
-        onProtocolMessage(ConnectedEditorMessage.type, () => {
+        onProtocolMessage(ConnectedEditorMessage.type, async () => {
+          const current = ++connection;
+          await pendingLoad.catch(() => undefined);
+          if (disposed || current !== connection || sentOnConnection === current) {
+            return;
+          }
           loadFile();
         }),
       ];

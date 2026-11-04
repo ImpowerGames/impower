@@ -19,13 +19,13 @@ describe("dom control flow (wrapperless)", () => {
   test("an `if` toggling true inserts its content BETWEEN its siblings", async () => {
     const h = createDOMHarness(
       `store show = false
-layout s with
+layout s {
   text "A"
   if show then
     text "B"
   end
   text "C"
-end
+}
 `,
       0,
       { reactive: true },
@@ -44,13 +44,13 @@ end
   test("a `for`'s items render in order between its siblings", async () => {
     const h = createDOMHarness(
       `store items = { "x", "y", "z" }
-layout s with
+layout s {
   text "<"
   for it in items do
     text "{it}"
   end
   text ">"
-end
+}
 `,
       0,
       { reactive: true },
@@ -64,7 +64,7 @@ end
     const h = createDOMHarness(
       `store outer = true
 store inner = false
-layout s with
+layout s {
   text "<"
   if outer then
     text "O"
@@ -73,7 +73,7 @@ layout s with
     end
   end
   text "Z"
-end
+}
 `,
       0,
       { reactive: true },
@@ -94,7 +94,7 @@ end
       `store outer = true
 store inner = false
 store never = false
-layout s with
+layout s {
   if outer then
     text "O"
     if inner then
@@ -105,7 +105,7 @@ layout s with
     end
   end
   text "Z"
-end
+}
 `,
       0,
       { reactive: true },
@@ -122,7 +122,7 @@ end
     const h = createDOMHarness(
       `store mode = 1
 store inner = false
-layout s with
+layout s {
   text "<"
   if mode == 1 then
     text "A"
@@ -133,7 +133,7 @@ layout s with
     text "B"
   end
   text "Z"
-end
+}
 `,
       0,
       { reactive: true },
@@ -155,11 +155,11 @@ end
   test("no display:contents wrapper elements are emitted", async () => {
     const h = createDOMHarness(
       `store show = true
-layout s with
+layout s {
   if show then
     text "B"
   end
-end
+}
 `,
       0,
       { reactive: true },
@@ -176,13 +176,13 @@ end
     const h = createDOMHarness(
       `store choice = "b"
 store opts = { "a", "b", "c" }
-layout s with
+layout s {
   dropdown #value={choice} {
     for o in opts do
       option "{o}"
     end
   }
-end
+}
 `,
       0,
       { reactive: true },

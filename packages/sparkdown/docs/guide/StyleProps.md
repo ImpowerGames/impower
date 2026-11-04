@@ -28,31 +28,31 @@ When you want a look you reuse, define a `style` block. Its properties use
 `key = value` (with spaces around `=`, and **no** `#`):
 
 ```sparkdown
-style blue with
+style blue {
   text-color = white
   background-color = blue
-end
+}
 ```
 
 A style block targets elements by **name**: any element carrying that name as a
 class (or as its tag) gets the style.
 
 ```sparkdown
-style panel with -- applies to any element with the `panel` class
+style panel { -- applies to any element with the `panel` class
   background-color = rgb(0 0 0 / 40%)
   corner = 8px
   padding = 16px
-end
+}
 
-style button with -- the tag is a class too, so this styles EVERY button
+style button { -- the tag is a class too, so this styles EVERY button
   cursor = pointer
-end
+}
 
-layout main with
+layout main {
   column.panel { -- gets the `panel` style
     button "OK" -- gets the `button` style
   }
-end
+}
 ```
 
 ### Nested selectors, breakpoints & states
@@ -62,7 +62,7 @@ and interaction states. A nested rule is a selector followed by a block of
 properties, `selector { … }`:
 
 ```sparkdown
-style dialogue with
+style dialogue {
   height = 100%
   -- a direct child `text`
   > text {
@@ -78,12 +78,12 @@ style dialogue with
   }
   -- on hover
   @hovered { background-color = black }
-end
+}
 
-style button with
+style button {
   -- a button that also has the `secondary` class
   &.secondary { background-color = black }
-end
+}
 ```
 
 - `> selector { … }` targets a direct child; `>> selector { … }` targets any
@@ -520,10 +520,10 @@ The name of a [defined `animation`](./AnimationTheme.md#82-defining-your-own-ani
 If you're already familiar with CSS, you can use **standard CSS property names and property values** inside `style` blocks:
 
 ```sparkdown
-style fancy_box with
+style fancy_box {
   max-width = 100%
   justify-content = space-between
-end
+}
 ```
 
 You can also use standard CSS names and values **inline** on elements — as long as the property has a known equivalent in the Sparkle system:

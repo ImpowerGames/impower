@@ -19,10 +19,10 @@ describe("reactive @event handlers (Phase 3 I5)", () => {
 function heal()
   hp = hp + 5
 end
-layout hud with
+layout hud {
   text "HP: {hp}"
   button "Heal" @click=heal
-end
+}
 `,
       0,
       { reactive: true },
@@ -41,10 +41,10 @@ end
 function take_damage(n)
   hp = hp - n
 end
-layout hud with
+layout hud {
   text "HP: {hp}"
   button "Hit" @click=take_damage(10)
-end
+}
 `,
       0,
       { reactive: true },
@@ -63,9 +63,9 @@ end
 function heal()
   hp = hp + 5
 end
-layout hud with
+layout hud {
   button "Heal" @click=heal
-end
+}
 `,
       0,
       { reactive: true },

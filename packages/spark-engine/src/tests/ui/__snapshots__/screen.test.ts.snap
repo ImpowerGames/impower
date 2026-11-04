@@ -3844,6 +3844,13 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             "attributes": {
               "data-display-target": "backdrop",
             },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
             "element": "e-14",
           },
         },
@@ -3854,6 +3861,13 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           "params": {
             "attributes": {
               "data-display-target": "portrait",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
             },
             "element": "e-17",
           },
@@ -3866,6 +3880,13 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             "attributes": {
               "data-display-target": "character_name",
             },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
             "element": "e-24",
           },
         },
@@ -3877,6 +3898,13 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             "attributes": {
               "data-display-target": "character_parenthetical",
             },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
             "element": "e-26",
           },
         },
@@ -3887,6 +3915,13 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           "params": {
             "attributes": {
               "data-display-target": "dialogue",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
             },
             "element": "e-28",
           },

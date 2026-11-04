@@ -50,6 +50,11 @@ export function buildReviewPrompt(context, markdown = fs.readFileSync(skill, "ut
   }
   const values = { WRITER: context.writer, REVIEWER: context.reviewer, ROUND: String(context.round), HEAD: context.head, WORKTREE: context.worktree, DIFF: context.diff, REVDIR: context.reviewDir, PREVIOUS: context.previous, TASK: context.task, THREAD: `${thread.repo}#${thread.number}`, REPO: thread.repo, P: String(context.pr), N: String(context.issue), T: String(thread.number), LENS: context.lens };
   prompt = prompt.replace(tokenPattern, (key) => values[tokenName(key)]);
+  const evidence=path.join(context.reviewDir,"evidence");
+  try{fs.mkdirSync(evidence);}
+  catch(error){if(error.code!=="EEXIST")throw error;}
+  const evidenceStat=fs.lstatSync(evidence);
+  if(!evidenceStat.isDirectory()||evidenceStat.isSymbolicLink())throw new Error(`Reviewer evidence ${evidence} must be a real directory`);
   return `Invocation method: ${context.invocation}\n\n${prompt}\n`;
 }
 if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -30,8 +30,8 @@ export function readStructBodyEntries(contentNode: SyntaxNode | null, _ctx: Lowe
   const entries: StructEntry[] = [];
   const walk = (node: SyntaxNode) => {
     for (let child = node.firstChild; child; child = child.nextSibling) {
-      if (child.name === "LuauStructBlockLine") entries.push(...bracedEntries(child));
-      else if (child.name === "LuauSparkleBlockLine") entries.push(...elementEntries(sparkleBlockEntries(child), joins));
+      if (child.name === "LuauStructBlockLine" || child.name === "LuauStructBraceBody") entries.push(...bracedEntries(child));
+      else if (child.name === "LuauSparkleBlockLine" || child.name === "LuauSparkleBraceBody") entries.push(...elementEntries(sparkleBlockEntries(child), joins));
       else walk(child);
     }
   };

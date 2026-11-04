@@ -7,12 +7,12 @@
 Here's a quick example of what a Sparkle layout looks like:
 
 ```sparkdown
-layout main with -- a layout named main
+layout main { -- a layout named main
   column #child-gap=24 { -- an element with a prop, and a block of children
     text "Welcome, {player.name}!" -- an element with an interpolated {value}
     button.start "Begin" @click=start_game -- an element with a class and a bound event
   }
-end
+}
 
 store player = { name = "Hero" }
 
@@ -35,17 +35,17 @@ end
 
 A **layout** is a tree of UI — a menu, a HUD, a dialog, an inventory panel.
 
-You create one with the `layout` keyword, and everything inside `with … end` is what it displays:
+You create one with the `layout` keyword, and everything inside its `{ … }` is what it displays:
 
 ```sparkdown
-layout main with
+layout main {
   column #child-gap=24 #child-align=center {
     text "Feature Creeper"
     button "Start" @click=start_game
     button "Options" @click=open_settings
     button "Quit" @click=quit_game
   }
-end
+}
 
 function start_game() end
 
@@ -56,7 +56,9 @@ function quit_game() end
 
 - **The layout's name** (like `main`) identifies it.
 - **A layout named `main` shows automatically** when the game starts. Other layouts are shown on demand — see [Screens & Navigation](./Screens.md). A layout named `loading` is the loading screen the `load` arrow shows — see [Loading & Preloading](./Loading.md).
-- **Everything between `with` and `end`** is the element tree.
+- **Everything between `{` and `}`** is the element tree.
+
+The keywords that declare configuration, `layout`, `component`, `screen`, `style`, `animation`, `theme` and `morph`, all take a brace body: `layout main { … }`. A `define` (`define hero as character with … end`) and the story's `scene` and `branch` close with `end`, and a Luau block inside a function or a handler keeps Luau's own openers, such as `then` and `do`, and closes with `end`.
 
 > Layouts belong to _screens_ (navigation groups). You rarely need to think about screens until you have more than one full-screen view — [Screens & Navigation](./Screens.md) covers that.
 
@@ -89,14 +91,14 @@ Story image directives such as `[[mia]]` can also select a layered portrait's ex
 The first word of an element names it. A built-in element (`text`, `button`, …) or one of your own [components](./Components.md) does what it always does. Any other name makes a **plain container**: an element that holds its children and is named after what it is.
 
 ```sparkdown
-layout hud with
+layout hud {
   stage {
     toolbar {
       button "Map" @click=open_map
       button "Bag" @click=open_bag
     }
   }
-end
+}
 
 function open_map() end
 
@@ -193,15 +195,15 @@ column.panel.scrollable {
 }
 ```
 
-> The element name itself counts as a class, so `style button with …` styles every button.
+> The element name itself counts as a class, so `style button { … }` styles every button.
 
 A `style` block then targets the class:
 
 ```sparkdown
-style primary with
+style primary {
   background-color = blue
   text-color = white
-end
+}
 ```
 
 In the editor, renaming a class also renames the `style` of the same name.
@@ -280,7 +282,7 @@ An element doesn't have to fit on one line. A line that starts with a `.class`, 
 ```sparkdown
 store difficulty = "easy"
 
-layout options with
+layout options {
   dropdown
     .wide
     #value={difficulty}
@@ -289,7 +291,7 @@ layout options with
     option "Easy"
     option "Hard"
   }
-end
+}
 ```
 
 Such a line must start the line: after a `;`, a `.class` is not read as part of the element before it.
@@ -300,12 +302,25 @@ An inline handler can span lines too. Its statements go between its braces, one 
 store score = 0
 store combo = 0
 
-layout arcade with
+layout arcade {
   button "Hit" @click={
     score = score + 10
     combo = combo + 1
   }
-end
+}
+```
+
+A prop's braced value can span lines in the same way, and its `}` closes it however deep the braces inside it nest:
+
+```sparkdown
+store score = 0
+store best = 0
+
+layout arcade {
+  field #value={
+    score > best and "New best!" or "Keep going"
+  }
+}
 ```
 
 ---
@@ -348,9 +363,9 @@ end
 
 A project with no `start` scene is an error on the first line of `main.sd`: _no scene named start; the story starts in a scene named start_. The story enters `start` with no arguments, so a `start` that declares parameters is an error on its header: _scene start cannot take parameters; the story starts there with none_. Otherwise `start` is an ordinary scene: it can be diverted to, it ends at its `end`, and it is counted and saved like any other. Two scenes named `start` are the duplicate any two scenes of one name are.
 
-**A script's top level holds declarations.** In every script, `main.sd` included, the top level holds `scene`, `branch`, `function`, `define` (and the definitions written like one), `const`, `store`, `external`, `type` and `run` lines, a `---` title page and comments. A display line, a choice, a divert, an assignment, a call, an `if`, `for`, `while` or `do` block, or a marked line that runs (`& x = 1`, `& f()`) at the top level is an error: _statement must be inside a scene or branch; the top level holds declarations only_. Move it into a scene, `start` or another. An `include` line is an error too, since the script it would name is already part of the story: _Scripts in the project folder are part of the story. Delete this line._
+**A script's top level holds declarations.** In every script, `main.sd` included, the top level holds `scene`, `function`, `define` (and the definitions written like one), `const`, `store`, `type` and `run` lines, a `---` title page and comments; a `branch` belongs inside a `scene` block. A display line, a choice, a divert, an assignment, a call, an `if`, `for`, `while` or `do` block, or a marked line that runs (`& x = 1`, `& f()`) at the top level is an error: _statement must be inside a scene or branch; the top level holds declarations only_. Move it into a scene, `start` or another. An `include` line is an error too, since the script it would name is already part of the story: _Scripts in the project folder are part of the story. Delete this line._
 
-**Declarations go at the top level; locals go inside a flow.** A `store`, `const`, `define` (and `style`, `layout`, `screen`, `component`, `animation`, `theme` and `morph`), `function`, `type` or `external` takes effect when the story starts, wherever it is written, so it is written at a script's top level. Inside a scene or a branch, at any depth, each one is an error, such as _store declaration must be at the top level; assign it here with & name = value instead_. A scene changes a store where it runs by assigning it, and the editor's quick fix _Change to an assignment_ turns `store visited = true` into `& visited = true`:
+**Declarations go at the top level; locals go inside a flow.** A `store`, `const`, `define` (and `style`, `layout`, `screen`, `component`, `animation`, `theme` and `morph`), `function` or `type` takes effect when the story starts, wherever it is written, so it is written at a script's top level. Inside a scene or a branch, at any depth, each one is an error, such as _store declaration must be at the top level; assign it here with & name = value instead_. A scene changes a store where it runs by assigning it, and the editor's quick fix _Change to an assignment_ turns `store visited = true` into `& visited = true`:
 
 ```sparkdown
 store visited = false
@@ -362,7 +377,7 @@ scene start
 end
 ```
 
-A `local` belongs to a scene, a branch, a choice's body or a function. At the top level of any script, `main.sd` included, or in an `if` or loop written at the top level, it is an error: _local declaration must be inside a scene, branch or function; use store or const at the top level_. Inside a function, a `const` or a `define` is the function's own and is allowed.
+A `local` belongs to a scene, a branch, a choice's body or a function. At the top level of any script, `main.sd` included, it is an error: _local declaration must be inside a scene, branch or function; use store or const at the top level_. Inside a function, a `const` or a `define` is the function's own and is allowed.
 
 **`run` calls a Luau file.** At a script's top level, `run` runs the file once each time the story starts, with the declarations and before the story's first line, after every `store` and `const` of the project has its value; the scripts' `run` lines run in the order the scripts are read, `main.sd` first and the others by path. The globals the file defines therefore exist in every scene, one a preview starts in included. An error the file raises there is an error on its `run` line, as an error a `store`'s value raises is on the `store`'s. Inside a scene or a branch, `run` runs the file where its line stands, as often as the line runs. It takes either form:
 

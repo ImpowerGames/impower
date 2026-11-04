@@ -67,7 +67,7 @@ const run = (
 };
 
 describe("struct property completion: where a brace entry starts", () => {
-  const brace = (body: string) => `animation fade with\n  ${body}\nend\n`;
+  const brace = (body: string) => `animation fade {\n  ${body}\n}\n`;
   const rows: Row[] = [
     { name: "a `;` after a closed double-quoted value", body: `timing { easing = "ease"; dur| }`, offers: ["duration"] },
     { name: "a closed double-quoted value, same entry", body: `timing { easing = "ease"| }`, omits: ["duration", "delay"] },
@@ -86,7 +86,7 @@ describe("struct property completion: where a brace entry starts", () => {
     run(brace, structProgram, row),
   );
 
-  const root = (body: string) => `animation fade with\n${body}\nend\n`;
+  const root = (body: string) => `animation fade {\n${body}\n}\n`;
   const rootRows: Row[] = [
     { name: "a key at the root", body: `  tim|`, offers: ["timing"], edit: { label: "timing", body: `  timing {  }` } },
     { name: "inside a closed double-quoted value", body: `  timing {\n    easing = "ea|"`, omits: ["duration", "timing"] },
@@ -98,7 +98,7 @@ describe("struct property completion: where a brace entry starts", () => {
 });
 
 describe("morph completion: where a brace entry starts", () => {
-  const brace = (body: string) => `morph blink with\n  ${body}\nend\n`;
+  const brace = (body: string) => `morph blink {\n  ${body}\n}\n`;
   const rows: Row[] = [
     { name: "a `;` after a closed double-quoted value", body: `timing { easing = "ease"; dur| }`, offers: ["duration"] },
     { name: "a closed double-quoted value, same entry", body: `timing { easing = "ease"| }`, none: true },
@@ -120,7 +120,7 @@ describe("morph completion: where a brace entry starts", () => {
     run(brace, morphProgram, row),
   );
 
-  const root = (body: string) => `morph blink with\n${body}\nend\n`;
+  const root = (body: string) => `morph blink {\n${body}\n}\n`;
   const rootRows: Row[] = [
     { name: "inside a closed double-quoted value", body: `  timing {\n    easing = "ea|"`, none: true },
     { name: "an unclosed double quote", body: `  timing {\n    easing = "ea|`, none: true },
@@ -134,7 +134,7 @@ describe("morph completion: where a brace entry starts", () => {
 });
 
 describe.each(["layout", "component"])("%s element completion: where a brace entry starts", (keyword) => {
-  const brace = (body: string) => `${keyword} hud with\n  ${body}\nend\n`;
+  const brace = (body: string) => `${keyword} hud {\n  ${body}\n}\n`;
   const rows: Row[] = [
     { name: "inside closed single-quoted content", body: `row { text 'a; te|' }`, omits: ["text", "row"] },
     { name: "inside closed single-quoted content glued to the name", body: `row { text'a; te|' }`, omits: ["text", "row"] },
@@ -160,7 +160,7 @@ describe.each(["layout", "component"])("%s element completion: where a brace ent
   );
 
   test("root: an element line", () =>
-    run((body) => `${keyword} hud with\n${body}\nend\n`, elementProgram, {
+    run((body) => `${keyword} hud {\n${body}\n}\n`, elementProgram, {
       name: "an element line",
       body: `  te|`,
       offers: ["text"],

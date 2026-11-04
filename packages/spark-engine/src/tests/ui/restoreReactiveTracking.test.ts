@@ -7,12 +7,12 @@ function hit()
   hp = hp - 10
 end
 
-layout main with
+layout main {
   column {
     text "HP: {hp}"
     button "Hit" @click=hit
   }
-end
+}
 
 
 scene start

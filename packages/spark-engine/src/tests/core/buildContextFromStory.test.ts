@@ -8,11 +8,11 @@ function defines(source: string) {
   return { harness, story };
 }
 
-const SRC = `define pan_right as animation with
-  keyframes = {
-    background_position = "right"
+const SRC = `animation pan_right {
+  keyframes {
+    background_position = right
   }
-end
+}
 
 define companion as character with
   store trust = 0

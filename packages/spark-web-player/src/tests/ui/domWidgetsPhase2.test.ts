@@ -5,9 +5,9 @@ describe("dom widgets · phase 2", () => {
   test("radio renders a real <input type=radio> whose checked follows state", async () => {
     const h = createDOMHarness(
       `store picked = true
-layout form with
+layout form {
   radio #checked={picked} #name="plan"
-end
+}
 `,
       0,
       { reactive: true },
@@ -25,9 +25,9 @@ end
   test("switch is a checkbox carrying role=switch", async () => {
     const h = createDOMHarness(
       `store on = true
-layout form with
+layout form {
   switch #checked={on}
-end
+}
 `,
       0,
       { reactive: true },
@@ -45,9 +45,9 @@ end
   test("textarea renders a real <textarea> whose value follows state", async () => {
     const h = createDOMHarness(
       `store notes = "Dear diary"
-layout form with
+layout form {
   textarea #value={notes} #rows=4
-end
+}
 `,
       0,
       { reactive: true },
@@ -66,11 +66,11 @@ end
     const h = createDOMHarness(
       `store email = "a@b.co"
 store when = "2026-07-24"
-layout form with
+layout form {
   input #type="email" #value={email}
   input #type="date" #value={when}
   input #type="password"
-end
+}
 `,
       0,
       { reactive: true },
@@ -91,11 +91,11 @@ end
     const h = createDOMHarness(
       `store on = true
 store notes = "hi"
-layout form with
+layout form {
   radio #checked={on}
   switch #checked={on}
   textarea #value={notes}
-end
+}
 `,
       0,
       { reactive: true },

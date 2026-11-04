@@ -12,7 +12,7 @@ const CONSTRUCT_MARKERS: Record<string, string> = {
   "store named after an edit's define": "store thing = 1",
   "store holding a method": "store acc =",
   "function with assignments, loops and a closure": "function reckon()",
-  "layout with bindings": "layout hud with",
+  "layout with bindings": "layout hud {",
 };
 
 function constructChunks(c: SparkdownCompiler, text: string) {

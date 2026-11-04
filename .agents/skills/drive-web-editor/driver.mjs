@@ -7,6 +7,8 @@ import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnDetached } from "../../../scripts/detached-launch.mjs";
+import { linuxProcesses, treeSurvivors, windowsProcessTable } from "../../../scripts/process-table.mjs";
+export { linuxProcesses, treeSurvivors, windowsProcessTable } from "../../../scripts/process-table.mjs";
 import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen.mjs";
 import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, SESSION_VARIABLES, checkoutStateFiles, driverSession, recordCheckoutOwner, sessionDir } from "./session-dir.mjs";
 
@@ -138,6 +140,8 @@ function pidAlive(pid, kill = process.kill) {
 
 const READY_WAIT_MS = 15 * 60_000;
 
+const IDLE_EXIT_SECONDS = 15 * 60;
+
 const LAUNCH_SLACK_MS = 60_000;
 const START_GRAIN_MS = 2_000;
 async function recordStands(record, probe = liveProbe) {
@@ -235,55 +239,6 @@ export function stopExitHandler(file, pid, { remove = () => removeState(file), l
     }
     if (removeStoppedState(file, { remove, log: report, fail, context: `Stop command for pid ${pid} succeeded; server exit has not been independently verified` })) report("stopped");
   };
-}
-
-export function windowsProcessTable() {
-  const script = "Get-CimInstance Win32_Process | ForEach-Object { '{0} {1} {2}' -f $_.ProcessId, $_.ParentProcessId, $(if ($_.CreationDate) { $_.CreationDate.ToUniversalTime().Ticks } else { '-' }) }";
-  return new Promise((resolve, reject) => {
-    const p = spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
-    let out = "";
-    p.stdout.on("data", (d) => (out += d));
-    p.on("error", reject);
-    p.on("close", (code) => {
-      const rows = out.split(/\r?\n/).filter(Boolean).map((line) => {
-        const [pid, ppid, start] = line.trim().split(" ");
-        return { pid: Number(pid), ppid: Number(ppid), start: /^\d+$/.test(start ?? "") ? start : null };
-      });
-      if (code !== 0 || !rows.length || rows.some((row) => !Number.isSafeInteger(row.pid) || !Number.isSafeInteger(row.ppid))) reject(new Error(`the process census failed (exit ${code})`));
-      else resolve(rows);
-    });
-  });
-}
-
-export function treeSurvivors(before, after, root) {
-  const rootRow = before.find((row) => row.pid === root);
-  if (!rootRow) return null;
-  const key = (row) => `${row.pid}:${row.start}`;
-  const notAfter = (a, b) => a.start === null || b.start === null || BigInt(a.start) <= BigInt(b.start);
-  const rows = [...before, ...after];
-  const byPid = new Map();
-  for (const row of rows) byPid.set(row.pid, [...(byPid.get(row.pid) ?? []), row]);
-  const parentOf = (row) => {
-    let parent = null;
-    for (const other of byPid.get(row.ppid) ?? []) {
-      if (key(other) === key(row) || !notAfter(other, row)) continue;
-      if (!parent || (parent.start !== null && other.start !== null && BigInt(other.start) > BigInt(parent.start))) parent = other;
-    }
-    return parent;
-  };
-  const tree = new Set([key(rootRow)]);
-  for (let grew = true; grew; ) {
-    grew = false;
-    for (const row of rows) {
-      if (tree.has(key(row))) continue;
-      const parent = parentOf(row);
-      if (!parent || !tree.has(key(parent))) continue;
-      tree.add(key(row));
-      grew = true;
-    }
-  }
-  const memberPids = new Set([...tree].map((member) => Number(member.split(":")[0])));
-  return after.filter((row) => tree.has(key(row)) || (memberPids.has(row.pid) && (row.start === null || tree.has(`${row.pid}:null`))));
 }
 
 export async function treeStopped(before, root, { table = windowsProcessTable, attempts = 6, waitMs = 500 } = {}) {
@@ -434,12 +389,13 @@ export async function up(args) {
   removeState();
 
   const mode = args.includes("--cross-origin") ? "cross-origin" : "same-origin";
+  const idleExitSeconds = args.includes("--keep") ? null : IDLE_EXIT_SECONDS;
   const ports = await pickPorts();
   const url = `http://localhost:${ports.editor}`;
 
   const child = spawnDetached(
     process.execPath,
-    [path.join(REPO_ROOT, "scripts", "dev-preview.mjs"), "--mode", mode],
+    [path.join(REPO_ROOT, "scripts", "dev-preview.mjs"), "--mode", mode, ...(idleExitSeconds === null ? [] : ["--idle-exit-seconds", String(idleExitSeconds)])],
     {
       cwd: REPO_ROOT,
       env: {
@@ -455,9 +411,10 @@ export async function up(args) {
   observeLauncherExit(child);
   child.unref();
 
-  writeState({ url, pid: child.pid, mode, ports, startedAt: Date.now(), session: SESSION });
+  writeState({ url, pid: child.pid, mode, ports, startedAt: Date.now(), session: SESSION, ...(idleExitSeconds === null ? {} : { idleExitSeconds }) });
 
   log(`launching dev servers (${mode}) pid ${child.pid} → ${url}`);
+  if (idleExitSeconds !== null) log(`the servers stop themselves after ${idleExitSeconds / 60} min without a browser connection; \`up\` starts them again, and \`up --keep\` launches servers that keep running`);
   await waitReady(url, mode);
 }
 
@@ -520,30 +477,6 @@ async function statusAll() {
   const lines = [...up.map((l) => `UP  ${l}`), ...unreadable, ...(unreadable.length ? [] : down.map((l) => `DOWN  ${l}`))];
   log(lines.length ? lines.join("\n") : "down (no state file)");
   process.exitCode = up.length ? 0 : 1;
-}
-
-export function linuxProcesses({ io = fs, uid = process.getuid?.() } = {}) {
-  const rows = [];
-  for (const name of io.readdirSync("/proc")) {
-    if (!/^\d+$/.test(name)) continue;
-    try {
-      const owner = io.statSync(`/proc/${name}`).uid;
-      let stat;
-      try { stat = io.readFileSync(`/proc/${name}/stat`, "utf8"); }
-      catch (error) {
-        if ((error.code === "EACCES" || error.code === "EPERM") && owner !== uid) {
-          rows.push({ pid: Number(name), uid: owner, unreadable: true });
-          continue;
-        }
-        throw error;
-      }
-      const fields = stat.slice(stat.lastIndexOf(")") + 2).trim().split(/\s+/);
-      rows.push({ pid: Number(name), parent: Number(fields[1]), group: Number(fields[2]), session: Number(fields[3]), state: fields[0], start: fields[19], uid: owner });
-    } catch (error) {
-      if (error.code !== "ENOENT" && error.code !== "ESRCH") throw error;
-    }
-  }
-  return rows;
 }
 
 const runningProcess = (row) => row.state !== "Z" && row.state !== "X";
@@ -786,7 +719,7 @@ export async function grantDurableStorage(ctx, page) {
   await cdp.send("Browser.grantPermissions", { permissions: ["durableStorage"] });
 }
 
-async function withEditor(fn, { headless = true, launch = launchEditorBrowser, state = readState } = {}) {
+async function withEditor(fn, { headless = true, launch = launchEditorBrowser, state = readState, probe = state === readState ? isUp : async () => true } = {}) {
   const record = state();
   if (!record?.url)
     die(
@@ -796,6 +729,11 @@ async function withEditor(fn, { headless = true, launch = launchEditorBrowser, s
         "whose values are baked into each bundle at build time, so a reload cannot fix a mismatched one.",
     );
   const { url } = record;
+  if (!(await probe(url)))
+    die(
+      `the recorded servers at ${url} (pid ${record.pid}) are not answering${record.idleExitSeconds ? `; they stop themselves after ${record.idleExitSeconds / 60} min without a browser connection` : ""}. ` +
+        "Run `up` to start them again (`up --keep` launches servers that keep running); `status` shows the record, and `down` removes one whose launcher has exited.",
+    );
   const mode = record.mode ?? "same-origin";
   const ctx = await launch({ headless });
   const page = ctx.pages()[0] ?? (await ctx.newPage());
@@ -1215,9 +1153,7 @@ function consoleLine(m) {
   return `[${m.type()}] ${text}${url && !text.includes(url) ? ` (${url})` : ""}`;
 }
 
-const KNOWN_CONSOLE_NOISE = [
-  { name: "/api/auth/account 404", match: /Failed to load resource: the server responded with a status of 404\b[^\n]*\(https?:\/\/[^/\s)]+\/api\/auth\/account(?:[?#][^\s)]*)?\)$/ },
-];
+const KNOWN_CONSOLE_NOISE = [];
 
 function partitionConsole(lines, known = KNOWN_CONSOLE_NOISE, limit = 25) {
   const errors = [];
@@ -1541,13 +1477,18 @@ async function clickLine(page, line) {
   const clamped = Math.min(Math.max(1, line), lines.length);
   const range = { start: { line: clamped - 1, character: 0 }, end: { line: clamped - 1, character: 0 } };
   const state = await protocolRequest(page, "preview/gameState");
-  if (state.launchState !== "preview") return { clicked: false, reason: "Stop the running preview before scrubbing" };
+  if (state.launchState === "play" || state.launchState === "pause") return { clicked: false, reason: "Stop the running preview before scrubbing" };
   await protocolNotify(page, "editor/select", { textDocument: { uri: editor.textDocument.uri }, range, takeFocus: true, scrollIntoView: "center" });
   await protocolNotify(page, "textDocument/didSelect", { textDocument: { uri: editor.textDocument.uri }, selectedRange: range, docChanged: false, userEvent: true, hasFocus: true });
-  const selected = await waitForProtocolState(page, "preview/gameState", "preview/didChangeGameState", "position", 30_000, { uri: editor.textDocument.uri, line: clamped - 1 });
+  const budget = state.launchState === "preview" ? 30_000 : PROGRAM_BUDGET_MS;
+  let positionError = null;
+  const selected = await waitForProtocolState(page, "preview/gameState", "preview/didChangeGameState", "position", budget, { uri: editor.textDocument.uri, line: clamped - 1 }).catch((error) => {
+    positionError = String(error?.message ?? error).split("\n")[0];
+    return null;
+  });
   const after = await protocolRequest(page, "editor/read", { textDocument: { uri: editor.textDocument.uri }, position: range.start });
   const coordinates = after.coordinates;
-  return { clicked: true, line: clamped, totalLines: lines.length, cursorLine: after.selection.start.line + 1, x: coordinates ? coordinates.left + 1 : null, y: coordinates ? (coordinates.top + coordinates.bottom) / 2 : null, previousPosition: state.position, position: selected.position };
+  return { clicked: true, line: clamped, totalLines: lines.length, cursorLine: after.selection.start.line + 1, x: coordinates ? coordinates.left + 1 : null, y: coordinates ? (coordinates.top + coordinates.bottom) / 2 : null, previousPosition: state.position, position: selected?.position ?? null, ...(positionError ? { positionError } : {}) };
 }
 
 const GAME_MOUNT_BUDGET_MS = 45_000;
@@ -1683,7 +1624,7 @@ function programWarning(program, budget = PROGRAM_BUDGET_MS) {
   if (program.errors > 0) {
     return `the script does not compile: settled diagnostics report ${program.errors} error${program.errors === 1 ? "" : "s"} in the open document, so no program reached the player within ${seconds(budget)}. The preview shows the last program the player had, or nothing, and a scrub is dropped; that is the picture of a script that does not compile, which is evidence only when that is the bug.`;
   }
-  return `the player had not loaded a program within ${seconds(budget)} according to preview/gameState, and settled diagnostics report no errors in the open document: either the harness was not ready (the first compile was still running or never reached the player), or a file that is not open does not compile (an included script, on a --project run; this diagnostic read covers the open document alone). A scrub sent now is dropped and the preview is not evidence; re-run, or open the included scripts in the editor to see their errors.`;
+  return `the player had not loaded a program within ${seconds(budget)} according to preview/gameState, and settled diagnostics report no errors in the open document: either the harness was not ready (the first compile was still running or never reached the player), or a file that is not open does not compile (an included script, on a --project run; this diagnostic read covers the open document alone). A scrub has no program to land on and the preview is not evidence; re-run, or open the included scripts in the editor to see their errors.`;
 }
 
 function scriptsViewWarning({ projectPath, sdPath }) {
@@ -1859,13 +1800,12 @@ async function verify(args, deps = liveDeps) {
         process.exitCode = 1;
       }
 
-      result.program = mount.mounted ? await deps.waitForProgram(page) : { loaded: null, reason: "the game never mounted" };
-      if (result.program.loaded === false) result.programWarning = programWarning(result.program);
-      let settle = await deps.waitForPreviewSettle(page);
+      const program = mount.mounted ? deps.waitForProgram(page) : Promise.resolve({ loaded: null, reason: "the game never mounted" });
+      let settle;
 
       if (line) {
         const target = Number(line);
-        const scrubbed = await scrubPreview(page, target, deps);
+        const scrubbed = await scrubPreview(page, target, deps, program);
         result.scrub = scrubbed.scrub;
         settle = scrubbed.settle;
         result.route = scrubbed.route;
@@ -1898,9 +1838,13 @@ async function verify(args, deps = liveDeps) {
             `execution reached, not the line requested.)`;
         }
       } else {
+        await program;
+        settle = await deps.waitForPreviewSettle(page);
         result.route = await deps.routeLabel(page);
       }
 
+      result.program = await program;
+      if (result.program.loaded === false) result.programWarning = programWarning(result.program);
       result.settled = settle.settled;
       result.preview = await deps.previewSummary(page);
       result.visible = settle.text;
@@ -2164,12 +2108,13 @@ export async function insertText(page, position, text, { request = (method, para
   return out;
 }
 
-export async function scrubPreview(page, target, deps) {
+export async function scrubPreview(page, target, deps, program) {
   let scrub = await deps.clickLine(page, target);
   if (!scrub.clicked && !/Stop the running preview/.test(scrub.reason ?? "")) {
     await page.waitForTimeout(1500);
     scrub = await deps.clickLine(page, target);
   }
+  await program;
   const settle = await deps.waitForPreviewSettle(page);
   const route = await deps.routeLabel(page);
   const scrubCheck = classifyScrub(await deps.documentLines(page), target, settle.text);
@@ -2181,7 +2126,7 @@ export function scrubReport(target, { scrub, settle, route, scrubCheck }) {
   delete out.reason;
   if (!scrub.clicked) out.reason = `the scrub to line ${target} did not run: ${scrub.reason}`;
   else if (scrub.line !== target) out.reason = `line ${target} is past the end of the document (${scrub.totalLines} lines)`;
-  else if (scrub.position?.line !== scrub.line - 1) out.reason = `the preview did not move to line ${scrub.line} (position ${JSON.stringify(scrub.position)})`;
+  else if (scrub.position?.line !== scrub.line - 1) out.reason = `the preview did not move to line ${scrub.line} (position ${JSON.stringify(scrub.position)}${scrub.positionError ? `; ${scrub.positionError}` : ""})`;
   else if (scrubCheck.outcome === "elsewhere") out.reason = `the scrub to line ${target} is not confirmed by the rendered text: ${scrubCheck.reason}`;
   return out;
 }
@@ -3448,7 +3393,7 @@ switch (cmd) {
         "usage: node .agents/skills/drive-web-editor/driver.mjs <command>",
         "",
         "  preflight [--tooling-only]  check disk headroom, playwright, gh auth BEFORE doing work; --tooling-only skips the browser and install probes",
-        "  up [--cross-origin]   boot both dev servers, wait for ready, record the URL",
+        "  up [--cross-origin] [--keep]   boot both dev servers, wait for ready, record the URL; they stop themselves after 15 min without a browser connection unless --keep",
         "  status [--all]        is it up? prints the editor URL (--all: every session's servers for this checkout)",
         "  down [--force]        kill the server tree this session launched (--force: any session's)",
         "  verify [options]      drive the game preview and print a JSON report",

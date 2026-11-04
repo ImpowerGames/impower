@@ -1,0 +1,17 @@
+style panel
+{
+  corner = 8px
+}
+
+layout hud
+  {
+    row { text "a" }
+  }
+
+style after {
+  corner = 4px
+}
+
+theme bare {
+  color = red
+}

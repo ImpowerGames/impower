@@ -10,9 +10,9 @@ async function render(src: string) {
 
 describe("dom attribute props", () => {
   test("href/target on a link become attributes, not styles", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   link "Docs" #href="/docs" #target="_blank"
-end
+}
 `);
     const a = h.overlay.querySelector("a") as HTMLAnchorElement;
     expect(a.getAttribute("href")).toBe("/docs");
@@ -21,10 +21,10 @@ end
   });
 
   test("absolute and protocol-relative URLs survive in a prop value", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   link "Docs" #href="https://example.com/a/b?x=1"
   image #src="//cdn.example.com/x.png"
-end
+}
 `);
     expect(h.overlay.querySelector("a")?.getAttribute("href")).toBe(
       "https://example.com/a/b?x=1",
@@ -36,14 +36,14 @@ end
 
   test("boolean attributes are presence-based", async () => {
     const h = await render(`store shown = true
-layout main with
+layout main {
   foldout "More" #open={shown} {
     text "Body"
   }
   modal #open=false {
     text "Modal"
   }
-end
+}
 `);
     const details = h.overlay.querySelector("details") as HTMLDetailsElement;
     expect(details.hasAttribute("open")).toBe(true);
@@ -52,7 +52,7 @@ end
   });
 
   test("colspan/scope on table cells become attributes", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   table {
     table_body {
       table_row {
@@ -60,7 +60,7 @@ end
       }
     }
   }
-end
+}
 `);
     const td = h.overlay.querySelector("td") as HTMLTableCellElement;
     expect(td.getAttribute("colspan")).toBe("2");
@@ -68,10 +68,10 @@ end
 
   test("role and aria-*/data-* pass through", async () => {
     const h = await render(`store busy = true
-layout main with
+layout main {
   button "Save" #aria-busy={busy}
   box #role="status" #data-testid="live"
-end
+}
 `);
     const btn = h.overlay.querySelector("button") as HTMLElement;
     expect(btn.getAttribute("aria-busy")).toBe("true");
@@ -81,9 +81,9 @@ end
   });
 
   test("styling props still go to style, not attributes", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   box #padding=16 #background-color="slate_30"
-end
+}
 `);
     const box = h.overlay.querySelector(".box") as HTMLElement;
     expect(box.getAttribute("style") ?? "").toContain("padding");
@@ -92,9 +92,9 @@ end
 
   test("progress renders as a native <progress> with value/max", async () => {
     const h = await render(`store done = 40
-layout main with
+layout main {
   progress #value={done} #max=100
-end
+}
 `);
     const p = h.overlay.querySelector("progress") as HTMLProgressElement;
     expect(p).toBeTruthy();
@@ -105,9 +105,9 @@ end
 
 describe("props the validator accepts actually reach the DOM", () => {
   test("minlength/spellcheck/size land as attributes, not as style", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   input #maxlength=10 #minlength=3 #spellcheck="false" #size=20
-end
+}
 `);
     const input = h.overlay.querySelector("input") as HTMLInputElement;
     expect(input.getAttribute("maxlength")).toBe("10");
@@ -119,9 +119,9 @@ end
 
   test("an enumerated attribute keeps its explicit false", async () => {
     const h = await render(`store off = false
-layout main with
+layout main {
   box #draggable={off} #spellcheck={off}
-end
+}
 `);
     const box = h.overlay.querySelector(".box") as HTMLElement;
     expect(box.getAttribute("draggable")).toBe("false");
@@ -129,9 +129,9 @@ end
   });
 
   test("`#translate` moves the element instead of writing an attribute", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   box "x" #translate="40px 0"
-end
+}
 `);
     const box = h.overlay.querySelector(".box") as HTMLElement;
     expect(box.hasAttribute("translate")).toBe(false);
@@ -141,11 +141,11 @@ end
 
 describe("an inline custom property reaches the element", () => {
   test("`#--my-var` becomes a real custom property", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   box #--my-var=4 #gap=12 #background-color=red {
     text "x"
   }
-end
+}
 `);
     const box = h.overlay.querySelector(".box") as HTMLElement;
     expect(box.style.getPropertyValue("--my-var")).toBe("4");

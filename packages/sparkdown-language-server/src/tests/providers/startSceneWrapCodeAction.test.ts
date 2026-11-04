@@ -155,6 +155,20 @@ describe("the Wrap in scene start quick fix", { timeout: 60000 }, () => {
     ]);
   });
 
+  test("leaves a title page above scene start and never reports it as a top-level statement", () => {
+    const main = lines("---", "title: My Story", "---", "", "Hello.", "");
+    const { program } = project(main);
+    expect(
+      Object.values(program.diagnostics ?? {})
+        .flat()
+        .filter((d) => messageOf(d) === TOP_LEVEL_STATEMENT_MESSAGE)
+        .map((d) => d.range.start.line),
+    ).toEqual([4]);
+    expect(actionsOn(main, 4).map((a) => a.text)).toEqual([
+      lines("---", "title: My Story", "---", "", "scene start", "  Hello.", "end", ""),
+    ]);
+  });
+
   test("leaves a wrapped script without the diagnostics it fixed", () => {
     const [action] = actionsOn(lines("Hello.", "Bye.", ""), 0);
     const { program } = project(action!.text);

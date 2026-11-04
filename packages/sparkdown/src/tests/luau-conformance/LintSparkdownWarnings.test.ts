@@ -5,7 +5,7 @@ const WARNING = 2;
 
 describe("an unknown Sparkle event name", () => {
   test("@clik", () => {
-    const found = diagnoseDetailed("layout s with\n  button @clik=go\nend\n");
+    const found = diagnoseDetailed("layout s {\n  button @clik=go\n}\n");
     expect(found.map((d) => [d.severity, d.message])).toContainEqual([
       WARNING,
       "Unrecognized event `@clik` — Sparkle dispatches a fixed set of events, so this handler never fires\n> e.g. `@click`, `@input`, `@change`, `@keydown`",
@@ -16,7 +16,7 @@ describe("an unknown Sparkle event name", () => {
 describe("an unknown Sparkle prop name", () => {
   test("#colr", () => {
     const found = diagnoseDetailed(
-      'layout main with\n  row #colr=red {\n    text "x"\n  }\nend\n',
+      'layout main {\n  row #colr=red {\n    text "x"\n  }\n}\n',
     );
     expect(found.map((d) => [d.severity, d.message])).toEqual([
       [
@@ -30,7 +30,7 @@ describe("an unknown Sparkle prop name", () => {
 describe("an unrecognized rich text tag", () => {
   test("<notatag>", () => {
     const found = diagnoseDetailed(
-      'layout main with\n  text "a <notatag>x"\nend\n',
+      'layout main {\n  text "a <notatag>x"\n}\n',
     );
     expect(found.map((d) => [d.severity, d.message])).toEqual([
       [

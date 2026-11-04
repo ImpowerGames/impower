@@ -1,5 +1,5 @@
-style card with
+style card {
   gap = var(--gap)
   margin = var(--gap) -- note
   padding = calc(1px -- note
-end
+}

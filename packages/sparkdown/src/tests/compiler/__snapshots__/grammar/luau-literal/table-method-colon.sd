@@ -1,3 +1,5 @@
-local t = { speed: 2 }
-local u = { speed: bend }
-local v = { speed:go(), w = x :: number }
+scene start
+  local t = { speed: 2 }
+  local u = { speed: bend }
+  local v = { speed:go(), w = x :: number }
+end

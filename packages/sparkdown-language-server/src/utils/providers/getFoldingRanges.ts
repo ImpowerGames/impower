@@ -5,6 +5,8 @@ import {
   BRACE_BODY_NAMES,
   braceBodyCloseFrom,
   braceBodyOwner,
+  KEYWORD_BRACE_BODY_NAMES,
+  STRUCT_KEYWORD_BLOCK_NAMES,
 } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
 import { type SyntaxNode, type Tree } from "@lezer/common";
 import { Range, type FoldingRange } from "vscode-languageserver";
@@ -15,16 +17,6 @@ import {
 
 const INDENT_REGEX = /^([ \t]+)/;
 
-const BRACE_BODY_DECLARATIONS = new Set([
-  "LuauStyle",
-  "LuauAnimation",
-  "LuauTheme",
-  "LuauMorph",
-  "LuauLayout",
-  "LuauComponent",
-  "LuauScreen",
-]);
-
 const getBraceFoldingRanges = (
   document: SparkdownDocument,
   tree: Tree,
@@ -32,8 +24,10 @@ const getBraceFoldingRanges = (
   const byStart = new Map<number, number>();
   const visit = (node: SyntaxNode) => {
     for (let child = node.firstChild; child; child = child.nextSibling) {
-      if (BRACE_BODY_NAMES.has(child.name)) {
-        const startLine = document.positionAt(braceBodyOwner(child).from).line;
+      const keywordBody = KEYWORD_BRACE_BODY_NAMES.has(child.name);
+      if (keywordBody || BRACE_BODY_NAMES.has(child.name)) {
+        const owner = keywordBody ? (node.parent ?? node) : braceBodyOwner(child);
+        const startLine = document.positionAt(owner.from).line;
         const closeFrom = braceBodyCloseFrom(child);
         const lastFrom =
           closeFrom < child.to
@@ -56,7 +50,7 @@ const getBraceFoldingRanges = (
     declaration;
     declaration = declaration.nextSibling
   ) {
-    if (BRACE_BODY_DECLARATIONS.has(declaration.name)) visit(declaration);
+    if (STRUCT_KEYWORD_BLOCK_NAMES.has(declaration.name)) visit(declaration);
   }
   return [...byStart].map(([startLine, endLine]) => ({
     startLine,

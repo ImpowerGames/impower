@@ -50,13 +50,13 @@ const DECLARATIONS = [
   {
     keyword: "layout",
     name: "form",
-    lines: ["layout form with", '  text "G: {g}"', '  button "Go" @click={ g = 1 }', "end"],
+    lines: ["layout form {", '  text "G: {g}"', '  button "Go" @click={ g = 1 }', "}"],
   },
-  { keyword: "component", name: "card", lines: ["component card with", "  box {", "  }", "end"] },
-  { keyword: "style", name: "fancy", lines: ["style fancy with", "  color = red", "end"] },
-  { keyword: "screen", name: "menu", lines: ["screen menu with", "end"] },
-  { keyword: "animation", name: "wobble", lines: ["animation wobble with", "  duration = 1", "end"] },
-  { keyword: "theme", name: "dusk", lines: ["theme dusk with", "  g = 1", "end"] },
+  { keyword: "component", name: "card", lines: ["component card {", "  box {", "  }", "}"] },
+  { keyword: "style", name: "fancy", lines: ["style fancy {", "  color = red", "}"] },
+  { keyword: "screen", name: "menu", lines: ["screen menu {", "}"] },
+  { keyword: "animation", name: "wobble", lines: ["animation wobble {", "  duration = 1", "}"] },
+  { keyword: "theme", name: "dusk", lines: ["theme dusk {", "  g = 1", "}"] },
 ] as const;
 
 const indent = (lines: readonly string[], n: number) =>

@@ -1,0 +1,49 @@
+store ready = true
+
+style panel { -- the panel's look
+  text-color = white
+  > text { text-size = 24px }
+  @hovered { opacity = 0.5 }
+}
+
+animation flip as base {
+  keyframes {
+    to { transform = scaleX(-1) }
+  }
+} -- flips it
+
+theme dusk {
+  color = #112233
+}
+
+morph blink {
+  method = bend
+  keyframes {
+    from { eyes { state = open } }
+    to { eyes { state = closed } }
+  }
+}
+
+layout title in menu as base {
+  column #child-gap=16 {
+    if ready then
+      text "My Game"
+    end
+    for i = 1, 3 do
+      button "Play {i}" @click=start
+    end
+  }
+}
+
+component card(title) as box {
+  box.card { slot }
+}
+
+screen menu {}
+
+screen pause {
+}
+
+scene start
+  Hello.
+end

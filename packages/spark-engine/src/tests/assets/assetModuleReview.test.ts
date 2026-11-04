@@ -196,12 +196,12 @@ describe("AssetModule, after review", () => {
   it("finds a layout's fonts through child classes, component bodies, and inline props", async () => {
     const h = createHarness(
       [
-        `style score_text with\n  font_family = "Fancy"\nend`,
-        `style card_title with\n  font_family = "Fancy"\nend`,
-        `component card with\n  card_title "Hi"\nend`,
-        `layout hud with\n  score_text {\n    text "Score"\n  }\nend`,
-        `layout deck with\n  card()\nend`,
-        `layout badge with\n  text "Badge" #font_family="Fancy"\nend`,
+        `style score_text {\n  font_family = "Fancy"\n}`,
+        `style card_title {\n  font_family = "Fancy"\n}`,
+        `component card {\n  card_title "Hi"\n}`,
+        `layout hud {\n  score_text {\n    text "Score"\n  }\n}`,
+        `layout deck {\n  card()\n}`,
+        `layout badge {\n  text "Badge" #font_family="Fancy"\n}`,
         `scene A\n  Hi.\nend`,
       ].join("\n\n") + "\n",
       0,
@@ -216,7 +216,7 @@ describe("AssetModule, after review", () => {
 
   it("never mounts the loading layout after its load ended during the font wait", async () => {
     const h = createHarness(
-      `define assets as config with\n  loading_min = 0\nend\n\nstyle loading with\n  font_family = "Fancy"\nend\n\nscene A\n  Hi.\nend\n`,
+      `define assets as config with\n  loading_min = 0\nend\n\nstyle loading {\n  font_family = "Fancy"\n}\n\nscene A\n  Hi.\nend\n`,
       0,
       { assets: ASSETS, beforeConnect: playing, holdAssets: true, autoOpenAll: false },
     );

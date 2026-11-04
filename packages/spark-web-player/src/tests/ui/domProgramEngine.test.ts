@@ -2,14 +2,14 @@ import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
 const SOURCE = `store count = 0
-layout main with
+layout main {
   column {
     text "Count {count}"
     button "Add" @click=add
     button "Add two" @click=add_by(2)
     button "Add three" @click={ count = count + 3 }
   }
-end
+}
 function add()
   count = count + 1
 end

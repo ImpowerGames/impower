@@ -24,9 +24,9 @@ describe("input widget labels", () => {
   test("a slider's content renders as a label around the control", async () => {
     const h = createHarness(
       `store volume = 80
-layout settings with
+layout settings {
   slider "Master Volume" #min=0 #max=100 #value={volume}
-end
+}
 `,
       0,
       { reactive: true },
@@ -43,9 +43,9 @@ end
   test("a checkbox's content renders as a label after the box", async () => {
     const h = createHarness(
       `store music_muted = false
-layout settings with
+layout settings {
   checkbox "Mute Music" #checked={music_muted}
-end
+}
 `,
       0,
       { reactive: true },
@@ -61,9 +61,9 @@ end
   test("bound label content follows the store", async () => {
     const h = createHarness(
       `store who = "Ada"
-layout settings with
+layout settings {
   switch "Notify {who}"
-end
+}
 `,
       0,
       { reactive: true },
@@ -83,9 +83,9 @@ end
   test("a widget without content renders the bare control", async () => {
     const h = createHarness(
       `store volume = 80
-layout settings with
+layout settings {
   slider #value={volume}
-end
+}
 `,
       0,
       { reactive: true },
@@ -98,9 +98,9 @@ end
   test("hiding a labelled widget hides its label too", async () => {
     const h = createHarness(
       `store shown = true
-layout settings with
+layout settings {
   slider "Private volume" #displayed={shown} #value=5
-end
+}
 `,
       0,
       { reactive: true },
@@ -146,9 +146,9 @@ function shown()
   calls = calls + 1
   return flag
 end
-layout settings with
+layout settings {
   slider "Volume" #displayed={shown()} #value=40
-end
+}
 `,
       0,
       { reactive: true },
@@ -181,9 +181,9 @@ end
   test("a widget that is not interactable is so as a whole", async () => {
     const h = createHarness(
       `store locked = true
-layout settings with
+layout settings {
   checkbox "Locked checkbox" #interactable={not locked}
-end
+}
 `,
       0,
       { reactive: true },
@@ -215,10 +215,10 @@ end
     const h = createHarness(
       `store locked = false
 store muted = false
-layout settings with
+layout settings {
   checkbox "Mute Music" #interactable={not locked} #checked={muted} @change={ muted = event.checked }
   checkbox #checked={muted} @change={ muted = event.checked }
-end
+}
 `,
       0,
       { reactive: true },
@@ -253,7 +253,7 @@ end
   test("only the ui marks a labelled widget's control", async () => {
     const h = createHarness(
       `store flag = "yes"
-layout settings with
+layout settings {
   checkbox "Labelled"
   checkbox
   box "Author box" #data-widget-control="yes" #data-other="kept"
@@ -263,7 +263,7 @@ layout settings with
   dropdown {
     option "Option" #data-widget-control="yes" #DATA-WIDGET-CONTROL="yes"
   }
-end
+}
 `,
       0,
       { reactive: true },
@@ -303,11 +303,11 @@ end
     const h = createHarness(
       `store show = true
 store volume = 80
-layout settings with
+layout settings {
   if show then
     slider "Volume" #value={volume} @input={ volume = event.value }
   end
-end
+}
 `,
       0,
       { reactive: true },
@@ -326,13 +326,13 @@ end
     const h = createHarness(
       `store show = true
 store n = 0
-layout settings with
+layout settings {
   if show then
     row {
       button "Bump" @click={ n = n + 1 }
     }
   end
-end
+}
 `,
       0,
       { reactive: true },
@@ -348,12 +348,12 @@ end
   test("a labelled widget's order and growth place its label in the row", async () => {
     const h = createHarness(
       `store first = 2
-layout settings with
+layout settings {
   row {
     slider "A" #order={first} #grow=1 #value=20
     slider "B" #order=1 #value=80
   }
-end
+}
 `,
       0,
       { reactive: true },
@@ -382,12 +382,12 @@ end
 
   test("every spelling of a placement prop places the label", async () => {
     const h = createHarness(
-      `layout settings with
+      `layout settings {
   column {
     checkbox "A" #self-align=end #position=absolute #i-l=40 #m-t=8
     checkbox "B" #align-self=end #left=40 #margin-top=8
   }
-end
+}
 `,
       0,
       { reactive: true },
@@ -416,9 +416,9 @@ end
   test("a placement prop keeps its transition on the label", async () => {
     const h = createHarness(
       `store offset = 0
-layout settings with
+layout settings {
   checkbox "Move me" #margin-left={offset} #transition-property="margin-left" #transition-duration="2s"
-end
+}
 `,
       0,
       { reactive: true },
@@ -438,9 +438,9 @@ end
   test("a labelled widget's opacity, transforms, width and animation act on all of it", async () => {
     const h = createHarness(
       `store fade = 0.5
-layout settings with
+layout settings {
   slider "Styled" #opacity={fade} #rotate="5deg" #scale=2 #width="40%" #animation="spin 1s" #value=5
-end
+}
 `,
       0,
       { reactive: true },
@@ -472,12 +472,12 @@ end
 
   test("a class on a labelled widget reaches its label and control", async () => {
     const h = createHarness(
-      `style concealed with
+      `style concealed {
   displayed = false
-end
-layout settings with
+}
+layout settings {
   slider.concealed "Secret volume" #value=5
-end
+}
 `,
       0,
       { reactive: true },
@@ -494,9 +494,9 @@ end
 
   test("a labelled widget is found by its name", async () => {
     const h = createHarness(
-      `layout settings with
+      `layout settings {
   checkbox.big "Big box"
-end
+}
 `,
       0,
       { reactive: true },
@@ -512,12 +512,12 @@ end
 
   test("a widget's name finds it labelled or bare alike", async () => {
     const h = createHarness(
-      `layout settings with
+      `layout settings {
   column {
     slider "Named volume" #value=50
     slider #value=50
   }
-end
+}
 `,
       0,
       { reactive: true },
@@ -535,9 +535,9 @@ end
   test("style props act on the widget; attributes, bindings and write-back on the control", async () => {
     const h = createHarness(
       `store volume = 80
-layout settings with
+layout settings {
   slider "Master Volume" #min=0 #max=100 #value={volume} #background-color="red" #margin-bottom=18 @input={ volume = event.value }
-end
+}
 `,
       0,
       { reactive: true },

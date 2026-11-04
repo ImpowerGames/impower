@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { sessionDir } from "./session-dir.mjs";
 import {
   EDITOR_NAVIGATION,
   KNOWN_CONSOLE_NOISE,
@@ -258,28 +259,36 @@ check("a driver run from outside the repo tree says why playwright cannot be fou
   carriesAdvice("playwright could not be resolved from", "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install");
 });
 
+const SYNTHETIC_NOISE = [{ name: "synthetic noise", match: /^\[error\] synthetic noise(?: \(https?:\/\/[^\s)]+\))?$/ }];
+
+check("the driver treats no console line as known noise", () => {
+  assert.deepEqual(KNOWN_CONSOLE_NOISE, []);
+  const line = "[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:38276/api/auth/account)";
+  assert.deepEqual(partitionConsole([line]), { errors: [line], noise: {} });
+});
+
 check("partitionConsole keeps the lines worth reading and counts the known noise", () => {
   const lines = [
-    "[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:38276/api/auth/account)",
+    "[error] synthetic noise",
     "[pageerror] Unhandled method workspace/semanticTokens/refresh",
-    "[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:38276/api/auth/account)",
+    "[error] synthetic noise",
     "[log] a log line is not an error",
     "[warning] neither is a warning",
     "[error] TypeError: cannot read properties of undefined",
     "[pageerror] ReferenceError: game is not defined",
     "[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:38276/local/assets/missing.png)",
-    "[error] Failed to load resource: the server responded with a status of 403 (Forbidden) (http://localhost:38276/api/auth/account)",
+    "[error] synthetic noise is the example; this failure is elsewhere",
   ];
-  const { errors, noise } = partitionConsole(lines);
+  const { errors, noise } = partitionConsole(lines, SYNTHETIC_NOISE);
   assert.deepEqual(errors, [
     "[pageerror] Unhandled method workspace/semanticTokens/refresh",
     "[error] TypeError: cannot read properties of undefined",
     "[pageerror] ReferenceError: game is not defined",
     "[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:38276/local/assets/missing.png)",
-    "[error] Failed to load resource: the server responded with a status of 403 (Forbidden) (http://localhost:38276/api/auth/account)",
+    "[error] synthetic noise is the example; this failure is elsewhere",
   ]);
   assert.deepEqual(noise, {
-    "/api/auth/account 404": 2,
+    "synthetic noise": 2,
   });
 });
 
@@ -287,8 +296,8 @@ check("a captured console line carries the resource a failed request names nowhe
   const message = (type, text, url) => ({ type: () => type, text: () => text, location: () => ({ url }) });
   const failed = "Failed to load resource: the server responded with a status of 404 (Not Found)";
   assert.equal(
-    consoleLine(message("error", failed, "http://localhost:1/api/auth/account")),
-    `[error] ${failed} (http://localhost:1/api/auth/account)`,
+    consoleLine(message("error", failed, "http://localhost:1/missing.png")),
+    `[error] ${failed} (http://localhost:1/missing.png)`,
   );
   assert.equal(consoleLine(message("error", "boom at http://localhost:1/x.js", "http://localhost:1/x.js")), "[error] boom at http://localhost:1/x.js");
   assert.equal(consoleLine(message("log", "a log line", "http://localhost:1/x.js")), "[log] a log line");
@@ -308,18 +317,21 @@ check("a captured console line carries the resource a failed request names nowhe
   };
   try {
     const captured = await withEditor(({ consoleLines }) => {
-      for (const resource of ["/api/auth/account", "/missing.png"]) {
-        handlers.get("console")({
-          type: () => "error",
-          text: () => "Failed to load resource: the server responded with a status of 404 (Not Found)",
-          location: () => ({ url: "http://localhost:1" + resource }),
-        });
-      }
+      handlers.get("console")({
+        type: () => "error",
+        text: () => "synthetic noise",
+        location: () => ({ url: "http://localhost:1/noise.js" }),
+      });
+      handlers.get("console")({
+        type: () => "error",
+        text: () => "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        location: () => ({ url: "http://localhost:1/missing.png" }),
+      });
       handlers.get("pageerror")(new Error("unexpected page failure"));
-      return partitionConsole(consoleLines);
+      return partitionConsole(consoleLines, SYNTHETIC_NOISE);
     }, { state: () => ({ url: "http://localhost:1" }), launch: async () => ctx });
     check(label, () => {
-      assert.equal(captured.noise["/api/auth/account 404"], 1);
+      assert.equal(captured.noise["synthetic noise"], 1);
       assert.deepEqual(captured.errors, ["[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:1/missing.png)", "[pageerror] unexpected page failure"]);
       assert.equal(closed, true);
     });
@@ -328,37 +340,18 @@ check("a captured console line carries the resource a failed request names nowhe
   }
 }
 
-check("only a 404 for the account endpoint is known resource noise", () => {
-  for (const [url, status, known] of [
-    ["http://localhost:1/api/auth/account", 404, true],
-    ["http://localhost:1/api/auth/account?format=json", 404, true],
-    ["http://localhost:1/api/auth/account/settings", 404, false],
-    ["http://localhost:1/api/auth/accountant", 404, false],
-    ["http://localhost:1/local/api/auth/account", 404, false],
-    ["http://localhost:1/other?next=/api/auth/account", 404, false],
-    ["http://localhost:404/api/auth/account", 403, false],
-  ]) {
-    const line = consoleLine({ type: () => "error", text: () => `Failed to load resource: the server responded with a status of ${status} (${status === 404 ? "Not Found" : "Forbidden"})`, location: () => ({ url }) });
-    const result = partitionConsole([line]);
-    assert.equal(result.noise["/api/auth/account 404"], Number(known), url);
-    assert.deepEqual(result.errors, known ? [] : [line], url);
-  }
-  const embedded = "[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:1/api/auth/account) is the example; this failure is elsewhere";
-  assert.deepEqual(partitionConsole([embedded]).errors, [embedded]);
-});
-
 check("every known-noise entry reports a count even when it did not appear", () => {
-  const { errors, noise } = partitionConsole([]);
+  const { errors, noise } = partitionConsole([], SYNTHETIC_NOISE);
   assert.deepEqual(errors, []);
-  assert.deepEqual(Object.keys(noise).sort(), KNOWN_CONSOLE_NOISE.map((n) => n.name).sort());
-  for (const count of Object.values(noise)) assert.equal(count, 0);
+  assert.deepEqual(noise, { "synthetic noise": 0 });
 });
 
 check("partitionConsole caps what it returns without capping what it counts", () => {
   const many = Array.from({ length: 40 }, (_, i) => `[error] distinct failure ${i}`);
-  const { errors } = partitionConsole(many.concat(Array(5).fill("[error] Failed to load resource: the server responded with a status of 404 (Not Found) (http://localhost:38276/api/auth/account)")));
+  const { errors, noise } = partitionConsole(many.concat(Array(5).fill("[error] synthetic noise")), SYNTHETIC_NOISE);
   assert.equal(errors.length, 25);
-  assert.equal(partitionConsole(many, KNOWN_CONSOLE_NOISE, 3).errors.length, 3);
+  assert.equal(noise["synthetic noise"], 5);
+  assert.equal(partitionConsole(many, SYNTHETIC_NOISE, 3).errors.length, 3);
 });
 
 function stubPage(files) {
@@ -454,6 +447,27 @@ check("the missing-record refusal names the hand-launch that renders the preview
   carriesAdvice("no editor URL", "up` first");
   carriesAdvice("no editor URL", "fully black");
   carriesAdvice("no editor URL", "baked into each bundle at build time");
+});
+
+check("dead recorded servers refuse before launching a browser through the default probe", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "driver-refusal-"));
+  try {
+    const env = { ...process.env, IMPOWER_DRIVER_HOME: root, IMPOWER_DRIVER_SESSION: "refusal" };
+    const dir = sessionDir({ root: path.resolve(SKILL_DIR, "../../.."), session: "refusal", env });
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "state.json"), JSON.stringify({ url: "http://127.0.0.1:1", pid: 42, idleExitSeconds: 900 }));
+    const script = `import { withEditor } from ${JSON.stringify(new URL("./driver.mjs", import.meta.url).href)}; const fetch = globalThis.fetch; globalThis.fetch = (...args) => { console.log("PROBED " + args[0]); return fetch(...args); }; await withEditor(() => {}, { launch: async () => { console.log("BROWSER_LAUNCHED"); throw new Error("browser should not launch"); } });`;
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], { env, encoding: "utf8", windowsHide: true, timeout: 15_000 });
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 1, result.stderr);
+    assert.doesNotMatch(result.stdout, /BROWSER_LAUNCHED/);
+    assert.match(result.stdout, /PROBED http:\/\/127\.0\.0\.1:1/);
+    assert.match(result.stderr, /are not answering; they stop themselves after 15 min/);
+    assert.match(result.stderr, /Run `up` to start them again/);
+    assert.match(result.stderr, /down` removes one whose launcher has exited/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 check("a seed refused because the editor remembers another project names how to forget it", () => {

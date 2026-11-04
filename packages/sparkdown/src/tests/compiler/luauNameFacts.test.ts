@@ -175,7 +175,7 @@ describe("shared AST name facts", () => {
   });
 
   test("a Sparkle handler's const is a local declaration, not a global", () => {
-    const source = "store g = 0\nlayout form with\n  button \"Go\" @click={ const a = 1 g = a }\nend\nValue {g}.\n";
+    const source = "store g = 0\nlayout form {\n  button \"Go\" @click={ const a = 1 g = a }\n}\nValue {g}.\n";
     const facts = names(script(source));
     expect(facts.globals.filter((d: any) => d.name === "a")).toEqual([]); // not a node name
     const constant = facts.declarations.find((d: any) => d.name === "a"); // not a node name
@@ -185,7 +185,7 @@ describe("shared AST name facts", () => {
   });
 
   test("a Sparkle handler's const function keeps its local in the function facts", () => {
-    const source = "layout form with\n  button \"Go\" @click={ const function x() return 1 end local y = x() }\nend\nGo.\n";
+    const source = "layout form {\n  button \"Go\" @click={ const function x() return 1 end local y = x() }\n}\nGo.\n";
     const facts = names(script(source));
     const declared = facts.declarations.find((d: any) => d.name === "x"); // not a node name
     const fn = facts.functions.find((f: any) => f.name === "x"); // not a node name
@@ -328,8 +328,8 @@ describe("shared AST name facts", () => {
     ["interpolation", "Hi {target()}.\n"],
     ["bare interpolation", "Hi {target}.\n"],
     ["call shorthand", "Hi {{target()}}.\n"],
-    ["Sparkle handler", "layout main with\n button @click=target()\nend\n"],
-    ["Sparkle closure", "layout main with\n button @click={ target() }\nend\n"],
+    ["Sparkle handler", "layout main {\n button @click=target()\n}\n"],
+    ["Sparkle closure", "layout main {\n button @click={ target() }\n}\n"],
   ])("indexes uses from %s across scripts", (_label, source) => {
     const definition = names(script("function target() end\n"));
     const use = names(script(source));
@@ -367,7 +367,7 @@ describe("shared AST name facts", () => {
   });
 
   test("handler uses stay outside authored functions while nested function values retain their enclosure", () => {
-    const facts = names(script("layout main with\n button @click={ print(outside); local callback = function() print(inside) end }\nend\n"));
+    const facts = names(script("layout main {\n button @click={ print(outside); local callback = function() print(inside) end }\n}\n"));
     expect(facts.references.find((r: any) => r.name === "outside").enclosingFunction).toBeUndefined(); // not a node name
     expect(facts.references.find((r: any) => r.name === "inside").enclosingFunction).toBeDefined(); // not a node name
   });

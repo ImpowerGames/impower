@@ -343,13 +343,13 @@ describe("AssetModule", () => {
   });
 
   it("mounts a layout only once its fonts are resident, and releases them when it closes", async () => {
-    const source = `style hud with
+    const source = `style hud {
   font_family = "Fancy"
-end
+}
 
-layout hud with
+layout hud {
   text "Score"
-end
+}
 
 scene A
   Hello.

@@ -31,9 +31,9 @@ function diagnosticsFor(source: string): string[] {
 
 const inStart = (line: string) => `scene start\n  ${line}\nend\n`;
 
-const LAYOUT = `layout hud with
+const LAYOUT = `layout hud {
   text "HP"
-end
+}
 `;
 
 describe("layout lifecycle directive validation ([[open/close LAYOUT]])", () => {
@@ -74,14 +74,14 @@ describe("layout lifecycle directive validation ([[open/close LAYOUT]])", () => 
   });
 });
 
-const MENU = `screen menu with
-end
-layout pause in menu with
+const MENU = `screen menu {
+}
+layout pause in menu {
   text "Paused"
-end
-layout settings in menu with
+}
+layout settings in menu {
   text "Settings"
-end
+}
 `;
 
 describe("screen navigation directive validation ([[navigate SCREEN to LAYOUT]])", () => {
@@ -126,13 +126,13 @@ describe("screen navigation directive validation ([[navigate SCREEN to LAYOUT]])
 describe("layout `in SCREEN` clause validation", () => {
   test("`in` referencing a defined screen is clean", () => {
     expect(
-      diagnosticsFor(`screen menu with\nend\nlayout pause in menu with\n  text "x"\nend\n\nscene start\nend\n`),
+      diagnosticsFor(`screen menu {\n}\nlayout pause in menu {\n  text "x"\n}\n\nscene start\nend\n`),
     ).toEqual([]);
   });
 
   test("`in` referencing an undefined screen warns (typo guard)", () => {
     const diags = diagnosticsFor(
-      `layout pause in menyu with\n  text "x"\nend\n`,
+      `layout pause in menyu {\n  text "x"\n}\n`,
     );
     expect(diags.some((m) => m.includes("Cannot find screen"))).toBe(true);
   });

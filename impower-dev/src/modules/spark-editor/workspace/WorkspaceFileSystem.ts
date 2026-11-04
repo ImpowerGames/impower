@@ -643,8 +643,9 @@ export default class WorkspaceFileSystem {
 
   async writeTextDocument(params: {
     textDocument: { uri: string; version: number; text: string };
+    origin?: string;
   }) {
-    const { textDocument } = params;
+    const { textDocument, origin } = params;
     const encoder = new TextEncoder();
     const encodedText = encoder.encode(textDocument.text);
     const result = await this.sendRequest(
@@ -657,6 +658,7 @@ export default class WorkspaceFileSystem {
             data: encodedText.buffer,
           },
         ],
+        origin,
       },
       [encodedText.buffer],
     );

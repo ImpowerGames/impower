@@ -74,18 +74,18 @@ function tally(a, b)
   return total
 end
 
-style panel as button with
+style panel as button {
   bg-color = surface-2
   corner = md
-end
+}
 
-layout settings with
+layout settings {
   column #class=root {
     text #class=title "Settings"
   }
-end
+}
 
-layout hud with
+layout hud {
   column.panel {
     text.title "Inventory"
     row { text "a"; text "b" }
@@ -95,14 +95,14 @@ layout hud with
         tally(1, 2)
       }
   }
-end
+}
 
-animation fade with
+animation fade {
   keyframes {
     from { opacity = 0 }
     to { opacity = 1 }
   }
-end
+}
 
 scene intro
   HERO: Hello there.

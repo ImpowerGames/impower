@@ -445,7 +445,7 @@ describe("names in a list (#1292)", () => {
     ],
     [
       "a Sparkle handler",
-      "store g = 0\nlayout form with\n  button \"Go\" @click={ local a, const = 1, 2 g = a + const }\nend\nscene start\n  Value {g}.\nend\n",
+      "store g = 0\nlayout form {\n  button \"Go\" @click={ local a, const = 1, 2 g = a + const }\n}\nscene start\n  Value {g}.\nend\n",
     ],
     ["a store", "store a, const = 1, 2\nscene start\n  Go {a + const}.\nend\n"],
   ])("%s takes a name after the comma", (_label, source) => {
@@ -587,7 +587,7 @@ describe("a function's `const` errors in every place Luau is read", () => {
     ["a function value in an interpolation, with a value missing", "scene start\n  Go {(function() const a, b = 1; return a end)()}.\nend\n", MISSING],
     ["a define's method", "define box as thing with\n  sum()\n    const a = 1\n    a = 2\n    return a\n  end\nend\nscene start\n  Go.\nend\n", REASSIGNED],
     ["a define's function-valued property", "define box as thing with\n  sum = function()\n    const a = 1\n    a = 2\n    return a\n  end\nend\nscene start\n  Go.\nend\n", REASSIGNED],
-    ["a Sparkle handler", "store g = 0\nlayout form with\n  button \"Go\" @click={ const a = 1 a = 2 g = a }\nend\nscene start\n  Value {g}.\nend\n", REASSIGNED],
+    ["a Sparkle handler", "store g = 0\nlayout form {\n  button \"Go\" @click={ const a = 1 a = 2 g = a }\n}\nscene start\n  Value {g}.\nend\n", REASSIGNED],
     ["a function statement over the const", "function f()\n  const a = 1\n  function a() end\n  return 1\nend\nscene start\n  Go {f()}.\nend\n", REASSIGNED],
     [
       "a nested function value in an interpolation",
@@ -646,7 +646,7 @@ describe("a function's `const` errors in every place Luau is read", () => {
 
   test("a Sparkle handler's const is a local of the handler, not a story constant", () => {
     const ctx = makeRuntimeStoryFromSource(
-      "store g = 0\nlayout form with\n  button \"Go\" @click={ const a, b = 1, 2 g = a + b }\nend\nconst a = 5\nscene start\n  Value {g} {a}.\nend\n",
+      "store g = 0\nlayout form {\n  button \"Go\" @click={ const a, b = 1, 2 g = a + b }\n}\nconst a = 5\nscene start\n  Value {g} {a}.\nend\n",
     );
     expect([...ctx.errorMessages]).toEqual([]);
     expect(ctx.story.Continue()).toBe("Value 0 5.\n");
@@ -673,7 +673,7 @@ describe("a function's `const` reassigned from a body read on its own", () => {
     ["a local function", "local function g() a = 2 end g()"],
   ])("from %s in a Sparkle handler is Luau's error, once", (_label, handler) => {
     const ctx = makeRuntimeStoryFromSource(
-      fn(`  const a = 1\n  layout form with\n    button "Go" @click={ ${handler} }\n  end\n  return a`),
+      fn(`  const a = 1\n  layout form {\n    button "Go" @click={ ${handler} }\n  }\n  return a`),
     );
     expect([...ctx.errorMessages]).toEqual([
       "'layout' is a top-level declaration and cannot be written inside a function",

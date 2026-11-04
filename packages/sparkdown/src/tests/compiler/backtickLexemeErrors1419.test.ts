@@ -139,7 +139,7 @@ describe("a rejected backtick string in a body a lowerer reads is read as Luau's
       expect(sparkdownErrors(`define Thing with\n  run()\n    ${body}\n  end\nend\n`)).toEqual(expected());
     });
     test(`a Sparkle handler ${body}`, () => {
-      expect(sparkdownErrors(`layout main with\n  button @click={\n    ${body}\n  }\nend\n`)).toEqual(expected());
+      expect(sparkdownErrors(`layout main {\n  button @click={\n    ${body}\n  }\n}\n`)).toEqual(expected());
     });
   }
 });

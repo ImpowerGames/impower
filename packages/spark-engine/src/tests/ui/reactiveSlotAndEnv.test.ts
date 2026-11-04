@@ -34,16 +34,16 @@ describe("slot inside a control block", () => {
   test("a slot inside `if` still renders the caller's children", async () => {
     const h = createHarness(
       `store expanded = true
-component card with
+component card {
   text "title"
   if expanded then
     slot
   end
-end
-layout main with
+}
+layout main {
   card()
     text "child content"
-end
+}
 `,
       0,
       { reactive: true },
@@ -57,15 +57,15 @@ end
   test("a slot inside `for` still renders the caller's children", async () => {
     const h = createHarness(
       `store rows = { 1 }
-component card with
+component card {
   for r in rows do
     slot
   end
-end
-layout main with
+}
+layout main {
   card()
     text "inside the loop"
-end
+}
 `,
       0,
       { reactive: true },
@@ -85,13 +85,13 @@ store list = { "one" }
 function swap()
   players = { { name = "C" }, { name = "D" } }
 end
-layout main with
+layout main {
   for k, player in players do
     for x in list do
       text "{player.name}:{x}"
     end
   end
-end
+}
 `,
       0,
       { reactive: true },
@@ -118,11 +118,11 @@ end
 function drop()
   rows = { 1 }
 end
-layout main with
+layout main {
   for r in rows do
     button "Row" @click=noop
   end
-end
+}
 `,
       0,
       { reactive: true },

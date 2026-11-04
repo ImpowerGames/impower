@@ -4,13 +4,13 @@ import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 describe("preview of a UI-only layout reveals it in the player DOM", () => {
   test("preview() reveals the layouts layer (no manual reveal)", async () => {
     const src = `store hp = 5
-layout main with
+layout main {
   column #child-gap=8 #padding=24 {
     text.h1 "Sparkle x Pico"
     text "HP: {hp}"
     button "Go"
   }
-end
+}
 `;
     const h = createDOMHarness(src, 0, { autoOpenAll: true });
     await h.ready;

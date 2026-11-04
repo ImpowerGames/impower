@@ -24,6 +24,17 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { SetEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorHighlightsMessage";
 import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorPinpointsMessage";
+import { SetEditorStartingValueLinesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorStartingValueLinesMessage";
+import { ChangedEditorStartingValueLinesMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorStartingValueLinesMessage";
+import { SetStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetStartingValuesMessage";
+import {
+  changeStartingValues,
+  movePlaceLines,
+  placeLinesOf,
+  readPlaceKey,
+  startingValuesFrom,
+  type StartingValues,
+} from "@impower/sparkdown/src/program/startingValueLiterals";
 import { ChangedEditorRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorRoutePinsMessage";
 import { SetEditorRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorRoutePinsMessage";
 import {
@@ -62,13 +73,17 @@ import { type ShowDocumentResult } from "vscode-languageserver-protocol";
 import { debounce } from "../utils/debounce";
 import { isScriptExtension } from "../utils/scriptFiles";
 import SingletonPromise from "./SingletonPromise";
-import { Workspace } from "./Workspace";
 import { WorkspaceConstants } from "./WorkspaceConstants";
+import type WorkspaceFileSystem from "./WorkspaceFileSystem";
 import workspace from "./WorkspaceStore";
+import type WorkspaceSync from "./WorkspaceSync";
 import type { AccountInfo } from "./types/AccountInfo";
 import { RemoteStorage } from "./types/RemoteStorageTypes";
 import createTextFile from "./utils/createTextFile";
 import createZipFile from "./utils/createZipFile";
+import { PreviewSaveStore } from "@impower/spark-editor-protocol/src/utils/PreviewSaveStore";
+import { opfsSaveFiles } from "./opfsSaveFiles";
+import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
 
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
@@ -77,7 +92,10 @@ export default class WorkspaceWindow {
 
   protected _disposers: (() => void)[] = [];
 
-  constructor() {
+  protected _workspace: { fs: WorkspaceFileSystem; sync: WorkspaceSync };
+
+  constructor(workspace: { fs: WorkspaceFileSystem; sync: WorkspaceSync }) {
+    this._workspace = workspace;
     const cachedProjectId = localStorage.getItem(
       WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY,
     );
@@ -103,7 +121,7 @@ export default class WorkspaceWindow {
     this._disposers.push(
       onProtocolRequest(LoadedProjectIdMessage.type, (m) =>
         LoadedProjectIdMessage.type.response(m.id, {
-          id: Workspace.fs.getLoadedProjectId(),
+          id: this._workspace.fs.getLoadedProjectId(),
         }),
       ),
       onProtocolMessage(DidOpenFileEditorMessage.type, (m) =>
@@ -132,6 +150,9 @@ export default class WorkspaceWindow {
       ),
       onProtocolMessage(ChangedEditorHighlightsMessage.type, (m) =>
         this.handleChangedEditorHighlights(m),
+      ),
+      onProtocolMessage(ChangedEditorStartingValueLinesMessage.type, (m) =>
+        this.handleChangedEditorStartingValueLines(m),
       ),
       onProtocolMessage(CompiledProgramMessage.type, (m) =>
         this.handleCompiledProgram(m),
@@ -221,7 +242,11 @@ export default class WorkspaceWindow {
     message: ApplyWorkspaceEditMessage.Request,
   ) => {
     const { label, edit, metadata } = message.params;
-    const result = await Workspace.fs.applyWorkspaceEdit(edit, label, metadata);
+    const result = await this._workspace.fs.applyWorkspaceEdit(
+      edit,
+      label,
+      metadata,
+    );
     return ApplyWorkspaceEditMessage.type.response(message.id, result);
   };
 
@@ -308,6 +333,17 @@ export default class WorkspaceWindow {
     });
   };
 
+  protected handleChangedEditorStartingValueLines = (
+    message: ChangedEditorStartingValueLinesMessage.Notification,
+  ) => {
+    const { textDocument, moves } = message.params;
+    const values = this.startingValues;
+    const moved = movePlaceLines(values, textDocument.uri, new Map(moves));
+    if (moved !== values) {
+      this.setStartingValues(moved, false);
+    }
+  };
+
   protected handleChangedEditorPinpoints = (
     message: ChangedEditorPinpointsMessage.Notification,
   ) => {
@@ -369,7 +405,7 @@ export default class WorkspaceWindow {
     const game = this.store.preview.modes.game;
     const story =
       !!projectId &&
-      program.uri === Workspace.fs.getFileUri(projectId, "main.sd");
+      program.uri === this._workspace.fs.getFileUri(projectId, "main.sd");
     this.update({
       ...this.store,
       debug: {
@@ -431,6 +467,76 @@ export default class WorkspaceWindow {
       })),
     );
     sendProtocolMessage(SetEditorPinpointsMessage.type.request({ locations }));
+  }
+
+  protected _previewSaveStore = new PreviewSaveStore(opfsSaveFiles());
+
+  protected previewSaveProject(): string {
+    const id = this.store.project.id;
+    if (!id) {
+      throw new Error("No project is open to keep saves for.");
+    }
+    return id;
+  }
+
+  readonly previewSaves = {
+    list: () => this._previewSaveStore.list(this.previewSaveProject()),
+    write: (save: PreviewSave) =>
+      this._previewSaveStore.write(this.previewSaveProject(), save),
+    rename: (id: string, name: string) =>
+      this._previewSaveStore.rename(this.previewSaveProject(), id, name),
+    delete: (ids: readonly string[]) =>
+      this._previewSaveStore.delete(this.previewSaveProject(), ids),
+  };
+
+  get startingValues(): StartingValues {
+    return startingValuesFrom(this.store.debug.startingValues);
+  }
+
+  changeStartingValues(start: string, changes: Record<string, string | null>) {
+    this.setStartingValues(
+      changeStartingValues(this.startingValues, start, changes),
+      true,
+    );
+  }
+
+  protected setStartingValues(values: StartingValues, lines: boolean) {
+    this.update({
+      ...this.store,
+      debug: {
+        ...this.store.debug,
+        startingValues: values,
+      },
+    });
+    this.publishStartingValues(lines);
+  }
+
+  publishStartingValues(lines = true) {
+    const values = this.startingValues;
+    sendProtocolMessage(SetStartingValuesMessage.type.request({ values }));
+    if (lines) {
+      const uris = new Set<string>();
+      for (const set of Object.values(values)) {
+        for (const key of Object.keys(set)) {
+          const place = readPlaceKey(key);
+          if (place) {
+            uris.add(place.uri);
+          }
+        }
+      }
+      const uri = this.getOpenedDocumentUri();
+      if (uri) {
+        uris.add(uri);
+      }
+      sendProtocolMessage(
+        SetEditorStartingValueLinesMessage.type.request({
+          scripts: [...uris].map((uri) => ({
+            uri,
+            lines: placeLinesOf(values, uri),
+          })),
+        }),
+      );
+    }
   }
 
   getRoutePins(): RoutePin[] {
@@ -541,6 +647,7 @@ export default class WorkspaceWindow {
         breakpointLines: number[] | undefined;
         pinpointLines: number[] | undefined;
         highlightLines: number[] | undefined;
+        startingValueLines: number[];
         routePins: { line: number; offer: number }[] | undefined;
       })
     | undefined {
@@ -554,13 +661,14 @@ export default class WorkspaceWindow {
           panelState.activeEditor &&
           panelState.activeEditor.filename === filenameOrUri
         ) {
-          const uri = Workspace.fs.getFileUri(projectId, filenameOrUri);
+          const uri = this._workspace.fs.getFileUri(projectId, filenameOrUri);
           return {
             ...panelState.activeEditor,
             uri,
             breakpointLines: this.store.debug?.breakpoints?.[uri],
             pinpointLines: this.store.debug?.pinpoints?.[uri],
             highlightLines: this.store.debug?.highlights?.[uri],
+            startingValueLines: placeLinesOf(this.startingValues, uri),
             routePins: this.store.debug?.routePins?.[uri],
           };
         }
@@ -583,6 +691,7 @@ export default class WorkspaceWindow {
         selectedRange: Range | undefined;
         breakpointLines: number[] | undefined;
         pinpointLines: number[] | undefined;
+        startingValueLines: number[];
       })
     | undefined {
     const projectId = this.store.project.id;
@@ -594,7 +703,10 @@ export default class WorkspaceWindow {
         : Object.values(paneState.panels).find((p) => p.activeEditor?.open);
       const openEditor = panelState?.activeEditor;
       if (openEditor?.open && openEditor?.filename) {
-        const uri = Workspace.fs.getFileUri(projectId, openEditor.filename);
+        const uri = this._workspace.fs.getFileUri(
+          projectId,
+          openEditor.filename,
+        );
         return {
           ...openEditor,
           projectId,
@@ -603,6 +715,7 @@ export default class WorkspaceWindow {
           selectedRange: openEditor.selectedRange,
           breakpointLines: this.store.debug?.breakpoints?.[uri],
           pinpointLines: this.store.debug?.pinpoints?.[uri],
+          startingValueLines: placeLinesOf(this.startingValues, uri),
         };
       }
     }
@@ -627,7 +740,7 @@ export default class WorkspaceWindow {
     takeFocus?: boolean,
   ): Promise<ShowDocumentResult> {
     return new Promise((resolve) => {
-      const filename = Workspace.fs.getRelativePath(
+      const filename = this._workspace.fs.getRelativePath(
         this.store.project.id ?? "",
         uri,
       );
@@ -846,7 +959,7 @@ export default class WorkspaceWindow {
       });
       const changedName = validName !== previousName;
       if (changedName) {
-        await Workspace.fs.writeProjectMetadata(id, "name", validName);
+        await this._workspace.fs.writeProjectMetadata(id, "name", validName);
         await this.recordScriptChange();
       }
       return changedName;
@@ -1054,7 +1167,7 @@ export default class WorkspaceWindow {
       project: {
         ...this.store.project,
         id,
-        directory: Workspace.fs.getDirectoryUri(id),
+        directory: this._workspace.fs.getDirectoryUri(id),
         name: undefined,
       },
       sync: {
@@ -1082,14 +1195,14 @@ export default class WorkspaceWindow {
       const id = this.store.project.id || WorkspaceConstants.LOCAL_PROJECT_ID;
       if (id === WorkspaceConstants.LOCAL_PROJECT_ID) {
         const name =
-          (await Workspace.fs.readProjectMetadata(id, "name")) ||
+          (await this._workspace.fs.readProjectMetadata(id, "name")) ||
           WorkspaceConstants.DEFAULT_PROJECT_NAME;
         this.update({
           ...this.store,
           project: {
             ...this.store.project,
             id,
-            directory: Workspace.fs.getDirectoryUri(id),
+            directory: this._workspace.fs.getDirectoryUri(id),
             name,
           },
           sync: {
@@ -1130,7 +1243,8 @@ export default class WorkspaceWindow {
             status: "syncing",
           },
         });
-        const revisions = await Workspace.sync.google.getFileRevisions(id);
+        const revisions =
+          await this._workspace.sync.google.getFileRevisions(id);
         if (revisions) {
           this.update({
             ...this.store,
@@ -1160,7 +1274,7 @@ export default class WorkspaceWindow {
                 ? "sync_conflict"
                 : textSyncStatus;
           const name =
-            (await Workspace.fs.readProjectMetadata(id, "name")) ||
+            (await this._workspace.fs.readProjectMetadata(id, "name")) ||
             WorkspaceConstants.DEFAULT_PROJECT_NAME;
           this.update({
             ...this.store,
@@ -1176,7 +1290,7 @@ export default class WorkspaceWindow {
         } else {
           console.error(`Could not fetch remote project file: ${id}`);
           const name =
-            (await Workspace.fs.readProjectMetadata(id, "name")) ||
+            (await this._workspace.fs.readProjectMetadata(id, "name")) ||
             WorkspaceConstants.DEFAULT_PROJECT_NAME;
           this.update({
             ...this.store,
@@ -1214,7 +1328,8 @@ export default class WorkspaceWindow {
             status: "syncing",
           },
         });
-        const revisions = await Workspace.sync.google.getFileRevisions(id);
+        const revisions =
+          await this._workspace.sync.google.getFileRevisions(id);
         if (revisions) {
           const projectTextRevision = revisions.findLast(
             (r) => r.mimeType === "text/plain",
@@ -1229,7 +1344,7 @@ export default class WorkspaceWindow {
             await this.pullRemoteAssetBundleChanges(id, projectZipRevision);
           }
           const name =
-            (await Workspace.fs.readProjectMetadata(id, "name")) ||
+            (await this._workspace.fs.readProjectMetadata(id, "name")) ||
             WorkspaceConstants.DEFAULT_PROJECT_NAME;
           this.update({
             ...this.store,
@@ -1246,7 +1361,7 @@ export default class WorkspaceWindow {
         } else {
           console.error(`Could not fetch remote project file: ${id}`);
           const name =
-            (await Workspace.fs.readProjectMetadata(id, "name")) ||
+            (await this._workspace.fs.readProjectMetadata(id, "name")) ||
             WorkspaceConstants.DEFAULT_PROJECT_NAME;
           this.update({
             ...this.store,
@@ -1288,7 +1403,7 @@ export default class WorkspaceWindow {
         await this.pushLocalZipChanges(id);
         await this.pushLocalTextChanges(id);
         const name =
-          (await Workspace.fs.readProjectMetadata(id, "name")) ||
+          (await this._workspace.fs.readProjectMetadata(id, "name")) ||
           WorkspaceConstants.DEFAULT_PROJECT_NAME;
         this.update({
           ...this.store,
@@ -1319,11 +1434,11 @@ export default class WorkspaceWindow {
     projectTextRevision: RemoteStorage.Revision | undefined,
     pushLocalChanges: boolean,
   ): Promise<SyncStatus> {
-    const textRevisionId = await Workspace.fs.readProjectMetadata(
+    const textRevisionId = await this._workspace.fs.readProjectMetadata(
       fileId,
       "textRevisionId",
     );
-    const textSynced = await Workspace.fs.readProjectMetadata(
+    const textSynced = await this._workspace.fs.readProjectMetadata(
       fileId,
       "textSynced",
     );
@@ -1349,23 +1464,33 @@ export default class WorkspaceWindow {
 
   protected async pushLocalTextChanges(fileId: string) {
     const projectName =
-      (await Workspace.fs.readProjectMetadata(fileId, "name")) ||
+      (await this._workspace.fs.readProjectMetadata(fileId, "name")) ||
       WorkspaceConstants.DEFAULT_PROJECT_NAME;
-    const content = await Workspace.fs.readProjectScriptBundle(fileId);
-    const filename = Workspace.sync.google.getProjectFilename(projectName);
-    const remoteProjectFile = await Workspace.sync.google.updateProjectFile(
-      fileId,
-      createTextFile(filename, content),
-    );
+    const content = await this._workspace.fs.readProjectScriptBundle(fileId);
+    const filename =
+      this._workspace.sync.google.getProjectFilename(projectName);
+    const remoteProjectFile =
+      await this._workspace.sync.google.updateProjectFile(
+        fileId,
+        createTextFile(filename, content),
+      );
     const remoteProjectName = remoteProjectFile.name!.split(".")[0]!;
     await Promise.all([
-      Workspace.fs.writeProjectMetadata(fileId, "name", remoteProjectName),
-      Workspace.fs.writeProjectMetadata(
+      this._workspace.fs.writeProjectMetadata(
+        fileId,
+        "name",
+        remoteProjectName,
+      ),
+      this._workspace.fs.writeProjectMetadata(
         fileId,
         "textRevisionId",
         remoteProjectFile.headRevisionId!,
       ),
-      Workspace.fs.writeProjectMetadata(fileId, "textSynced", String(true)),
+      this._workspace.fs.writeProjectMetadata(
+        fileId,
+        "textSynced",
+        String(true),
+      ),
     ]);
     return remoteProjectFile;
   }
@@ -1375,16 +1500,32 @@ export default class WorkspaceWindow {
     revision: RemoteStorage.Revision,
   ) {
     const remoteProjectTextContent =
-      await Workspace.sync.google.getFileRevision(fileId, revision.id!, "text");
+      await this._workspace.sync.google.getFileRevision(
+        fileId,
+        revision.id!,
+        "text",
+      );
     const remoteProjectName = revision.originalFilename!.split(".")[0]!;
-    await Workspace.fs.writeProjectScriptBundle(
+    await this._workspace.fs.writeProjectScriptBundle(
       fileId,
       remoteProjectTextContent || "",
     );
     await Promise.all([
-      Workspace.fs.writeProjectMetadata(fileId, "name", remoteProjectName),
-      Workspace.fs.writeProjectMetadata(fileId, "textRevisionId", revision.id!),
-      Workspace.fs.writeProjectMetadata(fileId, "textSynced", String(true)),
+      this._workspace.fs.writeProjectMetadata(
+        fileId,
+        "name",
+        remoteProjectName,
+      ),
+      this._workspace.fs.writeProjectMetadata(
+        fileId,
+        "textRevisionId",
+        revision.id!,
+      ),
+      this._workspace.fs.writeProjectMetadata(
+        fileId,
+        "textSynced",
+        String(true),
+      ),
     ]);
     this.update({
       ...this.store,
@@ -1400,11 +1541,11 @@ export default class WorkspaceWindow {
     projectZipRevision: RemoteStorage.Revision | undefined,
     pushLocalChanges: boolean,
   ): Promise<SyncStatus> {
-    const zipRevisionId = await Workspace.fs.readProjectMetadata(
+    const zipRevisionId = await this._workspace.fs.readProjectMetadata(
       fileId,
       "zipRevisionId",
     );
-    const zipSynced = await Workspace.fs.readProjectMetadata(
+    const zipSynced = await this._workspace.fs.readProjectMetadata(
       fileId,
       "zipSynced",
     );
@@ -1431,24 +1572,34 @@ export default class WorkspaceWindow {
 
   async pushLocalZipChanges(fileId: string) {
     const projectName =
-      (await Workspace.fs.readProjectMetadata(fileId, "name")) ||
+      (await this._workspace.fs.readProjectMetadata(fileId, "name")) ||
       WorkspaceConstants.DEFAULT_PROJECT_NAME;
-    const content = await Workspace.fs.readProjectAssetBundle(fileId);
-    const filename = Workspace.sync.google.getProjectFilename(projectName);
-    const remoteProjectFile = await Workspace.sync.google.updateProjectFile(
-      fileId,
-      createZipFile(filename, content),
-    );
+    const content = await this._workspace.fs.readProjectAssetBundle(fileId);
+    const filename =
+      this._workspace.sync.google.getProjectFilename(projectName);
+    const remoteProjectFile =
+      await this._workspace.sync.google.updateProjectFile(
+        fileId,
+        createZipFile(filename, content),
+      );
     const remoteProjectName =
       remoteProjectFile?.name?.split(".")[0] || projectName;
     await Promise.all([
-      Workspace.fs.writeProjectMetadata(fileId, "name", remoteProjectName),
-      Workspace.fs.writeProjectMetadata(
+      this._workspace.fs.writeProjectMetadata(
+        fileId,
+        "name",
+        remoteProjectName,
+      ),
+      this._workspace.fs.writeProjectMetadata(
         fileId,
         "zipRevisionId",
         remoteProjectFile.headRevisionId!,
       ),
-      Workspace.fs.writeProjectMetadata(fileId, "zipSynced", String(true)),
+      this._workspace.fs.writeProjectMetadata(
+        fileId,
+        "zipSynced",
+        String(true),
+      ),
     ]);
     return remoteProjectFile;
   }
@@ -1457,17 +1608,33 @@ export default class WorkspaceWindow {
     fileId: string,
     revision: RemoteStorage.Revision,
   ) {
-    const remoteProjectZipContent = await Workspace.sync.google.getFileRevision(
-      fileId,
-      revision.id!,
-      "arraybuffer",
-    );
+    const remoteProjectZipContent =
+      await this._workspace.sync.google.getFileRevision(
+        fileId,
+        revision.id!,
+        "arraybuffer",
+      );
     const remoteProjectName = revision.originalFilename!.split(".")[0]!;
-    await Workspace.fs.writeProjectAssetBundle(fileId, remoteProjectZipContent);
+    await this._workspace.fs.writeProjectAssetBundle(
+      fileId,
+      remoteProjectZipContent,
+    );
     await Promise.all([
-      Workspace.fs.writeProjectMetadata(fileId, "name", remoteProjectName),
-      Workspace.fs.writeProjectMetadata(fileId, "zipRevisionId", revision.id!),
-      Workspace.fs.writeProjectMetadata(fileId, "zipSynced", String(true)),
+      this._workspace.fs.writeProjectMetadata(
+        fileId,
+        "name",
+        remoteProjectName,
+      ),
+      this._workspace.fs.writeProjectMetadata(
+        fileId,
+        "zipRevisionId",
+        revision.id!,
+      ),
+      this._workspace.fs.writeProjectMetadata(
+        fileId,
+        "zipSynced",
+        String(true),
+      ),
     ]);
     this.update({
       ...this.store,
@@ -1489,7 +1656,7 @@ export default class WorkspaceWindow {
             status: "exporting",
           },
         });
-        const projectZip = await Workspace.fs.readProjectZip(projectId);
+        const projectZip = await this._workspace.fs.readProjectZip(projectId);
         this.update({
           ...this.store,
           sync: {
@@ -1526,8 +1693,8 @@ export default class WorkspaceWindow {
         const extIndex = fileName.indexOf(".");
         const name = extIndex >= 0 ? fileName.slice(0, extIndex) : fileName;
         await Promise.all([
-          Workspace.fs.writeProjectZip(projectId, fileBuffer),
-          Workspace.fs.writeProjectMetadata(projectId, "name", name),
+          this._workspace.fs.writeProjectZip(projectId, fileBuffer),
+          this._workspace.fs.writeProjectMetadata(projectId, "name", name),
         ]);
         this.update({
           ...this.store,
@@ -1563,47 +1730,48 @@ export default class WorkspaceWindow {
           },
         });
         const projectName =
-          (await Workspace.fs.readProjectMetadata(projectId, "name")) ||
+          (await this._workspace.fs.readProjectMetadata(projectId, "name")) ||
           WorkspaceConstants.DEFAULT_PROJECT_NAME;
         const projectTextContent =
-          await Workspace.fs.readProjectScriptBundle(projectId);
+          await this._workspace.fs.readProjectScriptBundle(projectId);
         const projectZipContent =
-          await Workspace.fs.readProjectAssetBundle(projectId);
-        const filename = Workspace.sync.google.getProjectFilename(projectName);
+          await this._workspace.fs.readProjectAssetBundle(projectId);
+        const filename =
+          this._workspace.sync.google.getProjectFilename(projectName);
         const remoteProjectZipFile =
-          await Workspace.sync.google.createProjectFile(
+          await this._workspace.sync.google.createProjectFile(
             folderId,
             createZipFile(filename, projectZipContent),
           );
         const projectFileId = remoteProjectZipFile?.id;
         if (projectFileId) {
           const remoteProjectTextFile =
-            await Workspace.sync.google.updateProjectFile(
+            await this._workspace.sync.google.updateProjectFile(
               projectFileId,
               createTextFile(filename, projectTextContent),
             );
           await Promise.all([
-            Workspace.fs.writeProjectMetadata(
+            this._workspace.fs.writeProjectMetadata(
               projectFileId,
               "name",
               projectName,
             ),
-            Workspace.fs.writeProjectMetadata(
+            this._workspace.fs.writeProjectMetadata(
               projectFileId,
               "textRevisionId",
               remoteProjectTextFile.headRevisionId!,
             ),
-            Workspace.fs.writeProjectMetadata(
+            this._workspace.fs.writeProjectMetadata(
               projectFileId,
               "textSynced",
               String(true),
             ),
-            Workspace.fs.writeProjectMetadata(
+            this._workspace.fs.writeProjectMetadata(
               projectFileId,
               "zipRevisionId",
               remoteProjectZipFile.headRevisionId!,
             ),
-            Workspace.fs.writeProjectMetadata(
+            this._workspace.fs.writeProjectMetadata(
               projectFileId,
               "zipSynced",
               String(true),
@@ -1635,7 +1803,7 @@ export default class WorkspaceWindow {
   async recordScriptChange() {
     const projectId = this.store.project.id;
     if (projectId) {
-      await Workspace.fs.writeProjectMetadata(
+      await this._workspace.fs.writeProjectMetadata(
         projectId,
         "textSynced",
         String(false),
@@ -1655,7 +1823,7 @@ export default class WorkspaceWindow {
   async recordAssetChange() {
     const projectId = this.store.project.id;
     if (projectId) {
-      await Workspace.fs.writeProjectMetadata(
+      await this._workspace.fs.writeProjectMetadata(
         projectId,
         "zipSynced",
         String(false),

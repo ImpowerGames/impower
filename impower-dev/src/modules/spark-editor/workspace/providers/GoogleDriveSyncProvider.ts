@@ -218,6 +218,9 @@ export default class GoogleDriveSyncProvider {
   }
 
   protected async fetchAccount(): Promise<AccountInfo | null> {
+    if (!BROWSER_GOOGLE_OAUTH_CLIENT_ID) {
+      return null;
+    }
     try {
       const account = await this.request<AccountInfo>(
         "GET",

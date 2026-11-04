@@ -116,7 +116,7 @@ function go_back() end
 
 function save_settings() end
 
-layout settings with
+layout settings {
   column.menu #child-gap=16 {
     text.headline "Settings"
 
@@ -134,7 +134,7 @@ layout settings with
       button "Apply" @click=save_settings
     }
   }
-end
+}
 ```
 
 Next up: [Screens & Navigation](./Screens.md) — moving between full-screen views.

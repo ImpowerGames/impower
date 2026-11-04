@@ -93,12 +93,12 @@ store best = 0
 function go()
   score = 1
 end
-component card(title) with
+component card(title) {
   column.card {
     text.title "{title}"
     slot
   }
-end
+}
 `;
 
 describe("an element's parts on later lines", () => {
@@ -122,27 +122,27 @@ describe("an element's parts on later lines", () => {
   test.each([
     [
       "at the top of a layout body",
-      (el: string) => `layout hud with\n${el}\n  text "after"\nend\n`,
+      (el: string) => `layout hud {\n${el}\n  text "after"\n}\n`,
     ],
     [
       "inside a block",
       (el: string) =>
-        `layout hud with\n  column {\n${el}\n    text "after"\n  }\nend\n`,
+        `layout hud {\n  column {\n${el}\n    text "after"\n  }\n}\n`,
     ],
     [
       "in an indented `if` branch",
       (el: string) =>
-        `layout hud with\n  if score > 0 then\n${el}\n  end\n  text "after"\nend\n`,
+        `layout hud {\n  if score > 0 then\n${el}\n  end\n  text "after"\n}\n`,
     ],
     [
       "in a `for` branch inside a block",
       (el: string) =>
-        `layout hud with\n  column {\n    for i in {1, 2} do\n${el}\n    end\n  }\nend\n`,
+        `layout hud {\n  column {\n    for i in {1, 2} do\n${el}\n    end\n  }\n}\n`,
     ],
     [
       "in a component body",
       (el: string) =>
-        `component tile(label) with\n  row {\n${el}\n  }\n  text "{label}"\nend\n`,
+        `component tile(label) {\n  row {\n${el}\n  }\n  text "{label}"\n}\n`,
     ],
   ])("%s lower as the one-line element", (_name, wrap) => {
     const wrapped = everything(`${STATE}\n${wrap(WRAPPED)}`);
@@ -153,7 +153,7 @@ describe("an element's parts on later lines", () => {
 
   test("the element takes every part, its block and its block's props", () => {
     const { tree, struct } = lowered(
-      `${STATE}\nlayout hud with\n${WRAPPED}\nend\n`,
+      `${STATE}\nlayout hud {\n${WRAPPED}\n}\n`,
       "layout",
       "hud",
     );
@@ -174,15 +174,15 @@ describe("an element's parts on later lines", () => {
   });
 
   test("a leaf element's later content is its static value", () => {
-    const wrapped = `layout hud with\n  text\n    .title\n    "Inventory"\n  image\n    #src=a.png\nend\n`;
-    const oneLine = `layout hud with\n  text.title "Inventory"\n  image #src=a.png\nend\n`;
+    const wrapped = `layout hud {\n  text\n    .title\n    "Inventory"\n  image\n    #src=a.png\n}\n`;
+    const oneLine = `layout hud {\n  text.title "Inventory"\n  image #src=a.png\n}\n`;
     expect(everything(wrapped)).toEqual(everything(oneLine));
     expect(lowered(wrapped, "layout", "hud").struct["text title"]).toBe("Inventory");
   });
 
   test("a component call, a `fill` and a parts line that ends with the block", () => {
     const wrapped = `${STATE}
-layout hud with
+layout hud {
   card("Inventory")
     .wide
   {
@@ -195,15 +195,15 @@ layout hud with
     "Go" {
       text "child"
     }
-end
+}
 `;
     const oneLine = `${STATE}
-layout hud with
+layout hud {
   card("Inventory").wide {
     fill { text "filled" }
   }
   button "Go" { text "child" }
-end
+}
 `;
     expect(everything(wrapped)).toEqual(everything(oneLine));
     expect(errorsOf(wrapped)).toEqual([]);
@@ -213,7 +213,7 @@ end
 describe("where a wrapped element ends", () => {
   test("inside a block, a bare word on the next line starts a new element", () => {
     const { tree } = lowered(
-      `layout hud with\n  column {\n    text\n    image\n      .icon\n  }\nend\n`,
+      `layout hud {\n  column {\n    text\n    image\n      .icon\n  }\n}\n`,
       "layout",
       "hud",
     );
@@ -225,14 +225,14 @@ describe("where a wrapped element ends", () => {
   });
 
   test("a `name = value` line after an element is a property of the enclosing block", () => {
-    const text = `layout hud with
+    const text = `layout hud {
   column {
     text
       "a"
     color = white
     .after
   }
-end
+}
 `;
     const { tree, struct } = lowered(text, "layout", "hud");
     const [column] = tree.children;
@@ -247,13 +247,13 @@ end
   });
 
   test("a property with a quoted key is a property, and ends the element before it", () => {
-    const text = `layout hud with
+    const text = `layout hud {
   column {
     button
     "color" = white
     .after
   }
-end
+}
 `;
     const { tree, struct } = lowered(text, "layout", "hud");
     const [column] = tree.children;
@@ -267,28 +267,9 @@ end
     ]);
   });
 
-  test("a `}` that closes no block ends the element before it", () => {
-    const text = `layout hud with
-  text
-  }
-  .after
-end
-`;
-    const [element] = lowered(text, "layout", "hud").tree.children;
-    expect(element.classes).toEqual([]);
-    expect(
-      errorsOf(text)
-        .map((e) => [e.line, e.text, e.message.split(".")[0]])
-        .sort((a, b) => (a[0] as number) - (b[0] as number)),
-    ).toEqual([
-      [2, "}", "Invalid syntax"],
-      [3, ".after", "There is no element for this line to continue"],
-    ]);
-  });
-
-  test("a control block, a block, a stray `-` or header, and the declaration's `end` end it", () => {
+  test("a control block, a block, a stray `-` or header, and the declaration's `}` end it", () => {
     const text = `store busy = false
-layout hud with
+layout hud {
   column {
     text
     if busy then
@@ -302,11 +283,11 @@ layout hud with
     @click=go
   }
   text "last"
-end
+}
 
-layout tail with
+layout tail {
   text "a"
-end
+}
 .after_end
 `;
     const strays = errorsOf(text)
@@ -324,7 +305,7 @@ end
   });
 
   test("a comment or blank line between two parts does not end the element", () => {
-    const wrapped = `layout hud with
+    const wrapped = `layout hud {
   column {
     text
       .title
@@ -336,30 +317,30 @@ end
   image
     -- a comment
     #src=a.png
-end
+}
 `;
-    const oneLine = `layout hud with
+    const oneLine = `layout hud {
   column {
     text.title "Inventory"
   }
   image #src=a.png
-end
+}
 `;
     expect(everything(wrapped)).toEqual(everything(oneLine));
     expect(errorsOf(wrapped)).toEqual([]);
   });
 
   test("a slot's or a fill's name may stand on a continuation line", () => {
-    const wrapped = `component card(title) with
+    const wrapped = `component card(title) {
   column {
     slot
       .footer
   }
   slot
     .header
-end
+}
 
-layout hud with
+layout hud {
   card("x") {
     fill
       .footer
@@ -373,23 +354,23 @@ layout hud with
       text "There"
     }
   }
-end
+}
 `;
-    const oneLine = `component card(title) with
+    const oneLine = `component card(title) {
   column {
     slot.footer
   }
   slot.header
-end
+}
 
-layout hud with
+layout hud {
   card("x") {
     fill.footer { text "Hi" }
   }
   card("y") {
     fill.footer { text "There" }
   }
-end
+}
 `;
     expect(everything(wrapped)).toEqual(everything(oneLine));
     const card = lowered(wrapped, "component", "card").tree;
@@ -404,7 +385,7 @@ end
 describe("an event closure over several lines", () => {
   test("every statement lowers, wherever the closure starts", () => {
     const text = `${STATE}
-layout hud with
+layout hud {
   button "Go" @click={
     score = score + 1
     combo = combo + 2
@@ -422,7 +403,7 @@ layout hud with
       } .after #x=1
     text "after"
   }
-end
+}
 `;
     expect(errorsOf(text)).toEqual([]);
     const { tree } = lowered(text, "layout", "hud");
@@ -442,7 +423,7 @@ end
   test("a long string, a long comment or a backtick interpolation on the closure's first line keeps it open", () => {
     const tick = "`";
     const text = `store message = ""
-layout hud with
+layout hud {
   button "Set" @click={ message = [=[ready]=]
     message = message .. "!"
   }
@@ -452,7 +433,7 @@ layout hud with
   button "Note" @click={ --[==[ a note ]==] message = "a"
     message = message .. "b"
   }
-end
+}
 `;
     expect(errorsOf(text)).toEqual([]);
     const { tree } = lowered(text, "layout", "hud");
@@ -466,7 +447,7 @@ end
 
   test("parts glued to a closure's closing `}` are read as on one line", () => {
     const wrapped = `${STATE}
-layout hud with
+layout hud {
   column {
     button @click={
       score = 1
@@ -481,10 +462,10 @@ layout hud with
     }.glued
     text "after"
   }
-end
+}
 `;
     const oneLine = `${STATE}
-layout hud with
+layout hud {
   column {
     button @click={ score = 1 }"Hi"
     button @click={ score = 2 } .wide #x=1 "There" {
@@ -493,7 +474,7 @@ layout hud with
     button @click={ score = 3 } .glued
     text "after"
   }
-end
+}
 `;
     expect(errorsOf(wrapped)).toEqual([]);
     const strip = (v: any) => JSON.parse(JSON.stringify(v, (k, x) => (k === "source" ? undefined : x)));
@@ -507,10 +488,10 @@ end
 
   test("a closure the line closes is read as before", () => {
     const text = `${STATE}
-layout hud with
+layout hud {
   button @click={ score = 1 } "Go"
   row { button @click={ combo = 1 } "In"; text "after" }
-end
+}
 `;
     const { tree } = lowered(text, "layout", "hud");
     expect(tree.children[0].events[0].handler.binding.source).toBe("{ score = 1 }");
@@ -518,28 +499,4 @@ end
     expect(errorsOf(text)).toEqual([]);
   });
 
-  test("a closure with no closing `}` is reported on its `{`, and the next declaration compiles", () => {
-    const text = `${STATE}
-layout hud with
-  button "Stop" @click={
-    score = 0
-  text "taken in"
-end
-
-layout next with
-  text "compiles"
-end
-`;
-    const errors = errorsOf(text);
-    const lines = text.split("\n");
-    const open = lines.findIndex((l) => l.includes("@click={"));
-    expect(errors.map((e) => [e.line, e.character, e.text])).toEqual([
-      [open, lines[open]!.indexOf("{"), "{"],
-    ]);
-    expect(errors[0]!.message).toMatch(/^This handler is missing its closing `\}`\./);
-    expect(errors[0]!.message).not.toMatch(/one line/);
-    expect(lowered(text, "layout", "next").tree.children[0].content).toEqual([
-      { kind: "literal", text: "compiles" },
-    ]);
-  });
 });

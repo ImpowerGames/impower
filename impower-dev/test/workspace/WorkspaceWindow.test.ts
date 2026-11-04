@@ -113,7 +113,7 @@ describe("WorkspaceWindow store transitions", () => {
 
   beforeEach(() => {
     localStorage.clear();
-    win = new WorkspaceWindow();
+    win = new WorkspaceWindow(Workspace);
   });
 
   afterEach(() => {
@@ -316,7 +316,7 @@ describe("Animate portraits preference", () => {
   };
 
   const load = () => {
-    const win = new WorkspaceWindow();
+    const win = new WorkspaceWindow(Workspace);
     windows.push(win);
     return win;
   };
@@ -531,6 +531,34 @@ describe("Animate portraits preference", () => {
       }
     }, 30000);
 
+    it("shows the player's frame from mount and connects it once it loads", async () => {
+      current.window = load();
+      Object.assign(Workspace.fs, {
+        getFiles: async () => ({}),
+        getDirectoryUri: async () => "file://local",
+      });
+      (Workspace as unknown as { configuration: unknown }).configuration = {
+        settings: {},
+      };
+      const container = document.createElement("div");
+      document.body.append(container);
+      try {
+        channels.all = [];
+        render(h(PreviewGame, {}), container);
+        const iframe = container.querySelector("iframe")!;
+        expect(getComputedStyle(iframe).visibility).toBe("visible");
+        iframe.dispatchEvent(new Event("load"));
+        await vi.waitFor(() => expect(channels.all).toHaveLength(1), {
+          timeout: 15000,
+        });
+        expect(getComputedStyle(iframe).visibility).toBe("visible");
+      } finally {
+        render(null, container);
+        container.remove();
+        current.window = undefined;
+      }
+    }, 30000);
+
     it("ignores the screenplay preview and other messages", () => {
       const posted: unknown[] = [];
       const sync = createPlayerPreferenceSync((m) => posted.push(m));
@@ -552,7 +580,7 @@ describe("Route pins", () => {
   };
 
   const load = () => {
-    const win = new WorkspaceWindow();
+    const win = new WorkspaceWindow(Workspace);
     windows.push(win);
     return win;
   };
@@ -672,6 +700,129 @@ describe("Route pins", () => {
   });
 });
 
+describe("Starting values", () => {
+  let windows: WorkspaceWindow[] = [];
+  let sent: { method: string; params: any }[] = [];
+  const listener = (e: Event) => {
+    if (e instanceof CustomEvent && typeof e.detail?.method === "string") {
+      sent.push(e.detail);
+    }
+  };
+  const load = () => {
+    const win = new WorkspaceWindow(Workspace);
+    windows.push(win);
+    return win;
+  };
+  const OPTION = "place:0:12:file:///main.sd";
+  const freshPage = () => {
+    workspace.current = {
+      ...workspace.current,
+      debug: { ...workspace.current.debug, startingValues: undefined },
+    };
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    freshPage();
+    sent = [];
+    window.addEventListener(MessageProtocol.event, listener);
+  });
+
+  afterEach(() => {
+    window.removeEventListener(MessageProtocol.event, listener);
+    windows.forEach((win) => win.dispose());
+    windows = [];
+  });
+
+  it("keeps a change, sends every start's values to the player and the option lines to the editor", () => {
+    const win = load();
+    win.changeStartingValues("interrogation", {
+      "param:hour": '"nine"',
+      [OPTION]: "1",
+    });
+    win.changeStartingValues("interrogation", { "param:hour": null });
+    expect(win.startingValues).toEqual({ interrogation: { [OPTION]: "1" } });
+    const toPlayer = sent.filter((m) => m.method === "preview/setStartingValues");
+    expect(toPlayer.at(-1)!.params.values).toEqual({
+      interrogation: { [OPTION]: "1" },
+    });
+    const toEditor = sent.filter(
+      (m) => m.method === "editor/setStartingValueLines",
+    );
+    expect(toEditor.at(-1)!.params.scripts).toEqual([
+      { uri: "file:///main.sd", lines: [12] },
+    ]);
+  });
+
+  it("survives an editor reload, and is kept per project", async () => {
+    localStorage.setItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY, "a");
+    load().changeStartingValues("s", { "store:trust": "2" });
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    freshPage();
+    expect(load().startingValues).toEqual({ s: { "store:trust": "2" } });
+    localStorage.setItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY, "b");
+    freshPage();
+    expect(load().startingValues).toEqual({});
+  });
+
+  it("moves an option's value with its line when an edit moves the line, and detaches it when the line is deleted", () => {
+    const win = load();
+    win.changeStartingValues("s", {
+      [OPTION]: "1",
+      "place:0:14:file:///main.sd": "2",
+    });
+    sent = [];
+    window.dispatchEvent(
+      new CustomEvent(MessageProtocol.event, {
+        detail: {
+          jsonrpc: "2.0",
+          method: "editor/startingValueLinesChanged",
+          params: {
+            textDocument: { uri: "file:///main.sd" },
+            moves: [
+              [12, 14],
+              [14, null],
+            ],
+          },
+        },
+      }),
+    );
+    expect(win.startingValues).toEqual({
+      s: {
+        "place:0:14:file:///main.sd": "1",
+        "place:0:~14:file:///main.sd": "2",
+      },
+    });
+    expect(
+      sent.filter((m) => m.method === "preview/setStartingValues").at(-1)!
+        .params.values,
+    ).toEqual(win.startingValues);
+  });
+
+  it("is what a connecting player hears, with the route panel's tab", () => {
+    load().changeStartingValues("s", { seed: "7" });
+    const posted: { method: string; params: any }[] = [];
+    const sync = createPlayerPreferenceSync((m) => posted.push(m as any));
+    sync.received({
+      jsonrpc: "2.0",
+      method: "preview/didChangeRouteToggles",
+      params: { toggles: {}, tab: "values" },
+    });
+    sync.received({
+      jsonrpc: "2.0",
+      method: "preview/connected",
+      params: { type: "game" },
+    });
+    expect(
+      posted.find((m) => m.method === "preview/setStartingValues")!.params
+        .values,
+    ).toEqual({ s: { seed: "7" } });
+    expect(
+      posted.find((m) => m.method === "preview/setRouteToggles")!.params.tab,
+    ).toBe("values");
+  });
+});
+
 describe("PLAY for a story with no start scene", () => {
   let win: WorkspaceWindow;
   let container: HTMLElement;
@@ -706,7 +857,7 @@ describe("PLAY for a story with no start scene", () => {
     localStorage.clear();
     started = [];
     window.addEventListener(MessageProtocol.event, listener);
-    win = new WorkspaceWindow();
+    win = new WorkspaceWindow(Workspace);
     current.window = win;
     workspace.current = {
       ...workspace.current,

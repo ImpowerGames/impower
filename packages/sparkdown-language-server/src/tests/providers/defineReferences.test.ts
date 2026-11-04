@@ -84,14 +84,14 @@ raffles: Hello.
 });
 
 describe("provider · screen/style layer interdependency (D2)", () => {
-  const source = `layout s with
+  const source = `layout s {
   backdrop {
     image = "bg"
   }
-end
-style backdrop with
+}
+style backdrop {
   background-color = black
-end
+}
 `;
 
   test("find-references on a screen layer reaches the same-named style block", () => {

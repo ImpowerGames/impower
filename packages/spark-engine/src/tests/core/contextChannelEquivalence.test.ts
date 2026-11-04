@@ -2,11 +2,11 @@ import { describe, expect, test } from "vitest";
 import { buildDefinesContext } from "../../game/core/utils/buildContextFromStory";
 import { compileUI, createHarness } from "../ui/harness/uiTestHarness";
 
-const SOURCE = `define pan_right as animation with
-  keyframes = {
-    background_position = "right"
+const SOURCE = `animation pan_right {
+  keyframes {
+    background_position = right
   }
-end
+}
 
 define companion as character with
   store trust = 0

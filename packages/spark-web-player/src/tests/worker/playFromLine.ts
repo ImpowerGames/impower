@@ -1,3 +1,4 @@
+import type { StartingValues } from "@impower/sparkdown/src/program/startingValueLiterals";
 import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarness";
 
 export const BRANCHES = `scene start
@@ -36,7 +37,11 @@ scene outer
 end
 `;
 
-export const playFrom = async (source: string, line: number) => {
+export const playFrom = async (
+  source: string,
+  line: number,
+  values?: StartingValues,
+) => {
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text: source }],
     startFrom: { file: MAIN_URI, line },
@@ -46,6 +51,9 @@ export const playFrom = async (source: string, line: number) => {
   win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
   try {
     await h.compile();
+    if (values) {
+      await (h.controller as any).applyStartingValues(values);
+    }
     await h.select(line);
     await settle(40);
     const sentBefore = h.toRouter.length;
@@ -73,13 +81,20 @@ export const playFrom = async (source: string, line: number) => {
   }
 };
 
-export const previewAt = async (source: string, line: number) => {
+export const previewAt = async (
+  source: string,
+  line: number,
+  values?: StartingValues,
+) => {
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text: source }],
     startFrom: { file: MAIN_URI, line },
   });
   try {
     await h.compile();
+    if (values) {
+      await (h.controller as any).applyStartingValues(values);
+    }
     await h.select(line);
     await settle(40);
     return writtenText(h.toRouter);

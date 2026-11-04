@@ -10,16 +10,16 @@ async function render(src: string, opts: any = { autoOpenAll: true }) {
 
 describe("attributes are removable across a live-preview edit", () => {
   test("editing `#disabled=true` to `false` re-enables the control", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   button "Save" #disabled=true
-end
+}
 `);
     const before = h.overlay.querySelector("button") as HTMLButtonElement;
     expect(before.hasAttribute("disabled")).toBe(true);
 
-    await h.rerender(`layout main with
+    await h.rerender(`layout main {
   button "Save" #disabled=false
-end
+}
 `);
     const after = h.overlay.querySelector("button") as HTMLButtonElement;
     expect(after).toBe(before);
@@ -27,16 +27,16 @@ end
   });
 
   test("deleting the only attribute clears it from the reused node", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   link "Docs" #href="/docs"
-end
+}
 `);
     const before = h.overlay.querySelector("a") as HTMLAnchorElement;
     expect(before.getAttribute("href")).toBe("/docs");
 
-    await h.rerender(`layout main with
+    await h.rerender(`layout main {
   link "Docs"
-end
+}
 `);
     const after = h.overlay.querySelector("a") as HTMLAnchorElement;
     expect(after).toBe(before);
@@ -46,9 +46,9 @@ end
 
 describe("an authored #id does not destroy its own element", () => {
   test("an input with #id survives the next render", async () => {
-    const src = `layout main with
+    const src = `layout main {
   input #id="name_field"
-end
+}
 `;
     const h = await render(src);
     const before = h.overlay.querySelector("input") as HTMLInputElement;
@@ -63,10 +63,10 @@ end
   });
 
   test("a label's #for still resolves to the input it names", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   label "Name" #for="name_field"
   input #id="name_field"
-end
+}
 `);
     const label = h.overlay.querySelector("label") as HTMLLabelElement;
     expect(label.getAttribute("for")).toBe("name_field");
@@ -74,15 +74,15 @@ end
   });
 
   test("removing an authored #id reverts to the structural id, not to none", async () => {
-    const h = await render(`layout main with
+    const h = await render(`layout main {
   input #id="name_field"
-end
+}
 `);
     const before = h.overlay.querySelector("input") as HTMLInputElement;
 
-    await h.rerender(`layout main with
+    await h.rerender(`layout main {
   input
-end
+}
 `);
     const after = h.overlay.querySelector("input") as HTMLInputElement;
     expect(after).toBe(before);
@@ -95,9 +95,9 @@ describe("#value is not clamped by the props authored after it", () => {
   test("`#value` before `#max` keeps its value", async () => {
     const h = await render(
       `store volume = 150
-layout main with
+layout main {
   slider #value={volume} #min=0 #max=200
-end
+}
 `,
       { reactive: true },
     );
@@ -111,9 +111,9 @@ end
   test("the reordered spelling agrees with it", async () => {
     const h = await render(
       `store volume = 150
-layout main with
+layout main {
   slider #min=0 #max=200 #value={volume}
-end
+}
 `,
       { reactive: true },
     );

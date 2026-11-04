@@ -90,7 +90,7 @@ const createWorkspace = () => {
     request: () => new Promise(() => {}),
     sendRequest: () => new Promise(() => {}),
   };
-  const { workspace } = installWorkspaceWorker(host as any);
+  const { workspace } = installWorkspaceWorker(host as any, Promise.resolve());
   const hangs: WorkerHang[] = [];
   workspace.addWorkerHangListener((hang) => hangs.push(hang));
   return { workspace, hangs };

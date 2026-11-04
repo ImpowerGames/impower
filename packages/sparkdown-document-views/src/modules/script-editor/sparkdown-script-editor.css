@@ -17,11 +17,6 @@ sparkdown-script-editor {
   touch-action: pan-y;
 }
 
-.sparkdown-script-editor-root .cm-editor,
-.sparkdown-script-editor-root .cm-editor * {
-  max-width: none;
-}
-
 .sparkdown-script-editor-root > .main {
   position: relative;
   display: flex;
@@ -52,7 +47,6 @@ sparkdown-script-editor {
 .sparkdown-script-editor-root .cm-editor .cm-scroller {
   max-height: 100%;
   overflow-x: hidden;
-  flex-direction: row;
   flex: 1 1 0;
   min-height: 0;
 }
@@ -60,13 +54,6 @@ sparkdown-script-editor {
 .sparkdown-script-editor-root .cm-editor .cm-panels-bottom,
 .sparkdown-script-editor-root .cm-editor .cm-panels-top {
   flex: 0 0 auto;
-}
-
-.sparkdown-script-editor-root .cm-editor .cm-panel,
-.sparkdown-script-editor-root .cm-editor .cm-panel .cm-toolbar,
-.sparkdown-script-editor-root .cm-editor .cm-panel .cm-button,
-.sparkdown-script-editor-root .cm-editor .cm-gutters {
-  flex-direction: row;
 }
 
 .sparkdown-script-editor-root *::-webkit-scrollbar {

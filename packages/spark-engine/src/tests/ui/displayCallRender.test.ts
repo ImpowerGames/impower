@@ -2,11 +2,11 @@ import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 import { WriteTextMessage } from "../../game/modules/ui/classes/messages/WriteTextMessage";
 
-const SCREEN = `layout main with
+const SCREEN = `layout main {
   action {
     text
   }
-end
+}
 `;
 
 async function beatFor(body: string, instant = true) {

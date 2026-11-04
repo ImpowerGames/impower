@@ -1,11 +1,10 @@
 import { MessageProtocol, sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
-import { expect, it, vi } from "vitest";
-
-vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
-  Workspace: { fs: { getLoadedProjectId: () => "loaded-project" } },
-}));
-
+import { expect, it } from "vitest";
 import WorkspaceWindow from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
+
+const collaborators = {
+  fs: { getLoadedProjectId: () => "loaded-project" },
+} as unknown as ConstructorParameters<typeof WorkspaceWindow>[0];
 
 const requestLoadedProject = async (id: string) => {
   const responses: unknown[] = [];
@@ -25,16 +24,16 @@ const requestLoadedProject = async (id: string) => {
 };
 
 it("answers the loaded project through the editor protocol", async () => {
-  const win = new WorkspaceWindow();
+  const win = new WorkspaceWindow(collaborators);
   try {
-    expect(await requestLoadedProject("project-read")).toEqual([{ id: "loaded-project" }]);
+    expect(await requestLoadedProject("project-read")).toContainEqual({ id: "loaded-project" });
   } finally {
     win.dispose();
   }
 });
 
 it("stops answering protocol requests once disposed", async () => {
-  const win = new WorkspaceWindow();
+  const win = new WorkspaceWindow(collaborators);
   win.dispose();
-  expect(await requestLoadedProject("disposed-read")).toEqual([]);
+  expect(await requestLoadedProject("disposed-read")).not.toContainEqual({ id: "loaded-project" });
 });

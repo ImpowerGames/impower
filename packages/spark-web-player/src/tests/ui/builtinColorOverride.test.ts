@@ -39,11 +39,11 @@ function diagnose(src: string): string[] {
 function source(defines: string): string {
   return [
     defines,
-    "layout main with",
+    "layout main {",
     "  column {",
     '    text "hello"',
     "  }",
-    "end",
+    "}",
   ].join("\n");
 }
 

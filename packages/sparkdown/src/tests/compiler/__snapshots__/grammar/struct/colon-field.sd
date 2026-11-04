@@ -1,16 +1,16 @@
-theme t with
+theme t {
   primary: red
   colors {
     secondary: blue
   }
   link = http://example.com
-end
+}
 
-layout l with
+layout l {
   column {
     image: black
   }
-end
+}
 
 define config with
   speed: 2

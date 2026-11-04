@@ -22,7 +22,7 @@ const edits: Edit[] = [
   { name: "edit store initial value", find: "store trust = 0", replace: "store trust = 1" },
   { name: "rename a scene (cross-flow divert target)", find: "scene scene_4", replace: "scene scene_renamed" },
   { name: "delete a whole line above many flows", find: "store visited_count = 0\n", replace: "" },
-  { name: "append a whole new scene at end", find: 'layout hud with\n  text "{trust} {t.a}"\nend\n', replace: 'layout hud with\n  text "{trust} {t.a}"\nend\n\nscene scene_extra\n= INT. NEW - DAY\n:\n  Brand new action.\n-> DONE\nend\n' },
+  { name: "append a whole new scene at end", find: 'layout hud {\n  text "{trust} {t.a}"\n}\n', replace: 'layout hud {\n  text "{trust} {t.a}"\n}\n\nscene scene_extra\n= INT. NEW - DAY\n:\n  Brand new action.\n-> DONE\nend\n' },
 ];
 
 const constructMarkers = (p = "") => ({
@@ -32,7 +32,7 @@ const constructMarkers = (p = "") => ({
   "store named after an edit's define": `store ${p}thing = 1`,
   "store holding a method": `store ${p}acc =`,
   "function with assignments, loops and a closure": `function ${p}reckon()`,
-  "layout with bindings": `layout ${p}hud with`,
+  "layout with bindings": `layout ${p}hud {`,
 });
 
 type Construct = keyof ReturnType<typeof constructMarkers>;

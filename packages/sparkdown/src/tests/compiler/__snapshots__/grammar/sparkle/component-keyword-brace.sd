@@ -1,0 +1,11 @@
+component card(title, subtitle) as box {
+  box.card {
+    text title
+    text.sub subtitle
+    slot
+  }
+}
+
+component chip(label) { text label }
+
+component spacer {}

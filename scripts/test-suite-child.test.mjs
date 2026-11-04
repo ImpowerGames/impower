@@ -10,7 +10,7 @@ import {test} from 'node:test';
 import {processIdentity} from './reviewer-slots.mjs';
 import {spawnDetached} from './detached-launch.mjs';
 import {readTreeProof,runOwnedChild,prepareOwnedChild,prepareOwnedRuntime,assertAttemptBinding} from './test-suite-child.mjs';
-import {reservationState} from './test-suite-process.mjs';
+import {reservationState,acquire,read} from './test-suite-process.mjs';
 
 const here=path.dirname(fileURLToPath(import.meta.url));
 const fixture=path.join(here,'fixtures','test-suite-child-fixture.mjs');
@@ -21,6 +21,104 @@ const controlOwned=async request=>{
   return prepared.status==='prepared'?runOwnedChild({...request,prepared}):prepared;
 };
 const scratch=()=>fs.mkdtempSync(path.join(os.tmpdir(),'test-suite-child-'));
+
+test('legacy recovery preserves a live or unreadable recorded child',()=>{
+  const child=processIdentity(process.pid),record={owner:{pid:800004,start:'gone-owner'},phase:'exited',child};
+  assert.ok(child);
+  assert.equal(reservationState(record,pid=>pid===child.pid?child:null),'running');
+  assert.equal(reservationState(record,pid=>pid===child.pid?undefined:null),'unknown');
+  const unavailable=pid=>{if(pid===child.pid)throw new Error('identity unavailable');return null;};
+  assert.equal(reservationState(record,unavailable),'unknown');
+  assert.equal(reservationState({...record,version:2,phase:'reserved'},unavailable),'unknown');
+  assert.equal(reservationState(record,pid=>pid===child.pid?{...child,start:'reused'}:null),'interrupted');
+  assert.equal(reservationState({...record,child:null,root:child},pid=>pid===child.pid?child:null),'running');
+  assert.equal(reservationState({...record,version:2,phase:'reserved'},pid=>pid===child.pid?child:null),'running');
+  assert.equal(reservationState({...record,version:99},()=>null),'unknown');
+});
+
+test('same-boot Windows helper death recovers its bound job without a terminal proof',{skip:process.platform!=='win32',timeout:60000},async()=>{
+  const run=fs.realpathSync.native(scratch()),id=randomUUID(),directory=path.join(run,id);
+  fs.mkdirSync(directory);
+  console.log('Missing-proof recovery scratch: '+run);
+  const producer=path.join(run,'creator-checkout-scripts');fs.mkdirSync(producer);
+  for(const name of ['test-suite-child-windows.ps1','test-suite-child-windows.cs'])
+    fs.copyFileSync(path.join(here,name),path.join(producer,name));
+  const inventory=path.join(directory,'pids.jsonl'),token=randomUUID();
+  const prepared=await prepareOwnedChild({directory,attemptId:id,command:process.execPath,
+    args:[fixture,'detach-held',inventory],cwd:run,timeoutMs:20000,startupMs:10000,
+    helperScript:path.join(producer,'test-suite-child-windows.ps1')});
+  assert.equal(prepared.status,'prepared');
+  let expected,killed=false;
+  const result=await runOwnedChild({prepared,reservationToken:token,onStarted(value){expected={...value};},
+    onPoll(){
+      if(!killed&&expected&&fs.existsSync(inventory)&&fs.readFileSync(inventory,'utf8').trim().split('\n').length>=3){
+        killed=true;process.kill(expected.helper.pid);
+      }
+    }});
+  assert.equal(killed,true,'Kill the actual helper only after detached descendants exist');
+  assert.equal(result.exitConfirmed,false);
+  assert.equal(fs.existsSync(expected.proofFile),false,'Abrupt helper death never wrote terminal proof');
+  await absence(inventory);
+  await waitForAbsence([expected.launcher,expected.helper],15000);
+  const record={version:2,run,owner:{pid:800004,start:'gone-owner'},phase:'running',exit:0,
+    attempt:id,token,supervision:expected};
+  assert.equal(reservationState(record,pid=>pid===800004?null:processIdentity(pid)),'interrupted',
+    'A bound kill-on-close job with all original identities gone must not lock out later suites');
+  assert.equal(reservationState(record,pid=>({pid,start:'reused'})),'interrupted','PID reuse is confirmed original absence');
+  for(const original of [record.owner,expected.launcher,expected.helper,expected.root]) {
+    assert.equal(reservationState(record,pid=>pid===original.pid?original:null),'running','Every live original stays protected');
+    assert.equal(reservationState(record,pid=>pid===original.pid?undefined:null),'unknown','Unavailable identity stays protected');
+  }
+  assert.equal(reservationState({...record,attempt:randomUUID()},()=>null),'unknown');
+  assert.equal(reservationState({...record,run:undefined},()=>null),'unknown','A missing enclosing run cannot borrow attempt evidence');
+  assert.equal(reservationState({...record,child:{pid:800005,start:'foreign-root'}},()=>null),'unknown');
+  assert.equal(reservationState({...record,supervision:{...expected,root:{pid:expected.root.pid,start:12}}},()=>null),'unknown');
+  const requestFile=path.join(directory,'child-request.json'),requestBytes=fs.readFileSync(requestFile);
+  fs.writeFileSync(requestFile,JSON.stringify({...JSON.parse(requestBytes),launchNonce:randomUUID()}));
+  assert.equal(reservationState(record,()=>null),'unknown','A changed request cannot borrow job containment');
+  fs.writeFileSync(requestFile,requestBytes);
+  const sourceFile=path.join(producer,'test-suite-child-windows.cs'),sourceBytes=fs.readFileSync(sourceFile);
+  fs.appendFileSync(sourceFile,'\n');
+  assert.equal(reservationState(record,()=>null),'unknown','Changed creator-checkout artifacts stay protected');
+  fs.writeFileSync(sourceFile,sourceBytes);
+  fs.writeFileSync(expected.proofFile,'{');
+  assert.equal(reservationState(record,()=>null),'unknown','Malformed terminal proof is never replaced by job-death inference');
+  fs.unlinkSync(expected.proofFile);
+  const store=path.join(run,'store');fs.mkdirSync(store);
+  fs.writeFileSync(path.join(store,'reservation.json'),JSON.stringify(record));
+  const next=acquire('next run',{root:store,memory:()=>65536,census:()=>[],
+    identify:pid=>pid===800004?null:processIdentity(pid)});
+  assert.equal(read(path.join(store,`recovered-${token}.json`)).token,token);
+  next.release();
+});
+
+test('Linux subreaper death cannot recover live orphan descendants by an empty Vitest census',{skip:process.platform!=='linux',timeout:45000},async()=>{
+  const run=fs.realpathSync.native(scratch()),id=randomUUID(),directory=path.join(run,id);fs.mkdirSync(directory);
+  console.log('Linux orphan recovery scratch: '+run);
+  const inventory=path.join(directory,'pids.jsonl'),token=randomUUID();
+  const prepared=await prepareOwnedChild({directory,attemptId:id,command:process.execPath,
+    args:[fixture,'detach-held',inventory],cwd:run,timeoutMs:15000,startupMs:10000});
+  assert.equal(prepared.status,'prepared');
+  let expected,killed=false;
+  try {
+    const result=await runOwnedChild({prepared,reservationToken:token,onStarted(value){expected={...value};},onPoll(){
+      if(!killed&&expected&&fs.existsSync(inventory)&&records(inventory).length>=3){
+        killed=true;process.kill(expected.helper.pid,'SIGKILL');
+      }
+    }});
+    assert.equal(killed,true);assert.equal(result.exitConfirmed,false);
+    assert.ok(records(inventory).some(row=>processIdentity(row.pid)?.start===row.start),'Subreaper death leaves ordinary Node descendants alive');
+    const record={version:2,run,owner:{pid:800004,start:'gone-owner'},phase:'running',exit:0,attempt:id,token,supervision:expected};
+    assert.equal(reservationState(record,()=>null),'unknown','Even claiming all recorded PIDs absent cannot prove Linux ancestry empty');
+    const store=path.join(run,'store');fs.mkdirSync(store);const file=path.join(store,'reservation.json');
+    const bytes=JSON.stringify(record);fs.writeFileSync(file,bytes);
+    assert.throws(()=>acquire('next',{root:store,memory:()=>65536,census:()=>[],identify:()=>null}),/Existing suite unknown/);
+    assert.equal(fs.readFileSync(file,'utf8'),bytes);
+  } finally {
+    for(const row of fs.existsSync(inventory)?records(inventory):[])
+      if(processIdentity(row.pid)?.start===row.start)process.kill(row.pid,'SIGKILL');
+  }
+});
 test('Linux required children interface refuses before capability acknowledgement',{skip:process.platform!=='linux',timeout:40000},async()=>{
   const parent=scratch(),source=fs.readFileSync(path.join(here,'test-suite-child-linux.py'),'utf8');
   console.log('Linux children admission scratch: '+parent);
@@ -193,6 +291,32 @@ test('tree proof requires matching identities, terminal evidence, and actual hel
     {...proof,exit:null},
     {...proof,root:null,status:'not-run',tree:{...proof.tree,observation:'no-launch'}},
   ]) { write(replacement);assert.throws(()=>readTreeProof(expected,{identify:()=>null})); }
+});
+
+test('persisted no-launch authority and confirmed terminal evidence survive interrupted publication',{skip:!supported},()=>{
+  const run=fs.realpathSync.native(scratch()),id=randomUUID(),directory=path.join(run,id);fs.mkdirSync(directory);
+  console.log('Interrupted publication scratch: '+run);
+  const {expected,proof}=expectedProof(directory);expected.attemptId=proof.attemptId=id;
+  const base={version:2,run,owner:{pid:800004,start:'coordinator'},phase:'launching',attempt:id,
+    token:expected.reservationToken};
+  const noLaunch={...expected,version:1,authorizationPhase:'no-launch',root:null};
+  for(const identities of [{launcher:undefined,helper:undefined},{launcher:expected.launcher,helper:undefined},{}]) {
+    const record={...base,supervision:{...noLaunch,...identities}};
+    assert.equal(reservationState(record,()=>null),'interrupted','An owner cannot authorize a child without first persisting may-launch');
+    assert.equal(reservationState({...record,supervision:{...record.supervision,authorizationPhase:'may-launch'}},()=>null),'unknown');
+    assert.equal(reservationState({...record,supervision:{...record.supervision,platform:undefined}},()=>null),'unknown');
+  }
+  const record={...base,phase:'exited',supervision:{...expected,...proof,exitConfirmed:true,launchAuthorized:true,
+    helperExitEvidence:{observation:'original-identity-absent',identity:expected.helper}}};
+  assert.equal(fs.existsSync(expected.proofFile),false);
+  assert.equal(reservationState(record,()=>null),'interrupted','Already authenticated complete proof can survive loss of the attempt directory');
+  fs.renameSync(directory,path.join(run,'retained-attempt'));
+  assert.equal(reservationState(record,()=>null),'interrupted','Persisted terminal evidence survives an absent original directory');
+  fs.renameSync(path.join(run,'retained-attempt'),directory);
+  assert.equal(reservationState({...record,supervision:{...record.supervision,tree:{...proof.tree,empty:false}}},()=>null),'unknown');
+  assert.equal(reservationState({...record,supervision:{...record.supervision,exitConfirmed:false}},()=>null),'unknown');
+  fs.writeFileSync(expected.proofFile,'{');
+  assert.equal(reservationState(record,()=>null),'unknown','An existing malformed proof remains protected');
 });
 
 test('enclosing attempt and reservation cannot borrow another valid proof',{skip:!supported},()=>{

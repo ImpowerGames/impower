@@ -187,15 +187,15 @@ describe("the Sparkle guide's examples", () => {
 });
 
 const style = (rule: string) =>
-  `style dialogue with\n  ${rule} { color = red }\nend\n`;
-const layout = (body: string) => `layout hud with\n  ${body}\nend\n`;
+  `style dialogue {\n  ${rule} { color = red }\n}\n`;
+const layout = (body: string) => `layout hud {\n  ${body}\n}\n`;
 
 describe("the guide's old-form check", () => {
   test.each([
     ["a `:` header", layout(`column:\n    text "a"`)],
     [
       "a `-` item",
-      `animation a with\n  keyframes {\n    -\n      opacity = 0\n  }\nend\n`,
+      `animation a {\n  keyframes {\n    -\n      opacity = 0\n  }\n}\n`,
     ],
   ])("reports %s", (_, source) => {
     expect(readDeclarations(source).oldForms).not.toEqual([]);
@@ -269,11 +269,11 @@ describe("the guide's old-form check", () => {
     ],
     [
       "a theme key of two words",
-      `theme dusk with\n  font sizes { sm = 10px; lg = 20px }\nend\n`,
+      `theme dusk {\n  font sizes { sm = 10px; lg = 20px }\n}\n`,
     ],
     [
       "keyframe positions",
-      `animation fade with\n  keyframes {\n    from { opacity = 0 }\n    40% { opacity = 1 }\n  }\nend\n`,
+      `animation fade {\n  keyframes {\n    from { opacity = 0 }\n    40% { opacity = 1 }\n  }\n}\n`,
     ],
   ])("accepts %s", (_, source) => {
     expect(readDeclarations(source).oldForms).toEqual([]);

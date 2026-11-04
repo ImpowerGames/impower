@@ -4,7 +4,7 @@ function go_back() end
 
 function save() end
 
-layout settings with
+layout settings {
 column.menu   #child-gap=16   {
       text .title "Settings"
   row{button "Back" @click=go_back;button "Apply" @click=save}
@@ -22,4 +22,4 @@ image
 }
   }
     }
-end
+}

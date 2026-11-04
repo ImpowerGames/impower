@@ -299,7 +299,11 @@ await assert.rejects(execute({ ...options, directory, fingerprint: () => "change
 const raceDirectory=path.join(scratch,".git","release-run");
 const raceHelper=path.join(scratch,".git","retry.mjs");
 fs.writeFileSync(raceHelper, `import {execute} from ${JSON.stringify(new URL("./test-suite.mjs",import.meta.url).href)};
-const result=await execute({...${JSON.stringify({...options,directory:raceDirectory,retry:[path.join(scratch,"b.spec.tsx")]})},memory:()=>65536,census:()=>[],fingerprint:()=>"unchanged"});
+import * as coordinator from ${JSON.stringify(new URL("./fixtures/test-suite-coordinator-adapter.mjs",import.meta.url).href)};
+import {processIdentity} from ${JSON.stringify(new URL("./test-suite-process.mjs",import.meta.url).href)};
+const result=await execute({...${JSON.stringify({...options,directory:raceDirectory,retry:[path.join(scratch,"b.spec.tsx")]})},memory:()=>65536,census:()=>[],fingerprint:()=>"unchanged",
+prepareRuntime:coordinator.prepareRuntime,prepareChild:coordinator.prepareChild,ownedChild:coordinator.ownedChild,
+identify:pid=>pid===process.pid?processIdentity(pid):null});
 if(result.status!=="passed")throw Error(JSON.stringify(result));`);
 fs.writeFileSync(path.join(scratch,".git","fail"),"");
 const originalUnlink=fs.unlinkSync;
@@ -390,7 +394,8 @@ ambiguous.update({ phase: "launching" });
 let ambiguousWaits = 0;
 await assert.rejects(acquireWaiting("unknown", { root: lockRoot, slots: 1, waitMs: 5000, pollMs: 20, memory: plenty, census: () => [], identify: () => null,
   onWait: () => { ambiguousWaits++; } }), /unknown/);
-assert.equal(ambiguousWaits, 0, "an ambiguous reservation refuses without queue polling, independent of process-lookup latency");
+assert.ok(ambiguousWaits > 0, "an ambiguous reservation polls within --wait while preserving containment");
+assert.equal(read(ambiguous.file).token, ambiguous.record.token, "waiting never removes the ambiguous holder");
 ambiguous.update({ phase: "exited" }); ambiguous.release();
 console.log("PASS: --wait queues on the reservation, holds it while other Vitest processes exit, and times out by releasing it");
 
@@ -479,6 +484,7 @@ try {
   assert.ok(refusedGuard >= 1, "release met the held guard");
   assert.equal(stuck.exit, 0, "the test result survives a release that cannot complete");
   assert.match(stuck.releaseError, /Reservation transaction unavailable.*guard\.json/, "the unreleased reservation is reported separately");
+  assert.match(stuck.releaseError, /slot still holds this token.*recover-reservation/, "the terminal diagnostic names slot state and guarded recovery");
 } finally {
   fs.linkSync = linkFile; fs.writeFileSync(freeGuard, "");
   for(const holder of guardHolders)assert.deepEqual(await holder.close,{exit:0,signal:null});
@@ -675,9 +681,11 @@ if (process.platform === "win32") {
   try { await assert.rejects(acquireWaiting("preserve old record", { root: store, waitMs: 1, memory: plenty, census: () => [],
     identify: pid => pid === 42 ? null : processIdentity(pid) }), /Reservation files busy/); }
   finally { fs.renameSync = original; }
-  assert.equal(fs.readFileSync(path.join(store, "reservation.json"), "utf8"), peer);
+  assert.equal(fs.existsSync(path.join(store, "reservation.json")), false, "a safely archived abandoned slot is removed even when successor publication fails");
+  const { recoveredAt: peerRecoveredAt, ...archivedPeer } = read(path.join(store, "recovered-peer.json"));
+  assert.deepEqual(archivedPeer, JSON.parse(peer), "the old record survives in its recovery archive");
+  assert.ok(peerRecoveredAt);
   assert.equal(fs.readdirSync(store).filter(name => name !== "last-admitted.json").some(name => name.endsWith(".tmp")), false);
-  fs.unlinkSync(path.join(store, "reservation.json"));
   fs.unlinkSync(path.join(store, "recovered-peer.json"));
   let publications = 0;
   fs.renameSync = (source, target) => {
@@ -786,10 +794,26 @@ console.log("PASS: a held guard is retried within --wait and an unstarted run is
 
 const deadOwner = { pid: 2147483000, start: "1" };
 const abandoned = JSON.stringify({ owner: deadOwner });
+function acquireAfterDelayedRecovery(run, options) {
+  const now = Date.now;
+  const rename = fs.renameSync;
+  let archived = false;
+  try {
+    fs.renameSync = (from, to) => {
+      rename(from, to);
+      if (from === guardFile && path.basename(to).startsWith("recovered-guard-")) archived = true;
+    };
+    Date.now = () => now() + (archived ? 200 : 0);
+    return acquire(run, options);
+  } finally {
+    Date.now = now;
+    fs.renameSync = rename;
+  }
+}
 fs.writeFileSync(guardFile, abandoned);
 const recoveredGuards = () => fs.readdirSync(lockRoot).filter(name => /^recovered-guard-.*\.json$/.test(name));
 const recoveredBefore = recoveredGuards().length;
-const afterAbandoned = acquire("abandoned guard", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify: pid => pid === deadOwner.pid ? null : processIdentity(pid), guardWaitMs: 100 });
+const afterAbandoned = acquireAfterDelayedRecovery("abandoned guard", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify: pid => pid === deadOwner.pid ? null : processIdentity(pid) });
 assert.equal(fs.existsSync(guardFile), false, "the abandoned guard is not left in place");
 assert.equal(recoveredGuards().length, recoveredBefore + 1, "the abandoned guard is renamed to recovered-guard-<time>.json");
 assert.equal(fs.readFileSync(path.join(lockRoot, recoveredGuards().at(-1)), "utf8"), abandoned, "the recovered guard keeps the recorded owner");
@@ -850,7 +874,7 @@ fs.unlinkSync(claimFile);
   let count = recoveredGuards().length;
   fs.writeFileSync(guardFile, "");
   age(guardFile);
-  acquire("old empty guard", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify, guardWaitMs: 100 }).release();
+  acquireAfterDelayedRecovery("old empty guard", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify }).release();
   assert.equal(recoveredGuards().length, ++count, "an old empty guard is renamed aside");
 
   for (const [label, claim] of [["an old empty claim", ""], ["a dead recoverer's claim", abandoned]]) {
@@ -858,7 +882,7 @@ fs.unlinkSync(claimFile);
     fs.writeFileSync(guardFile, abandoned);
     fs.writeFileSync(claimFile, claim);
     if (claim === "") age(claimFile);
-    acquire(label, { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify, guardWaitMs: 100 }).release();
+    acquireAfterDelayedRecovery(label, { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify }).release();
     assert.equal(recoveredClaims().length, claims + 1, `${label} is renamed aside`);
     assert.equal(recoveredGuards().length, ++count, `${label} no longer blocks guard recovery`);
     assert.deepEqual(strays(), [], `${label}: no claim or takeover is left behind`);
@@ -881,7 +905,7 @@ fs.unlinkSync(claimFile);
   held("a claim another recoverer is taking over");
   assert.equal(fs.readFileSync(claimFile, "utf8"), abandoned, "the claim under another's takeover is untouched");
   fs.writeFileSync(takeover, abandoned);
-  acquire("dead takeover holder", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify, guardWaitMs: 100 }).release();
+  acquireAfterDelayedRecovery("dead takeover holder", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify }).release();
   assert.equal(recoveredGuards().length, ++count, "a dead takeover holder no longer blocks recovery");
   assert.deepEqual(strays(), [], "no claim or takeover is left behind after nested recovery");
 
@@ -897,7 +921,7 @@ fs.unlinkSync(claimFile);
     if (to === guardFile) published ??= fs.readFileSync(from, "utf8");
     return link(from, to);
   };
-  try { acquire("published guard", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify, guardWaitMs: 100 }).release(); }
+  try { acquire("published guard", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify }).release(); }
   finally { fs.linkSync = link; }
   assert.deepEqual(JSON.parse(published), { owner: live }, "the guard carries its owner when it appears");
   assert.deepEqual(creating(), [], "the private file is removed after publishing");
@@ -917,7 +941,7 @@ fs.unlinkSync(claimFile);
   const liveTemp = path.join(lockRoot, `creating-${live.pid}-${live.start}-0000beef.tmp`);
   const unrelated = path.join(lockRoot, "creating-notes.txt");
   for (const file of [deadTemp, liveTemp, unrelated]) { fs.writeFileSync(file, abandoned); age(file); }
-  acquire("after a killed creator", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify, guardWaitMs: 100 }).release();
+  acquire("after a killed creator", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify }).release();
   assert.equal(fs.existsSync(guardFile), false, "a killed creator's private file never became a guard");
   assert.equal(fs.existsSync(deadTemp), false, "a dead creator's private file is swept");
   assert.equal(fs.existsSync(liveTemp), true, "a live creator's private file is kept however old");
@@ -935,7 +959,7 @@ fs.unlinkSync(claimFile);
     acquire("private file removal refused", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify, guardWaitMs: 100 }).release();
     assert.ok(creating().length > 0, "a refused removal leaves the private file for now");
     refusing = false;
-    acquire("after a refused removal", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify, guardWaitMs: 100 }).release();
+    acquire("after a refused removal", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify }).release();
   } finally { fs.unlinkSync = unlink; }
   assert.deepEqual(creating(), [], "the creator's next transaction removes the private files it left");
 }
@@ -1058,14 +1082,17 @@ for(const boundary of ["refused","positive","abandoned"]) {
   else {
     assert.equal(entered,1);assert.equal(result.exit,1);
     assert.equal(result.observedAttempts[0].status,"unknown");
-    const bytes=fs.readFileSync(reservationFile,"utf8");
-    assert.equal(reservationState(read(reservationFile),()=>null),"unknown","Abandoned possible launch without identities/proof cannot reclaim");
-    assert.throws(()=>acquire("after abandoned entry",{root:lockRoot,slots:1,memory:plenty,census:()=>[],identify:()=>null}),/unknown/);
-    assert.equal(fs.readFileSync(reservationFile,"utf8"),bytes);
-    fs.unlinkSync(reservationFile);
+    const abandoned=read(reservationFile);
+    assert.equal(abandoned.supervision.authorizationPhase,"no-launch");
+    assert.equal(reservationState(abandoned,()=>null),"interrupted","Persisted no-launch authority proves no engine could start");
+    const successor=acquire("after abandoned entry",{root:lockRoot,slots:1,memory:plenty,census:()=>[],
+      identify:pid=>pid===process.pid?{pid,start:"replacement-owner"}:null});
+    const {recoveredAt,...archived}=read(path.join(lockRoot,`recovered-${abandoned.token}.json`));
+    assert.deepEqual(archived,abandoned);assert.ok(recoveredAt);
+    successor.release();
   }
 }
-console.log("PASS: possible helper entry is durably bound before invocation and abandoned entry remains unknown");
+console.log("PASS: possible helper entry is durably bound before invocation and persisted no-launch authority permits recovery");
 
 const setupOwner = processIdentity(process.pid);
 const setupIdentify = pid => pid === process.pid ? setupOwner : { pid, start: "fixture-child" };

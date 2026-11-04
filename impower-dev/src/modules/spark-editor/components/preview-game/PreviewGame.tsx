@@ -67,8 +67,13 @@ export default function PreviewGame(_props: PreviewGameProps) {
       import("@impower/spark-editor-protocol/src/protocols/InitializeMessage"),
       import("@impower/spark-editor-protocol/src/protocols/MessageProtocol"),
       import("@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/preview/ChangeStartingValuesMessage"),
       import("@impower/spark-editor-protocol/src/protocols/workspace/RuntimeDiagnosticsMessage"),
       import("@impower/spark-editor-protocol/src/protocols/preview/ChangeRoutePinsMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/preview/WriteSaveMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/preview/RenameSaveMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/preview/DeleteSavesMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/EnterGameFullscreenModeMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/ExitGameFullscreenModeMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/FetchGameAssetMessage"),
@@ -91,8 +96,13 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { InitializeMessage },
         { MessageProtocol, sendProtocolMessage },
         { ExecuteCommandMessage },
+        { ChangeStartingValuesMessage },
         { RuntimeDiagnosticsMessage },
         { ChangeRoutePinsMessage },
+        { ListSavesMessage },
+        { WriteSaveMessage },
+        { RenameSaveMessage },
+        { DeleteSavesMessage },
         { EnterGameFullscreenModeMessage },
         { ExitGameFullscreenModeMessage },
         { FetchGameAssetMessage },
@@ -117,6 +127,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
           return {
             workspace: Workspace.window.store.project.directory,
             startFrom: { file: uri, line: startLine },
+            startingValues: Workspace.window.startingValues,
           };
         };
 
@@ -128,10 +139,44 @@ export default function PreviewGame(_props: PreviewGameProps) {
         const onChannelMessage = async (e: MessageEvent) => {
           const message = e.data;
           preferences.received(message);
+          if (ChangeStartingValuesMessage.type.isRequest(message)) {
+            const { start, changes } = message.params;
+            Workspace.window.changeStartingValues(start, changes);
+            iframeChannelRef.current?.sendResponse(message, {});
+            return;
+          }
           if (ChangeRoutePinsMessage.type.isRequest(message)) {
             iframeChannelRef.current?.sendResponse(message, () => ({
               pins: Workspace.window.changeRoutePins(message.params),
             }));
+            return;
+          }
+          if (ListSavesMessage.type.isRequest(message)) {
+            iframeChannelRef.current?.sendResponse(message, async () => ({
+              saves: await Workspace.window.previewSaves.list(),
+            }));
+            return;
+          }
+          if (WriteSaveMessage.type.isRequest(message)) {
+            iframeChannelRef.current?.sendResponse(message, async () => {
+              await Workspace.window.previewSaves.write(message.params.save);
+              return {};
+            });
+            return;
+          }
+          if (RenameSaveMessage.type.isRequest(message)) {
+            iframeChannelRef.current?.sendResponse(message, async () => {
+              const { id, name } = message.params;
+              await Workspace.window.previewSaves.rename(id, name);
+              return {};
+            });
+            return;
+          }
+          if (DeleteSavesMessage.type.isRequest(message)) {
+            iframeChannelRef.current?.sendResponse(message, async () => {
+              await Workspace.window.previewSaves.delete(message.params.ids);
+              return {};
+            });
             return;
           }
           if (ExecuteCommandMessage.type.is(message)) {
@@ -381,9 +426,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
           sandbox="allow-scripts allow-forms allow-same-origin"
           allow="autoplay"
           referrerpolicy="no-referrer"
-          style={{ visibility: "hidden" }}
-          onLoad={(e) => {
-            (e.currentTarget as HTMLIFrameElement).style.visibility = "visible";
+          onLoad={() => {
             if (onLoadRef.current) {
               onLoadRef.current();
             } else {

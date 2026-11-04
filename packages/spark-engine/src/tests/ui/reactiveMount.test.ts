@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { createHarness } from "./harness/uiTestHarness";
 
-const SCREEN = `layout main with
+const SCREEN = `layout main {
   stage {
     backdrop {
       image
@@ -26,7 +26,7 @@ const SCREEN = `layout main with
     }
     continue_indicator
   }
-end
+}
 `;
 
 describe("reactive mount (Phase 3 I1)", () => {

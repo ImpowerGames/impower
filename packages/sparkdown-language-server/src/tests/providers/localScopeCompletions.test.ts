@@ -123,7 +123,7 @@ describe("completion · Luau local scope", () => {
 
   test("a local in a Sparkle handler closure is not offered outside it", () => {
     const labels = labelsAt(
-      'layout main with\n  button "x" @click={ local inner = 1 }\nend\nfunction after()\n  return i@1\nend\n',
+      'layout main {\n  button "x" @click={ local inner = 1 }\n}\nfunction after()\n  return i@1\nend\n',
     );
     expect(labels).not.toContain("inner");
   });

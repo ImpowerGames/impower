@@ -5,12 +5,12 @@ import {
   type DOMHarness,
 } from "./domTestHarness";
 
-const SOURCE = `layout inventory with
+const SOURCE = `layout inventory {
   column.panel #child-gap=8 {
     text.action "Inventory"
     text "Rope"
   }
-end
+}
 
 
 
@@ -62,12 +62,12 @@ describe("an author's element whose class names a builtin target", () => {
   });
 
   test("keeps its text in a layout that replaces `main` when the story writes a title", async () => {
-    const source = `layout main with
+    const source = `layout main {
   column.panel {
     text.title "Inventory"
     text "Rope"
   }
-end
+}
 
 
 

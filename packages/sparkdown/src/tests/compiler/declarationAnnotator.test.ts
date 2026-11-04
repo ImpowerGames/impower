@@ -34,9 +34,9 @@ function greet(who, times)
   const BAR = 2
   local msg = "hi"
 end
-layout hud with
+layout hud {
   text
-end
+}
 `);
     expect(has(decls, "var", "FOO")).toBe(true);
     expect(has(decls, "function", "greet")).toBe(true);
@@ -112,22 +112,22 @@ end
   });
 
   test("a word after a comment in a block body declares nothing", () => {
-    const decls = collectDeclarations(`style banner with
+    const decls = collectDeclarations(`style banner {
 --[[ note ]] accidental
-end
-layout hud with
+}
+layout hud {
   text "hi"
 --[[ note ]] stray
-end
-component card(title) with
+}
+component card(title) {
   --[[ note ]] other
-end
-screen menu with
+}
+screen menu {
 --[[ note ]] extra
-end
-animation fade with
+}
+animation fade {
 --[[ note ]] spare
-end
+}
 external message(text) --[[ note ]] more
 `);
     const defines = decls.filter((d) => d.type === "define").map((d) => d.text);

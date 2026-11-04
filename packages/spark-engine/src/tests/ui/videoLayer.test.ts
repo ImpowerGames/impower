@@ -16,7 +16,7 @@ const ASSETS: File[] = [
   asset("image", "room", "png"),
 ];
 
-const DEFS = `layout main with
+const DEFS = `layout main {
   stage {
     backdrop {
       image
@@ -25,7 +25,7 @@ const DEFS = `layout main with
       image
     }
   }
-end
+}
 `;
 
 const story = (body: string) =>

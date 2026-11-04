@@ -65,6 +65,31 @@ const mapOffset = (
   return offset + insertedLength - replacement.rangeLength;
 };
 
+export interface LineSpan {
+  lineStart: number;
+  lineEnd: number;
+}
+
+export const mapLineSpan = (
+  mark: LineSpan,
+  replacements: readonly TextReplacement[],
+  editedDocument: DocumentLines,
+): LineSpan | undefined => {
+  const lineStart = replacements.reduce(
+    (offset, replacement) => mapOffset(offset, "after", replacement),
+    mark.lineStart,
+  );
+  const lineEnd = replacements.reduce(
+    (offset, replacement) => mapOffset(offset, "before", replacement),
+    mark.lineEnd,
+  );
+  const lineTextDeleted = mark.lineEnd > mark.lineStart && lineEnd <= lineStart;
+  if (lineTextDeleted) {
+    return undefined;
+  }
+  return editedDocument.lineSpan(editedDocument.lineAt(lineStart));
+};
+
 export const mapRoutePinMarks = (
   marks: readonly RoutePinMark[],
   replacements: readonly TextReplacement[],
@@ -72,20 +97,10 @@ export const mapRoutePinMarks = (
 ): RoutePinMark[] => {
   const mapped: RoutePinMark[] = [];
   for (const mark of marks) {
-    const lineStart = replacements.reduce(
-      (offset, replacement) => mapOffset(offset, "after", replacement),
-      mark.lineStart,
-    );
-    const lineEnd = replacements.reduce(
-      (offset, replacement) => mapOffset(offset, "before", replacement),
-      mark.lineEnd,
-    );
-    const lineTextDeleted =
-      mark.lineEnd > mark.lineStart && lineEnd <= lineStart;
-    if (lineTextDeleted) {
+    const span = mapLineSpan(mark, replacements, editedDocument);
+    if (!span) {
       continue;
     }
-    const span = editedDocument.lineSpan(editedDocument.lineAt(lineStart));
     if (
       !mapped.some(
         (m) => m.lineStart === span.lineStart && m.offer === mark.offer,

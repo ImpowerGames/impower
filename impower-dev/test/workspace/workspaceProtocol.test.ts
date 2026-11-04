@@ -2,14 +2,13 @@ import { expect, it, vi } from "vitest";
 import { createProtocolBridge } from "../../src/modules/spark-editor/workspace/devProtocolBridge";
 import { registerWorkspaceProtocol } from "../../src/modules/spark-editor/workspace/workspaceProtocol";
 
-const workspace = vi.hoisted(() => ({
+const workspace = {
   ls: { initialization: vi.fn(async () => {}), connection: { sendRequest: vi.fn() } },
   fs: { readFile: vi.fn(), readDirectoryFiles: vi.fn(), unzipFiles: vi.fn(), createFiles: vi.fn(), deleteFiles: vi.fn(), getFileSrc: vi.fn() },
-}));
-vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({ Workspace: workspace }));
+};
 
 it("answers fresh diagnostics and hover on the shared bus and forwards imports to the editor filesystem", async () => {
-  const dispose = registerWorkspaceProtocol();
+  const dispose = registerWorkspaceProtocol(workspace as unknown as Parameters<typeof registerWorkspaceProtocol>[0]);
   const bridge = createProtocolBridge(window);
   const events: any[] = [];
   bridge.subscribe((message) => events.push(message));

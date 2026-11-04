@@ -21,18 +21,18 @@ function globalSpinnerBlock(sheet: string): string {
 
 describe("busy spinner", () => {
   test("is declared once, globally, not per component", async () => {
-    const sheet = await css(`layout main with
+    const sheet = await css(`layout main {
   box #busy=true
-end
+}
 `);
     const spinners = sheet.match(/animation-name:\s*spin\b/g) ?? [];
     expect(spinners.length).toBe(1);
   });
 
   test("draws on a plain container, not only button and article", async () => {
-    const sheet = await css(`layout main with
+    const sheet = await css(`layout main {
   box #busy=true
-end
+}
 `);
     const block = globalSpinnerBlock(sheet);
     expect(block).toContain("content:");
@@ -43,9 +43,9 @@ end
 
   async function inlineSpinnerColor(prop: string): Promise<string> {
     const h = createDOMHarness(
-      `layout main with
+      `layout main {
   box #busy=true ${prop}
-end
+}
 `,
       0,
       { autoOpenAll: true },

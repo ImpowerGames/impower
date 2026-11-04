@@ -96,11 +96,11 @@ function compileUser(source: string, seed: boolean) {
   return compiler.compile({ textDocument: { uri: USER_URI } });
 }
 
-const USER_SRC = `define my_anim as animation with
-  keyframes = {
-    background_position = "right"
+const USER_SRC = `animation my_anim {
+  keyframes {
+    background_position = right
   }
-end
+}
 
 
 scene start
@@ -109,7 +109,7 @@ end
 `;
 
 describe("P5 P1: seedBuiltinsIntoStory source-injects the prelude", () => {
-  test("flag ON: authored `as animation` inherits the builtin timing at runtime", () => {
+  test("flag ON: an authored animation inherits the builtin timing at runtime", () => {
     const off = compileUser(USER_SRC, false);
     const on = compileUser(USER_SRC, true);
 

@@ -4,7 +4,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { processIdentity } from "./reviewer-slots.mjs";
-import { readTreeProof, assertAttemptBinding } from "./test-suite-child.mjs";
+import { readTreeProof, readRecordedTreeProof, readWindowsJobRecovery, assertAttemptBinding } from "./test-suite-child.mjs";
 
 export { processIdentity };
 export const machineRoot = process.platform === "win32"
@@ -41,23 +41,42 @@ export function runPool({ env = process.env, directory } = {}) {
   return "writer";
 }
 export const same = (a, b) => a && b && a.pid === b.pid && a.start === b.start;
-export function atomic(file, value, { admissionRoot } = {}) {
+export function atomic(file, value, { admissionRoot, deadline: callerDeadline, admissionDeadline } = {}) {
   const temp = `${file}.${randomUUID()}.tmp`;
   let fd;
   try { fd = fs.openSync(temp, "wx"); }
-  catch (error) { throw admissionRoot ? admissionFailure(admissionRoot, error) : error; }
+  catch (error) { throw admissionRoot ? admissionFailure(admissionRoot, error, callerDeadline) : error; }
   let identity, published = false;
   try {
     try {
       if (admissionRoot) identity = fs.fstatSync(fd, { bigint: true });
       fs.writeFileSync(fd, JSON.stringify(value, null, 2) + "\n", "utf8");
       fs.fsyncSync(fd);
-    } finally { fs.closeSync(fd); }
+    } catch (error) { throw admissionRoot ? admissionFailure(admissionRoot, error, callerDeadline) : error; }
+    finally {
+      try { fs.closeSync(fd); }
+      catch (error) { throw Object.assign(error, { reservationRetryUnsafe: true }); }
+    }
     const deadline = Date.now() + 1000;
     for (;;) {
-      try { fs.renameSync(temp, file); published = true; break; }
+      if (Number.isFinite(admissionDeadline) && Date.now() >= admissionDeadline) throw admissionExpiry();
+      try { fs.renameSync(temp, file); published = true; return identity; }
       catch (error) {
-        if (admissionRoot) throw admissionFailure(admissionRoot, error);
+        if (admissionRoot) {
+          let privateFilePresent;
+          try { privateFilePresent = stillOwned(temp, identity); }
+          catch { throw Object.assign(error, { reservationRetryUnsafe: true }); }
+          if (!privateFilePresent) {
+            Object.defineProperty(error, "atomicPublicationCandidate", { value: { file, identity }, configurable: true });
+            let current;
+            try { current = publishedIdentity(file, identity, value?.token, callerDeadline ?? Date.now() + guardWaitMs); }
+            catch { throw Object.assign(error, { reservationRetryUnsafe: true }); }
+            published = true;
+            Object.defineProperty(error, "atomicPublication", { value: { file, identity: current }, configurable: true });
+            throw error;
+          }
+          throw admissionFailure(admissionRoot, error, callerDeadline);
+        }
         if (process.platform !== "win32" || !["EPERM", "EACCES", "EBUSY"].includes(error.code) || Date.now() >= deadline) throw error;
         Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
       }
@@ -65,11 +84,20 @@ export function atomic(file, value, { admissionRoot } = {}) {
   } finally {
     if (admissionRoot && !published) {
       if (!identity) throw new Error(`Private reservation file identity unavailable at ${temp}; preserve it for inspection`);
-      unlinkOwned(temp, identity);
+      try { removeGuard(temp, identity, Math.max(0, (callerDeadline ?? Date.now() + guardWaitMs) - Date.now())); }
+      catch (error) { throw Object.assign(error, { reservationRetryUnsafe: true }); }
     }
   }
 }
 export const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
+
+function readAdmissionRecord(file) {
+  try { return read(file); }
+  catch (cause) {
+    if (!(cause instanceof SyntaxError)) throw cause;
+    throw Object.assign(new Error(`Reservation record unreadable at ${file}: ${cause.message}; admission remains blocked; retrying is safe after the record is repaired or its writer finishes`, { cause }), { reservationRecordUnreadable: true });
+  }
+}
 
 function unlinkOwned(file, identity) {
   const current = fs.lstatSync(file, { bigint: true });
@@ -81,20 +109,49 @@ const sameFile = (current, identity) => current.isFile() && identity?.isFile() &
   && current.ino === identity.ino && current.birthtimeNs === identity.birthtimeNs
   && (process.platform === "win32" || current.dev === identity.dev);
 
+function publishedIdentity(file, expected, token, deadline) {
+  for (;;) {
+    try {
+      const current = fs.lstatSync(file, { bigint: true });
+      if (!current.isFile() || !expected?.isFile() || current.ino === 0n || current.ino !== expected.ino
+        || (process.platform !== "win32" && current.dev !== expected.dev) || read(file)?.token !== token
+        || !sameFile(fs.lstatSync(file, { bigint: true }), current)) throw new Error("Reservation ownership changed");
+      return current;
+    } catch (error) {
+      if (!transientFileError(error) || error.code === "ENOENT" || Date.now() >= deadline) throw error;
+      Atomics.wait(sleeper, 0, 0, 10);
+    }
+  }
+}
+
 function stillOwned(file, identity) {
   try { return sameFile(fs.lstatSync(file, { bigint: true }), identity); }
   catch (error) { if (error.code === "ENOENT") return false; throw error; }
 }
 
-function removeGuard(file, identity) {
+function removeGuard(file, identity, waitMs = guardWaitMs) {
   if (!identity) throw new Error(`Reservation guard identity unavailable at ${file}; preserve it for inspection`);
-  try { unlinkOwned(file, identity); }
-  catch (error) { if (error.code !== "ENOENT") throw error; }
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    try { unlinkOwned(file, identity); return; }
+    catch (error) {
+      if (error.code === "ENOENT") {
+        let current;
+        try { current = fs.lstatSync(file, { bigint: true }); }
+        catch (inspection) { if (inspection.code === "ENOENT") return;throw inspection; }
+        if (!sameFile(current, identity)) throw new Error(`Private reservation file ownership changed at ${file}; preserve it for inspection`);
+      }
+      if (!transientFileError(error) || Date.now() >= deadline) throw error;
+      Atomics.wait(sleeper, 0, 0, 10);
+    }
+  }
 }
 
 const storeDenied = (root, error) => new Error(`Reservation store not writable at ${root} (${error.code}); this process cannot take the machine-wide Vitest reservation, so it cannot run Vitest here`);
-function admissionFailure(root, error) {
-  if (process.platform !== "win32" || !["EPERM", "EACCES", "EBUSY"].includes(error.code)) return error;
+const transientFileError = error => ["EEXIST", "ENOENT", "EPERM", "EACCES", "EBUSY"].includes(error.code);
+const admissionExpiry = () => Object.assign(new Error("Reservation files busy; admission wait expired before publication"), { reservationFilesBusy: true, admissionDeadlineExpired: true });
+function admissionFailure(root, error, deadline = Date.now() + guardWaitMs) {
+  if (error.reservationRetryUnsafe || !transientFileError(error)) return error;
   const probe = path.join(root, `write-probe-${randomUUID()}.tmp`);
   let fd, identity;
   try {
@@ -106,9 +163,11 @@ function admissionFailure(root, error) {
     return storeDenied(root, failure);
   } finally {
     if (fd !== undefined) {
-      fs.closeSync(fd);
+      try { fs.closeSync(fd); }
+      catch (error) { throw Object.assign(error, { reservationRetryUnsafe: true }); }
       if (!identity) throw new Error(`Private reservation probe identity unavailable at ${probe}`);
-      unlinkOwned(probe, identity);
+      try { removeGuard(probe, identity, Math.max(0, deadline - Date.now())); }
+      catch (error) { throw Object.assign(error, { reservationRetryUnsafe: true }); }
     }
   }
   return Object.assign(new Error(`Reservation files busy at ${root} (${error.code}); writable store confirmed, but acquisition did not complete`), { reservationFilesBusy: true });
@@ -172,39 +231,76 @@ export function vitestProcesses({ within, accounted } = {}) {
 
 export function reservationState(record, identify = processIdentity, { uptime = os.uptime } = {}) {
   if (!record?.owner?.pid || !record.owner.start) return "unknown";
-  const owner = identify(record.owner.pid);
+  const valid = value => Number.isSafeInteger(value?.pid) && value.pid > 0 && typeof value.start === "string" && value.start.length > 0;
+  if (!valid(record.owner) || record.version !== undefined && ![1, 2].includes(record.version)) return "unknown";
+  let owner;
+  try { owner = identify(record.owner.pid); }
+  catch (error) { if (record.version === 2) return "unknown"; throw error; }
   if (same(record.owner, owner)) return "running";
+  if (owner !== null && !valid(owner)) return "unknown";
+  for (const original of [record.child, record.root].filter(value => value !== undefined && value !== null)) {
+    if (!valid(original)) return "unknown";
+    let current;
+    try { current = identify(original.pid); }
+    catch { return "unknown"; }
+    if (current !== null && !valid(current)) return "unknown";
+    if (same(original, current)) return "running";
+  }
   if (record.version === 2) {
-    if (owner !== null && (!owner?.pid || !owner.start)) return "unknown";
     const preBoot = () => Number.isFinite(record.heldUptime) && uptime() < record.heldUptime;
-    if (!record.supervision) return record.phase === "reserved" || preBoot() ? "interrupted" : "unknown";
+    if (!record.supervision) return record.phase === "reserved" && !record.child && !record.root || preBoot() ? "interrupted" : "unknown";
     const expected = record.supervision;
     if (expected.reservationToken !== record.token) return "unknown";
     try {
       assertAttemptBinding(expected,{id:record.attempt,
         ...(typeof record.run==="string"&&path.isAbsolute(record.run)?{directory:path.join(record.run,record.attempt)}:{})});
-      for (const original of [expected.launcher, expected.helper]) {
-        if (!original?.pid || !original.start) return "unknown";
+      const noLaunch = record.phase === "launching" && expected.version === 1
+        && expected.authorizationPhase === "no-launch" && [undefined, false].includes(expected.launchAuthorized) && !expected.root && !record.child
+        && ["win32", "linux"].includes(expected.platform)
+        && typeof record.run === "string" && path.isAbsolute(record.run)
+        && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(expected.launchNonce)
+        && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(expected.reservationToken);
+      for (const original of [expected.launcher, expected.helper, ...[expected.root].filter(value => value !== undefined && value !== null)]) {
+        if (noLaunch && (original === undefined || original === null)) continue;
+        if (!valid(original)) return "unknown";
         const current = identify(original.pid);
-        if (current !== null && (!current?.pid || !current.start)) return "unknown";
+        if (current !== null && !valid(current)) return "unknown";
         if (same(original, current)) return "running";
       }
+      if (record.child && !same(record.child, expected.root)) return "unknown";
       if (preBoot()) return "interrupted";
+      if (noLaunch) {
+        if (expected.platform === "linux" && expected.launcher && expected.helper && !same(expected.launcher, expected.helper)) return "unknown";
+        if (expected.proofFile !== undefined) {
+          if (expected.proofFile !== path.join(expected.directory, "tree-proof.json")) return "unknown";
+          let exists = true;
+          try { fs.lstatSync(expected.proofFile); }
+          catch (error) { if (error.code !== "ENOENT") throw error; exists = false; }
+          if (exists) readTreeProof(expected, { identify, close: expected.launcherClose });
+        }
+        return "interrupted";
+      }
       if (expected.authorizationPhase === "no-launch" && expected.launchAuthorized === false
         && expected.status === "not-run" && !expected.root && expected.exitConfirmed === true
         && expected.helperExitEvidence?.observation === "original-identity-absent"
         && same(expected.helperExitEvidence.identity, expected.helper)
         && Number.isInteger(expected.launcherClose?.exit) && !expected.launcherClose.signal) return "interrupted";
-      readTreeProof(expected, { identify, close: expected.launcherClose });
+      try { readTreeProof(expected, { identify, close: expected.launcherClose }); }
+      catch (error) {
+        if (error.code !== "ENOENT") throw error;
+        if (typeof record.run !== "string" || !path.isAbsolute(record.run)) return "unknown";
+        if (expected.exitConfirmed === true) readRecordedTreeProof(expected, { identify });
+        else readWindowsJobRecovery(expected);
+      }
       return "interrupted";
     } catch { return "unknown"; }
   }
   if (["reserved", "exited"].includes(record.phase)) return "interrupted";
   if (record.phase !== "running" || !record.child?.start) return "unknown";
-  return same(record.child, identify(record.child.pid)) ? "running" : "interrupted";
+  return "interrupted";
 }
 
-function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity, admitting = false, recover = true) {
+function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity, admitting = false, recover = true, callerDeadline) {
   const denied = (error) => ["EPERM", "EACCES"].includes(error.code)
     ? storeDenied(root, error)
     : null;
@@ -212,14 +308,26 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
   catch (error) { throw denied(error) || error; }
   const guard = path.join(root, "guard.json");
   const deadline = Date.now() + waitMs;
+  const cleanupDeadline = callerDeadline ?? deadline;
   let identity, cause;
   sweepCreating(root, identify);
   for (;;) {
-    try { identity = publishOwned(root, guard); break; }
+    try { identity = publishOwned(root, guard, cleanupDeadline); break; }
     catch (error) {
-      if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
-      if (error.code === "EEXIST" && recover && recoverAbandonedGuard(root, guard, identify, admitting)) continue;
-      if (error.code === "EEXIST" && Date.now() < deadline) { Atomics.wait(sleeper, 0, 0, 10); continue; }
+      if (error.code === "EEXIST" && recover) {
+        try { if (recoverAbandonedGuard(root, guard, identify, admitting, cleanupDeadline) && Date.now() < cleanupDeadline) continue; }
+        catch (recoveryError) { error = recoveryError; }
+      }
+      if (error.reservationRetryUnsafe) throw error;
+      if (error.reservationFilesBusy) {
+        if (admitting || Date.now() >= deadline) throw error;
+        Atomics.wait(sleeper, 0, 0, 10);continue;
+      }
+      if (error.code !== "EEXIST" && transientFileError(error)) {
+        const failure = admissionFailure(root, error, cleanupDeadline);
+        if (admitting || !failure.reservationFilesBusy || Date.now() >= deadline) throw failure;
+      }
+      if (transientFileError(error) && Date.now() < deadline) { Atomics.wait(sleeper, 0, 0, 10); continue; }
       const refusal = denied(error);
       if (refusal) throw refusal;
       throw Object.assign(new Error(`Reservation transaction unavailable at ${guard}: ${error.message}`), { guardHeld: error.code === "EEXIST" });
@@ -229,9 +337,13 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
     return action(path.join(root, "reservation.json"));
   } catch (error) { cause = error; throw error; }
   finally {
-    try { removeGuard(guard, identity); }
+    try { removeGuard(guard, identity, Math.max(0, cleanupDeadline - Date.now())); }
     catch (error) {
       if (!cause) throw error;
+      delete cause.reservationFilesBusy;
+      delete cause.reservationRecordUnreadable;
+      delete cause.reservationUnknown;
+      delete cause.waitable;
       cause.guardCleanupError = error.message;
       console.error(`Reservation guard cleanup failed after ${cause.message}: ${error.message}`);
     }
@@ -241,7 +353,7 @@ function guarded(root, action, waitMs = guardWaitMs, identify = processIdentity,
 const creatingName = /^creating-(\d+)-(.+)-[0-9a-f]{8}\.tmp$/;
 let ownIdentityValue;
 const ownIdentity = () => ownIdentityValue ??= processIdentity(process.pid);
-function publishOwned(root, file) {
+function publishOwned(root, file, deadline = Date.now() + guardWaitMs) {
   const owner = ownIdentity();
   const temp = path.join(root, `creating-${owner.pid}-${owner.start}-${randomUUID().slice(0, 8)}.tmp`);
   let fd, identity;
@@ -256,7 +368,7 @@ function publishOwned(root, file) {
     return identity;
   } finally {
     if (fd !== undefined) fs.closeSync(fd);
-    removeCreating(temp);
+    removeCreating(temp, Math.min(1000, Math.max(0, deadline - Date.now())));
   }
 }
 
@@ -299,14 +411,14 @@ function sweepCreating(root, identify) {
 export const emptyAbandonMs = 60_000;
 const claimDepth = 4;
 
-function judge(root, file, identify, admitting) {
+function judge(root, file, identify, admitting, deadline) {
   let fd, identity, text;
   try {
     fd = fs.openSync(file, "r");
     identity = fs.fstatSync(fd, { bigint: true });
     text = fs.readFileSync(fd, "utf8");
   } catch (error) {
-    if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
+    if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error, deadline);
     return error.code === "ENOENT" ? null : { identity, abandoned: false };
   } finally { if (fd !== undefined) fs.closeSync(fd); }
   if (text === "") return { identity, abandoned: Date.now() - Number(identity.mtimeMs) > emptyAbandonMs };
@@ -317,43 +429,46 @@ function judge(root, file, identify, admitting) {
   catch { return { identity, abandoned: false }; }
 }
 
-function setAside(root, file, identity, prefix, admitting) {
+function setAside(root, file, identity, prefix, admitting, deadline) {
   try {
     if (!sameFile(fs.lstatSync(file, { bigint: true }), identity)) return false;
     const stamp = new Date().toISOString().replace(/[^0-9]/g, "");
     fs.renameSync(file, path.join(root, `${prefix}-${stamp}-${randomUUID().slice(0, 8)}.json`));
     return true;
   } catch (error) {
-    if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
+    if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error, deadline);
     return error.code === "ENOENT";
   }
 }
 
-function withClaim(root, file, identify, admitting, action, depth = 0) {
+function withClaim(root, file, identify, admitting, action, deadline, depth = 0) {
   let identity;
   for (let attempt = 0; identity === undefined; attempt++) {
-    try { identity = publishOwned(root, file); }
+    try { identity = publishOwned(root, file, deadline); }
     catch (error) {
-      if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error);
+      if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error, deadline);
       if (error.code !== "EEXIST" || attempt > 0 || depth >= claimDepth) return false;
-      const held = judge(root, file, identify, admitting);
+      const held = judge(root, file, identify, admitting, deadline);
       if (held && !held.abandoned) return false;
       if (held) {
         const takeover = path.join(root, `${path.basename(file, ".json")}-${held.identity.ino}-${held.identity.birthtimeNs}.json`);
-        if (!withClaim(root, takeover, identify, admitting, () => setAside(root, file, held.identity, "recovered-claim", admitting), depth + 1)) return false;
+        if (!withClaim(root, takeover, identify, admitting, () => setAside(root, file, held.identity, "recovered-claim", admitting, deadline), deadline, depth + 1)) return false;
       }
     }
   }
   try { return action(); }
-  finally { if (stillOwned(file, identity)) fs.unlinkSync(file); }
+  finally {
+    try { removeGuard(file, identity, Math.max(0, deadline - Date.now())); }
+    catch (error) { throw Object.assign(error, { reservationRetryUnsafe: true }); }
+  }
 }
 
-function recoverAbandonedGuard(root, guard, identify, admitting = false) {
+function recoverAbandonedGuard(root, guard, identify, admitting = false, deadline = Date.now() + guardWaitMs) {
   return withClaim(root, path.join(root, "guard-recovery.json"), identify, admitting, () => {
-    const held = judge(root, guard, identify, admitting);
+    const held = judge(root, guard, identify, admitting, deadline);
     if (!held) return true;
-    return held.abandoned && setAside(root, guard, held.identity, "recovered-guard", admitting);
-  });
+    return held.abandoned && setAside(root, guard, held.identity, "recovered-guard", admitting, deadline);
+  }, deadline);
 }
 
 const guardWaitMs = 5000;
@@ -406,7 +521,7 @@ const holderSummary = (record, slot, observedAt) => ({ run: record.run, pool: re
 
 const memoized = identify => {
   const seen = new Map();
-  return pid => { if (!seen.has(pid)) seen.set(pid, identify(pid)); return seen.get(pid); };
+  return pid => { if (!seen.has(pid)) seen.set(pid, identify === processIdentity && pid === process.pid ? ownIdentity() : identify(pid)); return seen.get(pid); };
 };
 
 const accountedPids = (records, lookup) => {
@@ -421,14 +536,46 @@ const accountedPids = (records, lookup) => {
 
 const byArrival = (a, b) => Date.parse(a.arrivedAt) - Date.parse(b.arrivedAt) || (a.token < b.token ? -1 : a.token > b.token ? 1 : 0);
 
+function archiveReservation(root, record, options) {
+  if (typeof record.token !== "string" || !/^[A-Za-z0-9-]+$/.test(record.token)) throw new Error("Invalid recovery token; preserve the reservation");
+  const file = path.join(root, `recovered-${record.token}.json`);
+  let prior, exists = true;
+  try { prior = read(file); }
+  catch (error) { if (error.code !== "ENOENT") throw options?.admissionRoot ? admissionFailure(root, error, options.deadline) : error; exists = false; }
+  if (exists) {
+    const { recoveredAt, ...saved } = prior;
+    if (JSON.stringify(saved) !== JSON.stringify(record)) throw new Error(`Recovery archive differs at ${file}; preserve both records`);
+  } else atomic(file, { ...record, recoveredAt: new Date().toISOString() }, options);
+}
+
+function reconcileAdmission(root, options) {
+  let marker;
+  try { marker = readAdmissionRecord(lastAdmittedFile(root)); }
+  catch (error) { if (error.code === "ENOENT") return null;throw error; }
+  if (!marker?.pending) {
+    if (!pools.includes(marker?.pool)) throw new Error("Ambiguous admission marker; preserve reservation evidence");
+    return marker;
+  }
+  if (!Number.isSafeInteger(marker.slot) || marker.slot < 1 || marker.slot > admissionSlots || !marker.token || !pools.includes(marker.pool)
+    || (marker.previous !== null && (!marker.previous || marker.previous.pending || !pools.includes(marker.previous.pool)))) throw new Error("Ambiguous pending admission marker; preserve reservation evidence");
+  let record;
+  try { record = readAdmissionRecord(slotFile(root, marker.slot)); }
+  catch (error) { if (error.code !== "ENOENT") throw error; }
+  if (record && record.token !== marker.token) throw new Error("Pending admission slot ownership changed; preserve reservation evidence");
+  const committed = record ? { pool: marker.pool, token: marker.token, at: marker.at } : marker.previous;
+  if (committed === null) fs.unlinkSync(lastAdmittedFile(root));
+  else atomic(lastAdmittedFile(root), committed, options);
+  return committed;
+}
+
 function waitingQueue(root, identify, holders = []) {
   const rows = [];
   for (const name of fs.readdirSync(root)) {
     if (!waitingName.test(name)) continue;
     const file = path.join(root, name);
     let row;
-    try { row = read(file); } catch { continue; }
-    if (!row?.token || !row.owner?.pid || !row.owner.start || !pools.includes(row.pool) || !Number.isFinite(Date.parse(row.arrivedAt))) continue;
+    try { row = read(file); } catch (error) { if (error.code !== "ENOENT" && transientFileError(error)) throw error;continue; }
+    if (typeof row?.token !== "string" || name !== `waiting-${row.token}.json` || !row.owner?.pid || !row.owner.start || !pools.includes(row.pool) || !Number.isFinite(Date.parse(row.arrivedAt))) continue;
     if (holders.some(holder => same(holder.owner, row.owner) && holder.run === row.run)) { try { fs.unlinkSync(file); } catch {} continue; }
     let alive;
     try { alive = same(row.owner, identify(row.owner.pid)); } catch { continue; }
@@ -439,27 +586,38 @@ function waitingQueue(root, identify, holders = []) {
 }
 
 export function acquire(run, { root = machineRoot, pool = "writer", identify = processIdentity, uptime = os.uptime, census = vitestProcesses, memory = freeMemoryMb,
-  floorMb = admissionFloorMb, slots = admissionSlots, waiting = null, guardWaitMs: waitMs = guardWaitMs, admitWaitMs = waitMs, supervised = false } = {}) {
+  floorMb = admissionFloorMb, slots = admissionSlots, waiting = null, guardWaitMs: waitMs = guardWaitMs, admitWaitMs = waitMs, admissionDeadline, supervised = false } = {}) {
   if (!pools.includes(pool)) throw new Error(`Unknown test pool ${JSON.stringify(pool)}; the pools are writer and reviewer`);
   const freeMb = memory();
   if (!Number.isFinite(freeMb)) throw new Error(`Free memory reading unavailable: ${String(freeMb)}`);
+  const publication = { admissionRoot: root, deadline: admissionDeadline ?? Date.now() + admitWaitMs };
+  const checkDeadline = () => {
+    if (Number.isFinite(admissionDeadline) && Date.now() >= admissionDeadline) throw admissionExpiry();
+  };
+  let published = false, admissionFile;
   return guarded(root, () => {
+    try {
+    const last = reconcileAdmission(root, publication);
     const observedAt = Date.now();
     const lookup = memoized(identify);
     const holders = [], interrupted = [];
     for (let index = 1; index <= slots; index++) {
       const file = slotFile(root, index);
       if (!fs.existsSync(file)) continue;
-      const previous = read(file);
+      const previous = readAdmissionRecord(file);
       const state = reservationState(previous, lookup, { uptime });
       if (state === "running") { holders.push({ index, file, record: previous }); continue; }
-      if (state !== "interrupted") throw Object.assign(new Error(`Existing suite ${state}; inspect ${file} and ${previous.run}`), { holder: holderSummary(previous, index, observedAt) });
+      if (state !== "interrupted") throw Object.assign(new Error(`Existing suite ${state}; inspect ${file} and ${previous.run}; node scripts/test-suite.mjs recover-reservation rechecks containment under the guard and preserves recoverable records; ambiguous evidence stays protected`), { reservationUnknown: true, holder: holderSummary(previous, index, observedAt) });
       interrupted.push({ index, file, record: previous });
     }
     const foreign = census({ accounted: accountedPids(holders.map(holder => holder.record), lookup) });
     if (interrupted.length) {
       if (foreign.length) throw new Error(`Vitest processes still present: ${foreign.join(", ")}`);
-      for (const { record: previous } of interrupted) atomic(path.join(root, `recovered-${previous.token}.json`), { ...previous, recoveredAt: new Date().toISOString() }, { admissionRoot: root });
+      for (const { file, record: previous } of interrupted) {
+        archiveReservation(root, previous, publication);
+        try { fs.unlinkSync(file); }
+        catch (error) { throw admissionFailure(root, error, publication.deadline); }
+      }
     }
     const summaries = holders.map(holder => holderSummary(holder.record, holder.index, observedAt));
     const owner = lookup(process.pid);
@@ -479,7 +637,7 @@ export function acquire(run, { root = machineRoot, pool = "writer", identify = p
         } else {
           let current = null;
           try { current = read(file); } catch (error) { if (error.code !== "ENOENT") throw error; }
-          if (JSON.stringify(current) !== JSON.stringify(mine)) atomic(file, mine, { admissionRoot: root });
+          if (JSON.stringify(current) !== JSON.stringify(mine)) atomic(file, mine, publication);
           waiting.published = true;
         }
       }
@@ -492,49 +650,121 @@ export function acquire(run, { root = machineRoot, pool = "writer", identify = p
     if (freeMb < floorMb) throw blocked("memory", `Free memory ${freeMb} MB is below the ${floorMb} MB floor`);
     if (foreign.length) throw blocked("vitest processes", `Vitest processes already running: ${foreign.join(", ")}`);
     const admissible = candidates.filter(row => poolHolders(row.pool) < poolSlotLimit && !holders.some(holder => holder.record.run === row.run));
-    let last = null;
-    try { last = read(lastAdmittedFile(root)).pool ?? null; } catch {}
-    const preferred = admissible.filter(row => row.pool !== last);
+    const preferred = admissible.filter(row => row.pool !== last?.pool);
     const next = (preferred.length ? preferred : admissible)[0];
     if (next && (!mine || next.token !== mine.token)) throw blocked("queue", `Queued behind the ${next.pool} run ${next.run}`);
     const index = Array.from({ length: slots }, (_, at) => at + 1).find(at => !holders.some(holder => holder.index === at));
     const file = slotFile(root, index);
+    admissionFile = file;
     const record = { ...(supervised ? { version: 2 } : {}), token: randomUUID(), owner, run, pool, slot: index,
       heldSince: new Date().toISOString(), heldUptime: uptime(), phase: "reserved" };
-    atomic(lastAdmittedFile(root), { pool, token: record.token, at: record.heldSince }, { admissionRoot: root });
-    atomic(file, record, { admissionRoot: root });
+    checkDeadline();
+    atomic(lastAdmittedFile(root), { pool, token: record.token, at: record.heldSince, slot: index, pending: true, previous: last }, publication);
+    checkDeadline();
+    const writtenIdentity = atomic(file, record, { ...publication, admissionDeadline });
+    published = true;
+    let fileIdentity = publishedIdentity(file, writtenIdentity, record.token, publication.deadline), pendingIdentity;
     if (waiting?.published) {
       try { fs.unlinkSync(waitingFile(root, mine.token)); }
       catch (error) { if (error.code !== "ENOENT") console.error(`Waiting row not removed after admission: ${error.message}`); }
     }
+    const verifyOwned = (deadline) => {
+      if (pendingIdentity) {
+        try { fileIdentity = publishedIdentity(file, pendingIdentity, record.token, deadline); }
+        catch (error) {
+          if (!stillOwned(file, fileIdentity) || read(file)?.token !== record.token || !stillOwned(file, fileIdentity)) throw error;
+        }
+        pendingIdentity = undefined;
+      }
+      if (!stillOwned(file, fileIdentity) || read(file).token !== record.token || !stillOwned(file, fileIdentity)) throw new Error("Reservation ownership changed");
+    };
     const update = (values) => {
-      if (read(file).token !== record.token) throw new Error("Reservation ownership changed");
-      Object.assign(record, values);
-      atomic(file, record);
+      const deadline = Date.now() + waitMs;
+      for (;;) {
+        let written = false;
+        try {
+          verifyOwned(deadline);
+          Object.assign(record, values);
+          const updatedIdentity = atomic(file, record, { admissionRoot: root, deadline });
+          written = true;
+          pendingIdentity = updatedIdentity;
+          fileIdentity = publishedIdentity(file, updatedIdentity, record.token, deadline);
+          pendingIdentity = undefined;
+          return;
+        } catch (error) {
+          if (error.atomicPublication?.file === file) { fileIdentity = error.atomicPublication.identity;pendingIdentity = undefined;written = true; }
+          else if (error.atomicPublicationCandidate?.file === file) pendingIdentity = error.atomicPublicationCandidate.identity;
+          if (written || error.reservationRetryUnsafe || (!transientFileError(error) && !error.reservationFilesBusy) || Date.now() >= deadline) throw error;
+          Atomics.wait(sleeper, 0, 0, 10);
+        }
+      }
     };
     return { record, slot: index, file, freeMb, update, release() {
       guarded(root, () => {
-        if (read(file).token !== record.token) throw new Error("Reservation ownership changed");
-        if (!["reserved", "exited"].includes(record.phase)) throw new Error("Child exit unconfirmed; preserve reservation");
-        fs.unlinkSync(file);
+        const deadline = Date.now() + waitMs;
+        for (;;) {
+          try {
+            verifyOwned(deadline);
+            reconcileAdmission(root, { admissionRoot: root, deadline });
+            if (!["reserved", "exited"].includes(record.phase)) throw new Error("Child exit unconfirmed; preserve reservation");
+            fs.unlinkSync(file);
+            break;
+          } catch (error) {
+            if (error.reservationRetryUnsafe || (!transientFileError(error) && !error.reservationFilesBusy) || error.code === "ENOENT" || Date.now() >= deadline) throw error;
+            Atomics.wait(sleeper, 0, 0, 10);
+          }
+        }
       }, waitMs, identify);
     } };
-  }, admitWaitMs, identify, true);
+    } catch (error) {
+      if (error.atomicPublication && error.atomicPublication.file === admissionFile) published = true;
+      if (waiting && error.atomicPublication?.file === waitingFile(root, waiting.token)) waiting.published = true;
+      throw published ? error : admissionFailure(root, error, publication.deadline);
+    }
+  }, admitWaitMs, identify, true, true, admissionDeadline);
 }
 
 export function releaseKeeping(reservation, cause) {
   try { reservation.release(); }
-  catch (error) { console.error(`Reservation not released after ${cause.message}; the next acquirer recovers it: ${error.message}`); }
+  catch (error) { console.error(`Release failed after ${cause.message}: ${releaseDiagnostic(reservation, error)}`); }
+}
+
+export function releaseDiagnostic(reservation, error) {
+  let state;
+  try { state = read(reservation.file).token === reservation.record.token ? "slot still holds this token" : "slot now holds another token; preserve it"; }
+  catch (inspection) { state = inspection.code === "ENOENT" ? "slot is absent" : `slot state unavailable: ${inspection.message}`; }
+  return `${error.message}; ${state}; node scripts/test-suite.mjs recover-reservation rechecks containment under the guard; never delete reservation records`;
+}
+
+export function recoverReservations({ root = machineRoot, slots = admissionSlots, identify = processIdentity, uptime = os.uptime, census = vitestProcesses } = {}) {
+  return guarded(root, () => {
+    reconcileAdmission(root);
+    const lookup = memoized(identify), records = [];
+    for (const file of slotFiles(root, slots)) {
+      if (!fs.existsSync(file)) continue;
+      const record = readAdmissionRecord(file), state = reservationState(record, lookup, { uptime });
+      if (state !== "interrupted") throw new Error(`Recovery refused: suite ${state} at ${file}; preserve the record and its attempt evidence`);
+      records.push({ file, record });
+    }
+    const foreign = census();
+    if (foreign.length) throw new Error(`Recovery refused: Vitest processes still present: ${foreign.join(", ")}`);
+    for (const { file, record } of records) {
+      archiveReservation(root, record);
+      fs.unlinkSync(file);
+    }
+    return records.map(({ file, record }) => ({ file, token: record.token, run: record.run }));
+  }, guardWaitMs, identify);
 }
 
 const pause = (ms, deadline) => new Promise(resolve => setTimeout(resolve, Math.max(0, Math.min(ms, deadline - Date.now()))));
 
-function withdraw(root, token, identify) {
+function withdraw(root, token, identify, deadline) {
+  const cleanupDeadline = Math.min(deadline, Date.now() + guardWaitMs);
   try {
     guarded(root, () => {
       try { fs.unlinkSync(waitingFile(root, token)); }
       catch (error) { if (error.code !== "ENOENT") throw error; }
-    }, guardWaitMs, identify, false, false);
+    }, Math.max(0, cleanupDeadline - Date.now()), identify, false, false, cleanupDeadline);
   } catch (error) { console.error(`Waiting row not withdrawn: ${error.message}`); }
 }
 
@@ -553,17 +783,24 @@ export async function acquireWaiting(run, { waitMs = 0, pollMs = 2000, onWait = 
   const began = Date.now(), deadline = began + waitMs;
   const transactionMs = options.guardWaitMs ?? guardWaitMs;
   const waiting = waitMs > 0 ? { token: randomUUID(), arrivedAt: new Date(began).toISOString(), deadline } : null;
+  let previousError;
   for (;;) {
+    if (previousError && Date.now() >= deadline) {
+      if (waiting?.published) withdraw(options.root ?? machineRoot, waiting.token, options.identify ?? processIdentity, deadline);
+      throw expired(previousError, Date.now() - began);
+    }
     const admitWaitMs = waitMs > 0 ? Math.min(transactionMs, Math.max(0, deadline - Date.now())) : transactionMs;
-    try { return acquire(run, { ...options, admitWaitMs, waiting }); }
+    try { return acquire(run, { ...options, admitWaitMs, waiting, ...(waitMs > 0 ? { admissionDeadline: deadline } : {}) }); }
     catch (error) {
-      const reason = error.reservationFilesBusy ? "reservation files" : error.guardHeld ? "guard" : error.waitable ?? null;
+      if (error.admissionDeadlineExpired && previousError && !error.guardCleanupError && !error.reservationRetryUnsafe) error = previousError;
+      const reason = error.reservationRecordUnreadable ? "reservation record" : error.reservationUnknown ? "unknown reservation" : error.reservationFilesBusy ? "reservation files" : error.guardHeld ? "guard" : error.waitable ?? null;
       if (!reason || Date.now() >= deadline) {
-        if (waiting?.published) withdraw(options.root ?? machineRoot, waiting.token, options.identify ?? processIdentity);
+        if (waiting?.published) withdraw(options.root ?? machineRoot, waiting.token, options.identify ?? processIdentity, deadline);
         throw reason ? expired(error, Date.now() - began) : error;
       }
       onWait({ waiting: reason, detail: error.message, ...(error.holder ? { holder: error.holder } : {}),
         ...(error.waitable ? { holders: error.holders, position: error.position, queued: error.queued, freeMb: error.freeMb, floorMb: error.floorMb } : {}) });
+      previousError = error;
       await pause(pollMs, deadline);
     }
   }
@@ -586,8 +823,8 @@ export async function waitForUnit(reservation, { deadline = Date.now(), pollMs =
         return census({ accounted: accountedPids(records, lookup) });
       }, Math.min(guardWaitMs, Math.max(0, deadline - Date.now())), identify, false, true);
     } catch (error) {
-      if (!error.guardHeld || Date.now() >= deadline) throw error;
-      onWait({ waiting: "guard", detail: error.message });
+      if ((!error.guardHeld && !error.reservationFilesBusy) || Date.now() >= deadline) throw error;
+      onWait({ waiting: error.guardHeld ? "guard" : "reservation files", detail: error.message });
       await pause(pollMs, deadline);
       continue;
     }

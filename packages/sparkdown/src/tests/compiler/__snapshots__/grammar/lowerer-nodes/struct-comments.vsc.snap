@@ -1,53 +1,51 @@
-text.source.sparkdown [0..116]
- ├─ meta.function.luau [0..25]
- │   ├─ keyword.control.define.luau [0..6]: "define"
- │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
- │   ├─ entity.name.type.define.luau [7..11]: "card"
- │   ├─ punctuation.whitespace.optional.sd [11..12]: " "
- │   ├─ keyword.control.as.luau [12..14]: "as"
- │   ├─ punctuation.whitespace.optional.sd [14..15]: " "
- │   ├─ entity.name.type.define.parent.luau [15..20]: "style"
- │   ├─ punctuation.whitespace.optional.sd [20..21]: " "
- │   └─ keyword.control.as.luau [21..25]: "with"
- ├─ Newline [25..26]: "\n"
- ├─ meta.function.luau [26..49]
- │   └─ comment.line.double-dash.luau [26..49]
- │       ├─ punctuation.whitespace.sd [26..28]: "  "
- │       ├─ comment.luau [28..30]: "--"
- │       └─ punctuation.definition.comment.content.sd [30..49]: " Whole-line comment"
- ├─ Newline [49..50]: "\n"
- ├─ meta.function.luau [50..60]
- │   ├─ punctuation.whitespace.optional.sd [50..52]: "  "
- │   ├─ variable.other.readwrite.luau [52..55]: "gap"
- │   ├─ punctuation.whitespace.optional.sd [55..56]: " "
- │   ├─ keyword.operator.assignment.luau [56..57]: "="
- │   ├─ punctuation.whitespace.optional.sd [57..58]: " "
- │   └─ constant.numeric.decimal.luau [58..60]: "16"
- ├─ Newline [60..61]: "\n"
- ├─ meta.function.luau [61..70]
- │   ├─ punctuation.whitespace.extra.sd [61..63]: "  "
- │   ├─ entity.name.function.luau [63..68]: "panel"
- │   ├─ punctuation.whitespace.extra.sd [68..69]: " "
- │   └─ punctuation.definition.template-expression.begin.sd [69..70]: "{"
- ├─ Newline [70..71]: "\n"
- ├─ meta.function.luau [71..92]
- │   └─ comment.line.double-dash.luau [71..92]
- │       ├─ punctuation.whitespace.sd [71..75]: "    "
- │       ├─ comment.luau [75..77]: "--"
- │       └─ punctuation.definition.comment.content.sd [77..92]: " Nested comment"
- ├─ Newline [92..93]: "\n"
- ├─ meta.function.luau [93..107]
- │   ├─ punctuation.whitespace.extra.sd [93..97]: "    "
- │   ├─ variable.other.readwrite.luau [97..102]: "width"
- │   ├─ punctuation.whitespace.optional.sd [102..103]: " "
- │   ├─ keyword.operator.assignment.luau [103..104]: "="
- │   ├─ punctuation.whitespace.optional.sd [104..105]: " "
- │   └─ constant.numeric.decimal.luau [105..107]: "32"
- ├─ Newline [107..108]: "\n"
- ├─ meta.function.luau [108..111]
- │   ├─ punctuation.whitespace.extra.sd [108..110]: "  "
- │   └─ punctuation.definition.template-expression.end.sd [110..111]: "}"
- ├─ Newline [111..112]: "\n"
- ├─ meta.function.luau [112..115]
- │   └─ keyword.control.end.luau [112..115]: "end"
- └─ Newline [115..116]: "\n"
+text.source.sparkdown [0..101]
+ ├─ meta.style.luau [0..12]
+ │   ├─ keyword.control.style.luau [0..5]: "style"
+ │   ├─ punctuation.whitespace.optional.sd [5..6]: " "
+ │   ├─ entity.name.type.define.luau [6..10]: "card"
+ │   ├─ punctuation.whitespace.sd [10..11]: " "
+ │   └─ punctuation.definition.template-expression.begin.sd [11..12]: "{"
+ ├─ Newline [12..13]: "\n"
+ ├─ meta.style.luau [13..36]
+ │   └─ comment.line.double-dash.luau [13..36]
+ │       ├─ punctuation.whitespace.sd [13..15]: "  "
+ │       ├─ comment.luau [15..17]: "--"
+ │       └─ punctuation.definition.comment.content.sd [17..36]: " Whole-line comment"
+ ├─ Newline [36..37]: "\n"
+ ├─ meta.style.luau [37..47]
+ │   ├─ punctuation.whitespace.sd [37..39]: "  "
+ │   ├─ variable.other.property.define.sd [39..42]: "gap"
+ │   ├─ markup.raw.whitespace.separator.optional.sd [42..43]: " "
+ │   ├─ keyword.operator.assignment.sd [43..44]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [44..45]: " "
+ │   └─ constant.numeric.sd [45..47]
+ │       └─ constant.numeric.sd [45..47]: "16"
+ ├─ Newline [47..48]: "\n"
+ ├─ meta.style.luau [48..57]
+ │   ├─ punctuation.whitespace.sd [48..50]: "  "
+ │   ├─ entity.name.type.class.view.sd [50..55]: "panel"
+ │   ├─ punctuation.whitespace.sd [55..56]: " "
+ │   └─ punctuation.definition.template-expression.begin.sd [56..57]: "{"
+ ├─ Newline [57..58]: "\n"
+ ├─ meta.style.luau [58..79]
+ │   └─ comment.line.double-dash.luau [58..79]
+ │       ├─ punctuation.whitespace.sd [58..62]: "    "
+ │       ├─ comment.luau [62..64]: "--"
+ │       └─ punctuation.definition.comment.content.sd [64..79]: " Nested comment"
+ ├─ Newline [79..80]: "\n"
+ ├─ meta.style.luau [80..94]
+ │   ├─ punctuation.whitespace.sd [80..84]: "    "
+ │   ├─ variable.other.property.define.sd [84..89]: "width"
+ │   ├─ markup.raw.whitespace.separator.optional.sd [89..90]: " "
+ │   ├─ keyword.operator.assignment.sd [90..91]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [91..92]: " "
+ │   └─ constant.numeric.sd [92..94]
+ │       └─ constant.numeric.sd [92..94]: "32"
+ ├─ Newline [94..95]: "\n"
+ ├─ meta.style.luau [95..98]
+ │   ├─ punctuation.whitespace.sd [95..97]: "  "
+ │   └─ punctuation.definition.template-expression.end.sd [97..98]: "}"
+ ├─ Newline [98..99]: "\n"
+ ├─ meta.style.luau [99..100]
+ │   └─ punctuation.definition.template-expression.end.sd [99..100]: "}"
+ └─ Newline [100..101]: "\n"

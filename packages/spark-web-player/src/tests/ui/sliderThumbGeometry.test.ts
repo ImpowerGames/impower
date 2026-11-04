@@ -1,9 +1,9 @@
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
-const SOURCE = `layout main with
+const SOURCE = `layout main {
   slider #min=0 #max=100
-end
+}
 `;
 
 async function builtinCss(): Promise<string> {

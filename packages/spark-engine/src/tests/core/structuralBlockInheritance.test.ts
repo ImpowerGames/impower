@@ -33,11 +33,11 @@ const chainOf = (story: any, global: string): string[] => {
 
 describe("structural blocks inherit from their `as` parent at runtime", () => {
   test("a builtin parent is inherited, and the child stays an animation", async () => {
-    const ctx = await contextOf(`animation slow_fade as fadein with
+    const ctx = await contextOf(`animation slow_fade as fadein {
   timing {
     duration = 3
   }
-end
+}
 `);
     expect(ctx.animation?.fadein?.keyframes).toEqual([{ opacity: "0" }, { opacity: "1" }]);
     expect(ctx.animation?.slow_fade).toMatchObject({
@@ -57,7 +57,7 @@ end
   });
 
   test("an authored parent animation is inherited, nested fields included", async () => {
-    const ctx = await contextOf(`animation glow with
+    const ctx = await contextOf(`animation glow {
   keyframes {
     from {
       opacity = "0"
@@ -70,13 +70,13 @@ end
     duration = 2
     easing = "linear"
   }
-end
+}
 
-animation quick_glow as glow with
+animation quick_glow as glow {
   timing {
     duration = 0.5
   }
-end
+}
 `);
     const quick = ctx.animation?.quick_glow;
     expect(quick).toMatchObject({ $type: "animation", $name: "quick_glow" });
@@ -90,18 +90,18 @@ end
   });
 
   test("an authored parent theme is inherited", async () => {
-    const ctx = await contextOf(`theme dusk with
+    const ctx = await contextOf(`theme dusk {
   colors {
     primary = "#123456"
     secondary = "#654321"
   }
-end
+}
 
-theme late_dusk as dusk with
+theme late_dusk as dusk {
   colors {
     primary = "#000000"
   }
-end
+}
 `);
     expect(ctx.theme?.late_dusk).toMatchObject({
       $type: "theme",
@@ -111,7 +111,7 @@ end
   });
 
   test("an authored parent morph is inherited", async () => {
-    const ctx = await contextOf(`morph blink with
+    const ctx = await contextOf(`morph blink {
   method = bend
   keyframes {
     from {
@@ -125,13 +125,13 @@ end
       }
     }
   }
-end
+}
 
-morph slow as blink with
+morph slow as blink {
   timing {
     duration = 1
   }
-end
+}
 `);
     expect(ctx.morph?.slow).toMatchObject({
       $type: "morph",
@@ -143,13 +143,13 @@ end
   });
 
   test("a parent declared after its child is linked when it registers", async () => {
-    const ctx = await contextOf(`morph slow as blink with
+    const ctx = await contextOf(`morph slow as blink {
   timing {
     duration = 1
   }
-end
+}
 
-morph blink with
+morph blink {
   method = bend
   keyframes {
     from {
@@ -163,7 +163,7 @@ morph blink with
       }
     }
   }
-end
+}
 `);
     expect(ctx.morph?.slow).toMatchObject({ $type: "morph", method: "bend" });
     expect(ctx.morph?.slow?.keyframes).toHaveLength(2);
@@ -172,27 +172,27 @@ end
   test.each([
     [
       "before",
-      `define base as morph with
-  method = "bend"
-end
+      `morph base {
+  method = bend
+}
 
-morph child as base with
+morph child as base {
   fallback = cut
-end
+}
 `,
     ],
     [
       "after",
-      `morph child as base with
+      `morph child as base {
   fallback = cut
-end
+}
 
-define base as morph with
-  method = "bend"
-end
+morph base {
+  method = bend
+}
 `,
     ],
-  ])("a `define` parent declared %s its child is inherited", async (_, src) => {
+  ])("a parent block declared %s its child is inherited", async (_, src) => {
     const ctx = await contextOf(src);
     expect(ctx.morph?.child).toMatchObject({
       $type: "morph",
@@ -204,7 +204,7 @@ end
   test("blocks of different types and a variable may share a parent's name", async () => {
     const src = `store base = 1
 
-animation base with
+animation base {
   keyframes {
     from {
       opacity = "0"
@@ -213,15 +213,15 @@ animation base with
       opacity = "1"
     }
   }
-end
+}
 
-animation child as base with
+animation child as base {
   timing {
     duration = 2
   }
-end
+}
 
-morph base with
+morph base {
   method = trace
   keyframes {
     from {
@@ -235,11 +235,11 @@ morph base with
       }
     }
   }
-end
+}
 
-morph other as base with
+morph other as base {
   fallback = cut
-end
+}
 `;
     expect(compileUI(`${src}${SCENE}`).errors).toEqual([]);
     const ctx = await contextOf(src);
@@ -253,13 +253,13 @@ end
   });
 
   test("a cycle of parents is refused rather than looping", async () => {
-    const story = await storyOf(`morph a as b with
+    const story = await storyOf(`morph a as b {
   method = bend
-end
+}
 
-morph b as a with
+morph b as a {
   fallback = cut
-end
+}
 `);
     expect(chainOf(story, "$morph_a")).toEqual(["a", "morph"]);
     expect(chainOf(story, "$morph_b")).toEqual(["b", "a", "morph"]);
@@ -267,111 +267,13 @@ end
     expect(ctx.morph?.b).toMatchObject({ fallback: "cut", method: "bend" });
   });
 
-  const ownValue = (story: any, global: string, key: string): unknown =>
-    story.state.variablesState.GetVariableWithName(global)?.value?.get(key)
-      ?.value;
-
-  test.each([
-    [
-      "before",
-      `define base as theme with
-  store marker = "original"
-end
-
-theme middle as base with
-  colors {
-    primary = "#000000"
-  }
-end
-
-theme leaf as middle with
-  colors {
-    secondary = "#ffffff"
-  }
-end
-`,
-    ],
-    [
-      "after",
-      `theme leaf as middle with
-  colors {
-    secondary = "#ffffff"
-  }
-end
-
-theme middle as base with
-  colors {
-    primary = "#000000"
-  }
-end
-
-define base as theme with
-  store marker = "original"
-end
-`,
-    ],
-  ])(
-    "`store` defaults of a parent declared %s its children become their own",
-    async (_, src) => {
-      const story = await storyOf(src);
-      expect(ownValue(story, "$theme_middle", "marker")).toBe("original");
-      expect(ownValue(story, "$theme_leaf", "marker")).toBe("original");
-    },
-  );
-
-  const STORE_CHAIN = `define base as theme with
-  store marker = "base"
-end
-
-define parent as base with
-  store marker = "parent"
-end
-
-define sibling as parent with
-  name = "sibling"
-end
-`;
-  const STORE_CHILD = `theme child as parent with
-  colors {
-    primary = "#000000"
-  }
-end
-`;
-
-  test.each([
-    ["before", `${STORE_CHAIN}\n${STORE_CHILD}`],
-    ["after", `${STORE_CHILD}\n${STORE_CHAIN}`],
-  ])(
-    "the nearest parent's `store` default wins, parent declared %s the child",
-    async (_, src) => {
-      const story = await storyOf(src);
-      expect(ownValue(story, "$theme_child", "marker")).toBe("parent");
-      const ctx = buildDefinesContext(story) as any;
-      expect(ctx.theme?.child?.marker).toBe("parent");
-    },
-  );
-
-  test("a `define` copies the nearest parent's `store` default", async () => {
-    const ctx = await contextOf(`${STORE_CHAIN}
-define quiet as base with
-  marker = "quiet"
-end
-
-define quiet_leaf as quiet with
-  name = "quiet_leaf"
-end
-`);
-    expect(ctx.parent?.sibling?.marker).toBe("parent");
-    expect(ctx.quiet?.quiet_leaf?.marker).toBe("quiet");
-  });
-
   test("a cycle longer than a chain walk's step limit is still refused", async () => {
     const count = 66;
     const blocks = Array.from(
       { length: count },
-      (_, i) => `theme n${i} as n${(i + 1) % count} with
+      (_, i) => `theme n${i} as n${(i + 1) % count} {
   p${i} = "v${i}"
-end
+}
 `,
     ).join("\n");
     const story = await storyOf(blocks);
@@ -383,11 +285,11 @@ end
   });
 
   test("a parent that never registers leaves the child inheriting from its type", async () => {
-    const ctx = await contextOf(`animation lonely as nowhere with
+    const ctx = await contextOf(`animation lonely as nowhere {
   timing {
     duration = 4
   }
-end
+}
 `);
     expect(ctx.animation?.lonely).toMatchObject({
       $type: "animation",

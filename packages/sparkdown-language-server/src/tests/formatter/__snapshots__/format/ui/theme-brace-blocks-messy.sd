@@ -1,4 +1,4 @@
-theme dusk with
+theme dusk {
     colors{
 primary = red
           surface = "#101010"
@@ -8,4 +8,4 @@ primary = red
   small = 4px
             large{inner = 8px;   outer = 16px}
 }
-end
+}

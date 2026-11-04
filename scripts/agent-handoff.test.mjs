@@ -7,7 +7,7 @@ import { execFileSync, spawn } from "node:child_process";
 import childProcess from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
 import { pathToFileURL } from "node:url";
-import { runHandoff as actualHandoff, checkReviewRound, verifyReviewComment, reserveWithinBound, validateReviewRecovery } from "./agent-handoff.mjs";
+import { runHandoff as actualHandoff, checkReviewRound, completeReviewAccounting, verifyReviewComment, reserveWithinBound, validateReviewRecovery } from "./agent-handoff.mjs";
 import { readRepos, reviewThread } from "../.agents/repos.mjs";
 import { validateCodexReviewer } from "./native-reviewer.mjs";
 import { installReviewerHooks } from "./reviewer-security.mjs";
@@ -40,6 +40,64 @@ for (const limit of [3, 6]) {
   assert.throws(() => validateReviewRecovery(recovery), /finalCorrections.*pending serial reviewer/);
   for (const finalCorrections of [false, true]) assert.doesNotThrow(() => validateReviewRecovery({ ...recovery, finalCorrections }), "the explicit persisted boolean is accepted without inventing its value");
 }
+for (const limit of [3, 6]) {
+  const planned = ["ax", "undirected"];
+  const recovery = {
+    ...config, first: "review", completedReviewRound: limit,
+    reviewedHead: git("rev-parse", "HEAD").trim(), completedRoundReviews: 1,
+    completedRoundReviewers: { ax: 2 }, plannedRoundReviewers: planned,
+    reviewRoundLimit: limit,
+    ...(limit > 3 ? { extendedReviewAuthorization: "User authorized six rounds" } : {}),
+    steps: { review: { role: "review", round: limit, reviewers: planned, reviewerId: "undirected" } },
+  };
+  assert.doesNotThrow(() => validateReviewRecovery(recovery), "a pending named serial reviewer does not need an admission-irrelevant correction flag");
+  assert.equal(recovery.finalCorrections, undefined, "validation does not invent persisted correction state");
+  const counted = {
+    ...recovery, completedRoundReviewers: null, plannedRoundReviewers: null,
+    steps: { review: { role: "review", round: limit, reviewers: 2 } },
+  };
+  assert.doesNotThrow(() => validateReviewRecovery(counted), "a count-only pending serial reviewer retains its documented admission semantics");
+  assert.throws(() => validateReviewRecovery({ ...counted, completedRoundReviews: 2 }), /finalCorrections/, "a completed count-only round still needs persisted correction state");
+  for (const finalCorrections of [false, true]) {
+    const explicit = { ...recovery, finalCorrections };
+    assert.equal(validateReviewRecovery(explicit), finalCorrections);
+    assert.equal(explicit.finalCorrections, finalCorrections, "an explicit persisted correction flag is preserved");
+  }
+  for (const [label, change] of [
+    ["implementation first", (plan) => { plan.steps.review.role = "implement"; }],
+    ["another round", (plan) => { plan.steps.review.round--; }],
+    ["completed reviewer retry", (plan) => { plan.steps.review.reviewerId = "ax"; plan.steps.review.attempt = 3; }],
+    ["unplanned reviewer", (plan) => { plan.steps.review.reviewerId = "other"; }],
+    ["changed planned reviewers", (plan) => { plan.steps.review.reviewers = ["ax", "other"]; plan.steps.review.reviewerId = "other"; }],
+    ["exhausted round", (plan) => { plan.completedRoundReviewers.undirected = 1; plan.completedRoundReviews = 2; }],
+  ]) {
+    const invalid = structuredClone(recovery);
+    change(invalid);
+    assert.throws(() => validateReviewRecovery(invalid), /finalCorrections/, label);
+  }
+  for (const [label, change, pattern] of [
+    ["missing reviewed head", (plan) => { delete plan.reviewedHead; }, /reviewedHead/],
+    ["missing completed identities", (plan) => { delete plan.completedRoundReviewers; }, /completedRoundReviewers/],
+    ["missing planned identities", (plan) => { delete plan.plannedRoundReviewers; }, /plannedRoundReviewers/],
+    ["inconsistent completed count", (plan) => { plan.completedRoundReviews = 2; }, /equal to its number/],
+    ["invalid correction flag", (plan) => { plan.finalCorrections = "false"; }, /finalCorrections/],
+  ]) {
+    const invalid = structuredClone(recovery);
+    change(invalid);
+    assert.throws(() => validateReviewRecovery(invalid), pattern, label);
+  }
+}
+for (const limit of [1, 2]) {
+  const recovery = {
+    ...config, first: "review", completedReviewRound: limit, reviewRoundLimit: limit,
+    reviewedHead: git("rev-parse", "HEAD").trim(), completedRoundReviews: 1,
+    steps: { review: { role: "review", round: limit, reviewers: 2 } },
+  };
+  assert.throws(() => validateReviewRecovery(recovery), /finalCorrections/, "a short custom cap still requires persisted state");
+  assert.equal(validateReviewRecovery({ ...recovery, finalCorrections: false }), false);
+  assert.throws(() => validateReviewRecovery({ ...recovery, finalCorrections: true }), /finalCorrections.*round 3/);
+  assert.equal(validateReviewRecovery({ ...recovery, reviewRoundLimit: 3 }), false, "below-cap omission still defaults to false");
+}
 let commentReads = 0, waits = 0;
 const prThread = reviewThread({ pr: 554 }, OFF);
 await verifyReviewComment(1, prThread, "a".repeat(40), worktree, {
@@ -68,6 +126,9 @@ const malformed = [
   ["missing first", (plan) => { delete plan.first; plan.firstStep = "first"; }, /top-level first/],
   ["empty first", (plan) => { plan.first = ""; }, /top-level first/],
   ["unknown first", (plan) => { plan.first = "frist"; }, /Unknown step: frist/],
+  ["step transport", (plan) => { plan.steps.first.transport = "native-codex-jsonl"; }, /Unknown step field transport on step first.*nativeResult.*codex-jsonl/],
+  ["unknown step field", (plan) => { plan.steps.second.reviwers = 2; }, /Unknown step field reviwers on step second/],
+  ["non-object step", (plan) => { plan.steps.second = null; }, /Step second must be an object/],
   ["execution grant on writer", (plan) => { plan.steps.first.execution = [{ id: "tests", kind: "vitest", package: "packages/sparkdown", files: ["a.test.ts"] }]; }, /execution is only supported on review steps/],
   ["step-level completedReviewRound", (plan) => { delete plan.completedReviewRound; plan.steps.first.completedReviewRound = 0; }, /Move completedReviewRound from step first to the top level/],
   ["ticket before the cutover", (plan) => { plan.ticket = 12; }, /ticket applies once the cutover switch .* is on/],
@@ -86,6 +147,33 @@ for (const [label, change, message, repos = OFF] of malformed) {
   assert.equal(fs.existsSync(launchMarker), false, `${label} must launch no child`);
   assert.equal(fs.existsSync(plan.journal), false, `${label} must leave no journal to block the corrected plan`);
   assert.equal(fs.existsSync(git("rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock").trim()), false, `${label} must not take the lock`);
+}
+
+{
+  const reviewer = path.join(scratch, "awaited-reviewer");
+  const state = path.join(scratch, "awaited-state");
+  fs.mkdirSync(reviewer);
+  fs.mkdirSync(state);
+  fs.writeFileSync(path.join(reviewer, "prior.md"), "preserve");
+  fs.writeFileSync(path.join(worktree, "exec"), `import fs from "node:fs";import path from "node:path";import {execFileSync} from "node:child_process";let p="";for await(const c of process.stdin)p+=c;if(p.startsWith("Reviewer route probe")){console.log("OK");process.exit(0);}const dir=process.argv[process.argv.indexOf("--cd")+1];execFileSync("git",["clone","--quiet",process.cwd(),path.join(dir,"probe")],{windowsHide:true});fs.writeFileSync(path.join(dir,"report.md"),"report");const head=/reviewed head=([a-f0-9]+)/.exec(p)[1];fs.writeFileSync(/Write (.*?) with the editor tool/.exec(p)[1],JSON.stringify({head,next:null,commentIds:[123],summary:"complete"}));`);
+  git("add", "exec");
+  git("commit", "-m", "awaited Codex fixture");
+  const plan = { ...config, reviewer: "gpt-test", maxSteps: 1, journal: path.join(state, "journal.jsonl"), steps: { first: { role: "review", round: 1, model: "gpt-test", executable: process.execPath, args: ["exec", "--model", "gpt-test", "--cd", reviewer, "--output-last-message", path.join(reviewer, "report.md")], permissions: { cwd: reviewer }, prompt, next: [null] } } };
+  const planFile = path.join(state, "plan.json");
+  fs.writeFileSync(planFile, JSON.stringify(plan));
+  const originalExec = childProcess.execFileSync;
+  childProcess.execFileSync = (exe, args, options) => exe === "gh" ? JSON.stringify({ issue_url: reviewThread(plan, OFF).issueUrl, body: git("rev-parse", "HEAD").trim(), created_at: new Date().toISOString() }) : originalExec(exe, args, options);
+  syncBuiltinESMExports();
+  try { await runHandoff(planFile); }
+  finally { childProcess.execFileSync = originalExec; syncBuiltinESMExports(); }
+  const rows = fs.readFileSync(plan.journal, "utf8").trim().split("\n").map(JSON.parse);
+  const launching = rows.find((row) => row.event === "launching");
+  assert.equal(launching.reviewerDirectory, reviewer, "awaited Codex records its reviewer directory");
+  assert.deepEqual(launching.reviewerHad, ["prior.md"], "awaited Codex records pre-launch contents");
+  assert.equal(fs.existsSync(path.join(reviewer, "probe")), false, "the exited reviewer's clone is removed");
+  assert.equal(fs.readFileSync(path.join(reviewer, "prior.md"), "utf8"), "preserve");
+  assert.equal(fs.readFileSync(path.join(reviewer, "report.md"), "utf8"), "report");
+  assert.ok(rows.findIndex((row) => row.event === "exited") < rows.findIndex((row) => row.event === "probe-checkouts-removed"), "cleanup follows confirmed exit");
 }
 
 {
@@ -496,6 +584,41 @@ try {
   const resumedPlan = resumed({}, "resumed-round.jsonl");
   fs.writeFileSync(file,JSON.stringify(resumedPlan)); await runHandoff(file);
   assert.deepEqual(fs.readFileSync(resumedPlan.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="completed").completedRoundReviewers,{"ax-1":2,"undirected-1":1},"a resumed plan completes the round's remaining planned reviewer");
+  for (const limit of [3, 6]) {
+    for (const changedHead of [false, true]) {
+      const reviewedHead = git("rev-parse", "HEAD").trim();
+      if (changedHead) git("commit", "--allow-empty", "-m", "correction between final round reviewers");
+      const pending = resumed({
+        completedReviewRound: limit, reviewedHead, finalCorrections: undefined,
+        maxSteps: 3,
+        reviewRoundLimit: limit,
+        ...(limit > 3 ? { extendedReviewAuthorization: "User authorized six rounds" } : {}),
+        steps: {
+          undirected: { ...retryStep("undirected-1", undefined, changedHead ? "fix" : "extra"), round: limit },
+          ...(changedHead ? { fix: retryStep(null, null, "extra", "implement") } : {}),
+          extra: { ...retryStep("undirected-1", 2, "null"), round: limit },
+        },
+      }, `pending-limit-${limit}-${changedHead}.jsonl`);
+      fs.writeFileSync(file, JSON.stringify(pending));
+      await assert.rejects(runHandoff(file), /no automatic review/);
+      const rows = fs.readFileSync(pending.journal, "utf8").trim().split("\n").map(JSON.parse);
+      const launches = rows.filter(row => row.event === "launching");
+      const [launch] = launches;
+      const completion = rows.find(row => row.event === "completed");
+      assert.equal(launch.finalCorrections, true, "the journal records the conservative flag for interrupted completion");
+      assert.equal(completion.completedRound, limit);
+      assert.equal(completion.reviewedHead, launch.head, "the pending reviewer covers the launch head");
+      assert.deepEqual(completion.completedRoundReviewers, { "ax-1": 2, "undirected-1": 1 });
+      assert.deepEqual(completion.pendingReviewers, []);
+      assert.equal(completion.finalCorrections, !changedHead, "only a review of a corrected head clears the effective flag");
+      const replay = completeReviewAccounting(launch, { ...launch, reviewers: launch.plannedReviewers }, launch.head);
+      assert.deepEqual(replay.completedRoundReviewers, completion.completedRoundReviewers);
+      assert.equal(replay.finalCorrections, completion.finalCorrections, "replaying the journaled launch preserves correction accounting");
+      assert.deepEqual(launches.map(row => row.step), changedHead ? ["undirected", "fix"] : ["undirected"]);
+      if (changedHead) assert.equal(rows.filter(row => row.event === "completed").at(-1).finalCorrections, true, "a later implementation correction restores the flag");
+      assert.ok(rows.find(row => row.event === "exited"), "the Windows child exit is journalled");
+    }
+  }
   const refusedResume = async (overrides, steps, pattern, journal) => {
     const plan = resumed({ ...overrides, ...(steps ? { steps } : {}) }, journal);
     fs.writeFileSync(file,JSON.stringify(plan)); await assert.rejects(runHandoff(file),pattern);
@@ -521,6 +644,24 @@ try {
   const countResume = { ...countFirst, completedReviewRound:completedRound, reviewedHead, completedRoundReviews, completedRoundReviewers, plannedRoundReviewers, finalCorrections, journal:path.join(scratch,"count-form-resumed.jsonl") };
   fs.writeFileSync(file,JSON.stringify(countResume)); await runHandoff(file);
   assert.equal(fs.readFileSync(countResume.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="completed").completedRoundReviews,2,"the count-form round's second reviewer completes from the emitted journal state");
+  for (const limit of [3, 6]) {
+    const reviewedHead = git("rev-parse", "HEAD").trim();
+    git("commit", "--allow-empty", "-m", "correction between count-only reviewers");
+    const pending = {
+      ...countResume, completedReviewRound: limit, reviewedHead, finalCorrections: undefined,
+      reviewRoundLimit: limit,
+      ...(limit > 3 ? { extendedReviewAuthorization: "User authorized six rounds" } : {}),
+      journal: path.join(scratch, `count-pending-limit-${limit}.jsonl`),
+      steps: { review: { ...countResume.steps.review, round: limit } },
+    };
+    fs.writeFileSync(file, JSON.stringify(pending)); await runHandoff(file);
+    const completed = fs.readFileSync(pending.journal, "utf8").trim().split("\n").map(JSON.parse).find(row => row.event === "completed");
+    assert.equal(completed.completedRoundReviews, 2, "count-only pending recovery advances its validated completion count");
+    assert.equal(completed.completedRoundReviewers, null);
+    assert.equal(completed.plannedRoundReviewers, null);
+    assert.equal(completed.reviewedHead, git("rev-parse", "HEAD").trim());
+    assert.equal(completed.finalCorrections, false);
+  }
 
 } finally { childProcess.execFileSync=originalExec; syncBuiltinESMExports(); }
 config.completedReviewRound = 0;
