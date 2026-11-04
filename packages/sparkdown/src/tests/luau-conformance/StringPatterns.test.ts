@@ -370,6 +370,32 @@ end
     expect(recorded).toEqual(["hello", "world", "from", "sparkdown"]);
   });
 
+  test("two iterators over the same pattern interleave without disturbing each other", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+
+scene start
+  & run()
+  done
+end
+
+function run()
+local a = string.gmatch("aa bb cc", "(%a+)")
+local b = string.gmatch("xx yy zz", "(%a+)")
+host_record(a())
+host_record(b())
+for w in string.gmatch("11 22", "(%a+)") do
+host_record(w)
+end
+host_record(a())
+host_record(b())
+host_record(b())
+host_record(a())
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["aa", "xx", "bb", "yy", "zz", "cc"]);
+  });
+
   test("yields N captures as N loop variables", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 
