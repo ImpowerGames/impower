@@ -155,12 +155,15 @@ export const resolveImageAttributes = (context: ImageContext, struct: any, optio
     diagnostics: [...derivation.diagnostics, ...visibility.diagnostics] };
 };
 
-export const filterImage = (context: ImageContext, filteredImage: any): void => {
-  if (!filteredImage) return;
-  delete filteredImage.filtered_src;
-  delete filteredImage.filtered_layers;
+export interface FilteredImageResult {
+  src?: string;
+  layers?: any[];
+}
+
+export const filterImage = (context: ImageContext, filteredImage: any): FilteredImageResult => {
+  if (!filteredImage) return {};
   const { image, attributes } = resolveChain(context, filteredImage);
-  if (!image || typeof image !== "object") return;
+  if (!image || typeof image !== "object") return {};
   const entry = rootMemo(image);
   const derivation = entry.vocabulary
     ? derivationOf(entry, attributes)
@@ -168,8 +171,7 @@ export const filterImage = (context: ImageContext, filteredImage: any): void => 
   const selection = derivation?.selection ?? {};
   if (image.$type === "image") {
     if (derivation && "filteredSrc" in derivation) {
-      filteredImage.filtered_src = derivation.filteredSrc;
-      return;
+      return { src: derivation.filteredSrc };
     }
     let filteredSrc: string | undefined;
     if (image.data && (image.ext === "svg" || image.data.includes("<svg") || /^data:image\/svg\+xml[;,]/i.test(image.data))) {
@@ -179,8 +181,9 @@ export const filterImage = (context: ImageContext, filteredImage: any): void => 
       filteredSrc = buildFilteredSrc(image, selection) ?? image.src;
     }
     if (derivation) derivation.filteredSrc = filteredSrc;
-    filteredImage.filtered_src = filteredSrc;
-  } else if (image.$type === "layered_image") {
+    return { src: filteredSrc };
+  }
+  if (image.$type === "layered_image") {
     let layers = derivation?.filteredLayers;
     if (!layers) {
       const visible = derivation && entry.vocabulary
@@ -191,6 +194,7 @@ export const filterImage = (context: ImageContext, filteredImage: any): void => 
         .map(([, value]) => value);
       if (derivation) derivation.filteredLayers = layers;
     }
-    filteredImage.filtered_layers = [...layers];
+    return { layers: [...layers] };
   }
+  return {};
 };
