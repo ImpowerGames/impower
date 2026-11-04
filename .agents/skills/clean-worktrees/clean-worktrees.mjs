@@ -586,7 +586,7 @@ function registration(abs, ctx, deps) {
   return { known: true, registered: parseWorktreeList(r.out).some((e) => samePath(e.path, abs)) };
 }
 
-// workaround(git): on Windows `git worktree remove` deletes entries before a held one and drops its record before reporting the failure
+// workaround(git): on Windows `git worktree remove` deletes entries before a held one and drops its record before reporting the failure (seen with Git 2.56.0.windows.4)
 async function probeHeld(abs, deps) {
   const kept = (note) => ({ outcome: "kept", note, remaining: null });
   const failed = (note, remaining) => ({ outcome: "failed", note, remaining });

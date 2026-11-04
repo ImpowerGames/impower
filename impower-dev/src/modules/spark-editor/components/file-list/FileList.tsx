@@ -1,4 +1,4 @@
-// workaround(vite): Vite SSR fails with "exports is not defined" on CJS-only vscode-languageserver-protocol, so the import is deferred
+// workaround(vite): Vite SSR fails with "exports is not defined" on CJS-only vscode-languageserver-protocol, so the import is deferred (seen with vite 8.0.16)
 import {
   Button,
   Check,
@@ -51,7 +51,7 @@ import { recordMove, recordTrashDeletion } from "../../utils/fileUndo";
 import { onFolderPathChanged } from "../../utils/folderPathChanges";
 import { newEntryDraftRequest } from "../../utils/newEntryDraft";
 import workspace from "../../workspace/WorkspaceStore";
-// workaround(vite): Vite SSR fails on CJS-only vscode-languageserver-protocol runtime exports, so only a type import is used here
+// workaround(vite): Vite SSR fails on CJS-only vscode-languageserver-protocol runtime exports, so only a type import is used here (seen with vite 8.0.16)
 import type { FileData } from "@impower/spark-editor-protocol/src/types/workspace/FileData";
 import FilePreviewOverlay, {
   type PreviewItem,
@@ -194,7 +194,7 @@ export default function FileList({
     return () => el.removeEventListener("scroll", update);
   }, [onScrolledChange]);
 
-  // workaround(chromium): a continuously compositing same-tab iframe wedges wheel scroll latching, so the next gesture scrolls nothing for about 1 s
+  // workaround(chromium): a continuously compositing same-tab iframe wedges wheel scroll latching, so the next gesture scrolls nothing for about 1 s (seen with Chrome 157.0.8103.39)
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;

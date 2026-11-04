@@ -16,7 +16,7 @@ const tracker = new CompletionPreviewTracker((params) => {
   }
 });
 
-// workaround(vscode): stops querying inline providers when the editor loses focus and has no public event for it, so the highlight is polled
+// workaround(vscode): stops querying inline providers when the editor loses focus and has no public event for it, so the highlight is polled (seen with @types/vscode 1.120.0)
 const ASK_WHILE_OPEN_MS = 500;
 let asking: ReturnType<typeof setInterval> | undefined;
 const askWhileOpen = () => {

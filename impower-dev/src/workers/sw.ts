@@ -8,7 +8,7 @@ import { getOrCreateThumbnail as getOrCreateThumbnailShared } from "@impower/spa
 import { getStaleCacheNames } from "./swCaches";
 import { fileResponse } from "./swRanges";
 
-// workaround(vite): client builds replace ambient `process.env` with `{}`, so `process.env.X` reads fold away; injected tokens avoid it
+// workaround(vite): client builds replace ambient `process.env` with `{}`, so `process.env.X` reads fold away; injected tokens avoid it (seen with vite 8.0.16)
 declare const SW_VERSION_INJECTED: string | undefined;
 declare const SW_RESOURCES_INJECTED: string | undefined;
 declare const SW_NODE_ENV_INJECTED: string | undefined;

@@ -553,7 +553,7 @@ export class SearchPanel implements Panel {
     this.rendered = undefined;
 
     const searchQuery = new SearchQuery(query);
-    // workaround(@codemirror/search): SearchQuery.getCursor throws on an invalid regex, which from a timer surfaces as an unhandled error
+    // workaround(@codemirror/search): SearchQuery.getCursor throws on an invalid regex, which from a timer surfaces as an unhandled error (seen with @codemirror/search 6.7.1)
     if (!searchQuery.valid) {
       this.matched = {
         doc: state.doc,

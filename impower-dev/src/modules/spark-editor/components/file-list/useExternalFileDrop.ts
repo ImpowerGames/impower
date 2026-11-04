@@ -77,7 +77,7 @@ export function useExternalFileDrop(
       if (files.length > 0) onDropRef.current(folder, files);
     };
 
-    // workaround(chromium): an OS file drag fires no in-page dragend and a cancelled or blurred drag no balancing dragleave, so the highlight could stick
+    // workaround(chromium): an OS file drag fires no in-page dragend and a cancelled or blurred drag no balancing dragleave, so the highlight could stick (seen with Chrome 157.0.8103.39)
     const onAbandon = () => reset();
     el.addEventListener("dragenter", onEnter);
     el.addEventListener("dragover", onOver);

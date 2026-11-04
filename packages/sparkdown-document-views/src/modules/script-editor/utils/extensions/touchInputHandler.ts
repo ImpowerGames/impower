@@ -65,7 +65,7 @@ const isKeyboardOpen = () => {
   return vv != null && window.innerHeight - vv.height > 0;
 };
 
-// workaround(android): focusing an already-focused field does not reopen an on-screen keyboard dismissed with Back, so blur then refocus
+// workaround(android): focusing an already-focused field does not reopen an on-screen keyboard dismissed with Back, so blur then refocus (https://github.com/codemirror/view/pull/14)
 const focusWithKeyboard = (view: EditorView) => {
   if (!view.hasFocus) {
     view.focus();

@@ -91,7 +91,7 @@ function bundleTypes() {
     if (stdout) console.log(stdout.trim());
     if (stderr) console.error(stderr.trim());
     if (err) console.error(LOG_PREFIX + "Failed:", err.message);
-    // workaround(dts-bundle-generator): fails on TypeScript-version type noise and then writes no .d.ts file, so post-processing checks the file exists
+    // workaround(dts-bundle-generator): fails on TypeScript-version type noise and then writes no .d.ts file, so post-processing checks the file exists (seen with dts-bundle-generator 9.5.1)
     if (fs.existsSync(outputPath)) {
       removeShadowingInterfaces(outputPath);
     } else {

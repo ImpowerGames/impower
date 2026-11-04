@@ -2124,7 +2124,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       const absX = Math.abs(n);
       let e = Math.floor(Math.log2(absX)) + 1;
       let m = absX / Math.pow(2, e);
-      // workaround(node): Math.log2 is implementation-approximated, so floor(log2(x))+1 can be off by one near powers of two; frexp corrects the exponent
+      // workaround(node): Math.log2 is implementation-approximated, so floor(log2(x))+1 can be off by one near powers of two; frexp corrects the exponent (seen with Node 26.13.0)
       if (m >= 1) {
         m /= 2;
         e += 1;

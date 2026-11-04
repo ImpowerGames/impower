@@ -8,7 +8,7 @@ const route = "Use node scripts/filer-worktree.mjs remove --record <absolute-own
 const literalCleanupRoute = "For scratch cleanup, replace variables or expansions with a quoted absolute literal target and retry the identity checks. Single-file forms: rm -f -- '/absolute/scratch/file.log' (Bash), or Remove-Item -LiteralPath 'C:/absolute/scratch/file.log' -Force (PowerShell). A temporary location does not exempt repositories, worktrees, ownership or links from protection. " + route;
 const setupRoute = "For an ordinary writer worktree, use direct Git Bash: cd \"C:/absolute/worktree\" && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install; or direct PowerShell: Set-Location 'C:/absolute/worktree'; $env:PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD='1'; npm install. To create it, use direct PowerShell: git worktree add -b fix/N-slug 'C:/absolute/worktree' origin/main. Use literal paths; do not wrap these commands in cmd /c.";
 function hasAncestorMetadata(cwd) {
-  // workaround(git): discovery silently skips incomplete repository metadata (e.g. a missing HEAD) and reports not a git repository
+  // workaround(git): discovery silently skips incomplete repository metadata (e.g. a missing HEAD) and reports not a git repository (seen with Git 2.56.0.windows.4)
   for (const start of new Set([path.resolve(cwd), fs.realpathSync.native(cwd)])) {
     let count = 0;
     for (let at = start; ; at = path.dirname(at)) {

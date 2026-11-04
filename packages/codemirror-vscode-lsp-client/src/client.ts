@@ -324,7 +324,7 @@ export class LSPClient {
     transport.subscribe(this.receiveMessage);
 
     if (this.transport.connection) {
-      // workaround(vscode-jsonrpc): a MessageConnection answers requests it has no handler for with `Unhandled method`, so handlers register on it
+      // workaround(vscode-jsonrpc): a MessageConnection answers requests it has no handler for with `Unhandled method`, so handlers register on it (seen with vscode-jsonrpc 9.0.0)
       this.transport.connection.onRequest(
         "workspace/textDocumentContent/refresh",
         (params) => this.refreshTextDocumentContent(params),

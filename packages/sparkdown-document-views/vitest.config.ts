@@ -1,6 +1,6 @@
 import { defineConfig } from "vitest/config";
 
-// workaround(@codemirror/state): duplicate copies across file: deps fail instanceof checks with Unrecognized extension value errors
+// workaround(@codemirror/state): duplicate copies across file: deps fail instanceof checks with Unrecognized extension value errors (seen with @codemirror/state 6.6.0)
 const SHARED_PACKAGES = [
   "@codemirror/autocomplete",
   "@codemirror/collab",

@@ -67,7 +67,7 @@ const EDITOR_THEME: {
     color: EDITOR_COLORS.lineNumber,
     border: "none",
     opacity: 0.7,
-    // workaround(@codemirror/view): ships gutters at z-index 200 with no stacking context, so they rise above host dialogs and toasts
+    // workaround(@codemirror/view): ships gutters at z-index 200 with no stacking context, so they rise above host dialogs and toasts (seen with @codemirror/view 6.43.1)
     zIndex: "1",
   },
   "kbd, code, pre": {

@@ -1367,7 +1367,7 @@ export class GamePlayerController {
     }
     if (this._audioContext.state !== "running") {
       const context = this._audioContext;
-      // workaround(chromium): AudioContext.resume() stays pending in a webview until the first user gesture, so rendering must not await it
+      // workaround(chromium): AudioContext.resume() stays pending in a webview until the first user gesture, so rendering must not await it (seen with Chrome 157.0.8103.39)
       void context.resume().then(() => {
         if (!this._disposed && this._audioContext === context && context.state === "running") {
           this._app?.setAudioContext(context);

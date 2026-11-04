@@ -21,11 +21,11 @@ export interface ImageCompositeOptions {
   ) => Promise<string | undefined>;
 }
 
-// workaround(vscode): the markdown hover sanitizer drops style and class, so a layered image is flattened to one <img src> instead of a CSS stack
+// workaround(vscode): the markdown hover sanitizer drops style and class, so a layered image is flattened to one <img src> instead of a CSS stack (https://github.com/microsoft/vscode/blob/main/src/vs/base/browser/markdownRenderer.ts)
 
 const PREVIEW_WIDTH = 360;
 
-// workaround(vscode): the markdown sanitizer strips vscode-vfs:, vscode-userdata: and vscode-resource: img srcs, so those are inlined as data: uris
+// workaround(vscode): the markdown sanitizer strips vscode-vfs:, vscode-userdata: and vscode-resource: img srcs, so those are inlined as data: uris (https://github.com/microsoft/vscode/blob/main/src/vs/base/browser/markdownRenderer.ts)
 const DIRECTLY_LOADABLE_SCHEMES = new Set(["http", "https", "data", "file"]);
 
 const isDirectlyLoadable = (src: string) => {

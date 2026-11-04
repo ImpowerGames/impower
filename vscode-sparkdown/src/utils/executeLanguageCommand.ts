@@ -11,7 +11,7 @@ const getFileText = async (uri: string) => {
   return text;
 };
 
-// workaround(vscode): the hover markdown sanitizer strips vscode-vfs: and related image schemes, so previews are inlined as base64 data: URIs
+// workaround(vscode): the hover markdown sanitizer strips vscode-vfs: and related image schemes, so previews are inlined as base64 data: URIs (https://github.com/microsoft/vscode/blob/main/src/vs/base/browser/markdownRenderer.ts)
 const getFileBytes = async (uri: string) => {
   const buffer = await vscode.workspace.fs.readFile(vscode.Uri.parse(uri));
   return bytesToBase64(buffer);

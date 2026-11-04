@@ -54,7 +54,7 @@ const firstLine = (err) => String(err?.message ?? err).split("\n")[0];
 const iso = (ms) => new Date(ms).toISOString();
 const samePath = (a, b) => path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
 
-// workaround(@vscode/test-web): the served build ships workbench.web.main.internal.css while its page links workbench.web.main.css
+// workaround(@vscode/test-web): the served build ships workbench.web.main.internal.css while its page links workbench.web.main.css (seen with @vscode/test-web 0.0.67)
 export function aliasWorkbenchCss(buildsDir, io = fs) {
   const aliased = [];
   const present = [];
@@ -108,7 +108,7 @@ const lockIo = {
   },
 };
 
-// workaround(@vscode/test-web): the server deletes the whole testRunnerDataDir before a download, so concurrent launches race; an exclusive lock serializes them
+// workaround(@vscode/test-web): the server deletes the whole testRunnerDataDir before a download, so concurrent launches race; an exclusive lock serializes them (seen with @vscode/test-web 0.0.67)
 export async function takeDownloadLock(lockPath, record, io, stands) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {

@@ -1,6 +1,6 @@
 import { baseName, readCommand } from "./typed-issue-hook.mjs";
 
-// workaround(git): git classifies a file holding a NUL byte as binary, so every diff of it shows only "Binary files differ"
+// workaround(git): git classifies a file holding a NUL byte as binary, so every diff of it shows only "Binary files differ" (seen with Git 2.56.0.windows.4)
 const CONTROL_BYTE = /[\x00-\x08\x0B\x0C\x0E-\x1F]/;
 
 export function controlByteReason(texts) {
@@ -124,7 +124,7 @@ export function jqQuoteReason(command) {
   return null;
 }
 
-// workaround(powershell): .NET file calls resolve a relative path against the process directory, not the PowerShell location
+// workaround(powershell): .NET file calls resolve a relative path against the process directory, not the PowerShell location (seen with Windows PowerShell 5.1.26100)
 export function dotNetRelativePathReason(command, inherited, depth = 0) {
   if (typeof command !== "string" || !/IO\.(?:File|Directory|Path)\]::/i.test(command) || depth > 3) return null;
   const { values, isCode, subs } = readPowerShell(command);
