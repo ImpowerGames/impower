@@ -5,7 +5,7 @@ import { lookupGlobalStdLibBuiltin } from "../../../runtime/StdLib";
 import type { LowerContext } from "../context";
 import { takesOffset } from "../recordingContext";
 import type { FunctionBinding } from "../utils/functionBindings";
-import { rootLocalBinds } from "../utils/rootLocalReads";
+import { answersDeclaration, rootFlowAnswer } from "../utils/rootLocalReads";
 import { currentStatement } from "../utils/statementShape";
 import { validateStdLibDeprecation } from "../utils/validateStdLibDeprecation";
 
@@ -50,7 +50,7 @@ export function localHidesStdLib(
     const frame = locals[i]!;
     if (frame.has(name) && localInScope(frame, name, at)) return true;
   }
-  return rootLocalBinds(name, at, ctx);
+  return answersDeclaration(rootFlowAnswer(name, at, ctx));
 }
 
 export function isLocal(name: string, ctx: LowerContext): boolean {

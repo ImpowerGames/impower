@@ -67,8 +67,9 @@ import {
 import { syntheticId } from "../utils/documentTag";
 import {
   rootDeclarationAnswer,
+  mayAnswerDeclaration,
+  rootFlowAnswer,
   rootLocalAnswer,
-  rootLocalBinds,
   rootSlotName,
 } from "../utils/rootLocalReads";
 import { ROOT_IN_BLOCK, ROOT_NONE } from "../../utils/rootLocals";
@@ -357,7 +358,7 @@ export function freeVariables(
           !!rootReads &&
           ((answer === ROOT_IN_BLOCK &&
             (blockLocal || (ctx.rootLocals?.blockLocal(name, at) ?? false))) ||
-            rootLocalBinds(name, at, ctx, answer));
+            mayAnswerDeclaration(rootFlowAnswer(name, at, ctx, answer)));
       }
       if (!isShadowedLocal(name) && !readsLocal && !takenByLocal) {
         if (isGlobalCallable(name)) return;

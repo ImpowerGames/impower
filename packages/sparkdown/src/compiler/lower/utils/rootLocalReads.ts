@@ -28,15 +28,17 @@ export function answersDeclaration(answer: string): boolean {
   return answer !== "" && answer !== ROOT_NONE && answer !== ROOT_IN_BLOCK && answer !== ROOT_MAYBE;
 }
 
-export function rootLocalBinds(
+export function mayAnswerDeclaration(answer: string): boolean {
+  return answer === ROOT_MAYBE || answersDeclaration(answer);
+}
+
+export function rootFlowAnswer(
   name: string,
   at: number,
   ctx: LowerContext,
   answer: string = rootLocalAnswer(name, at, ctx),
-): boolean {
-  return answersDeclaration(
-    answer === ROOT_IN_BLOCK ? rootLocalAnswerIgnoringBlocks(name, at, ctx) : answer,
-  );
+): string {
+  return answer === ROOT_IN_BLOCK ? rootLocalAnswerIgnoringBlocks(name, at, ctx) : answer;
 }
 
 export function rootSlotName(name: string, answer: string, ctx: LowerContext): string | null {

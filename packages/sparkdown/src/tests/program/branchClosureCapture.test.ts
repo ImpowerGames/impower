@@ -419,6 +419,45 @@ describe("a scene's own lines", () => {
     ).toEqual(got("Got 3 3."));
   });
 
+  const afterChoice = (where: "scene" | "branch", head: string[], choiceLocal: string, reads: string[]) => [
+    ...head,
+    "scene start",
+    "  choose",
+    "    + [A]",
+    `      ${choiceLocal}`,
+    "    + [B]",
+    "      B.",
+    "  end",
+    ...(where === "scene"
+      ? reads.map((line) => `  ${line}`)
+      : ["  -> b", "  branch b", ...reads.map((line) => `    ${line}`), "  end"]),
+    "end",
+  ];
+
+  test.each(["scene", "branch"] as const)(
+    "a closure after a choose block in the %s reads the taken choice's local over a store of its name",
+    (where) => {
+      expect(
+        runPicking([0], afterChoice(where, ["store foo = 9"], "local foo = 3", [
+          "local f = function() return foo end",
+          "Got {foo} {f()}.",
+        ])),
+      ).toEqual(got("Got 3 3."));
+    },
+  );
+
+  test.each(["scene", "branch"] as const)(
+    "a closure after a choose block in the %s reads the taken choice's local named like a stdlib namespace",
+    (where) => {
+      expect(
+        runPicking([0], afterChoice(where, [], "local math = { answer = 3 }", [
+          "local f = function() return math end",
+          "Got {math.answer} {f().answer}.",
+        ])),
+      ).toEqual(got("Got 3 3."));
+    },
+  );
+
   test("a closure inside a block calls the scene's local named like a stdlib namespace", () => {
     expect(
       run([
