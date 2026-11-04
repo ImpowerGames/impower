@@ -363,6 +363,22 @@ describe("the checkpoints of a game on the program engine", () => {
     expect(cancelled).toBe(1);
   });
 
+  it("restoring a checkpoint while a line is open ends the line and leaves the restored state readable", () => {
+    const text = ["scene MAIN", "  One.", "  Two.", "  Three.", "end", ""].join("\n");
+    const game = createGame(compiler({ [MAIN]: text }).compile().program, {
+      startFrom: { file: MAIN, line: 0 },
+    });
+    const run = drive(game);
+    expect(run.finished).toBe(true);
+    const engine = game.story as unknown as ProgramStory;
+    engine.ChoosePathString("MAIN");
+    engine.ContinueAsync();
+    expect(engine.asyncContinueComplete).toBe(false);
+    expect(game.restoreCheckpoint(1)).toBe(true);
+    expect(engine.asyncContinueComplete).toBe(true);
+    expect(() => engine.currentText).not.toThrow();
+  });
+
   it("restore in place after a compile for every statement it kept, translate one it emitted again, and report one it cannot place unplaced", () => {
     const text = [
       "store seen = 0",

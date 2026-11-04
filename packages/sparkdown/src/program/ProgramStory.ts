@@ -935,7 +935,7 @@ export class ProgramStory implements StoryEngine {
   }
 
   protected resetState(carried?: CarriedDeclarations): void {
-    this.IfAsyncWeCant("ResetState");
+    this.CancelAsyncContinue();
     const reactiveDepsEnabled =
       this._state?.variablesState?.reactiveDepsEnabled ?? false;
     const callStack = CallStack.ForProgram();
