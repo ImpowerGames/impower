@@ -103,6 +103,10 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   private _statePublications = 0;
 
+  private _firstRead: Promise<void> | undefined;
+
+  private _finishFirstRead: (() => void) | undefined;
+
   public constructor(fileAccessor: FileAccessor, connection: Connection) {
     super("mock-debug.txt");
 
@@ -192,25 +196,41 @@ export class SparkDebugSession extends LoggingDebugSession {
       this._statePublications += 1;
       this.noteRun(message.params.run);
       this.setLaunchState(message.params.launchState);
+      this.endFirstRead();
     }
   }
 
   protected async readGameState() {
     const publications = this._statePublications;
-    let state: GameState;
+    this._firstRead = new Promise((resolve) => {
+      this._finishFirstRead = resolve;
+    });
     try {
-      state = await this._connection.emit(GameStateMessage.type.request({}));
-    } catch {
-      return;
+      let state: GameState;
+      try {
+        state = await this._connection.emit(GameStateMessage.type.request({}));
+      } catch {
+        return;
+      }
+      if (!state || publications !== this._statePublications) {
+        return;
+      }
+      const wasEnded = this._launchState === "ended";
+      this.noteRun(state.run);
+      this.setLaunchState(state.launchState);
+      this.endFirstRead();
+      if (state.launchState === "ended" && !wasEnded) {
+        await this.sendStoppedEvent("end", state.run);
+      }
+    } finally {
+      this.endFirstRead();
     }
-    if (!state || publications !== this._statePublications) {
-      return;
-    }
-    this.noteRun(state.run);
-    this.setLaunchState(state.launchState);
-    if (state.launchState === "ended") {
-      await this.sendStoppedEvent("end", state.run);
-    }
+  }
+
+  protected endFirstRead() {
+    this._finishFirstRead?.();
+    this._finishFirstRead = undefined;
+    this._firstRead = undefined;
   }
 
   protected noteRun(run: number | null | undefined) {
@@ -272,6 +292,9 @@ export class SparkDebugSession extends LoggingDebugSession {
     const answer = await this._connection.emit(
       GetGameThreadsMessage.type.request({}),
     );
+    if (this._firstRead) {
+      await this._firstRead;
+    }
     if (!this.answersRun(answer.run, run) || !this.isCurrentStop(reason, run)) {
       return;
     }

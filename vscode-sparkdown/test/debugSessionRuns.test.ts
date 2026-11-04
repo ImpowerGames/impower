@@ -361,6 +361,43 @@ describe("the debug adapter learning the current run when it starts", () => {
     ]);
   });
 
+  it("publishes a numbered stop that arrives before its first read is answered", async () => {
+    const s = session();
+    let stopped: Promise<void> | undefined;
+    s.duringNext(async () => {
+      stopped = s.notify(stop("awaiting interaction", 1));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }, "preview/gameState");
+    await s.request("launchRequest");
+    await stopped;
+    expect(s.events.filter(([event]) => event === "stopped")).toEqual([
+      ["stopped", "awaiting interaction"],
+    ]);
+  });
+
+  for (const lookup of ["before", "after"] as const) {
+    it(`publishes the end stop once when the run ends during its first read and the end's lookup finishes ${lookup} the read`, async () => {
+      const s = session();
+      s.player.launchState = "ended";
+      let finished: Promise<void> | undefined;
+      const release = lookup === "after" ? s.holdNextLookup() : undefined;
+      s.duringNext(async () => {
+        finished = s.notify(ended(1));
+        if (lookup === "after") {
+          await s.lookupHeld();
+        } else {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+      }, "preview/gameState");
+      await s.request("launchRequest");
+      release?.();
+      await finished;
+      expect(s.events.filter(([event]) => event === "stopped")).toEqual([
+        ["stopped", "end"],
+      ]);
+    });
+  }
+
   it("keeps a state publication that arrives while its first read is answered over that read's older answer", async () => {
     const s = session();
     s.player.launchState = "ended";
