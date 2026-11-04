@@ -790,11 +790,11 @@ describe("a save inside a scene entered by a divert", () => {
       ["scene start", "  -> outer(10)", "end", "", "scene outer(a)", first, second, "end", ""].join("\n");
     const ONE = ["  branch one", "    One {a}.", "    -> two", "  end"].join("\n");
     const TWO = ["  branch two", "    First {a}.", "    Second {a}.", "  end"].join("\n");
-    const save = saveAt(BRANCHES(ONE, TWO), "First nil.");
+    const save = saveAt(BRANCHES(ONE, TWO), "First 10.");
     const loaded = engine(rootOf(BRANCHES(TWO, ONE)));
     loaded.loadSave(save);
     expect(loaded.loadedSaveReport!.exact).toBe(true);
-    expect(play(loaded)).toEqual(["Second nil."]);
+    expect(play(loaded)).toEqual(["Second 10."]);
   });
 
   it("at a label a frame jumped to past the entry loads in place, though a block's local takes a parameter's name", () => {
