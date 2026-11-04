@@ -54,18 +54,23 @@ describe("builtin type names come from the lowering context", () => {
     expect(warnings(without).some((m) => m.includes(WARNING))).toBe(false);
   });
 
-  test("the prelude compiles at most once across compilers", () => {
+  test("configuring does not compile the prelude, and it compiles once across compilers", () => {
     const compileSpy = vi.spyOn(mod.SparkdownCompiler.prototype, "compile");
-    const first = newCompiler(true);
-    setText(first, "store color = 1\n", 2);
-    warnings(first);
-    const second = newCompiler(true);
-    setText(second, "store color = 1\n", 2);
-    warnings(second);
-    const preludeCompiles = compileSpy.mock.calls.filter(
-      ([params]) => (params as { textDocument: { uri: string } }).textDocument.uri === "file:///__builtins__.sd",
-    );
-    expect(preludeCompiles.length).toBeLessThanOrEqual(1);
-    compileSpy.mockRestore();
+    const preludeCompiles = () =>
+      compileSpy.mock.calls.filter(
+        ([params]) => (params as { textDocument: { uri: string } }).textDocument.uri === "file:///__builtins__.sd",
+      ).length;
+    try {
+      const first = newCompiler(true, "store color = 1\n");
+      expect(preludeCompiles()).toBe(0);
+      setText(first, "store color = 2\n", 2);
+      expect(warnings(first).some((m) => m.includes(WARNING))).toBe(true);
+      expect(preludeCompiles()).toBe(1);
+      const second = newCompiler(true, "store color = 1\n");
+      expect(warnings(second).some((m) => m.includes(WARNING))).toBe(true);
+      expect(preludeCompiles()).toBe(1);
+    } finally {
+      compileSpy.mockRestore();
+    }
   });
 });

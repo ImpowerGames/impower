@@ -30,9 +30,11 @@ const verifyFailures = (): string[] => {
   return failures;
 };
 
-new SparkdownCompiler().configure({
+const preludeCompiler = new SparkdownCompiler();
+preludeCompiler.configure({
   files: scriptFiles({ [MAIN]: "Hello.\n" }) as never,
 });
+preludeCompiler.compile({ textDocument: { uri: MAIN } });
 const preludeCompile = { checked: checked.slice(), failures: verifyFailures() };
 
 interface ScopeStats {

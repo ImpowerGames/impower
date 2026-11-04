@@ -31,6 +31,7 @@ import { Mode } from "../typecheck/Module";
 import { SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
 import { configTypecheckSetting, frontMatterTypecheckSetting, unknownModeMessage } from "../typecheck/typecheckSettings";
 import { STDLIB } from "../../runtime/StdLib";
+import { executionWatch } from "../../runtime/ExecutionWatch";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
 import type { File } from "../types/File";
 import { diagnoseRareAttributeOptions, type AttributeVocabulary } from "../../attributes";
@@ -276,9 +277,16 @@ function getCompiledPrelude(): {
       } as any,
     ],
   });
-  const result = compiler.compile({
-    textDocument: { uri: BUILTINS_PRELUDE_URI },
-  });
+  const watcher = executionWatch.listener;
+  executionWatch.listener = null;
+  let result: ReturnType<SparkdownCompiler["compile"]>;
+  try {
+    result = compiler.compile({
+      textDocument: { uri: BUILTINS_PRELUDE_URI },
+    });
+  } finally {
+    executionWatch.listener = watcher;
+  }
   _cachedPrelude = {
     context: result.program.context ?? {},
     root: result.program.chunks,
