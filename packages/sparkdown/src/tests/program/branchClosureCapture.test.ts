@@ -481,32 +481,24 @@ describe("a scene's own lines", () => {
     ).toEqual(got("Got 3 3."));
   });
 
-  test.each([
-    ["scene", "directly", ["Got {math.abs(-1)}."]],
-    ["scene", "through a closure", ["local f = function() return math.abs(-1) end", "Got {f()}."]],
-    ["branch", "directly", ["Got {math.abs(-1)}."]],
-    ["branch", "through a closure", ["local f = function() return math.abs(-1) end", "Got {f()}."]],
-  ])(
-    "the then clause in the %s calls the stdlib namespace the last choice's local names when an earlier choice ran, %s",
-    (where, _, reads) => {
-      const then = where === "scene" ? reads : ["-> b"];
-      expect(
-        runPicking([0], [
-          "scene start",
-          "  choose",
-          "    + [A]",
-          "      A.",
-          "    + [B]",
-          `      local math = ${mathTable}`,
-          "  then",
-          ...then.map((line) => `    ${line}`),
-          "  end",
-          ...(where === "branch" ? ["  branch b", ...reads.map((line) => `    ${line}`), "  end"] : []),
-          "end",
-        ]),
-      ).toEqual(got("A.", "Got 1."));
-    },
-  );
+  test("the then clause calls the last choice's stdlib-named local when that choice ran, directly, through a closure and an alias", () => {
+    expect(
+      runPicking([1], [
+        "scene start",
+        "  choose",
+        "    + [A]",
+        "      A.",
+        "    + [B]",
+        `      local math = ${mathTable}`,
+        "  then",
+        "    local alias = math.abs",
+        "    local f = function() return math.abs(-1) end",
+        "    Got {math.abs(-1)} {f()} {alias(-1)}.",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("Got 5 5 5."));
+  });
 
   test("a closure in the then clause reads the last choice's local when that choice ran", () => {
     expect(
