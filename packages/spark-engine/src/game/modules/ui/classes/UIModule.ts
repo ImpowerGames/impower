@@ -2051,7 +2051,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     const vs = this._game.story.variablesState;
-    vs.reactiveDepsEnabled = true;
     if (this._building) {
       this.watchBuild();
     }

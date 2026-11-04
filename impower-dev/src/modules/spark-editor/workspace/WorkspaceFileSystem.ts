@@ -56,6 +56,7 @@ import {
   FOLDER_SENTINEL,
   computeFolderMoves,
   computeLayoutMigration,
+  layoutSubtreeFor,
 } from "../utils/fileTree";
 
 const cmp = (a: any, b: any) => {
@@ -113,12 +114,7 @@ export default class WorkspaceFileSystem {
     });
     const migration = computeLayoutMigration(
       files.map((f) => this.getRelativePath(projectId, f.uri)),
-      (p) =>
-        p.endsWith(".sd")
-          ? "scripts"
-          : p.endsWith(".url")
-            ? "assets/urls"
-            : "assets",
+      layoutSubtreeFor,
     );
     if (migration.length > 0) {
       await this.renameFiles({

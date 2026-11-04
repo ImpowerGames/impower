@@ -767,6 +767,7 @@ export class Game<T extends M = {}> {
       saveHistory: this._saveHistory,
       rewindBeats: this._rewindBeats,
       declarations: this.carriedDeclarations(previous, before, program),
+      reactiveDeps: !!program.sparkle?.layouts,
     });
     engine.keepBeatImages = true;
     if (!engine.declarationsCarried) {
@@ -783,7 +784,6 @@ export class Game<T extends M = {}> {
     this._story = engine;
     this._positions = storyPositions(this._story, this._program);
     this.setupStory(this._story);
-    this.restoreReactiveTracking();
     this.resolveBreakpoints();
     if (this._moduleNames && this._moduleNames.length > 0) {
       this.assignContextChannels();
@@ -1106,11 +1106,13 @@ export class Game<T extends M = {}> {
       if (route) {
         this.simulateRoute(route, 0);
       } else {
+        this._simulation = "fail";
         this.simulateFlow = this.jumpStartOf(to);
         this._simulationFailure = this.describeFailedRouteSearch(to);
         this._searchErrors = this.searchErrors();
       }
     } else {
+      this._simulation = "fail";
       this._simulationFailure = this.describeFailedRouteSearch(
         this._startAddress,
       );
@@ -1249,11 +1251,25 @@ export class Game<T extends M = {}> {
   }
 
   observeScene(address: ProgramAddress | null | undefined): void {
+    this.observeSceneAt(address, this.sceneOf(address));
+  }
+
+  protected observeStanding(): void {
+    const address = this._positions.current();
+    this.observeSceneAt(
+      address,
+      this.sceneOf(address) ?? this._positions.scene() ?? null,
+    );
+  }
+
+  protected observeSceneAt(
+    address: ProgramAddress | null | undefined,
+    scene: string | null,
+  ): void {
     if (this._destroyed || this._simulation === "simulating") {
       return;
     }
     this.settleSceneMap(address);
-    const scene = this.sceneOf(address);
     if (
       scene === this._sceneTracker.current ||
       (scene && this.isFunctionFlow(scene))
@@ -1295,9 +1311,11 @@ export class Game<T extends M = {}> {
     this._connection.connectOutput(send);
     const epoch = this._connection.beginEpoch();
     const previewing = this._context.system.previewing;
-    this.observeScene(
-      typeof previewing === "number" ? previewing : this._positions.current(),
-    );
+    if (typeof previewing === "number") {
+      this.observeScene(previewing);
+    } else {
+      this.observeStanding();
+    }
     await Promise.all(
       this._moduleNames.map((moduleName) =>
         this._modules[moduleName]?.onConnected(),
@@ -1316,9 +1334,11 @@ export class Game<T extends M = {}> {
     this._connection.connectOutput(send);
     const epoch = this._connection.beginEpoch();
     const previewing = this._context.system.previewing;
-    this.observeScene(
-      typeof previewing === "number" ? previewing : this._positions.current(),
-    );
+    if (typeof previewing === "number") {
+      this.observeScene(previewing);
+    } else {
+      this.observeStanding();
+    }
     const shown = this.module.ui.standing?.pictures ?? [];
     await Promise.all([
       this.module.ui.onRedisplay(),
@@ -1821,16 +1841,21 @@ export class Game<T extends M = {}> {
 
     const previewing = this._context.system.previewing;
     this._context.system.previewing = undefined;
-    this._replaying = true;
-    for (const k of this._moduleNames) {
-      this._modules[k]?.onReplay();
-    }
     let unrepeatable: boolean | undefined;
     try {
+      this._replaying = true;
+      this._context.system.simulating = route.from;
+      for (const k of this._moduleNames) {
+        this._modules[k]?.onReplay();
+      }
       this.replayRoute(route, fromCheckpoint);
       unrepeatable = storyDraws.count !== drawn || ambientReads.count !== read;
       this.noteRouteTarget();
     } finally {
+      if (this._simulation === "simulating") {
+        this._simulation = "fail";
+        this._simulationFailure = "diverged";
+      }
       if (this._targetWatch) {
         this.endTargetWatch();
         this._routeTargetWrote = undefined;
@@ -1840,6 +1865,7 @@ export class Game<T extends M = {}> {
         unrepeatable ??
         (storyDraws.count !== drawn || ambientReads.count !== read);
       this._replaying = false;
+      this._context.system.simulating = undefined;
       this._context.system.previewing = previewing;
       for (const k of this._moduleNames) {
         this._modules[k]?.onReplayEnd();
@@ -1908,7 +1934,6 @@ export class Game<T extends M = {}> {
     }
 
     this._simulation = "simulating";
-    this._context.system.simulating = route.from;
 
     this._executingAddress = null;
     this._executingLocation = null;
@@ -1917,11 +1942,6 @@ export class Game<T extends M = {}> {
       this.watchTargetWrites();
     }
     this.continue(true);
-
-    if (this._simulation === "simulating") {
-      this._simulation = "fail";
-      this._simulationFailure = "diverged";
-    }
 
     this._story.simulator = null;
     this._routeSimulator = null;
@@ -2272,17 +2292,9 @@ export class Game<T extends M = {}> {
     return this.newestCheckpoint();
   }
 
-  endSimulation(): void {
-    if (this._simulation === "simulating") {
-      this._simulation = "fail";
-    }
-    this._context.system.simulating = undefined;
-  }
-
   start(save: string = ""): void {
     this.cancelPreview();
     this._state = "running";
-    this.endSimulation();
     this.notifyStarted();
     this._context.system.previewing = undefined;
     this._previewedAddress = undefined;
@@ -2292,14 +2304,14 @@ export class Game<T extends M = {}> {
     const resumed = this._resumeShown;
     this._resumeShown = undefined;
     if (resumed !== undefined) {
-      this.observeScene(this._positions.current());
+      this.observeStanding();
       this.noteSceneEntry(null);
       if (resumed && !resumed.choices?.length) {
         this.module.interpreter.requeue(resumed);
       }
       this.continue(true);
     } else if (this._simulation === "success") {
-      this.observeScene(this._positions.current());
+      this.observeStanding();
       this.saveFirstScene();
       this.continue(true);
     } else if (this._simulation === "fail") {
@@ -2315,7 +2327,7 @@ export class Game<T extends M = {}> {
     } else {
       if (save) {
         this.load(save);
-        this.observeScene(this._positions.current());
+        this.observeStanding();
       } else if (this._startAddress != null) {
         this.jumpTo(this._startAddress);
         this.observeScene(this._startAddress);
@@ -2781,7 +2793,6 @@ export class Game<T extends M = {}> {
 
   protected finishLoad(saveData: SaveData, runtime: RuntimeState): void {
     this.cancelPreview();
-    this.restoreReactiveTracking();
     for (const k of this._moduleNames) {
       const module = this._modules[k];
       if (module) {
@@ -2878,7 +2889,6 @@ export class Game<T extends M = {}> {
     if (!story.restore(image)) {
       return false;
     }
-    this.restoreReactiveTracking();
     const saveData = JSON.parse(entry.body) as SaveData;
     for (const k of this._moduleNames) {
       this._modules[k]?.load(saveData.modules[k]);
@@ -2919,17 +2929,10 @@ export class Game<T extends M = {}> {
   protected rewindStory() {
     this.discardOpenStoryLine();
     this._story.ResetState();
-    this.restoreReactiveTracking();
   }
 
   protected discardOpenStoryLine() {
     this._awaiting = null;
-  }
-
-  protected restoreReactiveTracking() {
-    if (this._program?.sparkle?.layouts) {
-      this._story.variablesState.reactiveDepsEnabled = true;
-    }
   }
 
   reset() {
@@ -4128,7 +4131,6 @@ export class Game<T extends M = {}> {
     this.module.interpreter.clearQueuedBeats();
     this._startAddress = previewAddress;
     this.jumpTo(previewAddress, true);
-    this.restoreReactiveTracking();
     this.continue();
   }
 
@@ -4161,7 +4163,6 @@ export class Game<T extends M = {}> {
     this._previewAddress = previewAddress;
     this._executingAddress = null;
     this._executingLocation = [-1, -1, -1, -1, -1];
-    this.endSimulation();
     if (this._state === "initial") {
       this._state = "previewing";
     }

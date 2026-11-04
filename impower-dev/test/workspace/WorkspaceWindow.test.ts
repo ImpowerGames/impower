@@ -149,6 +149,34 @@ describe("WorkspaceWindow store transitions", () => {
     );
   });
 
+  it("getPaneType and getPanelType route a .luau file to the logic/scripts panel", () => {
+    expect(win.getPaneType("scripts/util.luau")).toBe("logic");
+    expect(win.getPanelType("scripts/util.luau")).toBe("scripts");
+    expect(win.getPaneType("main.luau")).toBe("logic");
+    expect(win.getPanelType("main.luau")).toBe("scripts");
+  });
+
+  it("getPaneType and getPanelType keep .sd routing and give other files no pane", () => {
+    expect(win.getPaneType("main.sd")).toBe("logic");
+    expect(win.getPanelType("main.sd")).toBe("main");
+    expect(win.getPaneType("scripts/intro.sd")).toBe("logic");
+    expect(win.getPanelType("scripts/intro.sd")).toBe("scripts");
+    expect(win.getPaneType("assets/hero.png")).toBeNull();
+    expect(win.getPanelType("assets/hero.png")).toBeNull();
+    expect(win.getPaneType("assets/luau")).toBeNull();
+    expect(win.getPanelType("assets/luau")).toBeNull();
+  });
+
+  it("openFileEditor opens a .luau file in the logic/scripts editor", () => {
+    win.openFileEditor("scripts/util.luau");
+    const editor = workspace.current.panes.logic.panels.scripts!.activeEditor;
+    expect(editor?.open).toBe(true);
+    expect(editor?.filename).toBe("scripts/util.luau");
+    expect(win.getActiveEditorForFile("scripts/util.luau")?.filename).toBe(
+      "scripts/util.luau",
+    );
+  });
+
   it("openFileEditor stores the full project-relative path for a nested script", () => {
     win.openFileEditor("chapters/intro.sd");
     const editor = workspace.current.panes.logic.panels.scripts!.activeEditor;

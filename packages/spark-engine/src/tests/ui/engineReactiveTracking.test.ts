@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import { compileUI, createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
 const SOURCE = `store hp = 100
@@ -17,31 +18,93 @@ layout main {
 
 scene start
   Hello.
+  Goodbye.
 end
 `;
 
+const variablesOf = (game: any) => game.story.variablesState;
+
 const depsEnabled = (game: any): boolean =>
-  game.story.variablesState.reactiveDepsEnabled === true;
+  variablesOf(game).reactiveDepsEnabled === true;
 
-describe("reactive dependency tracking survives story-state replacement", () => {
-  test("layout mount enables it (baseline)", async () => {
+const withoutLayouts = (program: any) => ({
+  ...program,
+  sparkle: { ...program.sparkle, layouts: undefined },
+});
+
+describe("reactive dependency tracking is a setting of the engine", () => {
+  test("an engine built with the option tracks on every state it makes", () => {
+    const { program } = compileUI(SOURCE);
+    const story = new ProgramStory(program.chunks!, { reactiveDeps: true });
+    expect(story.variablesState.reactiveDepsEnabled).toBe(true);
+    story.ResetState();
+    expect(story.variablesState.reactiveDepsEnabled).toBe(true);
+  });
+
+  test("an engine built without the option does not track", () => {
+    const { program } = compileUI(SOURCE);
+    const story = new ProgramStory(program.chunks!);
+    expect(story.variablesState.reactiveDepsEnabled).toBe(false);
+    story.ResetState();
+    expect(story.variablesState.reactiveDepsEnabled).toBe(false);
+  });
+
+  test("layout mount finds it on", async () => {
     const h = createHarness(SOURCE);
     await h.ready;
     expect(depsEnabled(h.game)).toBe(true);
   });
 
-  test("rewindStory (the STOP → PLAY restart path) re-asserts it", async () => {
+  test("rewindStory (the STOP then PLAY restart path) keeps it", async () => {
     const h = createHarness(SOURCE);
     await h.ready;
+    const before = variablesOf(h.game);
     (h.game as any).rewindStory();
+    expect(variablesOf(h.game) === before).toBe(false);
     expect(depsEnabled(h.game)).toBe(true);
   });
 
-  test("updateProgram (the live-edit recompile path) re-asserts it", async () => {
+  test("updateProgram (the live-edit recompile path) builds an engine with it on", async () => {
+    const h = createHarness(SOURCE);
+    await h.ready;
+    const before = h.game.story;
+    const { program } = compileUI(SOURCE);
+    (h.game as any).updateProgram(program);
+    expect(h.game.story === before).toBe(false);
+    expect(depsEnabled(h.game)).toBe(true);
+  });
+
+  test("updateProgram to a program without layouts builds an engine with it off", async () => {
+    const h = createHarness(SOURCE);
+    await h.ready;
+    const { program } = compileUI(SOURCE);
+    (h.game as any).updateProgram(withoutLayouts(program));
+    expect(depsEnabled(h.game)).toBe(false);
+    (h.game as any).rewindStory();
+    expect(depsEnabled(h.game)).toBe(false);
+  });
+
+  test("checkpoint restore keeps it", async () => {
     const h = createHarness(SOURCE);
     await h.ready;
     const { program } = compileUI(SOURCE);
     (h.game as any).updateProgram(program);
+    h.game.checkpoint();
+    variablesOf(h.game).$("hp", 42);
+    expect(h.game.restoreCheckpoint(h.game.checkpoints.length - 1)).toBe(true);
+    expect(variablesOf(h.game).$("hp")).toBe(100);
+    expect(depsEnabled(h.game)).toBe(true);
+  });
+
+  test("a preview jump keeps it", async () => {
+    const h = createHarness(SOURCE);
+    await h.ready;
+    const { program } = compileUI(SOURCE);
+    (h.game as any).updateProgram(program);
+    const before = variablesOf(h.game);
+    await h.preview(16);
+    expect(h.game.previewedAddress).toBeTruthy();
+    expect(variablesOf(h.game) === before).toBe(false);
     expect(depsEnabled(h.game)).toBe(true);
   });
 
@@ -54,13 +117,6 @@ describe("reactive dependency tracking survives story-state replacement", () => 
     (h.game as any).updateProgram(program);
     expect(h.game.previewedAddress).toBeUndefined();
     expect((h.game as any).context.system.previewing).toBeTruthy();
-  });
-
-  test("Story.ResetState itself carries the tracking mode (the choke point)", async () => {
-    const h = createHarness(SOURCE);
-    await h.ready;
-    (h.game as any).story.ResetState();
-    expect(depsEnabled(h.game)).toBe(true);
   });
 
   test("the full PLAY fail-branch flow keeps tracking and paints a clicked refresh", async () => {
@@ -125,13 +181,5 @@ describe("reactive dependency tracking survives story-state replacement", () => 
     (h.game.context.system as any).simulating = undefined;
     (h.game.module.ui as any).refreshLayouts();
     expect(JSON.stringify(h.messages)).toContain("HP: 90");
-  });
-
-  test("restore matches what mount decided (no layouts → no independent opt-in)", async () => {
-    const h = createHarness(`\nscene start\n  Hello.\nend\n`);
-    await h.ready;
-    const atMount = depsEnabled(h.game);
-    (h.game as any).rewindStory();
-    expect(depsEnabled(h.game)).toBe(atMount);
   });
 });

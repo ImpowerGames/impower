@@ -128,11 +128,7 @@ export class AssetModule extends Module<
   }
 
   protected get silent(): boolean {
-    return (
-      this._destroyed ||
-      this._game.simulation === "simulating" ||
-      Boolean(this.context.system.simulating)
-    );
+    return this._destroyed || Boolean(this.context.system.simulating);
   }
 
   protected get previewing(): boolean {
