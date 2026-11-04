@@ -25,9 +25,8 @@ sparkdown [0..100]
  │   │       │   ├─ Whitespace [14..16]: "  "
  │   │       │   ├─ LuauSparkleElement [16..97]
  │   │       │   │   ├─ LuauSparkleElement_begin [16..22]
- │   │       │   │   │   ├─ LuauSparkleElement_begin_c1 [16..22]
- │   │       │   │   │   │   └─ BuiltinComponentName [16..22]: "button"
- │   │       │   │   │   └─ LuauSparkleElement_begin_c2 22
+ │   │       │   │   │   └─ LuauSparkleElement_begin_c1 [16..22]
+ │   │       │   │   │       └─ BuiltinComponentName [16..22]: "button"
  │   │       │   │   ├─ LuauSparkleElement_content [22..97]
  │   │       │   │   │   └─ LuauSparkleElementParts [22..97]
  │   │       │   │   │       └─ LuauSparkleElementParts_c1 [22..97]

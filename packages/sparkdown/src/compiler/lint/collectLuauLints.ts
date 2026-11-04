@@ -184,7 +184,7 @@ function definedFunctions(unit: LuauAstUnit): AstExprFunction[] {
   return functions;
 }
 
-const LINTED_NODES = nodeNameSet(["LuauLogicalOperator", "LuauCompareOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition", "LuauIfBlock", "LuauForLoop", "LuauSparkdownExplicitIfBlock", "LuauSparkdownExplicitLoop", "LuauAccessPath", "LuauChainedFunctionCall", "LuauNumericDecimal", "LuauNumericHex", "LuauNumericBinary", "LuauSparkleHandlerClosure"]);
+const LINTED_NODES = nodeNameSet(["LuauLogicalOperator", "LuauCompareOperator", "LuauTernaryExpression", "LuauFunctionDefinition", "LuauMethodDefinition", "LuauIfBlock", "LuauForLoop", "LuauSparkdownExplicitIfBlock", "LuauSparkdownExplicitLoop", "LuauAccessPath", "LuauChainedFunctionCall", "LuauNumericDecimal", "LuauNumericHex", "LuauNumericBinary", "LuauSparkleHandlerClosure", "LuauSparkleValueCallee"]);
 const lintNodeTypes = new WeakMap<NodeSet, Uint8Array>();
 
 function lintSyntaxNodes(tree: Tree, text: string): SyntaxNode[] {
@@ -351,7 +351,7 @@ function expressionsOutsideUnits(nodes: SyntaxNode[], text: string, units: LuauA
       } else if (node.name === "LuauIfBlock" || node.name === "LuauForLoop" || node.name === "LuauSparkdownExplicitIfBlock" || node.name === "LuauSparkdownExplicitLoop") {
         readings.push({ from: node.from, to: node.to, context, read: () => ({ ...readLuauStatements([node], text), statements: true }) });
       } else {
-        const parts = isExplicitRuleName(node.name, "LuauLogicalOperator") || isExplicitRuleName(node.name, "LuauCompareOperator") || isExplicitRuleName(node.name, "LuauAccessPath") || isExplicitRuleName(node.name, "LuauChainedFunctionCall") || node.name.startsWith("LuauNumeric") ? expressionAround(node, text) : [node];
+        const parts = isExplicitRuleName(node.name, "LuauLogicalOperator") || isExplicitRuleName(node.name, "LuauCompareOperator") || isExplicitRuleName(node.name, "LuauAccessPath") || isExplicitRuleName(node.name, "LuauChainedFunctionCall") || node.name === "LuauSparkleValueCallee" || node.name.startsWith("LuauNumeric") ? expressionAround(node, text) : [node];
         const first = parts[0]!;
         const last = parts[parts.length - 1]!;
         readings.push({ from: first.from, to: last.to, context, read: () => ({ ...readLuauExpression(parts, text), statements: false, method }) });

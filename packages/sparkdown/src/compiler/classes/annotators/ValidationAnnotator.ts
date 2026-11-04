@@ -143,6 +143,7 @@ const INVALID_SPARKLE_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
   "LuauSparkleBlockUnknown",
   "LuauSparkleElementInvalid",
 ]);
+const PROP_PAREN_OVERFLOW: Set<string> = nodeNameSet(["LuauSparklePropParenOverflow", "LuauSparklePropRunOverflow"]);
 const HEADER_CONTENT: ReadonlySet<string> = nodeNameSet(["Scene_content", "Branch_content"]);
 const MISSING_TYPE = "Expected type";
 const HEADER_METHOD_COLON_NAMES: SparkdownNodeName[] = ["LuauLoopHeaderMethodColon", "LuauIfHeaderMethodColon"];
@@ -265,6 +266,7 @@ const LUAU_BINDING_INTERPOLATION_HOSTS = nodeNameSet([
   "LuauPropAttribute",
   "LuauSparklePropAttribute",
   "LuauSparklePropClosureAttribute",
+  "LuauSparklePropParenAttribute",
   "StringFieldValueInterpolated",
   "LuauElementContentStringInterpolated",
 ]);
@@ -632,6 +634,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           open?.from ?? nodeRef.from,
           open?.to ?? nodeRef.from + 1,
         );
+      }
+      return false;
+    }
+    if (nodeRef.name === "LuauSparklePropParenAttribute") {
+      const content = childNamed(nodeRef.node, "LuauSparklePropParenAttribute_content");
+      const overflow = content && firstDescendant(content, PROP_PAREN_OVERFLOW);
+      const from = overflow && ((childNamed(overflow, `${overflow.name}_begin`) ?? childNamed(overflow, `${overflow.name}_c1`))?.to ?? overflow.from);
+      if (overflow && from < content.to) {
+        this.error(annotations, "Invalid syntax", from, content.to);
       }
       return false;
     }
@@ -1535,7 +1546,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const inPropValue =
         context.includes("LuauPropAttribute") ||
         context.includes("LuauSparklePropAttribute") ||
-        context.includes("LuauSparklePropClosureAttribute");
+        context.includes("LuauSparklePropClosureAttribute") ||
+        context.includes("LuauSparklePropParenAttribute");
       if (name && !inPropValue) {
         const message = `Unrecognized rich text tag \`<${name}>\` — not a known inline tag, so it renders literally instead of styling anything\n> Styling tags are \`<b>\`, \`<i>\`, \`<u>\`, \`<s>\`, \`<sub>\`, \`<sup>\`, \`<mark=…>\`, \`<color=…>\`, \`<size=…>\`; wrap text in \`<noparse>…</noparse>\` to keep angle brackets literal`;
         annotations.push(
