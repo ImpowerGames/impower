@@ -148,3 +148,79 @@ describe("a local or parameter that shares a store's name", () => {
     expect(errors(["store health = 100", "", ...scene].join("\n"))).toEqual([]);
   });
 });
+
+describe("a nested local that shares an outer local's name", () => {
+  const allDiagnostics = (text: string): string[] =>
+    Object.values(compile(text).diagnostics ?? {})
+      .flat()
+      .map((d) => message(d));
+
+  it.each([
+    ["a do block", ["  do", "    local x = 2", "  end"]],
+    ["an if block", ["  if x == 1 then", "    local x = 2", "  end"]],
+    ["a for block", ["  for i = 1, 2 do", "    local x = i", "  end"]],
+  ])("compiles without a diagnostic in %s of a scene", (_label, block) => {
+    expect(
+      allDiagnostics(
+        ["scene start", "  local x = 1", ...block, "  Hi {x}.", "end", ""].join(
+          "\n",
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it("reports a store that collides with a for loop's variable", () => {
+    expect(
+      errors(
+        [
+          "function f()",
+          "  for i = 1, 2 do",
+          "    store i = 3",
+          "  end",
+          "  return 0",
+          "end",
+          "scene start",
+          "  Hi {f()}.",
+          "end",
+          "",
+        ].join("\n"),
+      ).filter((e) => e.includes("Duplicate identifier `i`")),
+    ).toEqual([
+      expect.stringMatching(
+        /^L2:\d+ Duplicate identifier `i`\. A temp named `i` already exists$/,
+      ),
+    ]);
+  });
+
+  it("compiles with only the shadowing lint in each block of a function", () => {
+    expect(
+      allDiagnostics(
+        [
+          "store result = 0",
+          "function f()",
+          "  local x = 1",
+          "  do",
+          "    local x = 2",
+          "    result = result + x",
+          "  end",
+          "  if x == 1 then",
+          "    local x = 3",
+          "    result = result + x",
+          "  end",
+          "  for i = 1, 2 do",
+          "    local x = i",
+          "    result = result + x",
+          "  end",
+          "  return x",
+          "end",
+          "scene start",
+          "  Hi {f()}.",
+          "end",
+          "",
+        ].join("\n"),
+      ),
+    ).toEqual(
+      Array(3).fill("Variable 'x' shadows previous declaration at line 3"),
+    );
+  });
+});

@@ -283,13 +283,6 @@ export namespace CallStack {
       this.type = type;
     }
 
-    public get temporaryVariables(): Map<string, InkObject> {
-      return this.temporaryScopes[this.temporaryScopes.length - 1]!;
-    }
-    public set temporaryVariables(value: Map<string, InkObject>) {
-      this.temporaryScopes = [value];
-    }
-
     public PushScope() {
       this.temporaryScopes.push(new Map());
     }

@@ -3868,8 +3868,8 @@ export class Game<T extends M = {}> {
     const contextThread = selected && thread ? thread : callStack.currentThread;
     const contextElement =
       selected ?? callStack.currentThread.callstack[callStack.currentElementIndex];
-    if (contextElement?.temporaryVariables) {
-      for (const [name, scoped] of contextElement.temporaryVariables.entries()) {
+    for (const scope of contextElement?.temporaryScopes ?? []) {
+      for (const [name, scoped] of scope) {
         const valueObj =
           scoped instanceof VariablePointerValue
             ? this.valueAtPointerInThread(contextThread, scoped)
@@ -3877,6 +3877,8 @@ export class Game<T extends M = {}> {
         const value = this.getRuntimeValue(valueObj);
         if (isEvaluable(value) && !this.isTableRecord(value)) {
           context[name] = value;
+        } else {
+          delete context[name];
         }
       }
     }

@@ -4,6 +4,7 @@ import { StoryException } from "./StoryException";
 import { asOrThrows } from "./TypeAssertion";
 import { tryParseInt, tryParseFloat } from "./TryGetResult";
 import { throwNullException } from "./NullException";
+import { Void } from "./Void";
 
 export abstract class AbstractValue extends InkObject {
   public abstract get valueType(): ValueType;
@@ -521,4 +522,16 @@ export enum ValueType {
   Object = 6,
   Null = 7,
   Multi = 8,
+}
+
+export function isLuauTruthy(obj: InkObject | null | undefined): boolean {
+  if (obj == null) return false;
+  if (obj instanceof NullValue) return false;
+  if (obj instanceof Void) return false;
+  if (obj instanceof BoolValue) return obj.value === true;
+  if (obj instanceof MultiValue) {
+    const first = obj.values[0];
+    return first == null ? false : isLuauTruthy(first);
+  }
+  return true;
 }

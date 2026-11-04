@@ -1259,13 +1259,6 @@ export class SparkdownCompiler {
             : type === ErrorType.Hint
               ? DiagnosticSeverity.Hint
               : DiagnosticSeverity.Information;
-      if (
-        /^Duplicate identifier `\w+`\. A temp named `\w+` already exists on null/.test(
-          message,
-        )
-      ) {
-        return;
-      }
       const diagUri = source?.filePath || uri;
       const startLine = source ? source.startLineNumber - 1 : 0;
       const startCharacter = source ? source.startCharacterNumber - 1 : 0;

@@ -8,6 +8,7 @@ import {
   NullValue,
   StringValue,
   SymbolRef,
+  isLuauTruthy,
 } from "./Value";
 import { StoryException, luauRuntimeError } from "./StoryException";
 import { Void } from "./Void";
@@ -27,7 +28,6 @@ import {
   parseLuauNumber,
 } from "./StdLib";
 import { asOrThrows } from "./TypeAssertion";
-import { isLuauTruthy } from "./LuauTruthiness";
 import { throwNullException } from "./NullException";
 
 type BinaryOp<T> = (left: T, right: T) => any;
