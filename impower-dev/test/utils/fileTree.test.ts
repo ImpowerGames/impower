@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   breadcrumbSegments,
   buildFileTree,
+  canWriteLayoutMarker,
   childrenRows,
   computeFolderMoves,
   computeLayoutMigration,
@@ -678,7 +679,10 @@ describe("computeLayoutMigration", () => {
         files = applyMoves(files, batch).filter((p) => !lost.includes(p));
         remember();
       }
-      if (!files.includes(LAYOUT_MARKER)) files = [...files, LAYOUT_MARKER];
+      if (canWriteLayoutMarker(files)) {
+        if (folders.has(LAYOUT_MARKER)) lost.push(LAYOUT_MARKER);
+        files = [...files, LAYOUT_MARKER];
+      }
       return batches;
     };
     load();
@@ -692,6 +696,7 @@ describe("computeLayoutMigration", () => {
     [["main.sd", "other/main.sd", "other/tree.png", "scripts/other/stray.png"]],
     [["main.sd", "forest.svg", "other/main.sd", "other/assets/forest.svg"]],
     [["main.sd", "scripts/other/main.sd", "assets/other/assets/forest.svg"]],
+    [["main.sd", "other/main.sd", "other/assets/forest.svg", ".layout/notes.txt"]],
   ])(
     "never moves a file onto a folder emptied earlier, on this load or the next: %j",
     (paths) => {
@@ -703,6 +708,23 @@ describe("computeLayoutMigration", () => {
       expect(second).toEqual([]);
     },
   );
+
+  it("leaves a folder at the layout marker's path in place and does not write the marker over it", () => {
+    const paths = [
+      "main.sd",
+      "other/main.sd",
+      "other/assets/forest.svg",
+      ".layout/notes.txt",
+    ];
+    const batches = computeLayoutMigrationBatches(paths, subtreeFor);
+    expect(batches.flat().map((m) => m.from)).not.toContain(
+      ".layout/notes.txt",
+    );
+    expect(canWriteLayoutMarker(batches.reduce(applyMoves, paths))).toBe(false);
+    expect(canWriteLayoutMarker(paths.filter((p) => !p.startsWith(".")))).toBe(
+      true,
+    );
+  });
 
   it("keeps a folder some file is filed onto, so the blocked file stays blocked", () => {
     expect(

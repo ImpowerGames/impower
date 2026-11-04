@@ -349,6 +349,11 @@ const MAIN_SCRIPT = "main.sd";
 
 export const LAYOUT_MARKER = ".layout";
 
+export const canWriteLayoutMarker = (relativePaths: string[]): boolean =>
+  !relativePaths.some(
+    (p) => p === LAYOUT_MARKER || p.startsWith(`${LAYOUT_MARKER}/`),
+  );
+
 const settledTarget = (
   path: string,
   subtreeFor: (path: string) => string,
@@ -432,6 +437,7 @@ export const computeLayoutMigration = (
   const heldFolders = [
     ...unitPlans.flatMap((plan) => plan.moves.map((m) => m.to)),
     ...rootPlans.map((plan) => plan.to),
+    LAYOUT_MARKER,
   ].filter((to) => folders.has(to));
   const isHeld = (path: string) =>
     heldFolders.some((folder) => path.startsWith(`${folder}/`));

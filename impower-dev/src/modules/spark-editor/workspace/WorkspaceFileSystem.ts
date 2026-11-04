@@ -55,6 +55,7 @@ import { bundleScripts, splitScriptBundle } from "./utils/scriptBundle";
 import {
   FOLDER_SENTINEL,
   computeFolderMoves,
+  canWriteLayoutMarker,
   computeLayoutMigrationBatches,
   LAYOUT_MARKER,
   layoutSubtreeFor,
@@ -120,8 +121,8 @@ export default class WorkspaceFileSystem {
       relativePaths,
       layoutSubtreeFor,
     );
-    const marked = relativePaths.includes(LAYOUT_MARKER);
-    if (batches.length > 0 || !marked) {
+    const writeMarker = canWriteLayoutMarker(relativePaths);
+    if (batches.length > 0 || writeMarker) {
       for (const batch of batches) {
         await this.renameFiles({
           files: batch.map((m) => ({
@@ -130,7 +131,7 @@ export default class WorkspaceFileSystem {
           })),
         });
       }
-      if (!marked) {
+      if (writeMarker) {
         await this.writeProjectMetadata(projectId, "layout", "1");
       }
       files = await this.readDirectoryFiles({
