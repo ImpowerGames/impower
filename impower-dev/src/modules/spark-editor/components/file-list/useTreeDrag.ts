@@ -138,7 +138,7 @@ export function useTreeDrag(opts: TreeDragOpts): TreeDrag {
     function onMove(e: PointerEvent) {
       const st = stateRef.current;
       if (!st || e.pointerId !== st.pointerId) return;
-      // workaround(chromium): a mouse or pen pointerup can be missed when released off-window or on focus loss, so a buttonless move ends the drag
+      // workaround(chromium): a mouse or pen pointerup can be missed when released off-window or on focus loss, so a buttonless move ends the drag (seen with Chrome 157.0.8103.39)
       if (st.pointerType !== "touch" && e.buttons === 0) {
         cleanup();
         return;

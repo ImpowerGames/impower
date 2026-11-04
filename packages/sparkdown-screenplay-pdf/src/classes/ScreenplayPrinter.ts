@@ -308,7 +308,7 @@ export default class ScreenplayPrinter {
         (Math.atan(this._profile.page_height / this._profile.page_width) *
           180) /
         Math.PI;
-      // workaround(pdfkit): underline combined with rotation renders wrongly, so formatting is reset first (suspected bug, no version recorded)
+      // workaround(pdfkit): underline combined with rotation renders wrongly, so formatting is reset first (seen with pdfkit 0.14.0)
       const len = watermarkString.length;
       let diagonal;
       diagonal = Math.sqrt(

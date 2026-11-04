@@ -380,7 +380,7 @@ export async function runOwnedChild({prepared,reservationToken,env=process.env,i
   if(!remainingStartup())return {...expected,status:'not-run',exit:null,signal:null,exitConfirmed:true,
     launchAuthorized:false,helperLaunched:false,launchError:'Supervisor startup deadline expired before helper launch'};
   const launchArgs=platform==='win32'?[requestFile]:[helper,requestFile];
-  // workaround(node): libuv puts Windows children in a kill-on-close Job, so the supervisor dies with Node before its EOF cleanup
+  // workaround(node): libuv puts Windows children in a kill-on-close Job, so the supervisor dies with Node before its EOF cleanup (seen with Node 26.13.0)
   const child=beforeHelper(()=>spawnDetached(executable,launchArgs,{cwd,env,stdio:['pipe','pipe','pipe']}));
   let launchError,coordinationError,protocolError,buffer='',diagnostics='',authorized=false,authorizationAttempted=false,readyResolve;
   let startedMetadata=null;

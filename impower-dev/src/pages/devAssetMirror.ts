@@ -1,5 +1,5 @@
 const MIRROR_PREFIX = "/__dev-asset-mirror/";
-// workaround(chromium): an embedded browser's renderer crashes when many concurrent OPFS transfers are in flight, so concurrency is capped at 2
+// workaround(chromium): an embedded browser's renderer crashes when many concurrent OPFS transfers are in flight, so concurrency is capped at 2 (seen with Chrome 157.0.8103.39)
 const CONCURRENCY = 2;
 const CLIENT_ID_KEY = "dev-asset-mirror-client";
 const SYNCED_TAGS_KEY = "dev-asset-mirror-synced";

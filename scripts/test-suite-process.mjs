@@ -175,7 +175,7 @@ function admissionFailure(root, error, deadline = Date.now() + guardWaitMs) {
 
 const names = (command, within) => !within || command.toLowerCase().includes(within.toLowerCase());
 
-// workaround(windows): a child keeps a dead parent's pid, which a newer process can reuse, so a parent edge needs creation-time order
+// workaround(windows): a child keeps a dead parent's pid, which a newer process can reuse, so a parent edge needs creation-time order (seen with Windows 11 10.0.26300)
 export function foreignVitestProcesses(rows, ownPid = process.pid, { within, accounted = new Set() } = {}) {
   const byPid = new Map(rows.map(row => [row.pid, row]));
   const parentOf = row => {

@@ -84,7 +84,7 @@ const escapeAttribute = (value: string) =>
 
 export const IMAGE_PREVIEW_HEIGHT = 180;
 
-// workaround(vscode): the markdown sanitizer drops the style attribute, so the thumbnail height is also written as an HTML height attribute
+// workaround(vscode): the markdown sanitizer drops the style attribute, so the thumbnail height is also written as an HTML height attribute (https://github.com/microsoft/vscode/blob/main/src/vs/base/browser/markdownRenderer.ts)
 export const buildImagePreviewMarkup = (src: string, name: string): string =>
   `<img src="${escapeAttribute(src)}" alt="${escapeAttribute(
     name,

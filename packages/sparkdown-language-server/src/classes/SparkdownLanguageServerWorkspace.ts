@@ -350,7 +350,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     }
   >();
 
-  // workaround(vscode): the hover and completion markdown sanitizer loads only http(s) and data: image srcs, so filtered SVG previews stay data URIs
+  // workaround(vscode): the hover and completion markdown sanitizer loads only http(s) and data: image srcs, so filtered SVG previews stay data URIs (https://github.com/microsoft/vscode/blob/main/src/vs/base/browser/markdownRenderer.ts)
   protected attachLazyImageData(program: {
     context?: { image?: Record<string, any> };
   }): void {

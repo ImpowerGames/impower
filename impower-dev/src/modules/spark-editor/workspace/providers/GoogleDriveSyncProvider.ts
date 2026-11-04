@@ -6,7 +6,7 @@ import { RemoteStorage } from "../types/RemoteStorageTypes";
 import { ResponseTypeMap } from "../types/ResponseTypeMap";
 import sendServerRequest from "../utils/sendServerRequest";
 
-// workaround(@types/google.picker): DocsView typings omit setQuery, so it is declared here; see https://developers.google.com/drive/picker/reference#view
+// workaround(@types/google.picker): DocsView typings omit setQuery, so it is declared here (seen with @types/google.picker 0.0.51); see https://developers.google.com/drive/picker/reference#view
 type DocsView = google.picker.DocsView & {
   setQuery(query: string): google.picker.DocsView;
 };
@@ -258,7 +258,7 @@ export default class GoogleDriveSyncProvider {
       redirect_uri: REDIRECT_URI,
       login_hint: account?.email,
     });
-    // workaround(ios): iOS Safari blocks a popup not opened synchronously within the user gesture, so the consent popup opens in the click
+    // workaround(ios): iOS Safari blocks a popup not opened synchronously within the user gesture, so the consent popup opens in the click (https://bugs.webkit.org/show_bug.cgi?id=225559)
     authClient.requestCode();
     return new Promise<AccountInfo | null>((resolve, reject) => {
       const bindableAuthClient =

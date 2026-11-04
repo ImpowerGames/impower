@@ -168,7 +168,7 @@ export class TextmateGrammarParse implements PartialParse {
         length,
         maxBufferLength,
       });
-      // workaround(@lezer/common): Tree offers no public way to attach a NodeProp after construction, so the private props field is written directly
+      // workaround(@lezer/common): Tree offers no public way to attach a NodeProp after construction, so the private props field is written directly (seen with @lezer/common 1.5.2)
       const props = Object.create(null);
       props[(cachedCompilerProp as any).id] = this.compiler;
       (tree as any).props = props;

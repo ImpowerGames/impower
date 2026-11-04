@@ -1,7 +1,7 @@
 import { SparkleComponent } from "../../core/sparkle-component";
 import spec from "./_scroll-blocker";
 
-// workaround(safari): the page scrolls behind positioned elements while the on-screen keyboard is visible; an invisible button blocks it
+// workaround(safari): the page scrolls behind positioned elements while the on-screen keyboard is visible; an invisible button blocks it (https://bugs.webkit.org/show_bug.cgi?id=191204)
 export default class ScrollBlocker extends SparkleComponent(spec) {
   override onConnected() {
     this.root.addEventListener("click", this.handleClick);

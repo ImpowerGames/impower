@@ -9,7 +9,7 @@ export const profiled = <T>(
   let deferred = false;
   try {
     const result = fn();
-    // workaround(vscode-jsonrpc): handler returns are typed PromiseLike declaring only then, so gate on then and adopt with Promise.resolve
+    // workaround(vscode-jsonrpc): handler returns are typed PromiseLike declaring only then, so gate on then and adopt with Promise.resolve (seen with vscode-jsonrpc 9.0.0)
     if (result && typeof (result as { then?: unknown }).then === "function") {
       const settled = Promise.resolve(result).finally(() => {
         profile("end", method, uri);

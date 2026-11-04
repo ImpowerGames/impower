@@ -1,6 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 
-// workaround(@radix-ui/react-presence): Presence races on exit under preact, so mount and unmount timing is owned here
+// workaround(@radix-ui/react-presence): Presence races on exit under preact, so mount and unmount timing is owned here (seen with @radix-ui/react-presence 1.1.6)
 export function useMountTransition(open: boolean, durationMs: number) {
   const [mounted, setMounted] = useState(open);
   const [visible, setVisible] = useState(false);

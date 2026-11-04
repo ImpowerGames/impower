@@ -60,7 +60,7 @@ export class WorkerGameLink {
   attachPlay(sink: (message: Message) => void): string {
     this.attach(sink);
     const name = `impower-game-${crypto.randomUUID()}`;
-    // workaround(chromium): after input, holds worker and port messages until the next rendered frame (median 8 ms, #811); BroadcastChannel messages are not held
+    // workaround(chromium): after input, holds worker and port messages until the next rendered frame (median 8 ms, #811); BroadcastChannel messages are not held (seen with Chrome 157.0.8103.39)
     const channel = new BroadcastChannel(name);
     channel.onmessage = this.onMessage;
     this._channel = channel;

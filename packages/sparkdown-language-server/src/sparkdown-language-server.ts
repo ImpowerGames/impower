@@ -47,7 +47,7 @@ import {
 } from "./utils/providers/getSemanticTokens";
 import { getUiBreakpoints } from "./utils/providers/getUiBreakpoints";
 
-// workaround(typescript): with the DOM lib loaded, `self` in a dedicated worker is typed as Window
+// workaround(typescript): with the DOM lib loaded, `self` in a dedicated worker is typed as Window (seen with typescript 5.9.3)
 declare const self: DedicatedWorkerGlobalScope;
 
 console.log("running sparkdown-language-server v1.0");
@@ -142,7 +142,7 @@ try {
   connection.onInitialized(async () => {
     const settings = await connection.workspace.getConfiguration("sparkdown");
     workspace.loadConfiguration(settings);
-    // workaround(vscode-languageserver): languages.*.refresh() returns the request promise but is typed void, so the refresh is sent directly
+    // workaround(vscode-languageserver): languages.*.refresh() returns the request promise but is typed void, so the refresh is sent directly (seen with vscode-languageserver 9.0.1)
     const ignoreRefusal = () => {};
     connection
       .sendRequest(SemanticTokensRefreshRequest.type)

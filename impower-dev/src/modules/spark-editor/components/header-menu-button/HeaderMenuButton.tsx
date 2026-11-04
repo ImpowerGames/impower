@@ -14,7 +14,7 @@ import Account from "../account/Account";
 export const propDefaults = {};
 export type HeaderMenuButtonProps = Partial<typeof propDefaults>;
 
-// workaround(vite): @radix-ui/react-dialog's CJS portal helpers crash Vite SSR module load, so the drawer is a Preact-native modal
+// workaround(vite): @radix-ui/react-dialog's CJS portal helpers crash Vite SSR module load, so the drawer is a Preact-native modal (seen with vite 8.0.16 and @radix-ui/react-dialog 1.1.17)
 export default function HeaderMenuButton(_p: HeaderMenuButtonProps) {
   const [open, setOpen] = useState(false);
   const pickingResource = useComputed(

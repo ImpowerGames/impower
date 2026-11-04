@@ -11550,7 +11550,7 @@ repository:
     name: support.type.divert-target.sd
     match: ([-][>])
 
-  # workaround(vscode-oniguruma): VS Code's regex engine refuses a lookbehind nested in another, so the function-type arrow is spelled [^-]>
+  # workaround(vscode-oniguruma): VS Code's regex engine refuses a lookbehind nested in another, so the function-type arrow is spelled [^-]> (seen with vscode-oniguruma 2.0.1)
   LuauTypeOptionalOperator:
     match: (?<={{LUAU_TYPE_END}}{{WS}}*)({{WS}}*)({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}))?
     captures:

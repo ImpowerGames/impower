@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-globals */
 
-// workaround(typescript): one lib set per project, so with the DOM lib loaded a worker's `self` types as Window and is redeclared
+// workaround(typescript): one lib set per project, so with the DOM lib loaded a worker's `self` types as Window and is redeclared (seen with typescript 5.9.3)
 declare const self: DedicatedWorkerGlobalScope;
 import { convertMidiToToneSequences } from "../../../spark-engine/src/game/modules/audio/utils/convertMidiToToneSequences";
 import { parseMidi } from "../../../spark-engine/src/game/modules/audio/utils/parseMidi";

@@ -238,7 +238,7 @@ export function DropdownItem({
   class?: string;
   children?: ComponentChildren;
   disabled?: boolean;
-  // workaround(preact): preact's DOM `onSelect` (text selection) typing conflicts with Radix's item onSelect, so the prop is redeclared
+  // workaround(preact): preact's DOM `onSelect` (text selection) typing conflicts with Radix's item onSelect, so the prop is redeclared (seen with preact 10.29.2)
   onSelect?: (event: Event) => void;
 } & Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "onSelect">) {
   const ctx = useMenuCtx();

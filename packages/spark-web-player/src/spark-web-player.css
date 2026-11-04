@@ -112,7 +112,7 @@ spark-web-player pre {
   white-space: pre;
 }
 
-/* workaround(chromium): UAs render monospace at a smaller size than the surrounding text, so 1em inside code differs (monospace font-size quirk, all browsers) */
+/* workaround(chromium): UAs render monospace at a smaller size than the surrounding text, so 1em inside code differs (monospace font-size quirk, all browsers) (seen with Chrome 157.0.8103.39) */
 spark-web-player code,
 spark-web-player kbd,
 spark-web-player samp,

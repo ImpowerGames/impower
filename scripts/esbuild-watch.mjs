@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-// workaround(esbuild): ctx.watch() polls build inputs on a timer (about 2,000 file opens a second per idle watcher on Windows); rebuilds use fs.watch
+// workaround(esbuild): ctx.watch() polls build inputs on a timer (about 2,000 file opens a second per idle watcher on Windows); rebuilds use fs.watch (seen with esbuild 0.18.20 to 0.25.12)
 export async function watchBuild(
   ctx,
   {

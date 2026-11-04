@@ -117,7 +117,7 @@ const config = {
 async function main() {
   const ctx = await esbuild.context(config);
   if (WATCH) {
-    // workaround(esbuild): ctx.watch() polls the build graph's files rather than using change notifications
+    // workaround(esbuild): ctx.watch() polls the build graph's files rather than using change notifications (seen with esbuild 0.25.12)
     const { watchBuild } = await import("../../../scripts/esbuild-watch.mjs");
     await watchBuild(ctx, {
       extraInputs: () => workerInputs,
