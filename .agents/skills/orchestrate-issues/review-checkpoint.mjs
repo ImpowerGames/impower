@@ -190,7 +190,9 @@ export function checkpointEvidence({ pr, state, pull, comments, git, trusted, re
   const posted = new Set(comments.flatMap((c) => [...(c.body ?? "").matchAll(/^#{2,4} Review round (\d+) state\b/gm)].map((m) => Number(m[1]))));
   const missing = [...posted].filter((r) => !state.roundsSeen.includes(r)).sort((a, b) => a - b);
   if (missing.length) blockers.push(`${where === `PR #${pr}` ? "the PR" : where} posts the state of round${missing.length > 1 ? "s" : ""} ${missing.join(", ")}, but no journal here records ${missing.length > 1 ? "their" : "its"} reviews; read those journals where they ran`);
-  if (state.completedRound < firstRound) blockers.push(firstRound === FIRST_CHECKPOINT_ROUND ? `round ${state.completedRound} is the last complete round; the first formal checkpoint follows round ${FIRST_CHECKPOINT_ROUND}'s verified fixes` : `no review round is complete here; the PR has no independent review this checkout can show`);
+  const early = firstRound === FIRST_CHECKPOINT_ROUND && state.completedRound >= 1 && state.completedRound < FIRST_CHECKPOINT_ROUND;
+  const floor = early ? `round ${state.completedRound} is the last complete round; the first formal checkpoint follows round ${FIRST_CHECKPOINT_ROUND}'s verified fixes, and before it only an acceptance of verified final corrections may be decided` : null;
+  if (!early && state.completedRound < firstRound) blockers.push(firstRound === FIRST_CHECKPOINT_ROUND ? `round ${state.completedRound} is the last complete round; the first formal checkpoint follows round ${FIRST_CHECKPOINT_ROUND}'s verified fixes` : `no review round is complete here; the PR has no independent review this checkout can show`);
   const reports = state.reports.map((r) => {
     const report = comments.find((c) => c.id === r.comment);
     if (!report) { blockers.push(`report ${r.comment} (round ${r.round}, ${r.reviewerId ?? "reviewer"}) is not on ${where}`); return r; }
@@ -212,7 +214,7 @@ export function checkpointEvidence({ pr, state, pull, comments, git, trusted, re
     reviewedHead: state.reviewedHead, plannedReviewers: state.plannedReviewers, range, checks, reports,
     lastExit: state.launches.map((l) => l.exitedAt).filter(Boolean).sort().at(-1) ?? null, lastAdjudication: reports.map((r) => r.adjudicatedAt).filter(Boolean).sort().at(-1) ?? null,
     decisions: decisions.map(({ id, kind, round, head, comment, trusted: t, malformed }) => ({ id, kind, round, head, comment, trusted: t, ...(malformed && { malformed }) })),
-    audit: violations, blockers, due: !blockers.length && !violations.length,
+    audit: violations, blockers: floor ? [...blockers, floor] : blockers, due: !floor && !blockers.length && !violations.length, acceptanceDue: !blockers.length && !violations.length,
   };
 }
 
@@ -240,8 +242,10 @@ export function decide(record, { ticket: number, kind, assessment: a, inspected,
   const ticket = record.tickets[number];
   if (!ticket) throw new Error(`#${number} is not in the run record`);
   if (writersOf(ticket, number).includes(record.coordinator.session)) throw new Error(`${record.coordinator.session} wrote for #${number}, and is now its coordinator; a writer never decides its own review checkpoint`);
-  if (e.completedRound < FIRST_CHECKPOINT_ROUND) throw new Error(`No formal checkpoint before round ${FIRST_CHECKPOINT_ROUND}: round ${e.completedRound} is the last complete round, and the writer's ordinary review continues`);
-  if (kind !== "maintainer" && !e.due) throw new Error(`No checkpoint is due on PR #${e.pr}: ${[...e.blockers, ...e.audit].join("; ")}`);
+  const accepting = kind === "accept-unreviewed";
+  if (e.completedRound < (accepting ? 1 : FIRST_CHECKPOINT_ROUND)) throw new Error(accepting ? `No review round is complete on PR #${e.pr}; an acceptance follows a completed round` : `No formal checkpoint before round ${FIRST_CHECKPOINT_ROUND}: round ${e.completedRound} is the last complete round, and the writer's ordinary review continues; only an acceptance of verified final corrections may be decided before it`);
+  const due = e.due || (accepting && e.acceptanceDue);
+  if (kind !== "maintainer" && !due) throw new Error(`No checkpoint is due on PR #${e.pr}: ${[...e.blockers, ...e.audit].join("; ")}`);
   const earlier = ticket.checkpoints ?? [];
   const unsettled = earlier.find((d) => d.state === "intent");
   if (unsettled) throw new Error(`Decision ${unsettled.id} is not published; publish it and record published, or record abandon with evidence that it was never posted`);
@@ -272,7 +276,7 @@ export function decide(record, { ticket: number, kind, assessment: a, inspected,
     round: e.completedRound, limitBefore: e.limit, reviewedHead: e.reviewedHead, head: e.head,
     range: e.range ? { from: e.range.from, to: e.range.to, base: e.range.base, commits: e.range.commits.map((c) => c.sha), diffSha256: e.range.diffSha256 } : null,
     reports: e.reports.map(({ comment, round, reviewerId, adjudication }) => ({ comment, round, reviewerId, adjudication })),
-    checks: e.checks.map(({ name, result }) => ({ name, result })), due: e.due, blockers: e.blockers, audit: e.audit, ...extra, assessment: a,
+    checks: e.checks.map(({ name, result }) => ({ name, result })), due, blockers: e.blockers, audit: e.audit, ...extra, assessment: a,
   };
   const body = renderDecision(decision, e);
   if (body.length > MAX_COMMENT) throw new Error(`The decision's comment would be ${body.length} characters, beyond GitHub's ${MAX_COMMENT}; shorten the assessment`);

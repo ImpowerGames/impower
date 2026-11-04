@@ -25,9 +25,8 @@ sparkdown [0..139]
  │   │       │   ├─ Whitespace [13..15]: "  "
  │   │       │   ├─ LuauSparkleElement [15..136]
  │   │       │   │   ├─ LuauSparkleElement_begin [15..20]
- │   │       │   │   │   ├─ LuauSparkleElement_begin_c1 [15..20]
- │   │       │   │   │   │   └─ LuauSparkleElementName [15..20]: "stage"
- │   │       │   │   │   └─ LuauSparkleElement_begin_c2 20
+ │   │       │   │   │   └─ LuauSparkleElement_begin_c1 [15..20]
+ │   │       │   │   │       └─ LuauSparkleElementName [15..20]: "stage"
  │   │       │   │   ├─ LuauSparkleElement_content [20..136]
  │   │       │   │   │   ├─ LuauSparkleElementAssign [20..21]
  │   │       │   │   │   │   └─ LuauSparkleElementAssign_c1 [20..21]

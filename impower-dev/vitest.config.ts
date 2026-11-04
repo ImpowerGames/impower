@@ -3,9 +3,15 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
-    alias: {
-      "vscode-jsonrpc/browser": fileURLToPath(new URL("../node_modules/vscode-jsonrpc/lib/browser/main.js", import.meta.url)),
-    },
+    alias: [
+      {
+        find: "vscode-jsonrpc/browser",
+        replacement: fileURLToPath(new URL("../node_modules/vscode-jsonrpc/lib/browser/main.js", import.meta.url)),
+      },
+      { find: /^react(-dom)?$/, replacement: "preact/compat" },
+      { find: /^react\/jsx-runtime$/, replacement: "preact/jsx-runtime" },
+    ],
+    mainFields: ["module", "main"],
   },
   test: {
     include: ["test/**/*.test.ts"],
@@ -13,7 +19,18 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["test/setup.ts"],
     pool: "forks",
-    poolOptions: { forks: { singleFork: true } },
     fileParallelism: false,
+    server: {
+      deps: {
+        inline: [
+          /@radix-ui\//,
+          /@floating-ui\/react-dom/,
+          /react-remove-scroll/,
+          /react-style-singleton/,
+          /use-callback-ref/,
+          /use-sidecar/,
+        ],
+      },
+    },
   },
 });
