@@ -102,6 +102,15 @@ function luauOperandCheck(op: string, operands: InkObject[]): void {
   }
 }
 type UnaryOp<T> = (val: T) => any;
+type TypelessOp = (parameters: InkObject[]) => InkObject;
+
+const luauConcatOperand = (p: InkObject | undefined): string | null => {
+  if (p instanceof StringValue) return p.value ?? "";
+  if (p instanceof IntValue || p instanceof FloatValue) {
+    return luauNumberToString(p.value ?? 0);
+  }
+  return null;
+};
 
 export class NativeFunctionCall extends InkObject {
   public static readonly Add: string = "+";
@@ -268,52 +277,8 @@ export class NativeFunctionCall extends InkObject {
       }
     }
 
-    if (
-      parameters.length === 2 &&
-      (this.name === NativeFunctionCall.And ||
-        this.name === NativeFunctionCall.Or)
-    ) {
-      const a = parameters[0];
-      const b = parameters[1];
-      const aTruthy = isLuauTruthy(a);
-      const pickA =
-        this.name === NativeFunctionCall.And ? !aTruthy : aTruthy;
-      return pickA ? a! : b!;
-    }
-
-    if (
-      parameters.length === 1 &&
-      this.name === NativeFunctionCall.Not
-    ) {
-      return new BoolValue(!isLuauTruthy(parameters[0]));
-    }
-
-    if (
-      parameters.length === 1 &&
-      this.name === NativeFunctionCall.LuauTruthy
-    ) {
-      return new BoolValue(isLuauTruthy(parameters[0]));
-    }
-
-    if (
-      parameters.length === 2 &&
-      this.name === NativeFunctionCall.Concat
-    ) {
-      const coerce = (p: InkObject | undefined): string | null => {
-        if (p instanceof StringValue) return p.value ?? "";
-        if (p instanceof IntValue || p instanceof FloatValue) {
-          return luauNumberToString(p.value ?? 0);
-        }
-        return null;
-      };
-      const l = coerce(parameters[0]);
-      const r = coerce(parameters[1]);
-      if (l === null || r === null) {
-        throw luauRuntimeError(
-          `attempt to concatenate ${luauTypeOf(parameters[0])} with ${luauTypeOf(parameters[1])}`,
-        );
-      }
-      return new StringValue(l + r);
+    if (this._typelessOp) {
+      return this._typelessOp(parameters);
     }
 
     if (parameters.length === 2) {
@@ -533,6 +498,25 @@ export class NativeFunctionCall extends InkObject {
     if (this._nativeFunctions == null) {
       this._nativeFunctions = new Map();
 
+      this.AddTypelessOp(this.Not, 1, ([x]) => new BoolValue(!isLuauTruthy(x)));
+      this.AddTypelessOp(
+        this.LuauTruthy,
+        1,
+        ([x]) => new BoolValue(isLuauTruthy(x)),
+      );
+      this.AddTypelessOp(this.And, 2, ([x, y]) => (isLuauTruthy(x) ? y! : x!));
+      this.AddTypelessOp(this.Or, 2, ([x, y]) => (isLuauTruthy(x) ? x! : y!));
+      this.AddTypelessOp(this.Concat, 2, ([x, y]) => {
+        const l = luauConcatOperand(x);
+        const r = luauConcatOperand(y);
+        if (l === null || r === null) {
+          throw luauRuntimeError(
+            `attempt to concatenate ${luauTypeOf(x)} with ${luauTypeOf(y)}`,
+          );
+        }
+        return new StringValue(l + r);
+      });
+
       this.AddIntBinaryOp(this.Add, (x, y) => x + y);
       this.AddIntBinaryOp(this.Subtract, (x, y) => x - y);
       this.AddIntBinaryOp(this.Multiply, (x, y) => x * y);
@@ -546,12 +530,6 @@ export class NativeFunctionCall extends InkObject {
       this.AddIntBinaryOp(this.GreaterThanOrEquals, (x, y) => x >= y);
       this.AddIntBinaryOp(this.LessThanOrEquals, (x, y) => x <= y);
       this.AddIntBinaryOp(this.NotEquals, (x, y) => x != y);
-      this.AddIntUnaryOp(this.Not, (x) => x == 0);
-      this.AddIntUnaryOp(this.LuauTruthy, (x) => x != 0);
-      this.AddIntBinaryOp(this.Concat, (x, y) => `${x}${y}`);
-
-      this.AddIntBinaryOp(this.And, (x, y) => x != 0 && y != 0);
-      this.AddIntBinaryOp(this.Or, (x, y) => x != 0 || y != 0);
 
       this.AddIntBinaryOp(this.Max, (x, y) => Math.max(x, y));
       this.AddIntBinaryOp(this.Min, (x, y) => Math.min(x, y));
@@ -576,10 +554,6 @@ export class NativeFunctionCall extends InkObject {
       this.AddFloatBinaryOp(this.GreaterThanOrEquals, (x, y) => x >= y);
       this.AddFloatBinaryOp(this.LessThanOrEquals, (x, y) => x <= y);
       this.AddFloatBinaryOp(this.NotEquals, (x, y) => x != y);
-      this.AddFloatUnaryOp(this.Not, (x) => x == 0.0);
-
-      this.AddFloatBinaryOp(this.And, (x, y) => x != 0.0 && y != 0.0);
-      this.AddFloatBinaryOp(this.Or, (x, y) => x != 0.0 || y != 0.0);
 
       this.AddFloatBinaryOp(this.Max, (x, y) => Math.max(x, y));
       this.AddFloatBinaryOp(this.Min, (x, y) => Math.min(x, y));
@@ -697,6 +671,14 @@ export class NativeFunctionCall extends InkObject {
     nativeFunc.AddOpFuncForType(valType, op);
   }
 
+  public static AddTypelessOp(name: string, args: number, op: TypelessOp) {
+    if (this._nativeFunctions === null)
+      return throwNullException("NativeFunctionCall._nativeFunctions");
+    const nativeFunc = new NativeFunctionCall(name, args);
+    nativeFunc._typelessOp = op;
+    this._nativeFunctions.set(name, nativeFunc);
+  }
+
   public static AddIntBinaryOp(name: string, op: BinaryOp<number>) {
     this.AddOpToNativeFunc(name, 2, ValueType.Int, op);
   }
@@ -747,6 +729,7 @@ export class NativeFunctionCall extends InkObject {
 
   public _prototype: NativeFunctionCall | null = null;
   public _isPrototype: boolean = false;
+  public _typelessOp: TypelessOp | null = null;
   public _operationFuncs: Map<ValueType, BinaryOp<any> | UnaryOp<any>> | null =
     null;
   public static _nativeFunctions: Map<string, NativeFunctionCall> | null = null;
