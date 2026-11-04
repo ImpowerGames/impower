@@ -808,11 +808,16 @@ try {
     const taskPlan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: snap, preflights: [available("claude-cli", "claude-opus-5-5", [211, 212])], freeBytes: 100 * GB, defaults, census: () => [] });
     const roundCases = [
       [2111, ["Review round state: PR ImpowerGames/impower#2111, round 2 of the default cap of 3."], 2],
+      [2111, ["Review round state: PR ImpowerGames/impower#2111, round 3, the last of the default cap of 3."], 3],
+      [2318, ["Review round state: ImpowerGames/impower#2318, round 6."], 6],
+      [2318, ["### Review round state: ImpowerGames/impower#2318, round 5."], 5],
+      [2318, ["Review round state: ImpowerGames/impower#2318, round 6,000."], 0],
       [2340, ["Review round 2 for ImpowerGames/impower#2340 / #1714 under Task #1741.", "Review round 1 for ImpowerGames/impower#2340 / Task #1714 under coordinated Task #1741."], 2],
       [2395, ["### Review round 1 state"], 1],
       [2405, ["Review round 1 state for ImpowerGames/impower#2405"], 1],
       [2405, ["### Review round state: PR ImpowerGames/impower#2405, round 2 of the default cap of 3."], 2],
       [2405, ["> Review round state: PR ImpowerGames/impower#2405, round 3 of the default cap of 3.", "Adjudication\n\nReview round 3 for ImpowerGames/impower#2405.", "```markdown\n### Review round 3 state\n```"], 0],
+      [2318, ["> Review round state: ImpowerGames/impower#2318, round 6.", "~~~markdown\n### Review round state: ImpowerGames/impower#2318, round 5.\n~~~"], 0],
     ];
     const roundRecord = run.readRecord(taskRecord);
     const roundResults = roundCases.map(([number, bodies, rounds]) => {

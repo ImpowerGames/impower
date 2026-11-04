@@ -709,7 +709,7 @@ export function postedReviewRounds(comments) {
       }
       const heading = line.match(/^#{2,4} Review round (\d+) state\b/);
       const firstLine = index === 0 && (
-        line.match(/^(?:#{2,4} )?Review round state: PR [\w.-]+\/[\w.-]+#\d+, round (\d+)(?: of\b|\.?$)/) ??
+        line.match(/^(?:#{2,4} )?Review round state: (?:PR )?[\w.-]+\/[\w.-]+#\d+, round (\d+)(?= of\b|, |\.?$)/) ??
         line.match(/^(?:#{2,4} )?Review round (\d+)(?: state)? for [\w.-]+\/[\w.-]+#\d+(?=[ \t]|\.?$)/)
       );
       const round = Number((heading || firstLine)?.[1]);
