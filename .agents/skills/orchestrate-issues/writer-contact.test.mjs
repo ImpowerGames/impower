@@ -148,7 +148,7 @@ try {
           const model = vendor === "claude" ? "claude-opus-5-5" : "gpt-6.1-sol";
           const f = fresh(`brief-${harness}-${route.route}`, { harness, coordinator });
           const rec = run.readRecord(f.file);
-          const planFile = write(`brief-${harness}-${route.route}.json`, { runId: rec.runId, repository: rec.repository, issue: rec.issue, revision: rec.revision, coordinator, tickets: [{ number: 321, title: "ticket 321", action: "dispatch", route: route.route, model, effort: "medium" }] });
+          const planFile = write(`brief-${harness}-${route.route}.json`, { runId: rec.runId, repository: rec.repository, issue: rec.issue, revision: rec.revision, coordinator, concurrency: { limit: rec.concurrency.limit, active: 0, capacityNow: 1 }, tickets: [{ number: 321, title: "ticket 321", action: "dispatch", route: route.route, model, effort: "medium" }] });
           f.change((r) => run.claim(r, { plan: planFile, ticket: 321, worktree: path.join(f.dir, "wt-321"), branch: "fix/321-thing", artifactParent: f.artifacts }));
           const text = run.brief(run.readRecord(f.file), planFile, 321, [], defaults);
           const how = route.reports[harness];
