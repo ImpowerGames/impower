@@ -2823,15 +2823,24 @@ export class ProgramStory implements StoryEngine {
     ) {
       return flowScopesOf(this.root, target.sequence);
     }
-    return !thread && this.inSceneOf(target, at) ? 1 : 0;
+    return !thread && this.inSceneOf(target, at, kind) ? 1 : 0;
   }
 
-  protected inSceneOf(target: ProgramPosition, at: ProgramPosition | null): boolean {
+  protected inSceneOf(
+    target: ProgramPosition,
+    at: ProgramPosition | null,
+    kind: number,
+  ): boolean {
     const flow = flowSequenceOf(this.root, target.sequence);
-    if (!at || !flow || flow.kind !== SymbolKind.Branch) {
+    if (!at || !flow) {
       return false;
     }
-    const scene = this.root.parentOf(flow.flow);
+    const scene =
+      flow.kind === SymbolKind.Branch
+        ? this.root.parentOf(flow.flow)
+        : flow.kind === SymbolKind.Scene && kind !== SymbolKind.Scene
+          ? flow.flow
+          : -1;
     return scene >= 0 && flowScopeOwners(this.root, at.sequence)[0] === scene;
   }
 
@@ -2965,7 +2974,7 @@ export class ProgramStory implements StoryEngine {
         ? entryBindings(first, 0).bindings
         : 0;
     const caller =
-      !thread && this.inSceneOf(place, state.position)
+      !thread && this.inSceneOf(place, state.position, this.root.kindOf(symbol))
         ? state.callStack.currentElementIndex
         : -1;
     state.PushFrame(
