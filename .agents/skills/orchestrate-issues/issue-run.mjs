@@ -1227,9 +1227,10 @@ function assertStartable(record, pending, host) {
   if (pending.host && pending.host !== host) throw new Error(`This start was claimed on ${pending.host}; it runs, or is settled, only on that host`);
 }
 
-export function checkExternalStart(record, ticket, { assignment, observations, observe = observeWriterMachine, host = os.hostname(), freeBytes = freeBytesAt(record.checkout) } = {}) {
+export function checkExternalStart(record, ticket, { assignment, ownerHandle, observations, observe = observeWriterMachine, host = os.hostname(), freeBytes = freeBytesAt(record.checkout) } = {}) {
   const own = record.tickets[ticket] ?? {};
-  if (assignment === undefined) {
+  if (assignment !== undefined && ownerHandle !== undefined) throw new Error("Use either --assignment or --owner-handle");
+  if (assignment === undefined && ownerHandle === undefined) {
     const pending = own.pending;
     if (!pending || pending.operation !== "dispatch" || pending.route === "claude-cli") throw new Error(`#${ticket} has no pending external dispatch`);
     assertStartable(record, pending, host);
@@ -1238,7 +1239,10 @@ export function checkExternalStart(record, ticket, { assignment, observations, o
 
   const owner = own.owner;
   const handle = owner?.handle;
-  if (own.pending || !writerUUID.test(assignment) || owner?.launchId !== assignment || owner.route !== "codex-app" || !["task", "session"].includes(handle?.kind) || !handle.id) {
+  const matchingOwner = assignment !== undefined
+    ? writerUUID.test(assignment) && owner?.launchId === assignment
+    : Boolean(owner?.adopted && !owner.launchId && ownerHandle && handle?.id === ownerHandle);
+  if (own.pending || !matchingOwner || owner.route !== "codex-app" || !["task", "session"].includes(handle?.kind) || !handle.id) {
     throw new Error(`#${ticket} has no matching retained native assignment`);
   }
   assertStartable(record, handle, host);
@@ -1257,7 +1261,7 @@ export function checkExternalStart(record, ticket, { assignment, observations, o
   if (machine.writers.some(({ references }) => references.some((ref) => ref.runId === record.runId && ref.ticket === ticket) && references.some((ref) => ref.state === "executing"))) {
     throw new Error(`#${ticket}'s native owner still has observed execution; reconcile before continuing`);
   }
-  return { launchId: assignment, handle, machine };
+  return { ...(assignment !== undefined && { launchId: assignment }), handle, machine };
 }
 function assertObservedOn(pending, number, host, observedOn, action) {
   const claimedOn = pending.host;
@@ -2019,7 +2023,7 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
       if (record.coordinator.session !== o.coordinator || record.revision !== integer(o.expectRevision, "expect-revision")) throw new Error("Run ownership or revision changed; plan again before starting the writer");
       const pointer = readJson(pointerFile(record.checkout, repositoriesOf(record).tickets, record.issue));
       if (path.resolve(pointer.record) !== path.resolve(file)) throw new Error("This record no longer coordinates the parent issue");
-      return checkExternalStart(record, ticket, { assignment: o.assignment, observations: readOptional(o.observations) });
+      return checkExternalStart(record, ticket, { assignment: o.assignment, ownerHandle: o.ownerHandle, observations: readOptional(o.observations) });
     }
     case "open": return { ...openWriter(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable, afterIntent: saveIntent, runner: runners.open }), ...checkpointAfter(absolute(o.record, "record")) };
     case "opened": return mutate((r) => opened(r, { ticket: number(), session: o.session }));

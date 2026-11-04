@@ -278,6 +278,24 @@ const timer = setInterval(() => { if (fs.existsSync(${JSON.stringify(stop)}) || 
       assert.equal(checked.launchId, owner.launchId);
       assert.deepEqual(run.readRecord(file), saved, "healthy admission preserves the retained owner and the saved answer");
       console.log("same-owner native continuation admission passed");
+      const adopted = structuredClone(current);
+      run.adopt(adopted, { plan: savedPlan, ticket: 111, handleKind: "session", handle: ids.other, route: "codex-app", model: current.writer.model, effort: "medium", worktree: path.join(tmp, "adopted-native-tree") });
+      const adoptedOwner = adopted.tickets[111].owner;
+      const request = run.request(adopted, { ticket: 111, text: "Continue adopted work?", source: "fixture turn" });
+      run.answer(adopted, { ticket: 111, request: request.id, text: "Continue the adopted owner." });
+      assert.equal(adoptedOwner.launchId, undefined);
+      assert.equal(adopted.tickets[111].requests[0].owner, ids.other);
+      fs.writeFileSync(file, JSON.stringify(adopted));
+      const adoptedSeen = { state: "idle", host: os.hostname(), revision: adopted.revision, model: adoptedOwner.model, effort: adoptedOwner.effort, permissionMode: "bypassPermissions" };
+      const adoptedObservations = write("adopted-native-ended.json", { sessions: { [ids.other]: adoptedSeen } });
+      const adoptedCheck = (opts) => run.checkExternalStart(adopted, 111, { ownerHandle: ids.other, observations: { sessions: { [ids.other]: adoptedSeen } }, observe: () => machine(foreign({})), freeBytes: 100 * GB, ...opts });
+      assert.throws(() => adoptedCheck({ ownerHandle: ids.shared }), /no matching retained native assignment/);
+      assert.throws(() => adoptedCheck({ assignment: ids.assignment }), /either --assignment or --owner-handle/);
+      assert.throws(() => resourceCheck(saved, { assignment: undefined, ownerHandle: handle }), /no matching retained native assignment/);
+      const accepted = run.main(["start-check", "--record", file, "--coordinator", ids.parent, "--expect-revision", String(adopted.revision), "--ticket", "111", "--owner-handle", ids.other, "--observations", adoptedObservations], { defaults });
+      assert.deepEqual(accepted.handle, adoptedOwner.handle);
+      assert.deepEqual(run.readRecord(file), adopted, "admission preserves the adopted owner and saved answer");
+      console.log("adopted native continuation admission passed");
     }
   }
 }
