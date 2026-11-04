@@ -414,11 +414,11 @@ try {
   }
 
   const record = path.join(artifacts, "run.json");
-  const init = (extra = {}) => run.initRecord({ record, checkout, repository: "acme/widgets", issue: 100, coordinator: "local_a", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", slug: "coordinator-contact", invocation: "Use orchestrate-issues for #100.", ...extra }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+  const init = (extra = {}) => run.initRecord({ record, checkout, repository: "acme/widgets", issue: 100, coordinator: "local_a", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", slug: "coordinator-contact", invocation: "Use orchestrate-issues for #100.", ...extra }, { defaults, freeBytes: 40 * GB, totalMemory: 7.9 * GB });
   const first = init();
   assert.equal(first.action, "init");
   assert.equal(first.record.writer.model, "claude-opus-5-5");
-  assert.equal(first.record.concurrency.limit, 32, "init records the host-derived writer places");
+  assert.equal(first.record.concurrency.limit, 3, "init records the host-derived writer places");
   assert.equal(init().action, "resume");
   const later = (extra) => init({ record: path.join(artifacts, "later.json"), issue: 109, invocation: "Use orchestrate-issues for #109.", ...extra });
   assert.equal(later().action, "init");
