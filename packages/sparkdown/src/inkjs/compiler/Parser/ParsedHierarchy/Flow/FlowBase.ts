@@ -671,6 +671,9 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     if (arg && !arg.isUpvalue) {
       return true;
     }
+    if (!arg && this.IsSceneLocalOfBranch(varName, flow)) {
+      return true;
+    }
     if (!arg && !this.story.variableDeclarations.has(varName)) {
       return false;
     }
@@ -689,7 +692,21 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     return !site || this.IsLocalInScopeAt(varName, site.parent, site.end);
   };
 
-  public AddNewVariableDeclaration = (varDecl: VariableAssignment): void => {
+  private IsSceneLocalOfBranch = (varName: string, flow: FlowBase): boolean => {
+    if (flow.isFunction) {
+      return false;
+    }
+    const scene = ClosestFlowBase(flow) as FlowBase | null;
+    return (
+      !!scene &&
+      scene !== this.story &&
+      !scene.isFunction &&
+      (scene.variableDeclarations.has(varName) ||
+        !!scene.args?.some((a) => a.identifier?.name === varName))
+    );
+  };
+
+  public AddNewVariableDeclaration =(varDecl: VariableAssignment): void => {
     const varName = varDecl.variableName;
     if (this.variableDeclarations.has(varName)) {
       const varab = this.variableDeclarations.get(varName)!;
