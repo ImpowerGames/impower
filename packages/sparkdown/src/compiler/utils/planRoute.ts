@@ -1748,9 +1748,15 @@ export const showsBeatAhead = (
   maxSteps = DEFAULT_MAX_STEPS,
 ): boolean => runAhead(story, maxSteps).kind === "beat";
 
+export const callDepthExceededMessage = (limit: number): string =>
+  `Calls nested more than ${limit} deep: stack overflow, possible infinite recursion`;
+
+const CALL_DEPTH_REACHED = new Error("call depth reached");
+
 export const runAhead = (
   story: Story,
   maxSteps = DEFAULT_MAX_STEPS,
+  callDepthLimit?: number,
 ): RunAhead => {
   const prevOnError = story.onError;
   const prevOnExecute = story.onExecute;
@@ -1768,7 +1774,15 @@ export const runAhead = (
       error = { message: raised?.message ?? message, at: at >= 0 ? at : null };
     }
   };
-  story.onExecute = null;
+  story.onExecute =
+    callDepthLimit === undefined
+      ? null
+      : (address) => {
+          if (!error && story.state.callstackDepth > callDepthLimit) {
+            error = { message: callDepthExceededMessage(callDepthLimit), at: address };
+            throw CALL_DEPTH_REACHED;
+          }
+        };
   story.onMakeChoice = NOOP;
   story.onEvaluateCondition = NOOP;
   story.stepLimit = story.stepCount + maxSteps;

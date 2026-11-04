@@ -5,6 +5,10 @@ const DONE = "scene start(x)\n  Hello.\n  done\nend\n";
 const FIN = "scene start\n  Hello.\n  fin\nend\n";
 const CONTENT = "scene start\n  Hello.\n  Goodbye.\nend\n";
 const ERROR = 'scene start\n  Hello.\n  & error("boom")\n  Goodbye.\nend\n';
+const NESTED =
+  "scene start\n  Main.\n  done\n  branch aside\n    Aside.\n  end\nend\n";
+const DEEP =
+  "scene start\n  Hello.\n  & local n = recurse(6000)\n  fin\nend\n\nfunction recurse(n)\n  if n == 0 then\n    return 0\n  end\n  return 1 + recurse(n - 1)\nend\n";
 
 const open = async (source: string) => {
   const h = await createPlayerHarness({
@@ -97,6 +101,35 @@ describe("the preview at a line where the run ends", () => {
       expect(frame.badge).toBe("Stopped by an error");
       expect(frame.kind).toBe("error");
       expect(frame.hover).toMatch(/boom.*\(line 3\)$/);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("at the blank line after a scene holding an unused branch, matches the scene's closing end", async () => {
+    const h = await open(NESTED);
+    try {
+      const closing = await previewAt(h, 6);
+      expect(closing.text).toContain("Main.");
+      expect(closing.text).not.toContain("Aside.");
+      expect(closing.indicatorHidden).toBe(true);
+      expect(closing.badge).toBe("Story ran out");
+      expect(await previewAt(h, 7)).toEqual(closing);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("at a line the engine's call-depth limit stops, shows the last beat and the error badge", async () => {
+    const h = await open(DEEP);
+    try {
+      const frame = await previewAt(h, 2);
+      expect(frame.text).toContain("Hello.");
+      expect(frame.indicatorHidden).toBe(true);
+      expect(frame.endMark).toBe(false);
+      expect(frame.badge).toBe("Stopped by an error");
+      expect(frame.kind).toBe("error");
+      expect(frame.hover).toMatch(/Calls nested more than \d+ deep.*\(line \d+\)$/);
     } finally {
       h.dispose();
     }

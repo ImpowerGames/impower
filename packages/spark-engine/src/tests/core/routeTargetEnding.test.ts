@@ -54,7 +54,9 @@ const THREAD =
   "scene start\n  First.\n  <- start.aside\n  After.\n  done\n  branch aside\n    Aside.\n    done\n  end\nend\n";
 const CHOICES =
   "scene start\n  Pick.\n  <- offer\n  done\nend\n\nscene offer\n  choose\n    + [Yes]\n      Yes.\n  end\n  done\nend\n";
-const DIVERT = "scene start\n  Hello.\n  -> quiet\nend\n\nscene quiet\nend\n";
+const DEEP =
+  "scene start\n  Hello.\n  & local a = 1\n  & local n = recurse(6000)\n  fin\nend\n\nfunction recurse(n)\n  if n == 0 then\n    return 0\n  end\n  return 1 + recurse(n - 1)\nend\n";
+const DIVERT ="scene start\n  Hello.\n  -> quiet\nend\n\nscene quiet\nend\n";
 
 describe("the route search's answer to how the run from a line ends", () => {
   test("a done with nothing left to run ran out", () => {
@@ -84,6 +86,18 @@ describe("the route search's answer to how the run from a line ends", () => {
     expect(ending?.error?.message).toContain("boom");
     expect(ending?.error?.location.range.start.line).toBe(2);
   });
+
+  test.each([
+    ["the line that recurses too deep", 3],
+    ["a line before it, with no beat between", 2],
+  ])(
+    "%s stopped by the engine's call-depth error",
+    (_name, line) => {
+      const { ending } = routeTo(DEEP, line);
+      expect(ending?.kind).toBe("error");
+      expect(ending?.error?.message).toMatch(/^Calls nested more than \d+ deep/);
+    },
+  );
 
   test("the last beat's own line is not an ending", () => {
     expect(routeTo(DONE, 1).ending).toBeNull();

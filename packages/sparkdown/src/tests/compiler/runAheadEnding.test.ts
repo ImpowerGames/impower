@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
-import { runAhead, showsBeatAhead } from "../../compiler/utils/planRoute";
+import {
+  callDepthExceededMessage,
+  runAhead,
+  showsBeatAhead,
+} from "../../compiler/utils/planRoute";
 
 const URI = "inmemory:///main.sd";
 
@@ -69,6 +73,17 @@ describe("running ahead from a line answers how the run ends", () => {
       1,
     );
     expect(runAhead(story)).toEqual({ kind: "beat" });
+  });
+
+  test("a run that nests calls deeper than the given limit stops by the error, with the engine's message", () => {
+    const text =
+      "scene start\n  & local n = recurse(100)\n  fin\nend\n\nfunction recurse(n)\n  if n == 0 then\n    return 0\n  end\n  return 1 + recurse(n - 1)\nend\n";
+    expect(runAhead(storyAt(text, 1).story).kind).toBe("fin");
+    const { story, root } = storyAt(text, 1);
+    const ahead = runAhead(story, undefined, 50);
+    expect(ahead).toMatchObject({ kind: "error", message: callDepthExceededMessage(50) });
+    expect(lineOf(root, (ahead as { at: number | null }).at)).not.toBeNull();
+    expect(story.onExecute).toBeNull();
   });
 
   test("a run the step limit cuts off is not known", () => {

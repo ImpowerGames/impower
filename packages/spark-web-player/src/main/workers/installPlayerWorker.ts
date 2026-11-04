@@ -771,14 +771,13 @@ export function installPlayerWorker(connection: MessageConnection) {
         if (skipped.some(([header, end]) => header <= line && line <= end)) {
           continue;
         }
-        const closedAbove = ends.find(([, end]) => end === line);
-        const endAddress =
-          closedAbove && program.chunks?.flowEndAddress(point.file, closedAbove[0]);
-        if (endAddress != null) {
-          return {
-            point: { file: point.file, line, address: endAddress },
-            beat: "last" as const,
-          };
+        const closedAbove = ends.find(
+          ([header, end]) =>
+            end === line &&
+            !ends.some(([h, e]) => h < header && end < e),
+        );
+        if (closedAbove) {
+          return startPoint(program, { file: point.file, line }, "last");
         }
         const address = locator.addressAt(point.file, line, { beat: "last" });
         const location = locator.locationOf(address);

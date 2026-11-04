@@ -27,6 +27,7 @@ import { chunkOfAddress } from "@impower/sparkdown/src/program/ProgramChunk";
 import { START_FLOW_NAME } from "@impower/sparkdown/src/program/ProgramSymbols";
 import {
   buildRouteSimulator,
+  callDepthExceededMessage,
   lastSearchStats,
   planRoute,
   runAhead,
@@ -1922,7 +1923,7 @@ export class Game<T extends M = {}> {
       return;
     }
     const last = this._checkpoints.length - 1;
-    const ahead = runAhead(this._story);
+    const ahead = runAhead(this._story, undefined, this._callDepthLimit);
     const shows = ahead.kind === "beat";
     this._routeTargetEnding = this.endingAhead(ahead);
     this.restoreCheckpoint(last);
@@ -1939,6 +1940,21 @@ export class Game<T extends M = {}> {
     this._checkpointShownBeats[last] = this._shownBeat;
     this._checkpointDecisionsTaken[last] = decisionsTaken;
     this._routeTargetShows = true;
+  }
+
+  protected reachTargetStoppedByEngine(): void {
+    if (
+      this._simulation !== "simulating" ||
+      this._startAddress == null ||
+      !this._runtimeState.pathsExecutedThisFrame.has(this._startAddress)
+    ) {
+      return;
+    }
+    this._story.state.ForceEnd();
+    this._story.ending = "error";
+    this.endTargetWatch();
+    this.checkpoint();
+    this._simulation = "success";
   }
 
   protected endingAhead(ahead: RunAhead): GameEnding | null {
@@ -3130,6 +3146,7 @@ export class Game<T extends M = {}> {
           }: possible infinite loop`,
           ErrorType.Error,
         );
+        this.reachTargetStoppedByEngine();
         return true;
       }
       this._executionStepsRemaining -= 1;
@@ -3282,9 +3299,10 @@ export class Game<T extends M = {}> {
           this._story.CancelAsyncContinue();
           this._story.state.ForceEnd();
           this.Error(
-            `Calls nested more than ${this._callDepthLimit} deep: stack overflow, possible infinite recursion`,
+            callDepthExceededMessage(this._callDepthLimit),
             ErrorType.Error,
           );
+          this.reachTargetStoppedByEngine();
           return true;
         }
 
