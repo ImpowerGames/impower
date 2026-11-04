@@ -62,7 +62,7 @@ const bakeError = {
 };
 const unusedWarning = { ...bakeError, severity: 2, code: "unused", message: "Unused asset" };
 
-function Row({ filename }: { filename: string }) {
+function Row({ filename }: { filename?: string }) {
   return h("span", { class: useDiagnosticColor(filename) }, filename);
 }
 
@@ -134,5 +134,14 @@ describe("asset rows coloured from the language server's published diagnostics",
     expect(row()).toBe("text-danger-500");
     published(ARTWORK, []);
     expect(row()).toBe("");
+  });
+
+  it("colours the Scripts tab for a script's problem but not for an asset's", () => {
+    act(() => render(h(Row, {}), host));
+    published(ARTWORK, [bakeError]);
+    published(MAIN, [bakeError]);
+    expect(row()).toBe("");
+    published("file://proj/scripts/util.luau", [unusedWarning]);
+    expect(row()).toBe("text-warning-500");
   });
 });
