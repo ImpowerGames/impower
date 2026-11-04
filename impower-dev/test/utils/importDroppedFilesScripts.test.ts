@@ -121,6 +121,31 @@ describe("importDroppedFiles routing into the layout", () => {
     ]);
   });
 
+  it("never files a root-project drop into an existing sub-project's folder", async () => {
+    mocks.existing = [
+      "main.sd",
+      ".layout",
+      "scripts/other/main.sd",
+      "assets/other/background.png",
+    ];
+    await importDroppedFiles("p", [
+      dropped("assets/other/intro.sd"),
+      dropped("assets/other/util.luau"),
+      dropped("other/intro.sd"),
+    ]);
+    expect(createdPaths()).toEqual([
+      "assets/other/intro.sd",
+      "assets/other/util.luau",
+      "other/intro.sd",
+    ]);
+  });
+
+  it("never files a root-project drop into a sub-project rooted at a category folder", async () => {
+    mocks.existing = ["main.sd", "assets/main.sd"];
+    await importDroppedFiles("p", [dropped("scripts/hero.png")]);
+    expect(createdPaths()).toEqual(["scripts/hero.png"]);
+  });
+
   it("keeps a file dropped inside a sub-project's folder with that sub-project", async () => {
     mocks.existing = ["main.sd", "scripts/other/main.sd"];
     await importDroppedFiles("p", [

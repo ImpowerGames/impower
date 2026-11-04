@@ -393,13 +393,17 @@ export const routeIntoLayout = (
   subtreeFor: (path: string) => string,
 ): string[] => {
   const roots = subProjectRoots([...existingPaths, ...relativePaths]);
-  return relativePaths.map((p) =>
-    p === MAIN_SCRIPT ||
-    (p.split("/").pop() ?? p).startsWith(".") ||
-    roots.some((root) => p.startsWith(root))
-      ? p
-      : settledTarget(p, subtreeFor),
-  );
+  return relativePaths.map((p) => {
+    if (
+      p === MAIN_SCRIPT ||
+      (p.split("/").pop() ?? p).startsWith(".") ||
+      roots.some((root) => p.startsWith(root))
+    ) {
+      return p;
+    }
+    const target = settledTarget(p, subtreeFor);
+    return projectOf(target, roots) === "" ? target : p;
+  });
 };
 
 const planLayoutMoves = (
