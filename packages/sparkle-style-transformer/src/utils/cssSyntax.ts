@@ -38,6 +38,11 @@ export const identName = (
     ? (node.value[4] as { value: string }).value
     : undefined;
 
+export const decodeIdentifier = (text: string): string | undefined => {
+  const values = significant(parseComponentValues(text));
+  return values.length === 1 ? identName(values[0]) : undefined;
+};
+
 export const significant = (nodes: ComponentValue[]): ComponentValue[] =>
   nodes.filter((node) => !isWhiteSpaceOrCommentNode(node));
 

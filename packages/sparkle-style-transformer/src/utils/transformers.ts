@@ -2,6 +2,7 @@ import { SPARKLE_TO_CSS_NAME_MAP } from "../constants/CSS_ALIASES.js";
 import type { ThemeVariables } from "../types/themeVariables.js";
 import {
   applyEdits,
+  decodeIdentifier,
   identName,
   isFunctionNode,
   isTokenType,
@@ -23,9 +24,10 @@ export const getThemeVar = (
   category: string,
   name: string,
 ): string | undefined => {
-  const variable = `--theme-${category}-${name}`;
+  const decoded = name.includes("\\") ? (decodeIdentifier(name) ?? name) : name;
+  const variable = `--theme-${category}-${decoded}`;
   return theme.has(variable)
-    ? `var(--theme-${category}-${serializeNamePart(name)})`
+    ? `var(--theme-${category}-${serializeNamePart(decoded)})`
     : undefined;
 };
 
@@ -64,20 +66,18 @@ const COLOR_FUNCTION = /^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)$/i;
 
 const COLOR_ARGUMENT_FUNCTION = /^(?:drop-shadow|light-dark)$/i;
 
-const GRADIENT_SETUP_WORDS: Record<string, ReadonlySet<string>> = {
-  linear: new Set(["to", "in"]),
-  radial: new Set([
-    "in",
-    "at",
-    "circle",
-    "ellipse",
-    "closest-side",
-    "closest-corner",
-    "farthest-side",
-    "farthest-corner",
-  ]),
-  conic: new Set(["in", "from", "at"]),
-};
+const RADIAL_SHAPES = new Set([
+  "circle",
+  "ellipse",
+  "closest-side",
+  "closest-corner",
+  "farthest-side",
+  "farthest-corner",
+]);
+
+const LINEAR_SIDES = new Set(["left", "right", "top", "bottom"]);
+
+const ANGLE_UNIT = /^(?:deg|grad|rad|turn)$/i;
 
 type ArgumentKind = "setup" | "colors" | "unknown";
 
@@ -89,39 +89,82 @@ const isNumeric = (node: ComponentValue | undefined): boolean =>
 const MATH_FUNCTION =
   /^(?:calc|min|max|clamp|round|mod|rem|abs|sign|sin|cos|tan|asin|acos|atan|atan2|pow|sqrt|hypot|log|exp)$/i;
 
+const isMath = (node: ComponentValue | undefined): boolean =>
+  !!node && isFunctionNode(node) && MATH_FUNCTION.test(node.getName());
+
+const isVar = (node: ComponentValue | undefined): boolean =>
+  !!node && isFunctionNode(node) && node.getName().toLowerCase() === "var";
+
+const isAngle = (node: ComponentValue | undefined): boolean => {
+  if (isTokenType(node, TokenType.Dimension)) {
+    const unit = (node.value[4] as { unit?: string }).unit ?? "";
+    return ANGLE_UNIT.test(unit);
+  }
+  return isTokenType(node, TokenType.Number) && Number(node.value[1]) === 0;
+};
+
+const isPosition = (node: ComponentValue | undefined): boolean =>
+  isTokenType(node, TokenType.Percentage) ||
+  (isTokenType(node, TokenType.Dimension) && !isAngle(node));
+
+const word = (node: ComponentValue | undefined): string | undefined =>
+  identName(node)?.toLowerCase();
+
 const classifyGradientFirstArgument = (
   kind: string,
   argument: ComponentValue[],
 ): ArgumentKind => {
   const values = significant(argument);
-  const first = values[0];
-  if (isNumeric(first)) {
+  const [first, second] = values;
+  const firstWord = word(first);
+  const rest = values.slice(1);
+  if (kind === "linear") {
+    if (isAngle(first) || isMath(first)) {
+      return "setup";
+    }
+    if (
+      (firstWord === "to" && LINEAR_SIDES.has(word(second) ?? "")) ||
+      (firstWord === "in" && word(second) !== undefined)
+    ) {
+      return "setup";
+    }
+    if (isVar(first)) {
+      if (rest.some(isPosition)) {
+        return "colors";
+      }
+      return rest.some((value) => word(value) === "in") ? "setup" : "unknown";
+    }
+    return "colors";
+  }
+  if (kind === "conic") {
+    if (
+      (firstWord === "from" || firstWord === "at") &&
+      second !== undefined &&
+      !isTokenType(second, TokenType.Ident)
+    ) {
+      return "setup";
+    }
+    if (
+      firstWord === "at" ||
+      (firstWord === "in" && word(second) !== undefined)
+    ) {
+      return "setup";
+    }
+    if (isVar(first)) {
+      return rest.some(isNumeric) ? "colors" : "unknown";
+    }
+    return "colors";
+  }
+  if (
+    (firstWord !== undefined && RADIAL_SHAPES.has(firstWord)) ||
+    (firstWord === "at" && second !== undefined) ||
+    (firstWord === "in" && word(second) !== undefined) ||
+    isNumeric(first) ||
+    isMath(first)
+  ) {
     return "setup";
   }
-  if (isFunctionNode(first) && MATH_FUNCTION.test(first.getName())) {
-    return "setup";
-  }
-  const words = GRADIENT_SETUP_WORDS[kind];
-  const hasSetupWord = values.some((value) => {
-    const word = identName(value)?.toLowerCase();
-    return word !== undefined && !!words?.has(word);
-  });
-  if (hasSetupWord) {
-    return "setup";
-  }
-  if (isFunctionNode(first) && first.getName().toLowerCase() === "var") {
-    const positions = values.slice(1);
-    const isStop =
-      kind !== "radial" &&
-      positions.length > 0 &&
-      positions.every(
-        (value) =>
-          isNumeric(value) ||
-          (isFunctionNode(value) && MATH_FUNCTION.test(value.getName())),
-      );
-    return isStop ? "colors" : "unknown";
-  }
-  return "colors";
+  return isVar(first) ? "unknown" : "colors";
 };
 
 const resolveColorWords = (

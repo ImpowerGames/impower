@@ -492,6 +492,36 @@ describe("the CSS grammar decides which words are theme colours", () => {
       "radial-gradient(var(--size, x) 20%, sky_60)",
       "radial-gradient(var(--size, x) 20%, var(--theme-color-sky_60))",
     ],
+    [
+      "background-image",
+      "linear-gradient(var(--shade, sky_60) 20% var(--end, 40%), #fff)",
+      "linear-gradient(var(--shade, var(--theme-color-sky_60)) 20% var(--end, 40%), #fff)",
+    ],
+    [
+      "background-image",
+      "repeating-linear-gradient(var(--shade, sky_60) 20% var(--end, 40%), #fff 60%)",
+      "repeating-linear-gradient(var(--shade, var(--theme-color-sky_60)) 20% var(--end, 40%), #fff 60%)",
+    ],
+    [
+      "background-image",
+      "conic-gradient(var(--shade, sky_60) 10deg var(--end, 40deg), #fff)",
+      "conic-gradient(var(--shade, var(--theme-color-sky_60)) 10deg var(--end, 40deg), #fff)",
+    ],
+    [
+      "background-image",
+      "linear-gradient(to 20%, #fff)",
+      "linear-gradient(var(--theme-color-to) 20%, #fff)",
+    ],
+    [
+      "background-image",
+      "linear-gradient(in 20%, #fff)",
+      "linear-gradient(var(--theme-color-in) 20%, #fff)",
+    ],
+    [
+      "background-image",
+      "linear-gradient(0 in srgb, sky_60, #fff)",
+      "linear-gradient(0 in srgb, var(--theme-color-sky_60), #fff)",
+    ],
     ["color", "brand\\(blue", "var(--theme-color-brand\\(blue)"],
     ["color", "rebeccapurple/**/", "rebeccapurple/**/"],
     ["color", "\\73 ky_60", "var(--theme-color-sky_60)"],
@@ -568,6 +598,26 @@ describe("the CSS grammar decides which words are theme colours", () => {
     ];
     expect(resolved).toBe(css);
   });
+
+  test.each([
+    ["width", "gu\\tter", "var(--theme-size-gutter)"],
+    ["easing", "\\62 ounce", "var(--theme-ease-bounce)"],
+    ["filter", "\\64 im", "var(--theme-filter-dim)"],
+    ["width", "gu\\tters", "gu\\tters"],
+  ])(
+    "an escaped %s name %s resolves by its decoded name",
+    (key, value, css) => {
+      const escapedTheme: ReadonlySet<string> = new Set([
+        "--theme-size-gutter",
+        "--theme-ease-bounce",
+        "--theme-filter-dim",
+      ]);
+      const [[, resolved]] = getCssEquivalent(key, value, escapedTheme) as [
+        [string, string],
+      ];
+      expect(resolved).toBe(css);
+    },
+  );
 
   test.each([
     [
