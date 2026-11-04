@@ -1219,6 +1219,11 @@ try {
     const owner = f.change((r) => run.launch(r, { ticket: 301, executable: process.execPath, args: [standIn, "-p", "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions", "--stop", stop], prompt })).owner;
     started.push({ stop, pid: owner.handle.pid });
     waitFor(() => fs.existsSync(path.join(owner.handle.launchDir, "out.jsonl")) && fs.statSync(path.join(owner.handle.launchDir, "out.jsonl")).size > 0, "the r1 writer to start");
+    const { host, pid, start } = owner.handle;
+    const seenExit = { host, start, state: "exited" };
+    const observed = (seen) => ({ processes: { [pid]: seen } });
+    const identify = () => { throw new Error("Process start identity unavailable"); };
+    assert.equal(run.ownerStatus(owner, observed(seenExit)).status, "live", "a matching live wrapper identity overrides an exit observation");
     process.kill(owner.handle.pid);
     waitFor(() => { const now = processIdentity(owner.handle.pid); return !now || now.start !== owner.handle.start; }, "the r1 wrapper to exit");
     const status = run.ownerStatus(owner);
@@ -1227,9 +1232,24 @@ try {
     assert.throws(() => f.change((r) => run.release(r, { ticket: 301, observations: {} })), /writer is live/);
     assert.equal(actions(planOf(f, snap, { preflights: pre }))[301], "observe", "no replacement is offered while the writer runs");
     assert.equal(run.ownerStatus(owner, {}, { census: () => null }).status, "unknown", "a failed census proves nothing");
+    const afterProbeFailure = (seen, census) => run.ownerStatus(owner, observed(seen), { identify, census });
+    for (const seen of [undefined, { ...seenExit, host: "other-host" }, { ...seenExit, start: "other-start" }, { ...seenExit, state: "running" }]) {
+      assert.equal(afterProbeFailure(seen, () => []).status, "unknown", "an unreadable wrapper requires a matching exit observation even when the census is empty");
+    }
+    const noStart = { ...owner, handle: { ...owner.handle, start: undefined } };
+    assert.equal(run.ownerStatus(noStart, observed({ ...seenExit, start: undefined }), { identify, census: () => [] }).status, "unknown", "missing start identities do not match");
+    assert.match(afterProbeFailure(seenExit, () => null).reason, /process census failed/, "a verified wrapper exit still requires a successful census");
+    const observedStatus = afterProbeFailure({ ...seenExit, launchDirUnused: true });
+    assert.equal(observedStatus.status, "live", "a fresh census still protects a writer after an observed wrapper exit");
+    assert.match(observedStatus.reason, /still names launch directory/);
+    assert.throws(() => f.change((r) => run.release(r, { ticket: 301, observations: observed(seenExit), identify })), /writer is live/);
+    console.log(`observed wrapper exit: ${host} pid=${pid} start=${start}; ${observedStatus.reason}`);
     fs.writeFileSync(stop, "");
     waitFor(() => run.ownerStatus(owner).status === "exited", "the r1 writer to exit");
-    f.change((r) => run.release(r, { ticket: 301, observations: {} }));
+    assert.equal(afterProbeFailure(seenExit).status, "exited", "a matching wrapper exit and a clear live census permit release");
+    f.change((r) => run.release(r, { ticket: 301, observations: observed(seenExit), identify }));
+    assert.equal(run.readRecord(f.file).tickets[301].owner, null);
+    console.log(`released wrapper pid=${pid} after the launch directory drained (injected primary probe failure)`);
   }
 
   {
