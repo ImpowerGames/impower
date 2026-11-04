@@ -1,6 +1,6 @@
 # Portrait morphs
 
-A portrait drawn with layers already has its states: eyes open and eyes closed, a mouth open and shut, a door ajar and a door closed. [Character Portraits](./Portraits.md) shows how the script chooses one. A `morph` makes the portrait move between them on its own: the drawings of one state bend, fade or scale into the drawings of the next. A morph whose last pose is the state the portrait was drawn in brings it back there; one that ends elsewhere holds its last pose when it finishes.
+A portrait drawn with layers already has its states: eyes open and eyes closed, a mouth open and shut, a door ajar and a door closed. [Character Portraits](./Portraits.md) shows how the script chooses one. A `morph` makes the portrait move between them on its own: the drawings of one state bend, fade or scale into the drawings of the next. A morph whose first and last poses are both the state the portrait was drawn in brings it back there after every play. A morph that stops after a set number of plays holds the pose its final play ends on: the last pose with the default `direction = normal`, the first with `reverse`, and for the alternating directions whichever end the final play reaches.
 
 A morph knows nothing about eyes. It drives whatever attribute groups its keyframes name, on every portrait that has those groups. This chapter uses a blink as its worked example because it is the most common use, but the same rules serve a mouth, a flickering lamp or a curtain.
 
@@ -153,7 +153,7 @@ morph blink {
 
 A `state` is always the name of an option, never a variable or a number, so `state = closed`, `state = "closed"`, `state = 01` and `state = open-wide` are each read as written. It may also be qualified with its group, `state = eyes.closed`, the way a script line writes it. The qualifier has to be the container's own group: `state = mouth.closed` inside `eyes { … }` is an error. After you type `eyes.`, the editor completes the states the project's portraits draw.
 
-The first pose is where the morph starts, and it should be the state the portrait rests in. End on it too, so the portrait comes back to rest. As in CSS keyframes, a first or last pose that leaves a group out uses the portrait's resting state there.
+The first pose is the state a portrait has to rest in for the morph to play on it, as [Which portraits a morph plays on](#which-portraits-a-morph-plays-on) describes. Make the last pose that state too, so the portrait comes back to rest whichever direction the morph plays in. As in CSS keyframes, a first or last pose that leaves a group out uses the portrait's resting state there.
 
 An option with a hyphen is a kind of the word before it ([The naming rules](./Portraits.md#the-naming-rules)). A morph that starts from `open` therefore also plays on a portrait resting in `open-wide`, and returns it to `open-wide`, because each portrait keeps its own resting choice.
 
@@ -366,7 +366,7 @@ Timing is set in `timing { … }`. Every value is optional:
 | `iterations` | `1` | How many plays in all: a whole number, or `infinite`. `0` turns playback off. |
 | `iteration_delay_min` | none | Shortest quiet time, in seconds, from the end of one play to the start of the next. |
 | `iteration_delay_max` | none | Longest such time. |
-| `direction` | `normal` | `normal`, `reverse`, `alternate` or `alternate-reverse`, as in CSS. |
+| `direction` | `normal` | `normal`, `reverse`, `alternate` or `alternate-reverse`, as in CSS. A morph with a set number of plays stops on the pose its final play ends at. |
 | `easing` | `ease-out` | The timing curve over a whole play: a CSS name, `cubic-bezier(…)`, `steps(…)` or `linear(…)`. |
 
 `iteration_delay_min` and `iteration_delay_max` are written together. Each gap is drawn independently and evenly between them, so a blink with `2` and `6` never settles into a rhythm. Without them, plays follow each other with no gap.

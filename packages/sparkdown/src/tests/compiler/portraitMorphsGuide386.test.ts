@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { pairShapes, parsePathData, type LabelledShape } from "@impower/spark-morph/src/index";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { MorphTimeline, morphRandom } from "../../morph/timeline";
+import type { MorphTiming } from "../../morph/types";
 
 const GUIDE = resolve(dirname(fileURLToPath(import.meta.url)), "../../../docs/guide");
 const CHAPTER = resolve(GUIDE, "PortraitMorphs.md");
@@ -122,10 +124,21 @@ describe("the portrait morphs guide chapter", () => {
     expect(text).not.toMatch(/fixed order|each fades out or in/);
   });
 
-  test("the chapter does not promise that every morph ends at rest", () => {
+  test("the pose a finished morph holds follows its direction, as the chapter says", () => {
+    const endOffset = (direction: MorphTiming["direction"], iterations: number) => {
+      const timing: MorphTiming = { duration: 0.25, delay: 0, easing: "linear", iterations, direction };
+      const head = new MorphTimeline(timing, morphRandom("guide")).at(10);
+      return head.phase === "done" ? head.offset : head.phase;
+    };
+    expect(endOffset("normal", 1)).toBe(1);
+    expect(endOffset("reverse", 1)).toBe(0);
+    expect(endOffset("alternate", 2)).toBe(0);
+    expect(endOffset("alternate", 3)).toBe(1);
+
     const text = chapter();
-    expect(text).toContain("one that ends elsewhere holds its last pose when it finishes");
-    expect(text).not.toContain("returns to the state it was drawn in");
+    expect(text).toContain("the last pose with the default `direction = normal`, the first with `reverse`, and for the alternating directions whichever end the final play reaches");
+    expect(text).toContain("so the portrait comes back to rest whichever direction the morph plays in");
+    expect(text).not.toMatch(/returns to the state it was drawn in|holds its last pose when it finishes|End on it too/);
   });
 
   test("examples use the brace form and the iteration delay range", () => {
