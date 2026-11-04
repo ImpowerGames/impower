@@ -21,11 +21,11 @@ const defined = `define rebeccapurple as color with\n  value = "#00ff00"\nend\n`
 const core =
   "style sample { color = rebeccapurple }\nlayout main { box.sample }";
 
-describe("a theme variable an author declares is part of the theme", () => {
-  test("a layout element's own theme custom properties resolve its bare words", async () => {
+describe("an author's own --theme-* declaration is an ordinary custom property", () => {
+  test("an explicit var() of it passes through unchanged", async () => {
     const h = createDOMHarness(
       `layout main {
-  box.sample #--theme-size-gutter=20px #--theme-color-brand="#ff0000" #--theme-filter-dim="brightness(0.5)" #padding=gutter #color=brand #filter=dim
+  box.sample #--theme-size-gutter=20px #--theme-color-brand="#ff0000" #padding="var(--theme-size-gutter)" #color="var(--theme-color-brand)" #filter="var(--theme-filter-dim, none)"
 }
 `,
       0,
@@ -36,20 +36,27 @@ describe("a theme variable an author declares is part of the theme", () => {
     const style = box.getAttribute("style") ?? "";
     expect(style).toContain("padding: var(--theme-size-gutter)");
     expect(style).toContain("color: var(--theme-color-brand)");
-    expect(style).toContain("filter: var(--theme-filter-dim)");
+    expect(style).toContain("filter: var(--theme-filter-dim, none)");
   });
 
-  test("a word the author never declares stays native", async () => {
+  test("a native word beside it stays native", async () => {
     const h = createDOMHarness(
-      `layout main {
-  box.sample #--theme-color-brand="#ff0000" #filter=dim
+      `component unused {
+  box #--theme-size-auto=20px
+}
+layout main {
+  box.sample #--theme-size-gutter=20px #--theme-filter-dim="brightness(0.5)" #margin=auto #filter=dim
 }
 `,
       0,
     );
     await h.ready;
-    const box = h.overlay.querySelector(".sample") as HTMLElement;
-    expect(box.getAttribute("style") ?? "").toContain("filter: dim");
+    const style =
+      h.overlay.querySelector(".sample")?.getAttribute("style") ?? "";
+    expect(style).toContain("margin: auto");
+    expect(style).toContain("filter: dim");
+    expect(style).not.toContain("var(--theme-size-auto)");
+    expect(style).not.toContain("var(--theme-filter-dim)");
   });
 });
 

@@ -4,6 +4,7 @@ import { getAnimationContent } from "../../../../spark-dom/src/utils/getAnimatio
 import { getStyleContent } from "../../../../spark-dom/src/utils/getStyleContent";
 import { uiBuiltinDefinitions } from "../../../../spark-engine/src/game/modules/ui/uiBuiltinDefinitions";
 import {
+  getComponents,
   parseSparkle,
   renderCssVDOM,
   renderHtmlVDOM,
@@ -19,6 +20,7 @@ import { generateSparkleAttributesAndStyles } from "../../../../sparkle-style-tr
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
 import { getThemeVariables } from "../../../../sparkle-style-transformer/src/utils/getThemeVariables";
+import { getScreenTheme } from "../../../../sparkle-screen-preview/src/utils/getScreenTheme";
 
 const ALIASES: Record<string, string> = { ...STYLE_ALIASES, ...CSS_ALIASES };
 
@@ -361,6 +363,33 @@ describe("a bare word becomes a theme variable only when the theme defines it", 
       ).toEqual([["background-image", css]]);
     },
   );
+});
+
+describe("the screen preview's theme is its shared sheets and theme blocks", () => {
+  test("a style rule's or text's --theme-* is not a theme token", () => {
+    const parsed = parseSparkle(
+      [
+        "theme dark",
+        "  color-brand = red",
+        "style card",
+        "  --theme-color-rule = red",
+        "screen main",
+        '  text "--theme-color-text: red;"',
+      ].join("\n"),
+    );
+    const screenTheme = getScreenTheme(
+      parsed,
+      getComponents(parsed),
+      {},
+      {
+        shared: ":root { --theme-color-shared: red; }",
+      },
+    );
+    expect([...screenTheme].sort()).toEqual([
+      "--theme-color-brand",
+      "--theme-color-shared",
+    ]);
+  });
 });
 
 describe("theme variables come only from declarations", () => {
