@@ -1,5 +1,19 @@
 import { SPARKLE_TO_CSS_NAME_MAP } from "../constants/CSS_ALIASES.js";
 import type { ThemeVariables } from "../types/themeVariables.js";
+import {
+  applyEdits,
+  identName,
+  isFunctionNode,
+  isTokenType,
+  parseComponentValues,
+  significant,
+  splitAt,
+  TokenType,
+  type ComponentValue,
+  type FunctionNode,
+  type SourceEdit,
+  type TokenNode,
+} from "./cssSyntax.js";
 
 const WHITESPACE_REGEX = /[\t ]+/;
 const VALUE_UNIT_REGEX = /^(\d+(?:\.\d+)?)([a-z]+)?$/;
@@ -27,6 +41,10 @@ export function validateCss(value: string | null | undefined): boolean {
 
 const GRADIENT_FUNCTION = /^(?:repeating-)?(?:linear|radial|conic)-gradient$/i;
 
+const COLOR_FUNCTION = /^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)$/i;
+
+const COLOR_ARGUMENT_FUNCTION = /^(?:drop-shadow|light-dark)$/i;
+
 const GRADIENT_SETUP_WORDS = new Set([
   "to",
   "in",
@@ -40,197 +58,113 @@ const GRADIENT_SETUP_WORDS = new Set([
   "farthest-corner",
 ]);
 
-const skipQuoted = (css: string, start: number): number => {
-  const quote = css[start];
-  let end = start + 1;
-  while (end < css.length && css[end] !== quote) {
-    if (css[end] === "\\") end++;
-    end++;
-  }
-  return end + 1;
+const isNumeric = (node: ComponentValue | undefined): boolean =>
+  isTokenType(node, TokenType.Number) ||
+  isTokenType(node, TokenType.Dimension) ||
+  isTokenType(node, TokenType.Percentage);
+
+const isSetupArgument = (argument: ComponentValue[]): boolean => {
+  const first = significant(argument)[0];
+  const name = identName(first)?.toLowerCase();
+  return (
+    (name !== undefined && GRADIENT_SETUP_WORDS.has(name)) || isNumeric(first)
+  );
 };
 
-const skipOpaque = (css: string, start: number): number | undefined => {
-  const c = css[start];
-  if (c === '"' || c === "'") {
-    return skipQuoted(css, start);
-  }
-  if (c === "/" && css[start + 1] === "*") {
-    const end = css.indexOf("*/", start + 2);
-    return end === -1 ? css.length : end + 2;
-  }
-  return undefined;
-};
-
-const COMMENT = /\/\*[\s\S]*?(?:\*\/|$)/g;
-
-const findClosingParen = (css: string, open: number): number => {
-  let depth = 0;
-  let i = open;
-  while (i < css.length) {
-    const c = css[i];
-    const skipped = skipOpaque(css, i);
-    if (skipped !== undefined) {
-      i = skipped;
+const resolveColorWords = (
+  css: string,
+  nodes: ComponentValue[],
+  theme: ThemeVariables,
+  edits: SourceEdit[],
+): void => {
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]!;
+    if (isFunctionNode(node)) {
+      resolveFunction(css, node, theme, edits);
       continue;
     }
-    if (c === "(") {
-      depth++;
-    } else if (c === ")") {
-      depth--;
-      if (depth === 0) {
-        return i;
-      }
-    }
-    i++;
-  }
-  return css.length;
-};
-
-const splitArguments = (css: string): string[] => {
-  const args: string[] = [];
-  let depth = 0;
-  let start = 0;
-  let i = 0;
-  while (i < css.length) {
-    const c = css[i];
-    const skipped = skipOpaque(css, i);
-    if (skipped !== undefined) {
-      i = skipped;
+    const name = identName(node);
+    if (name === undefined || name.startsWith("--")) {
       continue;
     }
-    if (c === "(") {
-      depth++;
-    } else if (c === ")") {
-      depth--;
-    } else if (c === "," && depth === 0) {
-      args.push(css.slice(start, i));
-      start = i + 1;
+    const [, , start, identEnd] = (node as TokenNode).value;
+    let end = identEnd;
+    const slash = nodes[i + 1];
+    const alpha = nodes[i + 2];
+    if (
+      isTokenType(slash, TokenType.Delim) &&
+      slash.value[1] === "/" &&
+      slash.value[2] === end + 1 &&
+      isNumeric(alpha) &&
+      (alpha as TokenNode).value[2] === slash.value[3] + 1
+    ) {
+      end = (alpha as TokenNode).value[3];
+      i += 2;
     }
-    i++;
+    const text = css.slice(start, end + 1);
+    const resolved = getCssColor(text, theme);
+    if (resolved !== text) {
+      edits.push({ start, end: end + 1, text: resolved });
+    }
   }
-  args.push(css.slice(start));
-  return args;
 };
 
-const isGradientSetup = (argument: string): boolean => {
-  const first = argument
-    .replace(COMMENT, " ")
-    .trim()
-    .split(/[\s(]/, 1)[0]!
-    .toLowerCase();
-  return GRADIENT_SETUP_WORDS.has(first) || /^[-+.\d]/.test(first);
-};
-
-const COLOR_FUNCTION = /^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)$/i;
-
-const RELATIVE_COLOR_PREFIX = /^\s*from\s+/i;
-
-const transformRelativeColorOrigin = (
+const resolveNestedFunctions = (
   css: string,
+  nodes: ComponentValue[],
   theme: ThemeVariables,
-): string => {
-  const prefix = css.match(RELATIVE_COLOR_PREFIX)?.[0];
-  if (!prefix) {
-    return css;
+  edits: SourceEdit[],
+): void => {
+  for (const node of nodes) {
+    if (isFunctionNode(node)) {
+      resolveFunction(css, node, theme, edits);
+    }
   }
-  const rest = css.slice(prefix.length);
-  let end = 0;
-  while (end < rest.length && !/\s/.test(rest[end]!)) {
-    end = rest[end] === "(" ? findClosingParen(rest, end) + 1 : end + 1;
-  }
-  return prefix + transformColors(rest.slice(0, end), theme) + rest.slice(end);
 };
 
-const transformArguments = (
-  name: string,
+const resolveFunction = (
   css: string,
+  fn: FunctionNode,
   theme: ThemeVariables,
-): string => {
-  if (name.toLowerCase() === "url") {
-    return css;
-  }
+  edits: SourceEdit[],
+): void => {
+  const name = fn.getName();
   if (COLOR_FUNCTION.test(name)) {
-    return transformRelativeColorOrigin(css, theme);
+    const args = significant(fn.value);
+    if (identName(args[0])?.toLowerCase() === "from" && args[1]) {
+      resolveColorWords(css, [args[1]], theme, edits);
+    }
+    return;
   }
   if (GRADIENT_FUNCTION.test(name) || name.toLowerCase() === "color-mix") {
-    return splitArguments(css)
-      .map((argument, index) =>
-        index === 0 && isGradientSetup(argument)
-          ? argument
-          : transformColors(argument, theme),
-      )
-      .join(",");
+    splitAt(fn.value, TokenType.Comma).forEach((argument, index) => {
+      if (index === 0 && isSetupArgument(argument)) {
+        resolveNestedFunctions(css, argument, theme, edits);
+      } else {
+        resolveColorWords(css, argument, theme, edits);
+      }
+    });
+    return;
   }
-  return transformColors(css, theme);
+  if (name.toLowerCase() === "var") {
+    splitAt(fn.value, TokenType.Comma).forEach((argument, index) => {
+      if (index > 0) {
+        resolveColorWords(css, argument, theme, edits);
+      }
+    });
+    return;
+  }
+  if (COLOR_ARGUMENT_FUNCTION.test(name)) {
+    resolveColorWords(css, fn.value, theme, edits);
+    return;
+  }
+  resolveNestedFunctions(css, fn.value, theme, edits);
 };
 
 function transformColors(css: string, theme: ThemeVariables): string {
-  let result = "";
-  let i = 0;
-
-  while (i < css.length) {
-    if (css[i] === "/" && css[i + 1] === "*") {
-      const end = css.indexOf("*/", i + 2);
-      if (end !== -1) {
-        result += css.slice(i, end + 2);
-        i = end + 2;
-        continue;
-      }
-    }
-
-    if (css[i] === '"' || css[i] === "'") {
-      const end = skipQuoted(css, i);
-      result += css.slice(i, end);
-      i = end;
-      continue;
-    }
-
-    if (/[a-z]/i.test(css[i]!)) {
-      let identifier = "";
-      const start = i;
-      while (i < css.length && /[%/.a-z0-9_-]/i.test(css[i]!)) {
-        identifier += css[i];
-        i++;
-      }
-
-      if (css[i] === "(" && css[start - 1] !== "-") {
-        const close = findClosingParen(css, i);
-        const inner = css.slice(i + 1, close);
-        result += `${identifier}(${transformArguments(identifier, inner, theme)}`;
-        result += close < css.length ? ")" : "";
-        i = close + 1;
-        continue;
-      }
-
-      if (isBoundary(css, start, i)) {
-        result += getCssColor(identifier, theme);
-      } else {
-        result += identifier;
-      }
-      continue;
-    }
-
-    result += css[i];
-    i++;
-  }
-
-  return result;
-}
-
-function isBoundary(css: string, start: number, end: number): boolean {
-  const prev = css[start - 1];
-  const next = css[end];
-
-  if (prev === "-") return false;
-
-  if (next === "(") return false;
-
-  const delimiters = /[\s,()!:;]/;
-  const isStartOk = !prev || delimiters.test(prev);
-  const isEndOk = !next || delimiters.test(next);
-
-  return isStartOk && isEndOk;
+  const edits: SourceEdit[] = [];
+  resolveColorWords(css, parseComponentValues(css), theme, edits);
+  return applyEdits(css, edits);
 }
 
 export const getCssAnchorVisibility = (value: string | boolean): string => {
@@ -308,8 +242,11 @@ export const getCssColor = (value: string, theme: ThemeVariables): string => {
   if (value === "current") {
     return "currentColor";
   }
-  if (!value || value.startsWith("#") || value.includes("(")) {
+  if (!value || value.startsWith("#")) {
     return value;
+  }
+  if (value.includes("(")) {
+    return transformColors(value, theme);
   }
   if (value.includes("/")) {
     const [color = "", alpha] = value.split("/");

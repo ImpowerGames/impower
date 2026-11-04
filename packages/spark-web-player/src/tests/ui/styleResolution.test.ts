@@ -398,6 +398,136 @@ describe("the screen preview's theme is its shared sheets and theme blocks", () 
   });
 });
 
+describe("the CSS grammar decides which words are theme colours", () => {
+  const grammarTheme: ReadonlySet<string> = new Set(
+    [
+      "sky_60",
+      "café",
+      "to",
+      "left",
+      "in",
+      "srgb",
+      "display-p3",
+      "from",
+      "r",
+      "g",
+      "b",
+      "infinity",
+      "x",
+    ].map((name) => `--theme-color-${name}`),
+  );
+
+  test.each([
+    [
+      "background-image",
+      "linear-gradient(sky_60/**/, #fff)",
+      "linear-gradient(var(--theme-color-sky_60)/**/, #fff)",
+    ],
+    [
+      "background-image",
+      "linear-gradient(/* to left */ to left /* sky_60 */, sky_60, 'left')",
+      "linear-gradient(/* to left */ to left /* sky_60 */, var(--theme-color-sky_60), 'left')",
+    ],
+    [
+      "background-image",
+      "linear-gradient(to /* c */ left, sky_60 /* , */, #fff)",
+      "linear-gradient(to /* c */ left, var(--theme-color-sky_60) /* , */, #fff)",
+    ],
+    [
+      "background-image",
+      "linear-gradient(café, #fff)",
+      "linear-gradient(var(--theme-color-café), #fff)",
+    ],
+    [
+      "background-image",
+      "url(left.png), url( 'sky_60.png' )",
+      "url(left.png), url( 'sky_60.png' )",
+    ],
+    [
+      "background-image",
+      'image-set("sky_60.png" 1x, linear-gradient(sky_60, #fff) 2x)',
+      'image-set("sky_60.png" 1x, linear-gradient(var(--theme-color-sky_60), #fff) 2x)',
+    ],
+    [
+      "background-image",
+      "linear-gradient(color(srgb 1 0 0), color(display-p3 0 1 0))",
+      "linear-gradient(color(srgb 1 0 0), color(display-p3 0 1 0))",
+    ],
+    [
+      "background-image",
+      "linear-gradient(in srgb, color(from sky_60 srgb r g b), #fff)",
+      "linear-gradient(in srgb, color(from var(--theme-color-sky_60) srgb r g b), #fff)",
+    ],
+    [
+      "color",
+      "color-mix(in srgb, sky_60, white 20%)",
+      "color-mix(in srgb, var(--theme-color-sky_60), white 20%)",
+    ],
+    [
+      "background-color",
+      "rgb(from sky_60 r g b / 50%)",
+      "rgb(from var(--theme-color-sky_60) r g b / 50%)",
+    ],
+    [
+      "border-color",
+      "light-dark(sky_60, #000)",
+      "light-dark(var(--theme-color-sky_60), #000)",
+    ],
+    [
+      "filter",
+      "drop-shadow(0 0 calc(infinity * 1px) sky_60)",
+      "drop-shadow(0 0 calc(infinity * 1px) var(--theme-color-sky_60))",
+    ],
+    ["filter", "blur(calc(infinity * 1px))", "blur(calc(infinity * 1px))"],
+    ["color", "var(--x, sky_60)", "var(--x, var(--theme-color-sky_60))"],
+  ])("%s = %s", (key, value, css) => {
+    const [[, resolved]] = getCssEquivalent(key, value, grammarTheme) as [
+      [string, string],
+    ];
+    expect(resolved).toBe(css);
+  });
+
+  test.each([
+    [
+      "a declaration after a nested rule",
+      ".a { .b { color: red } --theme-color-after: red }",
+      ["--theme-color-after"],
+    ],
+    [
+      "an unquoted url() holding declaration text",
+      ".a { background: url(a;--theme-color-url:b) }",
+      [],
+    ],
+    [
+      "an @media block",
+      "@media (width > 1px) { :root { --theme-color-media: red } }",
+      ["--theme-color-media"],
+    ],
+    [
+      "an @supports prelude and its block",
+      "@supports (--theme-color-query: red) { :root { --theme-color-supported: red } }",
+      ["--theme-color-supported"],
+    ],
+    [
+      "an @container style() prelude",
+      "@container style(--theme-color-container: red) { .a { color: red } }",
+      [],
+    ],
+    [
+      "an @property rule",
+      '@property --theme-color-registered { syntax: "<color>"; inherits: true; initial-value: red }',
+      [],
+    ],
+    [
+      "a comment between name and colon",
+      ":root { --theme-color-commented /* note */ : red }",
+      ["--theme-color-commented"],
+    ],
+  ])("%s", (_name, css, expected) => {
+    expect([...getThemeVariables(css)]).toEqual(expected);
+  });
+});
+
 describe("theme variables come only from declarations", () => {
   test("comments and quoted text do not define a token", () => {
     expect([
