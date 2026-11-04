@@ -82,7 +82,18 @@ jobs:
           SHARD: ${{ matrix.shard }}/${{ matrix.shards }}
         run: |
           set -o pipefail
-          npx vitest run --minWorkers=1 --maxWorkers=2 --reporter=default --shard="$SHARD" 2>&1 | tee "$RUNNER_TEMP/vitest.log"
+          used() { awk '/MemTotal/{t=$2}/MemAvailable/{a=$2}END{print int((t-a)/1024)}' /proc/meminfo; }
+          echo "measure: used-before-mb $(used)"
+          ( while :; do echo "$(used) $(ps -C node -o rss= | awk '{s+=$1}END{print int(s/1024)}')"; sleep 0.5; done > "$RUNNER_TEMP/mem.txt" ) &
+          sampler=$!
+          start=$(date +%s)
+          status=0
+          npx vitest run --minWorkers=1 --maxWorkers=2 --reporter=default --shard="$SHARD" 2>&1 | tee "$RUNNER_TEMP/vitest.log" || status=$?
+          kill "$sampler" || true
+          echo "measure: wall-seconds $(( $(date +%s) - start ))"
+          echo "measure: peak-used-mb $(awk '{print $1}' "$RUNNER_TEMP/mem.txt" | sort -n | tail -n 1)"
+          echo "measure: peak-node-rss-mb $(awk '{print $2}' "$RUNNER_TEMP/mem.txt" | sort -n | tail -n 1)"
+          exit "$status"
 
       # workaround(vitest): a worker killed by the OS can leave vitest exiting 0 with no summary
       - name: Require summary lines
