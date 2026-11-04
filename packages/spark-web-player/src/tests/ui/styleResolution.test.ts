@@ -279,6 +279,12 @@ describe("a bare word becomes a theme variable only when the theme defines it", 
     ["aspect", "golden", "var(--theme-ratio-golden)"],
     ["z", "dialog", "var(--theme-z-index-dialog)"],
     ["animation", "pulse", "var(--theme-animation-pulse)"],
+    ["animation", "0.5s infinite bounce", "0.5s infinite bounce"],
+    [
+      "animation",
+      "pulse pulse",
+      "var(--theme-animation-pulse), var(--theme-animation-pulse)",
+    ],
     ["text-leading", "loose", "var(--theme-text-leading-loose)"],
     ["text-font", "display", "var(--theme-font-display)"],
     [

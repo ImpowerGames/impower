@@ -240,10 +240,14 @@ export const getCssAnimation = (
   if (value.startsWith("var(")) {
     return value;
   }
-  return value
-    .split(" ")
-    .map((v) => getThemeVar(theme, "animation", `${v}${suffix}`) ?? v)
-    .join(", ");
+  const names = value.split(" ");
+  const variables = names.map((v) =>
+    getThemeVar(theme, "animation", `${v}${suffix}`),
+  );
+  if (variables.every((v) => v === undefined)) {
+    return value;
+  }
+  return names.map((v, i) => variables[i] ?? v).join(", ");
 };
 
 export const getCssBgAlign = (value: string): string => {

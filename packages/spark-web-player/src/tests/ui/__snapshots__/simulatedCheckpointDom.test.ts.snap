@@ -453,30 +453,30 @@ exports[`a checkpoint saved during a simulated route > displays the layout, port
   100% { opacity: 0; }
 }
 @keyframes blackout {
-  0% { background-color: black; opacity: 0; }
-  100% { background-color: black; opacity: 1; }
+  0% { background-color: var(--theme-color-black); opacity: 0; }
+  100% { background-color: var(--theme-color-black); opacity: 1; }
 }
 @keyframes blackin {
-  0% { background-color: black; opacity: 1; }
-  100% { background-color: black; opacity: 0; }
+  0% { background-color: var(--theme-color-black); opacity: 1; }
+  100% { background-color: var(--theme-color-black); opacity: 0; }
 }
 @keyframes blackpulse {
-  0% { background-color: black; opacity: 0; }
-  50% { background-color: black; opacity: 1; }
-  100% { background-color: black; opacity: 0; }
+  0% { background-color: var(--theme-color-black); opacity: 0; }
+  50% { background-color: var(--theme-color-black); opacity: 1; }
+  100% { background-color: var(--theme-color-black); opacity: 0; }
 }
 @keyframes whiteout {
-  0% { background-color: white; opacity: 0; }
-  100% { background-color: white; opacity: 1; }
+  0% { background-color: var(--theme-color-white); opacity: 0; }
+  100% { background-color: var(--theme-color-white); opacity: 1; }
 }
 @keyframes whitein {
-  0% { background-color: white; opacity: 1; }
-  100% { background-color: white; opacity: 0; }
+  0% { background-color: var(--theme-color-white); opacity: 1; }
+  100% { background-color: var(--theme-color-white); opacity: 0; }
 }
 @keyframes whitepulse {
-  0% { background-color: white; opacity: 0; }
-  50% { background-color: white; opacity: 1; }
-  100% { background-color: white; opacity: 0; }
+  0% { background-color: var(--theme-color-white); opacity: 0; }
+  50% { background-color: var(--theme-color-white); opacity: 1; }
+  100% { background-color: var(--theme-color-white); opacity: 0; }
 }",
             },
             {
@@ -512,7 +512,7 @@ spark-web-player #game .layouts {
       padding: 0.25rem 0.5rem;
       border-radius: 0.25rem;
       background-color: var(--theme-color-slate_95);
-      color: black;
+      color: var(--theme-color-black);
       font-size: 0.875rem;
       font-weight: 400;
       font-style: normal;
@@ -575,7 +575,7 @@ spark-web-player #game .layouts {
       border-top-color: var(--spinner-color, var(--theme-color-slate_65));
       animation-name: spin;
       animation-duration: 0.75s;
-      animation-timing-function: linear;
+      animation-timing-function: var(--theme-ease-linear);
       animation-iteration-count: infinite;
     }
   }
@@ -621,8 +621,8 @@ spark-web-player #game .stroke {
   text-wrap: wrap;
   position: absolute;
   inset: 0px;
-  text-shadow: 1px 0px 0 black,0.6234898018587336px 0.7818314824680298px 0 black,-0.22252093395631434px 0.9749279121818236px 0 black,-0.900968867902419px 0.43388373911755823px 0 black,-0.9009688679024191px -0.433883739117558px 0 black,-0.2225209339563146px -0.9749279121818236px 0 black,0.6234898018587334px -0.7818314824680299px 0 black;
-  color: black;
+  text-shadow: 1px 0px 0 var(--theme-color-black),0.6234898018587336px 0.7818314824680298px 0 var(--theme-color-black),-0.22252093395631434px 0.9749279121818236px 0 var(--theme-color-black),-0.900968867902419px 0.43388373911755823px 0 var(--theme-color-black),-0.9009688679024191px -0.433883739117558px 0 var(--theme-color-black),-0.2225209339563146px -0.9749279121818236px 0 var(--theme-color-black),0.6234898018587334px -0.7818314824680299px 0 var(--theme-color-black);
+  color: var(--theme-color-black);
   white-space: pre-line;
   & * {
     display: inline;
@@ -688,7 +688,7 @@ spark-web-player #game .loading {
 spark-web-player #game .loading_backdrop {
   position: absolute;
   inset: 0px;
-  background-color: black;
+  background-color: var(--theme-color-black);
 }
 spark-web-player #game .loading_content {
   position: relative;
@@ -717,7 +717,7 @@ spark-web-player #game .cutscene {
   position: absolute;
   inset: 0px;
   z-index: 2000;
-  background-color: black;
+  background-color: var(--theme-color-black);
   pointer-events: auto;
 }
 spark-web-player #game .cutscene_video {
@@ -799,7 +799,7 @@ spark-web-player #game .choice {
     justify-content: center;
     cursor: pointer;
     &:hover {
-      background-color: black;
+      background-color: var(--theme-color-black);
       transition: all 0.15s linear;
     }
   }
@@ -822,7 +822,7 @@ spark-web-player #game .button {
   border-style: solid;
   border-color: var(--theme-color-sky_40);
   background-color: var(--theme-color-sky_40);
-  color: white;
+  color: var(--theme-color-white);
   font-weight: 400;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
@@ -847,10 +847,10 @@ spark-web-player #game .button {
     &:focus {
       box-shadow: 0 0 0 0.125rem rgb(226 232 240 / 25%);
     }
-    color: black;
+    color: var(--theme-color-black);
     &:hover, &:active, &:focus {
-      background-color: white;
-      border-color: white;
+      background-color: var(--theme-color-white);
+      border-color: var(--theme-color-white);
     }
   }
   &.outline {
@@ -875,8 +875,8 @@ spark-web-player #game .button {
     color: var(--theme-color-slate_90);
     border-color: var(--theme-color-slate_90);
     &:hover, &:active, &:focus {
-      color: white;
-      border-color: white;
+      color: var(--theme-color-white);
+      border-color: var(--theme-color-white);
     }
   }
   &:focus {
@@ -890,7 +890,7 @@ spark-web-player #game .button {
   }
   &[aria-busy="true"] {
     &::before {
-      --spinner-color: white;
+      --spinner-color: var(--theme-color-white);
       margin-right: 0.5rem;
     }
   }
@@ -1051,7 +1051,7 @@ spark-web-player #game .radio {
     &:checked {
       border-width: 0.35rem;
       border-color: var(--theme-color-sky_40);
-      background-color: white;
+      background-color: var(--theme-color-white);
     }
     &:focus {
       border-color: var(--theme-color-sky_40);
@@ -1101,7 +1101,7 @@ spark-web-player #game .switch {
       width: 0.875rem;
       height: 0.875rem;
       border-radius: 50%;
-      background-color: white;
+      background-color: var(--theme-color-white);
       transition: transform 0.1s ease-in-out;
     }
     &:checked {
@@ -1246,7 +1246,7 @@ spark-web-player #game .link {
   &.contrast {
     color: var(--theme-color-slate_90);
     &:hover, &:active, &:focus {
-      color: white;
+      color: var(--theme-color-white);
       text-decoration-color: currentColor;
     }
   }
@@ -1428,7 +1428,7 @@ spark-web-player #game .highlight {
   justify-self: start;
   align-self: flex-start;
   background-color: var(--theme-color-sky_20);
-  color: white;
+  color: var(--theme-color-white);
   padding: 0.125rem 0.25rem;
   line-height: normal;
 }
@@ -1594,7 +1594,7 @@ spark-web-player #game .foldout_label {
     border-style: solid;
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
-    color: white;
+    color: var(--theme-color-white);
     font-weight: 400;
     transition: all 0.2s ease-in-out;
     &::after {
@@ -1618,7 +1618,7 @@ spark-web-player #game .foldout {
         transform: rotate(0);
       }
       &.secondary {
-        color: white;
+        color: var(--theme-color-white);
         margin-bottom: 0px;
       }
     }
@@ -1650,7 +1650,7 @@ spark-web-player #game .menu {
       display: flex;
     }
     >.foldout_label {
-      color: white;
+      color: var(--theme-color-white);
       margin-bottom: 0px;
     }
   }
@@ -1665,7 +1665,7 @@ spark-web-player #game .menu {
     border-style: solid;
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
-    color: white;
+    color: var(--theme-color-white);
     font-weight: 400;
     transition: all 0.2s ease-in-out;
     &::after {
@@ -1725,7 +1725,7 @@ spark-web-player #game .file_input {
       padding: 0.375rem 1rem;
       margin-right: 0.5rem;
       margin-left: 0px;
-      color: white;
+      color: var(--theme-color-white);
       font-size: 1rem;
       font-weight: 400;
       cursor: pointer;
@@ -1885,7 +1885,7 @@ spark-web-player #game .badge {
   padding: 0.125rem 0.5rem;
   border-radius: 1rem;
   background-color: var(--theme-color-sky_60);
-  color: white;
+  color: var(--theme-color-white);
   font-size: 0.75rem;
   font-weight: 600;
 }
@@ -1940,7 +1940,7 @@ spark-web-player #game .progress {
     background-size: 150% 150%;
     animation-name: progress_indeterminate;
     animation-duration: 1s;
-    animation-timing-function: linear;
+    animation-timing-function: var(--theme-ease-linear);
     animation-iteration-count: infinite;
     &::-webkit-progress-bar {
       background-color: transparent;
@@ -2007,7 +2007,7 @@ spark-web-player #game .textbox {
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: white;
+  color: var(--theme-color-white);
   flex: 1;
 }
 spark-web-player #game .textbox_background {
@@ -2133,7 +2133,7 @@ spark-web-player #game .continue_indicator {
   bottom: 16px;
   font-size: 16px;
   transition: opacity 0.25s linear;
-  animation: var(--theme-animation-0.5s), var(--theme-animation-infinite), var(--theme-animation-bounce);
+  animation: 0.5s infinite bounce;
   animation-play-state: paused;
 }
 spark-web-player #game .ending {
@@ -2148,7 +2148,7 @@ spark-web-player #game .end_mark {
   bottom: 16px;
   font-size: 16px;
   text-align: center;
-  color: white;
+  color: var(--theme-color-white);
 }",
             },
           ],
