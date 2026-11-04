@@ -35,6 +35,27 @@ function writerAccountingChecks() {
   const held = (writer) => ({ owner: writer, pending: null, history: [], results: [] });
   const observations = { sessions: { [ids.shared]: { state: "running" }, [ids.other]: { state: "running" } } };
   const plan = (tickets, more = {}) => run.planDispatch({ record: { ...record, tickets }, snapshot: { repository: record.repository, issue: { number: 100, state: "open" }, tickets: [ticket(101), ticket(102), ticket(103)] }, preflights: [{ route: "claude-cli", model: record.writer.model, verdicts: [101, 102, 103].map((number) => ({ ticket: number, effort: "medium", verdict: "available" })) }], freeBytes: 100 * GB, defaults, census: () => [], observations, ...more });
+  {
+    const redSha = "9842ba8b7".padEnd(40, "0");
+    const red = { verdict: "red", head: redSha, run: 41810405236, conclusion: "failure", url: "https://github.com/acme/widgets/actions/runs/41810405236", failedJobs: ["packages (impower-dev)", "test-suite"] };
+    const withMain = (mainCi, operations = []) => run.planDispatch({ record: { ...record, tickets: {}, operations }, snapshot: { repository: record.repository, issue: { number: 100, state: "open" }, mainCi, tickets: [ticket(101)] }, preflights: [{ route: "claude-cli", model: record.writer.model, verdicts: [{ ticket: 101, effort: "medium", verdict: "available" }] }], freeBytes: 100 * GB, defaults, census: () => [], observations });
+    const ownMerge = { id: "op-1", kind: "merge", ticket: 102, pr: 2411, state: "confirmed", mergeCommit: redSha, evidence: `PR #2411 reads back merged as ${redSha}` };
+    const owned = withMain(red, [ownMerge]);
+    assert.deepEqual([owned.main?.action, owned.main?.owned, owned.main?.run, owned.main?.failedJobs], ["repair-main", true, 41810405236, ["packages (impower-dev)", "test-suite"]], "a red main on the run's own merge is the run's action");
+    assert.match(owned.remaining[0], /^main is red at 9842ba8b7, this run's merge of PR #2411 for #102 \(Test Suite push run 41810405236 on 9842ba8b7[0-9]* \(https:[^)]*\), failing jobs: packages \(impower-dev\), test-suite\); before any ticket action, find or dispatch the fix/, "the owned red leads the remaining work and names the run and its failing jobs");
+    const other = withMain(red, [{ ...ownMerge, mergeCommit: "a".repeat(40), evidence: "PR #2400 reads back merged" }]);
+    assert.deepEqual([other.main?.action, other.main?.owned], ["hold-merges", false], "a red main on another run's merge is no action for this run, which holds its merges");
+    assert.match(other.main.reason, /do not wait on the maintainer/);
+    assert.ok(!other.remaining.some((line) => /main is red/.test(line)), "another run's red adds no remaining work");
+    assert.equal(withMain({ verdict: "none", reason: "no completed, uncancelled push run of Test Suite on main" }, [ownMerge]).main, undefined, "a pending run on newer main is no action");
+    assert.equal(withMain({ verdict: "green", head: redSha, run: 2 }, [ownMerge]).main, undefined, "a green main is no action");
+    assert.equal(withMain(undefined, [ownMerge]).main, undefined, "a snapshot without main's runs is no action");
+    assert.deepEqual(run.mainVerdict([{ id: 1, headSha: redSha, status: "completed", conclusion: "failure", createdAt: "2026-11-04T10:00:00Z" }, { id: 2, headSha: "b".repeat(40), status: "in_progress", conclusion: "", createdAt: "2026-11-04T11:00:00Z" }]).verdict, "red", "a pending newer run leaves the last completed verdict in force");
+    const jobsClient = { mainRuns: () => [{ id: 7, headSha: redSha, status: "completed", conclusion: "failure", createdAt: "2026-11-04T10:00:00Z" }], mainRunJobs: () => [{ name: "packages (impower-dev)", conclusion: "failure" }, { name: "hook-tests", conclusion: "success" }] };
+    assert.deepEqual(run.mainState(jobsClient).failedJobs, ["packages (impower-dev)"], "the snapshot names only the red run's failed jobs");
+    assert.match(run.mainState({ ...jobsClient, mainRunJobs: () => { throw new Error("HTTP 502"); } }).failedJobs, /the jobs of run 7 could not be read: HTTP 502/);
+    assert.deepEqual(run.mainState({ mainRuns: () => { throw new Error("HTTP 403"); } }).verdict, "none", "unreadable runs are no verdict");
+  }
   const shared = owner(ids.shared, { adopted: { pr: 500, rounds: 1 } });
   const aliases = plan({ 101: held(shared), 102: held(structuredClone(shared)) });
   assert.equal(aliases.concurrency.active, 1, "two ticket references to one observed writer consume one place");
@@ -881,7 +902,7 @@ try {
       throw new Error(`Unexpected discovery call: ${args.join(" ")}`);
     });
     const snapshot = run.takeSnapshot({ repository: "acme/widgets", tickets: "acme/internal", issue: 100 }, { ...client, fetchMain: () => "main", worktrees: () => [], onMain: () => true, issue: (number) => ({ number, state: "open", title: "Task", body: "" }), subIssues: (number) => number === 100 ? Array.from({ length: 22 }, (_, i) => ({ number: i + 1, state: "open", title: "slice" })) : [], blockedBy: () => [], fields: () => ({ effort: "Medium", priority: null }) });
-    assert.equal(calls.length, 1, "a 22-ticket snapshot shares one completely paginated account listing");
+    assert.equal(calls.filter((c) => !c.startsWith("gh run list")).length, 1, "a 22-ticket snapshot shares one completely paginated account listing");
     assert.ok(!calls.some((call) => call.includes("--search") || call.includes("search(")));
     assert.deepEqual(snapshot.tickets.find((t) => t.number === 22).prs.map((p) => p.number), [4001], "a closing-reference-only PR beyond 1000 historical PRs is found");
     for (const incomplete of [accountPages([], { totalCount: 1 }), accountPages([], { hasNextPage: true })]) {

@@ -143,6 +143,7 @@ try {
     comments: (n) => { gh.onComments?.(n); return structuredClone(gh.comments.get(n) ?? []); },
     protection: () => structuredClone(gh.protection),
     mainRuns: () => { if (gh.mainRunsFail) throw new Error(gh.mainRunsFail); return structuredClone(gh.mainRuns ?? []); },
+    mainRunJobs: () => { if (gh.mainRunJobsFail) throw new Error(gh.mainRunJobsFail); return structuredClone(gh.mainRunJobs ?? []); },
     merge: (pr, head) => {
       gh.mergeCalls.push(ig.mergeArgs(REPO, pr, head));
       gh.beforeMerge?.(pr, head);
@@ -455,7 +456,7 @@ try {
   assert.deepEqual([g41.admitted, g41.containsMain, g41.ciMain, g41.originMain], [true, false, mainBefore, mainAfter], `a head behind main is admitted and the main its CI covered is named: ${g41.blockers.join(" | ")}`);
   const mainRun = (more) => ({ id: 1, headSha: mainAfter, status: "completed", conclusion: "success", createdAt: at(), url: "https://github.com/x/y/actions/runs/1", ...more });
   gh.mainRuns = [mainRun({ conclusion: "failure" })];
-  blocked(gate(41), /main's own CI is red: the latest completed push run of Test Suite on main concluded failure at .*; no merge lands on a red main/, "a red main");
+  blocked(gate(41), /main's own CI is red: the latest completed push run of Test Suite on main concluded failure at .*; only a PR that repairs it merges on a red main, and this one does not: head [0-9a-f]{9} does not contain/, "a red main");
   gh.mainRuns = [mainRun({ conclusion: "failure" }), mainRun({ id: 2, conclusion: "cancelled" })];
   blocked(gate(41), /main's own CI is red/, "a cancelled newer run does not clear a red main");
   gh.mainRuns = [mainRun({ conclusion: "failure" }), mainRun({ id: 2 })];
@@ -473,6 +474,26 @@ try {
   g41 = gate(41);
   trace("gate-41-after-main-merge", g41);
   assert.deepEqual([g41.admitted, g41.disposition, g41.reviewedHead, g41.mergedSince, g41.containsMain, g41.ciMain], [true, "reviewed", h41, [h41m], true, mainAfter], "a clean merge of main on the reviewed head is admitted, and named");
+  {
+    const failedJob = { name: "packages (sparkdown)", conclusion: "failure" };
+    gh.mainRuns = [mainRun({ conclusion: "failure" })];
+    gh.mainRunJobs = [failedJob, { name: "test-suite", conclusion: "failure" }, { name: "hook-tests", conclusion: "success" }];
+    blocked(gate(41), /main's own CI is red.*job packages \(sparkdown\) was skipped on/, "a head that contains the red commit but skipped the failing job does not repair it");
+    setHead(41, h41m, passing().map((c) => (c.name === "packages (sparkdown)" ? { ...c, state: "SUCCESS" } : c)));
+    g41 = gate(41);
+    assert.deepEqual([g41.admitted, g41.mainCi.verdict, g41.mainCi.repair], [true, "red", true], `a head that contains the red commit and passes every job main failed repairs it: ${g41.blockers.join(" | ")}`);
+    gh.mainRunJobs = [];
+    blocked(gate(41), /main's own CI is red.*no failed job of run 1 could be read/, "a red run without a failed job read holds the gate");
+    gh.mainRunJobsFail = "HTTP 502 while reading jobs";
+    blocked(gate(41), /main's own CI is red.*HTTP 502 while reading jobs/, "unreadable jobs of the red run hold the gate");
+    gh.mainRunJobsFail = null;
+    gh.mainRunJobs = [failedJob];
+    gh.mainRuns = [mainRun({ conclusion: "failure", headSha: "f".repeat(40) })];
+    blocked(gate(41), /main's own CI is red.*does not contain f{9}/, "a head without the red commit stays held");
+    gh.mainRuns = [mainRun()];
+    gh.mainRunJobs = null;
+    setHead(41, h41m);
+  }
   git(worktrees[41], "commit", "-q", "--allow-empty", "-m", "ci: rebuild the merge");
   const h41e = push(41);
   setHead(41, h41e);

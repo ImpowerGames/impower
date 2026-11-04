@@ -64,7 +64,7 @@ Clean up after each merge and release per [cleanup](references/cleanup.md); it n
 
 ## 7. Integrate and finish
 
-Before any merge or verification, read [integration](references/integration.md). A `merge-gate` ticket merges only through `integration.mjs merge`; a refused or uncertain merge is settled from GitHub, never retried blind. Once every slice is delivered on main, `verify-issue` checks the parent's "Acceptance criteria" section; `close-issue` closes the parent only on a complete verdict, never on merged PRs alone.
+Before any merge or verification, read [integration](references/integration.md). A `merge-gate` ticket merges only through `integration.mjs merge`; a refused or uncertain merge is settled from GitHub, never retried blind. When the plan's `main` action is `repair-main`, main is red at this run's own merge and this run owns turning it green: before any ticket action, find or dispatch the fix, merge it through the gate as soon as it is reviewed and green, and message every other coordinator on the machine ([a red main](references/integration.md#a-red-main)). At `hold-merges` another run owns the red; hold this run's merges without waiting on the maintainer. Once every slice is delivered on main, `verify-issue` checks the parent's "Acceptance criteria" section; `close-issue` closes the parent only on a complete verdict, never on merged PRs alone.
 
 ## 8. Report
 

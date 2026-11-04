@@ -645,8 +645,45 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
     fetchMain: () => { run("git", ["fetch", "-q", "origin", "main"]); return run("git", ["rev-parse", "origin/main"]).trim(); },
     onMain: (sha) => spawnSync("git", ["merge-base", "--is-ancestor", sha, "origin/main"], { cwd: checkout, windowsHide: true }).status === 0,
     worktrees: () => parseWorktrees(run("git", ["worktree", "list", "--porcelain"])),
+    mainRuns: (branch) => JSON.parse(run("gh", ["run", "list", "--repo", code, "--workflow", MAIN_WORKFLOW, "--branch", branch, "--event", "push", "--limit", "10", "--json", "databaseId,headSha,status,conclusion,createdAt,url"])).map((r) => ({ id: r.databaseId, headSha: r.headSha, status: r.status, conclusion: r.conclusion, createdAt: r.createdAt, url: r.url })),
+    mainRunJobs: (id) => pages([`repos/${code}/actions/runs/${id}/jobs?per_page=100`]).flatMap((p) => p.jobs ?? []).map((j) => ({ name: j.name, conclusion: j.conclusion })),
   };
 }
+
+export const MAIN_BRANCH = "main";
+export const MAIN_WORKFLOW = "Test Suite";
+const GREEN_RUN = new Set(["SUCCESS", "NEUTRAL"]);
+const FAILED_JOB = new Set(["failure", "timed_out", "cancelled", "startup_failure", "action_required"]);
+export function mainVerdict(runs) {
+  if (!Array.isArray(runs)) return { verdict: "none", reason: typeof runs === "string" ? runs : "main's workflow runs could not be read" };
+  const sorted = [...runs].sort((a, b) => (Date.parse(b.createdAt ?? "") || 0) - (Date.parse(a.createdAt ?? "") || 0));
+  const decided = sorted.find((r) => String(r.status).toLowerCase() === "completed" && !["cancelled", "skipped"].includes(String(r.conclusion).toLowerCase()));
+  if (!decided) return { verdict: "none", reason: sorted.length ? `no completed, uncancelled push run of ${MAIN_WORKFLOW} on ${MAIN_BRANCH}` : `no push run of ${MAIN_WORKFLOW} on ${MAIN_BRANCH}` };
+  const green = GREEN_RUN.has(String(decided.conclusion).toUpperCase());
+  return { verdict: green ? "green" : "red", head: decided.headSha ?? null, run: decided.id ?? null, conclusion: decided.conclusion ?? null, url: decided.url ?? null };
+}
+const firstLine = (error) => String(error.stderr || error.message).trim().split("\n")[0];
+export function failedJobsOf(client, run) {
+  try { return client.mainRunJobs(run).filter((j) => FAILED_JOB.has(String(j.conclusion).toLowerCase())).map((j) => j.name); }
+  catch (error) { return `the jobs of run ${run} could not be read: ${firstLine(error)}`; }
+}
+export function mainState(client) {
+  let runs;
+  try { runs = client.mainRuns(MAIN_BRANCH); } catch (error) { runs = `${MAIN_BRANCH}'s workflow runs could not be read: ${firstLine(error)}`; }
+  const verdict = mainVerdict(runs);
+  return verdict.verdict === "red" ? { ...verdict, failedJobs: failedJobsOf(client, verdict.run) } : verdict;
+}
+
+const mergedAt = (op, sha) => op.kind === "merge" && op.state === "confirmed" && typeof sha === "string" && sha.length >= 7 && (String(op.mergeCommit ?? "").startsWith(sha) || sha.startsWith(String(op.mergeCommit ?? "-")) || String(op.evidence ?? "").includes(sha));
+export function redMain(record, mainCi) {
+  if (mainCi?.verdict !== "red") return null;
+  const merge = (record.operations ?? []).find((o) => mergedAt(o, mainCi.head));
+  const jobs = Array.isArray(mainCi.failedJobs) ? (mainCi.failedJobs.length ? mainCi.failedJobs.join(", ") : "none read") : mainCi.failedJobs ?? "not read";
+  const run = `${MAIN_WORKFLOW} push run ${mainCi.run} on ${mainCi.head}${mainCi.url ? ` (${mainCi.url})` : ""}, failing jobs: ${jobs}`;
+  if (!merge) return { action: "hold-merges", owned: false, run: mainCi.run, head: mainCi.head, url: mainCi.url ?? null, failedJobs: mainCi.failedJobs ?? null, reason: `${MAIN_BRANCH} is red at a commit this run did not merge (${run}); hold this run's merges except a repair the gate admits, and do not wait on the maintainer: the coordinator whose run merged it owns the fix` };
+  return { action: "repair-main", owned: true, run: mainCi.run, head: mainCi.head, url: mainCi.url ?? null, failedJobs: mainCi.failedJobs ?? null, merge: { operation: merge.id, ticket: merge.ticket ?? null, pr: merge.pr ?? null }, reason: `${MAIN_BRANCH} is red at ${short9(mainCi.head)}, this run's merge of PR #${merge.pr} for #${merge.ticket} (${run}); before any ticket action, find or dispatch the fix (an open ticket or PR that repairs the failing jobs, a revert of that merge, or a new ticket), merge it as soon as it is reviewed and green, and message every other coordinator on the machine` };
+}
+const short9 = (sha) => String(sha ?? "none").slice(0, 9);
 
 export const MAX_SUB_ISSUE_DEPTH = 8;
 export const reviewRounds = (comments) => Math.max(0, ...comments.map((c) => [...(c.body ?? "").matchAll(/^#{2,4} Review round (\d+) state\b/gm)].map((m) => Number(m[1]))).flat());
@@ -774,7 +811,7 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
     t.delivered = t.state === "closed" && t.deliveredBy.merged;
   }
   for (const t of tickets) for (const b of t.blockers) { const x = byNumber.get(b.number); if (x?.deliveredBy) b.delivered = x.delivered; }
-  return { repository, issue: { number: issue, state: parent.state, title: parent.title, type: parent.type?.name ?? null, criteria: parseCriteria(parent.body), acceptanceSha256: acceptanceHash(parent.body) }, observedAt: new Date().toISOString(), originMain, tickets };
+  return { repository, issue: { number: issue, state: parent.state, title: parent.title, type: parent.type?.name ?? null, criteria: parseCriteria(parent.body), acceptanceSha256: acceptanceHash(parent.body) }, observedAt: new Date().toISOString(), originMain, ...(client.mainRuns && { mainCi: mainState(client) }), tickets };
 }
 
 const scopeLine = (t) => [`#${t.number}`, t.state, ...(t.state === "closed" ? [t.stateReason, t.closedAt].filter(Boolean) : [])].join(" ");
@@ -1216,10 +1253,13 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     if (RANKED_ACTIONS.has(entry.action)) Object.assign(entry, { priority: byNumber.get(entry.number).priority ?? null, dependents: dependentsOf(entry.number) });
   }
   const complete = verificationHolds(record, snapshot) && tickets.every((t) => ["done", "container"].includes(t.action));
+  const main = redMain(record, snapshot.mainCi);
+  const remaining = remainingFor(record, complete);
   return {
+    ...(main && { main }),
     repository: record.repository, issue: record.issue, parent: { type: snapshot.issue.type ?? null, title: snapshot.issue.title ?? null }, runId: record.runId, revision: record.revision, coordinator: record.coordinator.session,
     writer: record.writer, concurrency: { limit: record.concurrency.limit, basis: record.concurrency.basis, active, capacityNow, ...(load && { machine: load }) },
-    routes, tickets, filed: filedActions(record), sweep, checkIn: checkInStatus(record, now, { defaults, env, identify }), remaining: remainingFor(record, complete), complete,
+    routes, tickets, filed: filedActions(record), sweep, checkIn: checkInStatus(record, now, { defaults, env, identify }), remaining: main?.owned ? [main.reason, ...remaining] : remaining, complete,
   };
 }
 
