@@ -3272,9 +3272,16 @@ export class ProgramStory implements StoryEngine {
 
   tunnelEndedAt: number | null = null;
 
-  startsAtBranch(path: string): boolean {
+  startsAwayFromStoryStart(path: string): boolean {
     const symbol = this.root.table.symbolIds.get(path);
-    return symbol !== undefined && this.root.kindOf(symbol) === SymbolKind.Branch;
+    if (symbol === undefined) {
+      return false;
+    }
+    const kind = this.root.kindOf(symbol);
+    return (
+      kind === SymbolKind.Branch ||
+      (kind === SymbolKind.Scene && symbol !== this.startSymbol())
+    );
   }
 
   protected startSymbol(): number | undefined {
