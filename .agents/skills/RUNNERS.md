@@ -11,6 +11,7 @@
 | Periodic check-in       | `CronCreate`, recurring; desktop pauses idle sessions unless tracking it, lost on restart; re-armed every 2 days; see `checkIn` config | None verified; wake routine each turn                                               |
 | Independent review      | Agent tool with caller-supplied subagent_type, or a fresh CLI process  | Caller-supplied collaboration model override when available, or a fresh CLI process |
 | Private artifacts       | Exclusive directory per agent/attempt; parent scratchpads may be shared; resolve-issue writers use its [allocator](resolve-issue/SKILL.md#0-preflight) | Same                                                                                |
+| Session scratch         | CLI: `<system temp>/claude/<main checkout path, non-alphanumerics as ->/<session>/scratchpad`; desktop app: `<system temp>/claude/<16 hex digits per project>/<session>/scratchpad`; clean-worktrees scans both | Not measured                                                                        |
 | Observe completion      | Await task status or CLI process exit, then read the review thread's paginated comments | Same                                                                                |
 | Shell rewrites          | Bash collapses `\\`→`\`, rewrites leading `/`; PowerShell preserves both | Not measured                                                                        |
 

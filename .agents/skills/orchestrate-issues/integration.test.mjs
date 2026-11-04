@@ -60,11 +60,11 @@ try {
     ...permutations(readLines).filter((p) => p.join("\n") !== block).map((p) => ({ name: `reads in the order ${p.map((l) => readLines.indexOf(l) + 1).join("")}`, lines: p })),
     ...readLines.map((l, i) => ({ name: `read ${i + 1} removed`, lines: readLines.filter((x) => x !== l) })),
   ];
-  const here = new URL(".", import.meta.url).href, scripts = new URL("../../../scripts/", import.meta.url).href, agents = new URL("../../", import.meta.url).href;
+  const here = new URL(".", import.meta.url).href, scripts = new URL("../../../scripts/", import.meta.url).href, agents = new URL("../../", import.meta.url).href, skills = new URL("../", import.meta.url).href;
   const mutantDir = fs.mkdtempSync(path.join(tmp, "gate-mutants-"));
   const load = async (name, lines) => {
     const file = path.join(mutantDir, `${name}.mjs`);
-    fs.writeFileSync(file, source.replace(block, lines.join("\n")).replaceAll('from "./', `from "${here}`).replaceAll('from "../../../scripts/', `from "${scripts}`).replaceAll('from "../../', `from "${agents}`));
+    fs.writeFileSync(file, source.replace(block, lines.join("\n")).replaceAll('from "./', `from "${here}`).replaceAll('from "../../../scripts/', `from "${scripts}`).replaceAll('from "../../', `from "${agents}`).replaceAll('from "../', `from "${skills}`));
     return (await import(pathToFileURL(file).href)).finalGate;
   };
   checkGate(await load("control", readLines));
@@ -741,6 +741,7 @@ try {
   const dst = clone("dst");
   const dstPrivate = path.join(tmp, "dst-private");
   fs.mkdirSync(dstPrivate);
+  fs.writeFileSync(path.join(dstPrivate, "owner.json"), JSON.stringify({ issue: ISSUE, writer: "orchestrator", worktree: dst }));
   const dstRecord = path.join(dstPrivate, "run.json");
   const found = cp.discover({ repository: REPO, issue: ISSUE, checkout: dst, github: statusGithub });
   assert.ok(cp.limitations(found.checkpoint).some((l) => l.kind === "operation" && l.ticket === 43), "the destination is told the merge is unsettled");
@@ -952,10 +953,31 @@ try {
   assert.equal(gh.closeIntentSeen, true, "the public command saved the closure's intent on the state branch before the close call");
   assert.deepEqual([closed.closed, closed.state, closed.comment.reused, gh.issues.get(ISSUE).state, closed.checkpoint?.saved], [true, "confirmed", true, "closed", true]);
   assert.equal(gh.comments.get(ISSUE).filter((c) => c.body.includes(`final report: verification ${final.id}`)).length, 1, "every retried close reuses the posted report");
-  assert.throws(() => close(final.id), /already closed/);
-  const status = cp.autoCheckpoint(dstRecord, { coordinator: "local_dst", transition: "the parent issue closed", github: statusGithub, host: DST });
-  assert.match(statusGithub.get(status.summary.commentId).body, new RegExp(`Issue verification ${final.id} on main .*: complete\\.`), "the status comment shows the verification");
-  assert.equal(cp.reconcileOperations(structuredClone(run.readRecord(dstRecord)), { snapshot: { observedAt: "now", issue: { number: ISSUE, state: "closed" }, tickets: [] } }).length, 0, "nothing is left unsettled");
+  assert.deepEqual([closed.retire?.retired, closed.retire?.removed, closed.retire?.checkpoint?.saved], [true, true, true], `the confirmed closure retires the run: ${JSON.stringify(closed.retire)}`);
+  assert.equal(fs.existsSync(dstPrivate), false, "the coordinator's record folder is gone");
+  assert.equal(fs.existsSync(run.pointerFile(dst, REPO, ISSUE)), false, "the coordinator pointer is gone");
+  const last = cp.fetchState(dst, "origin", REPO, ISSUE).checkpoint;
+  assert.equal(last.transition, "retiring the run");
+  assert.equal(last.retired?.evidence, closed.evidence, "the state branch's last checkpoint records the retirement");
+  assert.ok(last.log.some((e) => e.event === "retired"));
+  assert.match(statusGithub.get(closed.retire.checkpoint.summary.commentId).body, new RegExp(`Issue verification ${final.id} on main .*: complete\\.`), "the status comment shows the verification");
+  assert.equal(cp.reconcileOperations(structuredClone(last), { snapshot: { observedAt: "now", issue: { number: ISSUE, state: "closed" }, tickets: [] } }).length, 0, "nothing is left unsettled");
+  const machine = run.observeWriterMachine({ checkout: dst, repository: REPO, issue: ISSUE + 1 });
+  assert.deepEqual([machine.diagnostics, machine.records.filter((r) => r.record.issue === ISSUE)], [[], []], "another coordinator's next plan finds no pointer or diagnostic for the retired run");
+  {
+    const base = { repository: REPO, issue: ISSUE, tickets: { 41: { owner: { kind: "writer" } }, 42: { pending: { launchId: "x" } }, 43: {} }, operations: [{ id: "op9", kind: "merge", pr: 143, state: "uncertain" }, { id: "op8", kind: "merge", pr: 142, state: "confirmed" }] };
+    const snap = { repository: REPO, issue: { number: ISSUE }, tickets: [{ number: 44, state: "open", container: false }, { number: 48, state: "open", container: true }, { number: 43, state: "closed", container: false }] };
+    assert.deepEqual(ig.retireBlockers(base, snap), ["#41 still has a writer; release it first", "#42 has a pending start; settle it first", "merge of PR #143 (op9) is uncertain; settle it with checkpoint.mjs reconcile-operations", "slice #44 is open"]);
+    assert.throws(() => ig.retireBlockers(base, { ...snap, repository: "acme/other" }), /another repository/);
+    const held = path.join(tmp, "held-private");
+    fs.mkdirSync(held);
+    fs.writeFileSync(path.join(held, "owner.json"), JSON.stringify({ issue: 77 }));
+    const heldRecord = path.join(held, "run.json");
+    fs.writeFileSync(heldRecord, JSON.stringify({ version: run.RECORD_VERSION, revision: 3, repository: REPO, issue: 77, checkout: dst, coordinator: { session: "local_held" }, tickets: { 78: { owner: { kind: "writer" } } }, operations: [], log: [] }));
+    assert.throws(() => ig.retireRun(heldRecord, { coordinator: "local_held", expectRevision: 3, evidence: "stopped", snapshot: { repository: REPO, issue: { number: 77 }, tickets: [{ number: 79, state: "open", container: false }] }, save: () => assert.fail("saved") }), /cannot retire: #78 still has a writer; release it first; slice #79 is open; nothing was changed/);
+    assert.equal(run.readRecord(heldRecord).revision, 3, "a refused retirement changes nothing");
+    assert.ok(fs.existsSync(held), "a refused retirement removes nothing");
+  }
 
   assert.equal(gh.intentsSeen.length, gh.mergeCalls.length);
   assert.deepEqual(gh.intentsSeen.filter((s) => !s.saved), [], "every merge call found its intent already on the state branch");

@@ -448,6 +448,7 @@ export function buildCheckpoint(record, { seq, previous, snapshotParents = [], k
     operations: record.operations ?? [], decisions: decisionLinks(record), diskRecoveries: record.diskRecoveries, verifications: record.verifications ?? [], filed: record.filed ?? {}, filedDismissed: record.filedDismissed ?? {},
     work: work ?? {}, snapshots,
     handoff: record.handoff ?? null,
+    retired: record.retired ?? null,
     observed: observed ?? null,
     log: record.log.slice(-100),
   };
