@@ -1471,22 +1471,30 @@ export const getFormatting = (
             block = block.parent;
           }
           const content = block?.parent;
-          const condition = block?.prevSibling;
           const loop = content?.parent;
+          const header =
+            loop?.name === "LuauWhileLoop"
+              ? {
+                  content: "LuauWhileLoop_content",
+                  condition: "LuauWhileCondition",
+                  begin: "LuauWhileLoop_begin",
+                }
+              : loop?.name === "LuauForLoop"
+                ? {
+                    content: "LuauForLoop_content",
+                    condition: "LuauForCondition",
+                    begin: "LuauForLoop_begin",
+                  }
+                : undefined;
           if (
             !loop ||
-            !condition ||
-            !(
-              (loop.name === "LuauWhileLoop" &&
-                condition.name === "LuauWhileCondition") ||
-              (loop.name === "LuauForLoop" &&
-                condition.name === "LuauForCondition")
-            ) ||
-            content.name !== loop.name + "_content"
+            !header ||
+            content?.name !== header.content ||
+            block?.prevSibling?.name !== header.condition
           ) {
             return;
           }
-          headerStart = loop.getChild(loop.name + "_begin")?.to;
+          headerStart = loop.getChild(header.begin)?.to;
         }
         if (headerStart == null) return;
         if (headerStart >= kwFrom) return;
