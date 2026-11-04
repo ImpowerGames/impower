@@ -1902,7 +1902,6 @@ export function* bakeSteps(
     clipTargets,
     ...(paintPoses.length ? { paints: paintPoses } : {}),
     ...(Object.keys(spreads).length ? { spreads } : {}),
-    ...(motionOf.size ? { motion: [...new Set(motionOf.values())].sort() } : {}),
     diagnostics,
   };
 }

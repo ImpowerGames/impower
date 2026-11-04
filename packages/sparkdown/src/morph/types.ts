@@ -233,6 +233,5 @@ export interface MorphArtifact {
   clipTargets: MorphClipTarget[];
   paints?: MorphPaintPose[];
   spreads?: Record<string, MorphSpreadNode>;
-  motion?: string[];
   diagnostics: MorphBakeDiagnostic[];
 }

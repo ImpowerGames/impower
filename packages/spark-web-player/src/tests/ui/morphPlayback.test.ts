@@ -1061,7 +1061,7 @@ describe("layer motion on the morph's clock", () => {
       { translate: "0 -2px", rotate: "2deg" },
       { translate: "0px", rotate: "0deg" },
     ]);
-    expect(artifact.motion).toEqual(["nose"]);
+    expect(artifact.parts.filter((p) => p.svg.includes("data-morph-motion='nose'"))).toHaveLength(1);
     expect(JSON.stringify(play).length).toBeLessThan(1500);
   });
 

@@ -90,6 +90,9 @@ const drawnNames = (svg: string): string[] =>
 const withAttribute = (svg: string, name: string, value?: string): Found[] =>
   walk(svg).filter(({ el }) => (value === undefined ? name in el.attributes : el.attributes[name] === value));
 
+const movedLabels = (artifact: { parts: { svg: string }[] }): string[] =>
+  [...new Set(artifact.parts.flatMap((p) => withAttribute(p.svg, "data-morph-motion").map(({ el }) => el.attributes["data-morph-motion"]!)))].sort();
+
 const elementsOf = (el: El): El[] => el.children.filter((c): c is El => !!c && typeof c === "object");
 
 describe("layer motion values", () => {
@@ -206,7 +209,7 @@ describe("baking secondary states and layer motion", () => {
     expect(Object.keys(artifact.schedules).sort()).toEqual(["brows", "eyes"]);
     expect(artifact.schedules["brows"]!.map((e) => e.state)).toEqual(["up", "down", "up"]);
     expect(Object.keys(artifact.visibility["brows"]!).sort()).toEqual(["down", "up"]);
-    expect(artifact.motion).toEqual(["eyebrows", "nose"]);
+    expect(movedLabels(artifact)).toEqual(["eyebrows", "nose"]);
     expect(artifact.parts.map((p) => p.kind)).toEqual(["static", "live", "static", "live", "static", "live", "static"]);
     const original = drawnNames(FACE).filter((name) => name !== "brow-left:brows.up-high");
     const composed = artifact.parts.flatMap((p) => drawnNames(p.svg));
@@ -275,7 +278,7 @@ describe("baking secondary states and layer motion", () => {
     const artifact = bake({ keyframes });
     expect(artifact.status).toBe("live");
     expect(artifact.diagnostics).toContainEqual(expect.objectContaining({ code: "target-missing", layer: "whiskers" }));
-    expect(artifact.motion).toEqual(["eyebrows", "nose"]);
+    expect(movedLabels(artifact)).toEqual(["eyebrows", "nose"]);
   });
 
   test("moving a clip's target or edge is refused for that layer: apertures do not follow layer motion", () => {
@@ -283,7 +286,7 @@ describe("baking secondary states and layer motion", () => {
     const artifact = bake({ keyframes });
     expect(artifact.status).toBe("live");
     expect(artifact.diagnostics).toContainEqual(expect.objectContaining({ code: "motion-ignored", layer: "pupil-left" }));
-    expect(artifact.parts.some((p) => p.svg.includes('data-morph-motion="pupil-left"'))).toBe(false);
+    expect(movedLabels(artifact)).toEqual(["eyebrows", "nose"]);
   });
 
   test("nested labels of one moved name move once, from the outermost", () => {
@@ -303,8 +306,8 @@ describe("baking secondary states and layer motion", () => {
     const artifact = bake({ keyframes }, {}, shared);
     expect(artifact.status).toBe("live");
     expect(artifact.diagnostics).toContainEqual(expect.objectContaining({ code: "motion-ignored", layer: "brow", message: expect.stringContaining('"brow" inside it is drawn again by reference') }));
-    expect(artifact.parts.some((p) => p.svg.includes('data-morph-motion="brow"'))).toBe(false);
-    expect(artifact.motion).toEqual(["eyebrows", "nose"]);
+    expect(movedLabels(artifact)).not.toContain("brow");
+    expect(movedLabels(artifact)).toEqual(["eyebrows", "nose"]);
     const clipped = FACE.replace(
       '<path data-name="hair"',
       '<defs><clipPath id="cut"><use href="#nose-art"/></clipPath></defs><g data-name="brow"><path id="nose-art" d="M150,30H170V34H150Z"/></g><path d="M0,0H5V5H0Z" clip-path="url(#cut)"/>\n<path data-name="hair"',
@@ -320,7 +323,7 @@ describe("baking secondary states and layer motion", () => {
     );
     const artifact = bake({ keyframes }, {}, painted);
     expect(artifact.diagnostics.filter((d) => d.code === "motion-ignored")).toEqual([]);
-    expect(artifact.motion).toEqual(["brow", "eyebrows", "nose"]);
+    expect(movedLabels(artifact)).toEqual(["brow", "eyebrows", "nose"]);
   });
 
   test("a layer that shows only where three driven groups meet keeps the variant still, as two groups do", () => {
