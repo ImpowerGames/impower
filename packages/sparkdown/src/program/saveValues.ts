@@ -13,7 +13,6 @@ import { flowScopeOwners } from "./ProgramStoryState";
 import {
   readLocalKey,
   savedLocals,
-  withSavedLocal,
   type SavedFrame,
   type SavedScope,
   type SaveValues,
@@ -54,13 +53,56 @@ interface FrameScopes {
   frame: SavedFrame;
 }
 
-const savedScopesOf = (scopes: readonly Map<string, InkObject>[]): SavedScope[] =>
+type FrameMaps = readonly (readonly Map<string, InkObject>[])[];
+
+const pointedScope = (
+  frames: FrameMaps,
+  pointer: VariablePointerValue,
+): Map<string, InkObject> | undefined => {
+  const scope = pointer.isClosed
+    ? undefined
+    : frames[pointer.contextIndex - 1]?.[pointer.scopeIndex];
+  return scope?.has(pointer.variableName) ? scope : undefined;
+};
+
+const slotOf = (
+  frames: FrameMaps,
+  scope: Map<string, InkObject>,
+  name: string,
+): { scope: Map<string, InkObject>; name: string } | undefined => {
+  for (let hops = 0; hops <= frames.length; hops += 1) {
+    const value = scope.get(name);
+    if (!(value instanceof VariablePointerValue)) {
+      return { scope, name };
+    }
+    const next = pointedScope(frames, value);
+    if (!next) {
+      return undefined;
+    }
+    scope = next;
+    name = value.variableName;
+  }
+  return undefined;
+};
+
+const pointedValue = (
+  frames: FrameMaps,
+  value: InkObject | null | undefined,
+): InkObject | null | undefined => {
+  for (let hops = 0; value instanceof VariablePointerValue && hops <= frames.length; hops += 1) {
+    value = value.isClosed
+      ? value.closedValue
+      : pointedScope(frames, value)?.get(value.variableName);
+  }
+  return value instanceof VariablePointerValue ? undefined : value;
+};
+
+const savedScopesOf = (frames: FrameMaps, scopes: readonly Map<string, InkObject>[]): SavedScope[] =>
   scopes.map((scope) => {
     const saved: SavedScope = {};
     for (const [name, value] of scope) {
       if (!name.includes("$")) {
-        saved[name] =
-          value instanceof VariablePointerValue ? null : (literalText(value) ?? null);
+        saved[name] = literalText(pointedValue(frames, value)) ?? null;
       }
     }
     return saved;
@@ -69,11 +111,36 @@ const savedScopesOf = (scopes: readonly Map<string, InkObject>[]): SavedScope[] 
 const scopeFlowsOf = (root: ProgramRoot, sequence: SequenceRow): string[] =>
   flowScopeOwners(root, sequence).map((symbol) => root.table.symbols[symbol] ?? "");
 
+const linksOf = (
+  frames: FrameMaps,
+  index: number,
+): Record<string, [number, number]> | undefined => {
+  const scopes = frames[index]!;
+  const seen = new Set<string>();
+  let links: Record<string, [number, number]> | undefined;
+  for (let s = scopes.length - 1; s >= 0; s -= 1) {
+    for (const [name, value] of scopes[s]!) {
+      if (seen.has(name) || name.includes("$")) {
+        continue;
+      }
+      seen.add(name);
+      const slot = value instanceof VariablePointerValue ? slotOf(frames, scopes[s]!, name) : undefined;
+      const owner = slot ? frames.findIndex((maps) => maps.includes(slot.scope)) : -1;
+      if (slot && owner >= 0 && owner !== index && slot.name === name) {
+        links ??= {};
+        links[name] = [owner, frames[owner]!.indexOf(slot.scope)];
+      }
+    }
+  }
+  return links;
+};
+
 const framesOf = (story: ProgramStory): FrameScopes[] => {
   const state = story.state;
   const root = story.root;
   const elements = state.callStack.currentThread.callstack;
-  return elements.map((element, i) => {
+  const maps = elements.map((element) => element.temporaryScopes as Map<string, InkObject>[]);
+  return elements.map((_, i) => {
     const position =
       i === elements.length - 1
         ? state.position
@@ -81,11 +148,15 @@ const framesOf = (story: ProgramStory): FrameScopes[] => {
     const chunk = position?.sequence.arrays.chunks[position.entry];
     const address =
       position && chunk ? addressOf(chunkId(chunk), position.offset) : undefined;
-    const scopes = element.temporaryScopes as Map<string, InkObject>[];
+    const scopes = maps[i]!;
     const frame: SavedFrame = {
-      scopes: savedScopesOf(scopes),
+      scopes: savedScopesOf(maps, scopes),
       scopeFlows: position ? scopeFlowsOf(root, position.sequence) : [],
     };
+    const links = linksOf(maps, i);
+    if (links) {
+      frame.links = links;
+    }
     if (address !== undefined) {
       const location = root.locationOf(address);
       if (location) {
@@ -180,18 +251,29 @@ export const applySaveValueChanges = (
     }
     const local = readLocalKey(key);
     const scopes = local ? frames[local.frame]?.scopes : undefined;
-    if (local && scopes) {
-      for (let s = scopes.length - 1; s >= 0; s -= 1) {
-        const current = scopes[s]!.get(local.name);
-        if (scopes[s]!.has(local.name)) {
-          if (!(current instanceof VariablePointerValue)) {
-            scopes[s]!.set(local.name, valueOfLiteral(literal));
-          }
-          break;
-        }
-      }
+    const slot =
+      local && scopes
+        ? localSlotOf(
+            frames.map((frame) => frame.scopes),
+            scopes,
+            local.name,
+          )
+        : undefined;
+    slot?.scope.set(slot.name, valueOfLiteral(literal));
+  }
+};
+
+const localSlotOf = (
+  frames: FrameMaps,
+  scopes: readonly Map<string, InkObject>[],
+  name: string,
+): { scope: Map<string, InkObject>; name: string } | undefined => {
+  for (let s = scopes.length - 1; s >= 0; s -= 1) {
+    if (scopes[s]!.has(name)) {
+      return slotOf(frames, scopes[s]!, name);
     }
   }
+  return undefined;
 };
 
 const FORM_PREFIX = "form:";
@@ -251,22 +333,27 @@ export const savedFrameValues = (
   frames: readonly SavedFrameScopes[],
   edits: readonly [string, string][] = [],
 ): SaveValues => {
-  const saved = frames.map(({ flow, scopes }): SavedFrame => {
+  const maps = frames.map(({ scopes }) =>
+    (scopes as Map<string, InkObject>[]).map((scope) => new Map(scope)),
+  );
+  for (const [key, text] of edits) {
+    const local = readLocalKey(key);
+    const scopes = local ? maps[local.frame] : undefined;
+    const slot = local && scopes ? localSlotOf(maps, scopes, local.name) : undefined;
+    const parsed = parseLiteral(text);
+    if (slot && parsed.ok && literalText(slot.scope.get(slot.name)) !== undefined) {
+      slot.scope.set(slot.name, valueOfLiteral(parsed.value));
+    }
+  }
+  const saved = frames.map(({ flow }, i): SavedFrame => {
     const sequence = flow ? story.root.flowNamed(flow) : undefined;
     const scene = sequence ? story.root.sceneOf(sequence) : undefined;
     return {
       ...(flow ? { flow } : {}),
       ...(scene ? { scene } : {}),
-      scopes: savedScopesOf(scopes as Map<string, InkObject>[]),
+      scopes: savedScopesOf(maps, maps[i]!),
       scopeFlows: sequence ? scopeFlowsOf(story.root, sequence) : [],
     };
   });
-  for (const [key, value] of edits) {
-    const local = readLocalKey(key);
-    const frame = local ? saved[local.frame] : undefined;
-    if (local && frame) {
-      saved[local.frame] = withSavedLocal(frame, local.name, value);
-    }
-  }
   return { values: savedLocals(saved), frames: saved };
 };

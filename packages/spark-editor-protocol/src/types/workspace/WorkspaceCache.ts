@@ -39,6 +39,7 @@ export type ProjectMetadataField =
 export interface GameState {
   loading?: boolean;
   running?: boolean;
+  ended?: boolean;
   paused?: boolean;
   debugging?: boolean;
   compiling?: boolean;

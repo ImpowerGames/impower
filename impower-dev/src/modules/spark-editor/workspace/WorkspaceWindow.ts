@@ -59,10 +59,12 @@ import {
   WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
+import type { PublishDiagnosticsParams } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
 import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
 import { EnableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnableGameDebugMessage";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
+import { RestartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
 import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameClockMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
@@ -378,29 +380,33 @@ export default class WorkspaceWindow {
     });
   };
 
+  recordPublishedDiagnostics({ uri, diagnostics }: PublishDiagnosticsParams) {
+    const summary = { ...this.store.debug.diagnosticsSummary };
+    delete summary[uri];
+    const counts = { errors: 0, warnings: 0, infos: 0 };
+    for (const d of diagnostics) {
+      if (d.severity === 1) {
+        counts.errors++;
+      } else if (d.severity === 2) {
+        counts.warnings++;
+      } else {
+        counts.infos++;
+      }
+    }
+    this.update({
+      ...this.store,
+      debug: {
+        ...this.store.debug,
+        diagnosticsSummary:
+          diagnostics.length > 0 ? { ...summary, [uri]: counts } : summary,
+      },
+    });
+  }
+
   protected handleCompiledProgram = (
     message: CompiledProgramMessage.Notification,
   ) => {
-    const { program, diagnosticsSummary } = message.params;
-    const summary =
-      diagnosticsSummary ??
-      Object.fromEntries(
-        Object.entries(program.diagnostics ?? {}).map(
-          ([uri, fileDiagnostics]) => {
-            const counts = { errors: 0, warnings: 0, infos: 0 };
-            for (const d of fileDiagnostics) {
-              if (d.severity === 1) {
-                counts.errors++;
-              } else if (d.severity === 2) {
-                counts.warnings++;
-              } else {
-                counts.infos++;
-              }
-            }
-            return [uri, counts];
-          },
-        ),
-      );
+    const { program } = message.params;
     const projectId = this.store.project.id;
     const game = this.store.preview.modes.game;
     const story =
@@ -408,10 +414,6 @@ export default class WorkspaceWindow {
       program.uri === this._workspace.fs.getFileUri(projectId, "main.sd");
     this.update({
       ...this.store,
-      debug: {
-        ...this.store.debug,
-        diagnosticsSummary: summary,
-      },
       preview: {
         ...this.store.preview,
         modes: {
@@ -739,56 +741,55 @@ export default class WorkspaceWindow {
     range?: Range,
     takeFocus?: boolean,
   ): Promise<ShowDocumentResult> {
-    return new Promise((resolve) => {
-      const filename = this._workspace.fs.getRelativePath(
-        this.store.project.id ?? "",
-        uri,
-      );
-      const pane = this.getPaneType(filename);
-      const panel = this.getPanelType(filename);
-      if (pane && panel) {
-        this.update({
-          ...this.store,
-          panes: {
-            ...this.store.panes,
-            [pane]: {
-              ...this.store.panes[pane],
-              view: panel === "main" ? "list" : "logic-editor",
-              panel: panel,
-              panels: {
-                ...this.store.panes[pane].panels,
-                [panel]: {
-                  ...this.store.panes[pane].panels[panel],
-                  activeEditor: {
-                    ...this.store.panes[pane].panels[panel]?.activeEditor,
-                    filename: filename,
-                    focused:
-                      takeFocus ??
-                      this.store.panes[pane].panels[panel]?.activeEditor
-                        ?.focused,
-                    visibleRange: "center",
-                    selectedRange: range
-                      ? { ...range }
-                      : this.store.panes[pane].panels[panel]?.activeEditor
-                          ?.selectedRange,
-                  },
-                },
+    const filename = this._workspace.fs.getRelativePath(
+      this.store.project.id ?? "",
+      uri,
+    );
+    const pane = this.getPaneType(filename);
+    const panel = this.getPanelType(filename);
+    if (!pane || !panel) {
+      return { success: false };
+    }
+    this.update({
+      ...this.store,
+      panes: {
+        ...this.store.panes,
+        [pane]: {
+          ...this.store.panes[pane],
+          view: panel === "main" ? "list" : "logic-editor",
+          panel: panel,
+          panels: {
+            ...this.store.panes[pane].panels,
+            [panel]: {
+              ...this.store.panes[pane].panels[panel],
+              activeEditor: {
+                ...this.store.panes[pane].panels[panel]?.activeEditor,
+                filename: filename,
+                focused:
+                  takeFocus ??
+                  this.store.panes[pane].panels[panel]?.activeEditor?.focused,
+                visibleRange: "center",
+                selectedRange: range
+                  ? { ...range }
+                  : this.store.panes[pane].panels[panel]?.activeEditor
+                      ?.selectedRange,
               },
             },
           },
-        });
-      }
-      if (range) {
-        sendProtocolMessage(
-          SelectEditorMessage.type.notification({
-            textDocument: { uri },
-            range,
-            scrollIntoView: "center",
-            takeFocus,
-          }),
-        );
-      }
+        },
+      },
     });
+    if (range) {
+      sendProtocolMessage(
+        SelectEditorMessage.type.notification({
+          textDocument: { uri },
+          range,
+          scrollIntoView: "center",
+          takeFocus,
+        }),
+      );
+    }
+    return { success: true };
   }
 
   search(uri: string) {
@@ -1024,11 +1025,47 @@ export default class WorkspaceWindow {
               ...this.store.preview.modes.game,
               loading: false,
               running: false,
+              ended: false,
             },
           },
         },
       });
     }
+  }
+
+  syncGameEnded(ended: boolean) {
+    const game = this.store.preview.modes.game;
+    if (!game.running || (Boolean(game.ended) === ended && !game.loading)) {
+      return;
+    }
+    this.update({
+      ...this.store,
+      preview: {
+        ...this.store.preview,
+        modes: {
+          ...this.store.preview.modes,
+          game: { ...game, ended, loading: false },
+        },
+      },
+    });
+  }
+
+  replayGame() {
+    const game = this.store.preview.modes.game;
+    if (!game.running || !game.ended || game.loading) {
+      return;
+    }
+    this.update({
+      ...this.store,
+      preview: {
+        ...this.store.preview,
+        modes: {
+          ...this.store.preview.modes,
+          game: { ...game, loading: true },
+        },
+      },
+    });
+    sendProtocolMessage(RestartGameMessage.type.request({}));
   }
 
   stopGame() {

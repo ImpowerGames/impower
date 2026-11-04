@@ -413,7 +413,7 @@ if (!esbuildInstalled) {
         assert.match(section, /\(of which message clone\)/);
         assert.match(section, /display messages \(cloned\)/);
         assert.match(section, /program, checkpoint or path locations in what was cloned: none/);
-        assert.match(section, /engine calls before each display: game\.endSimulation\(\); fields reset by hand: none/);
+        assert.match(section, /engine calls before each display: none; fields reset by hand: none/);
       }
       assert.match(sectionOf("preview"),/messages it sent outside a display, over the run: \{\}/);
     } finally {

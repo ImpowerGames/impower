@@ -6983,7 +6983,7 @@
           "include": "#StyleAttribute"
         },
         {
-          "include": "#EventAttribute"
+          "include": "#SelectorAttribute"
         },
         {
           "include": "#LabelAttribute"
@@ -7529,14 +7529,14 @@
         "1": {
           "patterns": [
             {
-              "include": "#EventAttributeOperator"
+              "include": "#SelectorStateOperator"
             }
           ]
         },
         "2": {
           "patterns": [
             {
-              "include": "#EventAttributeName"
+              "include": "#SelectorStateName"
             }
           ]
         }
@@ -7558,14 +7558,14 @@
         "1": {
           "patterns": [
             {
-              "include": "#EventAttributeOperator"
+              "include": "#SelectorStateOperator"
             }
           ]
         },
         "2": {
           "patterns": [
             {
-              "include": "#EventAttributeName"
+              "include": "#SelectorStateName"
             }
           ]
         }
@@ -7598,20 +7598,20 @@
         }
       ]
     },
-    "EventAttribute": {
+    "SelectorAttribute": {
       "emit": true,
       "patterns": [
         {
-          "include": "#AssignedBracedEventAttribute"
+          "include": "#AssignedBracedSelectorAttribute"
         },
         {
-          "include": "#AssignedQuotedEventAttribute"
+          "include": "#AssignedQuotedSelectorAttribute"
         },
         {
-          "include": "#AssignedUnquotedEventAttribute"
+          "include": "#AssignedUnquotedSelectorAttribute"
         },
         {
-          "include": "#UnassignedEventAttribute"
+          "include": "#UnassignedSelectorAttribute"
         }
       ]
     },
@@ -7742,6 +7742,16 @@
       "match": "([@])"
     },
     "EventAttributeName": {
+      "tag": "function(name)",
+      "name": "entity.name.function.attribute.name.view.sd",
+      "match": "(.+)"
+    },
+    "SelectorStateOperator": {
+      "tag": "function(name)",
+      "name": "entity.name.function.attribute.name.view.sd",
+      "match": "([@])"
+    },
+    "SelectorStateName": {
       "tag": "function(name)",
       "name": "entity.name.function.attribute.name.view.sd",
       "match": "(.+)"
@@ -8024,20 +8034,20 @@
         }
       }
     },
-    "AssignedBracedEventAttribute": {
+    "AssignedBracedSelectorAttribute": {
       "begin": "([@])((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))?((?:[~]|[|]|[\\^]|[$]|[*]))?([=])([{])",
       "beginCaptures": {
         "1": {
           "patterns": [
             {
-              "include": "#EventAttributeOperator"
+              "include": "#SelectorStateOperator"
             }
           ]
         },
         "2": {
           "patterns": [
             {
-              "include": "#EventAttributeName"
+              "include": "#SelectorStateName"
             }
           ]
         },
@@ -8079,7 +8089,7 @@
         }
       }
     },
-    "AssignedQuotedEventAttribute": {
+    "AssignedQuotedSelectorAttribute": {
       "tag": "string",
       "name": "string.quoted.double.view.sd",
       "begin": "([@])((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))?((?:[~]|[|]|[\\^]|[$]|[*]))?([=])([\"])",
@@ -8087,14 +8097,14 @@
         "1": {
           "patterns": [
             {
-              "include": "#EventAttributeOperator"
+              "include": "#SelectorStateOperator"
             }
           ]
         },
         "2": {
           "patterns": [
             {
-              "include": "#EventAttributeName"
+              "include": "#SelectorStateName"
             }
           ]
         },
@@ -8139,13 +8149,13 @@
         }
       }
     },
-    "AssignedUnquotedEventAttribute": {
+    "AssignedUnquotedSelectorAttribute": {
       "begin": "([@])((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))?((?:[~]|[|]|[\\^]|[$]|[*]))?([=])",
       "beginCaptures": {
         "1": {
           "patterns": [
             {
-              "include": "#EventAttributeOperator"
+              "include": "#SelectorStateOperator"
             }
           ]
         },
@@ -8155,7 +8165,7 @@
               "include": "#LuauComment"
             },
             {
-              "include": "#EventAttributeName"
+              "include": "#SelectorStateName"
             }
           ]
         },
@@ -8179,25 +8189,25 @@
           "include": "#LuauComment"
         },
         {
-          "include": "#UnquotedEventAttributeValue"
+          "include": "#UnquotedSelectorAttributeValue"
         }
       ],
       "end": "(?=(?:$|[\\s\"'`<>=:(){}\\[\\]]|(?:[-][-])))"
     },
-    "UnassignedEventAttribute": {
+    "UnassignedSelectorAttribute": {
       "match": "([@])((?:[_\\p{L}][0-9_\\p{L}-]*(?<![-])))?",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#EventAttributeOperator"
+              "include": "#SelectorStateOperator"
             }
           ]
         },
         "2": {
           "patterns": [
             {
-              "include": "#EventAttributeName"
+              "include": "#SelectorStateName"
             }
           ]
         }
@@ -8297,7 +8307,7 @@
       "name": "string.unquoted.attribute.value.sd",
       "match": "((?:(?!(?:$|[\\s\"'`<>=:(){}\\[\\]]|(?:[-][-]))).)+)"
     },
-    "UnquotedEventAttributeValue": {
+    "UnquotedSelectorAttributeValue": {
       "match": "((?:(?!(?:$|[\\s\"'`<>=:(){}\\[\\]]|(?:[-][-]))).)+)",
       "captures": {
         "1": {

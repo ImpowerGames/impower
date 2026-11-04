@@ -98,7 +98,7 @@ describe("a scene's local", () => {
     ).toEqual(got("In B nil."));
   });
 
-  test("is nil in a branch of the scene a divert from the scene enters", () => {
+  test("is read in a branch of the scene a divert from the scene enters", () => {
     expect(
       run([
         "scene start",
@@ -107,6 +107,113 @@ describe("a scene's local", () => {
         "  branch B",
         "    In B {tostring(a)}.",
         "  end",
+        "end",
+      ]),
+    ).toEqual(got("In B 1."));
+  });
+});
+
+describe("a branch its own scene enters", () => {
+  const visit = (body: string[], leave: string) => [
+    "scene start",
+    "  -> visit(3)",
+    "end",
+    "scene visit(n)",
+    ...body,
+    "  branch inner",
+    "    Inner {tostring(n)}.",
+    `    ${leave}`,
+    "  end",
+    "end",
+  ];
+
+  test("reads the scene's parameter after a divert on the scene's first line", () => {
+    expect(run(visit(["  -> visit.inner"], "done"))).toEqual(got("Inner 3."));
+  });
+
+  test("reads the scene's parameter after a divert that follows a line", () => {
+    expect(run(visit(["  Body {n}.", "  -> visit.inner"], "done"))).toEqual(
+      got("Body 3.", "Inner 3."),
+    );
+  });
+
+  test("reads the scene's parameter after a tunnel, and returns to the scene", () => {
+    expect(
+      run(visit(["  Body {n}.", "  -> visit.inner ->", "  Back {n}.", "  done"], "->->")),
+    ).toEqual(got("Body 3.", "Inner 3.", "Back 3."));
+  });
+
+  test("reads the scene's local after a divert from inside a block", () => {
+    expect(
+      run([
+        "scene start",
+        "  local a = 7",
+        "  if true then",
+        "    local b = 1",
+        "    -> B",
+        "  end",
+        "  branch B",
+        "    In B {tostring(a)} {tostring(b)}.",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("In B 7 nil."));
+  });
+
+  test("writes the scene's local through a tunnel", () => {
+    expect(
+      run([
+        "scene start",
+        "  local a = 1",
+        "  -> B ->",
+        "  After {a}.",
+        "  done",
+        "  branch B",
+        "    & a = a + 1",
+        "    In B {a}.",
+        "    ->->",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("In B 2.", "After 2."));
+  });
+
+  test("reads the scene's parameter, not the branch it left, after a divert from a sibling branch", () => {
+    expect(
+      run([
+        "scene start",
+        "  -> S(4)",
+        "end",
+        "scene S(x)",
+        "  branch A",
+        "    local y = 2",
+        "    -> S.C",
+        "  end",
+        "  branch C",
+        "    In C {tostring(x)} {tostring(y)}.",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("In C 4 nil."));
+  });
+
+  test("reads nil for the scene's parameter after a tunnel from another scene", () => {
+    expect(
+      run([
+        "scene start",
+        "  -> S(4)",
+        "end",
+        "scene S(x)",
+        "  -> T ->",
+        "  done",
+        "  branch B",
+        "    In B {tostring(x)}.",
+        "    ->->",
+        "  end",
+        "end",
+        "scene T",
+        "  -> S.B ->",
+        "  ->->",
         "end",
       ]),
     ).toEqual(got("In B nil."));
@@ -262,6 +369,123 @@ describe("a tunnel and a thread", () => {
       ]),
     ).toEqual(got("Thread nil.", "After 1."));
   });
+
+  test("a thread into a branch of the spawning scene does not see the scene's locals", () => {
+    expect(
+      run([
+        "scene start",
+        "  local x = 3",
+        "  <- B",
+        "  Back {x}.",
+        "  done",
+        "  branch B",
+        "    B {tostring(x)}.",
+        "    done",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("B nil.", "Back 3."));
+  });
+
+  test("a divert after a thread to a label of the same flow keeps the scene's scope", () => {
+    expect(
+      run([
+        "scene start",
+        "  local x = 3",
+        "  <- middle",
+        "  Back {x}.",
+        "  done",
+        "  label middle",
+        "  -> B",
+        "  branch B",
+        "    B {tostring(x)}.",
+        "    done",
+        "  end",
+        "end",
+      ]).texts[0],
+    ).toBe("B 3.");
+  });
+});
+
+describe("a label in a branch its own scene enters", () => {
+  test("reads the scene's local after a divert", () => {
+    expect(
+      run([
+        "scene start",
+        "  local x = 3",
+        "  -> B.middle",
+        "  branch B",
+        "    Skipped.",
+        "    label middle",
+        "    B {tostring(x)}.",
+        "    done",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("B 3."));
+  });
+
+  test("writes the scene's local through a tunnel", () => {
+    expect(
+      run([
+        "scene start",
+        "  local x = 3",
+        "  -> B.middle ->",
+        "  Back {x}.",
+        "  done",
+        "  branch B",
+        "    Skipped.",
+        "    label middle",
+        "    B {tostring(x)}.",
+        "    & x = x + 1",
+        "    ->->",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("B 3.", "Back 4."));
+  });
+
+  test("reads the scene's parameter after a divert from a sibling branch", () => {
+    expect(
+      run([
+        "scene start",
+        "  -> S(4)",
+        "end",
+        "scene S(n)",
+        "  -> A",
+        "  branch A",
+        "    -> B.middle",
+        "  end",
+        "  branch B",
+        "    Skipped.",
+        "    label middle",
+        "    B {tostring(n)}.",
+        "    done",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("B 4."));
+  });
+});
+
+describe("a scene's local a branch diverts to", () => {
+  test("compiles and reaches the target the scene stored", () => {
+    expect(
+      run([
+        "scene start",
+        "  local destination = -> start.C",
+        "  -> B",
+        "  branch B",
+        "    -> destination",
+        "  end",
+        "  branch C",
+        "    Arrived.",
+        "    done",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("Arrived."));
+  });
 });
 
 describe("a save", () => {
@@ -305,5 +529,24 @@ describe("a save", () => {
         "end",
       ]),
     ).toEqual({ first: "First 2 20.", rest: got("Second 2 21.") });
+  });
+
+  test("written inside a tunnel into the scene's own branch keeps the scene's local shared", () => {
+    expect(
+      roundTrip([
+        "scene start",
+        "  local a = 1",
+        "  -> B ->",
+        "  After {a}.",
+        "  done",
+        "  branch B",
+        "    First {a}.",
+        "    & a = a + 1",
+        "    Second {a}.",
+        "    ->->",
+        "  end",
+        "end",
+      ]),
+    ).toEqual({ first: "First 1.", rest: got("Second 2.", "After 2.") });
   });
 });

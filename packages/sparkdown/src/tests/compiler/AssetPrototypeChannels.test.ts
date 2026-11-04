@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { ProgramTransportDecoder, ProgramTransportEncoder } from "../../workspace/utils/programTransport";
+import { filterImage } from "../../compiler/utils/filterImage";
 import { resolveImageReference } from "../../compiler/utils/resolveImageReference";
 import { resolveImageLayers } from "../../compiler/utils/resolveImageLayers";
 
@@ -51,7 +52,7 @@ describe("prototype-named assets across the player boundary (#1762)", () => {
     const assets = transfer(program);
     const look = { $type: "filtered_image", $name: "look", image: { $type: "", $name: name }, attributes: [] };
     expect(resolveImageLayers(assets, look).map(layer => layer.src)).toEqual([src]);
-    expect(look).toHaveProperty("filtered_src", src);
+    expect(filterImage(assets, look).src).toBe(src);
   });
 
   it.each(names)("transports and resolves an implicit SVG look named %s", name => {

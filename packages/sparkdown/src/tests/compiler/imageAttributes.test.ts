@@ -34,8 +34,7 @@ describe("image attributes in scripts", () => {
 end
 [[mia_party:sad]]`);
     const look = program.context?.["filtered_image"]?.["mia_party~sad"];
-    filterImage(program.context!, look);
-    const src = decodeURIComponent(look?.filtered_src ?? "");
+    const src = decodeURIComponent(filterImage(program.context!, look).src ?? "");
     expect(src).toMatch(/id=['"]sad['"]/);
     expect(src).not.toMatch(/id=['"]happy['"]/);
   });
@@ -58,8 +57,8 @@ end
     const look = program.context?.["filtered_image"]?.["mia~happy"];
     filterImage(program.context!, look);
     look.attributes = ["sad"];
-    filterImage(program.context!, look);
-    expect(decodeURIComponent(look.filtered_src!)).toMatch(/id=['"]sad['"]/);
-    expect(decodeURIComponent(look.filtered_src!)).not.toMatch(/id=['"]happy['"]/);
+    const src = decodeURIComponent(filterImage(program.context!, look).src!);
+    expect(src).toMatch(/id=['"]sad['"]/);
+    expect(src).not.toMatch(/id=['"]happy['"]/);
   });
 });

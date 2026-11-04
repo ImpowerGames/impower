@@ -33,7 +33,7 @@ Every report must appear there verbatim, including those posted on a reviewer's 
 
 ## 4. Adjudicate and reverify
 
-Before handling findings, read [adjudication and readiness](references/adjudication.md). Confirm each claim in code and use experiments to resolve disagreement. Post each finding's disposition with comment ID, round and reviewed head: accepted with fix and verification, rejected with concrete evidence, already covered with earlier IDs, or, for a non-blocking quality finding only, deferred to a filed Task. Preserve superseded reports and answer the reviewer's final position. Then remove the exited reviewer's probe clones and temp directories: `node scripts/reviewer-probe-cleanup.mjs <absolute-journal>` keeps reports, journal rows and the plan.
+Read [adjudication and readiness](references/adjudication.md). Adjudicate every report, including clean reports, by comment ID, round and reviewed head. Confirm claims in code and settle disagreements by experiment. Record each disposition: accepted with verified fix, rejected with evidence, already covered with earlier IDs, or deferred to a filed Task for non-blocking quality findings only. Preserve superseded reports and answer the reviewer's final position. After exit, remove probes with `node scripts/reviewer-probe-cleanup.mjs <absolute-journal>`, which preserves reports, journal rows and the plan.
 
 Before the next reviewer launches, look past the report: fix every other instance of each accepted defect, and settle by experiment anything you suspect is wrong or expect the next reviewer to raise. Never hold a suspicion back to see whether a reviewer raises it.
 

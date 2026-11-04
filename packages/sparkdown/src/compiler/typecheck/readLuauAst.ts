@@ -93,6 +93,7 @@ import { breaksAcrossLine, breaksStatement, COMMENT, endsStatementBefore, FLOW_H
 import type { HotComment } from "./Module";
 import { RUN_WRAPPER_SUFFIX } from "../utils/runWrapper";
 import { scopeOf } from "../utils/declarationOnly";
+import { RootLocals } from "../utils/rootLocals";
 import { containsUnreadToken, UNREAD_TOKENS } from "../utils/unreadTokens";
 
 export interface LuauSyntaxError {
@@ -3952,7 +3953,7 @@ type ParameterReading =
   | { node: SyntaxNode; whole: true; vararg: Vararg | undefined }
   | { node: SyntaxNode; whole: false; names: SyntaxNode[]; vararg: Vararg | undefined };
 
-type FlowPart = { node: SyntaxNode } | { branch: SyntaxNode; parameters: ParameterReading };
+type FlowPart = { node: SyntaxNode } | { branch: SyntaxNode; parameters: ParameterReading | undefined; sceneLocals: string[] };
 
 interface Flow {
   header: SyntaxNode;
@@ -4002,6 +4003,7 @@ export function readLuauUnits(tree: Tree, documentText: string, options: ReadOpt
   const preludeNodes: SyntaxNode[] = [];
   const flows: Flow[] = [];
   const open: Flow[] = [];
+  let roots: RootLocals | undefined;
   for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
     if (FLOW_HEADERS.has(node.name)) {
       const enclosing = open[open.length - 1];
@@ -4010,11 +4012,13 @@ export function readLuauUnits(tree: Tree, documentText: string, options: ReadOpt
         const parameters = readParameters(node);
         const own = scene.variadic ? scene.varargs[0] : undefined;
         const branchVararg = parameters?.vararg;
+        roots ??= new RootLocals(tree.topNode, (from, to) => documentText.slice(from, to));
+        const sceneLocals = scene.sceneHeader ? [] : roots.flowLocals(scene.header.from);
         const flow: Flow = {
           header: node,
           sceneHeader: scene.sceneHeader ?? scene.header,
           parameters: scene.parameters,
-          body: parameters ? [{ branch: node, parameters }] : [],
+          body: parameters || sceneLocals.length ? [{ branch: node, parameters, sceneLocals }] : [],
           varargs: branchVararg ? [branchVararg] : own ? [own] : [],
           variadic: own !== undefined && branchVararg === undefined,
           ...(own && branchVararg ? { sceneVararg: own } : {}),
@@ -4196,8 +4200,9 @@ function readFlow(flow: Flow, tree: Tree, documentText: string, index: LineIndex
     } else {
       tokenizer.source = nodes.length;
       nodes.push(ref(part.branch));
+      declareSceneLocals(tokenizer, part.branch, part.sceneLocals, documentText);
       const before = tokenizer.tokens.length;
-      declareBranchParameters(tokenizer, part.branch, part.parameters, documentText);
+      if (part.parameters) declareBranchParameters(tokenizer, part.branch, part.parameters, documentText);
       if (tokenizer.tokens.length > before) statements++;
       tokenizer.source = -1;
     }
@@ -4219,6 +4224,20 @@ function readFlow(flow: Flow, tree: Tree, documentText: string, index: LineIndex
   const unit = readUnit("flow", tokenizer, nodes, 2, start, options);
   unit.header = ref(flow.header);
   return unit;
+}
+
+function declareSceneLocals(tokenizer: Tokenizer, header: SyntaxNode, names: string[], documentText: string): void {
+  if (!names.length) return;
+  const text = documentText.slice(header.from, header.to);
+  const start = header.from + text.length - text.trimStart().length;
+  tokenizer.synthetic("keyword", "local", start);
+  names.forEach((name, i) => {
+    if (i > 0) tokenizer.synthetic("symbol", ",", start);
+    tokenizer.synthetic("name", name, start);
+    tokenizer.synthetic("symbol", ":", start);
+    tokenizer.synthetic("name", "any", start);
+  });
+  tokenizer.synthetic("symbol", ";", start);
 }
 
 function declareBranchParameters(tokenizer: Tokenizer, header: SyntaxNode, parameters: ParameterReading, documentText: string): void {

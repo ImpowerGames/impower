@@ -41,6 +41,7 @@ import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/m
 import { GameWorkerRestartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage";
 import { GameExitedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedThreadMessage";
 import { GameFinishedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameFinishedMessage";
+import { GameEndedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEndedMessage";
 import { GameHitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameHitBreakpointMessage";
 import { GamePreviewedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GamePreviewedMessage";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
@@ -69,6 +70,7 @@ import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/mes
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
+import type { GameEnding } from "@impower/spark-engine/src/game/core/types/GameEnding";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { RemovedCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemovedCompilerFileMessage";
 import { SelectedCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectedCompilerDocumentMessage";
@@ -222,6 +224,28 @@ const reportUnlessRestarted = (e: unknown) => {
   }
 };
 
+const endingStatusText = (ending: GameEnding): string =>
+  ending.kind === "fin"
+    ? "End of story"
+    : ending.kind === "error"
+      ? "Stopped by an error"
+      : "Story ran out";
+
+const endingStatusHover = (ending: GameEnding): string => {
+  if (ending.kind === "error") {
+    const at = ending.error?.location ?? ending.location;
+    const message = ending.error?.message ?? "";
+    return at ? `${message} (line ${at.range.start.line + 1})` : message;
+  }
+  if (ending.kind === "out") {
+    const after = ending.location
+      ? `Nothing runs after line ${ending.location.range.start.line + 1}.`
+      : "Nothing runs after this.";
+    return `${after} End the story with fin to show the ending screen.`;
+  }
+  return "";
+};
+
 interface PlayOutcome {
   started: boolean;
   refusal?: string;
@@ -236,7 +260,8 @@ interface WorkerPlay {
   sink?: (message: Message) => void;
   stepped: number;
   startSent?: boolean;
-  finished?: boolean;
+  startFrom?: { file: string; line: number };
+  ended?: GameEnding;
   exitClaimed?: boolean;
   save?: string;
 }
@@ -262,6 +287,7 @@ export interface GamePlayerRefs {
   resetButton: HTMLElement | null;
   fullscreenButton: HTMLElement | null;
   completionStatus?: HTMLElement | null;
+  endingStatus?: HTMLElement | null;
   routeButton?: HTMLElement | null;
   routeList?: HTMLElement | null;
   savesButton?: HTMLElement | null;
@@ -625,11 +651,13 @@ export class GamePlayerController {
     if (this._disposed) {
       return;
     }
-    const icon = this._app?.paused
-      ? "pause"
-      : this._workerPlay?.state === "running"
-        ? "play"
-        : "preview";
+    const icon = this._workerPlay?.ended
+      ? "ended"
+      : this._app?.paused
+        ? "pause"
+        : this._workerPlay?.state === "running"
+          ? "play"
+          : "preview";
     this.refs.launchStateIcon?.setAttribute("icon", icon);
     this._launchState = icon;
     this.publishGameState();
@@ -641,6 +669,7 @@ export class GamePlayerController {
       programLoaded: this._mounted && this._program != null && this._launchState != null,
       programVersion: this._program?.version ?? null,
       launchState: this._launchState,
+      run: this._workerPlay?.run ?? null,
       position: this._previewPosition,
       completion: this._completionStatus
         ? { request: this._completionRequest, status: this._completionStatus }
@@ -1362,11 +1391,18 @@ export class GamePlayerController {
       return;
     }
     const plays = this._plays + 1;
+    if (this._workerPlay?.ended) {
+      this.hidePlayButton();
+      await this.restartGame();
+      return;
+    }
     await this.startGameAndApp();
     if (plays !== this._plays || !this._mounted || !this.playing) {
       return;
     }
-    this.hidePlayButton();
+    if (!this._workerPlay?.ended) {
+      this.hidePlayButton();
+    }
     sendProtocolMessage(GameStartedMessage.type.notification({}), this.host);
   };
 
@@ -2034,12 +2070,15 @@ export class GamePlayerController {
   };
 
   protected handleStopGame = async (message: StopGameMessage.Request) => {
-    await this.stopGame("quit");
+    const ended = this._workerPlay?.ended;
+    await this.stopGame(
+      !ended ? "quit" : ended.kind === "error" ? "error" : "finished",
+    );
     return StopGameMessage.type.response(message.id, {});
   };
 
   protected handleRestartGame = async (message: RestartGameMessage.Request) => {
-    const { started, refusal } = await this.restartPlay();
+    const { started, refusal } = await this.restartPlay(true);
     return started || !refusal
       ? RestartGameMessage.type.response(message.id, {})
       : RestartGameMessage.type.error(message.id, {
@@ -2286,12 +2325,16 @@ export class GamePlayerController {
   }
 
   protected handlePauseGame = async (message: PauseGameMessage.Request) => {
+    const run = this._workerPlay?.run ?? null;
     const app = this.controlledApp;
+    if (app && this._workerPlay?.ended) {
+      return PauseGameMessage.type.response(message.id, { run });
+    }
     app?.pause();
     const told = app && (await this.tellWorkerPlay(PauseGameMessage.type, {}));
     this.updateLaunchStateIcon();
     return told
-      ? PauseGameMessage.type.response(message.id, {})
+      ? PauseGameMessage.type.response(message.id, { run })
       : PauseGameMessage.type.error(message.id, {
           code: 1,
           message: "no game loaded",
@@ -2334,6 +2377,7 @@ export class GamePlayerController {
 
   protected handleStepGame = async (message: StepGameMessage.Request) => {
     const { traversal } = message.params;
+    const run = this._workerPlay?.run ?? null;
     let answer: { done: boolean } | undefined;
     try {
       answer = await this.askWorkerGame(StepGameMessage.type, { traversal });
@@ -2341,7 +2385,7 @@ export class GamePlayerController {
       return StepGameMessage.type.error(message.id, toResponseError(e));
     }
     if (answer) {
-      return StepGameMessage.type.response(message.id, answer);
+      return StepGameMessage.type.response(message.id, { ...answer, run });
     }
     return StepGameMessage.type.error(message.id, {
       code: 1,
@@ -2352,6 +2396,7 @@ export class GamePlayerController {
   protected handleContinueGame = async (
     message: ContinueGameMessage.Request,
   ) => {
+    const run = this._workerPlay?.run ?? null;
     let answer: { done: boolean } | undefined;
     try {
       answer = await this.askWorkerGame(
@@ -2362,7 +2407,7 @@ export class GamePlayerController {
       return ContinueGameMessage.type.error(message.id, toResponseError(e));
     }
     if (answer) {
-      return ContinueGameMessage.type.response(message.id, answer);
+      return ContinueGameMessage.type.response(message.id, { ...answer, run });
     }
     return ContinueGameMessage.type.error(message.id, {
       code: 1,
@@ -2386,12 +2431,13 @@ export class GamePlayerController {
   protected handleGetGameThreads = async (
     message: GetGameThreadsMessage.Request,
   ) => {
+    const run = this._workerPlay?.run ?? null;
     const answer = await this.askWorkerGame(
       GetGameThreadsMessage.type,
       message.params,
     );
     if (answer) {
-      return GetGameThreadsMessage.type.response(message.id, answer);
+      return GetGameThreadsMessage.type.response(message.id, { ...answer, run });
     }
     return GetGameThreadsMessage.type.error(message.id, {
       code: 1,
@@ -2545,11 +2591,17 @@ export class GamePlayerController {
 
   protected _plays = 0;
 
-  async startGameAndApp(restarted?: boolean) {
-    return (await this.startPlay(restarted)).started;
+  async startGameAndApp(
+    restarted?: boolean,
+    startFrom?: { file: string; line: number },
+  ) {
+    return (await this.startPlay(restarted, startFrom)).started;
   }
 
-  protected async startPlay(restarted?: boolean): Promise<PlayOutcome> {
+  protected async startPlay(
+    restarted?: boolean,
+    startFrom?: { file: string; line: number },
+  ): Promise<PlayOutcome> {
     if (this._disposed) {
       return { started: false };
     }
@@ -2600,6 +2652,7 @@ export class GamePlayerController {
       link,
       restarted,
       refused,
+      startFrom,
     );
     if (refused.refusal) {
       if (plays === this._plays) {
@@ -2628,6 +2681,8 @@ export class GamePlayerController {
     link: WorkerGameLink,
     restarted?: boolean,
     refused?: { refusal?: string },
+    startFrom: { file: string; line: number } | undefined = this._options
+      ?.startFrom ?? undefined,
   ): Promise<boolean> {
     const save = this._playSave;
     this._playSave = undefined;
@@ -2635,9 +2690,11 @@ export class GamePlayerController {
       program,
       state: "starting",
       stepped: 0,
+      ...(startFrom ? { startFrom } : {}),
       ...(save !== undefined ? { save } : {}),
     };
     this._workerPlay = play;
+    this.setEndingStatus(null);
     this._routeState = { ...this._routeState, lastRun: undefined };
     const current = () => this._workerPlay === play;
     let stopListening: (() => void) | undefined;
@@ -2665,7 +2722,7 @@ export class GamePlayerController {
       }
       const built = await link.request(PlayMessage.type, {
         program: programIdentity(program)!,
-        startFrom: this._options?.startFrom ?? undefined,
+        startFrom,
         restarted,
         ...(save !== undefined ? { save } : {}),
       });
@@ -2689,19 +2746,11 @@ export class GamePlayerController {
       if (!current()) {
         return abandon();
       }
+      this.publishGameState();
       void this._saves.playStarted();
       link.detach();
       this.beginRuntimeRun(program, play, built.errors ?? []);
-      stopListening = this.listenToWorker(
-        link,
-        () =>
-          this._workerPlay !== play
-            ? "stopped"
-            : play.startSent
-              ? "running"
-              : play.state,
-        play,
-      );
+      stopListening = this.listenToWorker(link, play);
       this._stopListeningToPlay?.();
       this._stopListeningToPlay = stopListening;
       await this._workerAppSettling;
@@ -2762,7 +2811,7 @@ export class GamePlayerController {
       });
       for (;;) {
         if (!current()) {
-          return play.finished === true;
+          return false;
         }
         if (app.paused !== workerPaused) {
           workerPaused = app.paused;
@@ -2897,6 +2946,48 @@ export class GamePlayerController {
     }
   }
 
+  protected holdEndedPlay(owner: unknown, params: GameEnding) {
+    const play = this._workerPlay;
+    if (!play || play !== owner || play.ended) {
+      return;
+    }
+    const ending: GameEnding = {
+      kind: params.kind,
+      location: params.location,
+      ...(params.error ? { error: params.error } : {}),
+    };
+    play.ended = ending;
+    const app = this.controlledApp;
+    if (app?.paused) {
+      app.unpause();
+      void this.tellWorkerPlay(UnpauseGameMessage.type, {});
+    }
+    this.updateLaunchStateIcon();
+    this.setEndingStatus(ending);
+    sendProtocolMessage(
+      GameEndedMessage.type.notification({ ...ending, run: play.run }),
+      this.host,
+    );
+    if (!this.refs.toolbar) {
+      this.showPlayButton();
+    }
+  }
+
+  protected setEndingStatus(ending: GameEnding | null) {
+    const element = this.refs.endingStatus;
+    if (!element) {
+      return;
+    }
+    element.textContent = ending ? endingStatusText(ending) : "";
+    element.title = ending ? endingStatusHover(ending) : "";
+    element.hidden = !ending;
+    if (ending) {
+      element.setAttribute("kind", ending.kind);
+    } else {
+      element.removeAttribute("kind");
+    }
+  }
+
   async stopGame(
     reason: "finished" | "quit" | "invalidated" | "error" | "restart",
     error?: {
@@ -2905,13 +2996,15 @@ export class GamePlayerController {
     },
     options?: {
       select?: boolean;
+      at?: DocumentLocation | null;
     },
   ) {
     this._stops += 1;
     const plays = this._plays;
-    if (reason === "finished" && this._workerPlay) {
-      this._workerPlay.finished = true;
-    }
+    const stoppedRun = this._workerPlay?.run;
+    const endedAt =
+      options?.at ?? this._workerPlay?.ended?.error?.location ?? null;
+    this.setEndingStatus(null);
     const lastExecutedLocation = await this.endWorkerPlay();
     const overtaken = () => plays !== this._plays || !this._mounted;
     if (overtaken()) {
@@ -2933,6 +3026,7 @@ export class GamePlayerController {
       GameExitedMessage.type.notification({
         reason,
         error,
+        run: stoppedRun,
       }),
       this.host,
     );
@@ -2940,7 +3034,7 @@ export class GamePlayerController {
     if (overtaken()) {
       return;
     }
-    const selected = error?.location ?? lastExecutedLocation;
+    const selected = error?.location ?? endedAt ?? lastExecutedLocation;
     const run = this._runtimeRun;
     this._runtimeRunPosition =
       selected && run
@@ -3000,21 +3094,24 @@ export class GamePlayerController {
 
   protected _stops = 0;
 
-  async restartGame(): Promise<boolean> {
-    return (await this.restartPlay()).started;
+  async restartGame(fromRunStart = false): Promise<boolean> {
+    return (await this.restartPlay(fromRunStart)).started;
   }
 
-  protected async restartPlay(): Promise<PlayOutcome> {
+  protected async restartPlay(fromRunStart = false): Promise<PlayOutcome> {
     const stops = this._stops;
     const plays = this._plays;
+    const startFrom = fromRunStart ? this._workerPlay?.startFrom : undefined;
+    const ended = this._workerPlay?.ended;
     const save = this._workerPlay?.save;
+    this.setEndingStatus(null);
     await this.destroyGameAndApp();
     if (stops !== this._stops || plays !== this._plays || !this._mounted) {
       return { started: false };
     }
     this._playSave = save;
     const restarted = plays + 1;
-    const outcome = await this.startPlay(true);
+    const outcome = await this.startPlay(true, startFrom);
     if (
       stops === this._stops &&
       restarted === this._plays &&
@@ -3028,7 +3125,10 @@ export class GamePlayerController {
       if (ended && !ended.exitClaimed) {
         ended.exitClaimed = true;
         sendProtocolMessage(
-          GameExitedMessage.type.notification({ reason: "invalidated" }),
+          GameExitedMessage.type.notification({
+            reason: "invalidated",
+            run: ended.run,
+          }),
           this.host,
         );
       }
@@ -3036,6 +3136,17 @@ export class GamePlayerController {
       if (!outcome.previewShown) {
         await this.showPreviewAfterRefusal();
       }
+    } else if (
+      !outcome.refusal &&
+      ended &&
+      stops === this._stops &&
+      restarted === this._plays &&
+      this._mounted &&
+      !this.playing
+    ) {
+      await this.stopGame("invalidated", undefined, {
+        at: ended.error?.location ?? ended.location,
+      });
     }
     return { started: false, refusal: outcome.refusal };
   }
@@ -3120,7 +3231,6 @@ export class GamePlayerController {
 
   listen(
     game: {
-      state?: string;
       connection: {
         outgoing: { addListener(method: string, listener: (msg: any) => void): unknown };
       };
@@ -3142,21 +3252,14 @@ export class GamePlayerController {
           } else {
             console.log(message, location);
           }
-          if (type === ErrorType.Error && game && game.state === "running") {
-            const error = {
-              message,
-              location,
-            };
-            await this.stopGame("error", error);
-          }
         }
       },
     );
     game.connection.outgoing.addListener(
       GameFinishedMessage.method,
-      async (msg) => {
+      (msg) => {
         if (GameFinishedMessage.type.isNotification(msg)) {
-          await this.stopGame("finished");
+          this.holdEndedPlay(owner, msg.params);
         }
       },
     );
@@ -3208,7 +3311,10 @@ export class GamePlayerController {
     game.connection.outgoing.addListener(GameSteppedMessage.method, (msg) => {
       if (GameSteppedMessage.type.isNotification(msg)) {
         sendProtocolMessage(
-          GameSteppedMessage.type.notification(msg.params),
+          GameSteppedMessage.type.notification({
+            ...msg.params,
+            run: this.runOf(owner),
+          }),
           this.host,
         );
       }
@@ -3218,7 +3324,10 @@ export class GamePlayerController {
       (msg) => {
         if (GameHitBreakpointMessage.type.isNotification(msg)) {
           sendProtocolMessage(
-            GameHitBreakpointMessage.type.notification(msg.params),
+            GameHitBreakpointMessage.type.notification({
+              ...msg.params,
+              run: this.runOf(owner),
+            }),
             this.host,
           );
         }
@@ -3229,7 +3338,10 @@ export class GamePlayerController {
       (msg) => {
         if (GameAwaitingInteractionMessage.type.isNotification(msg)) {
           sendProtocolMessage(
-            GameAwaitingInteractionMessage.type.notification(msg.params),
+            GameAwaitingInteractionMessage.type.notification({
+              ...msg.params,
+              run: this.runOf(owner),
+            }),
             this.host,
           );
         }
@@ -3240,7 +3352,10 @@ export class GamePlayerController {
       (msg) => {
         if (GameAutoAdvancedToContinueMessage.type.isNotification(msg)) {
           sendProtocolMessage(
-            GameAutoAdvancedToContinueMessage.type.notification(msg.params),
+            GameAutoAdvancedToContinueMessage.type.notification({
+              ...msg.params,
+              run: this.runOf(owner),
+            }),
             this.host,
           );
         }
@@ -3251,7 +3366,10 @@ export class GamePlayerController {
       (msg) => {
         if (GameClickedToContinueMessage.type.isNotification(msg)) {
           sendProtocolMessage(
-            GameClickedToContinueMessage.type.notification(msg.params),
+            GameClickedToContinueMessage.type.notification({
+              ...msg.params,
+              run: this.runOf(owner),
+            }),
             this.host,
           );
         }
@@ -3273,7 +3391,10 @@ export class GamePlayerController {
       (msg) => {
         if (GameChosePathToContinueMessage.type.isNotification(msg)) {
           sendProtocolMessage(
-            GameChosePathToContinueMessage.type.notification(msg.params),
+            GameChosePathToContinueMessage.type.notification({
+              ...msg.params,
+              run: this.runOf(owner),
+            }),
             this.host,
           );
         }
@@ -3281,17 +3402,18 @@ export class GamePlayerController {
     );
   }
 
+  protected runOf(owner: unknown): number | undefined {
+    const run = (owner as { run?: unknown } | null)?.run;
+    return typeof run === "number" ? run : undefined;
+  }
+
   listenToWorker(
     link: WorkerGameLink,
-    state: () => string = () => "previewing",
     owner: unknown = link,
   ): () => void {
     const stops: (() => void)[] = [];
     this.listen(
       {
-        get state() {
-          return state();
-        },
         connection: {
           outgoing: {
             addListener: (method, listener) =>

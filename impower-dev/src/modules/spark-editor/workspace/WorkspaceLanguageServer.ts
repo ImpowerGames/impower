@@ -8,6 +8,10 @@ import {
 import { InitializedMessage } from "@impower/spark-editor-protocol/src/protocols/InitializedMessage";
 import type { WorkspaceEdit } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import {
+  PublishDiagnosticsMessage,
+  type PublishDiagnosticsParams,
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
 import {
   ClientCapabilities,
@@ -181,6 +185,17 @@ export default class WorkspaceLanguageServer {
 
   protected _onInitialized: ((result: InitializeResult) => void)[] = [];
 
+  protected _publishedDiagnosticsListeners = new Set<
+    (params: PublishDiagnosticsParams) => void
+  >();
+
+  onPublishedDiagnostics(listener: (params: PublishDiagnosticsParams) => void) {
+    this._publishedDiagnosticsListeners.add(listener);
+    return () => {
+      this._publishedDiagnosticsListeners.delete(listener);
+    };
+  }
+
   protected _workspace: {
     configuration: WorkspaceConfiguration;
     window: WorkspaceWindow;
@@ -227,6 +242,15 @@ export default class WorkspaceLanguageServer {
         this.updateProgram(params.program);
         sendProtocolMessage(CompiledProgramMessage.type.notification(params));
         profilePhase("end", `CompiledProgramMessage`);
+      },
+    );
+    this._connection.onNotification(
+      PublishDiagnosticsMessage.method,
+      (params: PublishDiagnosticsParams) => {
+        this._workspace.window.recordPublishedDiagnostics(params);
+        for (const listener of this._publishedDiagnosticsListeners) {
+          listener(params);
+        }
       },
     );
     this._connection.onClose(() => {

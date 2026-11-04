@@ -71,13 +71,11 @@ export const resolveImageSrcs = (
       if (rootHasInlinedData(context, filtered)) {
         continue;
       }
-      const scratch = { ...filtered };
-      filterImage(context, scratch);
-      if (typeof scratch["filtered_src"] === "string") {
-        push(scratch["filtered_src"]);
+      const { src, layers } = filterImage(context, filtered);
+      if (typeof src === "string") {
+        push(src);
         continue;
       }
-      const layers = scratch["filtered_layers"];
       if (Array.isArray(layers) && layers.length > 0) {
         for (const layer of layers) {
           push(imageSrcOf(context, layer));

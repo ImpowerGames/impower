@@ -9,6 +9,7 @@ export interface GetGameThreadsParams {}
 
 export interface GetGameThreadsResult {
   threads: Thread[];
+  run?: number | null;
 }
 
 export class GetGameThreadsMessage {

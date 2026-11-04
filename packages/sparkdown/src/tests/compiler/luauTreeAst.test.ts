@@ -356,17 +356,20 @@ describe("Sparkdown's own constructs", () => {
         "      local k#1 function=1 loop=0",
         "        TypeReference number",
         "      StatBlock",
+        "        StatLocal ;",
+        "          local n#2 function=1 loop=0",
+        "            TypeReference any",
         "        StatLocal =",
         "          SparkdownFlowArgument",
         "          SparkdownFlowArgument",
-        "          local m#2 function=1 loop=0",
-        "          local w#3 function=1 loop=0",
+        "          local m#3 function=1 loop=0",
+        "          local w#4 function=1 loop=0",
         "            TypeReference string",
         "        SparkdownExplicit",
         "          StatAssign",
-        "            ExprGlobal n",
+        "            ExprLocal n#2",
         "            =",
-        "            ExprLocal m#2",
+        "            ExprLocal m#3",
       ].join("\n"),
     );
   });
@@ -435,6 +438,7 @@ describe("Sparkdown's own constructs", () => {
       ["SparkdownChoose", ["LuauSparkdownChooseBlock"]],
     ]);
     expect(units.flows[1]!.statements.map((s) => [s.statement.kind, s.nodes.map((n) => n.name)])).toEqual([
+      ["StatLocal", ["Branch"]],
       ["StatLocal", ["Branch"]],
       ["SparkdownExplicit", ["LuauSparkdownExplicitStatement"]],
     ]);
