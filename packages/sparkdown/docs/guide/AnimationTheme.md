@@ -100,6 +100,8 @@ animation fade {
   repeating a position, or writing a position outside `0%` to `100%` is
   reported as an error.
 
+To make a layered portrait move between its drawn states, such as a blink, write a `morph` rather than an animation: see [Portrait Morphs](./PortraitMorphs.md).
+
 ---
 
 ## 8.3 Theme
