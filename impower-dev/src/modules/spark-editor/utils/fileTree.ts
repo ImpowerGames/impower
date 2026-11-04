@@ -382,31 +382,57 @@ const projectOf = (path: string, roots: string[]): string =>
     "",
   );
 
-export const computeLayoutMigration = (
-  relativePaths: string[],
-  subtreeFor: (path: string) => string,
-): { from: string; to: string }[] => {
-  const roots = relativePaths
+const subProjectRoots = (paths: string[]): string[] =>
+  paths
     .filter((p) => p !== MAIN_SCRIPT && p.endsWith(`/${MAIN_SCRIPT}`))
     .map(folderOf);
+
+export const routeIntoLayout = (
+  relativePaths: string[],
+  existingPaths: string[],
+  subtreeFor: (path: string) => string,
+): string[] => {
+  const roots = subProjectRoots([...existingPaths, ...relativePaths]);
+  return relativePaths.map((p) =>
+    p === MAIN_SCRIPT ||
+    (p.split("/").pop() ?? p).startsWith(".") ||
+    roots.some((root) => p.startsWith(root))
+      ? p
+      : settledTarget(p, subtreeFor),
+  );
+};
+
+const planLayoutMoves = (
+  relativePaths: string[],
+  subtreeFor: (path: string) => string,
+  repair: boolean,
+  seenFolders: Set<string>,
+): { from: string; to: string }[] => {
+  const roots = subProjectRoots(relativePaths);
   const units = roots.filter(
     (root) => !roots.some((other) => other !== root && root.startsWith(other)),
   );
   const unitOf = (path: string) => units.find((unit) => path.startsWith(unit));
   const movable = relativePaths.filter(
-    (p) => p !== MAIN_SCRIPT && !(p.split("/").pop() ?? p).startsWith("."),
+    (p) =>
+      p !== MAIN_SCRIPT &&
+      !(p.split("/").pop() ?? p).startsWith(".") &&
+      !p.startsWith(`${LAYOUT_MARKER}/`),
   );
   const files = new Set(relativePaths);
-  const folders = new Set(relativePaths.flatMap(ancestorsOf));
+  const liveFolders = new Set(relativePaths.flatMap(ancestorsOf));
+  const folders = new Set([...seenFolders, ...liveFolders]);
   const isFree = (to: string) =>
     !files.has(to) &&
     !folders.has(to) &&
     !ancestorsOf(to).some((folder) => files.has(folder));
   const reserve = (to: string) => {
     files.add(to);
-    ancestorsOf(to).forEach((folder) => folders.add(folder));
+    ancestorsOf(to).forEach((folder) => {
+      folders.add(folder);
+      liveFolders.add(folder);
+    });
   };
-  const repair = !relativePaths.includes(LAYOUT_MARKER);
   const splitRoots = roots
     .filter((root) => root.startsWith("scripts/") && root !== "scripts/")
     .map(stripCategoryPrefix);
@@ -434,13 +460,6 @@ export const computeLayoutMigration = (
       const to = repairs ? `scripts/${inner}` : settledTarget(p, subtreeFor);
       return { from: p, to, repairs };
     });
-  const heldFolders = [
-    ...unitPlans.flatMap((plan) => plan.moves.map((m) => m.to)),
-    ...rootPlans.map((plan) => plan.to),
-    LAYOUT_MARKER,
-  ].filter((to) => folders.has(to));
-  const isHeld = (path: string) =>
-    heldFolders.some((folder) => path.startsWith(`${folder}/`));
   const moves: { from: string; to: string }[] = [];
   const movedRoots = new Map(roots.map((root) => [root, root]));
   for (const { unit, target, moves: unitMoves } of unitPlans) {
@@ -448,8 +467,7 @@ export const computeLayoutMigration = (
     if (
       unitMoves.length === 0 ||
       files.has(targetFolder) ||
-      folders.has(targetFolder) ||
-      unitMoves.some((m) => isHeld(m.from)) ||
+      liveFolders.has(targetFolder) ||
       !unitMoves.every((m) => isFree(m.to))
     ) {
       continue;
@@ -464,7 +482,7 @@ export const computeLayoutMigration = (
   }
   const finalRoots = [...movedRoots.values()];
   for (const { from, to, repairs } of rootPlans) {
-    if (to === from || isHeld(from) || !isFree(to)) continue;
+    if (to === from || !isFree(to)) continue;
     if (!repairs && projectOf(to, finalRoots) !== "") continue;
     reserve(to);
     moves.push({ from, to });
@@ -472,21 +490,27 @@ export const computeLayoutMigration = (
   return moves;
 };
 
+export const computeLayoutMigration = (
+  relativePaths: string[],
+  subtreeFor: (path: string) => string,
+): { from: string; to: string }[] =>
+  computeLayoutMigrationBatches(relativePaths, subtreeFor)[0] ?? [];
+
 export const computeLayoutMigrationBatches = (
   relativePaths: string[],
   subtreeFor: (path: string) => string,
 ): { from: string; to: string }[][] => {
+  if (relativePaths.includes(LAYOUT_MARKER)) return [];
   const batches: { from: string; to: string }[][] = [];
+  const seenFolders = new Set<string>();
   let paths = relativePaths;
   for (let i = 0; i <= relativePaths.length; i++) {
-    const moves = computeLayoutMigration(paths, subtreeFor);
+    paths.flatMap(ancestorsOf).forEach((folder) => seenFolders.add(folder));
+    const moves = planLayoutMoves(paths, subtreeFor, i === 0, seenFolders);
     if (moves.length === 0) break;
     batches.push(moves);
     const renamed = new Map(moves.map((m) => [m.from, m.to]));
     paths = paths.map((p) => renamed.get(p) ?? p);
-    if (!paths.includes(LAYOUT_MARKER)) {
-      paths = [...paths, LAYOUT_MARKER];
-    }
   }
   return batches;
 };
