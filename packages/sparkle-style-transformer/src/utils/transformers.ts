@@ -60,127 +60,77 @@ export function validateCss(value: string | null | undefined): boolean {
   return SAFE_CSS_VALUE_RE.test(v);
 }
 
-const GRADIENT_FUNCTION = /^(?:repeating-)?(linear|radial|conic)-gradient$/i;
+const GRADIENT_FUNCTION = /^(?:repeating-)?(?:linear|radial|conic)-gradient$/i;
 
 const COLOR_FUNCTION = /^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)$/i;
 
 const COLOR_ARGUMENT_FUNCTION = /^(?:drop-shadow|light-dark)$/i;
 
-const RADIAL_SHAPES = new Set([
+const GRADIENT_KEYWORDS: ReadonlySet<string> = new Set([
+  "to",
+  "at",
+  "from",
+  "in",
+  "left",
+  "right",
+  "top",
+  "bottom",
+  "center",
   "circle",
   "ellipse",
   "closest-side",
   "closest-corner",
   "farthest-side",
   "farthest-corner",
+  "srgb",
+  "srgb-linear",
+  "display-p3",
+  "display-p3-linear",
+  "a98-rgb",
+  "prophoto-rgb",
+  "rec2020",
+  "lab",
+  "oklab",
+  "xyz",
+  "xyz-d50",
+  "xyz-d65",
+  "hsl",
+  "hwb",
+  "lch",
+  "oklch",
+  "shorter",
+  "longer",
+  "increasing",
+  "decreasing",
+  "hue",
 ]);
 
-const LINEAR_SIDES = new Set(["left", "right", "top", "bottom"]);
-
-const ANGLE_UNIT = /^(?:deg|grad|rad|turn)$/i;
-
-type ArgumentKind = "setup" | "colors" | "unknown";
+const NO_KEYWORDS: ReadonlySet<string> = new Set();
 
 const isNumeric = (node: ComponentValue | undefined): boolean =>
   isTokenType(node, TokenType.Number) ||
   isTokenType(node, TokenType.Dimension) ||
   isTokenType(node, TokenType.Percentage);
 
-const MATH_FUNCTION =
-  /^(?:calc|min|max|clamp|round|mod|rem|abs|sign|sin|cos|tan|asin|acos|atan|atan2|pow|sqrt|hypot|log|exp)$/i;
-
-const isMath = (node: ComponentValue | undefined): boolean =>
-  !!node && isFunctionNode(node) && MATH_FUNCTION.test(node.getName());
-
-const isVar = (node: ComponentValue | undefined): boolean =>
-  !!node && isFunctionNode(node) && node.getName().toLowerCase() === "var";
-
-const isAngle = (node: ComponentValue | undefined): boolean => {
-  if (isTokenType(node, TokenType.Dimension)) {
-    const unit = (node.value[4] as { unit?: string }).unit ?? "";
-    return ANGLE_UNIT.test(unit);
-  }
-  return isTokenType(node, TokenType.Number) && Number(node.value[1]) === 0;
-};
-
-const isPosition = (node: ComponentValue | undefined): boolean =>
-  isTokenType(node, TokenType.Percentage) ||
-  (isTokenType(node, TokenType.Dimension) && !isAngle(node));
-
-const word = (node: ComponentValue | undefined): string | undefined =>
-  identName(node)?.toLowerCase();
-
-const classifyGradientFirstArgument = (
-  kind: string,
-  argument: ComponentValue[],
-): ArgumentKind => {
-  const values = significant(argument);
-  const [first, second] = values;
-  const firstWord = word(first);
-  const rest = values.slice(1);
-  if (kind === "linear") {
-    if (isAngle(first) || isMath(first)) {
-      return "setup";
-    }
-    if (
-      (firstWord === "to" && LINEAR_SIDES.has(word(second) ?? "")) ||
-      (firstWord === "in" && word(second) !== undefined)
-    ) {
-      return "setup";
-    }
-    if (isVar(first)) {
-      if (rest.some(isPosition)) {
-        return "colors";
-      }
-      return rest.some((value) => word(value) === "in") ? "setup" : "unknown";
-    }
-    return "colors";
-  }
-  if (kind === "conic") {
-    if (
-      (firstWord === "from" || firstWord === "at") &&
-      second !== undefined &&
-      !isTokenType(second, TokenType.Ident)
-    ) {
-      return "setup";
-    }
-    if (
-      firstWord === "at" ||
-      (firstWord === "in" && word(second) !== undefined)
-    ) {
-      return "setup";
-    }
-    if (isVar(first)) {
-      return rest.some(isNumeric) ? "colors" : "unknown";
-    }
-    return "colors";
-  }
-  if (
-    (firstWord !== undefined && RADIAL_SHAPES.has(firstWord)) ||
-    (firstWord === "at" && second !== undefined) ||
-    (firstWord === "in" && word(second) !== undefined) ||
-    isNumeric(first) ||
-    isMath(first)
-  ) {
-    return "setup";
-  }
-  return isVar(first) ? "unknown" : "colors";
-};
-
 const resolveColorWords = (
   css: string,
   nodes: ComponentValue[],
   theme: ThemeVariables,
   edits: SourceEdit[],
+  keywords: ReadonlySet<string> = NO_KEYWORDS,
 ): void => {
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]!;
     if (isFunctionNode(node)) {
-      resolveFunction(css, node, theme, edits, true);
+      resolveFunction(css, node, theme, edits, true, keywords);
       continue;
     }
     const name = identName(node);
-    if (name === undefined || name.startsWith("--")) {
+    if (
+      name === undefined ||
+      name.startsWith("--") ||
+      keywords.has(name.toLowerCase())
+    ) {
       continue;
     }
     const [, , start, end] = (node as TokenNode).value;
@@ -221,7 +171,7 @@ const resolveNestedFunctions = (
 ): void => {
   for (const node of nodes) {
     if (isFunctionNode(node)) {
-      resolveFunction(css, node, theme, edits, false);
+      resolveFunction(css, node, theme, edits, false, NO_KEYWORDS);
     }
   }
 };
@@ -232,6 +182,7 @@ const resolveFunction = (
   theme: ThemeVariables,
   edits: SourceEdit[],
   colorPosition: boolean,
+  keywords: ReadonlySet<string>,
 ): void => {
   const name = fn.getName();
   if (COLOR_FUNCTION.test(name)) {
@@ -241,20 +192,24 @@ const resolveFunction = (
     }
     return;
   }
-  const gradientKind = name.match(GRADIENT_FUNCTION)?.[1]?.toLowerCase();
-  const colorMix = name.toLowerCase() === "color-mix";
-  if (gradientKind || colorMix) {
+  if (GRADIENT_FUNCTION.test(name)) {
     splitAt(fn.value, TokenType.Comma).forEach((argument, index) => {
-      const kind: ArgumentKind =
-        index > 0
-          ? "colors"
-          : colorMix
-            ? "setup"
-            : classifyGradientFirstArgument(gradientKind!, argument);
-      if (kind === "colors") {
-        resolveColorWords(css, argument, theme, edits);
-      } else {
+      resolveColorWords(
+        css,
+        argument,
+        theme,
+        edits,
+        index === 0 ? GRADIENT_KEYWORDS : NO_KEYWORDS,
+      );
+    });
+    return;
+  }
+  if (name.toLowerCase() === "color-mix") {
+    splitAt(fn.value, TokenType.Comma).forEach((argument, index) => {
+      if (index === 0) {
         resolveNestedFunctions(css, argument, theme, edits);
+      } else {
+        resolveColorWords(css, argument, theme, edits);
       }
     });
     return;
@@ -262,7 +217,7 @@ const resolveFunction = (
   if (name.toLowerCase() === "var") {
     splitAt(fn.value, TokenType.Comma).forEach((argument, index) => {
       if (index > 0 && colorPosition) {
-        resolveColorWords(css, argument, theme, edits);
+        resolveColorWords(css, argument, theme, edits, keywords);
       } else if (index > 0) {
         resolveNestedFunctions(css, argument, theme, edits);
       }

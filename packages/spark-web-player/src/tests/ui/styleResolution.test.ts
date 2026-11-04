@@ -460,7 +460,7 @@ describe("the CSS grammar decides which words are theme colours", () => {
     [
       "background-image",
       "linear-gradient(circle, red)",
-      "linear-gradient(var(--theme-color-circle), red)",
+      "linear-gradient(circle, red)",
     ],
     [
       "background-image",
@@ -490,7 +490,7 @@ describe("the CSS grammar decides which words are theme colours", () => {
     [
       "background-image",
       "radial-gradient(var(--size, x) 20%, sky_60)",
-      "radial-gradient(var(--size, x) 20%, var(--theme-color-sky_60))",
+      "radial-gradient(var(--size, var(--theme-color-x)) 20%, var(--theme-color-sky_60))",
     ],
     [
       "background-image",
@@ -510,12 +510,12 @@ describe("the CSS grammar decides which words are theme colours", () => {
     [
       "background-image",
       "linear-gradient(to 20%, #fff)",
-      "linear-gradient(var(--theme-color-to) 20%, #fff)",
+      "linear-gradient(to 20%, #fff)",
     ],
     [
       "background-image",
       "linear-gradient(in 20%, #fff)",
-      "linear-gradient(var(--theme-color-in) 20%, #fff)",
+      "linear-gradient(in 20%, #fff)",
     ],
     [
       "background-image",
@@ -672,6 +672,95 @@ describe("the CSS grammar decides which words are theme colours", () => {
     ],
   ])("%s", (_name, css, expected) => {
     expect([...getThemeVariables(css)]).toEqual(expected);
+  });
+});
+
+describe("a gradient's first argument is read like its stops, gradient keywords aside", () => {
+  const keywordTheme: ReadonlySet<string> = new Set(
+    [
+      "sky_60",
+      "to",
+      "left",
+      "right",
+      "top",
+      "in",
+      "oklch",
+      "longer",
+      "hue",
+      "circle",
+      "ellipse",
+      "farthest-corner",
+      "at",
+      "center",
+      "from",
+    ].map((name) => `--theme-color-${name}`),
+  );
+
+  test.each([
+    [
+      "linear-gradient(to right, sky_60, #fff)",
+      "linear-gradient(to right, var(--theme-color-sky_60), #fff)",
+    ],
+    [
+      "linear-gradient(45deg, sky_60, #fff)",
+      "linear-gradient(45deg, var(--theme-color-sky_60), #fff)",
+    ],
+    [
+      "linear-gradient(sky_60 10%, #fff)",
+      "linear-gradient(var(--theme-color-sky_60) 10%, #fff)",
+    ],
+    [
+      "linear-gradient(in oklch longer hue, sky_60, #fff)",
+      "linear-gradient(in oklch longer hue, var(--theme-color-sky_60), #fff)",
+    ],
+    [
+      "radial-gradient(ellipse, sky_60, #fff)",
+      "radial-gradient(ellipse, var(--theme-color-sky_60), #fff)",
+    ],
+    [
+      "radial-gradient(farthest-corner, sky_60, #fff)",
+      "radial-gradient(farthest-corner, var(--theme-color-sky_60), #fff)",
+    ],
+    [
+      "radial-gradient(at left top, sky_60, #fff)",
+      "radial-gradient(at left top, var(--theme-color-sky_60), #fff)",
+    ],
+    [
+      "radial-gradient(sky_60 10%, #fff)",
+      "radial-gradient(var(--theme-color-sky_60) 10%, #fff)",
+    ],
+    [
+      "conic-gradient(from 45deg, sky_60, #fff)",
+      "conic-gradient(from 45deg, var(--theme-color-sky_60), #fff)",
+    ],
+    [
+      "conic-gradient(at center, sky_60, #fff)",
+      "conic-gradient(at center, var(--theme-color-sky_60), #fff)",
+    ],
+    [
+      "linear-gradient(var(--a), sky_60)",
+      "linear-gradient(var(--a), var(--theme-color-sky_60))",
+    ],
+    [
+      "linear-gradient(var(--a, sky_60), #fff)",
+      "linear-gradient(var(--a, var(--theme-color-sky_60)), #fff)",
+    ],
+    [
+      "linear-gradient(var(--dir, to left), sky_60)",
+      "linear-gradient(var(--dir, to left), var(--theme-color-sky_60))",
+    ],
+    [
+      "linear-gradient(left 10%, left 90%)",
+      "linear-gradient(left 10%, var(--theme-color-left) 90%)",
+    ],
+    [
+      "radial-gradient(circle, circle)",
+      "radial-gradient(circle, var(--theme-color-circle))",
+    ],
+  ])("background-image = %s", (value, css) => {
+    expect(getCssEquivalent("background-image", value, keywordTheme)).toEqual([
+      ["background-image", css],
+    ]);
   });
 });
 
