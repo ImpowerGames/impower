@@ -420,6 +420,7 @@ export class ProgramStory implements StoryEngine {
   protected _lineChosenAt: { record: BeatRecord; address: number } | null = null;
   protected _currentBeat: BeatRecord | null = null;
   protected _currentAtStep = -1;
+  readonly reactiveDeps: boolean;
 
   constructor(
     readonly root: ProgramRoot,
@@ -430,8 +431,10 @@ export class ProgramStory implements StoryEngine {
       rewindBeats?: number;
       declarations?: CarriedDeclarations;
       onDeclarationIssue?: DeclarationIssueListener;
+      reactiveDeps?: boolean;
     } = {},
   ) {
+    this.reactiveDeps = options.reactiveDeps ?? false;
     this._onDeclarationIssue = options.onDeclarationIssue;
     this._reader = new BinaryProgramReader(root);
     this.history = options.history ?? new BeatHistory(options.rewindBeats ?? 128);
@@ -936,12 +939,10 @@ export class ProgramStory implements StoryEngine {
 
   protected resetState(carried?: CarriedDeclarations): void {
     this.CancelAsyncContinue();
-    const reactiveDepsEnabled =
-      this._state?.variablesState?.reactiveDepsEnabled ?? false;
     const callStack = CallStack.ForProgram();
     const variablesState = new VariablesState(callStack);
     variablesState.constantNames = new Set(this.root.tables?.constantNames ?? []);
-    variablesState.reactiveDepsEnabled = reactiveDepsEnabled;
+    variablesState.reactiveDepsEnabled = this.reactiveDeps;
     this._state = new ProgramStoryState(
       this.root,
       variablesState,
