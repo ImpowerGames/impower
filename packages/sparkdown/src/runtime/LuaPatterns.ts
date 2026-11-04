@@ -66,7 +66,21 @@ export class LuaPatternError extends Error {
   }
 }
 
+const COMPILED_PATTERN_LIMIT = 256;
+const compiledPatterns = new Map<string, CompiledLuaPattern>();
+
 export function luaPatternToJs(pattern: string): CompiledLuaPattern {
+  const cached = compiledPatterns.get(pattern);
+  if (cached) return cached;
+  const compiled = compileLuaPattern(pattern);
+  if (compiledPatterns.size >= COMPILED_PATTERN_LIMIT) {
+    compiledPatterns.delete(compiledPatterns.keys().next().value!);
+  }
+  compiledPatterns.set(pattern, compiled);
+  return compiled;
+}
+
+function compileLuaPattern(pattern: string): CompiledLuaPattern {
   const anchored = pattern.startsWith("^");
   const endAnchored = pattern.endsWith("$") && !pattern.endsWith("%$");
   const body = pattern.slice(anchored ? 1 : 0, endAnchored ? -1 : pattern.length);
