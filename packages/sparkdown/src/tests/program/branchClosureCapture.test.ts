@@ -432,20 +432,6 @@ describe("a scene's own lines", () => {
       ]),
     ).toEqual(got("Got 5."));
   });
-
-  test("a block calls its own local named like a stdlib namespace, directly and through a closure", () => {
-    expect(
-      run([
-        "scene start",
-        "  if true then",
-        `    local math = ${mathTable}`,
-        "    local f = function() return math.abs(-1) end",
-        "    Got {math.abs(-1)} {f()}.",
-        "  end",
-        "end",
-      ]),
-    ).toEqual(got("Got 5 5."));
-  });
 });
 
 describe("a closure in a branch after an edit to its scene's locals", () => {

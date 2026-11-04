@@ -355,7 +355,9 @@ export function freeVariables(
         if (answer !== ROOT_IN_BLOCK) rootReads?.push({ name, answer });
         takenByLocal =
           !!rootReads &&
-          ((blockLocal && answer === ROOT_IN_BLOCK) || rootLocalBinds(name, at, ctx, answer));
+          ((answer === ROOT_IN_BLOCK &&
+            (blockLocal || (ctx.rootLocals?.blockLocal(name, at) ?? false))) ||
+            rootLocalBinds(name, at, ctx, answer));
       }
       if (!isShadowedLocal(name) && !readsLocal && !takenByLocal) {
         if (isGlobalCallable(name)) return;

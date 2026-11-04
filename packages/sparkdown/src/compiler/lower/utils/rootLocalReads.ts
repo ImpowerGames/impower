@@ -34,10 +34,8 @@ export function rootLocalBinds(
   ctx: LowerContext,
   answer: string = rootLocalAnswer(name, at, ctx),
 ): boolean {
-  if (answer !== ROOT_IN_BLOCK) return answersDeclaration(answer);
-  return (
-    (ctx.rootLocals?.blockLocal(name, at) ?? false) ||
-    answersDeclaration(rootLocalAnswerIgnoringBlocks(name, at, ctx))
+  return answersDeclaration(
+    answer === ROOT_IN_BLOCK ? rootLocalAnswerIgnoringBlocks(name, at, ctx) : answer,
   );
 }
 
