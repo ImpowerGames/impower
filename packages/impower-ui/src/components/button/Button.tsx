@@ -77,19 +77,24 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { variant, size, asChild, class: className, type = "button", children, ...rest },
   ref,
 ) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const Comp: any = asChild ? Slot : "button";
-  const extraProps = asChild ? {} : { type };
+  const classes = cn(buttonVariants({ variant, size }), className);
+  if (asChild) {
+    return (
+      <Slot ref={ref as Ref<HTMLElement>} class={classes} {...rest}>
+        {children}
+      </Slot>
+    );
+  }
   return (
-    <Comp
+    <button
       ref={ref as Ref<HTMLButtonElement>}
-      class={cn(buttonVariants({ variant, size }), className)}
-      {...extraProps}
+      class={classes}
+      type={type}
       {...rest}
     >
       {children}
-      {!asChild && <Ripple />}
-    </Comp>
+      <Ripple />
+    </button>
   );
 });
 
