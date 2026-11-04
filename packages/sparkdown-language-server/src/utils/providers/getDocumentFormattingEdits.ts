@@ -1465,87 +1465,36 @@ export const getFormatting = (
             walker = walker.parent;
           }
         } else {
-          let walker = nodeRef.node.parent;
-          while (walker) {
-            if (
-              walker.name === "LuauSparkdownDoBlock" ||
-              walker.name === "LuauSparkdownForLoop" ||
-              walker.name === "LuauSparkdownWhileLoop" ||
-              walker.name === "LuauSparkdownRepeatLoop" ||
-              walker.name === "LuauSparkleDoMark"
-            ) {
-              return;
-            }
-            if (
-              walker.name === "LuauForLoop" ||
-              walker.name === "LuauWhileLoop" ||
-              walker.name === "LuauRepeatLoop"
-            ) {
-              let c = walker.firstChild;
-              while (c) {
-                if (c.name.endsWith("_begin")) {
-                  headerStart = c.to;
-                  break;
-                }
-                c = c.nextSibling;
-              }
-              break;
-            }
-            walker = walker.parent;
+          let block = nodeRef.node.parent;
+          while (block && block.name !== "LuauDoBlock") {
+            if (!block.name.startsWith("LuauDoBlock_")) return;
+            block = block.parent;
           }
-          if (headerStart == null) {
-            const kwLine = document.positionAt(kwFrom).line;
-            const STATEMENT_STARTERS = [
-              "local ",
-              "function ",
-              "define ",
-              "scene ",
-              "branch ",
-              "const ",
-              "store ",
-              "return ",
-              "if ",
-              "if",
-              "end",
-              "do",
-              "else",
-              "elseif ",
-              "elseif",
-            ];
-            for (let line = kwLine - 1; line >= 0 && line > kwLine - 10; line--) {
-              const text = document.getLineText(line);
-              const trimmed = text.trim();
-              if (trimmed === "") continue;
-              if (
-                trimmed.startsWith("for ") ||
-                trimmed.startsWith("while ") ||
-                trimmed.startsWith("repeat ") ||
-                trimmed === "for" ||
-                trimmed === "while" ||
-                trimmed === "repeat"
-              ) {
-                const lineStart = document.offsetAt({
-                  line,
-                  character: 0,
-                });
-                const kwIdx = text.search(/\S/);
-                const kwMatch = text
-                  .slice(kwIdx)
-                  .match(/^(for|while|repeat)\b/);
-                if (kwMatch) {
-                  headerStart = lineStart + kwIdx + kwMatch[0].length;
+          const content = block?.parent;
+          const loop = content?.parent;
+          const header =
+            loop?.name === "LuauWhileLoop"
+              ? {
+                  content: "LuauWhileLoop_content",
+                  condition: "LuauWhileCondition",
+                  begin: "LuauWhileLoop_begin",
                 }
-                break;
-              }
-              if (
-                STATEMENT_STARTERS.some(
-                  (s) => trimmed === s.trim() || trimmed.startsWith(s),
-                )
-              ) {
-                break;
-              }
-            }
+              : loop?.name === "LuauForLoop"
+                ? {
+                    content: "LuauForLoop_content",
+                    condition: "LuauForCondition",
+                    begin: "LuauForLoop_begin",
+                  }
+                : undefined;
+          if (
+            !loop ||
+            !header ||
+            content?.name !== header.content ||
+            block?.prevSibling?.name !== header.condition
+          ) {
+            return;
           }
+          headerStart = loop.getChild(header.begin)?.to;
         }
         if (headerStart == null) return;
         if (headerStart >= kwFrom) return;
