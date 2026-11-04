@@ -1,39 +1,9 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { programContent } from "@impower/sparkdown/src/tests/programListing";
 import { programStoryOf, requireChunks } from "../harness/compileProgram";
+import { compilePrelude } from "../harness/compilePrelude";
 import { buildDefinesContext } from "../../game/core/utils/buildContextFromStory";
-
-const BUILTINS_PRELUDE = readFileSync(
-  new URL(
-    "../../../../sparkdown/src/compiler/builtins/builtins.sd",
-    import.meta.url,
-  ),
-  "utf8",
-);
-
-const PRELUDE_URI = "file:///__builtins__.sd";
-
-function compilePrelude() {
-  const compiler = new SparkdownCompiler();
-  compiler.configure({
-    useBuiltinsPrelude: false,
-    definitions: { builtins: {} as any },
-    files: [
-      {
-        uri: PRELUDE_URI,
-        type: "script",
-        name: "__builtins__",
-        ext: "sd",
-        text: BUILTINS_PRELUDE,
-        version: 0,
-        languageId: "sparkdown",
-      } as any,
-    ],
-  });
-  return compiler.compile({ textDocument: { uri: PRELUDE_URI } });
-}
 
 describe("P5 prerequisite: the prelude's story carries builtin __def globals", () => {
   test("the prelude compiles to statement chunks", () => {

@@ -73,7 +73,8 @@ import type { ElementState } from "../types/ElementState";
 import type { Image } from "../types/Image";
 import type { ImageState } from "../types/ImageState";
 import type { TextState } from "../types/TextState";
-import { type UIBuiltins, uiBuiltinDefinitions } from "../uiBuiltinDefinitions";
+import type { UIBuiltins } from "../types/UIBuiltins";
+import builtinBreakpoints from "../builtinBreakpoints.json";
 import { getVarName } from "../utils/getVarName";
 import {
   isPlainRun,
@@ -440,8 +441,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _refreshing = false;
 
-  protected _builtinBreakpoints?: Record<string, number>;
-
   protected _tree?: UITree;
 
   protected _treeBuilds = 0;
@@ -508,15 +507,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._game.story.onError?.(`${what}: ${detail}`, ErrorType.Error, null);
   }
 
-  override getBuiltins() {
-    return uiBuiltinDefinitions();
+  override getBuiltins(): UIBuiltins {
+    return this.context as UIBuiltins;
   }
 
   protected get breakpoints(): Record<string, number> {
-    return (
-      this.context.config?.ui?.breakpoints ??
-      (this._builtinBreakpoints ??= this.getBuiltins().config.ui.breakpoints)
-    );
+    return this.context.config?.ui?.breakpoints ?? builtinBreakpoints;
   }
 
   override getStored(): string[] {

@@ -1,10 +1,8 @@
-import { uiBuiltinDefinitions } from "../../../spark-engine/src/game/modules/ui/uiBuiltinDefinitions";
+import breakpoints from "../../../spark-engine/src/game/modules/ui/builtinBreakpoints.json";
 import type {
   RenderContext,
   SparkleNode,
 } from "../../../sparkle-screen-renderer/src";
-
-const breakpoints = uiBuiltinDefinitions().config.ui.breakpoints;
 
 export const createScreenRenderContext = (
   components: Record<string, SparkleNode>,
