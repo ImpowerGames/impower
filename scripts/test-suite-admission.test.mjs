@@ -334,6 +334,35 @@ assert.equal(poolSlotLimit, 2);
 }
 
 {
+  const root = path.join(scratch, "same-millisecond");fs.mkdirSync(root);
+  const tied = { ...live, root };
+  const held = ["A", "B", "C"].map((name, at) => acquire(name, { ...tied, pool: at === 1 ? "reviewer" : "writer" }));
+  const rows = () => fs.readdirSync(root).filter(name => name.startsWith("waiting-")).map(name => read(path.join(root, name)));
+  const realNow = Date.now;
+  let inverted = 0;
+  for (let attempt = 0; attempt < 20 && inverted < 3; attempt++) {
+    const frozen = realNow();
+    Date.now = () => frozen;
+    const waits = { early: [], late: [] };
+    const wait = name => acquireWaiting(`${name} ${attempt}`, { ...tied, pool: "writer", waitMs: 200, pollMs: 10, onWait: row => waits[name].push(row) }).then(() => assert.fail(`${name} is never admitted`), error => error);
+    const early = wait("early");
+    await until(() => waits.early.length > 0, "the early waiter's first wait");
+    const late = wait("late");
+    await until(() => waits.late.some(row => row.queued === 2), "the late waiter to see both rows");
+    const [first, second] = [`early ${attempt}`, `late ${attempt}`].map(run => rows().find(row => row.run === run));
+    assert.equal(first.arrivedAt, second.arrivedAt, "both waiters arrived in the same millisecond");
+    if (first.token > second.token) inverted++;
+    assert.ok(waits.late.filter(row => row.queued === 2).every(row => row.position === 2), `the later arrival is second whatever its token: early ${first.token}, late ${second.token}, rows ${JSON.stringify(waits.late.map(row => [row.position, row.queued]))}`);
+    Date.now = realNow;
+    await Promise.all([early, late]);
+  }
+  Date.now = realNow;
+  assert.ok(inverted > 0, "at least one pair drew tokens in the opposite order to arrival");
+  held.forEach(holder => holder.release());
+  console.log("PASS: waiters arriving in the same millisecond keep their arrival order");
+}
+
+{
   const older = { version: 2, token: "older-checkout", owner, run: path.join(scratch, "older-run"), heldSince: new Date().toISOString(), heldUptime: os.uptime(), phase: "reserved" };
   fs.writeFileSync(slotFile(store, 1), JSON.stringify(older, null, 2) + "\n");
   assert.throws(() => acquire("single slot", { ...live, pool: "writer", slots: 1 }), error => /Existing suite running/.test(error.message) && error.holder.run === older.run && error.holder.pool === "writer" && error.holder.slot === 1, "a store of one slot honours the older record");

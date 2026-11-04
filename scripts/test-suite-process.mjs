@@ -534,7 +534,9 @@ const accountedPids = (records, lookup) => {
   return pids;
 };
 
-const byArrival = (a, b) => Date.parse(a.arrivedAt) - Date.parse(b.arrivedAt) || (a.token < b.token ? -1 : a.token > b.token ? 1 : 0);
+const sequenced = row => Number.isSafeInteger(row.sequence);
+const byArrival = (a, b) => (sequenced(a) && sequenced(b) ? a.sequence - b.sequence : 0)
+  || Date.parse(a.arrivedAt) - Date.parse(b.arrivedAt) || (a.token < b.token ? -1 : a.token > b.token ? 1 : 0);
 
 function archiveReservation(root, record, options) {
   if (typeof record.token !== "string" || !/^[A-Za-z0-9-]+$/.test(record.token)) throw new Error("Invalid recovery token; preserve the reservation");
@@ -622,8 +624,10 @@ export function acquire(run, { root = machineRoot, pool = "writer", identify = p
     const summaries = holders.map(holder => holderSummary(holder.record, holder.index, observedAt));
     const owner = lookup(process.pid);
     if (!owner) throw new Error("Coordinator identity unavailable");
-    const mine = waiting ? { token: waiting.token, owner, pool, run, arrivedAt: waiting.arrivedAt } : null;
-    const candidates = [...waitingQueue(root, lookup, holders.map(holder => holder.record)).filter(row => !mine || row.token !== mine.token), ...(mine ? [mine] : [])].sort(byArrival);
+    const others = waitingQueue(root, lookup, holders.map(holder => holder.record)).filter(row => !waiting || row.token !== waiting.token);
+    if (waiting && !waiting.published) waiting.sequence = Math.max(0, ...others.filter(sequenced).map(row => row.sequence)) + 1;
+    const mine = waiting ? { token: waiting.token, owner, pool, run, arrivedAt: waiting.arrivedAt, sequence: waiting.sequence } : null;
+    const candidates = [...others, ...(mine ? [mine] : [])].sort(byArrival);
     const position = mine ? candidates.findIndex(row => row.token === mine.token) + 1 : candidates.length + 1;
     const poolHolders = name => summaries.filter(holder => holder.pool === name).length;
     const blocked = (waitable, message) => {
