@@ -587,6 +587,46 @@ describe("listing storage after earlier notifications (I-1893)", () => {
     expect(textAt(root, "a.sd")).toBeUndefined();
   });
 
+  it("does not let a read that started before a newer listing bring back a file the listing found absent", async () => {
+    const root = seed({ "a.sd": "A" });
+    const source = fileAt(root, "a.sd")!;
+    const h = await worker(root);
+    const read = source.getFile.bind(source);
+    let captured!: () => void;
+    const reading = new Promise<void>((resolve) => {
+      captured = resolve;
+    });
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    source.getFile = async () => {
+      const snapshot = await read();
+      return {
+        ...snapshot,
+        arrayBuffer: async () => {
+          captured();
+          await held;
+          return snapshot.arrayBuffer();
+        },
+      };
+    };
+    h.start("old-read", "workspace/readFile", { file: { uri: uriOf("a.sd") } });
+    await vi.advanceTimersByTimeAsync(0);
+    await reading;
+    await otherTab(root).remove("a.sd");
+    expect((await h.enumerate()).result).toEqual([]);
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(h.response("old-read")).toHaveProperty("result");
+    expect(
+      await h.request("edit", "workspace/applyWorkspaceEdit", {
+        edit: { documentChanges: [insert("a.sd", 1, "!")] },
+      }),
+    ).toMatchObject({ result: { applied: false } });
+    expect(textAt(root, "a.sd")).toBeUndefined();
+  });
+
   it("reads a cached file again when a listing is newer than the commit it holds", async () => {
     const root = seed({ "a.sd": "A" });
     const h = await worker(root);
@@ -818,6 +858,26 @@ describe("renaming files (I-1910)", () => {
         },
       };
     };
+    const h = await worker(root);
+    expect(
+      await h.request("rename", "workspace/willRenameFiles", {
+        files: [{ oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") }],
+      }),
+    ).toHaveProperty("error");
+    expect(textAt(root, "a.sd")).toBe("SOURCE");
+    expect(textAt(root, "b.sd")).toBe("DESTINATION");
+  });
+
+  it("leaves an existing destination untouched when reading its previous bytes fails", async () => {
+    const root = seed({ "a.sd": "SOURCE", "b.sd": "DESTINATION" });
+    const destination = fileAt(root, "b.sd")!;
+    const access = destination.createSyncAccessHandle.bind(destination);
+    destination.createSyncAccessHandle = async () => ({
+      ...(await access()),
+      read: () => {
+        throw new DOMException("transient read failure", "UnknownError");
+      },
+    });
     const h = await worker(root);
     expect(
       await h.request("rename", "workspace/willRenameFiles", {

@@ -1058,7 +1058,7 @@ const adoptStoredBytes = (uri: string, floor: FileCommit | undefined) => {
     return true;
   }
   observeCommit(floor);
-  const held = State.commits.get(uri);
+  const held = heldCommit(uri);
   if (held && compareFileCommits(held, floor) > 0) {
     return false;
   }
@@ -1409,8 +1409,12 @@ const writeToDisk = async (fileUri: string, buffer: DataView | Uint8Array) => {
     created = missing;
     syncAccessHandle = await fileHandle.createSyncAccessHandle();
     if (!missing) {
-      previous = new Uint8Array(syncAccessHandle.getSize());
-      syncAccessHandle.read(previous, { at: 0 });
+      const backup = new Uint8Array(syncAccessHandle.getSize());
+      const read = syncAccessHandle.read(backup, { at: 0 });
+      if (read !== backup.byteLength) {
+        throw new Error(`Read ${read} of ${backup.byteLength} bytes before overwriting`);
+      }
+      previous = backup;
     }
     syncAccessHandle.truncate(0);
     const written = syncAccessHandle.write(buffer, { at: 0 });
