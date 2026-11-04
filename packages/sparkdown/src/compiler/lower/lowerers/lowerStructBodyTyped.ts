@@ -129,6 +129,14 @@ function headerKeyNode(entry: StructEntry): SyntaxNode {
 
 const KEYFRAME_SELECTOR = nodeNameSet(["LuauKeyframeSelector"]);
 
+export const KEYFRAMES_KEY = "keyframes";
+
+export function keyframesAsList(value: unknown): unknown {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? [value]
+    : value;
+}
+
 function keyframeOffset(
   keyNode: SyntaxNode,
   key: string,
@@ -290,7 +298,7 @@ function evaluate(
       if (entry.children) {
         const sub = evaluate(entry.children, ctx, sink, options, key, line);
         const keyed =
-          key === "keyframes"
+          key === KEYFRAMES_KEY
             ? keyframesFromPositionKeys(
                 sub.headers,
                 sub.hasArrayItems,

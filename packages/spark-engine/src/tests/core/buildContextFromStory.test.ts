@@ -42,7 +42,7 @@ describe("buildDefinesContext (runtime __def → JS)", () => {
     const ctx = buildDefinesContext(story);
 
     expect(ctx["animation"]?.["pan_right"]).toMatchObject({
-      keyframes: { background_position: "right" },
+      keyframes: [{ background_position: "right" }],
       $type: "animation",
       $name: "pan_right",
     });

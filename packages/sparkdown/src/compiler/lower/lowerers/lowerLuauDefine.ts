@@ -85,6 +85,7 @@ import { lowerArguments } from "../utils/lowerArguments";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { validateDefineStructure } from "../utils/validateDefineStructure";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import { KEYFRAMES_KEY } from "./lowerStructBodyTyped";
 import { functionBindings } from "../utils/functionBindings";
 import { reportErasedConstErrors } from "../utils/publishesConst";
 import { syntheticId } from "../utils/documentTag";
@@ -306,6 +307,16 @@ function expressionToContextValue(expr: Expression | null): unknown {
   return undefined;
 }
 
+function isMapTable(expr: Expression): boolean {
+  return (
+    expr instanceof ObjectExpression &&
+    !(
+      expr.entries.length > 0 &&
+      expr.entries.every((entry, i) => entry.key === String(i + 1))
+    )
+  );
+}
+
 function containsStructRef(value: unknown): boolean {
   if (Array.isArray(value)) {
     return value.some(containsStructRef);
@@ -413,6 +424,15 @@ export function lowerLuauDefine(
 
   const parentNode = getDescendent("LuauDefineParentName", nodeRef.node);
   const parentIdentifier = parentNode ? identifierAt(parentNode, ctx) : null;
+  if ((parentIdentifier ?? nameIdentifier).name === "animation") {
+    for (const prop of properties) {
+      if (!prop.key && prop.name === KEYFRAMES_KEY && isMapTable(prop.expr)) {
+        prop.expr = new ObjectExpression([
+          new ObjectExpressionEntry("1", prop.expr),
+        ]);
+      }
+    }
+  }
 
   const entries: ObjectExpressionEntry[] = [];
   for (const prop of properties) {

@@ -4152,12 +4152,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const easing = easingOverride ?? animation?.timing?.easing ?? "ease";
       const fill = animation?.timing?.fill ?? "none";
       const direction = animation?.timing?.direction ?? "normal";
-      const rawKeyframes = animation?.keyframes;
-      const keyframes = Array.isArray(rawKeyframes)
-        ? rawKeyframes
-        : rawKeyframes != null
-          ? [rawKeyframes]
-          : [];
+      const keyframes = animation.keyframes;
       const timing = {
         delay,
         duration,
