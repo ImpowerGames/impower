@@ -9,6 +9,7 @@ import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import type { StoredCheckpoint } from "@impower/spark-engine/src/game/core/classes/CheckpointStore";
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
+import type { GameEnding } from "@impower/spark-engine/src/game/core/types/GameEnding";
 import type {
   PreviewRoute,
   RoutePin,
@@ -407,6 +408,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     shownAddress?: ProgramAddress;
     route?: PreviewRoute;
     menus?: RunMenu[];
+    ending?: GameEnding;
   };
 
   const reportOf = (
@@ -420,6 +422,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       checkpoint: log.checkpointFor(to),
       route: log.outcomeFor(to)?.route,
       menus: log.outcomeFor(to)?.menus,
+      ending: log.outcomeFor(to)?.ending ?? undefined,
     };
   };
 
@@ -449,6 +452,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     log.record(shown.outcome);
     return {
       ...reportOf(log, shown.outcome.address),
+      ending: undefined,
       shownFrom: shown.point,
       shownAddress: shown.outcome.address,
     };
@@ -577,6 +581,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         checkpoint: route.checkpoint,
         simulationFailure: route.simulationFailure,
         route: route.route,
+        ending: route.ending,
         runFrom: route.shownAddress,
         beatOnly,
         onPath: (taken) => {
@@ -615,6 +620,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         ? {
             displayed,
             errors: [...(route.simulationErrors ?? []), ...stepErrors],
+            ...(game.previewEnding ? { ending: game.previewEnding } : {}),
             ...(taken
               ? taken.beatOnly
                 ? { path: "beat" as const }
@@ -764,6 +770,15 @@ export function installPlayerWorker(connection: MessageConnection) {
       for (let line = from; line > floor; line -= 1) {
         if (skipped.some(([header, end]) => header <= line && line <= end)) {
           continue;
+        }
+        const closedAbove = ends.find(([, end]) => end === line);
+        const endAddress =
+          closedAbove && program.chunks?.flowEndAddress(point.file, closedAbove[0]);
+        if (endAddress != null) {
+          return {
+            point: { file: point.file, line, address: endAddress },
+            beat: "last" as const,
+          };
         }
         const address = locator.addressAt(point.file, line, { beat: "last" });
         const location = locator.locationOf(address);
