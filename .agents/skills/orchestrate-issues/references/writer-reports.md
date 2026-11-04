@@ -18,6 +18,8 @@ The plan's dead-launch sweep, the checkpoint's journal reader and the launcher's
 
 Keep plans and journals in a separate launch-state directory, such as `pr-<P>/round-<R>/launch-<reviewer-id>-<attempt>`, under the review-job root. The launcher refuses state inside the excluded directories because the wake routine cannot discover it there. Keep reviewer checkouts and their temporary probes inside the reviewer's workspace; their size then adds no scan work.
 
+The snapshot counts the highest started round posted on the review thread. It reads first lines in the forms `Review round state: PR owner/repo#P, round N of …`, `Review round N for owner/repo#P` and `Review round N state for owner/repo#P`, with or without a heading. It also reads legacy `## Review round N state` through `#### Review round N state` headings elsewhere in the comment. Blockquotes and fenced examples do not count. The checkpoint reads the same round numbers and flags every posted round whose journal is missing locally.
+
 ## How writers reach the coordinator
 
 Each route's way of messaging the coordinator is in the runner configuration (`reports` in `.claude/writer-defaults.json`, keyed by the coordinator's runner). The brief carries the recorded session identity and title beside the contact instruction. A title-addressed writer resolves the current title through its runner's session listing, stops on ambiguous or missing matches, and retains the id and host as identity cross-checks. Every answer and resume refreshes that instruction, including for an existing writer whose coordinator has not changed.

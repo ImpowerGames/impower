@@ -693,7 +693,33 @@ export function redMain(record, mainCi, snapshot = null) {
 const short9 = (sha) => String(sha ?? "none").slice(0, 9);
 
 export const MAX_SUB_ISSUE_DEPTH = 8;
-export const reviewRounds = (comments) => Math.max(0, ...comments.map((c) => [...(c.body ?? "").matchAll(/^#{2,4} Review round (\d+) state\b/gm)].map((m) => Number(m[1]))).flat());
+export function postedReviewRounds(comments) {
+  const rounds = new Set();
+  for (const { body } of comments) {
+    let fence;
+    for (const [index, line] of (body ?? "").split(/\r?\n/).entries()) {
+      const marker = line.match(/^ {0,3}(```+|~~~+)(.*)$/);
+      if (fence) {
+        if (marker && marker[1][0] === fence[0] && marker[1].length >= fence.length && !marker[2].trim()) fence = undefined;
+        continue;
+      }
+      if (marker && (marker[1][0] === "~" || !marker[2].includes("`"))) {
+        fence = marker[1];
+        continue;
+      }
+      const heading = line.match(/^#{2,4} Review round (\d+) state\b/);
+      const firstLine = index === 0 && (
+        line.match(/^(?:#{2,4} )?Review round state: PR [\w.-]+\/[\w.-]+#\d+, round (\d+)(?: of\b|\.?$)/) ??
+        line.match(/^(?:#{2,4} )?Review round (\d+)(?: state)? for [\w.-]+\/[\w.-]+#\d+(?=[ \t]|\.?$)/)
+      );
+      const round = Number((heading || firstLine)?.[1]);
+      if (Number.isSafeInteger(round) && round > 0) rounds.add(round);
+    }
+  }
+  return rounds;
+}
+
+export const reviewRounds = (comments) => Math.max(0, ...postedReviewRounds(comments));
 
 const CLOSING_REFERENCE = /\b(?:clos(?:e|es|ed)|fix(?:es|ed)?|resolv(?:e|es|ed))\s*:?\s+(?:https?:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/issues\/(\d+)|(?:([\w.-]+\/[\w.-]+))?#(\d+))/gi;
 export function closingReferences(body) {

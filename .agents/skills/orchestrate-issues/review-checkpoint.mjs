@@ -8,7 +8,7 @@ import { readJson } from "../../../scripts/review-job-store.mjs";
 import { reviewJobFiles } from "../../../scripts/review-job-root.mjs";
 import { readJournalRows, reviewAccounting } from "../../../scripts/agent-handoff.mjs";
 import { readRepos } from "../../repos.mjs";
-import { branchTicket, launchDirOf, readRecord, repositoriesOf, startRepositories, updateRecord } from "./issue-run.mjs";
+import { branchTicket, launchDirOf, postedReviewRounds, readRecord, repositoriesOf, startRepositories, updateRecord } from "./issue-run.mjs";
 
 export const FIRST_CHECKPOINT_ROUND = 3;
 export const MAX_REVIEW_ROUNDS = 10;
@@ -187,8 +187,7 @@ export const threadName = (thread) => `review thread ${thread.repo}#${thread.num
 export function checkpointEvidence({ pr, state, pull, comments, git, trusted, record = null, firstRound = FIRST_CHECKPOINT_ROUND, ci = true, where = `PR #${pr}` }) {
   const blockers = [...state.blockers];
   if (pull.state !== "OPEN") blockers.push(`PR #${pr} is ${pull.state}`);
-  const posted = new Set(comments.flatMap((c) => [...(c.body ?? "").matchAll(/^#{2,4} Review round (\d+) state\b/gm)].map((m) => Number(m[1]))));
-  const missing = [...posted].filter((r) => !state.roundsSeen.includes(r)).sort((a, b) => a - b);
+  const missing = [...postedReviewRounds(comments)].filter((r) => !state.roundsSeen.includes(r)).sort((a, b) => a - b);
   if (missing.length) blockers.push(`${where === `PR #${pr}` ? "the PR" : where} posts the state of round${missing.length > 1 ? "s" : ""} ${missing.join(", ")}, but no journal here records ${missing.length > 1 ? "their" : "its"} reviews; read those journals where they ran`);
   const early = firstRound === FIRST_CHECKPOINT_ROUND && state.completedRound >= 1 && state.completedRound < FIRST_CHECKPOINT_ROUND;
   const floor = early ? `round ${state.completedRound} is the last complete round; the first formal checkpoint follows round ${FIRST_CHECKPOINT_ROUND}'s verified fixes, and before it only an acceptance of verified final corrections may be decided` : null;
