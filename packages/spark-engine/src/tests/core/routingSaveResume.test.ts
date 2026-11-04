@@ -34,6 +34,8 @@ scene later
   VILLAIN: B ..
   .. C > D ..
   .. E > F
+  VILLAIN: G ..
+  .. H
 end
 `;
 
@@ -109,8 +111,28 @@ describe("routing an inherited beat reads survives a resume", () => {
     game.checkpoint();
     const index = game._checkpoints.length - 1;
     const uninterrupted = playOn(game, 2);
+    expect(playOn(game, 1)).toEqual(["G H|VILLAIN"]);
     expect(game.restoreCheckpoint(index)).toBe(true);
     game.start();
     expect(playOn(game, 2)).toEqual(uninterrupted);
+  });
+
+  it("a checkpoint loaded from JSON into a fresh game restores the cue of an uninterrupted run", () => {
+    const { program } = compileSrc(SOURCE);
+    const game = playGame(program);
+    game.start();
+    advanceTo(game, "A B C");
+    game.checkpoint();
+    const json = game.checkpointJson(
+      game._checkpoints.checkpointAt(game._checkpoints.length - 1),
+    );
+    expect(json).not.toBeNull();
+    const uninterrupted = playOn(game, 2);
+    expect(uninterrupted.every((beat) => beat.endsWith("|HERO"))).toBe(true);
+
+    const other = playGame(program);
+    expect(other.load(json)).toBe(true);
+    other.start();
+    expect(playOn(other, 2)).toEqual(uninterrupted);
   });
 });
