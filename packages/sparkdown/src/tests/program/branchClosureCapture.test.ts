@@ -342,6 +342,83 @@ describe("a scene's own lines", () => {
     ).toEqual(got("Got 1."));
   });
 
+  test.each([
+    ["directly", "Got {math.abs(-1)}."],
+    ["through a closure", "local f = function() return math.abs(-1) end", "Got {f()}."],
+  ])(
+    "a later outer choice calls the stdlib namespace a choice local of a choose in the preamble names, %s",
+    (_, ...lines) => {
+      expect(
+        runPicking([1], [
+          "scene start",
+          "  choose",
+          "    choose",
+          "      + [Inner A]",
+          `        local math = ${mathTable}`,
+          "    end",
+          "    + [Outer B]",
+          ...lines.map((line) => `      ${line}`),
+          "  end",
+          "end",
+        ]),
+      ).toEqual(got("Got 1."));
+    },
+  );
+
+  test("a later outer choice calls the stdlib namespace a then clause of a choose in the preamble names", () => {
+    expect(
+      runPicking([1], [
+        "scene start",
+        "  choose",
+        "    choose",
+        "      + [Inner A]",
+        "        Inner.",
+        "    then",
+        `      local math = ${mathTable}`,
+        "    end",
+        "    + [Outer B]",
+        "      local f = function() return math.abs(-1) end",
+        "      Got {math.abs(-1)} {f()}.",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("Got 1 1."));
+  });
+
+  test("after a choose block, calls the stdlib namespace a choice not taken names, directly and through a closure", () => {
+    expect(
+      runPicking([1], [
+        "scene start",
+        "  choose",
+        "    + [A]",
+        `      local math = ${mathTable}`,
+        "    + [B]",
+        "      B.",
+        "  end",
+        "  local f = function() return math.abs(-1) end",
+        "  Got {math.abs(-1)} {f()}.",
+        "end",
+      ]),
+    ).toEqual(got("B.", "Got 1 1."));
+  });
+
+  test("a closure after a choose block reads the local of the choice taken, as a direct read does", () => {
+    expect(
+      runPicking([0], [
+        "scene start",
+        "  choose",
+        "    + [A]",
+        "      local foo = 3",
+        "    + [B]",
+        "      B.",
+        "  end",
+        "  local f = function() return foo end",
+        "  Got {foo} {f()}.",
+        "end",
+      ]),
+    ).toEqual(got("Got 3 3."));
+  });
+
   test("a closure inside a block calls the scene's local named like a stdlib namespace", () => {
     expect(
       run([

@@ -2,7 +2,7 @@ import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getDescendents } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendents";
 import type { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
-import { ROOT_IN_BLOCK, ROOT_NONE, ROOT_ONLY } from "../../utils/rootLocals";
+import { ROOT_IN_BLOCK, ROOT_MAYBE, ROOT_NONE, ROOT_ONLY } from "../../utils/rootLocals";
 import type { LowerContext } from "../context";
 import { documentTag } from "./documentTag";
 
@@ -25,7 +25,7 @@ export function rootDeclarationAnswer(name: string, at: number, ctx: LowerContex
 }
 
 export function answersDeclaration(answer: string): boolean {
-  return answer !== "" && answer !== ROOT_NONE && answer !== ROOT_IN_BLOCK;
+  return answer !== "" && answer !== ROOT_NONE && answer !== ROOT_IN_BLOCK && answer !== ROOT_MAYBE;
 }
 
 export function rootLocalBinds(
