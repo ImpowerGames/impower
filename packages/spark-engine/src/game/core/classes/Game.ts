@@ -1106,10 +1106,12 @@ export class Game<T extends M = {}> {
       if (route) {
         this.simulateRoute(route, 0);
       } else {
+        this._simulation = "fail";
         this._simulationFailure = this.describeFailedRouteSearch(to);
         this._searchErrors = this.searchErrors();
       }
     } else {
+      this._simulation = "fail";
       this._simulationFailure = this.describeFailedRouteSearch(
         this._startAddress,
       );
@@ -1817,6 +1819,7 @@ export class Game<T extends M = {}> {
     const previewing = this._context.system.previewing;
     this._context.system.previewing = undefined;
     this._replaying = true;
+    this._context.system.simulating = route.from;
     for (const k of this._moduleNames) {
       this._modules[k]?.onReplay();
     }
@@ -1835,6 +1838,7 @@ export class Game<T extends M = {}> {
         unrepeatable ??
         (storyDraws.count !== drawn || ambientReads.count !== read);
       this._replaying = false;
+      this._context.system.simulating = undefined;
       this._context.system.previewing = previewing;
       for (const k of this._moduleNames) {
         this._modules[k]?.onReplayEnd();
@@ -1903,7 +1907,6 @@ export class Game<T extends M = {}> {
     }
 
     this._simulation = "simulating";
-    this._context.system.simulating = route.from;
 
     this._executingAddress = null;
     this._executingLocation = null;
@@ -2266,17 +2269,9 @@ export class Game<T extends M = {}> {
     return this.newestCheckpoint();
   }
 
-  endSimulation(): void {
-    if (this._simulation === "simulating") {
-      this._simulation = "fail";
-    }
-    this._context.system.simulating = undefined;
-  }
-
   start(save: string = ""): void {
     this.cancelPreview();
     this._state = "running";
-    this.endSimulation();
     this.notifyStarted();
     this._context.system.previewing = undefined;
     this._previewedAddress = undefined;
@@ -4155,7 +4150,6 @@ export class Game<T extends M = {}> {
     this._previewAddress = previewAddress;
     this._executingAddress = null;
     this._executingLocation = [-1, -1, -1, -1, -1];
-    this.endSimulation();
     if (this._state === "initial") {
       this._state = "previewing";
     }

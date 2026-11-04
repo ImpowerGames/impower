@@ -30,7 +30,6 @@ function recordingGame(calls: string[], state = "previewing") {
     routeStartOf: (_address: number) => "start",
     updateProgram: () => calls.push("updateProgram"),
     markPreviewing: () => calls.push("markPreviewing"),
-    endSimulation: () => {},
     module: {
       ui: {
         forgetDisplayedImages: () => calls.push("forgetDisplayedImages"),

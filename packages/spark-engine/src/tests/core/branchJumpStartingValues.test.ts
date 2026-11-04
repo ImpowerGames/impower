@@ -46,7 +46,6 @@ const continued = (game: any): string => {
 
 const jumpedText = (lines: string[], line: number, startingValues: object) => {
   const { game } = routeTo(lines, line, startingValues as never);
-  game.endSimulation();
   expect(game.simulation).toBe("fail");
   game.jumpTo(game.startAddress, true);
   return continued(game);
