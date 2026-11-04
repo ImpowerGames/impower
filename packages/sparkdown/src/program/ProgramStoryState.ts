@@ -655,13 +655,9 @@ export class ProgramStoryState {
       if (currEl?.type == PushPopType.Function) {
         functionTrimIndex = currEl.functionStartInOutputStream;
       }
-      for (let i = this.outputStream.length - 1; i >= 0; i--) {
-        if (isBeginString(this.outputStream[i])) {
-          if (i >= functionTrimIndex) {
-            functionTrimIndex = -1;
-          }
-          break;
-        }
+      const openString = this.innermostOpenString;
+      if (openString >= 0 && openString >= functionTrimIndex) {
+        functionTrimIndex = -1;
       }
       if (functionTrimIndex != -1) {
         if (obj.isNewline) {
@@ -714,6 +710,7 @@ export class ProgramStoryState {
       if (!(obj instanceof StringValue)) continue;
       if (obj.isNewline || obj.isInlineWhitespace) {
         this.outputStream.splice(i, 1);
+        this.ForgetOpenStrings();
         this.OutputStreamDirty();
       } else {
         break;

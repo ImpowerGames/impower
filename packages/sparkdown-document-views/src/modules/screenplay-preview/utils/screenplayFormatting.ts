@@ -390,10 +390,7 @@ export const decorate = (
   };
 
   let lineStart = from;
-  const seenNewlineFrom = new Set<number>();
   const processNewline = (newlineFrom: number, newlineTo: number) => {
-    if (seenNewlineFrom.has(newlineFrom)) return;
-    seenNewlineFrom.add(newlineFrom);
     if (isWhitespaceOnly(lineStart, newlineFrom)) {
       decorations.push(
         ...createDecorations(doc, {

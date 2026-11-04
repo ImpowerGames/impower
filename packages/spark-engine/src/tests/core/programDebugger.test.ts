@@ -311,6 +311,50 @@ describe("the debugger on the program engine", () => {
     });
   });
 
+  it("evaluates with a function's outer-block locals while paused in an inner block", () => {
+    const h = debugGame(
+      [
+        "store result = 0",
+        "",
+        "scene main",
+        "  Before.",
+        "  result = blocks(1)",
+        "  done",
+        "end",
+        "function blocks(seed)",
+        "  local outer = seed",
+        "  local shadowed = 10",
+        "  if outer == 1 then",
+        "    local inner = 2",
+        "    local shadowed = 20",
+        "    result = outer + inner + shadowed",
+        "  end",
+        "  return result",
+        "end",
+        "scene start",
+        "  -> main",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    h.game.setBreakpoints([{ file: MAIN, line: 4 }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(4);
+    h.game.step("in");
+    const seen = [h.stoppedAt()];
+    for (let i = 0; i < 12 && h.stoppedAt() !== 13; i += 1) {
+      h.game.step("over");
+      seen.push(h.stoppedAt());
+    }
+    expect(seen).toContain(13);
+    expect(h.game.getEvaluationContext()).toMatchObject({
+      outer: 1,
+      inner: 2,
+      shadowed: 20,
+    });
+  });
+
   it("steps over a line of a function in its frame, and out of it to its caller", () => {
     const h = debugGame(NESTED);
     stopInAdd(h, 19);

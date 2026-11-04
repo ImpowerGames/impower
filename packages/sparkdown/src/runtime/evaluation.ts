@@ -13,6 +13,7 @@ import {
   MultiValue,
   NullValue,
   SymbolValue,
+  isLuauTruthy,
 } from "./Value";
 import { Void } from "./Void";
 import { oneValue, spreadCallArgs } from "./CallArgs";
@@ -36,7 +37,6 @@ import {
 import { callBuiltinMethod, METHOD_PREFIX } from "./MethodDispatch";
 import { drawStoryRandom } from "./StoryRandom";
 import { luauRuntimeError } from "./StoryException";
-import { isLuauTruthy } from "./LuauTruthiness";
 import { PRNG } from "./PRNG";
 import { StringBuilder } from "./StringBuilder";
 import { asOrNull } from "./TypeAssertion";
