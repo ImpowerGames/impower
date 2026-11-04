@@ -42,6 +42,12 @@ const errors = (text: string, otherText?: string): string[] =>
         )}`,
     );
 
+const fullErrors = (text: string): string[] =>
+  Object.values(compile(text).diagnostics ?? {})
+    .flat()
+    .filter((d) => d.severity === 1)
+    .map((d) => `L${d.range.start.line}:${d.range.start.character} ${message(d)}`);
+
 let consoleError: ReturnType<typeof vi.spyOn>;
 let consoleWarn: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
@@ -134,6 +140,16 @@ describe("a local or parameter that shares a store's name", () => {
     ]);
   });
 
+  it("names the first store's line when two top-level stores share a name", () => {
+    expect(
+      fullErrors(
+        ["store tally = 0", "store tally = 1", "", "scene start", "  Count {tally}.", "end", ""].join("\n"),
+      ),
+    ).toEqual([
+      "L1:6 Duplicate identifier `tally`. A var named `tally` already exists on line 1 of 'main'",
+    ]);
+  });
+
   it("treats two locals of one name in one scene as it does without the store", () => {
     const scene = [
       "scene start",
@@ -169,9 +185,9 @@ describe("a nested local that shares an outer local's name", () => {
     ).toEqual([]);
   });
 
-  it("reports a store that collides with a for loop's variable", () => {
+  it("reports a store that collides with a for loop's variable at the variable's line", () => {
     expect(
-      errors(
+      fullErrors(
         [
           "function f()",
           "  for i = 1, 2 do",
@@ -186,9 +202,61 @@ describe("a nested local that shares an outer local's name", () => {
         ].join("\n"),
       ).filter((e) => e.includes("Duplicate identifier `i`")),
     ).toEqual([
-      expect.stringMatching(
-        /^L2:\d+ Duplicate identifier `i`\. A temp named `i` already exists$/,
-      ),
+      "L2:10 Duplicate identifier `i`. A temp named `i` already exists on line 2 of 'main'",
+    ]);
+  });
+
+  it("reports a store that collides with a generic for loop's variable at the variable's line", () => {
+    expect(
+      fullErrors(
+        [
+          "function f(t)",
+          "  for k, v in pairs(t) do",
+          "    store k = 3",
+          "  end",
+          "  return 0",
+          "end",
+          "scene start",
+          "  Hi {f({})}.",
+          "end",
+          "",
+        ].join("\n"),
+      ).filter((e) => e.includes("Duplicate identifier `k`")),
+    ).toEqual([
+      "L2:10 Duplicate identifier `k`. A temp named `k` already exists on line 2 of 'main'",
+    ]);
+  });
+
+  it("names the for loop variable's new line after an edit above the loop", () => {
+    const compiler = new SparkdownCompiler();
+    const lines = [
+      "function f()",
+      "  for i = 1, 2 do",
+      "    store i = 3",
+      "  end",
+      "  return 0",
+      "end",
+      "scene start",
+      "  Hi {f()}.",
+      "end",
+      "",
+    ];
+    compiler.configure({ files: [script(MAIN, "main", lines.join("\n"))] } as never);
+    compiler.compile({ textDocument: { uri: MAIN } } as never);
+    const edited = ["store pad = 0", "", ...lines].join("\n");
+    compiler.updateDocument({
+      textDocument: { uri: MAIN, version: 2 },
+      contentChanges: [{ text: edited }],
+    } as never);
+    const program = compiler.compile({ textDocument: { uri: MAIN } } as never).program;
+    expect(
+      Object.values(program.diagnostics ?? {})
+        .flat()
+        .filter((d) => d.severity === 1)
+        .map((d) => message(d))
+        .filter((m) => m.includes("Duplicate identifier `i`")),
+    ).toEqual([
+      "Duplicate identifier `i`. A temp named `i` already exists on line 4 of 'main'",
     ]);
   });
 

@@ -16,7 +16,7 @@ import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarch
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { AstStatForIn } from "../../typecheck/Ast";
 import type { LowerContext } from "../context";
-import { lowerExpression } from "../expression/lowerExpression";
+import { astIdentifier, lowerExpression } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { wrapInScope } from "../utils/wrapInScope";
@@ -113,7 +113,7 @@ export function lowerLuauGenericForLoop(
     ],
   );
   const callAndUnpack = new MultiVariableAssignment(
-    loopVarNames.map((n) => new Identifier(n)),
+    stat.vars.map((v) => astIdentifier(v, ctx)),
     [iterCall],
     true,
   );

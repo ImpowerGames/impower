@@ -14,7 +14,7 @@ import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarch
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { AstStatFor } from "../../typecheck/Ast";
 import type { LowerContext } from "../context";
-import { lowerExpression } from "../expression/lowerExpression";
+import { astIdentifier, lowerExpression } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { wrapInScope } from "../utils/wrapInScope";
@@ -46,7 +46,6 @@ export function lowerLuauForLoop(
     : null;
   if (!doBlock) return {};
 
-  const loopVarName = stat.variable.name;
   const staticallyNumeric = (e: Expression): boolean =>
     e instanceof NumberExpression ||
     (e instanceof UnaryExpression &&
@@ -97,7 +96,7 @@ export function lowerLuauForLoop(
   const condExpr = buildLoopCondition(idxName, stopName, stepName);
 
   const copyLoopVar = new VariableAssignment({
-    variableIdentifier: new Identifier(loopVarName),
+    variableIdentifier: astIdentifier(stat.variable, ctx),
     assignedExpression: new VariableReference([new Identifier(idxName)]),
     isTemporaryNewDeclaration: true,
   });

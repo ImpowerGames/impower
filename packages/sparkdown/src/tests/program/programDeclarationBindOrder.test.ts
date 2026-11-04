@@ -118,12 +118,12 @@ describe("a multiple declaration binds after its values", () => {
 });
 
 it.each([
-  ["a spread call", "function pair()\n  return 3, 4\nend\nstore a = 1\nstore b, a = pair()\n\nscene start\n  Value {a} {b}.\nend\n", 4, "Value 1 3.\n"],
-  ["its own value", "store a = 1\nstore b, a = 5, 6\n\nscene start\n  Value {a} {b}.\nend\n", 1, "Value 1 5.\n"],
-])("drops the value of a duplicate name given by %s", (_, script, line, expected) => {
+  ["a spread call", "function pair()\n  return 3, 4\nend\nstore a = 1\nstore b, a = pair()\n\nscene start\n  Value {a} {b}.\nend\n", 4, 4, "Value 1 3.\n"],
+  ["its own value", "store a = 1\nstore b, a = 5, 6\n\nscene start\n  Value {a} {b}.\nend\n", 1, 1, "Value 1 5.\n"],
+])("drops the value of a duplicate name given by %s", (_, script, line, firstLine, expected) => {
   const { program } = compileScript(script);
   expect(errorsOf(program)).toEqual([
-    [line, "Duplicate identifier `a`. A var named `a` already exists on null"],
+    [line, `Duplicate identifier \`a\`. A var named \`a\` already exists on line ${firstLine} of 'main'`],
   ]);
   expect(storyBeats(new ProgramStory(program.chunks!)).beats.map((b) => b.text)).toEqual([
     expected,

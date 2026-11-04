@@ -1526,6 +1526,66 @@ describe("the debugger on the program engine", () => {
     expect(h.game.story.currentText).toBe("Total 6.\n");
   });
 
+  it.each([
+    ["a numeric", "  for i = 1, 2 do"],
+    ["a generic", "  for _, i in ipairs({1, 2}) do"],  ])("stops once at a breakpoint on %s for loop's header, before the loop binds its variable", (_kind, header) => {
+    const h = debugGame(
+      [
+        "store total = 0",
+        "scene start",
+        header,
+        "    total = total + i",
+        "  end",
+        "  Total {total}.",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    h.game.setBreakpoints([{ file: MAIN, line: 2 }]);
+    h.game.start();
+    const seen: string[] = [];
+    for (let i = 0; i < 6; i += 1) {
+      if (h.of("game/hitBreakpoint").length > seen.length) {
+        seen.push(`${h.stoppedAt()}:${names(h.game.getTempVariables()).join(",")}`);
+      }
+      h.game.continue();
+    }
+    expect(seen).toEqual(["2:"]);
+  });
+
+  it.each([
+    ["numeric", "  for i = 1, 2 do"],
+    ["generic", "  for _, i in ipairs({1, 2}) do"],
+  ])("steps over a %s for loop's header once per pass", (_kind, header) => {
+    const h = debugGame(
+      [
+        "store result = 0",
+        "function sum()",
+        "  local total = 0",
+        header,
+        "    total = total + i",
+        "  end",
+        "  return total",
+        "end",
+        "scene start",
+        "  Hello.",
+        "  result = sum()",
+        "  Total {result}.",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    h.game.setFunctionBreakpoints([{ name: "sum" }]);
+    h.game.start();
+    h.continueToBreakpoint();
+    const lines: (number | undefined)[] = [h.stoppedAt()];
+    for (let i = 0; i < 10; i += 1) {
+      h.game.step("over");
+      lines.push(h.stoppedAt());
+    }
+    expect(lines).toEqual([1, 2, 3, 4, 3, 4, 3, 6, 10, 11, 11]);
+  });
+
   it("resolves a breakpoint again when a compile emits its statement again", () => {
     const before = NESTED;
     const after = NESTED.replace("  Sub here.", "  Sub here, edited.");
