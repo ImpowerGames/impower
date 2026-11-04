@@ -117,9 +117,6 @@ export function lowerLuauGenericForLoop(
     [iterCall],
     true,
   );
-  for (const target of callAndUnpack.targetAssignments) {
-    target.debugMetadata = target.identifier!.debugMetadata;
-  }
 
   const firstVarRef = new VariableReference([new Identifier(loopVarNames[0]!)]);
   const isNilCheck = new BinaryExpression(

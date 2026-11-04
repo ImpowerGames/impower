@@ -95,13 +95,11 @@ export function lowerLuauForLoop(
 
   const condExpr = buildLoopCondition(idxName, stopName, stepName);
 
-  const loopVarIdentifier = astIdentifier(stat.variable, ctx);
   const copyLoopVar = new VariableAssignment({
-    variableIdentifier: loopVarIdentifier,
+    variableIdentifier: astIdentifier(stat.variable, ctx),
     assignedExpression: new VariableReference([new Identifier(idxName)]),
     isTemporaryNewDeclaration: true,
   });
-  copyLoopVar.debugMetadata = loopVarIdentifier.debugMetadata;
 
   const toStep = new Divert([new Identifier(stepLabel)]);
   const branch = new ConditionalSingleBranch([
