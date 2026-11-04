@@ -361,6 +361,28 @@ describe("the debug adapter learning the current run when it starts", () => {
     ]);
   });
 
+  for (const timing of ["before its launch", "during its first read"] as const) {
+    it(`stops on the end once when it attaches to an ended run whose state is published ${timing}`, async () => {
+      const s = session();
+      s.player.launchState = "ended";
+      if (timing === "before its launch") {
+        await s.notify(state("ended", 1));
+      } else {
+        s.duringNext(async () => {
+          await s.notify(state("ended", 1));
+        }, "preview/gameState");
+      }
+      await s.request("launchRequest");
+      expect(s.events.filter(([event]) => event === "stopped")).toEqual([
+        ["stopped", "end"],
+      ]);
+      await s.notify(state("ended", 1));
+      expect(s.events.filter(([event]) => event === "stopped")).toEqual([
+        ["stopped", "end"],
+      ]);
+    });
+  }
+
   it("publishes a numbered stop that arrives before its first read is answered", async () => {
     const s = session();
     let stopped: Promise<void> | undefined;
