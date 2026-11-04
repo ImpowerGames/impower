@@ -5616,7 +5616,7 @@ repository:
     end: (?={{WS}}|[;}"]|{{SPARKLE_ENTRY_COMMA}})|$
 
   LuauSparklePropWordColor:
-    match: \G((?:rgb|hsl)a?[(][^\s;"}]*[)])
+    match: \G([#][0-9a-fA-F]{3,}|(?:rgb|hsl)a?[(][^\s;"}]*[)])
     captures:
       1:
         patterns:

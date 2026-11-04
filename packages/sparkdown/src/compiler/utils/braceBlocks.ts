@@ -243,6 +243,7 @@ const ENTRY_SEPARATOR_NAMES = nodeNameSet([
 const UNCLOSED_QUOTE_TOKEN_NAMES = nodeNameSet([
   "LuauSparkleElementInvalid",
   "InlinePropLiteralValue",
+  "LuauSparklePropWord",
 ]);
 
 const QUOTES = ['"', "'", "`"];
