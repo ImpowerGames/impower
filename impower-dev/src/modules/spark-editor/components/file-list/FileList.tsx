@@ -810,6 +810,8 @@ export default function FileList({
     [],
   );
 
+  const newFolderRequestedRef = useRef(false);
+
   const newFolder = async () => {
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
@@ -1035,8 +1037,21 @@ export default function FileList({
                   <DotsVertical class="size-5" />
                 </Button>
               </DropdownTrigger>
-              <DropdownContent align="end" sideOffset={4}>
-                <DropdownItem onSelect={() => void newFolder()}>
+              <DropdownContent
+                align="end"
+                sideOffset={4}
+                onCloseAutoFocus={(e: Event) => {
+                  if (!newFolderRequestedRef.current) return;
+                  newFolderRequestedRef.current = false;
+                  e.preventDefault();
+                  void newFolder();
+                }}
+              >
+                <DropdownItem
+                  onSelect={() => {
+                    newFolderRequestedRef.current = true;
+                  }}
+                >
                   <FolderPlus class="size-4" />
                   New Folder
                 </DropdownItem>
