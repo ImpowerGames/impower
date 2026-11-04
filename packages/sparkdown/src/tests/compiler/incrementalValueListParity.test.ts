@@ -129,7 +129,7 @@ function annotatedWindows(run: () => void): (number | undefined)[] {
   const spy = vi.spyOn(SparkdownCombinedAnnotator.prototype as any, "reannotate");
   try {
     run();
-    return spy.mock.calls.filter((args) => args[6] != null).map((args) => args[2] as number | undefined);
+    return spy.mock.calls.filter((args) => args[4] != null).map((args) => args[2] as number | undefined);
   } finally {
     spy.mockRestore();
   }

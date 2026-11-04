@@ -828,10 +828,15 @@ export class Story extends FlowBase {
     this._hadWarning = errorType === ErrorType.Warning;
 
     if (this._errorHandler !== null) {
-      const hidden =
-        source instanceof ParsedObject && locatedOnlyByEnclosingFlow(source);
-      const reportedAt =
+      const sourcePosition =
         source instanceof DebugMetadata ? source : source?.debugMetadata;
+      const located = sourcePosition
+        ? source instanceof ParsedObject
+          ? source
+          : null
+        : (raiser ?? null);
+      const hidden = !!located && locatedOnlyByEnclosingFlow(located);
+      const reportedAt = sourcePosition ?? raiser?.debugMetadata;
       resolutionTap()?.diagnostic(
         raiser ?? null,
         message,
@@ -840,7 +845,7 @@ export class Story extends FlowBase {
         hidden ? null : (reportedAt ?? null),
         true,
       );
-      if (source instanceof ParsedObject && hidden) {
+      if (hidden) {
         // The only position this diagnostic has is the declaration of the
         // flow around it, which does not point at what it reports, so it is
         // not passed to the handler. It is logged the way the compiler's
@@ -848,7 +853,7 @@ export class Story extends FlowBase {
         // the 0-based position it would have had, so tests and maintainers
         // can still find it. It also still counts above: it sets `hadError`
         // or `hadWarning`.
-        const position = source.debugMetadata;
+        const position = reportedAt;
         console.warn(
           "HIDDEN",
           message,

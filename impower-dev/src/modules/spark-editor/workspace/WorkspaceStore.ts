@@ -1,8 +1,9 @@
 import { computed, signal, type ReadonlySignal } from "@preact/signals";
 import type { WorkspaceCache } from "@impower/spark-editor-protocol/src/types";
 import type { AccountInfo } from "./types/AccountInfo";
+import { WorkspaceConstants } from "./WorkspaceConstants";
 
-const cache: WorkspaceCache = {
+const defaults: WorkspaceCache = {
   project: { id: "" },
   pane: "logic",
   panes: {
@@ -60,8 +61,39 @@ const cache: WorkspaceCache = {
   debug: {},
 };
 
+export const cacheableWorkspaceState = (
+  store: WorkspaceCache,
+): WorkspaceCache => {
+  const copy = structuredClone(store);
+  copy.screen = {};
+  copy.sync = {};
+  copy.debug.diagnosticsSummary = {};
+  copy.debug.pinpoints = {};
+  copy.debug.highlights = {};
+  copy.preview.modes.game = {};
+  return copy;
+};
+
+export const loadedProjectId = (): string =>
+  localStorage.getItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY) ||
+  WorkspaceConstants.LOCAL_PROJECT_ID;
+
+export const savedWorkspaceState = (): WorkspaceCache => {
+  if (typeof window === "undefined") {
+    return defaults;
+  }
+  const id = loadedProjectId();
+  const saved = localStorage.getItem(
+    WorkspaceConstants.WORKSPACE_STATE_STORAGE_KEY_PREFIX + id,
+  );
+  if (!saved) {
+    return { ...defaults, project: { ...defaults.project, id } };
+  }
+  return cacheableWorkspaceState(JSON.parse(saved) as WorkspaceCache);
+};
+
 class WorkspaceStore {
-  readonly state = signal<WorkspaceCache>(cache);
+  readonly state = signal<WorkspaceCache>(savedWorkspaceState());
 
   readonly account = signal<AccountInfo | null>(null);
 

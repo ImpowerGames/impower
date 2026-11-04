@@ -6,6 +6,7 @@ import {
   parseUnzipEntries,
 } from "../../../packages/opfs-workspace/src/utils/assetArchive";
 
+import { LAYOUT_MARKER } from "../../src/modules/spark-editor/utils/fileTree";
 import WorkspaceFileSystem from "../../src/modules/spark-editor/workspace/WorkspaceFileSystem";
 
 const PROJECT = "proj1";
@@ -128,6 +129,32 @@ describe("project zip round-trip (readProjectZip <-> writeProjectZip)", () => {
 
     expect(dec.decode(dst.opfs.get(u("main.sd"))!)).toBe("NEW");
     expect(dst.opfs.has(u("stale.sd"))).toBe(false);
+  });
+
+  it("the layout marker survives export->import", async () => {
+    const src = makeHarness({
+      [u("main.sd")]: enc.encode("MAIN"),
+      [u(LAYOUT_MARKER)]: enc.encode("1"),
+      [u(".name")]: enc.encode("Title"),
+    });
+    const zip = await readProjectZip(src);
+    expect(Object.keys(unzipSync(new Uint8Array(zip))).sort()).toEqual([
+      LAYOUT_MARKER,
+      "main.sd",
+    ]);
+    const dst = makeHarness({});
+    await writeProjectZip(dst, zip);
+    expect(dec.decode(dst.opfs.get(u(LAYOUT_MARKER))!)).toBe("1");
+  });
+
+  it("importing a zip without the layout marker drops the project's marker", async () => {
+    const dst = makeHarness({
+      [u("main.sd")]: enc.encode("OLD"),
+      [u(LAYOUT_MARKER)]: enc.encode("1"),
+    });
+    const src = makeHarness({ [u("main.sd")]: enc.encode("NEW") });
+    await writeProjectZip(dst, await readProjectZip(src));
+    expect(dst.opfs.has(u(LAYOUT_MARKER))).toBe(false);
   });
 
   describe("known gaps on main", () => {

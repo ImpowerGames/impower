@@ -345,20 +345,176 @@ export const layoutSubtreeFor = (path: string): string =>
       ? "assets/urls"
       : "assets";
 
+const MAIN_SCRIPT = "main.sd";
+
+export const LAYOUT_MARKER = ".layout";
+
+export const canWriteLayoutMarker = (relativePaths: string[]): boolean =>
+  !relativePaths.some(
+    (p) => p === LAYOUT_MARKER || p.startsWith(`${LAYOUT_MARKER}/`),
+  );
+
+const settledTarget = (
+  path: string,
+  subtreeFor: (path: string) => string,
+): string => {
+  let target = path;
+  for (let i = 0; i <= path.split("/").length; i++) {
+    const next = `${subtreeFor(target)}/${stripCategoryPrefix(target)}`;
+    if (next === target) break;
+    target = next;
+  }
+  return target;
+};
+
+const folderOf = (path: string): string =>
+  path.slice(0, path.lastIndexOf("/") + 1);
+
+const ancestorsOf = (path: string): string[] => {
+  const parts = path.split("/");
+  return parts.slice(1).map((_, i) => parts.slice(0, i + 1).join("/"));
+};
+
+const projectOf = (path: string, roots: string[]): string =>
+  roots.reduce(
+    (nearest, root) =>
+      path.startsWith(root) && root.length > nearest.length ? root : nearest,
+    "",
+  );
+
+const subProjectRoots = (paths: string[]): string[] =>
+  paths
+    .filter((p) => p !== MAIN_SCRIPT && p.endsWith(`/${MAIN_SCRIPT}`))
+    .map(folderOf);
+
+export const routeIntoLayout = (
+  relativePaths: string[],
+  existingPaths: string[],
+  subtreeFor: (path: string) => string,
+): string[] => {
+  const roots = subProjectRoots([...existingPaths, ...relativePaths]);
+  return relativePaths.map((p) => {
+    if (
+      p === MAIN_SCRIPT ||
+      (p.split("/").pop() ?? p).startsWith(".") ||
+      roots.some((root) => p.startsWith(root))
+    ) {
+      return p;
+    }
+    const target = settledTarget(p, subtreeFor);
+    return projectOf(target, roots) === "" ? target : p;
+  });
+};
+
+const planLayoutMoves = (
+  relativePaths: string[],
+  subtreeFor: (path: string) => string,
+  repair: boolean,
+  seenFolders: Set<string>,
+): { from: string; to: string }[] => {
+  const roots = subProjectRoots(relativePaths);
+  const units = roots.filter(
+    (root) => !roots.some((other) => other !== root && root.startsWith(other)),
+  );
+  const unitOf = (path: string) => units.find((unit) => path.startsWith(unit));
+  const movable = relativePaths.filter(
+    (p) =>
+      p !== MAIN_SCRIPT &&
+      !(p.split("/").pop() ?? p).startsWith(".") &&
+      !p.startsWith(`${LAYOUT_MARKER}/`),
+  );
+  const files = new Set(relativePaths);
+  const liveFolders = new Set(relativePaths.flatMap(ancestorsOf));
+  const folders = new Set([...seenFolders, ...liveFolders]);
+  const isFree = (to: string) =>
+    !files.has(to) &&
+    !folders.has(to) &&
+    !ancestorsOf(to).some((folder) => files.has(folder));
+  const reserve = (to: string) => {
+    files.add(to);
+    ancestorsOf(to).forEach((folder) => {
+      folders.add(folder);
+      liveFolders.add(folder);
+    });
+  };
+  const splitRoots = roots
+    .filter((root) => root.startsWith("scripts/") && root !== "scripts/")
+    .map(stripCategoryPrefix);
+  const unitPlans = units.map((unit) => {
+    const target = `scripts/${stripCategoryPrefix(unit)}`;
+    return {
+      unit,
+      target,
+      moves:
+        target === unit
+          ? []
+          : movable
+              .filter((p) => p.startsWith(unit))
+              .map((p) => ({ from: p, to: `${target}${p.slice(unit.length)}` })),
+    };
+  });
+  const rootPlans = movable
+    .filter((p) => !unitOf(p))
+    .map((p) => {
+      const inner = stripCategoryPrefix(p);
+      const repairs =
+        repair &&
+        p.startsWith("assets/") &&
+        splitRoots.some((root) => inner.startsWith(root));
+      const to = repairs ? `scripts/${inner}` : settledTarget(p, subtreeFor);
+      return { from: p, to, repairs };
+    });
+  const moves: { from: string; to: string }[] = [];
+  const movedRoots = new Map(roots.map((root) => [root, root]));
+  for (const { unit, target, moves: unitMoves } of unitPlans) {
+    const targetFolder = target.slice(0, -1);
+    if (
+      unitMoves.length === 0 ||
+      files.has(targetFolder) ||
+      liveFolders.has(targetFolder) ||
+      !unitMoves.every((m) => isFree(m.to))
+    ) {
+      continue;
+    }
+    unitMoves.forEach((m) => reserve(m.to));
+    moves.push(...unitMoves);
+    roots
+      .filter((root) => root.startsWith(unit))
+      .forEach((root) =>
+        movedRoots.set(root, `${target}${root.slice(unit.length)}`),
+      );
+  }
+  const finalRoots = [...movedRoots.values()];
+  for (const { from, to, repairs } of rootPlans) {
+    if (to === from || !isFree(to)) continue;
+    if (!repairs && projectOf(to, finalRoots) !== "") continue;
+    reserve(to);
+    moves.push({ from, to });
+  }
+  return moves;
+};
+
 export const computeLayoutMigration = (
   relativePaths: string[],
   subtreeFor: (path: string) => string,
-): { from: string; to: string }[] => {
-  const moves: { from: string; to: string }[] = [];
-  for (const p of relativePaths) {
-    if (p === "main.sd") continue;
-    const base = p.split("/").pop() ?? p;
-    if (base.startsWith(".")) continue;
-    const inner = stripCategoryPrefix(p);
-    const to = `${subtreeFor(p)}/${inner}`;
-    if (to !== p) {
-      moves.push({ from: p, to });
-    }
+): { from: string; to: string }[] =>
+  computeLayoutMigrationBatches(relativePaths, subtreeFor)[0] ?? [];
+
+export const computeLayoutMigrationBatches = (
+  relativePaths: string[],
+  subtreeFor: (path: string) => string,
+): { from: string; to: string }[][] => {
+  if (relativePaths.includes(LAYOUT_MARKER)) return [];
+  const batches: { from: string; to: string }[][] = [];
+  const seenFolders = new Set<string>();
+  let paths = relativePaths;
+  for (let i = 0; i <= relativePaths.length; i++) {
+    paths.flatMap(ancestorsOf).forEach((folder) => seenFolders.add(folder));
+    const moves = planLayoutMoves(paths, subtreeFor, i === 0, seenFolders);
+    if (moves.length === 0) break;
+    batches.push(moves);
+    const renamed = new Map(moves.map((m) => [m.from, m.to]));
+    paths = paths.map((p) => renamed.get(p) ?? p);
   }
-  return moves;
+  return batches;
 };

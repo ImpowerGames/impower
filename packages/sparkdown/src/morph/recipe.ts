@@ -1,4 +1,5 @@
 import { formatColor, readEntryColor } from "./color";
+import { morphMotionLabels } from "./motion";
 import { own, table } from "./own";
 import { normalizeMorphKeyframes } from "../compiler/morph/normalizeMorphKeyframes";
 import {
@@ -144,6 +145,7 @@ export function buildMorphRecipe(name: string, morph: Record<string, unknown>): 
       paints.push(paint);
     }
   }
+  const motion = morphMotionLabels(morph["keyframes"]);
   return {
     name,
     blend: root.blend ?? "morph",
@@ -155,6 +157,7 @@ export function buildMorphRecipe(name: string, morph: Record<string, unknown>): 
     keyframes,
     clips,
     ...(paints.length ? { paints } : {}),
+    ...(motion.length ? { motion } : {}),
   };
 }
 
@@ -211,5 +214,7 @@ export function parseMorphRecipe(text: string): MorphRecipe | undefined {
         })
       : [],
   });
+  const motion = value["motion"];
+  if (Array.isArray(motion) && motion.length > 0 && motion.every((label) => typeof label === "string")) recipe.motion = motion as string[];
   return serializeMorphRecipe(recipe) === text ? recipe : undefined;
 }

@@ -9,6 +9,7 @@ import {
 import { NativeFunctionCall } from "../runtime/NativeFunctionCall";
 import { storyDraws } from "../runtime/StoryRandom";
 import { InkObject } from "../runtime/Object";
+import { stdLibMarkerName } from "../runtime/StdLibMarker";
 import { cleanOutputWhitespace } from "../runtime/outputWhitespace";
 import { PushPopType } from "../runtime/PushPop";
 import type { Simulator } from "../runtime/Simulator";
@@ -1328,16 +1329,10 @@ export class ProgramStory implements StoryEngine {
     }
 
     const state = this._state;
-    if (
-      fnValue instanceof ObjectValue &&
-      (fnValue.value as Map<string, AbstractValue>)?.get("__stdlib_fn") != null
-    ) {
+    const builtin = stdLibMarkerName(fnValue);
+    if (builtin !== null) {
       const errCountBefore = state.currentErrors?.length ?? 0;
-      const builtin = (fnValue.value as Map<string, AbstractValue>).get(
-        "__stdlib_fn",
-      );
-      this.errorCalledByBuiltin =
-        builtin instanceof StringValue && builtin.value === "error";
+      this.errorCalledByBuiltin = builtin === "error";
       try {
         const values = tryInvokeStdLibMarkerValue(this, fnValue, args);
         if (values != null) {
@@ -3272,9 +3267,16 @@ export class ProgramStory implements StoryEngine {
 
   tunnelEndedAt: number | null = null;
 
-  startsAtBranch(path: string): boolean {
+  startsAwayFromStoryStart(path: string): boolean {
     const symbol = this.root.table.symbolIds.get(path);
-    return symbol !== undefined && this.root.kindOf(symbol) === SymbolKind.Branch;
+    if (symbol === undefined) {
+      return false;
+    }
+    const kind = this.root.kindOf(symbol);
+    return (
+      kind === SymbolKind.Branch ||
+      (kind === SymbolKind.Scene && symbol !== this.startSymbol())
+    );
   }
 
   protected startSymbol(): number | undefined {

@@ -27,9 +27,12 @@ import { chunkOfAddress } from "@impower/sparkdown/src/program/ProgramChunk";
 import { START_FLOW_NAME } from "@impower/sparkdown/src/program/ProgramSymbols";
 import {
   buildRouteSimulator,
+  callDepthExceededMessage,
   lastSearchStats,
   planRoute,
+  runAhead,
   showsBeatAhead,
+  type RunAhead,
   routeChargeAt,
   stepsBeforeDeparture,
   stepsBeforePinMet,
@@ -364,6 +367,19 @@ export class Game<T extends M = {}> {
     return this._ending;
   }
 
+  protected _previewEnding: GameEnding | null = null;
+  get previewEnding(): GameEnding | null {
+    return this._previewEnding;
+  }
+  set previewEnding(ending: GameEnding | null | undefined) {
+    this._previewEnding = ending ?? null;
+  }
+  get shownEnding(): GameEnding | null {
+    return (
+      this._ending ?? (this._state === "running" ? null : this._previewEnding)
+    );
+  }
+
   protected _errorEnding: { message: string; location: DocumentLocation } | null =
     null;
 
@@ -411,7 +427,7 @@ export class Game<T extends M = {}> {
   set simulateFlow(value) {
     this._simulateFlow = value;
     this._story.endsTunnelAtBase =
-      value != null && this._story.startsAtBranch(value);
+      value != null && this._story.startsAwayFromStoryStart(value);
   }
 
   protected _playedMenus: { sources: string[]; taken: string }[] = [];
@@ -619,9 +635,13 @@ export class Game<T extends M = {}> {
   protected _routeSimulator: RouteSimulator | null = null;
 
   protected _routeTargetShows?: boolean;
+  protected _routeTargetEnding: GameEnding | null = null;
   protected _routeTargetTunnelEnds = false;
   get routeTargetShows() {
     return this._routeTargetShows;
+  }
+  get routeTargetEnding(): GameEnding | null {
+    return this._routeTargetEnding;
   }
 
   protected _checkpoints!: CheckpointStore;
@@ -1832,6 +1852,7 @@ export class Game<T extends M = {}> {
     this._checkpointShownBeats.length = fromCheckpoint + 1;
     this._checkpointDecisionsTaken.length = fromCheckpoint + 1;
     this._routeTargetShows = undefined;
+    this._routeTargetEnding = null;
     this._routeTargetTunnelEnds = false;
     this._story.tunnelEndedAt = null;
     this._routeErrors = this._routeErrors.filter(
@@ -1896,12 +1917,15 @@ export class Game<T extends M = {}> {
       ended !== null &&
       this._startAddress != null &&
       chunkOfAddress(ended) === chunkOfAddress(this._startAddress);
+    this._routeTargetEnding = null;
     if (this.module.interpreter.hasQueuedBeats) {
       this._routeTargetShows = true;
       return;
     }
     const last = this._checkpoints.length - 1;
-    const shows = showsBeatAhead(this._story);
+    const ahead = runAhead(this._story, undefined, this._callDepthLimit);
+    const shows = ahead.kind === "beat";
+    this._routeTargetEnding = this.endingAhead(ahead);
     this.restoreCheckpoint(last);
     if (shows || !this._shownBeat) {
       this._routeTargetShows = shows;
@@ -1916,6 +1940,44 @@ export class Game<T extends M = {}> {
     this._checkpointShownBeats[last] = this._shownBeat;
     this._checkpointDecisionsTaken[last] = decisionsTaken;
     this._routeTargetShows = true;
+  }
+
+  protected reachTargetStoppedByEngine(): void {
+    if (
+      this._simulation !== "simulating" ||
+      this._startAddress == null ||
+      !this._runtimeState.pathsExecutedThisFrame.has(this._startAddress)
+    ) {
+      return;
+    }
+    this._story.state.ForceEnd();
+    this._story.ending = "error";
+    this.endTargetWatch();
+    this.checkpoint();
+    this._simulation = "success";
+  }
+
+  protected endingAhead(ahead: RunAhead): GameEnding | null {
+    if (ahead.kind === "beat" || ahead.kind === "unknown") {
+      return null;
+    }
+    const at = ahead.at != null ? this.scriptLocationOf(ahead.at) : undefined;
+    const location = at
+      ? this.getDocumentLocation(at)
+      : this.getLastExecutedDocumentLocation();
+    if (ahead.kind === "error") {
+      const raised =
+        ahead.message === null
+          ? this._routeErrors.findLast((e) => e.error.type === ErrorType.Error)
+              ?.error
+          : undefined;
+      const message = ahead.message ?? raised?.message;
+      const where = raised?.location ?? location;
+      return message != null && where
+        ? { kind: "error", location: where, error: { message, location: where } }
+        : { kind: "error", location: where };
+    }
+    return { kind: ahead.kind, location };
   }
 
   jumpShowsBeat(address: ProgramAddress): boolean {
@@ -3236,9 +3298,10 @@ export class Game<T extends M = {}> {
           this._story.CancelAsyncContinue();
           this._story.state.ForceEnd();
           this.Error(
-            `Calls nested more than ${this._callDepthLimit} deep: stack overflow, possible infinite recursion`,
+            callDepthExceededMessage(this._callDepthLimit),
             ErrorType.Error,
           );
+          this.reachTargetStoppedByEngine();
           return true;
         }
 
@@ -3379,7 +3442,9 @@ export class Game<T extends M = {}> {
   }
 
   protected jumpEndsTunnelAtBase(address: ProgramAddress): boolean {
-    return this._story.root.branchAt(address) !== undefined;
+    const flow =
+      this._story.root.branchAt(address) ?? this._story.root.sceneAt(address);
+    return flow !== undefined && this._story.startsAwayFromStoryStart(flow);
   }
 
   jumpToFlow(flow: string) {
@@ -3387,7 +3452,7 @@ export class Game<T extends M = {}> {
     const plan = this.startPlan(flow);
     this._story.resetSeed = plan.seed;
     this._story.ResetState();
-    this._story.endsTunnelAtBase = this._story.startsAtBranch(flow);
+    this._story.endsTunnelAtBase = this._story.startsAwayFromStoryStart(flow);
     startStoryAt(this._story, plan);
   }
 
@@ -3469,7 +3534,11 @@ export class Game<T extends M = {}> {
     const error = kind === "error" ? this._errorEnding : null;
     this._ending = {
       kind,
-      location: error?.location ?? this.getLastExecutedDocumentLocation(),
+      location:
+        error?.location ??
+        this.getLastExecutedDocumentLocation() ??
+        this.documentLocationOf(this._positions.previous()) ??
+        this.documentLocationOf(this._startAddress),
       ...(error ? { error } : {}),
     };
     this._announcedStop = true;
@@ -4369,6 +4438,17 @@ export class Game<T extends M = {}> {
     return previewAddress;
   }
 
+  protected showPreviewEnding(): void {
+    const ending = this._previewEnding;
+    if (!ending) {
+      return;
+    }
+    this.module.ui.style.update("continue_indicator", { display: "none" });
+    if (ending.kind === "fin") {
+      this.module.ui.openEnding();
+    }
+  }
+
   protected forgetPendingPreview(generation: number): void {
     if (this._pendingPreview?.generation === generation) {
       this._pendingPreview = null;
@@ -4379,6 +4459,7 @@ export class Game<T extends M = {}> {
     previewAddress: ProgramAddress,
     executed: GameExecutedParams,
   ): void {
+    this.showPreviewEnding();
     this.notifyExecuted(executed);
     for (const k of this._moduleNames) {
       this._modules[k]?.onPreview();

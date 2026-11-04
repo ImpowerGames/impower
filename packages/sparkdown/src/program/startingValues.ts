@@ -2,6 +2,7 @@ import { tableFromPairs } from "../runtime/evaluation";
 import { JsonSerialisation } from "../runtime/JsonSerialisation";
 import { VariableAssignment } from "../runtime/VariableAssignment";
 import type { InkObject } from "../runtime/Object";
+import { stdLibMarkerMapName } from "../runtime/StdLibMarker";
 import {
   AbstractValue,
   BoolValue,
@@ -101,7 +102,7 @@ export const literalOfValue = (
   }
   if (value instanceof ObjectValue && !value.metatable && depth < 8) {
     const map = value.value as Map<string, AbstractValue>;
-    if (map.has("__closure_fn") || map.has("__stdlib_fn")) {
+    if (map.has("__closure_fn") || stdLibMarkerMapName(map) !== null) {
       return undefined;
     }
     const table: LiteralTable = { entries: [] };

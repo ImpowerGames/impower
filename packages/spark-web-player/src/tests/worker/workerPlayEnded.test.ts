@@ -224,7 +224,8 @@ describe("PLAY in the worker reaching the end of the story", () => {
       ]);
       expect(launchStates(h).at(-1)).toBe("preview");
       expect(h.controller.playing).toBe(false);
-      expect(h.refs.endingStatus.hidden).toBe(true);
+      expect(h.refs.endingStatus.hidden).toBe(false);
+      expect(h.refs.endingStatus.textContent).toBe("Story ran out");
       expect(h.workspace.selections.map((s: any) => s.selectedRange.start.line)).toEqual([
         ended.location.range.start.line,
       ]);

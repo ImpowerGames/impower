@@ -1,0 +1,182 @@
+import { describe, expect, test, vi } from "vitest";
+import { testCompiler, testStory } from "../engineUnderTest";
+
+function compileAndCapture(body: string): {
+  errors: string[];
+  recorded: unknown[];
+} {
+  const source = `external host_record(v)
+scene start
+  & run()
+  done
+end
+
+function run()
+${body}
+end
+`;
+  const compiler = testCompiler();
+  compiler.configure({
+    files: [
+      {
+        uri: "inmemory:///main.sd",
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text: source,
+        version: 1,
+        languageId: "sparkdown",
+      },
+    ],
+  });
+  const result = compiler.compile({
+    textDocument: { uri: "inmemory:///main.sd" },
+  });
+  if (!result.program.chunks) {
+    return { errors: ["NO_COMPILED"], recorded: [] };
+  }
+  const story = testStory(result.program.chunks);
+  const errors: string[] = [];
+  const recorded: unknown[] = [];
+  story.BindExternalFunction("host_record", (v: unknown) => {
+    recorded.push(v);
+    return v;
+  });
+  story.onError = (m: string) => errors.push(m);
+  story.ContinueMaximally();
+  return { errors, recorded };
+}
+
+describe("standard-library function identity", () => {
+  test("two reads of one builtin are the same value", () => {
+    const { errors, recorded } = compileAndCapture(`host_record(rawequal(print, print))
+local f = print
+host_record(rawequal(f, f))
+host_record(print == print)
+local t = {}
+t[print] = 1
+host_record(t[print])
+host_record(rawequal(string.upper, string.upper))
+host_record(rawequal(print, tostring))`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([true, true, true, 1, true, false]);
+  });
+
+  test("a builtin cannot be given a field or metatable", () => {
+    const { recorded } = compileAndCapture(`host_record(pcall(function() print.x = 1 end))
+host_record(pcall(rawset, print, "x", 1))
+host_record(pcall(setmetatable, print, {}))
+host_record(getmetatable(print) == nil)`);
+    expect(recorded).toEqual([false, false, false, true]);
+  });
+
+  test("table library mutators refuse a builtin", () => {
+    const { recorded } = compileAndCapture(`host_record(pcall(table.clear, print))
+host_record(pcall(table.insert, print, 1))
+host_record(pcall(table.remove, print))
+host_record(pcall(table.sort, print))
+host_record(pcall(table.move, {1}, 1, 1, 1, print))
+host_record(pcall(table.freeze, print))
+host_record(pcall(table.clone, print))
+host_record(pcall(rawset, print, "x", 1))
+host_record(rawequal(print, print))`);
+    expect(recorded).toEqual([
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+    ]);
+  });
+
+  test("a table holding a __stdlib_fn field stays writable", () => {
+    const { errors, recorded } = compileAndCapture(`local t = { __stdlib_fn = "print" }
+host_record(pcall(function() t.x = 1 end))
+host_record(pcall(rawset, t, "y", 2))
+host_record(t.x)
+host_record(rawget(t, "y"))
+host_record(type(t))
+host_record(t == print)
+host_record(rawequal(t, print))
+host_record(pcall(t, "x"))
+host_record(tostring(t) == tostring(print))`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([
+      true,
+      true,
+      1,
+      2,
+      "table",
+      false,
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  test("a builtin keeps its identity across a save loaded by a fresh runtime", async () => {
+    const source = `external host_record(v)
+scene start
+  & setup()
+  First line.
+  & check()
+  done
+end
+
+function setup()
+held = print
+keyed = {}
+keyed[{}] = 2
+keyed[tostring] = 1
+end
+
+function check()
+host_record(rawequal(held, print))
+host_record(held == print)
+host_record(keyed[tostring])
+end
+`;
+    const compiler = testCompiler();
+    compiler.configure({
+      files: [
+        {
+          uri: "inmemory:///main.sd",
+          type: "script",
+          name: "main",
+          ext: "sd",
+          text: source,
+          version: 1,
+          languageId: "sparkdown",
+        },
+      ],
+    });
+    const result = compiler.compile({
+      textDocument: { uri: "inmemory:///main.sd" },
+    });
+    const errors: string[] = [];
+    const recorded: unknown[] = [];
+    const bind = (story: ReturnType<typeof testStory>) => {
+      story.BindExternalFunction("host_record", (v: unknown) => {
+        recorded.push(v);
+        return v;
+      });
+      story.onError = (m: string) => errors.push(m);
+    };
+    const first = testStory(result.program.chunks!);
+    bind(first);
+    first.Continue();
+    const saved = first.state.ToJson();
+    vi.resetModules();
+    const fresh = await import("../engineUnderTest");
+    const second = fresh.testStory(result.program.chunks!);
+    bind(second);
+    second.state.LoadJson(saved);
+    second.ContinueMaximally();
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([true, true, 1]);
+  });
+});

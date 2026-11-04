@@ -5,15 +5,15 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
 import { readRepos } from "../../repos.mjs";
-import { readRecord, updateRecord, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, closedBeforeRun, writerKnownEnded, HISTORY, takeSnapshot, readIssueScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs, completingTickets, filedActions } from "./issue-run.mjs";
+import { readRecord, updateRecord, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, closedBeforeRun, writerKnownEnded, HISTORY, takeSnapshot, readIssueScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs, completingTickets, filedActions, mainVerdict, failedJobsOf, MAIN_BRANCH, MAIN_WORKFLOW } from "./issue-run.mjs";
 import { intent, outcome, ensureSaved, autoCheckpoint, operationText, landing, landingText, fetchState, stateBranch } from "./checkpoint.mjs";
 import { FIRST_CHECKPOINT_ROUND, roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit, threadName } from "./review-checkpoint.mjs";
 
-export { parseCriteria };
+export { parseCriteria, mainVerdict };
 
-export const TARGET = "main";
+export const TARGET = MAIN_BRANCH;
 export const REPOSITORY_GATES = ["test-suite"];
-export const REPOSITORY_WORKFLOW = "Test Suite";
+export const REPOSITORY_WORKFLOW = MAIN_WORKFLOW;
 const MERGEABLE = new Set(["CLEAN", "HAS_HOOKS"]);
 const OPEN = new Set(["intent", "uncertain"]);
 const SHA = /^[0-9a-f]{40}$/;
@@ -61,13 +61,24 @@ function ciBlockers(checks, required, head) {
   return out;
 }
 
-export function mainVerdict(runs) {
-  if (!Array.isArray(runs)) return { verdict: "none", reason: typeof runs === "string" ? runs : "main's workflow runs could not be read" };
-  const sorted = [...runs].sort((a, b) => (Date.parse(b.createdAt ?? "") || 0) - (Date.parse(a.createdAt ?? "") || 0));
-  const decided = sorted.find((r) => String(r.status).toLowerCase() === "completed" && !["cancelled", "skipped"].includes(String(r.conclusion).toLowerCase()));
-  if (!decided) return { verdict: "none", reason: sorted.length ? `no completed, uncancelled push run of ${REPOSITORY_WORKFLOW} on ${TARGET}` : `no push run of ${REPOSITORY_WORKFLOW} on ${TARGET}` };
-  const green = PASSED.has(String(decided.conclusion).toUpperCase());
-  return { verdict: green ? "green" : "red", head: decided.headSha ?? null, run: decided.id ?? null, conclusion: decided.conclusion ?? null, url: decided.url ?? null };
+export function redRepair(verdict, client, git, head) {
+  if (verdict.verdict !== "red") return null;
+  const containsRed = SHA.test(verdict.head ?? "") ? git.isAncestor(verdict.head, head) : false;
+  return { containsRed, failedJobs: failedJobsOf(client, verdict.run) };
+}
+
+function repairGaps(verdict, repair, checks, head) {
+  if (!repair) return [`the red run's jobs were not read`];
+  const gaps = [];
+  if (!repair.containsRed) gaps.push(`head ${short(head)} does not contain ${short(verdict.head)}, the commit main's run failed on`);
+  if (typeof repair.failedJobs === "string") return [...gaps, repair.failedJobs];
+  if (!repair.failedJobs.length) return [...gaps, `no failed job of run ${verdict.run} could be read`];
+  for (const name of repair.failedJobs) {
+    const c = checks.find((x) => x.workflow === REPOSITORY_WORKFLOW && x.name === name);
+    if (!c) gaps.push(`job ${name} has not run on ${short(head)}`);
+    else if (c.result !== "passed") gaps.push(`job ${name} was ${c.result} on ${short(head)}`);
+  }
+  return gaps;
 }
 
 const MERGE_STATES = {
@@ -89,14 +100,15 @@ export function gatherFacts({ record, ticket, pr, client, git }) {
   git.fetch(pr);
   const originMain = git.main();
   const containsMain = git.isAncestor(originMain, pull.head);
-  return { pull, originMain, protection, comments, state, mainRuns, filed, chain: git.cleanChain(pull.head, originMain), containsMain, ciMain: containsMain ? originMain : git.mergeBase(pull.head, originMain) };
+  const redRepairFacts = redRepair(mainVerdict(mainRuns), client, git, pull.head);
+  return { pull, originMain, protection, comments, state, mainRuns, redRepair: redRepairFacts, filed, chain: git.cleanChain(pull.head, originMain), containsMain, ciMain: containsMain ? originMain : git.mergeBase(pull.head, originMain) };
 }
 
 function acceptanceOn(decisions, chain) {
   const direct = acceptanceApplies(decisions, chain[0]);
   if (direct.applies || !direct.decision || !chain.includes(direct.decision.head)) return direct;
   const there = acceptanceApplies(decisions, direct.decision.head);
-  return there.applies ? { ...there, reason: `${there.reason}; the head adds only clean merges of ${TARGET} after it` } : direct;
+  return there.applies ? { ...there, reason: `${there.reason}; the head adds only clean merges of ${TARGET} and tree-identical commits after it` } : direct;
 }
 
 const requiresDependencies = (record, t, ticket) => t.number === ticket || (!t.delivered && !closedBeforeRun(record, t));
@@ -158,7 +170,7 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
     if (a.applies) { disposition = "accepted-unreviewed"; covered = a.decision.head; acceptance = { id: a.decision.id, comment: a.decision.comment, head: a.decision.head, range: a.decision.range }; }
     else {
       const unreviewed = e.range?.commits?.length ? `; unreviewed after it: ${e.range.commits.map((c) => `${short(c.sha)} ${c.subject}`).join("; ")}` : "";
-      blockers.push(`head ${head} is not the last independently reviewed head ${e.reviewedHead ?? "(none)"} or a clean merge of ${TARGET} on top of it${unreviewed}, and no acceptance covers it (${a.reason}); the writer's next review round, or a checkpoint decision on this head, settles it`);
+      blockers.push(`head ${head} is not the last independently reviewed head ${e.reviewedHead ?? "(none)"} or reached from it only through clean merges of ${TARGET} and commits that change no file${unreviewed}, and no acceptance covers it (${a.reason}); the writer's next review round, or a checkpoint decision on this head, settles it`);
     }
   }
   const latest = decisions.filter((d) => d.effective).at(-1);
@@ -175,8 +187,10 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
   const required = [...new Set([...REPOSITORY_GATES, ...protection.required])];
   const checks = classifyChecks(pull.checks, required);
   blockers.push(...ciBlockers(checks, required, head));
-  const mainCi = mainVerdict(facts.mainRuns);
-  if (mainCi.verdict === "red") blockers.push(`${TARGET}'s own CI is red: the latest completed push run of ${REPOSITORY_WORKFLOW} on ${TARGET} concluded ${mainCi.conclusion} at ${mainCi.head ?? "an unknown commit"}${mainCi.url ? ` (${mainCi.url})` : ""}; no merge lands on a red ${TARGET}, so fix or revert it and let its run go green first`);
+  const verdict = mainVerdict(facts.mainRuns);
+  const unrepaired = verdict.verdict === "red" ? repairGaps(verdict, facts.redRepair, checks, head) : [];
+  const mainCi = verdict.verdict === "red" ? { ...verdict, repair: unrepaired.length === 0 } : verdict;
+  if (unrepaired.length) blockers.push(`${TARGET}'s own CI is red: the latest completed push run of ${REPOSITORY_WORKFLOW} on ${TARGET} concluded ${mainCi.conclusion} at ${mainCi.head ?? "an unknown commit"}${mainCi.url ? ` (${mainCi.url})` : ""}; only a PR that repairs it merges on a red ${TARGET}, and this one does not: ${unrepaired.join("; ")}`);
   if (pull.mergeable === "CONFLICTING") blockers.push(`PR #${pr} conflicts with ${TARGET}`);
   if (!MERGEABLE.has(pull.mergeState)) blockers.push(mergeStateBlocker(pull.mergeState));
   if (protection.mergeQueue) blockers.push(`${TARGET} requires a merge queue, which this gate does not drive; the maintainer merges`);
@@ -315,7 +329,7 @@ export function finalReport(record, snapshot, v) {
   const rows = slices(record, snapshot).map((s) => {
     const how = s.history ? HISTORY : !s.mergeCommit ? (s.open.length ? `open: PR ${s.open.map((p) => `#${p}`).join(", ")}` : "no merged PR")
       : !s.gate ? `merged as \`${short(s.mergeCommit)}\` outside this run's merge gate (by the maintainer or before this run merged)`
-      : s.gate.disposition === "reviewed" ? `merged by the coordinator as \`${short(s.mergeCommit)}\`; independently reviewed through \`${short(s.gate.reviewedHead)}\`${s.gate.mergedSince.length ? ` plus ${s.gate.mergedSince.length} clean merge${s.gate.mergedSince.length > 1 ? "s" : ""} of ${TARGET}` : ""}`
+      : s.gate.disposition === "reviewed" ? `merged by the coordinator as \`${short(s.mergeCommit)}\`; independently reviewed through \`${short(s.gate.reviewedHead)}\`${s.gate.mergedSince.length ? ` plus ${s.gate.mergedSince.length} content-preserving commit${s.gate.mergedSince.length > 1 ? "s" : ""} (clean merges of ${TARGET} or tree-identical commits)` : ""}`
       : `merged by the coordinator as \`${short(s.mergeCommit)}\` under acceptance \`${s.gate.acceptance.id}\`: reviewed through \`${short(s.gate.reviewedHead)}\`, \`${short(s.gate.acceptance.range?.from)}..${short(s.gate.acceptance.range?.to)}\` accepted unreviewed`;
     const landed = !s.gate ? "" : s.baseMoved ? `; it landed on ${TARGET} \`${short(s.mergedOnto)}\`, while its CI covered ${TARGET} \`${short(s.gate.ciMain ?? s.gate.originMain)}\`, so CI never ran on that combination before ${TARGET}'s own run` : s.baseMoved === null ? `; where it landed on ${TARGET} could not be read` : "";
     const by = s.deliveredBy && !s.history ? `delivered by #${s.deliveredBy.ticket}'s PR: ` : "";
@@ -481,6 +495,7 @@ export function integrationClient(names, checkout, { exec = execFileSync, spawn 
       return { required: [...required], mergeQueue, source: sources.join("; ") };
     },
     mainRuns: (branch) => JSON.parse(run(["run", "list", "--repo", repository, "--workflow", REPOSITORY_WORKFLOW, "--branch", branch, "--event", "push", "--limit", "10", "--json", "databaseId,headSha,status,conclusion,createdAt,url"])).map((r) => ({ id: r.databaseId, headSha: r.headSha, status: r.status, conclusion: r.conclusion, createdAt: r.createdAt, url: r.url })),
+    mainRunJobs: (id) => JSON.parse(run(["api", "--paginate", "--slurp", `repos/${repository}/actions/runs/${id}/jobs?per_page=100`])).flatMap((p) => p.jobs ?? []).map((j) => ({ name: j.name, conclusion: j.conclusion })),
     merge: (pr, head) => {
       const r = spawn("gh", mergeArgs(repository, pr, head), { cwd: checkout, encoding: "utf8", windowsHide: true, timeout: 120000 });
       if (r.error) throw r.error;
@@ -506,6 +521,7 @@ export function integrationGit(checkout, { fetch, main } = {}) {
       const chain = [head];
       for (let at = head; ;) {
         const parents = git("rev-list", "--parents", "-n", "1", at).split(" ").slice(1);
+        if (parents.length === 1 && git("rev-parse", `${at}^{tree}`) === git("rev-parse", `${parents[0]}^{tree}`)) { chain.push(parents[0]); at = parents[0]; continue; }
         if (parents.length !== 2 || !isAncestor(parents[1], target)) return chain;
         if (git("show", "--remerge-diff", "--format=", at) !== "") return chain;
         chain.push(parents[0]);
