@@ -22,7 +22,287 @@ const readJsonFile = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const write = (name, value) => { const file = path.join(tmp, name); fs.writeFileSync(file, typeof value === "string" ? value : JSON.stringify(value)); return file; };
 const started = [];
 
+function writerAccountingChecks() {
+  const checkout = path.join(tmp, "accounting-checkout");
+  fs.mkdirSync(checkout);
+  git(checkout, "init", "-q", "-b", "main");
+  git(checkout, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
+  const GB = 2 ** 30;
+  const ids = { coordinator: "local_00000000-0000-4000-8000-000000000001", shared: "00000000-0000-4000-8000-000000000002", other: "00000000-0000-4000-8000-000000000003", assignment: "00000000-0000-4000-8000-000000000004", otherAssignment: "00000000-0000-4000-8000-000000000005", parent: "00000000-0000-4000-8000-000000000006" };
+  const record = run.initRecord({ record: path.join(tmp, "accounting-run.json"), checkout, repository: "acme/widgets", issue: 100, coordinator: ids.coordinator, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "medium", coordinatorMode: "bypassPermissions", slug: "writer-accounting", invocation: "Use orchestrate-issues for #100." }, { defaults, freeBytes: 100 * GB, totalMemory: 16 * GB }).record;
+  const ticket = (number) => ({ number, title: `ticket ${number}`, state: "open", parent: 100, container: false, effort: "Medium", delivered: false, blockers: [], prs: [], worktrees: [] });
+  const owner = (id, extra = {}) => ({ route: "codex-app", model: "gpt-6.1-sol", effort: "medium", handle: { kind: "session", id, host: os.hostname() }, since: record.coordinator.since, ...extra });
+  const held = (writer) => ({ owner: writer, pending: null, history: [], results: [] });
+  const observations = { sessions: { [ids.shared]: { state: "running" }, [ids.other]: { state: "running" } } };
+  const plan = (tickets, more = {}) => run.planDispatch({ record: { ...record, tickets }, snapshot: { repository: record.repository, issue: { number: 100, state: "open" }, tickets: [ticket(101), ticket(102), ticket(103)] }, preflights: [{ route: "claude-cli", model: record.writer.model, verdicts: [101, 102, 103].map((number) => ({ ticket: number, effort: "medium", verdict: "available" })) }], freeBytes: 100 * GB, defaults, census: () => [], observations, ...more });
+  const shared = owner(ids.shared, { adopted: { pr: 500, rounds: 1 } });
+  const aliases = plan({ 101: held(shared), 102: held(structuredClone(shared)) });
+  assert.equal(aliases.concurrency.active, 1, "two ticket references to one observed writer consume one place");
+  assert.equal(aliases.tickets.find((entry) => entry.number === 103).action, "dispatch");
+  assert.equal(plan({ 101: held(shared), 102: held(owner(ids.other, { adopted: { pr: 500, rounds: 1 } })) }).concurrency.active, 2, "distinct writers retain distinct places even when their PR is shared");
+  const pending = { operation: "dispatch", launchId: ids.assignment, route: "codex-app", host: os.hostname(), artifactParent: tmp, worktree: path.join(tmp, "pending-tree") };
+  assert.equal(plan({ 101: { pending }, 102: { pending: structuredClone(pending) } }).concurrency.active, 1, "duplicate references to one pending assignment consume one place");
+  assert.equal(plan({ 101: { pending }, 102: { pending: { ...pending, launchId: ids.otherAssignment } } }).concurrency.active, 2, "different partial starts remain reserved until reconciled");
+  const sameTask = owner("/root/writer", { handle: { kind: "task", id: "/root/writer", host: os.hostname() } });
+  assert.equal(plan({ 101: held(sameTask), 102: held({ ...sameTask, launchId: ids.otherAssignment }) }).concurrency.active, 2, "an unscoped task name alone does not prove that two assignments share a writer");
+  assert.equal(plan({ 101: held(shared), 102: { history: [{ released: "observed exit" }] } }).concurrency.active, 1, "normal release removes the finished assignment without erasing another writer");
+  assert.equal(run.defaultConcurrency({ totalMemory: 16 * GB }).limit, 3);
+  assert.doesNotMatch(run.defaultConcurrency({ totalMemory: 16 * GB }).basis, /reviewer slots/, "the deliberate writer bound is independent of the eight reviewer slots");
+
+  const resources = { sampledAt: new Date().toISOString(), physicalAvailableBytes: 3.5 * GB, commitHeadroomBytes: 27 * GB, source: "fixture: direct memory counters" };
+  const foreign = (tickets, extra = {}) => ({ ...structuredClone(record), runId: "00000000-0000-4000-8000-000000000007", issue: 200, coordinator: { ...record.coordinator, session: ids.parent }, tickets, ...extra });
+  const machine = (other, more = {}) => ({ host: os.hostname(), scope: { gitCommonDirectory: git(checkout, "rev-parse", "--path-format=absolute", "--git-common-dir") }, records: [{ recordPath: path.join(tmp, "foreign-run.json"), record: other }], diagnostics: [], resources, ...more });
+  const machinePlan = (other, more = {}) => plan({}, { machine: machine(other), ...more });
+  const native = owner("/root/writer", { launchId: ids.assignment, handle: { kind: "task", id: "/root/writer", host: os.hostname() }, brief: { coordinator: ids.parent } });
+  assert.equal(plan({ 101: held(native), 102: held(structuredClone(native)) }, { observations: { tasks: { "/root/writer": { state: "running" } } } }).concurrency.active, 1, "an immutable native assignment deduplicates its ticket aliases");
+  const scoped = (other, state) => ({ ...observations, runs: { [other.runId]: { tasks: { "/root/writer": { state } } } } });
+  const other = foreign({ 201: held(native), 202: { pending: { ...pending, launchId: ids.otherAssignment } } });
+  const occupied = machinePlan(other, { observations: scoped(other, "running") });
+  assert.equal(occupied.concurrency.machine.executing, 1);
+  assert.equal(occupied.concurrency.machine.unknown, 1);
+  assert.equal(occupied.concurrency.capacityNow, 2, "a running writer consumes a shared place and unobserved foreign intent stays visible");
+  const pendingDir = run.launchDirOf(other.tickets[202].pending, 202);
+  const inFlight = machinePlan(other, { observations: scoped(other, "running"), census: () => [{ pid: 424241, name: "node", cmd: `node worker.mjs "${pendingDir}"` }] });
+  assert.equal(inFlight.concurrency.machine.executing, 1, "a process mentioning a foreign pending launch directory is insufficient execution evidence");
+  assert.equal(inFlight.concurrency.machine.unknown, 1);
+  const abandoned = foreign(Object.fromEntries([201, 202, 203].map((number) => [number, { pending: { ...pending, launchId: `00000000-0000-4000-8000-000000000${number}` } }])));
+  const abandonedBefore = structuredClone(abandoned);
+  const abandonedPlan = machinePlan(abandoned);
+  assert.equal(abandonedPlan.concurrency.machine.unknown, 3);
+  assert.equal(abandonedPlan.concurrency.capacityNow, 3, "unobserved foreign intents do not permanently hold machine admission");
+  assert.deepEqual(abandoned, abandonedBefore, "unknown intent remains owned for explicit reconciliation");
+  const aliasesAcrossRuns = plan({ 101: held(shared) }, { machine: machine(foreign({ 201: held(structuredClone(shared)) })), observations: { ...observations, runs: { [other.runId]: observations } } });
+  assert.equal(aliasesAcrossRuns.concurrency.machine.executing, 1, "the same host/session identity is one writer across records");
+  const desktopId = `local_${ids.shared}`;
+  const desktop = { ...owner(desktopId), route: "claude-desktop" };
+  const desktopObserved = { sessions: { [desktopId]: { state: "running" }, ...observations.sessions } };
+  const desktopRun = foreign({ 201: held(desktop), 202: held(shared), 203: held({ ...desktop, handle: { ...desktop.handle, host: "another-machine" } }) });
+  const desktopPlan = plan({ 101: held(desktop), 102: held(structuredClone(desktop)) }, { machine: machine(desktopRun), observations: { ...desktopObserved, runs: { [desktopRun.runId]: desktopObserved } } });
+  assert.equal(desktopPlan.concurrency.active, 1, "adopted desktop session aliases share a local place");
+  assert.equal(desktopPlan.concurrency.machine.executing, 2, "cross-run desktop aliases deduplicate without merging a bare session namespace");
+  assert.equal(desktopPlan.concurrency.machine.foreign, 1);
+  const [sharedWriter] = aliasesAcrossRuns.concurrency.machine.writers;
+  assert.equal(sharedWriter.state, "executing");
+  assert.deepEqual(sharedWriter.references.map(({ runId, ticket }) => [runId, ticket]).sort(), [[record.runId, 101], [other.runId, 201]].sort(), "one writer retains both run and ticket references");
+  const starting = { ...record, tickets: { 101: { pending }, 102: { pending: structuredClone(pending) } } };
+  const occupiedRun = foreign({ 201: held(shared), 202: held(owner(ids.other)) });
+  const startOptions = { starting: 101, observations: { runs: { [occupiedRun.runId]: observations } }, census: () => [] };
+  const startLoad = run.checkMachineStart(starting, machine(occupiedRun), startOptions);
+  assert.equal(startLoad.executing, 2);
+  assert.equal(startLoad.pending, 0, "all pending aliases of the proposed start share its exemption");
+  starting.tickets[103] = { pending: { ...pending, launchId: ids.otherAssignment } };
+  assert.throws(() => run.checkMachineStart(starting, machine(occupiedRun), startOptions), (error) => {
+    assert.match(error.message, /Machine writer places are full/);
+    for (const ticket of ["#201", "#202", "#103"]) assert.ok(error.message.includes(ticket));
+    return true;
+  }, "unrelated pending and observed writers still fill capacity");
+  const duplicateTaskNames = plan({ 101: held({ ...native, launchId: ids.otherAssignment, brief: { coordinator: ids.coordinator } }) }, { machine: machine(foreign({ 201: held(native) })), observations: { tasks: { "/root/writer": { state: "running" } }, runs: { [other.runId]: { tasks: { "/root/writer": { state: "running" } } } } } });
+  assert.equal(duplicateTaskNames.concurrency.machine.executing, 2, "parent-scoped task paths do not merge unrelated writers");
+  const contactChanged = structuredClone(other);
+  contactChanged.tickets[201].owner.coordinator = ids.coordinator;
+  assert.equal(machinePlan(contactChanged, { observations: scoped(contactChanged, "running") }).concurrency.machine.executing, 1, "a mutable reporting contact does not change the native writer's identity");
+  const copiedAssignment = plan({ 101: held({ ...native, coordinator: ids.coordinator }) }, { machine: machine(foreign({ 201: held(native) })), observations: { tasks: { "/root/writer": { state: "running" } }, runs: { [other.runId]: { tasks: { "/root/writer": { state: "running" } } } } } });
+  assert.equal(copiedAssignment.concurrency.machine.executing, 1, "copied references to one immutable assignment remain one writer after contact changes");
+  const retained = foreign({ 201: { ...held(native), requests: [{ id: "waiting-decision", state: "requested" }] } });
+  const retainedBefore = JSON.stringify(retained);
+  const idle = machinePlan(retained, { observations: scoped(retained, "completed") });
+  assert.equal(idle.concurrency.machine.executing, 0, "a completed native turn retaining its assignment is not executing load");
+  assert.equal(idle.concurrency.machine.retained, 1);
+  assert.equal(JSON.stringify(retained), retainedBefore, "capacity accounting never releases or modifies another run's retained ownership");
+  const unknown = machinePlan(retained);
+  assert.equal(unknown.concurrency.machine.unknown, 1, "an unobserved native owner remains explicitly unknown");
+  assert.ok(unknown.concurrency.machine.diagnostics.some((entry) => entry.next && entry.recordPath), "unknown ownership names the record and the evidence needed");
+  assert.ok(unknown.concurrency.capacityNow > 0, "fresh healthy resources remain a usable fallback for unknown migration state");
+  const missingRecord = { pointerPath: path.join(tmp, "missing-pointer.json"), recordPath: path.join(tmp, "missing-run.json"), reason: "ENOENT", next: "Ask the recorded coordinator to locate its run record; preserve this pointer" };
+  const missing = plan({}, { machine: machine(foreign({}), { diagnostics: [missingRecord] }) });
+  assert.deepEqual(missing.concurrency.machine.diagnostics.find((entry) => entry.recordPath === missingRecord.recordPath), missingRecord);
+  assert.ok(missing.concurrency.capacityNow > 0, "a missing historical record is reported without inventing an empty census or permanent global hold");
+  for (const [physical, commit] of [[0.4, 2.4], [1.19, 17.68], [3.5, 2.4]]) {
+    const pressured = plan({}, { machine: machine(foreign({}), { resources: { ...resources, physicalAvailableBytes: physical * GB, commitHeadroomBytes: commit * GB } }) });
+    assert.equal(pressured.concurrency.capacityNow, 0, `physical ${physical} GiB and direct commit ${commit} GiB do not admit a source writer`);
+    assert.ok(pressured.tickets.every((entry) => entry.action === "wait-capacity"));
+  }
+  for (const physical of [3.4, 3.6]) assert.ok(plan({}, { machine: machine(foreign({}), { resources: { ...resources, physicalAvailableBytes: physical * GB } }) }).concurrency.capacityNow > 0, "the observed successful source/review envelope remains admitted");
+  const meminfo = "MemAvailable: 3670016 kB\nCommitLimit: 4194304 kB\nCommitted_AS: 8388608 kB\n";
+  for (const mode of ["0", "1", "2"]) {
+    const memory = run.linuxWriterMemory(meminfo, mode);
+    assert.equal(memory.physicalAvailableBytes, 3.5 * GB);
+    assert.equal(memory.commitHeadroomBytes, mode === "2" ? -4 * GB : null);
+    const linux = plan({}, { machine: machine(foreign({}), { resources: memory }) });
+    assert.equal(linux.concurrency.capacityNow, mode === "2" ? 0 : 3, "only strict Linux overcommit policy enforces the commit budget");
+  }
+  const pendingBefore = JSON.stringify(other);
+  assert.equal(machinePlan(other, { observations: { sessions: { [ids.parent]: { state: "absent" } }, runs: { [other.runId]: { tasks: { "/root/writer": { state: "running" } } } } } }).concurrency.machine.executing, 1);
+  assert.equal(JSON.stringify(other), pendingBefore, "coordinator disappearance neither clears a live writer nor withdraws a partial start");
+  const processHandle = { kind: "process", host: os.hostname(), pid: 424242, start: "fixture-start-a", launchDir: path.join(tmp, "detached-launch") };
+  const detached = owner(ids.other, { route: "codex-cli", handle: processHandle });
+  const processRun = foreign({ 201: held(detached), 202: held(structuredClone(detached)) });
+  assert.equal(machinePlan(processRun, { identify: () => ({ pid: processHandle.pid, start: processHandle.start }) }).concurrency.machine.executing, 1, "recorded host/PID/start identity deduplicates the same running process");
+  const survivor = { pid: 424243, start: "fixture-child-start" };
+  const detachedRun = foreign({ 201: held(detached) });
+  const observerOnly = machinePlan(detachedRun, { identify: (pid) => pid === survivor.pid ? survivor : null, census: () => [{ pid: survivor.pid, name: "node", cmd: `node observer.mjs "${processHandle.launchDir}"` }] });
+  assert.equal(observerOnly.concurrency.machine.executing, 0, "a live directory observer supplies no writer execution evidence");
+  assert.equal(observerOnly.concurrency.machine.unknown, 1);
+  const childEvidence = { host: os.hostname(), wrapper: { pid: processHandle.pid, start: processHandle.start }, process: survivor };
+  const withChild = (evidence, identify = (pid) => pid === survivor.pid ? survivor : null) => machinePlan(detachedRun, { identify, observations: { runs: { [detachedRun.runId]: { writerChildren: { 201: evidence } } } } });
+  const wrapperGone = withChild(childEvidence);
+  assert.equal(wrapperGone.concurrency.machine.executing, 1, "a positively observed and still-matching writer child outlives its wrapper");
+  assert.deepEqual(wrapperGone.concurrency.machine.writers[0].references[0].process, survivor);
+  const direct = { ...detached, handle: { ...processHandle, ...survivor } };
+  const sharedChild = plan({ 101: held(direct) }, { machine: machine(detachedRun), identify: (pid) => pid === survivor.pid ? survivor : null, observations: { runs: { [detachedRun.runId]: { writerChildren: { 201: childEvidence } } } } }).concurrency.machine;
+  assert.equal(sharedChild.executing, 1, "a directly recorded writer and a surviving child with the same live identity share one place");
+  assert.deepEqual(sharedChild.writers[0].identity, ["process", os.hostname(), survivor.pid, survivor.start]);
+  assert.deepEqual(sharedChild.writers[0].references.map(({ ticket }) => ticket).sort(), [101, 201]);
+  assert.deepEqual(sharedChild.writers[0].references.find(({ ticket }) => ticket === 201).recordedIdentity, ["process", os.hostname(), processHandle.pid, processHandle.start]);
+  assert.equal(withChild({ ...childEvidence, wrapper: { ...childEvidence.wrapper, start: "different-wrapper" } }).concurrency.machine.unknown, 1);
+  assert.equal(withChild(childEvidence, () => ({ ...survivor, start: "reused-child" })).concurrency.machine.unknown, 1);
+  const unreadable = machinePlan(foreign({ 201: held(detached) }), { identify: () => { throw new Error("fixture access denied"); }, census: () => [] });
+  assert.equal(unreadable.concurrency.machine.unknown, 1, "a failed identity probe is not exit evidence even with an empty census");
+  const reused = machinePlan(foreign({ 201: held(detached), 202: held({ ...detached, handle: { ...processHandle, start: "fixture-start-b", launchDir: path.join(tmp, "other-launch") } }) }), { identify: () => ({ pid: processHandle.pid, start: "fixture-start-b" }), census: () => null });
+  assert.equal(reused.concurrency.machine.executing, 1);
+  assert.equal(reused.concurrency.machine.unknown, 1, "PID reuse with an unreadable descendant census does not settle the former writer");
+  const foreignHost = machinePlan(foreign({ 201: held({ ...detached, handle: { ...processHandle, host: "another-machine" } }) }));
+  assert.equal(foreignHost.concurrency.machine.executing, 0, "a positively different host consumes no local machine place");
+  assert.equal(foreignHost.concurrency.machine.foreign, 1, "foreign ownership stays visible rather than being silently discarded");
+  const claimRecord = structuredClone(record);
+  const claimBefore = JSON.stringify(claimRecord);
+  const healthy = plan({}, { machine: machine(foreign({})) });
+  const healthyFile = write("accounting-healthy-plan.json", healthy);
+  assert.throws(() => run.claim(claimRecord, { plan: healthyFile, ticket: 101, worktree: path.join(tmp, "claim-tree"), branch: "fix/101-claim-tree", artifactParent: tmp, defaults, machine: machine(foreign({}), { resources: { ...resources, physicalAvailableBytes: 0.4 * GB } }) }), /physical|memory|resources/i, "claim remeasures admission instead of trusting a previously healthy plan");
+  assert.equal(JSON.stringify(claimRecord), claimBefore, "an admission refusal creates no partial claim");
+  console.log("writer accounting focused checks passed");
+  const resumeFile = path.join(tmp, "accounting-run.json");
+  const resumeOwner = { ...detached, route: "claude-cli", model: record.writer.model, permissionMode: "bypassPermissions", artifactParent: tmp, sessionId: ids.shared };
+  const initial = run.updateRecord(resumeFile, { coordinator: ids.coordinator, expectRevision: record.revision }, (r) => { r.tickets[101] = held(resumeOwner); }).record;
+  const resumePrompt = write("accounting-resume-prompt.txt", "Continue the scratch assignment.");
+  let spawned = 0;
+  const resume = (observe, extra = {}) => run.resumeWriter(resumeFile, {
+    coordinator: ids.coordinator, expectRevision: run.readRecord(resumeFile).revision,
+    ticket: 101, executable: process.execPath, args: ["-p", "--model", record.writer.model, "--effort", "medium", "--permission-mode", "bypassPermissions", "--resume", ids.shared],
+    prompt: resumePrompt, identify: () => null, census: () => [], observe,
+    spawner: () => { spawned++; return { started: false, reason: "fixture" }; }, ...extra,
+  });
+  const resumeDirs = () => fs.readdirSync(tmp).filter((name) => name.startsWith("resume-101-"));
+  const low = (values) => () => machine(foreign({}), { resources: { ...resources, ...values } });
+  assert.throws(() => resume(low({ physicalAvailableBytes: 0.4 * GB })), /Available physical memory/);
+  assert.throws(() => resume(low({ commitHeadroomBytes: 2.4 * GB })), /Direct commit headroom/);
+  assert.equal(spawned, 0);
+  assert.deepEqual(resumeDirs(), []);
+  assert.deepEqual(run.readRecord(resumeFile), initial);
+  const loaded = foreign({ 201: held(shared), 202: held(owner(ids.other)), 203: held(native) });
+  assert.throws(() => resume(() => machine(loaded), { observations: { runs: { [loaded.runId]: { ...observations, tasks: { "/root/writer": { state: "running" } } } } } }), /Machine writer places are full/);
+  let saved = false;
+  const drift = resume(() => machine(foreign({}), { resources: { ...resources, physicalAvailableBytes: (saved ? 0.4 : 3.5) * GB } }), { afterIntent: () => { assert.ok(run.readRecord(resumeFile).tickets[101].owner.resuming); saved = true; } });
+  assert.equal(drift.started, false);
+  assert.match(drift.reason, /Available physical memory/);
+  assert.deepEqual(run.readRecord(resumeFile).tickets[101].owner, initial.tickets[101].owner);
+  assert.deepEqual(resumeDirs(), []);
+  assert.equal(spawned, 0);
+  const alias = foreign({ 201: held(resumeOwner), 202: held(shared), 203: held(owner(ids.other)) });
+  assert.equal(resume(() => machine(alias), { observations: { runs: { [alias.runId]: observations } } }).reason, "fixture");
+  assert.equal(spawned, 1, "a healthy resume starts once, with the ended owner and alias consuming no executing place");
+  console.log("writer resume admission checks passed");
+  if (process.argv.includes("--writer-resume-live")) {
+    const done = path.join(tmp, "resume-live-done.json");
+    const stop = path.join(tmp, "resume-live-stop");
+    const standIn = write("resume-live.cjs", `const fs = require("node:fs"); const at = process.argv.indexOf("--resume");
+if (process.argv[at + 1] !== ${JSON.stringify(ids.shared)}) process.exit(2);
+console.log(process.pid); const end = Date.now() + 15000;
+const timer = setInterval(() => { if (fs.existsSync(${JSON.stringify(stop)}) || Date.now() > end) {
+  clearInterval(timer); fs.writeFileSync(${JSON.stringify(done)}, JSON.stringify({pid:process.pid}));
+} }, 100);`);
+    const real = resume(run.observeWriterMachine, { identify: processIdentity, spawner: run.startDetachedWriter, args: [standIn, "-p", "--model", record.writer.model, "--effort", "medium", "--permission-mode", "bypassPermissions", "--resume", ids.shared] });
+    assert.equal(real.started, true, real.reason);
+    const liveOwner = run.readRecord(resumeFile).tickets[101].owner;
+    let child;
+    try {
+      const out = path.join(liveOwner.handle.launchDir, "out.jsonl");
+      waitFor(() => fs.existsSync(out) && /^\d+\s*$/.test(fs.readFileSync(out, "utf8")), "resume stand-in PID", 10000);
+      child = processIdentity(Number(fs.readFileSync(out, "utf8")));
+      assert.ok(child?.start && liveOwner.handle.start);
+      assert.equal(liveOwner.sessionId, ids.shared);
+      console.log("production resume wrapper and child identities:", liveOwner.handle, child);
+    } finally {
+      fs.writeFileSync(stop, "");
+      waitFor(() => fs.existsSync(done) && processIdentity(liveOwner.handle.pid) === null && processIdentity(readJsonFile(done).pid) === null, "resume wrapper and child positive exit", 15000);
+      console.log("production resume wrapper and child absent:", liveOwner.handle.pid, readJsonFile(done).pid);
+    }
+  }
+  if (["--writer-continuation", "--writer-native"].some((flag) => process.argv.includes(flag))) {
+    const file = path.join(tmp, "continuation-run.json");
+    const current = run.initRecord({ record: file, checkout, repository: "acme/widgets", issue: 110, coordinator: ids.parent, harness: "codex", coordinatorModel: "gpt-6.1-sol", coordinatorEffort: "medium", coordinatorMode: "bypassPermissions", slug: "writer-continuation", invocation: "Use orchestrate-issues for #110." }, { defaults, freeBytes: 100 * GB, totalMemory: 16 * GB }).record;
+    const snapshot = { repository: current.repository, issue: { number: 110, state: "open" }, tickets: [{ ...ticket(111), parent: 110, prs: [{ number: 500, state: "OPEN", isDraft: true, branch: "fix/111-existing", head: "fixture-head", rounds: 1 }] }] };
+    const savedPlan = write("continuation-plan.json", run.planDispatch({ record: current, snapshot, preflights: [{ route: "codex-app", model: current.writer.model, verdicts: [{ ticket: 111, effort: "medium", verdict: "available" }] }], defaults, freeBytes: 100 * GB, census: () => [] }));
+    const update = run.updateRecord(file, { coordinator: ids.parent, expectRevision: current.revision }, (r) => run.claim(r, { plan: savedPlan, ticket: 111, operation: "continue", worktree: path.join(tmp, "continuation-tree"), branch: "fix/111-existing", artifactParent: tmp, evidence: "the previous writer's session was observed archived" }));
+    const pendingStart = update.record.tickets[111].pending;
+    assert.equal(pendingStart.operation, "dispatch");
+    assert.equal(pendingStart.continues.pr, 500);
+    assert.equal(pendingStart.route, "codex-app");
+    const check = (coordinator, revision) => run.main(["start-check", "--record", file, "--coordinator", coordinator, "--expect-revision", String(revision), "--ticket", "111"], { defaults });
+    assert.throws(() => check(ids.shared, update.record.revision), /ownership or revision changed/);
+    assert.throws(() => check(ids.parent, current.revision), /ownership or revision changed/);
+    fs.writeFileSync(file, JSON.stringify({ ...update.record, tickets: { 111: { pending: { ...pendingStart, host: "another-machine" } } } }));
+    assert.throws(() => check(ids.parent, update.record.revision), /claimed on another-machine/);
+    fs.writeFileSync(file, JSON.stringify(update.record));
+    assert.equal(check(ids.parent, update.record.revision).launchId, pendingStart.launchId);
+    assert.deepEqual(run.readRecord(file), update.record, "the pre-spawn check leaves the saved intent and ownership unchanged");
+    console.log("external writer continuation admission passed");
+    if (process.argv.includes("--writer-native")) {
+      const handle = "/root/writer_111";
+      const saved = run.updateRecord(file, { coordinator: ids.parent, expectRevision: update.record.revision }, (r) => {
+        run.launched(r, { ticket: 111, handleKind: "task", handle });
+        const req = run.request(r, { ticket: 111, text: "May I continue?", source: "fixture turn" });
+        run.answer(r, { ticket: 111, request: req.id, text: "Continue the same assignment." });
+      }).record;
+      const owner = saved.tickets[111].owner;
+      const ended = { state: "completed", host: os.hostname(), assignment: owner.launchId, revision: saved.revision, model: owner.model, effort: owner.effort, permissionMode: "bypassPermissions" };
+      const observed = write("native-ended.json", { tasks: { [handle]: ended } });
+      const resourceCheck = (r = saved, options = {}) => run.checkExternalStart(r, 111, {
+        assignment: owner.launchId, observations: { tasks: { [handle]: ended } }, observe: () => machine(foreign({})), freeBytes: 100 * GB, ...options,
+      });
+      assert.throws(() => resourceCheck(saved, { assignment: ids.assignment }), /no matching retained native assignment/);
+      assert.throws(() => resourceCheck(saved, { observations: undefined }), /current ended-turn observation/);
+      for (const change of [{ state: "running" }, { state: "unknown" }, { assignment: ids.assignment }, { revision: saved.revision - 1 }, { host: "another-machine" }, { model: "different-model" }, { effort: "low" }, { permissionMode: "default" }]) {
+        assert.throws(() => resourceCheck(saved, { observations: { tasks: { [handle]: { ...ended, ...change } } } }), /current ended-turn observation/);
+      }
+      assert.throws(() => resourceCheck(saved, { observations: { tasks: { "/root/wrong": ended } } }), /current ended-turn observation/);
+      assert.throws(() => resourceCheck({ ...saved, handoff: { since: saved.coordinator.since } }), /planned handoff/);
+      assert.throws(() => resourceCheck({ ...saved, coordinator: { ...saved.coordinator, permissionMode: "default" } }), /coordinator runs in default/);
+      assert.throws(() => resourceCheck({ ...saved, tickets: { 111: { owner: { ...owner, route: "codex-cli" } } } }), /no matching retained native assignment/);
+      assert.throws(() => resourceCheck({ ...saved, tickets: { 111: { owner: { ...owner, handle: { ...owner.handle, host: "another-machine" } } } } }), /claimed on another-machine/);
+      assert.throws(() => resourceCheck(saved, { observe: low({ physicalAvailableBytes: 0.4 * GB }) }), /Available physical memory/);
+      assert.throws(() => resourceCheck(saved, { observe: low({ commitHeadroomBytes: 2.4 * GB }) }), /Direct commit headroom/);
+      assert.throws(() => resourceCheck(saved, { observe: () => machine(loaded), observations: { tasks: { [handle]: ended }, runs: { [loaded.runId]: { ...observations, tasks: { "/root/writer": { state: "running" } } } } } }), /Machine writer places are full/);
+      assert.deepEqual(resourceCheck().handle, owner.handle);
+      const checked = run.main(["start-check", "--record", file, "--coordinator", ids.parent, "--expect-revision", String(saved.revision), "--ticket", "111", "--assignment", owner.launchId, "--observations", observed], { defaults });
+      assert.equal(checked.launchId, owner.launchId);
+      assert.deepEqual(run.readRecord(file), saved, "healthy admission preserves the retained owner and the saved answer");
+      console.log("same-owner native continuation admission passed");
+      const adopted = structuredClone(current);
+      run.adopt(adopted, { plan: savedPlan, ticket: 111, handleKind: "session", handle: ids.other, route: "codex-app", model: current.writer.model, effort: "medium", worktree: path.join(tmp, "adopted-native-tree") });
+      const adoptedOwner = adopted.tickets[111].owner;
+      const request = run.request(adopted, { ticket: 111, text: "Continue adopted work?", source: "fixture turn" });
+      run.answer(adopted, { ticket: 111, request: request.id, text: "Continue the adopted owner." });
+      assert.equal(adoptedOwner.launchId, undefined);
+      assert.equal(adopted.tickets[111].requests[0].owner, ids.other);
+      fs.writeFileSync(file, JSON.stringify(adopted));
+      const adoptedSeen = { state: "idle", host: os.hostname(), revision: adopted.revision, model: adoptedOwner.model, effort: adoptedOwner.effort, permissionMode: "bypassPermissions" };
+      const adoptedObservations = write("adopted-native-ended.json", { sessions: { [ids.other]: adoptedSeen } });
+      const adoptedCheck = (opts) => run.checkExternalStart(adopted, 111, { ownerHandle: ids.other, observations: { sessions: { [ids.other]: adoptedSeen } }, observe: () => machine(foreign({})), freeBytes: 100 * GB, ...opts });
+      assert.throws(() => adoptedCheck({ ownerHandle: ids.shared }), /no matching retained native assignment/);
+      assert.throws(() => adoptedCheck({ assignment: ids.assignment }), /either --assignment or --owner-handle/);
+      assert.throws(() => resourceCheck(saved, { assignment: undefined, ownerHandle: handle }), /no matching retained native assignment/);
+      const accepted = run.main(["start-check", "--record", file, "--coordinator", ids.parent, "--expect-revision", String(adopted.revision), "--ticket", "111", "--owner-handle", ids.other, "--observations", adoptedObservations], { defaults });
+      assert.deepEqual(accepted.handle, adoptedOwner.handle);
+      assert.deepEqual(run.readRecord(file), adopted, "admission preserves the adopted owner and saved answer");
+      console.log("adopted native continuation admission passed");
+    }
+  }
+}
+
 try {
+  writerAccountingChecks();
+  if (["--writer-accounting", "--writer-continuation", "--writer-resume-live", "--writer-native"].some((flag) => process.argv.includes(flag))) process.exit(0);
   const checkout = path.join(tmp, "checkout");
   fs.mkdirSync(checkout);
   git(checkout, "init", "-q", "-b", "main");
