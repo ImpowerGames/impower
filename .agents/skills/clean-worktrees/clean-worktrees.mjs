@@ -1197,7 +1197,7 @@ export function removeJobDir(dir, guard = () => {}) {
   check();
   if (unlinkLinksIn(dir, check, removedLink) !== 0) throw new Error(`a link reappeared inside ${dir} while it was being removed; nothing further was deleted`);
   check();
-  removeTreeEntries(dir, { ...jobRemovalRetry, force: true, refuseLinks: true });
+  removeTreeEntries(dir, { ...jobRemovalRetry, force: true, refuseLinks: true, retryTree: true });
   return unlinked;
 }
 

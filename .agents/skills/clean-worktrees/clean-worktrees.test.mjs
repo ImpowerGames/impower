@@ -1779,6 +1779,49 @@ try {
     }
   });
 
+  await check("final job removal retries a transient directory read and rescans a nonempty directory", () => {
+    const dir = path.join(scratch, "retry-final-job");
+    const nested = path.join(dir, "nested");
+    const outside = path.join(scratch, "retry-final-target");
+    const sentinel = path.join(outside, "kept.txt");
+    const link = path.join(nested, "link");
+    fs.mkdirSync(nested, { recursive: true });
+    fs.mkdirSync(outside);
+    fs.writeFileSync(sentinel, "kept");
+    fs.symlinkSync(outside, link, "junction");
+    assert.equal(fs.readFileSync(path.join(link, "kept.txt"), "utf8"), "kept");
+
+    const readdir = fs.readdirSync;
+    const rmdir = fs.rmdirSync;
+    let guardCalls = 0;
+    let finalReads = 0;
+    let addedEntry = false;
+    try {
+      fs.readdirSync = (target, ...args) => {
+        if (target === nested && guardCalls === 4 && ++finalReads === 1) {
+          throw Object.assign(new Error("directory is briefly unreadable"), { code: "EMFILE" });
+        }
+        return readdir(target, ...args);
+      };
+      fs.rmdirSync = (target, ...args) => {
+        if (target === nested && !addedEntry) {
+          fs.writeFileSync(path.join(nested, "arrived.txt"), "new");
+          addedEntry = true;
+        }
+        return rmdir(target, ...args);
+      };
+      assert.doesNotThrow(() => assert.equal(removeJobDir(dir, () => { guardCalls++; }), 1));
+      assert.equal(guardCalls, 4);
+      assert.equal(finalReads, 3);
+      assert.ok(addedEntry);
+      assert.ok(!fs.existsSync(dir), "job directory remained after final-pass retries");
+    } finally {
+      fs.readdirSync = readdir;
+      fs.rmdirSync = rmdir;
+      assert.equal(fs.readFileSync(sentinel, "utf8"), "kept");
+    }
+  });
+
   await check("as a command, the dry run lists job directories and --apply removes only the removable one, leaving a junction's target intact", () => {
     const jobs = path.join(scratch, "impower.review-jobs");
     const outside = path.join(scratch, "junction-target");

@@ -38,11 +38,13 @@ export function removeTreeEntries(root, {
   linksOnly = false,
   refuseLinks = false,
   force = false,
+  retryTree = false,
   beforeUnlink = () => {},
   onRemoved = () => {},
   onError = (_target, error) => { throw error; },
 }) {
   const rootPath = path.resolve(root);
+  const entryDelays = retryTree ? [] : delays;
   function visit(target, entry) {
     try {
       const stat = !entry || entry.isDirectory() ? fs.lstatSync(target) : entry;
@@ -51,7 +53,7 @@ export function removeTreeEntries(root, {
       }
       if (stat.isSymbolicLink()) {
         if (refuseLinks) throw new Error(`refusing to remove link ${target}`);
-        retryRemoval(() => unlinkLink(target), delays, retryCodes, beforeUnlink);
+        retryRemoval(() => unlinkLink(target), entryDelays, retryCodes, beforeUnlink);
         onRemoved("links");
       } else if (stat.isDirectory()) {
         let emptied = true;
@@ -59,10 +61,10 @@ export function removeTreeEntries(root, {
           const name = linksOnly ? child.name : child;
           if (!visit(path.join(target, name), linksOnly ? child : undefined)) emptied = false;
         }
-        if (!linksOnly && emptied) retryRemoval(() => fs.rmdirSync(target), delays, retryCodes);
+        if (!linksOnly && emptied) retryRemoval(() => fs.rmdirSync(target), entryDelays, retryCodes);
         return emptied;
       } else if (!linksOnly) {
-        retryRemoval(() => fs.unlinkSync(target), delays, retryCodes);
+        retryRemoval(() => fs.unlinkSync(target), entryDelays, retryCodes);
         onRemoved("files");
       }
       return true;
@@ -72,5 +74,6 @@ export function removeTreeEntries(root, {
       return false;
     }
   }
-  visit(rootPath);
+  if (retryTree) retryRemoval(() => visit(rootPath), delays, retryCodes);
+  else visit(rootPath);
 }
