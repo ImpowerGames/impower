@@ -393,6 +393,10 @@ describe("a cutscene: the builtins", () => {
       pointer_events: "auto",
     });
     expect(styles.cutscene_video).toMatchObject({
+      position: "absolute",
+      inset: "0",
+      width: "100%",
+      height: "100%",
       object_fit: "contain",
       pointer_events: "auto",
     });
