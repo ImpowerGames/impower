@@ -74,6 +74,7 @@ scripts/reviewer-defaults.test.mjs
 scripts/reviewer-execution.test.mjs
 scripts/reviewer-probe-cleanup.test.mjs
 scripts/reviewer-slots.test.mjs
+scripts/sparkle-custom-data-retired.test.mjs
 scripts/start-coordinator.test.mjs
 scripts/test-suite-admission.test.mjs
 scripts/test-suite-api-integration.test.mjs
