@@ -6,7 +6,7 @@ import { RemoteStorage } from "../types/RemoteStorageTypes";
 import { ResponseTypeMap } from "../types/ResponseTypeMap";
 import sendServerRequest from "../utils/sendServerRequest";
 
-// workaround(@types/google.picker): DocsView typings omit setQuery, so it is declared here; see https://developers.google.com/drive/picker/reference#view
+// workaround(@types/google.picker): DocsView typings omit setQuery, so it is declared here (seen with @types/google.picker 0.0.51); see https://developers.google.com/drive/picker/reference#view
 type DocsView = google.picker.DocsView & {
   setQuery(query: string): google.picker.DocsView;
 };

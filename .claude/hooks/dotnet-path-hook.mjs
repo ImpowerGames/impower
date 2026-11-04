@@ -1,7 +1,7 @@
 import { pathToFileURL } from "node:url";
 import { dotNetRelativePathReason } from "../../.agents/hooks/write-hazards.mjs";
 
-// workaround(powershell): .NET file calls resolve a relative path against the process directory, not the PowerShell location
+// workaround(powershell): .NET file calls resolve a relative path against the process directory, not the PowerShell location (seen with Windows PowerShell 5.1.26100)
 export async function main() {
   let raw = "";
   for await (const chunk of process.stdin) raw += chunk;

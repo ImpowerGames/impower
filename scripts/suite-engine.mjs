@@ -64,7 +64,7 @@ const admitCoverageAggregation = async context => {
 try {
   if (mode === "discover") {
     ctx = await createVitest("test", { ...options, reporters: [{}] }, viteOptions);
-    // workaround(vitest): Vitest 2 records auto-discovered workspace files on the context (_workspaceConfigPath), not in config.workspace
+    // workaround(vitest): Vitest 2 records auto-discovered workspace files on the context (_workspaceConfigPath), not in config.workspace (seen with vitest 2.1.9)
     if (ctx.config.workspace || ctx.config.projects || ctx._workspaceConfigPath || ctx.projects.length !== 1 || ctx.config.browser?.enabled || ctx.config.typecheck?.enabled || ctx.config.poolMatchGlobs?.length || path.resolve(ctx.config.root) !== packageRoot)
       throw new Error("Use a single Node test package with its own root (workspace/browser/typecheck/pool-routing configurations are unsupported)");
     const specs = await (vitestVersion === "3.2.6" ? ctx.globTestSpecifications() : ctx.globTestFiles());
