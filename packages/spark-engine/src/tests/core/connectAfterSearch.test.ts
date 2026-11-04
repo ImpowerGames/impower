@@ -81,6 +81,23 @@ end
     expect(game.context.system.simulating).toBeUndefined();
   });
 
+  test("ends a replay whose module setup throws as failed with the flags unset", () => {
+    const h = createHarness(SOURCE, 0, { connect: false });
+    const game: any = h.game;
+    game.setStartFrom({ file: MAIN_URI, line: TARGET_LINE });
+    const setup = vi.spyOn(game.module.ui, "onReplay").mockImplementation(() => {
+      throw new Error("setup broke");
+    });
+    try {
+      expect(() => game.simulate()).toThrow("setup broke");
+    } finally {
+      setup.mockRestore();
+    }
+    expect(game.simulation).toBe("fail");
+    expect(game.context.system.simulating).toBeUndefined();
+    expect(game.replaying).toBe(false);
+  });
+
   test("emits the restored values and the transient clears a fresh load emits", async () => {
     const routed = createHarness(SOURCE, 0);
     await routed.ready;

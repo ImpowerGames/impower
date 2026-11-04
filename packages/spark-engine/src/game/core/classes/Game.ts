@@ -1823,13 +1823,13 @@ export class Game<T extends M = {}> {
 
     const previewing = this._context.system.previewing;
     this._context.system.previewing = undefined;
-    this._replaying = true;
-    this._context.system.simulating = route.from;
-    for (const k of this._moduleNames) {
-      this._modules[k]?.onReplay();
-    }
     let unrepeatable: boolean | undefined;
     try {
+      this._replaying = true;
+      this._context.system.simulating = route.from;
+      for (const k of this._moduleNames) {
+        this._modules[k]?.onReplay();
+      }
       this.replayRoute(route, fromCheckpoint);
       unrepeatable = storyDraws.count !== drawn || ambientReads.count !== read;
       this.noteRouteTarget();
