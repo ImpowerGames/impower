@@ -43,28 +43,30 @@ end
     expect(typeWarnings(program)).toEqual(["8:31-8:32 Expected this to be 'string', but got 'number'"]);
   });
 
-  test("a branch is checked in its scene, seeing the scene's parameters as typed and none of the scene's locals or an earlier branch's", () => {
+  test("a branch is checked in its scene, seeing the scene's parameters as typed, the scene's locals as any and none of an earlier branch's", () => {
     const program = compile(`scene intro(n: number)
   local value: number = n
+  local function helper() return n end
   branch inner(k: number)
     local copy: number = value + k
     local wrong: string = k
+    local called: number = helper()
   end
   branch other
     local seen: number = copy
     local typed: string = n
+    local named: string = value
   end
 end
 scene start
 end
 `);
     expect(typeWarnings(program)).toEqual([
-      "8:26-8:27 Expected this to be 'string', but got 'number'",
-      "12:26-12:27 Expected this to be 'string', but got 'number'",
+      "9:26-9:27 Expected this to be 'string', but got 'number'",
+      "14:26-14:27 Expected this to be 'string', but got 'number'",
     ]);
     expect(describeDiagnostics(program, false)).toEqual([
-      "7:25-7:30 Cannot find variable named `value`",
-      "11:25-11:29 Cannot find variable named `copy`",
+      "13:25-13:29 Cannot find variable named `copy`",
     ]);
   });
 

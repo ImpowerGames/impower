@@ -74,8 +74,10 @@ import {
   savedFrameValues,
 } from "@impower/sparkdown/src/program/saveValues";
 import {
+  localKey,
   readLocalKey,
   saveStartingValues,
+  sharedLocalFrames,
   withSavedLocal,
   withSavedValue,
   type SaveValues,
@@ -2705,16 +2707,20 @@ export class Game<T extends M = {}> {
       [key, value],
     ];
     const local = readLocalKey(key);
+    const shared =
+      local && save.entry ? sharedLocalFrames(save.entry.frames, local.frame, local.name) : [];
+    const keys = local && shared.length ? shared.map((i) => localKey(i, local.name)) : [key];
     const entry: SaveValues | undefined = save.entry && {
-      values: withSavedValue(
+      values: keys.reduce(
+        (values, shown) => withSavedValue(values, shown, value),
         Object.fromEntries(
           Object.entries(save.entry.values).filter(([entered]) => !this.sameValueKey(entered, key)),
         ),
-        key,
-        value,
       ),
       frames: save.entry.frames.map((frame, i) =>
-        local && i === local.frame ? withSavedLocal(frame, local.name, value) : frame,
+        local && (shared.length ? shared.includes(i) : i === local.frame)
+          ? withSavedLocal(frame, local.name, value)
+          : frame,
       ),
     };
     const kept = entry ? { entry } : {};
