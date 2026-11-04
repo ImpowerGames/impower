@@ -78,7 +78,7 @@ export const loadedProjectId = (): string =>
   localStorage.getItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY) ||
   WorkspaceConstants.LOCAL_PROJECT_ID;
 
-const savedWorkspaceState = (): WorkspaceCache => {
+export const savedWorkspaceState = (): WorkspaceCache => {
   if (typeof window === "undefined") {
     return defaults;
   }

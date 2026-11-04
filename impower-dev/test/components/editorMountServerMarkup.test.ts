@@ -29,6 +29,13 @@ describe("mounting the editor over its server render", () => {
     if (!("replaceSync" in CSSStyleSheet.prototype)) {
       (CSSStyleSheet.prototype as { replaceSync?: (text: string) => void }).replaceSync = () => {};
     }
+    if (!document.adoptedStyleSheets) {
+      Object.defineProperty(document, "adoptedStyleSheets", {
+        value: [],
+        writable: true,
+        configurable: true,
+      });
+    }
     document.body.innerHTML =
       '<div id="root"><button aria-label="Toggle Preview" aria-pressed="false" data-state="inactive">VIEW</button></div>';
     const serverButton = document.querySelector("button");
