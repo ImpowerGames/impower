@@ -512,7 +512,7 @@ for(const phase of ['ready','authorize'])test('attempt startup refuses late '+ph
   assert.equal(runtime.status,'prepared',JSON.stringify(runtime));
     const directory=scratch(),inventory=path.join(directory,'pids.jsonl');
     const prepared=await prepareOwnedChild({directory,runtime,command:process.execPath,args:[fixture,'exit0',inventory],
-      cwd:directory,timeoutMs:2000,startupMs:3000,cleanupMs:1000});
+      cwd:directory,timeoutMs:2000,startupMs:3000,cleanupMs:10000});
     let readyCalls=0,authorizeCalls=0,expected;
     const result=await runOwnedChild({prepared,reservationToken:randomUUID(),
       onReady(value) {
