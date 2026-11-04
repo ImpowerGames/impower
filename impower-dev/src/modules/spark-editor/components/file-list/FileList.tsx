@@ -38,7 +38,6 @@ import {
   descendantPaths,
   filterPaths,
   flattenVisibleRows,
-  FOLDER_SENTINEL,
   resolveScopePath,
   subtreeChildren,
   type FileTreeNode,
@@ -127,8 +126,6 @@ const relativePathFromUri = (
     : (uri.split("/").pop() ?? "");
 };
 
-const isSentinelUri = (uri: string) => uri.endsWith(`/${FOLDER_SENTINEL}`);
-
 export type FileListProps = {
   include?: string;
   exclude?: string;
@@ -160,6 +157,7 @@ export default function FileList({
   onScopeChange,
 }: FileListProps) {
   const [uris, setUris] = useState<string[] | null>(null);
+  const [folderPaths, setFolderPaths] = useState<string[]>([]);
   const [filesByUri, setFilesByUri] = useState<Record<string, FileData>>({});
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [scopePath, setScopePath] = useState(rootDir);
@@ -220,24 +218,28 @@ export default function FileList({
 
   const diveMode = workspace.state.value.screen?.horizontalLayout === false;
 
-  const matchesGlobs = (uri: string) => {
-    const rel = relativePathFromUri(uri, projectId);
+  const inListedDirs = (rel: string) => {
     if (rootDir && !rel.startsWith(`${rootDir}/`)) {
       return false;
     }
-    if (excludeDirs?.some((d) => rel === d || rel.startsWith(`${d}/`))) {
+    return !excludeDirs?.some((d) => rel === d || rel.startsWith(`${d}/`));
+  };
+
+  const matchesGlobs = (uri: string) => {
+    if (!inListedDirs(relativePathFromUri(uri, projectId))) {
       return false;
     }
     const includeRegex = include ? globToRegex(include) : /.*/;
     const excludeRegex = exclude ? globToRegex(exclude) : undefined;
-    return (
-      isSentinelUri(uri) || (includeRegex.test(uri) && !excludeRegex?.test(uri))
-    );
+    return includeRegex.test(uri) && !excludeRegex?.test(uri);
   };
 
   const loadFiles = async () => {
     const { Workspace } = await import("../../workspace/Workspace");
     const files = await Workspace.fs.getFiles(projectId!);
+    const folders = (await Workspace.fs.getFolders(projectId!)).filter(
+      inListedDirs,
+    );
     const filteredUris = Object.keys(files).filter(matchesGlobs).sort();
     const filesByUri: Record<string, FileData> = {};
     for (const uri of filteredUris) {
@@ -246,7 +248,7 @@ export default function FileList({
         filesByUri[uri] = file;
       }
     }
-    return { uris: filteredUris, filesByUri };
+    return { uris: filteredUris, filesByUri, folders };
   };
 
   useEffect(() => {
@@ -257,10 +259,15 @@ export default function FileList({
         return;
       }
       try {
-        const { uris: filtered, filesByUri: fbu } = await loadFiles();
+        const {
+          uris: filtered,
+          filesByUri: fbu,
+          folders,
+        } = await loadFiles();
         if (!cancelled) {
           setUris(filtered);
           setFilesByUri(fbu);
+          setFolderPaths(folders);
         }
       } catch (err) {
         // eslint-disable-next-line no-console
@@ -278,9 +285,10 @@ export default function FileList({
   const reload = async () => {
     if (!projectId) return;
     try {
-      const { uris: filtered, filesByUri: fbu } = await loadFiles();
+      const { uris: filtered, filesByUri: fbu, folders } = await loadFiles();
       setUris(filtered);
       setFilesByUri(fbu);
+      setFolderPaths(folders);
     } catch {
     }
   };
@@ -293,13 +301,31 @@ export default function FileList({
         { FileChangeType },
         { onProtocolMessage },
         { DidChangeWatchedFilesMessage },
+        { DidChangeDirectoriesMessage },
       ] = await Promise.all([
         import("@impower/spark-editor-protocol/src/enums/FileChangeType"),
         import("@impower/spark-editor-protocol/src/protocols/MessageProtocol"),
         import("@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage"),
+        import("@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage"),
       ]);
       if (cancelled) return;
-      detach = onProtocolMessage(
+      const detachDirectories = onProtocolMessage(
+        DidChangeDirectoriesMessage.type,
+        (message) => {
+          const changed = [
+            ...message.params.created,
+            ...message.params.deleted,
+          ];
+          if (
+            changed.some((uri) =>
+              inListedDirs(relativePathFromUri(uri, projectId)),
+            )
+          ) {
+            void reload();
+          }
+        },
+      );
+      const detachFiles = onProtocolMessage(
         DidChangeWatchedFilesMessage.type,
         (message) => {
           const params = message.params;
@@ -310,12 +336,16 @@ export default function FileList({
             (c) => c.type === FileChangeType.Created,
           );
           const firstUri = changes[0]?.uri || "";
-          if (isCreate && !isSentinelUri(firstUri)) {
+          if (isCreate) {
             setRevealPath(relativePathFromUri(firstUri, projectId));
           }
           void reload();
         },
       );
+      detach = () => {
+        detachDirectories();
+        detachFiles();
+      };
     })();
     return () => {
       cancelled = true;
@@ -483,7 +513,15 @@ export default function FileList({
     return cmp * sortDir;
   };
 
-  const tree = buildFileTree(visiblePaths, { compareFiles });
+  const visibleFolders = typeFilter
+    ? []
+    : trimmedSearch
+      ? filterPaths(folderPaths, trimmedSearch)
+      : folderPaths;
+  const tree = buildFileTree(visiblePaths, {
+    folders: visibleFolders,
+    compareFiles,
+  });
   treeRef.current = tree;
   const displayRoots = rootDir ? subtreeChildren(tree, rootDir) : tree;
   const resolvedScope = diveMode ? resolveScopePath(tree, scopePath) : "";
@@ -693,12 +731,14 @@ export default function FileList({
     let scriptChanged = false;
     let assetChanged = false;
     const allDeletedUris: string[] = [];
+    const allDeletedFolders: string[] = [];
     const since = Date.now();
     for (const p of roots) {
       const isDir = !filesByPath.has(p);
       if (isDir) {
         const deleted = await Workspace.fs.deleteFolder(projectId, p, "trash");
-        allDeletedUris.push(...deleted.map((d) => d.uri));
+        allDeletedUris.push(...deleted.files.map((d) => d.uri));
+        allDeletedFolders.push(...deleted.folders);
         assetChanged = true;
       } else {
         const uri = Workspace.fs.getFileUri(projectId, p);
@@ -717,7 +757,13 @@ export default function FileList({
       roots.length === 1
         ? roots[0]!.split("/").pop() || roots[0]!
         : `${roots.length} items`;
-    await recordTrashDeletion(projectId, allDeletedUris, label, since);
+    await recordTrashDeletion(
+      projectId,
+      allDeletedUris,
+      label,
+      since,
+      allDeletedFolders,
+    );
     exitSelectMode();
     await reload();
   };

@@ -357,9 +357,10 @@ function FileItem({
       if (mode === "trash") {
         await recordTrashDeletion(
           projectId,
-          deleted.map((d) => d.uri),
+          deleted.files.map((d) => d.uri),
           basename,
           since,
+          deleted.folders,
         );
       }
       return;

@@ -51,6 +51,12 @@ function makeHarness(initial: Record<string, Uint8Array>): Harness {
     getRelativePath: WorkspaceFileSystem.prototype.getRelativePath,
     _scheme: "file://",
     getFiles: async () => files,
+    getFolders: async () => [],
+    listFolders: async () => [],
+    createFolders: async () => [],
+    deleteFolders: async () => [],
+    foldersOutside: (WorkspaceFileSystem.prototype as any).foldersOutside,
+    replaceFolders: (WorkspaceFileSystem.prototype as any).replaceFolders,
 
     zipFiles: async ({
       files: list,
