@@ -1026,7 +1026,11 @@ export default function FileList({
           typeFilter={typeFilter}
           onTypeFilter={setTypeFilter}
           trailing={
-            <DropdownRoot>
+            <DropdownRoot
+              onOpenChange={(open: boolean) => {
+                if (open) newFolderRequestedRef.current = false;
+              }}
+            >
               <DropdownTrigger asChild>
                 <Button
                   variant="ghost"
@@ -1044,12 +1048,20 @@ export default function FileList({
                   if (!newFolderRequestedRef.current) return;
                   newFolderRequestedRef.current = false;
                   e.preventDefault();
-                  void newFolder();
+                  requestAnimationFrame(() => {
+                    const input =
+                      scrollRef.current?.querySelector<HTMLInputElement>(
+                        "[data-tree-row] input",
+                      );
+                    input?.focus();
+                    input?.select();
+                  });
                 }}
               >
                 <DropdownItem
                   onSelect={() => {
                     newFolderRequestedRef.current = true;
+                    void newFolder();
                   }}
                 >
                   <FolderPlus class="size-4" />
