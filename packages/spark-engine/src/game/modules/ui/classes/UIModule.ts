@@ -877,12 +877,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     const epoch = this._game.connection.epoch;
+    const themeVariables = this.getThemeVariables();
+    this.loadTheme(themeVariables);
     this._root = undefined;
     this._root = this.getOrCreateRootElement();
     this._events = {};
     this._reactive = true;
-    const themeVariables = this.getThemeVariables();
-    this.loadTheme(themeVariables);
     this.constructStyles(themeVariables);
     if (this._game.program?.sparkle?.layouts) {
       const fonts = this._game.module.assets?.prepareLayout("main");

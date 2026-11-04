@@ -68,30 +68,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
         {
           "id": "req-1",
           "kind": "request",
-          "method": "ui/create",
-          "params": {
-            "attributes": undefined,
-            "breakpoints": {
-              "lg": 1024,
-              "md": 768,
-              "sm": 640,
-              "xl": 1280,
-              "xs": 400,
-            },
-            "content": undefined,
-            "element": "e-1",
-            "name": "",
-            "parent": null,
-            "style": {
-              "inset": "0",
-              "position": "absolute",
-            },
-            "type": "div",
-          },
-        },
-        {
-          "id": "req-2",
-          "kind": "request",
           "method": "ui/theme",
           "params": {
             "breakpoints": {
@@ -404,6 +380,30 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
               "--theme-ease-out_back",
               "--theme-ease-in_out_back",
             ],
+          },
+        },
+        {
+          "id": "req-2",
+          "kind": "request",
+          "method": "ui/create",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "name": "",
+            "parent": null,
+            "style": {
+              "inset": "0",
+              "position": "absolute",
+            },
+            "type": "div",
           },
         },
         {

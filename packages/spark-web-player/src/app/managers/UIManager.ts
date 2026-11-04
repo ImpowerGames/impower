@@ -139,8 +139,14 @@ function createSignature(
     attributes?: unknown;
   },
 ): string {
+  const content = params.content;
+  const themed =
+    params.style != null ||
+    (typeof content === "object" &&
+      content !== null &&
+      ("styles" in content || "animations" in content));
   return JSON.stringify([
-    themeKey,
+    themed ? themeKey : null,
     params.type,
     params.name ?? null,
     params.content ?? null,
