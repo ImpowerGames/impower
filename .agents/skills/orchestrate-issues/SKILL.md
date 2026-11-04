@@ -54,6 +54,8 @@ For each `dispatch` ticket, one at a time:
 
 A writer is replaced only after it is observed to have ended; `release --observations <file> --evidence <text>` refuses any other owner. Missing output, a cancellation request, an unanswered session or an unknown launch outcome proves nothing.
 
+An idle session can be released once its ticket is closed and the PR named in its final report is merged on origin/main. Read its transcript, record the current writer's report with `result`, and give `release` the idle observation and transcript evidence. The command rechecks closure and merge ancestry before settling ownership.
+
 For `adopt-pr` and `adopt-worktree`, record the existing writer with `adopt`, and continue its work only as plan actions describes.
 
 At every check-in, on the first wake after you restart, and before acting on any writer's report or request, run the wake routine in [writer reports](references/writer-reports.md). It triages each ticket filed during the run as you learn of it. A writer's checkpoint report is decided as [review checkpoints](references/review-checkpoints.md) describes, never by its round count alone. Writers keep their own review jobs, round counts, freezes and the machine-wide reviewer and test reservations.
