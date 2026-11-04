@@ -1,7 +1,7 @@
 const COMMENT_OR_STRING =
   /\/\*[\s\S]*?(?:\*\/|$)|"(?:[^"\\]|\\[\s\S])*(?:"|$)|'(?:[^'\\]|\\[\s\S])*(?:'|$)/g;
 
-const THEME_VARIABLE_DECLARATION = /(?:^|[{;\s])(--theme-[\w-]+)\s*:/g;
+const THEME_VARIABLE_DECLARATION = /(?:^|[{;])\s*(--theme-[\w-]+)\s*:/g;
 
 export const getThemeVariables = (...cssTexts: string[]): Set<string> => {
   const variables = new Set<string>();

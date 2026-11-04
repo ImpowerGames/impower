@@ -50,13 +50,28 @@ const skipQuoted = (css: string, start: number): number => {
   return end + 1;
 };
 
+const skipOpaque = (css: string, start: number): number | undefined => {
+  const c = css[start];
+  if (c === '"' || c === "'") {
+    return skipQuoted(css, start);
+  }
+  if (c === "/" && css[start + 1] === "*") {
+    const end = css.indexOf("*/", start + 2);
+    return end === -1 ? css.length : end + 2;
+  }
+  return undefined;
+};
+
+const COMMENT = /\/\*[\s\S]*?(?:\*\/|$)/g;
+
 const findClosingParen = (css: string, open: number): number => {
   let depth = 0;
   let i = open;
   while (i < css.length) {
     const c = css[i];
-    if (c === '"' || c === "'") {
-      i = skipQuoted(css, i);
+    const skipped = skipOpaque(css, i);
+    if (skipped !== undefined) {
+      i = skipped;
       continue;
     }
     if (c === "(") {
@@ -79,8 +94,9 @@ const splitArguments = (css: string): string[] => {
   let i = 0;
   while (i < css.length) {
     const c = css[i];
-    if (c === '"' || c === "'") {
-      i = skipQuoted(css, i);
+    const skipped = skipOpaque(css, i);
+    if (skipped !== undefined) {
+      i = skipped;
       continue;
     }
     if (c === "(") {
@@ -98,7 +114,11 @@ const splitArguments = (css: string): string[] => {
 };
 
 const isGradientSetup = (argument: string): boolean => {
-  const first = argument.trim().split(/[\s(]/, 1)[0]!.toLowerCase();
+  const first = argument
+    .replace(COMMENT, " ")
+    .trim()
+    .split(/[\s(]/, 1)[0]!
+    .toLowerCase();
   return GRADIENT_SETUP_WORDS.has(first) || /^[-+.\d]/.test(first);
 };
 

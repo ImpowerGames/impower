@@ -346,6 +346,14 @@ describe("a bare word becomes a theme variable only when the theme defines it", 
     ],
     ["url(images/sky_60.png)", "url(images/sky_60.png)"],
     [
+      "linear-gradient(/* direction */ to left, sky_60, #fff)",
+      "linear-gradient(/* direction */ to left, var(--theme-color-sky_60), #fff)",
+    ],
+    [
+      "linear-gradient(to left /* a, b ( */, sky_60, #fff)",
+      "linear-gradient(to left /* a, b ( */, var(--theme-color-sky_60), #fff)",
+    ],
+    [
       "linear-gradient(color-mix(in srgb, sky_60, #fff), #000)",
       "linear-gradient(color-mix(in srgb, var(--theme-color-sky_60), #fff), #000)",
     ],
@@ -403,6 +411,23 @@ div::before { content: "--theme-color-quoted: red"; }
 div::after { content: '--theme-color-single: red'; }`,
       ),
     ]).toEqual(["--theme-color-declared", "--theme-size-gap"]);
+  });
+
+  test("a feature query's property is not a declaration", () => {
+    expect([
+      ...getThemeVariables(
+        `@supports ( --theme-color-queried: red ) {
+  .card { color: rebeccapurple; --theme-color-declared: red; }
+}
+@supports not (--theme-color-negated:red) { .x { color: red } }`,
+      ),
+    ]).toEqual(["--theme-color-declared"]);
+  });
+
+  test("an inline style's declarations count from its first character", () => {
+    expect([
+      ...getThemeVariables("--theme-size-gap:4px; --theme-color-brand: red"),
+    ]).toEqual(["--theme-size-gap", "--theme-color-brand"]);
   });
 
   test("a reference to a theme variable does not define it", () => {
