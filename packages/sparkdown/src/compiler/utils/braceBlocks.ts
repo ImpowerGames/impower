@@ -154,16 +154,13 @@ export function sparkleElementKeyParts(element: SyntaxNode): {
         case "BuiltinComponentName":
           name ??= child;
           break;
-        case "LuauSparkleCallArguments":
-          call = true;
-          break;
         default:
           walk(child);
       }
     }
   };
   if (begin) walk(begin);
-  if (content?.firstChild?.name === "LuauSparkleOpenCallArguments") call = true;
+  if (content?.firstChild?.name === "LuauSparkleCallArguments") call = true;
   if (content) words.push(...sparklePartWords(content));
   return { name, words, call };
 }

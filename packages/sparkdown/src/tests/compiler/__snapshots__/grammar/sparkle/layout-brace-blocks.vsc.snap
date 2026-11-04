@@ -985,7 +985,10 @@ text.source.sparkdown [0..2675]
  │   ├─ variable.other.constant.attribute.style.sd [1617..1618]: "#"
  │   ├─ variable.other.constant.attribute.style.sd [1618..1625]: "--label"
  │   ├─ keyword.operator.assignment.sd [1625..1626]: "="
- │   ├─ string.unquoted.sd [1626..1639]: "var(--accent)"
+ │   ├─ string.unquoted.sd [1626..1629]: "var"
+ │   ├─ string.unquoted.sd [1629..1630]: "("
+ │   ├─ string.unquoted.sd [1630..1638]: "--accent"
+ │   ├─ string.unquoted.sd [1638..1639]: ")"
  │   ├─ punctuation.whitespace.sd [1639..1640]: " "
  │   ├─ punctuation.definition.template-expression.begin.sd [1640..1641]: "{"
  │   ├─ punctuation.whitespace.sd [1641..1642]: " "
@@ -1180,8 +1183,8 @@ text.source.sparkdown [0..2675]
  │   ├─ entity.name.function.attribute.name.view.sd [1988..1989]: "@"
  │   ├─ entity.name.function.attribute.name.view.sd [1989..1994]: "click"
  │   ├─ keyword.operator.assignment.sd [1994..1995]: "="
- │   └─ meta.parameter.luau [1995..2020]
- │       ├─ entity.name.function.luau [1995..1996]: "f"
+ │   ├─ entity.name.function.luau [1995..1996]: "f"
+ │   └─ meta.parameter.luau [1996..2020]
  │       ├─ punctuation.definition.template-expression.begin.sd [1996..1997]: "("
  │       └─ comment.line.double-dash.luau [1997..2020]
  │           ├─ comment.luau [1997..1999]: "--"

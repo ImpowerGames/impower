@@ -56,13 +56,12 @@ export function sparkleElementParts(element: SyntaxNode): SparkleElementParts {
   const nameCapture = begin?.firstChild ?? null;
   const name = nameCapture?.firstChild ?? null;
   const content = findChildByName(element, "LuauSparkleElement_content");
-  const openArgs =
-    content?.firstChild?.name === "LuauSparkleOpenCallArguments"
+  const args =
+    content?.firstChild && CALL_ARGUMENTS.has(content.firstChild.name)
       ? content.firstChild
       : null;
-  const args = openArgs ?? (begin ? firstNamed(begin, CALL_ARGUMENTS) : null);
-  const beginTo = openArgs?.to ?? begin?.to ?? element.from;
-  const first = openArgs ? openArgs.nextSibling : (content?.firstChild ?? null);
+  const beginTo = args?.to ?? begin?.to ?? element.from;
+  const first = args ? args.nextSibling : (content?.firstChild ?? null);
   const head =
     first?.name === "LuauSparkleElementParts" && first.from === beginTo
       ? first
@@ -77,15 +76,6 @@ export function sparkleElementParts(element: SyntaxNode): SparkleElementParts {
 }
 
 const CALL_ARGUMENTS = nodeNameSet(["LuauSparkleCallArguments"]);
-
-function firstNamed(node: SyntaxNode, names: Set<string>): SyntaxNode | null {
-  for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (names.has(child.name)) return child;
-    const found = firstNamed(child, names);
-    if (found) return found;
-  }
-  return null;
-}
 
 export function sparkleBlockContent(block: SyntaxNode): SyntaxNode | null {
   return findChildByName(block, "LuauSparkleElementBlock_content");

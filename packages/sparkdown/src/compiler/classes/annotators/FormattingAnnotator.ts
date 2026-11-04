@@ -120,6 +120,23 @@ function isBetweenLengthAndOperator(node: SparkdownSyntaxNodeRef): boolean {
   );
 }
 
+const EVENT_VALUE_NAMES = new Set(["LuauSparkleEventHandler", "LuauSparkleEventParenAttribute_content"]);
+const EVENT_VALUE_GROUP_NAMES = [
+  "LuauSparkleValueParens",
+  "LuauParenthetical",
+  "LuauFunctionCallParameters",
+  "LuauTable",
+  "LuauSparkleHandlerClosure",
+];
+
+function inEventValueTop(node: SyntaxNode): boolean {
+  for (let walker = node.parent; walker; walker = walker.parent) {
+    if (EVENT_VALUE_GROUP_NAMES.some((n) => isExplicitRuleName(walker!.name, n))) return false;
+    if (EVENT_VALUE_NAMES.has(walker.name)) return true;
+  }
+  return false;
+}
+
 function ancestorNamed(node: SyntaxNode, name: string): SyntaxNode | null {
   for (let walker = node.parent; walker; walker = walker.parent) {
     if (isExplicitRuleName(walker.name, name)) return walker;
@@ -361,7 +378,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       }
     }
     const spacedOperator = spacedPunctuationOperator(nodeRef.name);
-    if (spacedOperator) {
+    if (spacedOperator && !inEventValueTop(nodeRef.node)) {
       let opStart = nodeRef.from;
       while (
         opStart < nodeRef.to &&
@@ -542,6 +559,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       if (isInsideInlineAlternator(nodeRef, read)) return annotations;
       if (followsLeadingGlue(nodeRef.node)) return annotations;
       if (isInStructBlockKey(nodeRef.node)) return annotations;
+      if (nodeRef.name === "OptionalWhitespace" && inEventValueTop(nodeRef.node)) return annotations;
       if (
         this.read(nodeRef.from - 1, nodeRef.from) === ":" &&
         precedesLeadingGlue(nodeRef.node)

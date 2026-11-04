@@ -677,27 +677,17 @@ variables:
   SPARKLE_OPEN_BRACED_3: (?:[{](?:{{SPARKLE_OPEN_BRACED_4}}|{{SPARKLE_OPEN_CODE_TOKEN}})*(?:[}]|$))
   SPARKLE_OPEN_BRACED_2: (?:[{](?:{{SPARKLE_OPEN_BRACED_3}}|{{SPARKLE_OPEN_CODE_TOKEN}})*(?:[}]|$))
   SPARKLE_OPEN_BRACED: (?:[{](?:{{SPARKLE_OPEN_BRACED_2}}|{{SPARKLE_OPEN_CODE_TOKEN}})*$)
-  SPARKLE_PARENS_PART: (?:{{SPARKLE_CODE_TOKEN}}|[{}])
   SPARKLE_PROP_RUN_TOKEN: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE_RUN}}|{{SPARKLE_BACKTICKED}}|{{SPARKLE_LONG_BRACKET}}|[^(){}"'`\s\[]|[\[])
-  SPARKLE_PROP_PARENS_PART: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE_RUN}}|{{SPARKLE_BACKTICKED}}|{{SPARKLE_LONG_BRACKET}}|[^()"'`\n\[]|[\[](?![=]*[\[]))
-  SPARKLE_PARENS_6: (?:[(](?:{{SPARKLE_PARENS_PART}})*[)])
-  SPARKLE_PARENS_5: (?:[(](?:{{SPARKLE_PARENS_6}}|{{SPARKLE_PARENS_PART}})*[)])
-  SPARKLE_PARENS_4: (?:[(](?:{{SPARKLE_PARENS_5}}|{{SPARKLE_PARENS_PART}})*[)])
-  SPARKLE_PARENS_3: (?:[(](?:{{SPARKLE_PARENS_4}}|{{SPARKLE_PARENS_PART}})*[)])
-  SPARKLE_PARENS_2: (?:[(](?:{{SPARKLE_PARENS_3}}|{{SPARKLE_PARENS_PART}})*[)])
-  SPARKLE_PARENS: (?:[(](?:{{SPARKLE_PARENS_2}}|{{SPARKLE_PARENS_PART}})*[)])
-  SPARKLE_PROP_PARENS_6: (?:[(](?:{{SPARKLE_PROP_PARENS_PART}})*[)])
-  SPARKLE_PROP_PARENS_5: (?:[(](?:{{SPARKLE_PROP_PARENS_6}}|{{SPARKLE_PROP_PARENS_PART}})*[)])
-  SPARKLE_PROP_PARENS_4: (?:[(](?:{{SPARKLE_PROP_PARENS_5}}|{{SPARKLE_PROP_PARENS_PART}})*[)])
-  SPARKLE_PROP_PARENS_3: (?:[(](?:{{SPARKLE_PROP_PARENS_4}}|{{SPARKLE_PROP_PARENS_PART}})*[)])
-  SPARKLE_PROP_PARENS_2: (?:[(](?:{{SPARKLE_PROP_PARENS_3}}|{{SPARKLE_PROP_PARENS_PART}})*[)])
-  SPARKLE_PROP_PARENS: (?:[(](?:{{SPARKLE_PROP_PARENS_2}}|{{SPARKLE_PROP_PARENS_PART}})*[)])
   SPARKLE_PROP_NAME: (?:[#][^\s=;{}"'(),]*(?![^\s=;{}"'(),]))
   SPARKLE_EVENT_NAME: (?:[@][^\s=;{}"'(),]*(?![^\s=;{}"'(),]))
   SPARKLE_ATTR_NO_VALUE: (?:(?={{WS}}*(?:$|[;}]|[,](?:[\s;}]|$))))
   SPARKLE_VALUE_END: (?![^\s;}",]|[,](?![\s;}]|$))
-  SPARKLE_UNQUOTED_VALUE: (?:(?!{{SPARKLE_SQUOTED}})(?:{{SPARKLE_BACKTICKED}}|{{SPARKLE_LONG_BRACKET}}|[^\s;{}"(,`\[]|[\[](?![=]*[\[])|[,](?![\s;}]|$)|{{SPARKLE_PROP_PARENS}}|{{SPARKLE_BRACED}})+{{SPARKLE_VALUE_END}})
-  SPARKLE_EVENT_UNQUOTED_VALUE: (?:(?!{{SPARKLE_SQUOTED}})(?:{{SPARKLE_BACKTICKED}}|(?:[-][-])?{{SPARKLE_LONG_BRACKET}}|[-][-](?![\[][=]*[\[])[^\n]*$|[^\s;{}"(,`\[-]|[-](?![-])|[\[](?![=]*[\[])|[,](?![\s;}]|$)|{{SPARKLE_PARENS}}|{{SPARKLE_BRACED}})+{{SPARKLE_VALUE_END}})
+  SPARKLE_ENTRY_COMMA: (?:[,](?:{{WS}}|$|[;}]))
+  SPARKLE_NO_PART_AFTER_WS: (?:{{WS}}|[;{}]|{{SPARKLE_ENTRY_COMMA}}|[=]{{WS}}*[{]|$)
+  # lookaround: LuauSparkleElementBlock, LuauSparkleElementAssign and the element's end own the whitespace before a block, an assignment or an entry's end; a paren attribute takes the whitespace after its value only before another part, as the head's whitespace token does.
+  _SPARKLE_PAREN_ATTR_END_: (?:({{WS}}+)(?!{{SPARKLE_NO_PART_AFTER_WS}})|(?=[;}"]|{{SPARKLE_ENTRY_COMMA}}|$)|(?={{WS}}+{{SPARKLE_NO_PART_AFTER_WS}}))
+  SPARKLE_UNQUOTED_VALUE: (?:(?!{{SPARKLE_SQUOTED}})(?:{{SPARKLE_BACKTICKED}}|{{SPARKLE_LONG_BRACKET}}|[^\s;{}"(,`\[]|[\[](?![=]*[\[])|[,](?![\s;}]|$)|{{SPARKLE_BRACED}})+{{SPARKLE_VALUE_END}})
+  SPARKLE_EVENT_UNQUOTED_VALUE: (?:(?!{{SPARKLE_SQUOTED}})(?:{{SPARKLE_BACKTICKED}}|(?:[-][-])?{{SPARKLE_LONG_BRACKET}}|[-][-](?![\[][=]*[\[])[^\n]*$|[^\s;{}"(,`\[-]|[-](?![-])|[\[](?![=]*[\[])|[,](?![\s;}]|$)|{{SPARKLE_BRACED}})+{{SPARKLE_VALUE_END}})
   SPARKLE_ATTR_VALUE: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_UNQUOTED_VALUE}})
   SPARKLE_EVENT_VALUE: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_EVENT_UNQUOTED_VALUE}})
   SPARKLE_OPEN_ATTR: (?:(?:{{SPARKLE_PROP_NAME}}|{{SPARKLE_EVENT_NAME}}){{WS}}*[=]{{WS}}*{{SPARKLE_OPEN_BRACED}})
@@ -726,7 +716,7 @@ variables:
   SPARKLE_COMMENT: (?:{{SPARKLE_LUAU_COMMENT}}|[/][/](?={{WS}}|$)[^\n]*$)
   SPARKLE_ELEMENT_NAME: (?:{{IDENTIFIER_START}}{{IDENTIFIER_END}})
   SPARKLE_CLASS_NAME: (?:[0-9_\p{L}][0-9_\p{L}-]*)
-  SPARKLE_HEAD_TOKEN: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE}}|{{SPARKLE_BACKTICKED}}|{{SPARKLE_ATTR}}|{{SPARKLE_PARENS}}|[()]|{{SPARKLE_COMMENT}}|[.]{{SPARKLE_CLASS_NAME}}|[=](?!{{WS}}*[{])|[,](?![\s;}]|$)|{{WS}}+(?!{{WS}}|[;{}]|[,](?:{{WS}}|$|[;}])|[=]{{WS}}*[{]|$))
+  SPARKLE_HEAD_TOKEN: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE}}|{{SPARKLE_BACKTICKED}}|{{SPARKLE_ATTR}}|[()]|{{SPARKLE_COMMENT}}|[.]{{SPARKLE_CLASS_NAME}}|[=](?!{{WS}}*[{])|[,](?![\s;}]|$)|{{WS}}+(?!{{SPARKLE_NO_PART_AFTER_WS}}))
   SPARKLE_CONTINUATION_START: (?:{{WS}}*(?!{{STRUCT_BLOCK_PROPERTY_HEAD}}(?!{{WS}}*[{]))[.#@"'])
   SPARKLE_BLOCK_BAIL: (?:{{BEAT}}|^{{WS}}*(?:end|else|elseif|case)(?![{{IDENTIFIER_END_CHAR}}]))
   SPARKLE_KEYWORD_END: (?![{{IDENTIFIER_END_CHAR}}])
@@ -5440,19 +5430,14 @@ repository:
       - { include: "#LuauSparkleBlockUnknown" }
 
   LuauSparkleElement:
-    begin: ({{SPARKLE_ELEMENT_NAME}})({{WS}}*{{SPARKLE_PARENS}})?
+    begin: ({{SPARKLE_ELEMENT_NAME}})
     beginCaptures:
       1:
         patterns:
           - { include: "#BuiltinComponentName" }
           - { include: "#LuauSparkleElementName" }
-      2:
-        patterns:
-          - { include: "#LuauSparkleCallArguments" }
-          - { include: "#ExtraWhitespace" }
-          - { include: "#LuauSparkleElementInvalid" }
     patterns:
-      - { include: "#LuauSparkleOpenCallArguments" }
+      - { include: "#LuauSparkleCallArguments" }
       - { include: "#LuauSparkleEventClosureAttribute" }
       - { include: "#LuauSparklePropClosureAttribute" }
       - { include: "#LuauSparkleElementParts" }
@@ -5577,11 +5562,13 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#LuauSparkleHandlerClosure" }
+      - { include: "#LuauSparkleEventHandlerName" }
+      - { include: "#LuauSparkleValueCallee" }
       - { include: "#LuauSparkleValueParens" }
-      - { include: "#LuauTable" }
-      - { include: "#LuauSparkleEventValueComma" }
-      - { include: "#LuauSparkleEventValueRun" }
-    end: ({{WS}}+)|(?=[;}"]|[,](?:[\s;}]|$)|$)
+      - { include: "#LuauExpression" }
+      - { include: "#LuauSparkleElementInvalid" }
+    end: "{{_SPARKLE_PAREN_ATTR_END_}}"
     endCaptures:
       1:
         patterns:
@@ -5606,45 +5593,61 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#LuauSparklePropValueParens" }
-      - { include: "#LuauSparklePropValueBraces" }
-      - { include: "#LuauSparkleValueComma" }
-      - { include: "#LuauSparklePropValueRun" }
-    end: ({{WS}}+)|(?=[;}"]|[,](?:[\s;}]|$)|$)
+      - { include: "#LuauFunctionCallShorthand" }
+      - { include: "#LuauInterpolatedStringExpression" }
+      - { include: "#LuauElementContentStringInterpolated" }
+      - { include: "#InlinePropQuotedValue" }
+      - { include: "#LuauSparklePropWord" }
+    end: "{{_SPARKLE_PAREN_ATTR_END_}}"
     endCaptures:
       1:
         patterns:
           - { include: "#RequiredWhitespace" }
 
-  LuauSparkleEventValueRun:
-    match: ((?:{{SPARKLE_BACKTICKED}}|[-][-]{{SPARKLE_LONG_BRACKET}}|[-][-][^\n]*$|{{SPARKLE_LONG_BRACKET}}|[^\s;{}"(,`\[]|[\[])+)
+  # lookaround: LuauSparklePropWordColor, LuauSparklePropValueParens, LuauSparklePropValueBraces and LuauSparklePropValueRun read the word's first character, so the word's begin must leave it to them.
+  LuauSparklePropWord:
+    begin: (?=[^\s;}"])
+    patterns:
+      - { include: "#LuauSparklePropWordColor" }
+      - { include: "#LuauSparklePropValueParens" }
+      - { include: "#LuauSparklePropValueBraces" }
+      - { include: "#LuauSparkleValueComma" }
+      - { include: "#LuauSparklePropValueRun" }
+    end: (?={{WS}}|[;}"]|{{SPARKLE_ENTRY_COMMA}})|$
+
+  LuauSparklePropWordColor:
+    match: \G((?:rgb|hsl)a?[(][^\s;"}]*[)])
     captures:
       1:
         patterns:
-          - { include: "#LuauExpression" }
+          - { include: "#Color" }
 
   LuauSparklePropValueRun:
     match: ((?:{{SPARKLE_BACKTICKED}}|{{SPARKLE_LONG_BRACKET}}|[^\s;{}"(,`\[]|[\[])+)
     captures:
       1:
         patterns:
-          - { include: "#InlinePropWordValue" }
+          - { include: "#LuauSparklePropRunText" }
           - { include: "#LuauSparklePropRunOverflow" }
+
+  LuauSparklePropRunText:
+    match: ([^\s]+)
+    captures:
+      1:
+        patterns:
+          - { include: "#UnquotedString" }
 
   LuauSparkleValueComma:
     match: ([,])
+    captures:
+      1:
+        patterns:
+          - { include: "#UnquotedString" }
 
-  LuauSparkleEventValueComma:
-    tag: invalid
-    name: invalid.illegal.sparkle-element.sd
-    match: ([,])
-
-  LuauSparkleValueParens:
-    tag: meta
-    name: meta.parameter.luau
-    brackets: true
-    begin: (?:({{LUAU_IDENTIFIER}})({{WS}}*))?([(])
-    beginCaptures:
+  # lookaround: LuauExpression's call would read this callee with arguments running past the value's whitespace and the line's end; the callee must leave the `(` to LuauSparkleValueParens.
+  LuauSparkleValueCallee:
+    match: ({{LUAU_IDENTIFIER}})({{WS}}*)(?=[(])
+    captures:
       1:
         patterns:
           - { include: "#LuauStdLibFunctions" }
@@ -5652,10 +5655,18 @@ repository:
       2:
         patterns:
           - { include: "#ExtraWhitespace" }
-      3:
+
+  LuauSparkleValueParens:
+    tag: meta
+    name: meta.parameter.luau
+    brackets: true
+    begin: ([(])
+    beginCaptures:
+      1:
         patterns:
           - { include: "#PunctuationParenOpen" }
     patterns:
+      - { include: "#LuauSparkleValueCallee" }
       - { include: "#LuauSparkleValueParens" }
       - { include: "#LuauComment" }
       - { include: "#LuauCommaSeparator" }
@@ -5674,7 +5685,7 @@ repository:
     beginCaptures:
       1:
         patterns:
-          - { include: "#PunctuationParenOpen" }
+          - { include: "#UnquotedString" }
     patterns:
       - { include: "#LuauSparklePropValueParens" }
       - { include: "#LuauSparklePropValueBraces" }
@@ -5684,7 +5695,7 @@ repository:
     endCaptures:
       1:
         patterns:
-          - { include: "#PunctuationParenClose" }
+          - { include: "#UnquotedString" }
 
   LuauSparklePropValueBraces:
     brackets: true
@@ -5692,7 +5703,7 @@ repository:
     beginCaptures:
       1:
         patterns:
-          - { include: "#PunctuationBraceOpen" }
+          - { include: "#UnquotedString" }
     patterns:
       - { include: "#LuauSparklePropValueParens" }
       - { include: "#LuauSparklePropValueBraces" }
@@ -5702,14 +5713,14 @@ repository:
     endCaptures:
       1:
         patterns:
-          - { include: "#PunctuationBraceClose" }
+          - { include: "#UnquotedString" }
 
   LuauSparklePropParenRun:
     match: ({{SPARKLE_PROP_RUN_TOKEN}}+)
     captures:
       1:
         patterns:
-          - { include: "#InlinePropWordValue" }
+          - { include: "#LuauSparklePropRunText" }
           - { include: "#LuauSparklePropRunOverflow" }
 
   LuauSparklePropRunOverflow:
@@ -5854,27 +5865,6 @@ repository:
           - { include: "#LuauSparkleElementInvalid" }
 
   LuauSparkleCallArguments:
-    begin: ({{WS}}*)([(])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Whitespace" }
-      2:
-        patterns:
-          - { include: "#PunctuationParenOpen" }
-    patterns:
-      - { include: "#LuauComment" }
-      - { include: "#LuauCommaSeparator" }
-      - { include: "#LuauElementContentStringInterpolated" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-    end: ([)])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#PunctuationParenClose" }
-
-  LuauSparkleOpenCallArguments:
     begin: \G({{WS}}*)([(])
     beginCaptures:
       1:
@@ -5884,6 +5874,7 @@ repository:
         patterns:
           - { include: "#PunctuationParenOpen" }
     patterns:
+      - { include: "#LuauSparkleValueCallee" }
       - { include: "#LuauSparkleValueParens" }
       - { include: "#LuauComment" }
       - { include: "#LuauCommaSeparator" }

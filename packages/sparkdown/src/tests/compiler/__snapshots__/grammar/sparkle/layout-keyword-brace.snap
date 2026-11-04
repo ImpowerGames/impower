@@ -51,9 +51,8 @@ sparkdown [0..275]
  │   │       │   ├─ Whitespace [31..33]: "  "
  │   │       │   ├─ LuauSparkleElement [33..156]
  │   │       │   │   ├─ LuauSparkleElement_begin [33..39]
- │   │       │   │   │   ├─ LuauSparkleElement_begin_c1 [33..39]
- │   │       │   │   │   │   └─ LuauSparkleElementName [33..39]: "column"
- │   │       │   │   │   └─ LuauSparkleElement_begin_c2 39
+ │   │       │   │   │   └─ LuauSparkleElement_begin_c1 [33..39]
+ │   │       │   │   │       └─ LuauSparkleElementName [33..39]: "column"
  │   │       │   │   ├─ LuauSparkleElement_content [39..156]
  │   │       │   │   │   ├─ LuauSparkleElementParts [39..53]
  │   │       │   │   │   │   └─ LuauSparkleElementParts_c1 [39..53]
@@ -81,9 +80,8 @@ sparkdown [0..275]
  │   │       │   │   │       │   ├─ Whitespace [56..60]: "    "
  │   │       │   │   │       │   ├─ LuauSparkleElement [60..74]
  │   │       │   │   │       │   │   ├─ LuauSparkleElement_begin [60..64]
- │   │       │   │   │       │   │   │   ├─ LuauSparkleElement_begin_c1 [60..64]
- │   │       │   │   │       │   │   │   │   └─ BuiltinComponentName [60..64]: "text"
- │   │       │   │   │       │   │   │   └─ LuauSparkleElement_begin_c2 64
+ │   │       │   │   │       │   │   │   └─ LuauSparkleElement_begin_c1 [60..64]
+ │   │       │   │   │       │   │   │       └─ BuiltinComponentName [60..64]: "text"
  │   │       │   │   │       │   │   ├─ LuauSparkleElement_content [64..74]
  │   │       │   │   │       │   │   │   └─ LuauSparkleElementParts [64..74]
  │   │       │   │   │       │   │   │       └─ LuauSparkleElementParts_c1 [64..74]
@@ -108,9 +106,8 @@ sparkdown [0..275]
  │   │       │   │   │       │   ├─ Whitespace [75..79]: "    "
  │   │       │   │   │       │   ├─ LuauSparkleElement [79..105]
  │   │       │   │   │       │   │   ├─ LuauSparkleElement_begin [79..85]
- │   │       │   │   │       │   │   │   ├─ LuauSparkleElement_begin_c1 [79..85]
- │   │       │   │   │       │   │   │   │   └─ BuiltinComponentName [79..85]: "button"
- │   │       │   │   │       │   │   │   └─ LuauSparkleElement_begin_c2 85
+ │   │       │   │   │       │   │   │   └─ LuauSparkleElement_begin_c1 [79..85]
+ │   │       │   │   │       │   │   │       └─ BuiltinComponentName [79..85]: "button"
  │   │       │   │   │       │   │   ├─ LuauSparkleElement_content [85..105]
  │   │       │   │   │       │   │   │   └─ LuauSparkleElementParts [85..105]
  │   │       │   │   │       │   │   │       └─ LuauSparkleElementParts_c1 [85..105]
@@ -172,9 +169,8 @@ sparkdown [0..275]
  │   │       │   │   │       │   │   │   ├─ Whitespace [126..132]: "      "
  │   │       │   │   │       │   │   │   ├─ LuauSparkleElement [132..144]
  │   │       │   │   │       │   │   │   │   ├─ LuauSparkleElement_begin [132..136]
- │   │       │   │   │       │   │   │   │   │   ├─ LuauSparkleElement_begin_c1 [132..136]
- │   │       │   │   │       │   │   │   │   │   │   └─ BuiltinComponentName [132..136]: "text"
- │   │       │   │   │       │   │   │   │   │   └─ LuauSparkleElement_begin_c2 136
+ │   │       │   │   │       │   │   │   │   │   └─ LuauSparkleElement_begin_c1 [132..136]
+ │   │       │   │   │       │   │   │   │   │       └─ BuiltinComponentName [132..136]: "text"
  │   │       │   │   │       │   │   │   │   ├─ LuauSparkleElement_content [136..144]
  │   │       │   │   │       │   │   │   │   │   └─ LuauSparkleElementParts [136..144]
  │   │       │   │   │       │   │   │   │   │       └─ LuauSparkleElementParts_c1 [136..144]
@@ -251,16 +247,14 @@ sparkdown [0..275]
  │   │       │   │   │   ├─ Whitespace [180..184]: "    "
  │   │       │   │   │   ├─ LuauSparkleElement [184..188]
  │   │       │   │   │   │   ├─ LuauSparkleElement_begin [184..188]
- │   │       │   │   │   │   │   ├─ LuauSparkleElement_begin_c1 [184..188]
- │   │       │   │   │   │   │   │   └─ BuiltinComponentName [184..188]: "text"
- │   │       │   │   │   │   │   └─ LuauSparkleElement_begin_c2 188
+ │   │       │   │   │   │   │   └─ LuauSparkleElement_begin_c1 [184..188]
+ │   │       │   │   │   │   │       └─ BuiltinComponentName [184..188]: "text"
  │   │       │   │   │   │   └─ LuauSparkleElement_end 188
  │   │       │   │   │   ├─ Whitespace [188..189]: " "
  │   │       │   │   │   ├─ LuauSparkleElement [189..193]
  │   │       │   │   │   │   ├─ LuauSparkleElement_begin [189..193]
- │   │       │   │   │   │   │   ├─ LuauSparkleElement_begin_c1 [189..193]
- │   │       │   │   │   │   │   │   └─ BuiltinComponentName [189..193]: "item"
- │   │       │   │   │   │   │   └─ LuauSparkleElement_begin_c2 193
+ │   │       │   │   │   │   │   └─ LuauSparkleElement_begin_c1 [189..193]
+ │   │       │   │   │   │   │       └─ BuiltinComponentName [189..193]: "item"
  │   │       │   │   │   │   └─ LuauSparkleElement_end 193
  │   │       │   │   │   ├─ Newline [193..194]: "\n"
  │   │       │   │   │   └─ Whitespace [194..196]: "  "
@@ -271,9 +265,8 @@ sparkdown [0..275]
  │   │       │   ├─ Whitespace [200..202]: "  "
  │   │       │   ├─ LuauSparkleElement [202..226]
  │   │       │   │   ├─ LuauSparkleElement_begin [202..205]
- │   │       │   │   │   ├─ LuauSparkleElement_begin_c1 [202..205]
- │   │       │   │   │   │   └─ LuauSparkleElementName [202..205]: "row"
- │   │       │   │   │   └─ LuauSparkleElement_begin_c2 205
+ │   │       │   │   │   └─ LuauSparkleElement_begin_c1 [202..205]
+ │   │       │   │   │       └─ LuauSparkleElementName [202..205]: "row"
  │   │       │   │   ├─ LuauSparkleElement_content [205..226]
  │   │       │   │   │   ├─ LuauSparkleElementParts [205..212]
  │   │       │   │   │   │   └─ LuauSparkleElementParts_c1 [205..212]
@@ -293,9 +286,8 @@ sparkdown [0..275]
  │   │       │   │   │       │   ├─ Whitespace [214..215]: " "
  │   │       │   │   │       │   ├─ LuauSparkleElement [215..224]
  │   │       │   │   │       │   │   ├─ LuauSparkleElement_begin [215..219]
- │   │       │   │   │       │   │   │   ├─ LuauSparkleElement_begin_c1 [215..219]
- │   │       │   │   │       │   │   │   │   └─ BuiltinComponentName [215..219]: "text"
- │   │       │   │   │       │   │   │   └─ LuauSparkleElement_begin_c2 219
+ │   │       │   │   │       │   │   │   └─ LuauSparkleElement_begin_c1 [215..219]
+ │   │       │   │   │       │   │   │       └─ BuiltinComponentName [215..219]: "text"
  │   │       │   │   │       │   │   ├─ LuauSparkleElement_content [219..224]
  │   │       │   │   │       │   │   │   └─ LuauSparkleElementParts [219..224]
  │   │       │   │   │       │   │   │       └─ LuauSparkleElementParts_c1 [219..224]
@@ -353,9 +345,8 @@ sparkdown [0..275]
  │   │       │   ├─ Whitespace [244..245]: " "
  │   │       │   ├─ LuauSparkleElement [245..255]
  │   │       │   │   ├─ LuauSparkleElement_begin [245..249]
- │   │       │   │   │   ├─ LuauSparkleElement_begin_c1 [245..249]
- │   │       │   │   │   │   └─ BuiltinComponentName [245..249]: "text"
- │   │       │   │   │   └─ LuauSparkleElement_begin_c2 249
+ │   │       │   │   │   └─ LuauSparkleElement_begin_c1 [245..249]
+ │   │       │   │   │       └─ BuiltinComponentName [245..249]: "text"
  │   │       │   │   ├─ LuauSparkleElement_content [249..255]
  │   │       │   │   │   └─ LuauSparkleElementParts [249..255]
  │   │       │   │   │       └─ LuauSparkleElementParts_c1 [249..255]

@@ -170,9 +170,8 @@ sparkdown [0..222]
  │   │       │   ├─ Whitespace [102..104]: "  "
  │   │       │   ├─ LuauSparkleElement [104..133]
  │   │       │   │   ├─ LuauSparkleElement_begin [104..110]
- │   │       │   │   │   ├─ LuauSparkleElement_begin_c1 [104..110]
- │   │       │   │   │   │   └─ LuauSparkleElementName [104..110]: "column"
- │   │       │   │   │   └─ LuauSparkleElement_begin_c2 110
+ │   │       │   │   │   └─ LuauSparkleElement_begin_c1 [104..110]
+ │   │       │   │   │       └─ LuauSparkleElementName [104..110]: "column"
  │   │       │   │   ├─ LuauSparkleElement_content [110..133]
  │   │       │   │   │   ├─ LuauSparkleElementAssign [110..111]
  │   │       │   │   │   │   └─ LuauSparkleElementAssign_c1 [110..111]

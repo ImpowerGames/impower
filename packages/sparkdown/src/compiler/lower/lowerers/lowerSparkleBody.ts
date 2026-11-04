@@ -220,7 +220,6 @@ function lowerBinding(
 
 const COMPONENT_CALL_CONTENT = nodeNameSet([
   "LuauSparkleCallArguments_content",
-  "LuauSparkleOpenCallArguments_content",
 ]);
 const ARG_SKIP_RE = /Whitespace|Newline|Comment|Separator/;
 
@@ -444,8 +443,7 @@ const PROP_ATTR = nodeNameSet([
   "LuauSparklePropParenAttribute",
 ]);
 const PROP_CLOSURE = nodeNameSet(["LuauSparklePropClosure"]);
-const PROP_PAREN_VALUE = nodeNameSet(["LuauSparklePropParenAttribute_content"]);
-const PROP_PAREN_OVERFLOW = nodeNameSet(["LuauSparklePropParenOverflow", "LuauSparklePropRunOverflow"]);
+const PROP_OVERFLOW = nodeNameSet(["LuauSparklePropParenOverflow", "LuauSparklePropRunOverflow"]);
 const PROP_NAME = nodeNameSet(["StyleAttributeName"]);
 const PROP_INTERP = nodeNameSet([
   "LuauInterpolatedStringExpression",
@@ -453,7 +451,7 @@ const PROP_INTERP = nodeNameSet([
 ]);
 const PROP_QUOTED = nodeNameSet(["InlinePropQuotedValue"]);
 const PROP_LITERAL = nodeNameSet([
-  "InlinePropNumericValue", "InlinePropBooleanValue", "InlinePropWordValue",
+  "InlinePropNumericValue", "InlinePropBooleanValue", "InlinePropWordValue", "LuauSparklePropWord",
 ]);
 
 function propAttributes(node: SyntaxNode): SyntaxNode[] {
@@ -480,12 +478,6 @@ function readProps(
     const nameNode = firstDescendant(attr, PROP_NAME);
     const name = nameNode ? ctx.read(nameNode.from, nameNode.to).trim() : "";
     if (!name) continue;
-    if (attr.name === "LuauSparklePropParenAttribute") {
-      const [value] = childrenByName(attr, PROP_PAREN_VALUE);
-      const overflow = value && firstDescendant(value, PROP_PAREN_OVERFLOW);
-      if (value) props[name] = { kind: "literal", value: ctx.read(value.from, overflow?.from ?? value.to) };
-      continue;
-    }
     const closure = firstDescendant(attr, PROP_CLOSURE);
     if (closure) {
       if (!propClosureHoldsExpression(closure)) continue;
@@ -520,13 +512,14 @@ function readProps(
     }
     const literal = firstDescendant(attr, PROP_LITERAL);
     if (literal) {
+      const to = firstDescendant(literal, PROP_OVERFLOW)?.from ?? literal.to;
       props[name] = {
         kind: "literal",
         value: literal.name === "InlinePropNumericValue"
-          ? Number(ctx.read(literal.from, literal.to))
+          ? Number(ctx.read(literal.from, to))
           : literal.name === "InlinePropBooleanValue"
-            ? ctx.read(literal.from, literal.to) === "true"
-            : ctx.read(literal.from, literal.to),
+            ? ctx.read(literal.from, to) === "true"
+            : ctx.read(literal.from, to),
       };
     }
   }

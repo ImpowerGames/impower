@@ -149,7 +149,6 @@ const INVALID_STRUCT_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
 const INVALID_SPARKLE_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
   "LuauSparkleBlockUnknown",
   "LuauSparkleElementInvalid",
-  "LuauSparkleEventValueComma",
 ]);
 const PROP_PAREN_OVERFLOW: Set<string> = nodeNameSet(["LuauSparklePropParenOverflow", "LuauSparklePropRunOverflow"]);
 const HEADER_CONTENT: ReadonlySet<string> = nodeNameSet(["Scene_content", "Branch_content"]);
