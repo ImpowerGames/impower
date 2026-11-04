@@ -488,6 +488,124 @@ describe("a scene's local a branch diverts to", () => {
   });
 });
 
+describe("a label of the scene a branch of the scene enters", () => {
+  const interrogation = (before: string[], guard: string[], count: string) => [
+    ...guard.filter((line) => line.startsWith("store")),
+    "scene start",
+    '  -> interrogation("nine")',
+    "end",
+    "scene interrogation(hour)",
+    "  local tries = 0",
+    ...before,
+    "  label hub",
+    "  INSPECTOR:",
+    "    Where were you at {hour}? ({tries})",
+    ...guard.filter((line) => !line.startsWith("store")),
+    "    -> pressing",
+    "  end",
+    "  done",
+    "  branch pressing",
+    `    ${count}`,
+    "    -> hub",
+    "  end",
+    "end",
+  ];
+
+  const visits = (...counts: number[]) =>
+    got(...counts.map((n) => `Where were you at nine? (${n})`));
+
+  test("keeps the scene's parameter and local after a divert", () => {
+    expect(run(interrogation([], ["  if tries < 2 then"], "tries += 1"))).toEqual(
+      visits(0, 1, 2),
+    );
+  });
+
+  test("keeps them when a store guards the divert", () => {
+    expect(
+      run(
+        interrogation(
+          [],
+          ["store visits = 0", "  visits += 1", "  if visits < 3 then"],
+          "tries += 1",
+        ),
+      ),
+    ).toEqual(visits(0, 1, 2));
+  });
+
+  test("keeps them in a scene with a line of its own before the label", () => {
+    expect(
+      run(interrogation(["  Opening line."], ["  if tries < 2 then"], "tries += 1")),
+    ).toEqual({ texts: ["Opening line.", ...visits(0, 1, 2).texts], errors: [] });
+  });
+
+  test("closes the branch's own scope", () => {
+    expect(
+      run([
+        "scene start",
+        "  -> S(4)",
+        "end",
+        "scene S(x)",
+        "  local a = 1",
+        "  -> B",
+        "  label L",
+        "  At L {x} {a} {tostring(b)}.",
+        "  done",
+        "  branch B",
+        "    local b = 2",
+        "    & a = a + 1",
+        "    -> L",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("At L 4 2 nil."));
+  });
+
+  test("shares the scene's scope through a tunnel", () => {
+    expect(
+      run([
+        "scene start",
+        '  -> S("nine")',
+        "end",
+        "scene S(hour)",
+        "  local tries = 0",
+        "  -> B",
+        "  label hub",
+        "  At {hour} ({tries}).",
+        "  & tries = tries + 1",
+        "  ->->",
+        "  branch B",
+        "    & tries = tries + 1",
+        "    -> hub ->",
+        "    Back with {tries}.",
+        "    done",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("At nine (1).", "Back with 2."));
+  });
+
+  test("reads nil for the scene's values after a divert from another scene's branch", () => {
+    expect(
+      run([
+        "scene start",
+        "  -> S(4)",
+        "end",
+        "scene S(x)",
+        "  local a = 1",
+        "  -> T.B",
+        "  label L",
+        "  At L {tostring(x)} {tostring(a)}.",
+        "end",
+        "scene T",
+        "  branch B",
+        "    -> S.L",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("At L nil nil."));
+  });
+});
+
 describe("a save", () => {
   const roundTrip = (lines: string[]) => {
     const story = new ProgramStory(rootOf(lines));
@@ -548,5 +666,28 @@ describe("a save", () => {
         "end",
       ]),
     ).toEqual({ first: "First 1.", rest: got("Second 2.", "After 2.") });
+  });
+
+  test("written after a divert from a branch to a label of its scene keeps the scene's values", () => {
+    expect(
+      roundTrip([
+        "scene start",
+        "  -> S(3)",
+        "end",
+        "scene S(x)",
+        "  local a = 1",
+        "  -> B",
+        "  label L",
+        "  First {x} {a}.",
+        "  & a = a + 1",
+        "  Second {x} {a}.",
+        "  done",
+        "  branch B",
+        "    & a = a + 1",
+        "    -> L",
+        "  end",
+        "end",
+      ]),
+    ).toEqual({ first: "First 3 2.", rest: got("Second 3 3.") });
   });
 });
