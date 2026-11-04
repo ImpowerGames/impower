@@ -583,22 +583,16 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         return result;
       }
 
-      const scene = ownerFlow.isFunction ? null : ClosestFlowBase(ownerFlow);
-      if (scene && scene !== this.story && !scene.isFunction) {
-        for (const arg of scene.args ?? []) {
-          if (arg.identifier?.name === varName) {
-            result.found = true;
-            result.isArgument = true;
-            result.ownerFlow = scene;
-            return result;
-          }
-        }
-        if (scene.variableDeclarations.has(varName)) {
-          result.found = true;
-          result.ownerFlow = scene;
+      const sceneBinding = this.SceneBindingOfBranch(varName, ownerFlow);
+      if (sceneBinding) {
+        result.found = true;
+        result.ownerFlow = sceneBinding.scene;
+        if (sceneBinding.isArgument) {
+          result.isArgument = true;
+        } else {
           result.isTemporary = true;
-          return result;
         }
+        return result;
       }
     }
 
@@ -671,7 +665,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     if (arg && !arg.isUpvalue) {
       return true;
     }
-    if (!arg && this.IsSceneLocalOfBranch(varName, flow)) {
+    if (!arg && this.SceneBindingOfBranch(varName, flow)) {
       return true;
     }
     if (!arg && !this.story.variableDeclarations.has(varName)) {
@@ -692,18 +686,23 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     return !site || this.IsLocalInScopeAt(varName, site.parent, site.end);
   };
 
-  private IsSceneLocalOfBranch = (varName: string, flow: FlowBase): boolean => {
-    if (flow.isFunction) {
-      return false;
+  private SceneBindingOfBranch = (
+    varName: string,
+    flow: FlowBase,
+  ): { scene: FlowBase; isArgument: boolean } | null => {
+    const scene = flow.isFunction
+      ? null
+      : (ClosestFlowBase(flow) as FlowBase | null);
+    if (!scene || scene === this.story || scene.isFunction) {
+      return null;
     }
-    const scene = ClosestFlowBase(flow) as FlowBase | null;
-    return (
-      !!scene &&
-      scene !== this.story &&
-      !scene.isFunction &&
-      (scene.variableDeclarations.has(varName) ||
-        !!scene.args?.some((a) => a.identifier?.name === varName))
-    );
+    if (scene.args?.some((a) => a.identifier?.name === varName)) {
+      return { scene, isArgument: true };
+    }
+    if (scene.variableDeclarations.has(varName)) {
+      return { scene, isArgument: false };
+    }
+    return null;
   };
 
   public AddNewVariableDeclaration =(varDecl: VariableAssignment): void => {
