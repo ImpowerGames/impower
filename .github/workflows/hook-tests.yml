@@ -26,6 +26,10 @@ jobs:
         CLAUDE.md
         .gitignore
         package.json
+        packages/sparkle/package.json
+        packages/sparkle/scripts/extract.ts
+        packages/sparkle/vscode.html-custom-data.json
+        .vscode/settings.json
         vscode-sparkdown/package.json
         vscode-sparkdown/scripts/f5.mjs
         .vscode/tasks.json
@@ -59,9 +63,6 @@ jobs:
         !scripts/transplant-desktop-sessions.ps1
         .gitignore
         package.json
-        packages/sparkle/package.json
-        packages/sparkle/vscode.html-custom-data.json
-        .vscode/settings.json
         vscode-sparkdown/package.json
         vscode-sparkdown/scripts/f5.mjs
         .vscode/tasks.json
@@ -93,6 +94,10 @@ jobs:
             /impower-dev.cloudbuild.yaml
             /sparkdown-player-app.cloudbuild.yaml
             /packages/concept-generator/src/input/concepts.yaml
+            /packages/sparkle/package.json
+            /packages/sparkle/scripts/extract.ts
+            /packages/sparkle/vscode.html-custom-data.json
+            /.vscode/settings.json
             /AGENTS.md
             /CLAUDE.md
             /.gitignore
@@ -145,9 +150,6 @@ jobs:
             /CLAUDE.md
             /.gitignore
             /package.json
-            /packages/sparkle/package.json
-            /packages/sparkle/vscode.html-custom-data.json
-            /.vscode/settings.json
             /vscode-sparkdown/package.json
             /vscode-sparkdown/scripts/f5.mjs
           sparse-checkout-cone-mode: false
