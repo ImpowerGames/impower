@@ -349,7 +349,18 @@ const MAIN_SCRIPT = "main.sd";
 
 export const LAYOUT_MARKER = ".layout";
 
-const MAX_LAYOUT_BATCHES = 4;
+const settledTarget = (
+  path: string,
+  subtreeFor: (path: string) => string,
+): string => {
+  let target = path;
+  for (let i = 0; i <= path.split("/").length; i++) {
+    const next = `${subtreeFor(target)}/${stripCategoryPrefix(target)}`;
+    if (next === target) break;
+    target = next;
+  }
+  return target;
+};
 
 const folderOf = (path: string): string =>
   path.slice(0, path.lastIndexOf("/") + 1);
@@ -424,7 +435,7 @@ export const computeLayoutMigration = (
       repair &&
       p.startsWith("assets/") &&
       splitRoots.some((root) => inner.startsWith(root));
-    const to = repairs ? `scripts/${inner}` : `${subtreeFor(p)}/${inner}`;
+    const to = repairs ? `scripts/${inner}` : settledTarget(p, subtreeFor);
     if (to === p || !isFree(to)) continue;
     if (!repairs && projectOf(to, finalRoots) !== "") continue;
     reserve(to);
@@ -439,7 +450,7 @@ export const computeLayoutMigrationBatches = (
 ): { from: string; to: string }[][] => {
   const batches: { from: string; to: string }[][] = [];
   let paths = relativePaths;
-  for (let i = 0; i < MAX_LAYOUT_BATCHES; i++) {
+  for (let i = 0; i <= relativePaths.length; i++) {
     const moves = computeLayoutMigration(paths, subtreeFor);
     if (moves.length === 0) break;
     batches.push(moves);

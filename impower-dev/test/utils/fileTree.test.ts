@@ -637,6 +637,26 @@ describe("computeLayoutMigration", () => {
     expect(projectOf(migrated, "assets/keptsake/x.png")).toBe("");
   });
 
+  it("files a non-.url asset under nested urls/ folders in one move, so a second load moves nothing", () => {
+    const paths = [
+      "main.sd",
+      "other/main.sd",
+      "other/assets/forest.svg",
+      "assets/urls/urls/urls/urls/urls/forest.svg",
+    ];
+    expect(computeLayoutMigration(paths, subtreeFor)).toContainEqual({
+      from: "assets/urls/urls/urls/urls/urls/forest.svg",
+      to: "assets/forest.svg",
+    });
+    const migrated = computeLayoutMigrationBatches(paths, subtreeFor).reduce(
+      applyMoves,
+      paths,
+    );
+    expect(
+      computeLayoutMigrationBatches([...migrated, LAYOUT_MARKER], subtreeFor),
+    ).toEqual([]);
+  });
+
   it("does not file a root-project script into a sub-project's folder", () => {
     const paths = ["main.sd", LAYOUT_MARKER, "scripts/other/main.sd", "other/x.sd"];
     expect(computeLayoutMigration(paths, subtreeFor)).toEqual([]);
