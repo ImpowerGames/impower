@@ -309,6 +309,8 @@ const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,
     config.steps.check.permissions.cwd=physicalCwd.toLowerCase();
     config.steps.check.args=config.steps.check.args.map((arg,index,args)=>['--cd','-C','--output-last-message','-o'].includes(args[index-1])?arg.toLowerCase():arg);
     const configFile=path.join(scratch,'launch.json');fs.writeFileSync(configFile,JSON.stringify(config));
+    const retryJournal=path.join(launchDir,'retry.jsonl');
+    const retryFile=path.join(scratch,'retry.json');
     const originalExec=childProcess.execFileSync,originalSpawn=childProcess.spawn,previous={};
     for(const [key,value] of Object.entries({CODEX_HOME:sourceHome,CLAUDE_CODE_MESSAGING_TOKEN:'fixture-token',CODEX_APP_TOOLS_PIPE_PATH:'fixture-pipe',CODEX_THREAD_ID:'fixture-thread',OPENAI_API_KEY:'fixture-key',OpenAi_Base_Url:'https://fixture.invalid',OPENAI_ORG_ID:'fixture-org'})){previous[key]=process.env[key];process.env[key]=value;}
     let doctorMode='complete',doctorCalls=0,authUnavailable=false,authCalls=0;const reportReads=[];
@@ -340,13 +342,28 @@ const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,
       doctorMode='complete';authUnavailable=true;assert.throws(()=>nativeReviewerEnvironment(config.steps.check,launchDir,process.env,{worktree:repo}),/GitHub authentication/,'missing parent authentication refuses before native reviewer launch');authUnavailable=false;
       await runHandoff(configFile,{jobRoot:scratch,slotRoot:path.join(scratch,'launcher-slots'),repos:ON});assert.equal(doctorCalls,5);assert.equal(authCalls,2);
       assert.deepEqual(reportReads,[`repos/${ON.internal}/issues/comments/101`],'the report is read by id from the internal repository');
+      const retry=structuredClone(config);
+      retry.journal=retryJournal;
+      const reportIndex=retry.steps.check.args.indexOf('--output-last-message');
+      retry.steps.check.args[reportIndex+1]=path.join(path.dirname(retry.steps.check.args[reportIndex+1]),'retry-report.md');
+      fs.writeFileSync(retryFile,JSON.stringify(retry));
+      await runHandoff(retryFile,{jobRoot:scratch,slotRoot:path.join(scratch,'launcher-slots'),repos:ON});
     }
     finally{childProcess.execFileSync=originalExec;childProcess.spawn=originalSpawn;syncBuiltinESMExports();for(const [key,value] of Object.entries(previous)){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
     const journal=readClaudeRows(config.journal),launch=journal.find(row=>row.event==='launching'),observed=readJson(capture);
     assert.equal(journal.at(-1).event,'finished');assert.ok(journal.findIndex(row=>row.event==='exited')<journal.findIndex(row=>row.event==='completed'));
     assert.equal(observed.token,null);assert.equal(observed.pipe,null);assert.equal(observed.thread,null);assert.equal(observed.config,false);assert.notEqual(observed.home,sourceHome);assert.equal(observed.gitCount,'1');assert.equal(observed.gitKey,'safe.directory');assert.equal(observed.gitValue,fs.realpathSync.native(repo).replaceAll('\\','/'));
-    assert.equal(observed.argv.at(-1),'-');assert.deepEqual(observed.argv,launch.args);assert.equal(observed.argv[observed.argv.findIndex(arg=>['--cd','-C'].includes(arg))+1],physicalCwd,'native launch uses the validated physical directory, not an alias');assert.equal(path.dirname(observed.argv[observed.argv.indexOf('--output-last-message')+1]),physicalCwd);assert.equal(observed.argv.at(-3),'--add-dir');
-    assert.equal(observed.argv.at(-2),path.dirname(launch.completion));assert.notEqual(path.dirname(launch.output),path.dirname(launch.completion));assert.notEqual(path.dirname(launch.diagnostics),path.dirname(launch.completion));
+    const retryRows=readClaudeRows(retryJournal),retryLaunch=retryRows.find(row=>row.event==='launching');
+    assert.equal(retryRows.at(-1).event,'finished');
+    assert.equal(observed.argv.at(-1),'-');assert.deepEqual(observed.argv,retryLaunch.args);assert.equal(observed.argv[observed.argv.findIndex(arg=>['--cd','-C'].includes(arg))+1],physicalCwd,'native launch uses the validated physical directory, not an alias');assert.equal(path.dirname(observed.argv[observed.argv.indexOf('--output-last-message')+1]),physicalCwd);assert.equal(observed.argv.at(-3),'--add-dir');
+    assert.equal(path.dirname(launch.completion),physicalCwd,'the completion artifact is inside the physical reviewer workspace');
+    assert.equal(observed.argv.at(-2),physicalCwd,'the native launch grants no separate completion directory');
+    assert.notEqual(path.dirname(launch.output),path.dirname(launch.completion));assert.notEqual(path.dirname(launch.diagnostics),path.dirname(launch.completion));
+    assert.equal(readJson(launch.completion).head,head,'completion evidence remains readable after probe cleanup');
+    assert.notEqual(retryLaunch.completion,launch.completion,'a new attempt cannot reuse a previous completion artifact');
+    assert.equal(path.dirname(retryLaunch.completion),physicalCwd);
+    assert.equal(readJson(retryLaunch.completion).head,head);
+    assert.ok(!journal.some(row=>row.event==='completion-artifact-missing')&&!retryRows.some(row=>row.event==='completion-artifact-missing'));
     assert.match(fs.readFileSync(launch.diagnostics,'utf8'),/diagnostic after terminal/);assert.doesNotMatch(fs.readFileSync(launch.output,'utf8'),/diagnostic after terminal/);verifyNativeReviewResult(launch.output,'codex-jsonl');
     protectPrivatePath(path.dirname(launch.output),{verifyOnly:true});
     console.log('PASS: actual launcher child receives exact narrow argv, isolated credentials/config home and separate protected native evidence; real exit precedes completion');
