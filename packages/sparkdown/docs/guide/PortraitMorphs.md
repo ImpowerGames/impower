@@ -95,8 +95,8 @@ As lashes close, the eyeball between them has to disappear with them. The morph 
 
 The morph reads the artwork's own markup, so some export settings stop it. An artwork the morph cannot read safely shows without the morph, still, with an error on the artwork file:
 
-- A style sheet: a `<style>` element anywhere in the file, even an empty one or one whose rules touch nothing. Export styling as inline `style` attributes or presentation attributes, which are read.
-- An inline `style` the morph cannot read safely: one using `all`, `var()`, comments, escapes, character references or strings, anything outside plain ASCII, or an opacity that is not a number or a percentage.
+- A style sheet: a `<style>` or `<link>` element anywhere in the file, even an empty one or one whose rules touch nothing, an `<?xml-stylesheet ?>` instruction, or a `<!DOCTYPE>` with an internal subset in square brackets. Export styling as inline `style` attributes or presentation attributes, which are read.
+- An inline `style` the morph cannot read safely: one using `all`, `var()`, comments, escapes, character references or strings, anything outside plain ASCII, a `!` other than `!important`, or an opacity that is not a number or a percentage.
 - A `transform` attribute the morph cannot read: the six SVG transform functions with plain numbers are read, separated by spaces, tabs, line breaks or commas.
 
 A single shape the morph cannot follow fades instead of moving, with a warning naming its layer, while the rest of the portrait still moves: a shape whose geometry is set in units or styles the morph cannot read exactly, such as `cx="50%"`, `r="1em"` or a `d` or `r` set in its `style`, and a shape moved by a transform the morph cannot follow, such as a CSS `transform` or `rotate` in its `style`, or a `transform-origin` attribute, on the shape or a layer around it.

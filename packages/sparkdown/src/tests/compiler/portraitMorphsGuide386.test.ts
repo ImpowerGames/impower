@@ -265,6 +265,9 @@ describe("the art and warnings the portrait morphs guide teaches", () => {
     expect(bakeGuide(plain, blink()).status).toBe("live");
     for (const svg of [
       plain.replace("<defs>", "<defs><style></style>"),
+      plain.replace("<defs>", '<defs><link rel="stylesheet" href="theme.css"/>'),
+      `<?xml-stylesheet href="theme.css"?>\n${plain}`,
+      `<!DOCTYPE svg [<!ENTITY x "x">]>\n${plain}`,
       plain.replace('data-name="nose"', 'data-name="nose" style="fill:var(--nose)"'),
       plain.replace('data-name="nose"', 'data-name="nose" transform="rotate(10deg)"'),
     ]) {
@@ -276,7 +279,7 @@ describe("the art and warnings the portrait morphs guide teaches", () => {
     const text = chapter();
     expect(text).toContain("### Art the morph can read");
     expect(text).toContain("An artwork the morph cannot read safely shows without the morph, still, with an error on the artwork file");
-    expect(text).toContain("- A style sheet: a `<style>` element anywhere in the file, even an empty one");
+    expect(text).toContain("- A style sheet: a `<style>` or `<link>` element anywhere in the file, even an empty one or one whose rules touch nothing, an `<?xml-stylesheet ?>` instruction, or a `<!DOCTYPE>` with an internal subset");
     expect(text).toContain("one using `all`, `var()`, comments, escapes, character references or strings");
     expect(text).toContain("- A `transform` attribute the morph cannot read: the six SVG transform functions with plain numbers are read");
     expect(readFileSync(resolve(GUIDE, "Portraits.md"), "utf8")).toContain("(./PortraitMorphs.md#art-the-morph-can-read)");
