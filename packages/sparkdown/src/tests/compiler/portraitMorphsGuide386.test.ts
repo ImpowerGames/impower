@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { pairShapes, parsePathData, type LabelledShape } from "@impower/spark-morph/src/index";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
@@ -84,6 +85,47 @@ describe("the portrait morphs guide chapter", () => {
 </svg>`;
     const found = diagnosticsOf(first, [apart, SPLIT_LASHES]);
     expect(found.some((d) => d.message.includes("rest in different `eyes` states"))).toBe(true);
+  });
+
+  test("the pairing the chapter describes is the pairing the bake runs", () => {
+    const at = (id: string, label: string, y: number): LabelledShape => ({
+      id,
+      label,
+      subpaths: parsePathData(`M 0 ${y} L 10 ${y} L 10 ${y + 1} Z`),
+    });
+    const reordered = pairShapes(
+      [at("open-top", "eyelash-left", 0), at("open-bottom", "eyelash-left", 20)],
+      [at("closed-bottom", "eyelash-left", 21), at("closed-top", "eyelash-left", 1)],
+    );
+    expect(reordered.pairs.map((p) => [p.from.id, p.to.id]).sort()).toEqual([
+      ["open-bottom", "closed-bottom"],
+      ["open-top", "closed-top"],
+    ]);
+    const shared = pairShapes(
+      [at("top", "eyelash-right", 0), at("bottom", "eyelash-right", 20)],
+      [at("closed", "eyelash-right", 10)],
+    );
+    expect(shared.pairs.map((p) => p.from.id).sort()).toEqual(["bottom", "top"]);
+    const uneven = pairShapes(
+      [at("a", "creases", 0), at("b", "creases", 5)],
+      [at("c", "creases", 0), at("d", "creases", 5), at("e", "creases", 9)],
+    );
+    expect(uneven.pairs).toEqual([]);
+    expect(uneven.unpaired.every((u) => u.reason === "count-mismatch")).toBe(true);
+    const renamed = pairShapes([at("lash", "lash-left", 0)], [at("lid", "lid-left", 0)]);
+    expect(renamed.pairs).toEqual([]);
+
+    const text = chapter();
+    expect(text).toContain("they pair by position: the two drawings nearest each other pair first");
+    expect(text).toContain("does not pair at all: each of its drawings uses the fallback, with a warning on the artwork");
+    expect(text).toContain("through the morph's `fallback` instead, a fade unless the morph sets another");
+    expect(text).not.toMatch(/fixed order|each fades out or in/);
+  });
+
+  test("the chapter does not promise that every morph ends at rest", () => {
+    const text = chapter();
+    expect(text).toContain("one that ends elsewhere holds its last pose when it finishes");
+    expect(text).not.toContain("returns to the state it was drawn in");
   });
 
   test("examples use the brace form and the iteration delay range", () => {
