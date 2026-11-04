@@ -1003,3 +1003,187 @@ end
     expect(warnings[0]).toContain("`eyes`");
   });
 });
+
+describe("layer motion on the morph's clock", () => {
+  const POSE = "        state = closed\n      }\n";
+  const motionSource = (timing = TIMING) => {
+    const source = SOURCE.replace(TIMING, timing);
+    expect(source).toContain(POSE);
+    return source.replace(POSE, `${POSE}      nose {\n        translate = 0 -2px\n        rotate = 2deg\n      }\n`);
+  };
+  const MIDDLE = 0.33333;
+
+  function recordingAnimator() {
+    const effects: { element: Element; keyframes: Keyframe[]; samples: number[]; cancels: number }[] = [];
+    const animate = (element: Element, keyframes: Keyframe[]) => {
+      const effect = { element, keyframes, samples: [] as number[], cancels: 0 };
+      effects.push(effect);
+      return {
+        sample: (offset: number) => effect.samples.push(offset),
+        cancel: () => {
+          effect.cancels += 1;
+        },
+      };
+    };
+    return { effects, animate };
+  }
+
+  async function moving(source = motionSource(), recorder: ReturnType<typeof recordingAnimator> | null = recordingAnimator(), before?: (view: any) => void) {
+    const writes: any[] = [];
+    const h = createDOMHarness(source, 0, {
+      files: FILES,
+      afterEachMessage: (message) => {
+        const ops = message?.method === "ui/batch" ? message.params.messages : [message];
+        for (const op of ops) if (op?.method === "ui/write-image") writes.push(op);
+      },
+    });
+    before?.(h.overlay.ownerDocument.defaultView);
+    const playback = MorphPlayback.for(h.overlay);
+    playback.configure({ host: inProcessHost(() => h.game.program), seed: "test", ...manualFrames(), ...(recorder ? { animate: recorder.animate } : {}) });
+    await h.ready;
+    await h.preview(lineOf(source, "First line."));
+    await flushMicrotasks(10);
+    await until(() => playback.stats.live === 1, "the artifact");
+    const shadow = shadowOf(portraitSpan(h.overlay))!;
+    const artifact = (playback as any).layers.values().next().value.plays[0].slot.artifact as MorphArtifact;
+    return { h, playback, writes, recorder: recorder!, shadow, artifact };
+  }
+
+  const offsets = (track: { offset?: number | null }[]) => track.map((k) => Math.round((k.offset ?? NaN) * 1e5) / 1e5);
+
+  test("the write carries each moved layer's keyframes, identity where the ends leave a property out", async () => {
+    const { writes, artifact } = await moving();
+    const play = writes.find((w) => w.params.target === "portrait" && w.params.instructions.length).params.instructions[0].content.morph.plays[0];
+    expect(Object.keys(play.motion)).toEqual(["nose"]);
+    expect(offsets(play.motion.nose)).toEqual([0, MIDDLE, 1]);
+    expect(play.motion.nose.map((k: any) => k.values)).toEqual([
+      { translate: "0px", rotate: "0deg" },
+      { translate: "0 -2px", rotate: "2deg" },
+      { translate: "0px", rotate: "0deg" },
+    ]);
+    expect(artifact.motion).toEqual(["nose"]);
+    expect(JSON.stringify(play).length).toBeLessThan(1500);
+  });
+
+  test("a moved layer is sampled at the offset its shapes and apertures are drawn at, and holds when the story pauses", async () => {
+    const { playback, recorder, shadow, artifact } = await moving();
+    const wrapper = shadow.querySelector('[data-morph-motion="nose"]')!;
+    expect(wrapper.firstElementChild?.getAttribute("data-name")).toBe("nose");
+    expect(recorder.effects.length).toBe(1);
+    const [effect] = recorder.effects;
+    expect(effect!.element === wrapper).toBe(true);
+    expect(offsets(effect!.keyframes)).toEqual([0, MIDDLE, 1]);
+    expect(effect!.keyframes.map(({ offset: _offset, ...rest }) => rest)).toEqual([
+      { translate: "0px", rotate: "0deg" },
+      { translate: "0 -2px", rotate: "2deg" },
+      { translate: "0px", rotate: "0deg" },
+    ]);
+    expect(effect!.samples).toEqual([0]);
+    playback.advance(0.4 * 0.25);
+    expect(effect!.samples).toEqual([0, 0.4]);
+    expect(leafStates(shadow)).toEqual(referenceStates(artifact, 0.4));
+    playback.setPaused(true);
+    playback.advance(0.1);
+    expect(effect!.samples).toEqual([0, 0.4]);
+    playback.setPaused(false);
+    playback.advance(0.2 * 0.25);
+    expect(effect!.samples.at(-1)).toBeCloseTo(0.6, 9);
+    expect(leafStates(shadow)).toEqual(referenceStates(artifact, effect!.samples.at(-1)!));
+    expect(recorder.effects.length).toBe(1);
+  });
+
+  test("the play's easing is applied once: the layer is sampled at the eased offset the shapes use", async () => {
+    const { playback, recorder, shadow, artifact } = await moving(motionSource(TIMING.replace("easing = linear", "easing = steps(3)")));
+    playback.advance(0.4 * 0.25);
+    const [effect] = recorder.effects;
+    expect(effect!.samples).toEqual([0, 1 / 3]);
+    expect(leafStates(shadow)).toEqual(referenceStates(artifact, 1 / 3));
+    expect(effect!.keyframes.every((k) => !("easing" in k))).toBe(true);
+  });
+
+  test("turning animation off returns the layer to rest; clearing the portrait releases its effect", async () => {
+    const { h, playback, recorder } = await moving();
+    playback.advance(0.4 * 0.25);
+    const [effect] = recorder.effects;
+    playback.setEnabled(false);
+    expect(effect!.cancels).toBe(1);
+    playback.advance(0.1);
+    expect(effect!.samples).toEqual([0, 0.4]);
+    playback.setEnabled(true);
+    playback.advance(0.2 * 0.25);
+    expect(effect!.samples.at(-1)).toBeCloseTo(0.2, 9);
+    await h.game.module.ui.image.clear("portrait");
+    await flushMicrotasks(10);
+    expect(effect!.cancels).toBe(2);
+    expect(playback.stats).toEqual({ layers: 0, live: 0, occurrences: 0 });
+  });
+
+  test("the page's animator holds a paused animation on the document's timeline and only ever sets its time from the morph's offset", async () => {
+    const made: FakeAnimation[] = [];
+    class FakeEffect {
+      constructor(
+        readonly target: Element,
+        readonly keyframes: Keyframe[],
+        readonly options: unknown,
+      ) {}
+    }
+    class FakeAnimation {
+      currentTime: number | null = null;
+      cancels = 0;
+      plays = 0;
+      constructor(
+        readonly effect: FakeEffect,
+        readonly timeline: unknown,
+      ) {
+        made.push(this);
+      }
+      cancel() {
+        this.cancels += 1;
+        this.currentTime = null;
+      }
+      play() {
+        this.plays += 1;
+      }
+      pause() {
+        this.plays += 1;
+      }
+    }
+    let view: any;
+    let saved: { effect: unknown; animation: unknown } | undefined;
+    const timeline = { currentTime: 0 };
+    const install = (window: any) => {
+      view = window;
+      saved = { effect: window.KeyframeEffect, animation: window.Animation };
+      window.KeyframeEffect = FakeEffect;
+      window.Animation = FakeAnimation;
+      Object.defineProperty(window.document, "timeline", { value: timeline, configurable: true });
+    };
+    try {
+      const { h, playback, shadow } = await moving(motionSource(), null, install);
+      expect(made).toHaveLength(1);
+      const [animation] = made;
+      expect(animation!.timeline).toBe(timeline);
+      expect(animation!.effect.target === shadow.querySelector('[data-morph-motion="nose"]')).toBe(true);
+      expect(animation!.effect.options).toEqual({ duration: 1000, fill: "both" });
+      expect(animation!.currentTime).toBe(0);
+      playback.advance(0.4 * 0.25);
+      expect(animation!.currentTime).toBeCloseTo(400, 9);
+      playback.setPaused(true);
+      playback.advance(0.1);
+      expect(animation!.currentTime).toBeCloseTo(400, 9);
+      playback.setEnabled(false);
+      expect(animation!.cancels).toBe(1);
+      expect(animation!.currentTime).toBeNull();
+      await h.game.module.ui.image.clear("portrait");
+      await flushMicrotasks(10);
+      expect(animation!.cancels).toBe(2);
+      expect(animation!.plays).toBe(0);
+    } finally {
+      if (view && saved) {
+        view.KeyframeEffect = saved.effect;
+        view.Animation = saved.animation;
+        delete view.document.timeline;
+      }
+    }
+  });
+});

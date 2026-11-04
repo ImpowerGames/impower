@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { pairShapes, parsePathData, type LabelledShape } from "@impower/spark-morph/src/index";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { buildMorphMotion, MORPH_MOTION_REST, MORPH_MOTION_WRAPPER_STYLE, morphMotionProblem } from "../../morph/motion";
 import { MorphTimeline, morphRandom } from "../../morph/timeline";
 import type { MorphTiming } from "../../morph/types";
 
@@ -26,6 +27,11 @@ const PORTRAIT = `<svg xmlns="http://www.w3.org/2000/svg">
   <g data-name="shine:eyes.open" id="sh"/>
   <g data-name="creases" id="cr"/>
   <g data-name="glasses:mask.on" id="gl"/>
+  <g data-name="eyebrows" id="eb">
+    <g data-name="brow-left:brows.up:default" id="bu"/>
+    <g data-name="brow-left:brows.down" id="bd"/>
+  </g>
+  <g data-name="nose" id="no"/>
 </g>
 </svg>`;
 
@@ -36,6 +42,8 @@ const SPLIT_LASHES = `<svg xmlns="http://www.w3.org/2000/svg">
 <g data-name="eyelash-top-right:eyes.closed" id="rtc"/>
 <g data-name="eyelash-bottom-right:eyes.open:default" id="rb"/>
 <g data-name="eyelash-bottom-right:eyes.closed" id="rbc"/>
+<g data-name="brow-left:brows.up:default" id="bu"/>
+<g data-name="brow-left:brows.down" id="bd"/>
 </svg>`;
 
 const chapter = () => readFileSync(CHAPTER, "utf8");
@@ -153,7 +161,54 @@ describe("the portrait morphs guide chapter", () => {
     expect(all).not.toMatch(/^morph \S+ with\b/m);
     expect(all).toContain("iteration_delay_min");
     expect(all).toContain("iteration_delay_max");
-    expect(all).not.toMatch(/\btranslate\s*=/);
+  });
+
+  test("the moving-layers section teaches the values, rest values and order the player uses", () => {
+    const text = chapter();
+    const moving = examples().find((example) => example.includes("eyebrows { translate = 0 8px }"))!;
+    expect(moving).toBeDefined();
+    expect(diagnosticsOf(moving)).toEqual([]);
+    const second = examples().find((example) => example.includes("brows { state = down }"))!;
+    expect(diagnosticsOf(second)).toEqual([]);
+    const late = second.replace("      brows { state = up }\n    }\n    50%", "    }\n    50%");
+    expect(late).not.toBe(second);
+    expect(diagnosticsOf(late).map((d) => d.message)).toContainEqual(expect.stringContaining("`brows` takes a `state` in a later keyframe but not in the first one"));
+    const rest = buildMorphMotion([{ eyes: { state: "open" } }, { eyes: { state: "closed" }, nose: { translate: "0 1px", rotate: "1deg", scale: "2", transform: "skewX(1deg)", transform_origin: "left top", opacity: 0.5 } }])!;
+    expect(rest["nose"]![0]!.values).toEqual(MORPH_MOTION_REST);
+    for (const row of ["| `translate` |", "| `rotate` |", "| `scale` |", "| `transform` |", "| `transform_origin` |", "| `opacity` |"]) expect(text).toContain(row);
+    expect(text).toMatch(/\| `translate` \|[^\n]*\| `0` \|/);
+    expect(text).toMatch(/\| `rotate` \|[^\n]*\| `0deg` \|/);
+    expect(text).toMatch(/\| `scale` \|[^\n]*\| `1` \|/);
+    expect(text).toMatch(/\| `transform` \|[^\n]*\| `none` \|/);
+    expect(text).toMatch(/\| `transform_origin` \|[^\n]*\| `center` \|/);
+    expect(text).toMatch(/\| `opacity` \|[^\n]*\| `1` \|/);
+    expect(text).toContain("`translate`, then `rotate`, then `scale`, then `transform`, all about `transform_origin`");
+    expect(MORPH_MOTION_WRAPPER_STYLE).toBe("transform-box:fill-box;transform-origin:50% 50%");
+    expect(text).toContain("A percentage is of the moved layer's own box");
+    const documented = [
+      ["translate", "0 8px"],
+      ["translate", "-2px"],
+      ["translate", "50% 0"],
+      ["translate", "calc(50% + 2px)"],
+      ["rotate", "5deg"],
+      ["rotate", "-0.02turn"],
+      ["rotate", 0],
+      ["scale", "1.1"],
+      ["scale", "1 0.9"],
+      ["scale", "95%"],
+      ["transform", "skewX(4deg) translate(0, -1px)"],
+      ["transform", "rotate(90deg) translate(10px, 0)"],
+      ["transform_origin", "left top"],
+      ["transform_origin", "50% 100%"],
+      ["transform_origin", "center bottom"],
+      ["opacity", "50%"],
+    ] as const;
+    for (const [property, value] of documented) {
+      expect(morphMotionProblem(property, value), `${property} = ${value}`).toBeNull();
+    }
+    for (const [property, value] of [["transform", "rotateX(30deg)"], ["translate", "0 0 5px"], ["scale", "1 1 2"], ["transform_origin", "left top 5px"], ["rotate", "x 30deg"], ["translate", "0 8"]] as const) {
+      expect(morphMotionProblem(property, value), `${property} = ${value}`).not.toBeNull();
+    }
   });
 
   test("every relative link in the chapter names a guide file that exists", () => {

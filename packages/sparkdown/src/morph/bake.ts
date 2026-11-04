@@ -34,6 +34,7 @@ import { hashText } from "./hash";
 import { own, table } from "./own";
 import { contourOverlapsItself } from "./contour";
 import { effectivePaint, fillRule, paintBlend, type EffectivePaint } from "./paint";
+import { MORPH_MOTION_WRAPPER_STYLE } from "./motion";
 import { recipeAsMorph } from "./recipe";
 import { APERTURE_REACH, APERTURE_REACH_ID_SUFFIX, spreadStroke } from "./render";
 import {
@@ -481,6 +482,30 @@ export function* bakeSteps(
       groupOf.set(layer.key, group);
     }
   }
+  const drivenGroups = [...visibleIn.keys()];
+  for (const [i, first] of drivenGroups.entries()) {
+    for (const second of drivenGroups.slice(i + 1)) {
+      for (const [a, aVisible] of visibleIn.get(first)!) {
+        if (!a) continue;
+        for (const [b, bVisible] of visibleIn.get(second)!) {
+          if (!b) continue;
+          const together = evaluateAttributeVisibility(vocabulary, { ...selection, [first]: a, [second]: b }).visible;
+          for (const layer of vocabulary.layers) {
+            const owner = groupOf.get(layer.key);
+            const alone = owner === first ? aVisible : owner === second ? bVisible : restVisible;
+            if (!!together[layer.key] === !!alone[layer.key]) continue;
+            report(
+              "mixed-groups",
+              "error",
+              `Layer "${layer.name}" depends on both \`${first}\` and \`${second}\`: it ${together[layer.key] ? "shows" : "hides"} when \`${first}.${a}\` and \`${second}.${b}\` meet, which neither does alone. A drawing can belong to only one group the morph drives.`,
+              { layer: layer.name, path: layer.key },
+            );
+            return disable();
+          }
+        }
+      }
+    }
+  }
   const keyOf = (element: Element): string | undefined => {
     for (const entry of ancestry(doc!, element)) if (entry.key !== undefined) return entry.key;
     return undefined;
@@ -530,10 +555,35 @@ export function* bakeSteps(
     }
     return [{ entry, index, pose, visible }];
   });
+  const edgeLabelList = recipe.clips.flatMap((clip) => clip.between);
+  const motionOf = new Map<Element, string>();
+  for (const label of recipe.motion ?? []) {
+    const matches = [...doc.byKey.values()].filter((e) => e.layer?.parsed.label === label && !e.resource).map((e) => e.element);
+    if (!matches.length) {
+      report("target-missing", "warning", `A keyframe moves \`${label}\`, but this artwork has no layer with that label.`, { layer: label });
+      continue;
+    }
+    for (const element of matches) {
+      if (matches.some((other) => other !== element && isAncestorOrSelf(doc!, other, element))) continue;
+      const drawn = allLeaves.filter((leaf) => isAncestorOrSelf(doc!, element, leaf));
+      if (!drawn.length) continue;
+      if (drawn.some((leaf) => inTarget(leaf) || labelledAny(leaf, edgeLabelList))) {
+        report(
+          "motion-ignored",
+          "warning",
+          `A keyframe moves "${label}", which draws part of a clip's edges or targets. Apertures are cut where the artwork draws their edges and do not follow layer motion, so "${label}" holds still.`,
+          { layer: label },
+        );
+        continue;
+      }
+      motionOf.set(element, label);
+    }
+  }
+  const inMotion = (element: Element) => [...motionOf.keys()].some((target) => isAncestorOrSelf(doc!, target, element));
   const live = new Set<Element>();
   for (const element of allLeaves) {
     const key = keyOf(element);
-    if ((key !== undefined && groupOf.has(key)) || inTarget(element)) live.add(element);
+    if ((key !== undefined && groupOf.has(key)) || inTarget(element) || inMotion(element)) live.add(element);
     else if (appliedPaints.some(({ entry, visible }) => visibleAt(element, visible) && labelledAny(element, entry.targets))) live.add(element);
   }
   const moving = new Set(live);
@@ -1749,6 +1799,15 @@ export function* bakeSteps(
         const prior = extra.get(target);
         if (!prior) extra.set(target, wrap(target));
       }
+      for (const [target, label] of motionOf) {
+        if (!run.leaves.some((l) => isAncestorOrSelf(doc!, target, l.element))) continue;
+        const prior = extra.get(target);
+        extra.set(target, (clone) => ({
+          tagName: "g",
+          attributes: { "data-morph-motion": label, style: MORPH_MOTION_WRAPPER_STYLE },
+          children: [prior ? prior(clone) : clone],
+        }));
+      }
     }
     const { root, ids } = extractTree(doc!, keep, { extra, missing });
     const copies = run.live ? [...gradientCopies.values()].filter((copy) => keep.has(copy.home.element)) : [];
@@ -1808,6 +1867,7 @@ export function* bakeSteps(
     clipTargets,
     ...(paintPoses.length ? { paints: paintPoses } : {}),
     ...(Object.keys(spreads).length ? { spreads } : {}),
+    ...(motionOf.size ? { motion: [...new Set(motionOf.values())].sort() } : {}),
     diagnostics,
   };
 }

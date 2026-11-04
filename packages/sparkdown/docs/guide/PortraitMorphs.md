@@ -313,6 +313,92 @@ morph blink {
 
 An entry sets at least one of `fill`, `stroke` and `opacity`. `span` is how much of each neighbouring segment the change takes, `100%` by default.
 
+### A second group in the same poses
+
+A pose can set the state of more than one group. This blink drops the brows to their `down` drawing while the eyes close:
+
+```sparkdown
+morph blink {
+  method = bend
+
+  layers {
+    brow-left {
+      blend = fade
+    }
+  }
+
+  keyframes {
+    from {
+      eyes { state = open }
+      brows { state = up }
+    }
+    50% {
+      eyes { state = closed }
+      brows { state = down }
+    }
+    to {
+      eyes { state = open }
+      brows { state = up }
+    }
+  }
+}
+```
+
+- Every group a morph drives has its `state` in the first pose, because the first pose is what a portrait has to rest in. A group whose first `state` comes in a later pose is an error on that `state`.
+- Each group moves between the nearest poses that set it, on the same timing as the others.
+- A portrait plays the morph only when it rests at the first pose in every group. If one group rests elsewhere, the whole look stays as drawn: a morph never moves half a face.
+- A drawing belongs to at most one group the morph drives. A layer whose showing depends on two of them together, such as a crease drawn only while the eyes are closed and the brows are down, keeps the portrait still with a `mixed-groups` error on the artwork. Draw it under one group.
+
+### Moving layers
+
+A container named after a layer label, rather than a group, moves the drawings with that label. It takes CSS's 2D transform properties and opacity:
+
+```sparkdown
+morph blink {
+  method = bend
+
+  keyframes {
+    from { eyes { state = open } }
+    50% {
+      eyes { state = closed }
+      eyebrows { translate = 0 8px }
+      nose {
+        translate = 0 -2px
+        rotate = 2deg
+        transform_origin = center bottom
+      }
+    }
+    to { eyes { state = open } }
+  }
+}
+```
+
+| Property | Value | At rest |
+| --- | --- | --- |
+| `translate` | One or two lengths, `x y`: `0 8px`, `-2px`, `50% 0`. | `0` |
+| `rotate` | One angle: `5deg`, `-0.02turn`, `0`. | `0deg` |
+| `scale` | One or two factors, `x y`: `1.1`, `1 0.9`, `95%`. | `1` |
+| `transform` | A list of 2D functions with commas between their arguments: `translate()`, `translateX()`, `translateY()`, `scale()`, `scaleX()`, `scaleY()`, `rotate()`, `skew()`, `skewX()`, `skewY()` and `matrix()`, such as `skewX(4deg) translate(0, -1px)`. | `none` |
+| `transform_origin` | The point the layer turns and scales around: one or two of `left`, `center`, `right`, `top`, `bottom` and lengths, horizontal first, such as `left top` or `50% 100%`. | `center` |
+| `opacity` | From 0 to 1, or a percentage. | `1` |
+
+A length is written in `px`, as a percentage, or as a `calc()` of the two, such as `calc(50% + 2px)`. A bare number other than `0` is an error, since a browser would ignore it. An angle is in `deg`, `rad`, `grad` or `turn`.
+
+`px` are units of the artwork's own coordinates, those of the group the layer sits in, not pixels on the screen. For a layer at the top of the artwork they are the units of its `viewBox`: a portrait 2000 units tall shown 600 pixels tall moves `translate = 0 8px` about 2.4 pixels on screen. A layer inside a scaled group moves in that group's units.
+
+A percentage is of the moved layer's own box, the bounds of what it draws in that frame: `translate = 0 50%` moves a layer down by half its own height, and the default origin is the centre of that box. A percentage of an eyebrow's box is not a fraction of the eye's height, so a movement meant to follow the eyes is written in `px` and tuned by looking.
+
+When several properties are set they apply in CSS's order: `translate`, then `rotate`, then `scale`, then `transform`, all about `transform_origin`. Within `transform` the functions apply as written, so `rotate(90deg) translate(10px, 0)` moves along the turned axis while `translate = 10px 0` with `rotate = 90deg` moves sideways. A `transform` the artwork already gives the layer stays on it, and the movement is added around it.
+
+Each property moves between the nearest poses that set it. A first or last pose that leaves a property out uses its rest value from the table, so the layer returns to where it is drawn. The movement follows the same progress as the shapes and openings: `easing` applies once to the whole play, so under `steps(3)` the brows step with the lids.
+
+- Every drawing with the label moves, with everything inside it. A label that also appears inside itself moves once, from the outermost.
+- A container whose name is both a group and a label can set the group's `state` and move the layers with that label in one place.
+- The edges and targets of a clip cannot move: their opening is cut where the artwork draws the edges. A moved layer that draws part of one holds still, with a `motion-ignored` warning on the artwork.
+- 3D is refused where it is written: `rotateX()`, `translate3d()`, `perspective()` and the other 3D functions, a third value of `translate`, `scale` or `transform_origin`, and a rotation axis such as `rotate = x 30deg`. Any other field in a container is an unknown field.
+- A label no portrait draws is reported on its container. A portrait that lacks a label another portrait draws is warned about on its own artwork and still plays.
+- Changing a distance or angle prepares nothing again; only which labels move is part of the prepared portrait.
+
 ### Building on another morph
 
 `morph slow as blink { … }` starts from `blink` and changes what it writes. Here only the timing changes:
@@ -351,6 +437,8 @@ For each look, every visible folder that draws the group has a resting state: th
 - If some folders rest in the first pose's state and others do not, the look is skipped, with a warning on the morph that names the folders and their states. Mark the same resting state in each folder, or select one in the script.
 - A folder with no resting state for the group, or with two, is reported the same way.
 
+A morph that drives several groups makes these checks for each of them, and the look plays only when every group passes. One dormant group makes the whole look dormant, and one skipped group skips it.
+
 A group is driven by its name. Renaming a group, `eyes` to `lids` say, takes those portraits out of a blink that drives `eyes`; change the script lines and named looks that select `eyes.closed` to match, or they select a group that no longer exists.
 
 Two morphs that drive the same portrait cannot both play on it; the portrait stays still, with a warning.
@@ -382,6 +470,7 @@ In the editor, the Game Preview plays morphs as soon as it shows a portrait.
 - While the preview is stopped, morphs play on their own clock; nothing in the story advances.
 - During PLAY they follow the story's clock: pausing the story freezes each morph on its frame, and stepping moves it.
 - Changing the expression of a character who is already on screen keeps the morph's place in its cycle. A different character, an edited morph, a restart or previewing another line starts it again from rest.
+- Moved layers follow the same clock as the shapes: they freeze when the story pauses, return to where they are drawn when playback is off, and are let go with the portrait.
 - The image shown when hovering over a portrait, and a portrait used as a mask, show the still portrait with its clips applied. They do not move.
 
 The `Animate portraits` button in the Game Preview's toolbar turns playback off and on. Off returns every morph to rest and holds it there; on starts each one on a fresh cycle. The choice is kept in this browser for the editor, not saved with the project, and it does not change what players of the game see.
@@ -392,7 +481,7 @@ A portrait shows its still image until its morph is ready, and keeps it for good
 
 Problems with the declaration itself appear on the `morph` block, at the field that has them: a missing `method`, an unknown field or value, a state qualified with another group, `iteration_delay_max` without `iteration_delay_min` or below it, a `paints` entry with no `state`. Problems with how the morph fits the project's portraits also appear on the block, naming each portrait: a missing group or state, folders resting in different states. A label the morph names, in `layers`, `clips` or `paints`, that no portrait it plays on draws is reported where it is written, such as `No image the morph applies to has a layer labelled eyelash-top-right`; a label only some portraits draw is fine.
 
-Problems found while preparing a portrait's movement appear on the artwork file, naming the morph, the layer and the looks it affects: a pair the method could not morph, a clip whose edges cannot form an opening, art the morph cannot move. They show once per artwork, even for art the script has not used yet.
+Problems found while preparing a portrait's movement appear on the artwork file, naming the morph, the layer and the looks it affects: a pair the method could not morph, a clip whose edges cannot form an opening, art the morph cannot move, a layer whose showing depends on two driven groups, a moved layer that draws part of a clip. They show once per artwork, even for art the script has not used yet.
 
 When only part of a portrait moves, read the artwork's warnings first. The usual causes are:
 
@@ -400,7 +489,8 @@ When only part of a portrait moves, read the artwork's warnings first. The usual
 - A label with two drawings in one state and three in the other, which pairs none of them. Make the counts equal, or one on one side.
 - Lashes on both sides sharing one label, so they pair across the face. Repeat the side in each label.
 - An eyeball cut to the open eye's outline, which shows its cut edge as the eye closes. Draw it whole.
-- A look resting in another state than the morph's first pose, which is dormant by design.
+- A look resting in another state than the morph's first pose, which is dormant by design. With several groups, check each one.
+- A moved layer that stays put: it draws part of a clip's edges or targets, or this artwork has no layer with its label.
 
 `morph` is a built-in type name, so a variable called `morph` is reported, as `style` or `animation` would be.
 
@@ -442,6 +532,12 @@ morph blink {
     33.333% {
       eyes {
         state = eyes.closed
+      }
+      eyebrows {
+        translate = 0 8px
+      }
+      nose {
+        translate = 0 -2px
       }
     }
     100% {
@@ -504,8 +600,4 @@ morph blink {
 
 Its timing is the project's own tuning, still provisional, not a recommendation: the eyes close in the first third of a quarter-second play, `steps(3)` gives the blink a drawn, three-frame look, and the gaps range from a fifth of a second to six seconds.
 
-The project's own declaration also moves the eyebrows and nose with each blink, through `eyebrows { translate = … }` and `nose { translate = … }` lines in its poses. Those layer movements are not part of what this chapter describes yet, and are left out above.
-
-## Coming next
-
-The next part of this chapter will cover moving layers with each pose, such as the eyebrows dipping and the nose scrunching as the eyes close, and states of a second group within one morph.
+The eyebrows drop and the nose lifts with each closing, by `translate` in the artwork's own units. These distances are starting values set by eye, not yet calibrated against captures of the project's characters, and they move each brow and nose by the same distance whatever the expression rather than by a fraction of how far that face's eyes close.

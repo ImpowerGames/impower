@@ -7,6 +7,7 @@ import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/res
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import { morphRefsForStruct } from "@impower/sparkdown/src/morph/channel";
 import { cssList } from "@impower/sparkdown/src/morph/cssList";
+import { buildMorphMotion } from "@impower/sparkdown/src/morph/motion";
 import { createMorphHost, inlineMorphSource, type MorphHost } from "@impower/sparkdown/src/morph/hosts";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import {
@@ -1713,11 +1714,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         this.deliverMorphArtifact(ref);
         const timing = { ...default_morph().timing, ...(this.context.morph?.[ref.morph]?.timing ?? {}) } as MorphTiming;
+        const motion = buildMorphMotion(this.context.morph?.[ref.morph]?.keyframes);
         plays.push({
           layer: index,
           ref,
           timing,
-          definition: hashText(`${channel.recipes[ref.morph] ?? ""}\n${JSON.stringify(timing)}`),
+          ...(motion ? { motion } : {}),
+          definition: hashText(`${channel.recipes[ref.morph] ?? ""}\n${JSON.stringify(timing)}${motion ? `\n${JSON.stringify(motion)}` : ""}`),
         });
       }
     }
