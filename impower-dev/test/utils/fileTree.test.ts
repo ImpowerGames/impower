@@ -616,6 +616,27 @@ describe("computeLayoutMigration", () => {
     ).toEqual([]);
   });
 
+  it("repairs only assets/<sub>/ paths whose scripts/<sub>/main.sd exists at load", () => {
+    const paths = [
+      "main.sd",
+      "assets/forest.svg",
+      "assets/art/bg.png",
+      "assets/urls/song.url",
+      "assets/lonely/tree.png",
+      "assets/other/tree.png",
+      "other/main.sd",
+      "scripts/kept/main.sd",
+      "assets/keptsake/x.png",
+    ];
+    const batches = computeLayoutMigrationBatches(paths, subtreeFor);
+    expect(batches).toEqual([
+      [{ from: "other/main.sd", to: "scripts/other/main.sd" }],
+    ]);
+    const migrated = batches.reduce(applyMoves, paths);
+    expect(projectOf(migrated, "assets/other/tree.png")).toBe("");
+    expect(projectOf(migrated, "assets/keptsake/x.png")).toBe("");
+  });
+
   it("does not file a root-project script into a sub-project's folder", () => {
     const paths = ["main.sd", LAYOUT_MARKER, "scripts/other/main.sd", "other/x.sd"];
     expect(computeLayoutMigration(paths, subtreeFor)).toEqual([]);
