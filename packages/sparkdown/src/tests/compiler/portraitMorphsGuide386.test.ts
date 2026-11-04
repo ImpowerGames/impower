@@ -134,6 +134,13 @@ describe("the portrait morphs guide chapter", () => {
     expect(endOffset("reverse", 1)).toBe(0);
     expect(endOffset("alternate", 2)).toBe(0);
     expect(endOffset("alternate", 3)).toBe(1);
+    const reverse = new MorphTimeline(
+      { duration: 0.25, delay: 0, easing: "linear", iterations: 1, direction: "reverse" },
+      morphRandom("guide"),
+    ).at(0.0001);
+    expect(reverse.phase === "playing" && reverse.offset).toBeGreaterThan(0.99);
+    expect(chapter()).toContain("This check uses the first pose whatever the `direction`, though a `reverse` play begins from the last pose");
+    expect(chapter()).not.toMatch(/where the morph starts|than the morph starts from/);
 
     const text = chapter();
     expect(text).toContain("the last pose with the default `direction = normal`, the first with `reverse`, and for the alternating directions whichever end the final play reaches");

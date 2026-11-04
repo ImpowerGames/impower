@@ -155,7 +155,7 @@ A `state` is always the name of an option, never a variable or a number, so `sta
 
 The first pose is the state a portrait has to rest in for the morph to play on it, as [Which portraits a morph plays on](#which-portraits-a-morph-plays-on) describes. Make the last pose that state too, so the portrait comes back to rest whichever direction the morph plays in. As in CSS keyframes, a first or last pose that leaves a group out uses the portrait's resting state there.
 
-An option with a hyphen is a kind of the word before it ([The naming rules](./Portraits.md#the-naming-rules)). A morph that starts from `open` therefore also plays on a portrait resting in `open-wide`, and returns it to `open-wide`, because each portrait keeps its own resting choice.
+An option with a hyphen is a kind of the word before it ([The naming rules](./Portraits.md#the-naming-rules)). A morph whose first pose is `open` therefore also plays on a portrait resting in `open-wide`, and returns it to `open-wide`, because each portrait keeps its own resting choice.
 
 ### How shapes change
 
@@ -346,9 +346,9 @@ A morph finds its portraits itself; nothing connects them by name.
 
 For each look, every visible folder that draws the group has a resting state: the state the look selects, or the folder's `:default`. Then:
 
-- If every folder rests where the morph starts, the morph plays.
+- If every folder rests in the state of the morph's first pose, the morph plays. This check uses the first pose whatever the `direction`, though a `reverse` play begins from the last pose, which is one more reason to make the two the same state.
 - If every folder rests in another state, the look is dormant: it stays exactly as drawn and nothing is reported. `[[mia:eyes.closed]]` does not blink, and neither does a face whose eyes are marked `eyes.closed:default`. This is how a sleeping face keeps its eyes shut under a blinking morph.
-- If some folders rest where the morph starts and others do not, the look is skipped, with a warning on the morph that names the folders and their states. Mark the same resting state in each folder, or select one in the script.
+- If some folders rest in the first pose's state and others do not, the look is skipped, with a warning on the morph that names the folders and their states. Mark the same resting state in each folder, or select one in the script.
 - A folder with no resting state for the group, or with two, is reported the same way.
 
 A group is driven by its name. Renaming a group, `eyes` to `lids` say, takes those portraits out of a blink that drives `eyes`; change the script lines and named looks that select `eyes.closed` to match, or they select a group that no longer exists.
@@ -400,7 +400,7 @@ When only part of a portrait moves, read the artwork's warnings first. The usual
 - A label with two drawings in one state and three in the other, which pairs none of them. Make the counts equal, or one on one side.
 - Lashes on both sides sharing one label, so they pair across the face. Repeat the side in each label.
 - An eyeball cut to the open eye's outline, which shows its cut edge as the eye closes. Draw it whole.
-- A look resting in another state than the morph starts from, which is dormant by design.
+- A look resting in another state than the morph's first pose, which is dormant by design.
 
 `morph` is a built-in type name, so a variable called `morph` is reported, as `style` or `animation` would be.
 
