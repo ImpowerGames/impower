@@ -393,9 +393,12 @@ try {
     ].join("\n"));
     const probeArgs = (out) => ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", probe, out];
     const consoleOf = (file, what) => {
-      waitFor(() => fs.existsSync(file) && fs.readFileSync(file, "utf8").trim() !== "", `the ${what} probe's report`);
-      const [window, visible] = fs.readFileSync(file, "utf8").trim().split(" ");
-      return { window: Number(window), visible };
+      let report = null;
+      waitFor(() => {
+        try { report = /^(\d+) (True|False)$/.exec(fs.readFileSync(file, "utf8").trim()); } catch (error) { if (!["ENOENT", "EBUSY"].includes(error.code)) throw error; }
+        return report !== null;
+      }, `the ${what} probe's report`);
+      return { window: Number(report[1]), visible: report[2] };
     };
     const launchDir = path.join(tmp, "console-launch");
     fs.mkdirSync(launchDir);
