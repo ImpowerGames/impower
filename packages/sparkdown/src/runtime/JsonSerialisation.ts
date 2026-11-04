@@ -21,6 +21,7 @@ import { InkObject } from "./Object";
 import { asOrNull } from "./TypeAssertion";
 import { throwNullException } from "./NullException";
 import { SimpleJson } from "./SimpleJson";
+import { stdLibMarker, stdLibMarkerName } from "./StdLibMarker";
 
 interface WriterMemo {
   nextId: number;
@@ -514,6 +515,13 @@ export class JsonSerialisation {
     }
 
     let objVal = asOrNull(obj, ObjectValue);
+    const stdFnName = stdLibMarkerName(objVal);
+    if (stdFnName !== null) {
+      writer.WriteObjectStart();
+      writer.WriteProperty("stdfn", stdFnName);
+      writer.WriteObjectEnd();
+      return;
+    }
     if (objVal) {
       const map = objVal.value as Map<string, AbstractValue> | null;
       const memo = JsonSerialisation.writerObjectMemo(writer);
@@ -800,6 +808,10 @@ export class JsonSerialisation {
           values.push(v ?? new NullValue());
         }
         return new MultiValue(values);
+      }
+
+      if (obj["stdfn"] !== undefined) {
+        return stdLibMarker(String(obj["stdfn"]));
       }
 
       if (obj["objref"] !== undefined) {

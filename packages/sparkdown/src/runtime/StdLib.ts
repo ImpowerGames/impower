@@ -5,6 +5,7 @@ import { StepLimitExceeded, StoryException } from "./StoryException";
 import { drawStoryRandom } from "./StoryRandom";
 import { ambientReads } from "./AmbientReads";
 import { Void } from "./Void";
+import { isStdLibMarker, stdLibMarkerMapName } from "./StdLibMarker";
 import {
   ObjectValue,
   IntValue,
@@ -163,7 +164,7 @@ function requireTableArg(
     story.Error(`missing argument #${index} to '${name}' (table expected)`);
   }
   const raw = v instanceof MultiValue ? v.values[0] : v;
-  if (!(raw instanceof ObjectValue)) {
+  if (!(raw instanceof ObjectValue) || isStdLibMarker(raw)) {
     story.Error(
       `invalid argument #${index} to '${name}' (table expected, got ${luauTypeOf(raw)})`,
     );
@@ -198,7 +199,7 @@ export function luauTypeOf(v: any): string {
     if (typeof raw === "boolean") return "boolean";
     if (raw instanceof Map) {
       if (raw.has("__closure_fn")) return "function";
-      if (raw.has("__stdlib_fn")) return "function";
+      if (stdLibMarkerMapName(raw) !== null) return "function";
       if (raw.has("__userdata")) return "userdata";
       return "table";
     }
@@ -1064,7 +1065,7 @@ function classifyGsubRepl(
     const map = repl.value;
     if (
       map instanceof Map &&
-      (map.has("__closure_fn") || map.has("__stdlib_fn"))
+      (map.has("__closure_fn") || stdLibMarkerMapName(map) !== null)
     ) {
       return "function";
     }
@@ -2587,7 +2588,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   setmetatable: {
     arity: 2,
     fn: (story, [t, mt]) => {
-      if (!(t instanceof ObjectValue)) {
+      if (!(t instanceof ObjectValue) || isStdLibMarker(t)) {
         story.Error("setmetatable: first argument must be a table");
         return;
       }
@@ -2919,7 +2920,11 @@ export const STDLIB: Record<string, StdLibEntry> = {
   rawset: {
     arity: 3,
     fn: (story, [t, k, v]) => {
-      if (!(t instanceof ObjectValue) || !(t.value instanceof Map)) {
+      if (
+        !(t instanceof ObjectValue) ||
+        !(t.value instanceof Map) ||
+        isStdLibMarker(t)
+      ) {
         story.Error("rawset: first argument must be a table");
         return null;
       }
@@ -3692,7 +3697,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1,
     minArgs: 1,
     fn: (story, args) => {
-      if (!(args[0] instanceof ObjectValue)) {
+      if (!(args[0] instanceof ObjectValue) || isStdLibMarker(args[0])) {
         story.Error("table.insert: first argument must be a table");
         return undefined;
       }
@@ -3742,7 +3747,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1,
     minArgs: 1,
     fn: (story, args) => {
-      if (!(args[0] instanceof ObjectValue)) {
+      if (!(args[0] instanceof ObjectValue) || isStdLibMarker(args[0])) {
         story.Error("table.remove: first argument must be a table");
         return null;
       }
@@ -3893,7 +3898,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   "table.clone": {
     arity: 1,
     fn: (story, [t]) => {
-      if (!(t instanceof ObjectValue)) {
+      if (!(t instanceof ObjectValue) || isStdLibMarker(t)) {
         story.Error("table.clone: argument must be a table");
         return null;
       }
@@ -4023,7 +4028,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   "table.freeze": {
     arity: 1,
     fn: (story, [t]) => {
-      if (!(t instanceof ObjectValue)) {
+      if (!(t instanceof ObjectValue) || isStdLibMarker(t)) {
         story.Error("table.freeze: argument must be a table");
         return t;
       }
@@ -4284,7 +4289,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         if (
           map instanceof Map &&
           !map.has("__closure_fn") &&
-          !map.has("__stdlib_fn") &&
+          stdLibMarkerMapName(map) === null &&
           !map.has(BUILTIN_ITER_TAG) &&
           !(mtMap instanceof Map && mtMap.has("__call"))
         ) {
