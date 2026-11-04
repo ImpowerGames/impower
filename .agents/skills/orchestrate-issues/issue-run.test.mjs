@@ -1082,6 +1082,27 @@ try {
     assert.throws(() => release(write("idle-foreign.json", { sessions: { [handle]: { state: "idle", host: "other-host" } } })), /writer is (waiting|unknown)/, "an observation from a different host does not settle the owner");
     assert.throws(() => release(write("idle-running.json", { sessions: { [handle]: { state: "running" } } })), /writer is live/);
     assert.deepEqual(run.readRecord(f.file), before, "refused release attempts leave the record intact");
+    for (const delivery of ["brief", "contact"]) {
+      f.change((r) => { r.tickets[1901].owner[delivery] = { state: "intent" }; });
+      assert.throws(() => release(), /writer is waiting/, `a pending ${delivery} delivery can start another turn`);
+      assert.notEqual(actions(planOf(f, snapshotOf(300, [closed]), { observations }))[1901], "release");
+      f.change((r) => { delete r.tickets[1901].owner[delivery]; });
+    }
+    const asked = f.change((r) => run.request(r, { ticket: 1901, text: "May I continue?", source: "fixture transcript" }));
+    f.change((r) => {
+      run.answer(r, { ticket: 1901, request: asked.id, text: "Yes" });
+      run.answered(r, { ticket: 1901, request: asked.id, evidence: "fixture transcript" });
+      const own = r.tickets[1901];
+      own.results.at(-1).time = new Date(Date.parse(own.requests.at(-1).answer.time) - 1).toISOString();
+    });
+    assert.throws(() => release(), /writer is waiting/, "the earlier report cannot settle a session after a delivered follow-up");
+    assert.notEqual(actions(planOf(f, snapshotOf(300, [closed]), { observations }))[1901], "release");
+    f.change((r) => run.result(r, { ticket: 1901, report }));
+    f.change((r) => { r.tickets[1901].owner.branch = null; });
+    closingTicket = 1903;
+    assert.throws(() => release(), /writer is waiting/, "a PR with no claim to the ticket is refused even without a recorded branch");
+    closingTicket = 1901;
+    f.change((r) => { r.tickets[1901].owner.branch = branch; });
     const planned = planOf(f, snapshotOf(300, [closed]), { observations });
     const otherMerge = { ...closed, prs: [{ ...merged, onMain: false }, { ...merged, number: 1903 }] };
     assert.equal(actions(planOf(f, snapshotOf(300, [otherMerge]), { observations }))[1901], "done", "the reported PR itself must be on origin/main to plan release");

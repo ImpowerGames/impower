@@ -896,10 +896,14 @@ const reportedSince = (own) => (own.results ?? []).some((r) => Date.parse(r.time
 function idleReleaseReport(own, status, observations) {
   const owner = own.owner;
   if (status.status !== "waiting" || owner.handle.kind !== "session" || owner.mismatch || owner.resuming || own.pending || openPending(owner) || openRequests(own).length) return null;
+  if (owner.brief?.state === "intent" || owner.contact?.state === "intent") return null;
   const observedHost = observations?.sessions?.[owner.handle.id]?.host;
   if (observedHost && owner.handle.host && observedHost !== owner.handle.host) return null;
   const last = own.results?.at(-1);
-  if (!(Date.parse(last?.time) >= latestWriterStart(owner)) || !isTicketNumber(last.report?.pr)) return null;
+  const reportedAt = Date.parse(last?.time);
+  if (!(reportedAt >= latestWriterStart(owner)) || !isTicketNumber(last.report?.pr)) return null;
+  const deliveries = [owner.brief, owner.contact, ...requestsForOwner(own).map((r) => r.answer)];
+  if (deliveries.some((d) => d?.state === "delivered" && !(reportedAt > Date.parse(d.time)))) return null;
   return last.report;
 }
 
@@ -1419,7 +1423,8 @@ export function acknowledged(record, { ticket: number, model, effort, permission
 
 const ownerId = (owner) => owner?.launchId ?? owner?.handle?.id ?? owner?.handle?.pid ?? null;
 const handleId = (owner) => owner?.handle?.id ?? owner?.handle?.pid ?? null;
-const openRequests = (own) => (own.requests ?? []).filter((r) => !r.closed && r.answer?.state !== "delivered" && own.owner && (r.owner === ownerId(own.owner) || r.owner === handleId(own.owner)));
+const requestsForOwner = (own) => (own.requests ?? []).filter((r) => own.owner && (r.owner === ownerId(own.owner) || r.owner === handleId(own.owner)));
+const openRequests = (own) => requestsForOwner(own).filter((r) => !r.closed && r.answer?.state !== "delivered");
 function requestNext(r, ended) {
   if (r.answer?.state === "intent") return `answer ${r.answer.deliveryId} to request ${r.id} has no recorded outcome and may still be queued; ${ended ? "if the writer's transcript shows it, record answered with that evidence; otherwise " : ""}wait, or resend with answer --retry, which tells the writer to ignore a second copy`;
   if (r.relayed) return `request ${r.id} "${r.text}" was relayed to ${r.relayed.to} at ${r.relayed.time}; once they decide, record answer and send it`;
