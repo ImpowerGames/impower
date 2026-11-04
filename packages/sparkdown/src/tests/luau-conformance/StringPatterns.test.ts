@@ -370,6 +370,53 @@ end
     expect(recorded).toEqual(["hello", "world", "from", "sparkdown"]);
   });
 
+  test("two iterators over the same pattern interleave without disturbing each other", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+
+scene start
+  & run()
+  done
+end
+
+function run()
+local a = string.gmatch("aa bb cc", "(%a+)")
+local b = string.gmatch("xx yy zz", "(%a+)")
+host_record(a())
+host_record(b())
+for w in string.gmatch("11 22", "(%a+)") do
+host_record(w)
+end
+host_record(a())
+host_record(b())
+host_record(b())
+host_record(a())
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["aa", "xx", "bb", "yy", "zz", "cc"]);
+  });
+
+  test("an iterator called with explicit state holding an invalid pattern yields nil", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+
+scene start
+  & run()
+  done
+end
+
+function run()
+local iterator = string.gmatch("ok", "%a+")
+local state = { __gmatch_input = "ok", __gmatch_pattern = "(" }
+local value = iterator(state, 0)
+if value == nil then
+host_record("nil")
+end
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["nil"]);
+  });
+
   test("yields N captures as N loop variables", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 
