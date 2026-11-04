@@ -2163,6 +2163,7 @@ export class Game<T extends M = {}> {
     if (!image || !program.canRestore(image, false)) {
       return null;
     }
+    program.CancelAsyncContinue();
     this.discardOpenStoryLine();
     if (!program.restore(image, false)) {
       return null;
@@ -2858,6 +2859,7 @@ export class Game<T extends M = {}> {
       return false;
     }
     this.cancelPreview();
+    story.CancelAsyncContinue();
     this.discardOpenStoryLine();
     if (!story.restore(image)) {
       return false;

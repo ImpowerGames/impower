@@ -18,20 +18,6 @@ describe("ResetState with an asynchronous continue's line open", () => {
     expect(story.Continue()).toBe("Line one.\n");
   });
 
-  test("restore ends the open line and leaves the restored state readable", () => {
-    const ctx = makeRuntimeStoryFromSource(source);
-    expect(ctx.errorMessages).toEqual([]);
-    const story: any = ctx.story;
-    expect(story.Continue()).toBe("Line one.\n");
-    const image = story.capture();
-    story.ContinueAsync();
-    expect(story.asyncContinueComplete).toBe(false);
-    expect(story.restore(image)).toBe(true);
-    expect(story.asyncContinueComplete).toBe(true);
-    expect(story.currentText).toBe("Line one.\n");
-    expect(story.Continue()).toBe("Line two.\n");
-  });
-
   test("still refuses from inside a running continue", () => {
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);

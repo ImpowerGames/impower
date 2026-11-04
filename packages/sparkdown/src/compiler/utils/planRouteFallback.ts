@@ -276,6 +276,8 @@ export const planRouteFallback = (
     try {
       if (!routePlan || !options?.callerResetsStory) {
         resetStory(story);
+      } else {
+        story.CancelAsyncContinue();
       }
     } finally {
       story.onError = prevOnError;
