@@ -354,7 +354,7 @@ describe("notifications from another tab (I-1893)", () => {
     expect(textAt(root, "a.sd")).toBeUndefined();
   });
 
-  it("checks an unstamped notification against storage when the shared sequence cannot be written", async () => {
+  it("announces stored bytes, not a sequence, for a commit whose shared sequence cannot be written", async () => {
     const root = seed({ "a.sd": "A" });
     const sequence = new MemoryFile(".opfs-workspace-sequence");
     sequence.createSyncAccessHandle = async () => {
@@ -367,14 +367,20 @@ describe("notifications from another tab (I-1893)", () => {
     writeMemoryFile(root, "local/a.sd", enc.encode("OLDER"));
     await h.request("newer", "workspace/willWriteFiles", writeOf("a.sd", "NEWER"));
     const local = h.notifications("workspace/didWriteFiles").at(-1);
-    expect(local.params.commits).toEqual({});
+    expect(local.params.files.map((f: any) => f.text)).toEqual(["NEWER"]);
+    expect(
+      Object.values<any>(local.params.commits ?? {}).every((c) => c.writer === "\uffff"),
+    ).toBe(true);
     const before = h.messages.length;
     await h.remote("workspace/didWriteFiles", {
       files: [fileData("a.sd", "OLDER")],
     });
     expect(h.writtenTexts("a.sd", before)).toEqual(["NEWER"]);
     expect((await h.cached("a.sd")).text).toBe("NEWER");
+    const afterWrite = h.messages.length;
     await h.remote("workspace/didDeleteFiles", { files: [{ uri: uriOf("a.sd") }] });
+    expect(h.notifications("workspace/didDeleteFiles", afterWrite)).toEqual([]);
+    expect(h.writtenTexts("a.sd", afterWrite)).toEqual(["NEWER"]);
     expect((await h.cached("a.sd")).text).toBe("NEWER");
   });
 
@@ -514,7 +520,7 @@ describe("notifications without commits, from a tab on an older build (I-1893)",
     expect(textAt(root, "a.sd")).toBe("LEGACY!");
   });
 
-  it("drops an unstamped delete and its watched-file deletion once the file is stored again", async () => {
+  it("announces the stored file, not a deletion, for an unstamped delete of a file stored again", async () => {
     const root = seed({ "a.sd": "A" });
     const h = await worker(root);
     await h.request("recreate", "workspace/willWriteFiles", writeOf("a.sd", "RECREATED", "editor"));
@@ -525,12 +531,16 @@ describe("notifications without commits, from a tab on an older build (I-1893)",
     });
     expect(h.notifications("workspace/didDeleteFiles", before)).toEqual([]);
     expect(
-      h.notifications("workspace/didChangeWatchedFiles", before).flatMap((m) => m.params.changes),
+      h
+        .notifications("workspace/didChangeWatchedFiles", before)
+        .flatMap((m) => m.params.changes)
+        .filter((c: any) => c.type === 3),
     ).toEqual([]);
+    expect(h.writtenTexts("a.sd", before).every((text) => text === "RECREATED")).toBe(true);
     expect((await h.cached("a.sd")).text).toBe("RECREATED");
   });
 
-  it("drops an unstamped directory deletion once the directory exists again", async () => {
+  it("announces the stored directory, not a deletion, for an unstamped deletion of a directory that exists again", async () => {
     const root = seed({ "a.sd": "A" });
     const h = await worker(root);
     await h.request("mkdir", "workspace/directories", {
@@ -542,7 +552,9 @@ describe("notifications without commits, from a tab on an older build (I-1893)",
       created: [],
       deleted: [uriOf("kept")],
     });
-    expect(h.notifications("workspace/didChangeDirectories", before)).toEqual([]);
+    const changes = h.notifications("workspace/didChangeDirectories", before);
+    expect(changes.flatMap((m) => m.params.deleted)).toEqual([]);
+    expect(changes.flatMap((m) => m.params.created)).toEqual([uriOf("kept")]);
     expect(entryAt(root, "kept")).toBeInstanceOf(MemoryDirectory);
   });
 
@@ -714,7 +726,7 @@ describe("schedules across several tabs (I-1893)", () => {
     expect(h.notifications("workspace/didChangeDirectories", before)).toEqual([]);
   });
 
-  it("does not announce a delayed batch's unstamped text after a later local save when the shared sequence is unavailable", async () => {
+  it("announces only stored text when a delayed batch finishes after a later local save and the shared sequence is unavailable", async () => {
     const root = seed({ "a.sd": "A", "b.sd": "B" });
     const counter = new MemoryFile(".opfs-workspace-sequence");
     counter.createSyncAccessHandle = async () => {
@@ -738,7 +750,9 @@ describe("schedules across several tabs (I-1893)", () => {
     release();
     await vi.advanceTimersByTimeAsync(250);
     expect(h.response("batch")).toMatchObject({ result: { applied: true } });
-    expect(h.writtenTexts("a.sd", before)).toEqual([]);
+    expect(h.writtenTexts("a.sd", before).every((text) => text === "NEW")).toBe(true);
+    expect((await h.cached("a.sd")).text).toBe("NEW");
+    expect(textAt(root, "a.sd")).toBe("NEW");
   });
 });
 
@@ -904,6 +918,34 @@ describe("reads that see newer storage (I-1893)", () => {
     await vi.advanceTimersByTimeAsync(250);
     expect(h.response("batch")).toMatchObject({ result: { applied: true } });
     expect(h.writtenTexts("a.sd", before)).toEqual([]);
+  });
+});
+
+describe("reads create no directories", () => {
+  it("creates no parent directory when reading a missing file", async () => {
+    const root = seed({ "a.sd": "A" });
+    const h = await worker(root);
+    expect(
+      await h.request("read", "workspace/readFile", { file: { uri: uriOf("missing/deeper/a.sd") } }),
+    ).toHaveProperty("error");
+    expect(listMemory(root, "local")).toEqual(["a.sd"]);
+  });
+
+  it("creates no parent directory when a listed file's folder is gone by the time it is stated", async () => {
+    const root = seed({ "a.sd": "A" });
+    const project = root.entries.get("local") as MemoryDirectory;
+    const phantom = new MemoryDirectory("ghost");
+    phantom.entries.set("b.png", new MemoryFile("b.png"));
+    const listed = project.values.bind(project);
+    project.values = async function* () {
+      yield* listed();
+      yield phantom;
+    };
+    const h = await worker(root);
+    await h.enumerate();
+    project.values = listed;
+    expect(entryAt(root, "ghost")).toBeUndefined();
+    expect(listMemory(root, "local")).toEqual(["a.sd"]);
   });
 });
 

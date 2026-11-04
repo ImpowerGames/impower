@@ -293,9 +293,19 @@ const commitChange = <T>(
 class CommitLog {
   latest = new Map<string, { local: number; commit?: FileCommit }>();
   writes = new Map<string, WriteResult>();
+  unordered = new Map<string, boolean>();
 
-  record(uri: string, local: number | undefined, commit?: FileCommit) {
+  record(
+    uri: string,
+    local: number | undefined,
+    commit?: FileCommit,
+    directory = false,
+  ) {
     if (local == null) {
+      return;
+    }
+    if (!commit) {
+      this.unordered.set(uri, directory || (this.unordered.get(uri) ?? false));
       return;
     }
     const held = this.latest.get(uri);
@@ -314,6 +324,9 @@ class CommitLog {
   }
 
   isCurrent(uri: string) {
+    if (this.unordered.has(uri)) {
+      return false;
+    }
     const latest = this.latest.get(uri);
     return !latest || isLocalLatest(uri, latest.local);
   }
@@ -321,6 +334,7 @@ class CommitLog {
   isLatest(uri: string, local: number | undefined) {
     const latest = this.latest.get(uri);
     return (
+      !this.unordered.has(uri) &&
       local != null &&
       latest?.local === local &&
       isLocalLatest(uri, local)
@@ -344,9 +358,12 @@ let remoteMessages = Promise.resolve();
 channel.onmessage = (event) => {
   remoteMessages = remoteMessages
     .then(async () => {
-      const message = await reconcileRemoteMessage(event.data);
-      if (message) {
-        postMessage(message);
+      const { forward, unordered } = await reconcileRemoteMessage(event.data);
+      if (forward) {
+        postMessage(forward);
+      }
+      if (unordered.length > 0) {
+        announceSettled(await settlePaths(unordered), { local: false });
       }
     })
     .catch((err) => console.error(err));
@@ -506,170 +523,220 @@ const observeAbsent = (
   touch(changed);
 };
 
-const settledFloor = async () =>
-  readFloor(await navigator.storage.getDirectory());
+interface SettledPath {
+  uri: string;
+  directory: boolean;
+  exists: boolean;
+  created: boolean;
+  file?: FileData;
+  floor?: FileCommit;
+}
 
-const readStoredFile = (uri: string) =>
-  withCommitLock(uri, async () => {
-    const settled = await settledFloor();
+const settlePath = (uri: string, directory: boolean) =>
+  withCommitLock(uri, async (): Promise<SettledPath> => {
+    const floor = await readFloor(await navigator.storage.getDirectory());
+    if (directory) {
+      const exists = await isStoredDirectory(uri);
+      if (exists) {
+        observeExists(uri, floor);
+      } else {
+        observeAbsent(uri, floor, true);
+      }
+      return { uri, directory, exists, created: false, floor };
+    }
     const handle = await findFileHandle(uri);
     if (!handle) {
-      observeAbsent(uri, settled, false);
-      return undefined;
+      observeAbsent(uri, floor, false);
+      return { uri, directory, exists: false, created: false, floor };
     }
+    const created = !State.files.has(uri);
     const fileRef = await handle.getFile();
-    const buffer = await fileRef.arrayBuffer();
-    updateFileCache(uri, buffer, true, undefined, fileRef.lastModified);
-    await enrichUrlAssetType(uri);
-    observeExists(uri, settled);
-    return State.files.get(uri);
-  });
-
-const evictUnlessStored = (uri: string) =>
-  withCommitLock(uri, async () => {
-    const settled = await settledFloor();
-    if (await findFileHandle(uri)) {
-      return false;
-    }
-    observeAbsent(uri, settled, false);
-    return true;
-  });
-
-const isStoredFile = (uri: string) =>
-  withCommitLock(uri, async () => (await findFileHandle(uri)) != null);
-
-const confirmDirectory = (uri: string, exists: boolean) =>
-  withCommitLock(uri, async () => {
-    const settled = await settledFloor();
-    if ((await isStoredDirectory(uri)) !== exists) {
-      return false;
-    }
-    if (exists) {
-      observeExists(uri, settled);
+    if (needsTextAtEnumeration(uri)) {
+      updateFileCache(uri, await fileRef.arrayBuffer(), true, undefined, fileRef.lastModified);
+      await enrichUrlAssetType(uri);
     } else {
-      observeAbsent(uri, settled, true);
+      updateFileMetaCache(uri, fileRef.size, fileRef.lastModified);
     }
-    return true;
+    observeExists(uri, floor);
+    return { uri, directory, exists: true, created, file: State.files.get(uri), floor };
   });
 
-const reconcileRemoteMessage = async (message: any) => {
+const settlePaths = async (paths: { uri: string; directory: boolean }[]) => {
+  const unique = new Map<string, boolean>();
+  for (const path of paths) {
+    unique.set(path.uri, path.directory || (unique.get(path.uri) ?? false));
+  }
+  const settled: SettledPath[] = [];
+  for (const [uri, directory] of unique) {
+    settled.push(await settlePath(uri, directory));
+  }
+  return settled;
+};
+
+const announceSettled = (
+  settled: SettledPath[],
+  { local }: { local: boolean },
+) => {
+  const commitsOf = (entries: SettledPath[]): FileCommits =>
+    Object.fromEntries(
+      entries.flatMap((e) => (e.floor ? [[e.uri, e.floor]] : [])),
+    );
+  const files = settled.filter((e) => !e.directory && e.exists && e.file);
+  const absent = settled.filter((e) => !e.directory && !e.exists);
+  const createdDirectories = settled.filter((e) => e.directory && e.exists);
+  const deletedDirectories = settled.filter((e) => e.directory && !e.exists);
+  const watched = settled.filter((e) => !e.directory);
+  const messages: NotificationMessage<string, any>[] = [];
+  if (files.length > 0) {
+    messages.push(
+      DidWriteFilesMessage.type.notification({
+        files: files.map((e) => e.file!),
+        remote: !local,
+        commits: commitsOf(files),
+      }),
+    );
+  }
+  if (absent.length > 0) {
+    messages.push(
+      DidDeleteFilesMessage.type.notification({
+        files: absent.map((e) => ({ uri: e.uri })),
+        remote: !local,
+        commits: commitsOf(absent),
+      }),
+    );
+  }
+  if (createdDirectories.length + deletedDirectories.length > 0) {
+    messages.push(
+      DidChangeDirectoriesMessage.type.notification({
+        created: createdDirectories.map((e) => e.uri),
+        deleted: deletedDirectories.map((e) => e.uri),
+        remote: !local,
+        commits: commitsOf([...createdDirectories, ...deletedDirectories]),
+      }),
+    );
+  }
+  if (watched.length > 0) {
+    messages.push(
+      DidChangeWatchedFilesMessage.type.notification({
+        changes: watched.map((e) => ({
+          uri: e.uri,
+          type: !e.exists
+            ? FileChangeType.Deleted
+            : e.created
+              ? FileChangeType.Created
+              : FileChangeType.Changed,
+        })),
+        remote: !local,
+        commits: commitsOf(watched),
+      }),
+    );
+  }
+  for (const message of messages) {
+    postMessage(message);
+    if (local) {
+      const unordered = structuredClone(message);
+      unordered.params.remote = true;
+      delete unordered.params.commits;
+      channel.postMessage(unordered);
+    }
+  }
+};
+
+const announceUnordered = async (log: CommitLog) => {
+  if (log.unordered.size === 0) {
+    return;
+  }
+  announceSettled(
+    await settlePaths(
+      [...log.unordered].map(([uri, directory]) => ({ uri, directory })),
+    ),
+    { local: true },
+  );
+};
+
+const reconcileRemoteMessage = async (
+  message: any,
+): Promise<{ forward: any; unordered: { uri: string; directory: boolean }[] }> => {
   const commits: FileCommits | undefined = message?.params?.commits;
   if (commits) {
     Object.values(commits).forEach(observeCommit);
   }
+  const unordered: { uri: string; directory: boolean }[] = [];
   const fresh = (uri: string) => acceptCommit(uri, commits?.[uri]);
-  const stamped = (uri: string) => commits?.[uri] != null;
-  const keep = <T>(original: T[], kept: T[]) =>
-    original.length === 0 || kept.length > 0;
-  if (DidWriteFilesMessage.type.isNotification(message)) {
-    const files: FileData[] = [];
-    for (const file of message.params.files) {
-      if (stamped(file.uri)) {
-        if (fresh(file.uri)) {
-          State.files.set(file.uri, { ...file });
-          observeExists(file.uri, commits![file.uri]);
-          files.push(file);
-        }
-      } else {
-        const stored = await readStoredFile(file.uri);
-        if (stored) {
-          files.push(stored);
-        }
-      }
+  const stamped = (uri: string, directory = false) => {
+    if (commits?.[uri] != null) {
+      return true;
     }
-    return keep(message.params.files, files)
-      ? withParams(message, { files })
-      : null;
+    unordered.push({ uri, directory });
+    return false;
+  };
+  const keep = <T>(original: T[], kept: T[], params: object) => ({
+    forward:
+      original.length === 0 || kept.length > 0
+        ? withParams(message, params)
+        : null,
+    unordered,
+  });
+  if (DidWriteFilesMessage.type.isNotification(message)) {
+    const files = message.params.files.filter(
+      (f) => stamped(f.uri) && fresh(f.uri),
+    );
+    for (const file of files) {
+      State.files.set(file.uri, { ...file });
+      observeExists(file.uri, commits![file.uri]);
+    }
+    return keep(message.params.files, files, { files });
   }
   if (DidCreateFilesMessage.type.isNotification(message)) {
-    const files: { uri: string }[] = [];
-    for (const file of message.params.files) {
-      if (stamped(file.uri) ? fresh(file.uri) : await isStoredFile(file.uri)) {
-        files.push(file);
-      }
-    }
-    return keep(message.params.files, files)
-      ? withParams(message, { files })
-      : null;
+    const files = message.params.files.filter(
+      (f) => stamped(f.uri) && fresh(f.uri),
+    );
+    return keep(message.params.files, files, { files });
   }
   if (DidDeleteFilesMessage.type.isNotification(message)) {
-    const files: { uri: string }[] = [];
-    for (const file of message.params.files) {
-      if (stamped(file.uri)) {
-        if (fresh(file.uri)) {
-          observeAbsent(file.uri, commits![file.uri], false);
-          files.push(file);
-        }
-      } else if (await evictUnlessStored(file.uri)) {
-        files.push(file);
-      }
+    const files = message.params.files.filter(
+      (f) => stamped(f.uri) && fresh(f.uri),
+    );
+    for (const file of files) {
+      observeAbsent(file.uri, commits![file.uri], false);
     }
-    return keep(message.params.files, files)
-      ? withParams(message, { files })
-      : null;
+    return keep(message.params.files, files, { files });
   }
   if (DidRenameFilesMessage.type.isNotification(message)) {
-    const files: { oldUri: string; newUri: string }[] = [];
-    for (const file of message.params.files) {
-      if (stamped(file.oldUri)) {
-        if (fresh(file.oldUri)) {
-          observeAbsent(file.oldUri, commits![file.oldUri], false);
-          files.push(file);
-        }
-      } else if (await evictUnlessStored(file.oldUri)) {
-        files.push(file);
+    const files = message.params.files.filter((f) => {
+      if (!stamped(f.oldUri)) {
+        unordered.push({ uri: f.newUri, directory: false });
+        return false;
       }
+      return fresh(f.oldUri);
+    });
+    for (const file of files) {
+      observeAbsent(file.oldUri, commits![file.oldUri], false);
     }
-    return keep(message.params.files, files)
-      ? withParams(message, { files })
-      : null;
+    return keep(message.params.files, files, { files });
   }
   if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
-    const changes: FileEvent[] = [];
-    for (const change of message.params.changes) {
-      const current = stamped(change.uri)
-        ? fresh(change.uri)
-        : (await isStoredFile(change.uri)) !==
-          (change.type === FileChangeType.Deleted);
-      if (current) {
-        changes.push(change);
-      }
-    }
-    return keep(message.params.changes, changes)
-      ? withParams(message, { changes })
-      : null;
+    const changes = message.params.changes.filter(
+      (c) => stamped(c.uri) && fresh(c.uri),
+    );
+    return keep(message.params.changes, changes, { changes });
   }
   if (DidChangeDirectoriesMessage.type.isNotification(message)) {
-    const created: string[] = [];
-    for (const uri of message.params.created) {
-      if (stamped(uri)) {
-        if (fresh(uri)) {
-          observeExists(uri, commits![uri]);
-          created.push(uri);
-        }
-      } else if (await confirmDirectory(uri, true)) {
-        created.push(uri);
-      }
-    }
-    const deleted: string[] = [];
-    for (const uri of message.params.deleted) {
-      if (stamped(uri)) {
-        if (fresh(uri)) {
-          observeAbsent(uri, commits![uri], true);
-          deleted.push(uri);
-        }
-      } else if (await confirmDirectory(uri, false)) {
-        deleted.push(uri);
-      }
-    }
+    const created = message.params.created.filter(
+      (uri) => stamped(uri, true) && fresh(uri),
+    );
+    created.forEach((uri) => observeExists(uri, commits![uri]));
+    const deleted = message.params.deleted.filter(
+      (uri) => stamped(uri, true) && fresh(uri),
+    );
+    deleted.forEach((uri) => observeAbsent(uri, commits![uri], true));
     return keep(
       [...message.params.created, ...message.params.deleted],
       [...created, ...deleted],
-    )
-      ? withParams(message, { created, deleted })
-      : null;
+      { created, deleted },
+    );
   }
-  return message;
+  return { forward: message, unordered };
 };
 const respond = (message: ResponseMessage, transfer?: Transferable[]) => {
   if (transfer) {
@@ -737,6 +804,7 @@ onmessage = async (e) => {
           }),
         );
       }
+      await announceUnordered(log);
     } catch (err: any) {
       console.error(err, err.stack);
       respond(
@@ -814,6 +882,7 @@ onmessage = async (e) => {
           type: FileChangeType.Changed,
         })),
       );
+      await announceUnordered(log);
     } catch (err: any) {
       console.error(err, err.stack);
       const response = WillWriteFilesMessage.type.error(message.id, {
@@ -843,6 +912,7 @@ onmessage = async (e) => {
           type: r.created ? FileChangeType.Created : FileChangeType.Changed,
         })),
       );
+      await announceUnordered(log);
     } catch (err: any) {
       console.error(err, err.stack);
       const response = WillCreateFilesMessage.type.error(message.id, {
@@ -868,6 +938,7 @@ onmessage = async (e) => {
       deleted.forEach((d) => log.record(d.uri, d.local, d.commit));
       broadcastDeletes(log, deleted);
       broadcastWatchedChanges(log, deleted.map(d => ({ uri: d.uri, type: FileChangeType.Deleted })));
+      await announceUnordered(log);
       if (failure) throw failure.reason;
       respond(WillDeleteFilesMessage.type.response(message.id, deleted.flatMap((d) => d.file ? [d.file] : [])));
     } catch (err: any) {
@@ -911,6 +982,7 @@ onmessage = async (e) => {
             type: FileChangeType.Changed,
           })),
         );
+        await announceUnordered(log);
       }
     } catch (err: any) {
       console.error(err, err.stack);
@@ -946,6 +1018,7 @@ onmessage = async (e) => {
           (o): FileEvent => ({ uri: o.newUri, type: FileChangeType.Created }),
         ),
       ]);
+      await announceUnordered(log);
       const failed = outcomes.find((o) => o.error != null);
       if (failed) throw failed.error;
       const response = WillRenameFilesMessage.type.response(
@@ -1056,6 +1129,7 @@ onmessage = async (e) => {
     broadcastRenames(log, renamed);
     broadcastWrites(log);
     broadcastWatchedChanges(log, fileEvents);
+    await announceUnordered(log);
 
     respond(
       ApplyWorkspaceEditMessage.type.response(
@@ -1208,7 +1282,7 @@ const createDirectories = async (uris: string[], log: CommitLog) => {
       () => createDirectory(root, getPathFromUri(uri)),
       () => withAncestors(uri),
     );
-    log.record(uri, local, commit);
+    log.record(uri, local, commit, true);
     created.push(uri);
   }
   return created;
@@ -1228,7 +1302,7 @@ const deleteEmptyDirectories = async (uris: string[], log: CommitLog) => {
       (paths) => paths.map(getUriFromPath),
     );
     for (const removedPath of result) {
-      log.record(getUriFromPath(removedPath), local, commit);
+      log.record(getUriFromPath(removedPath), local, commit, true);
       if (commit) {
         removeDirectoryTree(getUriFromPath(removedPath), commit);
       }
@@ -1244,9 +1318,16 @@ const needsTextAtEnumeration = (fileUri: string) => {
   return type === "script" || type === "text" || ext === "svg" || ext === "url";
 };
 
+const storedFileHandle = async (uri: string) => {
+  const handle = await findFileHandle(uri);
+  if (!handle) {
+    throw new DOMException(`${uri} was not found`, "NotFoundError");
+  }
+  return handle;
+};
+
 const statFile = async (fileUri: string, floor: FileCommit | undefined) => {
-  const root = await navigator.storage.getDirectory();
-  const fileHandle = await getFileHandleFromUri(root, fileUri, false);
+  const fileHandle = await storedFileHandle(fileUri);
   const fileRef = await fileHandle.getFile();
   if (adoptStoredBytes(fileUri, floor)) {
     const before = State.files.get(fileUri);
@@ -1261,7 +1342,7 @@ const readFile = async (
 ) => {
   const root = await navigator.storage.getDirectory();
   const floor = options ? options.floor : await readFloor(root);
-  const fileHandle = await getFileHandleFromUri(root, fileUri, false);
+  const fileHandle = await storedFileHandle(fileUri);
   const fileRef = await fileHandle.getFile();
   const buffer = await fileRef.arrayBuffer();
   if (adoptStoredBytes(fileUri, floor)) {
@@ -1717,15 +1798,8 @@ const removeTrashBatch = async (projectId: string, batchId: string) => {
   await trash.removeEntry(batchId, { recursive: true }).catch(() => {});
 };
 
-const fileExists = async (uri: string): Promise<boolean> => {
-  try {
-    const root = await navigator.storage.getDirectory();
-    await getFileHandleFromUri(root, uri, false);
-    return true;
-  } catch {
-    return false;
-  }
-};
+const fileExists = async (uri: string): Promise<boolean> =>
+  (await findFileHandle(uri)) != null;
 
 const deconflictRestoreUri = async (uri: string): Promise<string> => {
   const path = getPathFromUri(uri);

@@ -385,6 +385,138 @@ describe("the page's first load (I-1893)", () => {
   });
 });
 
+describe("changes whose order cannot be established are settled from storage", () => {
+  const workerTextOf = async (fs: WorkspaceFileSystemType, path: string) =>
+    (await fs.readDirectoryFiles({ directory: { uri: `file://${PROJECT}` } })).find(
+      (f) => f.uri === uriOf(path),
+    )?.text;
+
+  const expectSettled = async (
+    h: Awaited<ReturnType<typeof load>>,
+    root: MemoryDirectory,
+    path: string,
+  ) => {
+    const stored = textAt(root, path);
+    expect(await h.textOf(path)).toBe(stored);
+    expect(await workerTextOf(h.fs, path)).toBe(stored);
+  };
+
+  const unwritableSequence = (root: MemoryDirectory, failures = Infinity) => {
+    const sequence = new MemoryFile(".opfs-workspace-sequence");
+    const access = sequence.createSyncAccessHandle.bind(sequence);
+    let remaining = failures;
+    sequence.createSyncAccessHandle = async () => {
+      const handle = await access();
+      return {
+        ...handle,
+        write: (data: DataView | Uint8Array, options?: { at?: number }) => {
+          if (remaining > 0) {
+            remaining -= 1;
+            throw new DOMException("sequence storage unavailable", "QuotaExceededError");
+          }
+          return handle.write(data, options);
+        },
+      };
+    };
+    root.entries.set(sequence.name, sequence);
+  };
+
+  it("takes the stored text of an older-build tab's write over this tab's stamped write (BR-1)", async () => {
+    const root = seed({ "main.sd": "A" });
+    const h = await load(root);
+    await writeText(h.fs, "main.sd", "LOCAL", "editor");
+    await settle();
+    writeMemoryFile(root, `${PROJECT}/main.sd`, enc.encode("LEGACY"));
+    await h.remote("workspace/didWriteFiles", { files: [fileData("main.sd", "LEGACY")] });
+    await expectSettled(h, root, "main.sd");
+    expect(await h.textOf("main.sd")).toBe("LEGACY");
+  });
+
+  it("keeps a recreated file when an older-build tab's delete and watched deletion arrive (BR-2)", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "A" });
+    const h = await load(root);
+    await writeText(h.fs, "a.sd", "RECREATED", "editor");
+    await settle();
+    await h.remote("workspace/didDeleteFiles", { files: [{ uri: uriOf("a.sd") }] });
+    await h.remote("workspace/didChangeWatchedFiles", {
+      changes: [{ uri: uriOf("a.sd"), type: 3 }],
+    });
+    await expectSettled(h, root, "a.sd");
+    expect(await h.textOf("a.sd")).toBe("RECREATED");
+  });
+
+  it("creates no directory and keeps the page's folders equal to storage for notifications under a deleted folder (BR-3)", async () => {
+    const root = seed({ "main.sd": "M" });
+    const h = await load(root);
+    const gone = uriOf("gone/a.sd");
+    await h.remote("workspace/didWriteFiles", { files: [fileData("gone/a.sd", "X")] });
+    await h.remote("workspace/didDeleteFiles", { files: [{ uri: gone }] });
+    await h.remote("workspace/didRenameFiles", { files: [{ oldUri: gone, newUri: uriOf("b.sd") }] });
+    await h.remote("workspace/didChangeWatchedFiles", { changes: [{ uri: gone, type: 1 }] });
+    expect(listMemory(root, PROJECT).filter((p) => !p.startsWith("."))).toEqual(["main.sd"]);
+    expect(await h.fs.getFolders(PROJECT)).toEqual([]);
+    expect(await h.textOf("gone/a.sd")).toBeUndefined();
+    expect(await h.textOf("b.sd")).toBeUndefined();
+  });
+
+  it("ends on the stored text when a delayed batch finishes after a later save and the sequence cannot be written (UD-3)", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "A", "b.sd": "B" });
+    unwritableSequence(root);
+    const h = await load(root);
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    let release!: () => void;
+    (entryAt(root, "b.sd") as MemoryFile).gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const insert = (path: string) => ({
+      textDocument: { uri: uriOf(path), version: null },
+      edits: [{ range: { start: { line: 0, character: 1 }, end: { line: 0, character: 1 } }, newText: "!" }],
+    });
+    const batch = h.fs.applyWorkspaceEdit({ documentChanges: [insert("a.sd"), insert("b.sd")] } as never);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(textAt(root, "a.sd")).toBe("A!");
+    await writeText(h.fs, "a.sd", "NEW", "editor");
+    await settle();
+    release();
+    await batch;
+    await settle();
+    await expectSettled(h, root, "a.sd");
+    expect(await h.textOf("a.sd")).toBe("NEW");
+  });
+
+  it("keeps a file absent after an older-build tab's delete when an older stamped write arrives late (LV-2)", async () => {
+    const root = seed({ "main.sd": "M", "a.sd": "OLD" });
+    const h = await load(root);
+    const old = await otherTab(root).commit();
+    await (root.entries.get(PROJECT) as MemoryDirectory).removeEntry("a.sd");
+    await h.remote("workspace/didDeleteFiles", { files: [{ uri: uriOf("a.sd") }] });
+    await h.remote("workspace/didWriteFiles", {
+      files: [fileData("a.sd", "OLD")],
+      commits: { [uriOf("a.sd")]: old },
+    });
+    expect(textAt(root, "a.sd")).toBeUndefined();
+    expect(await h.textOf("a.sd")).toBeUndefined();
+    expect(await workerTextOf(h.fs, "a.sd")).toBeUndefined();
+  });
+
+  it("takes the next writer's text after this tab's sequence write failed once (R3-UD-3)", async () => {
+    const root = seed({ "main.sd": "M" });
+    unwritableSequence(root, 1);
+    const h = await load(root);
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    await writeText(h.fs, "main.sd", "MINE", "editor");
+    await settle();
+    expect(await h.textOf("main.sd")).toBe("MINE");
+    const next = await otherTab(root).write("main.sd", "NEXT");
+    await h.remote("workspace/didWriteFiles", {
+      files: [fileData("main.sd", "NEXT")],
+      commits: { [uriOf("main.sd")]: next },
+    });
+    await expectSettled(h, root, "main.sd");
+    expect(await h.textOf("main.sd")).toBe("NEXT");
+  });
+});
+
 describe("folder moves (I-1910)", () => {
   it("loses no file when one file of a folder move cannot be moved", async () => {
     const root = seed(
