@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { testCompiler, testStory } from "../engineUnderTest";
 
 function compileAndCapture(body: string): {
@@ -97,13 +97,28 @@ host_record(rawequal(print, print))`);
     const { errors, recorded } = compileAndCapture(`local t = { __stdlib_fn = "print" }
 host_record(pcall(function() t.x = 1 end))
 host_record(pcall(rawset, t, "y", 2))
-host_record(rawget(t, "x"))
-host_record(rawget(t, "y"))`);
+host_record(t.x)
+host_record(rawget(t, "y"))
+host_record(type(t))
+host_record(t == print)
+host_record(rawequal(t, print))
+host_record(pcall(t, "x"))
+host_record(tostring(t) == tostring(print))`);
     expect(errors).toEqual([]);
-    expect(recorded).toEqual([true, true, 1, 2]);
+    expect(recorded).toEqual([
+      true,
+      true,
+      1,
+      2,
+      "table",
+      false,
+      false,
+      false,
+      false,
+    ]);
   });
 
-  test("a builtin held in a global keeps its identity across a save", () => {
+  test("a builtin keeps its identity across a save loaded by a fresh runtime", async () => {
     const source = `external host_record(v)
 scene start
   & setup()
@@ -115,6 +130,7 @@ end
 function setup()
 held = print
 keyed = {}
+keyed[{}] = 2
 keyed[print] = 1
 end
 
@@ -154,7 +170,9 @@ end
     bind(first);
     first.Continue();
     const saved = first.state.ToJson();
-    const second = testStory(result.program.chunks!);
+    vi.resetModules();
+    const fresh = await import("../engineUnderTest");
+    const second = fresh.testStory(result.program.chunks!);
     bind(second);
     second.state.LoadJson(saved);
     second.ContinueMaximally();

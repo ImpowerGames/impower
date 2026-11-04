@@ -5,7 +5,7 @@ import { StepLimitExceeded, StoryException } from "./StoryException";
 import { drawStoryRandom } from "./StoryRandom";
 import { ambientReads } from "./AmbientReads";
 import { Void } from "./Void";
-import { isStdLibMarker } from "./StdLibMarker";
+import { isStdLibMarker, stdLibMarkerMapName } from "./StdLibMarker";
 import {
   ObjectValue,
   IntValue,
@@ -199,7 +199,7 @@ export function luauTypeOf(v: any): string {
     if (typeof raw === "boolean") return "boolean";
     if (raw instanceof Map) {
       if (raw.has("__closure_fn")) return "function";
-      if (raw.has("__stdlib_fn")) return "function";
+      if (stdLibMarkerMapName(raw) !== null) return "function";
       if (raw.has("__userdata")) return "userdata";
       return "table";
     }
@@ -1065,7 +1065,7 @@ function classifyGsubRepl(
     const map = repl.value;
     if (
       map instanceof Map &&
-      (map.has("__closure_fn") || map.has("__stdlib_fn"))
+      (map.has("__closure_fn") || stdLibMarkerMapName(map) !== null)
     ) {
       return "function";
     }
@@ -4289,7 +4289,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         if (
           map instanceof Map &&
           !map.has("__closure_fn") &&
-          !map.has("__stdlib_fn") &&
+          stdLibMarkerMapName(map) === null &&
           !map.has(BUILTIN_ITER_TAG) &&
           !(mtMap instanceof Map && mtMap.has("__call"))
         ) {
