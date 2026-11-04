@@ -261,6 +261,32 @@ describe("the route panel's tabs", () => {
     );
   });
 
+  test("the status line states no total until the program's listing arrives", async () => {
+    const p = player();
+    let deliver!: (result: unknown) => void;
+    (p.controller as any).askWorkerGame = (type: any, params: any) =>
+      type.method === "game/startingValueListing"
+        ? new Promise((resolve) => {
+            deliver = () => resolve({ listing: { ...listing, start: params.start } });
+          })
+        : Promise.resolve({});
+    await p.hostSends({
+      interrogation: { "store:trust": "2", seed: "7" },
+    });
+    p.report();
+    p.open();
+    await settle();
+    p.valuesTab()!.click();
+    const status = p.routeList.querySelector(".sv-status");
+    expect(status).not.toBeNull();
+    expect(status!.textContent).toBe("");
+    deliver(undefined);
+    await settle();
+    expect(p.routeList.querySelector(".sv-status")!.textContent).toBe(
+      "2 of 8 values set",
+    );
+  });
+
   test("the tab the author chose goes to the host, and the panel opens on the one the host sends", async () => {
     const p = await onValuesTab();
     const told = p.sent.filter(

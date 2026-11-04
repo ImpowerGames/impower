@@ -173,7 +173,9 @@ export const valuesOffered = (state: StartingValuesViewState): number =>
   listingItems(state.listing).length;
 
 export const valuesStatus = (state: StartingValuesViewState): string =>
-  `${valuesSet(state)} of ${valuesOffered(state)} values set`;
+  state.listing
+    ? `${valuesSet(state)} of ${valuesOffered(state)} values set`
+    : "";
 
 export const valuesTabIcon = (
   state: StartingValuesViewState,
