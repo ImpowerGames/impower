@@ -2,7 +2,6 @@ import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/Sp
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { SparkdownCompilerConfig } from "@impower/sparkdown/src/compiler/types/SparkdownCompilerConfig";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { filterImage } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { getExpectedSelectorTypes } from "@impower/sparkdown/src/compiler/utils/getExpectedSelectorTypes";
 import {
   getImagePreviewMarkupComposited,
@@ -179,19 +178,6 @@ export const getHover = async (
             "$type" in resolvedValue &&
             typeof resolvedValue.$type === "string"
           ) {
-            const type = resolvedValue.$type;
-            for (const selector of reference.selectors) {
-              if (
-                selector.name &&
-                (type === "filtered_image" || /[:~]/.test(selector.name)) &&
-                program.context
-              ) {
-                filterImage(
-                  program.context,
-                  program.context?.["filtered_image"]?.[selector.name],
-                );
-              }
-            }
             match = { struct: resolvedValue, range };
             return false;
           }

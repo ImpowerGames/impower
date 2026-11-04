@@ -1914,8 +1914,7 @@ export default class UIManager extends Manager {
     win?.addEventListener("keydown", onKeyDown, true);
     video.addEventListener("ended", onEnded);
     if (params.enter) {
-      const keyframes = params.enter.keyframes;
-      const fades = (Array.isArray(keyframes) ? keyframes : [keyframes]).some(
+      const fades = params.enter.keyframes.some(
         (keyframe) => keyframe != null && "opacity" in keyframe,
       );
       if (fades) {

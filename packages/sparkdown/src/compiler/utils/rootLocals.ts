@@ -135,6 +135,16 @@ export class RootLocals {
     return ordinal(list, i);
   }
 
+  flowLocals(flowFrom: number): string[] {
+    const flow = this.flows.findIndex(({ from }) => from === flowFrom);
+    if (flow < 0) return [];
+    const names: string[] = [];
+    for (const [name, list] of this.declarations) {
+      if (list.some((declaration) => declaration.flow === flow && !declaration.parameter)) names.push(name);
+    }
+    return names;
+  }
+
   blockLocal(name: string, at: number): boolean {
     return this.blockDeclarations.get(name)?.some(({ from, to }) => from <= at && at <= to) ?? false;
   }

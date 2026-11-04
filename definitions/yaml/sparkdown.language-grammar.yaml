@@ -4253,7 +4253,7 @@ repository:
       - { include: "#RecursiveSelectorFunction" }
       - { include: "#SimpleSelectorFunction" }
       - { include: "#StyleAttribute" }
-      - { include: "#EventAttribute" }
+      - { include: "#SelectorAttribute" }
       - { include: "#LabelAttribute" }
       - { include: "#Separator" }
 
@@ -4563,10 +4563,10 @@ repository:
     beginCaptures:
       1:
         patterns:
-          - { include: "#EventAttributeOperator" }
+          - { include: "#SelectorStateOperator" }
       2:
         patterns:
-          - { include: "#EventAttributeName" }
+          - { include: "#SelectorStateName" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#RecursiveSelectorFunctionParameters" }
@@ -4578,10 +4578,10 @@ repository:
     beginCaptures:
       1:
         patterns:
-          - { include: "#EventAttributeOperator" }
+          - { include: "#SelectorStateOperator" }
       2:
         patterns:
-          - { include: "#EventAttributeName" }
+          - { include: "#SelectorStateName" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#SimpleSelectorFunctionParameters" }
@@ -4596,13 +4596,13 @@ repository:
       - { include: "#AssignedUnquotedStyleAttribute" }
       - { include: "#UnassignedStyleAttribute" }
 
-  EventAttribute:
+  SelectorAttribute:
     emit: true
     patterns:
-      - { include: "#AssignedBracedEventAttribute" }
-      - { include: "#AssignedQuotedEventAttribute" }
-      - { include: "#AssignedUnquotedEventAttribute" }
-      - { include: "#UnassignedEventAttribute" }
+      - { include: "#AssignedBracedSelectorAttribute" }
+      - { include: "#AssignedQuotedSelectorAttribute" }
+      - { include: "#AssignedUnquotedSelectorAttribute" }
+      - { include: "#UnassignedSelectorAttribute" }
 
   LabelAttribute:
     emit: true
@@ -4699,6 +4699,16 @@ repository:
     match: ([@])
 
   EventAttributeName:
+    tag: function(name)
+    name: entity.name.function.attribute.name.view.sd
+    match: (.+)
+
+  SelectorStateOperator:
+    tag: function(name)
+    name: entity.name.function.attribute.name.view.sd
+    match: ([@])
+
+  SelectorStateName:
     tag: function(name)
     name: entity.name.function.attribute.name.view.sd
     match: (.+)
@@ -4836,15 +4846,15 @@ repository:
         patterns:
           - { include: "#StyleAttributeName" }
 
-  AssignedBracedEventAttribute:
+  AssignedBracedSelectorAttribute:
     begin: ([@])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])([{])
     beginCaptures:
       1:
         patterns:
-          - { include: "#EventAttributeOperator" }
+          - { include: "#SelectorStateOperator" }
       2:
         patterns:
-          - { include: "#EventAttributeName" }
+          - { include: "#SelectorStateName" }
       3:
         patterns:
           - { include: "#ComparisonOperator" }
@@ -4862,17 +4872,17 @@ repository:
         patterns:
           - { include: "#PunctuationBraceClose" }
 
-  AssignedQuotedEventAttribute:
+  AssignedQuotedSelectorAttribute:
     tag: string
     name: string.quoted.double.view.sd
     begin: ([@])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])(["])
     beginCaptures:
       1:
         patterns:
-          - { include: "#EventAttributeOperator" }
+          - { include: "#SelectorStateOperator" }
       2:
         patterns:
-          - { include: "#EventAttributeName" }
+          - { include: "#SelectorStateName" }
       3:
         patterns:
           - { include: "#ComparisonOperator" }
@@ -4891,16 +4901,16 @@ repository:
         patterns:
           - { include: "#PunctuationStringClose" }
 
-  AssignedUnquotedEventAttribute:
+  AssignedUnquotedSelectorAttribute:
     begin: ([@])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])
     beginCaptures:
       1:
         patterns:
-          - { include: "#EventAttributeOperator" }
+          - { include: "#SelectorStateOperator" }
       2:
         patterns:
           - { include: "#LuauComment" }
-          - { include: "#EventAttributeName" }
+          - { include: "#SelectorStateName" }
       3:
         patterns:
           - { include: "#ComparisonOperator" }
@@ -4909,18 +4919,18 @@ repository:
           - { include: "#EqualOperator" }
     patterns:
       - { include: "#LuauComment" }
-      - { include: "#UnquotedEventAttributeValue" }
+      - { include: "#UnquotedSelectorAttributeValue" }
     end: (?={{UNQUOTED_STRING_TERMINATOR}})
 
-  UnassignedEventAttribute:
+  UnassignedSelectorAttribute:
     match: ([@])({{IDENTIFIER}})?
     captures:
       1:
         patterns:
-          - { include: "#EventAttributeOperator" }
+          - { include: "#SelectorStateOperator" }
       2:
         patterns:
-          - { include: "#EventAttributeName" }
+          - { include: "#SelectorStateName" }
 
   StringLiteral:
     tag: string
@@ -4987,7 +4997,7 @@ repository:
     name: string.unquoted.attribute.value.sd
     match: ((?:(?!{{UNQUOTED_STRING_TERMINATOR}}).)+)
 
-  UnquotedEventAttributeValue:
+  UnquotedSelectorAttributeValue:
     match: ((?:(?!{{UNQUOTED_STRING_TERMINATOR}}).)+)
     captures:
       1:

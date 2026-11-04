@@ -5,6 +5,7 @@ import {
 import { ChangedEditorRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorRoutePinsMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPaneMessage";
+import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
@@ -113,7 +114,7 @@ describe("WorkspaceWindow store transitions", () => {
 
   beforeEach(() => {
     localStorage.clear();
-    win = new WorkspaceWindow();
+    win = new WorkspaceWindow(Workspace);
   });
 
   afterEach(() => {
@@ -149,6 +150,34 @@ describe("WorkspaceWindow store transitions", () => {
     );
   });
 
+  it("getPaneType and getPanelType route a .luau file to the logic/scripts panel", () => {
+    expect(win.getPaneType("scripts/util.luau")).toBe("logic");
+    expect(win.getPanelType("scripts/util.luau")).toBe("scripts");
+    expect(win.getPaneType("main.luau")).toBe("logic");
+    expect(win.getPanelType("main.luau")).toBe("scripts");
+  });
+
+  it("getPaneType and getPanelType keep .sd routing and give other files no pane", () => {
+    expect(win.getPaneType("main.sd")).toBe("logic");
+    expect(win.getPanelType("main.sd")).toBe("main");
+    expect(win.getPaneType("scripts/intro.sd")).toBe("logic");
+    expect(win.getPanelType("scripts/intro.sd")).toBe("scripts");
+    expect(win.getPaneType("assets/hero.png")).toBeNull();
+    expect(win.getPanelType("assets/hero.png")).toBeNull();
+    expect(win.getPaneType("assets/luau")).toBeNull();
+    expect(win.getPanelType("assets/luau")).toBeNull();
+  });
+
+  it("openFileEditor opens a .luau file in the logic/scripts editor", () => {
+    win.openFileEditor("scripts/util.luau");
+    const editor = workspace.current.panes.logic.panels.scripts!.activeEditor;
+    expect(editor?.open).toBe(true);
+    expect(editor?.filename).toBe("scripts/util.luau");
+    expect(win.getActiveEditorForFile("scripts/util.luau")?.filename).toBe(
+      "scripts/util.luau",
+    );
+  });
+
   it("openFileEditor stores the full project-relative path for a nested script", () => {
     win.openFileEditor("chapters/intro.sd");
     const editor = workspace.current.panes.logic.panels.scripts!.activeEditor;
@@ -177,6 +206,49 @@ describe("WorkspaceWindow store transitions", () => {
     expect(workspace.current.panes.logic.panels.main!.activeEditor?.filename).toBe(
       "main.sd",
     );
+  });
+
+  it("showDocument resolves with success for a script and failure for a file with no editor", async () => {
+    const projectId = workspace.current.project.id;
+    await expect(
+      win.showDocument(`file://${projectId}/scripts/intro.sd`, {
+        start: { line: 1, character: 0 },
+        end: { line: 1, character: 0 },
+      }),
+    ).resolves.toEqual({ success: true });
+    await expect(
+      win.showDocument(`file://${projectId}/assets/hero.png`),
+    ).resolves.toEqual({ success: false });
+  });
+
+  it("answers a window/showDocument request with its response", async () => {
+    const projectId = workspace.current.project.id;
+    const responses: unknown[] = [];
+    const listener = (e: Event) => {
+      if (
+        e instanceof CustomEvent &&
+        ShowDocumentMessage.type.isResponse(e.detail)
+      ) {
+        responses.push(e.detail);
+      }
+    };
+    window.addEventListener(MessageProtocol.event, listener);
+    try {
+      const request = ShowDocumentMessage.type.request({
+        uri: `file://${projectId}/scripts/intro.sd`,
+      });
+      sendProtocolMessage(request);
+      await vi.waitFor(() =>
+        expect(responses).toEqual([
+          expect.objectContaining({
+            id: request.id,
+            result: { success: true },
+          }),
+        ]),
+      );
+    } finally {
+      window.removeEventListener(MessageProtocol.event, listener);
+    }
   });
 
   it("closeFileEditor by nested path closes that editor", () => {
@@ -288,7 +360,7 @@ describe("Animate portraits preference", () => {
   };
 
   const load = () => {
-    const win = new WorkspaceWindow();
+    const win = new WorkspaceWindow(Workspace);
     windows.push(win);
     return win;
   };
@@ -552,7 +624,7 @@ describe("Route pins", () => {
   };
 
   const load = () => {
-    const win = new WorkspaceWindow();
+    const win = new WorkspaceWindow(Workspace);
     windows.push(win);
     return win;
   };
@@ -681,7 +753,7 @@ describe("Starting values", () => {
     }
   };
   const load = () => {
-    const win = new WorkspaceWindow();
+    const win = new WorkspaceWindow(Workspace);
     windows.push(win);
     return win;
   };
@@ -829,7 +901,7 @@ describe("PLAY for a story with no start scene", () => {
     localStorage.clear();
     started = [];
     window.addEventListener(MessageProtocol.event, listener);
-    win = new WorkspaceWindow();
+    win = new WorkspaceWindow(Workspace);
     current.window = win;
     workspace.current = {
       ...workspace.current,

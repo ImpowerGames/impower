@@ -7,7 +7,6 @@ import { AddCompilerFileMessage } from "../../compiler/classes/messages/AddCompi
 import {
   CompiledProgramMessage,
   type CompiledProgramParams,
-  type DiagnosticsSummary,
 } from "../../compiler/classes/messages/CompiledProgramMessage";
 import {
   CompileProgramMessage,
@@ -47,28 +46,6 @@ import { ProgramTransportDecoder } from "../utils/programTransport";
 import { debounce } from "../utils/timing/debounce";
 
 const DEBOUNCE_DELAY = 600;
-
-const summarizeDiagnostics = (
-  diagnostics: SparkProgram["diagnostics"],
-): DiagnosticsSummary => {
-  const summary: DiagnosticsSummary = {};
-  if (diagnostics) {
-    for (const [uri, fileDiagnostics] of Object.entries(diagnostics)) {
-      const counts = { errors: 0, warnings: 0, infos: 0 };
-      for (const d of fileDiagnostics) {
-        if (d.severity === 1) {
-          counts.errors++;
-        } else if (d.severity === 2) {
-          counts.warnings++;
-        } else {
-          counts.infos++;
-        }
-      }
-      summary[uri] = counts;
-    }
-  }
-  return summary;
-};
 
 const globToRegex = (glob: string) => {
   return RegExp(
@@ -1038,7 +1015,6 @@ export abstract class SparkdownWorkspace {
             version: result.program.version,
             playRefusal: playRefusalOf(result.program),
           },
-          diagnosticsSummary: summarizeDiagnostics(result.program.diagnostics),
         }
       : result;
     this.sendNotification(CompiledProgramMessage.method, notificationParams);

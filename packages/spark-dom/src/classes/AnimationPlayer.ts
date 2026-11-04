@@ -28,14 +28,7 @@ export default class AnimationPlayer {
     if (element) {
       animations.forEach((animation) => {
         const convertedKeyframes: Keyframe[] = [];
-        const rawKeyframes: unknown = (animation as { keyframes?: unknown })
-          .keyframes;
-        const keyframeList: any[] = Array.isArray(rawKeyframes)
-          ? rawKeyframes
-          : rawKeyframes != null
-            ? [rawKeyframes]
-            : [];
-        keyframeList.forEach((keyframe) => {
+        animation.keyframes.forEach((keyframe) => {
           if (keyframe) {
             const convertedKeyframe: Keyframe = {};
             for (const [k, v] of Object.entries(keyframe)) {

@@ -22,7 +22,7 @@ assert_denies() {
   out=$(make_payload "$path" | bash -c "$CMD" 2>"$errfile")
   rc=$?
   err=$(cat "$errfile"); rm -f "$errfile"
-  if [[ $rc -eq 0 && -z "$err" && "$out" == *'"permissionDecision":"deny"'* ]]; then
+  if [[ $rc -eq 0 && -z "$err" && "$out" == *'"permissionDecision":"deny"'* && "$out" == *"${3:-}"* && "$out" == *"${4:-}"* ]]; then
     echo "PASS (denied): $desc"
   else
     echo "FAIL (expected a clean deny): $desc -- rc=$rc stderr='$err' out='$out'"
@@ -44,7 +44,7 @@ assert_allows() {
   fi
 }
 
-assert_denies "forward-slash grammar path"     "packages/sparkdown/language/sparkdown.language-grammar.json"
+assert_denies "forward-slash grammar path"     "packages/sparkdown/language/sparkdown.language-grammar.json" "definitions/yaml/" "npm run language"
 assert_denies "forward-slash config path"      "vscode-sparkdown/language/sparkdown.language-config.json"
 assert_denies "forward-slash snippets path"    "packages/sparkdown/language/sparkdown.language-snippets.json"
 assert_denies "Windows backslash grammar path" 'C:\Users\dev\impower\packages\sparkdown\language\sparkdown.language-grammar.json'
@@ -52,6 +52,19 @@ assert_denies "Windows backslash config path"  'C:\Users\dev\impower\vscode-spar
 assert_denies "uppercase Windows path"         'C:\USERS\DEV\PACKAGES\SPARKDOWN\LANGUAGE\SPARKDOWN.LANGUAGE-GRAMMAR.JSON'
 assert_denies "mixed-case filename"            "packages/sparkdown/language/Sparkdown.Language-Grammar.json"
 
+reviewer_names=$(node -e '
+const models = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+if (models.length === 0) process.exit(1);
+for (const { name } of models) console.log(name);
+' "$dir/.claude/reviewer-models.json") || exit 1
+
+while IFS= read -r name; do
+  assert_denies "configured reviewer $name" ".claude/agents/$name.md" ".claude/reviewer-models.json" "node scripts/generate-reviewer-agents.mjs"
+done <<< "$reviewer_names"
+
+assert_allows "unrelated agent definition"         ".claude/agents/writer.md"
+assert_allows "reviewer outside the agents dir"    "docs/reviewer-opus-4-8.md"
+assert_allows "reviewer backup file"               ".claude/agents/reviewer-opus-4-8.md.bak"
 assert_allows "unrelated source file"              "packages/sparkdown/src/compiler/utils/filterImage.ts"
 assert_allows "same filename outside a language dir" "docs/examples/my-sparkdown.language-grammar.json"
 assert_allows "similarly-named but distinct file"  "packages/sparkdown/language/sparkdown.language-grammar.json.bak"

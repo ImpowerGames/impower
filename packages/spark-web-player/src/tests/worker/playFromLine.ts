@@ -71,6 +71,9 @@ export const playFrom = async (
       exited: h.toEditor
         .filter((m) => m.method === "game/exited")
         .map((m) => m.params?.reason),
+      ended: h.toEditor
+        .filter((m) => m.method === "game/ended")
+        .map((m) => m.params?.kind),
       text: writtenText(h.toRouter.slice(sentBefore)),
       score: score?.value,
     };

@@ -80,8 +80,13 @@ const layeredRootContext = () => ({
   },
 });
 
-const drawnLayers = (filteredImage: any): string[] =>
-  (filteredImage.filtered_layers ?? []).map((l: { $name: string }) => l.$name);
+const drawnLayers = (context: any): string[] =>
+  (filterImage(context, context.filtered_image.p).layers ?? []).map(
+    (l: { $name: string }) => l.$name,
+  );
+
+const filteredSrc = (context: any) =>
+  filterImage(context, context.filtered_image.p).src;
 
 describe("resolving the same filtered image twice", () => {
   it("evaluates layer visibility once", () => {
@@ -89,16 +94,14 @@ describe("resolving the same filtered image twice", () => {
     counters.visibility = 0;
     filterImage(context, context.filtered_image.p);
     filterImage(context, context.filtered_image.p);
-    filterImage(context, context.filtered_image.p);
-    expect(drawnLayers(context.filtered_image.p)).toEqual(["portrait__body"]);
+    expect(drawnLayers(context)).toEqual(["portrait__body"]);
     expect(counters.visibility).toBe(1);
   });
 
   it("does not walk layer visibility at all for a plain image root", () => {
     const context = imageRootContext();
     counters.visibility = 0;
-    filterImage(context, context.filtered_image.p);
-    expect(context.filtered_image.p.filtered_src).toMatch(/&attributes=/);
+    expect(filteredSrc(context)).toMatch(/&attributes=/);
     expect(counters.visibility).toBe(0);
   });
 });
@@ -106,17 +109,14 @@ describe("resolving the same filtered image twice", () => {
 describe("re-deriving when an input changes", () => {
   it("re-derives when the root file's signature changes", () => {
     const context = imageRootContext();
-    filterImage(context, context.filtered_image.p);
-    expect(context.filtered_image.p.filtered_src).toContain("?v=1");
+    expect(filteredSrc(context)).toContain("?v=1");
     context.image.portrait.src = "/file:/local/assets/portrait.svg?v=2";
-    filterImage(context, context.filtered_image.p);
-    expect(context.filtered_image.p.filtered_src).toContain("?v=2");
+    expect(filteredSrc(context)).toContain("?v=2");
   });
 
   it("re-derives when the root's type changes (#340)", () => {
     const context: any = imageRootContext();
-    filterImage(context, context.filtered_image.p);
-    expect(typeof context.filtered_image.p.filtered_src).toBe("string");
+    expect(typeof filteredSrc(context)).toBe("string");
 
     const root = context.image.portrait;
     const wasVocabulary = root.attribute_vocabulary;
@@ -127,16 +127,15 @@ describe("re-deriving when an input changes", () => {
     context.image.portrait__hat = layered.image.portrait__hat;
     context.image.portrait__body = layered.image.portrait__body;
     context.filtered_image.p.image = { $type: "image", $name: "portrait" };
-    filterImage(context, context.filtered_image.p);
-    expect(context.filtered_image.p.filtered_src).toBeUndefined();
-    expect(drawnLayers(context.filtered_image.p)).toEqual(["portrait__body"]);
+    expect(filteredSrc(context)).toBeUndefined();
+    expect(drawnLayers(context)).toEqual(["portrait__body"]);
 
     root.$type = "image";
     root.attribute_vocabulary = wasVocabulary;
     delete root.assets;
-    filterImage(context, context.filtered_image.p);
-    expect(context.filtered_image.p.filtered_layers).toBeUndefined();
-    expect(typeof context.filtered_image.p.filtered_src).toBe("string");
+    const result = filterImage(context, context.filtered_image.p);
+    expect(result.layers).toBeUndefined();
+    expect(typeof result.src).toBe("string");
   });
 
   it("tells no attributes apart from one empty attribute", () => {
@@ -157,23 +156,17 @@ describe("re-deriving when an input changes", () => {
       data: undefined,
       src: "/file:/local/assets/portrait?v=1",
     });
-    filterImage(context, context.filtered_image.p);
-    expect(context.filtered_image.p.filtered_src).toMatch(/&attributes=/);
+    expect(filteredSrc(context)).toMatch(/&attributes=/);
     context.image.portrait.ext = "png";
-    filterImage(context, context.filtered_image.p);
-    expect(context.filtered_image.p.filtered_src).toBe(
-      "/file:/local/assets/portrait?v=1",
-    );
+    expect(filteredSrc(context)).toBe("/file:/local/assets/portrait?v=1");
   });
 
   it("re-derives when a named look's attributes change", () => {
     const context = layeredRootContext();
     counters.visibility = 0;
-    filterImage(context, context.filtered_image.p);
-    expect(drawnLayers(context.filtered_image.p)).toEqual(["portrait__body"]);
+    expect(drawnLayers(context)).toEqual(["portrait__body"]);
     context.filtered_image.p.attributes = ["hat.on"];
-    filterImage(context, context.filtered_image.p);
-    expect(drawnLayers(context.filtered_image.p)).toEqual([
+    expect(drawnLayers(context)).toEqual([
       "portrait__hat",
       "portrait__body",
     ]);

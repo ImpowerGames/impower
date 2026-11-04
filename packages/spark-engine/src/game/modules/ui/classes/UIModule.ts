@@ -2042,7 +2042,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   _autoOpenAll = false;
 
-  static readonly MANAGED_LAYOUTS = new Set(["main", "loading"]);
+  static readonly MANAGED_LAYOUTS = new Set(["main", "loading", "ending"]);
 
   constructLayoutsFromAst(...structNames: string[]): void {
     this._mountedLayouts = new Map();
@@ -2051,7 +2051,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     const vs = this._game.story.variablesState;
-    vs.reactiveDepsEnabled = true;
     if (this._building) {
       this.watchBuild();
     }
@@ -3751,11 +3750,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       percent: number;
     }>,
   ): void {
+    this.setGameTable("loading", fields);
+  }
+
+  protected setGameTable(
+    name: "loading" | "ending",
+    fields: Record<string, boolean | string | number | undefined>,
+  ): void {
     const vs = this._game.story?.variablesState;
     const game = vs?.GetVariableWithName("game");
-    const loading =
-      game instanceof ObjectValue ? game.value?.get("loading") : undefined;
-    if (!vs || !(loading instanceof ObjectValue) || !loading.value) {
+    const table =
+      game instanceof ObjectValue ? game.value?.get(name) : undefined;
+    if (!vs || !(table instanceof ObjectValue) || !table.value) {
       return;
     }
     for (const [key, raw] of Object.entries(fields)) {
@@ -3770,9 +3776,22 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             : Number.isInteger(raw)
               ? new IntValue(raw)
               : new FloatValue(raw);
-      loading.value.set(key, value);
+      table.value.set(key, value);
     }
-    vs.recordReactiveTableChange(loading.value);
+    vs.recordReactiveTableChange(table.value);
+  }
+
+  openEnding(): void {
+    this.setGameTable("ending", { active: true });
+    this.refreshLayouts();
+    const transition = this.context.config?.ui?.ending_transition;
+    this.openLayout(
+      "ending",
+      transition ? { with: transition } : undefined,
+      Boolean(this.context.system.previewing) || !this.context.system.transitions,
+    ).catch((e) => {
+      this.reportRuntimeError("Could not open the ending layout", e);
+    });
   }
 
   beginLoading(transition?: string, scene?: string): void {
@@ -4152,12 +4171,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const easing = easingOverride ?? animation?.timing?.easing ?? "ease";
       const fill = animation?.timing?.fill ?? "none";
       const direction = animation?.timing?.direction ?? "normal";
-      const rawKeyframes = animation?.keyframes;
-      const keyframes = Array.isArray(rawKeyframes)
-        ? rawKeyframes
-        : rawKeyframes != null
-          ? [rawKeyframes]
-          : [];
+      const keyframes = animation.keyframes;
       const timing = {
         delay,
         duration,

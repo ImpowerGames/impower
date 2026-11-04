@@ -351,6 +351,10 @@ Start with one portrait: compare its resting look, each option, and combinations
 
 Migrate the native artwork's layer names before re-exporting: export normalization copies names into `data-name` without translating the old filter grammar.
 
+## Making a portrait move
+
+A portrait can also move between its states on its own, such as blinking from `eyes.open` to `eyes.closed` and back. [Portrait Morphs](./PortraitMorphs.md) shows how to prepare the layers and declare the movement.
+
 ## Quick reference
 
 Layer name, read as "show NAME when GROUP is OPTION":

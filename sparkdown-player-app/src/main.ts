@@ -43,9 +43,7 @@ if (IS_LOCALHOST) {
   });
 }
 
-const SAME_ORIGIN = window.location.origin === SPARKDOWN_EDITOR_ORIGIN;
-
-const SAME_ORIGIN_PROXY = import.meta.env.BASE_URL.startsWith("/__player");
+const SAME_ORIGIN_PREVIEW = import.meta.env.BASE_URL === "/__player/";
 
 const connection = new Port2MessageConnection(
   (message: any, transfer?: Transferable[]) =>
@@ -64,8 +62,7 @@ connection.addEventListener("message", async (e) => {
   if (isMessage(message)) {
     sendProtocolMessage(message);
     if (
-      !SAME_ORIGIN &&
-      !SAME_ORIGIN_PROXY &&
+      !SAME_ORIGIN_PREVIEW &&
       (message as any).id !== undefined &&
       ((message as any).result !== undefined ||
         (message as any).error !== undefined)
@@ -134,7 +131,7 @@ window.addEventListener("drop", async (e) => {
   );
 });
 
-if (!SAME_ORIGIN && !SAME_ORIGIN_PROXY && "serviceWorker" in navigator) {
+if (!SAME_ORIGIN_PREVIEW && "serviceWorker" in navigator) {
   navigator.serviceWorker
     .register("/sw.js", { type: "module" })
     .catch((err) => console.error("SW register failed:", err));

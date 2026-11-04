@@ -523,7 +523,6 @@ const runUntilDecisionOrBranch = (
 };
 
 const resetStory = (story: Story) => {
-  story.CancelAsyncContinue();
   story.ResetState();
 };
 

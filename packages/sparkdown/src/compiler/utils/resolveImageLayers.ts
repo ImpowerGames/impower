@@ -21,8 +21,8 @@ export const resolveImageLayers = (
   const type = struct["$type"];
 
   if (type === "image") {
-    if (context) filterImage(context, struct);
-    const src = struct["filtered_src"] || struct["src"] || struct["data"] || struct["uri"];
+    const filtered = context ? filterImage(context, struct) : {};
+    const src = filtered.src || struct["src"] || struct["data"] || struct["uri"];
     const version = /\.url(?:[?#]|$)/i.test(struct["uri"] ?? "")
       ? undefined
       : struct["version"];
@@ -30,13 +30,11 @@ export const resolveImageLayers = (
   }
 
   if (type === "filtered_image") {
-    if (context) {
-      filterImage(context, struct);
+    const filtered = context ? filterImage(context, struct) : {};
+    if (filtered.src) {
+      return [{ src: filtered.src, struct }];
     }
-    if (struct["filtered_src"]) {
-      return [{ src: struct["filtered_src"], struct }];
-    }
-    const filteredLayers = struct["filtered_layers"];
+    const filteredLayers = filtered.layers;
     if (filteredLayers) {
       return filteredLayers.flatMap((layer: unknown) =>
         resolveImageLayers(
@@ -54,8 +52,7 @@ export const resolveImageLayers = (
   }
 
   if (type === "layered_image") {
-    if (context) filterImage(context, struct);
-    const assets = struct["filtered_layers"] ?? struct["assets"];
+    const assets = (context ? filterImage(context, struct).layers : undefined) ?? struct["assets"];
     const layers = Array.isArray(assets)
       ? assets
       : assets && typeof assets === "object"

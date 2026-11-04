@@ -8,6 +8,10 @@ import {
 import { InitializedMessage } from "@impower/spark-editor-protocol/src/protocols/InitializedMessage";
 import type { WorkspaceEdit } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import {
+  PublishDiagnosticsMessage,
+  type PublishDiagnosticsParams,
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
 import {
   ClientCapabilities,
@@ -30,7 +34,8 @@ import {
 } from "vscode-jsonrpc/browser";
 import type { SparkProgram } from "../../../../../packages/sparkdown/src/compiler/types/SparkProgram";
 import ConsoleLogger from "./ConsoleLogger";
-import { Workspace } from "./Workspace";
+import type WorkspaceConfiguration from "./WorkspaceConfiguration";
+import type WorkspaceWindow from "./WorkspaceWindow";
 const CLIENT_CAPABILITIES: ClientCapabilities = {
   workspace: {
     didChangeConfiguration: {
@@ -180,7 +185,27 @@ export default class WorkspaceLanguageServer {
 
   protected _onInitialized: ((result: InitializeResult) => void)[] = [];
 
-  constructor() {
+  protected _publishedDiagnosticsListeners = new Set<
+    (params: PublishDiagnosticsParams) => void
+  >();
+
+  onPublishedDiagnostics(listener: (params: PublishDiagnosticsParams) => void) {
+    this._publishedDiagnosticsListeners.add(listener);
+    return () => {
+      this._publishedDiagnosticsListeners.delete(listener);
+    };
+  }
+
+  protected _workspace: {
+    configuration: WorkspaceConfiguration;
+    window: WorkspaceWindow;
+  };
+
+  constructor(workspace: {
+    configuration: WorkspaceConfiguration;
+    window: WorkspaceWindow;
+  }) {
+    this._workspace = workspace;
     this._worker = new Worker("/sparkdown-language-server.js");
     this._worker.onerror = (e) => {
       console.error(e);
@@ -203,7 +228,7 @@ export default class WorkspaceLanguageServer {
       (params: ConfigurationParams) => {
         const result = params.items.map((item) => {
           if (item.section === "sparkdown") {
-            return Workspace.configuration.settings;
+            return this._workspace.configuration.settings;
           }
           return {};
         });
@@ -219,6 +244,15 @@ export default class WorkspaceLanguageServer {
         profilePhase("end", `CompiledProgramMessage`);
       },
     );
+    this._connection.onNotification(
+      PublishDiagnosticsMessage.method,
+      (params: PublishDiagnosticsParams) => {
+        this._workspace.window.recordPublishedDiagnostics(params);
+        for (const listener of this._publishedDiagnosticsListeners) {
+          listener(params);
+        }
+      },
+    );
     this._connection.onClose(() => {
       this.stop();
     });
@@ -229,13 +263,13 @@ export default class WorkspaceLanguageServer {
     projectPath: string,
     files: { uri: string }[],
   ): Promise<InitializeResult> {
-    const uri = Workspace.window.getOpenedDocumentUri();
+    const uri = this._workspace.window.getOpenedDocumentUri();
     this._initializeParams = {
       rootUri: projectPath,
       processId: null,
       capabilities: CLIENT_CAPABILITIES,
       initializationOptions: {
-        settings: Workspace.configuration.settings,
+        settings: this._workspace.configuration.settings,
         files,
         definitions: {
           optionals: DEFAULT_OPTIONAL_DEFINITIONS,
@@ -304,9 +338,12 @@ export default class WorkspaceLanguageServer {
 
   async getFileDiagnostics(uri: string): Promise<SparkDiagnostic[]> {
     await this.initialization();
-    return (await this._connection.sendRequest<SparkDiagnostic[]>(
-      "sparkdown/fileDiagnostics", { uri },
-    )) ?? [];
+    return (
+      (await this._connection.sendRequest<SparkDiagnostic[]>(
+        "sparkdown/fileDiagnostics",
+        { uri },
+      )) ?? []
+    );
   }
 
   async getFileReferences(uri: string): Promise<FileReferenceLocation[]> {

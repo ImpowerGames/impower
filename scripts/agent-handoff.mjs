@@ -19,6 +19,53 @@ import { sessionDir } from "../.agents/skills/drive-web-editor/session-dir.mjs";
 import { useWorktreeTemp } from "../.agents/skills/drive-web-editor/worktree-temp.mjs";
 
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
+
+function completionDirectoryIdentity(directory) {
+  try {
+    const stat = fs.lstatSync(directory, { bigint: true });
+    if (!stat.isDirectory() || fs.realpathSync.native(directory) !== directory) throw new Error("not a physical directory");
+    return `${stat.dev}:${stat.ino}`;
+  } catch (error) {
+    throw new Error(`Cannot validate completion directory ${directory}: ${error.message}`);
+  }
+}
+
+function readCompletion({ completion, reviewerDirectory, workspaceCompletion }) {
+  if (workspaceCompletion === undefined) return read(completion);
+  const { id, directoryIdentity } = workspaceCompletion ?? {};
+  if (typeof id !== "string" || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(id) ||
+      typeof reviewerDirectory !== "string" || !path.isAbsolute(reviewerDirectory) ||
+      completion !== path.join(reviewerDirectory, `completion-${id}.json`)) {
+    throw new Error(`Invalid workspace completion artifact path ${completion}`);
+  }
+  if (completionDirectoryIdentity(reviewerDirectory) !== directoryIdentity) throw new Error(`Completion directory identity changed: ${reviewerDirectory}`);
+  const stat = fs.lstatSync(completion, { bigint: true, throwIfNoEntry: false });
+  if (!stat) {
+    if (completionDirectoryIdentity(reviewerDirectory) !== directoryIdentity) throw new Error(`Completion directory identity changed: ${reviewerDirectory}`);
+    throw Object.assign(new Error(`Completion artifact is absent: ${completion}`), { code: "ENOENT" });
+  }
+  const plain = (file) => file.isFile() && file.nlink === 1n && file.ino !== 0n;
+  if (!plain(stat)) throw new Error(`Completion artifact ${completion} must be a plain single-link file`);
+  const flags = fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0) | (fs.constants.O_NONBLOCK ?? 0);
+  let fd;
+  try {
+    fd = fs.openSync(completion, flags);
+    const opened = fs.fstatSync(fd, { bigint: true });
+    const current = fs.lstatSync(completion, { bigint: true });
+    const sameInode = (file) => plain(file) && file.ino === stat.ino && file.birthtimeNs === stat.birthtimeNs;
+    const openedDeviceMatches = opened.dev === stat.dev || (process.platform === "win32" && stat.dev === 0n);
+    if (!sameInode(opened) || !openedDeviceMatches || !sameInode(current) || current.dev !== stat.dev ||
+        completionDirectoryIdentity(reviewerDirectory) !== directoryIdentity) {
+      throw new Error(`Completion artifact ${completion} changed while opening it`);
+    }
+    return JSON.parse(fs.readFileSync(fd, "utf8"));
+  } catch (error) {
+    throw new Error(`Cannot read completion artifact ${completion}: ${error.message}`);
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
+}
+
 const gitHead = (cwd) => git(cwd,['rev-parse','HEAD']);
 const gitStatus = (cwd) => git(cwd,['status','--porcelain']);
 export const configuredRoute = (value) => value.replace(/\[[^\]]+\]$/, "");
@@ -227,16 +274,35 @@ export function verifyNativeReviewResult(output,format='claude-json') {
   if(result.type!=='result'||result.subtype!=='success'||result.is_error!==false||result.stop_reason!=='end_turn')throw new Error('Native reviewer failed or interrupted');
 }
 
+function pendingRecoveryReviewer(config) {
+  const step = config.steps?.[config.first];
+  if (step?.role !== "review" || !plannedReviewerPending(step.round, config.completedReviewRound, config.completedRoundReviews, step.reviewers)) return false;
+  const { completedRoundReviewers, plannedRoundReviewers } = config;
+  if (!plannedRoundReviewers) return Number.isInteger(step.reviewers) && step.reviewers <= 3 && step.reviewerId === undefined && step.attempt === undefined;
+  return Array.isArray(step.reviewers) &&
+    step.reviewers.length === plannedRoundReviewers.length &&
+    plannedRoundReviewers.every((id, index) => id === step.reviewers[index]) &&
+    plannedRoundReviewers.includes(step.reviewerId) &&
+    !Object.hasOwn(completedRoundReviewers, step.reviewerId) &&
+    (step.attempt === undefined || (Number.isSafeInteger(step.attempt) && step.attempt >= 1));
+}
+
 export function validateReviewRecovery(config) {
   const limit=config.reviewRoundLimit??3;
   if(!Number.isInteger(limit)||limit<1||limit>10)throw new Error('reviewRoundLimit must be an integer from 1 through 10');
   if(limit>3&&(typeof config.extendedReviewAuthorization!=='string'||!config.extendedReviewAuthorization.trim()))throw new Error('Rounds beyond 3 require explicit user authorization in extendedReviewAuthorization');
   if(limit<=3&&config.extendedReviewAuthorization!==undefined)throw new Error('extendedReviewAuthorization is only valid when reviewRoundLimit exceeds 3');
   if(!Number.isInteger(config.completedReviewRound)||config.completedReviewRound<0||config.completedReviewRound>limit)throw new Error(`Supply completedReviewRound from 0 through ${limit}, including on recovery`);
-  if((config.completedReviewRound===limit&&typeof config.finalCorrections!=='boolean')||(config.finalCorrections!==undefined&&typeof config.finalCorrections!=='boolean')||(config.finalCorrections&&config.completedReviewRound<3))throw new Error(`Supply the journal's boolean finalCorrections (valid at round 3 or later); recovery at the configured limit ${limit}, including a pending serial reviewer, requires it. Carry completedReviewRound, reviewedHead and completedRoundReviews forward too; unchanged HEAD does not establish correction state`);
   if(config.completedReviewRound>0&&!/^[a-f0-9]{40}$/.test(config.reviewedHead??''))throw new Error('Supply reviewedHead from the journal when recovering a review round');
   if(config.completedRoundReviews!=null&&(!Number.isInteger(config.completedRoundReviews)||config.completedRoundReviews<1||config.completedReviewRound<1))throw new Error('Supply completedRoundReviews from the journal as a positive integer, and only with a nonzero completedReviewRound');
   validateCompletedRoundReviewers(config);
+  if (config.finalCorrections !== undefined) {
+    if (typeof config.finalCorrections !== "boolean" || (config.finalCorrections && config.completedReviewRound < 3)) throw new Error("Supply the journal's boolean finalCorrections; true is valid at round 3 or later");
+    return config.finalCorrections;
+  }
+  if (config.completedReviewRound !== limit) return false;
+  if (config.completedReviewRound >= 3 && pendingRecoveryReviewer(config)) return true;
+  throw new Error(`Supply the journal's boolean finalCorrections at the configured limit ${limit}. Only a valid pending serial reviewer in round 3 or later may omit it. Unchanged HEAD does not establish correction state`);
 }
 
 const planFields = ["pr", "ticket", "first", "completedReviewRound", "reviewedHead", "completedRoundReviews", "completedRoundReviewers", "plannedRoundReviewers", "finalCorrections", "reviewRoundLimit", "extendedReviewAuthorization", "slotWaitSeconds", "reportPosting"];
@@ -346,7 +412,7 @@ function blockedReview(rows, blocked) {
   if (at < 0 || typeof args[at + 1] !== "string") throw new Error(`Launch ${index} recorded no reviewer report file (no --output-last-message argument), so no saved report is attributable to it`);
   const report = coordinatorReport(args[at + 1], launching.head, launching.reportToken);
   let done;
-  try { done = read(launching.completion); }
+  try { done = readCompletion(launching); }
   catch (error) { throw new Error(`Launch ${index} completion artifact at ${launching.completion} is unreadable: ${error.message}`); }
   if (done?.head !== launching.head || !Array.isArray(done.commentIds) || done.commentIds.length || typeof done.summary !== "string" || !done.summary.trim() || !(done.next === null || typeof done.next === "string")) throw new Error(`Launch ${index} completion artifact at ${launching.completion} must name head ${launching.head}, no comment IDs, a summary and its transition`);
   const completed = { ...lateCompletion(launching, exited, { ...done, commentIds: [] }), postedBy: "coordinator" };
@@ -369,11 +435,15 @@ function settledReview(rows, journalFile) {
   const step = plan && Object.hasOwn(plan.steps, launching.step) ? plan.steps[launching.step] : null;
   if (!step || !Array.isArray(step.next)) throw new Error(`Launch ${index}: no launcher plan in its job directory names this journal and step ${launching.step}`);
   if (typeof launching.completion !== "string") throw new Error(`Launch ${index} records no completion artifact path`);
-  const wroteArtifact = fs.existsSync(launching.completion);
+  let wroteArtifact = false;
   let done = null;
-  if (wroteArtifact) {
-    try { done = read(launching.completion); }
-    catch (error) { throw new Error(`Launch ${index} completion artifact at ${launching.completion} is unreadable: ${error.message}`); }
+  try {
+    if (launching.workspaceCompletion !== undefined || fs.existsSync(launching.completion)) {
+      done = readCompletion(launching);
+      wroteArtifact = true;
+    }
+  } catch (error) {
+    if (launching.workspaceCompletion === undefined || error.code !== "ENOENT") throw new Error(`Launch ${index} completion artifact at ${launching.completion} is unreadable: ${error.message}`);
   }
   return { index, step: launching.step, head: launching.head, launching, thread, reportToken: launching.reportToken, notBefore: launching.reportNotBefore, absentAt: absent.time, next: step.next, wroteArtifact, done };
 }
@@ -697,7 +767,7 @@ async function settledCompletion(rows, exited, journalFile, { readComment, cwd, 
   const output = rows.find((row) => row.event === "running" && row.index === exited.index)?.output ?? launching.output;
   if (step.nativeResult) verifyNativeReviewResult(output, step.nativeResult);
   let done;
-  try { done = read(launching.completion); }
+  try { done = readCompletion(launching); }
   catch (error) { throw new Error(`its completion artifact ${launching.completion} is unreadable (${error.message})`); }
   if (done?.head !== launching.head || typeof done.summary !== "string" || !done.summary.trim() || !Array.isArray(done.commentIds) || !done.commentIds.length || !done.commentIds.every(Number.isSafeInteger)) throw new Error(`its completion artifact must name head ${launching.head}, a summary and the posted report IDs`);
   if (!(Array.isArray(step.next) && step.next.includes(done.next))) throw new Error("its completion artifact names an undeclared transition");
@@ -1059,7 +1129,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
   const sameVendor = checkCrossVendor(config, root);
   const reviewerRow = { ...(selection.resolved ? { reviewerEffort: selection.reviewerEffort, reviewerResolved: { writerEffort: config.writerEffort, rowWriterEffort: selection.rowWriterEffort, matchedOn: selection.matchedOn, ticketEffort: selection.ticketEffort, fallback: selection.fallback, index: selection.index } } : {}), ...(sameVendor ? { sameVendor } : {}) };
   const reviewRoundLimit = config.reviewRoundLimit ?? 3;
-  validateReviewRecovery(config);
+  let finalCorrections = validateReviewRecovery(config);
   if (!Number.isInteger(config.maxSteps) || config.maxSteps < 1 || config.maxSteps > 30) throw new Error("maxSteps must be 1..30");
   validateSlotWait(config.slotWaitSeconds);
   const slotWaitSeconds = config.slotWaitSeconds ?? 0;
@@ -1071,11 +1141,16 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
     const name = step.permissions?.codexAuthEnv;
     return name !== undefined && Object.hasOwn(withheld.values, name) ? { ...process.env, [name]: withheld.values[name] } : { ...process.env };
   };
+  const completionDirectories = new Map();
   for (const step of Object.values(config.steps)) {
     if (step.execution) executionCommands(step.execution, cwd);
     if(step.nativeResult!==undefined&&!['claude-json','codex-jsonl'].includes(step.nativeResult))throw new Error('Unsupported native reviewer result transport');
     if(step.nativeResult==='codex-jsonl') {
       validateCodexReviewer(step,{reviewer:config.reviewer,worktree:cwd,jobDir:path.dirname(journal),secretSource:secretSourceFor(step)});
+      if (step.role === "review" && codexReviewMode(step) === "sandboxed") {
+        const directory = fs.realpathSync.native(step.permissions.cwd);
+        completionDirectories.set(step, { directory, identity: completionDirectoryIdentity(directory) });
+      }
       verifyReviewerExecutable({...step,transport:'native-codex-jsonl'},{env:probeEnv});
     }
     if (step.role === "review" && (!Number.isInteger(step.round) || step.round < 1 || step.round > reviewRoundLimit)) throw new Error(`Review round must be 1..${reviewRoundLimit} on every review step before launch`);
@@ -1115,15 +1190,15 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
   let completedRoundReviews = config.completedRoundReviews ?? null;
   let completedRoundReviewers = config.completedRoundReviewers ?? null;
   let plannedRoundReviewers = config.plannedRoundReviewers ?? null;
-  let finalCorrections = config.finalCorrections ?? false;
   let activeChild, pendingReport;
   let pendingProbeCleanup = null;
   const runProbeCleanup = () => {
     const cleanup = pendingProbeCleanup;
     pendingProbeCleanup = null;
     if (!cleanup) return;
-    const { index, step, directory, preserve, keep } = cleanup;
+    const { index, step, directory, preserve, keep, workspace } = cleanup;
     try {
+      if (workspace && completionDirectoryIdentity(directory) !== workspace.identity) throw new Error(`Completion directory identity changed: ${directory}`);
       const result = probeCleanup(directory, { preserve, keep: keep && fs.existsSync(keep) ? [keep] : [] });
       append({ event: result.skipped ? "probe-cleanup-skipped" : "probe-checkouts-removed", index, step, directory, ...result });
     } catch (error) {
@@ -1159,8 +1234,20 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
       if (step.role === "review" && step.round === completedRound && head !== reviewedHead && !plannedPending) throw new Error("A pending lens in the same round requires the recorded reviewed head unless the round still plans a reviewer (the step's reviewers above completedRoundReviews); corrections after its last planned reviewer need a new round");
       const artifacts = fs.mkdtempSync(path.join(path.dirname(journal), `handoff-${index}-${step.role}-`));
       if(step.nativeResult==='codex-jsonl')protectPrivatePath(artifacts);
-      const writable=step.nativeResult==='codex-jsonl'?fs.realpathSync.native(fs.mkdtempSync(path.join(path.dirname(journal),`completion-${index}-`))):artifacts;
-      const completion = path.join(writable, "completion.json");
+      const native = step.nativeResult === "codex-jsonl";
+      const workspace = completionDirectories.get(step);
+      const reviewerDirectory = workspace?.directory ?? step.permissions?.cwd;
+      const writable = workspace?.directory ?? (native ? fs.mkdtempSync(path.join(path.dirname(journal), `completion-${index}-`)) : artifacts);
+      const workspaceCompletion = workspace ? { id: randomUUID(), directoryIdentity: workspace.identity } : undefined;
+      const completion = path.join(writable, workspaceCompletion ? `completion-${workspaceCompletion.id}.json` : "completion.json");
+      const assertFreshCompletion = () => {
+        if (!workspace) return;
+        if (fs.realpathSync.native(step.permissions.cwd) !== reviewerDirectory || completionDirectoryIdentity(reviewerDirectory) !== workspace.identity) {
+          throw new Error(`Completion directory identity changed: ${reviewerDirectory}`);
+        }
+        if (fs.lstatSync(completion, { throwIfNoEntry: false })) throw new Error(`Completion artifact path is already occupied: ${completion}`);
+      };
+      assertFreshCompletion();
       const output = path.join(artifacts, "process.log");
       const reportToken = `handoff-report-${randomUUID()}`;
       const args=step.nativeResult==='codex-jsonl'?nativeCodexArgs(step,writable):step.args;
@@ -1170,8 +1257,9 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         : `\n\nHandoff contract: role=${step.role}, configured model=${step.model}, reviewed head=${head}.${step.role === "review" ? ` End your posted report with the line \`${reportToken}\`.` : ""} Write ${completion} with the editor tool as JSON: {"head":"<actual HEAD>","next":"<declared transition or null>","commentIds":[<numeric GitHub comment IDs>],"summary":"<result>"}. Allowed next steps: ${JSON.stringify(step.next)}. Review and adjudication must post their complete report/dispositions before completion; include those IDs. Do not mark ready or merge. Do not modify repository files during review.\n`);
       const diagnostics=step.nativeResult?path.join(artifacts,'stderr.log'):output;
       const reportNotBefore=new Date().toISOString();
-      const reviewerHad = step.role === "review" && isCodexStep(step) ? snapshotReviewerDirectory(step.permissions.cwd) : null;
-      append({ event: "launching", index, step: current, role: step.role, model: step.model, ...(step.role === "review" ? reviewerRow : {}), ...(reviewerHad ? { reviewerDirectory: step.permissions.cwd, reviewerHad: [...reviewerHad] } : {}), round: step.round, ...(step.reviewerId !== undefined ? { reviewerId: step.reviewerId, attempt: step.attempt ?? 1, plannedReviewers: step.reviewers } : {}), completedRound, reviewedHead, completedRoundReviews, completedRoundReviewers, plannedRoundReviewers, finalCorrections, head, output, diagnostics, completion, args,reportNotBefore,reportToken,...(coordinatorPosts ? { reportPosting: "coordinator", report: reportFile } : {}) });
+      const reviewerHad = step.role === "review" && isCodexStep(step) ? snapshotReviewerDirectory(reviewerDirectory) : null;
+      const completionEvidence = { completion, reviewerDirectory, workspaceCompletion };
+      append({ event: "launching", index, step: current, role: step.role, model: step.model, ...(step.role === "review" ? reviewerRow : {}), ...(reviewerHad ? { reviewerDirectory, reviewerHad: [...reviewerHad] } : {}), round: step.round, ...(step.reviewerId !== undefined ? { reviewerId: step.reviewerId, attempt: step.attempt ?? 1, plannedReviewers: step.reviewers } : {}), completedRound, reviewedHead, completedRoundReviews, completedRoundReviewers, plannedRoundReviewers, finalCorrections, head, output, diagnostics, completion, workspaceCompletion, args,reportNotBefore,reportToken,...(coordinatorPosts ? { reportPosting: "coordinator", report: reportFile } : {}) });
       const log = fs.openSync(output, "wx");
       let stderr;
       try{stderr=diagnostics===output?log:fs.openSync(diagnostics,'wx');}catch(error){fs.closeSync(log);throw error;}
@@ -1217,6 +1305,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
           append({ event: "execution-service", index, head, directory, operations: step.execution });
         }
         const launch=()=>{
+          assertFreshCompletion();
           child=spawn(step.executable,args,{cwd,env,shell:false,windowsHide:true,stdio:['pipe',log,stderr]});
           activeChild=child;
           exited=new Promise(resolve=>{child.on('error',error=>{childError=error.message;});child.once('close',(code,signal)=>resolve({code,signal,error:childError}));});
@@ -1228,7 +1317,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
       }
       let result;
       const reportFlag = args.findIndex((arg) => ["--output-last-message", "-o"].includes(arg));
-      const probeCleanupAfterExit = reviewerHad ? { index, step: current, directory: step.permissions.cwd, preserve: reviewerHad, keep: reportFlag >= 0 ? args[reportFlag + 1] : undefined } : null;
+      const probeCleanupAfterExit = reviewerHad ? { index, step: current, directory: reviewerDirectory, preserve: reviewerHad, keep: reportFlag >= 0 ? args[reportFlag + 1] : undefined, workspace } : null;
       try {
         child.stdin.on("error", () => {});
         let identityRow;
@@ -1306,7 +1395,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
       }
       const awaiting = coordinatorPosts ? { index, step: current, head, ...coordinatorReport(reportFile, head, reportToken) } : undefined;
       let done;
-      try { done = read(completion); }
+      try { done = readCompletion(completionEvidence); }
       catch (error) {
         if (error.code !== "ENOENT") throw error;
         done = awaiting ? { head, next: null, commentIds: [], summary: `Derived from the reviewer's final report ${reportFile}; no completion artifact was found at the launcher's path` } : deriveMissingCompletion(step, thread, head, reportNotBefore, reportToken, cwd, usedReports, { listComments });

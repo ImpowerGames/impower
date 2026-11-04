@@ -125,7 +125,7 @@ describe("P5 P1: seedBuiltinsIntoStory source-injects the prelude", () => {
 
     const onCtx = buildDefinesContext(programStoryOf(on.program) as any);
     const myAnim = onCtx["animation"]?.["my_anim"] as any;
-    expect(myAnim?.keyframes).toMatchObject({ background_position: "right" });
+    expect(myAnim?.keyframes).toEqual([{ background_position: "right" }]);
     expect(myAnim?.timing).toMatchObject({ fill: "both", direction: "normal" });
   });
 

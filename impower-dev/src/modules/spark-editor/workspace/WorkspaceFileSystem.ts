@@ -56,6 +56,7 @@ import {
   FOLDER_SENTINEL,
   computeFolderMoves,
   computeLayoutMigration,
+  layoutSubtreeFor,
 } from "../utils/fileTree";
 
 const cmp = (a: any, b: any) => {
@@ -113,12 +114,7 @@ export default class WorkspaceFileSystem {
     });
     const migration = computeLayoutMigration(
       files.map((f) => this.getRelativePath(projectId, f.uri)),
-      (p) =>
-        p.endsWith(".sd")
-          ? "scripts"
-          : p.endsWith(".url")
-            ? "assets/urls"
-            : "assets",
+      layoutSubtreeFor,
     );
     if (migration.length > 0) {
       await this.renameFiles({
@@ -647,8 +643,9 @@ export default class WorkspaceFileSystem {
 
   async writeTextDocument(params: {
     textDocument: { uri: string; version: number; text: string };
+    origin?: string;
   }) {
-    const { textDocument } = params;
+    const { textDocument, origin } = params;
     const encoder = new TextEncoder();
     const encodedText = encoder.encode(textDocument.text);
     const result = await this.sendRequest(
@@ -661,6 +658,7 @@ export default class WorkspaceFileSystem {
             data: encodedText.buffer,
           },
         ],
+        origin,
       },
       [encodedText.buffer],
     );

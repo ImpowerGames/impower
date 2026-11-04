@@ -324,4 +324,74 @@ recordSettled();
 assert.deepEqual(settledRowsNow().map((row) => row.event).slice(-4), ["blocked", "completed", "report-posted", "finished"]);
 assert.equal(settledRowsNow().filter((row) => row.event === "completed").length, 1, "the retry appends only the missing rows");
 console.log("PASS: an interrupted settled record is completed by the same command, and a different comment or read-back is refused");
+
+const workspace = path.join(settledDir, "reviewer-workspace");
+fs.mkdirSync(workspace);
+const physicalWorkspace = fs.realpathSync.native(workspace);
+const identity = fs.lstatSync(physicalWorkspace, { bigint: true });
+const completionId = "2431993b-a05d-4e75-8917-ff49efe613d3";
+const workspaceArtifact = path.join(physicalWorkspace, `completion-${completionId}.json`);
+const workspaceLaunch = (completion = workspaceArtifact) => settledWith((list) => {
+  Object.assign(list.find((row) => row.event === "launching"), {
+    reviewerDirectory: physicalWorkspace,
+    workspaceCompletion: { id: completionId, directoryIdentity: `${identity.dev}:${identity.ino}` },
+    completion,
+  });
+})();
+refusesSettled(/Invalid workspace completion artifact path/, "a different attempt's artifact is refused", () => {
+  workspaceLaunch(path.join(physicalWorkspace, "completion-other.json"));
+});
+refusesSettled(/Invalid workspace completion artifact path/, "a path outside the physical workspace is refused", () => {
+  workspaceLaunch(path.join(settledDir, path.basename(workspaceArtifact)));
+});
+refusesSettled(/plain single-link file/, "a directory at the expected path cannot trigger the missing-file fallback", () => {
+  workspaceLaunch();
+  fs.mkdirSync(workspaceArtifact);
+});
+fs.rmdirSync(workspaceArtifact);
+const otherFile = path.join(settledDir, "other-attempt.json");
+const workspaceResult = { head, next: null, commentIds: [6381200355], summary: "Recovered workspace artifact." };
+fs.writeFileSync(otherFile, JSON.stringify(workspaceResult));
+refusesSettled(/plain single-link file/, "a hard link at the expected path is refused", () => {
+  workspaceLaunch();
+  fs.linkSync(otherFile, workspaceArtifact);
+});
+fs.unlinkSync(workspaceArtifact);
+refusesSettled(/plain single-link file/, "a dangling link at the expected path cannot trigger the missing-file fallback", () => {
+  workspaceLaunch();
+  fs.symlinkSync(path.join(settledDir, "absent-target"), workspaceArtifact, process.platform === "win32" ? "junction" : "dir");
+});
+fs.unlinkSync(workspaceArtifact);
+const realOpen = fs.openSync;
+const completionReadFlags = fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0) | (fs.constants.O_NONBLOCK ?? 0);
+try {
+  fs.openSync = (file, flags, ...args) => realOpen(file === workspaceArtifact && flags === completionReadFlags ? otherFile : file, flags, ...args);
+  refusesSettled(/changed while opening/, "a handle for a different plain file cannot supply completion", () => {
+    workspaceLaunch();
+    fs.writeFileSync(workspaceArtifact, JSON.stringify(workspaceResult));
+  });
+} finally {
+  fs.openSync = realOpen;
+}
+fs.unlinkSync(workspaceArtifact);
+fs.writeFileSync(settled, settledOriginal);
+workspaceLaunch();
+reviewerComment();
+recordSettled();
+assert.match(settledRowsNow().find((row) => row.event === "completed").summary, /Reviewer-posted report/, "an absent workspace artifact allows validated settled report recovery");
+fs.writeFileSync(settled, settledOriginal);
+workspaceLaunch();
+fs.writeFileSync(workspaceArtifact, JSON.stringify(workspaceResult));
+recordSettled();
+assert.equal(settledRowsNow().find((row) => row.event === "completed").summary, workspaceResult.summary);
+refusesSettled(/Cannot validate completion directory/, "a missing workspace cannot masquerade as an absent artifact", () => {
+  workspaceLaunch();
+  fs.renameSync(physicalWorkspace, path.join(settledDir, "moved-workspace"));
+});
+refusesSettled(/Completion directory identity changed/, "a replacement at the same directory path cannot supply completion", () => {
+  workspaceLaunch();
+  fs.mkdirSync(physicalWorkspace);
+  fs.writeFileSync(workspaceArtifact, JSON.stringify(workspaceResult));
+});
+console.log("PASS: settled workspace completion accepts only this attempt's plain file or a validated report when the file is absent");
 fs.rmSync(scratch, { recursive: true, force: true });

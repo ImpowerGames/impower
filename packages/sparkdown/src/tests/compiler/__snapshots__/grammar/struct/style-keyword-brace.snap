@@ -188,12 +188,12 @@ sparkdown [0..222]
  │   │       │   │   │   ├─ LuauStructBlock_begin_c1 [128..136]
  │   │       │   │   │   │   └─ LuauStructBlockKey [128..136]
  │   │       │   │   │   │       └─ LuauStructBlockKey_c1 [128..136]
- │   │       │   │   │   │           └─ EventAttribute [128..136]
- │   │       │   │   │   │               └─ UnassignedEventAttribute [128..136]
- │   │       │   │   │   │                   ├─ UnassignedEventAttribute_c1 [128..129]
- │   │       │   │   │   │                   │   └─ EventAttributeOperator [128..129]: "@"
- │   │       │   │   │   │                   └─ UnassignedEventAttribute_c2 [129..136]
- │   │       │   │   │   │                       └─ EventAttributeName [129..136]: "hovered"
+ │   │       │   │   │   │           └─ SelectorAttribute [128..136]
+ │   │       │   │   │   │               └─ UnassignedSelectorAttribute [128..136]
+ │   │       │   │   │   │                   ├─ UnassignedSelectorAttribute_c1 [128..129]
+ │   │       │   │   │   │                   │   └─ SelectorStateOperator [128..129]: "@"
+ │   │       │   │   │   │                   └─ UnassignedSelectorAttribute_c2 [129..136]
+ │   │       │   │   │   │                       └─ SelectorStateName [129..136]: "hovered"
  │   │       │   │   │   └─ LuauStructBlock_begin_c2 [136..137]
  │   │       │   │   │       └─ Whitespace [136..137]: " "
  │   │       │   │   ├─ LuauStructBlock_content [137..154]

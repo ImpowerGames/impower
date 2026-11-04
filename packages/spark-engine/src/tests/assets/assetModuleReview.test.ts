@@ -180,7 +180,7 @@ describe("AssetModule, after review", () => {
         return Promise.resolve(undefined);
       }) as any);
     try {
-      (h.game as any)._simulation = "simulating";
+      h.game.context.system.simulating = "A";
       const assets: any = h.game.module.assets;
       expect(assets.prepareBeat({ image: { backdrop: [{ control: "show", assets: ["room"] }] }, end: 0 })).toBeNull();
       assets.notice("image", ["room"]);

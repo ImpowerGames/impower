@@ -1,4 +1,5 @@
 import { useComputed } from "@preact/signals";
+import { isScriptPath } from "../utils/scriptFiles";
 import workspace from "./WorkspaceStore";
 
 export function useDiagnosticColor(filename?: string): string {
@@ -10,7 +11,7 @@ export function useDiagnosticColor(filename?: string): string {
     for (const [uri, counts] of Object.entries(summary)) {
       const matches = filename
         ? uri.endsWith("/" + filename)
-        : !uri.endsWith("/main.sd");
+        : isScriptPath(uri) && !uri.endsWith("/main.sd");
       if (!matches) continue;
       errors += counts.errors;
       warnings += counts.warnings;

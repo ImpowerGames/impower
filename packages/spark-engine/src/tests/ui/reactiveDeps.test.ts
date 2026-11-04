@@ -22,7 +22,6 @@ layout hud {
     await h.ready;
     const story: any = h.game.story;
     const vs = story.variablesState;
-    vs.reactiveDepsEnabled = true;
     const program = h.game.program as any;
 
     vs.beginReactiveRead();
@@ -49,7 +48,6 @@ layout hud {
     );
     await h.ready;
     const vs = (h.game.story as any).variablesState;
-    vs.reactiveDepsEnabled = true;
     vs.takeReactiveChanges();
     vs.$("hp", 42);
     const changes = vs.takeReactiveChanges();
@@ -72,7 +70,6 @@ layout hud {
     await h.ready;
     const story: any = h.game.story;
     const vs = story.variablesState;
-    vs.reactiveDepsEnabled = true;
     const program = h.game.program as any;
 
     vs.beginReactiveRead();

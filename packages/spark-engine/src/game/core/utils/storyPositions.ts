@@ -12,6 +12,7 @@ export interface StoryPositions {
   readonly locator: ProgramLocator;
   previous(): ProgramAddress | undefined;
   current(): ProgramAddress | undefined;
+  scene(): string | undefined;
   stack(): ProgramAddress[];
   jumpTo(address: ProgramAddress): void;
   jumpToFlow(flow: string): void;
@@ -27,6 +28,10 @@ const programPositions = (story: ProgramStory): StoryPositions => ({
   current: () => {
     const address = story.currentAddress;
     return address >= 0 ? address : undefined;
+  },
+  scene: () => {
+    const position = story.state.position;
+    return position ? story.root.sceneOf(position.sequence) : undefined;
   },
   stack: () => story.stackAddresses(),
   jumpTo: (address) => {

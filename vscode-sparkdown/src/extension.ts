@@ -2,7 +2,9 @@
 import * as vscode from "vscode";
 import { activateContextService } from "./context/activateContextService";
 import { activateDebugger } from "./debugger/activateDebugger";
+import { SparkdownPreviewSavesManager } from "./managers/SparkdownPreviewSavesManager";
 import { SparkdownRoutePinsManager } from "./managers/SparkdownRoutePinsManager";
+import { SparkdownStartingValuesManager } from "./managers/SparkdownStartingValuesManager";
 import { fileSystemWatcherState } from "./state/fileSystemWatcherState";
 import { activateAutoFormatting } from "./utils/activateAutoFormatting";
 import { activateCheatSheetView } from "./utils/activateCheatSheetView";
@@ -37,6 +39,8 @@ export function activate(context: vscode.ExtensionContext) {
   activateDurationStatus(context);
   activatePreviewScreenplayPanel(context);
   SparkdownRoutePinsManager.instance.activate(context);
+  SparkdownStartingValuesManager.instance.activate(context);
+  SparkdownPreviewSavesManager.instance.activate(context);
   activatePreviewGamePanel(context);
   activateCompletionPreview(context);
   activateExecutionLineDecorator(context);

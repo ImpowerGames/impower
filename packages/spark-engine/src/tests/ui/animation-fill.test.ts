@@ -71,7 +71,7 @@ describe("an authored animation inherits its type's $default (compiler)", () => 
       direction: "normal",
     });
     expect(panRight.target).toEqual({ $type: "layer", $name: "self" });
-    expect(panRight.keyframes).toMatchObject({ background_position: "right" });
+    expect(panRight.keyframes).toEqual([{ background_position: "right" }]);
   });
 
   test("partial `timing` deep-merges: authored field wins, siblings inherited", () => {

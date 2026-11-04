@@ -61,12 +61,12 @@ describe("provider · attribute completion preview (#474)", () => {
   test("reuses an existing ordered combination without adding another struct", async () => {
     const program = buildProgram();
     const name = "bunny_bruh~phone~look.down";
-    const declared: any = { $type: "filtered_image", $name: name, image: { $name: "bunny_bruh" }, attributes: ["phone", "look.down"] };
+    const declared: any = Object.freeze({ $type: "filtered_image", $name: name, image: Object.freeze({ $name: "bunny_bruh" }), attributes: Object.freeze(["phone", "look.down"]) });
     program.context.filtered_image = { [name]: declared };
     const src = await previewSrc(itemNamed("[[bunny_bruh:phone:look.d|]]", program, "down"), program);
     expect(src).toContain("look-down");
-    expect(declared.filtered_src).toBeTruthy();
     expect(Object.keys(program.context.filtered_image)).toEqual([name]);
+    expect(program.context.filtered_image[name]).toBe(declared);
   });
   test("does not declare an unaccepted candidate in the program", async () => {
     const program = buildProgram();

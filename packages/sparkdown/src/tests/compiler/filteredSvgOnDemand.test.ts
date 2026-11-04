@@ -85,8 +85,7 @@ describe("filterImage URL fallback", () => {
       ext: "svg",
       src: "/file:/local/assets/portrait.svg?v=1",
     });
-    filterImage(context, context.filtered_image.p);
-    expect(context.filtered_image.p.filtered_src).toMatch(
+    expect(filterImage(context, context.filtered_image.p).src).toMatch(
       /^\/file:\/local\/assets\/portrait\.svg\?v=1&attributes=/,
     );
   });
@@ -97,14 +96,10 @@ describe("filterImage URL fallback", () => {
       src: "/file:/local/assets/portrait.svg?v=1",
       data: `data:image/svg+xml,${SVG}`,
     });
-    filterImage(context, context.filtered_image.p);
-    expect(context.filtered_image.p.filtered_src).toMatch(
-      /^data:image\/svg\+xml,/,
-    );
-    expect(
-      decodeSVGSource(context.filtered_image.p.filtered_src),
-    ).not.toContain("hat");
-    expect(decodeSVGSource(context.filtered_image.p.filtered_src)).toContain(
+    const { src } = filterImage(context, context.filtered_image.p);
+    expect(src).toMatch(/^data:image\/svg\+xml,/);
+    expect(decodeSVGSource(src!)).not.toContain("hat");
+    expect(decodeSVGSource(src!)).toContain(
       "id='body'",
     );
   });
@@ -115,8 +110,7 @@ describe("filterImage URL fallback", () => {
       src: "/file:/local/assets/portrait.svg?v=1",
     });
     context.filtered_image.p.attributes = [];
-    filterImage(context, context.filtered_image.p);
-    expect(context.filtered_image.p.filtered_src).toBe(
+    expect(filterImage(context, context.filtered_image.p).src).toBe(
       "/file:/local/assets/portrait.svg?v=1&attributes=%7B%7D",
     );
   });

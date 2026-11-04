@@ -87,13 +87,6 @@ const VALID_SPARKLE_EVENTS = new Set([
 
 const VALID_STYLE_PROPS = new Set<string>(VALID_STYLE_PROPS_DATA.props);
 
-const SPARKLE_EVENT_HANDLER = nodeNameSet([
-  "LuauEventAttribute",
-  "LuauSparkleEventAttribute",
-  "LuauSparkleEventClosureAttribute",
-  "LuauSparkleEventParenAttribute",
-]);
-
 const LUAU_QUOTED_STRING = nodeNameSet([
   "LuauDoubleQuotedString",
   "LuauSingleQuotedString",
@@ -1464,10 +1457,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    if (
-      nodeRef.name === "EventAttributeName" &&
-      ancestorMatching(nodeRef.node, SPARKLE_EVENT_HANDLER)
-    ) {
+    if (nodeRef.name === "EventAttributeName") {
       const name = this.read(nodeRef.from, nodeRef.to).trim();
       if (name && !VALID_SPARKLE_EVENTS.has(name)) {
         const message = `Unrecognized event \`@${name}\` — Sparkle dispatches a fixed set of events, so this handler never fires\n> e.g. \`@click\`, \`@input\`, \`@change\`, \`@keydown\``;

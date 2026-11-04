@@ -27,7 +27,32 @@ export interface SavedFrame {
   line?: number;
   scopes: SavedScope[];
   scopeFlows: string[];
+  links?: Record<string, [frame: number, scope: number]>;
 }
+
+const innermostScopeOf = (frame: SavedFrame | undefined, name: string): number => {
+  for (let s = (frame?.scopes.length ?? 0) - 1; s >= 0; s -= 1) {
+    if (Object.hasOwn(frame!.scopes[s]!, name)) {
+      return s;
+    }
+  }
+  return -1;
+};
+
+export const sharedLocalFrames = (
+  frames: readonly SavedFrame[],
+  frame: number,
+  name: string,
+): number[] => {
+  const [owner, scope] = frames[frame]?.links?.[name] ?? [frame, innermostScopeOf(frames[frame], name)];
+  return frames.flatMap((other, i) => {
+    const link = other.links?.[name];
+    const shares = link
+      ? link[0] === owner && link[1] === scope
+      : i === owner && innermostScopeOf(other, name) === scope;
+    return shares ? [i] : [];
+  });
+};
 
 export interface SaveValues {
   values: StartingValueSet;
