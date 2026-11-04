@@ -63,12 +63,22 @@ const isNumeric = (node: ComponentValue | undefined): boolean =>
   isTokenType(node, TokenType.Dimension) ||
   isTokenType(node, TokenType.Percentage);
 
+const MATH_FUNCTION =
+  /^(?:calc|min|max|clamp|round|mod|rem|abs|sign|sin|cos|tan|asin|acos|atan|atan2|pow|sqrt|hypot|log|exp)$/i;
+
 const isSetupArgument = (argument: ComponentValue[]): boolean => {
-  const first = significant(argument)[0];
-  const name = identName(first)?.toLowerCase();
-  return (
-    (name !== undefined && GRADIENT_SETUP_WORDS.has(name)) || isNumeric(first)
-  );
+  const values = significant(argument);
+  const first = values[0];
+  if (isNumeric(first)) {
+    return true;
+  }
+  if (isFunctionNode(first) && MATH_FUNCTION.test(first.getName())) {
+    return true;
+  }
+  return values.some((value) => {
+    const word = identName(value)?.toLowerCase();
+    return word !== undefined && GRADIENT_SETUP_WORDS.has(word);
+  });
 };
 
 const resolveColorWords = (
@@ -80,15 +90,14 @@ const resolveColorWords = (
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i]!;
     if (isFunctionNode(node)) {
-      resolveFunction(css, node, theme, edits);
+      resolveFunction(css, node, theme, edits, true);
       continue;
     }
     const name = identName(node);
     if (name === undefined || name.startsWith("--")) {
       continue;
     }
-    const [, , start, identEnd] = (node as TokenNode).value;
-    let end = identEnd;
+    const [, , start, end] = (node as TokenNode).value;
     const slash = nodes[i + 1];
     const alpha = nodes[i + 2];
     if (
@@ -98,12 +107,21 @@ const resolveColorWords = (
       isNumeric(alpha) &&
       (alpha as TokenNode).value[2] === slash.value[3] + 1
     ) {
-      end = (alpha as TokenNode).value[3];
+      const alphaEnd = (alpha as TokenNode).value[3];
+      const origin =
+        getThemeVar(theme, "color", name) ?? css.slice(start, end + 1);
+      const alphaText = css.slice(slash.value[3] + 1, alphaEnd + 1);
+      edits.push({
+        start,
+        end: alphaEnd + 1,
+        text: `rgb(from ${origin} r g b / ${alphaText})`,
+      });
       i += 2;
+      continue;
     }
-    const text = css.slice(start, end + 1);
-    const resolved = getCssColor(text, theme);
-    if (resolved !== text) {
+    const resolved =
+      name === "current" ? "currentColor" : getThemeVar(theme, "color", name);
+    if (resolved !== undefined) {
       edits.push({ start, end: end + 1, text: resolved });
     }
   }
@@ -117,7 +135,7 @@ const resolveNestedFunctions = (
 ): void => {
   for (const node of nodes) {
     if (isFunctionNode(node)) {
-      resolveFunction(css, node, theme, edits);
+      resolveFunction(css, node, theme, edits, false);
     }
   }
 };
@@ -127,6 +145,7 @@ const resolveFunction = (
   fn: FunctionNode,
   theme: ThemeVariables,
   edits: SourceEdit[],
+  colorPosition: boolean,
 ): void => {
   const name = fn.getName();
   if (COLOR_FUNCTION.test(name)) {
@@ -148,8 +167,10 @@ const resolveFunction = (
   }
   if (name.toLowerCase() === "var") {
     splitAt(fn.value, TokenType.Comma).forEach((argument, index) => {
-      if (index > 0) {
+      if (index > 0 && colorPosition) {
         resolveColorWords(css, argument, theme, edits);
+      } else if (index > 0) {
+        resolveNestedFunctions(css, argument, theme, edits);
       }
     });
     return;
@@ -161,9 +182,18 @@ const resolveFunction = (
   resolveNestedFunctions(css, fn.value, theme, edits);
 };
 
-function transformColors(css: string, theme: ThemeVariables): string {
+function transformColors(
+  css: string,
+  theme: ThemeVariables,
+  colorPosition: boolean,
+): string {
   const edits: SourceEdit[] = [];
-  resolveColorWords(css, parseComponentValues(css), theme, edits);
+  const values = parseComponentValues(css);
+  if (colorPosition) {
+    resolveColorWords(css, values, theme, edits);
+  } else {
+    resolveNestedFunctions(css, values, theme, edits);
+  }
   return applyEdits(css, edits);
 }
 
@@ -246,7 +276,7 @@ export const getCssColor = (value: string, theme: ThemeVariables): string => {
     return value;
   }
   if (value.includes("(")) {
-    return transformColors(value, theme);
+    return transformColors(value, theme, true);
   }
   if (value.includes("/")) {
     const [color = "", alpha] = value.split("/");
@@ -580,7 +610,7 @@ export const getCssEase = (
 
 export const getCssFilter = (value: string, theme: ThemeVariables): string => {
   if (value.includes("(")) {
-    return transformColors(value, theme);
+    return transformColors(value, theme, false);
   }
   return getThemeVar(theme, "filter", value) ?? value;
 };
@@ -606,7 +636,7 @@ export const getCssGradient = (
     return "none";
   }
   if (value.includes("(")) {
-    return transformColors(value, theme);
+    return transformColors(value, theme, false);
   }
   return getThemeVar(theme, "gradient", value) ?? value;
 };
@@ -639,7 +669,7 @@ export const getCssImage = (value: string, theme: ThemeVariables): string => {
     return "none";
   }
   if (value.includes("(")) {
-    return transformColors(value, theme);
+    return transformColors(value, theme, false);
   }
   return getThemeVar(theme, "image", value) ?? value;
 };

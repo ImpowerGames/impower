@@ -30,6 +30,14 @@ const collectDeclarations = (
       continue;
     }
     if (isCurlyBlock(node)) {
+      const [name, colon] = significant(item);
+      const customPropertyValue =
+        identName(name)?.startsWith("--") &&
+        isTokenType(colon, TokenType.Colon);
+      if (customPropertyValue) {
+        item.push(node);
+        continue;
+      }
       collectDeclarations(node.value, variables);
       close();
       continue;

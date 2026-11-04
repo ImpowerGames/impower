@@ -414,6 +414,8 @@ describe("the CSS grammar decides which words are theme colours", () => {
       "b",
       "infinity",
       "x",
+      "at",
+      "center",
     ].map((name) => `--theme-color-${name}`),
   );
 
@@ -422,6 +424,38 @@ describe("the CSS grammar decides which words are theme colours", () => {
       "background-image",
       "linear-gradient(sky_60/**/, #fff)",
       "linear-gradient(var(--theme-color-sky_60)/**/, #fff)",
+    ],
+    [
+      "background-image",
+      "linear-gradient(brand\\(blue, #fff)",
+      "linear-gradient(brand\\(blue, #fff)",
+    ],
+    [
+      "background-image",
+      "linear-gradient(\\73 ky_60, #fff)",
+      "linear-gradient(var(--theme-color-sky_60), #fff)",
+    ],
+    [
+      "background-image",
+      "linear-gradient(calc(45deg) in srgb, sky_60, #fff)",
+      "linear-gradient(calc(45deg) in srgb, var(--theme-color-sky_60), #fff)",
+    ],
+    [
+      "background-image",
+      "radial-gradient(calc(50px) at center, sky_60, #fff)",
+      "radial-gradient(calc(50px) at center, var(--theme-color-sky_60), #fff)",
+    ],
+    [
+      "filter",
+      "blur(calc(var(--factor, infinity) * 1px))",
+      "blur(calc(var(--factor, infinity) * 1px))",
+    ],
+    ["filter", "var(--f, x)", "var(--f, x)"],
+    ["background-image", "var(--img, sky_60)", "var(--img, sky_60)"],
+    [
+      "filter",
+      "drop-shadow(0 0 2px var(--shade, sky_60))",
+      "drop-shadow(0 0 2px var(--shade, var(--theme-color-sky_60)))",
     ],
     [
       "background-image",
@@ -488,6 +522,16 @@ describe("the CSS grammar decides which words are theme colours", () => {
   });
 
   test.each([
+    [
+      "a custom property's block value",
+      ":root { --payload: { --theme-color-rebeccapurple: red; }; --theme-color-sky_60: blue; }",
+      ["--theme-color-sky_60"],
+    ],
+    [
+      "a nested rule whose selector holds a colon",
+      ".a { a:hover { --theme-color-nested: red } }",
+      ["--theme-color-nested"],
+    ],
     [
       "a declaration after a nested rule",
       ".a { .b { color: red } --theme-color-after: red }",

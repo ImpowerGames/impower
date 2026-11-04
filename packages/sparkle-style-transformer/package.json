@@ -5,27 +5,23 @@
   "version": "0.0.1",
   "exports": {
     ".": {
-      "require": "./dist/cjs/index.js",
       "import": "./dist/mjs/index.js"
     },
     "./*": {
-      "require": "./dist/cjs/*",
       "import": "./dist/mjs/*"
     }
   },
   "typesVersions": {
     "*": {
       "*": [
-        "dist/cjs/*"
+        "dist/mjs/*"
       ]
     }
   },
-  "types": "dist/cjs/index.d.ts",
-  "main": "dist/cjs/index.js",
+  "types": "dist/mjs/index.d.ts",
+  "main": "dist/mjs/index.js",
   "scripts": {
-    "build:cjs": "node ./clean.js dist/cjs && tsc --module commonjs --outDir dist/cjs/ && echo {\"type\": \"commonjs\"} > dist/cjs/package.json",
-    "build:mjs": "node ./clean.js dist/mjs && tsc --module es2022 --outDir dist/mjs/ && echo {\"type\": \"module\"} > dist/mjs/package.json",
-    "build": "node ./clean.js dist && npm run build:cjs && npm rum build:mjs",
+    "build": "node ./clean.js dist/mjs && tsc --module es2022 --outDir dist/mjs/ && echo {\"type\": \"module\"} > dist/mjs/package.json",
     "typecheck": "node ../../scripts/typecheck.mjs packages/sparkle-style-transformer/"
   },
   "devDependencies": {
