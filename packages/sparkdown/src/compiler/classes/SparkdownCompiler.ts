@@ -747,6 +747,22 @@ export class SparkdownCompiler {
     this._events[event].delete(listener);
   }
 
+  protected relowerAllCompilations() {
+    if (!this._documents) {
+      return;
+    }
+    const enabled = this._memoHost.enabled;
+    this._memoHost.enabled = false;
+    try {
+      for (const uri of this._documents.keys()) {
+        const length = this._documents.get(uri)?.getText().length ?? 0;
+        this._documents.relowerCompilations(uri, [{ from: 0, to: length }]);
+      }
+    } finally {
+      this._memoHost.enabled = enabled;
+    }
+  }
+
   configure(config: SparkdownCompilerConfig) {
     this._filesEpoch++;
     this._programResolver?.invalidate();
@@ -797,6 +813,7 @@ export class SparkdownCompiler {
       config.useBuiltinsPrelude !== this._config.useBuiltinsPrelude
     ) {
       this._config.useBuiltinsPrelude = config.useBuiltinsPrelude;
+      this.relowerAllCompilations();
     }
     if (
       config.seedBuiltinsIntoStory !== undefined &&

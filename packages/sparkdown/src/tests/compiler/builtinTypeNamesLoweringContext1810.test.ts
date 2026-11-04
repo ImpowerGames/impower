@@ -54,6 +54,15 @@ describe("builtin type names come from the lowering context", () => {
     expect(warnings(without).some((m) => m.includes(WARNING))).toBe(false);
   });
 
+  test("switching useBuiltinsPrelude on an unchanged document relowers it", () => {
+    const compiler = newCompiler(false, "store color = 1\n");
+    expect(warnings(compiler).some((m) => m.includes(WARNING))).toBe(false);
+    compiler.configure({ useBuiltinsPrelude: true } as never);
+    expect(warnings(compiler).some((m) => m.includes(WARNING))).toBe(true);
+    compiler.configure({ useBuiltinsPrelude: false } as never);
+    expect(warnings(compiler).some((m) => m.includes(WARNING))).toBe(false);
+  });
+
   test("configuring does not compile the prelude, and it compiles once across compilers", () => {
     const compileSpy = vi.spyOn(mod.SparkdownCompiler.prototype, "compile");
     const preludeCompiles = () =>
