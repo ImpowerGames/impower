@@ -5,7 +5,6 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import net from "node:net";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnDetached } from "../../../scripts/detached-launch.mjs";

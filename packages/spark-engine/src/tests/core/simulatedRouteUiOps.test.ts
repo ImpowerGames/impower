@@ -46,7 +46,6 @@ describe("a simulated route buffers no UI operation", { timeout: 30_000 }, () =>
     game.setStartFrom({ file: MAIN_URI, line: TARGET_LINE });
     game.simulate();
     const checkpoint = game.save() as string;
-    game.endSimulation();
     await routed.reconnect();
     await flushMicrotasks(10);
 
@@ -307,13 +306,11 @@ end
     ).toContain("hud");
   });
 
-  test("ending the simulation clears the flag the replay set", () => {
+  test("the replay clears its flag once it returns", () => {
     const h = createHarness(SOURCE, 0, { connect: false });
     const game: any = h.game;
     game.setStartFrom({ file: MAIN_URI, line: TARGET_LINE });
     game.simulate();
-    expect(game.context.system.simulating).toBeTruthy();
-    game.endSimulation();
     expect(game.context.system.simulating).toBeUndefined();
     expect(game.simulation).toBe("success");
   });

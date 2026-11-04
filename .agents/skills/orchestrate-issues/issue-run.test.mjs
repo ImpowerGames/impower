@@ -22,7 +22,329 @@ const readJsonFile = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const write = (name, value) => { const file = path.join(tmp, name); fs.writeFileSync(file, typeof value === "string" ? value : JSON.stringify(value)); return file; };
 const started = [];
 
+function writerAccountingChecks() {
+  const checkout = path.join(tmp, "accounting-checkout");
+  fs.mkdirSync(checkout);
+  git(checkout, "init", "-q", "-b", "main");
+  git(checkout, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
+  const GB = 2 ** 30;
+  const ids = { coordinator: "local_00000000-0000-4000-8000-000000000001", shared: "00000000-0000-4000-8000-000000000002", other: "00000000-0000-4000-8000-000000000003", assignment: "00000000-0000-4000-8000-000000000004", otherAssignment: "00000000-0000-4000-8000-000000000005", parent: "00000000-0000-4000-8000-000000000006" };
+  const record = run.initRecord({ record: path.join(tmp, "accounting-run.json"), checkout, repository: "acme/widgets", issue: 100, coordinator: ids.coordinator, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "medium", coordinatorMode: "bypassPermissions", slug: "writer-accounting", invocation: "Use orchestrate-issues for #100." }, { defaults, freeBytes: 100 * GB, totalMemory: 7.9 * GB }).record;
+  const ticket = (number) => ({ number, title: `ticket ${number}`, state: "open", parent: 100, container: false, effort: "Medium", delivered: false, blockers: [], prs: [], worktrees: [] });
+  const owner = (id, extra = {}) => ({ route: "codex-app", model: "gpt-6.1-sol", effort: "medium", handle: { kind: "session", id, host: os.hostname() }, since: record.coordinator.since, ...extra });
+  const held = (writer) => ({ owner: writer, pending: null, history: [], results: [] });
+  const observations = { sessions: { [ids.shared]: { state: "running" }, [ids.other]: { state: "running" } } };
+  const plan = (tickets, more = {}) => run.planDispatch({ record: { ...record, tickets }, snapshot: { repository: record.repository, issue: { number: 100, state: "open" }, tickets: [ticket(101), ticket(102), ticket(103)] }, preflights: [{ route: "claude-cli", model: record.writer.model, verdicts: [101, 102, 103].map((number) => ({ ticket: number, effort: "medium", verdict: "available" })) }], freeBytes: 100 * GB, defaults, census: () => [], observations, ...more });
+  const shared = owner(ids.shared, { adopted: { pr: 500, rounds: 1 } });
+  const aliases = plan({ 101: held(shared), 102: held(structuredClone(shared)) });
+  assert.equal(aliases.concurrency.active, 1, "two ticket references to one observed writer consume one place");
+  assert.equal(aliases.tickets.find((entry) => entry.number === 103).action, "dispatch");
+  assert.equal(plan({ 101: held(shared), 102: held(owner(ids.other, { adopted: { pr: 500, rounds: 1 } })) }).concurrency.active, 2, "distinct writers retain distinct places even when their PR is shared");
+  const pending = { operation: "dispatch", launchId: ids.assignment, route: "codex-app", host: os.hostname(), artifactParent: tmp, worktree: path.join(tmp, "pending-tree") };
+  assert.equal(plan({ 101: { pending }, 102: { pending: structuredClone(pending) } }).concurrency.active, 1, "duplicate references to one pending assignment consume one place");
+  assert.equal(plan({ 101: { pending }, 102: { pending: { ...pending, launchId: ids.otherAssignment } } }).concurrency.active, 2, "different partial starts remain reserved until reconciled");
+  const sameTask = owner("/root/writer", { handle: { kind: "task", id: "/root/writer", host: os.hostname() } });
+  assert.equal(plan({ 101: held(sameTask), 102: held({ ...sameTask, launchId: ids.otherAssignment }) }).concurrency.active, 2, "an unscoped task name alone does not prove that two assignments share a writer");
+  assert.equal(plan({ 101: held(shared), 102: { history: [{ released: "observed exit" }] } }).concurrency.active, 1, "normal release removes the finished assignment without erasing another writer");
+  assert.equal(record.concurrency.limit, 3, "a 7.9 GiB host has three writer places at 2 GiB per writer");
+  const largeBound = run.defaultConcurrency({ totalMemory: 31.1 * GB });
+  assert.equal(largeBound.limit, 15, "a 31.1 GiB host has fifteen writer places at 2 GiB per writer");
+  assert.match(largeBound.basis, /15 writer places by total memory at 2 GiB per writer/);
+  assert.match(largeBound.basis, /machine-wide/, "the basis says every run on the host shares the same places");
+  assert.match(largeBound.basis, /8 machine-wide reviewer slots/);
+  assert.match(largeBound.basis, /3 test-suite reservation slots, at most 2 of them for writers/);
+
+  const resources = { sampledAt: new Date().toISOString(), totalBytes: 7.9 * GB, physicalAvailableBytes: 3.5 * GB, commitHeadroomBytes: 27 * GB, source: "fixture: direct memory counters" };
+  const foreign = (tickets, extra = {}) => ({ ...structuredClone(record), runId: "00000000-0000-4000-8000-000000000007", issue: 200, coordinator: { ...record.coordinator, session: ids.parent }, tickets, ...extra });
+  const machine = (other, more = {}) => ({ host: os.hostname(), scope: { gitCommonDirectory: git(checkout, "rev-parse", "--path-format=absolute", "--git-common-dir") }, records: [{ recordPath: path.join(tmp, "foreign-run.json"), record: other }], diagnostics: [], resources, ...more });
+  const machinePlan = (other, more = {}) => plan({}, { machine: machine(other), ...more });
+  const native = owner("/root/writer", { launchId: ids.assignment, handle: { kind: "task", id: "/root/writer", host: os.hostname() }, brief: { coordinator: ids.parent } });
+  assert.equal(plan({ 101: held(native), 102: held(structuredClone(native)) }, { observations: { tasks: { "/root/writer": { state: "running" } } } }).concurrency.active, 1, "an immutable native assignment deduplicates its ticket aliases");
+  const scoped = (other, state) => ({ ...observations, runs: { [other.runId]: { tasks: { "/root/writer": { state } } } } });
+  const other = foreign({ 201: held(native), 202: { pending: { ...pending, launchId: ids.otherAssignment } } });
+  const occupied = machinePlan(other, { observations: scoped(other, "running") });
+  assert.equal(occupied.concurrency.machine.executing, 1);
+  assert.equal(occupied.concurrency.machine.unknown, 1);
+  assert.equal(occupied.concurrency.capacityNow, 2, "a running writer consumes a shared place and unobserved foreign intent stays visible");
+  const pendingDir = run.launchDirOf(other.tickets[202].pending, 202);
+  const inFlight = machinePlan(other, { observations: scoped(other, "running"), census: () => [{ pid: 424241, name: "node", cmd: `node worker.mjs "${pendingDir}"` }] });
+  assert.equal(inFlight.concurrency.machine.executing, 1, "a process mentioning a foreign pending launch directory is insufficient execution evidence");
+  assert.equal(inFlight.concurrency.machine.unknown, 1);
+  const abandoned = foreign(Object.fromEntries([201, 202, 203].map((number) => [number, { pending: { ...pending, launchId: `00000000-0000-4000-8000-000000000${number}` } }])));
+  const abandonedBefore = structuredClone(abandoned);
+  const abandonedPlan = machinePlan(abandoned);
+  assert.equal(abandonedPlan.concurrency.machine.unknown, 3);
+  assert.equal(abandonedPlan.concurrency.capacityNow, 3, "unobserved foreign intents do not permanently hold machine admission");
+  assert.deepEqual(abandoned, abandonedBefore, "unknown intent remains owned for explicit reconciliation");
+  const aliasesAcrossRuns = plan({ 101: held(shared) }, { machine: machine(foreign({ 201: held(structuredClone(shared)) })), observations: { ...observations, runs: { [other.runId]: observations } } });
+  assert.equal(aliasesAcrossRuns.concurrency.machine.executing, 1, "the same host/session identity is one writer across records");
+  const desktopId = `local_${ids.shared}`;
+  const desktop = { ...owner(desktopId), route: "claude-desktop" };
+  const desktopObserved = { sessions: { [desktopId]: { state: "running" }, ...observations.sessions } };
+  const desktopRun = foreign({ 201: held(desktop), 202: held(shared), 203: held({ ...desktop, handle: { ...desktop.handle, host: "another-machine" } }) });
+  const desktopPlan = plan({ 101: held(desktop), 102: held(structuredClone(desktop)) }, { machine: machine(desktopRun), observations: { ...desktopObserved, runs: { [desktopRun.runId]: desktopObserved } } });
+  assert.equal(desktopPlan.concurrency.active, 1, "adopted desktop session aliases share a local place");
+  assert.equal(desktopPlan.concurrency.machine.executing, 2, "cross-run desktop aliases deduplicate without merging a bare session namespace");
+  assert.equal(desktopPlan.concurrency.machine.foreign, 1);
+  const [sharedWriter] = aliasesAcrossRuns.concurrency.machine.writers;
+  assert.equal(sharedWriter.state, "executing");
+  assert.deepEqual(sharedWriter.references.map(({ runId, ticket }) => [runId, ticket]).sort(), [[record.runId, 101], [other.runId, 201]].sort(), "one writer retains both run and ticket references");
+  const starting = { ...record, tickets: { 101: { pending }, 102: { pending: structuredClone(pending) } } };
+  const occupiedRun = foreign({ 201: held(shared), 202: held(owner(ids.other)) });
+  const startOptions = { starting: 101, observations: { runs: { [occupiedRun.runId]: observations } }, census: () => [] };
+  const startLoad = run.checkMachineStart(starting, machine(occupiedRun), startOptions);
+  assert.equal(startLoad.executing, 2);
+  assert.equal(startLoad.pending, 0, "all pending aliases of the proposed start share its exemption");
+  starting.tickets[103] = { pending: { ...pending, launchId: ids.otherAssignment } };
+  assert.throws(() => run.checkMachineStart(starting, machine(occupiedRun), startOptions), (error) => {
+    assert.match(error.message, /Machine writer places are full/);
+    for (const ticket of ["#201", "#202", "#103"]) assert.ok(error.message.includes(ticket));
+    return true;
+  }, "unrelated pending and observed writers still fill capacity");
+  const duplicateTaskNames = plan({ 101: held({ ...native, launchId: ids.otherAssignment, brief: { coordinator: ids.coordinator } }) }, { machine: machine(foreign({ 201: held(native) })), observations: { tasks: { "/root/writer": { state: "running" } }, runs: { [other.runId]: { tasks: { "/root/writer": { state: "running" } } } } } });
+  assert.equal(duplicateTaskNames.concurrency.machine.executing, 2, "parent-scoped task paths do not merge unrelated writers");
+  const contactChanged = structuredClone(other);
+  contactChanged.tickets[201].owner.coordinator = ids.coordinator;
+  assert.equal(machinePlan(contactChanged, { observations: scoped(contactChanged, "running") }).concurrency.machine.executing, 1, "a mutable reporting contact does not change the native writer's identity");
+  const copiedAssignment = plan({ 101: held({ ...native, coordinator: ids.coordinator }) }, { machine: machine(foreign({ 201: held(native) })), observations: { tasks: { "/root/writer": { state: "running" } }, runs: { [other.runId]: { tasks: { "/root/writer": { state: "running" } } } } } });
+  assert.equal(copiedAssignment.concurrency.machine.executing, 1, "copied references to one immutable assignment remain one writer after contact changes");
+  const retained = foreign({ 201: { ...held(native), requests: [{ id: "waiting-decision", state: "requested" }] } });
+  const retainedBefore = JSON.stringify(retained);
+  const idle = machinePlan(retained, { observations: scoped(retained, "completed") });
+  assert.equal(idle.concurrency.machine.executing, 0, "a completed native turn retaining its assignment is not executing load");
+  assert.equal(idle.concurrency.machine.retained, 1);
+  assert.equal(JSON.stringify(retained), retainedBefore, "capacity accounting never releases or modifies another run's retained ownership");
+  const unknown = machinePlan(retained);
+  assert.equal(unknown.concurrency.machine.unknown, 1, "an unobserved native owner remains explicitly unknown");
+  assert.ok(unknown.concurrency.machine.diagnostics.some((entry) => entry.next && entry.recordPath), "unknown ownership names the record and the evidence needed");
+  assert.ok(unknown.concurrency.capacityNow > 0, "fresh healthy resources remain a usable fallback for unknown migration state");
+  const missingRecord = { pointerPath: path.join(tmp, "missing-pointer.json"), recordPath: path.join(tmp, "missing-run.json"), reason: "ENOENT", next: "Ask the recorded coordinator to locate its run record; preserve this pointer" };
+  const missing = plan({}, { machine: machine(foreign({}), { diagnostics: [missingRecord] }) });
+  assert.deepEqual(missing.concurrency.machine.diagnostics.find((entry) => entry.recordPath === missingRecord.recordPath), missingRecord);
+  assert.ok(missing.concurrency.capacityNow > 0, "a missing historical record is reported without inventing an empty census or permanent global hold");
+  for (const [physical, commit] of [[0.4, 2.4], [1.19, 17.68], [3.5, 2.4]]) {
+    const pressured = plan({}, { machine: machine(foreign({}), { resources: { ...resources, physicalAvailableBytes: physical * GB, commitHeadroomBytes: commit * GB } }) });
+    assert.equal(pressured.concurrency.capacityNow, 0, `physical ${physical} GiB and direct commit ${commit} GiB do not admit a source writer`);
+    assert.ok(pressured.tickets.every((entry) => entry.action === "wait-capacity"));
+  }
+  for (const physical of [3.4, 3.6]) assert.ok(plan({}, { machine: machine(foreign({}), { resources: { ...resources, physicalAvailableBytes: physical * GB } }) }).concurrency.capacityNow > 0, "the observed successful source/review envelope remains admitted");
+  const meminfo = "MemAvailable: 3670016 kB\nCommitLimit: 4194304 kB\nCommitted_AS: 8388608 kB\n";
+  for (const mode of ["0", "1", "2"]) {
+    const memory = run.linuxWriterMemory(meminfo, mode);
+    assert.equal(memory.physicalAvailableBytes, 3.5 * GB);
+    assert.equal(memory.commitHeadroomBytes, mode === "2" ? -4 * GB : null);
+    const linux = plan({}, { machine: machine(foreign({}), { resources: { totalBytes: resources.totalBytes, ...memory } }) });
+    assert.equal(linux.concurrency.capacityNow, mode === "2" ? 0 : 3, "only strict Linux overcommit policy enforces the commit budget");
+  }
+  const unmeasured = plan({}, { machine: machine(foreign({}), { resources: { ...resources, totalBytes: undefined } }) });
+  assert.equal(unmeasured.concurrency.capacityNow, 0, "a sample without total memory admits no writer");
+  assert.ok(unmeasured.tickets.every((entry) => entry.action === "wait-capacity" && /Cannot measure writer admission memory/.test(entry.reason)));
+  const writersOn = (count) => foreign(Object.fromEntries(Array.from({ length: count }, (_, index) => [201 + index, held(owner(`00000000-0000-4000-8000-0000000003${String(index).padStart(2, "0")}`))])));
+  const running = (other) => ({ ...observations, runs: { [other.runId]: { sessions: Object.fromEntries(Object.values(other.tickets).map(({ owner: { handle } }) => [handle.id, { state: "running" }])) } } });
+  const host = (totalGiB, values) => ({ resources: { ...resources, totalBytes: totalGiB * GB, ...values } });
+  const roomy = { physicalAvailableBytes: 14.3 * GB, commitHeadroomBytes: 27 * GB };
+  const onHost = (totalGiB, other, values = roomy) => plan({}, { record: { ...record, concurrency: run.defaultConcurrency({ totalMemory: totalGiB * GB }), tickets: {} }, machine: machine(other, host(totalGiB, values)), observations: running(other) });
+  const dispatched = (result) => result.tickets.filter((entry) => entry.action === "dispatch").length;
+  const observedLoad = onHost(31.1, writersOn(3));
+  assert.equal(observedLoad.concurrency.machine.executing, 3);
+  assert.equal(observedLoad.concurrency.capacityNow, 12, "three writers of other runs leave twelve of a 31.1 GiB host's fifteen places");
+  assert.equal(dispatched(observedLoad), 3, "the run dispatches every eligible ticket beside the three foreign writers");
+  const fourteenth = onHost(31.1, writersOn(14));
+  assert.equal(fourteenth.concurrency.capacityNow, 1, "fourteen writers across runs leave the fifteenth place");
+  assert.equal(dispatched(fourteenth), 3, "the fifteenth place admits every eligible ticket, and the coordinator claims one");
+  const full = onHost(31.1, writersOn(15));
+  assert.equal(full.concurrency.capacityNow, 0);
+  assert.ok(full.tickets.every((entry) => entry.action === "wait-capacity" && /Machine writer places are full: all 15 by total memory at 2 GiB per writer/.test(entry.reason)), "fifteen writers fill a 31.1 GiB host");
+  const startOn = { ...record, tickets: { 101: { pending } } };
+  const startCheck = (totalGiB, other) => run.checkMachineStart(startOn, machine(other, host(totalGiB, roomy)), { starting: 101, observations: running(other), census: () => [] });
+  assert.equal(startCheck(31.1, writersOn(14)).executing, 14, "start-check admits a fifteenth writer machine-wide on a 31.1 GiB host");
+  assert.throws(() => startCheck(31.1, writersOn(15)), /Machine writer places are full: all 15/);
+  assert.equal(onHost(15.8, writersOn(6)).concurrency.capacityNow, 1, "a 15.8 GiB host has a seventh place");
+  assert.equal(onHost(15.8, writersOn(7)).concurrency.capacityNow, 0, "seven writers fill a 15.8 GiB host");
+  assert.throws(() => startCheck(15.8, writersOn(7)), /Machine writer places are full: all 7/);
+  assert.equal(onHost(7.9, writersOn(2)).concurrency.capacityNow, 1, "a 7.9 GiB host has a third place");
+  assert.equal(onHost(7.9, writersOn(3)).concurrency.capacityNow, 0, "a 7.9 GiB host admits no writer beyond its three places");
+  assert.throws(() => startCheck(7.9, writersOn(3)), /Machine writer places are full: all 3/);
+  for (const totalGiB of [15.8, 31.1]) {
+    for (const [physical, commit, why] of [[0.4, 27, /Available physical memory/], [1.9, 27, /Available physical memory/], [14.3, 4.9, /Direct commit headroom/], [14.3, 2.4, /Direct commit headroom/]]) {
+      const loaded = onHost(totalGiB, writersOn(1), { physicalAvailableBytes: physical * GB, commitHeadroomBytes: commit * GB });
+      assert.equal(loaded.concurrency.capacityNow, 0, `a ${totalGiB} GiB host with ${physical} GiB available and ${commit} GiB commit headroom admits no writer`);
+      assert.ok(loaded.tickets.every((entry) => entry.action === "wait-capacity" && why.test(entry.reason)), `the ${totalGiB} GiB host names the reserve that refuses it`);
+      assert.throws(() => run.checkMachineStart(startOn, machine(writersOn(1), host(totalGiB, { physicalAvailableBytes: physical * GB, commitHeadroomBytes: commit * GB })), { starting: 101, observations: running(writersOn(1)), census: () => [] }), why);
+    }
+  }
+  const pendingBefore = JSON.stringify(other);
+  assert.equal(machinePlan(other, { observations: { sessions: { [ids.parent]: { state: "absent" } }, runs: { [other.runId]: { tasks: { "/root/writer": { state: "running" } } } } } }).concurrency.machine.executing, 1);
+  assert.equal(JSON.stringify(other), pendingBefore, "coordinator disappearance neither clears a live writer nor withdraws a partial start");
+  const processHandle = { kind: "process", host: os.hostname(), pid: 424242, start: "fixture-start-a", launchDir: path.join(tmp, "detached-launch") };
+  const detached = owner(ids.other, { route: "codex-cli", handle: processHandle });
+  const processRun = foreign({ 201: held(detached), 202: held(structuredClone(detached)) });
+  assert.equal(machinePlan(processRun, { identify: () => ({ pid: processHandle.pid, start: processHandle.start }) }).concurrency.machine.executing, 1, "recorded host/PID/start identity deduplicates the same running process");
+  const survivor = { pid: 424243, start: "fixture-child-start" };
+  const detachedRun = foreign({ 201: held(detached) });
+  const observerOnly = machinePlan(detachedRun, { identify: (pid) => pid === survivor.pid ? survivor : null, census: () => [{ pid: survivor.pid, name: "node", cmd: `node observer.mjs "${processHandle.launchDir}"` }] });
+  assert.equal(observerOnly.concurrency.machine.executing, 0, "a live directory observer supplies no writer execution evidence");
+  assert.equal(observerOnly.concurrency.machine.unknown, 1);
+  const childEvidence = { host: os.hostname(), wrapper: { pid: processHandle.pid, start: processHandle.start }, process: survivor };
+  const withChild = (evidence, identify = (pid) => pid === survivor.pid ? survivor : null) => machinePlan(detachedRun, { identify, observations: { runs: { [detachedRun.runId]: { writerChildren: { 201: evidence } } } } });
+  const wrapperGone = withChild(childEvidence);
+  assert.equal(wrapperGone.concurrency.machine.executing, 1, "a positively observed and still-matching writer child outlives its wrapper");
+  assert.deepEqual(wrapperGone.concurrency.machine.writers[0].references[0].process, survivor);
+  const direct = { ...detached, handle: { ...processHandle, ...survivor } };
+  const sharedChild = plan({ 101: held(direct) }, { machine: machine(detachedRun), identify: (pid) => pid === survivor.pid ? survivor : null, observations: { runs: { [detachedRun.runId]: { writerChildren: { 201: childEvidence } } } } }).concurrency.machine;
+  assert.equal(sharedChild.executing, 1, "a directly recorded writer and a surviving child with the same live identity share one place");
+  assert.deepEqual(sharedChild.writers[0].identity, ["process", os.hostname(), survivor.pid, survivor.start]);
+  assert.deepEqual(sharedChild.writers[0].references.map(({ ticket }) => ticket).sort(), [101, 201]);
+  assert.deepEqual(sharedChild.writers[0].references.find(({ ticket }) => ticket === 201).recordedIdentity, ["process", os.hostname(), processHandle.pid, processHandle.start]);
+  assert.equal(withChild({ ...childEvidence, wrapper: { ...childEvidence.wrapper, start: "different-wrapper" } }).concurrency.machine.unknown, 1);
+  assert.equal(withChild(childEvidence, () => ({ ...survivor, start: "reused-child" })).concurrency.machine.unknown, 1);
+  const unreadable = machinePlan(foreign({ 201: held(detached) }), { identify: () => { throw new Error("fixture access denied"); }, census: () => [] });
+  assert.equal(unreadable.concurrency.machine.unknown, 1, "a failed identity probe is not exit evidence even with an empty census");
+  const reused = machinePlan(foreign({ 201: held(detached), 202: held({ ...detached, handle: { ...processHandle, start: "fixture-start-b", launchDir: path.join(tmp, "other-launch") } }) }), { identify: () => ({ pid: processHandle.pid, start: "fixture-start-b" }), census: () => null });
+  assert.equal(reused.concurrency.machine.executing, 1);
+  assert.equal(reused.concurrency.machine.unknown, 1, "PID reuse with an unreadable descendant census does not settle the former writer");
+  const foreignHost = machinePlan(foreign({ 201: held({ ...detached, handle: { ...processHandle, host: "another-machine" } }) }));
+  assert.equal(foreignHost.concurrency.machine.executing, 0, "a positively different host consumes no local machine place");
+  assert.equal(foreignHost.concurrency.machine.foreign, 1, "foreign ownership stays visible rather than being silently discarded");
+  const claimRecord = structuredClone(record);
+  const claimBefore = JSON.stringify(claimRecord);
+  const healthy = plan({}, { machine: machine(foreign({})) });
+  const healthyFile = write("accounting-healthy-plan.json", healthy);
+  assert.throws(() => run.claim(claimRecord, { plan: healthyFile, ticket: 101, worktree: path.join(tmp, "claim-tree"), branch: "fix/101-claim-tree", artifactParent: tmp, defaults, machine: machine(foreign({}), { resources: { ...resources, physicalAvailableBytes: 0.4 * GB } }) }), /physical|memory|resources/i, "claim remeasures admission instead of trusting a previously healthy plan");
+  assert.equal(JSON.stringify(claimRecord), claimBefore, "an admission refusal creates no partial claim");
+  console.log("writer accounting focused checks passed");
+  const resumeFile = path.join(tmp, "accounting-run.json");
+  const resumeOwner = { ...detached, route: "claude-cli", model: record.writer.model, permissionMode: "bypassPermissions", artifactParent: tmp, sessionId: ids.shared };
+  const initial = run.updateRecord(resumeFile, { coordinator: ids.coordinator, expectRevision: record.revision }, (r) => { r.tickets[101] = held(resumeOwner); }).record;
+  const resumePrompt = write("accounting-resume-prompt.txt", "Continue the scratch assignment.");
+  let spawned = 0;
+  const resume = (observe, extra = {}) => run.resumeWriter(resumeFile, {
+    coordinator: ids.coordinator, expectRevision: run.readRecord(resumeFile).revision,
+    ticket: 101, executable: process.execPath, args: ["-p", "--model", record.writer.model, "--effort", "medium", "--permission-mode", "bypassPermissions", "--resume", ids.shared],
+    prompt: resumePrompt, identify: () => null, census: () => [], observe,
+    spawner: () => { spawned++; return { started: false, reason: "fixture" }; }, ...extra,
+  });
+  const resumeDirs = () => fs.readdirSync(tmp).filter((name) => name.startsWith("resume-101-"));
+  const low = (values) => () => machine(foreign({}), { resources: { ...resources, ...values } });
+  assert.throws(() => resume(low({ physicalAvailableBytes: 0.4 * GB })), /Available physical memory/);
+  assert.throws(() => resume(low({ commitHeadroomBytes: 2.4 * GB })), /Direct commit headroom/);
+  assert.equal(spawned, 0);
+  assert.deepEqual(resumeDirs(), []);
+  assert.deepEqual(run.readRecord(resumeFile), initial);
+  const loaded = foreign({ 201: held(shared), 202: held(owner(ids.other)), 203: held(native) });
+  assert.throws(() => resume(() => machine(loaded), { observations: { runs: { [loaded.runId]: { ...observations, tasks: { "/root/writer": { state: "running" } } } } } }), /Machine writer places are full/);
+  let saved = false;
+  const drift = resume(() => machine(foreign({}), { resources: { ...resources, physicalAvailableBytes: (saved ? 0.4 : 3.5) * GB } }), { afterIntent: () => { assert.ok(run.readRecord(resumeFile).tickets[101].owner.resuming); saved = true; } });
+  assert.equal(drift.started, false);
+  assert.match(drift.reason, /Available physical memory/);
+  assert.deepEqual(run.readRecord(resumeFile).tickets[101].owner, initial.tickets[101].owner);
+  assert.deepEqual(resumeDirs(), []);
+  assert.equal(spawned, 0);
+  const alias = foreign({ 201: held(resumeOwner), 202: held(shared), 203: held(owner(ids.other)) });
+  assert.equal(resume(() => machine(alias), { observations: { runs: { [alias.runId]: observations } } }).reason, "fixture");
+  assert.equal(spawned, 1, "a healthy resume starts once, with the ended owner and alias consuming no executing place");
+  console.log("writer resume admission checks passed");
+  if (process.argv.includes("--writer-resume-live")) {
+    const done = path.join(tmp, "resume-live-done.json");
+    const stop = path.join(tmp, "resume-live-stop");
+    const standIn = write("resume-live.cjs", `const fs = require("node:fs"); const at = process.argv.indexOf("--resume");
+if (process.argv[at + 1] !== ${JSON.stringify(ids.shared)}) process.exit(2);
+console.log(process.pid); const end = Date.now() + 15000;
+const timer = setInterval(() => { if (fs.existsSync(${JSON.stringify(stop)}) || Date.now() > end) {
+  clearInterval(timer); fs.writeFileSync(${JSON.stringify(done)}, JSON.stringify({pid:process.pid}));
+} }, 100);`);
+    const real = resume(run.observeWriterMachine, { identify: processIdentity, spawner: run.startDetachedWriter, args: [standIn, "-p", "--model", record.writer.model, "--effort", "medium", "--permission-mode", "bypassPermissions", "--resume", ids.shared] });
+    assert.equal(real.started, true, real.reason);
+    const liveOwner = run.readRecord(resumeFile).tickets[101].owner;
+    let child;
+    try {
+      const out = path.join(liveOwner.handle.launchDir, "out.jsonl");
+      waitFor(() => fs.existsSync(out) && /^\d+\s*$/.test(fs.readFileSync(out, "utf8")), "resume stand-in PID", 10000);
+      child = processIdentity(Number(fs.readFileSync(out, "utf8")));
+      assert.ok(child?.start && liveOwner.handle.start);
+      assert.equal(liveOwner.sessionId, ids.shared);
+      console.log("production resume wrapper and child identities:", liveOwner.handle, child);
+    } finally {
+      fs.writeFileSync(stop, "");
+      waitFor(() => fs.existsSync(done) && processIdentity(liveOwner.handle.pid) === null && processIdentity(readJsonFile(done).pid) === null, "resume wrapper and child positive exit", 15000);
+      console.log("production resume wrapper and child absent:", liveOwner.handle.pid, readJsonFile(done).pid);
+    }
+  }
+  if (["--writer-continuation", "--writer-native"].some((flag) => process.argv.includes(flag))) {
+    const file = path.join(tmp, "continuation-run.json");
+    const current = run.initRecord({ record: file, checkout, repository: "acme/widgets", issue: 110, coordinator: ids.parent, harness: "codex", coordinatorModel: "gpt-6.1-sol", coordinatorEffort: "medium", coordinatorMode: "bypassPermissions", slug: "writer-continuation", invocation: "Use orchestrate-issues for #110." }, { defaults, freeBytes: 100 * GB, totalMemory: 16 * GB }).record;
+    const snapshot = { repository: current.repository, issue: { number: 110, state: "open" }, tickets: [{ ...ticket(111), parent: 110, prs: [{ number: 500, state: "OPEN", isDraft: true, branch: "fix/111-existing", head: "fixture-head", rounds: 1 }] }] };
+    const savedPlan = write("continuation-plan.json", run.planDispatch({ record: current, snapshot, preflights: [{ route: "codex-app", model: current.writer.model, verdicts: [{ ticket: 111, effort: "medium", verdict: "available" }] }], defaults, freeBytes: 100 * GB, census: () => [] }));
+    const update = run.updateRecord(file, { coordinator: ids.parent, expectRevision: current.revision }, (r) => run.claim(r, { plan: savedPlan, ticket: 111, operation: "continue", worktree: path.join(tmp, "continuation-tree"), branch: "fix/111-existing", artifactParent: tmp, evidence: "the previous writer's session was observed archived" }));
+    const pendingStart = update.record.tickets[111].pending;
+    assert.equal(pendingStart.operation, "dispatch");
+    assert.equal(pendingStart.continues.pr, 500);
+    assert.equal(pendingStart.route, "codex-app");
+    const check = (coordinator, revision) => run.main(["start-check", "--record", file, "--coordinator", coordinator, "--expect-revision", String(revision), "--ticket", "111"], { defaults });
+    assert.throws(() => check(ids.shared, update.record.revision), /ownership or revision changed/);
+    assert.throws(() => check(ids.parent, current.revision), /ownership or revision changed/);
+    fs.writeFileSync(file, JSON.stringify({ ...update.record, tickets: { 111: { pending: { ...pendingStart, host: "another-machine" } } } }));
+    assert.throws(() => check(ids.parent, update.record.revision), /claimed on another-machine/);
+    fs.writeFileSync(file, JSON.stringify(update.record));
+    assert.equal(check(ids.parent, update.record.revision).launchId, pendingStart.launchId);
+    assert.deepEqual(run.readRecord(file), update.record, "the pre-spawn check leaves the saved intent and ownership unchanged");
+    console.log("external writer continuation admission passed");
+    if (process.argv.includes("--writer-native")) {
+      const handle = "/root/writer_111";
+      const saved = run.updateRecord(file, { coordinator: ids.parent, expectRevision: update.record.revision }, (r) => {
+        run.launched(r, { ticket: 111, handleKind: "task", handle });
+        const req = run.request(r, { ticket: 111, text: "May I continue?", source: "fixture turn" });
+        run.answer(r, { ticket: 111, request: req.id, text: "Continue the same assignment." });
+      }).record;
+      const owner = saved.tickets[111].owner;
+      const ended = { state: "completed", host: os.hostname(), assignment: owner.launchId, revision: saved.revision, model: owner.model, effort: owner.effort, permissionMode: "bypassPermissions" };
+      const observed = write("native-ended.json", { tasks: { [handle]: ended } });
+      const resourceCheck = (r = saved, options = {}) => run.checkExternalStart(r, 111, {
+        assignment: owner.launchId, observations: { tasks: { [handle]: ended } }, observe: () => machine(foreign({})), freeBytes: 100 * GB, ...options,
+      });
+      assert.throws(() => resourceCheck(saved, { assignment: ids.assignment }), /no matching retained native assignment/);
+      assert.throws(() => resourceCheck(saved, { observations: undefined }), /current ended-turn observation/);
+      for (const change of [{ state: "running" }, { state: "unknown" }, { assignment: ids.assignment }, { revision: saved.revision - 1 }, { host: "another-machine" }, { model: "different-model" }, { effort: "low" }, { permissionMode: "default" }]) {
+        assert.throws(() => resourceCheck(saved, { observations: { tasks: { [handle]: { ...ended, ...change } } } }), /current ended-turn observation/);
+      }
+      assert.throws(() => resourceCheck(saved, { observations: { tasks: { "/root/wrong": ended } } }), /current ended-turn observation/);
+      assert.throws(() => resourceCheck({ ...saved, handoff: { since: saved.coordinator.since } }), /planned handoff/);
+      assert.throws(() => resourceCheck({ ...saved, coordinator: { ...saved.coordinator, permissionMode: "default" } }), /coordinator runs in default/);
+      assert.throws(() => resourceCheck({ ...saved, tickets: { 111: { owner: { ...owner, route: "codex-cli" } } } }), /no matching retained native assignment/);
+      assert.throws(() => resourceCheck({ ...saved, tickets: { 111: { owner: { ...owner, handle: { ...owner.handle, host: "another-machine" } } } } }), /claimed on another-machine/);
+      assert.throws(() => resourceCheck(saved, { observe: low({ physicalAvailableBytes: 0.4 * GB }) }), /Available physical memory/);
+      assert.throws(() => resourceCheck(saved, { observe: low({ commitHeadroomBytes: 2.4 * GB }) }), /Direct commit headroom/);
+      assert.throws(() => resourceCheck(saved, { observe: () => machine(loaded), observations: { tasks: { [handle]: ended }, runs: { [loaded.runId]: { ...observations, tasks: { "/root/writer": { state: "running" } } } } } }), /Machine writer places are full/);
+      assert.deepEqual(resourceCheck().handle, owner.handle);
+      const checked = run.main(["start-check", "--record", file, "--coordinator", ids.parent, "--expect-revision", String(saved.revision), "--ticket", "111", "--assignment", owner.launchId, "--observations", observed], { defaults });
+      assert.equal(checked.launchId, owner.launchId);
+      assert.deepEqual(run.readRecord(file), saved, "healthy admission preserves the retained owner and the saved answer");
+      console.log("same-owner native continuation admission passed");
+      const adopted = structuredClone(current);
+      run.adopt(adopted, { plan: savedPlan, ticket: 111, handleKind: "session", handle: ids.other, route: "codex-app", model: current.writer.model, effort: "medium", worktree: path.join(tmp, "adopted-native-tree") });
+      const adoptedOwner = adopted.tickets[111].owner;
+      const request = run.request(adopted, { ticket: 111, text: "Continue adopted work?", source: "fixture turn" });
+      run.answer(adopted, { ticket: 111, request: request.id, text: "Continue the adopted owner." });
+      assert.equal(adoptedOwner.launchId, undefined);
+      assert.equal(adopted.tickets[111].requests[0].owner, ids.other);
+      fs.writeFileSync(file, JSON.stringify(adopted));
+      const adoptedSeen = { state: "idle", host: os.hostname(), revision: adopted.revision, model: adoptedOwner.model, effort: adoptedOwner.effort, permissionMode: "bypassPermissions" };
+      const adoptedObservations = write("adopted-native-ended.json", { sessions: { [ids.other]: adoptedSeen } });
+      const adoptedCheck = (opts) => run.checkExternalStart(adopted, 111, { ownerHandle: ids.other, observations: { sessions: { [ids.other]: adoptedSeen } }, observe: () => machine(foreign({})), freeBytes: 100 * GB, ...opts });
+      assert.throws(() => adoptedCheck({ ownerHandle: ids.shared }), /no matching retained native assignment/);
+      assert.throws(() => adoptedCheck({ assignment: ids.assignment }), /either --assignment or --owner-handle/);
+      assert.throws(() => resourceCheck(saved, { assignment: undefined, ownerHandle: handle }), /no matching retained native assignment/);
+      const accepted = run.main(["start-check", "--record", file, "--coordinator", ids.parent, "--expect-revision", String(adopted.revision), "--ticket", "111", "--owner-handle", ids.other, "--observations", adoptedObservations], { defaults });
+      assert.deepEqual(accepted.handle, adoptedOwner.handle);
+      assert.deepEqual(run.readRecord(file), adopted, "admission preserves the adopted owner and saved answer");
+      console.log("adopted native continuation admission passed");
+    }
+  }
+}
+
 try {
+  writerAccountingChecks();
+  if (["--writer-accounting", "--writer-continuation", "--writer-resume-live", "--writer-native"].some((flag) => process.argv.includes(flag))) process.exit(0);
   const checkout = path.join(tmp, "checkout");
   fs.mkdirSync(checkout);
   git(checkout, "init", "-q", "-b", "main");
@@ -40,9 +362,12 @@ try {
   assert.throws(() => run.routeOptions("claude-opus-5-5", { ...defaults, retiredRoutes: { "claude-cli": "test" } }), /also listed as retired/);
 
   const GB = 2 ** 30;
-  assert.equal(run.defaultConcurrency({ totalMemory: 64 * GB }).limit, 3);
-  assert.equal(run.defaultConcurrency({ totalMemory: 15.8 * GB }).limit, 3);
-  assert.equal(run.defaultConcurrency({ totalMemory: 7 * GB }).limit, 1);
+  assert.equal(run.defaultConcurrency({ totalMemory: 64 * GB }).limit, 32);
+  assert.equal(run.defaultConcurrency({ totalMemory: 31.1 * GB }).limit, 15);
+  assert.equal(run.defaultConcurrency({ totalMemory: 15.8 * GB }).limit, 7);
+  assert.equal(run.defaultConcurrency({ totalMemory: 7 * GB }).limit, 3);
+  assert.equal(run.defaultConcurrency({ totalMemory: 3 * GB }).limit, 1);
+  assert.equal(run.defaultConcurrency({ totalMemory: 1.5 * GB }).limit, 0);
 
   {
     const calls = [];
@@ -68,9 +393,12 @@ try {
     ].join("\n"));
     const probeArgs = (out) => ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", probe, out];
     const consoleOf = (file, what) => {
-      waitFor(() => fs.existsSync(file) && fs.readFileSync(file, "utf8").trim() !== "", `the ${what} probe's report`);
-      const [window, visible] = fs.readFileSync(file, "utf8").trim().split(" ");
-      return { window: Number(window), visible };
+      let report = null;
+      waitFor(() => {
+        try { report = /^(\d+) (True|False)$/.exec(fs.readFileSync(file, "utf8").trim()); } catch (error) { if (!["ENOENT", "EBUSY"].includes(error.code)) throw error; }
+        return report !== null;
+      }, `the ${what} probe's report`);
+      return { window: Number(report[1]), visible: report[2] };
     };
     const launchDir = path.join(tmp, "console-launch");
     fs.mkdirSync(launchDir);
@@ -89,11 +417,11 @@ try {
   }
 
   const record = path.join(artifacts, "run.json");
-  const init = (extra = {}) => run.initRecord({ record, checkout, repository: "acme/widgets", issue: 100, coordinator: "local_a", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", slug: "coordinator-contact", invocation: "Use orchestrate-issues for #100.", ...extra }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+  const init = (extra = {}) => run.initRecord({ record, checkout, repository: "acme/widgets", issue: 100, coordinator: "local_a", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", slug: "coordinator-contact", invocation: "Use orchestrate-issues for #100.", ...extra }, { defaults, freeBytes: 40 * GB, totalMemory: 7.9 * GB });
   const first = init();
   assert.equal(first.action, "init");
   assert.equal(first.record.writer.model, "claude-opus-5-5");
-  assert.equal(first.record.concurrency.limit, 3);
+  assert.equal(first.record.concurrency.limit, 3, "init records the host-derived writer places");
   assert.equal(init().action, "resume");
   const later = (extra) => init({ record: path.join(artifacts, "later.json"), issue: 109, invocation: "Use orchestrate-issues for #109.", ...extra });
   assert.equal(later().action, "init");
@@ -119,8 +447,8 @@ try {
     repository: "acme/widgets", issue: { number: 100, state: "open" }, originMain: "abc", tickets: [
       ticket(101),
       ticket(102, { blockers: [{ number: 101, state: "open", delivered: false }] }),
-      ticket(103, { blockers: [{ number: 90, state: "closed", delivered: true }], effort: "High" }),
-      ticket(104, { prs: [{ number: 504, state: "OPEN", isDraft: true, branch: "fix/104-thing", head: "d4", rounds: 2 }] }),
+      ticket(103, { blockers: [{ number: 90, state: "closed", delivered: true }], effort: "High", priority: "Urgent" }),
+      ticket(104, { prs: [{ number: 504, state: "OPEN", isDraft: true, branch: "fix/104-thing", head: "d4", rounds: 2 }], priority: "High" }),
       ticket(105, { prs: [{ number: 505, state: "OPEN", isDraft: false, branch: "fix/105-thing", head: "d5", rounds: 3 }] }),
       ticket(106, { blockers: [{ number: 91, state: "closed", delivered: false }] }),
       ticket(107, { effort: null }),
@@ -136,8 +464,29 @@ try {
   const plan = (r, more = {}) => run.planDispatch({ record: settled105(run.readRecord(record)), snapshot, preflights: [available("claude-cli", "claude-opus-5-5", all)], freeBytes: 100 * GB, defaults, census: () => [], ...more, ...r });
   const actions = (p) => Object.fromEntries(p.tickets.map((t) => [t.number, t.action]));
   const p1 = plan();
-  assert.deepEqual(actions(p1), { 101: "dispatch", 102: "wait-dependency", 103: "wait-capacity", 104: "adopt-pr", 105: "await-maintainer", 106: "wait-dependency", 107: "assign-effort", 108: "wait-capacity", 109: "wait-capacity", 110: "adopt-worktree", 111: "done", 112: "container" });
-  assert.equal(p1.concurrency.active, 2, "existing PR and worktree work occupies capacity");
+  assert.deepEqual(actions(p1), { 101: "dispatch", 102: "wait-dependency", 103: "dispatch", 104: "adopt-pr", 105: "await-maintainer", 106: "wait-dependency", 107: "assign-effort", 108: "dispatch", 109: "dispatch", 110: "adopt-worktree", 111: "done", 112: "container" }, "one free place admits every ready ticket, and the coordinator chooses among them");
+  assert.deepEqual([p1.concurrency.active, p1.concurrency.capacityNow], [2, 1], "existing PR and worktree work occupies capacity");
+  const facts = (p, n) => { const { priority, effort, dependents } = p.tickets.find((t) => t.number === n); return { priority, effort, dependents }; };
+  assert.deepEqual([101, 103, 104, 110].map((n) => facts(p1, n)), [{ priority: null, effort: "medium", dependents: 1 }, { priority: "Urgent", effort: "high", dependents: 0 }, { priority: "High", effort: "medium", dependents: 0 }, { priority: null, effort: "medium", dependents: 0 }], "dispatch and adopt entries carry Priority, Effort and dependents for the coordinator to weigh");
+  assert.ok(p1.tickets.filter((t) => !["dispatch", "adopt-pr", "adopt-worktree"].includes(t.action)).every((t) => !("priority" in t) && !("dependents" in t)), "entries the coordinator cannot start carry no ranking facts");
+  {
+    const blocker = (number) => ({ number, state: "open", delivered: false });
+    const tree = { ...snapshot, tickets: [
+      ticket(301),
+      ticket(302, { blockers: [blocker(301)], prs: [{ number: 532, state: "OPEN", isDraft: true, branch: "fix/302-thing", head: "c2", rounds: 0 }] }),
+      ticket(303, { blockers: [blocker(302)] }),
+      ticket(304, { blockers: [blocker(301), blocker(302)] }),
+      ticket(305, { state: "closed", delivered: true, blockers: [blocker(301)] }),
+      ticket(306, { type: "Task" }),
+      ticket(307, { type: "Bug", parent: 306, deliveredBy: { ticket: 306, via: "sub-issue", pr: null, merged: false } }),
+      ticket(308, { blockers: [blocker(307), blocker(391)] }),
+    ] };
+    const ranked = (snap) => plan({ snapshot: snap, preflights: [available("claude-cli", "claude-opus-5-5", [301, 306, 310])] });
+    const dependents = (p) => Object.fromEntries(p.tickets.filter((t) => "dependents" in t).map((t) => [t.number, [t.action, t.dependents]]));
+    assert.deepEqual(dependents(ranked(tree)), { 301: ["dispatch", 3], 302: ["adopt-pr", 2], 306: ["dispatch", 2] }, "a ticket two blockers deep counts toward each ancestor once, a delivered ticket toward none, and a slice counts its Bug and what waits on that Bug");
+    const behind = { ...tree, tickets: [...tree.tickets.map((t) => (t.number === 307 ? { ...t, blockers: [blocker(310)] } : t)), ticket(310)] };
+    assert.deepEqual(dependents(ranked(behind)), { 301: ["dispatch", 3], 302: ["adopt-pr", 2], 310: ["dispatch", 3] }, "a slice held by its Bug's blocker counts toward that blocker with its Bug and what waits on them");
+  }
   const unknownEffort = plan({ snapshot: { ...snapshot, tickets: snapshot.tickets.map((t) => t.number === 107 ? { ...t, effort: "Huge" } : t) } });
   assert.deepEqual([actions(unknownEffort)[107], unknownEffort.tickets.find((t) => t.number === 107).reason], ["decision-needed", "Effort Huge has no writer effort"], "the coordinator assigns a missing Effort but never reinterprets an existing one");
   const adopted = p1.tickets.find((t) => t.number === 104);
@@ -151,8 +500,11 @@ try {
   assert.ok(viaGate.remaining.some((line) => /merges only through integration\.mjs's merge gate/.test(line)));
   assert.equal(p1.tickets.find((t) => t.number === 101).route, "claude-cli");
   const roomy = { ...settled105(run.readRecord(record)), concurrency: { limit: 4, basis: "test" } };
-  assert.deepEqual(Object.entries(actions(plan({ record: roomy }))).filter(([, a]) => a === "dispatch").map(([n]) => Number(n)), [101, 103]);
-  assert.match(plan({ freeBytes: 13 * GB }).tickets.find((t) => t.number === 101).reason, /free disk does not admit another writer/);
+  assert.deepEqual(Object.entries(actions(plan({ record: roomy }))).filter(([, a]) => a === "dispatch").map(([n]) => Number(n)), [101, 103, 108, 109]);
+  const diskFull = plan({ freeBytes: 13 * GB });
+  assert.deepEqual([diskFull.concurrency.capacityNow, all.map((n) => actions(diskFull)[n])], [0, ["wait-capacity", "wait-capacity", "wait-capacity", "wait-capacity"]], "no free place admits no ready ticket");
+  assert.match(diskFull.tickets.find((t) => t.number === 101).reason, /free disk does not admit another writer/);
+  assert.throws(() => run.claim(structuredClone(run.readRecord(record)), { plan: write("plan-disk.json", diskFull), ticket: 101, worktree: path.join(tmp, "wt-101"), branch: "fix/101-thing", artifactParent: artifacts }), /admits no new writer: 2 writer places are held against a limit of 3, and free disk does not admit another writer/, "under its limit, the refusal names what else holds the room");
 
   const blocked = plan({ preflights: [available("claude-cli", "claude-sonnet-5-5", all), available("claude-desktop", "claude-opus-5-5", all), { route: "claude-cli", model: "claude-opus-5-5", verdicts: [{ ticket: 101, effort: "medium", verdict: "blocked", reason: "the Claude CLI probe exited 1: not signed in" }] }] }).tickets.find((t) => t.number === 101);
   assert.equal(blocked.action, "blocked-route");
@@ -165,13 +517,26 @@ try {
   assert.throws(() => mutate(1, (r) => run.claim(r, { plan: planFile, ticket: 102, worktree: path.join(tmp, "wt-102"), branch: "fix/102-thing", artifactParent: artifacts })), /action for #102 is wait-dependency/);
   assert.throws(() => run.updateRecord(record, { expectRevision: 1, coordinator: "local_b" }, () => {}), /coordinated by local_a/);
   assert.throws(() => mutate(1, (r) => run.claim(r, { plan: planFile, ticket: 101, worktree: wt101, branch: "fix/999-thing", artifactParent: artifacts })), /--branch must be <type>\/101-<slug>/);
+  {
+    const chosen = structuredClone(run.readRecord(record));
+    const pending = run.claim(chosen, { plan: planFile, ticket: 109, worktree: path.join(tmp, "wt-109"), branch: "fix/109-thing", artifactParent: artifacts });
+    assert.equal(pending.operation, "dispatch", "the coordinator claims the dispatch ticket it chooses, whatever its number");
+    assert.deepEqual(Object.keys(pending).sort(), ["artifactParent", "branch", "coordinator", "effort", "host", "launchId", "model", "operation", "permissionMode", "reportFields", "route", "time", "worktree"], "the claim records no reason or ordering for the choice");
+    assert.deepEqual(Object.keys(chosen.log.at(-1)).sort(), ["event", "launchId", "route", "ticket", "time"]);
+  }
   let rev = mutate(1, (r) => run.claim(r, { plan: planFile, ticket: 101, worktree: wt101, branch: "fix/101-thing", artifactParent: artifacts }));
   assert.equal(rev, 2);
   assert.throws(() => mutate(1, (r) => run.claim(r, { plan: planFile, ticket: 101, worktree: wt101, branch: "fix/101-thing", artifactParent: artifacts })), /revision 2, not 1/, "a duplicate invocation on a stale revision changes nothing");
   assert.throws(() => mutate(2, (r) => run.claim(r, { plan: planFile, ticket: 101, worktree: wt101, branch: "fix/101-thing", artifactParent: artifacts })), /made at revision 1/);
-  const p2File = write("plan2.json", plan());
-  assert.equal(actions(plan())[101], "reconcile-pending", "a claimed ticket waits for its launch outcome");
-  assert.throws(() => mutate(2, (r) => run.claim(r, { plan: p2File, ticket: 101, worktree: wt101, branch: "fix/101-thing", artifactParent: artifacts })), /action for #101 is reconcile-pending/);
+  const p2 = plan();
+  const p2File = write("plan2.json", p2);
+  assert.equal(actions(p2)[101], "reconcile-pending", "a claimed ticket waits for its launch outcome");
+  assert.deepEqual([p2.concurrency.capacityNow, [103, 108, 109].map((n) => actions(p2)[n])], [0, ["wait-capacity", "wait-capacity", "wait-capacity"]], "the claim holds its place in the next plan, which admits no other start");
+  const beforeRefusal = fs.readFileSync(record, "utf8");
+  assert.throws(() => mutate(2, (r) => run.claim(r, { plan: p2File, ticket: 109, worktree: path.join(tmp, "wt-109"), branch: "fix/109-thing", artifactParent: artifacts })), /admits no new writer: 3 writer places are held against a limit of 3;/);
+  assert.equal(fs.readFileSync(record, "utf8"), beforeRefusal, "a refused claim leaves the record unchanged");
+  assert.throws(() => mutate(2, (r) => run.claim(r, { plan: p2File, ticket: 101, worktree: wt101, branch: "fix/101-thing", artifactParent: artifacts })), /admits no new writer/);
+  assert.throws(() => mutate(2, (r) => run.claim(r, { plan: p2File, ticket: 101, worktree: wt101, branch: "fix/101-thing", artifactParent: artifacts, operation: "continue", evidence: "x" })), /action for #101 is reconcile-pending/);
 
   assert.throws(() => mutate(2, (r) => run.launched(r, { ticket: 101, handleKind: "session", handle: "local_w101" })), /started with launch and confirmed with reconcile/);
   assert.throws(() => mutate(2, (r) => run.withdraw(r, { ticket: 101 })), /--evidence must say why/);
@@ -366,7 +731,7 @@ try {
       227: [{ number: 228, state: "open", title: "bug its own slice closes", type: { name: "Bug" } }],
     })[n] ?? [],
     blockedBy: (n) => ({ 201: [{ number: 190, state: "closed" }], 202: [{ number: 191, state: "closed" }] })[n] ?? [],
-    effort: () => "Medium",
+    fields: () => ({ effort: "Medium", priority: null }),
     pulls: (n) => ({
       190: [{ number: 390, state: "MERGED", mergeCommit: { oid: "on-main" }, headRefName: "fix/190-x", closingIssuesReferences: [{ number: 190 }] }],
       191: [{ number: 391, state: "MERGED", mergeCommit: { oid: "off-main" }, headRefName: "fix/191-x", closingIssuesReferences: [{ number: 191 }] }],
@@ -416,7 +781,8 @@ try {
     const taskPlan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: snap, preflights: [available("claude-cli", "claude-opus-5-5", [211, 212])], freeBytes: 100 * GB, defaults, census: () => [] });
     assert.deepEqual([taskPlan.parent, actions(taskPlan)[211]], [{ type: "Task", title: "Widgets" }, "dispatch"], "the plan carries the parent's type and admits the nested slice");
     assert.deepEqual([213, 214, 215, 221].map((n) => actions(taskPlan)[n]), ["delivered-by", "delivered-by", "delivered-by", "delivered-by"]);
-    assert.deepEqual([actions(taskPlan)[217], actions(taskPlan)[212], taskPlan.concurrency.active], ["done", "wait-capacity", 3], "a merged deliverer's Bug is done; delivered Bugs take no writer place");
+    assert.deepEqual([actions(taskPlan)[217], actions(taskPlan)[212], taskPlan.concurrency.active, taskPlan.concurrency.capacityNow], ["done", "dispatch", 3, 1], "a merged deliverer's Bug is done; delivered Bugs take no writer place");
+    assert.deepEqual([211, 212].map((n) => taskPlan.tickets.find((t) => t.number === n).dependents), [0, 2], "a slice counts the Bugs its PR delivers");
     assert.match(taskPlan.tickets.find((t) => t.number === 215).reason, /#201's PR #401 delivers it \(that PR closes it\): it is never dispatched and holds no writer place/);
     assert.match(taskPlan.tickets.find((t) => t.number === 213).reason, /#212's PR delivers it \(a Bug under slice #212\)/);
     assert.deepEqual([actions(taskPlan)[220], actions(taskPlan)[225], actions(taskPlan)[223], actions(taskPlan)[224], actions(taskPlan)[226], actions(taskPlan)[227], actions(taskPlan)[228]], ["container", "container", "blocked-route", "decision-needed", "decision-needed", "adopt-pr", "delivered-by"], "umbrellas are containers, a ticket with only a dead PR is its own work, two closers need the maintainer, a merged deliverer with the ticket open is a decision, and a slice whose own PR claims its Bug keeps it");
@@ -451,7 +817,7 @@ try {
       200: [task(301, "slice"), task(303, "blocker slice"), task(311, "claiming container", "Closes #313."), bug(313, "claimed by a container"), task(321, "slice with a claiming bug"), bug(323, "claimed by a delivered bug"), task(331, "url claimant", "Closes https://github.com/acme/widgets/issues/334, and closes https://github.com/other/repo/issues/336."), task(333, "url umbrella"), task(335, "foreign url umbrella")],
       301: [bug(302, "blocked bug")], 311: [task(312, "inner task")], 321: [bug(322, "claiming bug", "Closes #323.")], 333: [bug(334, "url-claimed bug")], 335: [bug(336, "bug a foreign url names")],
     };
-    const mini = { fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Widgets", type: { name: "Task" }, body: "" }), subIssues: (n) => miniTree[n] ?? [], blockedBy: (n) => (n === 302 ? [{ number: 303, state: "open" }] : []), effort: () => "Medium", pulls: () => [], comments: () => [], checks: () => [] };
+    const mini = { fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Widgets", type: { name: "Task" }, body: "" }), subIssues: (n) => miniTree[n] ?? [], blockedBy: (n) => (n === 302 ? [{ number: 303, state: "open" }] : []), fields: () => ({ effort: "Medium", priority: null }), pulls: () => [], comments: () => [], checks: () => [] };
     const miniSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 200 }, mini);
     const m = Object.fromEntries(miniSnap.tickets.map((t) => [t.number, t]));
     assert.deepEqual([m[311].container, m[313].claimInvalid, m[313].deliveredBy], [true, { ticket: 311, via: "body", reason: "a container, planned through its own sub-issues" }, undefined], "a container's claim delivers nothing");
@@ -514,7 +880,7 @@ try {
       if (args[0] === "pr" && args[1] === "list") return JSON.stringify(args[args.indexOf("--search") + 1] === "22" ? [last] : []);
       throw new Error(`Unexpected discovery call: ${args.join(" ")}`);
     });
-    const snapshot = run.takeSnapshot({ repository: "acme/widgets", tickets: "acme/internal", issue: 100 }, { ...client, fetchMain: () => "main", worktrees: () => [], onMain: () => true, issue: (number) => ({ number, state: "open", title: "Task", body: "" }), subIssues: (number) => number === 100 ? Array.from({ length: 22 }, (_, i) => ({ number: i + 1, state: "open", title: "slice" })) : [], blockedBy: () => [], effort: () => "Medium" });
+    const snapshot = run.takeSnapshot({ repository: "acme/widgets", tickets: "acme/internal", issue: 100 }, { ...client, fetchMain: () => "main", worktrees: () => [], onMain: () => true, issue: (number) => ({ number, state: "open", title: "Task", body: "" }), subIssues: (number) => number === 100 ? Array.from({ length: 22 }, (_, i) => ({ number: i + 1, state: "open", title: "slice" })) : [], blockedBy: () => [], fields: () => ({ effort: "Medium", priority: null }) });
     assert.equal(calls.length, 1, "a 22-ticket snapshot shares one completely paginated account listing");
     assert.ok(!calls.some((call) => call.includes("--search") || call.includes("search(")));
     assert.deepEqual(snapshot.tickets.find((t) => t.number === 22).prs.map((p) => p.number), [4001], "a closing-reference-only PR beyond 1000 historical PRs is found");
@@ -584,7 +950,7 @@ try {
   }
   {
     const { client: one, calls } = ghCalls({ repository: "acme/widgets" }, replies([]));
-    one.issue(200); one.subIssues(200); one.blockedBy(201); one.effort(201); one.pulls(201); one.comments(401, 201); one.checks(401);
+    one.issue(200); one.subIssues(200); one.blockedBy(201); one.fields(201); one.pulls(201); one.comments(401, 201); one.checks(401);
     assert.deepEqual(calls, [
       "gh api repos/acme/widgets/issues/200",
       "gh api --paginate --slurp repos/acme/widgets/issues/200/sub_issues",
@@ -596,13 +962,21 @@ try {
     ], "with one repository the client makes today's calls, and a PR's comments are its own");
   }
   {
+    const option = (name, value) => ({ issue_field_name: name, single_select_option: { name: value } });
+    const values = { "repos/acme/widgets/issues/201/issue-field-values": [option("Priority", "Urgent"), option("Effort", "Low")], "repos/acme/widgets/issues/202/issue-field-values": [option("Effort", "High")] };
+    const { client: fielded, calls } = ghCalls({ repository: "acme/widgets" }, replies([], values));
+    const fieldSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 200 }, { ...fielded, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Widgets", body: "" }), subIssues: (n) => (n === 200 ? [201, 202].map((number) => ({ number, state: "open", title: `ticket ${number}` })) : []), blockedBy: () => [], pulls: () => [] });
+    assert.deepEqual(fieldSnap.tickets.map((t) => [t.number, t.effort, t.priority]), [[201, "Low", "Urgent"], [202, "High", null]], "Priority is read from the field values that carry Effort, and is null when unset");
+    assert.deepEqual(calls.filter((c) => c.includes("issue-field-values")).length, 2, "each ticket's field values are read once for both fields");
+  }
+  {
     const ref = (slug, number) => ({ number, repository: { name: slug.split("/")[1], owner: { login: slug.split("/")[0] } } });
     const pr = (number, branch, login, refs) => ({ number, state: "OPEN", isDraft: true, headRefName: branch, headRefOid: `h${number}`, baseRefName: "main", closingIssuesReferences: refs, mergeCommit: null, author: { login } });
     const listed = [pr(701, "feat/7-thing", "shared", [ref(INTERNAL, 7), ref("acme/widgets", 7)]), pr(702, "fix/7-thing", "someone-else", [ref(INTERNAL, 7)]), pr(703, "feat/70-other", "shared", [ref(INTERNAL, 70)])];
     const prefixed = pr(704, "codex/fix/7-prefixed", "shared", [ref(INTERNAL, 7)]);
     const heads = run.DISCOVERY_TYPES.map((t) => `head:${t}/7-`).join(" ");
     const { client: split, calls } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies((search) => (search === null ? [...listed, prefixed, pr(705, "fix/77-other", "shared", [])] : search === heads ? listed : search === "7" ? [prefixed, listed[0], pr(705, "fix/77-other", "shared", [])] : []), { [`repos/${INTERNAL}/issues/7/comments`]: [{ body: "### Review round 2 state\n" }], "repos/acme/widgets/issues/701/comments": [{ body: "### Review round 5 state\n" }] }));
-    split.issue(6); split.subIssues(6); split.blockedBy(7); split.effort(7);
+    split.issue(6); split.subIssues(6); split.blockedBy(7); split.fields(7);
     const found = split.pulls(7);
     assert.deepEqual(found.map((p) => [p.number, p.closingIssuesReferences.map((r) => `${r.repository.owner.login}/${r.repository.name}#${r.number}`)]), [[704, [`${INTERNAL}#7`]], [701, [`${INTERNAL}#7`]]], "only the shared account's PRs on the ticket's own branch, prefixed or not, are the ticket's, once each, with their references to the tickets repository");
     assert.ok(!("author" in found[0]), "the author is read for discovery only");
@@ -622,7 +996,7 @@ try {
     ]);
     assert.ok(!calls.some((c) => /^gh issue|repos\/acme\/widgets\//.test(c)), "nothing reads tickets or comments of the code repository");
     assert.throws(() => split.comments(701), /Supply ticket/, "a PR's review thread needs its ticket once tickets live apart");
-    const splitSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 6 }, { ...split, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Feature", body: "" }), subIssues: (n) => (n === 6 ? [{ number: 7, state: "open", title: "slice" }] : []), blockedBy: () => [], effort: () => "Medium" });
+    const splitSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 6 }, { ...split, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Feature", body: "" }), subIssues: (n) => (n === 6 ? [{ number: 7, state: "open", title: "slice" }] : []), blockedBy: () => [], fields: () => ({ effort: "Medium", priority: null }) });
     assert.deepEqual(splitSnap.tickets[0].prs.map((p) => [p.number, p.rounds]), [[704, 2], [701, 2]], "the PRs' rounds come from the round-state comments on their ticket");
     const dir = path.join(tmp, "split-run");
     git(tmp, "init", "-q", "-b", "main", dir);
@@ -645,13 +1019,13 @@ try {
     {
       const listedWith8 = [pr(701, "feat/7-thing", "shared", [ref(INTERNAL, 7), ref(INTERNAL, 8)])];
       const { client: split8 } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies(listedWith8, { [`repos/${INTERNAL}/issues/7/comments`]: [] }));
-      const split8Snap = run.takeSnapshot({ repository: "acme/widgets", issue: 6, tickets: INTERNAL }, { ...split8, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Widgets", type: { name: "Task" }, body: "" }), subIssues: (n) => (n === 6 ? [{ number: 7, state: "open", title: "slice", type: { name: "Task" } }, { number: 8, state: "open", title: "bug the slice closes", type: { name: "Bug" } }] : []), blockedBy: () => [], effort: () => "Medium" });
+      const split8Snap = run.takeSnapshot({ repository: "acme/widgets", issue: 6, tickets: INTERNAL }, { ...split8, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Widgets", type: { name: "Task" }, body: "" }), subIssues: (n) => (n === 6 ? [{ number: 7, state: "open", title: "slice", type: { name: "Task" } }, { number: 8, state: "open", title: "bug the slice closes", type: { name: "Bug" } }] : []), blockedBy: () => [], fields: () => ({ effort: "Medium", priority: null }) });
       const eight = split8Snap.tickets.find((t) => t.number === 8);
       assert.deepEqual([eight.prs, eight.deliveredBy], [[], { ticket: 7, via: "pr", pr: 701, merged: false }], "the sibling's PR is absent from the Bug's own list and still delivers it");
       const split8Plan = run.planDispatch({ record: run.readRecord(file), snapshot: split8Snap, preflights: [available("claude-cli", "claude-opus-5-5", [8])], freeBytes: 100 * GB, defaults, census: () => [] });
       assert.deepEqual([actions(split8Plan)[8], split8Plan.tickets.find((t) => t.number === 7).delivers], ["delivered-by", [8]], "the Bug is delivered by #7 whatever the record holds for #7");
       const { client: split9 } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies(() => []));
-      const bodyClient = { ...split9, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Widgets", type: { name: "Task" }, body: "" }), subIssues: (n) => ({ 6: [{ number: 7, state: "open", title: "slice", type: { name: "Task" }, body: `Closes ${INTERNAL}#9.` }, { number: 10, state: "open", title: "umbrella", type: { name: "Task" } }], 10: [{ number: 9, state: "open", title: "bug the slice's body claims", type: { name: "Bug" } }] })[n] ?? [], blockedBy: () => [], effort: () => "Medium" };
+      const bodyClient = { ...split9, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Widgets", type: { name: "Task" }, body: "" }), subIssues: (n) => ({ 6: [{ number: 7, state: "open", title: "slice", type: { name: "Task" }, body: `Closes ${INTERNAL}#9.` }, { number: 10, state: "open", title: "umbrella", type: { name: "Task" } }], 10: [{ number: 9, state: "open", title: "bug the slice's body claims", type: { name: "Bug" } }] })[n] ?? [], blockedBy: () => [], fields: () => ({ effort: "Medium", priority: null }) };
       const cliOut = path.join(tmp, "split-cli-snapshot.json");
       run.main(["snapshot", "--record", file, "--out", cliOut], { clientFor: () => bodyClient, defaults });
       const cliSnap = readJsonFile(cliOut);
@@ -662,7 +1036,7 @@ try {
       const stale = { number: 1357, state: "MERGED", isDraft: false, headRefName: "codex/refactor/1322-x", headRefOid: "h", baseRefName: "main", mergeCommit: { oid: "c" }, closingIssuesReferences: [ref(INTERNAL, 873)] };
       const fresh = { number: 1400, state: "OPEN", isDraft: true, headRefName: "feat/7-x", headRefOid: "f", baseRefName: "main", mergeCommit: null, closingIssuesReferences: [] };
       const tree = { 6: [{ number: 1322, state: "open", title: "slice", type: { name: "Task" }, body: "" }, { number: 7, state: "open", title: "fresh slice", type: { name: "Task" }, body: "" }], 1322: [{ number: 900, state: "open", title: "bug", type: { name: "Bug" }, body: "" }] };
-      const staleClient = { fetchMain: () => "m1", worktrees: () => [], onMain: () => true, issue: () => ({ state: "open", title: "T", body: "", type: { name: "Task" } }), subIssues: (n) => tree[n] ?? [], blockedBy: () => [], effort: () => "Low", comments: () => [], checks: () => [], pulls: (n) => (n === 1322 ? [stale] : n === 7 ? [fresh] : []) };
+      const staleClient = { fetchMain: () => "m1", worktrees: () => [], onMain: () => true, issue: () => ({ state: "open", title: "T", body: "", type: { name: "Task" } }), subIssues: (n) => tree[n] ?? [], blockedBy: () => [], fields: () => ({ effort: "Low", priority: null }), comments: () => [], checks: () => [], pulls: (n) => (n === 1322 ? [stale] : n === 7 ? [fresh] : []) };
       const staleSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 6, tickets: INTERNAL }, staleClient);
       const of = (n) => staleSnap.tickets.find((t) => t.number === n);
       assert.deepEqual([of(1322).prs, of(900).deliveredBy?.ticket, of(900).deliveredBy?.pr, of(7).prs.map((p) => p.number)], [[], 1322, null, [1400]], "a PR that closes another internal ticket is not the one its old branch names; a draft with no references is found by its branch");
@@ -683,7 +1057,7 @@ try {
       assert.equal(run.ownsPull(fresh, 8, true, "2026-10-20T00:00:00Z"), true, "a no-reference PR opened after its branch's ticket is that ticket's");
       const created = { 6: "2026-10-01T00:00:00Z", 1389: "2026-10-20T00:00:00Z", 8: "2026-10-20T00:00:00Z" };
       const tree = { 6: [{ number: 1389, state: "open", title: "slice", type: { name: "Task" }, body: "", created_at: created[1389] }, { number: 8, state: "open", title: "fresh slice", type: { name: "Task" }, body: "", created_at: created[8] }] };
-      const oldClient = { fetchMain: () => "m1", worktrees: () => [], onMain: () => true, issue: (n) => ({ number: n, state: "open", title: "T", body: "", type: { name: "Task" }, created_at: created[n] }), subIssues: (n) => tree[n] ?? [], blockedBy: () => [], effort: () => "Low", comments: () => [], checks: () => [], pulls: (n) => (n === 1389 ? [old] : n === 8 ? [fresh] : []) };
+      const oldClient = { fetchMain: () => "m1", worktrees: () => [], onMain: () => true, issue: (n) => ({ number: n, state: "open", title: "T", body: "", type: { name: "Task" }, created_at: created[n] }), subIssues: (n) => tree[n] ?? [], blockedBy: () => [], fields: () => ({ effort: "Low", priority: null }), comments: () => [], checks: () => [], pulls: (n) => (n === 1389 ? [old] : n === 8 ? [fresh] : []) };
       const oldSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 6, tickets: INTERNAL }, oldClient);
       const of = (n) => oldSnap.tickets.find((t) => t.number === n);
       assert.deepEqual([of(1389).prs, of(8).prs.map((p) => p.number)], [[], [1401]], "the snapshot gives the old draft to no ticket and the fresh draft to its branch's");
@@ -766,6 +1140,77 @@ try {
   const planOf = (f, snap, more = {}) => run.planDispatch({ record: run.readRecord(f.file), snapshot: snap, freeBytes: 100 * GB, defaults, ...more });
 
   {
+    const f = fresh("idle-session-release");
+    const branch = "fix/1901-thing", handle = "local_delivered";
+    const pr = { number: 1902, state: "OPEN", isDraft: true, branch, head: "reviewed", rounds: 1 };
+    const open = { ...ticket(1901), parent: 300, prs: [pr] };
+    const plan = write("idle-adoption.json", planOf(f, snapshotOf(300, [open])));
+    f.change((r) => run.adopt(r, { plan, ticket: 1901, handleKind: "session", handle, route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(f.dir, "wt") }));
+    const report = write("idle-final-report.json", { model: "claude-opus-5-5", effort: "medium", permissionMode: null, pr: 1902, reviewedHead: "reviewed", rounds: 1, findings: "None", verification: "Passed", ci: "Passed", filed: "None", next: "Complete" });
+    const observations = { sessions: { [handle]: { state: "idle" } } };
+    const observed = write("idle-observations.json", observations);
+    let state = "closed", onMain = true, closingTicket = 1901;
+    const merged = { ...pr, state: "MERGED", mergeCommit: "delivered", onMain: true };
+    const closed = { ...open, state: "closed", delivered: true, prs: [merged] };
+    const rawPr = { number: 1902, state: "MERGED", headRefName: branch, mergeCommit: { oid: "delivered" }, closingIssuesReferences: [{ number: 1901 }] };
+    const client = {
+      issue: () => ({ state }),
+      pull: () => ({ ...rawPr, headRefName: closingTicket === 1901 ? branch : "fix/1903-other", closingIssuesReferences: [{ number: closingTicket }] }),
+      fetchMain: () => "main-tip",
+      onMain: (sha) => onMain && sha === "delivered",
+    };
+    const release = (obs = observed, evidence = "Read its final transcript") => run.main(["release", "--record", f.file, "--coordinator", "local_r", "--expect-revision", String(run.readRecord(f.file).revision), "--ticket", "1901", "--observations", obs, "--evidence", evidence], { defaults, clientFor: () => client });
+    assert.throws(() => release(), /writer is waiting/, "an idle owner without a recorded result stays held");
+    f.change((r) => run.result(r, { ticket: 1901, report }));
+    const before = run.readRecord(f.file);
+    state = "open";
+    assert.throws(() => release(), /writer is waiting/, "a merged PR alone does not settle an idle owner");
+    state = "closed";
+    onMain = false;
+    assert.throws(() => release(), /writer is waiting/, "a closed ticket with a merge missing from origin/main stays held");
+    onMain = true;
+    closingTicket = 1903;
+    assert.throws(() => release(), /writer is waiting/, "a merged PR for another ticket does not settle this owner");
+    closingTicket = 1901;
+    assert.throws(() => release(observed, " "), /writer is waiting/, "an idle release needs transcript evidence");
+    assert.throws(() => release(write("idle-foreign.json", { sessions: { [handle]: { state: "idle", host: "other-host" } } })), /writer is (waiting|unknown)/, "an observation from a different host does not settle the owner");
+    assert.throws(() => release(write("idle-running.json", { sessions: { [handle]: { state: "running" } } })), /writer is live/);
+    assert.deepEqual(run.readRecord(f.file), before, "refused release attempts leave the record intact");
+    for (const delivery of ["brief", "contact"]) {
+      f.change((r) => { r.tickets[1901].owner[delivery] = { state: "intent" }; });
+      assert.throws(() => release(), /writer is waiting/, `a pending ${delivery} delivery can start another turn`);
+      assert.notEqual(actions(planOf(f, snapshotOf(300, [closed]), { observations }))[1901], "release");
+      f.change((r) => { delete r.tickets[1901].owner[delivery]; });
+    }
+    const asked = f.change((r) => run.request(r, { ticket: 1901, text: "May I continue?", source: "fixture transcript" }));
+    f.change((r) => {
+      run.answer(r, { ticket: 1901, request: asked.id, text: "Yes" });
+      run.answered(r, { ticket: 1901, request: asked.id, evidence: "fixture transcript" });
+      const own = r.tickets[1901];
+      own.results.at(-1).time = new Date(Date.parse(own.requests.at(-1).answer.time) - 1).toISOString();
+    });
+    assert.throws(() => release(), /writer is waiting/, "the earlier report cannot settle a session after a delivered follow-up");
+    assert.notEqual(actions(planOf(f, snapshotOf(300, [closed]), { observations }))[1901], "release");
+    f.change((r) => run.result(r, { ticket: 1901, report }));
+    f.change((r) => { r.tickets[1901].owner.branch = null; });
+    closingTicket = 1903;
+    assert.throws(() => release(), /writer is waiting/, "a PR with no claim to the ticket is refused even without a recorded branch");
+    closingTicket = 1901;
+    f.change((r) => { r.tickets[1901].owner.branch = branch; });
+    const planned = planOf(f, snapshotOf(300, [closed]), { observations });
+    const otherMerge = { ...closed, prs: [{ ...merged, onMain: false }, { ...merged, number: 1903 }] };
+    assert.equal(actions(planOf(f, snapshotOf(300, [otherMerge]), { observations }))[1901], "done", "the reported PR itself must be on origin/main to plan release");
+    assert.doesNotThrow(() => release(), "the idle session's recorded report and closed, delivered ticket allow release");
+    assert.equal(actions(planned)[1901], "release");
+    assert.equal(planned.concurrency.active, 1, "the place stays held until release is recorded");
+    const settled = run.readRecord(f.file).tickets[1901];
+    assert.equal(settled.owner, null);
+    assert.match(settled.history.at(-1).released, /origin\/main.*Read its final transcript/);
+    const after = planOf(f, snapshotOf(300, [closed]), { observations });
+    assert.deepEqual([actions(after)[1901], after.concurrency.active], ["done", 0]);
+  }
+
+  {
     const f = fresh("r1");
     const snap = snapshotOf(300, [{ ...ticket(301), parent: 300 }]);
     const pre = [available("claude-cli", "claude-opus-5-5", [301])];
@@ -774,6 +1219,11 @@ try {
     const owner = f.change((r) => run.launch(r, { ticket: 301, executable: process.execPath, args: [standIn, "-p", "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions", "--stop", stop], prompt })).owner;
     started.push({ stop, pid: owner.handle.pid });
     waitFor(() => fs.existsSync(path.join(owner.handle.launchDir, "out.jsonl")) && fs.statSync(path.join(owner.handle.launchDir, "out.jsonl")).size > 0, "the r1 writer to start");
+    const { host, pid, start } = owner.handle;
+    const seenExit = { host, start, state: "exited" };
+    const observed = (seen) => ({ processes: { [pid]: seen } });
+    const identify = () => { throw new Error("Process start identity unavailable"); };
+    assert.equal(run.ownerStatus(owner, observed(seenExit)).status, "live", "a matching live wrapper identity overrides an exit observation");
     process.kill(owner.handle.pid);
     waitFor(() => { const now = processIdentity(owner.handle.pid); return !now || now.start !== owner.handle.start; }, "the r1 wrapper to exit");
     const status = run.ownerStatus(owner);
@@ -782,9 +1232,24 @@ try {
     assert.throws(() => f.change((r) => run.release(r, { ticket: 301, observations: {} })), /writer is live/);
     assert.equal(actions(planOf(f, snap, { preflights: pre }))[301], "observe", "no replacement is offered while the writer runs");
     assert.equal(run.ownerStatus(owner, {}, { census: () => null }).status, "unknown", "a failed census proves nothing");
+    const afterProbeFailure = (seen, census) => run.ownerStatus(owner, observed(seen), { identify, census });
+    for (const seen of [undefined, { ...seenExit, host: "other-host" }, { ...seenExit, start: "other-start" }, { ...seenExit, state: "running" }]) {
+      assert.equal(afterProbeFailure(seen, () => []).status, "unknown", "an unreadable wrapper requires a matching exit observation even when the census is empty");
+    }
+    const noStart = { ...owner, handle: { ...owner.handle, start: undefined } };
+    assert.equal(run.ownerStatus(noStart, observed({ ...seenExit, start: undefined }), { identify, census: () => [] }).status, "unknown", "missing start identities do not match");
+    assert.match(afterProbeFailure(seenExit, () => null).reason, /process census failed/, "a verified wrapper exit still requires a successful census");
+    const observedStatus = afterProbeFailure({ ...seenExit, launchDirUnused: true });
+    assert.equal(observedStatus.status, "live", "a fresh census still protects a writer after an observed wrapper exit");
+    assert.match(observedStatus.reason, /still names launch directory/);
+    assert.throws(() => f.change((r) => run.release(r, { ticket: 301, observations: observed(seenExit), identify })), /writer is live/);
+    console.log(`observed wrapper exit: ${host} pid=${pid} start=${start}; ${observedStatus.reason}`);
     fs.writeFileSync(stop, "");
     waitFor(() => run.ownerStatus(owner).status === "exited", "the r1 writer to exit");
-    f.change((r) => run.release(r, { ticket: 301, observations: {} }));
+    assert.equal(afterProbeFailure(seenExit).status, "exited", "a matching wrapper exit and a clear live census permit release");
+    f.change((r) => run.release(r, { ticket: 301, observations: observed(seenExit), identify }));
+    assert.equal(run.readRecord(f.file).tickets[301].owner, null);
+    console.log(`released wrapper pid=${pid} after the launch directory drained (injected primary probe failure)`);
   }
 
   {
@@ -917,7 +1382,7 @@ try {
     git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
     const file = path.join(dir, "artifacts", "run.json");
     const made = run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", issue: 300, coordinator: "local_r", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "x" }, { defaults, freeBytes: 5 * GB, totalMemory: 64 * GB });
-    assert.deepEqual([made.record.concurrency.limit, made.diskAdmits], [3, 0]);
+    assert.deepEqual([made.record.concurrency.limit, made.diskAdmits], [32, 0]);
     const snap = snapshotOf(300, [{ ...ticket(1401), parent: 300 }]);
     const pre = [available("claude-cli", "claude-opus-5-5", [1401])];
     const low = run.planDispatch({ record: run.readRecord(file), snapshot: snap, preflights: pre, freeBytes: 5 * GB, defaults });
@@ -1117,7 +1582,7 @@ try {
     assert.match(p.tickets.find((t) => t.number === 3002).reason, /completes #3001's fix .*makes the proper fix in its PR with a closing reference to #3002/);
     const issues = { 300: { title: "parent", state: "open", body: "## Acceptance criteria\n\n- [ ] done\n" }, 3001: { title: "slice", state: "open", type: { name: "Bug" }, body: "" }, 3002: { title: "filed", state: "open", type: { name: "Bug" }, body: "" } };
     const prNode = { number: 3901, state: "OPEN", isDraft: true, headRefName: "fix/3001-thing", headRefOid: "h", baseRefName: "main", closingIssuesReferences: [{ number: 3001 }, { number: 3002 }], mergeCommit: null };
-    const client = { fetchMain: () => "abc", worktrees: () => [], issue: (n) => issues[n], subIssues: (n) => (n === 300 ? [3001, 3002].map((k) => ({ number: k, ...issues[k] })) : []), pulls: (n) => ([3001, 3002].includes(n) ? [prNode] : []), effort: () => "Medium", blockedBy: () => [], comments: () => [], checks: () => [], onMain: () => false };
+    const client = { fetchMain: () => "abc", worktrees: () => [], issue: (n) => issues[n], subIssues: (n) => (n === 300 ? [3001, 3002].map((k) => ({ number: k, ...issues[k] })) : []), pulls: (n) => ([3001, 3002].includes(n) ? [prNode] : []), fields: () => ({ effort: "Medium", priority: null }), blockedBy: () => [], comments: () => [], checks: () => [], onMain: () => false };
     const walked = run.takeSnapshot({ repository: "acme/widgets", issue: 300 }, client);
     assert.deepEqual(walked.tickets.find((t) => t.number === 3002).deliveredBy, { ticket: 3001, via: "pr", pr: 3901, merged: false });
     p = planOf(f, walked, { observations: { sessions: { local_w3001: { state: "running" } } } });

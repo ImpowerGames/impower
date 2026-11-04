@@ -1,3 +1,5 @@
+import { isScriptPath } from "./scriptFiles";
+
 export const FOLDER_SENTINEL = ".folder";
 
 export interface FileTreeNode {
@@ -335,6 +337,13 @@ const stripCategoryPrefix = (p: string): string => {
   }
   return p;
 };
+
+export const layoutSubtreeFor = (path: string): string =>
+  isScriptPath(path)
+    ? "scripts"
+    : path.endsWith(".url")
+      ? "assets/urls"
+      : "assets";
 
 export const computeLayoutMigration = (
   relativePaths: string[],

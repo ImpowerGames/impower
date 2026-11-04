@@ -27,10 +27,9 @@ function recordingGame(calls: string[], state = "previewing") {
     previewAddress: 0,
     previewFrom: { file: PROGRAM.uri, line: 4 },
     previewedAddress: undefined as number | undefined,
-    routeStartOf: (_address: number) => "start",
+    jumpStartOf: (_address: number) => "start",
     updateProgram: () => calls.push("updateProgram"),
     markPreviewing: () => calls.push("markPreviewing"),
-    endSimulation: () => {},
     module: {
       ui: {
         forgetDisplayedImages: () => calls.push("forgetDisplayedImages"),

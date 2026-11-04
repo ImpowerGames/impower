@@ -9,7 +9,7 @@ One coordinator owns the delivery of the named parent issue, a Feature, Task or 
 
 ## Authority
 
-An explicit request such as "Use orchestrate-issues for #692" grants the coordinator, for that parent: dispatching writers for its open sub-issues, setting missing Effort, organizing its loose Bugs into Task slices in step 2 (filing them, re-parenting the Bugs, setting Effort, milestone and blockers) with no maintainer approval, placing tickets filed during the run (attaching, milestone, blocker, a PR sent back for the proper fix), the review checkpoint decisions in [review checkpoints](references/review-checkpoints.md), merging its slices' PRs through the gate in [integration](references/integration.md), and the bounded disk recovery in step 6. That merge is the one exception to the repository's maintainer-only merge rule: writers and ordinary resolve-issue sessions never merge, and discussing, filing or reviewing this skill grants nothing.
+An explicit request such as "Use orchestrate-issues for #692" grants the coordinator, for that parent: dispatching writers for its open sub-issues, setting missing Effort, organizing its loose Bugs into Task slices in step 2 (filing them, re-parenting the Bugs, setting Effort, Priority, milestone and blockers) with no maintainer approval, placing tickets filed during the run (attaching, milestone, blocker, a PR sent back for the proper fix), the review checkpoint decisions in [review checkpoints](references/review-checkpoints.md), merging its slices' PRs through the gate in [integration](references/integration.md), and the bounded disk recovery in step 6. That merge is the one exception to the repository's maintainer-only merge rule: writers and ordinary resolve-issue sessions never merge, and discussing, filing or reviewing this skill grants nothing.
 
 ## 0. Start
 
@@ -43,7 +43,7 @@ The plan's `remaining` list and `complete` flag belong in every report, with its
 
 ## 4. Dispatch
 
-For each `dispatch` ticket, one at a time:
+For each `dispatch` ticket, in the order you judge best, one at a time:
 
 1. `claim --plan <file> --ticket N --worktree <path> --branch <type>/<N>-<slug> --artifact-parent <dir>` records the intent before anything starts. The worktree follows resolve-issue's layout and must not exist yet. Plan again after each claim.
 2. `brief --record --plan --ticket N [--decision "<settled decision>" ...]` prints the writer's whole contract.
@@ -60,7 +60,7 @@ At every check-in, on the first wake after you restart, and before acting on any
 
 ## 6. Cleanup and disk recovery
 
-Clean up after each merge and release per [cleanup](references/cleanup.md); it needs no approval from the maintainer. When free disk blocks a launch, run the [clean-worktrees](../clean-worktrees/SKILL.md) dry run from the main checkout, apply it, record each removal with `disk-recovery --removed <path> --branch <branch> --classifier "<its row>"`, and run `clean-artifacts` for every finished ticket. No other cleanup is authorized.
+Clean up after each merge and release per [cleanup](references/cleanup.md); it needs no maintainer approval. When free disk blocks a launch, run the [clean-worktrees](../clean-worktrees/SKILL.md) dry run from the main checkout, apply it, record each removal with `disk-recovery --removed <path> --branch <branch> --classifier "<its row>"`, and run `clean-artifacts` for every finished ticket. No other cleanup is authorized.
 
 ## 7. Integrate and finish
 

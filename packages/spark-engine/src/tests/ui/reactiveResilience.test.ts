@@ -66,7 +66,6 @@ end
     await h.ready;
     h.jumpToFlow("start");
     h.reset();
-    (h.game.story as any).variablesState.reactiveDepsEnabled = true;
 
     (h.game.story as any).EvaluateFunction("hurt", []);
 

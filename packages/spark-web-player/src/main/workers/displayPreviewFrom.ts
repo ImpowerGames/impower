@@ -17,8 +17,7 @@ export interface DisplayingGame {
   simulationFailure: SimulationFailure | undefined;
   previewRoute: PreviewRoute | undefined;
   markPreviewing(previewAddress?: ProgramAddress): void;
-  routeStartOf(address: ProgramAddress): string;
-  endSimulation(): void;
+  jumpStartOf(address: ProgramAddress): string;
   load(checkpoint: string): unknown;
   loadCheckpoint(checkpoint: StoredCheckpoint): unknown;
   connect(
@@ -95,7 +94,6 @@ export async function displayPreviewFrom(
   game.reportsExecutedLines = !speculative;
   game.markPreviewing(resolvedPreviewAddress ?? undefined);
   game.module.ui.forgetDisplayedImages();
-  game.endSimulation();
   const checkpoint = request.checkpoint;
   game.previewRoute = checkpoint ? request.route : undefined;
   if (typeof checkpoint === "string" && checkpoint) {
@@ -104,7 +102,7 @@ export async function displayPreviewFrom(
     game.loadCheckpoint(checkpoint);
   } else {
     if (validPreviewAddress != null) {
-      game.simulateFlow = game.routeStartOf(validPreviewAddress);
+      game.simulateFlow = game.jumpStartOf(validPreviewAddress);
     }
     game.simulation = "fail";
     game.simulationFailure = request.simulationFailure;

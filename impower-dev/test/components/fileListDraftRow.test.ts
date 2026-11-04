@@ -9,6 +9,11 @@ const fs = vi.hoisted(() => ({
   createFiles: vi.fn(async () => undefined),
 }));
 
+const changes = vi.hoisted(() => ({
+  recordScriptChange: vi.fn(async () => undefined),
+  recordAssetChange: vi.fn(async () => undefined),
+}));
+
 vi.mock("@impower/impower-ui/components", () => {
   const Pass = ({ children }: { children?: unknown }) =>
     h("div", null, children as never);
@@ -60,8 +65,8 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
     fs,
     window: {
       openFileEditor: vi.fn(),
-      recordScriptChange: vi.fn(async () => undefined),
-      recordAssetChange: vi.fn(async () => undefined),
+      recordScriptChange: changes.recordScriptChange,
+      recordAssetChange: changes.recordAssetChange,
     },
   },
 }));
@@ -147,4 +152,44 @@ describe("FileList new-file draft row", () => {
       files: [{ uri: "file://p/scripts/intro.sd", data: expect.any(ArrayBuffer) }],
     });
   });
+
+  it.each([
+    ["scripts", "luau", "util", true],
+    ["scripts", "sd", "intro", true],
+    ["assets", "png", "hero", false],
+  ])(
+    "records a %s .%s draft's creation as a script change: %s",
+    async (rootDir, ext, name, isScript) => {
+      changes.recordScriptChange.mockClear();
+      changes.recordAssetChange.mockClear();
+      const host = await mountWithDraft(rootDir, ext);
+      const input = host.querySelector<HTMLInputElement>("[data-tree-row] input")!;
+
+      await act(async () => {
+        input.value = name;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await act(async () => {
+        input.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+        );
+      });
+      await settle();
+
+      expect(fs.createFiles).toHaveBeenCalledWith({
+        files: [
+          {
+            uri: `file://p/${rootDir}/${name}.${ext}`,
+            data: expect.any(ArrayBuffer),
+          },
+        ],
+      });
+      expect(changes.recordScriptChange).toHaveBeenCalledTimes(
+        isScript ? 1 : 0,
+      );
+      expect(changes.recordAssetChange).toHaveBeenCalledTimes(
+        isScript ? 0 : 1,
+      );
+    },
+  );
 });
