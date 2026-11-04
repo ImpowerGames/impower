@@ -57,8 +57,13 @@ interface RootDeclaration {
   at: number;
   parameter?: boolean;
   visibleFrom: number;
-  visibleTo: number;
+  hidden: readonly Range[];
   flow: number;
+}
+
+interface Range {
+  from: number;
+  to: number;
 }
 
 interface Flow {
@@ -88,7 +93,7 @@ export class RootLocals {
           this.add(read(param.from, param.to).trim(), {
             at: param.from,
             visibleFrom: param.to,
-            visibleTo: Number.POSITIVE_INFINITY,
+            hidden: [],
             flow: this.flows.length - 1,
             parameter: true,
           });
@@ -97,7 +102,7 @@ export class RootLocals {
         const flow = open.pop();
         if (flow !== undefined) this.flows[flow]!.to = node.to;
       } else {
-        this.collect(node, open[open.length - 1] ?? -1, Number.POSITIVE_INFINITY, read);
+        this.collect(node, open[open.length - 1] ?? -1, [], read);
       }
     }
   }
@@ -115,7 +120,7 @@ export class RootLocals {
       const declaration = list[i]!;
       if (
         declaration.visibleFrom <= at &&
-        at <= declaration.visibleTo &&
+        !declaration.hidden.some(({ from, to }) => from < at && at <= to) &&
         (declaration.flow < 0 || around.has(declaration.flow))
       ) {
         return ordinal(list, i);
@@ -191,18 +196,18 @@ export class RootLocals {
   protected collect(
     node: SyntaxNode,
     flow: number,
-    visibleTo: number,
+    hidden: readonly Range[],
     read: (from: number, to: number) => string,
   ): void {
     if (EXPLICIT.has(node.name)) {
       const content = childEndingWith(node, "_content");
       for (const statement of content ? statementsOf(content) : []) {
-        this.collect(statement, flow, visibleTo, read);
+        this.collect(statement, flow, hidden, read);
       }
       return;
     }
     if (CHOOSE_BLOCKS.has(node.name) || THEN_CLAUSES.has(node.name)) {
-      this.collectBodies(node, flow, read);
+      this.collectBodies(node, flow, hidden, read);
       return;
     }
     if (BLOCKS.has(node.name)) {
@@ -216,7 +221,7 @@ export class RootLocals {
         this.add(read(nameNode.from, nameNode.to).trim(), {
           at: nameNode.from,
           visibleFrom: node.to,
-          visibleTo,
+          hidden,
           flow,
         });
       }
@@ -228,7 +233,7 @@ export class RootLocals {
       this.add(read(nameNode.from, nameNode.to).trim(), {
         at: nameNode.from,
         visibleFrom: node.to,
-        visibleTo,
+        hidden,
         flow,
       });
     }
@@ -284,6 +289,7 @@ export class RootLocals {
   protected collectBodies(
     node: SyntaxNode,
     flow: number,
+    hidden: readonly Range[],
     read: (from: number, to: number) => string,
   ): void {
     const content = childEndingWith(node, "_content");
@@ -294,14 +300,14 @@ export class RootLocals {
         inChoice = true;
         continue;
       }
-      let visibleTo = content.to;
+      let childHidden = hidden;
       for (let next = inChoice ? child.nextSibling : null; next; next = next.nextSibling) {
         if (CHOICES.has(next.name)) {
-          visibleTo = next.from;
+          childHidden = [...hidden, { from: next.from, to: content.to }];
           break;
         }
       }
-      this.collect(child, flow, visibleTo, read);
+      this.collect(child, flow, childHidden, read);
     }
   }
 }

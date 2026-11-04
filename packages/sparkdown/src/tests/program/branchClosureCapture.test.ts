@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { ProgramStory } from "../../program/ProgramStory";
 import type { ProgramRoot } from "../../program/ProgramRoot";
-import { compileScript, errorsOf, storyBeats } from "./programHarness";
+import { compileScript, errorsOf, programSession, storyBeats, storyRun } from "./programHarness";
 
 const quiet = <T>(run: () => T): T => {
   const { warn, error } = console;
@@ -25,6 +25,13 @@ const run = (lines: string[]) => {
   const { beats, errors } = quiet(() => storyBeats(new ProgramStory(rootOf(lines))));
   return { texts: beats.map((b) => b.text.trim()), errors };
 };
+
+const runPicking = (picks: number[], lines: string[]) => {
+  const { beats, errors } = quiet(() => storyRun(new ProgramStory(rootOf(lines)), picks));
+  return { texts: beats.map((b) => b.text.trim()), errors };
+};
+
+const mathTable = "{ abs = function() return 5 end }";
 
 const got = (...texts: string[]) => ({ texts, errors: [] });
 
@@ -225,6 +232,62 @@ describe("a closure written in a branch its own scene enters", () => {
     ).toEqual(got("Got 12."));
   });
 
+  test("reads the scene's local declared in a choose block's then clause", () => {
+    expect(
+      runPicking([0], [
+        "scene start",
+        "  choose",
+        "    + [Go]",
+        "      Went.",
+        "  then",
+        "    local foo = 6",
+        "  end",
+        "  -> b",
+        "  branch b",
+        "    local f = function() return foo end",
+        "    Got {foo} {f()}.",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("Went.", "Got 6 6."));
+  });
+
+  test("reads the scene's local declared in the body of the choice taken", () => {
+    expect(
+      runPicking([0], [
+        "scene start",
+        "  choose",
+        "    + [Go]",
+        "      local foo = 7",
+        "  end",
+        "  -> b",
+        "  branch b",
+        "    local f = function() return foo end",
+        "    Got {foo} {f()}.",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("Got 7 7."));
+  });
+
+  test("inside a block, calls the scene's local named like a stdlib namespace", () => {
+    expect(
+      run([
+        "scene start",
+        `  local math = ${mathTable}`,
+        "  -> b",
+        "  branch b",
+        "    Direct {math.abs(-1)}.",
+        "    if true then",
+        "      local f = function() return math.abs(-1) end",
+        "      Got {f()}.",
+        "    end",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("Direct 5.", "Got 5."));
+  });
+
   test("reads nil for a sibling branch's local", () => {
     expect(
       run([
@@ -241,6 +304,122 @@ describe("a closure written in a branch its own scene enters", () => {
         "end",
       ]),
     ).toEqual(got("Got nil."));
+  });
+});
+
+describe("a scene's own lines", () => {
+  test("a closure after a choose block reads the local its then clause declared", () => {
+    expect(
+      runPicking([0], [
+        "scene start",
+        "  choose",
+        "    + [Go]",
+        "      Went.",
+        "  then",
+        "    local foo = 6",
+        "  end",
+        "  local f = function() return foo end",
+        "  Got {foo} {f()}.",
+        "end",
+      ]),
+    ).toEqual(got("Went.", "Got 6 6."));
+  });
+
+  test("a closure in a later choice calls the stdlib namespace an earlier choice's local names", () => {
+    expect(
+      runPicking([1], [
+        "scene start",
+        "  choose",
+        "    + [A]",
+        `      local math = ${mathTable}`,
+        "      A.",
+        "    + [B]",
+        "      local f = function() return math.abs(-1) end",
+        "      Got {f()}.",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("Got 1."));
+  });
+
+  test("a closure inside a block calls the scene's local named like a stdlib namespace", () => {
+    expect(
+      run([
+        "scene start",
+        `  local math = ${mathTable}`,
+        "  if true then",
+        "    local f = function() return math.abs(-1) end",
+        "    Got {f()}.",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("Got 5."));
+  });
+
+  test("a block calls its own local named like a stdlib namespace, directly and through a closure", () => {
+    expect(
+      run([
+        "scene start",
+        "  if true then",
+        `    local math = ${mathTable}`,
+        "    local f = function() return math.abs(-1) end",
+        "    Got {math.abs(-1)} {f()}.",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("Got 5 5."));
+  });
+});
+
+describe("a closure in a branch after an edit to its scene's locals", () => {
+  const texts = (root: ProgramRoot, picks: number[] = []) =>
+    quiet(() => storyRun(new ProgramStory(root), picks)).beats.map((b) => b.text.trim());
+
+  test("reads a then clause's local the edit adds, and nil once it is removed", () => {
+    const session = programSession(
+      [
+        "scene start",
+        "  Before.",
+        "  choose",
+        "    + [Go]",
+        "      Went.",
+        "  then",
+        "    & local other = 1",
+        "  end",
+        "  -> b",
+        "  branch b",
+        "    local f = function() return tostring(foo) end",
+        "    Got {f()}.",
+        "  end",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    session.edit("Before.", "Before two.");
+    expect(texts(session.edit("& local other = 1", "local foo = 6"), [0])).toEqual(["Before two.", "Went.", "Got 6."]);
+    expect(texts(session.edit("local foo = 6", "& local other = 1"), [0])).toEqual(["Before two.", "Went.", "Got nil."]);
+  });
+
+  test("inside a block, calls a stdlib-named local the edit adds, and the builtin once it is removed", () => {
+    const session = programSession(
+      [
+        "scene start",
+        "  Before.",
+        "  & local other = 1",
+        "  -> b",
+        "  branch b",
+        "    if true then",
+        "      local f = function() return math.abs(-1) end",
+        "      Got {f()}.",
+        "    end",
+        "  end",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    session.edit("Before.", "Before two.");
+    expect(texts(session.edit("& local other = 1", `local math = ${mathTable}`))).toEqual(["Before two.", "Got 5."]);
+    expect(texts(session.edit(`local math = ${mathTable}`, "& local other = 1"))).toEqual(["Before two.", "Got 1."]);
   });
 });
 

@@ -28,6 +28,19 @@ export function answersDeclaration(answer: string): boolean {
   return answer !== "" && answer !== ROOT_NONE && answer !== ROOT_IN_BLOCK;
 }
 
+export function rootLocalBinds(
+  name: string,
+  at: number,
+  ctx: LowerContext,
+  answer: string = rootLocalAnswer(name, at, ctx),
+): boolean {
+  if (answer !== ROOT_IN_BLOCK) return answersDeclaration(answer);
+  return (
+    (ctx.rootLocals?.blockLocal(name, at) ?? false) ||
+    answersDeclaration(rootLocalAnswerIgnoringBlocks(name, at, ctx))
+  );
+}
+
 export function rootSlotName(name: string, answer: string, ctx: LowerContext): string | null {
   if (!answersDeclaration(answer) || answer === ROOT_ONLY) return null;
   return `${name}$${answer}$${documentTag(ctx.filePath)}`;
