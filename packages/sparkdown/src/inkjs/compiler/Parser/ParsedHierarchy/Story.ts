@@ -877,6 +877,14 @@ export class Story extends FlowBase {
             endCharacterNumber: debugMetadata.endCharacterNumber,
           }
         : null;
+      if (!metadata) {
+        console.warn(
+          "PROBE-1820",
+          JSON.stringify(message),
+          source?.constructor?.name ?? String(source),
+          raiser?.constructor?.name ?? String(raiser),
+        );
+      }
       this._errorHandler(message, errorType, metadata);
     } else {
       let sb = "";
