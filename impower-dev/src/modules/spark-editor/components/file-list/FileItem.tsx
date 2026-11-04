@@ -558,6 +558,12 @@ function FileItem({
                         setRenaming(false);
                       }
                     }}
+                    onKeyUp={(e) => {
+                      if (e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }
+                    }}
                     onClick={(e) => e.stopPropagation()}
                     class="w-full min-w-0 border-0 bg-transparent p-0 text-base font-semibold text-foreground outline-none [grid-area:1/1]"
                   />
