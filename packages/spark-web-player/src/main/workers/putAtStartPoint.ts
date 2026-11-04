@@ -16,7 +16,7 @@ export interface StartableGame {
   readonly program: IdentifiableProgram;
   readonly startAddress: ProgramAddress | null | undefined;
   simulateFlow: string | null | undefined;
-  routeStartOf(address: ProgramAddress): string;
+  jumpStartOf(address: ProgramAddress): string;
   simulation: string | undefined;
   simulationFailure: SimulationFailure | undefined;
   readonly routeErrors: SimulationError[];
@@ -54,7 +54,7 @@ export function putAtStartPoint(
         raised = game.routeErrors;
       }
     } else {
-      game.simulateFlow = game.routeStartOf(startAddress);
+      game.simulateFlow = game.jumpStartOf(startAddress);
       game.simulation = "fail";
       game.simulationFailure = failure;
       raised = errors ?? [];
