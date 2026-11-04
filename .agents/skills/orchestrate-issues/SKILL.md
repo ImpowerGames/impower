@@ -56,7 +56,7 @@ A writer is replaced only after it is observed to have ended; `release --observa
 
 For `adopt-pr` and `adopt-worktree`, record the existing writer with `adopt`, and continue its work only as plan actions describes.
 
-At every check-in, on the first wake after you restart, and before acting on any writer's report or request, run the wake routine in [writer reports](references/writer-reports.md). It triages each ticket filed during the run as you learn of it. A writer's checkpoint report is decided as [review checkpoints](references/review-checkpoints.md) describes, never by its round count alone; an acceptance of verified final corrections may be decided after any completed round, and every other decision waits for round 3's. Writers keep their own review jobs, round counts, freezes and the machine-wide reviewer and test reservations.
+At every check-in, on the first wake after you restart, and before acting on any writer's report or request, run the wake routine in [writer reports](references/writer-reports.md). It triages each ticket filed during the run as you learn of it. A writer's checkpoint report is decided as [review checkpoints](references/review-checkpoints.md) describes; only an acceptance may precede round 3. Writers keep their review jobs, round counts, freezes and reviewer and test reservations.
 
 ## 6. Cleanup and disk recovery
 
