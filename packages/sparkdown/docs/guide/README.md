@@ -19,6 +19,7 @@ Read in order:
 13. **[Joining Lines](./JoiningLines.md)** — `..` at the end and start of a line, and beside a `>` break.
 14. **[Video](./Video.md)** — movies on a layer, full-screen cutscenes, their sound, and video formats.
 15. **[Previewing a Line](./PreviewingALine.md)** — the route the Game Preview takes to your line: the route button, the route list and the four kinds of decision.
+16. **[Portrait Morphs](./PortraitMorphs.md)** — portraits that move between their drawn states, such as a blink: preparing the layers, keyframes, clips, timing and the `Animate portraits` button.
 
 > Syntax at a glance: an element is `element[.class …] [ "content" ] [ #prop=value ] [ @event=handler ] [ { children } ]`; each class takes a **`.`**; inline props take a **`#`**; an element's children, a style's nested rules and an animation's keyframes go in **`{ … }`** blocks, whose entries are separated by a new line or **`;`**; declarations are `keyword name { … }`, and a `define` is `define name with … end`; control flow uses `then` / `do` / `end`.
 
