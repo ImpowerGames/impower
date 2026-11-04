@@ -524,7 +524,17 @@ export function ownerStatus(owner, observations = {}, { host = os.hostname(), id
       return { status: "unknown", reason: `process ${handle.pid} runs on ${handle.host}; this host cannot observe it` };
     }
     let now = null;
-    if (handle.pid != null) { try { now = identify(handle.pid); } catch (error) { return { status: "unknown", reason: `process ${handle.pid} could not be probed: ${error.message}` }; } }
+    let observedExit = false;
+    if (handle.pid != null) {
+      try {
+        now = identify(handle.pid);
+      } catch (error) {
+        const seen = observations.processes?.[handle.pid];
+        observedExit = typeof handle.start === "string" && Boolean(handle.start.trim())
+          && seen?.host === handle.host && seen.start === handle.start && seen.state === "exited";
+        if (!observedExit) return { status: "unknown", reason: `process ${handle.pid} could not be probed: ${error.message}` };
+      }
+    }
     if (now && !handle.start) return { status: "unknown", reason: `process ${handle.pid} has no recorded start identity` };
     if (now && now.start === handle.start) return { status: "live", reason: `process ${handle.pid} started ${handle.start} is running` };
     if (handle.launchDir) {
@@ -534,7 +544,8 @@ export function ownerStatus(owner, observations = {}, { host = os.hostname(), id
       const users = usersOf(handle.launchDir, list, process.pid);
       if (users.length) return { status: "live", reason: `process ${users.map((p) => p.pid).join(", ")} still names launch directory ${handle.launchDir}` };
     }
-    return { status: "exited", reason: `process ${handle.pid} ${now ? "now belongs to another process" : "is gone"}${handle.launchDir ? " and no process names its launch directory" : ""}` };
+    const disposition = observedExit ? "was observed to exit" : now ? "now belongs to another process" : "is gone";
+    return { status: "exited", reason: `process ${handle.pid} ${disposition}${handle.launchDir ? " and no process names its launch directory" : ""}` };
   }
   const seen = (handle.kind === "session" ? observations.sessions : observations.tasks)?.[handle.id];
   if (!seen) return { status: "unknown", reason: `no observation of ${handle.kind} ${handle.id}; read its state before deciding` };
