@@ -456,6 +456,7 @@ try {
   const diskFull = plan({ freeBytes: 13 * GB });
   assert.deepEqual([diskFull.concurrency.capacityNow, all.map((n) => actions(diskFull)[n])], [0, ["wait-capacity", "wait-capacity", "wait-capacity", "wait-capacity"]], "no free place admits no ready ticket");
   assert.match(diskFull.tickets.find((t) => t.number === 101).reason, /free disk does not admit another writer/);
+  assert.throws(() => run.claim(structuredClone(run.readRecord(record)), { plan: write("plan-disk.json", diskFull), ticket: 101, worktree: path.join(tmp, "wt-101"), branch: "fix/101-thing", artifactParent: artifacts }), /admits no new writer: 2 writer places are held against a limit of 3, and free disk does not admit another writer/, "under its limit, the refusal names what else holds the room");
 
   const blocked = plan({ preflights: [available("claude-cli", "claude-sonnet-5-5", all), available("claude-desktop", "claude-opus-5-5", all), { route: "claude-cli", model: "claude-opus-5-5", verdicts: [{ ticket: 101, effort: "medium", verdict: "blocked", reason: "the Claude CLI probe exited 1: not signed in" }] }] }).tickets.find((t) => t.number === 101);
   assert.equal(blocked.action, "blocked-route");
