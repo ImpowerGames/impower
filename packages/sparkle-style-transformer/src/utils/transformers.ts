@@ -39,24 +39,28 @@ export function validateCss(value: string | null | undefined): boolean {
   return SAFE_CSS_VALUE_RE.test(v);
 }
 
-const GRADIENT_FUNCTION = /^(?:repeating-)?(?:linear|radial|conic)-gradient$/i;
+const GRADIENT_FUNCTION = /^(?:repeating-)?(linear|radial|conic)-gradient$/i;
 
 const COLOR_FUNCTION = /^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)$/i;
 
 const COLOR_ARGUMENT_FUNCTION = /^(?:drop-shadow|light-dark)$/i;
 
-const GRADIENT_SETUP_WORDS = new Set([
-  "to",
-  "in",
-  "from",
-  "at",
-  "circle",
-  "ellipse",
-  "closest-side",
-  "closest-corner",
-  "farthest-side",
-  "farthest-corner",
-]);
+const GRADIENT_SETUP_WORDS: Record<string, ReadonlySet<string>> = {
+  linear: new Set(["to", "in"]),
+  radial: new Set([
+    "in",
+    "at",
+    "circle",
+    "ellipse",
+    "closest-side",
+    "closest-corner",
+    "farthest-side",
+    "farthest-corner",
+  ]),
+  conic: new Set(["in", "from", "at"]),
+};
+
+type ArgumentKind = "setup" | "colors" | "unknown";
 
 const isNumeric = (node: ComponentValue | undefined): boolean =>
   isTokenType(node, TokenType.Number) ||
@@ -66,19 +70,30 @@ const isNumeric = (node: ComponentValue | undefined): boolean =>
 const MATH_FUNCTION =
   /^(?:calc|min|max|clamp|round|mod|rem|abs|sign|sin|cos|tan|asin|acos|atan|atan2|pow|sqrt|hypot|log|exp)$/i;
 
-const isSetupArgument = (argument: ComponentValue[]): boolean => {
+const classifyGradientFirstArgument = (
+  kind: string,
+  argument: ComponentValue[],
+): ArgumentKind => {
   const values = significant(argument);
   const first = values[0];
   if (isNumeric(first)) {
-    return true;
+    return "setup";
   }
   if (isFunctionNode(first) && MATH_FUNCTION.test(first.getName())) {
-    return true;
+    return "setup";
   }
-  return values.some((value) => {
+  const words = GRADIENT_SETUP_WORDS[kind];
+  const hasSetupWord = values.some((value) => {
     const word = identName(value)?.toLowerCase();
-    return word !== undefined && GRADIENT_SETUP_WORDS.has(word);
+    return word !== undefined && !!words?.has(word);
   });
+  if (hasSetupWord) {
+    return "setup";
+  }
+  if (isFunctionNode(first) && first.getName().toLowerCase() === "var") {
+    return "unknown";
+  }
+  return "colors";
 };
 
 const resolveColorWords = (
@@ -155,12 +170,20 @@ const resolveFunction = (
     }
     return;
   }
-  if (GRADIENT_FUNCTION.test(name) || name.toLowerCase() === "color-mix") {
+  const gradientKind = name.match(GRADIENT_FUNCTION)?.[1]?.toLowerCase();
+  const colorMix = name.toLowerCase() === "color-mix";
+  if (gradientKind || colorMix) {
     splitAt(fn.value, TokenType.Comma).forEach((argument, index) => {
-      if (index === 0 && isSetupArgument(argument)) {
-        resolveNestedFunctions(css, argument, theme, edits);
-      } else {
+      const kind: ArgumentKind =
+        index > 0
+          ? "colors"
+          : colorMix
+            ? "setup"
+            : classifyGradientFirstArgument(gradientKind!, argument);
+      if (kind === "colors") {
         resolveColorWords(css, argument, theme, edits);
+      } else {
+        resolveNestedFunctions(css, argument, theme, edits);
       }
     });
     return;
@@ -268,23 +291,8 @@ export const getCssBorderStyle = (value: string): string => {
   return value;
 };
 
-export const getCssColor = (value: string, theme: ThemeVariables): string => {
-  if (value === "current") {
-    return "currentColor";
-  }
-  if (!value || value.startsWith("#")) {
-    return value;
-  }
-  if (value.includes("(")) {
-    return transformColors(value, theme, true);
-  }
-  if (value.includes("/")) {
-    const [color = "", alpha] = value.split("/");
-    const origin = getThemeVar(theme, "color", color) ?? color;
-    return `rgb(from ${origin} r g b / ${alpha})`;
-  }
-  return getThemeVar(theme, "color", value) ?? value;
-};
+export const getCssColor = (value: string, theme: ThemeVariables): string =>
+  value ? transformColors(value, theme, true) : value;
 
 export const getCssChildColumns = (columns: string): string => {
   if (isValidNumber(columns)) {

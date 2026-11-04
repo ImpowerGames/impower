@@ -416,6 +416,7 @@ describe("the CSS grammar decides which words are theme colours", () => {
       "x",
       "at",
       "center",
+      "circle",
     ].map((name) => `--theme-color-${name}`),
   );
 
@@ -450,6 +451,31 @@ describe("the CSS grammar decides which words are theme colours", () => {
       "blur(calc(var(--factor, infinity) * 1px))",
       "blur(calc(var(--factor, infinity) * 1px))",
     ],
+    [
+      "background-image",
+      "linear-gradient(var(--direction, to left), red, blue)",
+      "linear-gradient(var(--direction, to left), red, blue)",
+    ],
+    [
+      "background-image",
+      "linear-gradient(circle, red)",
+      "linear-gradient(var(--theme-color-circle), red)",
+    ],
+    [
+      "background-image",
+      "radial-gradient(circle, sky_60)",
+      "radial-gradient(circle, var(--theme-color-sky_60))",
+    ],
+    [
+      "background-image",
+      "conic-gradient(from 90deg, sky_60, circle)",
+      "conic-gradient(from 90deg, var(--theme-color-sky_60), var(--theme-color-circle))",
+    ],
+    ["color", "rebeccapurple/**/", "rebeccapurple/**/"],
+    ["color", "\\73 ky_60", "var(--theme-color-sky_60)"],
+    ["color", "sky_60/50", "rgb(from var(--theme-color-sky_60) r g b / 50)"],
+    ["color", "#ff0000", "#ff0000"],
+    ["color", "current", "currentColor"],
     ["filter", "var(--f, x)", "var(--f, x)"],
     ["background-image", "var(--img, sky_60)", "var(--img, sky_60)"],
     [
