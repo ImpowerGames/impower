@@ -1,4 +1,4 @@
-import { h, hydrate } from "preact";
+import { h, render } from "preact";
 import SparkEditorComponent from "./main/SparkEditor";
 import editorIcons from "./styles/icons/icons.css?raw";
 import editorTheme from "./styles/theme/theme.css?raw";
@@ -15,7 +15,7 @@ export default abstract class SparkEditor {
     document.adoptedStyleSheets = [...document.adoptedStyleSheets, ...sheets];
     const root = document.getElementById("root");
     if (root) {
-      hydrate(h(SparkEditorComponent, null), root);
+      render(h(SparkEditorComponent, null), root);
     }
   }
 }

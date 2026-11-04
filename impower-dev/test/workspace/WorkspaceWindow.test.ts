@@ -106,7 +106,9 @@ import { Workspace } from "../../src/modules/spark-editor/workspace/Workspace";
 import { createPlayerPreferenceSync } from "../../src/modules/spark-editor/components/preview-game/playerPreferences";
 import PreviewGameToolbar from "../../src/modules/spark-editor/components/preview-game-toolbar/PreviewGameToolbar";
 import { WorkspaceConstants } from "../../src/modules/spark-editor/workspace/WorkspaceConstants";
-import workspace from "../../src/modules/spark-editor/workspace/WorkspaceStore";
+import workspace, {
+  savedWorkspaceState,
+} from "../../src/modules/spark-editor/workspace/WorkspaceStore";
 import WorkspaceWindow from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
 
 describe("WorkspaceWindow store transitions", () => {
@@ -714,10 +716,7 @@ describe("Route pins", () => {
     await new Promise((resolve) => setTimeout(resolve, 400));
     win.dispose();
     windows = [];
-    workspace.current = {
-      ...workspace.current,
-      debug: { ...workspace.current.debug, routePins: {} },
-    };
+    workspace.current = savedWorkspaceState();
     const reloaded = load();
     expect(reloaded.getRoutePins()).toEqual([{ uri: MAIN, line: 7, offer: 1 }]);
     expect(reloaded.getActiveEditorForFile("main.sd")?.routePins).toEqual([
@@ -802,10 +801,10 @@ describe("Starting values", () => {
     localStorage.setItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY, "a");
     load().changeStartingValues("s", { "store:trust": "2" });
     await new Promise((resolve) => setTimeout(resolve, 400));
-    freshPage();
+    workspace.current = savedWorkspaceState();
     expect(load().startingValues).toEqual({ s: { "store:trust": "2" } });
     localStorage.setItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY, "b");
-    freshPage();
+    workspace.current = savedWorkspaceState();
     expect(load().startingValues).toEqual({});
   });
 
