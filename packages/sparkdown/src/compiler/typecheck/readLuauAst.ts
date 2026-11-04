@@ -93,6 +93,7 @@ import { breaksAcrossLine, breaksStatement, COMMENT, endsStatementBefore, FLOW_H
 import type { HotComment } from "./Module";
 import { RUN_WRAPPER_SUFFIX } from "../utils/runWrapper";
 import { scopeOf } from "../utils/declarationOnly";
+import { RootLocals } from "../utils/rootLocals";
 import { containsUnreadToken, UNREAD_TOKENS } from "../utils/unreadTokens";
 
 export interface LuauSyntaxError {
@@ -4002,6 +4003,7 @@ export function readLuauUnits(tree: Tree, documentText: string, options: ReadOpt
   const preludeNodes: SyntaxNode[] = [];
   const flows: Flow[] = [];
   const open: Flow[] = [];
+  let roots: RootLocals | undefined;
   for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
     if (FLOW_HEADERS.has(node.name)) {
       const enclosing = open[open.length - 1];
@@ -4010,9 +4012,8 @@ export function readLuauUnits(tree: Tree, documentText: string, options: ReadOpt
         const parameters = readParameters(node);
         const own = scene.variadic ? scene.varargs[0] : undefined;
         const branchVararg = parameters?.vararg;
-        const sceneLocals = scene.sceneHeader
-          ? []
-          : [...new Set(scene.body.flatMap((part) => ("node" in part ? localNamesOf(part.node, documentText, index) : [])))];
+        roots ??= new RootLocals(tree.topNode, (from, to) => documentText.slice(from, to));
+        const sceneLocals = scene.sceneHeader ? [] : roots.flowLocals(scene.header.from);
         const flow: Flow = {
           header: node,
           sceneHeader: scene.sceneHeader ?? scene.header,
@@ -4223,28 +4224,6 @@ function readFlow(flow: Flow, tree: Tree, documentText: string, index: LineIndex
   const unit = readUnit("flow", tokenizer, nodes, 2, start, options);
   unit.header = ref(flow.header);
   return unit;
-}
-
-function localNamesOf(node: SyntaxNode, documentText: string, index: LineIndex): string[] {
-  const tokenizer = new Tokenizer(documentText, index);
-  tokenizer.read(node);
-  const tokens = tokenizer.tokens.filter((t) => !t.story && t.kind !== "break" && !(t.kind === "symbol" && t.text === "&"));
-  if (tokens[0]?.kind !== "keyword" || tokens[0].text !== "local") return [];
-  if (tokens[1]?.kind === "keyword" && tokens[1].text === "function") return tokens[2]?.kind === "name" ? [tokens[2].text] : [];
-  const names: string[] = [];
-  let depth = 0;
-  let expectName = true;
-  for (const t of tokens.slice(1)) {
-    if (t.kind === "symbol" && depth === 0 && t.text === "=") break;
-    if (t.kind === "symbol" && "({[<".includes(t.text)) depth++;
-    else if (t.kind === "symbol" && ")}]>".includes(t.text)) depth--;
-    else if (t.kind === "symbol" && depth === 0 && t.text === ",") expectName = true;
-    else if (expectName && depth === 0 && t.kind === "name") {
-      names.push(t.text);
-      expectName = false;
-    }
-  }
-  return names;
 }
 
 function declareSceneLocals(tokenizer: Tokenizer, header: SyntaxNode, names: string[], documentText: string): void {

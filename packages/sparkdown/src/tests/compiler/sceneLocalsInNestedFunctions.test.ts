@@ -54,6 +54,19 @@ describe("a function written in a flow reads the flow's locals declared above it
       "\nscene main(foo)\n  branch b\n    local function g()\n      return foo\n    end\n    & g()\n  end\nend\nscene start\n  -> main(5)\nend\n",
     ],
     ["a branch's own line reading its scene's parameter", "\nscene main(foo)\n  branch b\n    Got {foo}.\n  end\nend\nscene start\n  -> main(5)\nend\n"],
+    ["a branch's own line reading its scene's local", "scene main\n  local foo = 5\n  branch b\n    Got {foo}.\n  end\nend\n"],
+    [
+      "a branch's own line reading its scene's locals declared together, in a choice's `then` body and as a local function",
+      "scene main\n  & local first = 5; local second = 7\n  choose\n    + [Go]\n      Went.\n  then\n    local chosen = 9\n  end\n  local function helper() return first end\n  branch b\n    local result = second\n    Got {first} {result} {chosen} {helper()}.\n  end\nend\n",
+    ],
+    [
+      "a local function in a branch reading its scene's local",
+      "scene main\n  local foo = 5\n  branch b\n    local function g()\n      return foo\n    end\n    & g()\n  end\nend\n",
+    ],
+    [
+      "a function value in a branch reading its scene's local",
+      "scene main\n  local foo = 5\n  branch b\n    local f = function() return foo end\n    & f()\n  end\nend\n",
+    ],
     [
       "a local function of the scene, written after a branch, reading the scene's local",
       "scene main\n  local foo = 5\n  branch b\n    Branch.\n  end\n  local function g()\n    return foo\n  end\n  & g()\nend\n",
@@ -105,24 +118,9 @@ describe("a function written in a flow reads the flow's locals declared above it
       ["6: Unknown global 'foo'; consider assigning to it first"],
     ],
     [
-      "a local function in a branch reading its scene's local",
-      "scene main\n  local foo = 5\n  branch b\n    local function g()\n      return foo\n    end\n    & g()\n  end\nend\n",
-      ["5: Unknown global 'foo'; consider assigning to it first"],
-    ],
-    [
-      "a function value in a branch reading its scene's local",
-      "scene main\n  local foo = 5\n  branch b\n    local f = function() return foo end\n    & f()\n  end\nend\n",
-      ["4: Unknown global 'foo'; consider assigning to it first"],
-    ],
-    [
       "a local function of the scene, written after a branch, reading the branch's local",
       "scene main\n  branch b\n    local foo = 5\n  end\n  local function g()\n    return foo\n  end\n  & g()\nend\n",
       ["6: Unknown global 'foo'; consider assigning to it first"],
-    ],
-    [
-      "a branch's own line reading its scene's local",
-      "scene main\n  local foo = 5\n  branch b\n    Got {foo}.\n  end\nend\n",
-      ["4: Cannot find variable named `foo`"],
     ],
     [
       "a define's method reading a scene local named like a library",
