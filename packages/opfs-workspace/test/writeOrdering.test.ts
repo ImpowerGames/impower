@@ -351,6 +351,52 @@ describe("notifications from another tab (I-1893)", () => {
     expect(textAt(root, "a.sd")).toBe("STORED!");
   });
 
+  it("does not bring back a file deleted before this tab listed storage when an older snapshot of it arrives late", async () => {
+    const root = seed({ "b.sd": "B" });
+    const tab = otherTab(root);
+    const older = await tab.write("a.sd", "OLDER");
+    await tab.remove("a.sd");
+    const h = await worker(root);
+    await h.enumerate();
+    const before = h.messages.length;
+    await h.remote("workspace/didWriteFiles", {
+      files: [fileData("a.sd", "OLDER")],
+      commits: { [uriOf("a.sd")]: older },
+    });
+    expect(h.writtenTexts("a.sd", before)).toEqual([]);
+    expect(await h.cached("a.sd")).toBeUndefined();
+    expect(
+      await h.request("edit", "workspace/applyWorkspaceEdit", {
+        edit: { documentChanges: [insert("a.sd", 5, "!")] },
+      }),
+    ).toMatchObject({ result: { applied: false } });
+    expect(textAt(root, "a.sd")).toBeUndefined();
+  });
+
+  it("checks an unstamped notification against storage when the shared sequence cannot be written", async () => {
+    const root = seed({ "a.sd": "A" });
+    const sequence = new MemoryFile(".opfs-workspace-sequence");
+    sequence.createSyncAccessHandle = async () => {
+      throw new DOMException("sequence storage unavailable", "QuotaExceededError");
+    };
+    root.entries.set(sequence.name, sequence);
+    const h = await worker(root);
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    await h.enumerate();
+    writeMemoryFile(root, "local/a.sd", enc.encode("OLDER"));
+    await h.request("newer", "workspace/willWriteFiles", writeOf("a.sd", "NEWER"));
+    const local = h.notifications("workspace/didWriteFiles").at(-1);
+    expect(local.params.commits).toEqual({});
+    const before = h.messages.length;
+    await h.remote("workspace/didWriteFiles", {
+      files: [fileData("a.sd", "OLDER")],
+    });
+    expect(h.writtenTexts("a.sd", before)).toEqual(["NEWER"]);
+    expect((await h.cached("a.sd")).text).toBe("NEWER");
+    await h.remote("workspace/didDeleteFiles", { files: [{ uri: uriOf("a.sd") }] });
+    expect((await h.cached("a.sd")).text).toBe("NEWER");
+  });
+
   it("computes a later edit against the text another tab committed", async () => {
     const root = seed({ "a.sd": "A" });
     const h = await worker(root);
@@ -547,6 +593,59 @@ describe("renaming files (I-1910)", () => {
     ).toHaveProperty("error");
     expect([...fileAt(root, "x.txt")!.bytes]).toEqual([1]);
     expect([...fileAt(root, "y.txt")!.bytes]).toEqual([2]);
+  });
+
+  it("keeps a save that lands on the source while the rename is writing its destination", async () => {
+    const root = seed({ "a.sd": "OLD", "b.sd": "DEST" });
+    const h = await worker(root);
+    await h.enumerate();
+    let release!: () => void;
+    fileAt(root, "b.sd")!.gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    h.start("rename", "workspace/willRenameFiles", {
+      files: [{ oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") }],
+    });
+    await vi.advanceTimersByTimeAsync(250);
+    expect(h.response("rename")).toBeUndefined();
+    expect(
+      await h.request("save", "workspace/willWriteFiles", writeOf("a.sd", "SAVED", "editor")),
+    ).toMatchObject({ result: [{ text: "SAVED" }] });
+    fileAt(root, "b.sd")!.gate = undefined;
+    release();
+    await vi.advanceTimersByTimeAsync(250);
+    expect(h.response("rename")).toHaveProperty("result");
+    expect(textAt(root, "a.sd")).toBeUndefined();
+    expect(textAt(root, "b.sd")).toBe("SAVED");
+  });
+
+  it("commits a queued save to the source before the rename copies it", async () => {
+    const root = seed({ "a.sd": "OLD" });
+    const h = await worker(root);
+    await h.enumerate();
+    h.start("save", "workspace/willWriteFiles", writeOf("a.sd", "QUEUED", "editor"));
+    await h.request("rename", "workspace/willRenameFiles", {
+      files: [{ oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") }],
+    });
+    expect(h.response("save")).toMatchObject({ result: [{ text: "QUEUED" }] });
+    expect(textAt(root, "a.sd")).toBeUndefined();
+    expect(textAt(root, "b.sd")).toBe("QUEUED");
+  });
+
+  it("commits a queued save to a file before moving it to the trash", async () => {
+    const root = seed({ "a.sd": "OLD" });
+    const h = await worker(root);
+    await h.enumerate();
+    h.start("save", "workspace/willWriteFiles", writeOf("a.sd", "QUEUED", "editor"));
+    expect(
+      await h.request("trash", "workspace/willDeleteFiles", {
+        files: [{ uri: uriOf("a.sd") }],
+        mode: "trash",
+      }),
+    ).toHaveProperty("result");
+    expect(textAt(root, "a.sd")).toBeUndefined();
+    const trashed = listMemory(root, "local").find((p) => /^\.trash\/[^/]+\/a\.sd$/.test(p));
+    expect(trashed && textAt(root, trashed)).toBe("QUEUED");
   });
 
   it("leaves a file renamed onto itself in place and in the cache", async () => {

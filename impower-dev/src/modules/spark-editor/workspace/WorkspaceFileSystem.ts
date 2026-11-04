@@ -130,15 +130,22 @@ export default class WorkspaceFileSystem {
     );
     this._folders = new Set(folders.map((p) => this.getFileUri(projectId, p)));
     this._files ??= {};
+    const changedDuringLoad = this._changedDuringLoad ?? new Set<string>();
+    this._changedDuringLoad = undefined;
     const result: Record<string, FileData> = {};
     files.forEach((file) => {
       this._files ??= {};
-      this._files[file.uri] = { ...file };
+      if (!changedDuringLoad.has(file.uri)) {
+        this._files[file.uri] = { ...file };
+      }
       result[file.uri] = file;
     });
-    if (!files.some((f) => f.name === "main" && f.ext === "sd")) {
+    const mainScriptUri = this.getFileUri(projectId, "main.sd");
+    if (
+      !files.some((f) => f.name === "main" && f.ext === "sd") &&
+      !this._files[mainScriptUri]
+    ) {
       this._files ??= {};
-      const mainScriptUri = this.getFileUri(projectId, "main.sd");
       const text = ["scene start", "  ", "end", ""].join("\n");
       const encoder = new TextEncoder();
       const encodedText = encoder.encode(text);
@@ -182,8 +189,13 @@ export default class WorkspaceFileSystem {
 
   protected async openProjectStore(projectId: string) {
     const directoryUri = this.getDirectoryUri(projectId);
-    const readFiles = () =>
-      this.readDirectoryFiles({ directory: { uri: directoryUri } });
+    const readFiles = async () => {
+      const listed = await this.readDirectoryFiles({
+        directory: { uri: directoryUri },
+      });
+      this._changedDuringLoad = new Set();
+      return listed;
+    };
     const pathsOf = (list: FileData[]) =>
       list.map((f) => this.getRelativePath(projectId, f.uri));
     let files = await readFiles();
@@ -300,6 +312,12 @@ export default class WorkspaceFileSystem {
 
   protected _commits = new Map<string, FileCommit>();
 
+  protected _changedDuringLoad?: Set<string>;
+
+  protected noteChanged(uris: string[]) {
+    uris.forEach((uri) => this._changedDuringLoad?.add(uri));
+  }
+
   protected acceptCommit(uri: string, commits: FileCommits | undefined) {
     const commit = commits?.[uri];
     if (!commit) {
@@ -340,6 +358,7 @@ export default class WorkspaceFileSystem {
         this._files ??= {};
         this._files[file.uri] = { ...file };
       });
+      this.noteChanged(fresh.map((f) => f.uri));
       this.addFolderUris(
         fresh.flatMap((file) => this.parentFolderUris(file.uri)),
       );
@@ -381,6 +400,7 @@ export default class WorkspaceFileSystem {
       fresh.forEach((file) => {
         delete this._files?.[file.uri];
       });
+      this.noteChanged(fresh.map((f) => f.uri));
       const forwarded = withParams(message, { files: fresh });
       this._ls.connection.sendNotification(forwarded.method, forwarded.params);
       sendProtocolMessage(forwarded);
@@ -393,6 +413,7 @@ export default class WorkspaceFileSystem {
       fresh.forEach((file) => {
         delete this._files?.[file.oldUri];
       });
+      this.noteChanged(fresh.map((f) => f.oldUri));
       const forwarded = withParams(message, { files: fresh });
       this._ls.connection.sendNotification(forwarded.method, forwarded.params);
       sendProtocolMessage(forwarded);

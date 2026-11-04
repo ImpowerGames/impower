@@ -6,8 +6,10 @@ const SEQUENCE_LOCK = "opfs-workspace:sequence";
 
 const tails = new Map<string, Promise<void>>();
 
+const sharedLocks = () => globalThis.navigator?.locks;
+
 export const withLock = <T>(name: string, task: () => Promise<T>): Promise<T> => {
-  const locks = globalThis.navigator?.locks;
+  const locks = sharedLocks();
   if (locks) {
     return locks.request(name, task) as Promise<T>;
   }
@@ -30,10 +32,14 @@ const readSequence = async (handle: FileSystemFileHandle) => {
   return Number.isFinite(value) ? value : 0;
 };
 
-export const readCommitSequence = (
+export const readCommitSequence = async (
   root: FileSystemDirectoryHandle,
-): Promise<number | undefined> =>
-  withLock(SEQUENCE_LOCK, async () => {
+): Promise<number | undefined> => {
+  const locks = sharedLocks();
+  if (!locks) {
+    return undefined;
+  }
+  return locks.request(SEQUENCE_LOCK, async () => {
     try {
       return await readSequence(
         await root.getFileHandle(COMMIT_SEQUENCE_FILE, { create: true }),
@@ -42,29 +48,38 @@ export const readCommitSequence = (
       return undefined;
     }
   });
+};
 
-export const allocateCommit = (
+export const allocateCommit = async (
   root: FileSystemDirectoryHandle,
   writer: string,
   floor: number,
-): Promise<FileCommit> =>
-  withLock(SEQUENCE_LOCK, async () => {
-    let sequence = floor + 1;
+): Promise<FileCommit | undefined> => {
+  const locks = sharedLocks();
+  if (!locks) {
+    return undefined;
+  }
+  return locks.request(SEQUENCE_LOCK, async () => {
     try {
       const handle = await root.getFileHandle(COMMIT_SEQUENCE_FILE, {
         create: true,
       });
-      sequence = Math.max(await readSequence(handle), floor) + 1;
+      const sequence = Math.max(await readSequence(handle), floor) + 1;
       const access = await handle.createSyncAccessHandle();
       try {
         access.truncate(0);
-        access.write(new TextEncoder().encode(String(sequence)), { at: 0 });
+        const bytes = new TextEncoder().encode(String(sequence));
+        if (access.write(bytes, { at: 0 }) !== bytes.byteLength) {
+          throw new Error("Short write to the commit sequence");
+        }
         access.flush();
       } finally {
         access.close();
       }
+      return { sequence, writer };
     } catch (err) {
       console.warn("opfs-workspace: shared commit sequence unavailable", err);
+      return undefined;
     }
-    return { sequence, writer };
   });
+};

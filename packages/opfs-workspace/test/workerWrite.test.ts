@@ -9,6 +9,26 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const memoryLocks = () => {
+  const tails = new Map<string, Promise<void>>();
+  return {
+    request: async <T>(name: string, task: () => Promise<T>): Promise<T> => {
+      const previous = tails.get(name) ?? Promise.resolve();
+      let release!: () => void;
+      const done = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      tails.set(name, previous.then(() => done));
+      await previous;
+      try {
+        return await task();
+      } finally {
+        release();
+      }
+    },
+  };
+};
+
 async function worker({ existing = true, fail = "", acquire = async () => {}, remove = async (_name: string) => {}, thumbnail: thumbnailGate = undefined as Promise<void> | undefined } = {}) {
   vi.resetModules();
   vi.useFakeTimers();
@@ -71,7 +91,7 @@ async function worker({ existing = true, fail = "", acquire = async () => {}, re
     },
     removeEntry,
   };
-  vi.stubGlobal("navigator", { storage: { getDirectory: async () => {
+  vi.stubGlobal("navigator", { locks: memoryLocks(), storage: { getDirectory: async () => {
     if (fail === "root") throw new DOMException("denied", "NotAllowedError");
     return directory;
   } } });

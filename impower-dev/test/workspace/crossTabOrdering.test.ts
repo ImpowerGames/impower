@@ -312,6 +312,98 @@ describe("the page's file cache across tabs (I-1893)", () => {
   });
 });
 
+describe("the page's first load (I-1893)", () => {
+  const openWithHeldFolders = async () => {
+    vi.resetModules();
+    const local = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => local.get(key) ?? null,
+      setItem: (key: string, value: string) => void local.set(key, value),
+      removeItem: (key: string) => void local.delete(key),
+    });
+    let worker!: {
+      deliver(data: unknown): void;
+      reply(message: any, result: unknown): void;
+    };
+    let folders: any;
+    let announce!: () => void;
+    const awaitingFolders = new Promise<void>((resolve) => {
+      announce = resolve;
+    });
+    class HeldWorker {
+      listeners: ((event: { data: unknown }) => void)[] = [];
+      constructor() {
+        worker = this;
+      }
+      addEventListener(_type: string, listener: (event: { data: unknown }) => void) {
+        this.listeners.push(listener);
+      }
+      deliver(data: unknown) {
+        this.listeners.forEach((listener) => listener({ data: structuredClone(data) }));
+      }
+      reply(message: any, result: unknown) {
+        this.deliver({ jsonrpc: "2.0", id: message.id, method: message.method, result });
+      }
+      postMessage(message: any) {
+        if (message.method === "workspace/readDirectoryFiles") {
+          queueMicrotask(() =>
+            this.reply(message, [
+              fileData("main.sd", "LISTED"),
+              fileData("gone.sd", "LISTED"),
+              fileData(".layout", "1"),
+              fileData(".folders", "1"),
+            ]),
+          );
+        } else if (message.method === "workspace/directories") {
+          folders = message;
+          announce();
+        } else if (message.method === "workspace/trashFiles") {
+          queueMicrotask(() => this.reply(message, {}));
+        }
+      }
+    }
+    vi.stubGlobal("Worker", HeldWorker);
+    const { default: WorkspaceFileSystem } = await import(
+      "../../src/modules/spark-editor/workspace/WorkspaceFileSystem"
+    );
+    const fs = new WorkspaceFileSystem(
+      { connection: { onRequest() {}, sendNotification() {} }, start: async () => {} } as never,
+      { settings } as never,
+    );
+    await awaitingFolders;
+    const finish = async () => {
+      worker.reply(folders, { uris: [] });
+      return fs.getFiles(PROJECT);
+    };
+    return { worker, finish };
+  };
+
+  it("keeps a newer write and a delete that arrive while the first load is still listing folders", async () => {
+    const { worker, finish } = await openWithHeldFolders();
+    worker.deliver({
+      jsonrpc: "2.0",
+      method: "workspace/didWriteFiles",
+      params: {
+        remote: true,
+        files: [fileData("main.sd", "NEWER")],
+        commits: { [uriOf("main.sd")]: { sequence: 2, writer: "other-tab" } },
+      },
+    });
+    worker.deliver({
+      jsonrpc: "2.0",
+      method: "workspace/didDeleteFiles",
+      params: {
+        remote: true,
+        files: [{ uri: uriOf("gone.sd") }],
+        commits: { [uriOf("gone.sd")]: { sequence: 3, writer: "other-tab" } },
+      },
+    });
+    const files = await finish();
+    expect(files[uriOf("main.sd")]?.text).toBe("NEWER");
+    expect(files[uriOf("gone.sd")]).toBeUndefined();
+  });
+});
+
 describe("folder moves (I-1910)", () => {
   it("loses no file when one file of a folder move cannot be moved", async () => {
     const root = seed(

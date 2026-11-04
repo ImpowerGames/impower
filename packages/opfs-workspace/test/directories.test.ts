@@ -11,11 +11,34 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const memoryLocks = () => {
+  const tails = new Map<string, Promise<void>>();
+  return {
+    request: async <T>(name: string, task: () => Promise<T>): Promise<T> => {
+      const previous = tails.get(name) ?? Promise.resolve();
+      let release!: () => void;
+      const done = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      tails.set(name, previous.then(() => done));
+      await previous;
+      try {
+        return await task();
+      } finally {
+        release();
+      }
+    },
+  };
+};
+
 async function worker() {
   vi.resetModules();
   const root = memoryRoot();
   const messages: any[] = [];
-  vi.stubGlobal("navigator", { storage: { getDirectory: async () => root } });
+  vi.stubGlobal("navigator", {
+    storage: { getDirectory: async () => root },
+    locks: memoryLocks(),
+  });
   vi.stubGlobal("BroadcastChannel", class { onmessage = null; postMessage() {} close() {} });
   vi.stubGlobal("postMessage", (message: any) => messages.push(message));
   vi.stubGlobal("onmessage", null);
