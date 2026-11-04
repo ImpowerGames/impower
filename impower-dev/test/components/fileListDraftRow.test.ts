@@ -9,6 +9,11 @@ const fs = vi.hoisted(() => ({
   createFiles: vi.fn(async () => undefined),
 }));
 
+const changes = vi.hoisted(() => ({
+  recordScriptChange: vi.fn(async () => undefined),
+  recordAssetChange: vi.fn(async () => undefined),
+}));
+
 vi.mock("@impower/impower-ui/components", () => {
   const Pass = ({ children }: { children?: unknown }) =>
     h("div", null, children as never);
@@ -60,8 +65,8 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
     fs,
     window: {
       openFileEditor: vi.fn(),
-      recordScriptChange: vi.fn(async () => undefined),
-      recordAssetChange: vi.fn(async () => undefined),
+      recordScriptChange: changes.recordScriptChange,
+      recordAssetChange: changes.recordAssetChange,
     },
   },
 }));
@@ -71,9 +76,6 @@ const { default: FileList } = await import(
 );
 const { requestNewEntry } = await import(
   "../../src/modules/spark-editor/utils/newEntryDraft"
-);
-const { Workspace } = await import(
-  "../../src/modules/spark-editor/workspace/Workspace"
 );
 
 const settle = async () => {
@@ -158,8 +160,8 @@ describe("FileList new-file draft row", () => {
   ])(
     "records a %s .%s draft's creation as a script change: %s",
     async (rootDir, ext, name, isScript) => {
-      vi.mocked(Workspace.window.recordScriptChange).mockClear();
-      vi.mocked(Workspace.window.recordAssetChange).mockClear();
+      changes.recordScriptChange.mockClear();
+      changes.recordAssetChange.mockClear();
       const host = await mountWithDraft(rootDir, ext);
       const input = host.querySelector<HTMLInputElement>("[data-tree-row] input")!;
 
@@ -182,10 +184,10 @@ describe("FileList new-file draft row", () => {
           },
         ],
       });
-      expect(Workspace.window.recordScriptChange).toHaveBeenCalledTimes(
+      expect(changes.recordScriptChange).toHaveBeenCalledTimes(
         isScript ? 1 : 0,
       );
-      expect(Workspace.window.recordAssetChange).toHaveBeenCalledTimes(
+      expect(changes.recordAssetChange).toHaveBeenCalledTimes(
         isScript ? 0 : 1,
       );
     },
