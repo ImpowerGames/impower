@@ -171,11 +171,18 @@ export default function AssetInspectorPanel({
     let request = 0;
     setDiagnostics(null);
     setDiagnosticsError(false);
+    let disposePublished: (() => void) | undefined;
     const refresh = async () => {
       const current = ++request;
       try {
         const { Workspace } = await import("../../workspace/Workspace");
         const store = (await import("../../workspace/WorkspaceStore")).default;
+        if (alive && !disposePublished) {
+          disposePublished = Workspace.ls.onPublishedDiagnostics(({ uri }) => {
+            const id = store.signals.projectId.value;
+            if (id && uri === Workspace.fs.getFileUri(id, path)) void refresh();
+          });
+        }
         const pid = store.signals.projectId.value;
         const items = pid ? await Workspace.ls.getFileDiagnostics(
           Workspace.fs.getFileUri(pid, path),
@@ -190,7 +197,7 @@ export default function AssetInspectorPanel({
     };
     const dispose = onProtocolMessage(CompiledProgramMessage.type, () => { void refresh(); });
     void refresh();
-    return () => { alive = false; dispose(); };
+    return () => { alive = false; dispose(); disposePublished?.(); };
   }, [path]);
 
   useEffect(() => {
