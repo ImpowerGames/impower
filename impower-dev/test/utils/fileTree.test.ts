@@ -657,6 +657,62 @@ describe("computeLayoutMigration", () => {
     ).toEqual([]);
   });
 
+  const loadTwiceWithPersistentFolders = (initial: string[]) => {
+    let files = [...initial];
+    const folders = new Set<string>();
+    const lost: string[] = [];
+    const remember = () =>
+      files.forEach((p) => {
+        const parts = p.split("/");
+        for (let i = 1; i < parts.length; i++) {
+          folders.add(parts.slice(0, i).join("/"));
+        }
+      });
+    const load = () => {
+      remember();
+      const batches = computeLayoutMigrationBatches(files, subtreeFor);
+      for (const batch of batches) {
+        for (const { from, to } of batch) {
+          if (folders.has(to) || files.includes(to)) lost.push(from);
+        }
+        files = applyMoves(files, batch).filter((p) => !lost.includes(p));
+        remember();
+      }
+      if (!files.includes(LAYOUT_MARKER)) files = [...files, LAYOUT_MARKER];
+      return batches;
+    };
+    load();
+    const second = load();
+    return { files, lost, second };
+  };
+
+  it.each([
+    [["main.sd", "hero.png", "assets/hero.png/intro.sd"]],
+    [["main.sd", "other/main.sd", "other/x", "scripts/other/x/y.png"]],
+    [["main.sd", "other/main.sd", "other/tree.png", "scripts/other/stray.png"]],
+    [["main.sd", "forest.svg", "other/main.sd", "other/assets/forest.svg"]],
+    [["main.sd", "scripts/other/main.sd", "assets/other/assets/forest.svg"]],
+  ])(
+    "never moves a file onto a folder emptied earlier, on this load or the next: %j",
+    (paths) => {
+      const { files, lost, second } = loadTwiceWithPersistentFolders(paths);
+      expect(lost).toEqual([]);
+      expect(files.filter((p) => p !== LAYOUT_MARKER)).toHaveLength(
+        paths.length,
+      );
+      expect(second).toEqual([]);
+    },
+  );
+
+  it("keeps a folder some file is filed onto, so the blocked file stays blocked", () => {
+    expect(
+      computeLayoutMigrationBatches(
+        ["main.sd", "hero.png", "assets/hero.png/intro.sd"],
+        subtreeFor,
+      ),
+    ).toEqual([]);
+  });
+
   it("does not file a root-project script into a sub-project's folder", () => {
     const paths = ["main.sd", LAYOUT_MARKER, "scripts/other/main.sd", "other/x.sd"];
     expect(computeLayoutMigration(paths, subtreeFor)).toEqual([]);

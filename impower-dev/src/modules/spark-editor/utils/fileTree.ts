@@ -401,18 +401,51 @@ export const computeLayoutMigration = (
     files.add(to);
     ancestorsOf(to).forEach((folder) => folders.add(folder));
   };
+  const repair = !relativePaths.includes(LAYOUT_MARKER);
+  const splitRoots = roots
+    .filter((root) => root.startsWith("scripts/") && root !== "scripts/")
+    .map(stripCategoryPrefix);
+  const unitPlans = units.map((unit) => {
+    const target = `scripts/${stripCategoryPrefix(unit)}`;
+    return {
+      unit,
+      target,
+      moves:
+        target === unit
+          ? []
+          : movable
+              .filter((p) => p.startsWith(unit))
+              .map((p) => ({ from: p, to: `${target}${p.slice(unit.length)}` })),
+    };
+  });
+  const rootPlans = movable
+    .filter((p) => !unitOf(p))
+    .map((p) => {
+      const inner = stripCategoryPrefix(p);
+      const repairs =
+        repair &&
+        p.startsWith("assets/") &&
+        splitRoots.some((root) => inner.startsWith(root));
+      const to = repairs ? `scripts/${inner}` : settledTarget(p, subtreeFor);
+      return { from: p, to, repairs };
+    });
+  const heldFolders = [
+    ...unitPlans.flatMap((plan) => plan.moves.map((m) => m.to)),
+    ...rootPlans.map((plan) => plan.to),
+  ].filter((to) => folders.has(to));
+  const isHeld = (path: string) =>
+    heldFolders.some((folder) => path.startsWith(`${folder}/`));
   const moves: { from: string; to: string }[] = [];
   const movedRoots = new Map(roots.map((root) => [root, root]));
-  for (const unit of units) {
-    const target = `scripts/${stripCategoryPrefix(unit)}`;
+  for (const { unit, target, moves: unitMoves } of unitPlans) {
     const targetFolder = target.slice(0, -1);
-    if (target === unit || files.has(targetFolder) || folders.has(targetFolder)) {
-      continue;
-    }
-    const unitMoves = movable
-      .filter((p) => p.startsWith(unit))
-      .map((p) => ({ from: p, to: `${target}${p.slice(unit.length)}` }));
-    if (!unitMoves.every((m) => isFree(m.to))) {
+    if (
+      unitMoves.length === 0 ||
+      files.has(targetFolder) ||
+      folders.has(targetFolder) ||
+      unitMoves.some((m) => isHeld(m.from)) ||
+      !unitMoves.every((m) => isFree(m.to))
+    ) {
       continue;
     }
     unitMoves.forEach((m) => reserve(m.to));
@@ -424,22 +457,11 @@ export const computeLayoutMigration = (
       );
   }
   const finalRoots = [...movedRoots.values()];
-  const repair = !relativePaths.includes(LAYOUT_MARKER);
-  const splitRoots = roots
-    .filter((root) => root.startsWith("scripts/") && root !== "scripts/")
-    .map(stripCategoryPrefix);
-  for (const p of movable) {
-    if (unitOf(p)) continue;
-    const inner = stripCategoryPrefix(p);
-    const repairs =
-      repair &&
-      p.startsWith("assets/") &&
-      splitRoots.some((root) => inner.startsWith(root));
-    const to = repairs ? `scripts/${inner}` : settledTarget(p, subtreeFor);
-    if (to === p || !isFree(to)) continue;
+  for (const { from, to, repairs } of rootPlans) {
+    if (to === from || isHeld(from) || !isFree(to)) continue;
     if (!repairs && projectOf(to, finalRoots) !== "") continue;
     reserve(to);
-    moves.push({ from: p, to });
+    moves.push({ from, to });
   }
   return moves;
 };
