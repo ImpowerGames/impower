@@ -1,5 +1,6 @@
 import { Expression } from "../Expression/Expression";
 import { NumberExpression } from "../Expression/NumberExpression";
+import { ObjectExpression } from "../Expression/ObjectExpression";
 import { StringExpression } from "../Expression/StringExpression";
 import { Identifier } from "../Identifier";
 import { ParsedObject } from "../Object";
@@ -10,10 +11,11 @@ export class StructPropertyDefinition extends ParsedObject {
     return "StructProperty";
   }
 
-  public key: string | null = null;
+  get key(): string {
+    return `.${this.identifier?.name ?? ""}`;
+  }
 
   constructor(
-    public readonly level: number,
     identifier: Identifier,
     public readonly expression: Expression | null = null,
   ) {
@@ -25,46 +27,76 @@ export class StructPropertyDefinition extends ParsedObject {
     if (this.expression === null) {
       return undefined;
     }
-    if (this.expression instanceof NumberExpression) {
-      return this.expression.value;
+    return this.ValueOf(this.expression, true);
+  };
+
+  private ValueOf(expression: Expression, report: boolean): unknown {
+    const fail = (message: string): undefined => {
+      if (report) {
+        this.Error(message, expression);
+      }
+      return undefined;
+    };
+    if (expression instanceof NumberExpression) {
+      return expression.value;
     }
-    if (this.expression instanceof StringExpression) {
-      if (!this.expression.isSingleString) {
-        this.Error(
-          "Property strings cannot contain any logic.",
-          this.expression,
-        );
+    if (expression instanceof StringExpression) {
+      if (!expression.isSingleString) {
+        fail("Property strings cannot contain any logic.");
+        if (!report) {
+          return undefined;
+        }
       }
-      return this.expression.toString();
+      return expression.toString();
     }
-    if (this.expression instanceof VariableReference) {
-      if (this.expression.path === null) {
-        this.Error("Property reference is invalid.", this.expression);
-        return undefined;
+    if (expression instanceof ObjectExpression) {
+      const entries = expression.entries;
+      if (
+        entries.length > 0 &&
+        entries.every((entry, i) => entry.key === String(i + 1))
+      ) {
+        const items: unknown[] = [];
+        for (const entry of entries) {
+          const item = this.ValueOf(entry.value, false);
+          if (item === undefined) {
+            return undefined;
+          }
+          items.push(item);
+        }
+        return items;
       }
-      if (this.expression.path.length === 1) {
-        return { $type: "", $name: this.expression.path[0] || "" };
+      const value: Record<string, unknown> = {};
+      for (const entry of entries) {
+        if (typeof entry.key !== "string") {
+          return undefined;
+        }
+        const field = this.ValueOf(entry.value, false);
+        if (field === undefined) {
+          return undefined;
+        }
+        value[entry.key] = field;
       }
-      if (this.expression.path.length === 2) {
+      return value;
+    }
+    if (expression instanceof VariableReference) {
+      if (expression.path === null) {
+        return fail("Property reference is invalid.");
+      }
+      if (expression.path.length === 1) {
+        return { $type: "", $name: expression.path[0] || "" };
+      }
+      if (expression.path.length === 2) {
         return {
-          $type: this.expression.path[0] || "",
-          $name: this.expression.path[1] || "",
+          $type: expression.path[0] || "",
+          $name: expression.path[1] || "",
         };
       }
-      if (this.expression.path.length > 2) {
-        this.Error(
-          "Property cannot reference another property.",
-          this.expression,
-        );
-        return undefined;
+      if (expression.path.length > 2) {
+        return fail("Property cannot reference another property.");
       }
     }
-    this.Error(
-      "Initial value must be a number, string, boolean, or reference",
-      this.expression,
-    );
-    return undefined;
-  };
+    return fail("Initial value must be a number, string, boolean, or reference");
+  }
 
   protected override Prepare(): boolean {
     throw new Error("Not implemented.");

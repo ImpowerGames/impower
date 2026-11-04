@@ -506,7 +506,7 @@ export function lowerLuauDefine(
   let structDef: StructDefinition | null = null;
   if (parentIdentifier) {
     const propertyDefs = named.map(
-      (p) => new StructPropertyDefinition(1, new Identifier(p.name), p.expr),
+      (p) => new StructPropertyDefinition(new Identifier(p.name), p.expr),
     );
     structDef = new StructDefinition(propertyDefs);
     structDef.name = nameIdentifier;
