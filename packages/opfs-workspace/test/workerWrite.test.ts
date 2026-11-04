@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { getOrCreateThumbnail } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
+import { COMMIT_SEQUENCE_FILE } from "../src/utils/commitSequence";
 
 afterEach(() => {
   vi.clearAllTimers();
@@ -49,9 +50,20 @@ async function worker({ existing = true, fail = "", acquire = async () => {}, re
     }),
     getFile: async () => ({ size: bytes.length, lastModified: 1, arrayBuffer: async () => bytes.slice().buffer }),
   };
+  let sequence = new Uint8Array();
+  const sequenceFile = {
+    getFile: async () => ({ text: async () => new TextDecoder().decode(sequence) }),
+    createSyncAccessHandle: async () => ({
+      truncate: () => { sequence = new Uint8Array(); },
+      write: (data: Uint8Array) => { sequence = data.slice(); return data.length; },
+      flush: () => {},
+      close: () => {},
+    }),
+  };
   const directory: any = {
     getDirectoryHandle: async () => directory,
-    getFileHandle: async (_name: string, options: { create?: boolean } = {}) => {
+    getFileHandle: async (name: string, options: { create?: boolean } = {}) => {
+      if (name === COMMIT_SEQUENCE_FILE) return sequenceFile;
       if (fail === "lookup") throw new DOMException("locked lookup", "NotAllowedError");
       if (!exists && !options.create) throw new DOMException("missing", "NotFoundError");
       exists = true;
@@ -108,23 +120,28 @@ it("echoes a write's origin into its write notification and omits it for writes 
 const writeRequest = (data: number[], origin?: string) => ({ files: [{ uri: "file://local/main.sd", version: 1, data: new Uint8Array(data).buffer }], origin });
 const didWrites = (messages: any[]) => messages.filter(message => message.method === "workspace/didWriteFiles").map(message => ({ origin: message.params.origin, bytes: message.params.files.map((f: any) => f.size) }));
 
-it("attributes a write coalesced over an untagged write to the origin whose bytes were committed", async () => {
+it("commits an untagged write before the editor's autosave that follows it and attributes each to its own writer", async () => {
   const h = await worker();
   await h.request("external", "workspace/willWriteFiles", writeRequest([1]), 0);
   await h.request("autosave", "workspace/willWriteFiles", writeRequest([1, 2], "editor"));
   expect(h.bytes()).toEqual(new Uint8Array([1, 2]));
-  expect(didWrites(h.messages)).toEqual([{ origin: "editor", bytes: [2] }, { origin: "editor", bytes: [2] }]);
+  expect(h.messages.find(message => message.id === "external").result[0].size).toBe(1);
+  expect(h.messages.find(message => message.id === "autosave").result[0].size).toBe(2);
+  expect(didWrites(h.messages).at(-1)).toEqual({ origin: "editor", bytes: [2] });
+  expect(didWrites(h.messages).some(write => write.origin === undefined && write.bytes[0] === 2)).toBe(false);
 });
 
-it("does not attribute an untagged write coalesced over the editor's autosave to the editor", async () => {
+it("does not attribute an untagged write that follows the editor's autosave to the editor", async () => {
   const h = await worker();
   await h.request("autosave", "workspace/willWriteFiles", writeRequest([1, 2], "editor"), 0);
   await h.request("external", "workspace/willWriteFiles", writeRequest([3]));
   expect(h.bytes()).toEqual(new Uint8Array([3]));
-  expect(didWrites(h.messages)).toEqual([{ origin: undefined, bytes: [1] }, { origin: undefined, bytes: [1] }]);
+  expect(h.messages.find(message => message.id === "autosave").result[0].size).toBe(2);
+  expect(didWrites(h.messages).at(-1)).toEqual({ origin: undefined, bytes: [1] });
+  expect(didWrites(h.messages).some(write => write.origin === "editor" && write.bytes[0] === 1)).toBe(false);
 });
 
-it("attributes a workspace edit coalesced under the editor's autosave to the editor", async () => {
+it("commits a workspace edit before the editor's autosave that follows it", async () => {
   const h = await worker();
   void (globalThis as any).onmessage({ data: { jsonrpc: "2.0", method: "workspace/didChangeConfiguration", params: { settings: { scriptFiles: "*.sd" } } } });
   await h.send("create", [65]);
@@ -135,7 +152,8 @@ it("attributes a workspace edit coalesced under the editor's autosave to the edi
   expect(h.messages.find(message => message.id === "edit")).toMatchObject({ result: { applied: true } });
   expect(h.messages.find(message => message.id === "autosave")).toHaveProperty("result");
   expect(h.bytes()).toEqual(new Uint8Array([65, 66, 67]));
-  expect(didWrites(h.messages.slice(before))).toEqual([{ origin: "editor", bytes: [3] }, { origin: "editor", bytes: [3] }]);
+  expect(didWrites(h.messages.slice(before)).at(-1)).toEqual({ origin: "editor", bytes: [3] });
+  expect(didWrites(h.messages.slice(before)).some(write => write.origin === "editor" && write.bytes[0] !== 3)).toBe(false);
 });
 
 const gatedWorker = async () => {
@@ -150,7 +168,7 @@ const gatedWorker = async () => {
 const insertAtEnd = (uri: string, character: number, newText: string) => ({ textDocument: { uri, version: null }, edits: [{ range: { start: { line: 0, character }, end: { line: 0, character } }, newText }] });
 const didWriteFiles = (messages: any[]) => messages.filter(message => message.method === "workspace/didWriteFiles").map(message => ({ origin: message.params.origin, files: message.params.files.map((f: any) => [f.uri, f.size]) }));
 
-it("reports the current committed bytes and writer for a workspace edit whose later file was still writing", async () => {
+it("leaves a superseded file out of a workspace edit's notification when the edit's later file was still writing", async () => {
   const h = await gatedWorker();
   await h.send("a", [65], "file://local/a.sd");
   await h.send("b", [66], "file://local/b.sd");
@@ -165,12 +183,11 @@ it("reports the current committed bytes and writer for a workspace edit whose la
   expect(h.messages.find(message => message.id === "edit")).toMatchObject({ result: { applied: true } });
   expect(didWriteFiles(h.messages.slice(before))).toEqual([
     { origin: "editor", files: [["file://local/a.sd", 4]] },
-    { origin: "editor", files: [["file://local/a.sd", 4]] },
     { origin: undefined, files: [["file://local/b.sd", 2]] },
   ]);
 });
 
-it("attributes a rename onto a file to the editor when the editor's autosave replaced the rename's queued bytes", async () => {
+it("commits a rename onto a file before the editor's autosave that follows it", async () => {
   const h = await gatedWorker();
   await h.send("x", [88], "file://local/x.sd");
   await h.send("main", [65], "file://local/main.sd");
@@ -181,15 +198,12 @@ it("attributes a rename onto a file to the editor when the editor's autosave rep
   await h.request("autosave", "workspace/willWriteFiles", { files: [{ uri: "file://local/main.sd", version: 3, data: new Uint8Array([65, 66, 67]).buffer }], origin: "editor" }, 0);
   h.release();
   await vi.advanceTimersByTimeAsync(250);
-  expect(h.messages.find(message => message.id === "rename")).toHaveProperty("result");
-  expect(h.messages.find(message => message.id === "autosave")).toHaveProperty("result");
+  expect(h.messages.find(message => message.id === "rename")).toMatchObject({ result: [{ size: 1 }] });
+  expect(h.messages.find(message => message.id === "autosave")).toMatchObject({ result: [{ size: 3 }] });
+  expect(h.bytes()).toEqual(new Uint8Array([65, 66, 67]));
   const writes = didWriteFiles(h.messages.slice(before));
-  expect(writes).toHaveLength(3);
-  expect(writes).toEqual(expect.arrayContaining([
-    { origin: undefined, files: [["file://local/main.sd", 2]] },
-    { origin: "editor", files: [["file://local/main.sd", 3]] },
-  ]));
-  expect(writes.filter(write => write.origin === "editor")).toHaveLength(2);
+  expect(writes.at(-1)).toEqual({ origin: "editor", files: [["file://local/main.sd", 3]] });
+  expect(writes.filter(write => write.origin === "editor")).toHaveLength(1);
 });
 
 it("keeps a raster import pending until its thumbnail is cached", async () => {
@@ -248,8 +262,8 @@ it("notifies successful deletions when another file in the batch fails", async (
   const before = h.messages.length;
   expect(await h.request("mixed", "workspace/willDeleteFiles", { files: [{ uri: "file://local/a.sd" }, { uri: "file://local/b.sd" }] })).toMatchObject({ error: { message: "b is locked" } });
   const notifications = h.messages.slice(before).filter(message => !message.id);
-  expect(notifications).toContainEqual(expect.objectContaining({ method: "workspace/didDeleteFiles", params: { files: [{ uri: "file://local/a.sd" }] } }));
-  expect(notifications).toContainEqual(expect.objectContaining({ method: "workspace/didChangeWatchedFiles", params: { changes: [{ uri: "file://local/a.sd", type: 3 }] } }));
+  expect(notifications).toContainEqual(expect.objectContaining({ method: "workspace/didDeleteFiles", params: expect.objectContaining({ files: [{ uri: "file://local/a.sd" }] }) }));
+  expect(notifications).toContainEqual(expect.objectContaining({ method: "workspace/didChangeWatchedFiles", params: expect.objectContaining({ changes: [{ uri: "file://local/a.sd", type: 3 }] }) }));
 });
 
 it("returns a failed import instead of leaving the request pending, and releases its lock", async () => {
@@ -294,12 +308,10 @@ it("keeps a later queued write pending until its own bytes have landed", async (
   } });
   expect(await h.send("first", [1])).toBeUndefined();
   expect(await h.send("second", [2, 3])).toBeUndefined();
+  expect(h.bytes()).toEqual(new Uint8Array([9]));
   resume();
   await vi.advanceTimersByTimeAsync(0);
-  expect(h.messages.find(message => message.id === "first")).toHaveProperty("result");
-  expect(h.messages.find(message => message.id === "second")).toBeUndefined();
-  expect(h.bytes()).toEqual(new Uint8Array([1]));
-  await vi.advanceTimersByTimeAsync(101);
-  expect(h.messages.find(message => message.id === "second")).toHaveProperty("result");
+  expect(h.messages.find(message => message.id === "first")).toMatchObject({ result: [{ size: 1 }] });
+  expect(h.messages.find(message => message.id === "second")).toMatchObject({ result: [{ size: 2 }] });
   expect(h.bytes()).toEqual(new Uint8Array([2, 3]));
 });

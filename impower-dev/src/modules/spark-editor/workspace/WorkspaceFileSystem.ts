@@ -47,9 +47,13 @@ import {
   ZipFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage";
 import {
+  FileCommit,
+  FileCommits,
   FileData,
   ProjectMetadataField,
 } from "@impower/spark-editor-protocol/src/types";
+import { isSupersededCommit } from "@impower/spark-editor-protocol/src/utils/fileCommits";
+import { withParams } from "@impower/spark-editor-protocol/src/utils/withParams";
 import SingletonPromise from "./SingletonPromise";
 import type WorkspaceConfiguration from "./WorkspaceConfiguration";
 import { WorkspaceConstants } from "./WorkspaceConstants";
@@ -294,6 +298,20 @@ export default class WorkspaceFileSystem {
     return this._files?.[uri]?.languageId;
   }
 
+  protected _commits = new Map<string, FileCommit>();
+
+  protected acceptCommit(uri: string, commits: FileCommits | undefined) {
+    const commit = commits?.[uri];
+    if (!commit) {
+      return true;
+    }
+    if (isSupersededCommit(commit, this._commits.get(uri))) {
+      return false;
+    }
+    this._commits.set(uri, commit);
+    return true;
+  }
+
   protected _messageQueue: Record<
     string,
     { resolve: (result: any) => void; reject: (err: any) => void }
@@ -313,40 +331,80 @@ export default class WorkspaceFileSystem {
         ConfigurationMessage.type.response(message.id, result),
       );
     } else if (DidWriteFilesMessage.type.isNotification(message)) {
-      message.params.files.forEach((file) => {
+      const { files, commits } = message.params;
+      const fresh = files.filter((f) => this.acceptCommit(f.uri, commits));
+      if (files.length > 0 && fresh.length === 0) {
+        return;
+      }
+      fresh.forEach((file) => {
         this._files ??= {};
         this._files[file.uri] = { ...file };
       });
       this.addFolderUris(
-        message.params.files.flatMap((file) => this.parentFolderUris(file.uri)),
+        fresh.flatMap((file) => this.parentFolderUris(file.uri)),
       );
-      sendProtocolMessage(message);
+      sendProtocolMessage(withParams(message, { files: fresh }));
     } else if (DidChangeDirectoriesMessage.type.isNotification(message)) {
-      this.removeFolderUris(message.params.deleted);
-      this.addFolderUris(message.params.created);
-      sendProtocolMessage(message);
+      const { created, deleted, commits } = message.params;
+      const freshCreated = created.filter((uri) =>
+        this.acceptCommit(uri, commits),
+      );
+      const freshDeleted = deleted.filter((uri) =>
+        this.acceptCommit(uri, commits),
+      );
+      if (
+        created.length + deleted.length > 0 &&
+        freshCreated.length + freshDeleted.length === 0
+      ) {
+        return;
+      }
+      this.removeFolderUris(freshDeleted);
+      this.addFolderUris(freshCreated);
+      sendProtocolMessage(
+        withParams(message, { created: freshCreated, deleted: freshDeleted }),
+      );
     } else if (DidCreateFilesMessage.type.isNotification(message)) {
-      this._ls.connection.sendNotification(message.method, message.params);
-      sendProtocolMessage(message);
+      const { files, commits } = message.params;
+      const fresh = files.filter((f) => this.acceptCommit(f.uri, commits));
+      if (files.length > 0 && fresh.length === 0) {
+        return;
+      }
+      const forwarded = withParams(message, { files: fresh });
+      this._ls.connection.sendNotification(forwarded.method, forwarded.params);
+      sendProtocolMessage(forwarded);
     } else if (DidDeleteFilesMessage.type.isNotification(message)) {
-      message.params.files.forEach((file) => {
+      const { files, commits } = message.params;
+      const fresh = files.filter((f) => this.acceptCommit(f.uri, commits));
+      if (files.length > 0 && fresh.length === 0) {
+        return;
+      }
+      fresh.forEach((file) => {
         delete this._files?.[file.uri];
       });
-      this._ls.connection.sendNotification(message.method, message.params);
-      sendProtocolMessage(message);
+      const forwarded = withParams(message, { files: fresh });
+      this._ls.connection.sendNotification(forwarded.method, forwarded.params);
+      sendProtocolMessage(forwarded);
     } else if (DidRenameFilesMessage.type.isNotification(message)) {
-      message.params.files.forEach((file) => {
-        this._files ??= {};
-        const oldFile = this._files[file.oldUri];
-        if (oldFile) {
-          delete this._files[file.oldUri];
-        }
+      const { files, commits } = message.params;
+      const fresh = files.filter((f) => this.acceptCommit(f.oldUri, commits));
+      if (files.length > 0 && fresh.length === 0) {
+        return;
+      }
+      fresh.forEach((file) => {
+        delete this._files?.[file.oldUri];
       });
-      this._ls.connection.sendNotification(message.method, message.params);
-      sendProtocolMessage(message);
+      const forwarded = withParams(message, { files: fresh });
+      this._ls.connection.sendNotification(forwarded.method, forwarded.params);
+      sendProtocolMessage(forwarded);
     } else if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
-      this._ls.connection.sendNotification(message.method, message.params);
-      sendProtocolMessage(message);
+      const { changes, commits } = message.params;
+      const fresh = changes.filter((c) => this.acceptCommit(c.uri, commits));
+      if (changes.length > 0 && fresh.length === 0) {
+        return;
+      }
+      const forwarded = withParams(message, { changes: fresh });
+      this._ls.connection.sendNotification(forwarded.method, forwarded.params);
+      sendProtocolMessage(forwarded);
     } else if (message.error) {
       const handler = this._messageQueue[message.id];
       if (handler) {

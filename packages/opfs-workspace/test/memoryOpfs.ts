@@ -4,6 +4,8 @@ export class MemoryFile {
   kind = "file" as const;
   bytes = new Uint8Array();
   lastModified = 1;
+  history: Uint8Array[] = [];
+  gate?: Promise<void>;
   constructor(public name: string) {}
   async getFile() {
     const bytes = this.bytes.slice();
@@ -16,6 +18,7 @@ export class MemoryFile {
     };
   }
   async createSyncAccessHandle() {
+    await this.gate;
     return {
       truncate: () => {
         this.bytes = new Uint8Array();
@@ -26,6 +29,7 @@ export class MemoryFile {
           data.byteOffset,
           data.byteLength,
         ).slice();
+        this.history.push(this.bytes);
         this.lastModified += 1;
         return this.bytes.byteLength;
       },

@@ -27,15 +27,19 @@ import { WillWriteFilesMessage } from "@impower/spark-editor-protocol/src/protoc
 import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage";
 import {
   AnnotatedTextEdit,
-  CreateFile,
-  DeleteFile,
+  FileCommit,
+  FileCommits,
   FileCreate,
   FileData,
   FileEvent,
-  RenameFile,
   TextDocumentEdit,
   TextEdit,
 } from "@impower/spark-editor-protocol/src/types";
+import {
+  compareFileCommits,
+  isSupersededCommit,
+} from "@impower/spark-editor-protocol/src/utils/fileCommits";
+import { withParams } from "@impower/spark-editor-protocol/src/utils/withParams";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { ResponseMessage } from "@impower/spark-editor-protocol/src/types/base/ResponseMessage";
 import { unzipSync, zipSync } from "fflate";
@@ -44,6 +48,11 @@ import {
   TextDocumentContentChangeEvent,
 } from "vscode-languageserver-textdocument";
 import { buildZippable, parseUnzipEntries } from "./utils/assetArchive";
+import {
+  allocateCommit,
+  readCommitSequence,
+  withLock,
+} from "./utils/commitSequence";
 import debounce from "./utils/debounce";
 import {
   createDirectory,
@@ -97,6 +106,39 @@ const globToRegex = (glob: string) => {
   );
 };
 
+interface WriteResult {
+  file: FileData;
+  created: boolean;
+  commit: FileCommit;
+  origin?: string;
+}
+
+interface DeleteResult {
+  uri: string;
+  file?: FileData;
+  commit: FileCommit;
+}
+
+interface RenameOutcome {
+  oldUri: string;
+  newUri: string;
+  file?: FileData;
+  write?: WriteResult;
+  deleted?: DeleteResult;
+  error?: unknown;
+}
+
+interface WriteBatch {
+  buffer: DataView | Uint8Array;
+  version: number;
+  origin?: string;
+  due: boolean;
+  listeners: {
+    resolve(result: WriteResult): void;
+    reject(error: unknown): void;
+  }[];
+}
+
 abstract class State {
   static imageFilePattern?: RegExp;
   static audioFilePattern?: RegExp;
@@ -107,21 +149,113 @@ abstract class State {
     string,
     {
       handler: (uri: string) => void;
-      version: number;
-      buffer: DataView | Uint8Array;
-      origin?: string;
-      writing?: boolean;
-      listeners: { resolve(result: { file: FileData; created: boolean }): void; reject(error: unknown): void }[];
+      batches: WriteBatch[];
+      writing?: WriteBatch;
     }
   >();
   static files = new Map<string, FileData>();
-  static fileOrigins = new Map<string, string>();
   static documents = new Map<string, TextDocument>();
+  static commits = new Map<string, FileCommit>();
+  static clock = 0;
+  static writer = crypto.randomUUID();
+}
+
+const observeCommit = (commit: FileCommit) => {
+  State.clock = Math.max(State.clock, commit.sequence);
+};
+
+const isCurrentCommit = (uri: string, commit: FileCommit | undefined) =>
+  !isSupersededCommit(commit, State.commits.get(uri));
+
+const acceptCommit = (uri: string, commit: FileCommit | undefined) => {
+  if (!commit) {
+    return true;
+  }
+  observeCommit(commit);
+  if (!isCurrentCommit(uri, commit)) {
+    return false;
+  }
+  State.commits.set(uri, commit);
+  return true;
+};
+
+const commitChange = <T>(
+  lockUri: string,
+  change: () => Promise<T>,
+  changedUris: (result: T) => string[] = () => [lockUri],
+) =>
+  withLock(`opfs-workspace:commit:${lockUri}`, async () => {
+    const result = await change();
+    const uris = changedUris(result);
+    if (uris.length === 0) {
+      return { result, commit: undefined };
+    }
+    const commit = await allocateCommit(
+      await navigator.storage.getDirectory(),
+      State.writer,
+      State.clock,
+    );
+    for (const uri of uris) {
+      acceptCommit(uri, commit);
+    }
+    return { result, commit };
+  });
+
+class CommitLog {
+  latest = new Map<string, FileCommit>();
+  writes = new Map<string, WriteResult>();
+
+  record(uri: string, commit: FileCommit | undefined) {
+    if (!commit) {
+      return;
+    }
+    const held = this.latest.get(uri);
+    if (!held || compareFileCommits(commit, held) > 0) {
+      this.latest.set(uri, commit);
+    }
+  }
+
+  wrote(result: WriteResult) {
+    const uri = result.file.uri;
+    this.record(uri, result.commit);
+    const held = this.writes.get(uri);
+    if (!held || compareFileCommits(result.commit, held.commit) > 0) {
+      this.writes.set(uri, result);
+    }
+  }
+
+  isCurrent(uri: string) {
+    return isCurrentCommit(uri, this.latest.get(uri));
+  }
+
+  isLatest(uri: string, commit: FileCommit | undefined) {
+    const latest = this.latest.get(uri);
+    return (
+      commit != null &&
+      latest != null &&
+      compareFileCommits(commit, latest) === 0 &&
+      isCurrentCommit(uri, commit)
+    );
+  }
+
+  stamp(uris: Iterable<string>): FileCommits {
+    const commits: FileCommits = {};
+    for (const uri of uris) {
+      const commit = this.latest.get(uri);
+      if (commit) {
+        commits[uri] = commit;
+      }
+    }
+    return commits;
+  }
 }
 
 const channel = new BroadcastChannel("opfs-workspace");
 channel.onmessage = (event) => {
-  postMessage(event.data);
+  const message = reconcileRemoteMessage(event.data);
+  if (message) {
+    postMessage(message);
+  }
 };
 const broadcast = (message: NotificationMessage<string, object>) => {
   postMessage(message);
@@ -129,15 +263,17 @@ const broadcast = (message: NotificationMessage<string, object>) => {
   remoteMessage.params.remote = true;
   channel.postMessage(remoteMessage);
 };
-const broadcastWrittenFiles = (uris: string[]) => {
+const broadcastWrites = (log: CommitLog) => {
   const filesByOrigin = new Map<string | undefined, FileData[]>();
-  for (const uri of new Set(uris)) {
-    const file = State.files.get(uri);
-    if (!file) {
+  for (const [uri, result] of log.writes) {
+    if (!log.isLatest(uri, result.commit)) {
       continue;
     }
-    const origin = State.fileOrigins.get(uri);
-    filesByOrigin.set(origin, [...(filesByOrigin.get(origin) ?? []), file]);
+    const origin = result.origin;
+    filesByOrigin.set(origin, [
+      ...(filesByOrigin.get(origin) ?? []),
+      result.file,
+    ]);
   }
   if (filesByOrigin.size === 0) {
     filesByOrigin.set(undefined, []);
@@ -148,9 +284,116 @@ const broadcastWrittenFiles = (uris: string[]) => {
         files,
         remote: false,
         origin,
+        commits: log.stamp(files.map((f) => f.uri)),
       }),
     );
   });
+};
+const broadcastCreates = (log: CommitLog, results: WriteResult[]) => {
+  const files = results
+    .filter((r) => r.created && log.isCurrent(r.file.uri))
+    .map((r) => ({ uri: r.file.uri }));
+  if (files.length > 0) {
+    broadcast(
+      DidCreateFilesMessage.type.notification({
+        files,
+        commits: log.stamp(files.map((f) => f.uri)),
+      }),
+    );
+  }
+};
+const broadcastDeletes = (log: CommitLog, results: DeleteResult[]) => {
+  const files = results
+    .filter((r) => log.isLatest(r.uri, r.commit))
+    .map((r) => ({ uri: r.uri }));
+  if (files.length > 0) {
+    broadcast(
+      DidDeleteFilesMessage.type.notification({
+        files,
+        commits: log.stamp(files.map((f) => f.uri)),
+      }),
+    );
+  }
+};
+const broadcastRenames = (log: CommitLog, outcomes: RenameOutcome[]) => {
+  const files = outcomes
+    .filter((o) => o.deleted && log.isLatest(o.oldUri, o.deleted.commit))
+    .map((o) => ({ oldUri: o.oldUri, newUri: o.newUri }));
+  if (files.length > 0) {
+    broadcast(
+      DidRenameFilesMessage.type.notification({
+        files,
+        commits: log.stamp(files.flatMap((f) => [f.oldUri, f.newUri])),
+      }),
+    );
+  }
+};
+const broadcastWatchedChanges = (log: CommitLog, events: FileEvent[]) => {
+  const changes = events.filter((e) => log.isCurrent(e.uri));
+  if (changes.length > 0) {
+    broadcast(
+      DidChangeWatchedFilesMessage.type.notification({
+        changes,
+        commits: log.stamp(changes.map((c) => c.uri)),
+      }),
+    );
+  }
+};
+
+const reconcileRemoteMessage = (message: any) => {
+  const commits: FileCommits | undefined = message?.params?.commits;
+  if (commits) {
+    Object.values(commits).forEach(observeCommit);
+  }
+  const fresh = (uri: string) => acceptCommit(uri, commits?.[uri]);
+  const keep = <T>(original: T[], kept: T[]) =>
+    original.length === 0 || kept.length > 0;
+  if (DidWriteFilesMessage.type.isNotification(message)) {
+    const files = message.params.files.filter((f) => fresh(f.uri));
+    for (const file of files) {
+      State.files.set(file.uri, { ...file });
+    }
+    return keep(message.params.files, files)
+      ? withParams(message, { files })
+      : null;
+  }
+  if (DidCreateFilesMessage.type.isNotification(message)) {
+    const files = message.params.files.filter((f) => fresh(f.uri));
+    return keep(message.params.files, files)
+      ? withParams(message, { files })
+      : null;
+  }
+  if (DidDeleteFilesMessage.type.isNotification(message)) {
+    const files = message.params.files.filter((f) => fresh(f.uri));
+    files.forEach((f) => evictFile(f.uri));
+    return keep(message.params.files, files)
+      ? withParams(message, { files })
+      : null;
+  }
+  if (DidRenameFilesMessage.type.isNotification(message)) {
+    const files = message.params.files.filter((f) => fresh(f.oldUri));
+    files.forEach((f) => evictFile(f.oldUri));
+    return keep(message.params.files, files)
+      ? withParams(message, { files })
+      : null;
+  }
+  if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
+    const changes = message.params.changes.filter((c) => fresh(c.uri));
+    return keep(message.params.changes, changes)
+      ? withParams(message, { changes })
+      : null;
+  }
+  if (DidChangeDirectoriesMessage.type.isNotification(message)) {
+    const created = message.params.created.filter(fresh);
+    const deleted = message.params.deleted.filter(fresh);
+    return keep(
+      [...message.params.created, ...message.params.deleted],
+      [...created, ...deleted],
+    )
+      ? withParams(message, { created, deleted })
+      : null;
+  }
+  return message;
 };
 const respond = (message: ResponseMessage, transfer?: Transferable[]) => {
   if (transfer) {
@@ -198,20 +441,23 @@ onmessage = async (e) => {
   if (DirectoriesMessage.type.isRequest(message)) {
     try {
       const params = message.params;
+      const log = new CommitLog();
       let uris: string[];
       if (params.action === "list") {
         uris = await listDirectories(params.directory.uri);
       } else if (params.action === "create") {
-        uris = await createDirectories(params.uris);
+        uris = await createDirectories(params.uris, log);
       } else {
-        uris = await deleteEmptyDirectories(params.uris);
+        uris = await deleteEmptyDirectories(params.uris, log);
       }
       respond(DirectoriesMessage.type.response(message.id, { uris }));
-      if (params.action !== "list" && uris.length > 0) {
+      const changed = uris.filter((uri) => log.isCurrent(uri));
+      if (params.action !== "list" && changed.length > 0) {
         broadcast(
           DidChangeDirectoriesMessage.type.notification({
-            created: params.action === "create" ? uris : [],
-            deleted: params.action === "delete" ? uris : [],
+            created: params.action === "create" ? changed : [],
+            deleted: params.action === "delete" ? changed : [],
+            commits: log.stamp(changed),
           }),
         );
       }
@@ -282,14 +528,15 @@ onmessage = async (e) => {
         result.map((r) => r.file),
       );
       respond(response);
-      broadcastWrittenFiles(result.map((r) => r.file.uri));
-      broadcast(
-        DidChangeWatchedFilesMessage.type.notification({
-          changes: result.map((r) => ({
-            uri: r.file.uri,
-            type: FileChangeType.Changed,
-          })),
-        }),
+      const log = new CommitLog();
+      result.forEach((r) => log.wrote(r));
+      broadcastWrites(log);
+      broadcastWatchedChanges(
+        log,
+        result.map((r) => ({
+          uri: r.file.uri,
+          type: FileChangeType.Changed,
+        })),
       );
     } catch (err: any) {
       console.error(err, err.stack);
@@ -309,24 +556,16 @@ onmessage = async (e) => {
         result.map((r) => r.file),
       );
       respond(response);
-      broadcastWrittenFiles(result.map((r) => r.file.uri));
-      const createdResult = result.filter((r) => r.created);
-      if (createdResult.length > 0) {
-        broadcast(
-          DidCreateFilesMessage.type.notification({
-            files: createdResult.map((r) => ({
-              uri: r.file.uri,
-            })),
-          }),
-        );
-      }
-      broadcast(
-        DidChangeWatchedFilesMessage.type.notification({
-          changes: result.map((r) => ({
-            uri: r.file.uri,
-            type: r.created ? FileChangeType.Created : FileChangeType.Changed,
-          })),
-        }),
+      const log = new CommitLog();
+      result.forEach((r) => log.wrote(r));
+      broadcastWrites(log);
+      broadcastCreates(log, result);
+      broadcastWatchedChanges(
+        log,
+        result.map((r) => ({
+          uri: r.file.uri,
+          type: r.created ? FileChangeType.Created : FileChangeType.Changed,
+        })),
       );
     } catch (err: any) {
       console.error(err, err.stack);
@@ -340,25 +579,21 @@ onmessage = async (e) => {
   if (WillDeleteFilesMessage.type.isRequest(message)) {
     try {
       const { files, mode } = message.params;
-      let removed = files;
-      let deletedFiles;
+      let deleted: DeleteResult[];
       let failure: PromiseRejectedResult | undefined;
       if (mode === "trash") {
-        deletedFiles = await moveFilesToTrash(files);
+        deleted = await moveFilesToTrash(files);
       } else {
         const outcomes = await Promise.allSettled(files.map(file => deleteFiles([file])));
-        removed = files.filter((_file, index) => outcomes[index]?.status === "fulfilled");
-        deletedFiles = outcomes.flatMap(outcome => outcome.status === "fulfilled" ? outcome.value : []);
+        deleted = outcomes.flatMap(outcome => outcome.status === "fulfilled" ? outcome.value : []);
         failure = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === "rejected");
       }
-      if (removed.length) {
-        broadcast(DidDeleteFilesMessage.type.notification({ files: removed }));
-        broadcast(DidChangeWatchedFilesMessage.type.notification({
-          changes: removed.map(file => ({ uri: file.uri, type: FileChangeType.Deleted })),
-        }));
-      }
+      const log = new CommitLog();
+      deleted.forEach((d) => log.record(d.uri, d.commit));
+      broadcastDeletes(log, deleted);
+      broadcastWatchedChanges(log, deleted.map(d => ({ uri: d.uri, type: FileChangeType.Deleted })));
       if (failure) throw failure.reason;
-      respond(WillDeleteFilesMessage.type.response(message.id, deletedFiles.filter((d): d is FileData => d != null)));
+      respond(WillDeleteFilesMessage.type.response(message.id, deleted.flatMap((d) => d.file ? [d.file] : [])));
     } catch (err: any) {
       console.error(err, err.stack);
       const response = WillDeleteFilesMessage.type.error(message.id, {
@@ -372,10 +607,12 @@ onmessage = async (e) => {
     try {
       const { projectId, action, batchId, retentionMs } = message.params;
       let result: TrashFilesResult = {};
+      const restored: WriteResult[] = [];
       if (action === "list") {
         result = { batches: await listTrash(projectId) };
       } else if (action === "restore" && batchId) {
-        result = { restored: await restoreTrashBatch(projectId, batchId) };
+        restored.push(...(await restoreTrashBatch(projectId, batchId)));
+        result = { restored: restored.map((r) => r.file) };
       } else if (action === "deleteBatch" && batchId) {
         await removeTrashBatch(projectId, batchId);
       } else if (action === "empty") {
@@ -387,15 +624,16 @@ onmessage = async (e) => {
         );
       }
       respond(TrashFilesMessage.type.response(message.id, result));
-      if (action === "restore" && result.restored && result.restored.length > 0) {
-        broadcastWrittenFiles(result.restored.map((f) => f.uri));
-        broadcast(
-          DidChangeWatchedFilesMessage.type.notification({
-            changes: result.restored.map((f) => ({
-              uri: f.uri,
-              type: FileChangeType.Changed,
-            })),
-          }),
+      if (restored.length > 0) {
+        const log = new CommitLog();
+        restored.forEach((r) => log.wrote(r));
+        broadcastWrites(log);
+        broadcastWatchedChanges(
+          log,
+          restored.map((r) => ({
+            uri: r.file.uri,
+            type: FileChangeType.Changed,
+          })),
         );
       }
     } catch (err: any) {
@@ -411,38 +649,34 @@ onmessage = async (e) => {
   if (WillRenameFilesMessage.type.isRequest(message)) {
     try {
       const { files } = message.params;
-      const renamedFiles = await renameFiles(files);
+      const outcomes = await renameFiles(files);
+      const log = new CommitLog();
+      for (const o of outcomes) {
+        if (o.write) log.wrote(o.write);
+        if (o.deleted) log.record(o.deleted.uri, o.deleted.commit);
+      }
+      broadcastWrites(log);
+      broadcastRenames(log, outcomes);
+      const moved = outcomes.filter((o) => o.deleted);
+      const written = outcomes.filter((o) => o.write);
+      broadcastWatchedChanges(log, [
+        ...moved.map(
+          (o): FileEvent => ({ uri: o.oldUri, type: FileChangeType.Deleted }),
+        ),
+        ...written.map(
+          (o): FileEvent => ({ uri: o.newUri, type: FileChangeType.Changed }),
+        ),
+        ...written.map(
+          (o): FileEvent => ({ uri: o.newUri, type: FileChangeType.Created }),
+        ),
+      ]);
+      const failed = outcomes.find((o) => o.error != null);
+      if (failed) throw failed.error;
       const response = WillRenameFilesMessage.type.response(
         message.id,
-        renamedFiles.map((f) => f.file),
+        outcomes.flatMap((o) => (o.file ? [o.file] : [])),
       );
       respond(response);
-      broadcastWrittenFiles(files.map((r) => r.newUri));
-      broadcast(DidRenameFilesMessage.type.notification({ files }));
-      broadcast(
-        DidChangeWatchedFilesMessage.type.notification({
-          changes: [
-            ...files.map(
-              (file): FileEvent => ({
-                uri: file.oldUri,
-                type: FileChangeType.Deleted,
-              }),
-            ),
-            ...files.map(
-              (file): FileEvent => ({
-                uri: file.newUri,
-                type: FileChangeType.Changed,
-              }),
-            ),
-            ...files.map(
-              (file): FileEvent => ({
-                uri: file.newUri,
-                type: FileChangeType.Created,
-              }),
-            ),
-          ],
-        }),
-      );
     } catch (err: any) {
       console.error(err, err.stack);
       const response = WillRenameFilesMessage.type.error(message.id, {
@@ -455,66 +689,70 @@ onmessage = async (e) => {
   if (ApplyWorkspaceEditMessage.type.isRequest(message)) {
     const { edit } = message.params;
 
-    const writtenUris: string[] = [];
+    const log = new CommitLog();
     const fileEvents: FileEvent[] = [];
-    const createEvents: CreateFile[] = [];
-    const deleteEvents: DeleteFile[] = [];
-    const renameEvents: RenameFile[] = [];
+    const created: WriteResult[] = [];
+    const deleted: DeleteResult[] = [];
+    const renamed: RenameOutcome[] = [];
+    const wrote = (result: WriteResult) => {
+      log.wrote(result);
+      if (result.created) {
+        created.push(result);
+      }
+      fileEvents.push({
+        uri: result.file.uri,
+        type: result.created ? FileChangeType.Created : FileChangeType.Changed,
+      });
+    };
 
     let changeIndex = 0;
+    let failure: { message: string } | undefined;
 
     try {
       if (edit.documentChanges) {
         for (const c of edit.documentChanges) {
           if ("kind" in c && !("textDocument" in c)) {
             if (c.kind === "create") {
-              const result = await createFiles([c]);
-              const created = result.filter((r) => r.created);
-              const changed = result.filter((r) => !r.created);
-              for (const create of created) {
-                const uri = create.file.uri;
-                createEvents.push(c);
+              (await createFiles([c])).forEach(wrote);
+            } else if (c.kind === "delete") {
+              const [result] = await deleteFiles([c]);
+              if (result) {
+                log.record(result.uri, result.commit);
+                deleted.push(result);
+                fileEvents.push({ uri: c.uri, type: FileChangeType.Deleted });
+              }
+            } else if (c.kind === "rename") {
+              const [outcome] = await renameFiles([c]);
+              if (outcome?.write) {
+                log.wrote(outcome.write);
+              }
+              if (outcome?.deleted) {
+                log.record(outcome.deleted.uri, outcome.deleted.commit);
+                renamed.push(outcome);
                 fileEvents.push({
-                  uri,
+                  uri: c.oldUri,
+                  type: FileChangeType.Deleted,
+                });
+              }
+              if (outcome?.write) {
+                fileEvents.push({
+                  uri: c.newUri,
                   type: FileChangeType.Created,
                 });
-                writtenUris.push(uri);
               }
-              for (const change of changed) {
-                const uri = change.file.uri;
-                fileEvents.push({
-                  uri,
-                  type: FileChangeType.Changed,
-                });
-                writtenUris.push(uri);
+              if (outcome?.error != null) {
+                throw outcome.error;
               }
-            } else if (c.kind === "delete") {
-              await deleteFiles([c]);
-              const uri = c.uri;
-              deleteEvents.push(c);
-              fileEvents.push({ uri, type: FileChangeType.Deleted });
-            } else if (c.kind === "rename") {
-              await renameFiles([c]);
-              renameEvents.push(c);
-              fileEvents.push({
-                uri: c.oldUri,
-                type: FileChangeType.Deleted,
-              });
-              fileEvents.push({
-                uri: c.newUri,
-                type: FileChangeType.Created,
-              });
-              writtenUris.push(c.newUri);
             }
           } else {
-            const uri = c.textDocument.uri;
             const [written] = await editTextFiles([c]);
-            fileEvents.push({
-              uri: uri,
-              type: FileChangeType.Changed,
-            });
             if (written) {
-              writtenUris.push(uri);
+              wrote(written);
+            } else {
+              fileEvents.push({
+                uri: c.textDocument.uri,
+                type: FileChangeType.Changed,
+              });
             }
           }
           changeIndex++;
@@ -525,59 +763,36 @@ onmessage = async (e) => {
           const [written] = await editTextFiles([
             { textDocument: { uri, version: beforeVersion }, edits },
           ]);
-          fileEvents.push({
-            uri: uri,
-            type: FileChangeType.Changed,
-          });
           if (written) {
-            writtenUris.push(uri);
+            wrote(written);
+          } else {
+            fileEvents.push({ uri, type: FileChangeType.Changed });
           }
         }
       }
-
-      if (createEvents.length > 0) {
-        broadcast(
-          DidCreateFilesMessage.type.notification({
-            files: createEvents,
-          }),
-        );
-      }
-      if (deleteEvents.length > 0) {
-        broadcast(
-          DidDeleteFilesMessage.type.notification({
-            files: deleteEvents,
-          }),
-        );
-      }
-      if (renameEvents.length > 0) {
-        broadcast(
-          DidRenameFilesMessage.type.notification({
-            files: renameEvents,
-          }),
-        );
-      }
-
-      broadcastWrittenFiles(writtenUris);
-
-      broadcast(
-        DidChangeWatchedFilesMessage.type.notification({
-          changes: fileEvents,
-        }),
-      );
-
-      const response = ApplyWorkspaceEditMessage.type.response(message.id, {
-        applied: true,
-      });
-      respond(response);
     } catch (err: any) {
       console.error(err, err.stack);
-      const response = ApplyWorkspaceEditMessage.type.response(message.id, {
-        applied: false,
-        failureReason: err.message,
-        failedChange: changeIndex,
-      });
-      respond(response);
+      failure = { message: err?.message ?? String(err) };
     }
+
+    broadcastCreates(log, created);
+    broadcastDeletes(log, deleted);
+    broadcastRenames(log, renamed);
+    broadcastWrites(log);
+    broadcastWatchedChanges(log, fileEvents);
+
+    respond(
+      ApplyWorkspaceEditMessage.type.response(
+        message.id,
+        failure
+          ? {
+              applied: false,
+              failureReason: failure.message,
+              failedChange: changeIndex,
+            }
+          : { applied: true },
+      ),
+    );
   }
 };
 
@@ -613,20 +828,41 @@ const readDirectoryFiles = async (directoryUri: string) => {
     directoryPath,
     [TRASH_DIR],
   );
+  const floor = await readFloor(root);
   const files = await Promise.all(
     directoryEntries.map(async (entry) => {
       const uri = getUriFromPath(entry.path);
       if (!State.files.get(uri)) {
         if (needsTextAtEnumeration(uri)) {
-          await readFile(uri);
+          await readFile(uri, { floor });
         } else {
-          await statFile(uri);
+          await statFile(uri, floor);
         }
       }
-      return State.files.get(uri)!;
+      return State.files.get(uri);
     }),
   );
-  return files;
+  return files.filter((file): file is FileData => file != null);
+};
+
+const readFloor = async (
+  root: FileSystemDirectoryHandle,
+): Promise<FileCommit | undefined> => {
+  const sequence = await readCommitSequence(root);
+  return sequence == null ? undefined : { sequence, writer: "" };
+};
+
+const adoptStoredBytes = (uri: string, floor: FileCommit | undefined) => {
+  if (!floor) {
+    return true;
+  }
+  observeCommit(floor);
+  const held = State.commits.get(uri);
+  if (held && compareFileCommits(held, floor) > 0) {
+    return false;
+  }
+  State.commits.set(uri, floor);
+  return true;
 };
 
 const listDirectories = async (directoryUri: string) => {
@@ -641,18 +877,21 @@ const listDirectories = async (directoryUri: string) => {
   return paths.map(getUriFromPath);
 };
 
-const createDirectories = async (uris: string[]) => {
+const createDirectories = async (uris: string[], log: CommitLog) => {
   const root = await navigator.storage.getDirectory();
   const created: string[] = [];
   for (const uri of new Set(uris)) {
     console.log(MAGENTA, "MKDIR", uri);
-    await createDirectory(root, getPathFromUri(uri));
+    const { commit } = await commitChange(uri, () =>
+      createDirectory(root, getPathFromUri(uri)),
+    );
+    log.record(uri, commit);
     created.push(uri);
   }
   return created;
 };
 
-const deleteEmptyDirectories = async (uris: string[]) => {
+const deleteEmptyDirectories = async (uris: string[], log: CommitLog) => {
   const root = await navigator.storage.getDirectory();
   const paths = [...new Set(uris.map(getPathFromUri))].sort(
     (a, b) => b.split("/").length - a.split("/").length,
@@ -660,7 +899,15 @@ const deleteEmptyDirectories = async (uris: string[]) => {
   const removed: string[] = [];
   for (const path of paths) {
     console.log(MAGENTA, "RMDIR", path);
-    removed.push(...(await deleteEmptyDirectory(root, path)));
+    const { result, commit } = await commitChange(
+      getUriFromPath(path),
+      () => deleteEmptyDirectory(root, path),
+      (paths) => paths.map(getUriFromPath),
+    );
+    for (const removedPath of result) {
+      log.record(getUriFromPath(removedPath), commit);
+    }
+    removed.push(...result);
   }
   return removed.map(getUriFromPath);
 };
@@ -671,20 +918,28 @@ const needsTextAtEnumeration = (fileUri: string) => {
   return type === "script" || type === "text" || ext === "svg" || ext === "url";
 };
 
-const statFile = async (fileUri: string) => {
+const statFile = async (fileUri: string, floor: FileCommit | undefined) => {
   const root = await navigator.storage.getDirectory();
   const fileHandle = await getFileHandleFromUri(root, fileUri, false);
   const fileRef = await fileHandle.getFile();
-  return updateFileMetaCache(fileUri, fileRef.size, fileRef.lastModified);
+  if (adoptStoredBytes(fileUri, floor)) {
+    updateFileMetaCache(fileUri, fileRef.size, fileRef.lastModified);
+  }
 };
 
-const readFile = async (fileUri: string) => {
+const readFile = async (
+  fileUri: string,
+  options?: { floor: FileCommit | undefined },
+) => {
   const root = await navigator.storage.getDirectory();
+  const floor = options ? options.floor : await readFloor(root);
   const fileHandle = await getFileHandleFromUri(root, fileUri, false);
   const fileRef = await fileHandle.getFile();
   const buffer = await fileRef.arrayBuffer();
-  updateFileCache(fileUri, buffer, false, undefined, fileRef.lastModified);
-  await enrichUrlAssetType(fileUri);
+  if (adoptStoredBytes(fileUri, floor)) {
+    updateFileCache(fileUri, buffer, false, undefined, fileRef.lastModified);
+    await enrichUrlAssetType(fileUri);
+  }
   return buffer;
 };
 
@@ -754,19 +1009,21 @@ const editTextFiles = async (textDocumentEdits: TextDocumentEdit[]) => {
         return null;
       }
       let syncedDocument = State.documents.get(td.uri);
-      if (!syncedDocument) {
+      const latestText = (
+        pendingText(td.uri) ?? State.files.get(td.uri)?.text
+      )?.replace(NEWLINE_REGEX, "\n");
+      if (!syncedDocument && latestText == null) {
         throw new Error(`File does not exist: ${td.uri}`);
       }
-      const latestText = State.files.get(td.uri)?.text;
       if (
-        latestText != null &&
-        latestText.replace(NEWLINE_REGEX, "\n") !== syncedDocument.getText()
+        !syncedDocument ||
+        (latestText != null && latestText !== syncedDocument.getText())
       ) {
         syncedDocument = TextDocument.create(
           td.uri,
           languageIdOf(td.uri),
-          syncedDocument.version,
-          latestText.replace(NEWLINE_REGEX, "\n"),
+          syncedDocument?.version ?? State.files.get(td.uri)?.version ?? 0,
+          latestText ?? "",
         );
         State.documents.set(td.uri, syncedDocument);
       }
@@ -802,6 +1059,29 @@ const editTextFiles = async (textDocumentEdits: TextDocumentEdit[]) => {
   return result;
 };
 
+const pendingText = (fileUri: string) => {
+  const entry = State.writeQueue.get(fileUri);
+  const batch = entry?.batches[entry.batches.length - 1] ?? entry?.writing;
+  return batch ? new TextDecoder().decode(batch.buffer) : undefined;
+};
+
+const writeQueueEntry = (fileUri: string) => {
+  let entry = State.writeQueue.get(fileUri);
+  if (!entry) {
+    entry = {
+      batches: [],
+      handler: debounce((uri: string) => {
+        State.writeQueue.get(uri)?.batches.forEach((b) => {
+          b.due = true;
+        });
+        void write(uri);
+      }, WRITE_DEBOUNCE_DELAY),
+    };
+    State.writeQueue.set(fileUri, entry);
+  }
+  return entry;
+};
+
 const enqueueWrite = async (
   fileUri: string,
   version: number,
@@ -814,22 +1094,32 @@ const enqueueWrite = async (
     const normalized = normalizeSVGAttributeNames(source);
     if (normalized !== source) buffer = new TextEncoder().encode(normalized);
   }
-  return new Promise<{ file: FileData; created: boolean }>((resolve, reject) => {
-    if (!State.writeQueue.get(fileUri)) {
-      State.writeQueue.set(fileUri, {
+  return new Promise<WriteResult>((resolve, reject) => {
+    const entry = writeQueueEntry(fileUri);
+    const last = entry.batches[entry.batches.length - 1];
+    if (last && origin != null && last.origin === origin) {
+      last.buffer = buffer;
+      last.version = version;
+      last.due ||= immediate;
+      last.listeners.push({ resolve, reject });
+    } else {
+      if (last) {
+        last.due = true;
+      }
+      entry.batches.push({
         buffer,
         version,
-        listeners: [],
-        handler: debounce(write, WRITE_DEBOUNCE_DELAY),
+        origin,
+        due: immediate,
+        listeners: [{ resolve, reject }],
       });
     }
-    const entry = State.writeQueue.get(fileUri);
-    entry!.buffer = buffer;
-    entry!.version = version;
-    entry!.origin = origin;
-    entry!.listeners.push({ resolve, reject });
-    if (immediate) void write(fileUri);
-    else entry!.handler(fileUri);
+    if (entry.batches[0]?.due) {
+      void write(fileUri);
+    }
+    if (!entry.batches[entry.batches.length - 1]?.due) {
+      entry.handler(fileUri);
+    }
   });
 };
 
@@ -886,15 +1176,7 @@ const writeFiles = async (
   return result;
 };
 
-const write = async (fileUri: string) => {
-  console.log(MAGENTA, "WRITE", fileUri);
-  const queued = State.writeQueue.get(fileUri)!;
-  if (queued.writing || !queued.listeners.length) return;
-  queued.writing = true;
-  const buffer = queued.buffer;
-  const version = queued.version;
-  const origin = queued.origin;
-  const listeners = queued.listeners.splice(0);
+const writeToDisk = async (fileUri: string, buffer: DataView | Uint8Array) => {
   const relativePath = getPathFromUri(fileUri);
   const directoryPath = getParentPath(relativePath);
   const filename = getFileName(relativePath);
@@ -922,19 +1204,7 @@ const write = async (fileUri: string) => {
     syncAccessHandle.flush();
     syncAccessHandle.close();
     syncAccessHandle = undefined;
-    const arrayBuffer = buffer.buffer as ArrayBuffer;
-    const file = updateFileCache(fileUri, arrayBuffer, true, version, Date.now());
-    if (origin != null) {
-      State.fileOrigins.set(fileUri, origin);
-    } else {
-      State.fileOrigins.delete(fileUri);
-    }
-    await enrichUrlAssetType(fileUri);
-    const notifyFile = State.files.get(fileUri) ?? file;
-    await enqueueThumbnail(fileUri);
-    listeners.forEach((l) => {
-      l.resolve({ file: notifyFile, created });
-    });
+    return created;
   } catch (err: any) {
     let failure = err;
     try {
@@ -943,10 +1213,43 @@ const write = async (fileUri: string) => {
     } catch (cleanupError) {
       failure = new Error(`${String(err)}; cleanup failed: ${String(cleanupError)}`);
     }
-    listeners.forEach((listener) => listener.reject(failure));
+    throw failure;
+  }
+};
+
+const write = async (fileUri: string) => {
+  const entry = State.writeQueue.get(fileUri);
+  const batch = entry?.batches[0];
+  if (!entry || entry.writing || !batch?.due) return;
+  entry.batches.shift();
+  entry.writing = batch;
+  console.log(MAGENTA, "WRITE", fileUri);
+  const { buffer, version, origin, listeners } = batch;
+  try {
+    const { result: created, commit } = await commitChange(fileUri, () =>
+      writeToDisk(fileUri, buffer),
+    );
+    const arrayBuffer = buffer.buffer as ArrayBuffer;
+    const current = State.commits.get(fileUri) === commit;
+    const file = current
+      ? updateFileCache(fileUri, arrayBuffer, true, version, Date.now())
+      : describeFile(fileUri, arrayBuffer, true, version, Date.now());
+    if (current) {
+      await enrichUrlAssetType(fileUri);
+    }
+    const committedFile =
+      State.commits.get(fileUri) === commit
+        ? (State.files.get(fileUri) ?? file)
+        : file;
+    await enqueueThumbnail(fileUri);
+    listeners.forEach((l) => {
+      l.resolve({ file: committedFile, created, commit: commit!, origin });
+    });
+  } catch (err: any) {
+    listeners.forEach((listener) => listener.reject(err));
   } finally {
-    queued.writing = false;
-    if (queued.listeners.length) queued.handler(fileUri);
+    entry.writing = undefined;
+    if (entry.batches[0]?.due) void write(fileUri);
   }
 };
 
@@ -961,7 +1264,7 @@ const createFiles = async (files: (FileCreate & { data?: ArrayBuffer })[]) => {
 };
 
 const moveFilesToTrash = async (files: { uri: string }[]) => {
-  const deleted: (FileData | undefined)[] = [];
+  const deleted: DeleteResult[] = [];
   if (files.length === 0) {
     return deleted;
   }
@@ -982,9 +1285,8 @@ const moveFilesToTrash = async (files: { uri: string }[]) => {
       const data = await readFile(file.uri);
       const trashUri = getUriFromPath(`${trashPrefix}/${relPath}`);
       await createFiles([{ uri: trashUri, data }]);
-      await deleteFiles([{ uri: file.uri }]);
+      deleted.push(...(await deleteFiles([{ uri: file.uri }])));
       entries.push({ relPath, originalUri: file.uri, type });
-      deleted.push(existing);
     } catch (e) {
       console.error(`moveFilesToTrash: skipping ${file.uri}`, e);
     }
@@ -1010,7 +1312,6 @@ const evictTrashCache = (uriPrefix: string) => {
   for (const uri of [...State.files.keys()]) {
     if (uri.startsWith(uriPrefix)) {
       State.files.delete(uri);
-      State.fileOrigins.delete(uri);
     }
   }
 };
@@ -1071,7 +1372,7 @@ const deconflictRestoreUri = async (uri: string): Promise<string> => {
 const restoreTrashBatch = async (
   projectId: string,
   batchId: string,
-): Promise<FileData[]> => {
+): Promise<WriteResult[]> => {
   const trash = await getTrashDirHandle(projectId);
   let batchHandle: FileSystemDirectoryHandle;
   try {
@@ -1085,7 +1386,7 @@ const restoreTrashBatch = async (
   const m = JSON.parse(await manifestFile.text()) as {
     entries: { relPath: string; originalUri: string }[];
   };
-  const restored: FileData[] = [];
+  const restored: WriteResult[] = [];
   const trashPrefix = `${projectId}/${TRASH_DIR}/${batchId}`;
   for (const entry of m.entries) {
     const data = await readFile(getUriFromPath(`${trashPrefix}/${entry.relPath}`));
@@ -1093,8 +1394,8 @@ const restoreTrashBatch = async (
       ? await deconflictRestoreUri(entry.originalUri)
       : entry.originalUri;
     const [created] = await createFiles([{ uri: targetUri, data }]);
-    if (created?.file) {
-      restored.push(created.file);
+    if (created) {
+      restored.push(created);
     }
   }
   await removeTrashBatch(projectId, batchId);
@@ -1129,40 +1430,122 @@ const purgeExpiredTrash = async (projectId: string, retentionMs: number) => {
   }
 };
 
-const deleteFiles = async (files: { uri: string }[]) => {
+const evictFile = (uri: string) => {
+  const existingFile = State.files.get(uri);
+  if (existingFile) {
+    URL.revokeObjectURL(existingFile.src);
+    State.files.delete(uri);
+  }
+  State.documents.delete(uri);
+};
+
+const deleteFiles = async (
+  files: { uri: string }[],
+): Promise<DeleteResult[]> => {
   const root = await navigator.storage.getDirectory();
   return Promise.all(
     files.map(async (file) => {
       console.log(MAGENTA, "DELETE", file.uri);
       const relativePath = getPathFromUri(file.uri);
       const directoryPath = getParentPath(relativePath);
-      const directoryHandle = await getDirectoryHandleFromPath(
-        root,
-        directoryPath,
+      const { result: existingFile, commit } = await commitChange(
+        file.uri,
+        async () => {
+          const directoryHandle = await getDirectoryHandleFromPath(
+            root,
+            directoryPath,
+          );
+          await directoryHandle.removeEntry(getFileName(relativePath));
+          return State.files.get(file.uri);
+        },
       );
-      await directoryHandle.removeEntry(getFileName(relativePath));
-      const existingFile = State.files.get(file.uri);
-      if (existingFile) {
-        URL.revokeObjectURL(existingFile.src);
-        State.files.delete(file.uri);
-        State.fileOrigins.delete(file.uri);
+      if (State.commits.get(file.uri) === commit) {
+        evictFile(file.uri);
       }
-      return existingFile;
+      return { uri: file.uri, file: existingFile, commit: commit! };
     }),
   );
 };
 
-const renameFiles = async (files: { oldUri: string; newUri: string }[]) => {
-  const result = await Promise.all(
-    files.map(async (f) => {
-      console.log(MAGENTA, "RENAME", f.oldUri, f.newUri);
-      const data = await readFile(f.oldUri);
-      await deleteFiles([{ uri: f.oldUri }]);
-      const r = await createFiles([{ uri: f.newUri, data }]);
-      return r[0]!;
-    }),
+const moveFile = async (move: RenameOutcome) => {
+  console.log(MAGENTA, "RENAME", move.oldUri, move.newUri);
+  if (move.oldUri === move.newUri) {
+    if (!State.files.get(move.oldUri)) {
+      await readFile(move.oldUri);
+    }
+    move.file = State.files.get(move.oldUri);
+    return;
+  }
+  const data = await readFile(move.oldUri);
+  const [write] = await createFiles([{ uri: move.newUri, data }]);
+  move.write = write;
+  move.file = write?.file;
+  const [deleted] = await deleteFiles([{ uri: move.oldUri }]);
+  move.deleted = deleted;
+};
+
+const renameFiles = async (
+  files: { oldUri: string; newUri: string }[],
+): Promise<RenameOutcome[]> => {
+  const outcomes: RenameOutcome[] = files.map((f) => ({
+    oldUri: f.oldUri,
+    newUri: f.newUri,
+  }));
+  const targets = new Set<string>();
+  for (const o of outcomes) {
+    if (targets.has(o.newUri)) {
+      o.error = new Error(`More than one file in this rename targets ${o.newUri}`);
+    }
+    targets.add(o.newUri);
+  }
+  const occupied = new Set(
+    outcomes.filter((o) => o.error != null).map((o) => o.oldUri),
   );
-  return result;
+  let pending = outcomes.filter((o) => o.error == null);
+  while (pending.length > 0) {
+    let blocked = true;
+    while (blocked) {
+      blocked = false;
+      for (const o of pending) {
+        if (o.error == null && o.oldUri !== o.newUri && occupied.has(o.newUri)) {
+          o.error = new Error(
+            `Cannot rename ${o.oldUri} to ${o.newUri}: ${o.newUri} could not be moved away`,
+          );
+          occupied.add(o.oldUri);
+          blocked = true;
+        }
+      }
+      pending = pending.filter((o) => o.error == null);
+    }
+    const sources = new Set(pending.map((o) => o.oldUri));
+    const ready = pending.filter(
+      (o) => o.oldUri === o.newUri || !sources.has(o.newUri),
+    );
+    if (ready.length === 0) {
+      for (const o of pending) {
+        o.error = new Error(
+          `Cannot rename ${o.oldUri} to ${o.newUri}: the rename moves files in a cycle`,
+        );
+      }
+      break;
+    }
+    await Promise.all(
+      ready.map(async (o) => {
+        try {
+          await moveFile(o);
+        } catch (err) {
+          o.error = err;
+        }
+      }),
+    );
+    for (const o of ready) {
+      if (o.error != null && !o.deleted) {
+        occupied.add(o.oldUri);
+      }
+    }
+    pending = pending.filter((o) => !ready.includes(o));
+  }
+  return outcomes;
 };
 
 const getFileType = (uri: string): string => {
@@ -1278,6 +1661,27 @@ const updateFileCache = (
   version?: number,
   modified?: number,
 ) => {
+  const file = describeFile(uri, buffer, overwrite, version, modified);
+  State.files.set(uri, file);
+  if (getFileExtension(uri) !== "url" && file.type === "script") {
+    const content = (file.text ?? "").replace(NEWLINE_REGEX, "\n");
+    if (!State.documents.get(uri)) {
+      State.documents.set(
+        uri,
+        TextDocument.create(uri, languageIdOf(uri), version ?? 0, content),
+      );
+    }
+  }
+  return file;
+};
+
+const describeFile = (
+  uri: string,
+  buffer: ArrayBuffer,
+  overwrite: boolean,
+  version?: number,
+  modified?: number,
+): FileData => {
   const existingFile = State.files.get(uri);
   let src = existingFile?.src || "";
   const name = getName(uri);
@@ -1301,7 +1705,6 @@ const updateFileCache = (
       size: buffer.byteLength,
       modified: modified ?? existingFile?.modified ?? Date.now(),
     };
-    State.files.set(uri, file);
     return file;
   }
 
@@ -1328,17 +1731,5 @@ const updateFileCache = (
     languageId: type === "script" ? languageIdOf(uri) : null,
     text,
   };
-  State.files.set(uri, file);
-
-  if (type === "script") {
-    const content = (text ?? "").replace(NEWLINE_REGEX, "\n");
-    if (!State.documents.get(uri)) {
-      State.documents.set(
-        uri,
-        TextDocument.create(uri, languageIdOf(uri), version ?? 0, content),
-      );
-    }
-  }
-
   return file;
 };
