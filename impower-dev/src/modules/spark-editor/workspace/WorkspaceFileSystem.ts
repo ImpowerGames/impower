@@ -780,6 +780,9 @@ export default class WorkspaceFileSystem {
     );
     const from = fromFolder.replace(/\/+$/, "");
     const to = toFolder.replace(/\/+$/, "");
+    if (to === from || to.startsWith(`${from}/`)) {
+      return [];
+    }
     const moves = computeFolderMoves(relativePaths, from, to);
     const renamed =
       moves.length === 0

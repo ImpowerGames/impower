@@ -205,6 +205,19 @@ describe("empty folders are directories in the workspace store", () => {
     ]);
   });
 
+  it("leaves an empty folder in place when it is moved onto itself or into its own subfolder", async () => {
+    const root = seed({ ...MIGRATED, "main.sd": "x" }, ["assets/a/inner"]);
+    const fs = await load(root);
+    expect(await fs.moveFolder(PROJECT, "assets/a", "assets/a/b")).toEqual([]);
+    expect(await fs.moveFolder(PROJECT, "assets/a", "assets/a/")).toEqual([]);
+    expect(stored(root).filter((p) => p.startsWith("assets"))).toEqual([
+      "assets/",
+      "assets/a/",
+      "assets/a/inner/",
+    ]);
+    expect(await fs.getFolders(PROJECT)).toEqual(["assets", "assets/a", "assets/a/inner"]);
+  });
+
   it("deletes a folder's files and its directories, and reports the folders removed", async () => {
     const root = seed(
       { "main.sd": "x", ...MIGRATED, "assets/a/x.png": "p" },
