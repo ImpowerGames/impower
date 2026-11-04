@@ -255,7 +255,7 @@ function writeAtomic(file, value) {
   fs.renameSync(temp, file);
 }
 
-function acquire(file, identify) {
+export function acquire(file, identify = processIdentity) {
   const lock = `${file}.lock`, token = randomUUID();
   try { writeExclusive(lock, { token, identity: currentIdentity() }); }
   catch (error) {

@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
 import { readRepos } from "../../repos.mjs";
 import { removeJobDir } from "../clean-worktrees/clean-worktrees.mjs";
-import { readRecord, updateRecord, pointerFile, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, closedBeforeRun, writerKnownEnded, HISTORY, takeSnapshot, readIssueScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs, completingTickets, filedActions, mainVerdict, failedJobsOf, MAIN_BRANCH, MAIN_WORKFLOW } from "./issue-run.mjs";
+import { readRecord, updateRecord, pointerFile, acquire, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, closedBeforeRun, writerKnownEnded, HISTORY, takeSnapshot, readIssueScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs, completingTickets, filedActions, mainVerdict, failedJobsOf, MAIN_BRANCH, MAIN_WORKFLOW } from "./issue-run.mjs";
 import { intent, outcome, ensureSaved, autoCheckpoint, operationText, landing, landingText, fetchState, stateBranch } from "./checkpoint.mjs";
 import { FIRST_CHECKPOINT_ROUND, roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit, threadName } from "./review-checkpoint.mjs";
 
@@ -499,7 +499,15 @@ export function retireRun(file, { coordinator, expectRevision, evidence, snapsho
   }
   const checkpoint = record.checkpoints ? save() : null;
   if (checkpoint && !checkpoint.saved) throw new Error(`The retirement is recorded at revision ${revision}, but its checkpoint was not saved (${checkpoint.reason}); the pointer and the record folder stay. Run retire again once the remote is reachable`);
-  if (named) fs.unlinkSync(pointer);
+  if (named) {
+    const release = acquire(pointer);
+    try {
+      let now = null;
+      try { now = readJson(pointer); } catch (error) { if (error.code !== "ENOENT") throw new Error(`The coordinator pointer ${pointer} became unreadable during retirement; preserve it and inspect it`); }
+      if (now && (path.resolve(String(now.record)) !== path.resolve(file) || now.coordinator !== named.coordinator || now.since !== named.since)) throw new Error(`The coordinator pointer ${pointer} was replaced during retirement and now names ${now.record} (coordinator ${now.coordinator}); it and the record folder stay`);
+      if (now) fs.unlinkSync(pointer);
+    } finally { release(); }
+  }
   let removed = true, reason = null;
   try { removeDir(dir); } catch (error) { removed = false; reason = `${error.message}; clean-worktrees removes what is left, since no pointer names it`; }
   return { retired: true, revision, ...(checkpoint && { checkpoint }), pointer, folder: dir, removed, ...(reason && { reason }) };

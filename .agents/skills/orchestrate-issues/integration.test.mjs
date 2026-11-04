@@ -977,6 +977,18 @@ try {
     assert.throws(() => ig.retireRun(heldRecord, { coordinator: "local_held", expectRevision: 3, evidence: "stopped", snapshot: { repository: REPO, issue: { number: 77 }, tickets: [{ number: 79, state: "open", container: false }] }, save: () => assert.fail("saved") }), /cannot retire: #78 still has a writer; release it first; slice #79 is open; nothing was changed/);
     assert.equal(run.readRecord(heldRecord).revision, 3, "a refused retirement changes nothing");
     assert.ok(fs.existsSync(held), "a refused retirement removes nothing");
+    const raced = path.join(tmp, "raced-private");
+    fs.mkdirSync(raced);
+    fs.writeFileSync(path.join(raced, "owner.json"), JSON.stringify({ issue: 88 }));
+    const racedRecord = path.join(raced, "run.json");
+    fs.writeFileSync(racedRecord, JSON.stringify({ version: run.RECORD_VERSION, revision: 1, repository: REPO, issue: 88, checkout: dst, coordinator: { session: "local_old" }, checkpoints: { remote: "origin" }, tickets: {}, operations: [], log: [] }));
+    const racedPointer = run.pointerFile(dst, REPO, 88);
+    fs.writeFileSync(racedPointer, JSON.stringify({ record: racedRecord, coordinator: "local_old", since: "t0" }));
+    const successor = { record: path.join(tmp, "successor", "run.json"), coordinator: "local_new", since: "t1" };
+    assert.throws(() => ig.retireRun(racedRecord, { coordinator: "local_old", expectRevision: 1, evidence: "done", snapshot: { repository: REPO, issue: { number: 88 }, tickets: [] }, save: () => { fs.writeFileSync(racedPointer, JSON.stringify(successor)); return { saved: true }; } }), /was replaced during retirement and now names .*successor.* \(coordinator local_new\); it and the record folder stay/);
+    assert.deepEqual(JSON.parse(fs.readFileSync(racedPointer, "utf8")), successor, "a successor's pointer survived retirement");
+    assert.ok(fs.existsSync(racedRecord), "the record folder stays when the pointer was replaced");
+    fs.unlinkSync(racedPointer);
   }
 
   assert.equal(gh.intentsSeen.length, gh.mergeCalls.length);

@@ -1602,9 +1602,11 @@ export function sessionScratches(ctx, deps) {
   const claude = path.join(tmpdir, "claude");
   for (const project of deps.listDirs(claude).filter((name) => DESKTOP_PROJECT.test(name))) {
     const root = path.join(claude, project);
-    const found = deps.listDirs(root).map((session) => ({ layout: "desktop", root, scratch: path.join(root, session, "scratchpad") }));
-    const ours = found.some((s) => sessionArtifactDirs(s.scratch, deps).some((dir) => namesCheckout(readOwner(dir, deps)?.worktree, ctx)));
-    if (ours) sessions.push(...found);
+    for (const session of deps.listDirs(root)) {
+      const scratch = path.join(root, session, "scratchpad");
+      const worktrees = sessionArtifactDirs(scratch, deps).map((dir) => readOwner(dir, deps)?.worktree).filter((w) => typeof w === "string");
+      if (worktrees.some((w) => namesCheckout(w, ctx))) sessions.push({ layout: "desktop", root, scratch });
+    }
   }
   return sessions;
 }
@@ -1613,7 +1615,14 @@ export function runPointers(ctx, deps) {
   const dir = path.join(ctx.mainRoot, ".git", "orchestrate-issues");
   const records = [];
   const unreadable = [];
-  for (const name of deps.listFiles?.(dir) ?? []) {
+  let names;
+  try {
+    names = deps.readEntries ? deps.readEntries(dir).filter((e) => e.isFile()).map((e) => e.name) : deps.listFiles?.(dir) ?? [];
+  } catch (err) {
+    if (err?.code === "ENOENT") names = [];
+    else return { records, unreadable: [{ pointer: dir, why: String(err?.code ?? err?.message ?? err).split("\n")[0] }] };
+  }
+  for (const name of names) {
     if (!name.endsWith(".json")) continue;
     const pointer = path.join(dir, name);
     try {
@@ -1634,7 +1643,7 @@ function pointerReason(dir, pointers) {
   return null;
 }
 
-export function classifyWriterArtifacts(dir, deps, ctx) {
+export function classifyWriterArtifacts(dir, deps, ctx, layout = "cli") {
   const why = (err) => String(err?.code ?? err?.message ?? err).split("\n")[0];
   ctx.pointers ??= runPointers(ctx, deps);
   const [, kind, number] = SESSION_ARTIFACT.exec(path.basename(dir)) ?? [null, "writer", null];
@@ -1651,6 +1660,7 @@ export function classifyWriterArtifacts(dir, deps, ctx) {
     catch (err) { return { remove: false, reason: err?.code === "ENOENT" ? "holds no owner.json, so whose it was cannot be told; left for a person" : `its owner.json could not be read (${why(err)})` }; }
     issue = owner?.issue;
     if (typeof owner?.worktree !== "string" || !path.isAbsolute(owner.worktree)) keep.push("its owner.json names no absolute worktree");
+    else if (layout === "desktop" && !namesCheckout(owner.worktree, ctx)) return { remove: false, reason: `its owner.json names ${owner.worktree}, which is neither this checkout nor one of its worktrees; another checkout's cleanup owns it` };
     else {
       let present = false;
       try {
@@ -1679,9 +1689,13 @@ export function classifyWriterArtifacts(dir, deps, ctx) {
   return { remove: true, reason: `${what} for #${issue}, ${finished}` };
 }
 
-export function classifySessionFiles(scratch, verdicts, deps, ctx) {
+export function classifySessionFiles(scratch, verdicts, deps, ctx, layout = "cli") {
   ctx.pointers ??= runPointers(ctx, deps);
   const keep = [];
+  if (layout === "desktop") {
+    const foreign = sessionArtifactDirs(scratch, deps).map((dir) => readOwner(dir, deps)?.worktree).filter((w) => typeof w === "string" && !namesCheckout(w, ctx));
+    if (foreign.length) keep.push(`an owner.json in it names ${foreign[0]}, outside this checkout`);
+  }
   if (!verdicts.some((v) => v.writer)) keep.push("it holds no writer directory whose owner.json says whose session it was, so whether the session finished cannot be told");
   else if (verdicts.some((v) => !v.remove)) keep.push("a directory in it is kept, so its session's work is not finished");
   const pointed = pointerReason(scratch, ctx.pointers);
@@ -1747,21 +1761,25 @@ export async function cleanWriterArtifacts(ctx, deps, apply, record) {
     }
     const verdicts = [];
     for (const dir of item.dirs) {
-      const verdict = classifyWriterArtifacts(dir, deps, ctx);
+      const verdict = classifyWriterArtifacts(dir, deps, ctx, item.layout);
       const writer = path.basename(dir).startsWith("writer-") && readOwner(dir, deps) !== null;
       const size = await deps.scan(dir).then((s) => s.bytes, () => null);
-      const { decision, why } = await settle(dir, verdict, size, () => removeJobDir(dir, recheck(() => classifyWriterArtifacts(dir, deps, ctx))));
+      const { decision, why } = await settle(dir, verdict, size, () => removeJobDir(dir, recheck(() => classifyWriterArtifacts(dir, deps, ctx, item.layout))));
       verdicts.push({ writer, remove: decision === "remove" || decision === "removed" });
       rows.push({ path: dir, decision, why, size });
       log(`${decision.padEnd(DECISION_WIDTH)}  ${path.relative(item.root, dir)}  ${formatBytes(size).padEnd(SIZE_WIDTH)}  ${why}`);
     }
     if (item.files.length) {
-      const verdict = classifySessionFiles(item.scratch, verdicts, deps, ctx);
+      const verdict = classifySessionFiles(item.scratch, verdicts, deps, ctx, item.layout);
       let size = 0;
       for (const name of item.files) { try { size += deps.lstat(path.join(item.scratch, name)).size ?? 0; } catch {} }
       const label = path.join(path.relative(item.root, item.scratch), `(${n(item.files.length, "file")})`);
       const { decision, why } = await settle(item.scratch, verdict, size, () => {
-        recheck(() => classifySessionFiles(item.scratch, verdicts, deps, ctx))();
+        const fresh = { ...ctx, pointers: runPointers(ctx, deps), processes: deps.processes?.() ?? ctx.processes };
+        const now = sessionArtifactDirs(item.scratch, deps).map((dir) => ({ ...classifyWriterArtifacts(dir, deps, fresh, item.layout), writer: path.basename(dir).startsWith("writer-") && readOwner(dir, deps) !== null }));
+        const again = classifySessionFiles(item.scratch, [...verdicts.filter((v) => v.writer && v.remove), ...now], deps, fresh, item.layout);
+        if (!again.remove) throw new Refusal(again.reason);
+        if (now.length) throw new Refusal("a directory is still in it at removal time, so its session's work is not finished");
         for (const name of item.files) deps.removeFile(path.join(item.scratch, name));
       });
       rows.push({ path: item.scratch, files: item.files, decision, why, size });
