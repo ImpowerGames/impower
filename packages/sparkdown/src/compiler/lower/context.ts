@@ -38,6 +38,7 @@ export interface LowerContext {
   globalCallableNames?: Pick<ReadonlySet<string>, "has">;
   rootLocals?: Pick<RootLocals, "answer" | "answerIgnoringBlocks" | "blockLocal" | "declared">;
   defineTypeNames?: Pick<ReadonlySet<string>, "has">;
+  builtinTypeNames?: Pick<ReadonlySet<string>, "has">;
   declaredLocalsStack?: Set<string>[];
   siblingSubFlowNamesStack?: Map<string, SiblingSubFlowInfo>[];
   statementStack?: import("./utils/statementShape").StatementShape[];

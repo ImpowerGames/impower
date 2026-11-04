@@ -99,6 +99,7 @@ export interface CompilationConfig {
   };
   recordLoweringReads?: boolean;
   statementMemo?: StatementMemoHost;
+  builtinTypeNames?: Pick<ReadonlySet<string>, "has">;
 }
 
 function sameNames(
@@ -530,6 +531,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
             return found;
           },
         },
+        builtinTypeNames: this.config?.builtinTypeNames,
         declaredLocalsStack,
         functionBindingsStack,
         siblingSubFlowNamesStack,

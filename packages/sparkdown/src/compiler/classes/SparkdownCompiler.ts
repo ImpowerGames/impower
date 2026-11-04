@@ -31,6 +31,7 @@ import { Mode } from "../typecheck/Module";
 import { SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
 import { configTypecheckSetting, frontMatterTypecheckSetting, unknownModeMessage } from "../typecheck/typecheckSettings";
 import { STDLIB } from "../../runtime/StdLib";
+import { executionWatch } from "../../runtime/ExecutionWatch";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
 import type { File } from "../types/File";
 import { diagnoseRareAttributeOptions, type AttributeVocabulary } from "../../attributes";
@@ -106,7 +107,6 @@ import type { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import type { ProgramChangeSummary } from "../types/ProgramChangeSummary";
 import type { SparkProgram } from "../types/SparkProgram";
 import type { SparkSelector } from "../types/SparkSelector";
-import { getBuiltinTypeNames, setBuiltinTypeNames } from "../utils/builtinTypeNames";
 import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
 import { collectLayerNames } from "../utils/collectLayerNames";
 import { scopeDefineInstances } from "../utils/scopeDefineInstances";
@@ -277,15 +277,21 @@ function getCompiledPrelude(): {
       } as any,
     ],
   });
-  const result = compiler.compile({
-    textDocument: { uri: BUILTINS_PRELUDE_URI },
-  });
+  const watcher = executionWatch.listener;
+  executionWatch.listener = null;
+  let result: ReturnType<SparkdownCompiler["compile"]>;
+  try {
+    result = compiler.compile({
+      textDocument: { uri: BUILTINS_PRELUDE_URI },
+    });
+  } finally {
+    executionWatch.listener = watcher;
+  }
   _cachedPrelude = {
     context: result.program.context ?? {},
     root: result.program.chunks,
     sparkle: result.program.sparkle ?? {},
   };
-  setBuiltinTypeNames(Object.keys(_cachedPrelude.context));
   return _cachedPrelude;
 }
 
@@ -325,8 +331,14 @@ function getPreludeGlobalNames(): Set<string> {
   return _preludeGlobalNames;
 }
 
+let _preludeTypeNames: Set<string> | undefined;
+function getPreludeTypeNames(): Set<string> {
+  _preludeTypeNames ??= new Set(Object.keys(getCompiledPrelude().context));
+  return _preludeTypeNames;
+}
+
 export function lintBuiltinNames(): Set<string> {
-  return new Set([...getPreludeGlobalNames(), ...getBuiltinTypeNames()]);
+  return new Set([...getPreludeGlobalNames(), ...getPreludeTypeNames()]);
 }
 
 export function declaredGlobalNames(root: ProgramRoot): Set<string> {
@@ -631,6 +643,11 @@ export class SparkdownCompiler {
 
   protected _compilationConfig: CompilationConfig = {
     recordLoweringReads: true,
+    builtinTypeNames: {
+      has: (name) =>
+        this._config.useBuiltinsPrelude === true &&
+        getPreludeTypeNames().has(name),
+    },
   };
   protected _chunkStore?: ChunkStore;
   protected _placedBy = new WeakMap<ParsedObject, object>();
@@ -730,6 +747,22 @@ export class SparkdownCompiler {
     this._events[event].delete(listener);
   }
 
+  protected relowerAllCompilations() {
+    if (!this._documents) {
+      return;
+    }
+    const enabled = this._memoHost.enabled;
+    this._memoHost.enabled = false;
+    try {
+      for (const uri of this._documents.keys()) {
+        const length = this._documents.get(uri)?.getText().length ?? 0;
+        this._documents.relowerCompilations(uri, [{ from: 0, to: length }]);
+      }
+    } finally {
+      this._memoHost.enabled = enabled;
+    }
+  }
+
   configure(config: SparkdownCompilerConfig) {
     this._filesEpoch++;
     this._programResolver?.invalidate();
@@ -780,6 +813,7 @@ export class SparkdownCompiler {
       config.useBuiltinsPrelude !== this._config.useBuiltinsPrelude
     ) {
       this._config.useBuiltinsPrelude = config.useBuiltinsPrelude;
+      this.relowerAllCompilations();
     }
     if (
       config.seedBuiltinsIntoStory !== undefined &&
@@ -837,9 +871,6 @@ export class SparkdownCompiler {
     }
     if (config.files !== undefined && config.files !== this._config.files) {
       this._config.files = config.files;
-      if (this._config.useBuiltinsPrelude) {
-        getCompiledPrelude();
-      }
       for (const file of config.files) {
         if (
           file.type === "script" &&

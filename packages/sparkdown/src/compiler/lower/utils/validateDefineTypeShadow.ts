@@ -1,5 +1,4 @@
 import { ErrorType, type SourceMetadata } from "../../../runtime/Error";
-import { getBuiltinTypeNames } from "../../utils/builtinTypeNames";
 import type { LowerContext } from "../context";
 
 export function validateDefineTypeShadow(
@@ -10,7 +9,7 @@ export function validateDefineTypeShadow(
   if (!ctx.diagnostics) return;
   const trimmed = name.trim();
   const isInDocumentType = ctx.defineTypeNames?.has(trimmed) ?? false;
-  const isBuiltinType = !isInDocumentType && getBuiltinTypeNames().has(trimmed);
+  const isBuiltinType = !isInDocumentType && (ctx.builtinTypeNames?.has(trimmed) ?? false);
   if (!isInDocumentType && !isBuiltinType) return;
   const message = isBuiltinType
     ? `'${trimmed}' is a reserved builtin type/namespace. The bare name now ` +
