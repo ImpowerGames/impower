@@ -26,6 +26,8 @@ import {
 } from "./morphSchema";
 import { morphRequirements } from "./bindMorph";
 import { readEntryColor } from "../../morph/color";
+import { morphMotionProblem } from "../../morph/motion";
+import { normalizeMorphKeyframes } from "./normalizeMorphKeyframes";
 import type { MorphBody, MorphIssue } from "./readMorphBody";
 
 type Span = { from: number; to: number };
@@ -69,26 +71,6 @@ const ALLOWED: Record<Where, readonly string[]> = {
   clip: MORPH_CLIP_FIELDS,
   paint: MORPH_PAINT_FIELDS,
 };
-
-function components(value: unknown): string[] {
-  if (typeof value === "number") return [String(value)];
-  if (typeof value !== "string") return [];
-  const parts: string[] = [];
-  let depth = 0;
-  let current = "";
-  for (const ch of value.trim()) {
-    if (ch === "(") depth += 1;
-    if (ch === ")") depth -= 1;
-    if (/\s/.test(ch) && depth === 0) {
-      if (current) parts.push(current);
-      current = "";
-    } else {
-      current += ch;
-    }
-  }
-  if (current) parts.push(current);
-  return parts;
-}
 
 const POLICY_VOCABULARY: Record<string, readonly string[]> = {
   blend: MORPH_BLENDS,
@@ -232,42 +214,6 @@ function paintFormProblems(entry: Record<string, unknown>): { field: string; mes
   }
   if ("span" in entry && parseMorphSpan(entry["span"]) === undefined) problems.push({ field: "span", message: SPAN_PROBLEM });
   return problems;
-}
-
-const THREE_D_FUNCTION_RE =
-  /\b(?:matrix3d|translate3d|translateZ|scale3d|scaleZ|rotate3d|rotateX|rotateY|perspective)\s*\(/i;
-
-function layerPropertyProblem(key: string, value: unknown): string | null {
-  if (key === "opacity") {
-    if (typeof value === "number") {
-      return value >= 0 && value <= 1
-        ? null
-        : "`opacity` must be between 0 and 1.";
-    }
-    const percent =
-      typeof value === "string" ? /^(\d+(?:\.\d+)?)%$/.exec(value.trim()) : null;
-    if (percent && Number(percent[1]) <= 100) return null;
-    return "`opacity` is a number from 0 to 1, or a percentage.";
-  }
-  if (typeof value !== "string" && typeof value !== "number") {
-    return `\`${key}\` takes a value such as ${key === "rotate" ? "`5deg`" : "`0 8px`"}, not a container.`;
-  }
-  const parts = components(value);
-  if (parts.length === 0) return `\`${key}\` needs a value.`;
-  if (key === "transform") {
-    return THREE_D_FUNCTION_RE.test(String(value))
-      ? "3D transforms are not supported. Use 2D functions such as `translate()`, `rotate()`, `scale()`, `skew()` or `matrix()`."
-      : null;
-  }
-  if (key === "rotate") {
-    return parts.length === 1
-      ? null
-      : "Only 2D rotation is supported: write one angle, such as `5deg`.";
-  }
-  const limit = 2;
-  return parts.length <= limit
-    ? null
-    : `Only 2D \`${key}\` is supported: write at most two values (\`x y\`).`;
 }
 
 export interface MorphDeclaration {
@@ -477,7 +423,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
           }
           for (const property of MORPH_LAYER_PROPERTIES) {
             if (!(property in container)) continue;
-            const problem = layerPropertyProblem(property, container[property]);
+            const problem = morphMotionProblem(property, container[property]);
             if (problem) push(valueSpan(container, property), problem);
           }
         }
@@ -594,6 +540,25 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       keySpan(own, "keyframes") ?? decl.name,
       "A morph needs at least two keyframes to move between.",
     );
+  }
+  if (Array.isArray(effectiveKeyframes) && effectiveKeyframes.length > 0) {
+    const ordered = normalizeMorphKeyframes(effectiveKeyframes)
+      .map((frame, index) => ({ frame, index }))
+      .sort((a, b) => (a.frame["offset"] as number) - (b.frame["offset"] as number) || a.index - b.index);
+    const first = ordered[0]!.frame;
+    const stateOf = (frame: unknown, group: string) => {
+      const container = isRecord(frame) ? frame[group] : undefined;
+      return isRecord(container) && typeof container["state"] === "string" && container["state"] !== "";
+    };
+    const ownKeyframes = Array.isArray(own["keyframes"]) ? own["keyframes"] : [];
+    for (const group of driven.keys()) {
+      if (stateOf(first, group)) continue;
+      const written = ownKeyframes.find((frame) => stateOf(frame, group)) as Record<string, unknown> | undefined;
+      push(
+        written ? valueSpan(written[group], "state") : (decl.parent ?? decl.name),
+        `\`${group}\` takes a \`state\` in a later keyframe but not in the first one. Each group a morph drives starts from the state written in its first keyframe, the state the image rests in: add \`${group} { state = … }\` to the first keyframe.`,
+      );
+    }
   }
   const rootBlend = effective["blend"] ?? "morph";
   const rootMethod = effective["method"];

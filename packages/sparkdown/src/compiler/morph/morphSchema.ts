@@ -143,7 +143,7 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
   partner:
     "The labels whose drawing this label's drawings take in a pose that draws none of them: one label, such as `eyelash-left`, or a list in priority order, such as `{ eyeball-shadow-left; eyelash-left }`. The first listed label the pose draws decides, and the label's own name in the list pairs by name at that rank. The drawing moves into the shape of that label's drawing nearest it, keeping its own paint and its place in paint order, and stays in that shape while the pose holds.",
   keyframes:
-    "The poses, as `{ … }` entries with an `offset` or as positions (`from { … }`, `50% { … }`, `to { … }`). Each pose holds containers such as `eyes { … }` with a `state` and layer properties. As in CSS keyframes, a pose that leaves a group or property out moves between the nearest poses that set it, and a first or last pose that leaves it out uses the image's resting value there.",
+    "The poses, as `{ … }` entries with an `offset` or as positions (`from { … }`, `50% { … }`, `to { … }`). Each pose holds containers such as `eyes { … }` with a `state` and layer properties. Every group the morph drives needs its `state` in the first pose, the state an image has to rest in for the morph to play. As in CSS keyframes, a pose that leaves a group or property out moves between the nearest poses that set it; a last pose that leaves a group out uses the image's resting state, and a first or last pose that leaves a layer property out uses its resting value (no movement, opacity 1).",
   timing: "When and how often the morph plays.",
   clips:
     "Apertures cut from the facing edges of `between` layers and applied to the `targets` layers.",
@@ -159,12 +159,12 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
     "Longest quiet time, in seconds, between plays. Each gap is drawn uniformly between the two bounds.",
   offset: "Where this pose sits on the play, from 0 to 1.",
   state: "The attribute state this group shows at this pose, such as `closed` or `eyes.closed`.",
-  translate: "Moves the layer: `x y`, such as `0 8px`.",
-  rotate: "Rotates the layer by an angle, such as `5deg`.",
-  scale: "Scales the layer: one factor, or `x y`.",
-  transform: "A 2D CSS transform list, such as `skewX(4deg)`.",
-  transform_origin: "The point the layer transforms around. Default `center`.",
-  opacity: "The layer's opacity, from 0 to 1.",
+  translate: "Moves the layer by `x y`: lengths in `px`, the artwork's own units, or percentages of the layer's own box, such as `0 8px`. Default `0`.",
+  rotate: "Rotates the layer about `transform_origin` by an angle, such as `5deg`. Default `0deg`.",
+  scale: "Scales the layer about `transform_origin`: one factor, or `x y`, such as `1.1`. Default `1`.",
+  transform: "A list of 2D CSS transform functions, applied after `translate`, `rotate` and `scale`, such as `skewX(4deg) translate(0, -1px)`. Default `none`.",
+  transform_origin: "The point the layer rotates and scales around, such as `left top` or `50% 100%` of its own box. Default `center`.",
+  opacity: "The layer's opacity, from 0 to 1 or a percentage. Default `1`.",
   between: "The layer labels this aperture accepts as edges, such as `eyelash-right`, `eyelash-top-right` and `eyelash-bottom-right`. An image may draw any of them; the ones it draws must form the aperture.",
   targets: "The layers the aperture clips.",
   "clips.spread":
