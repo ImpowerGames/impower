@@ -70,6 +70,29 @@ host_record(getmetatable(print) == nil)`);
     expect(recorded).toEqual([false, false, false, true]);
   });
 
+  test("table library mutators refuse a builtin", () => {
+    const { recorded } = compileAndCapture(`host_record(pcall(table.clear, print))
+host_record(pcall(table.insert, print, 1))
+host_record(pcall(table.remove, print))
+host_record(pcall(table.sort, print))
+host_record(pcall(table.move, {1}, 1, 1, 1, print))
+host_record(pcall(table.freeze, print))
+host_record(pcall(table.clone, print))
+host_record(pcall(rawset, print, "x", 1))
+host_record(rawequal(print, print))`);
+    expect(recorded).toEqual([
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+    ]);
+  });
+
   test("a table holding a __stdlib_fn field stays writable", () => {
     const { errors, recorded } = compileAndCapture(`local t = { __stdlib_fn = "print" }
 host_record(pcall(function() t.x = 1 end))

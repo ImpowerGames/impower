@@ -164,7 +164,7 @@ function requireTableArg(
     story.Error(`missing argument #${index} to '${name}' (table expected)`);
   }
   const raw = v instanceof MultiValue ? v.values[0] : v;
-  if (!(raw instanceof ObjectValue)) {
+  if (!(raw instanceof ObjectValue) || isStdLibMarker(raw)) {
     story.Error(
       `invalid argument #${index} to '${name}' (table expected, got ${luauTypeOf(raw)})`,
     );
@@ -3697,7 +3697,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1,
     minArgs: 1,
     fn: (story, args) => {
-      if (!(args[0] instanceof ObjectValue)) {
+      if (!(args[0] instanceof ObjectValue) || isStdLibMarker(args[0])) {
         story.Error("table.insert: first argument must be a table");
         return undefined;
       }
@@ -3747,7 +3747,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1,
     minArgs: 1,
     fn: (story, args) => {
-      if (!(args[0] instanceof ObjectValue)) {
+      if (!(args[0] instanceof ObjectValue) || isStdLibMarker(args[0])) {
         story.Error("table.remove: first argument must be a table");
         return null;
       }
@@ -3898,7 +3898,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   "table.clone": {
     arity: 1,
     fn: (story, [t]) => {
-      if (!(t instanceof ObjectValue)) {
+      if (!(t instanceof ObjectValue) || isStdLibMarker(t)) {
         story.Error("table.clone: argument must be a table");
         return null;
       }
@@ -4028,7 +4028,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   "table.freeze": {
     arity: 1,
     fn: (story, [t]) => {
-      if (!(t instanceof ObjectValue)) {
+      if (!(t instanceof ObjectValue) || isStdLibMarker(t)) {
         story.Error("table.freeze: argument must be a table");
         return t;
       }
