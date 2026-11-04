@@ -169,6 +169,29 @@ describe("a nested local that shares an outer local's name", () => {
     ).toEqual([]);
   });
 
+  it("reports a store that collides with a for loop's variable", () => {
+    expect(
+      errors(
+        [
+          "function f()",
+          "  for i = 1, 2 do",
+          "    store i = 3",
+          "  end",
+          "  return 0",
+          "end",
+          "scene start",
+          "  Hi {f()}.",
+          "end",
+          "",
+        ].join("\n"),
+      ).filter((e) => e.includes("Duplicate identifier `i`")),
+    ).toEqual([
+      expect.stringMatching(
+        /^L2:\d+ Duplicate identifier `i`\. A temp named `i` already exists$/,
+      ),
+    ]);
+  });
+
   it("compiles with only the shadowing lint in each block of a function", () => {
     expect(
       allDiagnostics(
