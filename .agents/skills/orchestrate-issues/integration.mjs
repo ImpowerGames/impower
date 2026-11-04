@@ -96,7 +96,7 @@ function acceptanceOn(decisions, chain) {
   const direct = acceptanceApplies(decisions, chain[0]);
   if (direct.applies || !direct.decision || !chain.includes(direct.decision.head)) return direct;
   const there = acceptanceApplies(decisions, direct.decision.head);
-  return there.applies ? { ...there, reason: `${there.reason}; the head adds only clean merges of ${TARGET} after it` } : direct;
+  return there.applies ? { ...there, reason: `${there.reason}; the head adds only clean merges of ${TARGET} and tree-identical commits after it` } : direct;
 }
 
 const requiresDependencies = (record, t, ticket) => t.number === ticket || (!t.delivered && !closedBeforeRun(record, t));
@@ -158,7 +158,7 @@ export function admission(record, { ticket: number, pr, snapshot, facts, git, ru
     if (a.applies) { disposition = "accepted-unreviewed"; covered = a.decision.head; acceptance = { id: a.decision.id, comment: a.decision.comment, head: a.decision.head, range: a.decision.range }; }
     else {
       const unreviewed = e.range?.commits?.length ? `; unreviewed after it: ${e.range.commits.map((c) => `${short(c.sha)} ${c.subject}`).join("; ")}` : "";
-      blockers.push(`head ${head} is not the last independently reviewed head ${e.reviewedHead ?? "(none)"} or a clean merge of ${TARGET} on top of it${unreviewed}, and no acceptance covers it (${a.reason}); the writer's next review round, or a checkpoint decision on this head, settles it`);
+      blockers.push(`head ${head} is not the last independently reviewed head ${e.reviewedHead ?? "(none)"} or reached from it only through clean merges of ${TARGET} and commits that change no file${unreviewed}, and no acceptance covers it (${a.reason}); the writer's next review round, or a checkpoint decision on this head, settles it`);
     }
   }
   const latest = decisions.filter((d) => d.effective).at(-1);
@@ -315,7 +315,7 @@ export function finalReport(record, snapshot, v) {
   const rows = slices(record, snapshot).map((s) => {
     const how = s.history ? HISTORY : !s.mergeCommit ? (s.open.length ? `open: PR ${s.open.map((p) => `#${p}`).join(", ")}` : "no merged PR")
       : !s.gate ? `merged as \`${short(s.mergeCommit)}\` outside this run's merge gate (by the maintainer or before this run merged)`
-      : s.gate.disposition === "reviewed" ? `merged by the coordinator as \`${short(s.mergeCommit)}\`; independently reviewed through \`${short(s.gate.reviewedHead)}\`${s.gate.mergedSince.length ? ` plus ${s.gate.mergedSince.length} clean merge${s.gate.mergedSince.length > 1 ? "s" : ""} of ${TARGET}` : ""}`
+      : s.gate.disposition === "reviewed" ? `merged by the coordinator as \`${short(s.mergeCommit)}\`; independently reviewed through \`${short(s.gate.reviewedHead)}\`${s.gate.mergedSince.length ? ` plus ${s.gate.mergedSince.length} content-preserving commit${s.gate.mergedSince.length > 1 ? "s" : ""} (clean merges of ${TARGET} or tree-identical commits)` : ""}`
       : `merged by the coordinator as \`${short(s.mergeCommit)}\` under acceptance \`${s.gate.acceptance.id}\`: reviewed through \`${short(s.gate.reviewedHead)}\`, \`${short(s.gate.acceptance.range?.from)}..${short(s.gate.acceptance.range?.to)}\` accepted unreviewed`;
     const landed = !s.gate ? "" : s.baseMoved ? `; it landed on ${TARGET} \`${short(s.mergedOnto)}\`, while its CI covered ${TARGET} \`${short(s.gate.ciMain ?? s.gate.originMain)}\`, so CI never ran on that combination before ${TARGET}'s own run` : s.baseMoved === null ? `; where it landed on ${TARGET} could not be read` : "";
     const by = s.deliveredBy && !s.history ? `delivered by #${s.deliveredBy.ticket}'s PR: ` : "";
@@ -506,6 +506,7 @@ export function integrationGit(checkout, { fetch, main } = {}) {
       const chain = [head];
       for (let at = head; ;) {
         const parents = git("rev-list", "--parents", "-n", "1", at).split(" ").slice(1);
+        if (parents.length === 1 && git("rev-parse", `${at}^{tree}`) === git("rev-parse", `${parents[0]}^{tree}`)) { chain.push(parents[0]); at = parents[0]; continue; }
         if (parents.length !== 2 || !isAncestor(parents[1], target)) return chain;
         if (git("show", "--remerge-diff", "--format=", at) !== "") return chain;
         chain.push(parents[0]);
