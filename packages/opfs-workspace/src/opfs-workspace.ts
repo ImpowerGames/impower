@@ -111,6 +111,7 @@ const globToRegex = (glob: string) => {
 interface WriteResult {
   file: FileData;
   created: boolean;
+  local: number;
   commit?: FileCommit;
   origin?: string;
 }
@@ -118,6 +119,7 @@ interface WriteResult {
 interface DeleteResult {
   uri: string;
   file?: FileData;
+  local: number;
   commit?: FileCommit;
 }
 
@@ -161,9 +163,24 @@ abstract class State {
   static documents = new Map<string, TextDocument>();
   static commits = new Map<string, FileCommit>();
   static directoryFloors = new Map<string, FileCommit>();
+  static localVersions = new Map<string, number>();
+  static localClock = 0;
   static clock = 0;
   static writer = crypto.randomUUID();
 }
+
+const touch = (uris: string[]) => {
+  State.localClock += 1;
+  for (const uri of uris) {
+    State.localVersions.set(uri, State.localClock);
+  }
+  return State.localClock;
+};
+
+const isLocalLatest = (uri: string, local: number) =>
+  State.localVersions.get(uri) === local;
+
+const SETTLED_WRITER = "\uffff";
 
 const observeCommit = (commit: FileCommit) => {
   State.clock = Math.max(State.clock, commit.sequence);
@@ -183,6 +200,23 @@ const heldCommit = (uri: string) => {
 };
 
 const NO_COMMIT: FileCommit = { sequence: -1, writer: "" };
+
+const removeDirectoryTree = (directoryUri: string, commit: FileCommit) => {
+  raiseDirectoryFloor(directoryUri, commit);
+  const evicted: string[] = [];
+  for (const uri of [...State.files.keys()]) {
+    if (
+      uri.startsWith(`${directoryUri}/`) &&
+      isSupersededCommit(State.commits.get(uri) ?? NO_COMMIT, commit)
+    ) {
+      evictFile(uri);
+      evicted.push(uri);
+    }
+  }
+  if (evicted.length > 0) {
+    touch(evicted);
+  }
+};
 
 const raiseDirectoryFloor = (directoryUri: string, floor: FileCommit) => {
   const held = State.directoryFloors.get(directoryUri);
@@ -238,7 +272,7 @@ const commitChange = <T>(
     const result = await change();
     const uris = changedUris(result);
     if (uris.length === 0) {
-      return { result, commit: undefined };
+      return { result, commit: undefined, local: undefined };
     }
     const commit = await allocateCommit(
       await navigator.storage.getDirectory(),
@@ -250,57 +284,50 @@ const commitChange = <T>(
         acceptCommit(uri, commit);
       }
     }
-    return { result, commit };
+    return { result, commit, local: touch(uris) };
   });
 
 class CommitLog {
-  latest = new Map<string, FileCommit>();
+  latest = new Map<string, { local: number; commit?: FileCommit }>();
   writes = new Map<string, WriteResult>();
 
-  record(uri: string, commit: FileCommit | undefined) {
-    if (!commit) {
+  record(uri: string, local: number | undefined, commit?: FileCommit) {
+    if (local == null) {
       return;
     }
     const held = this.latest.get(uri);
-    if (!held || compareFileCommits(commit, held) > 0) {
-      this.latest.set(uri, commit);
+    if (!held || local > held.local) {
+      this.latest.set(uri, { local, commit });
     }
   }
 
   wrote(result: WriteResult) {
     const uri = result.file.uri;
-    this.record(uri, result.commit);
+    this.record(uri, result.local, result.commit);
     const held = this.writes.get(uri);
-    if (
-      !held?.commit ||
-      !result.commit ||
-      compareFileCommits(result.commit, held.commit) > 0
-    ) {
+    if (!held || result.local > held.local) {
       this.writes.set(uri, result);
     }
   }
 
   isCurrent(uri: string) {
-    return isCurrentCommit(uri, this.latest.get(uri));
+    const latest = this.latest.get(uri);
+    return !latest || isLocalLatest(uri, latest.local);
   }
 
-  isLatest(uri: string, commit: FileCommit | undefined) {
+  isLatest(uri: string, local: number | undefined) {
     const latest = this.latest.get(uri);
-    if (!commit) {
-      return latest == null;
-    }
     return (
-      commit != null &&
-      latest != null &&
-      compareFileCommits(commit, latest) === 0 &&
-      isCurrentCommit(uri, commit)
+      local != null &&
+      latest?.local === local &&
+      isLocalLatest(uri, local)
     );
   }
 
   stamp(uris: Iterable<string>): FileCommits {
     const commits: FileCommits = {};
     for (const uri of uris) {
-      const commit = this.latest.get(uri);
+      const commit = this.latest.get(uri)?.commit;
       if (commit) {
         commits[uri] = commit;
       }
@@ -330,7 +357,7 @@ const broadcast = (message: NotificationMessage<string, object>) => {
 const broadcastWrites = (log: CommitLog) => {
   const filesByOrigin = new Map<string | undefined, FileData[]>();
   for (const [uri, result] of log.writes) {
-    if (!log.isLatest(uri, result.commit)) {
+    if (!log.isLatest(uri, result.local)) {
       continue;
     }
     const origin = result.origin;
@@ -368,7 +395,7 @@ const broadcastCreates = (log: CommitLog, results: WriteResult[]) => {
 };
 const broadcastDeletes = (log: CommitLog, results: DeleteResult[]) => {
   const files = results
-    .filter((r) => log.isLatest(r.uri, r.commit))
+    .filter((r) => log.isLatest(r.uri, r.local))
     .map((r) => ({ uri: r.uri }));
   if (files.length > 0) {
     broadcast(
@@ -381,7 +408,7 @@ const broadcastDeletes = (log: CommitLog, results: DeleteResult[]) => {
 };
 const broadcastRenames = (log: CommitLog, outcomes: RenameOutcome[]) => {
   const files = outcomes
-    .filter((o) => o.deleted && log.isLatest(o.oldUri, o.deleted.commit))
+    .filter((o) => o.deleted && log.isLatest(o.oldUri, o.deleted.local))
     .map((o) => ({ oldUri: o.oldUri, newUri: o.newUri }));
   if (files.length > 0) {
     broadcast(
@@ -445,13 +472,15 @@ const readStoredFile = (uri: string) =>
     const buffer = await fileRef.arrayBuffer();
     if (floor) {
       observeCommit(floor);
+      const settled = { sequence: floor.sequence, writer: SETTLED_WRITER };
       const held = State.commits.get(uri);
-      if (!held || compareFileCommits(floor, held) > 0) {
-        State.commits.set(uri, floor);
+      if (!held || compareFileCommits(settled, held) > 0) {
+        State.commits.set(uri, settled);
       }
     }
     updateFileCache(uri, buffer, true, undefined, fileRef.lastModified);
     await enrichUrlAssetType(uri);
+    touch([uri]);
     return State.files.get(uri);
   });
 
@@ -461,6 +490,7 @@ const evictUnlessStored = (uri: string) =>
       return false;
     }
     evictFile(uri);
+    touch([uri]);
     return true;
   });
 
@@ -482,6 +512,10 @@ const reconcileRemoteMessage = async (message: any) => {
       if (stamped(file.uri)) {
         if (fresh(file.uri)) {
           State.files.set(file.uri, { ...file });
+          touch([file.uri]);
+          for (const parent of withAncestors(file.uri).slice(1)) {
+            acceptCommit(parent, commits![file.uri]);
+          }
           files.push(file);
         }
       } else {
@@ -512,6 +546,7 @@ const reconcileRemoteMessage = async (message: any) => {
       if (stamped(file.uri)) {
         if (fresh(file.uri)) {
           evictFile(file.uri);
+          touch([file.uri]);
           files.push(file);
         }
       } else if (await evictUnlessStored(file.uri)) {
@@ -528,6 +563,7 @@ const reconcileRemoteMessage = async (message: any) => {
       if (stamped(file.oldUri)) {
         if (fresh(file.oldUri)) {
           evictFile(file.oldUri);
+          touch([file.oldUri]);
           files.push(file);
         }
       } else if (await evictUnlessStored(file.oldUri)) {
@@ -557,12 +593,22 @@ const reconcileRemoteMessage = async (message: any) => {
     const created: string[] = [];
     for (const uri of message.params.created) {
       if (stamped(uri) ? fresh(uri) : await isStoredDirectory(uri)) {
+        if (stamped(uri)) {
+          for (const parent of withAncestors(uri).slice(1)) {
+            acceptCommit(parent, commits![uri]);
+          }
+        }
+        touch([uri]);
         created.push(uri);
       }
     }
     const deleted: string[] = [];
     for (const uri of message.params.deleted) {
       if (stamped(uri) ? fresh(uri) : !(await isStoredDirectory(uri))) {
+        if (stamped(uri)) {
+          removeDirectoryTree(uri, commits![uri]!);
+        }
+        touch([uri]);
         deleted.push(uri);
       }
     }
@@ -769,7 +815,7 @@ onmessage = async (e) => {
         failure = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === "rejected");
       }
       const log = new CommitLog();
-      deleted.forEach((d) => log.record(d.uri, d.commit));
+      deleted.forEach((d) => log.record(d.uri, d.local, d.commit));
       broadcastDeletes(log, deleted);
       broadcastWatchedChanges(log, deleted.map(d => ({ uri: d.uri, type: FileChangeType.Deleted })));
       if (failure) throw failure.reason;
@@ -833,7 +879,7 @@ onmessage = async (e) => {
       const log = new CommitLog();
       for (const o of outcomes) {
         if (o.write) log.wrote(o.write);
-        if (o.deleted) log.record(o.deleted.uri, o.deleted.commit);
+        if (o.deleted) log.record(o.deleted.uri, o.deleted.local, o.deleted.commit);
       }
       broadcastWrites(log);
       broadcastRenames(log, outcomes);
@@ -897,7 +943,7 @@ onmessage = async (e) => {
             } else if (c.kind === "delete") {
               const [result] = await deleteFiles([c]);
               if (result) {
-                log.record(result.uri, result.commit);
+                log.record(result.uri, result.local, result.commit);
                 deleted.push(result);
                 fileEvents.push({ uri: c.uri, type: FileChangeType.Deleted });
               }
@@ -907,7 +953,7 @@ onmessage = async (e) => {
                 log.wrote(outcome.write);
               }
               if (outcome?.deleted) {
-                log.record(outcome.deleted.uri, outcome.deleted.commit);
+                log.record(outcome.deleted.uri, outcome.deleted.local, outcome.deleted.commit);
                 renamed.push(outcome);
                 fileEvents.push({
                   uri: c.oldUri,
@@ -1023,6 +1069,7 @@ const readDirectoryFiles = async (directoryUri: string) => {
         isSupersededCommit(State.commits.get(uri) ?? NO_COMMIT, floor)
       ) {
         evictFile(uri);
+        touch([uri]);
         State.commits.set(uri, floor);
       }
     }
@@ -1083,12 +1130,12 @@ const createDirectories = async (uris: string[], log: CommitLog) => {
   const created: string[] = [];
   for (const uri of new Set(uris)) {
     console.log(MAGENTA, "MKDIR", uri);
-    const { commit } = await commitChange(
+    const { commit, local } = await commitChange(
       uri,
       () => createDirectory(root, getPathFromUri(uri)),
       () => withAncestors(uri),
     );
-    log.record(uri, commit);
+    log.record(uri, local, commit);
     created.push(uri);
   }
   return created;
@@ -1102,13 +1149,16 @@ const deleteEmptyDirectories = async (uris: string[], log: CommitLog) => {
   const removed: string[] = [];
   for (const path of paths) {
     console.log(MAGENTA, "RMDIR", path);
-    const { result, commit } = await commitChange(
+    const { result, commit, local } = await commitChange(
       getUriFromPath(path),
       () => deleteEmptyDirectory(root, path),
       (paths) => paths.map(getUriFromPath),
     );
     for (const removedPath of result) {
-      log.record(getUriFromPath(removedPath), commit);
+      log.record(getUriFromPath(removedPath), local, commit);
+      if (commit) {
+        removeDirectoryTree(getUriFromPath(removedPath), commit);
+      }
     }
     removed.push(...result);
   }
@@ -1458,25 +1508,25 @@ const write = async (fileUri: string) => {
   console.log(MAGENTA, "WRITE", fileUri);
   const { buffer, version, origin, listeners } = batch;
   try {
-    const { result: created, commit } = await commitChange(
+    const { result: created, commit, local } = await commitChange(
       fileUri,
       () => writeToDisk(fileUri, buffer),
       () => withAncestors(fileUri),
     );
     const arrayBuffer = buffer.buffer as ArrayBuffer;
-    const current = isCurrentCommit(fileUri, commit);
+    const current = isLocalLatest(fileUri, local!);
     const file = current
       ? updateFileCache(fileUri, arrayBuffer, true, version, Date.now())
       : describeFile(fileUri, arrayBuffer, true, version, Date.now());
     if (current) {
       await enrichUrlAssetType(fileUri);
     }
-    const committedFile = isCurrentCommit(fileUri, commit)
+    const committedFile = isLocalLatest(fileUri, local!)
       ? (State.files.get(fileUri) ?? file)
       : file;
     await enqueueThumbnail(fileUri);
     listeners.forEach((l) => {
-      l.resolve({ file: committedFile, created, commit, origin });
+      l.resolve({ file: committedFile, created, local: local!, commit, origin });
     });
   } catch (err: any) {
     listeners.forEach((listener) => listener.reject(err));
@@ -1694,7 +1744,7 @@ const removeFile = async (
   console.log(MAGENTA, "DELETE", uri);
   const root = await navigator.storage.getDirectory();
   const relativePath = getPathFromUri(uri);
-  const { result: existingFile, commit } = await commitChange(
+  const { result: existingFile, commit, local } = await commitChange(
     uri,
     async () => {
       const directoryHandle = await getDirectoryHandleFromPath(
@@ -1719,10 +1769,10 @@ const removeFile = async (
   if (existingFile === null) {
     return undefined;
   }
-  if (isCurrentCommit(uri, commit)) {
+  if (isLocalLatest(uri, local!)) {
     evictFile(uri);
   }
-  return { uri, file: existingFile, commit };
+  return { uri, file: existingFile, local: local!, commit };
 };
 
 const sameBytes = (a: ArrayBuffer, b: ArrayBuffer) => {

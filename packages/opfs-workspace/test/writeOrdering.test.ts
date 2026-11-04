@@ -643,6 +643,103 @@ describe("listing storage after earlier notifications (I-1893)", () => {
   });
 });
 
+describe("schedules across several tabs (I-1893)", () => {
+  it("keeps the stored text of an unstamped write over a stamped snapshot it already contains", async () => {
+    const root = seed({ "a.sd": "OLD" });
+    const h = await worker(root);
+    await h.enumerate();
+    const old = await otherTab(root).commit();
+    writeMemoryFile(root, "local/a.sd", enc.encode("LEGACY"));
+    await h.remote("workspace/didWriteFiles", { files: [fileData("a.sd", "LEGACY")] });
+    const before = h.messages.length;
+    await h.remote("workspace/didWriteFiles", {
+      files: [fileData("a.sd", "OLD")],
+      commits: { [uriOf("a.sd")]: old },
+    });
+    expect(h.writtenTexts("a.sd", before)).toEqual([]);
+    await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: { documentChanges: [insert("a.sd", 0, "!")] },
+    });
+    expect(textAt(root, "a.sd")).toBe("!LEGACY");
+  });
+
+  it("drops a delayed write under a directory whose newer removal this tab accepted", async () => {
+    const root = seed({ "main.sd": "M", "d/a.sd": "A" });
+    const h = await worker(root);
+    await h.enumerate();
+    const writer = otherTab(root);
+    const old = await writer.write("d/a.sd", "OLD-SNAPSHOT");
+    await writer.remove("d/a.sd");
+    await (root.entries.get("local") as MemoryDirectory).removeEntry("d");
+    const removed = await writer.commit();
+    await h.remote("workspace/didChangeDirectories", {
+      created: [],
+      deleted: [uriOf("d")],
+      commits: { [uriOf("d")]: removed },
+    });
+    const before = h.messages.length;
+    await h.remote("workspace/didWriteFiles", {
+      files: [fileData("d/a.sd", "OLD-SNAPSHOT")],
+      commits: { [uriOf("d/a.sd")]: old },
+    });
+    expect(h.writtenTexts("d/a.sd", before)).toEqual([]);
+    expect(
+      await h.request("edit", "workspace/applyWorkspaceEdit", {
+        edit: { documentChanges: [insert("d/a.sd", 0, "!")] },
+      }),
+    ).toMatchObject({ result: { applied: false } });
+    expect(textAt(root, "d/a.sd")).toBeUndefined();
+  });
+
+  it("drops an older directory removal after accepting another tab's newer write inside that directory", async () => {
+    const root = seed({ "main.sd": "M" }, ["d"]);
+    const h = await worker(root);
+    await h.enumerate();
+    const tab = otherTab(root);
+    await (root.entries.get("local") as MemoryDirectory).removeEntry("d");
+    const removed = await tab.commit();
+    const newer = await tab.write("d/new.sd", "NEW");
+    await h.remote("workspace/didWriteFiles", {
+      files: [fileData("d/new.sd", "NEW")],
+      commits: { [uriOf("d/new.sd")]: newer },
+    });
+    const before = h.messages.length;
+    await h.remote("workspace/didChangeDirectories", {
+      created: [],
+      deleted: [uriOf("d")],
+      commits: { [uriOf("d")]: removed },
+    });
+    expect(h.notifications("workspace/didChangeDirectories", before)).toEqual([]);
+  });
+
+  it("does not announce a delayed batch's unstamped text after a later local save when the shared sequence is unavailable", async () => {
+    const root = seed({ "a.sd": "A", "b.sd": "B" });
+    const counter = new MemoryFile(".opfs-workspace-sequence");
+    counter.createSyncAccessHandle = async () => {
+      throw new DOMException("counter unavailable", "QuotaExceededError");
+    };
+    root.entries.set(counter.name, counter);
+    const h = await worker(root);
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    await h.enumerate();
+    let release!: () => void;
+    fileAt(root, "b.sd")!.gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    h.start("batch", "workspace/applyWorkspaceEdit", {
+      edit: { documentChanges: [insert("a.sd", 1, "!"), insert("b.sd", 1, "!")] },
+    });
+    await vi.advanceTimersByTimeAsync(250);
+    expect(textAt(root, "a.sd")).toBe("A!");
+    await h.request("save", "workspace/willWriteFiles", writeOf("a.sd", "NEW", "editor"));
+    const before = h.messages.length;
+    release();
+    await vi.advanceTimersByTimeAsync(250);
+    expect(h.response("batch")).toMatchObject({ result: { applied: true } });
+    expect(h.writtenTexts("a.sd", before)).toEqual([]);
+  });
+});
+
 describe("directory notifications (I-1893)", () => {
   it("numbers a directory removal and a write inside it in the order they reach storage", async () => {
     const root = seed({ "a.sd": "A" }, ["d"]);
