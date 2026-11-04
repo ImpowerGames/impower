@@ -273,11 +273,11 @@ describe("baking secondary states and layer motion", () => {
     expect(artifact.diagnostics.map((d) => d.code)).toContain("mixed-groups");
   });
 
-  test("a moved label this artwork does not draw is reported and the rest still plays", () => {
+  test("a moved label this artwork does not draw moves nothing there, silently, and the rest still plays", () => {
     const keyframes = KEYFRAMES.map((k) => (k.offset === 0.333 ? { ...k, whiskers: { translate: "0 1px" } } : k));
     const artifact = bake({ keyframes });
     expect(artifact.status).toBe("live");
-    expect(artifact.diagnostics).toContainEqual(expect.objectContaining({ code: "target-missing", layer: "whiskers" }));
+    expect(artifact.diagnostics.filter((d) => d.layer === "whiskers")).toEqual([]);
     expect(movedLabels(artifact)).toEqual(["eyebrows", "nose"]);
   });
 

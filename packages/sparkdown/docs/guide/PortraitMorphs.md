@@ -396,7 +396,7 @@ Each property moves between the nearest poses that set it. A first or last pose 
 - A container whose name is both a group and a label can set the group's `state` and move the layers with that label in one place.
 - The edges and targets of a clip cannot move: their opening is cut where the artwork draws the edges. A moved layer that draws part of one holds still, with a `motion-ignored` warning on the artwork. So does a moved layer that a `<use>` or a clip path outside it draws again, since that copy would stay behind.
 - 3D is refused where it is written: `rotateX()`, `translate3d()`, `perspective()` and the other 3D functions, a third value of `translate`, `scale` or `transform_origin`, and a rotation axis such as `rotate = x 30deg`. Any other field in a container is an unknown field.
-- A label no portrait draws is reported on its container. A portrait that lacks a label another portrait draws is warned about on its own artwork and still plays.
+- A label no portrait draws is reported on its container. A label only some portraits draw is fine: the others play without moving it, so one morph can move a nose drawn on a mask that only some looks wear.
 - Changing a distance or angle prepares nothing again; only which labels move is part of the prepared portrait.
 
 ### Building on another morph
@@ -490,7 +490,7 @@ When only part of a portrait moves, read the artwork's warnings first. The usual
 - Lashes on both sides sharing one label, so they pair across the face. Repeat the side in each label.
 - An eyeball cut to the open eye's outline, which shows its cut edge as the eye closes. Draw it whole.
 - A look resting in another state than the morph's first pose, which is dormant by design. With several groups, check each one.
-- A moved layer that stays put: it draws part of a clip's edges or targets, something outside it draws it again by reference (a `<use>` of it), or this artwork has no layer with its label.
+- A moved layer that stays put: it draws part of a clip's edges or targets, something outside it draws it again by reference (a `<use>` of it), or this look does not draw a layer with its label (check the label's spelling in the artwork).
 
 `morph` is a built-in type name, so a variable called `morph` is reported, as `style` or `animation` would be.
 
@@ -537,6 +537,9 @@ morph blink {
         translate = 0 8px
       }
       nose {
+        translate = 0 -2px
+      }
+      masked-nose {
         translate = 0 -2px
       }
     }
@@ -600,4 +603,4 @@ morph blink {
 
 Its timing is the project's own tuning, still provisional, not a recommendation: the eyes close in the first third of a quarter-second play, `steps(3)` gives the blink a drawn, three-frame look, and the gaps range from a fifth of a second to six seconds.
 
-The eyebrows drop and the nose lifts with each closing, by `translate` in the artwork's own units. These distances are starting values set by eye, not yet calibrated against captures of the project's characters, and they move each brow and nose by the same distance whatever the expression rather than by a fraction of how far that face's eyes close.
+With each closing the eyebrows drop 8 units and the nose, and the nose drawn on a mask, lift 2 units, by `translate` in the artwork's own units (each portrait is 3240 units tall). The prototype the blink was designed from moved them by 6% and 1.5% of each face's eye height, which across the project's five characters comes to 4.5 to 13.5 units for the brows and 1.1 to 3.4 for the nose; 8 and 2 sit in the middle of the characters' typical figures. One morph moves every face by the same distance, so a face with small eyes scrunches a little more than the prototype did and a face with large eyes a little less.

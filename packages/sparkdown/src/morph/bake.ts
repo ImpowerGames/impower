@@ -579,10 +579,6 @@ export function* bakeSteps(
   const motionOf = new Map<Element, string>();
   for (const label of recipe.motion ?? []) {
     const matches = [...doc.byKey.values()].filter((e) => e.layer?.parsed.label === label && !e.resource).map((e) => e.element);
-    if (!matches.length) {
-      report("target-missing", "warning", `A keyframe moves \`${label}\`, but this artwork has no layer with that label.`, { layer: label });
-      continue;
-    }
     for (const element of matches) {
       if (matches.some((other) => other !== element && isAncestorOrSelf(doc!, other, element))) continue;
       const drawn = allLeaves.filter((leaf) => isAncestorOrSelf(doc!, element, leaf));

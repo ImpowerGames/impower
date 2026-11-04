@@ -32,6 +32,7 @@ const PORTRAIT = `<svg xmlns="http://www.w3.org/2000/svg">
     <g data-name="brow-left:brows.down" id="bd"/>
   </g>
   <g data-name="nose" id="no"/>
+  <g data-name="masked-nose:mask.on" id="mn"/>
 </g>
 </svg>`;
 
