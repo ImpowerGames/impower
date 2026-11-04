@@ -62,6 +62,20 @@ describe("a closure written in a branch its own scene enters", () => {
     ).toEqual(got("Got 5."));
   });
 
+  test("a function stored on a table reads the scene's local", () => {
+    expect(
+      run(
+        sceneThenBranch([
+          "local t = {}",
+          "function t.get()",
+          "  return foo",
+          "end",
+          "Got {t.get()}.",
+        ]),
+      ),
+    ).toEqual(got("Got 5."));
+  });
+
   test("a function value inside a block reads the scene's local", () => {
     expect(
       run(
