@@ -345,18 +345,29 @@ export const layoutSubtreeFor = (path: string): string =>
       ? "assets/urls"
       : "assets";
 
+const MAIN_SCRIPT = "main.sd";
+
 export const computeLayoutMigration = (
   relativePaths: string[],
   subtreeFor: (path: string) => string,
 ): { from: string; to: string }[] => {
+  const subProjectFolders = relativePaths
+    .filter((p) => p !== MAIN_SCRIPT && p.endsWith(`/${MAIN_SCRIPT}`))
+    .map((p) => stripCategoryPrefix(p).slice(0, -MAIN_SCRIPT.length))
+    .filter((folder) => folder !== "");
+  const isInSubProject = (inner: string) =>
+    subProjectFolders.some((folder) => inner.startsWith(folder));
+  const occupied = new Set(relativePaths);
   const moves: { from: string; to: string }[] = [];
   for (const p of relativePaths) {
-    if (p === "main.sd") continue;
+    if (p === MAIN_SCRIPT) continue;
     const base = p.split("/").pop() ?? p;
     if (base.startsWith(".")) continue;
     const inner = stripCategoryPrefix(p);
-    const to = `${subtreeFor(p)}/${inner}`;
-    if (to !== p) {
+    const subtree = isInSubProject(inner) ? "scripts" : subtreeFor(p);
+    const to = `${subtree}/${inner}`;
+    if (to !== p && !occupied.has(to)) {
+      occupied.add(to);
       moves.push({ from: p, to });
     }
   }

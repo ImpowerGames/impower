@@ -14,6 +14,7 @@ import {
   resolveScopePath,
   subtreeChildren,
 } from "../../src/modules/spark-editor/utils/fileTree";
+import { isInProject } from "@impower/sparkdown/src/compiler/utils/projectMembership";
 
 describe("buildFileTree", () => {
   it("keeps flat files at the top level, grouped by extension then name", () => {
@@ -454,6 +455,111 @@ describe("computeLayoutMigration", () => {
           "assets/hero.png",
           "assets/urls/song.url",
           "main.sd",
+        ],
+        subtreeFor,
+      ),
+    ).toEqual([]);
+  });
+
+  const applyMoves = (
+    paths: string[],
+    moves: { from: string; to: string }[],
+  ): string[] => {
+    const renamed = new Map(moves.map((m) => [m.from, m.to]));
+    return paths.map((p) => renamed.get(p) ?? p);
+  };
+
+  const projectOf = (paths: string[], path: string): string => {
+    const has = (uri: string) => paths.includes(uri);
+    const roots = paths
+      .filter((p) => p === "main.sd" || p.endsWith("/main.sd"))
+      .map((p) => p.slice(0, p.length - "main.sd".length))
+      .filter((root) => isInProject(root, path, "main.sd", has))
+      .sort((a, b) => b.length - a.length);
+    return roots[0] ?? "";
+  };
+
+  it("keeps a sub-project's scripts and assets in one folder so they share its project", () => {
+    const paths = [
+      "main.sd",
+      "forest.svg",
+      "other/main.sd",
+      "other/lib.luau",
+      "other/assets/forest.svg",
+      "other/song.url",
+    ];
+    const migrated = applyMoves(paths, computeLayoutMigration(paths, subtreeFor));
+    expect(migrated).toEqual([
+      "main.sd",
+      "assets/forest.svg",
+      "scripts/other/main.sd",
+      "scripts/other/lib.luau",
+      "scripts/other/assets/forest.svg",
+      "scripts/other/song.url",
+    ]);
+    expect(projectOf(migrated, "scripts/other/assets/forest.svg")).toBe(
+      "scripts/other/",
+    );
+    expect(projectOf(migrated, "scripts/other/lib.luau")).toBe(
+      "scripts/other/",
+    );
+    expect(projectOf(migrated, "assets/forest.svg")).toBe("");
+    expect(computeLayoutMigration(migrated, subtreeFor)).toEqual([]);
+  });
+
+  it("repairs a sub-project an earlier migration split between scripts/ and assets/", () => {
+    const paths = [
+      "main.sd",
+      "assets/forest.svg",
+      "scripts/other/main.sd",
+      "scripts/other/lib.luau",
+      "assets/other/assets/forest.svg",
+      "assets/urls/other/song.url",
+      "assets/elsewhere/hero.png",
+    ];
+    const moves = computeLayoutMigration(paths, subtreeFor);
+    expect(moves).toEqual([
+      {
+        from: "assets/other/assets/forest.svg",
+        to: "scripts/other/assets/forest.svg",
+      },
+      { from: "assets/urls/other/song.url", to: "scripts/other/song.url" },
+    ]);
+    expect(
+      computeLayoutMigration(applyMoves(paths, moves), subtreeFor),
+    ).toEqual([]);
+  });
+
+  it("keeps a nested sub-project inside its outermost sub-project's folder", () => {
+    const paths = [
+      "main.sd",
+      "outer/main.sd",
+      "outer/inner/main.sd",
+      "outer/inner/tree.png",
+    ];
+    const migrated = applyMoves(paths, computeLayoutMigration(paths, subtreeFor));
+    expect(migrated).toEqual([
+      "main.sd",
+      "scripts/outer/main.sd",
+      "scripts/outer/inner/main.sd",
+      "scripts/outer/inner/tree.png",
+    ]);
+    expect(projectOf(migrated, "scripts/outer/inner/tree.png")).toBe(
+      "scripts/outer/inner/",
+    );
+    expect(computeLayoutMigration(migrated, subtreeFor)).toEqual([]);
+  });
+
+  it("leaves a file in place rather than overwrite another at its destination", () => {
+    expect(
+      computeLayoutMigration(
+        [
+          "main.sd",
+          "scripts/other/main.sd",
+          "scripts/other/tree.png",
+          "assets/other/tree.png",
+          "hero.png",
+          "assets/hero.png",
         ],
         subtreeFor,
       ),
