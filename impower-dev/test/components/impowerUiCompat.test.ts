@@ -1,9 +1,14 @@
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, expect, it } from "vitest";
-import { Button, Tab, Tabs } from "@impower/impower-ui/components";
 
 let host: HTMLDivElement | undefined;
+
+const loadKit = async () => {
+  const kit = import("@impower/impower-ui/components");
+  await expect(kit).resolves.toHaveProperty("Tabs");
+  return kit;
+};
 
 const mount = async (node: ReturnType<typeof h>) => {
   host = document.body.appendChild(document.createElement("div"));
@@ -21,7 +26,13 @@ afterEach(async () => {
   }
 });
 
+it("renders a plain Preact element in the test environment", async () => {
+  const root = await mount(h("button", { type: "button" }, "Open"));
+  expect(root.querySelector("button")?.textContent).toBe("Open");
+});
+
 it("renders a button from the real component kit", async () => {
+  const { Button } = await loadKit();
   const clicks: string[] = [];
   const root = await mount(h(Button, { onClick: () => clicks.push("open") }, "Open"));
   const button = root.querySelector("button");
@@ -32,6 +43,7 @@ it("renders a button from the real component kit", async () => {
 });
 
 it("renders Radix tabs from the real component kit", async () => {
+  const { Tab, Tabs } = await loadKit();
   const root = await mount(
     h(
       Tabs,
