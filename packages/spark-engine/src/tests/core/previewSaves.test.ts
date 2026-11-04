@@ -552,6 +552,90 @@ describe("saves made while playing", () => {
     expect(shownText(other)).toContain("Back 8.");
   });
 
+  it("lists an edit to the scene's parameter in both frames of an unplaceable save made in a tunnel into its branch", () => {
+    const lines = [
+      "scene start",
+      "  Opening.",
+      "  -> visit(3) ->",
+      "  After.",
+      "end",
+      "scene visit(n)",
+      "  -> visit.inner ->",
+      "  Back {n}.",
+      "  ->->",
+      "  branch inner",
+      "    Saved {n}.",
+      "    Next {n}.",
+      "    ->->",
+      "  end",
+      "end",
+    ];
+    const { program, compiler } = compileSrc(lines.join("\n"));
+    const game = playFromLine(program, compiler, 2);
+    advanceTo(game, "Saved 3.");
+    const save: GameSave = game.saveHere();
+    const keys = Object.keys(game.saveListing(save, "visit").values.values).filter((key) =>
+      /^local:\d+:n$/.test(key),
+    );
+    expect(keys).toHaveLength(2);
+    recompile(
+      compiler,
+      game,
+      [
+        "scene start",
+        "  Replacement.",
+        "end",
+        "scene visit(n)",
+        "  Replacement.",
+        "  branch inner",
+        "    Replacement.",
+        "  end",
+        "end",
+      ].join("\n"),
+    );
+    expect(game.saveRefusal(save.data)).toMatch(/cannot be placed/);
+    for (const key of keys) {
+      const listed = game.saveListing(game.editSave(save, key, "8"), "visit").values.values;
+      expect(keys.map((k) => listed[k])).toEqual(["8", "8"]);
+    }
+  });
+
+  it("lists an edit to the scene's parameter in both frames of a scene-entry save made beneath a tunnel into its branch", () => {
+    const lines = [
+      "scene start",
+      "  Opening.",
+      "  -> visit(3) ->",
+      "  After.",
+      "end",
+      "scene visit(n)",
+      "  -> visit.inner ->",
+      "  ->->",
+      "  branch inner",
+      "    -> elsewhere ->",
+      "    ->->",
+      "  end",
+      "end",
+      "scene elsewhere",
+      "  Elsewhere.",
+      "  ->->",
+      "end",
+    ];
+    const { program, compiler } = compileSrc(lines.join("\n"));
+    const saves: GameSave[] = [];
+    const game = playFromLine(program, compiler, 2, (save) => saves.push(save));
+    advanceTo(game, "Elsewhere.");
+    const save = saves.find((s) => s.entry?.frames.some((frame) => frame.scene === "elsewhere"));
+    expect(save).toBeDefined();
+    const keys = Object.keys(save!.entry!.values).filter((key) => /^local:\d+:n$/.test(key));
+    expect(keys.map((key) => save!.entry!.values[key])).toEqual(["3", "3"]);
+    for (const key of keys) {
+      const edited = game.editSave(save!, key, "8");
+      expect(keys.map((k) => edited.entry!.values[k])).toEqual(["8", "8"]);
+      const listed = game.saveListing(edited, "visit").values.values;
+      expect(keys.map((k) => listed[k])).toEqual(["8", "8"]);
+    }
+  });
+
   it("loads the scene's parameters from the call it returns to when another scene diverts into its branch", () => {
     const lines = [
       "scene start",

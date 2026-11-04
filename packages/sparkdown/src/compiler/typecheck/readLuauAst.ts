@@ -3952,7 +3952,7 @@ type ParameterReading =
   | { node: SyntaxNode; whole: true; vararg: Vararg | undefined }
   | { node: SyntaxNode; whole: false; names: SyntaxNode[]; vararg: Vararg | undefined };
 
-type FlowPart = { node: SyntaxNode } | { branch: SyntaxNode; parameters: ParameterReading };
+type FlowPart = { node: SyntaxNode } | { branch: SyntaxNode; parameters: ParameterReading | undefined; sceneLocals: string[] };
 
 interface Flow {
   header: SyntaxNode;
@@ -4010,11 +4010,14 @@ export function readLuauUnits(tree: Tree, documentText: string, options: ReadOpt
         const parameters = readParameters(node);
         const own = scene.variadic ? scene.varargs[0] : undefined;
         const branchVararg = parameters?.vararg;
+        const sceneLocals = scene.sceneHeader
+          ? []
+          : [...new Set(scene.body.flatMap((part) => ("node" in part ? localNamesOf(part.node, documentText, index) : [])))];
         const flow: Flow = {
           header: node,
           sceneHeader: scene.sceneHeader ?? scene.header,
           parameters: scene.parameters,
-          body: parameters ? [{ branch: node, parameters }] : [],
+          body: parameters || sceneLocals.length ? [{ branch: node, parameters, sceneLocals }] : [],
           varargs: branchVararg ? [branchVararg] : own ? [own] : [],
           variadic: own !== undefined && branchVararg === undefined,
           ...(own && branchVararg ? { sceneVararg: own } : {}),
@@ -4196,8 +4199,9 @@ function readFlow(flow: Flow, tree: Tree, documentText: string, index: LineIndex
     } else {
       tokenizer.source = nodes.length;
       nodes.push(ref(part.branch));
+      declareSceneLocals(tokenizer, part.branch, part.sceneLocals, documentText);
       const before = tokenizer.tokens.length;
-      declareBranchParameters(tokenizer, part.branch, part.parameters, documentText);
+      if (part.parameters) declareBranchParameters(tokenizer, part.branch, part.parameters, documentText);
       if (tokenizer.tokens.length > before) statements++;
       tokenizer.source = -1;
     }
@@ -4219,6 +4223,42 @@ function readFlow(flow: Flow, tree: Tree, documentText: string, index: LineIndex
   const unit = readUnit("flow", tokenizer, nodes, 2, start, options);
   unit.header = ref(flow.header);
   return unit;
+}
+
+function localNamesOf(node: SyntaxNode, documentText: string, index: LineIndex): string[] {
+  const tokenizer = new Tokenizer(documentText, index);
+  tokenizer.read(node);
+  const tokens = tokenizer.tokens.filter((t) => !t.story && t.kind !== "break" && !(t.kind === "symbol" && t.text === "&"));
+  if (tokens[0]?.kind !== "keyword" || tokens[0].text !== "local") return [];
+  if (tokens[1]?.kind === "keyword" && tokens[1].text === "function") return tokens[2]?.kind === "name" ? [tokens[2].text] : [];
+  const names: string[] = [];
+  let depth = 0;
+  let expectName = true;
+  for (const t of tokens.slice(1)) {
+    if (t.kind === "symbol" && depth === 0 && t.text === "=") break;
+    if (t.kind === "symbol" && "({[<".includes(t.text)) depth++;
+    else if (t.kind === "symbol" && ")}]>".includes(t.text)) depth--;
+    else if (t.kind === "symbol" && depth === 0 && t.text === ",") expectName = true;
+    else if (expectName && depth === 0 && t.kind === "name") {
+      names.push(t.text);
+      expectName = false;
+    }
+  }
+  return names;
+}
+
+function declareSceneLocals(tokenizer: Tokenizer, header: SyntaxNode, names: string[], documentText: string): void {
+  if (!names.length) return;
+  const text = documentText.slice(header.from, header.to);
+  const start = header.from + text.length - text.trimStart().length;
+  tokenizer.synthetic("keyword", "local", start);
+  names.forEach((name, i) => {
+    if (i > 0) tokenizer.synthetic("symbol", ",", start);
+    tokenizer.synthetic("name", name, start);
+    tokenizer.synthetic("symbol", ":", start);
+    tokenizer.synthetic("name", "any", start);
+  });
+  tokenizer.synthetic("symbol", ";", start);
 }
 
 function declareBranchParameters(tokenizer: Tokenizer, header: SyntaxNode, parameters: ParameterReading, documentText: string): void {
