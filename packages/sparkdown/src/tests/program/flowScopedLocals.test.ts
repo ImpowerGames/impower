@@ -369,6 +369,123 @@ describe("a tunnel and a thread", () => {
       ]),
     ).toEqual(got("Thread nil.", "After 1."));
   });
+
+  test("a thread into a branch of the spawning scene does not see the scene's locals", () => {
+    expect(
+      run([
+        "scene start",
+        "  local x = 3",
+        "  <- B",
+        "  Back {x}.",
+        "  done",
+        "  branch B",
+        "    B {tostring(x)}.",
+        "    done",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("B nil.", "Back 3."));
+  });
+
+  test("a divert after a thread to a label of the same flow keeps the scene's scope", () => {
+    expect(
+      run([
+        "scene start",
+        "  local x = 3",
+        "  <- middle",
+        "  Back {x}.",
+        "  done",
+        "  label middle",
+        "  -> B",
+        "  branch B",
+        "    B {tostring(x)}.",
+        "    done",
+        "  end",
+        "end",
+      ]).texts[0],
+    ).toBe("B 3.");
+  });
+});
+
+describe("a label in a branch its own scene enters", () => {
+  test("reads the scene's local after a divert", () => {
+    expect(
+      run([
+        "scene start",
+        "  local x = 3",
+        "  -> B.middle",
+        "  branch B",
+        "    Skipped.",
+        "    label middle",
+        "    B {tostring(x)}.",
+        "    done",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("B 3."));
+  });
+
+  test("writes the scene's local through a tunnel", () => {
+    expect(
+      run([
+        "scene start",
+        "  local x = 3",
+        "  -> B.middle ->",
+        "  Back {x}.",
+        "  done",
+        "  branch B",
+        "    Skipped.",
+        "    label middle",
+        "    B {tostring(x)}.",
+        "    & x = x + 1",
+        "    ->->",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("B 3.", "Back 4."));
+  });
+
+  test("reads the scene's parameter after a divert from a sibling branch", () => {
+    expect(
+      run([
+        "scene start",
+        "  -> S(4)",
+        "end",
+        "scene S(n)",
+        "  -> A",
+        "  branch A",
+        "    -> B.middle",
+        "  end",
+        "  branch B",
+        "    Skipped.",
+        "    label middle",
+        "    B {tostring(n)}.",
+        "    done",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("B 4."));
+  });
+});
+
+describe("a scene's local a branch diverts to", () => {
+  test("compiles and reaches the target the scene stored", () => {
+    expect(
+      run([
+        "scene start",
+        "  local destination = -> start.C",
+        "  -> B",
+        "  branch B",
+        "    -> destination",
+        "  end",
+        "  branch C",
+        "    Arrived.",
+        "    done",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("Arrived."));
+  });
 });
 
 describe("a save", () => {

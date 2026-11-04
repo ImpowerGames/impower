@@ -2092,6 +2092,8 @@ export class ProgramStory implements StoryEngine {
     const w0 = chunk[at]!;
     const arg = chunk[at + 1]!;
     const flags = flagsOf(w0);
+    const thread = this._threadEntry;
+    this._threadEntry = false;
     position.offset += 2;
     switch (opOf(w0)) {
       case Op.LineStart:
@@ -2288,7 +2290,7 @@ export class ProgramStory implements StoryEngine {
           if (!(flags & JUMP_ARGUMENTS)) {
             this.padVariadicFlow(arg);
           }
-          this.callTunnel(arg);
+          this.callTunnel(arg, thread);
           break;
         }
         const target = this.targetOf(arg);
@@ -2304,6 +2306,7 @@ export class ProgramStory implements StoryEngine {
         if (flags & CALL_TUNNEL) {
           this.callTunnel(
             this.symbolOfVariable(this.root.table.strings[arg]!),
+            thread,
           );
           break;
         }
@@ -2360,10 +2363,14 @@ export class ProgramStory implements StoryEngine {
         if (!(flags & JUMP_ARGUMENTS)) {
           this.padVariadicFlow(arg);
         }
-        this.jumpTo(arg);
+        this.jumpTo(arg, undefined, thread);
         break;
       case Op.JumpVar:
-        this.jumpTo(this.symbolOfVariable(this.root.table.strings[arg]!));
+        this.jumpTo(
+          this.symbolOfVariable(this.root.table.strings[arg]!),
+          undefined,
+          thread,
+        );
         break;
       case Op.TunnelReturn:
         this.tunnelReturn();
@@ -2374,6 +2381,7 @@ export class ProgramStory implements StoryEngine {
           entry: position.entry,
           offset: position.offset + arg,
         });
+        this._threadEntry = true;
         break;
       case Op.Visit:
         state.Visit(this.countId(arg));
@@ -2771,37 +2779,48 @@ export class ProgramStory implements StoryEngine {
   protected jumpTo(
     symbol: number,
     left: SequenceRow | null = this._running?.sequence ?? null,
+    thread = false,
   ): void {
     const place = this.root.place(symbol);
     if (!place) {
       this.Error("Divert target not found.");
     }
-    this.land(place, this._state.blockStack, this.keptFlowScopes(place, symbol));
+    this.land(
+      place,
+      this._state.blockStack,
+      this.keptFlowScopes(place, symbol, thread),
+    );
     this.countEntered(place.sequence, left?.flow ?? -1);
     this.countLabelsAbove(place);
     this.enterStart(symbol, place.sequence);
   }
 
-  protected keptFlowScopes(target: ProgramPosition, symbol?: number): number {
+  protected keptFlowScopes(
+    target: ProgramPosition,
+    symbol?: number,
+    thread = false,
+  ): number {
     const kind = symbol === undefined ? UNDEFINED_KIND : this.root.kindOf(symbol);
     const at = this._state.position;
-    if (symbol !== undefined && this.inSceneOf(symbol, at)) {
-      return 1;
-    }
-    if (kind === SymbolKind.Scene || kind === SymbolKind.Branch) {
-      return 0;
-    }
     const flow = flowSequenceOf(this.root, target.sequence);
-    return at && flow && flowSequenceOf(this.root, at.sequence) === flow
-      ? flowScopesOf(this.root, target.sequence)
-      : 0;
+    if (
+      kind !== SymbolKind.Scene &&
+      kind !== SymbolKind.Branch &&
+      at &&
+      flow &&
+      flowSequenceOf(this.root, at.sequence) === flow
+    ) {
+      return flowScopesOf(this.root, target.sequence);
+    }
+    return !thread && this.inSceneOf(target, at) ? 1 : 0;
   }
 
-  protected inSceneOf(symbol: number, at: ProgramPosition | null): boolean {
-    if (!at || this.root.kindOf(symbol) !== SymbolKind.Branch) {
+  protected inSceneOf(target: ProgramPosition, at: ProgramPosition | null): boolean {
+    const flow = flowSequenceOf(this.root, target.sequence);
+    if (!at || !flow || flow.kind !== SymbolKind.Branch) {
       return false;
     }
-    const scene = this.root.parentOf(symbol);
+    const scene = this.root.parentOf(flow.flow);
     return scene >= 0 && flowScopeOwners(this.root, at.sequence)[0] === scene;
   }
 
@@ -2922,7 +2941,7 @@ export class ProgramStory implements StoryEngine {
     return countIdOf(this.root.table, symbol);
   }
 
-  protected callTunnel(symbol: number): void {
+  protected callTunnel(symbol: number, thread = false): void {
     const state = this._state;
     const left = this._running?.sequence ?? null;
     const place = this.root.place(symbol);
@@ -2934,9 +2953,10 @@ export class ProgramStory implements StoryEngine {
       first && place.offset === 0 && this.root.flow(symbol) === place.sequence
         ? entryBindings(first, 0).bindings
         : 0;
-    const caller = this.inSceneOf(symbol, state.position)
-      ? state.callStack.currentElementIndex
-      : -1;
+    const caller =
+      !thread && this.inSceneOf(place, state.position)
+        ? state.callStack.currentElementIndex
+        : -1;
     state.PushFrame(
       PushPopType.Tunnel,
       {
@@ -3217,6 +3237,7 @@ export class ProgramStory implements StoryEngine {
   }
 
   protected _running: RunningInstruction | null = null;
+  protected _threadEntry = false;
 
   endedAt: number | null = null;
 
