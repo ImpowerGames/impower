@@ -3146,7 +3146,6 @@ export class Game<T extends M = {}> {
           }: possible infinite loop`,
           ErrorType.Error,
         );
-        this.reachTargetStoppedByEngine();
         return true;
       }
       this._executionStepsRemaining -= 1;
