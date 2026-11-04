@@ -1096,7 +1096,7 @@ try {
     const legacyPlanFile = write("legacy-plan.json", run.planDispatch({ record: loaded, snapshot: legacySnap, preflights: [available("claude-cli", "claude-opus-5-5", [1902])], freeBytes: 100 * GB, defaults }));
     const legacyPlan = readJsonFile(legacyPlanFile);
     assert.deepEqual(actions(legacyPlan), { 1901: "done", 1902: "dispatch" });
-    assert.equal(legacyPlan.remaining[0], "A writer's review reaches a checkpoint after round 3's verified fixes and after every later round's; the coordinator decides each with review-checkpoint.mjs and publishes it on the PR.");
+    assert.equal(legacyPlan.remaining[0], "A writer's review reaches a checkpoint after round 3's verified fixes and after every later round's, and an acceptance of verified final corrections may be decided after any completed round; the coordinator decides each with review-checkpoint.mjs and publishes it on the PR.");
     const claimed = run.updateRecord(file, { expectRevision: 119, coordinator: "local_legacy" }, (r) => run.claim(r, { plan: legacyPlanFile, ticket: 1902, worktree: path.join(dir, "wt-1902"), branch: "feat/1902-thing", artifactParent: dir }));
     assert.equal(claimed.record.revision, 120);
     assert.ok(!("ticketsRepository" in claimed.record), "a change adds no tickets repository to the record");
