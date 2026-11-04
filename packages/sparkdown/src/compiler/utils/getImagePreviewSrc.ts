@@ -18,20 +18,18 @@ export const getImagePreviewSrc = (
 
   if (type === "image") {
     if (context && struct.attribute_vocabulary) {
-      filterImage(context, struct);
-      if (struct.filtered_src) return struct.filtered_src;
+      const src = filterImage(context, struct).src;
+      if (src) return src;
     }
     return struct["src"] || struct["data"] || struct["uri"] || undefined;
   }
 
   if (type === "filtered_image") {
-    if (context) {
-      filterImage(context, struct);
+    const filtered = context ? filterImage(context, struct) : {};
+    if (filtered.src) {
+      return filtered.src;
     }
-    if (struct["filtered_src"]) {
-      return struct["filtered_src"];
-    }
-    const filteredLayers = struct["filtered_layers"];
+    const filteredLayers = filtered.layers;
     if (filteredLayers) {
       for (const layer of filteredLayers) {
         const src = getImagePreviewSrc(
@@ -53,8 +51,7 @@ export const getImagePreviewSrc = (
   }
 
   if (type === "layered_image") {
-    if (context) filterImage(context, struct);
-    const assets = struct["filtered_layers"] ?? struct["assets"];
+    const assets = (context ? filterImage(context, struct).layers : undefined) ?? struct["assets"];
     const layers = Array.isArray(assets)
       ? assets
       : assets && typeof assets === "object"
