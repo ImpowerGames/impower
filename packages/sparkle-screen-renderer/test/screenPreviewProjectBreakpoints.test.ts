@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { uiBuiltinDefinitions } from "../../spark-engine/src/game/modules/ui/uiBuiltinDefinitions";
+import builtinBreakpoints from "../../spark-engine/src/game/modules/ui/builtinBreakpoints.json";
 import { loadScreenPreview } from "../../sparkle-screen-preview/src/utils/loadScreenPreview";
 import { getUiBreakpoints } from "../../sparkdown-language-server/src/utils/providers/getUiBreakpoints";
 import { compileUI, createHarness } from "../../spark-engine/src/tests/ui/harness/uiTestHarness";
@@ -51,7 +51,7 @@ describe("the screen preview resolves breakpoints as the game does", () => {
   test("a project without an override keeps the builtin table", async () => {
     const project = projectBreakpoints(SCENE);
     const game = await gameBreakpoints(SCENE);
-    const builtin = uiBuiltinDefinitions().config.ui.breakpoints;
+    const builtin = builtinBreakpoints;
     expect(game).toMatchObject(builtin);
     expect(project).toEqual(game);
     for (const [name, px] of Object.entries(builtin)) {

@@ -1,4 +1,4 @@
-import { FOLDER_SENTINEL, layoutSubtreeFor, routeIntoLayout } from "./fileTree";
+import { layoutSubtreeFor, routeIntoLayout } from "./fileTree";
 import { recordResolvedUpload } from "./fileUndo";
 import { runImport } from "./importProgress";
 import { isScriptPath } from "./scriptFiles";
@@ -7,16 +7,6 @@ import { resolveUploadConflicts } from "./uploadConflicts";
 export interface DroppedItem {
   rel: string;
   getBuffer: () => Promise<ArrayBuffer>;
-}
-
-function escapeSentinel(rel: string): string {
-  const slash = rel.lastIndexOf("/");
-  const base = slash >= 0 ? rel.slice(slash + 1) : rel;
-  if (base !== FOLDER_SENTINEL) {
-    return rel;
-  }
-  const dir = slash >= 0 ? rel.slice(0, slash + 1) : "";
-  return `${dir}_${base}`;
 }
 
 export async function importDroppedFiles(
@@ -31,7 +21,7 @@ export async function importDroppedFiles(
     (uri) => Workspace.fs.getRelativePath(projectId, uri),
   );
   const routed = routeIntoLayout(
-    items.map((it) => escapeSentinel(it.rel)),
+    items.map((it) => it.rel),
     existingPaths,
     layoutSubtreeFor,
   );

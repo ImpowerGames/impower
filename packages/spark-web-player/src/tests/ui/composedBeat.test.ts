@@ -10,7 +10,7 @@ import { MoveElementMessage } from "@impower/spark-engine/src/game/modules/ui/cl
 import { UpdateElementMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/UpdateElementMessage";
 import { WriteImageMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { WriteTextMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
-import { uiBuiltinDefinitions } from "@impower/spark-engine/src/game/modules/ui/uiBuiltinDefinitions";
+import breakpoints from "@impower/spark-engine/src/game/modules/ui/builtinBreakpoints.json";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import AssetManager from "../../app/managers/AssetManager";
 import {
@@ -26,8 +26,6 @@ scene start
   HERO: Do you understand?
 end
 `;
-
-const breakpoints = uiBuiltinDefinitions().config.ui.breakpoints;
 
 const LINE = SOURCE.split("\n").findIndex((l) => l.includes("Do you understand?"));
 

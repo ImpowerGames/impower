@@ -25,7 +25,11 @@ import {
   recordTrashDeletion,
 } from "../../utils/fileUndo";
 import { formatModified, getFileSizeDisplayValue } from "../../utils/fileMeta";
-import { layoutSubtreeFor, routeIntoLayout } from "../../utils/fileTree";
+import {
+  canMoveFolder,
+  layoutSubtreeFor,
+  routeIntoLayout,
+} from "../../utils/fileTree";
 import { isScriptExtension } from "../../utils/scriptFiles";
 import workspace from "../../workspace/WorkspaceStore";
 import DiagnosticsLabel from "./DiagnosticsLabel";
@@ -338,7 +342,7 @@ function FileItem({
 
   async function renameFolder(oldPath: string, newPath: string) {
     const projectId = workspace.signals.projectId.value;
-    if (!projectId) return;
+    if (!projectId || !canMoveFolder(oldPath, newPath)) return;
     const { Workspace } = await import("../../workspace/Workspace");
     await Workspace.fs.moveFolder(projectId, oldPath, newPath);
     onFolderRenamed?.(oldPath, newPath);
@@ -357,9 +361,10 @@ function FileItem({
       if (mode === "trash") {
         await recordTrashDeletion(
           projectId,
-          deleted.map((d) => d.uri),
+          deleted.files.map((d) => d.uri),
           basename,
           since,
+          deleted.folders,
         );
       }
       return;

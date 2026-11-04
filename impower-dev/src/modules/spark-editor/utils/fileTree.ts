@@ -1,6 +1,5 @@
+import type { ProjectMetadataField } from "@impower/spark-editor-protocol/src/types";
 import { isScriptPath } from "./scriptFiles";
-
-export const FOLDER_SENTINEL = ".folder";
 
 export interface FileTreeNode {
   path: string;
@@ -19,7 +18,7 @@ export interface FileTreeRow {
 }
 
 export interface BuildFileTreeOptions {
-  sentinelNames?: string[];
+  folders?: string[];
   compareFiles?: (a: FileTreeNode, b: FileTreeNode) => number;
 }
 
@@ -75,24 +74,20 @@ export const buildFileTree = (
   paths: string[],
   options?: BuildFileTreeOptions,
 ): FileTreeNode[] => {
-  const sentinels = new Set(options?.sentinelNames ?? [FOLDER_SENTINEL]);
   const root = new Map<string, MutableNode>();
+  const entries = [
+    ...(options?.folders ?? []).map((path) => ({ path, isFolder: true })),
+    ...paths.map((path) => ({ path, isFolder: false })),
+  ];
 
-  for (const rawPath of paths) {
+  for (const { path: rawPath, isFolder } of entries) {
     const segments = rawPath.split("/").filter(Boolean);
-    if (segments.length === 0) {
-      continue;
-    }
-    const leaf = segments[segments.length - 1]!;
-    const isSentinel = sentinels.has(leaf);
-    const kept = isSentinel ? segments.slice(0, -1) : segments;
-
     let level = root;
     let prefix = "";
-    for (let i = 0; i < kept.length; i += 1) {
-      const segment = kept[i]!;
-      const isLast = i === kept.length - 1;
-      const isDirectory = isSentinel ? true : !isLast;
+    for (let i = 0; i < segments.length; i += 1) {
+      const segment = segments[i]!;
+      const isLast = i === segments.length - 1;
+      const isDirectory = isFolder || !isLast;
       const nodePath = prefix ? `${prefix}/${segment}` : segment;
       let node = level.get(segment);
       if (!node) {
@@ -322,6 +317,14 @@ export const computeFolderMoves = (
     .map((p) => ({ from: p, to: `${dest}/${p.slice(prefix.length)}` }));
 };
 
+export const canMoveFolder = (fromFolder: string, toFolder: string): boolean => {
+  const from = fromFolder.replace(/\/+$/, "");
+  const to = toFolder.replace(/\/+$/, "");
+  return (
+    to !== from && !to.startsWith(`${from}/`) && !from.startsWith(`${to}/`)
+  );
+};
+
 export const CATEGORY_PREFIXES = [
   "assets/urls/",
   "scripts/",
@@ -349,10 +352,71 @@ const MAIN_SCRIPT = "main.sd";
 
 export const LAYOUT_MARKER = ".layout";
 
+export const FOLDERS_MARKER = ".folders";
+
+const PROJECT_METADATA_FIELDS: Record<ProjectMetadataField, true> = {
+  folders: true,
+  layout: true,
+  name: true,
+  textRevisionId: true,
+  textSynced: true,
+  zipRevisionId: true,
+  zipSynced: true,
+};
+
+export const isProjectMetadata = (relativePath: string): boolean =>
+  relativePath.startsWith(".") &&
+  Object.hasOwn(PROJECT_METADATA_FIELDS, relativePath.slice(1));
+
+export const needsFolderMigration = (relativePaths: string[]): boolean =>
+  !relativePaths.some(
+    (p) => p === FOLDERS_MARKER || p.startsWith(`${FOLDERS_MARKER}/`),
+  );
+
 export const canWriteLayoutMarker = (relativePaths: string[]): boolean =>
   !relativePaths.some(
     (p) => p === LAYOUT_MARKER || p.startsWith(`${LAYOUT_MARKER}/`),
   );
+
+const LEGACY_EMPTY_FOLDER_FILE = ".folder";
+
+export const planFolderMigration = (
+  files: { path: string; size?: number }[],
+  directories: string[],
+): { legacyFiles: string[]; folders: string[]; staleFolders: string[] } => {
+  const legacyFiles = files
+    .filter(
+      (f) =>
+        (f.path.split("/").pop() ?? f.path) === LEGACY_EMPTY_FOLDER_FILE &&
+        f.size === 0,
+    )
+    .map((f) => f.path);
+  const legacy = new Set(legacyFiles);
+  const folders = withAncestors(
+    legacyFiles.map((p) => p.slice(0, p.lastIndexOf("/"))).filter(Boolean),
+  );
+  return {
+    legacyFiles,
+    folders,
+    staleFolders: foldersWithoutFiles(
+      files.map((f) => f.path).filter((p) => !legacy.has(p)),
+      directories,
+      folders,
+    ),
+  };
+};
+
+export const foldersWithoutFiles = (
+  filePaths: string[],
+  directories: string[],
+  keep: string[] = [],
+): string[] => {
+  const held = new Set([
+    ...filePaths.flatMap(ancestorsOf),
+    ...withAncestors(keep),
+  ]);
+  return directories.filter((folder) => !held.has(folder));
+};
 
 const settledTarget = (
   path: string,
@@ -411,6 +475,7 @@ const planLayoutMoves = (
   subtreeFor: (path: string) => string,
   repair: boolean,
   seenFolders: Set<string>,
+  standingFolders: string[],
 ): { from: string; to: string }[] => {
   const roots = subProjectRoots(relativePaths);
   const units = roots.filter(
@@ -424,7 +489,10 @@ const planLayoutMoves = (
       !p.startsWith(`${LAYOUT_MARKER}/`),
   );
   const files = new Set(relativePaths);
-  const liveFolders = new Set(relativePaths.flatMap(ancestorsOf));
+  const liveFolders = new Set([
+    ...standingFolders,
+    ...relativePaths.flatMap(ancestorsOf),
+  ]);
   const folders = new Set([...seenFolders, ...liveFolders]);
   const isFree = (to: string) =>
     !files.has(to) &&
@@ -497,20 +565,34 @@ const planLayoutMoves = (
 export const computeLayoutMigration = (
   relativePaths: string[],
   subtreeFor: (path: string) => string,
+  emptyFolders: string[] = [],
 ): { from: string; to: string }[] =>
-  computeLayoutMigrationBatches(relativePaths, subtreeFor)[0] ?? [];
+  computeLayoutMigrationBatches(relativePaths, subtreeFor, emptyFolders)[0] ??
+  [];
+
+const withAncestors = (folders: string[]): string[] => [
+  ...new Set(folders.flatMap((folder) => [...ancestorsOf(folder), folder])),
+];
 
 export const computeLayoutMigrationBatches = (
   relativePaths: string[],
   subtreeFor: (path: string) => string,
+  emptyFolders: string[] = [],
 ): { from: string; to: string }[][] => {
   if (relativePaths.includes(LAYOUT_MARKER)) return [];
   const batches: { from: string; to: string }[][] = [];
-  const seenFolders = new Set<string>();
+  const standingFolders = withAncestors(emptyFolders);
+  const seenFolders = new Set<string>(standingFolders);
   let paths = relativePaths;
   for (let i = 0; i <= relativePaths.length; i++) {
     paths.flatMap(ancestorsOf).forEach((folder) => seenFolders.add(folder));
-    const moves = planLayoutMoves(paths, subtreeFor, i === 0, seenFolders);
+    const moves = planLayoutMoves(
+      paths,
+      subtreeFor,
+      i === 0,
+      seenFolders,
+      standingFolders,
+    );
     if (moves.length === 0) break;
     batches.push(moves);
     const renamed = new Map(moves.map((m) => [m.from, m.to]));

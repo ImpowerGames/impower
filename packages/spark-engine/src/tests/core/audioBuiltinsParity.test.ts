@@ -1,40 +1,6 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
-import { programStoryOf } from "../harness/compileProgram";
-import { buildDefinesContext } from "../../game/core/utils/buildContextFromStory";
 import { audioBuiltinDefinitions } from "../../game/modules/audio/audioBuiltinDefinitions";
-
-const BUILTINS_PRELUDE = readFileSync(
-  new URL(
-    "../../../../sparkdown/src/compiler/builtins/builtins.sd",
-    import.meta.url,
-  ),
-  "utf8",
-);
-
-const PRELUDE_URI = "file:///__builtins__.sd";
-
-function preludeContext() {
-  const compiler = new SparkdownCompiler();
-  compiler.configure({
-    useBuiltinsPrelude: false,
-    definitions: { builtins: {} as any },
-    files: [
-      {
-        uri: PRELUDE_URI,
-        type: "script",
-        name: "__builtins__",
-        ext: "sd",
-        text: BUILTINS_PRELUDE,
-        version: 0,
-        languageId: "sparkdown",
-      } as any,
-    ],
-  });
-  const result = compiler.compile({ textDocument: { uri: PRELUDE_URI } });
-  return buildDefinesContext(programStoryOf(result.program, "prelude") as any);
-}
+import { preludeContext } from "../harness/compilePrelude";
 
 const mixerName = (mixer: unknown) =>
   typeof mixer === "string" ? mixer : (mixer as any)?.$name;
