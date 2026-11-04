@@ -320,7 +320,9 @@ export const computeFolderMoves = (
 export const canMoveFolder = (fromFolder: string, toFolder: string): boolean => {
   const from = fromFolder.replace(/\/+$/, "");
   const to = toFolder.replace(/\/+$/, "");
-  return to !== from && !to.startsWith(`${from}/`);
+  return (
+    to !== from && !to.startsWith(`${from}/`) && !from.startsWith(`${to}/`)
+  );
 };
 
 export const CATEGORY_PREFIXES = [

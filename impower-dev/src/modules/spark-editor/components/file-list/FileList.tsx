@@ -33,6 +33,7 @@ import {
 } from "../../utils/fileIcon";
 import {
   buildFileTree,
+  canMoveFolder,
   childrenRows,
   computeStickyRows,
   descendantPaths,
@@ -913,6 +914,7 @@ export default function FileList({
       const destPath = folderPath ? `${folderPath}/${basename}` : basename;
       if (destPath === src) continue;
       const isDir = !filesByPath.has(src);
+      if (isDir && !canMoveFolder(src, destPath)) continue;
       const result = isDir
         ? await Workspace.fs.moveFolder(projectId, src, destPath)
         : await Workspace.fs.moveFile(projectId, src, destPath);

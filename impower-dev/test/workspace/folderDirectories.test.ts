@@ -218,6 +218,51 @@ describe("empty folders are directories in the workspace store", () => {
     expect(await fs.getFolders(PROJECT)).toEqual(["assets", "assets/a", "assets/a/inner"]);
   });
 
+  it("leaves the tree in place when a folder is moved onto a folder that contains it", async () => {
+    const root = seed({ ...MIGRATED, "main.sd": "x" }, ["assets/a/a/a"]);
+    const fs = await load(root);
+    expect(await fs.moveFolder(PROJECT, "assets/a/a", "assets/a")).toEqual([]);
+    expect(stored(root).filter((p) => p.startsWith("assets"))).toEqual([
+      "assets/",
+      "assets/a/",
+      "assets/a/a/",
+      "assets/a/a/a/",
+    ]);
+  });
+
+  it("undoes and redoes a folder move exactly", async () => {
+    const root = seed({ ...MIGRATED, "main.sd": "x", "assets/a/x.png": "p" }, [
+      "assets/a/inner",
+      "assets/b",
+    ]);
+    const fs = await load(root);
+    vi.doMock("../../src/modules/spark-editor/workspace/Workspace", () => ({
+      Workspace: {
+        fs,
+        window: { recordScriptChange: async () => {}, recordAssetChange: async () => {} },
+      },
+    }));
+    vi.doMock("../../src/modules/spark-editor/utils/snackbar", () => ({ showSnackbar() {} }));
+    const { recordMove } = await import("../../src/modules/spark-editor/utils/fileUndo");
+    const { undo, redo } = await import("../../src/modules/spark-editor/utils/undoManager");
+    const before = stored(root);
+    await fs.moveFolder(PROJECT, "assets/a", "assets/b/a");
+    recordMove(PROJECT, "assets/a", "assets/b/a", true);
+    await settle();
+    const moved = stored(root);
+    expect(moved).toEqual(
+      expect.arrayContaining(["assets/b/a/", "assets/b/a/inner/", "assets/b/a/x.png"]),
+    );
+    expect(await undo()).toBe(true);
+    await settle();
+    expect(stored(root)).toEqual(before);
+    expect(await redo()).toBe(true);
+    await settle();
+    expect(stored(root)).toEqual(moved);
+    vi.doUnmock("../../src/modules/spark-editor/workspace/Workspace");
+    vi.doUnmock("../../src/modules/spark-editor/utils/snackbar");
+  });
+
   it("deletes a folder's files and its directories, and reports the folders removed", async () => {
     const root = seed(
       { "main.sd": "x", ...MIGRATED, "assets/a/x.png": "p" },
