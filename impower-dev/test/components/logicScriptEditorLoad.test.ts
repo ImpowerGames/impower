@@ -8,6 +8,10 @@ const mocks = vi.hoisted(() => ({
   views: [] as { destroyed: boolean; view: unknown }[],
   reads: [] as (() => void)[],
   connect: [] as (() => void)[],
+  writes: [] as {
+    textDocument: { uri: string; version: number; text: string };
+    origin?: string;
+  }[],
 }));
 
 vi.mock("@impower/impower-ui/loading-bar", async () => {
@@ -63,8 +67,12 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
     window: {
       getActiveEditorForFile: () => ({ uri: "file:///project/main.sd" }),
+      recordScriptChange: async () => {},
     },
     fs: {
+      writeTextDocument: async (params: (typeof mocks.writes)[number]) => {
+        mocks.writes.push(params);
+      },
       getFiles: () =>
         new Promise((resolve) =>
           mocks.reads.push(() =>
@@ -114,6 +122,15 @@ const { default: LogicScriptEditor } = await import(
 );
 const { default: workspace } = await import(
   "../../src/modules/spark-editor/workspace/WorkspaceStore"
+);
+const { sendProtocolMessage } = await import(
+  "@impower/spark-editor-protocol/src/protocols/MessageProtocol"
+);
+const { DidSaveTextDocumentMessage } = await import(
+  "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocumentMessage"
+);
+const { DidWriteFilesMessage } = await import(
+  "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFilesMessage"
 );
 
 setLanguageServer({ worker: {} as Worker, connection: {} as never });
@@ -171,6 +188,7 @@ afterEach(async () => {
   });
   mocks.reads.splice(0);
   mocks.connect.splice(0);
+  mocks.writes.splice(0);
 });
 
 describe("LogicScriptEditor mount", { timeout: 60_000 }, () => {
@@ -190,5 +208,75 @@ describe("LogicScriptEditor mount", { timeout: 60_000 }, () => {
     await answerReads();
     expect(mocks.views.length).toBe(1);
     expect(mocks.views[0]!.destroyed).toBe(false);
+  });
+});
+
+describe("LogicScriptEditor write notifications", { timeout: 60_000 }, () => {
+  const uri = "file:///project/main.sd";
+
+  const loaded = async () => {
+    await mount();
+    await connectController();
+    await answerReads();
+  };
+
+  const type = async (text: string) => {
+    await act(async () => {
+      sendProtocolMessage(
+        DidSaveTextDocumentMessage.type.notification({
+          textDocument: { uri },
+          text,
+        }),
+      );
+    });
+  };
+
+  const autosave = async (text: string) => {
+    const count = mocks.writes.length;
+    await type(text);
+    await vi.waitFor(() => expect(mocks.writes.length).toBe(count + 1), {
+      timeout: 5_000,
+      interval: 20,
+    });
+    return mocks.writes[count]!;
+  };
+
+  const didWrite = async (text: string, origin?: string) => {
+    await act(async () => {
+      sendProtocolMessage(
+        DidWriteFilesMessage.type.notification({
+          files: [
+            {
+              uri,
+              name: "main",
+              ext: "sd",
+              type: "script",
+              src: uri,
+              version: 2,
+              text,
+            },
+          ],
+          remote: false,
+          origin,
+        }),
+      );
+    });
+    await settle();
+  };
+
+  it("does not reload for its own autosave echo after the author typed further", async () => {
+    await loaded();
+    const write = await autosave("hello a\n");
+    await type("hello ab\n");
+    await didWrite("hello a\n", write.origin);
+    expect(mocks.reads.length).toBe(0);
+  });
+
+  it("reloads when another writer rewrites the open script to text the editor autosaved earlier", async () => {
+    await loaded();
+    await autosave("hello a\n");
+    await type("hello ab\n");
+    await didWrite("hello a\n");
+    expect(mocks.reads.length).toBe(1);
   });
 });

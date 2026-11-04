@@ -227,16 +227,35 @@ export function verifyNativeReviewResult(output,format='claude-json') {
   if(result.type!=='result'||result.subtype!=='success'||result.is_error!==false||result.stop_reason!=='end_turn')throw new Error('Native reviewer failed or interrupted');
 }
 
+function pendingRecoveryReviewer(config) {
+  const step = config.steps?.[config.first];
+  if (step?.role !== "review" || !plannedReviewerPending(step.round, config.completedReviewRound, config.completedRoundReviews, step.reviewers)) return false;
+  const { completedRoundReviewers, plannedRoundReviewers } = config;
+  if (!plannedRoundReviewers) return Number.isInteger(step.reviewers) && step.reviewers <= 3 && step.reviewerId === undefined && step.attempt === undefined;
+  return Array.isArray(step.reviewers) &&
+    step.reviewers.length === plannedRoundReviewers.length &&
+    plannedRoundReviewers.every((id, index) => id === step.reviewers[index]) &&
+    plannedRoundReviewers.includes(step.reviewerId) &&
+    !Object.hasOwn(completedRoundReviewers, step.reviewerId) &&
+    (step.attempt === undefined || (Number.isSafeInteger(step.attempt) && step.attempt >= 1));
+}
+
 export function validateReviewRecovery(config) {
   const limit=config.reviewRoundLimit??3;
   if(!Number.isInteger(limit)||limit<1||limit>10)throw new Error('reviewRoundLimit must be an integer from 1 through 10');
   if(limit>3&&(typeof config.extendedReviewAuthorization!=='string'||!config.extendedReviewAuthorization.trim()))throw new Error('Rounds beyond 3 require explicit user authorization in extendedReviewAuthorization');
   if(limit<=3&&config.extendedReviewAuthorization!==undefined)throw new Error('extendedReviewAuthorization is only valid when reviewRoundLimit exceeds 3');
   if(!Number.isInteger(config.completedReviewRound)||config.completedReviewRound<0||config.completedReviewRound>limit)throw new Error(`Supply completedReviewRound from 0 through ${limit}, including on recovery`);
-  if((config.completedReviewRound===limit&&typeof config.finalCorrections!=='boolean')||(config.finalCorrections!==undefined&&typeof config.finalCorrections!=='boolean')||(config.finalCorrections&&config.completedReviewRound<3))throw new Error(`Supply the journal's boolean finalCorrections (valid at round 3 or later); recovery at the configured limit ${limit}, including a pending serial reviewer, requires it. Carry completedReviewRound, reviewedHead and completedRoundReviews forward too; unchanged HEAD does not establish correction state`);
   if(config.completedReviewRound>0&&!/^[a-f0-9]{40}$/.test(config.reviewedHead??''))throw new Error('Supply reviewedHead from the journal when recovering a review round');
   if(config.completedRoundReviews!=null&&(!Number.isInteger(config.completedRoundReviews)||config.completedRoundReviews<1||config.completedReviewRound<1))throw new Error('Supply completedRoundReviews from the journal as a positive integer, and only with a nonzero completedReviewRound');
   validateCompletedRoundReviewers(config);
+  if (config.finalCorrections !== undefined) {
+    if (typeof config.finalCorrections !== "boolean" || (config.finalCorrections && config.completedReviewRound < 3)) throw new Error("Supply the journal's boolean finalCorrections; true is valid at round 3 or later");
+    return config.finalCorrections;
+  }
+  if (config.completedReviewRound !== limit) return false;
+  if (config.completedReviewRound >= 3 && pendingRecoveryReviewer(config)) return true;
+  throw new Error(`Supply the journal's boolean finalCorrections at the configured limit ${limit}. Only a valid pending serial reviewer in round 3 or later may omit it. Unchanged HEAD does not establish correction state`);
 }
 
 const planFields = ["pr", "ticket", "first", "completedReviewRound", "reviewedHead", "completedRoundReviews", "completedRoundReviewers", "plannedRoundReviewers", "finalCorrections", "reviewRoundLimit", "extendedReviewAuthorization", "slotWaitSeconds", "reportPosting"];
@@ -1059,7 +1078,7 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
   const sameVendor = checkCrossVendor(config, root);
   const reviewerRow = { ...(selection.resolved ? { reviewerEffort: selection.reviewerEffort, reviewerResolved: { writerEffort: config.writerEffort, rowWriterEffort: selection.rowWriterEffort, matchedOn: selection.matchedOn, ticketEffort: selection.ticketEffort, fallback: selection.fallback, index: selection.index } } : {}), ...(sameVendor ? { sameVendor } : {}) };
   const reviewRoundLimit = config.reviewRoundLimit ?? 3;
-  validateReviewRecovery(config);
+  let finalCorrections = validateReviewRecovery(config);
   if (!Number.isInteger(config.maxSteps) || config.maxSteps < 1 || config.maxSteps > 30) throw new Error("maxSteps must be 1..30");
   validateSlotWait(config.slotWaitSeconds);
   const slotWaitSeconds = config.slotWaitSeconds ?? 0;
@@ -1115,7 +1134,6 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
   let completedRoundReviews = config.completedRoundReviews ?? null;
   let completedRoundReviewers = config.completedRoundReviewers ?? null;
   let plannedRoundReviewers = config.plannedRoundReviewers ?? null;
-  let finalCorrections = config.finalCorrections ?? false;
   let activeChild, pendingReport;
   let pendingProbeCleanup = null;
   const runProbeCleanup = () => {
