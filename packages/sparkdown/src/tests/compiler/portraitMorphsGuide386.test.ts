@@ -5,8 +5,11 @@ import { pairShapes, parsePathData, type LabelledShape } from "@impower/spark-mo
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { buildMorphMotion, MORPH_MOTION_REST, MORPH_MOTION_WRAPPER_STYLE, morphMotionProblem } from "../../morph/motion";
+import { bakeMorphArtifact } from "../../morph/bake";
+import { buildMorphRecipe } from "../../morph/recipe";
 import { MorphTimeline, morphRandom } from "../../morph/timeline";
-import type { MorphTiming } from "../../morph/types";
+import type { MorphArtifact, MorphTiming } from "../../morph/types";
+import { blink, maskedBlink, maskedPortrait, MASKED_VARIANTS, partnerPortrait, portrait, spreadBlink, spreadPortrait } from "../morph/fixtures";
 
 const GUIDE = resolve(dirname(fileURLToPath(import.meta.url)), "../../../docs/guide");
 const CHAPTER = resolve(GUIDE, "PortraitMorphs.md");
@@ -234,5 +237,121 @@ describe("the portrait morphs guide chapter", () => {
       if (/^(\||- |#)/.test(paragraph)) continue;
       expect(paragraph.includes("\n"), paragraph).toBe(false);
     }
+  });
+});
+
+const bakeGuide = (source: string, recipe: ReturnType<typeof buildMorphRecipe>, selection: Record<string, string> = {}) =>
+  bakeMorphArtifact({ source, selection, recipe, key: "guide", variant: "guide", uri: "file:///guide.svg" });
+
+const codesOf = (artifact: MorphArtifact) => artifact.diagnostics.map((d) => [d.code, d.severity]);
+
+const shadowBlink = (partner: string[]) =>
+  buildMorphRecipe("blink", {
+    blend: "morph",
+    method: "bend",
+    fallback: "fade",
+    layers: { "eyeball-shadow-left": { partner } },
+    keyframes: [
+      { offset: 0, eyes: { state: "open" } },
+      { offset: 0.5, eyes: { state: "closed" } },
+      { offset: 1, eyes: { state: "open" } },
+    ],
+    clips: [],
+  });
+
+describe("the art and warnings the portrait morphs guide teaches", () => {
+  test("art with a style sheet, an unreadable inline style or an unreadable transform shows without the morph", () => {
+    const plain = portrait();
+    expect(bakeGuide(plain, blink()).status).toBe("live");
+    for (const svg of [
+      plain.replace("<defs>", "<defs><style></style>"),
+      plain.replace('data-name="nose"', 'data-name="nose" style="fill:var(--nose)"'),
+      plain.replace('data-name="nose"', 'data-name="nose" transform="rotate(10deg)"'),
+    ]) {
+      const artifact = bakeGuide(svg, blink());
+      expect(artifact.status, svg).not.toBe("live");
+      expect(artifact.diagnostics, svg).toEqual([expect.objectContaining({ severity: "error" })]);
+      expect(artifact.diagnostics[0]!.message, svg).toContain("shows without the morph");
+    }
+    const text = chapter();
+    expect(text).toContain("### Art the morph can read");
+    expect(text).toContain("An artwork the morph cannot read safely shows without the morph, still, with an error on the artwork file");
+    expect(text).toContain("- A style sheet: a `<style>` element anywhere in the file, even an empty one");
+    expect(text).toContain("one using `all`, `var()`, comments, escapes, character references or strings");
+    expect(text).toContain("- A `transform` attribute the morph cannot read: the six SVG transform functions with plain numbers are read");
+    expect(readFileSync(resolve(GUIDE, "Portraits.md"), "utf8")).toContain("(./PortraitMorphs.md#art-the-morph-can-read)");
+  });
+
+  test("a shape with geometry or a transform the bake cannot follow fades while the rest moves", () => {
+    for (const [attrs, code] of [
+      [' r="1em"', "unsupported-element"],
+      [' r="4" style="r:8"', "unsupported-element"],
+      [' r="4" style="transform:translate(5px,0)"', "unsupported-transform"],
+      [' r="4" transform="rotate(10)" transform-origin="50 50"', "unsupported-transform"],
+    ] as const) {
+      const svg = portrait().replace('<g data-name="eyes.open:default">', `<g data-name="eyes.open:default">\n<circle data-name="glint" cx="50" cy="40"${attrs} fill="blue"/>`);
+      const artifact = bakeGuide(svg, blink({ layers: { glint: { fallback: "scale" } } }));
+      expect(artifact.status, attrs).toBe("live");
+      expect(codesOf(artifact), attrs).toContainEqual([code, "warning"]);
+      expect(artifact.diagnostics.find((d) => d.code === code)!.message, attrs).toContain("fades instead of moving");
+    }
+    expect(chapter()).toContain("A single shape the morph cannot follow fades instead of moving, with a warning naming its layer, while the rest of the portrait still moves");
+  });
+
+  test("`spread` grows and shrinks fills only, and shrinks a single contour that does not overlap itself and has no mask of its own", () => {
+    const why = (label: string, spread: string) =>
+      bakeGuide(spreadPortrait(), spreadBlink({ [label]: { spread } })).diagnostics.filter((d) => d.code === "spread-ignored").map((d) => d.message);
+    expect(why("flat", "-1px")).toEqual([]);
+    expect(why("flat", "1px")).toEqual([]);
+    expect(why("stroked", "1px")).toEqual([expect.stringContaining("grows or shrinks fills only")]);
+    expect(why("patterned", "1px")).toEqual([expect.stringContaining("a pattern")]);
+    expect(why("mottled", "1px")).toEqual([expect.stringContaining("a gradient whose stops differ in opacity")]);
+    expect(why("polylined", "1px")).toEqual([expect.stringContaining("`polyline`")]);
+    expect(why("doubled", "-1px")).toEqual([expect.stringContaining("more than one contour")]);
+    expect(why("looped", "-1px")).toEqual([expect.stringContaining("overlaps itself")]);
+    expect(why("masked", "-1px")).toEqual([expect.stringContaining("its own `mask`")]);
+    expect(why("still", "-1px")).toEqual([expect.stringContaining("none of its drawings is drawn between poses")]);
+    const text = chapter();
+    expect(text).toContain("`spread` grows or shrinks fills only: a drawing that paints a stroke, its own or a `paints` entry's, keeps its own size");
+    expect(text).toContain("Growing also skips a fill that is a pattern or a gradient whose stops differ in opacity, and a `polyline`");
+    expect(text).toContain("A drawing shrinks only when it is a single contour that does not overlap itself and has no `mask` of its own");
+    expect(text).toContain("- A `spread-ignored` warning:");
+  });
+
+  test("a `partner` list is read in priority order, the first listed label the pose draws deciding", () => {
+    const partnerTracks = (artifact: MorphArtifact) =>
+      artifact.segments[0]!.transitions.filter((t) => t.kind === "morph" && "partner" in t && t.partner);
+    const ownFirst = bakeGuide(partnerPortrait({ closedShadow: true }), shadowBlink(["eyeball-shadow-left", "eyelash-left"]));
+    expect(ownFirst.diagnostics).toEqual([]);
+    expect(partnerTracks(ownFirst)).toEqual([]);
+    const lashFirst = bakeGuide(partnerPortrait({ closedShadow: true }), shadowBlink(["eyelash-left", "eyeball-shadow-left"]));
+    expect(lashFirst.diagnostics).toEqual([]);
+    expect(partnerTracks(lashFirst).length).toBeGreaterThan(0);
+    const skipsUndrawn = bakeGuide(partnerPortrait(), shadowBlink(["eyelash-top-left", "eyelash-left"]));
+    expect(skipsUndrawn.diagnostics).toEqual([]);
+    expect(partnerTracks(skipsUndrawn).length).toBeGreaterThan(0);
+    const text = chapter();
+    expect(text).toContain("`partner` may also list several labels in priority order. In each pose the first listed label that pose draws decides");
+    expect(examples().some((example) => example.includes("eyeball-shadow-right {") && example.includes("eyelash-right\n        eyelash-top-right"))).toBe(true);
+  });
+
+  test("the troubleshooting list covers the warnings the bake reports", () => {
+    const missing = bakeGuide(partnerPortrait(), shadowBlink(["eyelash-top-left"]));
+    expect(codesOf(missing)).toEqual([["partner-missing", "warning"]]);
+    const depth = bakeGuide(portrait(), blink({ layers: { "eyelash-left": { depth: "mouth.open" } } }));
+    expect(codesOf(depth)).toContainEqual(["depth-ignored", "warning"]);
+    const paints = bakeGuide(
+      maskedPortrait(),
+      maskedBlink([{ targets: ["eyelash-right"], state: "eyes.closed", when: "mask.on", fill: "#ccc" }]),
+      { ...MASKED_VARIANTS.masked },
+    );
+    expect(codesOf(paints)).toEqual([["paint-target-missing", "warning"]]);
+    const text = chapter();
+    const troubleshooting = text.slice(text.indexOf("## When something looks wrong"), text.indexOf("## The reference project"));
+    for (const code of ["spread-ignored", "depth-ignored", "partner-missing", "paint-target-missing"]) {
+      expect(troubleshooting).toContain(`- A \`${code}\` warning:`);
+    }
+    expect(troubleshooting).toContain("- A portrait that shows still with an error on the artwork:");
+    expect(troubleshooting).toContain("- A single shape that fades instead of moving:");
   });
 });

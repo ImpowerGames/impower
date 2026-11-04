@@ -91,6 +91,16 @@ As lashes close, the eyeball between them has to disappear with them. The morph 
 - Keep any mask the artist drew. The morph's clip is applied on top of it, and the two intersect.
 - Label each side's pieces separately, so a clip can name them: the reference project below uses `eyeball-white-left`, `eyeball-shadow-left` and `pupil-left`, and the same with `-right`.
 
+### Art the morph can read
+
+The morph reads the artwork's own markup, so some export settings stop it. An artwork the morph cannot read safely shows without the morph, still, with an error on the artwork file:
+
+- A style sheet: a `<style>` element anywhere in the file, even an empty one or one whose rules touch nothing. Export styling as inline `style` attributes or presentation attributes, which are read.
+- An inline `style` the morph cannot read safely: one using `all`, `var()`, comments, escapes, character references or strings, anything outside plain ASCII, or an opacity that is not a number or a percentage.
+- A `transform` attribute the morph cannot read: the six SVG transform functions with plain numbers are read, separated by spaces, tabs, line breaks or commas.
+
+A single shape the morph cannot follow fades instead of moving, with a warning naming its layer, while the rest of the portrait still moves: a shape whose geometry is set in units or styles the morph cannot read exactly, such as `cx="50%"`, `r="1em"` or a `d` or `r` set in its `style`, and a shape moved by a transform the morph cannot follow, such as a CSS `transform` or `rotate` in its `style`, or a `transform-origin` attribute, on the shape or a layer around it.
+
 ## Declaring a morph
 
 A morph's body has these parts. Each is optional except `keyframes`, and `method` wherever shapes morph.
@@ -207,6 +217,8 @@ Each field is taken from the nearest setting: the label's own, else the morph's.
 
 Two more settings help art whose drawings overlap. `depth` chooses which pose's layer order a moving drawing keeps between poses: `rest`, the default, keeps the order the still portrait shows, and a state such as `depth = eyes.closed` keeps that pose's order. `spread` grows (positive) or shrinks (negative) a drawing's outline by a number of screen pixels while it is between poses, such as `spread = -1px`, so an edge that lands on another drawing's outline hides under it.
 
+`spread` grows or shrinks fills only: a drawing that paints a stroke, its own or a `paints` entry's, keeps its own size. Growing also skips a fill that is a pattern or a gradient whose stops differ in opacity, and a `polyline`. A drawing shrinks only when it is a single contour that does not overlap itself and has no `mask` of its own; split a drawing of several contours into one layer per contour. A drawing `spread` skips keeps its own size between poses, with a `spread-ignored` warning on the artwork.
+
 `partner` names the labels whose drawing a label's drawings take in a pose that draws none of its own. In the reference project the open eyeball shadow has no closed drawing, so it takes the shape of the nearest closed lash and stays there while the eye is closed:
 
 ```sparkdown
@@ -229,6 +241,32 @@ morph blink {
   }
 }
 ```
+
+`partner` may also list several labels in priority order. In each pose the first listed label that pose draws decides which drawing the label takes, and the label's own name in the list pairs by name at that rank. The reference project lists two lashes for its right shadow, so a look whose right lash is labelled `eyelash-top-right` still gives the shadow a shape, while `eyelash-right` decides wherever a pose draws it:
+
+```sparkdown
+morph blink {
+  method = bend
+
+  layers {
+    eyeball-shadow-right {
+      partner {
+        eyelash-right
+        eyelash-top-right
+      }
+      spread = -1px
+    }
+  }
+
+  keyframes {
+    from { eyes { state = open } }
+    50% { eyes { state = closed } }
+    to { eyes { state = open } }
+  }
+}
+```
+
+A pose that draws neither the label nor any label its `partner` lists leaves the drawing no shape to take: there it uses its fallback, or holds while the opening moves if a clip targets it, with a `partner-missing` warning on the artwork.
 
 ### Clips
 
@@ -490,6 +528,12 @@ When only part of a portrait moves, read the artwork's warnings first. The usual
 - Lashes on both sides sharing one label, so they pair across the face. Repeat the side in each label.
 - An eyeball cut to the open eye's outline, which shows its cut edge as the eye closes. Draw it whole.
 - A look resting in another state than the morph's first pose, which is dormant by design. With several groups, check each one.
+- A portrait that shows still with an error on the artwork: it carries a style sheet, an inline style or a `transform` attribute the morph cannot read safely ([Art the morph can read](#art-the-morph-can-read)).
+- A single shape that fades instead of moving: its geometry or transform is one the morph cannot follow, and the warning names its layer.
+- A `spread-ignored` warning: the drawing paints a stroke, has a fill or shape `spread` cannot grow, or is not a single contour without overlaps or its own mask, so it keeps its own size; or none of its drawings moves between poses, so the `spread` changes nothing; or a clip's `spread` cannot apply to an opening cut in a target's own coordinates.
+- A `depth-ignored` warning: the `depth` names a state of a group the label does not change with, or a pose that draws none of the label's moving shapes, so they keep their place in the rest pose.
+- A `partner-missing` warning: a pose the label moves to or from draws neither it nor any label its `partner` lists. Add a drawing there, or list a label that pose draws.
+- A `paint-target-missing` warning: a `paints` entry names a label its pose does not draw, so nothing takes that paint. Check the label's spelling, or the entry's `state`.
 - A moved layer that stays put: it draws part of a clip's edges or targets, something outside it draws it again by reference (a `<use>` of it), or this look does not draw a layer with its label (check the label's spelling in the artwork).
 
 `morph` is a built-in type name, so a variable called `morph` is reported, as `style` or `animation` would be.
