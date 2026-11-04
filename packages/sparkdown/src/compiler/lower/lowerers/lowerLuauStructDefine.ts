@@ -18,7 +18,11 @@ import { findChildByName } from "../utils/alternatorArms";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { contextValueToExpression } from "./lowerLuauDefine";
 import { readMorphBody } from "../../morph/readMorphBody";
-import { parseStructBodyTyped } from "./lowerStructBodyTyped";
+import {
+  KEYFRAMES_KEY,
+  keyframesAsList,
+  parseStructBodyTyped,
+} from "./lowerStructBodyTyped";
 import { validateBlockStructure } from "../utils/validateBlockStructure";
 
 const CONTENT_NODE = {
@@ -49,6 +53,9 @@ export function lowerLuauStructDefine(
     type === "morph"
       ? readMorphBody(contentNode, ctx, diagnostics).struct
       : parseStructBodyTyped(contentNode, ctx, diagnostics);
+  if (type === "animation" && KEYFRAMES_KEY in body) {
+    body[KEYFRAMES_KEY] = keyframesAsList(body[KEYFRAMES_KEY]);
+  }
 
   const struct: Record<string, unknown> = {
     $type: type,

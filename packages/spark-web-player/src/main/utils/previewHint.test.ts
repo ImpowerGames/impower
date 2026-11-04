@@ -77,7 +77,9 @@ function compile(source: string, version = 1, extra: File[] = []): SparkProgram 
       ...extra,
     ],
   } as any);
-  return compiler.compile({ textDocument: { uri: URI } } as any).program;
+  const program = compiler.compile({ textDocument: { uri: URI } } as any).program;
+  program.version = version;
+  return program;
 }
 
 const srcs = (items: AssetItem[] | null) =>

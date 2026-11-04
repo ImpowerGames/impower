@@ -6,6 +6,7 @@ import {
   getImagePreviewMarkup,
   getImagePreviewSrc,
 } from "../../compiler/utils/getImagePreviewSrc";
+import { filterImage } from "../../compiler/utils/filterImage";
 
 const MAIN_URI = "file://proj/main.sd";
 
@@ -105,7 +106,7 @@ end
     expect(src).toMatch(/^data:image\/svg\+xml,/);
   });
 
-  it("falls back to the root image when a filtered_image has no filtered_src", () => {
+  it("falls back to the root image when a filtered_image filters to no source", () => {
     const program = compile(
       `define bg_town as layered_image with
   assets = {
@@ -120,7 +121,7 @@ end
       [assetFile("file://proj/a/bg_town__base.png")],
     );
     expect(
-      program.context?.["filtered_image"]?.["bg_town_dim"]?.["filtered_src"],
+      filterImage(program.context!, program.context?.["filtered_image"]?.["bg_town_dim"]).src,
     ).toBeUndefined();
     expect(previewOf(program, "filtered_image", "bg_town_dim")).toBe(
       "/file:/local/assets/bg_town__base.png?v=1",

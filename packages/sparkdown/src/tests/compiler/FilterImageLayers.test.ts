@@ -53,8 +53,7 @@ end
 
 const drawnLayers = (program: any) => {
   const filteredImage = program.context?.filtered_image?.p;
-  filterImage(program.context!, filteredImage);
-  return (filteredImage.filtered_layers ?? []).map(
+  return (filterImage(program.context!, filteredImage).layers ?? []).map(
     (l: { $name: string }) => l.$name,
   );
 };
@@ -188,8 +187,7 @@ end
         },
       },
     };
-    expect(() => filterImage(context, context.filtered_image.p)).not.toThrow();
-    expect(context.filtered_image.p.filtered_layers ?? []).toEqual([]);
+    expect(filterImage(context, context.filtered_image.p).layers ?? []).toEqual([]);
   });
 
   it("re-derives the same set when called again on the same struct", () => {

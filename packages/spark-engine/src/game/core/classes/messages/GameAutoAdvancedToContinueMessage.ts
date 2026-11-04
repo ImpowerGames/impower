@@ -7,6 +7,7 @@ export type GameAutoAdvancedToContinueMethod =
 
 export interface GameAutoAdvancedToContinueParams {
   location: DocumentLocation;
+  run?: number;
 }
 
 export class GameAutoAdvancedToContinueMessage {

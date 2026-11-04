@@ -349,6 +349,8 @@ export interface CarriedDeclarations {
   readonly globals: ReadonlyMap<string, InkObject>;
 }
 
+export type StoryEnding = "fin" | "out" | "error";
+
 export class ProgramStory implements StoryEngine {
   collapseWhitespace = true;
   processEscapes = true;
@@ -953,11 +955,13 @@ export class ProgramStory implements StoryEngine {
       },
       callStack,
     );
+    this.ending = null;
     if (this.resetSeed !== null) {
       this._state.storySeed = this.resetSeed;
     }
     this._state.onBeginLoad = () => {
       this._currentBeat = null;
+      this.ending = null;
       this.ownDeclarations();
       this._state.variablesState.ConstantsMayHaveChanged();
     };
@@ -1545,7 +1549,10 @@ export class ProgramStory implements StoryEngine {
     return flow < 0 ? "global decl" : this.root.labelOf(flow);
   }
 
-  debugFrames(threadIndex: number): DebugFrame[] | undefined {
+  debugFrames(
+    threadIndex: number,
+    ranAddress = -1,
+  ): DebugFrame[] | undefined {
     const state = this._state;
     const thread = state.callStack.ThreadWithIndex(threadIndex);
     if (!thread) {
@@ -1578,7 +1585,10 @@ export class ProgramStory implements StoryEngine {
         }
       }
       const frame = state.frameOf(element);
-      const symbol = frame ? frame.symbol : (at?.sequence.flow ?? -1);
+      const ran = address >= 0 ? address : current && !above ? ranAddress : -1;
+      const named =
+        at ?? (ran >= 0 ? this.root.position(chunkOfAddress(ran)) : undefined);
+      const symbol = frame ? frame.symbol : (named?.sequence.flow ?? -1);
       frames.push({
         type: element.type,
         symbol,
@@ -1673,7 +1683,10 @@ export class ProgramStory implements StoryEngine {
     }
     this.tellDeclarationIssue(isWarning);
     this._state.AddError(message, isWarning, raised);
-    if (!isWarning) this._state.ForceEnd();
+    if (!isWarning) {
+      this._state.ForceEnd();
+      this.ending = "error";
+    }
   }
 
   protected runningAddress(): number | undefined {
@@ -2359,6 +2372,7 @@ export class ProgramStory implements StoryEngine {
       case Op.End:
         state.ForceEnd();
         this.endedAt = this.runningAddress() ?? null;
+        this.ending = "fin";
         break;
       case Op.JumpSym:
         if (!(flags & JUMP_ARGUMENTS)) {
@@ -2733,6 +2747,7 @@ export class ProgramStory implements StoryEngine {
     state.position = null;
     state.blockStack = [];
     state.didSafeExit = true;
+    this.ending = "out";
   }
 
   protected land(
@@ -3241,6 +3256,17 @@ export class ProgramStory implements StoryEngine {
   protected _threadEntry = false;
 
   endedAt: number | null = null;
+
+  protected _ending: StoryEnding | null = null;
+  get ending(): StoryEnding | null {
+    return this._state.position === null &&
+      this._state.currentChoices.length === 0
+      ? this._ending
+      : null;
+  }
+  set ending(ending: StoryEnding | null) {
+    this._ending = ending;
+  }
 
   endsTunnelAtBase = false;
 

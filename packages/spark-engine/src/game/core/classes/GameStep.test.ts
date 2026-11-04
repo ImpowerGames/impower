@@ -123,9 +123,9 @@ describe("Game flow on the program engine", () => {
       clear();
       game.clickedToContinue();
       expect(gameMethods()).toEqual([
+        "game/clickedToContinue",
         "game/awaitingInteraction",
         "game/executed",
-        "game/clickedToContinue",
       ]);
     });
 

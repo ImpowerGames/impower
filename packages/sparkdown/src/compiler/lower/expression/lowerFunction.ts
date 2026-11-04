@@ -66,10 +66,10 @@ import {
 } from "../utils/luauAst";
 import { syntheticId } from "../utils/documentTag";
 import {
-  answersDeclaration,
   rootDeclarationAnswer,
+  mayAnswerDeclaration,
+  rootFlowAnswer,
   rootLocalAnswer,
-  rootLocalAnswerIgnoringBlocks,
   rootSlotName,
 } from "../utils/rootLocalReads";
 import { ROOT_IN_BLOCK, ROOT_NONE } from "../../utils/rootLocals";
@@ -355,13 +355,10 @@ export function freeVariables(
         const answer = declared ?? rootLocalAnswer(name, at, ctx);
         if (answer !== ROOT_IN_BLOCK) rootReads?.push({ name, answer });
         takenByLocal =
-          !rootReads
-            ? false
-            : answer === ROOT_IN_BLOCK
-            ? blockLocal ||
-              (ctx.rootLocals?.blockLocal(name, at) ?? false) ||
-              answersDeclaration(rootLocalAnswerIgnoringBlocks(name, at, ctx))
-            : answersDeclaration(answer);
+          !!rootReads &&
+          ((answer === ROOT_IN_BLOCK &&
+            (blockLocal || (ctx.rootLocals?.blockLocal(name, at) ?? false))) ||
+            mayAnswerDeclaration(rootFlowAnswer(name, at, ctx, answer)));
       }
       if (!isShadowedLocal(name) && !readsLocal && !takenByLocal) {
         if (isGlobalCallable(name)) return;

@@ -7,6 +7,7 @@ export type GameClickedToContinueMethod =
 
 export interface GameClickedToContinueParams {
   location: DocumentLocation;
+  run?: number;
 }
 
 export class GameClickedToContinueMessage {

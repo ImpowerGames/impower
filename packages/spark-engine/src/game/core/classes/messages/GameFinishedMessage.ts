@@ -1,9 +1,10 @@
 import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import type { GameEnding } from "../../types/GameEnding";
 
 export type GameFinishedMethod = typeof GameFinishedMessage.method;
 
-export interface GameFinishedParams {}
+export interface GameFinishedParams extends GameEnding {}
 
 export class GameFinishedMessage {
   static readonly method = "game/finished";
