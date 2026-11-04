@@ -620,6 +620,7 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
     subIssues: (n) => pages([`repos/${tickets}/issues/${n}/sub_issues`]),
     blockedBy: (n) => pages([`repos/${tickets}/issues/${n}/dependencies/blocked_by`]),
     effort: (n) => pages(["-H", "X-GitHub-Api-Version: 2026-03-10", `repos/${tickets}/issues/${n}/issue-field-values`]).find((v) => v.issue_field_name === "Effort")?.single_select_option?.name ?? null,
+    pull: (n) => JSON.parse(run("gh", ["pr", "view", String(n), "--repo", code, "--json", fields])),
     pulls: (n) => (split ? accountPulls(n) : JSON.parse(run("gh", ["pr", "list", "--repo", code, "--state", "all", "--search", String(n), "--limit", "100", "--json", fields]))),
     comments: (pr, ticket) => { const t = thread(pr, ticket); return pages([`repos/${t.repo}/issues/${t.number}/comments`]); },
     checks: (pr) => JSON.parse(run("gh", ["pr", "view", String(pr), "--repo", code, "--json", "statusCheckRollup"])).statusCheckRollup.map((c) => ({ name: c.name ?? c.context, state: c.conclusion || c.state || c.status })),
@@ -731,14 +732,15 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
   const originMain = client.fetchMain();
   const worktrees = client.worktrees();
   const pullsOf = pullsFilter(client, ticketsRepository, repositoriesOf({ repository, ticketsRepository }).split);
-  const delivered = (n) => pullsOf(n).some((p) => p.state === "MERGED" && p.mergeCommit?.oid && client.onMain(p.mergeCommit.oid));
+  const mergedOnMain = (p) => Boolean(p.state === "MERGED" && p.mergeCommit?.oid && client.onMain(p.mergeCommit.oid));
+  const delivered = (n) => pullsOf(n).some(mergedOnMain);
   const parent = client.issue(issue);
   const tickets = walkSubIssues(issue, client, { tickets: ticketsRepository, pullsOf }).map((node) => {
     const n = node.number;
-    const prs = pullsOf(n).map((p) => ({ number: p.number, state: p.state, isDraft: p.isDraft, branch: p.headRefName, head: p.headRefOid, base: p.baseRefName, mergeCommit: p.mergeCommit?.oid ?? null, closes: (p.closingIssuesReferences ?? []).map((r) => r.number), ...(p.state === "OPEN" && { rounds: reviewRounds(client.comments(p.number, n)), checks: client.checks(p.number) }) }));
+    const prs = pullsOf(n).map((p) => ({ number: p.number, state: p.state, isDraft: p.isDraft, branch: p.headRefName, head: p.headRefOid, base: p.baseRefName, mergeCommit: p.mergeCommit?.oid ?? null, closes: (p.closingIssuesReferences ?? []).map((r) => r.number), ...(p.state === "MERGED" && { onMain: mergedOnMain(p) }), ...(p.state === "OPEN" && { rounds: reviewRounds(client.comments(p.number, n)), checks: client.checks(p.number) }) }));
     return {
       ...node, effort: client.effort(n),
-      delivered: node.state === "closed" && delivered(n),
+      delivered: node.state === "closed" && prs.some((p) => p.onMain),
       blockers: client.blockedBy(n).map((b) => ({ number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })),
       prs, worktrees: worktrees.filter((w) => branchTicket(w.branch) === n),
     };
@@ -888,7 +890,24 @@ function readyAction(record, pr, why = "") {
   return ["await-maintainer", `PR #${pr.number} is ready at ${pr.head}${why}; the invocation stops at ready, so the maintainer merges it`];
 }
 
-const reportedSince = (own) => { const started = Date.parse(own.owner.resumes?.at(-1)?.time ?? own.owner.since); return (own.results ?? []).some((r) => Date.parse(r.time) >= started); };
+const latestWriterStart = (owner) => Date.parse(owner.resumes?.at(-1)?.time ?? owner.since);
+const reportedSince = (own) => (own.results ?? []).some((r) => Date.parse(r.time) >= latestWriterStart(own.owner));
+
+function idleReleaseReport(own, status, observations) {
+  const owner = own.owner;
+  if (status.status !== "waiting" || owner.handle.kind !== "session" || owner.mismatch || owner.resuming || own.pending || openPending(owner) || openRequests(own).length) return null;
+  if (owner.brief?.state === "intent" || owner.contact?.state === "intent") return null;
+  const observedHost = observations?.sessions?.[owner.handle.id]?.host;
+  if (observedHost && owner.handle.host && observedHost !== owner.handle.host) return null;
+  const last = own.results?.at(-1);
+  const reportedAt = Date.parse(last?.time);
+  if (!(reportedAt >= latestWriterStart(owner)) || !isTicketNumber(last.report?.pr)) return null;
+  const deliveries = [owner.brief, owner.contact, ...requestsForOwner(own).map((r) => r.answer)];
+  if (deliveries.some((d) => d?.state === "delivered" && !(reportedAt > Date.parse(d.time)))) return null;
+  return last.report;
+}
+
+const writerPull = (owner, report, number, branch) => number === report.pr && (!owner.branch || owner.branch === branch);
 
 export const writerKnownEnded = (own) => !own.owner && !own.pending && Boolean(own.history?.some((h) => h.released || h.ended || h.priorEnded));
 
@@ -1022,6 +1041,11 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
       const base = t.delivered ? "closed with its merged deliverable on origin/main" : `closed${t.stateReason === "not_planned" ? " as not planned" : ""} without a merged deliverable on origin/main; confirm whether the ticket is complete`;
       if (own.owner?.resuming) { add(t, "reconcile-pending", `${base}; resume ${own.owner.resuming.id} of its writer has no recorded outcome; run reconcile before anything else, since the resumed writer may still run`, { owner: { route: own.owner.route, handle: own.owner.handle, status: statusOf(t.number, own.owner).status } }); continue; }
       if (own.owner && statusOf(t.number, own.owner).status === "exited") { add(t, "release", `${base}; its writer ended (${statusOf(t.number, own.owner).reason}): read its transcript, then record release with that evidence`, { owner: { route: own.owner.route, handle: own.owner.handle, status: "exited" }, transcript: { from: transcriptOf(own.owner) } }); continue; }
+      const report = own.owner && idleReleaseReport(own, statusOf(t.number, own.owner), observations);
+      if (report && t.delivered && t.prs.some((p) => p.onMain && writerPull(own.owner, report, p.number, p.branch))) {
+        add(t, "release", `${base}; its session ended its turn and its final report names merged PR #${report.pr}: record release with the transcript evidence`, { owner: { route: own.owner.route, handle: own.owner.handle, status: "waiting" }, transcript: { from: transcriptOf(own.owner) } });
+        continue;
+      }
       add(t, t.delivered ? "done" : "decision-needed", lingering ? `${base}; its worktree ${t.worktrees.map((w) => w.path).join(", ")} remains and its writer is not settled in the record, so it keeps a place: find that writer and record it with adopt, then release it once it ends, or remove the merged worktree through clean-worktrees, which refuses a tree a process still uses` : base, lingering ? { worktrees: t.worktrees, reserves: true } : {});
       continue;
     }
@@ -1326,18 +1350,32 @@ export function verify(record, { ticket: number, preflight: file }) {
   return owner;
 }
 
-export function release(record, { ticket: number, observations, evidence, host = os.hostname(), identify = processIdentity }) {
+function verifyIdleDelivery(record, ticket, owner, report, client) {
+  const names = repositoriesOf(record);
+  const issue = client.issue(ticket);
+  if (issue.state !== "closed") return null;
+  const pull = client.pull(report.pr);
+  const scopedPull = { ...pull, closingIssuesReferences: closingIn(pull.closingIssuesReferences, names.tickets, names.code) };
+  if (!writerPull(owner, report, pull.number, pull.headRefName) || !ownsPull(scopedPull, ticket, names.split, issue.created_at) || pull.state !== "MERGED" || !pull.mergeCommit?.oid) return null;
+  client.fetchMain();
+  return client.onMain(pull.mergeCommit.oid) ? `ticket #${ticket} is closed and PR #${report.pr} is merged on origin/main` : null;
+}
+
+export function release(record, { ticket: number, observations, evidence, host = os.hostname(), identify = processIdentity, clientFor = githubClient }) {
   const ticket = ticketOf(record, number), owner = ticket.owner;
   if (!owner) throw new Error(`#${number} has no owner to release`);
   if (owner.resuming) throw new Error(`Resume ${owner.resuming.id} of #${number}'s writer has no recorded outcome, and the resumed writer may still run; settle it with reconcile before release`);
   const s = ownerStatus(owner, observations, { host, identify });
-  if (s.status !== "exited") throw new Error(`#${number}'s writer is ${s.status} (${s.reason}); only a writer observed to have ended is released`);
+  const report = evidence?.trim() && idleReleaseReport(ticket, s, observations);
+  const delivered = report && verifyIdleDelivery(record, number, owner, report, clientFor(record, record.checkout));
+  if (s.status !== "exited" && !delivered) throw new Error(`#${number}'s writer is ${s.status} (${s.reason}); only a writer observed to have ended is released`);
+  const reason = delivered ? `session ${owner.handle.id} ended its turn; ${delivered}` : s.reason;
   const closed = openRequests(ticket);
   for (const r of closed) r.closed = { time: new Date().toISOString(), reason: "its writer was released" };
   noteSession(owner);
-  ticket.history.push({ owner, released: `${s.reason}${evidence ? `; ${evidence}` : ""}`, time: new Date().toISOString() });
+  ticket.history.push({ owner, released: `${reason}${evidence ? `; ${evidence}` : ""}`, time: new Date().toISOString() });
   ticket.owner = null;
-  log(record, "released", { ticket: number, reason: s.reason, ...(closed.length && { closedRequests: closed.map((r) => r.id) }) });
+  log(record, "released", { ticket: number, reason, ...(closed.length && { closedRequests: closed.map((r) => r.id) }) });
 }
 
 function noteSession(owner) {
@@ -1385,7 +1423,8 @@ export function acknowledged(record, { ticket: number, model, effort, permission
 
 const ownerId = (owner) => owner?.launchId ?? owner?.handle?.id ?? owner?.handle?.pid ?? null;
 const handleId = (owner) => owner?.handle?.id ?? owner?.handle?.pid ?? null;
-const openRequests = (own) => (own.requests ?? []).filter((r) => !r.closed && r.answer?.state !== "delivered" && own.owner && (r.owner === ownerId(own.owner) || r.owner === handleId(own.owner)));
+const requestsForOwner = (own) => (own.requests ?? []).filter((r) => own.owner && (r.owner === ownerId(own.owner) || r.owner === handleId(own.owner)));
+const openRequests = (own) => requestsForOwner(own).filter((r) => !r.closed && r.answer?.state !== "delivered");
 function requestNext(r, ended) {
   if (r.answer?.state === "intent") return `answer ${r.answer.deliveryId} to request ${r.id} has no recorded outcome and may still be queued; ${ended ? "if the writer's transcript shows it, record answered with that evidence; otherwise " : ""}wait, or resend with answer --retry, which tells the writer to ignore a second copy`;
   if (r.relayed) return `request ${r.id} "${r.text}" was relayed to ${r.relayed.to} at ${r.relayed.time}; once they decide, record answer and send it`;
@@ -2045,7 +2084,7 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     case "withdraw": return mutate((r) => withdraw(r, { ticket: number(), evidence: o.evidence, observedOn: o.observedOn }));
     case "verify": return mutate((r) => verify(r, { ticket: number(), preflight: absolute(o.preflight, "preflight") }));
     case "writer-session": return mutate((r) => writerSession(r, { ticket: number(), writer: o.writer, session: o.session, evidence: o.evidence }));
-    case "release": return mutate((r) => release(r, { ticket: number(), observations: readOptional(o.observations) ?? {}, evidence: o.evidence }));
+    case "release": return mutate((r) => release(r, { ticket: number(), observations: readOptional(o.observations) ?? {}, evidence: o.evidence, clientFor }));
     case "result": return mutate((r) => result(r, { ticket: number(), report: absolute(o.report, "report") }));
     case "disk-recovery": return mutate((r) => diskRecovery(r, { removed: o.removed, branch: o.branch, classifier: o.classifier }));
     case "clean-artifacts": return mutate((r) => cleanArtifacts(r, { ticket: number() }));

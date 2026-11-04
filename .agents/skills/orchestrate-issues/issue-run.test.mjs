@@ -1046,6 +1046,77 @@ try {
   const planOf = (f, snap, more = {}) => run.planDispatch({ record: run.readRecord(f.file), snapshot: snap, freeBytes: 100 * GB, defaults, ...more });
 
   {
+    const f = fresh("idle-session-release");
+    const branch = "fix/1901-thing", handle = "local_delivered";
+    const pr = { number: 1902, state: "OPEN", isDraft: true, branch, head: "reviewed", rounds: 1 };
+    const open = { ...ticket(1901), parent: 300, prs: [pr] };
+    const plan = write("idle-adoption.json", planOf(f, snapshotOf(300, [open])));
+    f.change((r) => run.adopt(r, { plan, ticket: 1901, handleKind: "session", handle, route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(f.dir, "wt") }));
+    const report = write("idle-final-report.json", { model: "claude-opus-5-5", effort: "medium", permissionMode: null, pr: 1902, reviewedHead: "reviewed", rounds: 1, findings: "None", verification: "Passed", ci: "Passed", filed: "None", next: "Complete" });
+    const observations = { sessions: { [handle]: { state: "idle" } } };
+    const observed = write("idle-observations.json", observations);
+    let state = "closed", onMain = true, closingTicket = 1901;
+    const merged = { ...pr, state: "MERGED", mergeCommit: "delivered", onMain: true };
+    const closed = { ...open, state: "closed", delivered: true, prs: [merged] };
+    const rawPr = { number: 1902, state: "MERGED", headRefName: branch, mergeCommit: { oid: "delivered" }, closingIssuesReferences: [{ number: 1901 }] };
+    const client = {
+      issue: () => ({ state }),
+      pull: () => ({ ...rawPr, headRefName: closingTicket === 1901 ? branch : "fix/1903-other", closingIssuesReferences: [{ number: closingTicket }] }),
+      fetchMain: () => "main-tip",
+      onMain: (sha) => onMain && sha === "delivered",
+    };
+    const release = (obs = observed, evidence = "Read its final transcript") => run.main(["release", "--record", f.file, "--coordinator", "local_r", "--expect-revision", String(run.readRecord(f.file).revision), "--ticket", "1901", "--observations", obs, "--evidence", evidence], { defaults, clientFor: () => client });
+    assert.throws(() => release(), /writer is waiting/, "an idle owner without a recorded result stays held");
+    f.change((r) => run.result(r, { ticket: 1901, report }));
+    const before = run.readRecord(f.file);
+    state = "open";
+    assert.throws(() => release(), /writer is waiting/, "a merged PR alone does not settle an idle owner");
+    state = "closed";
+    onMain = false;
+    assert.throws(() => release(), /writer is waiting/, "a closed ticket with a merge missing from origin/main stays held");
+    onMain = true;
+    closingTicket = 1903;
+    assert.throws(() => release(), /writer is waiting/, "a merged PR for another ticket does not settle this owner");
+    closingTicket = 1901;
+    assert.throws(() => release(observed, " "), /writer is waiting/, "an idle release needs transcript evidence");
+    assert.throws(() => release(write("idle-foreign.json", { sessions: { [handle]: { state: "idle", host: "other-host" } } })), /writer is (waiting|unknown)/, "an observation from a different host does not settle the owner");
+    assert.throws(() => release(write("idle-running.json", { sessions: { [handle]: { state: "running" } } })), /writer is live/);
+    assert.deepEqual(run.readRecord(f.file), before, "refused release attempts leave the record intact");
+    for (const delivery of ["brief", "contact"]) {
+      f.change((r) => { r.tickets[1901].owner[delivery] = { state: "intent" }; });
+      assert.throws(() => release(), /writer is waiting/, `a pending ${delivery} delivery can start another turn`);
+      assert.notEqual(actions(planOf(f, snapshotOf(300, [closed]), { observations }))[1901], "release");
+      f.change((r) => { delete r.tickets[1901].owner[delivery]; });
+    }
+    const asked = f.change((r) => run.request(r, { ticket: 1901, text: "May I continue?", source: "fixture transcript" }));
+    f.change((r) => {
+      run.answer(r, { ticket: 1901, request: asked.id, text: "Yes" });
+      run.answered(r, { ticket: 1901, request: asked.id, evidence: "fixture transcript" });
+      const own = r.tickets[1901];
+      own.results.at(-1).time = new Date(Date.parse(own.requests.at(-1).answer.time) - 1).toISOString();
+    });
+    assert.throws(() => release(), /writer is waiting/, "the earlier report cannot settle a session after a delivered follow-up");
+    assert.notEqual(actions(planOf(f, snapshotOf(300, [closed]), { observations }))[1901], "release");
+    f.change((r) => run.result(r, { ticket: 1901, report }));
+    f.change((r) => { r.tickets[1901].owner.branch = null; });
+    closingTicket = 1903;
+    assert.throws(() => release(), /writer is waiting/, "a PR with no claim to the ticket is refused even without a recorded branch");
+    closingTicket = 1901;
+    f.change((r) => { r.tickets[1901].owner.branch = branch; });
+    const planned = planOf(f, snapshotOf(300, [closed]), { observations });
+    const otherMerge = { ...closed, prs: [{ ...merged, onMain: false }, { ...merged, number: 1903 }] };
+    assert.equal(actions(planOf(f, snapshotOf(300, [otherMerge]), { observations }))[1901], "done", "the reported PR itself must be on origin/main to plan release");
+    assert.doesNotThrow(() => release(), "the idle session's recorded report and closed, delivered ticket allow release");
+    assert.equal(actions(planned)[1901], "release");
+    assert.equal(planned.concurrency.active, 1, "the place stays held until release is recorded");
+    const settled = run.readRecord(f.file).tickets[1901];
+    assert.equal(settled.owner, null);
+    assert.match(settled.history.at(-1).released, /origin\/main.*Read its final transcript/);
+    const after = planOf(f, snapshotOf(300, [closed]), { observations });
+    assert.deepEqual([actions(after)[1901], after.concurrency.active], ["done", 0]);
+  }
+
+  {
     const f = fresh("r1");
     const snap = snapshotOf(300, [{ ...ticket(301), parent: 300 }]);
     const pre = [available("claude-cli", "claude-opus-5-5", [301])];
