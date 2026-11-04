@@ -6,7 +6,8 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { spawnDetached as spawnDetachedProcess } from "../../../scripts/detached-launch.mjs";
 import { writeExclusive, readJson, alive, currentIdentity } from "../../../scripts/review-job-store.mjs";
-import { processIdentity } from "../../../scripts/reviewer-slots.mjs";
+import { processIdentity, reviewerSlotCount } from "../../../scripts/reviewer-slots.mjs";
+import { admissionSlots, poolSlotLimit } from "../../../scripts/test-suite-process.mjs";
 import { routeVendor, writerEfforts } from "../../../scripts/reviewer-defaults.mjs";
 import { writerRoutes } from "../../../scripts/writer-route-preflight.mjs";
 import { reviewJobFiles } from "../../../scripts/review-job-root.mjs";
@@ -69,11 +70,12 @@ export function orchestrationTitle(issue, slug) {
 export const writerEffortOf = (name) => ({ Low: "low", Medium: "medium", High: "high" })[name] ?? null;
 
 export const WRITER_DISK = 6 * 2 ** 30;
-export const WRITER_MEMORY = 4 * 2 ** 30;
-export const MAX_WRITERS = 3;
+export const WRITER_MEMORY = 2 * 2 ** 30;
+const perWriter = `${WRITER_MEMORY / 2 ** 30} GiB per writer`;
+export const writerPlaces = (totalMemory) => Math.max(0, Math.floor(totalMemory / WRITER_MEMORY));
 export function defaultConcurrency({ totalMemory }) {
-  const byMemory = Math.floor(totalMemory / WRITER_MEMORY);
-  return { limit: Math.max(0, Math.min(MAX_WRITERS, byMemory)), basis: `the smaller of ${MAX_WRITERS} writer places and ${byMemory} by total memory at 4 GiB per writer; admission also checks available memory and disk` };
+  const limit = writerPlaces(totalMemory);
+  return { limit, basis: `${limit} writer places by total memory at ${perWriter}, the same machine-wide places every run on this host shares; reviews wait for the ${reviewerSlotCount} machine-wide reviewer slots and test runs for the ${admissionSlots} test-suite reservation slots, at most ${poolSlotLimit} of them for writers, so writers beyond those slots queue during review and tests; admission also checks available memory and disk` };
 }
 export const freeBytesAt = (dir) => { const s = fs.statfsSync(dir); return s.bavail * s.bsize; };
 
@@ -89,21 +91,21 @@ export function linuxWriterMemory(meminfo, overcommit) {
 }
 
 function writerMemory() {
-  const sampledAt = new Date().toISOString();
+  const sample = { sampledAt: new Date().toISOString(), totalBytes: os.totalmem() };
   try {
     if (process.platform === "win32") {
       const script = "$ErrorActionPreference = 'Stop'; Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory | Select-Object AvailableBytes,CommitLimit,CommittedBytes | ConvertTo-Json -Compress";
       const counters = JSON.parse(execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true, timeout: 10000 }));
       const { AvailableBytes, CommitLimit, CommittedBytes } = counters;
       if (![AvailableBytes, CommitLimit, CommittedBytes].every((value) => Number.isSafeInteger(value) && value >= 0)) throw new Error("Windows returned invalid memory counters");
-      return { sampledAt, physicalAvailableBytes: AvailableBytes, commitHeadroomBytes: CommitLimit - CommittedBytes, source: "Windows memory performance counters" };
+      return { ...sample, physicalAvailableBytes: AvailableBytes, commitHeadroomBytes: CommitLimit - CommittedBytes, source: "Windows memory performance counters" };
     }
     if (process.platform === "linux") {
-      return { sampledAt, ...linuxWriterMemory(fs.readFileSync("/proc/meminfo", "utf8"), fs.readFileSync("/proc/sys/vm/overcommit_memory", "utf8")) };
+      return { ...sample, ...linuxWriterMemory(fs.readFileSync("/proc/meminfo", "utf8"), fs.readFileSync("/proc/sys/vm/overcommit_memory", "utf8")) };
     }
-    return { sampledAt, physicalAvailableBytes: os.freemem(), commitHeadroomBytes: null, source: `${process.platform} free memory; direct commit unavailable` };
+    return { ...sample, physicalAvailableBytes: os.freemem(), commitHeadroomBytes: null, source: `${process.platform} free memory; direct commit unavailable` };
   } catch (error) {
-    return { sampledAt, error: error.message };
+    return { ...sample, error: error.message };
   }
 }
 
@@ -215,18 +217,19 @@ const SOURCE_START = 2 ** 29;
 const PHYSICAL_RESERVE = 3 * SOURCE_START;
 const COMMIT_RESERVE = 9 * SOURCE_START;
 function machineRoom(load) {
-  const { physicalAvailableBytes, commitHeadroomBytes, error } = load.resources;
-  if (!Number.isFinite(physicalAvailableBytes) || (commitHeadroomBytes !== null && !Number.isFinite(commitHeadroomBytes))) {
+  const { totalBytes, physicalAvailableBytes, commitHeadroomBytes, error } = load.resources;
+  if (!Number.isFinite(totalBytes) || !Number.isFinite(physicalAvailableBytes) || (commitHeadroomBytes !== null && !Number.isFinite(commitHeadroomBytes))) {
     return { room: 0, reason: `Cannot measure writer admission memory: ${error ?? "invalid counters"}; obtain a fresh resource sample` };
   }
   const physical = Math.floor((physicalAvailableBytes - PHYSICAL_RESERVE) / SOURCE_START);
   const commit = commitHeadroomBytes === null ? Infinity : Math.floor((commitHeadroomBytes - COMMIT_RESERVE) / SOURCE_START);
-  const places = MAX_WRITERS - load.executing - load.pending;
+  const total = writerPlaces(totalBytes);
+  const places = total - load.executing - load.pending;
   const occupied = load.writers.filter(({ state }) => ["executing", "pending"].includes(state));
-  const holders = () => occupied.map(({ identity, references }) => `${identity.join("/")} (${references.map(({ recordPath, ticket }) => `${recordPath} #${ticket}`).join(", ")})`).join("; ");
+  const holders = () => occupied.map(({ identity, references }) => `${identity.join("/")} (${references.map(({ recordPath, ticket }) => `${recordPath} #${ticket}`).join(", ")})`).join("; ") || "no writer";
   return {
     room: Math.max(0, Math.min(physical, commit, places)),
-    reason: physical <= 0 ? "Available physical memory is below 2 GiB" : commit <= 0 ? "Direct commit headroom is below 5 GiB" : places <= 0 ? `Machine writer places are full: ${holders()}` : null,
+    reason: physical <= 0 ? "Available physical memory is below 2 GiB" : commit <= 0 ? "Direct commit headroom is below 5 GiB" : places <= 0 ? `Machine writer places are full: all ${total} by total memory at ${perWriter} are held by ${holders()}` : null,
   };
 }
 
@@ -619,7 +622,11 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
     issue: (n) => JSON.parse(run("gh", ["api", `repos/${tickets}/issues/${n}`])),
     subIssues: (n) => pages([`repos/${tickets}/issues/${n}/sub_issues`]),
     blockedBy: (n) => pages([`repos/${tickets}/issues/${n}/dependencies/blocked_by`]),
-    effort: (n) => pages(["-H", "X-GitHub-Api-Version: 2026-03-10", `repos/${tickets}/issues/${n}/issue-field-values`]).find((v) => v.issue_field_name === "Effort")?.single_select_option?.name ?? null,
+    fields: (n) => {
+      const values = pages(["-H", "X-GitHub-Api-Version: 2026-03-10", `repos/${tickets}/issues/${n}/issue-field-values`]);
+      const option = (name) => values.find((v) => v.issue_field_name === name)?.single_select_option?.name ?? null;
+      return { effort: option("Effort"), priority: option("Priority") };
+    },
     pull: (n) => JSON.parse(run("gh", ["pr", "view", String(n), "--repo", code, "--json", fields])),
     pulls: (n) => (split ? accountPulls(n) : JSON.parse(run("gh", ["pr", "list", "--repo", code, "--state", "all", "--search", String(n), "--limit", "100", "--json", fields]))),
     comments: (pr, ticket) => { const t = thread(pr, ticket); return pages([`repos/${t.repo}/issues/${t.number}/comments`]); },
@@ -738,8 +745,9 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
   const tickets = walkSubIssues(issue, client, { tickets: ticketsRepository, pullsOf }).map((node) => {
     const n = node.number;
     const prs = pullsOf(n).map((p) => ({ number: p.number, state: p.state, isDraft: p.isDraft, branch: p.headRefName, head: p.headRefOid, base: p.baseRefName, mergeCommit: p.mergeCommit?.oid ?? null, closes: (p.closingIssuesReferences ?? []).map((r) => r.number), ...(p.state === "MERGED" && { onMain: mergedOnMain(p) }), ...(p.state === "OPEN" && { rounds: reviewRounds(client.comments(p.number, n)), checks: client.checks(p.number) }) }));
+    const { effort, priority } = client.fields(n);
     return {
-      ...node, effort: client.effort(n),
+      ...node, effort, priority,
       delivered: node.state === "closed" && prs.some((p) => p.onMain),
       blockers: client.blockedBy(n).map((b) => ({ number: b.number, state: b.state, delivered: b.state === "closed" && delivered(b.number) })),
       prs, worktrees: worktrees.filter((w) => branchTicket(w.branch) === n),
@@ -910,6 +918,8 @@ function idleReleaseReport(own, status, observations) {
 const writerPull = (owner, report, number, branch) => number === report.pr && (!owner.branch || owner.branch === branch);
 
 export const writerKnownEnded = (own) => !own.owner && !own.pending && Boolean(own.history?.some((h) => h.released || h.ended || h.priorEnded));
+
+const RANKED_ACTIONS = new Set(["dispatch", "adopt-pr", "adopt-worktree"]);
 
 export function planDispatch({ record, snapshot, observations = {}, preflights = [], freeBytes, defaults, host = os.hostname(), identify = processIdentity, now = Date.now(), reviewJobs = `${record.checkout}.review-jobs`, census = processCensus, env = process.env, machine }) {
   if (snapshot.repository !== record.repository || snapshot.issue.number !== record.issue) throw new Error("The snapshot is of another repository or parent issue");
@@ -1148,19 +1158,15 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     else entry.continueWith = startWith(choice);
   }
   const capacityNow = Math.max(0, Math.min(room - active, shared?.room ?? Infinity));
-  let capacity = capacityNow;
-  for (const t of eligible.sort((a, b) => a.number - b.number)) {
+  const full = capacityNow > 0 ? null
+    : Math.floor(free / WRITER_DISK) <= active ? "free disk does not admit another writer; the coordinator may run the bounded disk recovery"
+    : room <= active ? `${active} distinct writer places are held against a limit of ${record.concurrency.limit}`
+    : shared.reason;
+  for (const t of eligible) {
     const choice = chooseRoute(t), { effort, chosen, reasons } = choice;
     if (!chosen) { add(t, "blocked-route", `no supported route runs ${model} at ${effort}: ${reasons.join("; ")}`); continue; }
     if (unlaunchable) { add(t, "blocked-route", unlaunchable); continue; }
-    if (capacity <= 0) {
-      const reason = Math.floor(free / WRITER_DISK) <= active ? "free disk does not admit another writer; the coordinator may run the bounded disk recovery"
-        : room <= active ? `${active} distinct writer places are held against a limit of ${record.concurrency.limit}`
-        : shared?.room === 0 ? shared.reason : "the current machine sample admits only the starts already selected by this plan";
-      add(t, "wait-capacity", reason);
-      continue;
-    }
-    capacity--;
+    if (full) { add(t, "wait-capacity", full); continue; }
     add(t, "dispatch", `every blocker's deliverable is on origin/main`, startWith(choice));
   }
   if (record.handoff) {
@@ -1178,10 +1184,25 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
   }
   for (const t of snapshot.tickets) reviewed.push(...t.prs.filter((p) => p.state === "OPEN").map((p) => ({ ticket: t.number, pr: p.number })));
   sweep.deadLaunches = deadLaunches(reviewJobs, reviewed, census);
+  const waiters = new Map();
+  for (const t of snapshot.tickets) {
+    if (t.state !== "open") continue;
+    const on = new Set(undelivered(t).map((b) => b.number));
+    if (t.deliveredBy) on.add(t.deliveredBy.ticket);
+    for (const x of blockedDelivery(t.number) ?? []) on.add(x.blocker.number);
+    for (const n of on) { if (!waiters.has(n)) waiters.set(n, []); waiters.get(n).push(t.number); }
+  }
+  const dependentsOf = (n) => {
+    const seen = new Set([n]), queue = [n];
+    while (queue.length) for (const w of waiters.get(queue.pop()) ?? []) if (!seen.has(w)) { seen.add(w); queue.push(w); }
+    return seen.size - 1;
+  };
+  const byNumber = new Map(snapshot.tickets.map((t) => [t.number, t]));
   tickets.sort((a, b) => a.number - b.number);
   for (const entry of tickets) {
     const delivers = snapshot.tickets.filter((x) => x.deliveredBy?.ticket === entry.number).map((x) => x.number);
     if (delivers.length) entry.delivers = delivers;
+    if (RANKED_ACTIONS.has(entry.action)) Object.assign(entry, { priority: byNumber.get(entry.number).priority ?? null, dependents: dependentsOf(entry.number) });
   }
   const complete = verificationHolds(record, snapshot) && tickets.every((t) => ["done", "container"].includes(t.action));
   return {
@@ -1193,10 +1214,14 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
 
 const BRANCH = /^(?:[a-z]+\/)?(?:fix|feat|perf|docs|test|refactor|ci)\/(\d+)-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-function planEntry(planFile, record, number, actions) {
+function readPlan(planFile, record) {
   const plan = readJson(planFile);
   if (plan.runId !== record.runId || plan.repository !== record.repository || plan.issue !== record.issue) throw new Error(`The plan was made for another run (${plan.runId ?? "none"}, coordinator ${plan.coordinator}); plan again from this run's record`);
   if (plan.revision !== record.revision) throw new Error(`The plan was made at revision ${plan.revision}; plan again from revision ${record.revision}`);
+  return plan;
+}
+
+function planEntry(plan, number, actions) {
   const entry = plan.tickets.find((t) => t.number === number);
   if (!entry || !actions.includes(entry.action)) throw new Error(`The plan's action for #${number} is ${entry?.action ?? "missing"}, not ${actions.join(" or ")}`);
   return entry;
@@ -1210,7 +1235,13 @@ function assertFree(ticket, number) {
 const CLAIM_ACTIONS = { dispatch: ["dispatch"], continue: ["adopt-pr", "adopt-worktree"] };
 export function claim(record, { plan, ticket: number, worktree, branch, artifactParent, operation = "dispatch", evidence, host = os.hostname(), defaults = readWriterDefaults(), machine, observations, freeBytes }) {
   if (!Object.hasOwn(CLAIM_ACTIONS, operation)) throw new Error(`--operation must be ${Object.keys(CLAIM_ACTIONS).join(", ")}`);
-  const entry = planEntry(plan, record, number, CLAIM_ACTIONS[operation]);
+  const planned = readPlan(plan, record);
+  if (operation === "dispatch" && planned.concurrency.capacityNow === 0) {
+    const { active, limit } = planned.concurrency;
+    const why = active < limit && planned.tickets.find((t) => t.action === "wait-capacity")?.reason;
+    throw new Error(`The plan admits no new writer: ${active} writer places are held against a limit of ${limit}${why ? `, and ${why}` : ""}; plan again once a place frees`);
+  }
+  const entry = planEntry(planned, number, CLAIM_ACTIONS[operation]);
   if (!path.isAbsolute(worktree ?? "") || !path.isAbsolute(artifactParent ?? "")) throw new Error("--worktree and --artifact-parent must be absolute paths");
   let start = entry, continues = null;
   if (operation === "continue") {
@@ -1305,7 +1336,7 @@ export function launched(record, { ticket: number, handleKind, handle, observedO
 }
 
 export function adopt(record, { plan, ticket: number, handleKind, handle, pid, session, route, model, effort, worktree, branch, host = os.hostname(), identify = processIdentity }) {
-  const entry = planEntry(plan, record, number, ["adopt-pr", "adopt-worktree", "await-maintainer", "merge-gate", "done", "decision-needed"]);
+  const entry = planEntry(readPlan(plan, record), number, ["adopt-pr", "adopt-worktree", "await-maintainer", "merge-gate", "done", "decision-needed"]);
   if (["done", "decision-needed"].includes(entry.action) && !entry.reserves) throw new Error(`The plan's action for #${number} is ${entry.action} with no unsettled writer to adopt`);
   if (!Object.hasOwn(writerRoutes, route) || typeof model !== "string" || !writerEfforts(model).includes(effort)) throw new Error("--route, --model and --effort must describe the existing writer");
   if (!path.isAbsolute(worktree ?? "")) throw new Error("--worktree must be the existing writer's absolute worktree path");

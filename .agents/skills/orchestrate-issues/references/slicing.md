@@ -19,6 +19,7 @@ Mis-grouping is the costly failure. A Bug that does not belong holds every other
 - A slice holds at least two Bugs. A lone Bug is already its own slice, so it is never wrapped in a Task.
 - Never re-parent a Bug that has a PR, worktree, writer or pending start. That work stays with its own ticket.
 - The slice's Effort is the Effort of its hardest Bug, since it sets the writer's effort. A Bug with no Effort is estimated first, as [issue fields](../../references/issue-fields.md) describes.
+- The slice's Priority is the highest Priority among its Bugs (Urgent, then High, Medium and Low), since the coordinator sets the slice's fields when it files it. When none of its Bugs has a Priority, the slice has none: the coordinator never assigns a missing Priority, and a ticket without one dispatches like any other.
 - The slice is `blocked_by` the current tail of the serial chain for the file set it edits, chosen outside its own Bugs. The tail is the last undelivered ticket in the parent's tree whose fix edits those files, other than a Bug the slice will hold or a ticket that waits, directly or through others, on one of those Bugs. A slice blocked by one of its own Bugs never dispatches, because the planner keeps a slice's own blockers (`undelivered` in `issue-run.mjs`) and only the slice's merge can deliver that Bug. With the tail chosen this way, no two slices on one file set are eligible at once. A slice with no such ticket on its file set starts the chain and has no such blocker.
 - Never group two Bugs when a ticket outside the slice sits between them, waiting on one and blocking the other. The planner moves the second Bug's blocker onto the slice, so the slice waits on that ticket while that ticket waits on the slice's merge. Leave such Bugs in separate slices, or as their own tickets.
 
@@ -27,7 +28,8 @@ Mis-grouping is the costly failure. A Bug that does not belong holds every other
 1. File each slice as a Task through the [filing routes](../../references/runner-filing.md), as a sub-issue of the parent or of the container its Bugs came from. The prompt names the Bugs it holds, the shared mechanism with its `file:line` evidence, the file set, the Effort to set and the blocker. Under file-task, the blocker is a "Blocked by" sentence that `record-blockers.mjs` records.
 2. Move each Bug under its slice with `gh api -X POST repos/<tickets>/issues/<slice>/sub_issues -F sub_issue_id=<id> -F replace_parent=true`, where `<id>` is `gh api repos/<tickets>/issues/<N> --jq .id`. Then read the slice's sub-issues back.
 3. Copy the parent's milestone to the slice, since GitHub copies none from a parent: read its number with `gh api repos/<tickets>/issues/<parent> --jq .milestone.number`, set it with `gh api -X PATCH repos/<tickets>/issues/<slice> -F milestone=<number>`, and read `.milestone.title` back. A parent with no milestone leaves the slice without one.
-4. Run `snapshot` again, so the plan reads the new tree.
+4. Set the slice's Priority through the [issue-fields procedure](../../references/issue-fields.md) and read it back, since the filing routes set only Effort. A slice whose Bugs carry no Priority is left without one.
+5. Run `snapshot` again, so the plan reads the new tree.
 
 ## Dispatched slices and Bugs that arrive mid-run
 

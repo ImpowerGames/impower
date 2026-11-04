@@ -938,7 +938,7 @@ export class ProgramStory implements StoryEngine {
   }
 
   protected resetState(carried?: CarriedDeclarations): void {
-    this.IfAsyncWeCant("ResetState");
+    this.CancelAsyncContinue();
     const callStack = CallStack.ForProgram();
     const variablesState = new VariablesState(callStack);
     variablesState.constantNames = new Set(this.root.tables?.constantNames ?? []);
