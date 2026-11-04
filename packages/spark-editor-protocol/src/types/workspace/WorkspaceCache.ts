@@ -29,6 +29,7 @@ export type SyncStatus =
   | "sync_conflict";
 
 export type ProjectMetadataField =
+  | "layout"
   | "name"
   | "textRevisionId"
   | "textSynced"

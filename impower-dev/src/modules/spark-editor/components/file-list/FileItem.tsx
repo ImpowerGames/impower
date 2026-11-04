@@ -25,6 +25,7 @@ import {
   recordTrashDeletion,
 } from "../../utils/fileUndo";
 import { formatModified, getFileSizeDisplayValue } from "../../utils/fileMeta";
+import { layoutSubtreeFor, routeIntoLayout } from "../../utils/fileTree";
 import { isScriptExtension } from "../../utils/scriptFiles";
 import workspace from "../../workspace/WorkspaceStore";
 import DiagnosticsLabel from "./DiagnosticsLabel";
@@ -227,12 +228,20 @@ function FileItem({
         onEndNewEntry?.();
         return;
       }
-      onDraftCommitting?.(newName, finalPath);
-      Workspace.window.openFileEditor(finalPath);
+      const existingPaths = Object.keys(
+        await Workspace.fs.getFiles(projectId),
+      ).map((uri) => Workspace.fs.getRelativePath(projectId, uri));
+      const [createdPath = finalPath] = routeIntoLayout(
+        [finalPath],
+        existingPaths,
+        layoutSubtreeFor,
+      );
+      onDraftCommitting?.(newName, createdPath);
+      Workspace.window.openFileEditor(createdPath);
       await Workspace.fs.createFiles({
         files: [
           {
-            uri: Workspace.fs.getFileUri(projectId, finalPath),
+            uri: Workspace.fs.getFileUri(projectId, createdPath),
             data: new ArrayBuffer(0),
           },
         ],
