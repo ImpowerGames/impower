@@ -293,4 +293,52 @@ describe("baking secondary states and layer motion", () => {
     expect(wrappers).toHaveLength(2);
     expect(wrappers.every(({ ancestors }) => !ancestors.some((a) => "data-morph-motion" in a.attributes))).toBe(true);
   });
+
+  test("a moved layer drawn again by reference from outside it holds still, even when both share a live part", () => {
+    const keyframes = KEYFRAMES.map((k) => (k.offset === 0.333 ? { ...k, brow: { translate: "0 8px" } } : k));
+    const shared = FACE.replace(
+      '<path data-name="hair"',
+      '<g opacity="0.8"><g id="brow" data-name="brow"><path d="M150,30H170V34H150Z" fill="#321"/></g><use href="#brow" x="30"/></g>\n<path data-name="hair"',
+    );
+    const artifact = bake({ keyframes }, {}, shared);
+    expect(artifact.status).toBe("live");
+    expect(artifact.diagnostics).toContainEqual(expect.objectContaining({ code: "motion-ignored", layer: "brow", message: expect.stringContaining('"brow" inside it is drawn again by reference') }));
+    expect(artifact.parts.some((p) => p.svg.includes('data-morph-motion="brow"'))).toBe(false);
+    expect(artifact.motion).toEqual(["eyebrows", "nose"]);
+    const clipped = FACE.replace(
+      '<path data-name="hair"',
+      '<defs><clipPath id="cut"><use href="#nose-art"/></clipPath></defs><g data-name="brow"><path id="nose-art" d="M150,30H170V34H150Z"/></g><path d="M0,0H5V5H0Z" clip-path="url(#cut)"/>\n<path data-name="hair"',
+    );
+    expect(bake({ keyframes }, {}, clipped).diagnostics).toContainEqual(expect.objectContaining({ code: "motion-ignored", layer: "brow" }));
+  });
+
+  test("a gradient defined inside a moved layer and painted elsewhere does not stop the layer moving", () => {
+    const keyframes = KEYFRAMES.map((k) => (k.offset === 0.333 ? { ...k, brow: { translate: "0 8px" } } : k));
+    const painted = FACE.replace(
+      '<path data-name="hair" d="M0,0H200V6H0Z" fill="#432"/>',
+      '<g data-name="brow"><linearGradient id="streak"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient><path d="M150,30H170V34H150Z" fill="url(#streak)"/></g>\n<path data-name="hair" d="M0,0H200V6H0Z" fill="url(#streak)"/>',
+    );
+    const artifact = bake({ keyframes }, {}, painted);
+    expect(artifact.diagnostics.filter((d) => d.code === "motion-ignored")).toEqual([]);
+    expect(artifact.motion).toEqual(["brow", "eyebrows", "nose"]);
+  });
+
+  test("a layer that shows only where three driven groups meet keeps the variant still, as two groups do", () => {
+    const marks = ["a", "b", "c"]
+      .map((g, i) => `<path data-name="${g}-mark:${g}.off:default" d="M${i * 10},0H${i * 10 + 5}V5H${i * 10}Z"/><path data-name="${g}-mark:${g}.on" d="M${i * 10},10H${i * 10 + 5}V15H${i * 10}Z"/>`)
+      .join("\n");
+    const source = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40">
+${marks}
+<path data-name="combined:a.on:b.on:c.on" d="M0,30H40V35H0Z"/>
+</svg>`;
+    const pose = (state: string) => ({ a: { state }, b: { state }, c: { state } });
+    const recipe = buildMorphRecipe("trio", { blend: "fade", keyframes: [{ offset: 0, ...pose("off") }, { offset: 0.5, ...pose("on") }, { offset: 1, ...pose("off") }] });
+    const artifact = bakeMorphArtifact({ source, selection: {}, recipe, key: "k3", variant: "trio" });
+    expect(artifact.status).toBe("static");
+    expect(artifact.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "mixed-groups", layer: "combined:a.on:b.on:c.on", message: expect.stringContaining("`a.on` and `b.on` and `c.on` meet") }),
+    );
+    const plain = source.replace('<path data-name="combined:a.on:b.on:c.on" d="M0,30H40V35H0Z"/>\n', "");
+    expect(bakeMorphArtifact({ source: plain, selection: {}, recipe, key: "k4", variant: "trio" }).status).toBe("live");
+  });
 });

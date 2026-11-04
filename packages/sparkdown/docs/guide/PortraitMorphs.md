@@ -347,7 +347,7 @@ morph blink {
 - Every group a morph drives has its `state` in the first pose, because the first pose is what a portrait has to rest in. A group whose first `state` comes in a later pose is an error on that `state`, and the morph plays on no portrait until it is fixed.
 - Each group moves between the nearest poses that set it, on the same timing as the others.
 - A portrait plays the morph only when it rests at the first pose in every group. If one group rests elsewhere, the whole look stays as drawn: a morph never moves half a face.
-- A drawing belongs to at most one group the morph drives. A layer whose showing depends on two of them together, such as a crease drawn only while the eyes are closed and the brows are down, keeps the portrait still with a `mixed-groups` error on the artwork. Draw it under one group.
+- A drawing belongs to at most one group the morph drives. A layer whose showing depends on two or more of them together, such as a crease drawn only while the eyes are closed and the brows are down, keeps the portrait still with a `mixed-groups` error on the artwork. Draw it under one group.
 
 ### Moving layers
 
@@ -394,7 +394,7 @@ Each property moves between the nearest poses that set it. A first or last pose 
 
 - Every drawing with the label moves, with everything inside it. A label that also appears inside itself moves once, from the outermost.
 - A container whose name is both a group and a label can set the group's `state` and move the layers with that label in one place.
-- The edges and targets of a clip cannot move: their opening is cut where the artwork draws the edges. A moved layer that draws part of one holds still, with a `motion-ignored` warning on the artwork.
+- The edges and targets of a clip cannot move: their opening is cut where the artwork draws the edges. A moved layer that draws part of one holds still, with a `motion-ignored` warning on the artwork. So does a moved layer that a `<use>` or a clip path outside it draws again, since that copy would stay behind.
 - 3D is refused where it is written: `rotateX()`, `translate3d()`, `perspective()` and the other 3D functions, a third value of `translate`, `scale` or `transform_origin`, and a rotation axis such as `rotate = x 30deg`. Any other field in a container is an unknown field.
 - A label no portrait draws is reported on its container. A portrait that lacks a label another portrait draws is warned about on its own artwork and still plays.
 - Changing a distance or angle prepares nothing again; only which labels move is part of the prepared portrait.
@@ -490,7 +490,7 @@ When only part of a portrait moves, read the artwork's warnings first. The usual
 - Lashes on both sides sharing one label, so they pair across the face. Repeat the side in each label.
 - An eyeball cut to the open eye's outline, which shows its cut edge as the eye closes. Draw it whole.
 - A look resting in another state than the morph's first pose, which is dormant by design. With several groups, check each one.
-- A moved layer that stays put: it draws part of a clip's edges or targets, or this artwork has no layer with its label.
+- A moved layer that stays put: it draws part of a clip's edges or targets, something outside it draws it again by reference (a `<use>` of it), or this artwork has no layer with its label.
 
 `morph` is a built-in type name, so a variable called `morph` is reported, as `style` or `animation` would be.
 

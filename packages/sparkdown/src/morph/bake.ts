@@ -86,6 +86,7 @@ import {
 } from "./types";
 
 export const MORPH_BAKE_SAMPLES = 8;
+export const MIXED_GROUP_COMBINATIONS = 4096;
 const PRECISION = 1000;
 const round = (n: number) => Math.round(n * PRECISION) / PRECISION || 0;
 
@@ -482,28 +483,47 @@ export function* bakeSteps(
       groupOf.set(layer.key, group);
     }
   }
-  const drivenGroups = [...visibleIn.keys()];
-  for (const [i, first] of drivenGroups.entries()) {
-    for (const second of drivenGroups.slice(i + 1)) {
-      for (const [a, aVisible] of visibleIn.get(first)!) {
-        if (!a) continue;
-        for (const [b, bVisible] of visibleIn.get(second)!) {
-          if (!b) continue;
-          const together = evaluateAttributeVisibility(vocabulary, { ...selection, [first]: a, [second]: b }).visible;
-          for (const layer of vocabulary.layers) {
-            const owner = groupOf.get(layer.key);
-            const alone = owner === first ? aVisible : owner === second ? bVisible : restVisible;
-            if (!!together[layer.key] === !!alone[layer.key]) continue;
-            report(
-              "mixed-groups",
-              "error",
-              `Layer "${layer.name}" depends on both \`${first}\` and \`${second}\`: it ${together[layer.key] ? "shows" : "hides"} when \`${first}.${a}\` and \`${second}.${b}\` meet, which neither does alone. A drawing can belong to only one group the morph drives.`,
-              { layer: layer.name, path: layer.key },
-            );
-            return disable();
-          }
-        }
-      }
+  const layerByKey = new Map(vocabulary.layers.map((layer) => [layer.key, layer]));
+  const drivenNames = (layer: (typeof vocabulary.layers)[number]): string[] => {
+    const names = new Set<string>();
+    const seen = new Set<string>();
+    for (let at: typeof layer | undefined = layer; at && !seen.has(at.key); at = at.parent === undefined ? undefined : layerByKey.get(at.parent)) {
+      seen.add(at.key);
+      for (const condition of at.parsed.conditions) if (visibleIn.has(condition.group)) names.add(condition.group);
+    }
+    return [...names].sort();
+  };
+  const combined = new Map<string, Record<string, boolean>>();
+  for (const layer of vocabulary.layers) {
+    const names = drivenNames(layer);
+    if (names.length < 2) continue;
+    const choices = names.map((group) => [...visibleIn.get(group)!.keys()]);
+    const count = choices.reduce((product, list) => product * list.length, 1);
+    const owner = groupOf.get(layer.key);
+    const mixed = (message: string) => {
+      report("mixed-groups", "error", `Layer "${layer.name}" ${message} A drawing can belong to only one group the morph drives.`, { layer: layer.name, path: layer.key });
+      return disable();
+    };
+    if (count > MIXED_GROUP_COMBINATIONS) {
+      return mixed(`is conditioned on ${names.map((g) => `\`${g}\``).join(", ")}, whose ${count} combinations of states are more than the bake checks.`);
+    }
+    for (let index = 0; index < count; index++) {
+      const pose: Record<string, string> = {};
+      let rest = index;
+      names.forEach((group, i) => {
+        const list = choices[i]!;
+        const state = list[rest % list.length]!;
+        rest = Math.floor(rest / list.length);
+        if (state) pose[group] = state;
+      });
+      if (Object.keys(pose).length < 2) continue;
+      const key = JSON.stringify(pose);
+      let together = combined.get(key);
+      if (!together) combined.set(key, (together = evaluateAttributeVisibility(vocabulary, { ...selection, ...pose }).visible));
+      const alone = owner === undefined ? restVisible : visibleIn.get(owner)!.get(pose[owner] ?? "")!;
+      if (!!together[layer.key] === !!alone[layer.key]) continue;
+      const meet = Object.entries(pose).map(([group, state]) => `\`${group}.${state}\``).join(" and ");
+      return mixed(`depends on ${names.map((g) => `\`${g}\``).join(" and ")} together: it ${together[layer.key] ? "shows" : "hides"} when ${meet} meet, which no one group does alone.`);
     }
   }
   const keyOf = (element: Element): string | undefined => {
@@ -572,6 +592,21 @@ export function* bakeSteps(
           "motion-ignored",
           "warning",
           `A keyframe moves "${label}", which draws part of a clip's edges or targets. Apertures are cut where the artwork draws their edges and do not follow layer motion, so "${label}" holds still.`,
+          { layer: label },
+        );
+        continue;
+      }
+      const inside = new Set(subtree(element));
+      const outside = allLeaves.filter((leaf) => !inside.has(leaf));
+      const copied = [...partClosure(doc, outside)].find((id) => {
+        const target = doc!.byId.get(id)!;
+        return inside.has(target) && drawnLeaves(doc!, target).length > 0;
+      });
+      if (copied !== undefined) {
+        report(
+          "motion-ignored",
+          "warning",
+          `A keyframe moves "${label}", but "${copied}" inside it is drawn again by reference from outside it, and that copy cannot follow the layer's motion, so "${label}" holds still.`,
           { layer: label },
         );
         continue;
