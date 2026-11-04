@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from "vitest";
 import AnimationPlayer from "../../../../spark-dom/src/classes/AnimationPlayer";
 import { getAnimationContent } from "../../../../spark-dom/src/utils/getAnimationContent";
 import { getStyleContent } from "../../../../spark-dom/src/utils/getStyleContent";
-import { uiBuiltinDefinitions } from "../../../../spark-engine/src/game/modules/ui/uiBuiltinDefinitions";
+import breakpoints from "../../../../spark-engine/src/game/modules/ui/builtinBreakpoints.json";
 import {
   parseSparkle,
   renderCssVDOM,
@@ -20,8 +20,6 @@ import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/util
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
 
 const ALIASES: Record<string, string> = { ...STYLE_ALIASES, ...CSS_ALIASES };
-
-const breakpoints = uiBuiltinDefinitions().config.ui.breakpoints;
 
 const SAMPLE_VALUES = ["sky_60", "10", "md", "none", "ease-in", "2s", ""];
 

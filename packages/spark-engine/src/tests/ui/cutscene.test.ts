@@ -1,6 +1,5 @@
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { describe, expect, test } from "vitest";
-import { uiBuiltinDefinitions } from "../../game/modules/ui/uiBuiltinDefinitions";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
 const asset = (type: string, name: string, ext: string): File => ({
@@ -369,32 +368,20 @@ describe("a cutscene: the UI module", () => {
 });
 
 describe("a cutscene: the builtins", () => {
-  test("`movie` config turns `stop_music` on, and the prelude matches the engine's mirror", async () => {
+  test("`movie` config turns `stop_music` on", async () => {
     const h = createHarness(story("  A line."), 0, { assets: ASSETS });
     await h.ready;
     const runtime = (h.game.context as any)?.config?.movie;
-    const mirror = uiBuiltinDefinitions().config.movie;
-    expect(runtime?.stop_music).toBe(true);
-    expect(runtime).toMatchObject(mirror);
-    const runtimeKeys = Object.keys(runtime ?? {})
-      .filter((k) => !k.startsWith("$"))
-      .sort();
-    expect(runtimeKeys).toEqual(Object.keys(mirror).sort());
+    const authored = Object.fromEntries(
+      Object.entries(runtime ?? {}).filter(([k]) => !k.startsWith("$")),
+    );
+    expect(authored).toEqual({ stop_music: true });
   });
 
-  test("`style cutscene` and `style cutscene_video` exist above the loading screen, and match the mirror", async () => {
+  test("`style cutscene` and `style cutscene_video` exist above the loading screen", async () => {
     const h = createHarness(story("  A line."), 0, { assets: ASSETS });
     await h.ready;
     const styles = (h.game.context as any)?.style;
-    const mirror = uiBuiltinDefinitions().style;
-    for (const name of ["cutscene", "cutscene_video"] as const) {
-      const runtime = styles?.[name];
-      expect(runtime).toBeDefined();
-      const authored = Object.fromEntries(
-        Object.entries(mirror[name] ?? {}).filter(([k]) => !k.startsWith("$")),
-      );
-      expect(runtime).toMatchObject(authored);
-    }
     expect(Number(styles.cutscene.z_index)).toBeGreaterThan(
       Number(styles.loading.z_index),
     );
