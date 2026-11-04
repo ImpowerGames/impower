@@ -1249,11 +1249,25 @@ export class Game<T extends M = {}> {
   }
 
   observeScene(address: ProgramAddress | null | undefined): void {
+    this.observeSceneAt(address, this.sceneOf(address));
+  }
+
+  protected observeStanding(): void {
+    const address = this._positions.current();
+    this.observeSceneAt(
+      address,
+      this.sceneOf(address) ?? this._positions.scene() ?? null,
+    );
+  }
+
+  protected observeSceneAt(
+    address: ProgramAddress | null | undefined,
+    scene: string | null,
+  ): void {
     if (this._destroyed || this._simulation === "simulating") {
       return;
     }
     this.settleSceneMap(address);
-    const scene = this.sceneOf(address);
     if (
       scene === this._sceneTracker.current ||
       (scene && this.isFunctionFlow(scene))
@@ -1295,9 +1309,11 @@ export class Game<T extends M = {}> {
     this._connection.connectOutput(send);
     const epoch = this._connection.beginEpoch();
     const previewing = this._context.system.previewing;
-    this.observeScene(
-      typeof previewing === "number" ? previewing : this._positions.current(),
-    );
+    if (typeof previewing === "number") {
+      this.observeScene(previewing);
+    } else {
+      this.observeStanding();
+    }
     await Promise.all(
       this._moduleNames.map((moduleName) =>
         this._modules[moduleName]?.onConnected(),
@@ -1316,9 +1332,11 @@ export class Game<T extends M = {}> {
     this._connection.connectOutput(send);
     const epoch = this._connection.beginEpoch();
     const previewing = this._context.system.previewing;
-    this.observeScene(
-      typeof previewing === "number" ? previewing : this._positions.current(),
-    );
+    if (typeof previewing === "number") {
+      this.observeScene(previewing);
+    } else {
+      this.observeStanding();
+    }
     const shown = this.module.ui.standing?.pictures ?? [];
     await Promise.all([
       this.module.ui.onRedisplay(),
@@ -2292,14 +2310,14 @@ export class Game<T extends M = {}> {
     const resumed = this._resumeShown;
     this._resumeShown = undefined;
     if (resumed !== undefined) {
-      this.observeScene(this._positions.current());
+      this.observeStanding();
       this.noteSceneEntry(null);
       if (resumed && !resumed.choices?.length) {
         this.module.interpreter.requeue(resumed);
       }
       this.continue(true);
     } else if (this._simulation === "success") {
-      this.observeScene(this._positions.current());
+      this.observeStanding();
       this.saveFirstScene();
       this.continue(true);
     } else if (this._simulation === "fail") {
@@ -2315,7 +2333,7 @@ export class Game<T extends M = {}> {
     } else {
       if (save) {
         this.load(save);
-        this.observeScene(this._positions.current());
+        this.observeStanding();
       } else if (this._startAddress != null) {
         this.jumpTo(this._startAddress);
         this.observeScene(this._startAddress);
