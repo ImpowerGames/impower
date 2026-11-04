@@ -15,6 +15,7 @@ import {
   SymbolValue,
 } from "./Value";
 import { Void } from "./Void";
+import { isStdLibMarker, stdLibMarker } from "./StdLibMarker";
 import { oneValue, spreadCallArgs } from "./CallArgs";
 import { Tag } from "./Tag";
 import { NativeFunctionCall } from "./NativeFunctionCall";
@@ -24,9 +25,7 @@ import {
   firstMissingStdLibArg,
   isPureNumberStdLibOp,
   isStdLibFunctionName,
-  isStdLibMarker,
   isStdLibNamespaceName,
-  stdLibMarker,
   luauStringToBytes,
   luauTypeOf,
   lookupAnyStdLib,
