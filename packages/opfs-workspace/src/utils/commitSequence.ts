@@ -4,6 +4,8 @@ export const COMMIT_SEQUENCE_FILE = ".opfs-workspace-sequence";
 
 const SEQUENCE_LOCK = "opfs-workspace:sequence";
 
+const SEQUENCE_DIGITS = 16;
+
 const tails = new Map<string, Promise<void>>();
 
 const sharedLocks = () => globalThis.navigator?.locks;
@@ -77,8 +79,9 @@ export const allocateCommit = async (
       const sequence = Math.max(await readSequence(handle), floor) + 1;
       const access = await handle.createSyncAccessHandle();
       try {
-        access.truncate(0);
-        const bytes = new TextEncoder().encode(String(sequence));
+        const bytes = new TextEncoder().encode(
+          String(sequence).padStart(SEQUENCE_DIGITS, "0"),
+        );
         if (access.write(bytes, { at: 0 }) !== bytes.byteLength) {
           throw new Error("Short write to the commit sequence");
         }

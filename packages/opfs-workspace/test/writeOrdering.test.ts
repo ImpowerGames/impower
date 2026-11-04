@@ -627,19 +627,21 @@ describe("listing storage after earlier notifications (I-1893)", () => {
     expect(textAt(root, "a.sd")).toBeUndefined();
   });
 
-  it("reads a cached file again when a listing is newer than the commit it holds", async () => {
+  it("reads a cached file again when a listing is newer than the commit it holds, and tells the page", async () => {
     const root = seed({ "a.sd": "A" });
     const h = await worker(root);
     await h.enumerate();
     const tab = otherTab(root);
     const newer = await tab.write("a.sd", "NEWER");
+    const listing = h.messages.length;
     expect((await h.cached("a.sd")).text).toBe("NEWER");
+    expect(h.writtenTexts("a.sd", listing)).toEqual(["NEWER"]);
     const before = h.messages.length;
     await h.remote("workspace/didWriteFiles", {
       files: [fileData("a.sd", "NEWER")],
       commits: { [uriOf("a.sd")]: newer },
     });
-    expect(h.writtenTexts("a.sd", before)).toEqual(["NEWER"]);
+    expect(h.writtenTexts("a.sd", before)).toEqual([]);
   });
 });
 
@@ -851,6 +853,87 @@ describe("what another tab's notification proves about parents and absent files 
     });
     expect(h.notifications("workspace/didChangeDirectories", before)).toEqual([]);
     expect((await h.cached("d/new.sd")).text).toBe("LEGACY");
+  });
+});
+
+describe("reads that see newer storage (I-1893)", () => {
+  it.each(["listing", "read"])(
+    "drops a stamped snapshot older than legacy bytes this tab's %s already saw",
+    async (kind) => {
+      const root = seed({ "main.sd": "M", "a.sd": "OLD" });
+      const old = await otherTab(root).commit();
+      writeMemoryFile(root, "local/a.sd", enc.encode("LEGACY"));
+      const h = await worker(root);
+      if (kind === "listing") {
+        await h.enumerate();
+      } else {
+        await h.request("read", "workspace/readFile", { file: { uri: uriOf("a.sd") } });
+      }
+      const before = h.messages.length;
+      await h.remote("workspace/didWriteFiles", {
+        files: [fileData("a.sd", "OLD")],
+        commits: { [uriOf("a.sd")]: old },
+      });
+      expect(h.writtenTexts("a.sd", before)).toEqual([]);
+      await h.request("edit", "workspace/applyWorkspaceEdit", {
+        edit: { documentChanges: [insert("a.sd", 0, "!")] },
+      });
+      expect(textAt(root, "a.sd")).toBe("!LEGACY");
+    },
+  );
+
+  it("does not announce a delayed batch's text after a listing found newer bytes for that file", async () => {
+    const root = seed({ "a.sd": "A", "b.sd": "B" });
+    const h = await worker(root);
+    await h.enumerate();
+    let release!: () => void;
+    fileAt(root, "b.sd")!.gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    h.start("batch", "workspace/applyWorkspaceEdit", {
+      edit: { documentChanges: [insert("a.sd", 1, "!"), insert("b.sd", 1, "!")] },
+    });
+    await vi.advanceTimersByTimeAsync(250);
+    expect(textAt(root, "a.sd")).toBe("A!");
+    await otherTab(root).write("a.sd", "NEWER");
+    const listing = h.messages.length;
+    expect((await h.cached("a.sd")).text).toBe("NEWER");
+    expect(h.writtenTexts("a.sd", listing)).toEqual(["NEWER"]);
+    const before = h.messages.length;
+    release();
+    await vi.advanceTimersByTimeAsync(250);
+    expect(h.response("batch")).toMatchObject({ result: { applied: true } });
+    expect(h.writtenTexts("a.sd", before)).toEqual([]);
+  });
+});
+
+describe("the shared sequence (I-1893)", () => {
+  it("never lowers the stored sequence when writing it fails", async () => {
+    const root = memoryRoot();
+    const counter = new MemoryFile(".opfs-workspace-sequence");
+    counter.bytes = enc.encode("5");
+    const access = counter.createSyncAccessHandle.bind(counter);
+    let failures = 1;
+    counter.createSyncAccessHandle = async () => {
+      const handle = await access();
+      return {
+        ...handle,
+        write: (data: DataView | Uint8Array, options?: { at?: number }) => {
+          if (failures > 0) {
+            failures -= 1;
+            throw new DOMException("disk full", "QuotaExceededError");
+          }
+          return handle.write(data, options);
+        },
+      };
+    };
+    root.entries.set(counter.name, counter);
+    vi.stubGlobal("navigator", { locks: memoryLocks() });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const handle = root as unknown as FileSystemDirectoryHandle;
+    expect(await allocateCommit(handle, "tab", 0)).toBeUndefined();
+    expect(Number.parseInt(dec.decode(counter.bytes), 10)).toBe(5);
+    expect(await allocateCommit(handle, "tab", 0)).toEqual({ sequence: 6, writer: "tab" });
   });
 });
 

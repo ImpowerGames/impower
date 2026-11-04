@@ -207,7 +207,7 @@ const removeDirectoryTree = (directoryUri: string, commit: FileCommit) => {
   for (const uri of [...State.files.keys()]) {
     if (
       uri.startsWith(`${directoryUri}/`) &&
-      isSupersededCommit(State.commits.get(uri) ?? NO_COMMIT, commit)
+      isNotNewer(uri, commit)
     ) {
       evictFile(uri);
       evicted.push(uri);
@@ -217,6 +217,9 @@ const removeDirectoryTree = (directoryUri: string, commit: FileCommit) => {
     touch(evicted);
   }
 };
+
+const isNotNewer = (uri: string, commit: FileCommit) =>
+  compareFileCommits(State.commits.get(uri) ?? NO_COMMIT, commit) <= 0;
 
 const raiseDirectoryFloor = (directoryUri: string, floor: FileCommit) => {
   const held = State.directoryFloors.get(directoryUri);
@@ -493,8 +496,7 @@ const observeAbsent = (
     for (const cached of [...State.files.keys()]) {
       if (
         cached.startsWith(`${uri}/`) &&
-        (!commit ||
-          isSupersededCommit(State.commits.get(cached) ?? NO_COMMIT, commit))
+        (!commit || isNotNewer(cached, commit))
       ) {
         evictFile(cached);
         changed.push(cached);
@@ -504,10 +506,8 @@ const observeAbsent = (
   touch(changed);
 };
 
-const settledFloor = async (): Promise<FileCommit | undefined> => {
-  const floor = await readFloor(await navigator.storage.getDirectory());
-  return floor && { sequence: floor.sequence, writer: SETTLED_WRITER };
-};
+const settledFloor = async () =>
+  readFloor(await navigator.storage.getDirectory());
 
 const readStoredFile = (uri: string) =>
   withCommitLock(uri, async () => {
@@ -1116,7 +1116,7 @@ const readDirectoryFiles = async (directoryUri: string) => {
         uri.startsWith(`${directoryUri}/`) &&
         !uri.includes(`/${TRASH_DIR}/`) &&
         !listed.has(uri) &&
-        isSupersededCommit(State.commits.get(uri) ?? NO_COMMIT, floor)
+        isNotNewer(uri, floor)
       ) {
         evictFile(uri);
         touch([uri]);
@@ -1147,7 +1147,30 @@ const readFloor = async (
   root: FileSystemDirectoryHandle,
 ): Promise<FileCommit | undefined> => {
   const sequence = await readCommitSequence(root);
-  return sequence == null ? undefined : { sequence, writer: "" };
+  return sequence == null ? undefined : { sequence, writer: SETTLED_WRITER };
+};
+
+const announceStoredChange = (
+  uri: string,
+  before: FileData | undefined,
+  floor: FileCommit | undefined,
+) => {
+  const after = State.files.get(uri);
+  if (
+    !before ||
+    !after ||
+    (before.text ?? null) === (after.text ?? null) && before.size === after.size
+  ) {
+    return;
+  }
+  touch([uri]);
+  postMessage(
+    DidWriteFilesMessage.type.notification({
+      files: [after],
+      remote: true,
+      commits: floor ? { [uri]: floor } : {},
+    }),
+  );
 };
 
 const adoptStoredBytes = (uri: string, floor: FileCommit | undefined) => {
@@ -1226,7 +1249,9 @@ const statFile = async (fileUri: string, floor: FileCommit | undefined) => {
   const fileHandle = await getFileHandleFromUri(root, fileUri, false);
   const fileRef = await fileHandle.getFile();
   if (adoptStoredBytes(fileUri, floor)) {
+    const before = State.files.get(fileUri);
     updateFileMetaCache(fileUri, fileRef.size, fileRef.lastModified);
+    announceStoredChange(fileUri, before, floor);
   }
 };
 
@@ -1240,8 +1265,10 @@ const readFile = async (
   const fileRef = await fileHandle.getFile();
   const buffer = await fileRef.arrayBuffer();
   if (adoptStoredBytes(fileUri, floor)) {
+    const before = State.files.get(fileUri);
     updateFileCache(fileUri, buffer, false, undefined, fileRef.lastModified);
     await enrichUrlAssetType(fileUri);
+    announceStoredChange(fileUri, before, floor);
   }
   return buffer;
 };
