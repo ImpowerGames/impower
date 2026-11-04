@@ -43,7 +43,7 @@ export const createDirectory = async (
   await getDirectoryHandleFromPath(root, path);
 };
 
-const findDirectory = async (
+export const findDirectory = async (
   root: FileSystemDirectoryHandle,
   path: string,
 ): Promise<FileSystemDirectoryHandle | undefined> => {

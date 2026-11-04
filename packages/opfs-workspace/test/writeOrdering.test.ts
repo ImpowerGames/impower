@@ -517,6 +517,107 @@ describe("notifications from another tab (I-1893)", () => {
   });
 });
 
+describe("notifications without commits, from a tab on an older build (I-1893)", () => {
+  it("forwards and edits the stored text of an unstamped write after this tab's stamped write", async () => {
+    const root = seed({ "a.sd": "A" });
+    const h = await worker(root);
+    await h.request("local", "workspace/willWriteFiles", writeOf("a.sd", "LOCAL", "editor"));
+    writeMemoryFile(root, "local/a.sd", enc.encode("LEGACY"));
+    const before = h.messages.length;
+    await h.remote("workspace/didWriteFiles", { files: [fileData("a.sd", "LEGACY")] });
+    expect(h.writtenTexts("a.sd", before)).toEqual(["LEGACY"]);
+    expect((await h.cached("a.sd")).text).toBe("LEGACY");
+    await h.request("edit", "workspace/applyWorkspaceEdit", {
+      edit: { documentChanges: [insert("a.sd", 6, "!")] },
+    });
+    expect(textAt(root, "a.sd")).toBe("LEGACY!");
+  });
+
+  it("drops an unstamped delete and its watched-file deletion once the file is stored again", async () => {
+    const root = seed({ "a.sd": "A" });
+    const h = await worker(root);
+    await h.request("recreate", "workspace/willWriteFiles", writeOf("a.sd", "RECREATED", "editor"));
+    const before = h.messages.length;
+    await h.remote("workspace/didDeleteFiles", { files: [{ uri: uriOf("a.sd") }] });
+    await h.remote("workspace/didChangeWatchedFiles", {
+      changes: [{ uri: uriOf("a.sd"), type: 3 }],
+    });
+    expect(h.notifications("workspace/didDeleteFiles", before)).toEqual([]);
+    expect(
+      h.notifications("workspace/didChangeWatchedFiles", before).flatMap((m) => m.params.changes),
+    ).toEqual([]);
+    expect((await h.cached("a.sd")).text).toBe("RECREATED");
+  });
+
+  it("drops an unstamped directory deletion once the directory exists again", async () => {
+    const root = seed({ "a.sd": "A" });
+    const h = await worker(root);
+    await h.request("mkdir", "workspace/directories", {
+      action: "create",
+      uris: [uriOf("kept")],
+    });
+    const before = h.messages.length;
+    await h.remote("workspace/didChangeDirectories", {
+      created: [],
+      deleted: [uriOf("kept")],
+    });
+    expect(h.notifications("workspace/didChangeDirectories", before)).toEqual([]);
+    expect(entryAt(root, "kept")).toBeInstanceOf(MemoryDirectory);
+  });
+
+  it("creates no directory while checking an unstamped notification under a deleted one", async () => {
+    const root = seed({ "a.sd": "A" });
+    const h = await worker(root);
+    const gone = uriOf("gone/a.sd");
+    await h.remote("workspace/didWriteFiles", { files: [fileData("gone/a.sd", "X")] });
+    await h.remote("workspace/didDeleteFiles", { files: [{ uri: gone }] });
+    await h.remote("workspace/didRenameFiles", {
+      files: [{ oldUri: gone, newUri: uriOf("b.sd") }],
+    });
+    await h.remote("workspace/didChangeWatchedFiles", { changes: [{ uri: gone, type: 1 }] });
+    expect(entryAt(root, "gone")).toBeUndefined();
+    expect(listMemory(root, "local")).toEqual(["a.sd"]);
+  });
+});
+
+describe("directory notifications (I-1893)", () => {
+  it("drops a delayed deletion of a directory this tab recreated by creating a folder inside it", async () => {
+    const root = seed({ "a.sd": "A" }, ["d"]);
+    const h = await worker(root);
+    const tab = otherTab(root);
+    (root.entries.get("local") as MemoryDirectory).entries.delete("d");
+    const removed = await tab.commit();
+    await h.request("mkdir", "workspace/directories", {
+      action: "create",
+      uris: [uriOf("d/child")],
+    });
+    const before = h.messages.length;
+    await h.remote("workspace/didChangeDirectories", {
+      created: [],
+      deleted: [uriOf("d")],
+      commits: { [uriOf("d")]: removed },
+    });
+    expect(h.notifications("workspace/didChangeDirectories", before)).toEqual([]);
+    expect(entryAt(root, "d/child")).toBeInstanceOf(MemoryDirectory);
+  });
+
+  it("drops a delayed deletion of a directory this tab recreated by writing a file inside it", async () => {
+    const root = seed({ "a.sd": "A" }, ["d"]);
+    const h = await worker(root);
+    const tab = otherTab(root);
+    (root.entries.get("local") as MemoryDirectory).entries.delete("d");
+    const removed = await tab.commit();
+    await h.request("write", "workspace/willWriteFiles", writeOf("d/x.sd", "X"));
+    const before = h.messages.length;
+    await h.remote("workspace/didChangeDirectories", {
+      created: [],
+      deleted: [uriOf("d")],
+      commits: { [uriOf("d")]: removed },
+    });
+    expect(h.notifications("workspace/didChangeDirectories", before)).toEqual([]);
+  });
+});
+
 describe("renaming files (I-1910)", () => {
   it("leaves the source in place and unchanged when the destination cannot be created", async () => {
     const root = seed({ "a.txt": [7, 7] }, ["dest"]);
