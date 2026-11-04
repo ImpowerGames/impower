@@ -354,12 +354,11 @@ async function main() {
 
   let lastCheckpoint: (() => string) | undefined;
   const sink = new PageSink(() => (lastCheckpoint ? [lastCheckpoint()] : []));
-  const CALLS = ["game.endSimulation()"];
+  const CALLS: string[] = [];
   const prepare = (game: Game, checkpoint: StoredCheckpoint | undefined) => {
     game.reportsExecutedLines = config.mode !== "preview";
     game.markPreviewing(searched?.to);
     game.module.ui.forgetDisplayedImages();
-    game.endSimulation();
     const t0 = performance.now();
     if (checkpoint) game.loadCheckpoint(checkpoint);
     return performance.now() - t0;
@@ -605,7 +604,7 @@ function printReport(report: any) {
     const r = report.residue;
     out.push(
       "",
-      `  engine calls before each display: ${r.calls.join(", ")}; fields reset by hand: none`,
+      `  engine calls before each display: ${r.calls.join(", ") || "none"}; fields reset by hand: none`,
       `  the route game before the display: ${JSON.stringify(r.beforeDisplay)}`,
       `  after it: ${JSON.stringify(r.afterDisplay)}`,
       `  messages it sent outside a display, over the run: ${JSON.stringify(r.outsideMessages)}; previewed ${r.previewed}`,
