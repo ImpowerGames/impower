@@ -675,13 +675,20 @@ export function mainState(client) {
 }
 
 const mergedAt = (op, sha) => op.kind === "merge" && op.state === "confirmed" && typeof sha === "string" && sha.length >= 7 && (String(op.mergeCommit ?? "").startsWith(sha) || sha.startsWith(String(op.mergeCommit ?? "-")) || String(op.evidence ?? "").includes(sha));
-export function redMain(record, mainCi) {
+const PASSING_CHECK = new Set(["SUCCESS", "NEUTRAL"]);
+export function repairCandidates(snapshot, failedJobs) {
+  if (!Array.isArray(failedJobs) || !failedJobs.length) return [];
+  return (snapshot?.tickets ?? []).flatMap((t) => (t.prs ?? []).filter((p) => p.state === "OPEN" && failedJobs.every((name) => (p.checks ?? []).some((c) => c.name === name && PASSING_CHECK.has(String(c.state).toUpperCase())))).map((p) => ({ ticket: t.number, pr: p.number, head: p.head ?? null })));
+}
+export function redMain(record, mainCi, snapshot = null) {
   if (mainCi?.verdict !== "red") return null;
   const merge = (record.operations ?? []).find((o) => mergedAt(o, mainCi.head));
   const jobs = Array.isArray(mainCi.failedJobs) ? (mainCi.failedJobs.length ? mainCi.failedJobs.join(", ") : "none read") : mainCi.failedJobs ?? "not read";
   const run = `${MAIN_WORKFLOW} push run ${mainCi.run} on ${mainCi.head}${mainCi.url ? ` (${mainCi.url})` : ""}, failing jobs: ${jobs}`;
+  const fix = merge ? repairCandidates(snapshot, mainCi.failedJobs) : [];
+  const named = fix.length ? `; open PRs in this run whose checks pass every failing job, to confirm with the gate: ${fix.map((f) => `#${f.pr} for #${f.ticket}`).join(", ")}` : "; no open PR in this run passes every failing job yet";
   if (!merge) return { action: "hold-merges", owned: false, run: mainCi.run, head: mainCi.head, url: mainCi.url ?? null, failedJobs: mainCi.failedJobs ?? null, reason: `${MAIN_BRANCH} is red at a commit this run did not merge (${run}); hold this run's merges except a repair the gate admits, and do not wait on the maintainer: the coordinator whose run merged it owns the fix` };
-  return { action: "repair-main", owned: true, run: mainCi.run, head: mainCi.head, url: mainCi.url ?? null, failedJobs: mainCi.failedJobs ?? null, merge: { operation: merge.id, ticket: merge.ticket ?? null, pr: merge.pr ?? null }, reason: `${MAIN_BRANCH} is red at ${short9(mainCi.head)}, this run's merge of PR #${merge.pr} for #${merge.ticket} (${run}); before any ticket action, find or dispatch the fix (an open ticket or PR that repairs the failing jobs, a revert of that merge, or a new ticket), merge it as soon as it is reviewed and green, and message every other coordinator on the machine` };
+  return { action: "repair-main", owned: true, run: mainCi.run, head: mainCi.head, url: mainCi.url ?? null, failedJobs: mainCi.failedJobs ?? null, merge: { operation: merge.id, ticket: merge.ticket ?? null, pr: merge.pr ?? null }, fix, reason: `${MAIN_BRANCH} is red at ${short9(mainCi.head)}, this run's merge of PR #${merge.pr} for #${merge.ticket} (${run}); before any ticket action, find or dispatch the fix (an open ticket or PR that repairs the failing jobs, a revert of that merge, or a new ticket), merge it as soon as it is reviewed and green, and message every other coordinator on the machine${named}` };
 }
 const short9 = (sha) => String(sha ?? "none").slice(0, 9);
 
@@ -1253,7 +1260,7 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     if (RANKED_ACTIONS.has(entry.action)) Object.assign(entry, { priority: byNumber.get(entry.number).priority ?? null, dependents: dependentsOf(entry.number) });
   }
   const complete = verificationHolds(record, snapshot) && tickets.every((t) => ["done", "container"].includes(t.action));
-  const main = redMain(record, snapshot.mainCi);
+  const main = redMain(record, snapshot.mainCi, snapshot);
   const remaining = remainingFor(record, complete);
   return {
     ...(main && { main }),

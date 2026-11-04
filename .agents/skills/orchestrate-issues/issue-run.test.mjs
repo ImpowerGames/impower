@@ -43,6 +43,12 @@ function writerAccountingChecks() {
     const owned = withMain(red, [ownMerge]);
     assert.deepEqual([owned.main?.action, owned.main?.owned, owned.main?.run, owned.main?.failedJobs], ["repair-main", true, 41810405236, ["packages (impower-dev)", "test-suite"]], "a red main on the run's own merge is the run's action");
     assert.match(owned.remaining[0], /^main is red at 9842ba8b7, this run's merge of PR #2411 for #102 \(Test Suite push run 41810405236 on 9842ba8b7[0-9]* \(https:[^)]*\), failing jobs: packages \(impower-dev\), test-suite\); before any ticket action, find or dispatch the fix/, "the owned red leads the remaining work and names the run and its failing jobs");
+    assert.deepEqual(owned.main.fix, [], "no open PR yet");
+    assert.match(owned.remaining[0], /no open PR in this run passes every failing job yet$/);
+    const repairPr = (number, impowerDev) => ({ number, state: "OPEN", isDraft: false, branch: `fix/101-repair-${number}`, head: `h${number}`, checks: [{ name: "packages (impower-dev)", state: impowerDev }, { name: "test-suite", state: "SUCCESS" }] });
+    const withRepair = run.planDispatch({ record: { ...record, tickets: {}, operations: [ownMerge] }, snapshot: { repository: record.repository, issue: { number: 100, state: "open" }, mainCi: red, tickets: [{ ...ticket(101), prs: [repairPr(2417, "SUCCESS"), repairPr(2418, "SKIPPED")] }] }, preflights: [{ route: "claude-cli", model: record.writer.model, verdicts: [{ ticket: 101, effort: "medium", verdict: "available" }] }], freeBytes: 100 * GB, defaults, census: () => [], observations });
+    assert.deepEqual(withRepair.main.fix, [{ ticket: 101, pr: 2417, head: "h2417" }], "the plan names the open PR whose checks pass every failing job, and not one that skipped a job");
+    assert.match(withRepair.remaining[0], /to confirm with the gate: #2417 for #101$/);
     const other = withMain(red, [{ ...ownMerge, mergeCommit: "a".repeat(40), evidence: "PR #2400 reads back merged" }]);
     assert.deepEqual([other.main?.action, other.main?.owned], ["hold-merges", false], "a red main on another run's merge is no action for this run, which holds its merges");
     assert.match(other.main.reason, /do not wait on the maintainer/);
