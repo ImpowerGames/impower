@@ -8,11 +8,6 @@ import type { VersionedTextDocumentIdentifier } from "../../types/VersionedTextD
 
 export type CompiledProgramMethod = typeof CompiledProgramMessage.method;
 
-export type DiagnosticsSummary = Record<
-  string,
-  { errors: number; warnings: number; infos: number }
->;
-
 export interface CompiledProgramParams {
   textDocument: VersionedTextDocumentIdentifier;
   program: SparkProgram;
@@ -21,7 +16,6 @@ export interface CompiledProgramParams {
   simulatedAddress?: ProgramAddress | null;
   simulatedProgramId?: string;
   simulationErrors?: SimulationError[];
-  diagnosticsSummary?: DiagnosticsSummary;
 }
 
 export class CompiledProgramMessage {

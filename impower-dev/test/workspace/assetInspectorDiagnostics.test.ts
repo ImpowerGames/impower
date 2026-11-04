@@ -4,10 +4,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 vi.mock("vscode-jsonrpc/browser", () => ({ BrowserMessageReader: class {}, BrowserMessageWriter: class {}, createMessageConnection: vi.fn() }));
-const mocks = vi.hoisted(() => ({ diagnostics: vi.fn(), references: vi.fn().mockResolvedValue([]) }));
+const mocks = vi.hoisted(() => ({ diagnostics: vi.fn(), references: vi.fn().mockResolvedValue([]), published: new Set<(params: { uri: string }) => void>() }));
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({ Workspace: {
   fs: { getFileUri: (pid: string, path: string) => "file:///" + pid + "/" + path, getRelativePath: (_pid: string, uri: string) => uri },
-  ls: { getFileDiagnostics: mocks.diagnostics, getFileReferences: mocks.references },
+  ls: { getFileDiagnostics: mocks.diagnostics, getFileReferences: mocks.references, onPublishedDiagnostics: (listener: (params: { uri: string }) => void) => { mocks.published.add(listener); return () => mocks.published.delete(listener); } },
 } }));
 vi.mock("../../src/modules/spark-editor/workspace/WorkspaceStore", () => ({ default: { signals: { projectId: { value: "project" } } } }));
 vi.mock("@impower/impower-ui/components", () => ({ Button: "button", Check: "span", ChevronRight: "span", Download: "span", Link: "span", Pencil: "span", Repeat: "span", Search: "span", X: "span" }));
@@ -19,6 +19,9 @@ async function show(path = "assets/unused.svg", defaultCollapsed = false) {
   if (!host) { host = document.createElement("div"); document.body.append(host); }
   await act(async () => { render(h(AssetInspectorPanel, { path, name: "unused.svg", kind: "image", defaultCollapsed }), host); });
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
+}
+async function published(uri: string) {
+  await act(async () => { for (const listener of mocks.published) listener({ uri }); await new Promise(resolve => setTimeout(resolve, 0)); });
 }
 async function compiled() {
   await act(async () => { sendProtocolMessage(CompiledProgramMessage.type.notification({ program: {} } as any)); await new Promise(resolve => setTimeout(resolve, 0)); });
@@ -86,5 +89,15 @@ describe("asset inspector problems", () => {
     expect(finish).toBeTypeOf("function");
     await act(async () => finish([warning]));
     expect(host.textContent).not.toContain("Malformed condition face..bad");
+  });
+  it("refreshes when the language server publishes for the asset after the compile, as a finished bake does", async () => {
+    mocks.diagnostics.mockResolvedValue([]);
+    await show();
+    expect(host.textContent).toContain("No problems");
+    mocks.diagnostics.mockResolvedValue([warning]);
+    await published("file:///project/assets/other.svg");
+    expect(host.textContent).toContain("No problems");
+    await published("file:///project/assets/unused.svg");
+    expect(host.textContent).toContain("Malformed condition face..bad");
   });
 });

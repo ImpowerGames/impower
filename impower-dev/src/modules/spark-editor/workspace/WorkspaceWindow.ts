@@ -59,6 +59,7 @@ import {
   WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
+import type { PublishDiagnosticsParams } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
 import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
 import { EnableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnableGameDebugMessage";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
@@ -378,29 +379,33 @@ export default class WorkspaceWindow {
     });
   };
 
+  recordPublishedDiagnostics({ uri, diagnostics }: PublishDiagnosticsParams) {
+    const summary = { ...this.store.debug.diagnosticsSummary };
+    delete summary[uri];
+    const counts = { errors: 0, warnings: 0, infos: 0 };
+    for (const d of diagnostics) {
+      if (d.severity === 1) {
+        counts.errors++;
+      } else if (d.severity === 2) {
+        counts.warnings++;
+      } else {
+        counts.infos++;
+      }
+    }
+    this.update({
+      ...this.store,
+      debug: {
+        ...this.store.debug,
+        diagnosticsSummary:
+          diagnostics.length > 0 ? { ...summary, [uri]: counts } : summary,
+      },
+    });
+  }
+
   protected handleCompiledProgram = (
     message: CompiledProgramMessage.Notification,
   ) => {
-    const { program, diagnosticsSummary } = message.params;
-    const summary =
-      diagnosticsSummary ??
-      Object.fromEntries(
-        Object.entries(program.diagnostics ?? {}).map(
-          ([uri, fileDiagnostics]) => {
-            const counts = { errors: 0, warnings: 0, infos: 0 };
-            for (const d of fileDiagnostics) {
-              if (d.severity === 1) {
-                counts.errors++;
-              } else if (d.severity === 2) {
-                counts.warnings++;
-              } else {
-                counts.infos++;
-              }
-            }
-            return [uri, counts];
-          },
-        ),
-      );
+    const { program } = message.params;
     const projectId = this.store.project.id;
     const game = this.store.preview.modes.game;
     const story =
@@ -408,10 +413,6 @@ export default class WorkspaceWindow {
       program.uri === this._workspace.fs.getFileUri(projectId, "main.sd");
     this.update({
       ...this.store,
-      debug: {
-        ...this.store.debug,
-        diagnosticsSummary: summary,
-      },
       preview: {
         ...this.store.preview,
         modes: {

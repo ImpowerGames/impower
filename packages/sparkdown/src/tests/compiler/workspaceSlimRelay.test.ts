@@ -119,9 +119,6 @@ describe("the compiler/didCompile relay", () => {
     expect(params.program.version).toBeTypeOf("number");
     expect(params.program.diagnostics).toBeUndefined();
     expect(params.program.playRefusal).toBe(NO_START_SCENE_MESSAGE);
-    expect(params.diagnosticsSummary).toEqual({
-      [MAIN]: { errors: 1, warnings: 2, infos: 0 },
-    });
   });
 
   it("keeps a slim relay small however many assets the project has", async () => {
