@@ -5,6 +5,7 @@ import * as yaml from "yaml";
 import { getStack } from "../../../packages/textmate-grammar-tree/src/tree/utils/getStack";
 import { onDidChangeCodeLensesEmitter } from "../events/onDidChangeCodeLensesEmitter";
 import { SparkdownDocumentManager } from "../managers/SparkdownDocumentManager";
+import { SparkProgramManager } from "../managers/SparkProgramManager";
 import { getOpenTextDocument } from "./getOpenTextDocument";
 
 interface ScreenPreviewPanelState {
@@ -362,14 +363,7 @@ function initializeWebviewPanel(
   panel.webview.onDidReceiveMessage(
     async (message) => {
       if (message.method === "initialized") {
-        panel.webview.postMessage({
-          method: "load",
-          params: {
-            textDocument,
-            ranges,
-            text,
-          },
-        });
+        postLoad(panel, document.uri, { textDocument, ranges, text });
       }
       if (message.method === "update") {
         const { textDocument, path, value } = message.params;
@@ -451,13 +445,30 @@ async function updateWebviewContent(
     screenPreviewPanel.state.ranges = ranges;
   }
 
+  postLoad(panel, document.uri, { textDocument, ranges, text });
+}
+
+let loadSequence = 0;
+
+async function postLoad(
+  panel: vscode.WebviewPanel,
+  uri: vscode.Uri,
+  params: {
+    textDocument: { uri: string };
+    ranges: ScreenPreviewPanelState["ranges"];
+    text: string;
+  },
+) {
+  const sequence = ++loadSequence;
+  const breakpoints = await SparkProgramManager.instance
+    .uiBreakpoints(uri)
+    .catch(() => undefined);
+  if (sequence !== loadSequence) {
+    return;
+  }
   panel.webview.postMessage({
     method: "load",
-    params: {
-      textDocument,
-      ranges,
-      text,
-    },
+    params: { ...params, breakpoints },
   });
 }
 

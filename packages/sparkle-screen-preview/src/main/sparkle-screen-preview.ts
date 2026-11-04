@@ -31,7 +31,7 @@ export default class SparkdownScreenPreview extends Component(spec) {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (message.method === "load") {
-        const { textDocument, text } = message.params;
+        const { textDocument, text, breakpoints } = message.params;
         this._textDocument = textDocument;
         const input = text;
         const parsed = parseSparkle(input);
@@ -39,7 +39,7 @@ export default class SparkdownScreenPreview extends Component(spec) {
         const stateInputEl = this.refs.state as HTMLInputElement;
         const update = throttle(() => {
           const state = JSON.parse(stateInputEl.value || "{}");
-          const ctx = createScreenRenderContext(components, state);
+          const ctx = createScreenRenderContext(components, state, breakpoints);
           const renderStyles = () => {
             const container = this.refs.css;
             const newVDOM = renderCssVDOM(parsed, ctx);

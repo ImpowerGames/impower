@@ -175,6 +175,18 @@ export class SparkProgramManager {
     return location ?? undefined;
   }
 
+  async uiBreakpoints(
+    uri: vscode.Uri,
+  ): Promise<Record<string, number> | undefined> {
+    const client = await this.languageClientReady;
+    const breakpoints = await client.sendRequest<Record<string, number> | null>(
+      "sparkdown/uiBreakpoints",
+      { uri: uri.toString() },
+      CancellationToken.None,
+    );
+    return breakpoints ?? undefined;
+  }
+
   async compile(uri: vscode.Uri) {
     const client = await this.languageClientReady;
     const params: CompileProgramParams = {

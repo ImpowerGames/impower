@@ -4,13 +4,14 @@ import type {
   SparkleNode,
 } from "../../../sparkle-screen-renderer/src";
 
-const breakpoints = uiBuiltinDefinitions().config.ui.breakpoints;
+const builtinBreakpoints = uiBuiltinDefinitions().config.ui.breakpoints;
 
 export const createScreenRenderContext = (
   components: Record<string, SparkleNode>,
   state: Record<string, any>,
+  breakpoints?: Record<string, number> | null,
 ): RenderContext => ({
   components,
   state,
-  options: { breakpoints },
+  options: { breakpoints: breakpoints ?? builtinBreakpoints },
 });
