@@ -111,15 +111,12 @@ export class RootLocals {
     const list = this.declarations.get(name);
     if (!list) return "";
     const around = this.flowsAround(at);
-    const [own] = around;
     for (let i = list.length - 1; i >= 0; i--) {
       const declaration = list[i]!;
       if (
         declaration.visibleFrom <= at &&
         at <= declaration.visibleTo &&
-        (declaration.flow < 0 ||
-          declaration.flow === own ||
-          (declaration.parameter === true && around.has(declaration.flow)))
+        (declaration.flow < 0 || around.has(declaration.flow))
       ) {
         return ordinal(list, i);
       }
