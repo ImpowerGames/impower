@@ -1106,6 +1106,7 @@ export class Game<T extends M = {}> {
       if (route) {
         this.simulateRoute(route, 0);
       } else {
+        this.simulateFlow = this.jumpStartOf(to);
         this._simulationFailure = this.describeFailedRouteSearch(to);
         this._searchErrors = this.searchErrors();
       }
@@ -1160,6 +1161,10 @@ export class Game<T extends M = {}> {
     const scene = this.routeStartOf(address);
     const branch = this._story.root.branchAt(address);
     return branch === undefined || branch === scene ? [scene] : [scene, branch];
+  }
+
+  jumpStartOf(address: ProgramAddress): string {
+    return this.routeStartsOf(address).at(-1)!;
   }
 
   get startingValues(): StartingValues {
@@ -3282,7 +3287,7 @@ export class Game<T extends M = {}> {
   jumpTo(address: ProgramAddress, withStartingValues = false) {
     this.discardOpenStoryLine();
     if (withStartingValues) {
-      const plan = this.startPlan(this.routeStartsOf(address).at(-1)!);
+      const plan = this.startPlan(this.jumpStartOf(address));
       this._story.resetSeed = plan.seed;
       this._story.ResetState();
       applyStartValues(this._story, plan);

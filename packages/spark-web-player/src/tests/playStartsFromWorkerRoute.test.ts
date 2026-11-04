@@ -28,7 +28,7 @@ function recordingGame(startAddress: ProgramAddress | null) {
     state: "initial",
     startAddress,
     simulateFlow: undefined as string | null | undefined,
-    routeStartOf: (_address: ProgramAddress) => "main",
+    jumpStartOf: (_address: ProgramAddress) => "main",
     simulation: undefined as string | undefined,
     program: { uri: PROGRAM.uri, scripts: PROGRAM.scripts, version: 99 },
     routeErrors: [],
