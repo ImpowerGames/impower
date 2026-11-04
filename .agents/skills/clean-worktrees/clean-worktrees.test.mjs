@@ -1298,6 +1298,7 @@ const control = async (label, cuts, names) => {
     text = text.replace('"../../repos.mjs"', () => JSON.stringify(pathToFileURL(path.join(here, "..", "..", "repos.mjs")).href));
     text = text.replace('"../../../scripts/review-job-root.mjs"', () => JSON.stringify(pathToFileURL(path.join(here, "..", "..", "..", "scripts", "review-job-root.mjs")).href));
     text = text.replace('"../../../scripts/reviewer-slots.mjs"', () => JSON.stringify(pathToFileURL(path.join(here, "..", "..", "..", "scripts", "reviewer-slots.mjs")).href));
+    text = text.replace('"../../../scripts/link-safe-removal.mjs"', () => JSON.stringify(pathToFileURL(path.join(here, "..", "..", "..", "scripts", "link-safe-removal.mjs")).href));
     for (const [needle, replacement] of cuts) {
       assert.ok(text.includes(needle), `the fixture was not built: the script no longer contains ${JSON.stringify(needle)}`);
       text = text.replace(needle, () => replacement);
@@ -1735,6 +1736,47 @@ try {
       [path.relative(scratch, wt("main-copy")), "keep", "  main  ", "the default branch main, which is never removed wherever it is checked out"],
     ]);
     assert.ok(branches().includes("main"), "the local main is gone");
+  });
+
+  await check("job removal refuses a regular file in place of its directory", () => {
+    const file = path.join(scratch, "not-a-job-directory");
+    fs.writeFileSync(file, "kept");
+    assert.throws(() => removeJobDir(file), { code: "ENOTDIR" });
+    assert.equal(fs.readFileSync(file, "utf8"), "kept");
+  });
+
+  await check("job removal retries a busy link without touching its target", () => {
+    const dir = path.join(scratch, "retry-job");
+    const outside = path.join(scratch, "retry-target");
+    const sentinel = path.join(outside, "kept.txt");
+    const link = path.join(dir, "nested", "link");
+    fs.mkdirSync(path.dirname(link), { recursive: true });
+    fs.mkdirSync(outside);
+    fs.writeFileSync(sentinel, "kept");
+    fs.symlinkSync(outside, link, "junction");
+    assert.equal(fs.readFileSync(path.join(link, "kept.txt"), "utf8"), "kept");
+
+    const unlink = fs.unlinkSync;
+    const rmdir = fs.rmdirSync;
+    const busy = Object.assign(new Error("link is briefly busy"), { code: "EBUSY" });
+    let attempts = 0;
+    try {
+      fs.unlinkSync = (target, ...args) => {
+        if (target === link && ++attempts === 1) throw busy;
+        return unlink(target, ...args);
+      };
+      fs.rmdirSync = (target, ...args) => {
+        if (target === link && attempts === 1) throw busy;
+        return rmdir(target, ...args);
+      };
+      assert.doesNotThrow(() => assert.equal(removeJobDir(dir), 1));
+      assert.equal(attempts, 2);
+      assert.ok(!fs.existsSync(dir), "job directory remained after retry");
+    } finally {
+      fs.unlinkSync = unlink;
+      fs.rmdirSync = rmdir;
+      assert.equal(fs.readFileSync(sentinel, "utf8"), "kept");
+    }
   });
 
   await check("as a command, the dry run lists job directories and --apply removes only the removable one, leaving a junction's target intact", () => {

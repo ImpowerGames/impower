@@ -9,6 +9,7 @@ import { systemTemp } from "../drive-web-editor/worktree-temp.mjs";
 import { ticketsRepo } from "../../repos.mjs";
 import { NOT_JOB_STATE, jobRootOf } from "../../../scripts/review-job-root.mjs";
 import { processIdentity } from "../../../scripts/reviewer-slots.mjs";
+import { removeTreeEntries } from "../../../scripts/link-safe-removal.mjs";
 
 const norm = (p) => {
   const r = path.resolve(p);
@@ -1176,6 +1177,11 @@ export function classifyJob(name, dir, deps, ctx) {
   return { remove: true, judgeClones, reason: `${why} no process its journals record is running; ${n(journals.length, "journal")}` };
 }
 
+const jobRemovalRetry = {
+  delays: Array.from({ length: 10 }, (_, attempt) => (attempt + 1) * 250),
+  retryCodes: new Set(["EBUSY", "EMFILE", "ENFILE", "ENOTEMPTY", "EPERM"]),
+};
+
 export function removeJobDir(dir, guard = () => {}) {
   let changed = 0;
   const check = () => {
@@ -1191,29 +1197,21 @@ export function removeJobDir(dir, guard = () => {}) {
   check();
   if (unlinkLinksIn(dir, check, removedLink) !== 0) throw new Error(`a link reappeared inside ${dir} while it was being removed; nothing further was deleted`);
   check();
-  fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
+  removeTreeEntries(dir, { ...jobRemovalRetry, force: true, refuseLinks: true });
   return unlinked;
 }
 
 function unlinkLinksIn(dir, guard = () => {}, removedLink = () => {}) {
   let found = 0;
-  const pending = [dir];
-  while (pending.length) {
-    const d = pending.pop();
-    for (const it of fs.readdirSync(d, { withFileTypes: true })) {
-      const p = path.join(d, it.name);
-      if (it.isSymbolicLink()) {
-        guard();
-        found++;
-        try {
-          fs.unlinkSync(p);
-        } catch {
-          fs.rmdirSync(p);
-        }
-        removedLink();
-      } else if (it.isDirectory()) pending.push(p);
-    }
-  }
+  removeTreeEntries(dir, {
+    ...jobRemovalRetry,
+    linksOnly: true,
+    beforeUnlink: guard,
+    onRemoved: () => {
+      found++;
+      removedLink();
+    },
+  });
   return found;
 }
 
