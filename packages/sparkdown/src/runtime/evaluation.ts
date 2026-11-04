@@ -15,6 +15,11 @@ import {
   SymbolValue,
 } from "./Value";
 import { Void } from "./Void";
+import {
+  isStdLibMarker,
+  stdLibMarker,
+  stdLibMarkerName,
+} from "./StdLibMarker";
 import { oneValue, spreadCallArgs } from "./CallArgs";
 import { Tag } from "./Tag";
 import { NativeFunctionCall } from "./NativeFunctionCall";
@@ -104,8 +109,8 @@ function luauIndexTargetError(v: unknown, key: unknown): string | null {
     v instanceof FloatValue ||
     isFunctionReference(v) ||
     (v instanceof ObjectValue &&
-      ((v.value as Map<string, unknown>)?.has("__closure_fn") ||
-        (v.value as Map<string, unknown>)?.has("__stdlib_fn")))
+      (v.value as Map<string, unknown>)?.has("__closure_fn")) ||
+    isStdLibMarker(v)
   ) {
     return luauIndexError(luauTypeOf(v), key);
   }
@@ -128,9 +133,9 @@ const TABLE_IDENTITY_IDS = new WeakMap<object, number>();
 let nextTableIdentityId = 1;
 function luauMapKeyString(v: any): string {
   if (v instanceof ObjectValue && v.value) {
+    const builtinName = stdLibMarkerName(v);
+    if (builtinName !== null) return `__stdlibfn:${builtinName}`;
     const map = v.value as Map<string, AbstractValue>;
-    const stdTag = map.get("__stdlib_fn");
-    if (stdTag instanceof StringValue) return `__stdlibfn:${stdTag.value}`;
     let id = TABLE_IDENTITY_IDS.get(map);
     if (id === undefined) {
       id = nextTableIdentityId++;
@@ -288,14 +293,7 @@ function sameLuauFunctionValue(a: any, b: any): boolean {
   }
   if (a === b) return true;
   if (a instanceof ObjectValue && b instanceof ObjectValue) {
-    if (a.value === b.value) return true;
-    const tagA = (a.value as Map<string, AbstractValue>)?.get("__stdlib_fn");
-    const tagB = (b.value as Map<string, AbstractValue>)?.get("__stdlib_fn");
-    return (
-      tagA instanceof StringValue &&
-      tagB instanceof StringValue &&
-      tagA.value === tagB.value
-    );
+    return a.value === b.value;
   }
   if (a instanceof SymbolValue && b instanceof SymbolValue) {
     return a.ref.Equals(b.ref);
@@ -312,25 +310,22 @@ export function tryInvokeStdLibMarkerValue(
   fnValue: any,
   args: AbstractValue[],
 ): AbstractValue[] | null {
-  if (!(fnValue instanceof ObjectValue)) return null;
-  const tag = (fnValue.value as Map<string, AbstractValue>)?.get(
-    "__stdlib_fn",
-  );
-  if (!(tag instanceof StringValue)) return null;
-  const entry = lookupAnyStdLib(tag.value!);
+  const builtinName = stdLibMarkerName(fnValue);
+  if (builtinName === null) return null;
+  const entry = lookupAnyStdLib(builtinName);
   if (!entry) return null;
   if (
     args.length < stdLibRequiredArgs(entry) &&
     !(entry as { validatesArgs?: boolean }).validatesArgs
   ) {
-    const short = tag.value!.slice(tag.value!.lastIndexOf(".") + 1);
+    const short = builtinName.slice(builtinName.lastIndexOf(".") + 1);
     story.Error(`missing argument #${args.length + 1} to '${short}'`);
   }
   const callArgs = unwrapArgsForPureStdLibFn(
     entry,
     entry.arity >= 0 ? args.slice(0, entry.arity) : [...args],
     story,
-    tag.value!,
+    builtinName,
   );
   const result = entry.fn(story, callArgs);
   if (result === undefined) return [];
@@ -380,14 +375,8 @@ function tryBinaryMetamethod(
   let handler: any;
   if (metaName === "__eq") {
     {
-      const tagL = (lhs.value as Map<string, AbstractValue>)?.get(
-        "__stdlib_fn",
-      );
-      const tagR = (rhs.value as Map<string, AbstractValue>)?.get(
-        "__stdlib_fn",
-      );
-      if (tagL instanceof StringValue && tagR instanceof StringValue) {
-        const same = tagL.value === tagR.value;
+      if (isStdLibMarker(lhs) || isStdLibMarker(rhs)) {
+        const same = lhs === rhs;
         return new BoolValue(invertEq ? !same : same);
       }
     }
@@ -810,11 +799,8 @@ export function callVariableTarget(
     }
   }
   if (varContents instanceof ObjectValue) {
-    const stdlibTag = (varContents.value as Map<string, AbstractValue>)?.get(
-      "__stdlib_fn",
-    );
-    if (stdlibTag instanceof StringValue) {
-      const stdlibName = stdlibTag.value!;
+    const stdlibName = stdLibMarkerName(varContents);
+    if (stdlibName !== null) {
       const entry = lookupAnyStdLib(stdlibName);
       if (entry && runBuiltinCall(story, entry, stdlibName, callSiteArgCount)) {
         return null;
@@ -892,11 +878,8 @@ export function callValueAsFunction(
     return;
   }
   if (callTarget instanceof ObjectValue) {
-    const stdlibTag = (callTarget.value as Map<string, AbstractValue>)?.get(
-      "__stdlib_fn",
-    );
-    if (stdlibTag instanceof StringValue) {
-      const stdlibName = stdlibTag.value!;
+    const stdlibName = stdLibMarkerName(callTarget);
+    if (stdlibName !== null) {
       const entry = lookupAnyStdLib(stdlibName);
       if (entry && runBuiltinCall(story, entry, stdlibName, callSiteArgCount)) {
         return;
@@ -1079,9 +1062,7 @@ export function tableFromPairs(
 function stringLibraryMember(key: string): ObjectValue | null {
   const libName = `string.${key}`;
   if (!isStdLibFunctionName(libName)) return null;
-  const marker = new Map<string, AbstractValue>();
-  marker.set("__stdlib_fn", new StringValue(libName));
-  return new ObjectValue(marker);
+  return stdLibMarker(libName);
 }
 
 export function indexValue(
@@ -1160,7 +1141,7 @@ export function storeIndex(
     }
     return;
   }
-  if (storeBase instanceof ObjectValue) {
+  if (storeBase instanceof ObjectValue && !isStdLibMarker(storeBase)) {
     const invalidKey = invalidKeyMessage(storeKey);
     const keyStr = invalidKey === null ? luauMapKeyString(storeKey!) : null;
     const val = asOrNull(storeValue, AbstractValue);
@@ -1267,9 +1248,7 @@ export function readVariable(story: any, name: string | null): InkObject {
   }
 
   if (foundValue == null && name && isStdLibFunctionName(name)) {
-    const marker = new Map<string, AbstractValue>();
-    marker.set("__stdlib_fn", new StringValue(name));
-    foundValue = new ObjectValue(marker);
+    foundValue = stdLibMarker(name);
   }
 
   if (foundValue == null) {

@@ -163,19 +163,29 @@ const SCENE_TUNNEL = [
 ];
 
 describe("a tunnel's return with nothing to return to, in a route from a scene's top", () => {
-  test("is an error, as in the game", () => {
+  test("ends the run as done does, as the route's last entry", () => {
     const { game } = routeTo(SCENE_TUNNEL, 12);
     expect(game.plannedRoute.from).toBe("s");
-    expect(game.previewRouteOf(game.plannedRoute).tunnelEnds).toBeUndefined();
-    const { errors } = run(game, () => game.jumpToFlow("s"));
-    expect(errors.join(" ")).toContain("->->");
+    expect(game.previewRouteOf(game.plannedRoute).tunnelEnds).toBe(true);
+    const { errors, text } = run(game, () => game.jumpToFlow("s"));
+    expect(text).toContain("Before.");
+    expect(errors).toEqual([]);
+    expect(game.story.canContinue).toBe(false);
   });
 
-  test("is an error after a route from a branch's top, when the game jumps into the scene", () => {
+  test("ends the run when a jump starts it inside the scene", () => {
     const { game } = routeTo(SCENE_TUNNEL, 7);
     expect(game.plannedRoute.from).toBe("outer.b");
     const before = programLocator(game.program).addressAt(URI, 10)!;
     const { errors } = run(game, () => game.jumpTo(before, true));
+    expect(errors).toEqual([]);
+  });
+
+  test("is an error in a run from the story's start", () => {
+    const { game } = routeTo(["scene start", "  Top.", "  ->->", "end"], 2);
+    expect(game.plannedRoute.from).toBe(START_FLOW_NAME);
+    expect(game.previewRouteOf(game.plannedRoute).tunnelEnds).toBeUndefined();
+    const { errors } = run(game, () => game.jumpToFlow(START_FLOW_NAME));
     expect(errors.join(" ")).toContain("->->");
   });
 

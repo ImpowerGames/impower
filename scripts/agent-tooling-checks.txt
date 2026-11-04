@@ -49,6 +49,7 @@
 .github/scripts/check-linked-issue.test.mjs
 .github/scripts/check-no-tasklist.test.mjs
 .github/scripts/pr-template-no-tasklist.test.mjs
+.github/scripts/sparkle-custom-data-retired.test.mjs
 .github/scripts/test-suite-guard.test.sh
 .github/scripts/test-suite-matrix.test.mjs
 scripts/agent-handoff-blocked-report.test.mjs

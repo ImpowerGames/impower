@@ -26,7 +26,7 @@ const requestLoadedProject = async (id: string) => {
 it("answers the loaded project through the editor protocol", async () => {
   const win = new WorkspaceWindow(collaborators);
   try {
-    expect(await requestLoadedProject("project-read")).toContainEqual({ id: "loaded-project" });
+    expect(await requestLoadedProject("project-read")).toEqual([{ id: "loaded-project" }]);
   } finally {
     win.dispose();
   }
@@ -35,5 +35,5 @@ it("answers the loaded project through the editor protocol", async () => {
 it("stops answering protocol requests once disposed", async () => {
   const win = new WorkspaceWindow(collaborators);
   win.dispose();
-  expect(await requestLoadedProject("disposed-read")).not.toContainEqual({ id: "loaded-project" });
+  expect(await requestLoadedProject("disposed-read")).toEqual([]);
 });

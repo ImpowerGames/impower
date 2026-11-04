@@ -182,6 +182,19 @@ export function isSpacedBraceEdge(node: SyntaxNode, read: Read): boolean {
   return false;
 }
 
+const PAREN_VALUE_ENDS = nodeNameSet([
+  "LuauSparkleEventParenAttribute_end",
+  "LuauSparklePropParenAttribute_end",
+]);
+
+export function endsParenValue(node: SyntaxNode): boolean {
+  for (let p = node.parent; p; p = p.parent) {
+    if (PAREN_VALUE_ENDS.has(p.name)) return true;
+    if (BRACE_LINE_NAMES.has(p.name)) return false;
+  }
+  return false;
+}
+
 export function keepsSpaceBeforeClass(node: SyntaxNode): boolean {
   const next = node.nextSibling;
   if (next?.name !== "LuauSparkleElementClass") return false;

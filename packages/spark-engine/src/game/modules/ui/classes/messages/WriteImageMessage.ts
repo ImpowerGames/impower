@@ -1,4 +1,5 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
+import type { MorphMotion } from "@impower/sparkdown/src/morph/motion";
 import type { MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
 import type { Animation } from "../../types/Animation";
 
@@ -30,6 +31,7 @@ export interface MorphLayerPlay {
   layer: number;
   ref: MorphRef;
   timing: MorphTiming;
+  motion?: MorphMotion;
   definition: string;
 }
 

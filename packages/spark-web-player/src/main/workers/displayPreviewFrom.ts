@@ -1,5 +1,6 @@
 import type { StoredCheckpoint } from "@impower/spark-engine/src/game/core/classes/CheckpointStore";
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
+import type { GameEnding } from "@impower/spark-engine/src/game/core/types/GameEnding";
 import type { PreviewRoute } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
 import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
@@ -16,6 +17,7 @@ export interface DisplayingGame {
   simulation: string | undefined;
   simulationFailure: SimulationFailure | undefined;
   previewRoute: PreviewRoute | undefined;
+  previewEnding: GameEnding | null | undefined;
   markPreviewing(previewAddress?: ProgramAddress): void;
   jumpStartOf(address: ProgramAddress): string;
   load(checkpoint: string): unknown;
@@ -51,6 +53,7 @@ export interface DisplayRequest {
   checkpoint?: string | StoredCheckpoint;
   simulationFailure?: SimulationFailure;
   route?: PreviewRoute;
+  ending?: GameEnding;
   runFrom?: ProgramAddress;
   beatOnly?: true | string;
   onPath?: (path: DisplayPath) => void;
@@ -96,6 +99,7 @@ export async function displayPreviewFrom(
   game.module.ui.forgetDisplayedImages();
   const checkpoint = request.checkpoint;
   game.previewRoute = checkpoint ? request.route : undefined;
+  game.previewEnding = checkpoint ? request.ending : undefined;
   if (typeof checkpoint === "string" && checkpoint) {
     game.load(checkpoint);
   } else if (checkpoint && typeof checkpoint === "object") {

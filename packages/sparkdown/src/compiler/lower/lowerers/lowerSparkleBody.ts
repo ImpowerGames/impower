@@ -140,6 +140,8 @@ const ATTRIBUTE_NODES = nodeNameSet([
   "LuauSparklePropAttribute",
   "LuauSparkleEventClosureAttribute",
   "LuauSparklePropClosureAttribute",
+  "LuauSparkleEventParenAttribute",
+  "LuauSparklePropParenAttribute",
 ]);
 
 function isContinuation(entry: SyntaxNode, ctx: LowerContext): boolean {
@@ -293,11 +295,13 @@ const EVENT_ATTR = nodeNameSet([
   "LuauEventAttribute",
   "LuauSparkleEventAttribute",
   "LuauSparkleEventClosureAttribute",
+  "LuauSparkleEventParenAttribute",
 ]);
 const EVENT_NAME = nodeNameSet(["EventAttributeName"]);
 const EVENT_CONTENT = nodeNameSet([
   "LuauEventAttribute_content",
   "LuauSparkleEventHandler",
+  "LuauSparkleEventParenAttribute_content",
 ]);
 const EVENT_HANDLER_NAME = nodeNameSet(["LuauSparkleEventHandlerName"]);
 const EVENT_CLOSURE = nodeNameSet(["LuauSparkleHandlerClosure"]);
@@ -436,8 +440,10 @@ const PROP_ATTR = nodeNameSet([
   "LuauPropAttribute",
   "LuauSparklePropAttribute",
   "LuauSparklePropClosureAttribute",
+  "LuauSparklePropParenAttribute",
 ]);
 const PROP_CLOSURE = nodeNameSet(["LuauSparklePropClosure"]);
+const PROP_OVERFLOW = nodeNameSet(["LuauSparklePropParenOverflow", "LuauSparklePropRunOverflow"]);
 const PROP_NAME = nodeNameSet(["StyleAttributeName"]);
 const PROP_INTERP = nodeNameSet([
   "LuauInterpolatedStringExpression",
@@ -445,7 +451,7 @@ const PROP_INTERP = nodeNameSet([
 ]);
 const PROP_QUOTED = nodeNameSet(["InlinePropQuotedValue"]);
 const PROP_LITERAL = nodeNameSet([
-  "InlinePropNumericValue", "InlinePropBooleanValue", "InlinePropWordValue",
+  "InlinePropNumericValue", "InlinePropBooleanValue", "InlinePropWordValue", "LuauSparklePropWord",
 ]);
 
 function propAttributes(node: SyntaxNode): SyntaxNode[] {
@@ -506,13 +512,14 @@ function readProps(
     }
     const literal = firstDescendant(attr, PROP_LITERAL);
     if (literal) {
+      const to = firstDescendant(literal, PROP_OVERFLOW)?.from ?? literal.to;
       props[name] = {
         kind: "literal",
         value: literal.name === "InlinePropNumericValue"
-          ? Number(ctx.read(literal.from, literal.to))
+          ? Number(ctx.read(literal.from, to))
           : literal.name === "InlinePropBooleanValue"
-            ? ctx.read(literal.from, literal.to) === "true"
-            : ctx.read(literal.from, literal.to),
+            ? ctx.read(literal.from, to) === "true"
+            : ctx.read(literal.from, to),
       };
     }
   }

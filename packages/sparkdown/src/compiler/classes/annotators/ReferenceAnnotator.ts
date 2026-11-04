@@ -125,6 +125,7 @@ const PROPERTY_DEFINITION = nodeNameSet(["LuauPropertyDefinition"]);
 const EVENT_ATTR_CONTENT = nodeNameSet([
   "LuauEventAttribute_content",
   "LuauSparkleEventHandler",
+  "LuauSparkleEventParenAttribute_content",
 ]);
 const EVENT_HANDLER_CLOSURE = nodeNameSet(["LuauSparkleHandlerClosure"]);
 const EVENT_HANDLER_NAME = nodeNameSet([
@@ -288,7 +289,8 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
   ): Range<SparkdownAnnotation<Reference>>[] {
     if (
       nodeRef.name === "LuauEventAttribute" ||
-      nodeRef.name === "LuauSparkleEventAttribute"
+      nodeRef.name === "LuauSparkleEventAttribute" ||
+      nodeRef.name === "LuauSparkleEventParenAttribute"
     ) {
       const content = firstDescendant(nodeRef.node, EVENT_ATTR_CONTENT);
       const hasClosure = !!firstDescendant(nodeRef.node, EVENT_HANDLER_CLOSURE);

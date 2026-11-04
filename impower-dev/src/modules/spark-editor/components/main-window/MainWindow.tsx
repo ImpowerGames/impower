@@ -29,7 +29,6 @@ export type MainWindowProps = Partial<typeof propDefaults>;
 
 export default function MainWindow(_props: MainWindowProps) {
   const pane = workspace.signals.pane.value as PaneType;
-  const workspaceReady = !!workspace.signals.projectId.value;
   const previewActive = useComputed(() =>
     workspace.state.value.preview?.revealed ? "end" : "start",
   ).value;
@@ -84,22 +83,19 @@ export default function MainWindow(_props: MainWindowProps) {
       <div class="relative flex-none h-[60px] bg-engine-800 text-foreground [&>*]:h-full [.keyboard-open_&]:hidden">
 
         <div class="absolute inset-x-0 top-0 !h-px bg-white/[0.06] z-10" />
-        <Tabs
-          // workaround(@radix-ui/react-tabs): a null or undefined value makes Tabs uncontrolled and briefly activates every trigger, so a non-matching sentinel is passed
-          value={workspaceReady ? pane : "__none__"}
-          onChange={onPaneChange}
-          indicator="none"
-        >
-          <Tab value="logic" icon={Bolt} activeIcon={BoltFill}>
-            Logic
-          </Tab>
-          <Tab value="assets" icon={Photo} activeIcon={PhotoFill}>
-            Assets
-          </Tab>
-          <Tab value="share" icon={Share} activeIcon={ShareFill}>
-            Share
-          </Tab>
-        </Tabs>
+        {!isSSR && (
+          <Tabs value={pane} onChange={onPaneChange} indicator="none">
+            <Tab value="logic" icon={Bolt} activeIcon={BoltFill}>
+              Logic
+            </Tab>
+            <Tab value="assets" icon={Photo} activeIcon={PhotoFill}>
+              Assets
+            </Tab>
+            <Tab value="share" icon={Share} activeIcon={ShareFill}>
+              Share
+            </Tab>
+          </Tabs>
+        )}
       </div>
     </div>
   );

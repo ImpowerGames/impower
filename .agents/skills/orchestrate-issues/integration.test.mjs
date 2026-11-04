@@ -143,6 +143,7 @@ try {
     comments: (n) => { gh.onComments?.(n); return structuredClone(gh.comments.get(n) ?? []); },
     protection: () => structuredClone(gh.protection),
     mainRuns: () => { if (gh.mainRunsFail) throw new Error(gh.mainRunsFail); return structuredClone(gh.mainRuns ?? []); },
+    mainRunJobs: () => { if (gh.mainRunJobsFail) throw new Error(gh.mainRunJobsFail); return structuredClone(gh.mainRunJobs ?? []); },
     merge: (pr, head) => {
       gh.mergeCalls.push(ig.mergeArgs(REPO, pr, head));
       gh.beforeMerge?.(pr, head);
@@ -455,7 +456,7 @@ try {
   assert.deepEqual([g41.admitted, g41.containsMain, g41.ciMain, g41.originMain], [true, false, mainBefore, mainAfter], `a head behind main is admitted and the main its CI covered is named: ${g41.blockers.join(" | ")}`);
   const mainRun = (more) => ({ id: 1, headSha: mainAfter, status: "completed", conclusion: "success", createdAt: at(), url: "https://github.com/x/y/actions/runs/1", ...more });
   gh.mainRuns = [mainRun({ conclusion: "failure" })];
-  blocked(gate(41), /main's own CI is red: the latest completed push run of Test Suite on main concluded failure at .*; no merge lands on a red main/, "a red main");
+  blocked(gate(41), /main's own CI is red: the latest completed push run of Test Suite on main concluded failure at .*; only a PR that repairs it merges on a red main, and this one does not: head [0-9a-f]{9} does not contain/, "a red main");
   gh.mainRuns = [mainRun({ conclusion: "failure" }), mainRun({ id: 2, conclusion: "cancelled" })];
   blocked(gate(41), /main's own CI is red/, "a cancelled newer run does not clear a red main");
   gh.mainRuns = [mainRun({ conclusion: "failure" }), mainRun({ id: 2 })];
@@ -473,6 +474,37 @@ try {
   g41 = gate(41);
   trace("gate-41-after-main-merge", g41);
   assert.deepEqual([g41.admitted, g41.disposition, g41.reviewedHead, g41.mergedSince, g41.containsMain, g41.ciMain], [true, "reviewed", h41, [h41m], true, mainAfter], "a clean merge of main on the reviewed head is admitted, and named");
+  {
+    const failedJob = { name: "packages (sparkdown)", conclusion: "failure" };
+    gh.mainRuns = [mainRun({ conclusion: "failure" })];
+    gh.mainRunJobs = [failedJob, { name: "test-suite", conclusion: "failure" }, { name: "hook-tests", conclusion: "success" }];
+    blocked(gate(41), /main's own CI is red.*job packages \(sparkdown\) was skipped on/, "a head that contains the red commit but skipped the failing job does not repair it");
+    setHead(41, h41m, passing().map((c) => (c.name === "packages (sparkdown)" ? { ...c, state: "SUCCESS" } : c)));
+    g41 = gate(41);
+    assert.deepEqual([g41.admitted, g41.mainCi.verdict, g41.mainCi.repair], [true, "red", true], `a head that contains the red commit and passes every job main failed repairs it: ${g41.blockers.join(" | ")}`);
+    gh.mainRunJobs = [];
+    blocked(gate(41), /main's own CI is red.*no failed job of run 1 could be read/, "a red run without a failed job read holds the gate");
+    gh.mainRunJobsFail = "HTTP 502 while reading jobs";
+    blocked(gate(41), /main's own CI is red.*HTTP 502 while reading jobs/, "unreadable jobs of the red run hold the gate");
+    gh.mainRunJobsFail = null;
+    gh.mainRunJobs = [failedJob];
+    gh.mainRuns = [mainRun({ conclusion: "failure", headSha: "f".repeat(40) })];
+    blocked(gate(41), /main's own CI is red.*does not contain f{9}/, "a head without the red commit stays held");
+    gh.mainRuns = [mainRun()];
+    gh.mainRunJobs = null;
+    setHead(41, h41m);
+  }
+  git(worktrees[41], "commit", "-q", "--allow-empty", "-m", "ci: rebuild the merge");
+  const h41e = push(41);
+  setHead(41, h41e);
+  g41 = gate(41);
+  assert.deepEqual([g41.admitted, g41.disposition, g41.reviewedHead, g41.mergedSince], [true, "reviewed", h41, [h41e, h41m]], `an empty commit on a clean merge of the reviewed head is admitted as reviewed: ${g41.blockers.join(" | ")}`);
+  const h41x = commitIn(worktrees[41], "README.md", "after the empty commit\n", "fix: a tail change");
+  git(worktrees[41], "commit", "-q", "--allow-empty", "-m", "ci: rebuild again");
+  setHead(41, push(41));
+  blocked(gate(41), new RegExp(`not the last independently reviewed head ${h41}.*unreviewed after it: .*${h41x.slice(0, 9)} fix: a tail change`), "a file change between empty commits");
+  git(worktrees[41], "reset", "-q", "--hard", h41e);
+  setHead(41, push(41));
 
   change((r) => run.release(r, { ticket: 41, observations: { sessions: { local_w41: { state: "archived" } } }, evidence: "the writer's session ended", host: SRC }));
   p = plan();
@@ -574,7 +606,7 @@ try {
   assert.deepEqual(gh.mergeCalls.at(-1), ["pr", "merge", "141", "--repo", REPO, "--merge", "--match-head-commit", h41n]);
   assert.ok(!gh.mergeCalls.flat().some((a) => ["--admin", "--auto", "--rebase", "--squash"].includes(a)), "the merge call never bypasses protection or defers the merge");
   const op41 = record().operations.find((o) => o.id === merged41.operation);
-  assert.deepEqual([op41.state, op41.expectHead, op41.gate.disposition, op41.gate.mergedSince.length, op41.mergeCommit], ["confirmed", h41n, "reviewed", 4, gh.pulls.get(141).mergeCommit]);
+  assert.deepEqual([op41.state, op41.expectHead, op41.gate.disposition, op41.gate.mergedSince.length, op41.mergeCommit], ["confirmed", h41n, "reviewed", 5, gh.pulls.get(141).mergeCommit]);
   assert.deepEqual(gh.intentsSeen.at(-1), { pr: 141, head: h41n, saved: true }, "the public command saved the intent on the state branch before GitHub was called");
   p = plan();
   assert.deepEqual([actions(p)[41], actions(p)[42]], ["done", "dispatch"]);
@@ -586,7 +618,21 @@ try {
   change((r) => run.launched(r, { ticket: 42, handleKind: "session", handle: "local_w42", host: SRC }));
   startBranch(42);
   const h42 = {};
-  for (const r of [1, 2, 3]) { h42[r] = commitIn(worktrees[42], "beta.txt", `beta ${r}\n`, `feat: beta round ${r} change (#42)`); push(42); if (r === 1) openPr(42, h42[1]); setHead(42, h42[r]); reviewed(142, r, h42[r]); }
+  const findingsOf42 = () => rc.roundState(rc.readJournals(path.join(`${src}.review-jobs`, "pr-142"))).reports.map((r) => ({ comment: r.comment, finding: `round ${r.round}`, disposition: "accepted" }));
+  const earlyAssessment = () => ({ mechanisms: "One finding.", regressions: "None.", repairOptions: "None simpler.", residualRisk: "A comment fix is unreviewed.", coverage: "Checks pass on the head.", nextRoundValue: "Little.", rationale: "A verified non-behavioral tail after a clean round.", next: "Continue.", agreedBehavior: "preserved", architecture: "unchanged", verification: ["every CI check passed"], findings: findingsOf42() });
+  for (const r of [1, 2]) { h42[r] = commitIn(worktrees[42], "beta.txt", `beta ${r}\n`, `feat: beta round ${r} change (#42)`); push(42); if (r === 1) openPr(42, h42[1]); setHead(42, h42[r]); reviewed(142, r, h42[r]); }
+  const tail2 = commitIn(worktrees[42], "beta.txt", "beta round 2 tail\n", "docs: round 2 tail (#42)");
+  setHead(42, push(42));
+  const e42early = rc.gatherEvidence({ record: record(), ticket: 42, pr: 142, client, git: rcGit(src) });
+  assert.deepEqual([e42early.completedRound, e42early.due, e42early.acceptanceDue], [2, false, true], e42early.blockers.join("; "));
+  assert.throws(() => rc.decide(structuredClone(record()), { ticket: 42, kind: "finish", assessment: earlyAssessment(), evidence: e42early }), /No formal checkpoint before round 3/);
+  const early42 = change((r) => rc.decide(r, { ticket: 42, kind: "accept-unreviewed", assessment: earlyAssessment(), inspected: e42early.range.diffSha256, evidence: e42early }));
+  assert.doesNotMatch(early42.body, /no checkpoint is due/);
+  const postedEarly = post(142, early42.body);
+  change((r) => rc.published(r, { ticket: 42, id: early42.id, comment: postedEarly.id, readBack: early42.body, head: tail2 }));
+  const g42early = gate(42);
+  assert.deepEqual([g42early.admitted, g42early.disposition, g42early.acceptance?.id, g42early.reviewedHead], [true, "accepted-unreviewed", early42.id, h42[2]], `an acceptance after round 2 admits its head: ${g42early.blockers.join(" | ")}`);
+  h42[3] = commitIn(worktrees[42], "beta.txt", "beta 3\n", "feat: beta round 3 change (#42)"); push(42); setHead(42, h42[3]); reviewed(142, 3, h42[3]);
   const correction = commitIn(worktrees[42], "beta.txt", "beta correction\n", "fix: round 3 correction (#42)");
   setHead(42, push(42));
   report(42, h42[3], "round 3's correction is unreviewed; the checkpoint decides it");
@@ -633,7 +679,7 @@ try {
   git(worktrees[43], "commit", "-q", "--no-edit");
   const h43c = push(43);
   setHead(43, h43c);
-  blocked(gate(43), new RegExp(`not the last independently reviewed head ${h43b} or a clean merge of main on top of it`), "a conflict-resolving merge of main");
+  blocked(gate(43), new RegExp(`not the last independently reviewed head ${h43b} or reached from it only through clean merges of main`), "a conflict-resolving merge of main");
   reviewed(143, 3, h43c);
   report(43, h43c);
   blocked(gate(43), /round 3's checkpoint has no published finish or acceptance decided at it/, "an undecided round 3 checkpoint");
@@ -827,7 +873,7 @@ try {
   let final = verify(doneEvidence);
   trace("final-report", final.report);
   assert.equal(final.verdict, "complete");
-  assert.match(final.report, /\| #41 \| delivered \| #141 \| merged by the coordinator as `[0-9a-f]{9}`; independently reviewed through `[0-9a-f]{9}` plus 4 clean merges of main \|/);
+  assert.match(final.report, /\| #41 \| delivered \| #141 \| merged by the coordinator as `[0-9a-f]{9}`; independently reviewed through `[0-9a-f]{9}` plus 5 content-preserving commits \(clean merges of main or tree-identical commits\) \|/);
   assert.match(final.report, /\| #42 \| delivered \| #142 \| .*; it landed on main `[0-9a-f]{9}`, while its CI covered main `[0-9a-f]{9}`, so CI never ran on that combination before main's own run \|/, "a merge that landed on a main CI never checked is named");
   assert.match(final.report, new RegExp(`#42, PR #142: decision \`${decided.id}\` .* accepted \`${h42[3].slice(0, 9)}\\.\\.${correction.slice(0, 9)}\` \\(1 commit\\) unreviewed on head \`${correction.slice(0, 9)}\`; that head merged`));
   assert.match(final.report, new RegExp(`\\| #43 \\| delivered \\| #143 \\| merged by the coordinator as \`[0-9a-f]{9}\`; independently reviewed through \`${h43c.slice(0, 9)}\`; it landed on main \`[0-9a-f]{9}\`, while its CI covered main \`[0-9a-f]{9}\`, so CI never ran on that combination before main's own run \\|`), "the merge the previous coordinator made through the gate, confirmed from GitHub after the takeover with where it landed");
