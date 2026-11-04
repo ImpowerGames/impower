@@ -10,6 +10,7 @@ import {
   filterPaths,
   flattenVisibleRows,
   FOLDER_SENTINEL,
+  LAYOUT_MARKER,
   layoutSubtreeFor,
   resolveScopePath,
   subtreeChildren,
@@ -528,6 +529,75 @@ describe("computeLayoutMigration", () => {
     expect(
       computeLayoutMigration(applyMoves(paths, moves), subtreeFor),
     ).toEqual([]);
+    expect(
+      computeLayoutMigration(
+        [...applyMoves(paths, moves), LAYOUT_MARKER],
+        subtreeFor,
+      ),
+    ).toEqual([]);
+  });
+
+  it("repairs only before the layout marker exists, so a root asset placed under assets/<sub>/ later stays in the root project", () => {
+    const paths = [
+      "main.sd",
+      LAYOUT_MARKER,
+      "scripts/other/main.sd",
+      "assets/other/root.png",
+      "assets/urls/other/song.url",
+    ];
+    expect(computeLayoutMigration(paths, subtreeFor)).toEqual([]);
+    expect(projectOf(paths, "assets/other/root.png")).toBe("");
+  });
+
+  it("never moves a file onto a folder or under a file of the same name", () => {
+    expect(
+      computeLayoutMigration(
+        [
+          "main.sd",
+          "scripts/other/main.sd",
+          "assets/other/tree.png",
+          "scripts/other/tree.png/.folder",
+          "hero.png",
+          "assets/hero.png/.folder",
+          "art/bg.png",
+          "assets/art",
+        ],
+        subtreeFor,
+      ),
+    ).toEqual([]);
+  });
+
+  it("keeps a sub-project whole when its folder under scripts/ is already taken", () => {
+    const paths = [
+      "main.sd",
+      "other/main.sd",
+      "other/tree.png",
+      "scripts/other/main.sd",
+      "scripts/other/notes.sd",
+    ];
+    expect(computeLayoutMigration(paths, subtreeFor)).toEqual([]);
+    expect(projectOf(paths, "other/tree.png")).toBe("other/");
+  });
+
+  it("keeps a sub-project rooted at a category folder together with its assets", () => {
+    expect(
+      computeLayoutMigration(
+        ["main.sd", "scripts/main.sd", "scripts/forest.svg"],
+        subtreeFor,
+      ),
+    ).toEqual([]);
+    expect(
+      computeLayoutMigration(
+        ["main.sd", "assets/main.sd", "assets/forest.svg", "scripts/intro.sd"],
+        subtreeFor,
+      ),
+    ).toEqual([]);
+  });
+
+  it("does not file a root-project script into a sub-project's folder", () => {
+    const paths = ["main.sd", LAYOUT_MARKER, "scripts/other/main.sd", "other/x.sd"];
+    expect(computeLayoutMigration(paths, subtreeFor)).toEqual([]);
+    expect(projectOf(paths, "other/x.sd")).toBe("");
   });
 
   it("keeps a nested sub-project inside its outermost sub-project's folder", () => {

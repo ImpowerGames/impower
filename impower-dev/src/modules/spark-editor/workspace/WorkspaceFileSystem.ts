@@ -56,6 +56,7 @@ import {
   FOLDER_SENTINEL,
   computeFolderMoves,
   computeLayoutMigration,
+  LAYOUT_MARKER,
   layoutSubtreeFor,
 } from "../utils/fileTree";
 
@@ -112,17 +113,23 @@ export default class WorkspaceFileSystem {
     let files = await this.readDirectoryFiles({
       directory: { uri: directoryUri },
     });
-    const migration = computeLayoutMigration(
-      files.map((f) => this.getRelativePath(projectId, f.uri)),
-      layoutSubtreeFor,
+    const relativePaths = files.map((f) =>
+      this.getRelativePath(projectId, f.uri),
     );
-    if (migration.length > 0) {
-      await this.renameFiles({
-        files: migration.map((m) => ({
-          oldUri: this.getFileUri(projectId, m.from),
-          newUri: this.getFileUri(projectId, m.to),
-        })),
-      });
+    const migration = computeLayoutMigration(relativePaths, layoutSubtreeFor);
+    const marked = relativePaths.includes(LAYOUT_MARKER);
+    if (migration.length > 0 || !marked) {
+      if (migration.length > 0) {
+        await this.renameFiles({
+          files: migration.map((m) => ({
+            oldUri: this.getFileUri(projectId, m.from),
+            newUri: this.getFileUri(projectId, m.to),
+          })),
+        });
+      }
+      if (!marked) {
+        await this.writeProjectMetadata(projectId, "layout", "1");
+      }
       files = await this.readDirectoryFiles({
         directory: { uri: directoryUri },
       });
@@ -368,10 +375,12 @@ export default class WorkspaceFileSystem {
         uri: this.getFileUri(projectId, filename),
         data,
       }));
+    const layoutMarkerUri = this.getFileUri(projectId, LAYOUT_MARKER);
     const zipFilesToDelete = Object.entries(existingFiles)
       .filter(
         ([uri, fileData]) =>
-          fileData.name && !zipFilesToWrite.some((file) => file.uri === uri),
+          (fileData.name || uri === layoutMarkerUri) &&
+          !zipFilesToWrite.some((file) => file.uri === uri),
       )
       .map(([uri]) => ({ uri }));
     await Promise.all([
