@@ -399,7 +399,7 @@ export class Game<T extends M = {}> {
   set simulateFlow(value) {
     this._simulateFlow = value;
     this._story.endsTunnelAtBase =
-      value != null && this._story.startsAtBranch(value);
+      value != null && this._story.startsAwayFromStoryStart(value);
   }
 
   protected _playedMenus: { sources: string[]; taken: string }[] = [];
@@ -3312,7 +3312,9 @@ export class Game<T extends M = {}> {
   }
 
   protected jumpEndsTunnelAtBase(address: ProgramAddress): boolean {
-    return this._story.root.branchAt(address) !== undefined;
+    const flow =
+      this._story.root.branchAt(address) ?? this._story.root.sceneAt(address);
+    return flow !== undefined && this._story.startsAwayFromStoryStart(flow);
   }
 
   jumpToFlow(flow: string) {
@@ -3320,7 +3322,7 @@ export class Game<T extends M = {}> {
     const plan = this.startPlan(flow);
     this._story.resetSeed = plan.seed;
     this._story.ResetState();
-    this._story.endsTunnelAtBase = this._story.startsAtBranch(flow);
+    this._story.endsTunnelAtBase = this._story.startsAwayFromStoryStart(flow);
     startStoryAt(this._story, plan);
   }
 

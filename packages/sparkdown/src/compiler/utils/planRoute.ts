@@ -830,7 +830,7 @@ const planRouteFaithful = (
   }
 
   try {
-    story.endsTunnelAtBase = story.startsAtBranch(from);
+    story.endsTunnelAtBase = story.startsAwayFromStoryStart(from);
     const start = reuse
       ? null
       : options?.resumeFrom
@@ -1588,7 +1588,7 @@ const makeStartNode = (
 };
 
 export const enterStart = (story: Story, from: string, start?: StartPlan) => {
-  story.endsTunnelAtBase = story.startsAtBranch(from);
+  story.endsTunnelAtBase = story.startsAwayFromStoryStart(from);
   if (start) {
     startStoryAt(story, { ...start, from });
     return;
