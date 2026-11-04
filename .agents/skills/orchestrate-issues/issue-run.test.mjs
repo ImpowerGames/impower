@@ -151,7 +151,7 @@ function writerAccountingChecks() {
   assert.equal(dispatched(observedLoad), 3, "the run dispatches every eligible ticket beside the three foreign writers");
   const fourteenth = onHost(31.1, writersOn(14));
   assert.equal(fourteenth.concurrency.capacityNow, 1, "fourteen writers across runs leave the fifteenth place");
-  assert.equal(dispatched(fourteenth), 1);
+  assert.equal(dispatched(fourteenth), 3, "the fifteenth place admits every eligible ticket, and the coordinator claims one");
   const full = onHost(31.1, writersOn(15));
   assert.equal(full.concurrency.capacityNow, 0);
   assert.ok(full.tickets.every((entry) => entry.action === "wait-capacity" && /Machine writer places are full: all 15 by total memory at 2 GiB per writer/.test(entry.reason)), "fifteen writers fill a 31.1 GiB host");
