@@ -4,32 +4,13 @@ import {
   makeMemoryDirectory,
   memoryRoot,
   writeMemoryFile,
+  memoryLocks,
 } from "./memoryOpfs";
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
-
-const memoryLocks = () => {
-  const tails = new Map<string, Promise<void>>();
-  return {
-    request: async <T>(name: string, task: () => Promise<T>): Promise<T> => {
-      const previous = tails.get(name) ?? Promise.resolve();
-      let release!: () => void;
-      const done = new Promise<void>((resolve) => {
-        release = resolve;
-      });
-      tails.set(name, previous.then(() => done));
-      await previous;
-      try {
-        return await task();
-      } finally {
-        release();
-      }
-    },
-  };
-};
 
 async function worker() {
   vi.resetModules();

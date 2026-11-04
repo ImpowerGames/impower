@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
+import { memoryLocks } from "./memoryOpfs";
 import { getOrCreateThumbnail } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
 import { COMMIT_SEQUENCE_FILE } from "../src/utils/commitSequence";
 
@@ -8,26 +9,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
-
-const memoryLocks = () => {
-  const tails = new Map<string, Promise<void>>();
-  return {
-    request: async <T>(name: string, task: () => Promise<T>): Promise<T> => {
-      const previous = tails.get(name) ?? Promise.resolve();
-      let release!: () => void;
-      const done = new Promise<void>((resolve) => {
-        release = resolve;
-      });
-      tails.set(name, previous.then(() => done));
-      await previous;
-      try {
-        return await task();
-      } finally {
-        release();
-      }
-    },
-  };
-};
 
 async function worker({ existing = true, fail = "", acquire = async () => {}, remove = async (_name: string) => {}, thumbnail: thumbnailGate = undefined as Promise<void> | undefined } = {}) {
   vi.resetModules();
@@ -58,6 +39,8 @@ async function worker({ existing = true, fail = "", acquire = async () => {}, re
       if (locked) throw new DOMException("already locked", "NoModificationAllowedError");
       locked = true;
       return {
+        getSize: vi.fn(() => bytes.length),
+        read: vi.fn((target: Uint8Array) => { target.set(bytes.subarray(0, target.length)); return Math.min(bytes.length, target.length); }),
         truncate: vi.fn(() => { bytes = new Uint8Array(); }),
         write: vi.fn((data: DataView | Uint8Array) => {
           if (fail === "write") throw new DOMException("full", "QuotaExceededError");

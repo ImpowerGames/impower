@@ -27,6 +27,16 @@ export const withLock = <T>(name: string, task: () => Promise<T>): Promise<T> =>
   return run;
 };
 
+export const withSharedLock = <T>(
+  name: string,
+  task: () => Promise<T>,
+): Promise<T> => {
+  const locks = sharedLocks();
+  return locks
+    ? (locks.request(name, { mode: "shared" }, task) as Promise<T>)
+    : task();
+};
+
 const readSequence = async (handle: FileSystemFileHandle) => {
   const value = Number.parseInt(await (await handle.getFile()).text(), 10);
   return Number.isFinite(value) ? value : 0;

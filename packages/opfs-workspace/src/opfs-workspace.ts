@@ -52,6 +52,7 @@ import {
   allocateCommit,
   readCommitSequence,
   withLock,
+  withSharedLock,
 } from "./utils/commitSequence";
 import debounce from "./utils/debounce";
 import {
@@ -170,9 +171,6 @@ const observeCommit = (commit: FileCommit) => {
 
 const heldCommit = (uri: string) => {
   let held = State.commits.get(uri);
-  if (held) {
-    return held;
-  }
   for (const [directoryUri, floor] of State.directoryFloors) {
     if (
       uri.startsWith(`${directoryUri}/`) &&
@@ -183,6 +181,8 @@ const heldCommit = (uri: string) => {
   }
   return held;
 };
+
+const NO_COMMIT: FileCommit = { sequence: -1, writer: "" };
 
 const raiseDirectoryFloor = (directoryUri: string, floor: FileCommit) => {
   const held = State.directoryFloors.get(directoryUri);
@@ -218,12 +218,23 @@ const withAncestors = (uri: string) => {
   return uris;
 };
 
+const commitLockName = (uri: string) => `opfs-workspace:commit:${uri}`;
+
+const withCommitLock = <T>(uri: string, task: () => Promise<T>) => {
+  const parents = withAncestors(uri).slice(1).reverse();
+  const lockFrom = (index: number): Promise<T> =>
+    index < parents.length
+      ? withSharedLock(commitLockName(parents[index]!), () => lockFrom(index + 1))
+      : withLock(commitLockName(uri), task);
+  return lockFrom(0);
+};
+
 const commitChange = <T>(
   lockUri: string,
   change: () => Promise<T>,
   changedUris: (result: T) => string[] = () => [lockUri],
 ) =>
-  withLock(`opfs-workspace:commit:${lockUri}`, async () => {
+  withCommitLock(lockUri, async () => {
     const result = await change();
     const uris = changedUris(result);
     if (uris.length === 0) {
@@ -422,11 +433,9 @@ const isStoredDirectory = async (uri: string) =>
     getPathFromUri(uri),
   )) != null;
 
-const withFileLock = <T>(uri: string, task: () => Promise<T>) =>
-  withLock(`opfs-workspace:commit:${uri}`, task);
 
 const readStoredFile = (uri: string) =>
-  withFileLock(uri, async () => {
+  withCommitLock(uri, async () => {
     const floor = await readFloor(await navigator.storage.getDirectory());
     const handle = await findFileHandle(uri);
     if (!handle) {
@@ -447,7 +456,7 @@ const readStoredFile = (uri: string) =>
   });
 
 const evictUnlessStored = (uri: string) =>
-  withFileLock(uri, async () => {
+  withCommitLock(uri, async () => {
     if (await findFileHandle(uri)) {
       return false;
     }
@@ -456,7 +465,7 @@ const evictUnlessStored = (uri: string) =>
   });
 
 const isStoredFile = (uri: string) =>
-  withFileLock(uri, async () => (await findFileHandle(uri)) != null);
+  withCommitLock(uri, async () => (await findFileHandle(uri)) != null);
 
 const reconcileRemoteMessage = async (message: any) => {
   const commits: FileCommits | undefined = message?.params?.commits;
@@ -1000,14 +1009,31 @@ const readDirectoryFiles = async (directoryUri: string) => {
     directoryPath,
     [TRASH_DIR],
   );
+  const listed = new Set(
+    directoryEntries.map((entry) => getUriFromPath(entry.path)),
+  );
   if (floor) {
     observeCommit(floor);
     raiseDirectoryFloor(directoryUri, floor);
+    for (const uri of [...State.files.keys()]) {
+      if (
+        uri.startsWith(`${directoryUri}/`) &&
+        !uri.includes(`/${TRASH_DIR}/`) &&
+        !listed.has(uri) &&
+        isSupersededCommit(State.commits.get(uri) ?? NO_COMMIT, floor)
+      ) {
+        evictFile(uri);
+        State.commits.set(uri, floor);
+      }
+    }
   }
   const files = await Promise.all(
     directoryEntries.map(async (entry) => {
       const uri = getUriFromPath(entry.path);
-      if (!State.files.get(uri)) {
+      const stale =
+        floor != null &&
+        isSupersededCommit(State.commits.get(uri) ?? NO_COMMIT, floor);
+      if (!State.files.get(uri) || stale) {
         if (needsTextAtEnumeration(uri)) {
           await readFile(uri, { floor });
         } else {
@@ -1365,6 +1391,7 @@ const writeToDisk = async (fileUri: string, buffer: DataView | Uint8Array) => {
   const filename = getFileName(relativePath);
   let directoryHandle: FileSystemDirectoryHandle | undefined;
   let syncAccessHandle: FileSystemSyncAccessHandle | undefined;
+  let previous: Uint8Array | undefined;
   let created = false;
   try {
     const root = await navigator.storage.getDirectory();
@@ -1381,6 +1408,10 @@ const writeToDisk = async (fileUri: string, buffer: DataView | Uint8Array) => {
     });
     created = missing;
     syncAccessHandle = await fileHandle.createSyncAccessHandle();
+    if (!missing) {
+      previous = new Uint8Array(syncAccessHandle.getSize());
+      syncAccessHandle.read(previous, { at: 0 });
+    }
     syncAccessHandle.truncate(0);
     const written = syncAccessHandle.write(buffer, { at: 0 });
     if (written !== buffer.byteLength) throw new Error(`Wrote ${written} of ${buffer.byteLength} bytes`);
@@ -1391,10 +1422,24 @@ const writeToDisk = async (fileUri: string, buffer: DataView | Uint8Array) => {
   } catch (err: any) {
     let failure = err;
     try {
+      if (syncAccessHandle && previous) {
+        syncAccessHandle.truncate(0);
+        const restored = syncAccessHandle.write(previous, { at: 0 });
+        if (restored !== previous.byteLength) {
+          throw new Error(`Restored ${restored} of ${previous.byteLength} bytes`);
+        }
+        syncAccessHandle.flush();
+      }
+    } catch (restoreError) {
+      failure = new Error(
+        `${String(err)}; restoring the previous bytes failed: ${String(restoreError)}`,
+      );
+    }
+    try {
       syncAccessHandle?.close();
       if (created) await directoryHandle?.removeEntry(filename);
     } catch (cleanupError) {
-      failure = new Error(`${String(err)}; cleanup failed: ${String(cleanupError)}`);
+      failure = new Error(`${String(failure)}; cleanup failed: ${String(cleanupError)}`);
     }
     throw failure;
   }

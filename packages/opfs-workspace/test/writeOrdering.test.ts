@@ -7,6 +7,7 @@ import {
   makeMemoryDirectory,
   memoryRoot,
   writeMemoryFile,
+  memoryLocks,
 } from "./memoryOpfs";
 
 const enc = new TextEncoder();
@@ -19,26 +20,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
-
-const memoryLocks = () => {
-  const tails = new Map<string, Promise<void>>();
-  return {
-    request: async <T>(name: string, task: () => Promise<T>): Promise<T> => {
-      const previous = tails.get(name) ?? Promise.resolve();
-      let release!: () => void;
-      const done = new Promise<void>((resolve) => {
-        release = resolve;
-      });
-      tails.set(name, previous.then(() => done));
-      await previous;
-      try {
-        return await task();
-      } finally {
-        release();
-      }
-    },
-  };
-};
 
 const seed = (files: Record<string, string | number[]>, folders: string[] = []) => {
   const root = memoryRoot();
@@ -580,7 +561,77 @@ describe("notifications without commits, from a tab on an older build (I-1893)",
   });
 });
 
+describe("listing storage after earlier notifications (I-1893)", () => {
+  it("drops a delayed write older than a listing that no longer holds the file, even after an earlier create was accepted", async () => {
+    const root = seed({ "a.sd": "OLD" });
+    const h = await worker(root);
+    const tab = otherTab(root);
+    const created = await tab.commit();
+    await h.remote("workspace/didCreateFiles", {
+      files: [{ uri: uriOf("a.sd") }],
+      commits: { [uriOf("a.sd")]: created },
+    });
+    await tab.remove("a.sd");
+    expect((await h.enumerate()).result).toEqual([]);
+    const before = h.messages.length;
+    await h.remote("workspace/didWriteFiles", {
+      files: [fileData("a.sd", "OLD")],
+      commits: { [uriOf("a.sd")]: created },
+    });
+    expect(h.writtenTexts("a.sd", before)).toEqual([]);
+    expect(
+      await h.request("edit", "workspace/applyWorkspaceEdit", {
+        edit: { documentChanges: [insert("a.sd", 3, "!")] },
+      }),
+    ).toMatchObject({ result: { applied: false } });
+    expect(textAt(root, "a.sd")).toBeUndefined();
+  });
+
+  it("reads a cached file again when a listing is newer than the commit it holds", async () => {
+    const root = seed({ "a.sd": "A" });
+    const h = await worker(root);
+    await h.enumerate();
+    const tab = otherTab(root);
+    const newer = await tab.write("a.sd", "NEWER");
+    expect((await h.cached("a.sd")).text).toBe("NEWER");
+    const before = h.messages.length;
+    await h.remote("workspace/didWriteFiles", {
+      files: [fileData("a.sd", "NEWER")],
+      commits: { [uriOf("a.sd")]: newer },
+    });
+    expect(h.writtenTexts("a.sd", before)).toEqual(["NEWER"]);
+  });
+});
+
 describe("directory notifications (I-1893)", () => {
+  it("numbers a directory removal and a write inside it in the order they reach storage", async () => {
+    const root = seed({ "a.sd": "A" }, ["d"]);
+    const h = await worker(root);
+    const project = root.entries.get("local") as MemoryDirectory;
+    const remove = project.removeEntry.bind(project);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    project.removeEntry = async (name: string, options?: { recursive?: boolean }) => {
+      await remove(name, options);
+      if (name === "d") await gate;
+    };
+    h.start("rmdir", "workspace/directories", { action: "delete", uris: [uriOf("d")] });
+    await vi.advanceTimersByTimeAsync(50);
+    h.start("write", "workspace/willWriteFiles", writeOf("d/x.sd", "NEW", "editor"));
+    await vi.advanceTimersByTimeAsync(250);
+    expect(h.response("write")).toBeUndefined();
+    release();
+    await vi.advanceTimersByTimeAsync(250);
+    expect(h.response("rmdir")).toMatchObject({ result: { uris: [uriOf("d")] } });
+    expect(h.response("write")).toMatchObject({ result: [{ text: "NEW" }] });
+    const removal = h.notifications("workspace/didChangeDirectories").at(-1).params.commits[uriOf("d")];
+    const write = h.notifications("workspace/didWriteFiles").at(-1).params.commits[uriOf("d/x.sd")];
+    expect(write.sequence).toBeGreaterThan(removal.sequence);
+    expect(textAt(root, "d/x.sd")).toBe("NEW");
+  });
+
   it("drops a delayed deletion of a directory this tab recreated by creating a folder inside it", async () => {
     const root = seed({ "a.sd": "A" }, ["d"]);
     const h = await worker(root);
@@ -747,6 +798,34 @@ describe("renaming files (I-1910)", () => {
     expect(textAt(root, "a.sd")).toBeUndefined();
     const trashed = listMemory(root, "local").find((p) => /^\.trash\/[^/]+\/a\.sd$/.test(p));
     expect(trashed && textAt(root, trashed)).toBe("QUEUED");
+  });
+
+  it("keeps both files when the rename's write onto an existing destination fails", async () => {
+    const root = seed({ "a.sd": "SOURCE", "b.sd": "DESTINATION" });
+    const destination = fileAt(root, "b.sd")!;
+    const access = destination.createSyncAccessHandle.bind(destination);
+    destination.createSyncAccessHandle = async () => {
+      const handle = await access();
+      let failed = false;
+      return {
+        ...handle,
+        write: (data: DataView | Uint8Array) => {
+          if (!failed) {
+            failed = true;
+            throw new DOMException("disk full", "QuotaExceededError");
+          }
+          return handle.write(data);
+        },
+      };
+    };
+    const h = await worker(root);
+    expect(
+      await h.request("rename", "workspace/willRenameFiles", {
+        files: [{ oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") }],
+      }),
+    ).toHaveProperty("error");
+    expect(textAt(root, "a.sd")).toBe("SOURCE");
+    expect(textAt(root, "b.sd")).toBe("DESTINATION");
   });
 
   it("leaves a file renamed onto itself in place and in the cache", async () => {
