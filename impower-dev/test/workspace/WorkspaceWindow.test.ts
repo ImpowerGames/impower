@@ -5,6 +5,7 @@ import {
 import { ChangedEditorRoutePinsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorRoutePinsMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPaneMessage";
+import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
@@ -205,6 +206,49 @@ describe("WorkspaceWindow store transitions", () => {
     expect(workspace.current.panes.logic.panels.main!.activeEditor?.filename).toBe(
       "main.sd",
     );
+  });
+
+  it("showDocument resolves with success for a script and failure for a file with no editor", async () => {
+    const projectId = workspace.current.project.id;
+    await expect(
+      win.showDocument(`file://${projectId}/scripts/intro.sd`, {
+        start: { line: 1, character: 0 },
+        end: { line: 1, character: 0 },
+      }),
+    ).resolves.toEqual({ success: true });
+    await expect(
+      win.showDocument(`file://${projectId}/assets/hero.png`),
+    ).resolves.toEqual({ success: false });
+  });
+
+  it("answers a window/showDocument request with its response", async () => {
+    const projectId = workspace.current.project.id;
+    const responses: unknown[] = [];
+    const listener = (e: Event) => {
+      if (
+        e instanceof CustomEvent &&
+        ShowDocumentMessage.type.isResponse(e.detail)
+      ) {
+        responses.push(e.detail);
+      }
+    };
+    window.addEventListener(MessageProtocol.event, listener);
+    try {
+      const request = ShowDocumentMessage.type.request({
+        uri: `file://${projectId}/scripts/intro.sd`,
+      });
+      sendProtocolMessage(request);
+      await vi.waitFor(() =>
+        expect(responses).toEqual([
+          expect.objectContaining({
+            id: request.id,
+            result: { success: true },
+          }),
+        ]),
+      );
+    } finally {
+      window.removeEventListener(MessageProtocol.event, listener);
+    }
   });
 
   it("closeFileEditor by nested path closes that editor", () => {
