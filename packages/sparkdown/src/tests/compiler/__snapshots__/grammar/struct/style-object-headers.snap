@@ -31,9 +31,9 @@ sparkdown [0..119]
  │   │       │   │   │   │           └─ SimpleSelectorFunction [19..35]
  │   │       │   │   │   │               ├─ SimpleSelectorFunction_begin [19..31]
  │   │       │   │   │   │               │   ├─ SimpleSelectorFunction_begin_c1 [19..20]
- │   │       │   │   │   │               │   │   └─ EventAttributeOperator [19..20]: "@"
+ │   │       │   │   │   │               │   │   └─ SelectorStateOperator [19..20]: "@"
  │   │       │   │   │   │               │   └─ SimpleSelectorFunction_begin_c2 [20..31]
- │   │       │   │   │   │               │       └─ EventAttributeName [20..31]: "screen-size"
+ │   │       │   │   │   │               │       └─ SelectorStateName [20..31]: "screen-size"
  │   │       │   │   │   │               ├─ SimpleSelectorFunction_content [31..35]
  │   │       │   │   │   │               │   └─ SimpleSelectorFunctionParameters [31..35]
  │   │       │   │   │   │               │       ├─ SimpleSelectorFunctionParameters_begin [31..32]
