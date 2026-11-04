@@ -7,6 +7,12 @@ import {
   parseImageFilterParam,
   type ImageFilter,
 } from "../../../packages/sparkdown/src/filters/filteredSvg";
+import {
+  parseMorphAssetRequest,
+  serveMorphAsset,
+  type MorphAssetRequest,
+} from "../../../packages/sparkdown/src/morph/assetService";
+import { MorphBakeService } from "../../../packages/sparkdown/src/morph/service";
 
 export {};
 declare const self: ServiceWorkerGlobalScope;
@@ -14,6 +20,10 @@ declare const self: ServiceWorkerGlobalScope;
 const RESOURCE_PROTOCOL: string = "/file:/";
 
 const SW_FILTERED_CACHE_NAME: string = "filtered-svgs-attributes-v3";
+
+const SW_MORPH_CACHE_NAME: string = "morph-artifacts";
+
+const morphService = new MorphBakeService();
 
 const _listeners: Set<(message: any) => void> = new Set();
 
@@ -45,13 +55,7 @@ async function sendRequest<M extends string, P, R>(
 
 const inFlightFilteredSvgs: Map<string, Promise<string>> = new Map();
 
-async function generateFilteredSvg(
-  url: URL,
-  path: string,
-  clientId: string,
-  filter: ImageFilter,
-  attributesParam: string,
-): Promise<string> {
+async function relayAsset(clientId: string, path: string): Promise<ArrayBuffer> {
   const client = await self.clients.get(clientId);
   if (!client) {
     throw new Error(`no client ${clientId}`);
@@ -61,6 +65,17 @@ async function generateFilteredSvg(
   });
   const buffer = transfer[0];
   if (!buffer) throw new Error("Asset relay returned no bytes");
+  return buffer;
+}
+
+async function generateFilteredSvg(
+  url: URL,
+  path: string,
+  clientId: string,
+  filter: ImageFilter,
+  attributesParam: string,
+): Promise<string> {
+  const buffer = await relayAsset(clientId, path);
   const filtered = filterSVG(normalizeSVGAttributeNames(new TextDecoder().decode(buffer)), filter);
   try {
     const cache = await caches.open(SW_FILTERED_CACHE_NAME);
@@ -86,14 +101,59 @@ async function generateFilteredSvg(
   return filtered;
 }
 
+async function serveMorph(
+  path: string,
+  filename: string,
+  clientId: string,
+  request: MorphAssetRequest,
+): Promise<Response> {
+  const buffer = await relayAsset(clientId, path);
+  const file = new File([buffer], filename, {
+    type: "image/svg+xml",
+    lastModified: 0,
+  });
+  let cache: Cache | undefined;
+  try {
+    cache = await caches.open(SW_MORPH_CACHE_NAME);
+  } catch {}
+  return serveMorphAsset({
+    service: morphService,
+    ...(cache
+      ? {
+          cache: {
+            match: (key) => cache.match(key),
+            put: (key, response) => cache.put(key, response),
+            delete: (key) => cache.delete(key),
+            keys: () => cache.keys(),
+          },
+        }
+      : {}),
+    path,
+    file,
+    request,
+    keyPrefix: RESOURCE_PROTOCOL,
+  });
+}
+
 async function handleLocalAssetRequest(url: URL, clientId: string) {
   const path = url.pathname.replace(RESOURCE_PROTOCOL, "");
   const filename = path.split("/").at(-1);
   const contentType = guessType(filename || "");
 
+  const morphRequest =
+    contentType === "image/svg+xml"
+      ? parseMorphAssetRequest(url.searchParams)
+      : undefined;
+  if (morphRequest === "invalid") {
+    return new Response("Unreadable morph request", {
+      status: 400,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
+
   const attributesParam = url.searchParams.get("attributes");
   const filter =
-    attributesParam && contentType === "image/svg+xml"
+    !morphRequest && attributesParam && contentType === "image/svg+xml"
       ? parseImageFilterParam(attributesParam)
       : undefined;
 
@@ -114,6 +174,10 @@ async function handleLocalAssetRequest(url: URL, clientId: string) {
   }
 
   try {
+    if (morphRequest) {
+      return await serveMorph(path, filename || "", clientId, morphRequest);
+    }
+
     if (filter) {
       const generation = generateFilteredSvg(
         url,
@@ -132,30 +196,17 @@ async function handleLocalAssetRequest(url: URL, clientId: string) {
       }
     }
 
-    const client = await self.clients.get(clientId);
-    if (client) {
-      const { transfer } = await sendRequest(
-        client,
-        FetchGameAssetMessage.type,
-        {
-          path,
-        },
-      );
-      const buffer = transfer[0];
-      if (!buffer) throw new Error("Asset relay returned no bytes");
-
-      const contentLength = buffer.byteLength;
-      const headers = new Headers({
-        "Content-Type": contentType,
-        "Content-Length": String(contentLength),
-        "Accept-Ranges": "bytes",
-        "Cache-Control": "max-age=31536000, immutable",
-        "Content-Disposition": filename
-          ? `attachment; filename="${filename}"`
-          : "inline",
-      });
-      return new Response(buffer, { status: 200, headers });
-    }
+    const buffer = await relayAsset(clientId, path);
+    const headers = new Headers({
+      "Content-Type": contentType,
+      "Content-Length": String(buffer.byteLength),
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "max-age=31536000, immutable",
+      "Content-Disposition": filename
+        ? `attachment; filename="${filename}"`
+        : "inline",
+    });
+    return new Response(buffer, { status: 200, headers });
   } catch {}
   return new Response("Not Found", {
     status: 404,
