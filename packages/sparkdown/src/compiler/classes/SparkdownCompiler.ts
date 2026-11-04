@@ -106,7 +106,6 @@ import type { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import type { ProgramChangeSummary } from "../types/ProgramChangeSummary";
 import type { SparkProgram } from "../types/SparkProgram";
 import type { SparkSelector } from "../types/SparkSelector";
-import { getBuiltinTypeNames, setBuiltinTypeNames } from "../utils/builtinTypeNames";
 import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
 import { collectLayerNames } from "../utils/collectLayerNames";
 import { scopeDefineInstances } from "../utils/scopeDefineInstances";
@@ -285,7 +284,6 @@ function getCompiledPrelude(): {
     root: result.program.chunks,
     sparkle: result.program.sparkle ?? {},
   };
-  setBuiltinTypeNames(Object.keys(_cachedPrelude.context));
   return _cachedPrelude;
 }
 
@@ -325,8 +323,14 @@ function getPreludeGlobalNames(): Set<string> {
   return _preludeGlobalNames;
 }
 
+let _preludeTypeNames: Set<string> | undefined;
+function getPreludeTypeNames(): Set<string> {
+  _preludeTypeNames ??= new Set(Object.keys(getCompiledPrelude().context));
+  return _preludeTypeNames;
+}
+
 export function lintBuiltinNames(): Set<string> {
-  return new Set([...getPreludeGlobalNames(), ...getBuiltinTypeNames()]);
+  return new Set([...getPreludeGlobalNames(), ...getPreludeTypeNames()]);
 }
 
 export function declaredGlobalNames(root: ProgramRoot): Set<string> {
@@ -631,6 +635,11 @@ export class SparkdownCompiler {
 
   protected _compilationConfig: CompilationConfig = {
     recordLoweringReads: true,
+    builtinTypeNames: {
+      has: (name) =>
+        this._config.useBuiltinsPrelude === true &&
+        getPreludeTypeNames().has(name),
+    },
   };
   protected _chunkStore?: ChunkStore;
   protected _placedBy = new WeakMap<ParsedObject, object>();
@@ -837,9 +846,6 @@ export class SparkdownCompiler {
     }
     if (config.files !== undefined && config.files !== this._config.files) {
       this._config.files = config.files;
-      if (this._config.useBuiltinsPrelude) {
-        getCompiledPrelude();
-      }
       for (const file of config.files) {
         if (
           file.type === "script" &&
