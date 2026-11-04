@@ -481,6 +481,51 @@ describe("a scene's own lines", () => {
     ).toEqual(got("Got 3 3."));
   });
 
+  test.each([
+    ["scene", "directly", ["Got {math.abs(-1)}."]],
+    ["scene", "through a closure", ["local f = function() return math.abs(-1) end", "Got {f()}."]],
+    ["branch", "directly", ["Got {math.abs(-1)}."]],
+    ["branch", "through a closure", ["local f = function() return math.abs(-1) end", "Got {f()}."]],
+  ])(
+    "the then clause in the %s calls the stdlib namespace the last choice's local names when an earlier choice ran, %s",
+    (where, _, reads) => {
+      const then = where === "scene" ? reads : ["-> b"];
+      expect(
+        runPicking([0], [
+          "scene start",
+          "  choose",
+          "    + [A]",
+          "      A.",
+          "    + [B]",
+          `      local math = ${mathTable}`,
+          "  then",
+          ...then.map((line) => `    ${line}`),
+          "  end",
+          ...(where === "branch" ? ["  branch b", ...reads.map((line) => `    ${line}`), "  end"] : []),
+          "end",
+        ]),
+      ).toEqual(got("A.", "Got 1."));
+    },
+  );
+
+  test("a closure in the then clause reads the last choice's local when that choice ran", () => {
+    expect(
+      runPicking([1], [
+        "scene start",
+        "  choose",
+        "    + [A]",
+        "      A.",
+        "    + [B]",
+        "      local foo = 4",
+        "  then",
+        "    local f = function() return foo end",
+        "    Got {foo} {f()}.",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("Got 4 4."));
+  });
+
   test("a closure in the outer then clause reads the local of a choice of a choose in the preamble", () => {
     expect(
       runPicking([0], [

@@ -343,7 +343,7 @@ export class RootLocals {
           ? deferred
           : {
               hidden: next ? [...deferred.hidden, { from: next.from, to: choicesEnd }] : deferred.hidden,
-              certainTo: Math.min(deferred.certainTo, next ? next.from : content.to),
+              certainTo: Math.min(deferred.certainTo, next ? next.from : choicesEnd),
               pending: [],
             },
         read,
