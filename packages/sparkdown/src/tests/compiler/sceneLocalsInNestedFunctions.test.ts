@@ -57,7 +57,7 @@ describe("a function written in a flow reads the flow's locals declared above it
     ["a branch's own line reading its scene's local", "scene main\n  local foo = 5\n  branch b\n    Got {foo}.\n  end\nend\n"],
     [
       "a branch's own line reading its scene's locals declared together, in a choice's `then` body and as a local function",
-      "scene main\n  & local first = 5; local second = 7\n  choose\n    + [Go]\n      Went.\n  then\n    local chosen = 9\n  end\n  local function helper() return first end\n  branch b\n    local result = second\n    Got {first} {result} {chosen} {helper()}.\n  end\nend\n",
+      "scene main\n  & local first = 5; local second = 7\n  choose\n    + [Go]\n      Went.\n  then\n    local chosen = 9\n  end\n  local function helper() return first end\n  branch b\n    local result = second\n    local picked = chosen\n    local helped = helper()\n    Got {first} {result} {picked} {helped}.\n  end\nend\n",
     ],
     [
       "a local function in a branch reading its scene's local",
