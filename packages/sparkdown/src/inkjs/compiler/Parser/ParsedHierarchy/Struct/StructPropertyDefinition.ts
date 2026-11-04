@@ -43,6 +43,9 @@ export class StructPropertyDefinition extends ParsedObject {
     if (expression instanceof StringExpression) {
       if (!expression.isSingleString) {
         fail("Property strings cannot contain any logic.");
+        if (!report) {
+          return undefined;
+        }
       }
       return expression.toString();
     }
@@ -52,13 +55,26 @@ export class StructPropertyDefinition extends ParsedObject {
         entries.length > 0 &&
         entries.every((entry, i) => entry.key === String(i + 1))
       ) {
-        return entries.map((entry) => this.ValueOf(entry.value, false));
+        const items: unknown[] = [];
+        for (const entry of entries) {
+          const item = this.ValueOf(entry.value, false);
+          if (item === undefined) {
+            return undefined;
+          }
+          items.push(item);
+        }
+        return items;
       }
       const value: Record<string, unknown> = {};
       for (const entry of entries) {
-        if (typeof entry.key === "string") {
-          value[entry.key] = this.ValueOf(entry.value, false);
+        if (typeof entry.key !== "string") {
+          return undefined;
         }
+        const field = this.ValueOf(entry.value, false);
+        if (field === undefined) {
+          return undefined;
+        }
+        value[entry.key] = field;
       }
       return value;
     }

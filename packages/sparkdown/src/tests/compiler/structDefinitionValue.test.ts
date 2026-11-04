@@ -28,6 +28,8 @@ define alice as character with
   name = "Alice"
   portrait = { mood = "happy", size = 2 }
   tags = { "a", "b" }
+  mixed = { dropped = math.max(1, 2), kept = "yes" }
+  listed = { "a", math.max(1, 2) }
 end
 
 scene start
@@ -55,5 +57,15 @@ describe("a define's struct definition value", () => {
 
   test("serializes an array-valued property's items", () => {
     expect(alice?.tags).toEqual(["a", "b"]);
+  });
+
+  test("omits a table property holding a value it cannot carry, as context does", () => {
+    expect(Object.keys(alice ?? {})).not.toContain("mixed");
+    expect(Object.keys(alice ?? {})).not.toContain("listed");
+    const context = program.context?.character?.alice;
+    expect(Object.keys(context ?? {})).not.toContain("mixed");
+    expect(Object.keys(context ?? {})).not.toContain("listed");
+    expect(context?.portrait).toEqual(alice?.portrait);
+    expect(context?.tags).toEqual(alice?.tags);
   });
 });

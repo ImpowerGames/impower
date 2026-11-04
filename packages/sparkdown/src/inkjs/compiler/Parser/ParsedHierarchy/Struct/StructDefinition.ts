@@ -64,19 +64,24 @@ export class StructDefinition extends ParsedObject {
 
   BuildValue(propertyDefinitions: StructPropertyDefinition[]) {
     const value: Record<string, unknown> = {};
+    const seen = new Set<string>();
     for (const prop of propertyDefinitions) {
       const name = prop.identifier?.name;
       if (!name) {
         continue;
       }
-      if (value[name] !== undefined) {
+      if (seen.has(name)) {
         this.Error(
           `Duplicate identifier \`${name}\``,
           prop.identifier!.debugMetadata,
         );
         continue;
       }
-      value[name] = prop.GetValue();
+      seen.add(name);
+      const propValue = prop.GetValue();
+      if (propValue !== undefined) {
+        value[name] = propValue;
+      }
     }
     return value;
   }
