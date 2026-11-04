@@ -1027,6 +1027,7 @@ for (const [label, command, shell] of allows) {
     ["gh pr edit --title", "gh pr edit 12 --title x"],
     ["gh pr edit --body", "gh pr edit 12 --body x"],
     ["gh pr edit --body-file", "gh pr edit 12 --body-file b.md"],
+    ["gh pr edit -R code --body-file", `gh pr edit 12 -R ${code} --body-file b.md`],
     ["gh run list", "gh run list --branch feat/1962-x"],
     ["gh run view --log-failed", "gh run view 5 --log-failed"],
     ["gh api one pull request", `gh api repos/${code}/pulls/12 --jq .body`],
@@ -1129,7 +1130,9 @@ for (const [label, command, shell] of allows) {
     timed("a 300 KB search query", `gh search issues "${"repo:a/b ".repeat(30000)}"`);
   }
   const reason = decideWith("gh issue view 12", "bash", { repos: ON });
-  check(reason.includes(`live in ${internal}`) && /opens a pull request as a draft, pushes to it and marks it ready or back to draft, nothing else/.test(reason) && reason.includes(`-R ${internal}`), "the guard's reason names the internal repository and the public contract", JSON.stringify(reason));
+  check(reason.includes(`live in ${internal}`) && /opens a pull request as a draft, pushes to it, edits its title and body with gh pr edit --title, --body or --body-file, and marks it ready or back to draft, nothing else/.test(reason) && reason.includes(`-R ${internal}`), "the guard's reason names the internal repository and the public contract", JSON.stringify(reason));
+  const editReason = decideWith(`gh pr edit 12 -R ${code} --add-assignee @me`, "bash", { repos: ON });
+  check(typeof editReason === "string" && editReason.includes("edits its title and body with gh pr edit --title, --body or --body-file") && editReason.includes("Only --title, --body and --body-file may change"), "the gh pr edit refusal names the permitted title and body edits", JSON.stringify(editReason));
   for (const command of ["gh issue view 12", "gh pr comment 12 --body x", "gh pr view 12 --comments", `gh api repos/${code}/issues/12/comments --paginate`, `gh issue create --title x --body y --type Task --repo ${code}`]) {
     check(decideWith(command, undefined, { repos: OFF }) === null, `switch off, allowed as today: ${command}`);
   }

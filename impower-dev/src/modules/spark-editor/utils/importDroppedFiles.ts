@@ -1,4 +1,4 @@
-import { FOLDER_SENTINEL } from "./fileTree";
+import { FOLDER_SENTINEL, layoutSubtreeFor, routeIntoLayout } from "./fileTree";
 import { recordResolvedUpload } from "./fileUndo";
 import { runImport } from "./importProgress";
 import { isScriptPath } from "./scriptFiles";
@@ -26,9 +26,18 @@ export async function importDroppedFiles(
   if (items.length === 0) {
     return;
   }
+  const { Workspace } = await import("../workspace/Workspace");
+  const existingPaths = Object.keys(await Workspace.fs.getFiles(projectId)).map(
+    (uri) => Workspace.fs.getRelativePath(projectId, uri),
+  );
+  const routed = routeIntoLayout(
+    items.map((it) => escapeSentinel(it.rel)),
+    existingPaths,
+    layoutSubtreeFor,
+  );
   await resolveUploadConflicts(
     projectId,
-    items.map((it) => ({ rel: escapeSentinel(it.rel), payload: it })),
+    items.map((it, i) => ({ rel: routed[i]!, payload: it })),
     async ({ survivors, trashedOldUris, since }) => {
       const newUris = survivors.map((s) => s.uri);
       let wrote = false;
@@ -42,7 +51,6 @@ export async function importDroppedFiles(
                 return { uri: s.uri, data };
               }),
             );
-            const { Workspace } = await import("../workspace/Workspace");
             await Workspace.fs.createFiles({ files });
             if (newUris.some(isScriptPath)) {
               await Workspace.window.recordScriptChange();

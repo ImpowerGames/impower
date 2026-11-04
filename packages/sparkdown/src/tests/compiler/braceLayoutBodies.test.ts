@@ -565,7 +565,7 @@ layout hud {
       expect(errorsOf(braced)).toEqual([]);
     });
 
-    test("inside a block, a call nested deeper than that runs to the end of its line, and is reported, while braces nested deeper are read whole", () => {
+    test("inside a block, calls, values and braces nested deeper than that are read whole", () => {
       const text = `component card(t) {
   slot
 }
@@ -604,15 +604,13 @@ layout e {
   }
 }
 `;
-      const errors = errorsOf(text);
-      for (const line of [16, 22, 28]) {
-        expect(errors.some((e) => e.line === line)).toBe(true);
-      }
-      expect(errors.filter((e) => e.line === 10 || e.line === 34)).toEqual([]);
+      expect(errorsOf(text)).toEqual([]);
       for (const name of ["b", "c", "d"]) {
         const [column] = lowered(text, "layout", name).tree.children;
         expect(column.children).toHaveLength(1);
-        expect(column.children[0].children).toEqual([]);
+        expect(
+          column.children[0].children.map((c: any) => c.content[0].text),
+        ).toEqual(["body"]);
       }
       const [handlerColumn] = lowered(text, "layout", "a").tree.children;
       expect(

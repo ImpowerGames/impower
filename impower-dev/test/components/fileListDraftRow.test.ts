@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const fs = vi.hoisted(() => ({
   getFiles: vi.fn(async () => ({})),
   getFileUri: (projectId: string, path: string) => `file://${projectId}/${path}`,
+  getRelativePath: (projectId: string, uri: string) =>
+    uri.slice(`file://${projectId}/`.length),
   createFiles: vi.fn(async () => undefined),
 }));
 
@@ -152,6 +154,33 @@ describe("FileList new-file draft row", () => {
       files: [{ uri: "file://p/scripts/intro.sd", data: expect.any(ArrayBuffer) }],
     });
   });
+
+  it.each([
+    ["scripts", "png", "hero", "assets/hero.png"],
+    ["assets", "sd", "intro", "scripts/intro.sd"],
+    ["scripts", "sd", "intro", "scripts/intro.sd"],
+  ])(
+    "files a %s .%s draft where the layout migration would place it",
+    async (rootDir, ext, name, expected) => {
+      const host = await mountWithDraft(rootDir, ext);
+      const input = host.querySelector<HTMLInputElement>("[data-tree-row] input")!;
+
+      await act(async () => {
+        input.value = name;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await act(async () => {
+        input.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+        );
+      });
+      await settle();
+
+      expect(fs.createFiles).toHaveBeenCalledWith({
+        files: [{ uri: `file://p/${expected}`, data: expect.any(ArrayBuffer) }],
+      });
+    },
+  );
 
   it.each([
     ["scripts", "luau", "util", true],

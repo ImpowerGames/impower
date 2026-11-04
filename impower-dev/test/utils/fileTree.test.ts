@@ -2,18 +2,22 @@ import { describe, expect, it } from "vitest";
 import {
   breadcrumbSegments,
   buildFileTree,
+  canWriteLayoutMarker,
   childrenRows,
   computeFolderMoves,
   computeLayoutMigration,
+  computeLayoutMigrationBatches,
   computeStickyRows,
   descendantPaths,
   filterPaths,
   flattenVisibleRows,
   FOLDER_SENTINEL,
+  LAYOUT_MARKER,
   layoutSubtreeFor,
   resolveScopePath,
   subtreeChildren,
 } from "../../src/modules/spark-editor/utils/fileTree";
+import { isInProject } from "@impower/sparkdown/src/compiler/utils/projectMembership";
 
 describe("buildFileTree", () => {
   it("keeps flat files at the top level, grouped by extension then name", () => {
@@ -454,6 +458,370 @@ describe("computeLayoutMigration", () => {
           "assets/hero.png",
           "assets/urls/song.url",
           "main.sd",
+        ],
+        subtreeFor,
+      ),
+    ).toEqual([]);
+  });
+
+  const applyMoves = (
+    paths: string[],
+    moves: { from: string; to: string }[],
+  ): string[] => {
+    const renamed = new Map(moves.map((m) => [m.from, m.to]));
+    return paths.map((p) => renamed.get(p) ?? p);
+  };
+
+  const projectOf = (paths: string[], path: string): string => {
+    const has = (uri: string) => paths.includes(uri);
+    const roots = paths
+      .filter((p) => p === "main.sd" || p.endsWith("/main.sd"))
+      .map((p) => p.slice(0, p.length - "main.sd".length))
+      .filter((root) => isInProject(root, path, "main.sd", has))
+      .sort((a, b) => b.length - a.length);
+    return roots[0] ?? "";
+  };
+
+  it("keeps a sub-project's scripts and assets in one folder so they share its project", () => {
+    const paths = [
+      "main.sd",
+      "forest.svg",
+      "other/main.sd",
+      "other/lib.luau",
+      "other/assets/forest.svg",
+      "other/song.url",
+    ];
+    const migrated = applyMoves(paths, computeLayoutMigration(paths, subtreeFor));
+    expect(migrated).toEqual([
+      "main.sd",
+      "assets/forest.svg",
+      "scripts/other/main.sd",
+      "scripts/other/lib.luau",
+      "scripts/other/assets/forest.svg",
+      "scripts/other/song.url",
+    ]);
+    expect(projectOf(migrated, "scripts/other/assets/forest.svg")).toBe(
+      "scripts/other/",
+    );
+    expect(projectOf(migrated, "scripts/other/lib.luau")).toBe(
+      "scripts/other/",
+    );
+    expect(projectOf(migrated, "assets/forest.svg")).toBe("");
+    expect(computeLayoutMigration(migrated, subtreeFor)).toEqual([]);
+  });
+
+  it("repairs a sub-project an earlier migration split between scripts/ and assets/", () => {
+    const paths = [
+      "main.sd",
+      "assets/forest.svg",
+      "scripts/other/main.sd",
+      "scripts/other/lib.luau",
+      "assets/other/assets/forest.svg",
+      "assets/urls/other/song.url",
+      "assets/elsewhere/hero.png",
+    ];
+    const moves = computeLayoutMigration(paths, subtreeFor);
+    expect(moves).toEqual([
+      {
+        from: "assets/other/assets/forest.svg",
+        to: "scripts/other/assets/forest.svg",
+      },
+      { from: "assets/urls/other/song.url", to: "scripts/other/song.url" },
+    ]);
+    expect(
+      computeLayoutMigration(applyMoves(paths, moves), subtreeFor),
+    ).toEqual([]);
+    expect(
+      computeLayoutMigration(
+        [...applyMoves(paths, moves), LAYOUT_MARKER],
+        subtreeFor,
+      ),
+    ).toEqual([]);
+  });
+
+  it("repairs only before the layout marker exists, so a root asset placed under assets/<sub>/ later stays in the root project", () => {
+    const paths = [
+      "main.sd",
+      LAYOUT_MARKER,
+      "scripts/other/main.sd",
+      "assets/other/root.png",
+      "assets/urls/other/song.url",
+    ];
+    expect(computeLayoutMigration(paths, subtreeFor)).toEqual([]);
+    expect(projectOf(paths, "assets/other/root.png")).toBe("");
+  });
+
+  it("never moves a file onto a folder or under a file of the same name", () => {
+    expect(
+      computeLayoutMigration(
+        [
+          "main.sd",
+          "scripts/other/main.sd",
+          "assets/other/tree.png",
+          "scripts/other/tree.png/.folder",
+          "hero.png",
+          "assets/hero.png/.folder",
+          "art/bg.png",
+          "assets/art",
+        ],
+        subtreeFor,
+      ),
+    ).toEqual([]);
+  });
+
+  it("keeps a sub-project whole when its folder under scripts/ is already taken", () => {
+    const paths = [
+      "main.sd",
+      "other/main.sd",
+      "other/tree.png",
+      "scripts/other/main.sd",
+      "scripts/other/notes.sd",
+    ];
+    expect(computeLayoutMigration(paths, subtreeFor)).toEqual([]);
+    expect(projectOf(paths, "other/tree.png")).toBe("other/");
+  });
+
+  it("keeps a sub-project rooted at a category folder together with its assets", () => {
+    expect(
+      computeLayoutMigration(
+        ["main.sd", "scripts/main.sd", "scripts/forest.svg"],
+        subtreeFor,
+      ),
+    ).toEqual([]);
+    expect(
+      computeLayoutMigration(
+        ["main.sd", "assets/main.sd", "assets/forest.svg", "scripts/intro.sd"],
+        subtreeFor,
+      ),
+    ).toEqual([]);
+  });
+
+  it("reaches its final layout in one load when a file blocking a sub-project's folder moves out", () => {
+    const paths = [
+      "main.sd",
+      "other/main.sd",
+      "other/tree.png",
+      "scripts/other/stray.png",
+    ];
+    const batches = computeLayoutMigrationBatches(paths, subtreeFor);
+    const migrated = batches.reduce(applyMoves, paths);
+    expect(migrated).toEqual([
+      "main.sd",
+      "scripts/other/main.sd",
+      "scripts/other/tree.png",
+      "assets/other/stray.png",
+    ]);
+    expect(projectOf(migrated, "assets/other/stray.png")).toBe("");
+    expect(
+      computeLayoutMigrationBatches([...migrated, LAYOUT_MARKER], subtreeFor),
+    ).toEqual([]);
+  });
+
+  it("repairs only assets/<sub>/ paths whose scripts/<sub>/main.sd exists at load", () => {
+    const paths = [
+      "main.sd",
+      "assets/forest.svg",
+      "assets/art/bg.png",
+      "assets/urls/song.url",
+      "assets/lonely/tree.png",
+      "assets/other/tree.png",
+      "other/main.sd",
+      "scripts/kept/main.sd",
+      "assets/keptsake/x.png",
+    ];
+    const batches = computeLayoutMigrationBatches(paths, subtreeFor);
+    expect(batches).toEqual([
+      [{ from: "other/main.sd", to: "scripts/other/main.sd" }],
+    ]);
+    const migrated = batches.reduce(applyMoves, paths);
+    expect(projectOf(migrated, "assets/other/tree.png")).toBe("");
+    expect(projectOf(migrated, "assets/keptsake/x.png")).toBe("");
+  });
+
+  it("files a non-.url asset under nested urls/ folders in one move, so a second load moves nothing", () => {
+    const paths = [
+      "main.sd",
+      "other/main.sd",
+      "other/assets/forest.svg",
+      "assets/urls/urls/urls/urls/urls/forest.svg",
+    ];
+    expect(computeLayoutMigration(paths, subtreeFor)).toContainEqual({
+      from: "assets/urls/urls/urls/urls/urls/forest.svg",
+      to: "assets/forest.svg",
+    });
+    const migrated = computeLayoutMigrationBatches(paths, subtreeFor).reduce(
+      applyMoves,
+      paths,
+    );
+    expect(
+      computeLayoutMigrationBatches([...migrated, LAYOUT_MARKER], subtreeFor),
+    ).toEqual([]);
+  });
+
+  const loadTwiceWithPersistentFolders = (initial: string[]) => {
+    let files = [...initial];
+    const folders = new Set<string>();
+    const lost: string[] = [];
+    const remember = () =>
+      files.forEach((p) => {
+        const parts = p.split("/");
+        for (let i = 1; i < parts.length; i++) {
+          folders.add(parts.slice(0, i).join("/"));
+        }
+      });
+    const load = () => {
+      remember();
+      const batches = computeLayoutMigrationBatches(files, subtreeFor);
+      for (const batch of batches) {
+        for (const { from, to } of batch) {
+          if (folders.has(to) || files.includes(to)) lost.push(from);
+        }
+        files = applyMoves(files, batch).filter((p) => !lost.includes(p));
+        remember();
+      }
+      if (canWriteLayoutMarker(files)) {
+        if (folders.has(LAYOUT_MARKER)) lost.push(LAYOUT_MARKER);
+        files = [...files, LAYOUT_MARKER];
+      }
+      return batches;
+    };
+    load();
+    const second = load();
+    return { files, lost, second };
+  };
+
+  it.each([
+    [["main.sd", "hero.png", "assets/hero.png/intro.sd"]],
+    [["main.sd", "other/main.sd", "other/x", "scripts/other/x/y.png"]],
+    [["main.sd", "other/main.sd", "other/tree.png", "scripts/other/stray.png"]],
+    [["main.sd", "forest.svg", "other/main.sd", "other/assets/forest.svg"]],
+    [["main.sd", "scripts/other/main.sd", "assets/other/assets/forest.svg"]],
+    [["main.sd", "other/main.sd", "other/assets/forest.svg", ".layout/notes.txt"]],
+    [
+      [
+        "main.sd",
+        "other",
+        "assets/forest.svg",
+        "scripts/other/main.sd",
+        "assets/other/assets/forest.svg",
+      ],
+    ],
+  ])(
+    "never moves a file onto a folder emptied earlier, on this load or the next: %j",
+    (paths) => {
+      const { files, lost, second } = loadTwiceWithPersistentFolders(paths);
+      expect(lost).toEqual([]);
+      expect(files.filter((p) => p !== LAYOUT_MARKER)).toHaveLength(
+        paths.length,
+      );
+      expect(second).toEqual([]);
+    },
+  );
+
+  it("leaves a folder at the layout marker's path in place and does not write the marker over it", () => {
+    const paths = [
+      "main.sd",
+      "other/main.sd",
+      "other/assets/forest.svg",
+      ".layout/notes.txt",
+    ];
+    const batches = computeLayoutMigrationBatches(paths, subtreeFor);
+    expect(batches.flat().map((m) => m.from)).not.toContain(
+      ".layout/notes.txt",
+    );
+    expect(canWriteLayoutMarker(batches.reduce(applyMoves, paths))).toBe(false);
+    expect(canWriteLayoutMarker(paths.filter((p) => !p.startsWith(".")))).toBe(
+      true,
+    );
+  });
+
+  it("never files a later batch onto a folder an earlier batch emptied", () => {
+    const paths = ["main.sd", "hero.png", "assets/hero.png/intro.sd"];
+    const batches = computeLayoutMigrationBatches(paths, subtreeFor);
+    expect(batches).toEqual([
+      [{ from: "assets/hero.png/intro.sd", to: "scripts/hero.png/intro.sd" }],
+    ]);
+    expect(batches.reduce(applyMoves, paths)).toContain("hero.png");
+  });
+
+  it("moves nothing in a project that carries the layout marker, however its files are placed", () => {
+    expect(
+      computeLayoutMigrationBatches(
+        [
+          "main.sd",
+          LAYOUT_MARKER,
+          "hero.png",
+          "intro.sd",
+          "scripts/stray.png",
+          "other/main.sd",
+          "other/tree.png",
+          "assets/urls/urls/forest.svg",
+        ],
+        subtreeFor,
+      ),
+    ).toEqual([]);
+  });
+
+  it("repairs a split sub-project in one load while a root file named like its assets folder stays", () => {
+    const paths = [
+      "main.sd",
+      "other",
+      "assets/forest.svg",
+      "scripts/other/main.sd",
+      "assets/other/assets/forest.svg",
+    ];
+    const batches = computeLayoutMigrationBatches(paths, subtreeFor);
+    expect(batches).toEqual([
+      [
+        {
+          from: "assets/other/assets/forest.svg",
+          to: "scripts/other/assets/forest.svg",
+        },
+      ],
+    ]);
+    const migrated = batches.reduce(applyMoves, paths);
+    expect(migrated).toContain("other");
+    expect(projectOf(migrated, "scripts/other/assets/forest.svg")).toBe(
+      "scripts/other/",
+    );
+  });
+
+  it("does not file a root-project script into a sub-project's folder", () => {
+    const paths = ["main.sd", "scripts/other/main.sd", "other/x.sd"];
+    expect(computeLayoutMigrationBatches(paths, subtreeFor)).toEqual([]);
+    expect(projectOf(paths, "other/x.sd")).toBe("");
+  });
+
+  it("keeps a nested sub-project inside its outermost sub-project's folder", () => {
+    const paths = [
+      "main.sd",
+      "outer/main.sd",
+      "outer/inner/main.sd",
+      "outer/inner/tree.png",
+    ];
+    const migrated = applyMoves(paths, computeLayoutMigration(paths, subtreeFor));
+    expect(migrated).toEqual([
+      "main.sd",
+      "scripts/outer/main.sd",
+      "scripts/outer/inner/main.sd",
+      "scripts/outer/inner/tree.png",
+    ]);
+    expect(projectOf(migrated, "scripts/outer/inner/tree.png")).toBe(
+      "scripts/outer/inner/",
+    );
+    expect(computeLayoutMigration(migrated, subtreeFor)).toEqual([]);
+  });
+
+  it("leaves a file in place rather than overwrite another at its destination", () => {
+    expect(
+      computeLayoutMigration(
+        [
+          "main.sd",
+          "scripts/other/main.sd",
+          "scripts/other/tree.png",
+          "assets/other/tree.png",
+          "hero.png",
+          "assets/hero.png",
         ],
         subtreeFor,
       ),

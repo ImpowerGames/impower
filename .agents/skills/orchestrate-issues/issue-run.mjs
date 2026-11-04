@@ -343,7 +343,7 @@ export const qualifyPrs = (names, text) => (names.split ? String(text).replace(/
 
 export const DISCOVERY_TYPES = ["fix", "feat", "perf", "docs", "test", "refactor", "ci", "chore"];
 
-export const AUTHORITY = { reviewRounds: "the coordinator's checkpoint decision after round 3's verified fixes and after every later round's, published on the PR through review-checkpoint.mjs, with this invocation as the authority for an extension within ten rounds or an acceptance of verified final corrections", merge: "the maintainer merges ready PRs", diskRecovery: "the guarded clean-worktrees classifier's merged-and-removable entries only, on blocked disk headroom or after a confirmed merge, plus worktrees and safely deletable branches this run created and no longer needs, each recorded here" };
+export const AUTHORITY = { reviewRounds: "the coordinator's checkpoint decision after round 3's verified fixes and after every later round's, published on the PR through review-checkpoint.mjs, with this invocation as the authority for an extension within ten rounds or an acceptance of verified final corrections, which may also be decided after round 1 or 2", merge: "the maintainer merges ready PRs", diskRecovery: "the guarded clean-worktrees classifier's merged-and-removable entries only, on blocked disk headroom or after a confirmed merge, plus worktrees and safely deletable branches this run created and no longer needs, each recorded here" };
 export const MERGE_GRANT = "the coordinator merges this parent issue's PRs that pass integration.mjs's merge gate, with an expected-head merge call and never a bypass of branch protection";
 export const MERGING = ["coordinator", "maintainer"];
 export const STOP_AT_READY = /stop(?:s|ping)? at (?:the )?ready|do(?:n't| not) merge|without merging|leave (?:the )?merg|maintainer merges/i;
@@ -645,8 +645,52 @@ export function githubClient(names, checkout, { run = (cmd, args) => execFileSyn
     fetchMain: () => { run("git", ["fetch", "-q", "origin", "main"]); return run("git", ["rev-parse", "origin/main"]).trim(); },
     onMain: (sha) => spawnSync("git", ["merge-base", "--is-ancestor", sha, "origin/main"], { cwd: checkout, windowsHide: true }).status === 0,
     worktrees: () => parseWorktrees(run("git", ["worktree", "list", "--porcelain"])),
+    mainRuns: (branch) => JSON.parse(run("gh", ["run", "list", "--repo", code, "--workflow", MAIN_WORKFLOW, "--branch", branch, "--event", "push", "--limit", "10", "--json", "databaseId,headSha,status,conclusion,createdAt,url"])).map((r) => ({ id: r.databaseId, headSha: r.headSha, status: r.status, conclusion: r.conclusion, createdAt: r.createdAt, url: r.url })),
+    mainRunJobs: (id) => pages([`repos/${code}/actions/runs/${id}/jobs?per_page=100`]).flatMap((p) => p.jobs ?? []).map((j) => ({ name: j.name, conclusion: j.conclusion })),
   };
 }
+
+export const MAIN_BRANCH = "main";
+export const MAIN_WORKFLOW = "Test Suite";
+const GREEN_RUN = new Set(["SUCCESS", "NEUTRAL"]);
+const FAILED_JOB = new Set(["failure", "timed_out", "cancelled", "startup_failure", "action_required"]);
+export function mainVerdict(runs) {
+  if (!Array.isArray(runs)) return { verdict: "none", reason: typeof runs === "string" ? runs : "main's workflow runs could not be read" };
+  const sorted = [...runs].sort((a, b) => (Date.parse(b.createdAt ?? "") || 0) - (Date.parse(a.createdAt ?? "") || 0));
+  const decided = sorted.find((r) => String(r.status).toLowerCase() === "completed" && !["cancelled", "skipped"].includes(String(r.conclusion).toLowerCase()));
+  if (!decided) return { verdict: "none", reason: sorted.length ? `no completed, uncancelled push run of ${MAIN_WORKFLOW} on ${MAIN_BRANCH}` : `no push run of ${MAIN_WORKFLOW} on ${MAIN_BRANCH}` };
+  const green = GREEN_RUN.has(String(decided.conclusion).toUpperCase());
+  return { verdict: green ? "green" : "red", head: decided.headSha ?? null, run: decided.id ?? null, conclusion: decided.conclusion ?? null, url: decided.url ?? null };
+}
+const firstLine = (error) => String(error.stderr || error.message).trim().split("\n")[0];
+export function failedJobsOf(client, run) {
+  try { return client.mainRunJobs(run).filter((j) => FAILED_JOB.has(String(j.conclusion).toLowerCase())).map((j) => j.name); }
+  catch (error) { return `the jobs of run ${run} could not be read: ${firstLine(error)}`; }
+}
+export function mainState(client) {
+  let runs;
+  try { runs = client.mainRuns(MAIN_BRANCH); } catch (error) { runs = `${MAIN_BRANCH}'s workflow runs could not be read: ${firstLine(error)}`; }
+  const verdict = mainVerdict(runs);
+  return verdict.verdict === "red" ? { ...verdict, failedJobs: failedJobsOf(client, verdict.run) } : verdict;
+}
+
+const mergedAt = (op, sha) => op.kind === "merge" && op.state === "confirmed" && typeof sha === "string" && sha.length >= 7 && (String(op.mergeCommit ?? "").startsWith(sha) || sha.startsWith(String(op.mergeCommit ?? "-")) || String(op.evidence ?? "").includes(sha));
+const PASSING_CHECK = new Set(["SUCCESS", "NEUTRAL"]);
+export function repairCandidates(snapshot, failedJobs) {
+  if (!Array.isArray(failedJobs) || !failedJobs.length) return [];
+  return (snapshot?.tickets ?? []).flatMap((t) => (t.prs ?? []).filter((p) => p.state === "OPEN" && failedJobs.every((name) => (p.checks ?? []).some((c) => c.name === name && PASSING_CHECK.has(String(c.state).toUpperCase())))).map((p) => ({ ticket: t.number, pr: p.number, head: p.head ?? null })));
+}
+export function redMain(record, mainCi, snapshot = null) {
+  if (mainCi?.verdict !== "red") return null;
+  const merge = (record.operations ?? []).find((o) => mergedAt(o, mainCi.head));
+  const jobs = Array.isArray(mainCi.failedJobs) ? (mainCi.failedJobs.length ? mainCi.failedJobs.join(", ") : "none read") : mainCi.failedJobs ?? "not read";
+  const run = `${MAIN_WORKFLOW} push run ${mainCi.run} on ${mainCi.head}${mainCi.url ? ` (${mainCi.url})` : ""}, failing jobs: ${jobs}`;
+  const fix = merge ? repairCandidates(snapshot, mainCi.failedJobs) : [];
+  const named = fix.length ? `; open PRs in this run whose checks pass every failing job, to confirm with the gate: ${fix.map((f) => `#${f.pr} for #${f.ticket}`).join(", ")}` : "; no open PR in this run passes every failing job yet";
+  if (!merge) return { action: "hold-merges", owned: false, run: mainCi.run, head: mainCi.head, url: mainCi.url ?? null, failedJobs: mainCi.failedJobs ?? null, reason: `${MAIN_BRANCH} is red at a commit this run did not merge (${run}); hold this run's merges except a repair the gate admits, and do not wait on the maintainer: the coordinator whose run merged it owns the fix` };
+  return { action: "repair-main", owned: true, run: mainCi.run, head: mainCi.head, url: mainCi.url ?? null, failedJobs: mainCi.failedJobs ?? null, merge: { operation: merge.id, ticket: merge.ticket ?? null, pr: merge.pr ?? null }, fix, reason: `${MAIN_BRANCH} is red at ${short9(mainCi.head)}, this run's merge of PR #${merge.pr} for #${merge.ticket} (${run}); before any ticket action, find or dispatch the fix (an open ticket or PR that repairs the failing jobs, a revert of that merge, or a new ticket), merge it as soon as it is reviewed and green, and message every other coordinator on the machine${named}` };
+}
+const short9 = (sha) => String(sha ?? "none").slice(0, 9);
 
 export const MAX_SUB_ISSUE_DEPTH = 8;
 export const reviewRounds = (comments) => Math.max(0, ...comments.map((c) => [...(c.body ?? "").matchAll(/^#{2,4} Review round (\d+) state\b/gm)].map((m) => Number(m[1]))).flat());
@@ -774,7 +818,7 @@ export function takeSnapshot({ repository, issue, tickets: ticketsRepository = r
     t.delivered = t.state === "closed" && t.deliveredBy.merged;
   }
   for (const t of tickets) for (const b of t.blockers) { const x = byNumber.get(b.number); if (x?.deliveredBy) b.delivered = x.delivered; }
-  return { repository, issue: { number: issue, state: parent.state, title: parent.title, type: parent.type?.name ?? null, criteria: parseCriteria(parent.body), acceptanceSha256: acceptanceHash(parent.body) }, observedAt: new Date().toISOString(), originMain, tickets };
+  return { repository, issue: { number: issue, state: parent.state, title: parent.title, type: parent.type?.name ?? null, criteria: parseCriteria(parent.body), acceptanceSha256: acceptanceHash(parent.body) }, observedAt: new Date().toISOString(), originMain, ...(client.mainRuns && { mainCi: mainState(client) }), tickets };
 }
 
 const scopeLine = (t) => [`#${t.number}`, t.state, ...(t.state === "closed" ? [t.stateReason, t.closedAt].filter(Boolean) : [])].join(" ");
@@ -890,9 +934,9 @@ export const verificationHolds = (record, snapshot) => verificationGaps(record, 
 export function remainingFor(record, complete) {
   if (complete) return ["Every slice is merged and the parent issue's acceptance criteria were verified on main; close the parent issue with integration.mjs close-issue if it is still open, and give the final report."];
   return [
-    `A writer's review reaches a checkpoint after round 3's verified fixes and after every later round's; the coordinator decides each with review-checkpoint.mjs and publishes it on ${repositoriesOf(record).split ? "the slice's ticket, its review thread" : "the PR"}.`,
+    `A writer's review reaches a checkpoint after round 3's verified fixes and after every later round's, and an acceptance of verified final corrections may be decided after any completed round; the coordinator decides each with review-checkpoint.mjs and publishes it on ${repositoriesOf(record).split ? "the slice's ticket, its review thread" : "the PR"}.`,
     coordinatorMerges(record)
-      ? "A ready PR merges only through integration.mjs's merge gate. The head must be the last independently reviewed head or the head covered by a valid published coordinator acceptance, with only clean merges of main allowed on top. Every reviewer must exit, every report must be adjudicated, and required CI must pass. Current main's relevant push Test Suite state must not be red. The PR head need only contain current main if branch protection requires it. Main's post-merge push run checks the combination that lands. Dependent tickets become eligible once a blocker's merge commit is on origin/main."
+      ? "A ready PR merges only through integration.mjs's merge gate. The head must be the last independently reviewed head or the head covered by a valid published coordinator acceptance, with only clean merges of main and tree-identical commits allowed on top. Every reviewer must exit, every report must be adjudicated, and required CI must pass. Current main's relevant push Test Suite state must not be red. The PR head need only contain current main if branch protection requires it. Main's post-merge push run checks the combination that lands. Dependent tickets become eligible once a blocker's merge commit is on origin/main."
       : "Ready PRs wait for the maintainer to merge them, since the invocation stops at ready; dependent tickets become eligible only once a blocker's merged deliverable is on origin/main.",
     "The run record is local to this coordinator's machine; another machine, account or harness continues only from a checkpoint saved on the parent issue's state branch, and work a writer has not pushed or snapshotted stays on its own host.",
     "Once every slice is merged, the parent issue's own acceptance criteria are verified on main with integration.mjs verify-issue; the parent issue is complete only when that verification passes, never from merged PRs alone. A parent whose body has no \"Acceptance criteria\" section is refused there, with the section to add named, and stays open.",
@@ -1216,10 +1260,13 @@ export function planDispatch({ record, snapshot, observations = {}, preflights =
     if (RANKED_ACTIONS.has(entry.action)) Object.assign(entry, { priority: byNumber.get(entry.number).priority ?? null, dependents: dependentsOf(entry.number) });
   }
   const complete = verificationHolds(record, snapshot) && tickets.every((t) => ["done", "container"].includes(t.action));
+  const main = redMain(record, snapshot.mainCi, snapshot);
+  const remaining = remainingFor(record, complete);
   return {
+    ...(main && { main }),
     repository: record.repository, issue: record.issue, parent: { type: snapshot.issue.type ?? null, title: snapshot.issue.title ?? null }, runId: record.runId, revision: record.revision, coordinator: record.coordinator.session,
     writer: record.writer, concurrency: { limit: record.concurrency.limit, basis: record.concurrency.basis, active, capacityNow, ...(load && { machine: load }) },
-    routes, tickets, filed: filedActions(record), sweep, checkIn: checkInStatus(record, now, { defaults, env, identify }), remaining: remainingFor(record, complete), complete,
+    routes, tickets, filed: filedActions(record), sweep, checkIn: checkInStatus(record, now, { defaults, env, identify }), remaining: main?.owned ? [main.reason, ...remaining] : remaining, complete,
   };
 }
 
@@ -2024,9 +2071,9 @@ function briefBody(record, planFile, number, decisions, defaults) {
     `Allocate your private artifact directory with resolve-issue's allocator under ${work.artifactParent ?? "a scratch parent of your own"}, and keep every artifact in it.`,
     `The design of record is the body of ${parent}, as its template structures it, together with the decisions below. Settled decisions:${decisions.length ? "" : " none beyond the ticket and that body."}`,
     ...decisions.map((d) => `- ${d}`),
-    "Review: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.",
+    "Review: run review-pr with the repository's reviewer defaults at the default three-round cap. Once round 3's accepted fixes are verified, again after every later round's, after a round 1 or 2 that leaves only a small verified tail unreviewed, and whenever another decision needs the user, send the coordinator a checkpoint report, then end your turn: the completed round, its planned reviewers and their exits, every report and adjudication comment id, the last reviewed commit and the current head, which accepted findings share an underlying mechanism, whether corrections introduced new defects, whether a broader or simpler repair would be better, the concrete residual risk, and what another round would establish.",
     "Post an adjudication on the PR's review thread for every reviewer report, including reports with no findings. Put Adjudication in the first line and name the report's comment ID, round and reviewed head. Explicitly record no findings for a clean report and address any unverified concerns or coverage gaps.",
-    "For an orchestrated merge, every tail commit, including non-behavioral tidy-ups, needs independent review or a valid published coordinator acceptance covering that head and range. Make tidy-ups before the final reviewer. Clean merges of main retain coverage: they have two parents, the other parent is on main, and the remerge diff is empty. A merge that resolves conflicts needs review or acceptance like any other tail commit.",
+    "For an orchestrated merge, every tail commit, including non-behavioral tidy-ups, needs independent review or a valid published coordinator acceptance covering that head and range. Make tidy-ups before the final reviewer. Clean merges of main retain coverage: they have two parents, the other parent is on main, and the remerge diff is empty. So do tree-identical commits, whose tree equals their parent's, such as an empty commit pushed to rebuild CI's merge. A merge that resolves conflicts needs review or acceptance like any other tail commit.",
     "After every reviewer launch, read the launcher's exit and its <plan name>.coordinator.err.log at once, in the job directory you gave start-coordinator (the launch-state directory that holds the plan and its journal): a plan refused at validation writes its error only there and no journal, so a journal watcher would wait for nothing. Treat a refusal as a correction to make now.",
     `The coordinator answers with a checkpoint decision it publishes on ${split ? `your ticket in ${tickets}, the PR's review thread` : "the PR"}. Launch a further round only under its extension, with reviewRoundLimit and extendedReviewAuthorization exactly as that decision gives them. Never waive your own review or post a checkpoint decision: accepting unreviewed corrections is the coordinator's decision alone, and under it the PR stays draft until the coordinator acts.`,
     "Your review jobs keep their own ownership, round counts, freezes and process-exit checks, and the machine-wide reviewer and test reservations stay authoritative. The coordinator holds no lock on your worktree.",

@@ -90,6 +90,19 @@ try {
   assert.equal(e.completedRound, 2);
   assert.ok(e.blockers.some((b) => /first formal checkpoint follows round 3/.test(b)), e.blockers.join("; "));
   assert.throws(() => change((r) => rc.decide(r, { ticket: 42, kind: "maintainer", assessment: assess({ question: "q" }), evidence: e })), /No formal checkpoint before round 3/);
+  assert.deepEqual([e.due, e.acceptanceDue], [false, true], e.blockers.join("; "));
+  for (const kind of ["finish", "extend", "repair"]) assert.throws(() => rc.decide(structuredClone(record()), { ticket: 42, kind, assessment: assess({ limit: 4, limitReason: "x", scope: "x", verificationChange: "x" }), evidence: e }), /No formal checkpoint before round 3/, `${kind} before round 3`);
+  const earlyAcceptance = assess({ verification: ["every CI check passed on the head"] });
+  const earlyDecide = (more = {}, ev = e) => rc.decide(structuredClone(record()), { ticket: 42, kind: "accept-unreviewed", assessment: earlyAcceptance, inspected: ev.range.diffSha256, evidence: ev, ...more });
+  assert.throws(() => earlyDecide(), /Every CI check .* must have passed: test-suite pending/);
+  const passedEarly = { ...e, checks: [{ name: "test-suite", state: "SUCCESS", result: "passed" }] };
+  assert.throws(() => earlyDecide({}, { ...e, checks: [{ name: "test-suite", state: "FAILURE", result: "failed" }] }), /must have passed: test-suite failed/);
+  assert.throws(() => earlyDecide({ inspected: "0".repeat(64) }, passedEarly), /--inspected must be the SHA-256 of the unreviewed diff/);
+  assert.throws(() => earlyDecide({ assessment: { ...earlyAcceptance, findings: [{ ...earlyAcceptance.findings[0], disposition: "open" }, ...earlyAcceptance.findings.slice(1)] } }, passedEarly), /still open; a known defect is resolved/);
+  assert.throws(() => earlyDecide({}, { ...passedEarly, completedRound: 0 }), /No review round is complete/);
+  const acceptedEarly = earlyDecide({}, passedEarly);
+  assert.match(acceptedEarly.body, /after review round 2: accept the final verified corrections/);
+  assert.match(acceptedEarly.body, /round 2 is complete/);
 
   const corrections3 = journal(3, "corrections", ["corrections", "undirected"], { head: c.round2, pending: ["undirected"], completed: { corrections: 1 } });
   adjudicate(corrections3.report);

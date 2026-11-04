@@ -56,7 +56,7 @@ A writer is replaced only after it is observed to have ended; `release --observa
 
 For `adopt-pr` and `adopt-worktree`, record the existing writer with `adopt`, and continue its work only as plan actions describes.
 
-At every check-in, on the first wake after you restart, and before acting on any writer's report or request, run the wake routine in [writer reports](references/writer-reports.md). It triages each ticket filed during the run as you learn of it. A writer's checkpoint report is decided as [review checkpoints](references/review-checkpoints.md) describes, never by its round count alone. Writers keep their own review jobs, round counts, freezes and the machine-wide reviewer and test reservations.
+At every check-in, on the first wake after you restart, and before acting on any writer's report or request, run the wake routine in [writer reports](references/writer-reports.md). It triages each ticket filed during the run as you learn of it. A writer's checkpoint report is decided as [review checkpoints](references/review-checkpoints.md) describes; only an acceptance may precede round 3. Writers keep their review jobs, round counts, freezes and reviewer and test reservations.
 
 ## 6. Cleanup and disk recovery
 
@@ -64,7 +64,7 @@ Clean up after each merge and release per [cleanup](references/cleanup.md); it n
 
 ## 7. Integrate and finish
 
-Before any merge or verification, read [integration](references/integration.md). A `merge-gate` ticket merges only through `integration.mjs merge`; a refused or uncertain merge is settled from GitHub, never retried blind. Once every slice is delivered on main, `verify-issue` checks the parent's "Acceptance criteria" section; `close-issue` closes the parent only on a complete verdict, never on merged PRs alone.
+Before any merge or verification, read [integration](references/integration.md). A `merge-gate` ticket merges only through `integration.mjs merge`. `main: repair-main` means fix red main first ([a red main](references/integration.md#a-red-main)). Once every slice is delivered on main, `verify-issue` checks the parent's "Acceptance criteria" section; `close-issue` closes the parent only on a complete verdict, never on merged PRs alone.
 
 ## 8. Report
 

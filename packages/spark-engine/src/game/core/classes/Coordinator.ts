@@ -198,7 +198,7 @@ export class Coordinator<G extends Game> {
       game.module.ui.reveal();
 
       const indicatorStyle: Record<string, string | null> = {};
-      if (autoAdvance || game.ending) {
+      if (autoAdvance || game.shownEnding) {
         indicatorStyle["display"] = "none";
       } else {
         indicatorStyle["transition"] = "none";
