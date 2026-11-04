@@ -458,6 +458,50 @@ describe("a scene's own lines", () => {
     },
   );
 
+  test.each([
+    ["a plain name", [], "local foo = 3", "Got {foo} {f()}.", "return foo"],
+    ["a name a store shares", ["store foo = 9"], "local foo = 3", "Got {foo} {f()}.", "return foo"],
+    ["a stdlib namespace's name", [], "local math = { answer = 3 }", "Got {math.answer} {f().answer}.", "return math"],
+  ])("a closure in the then clause reads an earlier choice's local of %s", (_, head, choiceLocal, line, body) => {
+    expect(
+      runPicking([0], [
+        ...head,
+        "scene start",
+        "  choose",
+        "    + [A]",
+        `      ${choiceLocal}`,
+        "    + [B]",
+        "      B.",
+        "  then",
+        `    local f = function() ${body} end`,
+        `    ${line}`,
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("Got 3 3."));
+  });
+
+  test("a closure in the outer then clause reads the local of a choice of a choose in the preamble", () => {
+    expect(
+      runPicking([0], [
+        "store foo = 9",
+        "scene start",
+        "  choose",
+        "    choose",
+        "      + [Inner A]",
+        "        local foo = 3",
+        "    end",
+        "    + [Outer B]",
+        "      B.",
+        "  then",
+        "    local f = function() return foo end",
+        "    Got {foo} {f()}.",
+        "  end",
+        "end",
+      ]),
+    ).toEqual(got("Got 3 3."));
+  });
+
   test("a closure inside a block calls the scene's local named like a stdlib namespace", () => {
     expect(
       run([

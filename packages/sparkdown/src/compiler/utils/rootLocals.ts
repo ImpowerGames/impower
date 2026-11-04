@@ -311,11 +311,13 @@ export class RootLocals {
     const content = childEndingWith(node, "_content");
     if (!content) return;
     let first: SyntaxNode | null = null;
-    for (let child = content.firstChild; child && !first; child = child.nextSibling) {
-      if (CHOICES.has(child.name)) first = child;
+    let choicesEnd = content.to;
+    for (let child = content.firstChild; child; child = child.nextSibling) {
+      if (!first && CHOICES.has(child.name)) first = child;
+      if (THEN_CLAUSES.has(child.name)) choicesEnd = child.from;
     }
     const preamble: Reach = first
-      ? { ...reach, pending: [...reach.pending, { from: first.from, to: content.to }] }
+      ? { ...reach, pending: [...reach.pending, { from: first.from, to: choicesEnd }] }
       : reach;
     const deferred: Reach = {
       hidden: [...reach.hidden, ...reach.pending],
@@ -340,7 +342,7 @@ export class RootLocals {
         THEN_CLAUSES.has(child.name)
           ? deferred
           : {
-              hidden: next ? [...deferred.hidden, { from: next.from, to: content.to }] : deferred.hidden,
+              hidden: next ? [...deferred.hidden, { from: next.from, to: choicesEnd }] : deferred.hidden,
               certainTo: Math.min(deferred.certainTo, next ? next.from : content.to),
               pending: [],
             },
