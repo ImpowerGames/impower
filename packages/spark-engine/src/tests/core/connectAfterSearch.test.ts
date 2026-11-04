@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import {
   createHarness,
   flattenMessages,
@@ -61,6 +61,22 @@ end
     game.setStartFrom({ file: MAIN_URI, line: 3 });
     game.simulate();
     expect(game.simulationFailure).toBe("exhausted");
+    expect(game.simulation).toBe("fail");
+    expect(game.context.system.simulating).toBeUndefined();
+  });
+
+  test("ends a replay that throws as failed with the flag unset", () => {
+    const h = createHarness(SOURCE, 0, { connect: false });
+    const game: any = h.game;
+    game.setStartFrom({ file: MAIN_URI, line: TARGET_LINE });
+    const replay = vi.spyOn(game, "continue").mockImplementation(() => {
+      throw new Error("replay broke");
+    });
+    try {
+      expect(() => game.simulate()).toThrow("replay broke");
+    } finally {
+      replay.mockRestore();
+    }
     expect(game.simulation).toBe("fail");
     expect(game.context.system.simulating).toBeUndefined();
   });

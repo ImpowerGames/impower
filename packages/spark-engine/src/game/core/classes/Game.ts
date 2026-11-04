@@ -1829,6 +1829,10 @@ export class Game<T extends M = {}> {
       unrepeatable = storyDraws.count !== drawn || ambientReads.count !== read;
       this.noteRouteTarget();
     } finally {
+      if (this._simulation === "simulating") {
+        this._simulation = "fail";
+        this._simulationFailure = "diverged";
+      }
       if (this._targetWatch) {
         this.endTargetWatch();
         this._routeTargetWrote = undefined;
@@ -1915,11 +1919,6 @@ export class Game<T extends M = {}> {
       this.watchTargetWrites();
     }
     this.continue(true);
-
-    if (this._simulation === "simulating") {
-      this._simulation = "fail";
-      this._simulationFailure = "diverged";
-    }
 
     this._story.simulator = null;
     this._routeSimulator = null;
