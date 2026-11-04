@@ -1685,7 +1685,12 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
       (cursor as any).value == null
         ? 0
         : Number((cursor as any).value);
-    const compiled = luaPatternToJs(pattern);
+    let compiled;
+    try {
+      compiled = luaPatternToJs(pattern);
+    } catch {
+      return null;
+    }
     if (offset > input.length) return null;
     const matched = executeLuaPattern(compiled, input, offset);
     if (!matched) return null;

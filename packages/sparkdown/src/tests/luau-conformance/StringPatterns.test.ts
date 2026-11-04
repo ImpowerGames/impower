@@ -396,6 +396,27 @@ end
     expect(recorded).toEqual(["aa", "xx", "bb", "yy", "zz", "cc"]);
   });
 
+  test("an iterator called with explicit state holding an invalid pattern yields nil", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+
+scene start
+  & run()
+  done
+end
+
+function run()
+local iterator = string.gmatch("ok", "%a+")
+local state = { __gmatch_input = "ok", __gmatch_pattern = "(" }
+local value = iterator(state, 0)
+if value == nil then
+host_record("nil")
+end
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["nil"]);
+  });
+
   test("yields N captures as N loop variables", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 
