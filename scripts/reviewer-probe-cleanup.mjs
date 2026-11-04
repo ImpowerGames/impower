@@ -88,7 +88,7 @@ function isDirectRunDirectory(directory,name) {
   throw new Error('unverified direct test run journal');
 }
 
-function collectReviewerScratch(root,preserve,kept,targets,unreadable) {
+function collectReviewerScratch(root,preserve,kept,targets,unreadable,workspace=true) {
   const prelaunch=new Set([...preserve].map(fold));
   const visit=(directory,top)=>{
     let names;
@@ -112,7 +112,7 @@ function collectReviewerScratch(root,preserve,kept,targets,unreadable) {
     }
     return retained;
   };
-  visit(root,true);
+  return visit(root,workspace);
 }
 
 export function removeProbeCheckouts(directory,options={}) {
@@ -160,7 +160,13 @@ function removeReviewerEntries(directory,{preserve=new Set(),keep=[],reservation
         const stat=fs.lstatSync(target);
         if(stat.isSymbolicLink()){targets.push(target);continue;}
         if(!stat.isDirectory())continue;
+        if(isDirectRunDirectory(target,name))continue;
         if(!scratch(target,name,top)||[...kept].some(file=>isInside(target,file))){walked.push(target);visit(target,false);continue;}
+        if(!(top&&name.startsWith('.probe-cleanup-'))){
+          const firstTarget=targets.length;
+          if(collectReviewerScratch(target,preserve,kept,targets,unreadable,false))continue;
+          targets.length=firstTarget;
+        }
         targets.push(target);
       }catch(error){unreadable.push(`${target} (${error.code??error.message})`);}
     }

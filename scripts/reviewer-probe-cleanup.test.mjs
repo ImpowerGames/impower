@@ -312,3 +312,45 @@ console.log('PASS: unknown and unreadable guard owners name preserved scratch wi
   assert.equal(fs.readFileSync(log,'utf8'),'retained runner output');
   console.log('PASS: direct runner evidence keeps its original paths and bytes through inventory failure, recovery and replay');
 }
+
+{
+  const workspace=path.join(scratch,'reviewer-automatic');
+  const checkout=path.join(workspace,'probe');
+  fs.mkdirSync(path.join(checkout,'.git'),{recursive:true});
+  const cache=path.join(workspace,'node_modules');
+  const ordinary=path.join(workspace,'ordinary-temp');
+  const roots=[path.join(checkout,'.tmp'),cache,ordinary];
+  const receipts=roots.map((root,index)=>{
+    const runtime=path.join(root,`impower-suite-direct-aBcd1${index}`,'runtime');
+    fs.mkdirSync(runtime,{recursive:true});
+    const directory=fs.realpathSync.native(path.dirname(runtime));
+    const receipt=path.join(directory,'run.json');
+    fs.writeFileSync(receipt,JSON.stringify({version:2,directory,root:checkout,packageRoot:checkout,files:['fixture.test.ts'],
+      attempts:[],token:'fixture',owner:coordinator,createdAt:new Date().toISOString(),active:false}));
+    return {receipt,runtime,bytes:fs.readFileSync(receipt)};
+  });
+  const checkoutFile=path.join(checkout,'scratch.txt');
+  const cacheFile=path.join(cache,'scratch.txt');
+  const loose=path.join(ordinary,'scratch.txt');
+  for(const file of [checkoutFile,cacheFile,loose])fs.writeFileSync(file,'disposable');
+  writeRows([
+    {event:'launching',index:0,role:'review',reviewerDirectory:workspace,reviewerHad:[]},
+    {event:'exited',index:0,code:0},
+    {event:'finished'}
+  ]);
+
+  removeProbeCheckouts(workspace,{reservationRoot});
+  assert.ok(receipts.every(({receipt})=>fs.existsSync(receipt)),'automatic cleanup must retain direct runner receipts at their original paths');
+  assert.equal(fs.existsSync(checkoutFile),false);
+  assert.equal(fs.existsSync(cacheFile),false);
+  assert.equal(fs.readFileSync(loose,'utf8'),'disposable','automatic cleanup retains loose workspace files');
+  cleanupFromJournal(journal,{reservationRoot});
+  assert.equal(fs.existsSync(loose),false);
+  const [replay]=cleanupFromJournal(journal,{reservationRoot});
+  assert.equal(replay.files,0);assert.equal(replay.links,0);
+  for(const {receipt,runtime,bytes} of receipts){
+    assert.deepEqual(fs.readFileSync(receipt),bytes);
+    assert.ok(fs.statSync(runtime).isDirectory());
+  }
+  console.log('PASS: automatic cleanup and journal replay preserve direct runner evidence and remove only their disposable entries');
+}
