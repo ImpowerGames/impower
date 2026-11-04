@@ -23,6 +23,8 @@ export const ROOT_IN_BLOCK = "inBlock";
 
 export const ROOT_NONE = "none";
 
+export const ROOT_MAYBE = "maybe";
+
 const CHOOSE_BLOCKS = nodeNameSet(["LuauSparkdownChooseBlock"]);
 const THEN_CLAUSES = nodeNameSet(["LuauSparkdownChooseThenClause"]);
 const CHOICES = nodeNameSet(["Choice"]);
@@ -57,9 +59,23 @@ interface RootDeclaration {
   at: number;
   parameter?: boolean;
   visibleFrom: number;
-  visibleTo: number;
+  hidden: readonly Range[];
+  certainTo: number;
   flow: number;
 }
+
+interface Range {
+  from: number;
+  to: number;
+}
+
+interface Reach {
+  hidden: readonly Range[];
+  certainTo: number;
+  pending: readonly Range[];
+}
+
+const EVERYWHERE: Reach = { hidden: [], certainTo: Number.POSITIVE_INFINITY, pending: [] };
 
 interface Flow {
   from: number;
@@ -88,7 +104,8 @@ export class RootLocals {
           this.add(read(param.from, param.to).trim(), {
             at: param.from,
             visibleFrom: param.to,
-            visibleTo: Number.POSITIVE_INFINITY,
+            hidden: [],
+            certainTo: Number.POSITIVE_INFINITY,
             flow: this.flows.length - 1,
             parameter: true,
           });
@@ -97,7 +114,7 @@ export class RootLocals {
         const flow = open.pop();
         if (flow !== undefined) this.flows[flow]!.to = node.to;
       } else {
-        this.collect(node, open[open.length - 1] ?? -1, Number.POSITIVE_INFINITY, read);
+        this.collect(node, open[open.length - 1] ?? -1, EVERYWHERE, read);
       }
     }
   }
@@ -111,20 +128,19 @@ export class RootLocals {
     const list = this.declarations.get(name);
     if (!list) return "";
     const around = this.flowsAround(at);
-    const [own] = around;
+    let maybe = false;
     for (let i = list.length - 1; i >= 0; i--) {
       const declaration = list[i]!;
       if (
         declaration.visibleFrom <= at &&
-        at <= declaration.visibleTo &&
-        (declaration.flow < 0 ||
-          declaration.flow === own ||
-          (declaration.parameter === true && around.has(declaration.flow)))
+        !declaration.hidden.some(({ from, to }) => from < at && at <= to) &&
+        (declaration.flow < 0 || around.has(declaration.flow))
       ) {
-        return ordinal(list, i);
+        if (at <= declaration.certainTo) return ordinal(list, i);
+        maybe = true;
       }
     }
-    return ROOT_NONE;
+    return maybe ? ROOT_MAYBE : ROOT_NONE;
   }
 
   declared(name: string, at: number): string {
@@ -194,18 +210,18 @@ export class RootLocals {
   protected collect(
     node: SyntaxNode,
     flow: number,
-    visibleTo: number,
+    reach: Reach,
     read: (from: number, to: number) => string,
   ): void {
     if (EXPLICIT.has(node.name)) {
       const content = childEndingWith(node, "_content");
       for (const statement of content ? statementsOf(content) : []) {
-        this.collect(statement, flow, visibleTo, read);
+        this.collect(statement, flow, reach, read);
       }
       return;
     }
     if (CHOOSE_BLOCKS.has(node.name) || THEN_CLAUSES.has(node.name)) {
-      this.collectBodies(node, flow, read);
+      this.collectBodies(node, flow, reach, read);
       return;
     }
     if (BLOCKS.has(node.name)) {
@@ -219,7 +235,8 @@ export class RootLocals {
         this.add(read(nameNode.from, nameNode.to).trim(), {
           at: nameNode.from,
           visibleFrom: node.to,
-          visibleTo,
+          hidden: reach.hidden,
+          certainTo: reach.certainTo,
           flow,
         });
       }
@@ -231,7 +248,8 @@ export class RootLocals {
       this.add(read(nameNode.from, nameNode.to).trim(), {
         at: nameNode.from,
         visibleFrom: node.to,
-        visibleTo,
+        hidden: reach.hidden,
+        certainTo: reach.certainTo,
         flow,
       });
     }
@@ -287,24 +305,49 @@ export class RootLocals {
   protected collectBodies(
     node: SyntaxNode,
     flow: number,
+    reach: Reach,
     read: (from: number, to: number) => string,
   ): void {
     const content = childEndingWith(node, "_content");
     if (!content) return;
+    let first: SyntaxNode | null = null;
+    let choicesEnd = content.to;
+    for (let child = content.firstChild; child; child = child.nextSibling) {
+      if (!first && CHOICES.has(child.name)) first = child;
+      if (THEN_CLAUSES.has(child.name)) choicesEnd = child.from;
+    }
+    const preamble: Reach = first
+      ? { ...reach, pending: [...reach.pending, { from: first.from, to: choicesEnd }] }
+      : reach;
+    const deferred: Reach = {
+      hidden: [...reach.hidden, ...reach.pending],
+      certainTo: reach.pending.length > 0 ? Math.min(reach.certainTo, content.to) : reach.certainTo,
+      pending: [],
+    };
     let inChoice = false;
     for (let child = content.firstChild; child; child = child.nextSibling) {
       if (CHOICES.has(child.name)) {
         inChoice = true;
         continue;
       }
-      let visibleTo = content.to;
-      for (let next = inChoice ? child.nextSibling : null; next; next = next.nextSibling) {
-        if (CHOICES.has(next.name)) {
-          visibleTo = next.from;
-          break;
-        }
+      if (!inChoice) {
+        this.collect(child, flow, preamble, read);
+        continue;
       }
-      this.collect(child, flow, visibleTo, read);
+      let next: SyntaxNode | null = child.nextSibling;
+      while (next && !CHOICES.has(next.name)) next = next.nextSibling;
+      this.collect(
+        child,
+        flow,
+        THEN_CLAUSES.has(child.name)
+          ? deferred
+          : {
+              hidden: next ? [...deferred.hidden, { from: next.from, to: choicesEnd }] : deferred.hidden,
+              certainTo: Math.min(deferred.certainTo, next ? next.from : content.to),
+              pending: [],
+            },
+        read,
+      );
     }
   }
 }
