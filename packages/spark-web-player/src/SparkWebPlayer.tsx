@@ -38,6 +38,7 @@ export default function SparkWebPlayer({
   const sizeLabelRef = useRef<HTMLDivElement>(null);
   const fullscreenButtonRef = useRef<HTMLDivElement>(null);
   const completionStatusRef = useRef<HTMLSpanElement>(null);
+  const endingStatusRef = useRef<HTMLSpanElement>(null);
   const routeButtonRef = useRef<HTMLDivElement>(null);
   const routeListRef = useRef<HTMLDivElement>(null);
   const savesButtonRef = useRef<HTMLDivElement>(null);
@@ -85,6 +86,7 @@ export default function SparkWebPlayer({
         resetButton: null,
         fullscreenButton: fullscreenButtonRef.current,
         completionStatus: completionStatusRef.current,
+        endingStatus: endingStatusRef.current,
         routeButton: routeButtonRef.current,
         routeList: routeListRef.current,
         savesButton: savesButtonRef.current,
@@ -148,6 +150,12 @@ export default function SparkWebPlayer({
             <span
               id="completion-status"
               ref={completionStatusRef}
+              role="status"
+              hidden
+            />
+            <span
+              id="ending-status"
+              ref={endingStatusRef}
               role="status"
               hidden
             />

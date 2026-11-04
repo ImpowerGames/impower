@@ -6,6 +6,7 @@ export type GameExitedMethod = typeof GameExitedMessage.method;
 
 export interface GameExitedParams {
   reason: "finished" | "quit" | "invalidated" | "error" | "restart";
+  run?: number;
   error?: {
     message: string;
     location: DocumentLocation;

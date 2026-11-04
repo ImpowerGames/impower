@@ -250,20 +250,20 @@ sparkdown [0..593]
  │   │       │   │   │       │   │   │   ├─ LuauStructBlock_begin_c1 [120..138]
  │   │       │   │   │       │   │   │   │   └─ LuauStructBlockKey [120..138]
  │   │       │   │   │       │   │   │   │       └─ LuauStructBlockKey_c1 [120..138]
- │   │       │   │   │       │   │   │   │           ├─ EventAttribute [120..128]
- │   │       │   │   │       │   │   │   │           │   └─ UnassignedEventAttribute [120..128]
- │   │       │   │   │       │   │   │   │           │       ├─ UnassignedEventAttribute_c1 [120..121]
- │   │       │   │   │       │   │   │   │           │       │   └─ EventAttributeOperator [120..121]: "@"
- │   │       │   │   │       │   │   │   │           │       └─ UnassignedEventAttribute_c2 [121..128]
- │   │       │   │   │       │   │   │   │           │           └─ EventAttributeName [121..128]: "hovered"
+ │   │       │   │   │       │   │   │   │           ├─ SelectorAttribute [120..128]
+ │   │       │   │   │       │   │   │   │           │   └─ UnassignedSelectorAttribute [120..128]
+ │   │       │   │   │       │   │   │   │           │       ├─ UnassignedSelectorAttribute_c1 [120..121]
+ │   │       │   │   │       │   │   │   │           │       │   └─ SelectorStateOperator [120..121]: "@"
+ │   │       │   │   │       │   │   │   │           │       └─ UnassignedSelectorAttribute_c2 [121..128]
+ │   │       │   │   │       │   │   │   │           │           └─ SelectorStateName [121..128]: "hovered"
  │   │       │   │   │       │   │   │   │           ├─ LuauStructBlockKeyChar [128..129]: ","
  │   │       │   │   │       │   │   │   │           ├─ RequiredWhitespace [129..130]: " "
- │   │       │   │   │       │   │   │   │           └─ EventAttribute [130..138]
- │   │       │   │   │       │   │   │   │               └─ UnassignedEventAttribute [130..138]
- │   │       │   │   │       │   │   │   │                   ├─ UnassignedEventAttribute_c1 [130..131]
- │   │       │   │   │       │   │   │   │                   │   └─ EventAttributeOperator [130..131]: "@"
- │   │       │   │   │       │   │   │   │                   └─ UnassignedEventAttribute_c2 [131..138]
- │   │       │   │   │       │   │   │   │                       └─ EventAttributeName [131..138]: "pressed"
+ │   │       │   │   │       │   │   │   │           └─ SelectorAttribute [130..138]
+ │   │       │   │   │       │   │   │   │               └─ UnassignedSelectorAttribute [130..138]
+ │   │       │   │   │       │   │   │   │                   ├─ UnassignedSelectorAttribute_c1 [130..131]
+ │   │       │   │   │       │   │   │   │                   │   └─ SelectorStateOperator [130..131]: "@"
+ │   │       │   │   │       │   │   │   │                   └─ UnassignedSelectorAttribute_c2 [131..138]
+ │   │       │   │   │       │   │   │   │                       └─ SelectorStateName [131..138]: "pressed"
  │   │       │   │   │       │   │   │   └─ LuauStructBlock_begin_c2 [138..141]
  │   │       │   │   │       │   │   │       └─ AssignEqualOperator [138..141]
  │   │       │   │   │       │   │   │           ├─ AssignEqualOperator_c1 [138..139]

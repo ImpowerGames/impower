@@ -7,6 +7,7 @@ export type GameChosePathToContinueMethod =
 
 export interface GameChosePathToContinueParams {
   location: DocumentLocation;
+  run?: number;
 }
 
 export class GameChosePathToContinueMessage {

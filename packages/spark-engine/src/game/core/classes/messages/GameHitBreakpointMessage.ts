@@ -6,6 +6,7 @@ export type GameHitBreakpointMethod = typeof GameHitBreakpointMessage.method;
 
 export interface GameHitBreakpointParams {
   location: DocumentLocation;
+  run?: number;
 }
 
 export class GameHitBreakpointMessage {
