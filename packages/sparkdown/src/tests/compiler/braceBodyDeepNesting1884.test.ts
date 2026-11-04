@@ -222,6 +222,57 @@ describe("a struct brace body closes at its own } however deep a line's parenthe
     expect(deep.second.children.map((c: any) => c.tag)).toEqual(["text"]);
   });
 
+  const LINE = 8;
+  const headColumn = (head: string, at: string) => `  row { ${head}`.indexOf(at);
+
+  test.each([
+    ["an operator", "1 + 2", " +"],
+    ["a space before the closer", "1 ", " )"],
+    ["a double-quoted string", '"a b"', " b"],
+    ["a single-quoted string", "'a b'", " b"],
+    ["a backtick string holding a brace", "`a }`", " }"],
+    ["a quoted closer and a later part", '"a )}" 2', " )"],
+    ["a table", "{a = 1}", " ="],
+    ["a call after the space", "1 g(2) 3", " g"],
+  ])("a prop holding %s ends its value at the whitespace at depth seven as at depth one", (_, inner, after) => {
+    const head = (d: number) => `text #x=${wrap(d, inner)} .wide`;
+    const shallow = firstChild(head(1));
+    const deep = firstChild(head(7));
+    for (const [d, side] of [[1, shallow], [7, deep]] as const) {
+      expect(side.errors.length).toBeGreaterThan(0);
+      expect(side.errors.every((e) => e.line === LINE && e.message === "Invalid syntax")).toBe(true);
+      expect(side.errors[0]!.character).toBe(headColumn(head(d), after) + 1);
+      expect(side.child.classes).toEqual(["wide"]);
+      expect(side.child.content).toEqual([{ kind: "literal", text: "Over" }]);
+      expect(side.second.children.map((c: any) => c.tag)).toEqual(["text"]);
+    }
+    expect(deep.child.props.x.value.split("f(".repeat(7)).join("f(")).toBe(shallow.child.props.x.value);
+  });
+
+  test("a top-level backtick string with whitespace before a deep group ends the value as at depth one", () => {
+    const head = (d: number) => `text #x=\`a b\`+${wrap(d, "1")}`;
+    const shallow = firstChild(head(1));
+    const deep = firstChild(head(7));
+    expect(deep.child.props.x).toEqual(shallow.child.props.x);
+    expect(shallow.errors[0]!.character).toBe(headColumn(head(1), " b") + 1);
+    expect(deep.errors[0]!.character).toBe(headColumn(head(7), " b") + 1);
+    expect(deep.child.content).toEqual([{ kind: "literal", text: "Over" }]);
+  });
+
+  test.each([
+    ["after the call", (d: number) => `button @click=${wrap(d, "1")},g`, (d: number) => wrap(d, "1").length],
+    ["before the call", (d: number) => `button @click=g,${wrap(d, "1")}`, () => 1],
+  ])("an event value with a comma %s reports the comma at depth seven as at depth one", (_, head, commaAt) => {
+    for (const d of [1, 7]) {
+      const { errors, child, second } = firstChild(head(d));
+      expect(errors).toEqual([
+        { line: LINE, character: headColumn(head(d), "=") + 1 + commaAt(d), message: "Invalid syntax" },
+      ]);
+      expect(child.content).toEqual([{ kind: "literal", text: "Over" }]);
+      expect(second.children.map((c: any) => c.tag)).toEqual(["text"]);
+    }
+  });
+
   test("a deep event value on a continuation line joins its element", () => {
     const deep = nestedCall(9);
     const { program, errors } = compile(

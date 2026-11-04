@@ -149,7 +149,9 @@ const INVALID_STRUCT_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
 const INVALID_SPARKLE_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
   "LuauSparkleBlockUnknown",
   "LuauSparkleElementInvalid",
+  "LuauSparkleEventValueComma",
 ]);
+const PROP_PAREN_OVERFLOW: Set<string> = nodeNameSet(["LuauSparklePropParenOverflow", "LuauSparklePropRunOverflow"]);
 const HEADER_CONTENT: ReadonlySet<string> = nodeNameSet(["Scene_content", "Branch_content"]);
 const MISSING_TYPE = "Expected type";
 const HEADER_METHOD_COLON_NAMES: SparkdownNodeName[] = ["LuauLoopHeaderMethodColon", "LuauIfHeaderMethodColon"];
@@ -640,6 +642,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           open?.from ?? nodeRef.from,
           open?.to ?? nodeRef.from + 1,
         );
+      }
+      return false;
+    }
+    if (nodeRef.name === "LuauSparklePropParenAttribute") {
+      const content = childNamed(nodeRef.node, "LuauSparklePropParenAttribute_content");
+      const overflow = content && firstDescendant(content, PROP_PAREN_OVERFLOW);
+      const from = overflow && ((childNamed(overflow, `${overflow.name}_begin`) ?? childNamed(overflow, `${overflow.name}_c1`))?.to ?? overflow.from);
+      if (overflow && from < content.to) {
+        this.error(annotations, "Invalid syntax", from, content.to);
       }
       return false;
     }

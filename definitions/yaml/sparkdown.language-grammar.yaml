@@ -678,6 +678,7 @@ variables:
   SPARKLE_OPEN_BRACED_2: (?:[{](?:{{SPARKLE_OPEN_BRACED_3}}|{{SPARKLE_OPEN_CODE_TOKEN}})*(?:[}]|$))
   SPARKLE_OPEN_BRACED: (?:[{](?:{{SPARKLE_OPEN_BRACED_2}}|{{SPARKLE_OPEN_CODE_TOKEN}})*$)
   SPARKLE_PARENS_PART: (?:{{SPARKLE_CODE_TOKEN}}|[{}])
+  SPARKLE_PROP_RUN_TOKEN: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE_RUN}}|{{SPARKLE_BACKTICKED}}|{{SPARKLE_LONG_BRACKET}}|[^(){}"'`\s\[]|[\[])
   SPARKLE_PROP_PARENS_PART: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE_RUN}}|{{SPARKLE_BACKTICKED}}|{{SPARKLE_LONG_BRACKET}}|[^()"'`\n\[]|[\[](?![=]*[\[]))
   SPARKLE_PARENS_6: (?:[(](?:{{SPARKLE_PARENS_PART}})*[)])
   SPARKLE_PARENS_5: (?:[(](?:{{SPARKLE_PARENS_6}}|{{SPARKLE_PARENS_PART}})*[)])
@@ -5578,7 +5579,7 @@ repository:
     patterns:
       - { include: "#LuauSparkleValueParens" }
       - { include: "#LuauTable" }
-      - { include: "#LuauSparkleValueComma" }
+      - { include: "#LuauSparkleEventValueComma" }
       - { include: "#LuauSparkleEventValueRun" }
     end: ({{WS}}+)|(?=[;}"]|[,](?:[\s;}]|$)|$)
     endCaptures:
@@ -5628,8 +5629,14 @@ repository:
       1:
         patterns:
           - { include: "#InlinePropWordValue" }
+          - { include: "#LuauSparklePropRunOverflow" }
 
   LuauSparkleValueComma:
+    match: ([,])
+
+  LuauSparkleEventValueComma:
+    tag: invalid
+    name: invalid.illegal.sparkle-element.sd
     match: ([,])
 
   LuauSparkleValueParens:
@@ -5672,6 +5679,7 @@ repository:
       - { include: "#LuauSparklePropValueParens" }
       - { include: "#LuauSparklePropValueBraces" }
       - { include: "#LuauSparklePropParenRun" }
+      - { include: "#LuauSparklePropParenOverflow" }
     end: ([)])|(?=[}])|$|(?={{SPARKLE_BLOCK_BAIL}})
     endCaptures:
       1:
@@ -5689,6 +5697,7 @@ repository:
       - { include: "#LuauSparklePropValueParens" }
       - { include: "#LuauSparklePropValueBraces" }
       - { include: "#LuauSparklePropParenRun" }
+      - { include: "#LuauSparklePropParenOverflow" }
     end: ([}])|(?=[)])|$|(?={{SPARKLE_BLOCK_BAIL}})
     endCaptures:
       1:
@@ -5696,11 +5705,48 @@ repository:
           - { include: "#PunctuationBraceClose" }
 
   LuauSparklePropParenRun:
-    match: ((?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE_RUN}}|{{SPARKLE_BACKTICKED}}|{{SPARKLE_LONG_BRACKET}}|[^(){}"'`\r\n\[]|[\[])+)
+    match: ({{SPARKLE_PROP_RUN_TOKEN}}+)
     captures:
       1:
         patterns:
           - { include: "#InlinePropWordValue" }
+          - { include: "#LuauSparklePropRunOverflow" }
+
+  LuauSparklePropRunOverflow:
+    tag: invalid
+    name: invalid.illegal.sparkle-element.sd
+    match: ({{WS}}+)(\S[^\n]*)
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+
+  LuauSparklePropParenOverflow:
+    begin: ({{WS}}+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauSparklePropOverflowGroup" }
+      - { include: "#LuauSparklePropOverflowRun" }
+      - { include: "#ExtraWhitespace" }
+    end: (?=[)}])|$|(?={{SPARKLE_BLOCK_BAIL}})
+
+  LuauSparklePropOverflowGroup:
+    tag: invalid
+    name: invalid.illegal.sparkle-element.sd
+    begin: ([({])
+    patterns:
+      - { include: "#LuauSparklePropOverflowGroup" }
+      - { include: "#LuauSparklePropOverflowRun" }
+      - { include: "#ExtraWhitespace" }
+    end: ([)}])|$|(?={{SPARKLE_BLOCK_BAIL}})
+
+  LuauSparklePropOverflowRun:
+    tag: invalid
+    name: invalid.illegal.sparkle-element.sd
+    match: ({{SPARKLE_PROP_RUN_TOKEN}}+)
 
   LuauSparkleElementName:
     tag: className

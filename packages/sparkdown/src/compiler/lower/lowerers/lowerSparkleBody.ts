@@ -445,6 +445,7 @@ const PROP_ATTR = nodeNameSet([
 ]);
 const PROP_CLOSURE = nodeNameSet(["LuauSparklePropClosure"]);
 const PROP_PAREN_VALUE = nodeNameSet(["LuauSparklePropParenAttribute_content"]);
+const PROP_PAREN_OVERFLOW = nodeNameSet(["LuauSparklePropParenOverflow", "LuauSparklePropRunOverflow"]);
 const PROP_NAME = nodeNameSet(["StyleAttributeName"]);
 const PROP_INTERP = nodeNameSet([
   "LuauInterpolatedStringExpression",
@@ -481,7 +482,8 @@ function readProps(
     if (!name) continue;
     if (attr.name === "LuauSparklePropParenAttribute") {
       const [value] = childrenByName(attr, PROP_PAREN_VALUE);
-      if (value) props[name] = { kind: "literal", value: ctx.read(value.from, value.to) };
+      const overflow = value && firstDescendant(value, PROP_PAREN_OVERFLOW);
+      if (value) props[name] = { kind: "literal", value: ctx.read(value.from, overflow?.from ?? value.to) };
       continue;
     }
     const closure = firstDescendant(attr, PROP_CLOSURE);

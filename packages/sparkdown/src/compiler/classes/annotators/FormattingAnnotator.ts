@@ -593,7 +593,11 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       if (isInsideInlineAlternator(nodeRef, (from, to) => this.read(from, to)))
         return annotations;
       if (isInStructBlockKey(nodeRef.node)) return annotations;
-      if (ancestorNamed(nodeRef.node, "LuauSparkleValueOverflow")) {
+      if (
+        ancestorNamed(nodeRef.node, "LuauSparkleValueOverflow") ||
+        ancestorNamed(nodeRef.node, "LuauSparklePropParenOverflow") ||
+        ancestorNamed(nodeRef.node, "LuauSparklePropRunOverflow")
+      ) {
         return annotations;
       }
       annotations.push(
