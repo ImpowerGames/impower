@@ -50,6 +50,31 @@ describe("typeless native operators", () => {
     },
   );
 
+  test.each(TYPELESS_OPS)(
+    "a call to %s runs its registered typeless handler",
+    (name, arity) => {
+      const prototype = NativeFunctionCall.CallExistsWithName(name)!;
+      const registered = prototype._typelessOp;
+      expect(registered).toBeTypeOf("function");
+      const sentinel = new StringValue("handled");
+      const received: InkObject[][] = [];
+      prototype._typelessOp = (params) => {
+        received.push([...params]);
+        return sentinel;
+      };
+      try {
+        const params = Array.from(
+          { length: arity },
+          (_, i) => new IntValue(i) as InkObject,
+        );
+        expect(call(name, params)).toBe(sentinel);
+        expect(received).toEqual([params]);
+      } finally {
+        prototype._typelessOp = registered;
+      }
+    },
+  );
+
   test.each(operands())("not and TRUTHY of %s use Luau truthiness", (_, v, truthy) => {
     expect((call(NativeFunctionCall.Not, [v]) as BoolValue).value).toBe(
       !truthy,
