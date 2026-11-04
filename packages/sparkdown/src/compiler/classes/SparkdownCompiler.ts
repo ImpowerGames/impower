@@ -1203,7 +1203,6 @@ export class SparkdownCompiler {
       uri,
       scripts: { [uri]: this.documents.get(uri)?.version ?? -1 },
       files: {},
-      version: this.documents.get(uri)?.version ?? -1,
       filesEpoch: this._filesEpoch,
     };
 
