@@ -6,6 +6,7 @@ vi.mock("../src/managers/SparkdownDebugManager", () => ({
 
 import { DidChangeGameStateMessage } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
 import { GameAwaitingInteractionMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameAwaitingInteractionMessage";
+import { GameClickedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameClickedToContinueMessage";
 import { GameEndedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEndedMessage";
 import { GameHitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameHitBreakpointMessage";
 import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
@@ -51,7 +52,10 @@ const stop = (reason: "breakpoint" | "step" | "awaiting interaction", run: numbe
         });
 
 const session = () => {
-  const player = { run: 1 as number | null };
+  const player = {
+    run: 1 as number | null,
+    launchState: "play" as "play" | "pause" | "ended" | "preview",
+  };
   const sent: string[] = [];
   const events: [string, string | null][] = [];
   let during:
@@ -67,6 +71,7 @@ const session = () => {
     emit: async (message: { method: string }) => {
       sent.push(message.method);
       const run = player.run;
+      const launchState = player.launchState;
       if (during && (!during.method || during.method === message.method)) {
         const { act } = during;
         during = undefined;
@@ -77,6 +82,9 @@ const session = () => {
         held = undefined;
         await wait;
       }
+      if (message.method === "preview/gameState") {
+        return state(launchState, run).params;
+      }
       return message.method === "game/threads"
         ? { threads: [{ id: 0, name: "main" }], run }
         : { run, done: false };
@@ -84,6 +92,7 @@ const session = () => {
   };
   const fileAccessor = {
     isWindows: false,
+    showFile: async () => {},
     uriToPath: (uri: string) => uri.replace("file://", ""),
     pathToUri: (path: string) => `file://${path}`,
     getRootPath: () => undefined,
@@ -294,5 +303,107 @@ describe("the debug adapter judging stops by the run they belong to", () => {
       ["response", null],
       ["stopped", "pause"],
     ]);
+  });
+});
+
+const click = (run: number) =>
+  GameClickedToContinueMessage.type.notification({ location: location(1), run });
+
+describe("the debug adapter learning the current run when it starts", () => {
+  it("publishes the first run's awaiting-interaction stop after a click when it starts on game/started", async () => {
+    const s = session();
+    await s.request("launchRequest");
+    expect(s.sent).toContain("preview/gameState");
+    expect(s.current()).toBe(1);
+    s.events.length = 0;
+    await s.notify(click(1));
+    await s.notify(stop("awaiting interaction", 1));
+    expect(s.events).toEqual([
+      ["continued", null],
+      ["stopped", "awaiting interaction"],
+    ]);
+  });
+
+  it("judges the stops of a run already playing when it attaches", async () => {
+    const s = session();
+    s.player.run = 2;
+    await s.request("attachRequest");
+    expect(s.current()).toBe(2);
+    s.events.length = 0;
+    await s.notify(stop("step", 1));
+    expect(s.events).toEqual([]);
+    for (const reason of ["breakpoint", "step", "awaiting interaction"] as const) {
+      await s.notify(stop(reason, 2));
+    }
+    expect(s.events).toEqual([
+      ["stopped", "breakpoint"],
+      ["stopped", "step"],
+      ["stopped", "awaiting interaction"],
+    ]);
+  });
+
+  it("stops on the end when it attaches to an ended run, and answers a step with the end stop", async () => {
+    const s = session();
+    s.player.launchState = "ended";
+    await s.request("attachRequest");
+    expect(s.current()).toBe(1);
+    expect([...s.events].sort()).toEqual([
+      ["response", null],
+      ["stopped", "end"],
+    ]);
+    s.events.length = 0;
+    s.sent.length = 0;
+    await s.request("nextRequest");
+    expect(s.sent).not.toContain("game/step");
+    expect(s.events).toEqual([
+      ["response", null],
+      ["stopped", "end"],
+    ]);
+  });
+
+  it("keeps a state publication that arrives while its first read is answered over that read's older answer", async () => {
+    const s = session();
+    s.player.launchState = "ended";
+    s.duringNext(async () => {
+      s.player.run = 2;
+      s.player.launchState = "play";
+      await s.notify(state("play", 2));
+    }, "preview/gameState");
+    await s.request("launchRequest");
+    expect(s.current()).toBe(2);
+    expect(s.events.filter(([event]) => event === "stopped")).toEqual([]);
+    s.events.length = 0;
+    await s.notify(stop("awaiting interaction", 1));
+    await s.notify(stop("awaiting interaction", 2));
+    expect(s.events).toEqual([["stopped", "awaiting interaction"]]);
+  });
+
+  it("publishes the same stops as before when it starts before RUN", async () => {
+    const run = async (launch: boolean) => {
+      const s = session();
+      s.player.run = null;
+      s.player.launchState = "preview";
+      if (launch) {
+        await s.request("launchRequest");
+      }
+      s.player.run = 1;
+      s.player.launchState = "play";
+      s.events.length = 0;
+      await s.notify(state("play", 1));
+      await s.notify(stop("awaiting interaction", 1));
+      await s.notify(click(1));
+      await s.notify(stop("step", 1));
+      await s.notify(ended(1));
+      await s.notify(state("ended", 1));
+      return s.events;
+    };
+    const today = await run(false);
+    expect(today).toEqual([
+      ["stopped", "awaiting interaction"],
+      ["continued", null],
+      ["stopped", "step"],
+      ["stopped", "end"],
+    ]);
+    expect(await run(true)).toEqual(today);
   });
 });

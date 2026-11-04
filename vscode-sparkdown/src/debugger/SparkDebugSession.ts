@@ -3,7 +3,7 @@
  *--------------------------------------------------------*/
 
 import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
-import { DidChangeGameStateMessage, type GameState } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
+import { DidChangeGameStateMessage, GameStateMessage, type GameState } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
 import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
@@ -101,6 +101,8 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   private _run: number | null | undefined;
 
+  private _statePublications = 0;
+
   public constructor(fileAccessor: FileAccessor, connection: Connection) {
     super("mock-debug.txt");
 
@@ -187,8 +189,27 @@ export class SparkDebugSession extends LoggingDebugSession {
       this.sendContinuedEvent();
     }
     if (DidChangeGameStateMessage.type.isNotification(message)) {
+      this._statePublications += 1;
       this.noteRun(message.params.run);
       this.setLaunchState(message.params.launchState);
+    }
+  }
+
+  protected async readGameState() {
+    const publications = this._statePublications;
+    let state: GameState;
+    try {
+      state = await this._connection.emit(GameStateMessage.type.request({}));
+    } catch {
+      return;
+    }
+    if (!state || publications !== this._statePublications) {
+      return;
+    }
+    this.noteRun(state.run);
+    this.setLaunchState(state.launchState);
+    if (state.launchState === "ended") {
+      await this.sendStoppedEvent("end", state.run);
     }
   }
 
@@ -394,9 +415,13 @@ export class SparkDebugSession extends LoggingDebugSession {
       false,
     );
 
+    const reading = this.readGameState();
+
     await this._fileAccessor.showFile(args.program);
 
     this.sendResponse(response);
+
+    await reading;
   }
 
   protected override async pauseRequest(
