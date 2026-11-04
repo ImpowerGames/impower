@@ -462,7 +462,13 @@ async function postLoad(
   const sequence = ++loadSequence;
   const breakpoints = await SparkProgramManager.instance
     .uiBreakpoints(uri)
-    .catch(() => undefined);
+    .catch((error: unknown) => {
+      console.error(
+        `Screen Preview: sparkdown/uiBreakpoints failed for ${uri.toString()}; using the builtin breakpoints`,
+        error,
+      );
+      return undefined;
+    });
   if (sequence !== loadSequence) {
     return;
   }

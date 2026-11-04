@@ -133,10 +133,14 @@ describe("the screen preview's load message carries the project's breakpoints", 
   });
 
   it("still loads with the builtin table when the request fails", async () => {
-    state.uiBreakpoints = () => Promise.reject(new Error("no server"));
+    const failure = new Error("no server");
+    state.uiBreakpoints = () => Promise.reject(failure);
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     const preview = await restore();
     await preview.send({ method: "initialized" });
     await settle();
+    expect(logged).toHaveBeenCalledWith(expect.stringContaining(URI), failure);
+    logged.mockRestore();
     expect(preview.loads()).toHaveLength(1);
     expect(preview.loads()[0].params.breakpoints).toBeUndefined();
     expect(preview.loads()[0].params.text).toBe(TEXT);
