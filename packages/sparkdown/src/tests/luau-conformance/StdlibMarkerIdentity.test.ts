@@ -131,13 +131,13 @@ function setup()
 held = print
 keyed = {}
 keyed[{}] = 2
-keyed[print] = 1
+keyed[tostring] = 1
 end
 
 function check()
 host_record(rawequal(held, print))
 host_record(held == print)
-host_record(keyed[print])
+host_record(keyed[tostring])
 end
 `;
     const compiler = testCompiler();
