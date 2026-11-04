@@ -26,7 +26,7 @@ describe("script file typing", () => {
     expect(isScriptPath(".luau")).toBe(false);
   });
 
-  it("gives the workspace the same script glob the editor lists scripts with", () => {
+  it("types the workspace configuration's script files with the shared glob, which matches .sd and .luau", () => {
     expect(new WorkspaceConfiguration().settings.scriptFiles).toBe(
       SCRIPT_FILES_GLOB,
     );

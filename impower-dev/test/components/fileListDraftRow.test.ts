@@ -72,6 +72,9 @@ const { default: FileList } = await import(
 const { requestNewEntry } = await import(
   "../../src/modules/spark-editor/utils/newEntryDraft"
 );
+const { Workspace } = await import(
+  "../../src/modules/spark-editor/workspace/Workspace"
+);
 
 const settle = async () => {
   for (let i = 0; i < 5; i++) {
@@ -147,4 +150,44 @@ describe("FileList new-file draft row", () => {
       files: [{ uri: "file://p/scripts/intro.sd", data: expect.any(ArrayBuffer) }],
     });
   });
+
+  it.each([
+    ["scripts", "luau", "util", true],
+    ["scripts", "sd", "intro", true],
+    ["assets", "png", "hero", false],
+  ])(
+    "records a %s .%s draft's creation as a script change: %s",
+    async (rootDir, ext, name, isScript) => {
+      vi.mocked(Workspace.window.recordScriptChange).mockClear();
+      vi.mocked(Workspace.window.recordAssetChange).mockClear();
+      const host = await mountWithDraft(rootDir, ext);
+      const input = host.querySelector<HTMLInputElement>("[data-tree-row] input")!;
+
+      await act(async () => {
+        input.value = name;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await act(async () => {
+        input.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+        );
+      });
+      await settle();
+
+      expect(fs.createFiles).toHaveBeenCalledWith({
+        files: [
+          {
+            uri: `file://p/${rootDir}/${name}.${ext}`,
+            data: expect.any(ArrayBuffer),
+          },
+        ],
+      });
+      expect(Workspace.window.recordScriptChange).toHaveBeenCalledTimes(
+        isScript ? 1 : 0,
+      );
+      expect(Workspace.window.recordAssetChange).toHaveBeenCalledTimes(
+        isScript ? 0 : 1,
+      );
+    },
+  );
 });
