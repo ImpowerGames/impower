@@ -43,11 +43,7 @@ export const getAnimationContent = (
   let textContent = "";
   Object.entries(animations).forEach(([name, animation]) => {
     let animationContent = "";
-    const keyframes = Array.isArray(animation.keyframes)
-      ? animation.keyframes
-      : animation.keyframes
-        ? [animation.keyframes]
-        : [];
+    const keyframes = animation.keyframes;
     if (keyframes.length) {
       const offsets = resolveOffsets(keyframes);
       const max = keyframes.length - 1;
