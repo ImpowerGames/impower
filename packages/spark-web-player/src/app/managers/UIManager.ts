@@ -121,14 +121,26 @@ function sameElements(a: HTMLElement[], b: HTMLElement[]): boolean {
   return a.length === b.length && a.every((el) => b.includes(el));
 }
 
-function createSignature(params: {
-  type: string;
-  name?: string;
-  content?: unknown;
-  style?: unknown;
-  attributes?: unknown;
-}): string {
+function getThemeKey(variables: readonly string[]): string {
+  let hash = 0x811c9dc5;
+  for (const char of [...variables].sort().join("\n")) {
+    hash = Math.imul(hash ^ char.charCodeAt(0), 0x01000193);
+  }
+  return `${variables.length}:${(hash >>> 0).toString(36)}`;
+}
+
+function createSignature(
+  themeKey: string,
+  params: {
+    type: string;
+    name?: string;
+    content?: unknown;
+    style?: unknown;
+    attributes?: unknown;
+  },
+): string {
   return JSON.stringify([
+    themeKey,
     params.type,
     params.name ?? null,
     params.content ?? null,
@@ -201,6 +213,8 @@ export default class UIManager extends Manager {
   protected _breakpoints: Record<string, number> = {};
 
   protected _theme: ThemeVariables = new Set();
+
+  protected _themeKey = getThemeKey([]);
 
   protected _listeners: Record<string, Record<string, (event: Event) => void>> =
     {};
@@ -921,7 +935,10 @@ export default class UIManager extends Manager {
         return [existing?.parentElement, parent];
       }
       const touched: (Element | null | undefined)[] = [];
-      if ((existing as any).__sdCreate !== createSignature(params)) {
+      if (
+        (existing as any).__sdCreate !==
+        createSignature(this._themeKey, params)
+      ) {
         touched.push(params.content ? existing : existing.parentElement);
       } else if ((existing as any).__sdUpdatedContent && params.content) {
         touched.push(existing);
@@ -977,6 +994,7 @@ export default class UIManager extends Manager {
       const params = msg.params;
       this._breakpoints = params.breakpoints;
       this._theme = new Set(params.variables);
+      this._themeKey = getThemeKey(params.variables);
       const rootTextSize = params.root_text_size;
       if (rootTextSize) {
         const doc = this.app.overlay?.ownerDocument;
@@ -1014,7 +1032,7 @@ export default class UIManager extends Manager {
         this._elements.set(id, el);
         this._staleIds.delete(id);
       }
-      const sig = createSignature(params);
+      const sig = createSignature(this._themeKey, params);
       const changed = !reused || (el as any).__sdCreate !== sig;
       if (changed) {
         el.className = params.name || "";

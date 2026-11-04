@@ -25,6 +25,126 @@ export function validateCss(value: string | null | undefined): boolean {
   return SAFE_CSS_VALUE_RE.test(v);
 }
 
+const GRADIENT_FUNCTION = /^(?:repeating-)?(?:linear|radial|conic)-gradient$/i;
+
+const GRADIENT_SETUP_WORDS = new Set([
+  "to",
+  "in",
+  "from",
+  "at",
+  "circle",
+  "ellipse",
+  "closest-side",
+  "closest-corner",
+  "farthest-side",
+  "farthest-corner",
+]);
+
+const skipQuoted = (css: string, start: number): number => {
+  const quote = css[start];
+  let end = start + 1;
+  while (end < css.length && css[end] !== quote) {
+    if (css[end] === "\\") end++;
+    end++;
+  }
+  return end + 1;
+};
+
+const findClosingParen = (css: string, open: number): number => {
+  let depth = 0;
+  let i = open;
+  while (i < css.length) {
+    const c = css[i];
+    if (c === '"' || c === "'") {
+      i = skipQuoted(css, i);
+      continue;
+    }
+    if (c === "(") {
+      depth++;
+    } else if (c === ")") {
+      depth--;
+      if (depth === 0) {
+        return i;
+      }
+    }
+    i++;
+  }
+  return css.length;
+};
+
+const splitArguments = (css: string): string[] => {
+  const args: string[] = [];
+  let depth = 0;
+  let start = 0;
+  let i = 0;
+  while (i < css.length) {
+    const c = css[i];
+    if (c === '"' || c === "'") {
+      i = skipQuoted(css, i);
+      continue;
+    }
+    if (c === "(") {
+      depth++;
+    } else if (c === ")") {
+      depth--;
+    } else if (c === "," && depth === 0) {
+      args.push(css.slice(start, i));
+      start = i + 1;
+    }
+    i++;
+  }
+  args.push(css.slice(start));
+  return args;
+};
+
+const isGradientSetup = (argument: string): boolean => {
+  const first = argument.trim().split(/[\s(]/, 1)[0]!.toLowerCase();
+  return GRADIENT_SETUP_WORDS.has(first) || /^[-+.\d]/.test(first);
+};
+
+const COLOR_FUNCTION = /^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)$/i;
+
+const RELATIVE_COLOR_PREFIX = /^\s*from\s+/i;
+
+const transformRelativeColorOrigin = (
+  css: string,
+  theme: ThemeVariables,
+): string => {
+  const prefix = css.match(RELATIVE_COLOR_PREFIX)?.[0];
+  if (!prefix) {
+    return css;
+  }
+  const rest = css.slice(prefix.length);
+  let end = 0;
+  while (end < rest.length && !/\s/.test(rest[end]!)) {
+    end = rest[end] === "(" ? findClosingParen(rest, end) + 1 : end + 1;
+  }
+  return prefix + transformColors(rest.slice(0, end), theme) + rest.slice(end);
+};
+
+const transformArguments = (
+  name: string,
+  css: string,
+  theme: ThemeVariables,
+): string => {
+  if (name.toLowerCase() === "url") {
+    return css;
+  }
+  if (COLOR_FUNCTION.test(name)) {
+    return transformRelativeColorOrigin(css, theme);
+  }
+  if (GRADIENT_FUNCTION.test(name) || name.toLowerCase() === "color-mix") {
+    return splitArguments(css)
+      .map((argument, index) =>
+        index === 0 && isGradientSetup(argument)
+          ? argument
+          : transformColors(argument, theme),
+      )
+      .join(",");
+  }
+  return transformColors(css, theme);
+};
+
 function transformColors(css: string, theme: ThemeVariables): string {
   let result = "";
   let i = 0;
@@ -40,14 +160,9 @@ function transformColors(css: string, theme: ThemeVariables): string {
     }
 
     if (css[i] === '"' || css[i] === "'") {
-      const quote = css[i];
-      let end = i + 1;
-      while (end < css.length && css[end] !== quote) {
-        if (css[end] === "\\") end++;
-        end++;
-      }
-      result += css.slice(i, end + 1);
-      i = end + 1;
+      const end = skipQuoted(css, i);
+      result += css.slice(i, end);
+      i = end;
       continue;
     }
 
@@ -57,6 +172,15 @@ function transformColors(css: string, theme: ThemeVariables): string {
       while (i < css.length && /[%/.a-z0-9_-]/i.test(css[i]!)) {
         identifier += css[i];
         i++;
+      }
+
+      if (css[i] === "(" && css[start - 1] !== "-") {
+        const close = findClosingParen(css, i);
+        const inner = css.slice(i + 1, close);
+        result += `${identifier}(${transformArguments(identifier, inner, theme)}`;
+        result += close < css.length ? ")" : "";
+        i = close + 1;
+        continue;
       }
 
       if (isBoundary(css, start, i)) {

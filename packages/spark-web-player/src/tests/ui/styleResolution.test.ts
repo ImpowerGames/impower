@@ -18,6 +18,7 @@ import { STYLE_TRANSFORMERS } from "../../../../sparkle-style-transformer/src/co
 import { generateSparkleAttributesAndStyles } from "../../../../sparkle-style-transformer/src/utils/generateSparkleAttributesAndStyles";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
+import { getThemeVariables } from "../../../../sparkle-style-transformer/src/utils/getThemeVariables";
 
 const ALIASES: Record<string, string> = { ...STYLE_ALIASES, ...CSS_ALIASES };
 
@@ -290,6 +291,91 @@ describe("a bare word becomes a theme variable only when the theme defines it", 
       [string, string],
     ];
     expect(resolved).toBe(css);
+  });
+
+  const gradientWordTheme: ReadonlySet<string> = new Set(
+    [
+      "to",
+      "left",
+      "in",
+      "oklch",
+      "from",
+      "at",
+      "center",
+      "circle",
+      "closest-side",
+      "images",
+      "sky_60",
+      "srgb",
+      "r",
+      "g",
+      "b",
+    ].map((name) => `--theme-color-${name}`),
+  );
+
+  test.each([
+    [
+      "linear-gradient(to left, #000, sky_60)",
+      "linear-gradient(to left, #000, var(--theme-color-sky_60))",
+    ],
+    [
+      "linear-gradient(in oklch, sky_60, #fff)",
+      "linear-gradient(in oklch, var(--theme-color-sky_60), #fff)",
+    ],
+    [
+      "radial-gradient(circle closest-side at center, sky_60 10%, #fff)",
+      "radial-gradient(circle closest-side at center, var(--theme-color-sky_60) 10%, #fff)",
+    ],
+    [
+      "conic-gradient(from 90deg at center, sky_60, #fff)",
+      "conic-gradient(from 90deg at center, var(--theme-color-sky_60), #fff)",
+    ],
+    [
+      "linear-gradient(45deg, sky_60, left)",
+      "linear-gradient(45deg, var(--theme-color-sky_60), var(--theme-color-left))",
+    ],
+    [
+      "linear-gradient(sky_60, #fff)",
+      "linear-gradient(var(--theme-color-sky_60), #fff)",
+    ],
+    ["url(images/sky_60.png)", "url(images/sky_60.png)"],
+    [
+      "linear-gradient(color-mix(in srgb, sky_60, #fff), #000)",
+      "linear-gradient(color-mix(in srgb, var(--theme-color-sky_60), #fff), #000)",
+    ],
+    [
+      "linear-gradient(rgb(from sky_60 r g b / 50%), #fff)",
+      "linear-gradient(rgb(from var(--theme-color-sky_60) r g b / 50%), #fff)",
+    ],
+  ])(
+    "a gradient's setup and a url keep their grammar when the theme names their words: %s",
+    (value, css) => {
+      expect(
+        getCssEquivalent("background-image", value, gradientWordTheme),
+      ).toEqual([["background-image", css]]);
+    },
+  );
+});
+
+describe("theme variables come only from declarations", () => {
+  test("comments and quoted text do not define a token", () => {
+    expect([
+      ...getThemeVariables(
+        `/* --theme-color-commented: red; */
+:root {
+  --theme-color-declared: red;
+  --theme-size-gap:4px;
+}
+div::before { content: "--theme-color-quoted: red"; }
+div::after { content: '--theme-color-single: red'; }`,
+      ),
+    ]).toEqual(["--theme-color-declared", "--theme-size-gap"]);
+  });
+
+  test("a reference to a theme variable does not define it", () => {
+    expect([
+      ...getThemeVariables(":root { color: var(--theme-color-used); }"),
+    ]).toEqual([]);
   });
 });
 
