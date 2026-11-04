@@ -1,15 +1,10 @@
 import { describe, expect, test } from "vitest";
 import { uiBuiltinDefinitions } from "../../spark-engine/src/game/modules/ui/uiBuiltinDefinitions";
-import { createScreenRenderContext } from "../../sparkle-screen-preview/src/utils/createScreenRenderContext";
-import {
-  getComponents,
-  parseSparkle,
-  renderCssVDOM,
-} from "../src";
+import { loadScreenPreview } from "../../sparkle-screen-preview/src/utils/loadScreenPreview";
 import { getUiBreakpoints } from "../../sparkdown-language-server/src/utils/providers/getUiBreakpoints";
 import { compileUI, createHarness } from "../../spark-engine/src/tests/ui/harness/uiTestHarness";
 
-const SCENE = "\n-> start\n\nscene start\n  A line.\nend\n";
+const SCENE = "\nscene start\n  A line.\nend\n";
 
 const OVERRIDE = `define ui as config with
   breakpoints = { sm = 500, md = 900 }
@@ -28,19 +23,13 @@ const gameBreakpoints = async (source: string) => {
 const previewCss = (
   selector: string,
   breakpoints: Record<string, number> | null,
-) => {
-  const parsed = parseSparkle(`style card\n  ${selector}\n    color = red`);
-  return JSON.stringify(
-    renderCssVDOM(
-      parsed,
-      createScreenRenderContext(
-        getComponents(parsed),
-        {},
-        breakpoints,
-      ),
-    ),
+) =>
+  JSON.stringify(
+    loadScreenPreview({
+      text: `style card\n  ${selector}\n    color = red`,
+      breakpoints,
+    }).render({}).css,
   );
-};
 
 describe("the screen preview resolves breakpoints as the game does", () => {
   test("a project override reaches the preview at the override's widths", async () => {
