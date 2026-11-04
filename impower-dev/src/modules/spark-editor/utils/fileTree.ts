@@ -1,3 +1,4 @@
+import type { ProjectMetadataField } from "@impower/spark-editor-protocol/src/types";
 import { isScriptPath } from "./scriptFiles";
 
 export interface FileTreeNode {
@@ -345,8 +346,19 @@ export const LAYOUT_MARKER = ".layout";
 
 export const FOLDERS_MARKER = ".folders";
 
+const PROJECT_METADATA_FIELDS: Record<ProjectMetadataField, true> = {
+  folders: true,
+  layout: true,
+  name: true,
+  textRevisionId: true,
+  textSynced: true,
+  zipRevisionId: true,
+  zipSynced: true,
+};
+
 export const isProjectMetadata = (relativePath: string): boolean =>
-  relativePath.startsWith(".") && !relativePath.includes("/");
+  relativePath.startsWith(".") &&
+  Object.hasOwn(PROJECT_METADATA_FIELDS, relativePath.slice(1));
 
 export const needsFolderMigration = (relativePaths: string[]): boolean =>
   !relativePaths.some(
@@ -391,7 +403,10 @@ export const foldersWithoutFiles = (
   directories: string[],
   keep: string[] = [],
 ): string[] => {
-  const held = new Set([...filePaths.flatMap(ancestorsOf), ...keep]);
+  const held = new Set([
+    ...filePaths.flatMap(ancestorsOf),
+    ...withAncestors(keep),
+  ]);
   return directories.filter((folder) => !held.has(folder));
 };
 

@@ -22,28 +22,53 @@ const settings = {
   fontFiles: "*.{ttf,otf,woff,woff2}",
 };
 
-let worker: { deliver(message: unknown): void } | undefined;
+let workers: { deliver(message: unknown): void }[] = [];
 
 afterEach(() => {
-  worker = undefined;
+  workers = [];
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   delete (navigator as { storage?: unknown }).storage;
+  delete (navigator as { locks?: unknown }).locks;
 });
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
-async function load(root: MemoryDirectory) {
+const memoryLocks = () => {
+  const tails = new Map<string, Promise<void>>();
+  return {
+    request: async <T>(name: string, task: () => Promise<T>): Promise<T> => {
+      const previous = tails.get(name) ?? Promise.resolve();
+      let release!: () => void;
+      const done = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      tails.set(name, previous.then(() => done));
+      await previous;
+      try {
+        return await task();
+      } finally {
+        release();
+      }
+    },
+  };
+};
+
+async function setup(root: MemoryDirectory) {
   vi.resetModules();
   Object.defineProperty(navigator, "storage", {
     configurable: true,
     value: { getDirectory: async () => root },
   });
+  Object.defineProperty(navigator, "locks", {
+    configurable: true,
+    value: memoryLocks(),
+  });
   class LoopbackWorker {
     listeners: ((event: { data: unknown }) => void)[] = [];
     onerror = null;
     constructor() {
-      worker = this;
+      workers.push(this);
     }
     addEventListener(_type: string, listener: (event: { data: unknown }) => void) {
       this.listeners.push(listener);
@@ -72,7 +97,9 @@ async function load(root: MemoryDirectory) {
   );
   vi.stubGlobal("Worker", LoopbackWorker);
   vi.stubGlobal("BroadcastChannel", class { onmessage = null; postMessage() {} close() {} });
-  vi.stubGlobal("postMessage", (message: unknown) => worker?.deliver(message));
+  vi.stubGlobal("postMessage", (message: unknown) =>
+    workers.forEach((w) => w.deliver(message)),
+  );
   vi.spyOn(console, "log").mockImplementation(() => {});
   await import("../../../packages/opfs-workspace/src/opfs-workspace");
   await (globalThis as any).onmessage({
@@ -85,10 +112,14 @@ async function load(root: MemoryDirectory) {
     connection: { onRequest() {}, sendNotification() {} },
     start: async () => {},
   };
-  const fs: WorkspaceFileSystemType = new WorkspaceFileSystem(
-    ls as never,
-    { settings } as never,
-  );
+  const make = (Ctor: typeof WorkspaceFileSystem = WorkspaceFileSystem) =>
+    new Ctor(ls as never, { settings } as never);
+  return { WorkspaceFileSystem, make };
+}
+
+async function load(root: MemoryDirectory) {
+  const { make } = await setup(root);
+  const fs: WorkspaceFileSystemType = make();
   await fs.getFiles(PROJECT);
   await settle();
   return fs;
@@ -427,6 +458,157 @@ describe("importing a zip without the layout marker", () => {
       "assets/notes/.folder",
       "main.sd",
     ]);
+  });
+});
+
+const archive = (entries: Record<string, string>) =>
+  zipSync(
+    Object.fromEntries(
+      Object.entries(entries).map(([path, text]) => [path, enc.encode(text)]),
+    ),
+    { level: 0 },
+  ).buffer as ArrayBuffer;
+
+const directoryOf = (root: MemoryDirectory, path: string) =>
+  path
+    .split("/")
+    .reduce(
+      (dir, name) => dir.entries.get(name) as MemoryDirectory,
+      root.entries.get(PROJECT) as MemoryDirectory,
+    );
+
+describe("authors' folders and files survive migrations, imports and other tabs", () => {
+  it("keeps a legacy empty folder whose sibling file the layout migration moves", async () => {
+    const root = seed({ "main.sd": "x", "art/bg.png": "b", "art/empty/.folder": "" });
+    await load(root);
+    expect(stored(root)).toEqual(
+      expect.arrayContaining(["art/", "art/empty/", "assets/art/bg.png"]),
+    );
+    expect(stored(root)).not.toContain("art/empty/.folder");
+  });
+
+  it("keeps an imported empty folder whose sibling file the reload lays out", async () => {
+    const root = seed({ ...MIGRATED, "main.sd": "old" });
+    const before = await load(root);
+    await before.writeProjectZip(
+      PROJECT,
+      archive({ "main.sd": "x", "art/bg.png": "b", "art/empty/": "" }),
+    );
+    await settle();
+    await load(root);
+    expect(stored(root)).toEqual(
+      expect.arrayContaining(["art/empty/", "assets/art/bg.png"]),
+    );
+  });
+
+  it("replaces an empty folder with an imported file of the same path", async () => {
+    const root = seed({ ...MIGRATED, "main.sd": "old" }, ["assets/picture.png"]);
+    const fs = await load(root);
+    await fs.writeProjectZip(
+      PROJECT,
+      archive({ ".layout": "1", "main.sd": "new", "assets/picture.png": "bytes" }),
+    );
+    expect(stored(root)).toContain("assets/picture.png");
+    expect(stored(root)).not.toContain("assets/picture.png/");
+    await fs.createFolder(PROJECT, "scripts/notes.txt");
+    expect(stored(root)).toContain("scripts/notes.txt/");
+    await fs.writeProjectScriptBundle(
+      PROJECT,
+      ["new", "//// scripts/notes.txt ////", "hello"].join("\n\n"),
+    );
+    expect(stored(root)).toContain("scripts/notes.txt");
+    expect(stored(root)).not.toContain("scripts/notes.txt/");
+  });
+
+  it("exports and syncs a .folder file the author keeps at the project root", async () => {
+    const root = seed({ ...MIGRATED, "main.sd": "old" });
+    const before = await load(root);
+    await before.writeProjectZip(
+      PROJECT,
+      archive({ ".layout": "1", "main.sd": "new", ".folder": "author content" }),
+    );
+    await settle();
+    const reloaded = await load(root);
+    expect(
+      dec.decode(await reloaded.readFile({ file: { uri: "file://local/.folder" } })),
+    ).toBe("author content");
+    expect(
+      Object.keys(unzipSync(new Uint8Array(await reloaded.readProjectZip(PROJECT)))),
+    ).toContain(".folder");
+    expect(await reloaded.readProjectScriptBundle(PROJECT)).toContain(
+      "//// .folder ////",
+    );
+  });
+
+  it("retries the migration on the next load when a .folder file could not be removed", async () => {
+    const root = seed({ ".layout": "1", "main.sd": "x", "assets/empty/.folder": "" });
+    const empty = directoryOf(root, "assets/empty");
+    const removeEntry = empty.removeEntry.bind(empty);
+    empty.removeEntry = async () => {
+      throw new DOMException("held by another process", "NoModificationAllowedError");
+    };
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await load(root);
+    expect(stored(root)).toContain("assets/empty/.folder");
+    expect(stored(root)).not.toContain(".folders");
+    empty.removeEntry = removeEntry;
+    await load(root);
+    expect(stored(root)).toEqual(
+      expect.arrayContaining([".folders", "assets/empty/"]),
+    );
+    expect(stored(root)).not.toContain("assets/empty/.folder");
+  });
+
+  it("opens a second tab only after the first tab's migration, so a .folder the author then writes survives", async () => {
+    const root = seed({ ".layout": "1", "main.sd": "x", "assets/empty/.folder": "" });
+    const { WorkspaceFileSystem, make } = await setup(root);
+    let reachDelete!: () => void;
+    const reachedDelete = new Promise<void>((resolve) => {
+      reachDelete = resolve;
+    });
+    let resume!: () => void;
+    const resumed = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+    class PausedBeforeDelete extends WorkspaceFileSystem {
+      override async deleteFiles(
+        params: Parameters<WorkspaceFileSystemType["deleteFiles"]>[0],
+      ) {
+        reachDelete();
+        await resumed;
+        return super.deleteFiles(params);
+      }
+    }
+    const migrating = make(PausedBeforeDelete);
+    await reachedDelete;
+    const second = make();
+    const secondLoad = second.getFiles(PROJECT);
+    const openedWhileMigrating = await Promise.race([
+      secondLoad.then(() => true),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 1500)),
+    ]);
+    const writeAuthorFile = () =>
+      second.createFiles({
+        files: [
+          { uri: "file://local/assets/empty/.folder", data: enc.encode("author data").buffer },
+        ],
+      });
+    if (openedWhileMigrating) {
+      await writeAuthorFile();
+    }
+    resume();
+    await migrating.getFiles(PROJECT);
+    await secondLoad;
+    if (!openedWhileMigrating) {
+      await writeAuthorFile();
+    }
+    await settle();
+    const later = await load(root);
+    expect(
+      dec.decode(await later.readFile({ file: { uri: "file://local/assets/empty/.folder" } })),
+    ).toBe("author data");
+    expect(openedWhileMigrating).toBe(false);
   });
 });
 

@@ -120,77 +120,9 @@ export default class WorkspaceFileSystem {
   }
 
   protected async loadInitialFiles(projectId: string) {
-    const directoryUri = this.getDirectoryUri(projectId);
-    let files = await this.readDirectoryFiles({
-      directory: { uri: directoryUri },
-    });
-    let folders = await this.listFolders(projectId);
-    const relativePaths = files.map((f) =>
-      this.getRelativePath(projectId, f.uri),
+    const { files, folders } = await this.withProjectLock(projectId, () =>
+      this.openProjectStore(projectId),
     );
-    const migrateFolders = needsFolderMigration(relativePaths);
-    const writeLayoutMarker = canWriteLayoutMarker(relativePaths);
-    let paths = relativePaths;
-    if (migrateFolders) {
-      const plan = planFolderMigration(
-        files.map((f) => ({
-          path: this.getRelativePath(projectId, f.uri),
-          size: f.size,
-        })),
-        folders,
-      );
-      if (plan.legacyFiles.length > 0) {
-        await this.deleteFiles({
-          files: plan.legacyFiles.map((p) => ({
-            uri: this.getFileUri(projectId, p),
-          })),
-        }).catch((e) => {
-          console.warn("[workspace] legacy .folder files not all removed:", e);
-        });
-      }
-      await this.deleteFolders(projectId, plan.staleFolders);
-      paths = relativePaths.filter((p) => !plan.legacyFiles.includes(p));
-      folders = await this.listFolders(projectId);
-    }
-    const emptyFolders = foldersWithoutFiles(paths, folders);
-    const batches = computeLayoutMigrationBatches(
-      paths,
-      layoutSubtreeFor,
-      emptyFolders,
-    );
-    for (const batch of batches) {
-      await this.renameFiles({
-        files: batch.map((m) => ({
-          oldUri: this.getFileUri(projectId, m.from),
-          newUri: this.getFileUri(projectId, m.to),
-        })),
-      });
-    }
-    if (batches.length > 0) {
-      const moved = await this.readDirectoryFiles({
-        directory: { uri: directoryUri },
-      });
-      await this.deleteFolders(
-        projectId,
-        foldersWithoutFiles(
-          moved.map((f) => this.getRelativePath(projectId, f.uri)),
-          await this.listFolders(projectId),
-          emptyFolders,
-        ),
-      );
-    }
-    if (writeLayoutMarker) {
-      await this.writeProjectMetadata(projectId, "layout", "1");
-    }
-    if (migrateFolders) {
-      await this.writeProjectMetadata(projectId, "folders", "1");
-    }
-    if (batches.length > 0 || writeLayoutMarker || migrateFolders) {
-      files = await this.readDirectoryFiles({
-        directory: { uri: directoryUri },
-      });
-      folders = await this.listFolders(projectId);
-    }
     this._folders = new Set(folders.map((p) => this.getFileUri(projectId, p)));
     this._files ??= {};
     const result: Record<string, FileData> = {};
@@ -231,6 +163,89 @@ export default class WorkspaceFileSystem {
       });
     void this.purgeExpiredTrash(projectId);
     return result;
+  }
+
+  protected async withProjectLock<T>(
+    projectId: string,
+    task: () => Promise<T>,
+  ): Promise<T> {
+    const locks = globalThis.navigator?.locks;
+    return locks
+      ? locks.request(`impower-workspace-open:${projectId}`, task)
+      : task();
+  }
+
+  protected async openProjectStore(projectId: string) {
+    const directoryUri = this.getDirectoryUri(projectId);
+    const readFiles = () =>
+      this.readDirectoryFiles({ directory: { uri: directoryUri } });
+    const pathsOf = (list: FileData[]) =>
+      list.map((f) => this.getRelativePath(projectId, f.uri));
+    let files = await readFiles();
+    let folders = await this.listFolders(projectId);
+    const relativePaths = pathsOf(files);
+    const migrateFolders = needsFolderMigration(relativePaths);
+    const writeLayoutMarker = canWriteLayoutMarker(relativePaths);
+    let paths = relativePaths;
+    let foldersMigrated = migrateFolders;
+    if (migrateFolders) {
+      const plan = planFolderMigration(
+        files.map((f) => ({
+          path: this.getRelativePath(projectId, f.uri),
+          size: f.size,
+        })),
+        folders,
+      );
+      if (plan.legacyFiles.length > 0) {
+        await this.deleteFiles({
+          files: plan.legacyFiles.map((p) => ({
+            uri: this.getFileUri(projectId, p),
+          })),
+        }).catch((e) => {
+          console.warn("[workspace] legacy .folder files not all removed:", e);
+        });
+        files = await readFiles();
+        paths = pathsOf(files);
+        foldersMigrated = !plan.legacyFiles.some((p) => paths.includes(p));
+      }
+      await this.deleteFolders(projectId, plan.staleFolders);
+      folders = await this.listFolders(projectId);
+    }
+    const emptyFolders = foldersWithoutFiles(paths, folders);
+    const batches = computeLayoutMigrationBatches(
+      paths,
+      layoutSubtreeFor,
+      emptyFolders,
+    );
+    for (const batch of batches) {
+      await this.renameFiles({
+        files: batch.map((m) => ({
+          oldUri: this.getFileUri(projectId, m.from),
+          newUri: this.getFileUri(projectId, m.to),
+        })),
+      });
+    }
+    if (batches.length > 0) {
+      await this.deleteFolders(
+        projectId,
+        foldersWithoutFiles(
+          pathsOf(await readFiles()),
+          await this.listFolders(projectId),
+          emptyFolders,
+        ),
+      );
+    }
+    if (writeLayoutMarker) {
+      await this.writeProjectMetadata(projectId, "layout", "1");
+    }
+    if (foldersMigrated) {
+      await this.writeProjectMetadata(projectId, "folders", "1");
+    }
+    if (batches.length > 0 || writeLayoutMarker || migrateFolders) {
+      files = await readFiles();
+      folders = await this.listFolders(projectId);
+    }
+    return { files, folders };
   }
 
   async executeCommand(params: ExecuteCommandParams) {
@@ -456,7 +471,6 @@ export default class WorkspaceFileSystem {
     const listed = unzipped
       .filter(({ filename }) => filename.endsWith("/"))
       .map(({ filename }) => filename.replace(/\/+$/, ""));
-    await this.createFolders(projectId, listed);
     await this.deleteFolders(
       projectId,
       foldersWithoutFiles(
@@ -464,6 +478,17 @@ export default class WorkspaceFileSystem {
         await this.listFolders(projectId),
         listed,
       ),
+    );
+    await this.createFolders(projectId, listed);
+  }
+
+  protected async clearFoldersAt(projectId: string, fileUris: string[]) {
+    const incoming = new Set(
+      fileUris.map((uri) => this.getRelativePath(projectId, uri)),
+    );
+    await this.deleteFolders(
+      projectId,
+      (await this.listFolders(projectId)).filter((p) => incoming.has(p)),
     );
   }
 
@@ -485,15 +510,11 @@ export default class WorkspaceFileSystem {
           !zipFilesToWrite.some((file) => file.uri === uri),
       )
       .map(([uri]) => ({ uri }));
-    await Promise.all([
-      this.createFiles({
-        files: zipFilesToWrite,
-      }),
-      this.deleteFiles({
-        files: zipFilesToDelete,
-      }),
-    ]);
+    if (zipFilesToDelete.length > 0) {
+      await this.deleteFiles({ files: zipFilesToDelete });
+    }
     await this.replaceFolders(projectId, unzipped);
+    await this.createFiles({ files: zipFilesToWrite });
     await this.writeProjectMetadata(projectId, "folders", "1");
   }
 
@@ -546,14 +567,14 @@ export default class WorkspaceFileSystem {
           !textFilesToWrite.some((file) => file.uri === uri),
       )
       .map(([uri]) => ({ uri }));
-    await Promise.all([
-      this.createFiles({
-        files: textFilesToWrite,
-      }),
-      this.deleteFiles({
-        files: textFilesToDelete,
-      }),
-    ]);
+    if (textFilesToDelete.length > 0) {
+      await this.deleteFiles({ files: textFilesToDelete });
+    }
+    await this.clearFoldersAt(
+      projectId,
+      textFilesToWrite.map((file) => file.uri),
+    );
+    await this.createFiles({ files: textFilesToWrite });
   }
 
   async writeProjectAssetBundle(projectId: string, content: ArrayBuffer) {
@@ -573,15 +594,11 @@ export default class WorkspaceFileSystem {
           !zipFilesToWrite.some((file) => file.uri === uri),
       )
       .map(([uri]) => ({ uri }));
-    await Promise.all([
-      this.createFiles({
-        files: zipFilesToWrite,
-      }),
-      this.deleteFiles({
-        files: zipFilesToDelete,
-      }),
-    ]);
+    if (zipFilesToDelete.length > 0) {
+      await this.deleteFiles({ files: zipFilesToDelete });
+    }
     await this.replaceFolders(projectId, unzipped);
+    await this.createFiles({ files: zipFilesToWrite });
   }
 
   splitProjectTextContent(

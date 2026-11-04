@@ -285,9 +285,14 @@ describe("planFolderMigration", () => {
 });
 
 describe("isProjectMetadata and needsFolderMigration", () => {
-  it("treats only dotfiles at the project root as project metadata", () => {
+  it("treats only the project's own metadata files as project metadata", () => {
     expect(isProjectMetadata(".name")).toBe(true);
     expect(isProjectMetadata(".layout")).toBe(true);
+    expect(isProjectMetadata(".folders")).toBe(true);
+    expect(isProjectMetadata(".zipSynced")).toBe(true);
+    expect(isProjectMetadata(".folder")).toBe(false);
+    expect(isProjectMetadata(".constructor")).toBe(false);
+    expect(isProjectMetadata("assets/.name")).toBe(false);
     expect(isProjectMetadata("assets/.folder")).toBe(false);
     expect(isProjectMetadata("assets/notes/.hidden")).toBe(false);
     expect(isProjectMetadata("main.sd")).toBe(false);
