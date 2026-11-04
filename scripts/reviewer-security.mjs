@@ -4,6 +4,7 @@ import os from 'node:os';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {checkProxyAuthTemplate} from './codex-proxy-auth.mjs';
+import {removeTreeEntries} from './link-safe-removal.mjs';
 import {systemTemp} from '../.agents/skills/drive-web-editor/worktree-temp.mjs';
 
 export const minimumCodexVersion='0.154.0';
@@ -53,17 +54,20 @@ export function readCodexAuthSecret(permission,source=process.env) {
 }
 
 const secretHomePrefix='impower-codex-home-';
+const ownedCodexHomes=new WeakMap();
 export function removeSecretCodexHome(home) {
   const resolved=typeof home==='string'?path.resolve(home):'';
   const name=path.basename(resolved);
   let parent='';
   try {parent=resolved?fs.realpathSync.native(path.dirname(resolved)):'';} catch {parent='';}
   if(!resolved||!parent||parent!==fs.realpathSync.native(systemTemp())||!name.startsWith(secretHomePrefix)||name.length===secretHomePrefix.length||/[\\/]/.test(name))throw new Error(`Refusing to remove ${home}: not a secret route Codex home`);
-  fs.rmSync(resolved,{recursive:true,force:true});
+  removeTreeEntries(resolved,{delays:[250,1000,3000],force:true});
 }
-export function discardCodexAuthCopy(step,env) {
-  if(step?.permissions?.codexAuthEnv===undefined||!env?.CODEX_HOME)return;
-  removeSecretCodexHome(env.CODEX_HOME);
+export function discardCodexAuthCopy(_step,env) {
+  const home=ownedCodexHomes.get(env);
+  if(!home)return;
+  removeSecretCodexHome(home);
+  ownedCodexHomes.delete(env);
 }
 
 export function validateCodexAuthHome(permission,worktree) {
@@ -89,13 +93,12 @@ export function installReviewerHooks(home,{node=process.execPath,entry=reviewerH
 }
 
 export function nativeReviewerEnvironment(step,privateDirectory,source=process.env,options={}) {
-  const secrets=[];
-  try{return buildNativeReviewerEnvironment(step,privateDirectory,source,options,secrets);}
-  catch(error){for(const home of secrets)removeSecretCodexHome(home);throw error;}
+  const env=reviewerEnvironment(source);
+  try{return buildNativeReviewerEnvironment(step,privateDirectory,source,options,env);}
+  catch(error){discardCodexAuthCopy(step,env);throw error;}
 }
 
-function buildNativeReviewerEnvironment(step,privateDirectory,source,{worktree,reportPosting},secrets) {
-  const env=reviewerEnvironment(source);
+function buildNativeReviewerEnvironment(step,privateDirectory,source,{worktree,reportPosting},env) {
   env.GIT_OPTIONAL_LOCKS='0';
   env.IMPOWER_TEST_POOL='reviewer';
   const codexReview=step.nativeResult==='codex-jsonl'||(step.model?.startsWith('gpt-')&&step.args?.[0]==='exec');
@@ -103,9 +106,9 @@ function buildNativeReviewerEnvironment(step,privateDirectory,source,{worktree,r
   if(step.nativeResult==='codex-jsonl'&&codexReviewMode(step)==='full-access') {
     const secret=step.permissions?.codexAuthEnv!==undefined;
     const auth=secret?readCodexAuthSecret(step.permissions,source):fs.readFileSync(path.join(validateCodexAuthHome(step.permissions,worktree),'auth.json'));
-    const home=fs.realpathSync.native(fs.mkdtempSync(secret?path.join(systemTemp(),'impower-codex-home-'):path.join(privateDirectory,'codex-home-')));
+    const home=fs.mkdtempSync(path.join(fs.realpathSync.native(systemTemp()),secretHomePrefix));
+    ownedCodexHomes.set(env,home);
     protectPrivatePath(home);
-    if(secret)secrets.push(home);
     const fd=fs.openSync(path.join(home,'auth.json'),'wx',0o600);
     try{protectPrivatePath(path.join(home,'auth.json'));fs.writeFileSync(fd,auth);}finally{fs.closeSync(fd);}
     if(secret)delete env[step.permissions.codexAuthEnv];
