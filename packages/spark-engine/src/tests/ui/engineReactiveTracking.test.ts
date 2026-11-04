@@ -22,8 +22,10 @@ scene start
 end
 `;
 
+const variablesOf = (game: any) => game.story.variablesState;
+
 const depsEnabled = (game: any): boolean =>
-  game.story.variablesState.reactiveDepsEnabled === true;
+  variablesOf(game).reactiveDepsEnabled === true;
 
 const withoutLayouts = (program: any) => ({
   ...program,
@@ -56,15 +58,19 @@ describe("reactive dependency tracking is a setting of the engine", () => {
   test("rewindStory (the STOP then PLAY restart path) keeps it", async () => {
     const h = createHarness(SOURCE);
     await h.ready;
+    const before = variablesOf(h.game);
     (h.game as any).rewindStory();
+    expect(variablesOf(h.game) === before).toBe(false);
     expect(depsEnabled(h.game)).toBe(true);
   });
 
   test("updateProgram (the live-edit recompile path) builds an engine with it on", async () => {
     const h = createHarness(SOURCE);
     await h.ready;
+    const before = h.game.story;
     const { program } = compileUI(SOURCE);
     (h.game as any).updateProgram(program);
+    expect(h.game.story === before).toBe(false);
     expect(depsEnabled(h.game)).toBe(true);
   });
 
@@ -84,7 +90,9 @@ describe("reactive dependency tracking is a setting of the engine", () => {
     const { program } = compileUI(SOURCE);
     (h.game as any).updateProgram(program);
     h.game.checkpoint();
+    variablesOf(h.game).$("hp", 42);
     expect(h.game.restoreCheckpoint(h.game.checkpoints.length - 1)).toBe(true);
+    expect(variablesOf(h.game).$("hp")).toBe(100);
     expect(depsEnabled(h.game)).toBe(true);
   });
 
@@ -93,7 +101,10 @@ describe("reactive dependency tracking is a setting of the engine", () => {
     await h.ready;
     const { program } = compileUI(SOURCE);
     (h.game as any).updateProgram(program);
+    const before = variablesOf(h.game);
     await h.preview(16);
+    expect(h.game.previewedAddress).toBeTruthy();
+    expect(variablesOf(h.game) === before).toBe(false);
     expect(depsEnabled(h.game)).toBe(true);
   });
 
