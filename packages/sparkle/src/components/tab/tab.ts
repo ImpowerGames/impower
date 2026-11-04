@@ -4,6 +4,7 @@ import {
   getCssMask,
   getCssSize,
 } from "../../../../sparkle-style-transformer/src/utils/transformers";
+import { SPARKLE_THEME } from "../../core/sparkle-theme";
 import { SparkleComponent } from "../../core/sparkle-component";
 import spec from "./_tab";
 
@@ -53,7 +54,7 @@ export default class Tab extends SparkleComponent(spec, DEFAULT_TRANSFORMERS) {
       const ripple = this.refs.ripple;
       if (ripple) {
         if (newValue) {
-          const mask = getCssMask(newValue);
+          const mask = getCssMask(newValue, SPARKLE_THEME);
           ripple.root.style.webkitMask = mask;
           ripple.root.style.mask = mask;
         }

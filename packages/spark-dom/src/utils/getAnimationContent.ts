@@ -1,5 +1,6 @@
 import type { Animation } from "../../../spark-engine/src/game/modules/ui/types/Animation";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
+import type { ThemeVariables } from "../../../sparkle-style-transformer/src/types/themeVariables";
 import { getCssTokenValue } from "./getCssTokenValue";
 
 const readOffset = (keyframe: unknown): number | null => {
@@ -39,6 +40,7 @@ const resolveOffsets = (keyframes: readonly unknown[]): number[] => {
 
 export const getAnimationContent = (
   animations: Record<string, Animation>,
+  theme: ThemeVariables,
 ): string => {
   let textContent = "";
   Object.entries(animations).forEach(([name, animation]) => {
@@ -57,7 +59,7 @@ export const getAnimationContent = (
             if (k === "offset") {
               continue;
             }
-            const cssEntries = getCssEquivalent(k, getCssTokenValue(v));
+            const cssEntries = getCssEquivalent(k, getCssTokenValue(v), theme);
             for (const [k, v] of cssEntries) {
               domKeyframe[k] = v;
             }

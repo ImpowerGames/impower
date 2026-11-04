@@ -5,6 +5,10 @@ import {
 import { CSS_UTILITIES } from "../constants/CSS_UTILITIES.js";
 import { STYLE_ALIASES } from "../constants/STYLE_ALIASES.js";
 import { STYLE_TRANSFORMERS } from "../constants/STYLE_TRANSFORMERS.js";
+import type {
+  StyleTransformer,
+  ThemeVariables,
+} from "../types/themeVariables.js";
 import { getCssPropertyName } from "./getCssPropertyName.js";
 import { getCssWideKeyword } from "./getCssWideKeyword.js";
 
@@ -58,9 +62,10 @@ export const getSparklePropertyName = (key: string): string => {
 export const getCssEquivalent = (
   key: string,
   value: unknown,
+  theme: ThemeVariables,
   includeUnrecognized = true,
 ): [cssPropName: string, cssPropValue: string][] => {
-  const styleTransformers: Record<string, (v: string) => string> =
+  const styleTransformers: Record<string, StyleTransformer> =
     STYLE_TRANSFORMERS;
 
   const cssUtilities: Record<
@@ -85,7 +90,7 @@ export const getCssEquivalent = (
     if (defaultSelector) {
       for (let [k, v] of Object.entries(defaultSelector)) {
         if (v === "") {
-          v = resolve(text);
+          v = resolve(text, theme);
         }
         if (v) {
           entries.push([k, v]);
@@ -96,7 +101,7 @@ export const getCssEquivalent = (
     if (valueSelector && valueSelector !== defaultSelector) {
       for (let [k, v] of Object.entries(valueSelector)) {
         if (v === "") {
-          v = resolve(text);
+          v = resolve(text, theme);
         }
         if (v) {
           entries.push([k, v]);

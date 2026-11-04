@@ -10,9 +10,11 @@ import spec from "./_hidden";
 const CHANGING_EVENT = "changing";
 const CHANGED_EVENT = "changed";
 
+const duration = (v: string) => getCssDuration(v);
+
 const DEFAULT_TRANSFORMERS = {
-  "hide-delay": getCssDuration,
-  "show-delay": getCssDuration,
+  "hide-delay": duration,
+  "show-delay": duration,
 };
 
 export default class Hidden extends SparkleComponent(

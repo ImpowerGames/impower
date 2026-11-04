@@ -1,5 +1,6 @@
 import { STYLE_TRANSFORMERS } from "../constants/STYLE_TRANSFORMERS.js";
 import type Graphic from "../types/graphic";
+import type { ThemeVariables } from "../types/themeVariables.js";
 import {
   getSparkleAttribute,
   getSparklePropName,
@@ -11,13 +12,14 @@ const QUOTE_REGEX = /([\\]["]|["'`])/g;
 
 const generateStyledHtml = (
   html: string,
-  options?: {
+  options: {
     attributePrefix?: string;
     patterns?: Record<string, Graphic>;
     icons?: Record<string, Graphic>;
+    theme: ThemeVariables;
   },
 ): string => {
-  const { attributePrefix = "" } = options || {};
+  const { attributePrefix = "", theme } = options;
   if (!html) {
     return html;
   }
@@ -45,6 +47,7 @@ const generateStyledHtml = (
             propValue,
             attributePrefix,
             styleTransformers,
+            theme,
             styles,
           );
           const attrName = getSparkleAttribute(propName, attributePrefix);

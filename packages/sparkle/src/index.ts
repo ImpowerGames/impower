@@ -5,6 +5,7 @@ import {
 } from "../../spec-component/src/component";
 import DEFAULT_SPARKLE_CONSTRUCTORS from "./constants/DEFAULT_SPARKLE_CONSTRUCTORS";
 import DEFAULT_SPARKLE_STYLES from "./constants/DEFAULT_SPARKLE_STYLES";
+import { setSparkleTheme } from "./core/sparkle-theme";
 
 interface InitOptions extends DefineOptions {
   styles?: typeof DEFAULT_SPARKLE_STYLES;
@@ -17,6 +18,7 @@ export default abstract class Sparkle {
   ): Promise<CustomElementConstructor[]> {
     const styles = options?.styles ?? DEFAULT_SPARKLE_STYLES;
     const constructors = options?.constructors ?? DEFAULT_SPARKLE_CONSTRUCTORS;
+    setSparkleTheme(styles);
     adoptAll(styles);
     return defineAll(constructors, options);
   }

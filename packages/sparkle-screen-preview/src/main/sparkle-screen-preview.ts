@@ -9,6 +9,7 @@ import {
 } from "../../../sparkle-screen-renderer/src";
 import { Component } from "../../../spec-component/src/component";
 import { createScreenRenderContext } from "../utils/createScreenRenderContext";
+import { getScreenTheme } from "../utils/getScreenTheme";
 import { throttle } from "../utils/throttle";
 import spec from "./_sparkle-screen-preview";
 
@@ -39,7 +40,13 @@ export default class SparkdownScreenPreview extends Component(spec) {
         const stateInputEl = this.refs.state as HTMLInputElement;
         const update = throttle(() => {
           const state = JSON.parse(stateInputEl.value || "{}");
-          const ctx = createScreenRenderContext(components, state);
+          const theme = getScreenTheme(
+            parsed,
+            components,
+            state,
+            spec.sharedCSS ?? {},
+          );
+          const ctx = createScreenRenderContext(components, state, theme);
           const renderStyles = () => {
             const container = this.refs.css;
             const newVDOM = renderCssVDOM(parsed, ctx);

@@ -23,6 +23,24 @@ const ALIASES: Record<string, string> = { ...STYLE_ALIASES, ...CSS_ALIASES };
 
 const breakpoints = uiBuiltinDefinitions().config.ui.breakpoints;
 
+const theme: ReadonlySet<string> = new Set([
+  "--theme-color-sky_60",
+  "--theme-color-red_60",
+  "--theme-size-gutter",
+  "--theme-filter-dim",
+  "--theme-ease-bounce",
+  "--theme-gradient-sunset",
+  "--theme-image-hero",
+  "--theme-mask-fade",
+  "--theme-ratio-golden",
+  "--theme-z-index-dialog",
+  "--theme-animation-pulse",
+  "--theme-text-leading-loose",
+  "--theme-font-display",
+]);
+
+const noTheme: ReadonlySet<string> = new Set();
+
 const SAMPLE_VALUES = ["sky_60", "10", "md", "none", "ease-in", "2s", ""];
 
 describe("every alias resolves through the table that owns its value", () => {
@@ -30,8 +48,8 @@ describe("every alias resolves through the table that owns its value", () => {
     test(`${alias} -> ${target}`, () => {
       expect(CSS_UTILITIES).toHaveProperty([target]);
       for (const value of SAMPLE_VALUES) {
-        expect(getCssEquivalent(alias, value)).toEqual(
-          getCssEquivalent(target, value),
+        expect(getCssEquivalent(alias, value, theme)).toEqual(
+          getCssEquivalent(target, value, theme),
         );
       }
       expect(getCssPropertyNames(alias)).toEqual(getCssPropertyNames(target));
@@ -77,7 +95,7 @@ describe("one resolver owns each name and its value", () => {
     ["--spinner-color", "red", [["--spinner-color", "red"]]],
     ["webkitTextFillColor", "red", [["-webkit-text-fill-color", "red"]]],
   ] as const)("%s = %j", (key, value, expected) => {
-    expect(getCssEquivalent(key, value)).toEqual(expected);
+    expect(getCssEquivalent(key, value, theme)).toEqual(expected);
   });
 
   test.each([
@@ -112,16 +130,19 @@ describe("one resolver owns each name and its value", () => {
               ],
             ];
         expect(expected.length).toBeGreaterThan(0);
-        expect(getCssEquivalent(key, keyword)).toEqual(expected);
+        expect(getCssEquivalent(key, keyword, theme)).toEqual(expected);
       });
 
       test.each(Object.keys(STYLE_TRANSFORMERS))(
         "the %s transformer returns it as written",
         (name) => {
           const transform = (
-            STYLE_TRANSFORMERS as Record<string, (v: string) => string>
+            STYLE_TRANSFORMERS as Record<
+              string,
+              (v: string, t: ReadonlySet<string>) => string
+            >
           )[name]!;
-          expect(transform(keyword)).toBe(keyword);
+          expect(transform(keyword, theme)).toBe(keyword);
         },
       );
     },
@@ -134,7 +155,7 @@ describe("one resolver owns each name and its value", () => {
     ["flex-direction", "inherit", [["flex-direction", "inherit"]]],
     ["child-layout", "unset", [["flex-direction", "unset"]]],
   ])("%s = %j keeps its CSS-wide keyword", (key, value, expected) => {
-    expect(getCssEquivalent(key, value)).toEqual(expected);
+    expect(getCssEquivalent(key, value, theme)).toEqual(expected);
   });
 
   test.each([
@@ -144,9 +165,10 @@ describe("one resolver owns each name and its value", () => {
   ])(
     "a sparkle attribute %s = %s keeps its CSS-wide keyword",
     (prop, keyword) => {
-      const { styles } = generateSparkleAttributesAndStyles({
-        [prop]: keyword,
-      });
+      const { styles } = generateSparkleAttributesAndStyles(
+        { [prop]: keyword },
+        { theme },
+      );
       expect(Object.values(styles)).toContain(keyword);
       expect(Object.values(styles).join(" ")).not.toContain("var(--theme-");
     },
@@ -163,7 +185,7 @@ describe("one resolver owns each name and its value", () => {
     ["border-radius", "md / lg", [["border-radius", "8px / 16px"]]],
     ["corner", "10px/20px", [["border-radius", "10px/20px"]]],
   ])("compound size %s = %j resolves each part", (key, value, expected) => {
-    expect(getCssEquivalent(key, value)).toEqual(expected);
+    expect(getCssEquivalent(key, value, theme)).toEqual(expected);
   });
 
   test.each([
@@ -177,7 +199,7 @@ describe("one resolver owns each name and its value", () => {
     ["width", "md", [["width", "8px"]]],
     ["border-width", "gutter", [["border-width", "var(--theme-size-gutter)"]]],
   ])("native size keyword %s = %s stays native", (key, value, expected) => {
-    expect(getCssEquivalent(key, value)).toEqual(expected);
+    expect(getCssEquivalent(key, value, theme)).toEqual(expected);
   });
 
   test.each([
@@ -192,12 +214,82 @@ describe("one resolver owns each name and its value", () => {
   ])(
     "%s = %s keeps its native keyword or theme meaning",
     (key, value, expected) => {
-      expect(getCssEquivalent(key, value)).toEqual(expected);
+      expect(getCssEquivalent(key, value, theme)).toEqual(expected);
     },
   );
 
   test("an unrecognized name is dropped when unrecognized names are excluded", () => {
-    expect(getCssEquivalent("data-foo", "1", false)).toEqual([]);
+    expect(getCssEquivalent("data-foo", "1", theme, false)).toEqual([]);
+  });
+});
+
+describe("a bare word becomes a theme variable only when the theme defines it", () => {
+  test.each([
+    ["width", "auto", "auto"],
+    ["border-width", "gutter", "var(--theme-size-gutter)"],
+    ["color", "canvastext", "canvastext"],
+    ["color", "sky_60", "var(--theme-color-sky_60)"],
+    ["color", "sky_60/50", "rgb(from var(--theme-color-sky_60) r g b / 50)"],
+    ["color", "rebeccapurple/50", "rgb(from rebeccapurple r g b / 50)"],
+    ["transition-easing", "linear", "linear"],
+    ["easing", "bounce", "var(--theme-ease-bounce)"],
+    ["filter", "none", "none"],
+    ["filter", "dim", "var(--theme-filter-dim)"],
+  ])("%s = %s stays native unless the theme names it", (key, value, css) => {
+    const [[, resolved]] = getCssEquivalent(key, value, theme) as [
+      [string, string],
+    ];
+    expect(resolved).toBe(css);
+  });
+
+  test.each([
+    ["width", "min-content"],
+    ["height", "fit-content"],
+    ["outline-width", "thin"],
+    ["margin", "auto"],
+    ["color", "transparent"],
+    ["color", "currentColor"],
+    ["color", "canvastext"],
+    ["color", "sky_60"],
+    ["easing", "ease-in-out"],
+    ["easing", "step-start"],
+    ["easing", "bounce"],
+    ["filter", "none"],
+    ["filter", "dim"],
+    ["backdrop-filter", "none"],
+    ["background-image", "none"],
+    ["background-image", "hero"],
+    ["mask", "fade"],
+    ["aspect", "golden"],
+    ["z", "dialog"],
+    ["animation", "pulse"],
+    ["text-leading", "loose"],
+    ["text-font", "display"],
+  ])("with no theme, %s = %s passes through as written", (key, value) => {
+    expect(getCssEquivalent(key, value, noTheme)).toEqual([
+      [expect.any(String), value],
+    ]);
+  });
+
+  test.each([
+    ["background-image", "hero", "var(--theme-image-hero)"],
+    ["background-image", "sunset", "sunset"],
+    ["mask", "fade", "var(--theme-mask-fade)"],
+    ["aspect", "golden", "var(--theme-ratio-golden)"],
+    ["z", "dialog", "var(--theme-z-index-dialog)"],
+    ["animation", "pulse", "var(--theme-animation-pulse)"],
+    ["text-leading", "loose", "var(--theme-text-leading-loose)"],
+    ["text-font", "display", "var(--theme-font-display)"],
+    [
+      "background-image",
+      "linear-gradient(to left, sky_60, canvastext)",
+      "linear-gradient(to left, var(--theme-color-sky_60), canvastext)",
+    ],
+  ])("%s = %s resolves only a defined token", (key, value, css) => {
+    const [[, resolved]] = getCssEquivalent(key, value, theme) as [
+      [string, string],
+    ];
+    expect(resolved).toBe(css);
   });
 });
 
@@ -214,7 +306,7 @@ describe("an animation player keyframe resolves through the same table", () => {
     );
     vi.stubGlobal("Animation", class {});
     try {
-      new AnimationPlayer().add({
+      new AnimationPlayer(theme).add({
         element: document.createElement("div"),
         animations: [{ keyframes: [keyframe], timing: {} } as any],
       });
@@ -247,14 +339,15 @@ describe("an animation player keyframe resolves through the same table", () => {
     (keyframe, played, css) => {
       expect(playKeyframe(keyframe)).toEqual(played);
       expect(
-        getAnimationContent({
-          a: { keyframes: [keyframe], timing: {} } as any,
-        }),
+        getAnimationContent(
+          { a: { keyframes: [keyframe], timing: {} } as any },
+          theme,
+        ),
       ).toContain(`to { ${css} }`);
       const [k, v] = Object.entries(keyframe)[0]!;
-      expect(getStyleContent({ s: { [k]: v } }, { breakpoints })).toContain(
-        css.replace("; ", ";\n  "),
-      );
+      expect(
+        getStyleContent({ s: { [k]: v } }, { breakpoints, theme }),
+      ).toContain(css.replace("; ", ";\n  "));
     },
   );
 
@@ -302,7 +395,7 @@ describe("a screen element attribute resolves through the same table", () => {
       renderHtmlVDOM(parsed, {
         components: {},
         state: {},
-        options: { breakpoints },
+        options: { breakpoints, theme },
       }),
     );
     return /"style":"([^"]*)"/.exec(html)?.[1] ?? "";
@@ -325,7 +418,7 @@ describe("a screen element attribute resolves through the same table", () => {
         {
           components: {},
           state: {},
-          options: { breakpoints },
+          options: { breakpoints, theme },
         },
       ),
     );
@@ -338,7 +431,7 @@ describe("style content resolves tokens through the same table", () => {
   test("a spinner-color token becomes a theme var", () => {
     const css = getStyleContent(
       { busy: { spinner_color: { $type: "color", $name: "sky_60" } } },
-      { breakpoints },
+      { breakpoints, theme },
     );
     expect(css).toContain("--spinner-color: var(--theme-color-sky_60);");
   });
@@ -346,7 +439,7 @@ describe("style content resolves tokens through the same table", () => {
   test("an animation duration number gains its unit", () => {
     const css = getStyleContent(
       { fade: { duration: 2, delay: 0.5 } },
-      { breakpoints },
+      { breakpoints, theme },
     );
     expect(css).toContain("animation-duration: 2s;");
     expect(css).toContain("animation-delay: 0.5s;");

@@ -1,46 +1,17 @@
 import { SPARKLE_TO_CSS_NAME_MAP } from "../constants/CSS_ALIASES.js";
+import type { ThemeVariables } from "../types/themeVariables.js";
 
 const WHITESPACE_REGEX = /[\t ]+/;
 const VALUE_UNIT_REGEX = /^(\d+(?:\.\d+)?)([a-z]+)?$/;
-const NATIVE_SIZE_KEYWORDS = new Set([
-  "auto",
-  "min-content",
-  "max-content",
-  "fit-content",
-  "stretch",
-  "thin",
-  "medium",
-  "thick",
-]);
-const GRADIENT_KEYWORDS = new Set([
-  "left",
-  "right",
-  "top",
-  "bottom",
-  "in",
-  "to",
-  "srgb",
-  "srgb-linear",
-  "display-p3",
-  "display-p3-linear",
-  "a98-rgb",
-  "prophoto-rgb",
-  "rec2020",
-  "lab",
-  "oklab",
-  "hsl",
-  "hwb",
-  "lch",
-  "oklch",
-  "shorter",
-  "longer",
-  "increasing",
-  "decreasing",
-  "hue",
-  "xyz",
-  "xyz-d50",
-  "xyz-d65",
-]);
+
+export const getThemeVar = (
+  theme: ThemeVariables,
+  category: string,
+  name: string,
+): string | undefined => {
+  const variable = `--theme-${category}-${name}`;
+  return theme.has(variable) ? `var(${variable})` : undefined;
+};
 
 // eslint-disable-next-line no-useless-escape
 const SAFE_CSS_VALUE_RE =
@@ -54,7 +25,7 @@ export function validateCss(value: string | null | undefined): boolean {
   return SAFE_CSS_VALUE_RE.test(v);
 }
 
-function transformColors(css: string): string {
+function transformColors(css: string, theme: ThemeVariables): string {
   let result = "";
   let i = 0;
 
@@ -88,8 +59,8 @@ function transformColors(css: string): string {
         i++;
       }
 
-      if (!GRADIENT_KEYWORDS.has(identifier) && isBoundary(css, start, i)) {
-        result += getCssColor(identifier);
+      if (isBoundary(css, start, i)) {
+        result += getCssColor(identifier, theme);
       } else {
         result += identifier;
       }
@@ -134,8 +105,12 @@ export const getCssAnchorVisibility = (value: string | boolean): string => {
   return value;
 };
 
-export const getCssAnimation = (value: string | null, suffix = ""): string => {
-  if (!value || value === "none") {
+export const getCssAnimation = (
+  value: string | null,
+  theme: ThemeVariables,
+  suffix = "",
+): string => {
+  if (!value) {
     return "none";
   }
   if (value.startsWith("var(")) {
@@ -143,7 +118,7 @@ export const getCssAnimation = (value: string | null, suffix = ""): string => {
   }
   return value
     .split(" ")
-    .map((v) => `var(--theme-animation-${v}${suffix || ""})`)
+    .map((v) => getThemeVar(theme, "animation", `${v}${suffix}`) ?? v)
     .join(", ");
 };
 
@@ -181,29 +156,19 @@ export const getCssBorderStyle = (value: string): string => {
   return value;
 };
 
-export const getCssColor = (value: string): string => {
+export const getCssColor = (value: string, theme: ThemeVariables): string => {
   if (value === "current") {
     return "currentColor";
   }
-  if (
-    value === "none" ||
-    value === "transparent" ||
-    value === "black" ||
-    value === "white" ||
-    value === "currentColor" ||
-    value.startsWith("#") ||
-    value.includes("(")
-  ) {
-    return value;
-  }
-  if (!value) {
+  if (!value || value.startsWith("#") || value.includes("(")) {
     return value;
   }
   if (value.includes("/")) {
-    const [color, alpha] = value.split("/");
-    return `rgb(from var(--theme-color-${color}) r g b / ${alpha})`;
+    const [color = "", alpha] = value.split("/");
+    const origin = getThemeVar(theme, "color", color) ?? color;
+    return `rgb(from ${origin} r g b / ${alpha})`;
   }
-  return `var(--theme-color-${value})`;
+  return getThemeVar(theme, "color", value) ?? value;
 };
 
 export const getCssChildColumns = (columns: string): string => {
@@ -267,11 +232,11 @@ export const getCssChildAlign = (value: boolean | string): string => {
 
 export const isValidNumber = (v: string) => !Number.isNaN(Number(v));
 
-export const getCssZ = (value: string): string => {
+export const getCssZ = (value: string, theme: ThemeVariables): string => {
   if (isValidNumber(value) || value.startsWith("var(")) {
     return value;
   }
-  return `var(--theme-z-index-${value})`;
+  return getThemeVar(theme, "z-index", value) ?? value;
 };
 
 const withUnitOutsideFunctions = (parts: string[], unit: string): string[] => {
@@ -364,14 +329,17 @@ export const getCssTextDecorationLine = (value: boolean | string): string => {
   return value;
 };
 
-export const getCssTextStroke = (value: string): string => {
+export const getCssTextStroke = (
+  value: string,
+  theme: ThemeVariables,
+): string => {
   const [width, color] = value.trim().split(WHITESPACE_REGEX);
   const widthMatch = width?.match(VALUE_UNIT_REGEX);
   const widthValue = widthMatch?.[1] || "";
   const widthUnit = widthMatch?.[2] || "";
   let r = isValidNumber(widthValue) ? Number(widthValue) : 1;
   let u = widthUnit || "px";
-  let c = getCssColor(color || "black");
+  let c = getCssColor(color || "black", theme);
   if (r === 0) {
     return "none";
   }
@@ -386,49 +354,27 @@ export const getCssTextStroke = (value: string): string => {
   return str;
 };
 
-export const getCssTextSize = (value: string): string => {
+export const getCssTextSize = (
+  value: string,
+  theme: ThemeVariables,
+): string => {
   if (value.startsWith("var(")) {
     return value;
-  }
-  if (
-    value === "2xs" ||
-    value === "xs" ||
-    value === "sm" ||
-    value === "md" ||
-    value === "lg" ||
-    value === "xl" ||
-    value === "2xl" ||
-    value === "3xl" ||
-    value === "4xl" ||
-    value === "5xl" ||
-    value === "6xl" ||
-    value === "7xl" ||
-    value === "8xl" ||
-    value === "9xl"
-  ) {
-    return `var(--theme-text-${value}-font-size)`;
   }
   if (!Number.isNaN(Number(value))) {
     return `${value}px`;
   }
-  return value;
+  return getThemeVar(theme, "text", `${value}-font-size`) ?? value;
 };
 
-export const getCssTextLeading = (value: string): string => {
+export const getCssTextLeading = (
+  value: string,
+  theme: ThemeVariables,
+): string => {
   if (value.startsWith("var(")) {
     return value;
   }
-  if (
-    value === "none" ||
-    value === "xs" ||
-    value === "sm" ||
-    value === "md" ||
-    value === "lg" ||
-    value === "xl"
-  ) {
-    return `var(--theme-text-leading-${value})`;
-  }
-  return value;
+  return getThemeVar(theme, "text-leading", value) ?? value;
 };
 
 export const getCssTextStyle = (value: boolean | string): string => {
@@ -441,14 +387,14 @@ export const getCssTextStyle = (value: boolean | string): string => {
   return value;
 };
 
-export const getCssTextFont = (value: string): string => {
+export const getCssTextFont = (
+  value: string,
+  theme: ThemeVariables,
+): string => {
   if (value.startsWith("var(")) {
     return value;
   }
-  if (value === "sans" || value === "serif" || value === "mono") {
-    return `var(--theme-font-${value})`;
-  }
-  return value;
+  return getThemeVar(theme, "font", value) ?? value;
 };
 
 export const getCssTextAlign = (value: string): string => {
@@ -473,24 +419,27 @@ export const getCssContentVisibility = (size: string): string => {
   return size;
 };
 
-export const getCssCorner = (value: string): string => {
+export const getCssCorner = (value: string, theme: ThemeVariables): string => {
   if (value === "full" || value === "pill") {
     return "9999px";
   }
   if (value === "circle") {
     return "50%";
   }
-  return getCssSize(value);
+  return getCssSize(value, theme);
 };
 
-export const getCssDimension = (value: number | string): string => {
+export const getCssDimension = (
+  value: number | string,
+  theme: ThemeVariables,
+): string => {
   if (value === -1 || value === "") {
     return "100%";
   }
-  if (value === "none" || value === "auto") {
+  if (value === "none") {
     return value;
   }
-  return getCssSize(value, "px");
+  return getCssSize(value, theme);
 };
 
 export const getCssDisplay = (value: string | boolean): string => {
@@ -520,24 +469,13 @@ export const getCssDuration = (
 
 export const getCssEase = (
   value: string | null,
+  theme: ThemeVariables,
   defaultValue = "linear",
 ): string => {
   if (!value) {
     return defaultValue;
   }
-  if (
-    value === "none" ||
-    value === "linear" ||
-    value === "ease" ||
-    value === "ease-in" ||
-    value === "ease-out" ||
-    value === "ease-in-out" ||
-    value === "step-start" ||
-    value === "step-end" ||
-    value.startsWith("var(") ||
-    value.startsWith("cubic-bezier(") ||
-    value.startsWith("steps(")
-  ) {
+  if (value.includes("(")) {
     return value;
   }
   const [ease, outgoing, incoming] = value.split("-");
@@ -552,29 +490,14 @@ export const getCssEase = (
     const x2 = 1 - incomingPercent / 100;
     return `cubic-bezier(${x1}, 0, ${x2}, 1)`;
   }
-  return `var(--theme-ease-${value})`;
+  return getThemeVar(theme, "ease", value) ?? value;
 };
 
-export const getCssFilter = (value: string): string => {
-  if (value === "none") {
-    return value;
+export const getCssFilter = (value: string, theme: ThemeVariables): string => {
+  if (value.includes("(")) {
+    return transformColors(value, theme);
   }
-  if (
-    value.startsWith("var(") ||
-    value.startsWith("blur(") ||
-    value.startsWith("brightness(") ||
-    value.startsWith("contrast(") ||
-    value.startsWith("drop-shadow(") ||
-    value.startsWith("grayscale(") ||
-    value.startsWith("hue-rotate(") ||
-    value.startsWith("invert(") ||
-    value.startsWith("opacity(") ||
-    value.startsWith("sepia(") ||
-    value.startsWith("saturate(")
-  ) {
-    return transformColors(value);
-  }
-  return `var(--theme-filter-${value})`;
+  return getThemeVar(theme, "filter", value) ?? value;
 };
 
 export const getCssFlex = (value: boolean | string): string => {
@@ -590,23 +513,17 @@ export const getCssFlex = (value: boolean | string): string => {
   return value;
 };
 
-export const getCssGradient = (value: string): string => {
+export const getCssGradient = (
+  value: string,
+  theme: ThemeVariables,
+): string => {
   if (!value) {
     return "none";
   }
-  if (
-    value === "none" ||
-    value.startsWith("var(") ||
-    value.startsWith("linear-gradient(") ||
-    value.startsWith("radial-gradient(") ||
-    value.startsWith("conic-gradient(") ||
-    value.startsWith("repeating-linear-gradient(") ||
-    value.startsWith("repeating-radial-gradient(") ||
-    value.startsWith("repeating-conic-gradient(")
-  ) {
-    return transformColors(value);
+  if (value.includes("(")) {
+    return transformColors(value, theme);
   }
-  return `var(--theme-gradient-${value})`;
+  return getThemeVar(theme, "gradient", value) ?? value;
 };
 
 export const getCssGrow = (value: boolean | string): string => {
@@ -632,24 +549,14 @@ export const getCssIcon = (value: string): string => {
   return `'${value}'`;
 };
 
-export const getCssImage = (value: string): string => {
+export const getCssImage = (value: string, theme: ThemeVariables): string => {
   if (!value) {
     return "none";
   }
-  if (
-    value === "none" ||
-    value.startsWith("var(") ||
-    value.startsWith("url(") ||
-    value.startsWith("linear-gradient(") ||
-    value.startsWith("radial-gradient(") ||
-    value.startsWith("conic-gradient(") ||
-    value.startsWith("repeating-linear-gradient(") ||
-    value.startsWith("repeating-radial-gradient(") ||
-    value.startsWith("repeating-conic-gradient(")
-  ) {
-    return transformColors(value);
+  if (value.includes("(")) {
+    return transformColors(value, theme);
   }
-  return `var(--theme-image-${value})`;
+  return getThemeVar(theme, "image", value) ?? value;
 };
 
 export const getCssVisible = (value: boolean | string): string => {
@@ -662,11 +569,11 @@ export const getCssVisible = (value: boolean | string): string => {
   return value;
 };
 
-export const getCssMask = (value: string): string => {
+export const getCssMask = (value: string, theme: ThemeVariables): string => {
   if (value.startsWith("var(")) {
     return value;
   }
-  return `var(--theme-mask-${value})`;
+  return getThemeVar(theme, "mask", value) ?? value;
 };
 
 export const getCssInteractable = (value: boolean | string): string => {
@@ -764,7 +671,7 @@ export const getCssProportion = (
   return Number(v);
 };
 
-export const getCssRatio = (value: string): string => {
+export const getCssRatio = (value: string, theme: ThemeVariables): string => {
   if (value === "") {
     return "1";
   }
@@ -777,7 +684,7 @@ export const getCssRatio = (value: string): string => {
   if (value.startsWith("var(")) {
     return value;
   }
-  return `var(--theme-ratio-${value})`;
+  return getThemeVar(theme, "ratio", value) ?? value;
 };
 
 export const getCssRepeat = (value: boolean | string): string => {
@@ -801,23 +708,25 @@ export const getCssRepeat = (value: boolean | string): string => {
   return value;
 };
 
-export const getCssGlow = (value: string): string => {
+export const getCssGlow = (value: string, theme: ThemeVariables): string => {
   if (value === "none") {
     return value;
   }
   const [width, color] = value.split(WHITESPACE_REGEX);
-  return `0 0 ${getCssSize(width ?? 2)} 0 ${getCssColor(
+  return `0 0 ${getCssSize(width ?? 2, theme)} 0 ${getCssColor(
     color ?? "currentColor",
+    theme,
   )}`;
 };
 
-export const getCssRing = (value: string): string => {
+export const getCssRing = (value: string, theme: ThemeVariables): string => {
   if (value === "none") {
     return value;
   }
   const [width, color] = value.split(WHITESPACE_REGEX);
-  return `0 0 0 ${getCssSize(width ?? 2)} ${getCssColor(
+  return `0 0 0 ${getCssSize(width ?? 2, theme)} ${getCssColor(
     color ?? "currentColor",
+    theme,
   )}`;
 };
 
@@ -861,15 +770,14 @@ export const getCssShadow = (value: string): string => {
   return value;
 };
 
-export const getCssShadowInset = (value: string): string => {
+export const getCssShadowInset = (
+  value: string,
+  theme: ThemeVariables,
+): string => {
   if (value.startsWith("var(")) {
     return value;
   }
-  const isValidNumber = !Number.isNaN(Number(value));
-  if (isValidNumber) {
-    return `var(--theme-shadow-inset-${value})`;
-  }
-  return value;
+  return getThemeVar(theme, "shadow-inset", value) ?? value;
 };
 
 export const getCssShrink = (value: boolean | string): string => {
@@ -898,36 +806,13 @@ export const getCssBasis = (value: boolean | string): string => {
   return value;
 };
 
-export const isNumberChar = (c: string | undefined): boolean =>
-  !Number.isNaN(Number(c));
-
-export const isVariableValue = (
-  value: string | number | undefined,
-): boolean => {
-  if (typeof value === "number") {
-    return false;
-  }
-  if (!value) {
-    return false;
-  }
-  if (value[0] === "-") {
-    return false;
-  }
-  if (isNumberChar(value[0])) {
-    return false;
-  }
-  return !value.includes("(");
-};
-
 export const getCssSize = (
   value: string | number,
+  theme: ThemeVariables,
   defaultUnit: "px" | "rem" = "px",
 ): string => {
   if (value === "none") {
     return "0";
-  }
-  if (typeof value === "string" && NATIVE_SIZE_KEYWORDS.has(value)) {
-    return value;
   }
   if (value === "") {
     return defaultUnit === "px" ? "8px" : "0.5rem";
@@ -941,7 +826,9 @@ export const getCssSize = (
     return value
       .trim()
       .split(WHITESPACE_REGEX)
-      .map((part) => (part === "/" ? part : getCssSize(part, defaultUnit)))
+      .map((part) =>
+        part === "/" ? part : getCssSize(part, theme, defaultUnit),
+      )
       .join(" ");
   }
   if (value === "xs") {
@@ -995,10 +882,11 @@ export const getCssSize = (
   if (typeof value === "string" && value.startsWith("var(")) {
     return value;
   }
-  if (isVariableValue(value)) {
-    return `var(--theme-size-${value})`;
-  }
-  return getCssValueWithUnit(value, defaultUnit);
+  const themeVar =
+    typeof value === "string" && !isValidNumber(value)
+      ? getThemeVar(theme, "size", value)
+      : undefined;
+  return themeVar ?? getCssValueWithUnit(value, defaultUnit);
 };
 
 export const getCssTextOverflow = (value: string): string => {

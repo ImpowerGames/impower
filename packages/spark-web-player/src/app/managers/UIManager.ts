@@ -37,6 +37,7 @@ import {
 import { WriteTextMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
 import { MorphArtifactMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphArtifactMessage";
 import { MorphNeedMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphNeedMessage";
+import type { ThemeVariables } from "../../../../sparkle-style-transformer/src/types/themeVariables";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
 import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock";
@@ -198,6 +199,8 @@ function applyAttributes(
 
 export default class UIManager extends Manager {
   protected _breakpoints: Record<string, number> = {};
+
+  protected _theme: ThemeVariables = new Set();
 
   protected _listeners: Record<string, Record<string, (event: Event) => void>> =
     {};
@@ -973,6 +976,7 @@ export default class UIManager extends Manager {
     if (SetThemeMessage.type.isRequest(msg)) {
       const params = msg.params;
       this._breakpoints = params.breakpoints;
+      this._theme = new Set(params.variables);
       const rootTextSize = params.root_text_size;
       if (rootTextSize) {
         const doc = this.app.overlay?.ownerDocument;
@@ -1019,6 +1023,7 @@ export default class UIManager extends Manager {
           el.textContent = getElementContent(params.content, {
             breakpoints: params.breakpoints,
             scope: "spark-web-player #game",
+            theme: this._theme,
           });
         }
         if (params.style) {
@@ -1026,7 +1031,11 @@ export default class UIManager extends Manager {
             .flatMap(([k, v]) => {
               const arr = [];
               if (v != null) {
-                const cssEntries = getCssEquivalent(k, getCssTokenValue(v));
+                const cssEntries = getCssEquivalent(
+                  k,
+                  getCssTokenValue(v),
+                  this._theme,
+                );
                 for (const [k, v] of cssEntries) {
                   arr.push(`${k}:${v}`);
                 }
@@ -1058,6 +1067,7 @@ export default class UIManager extends Manager {
         el.textContent = getElementContent(params.content, {
           breakpoints: params.breakpoints,
           scope: "spark-web-player #game",
+          theme: this._theme,
         });
       }
       if (params.content) {
@@ -1110,6 +1120,7 @@ export default class UIManager extends Manager {
           element.textContent = getElementContent(params.content, {
             breakpoints: params.breakpoints,
             scope: "spark-web-player #game",
+            theme: this._theme,
           });
         }
         if (params.attributes != undefined) {
@@ -1131,7 +1142,11 @@ export default class UIManager extends Manager {
                   }
                 }
               } else {
-                const cssEntries = getCssEquivalent(k, getCssTokenValue(v));
+                const cssEntries = getCssEquivalent(
+                  k,
+                  getCssTokenValue(v),
+                  this._theme,
+                );
                 for (const [cssProp, cssValue] of cssEntries) {
                   if (element) {
                     element.style.setProperty(cssProp, cssValue);
@@ -1172,7 +1187,7 @@ export default class UIManager extends Manager {
     }
     if (AnimateElementsMessage.type.isRequest(msg)) {
       const params = msg.params;
-      const player = new AnimationPlayer();
+      const player = new AnimationPlayer(this._theme);
       const validEffects: number[] = [];
       for (let i = 0; i < params.effects.length; i += 1) {
         const effect = params.effects[i];
@@ -1308,7 +1323,7 @@ export default class UIManager extends Manager {
     style: Record<string, string | number | null>,
   ) {
     for (const [k, v] of Object.entries(style)) {
-      const cssEntries = getCssEquivalent(k, getCssTokenValue(v));
+      const cssEntries = getCssEquivalent(k, getCssTokenValue(v), this._theme);
       if (v == null) {
         for (const [cssProp] of cssEntries) {
           el.style.removeProperty(cssProp);
@@ -1544,7 +1559,7 @@ export default class UIManager extends Manager {
         (targetEl as any).__sdAllRev = (targetEl as any).__sdRev ?? 0;
       }
     }
-    const shownNow = new AnimationPlayer();
+    const shownNow = new AnimationPlayer(this._theme);
     for (const { element, animation } of enterNow) {
       (element as any).__sdReveal = shownNow.add({
         element,
@@ -1553,7 +1568,7 @@ export default class UIManager extends Manager {
     }
     const showing = enterNow.length > 0 ? shownNow.play() : undefined;
     if (enter.length > 0 || waiting.length > 0) {
-      const player = new AnimationPlayer();
+      const player = new AnimationPlayer(this._theme);
       for (const { element, animation } of enter) {
         (element as any).__sdReveal = player.add({
           element,
@@ -1773,7 +1788,7 @@ export default class UIManager extends Manager {
     }
 
     if (targetEffects.length > 0) {
-      const player = new AnimationPlayer();
+      const player = new AnimationPlayer(this._theme);
       for (const e of targetEffects) {
         player.add(e);
       }
@@ -1791,7 +1806,7 @@ export default class UIManager extends Manager {
       if (effects.length === 0) {
         return Promise.resolve();
       }
-      const player = new AnimationPlayer();
+      const player = new AnimationPlayer(this._theme);
       for (const e of effects) {
         player.add(e);
       }
@@ -1847,7 +1862,7 @@ export default class UIManager extends Manager {
     };
     let transition: ReturnType<AnimationPlayer["add"]> = [];
     const playTransition = (animation: Animation) => {
-      const player = new AnimationPlayer();
+      const player = new AnimationPlayer(this._theme);
       transition = player.add({ element, animations: [animation] });
       return player.play().finally(() => {
         transition = [];

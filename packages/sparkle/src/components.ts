@@ -47,8 +47,10 @@ import shadows from "./styles/shadows/shadows.css";
 import theme from "./styles/theme/theme.css";
 import utility from "./styles/utility/utility.css";
 import scopeCssToChild from "./utils/scopeCssToChild";
+import { SPARKLE_THEME } from "./core/sparkle-theme";
 
 const config = {
+  theme: SPARKLE_THEME,
   patterns: [patternsCSS],
 };
 
