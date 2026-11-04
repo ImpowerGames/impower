@@ -21,6 +21,38 @@ const defined = `define rebeccapurple as color with\n  value = "#00ff00"\nend\n`
 const core =
   "style sample { color = rebeccapurple }\nlayout main { box.sample }";
 
+describe("a theme variable an author declares is part of the theme", () => {
+  test("a layout element's own theme custom properties resolve its bare words", async () => {
+    const h = createDOMHarness(
+      `layout main {
+  box.sample #--theme-size-gutter=20px #--theme-color-brand="#ff0000" #--theme-filter-dim="brightness(0.5)" #padding=gutter #color=brand #filter=dim
+}
+`,
+      0,
+    );
+    await h.ready;
+    const box = h.overlay.querySelector(".sample") as HTMLElement;
+    expect(box.style.getPropertyValue("--theme-size-gutter")).toBe("20px");
+    const style = box.getAttribute("style") ?? "";
+    expect(style).toContain("padding: var(--theme-size-gutter)");
+    expect(style).toContain("color: var(--theme-color-brand)");
+    expect(style).toContain("filter: var(--theme-filter-dim)");
+  });
+
+  test("a word the author never declares stays native", async () => {
+    const h = createDOMHarness(
+      `layout main {
+  box.sample #--theme-color-brand="#ff0000" #filter=dim
+}
+`,
+      0,
+    );
+    await h.ready;
+    const box = h.overlay.querySelector(".sample") as HTMLElement;
+    expect(box.getAttribute("style") ?? "").toContain("filter: dim");
+  });
+});
+
 describe("a theme change re-resolves the elements the player reuses", () => {
   test("a reload that removes the token restores the native word", async () => {
     const h = createDOMHarness(defined + core, 0);

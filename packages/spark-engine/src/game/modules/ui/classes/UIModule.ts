@@ -3500,6 +3500,60 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
+  protected getDeclaredThemeVariables(): string[] {
+    const names = new Set<string>();
+    const seen = new WeakSet<object>();
+    const visitStyle = (value: unknown) => {
+      if (!value || typeof value !== "object" || seen.has(value)) {
+        return;
+      }
+      seen.add(value);
+      for (const [key, nested] of Object.entries(value)) {
+        if (key.startsWith("--theme-")) {
+          names.add(key);
+        }
+        visitStyle(nested);
+      }
+    };
+    const visitNodes = (nodes: BodyNode[] | undefined) => {
+      for (const node of nodes ?? []) {
+        if (node.kind === "element") {
+          for (const key of Object.keys(node.props)) {
+            if (key.startsWith("--theme-")) {
+              names.add(key);
+            }
+          }
+          visitNodes(node.children);
+        } else if (node.kind === "if") {
+          for (const branch of node.branches) {
+            visitNodes(branch.children);
+          }
+          visitNodes(node.else);
+        } else if (node.kind === "for") {
+          visitNodes(node.children);
+          visitNodes(node.else);
+        } else if (node.kind === "match") {
+          for (const branch of node.cases) {
+            visitNodes(branch.children);
+          }
+          visitNodes(node.else);
+        } else if (node.kind === "fill") {
+          visitNodes(node.children);
+        }
+      }
+    };
+    visitStyle(this.context?.style);
+    visitStyle(this.context?.layout);
+    const sparkle = this._game.program?.sparkle;
+    for (const layout of Object.values(sparkle?.layouts ?? {})) {
+      visitNodes(layout.children);
+    }
+    for (const component of Object.values(sparkle?.components ?? {})) {
+      visitNodes(component.children);
+    }
+    return [...names];
+  }
+
   loadTheme(variables: Record<string, string>): void {
     const breakpoints = this.context?.config?.ui?.breakpoints;
     const root_text_size = this.context?.config?.ui?.root_text_size;
@@ -3508,7 +3562,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         SetThemeMessage.type.request({
           breakpoints,
           root_text_size,
-          variables: Object.keys(variables),
+          variables: [
+            ...new Set([
+              ...Object.keys(variables),
+              ...this.getDeclaredThemeVariables(),
+            ]),
+          ],
         }),
       );
     }
