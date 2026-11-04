@@ -40,7 +40,25 @@ const FILES = [
   { uri: "inmemory:///cat.svg", type: "image", name: "cat", ext: "svg", data: PLAIN },
 ];
 
-const shiftRight = (d: string) => d.replace(/(-?[0-9.]+),(-?[0-9.]+)/g, (_m, x: string, y: string) => `${Number(x) + 120},${y}`);
+const COMPOSITION_FILES = [
+  ...FILES,
+  {
+    uri: "inmemory:///base.svg",
+    type: "image",
+    name: "base",
+    ext: "svg",
+    data: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 140"><rect width="260" height="140" fill="#2a6"/></svg>`,
+  },
+  {
+    uri: "inmemory:///hat.svg",
+    type: "image",
+    name: "hat",
+    ext: "svg",
+    data: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 140"><rect x="70" width="120" height="30" fill="#a2c"/></svg>`,
+  },
+];
+
+const shiftRight =(d: string) => d.replace(/(-?[0-9.]+),(-?[0-9.]+)/g, (_m, x: string, y: string) => `${Number(x) + 120},${y}`);
 const WINK_UPPER = "M20,50 C40,15 95,0 120,45 C110,40 100,24 85,26 C70,28 60,36 45,34 C35,33 28,44 20,50Z";
 const WINK_LOWER = "M20,50 C30,52 45,60 60,58 C80,56 100,62 120,45 C95,72 50,75 20,50Z";
 const WINK_CLOSED = "M20,50 C50,46 90,42 120,45 C90,48 50,52 20,50Z";
@@ -203,6 +221,36 @@ describe("morph playback in the page", () => {
     expect(images).toHaveLength(3);
     expect(content.morph.plays.map((p: any) => p.layer)).toEqual([2]);
     expect(images[2]).toContain("url(");
+  });
+
+  test("a live morph composed between a lower and an upper image keeps every image in paint order", async () => {
+    const { h, playback, writes } = await previewed(SOURCE, COMPOSITION_FILES);
+    await h.game.module.ui.image.write("portrait", [{ control: "show", assets: ["base", "bunny", "hat"] } as any], true);
+    await flushMicrotasks(10);
+    const write = writes.filter((w) => w.params.target === "portrait" && w.params.instructions.length).pop();
+    const images = cssList(write.params.instructions[0].content.background).reverse();
+    expect(images).toHaveLength(3);
+    expect(write.params.instructions[0].content.morph.plays.map((p: any) => p.layer)).toEqual([1]);
+    await until(() => playback.stats.live === 1, "the composed artifact");
+    const span = portraitSpan(h.overlay)!;
+    expect(span.style.backgroundImage).toBe("none");
+    const view = (playback as any).layers.values().next().value.plays[0].view;
+    const children = Array.from(shadowOf(span)!.children) as HTMLElement[];
+    expect(children).toHaveLength(3);
+    expect(children[1]).toBe(view.box);
+    expect(children[1]!.querySelectorAll("[data-morph]").length).toBeGreaterThan(0);
+    const computed = span.ownerDocument.defaultView!.getComputedStyle(span);
+    for (const [index, fill] of [[0, "%232a6"], [2, "%23a2c"]] as const) {
+      const style = children[index]!.getAttribute("style")!;
+      expect(style).toContain(`background-image:${images[index]}`);
+      expect(images[index]).toContain(fill);
+      expect(style.startsWith("position:absolute;inset:0;")).toBe(true);
+      for (const property of ["background-size", "background-position"]) {
+        const value = layerValue(computed.getPropertyValue(property), 2 - index);
+        if (value) expect(style).toContain(`${property}:${value}`);
+      }
+      expect(children[index]!.querySelector("[data-morph]")).toBeNull();
+    }
   });
 
   test("inline art animates with the page's own host: the game bakes it and sends the artifact", async () => {
