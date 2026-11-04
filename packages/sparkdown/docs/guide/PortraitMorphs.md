@@ -61,9 +61,9 @@ A morph pairs drawings by their labels, so the art has to be labelled with that 
 
 The label is the part of a layer's name before the first colon: `eyelash-left` in `eyelash-left:eyes.open:default`. A drawing whose layer has no label of its own takes the label of the nearest labelled layer around it. A drawing with no label anywhere above it never pairs.
 
-Give the drawing that changes the same nonempty label in each state. `eyelash-left:eyes.open` and `eyelash-left:eyes.closed` pair. `lash-left:eyes.open` and `lid-left:eyes.closed` do not, and each fades out or in by itself instead.
+Give the drawing that changes the same nonempty label in each state. `eyelash-left:eyes.open` and `eyelash-left:eyes.closed` pair. `lash-left:eyes.open` and `lid-left:eyes.closed` do not, and each leaves or arrives by itself through the morph's `fallback` instead, a fade unless the morph sets another.
 
-Each drawn element is one pairing unit. When a label holds the same number of drawings in both states, they pair one to one in a fixed order, so the same art always moves the same way. A shape split across several elements pairs element by element.
+Each drawn element is one pairing unit. When a label holds one drawing in one state, every drawing of that label in the other state pairs with it. When it holds the same number of drawings in both states, they pair by position: the two drawings nearest each other pair first, then the nearest of the rest, and so on, so the top lash becomes the top lash whatever order the elements are in. Drawings at equal distances pair in the order they are drawn, so the same art always moves the same way. A label with different numbers of drawings in the two states, more than one on each side, does not pair at all: each of its drawings uses the fallback, with a warning on the artwork. A shape split across several elements pairs element by element.
 
 ### Two open lashes, one closed lash
 
@@ -396,7 +396,8 @@ Problems found while preparing a portrait's movement appear on the artwork file,
 
 When only part of a portrait moves, read the artwork's warnings first. The usual causes are:
 
-- Labels that differ between states, so the drawings fade instead of changing shape. Give them the same label.
+- Labels that differ between states, so the drawings take the fallback instead of changing shape. Give them the same label.
+- A label with two drawings in one state and three in the other, which pairs none of them. Make the counts equal, or one on one side.
 - Lashes on both sides sharing one label, so they pair across the face. Repeat the side in each label.
 - An eyeball cut to the open eye's outline, which shows its cut edge as the eye closes. Draw it whole.
 - A look resting in another state than the morph starts from, which is dormant by design.
