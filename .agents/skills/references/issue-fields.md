@@ -41,7 +41,7 @@ Verify `single_select_option.name` for every assigned field before reporting pub
 
 For feedback triage only, populate missing Priority and Effort on open `workflow: skills` work tickets and assign both on newly filed Tasks. Skip the feedback inbox and closed work; retain other existing values unless reassessment is authorized by the triage skill.
 
-An orchestrate-issues coordinator populates a missing Effort on the open sub-issues of the parent it was invoked for, recording the rationale in a comment on the ticket. It never changes an existing Effort or any Priority.
+An orchestrate-issues coordinator populates a missing Effort on the open sub-issues of the parent it was invoked for, recording the rationale in a comment on the ticket. It never changes an existing Effort or Priority and never assigns a missing Priority; the only Priority it sets is that of a slice it files, which takes the highest Priority among its Bugs as [slicing](../orchestrate-issues/references/slicing.md) describes.
 
 See GitHub's [issue field value API](https://docs.github.com/en/rest/issues/issue-field-values).
 

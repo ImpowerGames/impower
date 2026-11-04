@@ -2,6 +2,7 @@ import { Download } from "@impower/impower-ui/components";
 import { useEffect, useRef, useState } from "preact/hooks";
 import getValidFileName from "../../utils/getValidFileName";
 import { importDroppedFiles } from "../../utils/importDroppedFiles";
+import { isScriptPath } from "../../utils/scriptFiles";
 
 export const propDefaults = {};
 export type FileDropzoneProps = Partial<typeof propDefaults>;
@@ -47,7 +48,7 @@ export default function FileDropzone(_props: FileDropzoneProps) {
       }
       const targetRel = (name: string) => {
         const valid = getValidFileName(name);
-        return valid.endsWith(".sd") ? `scripts/${valid}` : `assets/${valid}`;
+        return isScriptPath(valid) ? `scripts/${valid}` : `assets/${valid}`;
       };
       await importDroppedFiles(
         projectId,

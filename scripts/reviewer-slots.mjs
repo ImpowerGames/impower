@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
-const reviewerSlotCount = 8;
+export const reviewerSlotCount = 8;
 
 export const machineSlotRoot = process.platform === "win32"
   ? path.join(process.env.ProgramData || "C:\\ProgramData", "Impower", "reviewer-slots")

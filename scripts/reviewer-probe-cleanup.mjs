@@ -4,16 +4,9 @@ import {randomUUID} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {withProbeCleanupGuard,machineRoot} from './test-suite-process.mjs';
 import {processIdentity} from './reviewer-slots.mjs';
+import {canRetryRemoval,removeTreeEntries} from './link-safe-removal.mjs';
 
 const sleeper=new Int32Array(new SharedArrayBuffer(4));
-const retryable=new Set(['EPERM','EBUSY','ENOTEMPTY']);
-const canRetry=(error,attempt,delays)=>retryable.has(error.code)&&attempt<delays.length;
-function removal(action,delays) {
-  for(let attempt=0;;attempt++){
-    try{return action();}
-    catch(error){if(!canRetry(error,attempt,delays))throw error;Atomics.wait(sleeper,0,0,delays[attempt]);}
-  }
-}
 
 export const snapshotReviewerDirectory=(directory)=>new Set(fs.readdirSync(directory));
 
@@ -34,33 +27,16 @@ function physicalPath(value) {
   }
 }
 
-function removeEntry(target,counts,failures,delays) {
+function residualEntries(target) {
+  const residual=[];
   try{
     const stat=fs.lstatSync(target);
-    if(stat.isSymbolicLink()){
-      removal(()=>{try{fs.unlinkSync(target);}catch(error){if(process.platform!=='win32'||!['EPERM','EISDIR','EACCES'].includes(error.code))throw error;fs.rmdirSync(target);}},delays);
-      counts.links++;
-      return;
-    }
-    if(stat.isDirectory()){
-      const before=failures.length;
-      for(const name of fs.readdirSync(target))removeEntry(path.join(target,name),counts,failures,delays);
-      if(failures.length===before)removal(()=>fs.rmdirSync(target),delays);
-      return;
-    }
-    removal(()=>fs.unlinkSync(target),delays);
-    counts.files++;
-  }catch(error){
-    let residual=[];
-    try{
-      const stat=fs.lstatSync(target);
-      if(!stat.isDirectory()||stat.isSymbolicLink())throw Object.assign(new Error('not a real directory'),{code:'ENOTDIR'});
-      const directory=fs.opendirSync(target);
-      try{for(let entry;(entry=directory.readSync())&&residual.length<25;)residual.push(entry.name);}
-      finally{directory.closeSync();}
-    }catch(inventory){if(!['ENOTDIR','ENOENT'].includes(inventory.code))residual=[`inventory unavailable: ${inventory.code??inventory.message}`];}
-    failures.push({target,error,residual});
-  }
+    if(!stat.isDirectory()||stat.isSymbolicLink())return residual;
+    const directory=fs.opendirSync(target);
+    try{for(let entry;(entry=directory.readSync())&&residual.length<25;)residual.push(entry.name);}
+    finally{directory.closeSync();}
+  }catch(error){if(!['ENOTDIR','ENOENT'].includes(error.code))return [`inventory unavailable: ${error.code??error.message}`];}
+  return residual;
 }
 
 function reservedPaths(file) {
@@ -165,7 +141,7 @@ export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reser
       if(result.skipped)return result;
       const retry=[];
       for(const failure of result.failed){
-        if(canRetry(failure.error,attempt,retryDelays))retry.push(failure);
+        if(canRetryRemoval(failure.error,attempt,retryDelays))retry.push(failure);
         else{terminal.add(failure.target);stuck.push(`${failure.target} (${failure.error.code??failure.error.message})`);}
       }
       if(!retry.length)break;
@@ -190,9 +166,13 @@ export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reser
     }
   },{repeatAll:true});
   if(pruned.skipped)return skipped(pruned);
-  const failures=[];
-  if(trashCreated)removeEntry(trash,counts,failures,retryDelays);
-  if(failures.length)for(const {target,error,residual} of failures)stuck.push(`${target} (${error.code??error.message}); residual entries ${JSON.stringify(residual)}`);
+  if(trashCreated)removeTreeEntries(trash,{
+    delays:retryDelays,
+    onRemoved:(kind)=>{counts[kind]++;},
+    onError:(target,error)=>{
+      stuck.push(`${target} (${error.code??error.message}); residual entries ${JSON.stringify(residualEntries(target))}`);
+    },
+  });
   if(stuck.length)throw new Error(`Probe cleanup removed ${counts.files} files and ${counts.links} links but could not remove ${stuck.join(', ')}`);
   return {...counts,elapsedMs:Date.now()-began};
 }

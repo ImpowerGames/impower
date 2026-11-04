@@ -33,14 +33,14 @@ describe("fail-branch replay discards the abandoned run's queued beats", () => {
     await h.ready;
     const interpreter: any = h.game.module.interpreter;
     interpreter._state.buffer = [{ text: {}, end: 1 }];
-    interpreter._routing = {
+    interpreter._state.routing = {
       target: "dialogue",
       character: "STALE",
       group: "inmemory:///main.sd#1",
     };
     interpreter.clearQueuedBeats();
     expect(interpreter._state.buffer).toEqual([]);
-    expect(interpreter._routing).toBeUndefined();
+    expect(interpreter._state.routing).toBeUndefined();
     expect(interpreter.shouldFlush()).toBe(false);
   });
 });
