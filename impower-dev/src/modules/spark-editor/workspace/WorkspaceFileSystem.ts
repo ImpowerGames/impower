@@ -55,7 +55,7 @@ import { bundleScripts, splitScriptBundle } from "./utils/scriptBundle";
 import {
   FOLDER_SENTINEL,
   computeFolderMoves,
-  computeLayoutMigration,
+  computeLayoutMigrationBatches,
   LAYOUT_MARKER,
   layoutSubtreeFor,
 } from "../utils/fileTree";
@@ -116,12 +116,15 @@ export default class WorkspaceFileSystem {
     const relativePaths = files.map((f) =>
       this.getRelativePath(projectId, f.uri),
     );
-    const migration = computeLayoutMigration(relativePaths, layoutSubtreeFor);
+    const batches = computeLayoutMigrationBatches(
+      relativePaths,
+      layoutSubtreeFor,
+    );
     const marked = relativePaths.includes(LAYOUT_MARKER);
-    if (migration.length > 0 || !marked) {
-      if (migration.length > 0) {
+    if (batches.length > 0 || !marked) {
+      for (const batch of batches) {
         await this.renameFiles({
-          files: migration.map((m) => ({
+          files: batch.map((m) => ({
             oldUri: this.getFileUri(projectId, m.from),
             newUri: this.getFileUri(projectId, m.to),
           })),
@@ -359,9 +362,10 @@ export default class WorkspaceFileSystem {
 
   async readProjectZip(projectId: string): Promise<ArrayBuffer> {
     const allFiles = await this.getFiles(projectId);
+    const layoutMarkerUri = this.getFileUri(projectId, LAYOUT_MARKER);
     const files = Object.values(allFiles)
       .sort((a, b) => cmp(a.ext, b.ext) || cmp(a.name, b.name))
-      .filter((file) => file.name)
+      .filter((file) => file.name || file.uri === layoutMarkerUri)
       .map(({ uri }) => ({ uri, path: this.getRelativePath(projectId, uri) }));
     return this.zipFiles({ files });
   }

@@ -349,6 +349,8 @@ const MAIN_SCRIPT = "main.sd";
 
 export const LAYOUT_MARKER = ".layout";
 
+const MAX_LAYOUT_BATCHES = 4;
+
 const folderOf = (path: string): string =>
   path.slice(0, path.lastIndexOf("/") + 1);
 
@@ -429,4 +431,23 @@ export const computeLayoutMigration = (
     moves.push({ from: p, to });
   }
   return moves;
+};
+
+export const computeLayoutMigrationBatches = (
+  relativePaths: string[],
+  subtreeFor: (path: string) => string,
+): { from: string; to: string }[][] => {
+  const batches: { from: string; to: string }[][] = [];
+  let paths = relativePaths;
+  for (let i = 0; i < MAX_LAYOUT_BATCHES; i++) {
+    const moves = computeLayoutMigration(paths, subtreeFor);
+    if (moves.length === 0) break;
+    batches.push(moves);
+    const renamed = new Map(moves.map((m) => [m.from, m.to]));
+    paths = paths.map((p) => renamed.get(p) ?? p);
+    if (!paths.includes(LAYOUT_MARKER)) {
+      paths = [...paths, LAYOUT_MARKER];
+    }
+  }
+  return batches;
 };

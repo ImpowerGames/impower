@@ -5,6 +5,7 @@ import {
   childrenRows,
   computeFolderMoves,
   computeLayoutMigration,
+  computeLayoutMigrationBatches,
   computeStickyRows,
   descendantPaths,
   filterPaths,
@@ -591,6 +592,27 @@ describe("computeLayoutMigration", () => {
         ["main.sd", "assets/main.sd", "assets/forest.svg", "scripts/intro.sd"],
         subtreeFor,
       ),
+    ).toEqual([]);
+  });
+
+  it("reaches its final layout in one load when a file blocking a sub-project's folder moves out", () => {
+    const paths = [
+      "main.sd",
+      "other/main.sd",
+      "other/tree.png",
+      "scripts/other/stray.png",
+    ];
+    const batches = computeLayoutMigrationBatches(paths, subtreeFor);
+    const migrated = batches.reduce(applyMoves, paths);
+    expect(migrated).toEqual([
+      "main.sd",
+      "scripts/other/main.sd",
+      "scripts/other/tree.png",
+      "assets/other/stray.png",
+    ]);
+    expect(projectOf(migrated, "assets/other/stray.png")).toBe("");
+    expect(
+      computeLayoutMigrationBatches([...migrated, LAYOUT_MARKER], subtreeFor),
     ).toEqual([]);
   });
 
