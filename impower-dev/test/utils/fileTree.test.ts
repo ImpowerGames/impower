@@ -10,6 +10,7 @@ import {
   filterPaths,
   flattenVisibleRows,
   FOLDER_SENTINEL,
+  layoutSubtreeFor,
   resolveScopePath,
   subtreeChildren,
 } from "../../src/modules/spark-editor/utils/fileTree";
@@ -389,12 +390,27 @@ describe("subtreeChildren", () => {
 });
 
 describe("computeLayoutMigration", () => {
-  const subtreeFor = (p: string) =>
-    p.endsWith(".sd")
-      ? "scripts"
-      : p.endsWith(".url")
-        ? "assets/urls"
-        : "assets";
+  const subtreeFor = layoutSubtreeFor;
+
+  it("files a .luau script under scripts/ and leaves one already there in place", () => {
+    expect(
+      computeLayoutMigration(
+        [
+          "util.luau",
+          "lib/math.luau",
+          "assets/stray.luau",
+          "scripts/ready.luau",
+          "main.luau",
+        ],
+        subtreeFor,
+      ),
+    ).toEqual([
+      { from: "util.luau", to: "scripts/util.luau" },
+      { from: "lib/math.luau", to: "scripts/lib/math.luau" },
+      { from: "assets/stray.luau", to: "scripts/stray.luau" },
+      { from: "main.luau", to: "scripts/main.luau" },
+    ]);
+  });
 
   it("moves scripts/assets/urls under their subtree, preserving substructure", () => {
     expect(
