@@ -163,6 +163,63 @@ function writerAccountingChecks() {
   assert.throws(() => run.claim(claimRecord, { plan: healthyFile, ticket: 101, worktree: path.join(tmp, "claim-tree"), branch: "fix/101-claim-tree", artifactParent: tmp, defaults, machine: machine(foreign({}), { resources: { ...resources, physicalAvailableBytes: 0.4 * GB } }) }), /physical|memory|resources/i, "claim remeasures admission instead of trusting a previously healthy plan");
   assert.equal(JSON.stringify(claimRecord), claimBefore, "an admission refusal creates no partial claim");
   console.log("writer accounting focused checks passed");
+  const resumeFile = path.join(tmp, "accounting-run.json");
+  const resumeOwner = { ...detached, route: "claude-cli", model: record.writer.model, permissionMode: "bypassPermissions", artifactParent: tmp, sessionId: ids.shared };
+  const initial = run.updateRecord(resumeFile, { coordinator: ids.coordinator, expectRevision: record.revision }, (r) => { r.tickets[101] = held(resumeOwner); }).record;
+  const resumePrompt = write("accounting-resume-prompt.txt", "Continue the scratch assignment.");
+  let spawned = 0;
+  const resume = (observe, extra = {}) => run.resumeWriter(resumeFile, {
+    coordinator: ids.coordinator, expectRevision: run.readRecord(resumeFile).revision,
+    ticket: 101, executable: process.execPath, args: ["-p", "--model", record.writer.model, "--effort", "medium", "--permission-mode", "bypassPermissions", "--resume", ids.shared],
+    prompt: resumePrompt, identify: () => null, census: () => [], observe,
+    spawner: () => { spawned++; return { started: false, reason: "fixture" }; }, ...extra,
+  });
+  const resumeDirs = () => fs.readdirSync(tmp).filter((name) => name.startsWith("resume-101-"));
+  const low = (values) => () => machine(foreign({}), { resources: { ...resources, ...values } });
+  assert.throws(() => resume(low({ physicalAvailableBytes: 0.4 * GB })), /Available physical memory/);
+  assert.throws(() => resume(low({ commitHeadroomBytes: 2.4 * GB })), /Direct commit headroom/);
+  assert.equal(spawned, 0);
+  assert.deepEqual(resumeDirs(), []);
+  assert.deepEqual(run.readRecord(resumeFile), initial);
+  const loaded = foreign({ 201: held(shared), 202: held(owner(ids.other)), 203: held(native) });
+  assert.throws(() => resume(() => machine(loaded), { observations: { runs: { [loaded.runId]: { ...observations, tasks: { "/root/writer": { state: "running" } } } } } }), /Machine writer places are full/);
+  let saved = false;
+  const drift = resume(() => machine(foreign({}), { resources: { ...resources, physicalAvailableBytes: (saved ? 0.4 : 3.5) * GB } }), { afterIntent: () => { assert.ok(run.readRecord(resumeFile).tickets[101].owner.resuming); saved = true; } });
+  assert.equal(drift.started, false);
+  assert.match(drift.reason, /Available physical memory/);
+  assert.deepEqual(run.readRecord(resumeFile).tickets[101].owner, initial.tickets[101].owner);
+  assert.deepEqual(resumeDirs(), []);
+  assert.equal(spawned, 0);
+  const alias = foreign({ 201: held(resumeOwner), 202: held(shared), 203: held(owner(ids.other)) });
+  assert.equal(resume(() => machine(alias), { observations: { runs: { [alias.runId]: observations } } }).reason, "fixture");
+  assert.equal(spawned, 1, "a healthy resume starts once, with the ended owner and alias consuming no executing place");
+  console.log("writer resume admission checks passed");
+  if (process.argv.includes("--writer-resume-live")) {
+    const done = path.join(tmp, "resume-live-done.json");
+    const stop = path.join(tmp, "resume-live-stop");
+    const standIn = write("resume-live.cjs", `const fs = require("node:fs"); const at = process.argv.indexOf("--resume");
+if (process.argv[at + 1] !== ${JSON.stringify(ids.shared)}) process.exit(2);
+console.log(process.pid); const end = Date.now() + 15000;
+const timer = setInterval(() => { if (fs.existsSync(${JSON.stringify(stop)}) || Date.now() > end) {
+  clearInterval(timer); fs.writeFileSync(${JSON.stringify(done)}, JSON.stringify({pid:process.pid}));
+} }, 100);`);
+    const real = resume(run.observeWriterMachine, { identify: processIdentity, spawner: run.startDetachedWriter, args: [standIn, "-p", "--model", record.writer.model, "--effort", "medium", "--permission-mode", "bypassPermissions", "--resume", ids.shared] });
+    assert.equal(real.started, true, real.reason);
+    const liveOwner = run.readRecord(resumeFile).tickets[101].owner;
+    let child;
+    try {
+      const out = path.join(liveOwner.handle.launchDir, "out.jsonl");
+      waitFor(() => fs.existsSync(out) && /^\d+\s*$/.test(fs.readFileSync(out, "utf8")), "resume stand-in PID", 10000);
+      child = processIdentity(Number(fs.readFileSync(out, "utf8")));
+      assert.ok(child?.start && liveOwner.handle.start);
+      assert.equal(liveOwner.sessionId, ids.shared);
+      console.log("production resume wrapper and child identities:", liveOwner.handle, child);
+    } finally {
+      fs.writeFileSync(stop, "");
+      waitFor(() => fs.existsSync(done) && processIdentity(liveOwner.handle.pid) === null && processIdentity(readJsonFile(done).pid) === null, "resume wrapper and child positive exit", 15000);
+      console.log("production resume wrapper and child absent:", liveOwner.handle.pid, readJsonFile(done).pid);
+    }
+  }
   if (process.argv.includes("--writer-continuation")) {
     const file = path.join(tmp, "continuation-run.json");
     const current = run.initRecord({ record: file, checkout, repository: "acme/widgets", issue: 110, coordinator: ids.parent, harness: "codex", coordinatorModel: "gpt-6.1-sol", coordinatorEffort: "medium", coordinatorMode: "bypassPermissions", slug: "writer-continuation", invocation: "Use orchestrate-issues for #110." }, { defaults, freeBytes: 100 * GB, totalMemory: 16 * GB }).record;
@@ -187,7 +244,7 @@ function writerAccountingChecks() {
 
 try {
   writerAccountingChecks();
-  if (process.argv.includes("--writer-accounting") || process.argv.includes("--writer-continuation")) process.exit(0);
+  if (["--writer-accounting", "--writer-continuation", "--writer-resume-live"].some((flag) => process.argv.includes(flag))) process.exit(0);
   const checkout = path.join(tmp, "checkout");
   fs.mkdirSync(checkout);
   git(checkout, "init", "-q", "-b", "main");

@@ -1721,8 +1721,15 @@ export function delivered(record, { ticket: number, evidence }) {
 }
 
 const resumeDirOf = (owner, number, id) => path.join(owner.artifactParent, `resume-${number}-${id}`);
-export function resumeWriter(file, { coordinator, expectRevision, ticket: number, executable, args = [], prompt, host = os.hostname(), identify = processIdentity, census = processCensus, spawner = startDetachedWriter, afterIntent }) {
+export function resumeWriter(file, { coordinator, expectRevision, ticket: number, executable, args = [], prompt, host = os.hostname(), identify = processIdentity, census = processCensus, spawner = startDetachedWriter, afterIntent, observe, observations }) {
   if (!path.isAbsolute(executable ?? "") || UNSAFE.test(executable) || !path.isAbsolute(prompt ?? "")) throw new Error("--executable and --prompt must be absolute paths");
+  const admit = (record) => {
+    if (!observe) return;
+    const load = checkMachineStart(record, observe(record), { observations, host, identify, freeBytes: freeBytesAt(record.checkout) });
+    if (load.writers.some(({ references }) => references.some((ref) => ref.runId === record.runId && ref.ticket === number && ref.state === "executing"))) {
+      throw new Error(`#${number}'s writer still has observed execution; reconcile before resuming`);
+    }
+  };
   const intent = updateRecord(file, { expectRevision, coordinator }, (r) => {
     if (r.handoff) throw new Error(`A planned handoff stopped new work at ${r.handoff.since}; nothing was resumed`);
     const owner = ticketOf(r, number).owner;
@@ -1738,6 +1745,7 @@ export function resumeWriter(file, { coordinator, expectRevision, ticket: number
     const id = randomUUID();
     const launchDir = resumeDirOf(owner, number, id);
     if (UNSAFE.test(launchDir) || UNSAFE.test(r.checkout)) throw new Error(`${launchDir} holds a character the command line would interpret`);
+    admit(r);
     owner.sessionId = sessionId;
     const moved = owner.coordinator && owner.coordinator !== r.coordinator.session ? r.coordinator.session : null;
     owner.resuming = { id, launchDir, time: new Date().toISOString(), contactNote: contactLine(r, owner), ...(moved && { contactTo: moved }) };
@@ -1750,6 +1758,15 @@ export function resumeWriter(file, { coordinator, expectRevision, ticket: number
       updateRecord(file, { expectRevision: intent.record.revision, coordinator }, (r) => { const o = ticketOf(r, number).owner; log(r, "resume-failed", { ticket: number, id, reason: `not run: ${error.message}` }); delete o.resuming; });
       throw error;
     }
+  }
+  try {
+    admit(intent.record);
+  } catch (error) {
+    const refused = updateRecord(file, { expectRevision: intent.record.revision, coordinator }, (r) => {
+      delete ticketOf(r, number).owner.resuming;
+      log(r, "resume-failed", { ticket: number, id, reason: `not run: ${error.message}` });
+    });
+    return { revision: refused.record.revision, id, started: false, reason: error.message };
   }
   fs.mkdirSync(launchDir, { recursive: true });
   const text = fs.readFileSync(prompt, "utf8");
@@ -1974,7 +1991,7 @@ export function main(argv, { defaults = readWriterDefaults(), github, runners = 
     }
     case "open": return { ...openWriter(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable, afterIntent: saveIntent, runner: runners.open }), ...checkpointAfter(absolute(o.record, "record")) };
     case "opened": return mutate((r) => opened(r, { ticket: number(), session: o.session }));
-    case "resume": return { ...resumeWriter(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable, args: o.arg ?? [], prompt: o.prompt, afterIntent: saveIntent, ...(runners.resume && { spawner: runners.resume }) }), ...checkpointAfter(absolute(o.record, "record")) };
+    case "resume": return { ...resumeWriter(absolute(o.record, "record"), { coordinator: o.coordinator, expectRevision: integer(o.expectRevision, "expect-revision"), ticket: number(), executable: o.executable, args: o.arg ?? [], prompt: o.prompt, afterIntent: saveIntent, observe: observeWriterMachine, observations: readOptional(o.observations), ...(runners.resume && { spawner: runners.resume }) }), ...checkpointAfter(absolute(o.record, "record")) };
     case "contact": return mutate((r) => contact(r, { ticket: number(), retry: Boolean(o.retry), defaults }));
     case "contacted": return mutate((r) => contacted(r, { ticket: number(), evidence: o.evidence }));
     case "acknowledged": return mutate((r) => acknowledged(r, { ticket: number(), model: o.model, effort: o.effort, permissionMode: o.permissionMode, evidence: o.evidence }));
