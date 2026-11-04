@@ -58,6 +58,7 @@ import workspace from "./WorkspaceStore";
 import getTextBuffer from "./utils/getTextBuffer";
 import { bundleScripts, splitScriptBundle } from "./utils/scriptBundle";
 import {
+  canMoveFolder,
   computeFolderMoves,
   computeLayoutMigrationBatches,
   foldersWithoutFiles,
@@ -780,7 +781,7 @@ export default class WorkspaceFileSystem {
     );
     const from = fromFolder.replace(/\/+$/, "");
     const to = toFolder.replace(/\/+$/, "");
-    if (to === from || to.startsWith(`${from}/`)) {
+    if (!canMoveFolder(from, to)) {
       return [];
     }
     const moves = computeFolderMoves(relativePaths, from, to);

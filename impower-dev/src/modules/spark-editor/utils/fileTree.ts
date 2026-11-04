@@ -317,6 +317,12 @@ export const computeFolderMoves = (
     .map((p) => ({ from: p, to: `${dest}/${p.slice(prefix.length)}` }));
 };
 
+export const canMoveFolder = (fromFolder: string, toFolder: string): boolean => {
+  const from = fromFolder.replace(/\/+$/, "");
+  const to = toFolder.replace(/\/+$/, "");
+  return to !== from && !to.startsWith(`${from}/`);
+};
+
 export const CATEGORY_PREFIXES = [
   "assets/urls/",
   "scripts/",

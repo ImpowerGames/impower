@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   breadcrumbSegments,
   buildFileTree,
+  canMoveFolder,
   canWriteLayoutMarker,
   childrenRows,
   computeFolderMoves,
@@ -281,6 +282,17 @@ describe("planFolderMigration", () => {
         ],
       ).staleFolders,
     ).toEqual(["assets/kept/leftover", "chapters", "chapters/old"]);
+  });
+});
+
+describe("canMoveFolder", () => {
+  it("refuses a destination that is the folder itself or inside it, and allows any other", () => {
+    expect(canMoveFolder("assets/a", "assets/a")).toBe(false);
+    expect(canMoveFolder("assets/a", "assets/a/")).toBe(false);
+    expect(canMoveFolder("assets/a", "assets/a/inner")).toBe(false);
+    expect(canMoveFolder("assets/a", "assets/ab")).toBe(true);
+    expect(canMoveFolder("assets/a", "assets/b")).toBe(true);
+    expect(canMoveFolder("assets/a/inner", "assets/inner")).toBe(true);
   });
 });
 
