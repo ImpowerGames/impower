@@ -740,6 +740,120 @@ describe("schedules across several tabs (I-1893)", () => {
   });
 });
 
+describe("what another tab's notification proves about parents and absent files (I-1893)", () => {
+  it.each(["write", "directory"])(
+    "does not announce this tab's pending removal of a directory after accepting another tab's newer %s inside it",
+    async (kind) => {
+      const root = seed({ "main.sd": "M" }, ["d", "e"]);
+      const h = await worker(root);
+      const project = root.entries.get("local") as MemoryDirectory;
+      const remove = project.removeEntry.bind(project);
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      project.removeEntry = async (name: string, options?: { recursive?: boolean }) => {
+        await remove(name, options);
+        if (name === "e") await held;
+      };
+      h.start("remove", "workspace/directories", {
+        action: "delete",
+        uris: [uriOf("d"), uriOf("e")],
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(entryAt(root, "d")).toBeUndefined();
+      const tab = otherTab(root);
+      if (kind === "write") {
+        const newer = await tab.write("d/new.sd", "NEW");
+        await h.remote("workspace/didWriteFiles", {
+          files: [fileData("d/new.sd", "NEW")],
+          commits: { [uriOf("d/new.sd")]: newer },
+        });
+      } else {
+        makeMemoryDirectory(root, "local/d/child");
+        const newer = await tab.commit();
+        await h.remote("workspace/didChangeDirectories", {
+          created: [uriOf("d/child")],
+          deleted: [],
+          commits: { [uriOf("d/child")]: newer },
+        });
+      }
+      const before = h.messages.length;
+      release();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(h.response("remove")).toHaveProperty("result");
+      expect(
+        h.notifications("workspace/didChangeDirectories", before).flatMap((m) => m.params.deleted),
+      ).not.toContain(uriOf("d"));
+    },
+  );
+
+  it.each(["delete", "rename", "write"])(
+    "keeps a file absent after an unstamped %s confirmed its absence, when an older stamped write arrives late",
+    async (kind) => {
+      const root = seed({ "a.sd": "OLD" });
+      const h = await worker(root);
+      await h.enumerate();
+      const old = await otherTab(root).commit();
+      await (root.entries.get("local") as MemoryDirectory).removeEntry("a.sd");
+      if (kind === "rename") {
+        writeMemoryFile(root, "local/b.sd", enc.encode("OLD"));
+        await h.remote("workspace/didRenameFiles", {
+          files: [{ oldUri: uriOf("a.sd"), newUri: uriOf("b.sd") }],
+        });
+      } else if (kind === "delete") {
+        await h.remote("workspace/didDeleteFiles", { files: [{ uri: uriOf("a.sd") }] });
+      } else {
+        await h.remote("workspace/didWriteFiles", { files: [fileData("a.sd", "OLD")] });
+      }
+      const before = h.messages.length;
+      await h.remote("workspace/didWriteFiles", {
+        files: [fileData("a.sd", "OLD")],
+        commits: { [uriOf("a.sd")]: old },
+      });
+      expect(h.writtenTexts("a.sd", before)).toEqual([]);
+      expect(
+        await h.request("edit", "workspace/applyWorkspaceEdit", {
+          edit: { documentChanges: [insert("a.sd", 0, "!")] },
+        }),
+      ).toMatchObject({ result: { applied: false } });
+      expect(textAt(root, "a.sd")).toBeUndefined();
+    },
+  );
+
+  it("evicts the cached files under a directory whose unstamped removal storage confirms", async () => {
+    const root = seed({ "main.sd": "M", "d/a.sd": "OLD" });
+    const h = await worker(root);
+    await h.enumerate();
+    await (root.entries.get("local") as MemoryDirectory).removeEntry("d", { recursive: true });
+    await h.remote("workspace/didChangeDirectories", { created: [], deleted: [uriOf("d")] });
+    expect(
+      await h.request("edit", "workspace/applyWorkspaceEdit", {
+        edit: { documentChanges: [insert("d/a.sd", 0, "!")] },
+      }),
+    ).toMatchObject({ result: { applied: false } });
+    expect(entryAt(root, "d")).toBeUndefined();
+  });
+
+  it("drops an older stamped removal of the parent of a file whose unstamped write storage confirms", async () => {
+    const root = seed({ "main.sd": "M" }, ["d"]);
+    const h = await worker(root);
+    await h.enumerate();
+    await (root.entries.get("local") as MemoryDirectory).removeEntry("d");
+    const removed = await otherTab(root).commit();
+    writeMemoryFile(root, "local/d/new.sd", enc.encode("LEGACY"));
+    await h.remote("workspace/didWriteFiles", { files: [fileData("d/new.sd", "LEGACY")] });
+    const before = h.messages.length;
+    await h.remote("workspace/didChangeDirectories", {
+      created: [],
+      deleted: [uriOf("d")],
+      commits: { [uriOf("d")]: removed },
+    });
+    expect(h.notifications("workspace/didChangeDirectories", before)).toEqual([]);
+    expect((await h.cached("d/new.sd")).text).toBe("LEGACY");
+  });
+});
+
 describe("directory notifications (I-1893)", () => {
   it("numbers a directory removal and a write inside it in the order they reach storage", async () => {
     const root = seed({ "a.sd": "A" }, ["d"]);

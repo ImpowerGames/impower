@@ -460,42 +460,97 @@ const isStoredDirectory = async (uri: string) =>
     getPathFromUri(uri),
   )) != null;
 
+const raiseHeld = (uri: string, commit: FileCommit) => {
+  observeCommit(commit);
+  const held = State.commits.get(uri);
+  if (!held || compareFileCommits(commit, held) > 0) {
+    State.commits.set(uri, commit);
+  }
+};
+
+const observeExists = (uri: string, commit: FileCommit | undefined) => {
+  const uris = withAncestors(uri);
+  if (commit) {
+    uris.forEach((u) => raiseHeld(u, commit));
+  }
+  touch(uris);
+};
+
+const observeAbsent = (
+  uri: string,
+  commit: FileCommit | undefined,
+  directory: boolean,
+) => {
+  if (commit) {
+    raiseHeld(uri, commit);
+  }
+  evictFile(uri);
+  const changed = [uri];
+  if (directory) {
+    if (commit) {
+      raiseDirectoryFloor(uri, commit);
+    }
+    for (const cached of [...State.files.keys()]) {
+      if (
+        cached.startsWith(`${uri}/`) &&
+        (!commit ||
+          isSupersededCommit(State.commits.get(cached) ?? NO_COMMIT, commit))
+      ) {
+        evictFile(cached);
+        changed.push(cached);
+      }
+    }
+  }
+  touch(changed);
+};
+
+const settledFloor = async (): Promise<FileCommit | undefined> => {
+  const floor = await readFloor(await navigator.storage.getDirectory());
+  return floor && { sequence: floor.sequence, writer: SETTLED_WRITER };
+};
 
 const readStoredFile = (uri: string) =>
   withCommitLock(uri, async () => {
-    const floor = await readFloor(await navigator.storage.getDirectory());
+    const settled = await settledFloor();
     const handle = await findFileHandle(uri);
     if (!handle) {
+      observeAbsent(uri, settled, false);
       return undefined;
     }
     const fileRef = await handle.getFile();
     const buffer = await fileRef.arrayBuffer();
-    if (floor) {
-      observeCommit(floor);
-      const settled = { sequence: floor.sequence, writer: SETTLED_WRITER };
-      const held = State.commits.get(uri);
-      if (!held || compareFileCommits(settled, held) > 0) {
-        State.commits.set(uri, settled);
-      }
-    }
     updateFileCache(uri, buffer, true, undefined, fileRef.lastModified);
     await enrichUrlAssetType(uri);
-    touch([uri]);
+    observeExists(uri, settled);
     return State.files.get(uri);
   });
 
 const evictUnlessStored = (uri: string) =>
   withCommitLock(uri, async () => {
+    const settled = await settledFloor();
     if (await findFileHandle(uri)) {
       return false;
     }
-    evictFile(uri);
-    touch([uri]);
+    observeAbsent(uri, settled, false);
     return true;
   });
 
 const isStoredFile = (uri: string) =>
   withCommitLock(uri, async () => (await findFileHandle(uri)) != null);
+
+const confirmDirectory = (uri: string, exists: boolean) =>
+  withCommitLock(uri, async () => {
+    const settled = await settledFloor();
+    if ((await isStoredDirectory(uri)) !== exists) {
+      return false;
+    }
+    if (exists) {
+      observeExists(uri, settled);
+    } else {
+      observeAbsent(uri, settled, true);
+    }
+    return true;
+  });
 
 const reconcileRemoteMessage = async (message: any) => {
   const commits: FileCommits | undefined = message?.params?.commits;
@@ -512,10 +567,7 @@ const reconcileRemoteMessage = async (message: any) => {
       if (stamped(file.uri)) {
         if (fresh(file.uri)) {
           State.files.set(file.uri, { ...file });
-          touch([file.uri]);
-          for (const parent of withAncestors(file.uri).slice(1)) {
-            acceptCommit(parent, commits![file.uri]);
-          }
+          observeExists(file.uri, commits![file.uri]);
           files.push(file);
         }
       } else {
@@ -545,8 +597,7 @@ const reconcileRemoteMessage = async (message: any) => {
     for (const file of message.params.files) {
       if (stamped(file.uri)) {
         if (fresh(file.uri)) {
-          evictFile(file.uri);
-          touch([file.uri]);
+          observeAbsent(file.uri, commits![file.uri], false);
           files.push(file);
         }
       } else if (await evictUnlessStored(file.uri)) {
@@ -562,8 +613,7 @@ const reconcileRemoteMessage = async (message: any) => {
     for (const file of message.params.files) {
       if (stamped(file.oldUri)) {
         if (fresh(file.oldUri)) {
-          evictFile(file.oldUri);
-          touch([file.oldUri]);
+          observeAbsent(file.oldUri, commits![file.oldUri], false);
           files.push(file);
         }
       } else if (await evictUnlessStored(file.oldUri)) {
@@ -592,23 +642,23 @@ const reconcileRemoteMessage = async (message: any) => {
   if (DidChangeDirectoriesMessage.type.isNotification(message)) {
     const created: string[] = [];
     for (const uri of message.params.created) {
-      if (stamped(uri) ? fresh(uri) : await isStoredDirectory(uri)) {
-        if (stamped(uri)) {
-          for (const parent of withAncestors(uri).slice(1)) {
-            acceptCommit(parent, commits![uri]);
-          }
+      if (stamped(uri)) {
+        if (fresh(uri)) {
+          observeExists(uri, commits![uri]);
+          created.push(uri);
         }
-        touch([uri]);
+      } else if (await confirmDirectory(uri, true)) {
         created.push(uri);
       }
     }
     const deleted: string[] = [];
     for (const uri of message.params.deleted) {
-      if (stamped(uri) ? fresh(uri) : !(await isStoredDirectory(uri))) {
-        if (stamped(uri)) {
-          removeDirectoryTree(uri, commits![uri]!);
+      if (stamped(uri)) {
+        if (fresh(uri)) {
+          observeAbsent(uri, commits![uri], true);
+          deleted.push(uri);
         }
-        touch([uri]);
+      } else if (await confirmDirectory(uri, false)) {
         deleted.push(uri);
       }
     }
