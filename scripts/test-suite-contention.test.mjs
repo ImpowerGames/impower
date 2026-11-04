@@ -285,24 +285,53 @@ for (const bytes of ['{"pending":', "null", '{"pending":true,"pool":"writer"}'])
 await check("withdrawing a published waiter shares its deadline with a real live guard holder", async () => {
   const root = path.join(scratch, "withdraw-deadline"), config = { ...options(root), slots: 1 };
   const holder = acquire("occupied", config), guard = path.join(root, "guard.json"), start = path.join(root, "start"), stop = path.join(root, "stop");
+  const published = path.join(root, "published"), sleeper = new Int32Array(new SharedArrayBuffer(4));
   const source = `import fs from 'node:fs';import {processIdentity} from ${JSON.stringify(new URL("./test-suite-process.mjs", import.meta.url).href)};
-const owner=processIdentity(process.pid);process.send(owner);const deadline=Date.now()+20000;
-while(!fs.existsSync(process.argv[3])&&!fs.existsSync(process.argv[4])&&Date.now()<deadline)Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,5);
-fs.writeFileSync(process.argv[2],JSON.stringify({owner}),{flag:'wx'});const end=Date.now()+400;
-while(!fs.existsSync(process.argv[4])&&Date.now()<end)Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,5);
-fs.unlinkSync(process.argv[2]);process.disconnect();`;
-  const child = spawn(process.execPath, ["--input-type=module", "-e", source, process.argv[1], guard, start, stop], { windowsHide: true, stdio: ["ignore", "ignore", "pipe", "ipc"] });
+const [guard,start,stop,published]=process.argv.slice(2);
+const owner=processIdentity(process.pid),sleeper=new Int32Array(new SharedArrayBuffer(4));process.send(owner);
+const awaitMarker=(marker,deadline)=>{while(!fs.existsSync(marker)&&!fs.existsSync(stop)&&Date.now()<deadline)Atomics.wait(sleeper,0,0,5);};
+awaitMarker(start,Date.now()+20000);
+if(!fs.existsSync(stop)){
+  if(!fs.existsSync(start))throw new Error("Waiter did not signal the guard holder");
+  fs.writeFileSync(guard,JSON.stringify({owner}),{flag:'wx'});
+  try{
+    fs.writeFileSync(published,"published",{flag:'wx'});
+    awaitMarker(stop,Date.now()+20000);
+    if(!fs.existsSync(stop))throw new Error("Waiter did not release the guard holder");
+  }finally{fs.unlinkSync(guard);}
+}
+process.disconnect();`;
+  const child = spawn(process.execPath, ["--input-type=module", "-e", source, process.argv[1], guard, start, stop, published], { windowsHide: true, stdio: ["ignore", "ignore", "pipe", "ipc"] });
   let stderr = "";child.stderr.on("data", value => { stderr += value; });
   const closed = new Promise((resolve, reject) => { child.once("error", reject);child.once("close", (code, signal) => resolve({ code, signal })); });
+  let peer;
   try {
-    const peer = await new Promise((resolve, reject) => { child.once("message", resolve);child.once("exit", () => reject(new Error(stderr || "holder exited before readiness"))); });
-    let waits = 0;const began = Date.now();
+    peer = await new Promise((resolve, reject) => { child.once("message", resolve);child.once("exit", () => reject(new Error(stderr || "holder exited before readiness"))); });
+    assert.equal(peer.pid, child.pid);
+    let waits = 0, publicationWait = 0;const began = Date.now();
     await assert.rejects(acquireWaiting("expired waiter", { ...config, waitMs: 100, pollMs: 5,
       identify: pid => pid === peer.pid ? peer : pid === owner.pid ? owner : null,
-      onWait: () => { if (waits++ === 0) { assert.equal(fs.readdirSync(root).filter(file => file.startsWith("waiting-")).length, 1);fs.writeFileSync(start, "start"); } } }), /waited/);
-    assert.ok(waits > 0);assert.ok(Date.now() - began < 300, "withdrawal cannot add another guard wait");
+      onWait: () => {
+        if (waits++ !== 0) return;
+        assert.equal(fs.readdirSync(root).filter(file => file.startsWith("waiting-")).length, 1);
+        assert.equal(fs.existsSync(guard), false, "the parent transaction released the guard before onWait");
+        const requested = Date.now();
+        fs.writeFileSync(start, "start");
+        while (!fs.existsSync(published) && Date.now() - requested < 2000) Atomics.wait(sleeper, 0, 0, 5);
+        publicationWait = Date.now() - requested;
+        assert.ok(fs.existsSync(published), "the child must publish before the waiter retries");
+        assert.deepEqual(read(guard).owner, peer);
+      } }), /waited/);
+    assert.ok(waits > 0);assert.ok(Date.now() - began - publicationWait < 300, "withdrawal cannot add another guard wait");
+    assert.deepEqual(read(guard).owner, peer, "the child still owns the guard after withdrawal");
     assert.equal(fs.readdirSync(root).filter(file => file.startsWith("waiting-")).length, 1, "unavailable withdrawal preserves the waiting evidence");
-  } finally { fs.writeFileSync(stop, "stop");assert.deepEqual(await closed, { code: 0, signal: null }, stderr);holder.release(); }
+  } finally {
+    fs.writeFileSync(stop, "stop");
+    const result = await closed;
+    holder.release();
+    assert.deepEqual(result, { code: 0, signal: null }, stderr);
+    if (peer) console.log(`Withdrawal guard holder PID ${peer.pid}, start ${peer.start}, exited ${result.code}`);
+  }
 });
 
 for (const code of ["EPERM", "EACCES", "EBUSY", "ENOENT"]) {
