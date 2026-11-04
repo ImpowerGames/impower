@@ -93,15 +93,21 @@ describe("morph asset requests through the standalone player's service worker", 
     expect(((await response.json()) as MorphArtifact).key).toBe(ref.key);
   });
 
-  it("serves a repeated morph request from Cache Storage without relaying the source again", async () => {
+  it("a restarted worker serves a repeated morph request from Cache Storage instead of baking again", async () => {
     const ref = compileRef(portrait());
     const first = (await (await fetchThroughPlayer(ref.src!)).json()) as MorphArtifact;
-    await vi.waitFor(() => expect([...(stores.get("morph-artifacts")?.keys() ?? [])]).toHaveLength(1));
+    const store = stores.get("morph-artifacts")!;
+    await vi.waitFor(() => expect([...store.keys()]).toHaveLength(1));
+    const [cachedKey] = [...store.keys()];
+    const stored = (await store.get(cachedKey!)!.clone().json()) as MorphArtifact;
+    expect(stored.rest).toBe(first.rest);
+    const sentinel = "<svg id='served-from-cache'/>";
+    store.set(cachedKey!, new Response(JSON.stringify({ ...stored, rest: sentinel }), { headers: { "Content-Type": "application/json" } }));
     const relaysAfterBake = relays;
     vi.resetModules();
     await import("../../../../../sparkdown-player-app/src/workers/sw");
     const again = (await (await fetchThroughPlayer(ref.src!)).json()) as MorphArtifact;
-    expect(again.rest).toBe(first.rest);
+    expect(again.rest).toBe(sentinel);
     expect(again.key).toBe(ref.key);
     expect(relays).toBe(relaysAfterBake + 1);
   });
