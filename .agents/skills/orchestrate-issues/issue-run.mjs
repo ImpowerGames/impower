@@ -6,7 +6,8 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { spawnDetached as spawnDetachedProcess } from "../../../scripts/detached-launch.mjs";
 import { writeExclusive, readJson, alive, currentIdentity } from "../../../scripts/review-job-store.mjs";
-import { processIdentity } from "../../../scripts/reviewer-slots.mjs";
+import { processIdentity, reviewerSlotCount } from "../../../scripts/reviewer-slots.mjs";
+import { admissionSlots, poolSlotLimit } from "../../../scripts/test-suite-process.mjs";
 import { routeVendor, writerEfforts } from "../../../scripts/reviewer-defaults.mjs";
 import { writerRoutes } from "../../../scripts/writer-route-preflight.mjs";
 import { reviewJobFiles } from "../../../scripts/review-job-root.mjs";
@@ -69,11 +70,12 @@ export function orchestrationTitle(issue, slug) {
 export const writerEffortOf = (name) => ({ Low: "low", Medium: "medium", High: "high" })[name] ?? null;
 
 export const WRITER_DISK = 6 * 2 ** 30;
-export const WRITER_MEMORY = 4 * 2 ** 30;
-export const MAX_WRITERS = 3;
+export const WRITER_MEMORY = 2 * 2 ** 30;
+const perWriter = `${WRITER_MEMORY / 2 ** 30} GiB per writer`;
+export const writerPlaces = (totalMemory) => Math.max(0, Math.floor(totalMemory / WRITER_MEMORY));
 export function defaultConcurrency({ totalMemory }) {
-  const byMemory = Math.floor(totalMemory / WRITER_MEMORY);
-  return { limit: Math.max(0, Math.min(MAX_WRITERS, byMemory)), basis: `the smaller of ${MAX_WRITERS} writer places and ${byMemory} by total memory at 4 GiB per writer; admission also checks available memory and disk` };
+  const limit = writerPlaces(totalMemory);
+  return { limit, basis: `${limit} writer places by total memory at ${perWriter}, the same machine-wide places every run on this host shares; reviews wait for the ${reviewerSlotCount} machine-wide reviewer slots and test runs for the ${admissionSlots} test-suite reservation slots, at most ${poolSlotLimit} of them for writers, so writers beyond those slots queue during review and tests; admission also checks available memory and disk` };
 }
 export const freeBytesAt = (dir) => { const s = fs.statfsSync(dir); return s.bavail * s.bsize; };
 
@@ -89,21 +91,21 @@ export function linuxWriterMemory(meminfo, overcommit) {
 }
 
 function writerMemory() {
-  const sampledAt = new Date().toISOString();
+  const sample = { sampledAt: new Date().toISOString(), totalBytes: os.totalmem() };
   try {
     if (process.platform === "win32") {
       const script = "$ErrorActionPreference = 'Stop'; Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory | Select-Object AvailableBytes,CommitLimit,CommittedBytes | ConvertTo-Json -Compress";
       const counters = JSON.parse(execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true, timeout: 10000 }));
       const { AvailableBytes, CommitLimit, CommittedBytes } = counters;
       if (![AvailableBytes, CommitLimit, CommittedBytes].every((value) => Number.isSafeInteger(value) && value >= 0)) throw new Error("Windows returned invalid memory counters");
-      return { sampledAt, physicalAvailableBytes: AvailableBytes, commitHeadroomBytes: CommitLimit - CommittedBytes, source: "Windows memory performance counters" };
+      return { ...sample, physicalAvailableBytes: AvailableBytes, commitHeadroomBytes: CommitLimit - CommittedBytes, source: "Windows memory performance counters" };
     }
     if (process.platform === "linux") {
-      return { sampledAt, ...linuxWriterMemory(fs.readFileSync("/proc/meminfo", "utf8"), fs.readFileSync("/proc/sys/vm/overcommit_memory", "utf8")) };
+      return { ...sample, ...linuxWriterMemory(fs.readFileSync("/proc/meminfo", "utf8"), fs.readFileSync("/proc/sys/vm/overcommit_memory", "utf8")) };
     }
-    return { sampledAt, physicalAvailableBytes: os.freemem(), commitHeadroomBytes: null, source: `${process.platform} free memory; direct commit unavailable` };
+    return { ...sample, physicalAvailableBytes: os.freemem(), commitHeadroomBytes: null, source: `${process.platform} free memory; direct commit unavailable` };
   } catch (error) {
-    return { sampledAt, error: error.message };
+    return { ...sample, error: error.message };
   }
 }
 
@@ -215,18 +217,19 @@ const SOURCE_START = 2 ** 29;
 const PHYSICAL_RESERVE = 3 * SOURCE_START;
 const COMMIT_RESERVE = 9 * SOURCE_START;
 function machineRoom(load) {
-  const { physicalAvailableBytes, commitHeadroomBytes, error } = load.resources;
-  if (!Number.isFinite(physicalAvailableBytes) || (commitHeadroomBytes !== null && !Number.isFinite(commitHeadroomBytes))) {
+  const { totalBytes, physicalAvailableBytes, commitHeadroomBytes, error } = load.resources;
+  if (!Number.isFinite(totalBytes) || !Number.isFinite(physicalAvailableBytes) || (commitHeadroomBytes !== null && !Number.isFinite(commitHeadroomBytes))) {
     return { room: 0, reason: `Cannot measure writer admission memory: ${error ?? "invalid counters"}; obtain a fresh resource sample` };
   }
   const physical = Math.floor((physicalAvailableBytes - PHYSICAL_RESERVE) / SOURCE_START);
   const commit = commitHeadroomBytes === null ? Infinity : Math.floor((commitHeadroomBytes - COMMIT_RESERVE) / SOURCE_START);
-  const places = MAX_WRITERS - load.executing - load.pending;
+  const total = writerPlaces(totalBytes);
+  const places = total - load.executing - load.pending;
   const occupied = load.writers.filter(({ state }) => ["executing", "pending"].includes(state));
-  const holders = () => occupied.map(({ identity, references }) => `${identity.join("/")} (${references.map(({ recordPath, ticket }) => `${recordPath} #${ticket}`).join(", ")})`).join("; ");
+  const holders = () => occupied.map(({ identity, references }) => `${identity.join("/")} (${references.map(({ recordPath, ticket }) => `${recordPath} #${ticket}`).join(", ")})`).join("; ") || "no writer";
   return {
     room: Math.max(0, Math.min(physical, commit, places)),
-    reason: physical <= 0 ? "Available physical memory is below 2 GiB" : commit <= 0 ? "Direct commit headroom is below 5 GiB" : places <= 0 ? `Machine writer places are full: ${holders()}` : null,
+    reason: physical <= 0 ? "Available physical memory is below 2 GiB" : commit <= 0 ? "Direct commit headroom is below 5 GiB" : places <= 0 ? `Machine writer places are full: all ${total} by total memory at ${perWriter} are held by ${holders()}` : null,
   };
 }
 
