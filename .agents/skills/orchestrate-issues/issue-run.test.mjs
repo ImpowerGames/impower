@@ -29,7 +29,7 @@ function writerAccountingChecks() {
   git(checkout, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
   const GB = 2 ** 30;
   const ids = { coordinator: "local_00000000-0000-4000-8000-000000000001", shared: "00000000-0000-4000-8000-000000000002", other: "00000000-0000-4000-8000-000000000003", assignment: "00000000-0000-4000-8000-000000000004", otherAssignment: "00000000-0000-4000-8000-000000000005", parent: "00000000-0000-4000-8000-000000000006" };
-  const record = run.initRecord({ record: path.join(tmp, "accounting-run.json"), checkout, repository: "acme/widgets", issue: 100, coordinator: ids.coordinator, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "medium", coordinatorMode: "bypassPermissions", slug: "writer-accounting", invocation: "Use orchestrate-issues for #100." }, { defaults, freeBytes: 100 * GB, totalMemory: 16 * GB }).record;
+  const record = run.initRecord({ record: path.join(tmp, "accounting-run.json"), checkout, repository: "acme/widgets", issue: 100, coordinator: ids.coordinator, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "medium", coordinatorMode: "bypassPermissions", slug: "writer-accounting", invocation: "Use orchestrate-issues for #100." }, { defaults, freeBytes: 100 * GB, totalMemory: 7.9 * GB }).record;
   const ticket = (number) => ({ number, title: `ticket ${number}`, state: "open", parent: 100, container: false, effort: "Medium", delivered: false, blockers: [], prs: [], worktrees: [] });
   const owner = (id, extra = {}) => ({ route: "codex-app", model: "gpt-6.1-sol", effort: "medium", handle: { kind: "session", id, host: os.hostname() }, since: record.coordinator.since, ...extra });
   const held = (writer) => ({ owner: writer, pending: null, history: [], results: [] });
@@ -46,10 +46,15 @@ function writerAccountingChecks() {
   const sameTask = owner("/root/writer", { handle: { kind: "task", id: "/root/writer", host: os.hostname() } });
   assert.equal(plan({ 101: held(sameTask), 102: held({ ...sameTask, launchId: ids.otherAssignment }) }).concurrency.active, 2, "an unscoped task name alone does not prove that two assignments share a writer");
   assert.equal(plan({ 101: held(shared), 102: { history: [{ released: "observed exit" }] } }).concurrency.active, 1, "normal release removes the finished assignment without erasing another writer");
-  assert.equal(run.defaultConcurrency({ totalMemory: 16 * GB }).limit, 3);
-  assert.doesNotMatch(run.defaultConcurrency({ totalMemory: 16 * GB }).basis, /reviewer slots/, "the deliberate writer bound is independent of the eight reviewer slots");
+  assert.equal(record.concurrency.limit, 3, "a 7.9 GiB host has three writer places at 2 GiB per writer");
+  const largeBound = run.defaultConcurrency({ totalMemory: 31.1 * GB });
+  assert.equal(largeBound.limit, 15, "a 31.1 GiB host has fifteen writer places at 2 GiB per writer");
+  assert.match(largeBound.basis, /15 writer places by total memory at 2 GiB per writer/);
+  assert.match(largeBound.basis, /machine-wide/, "the basis says every run on the host shares the same places");
+  assert.match(largeBound.basis, /8 machine-wide reviewer slots/);
+  assert.match(largeBound.basis, /3 test-suite reservation slots, at most 2 of them for writers/);
 
-  const resources = { sampledAt: new Date().toISOString(), physicalAvailableBytes: 3.5 * GB, commitHeadroomBytes: 27 * GB, source: "fixture: direct memory counters" };
+  const resources = { sampledAt: new Date().toISOString(), totalBytes: 7.9 * GB, physicalAvailableBytes: 3.5 * GB, commitHeadroomBytes: 27 * GB, source: "fixture: direct memory counters" };
   const foreign = (tickets, extra = {}) => ({ ...structuredClone(record), runId: "00000000-0000-4000-8000-000000000007", issue: 200, coordinator: { ...record.coordinator, session: ids.parent }, tickets, ...extra });
   const machine = (other, more = {}) => ({ host: os.hostname(), scope: { gitCommonDirectory: git(checkout, "rev-parse", "--path-format=absolute", "--git-common-dir") }, records: [{ recordPath: path.join(tmp, "foreign-run.json"), record: other }], diagnostics: [], resources, ...more });
   const machinePlan = (other, more = {}) => plan({}, { machine: machine(other), ...more });
@@ -128,8 +133,45 @@ function writerAccountingChecks() {
     const memory = run.linuxWriterMemory(meminfo, mode);
     assert.equal(memory.physicalAvailableBytes, 3.5 * GB);
     assert.equal(memory.commitHeadroomBytes, mode === "2" ? -4 * GB : null);
-    const linux = plan({}, { machine: machine(foreign({}), { resources: memory }) });
+    const linux = plan({}, { machine: machine(foreign({}), { resources: { totalBytes: resources.totalBytes, ...memory } }) });
     assert.equal(linux.concurrency.capacityNow, mode === "2" ? 0 : 3, "only strict Linux overcommit policy enforces the commit budget");
+  }
+  const unmeasured = plan({}, { machine: machine(foreign({}), { resources: { ...resources, totalBytes: undefined } }) });
+  assert.equal(unmeasured.concurrency.capacityNow, 0, "a sample without total memory admits no writer");
+  assert.ok(unmeasured.tickets.every((entry) => entry.action === "wait-capacity" && /Cannot measure writer admission memory/.test(entry.reason)));
+  const writersOn = (count) => foreign(Object.fromEntries(Array.from({ length: count }, (_, index) => [201 + index, held(owner(`00000000-0000-4000-8000-0000000003${String(index).padStart(2, "0")}`))])));
+  const running = (other) => ({ ...observations, runs: { [other.runId]: { sessions: Object.fromEntries(Object.values(other.tickets).map(({ owner: { handle } }) => [handle.id, { state: "running" }])) } } });
+  const host = (totalGiB, values) => ({ resources: { ...resources, totalBytes: totalGiB * GB, ...values } });
+  const roomy = { physicalAvailableBytes: 14.3 * GB, commitHeadroomBytes: 27 * GB };
+  const onHost = (totalGiB, other, values = roomy) => plan({}, { record: { ...record, concurrency: run.defaultConcurrency({ totalMemory: totalGiB * GB }), tickets: {} }, machine: machine(other, host(totalGiB, values)), observations: running(other) });
+  const dispatched = (result) => result.tickets.filter((entry) => entry.action === "dispatch").length;
+  const observedLoad = onHost(31.1, writersOn(3));
+  assert.equal(observedLoad.concurrency.machine.executing, 3);
+  assert.equal(observedLoad.concurrency.capacityNow, 12, "three writers of other runs leave twelve of a 31.1 GiB host's fifteen places");
+  assert.equal(dispatched(observedLoad), 3, "the run dispatches every eligible ticket beside the three foreign writers");
+  const fourteenth = onHost(31.1, writersOn(14));
+  assert.equal(fourteenth.concurrency.capacityNow, 1, "fourteen writers across runs leave the fifteenth place");
+  assert.equal(dispatched(fourteenth), 1);
+  const full = onHost(31.1, writersOn(15));
+  assert.equal(full.concurrency.capacityNow, 0);
+  assert.ok(full.tickets.every((entry) => entry.action === "wait-capacity" && /Machine writer places are full: all 15 by total memory at 2 GiB per writer/.test(entry.reason)), "fifteen writers fill a 31.1 GiB host");
+  const startOn = { ...record, tickets: { 101: { pending } } };
+  const startCheck = (totalGiB, other) => run.checkMachineStart(startOn, machine(other, host(totalGiB, roomy)), { starting: 101, observations: running(other), census: () => [] });
+  assert.equal(startCheck(31.1, writersOn(14)).executing, 14, "start-check admits a fifteenth writer machine-wide on a 31.1 GiB host");
+  assert.throws(() => startCheck(31.1, writersOn(15)), /Machine writer places are full: all 15/);
+  assert.equal(onHost(15.8, writersOn(6)).concurrency.capacityNow, 1, "a 15.8 GiB host has a seventh place");
+  assert.equal(onHost(15.8, writersOn(7)).concurrency.capacityNow, 0, "seven writers fill a 15.8 GiB host");
+  assert.throws(() => startCheck(15.8, writersOn(7)), /Machine writer places are full: all 7/);
+  assert.equal(onHost(7.9, writersOn(2)).concurrency.capacityNow, 1, "a 7.9 GiB host has a third place");
+  assert.equal(onHost(7.9, writersOn(3)).concurrency.capacityNow, 0, "a 7.9 GiB host admits no writer beyond its three places");
+  assert.throws(() => startCheck(7.9, writersOn(3)), /Machine writer places are full: all 3/);
+  for (const totalGiB of [15.8, 31.1]) {
+    for (const [physical, commit, why] of [[0.4, 27, /Available physical memory/], [1.9, 27, /Available physical memory/], [14.3, 4.9, /Direct commit headroom/], [14.3, 2.4, /Direct commit headroom/]]) {
+      const loaded = onHost(totalGiB, writersOn(1), { physicalAvailableBytes: physical * GB, commitHeadroomBytes: commit * GB });
+      assert.equal(loaded.concurrency.capacityNow, 0, `a ${totalGiB} GiB host with ${physical} GiB available and ${commit} GiB commit headroom admits no writer`);
+      assert.ok(loaded.tickets.every((entry) => entry.action === "wait-capacity" && why.test(entry.reason)), `the ${totalGiB} GiB host names the reserve that refuses it`);
+      assert.throws(() => run.checkMachineStart(startOn, machine(writersOn(1), host(totalGiB, { physicalAvailableBytes: physical * GB, commitHeadroomBytes: commit * GB })), { starting: 101, observations: running(writersOn(1)), census: () => [] }), why);
+    }
   }
   const pendingBefore = JSON.stringify(other);
   assert.equal(machinePlan(other, { observations: { sessions: { [ids.parent]: { state: "absent" } }, runs: { [other.runId]: { tasks: { "/root/writer": { state: "running" } } } } } }).concurrency.machine.executing, 1);
@@ -320,9 +362,12 @@ try {
   assert.throws(() => run.routeOptions("claude-opus-5-5", { ...defaults, retiredRoutes: { "claude-cli": "test" } }), /also listed as retired/);
 
   const GB = 2 ** 30;
-  assert.equal(run.defaultConcurrency({ totalMemory: 64 * GB }).limit, 3);
-  assert.equal(run.defaultConcurrency({ totalMemory: 15.8 * GB }).limit, 3);
-  assert.equal(run.defaultConcurrency({ totalMemory: 7 * GB }).limit, 1);
+  assert.equal(run.defaultConcurrency({ totalMemory: 64 * GB }).limit, 32);
+  assert.equal(run.defaultConcurrency({ totalMemory: 31.1 * GB }).limit, 15);
+  assert.equal(run.defaultConcurrency({ totalMemory: 15.8 * GB }).limit, 7);
+  assert.equal(run.defaultConcurrency({ totalMemory: 7 * GB }).limit, 3);
+  assert.equal(run.defaultConcurrency({ totalMemory: 3 * GB }).limit, 1);
+  assert.equal(run.defaultConcurrency({ totalMemory: 1.5 * GB }).limit, 0);
 
   {
     const calls = [];
@@ -369,11 +414,11 @@ try {
   }
 
   const record = path.join(artifacts, "run.json");
-  const init = (extra = {}) => run.initRecord({ record, checkout, repository: "acme/widgets", issue: 100, coordinator: "local_a", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", slug: "coordinator-contact", invocation: "Use orchestrate-issues for #100.", ...extra }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+  const init = (extra = {}) => run.initRecord({ record, checkout, repository: "acme/widgets", issue: 100, coordinator: "local_a", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", slug: "coordinator-contact", invocation: "Use orchestrate-issues for #100.", ...extra }, { defaults, freeBytes: 40 * GB, totalMemory: 7.9 * GB });
   const first = init();
   assert.equal(first.action, "init");
   assert.equal(first.record.writer.model, "claude-opus-5-5");
-  assert.equal(first.record.concurrency.limit, 3);
+  assert.equal(first.record.concurrency.limit, 3, "init records the host-derived writer places");
   assert.equal(init().action, "resume");
   const later = (extra) => init({ record: path.join(artifacts, "later.json"), issue: 109, invocation: "Use orchestrate-issues for #109.", ...extra });
   assert.equal(later().action, "init");
@@ -1268,7 +1313,7 @@ try {
     git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
     const file = path.join(dir, "artifacts", "run.json");
     const made = run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", issue: 300, coordinator: "local_r", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "x" }, { defaults, freeBytes: 5 * GB, totalMemory: 64 * GB });
-    assert.deepEqual([made.record.concurrency.limit, made.diskAdmits], [3, 0]);
+    assert.deepEqual([made.record.concurrency.limit, made.diskAdmits], [32, 0]);
     const snap = snapshotOf(300, [{ ...ticket(1401), parent: 300 }]);
     const pre = [available("claude-cli", "claude-opus-5-5", [1401])];
     const low = run.planDispatch({ record: run.readRecord(file), snapshot: snap, preflights: pre, freeBytes: 5 * GB, defaults });
