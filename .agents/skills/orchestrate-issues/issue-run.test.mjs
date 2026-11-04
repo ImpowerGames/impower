@@ -806,6 +806,49 @@ try {
     const taskRecord = path.join(artifacts, "run-200.json");
     assert.equal(run.initRecord({ record: taskRecord, checkout, repository: "acme/widgets", issue: 200, coordinator: "local_a", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", slug: "coordinator-contact", invocation: "Use orchestrate-issues for #200.", concurrency: 4 }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB }).action, "init");
     const taskPlan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: snap, preflights: [available("claude-cli", "claude-opus-5-5", [211, 212])], freeBytes: 100 * GB, defaults, census: () => [] });
+    const roundCases = [
+      [2111, ["Review round state: PR ImpowerGames/impower#2111, round 2 of the default cap of 3."], 2],
+      [2111, ["Review round state: PR ImpowerGames/impower#2111, round 3, the last of the default cap of 3."], 3],
+      [2318, ["Review round state: ImpowerGames/impower#2318, round 6."], 6],
+      [2318, ["### Review round state: ImpowerGames/impower#2318, round 5."], 5],
+      [2318, ["Review round state: ImpowerGames/impower#2318, round 6,000."], 0],
+      [2340, ["Review round 2 for ImpowerGames/impower#2340 / #1714 under Task #1741.", "Review round 1 for ImpowerGames/impower#2340 / Task #1714 under coordinated Task #1741."], 2],
+      [2395, ["### Review round 1 state"], 1],
+      [2405, ["Review round 1 state for ImpowerGames/impower#2405"], 1],
+      [2405, ["### Review round state: PR ImpowerGames/impower#2405, round 2 of the default cap of 3."], 2],
+      [2405, ["> Review round state: PR ImpowerGames/impower#2405, round 3 of the default cap of 3.", "Adjudication\n\nReview round 3 for ImpowerGames/impower#2405.", "```markdown\n### Review round 3 state\n```"], 0],
+      [2318, ["> Review round state: ImpowerGames/impower#2318, round 6.", "~~~markdown\n### Review round state: ImpowerGames/impower#2318, round 5.\n~~~"], 0],
+      [2318, ["```bad`info\n### Review round 6 state"], 6],
+      [2318, ["````markdown\n```` suffix\n~~~~\n```\n### Review round 6 state\n````\n### Review round 5 state"], 5],
+      [2318, ["\t```\n### Review round 6 state"], 6],
+      [2318, ["```\n```\nReview round state: ImpowerGames/impower#2318, round 6."], 0],
+    ];
+    const roundRecord = run.readRecord(taskRecord);
+    const roundResults = roundCases.map(([number, bodies, rounds]) => {
+      const roundSnapshot = run.takeSnapshot({ repository: "acme/widgets", issue: 200 }, {
+        ...client,
+        pulls: (ticket) => client.pulls(ticket).map((pr) => pr.number === 401 ? { ...pr, number } : pr),
+        comments: (pr) => pr === number ? bodies.map((body) => ({ body })) : client.comments(pr),
+      });
+      const roundPlan = run.planDispatch({ record: roundRecord, snapshot: roundSnapshot, preflights: [], freeBytes: 100 * GB, defaults, census: () => [] });
+      const entry = roundPlan.tickets.find((t) => t.number === 201);
+      assert.equal(entry.action, "adopt-pr");
+      return { bodies, actual: [roundSnapshot.tickets.find((t) => t.number === 201).prs[0].rounds, entry.rounds, entry.reason.includes(`continues the PR from round ${rounds}`)], expected: [rounds, rounds, true] };
+    });
+    assert.deepEqual(roundResults.map(({ bodies, actual }) => [bodies, actual]), roundResults.map(({ bodies, expected }) => [bodies, expected]), "snapshot and adoption count the started round from the review thread");
+    const acceptance = [
+      "## Acceptance criteria",
+      "\t```bad`info",
+      "- [ ] Hidden by the legacy opener.",
+      "``` suffix",
+      "- [ ] Visible after the legacy closer.",
+      "<!--",
+      "## Hidden heading",
+      "- [ ] Hidden by the HTML comment.",
+      "-->",
+      "- [ ] Visible after the HTML comment.",
+    ].join("\n");
+    assert.deepEqual(run.parseCriteria(acceptance).map(({ text }) => text), ["Visible after the legacy closer.", "Visible after the HTML comment."], "acceptance retains legacy fences and HTML comments");
     assert.deepEqual([taskPlan.parent, actions(taskPlan)[211]], [{ type: "Task", title: "Widgets" }, "dispatch"], "the plan carries the parent's type and admits the nested slice");
     assert.deepEqual([213, 214, 215, 221].map((n) => actions(taskPlan)[n]), ["delivered-by", "delivered-by", "delivered-by", "delivered-by"]);
     assert.deepEqual([actions(taskPlan)[217], actions(taskPlan)[212], taskPlan.concurrency.active, taskPlan.concurrency.capacityNow], ["done", "dispatch", 3, 1], "a merged deliverer's Bug is done; delivered Bugs take no writer place");

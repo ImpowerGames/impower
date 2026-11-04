@@ -693,7 +693,26 @@ export function redMain(record, mainCi, snapshot = null) {
 const short9 = (sha) => String(sha ?? "none").slice(0, 9);
 
 export const MAX_SUB_ISSUE_DEPTH = 8;
-export const reviewRounds = (comments) => Math.max(0, ...comments.map((c) => [...(c.body ?? "").matchAll(/^#{2,4} Review round (\d+) state\b/gm)].map((m) => Number(m[1]))).flat());
+export function postedReviewRounds(comments) {
+  const rounds = new Set();
+  for (const { body } of comments) {
+    const lines = (body ?? "").split(/\r?\n/);
+    const fenced = fencedLines(lines, { strict: true });
+    for (const [index, line] of lines.entries()) {
+      if (fenced[index]) continue;
+      const heading = line.match(/^#{2,4} Review round (\d+) state\b/);
+      const firstLine = index === 0 && (
+        line.match(/^(?:#{2,4} )?Review round state: (?:PR )?[\w.-]+\/[\w.-]+#\d+, round (\d+)(?= of\b|, |\.?$)/) ??
+        line.match(/^(?:#{2,4} )?Review round (\d+)(?: state)? for [\w.-]+\/[\w.-]+#\d+(?=[ \t]|\.?$)/)
+      );
+      const round = Number((heading || firstLine)?.[1]);
+      if (Number.isSafeInteger(round) && round > 0) rounds.add(round);
+    }
+  }
+  return rounds;
+}
+
+export const reviewRounds = (comments) => Math.max(0, ...postedReviewRounds(comments));
 
 const CLOSING_REFERENCE = /\b(?:clos(?:e|es|ed)|fix(?:es|ed)?|resolv(?:e|es|ed))\s*:?\s+(?:https?:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/issues\/(\d+)|(?:([\w.-]+\/[\w.-]+))?#(\d+))/gi;
 export function closingReferences(body) {
@@ -877,14 +896,24 @@ export function deadLaunches(jobRoot, prs, census = processCensus) {
 }
 
 const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
-function fencedLines(lines) {
+const STRICT_FENCE = /^ {0,3}(`{3,}|~{3,})(.*)$/;
+function fencedLines(lines, { strict = false } = {}) {
+  const pattern = strict ? STRICT_FENCE : FENCE;
   let fence = null, comment = false;
-  return lines.map((l) => {
-    if (comment) { if (l.includes("-->")) comment = false; return true; }
-    if (!fence && /^\s{0,3}<!--/.test(l)) { comment = !l.slice(l.indexOf("<!--") + 4).includes("-->"); return true; }
-    const f = FENCE.exec(l);
-    if (f) { if (!fence) fence = f[1]; else if (f[1][0] === fence[0] && f[1].length >= fence.length) fence = null; return true; }
-    return fence !== null;
+  return lines.map((line) => {
+    if (comment) { if (line.includes("-->")) comment = false; return true; }
+    if (!strict && !fence && /^\s{0,3}<!--/.test(line)) {
+      comment = !line.slice(line.indexOf("<!--") + 4).includes("-->");
+      return true;
+    }
+    const marker = pattern.exec(line);
+    if (fence) {
+      if (marker && marker[1][0] === fence[0] && marker[1].length >= fence.length && (!strict || !marker[2].trim())) fence = null;
+      return true;
+    }
+    if (!marker || (strict && marker[1][0] === "`" && marker[2].includes("`"))) return false;
+    fence = marker[1];
+    return true;
   });
 }
 const headingLevels = (lines) => { const fenced = fencedLines(lines); return lines.map((l, i) => (fenced[i] ? 0 : /^(#{1,6})\s/.exec(l)?.[1].length ?? 0)); };

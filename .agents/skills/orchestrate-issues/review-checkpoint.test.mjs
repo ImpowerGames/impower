@@ -536,6 +536,24 @@ try {
   const aside = path.join(tmp, "round-1-elsewhere");
   fs.renameSync(path.join(jobDir, "round-1"), aside);
   assert.ok(rc.gatherEvidence({ record: next, ticket: 42, pr: 500, client, git: repo }).blockers.some((b) => /posts the state of rounds 1, 6, but no journal here records their reviews/.test(b)));
+  const plainRoundClient = { ...client, comments: () => [
+    ...comments.map((c) => c.body.startsWith("### Review round 1 state")
+      ? { ...c, body: "Review round 1 state for acme/widgets#500\n\nPlanned: undirected" }
+      : c),
+    { body: "> Review round 7 for acme/widgets#500" },
+    { body: "```markdown\n### Review round 8 state\n```" },
+  ] };
+  const missingPostedRounds = rc.gatherEvidence({ record: next, ticket: 42, pr: 500, client: plainRoundClient, git: repo }).blockers.filter((b) => b.includes("but no journal here records"));
+  assert.deepEqual(missingPostedRounds.map((b) => b.match(/state of rounds? ([\d, ]+), but/)?.[1]), ["1, 6"], "checkpoint requires missing journals for genuine posted rounds and ignores quoted examples");
+  const unprefixedRoundClient = { ...client, comments: () => [
+    ...comments,
+    { body: "Review round state: acme/widgets#500, round 7." },
+    { body: "### Review round state: acme/widgets#500, round 8." },
+    { body: "> Review round state: acme/widgets#500, round 9." },
+    { body: "~~~markdown\n### Review round state: acme/widgets#500, round 10.\n~~~" },
+  ] };
+  const missingUnprefixedRounds = rc.gatherEvidence({ record: next, ticket: 42, pr: 500, client: unprefixedRoundClient, git: repo }).blockers.filter((b) => b.includes("but no journal here records"));
+  assert.deepEqual(missingUnprefixedRounds.map((b) => b.match(/state of rounds? ([\d, ]+), but/)?.[1]), ["1, 6, 7, 8"], "checkpoint requires missing journals for unprefixed round-state comments");
   fs.renameSync(aside, path.join(jobDir, "round-1"));
   const oneAside = path.join(tmp, "corrections-3-elsewhere");
   fs.renameSync(corrections3.dir, oneAside);
