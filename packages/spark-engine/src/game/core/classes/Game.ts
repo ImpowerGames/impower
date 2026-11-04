@@ -767,6 +767,7 @@ export class Game<T extends M = {}> {
       saveHistory: this._saveHistory,
       rewindBeats: this._rewindBeats,
       declarations: this.carriedDeclarations(previous, before, program),
+      reactiveDeps: !!program.sparkle?.layouts,
     });
     engine.keepBeatImages = true;
     if (!engine.declarationsCarried) {
@@ -783,7 +784,6 @@ export class Game<T extends M = {}> {
     this._story = engine;
     this._positions = storyPositions(this._story, this._program);
     this.setupStory(this._story);
-    this.restoreReactiveTracking();
     this.resolveBreakpoints();
     if (this._moduleNames && this._moduleNames.length > 0) {
       this.assignContextChannels();
@@ -2775,7 +2775,6 @@ export class Game<T extends M = {}> {
 
   protected finishLoad(saveData: SaveData, runtime: RuntimeState): void {
     this.cancelPreview();
-    this.restoreReactiveTracking();
     for (const k of this._moduleNames) {
       const module = this._modules[k];
       if (module) {
@@ -2871,7 +2870,6 @@ export class Game<T extends M = {}> {
     if (!story.restore(image)) {
       return false;
     }
-    this.restoreReactiveTracking();
     const saveData = JSON.parse(entry.body) as SaveData;
     for (const k of this._moduleNames) {
       this._modules[k]?.load(saveData.modules[k]);
@@ -2912,18 +2910,11 @@ export class Game<T extends M = {}> {
   protected rewindStory() {
     this.discardOpenStoryLine();
     this._story.ResetState();
-    this.restoreReactiveTracking();
   }
 
   protected discardOpenStoryLine() {
     this._story.CancelAsyncContinue();
     this._awaiting = null;
-  }
-
-  protected restoreReactiveTracking() {
-    if (this._program?.sparkle?.layouts) {
-      this._story.variablesState.reactiveDepsEnabled = true;
-    }
   }
 
   reset() {
@@ -4122,7 +4113,6 @@ export class Game<T extends M = {}> {
     this.module.interpreter.clearQueuedBeats();
     this._startAddress = previewAddress;
     this.jumpTo(previewAddress, true);
-    this.restoreReactiveTracking();
     this.continue();
   }
 
