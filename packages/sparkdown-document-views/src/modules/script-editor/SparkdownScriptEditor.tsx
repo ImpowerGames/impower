@@ -95,10 +95,6 @@ export default function SparkdownScriptEditor({
   return (
     <div class="sparkdown-script-editor-root" ref={rootRef}>
       <style>{cssText}</style>
-      {
-}
-      {
-}
       <LoadingBar
         containerRef={loadingRef}
         class="absolute left-0 transition-opacity duration-250"

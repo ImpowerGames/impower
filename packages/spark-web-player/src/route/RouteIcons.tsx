@@ -21,8 +21,6 @@ export function RouteIconSvg({
     >
       {icon === "forced" ? (
         <>
-          {
-}
           <path d="M4 14V9a3 3 0 0 1 3-3h6" />
           <path d="M10.5 3.5 13 6l-2.5 2.5" />
           <path d="M4 6.5V2" stroke-dasharray="1 2" />
