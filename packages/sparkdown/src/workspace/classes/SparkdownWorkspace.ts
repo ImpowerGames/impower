@@ -889,23 +889,22 @@ export abstract class SparkdownWorkspace {
       }
       return state.program;
     }
-    if (!force && this._pendingChangeCompileUris.has(uri)) {
-      return new Promise((resolve) => {
-        const nextCompiledCallbacks = this._onNextCompiled.get(uri) || [];
-        nextCompiledCallbacks.push(resolve);
-        this._onNextCompiled.set(uri, nextCompiledCallbacks);
-      });
-    }
     if (
       !force &&
-      state.compilingDocumentVersion != null &&
-      this._documentVersions.get(uri)! <= state.compilingDocumentVersion
+      (this._pendingChangeCompileUris.has(uri) ||
+        (state.compilingDocumentVersion != null &&
+          this._documentVersions.get(uri)! <= state.compilingDocumentVersion))
     ) {
-      return new Promise((resolve) => {
-        const nextCompiledCallbacks = this._onNextCompiled.get(uri) || [];
-        nextCompiledCallbacks.push(resolve);
-        this._onNextCompiled.set(uri, nextCompiledCallbacks);
-      });
+      const program = await new Promise<SparkProgram | undefined>(
+        (resolve) => {
+          const nextCompiledCallbacks = this._onNextCompiled.get(uri) || [];
+          nextCompiledCallbacks.push(resolve);
+          this._onNextCompiled.set(uri, nextCompiledCallbacks);
+        },
+      );
+      return program && !this.compiledCurrent(program)
+        ? this.compile(uri, false)
+        : program;
     }
     profile("start", this._profilerId, "workspace" + " " + "compile", uri);
     this._compilesInFlight++;
@@ -991,6 +990,13 @@ export abstract class SparkdownWorkspace {
         this.runChangeCompiles();
       }
     }
+  }
+
+  protected compiledCurrent(program: SparkProgram): boolean {
+    return Object.entries(program.scripts ?? {}).every(([scriptUri, version]) => {
+      const current = this._documentVersions.get(scriptUri);
+      return current == null || current === version;
+    });
   }
 
   protected publishesStoryOfStandaloneCompiles = false;
