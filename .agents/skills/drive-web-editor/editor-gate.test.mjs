@@ -227,7 +227,7 @@ const editorlessLogicPage = () => ({
       throw new Error("Editor readiness deadline exceeded");
     }
     if (src.includes("MutationObserver")) return true;
-    if (src.includes("Object.entries(screens)")) return ["logic"];
+    if (src.includes("?.id.replace(")) return "logic";
     if (src.includes('["logic", "assets", "share"]')) return "main";
     if (src.includes('.cm-content") != null')) return false;
     if (src.includes("-trigger-main")) return true;

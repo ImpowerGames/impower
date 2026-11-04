@@ -55,10 +55,13 @@ export function sparkleElementParts(element: SyntaxNode): SparkleElementParts {
   const begin = findChildByName(element, "LuauSparkleElement_begin");
   const nameCapture = begin?.firstChild ?? null;
   const name = nameCapture?.firstChild ?? null;
-  const args = begin ? firstNamed(begin, CALL_ARGUMENTS) : null;
-  const beginTo = begin?.to ?? element.from;
   const content = findChildByName(element, "LuauSparkleElement_content");
-  const first = content?.firstChild ?? null;
+  const args =
+    content?.firstChild && CALL_ARGUMENTS.has(content.firstChild.name)
+      ? content.firstChild
+      : null;
+  const beginTo = args?.to ?? begin?.to ?? element.from;
+  const first = args ? args.nextSibling : (content?.firstChild ?? null);
   const head =
     first?.name === "LuauSparkleElementParts" && first.from === beginTo
       ? first
@@ -73,15 +76,6 @@ export function sparkleElementParts(element: SyntaxNode): SparkleElementParts {
 }
 
 const CALL_ARGUMENTS = nodeNameSet(["LuauSparkleCallArguments"]);
-
-function firstNamed(node: SyntaxNode, names: Set<string>): SyntaxNode | null {
-  for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (names.has(child.name)) return child;
-    const found = firstNamed(child, names);
-    if (found) return found;
-  }
-  return null;
-}
 
 export function sparkleBlockContent(block: SyntaxNode): SyntaxNode | null {
   return findChildByName(block, "LuauSparkleElementBlock_content");
@@ -110,6 +104,8 @@ const LATER_PART_NAMES = nodeNameSet([
   "LuauSparkleElementParts",
   "LuauSparkleEventClosureAttribute",
   "LuauSparklePropClosureAttribute",
+  "LuauSparkleEventParenAttribute",
+  "LuauSparklePropParenAttribute",
 ]);
 
 export function sparklePartNodes(node: SyntaxNode): SyntaxNode[] {
@@ -124,7 +120,7 @@ export function sparklePartNodes(node: SyntaxNode): SyntaxNode[] {
     if (CLOSURE_VALUES[child.name]) {
       const inner = findChildByName(child, `${child.name}_content`);
       for (let part = inner?.firstChild; part; part = part.nextSibling) {
-        if (part.name === "LuauSparkleElementParts") out.push(part);
+        if (LATER_PART_NAMES.has(part.name)) out.push(part);
       }
     }
   }

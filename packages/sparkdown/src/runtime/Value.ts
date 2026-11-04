@@ -1,4 +1,5 @@
 import { InkObject } from "./Object";
+import { stdLibMarkerMapName } from "./StdLibMarker";
 import { StoryException } from "./StoryException";
 import { asOrThrows } from "./TypeAssertion";
 import { tryParseInt, tryParseFloat } from "./TryGetResult";
@@ -503,9 +504,9 @@ export function functionText(
     const label = closure instanceof SymbolValue ? labelOf(closure.ref) : null;
     return `function: ${label ?? "<closure>"}`;
   }
-  const builtin = value.value.get("__stdlib_fn");
-  if (builtin !== undefined) {
-    return `function: builtin: ${builtin?.valueObject ?? "?"}`;
+  const builtin = stdLibMarkerMapName(value.value);
+  if (builtin !== null) {
+    return `function: builtin: ${builtin}`;
   }
   return null;
 }

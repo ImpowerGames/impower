@@ -90,6 +90,7 @@ const searchRouteFrom = (
       simulationFailure: reachedTarget ? undefined : game.simulationFailure,
       errors: game.routeErrors,
       shows: reachedTarget ? game.routeTargetShows : undefined,
+      ending: reachedTarget ? game.routeTargetEnding : undefined,
       route: report,
       menus: reachedTarget ? Game.routeMenus(route) : undefined,
     });

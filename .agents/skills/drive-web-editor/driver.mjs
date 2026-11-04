@@ -1910,6 +1910,7 @@ const SCREENS = {
   share: '[role="tab"][id$="-trigger-game"]',
 };
 const tabSelector = (value) => `[role="tab"][id$="-trigger-${value}"]`;
+const SELECTED_SCREEN_TAB = Object.keys(SCREENS).map((name) => `${tabSelector(name)}[aria-selected="true"]`).join(", ");
 const LANGUAGE_TARGETS = {
   hover: ".sparkdown-script-editor-root .cm-tooltip-hover",
   completion: ".sparkdown-script-editor-root .cm-tooltip-autocomplete",
@@ -2158,15 +2159,7 @@ async function waitForApp(page, timeout = 90_000) {
 }
 
 async function activeScreen(page) {
-  const mounted = await mountedScreens(page);
-  return mounted.length === 1 ? mounted[0] : null;
-}
-
-async function mountedScreens(page) {
-  return page.evaluate(
-    (screens) => Object.entries(screens).filter(([, selector]) => document.querySelector(selector)).map(([name]) => name),
-    SCREENS,
-  );
+  return page.evaluate((selector) => document.querySelector(selector)?.id.replace(/^.*-trigger-/, "") ?? null, SELECTED_SCREEN_TAB);
 }
 
 async function scriptEditorPresent(page, timeout = 10_000) {
@@ -2197,9 +2190,7 @@ export function editorAbsentReason({ screen, panelTab, budgetMs }) {
 }
 
 async function editorExpectedHere(page) {
-  await page
-    .waitForFunction((screens) => Object.values(screens).some((sel) => document.querySelector(sel)), SCREENS, { timeout: 5_000 })
-    .catch(() => {});
+  await page.waitForSelector(SELECTED_SCREEN_TAB, { state: "attached", timeout: 5_000 }).catch(() => {});
   const screen = await activeScreen(page);
   if (screen == null) return null;
   if (screen !== "logic") return false;
@@ -2505,8 +2496,7 @@ async function readSurfaces(page) {
       selected: t.getAttribute("aria-selected") === "true",
     })),
   );
-  out.screens = await mountedScreens(page);
-  out.screen = out.screens.length === 1 ? out.screens[0] : null;
+  out.screen = await activeScreen(page);
   out.panelTab = out.tabs.find((t) => t.selected && !(t.value in SCREENS))?.value ?? null;
   const editor = await protocolRequest(page, "editor/read", {}, 500).catch(() => null);
   out.editorView = editor ? await page.evaluate(() => document.querySelector('[role="tab"][id$="-trigger-main"]') ? "main" : "scripts-view") : null;

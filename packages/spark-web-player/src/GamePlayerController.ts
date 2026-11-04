@@ -3002,8 +3002,9 @@ export class GamePlayerController {
     this._stops += 1;
     const plays = this._plays;
     const stoppedRun = this._workerPlay?.run;
+    const ended = this._workerPlay?.ended;
     const endedAt =
-      options?.at ?? this._workerPlay?.ended?.error?.location ?? null;
+      options?.at ?? ended?.error?.location ?? ended?.location ?? null;
     this.setEndingStatus(null);
     const lastExecutedLocation = await this.endWorkerPlay();
     const overtaken = () => plays !== this._plays || !this._mounted;
@@ -3051,6 +3052,13 @@ export class GamePlayerController {
         userEvent: true,
         docChanged: false,
       });
+      if (ended && this._program && !overtaken()) {
+        await this.updatePreview(
+          this._program,
+          selected.uri,
+          selected.range.start.line,
+        );
+      }
     }
   }
 
@@ -3517,6 +3525,7 @@ export class GamePlayerController {
           errors?: SimulationError[];
           path?: string;
           refused?: string;
+          ending?: GameEnding;
         }
       | undefined;
     let ended!: () => void;
@@ -3554,6 +3563,7 @@ export class GamePlayerController {
     if (overtaken() || !result.displayed) {
       return false;
     }
+    this.setEndingStatus(result.ending ?? null);
     if (!options?.speculative) {
       this.beginPreviewRuntimeRun(program, link, file, line, result.errors ?? []);
     }

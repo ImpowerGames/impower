@@ -77,7 +77,10 @@ import { isScriptExtension } from "../utils/scriptFiles";
 import SingletonPromise from "./SingletonPromise";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
-import workspace from "./WorkspaceStore";
+import workspace, {
+  cacheableWorkspaceState,
+  loadedProjectId,
+} from "./WorkspaceStore";
 import type WorkspaceSync from "./WorkspaceSync";
 import type { AccountInfo } from "./types/AccountInfo";
 import { RemoteStorage } from "./types/RemoteStorageTypes";
@@ -98,12 +101,7 @@ export default class WorkspaceWindow {
 
   constructor(workspace: { fs: WorkspaceFileSystem; sync: WorkspaceSync }) {
     this._workspace = workspace;
-    const cachedProjectId = localStorage.getItem(
-      WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY,
-    );
-    const id = cachedProjectId || WorkspaceConstants.LOCAL_PROJECT_ID;
-    this.restoreProjectWorkspace(id);
-    this.cacheProjectId(id);
+    this.cacheProjectId(loadedProjectId());
     this.restoreAnimatePortraits();
     this.registerProtocolHandlers();
     const mediaQuery = window.matchMedia("(min-width: 960px)");
@@ -183,33 +181,12 @@ export default class WorkspaceWindow {
     return workspace.current;
   }
 
-  protected getCacheableState(store: WorkspaceCache) {
-    const copy = structuredClone(store);
-    copy.screen = {};
-    copy.sync = {};
-    copy.debug.diagnosticsSummary = {};
-    copy.debug.pinpoints = {};
-    copy.debug.highlights = {};
-    copy.preview.modes.game = {};
-    return copy;
-  }
-
   protected cacheProjectWorkspace = debounce((store: WorkspaceCache) => {
     localStorage.setItem(
       WorkspaceConstants.WORKSPACE_STATE_STORAGE_KEY_PREFIX + store.project.id,
-      JSON.stringify(this.getCacheableState(store)),
+      JSON.stringify(cacheableWorkspaceState(store)),
     );
   }, 300);
-
-  protected restoreProjectWorkspace(id: string) {
-    const cachedWorkspaceState = localStorage.getItem(
-      WorkspaceConstants.WORKSPACE_STATE_STORAGE_KEY_PREFIX + id,
-    );
-    if (cachedWorkspaceState) {
-      const workspaceState = JSON.parse(cachedWorkspaceState) as WorkspaceCache;
-      workspace.current = this.getCacheableState(workspaceState);
-    }
-  }
 
   protected update(store: WorkspaceCache) {
     workspace.current = store;

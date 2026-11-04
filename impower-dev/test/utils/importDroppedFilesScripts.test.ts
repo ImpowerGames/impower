@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   recordScriptChange: vi.fn(async () => undefined),
   recordAssetChange: vi.fn(async () => undefined),
   recordResolvedUpload: vi.fn(async () => undefined),
+  existing: [] as string[],
 }));
 
 vi.mock("../../src/modules/spark-editor/utils/uploadConflicts", () => ({
@@ -40,7 +41,13 @@ vi.mock("../../src/modules/spark-editor/utils/fileUndo", () => ({
 
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
-    fs: { createFiles: mocks.createFiles },
+    fs: {
+      createFiles: mocks.createFiles,
+      getFiles: async () =>
+        Object.fromEntries(mocks.existing.map((rel) => [`file://p/${rel}`, {}])),
+      getRelativePath: (projectId: string, uri: string) =>
+        uri.slice(`file://${projectId}/`.length),
+    },
     window: {
       recordScriptChange: mocks.recordScriptChange,
       recordAssetChange: mocks.recordAssetChange,
@@ -82,5 +89,74 @@ describe("importDroppedFiles change recording", () => {
     ]);
     expect(mocks.recordScriptChange).not.toHaveBeenCalled();
     expect(mocks.recordAssetChange).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("importDroppedFiles routing into the layout", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.existing = [];
+  });
+
+  const createdPaths = () =>
+    (
+      mocks.createFiles.mock.calls[0] as unknown as [
+        { files: { uri: string }[] },
+      ]
+    )[0].files.map((f) => f.uri.slice("file://p/".length));
+
+  it("files a dropped asset under assets/ and a dropped script under scripts/ whichever list received them", async () => {
+    mocks.existing = ["main.sd"];
+    await importDroppedFiles("p", [
+      dropped("scripts/art/hero.png"),
+      dropped("assets/intro.sd"),
+      dropped("assets/urls/notes.txt"),
+      dropped("scripts/song.url"),
+    ]);
+    expect(createdPaths()).toEqual([
+      "assets/art/hero.png",
+      "scripts/intro.sd",
+      "assets/notes.txt",
+      "assets/urls/song.url",
+    ]);
+  });
+
+  it("never files a root-project drop into an existing sub-project's folder", async () => {
+    mocks.existing = [
+      "main.sd",
+      ".layout",
+      "scripts/other/main.sd",
+      "assets/other/background.png",
+    ];
+    await importDroppedFiles("p", [
+      dropped("assets/other/intro.sd"),
+      dropped("assets/other/util.luau"),
+      dropped("other/intro.sd"),
+    ]);
+    expect(createdPaths()).toEqual([
+      "assets/other/intro.sd",
+      "assets/other/util.luau",
+      "other/intro.sd",
+    ]);
+  });
+
+  it("never files a root-project drop into a sub-project rooted at a category folder", async () => {
+    mocks.existing = ["main.sd", "assets/main.sd"];
+    await importDroppedFiles("p", [dropped("scripts/hero.png")]);
+    expect(createdPaths()).toEqual(["scripts/hero.png"]);
+  });
+
+  it("keeps a file dropped inside a sub-project's folder with that sub-project", async () => {
+    mocks.existing = ["main.sd", "scripts/other/main.sd"];
+    await importDroppedFiles("p", [
+      dropped("scripts/other/assets/forest.svg"),
+      dropped("scripts/fresh/main.sd"),
+      dropped("scripts/fresh/tree.png"),
+    ]);
+    expect(createdPaths()).toEqual([
+      "scripts/other/assets/forest.svg",
+      "scripts/fresh/main.sd",
+      "scripts/fresh/tree.png",
+    ]);
   });
 });

@@ -57,14 +57,7 @@ export abstract class SparkdownAnnotator<
 
   begin(_iterateFrom: number, _iterateTo: number) {}
 
-  end(
-    _iterateFrom: number,
-    _iterateTo: number,
-    _added: Range<AnnotationType>[],
-    _removed: Range<AnnotationType>[],
-  ) {}
-
-  remove(_from: number, _to: number, _value: AnnotationType) {}
+  end() {}
 
   enter(
     annotations: Range<AnnotationType>[],

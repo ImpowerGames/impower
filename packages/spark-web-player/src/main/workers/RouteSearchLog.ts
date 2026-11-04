@@ -1,4 +1,5 @@
 import type { StoredCheckpoint } from "@impower/spark-engine/src/game/core/classes/CheckpointStore";
+import type { GameEnding } from "@impower/spark-engine/src/game/core/types/GameEnding";
 import type {
   PreviewRoute,
   RunMenu,
@@ -15,6 +16,7 @@ export interface RouteSearchOutcome {
   simulationFailure?: SimulationFailure;
   errors?: SimulationError[];
   shows?: boolean;
+  ending?: GameEnding | null;
   route?: PreviewRoute;
   menus?: RunMenu[];
   jumpShows?: boolean;

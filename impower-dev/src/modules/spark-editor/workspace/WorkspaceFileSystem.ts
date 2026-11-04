@@ -55,7 +55,9 @@ import { bundleScripts, splitScriptBundle } from "./utils/scriptBundle";
 import {
   FOLDER_SENTINEL,
   computeFolderMoves,
-  computeLayoutMigration,
+  canWriteLayoutMarker,
+  computeLayoutMigrationBatches,
+  LAYOUT_MARKER,
   layoutSubtreeFor,
 } from "../utils/fileTree";
 
@@ -112,17 +114,26 @@ export default class WorkspaceFileSystem {
     let files = await this.readDirectoryFiles({
       directory: { uri: directoryUri },
     });
-    const migration = computeLayoutMigration(
-      files.map((f) => this.getRelativePath(projectId, f.uri)),
+    const relativePaths = files.map((f) =>
+      this.getRelativePath(projectId, f.uri),
+    );
+    const batches = computeLayoutMigrationBatches(
+      relativePaths,
       layoutSubtreeFor,
     );
-    if (migration.length > 0) {
-      await this.renameFiles({
-        files: migration.map((m) => ({
-          oldUri: this.getFileUri(projectId, m.from),
-          newUri: this.getFileUri(projectId, m.to),
-        })),
-      });
+    const writeMarker = canWriteLayoutMarker(relativePaths);
+    if (batches.length > 0 || writeMarker) {
+      for (const batch of batches) {
+        await this.renameFiles({
+          files: batch.map((m) => ({
+            oldUri: this.getFileUri(projectId, m.from),
+            newUri: this.getFileUri(projectId, m.to),
+          })),
+        });
+      }
+      if (writeMarker) {
+        await this.writeProjectMetadata(projectId, "layout", "1");
+      }
       files = await this.readDirectoryFiles({
         directory: { uri: directoryUri },
       });
@@ -352,9 +363,10 @@ export default class WorkspaceFileSystem {
 
   async readProjectZip(projectId: string): Promise<ArrayBuffer> {
     const allFiles = await this.getFiles(projectId);
+    const layoutMarkerUri = this.getFileUri(projectId, LAYOUT_MARKER);
     const files = Object.values(allFiles)
       .sort((a, b) => cmp(a.ext, b.ext) || cmp(a.name, b.name))
-      .filter((file) => file.name)
+      .filter((file) => file.name || file.uri === layoutMarkerUri)
       .map(({ uri }) => ({ uri, path: this.getRelativePath(projectId, uri) }));
     return this.zipFiles({ files });
   }
@@ -368,10 +380,12 @@ export default class WorkspaceFileSystem {
         uri: this.getFileUri(projectId, filename),
         data,
       }));
+    const layoutMarkerUri = this.getFileUri(projectId, LAYOUT_MARKER);
     const zipFilesToDelete = Object.entries(existingFiles)
       .filter(
         ([uri, fileData]) =>
-          fileData.name && !zipFilesToWrite.some((file) => file.uri === uri),
+          (fileData.name || uri === layoutMarkerUri) &&
+          !zipFilesToWrite.some((file) => file.uri === uri),
       )
       .map(([uri]) => ({ uri }));
     await Promise.all([

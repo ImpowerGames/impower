@@ -830,7 +830,7 @@ const planRouteFaithful = (
   }
 
   try {
-    story.endsTunnelAtBase = story.startsAtBranch(from);
+    story.endsTunnelAtBase = story.startsAwayFromStoryStart(from);
     const start = reuse
       ? null
       : options?.resumeFrom
@@ -1588,7 +1588,7 @@ const makeStartNode = (
 };
 
 export const enterStart = (story: Story, from: string, start?: StartPlan) => {
-  story.endsTunnelAtBase = story.startsAtBranch(from);
+  story.endsTunnelAtBase = story.startsAwayFromStoryStart(from);
   if (start) {
     startStoryAt(story, { ...start, from });
     return;
@@ -1737,10 +1737,27 @@ const now = () =>
 
 const NOOP = () => {};
 
+export type RunAhead =
+  | { kind: "beat" }
+  | { kind: "fin" | "out"; at: number | null }
+  | { kind: "error"; message: string | null; at: number | null }
+  | { kind: "unknown" };
+
 export const showsBeatAhead = (
   story: Story,
   maxSteps = DEFAULT_MAX_STEPS,
-): boolean => {
+): boolean => runAhead(story, maxSteps).kind === "beat";
+
+export const callDepthExceededMessage = (limit: number): string =>
+  `Calls nested more than ${limit} deep: stack overflow, possible infinite recursion`;
+
+const CALL_DEPTH_REACHED = new Error("call depth reached");
+
+export const runAhead = (
+  story: Story,
+  maxSteps = DEFAULT_MAX_STEPS,
+  callDepthLimit?: number,
+): RunAhead => {
   const prevOnError = story.onError;
   const prevOnExecute = story.onExecute;
   const prevOnMakeChoice = story.onMakeChoice;
@@ -1750,25 +1767,53 @@ export const showsBeatAhead = (
   if (prevKeepBeatImages !== undefined) {
     beatImages.keepBeatImages = false;
   }
-  story.onError = NOOP;
-  story.onExecute = null;
+  let error: { message: string; at: number | null } | null = null;
+  story.onError = (message, type, _source, raised) => {
+    if (type === ErrorType.Error && !error) {
+      const at = raised?.address ?? story.previousAddress;
+      error = { message: raised?.message ?? message, at: at >= 0 ? at : null };
+    }
+  };
+  story.onExecute =
+    callDepthLimit === undefined
+      ? null
+      : (address) => {
+          if (!error && story.state.callstackDepth > callDepthLimit) {
+            error = { message: callDepthExceededMessage(callDepthLimit), at: address };
+            throw CALL_DEPTH_REACHED;
+          }
+        };
   story.onMakeChoice = NOOP;
   story.onEvaluateCondition = NOOP;
   story.stepLimit = story.stepCount + maxSteps;
+  const failed = (): RunAhead | null =>
+    error ? { kind: "error", ...error } : null;
   try {
     story.state.ResetErrors();
     while (story.canContinue) {
       story.Continue();
-      if (story.hasError) {
-        return false;
-      }
       if (story.continueShowedSomething) {
-        return true;
+        return { kind: "beat" };
+      }
+      const stopped = failed();
+      if (stopped) {
+        return stopped;
       }
     }
-    return story.currentChoices.length > 0;
-  } catch {
-    return false;
+    if (story.currentChoices.length > 0) {
+      return { kind: "beat" };
+    }
+    const ending = story.ending;
+    if (ending === "error") {
+      return failed() ?? { kind: "error", message: null, at: null };
+    }
+    const at =
+      ending === "fin" && story.endedAt !== null
+        ? story.endedAt
+        : story.previousAddress;
+    return { kind: ending ?? "out", at: at >= 0 ? at : null };
+  } catch (e) {
+    return (!(e instanceof StepLimitExceeded) && failed()) || { kind: "unknown" };
   } finally {
     story.stepLimit = null;
     story.onError = prevOnError;

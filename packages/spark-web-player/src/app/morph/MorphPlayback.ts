@@ -10,6 +10,8 @@ import {
   poseSpreadMask,
   type MorphFrameState,
 } from "../../../../sparkdown/src/morph/render";
+import { morphMotionKeyframes } from "../../../../sparkdown/src/morph/motion";
+import { own } from "../../../../sparkdown/src/morph/own";
 import { MorphBakeService } from "../../../../sparkdown/src/morph/service";
 import { MorphTimeline, morphRandom } from "../../../../sparkdown/src/morph/timeline";
 import type { MorphArtifact, MorphTiming } from "../../../../sparkdown/src/morph/types";
@@ -51,8 +53,37 @@ interface LiveView {
     stops: { element: Element; attributes: Record<string, string> }[];
   }[];
   masks: { id: string; path: Element; d: string | null; style: string | null }[];
+  motions: { element: Element; label: string; effect?: MorphMotionEffect | null }[];
   last?: string;
 }
+
+export interface MorphMotionEffect {
+  sample(offset: number): void;
+  cancel(): void;
+}
+
+export type MorphMotionAnimator = (element: Element, keyframes: Keyframe[]) => MorphMotionEffect | undefined;
+
+const MOTION_DURATION = 1000;
+
+const browserAnimator: MorphMotionAnimator = (element, keyframes) => {
+  const view = element.ownerDocument.defaultView as (Window & typeof globalThis) | null;
+  const Effect = view?.KeyframeEffect;
+  const Player = view?.Animation;
+  if (!Effect || !Player) return undefined;
+  let animation: Animation;
+  try {
+    animation = new Player(new Effect(element, keyframes, { duration: MOTION_DURATION, fill: "both" }), element.ownerDocument.timeline);
+  } catch {
+    return undefined;
+  }
+  return {
+    sample: (offset) => {
+      animation.currentTime = offset * MOTION_DURATION;
+    },
+    cancel: () => animation.cancel(),
+  };
+};
 
 interface PlayState {
   play: MorphLayerPlay;
@@ -73,6 +104,7 @@ export interface MorphPlaybackOptions {
   seed?: string;
   requestFrame?: (callback: (now: number) => void) => number;
   cancelFrame?: (handle: number) => void;
+  animate?: MorphMotionAnimator;
 }
 
 export class MorphPlayback {
@@ -87,6 +119,7 @@ export class MorphPlayback {
   protected seed = "";
   protected requestFrame: (callback: (now: number) => void) => number;
   protected cancelFrame: (handle: number) => void;
+  animate: MorphMotionAnimator;
 
   protected time = 0;
   protected enabled = true;
@@ -107,6 +140,7 @@ export class MorphPlayback {
     const view = overlay.ownerDocument.defaultView;
     this.host = options.host ?? defaultHost(this.delivered);
     this.seed = options.seed ?? "";
+    this.animate = options.animate ?? browserAnimator;
     const host = (view ?? window) as Window & typeof globalThis;
     const frames = typeof host.requestAnimationFrame === "function";
     this.requestFrame =
@@ -127,6 +161,7 @@ export class MorphPlayback {
     if (options.seed !== undefined) this.seed = options.seed;
     if (options.requestFrame) this.requestFrame = options.requestFrame;
     if (options.cancelFrame) this.cancelFrame = options.cancelFrame;
+    if (options.animate) this.animate = options.animate;
   }
 
   get resolver(): MorphHost {
@@ -516,6 +551,7 @@ export class MorphLayer {
   }
 
   protected build() {
+    this.releaseMotions();
     for (const state of this.plays) state.view = undefined;
     const ready = this.plays.filter((s) => s.slot.state === "ready" && s.slot.artifact?.status === "live");
     if (!ready.length) {
@@ -641,7 +677,11 @@ export class MorphLayer {
         .map((stop) => ({ element: stop, attributes: markup(stop) }));
       gradients.push({ id, element, attributes: markup(element), stops });
     }
-    return { box, artifact, prefix, parts, leaves, clips, gradients, masks };
+    const motions: LiveView["motions"] = Array.from(outer.querySelectorAll("[data-morph-motion]"), (element) => ({
+      element,
+      label: element.getAttribute("data-morph-motion")!,
+    }));
+    return { box, artifact, prefix, parts, leaves, clips, gradients, masks, motions };
   }
 
   protected placement(
@@ -715,6 +755,26 @@ export class MorphLayer {
             }
           : morphFrameState(view.artifact, morphPosesAt(view.artifact, at));
       applyFrame(view, frame);
+      this.moveLayers(view, state.play, at);
+    }
+  }
+
+  protected moveLayers(view: LiveView, play: MorphLayerPlay, at: number | "rest") {
+    for (const motion of view.motions) {
+      const track = play.motion && own(play.motion, motion.label);
+      if (!track) continue;
+      if (at === "rest") {
+        motion.effect?.cancel();
+        continue;
+      }
+      if (motion.effect === undefined) motion.effect = this.playback.animate(motion.element, morphMotionKeyframes(track) as Keyframe[]) ?? null;
+      motion.effect?.sample(at);
+    }
+  }
+
+  protected releaseMotions() {
+    for (const state of this.plays) {
+      for (const motion of state.view?.motions ?? []) motion.effect?.cancel();
     }
   }
 
@@ -731,6 +791,7 @@ export class MorphLayer {
     if (this.disposed) return;
     this.freeze();
     this.disposed = true;
+    this.releaseMotions();
     for (const state of this.plays) {
       state.slot.dispose();
       state.view = undefined;
