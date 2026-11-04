@@ -17,6 +17,8 @@ Then dispose of every finding where it lives, on the PR's [review thread](../../
 - Already covered: the earlier finding, adjudication ID and fix that cover it.
 - Deferred: the Task number filed for it with the file-task skill, and why the PR is ready without it.
 
+A report with no findings still gets an adjudication comment naming its review comment ID, round and reviewed head, explicitly recording no findings and disposing of any coverage gaps or unverified concerns. Put `Adjudication` in the comment's first line so the merge gate recognizes it. A clean report is not its own adjudication.
+
 Reviewers report at two tiers. A defect is answered only by acceptance or rejection. A quality finding (correct code that costs someone later) may instead be deferred, but only when its severity is `should-fix` or `optional`, the consequence the reviewer named is real, and fixing it would widen the PR beyond its issue; a quality finding that is cheap to fix in place is accepted and fixed. A finding that the fix suppresses the symptom while its cause remains is never deferred, whatever its tier or severity: the root-cause fix of the PR's own defect belongs in the PR, even across subsystems, so it is accepted and fixed or rejected with evidence, and only an unsettled behavior decision about it goes to the user (or the orchestrate-issues coordinator) as a question. A `blocking` severity, whichever tier it was reported under, keeps the PR draft until it is fixed or rejected with evidence. A quality finding that names no consequence has not met the reporting bar; reject it on that ground and say so.
 
 Adjudicate late or out-of-order reports against current HEAD. For each finding, state whether it remains live, is already fixed (name the commit and verification), or is no longer applicable (explain the current code). Name the commits between that report's reviewed head and current HEAD that the reviewer did not see. Preserve the report and its original round; arrival order does not change coverage or reset the stopping rule. A live finding that needs a code change follows [later-round rules](later-rounds.md) before editing.
@@ -44,7 +46,7 @@ When the check imports a name the base revision does not export, `redgreen`'s re
 Marking the PR ready means this diff is finished and ready to be reviewed by a human. Make that claim only when every one of these is true:
 
 - Every reviewer you spawned has exited, and every planned reviewer has supplied a usable report for the head recorded for it.
-- Every report is on the review thread, including the ones you posted on a reviewer's behalf (see [launch procedure](launch.md)).
+- Every report is on the review thread with an adjudication naming it, including no-findings reports and the ones you posted on a reviewer's behalf (see [launch procedure](launch.md)).
 - Every finding is adjudicated in your adjudication comment, accepted, rejected, already covered, or deferred to a filed Task under the conditions above, with nothing left unanswered.
 - Every fix you made in response is committed, pushed, and re-verified as above, and the last push is on the PR.
 - No required lens is missing or outstanding from an aborted or retried attempt (see [independence](../SKILL.md)).
