@@ -60,7 +60,7 @@ export interface StoryEngine {
   readonly previousAddress: number;
   stackAddresses(): number[];
   flowName(flow: number): string;
-  debugFrames(threadIndex: number): DebugFrame[] | undefined;
+  debugFrames(threadIndex: number, ranAddress?: number): DebugFrame[] | undefined;
 
   HasFunction(functionName: string): boolean;
   EvaluateFunction(
