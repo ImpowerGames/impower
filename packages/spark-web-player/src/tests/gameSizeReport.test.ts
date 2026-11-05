@@ -178,6 +178,15 @@ it("leaves the game's size alone when the toolbar is dragged in a host that owns
     await answered;
     const fitted = reports.at(-1);
     expect(fitted).toMatchObject({ width: 337.5, height: 600, fit: "ratio" });
+    vi.stubGlobal(
+      "AudioContext",
+      class {
+        state = "running";
+        resume() {
+          return Promise.resolve();
+        }
+      },
+    );
     const drag = (type: string, clientY: number) =>
       toolbar.dispatchEvent(new MouseEvent(type, { clientY, bubbles: true }));
     drag("pointerdown", 600);
