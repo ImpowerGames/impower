@@ -4,11 +4,7 @@ export type SaveTone = "saved" | "neutral" | "pending" | "warning" | "error";
 
 export type SaveStatus = { text: string; tone: SaveTone };
 
-const LOCAL_SAVE_ERRORS: readonly SyncStatus[] = [
-  "load_error",
-  "import_error",
-  "export_error",
-];
+const LOCAL_SAVE_ERRORS: readonly SyncStatus[] = ["load_error", "import_error"];
 
 const DRIVE_STATUS: Partial<Record<SyncStatus, SaveStatus>> = {
   loading: { text: "Loading...", tone: "neutral" },

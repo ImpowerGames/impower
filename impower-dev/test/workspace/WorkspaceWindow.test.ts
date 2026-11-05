@@ -16,6 +16,10 @@ import { NO_START_SCENE_MESSAGE } from "@impower/sparkdown/src/compiler/utils/st
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const current = vi.hoisted(() => ({ window: undefined as unknown }));
+const downloads = vi.hoisted(() => vi.fn());
+vi.mock("../../src/modules/spark-editor/utils/downloadFile", () => ({
+  downloadFile: downloads,
+}));
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
     fs: {
@@ -121,6 +125,7 @@ import workspace, {
   savedWorkspaceState,
 } from "../../src/modules/spark-editor/workspace/WorkspaceStore";
 import WorkspaceWindow from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
+import { downloadProjectZip } from "../../src/modules/spark-editor/utils/downloadProjectZip";
 
 beforeEach(() => {
   window.history.replaceState(null, "", window.location.pathname);
@@ -390,18 +395,27 @@ describe("WorkspaceWindow store transitions", () => {
       expect(WorkspaceConstants.DEFAULT_PROJECT_NAME).toBe("Untitled story");
     });
 
-    it("a committed name is what the project's export is named after", async () => {
+    it("a committed name is what Export Project downloads the zip as", async () => {
       vi.spyOn(
         WorkspaceWindow.prototype,
         "recordScriptChange",
       ).mockResolvedValue(undefined as never);
-      await win.finishEditingProjectName("My story");
-      expect(win.store.project.name).toBe("My story");
-      expect(Workspace.fs.writeProjectMetadata).toHaveBeenCalledWith(
-        workspace.current.project.id,
-        "name",
-        "My story",
-      );
+      const zip = new Uint8Array([1, 2, 3]);
+      vi.spyOn(win, "exportLocalProject").mockResolvedValue(zip as never);
+      current.window = win;
+      downloads.mockClear();
+      try {
+        await win.finishEditingProjectName("My story");
+        expect(await downloadProjectZip()).toBe(true);
+        expect(downloads).toHaveBeenCalledTimes(1);
+        expect(downloads.mock.calls[0]![0]).toBe("My story.zip");
+        expect(downloads.mock.calls[0]![2]).toBe(zip);
+        await win.finishEditingProjectName("");
+        await downloadProjectZip();
+        expect(downloads.mock.calls[1]![0]).toBe("My story.zip");
+      } finally {
+        current.window = undefined;
+      }
     });
   });
 
