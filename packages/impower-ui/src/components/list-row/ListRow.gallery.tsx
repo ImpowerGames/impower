@@ -55,6 +55,23 @@ function ListRowDemo() {
           onClick={() => {}}
         />
       </GalleryRow>
+      <GalleryRow label="Nested: compact rows at depths 1 and 2 with their guide lines; the ancestor contains the current row (accent text), the current nested row draws its guide segment in the accent and reads as the location">
+        <div class="space-y-0">
+          <ListRow size="compact" containsCurrent icon={<FolderIcon />} label="the_rumour" onClick={() => {}} />
+          <ListRow size="compact" depth={1} containsCurrent icon={<FileIcon />} label="What should Imani bring?" onClick={() => {}} />
+          <ListRow size="compact" depth={2} current="location" icon={<FileIcon />} label="notebook" onClick={() => {}} />
+          <ListRow size="compact" depth={2} icon={<FileIcon />} label="snacks" onClick={() => {}} />
+        </div>
+      </GalleryRow>
+      <GalleryRow label="A long label clamped to two lines instead of fading">
+        <ListRow
+          size="compact"
+          overflow="clamp"
+          icon={<FileIcon />}
+          label="Choose: what should Imani bring to the meeting downtown, the notebook or the snacks, before the others arrive?"
+          onClick={() => {}}
+        />
+      </GalleryRow>
       <GalleryRow label="Not interactive, without a description: a row holding a field">
         <ListRow icon={<FileIcon />} label="A name being typed" />
       </GalleryRow>

@@ -50,4 +50,44 @@ describe("ListRow", () => {
     expect(root.querySelector("button")).toBeNull();
     expect(root.querySelector("input")).not.toBeNull();
   });
+
+  it("reads as the location when current is location, and the ancestors only contain it", async () => {
+    const root = await mount(
+      <div>
+        <ListRow containsCurrent label="Scene" onClick={() => {}} />
+        <ListRow current="location" depth={1} label="Menu" onClick={() => {}} />
+      </div>,
+    );
+    const [ancestor, row] = Array.from(root.querySelectorAll("button"));
+    expect(ancestor!.getAttribute("aria-current")).toBeNull();
+    expect(ancestor!.parentElement!.className).toContain("text-accent");
+    expect(ancestor!.parentElement!.className).not.toContain("bg-tint");
+    expect(row!.getAttribute("aria-current")).toBe("location");
+  });
+
+  it("indents a nested row by its depth and draws its own guide in the accent when it is current", async () => {
+    const root = await mount(
+      <div>
+        <ListRow depth={2} current label="Current" onClick={() => {}} />
+        <ListRow depth={2} label="Other" onClick={() => {}} />
+      </div>,
+    );
+    const [current, other] = Array.from(
+      root.querySelectorAll<HTMLElement>('[aria-hidden="true"]'),
+    );
+    expect(current!.style.width).toBe("36px");
+    expect(current!.lastElementChild!.className).toContain("bg-accent");
+    expect(other!.lastElementChild!.className).toContain("bg-edge");
+  });
+
+  it("clamps a long label to two lines instead of fading it", async () => {
+    const root = await mount(
+      <ListRow overflow="clamp" label="A long prompt" onClick={() => {}} />,
+    );
+    const label = Array.from(root.querySelectorAll("span")).find(
+      (s) => s.textContent === "A long prompt" && s.children.length === 0,
+    )!;
+    expect(label.className).toContain("line-clamp-2");
+    expect(label.className).not.toContain("fade-edge");
+  });
 });

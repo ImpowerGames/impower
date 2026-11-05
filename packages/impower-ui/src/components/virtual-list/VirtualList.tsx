@@ -12,6 +12,16 @@ export const VIRTUAL_LIST_ROW_HEIGHT = {
   compact: 44,
 } as const;
 
+export const virtualListSlotVariants = cva("absolute inset-x-0", {
+  variants: {
+    size: {
+      default: "pb-[3px]",
+      compact: "",
+    },
+  },
+  defaultVariants: { size: "default" },
+});
+
 export type VirtualListSize = keyof typeof VIRTUAL_LIST_ROW_HEIGHT;
 
 const FIRST_PAINT_ROWS = 24;
@@ -22,6 +32,7 @@ export type VirtualListProps<T> = {
   renderItem: (item: T, index: number) => ComponentChildren;
   size?: VirtualListSize;
   overscan?: number;
+  revealIndex?: number;
   label?: string;
   class?: string;
   listRef?: Ref<HTMLDivElement>;
@@ -33,6 +44,7 @@ export default function VirtualList<T>({
   renderItem,
   size = "default",
   overscan = 6,
+  revealIndex,
   label,
   class: className,
   listRef,
@@ -66,6 +78,20 @@ export default function VirtualList<T>({
     };
   }, []);
 
+  useLayoutEffect(() => {
+    const element = scroller.current;
+    if (!element || revealIndex == null || revealIndex < 0) {
+      return;
+    }
+    const top = revealIndex * rowHeight;
+    const bottom = top + rowHeight;
+    if (top < element.scrollTop) {
+      element.scrollTop = top;
+    } else if (bottom > element.scrollTop + element.clientHeight) {
+      element.scrollTop = bottom - element.clientHeight;
+    }
+  }, [revealIndex, rowHeight]);
+
   const visibleRows = view.height
     ? Math.ceil(view.height / rowHeight)
     : FIRST_PAINT_ROWS;
@@ -90,7 +116,7 @@ export default function VirtualList<T>({
         role="listitem"
         aria-setsize={items.length}
         aria-posinset={index + 1}
-        class="absolute inset-x-0 pb-[3px]"
+        class={virtualListSlotVariants({ size })}
         style={{ top: index * rowHeight, height: rowHeight }}
       >
         {renderItem(item, index)}

@@ -6,7 +6,9 @@ export const NOT_COMPONENTS: readonly string[] = [
   "componentRegistry",
   "dialogVariants",
   "dropdownRadioItemVariants",
+  "LIST_ROW_INDENT",
   "listRowBodyVariants",
+  "listRowLabelVariants",
   "listRowVariants",
   "layoutState",
   "sparkLogoVariants",
@@ -18,6 +20,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "useLayout",
   "useMountTransition",
   "VIRTUAL_LIST_ROW_HEIGHT",
+  "virtualListSlotVariants",
   "virtualListVariants",
 ];
 

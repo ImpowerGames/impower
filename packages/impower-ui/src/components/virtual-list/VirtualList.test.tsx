@@ -15,7 +15,7 @@ afterEach(async () => {
 
 const ITEMS = Array.from({ length: 500 }, (_, i) => `row ${i}`);
 
-const mount = async (height: number) => {
+const mount = async (height: number, extra: Record<string, unknown> = {}) => {
   host = document.body.appendChild(document.createElement("div"));
   let scroller: HTMLDivElement | null = null;
   Object.defineProperty(HTMLElement.prototype, "clientHeight", {
@@ -32,6 +32,7 @@ const mount = async (height: number) => {
         getKey={(item) => item}
         renderItem={(item) => <span>{item}</span>}
         overscan={2}
+        {...extra}
         listRef={(element) => {
           scroller = element;
         }}
@@ -80,5 +81,40 @@ describe("VirtualList", () => {
       (element) => element.textContent === "row 100",
     )!;
     expect(row.style.top).toBe(`${100 * rowHeight}px`);
+  });
+
+  it("gives a compact slot its row height with no gap, so a 44px row fits it", async () => {
+    await mount(VIRTUAL_LIST_ROW_HEIGHT.compact * 4, { size: "compact" });
+    const first = host!.querySelector('[role="listitem"]') as HTMLElement;
+    expect(first.style.height).toBe(`${VIRTUAL_LIST_ROW_HEIGHT.compact}px`);
+    expect(first.className).not.toContain("pb-");
+  });
+
+  it("scrolls the revealed row into view", async () => {
+    const rowHeight = VIRTUAL_LIST_ROW_HEIGHT.default;
+    host = document.body.appendChild(document.createElement("div"));
+    let scroller: HTMLDivElement | null = null;
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() {
+        return this === scroller ? rowHeight * 4 : 0;
+      },
+    });
+    const list = (revealIndex?: number) => (
+      <VirtualList
+        items={ITEMS}
+        getKey={(item) => item}
+        renderItem={(item) => <span>{item}</span>}
+        revealIndex={revealIndex}
+        listRef={(element) => {
+          scroller = element;
+        }}
+      />
+    );
+    await act(async () => render(list(), host!));
+    await act(async () => render(list(200), host!));
+    expect(scroller!.scrollTop).toBe(201 * rowHeight - rowHeight * 4);
+    await act(async () => render(list(10), host!));
+    expect(scroller!.scrollTop).toBe(10 * rowHeight);
   });
 });
