@@ -60,21 +60,24 @@ describe("a choice's own condition may call a function (I-1054)", () => {
 });
 
 describe("a choice line whose condition cannot be read stays a choice (I-1054)", () => {
-  for (const region of ["[[x]] ", "--[[x]] "]) {
-    it(`thirty unclosed ${JSON.stringify(region.trim())} regions`, () => {
+  const lines: [string, string][] = [
+    ["thirty unclosed \"[[x]]\" regions", `* if f(${"[[x]] ".repeat(30)}First`],
+    ["thirty unclosed \"--[[x]]\" regions", `* if f(${"--[[x]] ".repeat(30)}First`],
+    ["an interpolation holding a long string", "* if f(#`{[[)]]}`) First"],
+    ["an interpolation holding a level-1 long string", "* if f(#`{[=[)]=]}`) First"],
+    ["an interpolation holding a block comment", "* if f(#`{--[[ ) ]] 1}`) First"],
+  ];
+  for (const [name, line] of lines) {
+    it(name, () => {
       const { program } = compileScript(
-        [
-          "scene start",
-          "  choose",
-          `    * if f(${region.repeat(30)}First`,
-          "    * Fallback",
-          "  end",
-          "end",
-          "",
-        ].join("\n"),
+        ["scene start", "  choose", `    ${line}`, "    * Fallback", "  end", "end", ""].join("\n"),
       );
+      const errors = Object.values(program.diagnostics ?? {})
+        .flat()
+        .filter((d) => d.severity === 1);
       const run = storyRun(new ProgramStory(program.chunks!), []);
       const menu = run.menus[0]?.choices.map((c) => c.text) ?? [];
+      expect(errors).toEqual([]);
       expect(menu.length).toBe(2);
       expect(menu[0].startsWith("if f(")).toBe(true);
       expect(menu[1]).toBe("Fallback");
