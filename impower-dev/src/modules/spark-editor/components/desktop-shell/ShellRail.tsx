@@ -1,10 +1,4 @@
-import {
-  Book,
-  Photo,
-  Share,
-  Tab,
-  Tabs,
-} from "@impower/impower-ui/components";
+import { Book, Photo, Share, Tab, Tabs } from "@impower/impower-ui/components";
 import type { PaneType } from "@impower/spark-editor-protocol/src/types";
 import { routeOfPane } from "../../workspace/routes";
 import workspace from "../../workspace/WorkspaceStore";

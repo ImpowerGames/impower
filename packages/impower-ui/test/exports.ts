@@ -10,8 +10,6 @@ export const NOT_COMPONENTS: readonly string[] = [
   "pointerState",
   "sheetVariants",
   "sidebarLayoutVariants",
-  "sidebarWidth",
-  "sidebarWidthAfterKey",
   "toastVariants",
   "useCoarsePointer",
   "useLayout",

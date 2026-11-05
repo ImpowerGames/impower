@@ -15,7 +15,10 @@ const base = (): WorkspaceCache => ({
     assets: { panel: "files", panels: {} },
     share: { panel: "game", panels: {} },
   },
-  preview: { mode: "game", modes: { page: {}, game: {}, screenplay: {}, file: {} } },
+  preview: {
+    mode: "game",
+    modes: { page: {}, game: {}, screenplay: {}, file: {} },
+  },
   screen: {},
   sync: {},
   debug: {},

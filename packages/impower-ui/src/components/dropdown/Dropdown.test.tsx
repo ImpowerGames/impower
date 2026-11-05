@@ -145,6 +145,8 @@ describe("Dropdown under preact/compat", () => {
     await act(async () => trigger.click());
     await settle(300);
     expect(menu()).not.toBeNull();
-    expect(menu()!.textContent).toContain("No account needed to start writing.");
+    expect(menu()!.textContent).toContain(
+      "No account needed to start writing.",
+    );
   });
 });

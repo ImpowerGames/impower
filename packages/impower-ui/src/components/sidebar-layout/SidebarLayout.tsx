@@ -62,7 +62,9 @@ const handle = [
   "hover:after:opacity-100 focus-visible:after:opacity-100 data-[active]:after:opacity-100",
 ].join(" ");
 
-export type SidebarLayoutVariantProps = VariantProps<typeof sidebarLayoutVariants>;
+export type SidebarLayoutVariantProps = VariantProps<
+  typeof sidebarLayoutVariants
+>;
 
 export type SidebarLayoutProps = {
   header?: ComponentChildren;
@@ -188,10 +190,7 @@ export default function SidebarLayout({
   return (
     <div
       ref={root}
-      class={cn(
-        sidebarLayoutVariants({ resizing }),
-        className,
-      )}
+      class={cn(sidebarLayoutVariants({ resizing }), className)}
       style={style}
       data-sidebar={collapsed ? "collapsed" : "expanded"}
     >

@@ -64,13 +64,7 @@ afterEach(async () => {
 
 const changes: (number | undefined)[] = [];
 
-function Harness({
-  initial,
-  reserve,
-}: {
-  initial?: number;
-  reserve?: number;
-}) {
+function Harness({ initial, reserve }: { initial?: number; reserve?: number }) {
   const [width, setWidth] = useState(initial);
   return (
     <SidebarLayout

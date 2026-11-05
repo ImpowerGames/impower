@@ -27,6 +27,7 @@ export default function HeaderTitleButton(_p: HeaderTitleButtonProps) {
     if (value != null) {
       await Workspace.window.finishEditingProjectName(value);
     }
+    setDraft(workspace.state.peek().project?.name || "");
   };
 
   return (

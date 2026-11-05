@@ -56,4 +56,5 @@ export const saveStatusOf = (
 export const localSaveLabel = (
   status: SyncStatus | undefined,
   local: boolean,
-): string => (savedLocally(status, local) ? "Saved locally" : "Not saved locally");
+): string =>
+  savedLocally(status, local) ? "Saved locally" : "Not saved locally";

@@ -37,7 +37,8 @@ function replayUndoShortcut(isRedo: boolean): void {
 }
 
 export default function HeaderNavigation() {
-  const phone = useLayout() === "phone";
+  const layout = useLayout();
+  const phone = layout === "phone";
   return (
     <div class="relative z-10">
       <div class="relative z-[2] flex h-14 flex-row items-center justify-center bg-bg">
@@ -49,7 +50,7 @@ export default function HeaderNavigation() {
           </div>
           <HeaderSyncToolbar />
 
-          {phone && (
+          {layout !== "desktop" && (
             <div class="flex flex-row items-center">
               <Button
                 variant="quiet"

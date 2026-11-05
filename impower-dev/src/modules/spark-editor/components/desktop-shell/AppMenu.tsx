@@ -24,7 +24,8 @@ import { localSaveLabel } from "../../workspace/saveStatus";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
 
-export const REPORT_BUG_URL = "https://github.com/ImpowerGames/impower/issues/new";
+export const REPORT_BUG_URL =
+  "https://github.com/ImpowerGames/impower/issues/new";
 
 type WorkspaceWindow =
   (typeof import("../../workspace/Workspace"))["Workspace"]["window"];
@@ -105,9 +106,7 @@ export default function AppMenu() {
           <DropdownItem
             onSelect={() =>
               void withWindow((win) =>
-                account
-                  ? win.navigateTo("project")
-                  : win.signInToGoogleDrive(),
+                account ? win.navigateTo("project") : win.signInToGoogleDrive(),
               )
             }
           >
@@ -141,7 +140,9 @@ export default function AppMenu() {
           )}
           <DropdownItem
             onSelect={() =>
-              showSnackbar({ message: "Help and guides will be available here." })
+              showSnackbar({
+                message: "Help and guides will be available here.",
+              })
             }
           >
             <InfoCircle />

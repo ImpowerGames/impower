@@ -34,12 +34,10 @@ vi.mock(
   () => ({ default: () => null }),
 );
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
-  const { default: workspace } = await import(
-    "../../src/modules/spark-editor/workspace/WorkspaceStore"
-  );
-  const { stateForRoute } = await import(
-    "../../src/modules/spark-editor/workspace/routes"
-  );
+  const { default: workspace } =
+    await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
+  const { stateForRoute } =
+    await import("../../src/modules/spark-editor/workspace/routes");
   return {
     Workspace: {
       sync: { google: { getCurrentAccount: async () => null } },
@@ -78,12 +76,10 @@ beforeAll(() => {
   };
 });
 
-const { default: workspace } = await import(
-  "../../src/modules/spark-editor/workspace/WorkspaceStore"
-);
-const { default: MainWindow } = await import(
-  "../../src/modules/spark-editor/components/main-window/MainWindow"
-);
+const { default: workspace } =
+  await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
+const { default: MainWindow } =
+  await import("../../src/modules/spark-editor/components/main-window/MainWindow");
 
 let host: HTMLDivElement | undefined;
 

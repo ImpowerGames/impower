@@ -22,6 +22,7 @@ import FileDropzone from "../file-dropzone/FileDropzone";
 import HeaderNavigation from "../header-navigation/HeaderNavigation";
 import Logic from "../logic/Logic";
 import Preview from "../preview/Preview";
+import SettingsDialog from "../settings-dialog/SettingsDialog";
 import SharePanel from "../share/Share";
 import { useWorkspaceSession } from "./useWorkspaceSession";
 
@@ -75,6 +76,7 @@ export default function MainWindow(_props: MainWindowProps) {
           />
 
           <FileDropzone />
+          <SettingsDialog />
         </>
       )}
     </div>

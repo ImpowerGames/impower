@@ -45,11 +45,8 @@ export { default as Router, type RouterProps } from "./router/Router";
 export {
   default as SidebarLayout,
   sidebarLayoutVariants,
-  sidebarWidth,
-  sidebarWidthAfterKey,
   type SidebarLayoutProps,
   type SidebarLayoutVariantProps,
-  type SidebarLimits,
 } from "./sidebar-layout/SidebarLayout";
 export {
   default as SplitPane,
