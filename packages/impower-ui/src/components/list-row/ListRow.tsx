@@ -18,11 +18,16 @@ export const listRowVariants = cva(
         true: "",
         false: "",
       },
+      tone: {
+        ink: "",
+        muted: "",
+      },
     },
     compoundVariants: [
       { state: "current", nested: true, class: "before:opacity-0" },
+      { state: "none", tone: "muted", class: "text-muted" },
     ],
-    defaultVariants: { state: "none", nested: false },
+    defaultVariants: { state: "none", nested: false, tone: "ink" },
   },
 );
 
@@ -65,6 +70,9 @@ export type ListRowSize = NonNullable<
 export type ListRowState = NonNullable<
   VariantProps<typeof listRowVariants>["state"]
 >;
+export type ListRowTone = NonNullable<
+  VariantProps<typeof listRowVariants>["tone"]
+>;
 export type ListRowLabelOverflow = NonNullable<
   VariantProps<typeof listRowLabelVariants>["overflow"]
 >;
@@ -82,6 +90,7 @@ export type ListRowProps = {
   depth?: number;
   size?: ListRowSize;
   overflow?: ListRowLabelOverflow;
+  tone?: ListRowTone;
   class?: string;
   onClick?: (event: MouseEvent) => void;
 } & Omit<
@@ -124,6 +133,7 @@ export default function ListRow({
   depth = 0,
   size,
   overflow,
+  tone,
   class: className,
   onClick,
   ...rest
@@ -153,7 +163,7 @@ export default function ListRow({
   const body = listRowBodyVariants({ size, interactive });
   return (
     <div
-      class={cn(listRowVariants({ state, nested: depth > 0 }), className)}
+      class={cn(listRowVariants({ state, nested: depth > 0, tone }), className)}
     >
       {depth > 0 && <Guides depth={depth} current={!!current} />}
       {interactive ? (

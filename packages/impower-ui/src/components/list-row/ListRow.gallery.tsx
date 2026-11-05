@@ -55,12 +55,12 @@ function ListRowDemo() {
           onClick={() => {}}
         />
       </GalleryRow>
-      <GalleryRow label="Nested: compact rows at depths 1 and 2 with their guide lines; the ancestor contains the current row (accent text), the current nested row draws its guide segment in the accent and reads as the location">
+      <GalleryRow label="Nested, muted tone (the Outline): compact rows at depths 1 and 2 with their guide lines; labels muted, the ancestor that contains the current row in the accent, the current nested row in ink with its guide segment in the accent, read as the location">
         <div class="space-y-0">
-          <ListRow size="compact" containsCurrent icon={<FolderIcon />} label="the_rumour" onClick={() => {}} />
-          <ListRow size="compact" depth={1} containsCurrent icon={<FileIcon />} label="What should Imani bring?" onClick={() => {}} />
-          <ListRow size="compact" depth={2} current="location" icon={<FileIcon />} label="notebook" onClick={() => {}} />
-          <ListRow size="compact" depth={2} icon={<FileIcon />} label="snacks" onClick={() => {}} />
+          <ListRow size="compact" tone="muted" containsCurrent icon={<FolderIcon />} label="the_rumour" onClick={() => {}} />
+          <ListRow size="compact" tone="muted" depth={1} containsCurrent icon={<FileIcon />} label="What should Imani bring?" onClick={() => {}} />
+          <ListRow size="compact" tone="muted" depth={2} current="location" icon={<FileIcon />} label="notebook" onClick={() => {}} />
+          <ListRow size="compact" tone="muted" depth={2} icon={<FileIcon />} label="snacks" onClick={() => {}} />
         </div>
       </GalleryRow>
       <GalleryRow label="A long label clamped to two lines instead of fading">

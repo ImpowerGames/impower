@@ -43,6 +43,7 @@ export {
   type ListRowProps,
   type ListRowSize,
   type ListRowState,
+  type ListRowTone,
   type ListRowLabelOverflow,
 } from "./list-row/ListRow";
 export {
