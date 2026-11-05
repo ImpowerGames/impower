@@ -1061,7 +1061,6 @@ describe("The game preview's player bar", () => {
   }, 30000);
 
   it("answers the bar's skip by moving the caret to the language server's next beat", async () => {
-    const { channel } = await mount();
     const getOffsetSourceLocation = vi.fn(
       async (uri: string, line: number, offset: number) => ({
         file: uri,
@@ -1069,6 +1068,7 @@ describe("The game preview's player bar", () => {
       }),
     );
     (Workspace as unknown as { ls: unknown }).ls = { getOffsetSourceLocation };
+    const { channel } = await mount();
     win.openFileEditor("main.sd");
     await win.showDocument(MAIN, {
       start: { line: 4, character: 0 },
