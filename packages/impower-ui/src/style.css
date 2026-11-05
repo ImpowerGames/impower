@@ -163,6 +163,19 @@
   }
 }
 
+@utility control-wash {
+  @media (hover: hover) {
+    &:hover:not(:disabled, [data-disabled], [aria-disabled="true"]) {
+      background-image: linear-gradient(var(--control-hover), var(--control-hover));
+    }
+  }
+  &:active:not(:disabled, [data-disabled], [aria-disabled="true"]) {
+    background-image:
+      linear-gradient(var(--control-hover), var(--control-hover)),
+      linear-gradient(var(--control-hover), var(--control-hover));
+  }
+}
+
 @utility focus-inset {
   &:focus-visible {
     outline: 1px solid var(--accent-ink);

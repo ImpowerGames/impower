@@ -8,6 +8,38 @@ const RADIX_SOURCE = "/^@radix-ui[^a-z0-9-]/";
 const RADIX_MESSAGE =
   "Import @radix-ui/* only inside packages/impower-ui; use the @impower/impower-ui component that wraps the primitive instead.";
 
+const RADIX_SYNTAX = [
+  { selector: `ImportExpression[source.value=${RADIX_SOURCE}]`, message: RADIX_MESSAGE },
+  { selector: `ImportExpression[source.quasis.0.value.raw=${RADIX_SOURCE}]`, message: RADIX_MESSAGE },
+  {
+    selector: `CallExpression[callee.name="require"][arguments.0.value=${RADIX_SOURCE}]`,
+    message: RADIX_MESSAGE,
+  },
+  { selector: `TSImportType[argument.literal.value=${RADIX_SOURCE}]`, message: RADIX_MESSAGE },
+];
+
+const FORM_CONTROL_MESSAGE =
+  "Render form controls only inside packages/impower-ui; use its Switch, Select, TextField or ChoiceGroup instead of a bare <input>, <select> or <textarea>.";
+
+const FORM_CONTROL_SYNTAX = [
+  {
+    selector:
+      'JSXOpeningElement[name.name=/^(select|textarea)$/], JSXOpeningElement[name.name="input"]:not(:has(JSXAttribute[name.name="type"][value.value="file"]))',
+    message: FORM_CONTROL_MESSAGE,
+  },
+];
+
+export const LEGACY_FORM_CONTROL_FILES = [
+  "impower-dev/src/modules/spark-editor/components/asset-inspector/AssetInspectorPanel.tsx",
+  "impower-dev/src/modules/spark-editor/components/assets/AddUrlDialog.tsx",
+  "impower-dev/src/modules/spark-editor/components/desktop-shell/ProjectNameField.tsx",
+  "impower-dev/src/modules/spark-editor/components/file-list/FileItem.tsx",
+  "impower-dev/src/modules/spark-editor/components/file-list/FileListHeader.tsx",
+  "impower-dev/src/modules/spark-editor/components/file-preview/FilePreviewOverlay.tsx",
+  "impower-dev/src/modules/spark-editor/components/header-title-button/HeaderTitleButton.tsx",
+  "impower-dev/src/modules/spark-editor/components/logic-scripts-editor/LogicScriptsEditor.tsx",
+];
+
 export default [
   {
     ignores: ["**/dist/**", "**/out/**", "**/.tmp/**", "**/coverage/**"],
@@ -34,16 +66,14 @@ export default [
           patterns: [{ group: ["@radix-ui/*"], message: RADIX_MESSAGE }],
         },
       ],
-      "no-restricted-syntax": [
-        "error",
-        { selector: `ImportExpression[source.value=${RADIX_SOURCE}]`, message: RADIX_MESSAGE },
-        { selector: `ImportExpression[source.quasis.0.value.raw=${RADIX_SOURCE}]`, message: RADIX_MESSAGE },
-        {
-          selector: `CallExpression[callee.name="require"][arguments.0.value=${RADIX_SOURCE}]`,
-          message: RADIX_MESSAGE,
-        },
-        { selector: `TSImportType[argument.literal.value=${RADIX_SOURCE}]`, message: RADIX_MESSAGE },
-      ],
+      "no-restricted-syntax": ["error", ...RADIX_SYNTAX],
+    },
+  },
+  {
+    files: ["impower-dev/**/*.{tsx,jsx}"],
+    ignores: LEGACY_FORM_CONTROL_FILES,
+    rules: {
+      "no-restricted-syntax": ["error", ...RADIX_SYNTAX, ...FORM_CONTROL_SYNTAX],
     },
   },
 ];
