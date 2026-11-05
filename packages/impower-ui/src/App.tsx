@@ -4,10 +4,10 @@ import { dialogGallery } from "./components/dialog/Dialog.gallery";
 import { dropdownGallery } from "./components/dropdown/Dropdown.gallery";
 import { iconGallery } from "./components/icon/Icon.gallery";
 import { loadingBarGallery } from "./components/loading-bar/LoadingBar.gallery";
-import { rippleGallery } from "./components/ripple/Ripple.gallery";
 import { routerGallery } from "./components/router/Router.gallery";
 import { splitPaneGallery } from "./components/split-pane/SplitPane.gallery";
 import { tabsGallery } from "./components/tabs/Tabs.gallery";
+import { toastGallery } from "./components/toast/Toast.gallery";
 import { GallerySection, type GalleryEntry } from "./gallery/GallerySection";
 
 export const galleryEntries: readonly GalleryEntry[] = [
@@ -16,23 +16,23 @@ export const galleryEntries: readonly GalleryEntry[] = [
   dropdownGallery,
   iconGallery,
   loadingBarGallery,
-  rippleGallery,
   routerGallery,
   splitPaneGallery,
   tabsGallery,
+  toastGallery,
 ];
 
 export function App() {
   return (
-    <div class="min-h-screen w-full bg-background p-8 font-sans text-foreground">
+    <div class="min-h-screen w-full bg-bg p-8 font-sans text-ink">
       <header class="mb-6">
         <h1 class="mb-1 text-2xl font-semibold">@impower/impower-ui</h1>
-        <p class="text-sm text-foreground/60">
+        <p class="text-sm text-muted">
           Gallery: every exported component in every variant, size and state.
         </p>
         <nav class="mt-3 flex flex-wrap gap-3 text-sm">
           {galleryEntries.map((entry) => (
-            <Button key={entry.title} asChild variant="link">
+            <Button key={entry.title} asChild variant="quiet">
               <a href={`#${entry.title}`}>{entry.title}</a>
             </Button>
           ))}

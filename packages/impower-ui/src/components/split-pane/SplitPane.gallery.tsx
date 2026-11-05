@@ -17,8 +17,7 @@ function SplitPaneExample({
         {(["start", "end"] as const).map((panel) => (
           <Button
             key={panel}
-            size="xs"
-            variant={panel === active ? "primary" : "outline"}
+            variant={panel === active ? "primary" : "default"}
             onClick={() => setActive(panel)}
           >
             {panel}

@@ -21,7 +21,8 @@ const CHEVRON_LEFT_SVG_URL = `url('data:image/svg+xml;utf8,<svg width="16" heigh
 const contextMenuTheme = EditorView.baseTheme({
   ".cm-tooltip.cm-context-menu": {
     fontFamily: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto`,
-    borderRadius: "20px",
+    borderRadius: "var(--radius)",
+    boxShadow: "var(--float-shadow)",
     zIndex: "1000",
   },
   ".cm-context-menu": {
@@ -42,25 +43,28 @@ const contextMenuTheme = EditorView.baseTheme({
     alignItems: "center",
     fontWeight: "500",
     padding: "2px 6px",
-    borderRadius: "20px",
+    borderRadius: "var(--radius)",
   },
   ".cm-context-menu.cm-vertical": {
     flexDirection: "column",
     alignItems: "stretch",
-    padding: "6px 0",
+    padding: "6px",
     minWidth: "180px",
-    borderRadius: "10px",
+    borderRadius: "var(--radius)",
   },
   ".cm-context-menu .cm-menu-item": {
     position: "relative",
     cursor: "pointer",
     display: "flex",
     alignItems: "center",
-    transition: "background-color 0.1s ease",
+    borderRadius: "var(--control-radius)",
   },
   ".cm-context-menu.cm-vertical .cm-menu-item": {
     justifyContent: "space-between",
-    borderRadius: "0",
+  },
+  ".cm-context-menu.cm-mobile .cm-menu-item": {
+    minHeight: "44px",
+    minWidth: "44px",
   },
   ".cm-context-menu.cm-desktop.cm-vertical .cm-menu-item": {
     padding: "7px 26px",
@@ -73,7 +77,6 @@ const contextMenuTheme = EditorView.baseTheme({
   },
   ".cm-context-menu.cm-horizontal .cm-menu-item": {
     justifyContent: "center",
-    borderRadius: "14px",
   },
   ".cm-context-menu.cm-vertical .cm-menu-back": {
     justifyContent: "flex-start",
@@ -132,13 +135,15 @@ const contextMenuTheme = EditorView.baseTheme({
     content: "''",
     position: "absolute",
     inset: "0",
+    borderRadius: "inherit",
     backgroundColor: "var(--control-hover)",
+    boxShadow: "inset 0 0 0 100vmax var(--control-hover)",
   },
   ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):active .cm-menu-item-shortcut":
     {
       color: "var(--ink)",
     },
-  "@media (hover: hover) and (pointer: fine)": {
+  "@media (hover: hover)": {
     ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):hover": {
       color: "var(--ink)",
     },
@@ -146,6 +151,7 @@ const contextMenuTheme = EditorView.baseTheme({
       content: "''",
       position: "absolute",
       inset: "0",
+      borderRadius: "inherit",
       backgroundColor: "var(--control-hover)",
     },
     ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):hover .cm-menu-item-shortcut":

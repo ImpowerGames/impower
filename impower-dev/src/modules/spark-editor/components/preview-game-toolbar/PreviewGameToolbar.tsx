@@ -113,12 +113,11 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
 
       {ended ? (
         <Button
-          variant="ghost"
+          variant="quiet"
           aria-label="Play Again"
           onClick={loading ? undefined : onPlayAgain}
-          class="h-10 gap-2 px-3 text-sm text-foreground"
         >
-          <Repeat class="size-4" />
+          <Repeat />
           Play Again
         </Button>
       ) : running ? (
@@ -138,7 +137,6 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
           <IconButton
             ariaLabel={paused ? "Play" : "Pause"}
             icon={paused ? PlayerPlayFill : PlayerPauseFill}
-            iconSize={20}
             onClick={onPauseToggle}
           />
           <PointerHoldButton
@@ -167,34 +165,30 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
 
 
       <Button
-        variant="ghost"
-        size="icon-lg"
+        variant="quiet"
+        size="icon"
         aria-label="Animate portraits"
         aria-pressed={animatePortraits}
         title="Animate portraits"
         onClick={onAnimatePortraitsToggle}
-        class={
-          animatePortraits
-            ? "text-foreground"
-            : "text-foreground/50 hover:text-foreground"
-        }
+        class={animatePortraits ? "text-ink" : "text-muted"}
       >
         {animatePortraits ? (
-          <Eye class="size-5" />
+          <Eye />
         ) : (
-          <EyeClosed class="size-5" />
+          <EyeClosed />
         )}
       </Button>
       {running ? (
         <DropdownRoot>
           <DropdownTrigger asChild>
             <Button
-              variant="ghost"
-              size="icon-lg"
+              variant="quiet"
+              size="icon"
               aria-label="Settings"
-              class="text-foreground/50 hover:text-foreground"
+              class="text-muted"
             >
-              <Gear class="size-5" />
+              <Gear />
             </Button>
           </DropdownTrigger>
           <DropdownContent>
@@ -215,7 +209,6 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
         <IconButton
           ariaLabel="Preview Screenplay"
           icon={Notes}
-          iconSize={20}
           dimmed
           onClick={onModeToggle}
         />
@@ -246,15 +239,15 @@ function RunToggle({
   const label = running ? "STOP" : "PLAY";
   return (
     <Button
-      variant="ghost"
+      variant="quiet"
       aria-label={running ? "Stop Game" : "Play Game"}
       aria-disabled={refusal ? true : undefined}
       title={refusal}
       onClick={onClick}
       class={
         refusal
-          ? "h-12 w-12 cursor-not-allowed flex-col gap-0 rounded-full py-0 px-4 text-[11px] font-medium text-primary/30 hover:after:opacity-0 active:after:opacity-0 hover:text-primary/30"
-          : "h-12 w-12 flex-col gap-0 rounded-full py-0 px-4 text-[11px] font-medium text-primary/70"
+          ? "size-12 cursor-default flex-col gap-0 rounded-full p-0 text-[11px] font-medium text-accent opacity-40"
+          : "size-12 flex-col gap-0 rounded-full p-0 text-[11px] font-medium text-accent"
       }
     >
       <Icon class="size-[18px]" />
@@ -266,29 +259,23 @@ function RunToggle({
 function IconButton({
   ariaLabel,
   icon: Icon,
-  iconSize = 16,
   dimmed = false,
   onClick,
 }: {
   ariaLabel: string;
   icon: IconComponent;
-  iconSize?: number;
   dimmed?: boolean;
   onClick?: () => void;
 }) {
   return (
     <Button
-      variant="ghost"
-      size="icon-lg"
+      variant="quiet"
+      size="icon"
       aria-label={ariaLabel}
       onClick={onClick}
-      class={
-        dimmed
-          ? "text-foreground/50 hover:text-foreground"
-          : "text-foreground"
-      }
+      class={dimmed ? "text-muted" : "text-ink"}
     >
-      <Icon style={{ width: `${iconSize}px`, height: `${iconSize}px` }} />
+      <Icon />
     </Button>
   );
 }
@@ -306,8 +293,8 @@ function PointerHoldButton({
 }) {
   return (
     <Button
-      variant="ghost"
-      size="icon-lg"
+      variant="quiet"
+      size="icon"
       aria-label={ariaLabel}
       onPointerDown={onStart}
       onPointerUp={onStop}

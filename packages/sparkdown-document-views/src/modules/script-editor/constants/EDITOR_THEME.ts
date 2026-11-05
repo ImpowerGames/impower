@@ -133,26 +133,22 @@ const EDITOR_THEME: {
     borderColor: "var(--editor-field-edge-hover)",
   },
   "label:has(input[type='checkbox']):active::before": {
-    backgroundColor: "var(--editor-button-hover)",
+    backgroundColor: "var(--control-hover)",
+    boxShadow: "inset 0 0 0 100vmax var(--control-hover)",
   },
   "button:active": {
-    backgroundColor: "color-mix(in srgb, var(--ink) 11%, transparent)",
+    backgroundColor: "var(--control-hover)",
+    boxShadow: "inset 0 0 0 100vmax var(--control-hover)",
   },
-  ".cm-panel.cm-search button[name='close']:active": {
-    backgroundColor: "var(--editor-button-hover)",
-  },
-  "@media (hover: hover) and (pointer: fine)": {
+  "@media (hover: hover)": {
     ".cm-textfield:hover": {
       borderColor: "var(--editor-field-edge-hover)",
     },
     "label:has(input[type='checkbox']):hover::before": {
-      backgroundColor: "var(--editor-button-hover)",
+      backgroundColor: "var(--control-hover)",
     },
     "button:hover": {
-      backgroundColor: "var(--editor-button-hover)",
-    },
-    ".cm-panel.cm-search button[name='close']:hover": {
-      backgroundColor: "var(--editor-button-hover)",
+      backgroundColor: "var(--control-hover)",
     },
   },
 
@@ -160,21 +156,33 @@ const EDITOR_THEME: {
     cursor: "pointer",
   },
   "& button:focus-visible": {
-    outline: "2px solid var(--editor-focus)",
+    outline: "1px solid var(--accent)",
+    outlineOffset: "-1px",
   },
   "& ul:focus-visible": {
     outline: "none",
   },
   "& label:has(input[type='checkbox']:focus-visible)::before": {
-    outline: "2px solid var(--editor-focus)",
+    outline: "1px solid var(--accent)",
+    outlineOffset: "-1px",
   },
-  "& label:has(input[type='checkbox']:focus-visible)::after": {
-    outline: "2px solid var(--editor-focus)",
+  "@media (pointer: coarse)": {
+    ".cm-panels .cm-panel.cm-gotoLine button, .cm-panels .cm-panel.cm-gotoLine .cm-textfield": {
+      height: "44px",
+      minWidth: "44px",
+    },
+  },
+  "@media (forced-colors: active)": {
+    "button:focus-visible, label:has(input[type='checkbox']:focus-visible)::before, .cm-textfield:focus-visible":
+      {
+        outlineColor: "Highlight",
+        borderColor: "Highlight",
+      },
   },
   "& .cm-textfield": {
     minHeight: "32px",
     width: "225px",
-    borderRadius: "4px",
+    borderRadius: "var(--control-radius)",
     fontSize: "16px",
     borderWidth: "1px",
     borderStyle: "solid",
@@ -182,7 +190,7 @@ const EDITOR_THEME: {
     backgroundColor: "var(--paper)",
     "&:focus-visible": {
       outline: "none",
-      borderColor: "var(--editor-focus)",
+      borderColor: "var(--accent)",
     },
     "&::placeholder, &::after": {
       color: "color-mix(in srgb, var(--ink) 40%, transparent)",
@@ -315,7 +323,7 @@ const EDITOR_THEME: {
       border: "none",
       height: "32px",
       width: "32px",
-      borderRadius: "4px",
+      borderRadius: "var(--control-radius)",
       textIndent: "-99999em",
       overflow: "hidden",
     },
@@ -382,7 +390,7 @@ const EDITOR_THEME: {
       right: "auto",
       width: "40px",
       margin: "8px",
-      borderRadius: "4px",
+      borderRadius: "var(--control-radius)",
       textIndent: "-99999em",
       overflow: "hidden",
     },
@@ -395,7 +403,7 @@ const EDITOR_THEME: {
       width: "36px",
       height: "36px",
       verticalAlign: "middle",
-      borderRadius: "4px",
+      borderRadius: "var(--control-radius)",
       textIndent: "-99999em",
       overflow: "hidden",
       border: "none",
@@ -425,7 +433,7 @@ const EDITOR_THEME: {
       width: "30px",
       height: "30px",
       verticalAlign: "middle",
-      borderRadius: "4px",
+      borderRadius: "var(--control-radius)",
       textIndent: "-99999em",
       overflow: "hidden",
       position: "absolute",
@@ -441,7 +449,7 @@ const EDITOR_THEME: {
         position: "absolute",
         inset: "2px",
         marginTop: "1.5px",
-        borderRadius: "4px",
+        borderRadius: "var(--control-radius)",
       },
     },
     "& label:has(input[type='checkbox']:checked)::before": {

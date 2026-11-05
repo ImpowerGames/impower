@@ -3,57 +3,35 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX, Ref } from "preact";
 import { forwardRef } from "preact/compat";
 import { cn } from "../../utils/cn";
-import Ripple from "../ripple/Ripple";
-
-const FILLED_SHADOW =
-  "shadow-[0_1px_1.5px_hsl(0_0%_0%/0.24),0_1px_1px_hsl(0_0%_0%/0.48)] " +
-  "hover:shadow-[0_3px_3px_hsl(0_0%_0%/0.32),0_3px_3px_hsl(0_0%_0%/0.46)] " +
-  "active:shadow-none";
-
-const FILLED_OVERLAY =
-  "before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:bg-current before:opacity-0 " +
-  "hover:before:opacity-[0.05] active:before:opacity-[0.12]";
-
-const UNFILLED_OVERLAY =
-  "after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:bg-current after:opacity-0 " +
-  "hover:after:opacity-[0.05] active:after:opacity-[0.12]";
 
 export const buttonVariants = cva(
   [
-    "relative",
-    "inline-flex items-center justify-center gap-2 whitespace-nowrap [&_svg]:shrink-0",
-    "rounded-md text-sm font-medium select-none cursor-pointer",
-    "transition-[color,background-color,border-color,box-shadow] duration-100",
-    "outline-none focus-visible:[outline:3px_solid_var(--focus-ring)] focus-visible:[outline-offset:-3px]",
-    "disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed",
+    "relative control-overlay",
+    "inline-flex shrink-0 items-center justify-center whitespace-nowrap select-none cursor-pointer",
+    "rounded-control border border-solid",
+    "motion-safe:transition-[background-color,border-color] motion-safe:duration-140",
+    "disabled:cursor-default disabled:opacity-40",
   ],
   {
     variants: {
       variant: {
-        primary:
-          `bg-primary text-background ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
-        secondary:
-          `bg-button-bg text-button-ink ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
-        outline: `border border-foreground bg-transparent text-foreground ${UNFILLED_OVERLAY}`,
-        ghost: `bg-transparent text-foreground ${UNFILLED_OVERLAY}`,
-        link: "bg-transparent text-primary underline-offset-4 hover:underline",
-        destructive:
-          `bg-error-strong text-foreground ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
-        fab: `bg-button-bg text-button-ink ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
+        default: "border-edge bg-panel text-ink",
+        primary: "border-accent bg-accent text-accent-ink focus-inset",
+        quiet: "border-transparent bg-transparent text-ink",
+        destructive: "border-error bg-error text-bg focus-inset",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3 text-sm",
-        xs: "h-7 rounded px-2 text-xs",
-        lg: "h-12 rounded px-5 text-base",
-        icon: "size-10 p-0",
-        "icon-lg": "size-12 rounded-full p-0",
-        fab: "h-12 w-full rounded-full px-5 text-base font-normal",
+        default:
+          "min-h-11 min-w-11 gap-2 px-3 py-2 text-[13px]/[1.4] font-semibold [&_svg]:size-[18px]",
+        icon: "size-11 p-0 [&_svg]:size-5",
+        pill: "min-h-[46px] min-w-11 gap-2 px-[13px] rounded-[16px] border-4 bg-clip-padding text-[14px]/none font-semibold [&_svg]:size-5",
       },
     },
-    compoundVariants: [{ variant: "link", class: "size-auto p-0" }],
+    compoundVariants: [
+      { size: "pill", class: "border-transparent bg-accent text-accent-ink focus-inset" },
+    ],
     defaultVariants: {
-      variant: "primary",
+      variant: "default",
       size: "default",
     },
   },
@@ -98,7 +76,6 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
       {...rest}
     >
       {children}
-      <Ripple />
     </button>
   );
 });

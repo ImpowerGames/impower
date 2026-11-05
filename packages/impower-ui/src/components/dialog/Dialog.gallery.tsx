@@ -32,10 +32,10 @@ function Body({ close }: { close: () => void }) {
         The old file moves to the recycle bin.
       </DialogDescription>
       <DialogActions>
-        <Button variant="ghost" class="h-9 px-3 font-normal" onClick={close}>
+        <Button variant="quiet" onClick={close}>
           Cancel
         </Button>
-        <Button variant="primary" class="h-9 px-4 font-normal" onClick={close}>
+        <Button variant="primary" onClick={close}>
           Replace
         </Button>
       </DialogActions>
@@ -48,7 +48,7 @@ function FlushBody({ close }: { close: () => void }) {
     <>
       <div class="flex flex-row items-center gap-2 px-4 py-3">
         <DialogTitle class="flex-1">Used in 3 places</DialogTitle>
-        <Button variant="ghost" class="h-8 px-3 font-normal" onClick={close}>
+        <Button variant="quiet" onClick={close}>
           Close
         </Button>
       </div>
@@ -65,7 +65,7 @@ function FlushBody({ close }: { close: () => void }) {
 
 function Trigger({ label, onOpen }: { label: string; onOpen: () => void }) {
   return (
-    <Button variant="outline" aria-haspopup="dialog" onClick={onOpen}>
+    <Button aria-haspopup="dialog" onClick={onOpen}>
       {label}
     </Button>
   );

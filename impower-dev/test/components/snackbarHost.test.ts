@@ -1,0 +1,62 @@
+import { h, render } from "preact";
+import { act } from "preact/test-utils";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import SnackbarHost from "../../src/modules/spark-editor/components/snackbar-host/SnackbarHost";
+import {
+  dismissSnackbar,
+  showSnackbar,
+  snackbar,
+} from "../../src/modules/spark-editor/utils/snackbar";
+
+let host: HTMLDivElement | undefined;
+
+afterEach(async () => {
+  while (snackbar.value) {
+    dismissSnackbar();
+  }
+  if (host) {
+    await act(async () => render(null, host!));
+    host.remove();
+    host = undefined;
+  }
+  document.body.innerHTML = "";
+});
+
+const mount = async () => {
+  host = document.body.appendChild(document.createElement("div"));
+  await act(async () => render(h(SnackbarHost, {}), host!));
+};
+
+const button = (label: string) =>
+  Array.from(document.querySelectorAll<HTMLButtonElement>("[data-toast] button")).find(
+    (element) => element.textContent === label,
+  );
+
+describe("SnackbarHost", () => {
+  it("draws the current snackbar as a toast under the title bar", async () => {
+    await mount();
+    await act(async () => showSnackbar({ message: "Moved to the recycle bin", actionLabel: "Undo" }));
+    const toast = document.querySelector<HTMLElement>("[data-toast]");
+    expect(toast?.textContent).toContain("Moved to the recycle bin");
+    expect(toast?.parentElement?.className).toContain("top-[var(--toast-top)]");
+  });
+
+  it("runs the action once and dismisses a passing toast", async () => {
+    await mount();
+    const onAction = vi.fn();
+    await act(async () => showSnackbar({ message: "Moved", actionLabel: "Undo", onAction }));
+    await act(async () => button("Undo")!.click());
+    expect(onAction).toHaveBeenCalledTimes(1);
+    expect(snackbar.value).toBeNull();
+  });
+
+  it("keeps a pinned toast after its action until it is dismissed", async () => {
+    await mount();
+    const onAction = vi.fn();
+    const pinned = { message: "Export a copy", actionLabel: "Export", onAction, persistent: true };
+    await act(async () => showSnackbar(pinned));
+    await act(async () => button("Export")!.click());
+    expect(onAction).toHaveBeenCalledTimes(1);
+    expect(snackbar.value).toBe(pinned);
+  });
+});

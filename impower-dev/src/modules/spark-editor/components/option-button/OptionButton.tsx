@@ -26,7 +26,7 @@ export default function OptionButton({
 }: OptionButtonProps) {
   return (
     <Button
-      variant="ghost"
+      variant="quiet"
       class={`w-full justify-between rounded-none font-normal text-foreground/80 ${sizeClasses[size]} ${className}`}
       {...rest}
     >

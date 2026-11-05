@@ -205,23 +205,24 @@ export default function AudioPreview({ src }: AudioPreviewProps) {
       />
 
       <div class="flex select-none flex-row items-center gap-4">
-        <span class="w-10 text-right text-xs tabular-nums text-white/60">
+        <span class="w-10 text-right text-xs tabular-nums text-muted">
           {formatTime(currentTime)}
         </span>
         <div class="flex flex-1 flex-row items-center justify-center gap-2">
           <Button
-            variant="ghost"
+            variant="quiet"
             aria-label="Skip to start"
             onClick={restart}
-            class="size-9 rounded-full p-0 text-white/70 hover:text-white"
+            size="icon"
+            class="text-muted"
           >
             <PlayerSkipBackwardFill class="size-4" />
           </Button>
           <Button
-            variant="ghost"
+            variant="quiet"
             aria-label={playing ? "Pause" : "Play"}
             onClick={togglePlay}
-            class="size-12 rounded-full p-0 text-white"
+            class="size-12 rounded-full p-0 text-ink"
           >
             {playing ? (
               <PlayerPauseFill class="size-7" />
@@ -230,18 +231,17 @@ export default function AudioPreview({ src }: AudioPreviewProps) {
             )}
           </Button>
           <Button
-            variant="ghost"
+            variant="quiet"
             aria-label="Loop"
             aria-pressed={looping}
             onClick={() => setLooping((v) => !v)}
-            class={`size-9 rounded-full p-0 ${
-              looping ? "text-primary hover:text-primary" : "text-white/70 hover:text-white"
-            }`}
+            size="icon"
+            class={looping ? "text-accent" : "text-muted"}
           >
             <Repeat class="size-4" />
           </Button>
         </div>
-        <span class="w-10 text-left text-xs tabular-nums text-white/60">
+        <span class="w-10 text-left text-xs tabular-nums text-muted">
           {formatTime(duration)}
         </span>
       </div>

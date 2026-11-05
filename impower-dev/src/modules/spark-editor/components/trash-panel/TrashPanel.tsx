@@ -165,19 +165,19 @@ export default function TrashPanel() {
         </DialogTitle>
         {count > 0 && (
           <Button
-            variant="ghost"
+            variant="quiet"
             onClick={() => setConfirm({ kind: "empty" })}
             disabled={busy}
-            class="h-8 rounded px-3 text-sm font-normal text-foreground/70 hover:text-foreground"
           >
             Empty
           </Button>
         )}
         <Button
-          variant="ghost"
+          variant="quiet"
           aria-label="Close"
           onClick={close}
-          class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:text-foreground"
+          size="icon"
+          class="flex-none text-muted"
         >
           <X class="size-4" />
         </Button>
@@ -196,7 +196,7 @@ export default function TrashPanel() {
             return (
               <div
                 key={batch.batchId}
-                class="flex flex-row items-center gap-2 px-4 py-2 hover:bg-foreground/5"
+                class="relative flex flex-row items-center gap-2 px-4 py-2 control-overlay"
               >
                 <div class="flex min-w-0 flex-1 flex-col">
                   <span class="truncate text-sm font-medium">
@@ -208,17 +208,18 @@ export default function TrashPanel() {
                   </span>
                 </div>
                 <Button
-                  variant="ghost"
+                  variant="quiet"
                   aria-label="Restore"
                   title="Restore"
                   disabled={busy}
                   onClick={() => void restore(batch.batchId)}
-                  class="size-8 flex-none rounded-full p-0 text-foreground/60 hover:text-foreground"
+                  size="icon"
+                  class="flex-none text-muted"
                 >
                   <ArrowBackUp class="size-4" />
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="quiet"
                   aria-label="Delete permanently"
                   title="Delete permanently"
                   disabled={busy}
@@ -229,7 +230,8 @@ export default function TrashPanel() {
                       label: batchLabel(batch),
                     })
                   }
-                  class="size-8 flex-none rounded-full p-0 text-foreground/60 hover:text-error-strong"
+                  size="icon"
+                  class="flex-none text-muted"
                 >
                   <Trash class="size-4" />
                 </Button>
@@ -248,22 +250,20 @@ export default function TrashPanel() {
           </p>
           <DialogActions>
             <Button
-              variant="ghost"
+              variant="quiet"
               onClick={() => setConfirm(null)}
               disabled={busy}
-              class="h-9 px-3 text-sm font-normal text-foreground/70 hover:text-foreground"
             >
               Cancel
             </Button>
             <Button
-              variant="primary"
+              variant="destructive"
               disabled={busy}
               onClick={() =>
                 confirm.kind === "empty"
                   ? void empty()
                   : void deletePermanently(confirm.batchId)
               }
-              class="h-9 bg-error-strong px-4 text-sm font-normal hover:bg-error-strong/90"
             >
               Delete
             </Button>

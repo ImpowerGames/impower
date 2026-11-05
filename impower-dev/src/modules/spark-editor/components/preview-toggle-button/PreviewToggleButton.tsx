@@ -24,13 +24,13 @@ export default function PreviewToggleButton(_props: PreviewToggleButtonProps) {
 
   return (
     <Button
-      variant="secondary"
       aria-label="Toggle Preview"
       aria-pressed={active}
       onClick={onClick}
-      class="mr-2 h-9 w-[84px] gap-1.5 px-2.5 text-sm font-semibold"
+      size="pill"
+    class="mr-1 w-[92px]"
     >
-      <Icon class="size-[18px]" />
+      <Icon />
       {label}
     </Button>
   );

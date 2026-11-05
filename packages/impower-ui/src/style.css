@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./theme.css";
-@plugin 'tailwind-scrollbar';
 @source ".";
 
 @theme {
@@ -56,10 +55,90 @@
   --color-error-strong: var(--error-strong);
   --color-warning-strong: var(--warning-strong);
   --color-scrim: var(--scrim);
+  --color-stage: var(--stage);
 
   --color-foreground: var(--ink);
   --color-surface-border: var(--edge);
   --color-danger: var(--error);
+
+  --radius-control: var(--control-radius);
+  --radius-card: var(--radius);
+  --radius-dialog: var(--dialog-radius);
+  --radius-toast: var(--toast-radius);
+  --shadow-float: var(--float-shadow);
+}
+
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar) var(--scrollbar-track);
+  }
+
+  :where(.overflow-auto, .overflow-y-auto, .overflow-scroll, .overflow-y-scroll) {
+    scrollbar-gutter: stable;
+  }
+
+  :focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: -1px;
+  }
+
+  @media (forced-colors: active) {
+    :focus-visible {
+      outline-color: Highlight;
+    }
+  }
+}
+
+@utility control-overlay {
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-color: var(--control-hover);
+    opacity: 0;
+    pointer-events: none;
+  }
+  @media (hover: hover) {
+    &:hover:not(:disabled, [data-disabled], [aria-disabled="true"])::before {
+      opacity: 1;
+    }
+  }
+  &:active:not(:disabled, [data-disabled], [aria-disabled="true"])::before,
+  &:active:not(:disabled, [data-disabled], [aria-disabled="true"])::after {
+    opacity: 1;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    &::before,
+    &::after {
+      transition: opacity 140ms ease;
+    }
+    &:active::before,
+    &:active::after {
+      transition: none;
+    }
+  }
+}
+
+@utility focus-inset {
+  &:focus-visible {
+    outline: 1px solid var(--accent-ink);
+    outline-offset: -3px;
+  }
+  @media (forced-colors: active) {
+    &:focus-visible {
+      outline-color: Highlight;
+    }
+  }
+}
+
+@utility fade-edge {
+  overflow: hidden;
+  white-space: nowrap;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - var(--fade)), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--fade)), transparent);
 }
 
 @keyframes s-sheen {
@@ -79,19 +158,16 @@
   animation: s-sheen 8s ease-in-out infinite;
 }
 
-@keyframes menu-grow-in {
-  from { opacity: 0; transform: scale(0.75, 0.5625); }
+@keyframes menu-in {
+  from { opacity: 0; transform: scale(0.97); }
   to   { opacity: 1; transform: none; }
 }
-@keyframes menu-grow-out {
-  from { opacity: 1; transform: none; }
-  to   { opacity: 0; transform: scale(0.75, 0.5625); }
+@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: none; }
 }
-@utility anim-menu-in  { animation: menu-grow-in 200ms cubic-bezier(0.4, 0, 0.2, 1); }
-@utility anim-menu-out { animation: menu-grow-out 150ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-
-@keyframes menu-sheet-up   { from { transform: translateY(100%); } to { transform: translateY(0); } }
-@keyframes menu-sheet-down { from { transform: translateY(0); } to { transform: translateY(100%); } }
-@keyframes menu-fade-in    { from { opacity: 0; } to { opacity: 1; } }
-@keyframes menu-fade-out   { from { opacity: 1; } to { opacity: 0; } }
-
+@utility anim-menu-in  { animation: menu-in 150ms ease-out; }
+@utility anim-menu-out { animation: fade-out 150ms ease-in forwards; }
+@utility anim-toast-in  { animation: toast-in 150ms ease-out; }
+@utility anim-toast-out { animation: fade-out 150ms ease-out forwards; }

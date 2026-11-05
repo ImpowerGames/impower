@@ -648,8 +648,18 @@ const statusPanelTheme = EditorView.baseTheme({
     position: "absolute",
     inset: "0",
     backgroundColor: "var(--control-hover)",
+    boxShadow: "inset 0 0 0 100vmax var(--control-hover)",
   },
-  "@media (hover: hover) and (pointer: fine)": {
+  "@media (pointer: coarse)": {
+    ".cm-status": {
+      height: "44px",
+    },
+    ".cm-status .cm-button": {
+      minWidth: "44px",
+      justifyContent: "center",
+    },
+  },
+  "@media (hover: hover)": {
     ".cm-button:hover::after": {
       content: "''",
       position: "absolute",

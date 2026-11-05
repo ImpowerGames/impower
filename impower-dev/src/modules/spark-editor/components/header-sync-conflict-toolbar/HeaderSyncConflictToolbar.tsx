@@ -32,21 +32,21 @@ export default function HeaderSyncConflictToolbar(
   return (
     <div class="flex flex-row items-center">
       <Button
-        variant="ghost"
-        class="size-14 flex flex-col items-center justify-center gap-0.5 text-[var(--color-amber-300)] text-[10px] leading-none"
+        variant="quiet"
+        class="size-14 flex-col gap-0.5 text-[10px] leading-none text-warning"
         aria-label="Push to remote"
         onClick={() => setPushOpen(true)}
       >
-        <ArrowUp class="size-5" />
+        <ArrowUp />
         PUSH
       </Button>
       <Button
-        variant="ghost"
-        class="size-14 flex flex-col items-center justify-center gap-0.5 text-[var(--color-amber-300)] text-[10px] leading-none"
+        variant="quiet"
+        class="size-14 flex-col gap-0.5 text-[10px] leading-none text-warning"
         aria-label="Pull from remote"
         onClick={() => setPullOpen(true)}
       >
-        <ArrowDown class="size-5" />
+        <ArrowDown />
         PULL
       </Button>
 
@@ -94,18 +94,17 @@ function ConfirmDialog({
       open={open}
       onOpenChange={(next) => !next && onClose()}
       size="md"
-      class="w-[90vw] bg-popup p-6 shadow-xl ring-0"
     >
-      <DialogTitle class="text-lg font-medium">{title}</DialogTitle>
-      <DialogDescription class="mt-3 text-foreground/80">
+      <DialogTitle>{title}</DialogTitle>
+      <DialogDescription class="mt-3">
         {body}
       </DialogDescription>
-      <div class="mt-1 text-sm text-foreground/60">{warning}</div>
+      <div class="mt-1 text-sm text-muted">{warning}</div>
       <DialogActions class="mt-6">
-        <Button variant="ghost" class="px-4" onClick={onClose}>
+        <Button variant="quiet" onClick={onClose}>
           Cancel
         </Button>
-        <Button variant="primary" class="px-4" onClick={onConfirm}>
+        <Button variant="primary" onClick={onConfirm}>
           {confirmLabel}
         </Button>
       </DialogActions>

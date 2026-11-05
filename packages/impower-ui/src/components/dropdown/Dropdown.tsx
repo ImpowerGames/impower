@@ -9,21 +9,11 @@ import {
   type RefObject,
   type VNode,
 } from "preact";
-import { createPortal } from "preact/compat";
-import {
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "preact/hooks";
+import { useCallback, useContext, useRef, useState } from "preact/hooks";
 import { useLayout } from "../../hooks/useLayout";
-import { useMountTransition } from "../../hooks/useMountTransition";
 import { cn } from "../../utils/cn";
 import { registerFocusReturn } from "../../utils/focusReturn";
-import Ripple from "../ripple/Ripple";
-
-const SHEET_MS = 240;
+import { DialogTitle, Sheet } from "../dialog/Dialog";
 
 type Mode = "menu" | "sheet";
 type MenuCtx = {
@@ -40,7 +30,13 @@ const ModeContext = createContext<MenuCtx>({
 });
 const useMenuCtx = () => useContext(ModeContext);
 
-export const DropdownSeparator = DropdownMenuPrimitive.Separator;
+export function DropdownSeparator({ class: className }: { class?: string }) {
+  return (
+    <DropdownMenuPrimitive.Separator
+      class={cn("-mx-1.5 my-1.5 h-px bg-edge", className)}
+    />
+  );
+}
 
 type RootProps = {
   open?: boolean;
@@ -134,76 +130,43 @@ export function DropdownTrigger({
 }
 
 const dropdownContent = cva([
-  "z-50 min-w-[120px] overflow-hidden rounded-lg",
-  "bg-popup py-2 px-0 text-foreground shadow-xl ring-1 ring-foreground/10",
+  "z-50 min-w-[120px] overflow-y-auto rounded-card",
+  "bg-popup p-1.5 text-ink shadow-float ring-1 ring-edge",
   "origin-[--radix-dropdown-menu-content-transform-origin]",
   "motion-safe:data-[state=open]:anim-menu-in motion-safe:data-[state=closed]:anim-menu-out",
 ]);
 
-function Sheet({
+function SheetMenu({
   open,
   setOpen,
+  trigger,
   owner,
   class: className,
   children,
 }: {
   open: boolean;
   setOpen: (open: boolean) => void;
+  trigger: RefObject<HTMLElement>;
   owner: (element: HTMLElement | null) => void;
   class?: string;
   children?: ComponentChildren;
 }) {
-  const { mounted } = useMountTransition(open, SHEET_MS);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [open, setOpen]);
-
-  if (!mounted || typeof document === "undefined") {
-    return null;
-  }
-  return createPortal(
-    <div class="fixed inset-0 z-50">
-      <div
-        class={cn(
-          "absolute inset-0 bg-black/40",
-          open
-            ? "motion-safe:animate-[menu-fade-in_200ms_ease-out]"
-            : "motion-safe:animate-[menu-fade-out_200ms_ease-out_forwards] motion-reduce:invisible",
-        )}
-        onClick={() => setOpen(false)}
-        role="presentation"
-      />
+  return (
+    <Sheet
+      open={open}
+      onOpenChange={setOpen}
+      flush
+      returnFocus={() => trigger.current}
+    >
+      <DialogTitle class="sr-only">Menu</DialogTitle>
       <div
         ref={owner}
         role="menu"
-        class={cn(
-          "absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto",
-          "rounded-t-lg bg-popup py-2 text-foreground shadow-2xl will-change-transform",
-          open
-            ? "motion-safe:animate-[menu-sheet-up_225ms_cubic-bezier(0,0,0.2,1)]"
-            : "motion-safe:animate-[menu-sheet-down_195ms_cubic-bezier(0.4,0,0.6,1)_forwards] motion-reduce:invisible",
-          className,
-        )}
+        class={cn("overflow-y-auto p-1.5", className)}
       >
         {children}
       </div>
-    </div>,
-    document.body,
+    </Sheet>
   );
 }
 
@@ -229,14 +192,15 @@ export function DropdownContent({
   };
   if (ctx.mode === "sheet") {
     return (
-      <Sheet
+      <SheetMenu
         open={ctx.open}
         setOpen={ctx.setOpen}
+        trigger={ctx.trigger}
         owner={owner}
         class={className}
       >
         {children}
-      </Sheet>
+      </SheetMenu>
     );
   }
   return (
@@ -255,13 +219,11 @@ export function DropdownContent({
 }
 
 const dropdownItem = cva([
-  "relative overflow-hidden",
-  "flex h-10 w-full cursor-pointer flex-row items-center gap-2 px-5",
-  "text-sm text-foreground/70 select-none outline-none text-left",
-  "hover:bg-foreground/5 active:bg-foreground/[0.12]",
-  "focus:bg-foreground/5",
-  "disabled:pointer-events-none disabled:opacity-50",
-  "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+  "relative control-overlay rounded-control",
+  "flex min-h-11 w-full cursor-pointer flex-row items-center gap-2 px-3",
+  "text-sm text-ink select-none text-left [&_svg]:size-[18px]",
+  "disabled:pointer-events-none disabled:opacity-40",
+  "data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
 ]);
 
 export function DropdownItem({
@@ -291,7 +253,6 @@ export function DropdownItem({
         }}
       >
         {children}
-        <Ripple />
       </button>
     );
   }
@@ -303,7 +264,6 @@ export function DropdownItem({
       {...rest}
     >
       {children}
-      <Ripple />
     </DropdownMenuPrimitive.Item>
   );
 }
@@ -335,7 +295,6 @@ export function DropdownCheckboxItem({
         onClick={() => onCheckedChange?.(!checked)}
       >
         {children}
-        <Ripple />
       </button>
     );
   }
@@ -347,7 +306,6 @@ export function DropdownCheckboxItem({
       {...rest}
     >
       {children}
-      <Ripple />
     </DropdownMenuPrimitive.CheckboxItem>
   );
 }

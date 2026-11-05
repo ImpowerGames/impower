@@ -11,7 +11,6 @@ import {
   DropdownRoot,
   DropdownTrigger,
   FolderPlus,
-  Ripple,
   Trash,
   X,
 } from "@impower/impower-ui/components";
@@ -1033,10 +1032,10 @@ export default function FileList({
             >
               <DropdownTrigger asChild>
                 <Button
-                  variant="ghost"
+                  variant="quiet"
                   size="icon"
                   aria-label="More options"
-                  class="mr-2 rounded-full text-foreground/60 hover:text-foreground"
+                  class="mr-2 text-muted"
                 >
                   <DotsVertical class="size-5" />
                 </Button>
@@ -1089,15 +1088,16 @@ export default function FileList({
             hasSelection ? (
               <div class="flex h-8 flex-row items-center gap-2">
                 <Button
-                  variant="ghost"
+                  variant="quiet"
                   aria-label={allSelected ? "Deselect all" : "Select all"}
                   onClick={toggleSelectAll}
-                  class="size-8 flex-none rounded-full p-0 text-foreground/70 hover:text-foreground"
+                  size="icon"
+                  class="flex-none text-muted"
                 >
                   <span
                     class={`flex size-5 items-center justify-center rounded border-2 ${
                       allSelected
-                        ? "border-primary bg-primary text-white"
+                        ? "border-accent bg-accent text-accent-ink"
                         : "border-foreground/40"
                     }`}
                   >
@@ -1109,29 +1109,27 @@ export default function FileList({
                 </span>
                 <div class="flex-1" />
                 <Button
-                  variant="ghost"
+                  variant="quiet"
                   disabled={selectedPaths.size === 0}
                   onClick={() => void downloadSelected()}
-                  class="h-8 gap-1.5 rounded-md px-2 text-sm font-normal text-foreground/80 hover:text-foreground"
                 >
                   <Download class="size-4" />
                   Download
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="quiet"
                   disabled={selectedPaths.size === 0}
                   onClick={() => void deleteSelected()}
-                  class="h-8 gap-1.5 rounded-md px-2 text-sm font-normal text-foreground/80 hover:text-foreground"
                 >
                   <Trash class="size-4" />
                   Delete
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="quiet"
                   size="icon"
                   aria-label="Exit selection"
                   onClick={exitSelectMode}
-                  class="rounded-full text-foreground/60 hover:text-foreground"
+                  class="text-muted"
                 >
                   <X class="size-5" />
                 </Button>
@@ -1162,7 +1160,7 @@ export default function FileList({
                   data-dir="1"
                   data-path={s.path}
                   aria-label={`Scroll to ${s.name}`}
-                  class={`pointer-events-auto absolute inset-x-0 flex cursor-pointer items-center bg-panel px-5 text-left text-base font-normal text-foreground/80 before:pointer-events-none before:absolute before:inset-0 before:bg-foreground/5 before:opacity-0 before:transition-opacity before:content-[''] hover:before:opacity-100 active:before:bg-foreground/[0.12] active:before:opacity-100 ${
+                  class={`pointer-events-auto absolute inset-x-0 flex cursor-pointer items-center bg-panel px-5 text-left text-base font-normal text-foreground/80 control-overlay ${
                     isLast ? "shadow-[0_2px_4px_rgba(0,0,0,0.3)]" : ""
                   }`}
                   style={{
@@ -1183,10 +1181,9 @@ export default function FileList({
                     <span class="mr-3 flex size-10 flex-none items-center justify-center text-foreground/60">
                       <ChevronRight class="size-5 rotate-90" />
                     </span>
-                    <span class="truncate font-semibold">{s.name}</span>
+                    <span class="fade-edge flex-1 font-semibold">{s.name}</span>
                   </div>
 
-                  <Ripple />
                 </button>
               );
             })}

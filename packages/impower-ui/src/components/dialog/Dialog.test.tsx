@@ -312,7 +312,7 @@ describe("Sheet and the responsive Dialog", () => {
   it("rises from the bottom edge with the same contract", async () => {
     const opener = await mount({ sheet: true, withInitialFocus: true });
     const card = dialog()!;
-    expect(card.className).toContain("rounded-t-lg");
+    expect(card.className).toContain("rounded-t-card");
     expect(backdrop()!.className).toContain("justify-end");
     expect(card.getAttribute("aria-modal")).toBe("true");
     expect(document.activeElement?.getAttribute("aria-label")).toBe("name");
@@ -326,17 +326,17 @@ describe("Sheet and the responsive Dialog", () => {
   it("stays a centred card in the phone layout unless responsive", async () => {
     await setPhone(true);
     await mount();
-    expect(dialog()!.className).toContain("rounded-lg");
-    expect(dialog()!.className).not.toContain("rounded-t-lg");
+    expect(dialog()!.className).toContain("rounded-dialog");
+    expect(dialog()!.className).not.toContain("rounded-t-card");
   });
 
   it("becomes a Sheet in the phone layout when responsive and a card otherwise", async () => {
     await setPhone(true);
     await mount({ responsive: true });
-    expect(dialog()!.className).toContain("rounded-t-lg");
+    expect(dialog()!.className).toContain("rounded-t-card");
     await setPhone(false);
     await settle(50);
-    expect(dialog()!.className).not.toContain("rounded-t-lg");
+    expect(dialog()!.className).not.toContain("rounded-t-card");
     expect(dialog()!.className).toContain("max-w-sm");
   });
 });
@@ -353,7 +353,7 @@ describe("focus return across openers and layout changes", () => {
     const opener = await mount({ responsive: true });
     await setPhone(true);
     await settle(50);
-    expect(dialog()!.className).toContain("rounded-t-lg");
+    expect(dialog()!.className).toContain("rounded-t-card");
     expect(dialog()!.contains(document.activeElement)).toBe(true);
     await closeAndSettle();
     expect(document.activeElement).toBe(opener);
@@ -515,11 +515,11 @@ describe("Dropdown motion", () => {
       await settle(50);
       const menu = document.querySelector<HTMLElement>('[role="menu"]')!;
       const elements = isPhone
-        ? [menu, menu.previousElementSibling as HTMLElement]
+        ? [menu.closest<HTMLElement>('[role="dialog"]')!, dialog()!.parentElement!]
         : [menu];
       const animated = elements
         .flatMap((element) => element.className.split(" "))
-        .filter((c) => c.includes("anim"));
+        .filter((c) => c.includes("anim") || c.includes("transition"));
       expect(animated.length).toBeGreaterThan(0);
       expect(animated.every((c) => c.startsWith("motion-safe:"))).toBe(true);
     },

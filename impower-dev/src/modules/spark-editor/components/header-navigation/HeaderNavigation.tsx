@@ -103,26 +103,26 @@ export default function HeaderNavigation() {
           {phone && (
             <div class="flex flex-row items-center">
               <Button
-                variant="ghost"
+                variant="quiet"
                 size="icon"
                 aria-label="Undo"
                 onPointerDown={(e) => {
                   e.preventDefault();
                   replayUndoShortcut(false);
                 }}
-                class="rounded-full text-foreground/60 hover:text-foreground"
+                class="text-muted"
               >
                 <ArrowBackUp class="size-5" />
               </Button>
               <Button
-                variant="ghost"
+                variant="quiet"
                 size="icon"
                 aria-label="Redo"
                 onPointerDown={(e) => {
                   e.preventDefault();
                   replayUndoShortcut(true);
                 }}
-                class="rounded-full text-foreground/60 hover:text-foreground"
+                class="text-muted"
               >
                 <ArrowForwardUp class="size-5" />
               </Button>

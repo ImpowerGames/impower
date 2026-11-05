@@ -8,6 +8,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "layoutState",
   "pointerState",
   "sheetVariants",
+  "toastVariants",
   "useCoarsePointer",
   "useLayout",
   "useMountTransition",
