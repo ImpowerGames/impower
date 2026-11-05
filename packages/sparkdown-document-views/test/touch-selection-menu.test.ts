@@ -7,7 +7,7 @@ import {
   showContextMenu,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { touchInputHandler } from "../src/modules/script-editor/utils/extensions/touchInputHandler";
+import { touchAffordances } from "../src/modules/script-editor/utils/extensions/touchAffordances";
 
 const LINE_HEIGHT = 16;
 const CHAR_WIDTH = 8;
@@ -45,10 +45,6 @@ const rect = (left: number, top: number, width: number, height: number) =>
 beforeEach(() => {
   scroller = { left: 0, top: 104, right: 384, bottom: 254 };
   scrollOffset = 0;
-  Object.defineProperty(navigator, "maxTouchPoints", {
-    value: 5,
-    configurable: true,
-  });
   Object.defineProperty(window, "innerHeight", {
     value: WINDOW_HEIGHT,
     configurable: true,
@@ -98,7 +94,6 @@ afterEach(() => {
   view = undefined;
   vi.restoreAllMocks();
   vi.useRealTimers();
-  delete (navigator as { maxTouchPoints?: number }).maxTouchPoints;
 });
 
 function mount(doc: string, selection?: EditorSelection) {
@@ -108,15 +103,7 @@ function mount(doc: string, selection?: EditorSelection) {
     doc,
     selection,
     parent,
-    extensions: [
-      contextMenu(),
-      touchInputHandler({
-        showContextMenu,
-        hideContextMenu,
-        isContextMenuOpen,
-        isTouchEnvironment: () => true,
-      }),
-    ],
+    extensions: [contextMenu(), touchAffordances(true)],
   });
   const v = view;
   let scrollTop = 0;

@@ -1,7 +1,12 @@
-import { Button, Link, X } from "@impower/impower-ui/components";
-import { createPortal } from "preact/compat";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogTitle,
+  Link,
+  X,
+} from "@impower/impower-ui/components";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { useMountTransition } from "../../hooks/useMountTransition";
 
 export type AddUrlDialogProps = {
   open: boolean;
@@ -25,29 +30,13 @@ export default function AddUrlDialog({
   const [name, setName] = useState("");
   const [nameEdited, setNameEdited] = useState(false);
   const urlRef = useRef<HTMLInputElement | null>(null);
-  const { mounted, visible } = useMountTransition(open, 200);
 
   useEffect(() => {
     if (!open) return;
     setUrl("");
     setName("");
     setNameEdited(false);
-    const id = requestAnimationFrame(() => urlRef.current?.focus());
-    return () => cancelAnimationFrame(id);
   }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  if (!mounted || typeof document === "undefined") {
-    return null;
-  }
 
   const trimmedUrl = url.trim();
   const displayName = nameEdited ? name : deriveName(url);
@@ -62,91 +51,78 @@ export default function AddUrlDialog({
   const inputClass =
     "h-9 w-full select-text rounded-md bg-foreground/5 px-3 text-sm text-foreground outline-none placeholder:text-foreground/40 focus:bg-foreground/10";
 
-  return createPortal(
-    <div
-      class={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 transition-opacity duration-200 ${
-        visible ? "opacity-100" : "opacity-0"
-      }`}
-      onClick={onClose}
-      role="presentation"
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => !next && onClose()}
+      initialFocus={urlRef}
     >
-      <div
-        class={`w-full max-w-sm select-none rounded-lg bg-engine-800 p-5 text-foreground shadow-2xl ring-1 ring-foreground/10 transition-all duration-200 ease-out ${
-          visible ? "scale-100 opacity-100" : "scale-95 opacity-0"
-        }`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Add URL"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div class="mb-4 flex flex-row items-center gap-2">
-          <Link class="size-5 text-foreground/70" />
-          <h2 class="flex-1 text-base font-semibold">Add URL</h2>
-          <Button
-            variant="ghost"
-            aria-label="Close"
-            onClick={onClose}
-            class="size-7 rounded-full p-0 text-foreground/60 hover:text-foreground"
-          >
-            <X class="size-4" />
-          </Button>
-        </div>
-
-        <label class="mb-1 block text-xs font-medium text-foreground/60">
-          URL
-        </label>
-        <input
-          ref={urlRef}
-          value={url}
-          onInput={(e) => setUrl((e.target as HTMLInputElement).value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              submit();
-            }
-          }}
-          placeholder="https://cdn.example.com/image.png"
-          class={`mb-3 ${inputClass}`}
-        />
-
-        <label class="mb-1 block text-xs font-medium text-foreground/60">
-          Name
-        </label>
-        <input
-          value={displayName}
-          onInput={(e) => {
-            setNameEdited(true);
-            setName((e.target as HTMLInputElement).value);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              submit();
-            }
-          }}
-          placeholder="asset"
-          class={`mb-5 ${inputClass}`}
-        />
-
-        <div class="flex flex-row justify-end gap-2">
-          <Button
-            variant="ghost"
-            onClick={onClose}
-            class="h-9 px-4 text-sm font-normal text-foreground/70 hover:text-foreground"
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            disabled={!canSubmit}
-            onClick={submit}
-            class="h-9 px-4 text-sm font-normal"
-          >
-            Add
-          </Button>
-        </div>
+      <div class="mb-4 flex flex-row items-center gap-2">
+        <Link class="size-5 text-foreground/70" />
+        <DialogTitle class="flex-1">Add URL</DialogTitle>
+        <Button
+          variant="ghost"
+          aria-label="Close"
+          onClick={onClose}
+          class="size-7 rounded-full p-0 text-foreground/60 hover:text-foreground"
+        >
+          <X class="size-4" />
+        </Button>
       </div>
-    </div>,
-    document.body,
+
+      <label class="mb-1 block text-xs font-medium text-foreground/60">
+        URL
+      </label>
+      <input
+        ref={urlRef}
+        value={url}
+        onInput={(e) => setUrl((e.target as HTMLInputElement).value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            submit();
+          }
+        }}
+        placeholder="https://cdn.example.com/image.png"
+        class={`mb-3 ${inputClass}`}
+      />
+
+      <label class="mb-1 block text-xs font-medium text-foreground/60">
+        Name
+      </label>
+      <input
+        value={displayName}
+        onInput={(e) => {
+          setNameEdited(true);
+          setName((e.target as HTMLInputElement).value);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            submit();
+          }
+        }}
+        placeholder="asset"
+        class={`mb-5 ${inputClass}`}
+      />
+
+      <DialogActions>
+        <Button
+          variant="ghost"
+          onClick={onClose}
+          class="h-9 px-4 text-sm font-normal text-foreground/70 hover:text-foreground"
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="primary"
+          disabled={!canSubmit}
+          onClick={submit}
+          class="h-9 px-4 text-sm font-normal"
+        >
+          Add
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }

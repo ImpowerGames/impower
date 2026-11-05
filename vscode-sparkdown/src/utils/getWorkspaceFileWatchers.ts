@@ -11,6 +11,7 @@ export const getWorkspaceFileWatchers = (): [
   scriptWatcher: vscode.FileSystemWatcher,
   imageWatcher: vscode.FileSystemWatcher,
   audioWatcher: vscode.FileSystemWatcher,
+  videoWatcher: vscode.FileSystemWatcher,
   fontWatcher: vscode.FileSystemWatcher,
   worldWatcher: vscode.FileSystemWatcher,
 ] => {
@@ -30,6 +31,7 @@ export const getWorkspaceFileWatchers = (): [
     scriptWatcher: vscode.FileSystemWatcher,
     imageWatcher: vscode.FileSystemWatcher,
     audioWatcher: vscode.FileSystemWatcher,
+    videoWatcher: vscode.FileSystemWatcher,
     fontWatcher: vscode.FileSystemWatcher,
     worldWatcher: vscode.FileSystemWatcher,
   ];

@@ -15,8 +15,6 @@ const open = async (source: string) => {
     files: [{ uri: MAIN_URI, text: source }],
     startFrom: { file: MAIN_URI, line: 0 },
   });
-  h.refs.endingStatus = h.overlay.ownerDocument.createElement("span");
-  h.refs.endingStatus.hidden = true;
   await h.compile();
   return h;
 };
@@ -31,13 +29,13 @@ const previewAt = async (h: any, line: number) => {
   await h.select(line);
   await settle(40);
   const indicator = h.overlay.querySelector(".continue_indicator") as HTMLElement | null;
-  const badge = h.refs.endingStatus as HTMLElement;
+  const badge = h.bar("#ending-status");
   return {
     text: shownText(h.overlay),
     indicatorHidden: indicator?.style.display === "none",
     endMark: h.overlay.querySelector(".end_mark") !== null,
     badge: badge.hidden ? null : badge.textContent,
-    kind: badge.getAttribute("kind"),
+    kind: badge.getAttribute("data-kind"),
     hover: badge.title,
   };
 };

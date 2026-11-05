@@ -137,7 +137,6 @@ const playerOf = async (source: string, line: number) => {
   const refs = h.controller.refs;
   refs.routeButton = win.document.createElement("div");
   refs.routeList = win.document.createElement("div");
-  refs.leftItems.append(refs.routeButton, refs.locationItems);
   return h;
 };
 

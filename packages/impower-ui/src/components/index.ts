@@ -8,10 +8,20 @@ export {
   type ButtonSize,
 } from "./button/Button";
 export {
+  default as Dialog,
+  Sheet,
+  DialogTitle,
+  DialogDescription,
+  DialogActions,
+  dialogVariants,
+  sheetVariants,
+  type DialogProps,
+  type SheetProps,
+  type DialogSize,
+} from "./dialog/Dialog";
+export {
   DropdownRoot,
   DropdownTrigger,
-  DropdownPortal,
-  DropdownSub,
   DropdownSeparator,
   DropdownContent,
   DropdownItem,
@@ -33,5 +43,7 @@ export {
   type TabsProps,
   type TabProps,
 } from "./tabs/Tabs";
+export { useMountTransition } from "../hooks/useMountTransition";
 export * from "./icon/icons.generated";
 export * from "./registry";
+export * from "../layout";

@@ -140,6 +140,8 @@ function FileItem({
   });
   const inputRef = useRef<HTMLInputElement | null>(null);
   const rowRef = useRef<HTMLDivElement | null>(null);
+  const optionsRef = useRef<HTMLButtonElement | null>(null);
+  const rowFocusTarget = () => optionsRef.current;
 
   const basename = path.split("/").slice(-1)[0] ?? path;
   const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
@@ -465,7 +467,7 @@ function FileItem({
           bulkSelected || contextMenu
             ? "bg-primary/15"
             : selected
-              ? "bg-engine-800/40 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary before:content-['']"
+              ? "bg-elevated/40 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary before:content-['']"
               : ""
         }`}
         onClick={onRowClick}
@@ -496,7 +498,7 @@ function FileItem({
               class={`mr-3 flex size-10 flex-none items-center justify-center ${
                 isDirectory
                   ? "text-foreground/60"
-                  : `overflow-hidden rounded-lg bg-engine-800/60 ring-1 ring-inset ring-foreground/10 ${iconMuted}`
+                  : `overflow-hidden rounded-lg bg-elevated/60 ring-1 ring-inset ring-foreground/10 ${iconMuted}`
               }`}
             >
               {isDirectory ? (
@@ -594,7 +596,7 @@ function FileItem({
 
       {!selectMode && (
         <div class="absolute inset-y-0 right-0 flex items-center">
-          <FileOptionsButton {...menuItemProps} />
+          <FileOptionsButton {...menuItemProps} buttonRef={optionsRef} />
         </div>
       )}
 
@@ -647,6 +649,7 @@ function FileItem({
       {renameConfirm && (
         <RenameReferencesDialog
           open
+          returnFocus={rowFocusTarget}
           fromName={renameConfirm.fromName}
           toName={renameConfirm.toName}
           referenceCount={renameConfirm.referenceCount}
@@ -667,6 +670,7 @@ function FileItem({
       {usages && (
         <FileUsagesPanel
           open
+          returnFocus={rowFocusTarget}
           assetName={usages.assetName}
           locations={usages.locations}
           onJump={(uri, range) => {

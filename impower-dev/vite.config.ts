@@ -19,6 +19,12 @@ import { MorphBakeService } from "../packages/sparkdown/src/morph/service";
 import { clampThumbnailWidth } from "../packages/sparkdown/src/thumbnails/composeThumbnail";
 import pkg from "./package.json";
 import staticallyRenderPage from "./src/build/staticallyRenderPage.js";
+import {
+  themeColors,
+  withManifestColors,
+  withThemeColor,
+  DEFAULT_DARK_THEME,
+} from "./src/build/themeColor.js";
 
 const indir = "src";
 const outdir = "out";
@@ -104,6 +110,16 @@ const impowerUiStyleCss = path.join(
   resolvePkgDir("@impower/impower-ui"),
   "src/style.css",
 );
+
+const impowerUiThemeCss = path.join(
+  resolvePkgDir("@impower/impower-ui"),
+  "src/theme.css",
+);
+
+const readThemeColors = (): Record<string, string> =>
+  themeColors(fs.readFileSync(impowerUiThemeCss, "utf-8"));
+
+const readManifestColor = (): string => readThemeColors()[DEFAULT_DARK_THEME]!;
 
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
@@ -617,6 +633,20 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
           }
         }
 
+        if (url === "/manifest.webmanifest") {
+          res.setHeader("Content-Type", "application/manifest+json");
+          res.end(
+            withManifestColors(
+              fs.readFileSync(
+                path.join(process.cwd(), publicInDir, "manifest.webmanifest"),
+                "utf-8",
+              ),
+              readManifestColor(),
+            ),
+          );
+          return;
+        }
+
         if (url.includes(".")) return next();
 
         const route =
@@ -662,9 +692,12 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
             ? `/${pagesInDir}/${route}.js`
             : "";
 
-        const documentHtml = fs.readFileSync(
-          path.join(process.cwd(), "src", "public", "document.html"),
-          "utf-8",
+        const documentHtml = withThemeColor(
+          fs.readFileSync(
+            path.join(process.cwd(), "src", "public", "document.html"),
+            "utf-8",
+          ),
+          readThemeColors(),
         );
 
         const html = await fs.promises
@@ -719,6 +752,8 @@ export {
   getServiceWorkerDefine,
   staticallyStylePage,
   readEditorGlobalCss,
+  readThemeColors,
+  readManifestColor,
   viteStaticallyRenderedPagesPlugin,
 };
 

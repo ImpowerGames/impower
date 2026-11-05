@@ -126,7 +126,5 @@
     }
   ],
   "start_url": "/",
-  "display": "standalone",
-  "theme_color": "#052c55",
-  "background_color": "#052c55"
+  "display": "standalone"
 }

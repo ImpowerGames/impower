@@ -64,12 +64,9 @@ const controllers: GamePlayerController[] = [];
 function player() {
   const host = document.createElement("div");
   const viewport = document.createElement("div");
-  const leftItems = document.createElement("div");
-  const locationItems = document.createElement("div");
   const routeButton = document.createElement("div");
   const routeList = document.createElement("div");
-  leftItems.append(routeButton, locationItems);
-  viewport.append(leftItems, routeList);
+  viewport.append(routeButton, routeList);
   host.append(viewport);
   document.body.append(host);
   const sent: any[] = [];
@@ -78,12 +75,6 @@ function player() {
   });
   const controller = new GamePlayerController(host, {
     viewport,
-    leftItems,
-    locationItems,
-    launchLabel: document.createElement("span"),
-    connectionLabel: document.createElement("span"),
-    executedLabel: document.createElement("span"),
-    executionInfo: document.createElement("div"),
     routeButton,
     routeList,
   } as any);

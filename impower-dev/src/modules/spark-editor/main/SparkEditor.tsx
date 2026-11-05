@@ -16,7 +16,7 @@ const HOST_STYLE = `
        bottom-nav off-screen instead of scrolling within the panel). */
     height: 100vh;
     min-height: 0;
-    background: var(--theme-color-panel, #1f1f1f);
+    background: var(--panel);
   }
 `;
 

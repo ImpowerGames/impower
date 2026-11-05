@@ -18,7 +18,7 @@ import {continuationHost,continuationClaimIdentity} from './continuation-host.mj
 import {claudeContinuationHost,claudeReceiptMarker,sendClaudeFrame,readClaudeRows,verifyClaudeClaimConfiguration} from './claude-continuation-host.mjs';
 import {recordClaudeHook,appendClaudeReceipt} from './claude-continuation-hook.mjs';
 import {verifyReviewerExecutable} from './native-reviewer.mjs';
-import {protectPrivatePath,reviewerEnvironment,nativeReviewerEnvironment,isSupportedCodexVersion,minimumFullAccessCodexVersion,reviewerHookEntry} from './reviewer-security.mjs';
+import {protectPrivatePath,reviewerEnvironment,nativeReviewerEnvironment,discardCodexAuthCopy,isSupportedCodexVersion,minimumFullAccessCodexVersion,reviewerHookEntry} from './reviewer-security.mjs';
 import {claudeClaimArgv,renderClaudeClaimCommand} from './claude-claim-proof.mjs';
 import {testShell} from '../.agents/skills/drive-web-editor/redgreen.mjs';
 import {removeScratch} from './remove-scratch.mjs';
@@ -107,6 +107,9 @@ const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,
   assert.equal(isSupportedCodexVersion('0.158.0',minimumFullAccessCodexVersion),false,'the full-access route needs the build its hook loading was observed on');
   assert.equal(isSupportedCodexVersion(minimumFullAccessCodexVersion,minimumFullAccessCodexVersion),true);
   const originalFullExec=childProcess.execFileSync;
+  const originalSystemTemp=process.env.IMPOWER_SYSTEM_TMPDIR;
+  const fullStep={...fullReview,nativeResult:'codex-jsonl'};
+  let fullEnvironment;
   try {
     childProcess.execFileSync=(executable,args,options)=>{
       if(executable==='gh')return 'fixture-full-access-token';
@@ -115,13 +118,24 @@ const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,
     };
     syncBuiltinESMExports();
     const fullDirectory=path.join(scratch,'full-access-artifacts');fs.mkdirSync(fullDirectory);
-    const env=nativeReviewerEnvironment({...fullReview,nativeResult:'codex-jsonl'},fullDirectory,{PATH:process.env.PATH,CODEX_HOME:authHome,OPENAI_API_KEY:'fixture-key'},{worktree:repo});
+    process.env.IMPOWER_SYSTEM_TMPDIR=scratch;
+    fullEnvironment=nativeReviewerEnvironment(fullStep,fullDirectory,{PATH:process.env.PATH,CODEX_HOME:authHome,OPENAI_API_KEY:'fixture-key'},{worktree:repo});
+    const env=fullEnvironment;
     assert.deepEqual(fs.readdirSync(env.CODEX_HOME).sort(),['auth.json','hooks.json'],'the fresh home holds only the authentication copy and the hooks');
     assert.equal(fs.readFileSync(path.join(env.CODEX_HOME,'auth.json'),'utf8'),'{"fixture":true}');
     protectPrivatePath(path.join(env.CODEX_HOME,'auth.json'),{verifyOnly:true});
     assert.ok(fs.readFileSync(path.join(env.CODEX_HOME,'hooks.json'),'utf8').includes(JSON.stringify(reviewerHookEntry).slice(1,-1)),'the hooks run the launcher checkout\'s shared entry point');
     assert.equal(env.OPENAI_API_KEY,undefined);assert.equal(env.GH_TOKEN,'fixture-full-access-token');assert.equal(env.GIT_CONFIG_KEY_0,'safe.directory');
-  } finally {childProcess.execFileSync=originalFullExec;syncBuiltinESMExports();}
+  } finally {
+    try {discardCodexAuthCopy(fullStep,fullEnvironment);}
+    finally {
+      if(originalSystemTemp===undefined)delete process.env.IMPOWER_SYSTEM_TMPDIR;
+      else process.env.IMPOWER_SYSTEM_TMPDIR=originalSystemTemp;
+      childProcess.execFileSync=originalFullExec;syncBuiltinESMExports();
+    }
+  }
+  assert.equal(fs.existsSync(fullEnvironment.CODEX_HOME),false,'the direct full-access fixture removes its owned authentication home');
+  assert.equal(fs.readFileSync(path.join(authHome,'auth.json'),'utf8'),'{"fixture":true}','the source authentication remains unchanged');
   console.log('PASS: the full-access Codex route passes the supervised plan gate and receives only its authentication copy, repository hooks and delegated report access');
 
   const stream=[{type:'thread.started',thread_id:randomUUID()},{type:'turn.started'},{type:'item.completed',item:{id:'answer',type:'agent_message',text:'Full review posted and completion written.'}},{type:'turn.completed',usage:{input_tokens:1,cached_input_tokens:0,output_tokens:2}}];

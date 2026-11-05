@@ -408,7 +408,6 @@ function sweepCreating(root, identify) {
   }
 }
 
-export const emptyAbandonMs = 60_000;
 const claimDepth = 4;
 
 function judge(root, file, identify, admitting, deadline) {
@@ -421,7 +420,6 @@ function judge(root, file, identify, admitting, deadline) {
     if (admitting && process.platform === "win32" && ["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw admissionFailure(root, error, deadline);
     return error.code === "ENOENT" ? null : { identity, abandoned: false };
   } finally { if (fd !== undefined) fs.closeSync(fd); }
-  if (text === "") return { identity, abandoned: Date.now() - Number(identity.mtimeMs) > emptyAbandonMs };
   let owner;
   try { owner = JSON.parse(text)?.owner; } catch { return { identity, abandoned: false }; }
   if (!owner?.pid || !owner.start) return { identity, abandoned: false };

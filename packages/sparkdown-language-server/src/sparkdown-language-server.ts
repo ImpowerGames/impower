@@ -150,6 +150,11 @@ try {
     connection.sendRequest(DiagnosticRefreshRequest.type).catch(ignoreRefusal);
   });
 
+  connection.onDidChangeConfiguration(async () => {
+    const settings = await connection.workspace.getConfiguration("sparkdown");
+    workspace.loadConfiguration(settings);
+  });
+
   const foldingRangeCache = new Map<
     string,
     { documentVersion: number; programVersion: number | undefined; result: any }

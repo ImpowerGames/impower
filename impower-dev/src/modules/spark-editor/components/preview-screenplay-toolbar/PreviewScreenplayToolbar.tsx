@@ -46,7 +46,7 @@ export default function PreviewScreenplayToolbar(
   };
 
   return (
-    <div class="sticky top-0 z-[1] flex h-12 flex-row items-center bg-engine-900">
+    <div class="sticky top-0 z-[1] flex h-12 flex-row items-center bg-panel">
       <Button
         variant="ghost"
         aria-label="Download PDF"

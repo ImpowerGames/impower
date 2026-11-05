@@ -3,6 +3,7 @@ import {
   ArrowForwardUp,
   Button,
 } from "@impower/impower-ui/components";
+import { useLayout } from "@impower/impower-ui/layout";
 import { useEffect } from "preact/hooks";
 import { canRedo, canUndo, redo, undo } from "../../utils/undoManager";
 import HeaderMenuButton from "../header-menu-button/HeaderMenuButton";
@@ -56,6 +57,7 @@ function replayUndoShortcut(isRedo: boolean): void {
 }
 
 export default function HeaderNavigation() {
+  const phone = useLayout() === "phone";
   useEffect(() => {
     const onKey = async (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === "s") {
@@ -89,7 +91,7 @@ export default function HeaderNavigation() {
     <div class="relative z-10">
 
       <button class="absolute inset-0 m-0 border-0 bg-transparent p-0" />
-      <div class="relative z-[2] flex h-14 flex-row items-center justify-center bg-engine-800">
+      <div class="relative z-[2] flex h-14 flex-row items-center justify-center bg-bg">
         <div class="flex w-full flex-row items-center">
           <HeaderMenuButton />
           <div class="flex flex-1 flex-col items-start">
@@ -98,36 +100,40 @@ export default function HeaderNavigation() {
           </div>
           <HeaderSyncToolbar />
 
-          <div class="flex flex-row items-center min-[960px]:hidden">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Undo"
-              onPointerDown={(e) => {
-                e.preventDefault();
-                replayUndoShortcut(false);
-              }}
-              class="rounded-full text-foreground/60 hover:text-foreground"
-            >
-              <ArrowBackUp class="size-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Redo"
-              onPointerDown={(e) => {
-                e.preventDefault();
-                replayUndoShortcut(true);
-              }}
-              class="rounded-full text-foreground/60 hover:text-foreground"
-            >
-              <ArrowForwardUp class="size-5" />
-            </Button>
-          </div>
+          {phone && (
+            <div class="flex flex-row items-center">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Undo"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  replayUndoShortcut(false);
+                }}
+                class="rounded-full text-foreground/60 hover:text-foreground"
+              >
+                <ArrowBackUp class="size-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Redo"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  replayUndoShortcut(true);
+                }}
+                class="rounded-full text-foreground/60 hover:text-foreground"
+              >
+                <ArrowForwardUp class="size-5" />
+              </Button>
+            </div>
+          )}
 
-          <div class="flex flex-row items-center min-[960px]:hidden">
-            <PreviewToggleButton />
-          </div>
+          {phone && (
+            <div class="flex flex-row items-center">
+              <PreviewToggleButton />
+            </div>
+          )}
         </div>
 
         <div class="absolute inset-x-0 bottom-0 h-px bg-foreground/[0.06]" />

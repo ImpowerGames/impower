@@ -21,13 +21,12 @@ import {
 } from "@codemirror/view";
 import {
   closeReferencePanel,
+  coarsePointer,
   forEachReference,
-  isMobile,
   isReferencePanelOpen,
   ReferenceLocation,
   setReferencePanel,
 } from "@impower/codemirror-vscode-lsp-client/src";
-import EDITOR_COLORS from "../../constants/EDITOR_COLORS";
 import {
   closeCustomGotoLinePanel,
   customGotoLinePanelOpen,
@@ -298,7 +297,7 @@ export class StatusPanel implements Panel {
   }
 
   updateStatus(update: ViewUpdate) {
-    const isContextualView = isMobile() && update.view.hasFocus;
+    const isContextualView = update.state.facet(coarsePointer) && update.view.hasFocus;
 
     if (isReferencePanelOpen(update.state)) {
       this.revealBottomPanelButton.style.display = "";
@@ -502,8 +501,8 @@ const statusPanelTheme = EditorView.baseTheme({
 
   ".cm-status": {
     height: "28px",
-    color: EDITOR_COLORS.statusLabel,
-    backgroundColor: EDITOR_COLORS.panel,
+    color: "var(--editor-status-ink)",
+    backgroundColor: "var(--panel)",
     display: "flex",
     justifyContent: "space-between",
     "& .cm-diagnosticContext": {
@@ -513,13 +512,13 @@ const statusPanelTheme = EditorView.baseTheme({
       overflow: "hidden",
       flex: 1,
       "&.error": {
-        color: "#f14c4c",
+        color: "var(--editor-problem-error)",
       },
       "&.warning": {
-        color: "#cca700",
+        color: "var(--editor-problem-warning)",
       },
       "&.info": {
-        color: "#59a4f9",
+        color: "var(--editor-problem-info)",
       },
     },
     "& .cm-button": {
@@ -641,21 +640,21 @@ const statusPanelTheme = EditorView.baseTheme({
   },
   "&:not(.keyboard-open) .cm-panels-bottom:has(> :not(.cm-toolbar):focus-within) .cm-revealBottomPanel":
     {
-      color: "#cccccc",
+      color: "var(--editor-ink)",
     },
 
   "& .cm-button:active::after": {
     content: "''",
     position: "absolute",
     inset: "0",
-    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    backgroundColor: "var(--control-hover)",
   },
   "@media (hover: hover) and (pointer: fine)": {
     ".cm-button:hover::after": {
       content: "''",
       position: "absolute",
       inset: "0",
-      backgroundColor: "rgba(255, 255, 255, 0.06)",
+      backgroundColor: "var(--control-hover)",
     },
   },
 });

@@ -149,7 +149,7 @@ export default function Tabs({
                 <div
                   aria-hidden="true"
                   class={cn(
-                    "pointer-events-none absolute bg-tab-foreground transition-transform duration-150",
+                    "pointer-events-none absolute bg-tab-ink transition-transform duration-150",
                     vertical
                       ? "left-auto right-0 w-0.5"
                       : "top-auto bottom-0 h-0.5",
@@ -195,8 +195,8 @@ export function Tab({
   children,
 }: TabProps) {
   const ctx = useContext(TabsContext);
-  const activeColorClass = "text-tab-foreground";
-  const inactiveColor = color || "text-engine-500";
+  const activeColorClass = "text-tab-ink";
+  const inactiveColor = color || "text-tab-muted";
   const activeColor = color || activeColorClass;
   return (
     <RadixTabs.Trigger value={value} disabled={disabled} asChild>

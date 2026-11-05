@@ -7,6 +7,8 @@ import {
   WorkspaceEdit,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
+import { SETTINGS_JSON_PATH } from "./settings/settingsJson";
+import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeDirectoriesMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFilesMessage";
@@ -80,6 +82,27 @@ const cmp = (a: any, b: any) => {
   return 0;
 };
 
+const SETTINGS_JSON_FOLDER = SETTINGS_JSON_PATH.slice(
+  0,
+  SETTINGS_JSON_PATH.lastIndexOf("/") + 1,
+);
+
+const withoutSettingsJson = <T extends { filename: string }>(
+  entries: T[],
+): T[] => {
+  const rest = entries.filter(
+    ({ filename }) => filename !== SETTINGS_JSON_PATH,
+  );
+  const folderHoldsMore = rest.some(
+    ({ filename }) =>
+      filename.startsWith(SETTINGS_JSON_FOLDER) &&
+      filename !== SETTINGS_JSON_FOLDER,
+  );
+  return folderHoldsMore
+    ? rest
+    : rest.filter(({ filename }) => filename !== SETTINGS_JSON_FOLDER);
+};
+
 export default class WorkspaceFileSystem {
   protected _worker: Worker;
 
@@ -95,6 +118,8 @@ export default class WorkspaceFileSystem {
   protected _loadedProjectId?: string;
 
   protected _files?: Record<string, FileData>;
+
+  protected _unstoredUris = new Set<string>();
 
   protected _folders = new Set<string>();
 
@@ -115,6 +140,11 @@ export default class WorkspaceFileSystem {
       console.error(e);
     };
     this._worker.addEventListener("message", this.handleWorkerMessage);
+    configuration.onDidChange((params) => {
+      this._worker.postMessage(
+        DidChangeConfigurationMessage.type.notification(params),
+      );
+    });
     void this._initialFilesRef.get(projectId).catch((e) => {
       console.error("[workspace] initial file load failed:", e);
     });
@@ -149,6 +179,7 @@ export default class WorkspaceFileSystem {
       const text = ["scene start", "  ", "end", ""].join("\n");
       const encoder = new TextEncoder();
       const encodedText = encoder.encode(text);
+      this._unstoredUris.add(mainScriptUri);
       this._files[mainScriptUri] = {
         name: "main",
         ext: "sd",
@@ -356,6 +387,7 @@ export default class WorkspaceFileSystem {
       fresh.forEach((file) => {
         this._files ??= {};
         this._files[file.uri] = { ...file };
+        this._unstoredUris.delete(file.uri);
       });
       this.noteChanged(fresh.map((f) => f.uri));
       this.addFolderUris(
@@ -516,7 +548,10 @@ export default class WorkspaceFileSystem {
     });
   }
 
-  async readProjectZip(projectId: string): Promise<ArrayBuffer> {
+  async readProjectZip(
+    projectId: string,
+    settingsJson?: string,
+  ): Promise<ArrayBuffer> {
     const allFiles = await this.getFiles(projectId);
     const layoutMarkerUri = this.getFileUri(projectId, LAYOUT_MARKER);
     const files = Object.values(allFiles)
@@ -526,10 +561,26 @@ export default class WorkspaceFileSystem {
           !isProjectMetadata(this.getRelativePath(projectId, file.uri)) ||
           file.uri === layoutMarkerUri,
       )
-      .map(({ uri }) => ({ uri, path: this.getRelativePath(projectId, uri) }));
+      .map(({ uri, text }) => ({
+        uri,
+        text,
+        path: this.getRelativePath(projectId, uri),
+      }))
+      .filter(({ path }) => path !== SETTINGS_JSON_PATH);
+    const encode = (text: string) =>
+      new TextEncoder().encode(text).buffer as ArrayBuffer;
+    const entries = files
+      .filter(({ uri }) => this._unstoredUris.has(uri))
+      .map(({ path, text }) => ({ path, data: encode(text ?? "") }));
+    if (settingsJson !== undefined) {
+      entries.push({ path: SETTINGS_JSON_PATH, data: encode(settingsJson) });
+    }
     return this.zipFiles({
-      files,
+      files: files
+        .filter(({ uri }) => !this._unstoredUris.has(uri))
+        .map(({ uri, path }) => ({ uri, path })),
       directories: await this.foldersOutside(projectId, files),
+      entries,
     });
   }
 
@@ -571,9 +622,16 @@ export default class WorkspaceFileSystem {
     );
   }
 
-  async writeProjectZip(projectId: string, content: ArrayBuffer) {
+  async writeProjectZip(
+    projectId: string,
+    content: ArrayBuffer,
+  ): Promise<string | undefined> {
     const existingFiles = await this.getFiles(projectId);
-    const unzipped = await this.unzipFiles({ data: content });
+    const archive = await this.unzipFiles({ data: content });
+    const settingsEntry = archive.find(
+      ({ filename }) => filename === SETTINGS_JSON_PATH,
+    );
+    const unzipped = withoutSettingsJson(archive);
     const zipFilesToWrite = unzipped
       .filter(({ filename }) => filename && !filename.endsWith("/"))
       .map(({ filename, data }) => ({
@@ -595,6 +653,9 @@ export default class WorkspaceFileSystem {
     await this.replaceFolders(projectId, unzipped);
     await this.createFiles({ files: zipFilesToWrite });
     await this.writeProjectMetadata(projectId, "folders", "1");
+    return settingsEntry
+      ? new TextDecoder().decode(settingsEntry.data)
+      : undefined;
   }
 
   async readProjectScriptBundle(projectId: string) {

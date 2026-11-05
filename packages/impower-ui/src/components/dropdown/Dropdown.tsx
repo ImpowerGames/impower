@@ -5,13 +5,22 @@ import {
   type ComponentChildren,
   createContext,
   type JSX,
+  type Ref,
+  type RefObject,
   type VNode,
 } from "preact";
 import { createPortal } from "preact/compat";
-import { useCallback, useContext, useEffect, useState } from "preact/hooks";
-import { useIsMobile } from "../../hooks/useIsMobile";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "preact/hooks";
+import { useLayout } from "../../hooks/useLayout";
 import { useMountTransition } from "../../hooks/useMountTransition";
 import { cn } from "../../utils/cn";
+import { registerFocusReturn } from "../../utils/focusReturn";
 import Ripple from "../ripple/Ripple";
 
 const SHEET_MS = 240;
@@ -21,16 +30,16 @@ type MenuCtx = {
   mode: Mode;
   open: boolean;
   setOpen: (open: boolean) => void;
+  trigger: RefObject<HTMLElement>;
 };
 const ModeContext = createContext<MenuCtx>({
   mode: "menu",
   open: false,
   setOpen: () => {},
+  trigger: { current: null },
 });
 const useMenuCtx = () => useContext(ModeContext);
 
-export const DropdownPortal = DropdownMenuPrimitive.Portal;
-export const DropdownSub = DropdownMenuPrimitive.Sub;
 export const DropdownSeparator = DropdownMenuPrimitive.Separator;
 
 type RootProps = {
@@ -48,7 +57,8 @@ export function DropdownRoot({
   modal,
   children,
 }: RootProps) {
-  const mobile = useIsMobile();
+  const mobile = useLayout() === "phone";
+  const trigger = useRef<HTMLElement>(null);
   const [internal, setInternal] = useState(defaultOpen);
   const controlled = openProp !== undefined;
   const open = controlled ? !!openProp : internal;
@@ -64,13 +74,13 @@ export function DropdownRoot({
 
   if (mobile) {
     return (
-      <ModeContext.Provider value={{ mode: "sheet", open, setOpen }}>
+      <ModeContext.Provider value={{ mode: "sheet", open, setOpen, trigger }}>
         {children}
       </ModeContext.Provider>
     );
   }
   return (
-    <ModeContext.Provider value={{ mode: "menu", open, setOpen }}>
+    <ModeContext.Provider value={{ mode: "menu", open, setOpen, trigger }}>
       <DropdownMenuPrimitive.Root
         open={openProp}
         defaultOpen={defaultOpen}
@@ -93,19 +103,31 @@ export function DropdownTrigger({
   const ctx = useMenuCtx();
   if (ctx.mode === "sheet") {
     const child = (Array.isArray(children) ? children[0] : children) as
-      VNode<{ onClick?: (e: MouseEvent) => void }> | undefined;
+      | (VNode<{ onClick?: (e: MouseEvent) => void }> & {
+          ref?: Ref<HTMLElement>;
+        })
+      | undefined;
     if (child && typeof child === "object" && "props" in child) {
       return cloneElement(child, {
         onClick: (e: MouseEvent) => {
           child.props.onClick?.(e);
           ctx.setOpen(true);
         },
+        ref: (element: HTMLElement | null) => {
+          ctx.trigger.current = element;
+          const ref = child.ref;
+          if (typeof ref === "function") {
+            ref(element);
+          } else if (ref) {
+            ref.current = element;
+          }
+        },
       });
     }
     return <>{children}</>;
   }
   return (
-    <DropdownMenuPrimitive.Trigger asChild={asChild}>
+    <DropdownMenuPrimitive.Trigger asChild={asChild} ref={ctx.trigger}>
       {children}
     </DropdownMenuPrimitive.Trigger>
   );
@@ -115,17 +137,19 @@ const dropdownContent = cva([
   "z-50 min-w-[120px] overflow-hidden rounded-lg",
   "bg-popup py-2 px-0 text-foreground shadow-xl ring-1 ring-foreground/10",
   "origin-[--radix-dropdown-menu-content-transform-origin]",
-  "data-[state=open]:anim-menu-in data-[state=closed]:anim-menu-out",
+  "motion-safe:data-[state=open]:anim-menu-in motion-safe:data-[state=closed]:anim-menu-out",
 ]);
 
 function Sheet({
   open,
   setOpen,
+  owner,
   class: className,
   children,
 }: {
   open: boolean;
   setOpen: (open: boolean) => void;
+  owner: (element: HTMLElement | null) => void;
   class?: string;
   children?: ComponentChildren;
 }) {
@@ -158,20 +182,21 @@ function Sheet({
         class={cn(
           "absolute inset-0 bg-black/40",
           open
-            ? "animate-[menu-fade-in_200ms_ease-out]"
-            : "animate-[menu-fade-out_200ms_ease-out_forwards]",
+            ? "motion-safe:animate-[menu-fade-in_200ms_ease-out]"
+            : "motion-safe:animate-[menu-fade-out_200ms_ease-out_forwards] motion-reduce:invisible",
         )}
         onClick={() => setOpen(false)}
         role="presentation"
       />
       <div
+        ref={owner}
         role="menu"
         class={cn(
           "absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto",
           "rounded-t-lg bg-popup py-2 text-foreground shadow-2xl will-change-transform",
           open
-            ? "animate-[menu-sheet-up_225ms_cubic-bezier(0,0,0.2,1)]"
-            : "animate-[menu-sheet-down_195ms_cubic-bezier(0.4,0,0.6,1)_forwards]",
+            ? "motion-safe:animate-[menu-sheet-up_225ms_cubic-bezier(0,0,0.2,1)]"
+            : "motion-safe:animate-[menu-sheet-down_195ms_cubic-bezier(0.4,0,0.6,1)_forwards] motion-reduce:invisible",
           className,
         )}
       >
@@ -197,9 +222,19 @@ export function DropdownContent({
   children?: ComponentChildren;
 } & Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "align">) {
   const ctx = useMenuCtx();
+  const owner = (element: HTMLElement | null) => {
+    if (element) {
+      registerFocusReturn(element, () => ctx.trigger.current);
+    }
+  };
   if (ctx.mode === "sheet") {
     return (
-      <Sheet open={ctx.open} setOpen={ctx.setOpen} class={className}>
+      <Sheet
+        open={ctx.open}
+        setOpen={ctx.setOpen}
+        owner={owner}
+        class={className}
+      >
         {children}
       </Sheet>
     );
@@ -207,6 +242,7 @@ export function DropdownContent({
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
+        ref={owner}
         sideOffset={sideOffset}
         align={align}
         class={cn(dropdownContent(), className)}

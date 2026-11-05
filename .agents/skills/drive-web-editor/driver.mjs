@@ -10,6 +10,9 @@ import { spawnDetached } from "../../../scripts/detached-launch.mjs";
 import { linuxProcesses, treeSurvivors, windowsProcessTable } from "../../../scripts/process-table.mjs";
 export { linuxProcesses, treeSurvivors, windowsProcessTable } from "../../../scripts/process-table.mjs";
 import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen.mjs";
+import { contextOptions, displayReport, hasDisplayFlags, screenshotPath, seedThemePreference, takeDisplayFlags, themeMismatch, themeSeed } from "./viewport.mjs";
+import { LONG_PRESS_MS, ORIENTATIONS, SWIPE_MS, adbMissingMessage, findAdb, openAndroidDevice, parseGesture, parsePoint, takeDeviceFlags } from "./android.mjs";
+import { notBuiltYet, parseNamedStep } from "./steps.mjs";
 import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, SESSION_VARIABLES, checkoutStateFiles, driverSession, recordCheckoutOwner, sessionDir } from "./session-dir.mjs";
 
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -43,6 +46,18 @@ function takeProfileFlag(argv) {
   return path.resolve(dir);
 }
 const PROFILE_DIR = takeProfileFlag(process.argv) ?? (process.env.IMPOWER_DRIVER_PROFILE ? path.resolve(process.env.IMPOWER_DRIVER_PROFILE) : path.join(SESSION_DIR, "profile"));
+
+function takeFlagsOrExit(take, argv) {
+  try {
+    return take(argv);
+  } catch (err) {
+    console.error("ERROR: " + err.message);
+    process.exit(1);
+  }
+}
+const DISPLAY = takeFlagsOrExit(takeDisplayFlags, process.argv);
+const DEVICE = takeFlagsOrExit(takeDeviceFlags, process.argv);
+const DISPLAY_COMMANDS = ["verify", "ui", "screenshot"];
 
 export const CACHE_STORAGE_SUFFIX = 139;
 export const WINDOWS_PATH_LIMIT = 259;
@@ -685,7 +700,10 @@ async function importPlaywright() {
   }
 }
 
-export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platform = process.platform, playwright = importPlaywright }) {
+const themeLine = (display) =>
+  display.theme ? `theme: ${display.theme}, set as the theme preference before the page loads` : "theme: Automatic, the theme preference is cleared before the page loads";
+
+export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platform = process.platform, playwright = importPlaywright, display = DISPLAY }) {
   const tooDeep = profilePathProblem(dir, platform);
   if (tooDeep) throw new Error(tooDeep);
   if (dir === path.join(SESSION_DIR, "profile")) recordCheckoutOwner(REPO_ROOT);
@@ -693,12 +711,21 @@ export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platfor
   const { chromium } = await playwright();
   const executablePath = resolveChromiumExecutablePath(chromium, { headless });
   log(`browser: ${chromiumChoiceLine()}`);
-  return chromium.launchPersistentContext(dir, {
+  log(themeLine(display));
+  const ctx = await chromium.launchPersistentContext(dir, {
     headless,
-    viewport: { width: 1600, height: 1000 },
+    ...contextOptions(display),
     args: ["--autoplay-policy=no-user-gesture-required"],
     ...(executablePath ? { executablePath } : {}),
   });
+  await ctx.addInitScript(seedThemePreference, themeSeed(display));
+  return ctx;
+}
+
+async function renderedThemeProblem(page, result) {
+  if (!DISPLAY.theme) return null;
+  result.display.renderedTheme = await page.evaluate(() => document.documentElement.dataset.theme ?? null);
+  return themeMismatch(DISPLAY, result.display.renderedTheme);
 }
 
 const EDITOR_NAVIGATION = { waitUntil: "domcontentloaded", timeout: 120_000 };
@@ -719,7 +746,23 @@ export async function grantDurableStorage(ctx, page) {
   await cdp.send("Browser.grantPermissions", { permissions: ["durableStorage"] });
 }
 
-async function withEditor(fn, { headless = true, launch = launchEditorBrowser, state = readState, probe = state === readState ? isUp : async () => true } = {}) {
+export async function launchDeviceEditor({ record, display = DISPLAY, device = DEVICE, open = openAndroidDevice, playwright = importPlaywright }) {
+  log(themeLine(display));
+  const session = await open({
+    record,
+    viewport: display.viewport,
+    colorScheme: display.colorScheme,
+    waitSeconds: device.waitSeconds,
+    playwright,
+    log,
+    lockOptions: { session: SESSION, worktree: REPO_ROOT, command: process.argv.slice(2).join(" ") },
+  });
+  log(`device: ${session.device.model} ${session.device.serial}, Chrome ${session.device.chrome}`);
+  await session.ctx.addInitScript(seedThemePreference, themeSeed(display));
+  return session;
+}
+
+async function withEditor(fn, { headless = true, launch = launchEditorBrowser, device = DEVICE, launchDevice = launchDeviceEditor, state = readState, probe = state === readState ? isUp : async () => true } = {}) {
   const record = state();
   if (!record?.url)
     die(
@@ -735,18 +778,25 @@ async function withEditor(fn, { headless = true, launch = launchEditorBrowser, s
         "Run `up` to start them again (`up --keep` launches servers that keep running); `status` shows the record, and `down` removes one whose launcher has exited.",
     );
   const mode = record.mode ?? "same-origin";
-  const ctx = await launch({ headless });
-  const page = ctx.pages()[0] ?? (await ctx.newPage());
+  const session = device ? await launchDevice({ record }) : { ctx: await launch({ headless }), device: null, close: null };
+  const { ctx } = session;
   const consoleLines = [];
   const cleanups = [];
-  page.on("console", (m) => consoleLines.push(consoleLine(m)));
-  page.on("pageerror", (e) => consoleLines.push(`[pageerror] ${e.message}`));
   try {
-    await grantDurableStorage(ctx, page);
-    return await fn({ page, ctx, url, consoleLines, mode, cleanups });
+    const page = ctx.pages()[0] ?? (await ctx.newPage());
+    page.on("console", (m) => consoleLines.push(consoleLine(m)));
+    page.on("pageerror", (e) => consoleLines.push(`[pageerror] ${e.message}`));
+    await grantDurableStorage(ctx, page).catch((error) => {
+      if (!session.device) throw error;
+      log(`device: durable storage was not granted (${String(error.message || error).split("\n")[0]}); OPFS may be evicted under storage pressure`);
+    });
+    return await fn({ page, ctx, url, consoleLines, mode, cleanups, device: session.device });
   } finally {
     for (const cleanup of cleanups.reverse()) await cleanup().catch(() => {});
-    await ctx.close();
+    if (session.close) {
+      const problems = await session.close();
+      for (const problem of problems) log(`device: cleanup failed to ${problem}`);
+    } else await ctx.close();
   }
 }
 
@@ -1668,8 +1718,8 @@ async function verify(args, deps = liveDeps) {
   if (projectPath && !fs.existsSync(path.resolve(projectPath))) deps.die(`--project ${projectPath} does not exist`);
 
   return deps.withEditor(
-    async ({ page, ctx, url, consoleLines, mode, cleanups = [] }) => {
-      const result = { url };
+    async ({ page, ctx, url, consoleLines, mode, cleanups = [], device = null }) => {
+      const result = { url, ...(hasDisplayFlags(DISPLAY) ? { display: displayReport(DISPLAY) } : {}) };
       let monitoredWorker;
       if (mode === "cross-origin") {
         result.gameMounted = null;
@@ -1689,6 +1739,14 @@ async function verify(args, deps = liveDeps) {
         process.exitCode = 1;
         return result;
       }
+      const themeProblem = await renderedThemeProblem(page, result);
+      if (themeProblem) {
+        result.error = themeProblem;
+        deps.log(JSON.stringify(result, null, 2));
+        process.exitCode = 1;
+        return result;
+      }
+      if (device) result.device = await deviceReport(page, device);
       if (args.includes("--fresh-sw")) {
         const worker = await deps.reportFreshWorker(page, ctx, reloadEditorPage);
         monitoredWorker = worker;
@@ -1865,7 +1923,10 @@ async function verify(args, deps = liveDeps) {
         if (!(await deps.editorPainted(page, paintBudget))) {
           result.editorPaintWarning = `the script editor had not painted its lines and gutter within ${seconds(paintBudget)} of the screenshot; the editor half of the picture may be blank`;
         }
-        await page.screenshot({ path: out, fullPage: false });
+        if (device) {
+          await device.screenshot(out);
+          result.screenshotOf = "screen";
+        } else await page.screenshot({ path: out, fullPage: false });
         result.screenshot = out;
       }
 
@@ -1916,7 +1977,7 @@ const LANGUAGE_TARGETS = {
   completion: ".sparkdown-script-editor-root .cm-tooltip-autocomplete",
   info: ".sparkdown-script-editor-root .cm-completionInfo",
 };
-const SHOT_TARGETS = { find: SURFACES.find.selector, goto: SURFACES.goto.selector, editor: ".sparkdown-script-editor-root .cm-editor", hover: LANGUAGE_TARGETS.hover, completion: LANGUAGE_TARGETS.completion, page: null };
+const SHOT_TARGETS = { find: SURFACES.find.selector, goto: SURFACES.goto.selector, editor: ".sparkdown-script-editor-root .cm-editor", hover: LANGUAGE_TARGETS.hover, completion: LANGUAGE_TARGETS.completion, page: null, screen: null };
 
 export function normalizeKeyCombo(combo) {
   const raw = String(combo ?? "").trim();
@@ -2753,7 +2814,7 @@ export function followedByMain(steps, index) {
   return steps[index + 1]?.screen === "main";
 }
 
-export function parseUiSteps(args) {
+export function parseUiSteps(args, { device = DEVICE } = {}) {
   const steps = [];
   const screenName = /^[a-z][a-z0-9-]*$/;
   const fields = Object.values(SURFACES).flatMap((s) => Object.keys(s.fields));
@@ -2867,13 +2928,42 @@ export function parseUiSteps(args) {
         break;
       }
       case "--shot":
-        steps.push({ shotOf: "page", out: value() });
+        steps.push({ shotOf: device ? "screen" : "page", out: value() });
         break;
       case "--shot-of": {
         const what = value();
         if (!(what in SHOT_TARGETS)) bad(`unknown --shot-of target "${what}" (know: ${Object.keys(SHOT_TARGETS).join(", ")})`);
+        if (what === "screen" && !device) bad("--shot-of screen captures a device's whole screen and needs --device android; use page for the page alone");
         const out = value();
         steps.push({ shotOf: what, out });
+        break;
+      }
+      case "--step":
+        try {
+          steps.push(parseNamedStep(value()));
+        } catch (e) {
+          bad(e.message);
+        }
+        break;
+      case "--tap":
+      case "--long-press":
+      case "--swipe": {
+        if (!device) bad(`${a} sends touch input to a device and needs --device android`);
+        const spec = value();
+        try {
+          if (a === "--tap") steps.push({ tap: parsePoint(spec, a) });
+          else if (a === "--long-press") steps.push({ longPress: parseGesture(spec, a, { twoPoints: false, defaultMs: LONG_PRESS_MS }) });
+          else steps.push({ swipe: parseGesture(spec, a, { twoPoints: true, defaultMs: SWIPE_MS }) });
+        } catch (e) {
+          bad(e.message);
+        }
+        break;
+      }
+      case "--rotate": {
+        if (!device) bad("--rotate turns a device's display and needs --device android");
+        const v = value();
+        if (!(v in ORIENTATIONS)) bad(`--rotate takes ${Object.keys(ORIENTATIONS).join(" or ")}, got "${v}"`);
+        steps.push({ rotate: v });
         break;
       }
       case "--probe":
@@ -2910,14 +3000,80 @@ function gatedStep(step, reason) {
   if (step.advance) return { advance: step.advance, clicked: 0, clicks: [], ...gated };
   if (step.insert) return { insert: step.insert, inserted: false, textMatches: false, ...gated };
   if (step.scrub) return { scrub: step.scrub, clicked: false, ...gated };
+  if (step.step) return { ...step, ran: false, ...gated };
   return { ...step, ...gated };
+}
+
+export function parseScreenshotArgs(args, display = DISPLAY) {
+  const [name, ...more] = args;
+  if (name == null || name.startsWith("--")) throw new Error("screenshot needs a name, such as `screenshot story`");
+  let outDir = ".";
+  let headed = false;
+  const steps = [];
+  for (let i = 0; i < more.length; i++) {
+    if (more[i] === "--headed") headed = true;
+    else if (more[i] === "--out-dir" || more[i] === "--step") {
+      const flagName = more[i];
+      const v = more[++i];
+      if (v == null || v === "" || v.startsWith("--")) throw new Error(`${flagName} needs a ${flagName === "--step" ? "step name" : "directory"}`);
+      if (flagName === "--step") {
+        parseNamedStep(v);
+        steps.push(v);
+      } else outDir = v;
+    } else throw new Error(`screenshot: unknown argument ${more[i]}`);
+  }
+  return { out: screenshotPath(name, display, outDir), headed, steps };
+}
+
+async function screenshot(args, deps = liveDeps) {
+  let parsed;
+  try {
+    parsed = parseScreenshotArgs(args);
+  } catch (e) {
+    deps.die(e.message);
+  }
+  fs.mkdirSync(path.dirname(parsed.out), { recursive: true });
+  return ui([...parsed.steps.flatMap((step) => ["--step", step]), "--shot", parsed.out, ...(parsed.headed ? ["--headed"] : [])], deps);
+}
+
+async function deviceReport(page, device, display = DISPLAY) {
+  const report = { ...device.report(), page: await page.evaluate(() => ({ width: innerWidth, height: innerHeight, devicePixelRatio })) };
+  if (display.viewport && Math.abs(report.page.width - display.viewport.width) > 1) {
+    report.note = `--viewport ${display.viewport.name} asked for a page ${display.viewport.width} wide and the device's density gives ${report.page.width}`;
+  }
+  return report;
+}
+
+async function deviceGesture(page, device, step, wait) {
+  const before = await page.evaluate(() => ({ width: innerWidth, height: innerHeight })).catch(() => null);
+  let out;
+  if (step.tap) {
+    await device.tap(step.tap);
+    out = { tap: step.tap, sent: true };
+  } else if (step.longPress) {
+    await device.longPress(step.longPress.at, step.longPress.ms);
+    out = { longPress: step.longPress.at, ms: step.longPress.ms, sent: true };
+  } else if (step.swipe) {
+    await device.swipe(step.swipe.from, step.swipe.to, step.swipe.ms);
+    out = { swipe: { from: step.swipe.from, to: step.swipe.to }, ms: step.swipe.ms, sent: true };
+  } else {
+    await device.rotate(step.rotate);
+    out = { rotate: step.rotate, sent: true };
+    if (before) {
+      await page.waitForFunction((was) => innerWidth !== was.width || innerHeight !== was.height, before, { timeout: 5_000 }).catch(() => {});
+    }
+  }
+  await wait(page, { quiet: 400, timeout: 8_000 });
+  const after = await page.evaluate(() => ({ width: innerWidth, height: innerHeight })).catch(() => null);
+  if (step.rotate) Object.assign(out, { page: after, changed: Boolean(before && after && (before.width !== after.width || before.height !== after.height)) });
+  return out;
 }
 
 async function ui(args, deps = liveDeps) {
   const headless = !args.includes("--headed");
   let steps;
   try {
-    steps = parseUiSteps(args);
+    steps = parseUiSteps(args, { device: deps.device ?? DEVICE });
   } catch (e) {
     deps.die(e.message);
   }
@@ -2926,8 +3082,8 @@ async function ui(args, deps = liveDeps) {
   }
 
   return deps.withEditor(
-    async ({ page, ctx, url, consoleLines, cleanups = [] }) => {
-      const result = { url, steps: [] };
+    async ({ page, ctx, url, consoleLines, cleanups = [], device = null }) => {
+      const result = { url, ...(hasDisplayFlags(DISPLAY) ? { display: displayReport(DISPLAY) } : {}), steps: [] };
       let monitoredWorker;
       const finishWorker = async () => {
         if (!monitoredWorker) return;
@@ -2948,6 +3104,14 @@ async function ui(args, deps = liveDeps) {
         process.exitCode = 1;
         return result;
       }
+      const themeProblem = await renderedThemeProblem(page, result);
+      if (themeProblem) {
+        result.failed = [themeProblem];
+        deps.log(JSON.stringify(result, null, 2));
+        process.exitCode = 1;
+        return result;
+      }
+      if (device) result.device = await deviceReport(page, device);
       result.startedOn = await deps.activeScreen(page);
       let gate = (await deps.interruptedSeed(page)) ? interruptedSeedError() : null;
       const expectedAtStart = await deps.editorExpectedHere(page);
@@ -3105,6 +3269,20 @@ async function ui(args, deps = liveDeps) {
             else if (step.advance) result.steps.push(await advanceGame(page, step.advance));
             else if (step.insert) result.steps.push(await insertText(page, step.insert, step.text, { settle: deps.waitForPreviewSettle, route: deps.routeLabel }));
             else result.steps.push(scrubReport(step.scrub, await scrubPreview(page, step.scrub, deps)));
+          } else if (step.step) {
+            const stub = notBuiltYet(step);
+            if (stub) {
+              result.steps.push(stub);
+              continue;
+            }
+            const ready = await requireEditor(page, "PLAY", stepNo);
+            if (ready.ok === false) {
+              result.steps.push(gatedStep(step, ready.reason));
+              continue;
+            }
+            result.steps.push({ step: step.step, ...(await playPreview(page, "start")) });
+          } else if (step.tap || step.longPress || step.swipe || step.rotate) {
+            result.steps.push(await deviceGesture(page, device, step, deps.waitForDomQuiet));
           } else if (step.click) {
             result.steps.push(await clickSurfaceButton(page, step.click));
           } else if (step.toggle) {
@@ -3115,7 +3293,12 @@ async function ui(args, deps = liveDeps) {
               result.steps.push(gatedStep(step, ready.reason));
               continue;
             }
-            result.steps.push(await shotOf(page, step.shotOf, step.out));
+            if (step.shotOf === "screen") {
+              const target = path.resolve(step.out);
+              fs.mkdirSync(path.dirname(target), { recursive: true });
+              await device.screenshot(target);
+              result.steps.push({ of: "screen", screenshot: target });
+            } else result.steps.push(await shotOf(page, step.shotOf, step.out));
           } else if (step.probe) {
             const code = fs.readFileSync(path.resolve(step.probe), "utf8");
             result.steps.push({
@@ -3304,6 +3487,10 @@ const runAsCli =
   fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url));
 
 const [cmd, ...rest] = runAsCli ? process.argv.slice(2) : ["__imported__"];
+if (runAsCli && (hasDisplayFlags(DISPLAY) || DEVICE) && !DISPLAY_COMMANDS.includes(cmd)) {
+  die(`--device, --viewport, --color-scheme and --theme apply to ${DISPLAY_COMMANDS.join(", ")} only, not ${cmd ?? "a missing command"}`);
+}
+if (runAsCli && DEVICE && !findAdb()) die(adbMissingMessage());
 switch (cmd) {
   case "__imported__":
     break;
@@ -3324,6 +3511,9 @@ switch (cmd) {
     break;
   case "ui":
     await ui(rest);
+    break;
+  case "screenshot":
+    await screenshot(rest);
     break;
   case "seed":
     await seed(rest);
@@ -3387,6 +3577,7 @@ switch (cmd) {
         "  down [--force]        kill the server tree this session launched (--force: any session's)",
         "  verify [options]      drive the game preview and print a JSON report",
         "  ui [steps]            drive the editor's own panels and screens; print a JSON report",
+        "  screenshot <name> [--step <name>]... [--out-dir <dir>] [--headed]  load the editor, run the named steps and screenshot to <name>[-<viewport>][-<scheme>].png",
         "  seed --project <p>    load a project directory or exported zip into OPFS /local, then reload",
         "  seed --clear          empty OPFS /local (dot entries stay), then reload; with --project, clear first",
         "  redgreen [options]    prove a regression test fails on the base and passes on the fix",
@@ -3415,10 +3606,28 @@ switch (cmd) {
         "  --press <combo>         a key combo, e.g. Control+Shift+G (a shifted letter is uppercased)",
         "  --click <button>        a panel button: next prev select replace replaceAll close submit",
         "  --toggle <option>       flip a find-panel checkbox: case | re | word",
-        "  --shot <out.png>        screenshot the page",
-        "  --shot-of <what> <png>  screenshot one surface: find | goto | editor | hover | completion | page",
+        "  --shot <out.png>        screenshot the page (with --device android: the whole device screen, keyboard included)",
+        "  --shot-of <what> <png>  screenshot one surface: find | goto | editor | hover | completion | page | screen (device only)",
+        "  --step <name>           a named step: app-menu | dialog | drawer | file-menu | asset-inspector | add-menu | preview-settings",
+        "                          | play | problems | settings=<section> | focus-project-name | focus-script-name; one not built yet fails naming its ticket",
+        "  --tap X,Y               device only: tap at screen pixels X,Y",
+        "  --long-press X,Y[:MS]   device only: hold at X,Y (default 750 ms)",
+        "  --swipe X1,Y1:X2,Y2[:MS]  device only: swipe between two screen points (default 300 ms)",
+        "  --rotate <portrait|landscape>  device only: turn the display; restored when the run ends",
         "  --probe <file.js>       body of an async fn evaluated in the page; result -> JSON",
         "  --headed                run a visible browser instead of headless",
+        "",
+        "device options (verify, ui and screenshot):",
+        "  --device android        run in Chrome on the attached Android emulator over adb; see SKILL.md for its one-time setup",
+        "  --device-wait <seconds> how long to queue for the device while another driver holds it (default 900)",
+        "",
+        "display options (verify, ui and screenshot; any position on the command line):",
+        "  --viewport <preset|WxH> desktop 1440x900 | tablet 768x1024 | phone 360x780 | phone-large 430x932, or e.g. 1280x720;",
+        "                          phone and phone-large add touch, isMobile and device scale factor 3; without it the page is 1600x1000;",
+        "                          with --device android it sets the screen density so the page is that wide, restored when the run ends",
+        "  --color-scheme <light|dark>  the prefers-color-scheme the page sees, for checking the Automatic theme",
+        "  --theme <name>          the theme preference the page loads with, such as charcoal or chalk; without it the run starts under Automatic",
+        "  The emulator route is the bar for phone widths; the phone presets are quick checks, tablet and desktop are evidence.",
         "",
         "redgreen options:",
         "  --test <command>        the test invocation, run twice from the repo root",

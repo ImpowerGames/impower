@@ -32,7 +32,7 @@ sparkdown-script-editor {
   left: 0;
   opacity: 0;
   transition: opacity 0.25s;
-  background-color: var(--theme-color-editor-bg);
+  background-color: var(--workspace);
 }
 
 .sparkdown-script-editor-root .placeholder {

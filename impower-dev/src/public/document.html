@@ -3,9 +3,30 @@
 
 <head>
   <meta charset="utf-8" />
+  <meta name="theme-color" content="" data-theme-colors='' />
+  <script id="theme-pre-paint">
+    (() => {
+      let stored = {};
+      try {
+        stored = JSON.parse(localStorage.getItem("settings/preferences") || "{}") || {};
+      } catch {}
+      const preference = stored.theme;
+      const theme = ["charcoal", "chalk", "ink", "paper", "graphite", "warm", "midnight", "dusk"].includes(preference)
+        ? preference
+        : matchMedia("(prefers-color-scheme: light)").matches ? "chalk" : "charcoal";
+      const root = document.documentElement;
+      root.dataset.theme = theme;
+      if (theme === "graphite" || theme === "warm") {
+        root.dataset.surfaces = stored.surfaces === "layered" ? "layered" : "unified";
+        root.dataset.syntax = stored.syntaxPalette === "original" ? "original" : "softened";
+      }
+      const meta = document.querySelector('meta[name="theme-color"]');
+      try {
+        meta.content = JSON.parse(meta.dataset.themeColors)[theme] || meta.content;
+      } catch {}
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#052d57" />
-  <meta name="color-scheme" content="dark only" />
   <meta name="description" content="An intuitive, text-based editor for creating interactive story games." />
   <title>Spark Engine</title>
   <link rel="preload" href="/fonts/courier-prime.ttf" as="font" type="font/ttf" crossorigin>
@@ -29,7 +50,7 @@
   <style></style>
 </head>
 
-<body style="background-color: #052d57">
+<body style="background-color: var(--bg)">
   <main></main>
   <script></script>
 </body>

@@ -24,7 +24,7 @@ export const buttonVariants = cva(
     "inline-flex items-center justify-center gap-2 whitespace-nowrap [&_svg]:shrink-0",
     "rounded-md text-sm font-medium select-none cursor-pointer",
     "transition-[color,background-color,border-color,box-shadow] duration-100",
-    "outline-none focus-visible:[outline:3px_solid_#0c4a6e] focus-visible:[outline-offset:-3px]",
+    "outline-none focus-visible:[outline:3px_solid_var(--focus-ring)] focus-visible:[outline-offset:-3px]",
     "disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed",
   ],
   {
@@ -33,13 +33,13 @@ export const buttonVariants = cva(
         primary:
           `bg-primary text-background ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
         secondary:
-          `bg-engine-700 text-foreground ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
+          `bg-button-bg text-button-ink ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
         outline: `border border-foreground bg-transparent text-foreground ${UNFILLED_OVERLAY}`,
         ghost: `bg-transparent text-foreground ${UNFILLED_OVERLAY}`,
-        link: "bg-transparent text-primary underline-offset-4 hover:underline h-auto px-0 py-0",
+        link: "bg-transparent text-primary underline-offset-4 hover:underline",
         destructive:
-          `bg-danger-500 text-foreground ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
-        fab: `bg-engine-700 text-white ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
+          `bg-error-strong text-foreground ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
+        fab: `bg-button-bg text-button-ink ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
       },
       size: {
         default: "h-10 px-4 py-2",
@@ -51,6 +51,7 @@ export const buttonVariants = cva(
         fab: "h-12 w-full rounded-full px-5 text-base font-normal",
       },
     },
+    compoundVariants: [{ variant: "link", class: "size-auto p-0" }],
     defaultVariants: {
       variant: "primary",
       size: "default",

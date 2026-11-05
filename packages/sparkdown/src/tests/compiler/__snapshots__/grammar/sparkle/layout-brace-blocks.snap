@@ -871,7 +871,7 @@ sparkdown [0..2675]
  │   │       │   │   │       │   │   │       │   │   │           ├─ RequiredWhitespace [549..550]: " "
  │   │       │   │   │       │   │   │       │   │   │           └─ LuauElementContentStringSingleQuoted [550..567]
  │   │       │   │   │       │   │   │       │   │   │               ├─ LuauElementContentStringSingleQuoted_c1 [550..551]
- │   │       │   │   │       │   │   │       │   │   │               │   └─ ERROR_UNRECOGNIZED [550..551]: "'"
+ │   │       │   │   │       │   │   │       │   │   │               │   └─ PunctuationStringSingleQuoteOpen [550..551]: "'"
  │   │       │   │   │       │   │   │       │   │   │               ├─ LuauElementContentStringSingleQuoted_c2 [551..566]
  │   │       │   │   │       │   │   │       │   │   │               │   └─ PlainStringContentSingleQuoted [551..566]
  │   │       │   │   │       │   │   │       │   │   │               │       └─ PlainStringContentSingleQuoted_c1 [551..566]
@@ -891,7 +891,7 @@ sparkdown [0..2675]
  │   │       │   │   │       │   │   │       │   │   │               │           ├─ StringCharacter [564..565]: "d"
  │   │       │   │   │       │   │   │       │   │   │               │           └─ StringCharacter [565..566]: "}"
  │   │       │   │   │       │   │   │       │   │   │               └─ LuauElementContentStringSingleQuoted_c3 [566..567]
- │   │       │   │   │       │   │   │       │   │   │                   └─ ERROR_UNRECOGNIZED [566..567]: "'"
+ │   │       │   │   │       │   │   │       │   │   │                   └─ PunctuationStringSingleQuoteClose [566..567]: "'"
  │   │       │   │   │       │   │   │       │   │   └─ LuauSparkleElement_end 567
  │   │       │   │   │       │   │   │       │   ├─ Newline [567..568]: "\n"
  │   │       │   │   │       │   │   │       │   ├─ Whitespace [568..574]: "      "

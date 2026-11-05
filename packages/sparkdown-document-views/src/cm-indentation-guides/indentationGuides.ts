@@ -18,14 +18,9 @@ import {
 const MARKER_THICKNESS = "1px";
 
 const indentationGuideTheme = EditorView.baseTheme({
-  "&light.cm-editor": {
-    "--indent-marker-bg-color": "#0000001A",
-    "--indent-marker-active-bg-color": "#0000004D",
-  },
-
-  "&dark.cm-editor": {
-    "--indent-marker-bg-color": "#ffffff1A",
-    "--indent-marker-active-bg-color": "#ffffff4D",
+  "&.cm-editor": {
+    "--indent-marker-bg-color": "var(--editor-indent-guide)",
+    "--indent-marker-active-bg-color": "var(--editor-indent-guide-active)",
   },
 
   ".cm-line": {

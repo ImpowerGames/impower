@@ -1,7 +1,8 @@
 import { openSearchPanel } from "@codemirror/search";
-import { EditorState } from "@codemirror/state";
+import { EditorState, StateEffect, Transaction } from "@codemirror/state";
 import { EditorView, ViewUpdate } from "@codemirror/view";
 import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
+import { SelectEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -236,5 +237,47 @@ describe("ScriptEditorController panel focus", () => {
     methods.length = 0;
     config.onBlur();
     expect(methods).toContain("editor/unfocused");
+  });
+});
+
+describe("ScriptEditorController select", () => {
+  const selections = (view: EditorView) => {
+    const events: (string | undefined)[] = [];
+    view.dispatch({
+      effects: StateEffect.appendConfig.of(
+        EditorView.updateListener.of((update) => {
+          if (update.selectionSet) {
+            events.push(
+              update.transactions
+                .map((tr) => tr.annotation(Transaction.userEvent))
+                .find(Boolean),
+            );
+          }
+        }),
+      ),
+    });
+    return events;
+  };
+
+  const select = (controller: TestController, line: number, userEvent?: boolean) =>
+    controller["handleSelectEditor"](
+      SelectEditorMessage.type.notification({
+        textDocument: { uri: "file:///main.sd" },
+        range: {
+          start: { line, character: 0 },
+          end: { line, character: 0 },
+        },
+        userEvent,
+      }),
+    );
+
+  it("marks a selection the editor asked for as the user's only when it says so", async () => {
+    const { controller, view } = await loadedEditor();
+    view.dispatch({ changes: { from: view.state.doc.length, insert: "second\n" } });
+    const events = selections(view);
+    select(controller, 1, true);
+    select(controller, 0);
+    expect(events).toEqual(["select", undefined]);
+    expect(view.state.selection.main.head).toBe(0);
   });
 });

@@ -23,7 +23,7 @@ vi.mock("vscode", () => ({
   UIKind: { Desktop: 1, Web: 2 },
   workspace: {
     createFileSystemWatcher: () => watcher(),
-    getConfiguration: () => ({ scriptFiles: "*.sd", imageFiles: "*.png", audioFiles: "*.wav", fontFiles: "*.ttf", worldFiles: "*.json" }),
+    getConfiguration: () => ({ scriptFiles: "*.sd", imageFiles: "*.png", audioFiles: "*.wav", videoFiles: "*.mp4", fontFiles: "*.ttf", worldFiles: "*.json" }),
   },
 }));
 vi.mock("../src/managers/SparkdownPreviewGamePanelManager", () => ({ SparkdownPreviewGamePanelManager: { instance: {} } }));

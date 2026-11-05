@@ -1,7 +1,13 @@
 <!doctype html>
-<html lang="en" style="background-color: hsl(210.6, 100%, 10%)">
+<html lang="en" style="background-color: var(--panel)">
   <head>
     <meta charset="UTF-8" />
+    <script id="theme-pre-paint">
+      (() => {
+        const theme = new URLSearchParams(location.hash.slice(1)).get("theme");
+        if (theme) document.documentElement.dataset.theme = theme;
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sparkdown Player</title>
   </head>

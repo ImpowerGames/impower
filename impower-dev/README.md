@@ -7,6 +7,13 @@ The web app at **impower.dev** — the Sparkdown screenplay/game editor. A
 > New here? Read [`docs/architecture.md`](./docs/architecture.md) for how the
 > system fits together, then [`docs/adding-an-editor-feature.md`](./docs/adding-an-editor-feature.md)
 > for the practical "where do I put things" guide.
+>
+> The Folio redesign's tokens, layouts and interface copy are in
+> [`docs/design/`](./docs/design/README.md).
+>
+> The component library's conventions (one component per Radix primitive, `cva`
+> variants, the gallery and its tests) are in
+> [`packages/impower-ui/README.md`](../packages/impower-ui/README.md).
 
 ## Quick start
 
@@ -63,7 +70,7 @@ src/
 vite.config.ts   Vite config + custom plugins (see build-pipeline.md)
 build.ts         The multi-target build orchestrator + dev server
 test/            Vitest tests
-docs/            This documentation
+docs/            This documentation; docs/design/ is the Folio redesign reference
 ```
 
 ## Build & deploy

@@ -38,7 +38,7 @@ export default function AssetInspectorPane() {
   };
 
   return (
-    <div class="flex h-full w-full flex-col bg-engine-800 text-foreground">
+    <div class="flex h-full w-full flex-col bg-elevated text-foreground">
       <div class="flex flex-none flex-row items-center gap-2 px-4 py-3">
         <div class="min-w-0 flex-1 truncate text-sm font-semibold">
           {asset.name}

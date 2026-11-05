@@ -115,23 +115,23 @@ describe("asset rows coloured from the language server's published diagnostics",
   it("colours a row for a morph bake error that only the language server reports", () => {
     compiled();
     published(ARTWORK, [bakeError]);
-    expect(row()).toBe("text-danger-500");
+    expect(row()).toBe("text-error-strong");
   });
 
   it("keeps the colour when a later compile is relayed", () => {
     compiled();
     published(ARTWORK, [bakeError]);
     compiled();
-    expect(row()).toBe("text-danger-500");
+    expect(row()).toBe("text-error-strong");
   });
 
   it("follows a bake that finishes after the compile, then clears when the problem is fixed", () => {
     compiled();
     expect(row()).toBe("");
     published(ARTWORK, [unusedWarning]);
-    expect(row()).toBe("text-warning-500");
+    expect(row()).toBe("text-warning-strong");
     published(ARTWORK, [unusedWarning, bakeError]);
-    expect(row()).toBe("text-danger-500");
+    expect(row()).toBe("text-error-strong");
     published(ARTWORK, []);
     expect(row()).toBe("");
   });
@@ -142,6 +142,6 @@ describe("asset rows coloured from the language server's published diagnostics",
     published(MAIN, [bakeError]);
     expect(row()).toBe("");
     published("file://proj/scripts/util.luau", [unusedWarning]);
-    expect(row()).toBe("text-warning-500");
+    expect(row()).toBe("text-warning-strong");
   });
 });

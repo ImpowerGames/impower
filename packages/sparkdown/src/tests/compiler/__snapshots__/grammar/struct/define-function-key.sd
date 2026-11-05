@@ -1,0 +1,10 @@
+define box with
+  function = 3
+  local function : 4
+  function greet()
+    return 1
+  end
+  local function helper(x)
+    return x
+  end
+end

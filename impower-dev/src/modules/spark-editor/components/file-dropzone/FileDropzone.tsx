@@ -148,7 +148,7 @@ export default function FileDropzone(_props: FileDropzoneProps) {
   return (
     <div class="pointer-events-none absolute inset-0 z-[400] flex flex-col">
       {dragging && (
-        <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-engine-900 text-foreground text-xl font-semibold">
+        <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-panel text-foreground text-xl font-semibold">
           <Download class="size-16" stroke-width="1" />
           Import Project Files
         </div>

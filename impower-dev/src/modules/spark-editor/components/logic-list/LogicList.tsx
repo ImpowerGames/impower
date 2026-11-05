@@ -45,7 +45,7 @@ export default function LogicList(_props: LogicListProps) {
   return (
     <Router active={showScriptsEditor ? "editor" : "list"} mode="zoom">
       <div key="list" class="relative flex flex-col flex-1 min-h-0">
-        <div class="sticky top-0 z-10 flex-none bg-engine-900">
+        <div class="sticky top-0 z-10 flex-none bg-panel">
           <Tabs
             value={panel}
             onChange={onPanelChange}

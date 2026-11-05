@@ -46,15 +46,15 @@ text.source.sparkdown [0..842]
  ├─ Newline [97..98]: "\n"
  ├─ meta.layout.luau [98..110]
  │   ├─ punctuation.whitespace.optional.sd [98..102]: "    "
- │   ├─ string.quoted.single.sd [102..103]: "'"
- │   ├─ string.quoted.single.sd [103..109]
- │   │   ├─ markup.raw.whitespace.sd [103..104]: "s"
- │   │   ├─ markup.raw.whitespace.sd [104..105]: "i"
- │   │   ├─ markup.raw.whitespace.sd [105..106]: "n"
- │   │   ├─ markup.raw.whitespace.sd [106..107]: "g"
- │   │   ├─ markup.raw.whitespace.sd [107..108]: "l"
- │   │   └─ markup.raw.whitespace.sd [108..109]: "e"
- │   └─ string.quoted.single.sd [109..110]: "'"
+ │   └─ string.quoted.single.sd [102..110]
+ │       ├─ punctuation.definition.string.single.begin.sd [102..103]: "'"
+ │       ├─ markup.raw.whitespace.sd [103..104]: "s"
+ │       ├─ markup.raw.whitespace.sd [104..105]: "i"
+ │       ├─ markup.raw.whitespace.sd [105..106]: "n"
+ │       ├─ markup.raw.whitespace.sd [106..107]: "g"
+ │       ├─ markup.raw.whitespace.sd [107..108]: "l"
+ │       ├─ markup.raw.whitespace.sd [108..109]: "e"
+ │       └─ punctuation.definition.string.single.end.sd [109..110]: "'"
  ├─ Newline [110..111]: "\n"
  ├─ meta.layout.luau [111..114]
  │   ├─ punctuation.whitespace.sd [111..113]: "  "

@@ -16,6 +16,7 @@ import { MessageRouter } from "../../app/MessageRouter";
 import AssetManager from "../../app/managers/AssetManager";
 import UIManager from "../../app/managers/UIManager";
 import { GamePlayerController, setWorkspace } from "../../GamePlayerController";
+import { mountPlayerBar } from "../playerBarHarness";
 import { installPlayerWorker } from "../../main/workers/installPlayerWorker";
 import { ProgramHeldMessage } from "../../main/workers/messages/ProgramHeldMessage";
 import type { WorkerBusyParams } from "../../main/workers/messages/WorkerBusyMessage";
@@ -284,16 +285,11 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     viewport: win.document.createElement("div"),
     gameView: win.document.createElement("div"),
     gameUI: overlay,
-    leftItems: win.document.createElement("div"),
-    locationItems: win.document.createElement("div"),
-    launchLabel: win.document.createElement("div"),
-    connectionLabel: win.document.createElement("div"),
-    executedLabel: win.document.createElement("div"),
-    executionInfo: win.document.createElement("div"),
   };
   const host = win.document.createElement("div");
   win.document.body.append(host);
   const controller: any = new GamePlayerController(host, refs);
+  const bar = mountPlayerBar(controller);
   controller._mounted = true;
   controller._stopHearingHangs = workspace.addWorkerHangListener(
     controller.handleWorkerHang,
@@ -391,6 +387,7 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     workspace,
     overlay,
     refs,
+    bar,
     get page() {
       return page;
     },
@@ -521,6 +518,7 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       await settle(40);
     },
     dispose() {
+      bar.unmount();
       setWorkspace(undefined as any);
       restore();
     },

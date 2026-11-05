@@ -109,7 +109,7 @@ body {
 }
 
 html {
-  background-color: var(--theme-color-primary-bg);
+  background-color: var(--bg);
 }
 
 .keyboard-open body {
@@ -145,5 +145,5 @@ textarea {
 }
 
 .cm-context-menu {
-  background-color: var(--theme-color-panel);
+  background-color: var(--panel);
 }

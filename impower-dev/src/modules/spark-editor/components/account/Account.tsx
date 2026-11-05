@@ -184,16 +184,16 @@ export default function Account(_p: AccountProps) {
             <button
               type="button"
               onClick={() => setSignoutOpen((v) => !v)}
-              class="relative flex w-full cursor-pointer flex-row items-center gap-6 overflow-hidden bg-engine-700 px-6 py-4 text-left text-white outline-none m-px shadow before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12]"
+              class="relative flex w-full cursor-pointer flex-row items-center gap-6 overflow-hidden bg-button-bg px-6 py-4 text-left text-button-ink outline-none m-px shadow before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12]"
             >
               <div class="flex min-w-0 flex-1 flex-col">
                 {account.displayName ? (
-                  <div class="truncate text-base font-semibold text-white">
+                  <div class="truncate text-base font-semibold text-button-ink">
                     {account.displayName}
                   </div>
                 ) : null}
                 {account.email ? (
-                  <div class="truncate text-sm font-normal text-white opacity-70">
+                  <div class="truncate text-sm font-normal text-button-ink opacity-70">
                     {account.email}
                   </div>
                 ) : null}
@@ -302,7 +302,7 @@ function FabRow({
     <button
       type="button"
       onClick={onClick}
-      class="relative flex w-full cursor-pointer flex-row items-center gap-6 overflow-hidden bg-engine-700 px-6 py-4 text-left text-white font-medium outline-none shadow m-px before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12]"
+      class="relative flex w-full cursor-pointer flex-row items-center gap-6 overflow-hidden bg-button-bg px-6 py-4 text-left text-button-ink font-medium outline-none shadow m-px before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12]"
     >
       {icon}
       <span class="flex-1 truncate">{children}</span>

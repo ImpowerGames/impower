@@ -2,13 +2,14 @@ import type { TrashBatch } from "@impower/spark-editor-protocol/src/types/worksp
 import {
   ArrowBackUp,
   Button,
+  Dialog,
+  DialogActions,
+  DialogTitle,
   Trash,
   X,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
-import { createPortal } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { useMountTransition } from "../../hooks/useMountTransition";
 import workspace from "../../workspace/WorkspaceStore";
 
 function timeAgo(ms: number): string {
@@ -37,7 +38,9 @@ function batchLocation(batch: TrashBatch): string {
     const common = dir.split("/");
     for (const e of batch.entries) {
       const parts = (
-        e.relPath.includes("/") ? e.relPath.slice(0, e.relPath.lastIndexOf("/")) : ""
+        e.relPath.includes("/")
+          ? e.relPath.slice(0, e.relPath.lastIndexOf("/"))
+          : ""
       ).split("/");
       let i = 0;
       while (i < common.length && common[i] === parts[i]) i++;
@@ -49,13 +52,10 @@ function batchLocation(batch: TrashBatch): string {
 }
 
 type Confirm =
-  | { kind: "batch"; batchId: string; label: string }
-  | { kind: "empty" }
-  | null;
+  { kind: "batch"; batchId: string; label: string } | { kind: "empty" } | null;
 
 export default function TrashPanel() {
   const open = useComputed(() => workspace.trashOpen.value).value;
-  const { mounted, visible } = useMountTransition(open, 200);
   const [batches, setBatches] = useState<TrashBatch[] | null>(null);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [busy, setBusy] = useState(false);
@@ -83,18 +83,6 @@ export default function TrashPanel() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (confirm) setConfirm(null);
-        else close();
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, confirm]);
 
   const restore = async (batchId: string) => {
     if (busyRef.current) return;
@@ -154,143 +142,134 @@ export default function TrashPanel() {
     await refresh();
   };
 
-  if (!mounted || typeof document === "undefined") {
-    return null;
-  }
-
   const count = batches?.length ?? 0;
 
-  return createPortal(
-    <div
-      class={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 transition-opacity duration-200 ${
-        visible ? "opacity-100" : "opacity-0"
-      }`}
-      onClick={close}
-      role="presentation"
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => !next && close()}
+      onEscapeKeyDown={(event) => {
+        if (confirm) {
+          event.preventDefault();
+          setConfirm(null);
+        }
+      }}
+      size="lg"
+      flush
+      class="max-h-[80vh]"
     >
-      <div
-        class={`flex max-h-[80vh] w-full max-w-lg select-none flex-col overflow-hidden rounded-lg bg-engine-800 text-foreground shadow-2xl ring-1 ring-foreground/10 transition-all duration-200 ease-out ${
-          visible ? "scale-100 opacity-100" : "scale-95 opacity-0"
-        }`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Recycle bin"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div class="flex flex-none flex-row items-center gap-2 px-4 py-3">
-          <Trash class="size-5 flex-none text-foreground/70" />
-          <h2 class="min-w-0 flex-1 truncate text-base font-semibold">
-            Recycle bin{count > 0 ? ` (${count})` : ""}
-          </h2>
-          {count > 0 && (
-            <Button
-              variant="ghost"
-              onClick={() => setConfirm({ kind: "empty" })}
-              disabled={busy}
-              class="h-8 rounded px-3 text-sm font-normal text-foreground/70 hover:text-foreground"
-            >
-              Empty
-            </Button>
-          )}
+      <div class="flex flex-none flex-row items-center gap-2 px-4 py-3">
+        <Trash class="size-5 flex-none text-foreground/70" />
+        <DialogTitle class="min-w-0 flex-1 truncate">
+          Recycle bin{count > 0 ? ` (${count})` : ""}
+        </DialogTitle>
+        {count > 0 && (
           <Button
             variant="ghost"
-            aria-label="Close"
-            onClick={close}
-            class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:text-foreground"
+            onClick={() => setConfirm({ kind: "empty" })}
+            disabled={busy}
+            class="h-8 rounded px-3 text-sm font-normal text-foreground/70 hover:text-foreground"
           >
-            <X class="size-4" />
+            Empty
           </Button>
-        </div>
-
-        {batches == null ? (
-          <div class="px-4 pb-5 text-sm text-foreground/50">Loading…</div>
-        ) : count === 0 ? (
-          <div class="px-4 pb-6 pt-2 text-sm text-foreground/60">
-            Recycle bin is empty. Deleted files are kept here for 30 days.
-          </div>
-        ) : (
-          <div class="min-h-0 flex-1 overflow-y-auto pb-2">
-            {batches!.map((batch) => {
-              const loc = batchLocation(batch);
-              return (
-                <div
-                  key={batch.batchId}
-                  class="flex flex-row items-center gap-2 px-4 py-2 hover:bg-foreground/5"
-                >
-                  <div class="flex min-w-0 flex-1 flex-col">
-                    <span class="truncate text-sm font-medium">
-                      {batchLabel(batch)}
-                    </span>
-                    <span class="truncate text-xs text-foreground/50">
-                      {loc ? `${loc} · ` : ""}
-                      {timeAgo(batch.deletedAt)}
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    aria-label="Restore"
-                    title="Restore"
-                    disabled={busy}
-                    onClick={() => void restore(batch.batchId)}
-                    class="size-8 flex-none rounded-full p-0 text-foreground/60 hover:text-foreground"
-                  >
-                    <ArrowBackUp class="size-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    aria-label="Delete permanently"
-                    title="Delete permanently"
-                    disabled={busy}
-                    onClick={() =>
-                      setConfirm({
-                        kind: "batch",
-                        batchId: batch.batchId,
-                        label: batchLabel(batch),
-                      })
-                    }
-                    class="size-8 flex-none rounded-full p-0 text-foreground/60 hover:text-danger-500"
-                  >
-                    <Trash class="size-4" />
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
         )}
-
-        {confirm && (
-          <div class="flex flex-none flex-col gap-3 border-t border-foreground/10 px-4 py-3">
-            <p class="text-sm text-foreground/80">
-              {confirm.kind === "empty"
-                ? "Permanently delete everything in the recycle bin? This can't be undone."
-                : `Permanently delete “${confirm.label}”? This can't be undone.`}
-            </p>
-            <div class="flex flex-row justify-end gap-2">
-              <Button
-                variant="ghost"
-                onClick={() => setConfirm(null)}
-                disabled={busy}
-                class="h-9 px-3 text-sm font-normal text-foreground/70 hover:text-foreground"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                disabled={busy}
-                onClick={() =>
-                  confirm.kind === "empty"
-                    ? void empty()
-                    : void deletePermanently(confirm.batchId)
-                }
-                class="h-9 bg-danger-500 px-4 text-sm font-normal hover:bg-danger-500/90"
-              >
-                Delete
-              </Button>
-            </div>
-          </div>
-        )}
+        <Button
+          variant="ghost"
+          aria-label="Close"
+          onClick={close}
+          class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:text-foreground"
+        >
+          <X class="size-4" />
+        </Button>
       </div>
-    </div>,
-    document.body,
+
+      {batches == null ? (
+        <div class="px-4 pb-5 text-sm text-foreground/50">Loading…</div>
+      ) : count === 0 ? (
+        <div class="px-4 pb-6 pt-2 text-sm text-foreground/60">
+          Recycle bin is empty. Deleted files are kept here for 30 days.
+        </div>
+      ) : (
+        <div class="min-h-0 flex-1 overflow-y-auto pb-2">
+          {batches!.map((batch) => {
+            const loc = batchLocation(batch);
+            return (
+              <div
+                key={batch.batchId}
+                class="flex flex-row items-center gap-2 px-4 py-2 hover:bg-foreground/5"
+              >
+                <div class="flex min-w-0 flex-1 flex-col">
+                  <span class="truncate text-sm font-medium">
+                    {batchLabel(batch)}
+                  </span>
+                  <span class="truncate text-xs text-foreground/50">
+                    {loc ? `${loc} · ` : ""}
+                    {timeAgo(batch.deletedAt)}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  aria-label="Restore"
+                  title="Restore"
+                  disabled={busy}
+                  onClick={() => void restore(batch.batchId)}
+                  class="size-8 flex-none rounded-full p-0 text-foreground/60 hover:text-foreground"
+                >
+                  <ArrowBackUp class="size-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  aria-label="Delete permanently"
+                  title="Delete permanently"
+                  disabled={busy}
+                  onClick={() =>
+                    setConfirm({
+                      kind: "batch",
+                      batchId: batch.batchId,
+                      label: batchLabel(batch),
+                    })
+                  }
+                  class="size-8 flex-none rounded-full p-0 text-foreground/60 hover:text-error-strong"
+                >
+                  <Trash class="size-4" />
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {confirm && (
+        <div class="flex flex-none flex-col gap-3 border-t border-foreground/10 px-4 py-3">
+          <p class="text-sm text-foreground/80">
+            {confirm.kind === "empty"
+              ? "Permanently delete everything in the recycle bin? This can't be undone."
+              : `Permanently delete “${confirm.label}”? This can't be undone.`}
+          </p>
+          <DialogActions>
+            <Button
+              variant="ghost"
+              onClick={() => setConfirm(null)}
+              disabled={busy}
+              class="h-9 px-3 text-sm font-normal text-foreground/70 hover:text-foreground"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              disabled={busy}
+              onClick={() =>
+                confirm.kind === "empty"
+                  ? void empty()
+                  : void deletePermanently(confirm.batchId)
+              }
+              class="h-9 bg-error-strong px-4 text-sm font-normal hover:bg-error-strong/90"
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </div>
+      )}
+    </Dialog>
   );
 }

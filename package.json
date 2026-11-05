@@ -9,7 +9,8 @@
     "web:dev:cross-origin": "node scripts/dev-preview.mjs --mode cross-origin",
     "vscode:dev": "npm --prefix vscode-sparkdown run watch",
     "typecheck": "node scripts/typecheck.mjs",
-    "check:node-names": "node scripts/check-node-names.mjs"
+    "check:node-names": "node scripts/check-node-names.mjs",
+    "lint:radix-boundary": "eslint --no-inline-config --max-warnings 0 \"**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}\""
   },
   "workspaces": [
     "packages/*",
@@ -22,6 +23,7 @@
     "vscode-sparkdown/webviews/*"
   ],
   "devDependencies": {
+    "@typescript-eslint/parser": "^8.72.1",
     "ajv": "^8.17.1",
     "eslint": "^9.18.0",
     "eslint-plugin-yml": "^1.14.0",

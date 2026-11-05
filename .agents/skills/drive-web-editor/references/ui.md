@@ -56,6 +56,8 @@ The steps, each usable any number of times and in any order. Every name is check
 | `--shot <out.png>`       | the whole page                                                                                                                                        |
 | `--shot-of <what> <png>` | one surface: `find`, `goto`, `editor` (the script editor), `hover`, `completion`, or `page`                                                                                  |
 | `--probe <file.js>`      | as in `verify`                                                                                                                                        |
+| `--step <name>`          | a [named step](../SKILL.md#named-steps) for a redesign surface; reports `step` and fails with `not built yet`, naming the ticket, until that surface exists |
+| `--tap`, `--long-press`, `--swipe`, `--rotate` | touch and display steps for `--device android` only, in the device screenshot's pixels; see [Android emulator](../SKILL.md#android-emulator). On a device `--shot` is the whole screen and `--shot-of screen` names it explicitly |
 
 How to read it:
 

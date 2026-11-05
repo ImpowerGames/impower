@@ -15,7 +15,10 @@ import {
 } from "@impower/spark-web-player/src/index.js";
 import { installWorkspaceWorker } from "@impower/spark-web-player/src/main/workers/installWorkspaceWorker";
 import { enableOnsetTap } from "@impower/spark-web-player/src/app/managers/AudioProbe";
+import { followPreviewTheme } from "./previewTheme";
 import "./style.css";
+
+followPreviewTheme(document.documentElement);
 
 const SPARKDOWN_EDITOR_ORIGIN = import.meta.env.VITE_SPARKDOWN_EDITOR_ORIGIN;
 
@@ -145,7 +148,16 @@ if (!SAME_ORIGIN_PREVIEW && "serviceWorker" in navigator) {
   });
 }
 
+const PLAYER_CONTROLS = ["skip-buttons", "step-buttons"];
+
 const load = async () => {
+  const player = document.querySelector("spark-web-player");
+  const query = new URLSearchParams(window.location.search);
+  for (const control of PLAYER_CONTROLS) {
+    if (query.has(control)) {
+      player?.setAttribute(control, "");
+    }
+  }
   setWorkspace(workspaceState.workspace);
   await Promise.allSettled([SparkWebPlayerElement.register()]);
 };

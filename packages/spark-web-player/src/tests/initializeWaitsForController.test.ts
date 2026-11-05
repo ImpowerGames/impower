@@ -87,7 +87,6 @@ it("compiles and answers the editor's Initialize only once the controller listen
     game: host,
     viewport: host,
   } as any);
-  controller.updateSizeAndAspectRatioDisplay = () => {};
   const loaded = vi
     .spyOn(controller, "loadProgram")
     .mockResolvedValue(undefined);

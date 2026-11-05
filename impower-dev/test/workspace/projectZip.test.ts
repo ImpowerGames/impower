@@ -59,16 +59,23 @@ function makeHarness(initial: Record<string, Uint8Array>): Harness {
     foldersOutside: (WorkspaceFileSystem.prototype as any).foldersOutside,
     replaceFolders: (WorkspaceFileSystem.prototype as any).replaceFolders,
 
+    _unstoredUris: new Set<string>(),
     zipFiles: async ({
       files: list,
+      entries = [],
     }: {
       files: { uri: string; path?: string }[];
+      entries?: { path: string; data: ArrayBuffer }[];
     }) => {
-      const refs = list.map(({ uri, path }) => ({
-        path: path ?? basename(uri),
-        data: opfs.get(uri)!,
-      }));
-      return zipSync(buildZippable(refs), { level: 0 }).buffer;
+      const refs = list.map(({ uri, path }) => {
+        const data = opfs.get(uri);
+        if (!data) {
+          throw new Error(`NotFoundError: ${uri} was not found`);
+        }
+        return { path: path ?? basename(uri), data };
+      });
+      return zipSync(buildZippable([...refs, ...entries]), { level: 0 })
+        .buffer;
     },
     unzipFiles: async ({ data }: { data: ArrayBuffer }) =>
       parseUnzipEntries(unzipSync(new Uint8Array(data))),
@@ -162,6 +169,27 @@ describe("project zip round-trip (readProjectZip <-> writeProjectZip)", () => {
     const src = makeHarness({ [u("main.sd")]: enc.encode("NEW") });
     await writeProjectZip(dst, await readProjectZip(src));
     expect(dst.opfs.has(u(LAYOUT_MARKER))).toBe(false);
+  });
+
+  it("exports the starter script of a fresh project that was never saved", async () => {
+    const src = makeHarness({});
+    const fs = src.fs as any;
+    Object.assign(fs, {
+      _files: src.files,
+      withProjectLock: (WorkspaceFileSystem.prototype as any).withProjectLock,
+      openProjectStore: async () => ({ files: [], folders: [] }),
+      purgeExpiredTrash: async () => {},
+      _ls: { connection: { onRequest: () => {} }, start: async () => {} },
+    });
+    URL.createObjectURL ??= () => "blob:starter";
+    await (WorkspaceFileSystem.prototype as any).loadInitialFiles.call(
+      fs,
+      PROJECT,
+    );
+    expect(src.opfs.has(u("main.sd"))).toBe(false);
+    const entries = unzipSync(new Uint8Array(await readProjectZip(src)));
+    expect(Object.keys(entries)).toEqual(["main.sd"]);
+    expect(dec.decode(entries["main.sd"])).toBe("scene start\n  \nend\n");
   });
 
   describe("known gaps on main", () => {

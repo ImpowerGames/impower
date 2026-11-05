@@ -17,8 +17,11 @@ const launch = (launchState: "play" | "pause" | "ended" | "preview") =>
     programLoaded: true,
     programVersion: 1,
     launchState,
+    paused: launchState === "pause",
+    stepping: false,
     position: null,
     completion: null,
+    ending: null,
   });
 
 const location = (line: number) => ({

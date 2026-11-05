@@ -8,10 +8,14 @@ export function useMountTransition(open: boolean, durationMs: number) {
   useEffect(() => {
     if (open) {
       setMounted(true);
-      const raf = requestAnimationFrame(() =>
-        requestAnimationFrame(() => setVisible(true)),
-      );
-      return () => cancelAnimationFrame(raf);
+      let inner = 0;
+      const outer = requestAnimationFrame(() => {
+        inner = requestAnimationFrame(() => setVisible(true));
+      });
+      return () => {
+        cancelAnimationFrame(outer);
+        cancelAnimationFrame(inner);
+      };
     }
     setVisible(false);
     const timer = setTimeout(() => setMounted(false), durationMs);

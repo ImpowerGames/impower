@@ -9,10 +9,13 @@ import {
   type RoutePin,
 } from "@impower/spark-editor-protocol/src/protocols/preview/SetRoutePinsMessage";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
+import { SetPreviewThemeMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetPreviewThemeMessage";
 import { SetStartingValuesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetStartingValuesMessage";
+import { effect, type ReadonlySignal } from "@preact/signals";
 import { startingValuesFrom } from "@impower/sparkdown/src/program/startingValueLiterals";
 import workspace from "../../workspace/WorkspaceStore";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
+import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 
 const storedRouteToggles = (): RouteTogglesParams => {
   try {
@@ -31,11 +34,20 @@ const storedRouteTab = (): "route" | "values" | undefined => {
   return tab === "route" || tab === "values" ? tab : undefined;
 };
 
+export const playerUrl = (
+  base: string,
+  theme: ReadonlySignal<string> = workspaceSettings.theme,
+) => `${base}#theme=${theme.peek()}`;
+
 export const createPlayerPreferenceSync = (
   post: (message: unknown) => void,
   routePins: () => RoutePin[] = () => [],
+  theme: ReadonlySignal<string> = workspaceSettings.theme,
 ) => {
+  const sendTheme = (value: string) =>
+    post(SetPreviewThemeMessage.type.notification({ theme: value }));
   const send = () => {
+    sendTheme(theme.peek());
     post(
       SetAnimatePortraitsMessage.type.request({
         enabled: workspace.animatePortraits.peek(),
@@ -54,7 +66,16 @@ export const createPlayerPreferenceSync = (
     );
     post(SetRoutePinsMessage.type.request({ pins: routePins() }));
   };
+  let current = theme.peek();
+  const disposeTheme = effect(() => {
+    const value = theme.value;
+    if (value !== current) {
+      current = value;
+      sendTheme(value);
+    }
+  });
   return {
+    dispose: () => disposeTheme(),
     initialized: send,
     received: (message: unknown) => {
       if (

@@ -111,6 +111,7 @@ import createEditorView, {
   readOnlyConfig,
 } from "./utils/createEditorView";
 import { customGotoLinePanelOpen } from "./utils/extensions/customSearch";
+import { setCoarsePointer } from "./utils/extensions/touchAffordances";
 
 export interface ScriptEditorRefs {
   editor: HTMLElement;
@@ -121,6 +122,7 @@ export interface ScriptEditorRefs {
 
 export interface ScriptEditorOptions {
   readonly?: boolean;
+  coarsePointer?: boolean;
   scrollMargin?: string;
   top?: string;
   bottom?: string;
@@ -236,6 +238,13 @@ export class ScriptEditorController {
   setReadonly(readonly: boolean): void {
     this.options.readonly = readonly;
     this.allowEditing(!readonly);
+  }
+
+  setCoarsePointer(coarse: boolean): void {
+    this.options.coarsePointer = coarse;
+    if (this._view) {
+      setCoarsePointer(this._view, coarse);
+    }
   }
 
   protected registerProtocolHandlers(): void {
@@ -382,7 +391,7 @@ export class ScriptEditorController {
     const scrollIntoView = params.scrollIntoView;
     const takeFocus = params.takeFocus;
     if (textDocument.uri === this._textDocument?.uri) {
-      this.selectRange(range, scrollIntoView ?? false, takeFocus);
+      this.selectRange(range, scrollIntoView ?? false, takeFocus, params.userEvent);
     }
   };
 
@@ -631,6 +640,7 @@ export class ScriptEditorController {
         this._top = getUnitlessValue(this.options.top ?? "", 0);
         this._bottom = getUnitlessValue(this.options.bottom ?? "", 0);
         [this._view, this._disposable] = createEditorView(editorContainer, {
+          coarsePointer: !!this.options.coarsePointer,
           serverWorker: this.options.languageServerWorker,
           serverConnection: this.options.languageServerConnection,
           serverInitializeParams: languageServerInitializeParams,
@@ -1081,6 +1091,7 @@ export class ScriptEditorController {
     range: Range,
     scrollIntoView: "nearest" | "start" | "end" | "center" | false,
     takeFocus?: boolean,
+    userEvent?: boolean,
   ) {
     const view = this._view;
     if (view) {
@@ -1100,6 +1111,7 @@ export class ScriptEditorController {
           : EditorView.scrollIntoView(EditorSelection.range(anchor, head), {
               y: scrollIntoView,
             }),
+        userEvent: userEvent ? "select" : undefined,
       });
     }
   }

@@ -541,23 +541,25 @@ function lowerArmContent(
     if (text.length > 0) out.push(new Text(text));
     textBuf = "";
   };
+  const pushTag = (tag: SyntaxNode): void => {
+    const tagContent = getDescendent("ArmTagContent", tag);
+    const raw = tagContent ? ctx.read(tagContent.from, tagContent.to).trim() : "";
+    if (raw.length > 0 && inString) {
+      out.push(new LegacyTag(new RuntimeTag(raw)));
+    } else if (raw.length > 0) {
+      out.push(new Tag(true));
+      out.push(new Text(raw));
+      out.push(new Tag(false));
+    }
+  };
   let child = armContent.firstChild;
   while (child) {
     if (child.name === "ArmTag") {
       flushText(true);
-      const tagContent = getDescendent("ArmTagContent", child);
-      const raw = tagContent
-        ? ctx.read(tagContent.from, tagContent.to).trim()
-        : "";
-      if (raw.length > 0 && inString) {
-        out.push(new LegacyTag(new RuntimeTag(raw)));
-      } else if (raw.length > 0) {
-        out.push(new Tag(true));
-        out.push(new Text(raw));
-        out.push(new Tag(false));
-      }
+      pushTag(child);
     } else if (child.name === "ArmDivert") {
       flushText(true);
+      getDescendents("ArmTag", child).forEach(pushTag);
       const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
       forwardBlockDiagnostics(block, ctx);
       out.push(...unwrapBlockContent(block));

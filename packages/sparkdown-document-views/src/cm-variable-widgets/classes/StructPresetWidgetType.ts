@@ -71,7 +71,7 @@ export default class StructPresetWidgetType extends WidgetType {
     popup.style.height = "fit-content";
     popup.style.padding = "0";
     popup.style.whiteSpace = "nowrap";
-    popup.style.backgroundColor = "#052d57";
+    popup.style.backgroundColor = "var(--bg)";
     popup.style.borderRadius = "4px";
     popup.style.overflow = "hidden";
     popup.style.boxShadow =

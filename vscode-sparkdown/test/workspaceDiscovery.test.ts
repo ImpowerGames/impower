@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const state = vi.hoisted(() => ({ watchers: [] as any[] }));
+const state = vi.hoisted(() => ({ watchers: [] as any[], videos: [] as string[] }));
 const root = "/workspace/.checkout/author";
 const uri = (relative: string) => ({ path: `${root}/${relative}`, toString() { return this.path; } });
 vi.mock("vscode", () => ({ workspace: {
-  getConfiguration: () => ({ scriptFiles: "*.sd", imageFiles: "*.png", audioFiles: "*.mp3", fontFiles: "*.ttf", worldFiles: "*.js" }),
+  getConfiguration: () => ({ scriptFiles: "*.sd", imageFiles: "*.png", audioFiles: "*.mp3", videoFiles: "*.mp4", fontFiles: "*.ttf", worldFiles: "*.js" }),
   getWorkspaceFolder: () => ({ uri: { path: "/workspace/.checkout/author" } }),
   findFiles: async (pattern: string) => pattern.endsWith(".sd") ? [
     uri("project/main.sd"), uri(".claude/worktrees/old/main.sd"), uri("project/.cache/broken.sd"), uri("node_modules/example/main.sd"),
-  ] : [],
+  ] : pattern.endsWith(".mp4") ? state.videos.map(uri) : [],
   createFileSystemWatcher: () => {
     const callbacks: Record<string, ((value: any) => void)[]> = { create: [], change: [], delete: [] };
     const event = (kind: string) => (callback: (value: any) => void) => { callbacks[kind]!.push(callback); return { dispose() {} }; };
@@ -27,9 +27,15 @@ import { getWorkspaceFiles } from "../src/utils/getWorkspaceFiles";
 import { getWorkspaceFileWatchers } from "../src/utils/getWorkspaceFileWatchers";
 
 describe("repository-root discovery (#1762)", () => {
-  beforeEach(() => { state.watchers.length = 0; });
+  beforeEach(() => { state.watchers.length = 0; state.videos.length = 0; });
   it("loads project scripts without importing dependencies or hidden nested checkouts", async () => {
     expect((await getWorkspaceFiles()).map(file => file.uri)).toEqual([uri("project/main.sd").path]);
+  });
+  it("lists files matching the videoFiles pattern as video files", async () => {
+    state.videos.push("project/intro.mp4");
+    const files = await getWorkspaceFiles();
+    expect(files.filter(file => file.type === "video").map(file => [file.uri, file.name, file.ext])).toEqual([[uri("project/intro.mp4").path, "intro", "mp4"]]);
+    expect(getWorkspaceFileWatchers()).toHaveLength(6);
   });
   it("applies the same boundary to create, change and delete notifications", () => {
     const [watcher] = getWorkspaceFileWatchers();

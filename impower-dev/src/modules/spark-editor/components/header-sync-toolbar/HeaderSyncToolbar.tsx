@@ -34,9 +34,9 @@ export default function HeaderSyncToolbar(_p: HeaderSyncToolbarProps) {
     syncState === "exporting";
 
   const colorClass = isError
-    ? "text-danger-500"
+    ? "text-error-strong"
     : syncState === "offline"
-      ? "text-warning-500"
+      ? "text-warning-strong"
       : syncState === "unsynced"
         ? "text-primary"
         : "text-foreground";

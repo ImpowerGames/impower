@@ -1,3 +1,4 @@
+import { layoutState, type Layout } from "@impower/impower-ui/layout";
 import {
   onProtocolMessage,
   onProtocolRequest,
@@ -88,6 +89,12 @@ import createTextFile from "./utils/createTextFile";
 import createZipFile from "./utils/createZipFile";
 import { PreviewSaveStore } from "@impower/spark-editor-protocol/src/utils/PreviewSaveStore";
 import { opfsSaveFiles } from "./opfsSaveFiles";
+import {
+  loadExtensionDefaults,
+  projectSettingsFromJson,
+  projectSettingsJson,
+} from "./settings/settingsJson";
+import workspaceSettings from "./settings/WorkspaceSettings";
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
 
 export default class WorkspaceWindow {
@@ -104,12 +111,8 @@ export default class WorkspaceWindow {
     this.cacheProjectId(loadedProjectId());
     this.restoreAnimatePortraits();
     this.registerProtocolHandlers();
-    const mediaQuery = window.matchMedia("(min-width: 960px)");
-    mediaQuery.addEventListener("change", this.handleScreenSizeChange);
-    this._disposers.push(() =>
-      mediaQuery.removeEventListener("change", this.handleScreenSizeChange),
-    );
-    this.handleScreenSizeChange(mediaQuery as any as MediaQueryListEvent);
+    this.handleLayoutChange(layoutState.current());
+    this._disposers.push(layoutState.subscribe(this.handleLayoutChange));
   }
 
   dispose() {
@@ -403,8 +406,8 @@ export default class WorkspaceWindow {
       },
     });
   };
-  protected handleScreenSizeChange = (query: MediaQueryListEvent) => {
-    const horizontalLayout = query.matches;
+  protected handleLayoutChange = (layout: Layout) => {
+    const horizontalLayout = layout !== "phone";
     this.update({
       ...this.store,
       screen: {
@@ -717,6 +720,7 @@ export default class WorkspaceWindow {
     uri: string,
     range?: Range,
     takeFocus?: boolean,
+    userEvent?: boolean,
   ): Promise<ShowDocumentResult> {
     const filename = this._workspace.fs.getRelativePath(
       this.store.project.id ?? "",
@@ -763,6 +767,7 @@ export default class WorkspaceWindow {
           range,
           scrollIntoView: "center",
           takeFocus,
+          userEvent,
         }),
       );
     }
@@ -1088,6 +1093,23 @@ export default class WorkspaceWindow {
       });
       sendProtocolMessage(UnpauseGameMessage.type.request({}));
     }
+  }
+
+  syncGamePaused(paused: boolean) {
+    const game = this.store.preview.modes.game;
+    if (!game.running || Boolean(game.paused) === paused) {
+      return;
+    }
+    this.update({
+      ...this.store,
+      preview: {
+        ...this.store.preview,
+        modes: {
+          ...this.store.preview.modes,
+          game: { ...game, paused },
+        },
+      },
+    });
   }
 
   stepGameClock(seconds: number) {
@@ -1670,7 +1692,14 @@ export default class WorkspaceWindow {
             status: "exporting",
           },
         });
-        const projectZip = await this._workspace.fs.readProjectZip(projectId);
+        const settingsJson = projectSettingsJson(
+          workspaceSettings.projectSettings.peek(),
+          await loadExtensionDefaults(),
+        );
+        const projectZip = await this._workspace.fs.readProjectZip(
+          projectId,
+          settingsJson,
+        );
         this.update({
           ...this.store,
           sync: {
@@ -1706,10 +1735,16 @@ export default class WorkspaceWindow {
         });
         const extIndex = fileName.indexOf(".");
         const name = extIndex >= 0 ? fileName.slice(0, extIndex) : fileName;
-        await Promise.all([
+        const [settingsJson] = await Promise.all([
           this._workspace.fs.writeProjectZip(projectId, fileBuffer),
           this._workspace.fs.writeProjectMetadata(projectId, "name", name),
         ]);
+        workspaceSettings.replaceProjectSettings(
+          projectId,
+          settingsJson === undefined
+            ? {}
+            : projectSettingsFromJson(settingsJson),
+        );
         this.update({
           ...this.store,
           sync: {

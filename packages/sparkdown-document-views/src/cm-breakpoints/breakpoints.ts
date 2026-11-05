@@ -128,7 +128,7 @@ export const breakpoints = (config: BreakpointsConfiguration = {}) => [
   EditorView.baseTheme({
     ".cm-breakpoint-gutter .cm-gutterElement": {
       paddingLeft: "2px",
-      color: "#3abff8",
+      color: "var(--editor-breakpoint)",
       cursor: "default",
     },
   }),
