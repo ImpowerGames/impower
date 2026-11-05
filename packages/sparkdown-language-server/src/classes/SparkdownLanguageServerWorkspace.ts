@@ -32,6 +32,7 @@ import COMPILER_INLINE_WORKER_STRING from "@impower/sparkdown/src/worker/sparkdo
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { getDiagnosticActions } from "../utils/providers/getCodeActions";
 import { diffDirtyRange } from "../utils/providers/getFormatDirtyRange";
+import { getTodoNotes } from "../utils/providers/getTodoNotes";
 import {
   type Connection,
   Disposable,
@@ -643,9 +644,19 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     });
   }
 
+  protected todoNotesFor(uri: string) {
+    const document = this.document(uri);
+    if (!document || isLuauFile(uri)) return [];
+    return getTodoNotes(document, this.tree(uri));
+  }
+
   override getDiagnostics(program: SparkProgram, uri: string) {
     const diagnostics = this.withDiagnosticActions(
-      [...super.getDiagnostics(program, uri), ...this.morphDiagnosticsFor(program, uri)],
+      [
+        ...super.getDiagnostics(program, uri),
+        ...this.morphDiagnosticsFor(program, uri),
+        ...this.todoNotesFor(uri),
+      ],
       uri,
       program,
     );
