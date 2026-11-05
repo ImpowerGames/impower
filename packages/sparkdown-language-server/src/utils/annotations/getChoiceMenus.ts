@@ -1,4 +1,5 @@
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
+import { DISPLAY_LINE_TYPES } from "@impower/sparkdown/src/compiler/lower/lowerers/lowerDisplay";
 import { type SyntaxNode, type Tree } from "@lezer/common";
 import { Position, Range } from "vscode-languageserver-textdocument";
 
@@ -22,15 +23,8 @@ const CHOICE = "Choice";
 const CHOICE_CONTENT = "Choice_content";
 const THEN_CLAUSE = "LuauSparkdownChooseThenClause";
 const IMPLICIT_ACTION = "ImplicitAction";
-const DISPLAY_LINES = new Set([
-  "InlineAction",
-  "InlineDialogue",
-  "BlockAction",
-  "BlockDialogue",
-]);
+const BREAK = "Break";
 const CONTAINS_BLOCKS = /(?:Block|Clause)(?:_content)?$/;
-const NOT_PROMPT =
-  /^(?:\[\[|\(\(|[$%^:@&]|->|<-|if\b|else\b|elseif\b|label\b|\/\/)/;
 const FALLBACK_NAME = "choose";
 
 const oneLine = (text: string) => text.replace(/\s+/g, " ").trim();
@@ -88,18 +82,34 @@ export const getChoiceMenus = (
     return node.to - slice.trimStart().length;
   };
 
+  const lastBeat = (body: SyntaxNode): string | undefined => {
+    const breaks: SyntaxNode[] = [];
+    const cur = body.cursor();
+    while (cur.next() && cur.from < body.to) {
+      if (cur.name === BREAK) {
+        breaks.push(cur.node);
+      }
+    }
+    let to = body.to;
+    for (const brk of [...breaks].reverse()) {
+      const beat = oneLine(text.slice(brk.to, to));
+      if (beat) {
+        return beat;
+      }
+      to = brk.from;
+    }
+    return oneLine(text.slice(body.from, to)) || undefined;
+  };
+
   const displayText = (node: SyntaxNode): string | undefined => {
+    if (!Object.hasOwn(DISPLAY_LINE_TYPES, node.name)) {
+      return undefined;
+    }
     if (node.name === IMPLICIT_ACTION) {
-      const line = oneLine(text.slice(node.from, node.to));
-      return NOT_PROMPT.test(line) ? undefined : line;
+      return lastBeat(node);
     }
-    if (DISPLAY_LINES.has(node.name)) {
-      const content = node.getChild(`${node.name}_content`);
-      return content
-        ? oneLine(text.slice(content.from, content.to))
-        : undefined;
-    }
-    return undefined;
+    const content = node.getChild(`${node.name}_content`);
+    return content ? lastBeat(content) : undefined;
   };
 
   const readOption = (

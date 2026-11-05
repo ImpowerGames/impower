@@ -101,7 +101,7 @@ describe("provider · choice menus in the document symbols", () => {
     expect(lines(top)).toEqual([18, 21, 18]);
   });
 
-  test("only the last display line before the options is the prompt, as the menu's caption, and a command line is not one", () => {
+  test("only the last display line before the options is the prompt, as the menu's caption", () => {
     const [scene] = symbolsOf(`scene A
   choose
     @ GUIDE
@@ -177,4 +177,38 @@ end
       "Up or down?",
     ]);
   });
+
+  const menuNamed = (prompt: string) =>
+    symbolsOf(
+      `scene A\n  choose\n${prompt}\n    * Left\n      You go left.\n  end\nend\n`,
+    )[0]?.children?.[0]?.name;
+
+  test.each([
+    ["a heading", "    $: Which door?"],
+    ["a title", "    ^: Which door?"],
+    ["a transition", "    %: Which door?"],
+    ["a targeted write", "    @dialogue: Which door?"],
+    ["a heading block", "    $:\n      Which door?"],
+    ["a title block", "    ^:\n      Which door?"],
+    ["a transition block", "    %:\n      Which door?"],
+    ["a targeted write block", "    @dialogue:\n      Which door?"],
+  ])("%s before the options is the prompt", (_form, prompt) => {
+    expect(menuNamed(prompt)).toBe("Which door?");
+  });
+
+  test.each([
+    ["an action block", "    :\n      The hall is dark. >\n      Which door?"],
+    [
+      "a dialogue block",
+      "    GUIDE:\n      The hall is dark. >\n      Which door?",
+    ],
+    ["an inline action", "    : The hall is dark. > Which door?"],
+    ["an implicit action", "    The hall is dark. > Which door?"],
+    ["a line ending in a break", "    : Which door? >"],
+  ])(
+    "after a break in %s, only the last beat is the prompt",
+    (_form, prompt) => {
+      expect(menuNamed(prompt)).toBe("Which door?");
+    },
+  );
 });

@@ -811,7 +811,7 @@ function reportLoadGlue(
   });
 }
 
-const DISPLAY_LINE_TYPES: Record<string, string> = {
+export const DISPLAY_LINE_TYPES: Readonly<Record<string, string>> = {
   InlineDialogue: "dialogue",
   BlockDialogue: "dialogue",
   InlineAction: "action",
