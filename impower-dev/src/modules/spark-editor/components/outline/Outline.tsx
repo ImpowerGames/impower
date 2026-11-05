@@ -1,0 +1,268 @@
+import {
+  BranchIcon,
+  Button,
+  ChevronDownIcon,
+  ChevronIcon,
+  ChooseIcon,
+  CloseIcon,
+  ErrorIcon,
+  FileIcon,
+  ListRow,
+  SceneIcon,
+  SearchIcon,
+  VirtualList,
+  WarningIcon,
+} from "@impower/impower-ui/components";
+import type { WorkspaceCache } from "@impower/spark-editor-protocol/src/types";
+import { useComputed } from "@preact/signals";
+import type { ComponentChildren } from "preact";
+import { useMemo } from "preact/hooks";
+import type { Position, Range } from "vscode-languageserver-protocol";
+import workspace from "../../workspace/WorkspaceStore";
+import {
+  outlineRows,
+  problemSummary,
+  type OutlineKind,
+  type OutlineRow,
+} from "./outlineRows";
+
+type WorkspaceWindow =
+  (typeof import("../../workspace/Workspace"))["Workspace"]["window"];
+
+const withWindow = (act: (win: WorkspaceWindow) => unknown) =>
+  void import("../../workspace/Workspace").then(({ Workspace }) =>
+    act(Workspace.window),
+  );
+
+const GLYPHS: Record<OutlineKind, typeof SceneIcon> = {
+  setup: FileIcon,
+  scene: SceneIcon,
+  choose: ChooseIcon,
+  branch: BranchIcon,
+};
+
+const scriptName = (uri: string) =>
+  decodeURIComponent(uri.split("/").pop() ?? "").replace(/\.sd$/, "");
+
+const caretIn = (
+  state: WorkspaceCache,
+  uri: string | undefined,
+): Position | undefined => {
+  const logic = state.panes?.logic;
+  if (!logic || !uri) {
+    return undefined;
+  }
+  const current = logic.panels[logic.panel]?.activeEditor;
+  const editor = current?.open
+    ? current
+    : Object.values(logic.panels).find((p) => p?.activeEditor?.open)
+        ?.activeEditor;
+  if (!editor?.filename || !uri.endsWith(`/${editor.filename}`)) {
+    return undefined;
+  }
+  return editor.selectedRange?.start;
+};
+
+function RowIcon({ row }: { row: OutlineRow }) {
+  if (row.problems.errors) {
+    return <ErrorIcon class="text-error!" />;
+  }
+  if (row.problems.warnings) {
+    return <WarningIcon class="text-warning!" />;
+  }
+  const Glyph = GLYPHS[row.kind];
+  return <Glyph />;
+}
+
+function Disclosure({
+  expanded,
+  label,
+  onToggle,
+}: {
+  expanded: boolean;
+  label: string;
+  onToggle: () => void;
+}) {
+  return (
+    <Button
+      variant="quiet"
+      size="icon"
+      class="text-muted [&_svg]:size-3.5"
+      aria-expanded={expanded}
+      aria-label={label}
+      title={label}
+      onClick={onToggle}
+    >
+      {expanded ? <ChevronDownIcon /> : <ChevronIcon />}
+    </Button>
+  );
+}
+
+function Heading({
+  title,
+  action,
+}: {
+  title: string;
+  action: ComponentChildren;
+}) {
+  return (
+    <div class="flex h-11 flex-none items-center justify-between pr-1 pl-9">
+      <h2 class="m-0 text-[14px]/[1.4] font-semibold text-ink">{title}</h2>
+      {action}
+    </div>
+  );
+}
+
+export default function Outline() {
+  const snapshot = workspace.outline.value;
+  const uri = snapshot?.uri;
+  const searching = useComputed(
+    () => !!workspace.state.value.screen?.outlineSearch,
+  ).value;
+  const caret = useComputed(() =>
+    caretIn(workspace.state.value, workspace.outline.value?.uri),
+  ).value;
+  const collapsed = useComputed(
+    () =>
+      workspace.state.value.outline?.collapsed?.[
+        workspace.outline.value?.uri ?? ""
+      ],
+  ).value;
+  const model = useMemo(
+    () =>
+      outlineRows({
+        symbols: snapshot?.symbols ?? [],
+        diagnostics: snapshot?.diagnostics ?? [],
+        caret,
+        collapsed,
+        firstContentLine: snapshot?.firstContentLine,
+      }),
+    [snapshot, caret?.line, caret?.character, collapsed],
+  );
+
+  const open = (range: Range) => {
+    if (uri) {
+      withWindow((win) => win.openOutlineLocation(uri, range));
+    }
+  };
+
+  const summary = problemSummary(model.problems);
+  const firstProblem = snapshot?.diagnostics.find(
+    (d) => (d.severity ?? 1) <= 2,
+  );
+
+  return (
+    <>
+      <nav
+        aria-label="Outline"
+        class="flex h-full min-h-0 flex-col pt-3 group-data-[sidebar=collapsed]/sidebar:hidden"
+      >
+        {searching ? (
+          <>
+            <Heading
+              title="Search"
+              action={
+                <Button
+                  variant="quiet"
+                  size="icon"
+                  class="text-muted"
+                  aria-label="Back to outline"
+                  title="Back to outline"
+                  onClick={() =>
+                    withWindow((win) => win.setOutlineSearch(false))
+                  }
+                >
+                  <CloseIcon />
+                </Button>
+              }
+            />
+            <div data-outline-search class="min-h-0 flex-1" />
+          </>
+        ) : (
+          <>
+            <Heading
+              title="Outline"
+              action={
+                <Button
+                  variant="quiet"
+                  size="icon"
+                  class="text-muted"
+                  aria-label="Search"
+                  title="Search"
+                  aria-expanded={false}
+                  onClick={() =>
+                    withWindow((win) => win.setOutlineSearch(true))
+                  }
+                >
+                  <SearchIcon />
+                </Button>
+              }
+            />
+            {model.rows.length && uri ? (
+              <VirtualList
+                class="flex-1 pr-[14px] pb-3 pl-[26px]"
+                label={`Scene outline in ${scriptName(uri)}`}
+                size="compact"
+                items={model.rows}
+                getKey={(row) => row.key}
+                revealIndex={model.currentIndex}
+                renderItem={(row) => (
+                  <ListRow
+                    size="compact"
+                    depth={row.depth}
+                    current={row.current === "self" ? "location" : false}
+                    containsCurrent={row.current === "ancestor"}
+                    overflow={row.kind === "choose" ? "clamp" : "fade"}
+                    icon={<RowIcon row={row} />}
+                    label={row.label}
+                    aria-label={row.accessibleName}
+                    title={row.accessibleName}
+                    onClick={() => open(row.selection)}
+                    actions={
+                      row.expanded === undefined ? undefined : (
+                        <Disclosure
+                          expanded={row.expanded}
+                          label={`${row.expanded ? "Collapse" : "Expand"} scene ${row.label}`}
+                          onToggle={() =>
+                            withWindow((win) =>
+                              win.setOutlineSceneCollapsed(
+                                uri,
+                                row.scene!,
+                                !!row.expanded,
+                              ),
+                            )
+                          }
+                        />
+                      )
+                    }
+                  />
+                )}
+              />
+            ) : (
+              <p class="m-0 py-2.5 pr-[14px] pl-9 text-[12px]/[1.6] text-muted">
+                Scenes will appear here as you write them.
+              </p>
+            )}
+          </>
+        )}
+      </nav>
+      {summary && uri && firstProblem ? (
+        <div class="hidden justify-center pt-3 group-data-[sidebar=collapsed]/sidebar:flex">
+          <Button
+            variant="quiet"
+            size="icon"
+            aria-label={`Outline: ${summary} in ${scriptName(uri)}`}
+            title={`${summary} in ${scriptName(uri)}`}
+            onClick={() => open(firstProblem.range)}
+          >
+            {model.problems.errors ? (
+              <ErrorIcon class="text-error" />
+            ) : (
+              <WarningIcon class="text-warning" />
+            )}
+          </Button>
+        </div>
+      ) : null}
+    </>
+  );
+}
