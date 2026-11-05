@@ -26,6 +26,8 @@ import { activateScreenPreview } from "./utils/activateScreenPreview";
 import { activateVirtualDeclarations } from "./utils/activateVirtualDeclarations";
 import { activatePortraitNormalization } from "./utils/activatePortraitNormalization";
 
+declare const __SPARKDOWN_DRIVER_PROTOCOL__: boolean;
+
 export function activate(context: vscode.ExtensionContext) {
   console.log("Sparkdown Activated");
   activateDocumentManager(context);
@@ -45,7 +47,13 @@ export function activate(context: vscode.ExtensionContext) {
   activateCompletionPreview(context);
   activateExecutionLineDecorator(context);
   activateFileWatcher(context);
-  activateLanguageClient(context);
+  const clientReady = activateLanguageClient(context);
+  if (typeof __SPARKDOWN_DRIVER_PROTOCOL__ !== "undefined" && __SPARKDOWN_DRIVER_PROTOCOL__ &&
+    context.extensionMode === vscode.ExtensionMode.Development) {
+    void import("./utils/driveEditorProtocol").then(({ attachDriveEditorProtocol }) =>
+      attachDriveEditorProtocol(context, clientReady),
+    );
+  }
   activateRuntimeDiagnostics(context);
   activateNewlineHelper(context);
   activateDebugger(context);
