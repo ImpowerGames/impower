@@ -49,7 +49,7 @@ describe("the preview at a line outside every scene", () => {
       files: [{ uri: MAIN_URI, text: SCENES }],
       startFrom: { file: MAIN_URI, line: 9 },
     });
-    h.refs.routeButton = h.refs.leftItems.ownerDocument.createElement("div");
+    h.refs.routeButton = h.overlay.ownerDocument.createElement("div");
     const indicatorShown = () => {
       const indicator = h.overlay.querySelector(".continue_indicator") as HTMLElement | null;
       return indicator !== null && indicator.style.display !== "none";
@@ -60,19 +60,19 @@ describe("the preview at a line outside every scene", () => {
       await settle(40);
       expect(h.overlay.textContent).toContain("Inside other.");
       expect(indicatorShown()).toBe(true);
-      expect(h.refs.routeButton.hidden).toBe(false);
+      expect(h.bar("#route-button").hidden).toBe(false);
       const before = h.toRouter.length;
       await h.select(11);
       await settle(40);
       expect(writtenText(h.toRouter.slice(before))).toBe("");
       expect(h.overlay.textContent).not.toContain("Inside other.");
       expect(indicatorShown()).toBe(false);
-      expect(h.refs.routeButton.hidden).toBe(true);
+      expect(h.bar("#route-button").hidden).toBe(true);
       await h.select(3);
       await settle(40);
       expect(h.overlay.textContent).toContain("Inside start.");
       expect(indicatorShown()).toBe(true);
-      expect(h.refs.routeButton.hidden).toBe(false);
+      expect(h.bar("#route-button").hidden).toBe(false);
     } finally {
       h.dispose();
     }
@@ -139,7 +139,7 @@ describe("a line inside a top-level UI declaration", () => {
         files: [{ uri: MAIN_URI, text: WITH_UI }],
         startFrom: { file: MAIN_URI, line: 15 },
       });
-      h.refs.routeButton = h.refs.leftItems.ownerDocument.createElement("div");
+      h.refs.routeButton = h.overlay.ownerDocument.createElement("div");
       try {
         await h.compile();
         await h.select(15);
@@ -148,7 +148,7 @@ describe("a line inside a top-level UI declaration", () => {
         await h.select(line);
         await settle(40);
         expect(h.overlay.textContent).toContain("Inside other.");
-        expect(h.refs.routeButton.hidden).toBe(false);
+        expect(h.bar("#route-button").hidden).toBe(false);
       } finally {
         h.dispose();
       }
