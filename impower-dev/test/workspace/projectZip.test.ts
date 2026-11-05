@@ -59,16 +59,23 @@ function makeHarness(initial: Record<string, Uint8Array>): Harness {
     foldersOutside: (WorkspaceFileSystem.prototype as any).foldersOutside,
     replaceFolders: (WorkspaceFileSystem.prototype as any).replaceFolders,
 
+    _unstoredUris: new Set<string>(),
     zipFiles: async ({
       files: list,
+      entries = [],
     }: {
       files: { uri: string; path?: string }[];
+      entries?: { path: string; data: ArrayBuffer }[];
     }) => {
-      const refs = list.map(({ uri, path }) => ({
-        path: path ?? basename(uri),
-        data: opfs.get(uri)!,
-      }));
-      return zipSync(buildZippable(refs), { level: 0 }).buffer;
+      const refs = list.map(({ uri, path }) => {
+        const data = opfs.get(uri);
+        if (!data) {
+          throw new Error(`NotFoundError: ${uri} was not found`);
+        }
+        return { path: path ?? basename(uri), data };
+      });
+      return zipSync(buildZippable([...refs, ...entries]), { level: 0 })
+        .buffer;
     },
     unzipFiles: async ({ data }: { data: ArrayBuffer }) =>
       parseUnzipEntries(unzipSync(new Uint8Array(data))),
@@ -162,6 +169,16 @@ describe("project zip round-trip (readProjectZip <-> writeProjectZip)", () => {
     const src = makeHarness({ [u("main.sd")]: enc.encode("NEW") });
     await writeProjectZip(dst, await readProjectZip(src));
     expect(dst.opfs.has(u(LAYOUT_MARKER))).toBe(false);
+  });
+
+  it("exports a starter script that exists only in memory", async () => {
+    const starter = "scene start\n  \nend\n";
+    const src = makeHarness({ [u("logo.png")]: new Uint8Array([4]) });
+    src.files[u("main.sd")] = makeFileData(u("main.sd"), enc.encode(starter));
+    (src.fs as any)._unstoredUris.add(u("main.sd"));
+    const entries = unzipSync(new Uint8Array(await readProjectZip(src)));
+    expect(Object.keys(entries).sort()).toEqual(["logo.png", "main.sd"]);
+    expect(dec.decode(entries["main.sd"])).toBe(starter);
   });
 
   describe("known gaps on main", () => {
