@@ -4,6 +4,7 @@ import { act } from "preact/test-utils";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 const players = vi.hoisted(() => ({ mounted: 0, unmounted: 0 }));
+const stripHeights = vi.hoisted(() => [] as (number | undefined)[]);
 
 vi.mock("../../src/modules/spark-editor/components/preview/Preview", () => ({
   default: function Preview() {
@@ -44,7 +45,9 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
       setAppMenuOpen: () => {},
       setRailWidth: () => {},
       setRailCompactWidth: () => {},
-      setStripHeight: () => {},
+      setStripHeight: (height: number | undefined) => {
+        stripHeights.push(height);
+      },
     },
   },
 }));
@@ -173,5 +176,44 @@ describe("the compact layout", () => {
     });
     await settle();
     expect(railWidth()).toBe("190px");
+  });
+
+  it("sizes the strip from the project's height, collapses it to its bar and resets it", async () => {
+    await mount(900);
+    await act(async () => {
+      workspace.current = { ...workspace.current, shell: { stripHeight: 320 } };
+    });
+    await settle();
+    const split = host!.querySelector<HTMLElement>("[data-split]")!;
+    const handle = host!.querySelector<HTMLElement>(
+      '[role="separator"][aria-label="Resize preview"]',
+    )!;
+    expect(handle).not.toBeNull();
+    expect(handle.getAttribute("aria-valuenow")).toBe("320");
+    expect(split.dataset["split"]).toBe("expanded");
+
+    stripHeights.length = 0;
+    const key = (k: string) =>
+      act(async () => {
+        handle.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true }));
+      });
+    await key("Home");
+    await settle();
+    expect(stripHeights).toEqual([48]);
+    expect(split.dataset["split"]).toBe("collapsed");
+    await key("Enter");
+    await settle();
+    expect(stripHeights).toEqual([48, undefined]);
+    expect(handle.getAttribute("aria-valuenow")).toBe("280");
+  });
+
+  it("draws the strip above the script while the player stays the last panel", async () => {
+    await mount(900);
+    const panels = host!.querySelectorAll("[data-panel]");
+    expect(panels[panels.length - 1]!.querySelector("[data-player]")).not.toBeNull();
+    expect(panels[0]!.parentElement!.className).toContain("flex-col-reverse");
+    await resize(1440);
+    expect(panels[0]!.parentElement!.className).toContain("flex-row");
+    expect(host!.querySelector('[aria-label="Resize preview"]')).toBeNull();
   });
 });

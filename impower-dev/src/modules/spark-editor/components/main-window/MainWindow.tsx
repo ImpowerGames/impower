@@ -35,14 +35,12 @@ function PaneContent({ pane }: { pane: PaneType }) {
   return <Logic key="logic" />;
 }
 
-const STRIP_HEIGHT_DEFAULT = 280;
-
-const STRIP_CLASS = [
-  "[&>div]:flex-col-reverse!",
-  "[&>div>[data-panel]:first-child]:flex-[1_1_0]!",
-  "[&>div>[data-panel]:last-child]:flex-[0_0_var(--strip-height)]!",
-  "[&>div>[data-separator]]:hidden!",
-].join(" ");
+const STRIP_HEIGHT = {
+  default: 280,
+  min: 160,
+  collapsed: 48,
+  reserve: 240,
+} as const;
 
 export default function MainWindow(_props: MainWindowProps) {
   useWorkspaceSession();
@@ -64,20 +62,32 @@ export default function MainWindow(_props: MainWindowProps) {
     Workspace.window.navigateTo(routeOfPane(next as PaneType));
   };
 
+  const onStripHeightChange = async (height: number | undefined) => {
+    const { Workspace } = await import("../../workspace/Workspace");
+    Workspace.window.setStripHeight(height);
+  };
+
   const panes = (
-    <div
-      class="relative flex h-full min-h-0 flex-1"
-      style={
-        strip
-          ? { "--strip-height": `${stripHeight ?? STRIP_HEIGHT_DEFAULT}px` }
-          : undefined
-      }
-    >
+    <div class="relative flex h-full min-h-0 flex-1">
       {!isSSR && (
         <>
           <SplitPane
             orientation={strip ? "vertical" : "horizontal"}
-            class={strip ? STRIP_CLASS : undefined}
+            reverse={strip}
+            label={strip ? "Resize preview" : undefined}
+            pinned={
+              strip
+                ? {
+                    panel: "end",
+                    size: stripHeight,
+                    defaultSize: STRIP_HEIGHT.default,
+                    minSize: STRIP_HEIGHT.min,
+                    collapsedSize: STRIP_HEIGHT.collapsed,
+                    reserve: STRIP_HEIGHT.reserve,
+                    onSizeChange: onStripHeightChange,
+                  }
+                : undefined
+            }
             activePanel={previewActive}
             defaultSizes={[53, 47]}
             minSize={desktop ? ["280px", "336px"] : "320px"}
