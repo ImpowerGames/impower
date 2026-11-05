@@ -417,6 +417,9 @@ Component variables of the editor's own chrome:
 | `--editor-doc-keycap-edge` | Key cap border | `#3d444db3` |
 | `--editor-doc-quote-ink` | Block quote text in documentation | `#9198a1` |
 | `--editor-doc-quote-edge` | Block quote rule | `#3d444d` |
+| `--editor-icon-ink` | Find and go-to-line button icons, a checked find toggle's icon | `#ffffff` |
+| `--editor-icon-muted` | An unchecked find toggle's icon | `#cccccc` |
+| `--editor-icon-close` | The find and go-to-line close icon | `#315881` |
 
 Syntax variables, one per highlight role the editor's `EDITOR_HIGHLIGHTS.ts` and LSP
 semantic-token rules colour today:
@@ -525,6 +528,9 @@ of the popovers (`folio-hierarchy.css:918`).
 | `--editor-doc-keycap-edge` | `var(--edge)` | Divider |
 | `--editor-doc-quote-ink` | `var(--muted)` | Muted ink |
 | `--editor-doc-quote-edge` | `var(--edge)` | Divider |
+| `--editor-icon-ink` | `var(--ink)` | Ink |
+| `--editor-icon-muted` | `var(--muted)` | Muted ink |
+| `--editor-icon-close` | `var(--muted)` | Muted ink |
 
 ### Charcoal and Chalk syntax variables
 
