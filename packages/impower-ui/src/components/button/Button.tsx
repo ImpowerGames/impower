@@ -36,7 +36,7 @@ export const buttonVariants = cva(
           `bg-engine-700 text-foreground ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
         outline: `border border-foreground bg-transparent text-foreground ${UNFILLED_OVERLAY}`,
         ghost: `bg-transparent text-foreground ${UNFILLED_OVERLAY}`,
-        link: "bg-transparent text-primary underline-offset-4 hover:underline h-auto px-0 py-0",
+        link: "bg-transparent text-primary underline-offset-4 hover:underline",
         destructive:
           `bg-danger-500 text-foreground ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
         fab: `bg-engine-700 text-white ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
@@ -51,6 +51,7 @@ export const buttonVariants = cva(
         fab: "h-12 w-full rounded-full px-5 text-base font-normal",
       },
     },
+    compoundVariants: [{ variant: "link", class: "size-auto p-0" }],
     defaultVariants: {
       variant: "primary",
       size: "default",
