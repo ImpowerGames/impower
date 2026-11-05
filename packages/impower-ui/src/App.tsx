@@ -20,15 +20,15 @@ export function App() {
   const [subPanel, setSubPanel] = useState<string>("main");
   const [splitActive, setSplitActive] = useState<"start" | "end">("start");
   return (
-    <div class="min-h-screen w-full bg-neutral-50 text-neutral-800 font-sans p-8">
+    <div class="min-h-screen w-full bg-background text-foreground font-sans p-8">
       <header class="mb-6">
         <h1 class="text-2xl font-semibold mb-1">@impower/impower-ui</h1>
-        <p class="text-sm text-neutral-500">Component showcase (rebuild).</p>
+        <p class="text-sm text-neutral-400">Component showcase (rebuild).</p>
       </header>
 
       <section class="space-y-4">
         <h2 class="text-lg font-medium">
-          <code class="font-mono text-sm bg-neutral-200 px-2 py-0.5 rounded">
+          <code class="font-mono text-sm bg-surface px-2 py-0.5 rounded">
             &lt;LoadingBar&gt;
           </code>
         </h2>
@@ -59,7 +59,7 @@ export function App() {
 
       <section class="mt-10 space-y-4">
         <h2 class="text-lg font-medium">
-          <code class="font-mono text-sm bg-neutral-200 px-2 py-0.5 rounded">
+          <code class="font-mono text-sm bg-surface px-2 py-0.5 rounded">
             &lt;Button&gt;
           </code>
         </h2>
@@ -103,23 +103,23 @@ export function App() {
 
       <section class="mt-10 space-y-4">
         <h2 class="text-lg font-medium">
-          <code class="font-mono text-sm bg-neutral-200 px-2 py-0.5 rounded">
+          <code class="font-mono text-sm bg-surface px-2 py-0.5 rounded">
             &lt;Tabs&gt; / &lt;Tab&gt;
           </code>
         </h2>
         <Row label="Top sub-tabs (underline indicator, plain labels)">
-          <div class="w-[480px] bg-neutral-100 border border-neutral-200 rounded">
+          <div class="w-[480px] bg-surface border border-surface-border rounded">
             <Tabs value={subPanel} onChange={setSubPanel}>
               <Tab value="main">Main</Tab>
               <Tab value="scripts">Scripts</Tab>
             </Tabs>
-            <div class="p-4 text-sm text-neutral-600">
+            <div class="p-4 text-sm text-neutral-300">
               Active sub-panel: <strong>{subPanel}</strong>
             </div>
           </div>
         </Row>
         <Row label="Bottom nav (icons + active-icon swap, no indicator)">
-          <div class="w-[480px] bg-neutral-900 text-neutral-50 rounded">
+          <div class="w-[480px] bg-popup text-foreground border border-surface-border rounded">
             <Tabs value={pane} onChange={setPane} indicator="none" class="py-2">
               <Tab value="logic" icon={Bolt} activeIcon={BoltFill}>
                 Logic
@@ -137,19 +137,19 @@ export function App() {
 
       <section class="mt-10 space-y-4">
         <h2 class="text-lg font-medium">
-          <code class="font-mono text-sm bg-neutral-200 px-2 py-0.5 rounded">
+          <code class="font-mono text-sm bg-surface px-2 py-0.5 rounded">
             &lt;SplitPane&gt;
           </code>
         </h2>
         <Row label="Drag the divider to resize. Resize browser below 768px to test responsive collapse.">
           <div class="flex items-center gap-3 mb-2">
-            <span class="text-xs text-neutral-500">Mobile-active pane:</span>
+            <span class="text-xs text-neutral-400">Mobile-active pane:</span>
             <button
               type="button"
               class={`px-3 py-1 text-xs rounded ${
                 splitActive === "start"
                   ? "bg-primary text-white"
-                  : "bg-neutral-200"
+                  : "bg-surface"
               }`}
               onClick={() => setSplitActive("start")}
             >
@@ -160,23 +160,23 @@ export function App() {
               class={`px-3 py-1 text-xs rounded ${
                 splitActive === "end"
                   ? "bg-primary text-white"
-                  : "bg-neutral-200"
+                  : "bg-surface"
               }`}
               onClick={() => setSplitActive("end")}
             >
               End
             </button>
           </div>
-          <div class="w-full h-72 border border-neutral-200 rounded overflow-hidden">
+          <div class="w-full h-72 border border-surface-border rounded overflow-hidden">
             <SplitPane
               activePanel={splitActive}
               start={
-                <div class="flex h-full items-center justify-center bg-neutral-100 text-neutral-700">
+                <div class="flex h-full items-center justify-center bg-surface text-foreground">
                   Start panel (e.g. editor)
                 </div>
               }
               end={
-                <div class="flex h-full items-center justify-center bg-neutral-800 text-neutral-100">
+                <div class="flex h-full items-center justify-center bg-popup text-foreground">
                   End panel (e.g. preview)
                 </div>
               }
@@ -191,7 +191,7 @@ export function App() {
 function Row({ label, children }: { label: string; children: any }) {
   return (
     <div>
-      <div class="text-xs text-neutral-500 mb-1.5">{label}</div>
+      <div class="text-xs text-neutral-400 mb-1.5">{label}</div>
       {children}
     </div>
   );
