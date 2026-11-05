@@ -78,9 +78,11 @@ export default function VirtualList<T>({
     };
   }, []);
 
+  const hasViewport = view.height > 0;
+
   useLayoutEffect(() => {
     const element = scroller.current;
-    if (!element || revealIndex == null || revealIndex < 0) {
+    if (!element || !hasViewport || revealIndex == null || revealIndex < 0) {
       return;
     }
     const top = revealIndex * rowHeight;
@@ -90,7 +92,7 @@ export default function VirtualList<T>({
     } else if (bottom > element.scrollTop + element.clientHeight) {
       element.scrollTop = bottom - element.clientHeight;
     }
-  }, [revealIndex, rowHeight]);
+  }, [revealIndex, rowHeight, hasViewport]);
 
   const visibleRows = view.height
     ? Math.ceil(view.height / rowHeight)
