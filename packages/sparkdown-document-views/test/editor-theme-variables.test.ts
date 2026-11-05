@@ -189,13 +189,43 @@ describe("the code editor decides no colour in JavaScript", () => {
         'const mask = `<svg viewBox="0 0 24 24" fill="#fff">${glyph}</svg>`;',
       ),
     ).toEqual(['`<svg viewBox="0 0 24 24" fill="#fff">${glyph}</svg>`']);
+    expect(
+      colourLiterals(
+        "const markup = `<svg></svg><button onclick='let fill=\"black\";this.style.color=fill'>Apply</button>`;",
+      ),
+    ).toHaveLength(1);
+    expect(
+      colourLiterals(
+        "const markup = `<svg onload='let stroke=\"black\";this.style.stroke=stroke'></svg>`;",
+      ),
+    ).toHaveLength(1);
+    expect(
+      colourLiterals(
+        "const markup = `<svg><path d=\"M0 0\"/></svg> fill=\"black\"`;",
+      ),
+    ).toHaveLength(1);
   });
 });
 
 const SRC = resolve(__dirname, "../src");
 
-const SVG_MASK_PAINT =
-  /(?<=<svg\b[^`<>]*(?:>[^`]*)?)\s(?:fill|stroke)="(?:none|black|currentColor)"/g;
+const SVG_ELEMENT = /<svg\b[\s\S]*?(?:<\/svg>|$)/g;
+
+const SVG_TAG = /<[a-zA-Z][\w:-]*(?:"[^"]*"|'[^']*'|[^<>"'])*>/g;
+
+const TAG_ATTRIBUTE = /\s([\w:-]+)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s"'>]+))?/g;
+
+const withoutMaskPaints = (text: string) =>
+  text.replace(SVG_ELEMENT, (svg) =>
+    svg.replace(SVG_TAG, (tag) =>
+      tag.replace(TAG_ATTRIBUTE, (attribute, name: string, value?: string) =>
+        /^(fill|stroke)$/.test(name) &&
+        /^"(none|black|currentColor)"$/.test(value ?? "")
+          ? ""
+          : attribute,
+      ),
+    ),
+  );
 
 const COLOUR_LITERAL =
   /#[0-9a-f]{3,8}\b|\brgba?\(|\bhsla?\(|\b(white|black)\b(?!-)/i;
@@ -212,7 +242,7 @@ const colourLiterals = (source: string) => {
         : undefined;
     if (
       pieces?.some((text) =>
-        COLOUR_LITERAL.test(text.replace(SVG_MASK_PAINT, "")),
+        COLOUR_LITERAL.test(withoutMaskPaints(text)),
       )
     ) {
       found.push(node.getText(file));
