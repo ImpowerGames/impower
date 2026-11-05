@@ -309,3 +309,24 @@ describe("ScriptEditorController problems", () => {
     expect(view.dom.querySelector(".cm-panel-lint")).toBeNull();
   });
 });
+
+describe("ScriptEditorController initial selection", () => {
+  it("puts the caret where the load asked once the editor settles, even with that line on screen", async () => {
+    const mounted = mount();
+    const at = { line: 1, character: 2 };
+    await mounted.controller["handleLoadEditor"]({
+      ...LoadEditorMessage.type.request({
+        textDocument: { uri: "file:///main.sd", languageId: "sparkdown", version: 0, text: "" },
+        selectedRange: { start: at, end: at },
+        languageServerInitializeParams: {} as never,
+        languageServerInitializeResult: {} as never,
+      }),
+      id: `load-${nextId++}`,
+    } as LoadEditorMessage.Request);
+    const { view } = created[created.length - 1]!;
+    view.dispatch({ changes: { from: view.state.doc.length, insert: "second line\n" } });
+    expect(view.state.selection.main.head).toBe(0);
+    mounted.controller["handleIdle"]();
+    expect(view.state.selection.main.head).toBe(view.state.doc.line(2).from + 2);
+  });
+});

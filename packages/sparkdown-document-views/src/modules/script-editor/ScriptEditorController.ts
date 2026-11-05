@@ -1157,6 +1157,9 @@ export class ScriptEditorController {
           ? this._initialVisibleRange
           : undefined;
       this.scrollToRange(initialVisibleRange, scrollStrategy);
+      if (initialSelectedRange) {
+        this.selectRange(initialSelectedRange, false);
+      }
       const view = this._view;
       if (document.hasFocus() && this._view) {
         clearInterval(this._focusIntervalTimeout);
