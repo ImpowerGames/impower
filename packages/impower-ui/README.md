@@ -15,7 +15,7 @@ Run from the repository root:
 |---|---|
 | Gallery (every component, variant, size and state on one page) | `npm --prefix packages/impower-ui run dev`, then open the printed URL |
 | Tests | `node scripts/test-suite.mjs run packages/impower-ui <test-file> [<test-file> ...] --wait <seconds>` |
-| Whole package baseline | `node scripts/test-suite.mjs start packages/impower-ui --wait <seconds>` |
+| Whole package | the `packages/impower-ui` job of the Test Suite workflow, on every pull request that touches `packages/` (local whole-package runs are refused) |
 | Typecheck | `npm run typecheck -- packages/impower-ui/` |
 | Radix import boundary | `npm run lint:radix-boundary` |
 
@@ -148,9 +148,10 @@ and forwards its ref to it.
 
 ## Tests
 
-`vitest.config.ts` runs `src/**/*.test.tsx` and `test/**/*.test.tsx` under jsdom with
-`@preact/preset-vite`, aliasing `react` to `preact/compat` and inlining Radix so it uses
-the same Preact instance. A file that renders on the server sets
+`vitest.config.ts` runs `src/**/*.test.tsx` and `test/**/*.test.tsx` under jsdom. It
+compiles JSX with esbuild's `jsxImportSource: "preact"` rather than `@preact/preset-vite`,
+whose plugin is typed for the workspace's Vite and not the Vite inside vitest. It aliases
+`react` to `preact/compat` and inlines Radix so Radix uses the same Preact instance. A file that renders on the server sets
 `// @vitest-environment node`, as `test/serverRender.test.tsx` does. Run tests only through
 `node scripts/test-suite.mjs run packages/impower-ui ...`, which applies the repository's
 memory limit and one-worker isolation.
