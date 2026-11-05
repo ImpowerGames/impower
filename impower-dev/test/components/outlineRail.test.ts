@@ -189,6 +189,18 @@ describe("the Outline rail", () => {
     ]);
   });
 
+  it("badges a menu for a problem on its own lines, and its scene for the total", async () => {
+    await mount([problem(3, 2)]);
+    expect(
+      rowButtons().map((b) => [b.getAttribute("aria-label"), badge(b)]),
+    ).toEqual([
+      ["Scene: harbor, 1 warning in this scene", "warning"],
+      ["Choose: Where now?, 1 warning", "warning"],
+      ["Branch: storm", "glyph"],
+      ["Scene: dock", "glyph"],
+    ]);
+  });
+
   it("marks the caret's row as the current location and its scene as containing it", async () => {
     setCaret(8);
     await mount([]);
@@ -299,5 +311,31 @@ describe("outline rows", () => {
         firstContentLine: 0,
       }).rows[0]!.kind,
     ).toBe("scene");
+  });
+
+  it("makes Script setup the current row while the caret is before the first scene", () => {
+    const symbols = symbolsOf(`VAR = 1\n${SCRIPT}`);
+    const before = outlineRows({
+      symbols,
+      diagnostics: [],
+      caret: { line: 0, character: 3 },
+      firstContentLine: 0,
+    });
+    expect(before.currentIndex).toBe(0);
+    expect(before.rows.map((r) => r.current)).toEqual([
+      "self",
+      "none",
+      "none",
+      "none",
+      "none",
+    ]);
+    const inside = outlineRows({
+      symbols,
+      diagnostics: [],
+      caret: { line: 2, character: 3 },
+      firstContentLine: 0,
+    });
+    expect(inside.currentIndex).toBe(1);
+    expect(inside.rows[0]!.current).toBe("none");
   });
 });

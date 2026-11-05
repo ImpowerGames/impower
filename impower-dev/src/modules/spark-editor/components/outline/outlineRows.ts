@@ -188,6 +188,16 @@ export function outlineRows({
       visit(symbol, 0, "", false);
     }
   }
+  if (
+    currentIndex < 0 &&
+    rows[0]?.kind === "setup" &&
+    caret != null &&
+    firstScene &&
+    caret.line < firstScene.range.start.line
+  ) {
+    rows[0].current = "self";
+    currentIndex = 0;
+  }
   return {
     rows,
     currentIndex,
