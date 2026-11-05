@@ -4,6 +4,8 @@ import { runOperandNameSpan } from "@impower/sparkdown/src/compiler/utils/runOpe
 import { type Tree } from "@lezer/common";
 import {
   AnnotatedTextEdit,
+  ErrorCodes,
+  ResponseError,
   type CreateFile,
   type DeleteFile,
   type Position,
@@ -19,6 +21,7 @@ import {
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
 import { SparkdownConfiguration } from "../../types/SparkdownConfiguration";
 import { getReferences } from "./getReferences";
+import { getRenameRefusal } from "./getRenameRefusal";
 import { getSymbol } from "./getSymbol";
 
 export const getRenameEdits = (
@@ -67,6 +70,19 @@ export const getRenameEdits = (
   }
 
   const currentName = document?.getText(nameRange) || "";
+
+  if (symbol.name !== "RunContent") {
+    const refusal = getRenameRefusal(
+      workspace,
+      program,
+      currentName,
+      newName,
+      resolvedSymbolIds,
+    );
+    if (refusal) {
+      throw new ResponseError(ErrorCodes.InvalidRequest, refusal);
+    }
+  }
 
   const renameSymbol = (uri: string, range: Range) => {
     changes[uri] ??= [];
