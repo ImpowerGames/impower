@@ -15,9 +15,8 @@ import {
 } from "@codemirror/view";
 import {
   ContextMenuItem,
-  lspContextMenuItems,
+  defaultContextMenuItems,
   recordMenuClipboard,
-  textContextMenuItems,
 } from "./context";
 import { coarsePointer } from "./pointer";
 
@@ -482,13 +481,7 @@ const contextMenuConfig = Facet.define<ContextMenuConfig, ContextMenuConfig>({
 });
 
 export function contextMenu(
-  config: ContextMenuConfig = {
-    items: [
-      ...textContextMenuItems,
-      { type: "separator" },
-      ...lspContextMenuItems,
-    ],
-  },
+  config: ContextMenuConfig = { items: [...defaultContextMenuItems] },
 ): Extension {
   return [
     contextMenuConfig.of(config),
