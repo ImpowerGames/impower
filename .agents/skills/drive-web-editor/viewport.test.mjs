@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { contextOptions, displayReport, parseViewport, screenshotPath, shotFileName, takeDisplayFlags } from "./viewport.mjs";
 import { launchEditorBrowser, parseScreenshotArgs } from "./driver.mjs";
 
@@ -101,6 +101,40 @@ await check("the launcher hands the display options to the persistent context", 
   assert.equal(seen.isMobile, true);
   assert.equal(seen.deviceScaleFactor, 3);
   assert.equal(seen.colorScheme, "dark");
+});
+
+await check("flags on the driver's own command line reach the browser context without being passed in", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "viewport-test-argv-"));
+  const source = [
+    `const { launchEditorBrowser } = await import(${JSON.stringify(pathToFileURL(DRIVER).href)});`,
+    "let seen;",
+    "const chromium = { executablePath: () => '', launchPersistentContext: async (_dir, options) => { seen = options; return {}; } };",
+    `await launchEditorBrowser({ headless: true, dir: ${JSON.stringify(path.join(dir, "profile"))}, platform: 'linux', playwright: async () => ({ chromium }) });`,
+    "console.log('OPTIONS ' + JSON.stringify(seen));",
+  ].join("\n");
+  const run = (...flags) => {
+    const child = spawnSync(process.execPath, ["--input-type=module", "-e", source, "--", ...flags], {
+      encoding: "utf8",
+      env: { ...process.env, IMPOWER_DRIVER_CHROMIUM: process.execPath },
+    });
+    const line = child.stdout.split("\n").find((l) => l.startsWith("OPTIONS "));
+    assert.ok(line, `no launch options printed (exit ${child.status}): ${child.stderr}`);
+    return JSON.parse(line.slice("OPTIONS ".length));
+  };
+  try {
+    const phone = run("--viewport", "phone", "--color-scheme", "dark", "--theme", "charcoal");
+    assert.deepEqual(phone.viewport, { width: 360, height: 780 });
+    assert.equal(phone.hasTouch, true);
+    assert.equal(phone.isMobile, true);
+    assert.equal(phone.deviceScaleFactor, 3);
+    assert.equal(phone.colorScheme, "dark");
+    const plain = run();
+    assert.deepEqual(plain.viewport, { width: 1600, height: 1000 });
+    assert.equal(plain.hasTouch, undefined);
+    assert.equal(plain.colorScheme, undefined);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 await check("screenshot names carry the viewport and scheme, never an unapplied theme", () => {
