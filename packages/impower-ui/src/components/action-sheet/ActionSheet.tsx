@@ -1,31 +1,11 @@
-import { cva, type VariantProps } from "class-variance-authority";
 import { useEffect, useState } from "preact/hooks";
-import { cn } from "../../utils/cn";
 import Button from "../button/Button";
 import { DialogTitle, Sheet } from "../dialog/Dialog";
-
-export const actionSheetItemVariants = cva(
-  "w-full justify-start text-[15px]/[1.4] font-normal",
-  {
-    variants: {
-      tone: {
-        default: "",
-        destructive: "text-error",
-      },
-    },
-    defaultVariants: { tone: "default" },
-  },
-);
-
-export type ActionSheetItemTone = NonNullable<
-  VariantProps<typeof actionSheetItemVariants>["tone"]
->;
 
 export type ActionSheetItem =
   | {
       label: string;
       disabled?: boolean;
-      tone?: ActionSheetItemTone;
       onSelect: () => void;
     }
   | { type: "separator" };
@@ -68,7 +48,7 @@ export function ActionSheet({
               key={index}
               role="menuitem"
               variant="quiet"
-              class={cn(actionSheetItemVariants({ tone: item.tone }))}
+              class="w-full justify-start text-[15px]/[1.4] font-normal"
               disabled={item.disabled}
               onClick={() => item.onSelect()}
             >

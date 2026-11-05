@@ -161,9 +161,4 @@ describe("ActionSheet under preact/compat", () => {
     await act(async () => host!.querySelector("button")!.click());
     expect(items().map((item) => item.textContent)).toEqual(["Copy"]);
   });
-
-  it("gives the destructive tone the error ink", async () => {
-    await mount([{ label: "Delete", tone: "destructive", onSelect: () => {} }]);
-    expect(items()[0]!.className).toContain("text-error");
-  });
 });

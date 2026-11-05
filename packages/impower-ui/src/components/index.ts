@@ -2,9 +2,7 @@ import "../style.css";
 
 export {
   default as ActionSheet,
-  actionSheetItemVariants,
   type ActionSheetItem,
-  type ActionSheetItemTone,
   type ActionSheetProps,
 } from "./action-sheet/ActionSheet";
 export {

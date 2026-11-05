@@ -2,7 +2,6 @@ import { options, type VNode } from "preact";
 import * as kit from "../src/components";
 
 export const NOT_COMPONENTS: readonly string[] = [
-  "actionSheetItemVariants",
   "buttonVariants",
   "componentRegistry",
   "dialogVariants",

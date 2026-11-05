@@ -3,7 +3,7 @@ import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import Button from "../button/Button";
 import ActionSheet, { type ActionSheetItem } from "./ActionSheet";
 
-type Demo = "edit" | "tones";
+type Demo = "edit";
 
 function ActionSheetDemo() {
   const [demo, setDemo] = useState<Demo | null>(null);
@@ -13,14 +13,9 @@ function ActionSheetDemo() {
 
   return (
     <div class="space-y-6">
-      <GalleryRow label="Default tone, a disabled item and separators: the editor's context menu on a coarse pointer">
+      <GalleryRow label="Items, a disabled item and separators: the editor's context menu on a coarse pointer">
         <Button aria-haspopup="menu" onClick={() => setDemo("edit")}>
           Edit actions
-        </Button>
-      </GalleryRow>
-      <GalleryRow label="tone: default and destructive">
-        <Button aria-haspopup="menu" onClick={() => setDemo("tones")}>
-          Tones
         </Button>
       </GalleryRow>
       <ActionSheet
@@ -37,12 +32,6 @@ function ActionSheetDemo() {
           item("Find references"),
           item("Go to definition"),
         ]}
-      />
-      <ActionSheet
-        open={demo === "tones"}
-        onOpenChange={(open) => !open && close()}
-        title="Script"
-        items={[item("Duplicate"), item("Delete", { tone: "destructive" })]}
       />
     </div>
   );
