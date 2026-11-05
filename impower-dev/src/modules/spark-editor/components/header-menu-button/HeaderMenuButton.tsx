@@ -3,6 +3,7 @@ import {
   BrandVscode,
   Button,
   ExternalLink,
+  SparkLogo,
   Menu,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
@@ -80,12 +81,7 @@ export default function HeaderMenuButton(_p: HeaderMenuButtonProps) {
                 >
                   <ArrowLeft class="size-5" />
                 </Button>
-                <div class="flex-1 px-2 text-lg font-medium text-foreground">
-                  Spark Engine
-                </div>
-                <div class="mr-4 size-6">
-                  <SparkLogo />
-                </div>
+                <SparkLogo class="ml-2" />
               </div>
               <div class="h-px bg-foreground/[0.12]" />
 
@@ -116,42 +112,5 @@ export default function HeaderMenuButton(_p: HeaderMenuButtonProps) {
           document.body,
         )}
     </>
-  );
-}
-
-function SparkLogo() {
-  return (
-    <svg
-      width="100%"
-      height="100%"
-      viewBox="0 0 32 32"
-      xmlns="http://www.w3.org/2000/svg"
-      style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2"
-    >
-      <g transform="matrix(1.091742,0,0,1.091742,-11.190351,-11.190351)">
-        <path
-          d="M10.3,22.1C10.3,11.1 11.1,10.3 22.1,10.3C22.7,10.3 23.3,10.7 23.5,11.3C23.8,12 24.9,16.3 20.6,20.6C16.3,24.9 12,23.8 11.3,23.5C10.7,23.3 10.3,22.7 10.3,22.1Z"
-          fill="rgb(255,63,119)"
-        />
-      </g>
-      <g transform="matrix(-1.091742,0,0,-1.091742,43.190351,43.190351)">
-        <path
-          d="M22.1,10.3C22.7,10.3 23.3,10.7 23.5,11.3C23.8,12 24.9,16.3 20.6,20.6C16.3,24.9 12,23.8 11.3,23.5C10.7,23.3 10.3,22.7 10.3,22.1C10.3,11.1 11.1,10.3 22.1,10.3Z"
-          fill="rgb(19,189,254)"
-        />
-      </g>
-      <g transform="matrix(0,-1.091742,1.091742,0,-11.190351,43.190351)">
-        <path
-          d="M22.1,10.3C22.7,10.3 23.3,10.7 23.5,11.3C23.8,12 24.9,16.3 20.6,20.6C16.3,24.9 12,23.8 11.3,23.5C10.7,23.3 10.3,22.7 10.3,22.1C10.3,11.1 11.1,10.3 22.1,10.3Z"
-          fill="rgb(2,208,132)"
-        />
-      </g>
-      <g transform="matrix(0,1.091742,-1.091742,0,43.190351,-11.190351)">
-        <path
-          d="M22.1,10.3C22.7,10.3 23.3,10.7 23.5,11.3C23.8,12 24.9,16.3 20.6,20.6C16.3,24.9 12,23.8 11.3,23.5C10.7,23.3 10.3,22.7 10.3,22.1C10.3,11.1 11.1,10.3 22.1,10.3Z"
-          fill="rgb(250,153,0)"
-        />
-      </g>
-    </svg>
   );
 }

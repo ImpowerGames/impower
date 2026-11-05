@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -152 522 283.48" width="522" height="283.48">
+<title>spark engine</title>
+<g fill="none" stroke="#fff1e6" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"><path transform="translate(0 0)" d="M70,-79C64,-87 53,-90 42,-90C24,-90 14,-81 14,-69C14,-57 26,-53 43,-50C60,-47 72,-42 72,-30C72,-17 60,-10 43,-10C30,-10 20,-14 14,-22"/><path transform="translate(100 0)" d="M13,-87V32M53,-90A40,40 0 1 1 53,-10A40,40 0 1 1 53,-90"/><path transform="translate(220 0)" d="M93,-87V-13M53,-90A40,40 0 1 0 53,-10A40,40 0 1 0 53,-90"/><path transform="translate(340 0)" d="M13,-87V-13M13,-50A40,40 0 0 1 66.7,-87.6"/><path transform="translate(426 0)" d="M13,-137V-13M78,-87L15,-40M40,-59L80,-13"/></g>
+<g transform="translate(2.24 128.24) scale(0.62)"><g fill="none" stroke="#fff1e6" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"><path transform="translate(0 0)" d="M72,-92H8V-8H72M8,-50H62"/><path transform="translate(154.3 0)" d="M8,-8V-92L84,-8V-92"/><path transform="translate(320.59 0)" d="M84.4,-74.1A42,42 0 1 0 92,-50H62"/><path transform="translate(494.89 0)" d="M8,-92V-8"/><path transform="translate(585.19 0)" d="M8,-8V-92L84,-8V-92"/><path transform="translate(751.48 0)" d="M72,-92H8V-8H72M8,-50H62"/></g></g>
+</svg>
