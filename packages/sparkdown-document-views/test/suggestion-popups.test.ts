@@ -249,6 +249,24 @@ describe("an empty request for suggestions", () => {
     );
   });
 
+  it("judges a typed prefix by the list's own rule, comparing only the label's start", async () => {
+    const greek = await mount("ΟΣ");
+    greek.view.focus();
+    startCompletion(greek.view);
+    await answerCompletion(greek.server, [{ label: "ΟΣΑ", kind: 6 }]);
+    expect(completionStatus(greek.view.state)).toBe("active");
+    expect(greek.view.dom.querySelector(".cm-suggestions-empty")).toBeNull();
+
+    const turkish = await mount("i");
+    turkish.view.focus();
+    startCompletion(turkish.view);
+    await answerCompletion(turkish.server, [{ label: "İpek", kind: 6 }]);
+    expect(completionStatus(turkish.view.state)).toBeNull();
+    expect(
+      turkish.view.dom.querySelector(".cm-suggestions-empty")?.textContent,
+    ).toBe("No suggestions here.");
+  });
+
   it("says nothing when the editor loses focus before an explicit request's empty answer arrives", async () => {
     const { view, server } = await mount("zz");
     view.focus();

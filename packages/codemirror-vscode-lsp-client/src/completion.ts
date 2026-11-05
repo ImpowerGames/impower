@@ -267,11 +267,7 @@ export const serverCompletionSource: CompletionSource = (context) => {
       const first = ranges.find((r) => r != null);
       const range = { from: first?.from ?? active?.from ?? pos, to: pos };
       const typed = state.sliceDoc(range.from, pos);
-      const folded = typed.toLowerCase();
-      if (
-        typed &&
-        !items.some((item) => item.label.toLowerCase().startsWith(folded))
-      ) {
+      if (typed && !items.some((item) => strictlyMatches(item.label, typed))) {
         return noteEmpty();
       }
       const options = items.map((item, index) =>
@@ -309,6 +305,14 @@ export const serverCompletionSource: CompletionSource = (context) => {
     },
   );
 };
+
+function strictlyMatches(label: string, typed: string) {
+  if (label.length < typed.length) {
+    return false;
+  }
+  const start = label.slice(0, typed.length);
+  return start === typed || start.toLowerCase() === typed.toLowerCase();
+}
 
 interface OffsetRange {
   from: number;
