@@ -57,7 +57,6 @@ vi.mock(
       override setup() {
         mocks.connect.push(() => super.setup());
       }
-      protected override async loadFonts() {}
     }
     return { ...actual, ScriptEditorController: HeldController };
   },

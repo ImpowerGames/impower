@@ -6,6 +6,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "componentRegistry",
   "dialogVariants",
   "layoutState",
+  "sparkLogoVariants",
   "pointerState",
   "sheetVariants",
   "toastVariants",

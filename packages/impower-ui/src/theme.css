@@ -1,3 +1,15 @@
+:root {
+  --font-ui: "Folio UI", "Folio UI Fallback", "Segoe UI", system-ui, sans-serif;
+  --font-script: "Courier Prime Sans", "Courier Prime Sans Fallback", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", monospace;
+  --font-display: Georgia, "Times New Roman", serif;
+  --script-size: 16px;
+  --script-leading: 1.5;
+}
+
+:root[data-layout="desktop"] {
+  --script-size: 18px;
+}
+
 :root,
 [data-theme="midnight"] {
   color-scheme: dark;

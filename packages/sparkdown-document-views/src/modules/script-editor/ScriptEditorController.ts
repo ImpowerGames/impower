@@ -139,7 +139,6 @@ export class ScriptEditorController {
   protected refs: ScriptEditorRefs;
   protected options: ScriptEditorOptions;
 
-  protected _loadingRequest?: LoadEditorMessage.Request;
   protected _initialFocused?: boolean;
   protected _initialVisibleRange?:
     | Range
@@ -354,13 +353,9 @@ export class ScriptEditorController {
   }
 
   protected handleLoadEditor = async (message: LoadEditorMessage.Request) => {
-    this._loadingRequest = message;
-    await this.loadFonts();
-    if (this._loadingRequest.id === message.id) {
-      const params = message.params;
-      this.loadTextDocument(params);
-      sendProtocolMessage(DidLoadEditorMessage.type.notification({ textDocument: { uri: params.textDocument.uri, version: params.textDocument.version } }), this.host);
-    }
+    const params = message.params;
+    this.loadTextDocument(params);
+    sendProtocolMessage(DidLoadEditorMessage.type.notification({ textDocument: { uri: params.textDocument.uri, version: params.textDocument.version } }), this.host);
     return LoadEditorMessage.type.response(message.id, {});
   };
 
@@ -974,81 +969,6 @@ export class ScriptEditorController {
       if (input === input.ownerDocument.activeElement) {
         onFocus();
       }
-    }
-  }
-
-  protected async loadFonts() {
-    try {
-      const courierPrimeSans = new FontFace(
-        '"Courier Prime Sans"',
-        'url("/fonts/courier-prime-sans.ttf") format("truetype")',
-        { weight: "400", display: "block" },
-      );
-      const courierPrimeSansBold = new FontFace(
-        '"Courier Prime Sans"',
-        'url("/fonts/courier-prime-sans-bold.ttf") format("truetype")',
-        { weight: "700", display: "block" },
-      );
-      const courierPrimeSansItalic = new FontFace(
-        '"Courier Prime Sans"',
-        'url("/fonts/courier-prime-sans-italic.ttf") format("truetype")',
-        { style: "italic", weight: "400", display: "block" },
-      );
-      const courierPrimeSansBoldItalic = new FontFace(
-        '"Courier Prime Sans"',
-        'url("/fonts/courier-prime-sans-bold-italic.ttf") format("truetype")',
-        { style: "italic", weight: "700", display: "block" },
-      );
-      const courierPrime = new FontFace(
-        '"Courier Prime"',
-        'url("/fonts/courier-prime.ttf") format("truetype")',
-        { weight: "400", display: "block" },
-      );
-      const courierPrimeBold = new FontFace(
-        '"Courier Prime"',
-        'url("/fonts/courier-prime-bold.ttf") format("truetype")',
-        { weight: "700", display: "block" },
-      );
-      const courierPrimeItalic = new FontFace(
-        '"Courier Prime"',
-        'url("/fonts/courier-prime-italic.ttf") format("truetype")',
-        { style: "italic", weight: "400", display: "block" },
-      );
-      const courierPrimeBoldItalic = new FontFace(
-        '"Courier Prime"',
-        'url("/fonts/courier-prime-bold-italic.ttf") format("truetype")',
-        { style: "italic", weight: "700", display: "block" },
-      );
-      const notoColorEmoji = new FontFace(
-        '"Noto Color Emoji"',
-        'url("/fonts/noto-color-emoji.ttf") format("truetype")',
-        { style: "normal", weight: "normal", display: "swap" },
-      );
-      if ("add" in document.fonts && typeof document.fonts.add === "function") {
-        document.fonts.add(notoColorEmoji);
-      }
-      await Promise.all(
-        [
-          courierPrimeSans,
-          courierPrimeSansBold,
-          courierPrimeSansItalic,
-          courierPrimeSansBoldItalic,
-          courierPrime,
-          courierPrimeBold,
-          courierPrimeItalic,
-          courierPrimeBoldItalic,
-        ].map(async (fontFace) => {
-          if (
-            "add" in document.fonts &&
-            typeof document.fonts.add === "function"
-          ) {
-            document.fonts.add(fontFace);
-          }
-          await fontFace.load();
-        }),
-      );
-    } catch (err) {
-      console.error("Font failed to load", err);
     }
   }
 

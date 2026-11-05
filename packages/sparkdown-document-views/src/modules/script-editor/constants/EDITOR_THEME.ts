@@ -54,20 +54,24 @@ const EDITOR_THEME: {
     backgroundColor: "inherit",
     flex: 1,
     minHeight: "100%",
-    lineHeight: "1.4",
-    fontSize: "16px",
+    lineHeight: "var(--script-leading, 1.5)",
+    fontSize: "var(--script-size, 16px)",
+    fontSynthesis: "none",
+    fontKerning: "none",
+    fontVariantLigatures: "none",
   },
   "& .cm-scroller": {
     padding: "6px 2px 0 0",
-    fontSize: "16px",
+    fontSize: "inherit",
+    lineHeight: "inherit",
     overscrollBehavior: "none",
   },
   "& .cm-line": {
     fontFamily:
-      '"Courier Prime Sans", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", monospace',
+      'var(--font-script, "Courier Prime Sans", monospace)',
   },
   "& .cm-gutters": {
-    fontFamily: "Courier Prime Sans",
+    fontFamily: 'var(--font-script, "Courier Prime Sans", monospace)',
     backgroundColor: "transparent",
     color: "var(--editor-line-number)",
     border: "none",
@@ -76,10 +80,10 @@ const EDITOR_THEME: {
     zIndex: "1",
   },
   "kbd, code, pre": {
-    fontFamily: "Courier Prime Sans",
+    fontFamily: 'var(--font-script, "Courier Prime Sans", monospace)',
   },
   "& .cm-sticky-headers": {
-    fontFamily: "Courier Prime Sans",
+    fontFamily: 'var(--font-script, "Courier Prime Sans", monospace)',
   },
   "& .cm-sticky-header-text": {
     marginLeft: "2px",
@@ -105,7 +109,7 @@ const EDITOR_THEME: {
     paddingLeft: "16px",
   },
   "& .cm-lsp-reference": {
-    fontFamily: "Courier Prime Sans",
+    fontFamily: 'var(--font-script, "Courier Prime Sans", monospace)',
     paddingLeft: "40px",
   },
   "& .cm-dialog-close": {
