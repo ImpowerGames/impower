@@ -193,11 +193,19 @@ function isDisabled(view: EditorView, item: ContextMenuItem) {
   );
 }
 
-function runItem(view: EditorView, item: ContextMenuItem) {
+function openMenuPos(view: EditorView, fallback: number) {
+  return view.state.field(contextMenuState, false)?.spec.pos ?? fallback;
+}
+
+function runItem(view: EditorView, item: ContextMenuItem, pos: number) {
   if (!("label" in item) || isDisabled(view, item)) {
     return;
   }
-  view.dispatch({ effects: closeContextMenu.of() });
+  const atName = item.when != null && view.state.selection.main.head !== pos;
+  view.dispatch({
+    selection: atName ? { anchor: pos } : undefined,
+    effects: closeContextMenu.of(),
+  });
   item.command(view);
   if (view.state.facet(coarsePointer) && item.keepsMenuOpen) {
     const selection = view.state.selection.main;
@@ -217,7 +225,7 @@ function menuModel(view: EditorView, spec: ContextMenuSpec): ContextMenuModel {
             label: view.state.phrase(item.label!),
             shortcut: item.shortcut,
             disabled: isDisabled(view, item),
-            run: () => runItem(view, item),
+            run: () => runItem(view, item, openMenuPos(view, spec.pos)),
           }
         : { type: "separator" },
     ),
@@ -274,7 +282,7 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
         refreshers.push(showDisabled);
         itemEl.onclick = (e) => {
           e.stopPropagation();
-          runItem(view, item);
+          runItem(view, item, openMenuPos(view, pos));
         };
         dom.appendChild(itemEl);
       });
