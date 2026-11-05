@@ -93,7 +93,7 @@ function Guides({ depth, current }: { depth: number; current: boolean }) {
   return (
     <span
       aria-hidden="true"
-      class="relative h-full flex-none self-stretch"
+      class="relative flex-none self-stretch"
       style={{ width: `${depth * LIST_ROW_INDENT}px` }}
     >
       {depth > 1 && (
