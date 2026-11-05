@@ -27,6 +27,8 @@ export {
   DropdownItem,
   DropdownCheckboxItem,
   DropdownLabel,
+  dropdownLabelVariants,
+  type DropdownLabelVariant,
   DropdownRadioGroup,
   DropdownRadioItem,
   dropdownRadioItemVariants,

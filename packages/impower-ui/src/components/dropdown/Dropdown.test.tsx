@@ -259,3 +259,29 @@ describe("Dropdown radio items under preact/compat", () => {
     expect(menu()).toBeNull();
   });
 });
+
+describe("DropdownLabel variants", () => {
+  it("draws a heading label as a small uppercase muted group heading, not an item", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <DropdownRoot defaultOpen>
+          <DropdownTrigger asChild>
+            <button type="button">Sort</button>
+          </DropdownTrigger>
+          <DropdownContent>
+            <DropdownLabel variant="heading">Sort by</DropdownLabel>
+            <DropdownItem>Name</DropdownItem>
+          </DropdownContent>
+        </DropdownRoot>,
+        host!,
+      ),
+    );
+    await settle(50);
+    const heading = menu()!.firstElementChild as HTMLElement;
+    expect(heading.textContent).toBe("Sort by");
+    expect(heading.getAttribute("role")).toBeNull();
+    expect(heading.className).toContain("uppercase");
+    expect(heading.className).toContain("text-muted");
+  });
+});

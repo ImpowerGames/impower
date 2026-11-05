@@ -18,6 +18,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
 const SIZES: Record<ButtonSize, string> = {
   default: "Text button",
   icon: "Icon button",
+  compact: "Compact text button",
   pill: "Phone pill",
 };
 

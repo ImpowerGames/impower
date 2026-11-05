@@ -5,6 +5,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "buttonVariants",
   "componentRegistry",
   "dialogVariants",
+  "dropdownLabelVariants",
   "dropdownRadioItemVariants",
   "LIST_ROW_INDENT",
   "listRowBodyVariants",
