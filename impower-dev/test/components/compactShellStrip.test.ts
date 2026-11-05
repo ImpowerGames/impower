@@ -34,23 +34,36 @@ vi.mock(
   "../../src/modules/spark-editor/components/file-dropzone/FileDropzone",
   () => ({ default: () => null }),
 );
-vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
-  Workspace: {
-    sync: { google: { getCurrentAccount: async () => null } },
-    window: {
-      setAccount: () => {},
-      loadProject: async () => {},
-      navigateTo: () => {},
-      closeSettings: () => {},
-      setAppMenuOpen: () => {},
-      setRailWidth: () => {},
-      setRailCompactWidth: () => {},
-      setStripHeight: (height: number | undefined) => {
-        stripHeights.push(height);
+vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
+  const { default: store } =
+    await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
+  const setShell = (patch: Record<string, number | undefined>) => {
+    store.current = {
+      ...store.current,
+      shell: { ...store.current.shell, ...patch },
+    };
+  };
+  return {
+    Workspace: {
+      sync: { google: { getCurrentAccount: async () => null } },
+      window: {
+        setAccount: () => {},
+        loadProject: async () => {},
+        navigateTo: () => {},
+        closeSettings: () => {},
+        setAppMenuOpen: () => {},
+        setRailWidth: (railWidth: number | undefined) =>
+          setShell({ railWidth }),
+        setRailCompactWidth: (railCompactWidth: number | undefined) =>
+          setShell({ railCompactWidth }),
+        setStripHeight: (stripHeight: number | undefined) => {
+          stripHeights.push(stripHeight);
+          setShell({ stripHeight });
+        },
       },
     },
-  },
-}));
+  };
+});
 
 let width = 1440;
 const listeners = new Set<() => void>();

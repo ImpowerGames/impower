@@ -152,7 +152,7 @@ export default function SidebarLayout({
   };
 
   const reset = () => {
-    setPending(defaultWidth);
+    setPending(null);
     onWidthChange(undefined);
   };
 

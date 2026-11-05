@@ -214,7 +214,6 @@ describe("SplitPane with a pinned panel", () => {
     });
     await key(separator, "Enter");
     expect(onSizeChange).toHaveBeenLastCalledWith(undefined);
-    expect(pinnedPx(separator)).toBe(44);
     await rerender(undefined);
     expect(pinnedPx(separator)).toBe(44);
     await rerender(300);
@@ -224,7 +223,34 @@ describe("SplitPane with a pinned panel", () => {
     });
     expect(onSizeChange).toHaveBeenCalledTimes(2);
     expect(onSizeChange).toHaveBeenLastCalledWith(undefined);
+    await rerender(undefined);
     expect(pinnedPx(separator)).toBe(44);
+  });
+
+  it("follows a new default after a reset with nothing saved", async () => {
+    const { separator, onSizeChange } = await mountPinned({});
+    await key(separator, "Enter");
+    expect(onSizeChange).toHaveBeenLastCalledWith(undefined);
+    expect(pinnedPx(separator)).toBe(44);
+    await act(async () =>
+      render(
+        <SplitPane
+          orientation="vertical"
+          start={<div />}
+          end={<div />}
+          pinned={{
+            panel: "end",
+            defaultSize: 200,
+            minSize: 144,
+            collapsedSize: 44,
+            reserve: 160,
+            onSizeChange,
+          }}
+        />,
+        host!,
+      ),
+    );
+    expect(pinnedPx(separator)).toBe(200);
   });
 
   it("follows the visual order when reversed", async () => {
