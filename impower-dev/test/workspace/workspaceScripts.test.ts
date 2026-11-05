@@ -110,6 +110,7 @@ describe("Scripts through the workspace", () => {
   it("loads the scripts, their folders and the language server's references as project paths", async () => {
     const { scripts } = fakeWorkspace(PATHS, FOLDERS);
     await scripts.load();
+    expect(workspace.scriptListing.value!.projectId).toBe(PROJECT);
     expect(Object.keys(workspace.scriptListing.value!.files).sort()).toEqual([
       "Scripts/Drafts/old.sd",
       "Scripts/intro.sd",
@@ -147,12 +148,14 @@ describe("Scripts through the workspace", () => {
   });
 
   it("moves a script or a folder into another folder, never a folder inside itself", async () => {
-    const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
+    const { scripts, fs, window } = fakeWorkspace(PATHS, FOLDERS);
     await scripts.load();
     expect(await scripts.move("Scripts/outro.sd", "Scripts/Drafts")).toBe("Scripts/Drafts/outro.sd");
     expect(fs.moveFile).toHaveBeenCalledWith(PROJECT, "Scripts/outro.sd", "Scripts/Drafts/outro.sd");
     expect(await scripts.move("Scripts/Drafts", "Scripts/Empty")).toBe("Scripts/Empty/Drafts");
     expect(fs.moveFolder).toHaveBeenCalledWith(PROJECT, "Scripts/Drafts", "Scripts/Empty/Drafts");
+    expect(window.recordScriptChange).toHaveBeenCalledTimes(2);
+    expect(window.recordAssetChange).toHaveBeenCalledTimes(1);
     await expect(scripts.move("Scripts/Empty", "Scripts/Empty/Drafts")).rejects.toThrow("inside itself");
   });
 

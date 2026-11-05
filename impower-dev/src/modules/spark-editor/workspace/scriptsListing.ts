@@ -14,6 +14,7 @@ export interface ScriptFacts {
 }
 
 export interface ScriptListing {
+  projectId?: string;
   files: Record<string, ScriptFacts>;
   folders: string[];
 }

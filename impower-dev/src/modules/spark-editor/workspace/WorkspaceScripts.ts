@@ -84,7 +84,11 @@ export default class WorkspaceScripts {
         files[path] = { modified: file.modified ?? 0, size: file.size ?? 0 };
       }
     }
-    const listing = { files, folders: await fs.getFolders(projectId) };
+    const listing = {
+      projectId,
+      files,
+      folders: await fs.getFolders(projectId),
+    };
     workspace.scriptListing.value = listing;
     await this.loadReferences();
     return listing;
@@ -137,9 +141,8 @@ export default class WorkspaceScripts {
 
   protected async changed(kind: "file" | "folder") {
     const { window } = this._workspace;
-    if (kind === "file") {
-      await window.recordScriptChange();
-    } else {
+    await window.recordScriptChange();
+    if (kind === "folder") {
       await window.recordAssetChange();
     }
     await this.load();

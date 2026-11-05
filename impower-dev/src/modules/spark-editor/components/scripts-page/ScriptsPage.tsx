@@ -138,7 +138,8 @@ function Trail({
 
 export default function ScriptsPage() {
   const projectId = workspace.signals.projectId.value;
-  const loaded = workspace.scriptListing.value;
+  const current = workspace.scriptListing.value;
+  const loaded = current?.projectId === projectId ? current : null;
   const listing = loaded ?? EMPTY;
   const references = workspace.scriptReferences.value;
   const lists = useComputed(() => workspace.state.value.lists).value;
@@ -311,6 +312,8 @@ export default function ScriptsPage() {
           <div class="flex min-h-[52px] flex-none items-center justify-between gap-2 border-b border-edge">
             {query.trim() ? (
               <span class="pl-2 text-[12px] text-muted">Results in all folders</span>
+            ) : !loaded ? (
+              <span />
             ) : (
               <Trail
                 folder={folder}
