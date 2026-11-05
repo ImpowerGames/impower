@@ -27,11 +27,8 @@ export default function DesktopShell({
 }) {
   const compact = useLayout() === "compact";
   const railDefault = useRailDefault();
-  const railWidth = useComputed(() =>
-    compact
-      ? workspace.state.value.shell?.railCompactWidth
-      : workspace.state.value.shell?.railWidth,
-  ).value;
+  const shell = useComputed(() => workspace.state.value.shell).value;
+  const railWidth = compact ? shell?.railCompactWidth : shell?.railWidth;
 
   const onWidthChange = async (width: number | undefined) => {
     const { Workspace } = await import("../../workspace/Workspace");
@@ -57,7 +54,7 @@ export default function DesktopShell({
 
   return (
     <SidebarLayout
-      width={railWidth}
+      width={railWidth ?? limits.default}
       defaultWidth={limits.default}
       minWidth={limits.min}
       maxWidth={limits.max}

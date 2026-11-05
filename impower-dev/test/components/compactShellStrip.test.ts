@@ -178,6 +178,53 @@ describe("the compact layout", () => {
     expect(railWidth()).toBe("190px");
   });
 
+  it("reads each layout's own saved rail width when the window crosses 1100px", async () => {
+    await resize(1440);
+    workspace.current = {
+      ...workspace.current,
+      shell: { railWidth: 300, railCompactWidth: 76 },
+    };
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () => render(h(MainWindow, null), host!));
+    await settle();
+    expect(railWidth()).toBe("300px");
+    await resize(900);
+    expect(railWidth()).toBe("76px");
+    await resize(1440);
+    expect(railWidth()).toBe("300px");
+    await act(async () => render(null, host!));
+    await resize(900);
+    await act(async () => render(h(MainWindow, null), host!));
+    await settle();
+    expect(railWidth()).toBe("76px");
+    await resize(1440);
+    expect(railWidth()).toBe("300px");
+  });
+
+  it("takes the new default after a reset when the window then changes width", async () => {
+    await mount(900);
+    const handle = host!.querySelector<HTMLElement>(
+      '[role="separator"][aria-label="Resize sidebar"]',
+    )!;
+    await act(async () => {
+      handle.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
+    });
+    await settle();
+    expect(railWidth()).toBe("76px");
+    await resize(1024);
+    expect(railWidth()).toBe("190px");
+    await resize(1440);
+    expect(railWidth()).toBe("232px");
+    await act(async () => {
+      handle.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    });
+    await settle();
+    await resize(900);
+    expect(railWidth()).toBe("76px");
+  });
+
   it("lets the project choose the 190px rail in a 768px window", async () => {
     const clientWidth = vi
       .spyOn(HTMLElement.prototype, "clientWidth", "get")
