@@ -8,11 +8,7 @@ import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/Progr
 import { type LoadInstruction } from "../../../core/types/Instruction";
 import { type Instructions } from "../../../core/types/Instructions";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
-import {
-  assetsBuiltinDefinitions,
-  type AssetsBuiltins,
-  type AssetsConfig,
-} from "../assetsBuiltinDefinitions";
+import type { AssetsBuiltins, AssetsConfig } from "../types/AssetsBuiltins";
 import { assetItemKey, type AssetItem } from "../types/AssetItem";
 import { type LoadAssetsResult } from "../types/LoadAssetsResult";
 import { beatIndexIn, previewWindow } from "../utils/previewWindow";
@@ -78,52 +74,38 @@ export class AssetModule extends Module<
 
   protected _destroyed = false;
 
-  override getBuiltins() {
-    return assetsBuiltinDefinitions();
-  }
-
   override getStored() {
     return [];
   }
 
   get config(): AssetsConfig {
-    const defaults = assetsBuiltinDefinitions().config.assets;
-    const authored = (this.context.config?.["assets"] ?? {}) as Partial<
-      Record<keyof AssetsConfig, unknown>
-    >;
-    const count = (key: keyof AssetsConfig, fallback: number) => {
-      const v = authored[key];
-      return typeof v === "number" && Number.isFinite(v) && v >= 0
-        ? v
-        : fallback;
+    const values = this.context.config?.["assets"] ?? {};
+    const count = (key: keyof AssetsConfig) => {
+      const v = values[key];
+      return typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : 0;
     };
-    const seconds = (key: keyof AssetsConfig, fallback: number) => {
-      const v = authored[key];
+    const seconds = (key: keyof AssetsConfig) => {
+      const v = values[key];
       const parsed =
         typeof v === "number" || typeof v === "string"
           ? getTimeValue(v)
           : undefined;
       return parsed != null && Number.isFinite(parsed) && parsed >= 0
         ? parsed
-        : fallback;
+        : 0;
     };
-    const transition = authored["loading_transition"];
+    const transition = values["loading_transition"];
     return {
-      predict_distance: count("predict_distance", defaults.predict_distance),
-      predict_cache_size: count(
-        "predict_cache_size",
-        defaults.predict_cache_size,
-      ),
-      load_cache_size: count("load_cache_size", defaults.load_cache_size),
-      load_distance: count("load_distance", defaults.load_distance),
-      beat_timeout: seconds("beat_timeout", defaults.beat_timeout),
-      restore_timeout: seconds("restore_timeout", defaults.restore_timeout),
-      load_timeout: seconds("load_timeout", defaults.load_timeout),
-      loading_min: seconds("loading_min", defaults.loading_min),
+      predict_distance: count("predict_distance"),
+      predict_cache_size: count("predict_cache_size"),
+      load_cache_size: count("load_cache_size"),
+      load_distance: count("load_distance"),
+      beat_timeout: seconds("beat_timeout"),
+      restore_timeout: seconds("restore_timeout"),
+      load_timeout: seconds("load_timeout"),
+      loading_min: seconds("loading_min"),
       loading_transition:
-        typeof transition === "string" && transition
-          ? transition
-          : defaults.loading_transition,
+        typeof transition === "string" && transition ? transition : undefined,
     };
   }
 

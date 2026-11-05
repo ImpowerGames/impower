@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import { Game } from "../core/classes/Game";
 import { applyBuiltinDefaults } from "../core/utils/applyBuiltinDefaults";
 import { AudioModule } from "./audio/classes/AudioModule";
-import { audioBuiltinDefinitions } from "./audio/audioBuiltinDefinitions";
+import { preludeContext } from "../../tests/harness/compilePrelude";
 import { InterpreterModule } from "./interpreter/classes/InterpreterModule";
+
+const PRELUDE_SYNTH = preludeContext()["synth"] as Record<string, any>;
 
 const PARTIAL_SYNTH = {
   $type: "synth",
@@ -17,7 +19,7 @@ const contextWith = (synth: Record<string, any>) => {
     system: {},
     config: { interpreter: { directives: {} } },
     character: {},
-    synth: { ...audioBuiltinDefinitions().synth, ...synth },
+    synth: { ...PRELUDE_SYNTH, ...synth },
   };
   applyBuiltinDefaults(context);
   return context;

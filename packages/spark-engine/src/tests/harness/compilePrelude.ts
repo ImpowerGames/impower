@@ -13,7 +13,9 @@ const BUILTINS_PRELUDE = readFileSync(
 
 const PRELUDE_URI = "file:///__builtins__.sd";
 
-export const compilePrelude = () => {
+export const compilePrelude = (
+  edit: (prelude: string) => string = (prelude) => prelude,
+) => {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     useBuiltinsPrelude: false,
@@ -24,7 +26,7 @@ export const compilePrelude = () => {
         type: "script",
         name: "__builtins__",
         ext: "sd",
-        text: BUILTINS_PRELUDE,
+        text: edit(BUILTINS_PRELUDE),
         version: 0,
         languageId: "sparkdown",
       } as any,

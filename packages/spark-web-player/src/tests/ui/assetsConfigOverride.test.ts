@@ -1,4 +1,3 @@
-import { assetsBuiltinDefinitions } from "@impower/spark-engine/src/game/modules/assets/assetsBuiltinDefinitions";
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
@@ -41,16 +40,5 @@ describe("overriding the assets config", () => {
     const game = h.game as any;
     expect(game?.program?.context?.config?.assets?.predict_distance).toBe(4);
     expect(game?.context?.config?.assets?.predict_distance).toBe(4);
-  });
-
-  test("the prelude and the engine's mirror carry the same defaults", async () => {
-    const h = await render(source(""));
-    const runtime = (h.game as any)?.context?.config?.assets;
-    const mirror = assetsBuiltinDefinitions().config.assets;
-    expect(runtime).toMatchObject(mirror);
-    const runtimeKeys = Object.keys(runtime ?? {})
-      .filter((k) => !k.startsWith("$"))
-      .sort();
-    expect(runtimeKeys).toEqual(Object.keys(mirror).sort());
   });
 });

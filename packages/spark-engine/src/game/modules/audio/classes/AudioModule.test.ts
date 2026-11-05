@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Game } from "../../../core/classes/Game";
 import { applyBuiltinDefaults } from "../../../core/utils/applyBuiltinDefaults";
-import { audioBuiltinDefinitions } from "../audioBuiltinDefinitions";
+import { preludeContext } from "../../../../tests/harness/compilePrelude";
 import { AudioModule } from "./AudioModule";
 import { AudioClockMessage } from "./messages/AudioClockMessage";
+
+const PRELUDE_SYNTH = preludeContext()["synth"] as Record<string, any>;
 
 class ProbeAudioModule extends AudioModule {
   resolveName(name: string) {
@@ -19,7 +21,7 @@ const createModule = (synths: Record<string, any>) => {
   const context: any = {
     system: {},
     config: {},
-    synth: { ...audioBuiltinDefinitions().synth, ...synths },
+    synth: { ...PRELUDE_SYNTH, ...synths },
   };
   applyBuiltinDefaults(context);
   return new ProbeAudioModule({ context } as unknown as Game);
@@ -41,7 +43,7 @@ const ref = (name: string) => ({ $type: "synth", $name: name });
 
 describe("AudioModule synth resolution (#268)", () => {
   it.each(["ordinary", "toString", "constructor", "hasOwnProperty", "__proto__"])("resolves a synth named %s past empty audio tables", name => {
-    const synth = { ...audioBuiltinDefinitions().synth["character"], $type: "synth", $name: name };
+    const synth = { ...PRELUDE_SYNTH["character"], $type: "synth", $name: name };
     const m = new ProbeAudioModule({
       context: { system: {}, config: {}, audio: {}, layered_audio: {}, synth: { [name]: synth } },
     } as unknown as Game);
@@ -97,7 +99,7 @@ describe("AudioModule synth resolution (#268)", () => {
 
     it("leaves an already-complete builtin unchanged", () => {
       const m = createModule({});
-      const builtin = audioBuiltinDefinitions().synth["character"];
+      const builtin = PRELUDE_SYNTH["character"];
       expect(m.resolve(ref("character"))!.synth).toEqual(builtin);
     });
   });

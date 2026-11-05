@@ -1,10 +1,12 @@
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { describe, expect, it } from "vitest";
 import { Game } from "../../core/classes/Game";
-import { audioBuiltinDefinitions } from "./audioBuiltinDefinitions";
+import { preludeContext } from "../../../tests/harness/compilePrelude";
 import { SynthBuffer } from "./classes/helpers/SynthBuffer";
 import { LoadAudioPlayerParams } from "./types/LoadAudioPlayerParams";
 import { parseTones } from "./utils/parseTones";
+
+const PRELUDE_SYNTH = preludeContext()["synth"] as Record<string, any>;
 
 const SAMPLE_RATE = 44100;
 
@@ -153,7 +155,7 @@ describe("silence is distinguishable from breakage", () => {
   it("renders the `none` synth as exactly silent", () => {
     const tones = parseTones("t0s1b0~t0.075s1b0", "~");
     const buffer = new SynthBuffer(
-      audioBuiltinDefinitions().synth["none"]!,
+      PRELUDE_SYNTH["none"]!,
       tones,
       SAMPLE_RATE,
     );
@@ -165,7 +167,7 @@ describe("silence is distinguishable from breakage", () => {
   it("renders an ordinary synth well above the threshold", () => {
     const tones = parseTones("t0s1b0~t0.075s1b0", "~");
     const buffer = new SynthBuffer(
-      audioBuiltinDefinitions().synth["character"]!,
+      PRELUDE_SYNTH["character"]!,
       tones,
       SAMPLE_RATE,
     );

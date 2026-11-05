@@ -36,8 +36,6 @@ export abstract class Module<
     this._game = game;
   }
 
-  abstract getBuiltins(): B;
-
   abstract getStored(): string[];
 
   onInit() {}
