@@ -135,7 +135,7 @@ sparkdown [0..842]
  │   │       │   │   │       └─ LuauSparkleElementParts_c1 [102..110]
  │   │       │   │   │           └─ LuauElementContentStringSingleQuoted [102..110]
  │   │       │   │   │               ├─ LuauElementContentStringSingleQuoted_c1 [102..103]
- │   │       │   │   │               │   └─ ERROR_UNRECOGNIZED [102..103]: "'"
+ │   │       │   │   │               │   └─ PunctuationStringSingleQuoteOpen [102..103]: "'"
  │   │       │   │   │               ├─ LuauElementContentStringSingleQuoted_c2 [103..109]
  │   │       │   │   │               │   └─ PlainStringContentSingleQuoted [103..109]
  │   │       │   │   │               │       └─ PlainStringContentSingleQuoted_c1 [103..109]
@@ -146,7 +146,7 @@ sparkdown [0..842]
  │   │       │   │   │               │           ├─ StringCharacter [107..108]: "l"
  │   │       │   │   │               │           └─ StringCharacter [108..109]: "e"
  │   │       │   │   │               └─ LuauElementContentStringSingleQuoted_c3 [109..110]
- │   │       │   │   │                   └─ ERROR_UNRECOGNIZED [109..110]: "'"
+ │   │       │   │   │                   └─ PunctuationStringSingleQuoteClose [109..110]: "'"
  │   │       │   │   └─ LuauSparkleElementContinuation_end 110
  │   │       │   ├─ Newline [110..111]: "\n"
  │   │       │   ├─ Whitespace [111..113]: "  "
