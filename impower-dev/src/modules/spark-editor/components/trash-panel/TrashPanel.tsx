@@ -248,7 +248,7 @@ export default function TrashPanel() {
                         label: batchLabel(batch),
                       })
                     }
-                    class="size-8 flex-none rounded-full p-0 text-foreground/60 hover:text-danger-500"
+                    class="size-8 flex-none rounded-full p-0 text-foreground/60 hover:text-error-strong"
                   >
                     <Trash class="size-4" />
                   </Button>
@@ -282,7 +282,7 @@ export default function TrashPanel() {
                     ? void empty()
                     : void deletePermanently(confirm.batchId)
                 }
-                class="h-9 bg-danger-500 px-4 text-sm font-normal hover:bg-danger-500/90"
+                class="h-9 bg-error-strong px-4 text-sm font-normal hover:bg-error-strong/90"
               >
                 Delete
               </Button>

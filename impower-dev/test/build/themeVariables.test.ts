@@ -23,6 +23,9 @@ const COMPONENT_VARIABLES = [
   "--placeholder",
   "--primary",
   "--focus-ring",
+  "--button-ink",
+  "--error-strong",
+  "--warning-strong",
 ];
 
 const declarations = (block: string) =>
