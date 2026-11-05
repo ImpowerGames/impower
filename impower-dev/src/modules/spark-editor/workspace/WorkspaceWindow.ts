@@ -17,6 +17,7 @@ import {
   ScrolledEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SearchEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SearchEditorMessage";
+import { ShowEditorProblemsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ShowEditorProblemsMessage";
 import { SelectEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
 import {
   SelectedEditorMessage,
@@ -52,6 +53,9 @@ import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/pro
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import {
   EditorState,
+  GamePosition,
+  GameSize,
+  GameState,
   PaneType,
   PanelType,
   PreviewMode,
@@ -59,6 +63,7 @@ import {
   SyncStatus,
   WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
+import { countDiagnostics } from "./problemCounts";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import type { PublishDiagnosticsParams } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
 import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
@@ -475,16 +480,7 @@ export default class WorkspaceWindow {
   recordPublishedDiagnostics({ uri, diagnostics }: PublishDiagnosticsParams) {
     const summary = { ...this.store.debug.diagnosticsSummary };
     delete summary[uri];
-    const counts = { errors: 0, warnings: 0, infos: 0 };
-    for (const d of diagnostics) {
-      if (d.severity === 1) {
-        counts.errors++;
-      } else if (d.severity === 2) {
-        counts.warnings++;
-      } else {
-        counts.infos++;
-      }
-    }
+    const counts = countDiagnostics(diagnostics);
     this.update({
       ...this.store,
       debug: {
@@ -1207,6 +1203,45 @@ export default class WorkspaceWindow {
       });
       sendProtocolMessage(UnpauseGameMessage.type.request({}));
     }
+  }
+
+  syncGameSize(size: GameSize) {
+    const game = this.store.preview.modes.game;
+    const last = game.size;
+    if (
+      last &&
+      last.width === size.width &&
+      last.height === size.height &&
+      last.aspectRatio === size.aspectRatio
+    ) {
+      return;
+    }
+    this.updateGame({ ...game, size });
+  }
+
+  syncGamePosition(position: GamePosition) {
+    const game = this.store.preview.modes.game;
+    const last = game.position;
+    if (last?.uri === position.uri && last.line === position.line) {
+      return;
+    }
+    this.updateGame({ ...game, position });
+  }
+
+  protected updateGame(game: GameState) {
+    this.update({
+      ...this.store,
+      preview: {
+        ...this.store.preview,
+        modes: { ...this.store.preview.modes, game },
+      },
+    });
+  }
+
+  showProblems(uri: string) {
+    sendProtocolMessage(
+      ShowEditorProblemsMessage.type.request({ textDocument: { uri } }),
+    );
   }
 
   syncGamePaused(paused: boolean) {

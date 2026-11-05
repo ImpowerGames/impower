@@ -1,3 +1,4 @@
+import { openLintPanel } from "@codemirror/lint";
 import { openSearchPanel, searchPanelOpen } from "@codemirror/search";
 import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -34,6 +35,11 @@ import {
   SearchEditorMethod,
   SearchEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/SearchEditorMessage";
+import {
+  ShowEditorProblemsMessage,
+  ShowEditorProblemsMethod,
+  ShowEditorProblemsParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/ShowEditorProblemsMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import {
   SelectEditorMessage,
@@ -318,6 +324,11 @@ export class ScriptEditorController {
       this.host,
     );
     p.onRequest(
+      ShowEditorProblemsMessage.type,
+      (m) => this.handleShowEditorProblems(m),
+      this.host,
+    );
+    p.onRequest(
       ShowEditorStatusBarMessage.type,
       (m) => this.handleShowEditorStatusBar(m),
       this.host,
@@ -442,6 +453,17 @@ export class ScriptEditorController {
     if (textDocument.uri === this._textDocument?.uri) {
       this.openSearchPanel();
       return SearchEditorMessage.type.response(message.id, {});
+    }
+    return undefined;
+  };
+
+  protected handleShowEditorProblems = (
+    message: RequestMessage<ShowEditorProblemsMethod, ShowEditorProblemsParams>,
+  ) => {
+    const view = this._view;
+    if (view && message.params.textDocument.uri === this._textDocument?.uri) {
+      openLintPanel(view);
+      return ShowEditorProblemsMessage.type.response(message.id, {});
     }
     return undefined;
   };

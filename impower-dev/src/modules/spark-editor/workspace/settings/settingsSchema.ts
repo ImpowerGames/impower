@@ -1,3 +1,4 @@
+import { GAME_ASPECT_RATIOS } from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
 import { INDENT_GUIDES } from "@impower/sparkdown-document-views/src/cm-script-appearance/scriptAppearanceOptions";
 import { SCRIPT_FILES_GLOB } from "../../utils/scriptFiles";
 import { SURFACES, SYNTAX_PALETTES, THEME_PREFERENCES } from "./applyTheme";
@@ -127,6 +128,8 @@ export const PROJECT_SETTINGS_SCHEMA = {
     true,
     configured("screenplay.pdf.bookmarks.printBookmarksForInvisibleHeadings"),
   ),
+  previewAspectRatio: choice("auto", ["auto", ...GAME_ASPECT_RATIOS]),
+  previewPanelHeight: setting<number>(44),
 } as const satisfies Record<string, SettingSpec>;
 
 type ValuesOf<S extends Record<string, SettingSpec>> = {

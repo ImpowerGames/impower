@@ -1,13 +1,94 @@
+import { SplitPane } from "@impower/impower-ui/components";
+import { useLayout } from "@impower/impower-ui/layout";
+import { useEffect, useRef, useState } from "preact/hooks";
 import workspace from "../../workspace/WorkspaceStore";
+import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
+import { PROJECT_SETTINGS_SCHEMA } from "../../workspace/settings/settingsSchema";
+import PreviewBar from "../preview-bar/PreviewBar";
 import PreviewGame from "../preview-game/PreviewGame";
 import PreviewScreenplay from "../preview-screenplay/PreviewScreenplay";
 
 export const propDefaults = {};
 export type PreviewProps = Partial<typeof propDefaults>;
 
+const BAR_HEIGHT = PROJECT_SETTINGS_SCHEMA.previewPanelHeight.default;
+const PANEL_MIN_HEIGHT = 144;
+const STAGE_MIN_HEIGHT = 160;
+
+function useFullscreen() {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => {
+    const onChange = () =>
+      setFullscreen(
+        !!ref.current && document.fullscreenElement === ref.current,
+      );
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+  const toggle = () => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+    } else {
+      void ref.current?.requestFullscreen();
+    }
+  };
+  return { ref, fullscreen, toggle };
+}
+
 export default function Preview(_props: PreviewProps) {
   const mode = workspace.signals.previewMode.value;
-  if (mode === "game") return <PreviewGame />;
-  if (mode === "screenplay") return <PreviewScreenplay />;
-  return null;
+  const phone = useLayout() === "phone";
+  const panelHeight = workspaceSettings.projectSettings.value.previewPanelHeight;
+  const { ref, fullscreen, toggle } = useFullscreen();
+
+  const stage =
+    mode === "game" ? (
+      <PreviewGame />
+    ) : mode === "screenplay" ? (
+      <PreviewScreenplay />
+    ) : null;
+  if (!stage) return null;
+
+  const bar = (
+    <PreviewBar fullscreen={fullscreen} onToggleFullscreen={toggle} />
+  );
+
+  const onPanelHeightChange = (height: number | undefined) =>
+    workspaceSettings.setProjectSetting(
+      "previewPanelHeight",
+      height ?? BAR_HEIGHT,
+    );
+
+  return (
+    <div ref={ref} class="flex h-full w-full min-h-0 flex-col bg-panel">
+      {phone ? (
+        <>
+          <div class="flex min-h-0 flex-1 flex-col bg-stage">{stage}</div>
+          {bar}
+        </>
+      ) : (
+        <SplitPane
+          orientation="vertical"
+          label="Resize game and panel"
+          pinned={{
+            panel: "end",
+            size: panelHeight,
+            defaultSize: BAR_HEIGHT,
+            minSize: PANEL_MIN_HEIGHT,
+            collapsedSize: BAR_HEIGHT,
+            reserve: STAGE_MIN_HEIGHT,
+            onSizeChange: onPanelHeightChange,
+          }}
+          start={<div class="flex h-full flex-col bg-stage">{stage}</div>}
+          end={
+            <div class="flex h-full flex-col">
+              {bar}
+              <div data-preview-panel class="min-h-0 flex-1" />
+            </div>
+          }
+        />
+      )}
+    </div>
+  );
 }

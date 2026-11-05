@@ -3,6 +3,7 @@ import { EditorState, StateEffect, Transaction } from "@codemirror/state";
 import { EditorView, ViewUpdate } from "@codemirror/view";
 import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
 import { SelectEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
+import { ShowEditorProblemsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ShowEditorProblemsMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -272,5 +273,27 @@ describe("ScriptEditorController select", () => {
     select(controller, 0);
     expect(events).toEqual(["select", undefined]);
     expect(view.state.selection.main.head).toBe(0);
+  });
+});
+
+describe("ScriptEditorController problems", () => {
+  const show = (controller: TestController, uri: string) =>
+    controller["handleShowEditorProblems"]({
+      ...ShowEditorProblemsMessage.type.request({ textDocument: { uri } }),
+      id: `problems-${nextId++}`,
+    } as ShowEditorProblemsMessage.Request);
+
+  it("opens the problems panel for its own document", async () => {
+    const { controller, view } = await loadedEditor();
+    expect(view.dom.querySelector(".cm-panel-lint")).toBeNull();
+    const response = show(controller, "file:///main.sd");
+    expect(response).toMatchObject({ result: {} });
+    expect(view.dom.querySelector(".cm-panel-lint")).not.toBeNull();
+  });
+
+  it("leaves another document's request unanswered", async () => {
+    const { controller, view } = await loadedEditor();
+    expect(show(controller, "file:///other.sd")).toBeUndefined();
+    expect(view.dom.querySelector(".cm-panel-lint")).toBeNull();
   });
 });

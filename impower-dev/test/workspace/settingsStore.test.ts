@@ -384,13 +384,17 @@ const zipEntries = (zip: ArrayBuffer) =>
 describe(".vscode/settings.json", () => {
   const defaults = extensionDefaults(extensionManifest);
 
-  it("writes every project setting but branch names, under a key the extension declares with the same default", () => {
+  it("writes every project setting but branch names and the preview's layout, under a key the extension declares with the same default", () => {
     expect(projectSettingsJson(defaultsOf(), defaults)).toBeUndefined();
     expect(
       Object.entries(PROJECT_SETTINGS_SCHEMA)
         .filter(([, spec]) => (spec.configurationKeys ?? []).length === 0)
         .map(([key]) => key),
-    ).toEqual(["screenplayBranchNames"]);
+    ).toEqual([
+      "screenplayBranchNames",
+      "previewAspectRatio",
+      "previewPanelHeight",
+    ]);
     for (const [key, spec] of Object.entries(PROJECT_SETTINGS_SCHEMA)) {
       for (const path of spec.configurationKeys ?? []) {
         expect(Object.hasOwn(defaults, `sparkdown.${path}`), path).toBe(true);
