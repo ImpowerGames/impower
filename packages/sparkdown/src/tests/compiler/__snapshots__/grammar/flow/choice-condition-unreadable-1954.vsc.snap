@@ -1,4 +1,4 @@
-text.source.sparkdown [0..455]
+text.source.sparkdown [0..509]
  ├─ keyword.control.scene.sd [0..5]: "scene"
  ├─ punctuation.whitespace.required.sd [5..6]: " "
  ├─ keyword.control.section.sd [6..11]: "start"
@@ -156,10 +156,8 @@ text.source.sparkdown [0..455]
  │   ├─ keyword.operator.expression.list.sd [320..322]: "* "
  │   ├─ keyword.control.if.luau [322..324]: "if"
  │   ├─ punctuation.whitespace.optional.sd [324..325]: " "
- │   ├─ invalid.illegal.choice-condition.sd [325..326]: "("
- │   └─ string.choice.sd [326..340]
- │       ├─ markup.raw.text.sd [326..333]: "allowed"
- │       ├─ markup.raw.punctuation.sd [333..334]: "("
+ │   ├─ invalid.illegal.choice-condition.sd [325..334]: "(allowed("
+ │   └─ string.choice.sd [334..340]
  │       ├─ markup.raw.space.sd [334..335]: " "
  │       └─ markup.raw.text.sd [335..340]: "Group"
  ├─ Newline [340..341]: "\n"
@@ -171,10 +169,8 @@ text.source.sparkdown [0..455]
  │   ├─ keyword.operator.logical.luau [350..353]
  │   │   └─ keyword.operator.wordlike.luau [350..353]: "not"
  │   ├─ punctuation.whitespace.optional.sd [353..354]: " "
- │   ├─ invalid.illegal.choice-condition.sd [354..355]: "("
- │   └─ string.choice.sd [355..370]
- │       ├─ markup.raw.text.sd [355..362]: "allowed"
- │       ├─ markup.raw.punctuation.sd [362..363]: "("
+ │   ├─ invalid.illegal.choice-condition.sd [354..363]: "(allowed("
+ │   └─ string.choice.sd [363..370]
  │       ├─ markup.raw.punctuation.sd [363..364]: ")"
  │       ├─ markup.raw.space.sd [364..365]: " "
  │       └─ markup.raw.text.sd [365..370]: "Group"
@@ -211,14 +207,45 @@ text.source.sparkdown [0..455]
  │   ├─ markup.raw.space.sd [424..425]: " "
  │   └─ markup.raw.text.sd [425..429]: "jump"
  ├─ Newline [429..430]: "\n"
- ├─ entity.choice.sd [430..444]
+ ├─ entity.choice.sd [430..457]
  │   ├─ punctuation.whitespace.optional.sd [430..434]: "    "
  │   ├─ keyword.operator.expression.list.sd [434..436]: "* "
- │   └─ string.choice.sd [436..444]
- │       └─ markup.raw.text.sd [436..444]: "Fallback"
- ├─ Newline [444..445]: "\n"
- ├─ punctuation.whitespace.optional.sd [445..447]: "  "
- ├─ keyword.control.end.luau [447..450]: "end"
- ├─ Newline [450..451]: "\n"
- ├─ keyword.control.end.luau [451..454]: "end"
- └─ Newline [454..455]: "\n"
+ │   └─ string.choice.sd [436..457]
+ │       ├─ markup.raw.text.sd [436..438]: "if"
+ │       ├─ markup.raw.space.sd [438..439]: " "
+ │       ├─ markup.raw.punctuation.sd [439..440]: "("
+ │       ├─ markup.raw.text.sd [440..443]: "you"
+ │       ├─ markup.raw.punctuation.sd [443..444]: "'"
+ │       ├─ markup.raw.text.sd [444..446]: "re"
+ │       ├─ markup.raw.space.sd [446..447]: " "
+ │       ├─ markup.raw.text.sd [447..451]: "sure"
+ │       ├─ markup.raw.punctuation.sd [451..452]: ")"
+ │       ├─ markup.raw.space.sd [452..453]: " "
+ │       └─ markup.raw.text.sd [453..457]: "jump"
+ ├─ Newline [457..458]: "\n"
+ ├─ entity.choice.sd [458..483]
+ │   ├─ punctuation.whitespace.optional.sd [458..462]: "    "
+ │   ├─ keyword.operator.expression.list.sd [462..464]: "* "
+ │   └─ string.choice.sd [464..483]
+ │       ├─ markup.raw.text.sd [464..466]: "if"
+ │       ├─ markup.raw.space.sd [466..467]: " "
+ │       ├─ markup.raw.punctuation.sd [467..468]: "("
+ │       ├─ markup.raw.text.sd [468..471]: "you"
+ │       ├─ markup.raw.space.sd [471..472]: " "
+ │       ├─ markup.raw.text.sd [472..476]: "dare"
+ │       ├─ markup.raw.punctuation.sd [476..477]: ")"
+ │       ├─ markup.raw.punctuation.sd [477..478]: ","
+ │       ├─ markup.raw.space.sd [478..479]: " "
+ │       └─ markup.raw.text.sd [479..483]: "jump"
+ ├─ Newline [483..484]: "\n"
+ ├─ entity.choice.sd [484..498]
+ │   ├─ punctuation.whitespace.optional.sd [484..488]: "    "
+ │   ├─ keyword.operator.expression.list.sd [488..490]: "* "
+ │   └─ string.choice.sd [490..498]
+ │       └─ markup.raw.text.sd [490..498]: "Fallback"
+ ├─ Newline [498..499]: "\n"
+ ├─ punctuation.whitespace.optional.sd [499..501]: "  "
+ ├─ keyword.control.end.luau [501..504]: "end"
+ ├─ Newline [504..505]: "\n"
+ ├─ keyword.control.end.luau [505..508]: "end"
+ └─ Newline [508..509]: "\n"

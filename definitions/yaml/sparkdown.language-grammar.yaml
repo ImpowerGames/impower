@@ -541,6 +541,9 @@ variables:
   CHOICE_CONDITION_METHOD: (?:[:]{{LUAU_IDENTIFIER}})
   CHOICE_CONDITION_CALL: (?:{{CHOICE_CONDITION_METHOD}}?{{CHOICE_CONDITION_PARENS}})
   CHOICE_CONDITION_PATH: (?:{{LUAU_NAME_OR_CONSTANT}}(?:[.]{{LUAU_IDENTIFIER}}|{{CHOICE_CONDITION_CALL}})*)
+  CHOICE_UNREADABLE_CONDITION_GROUPS: (?:[(]{{WS}}*)*
+  CHOICE_UNREADABLE_CONDITION_PATH: (?:{{LUAU_IDENTIFIER}}(?:[.:]{{LUAU_IDENTIFIER}})*)
+  CHOICE_UNREADABLE_CONDITION_OPEN: (?:{{CHOICE_UNREADABLE_CONDITION_GROUPS}}{{CHOICE_UNREADABLE_CONDITION_PATH}}[(\[])
   LUAU_KEYWORD: (?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while){{LUAU_NAME_END}})
   # lookaround: anywhere else `LuauAccessPath` reads the word as a name; it
   # comes after the alternators in `LuauExpression`.
@@ -1497,7 +1500,7 @@ repository:
   # next line, often the next choice, this choice's label. The `end:` is
   # `(?=$)` and carries nothing here, and no variable sees the previous line.
   ChoiceUnreadableCondition:
-    match: \G(?<={{WS}}|[)])(if)\b({{WS}}+)(?:(not)\b({{WS}}+))?({{LUAU_IDENTIFIER}}(?:[.:]{{LUAU_IDENTIFIER}})*[(\[]|[(])
+    match: \G(?<={{WS}}|[)])(if)\b({{WS}}+)(?:(not)\b({{WS}}+))?({{CHOICE_UNREADABLE_CONDITION_OPEN}})
     captures:
       1:
         patterns:
