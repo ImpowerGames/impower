@@ -1,0 +1,109 @@
+text.source.sparkdown [0..135]
+ ├─ keyword.control.scene.sd [0..5]: "scene"
+ ├─ punctuation.whitespace.required.sd [5..6]: " "
+ ├─ keyword.control.section.sd [6..10]: "main"
+ ├─ Newline [10..11]: "\n"
+ ├─ punctuation.whitespace.optional.sd [11..13]: "  "
+ ├─ keyword.control.luau [13..18]: "queue"
+ ├─ punctuation.whitespace.optional.sd [18..19]: " "
+ ├─ keyword.operator.alternator.luau [19..20]: "|"
+ ├─ punctuation.whitespace.optional.sd [20..21]: " "
+ ├─ meta.divert [21..32]
+ │   ├─ keyword.control.divert.mark.sd [21..23]: "->"
+ │   ├─ keyword.control.divert.path.sd [23..25]
+ │   │   ├─ punctuation.whitespace.optional.sd [23..24]: " "
+ │   │   └─ keyword.control.divert.path.sd [24..25]
+ │   │       └─ keyword.control.divert.path.sd [24..25]: "A"
+ │   └─ comment.line.sd [25..32]
+ │       └─ entity.tag.sd [25..32]
+ │           ├─ punctuation.whitespace.sd [25..26]: " "
+ │           ├─ punctuation.definition.comment.sd [26..27]
+ │           │   └─ comment.line.sd [26..27]
+ │           │       └─ entity.tag.begin.sd [26..27]: "#"
+ │           └─ punctuation.definition.comment.content.sd [27..32]: " tag "
+ ├─ keyword.operator.alternator.luau [32..33]: "|"
+ ├─ punctuation.whitespace.optional.sd [33..34]: " "
+ ├─ markup.raw.text.sd [34..35]: "b"
+ ├─ punctuation.whitespace.optional.sd [35..36]: " "
+ ├─ keyword.control.end.luau [36..39]: "end"
+ ├─ Newline [39..40]: "\n"
+ ├─ punctuation.whitespace.optional.sd [40..42]: "  "
+ ├─ string.display.text.chunk.sd [42..43]
+ │   └─ markup.raw.text.sd [42..43]: "x"
+ ├─ punctuation.whitespace.sd [43..44]: " "
+ ├─ keyword.other.glue.sd [44..46]: ".."
+ ├─ punctuation.whitespace.extra.sd [46..47]: " "
+ ├─ keyword.control.luau [47..52]: "queue"
+ ├─ keyword.operator.alternator.luau [52..53]: "|"
+ ├─ meta.divert [53..63]
+ │   ├─ keyword.control.divert.mark.sd [53..55]: "->"
+ │   ├─ keyword.control.divert.path.sd [55..57]
+ │   │   ├─ punctuation.whitespace.optional.sd [55..56]: " "
+ │   │   └─ keyword.control.divert.path.sd [56..57]
+ │   │       └─ keyword.control.divert.path.sd [56..57]: "A"
+ │   └─ comment.line.sd [57..63]
+ │       └─ entity.tag.sd [57..63]
+ │           ├─ punctuation.whitespace.sd [57..58]: " "
+ │           ├─ punctuation.definition.comment.sd [58..59]
+ │           │   └─ comment.line.sd [58..59]
+ │           │       └─ entity.tag.begin.sd [58..59]: "#"
+ │           └─ punctuation.definition.comment.content.sd [59..63]: " tag"
+ ├─ keyword.operator.alternator.luau [63..64]: "|"
+ ├─ markup.raw.text.sd [64..65]: "b"
+ ├─ punctuation.whitespace.extra.sd [65..66]: " "
+ ├─ keyword.other.glue.sd [66..68]: ".."
+ ├─ string.display.text.chunk.sd [68..70]
+ │   ├─ markup.raw.space.sd [68..69]: " "
+ │   └─ markup.raw.text.sd [69..70]: "z"
+ ├─ Newline [70..71]: "\n"
+ ├─ punctuation.whitespace.optional.sd [71..73]: "  "
+ ├─ keyword.control.luau [73..78]: "queue"
+ ├─ punctuation.whitespace.optional.sd [78..79]: " "
+ ├─ keyword.operator.alternator.luau [79..80]: "|"
+ ├─ punctuation.whitespace.optional.sd [80..81]: " "
+ ├─ meta.divert [81..97]
+ │   ├─ keyword.control.divert.mark.sd [81..83]: "->"
+ │   ├─ keyword.control.divert.path.sd [83..85]
+ │   │   ├─ punctuation.whitespace.optional.sd [83..84]: " "
+ │   │   └─ keyword.control.divert.path.sd [84..85]
+ │   │       └─ keyword.control.divert.path.sd [84..85]: "A"
+ │   ├─ punctuation.whitespace.optional.sd [85..86]: " "
+ │   ├─ keyword.control.divert.mark.sd [86..88]: "->"
+ │   ├─ keyword.control.divert.path.sd [88..90]
+ │   │   ├─ punctuation.whitespace.optional.sd [88..89]: " "
+ │   │   └─ keyword.control.divert.path.sd [89..90]
+ │   │       └─ keyword.control.divert.path.sd [89..90]: "B"
+ │   └─ comment.line.sd [90..97]
+ │       └─ entity.tag.sd [90..97]
+ │           ├─ punctuation.whitespace.sd [90..91]: " "
+ │           ├─ punctuation.definition.comment.sd [91..92]
+ │           │   └─ comment.line.sd [91..92]
+ │           │       └─ entity.tag.begin.sd [91..92]: "#"
+ │           └─ punctuation.definition.comment.content.sd [92..97]: " tag "
+ ├─ keyword.operator.alternator.luau [97..98]: "|"
+ ├─ punctuation.whitespace.optional.sd [98..99]: " "
+ ├─ markup.raw.text.sd [99..100]: "b"
+ ├─ punctuation.whitespace.optional.sd [100..101]: " "
+ ├─ keyword.control.end.luau [101..104]: "end"
+ ├─ Newline [104..105]: "\n"
+ ├─ punctuation.whitespace.optional.sd [105..107]: "  "
+ ├─ keyword.control.luau [107..112]: "queue"
+ ├─ punctuation.whitespace.optional.sd [112..113]: " "
+ ├─ keyword.operator.alternator.luau [113..114]: "|"
+ ├─ punctuation.whitespace.optional.sd [114..115]: " "
+ ├─ markup.raw.text.sd [115..116]: "a"
+ ├─ comment.line.sd [116..123]
+ │   └─ entity.tag.sd [116..123]
+ │       ├─ punctuation.whitespace.sd [116..117]: " "
+ │       ├─ punctuation.definition.comment.sd [117..118]
+ │       │   └─ comment.line.sd [117..118]
+ │       │       └─ entity.tag.begin.sd [117..118]: "#"
+ │       └─ punctuation.definition.comment.content.sd [118..123]: " tag "
+ ├─ keyword.operator.alternator.luau [123..124]: "|"
+ ├─ punctuation.whitespace.optional.sd [124..125]: " "
+ ├─ markup.raw.text.sd [125..126]: "b"
+ ├─ punctuation.whitespace.optional.sd [126..127]: " "
+ ├─ keyword.control.end.luau [127..130]: "end"
+ ├─ Newline [130..131]: "\n"
+ ├─ keyword.control.end.luau [131..134]: "end"
+ └─ Newline [134..135]: "\n"
