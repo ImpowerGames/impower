@@ -23,7 +23,10 @@ export const fillArrayWithTone = (
   const duration = (tone.duration ?? envelopeDuration) / speed;
   const volume = tone.velocity ?? 1;
   const originalPitch =
-    convertPitchNoteToHertz(tone.pitch) ?? synth?.pitch?.frequency ?? 440;
+    convertPitchNoteToHertz(tone.pitch) ?? synth?.pitch?.frequency;
+  if (originalPitch == null) {
+    return;
+  }
   const bend = tone.bend ?? 0;
   const pitch = transpose(originalPitch, bend);
   if (duration) {

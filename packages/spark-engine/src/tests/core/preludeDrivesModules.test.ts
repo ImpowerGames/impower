@@ -2,6 +2,8 @@ import { describe, expect, test } from "vitest";
 import { newGame } from "../harness/startingValuesGame";
 import { compilePrelude } from "../harness/compilePrelude";
 import { requireChunks } from "../harness/compileProgram";
+import { SynthBuffer } from "../../game/modules/audio/classes/helpers/SynthBuffer";
+import { parseTones } from "../../game/modules/audio/utils/parseTones";
 
 const gameWithPrelude = (edit: (prelude: string) => string) => {
   const { program } = compilePrelude(edit);
@@ -80,5 +82,22 @@ describe("the compiled prelude is the only source of the builtin values the modu
     expect(game.context.channel.music.mixer).toBe("sound");
     expect(game.context.metadata.$default.title).toBe("Edited");
     expect(game.context.world.$default.src).toBe("edited.glb");
+  });
+
+  test("a synth with no frequency in the prelude renders silence, not an engine-chosen pitch", () => {
+    const game = gameWithPrelude((prelude) =>
+      replaceOnce(
+        prelude,
+        /(define synth with[^]*?pitch = \{ )frequency = 440, /,
+        "$1",
+      ),
+    );
+    const unpitched = game.context.synth.$default;
+    expect(unpitched.pitch.frequency).toBeUndefined();
+    const tones = parseTones("t0s1b0~t0.075s1b0", "~");
+    const sounding = (synth: any) =>
+      new SynthBuffer(synth, tones, 44100).soundBuffer.some((v) => v !== 0);
+    expect(sounding(unpitched)).toBe(false);
+    expect(sounding(game.context.synth.character)).toBe(true);
   });
 });
