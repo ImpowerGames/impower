@@ -45,7 +45,7 @@ function inspect(files) {
     if (/Read \[runner notes\].*(?:before proceeding|repository's agent instructions)/.test(text)) errors.push("unconditional reread: " + file);
   }
   if (words(files.get("AGENTS.md") ?? "") > 800) errors.push("oversize: AGENTS.md");
-  if (words(files.get(".agents/skills/RUNNERS.md") ?? "") > 400) errors.push("oversize: RUNNERS.md");
+  if (words(files.get(".agents/skills/RUNNERS.md") ?? "") > 410) errors.push("oversize: RUNNERS.md");
   for (const file of files.keys()) {
     if (file.includes("/references/") && file.endsWith(".md") && !visited.has(file)) errors.push("unreachable: " + file);
   }

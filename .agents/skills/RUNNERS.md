@@ -13,6 +13,7 @@
 | Private artifacts       | Exclusive directory per agent/attempt; parent scratchpads may be shared; resolve-issue writers use its [allocator](resolve-issue/SKILL.md#0-preflight) | Same                                                                                |
 | Observe completion      | Await task status or CLI process exit, then read the review thread's paginated comments | Same                                                                                |
 | Shell rewrites          | Bash collapses `\\`→`\`, rewrites leading `/`; PowerShell preserves both | Not measured                                                                        |
+| Android emulator        | Maintainer's machine only ([drive-web-editor](drive-web-editor/SKILL.md#android-emulator)) | Same                                                                                |
 
 ## Review execution
 

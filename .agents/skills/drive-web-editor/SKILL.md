@@ -28,11 +28,28 @@ Select only the references needed for this run:
 
 - `--viewport <preset|WxH>`: `desktop` 1440x900, `tablet` 768x1024, `phone` 360x780, `phone-large` 430x932, or any size such as `1280x720`. `phone` and `phone-large` also turn on touch, `isMobile` and device scale factor 3, so `(pointer: coarse)` and `(hover: none)` match; their screenshots hold three device pixels per page pixel, so a 360x780 page saves as 1080x2340. Without the flag the page stays 1600x1000 with a mouse, so earlier evidence stays comparable.
 - `--color-scheme light|dark`: the `prefers-color-scheme` the page reports, for checking the Automatic theme.
-- `--theme <name>`: the theme preference the page loads with, such as `charcoal` or `chalk`, written to the editor's stored preferences before its first script runs. Without it the run clears the stored theme, so the page starts under Automatic and `--color-scheme` picks Chalk or Charcoal. The report's `display.renderedTheme` is the `data-theme` the editor set, and a theme the editor does not offer fails the run.
+- `--theme <name>`: the stored theme preference the page loads with, such as `charcoal` or `chalk`. Without it the stored theme is cleared, so the page starts under Automatic and `--color-scheme` picks Chalk or Charcoal. The report's `display.renderedTheme` is the `data-theme` the editor set; a theme it does not offer fails the run.
 
-The report's `display` field echoes what was applied. Desktop and tablet presets are evidence widths; at phone widths the presets are quick checks only, and the Android emulator route is the bar.
+The report's `display` field echoes what was applied. Desktop and tablet presets are evidence widths; at phone widths the presets are quick checks only, and the [Android emulator](#android-emulator) route is the bar.
 
-`screenshot <name> [--out-dir <dir>]` loads the editor and saves the page as `<name>[-<viewport>][-<theme>][-<scheme>].png`, such as `story-tablet-chalk-light.png`, so an evidence folder holds one file per combination. `--shot <path>` on `verify` and `ui` writes exactly the path given.
+`screenshot <name> [--step <name>]... [--out-dir <dir>]` loads the editor, runs the [named steps](#named-steps) and saves the page as `<name>[-<viewport>][-<theme>][-<scheme>].png`, such as `story-tablet-chalk-light.png`, so an evidence folder holds one file per combination. `--shot <path>` on `verify` and `ui` writes exactly the path given.
+
+## Android emulator
+
+Phone layouts are verified on an emulator, because the on-screen keyboard and native selection never appear under the phone presets. `--device android` on `verify`, `ui` or `screenshot` runs the editor in Chrome on an Android Virtual Device through Playwright's experimental Android support. The route exists on the maintainer's machine only; CI keeps the Chromium presets.
+
+One-time setup, done outside the repository: Android Studio with its platform-tools and emulator (and the Windows Hypervisor Platform on Windows); a Pixel-class virtual device on API 34 with a Google APIs image; Chrome 87 or later on it, with "Enable command line on non-rooted devices" turned on in `chrome://flags`; platform-tools on PATH or `ANDROID_HOME` set. `ANDROID_SERIAL` picks one of several attached devices. The driver installs nothing: a missing adb, device or Chrome fails at once with these steps in the message.
+
+- Serving: the driver maps the editor, player and HMR ports with `adb reverse`, so the device's `localhost` is the dev server, a secure context as OPFS and the service worker require (`10.0.2.2` is not one), and removes the mappings it added when the run ends.
+- Queue: one driver process holds a device at a time, machine-wide, by listening on a loopback port derived from the serial (36900–36999); the hold ends with the process, even a killed one. Another prints `waiting for Android device <serial>: held by pid …, session …, worktree …, running …` and waits up to `--device-wait <seconds>` (default 900), then fails naming the holder; no bind, lookup or pause runs past that limit, and `--device-wait 0` tries once without asking who holds it.
+- Existing mappings: an `adb reverse` that already sends an editor port to a different host port is refused, naming the mapping, rather than silently serving another checkout.
+- Screenshots: `--shot` on `ui` and `verify`, and `screenshot`, save the whole device screen through `device.screenshot()`, status bar, Chrome's toolbar and keyboard included; `ui --shot-of page` keeps the page alone.
+- Input and display: `--tap X,Y`, `--long-press X,Y[:MS]` (default 750 ms) and `--swipe X1,Y1:X2,Y2[:MS]` (default 300 ms) take the device screenshot's pixel coordinates and go through the device's `input` command; `--rotate portrait|landscape` turns the display; `--viewport` sets the screen density so the page has that CSS width. Rotation and density are restored when the run ends; after an interrupted run, `adb shell wm density reset`.
+- The report's `device` field names the serial, model, Chrome version, density and the page's measured size.
+
+## Named steps
+
+`ui` and `screenshot` accept `--step <name>`, repeatable, with any viewport or device: `app-menu`, `dialog` (open one and dismiss it), `drawer` (the drawer or rail), `file-menu` (a file row's menu), `asset-inspector`, `add-menu`, `preview-settings`, `play`, `problems`, `settings=<section>`, `focus-project-name` and `focus-script-name`. `play` presses the preview's Play as `--play start` does. Every other step fails with `not built yet`, naming the ticket that builds its surface; that slice gives the step its body in `steps.mjs` and the driver.
 
 ## Evidence gate
 

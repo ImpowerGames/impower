@@ -210,8 +210,8 @@ await check("the theme seed sets or clears the preference once per page session 
 });
 
 await check("screenshot arguments resolve the derived path and refuse strays", () => {
-  assert.deepEqual(parseScreenshotArgs(["story", "--out-dir", "ev"], { ...none, viewport: parseViewport("phone") }), { out: path.resolve("ev", "story-phone.png"), headed: false });
-  assert.deepEqual(parseScreenshotArgs(["story", "--headed"], none), { out: path.resolve("story.png"), headed: true });
+  assert.deepEqual(parseScreenshotArgs(["story", "--out-dir", "ev"], { ...none, viewport: parseViewport("phone") }), { out: path.resolve("ev", "story-phone.png"), headed: false, steps: [] });
+  assert.deepEqual(parseScreenshotArgs(["story", "--headed", "--step", "play"], none), { out: path.resolve("story.png"), headed: true, steps: ["play"] });
   assert.throws(() => parseScreenshotArgs([], none), /needs a name/);
   assert.throws(() => parseScreenshotArgs(["story", "--shot", "x.png"], none), /unknown argument --shot/);
   assert.throws(() => parseScreenshotArgs(["story", "--out-dir"], none), /--out-dir needs a directory/);
