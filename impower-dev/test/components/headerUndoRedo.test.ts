@@ -47,9 +47,8 @@ afterEach(async () => {
 
 const mountHeader = async () => {
   vi.resetModules();
-  const { default: HeaderNavigation } = await import(
-    "../../src/modules/spark-editor/components/header-navigation/HeaderNavigation"
-  );
+  const { default: HeaderNavigation } =
+    await import("../../src/modules/spark-editor/components/header-navigation/HeaderNavigation");
   host = document.body.appendChild(document.createElement("div"));
   await act(async () => render(h(HeaderNavigation, null), host!));
   return (name: string) =>
