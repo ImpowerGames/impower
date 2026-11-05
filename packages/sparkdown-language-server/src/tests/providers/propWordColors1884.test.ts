@@ -23,8 +23,8 @@ describe("a color at the start of a prop value with parentheses keeps its swatch
   test.each([
     ["a hex color", (d: number) => `#f00,${nest(d)}`, () => "#f00"],
     ["a long hex color", (d: number) => `#ff0000aa,${nest(d)}`, () => "#ff0000aa"],
-    ["an rgb color, read to the value's last closer", (d: number) => `rgb(255,0,0),${nest(d)}`, (d: number) => `rgb(255,0,0),${nest(d)}`],
-    ["an hsla color, read to the value's last closer", (d: number) => `hsla(0,100%,50%,1),${nest(d)}`, (d: number) => `hsla(0,100%,50%,1),${nest(d)}`],
+    ["an rgb color, read to its own closer", (d: number) => `rgb(255,0,0),${nest(d)}`, () => "rgb(255,0,0)"],
+    ["an hsla color, read to its own closer", (d: number) => `hsla(0,100%,50%,1),${nest(d)}`, () => "hsla(0,100%,50%,1)"],
   ])("%s at depth 1 and depth 7", (_, value, swatch) => {
     for (const d of [1, 7]) {
       const { errors, colors } = colorsOf(value(d));
