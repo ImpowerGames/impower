@@ -29,7 +29,7 @@ import {
 const searchPanelTheme = EditorView.baseTheme({
   "[contenteditable]:empty::after, [contenteditable][data-empty]::after": {
     content: "attr(data-placeholder)",
-    color: "#888",
+    color: "var(--editor-placeholder)",
     cursor: "text",
   },
 });
@@ -966,7 +966,7 @@ const gotoLinePanelTheme = EditorView.baseTheme({
   },
   "[contenteditable]:empty::after, [contenteditable][data-empty]::after": {
     content: "attr(data-placeholder)",
-    color: "#888",
+    color: "var(--editor-placeholder)",
     cursor: "text",
   },
 });

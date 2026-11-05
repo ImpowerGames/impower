@@ -26,7 +26,7 @@ const contextMenuTheme = EditorView.baseTheme({
   },
   ".cm-context-menu": {
     display: "flex",
-    color: "#cccccc",
+    color: "var(--editor-ink)",
     userSelect: "none",
     whiteSpace: "nowrap",
     pointerEvents: "auto",
@@ -87,7 +87,7 @@ const contextMenuTheme = EditorView.baseTheme({
     width: "18px",
     height: "18px",
     display: "inline-block",
-    backgroundColor: "white",
+    backgroundColor: "var(--ink)",
     maskImage: CHEVRON_LEFT_SVG_URL,
     webkitMaskImage: CHEVRON_LEFT_SVG_URL,
     maskRepeat: "no-repeat",
@@ -99,7 +99,7 @@ const contextMenuTheme = EditorView.baseTheme({
     width: "18px",
     height: "18px",
     display: "inline-block",
-    backgroundColor: "white",
+    backgroundColor: "var(--ink)",
     maskImage: DOTS_VERTICAL_SVG_URL,
     webkitMaskImage: DOTS_VERTICAL_SVG_URL,
     maskRepeat: "no-repeat",
@@ -112,7 +112,7 @@ const contextMenuTheme = EditorView.baseTheme({
     cursor: "default",
   },
   ".cm-context-menu .cm-menu-separator": {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "color-mix(in srgb, var(--ink) 20%, transparent)",
     flexShrink: 0,
   },
   ".cm-context-menu.cm-vertical .cm-menu-separator": {
@@ -126,31 +126,31 @@ const contextMenuTheme = EditorView.baseTheme({
     margin: "0 2px",
   },
   ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):active": {
-    color: "#ffffff",
+    color: "var(--ink)",
   },
   ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):active::after": {
     content: "''",
     position: "absolute",
     inset: "0",
-    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    backgroundColor: "var(--control-hover)",
   },
   ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):active .cm-menu-item-shortcut":
     {
-      color: "#ffffff",
+      color: "var(--ink)",
     },
   "@media (hover: hover) and (pointer: fine)": {
     ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):hover": {
-      color: "#ffffff",
+      color: "var(--ink)",
     },
     ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):hover::after": {
       content: "''",
       position: "absolute",
       inset: "0",
-      backgroundColor: "rgba(255, 255, 255, 0.06)",
+      backgroundColor: "var(--control-hover)",
     },
     ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):hover .cm-menu-item-shortcut":
       {
-        color: "#ffffff",
+        color: "var(--ink)",
       },
   },
 });

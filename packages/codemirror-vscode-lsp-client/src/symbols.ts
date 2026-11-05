@@ -27,7 +27,7 @@ export const stickyScrollTheme = EditorView.theme({
     right: 0,
     zIndex: 10,
     backgroundColor: "inherit",
-    boxShadow: "0 2px 4px rgba(0,0,0,0.7)",
+    boxShadow: "0 2px 4px var(--editor-sticky-shadow)",
     display: "flex",
     flexDirection: "column",
   },
@@ -45,11 +45,11 @@ export const stickyScrollTheme = EditorView.theme({
   },
 
   ".cm-sticky-header-row .cm-sticky-header-text.cm-line:active": {
-    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    backgroundColor: "var(--control-hover)",
   },
   "@media (hover: hover) and (pointer: fine)": {
     ".cm-sticky-header-row .cm-sticky-header-text.cm-line:hover": {
-      backgroundColor: "rgba(255, 255, 255, 0.06)",
+      backgroundColor: "var(--control-hover)",
     },
   },
 });

@@ -1,6 +1,5 @@
 import { HighlightStyle } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
-import c from "./EDITOR_COLORS";
 
 const EDITOR_HIGHLIGHTS = HighlightStyle.define([
   {
@@ -9,88 +8,118 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
   },
   { tag: tags.content },
 
-  { tag: tags.paren, color: c.bracket },
-  { tag: tags.brace, color: c.bracket },
-  { tag: tags.bracket, color: c.bracket },
+  { tag: tags.paren, color: "var(--syntax-bracket)" },
+  { tag: tags.brace, color: "var(--syntax-bracket)" },
+  { tag: tags.bracket, color: "var(--syntax-bracket)" },
 
-  { tag: tags.string, color: c.string },
+  { tag: tags.string, color: "var(--syntax-string)" },
 
-  { tag: tags.special(tags.string), color: c.foreground },
+  { tag: tags.special(tags.string), color: "var(--syntax-text)" },
 
-  { tag: tags.definition(tags.string), color: c.string },
+  { tag: tags.definition(tags.string), color: "var(--syntax-string)" },
 
-  { tag: tags.monospace, color: c.escape },
+  { tag: tags.monospace, color: "var(--syntax-escape)" },
   { tag: tags.quote, fontStyle: "italic" },
   { tag: tags.emphasis, fontStyle: "italic" },
   { tag: tags.strong, fontWeight: "bold" },
   { tag: tags.link, textDecoration: "underline", textUnderlineOffset: "5px" },
   { tag: tags.strikethrough, textDecoration: "line-through" },
 
-  { tag: tags.typeName, color: c.typeName },
-  { tag: tags.number, color: c.number },
-  { tag: tags.bool, color: c.bool },
+  { tag: tags.typeName, color: "var(--syntax-type-name)" },
+  { tag: tags.number, color: "var(--syntax-number)" },
+  { tag: tags.bool, color: "var(--syntax-bool)" },
 
-  { tag: tags.operator, color: c.operator },
-  { tag: tags.typeOperator, color: c.operator },
-  { tag: tags.derefOperator, color: c.operator },
-  { tag: tags.logicOperator, color: c.operator },
-  { tag: tags.updateOperator, color: c.operator },
-  { tag: tags.bitwiseOperator, color: c.operator },
-  { tag: tags.compareOperator, color: c.operator },
-  { tag: tags.controlOperator, color: c.operator },
-  { tag: tags.arithmeticOperator, color: c.operator },
-  { tag: tags.definitionOperator, color: c.operator },
+  { tag: tags.operator, color: "var(--syntax-operator)" },
+  { tag: tags.typeOperator, color: "var(--syntax-operator)" },
+  { tag: tags.derefOperator, color: "var(--syntax-operator)" },
+  { tag: tags.logicOperator, color: "var(--syntax-operator)" },
+  { tag: tags.updateOperator, color: "var(--syntax-operator)" },
+  { tag: tags.bitwiseOperator, color: "var(--syntax-operator)" },
+  { tag: tags.compareOperator, color: "var(--syntax-operator)" },
+  { tag: tags.controlOperator, color: "var(--syntax-operator)" },
+  { tag: tags.arithmeticOperator, color: "var(--syntax-operator)" },
+  { tag: tags.definitionOperator, color: "var(--syntax-operator)" },
 
-  { tag: tags.contentSeparator, color: c.break },
-  { tag: tags.heading, color: c.sectionNameAccessor },
-  { tag: tags.regexp, color: c.heading },
-  { tag: tags.labelName, color: c.transitional },
+  { tag: tags.contentSeparator, color: "var(--syntax-break)" },
+  { tag: tags.heading, color: "var(--syntax-section-name-accessor)" },
+  { tag: tags.regexp, color: "var(--syntax-regex)" },
+  { tag: tags.labelName, color: "var(--syntax-transitional)" },
 
-  { tag: tags.escape, color: c.escape },
+  { tag: tags.escape, color: "var(--syntax-escape)" },
 
-  { tag: tags.keyword, color: c.keyword },
-  { tag: tags.moduleKeyword, color: c.moduleKeyword },
-  { tag: tags.controlKeyword, color: c.controlKeyword },
-  { tag: tags.definitionKeyword, color: c.builtin },
-  { tag: tags.operatorKeyword, color: c.operatorKeyword },
-  { tag: tags.definition(tags.typeName), color: c.typeNameDefinition },
-  { tag: tags.special(tags.logicOperator), color: c.specialOperator },
-  { tag: tags.special(tags.arithmeticOperator), color: c.specialOperator },
-  { tag: tags.special(tags.compareOperator), color: c.specialOperator },
-  { tag: tags.special(tags.operator), color: c.specialOperator },
-  { tag: tags.propertyName, color: c.propertyName },
-  { tag: tags.variableName, color: c.variableName },
-  { tag: tags.constant(tags.variableName), color: c.constantVariableName },
-  { tag: tags.attributeName, color: c.attributeName },
-  { tag: tags.function(tags.name), color: c.functionName },
+  { tag: tags.keyword, color: "var(--syntax-plain-keyword)" },
+  { tag: tags.moduleKeyword, color: "var(--syntax-module-keyword)" },
+  { tag: tags.controlKeyword, color: "var(--syntax-control-keyword)" },
+  { tag: tags.definitionKeyword, color: "var(--syntax-builtin)" },
+  { tag: tags.operatorKeyword, color: "var(--syntax-operator-keyword)" },
+  {
+    tag: tags.definition(tags.typeName),
+    color: "var(--syntax-type-name-definition)",
+  },
+  {
+    tag: tags.special(tags.logicOperator),
+    color: "var(--syntax-special-operator)",
+  },
+  {
+    tag: tags.special(tags.arithmeticOperator),
+    color: "var(--syntax-special-operator)",
+  },
+  {
+    tag: tags.special(tags.compareOperator),
+    color: "var(--syntax-special-operator)",
+  },
+  { tag: tags.special(tags.operator), color: "var(--syntax-special-operator)" },
+  { tag: tags.propertyName, color: "var(--syntax-property-name)" },
+  { tag: tags.variableName, color: "var(--syntax-variable-name)" },
+  {
+    tag: tags.constant(tags.variableName),
+    color: "var(--syntax-constant-variable-name)",
+  },
+  { tag: tags.attributeName, color: "var(--syntax-attribute-name)" },
+  { tag: tags.function(tags.name), color: "var(--syntax-function-name)" },
   {
     tag: tags.special(tags.function(tags.name)),
-    color: c.builtin,
+    color: "var(--syntax-builtin)",
   },
   {
     tag: tags.standard(tags.function(tags.name)),
-    color: c.standardFunction,
+    color: "var(--syntax-standard-function)",
   },
   {
     tag: tags.standard(tags.variableName),
-    color: c.standardType,
+    color: "var(--syntax-standard-type)",
   },
-  { tag: tags.function(tags.variableName), color: c.parameterName },
-  { tag: tags.className, color: c.className },
+  {
+    tag: tags.function(tags.variableName),
+    color: "var(--syntax-parameter-name)",
+  },
+  { tag: tags.className, color: "var(--syntax-class-name)" },
 
-  { tag: tags.definition(tags.annotation), color: c.chunkNameDefinition },
-  { tag: tags.special(tags.annotation), color: c.chunkNameDefinition },
-  { tag: tags.definition(tags.heading), color: c.sectionNameDefinition },
-  { tag: tags.special(tags.heading), color: c.sectionNameDefinition },
+  {
+    tag: tags.definition(tags.annotation),
+    color: "var(--syntax-chunk-name-definition)",
+  },
+  {
+    tag: tags.special(tags.annotation),
+    color: "var(--syntax-chunk-name-definition)",
+  },
+  {
+    tag: tags.definition(tags.heading),
+    color: "var(--syntax-section-name-definition)",
+  },
+  {
+    tag: tags.special(tags.heading),
+    color: "var(--syntax-section-name-definition)",
+  },
 
-  { tag: tags.separator, color: c.foreground },
+  { tag: tags.separator, color: "var(--syntax-text)" },
 
-  { tag: tags.invalid, color: c.invalid },
+  { tag: tags.invalid, color: "var(--syntax-invalid)" },
 
-  { tag: tags.comment, color: c.comment },
-  { tag: tags.lineComment, color: c.comment },
-  { tag: tags.blockComment, color: c.comment },
-  { tag: tags.docComment, color: c.comment },
+  { tag: tags.comment, color: "var(--syntax-comment)" },
+  { tag: tags.lineComment, color: "var(--syntax-comment)" },
+  { tag: tags.blockComment, color: "var(--syntax-comment)" },
+  { tag: tags.docComment, color: "var(--syntax-comment)" },
 ]);
 
 export default EDITOR_HIGHLIGHTS;

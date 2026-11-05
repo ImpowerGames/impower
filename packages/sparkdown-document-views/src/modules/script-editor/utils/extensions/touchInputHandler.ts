@@ -151,7 +151,7 @@ const selectionHandleTheme = EditorView.baseTheme({
     position: "absolute",
     width: "20px",
     height: "20px",
-    backgroundColor: "#1976d2",
+    backgroundColor: "var(--editor-touch-handle)",
     borderRadius: "50%",
     zIndex: 100,
     pointerEvents: "auto",

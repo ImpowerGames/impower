@@ -356,6 +356,103 @@ Dusk use Original; Graphite and Warm Folio use Original or Softened as chosen.
 | `--syntax-type-keyword` | `#ff80bb` | `#f18cb9` | `#f296be` | `#f296be` | `#a1265e` | `#a1265e` |
 | `--syntax-container` | `#ffb380` | `#f5b890` | `#dfa674` | `#dfa674` | `#88460c` | `#88460c` |
 
+### Code editor variables
+
+The script editor's CodeMirror theme blocks (`packages/sparkdown-document-views` and
+`packages/codemirror-vscode-lsp-client`) read the semantic set above where a colour is
+the same (`--panel`, `--paper`, `--bg`, `--ink`, `--selection`, `--control-hover`, and
+`color-mix(in srgb, var(--ink) N%, transparent)` for white at an opacity) and the
+variables below for the rest. `packages/impower-ui/src/theme.css` declares them in a
+second `:root, [data-theme="midnight"]` block holding the values the editor drew before
+it read variables, so Midnight renders unchanged. The per-theme palettes, and the
+mapping of the editor's highlight tags onto the syntax roles above, replace the
+`--syntax-*` part of this set.
+
+Component variables of the editor's own chrome:
+
+| Variable | Role | Midnight value |
+|---|---|---|
+| `--editor-ink` | Chrome text: menus, the reference list, the keyboard toolbar, the status bar's reveal arrow | `#cccccc` |
+| `--editor-line-number` | Gutter line numbers | `#2b83b7` |
+| `--editor-line-number-active` | The current line's number | `#99d9ff` |
+| `--editor-indent-guide` | Indentation guide | `#1a293a` |
+| `--editor-indent-guide-active` | Indentation guide of the current block | `#4d5866` |
+| `--editor-field-edge` | Find and go-to-line field border | `hsl(210.6 30% 20%)` |
+| `--editor-field-edge-hover` | Field border under the pointer or pressed | `hsl(210.6 30% 30%)` |
+| `--editor-button-hover` | Panel button and toggle hover wash | `rgb(43 17 17 / 0.05)` |
+| `--editor-focus` | Focus outline and the focused field's border | `#0da2e7` |
+| `--editor-focus-edge` | Selected reference outline, the dialog close button under the pointer | `#007acc` |
+| `--editor-selection-match` | Other occurrences of the selection | `#62331599` |
+| `--editor-panel-edge` | Rule above the bottom panels | `hsl(210.6 70% 15%)` |
+| `--editor-toolbar-ink` | Keyboard toolbar text | `hsl(211 24% 60%)` |
+| `--editor-status-ink` | Status bar text | `hsl(211 24% 42%)` |
+| `--editor-list-selected` | Selected row: completion, problems, references | `#04395e` |
+| `--editor-toggle-on` | A checked find toggle | `rgb(36 137 219 / 0.51)` |
+| `--editor-toggle-on-edge` | A checked find toggle's border, the focused rename field's border | `#2488db` |
+| `--editor-problem-range` | The active problem's range | `#ffdd991a` |
+| `--editor-problem-error` | Status bar error count, error pinpoint | `#f14c4c` |
+| `--editor-problem-warning` | Status bar warning count | `#cca700` |
+| `--editor-problem-info` | Status bar info count | `#59a4f9` |
+| `--editor-action-ink` | A problem's action link | `#9cdcfe` |
+| `--editor-match` | The matched letters in a completion | `#18a3ff` |
+| `--editor-faint` | Fold placeholder, link shortcut hint | `#808080` |
+| `--editor-placeholder` | Find and go-to-line placeholder | `#888888` |
+| `--editor-swatch-edge` | Colour swatch border | `#888888` |
+| `--editor-reference-line` | Line number in the reference list | `#858585` |
+| `--editor-lens-ink` | Code lens text | `#999999` |
+| `--editor-link` | Code lens and link under the pointer | `#4e94ce` |
+| `--editor-link-active` | A followable link while the modifier is held | `#4daafc` |
+| `--editor-rename-edge` | Rename field border | `#3c3c3c` |
+| `--editor-rename-submit` | Rename submit button | `#0078d4` |
+| `--editor-sticky-shadow` | Shadow under the sticky scene headers | `rgb(0 0 0 / 0.7)` |
+| `--editor-line-highlight` | A highlighted line | `rgb(0 0 0 / 0.3)` |
+| `--editor-breakpoint` | Breakpoint gutter mark | `#3abff8` |
+| `--editor-pinpoint` | Pinpoint rule | `#66baff` |
+| `--editor-touch-handle` | Touch selection handle | `#1976d2` |
+| `--editor-doc-code` | Inline code in hover and completion documentation | `#656c7633` |
+| `--editor-doc-keycap` | Key cap in documentation | `#151b23` |
+| `--editor-doc-keycap-edge` | Key cap border | `#3d444db3` |
+| `--editor-doc-quote-ink` | Block quote text in documentation | `#9198a1` |
+| `--editor-doc-quote-edge` | Block quote rule | `#3d444d` |
+
+Syntax variables, one per highlight role the editor's `EDITOR_HIGHLIGHTS.ts` and LSP
+semantic-token rules colour today:
+
+| Variable | Role | Midnight value |
+|---|---|---|
+| `--syntax-text` | Plain script text, separators | `#cccccc` |
+| `--syntax-bracket` | Brackets, braces, parentheses | `#ffd700` |
+| `--syntax-string` | Strings | `#ce9178` |
+| `--syntax-escape` | Escapes, monospace | `#d7ba7d` |
+| `--syntax-type-name` | Type names | `#4ec9b0` |
+| `--syntax-type-name-definition` | Type names where defined | `#4ec9b0` |
+| `--syntax-standard-type` | Standard variables and namespaces | `#4ec9b0` |
+| `--syntax-number` | Numbers | `#b5cea8` |
+| `--syntax-bool` | Booleans | `#569cd6` |
+| `--syntax-operator` | Operators | `#a0a0a0` |
+| `--syntax-special-operator` | Special operators | `#a0a0a0` |
+| `--syntax-break` | Content separators | `#606080` |
+| `--syntax-section-name-accessor` | Headings, keyword semantic tokens | `#d88cff` |
+| `--syntax-section-name-definition` | Section names where defined, class semantic tokens | `#d88cff` |
+| `--syntax-regex` | Regular expressions | `#ff8080` |
+| `--syntax-transitional` | Labels (transitions) | `#bea3a3` |
+| `--syntax-plain-keyword` | Keywords without a more specific tag | `#569cd6` |
+| `--syntax-module-keyword` | Module keywords | `#d197d9` |
+| `--syntax-control-keyword` | Control keywords | `#d197d9` |
+| `--syntax-builtin` | Definition keywords, special functions | `#ff80bb` |
+| `--syntax-operator-keyword` | Operator keywords | `#ffa8d1` |
+| `--syntax-property-name` | Property names | `#9cdcfe` |
+| `--syntax-variable-name` | Variable names | `#9cdcfe` |
+| `--syntax-parameter-name` | Parameter names | `#9cdcfe` |
+| `--syntax-constant-variable-name` | Constants | `#4fc1ff` |
+| `--syntax-attribute-name` | Attribute names | `#d7ba7d` |
+| `--syntax-function-name` | Function names | `#dcdcaa` |
+| `--syntax-standard-function` | Standard library functions | `#fab387` |
+| `--syntax-class-name` | Class names | `#ffb380` |
+| `--syntax-chunk-name-definition` | Chunk names | `#7c7ca6` |
+| `--syntax-invalid` | Invalid text | `#f44747` |
+| `--syntax-comment` | Comments | `#6a9955` |
+
 ## Type
 
 | Family | Use | Declared at |
