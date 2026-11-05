@@ -122,6 +122,7 @@ const suggestionsTheme = EditorView.baseTheme({
     display: "none",
   },
   ".cm-completion-chips": {
+    order: "99",
     display: "flex",
     alignItems: "center",
     gap: "6px",
@@ -280,7 +281,7 @@ function thumbnailOf(completion: Completion): Promise<string | null> {
 
 function createChipsPanel(view: EditorView): Panel {
   const dom = document.createElement("div");
-  dom.className = "cm-completion-chips";
+  dom.className = "cm-toolbar cm-completion-chips";
   dom.setAttribute("role", "listbox");
   dom.setAttribute("aria-label", view.state.phrase("Suggestions"));
   dom.setAttribute("aria-orientation", "horizontal");

@@ -220,6 +220,7 @@ describe("the suggestion row on a coarse pointer", () => {
     expect(view.dom.classList.contains("cm-suggestion-chips")).toBe(true);
     const row = view.dom.querySelector(".cm-panels-bottom .cm-completion-chips");
     expect(row?.getAttribute("role")).toBe("listbox");
+    expect(row?.classList.contains("cm-toolbar")).toBe(true);
     expect(row?.getAttribute("aria-orientation")).toBe("horizontal");
     const chips = [...row!.querySelectorAll<HTMLElement>("[role=option]")];
     expect(chips.map((chip) => chip.textContent)).toEqual(["MAYA", "MARCO"]);
