@@ -155,11 +155,11 @@ export function lowerChoice(
     choice.identifier = identifier;
   }
 
-  const unreadableCall = getDescendent(
-    "ChoiceUnreadableConditionCall",
+  const unreadableOpen = getDescendent(
+    "ChoiceUnreadableConditionOpen",
     nodeRef.node,
   );
-  const condition = unreadableCall
+  const condition = unreadableOpen
     ? new NumberExpression(false, "bool")
     : collectChoiceCondition(nodeRef.node, ctx);
   if (condition) {
@@ -182,11 +182,11 @@ export function lowerChoice(
       source: statementSource(nodeRef.node, ctx),
     });
   }
-  if (unreadableCall) {
+  if (unreadableOpen) {
     diagnostics.push({
       message: UNREADABLE_CHOICE_CONDITION_MESSAGE,
       severity: ErrorType.Error,
-      source: statementSource(unreadableCall, ctx),
+      source: statementSource(unreadableOpen, ctx),
     });
   }
   const onlyHasAutoNewline =
@@ -197,7 +197,7 @@ export function lowerChoice(
     startContent.content.length === 0 &&
     choiceOnlyContent.content.length === 0 &&
     (innerContent.content.length === 0 || onlyHasAutoNewline);
-  if (allContentEmpty && !divertNode && !unreadableCall) {
+  if (allContentEmpty && !divertNode && !unreadableOpen) {
     diagnostics.push({
       message:
         "Choice is completely empty. Interpreting as a default fallback choice. Add a divert arrow to remove this warning: * ->",
@@ -209,7 +209,7 @@ export function lowerChoice(
     startContent.content.length === 0 &&
     hasWeaveStyleInlineBrackets &&
     choiceOnlyContent.content.length === 0 &&
-    !unreadableCall
+    !unreadableOpen
   ) {
     diagnostics.push({
       message:

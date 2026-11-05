@@ -1497,7 +1497,7 @@ repository:
   # next line, often the next choice, this choice's label. The `end:` is
   # `(?=$)` and carries nothing here, and no variable sees the previous line.
   ChoiceUnreadableCondition:
-    match: \G(?<={{WS}}|[)])(if)\b({{WS}}+)(?:(not)\b({{WS}}+))?({{LUAU_IDENTIFIER}}(?:[.:]{{LUAU_IDENTIFIER}})*[(\[])
+    match: \G(?<={{WS}}|[)])(if)\b({{WS}}+)(?:(not)\b({{WS}}+))?({{LUAU_IDENTIFIER}}(?:[.:]{{LUAU_IDENTIFIER}})*[(\[]|[(])
     captures:
       1:
         patterns:
@@ -1513,9 +1513,9 @@ repository:
           - { include: "#OptionalWhitespace" }
       5:
         patterns:
-          - { include: "#ChoiceUnreadableConditionCall" }
+          - { include: "#ChoiceUnreadableConditionOpen" }
 
-  ChoiceUnreadableConditionCall:
+  ChoiceUnreadableConditionOpen:
     tag: invalid
     name: invalid.illegal.choice-condition.sd
 

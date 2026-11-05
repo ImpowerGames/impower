@@ -1717,7 +1717,7 @@
       "end": "(?=$)"
     },
     "ChoiceUnreadableCondition": {
-      "match": "\\G(?<=(?:[^\\S\\n\\r])|[)])(if)\\b((?:[^\\S\\n\\r])+)(?:(not)\\b((?:[^\\S\\n\\r])+))?((?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_])))(?:[.:](?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_]))))*[(\\[])",
+      "match": "\\G(?<=(?:[^\\S\\n\\r])|[)])(if)\\b((?:[^\\S\\n\\r])+)(?:(not)\\b((?:[^\\S\\n\\r])+))?((?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_])))(?:[.:](?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)(?![a-zA-Z0-9_])))(?:[a-zA-Z_][a-zA-Z0-9_]*(?![a-zA-Z0-9_]))))*[(\\[]|[(])",
       "captures": {
         "1": {
           "patterns": [
@@ -1750,13 +1750,13 @@
         "5": {
           "patterns": [
             {
-              "include": "#ChoiceUnreadableConditionCall"
+              "include": "#ChoiceUnreadableConditionOpen"
             }
           ]
         }
       }
     },
-    "ChoiceUnreadableConditionCall": {
+    "ChoiceUnreadableConditionOpen": {
       "tag": "invalid",
       "name": "invalid.illegal.choice-condition.sd",
       "match": "(.+)"

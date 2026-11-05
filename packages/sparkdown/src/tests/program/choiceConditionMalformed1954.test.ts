@@ -45,6 +45,10 @@ describe("a choice condition that is clearly code but cannot be read is reported
     ["* (lbl) if allowed( First", "allowed("],
     ["* (lbl)if allowed( First", "allowed("],
     ["* if allowed(", "allowed("],
+    ["* if (allowed( First", "("],
+    ["* if (allowed() First", "("],
+    ["* if not (allowed() First", "("],
+    ["* if (has_key First", "("],
   ];
   for (const [line, call] of cases) {
     it(line, () => {
@@ -83,6 +87,8 @@ describe("choice lines starting with if keep their readings (I-1954)", () => {
     ["* if you dare, jump", ["dare, jump", "Fallback"]],
     ["* if b () First", ["() First", "Fallback"]],
     ["* if allowed() First", ["First", "Fallback"]],
+    ["* if (allowed()) First", ["First", "Fallback"]],
+    ["* if [you dare] jump", ["if you dare", "Fallback"]],
   ];
   for (const [line, menu] of cases) {
     it(line, () => {

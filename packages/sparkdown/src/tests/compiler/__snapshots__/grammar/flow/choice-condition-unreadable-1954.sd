@@ -11,6 +11,10 @@ scene start
     * if allowed () First
     * (lbl)if allowed( Glued label
     * if allowed(
+    * if (allowed( Group
+    * if not (allowed() Group
+    * if (allowed()) Closed group
+    * if [you dare] jump
     * Fallback
   end
 end

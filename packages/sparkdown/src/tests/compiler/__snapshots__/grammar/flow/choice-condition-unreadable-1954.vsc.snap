@@ -1,4 +1,4 @@
-text.source.sparkdown [0..341]
+text.source.sparkdown [0..455]
  ├─ keyword.control.scene.sd [0..5]: "scene"
  ├─ punctuation.whitespace.required.sd [5..6]: " "
  ├─ keyword.control.section.sd [6..11]: "start"
@@ -151,14 +151,74 @@ text.source.sparkdown [0..341]
  │   ├─ punctuation.whitespace.optional.sd [306..307]: " "
  │   └─ invalid.illegal.choice-condition.sd [307..315]: "allowed("
  ├─ Newline [315..316]: "\n"
- ├─ entity.choice.sd [316..330]
+ ├─ entity.choice.sd [316..340]
  │   ├─ punctuation.whitespace.optional.sd [316..320]: "    "
  │   ├─ keyword.operator.expression.list.sd [320..322]: "* "
- │   └─ string.choice.sd [322..330]
- │       └─ markup.raw.text.sd [322..330]: "Fallback"
- ├─ Newline [330..331]: "\n"
- ├─ punctuation.whitespace.optional.sd [331..333]: "  "
- ├─ keyword.control.end.luau [333..336]: "end"
- ├─ Newline [336..337]: "\n"
- ├─ keyword.control.end.luau [337..340]: "end"
- └─ Newline [340..341]: "\n"
+ │   ├─ keyword.control.if.luau [322..324]: "if"
+ │   ├─ punctuation.whitespace.optional.sd [324..325]: " "
+ │   ├─ invalid.illegal.choice-condition.sd [325..326]: "("
+ │   └─ string.choice.sd [326..340]
+ │       ├─ markup.raw.text.sd [326..333]: "allowed"
+ │       ├─ markup.raw.punctuation.sd [333..334]: "("
+ │       ├─ markup.raw.space.sd [334..335]: " "
+ │       └─ markup.raw.text.sd [335..340]: "Group"
+ ├─ Newline [340..341]: "\n"
+ ├─ entity.choice.sd [341..370]
+ │   ├─ punctuation.whitespace.optional.sd [341..345]: "    "
+ │   ├─ keyword.operator.expression.list.sd [345..347]: "* "
+ │   ├─ keyword.control.if.luau [347..349]: "if"
+ │   ├─ punctuation.whitespace.optional.sd [349..350]: " "
+ │   ├─ keyword.operator.logical.luau [350..353]
+ │   │   └─ keyword.operator.wordlike.luau [350..353]: "not"
+ │   ├─ punctuation.whitespace.optional.sd [353..354]: " "
+ │   ├─ invalid.illegal.choice-condition.sd [354..355]: "("
+ │   └─ string.choice.sd [355..370]
+ │       ├─ markup.raw.text.sd [355..362]: "allowed"
+ │       ├─ markup.raw.punctuation.sd [362..363]: "("
+ │       ├─ markup.raw.punctuation.sd [363..364]: ")"
+ │       ├─ markup.raw.space.sd [364..365]: " "
+ │       └─ markup.raw.text.sd [365..370]: "Group"
+ ├─ Newline [370..371]: "\n"
+ ├─ entity.choice.sd [371..404]
+ │   ├─ punctuation.whitespace.optional.sd [371..375]: "    "
+ │   ├─ keyword.operator.expression.list.sd [375..377]: "* "
+ │   ├─ keyword.control.if.luau [377..379]: "if"
+ │   ├─ punctuation.whitespace.optional.sd [379..380]: " "
+ │   ├─ punctuation.definition.template-expression.begin.sd [380..381]: "("
+ │   ├─ entity.name.function.luau [381..388]: "allowed"
+ │   ├─ meta.parameter.luau [388..390]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [388..389]: "("
+ │   │   └─ punctuation.definition.template-expression.end.sd [389..390]: ")"
+ │   ├─ punctuation.definition.template-expression.end.sd [390..391]: ")"
+ │   └─ string.choice.sd [391..404]
+ │       ├─ markup.raw.space.sd [391..392]: " "
+ │       ├─ markup.raw.text.sd [392..398]: "Closed"
+ │       ├─ markup.raw.space.sd [398..399]: " "
+ │       └─ markup.raw.text.sd [399..404]: "group"
+ ├─ Newline [404..405]: "\n"
+ ├─ entity.choice.sd [405..429]
+ │   ├─ punctuation.whitespace.optional.sd [405..409]: "    "
+ │   ├─ keyword.operator.expression.list.sd [409..411]: "* "
+ │   ├─ string.choice.sd [411..414]
+ │   │   ├─ markup.raw.text.sd [411..413]: "if"
+ │   │   └─ markup.raw.space.sd [413..414]: " "
+ │   ├─ punctuation.definition.template-expression.begin.choice.suppression.sd [414..415]: "["
+ │   ├─ string.choice.sd [415..423]
+ │   │   ├─ markup.raw.text.sd [415..418]: "you"
+ │   │   ├─ markup.raw.space.sd [418..419]: " "
+ │   │   └─ markup.raw.text.sd [419..423]: "dare"
+ │   ├─ punctuation.definition.template-expression.end.choice.suppression.sd [423..424]: "]"
+ │   ├─ markup.raw.space.sd [424..425]: " "
+ │   └─ markup.raw.text.sd [425..429]: "jump"
+ ├─ Newline [429..430]: "\n"
+ ├─ entity.choice.sd [430..444]
+ │   ├─ punctuation.whitespace.optional.sd [430..434]: "    "
+ │   ├─ keyword.operator.expression.list.sd [434..436]: "* "
+ │   └─ string.choice.sd [436..444]
+ │       └─ markup.raw.text.sd [436..444]: "Fallback"
+ ├─ Newline [444..445]: "\n"
+ ├─ punctuation.whitespace.optional.sd [445..447]: "  "
+ ├─ keyword.control.end.luau [447..450]: "end"
+ ├─ Newline [450..451]: "\n"
+ ├─ keyword.control.end.luau [451..454]: "end"
+ └─ Newline [454..455]: "\n"
