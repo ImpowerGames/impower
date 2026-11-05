@@ -17,6 +17,10 @@ scene start
     * if [you dare] jump
     * if (you're sure) jump
     * if (you dare), jump
+    * if (not allowed( Negated group
+    * if (friend(s) agree), jump
+    * if (friend(s) don't agree) jump
+    * if friend(s), we go
     * Fallback
   end
 end

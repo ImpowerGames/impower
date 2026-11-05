@@ -47,10 +47,13 @@ describe("a choice condition that is clearly code but cannot be read is reported
     ["* (lbl) if allowed( First", "allowed("],
     ["* (lbl)if allowed( First", "allowed("],
     ["* if allowed(", "allowed("],
-    ["* if (allowed( First", "(allowed("],
-    ["* if (allowed() First", "(allowed("],
-    ["* if not (allowed() First", "(allowed("],
-    ["* if (( t:open( First", "(( t:open("],
+    ["* if (allowed( First", "("],
+    ["* if (allowed() First", "("],
+    ["* if not (allowed() First", "("],
+    ["* if (( t:open( First", "("],
+    ["* if (not allowed( First", "("],
+    ["* if (not allowed() First", "("],
+    ["* if (has_key and allowed( First", "("],
   ];
   for (const [line, call] of cases) {
     it(line, () => {
@@ -95,6 +98,10 @@ describe("choice lines starting with if keep their readings (I-1954)", () => {
     ["* if (you dare), jump", ["if (you dare), jump", "Fallback"]],
     ["* if (I'm lucky) jump", ["if (I'm lucky) jump", "Fallback"]],
     ["* if (maybe jump", ["if (maybe jump", "Fallback"]],
+    ["* if (friend(s) agree), jump", ["if (friend(s) agree), jump", "Fallback"]],
+    ["* if (maybe(?) you dare), jump", ["if (maybe(?) you dare), jump", "Fallback"]],
+    ["* if (friend(s) don't agree) jump", ["if (friend(s) don't agree) jump", "Fallback"]],
+    ["* if friend(s), we go", ["if friend(s), we go", "Fallback"]],
   ];
   for (const [line, menu] of cases) {
     it(line, () => {
