@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, relative, resolve } from "node:path";
 import { openSearchPanel } from "@codemirror/search";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView, showTooltip } from "@codemirror/view";
@@ -148,6 +150,49 @@ describe("the code editor's colours follow the shared colour variables", () => {
     }
   });
 });
+
+describe("the code editor decides no colour in JavaScript", () => {
+  it("holds no colour literal in any module the script editor mounts", () => {
+    const offenders = editorModules().flatMap((file) => {
+      const source = readFileSync(file, "utf8");
+      return [...source.matchAll(STRING_LITERAL)]
+        .filter(
+          ({ 0: literal, index }) =>
+            COLOUR_LITERAL.test(literal) &&
+            !(source[index - 1] === "=" && /^"(black|none|currentColor)"$/.test(literal)),
+        )
+        .map(({ 0: literal }) => `${relative(SRC, file)}: ${literal.slice(0, 80)}`);
+    });
+    expect(offenders).toEqual([]);
+  });
+});
+
+const SRC = resolve(__dirname, "../src");
+
+const STRING_LITERAL = /"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/g;
+
+const COLOUR_LITERAL =
+  /#[0-9a-f]{3,8}\b|\brgba?\(|\bhsla?\(|\b(white|black)\b(?!-)/i;
+
+const editorModules = () => {
+  const seen = new Set<string>();
+  const visit = (file: string) => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    const source = readFileSync(file, "utf8");
+    for (const [, specifier] of source.matchAll(
+      /(?:from|import)\s*\(?\s*["'](\.{1,2}\/[^"']+)["']/g,
+    )) {
+      const base = resolve(dirname(file), specifier!);
+      const target = [base, `${base}.ts`, `${base}/index.ts`].find(
+        (candidate) => existsSync(candidate) && candidate.endsWith(".ts"),
+      );
+      if (target) visit(target);
+    }
+  };
+  visit(resolve(SRC, "modules/script-editor/utils/createEditorView.ts"));
+  return [...seen];
+};
 
 const declarations = (
   theme: Record<string, unknown>,
