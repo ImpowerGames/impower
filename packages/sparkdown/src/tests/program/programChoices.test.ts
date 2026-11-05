@@ -162,7 +162,6 @@ describe("choose blocks on the program engine", () => {
     expect(menuTexts(first!.run)).toEqual([["Open the door", "Knock"]]);
     expect(texts(first!.run)).toEqual([
       "The door is shut.",
-      "",
       "The door swings open.",
       "You step back.",
       "After.",
