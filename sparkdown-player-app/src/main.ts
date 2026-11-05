@@ -145,7 +145,16 @@ if (!SAME_ORIGIN_PREVIEW && "serviceWorker" in navigator) {
   });
 }
 
+const PLAYER_CONTROLS = ["skip-buttons", "step-buttons"];
+
 const load = async () => {
+  const player = document.querySelector("spark-web-player");
+  const query = new URLSearchParams(window.location.search);
+  for (const control of PLAYER_CONTROLS) {
+    if (query.has(control)) {
+      player?.setAttribute(control, "");
+    }
+  }
   setWorkspace(workspaceState.workspace);
   await Promise.allSettled([SparkWebPlayerElement.register()]);
 };

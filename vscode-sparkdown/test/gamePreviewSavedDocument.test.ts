@@ -61,11 +61,15 @@ const select = (uri: string, userEvent: boolean) => ({
   },
 });
 
-const resized = (height: number) => {
+const resized = (height: number, fit: "auto" | "ratio" | "height" = "height") => {
   document.body.dispatchEvent(
     new CustomEvent("jsonrpc", {
       bubbles: true,
-      detail: { jsonrpc: "2.0", method: "game/resized", params: { height } },
+      detail: {
+        jsonrpc: "2.0",
+        method: "game/resized",
+        params: { width: 400, height, aspectRatio: null, fit },
+      },
     }),
   );
 };
@@ -136,6 +140,24 @@ describe("saving the Game Preview's script", () => {
       textDocument: { uri: "file:///project/main.sd" },
       canvasHeight: 300,
     });
+  });
+
+  it("forgets the canvas height once the game fills the pane again, and saves nothing for an unchanged one", async () => {
+    await load();
+    state.receive(initialize("file:///project/main.sd"));
+    resized(240);
+    const saves = state.saved.length;
+    resized(700, "auto");
+
+    expect(state.saved).toHaveLength(saves + 1);
+    expect(lastSaved()).toEqual({
+      textDocument: { uri: "file:///project/main.sd" },
+    });
+
+    resized(650, "auto");
+    resized(400, "ratio");
+
+    expect(state.saved).toHaveLength(saves + 1);
   });
 });
 

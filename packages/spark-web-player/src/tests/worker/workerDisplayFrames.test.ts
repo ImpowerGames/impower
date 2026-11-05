@@ -37,7 +37,7 @@ async function frames(text: string, steps: Step[]) {
   const launches: string[] = [];
   const read = () => {
     out.push(h.snapshotDOM());
-    launches.push(h.refs.launchLabel.textContent ?? "");
+    launches.push(h.bar("#launch-label").textContent ?? "");
   };
   const note = (answer: any) => {
     if (answer?.error) {
