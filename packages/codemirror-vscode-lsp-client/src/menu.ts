@@ -390,6 +390,7 @@ const contextMenuClosePlugin = ViewPlugin.fromClass(
         capture: true,
         passive: true,
       });
+      window.addEventListener("scroll", this.handleEvent, true);
       window.addEventListener("blur", this.handleEvent);
     }
 
@@ -411,6 +412,7 @@ const contextMenuClosePlugin = ViewPlugin.fromClass(
       window.removeEventListener("click", this.handleEvent, true);
       window.removeEventListener("mousedown", this.handleEvent, true);
       window.removeEventListener("wheel", this.handleEvent, { capture: true });
+      window.removeEventListener("scroll", this.handleEvent, true);
       window.removeEventListener("blur", this.handleEvent);
     }
   },

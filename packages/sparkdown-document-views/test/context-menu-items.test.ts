@@ -128,6 +128,17 @@ describe("the context menu on a fine pointer", () => {
     expect(isContextMenuOpen(v)).toBe(false);
   });
 
+  it("closes when the editor scrolls by any means, and stays open when the menu itself scrolls", () => {
+    const v = mount(EditorSelection.single(8));
+    openAt(v, 8);
+    document
+      .querySelector(".cm-context-menu")!
+      .dispatchEvent(new Event("scroll"));
+    expect(isContextMenuOpen(v)).toBe(true);
+    v.scrollDOM.dispatchEvent(new Event("scroll"));
+    expect(isContextMenuOpen(v)).toBe(false);
+  });
+
   it("closes when the window loses focus", () => {
     const v = mount(EditorSelection.single(8));
     openAt(v, 8);
