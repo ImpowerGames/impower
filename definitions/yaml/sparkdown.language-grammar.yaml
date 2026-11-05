@@ -6849,6 +6849,7 @@ repository:
 
   LuauSparkdownBlockBody:
     patterns:
+      - { include: "#Run" }
       - { include: "#LuauSparkdownExplicitStatement" }
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauSparkdownVariableDefinition" }
@@ -8888,6 +8889,7 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
+      - { include: "#Run" }
       - { include: "#Choice" }
       - { include: "#LuauSparkdownChooseThenClause" }
       - { include: "#LuauSparkdownControlBlock" }
@@ -8931,6 +8933,7 @@ repository:
         patterns:
           - { include: "#Label" }
     patterns:
+      - { include: "#Run" }
       - { include: "#LuauSparkdownExplicitStatement" }
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauSparkdownVariableDefinition" }
