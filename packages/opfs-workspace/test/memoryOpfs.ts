@@ -4,6 +4,8 @@ export class MemoryFile {
   kind = "file" as const;
   bytes = new Uint8Array();
   lastModified = 1;
+  history: Uint8Array[] = [];
+  gate?: Promise<void>;
   constructor(public name: string) {}
   async getFile() {
     const bytes = this.bytes.slice();
@@ -16,7 +18,15 @@ export class MemoryFile {
     };
   }
   async createSyncAccessHandle() {
+    await this.gate;
     return {
+      getSize: () => this.bytes.byteLength,
+      read: (target: Uint8Array, options: { at?: number } = {}) => {
+        const from = this.bytes.subarray(options.at ?? 0);
+        const count = Math.min(from.byteLength, target.byteLength);
+        target.set(from.subarray(0, count));
+        return count;
+      },
       truncate: () => {
         this.bytes = new Uint8Array();
       },
@@ -26,6 +36,7 @@ export class MemoryFile {
           data.byteOffset,
           data.byteLength,
         ).slice();
+        this.history.push(this.bytes);
         this.lastModified += 1;
         return this.bytes.byteLength;
       },
@@ -129,4 +140,64 @@ export const listMemory = (root: MemoryDirectory, prefix = "") => {
     : root;
   if (start) walk(start, "");
   return out.sort();
+};
+
+type LockState = {
+  exclusive: boolean;
+  holders: number;
+  queue: { exclusive: boolean; grant: () => void }[];
+};
+
+export const memoryLocks = () => {
+  const locks = new Map<string, LockState>();
+  const acquire = (name: string, exclusive: boolean) =>
+    new Promise<void>((grant) => {
+      const lock = locks.get(name) ?? { exclusive: false, holders: 0, queue: [] };
+      locks.set(name, lock);
+      if (
+        lock.holders === 0 ||
+        (!exclusive && !lock.exclusive && lock.queue.length === 0)
+      ) {
+        lock.holders += 1;
+        lock.exclusive = exclusive;
+        grant();
+      } else {
+        lock.queue.push({ exclusive, grant });
+      }
+    });
+  const release = (name: string) => {
+    const lock = locks.get(name)!;
+    lock.holders -= 1;
+    if (lock.holders > 0) {
+      return;
+    }
+    const next = lock.queue.shift();
+    if (!next) {
+      locks.delete(name);
+      return;
+    }
+    lock.exclusive = next.exclusive;
+    lock.holders = 1;
+    next.grant();
+    while (!next.exclusive && lock.queue[0] && !lock.queue[0].exclusive) {
+      lock.holders += 1;
+      lock.queue.shift()!.grant();
+    }
+  };
+  return {
+    request: async <T>(
+      name: string,
+      options: { mode?: "shared" | "exclusive" } | (() => Promise<T>),
+      callback?: () => Promise<T>,
+    ): Promise<T> => {
+      const task = typeof options === "function" ? options : callback!;
+      const exclusive = typeof options === "function" || options.mode !== "shared";
+      await acquire(name, exclusive);
+      try {
+        return await task();
+      } finally {
+        release(name);
+      }
+    },
+  };
 };

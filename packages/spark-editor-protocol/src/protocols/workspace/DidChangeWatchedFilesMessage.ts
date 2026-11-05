@@ -5,7 +5,11 @@ import { MessageProtocolNotificationType } from "../MessageProtocolNotificationT
 export type DidChangeWatchedFilesMethod =
   typeof DidChangeWatchedFilesMessage.method;
 
-export type DidChangeWatchedFilesParams = LSP.DidChangeWatchedFilesParams;
+export interface DidChangeWatchedFilesParams
+  extends LSP.DidChangeWatchedFilesParams {
+  remote?: boolean;
+  commits?: LSP.FileCommits;
+}
 
 export class DidChangeWatchedFilesMessage {
   static readonly method = "workspace/didChangeWatchedFiles";

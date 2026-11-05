@@ -1,4 +1,4 @@
-import { FileData } from "../../types";
+import { FileCommits, FileData } from "../../types";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type DidWriteFilesMethod = typeof DidWriteFilesMessage.method;
@@ -7,6 +7,7 @@ export interface DidWriteFilesParams {
   files: FileData[];
   remote: boolean;
   origin?: string;
+  commits?: FileCommits;
 }
 
 export class DidWriteFilesMessage {

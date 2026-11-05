@@ -6,6 +6,7 @@ import {
   memoryRoot,
   writeMemoryFile,
   type MemoryDirectory,
+  memoryLocks,
 } from "../../../packages/opfs-workspace/test/memoryOpfs";
 import { buildFileTree } from "../../src/modules/spark-editor/utils/fileTree";
 import type WorkspaceFileSystemType from "../../src/modules/spark-editor/workspace/WorkspaceFileSystem";
@@ -33,26 +34,6 @@ afterEach(() => {
 });
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
-
-const memoryLocks = () => {
-  const tails = new Map<string, Promise<void>>();
-  return {
-    request: async <T>(name: string, task: () => Promise<T>): Promise<T> => {
-      const previous = tails.get(name) ?? Promise.resolve();
-      let release!: () => void;
-      const done = new Promise<void>((resolve) => {
-        release = resolve;
-      });
-      tails.set(name, previous.then(() => done));
-      await previous;
-      try {
-        return await task();
-      } finally {
-        release();
-      }
-    },
-  };
-};
 
 async function setup(root: MemoryDirectory) {
   vi.resetModules();

@@ -1,4 +1,4 @@
-import { URI } from "../../types";
+import { FileCommits, URI } from "../../types";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type DidChangeDirectoriesMethod =
@@ -8,6 +8,7 @@ export interface DidChangeDirectoriesParams {
   created: URI[];
   deleted: URI[];
   remote?: boolean;
+  commits?: FileCommits;
 }
 
 export class DidChangeDirectoriesMessage {

@@ -4,6 +4,7 @@ import {
   makeMemoryDirectory,
   memoryRoot,
   writeMemoryFile,
+  memoryLocks,
 } from "./memoryOpfs";
 
 afterEach(() => {
@@ -15,7 +16,10 @@ async function worker() {
   vi.resetModules();
   const root = memoryRoot();
   const messages: any[] = [];
-  vi.stubGlobal("navigator", { storage: { getDirectory: async () => root } });
+  vi.stubGlobal("navigator", {
+    storage: { getDirectory: async () => root },
+    locks: memoryLocks(),
+  });
   vi.stubGlobal("BroadcastChannel", class { onmessage = null; postMessage() {} close() {} });
   vi.stubGlobal("postMessage", (message: any) => messages.push(message));
   vi.stubGlobal("onmessage", null);
@@ -33,8 +37,12 @@ async function worker() {
   const changes = () =>
     messages
       .filter((m) => m.method === "workspace/didChangeDirectories")
-      .map((m) => m.params);
-  return { root, request, directories, changes };
+      .map(({ params: { commits: _commits, ...params } }) => params);
+  const commits = () =>
+    messages
+      .filter((m) => m.method === "workspace/didChangeDirectories")
+      .map((m) => m.params.commits);
+  return { root, request, directories, changes, commits };
 }
 
 it("creates a directory with its ancestors and lists it with no file in it", async () => {
@@ -45,6 +53,14 @@ it("creates a directory with its ancestors and lists it with no file in it", asy
   expect(listMemory(h.root, "p")).toEqual(["assets/", "assets/empty/", "assets/empty/inner/"]);
   expect(h.changes()).toEqual([
     { created: ["file://p/assets/empty/inner"], deleted: [] },
+  ]);
+  expect(h.commits()).toEqual([
+    {
+      "file://p/assets/empty/inner": {
+        sequence: expect.any(Number),
+        writer: expect.any(String),
+      },
+    },
   ]);
   expect(
     await h.directories({ action: "list", directory: { uri: "file://p" } }),
