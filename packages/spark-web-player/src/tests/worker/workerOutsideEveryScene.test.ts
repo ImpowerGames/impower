@@ -221,6 +221,44 @@ end
     120_000,
   );
 
+  it("falls back to the start scene's first beat when the kept scene is renamed", async () => {
+    const source = `style card {
+  background_color = black
+}
+
+scene start
+  Inside start.
+end
+
+scene other
+  Inside other.
+end
+`;
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: source }],
+      startFrom: { file: MAIN_URI, line: 9 },
+    });
+    try {
+      await h.compile();
+      await h.select(9);
+      await settle(40);
+      expect(h.overlay.textContent).toContain("Inside other.");
+      await h.select(1);
+      await settle(40);
+      expect(h.overlay.textContent).toContain("Inside other.");
+      await h.edit([
+        { range: { start: { line: 8, character: 6 }, end: { line: 8, character: 11 } }, text: "renamed" },
+      ]);
+      await h.compile();
+      await h.select(1);
+      await settle(40);
+      expect(h.overlay.textContent).toContain("Inside start.");
+      expect(h.overlay.textContent).not.toContain("Inside other.");
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
   it("a function's body, which is not a UI declaration, shows no scene's beat", async () => {
     const h = await createPlayerHarness({
       files: [{ uri: MAIN_URI, text: WITH_UI }],
