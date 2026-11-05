@@ -20,19 +20,17 @@ function replayUndoShortcut(isRedo: boolean): void {
   while (el && el.shadowRoot && el.shadowRoot.activeElement) {
     el = el.shadowRoot.activeElement;
   }
+  const redoByY = isRedo && !IS_MAC;
   const init: KeyboardEventInit = {
-    key: "z",
-    code: "KeyZ",
-    shiftKey: isRedo,
+    key: redoByY ? "y" : "z",
+    code: redoByY ? "KeyY" : "KeyZ",
+    shiftKey: isRedo && IS_MAC,
+    metaKey: IS_MAC,
+    ctrlKey: !IS_MAC,
     bubbles: true,
     composed: true,
     cancelable: true,
   };
-  if (IS_MAC) {
-    init.metaKey = true;
-  } else {
-    init.ctrlKey = true;
-  }
   (el ?? document.body).dispatchEvent(new KeyboardEvent("keydown", init));
 }
 
