@@ -6,6 +6,8 @@ export const NOT_COMPONENTS: readonly string[] = [
   "componentRegistry",
   "dialogVariants",
   "dropdownRadioItemVariants",
+  "listRowBodyVariants",
+  "listRowVariants",
   "layoutState",
   "sparkLogoVariants",
   "pointerState",
@@ -15,6 +17,8 @@ export const NOT_COMPONENTS: readonly string[] = [
   "useCoarsePointer",
   "useLayout",
   "useMountTransition",
+  "VIRTUAL_LIST_ROW_HEIGHT",
+  "virtualListVariants",
 ];
 
 export const exported = Object.entries(kit) as [string, unknown][];
