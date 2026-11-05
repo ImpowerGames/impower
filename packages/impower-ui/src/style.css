@@ -55,6 +55,7 @@
   --color-button-ink: var(--button-ink);
   --color-error-strong: var(--error-strong);
   --color-warning-strong: var(--warning-strong);
+  --color-scrim: var(--scrim);
 
   --color-foreground: var(--ink);
   --color-surface-border: var(--edge);

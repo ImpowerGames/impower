@@ -1,8 +1,7 @@
-import { Button, X } from "@impower/impower-ui/components";
+import { Button, useMountTransition, X } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { createPortal } from "preact/compat";
 import { useEffect, useState } from "preact/hooks";
-import { useMountTransition } from "../../hooks/useMountTransition";
 import { dismissSnackbar, snackbar, type Snackbar } from "../../utils/snackbar";
 
 export default function SnackbarHost() {

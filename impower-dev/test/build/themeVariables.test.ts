@@ -26,6 +26,7 @@ const COMPONENT_VARIABLES = [
   "--button-ink",
   "--error-strong",
   "--warning-strong",
+  "--scrim",
 ];
 
 const declarations = (block: string) =>

@@ -4,11 +4,11 @@ import {
   ChevronRight,
   FileText,
   Pencil,
+  useMountTransition,
   X,
 } from "@impower/impower-ui/components";
 import { createPortal } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { useMountTransition } from "../../hooks/useMountTransition";
 import AssetInspectorPanel from "../asset-inspector/AssetInspectorPanel";
 import AudioPreview from "./AudioPreview";
 import ImagePreview from "./ImagePreview";

@@ -4,7 +4,14 @@ import { describe, expect, it } from "vitest";
 import { App, galleryEntries } from "../src/App";
 import { collectingTypes, componentNames, exported, exportedValue, NOT_COMPONENTS } from "./exports";
 
-const PORTALED = ["DropdownItem", "DropdownCheckboxItem", "DropdownSeparator"];
+const PORTALED = [
+  "DropdownItem",
+  "DropdownCheckboxItem",
+  "DropdownSeparator",
+  "DialogTitle",
+  "DialogDescription",
+  "DialogActions",
+];
 
 describe("impower-ui server render", () => {
   it("classifies every export as a component or a named non-component", () => {
@@ -25,7 +32,7 @@ describe("impower-ui server render", () => {
     },
   );
 
-  it("renders every exported component except those inside a closed menu's portal", async () => {
+  it("renders every exported component except those inside a closed menu's or dialog's portal", async () => {
     const { result: html, types } = await collectingTypes(() => renderToString(<App />));
     for (const entry of galleryEntries) {
       expect(html).toContain(`id="${entry.title}"`);
