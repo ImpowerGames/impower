@@ -1921,6 +1921,7 @@ async function verify(args, deps = liveDeps) {
         if (!(await deps.editorPainted(page, paintBudget))) {
           result.editorPaintWarning = `the script editor had not painted its lines and gutter within ${seconds(paintBudget)} of the screenshot; the editor half of the picture may be blank`;
         }
+        await settleViewTransitions(page);
         if (device) {
           await device.screenshot(out);
           result.screenshotOf = "screen";
@@ -2911,11 +2912,32 @@ export async function languageSurface(page, kind, position, text, { place = plac
   return out;
 }
 
+export async function settleViewTransitions(page, { timeout = 3000 } = {}) {
+  return Promise.resolve()
+    .then(() => page.evaluate(async (ms) => {
+      const pending = [
+        document.activeViewTransition?.finished,
+        ...document
+          .getAnimations()
+          .filter((animation) => String(animation.effect?.pseudoElement ?? "").startsWith("::view-transition"))
+          .map((animation) => animation.finished),
+      ].filter(Boolean);
+      if (!pending.length) return 0;
+      const settled = await Promise.race([
+        Promise.all(pending.map((p) => p.catch(() => undefined))).then(() => true),
+        new Promise((resolve) => setTimeout(() => resolve(false), ms)),
+      ]);
+      return settled ? pending.length : -1;
+    }, timeout))
+    .catch(() => 0);
+}
+
 async function shotOf(page, what, out) {
   if (!(what in SHOT_TARGETS)) throw new Error(`unknown --shot-of target "${what}" (know: ${Object.keys(SHOT_TARGETS).join(", ")})`);
   if (!out) throw new Error(`--shot-of ${what} needs an output path`);
   const target = path.resolve(out);
   fs.mkdirSync(path.dirname(target), { recursive: true });
+  await settleViewTransitions(page);
   if (SHOT_TARGETS[what] == null) {
     await page.screenshot({ path: target, fullPage: false });
   } else if (what === "hover") {

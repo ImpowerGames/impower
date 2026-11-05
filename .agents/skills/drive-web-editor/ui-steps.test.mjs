@@ -8,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { focusProjectName, focusScriptName, openDrawerOrRail, openFileMenu, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { focusProjectName, focusScriptName, openDrawerOrRail, openFileMenu, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 
 let failures = 0;
@@ -971,6 +971,29 @@ await asyncCheck("--step focus-script-name clicks the open script's name field, 
   assert.deepEqual(selectors, ["input[data-script-name]"]);
   const missing = { locator: () => ({ first: () => ({ waitFor: async () => { throw new Error("timeout"); } }) }) };
   assert.match((await focusScriptName(missing, { timeout: 2000 })).reason, /no script name .*Main's name is fixed.* within 2 s/);
+});
+
+await asyncCheck("a screenshot waits for a running view transition to finish, and a page that cannot answer is not waited on", async () => {
+  const order = [];
+  const page = {
+    evaluate: async () => {
+      order.push("settle");
+      return 2;
+    },
+    screenshot: async () => {
+      order.push("shot");
+    },
+  };
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-1009-transition-"));
+  try {
+    await shotOf(page, "page", path.join(scratch, "page.png"));
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+  assert.deepEqual(order, ["settle", "shot"]);
+  assert.equal(await settleViewTransitions({ evaluate: async () => 1 }), 1);
+  assert.equal(await settleViewTransitions({ evaluate: () => { throw new Error("no document"); } }), 0);
+  assert.equal(await settleViewTransitions({ evaluate: async () => { throw new Error("closed"); } }), 0);
 });
 
 if (failures > 0) {
