@@ -6,8 +6,12 @@ import SplitPane, { type SplitPaneProps } from "./SplitPane";
 
 function SplitPaneExample({
   orientation,
+  defaultSizes,
+  minSize,
 }: {
   orientation: NonNullable<SplitPaneProps["orientation"]>;
+  defaultSizes?: SplitPaneProps["defaultSizes"];
+  minSize?: SplitPaneProps["minSize"];
 }) {
   const [active, setActive] = useState<"start" | "end">("start");
   return (
@@ -28,6 +32,8 @@ function SplitPaneExample({
         <SplitPane
           orientation={orientation}
           activePanel={active}
+          defaultSizes={defaultSizes}
+          minSize={minSize}
           start={
             <div class="flex h-full items-center justify-center bg-surface">
               Start panel
@@ -51,6 +57,13 @@ function SplitPaneDemo() {
         label={`Horizontal: drag the divider or focus it and press the arrow keys. Below ${layoutMinWidths.compact}px wide (the phone layout) only the chosen pane shows.`}
       >
         <SplitPaneExample orientation="horizontal" />
+      </GalleryRow>
+      <GalleryRow label="Horizontal at 53:47 with a minimum per pane: the start keeps 280px and the end 336px">
+        <SplitPaneExample
+          orientation="horizontal"
+          defaultSizes={[53, 47]}
+          minSize={["280px", "336px"]}
+        />
       </GalleryRow>
       <GalleryRow label="Vertical">
         <SplitPaneExample orientation="vertical" />

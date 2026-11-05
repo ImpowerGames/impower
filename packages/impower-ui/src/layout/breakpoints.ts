@@ -3,8 +3,8 @@ export type Layout = "phone" | "compact" | "desktop";
 export type Pointer = "coarse" | "fine";
 
 export const layoutMinWidths = {
-  compact: 960,
-  desktop: 960,
+  compact: 701,
+  desktop: 1101,
 } as const satisfies Record<Exclude<Layout, "phone">, number>;
 
 export const layoutQueries = {

@@ -4,32 +4,12 @@ import {
   Button,
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
-import { useEffect } from "preact/hooks";
-import { canRedo, canUndo, redo, undo } from "../../utils/undoManager";
 import HeaderMenuButton from "../header-menu-button/HeaderMenuButton";
 import HeaderSyncToolbar from "../header-sync-toolbar/HeaderSyncToolbar";
 import HeaderTitleButton from "../header-title-button/HeaderTitleButton";
 import HeaderTitleCaption from "../header-title-caption/HeaderTitleCaption";
 import ImportProgressBar from "../import-progress-bar/ImportProgressBar";
 import PreviewToggleButton from "../preview-toggle-button/PreviewToggleButton";
-
-function isEditableFocus(): boolean {
-  let el: Element | null = document.activeElement;
-  while (el && el.shadowRoot && el.shadowRoot.activeElement) {
-    el = el.shadowRoot.activeElement;
-  }
-  if (!el) {
-    return false;
-  }
-  const tag = el.tagName;
-  if (tag === "INPUT" || tag === "TEXTAREA") {
-    return true;
-  }
-  if ((el as HTMLElement).isContentEditable) {
-    return true;
-  }
-  return !!el.closest?.(".cm-editor");
-}
 
 const IS_MAC =
   typeof navigator !== "undefined" &&
@@ -58,35 +38,6 @@ function replayUndoShortcut(isRedo: boolean): void {
 
 export default function HeaderNavigation() {
   const phone = useLayout() === "phone";
-  useEffect(() => {
-    const onKey = async (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === "s") {
-        e.preventDefault();
-        const { Workspace } = await import("../../workspace/Workspace");
-        await Workspace.window.syncProject();
-        return;
-      }
-      const key = e.key.toLowerCase();
-      if ((e.ctrlKey || e.metaKey) && (key === "z" || key === "y")) {
-        if (isEditableFocus()) {
-          return;
-        }
-        const isRedo = key === "y" || (key === "z" && e.shiftKey);
-        if (isRedo ? !canRedo.value : !canUndo.value) {
-          return;
-        }
-        e.preventDefault();
-        if (isRedo) {
-          await redo();
-        } else {
-          await undo();
-        }
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
   return (
     <div class="relative z-10">
       <div class="relative z-[2] flex h-14 flex-row items-center justify-center bg-bg">

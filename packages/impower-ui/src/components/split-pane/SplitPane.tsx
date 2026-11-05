@@ -8,14 +8,16 @@ export type SplitPaneProps = {
   start: ComponentChildren;
   end: ComponentChildren;
   defaultSizes?: [number, number];
-  minSize?: number | string;
+  minSize?: MinSize | readonly [MinSize, MinSize];
   activePanel?: "start" | "end";
   class?: string;
 };
 
+type MinSize = number | string;
+
 const DIVIDER_PX = 8;
 
-function minToPx(minSize: number | string, trackPx: number): number {
+function minToPx(minSize: MinSize, trackPx: number): number {
   if (typeof minSize === "number") return (minSize / 100) * trackPx;
   const s = String(minSize).trim();
   if (s.endsWith("px")) return parseFloat(s) || 0;
@@ -71,6 +73,10 @@ export default function SplitPane({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const draggingRef = useRef(false);
 
+  const [minStart, minEnd] = Array.isArray(minSize)
+    ? (minSize as readonly [MinSize, MinSize])
+    : [minSize as MinSize, minSize as MinSize];
+
   const trackPx = () => {
     const c = containerRef.current;
     if (!c) return 0;
@@ -95,8 +101,10 @@ export default function SplitPane({
     if (track <= 0) return;
     const pos =
       (horizontal ? e.clientX - r.left : e.clientY - r.top) - DIVIDER_PX / 2;
-    const min = minToPx(minSize, track);
-    const startPx = Math.max(min, Math.min(track - min, pos));
+    const startPx = Math.max(
+      minToPx(minStart, track),
+      Math.min(track - minToPx(minEnd, track), pos),
+    );
     setSize((startPx / track) * 100);
   };
 
@@ -117,10 +125,14 @@ export default function SplitPane({
     if (e.key !== dec && e.key !== inc) return;
     e.preventDefault();
     const track = trackPx();
-    const minPct = track > 0 ? (minToPx(minSize, track) / track) * 100 : 10;
+    const pct = (min: MinSize) =>
+      track > 0 ? (minToPx(min, track) / track) * 100 : 10;
     const STEP = 2;
     setSize((s) =>
-      Math.max(minPct, Math.min(100 - minPct, s + (e.key === inc ? STEP : -STEP))),
+      Math.max(
+        pct(minStart),
+        Math.min(100 - pct(minEnd), s + (e.key === inc ? STEP : -STEP)),
+      ),
     );
   };
 

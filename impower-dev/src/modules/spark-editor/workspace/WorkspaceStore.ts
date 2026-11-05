@@ -117,8 +117,8 @@ class WorkspaceStore {
     signinLabel: computed(() => {
       const info = this.account.value;
       return info && info.uid && !info.consented
-        ? "Grant Access To Google Drive"
-        : "Sync With Google Drive";
+        ? "Grant access to Google Drive"
+        : "Sync with Google Drive";
     }),
   } as const satisfies Record<string, ReadonlySignal<unknown>>;
 

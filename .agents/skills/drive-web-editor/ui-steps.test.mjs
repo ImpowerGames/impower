@@ -8,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { focusProjectName, openDrawerOrRail, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 
 let failures = 0;
@@ -872,6 +872,40 @@ await asyncCheck("hover reports a diagnostic at the position and its lint toolti
   page.locator = () => ({ first: () => ({ waitFor: async () => { throw new Error("timeout"); } }) });
   const unseen = await languageSurface(page, "hover", { line: 7, col: 1 }, undefined, hoverDeps);
   assert.match(unseen.reason, /tooltip did not open/);
+});
+
+await asyncCheck("--step drawer reports the desktop rail when it is on screen, without clicking anything", async () => {
+  const clicks = [];
+  const page = {
+    evaluate: async () => ({ x: 0, width: 232, collapsed: false }),
+    locator: () => ({ first: () => ({ count: async () => 1, click: async () => clicks.push("menu") }) }),
+  };
+  assert.deepEqual(await openDrawerOrRail(page), { step: "drawer", ran: true, opened: "rail", rail: { x: 0, width: 232, collapsed: false } });
+  assert.deepEqual(clicks, []);
+});
+
+await asyncCheck("--step drawer opens the drawer below the desktop width and fails by name when neither is there", async () => {
+  const clicks = [];
+  const opened = {
+    evaluate: async () => null,
+    locator: () => ({ first: () => ({ count: async () => 1, click: async () => clicks.push("menu") }) }),
+    waitForFunction: async () => true,
+  };
+  assert.deepEqual(await openDrawerOrRail(opened), { step: "drawer", ran: true, opened: "drawer" });
+  assert.deepEqual(clicks, ["menu"]);
+  const stuck = { ...opened, waitForFunction: async () => { throw new Error("timeout"); } };
+  assert.match((await openDrawerOrRail(stuck, { timeout: 1000 })).reason, /the drawer did not open within 1 s/);
+  const none = { evaluate: async () => null, locator: () => ({ first: () => ({ count: async () => 0 }) }) };
+  assert.match((await openDrawerOrRail(none)).reason, /neither the desktop rail nor the drawer's Open Menu button/);
+});
+
+await asyncCheck("--step focus-project-name clicks the name field and reports its value and selection, or fails by name", async () => {
+  const field = (state) => ({ waitFor: async () => {}, click: async () => {}, evaluate: async () => state });
+  const page = (state) => ({ locator: () => ({ first: () => field(state) }) });
+  assert.deepEqual(await focusProjectName(page({ focused: true, selected: true, value: "Untitled story" })), { step: "focus-project-name", ran: true, value: "Untitled story", selected: true });
+  assert.match((await focusProjectName(page({ focused: false, selected: false, value: "x" }))).reason, /did not take focus/);
+  const missing = { locator: () => ({ first: () => ({ waitFor: async () => { throw new Error("timeout"); } }) }) };
+  assert.match((await focusProjectName(missing, { timeout: 2000 })).reason, /no project name field on the page within 2 s/);
 });
 
 if (failures > 0) {

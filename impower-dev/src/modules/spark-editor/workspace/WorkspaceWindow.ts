@@ -95,6 +95,14 @@ import {
   projectSettingsJson,
 } from "./settings/settingsJson";
 import workspaceSettings from "./settings/WorkspaceSettings";
+import {
+  hashOfRoute,
+  routeOfHash,
+  routeOfState,
+  stateForRoute,
+  transitionRoute,
+  type Route,
+} from "./routes";
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
 
 export default class WorkspaceWindow {
@@ -113,6 +121,109 @@ export default class WorkspaceWindow {
     this.registerProtocolHandlers();
     this.handleLayoutChange(layoutState.current());
     this._disposers.push(layoutState.subscribe(this.handleLayoutChange));
+    this.connectRoutes();
+  }
+
+  protected _routesConnected = false;
+
+  protected _route?: Route;
+
+  protected connectRoutes() {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const onHashChange = () => {
+      const route = routeOfHash(window.location.hash);
+      if (!route) {
+        this.syncRouteHash();
+        return;
+      }
+      if (route !== routeOfState(this.store)) {
+        transitionRoute(() => this.openRoute(route));
+      }
+    };
+    const initial = routeOfHash(window.location.hash);
+    if (initial && initial !== routeOfState(this.store)) {
+      this.update(stateForRoute(this.store, initial));
+    }
+    this._routesConnected = true;
+    this.syncRouteHash();
+    window.addEventListener("hashchange", onHashChange);
+    window.addEventListener("popstate", onHashChange);
+    this._disposers.push(() => {
+      window.removeEventListener("hashchange", onHashChange);
+      window.removeEventListener("popstate", onHashChange);
+      this._routesConnected = false;
+      this._route = undefined;
+    });
+  }
+
+  protected syncRouteHash() {
+    if (!this._routesConnected) {
+      return;
+    }
+    const route = routeOfState(this.store);
+    const hash = hashOfRoute(route);
+    if (route === this._route && routeOfHash(window.location.hash)) {
+      return;
+    }
+    this._route = route;
+    if (window.location.hash !== hash) {
+      window.history.replaceState(window.history.state, "", hash);
+    }
+  }
+
+  openRoute(route: Route) {
+    this.update(stateForRoute(this.store, route));
+  }
+
+  navigateTo(route: Route) {
+    if (typeof window === "undefined") {
+      this.openRoute(route);
+      return;
+    }
+    const hash = hashOfRoute(route);
+    if (window.location.hash !== hash) {
+      window.history.pushState(window.history.state, "", hash);
+    }
+    transitionRoute(() => this.openRoute(route));
+  }
+
+  closeSettings() {
+    if (!this.store.screen.settingsOpen) {
+      return;
+    }
+    this.update({
+      ...this.store,
+      screen: { ...this.store.screen, settingsOpen: false },
+    });
+  }
+
+  setAppMenuOpen(open: boolean) {
+    if (!!this.store.screen.appMenuOpen === open) {
+      return;
+    }
+    this.update({
+      ...this.store,
+      screen: { ...this.store.screen, appMenuOpen: open },
+    });
+  }
+
+  setRailWidth(width: number | undefined) {
+    this.update({
+      ...this.store,
+      shell: { ...this.store.shell, railWidth: width },
+    });
+  }
+
+  async signInToGoogleDrive() {
+    try {
+      const info = await this._workspace.sync.google.signIn();
+      this.setAccount(info);
+    } catch (err) {
+      console.error(err);
+      this.clearAccount();
+    }
   }
 
   dispose() {
@@ -194,6 +305,7 @@ export default class WorkspaceWindow {
   protected update(store: WorkspaceCache) {
     workspace.current = store;
     this.cacheProjectWorkspace(store);
+    this.syncRouteHash();
   }
 
   protected cacheProjectId(id: string) {
@@ -926,9 +1038,11 @@ export default class WorkspaceWindow {
 
   async finishEditingProjectName(name: string) {
     const id = this.store.project.id;
-    const validName = name || WorkspaceConstants.DEFAULT_PROJECT_NAME;
     if (id) {
       const previousName = this.store.project.name;
+      const validName = name.trim()
+        ? name
+        : previousName || WorkspaceConstants.DEFAULT_PROJECT_NAME;
       this.update({
         ...this.store,
         project: {

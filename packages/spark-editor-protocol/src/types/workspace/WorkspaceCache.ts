@@ -130,6 +130,12 @@ export interface ScreenState {
   horizontalLayout?: boolean;
   editingName?: boolean;
   pickingResource?: boolean;
+  settingsOpen?: boolean;
+  appMenuOpen?: boolean;
+}
+
+export interface ShellState {
+  railWidth?: number;
 }
 
 export interface DebugState {
@@ -146,6 +152,7 @@ export interface DebugState {
 
 export interface WorkspaceCache extends PanesState<PaneType> {
   project: ProjectState;
+  shell?: ShellState;
   screen: ScreenState;
   sync: SyncState;
   debug: DebugState;
