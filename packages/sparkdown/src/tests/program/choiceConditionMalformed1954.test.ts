@@ -105,3 +105,13 @@ describe("choice lines starting with if keep their readings (I-1954)", () => {
     });
   }
 });
+
+describe("a word glued to closed brackets keeps the condition reading (I-1954)", () => {
+  for (const line of ["* if maybe(?) jump", "* if friend(s) agree"]) {
+    it(line, () => {
+      const result = run(line);
+      expect(result.errors.map((e) => e.message)).not.toContain(UNREADABLE);
+      expect(result.menu).not.toContain(line.slice(2));
+    });
+  }
+});
