@@ -79,7 +79,23 @@ const GRAMMARS = {
     },
     [{ include: "#Line" }, { include: "#Empty" }, { include: "#Word" }, { include: "#Gap" }],
   ),
+  nested10: nestedGrammar(10),
+  nested12: nestedGrammar(12),
 };
+
+function nestedGrammar(depth: number) {
+  const repository: Record<string, unknown> = {};
+  for (let i = 0; i < depth; i++) {
+    const last = i === depth - 1;
+    repository[`N${i}`] = {
+      name: `n${i}.mini`,
+      begin: last ? "A\\n" : "A",
+      end: "(?=$)",
+      patterns: last ? [{ include: "#Label" }, { include: "#Gap" }] : [{ include: `#N${i + 1}` }, { include: "#Label" }, { include: "#Gap" }],
+    };
+  }
+  return grammarOf(repository, [{ include: "#N0" }, { include: "#Label" }, { include: "#Word" }, { include: "#Gap" }]);
+}
 
 const CASES: [keyof typeof GRAMMARS, string, string, string][] = [
   ["endAfterBreak", "H\nLabel\n", "Label", "source.mini label.mini"],
@@ -88,6 +104,8 @@ const CASES: [keyof typeof GRAMMARS, string, string, string][] = [
   ["pushedAndPoppedStaysOpen", "H\nLabel\nLabel\nStop\n", "Label", "source.mini block.mini inner.mini label.mini"],
   ["rootBeginAfterBreak", "H\nLabel\nH\nStop\n", "Label", "source.mini tail.mini label.mini"],
   ["lineStartIsNotTheLineEnd", "Hi\nLabel\n\nLabel\n", "Label", "source.mini line.mini"],
+  ["nested10", `${"A".repeat(10)}\nLabel\n`, "Label", "source.mini label.mini"],
+  ["nested12", `${"A".repeat(12)}\nLabel\n`, "Label", "source.mini label.mini"],
 ];
 
 describe("textmate-grammar-tree tries the exhausted end of a line after a match takes its line break, as vscode-textmate does (I-1965)", () => {
@@ -184,5 +202,47 @@ describe("an incremental parse agrees with a cold parse at the exhausted end of 
       restore.mockRestore();
     }
     expect(mismatches).toEqual([]);
+  });
+});
+
+describe("an edit to a line changes what the end of that line opens at the top level (I-1965)", () => {
+  const grammar = grammarOf(
+    {
+      Line: { name: "line.mini", match: "[a-zA-Z]+\\n" },
+      Tail: {
+        name: "tail.mini",
+        begin: "(?<=X\\n)",
+        end: "^(?=Stop)",
+        patterns: [{ include: "#Label" }, { include: "#Gap" }],
+      },
+      Mark: { name: "mark.mini", match: "(?<=Y\\n)" },
+    },
+    [{ include: "#Line" }, { include: "#Tail" }, { include: "#Mark" }, { include: "#Word" }, { include: "#Gap" }],
+  );
+  const parser = new TextmateGrammarParser(structuredClone(grammar) as never);
+  const PAD = "aa\n".repeat(30);
+
+  const edit = (text: string, from: number, to: number, insert: string) => {
+    const before = parser.parse(text);
+    const next = `${text.slice(0, from)}${insert}${text.slice(to)}`;
+    const fragments = TreeFragment.applyChanges(TreeFragment.addTree(before), [
+      { fromA: from, toA: to, fromB: from, toB: from + insert.length },
+    ]);
+    return { next, tree: parser.parse(next, fragments) };
+  };
+
+  test.each([
+    ["removing what opens a rule", "aX\n", "a\n"],
+    ["adding what opens a rule", "a\n", "aX\n"],
+    ["removing what matches an empty mark", "aY\n", "a\n"],
+    ["adding what matches an empty mark", "a\n", "aY\n"],
+  ])("%s gives the cold parse's tree", async (_, line, edited) => {
+    const text = `${PAD}${line}Label\nLabel\nStop\n${PAD}`;
+    const at = PAD.length + 1;
+    const { next, tree } = edit(text, at, at + line.length - 2, edited.slice(1, -1));
+    expect(next).toBe(`${PAD}${edited}Label\nLabel\nStop\n${PAD}`);
+    const vscode = await vscodeScopes(structuredClone(grammar), text);
+    expect(treeScopes(grammar, text), "the original text scopes as vscode-textmate does").toEqual(vscode);
+    expect(printTree(tree, next)).toBe(printTree(parser.parse(next), next));
   });
 });

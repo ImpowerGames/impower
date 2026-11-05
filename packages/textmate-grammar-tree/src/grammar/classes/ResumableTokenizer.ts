@@ -55,6 +55,8 @@ export interface TokenizerStepResult {
   splitAt?: { at: number; resume: TokenizerResume };
 }
 
+type LineEndRetry = "pushed" | "popped" | null;
+
 type DispatchResult =
   | {
       kind: "scope";
@@ -364,22 +366,22 @@ export class ResumableTokenizer {
   protected retryEndAtLineEnd(
     out: GrammarToken[],
     frame: TokenizerFrame,
-  ): boolean | null {
+  ): LineEndRetry | undefined {
     if (frame.openedAt === this.pos) {
-      return frame.rule.endsAt(this.state, this.pos) ? false : null;
+      return frame.rule.endsAt(this.state, this.pos) ? null : undefined;
     }
-    return this.tryEnd(out, false) ? true : null;
+    return this.tryEnd(out, false) ? "popped" : undefined;
   }
 
-  protected retryOnceAtLineEnd(out: GrammarToken[]): boolean {
+  protected retryOnceAtLineEnd(out: GrammarToken[]): LineEndRetry {
     const frame = this.frames[this.frames.length - 1];
     if (!frame) {
-      return this.tryTopLevel(out)?.kind === "scope";
+      return this.tryTopLevel(out)?.kind === "scope" ? "pushed" : null;
     }
     const rule = frame.rule;
     if (!rule.applyEndPatternLast) {
       const ended = this.retryEndAtLineEnd(out, frame);
-      if (ended != null) {
+      if (ended !== undefined) {
         return ended;
       }
     }
@@ -388,30 +390,35 @@ export class ResumableTokenizer {
     if (result?.kind === "scope") {
       this.emitBatch(out, result.matched.compile(), frame, result.chain);
       this.openFrame(result, this.pos);
-      return true;
+      return "pushed";
     }
     if (result) {
       this.emitBatch(out, result.matched.compile(), frame);
       this.closeWithoutEnd(out, true);
-      return false;
+      return null;
     }
     if (rule.applyEndPatternLast) {
-      return this.retryEndAtLineEnd(out, frame) ?? false;
+      return this.retryEndAtLineEnd(out, frame) ?? null;
     }
-    return false;
+    return null;
   }
 
   protected retryAtLineEnd(out: GrammarToken[]) {
     const pending = this.pending;
     this.state.exhaustLineAt(this.pos);
-    let attempts = 0;
-    while (attempts < EMPTY_MATCH_LIMIT && this.retryOnceAtLineEnd(out)) {
-      attempts++;
+    let pushes = 0;
+    let retried = this.retryOnceAtLineEnd(out);
+    while (retried === "popped" || (retried === "pushed" && ++pushes < EMPTY_MATCH_LIMIT)) {
+      retried = this.retryOnceAtLineEnd(out);
     }
     this.state.exhaustLineAt(-1);
     if (this.pending !== pending) {
       this.emittedAtLineStart = this.pos;
     }
+  }
+
+  get emittedAtThisLineStart() {
+    return this.pos === this.emittedAtLineStart;
   }
 
   snapshot(): TokenizerResume {
@@ -517,7 +524,7 @@ export class ResumableTokenizer {
         if (
           this.emitSplitSignals &&
           this.state.str.charCodeAt(this.pos - 1) === 10 &&
-          this.pos !== this.emittedAtLineStart
+          !this.emittedAtThisLineStart
         ) {
           splitAt = { at: this.anchor + this.pos, resume: this.snapshot() };
         }
