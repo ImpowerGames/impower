@@ -88,3 +88,24 @@ describe("ChoiceGroup", () => {
     expect(classes).not.toMatch(/(^|\s)transition-/);
   });
 });
+
+describe("ChoiceGroup and native form reset", () => {
+  it("returns to its default, controlled at the owner's value", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <form>
+          <ChoiceGroup name="free" aria-label="Free" options={OPTIONS} defaultValue="plain" />
+          <ChoiceGroup name="owned" aria-label="Owned" options={OPTIONS} value="none" onValueChange={() => {}} />
+        </form>,
+        host!,
+      ),
+    );
+    const radio = (name: string, value: string) =>
+      host!.querySelector<HTMLInputElement>(`input[name="${name}"][value="${value}"]`)!;
+    radio("free", "paper").checked = true;
+    await act(async () => host!.querySelector("form")!.reset());
+    expect(radio("free", "plain").checked).toBe(true);
+    expect(radio("owned", "none").checked).toBe(true);
+  });
+});

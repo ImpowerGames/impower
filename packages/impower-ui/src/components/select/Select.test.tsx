@@ -94,3 +94,24 @@ describe("Select", () => {
     expect(classes).not.toMatch(/(^|\s)transition-/);
   });
 });
+
+describe("Select and native form reset", () => {
+  it("returns an uncontrolled select to its defaultValue and a controlled one to the owner's value", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <form>
+          <Select aria-label="Free" options={OPTIONS} defaultValue="a4" />
+          <Select aria-label="Owned" options={OPTIONS} value="a4" onValueChange={() => {}} />
+        </form>,
+        host!,
+      ),
+    );
+    const [free, owned] = Array.from(host.querySelectorAll("select"));
+    expect(free!.value).toBe("a4");
+    free!.value = "usletter";
+    await act(async () => host!.querySelector("form")!.reset());
+    expect(free!.value).toBe("a4");
+    expect(owned!.value).toBe("a4");
+  });
+});

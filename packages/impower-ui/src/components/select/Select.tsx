@@ -72,7 +72,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
             key={option.value}
             value={option.value}
             disabled={option.disabled}
-            selected={!controlled && option.value === selected ? true : undefined}
+            {...{ defaultSelected: option.value === selected }}
           >
             {option.label}
           </option>

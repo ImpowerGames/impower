@@ -73,13 +73,15 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
   const own = useRef<HTMLInputElement | null>(null);
   const commit = useRef(onCommit);
   commit.current = onCommit;
+  const controlled = useRef(value);
+  controlled.current = value;
 
   useEffect(() => {
     const input = own.current;
     if (!input) {
       return;
     }
-    const onChange = () => commit.current?.(input.value);
+    const onChange = () => commit.current?.(controlled.current ?? input.value);
     input.addEventListener("change", onChange);
     return () => input.removeEventListener("change", onChange);
   }, []);
@@ -99,10 +101,19 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
       autocomplete="off"
       spellcheck={false}
       {...rest}
-      {...(value !== undefined ? { value } : { defaultValue })}
+      {...(value !== undefined ? { value, defaultValue: value } : { defaultValue })}
       onInput={(event) => {
+        const input = event.currentTarget;
         onInput?.(event);
-        onValueChange?.(event.currentTarget.value);
+        onValueChange?.(input.value);
+        if (value !== undefined) {
+          setTimeout(() => {
+            const owned = controlled.current;
+            if (owned !== undefined && input.value !== owned) {
+              input.value = owned;
+            }
+          }, 0);
+        }
       }}
     />
   );

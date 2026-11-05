@@ -44,7 +44,7 @@ browser keeps its own keyboard handling, form participation and, on phones, its 
 Each takes `value` (controlled) or `defaultValue`/`defaultChecked` (uncontrolled) and reports
 through `onValueChange` or `onCheckedChange`; `TextField` reports each edit through
 `onValueChange` and the committed value through `onCommit`, on the native `change` event,
-because `preact/compat` turns an `onChange` on a text input into `onInput`.
+because `preact/compat` turns an `onChange` on a text input into `onInput`. A controlled control shows only its owner's value: an edit the owner refuses or normalizes is put back, and `onCommit` reports the owner's value. Each control also sets its native default (`defaultValue`, `defaultChecked`, `defaultSelected`) to its default or its owner's value, so a native form reset returns to it.
 
 These components are the only way to render a form control in `impower-dev`: the root
 `eslint.config.js` refuses a bare `<input>`, `<select>` or `<textarea>` in its TSX

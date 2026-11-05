@@ -88,7 +88,7 @@ export default function ChoiceGroup<V extends string = string>({
             value={option.value}
             disabled={disabled || option.disabled}
             {...(controlled
-              ? { checked: option.value === value }
+              ? { checked: option.value === value, defaultChecked: option.value === value }
               : { defaultChecked: option.value === defaultValue })}
             onChange={(event) => {
               const input = event.currentTarget;

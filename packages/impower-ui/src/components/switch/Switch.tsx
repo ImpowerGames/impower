@@ -1,6 +1,7 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import type { JSX, Ref } from "preact";
+import type { JSX } from "preact";
 import { forwardRef } from "preact/compat";
+import { useEffect, useRef } from "preact/hooks";
 import { cn } from "../../utils/cn";
 
 export const switchVariants = cva(
@@ -50,14 +51,37 @@ const Switch = forwardRef<HTMLInputElement, SwitchProps>(function Switch(
   ref,
 ) {
   const controlled = checked !== undefined;
+  const own = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const form = own.current?.form;
+    if (!form) {
+      return;
+    }
+    const onReset = () =>
+      setTimeout(() => {
+        const input = own.current;
+        input?.setAttribute("aria-checked", String(input.checked));
+      }, 0);
+    form.addEventListener("reset", onReset);
+    return () => form.removeEventListener("reset", onReset);
+  }, []);
+
   return (
     <input
-      ref={ref as Ref<HTMLInputElement>}
+      ref={(element: HTMLInputElement | null) => {
+        own.current = element;
+        if (typeof ref === "function") {
+          ref(element);
+        } else if (ref) {
+          (ref as { current: HTMLInputElement | null }).current = element;
+        }
+      }}
       type="checkbox"
       role="switch"
       class={cn(switchVariants({ size }), className)}
       {...rest}
-      {...(controlled ? { checked } : { defaultChecked })}
+      {...(controlled ? { checked, defaultChecked: checked } : { defaultChecked })}
       aria-checked={controlled ? checked : !!defaultChecked}
       onChange={(event) => {
         const input = event.currentTarget;

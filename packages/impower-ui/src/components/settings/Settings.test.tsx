@@ -179,10 +179,26 @@ describe("Settings row kit", () => {
 
   it("updates a text row on each edit and announces the committed value", async () => {
     const onValueChange = vi.fn();
+    function Owner() {
+      const [more, setMore] = useState("(MORE)");
+      return (
+        <TextRow
+          id="more"
+          name="MORE"
+          value={more}
+          font="mono"
+          width="short"
+          onValueChange={(next) => {
+            onValueChange(next);
+            setMore(next);
+          }}
+        />
+      );
+    }
     await mount(
       <>
         <LiveRegion />
-        <TextRow id="more" name="MORE" value="(MORE)" font="mono" width="short" onValueChange={onValueChange} />
+        <Owner />
       </>,
     );
     const input = host!.querySelector<HTMLInputElement>("input:not([type=checkbox])")!;
@@ -190,6 +206,8 @@ describe("Settings row kit", () => {
     await act(async () => {
       input.value = "(CONT)";
       input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
       input.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(onValueChange).toHaveBeenCalledWith("(CONT)");

@@ -91,3 +91,28 @@ describe("Switch", () => {
     expect(classes).toContain("forced-colors:appearance-auto");
   });
 });
+
+describe("Switch and native form reset", () => {
+  it("returns to its default and keeps aria-checked in step, controlled at the owner's value", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <form>
+          <Switch aria-label="Free" defaultChecked />
+          <Switch aria-label="Owned" checked onCheckedChange={() => {}} />
+        </form>,
+        host!,
+      ),
+    );
+    const [free, owned] = Array.from(host.querySelectorAll<HTMLInputElement>('input[role="switch"]'));
+    await act(async () => free!.click());
+    expect(free!.getAttribute("aria-checked")).toBe("false");
+    await act(async () => {
+      host!.querySelector("form")!.reset();
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+    expect(free!.checked).toBe(true);
+    expect(free!.getAttribute("aria-checked")).toBe("true");
+    expect(owned!.checked).toBe(true);
+  });
+});
