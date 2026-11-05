@@ -5,6 +5,7 @@ export interface DiagnosticCounts {
 }
 
 export interface ProblemCounts {
+  errors: number;
   problems: number;
   notes: number;
 }
@@ -32,8 +33,9 @@ export const countDiagnostics = (
 export const countProblems = (
   summary: Readonly<Record<string, DiagnosticCounts>> | undefined,
 ): ProblemCounts => {
-  const counts = { problems: 0, notes: 0 };
+  const counts = { errors: 0, problems: 0, notes: 0 };
   for (const { errors, warnings, infos } of Object.values(summary ?? {})) {
+    counts.errors += errors;
     counts.problems += errors + warnings;
     counts.notes += infos;
   }
@@ -43,7 +45,10 @@ export const countProblems = (
 const plural = (count: number, word: string) =>
   `${count} ${word}${count === 1 ? "" : "s"}`;
 
-export const problemsLabel = ({ problems, notes }: ProblemCounts): string => {
+export const problemsLabel = ({
+  problems,
+  notes,
+}: Pick<ProblemCounts, "problems" | "notes">): string => {
   const head = problems ? plural(problems, "problem") : "No problems";
   return notes ? `${head} · ${plural(notes, "note")}` : head;
 };

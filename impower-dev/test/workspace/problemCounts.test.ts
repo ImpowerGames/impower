@@ -31,11 +31,11 @@ describe("countProblems", () => {
         "file:///chapter.sd": { errors: 0, warnings: 0, infos: 3 },
         "file:///ran.sd": { errors: 0, warnings: 1, infos: 1 },
       }),
-    ).toEqual({ problems: 3, notes: 4 });
+    ).toEqual({ errors: 1, problems: 3, notes: 4 });
   });
 
   it("counts nothing before any diagnostics arrive", () => {
-    expect(countProblems(undefined)).toEqual({ problems: 0, notes: 0 });
+    expect(countProblems(undefined)).toEqual({ errors: 0, problems: 0, notes: 0 });
   });
 });
 

@@ -7,14 +7,14 @@ import workspace from "../../workspace/WorkspaceStore";
 import HeaderSyncToolbar from "../header-sync-toolbar/HeaderSyncToolbar";
 import ImportProgressBar from "../import-progress-bar/ImportProgressBar";
 import ProjectNameField from "./ProjectNameField";
-import { problemCountOf } from "./problemCount";
+import { countProblems } from "../../workspace/problemCounts";
 
 function ProblemCount() {
   const count = useComputed(() =>
-    problemCountOf(workspace.state.value.debug?.diagnosticsSummary),
+    countProblems(workspace.state.value.debug?.diagnosticsSummary),
   ).value;
 
-  if (!count.total) {
+  if (!count.problems) {
     return null;
   }
 
@@ -26,7 +26,7 @@ function ProblemCount() {
       <span aria-hidden="true" class="px-1 text-muted">
         ·
       </span>
-      {count.total} {count.total === 1 ? "problem" : "problems"}
+      {count.problems} {count.problems === 1 ? "problem" : "problems"}
     </span>
   );
 }
