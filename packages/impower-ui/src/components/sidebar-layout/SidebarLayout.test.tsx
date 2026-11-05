@@ -2,55 +2,7 @@ import { render } from "preact";
 import { useState } from "preact/hooks";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import SidebarLayout, {
-  sidebarWidth,
-  sidebarWidthAfterKey,
-  type SidebarLimits,
-} from "./SidebarLayout";
-
-const limits: SidebarLimits = { min: 180, max: 420, collapsed: 76 };
-
-describe("sidebarWidth", () => {
-  it("snaps a width below the minimum to the icon rail", () => {
-    expect(sidebarWidth(150, limits)).toBe(76);
-    expect(sidebarWidth(179, limits)).toBe(76);
-    expect(sidebarWidth(10, limits)).toBe(76);
-  });
-
-  it("clamps a width past the maximum", () => {
-    expect(sidebarWidth(500, limits)).toBe(420);
-  });
-
-  it("keeps a width inside the range", () => {
-    expect(sidebarWidth(180, limits)).toBe(180);
-    expect(sidebarWidth(300.4, limits)).toBe(300);
-  });
-
-  it("collapses when the room left is below the minimum", () => {
-    expect(sidebarWidth(300, { ...limits, max: 150 })).toBe(76);
-  });
-});
-
-describe("sidebarWidthAfterKey", () => {
-  it("steps by 16px, or 64px with Shift", () => {
-    expect(sidebarWidthAfterKey("ArrowRight", false, 232, limits)).toBe(248);
-    expect(sidebarWidthAfterKey("ArrowLeft", true, 300, limits)).toBe(236);
-  });
-
-  it("goes from the icon rail to the minimum, and back below it", () => {
-    expect(sidebarWidthAfterKey("ArrowRight", false, 76, limits)).toBe(180);
-    expect(sidebarWidthAfterKey("ArrowLeft", false, 180, limits)).toBe(76);
-  });
-
-  it("collapses on Home and widens fully on End", () => {
-    expect(sidebarWidthAfterKey("Home", false, 300, limits)).toBe(76);
-    expect(sidebarWidthAfterKey("End", false, 300, limits)).toBe(420);
-  });
-
-  it("ignores other keys", () => {
-    expect(sidebarWidthAfterKey("a", false, 300, limits)).toBeNull();
-  });
-});
+import SidebarLayout from "./SidebarLayout";
 
 let host: HTMLDivElement | undefined;
 

@@ -2,41 +2,11 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { cn } from "../../utils/cn";
-
-export type SidebarLimits = {
-  min: number;
-  max: number;
-  collapsed: number;
-};
-
-export function sidebarWidth(value: number, limits: SidebarLimits): number {
-  const ceiling = Math.max(limits.collapsed, limits.max);
-  const width = Math.min(ceiling, Math.max(limits.collapsed, value));
-  return width < limits.min ? limits.collapsed : Math.round(width);
-}
-
-export function sidebarWidthAfterKey(
-  key: string,
-  shift: boolean,
-  width: number,
-  limits: SidebarLimits,
-): number | null {
-  const step = shift ? 64 : 16;
-  switch (key) {
-    case "Home":
-      return limits.collapsed;
-    case "End":
-      return sidebarWidth(limits.max, limits);
-    case "ArrowRight":
-      return width === limits.collapsed
-        ? sidebarWidth(limits.min, limits)
-        : sidebarWidth(width + step, limits);
-    case "ArrowLeft":
-      return sidebarWidth(width - step, limits);
-    default:
-      return null;
-  }
-}
+import {
+  collapsibleSize,
+  collapsibleSizeAfterKey,
+  type CollapsibleLimits,
+} from "../../utils/collapsibleSize";
 
 export const sidebarLayoutVariants = cva(
   [
@@ -124,12 +94,12 @@ export default function SidebarLayout({
     return () => observer.disconnect();
   }, [reserve]);
 
-  const limits: SidebarLimits = {
+  const limits: CollapsibleLimits = {
     min: minWidth,
     max: Math.min(maxWidth, available),
     collapsed: collapsedWidth,
   };
-  const current = sidebarWidth(pending ?? width ?? defaultWidth, limits);
+  const current = collapsibleSize(pending ?? width ?? defaultWidth, limits);
   const collapsed = current === collapsedWidth;
 
   const onPointerDown = (e: PointerEvent) => {
@@ -169,7 +139,10 @@ export default function SidebarLayout({
       reset();
       return;
     }
-    const next = sidebarWidthAfterKey(e.key, e.shiftKey, current, limits);
+    const next = collapsibleSizeAfterKey(e.key, e.shiftKey, current, limits, {
+      grow: "ArrowRight",
+      shrink: "ArrowLeft",
+    });
     if (next === null) {
       return;
     }
