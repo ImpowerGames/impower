@@ -1,4 +1,7 @@
-import { Button, Plus } from "@impower/impower-ui/components";
+import {
+  Button,
+  PlusIcon,
+} from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import getUniqueFileName from "../../utils/getUniqueFileName";
 import workspace from "../../workspace/WorkspaceStore";
@@ -66,7 +69,7 @@ export default function FileAddButton({
         size={collapsed ? "icon" : "default"}
         class={collapsed ? "ml-auto" : "w-full"}
       >
-        <Plus />
+        <PlusIcon />
         <span class={collapsed ? "sr-only" : undefined}>
           {children}
         </span>

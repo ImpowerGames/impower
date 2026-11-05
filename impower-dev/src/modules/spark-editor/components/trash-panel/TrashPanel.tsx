@@ -1,12 +1,12 @@
 import type { TrashBatch } from "@impower/spark-editor-protocol/src/types/workspace/TrashBatch";
 import {
-  ArrowBackUp,
   Button,
+  CloseIcon,
   Dialog,
   DialogActions,
   DialogTitle,
-  Trash,
-  X,
+  TrashIcon,
+  UndoIcon,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
@@ -159,7 +159,7 @@ export default function TrashPanel() {
       class="max-h-[80vh]"
     >
       <div class="flex flex-none flex-row items-center gap-2 px-4 py-3">
-        <Trash class="size-5 flex-none text-foreground/70" />
+        <TrashIcon class="size-5 flex-none text-foreground/70" />
         <DialogTitle class="min-w-0 flex-1 truncate">
           Recycle bin{count > 0 ? ` (${count})` : ""}
         </DialogTitle>
@@ -179,7 +179,7 @@ export default function TrashPanel() {
           size="icon"
           class="flex-none text-muted"
         >
-          <X class="size-4" />
+          <CloseIcon class="size-4" />
         </Button>
       </div>
 
@@ -216,7 +216,7 @@ export default function TrashPanel() {
                   size="icon"
                   class="flex-none text-muted"
                 >
-                  <ArrowBackUp class="size-4" />
+                  <UndoIcon class="size-4" />
                 </Button>
                 <Button
                   variant="quiet"
@@ -233,7 +233,7 @@ export default function TrashPanel() {
                   size="icon"
                   class="flex-none text-muted"
                 >
-                  <Trash class="size-4" />
+                  <TrashIcon class="size-4" />
                 </Button>
               </div>
             );

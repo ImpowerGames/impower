@@ -22,6 +22,7 @@ import {
   type MessageConnection,
 } from "vscode-languageserver-protocol";
 import EDITOR_HIGHLIGHTS from "../../constants/EDITOR_HIGHLIGHTS";
+import EDITOR_LSP_ICONS from "../../constants/EDITOR_LSP_ICONS";
 
 const sparkdownKeymap = [
   {
@@ -59,6 +60,7 @@ export const sparkdownLanguageExtension = (config: {
   let client = new LSPClient({
     workspace: serverWorkspace,
     extensions: [...languageServerExtensions(), serverAutoSync({ delay: 0 })],
+    icons: EDITOR_LSP_ICONS,
   }).connect(
     new WorkerTransport(serverWorker, serverConnection),
     serverInitializeParams,

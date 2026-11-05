@@ -1,6 +1,6 @@
 import {
   Button,
-  Check,
+  CheckIcon,
   Dialog,
   DialogActions,
   DialogDescription,
@@ -61,7 +61,7 @@ export default function ConflictDialogHost() {
                 : "border-foreground/40"
             }`}
           >
-            {applyAll && <Check class="size-3.5" />}
+            {applyAll && <CheckIcon class="size-3.5" />}
           </span>
           Apply to all {shown.remaining} conflicts
         </button>

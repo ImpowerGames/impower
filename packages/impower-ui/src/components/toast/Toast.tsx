@@ -6,7 +6,9 @@ import { useCoarsePointer } from "../../hooks/useCoarsePointer";
 import { useMountTransition } from "../../hooks/useMountTransition";
 import { cn } from "../../utils/cn";
 import Button from "../button/Button";
-import { X } from "../icon/icons.generated";
+import {
+  CloseIcon,
+} from "../icon/icons.generated";
 
 export const TOAST_TRANSITION_MS = 150;
 export const TOAST_SWIPE_DISMISS_PX = 24;
@@ -126,7 +128,7 @@ export default function Toast({
               }
             }}
           >
-            <X />
+            <CloseIcon />
           </Button>
         )}
       </div>

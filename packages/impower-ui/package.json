@@ -17,6 +17,10 @@
       "types": "./src/components/icon/icons.generated.tsx",
       "import": "./dist/impower-ui.js"
     },
+    "./icon-masks": {
+      "types": "./src/components/icon/icon-masks.generated.ts",
+      "default": "./src/components/icon/icon-masks.generated.ts"
+    },
     "./layout": {
       "development": "./src/layout/index.ts",
       "types": "./src/layout/index.ts",

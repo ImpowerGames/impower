@@ -10,7 +10,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({ Workspace
   ls: { getFileDiagnostics: mocks.diagnostics, getFileReferences: mocks.references, onPublishedDiagnostics: (listener: (params: { uri: string }) => void) => { mocks.published.add(listener); return () => mocks.published.delete(listener); } },
 } }));
 vi.mock("../../src/modules/spark-editor/workspace/WorkspaceStore", () => ({ default: { signals: { projectId: { value: "project" } } } }));
-vi.mock("@impower/impower-ui/components", () => ({ Button: "button", Check: "span", ChevronRight: "span", Download: "span", Link: "span", Pencil: "span", Repeat: "span", Search: "span", X: "span" }));
+vi.mock("@impower/impower-ui/components", () => ({ Button: "button", CheckIcon: "span", ChevronIcon: "span", CloseIcon: "span", DownloadIcon: "span", LinkIcon: "span", LoopIcon: "span", PencilIcon: "span", SearchIcon: "span" }));
 import WorkspaceLanguageServer from "../../src/modules/spark-editor/workspace/WorkspaceLanguageServer";
 import AssetInspectorPanel from "../../src/modules/spark-editor/components/asset-inspector/AssetInspectorPanel";
 const warning = { severity: 2, message: "Malformed condition face..bad" };

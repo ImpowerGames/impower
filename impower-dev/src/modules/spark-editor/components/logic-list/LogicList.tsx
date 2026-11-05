@@ -1,7 +1,7 @@
 import {
-  Book,
-  BookClosed,
+  FileIcon,
   Router,
+  StoryIcon,
   Tab,
   Tabs,
 } from "@impower/impower-ui/components";
@@ -52,10 +52,10 @@ export default function LogicList(_props: LogicListProps) {
             indicator="underline"
             iconLayout="beside"
           >
-            <Tab value="main" icon={BookClosed} color={mainColor}>
+            <Tab value="main" icon={StoryIcon} color={mainColor}>
               Main
             </Tab>
-            <Tab value="scripts" icon={Book} color={scriptsColor}>
+            <Tab value="scripts" icon={FileIcon} color={scriptsColor}>
               Scripts
             </Tab>
           </Tabs>
@@ -80,7 +80,7 @@ export default function LogicList(_props: LogicListProps) {
                 onScopeChange={setScriptsScope}
                 emptyState={
                   <FileListBorder>
-                    <Book class="size-12 m-2" />
+                    <FileIcon class="size-12 m-2" />
                     <span class="text-sm">No Scripts</span>
                   </FileListBorder>
                 }

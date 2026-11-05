@@ -1,4 +1,8 @@
-import { Button, ChevronRight, Folder } from "@impower/impower-ui/components";
+import {
+  Button,
+  ChevronIcon,
+  FolderIcon,
+} from "@impower/impower-ui/components";
 import { Fragment } from "preact";
 import { breadcrumbSegments } from "../../utils/fileTree";
 
@@ -29,7 +33,7 @@ export default function FileBreadcrumb({
         return (
           <Fragment key={crumb.path}>
             {i > 0 && (
-              <ChevronRight
+              <ChevronIcon
                 class="size-3.5 flex-none opacity-40"
                 aria-hidden="true"
               />
@@ -40,7 +44,7 @@ export default function FileBreadcrumb({
               onClick={() => onNavigate(crumb.path)}
               class={`flex-none px-1.5 disabled:opacity-100 ${isLast ? "text-ink" : "text-muted"}`}
             >
-              {crumb.name ?? <Folder class="size-4" aria-label="Root" />}
+              {crumb.name ?? <FolderIcon class="size-4" aria-label="Root" />}
             </Button>
           </Fragment>
         );
