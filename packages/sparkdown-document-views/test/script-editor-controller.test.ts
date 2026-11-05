@@ -54,12 +54,7 @@ if (!Range.prototype.getClientRects) {
 }
 
 class TestController extends ScriptEditorController {
-  fonts: (() => void)[] = [];
   loaded: string[] = [];
-
-  override async loadFonts() {
-    await new Promise<void>((resolve) => this.fonts.push(resolve));
-  }
 
   override loadTextDocument(
     params: LoadEditorMessage.Request["params"],
@@ -110,15 +105,9 @@ const request = (uri: string): LoadEditorMessage.Request =>
 const load = (controller: TestController, uri: string) =>
   controller["handleLoadEditor"]({ ...request(uri), id: `load-${nextId++}` });
 
-const settleFonts = (controller: TestController) => {
-  controller.fonts.splice(0).forEach((resolve) => resolve());
-};
-
 const loadedEditor = async () => {
   const mounted = mount();
-  const pending = load(mounted.controller, "file:///main.sd");
-  settleFonts(mounted.controller);
-  await pending;
+  await load(mounted.controller, "file:///main.sd");
   const { view, config } = created[created.length - 1]!;
   return { ...mounted, view, config };
 };
@@ -129,24 +118,26 @@ afterEach(() => {
 });
 
 describe("ScriptEditorController load", () => {
-  it("loads the document when the editor is revealed while fonts are loading", async () => {
-    const { controller } = mount();
+  it("opens the document without waiting for the script fonts", () => {
+    const { controller, methods } = mount();
     const pending = load(controller, "file:///main.sd");
-    controller.reveal();
-    settleFonts(controller);
-    await expect(pending).resolves.toBeDefined();
     expect(controller.loaded).toEqual(["file:///main.sd"]);
+    expect(methods).toContain("editor/didLoad");
+    return pending;
   });
 
-  it("keeps the second load when a reveal clears the first while fonts are loading", async () => {
-    const { controller } = mount();
-    const first = load(controller, "file:///a.sd");
-    const second = load(controller, "file:///b.sd");
-    controller.reveal();
-    settleFonts(controller);
-    await expect(first).resolves.toBeDefined();
-    await expect(second).resolves.toBeDefined();
-    expect(controller.loaded).toEqual(["file:///b.sd"]);
+  it("registers no font faces of its own", async () => {
+    const add = vi.fn();
+    const fonts = Object.getOwnPropertyDescriptor(document, "fonts");
+    Object.defineProperty(document, "fonts", { configurable: true, value: { add } });
+    try {
+      const { controller } = mount();
+      await load(controller, "file:///main.sd");
+      expect(add).not.toHaveBeenCalled();
+    } finally {
+      if (fonts) Object.defineProperty(document, "fonts", fonts);
+      else delete (document as { fonts?: unknown }).fonts;
+    }
   });
 });
 
