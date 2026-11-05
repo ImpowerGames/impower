@@ -1,0 +1,5686 @@
+{
+  "TypeInfer.generics.test.cpp": [
+    {
+      "line": 19,
+      "result": {
+        "name": "check_generic_function",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function id<a>(x:a): a\n            return x\n        end\n        local x: string = id(\"hi\")\n        local y: number = id(37)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "x",
+                "equals": "string"
+              },
+              {
+                "type": "y",
+                "equals": "number"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 33,
+      "result": {
+        "name": "check_generic_local_function",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function id<a>(x:a): a\n            return x\n        end\n        local x: string = id(\"hi\")\n        local y: number = id(37)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "x",
+                "equals": "string"
+              },
+              {
+                "type": "y",
+                "equals": "number"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 47,
+      "result": {
+        "name": "check_generic_local_function2",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function id<a>(x:a): a\n            return x\n        end\n        local x = id(\"hi\")\n        local y = id(37)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "x",
+                "equals": "string"
+              },
+              {
+                "type": "y",
+                "equals": "number"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 61,
+      "result": {
+        "name": "unions_and_generics",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type foo = <T>(T | {T}) -> T\n        local foo = (nil :: any) :: foo\n\n        type Test = number | {number}\n        local res = foo(1 :: Test)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "res",
+                "equals": "number"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 79,
+      "result": {
+        "name": "check_generic_typepack_function",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function id<a...>(...: a...): (a...) return ... end\n        local x: string, y: boolean = id(\"hi\", true)\n        local z: number = id(37)\n        id()\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 90,
+      "result": {
+        "name": "types_before_typepacks",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a,b...>() end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 98,
+      "result": {
+        "name": "local_vars_can_be_polytypes",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function id<a>(x:a):a return x end\n        local f: <a>(a)->a = id\n        local x: string = f(\"hi\")\n        local y: number = f(37)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 109,
+      "result": {
+        "name": "inferred_local_vars_can_be_polytypes",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local function id(x) return x end\n        print(\"This is bogus\") -- TODO: CLI-39916\n        local f = id\n        local x: string = f(\"hi\")\n        local y: number = f(37)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 124,
+      "result": {
+        "name": "local_vars_can_be_instantiated_polytypes",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local function id(x) return x end\n        print(\"This is bogus\") -- TODO: CLI-39916\n        local f: (number)->number = id\n        local g: (string)->string = id\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 138,
+      "result": {
+        "name": "properties_can_be_polytypes",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local t = {}\n        t.m = function<a>(x: a):a return x end\n        local x: string = t.m(\"hi\")\n        local y: number = t.m(37)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 149,
+      "result": {
+        "name": "properties_can_be_instantiated_polytypes",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local t: { m: (number)->number } = { m = function(x:number) return x+1 end }\n        local function id<a>(x:a):a return x end\n        t.m = id\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 159,
+      "result": {
+        "name": "check_nested_generic_function",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f()\n            local function id<a>(x:a): a\n                return x\n            end\n            local x: string = id(\"hi\")\n            local y: number = id(37)\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 173,
+      "result": {
+        "name": "check_recursive_generic_function",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function id<a>(x:a):a\n            local y: string = id(\"hi\")\n            local z: number = id(37)\n            return x\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 185,
+      "result": {
+        "name": "check_mutual_generic_functions",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function id1<a>(x:a):a\n            local y: string = id2(\"hi\")\n            local z: number = id2(37)\n            return x\n        end\n\n        function id2<a>(x:a):a\n            local y: string = id1(\"hi\")\n            local z: number = id1(37)\n            return x\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 203,
+      "result": {
+        "name": "check_mutual_generic_functions_unannotated",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function id1(x)\n            local y: string = id2(\"hi\")\n            local z: number = id2(37)\n            return x\n        end\n\n        function id2(x)\n            local y: string = id1(\"hi\")\n            local z: number = id1(37)\n            return x\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 227,
+      "result": {
+        "name": "check_mutual_generic_functions_errors",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function id1(x)\n            local y: string = id2(37) -- odd\n            local z: number = id2(\"hi\") -- even\n            return x\n        end\n\n        function id2(x)\n            local y: string = id1(37) -- odd\n            local z: number = id1(\"hi\") -- even\n            return x\n        end\n    ",
+            "expect": [
+              {
+                "errors": 4
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch",
+                "fields": {
+                  "wantedType": "string",
+                  "givenType": "number"
+                }
+              },
+              {
+                "error": 1,
+                "code": "TypeMismatch",
+                "fields": {
+                  "wantedType": "number",
+                  "givenType": "string"
+                }
+              },
+              {
+                "error": 2,
+                "code": "TypeMismatch",
+                "fields": {
+                  "wantedType": "string",
+                  "givenType": "number"
+                }
+              },
+              {
+                "error": 3,
+                "code": "TypeMismatch",
+                "fields": {
+                  "wantedType": "number",
+                  "givenType": "string"
+                }
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 269,
+      "result": {
+        "name": "generic_functions_in_types",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type T = { id: <a>(a) -> a }\n        local x: T = { id = function<a>(x:a):a return x end }\n        local y: string = x.id(\"hi\")\n        local z: number = x.id(37)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 280,
+      "result": {
+        "name": "generic_factories",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type T<a> = { id: (a) -> a }\n        type Factory = { build: <a>() -> T<a> }\n\n        local f: Factory = {\n            build = function<a>(): T<a>\n                return {\n                    id = function(x:a):a\n                        return x\n                    end\n                }\n            end\n        }\n        local y: string = f.build().id(\"hi\")\n        local z: number = f.build().id(37)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 303,
+      "result": {
+        "name": "factories_of_generics",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type T = { id: <a>(a) -> a }\n        type Factory = { build: () -> T }\n\n        local f: Factory = {\n            build = function(): T\n                return {\n                    id = function<a>(x:a):a\n                        return x\n                    end\n                }\n            end\n        }\n        local x: T = f.build()\n        local y: string = x.id(\"hi\")\n        local z: number = x.id(37)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 326,
+      "result": {
+        "name": "infer_generic_function",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function id(x)\n            return x\n        end\n        local x: string = id(\"hi\")\n        local y: number = id(37)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "id",
+                "kind": "FunctionType",
+                "generics": 1,
+                "genericPacks": 0
+              },
+              {
+                "type": "id",
+                "path": [
+                  {
+                    "argument": 0
+                  }
+                ],
+                "sameAs": {
+                  "type": "id",
+                  "path": [
+                    {
+                      "generic": 0
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "id",
+                "path": [
+                  {
+                    "result": 0
+                  }
+                ],
+                "sameAs": {
+                  "type": "id",
+                  "path": [
+                    {
+                      "generic": 0
+                    }
+                  ]
+                }
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 352,
+      "result": {
+        "name": "infer_generic_local_function",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function id(x)\n            return x\n        end\n        local x: string = id(\"hi\")\n        local y: number = id(37)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "id",
+                "kind": "FunctionType",
+                "generics": 1,
+                "genericPacks": 0
+              },
+              {
+                "type": "id",
+                "path": [
+                  {
+                    "argument": 0
+                  }
+                ],
+                "sameAs": {
+                  "type": "id",
+                  "path": [
+                    {
+                      "generic": 0
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "id",
+                "path": [
+                  {
+                    "result": 0
+                  }
+                ],
+                "sameAs": {
+                  "type": "id",
+                  "path": [
+                    {
+                      "generic": 0
+                    }
+                  ]
+                }
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 378,
+      "result": {
+        "name": "infer_nested_generic_function",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f()\n            local function id(x)\n                return x\n            end\n            local x: string = id(\"hi\")\n            local y: number = id(37)\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 392,
+      "result": {
+        "name": "calling_self_generic_methods",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local x = {}\n        function x:id(x) return x end\n        function x:f()\n            local x: string = self:id(\"hi\")\n            local y: number = self:id(37)\n        end\n    ",
+            "expect": [
+              {
+                "errors": "some"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 406,
+      "result": {
+        "name": "infer_generic_property",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local t = {}\n        t.m = function(x) return x end\n        local x: string = t.m(\"hi\")\n        local y: number = t.m(37)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 417,
+      "result": {
+        "name": "function_arguments_can_be_polytypes",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f(g: <a>(a)->a)\n            local x: number = g(37)\n            local y: string = g(\"hi\")\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 428,
+      "result": {
+        "name": "function_results_can_be_polytypes",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f() : <a>(a)->a\n            local function id<a>(x:a):a return x end\n            return id\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 439,
+      "result": {
+        "name": "type_parameters_can_be_polytypes",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function id<a>(x:a):a return x end\n        local f: <a>(a)->a = id(id)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 448,
+      "result": {
+        "name": "dont_leak_generic_types",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f(y)\n            -- this will only typecheck if we infer z: any\n            -- so f: (any)->(any)\n            local z = y\n            local function id(x)\n                z = x -- this assignment is what forces z: any\n                return x\n            end\n            local x: string = id(\"hi\")\n            local y: number = id(37)\n            return z\n        end\n        -- so this assignment should fail\n        local b: boolean = f(true)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 479,
+      "result": {
+        "name": "dont_leak_inferred_generic_types",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f(y)\n            local z = y\n            local function id(x)\n                z = x\n                return x\n            end\n            local x: string = id(\"hi\")\n            local y: number = id(37)\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 505,
+      "result": {
+        "name": "dont_substitute_bound_types",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type T = { m: <a>(a) -> T }\n        function f(t : T)\n            local x: T = t.m(37)\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 517,
+      "result": {
+        "name": "dont_unify_bound_types",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type F = <a>() -> <b>(a, b) -> a\n        type G = <b>(b, b) -> b\n        local f: F = function<a>()\n          local x\n          return function<b>(y: a, z: b): a\n            if not(x) then x = y end\n            return x\n          end\n        end\n        -- This assignment shouldn't typecheck\n        -- If it does, it means we instantiated\n        -- f as () -> <b>(X, b) -> X, then unified X to be b\n        local g: G = f()\n        -- Oh dear, if that works then the type system is unsound\n        local a : string = g(\"not a number\", \"hi\")\n        local b : number = g(5, 37)\n    ",
+            "expect": [
+              {
+                "errors": "some"
+              }
+            ],
+            "unparsed": {
+              "defect": 1375
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 540,
+      "result": {
+        "name": "mutable_state_polymorphism",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        -- Our old friend the polymorphic identity function\n        local function id(x) return x end\n        local a: string = id(\"hi\")\n        local b: number = id(37)\n\n        -- This allows <a>(a)->a to be expressed without generic function syntax\n        type Id = typeof(id)\n\n        -- This function should have type\n        -- <a>() -> (a) -> a\n        -- not type\n        -- () -> <a>(a) -> a\n        local function ohDear(): Id\n          local y\n          function oh(x)\n            -- Returns the same x every time it's called\n            if not(y) then y = x end\n            return y\n          end\n          return oh\n        end\n\n        -- oh dear, f claims to polymorphic which it shouldn't be\n        local f: Id = ohDear()\n\n        -- the first call sets y\n        local a: string = f(\"not a number\")\n        -- so b has value \"not a number\" at run time\n        local b: number = f(37)\n    ",
+            "expect": [
+              {
+                "errors": "some"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 580,
+      "result": {
+        "name": "rank_N_types_via_typeof",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local function id(x) return x end\n        local x: string = id(\"hi\")\n        local y: number = id(37)\n        -- This allows <a>(a)->a to be expressed without generic function syntax\n        type Id = typeof(id)\n        -- The rank 1 restriction causes this not to typecheck, since it's\n        -- declared as returning a polytype.\n        local function returnsId(): Id\n          return id\n        end\n        -- So this won't typecheck\n        local f: Id = returnsId()\n        local a: string = f(\"hi\")\n        local b: number = f(37)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 605,
+      "result": {
+        "name": "duplicate_generic_types",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a,a>(x:a):a return x end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 613,
+      "result": {
+        "name": "duplicate_generic_type_packs",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a...,a...>() end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 621,
+      "result": {
+        "name": "typepacks_before_types",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a...,b>() end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 629,
+      "result": {
+        "name": "variadic_generics",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a>(...: a) end\n\n        type F<a> = (...a) -> ...a\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "unparsed": {
+              "defect": 876
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 640,
+      "result": {
+        "name": "generic_type_pack_syntax",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a...>(...: a...): (a...) return ... end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "<a...>(a...) -> (a...)"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 650,
+      "result": {
+        "name": "generic_type_pack_parentheses",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a...>(...: a...): any return (...) end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 664,
+      "result": {
+        "name": "better_mismatch_error_messages",
+        "fixture": "Fixture",
+        "flags": {
+          "LuauStrictVisitInstantiatedType": true
+        },
+        "checks": [
+          {
+            "source": "\n        function f<T>(...: T...)\n            return ...\n        end\n\n        function g<T...>(a: T)\n            return a\n        end\n    ",
+            "expect": [
+              {
+                "errors": 2
+              },
+              {
+                "error": 0,
+                "code": "SwappedGenericTypeParameter"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "name": "T"
+                }
+              },
+              {
+                "error": 1,
+                "code": "SwappedGenericTypeParameter"
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "name": "T"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "kind": "Pack"
+                }
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "kind": "Type"
+                }
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 693,
+      "result": {
+        "name": "reject_clashing_generic_and_pack_names",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a, a...>() end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "DuplicateGenericParameter"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "parameterName": "a"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 705,
+      "result": {
+        "name": "instantiation_sharing_types",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(z)\n          local o = {}\n          o.x = o\n          o.y = {5}\n          o.z = z\n          return o\n        end\n        local o1 = f(true)\n        local x1, y1, z1 = o1.x, o1.y, o1.z\n        local o2 = f(\"hi\")\n        local x2, y2, z2 = o2.x, o2.y, o2.z\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "y1",
+                "sameAs": {
+                  "type": "y2"
+                }
+              },
+              {
+                "type": "x1",
+                "notSameAs": {
+                  "type": "x2"
+                }
+              },
+              {
+                "type": "z1",
+                "notSameAs": {
+                  "type": "z2"
+                }
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 729,
+      "result": {
+        "name": "quantification_sharing_types",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x) return {5} end\n        function g(x, y) return f(x) end\n        local z1 = f(5)\n        local z2 = g(true, \"hi\")\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "z1",
+                "sameAs": {
+                  "type": "z2"
+                }
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 744,
+      "result": {
+        "name": "typefuns_sharing_types",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type T<a> = { x: {a}, y: {number} }\n        local o1: T<boolean> = { x = {true}, y = {5} }\n        local x1, y1 = o1.x, o1.y\n        local o2: T<string> = { x = {\"hi\"}, y = {37} }\n        local x2, y2 = o2.x, o2.y\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "y1",
+                "sameAs": {
+                  "type": "y2"
+                }
+              },
+              {
+                "type": "x1",
+                "notSameAs": {
+                  "type": "x2"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 759,
+      "result": {
+        "name": "bound_tables_do_not_clone_original_fields",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\nlocal exports = {}\nlocal nested = {}\n\nnested.name = function(t, k)\n    local a = t.x.y\n    return rawget(t, k)\nend\n\nexports.nested = nested\nreturn exports\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 777,
+      "result": {
+        "name": "instantiated_function_argument_names_old_solver",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f<T, U...>(a: T, ...: U...) end\n\n        f(1, 2, 3)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "typeAt": [
+                  3,
+                  8
+                ]
+              },
+              {
+                "typeAt": [
+                  3,
+                  8
+                ],
+                "equals": "(a: number, number, number) -> ()"
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 796,
+      "result": {
+        "name": "error_detailed_function_mismatch_generic_types",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\ntype C = () -> ()\ntype D = <T>() -> ()\n\nlocal c: C\nlocal d: D = c\n    ",
+            "expect": [
+              {
+                "errors": 2
+              },
+              {
+                "error": 0,
+                "code": "GenericTypeCountMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "subTyGenericCount": 1
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "superTyGenericCount": 0
+                }
+              },
+              {
+                "error": 1,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "givenType": "() -> ()"
+                }
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "wantedType": "<T>() -> ()"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 827,
+      "result": {
+        "name": "generic_function_mismatch_with_argument",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\ntype C = (number) -> ()\ntype D = <T>(number) -> ()\n\nlocal c: C\nlocal d: D = c\n    ",
+            "expect": [
+              {
+                "errors": 2
+              },
+              {
+                "error": 0,
+                "code": "GenericTypeCountMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "subTyGenericCount": 1
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "superTyGenericCount": 0
+                }
+              },
+              {
+                "error": 1,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "givenType": "(number) -> ()"
+                }
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "wantedType": "<T>(number) -> ()"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 859,
+      "result": {
+        "name": "error_detailed_function_mismatch_generic_pack",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\ntype C = () -> ()\ntype D = <T...>() -> ()\n\nlocal c: C\nlocal d: D = c\n    ",
+            "expect": [
+              {
+                "errors": 2
+              },
+              {
+                "error": 0,
+                "code": "GenericTypePackCountMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "subTyGenericPackCount": 1
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "superTyGenericPackCount": 0
+                }
+              },
+              {
+                "error": 1,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "givenType": "() -> ()"
+                }
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "wantedType": "<T...>() -> ()"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 891,
+      "result": {
+        "name": "generic_functions_dont_cache_type_parameters",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n-- See https://github.com/luau-lang/luau/issues/332\n-- This function has a type parameter with the same name as clones,\n-- so if we cache type parameter names for functions these get confused.\n-- function id<Z>(x : Z) : Z\nfunction id<X>(x : X) : X\n  return x\nend\n\nfunction clone<X, Y>(dict: {[X]:Y}): {[X]:Y}\n  local copy = {}\n  for k, v in pairs(dict) do\n    copy[k] = v\n  end\n  return copy\nend\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 914,
+      "result": {
+        "name": "generic_functions_should_be_memory_safe",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n--!strict\n-- At one point this produced a UAF\ntype T<a> = { a: U<a>, b: a }\ntype U<a> = { c: T<a>?, d : a }\nlocal x: T<number> = { a = { c = nil, d = 5 }, b = 37 }\nx.a.c = x\nlocal y: T<string> = { a = { c = nil, d = 5 }, b = 37 }\ny.a.c = y\n    ",
+            "expect": [
+              {
+                "errors": 2
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 1,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "location": [
+                  7,
+                  42,
+                  7,
+                  43
+                ]
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "number"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "wantedType": "string"
+                }
+              },
+              {
+                "error": 1,
+                "location": [
+                  7,
+                  51,
+                  7,
+                  53
+                ]
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "givenType": "number"
+                }
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "wantedType": "string"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 955,
+      "result": {
+        "name": "generic_type_pack_unification1",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n--!strict\ntype Dispatcher = {\n\tuseMemo: <T...>(create: () -> T...) -> T...\n}\n\nlocal TheDispatcher: Dispatcher = {\n\tuseMemo = function<U...>(create: () -> U...): U...\n\t\treturn create()\n\tend\n}\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 973,
+      "result": {
+        "name": "generic_type_pack_unification2",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n--!strict\ntype Dispatcher = {\n\tuseMemo: <T...>(create: () -> T...) -> T...\n}\n\nlocal TheDispatcher: Dispatcher = {\n\tuseMemo = function(create)\n\t\treturn create()\n\tend\n}\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 991,
+      "result": {
+        "name": "generic_type_pack_unification3",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n--!strict\ntype Dispatcher = {\n\tuseMemo: <S,T...>(arg: S, create: (S) -> T...) -> T...\n}\n\nlocal TheDispatcher: Dispatcher = {\n\tuseMemo = function<T,U...>(arg: T, create: (T) -> U...): U...\n\t\treturn create(arg)\n\tend\n}\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1009,
+      "result": {
+        "name": "generic_argument_count_too_few",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\nfunction test(a: number)\n    return 1\nend\n\nfunction wrapper<A...>(f: (A...) -> number, ...: A...)\nend\n\nwrapper(test)\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "CountMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "expected": 2
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "actual": 1
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "context": "Arg"
+                }
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1037,
+      "result": {
+        "name": "generic_argument_count_too_many",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\nfunction test2(a: number, b: string)\n    return 1\nend\n\nfunction wrapper<A...>(f: (A...) -> number, ...: A...)\nend\n\nwrapper(test2, 1, \"\", 3)\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "CountMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "expected": 3
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "actual": 4
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "context": "Arg"
+                }
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1065,
+      "result": {
+        "name": "generic_argument_count_just_right",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\nfunction test2(a: number, b: string)\n    return 1\nend\n\nfunction wrapper<A...>(f: (A...) -> number, ...: A...)\nend\n\nwrapper(test2, 1, \"\")\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1083,
+      "result": {
+        "name": "generic_argument_pack_type_inferred_from_return",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function test2(a: number)\n            return \"hello\"\n        end\n\n        function wrapper<A...>(f: (number) -> A..., ...: A...)\n        end\n\n        wrapper(test2, 1)\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "wantedType": "string"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "number"
+                }
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1113,
+      "result": {
+        "name": "generic_argument_pack_type_inferred_from_return_no_error",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\nfunction test2(a: number)\n    return \"hello\"\nend\n\nfunction wrapper<A...>(f: (number) -> A..., ...: A...)\nend\n\nwrapper(test2, \"hello\")\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1131,
+      "result": {
+        "name": "nested_generic_argument_type_packs",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\nfunction test2(a: number)\n    return 3\nend\n\nfunction foo<B...>(f: (B...) -> number, ...: B...)\n    return f(...)\nend\n\n-- want A... to contain a generic type pack too\n\nfunction wrapper<A...>(f: (A...) -> number, ...: A...)\nend\n\n-- A... = ((B...) -> number, B...))\n-- B... = (number)\n-- A... = ((number) -> number, number)\nwrapper(foo, test2, 3) -- ok\nwrapper(foo, test2, 3, 3) -- not ok (too many args)\nwrapper(foo, test2) -- not ok (not enough args)\nwrapper(foo, test2, \"3\") -- not ok (type mismatch, string instead of number)\n    ",
+            "expect": [
+              {
+                "errors": 3
+              },
+              {
+                "error": 0,
+                "location": [
+                  18,
+                  0,
+                  18,
+                  7
+                ]
+              },
+              {
+                "error": 0,
+                "code": "CountMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "expected": 3
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "actual": 4
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "context": "Arg"
+                }
+              },
+              {
+                "error": 1,
+                "location": [
+                  19,
+                  0,
+                  19,
+                  7
+                ]
+              },
+              {
+                "error": 1,
+                "code": "CountMismatch"
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "expected": 3
+                }
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "actual": 2
+                }
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "context": "Arg"
+                }
+              },
+              {
+                "error": 2,
+                "location": [
+                  20,
+                  20,
+                  20,
+                  23
+                ]
+              },
+              {
+                "error": 2,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 2,
+                "fields": {
+                  "wantedType": "number"
+                }
+              },
+              {
+                "error": 2,
+                "fields": {
+                  "givenType": "string"
+                }
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1189,
+      "result": {
+        "name": "generic_function",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function id(x) return x end\n        local a = id(55)\n        local b = id(nil)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "id",
+                "equals": "<T>(T) -> T"
+              },
+              {
+                "type": "a",
+                "equals": "number"
+              },
+              {
+                "type": "b",
+                "equals": "nil"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1206,
+      "result": {
+        "name": "generic_table_method",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local T = {}\n\n        function T:bar(i)\n            return i\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "T",
+                "kind": "TableType",
+                "hasProperty": [
+                  "bar"
+                ]
+              },
+              {
+                "type": "T",
+                "path": [
+                  {
+                    "property": "bar"
+                  }
+                ],
+                "kind": "FunctionType"
+              },
+              {
+                "type": "T",
+                "path": [
+                  {
+                    "property": "bar"
+                  },
+                  {
+                    "argument": 1
+                  }
+                ],
+                "kind": "GenericType"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1239,
+      "result": {
+        "name": "correctly_instantiate_polymorphic_member_functions",
+        "fixture": "Fixture",
+        "flags": {
+          "DebugLuauAssertOnForcedConstraint": true
+        },
+        "checks": [
+          {
+            "source": "\n        local T = {}\n\n        function T:foo()\n            return T:bar(5)\n        end\n\n        function T:bar(i)\n            return i\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "T",
+                "kind": "TableType",
+                "hasProperty": [
+                  "foo"
+                ]
+              },
+              {
+                "type": "T",
+                "path": [
+                  {
+                    "property": "foo"
+                  }
+                ],
+                "kind": "FunctionType"
+              },
+              {
+                "type": "T",
+                "path": [
+                  {
+                    "property": "foo"
+                  },
+                  {
+                    "result": 0
+                  }
+                ],
+                "equals": "number"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1288,
+      "result": {
+        "name": "instantiate_cyclic_generic_function",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(o)\n            o:method()\n        end\n\n        function g(o)\n            f(o)\n        end\n    ",
+            "expect": [
+              {
+                "type": "g",
+                "kind": "FunctionType"
+              },
+              {
+                "type": "g",
+                "path": [
+                  {
+                    "argument": 0
+                  }
+                ],
+                "kind": "TableType",
+                "hasProperty": [
+                  "method"
+                ]
+              },
+              {
+                "type": "g",
+                "path": [
+                  {
+                    "argument": 0
+                  },
+                  {
+                    "property": "method"
+                  }
+                ],
+                "kind": "FunctionType"
+              },
+              {
+                "type": "g",
+                "path": [
+                  {
+                    "argument": 0
+                  },
+                  {
+                    "property": "method"
+                  },
+                  {
+                    "argument": 0
+                  }
+                ],
+                "sameAs": {
+                  "type": "g",
+                  "path": [
+                    {
+                      "argument": 0
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1324,
+      "result": {
+        "name": "instantiate_generic_function_in_assignments",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function foo(a, b)\n            return a(b)\n        end\n\n        function bar()\n            local c: ((number)->number, number)->number = foo -- no error\n            c = foo -- no error\n            local d: ((number)->number, string)->number = foo -- error from arg 2 (string) not being convertible to number from the call a(b)\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "wantedType": "((number) -> number, string) -> number"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "<T, U...>((T) -> (U...), T) -> (U...)"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "((number) -> number, number) -> number"
+                }
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1355,
+      "result": {
+        "name": "instantiate_generic_function_in_assignments2",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function foo(a, b)\n            return a(b)\n        end\n\n        function bar()\n            local _: (string, string)->number = foo -- string cannot be converted to (string)->number\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "wantedType": "(string, string) -> number"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "<T, U...>((T) -> (U...), T) -> (U...)"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "((string) -> number, string) -> number"
+                }
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1384,
+      "result": {
+        "name": "self_recursive_instantiated_param",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\ntype Table = { a: number }\ntype Self<T> = T\nlocal a: Self<Table>\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "a",
+                "equals": "Table<Table>"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1400,
+      "result": {
+        "name": "no_stack_overflow_from_quantifying",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function _(l0:t0): (any, ()->())\n        end\n\n        type t0 = t0 | {}\n    ",
+            "expect": [
+              {
+                "errors": "some"
+              },
+              {
+                "alias": "t0"
+              },
+              {
+                "alias": "t0",
+                "equals": "any"
+              },
+              {
+                "anyError": "OccursCheckFailed"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1429,
+      "result": {
+        "name": "infer_generic_function_function_argument",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n            local function sum<a>(x: a, y: a, f: (a, a) -> add<a>)\n                return f(x, y)\n            end\n            return sum(2, 3, function<T>(a: T, b: T): add<T> return a + b end)\n        ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1459,
+      "result": {
+        "name": "infer_generic_function_function_argument_2",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local function map<a, b>(arr: {a}, f: (a) -> b): {b}\n            local r = {}\n            for i,v in ipairs(arr) do\n                table.insert(r, f(v))\n            end\n            return r\n        end\n        local a = {1, 2, 3}\n        local r = map(a, function(a: number) return a + a > 100 end)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "r",
+                "equals": "{boolean}"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1477,
+      "result": {
+        "name": "infer_generic_function_function_argument_3",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local function foldl<a, b>(arr: {a}, init: b, f: (b, a) -> b)\n            local r = init\n            for i,v in ipairs(arr) do\n                r = f(r, v)\n            end\n            return r\n        end\n        local a = {1, 2, 3}\n        local r = foldl(a, {s=0,c=0}, function(a: {s: number, c: number}, b: number) return {s = a.s + b, c = a.c + 1} end)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "r",
+                "equals": "{ c: number, s: number } | { c: number, s: number }"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1500,
+      "result": {
+        "name": "infer_generic_function_function_argument_overloaded_pt_1",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local g12: (<T>(T, (T) -> T) -> T) & (<T>(T, T, (T, T) -> T) -> T)\n\n        local a = g12(1, function(x) return x + x end)\n        local b = g12(1, 2, function(x, y) return x + y end)\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "type": "a",
+                "equals": "number | number"
+              },
+              {
+                "type": "b",
+                "equals": "add<unknown, unknown> | number"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1524,
+      "result": {
+        "name": "infer_generic_function_function_overloaded_pt_2",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local g12: (<T>(T, (T) -> T) -> T) & (<T>(T, T, (T, T) -> T) -> T)\n\n        local a = g12({x=1}, function(x) return {x=-x.x} end)\n        local b = g12({x=1}, {x=2}, function(x, y) return {x=x.x + y.x} end)\n    ",
+            "expect": [
+              {
+                "errors": 2
+              },
+              {
+                "type": "a",
+                "equals": "{ x: number } | { x: unm<unknown> }"
+              },
+              {
+                "type": "b",
+                "equals": "{ x: add<unknown, unknown> } | { x: number } | { x: number }"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1548,
+      "result": {
+        "name": "do_not_infer_generic_functions",
+        "fixture": "BuiltinsFixture",
+        "flags": {
+          "LuauRemovePrimitiveTypeConstraintAndSubtypingUnifier": true
+        },
+        "checks": [
+          {
+            "source": "\n            local function sum<T>(x: T, y: T, z: (T, T) -> T) return z(x, y) end\n\n            local function sumrec(f: typeof(sum))\n                return sum(2, 3, function<X>(g: X, h: X): add<X, X> return g + h end)\n            end\n\n            local b = sumrec(sum) -- ok\n            local c = sumrec(\n                function(d, e, f)\n                    return f(d, e)\n                end\n            ) -- type binders are not inferred\n        ",
+            "expect": [
+              {
+                "type": "b",
+                "equals": "number | number"
+              },
+              {
+                "type": "sum",
+                "equals": "<T>(T, T, (T, T) -> T) -> T"
+              },
+              {
+                "typeAt": [
+                  7,
+                  29
+                ],
+                "equals": "<T>(T, T, (T, T) -> T) -> T"
+              },
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1597,
+      "result": {
+        "name": "do_not_infer_generic_functions_2",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        type t = <a>(a, a, (a, a) -> a) -> a\n        type u = (number, number, <X>(X, X) -> X) -> number\n\n        local foo = (nil :: any) :: t\n        local bar : u = foo\n        ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1612,
+      "result": {
+        "name": "substitution_with_bound_table",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = { x: number }\n        local a: A = { x = 1 }\n        local b = a\n        type B = typeof(b)\n        type X<T> = T\n        local c: X<B>\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1626,
+      "result": {
+        "name": "apply_type_function_nested_generics1",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        type MyObject = {\n            getReturnValue: <V>(cb: () -> V) -> V\n        }\n        local object: MyObject = {\n            getReturnValue = function<U>(cb: () -> U): U\n                return cb()\n            end,\n        }\n\n        type ComplexObject<T> = {\n            id: T,\n            nested: MyObject\n        }\n\n        local complex: ComplexObject<string> = {\n            id = \"Foo\",\n            nested = object,\n        }\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1654,
+      "result": {
+        "name": "apply_type_function_nested_generics2",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n--!strict\ntype MyObject = {\n\tgetReturnValue: <V>(cb: () -> V) -> V\n}\ntype ComplexObject<T> = {\n\tid: T,\n\tnested: MyObject\n}\n\nfunction f(complex: ComplexObject<string>)\n    local x = complex.nested.getReturnValue(function(): string\n        return \"\"\n    end)\n\n    local y = complex.nested.getReturnValue(function()\n        return 3\n    end)\nend\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1681,
+      "result": {
+        "name": "apply_type_function_nested_generics3",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local getReturnValue: <V>(cb: () -> V) -> V = nil :: any\n\n        local y = getReturnValue(function() return nil :: any end)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1695,
+      "result": {
+        "name": "quantify_functions_with_no_generics",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function foo(f, x)\n            return f(x)\n        end\n    ",
+            "expect": [
+              {
+                "type": "foo",
+                "equals": "<T, U...>((T) -> (U...), T) -> (U...)"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1706,
+      "result": {
+        "name": "quantify_functions_even_if_they_have_an_explicit_generic",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function foo<X>(f, x: X)\n            return f(x)\n        end\n    ",
+            "expect": [
+              {
+                "type": "foo",
+                "equals": "<X, T...>((X) -> (T...), X) -> (T...)"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1717,
+      "result": {
+        "name": "no_extra_quantification_for_generic_functions",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function foo<X, Y>(f : (X) -> Y, x: X)\n            return f(x)\n        end\n    ",
+            "expect": [
+              {
+                "type": "foo",
+                "equals": "<X, Y>((X) -> Y, X) -> Y"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1728,
+      "result": {
+        "name": "do_not_always_instantiate_generic_intersection_types",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        type Array<T> = { [number]: T }\n\n        type Array_Statics = {\n            new: <T>() -> Array<T>,\n        }\n\n        local _Arr : Array<any> & Array_Statics = {} :: Array_Statics\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 1745,
+      "result": {
+        "name": "hof_subtype_instantiation_regression",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n--!strict\n\nlocal function defaultSort<T>(a: T, b: T)\n    return true\nend\ntype A = any\nreturn function<T>(array: {T}): {T}\n    table.sort(array, defaultSort)\n    return array\nend\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1765,
+      "result": {
+        "name": "higher_rank_polymorphism_should_not_accept_instantiated_arguments",
+        "fixture": "BuiltinsFixture",
+        "flags": {
+          "LuauInstantiateInSubtyping": true
+        },
+        "checks": [
+          {
+            "source": "\n--!strict\n\nlocal function instantiate(f: <a>(a) -> a): (number) -> number\n    return f\nend\n\ninstantiate(function(x: string) return \"foo\" end)\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "wantedType": "<a>(a) -> a"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "<a>(string) -> string"
+                }
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 1792,
+      "result": {
+        "name": "bidirectional_checking_and_generalization_play_nice",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local foo = function(a)\n            return a()\n        end\n\n        local a = foo(function() return 1 end)\n        local b = foo(function() return \"bar\" end)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "a",
+                "equals": "number"
+              },
+              {
+                "type": "b",
+                "equals": "string"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1809,
+      "result": {
+        "name": "generalization_no_cyclic_intersections",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local f, t, n = pairs({\"foo\"})\n        local k, v = f(t)\n    ",
+            "expect": [
+              {
+                "type": "f",
+                "equals": "({string}, number?) -> (number?, string)"
+              },
+              {
+                "type": "t",
+                "equals": "{string}"
+              },
+              {
+                "type": "k",
+                "equals": "number?"
+              },
+              {
+                "type": "v",
+                "equals": "string"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1822,
+      "result": {
+        "name": "missing_generic_type_parameter",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x: T): T return x end\n    ",
+            "expect": [
+              {
+                "errors": 2
+              },
+              {
+                "error": 0,
+                "code": "UnknownSymbol"
+              },
+              {
+                "error": 1,
+                "code": "UnknownSymbol"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1834,
+      "result": {
+        "name": "generic_implicit_explicit_name_clash",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function apply<a>(func, argument: a)\n            return func(argument)\n        end\n    ",
+            "expect": [
+              {
+                "type": "apply",
+                "equals": "<a, T...>((a) -> (T...), a) -> (T...)"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1847,
+      "result": {
+        "name": "generic_type_functions_work_in_subtyping",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local function addOne<T>(x: T): add<T, number> return x + 1 end\n\n        local function six(): number\n            return addOne(5)\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 1865,
+      "result": {
+        "name": "generic_type_subtyping_nested_bounds_with_new_mappings",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\ntype Dispatch<A> = (A) -> ()\ntype BasicStateAction<S> = ((S) -> S) | S\n\nfunction updateReducer<S, I, A>(reducer: (S, A) -> S, initialArg: I, init: ((I) -> S)?): (S, Dispatch<A>)\n    return 1 :: any, 2 :: any\nend\n\nfunction basicStateReducer<S>(state: S, action: BasicStateAction<S>): S\n    return action\nend\n\nfunction updateState<S>(initialState: (() -> S) | S): (S, Dispatch<BasicStateAction<S>>)\n    return updateReducer(basicStateReducer, initialState)\nend\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1892,
+      "result": {
+        "name": "generic_type_packs_shouldnt_be_bound_to_themselves",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\nexport type t1<T...> = {\n    foo: (self: t1<T...>, bar: (T...) -> ()) -> ()\n}\n\nexport type t2<T...> = {\n    baz: (self: t2<T...>) -> t1<T...>,\n}\n\nexport type t3<T...> = {\n    f: (self: t3<T...>, T...)->  (),\n    g: t1<T...>,\n    h: t1<(Player, T...)>\n}\n\nlocal t2 = {}\n\nfunction t2.new<T...>(): t2<T...>\nend\n\nlocal function create_t3<T...>(): t3<T...>\n    local t2_1 = t2.new()\n    local t2_2 = t2.new()\n    local my_t3 = {\n        f = function(_self: t3<T...>, ...: T...) end,\n        g = t2_1:baz(),\n        h = t2_2:baz()\n    }\n    return my_t3\nend\n    ",
+            "expect": [
+              {
+                "errors": 2
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1934,
+      "result": {
+        "name": "follow_bound_type_packs_in_generic_type_visitor",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\nfunction (_(_,_,nil))\n(if l0 then typeof else `{_:_()}`,typeof).n0<A...,A...>(l0)\nfunction _:_():typeof<A...>()\nend\nfunction _:_().typeof<A...>()\nend\nend\n    ",
+            "expect": [],
+            "malformed": "Pinned Luau parser reports 26 syntax errors; upstream only requires checking this malformed fuzzer source not to crash."
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1948,
+      "result": {
+        "name": "generic_packs_in_contravariant_position",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\nfunction f<A>(foo: (A) -> ()): () end\nfunction g<B...>(...: B...): () end\nf(g)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1959,
+      "result": {
+        "name": "generic_packs_in_contravariant_position_2",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\nfunction f(foo: (number) -> (number)): () end\ntype T = <A...>(A...) -> A...\nlocal t: T\nf(t)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1971,
+      "result": {
+        "name": "generic_packs_in_contravariant_position_3",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\nfunction f(foo: <B...>(B...) -> B...): () end\ntype T = <A...>(A...) -> A...\nlocal t: T\nf(t)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1983,
+      "result": {
+        "name": "generic_packs_in_contravariant_position_4",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\nfunction f(foo: <A...>(A...) -> A...): () end\ntype T = <B..., C...>(B...) -> C...\nlocal t: T\nf(t)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1997,
+      "result": {
+        "name": "generic_packs_in_contravariant_position_5",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\nfunction f(foo: (number) -> number): () end\ntype T = <A...>(A...) -> number\nlocal t: T\nf(t)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 2009,
+      "result": {
+        "name": "generic_packs_in_contravariant_position_6",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\nfunction f(foo: (...number) -> number): () end\ntype T = <A...>(A...) -> number\nlocal t: T\nf(t)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "unparsed": {
+              "defect": 876
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 2021,
+      "result": {
+        "name": "generic_packs_in_contravariant_position_7",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\nfunction f(foo: () -> ()): () end\ntype T = <A...>() -> A...\nlocal t: T\nf(t)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 2033,
+      "result": {
+        "name": "generic_packs_in_contravariant_position_8",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\nfunction f(foo: () -> ()): () end\ntype T = <A...>(A...) -> A...\nlocal t: T\nf(t)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 2045,
+      "result": {
+        "name": "nested_generic_packs",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\ntype T = <A...>(A...) -> (<A...>(A...) -> ())\ntype U = (string) -> ((number) -> ())\nlocal t: T\nlocal u: U = t\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 2059,
+      "result": {
+        "name": "ensure_that_invalid_generic_instantiations_error",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local func: <T>(T, (T) -> ()) -> () = nil :: any\n        local foobar: (number) -> () = nil :: any\n        func({}, foobar)\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 2071,
+      "result": {
+        "name": "ensure_that_invalid_generic_instantiations_error_1",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n\n        function insert<T>(arr: {T}, value: T)\n            return arr\n        end\n\n        local a: {number} = {}\n\n        local b = insert(a, \"five\")\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 2091,
+      "result": {
+        "name": "xpcall_should_work_with_generics",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n--!strict\nlocal v: (number) -> (number) = nil :: any\n\nlocal x = 3\n\nxpcall(v, print, x)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 2105,
+      "result": {
+        "name": "gh1985_array_of_union_for_generic",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local function clear<T>(arr: { T }) table.clear(arr) end\n        local a: { true | false }\n        -- This obviously shouldn't error, '{ true | false }' should fit '{ T }'\n        -- TypeError: The generic type parameter Twas found to have invalid bounds. Its lower bounds were [true, false], and its upper bounds were [true].\n        clear(a)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 2118,
+      "result": {
+        "name": "gh1985_array_of_union_for_generic_2",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local function id<T>(arr: { T }): { T } return arr end\n        local a: { true | false }\n        local b = id(a)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 2129,
+      "result": {
+        "name": "table_isfrozen_and_clear_work_on_any_table",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        type Array<T> = { [number]: T }\n        type Object = { [string]: any }\n\n        return function(t: Object | Array<any>)\n            if not table.isfrozen(t) then\n                table.clear(t)\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 2143,
+      "result": {
+        "name": "cli_179086_dont_ignore_explicit_variadics",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n\n        type Example<T...> = { Method: (T...) -> () }\n\n        local function CreateExample<T...>(Method: (T...) -> ()): Example<T...>\n            local self = {}\n            self.Method = Method\n            return self\n        end\n\n        local Object: Example<string> = CreateExample(function(a: string) end)\n\n        Object.Method(\"Hello World!\")\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 2162,
+      "result": {
+        "name": "oss_2075_generic_packs_should_not_be_dropped",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local function f<Return...>(callback: () -> Return...) end\n\n        f(function()\n            return 3\n        end)\n\n        local function g<Rest...>(callback: (x: string, Rest...) -> any) end\n        g(error)\n\n        type X<T...> = {\n            value: () -> T...,\n        }\n\n        local function foo<T...>(x: X<T...>) end\n\n        local function bar(x: X<string, number>)\n            foo(x)\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 2186,
+      "result": {
+        "name": "variadic_generics_dont_leak",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function makeApplier<A..., R...>(f: (A...) -> (R...))\n            return function (... : A...): R...\n                f(...)\n            end\n        end\n        local function add(x: number, y: number): number return x + y end\n        local f = makeApplier(add)\n    ",
+            "expect": [
+              {
+                "type": "f",
+                "equals": "(number, number) -> number"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 2201,
+      "result": {
+        "name": "id_function_do_not_leak_generic",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function id<T>(t: T) return t end\n        local function foo(x)\n            id(x)\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "foo",
+                "equals": "(unknown) -> ()"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 2217,
+      "result": {
+        "name": "cli_185450_instantiate_generics_prior_to_pushing",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        export type Parent = {\n            Func1:<P...> (self: Parent, value: boolean, P...) -> (Parent?),\n            Func2: (self: Parent, value: boolean) -> (Parent?),\n        }\n\n        export type Child = {\n            Parent: Parent,\n            Func: (self: Child) -> (Child?),\n        }\n\n        local Parent = {} :: Parent\n        local Child = {} :: Child\n\n        function Parent:Func1(value, ...)\n            if value then return self else return nil end\n        end\n\n        function Parent:Func2(value)\n            if value then return self else return nil end\n        end\n\n        function Child:Func()\n            if math.random() > 0.5 then return self else return nil end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    }
+  ],
+  "TypeInfer.typeInstantiations.test.cpp": [
+    {
+      "line": 18,
+      "result": {
+        "name": "as_expression_correct",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local function f<T>(): T\n            return nil :: any\n        end\n\n        local correct = f<<number>>() + 5\n        ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 35,
+      "result": {
+        "name": "as_expression_incorrect",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local function f<T>(): T\n            return nil :: any\n        end\n\n        local incorrect = f<<string>>() + 5\n        ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Operator '+' could not be applied to operands of types string and number; there is no corresponding overload for __add"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 64,
+      "result": {
+        "name": "as_stmt_correct",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local function f<T>(a: T, b: T)\n            return nil :: any\n        end\n\n        f<<number | string>>(1, \"a\")\n        ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true,
+            "unparsed": {
+              "defect": 1376
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 83,
+      "result": {
+        "name": "as_stmt_incorrect",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local function f<T>(a: T, b: T)\n            return nil :: any\n        end\n\n        f<<number | boolean>>(1, \"a\")\n        ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be 'boolean | number', but got 'string'"
+              }
+            ],
+            "ignoreMissingAnnotations": true,
+            "unparsed": {
+              "defect": 1376
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 113,
+      "result": {
+        "name": "multiple_calls",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local function f<T>(): T\n            return nil :: any\n        end\n\n        local a: number = f<<number>>()\n        local b: string = f<<string>>()\n        ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 131,
+      "result": {
+        "name": "anonymous_type_inferred",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local function f<T, U>(): { a: T, b: U }\n            return nil :: any\n        end\n\n        local correct: { a: number, b: string } = f<<number>>()\n        local incorrect: { a: number, b: string } = f<<string>>()\n        ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "line": 7
+              },
+              {
+                "anyError": "TypeMismatch"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 152,
+      "result": {
+        "name": "type_packs",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n    --!strict\n    local function f<T..., U...>(...: T...): U... end\n\n    local a: number, b: string = f<<(boolean, {}), (number, string)>>(true, {})\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "Upstream explicitly forces DebugLuauForceOldSolver=true; its assertions specify only the old solver (generic pack count mismatch FIXME)."
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 168,
+      "result": {
+        "name": "type_packs_method",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n    --!strict\n    local t: {\n        f: <T..., U...>(self: any, T...) -> U...,\n    } = nil :: any\n\n    local a: number, b: string = t:f<<(boolean, {}), (number, string)>>(true, {})\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "Upstream explicitly forces DebugLuauForceOldSolver=true; its assertions specify only the old solver (generic pack count mismatch FIXME)."
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 186,
+      "result": {
+        "name": "type_packs_incorrect",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n    --!strict\n    local function f<T..., U...>(...: T...): U... end\n\n    local a: number, b: string = f<<(boolean, {}), (number, string)>>(true, \"uh oh\")\n    ",
+            "expect": [
+              {
+                "anyError": "TypeMismatch"
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "Upstream explicitly forces DebugLuauForceOldSolver=true; its assertions specify only the old solver (generic pack count mismatch FIXME)."
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 202,
+      "result": {
+        "name": "type_packs_incorrect_method",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n    --!strict\n    local t: {\n        f: <T..., U...>(self: any, T...) -> U...,\n    } = nil :: any\n\n    local a: number, b: string = t:f<<(boolean, {}), (number, string)>>(true, \"uh oh\")\n    ",
+            "expect": [
+              {
+                "anyError": "TypeMismatch"
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "Upstream explicitly forces DebugLuauForceOldSolver=true; its assertions specify only the old solver (generic pack count mismatch FIXME)."
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 220,
+      "result": {
+        "name": "dot_index_call",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local t = {\n            f = function<T>(): T\n                return nil :: any\n            end,\n        }\n\n        local correct: number = t.f<<number>>()\n        local incorrect: number = t.f<<string>>()\n        ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "line": 9
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 241,
+      "result": {
+        "name": "method_index_call",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local t = {\n            f = function<T>(self: any): T\n                return nil :: any\n            end,\n        }\n\n        local correct: number = t:f<<number>>()\n        local incorrect: number = t:f<<string>>()\n        ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "anyError": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "line": 9
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 263,
+      "result": {
+        "name": "stored_as_variable",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local function f<T>(): T\n            return nil :: any\n        end\n\n        local fNumber = f<<number>>\n\n        local correct: number = fNumber()\n        local incorrect: string = fNumber()\n        ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "anyError": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "line": 9
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 285,
+      "result": {
+        "name": "not_a_function",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local oops = 3\n        local stub = oops<<number>>\n        ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "anyError": "InstantiateGenericsOnNonFunction"
+              },
+              {
+                "error": 0,
+                "message": "Cannot instantiate type parameters on something without type parameters."
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 302,
+      "result": {
+        "name": "metatable_call",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local t = setmetatable({}, {\n            __call = function<T>(self): T\n                return nil :: any\n            end,\n        })\n\n        t<<number>>()\n        ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "anyError": "InstantiateGenericsOnNonFunction"
+              },
+              {
+                "error": 0,
+                "message": "Luau does not currently support explicitly instantiating a table with a `__call` metamethod.                 You may be able to work around this by creating a function that calls the table, and using that instead."
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 324,
+      "result": {
+        "name": "method_call_incomplete",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local t = {\n            f = function<T, U>(self: any): T | U\n                return nil :: any\n            end,\n        }\n\n        local correct: number | string = t:f<<number>>()\n        local incorrect: number | string = t:f<<boolean>>()\n        ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "anyError": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "line": 9
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 346,
+      "result": {
+        "name": "too_many_provided",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local function f<T>() end\n\n        f<<number, string>>()\n        ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "anyError": "TypeInstantiationCountMismatch"
+              },
+              {
+                "error": 0,
+                "message": "Too many type parameters passed to 'f', which is typed as <T>(...any) -> (). Expected at most 1 type parameter, but 2 provided."
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 377,
+      "result": {
+        "name": "too_many_provided_type_packs",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local function f<T...>(): (T...) end\n\n        f<<(string, number), (true, false)>>()\n        ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "anyError": "TypeInstantiationCountMismatch"
+              },
+              {
+                "error": 0,
+                "message": "Too many type parameters passed to 'f', which is typed as <T...>(...any) -> (T...). Expected at most 1 type pack, but 2 provided."
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 408,
+      "result": {
+        "name": "too_many_provided_method",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local t = {\n            f = function<T>(self: any) end,\n        }\n\n        t:f<<number, string>>()\n        ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "anyError": "TypeInstantiationCountMismatch"
+              },
+              {
+                "error": 0,
+                "line": 6
+              },
+              {
+                "error": 0,
+                "message": "Too many type parameters passed to function typed as <T>(any) -> (). Expected at most 1 type parameter, but 2 provided."
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 442,
+      "result": {
+        "name": "too_many_type_packs_provided_method",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local t = {\n            f = function<T...>(self: any): (T...) end,\n        }\n\n        t:f<<(number, string), (true, false)>>()\n        ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "anyError": "TypeInstantiationCountMismatch"
+              },
+              {
+                "error": 0,
+                "line": 6
+              },
+              {
+                "error": 0,
+                "message": "Too many type parameters passed to function typed as <T...>(any) -> (T...). Expected at most 1 type pack, but 2 provided."
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 476,
+      "result": {
+        "name": "function_intersections",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local f: (<T>(T) -> T) & (<T>(T?) -> T) = nil :: any\n        f<<number>>()\n        ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "anyError": "InstantiateGenericsOnNonFunction"
+              },
+              {
+                "error": 0,
+                "line": 3
+              },
+              {
+                "error": 0,
+                "message": "Luau does not currently support explicitly instantiating an overloaded function type."
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 493,
+      "result": {
+        "name": "incomplete_type_packs",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n            local f: <A, T...>() -> (A, T...) = nil :: any\n            local correct: string, b: number, c: boolean = f<<string>>()\n            local incorrect: number, b: number, c: boolean = f<<string>>()\n        ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "anyError": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "line": 3
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 509,
+      "result": {
+        "name": "replacing_generic_with_generic",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local foo: <A, B>() -> (A, B) = nil :: any\n\n        local function bar<T>()\n            return foo<<T, number>>()\n        end\n\n        local baz, quxx = bar<<string>>()\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "baz",
+                "equals": "string"
+              },
+              {
+                "type": "quxx",
+                "equals": "number"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 533,
+      "result": {
+        "name": "unknown_type_in_explicit_type_instantiation",
+        "fixture": "Fixture",
+        "flags": {
+          "LuauStrictVisitInstantiatedType": true
+        },
+        "checks": [
+          {
+            "source": "\n        local function f<T>() end\n        f<<Typo>>()\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Unknown type 'Typo'"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 546,
+      "result": {
+        "name": "unknown_type_pack_in_explicit_type_instantiation",
+        "fixture": "Fixture",
+        "flags": {
+          "LuauStrictVisitInstantiatedType": true
+        },
+        "checks": [
+          {
+            "source": "\n        local function f<T...>() end\n        f<<(Typo)>>()\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Unknown type 'Typo'"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 559,
+      "result": {
+        "name": "typeof_in_method_call_type_args_no_crash",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local t = {}\n        function t:f<T, U>() end\n\n        local x = 5\n        globl = 42\n\n        t:f<<typeof(x), string>>()\n        t:f<<number, typeof(x)>>()\n        t:f<<typeof(globl), unknown>>()\n        t:f<<typeof(t.f), unknown>>()\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "UnknownSymbol"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 579,
+      "result": {
+        "name": "typeof_local_in_type_pack_no_crash",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local t = {}\n        function t:f<T...>() end\n\n        local x = 5\n\n        t:f<<(string, typeof(x))>>()\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    }
+  ],
+  "TypeInfer.aliases.test.cpp": [
+    {
+      "line": 21,
+      "result": {
+        "name": "basic_alias",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type T = number\n        local x: T = 1\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "x",
+                "equals": "number"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 32,
+      "result": {
+        "name": "cyclic_function_type_in_type_alias",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type F = () -> F?\n        local function f()\n            return f\n        end\n\n        local g: F = f\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "g",
+                "equals": "t1 where t1 = () -> t1?"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 49,
+      "result": {
+        "name": "names_are_ascribed",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type T = { x: number }\n        local x: T\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "x",
+                "equals": "T"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 60,
+      "result": {
+        "name": "cannot_steal_hoisted_type_alias",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local x: T = \"foo\"\n        type T = number\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch",
+                "location": [
+                  1,
+                  21,
+                  1,
+                  26
+                ],
+                "fields": {
+                  "wantedType": "number",
+                  "givenType": "string"
+                },
+                "moduleMatchesCheck": true
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 110,
+      "result": {
+        "name": "mismatched_generic_type_param",
+        "fixture": "Fixture",
+        "flags": {
+          "LuauStrictVisitInstantiatedType": true
+        },
+        "checks": [
+          {
+            "source": "\n        type T<A> = (A...) -> ()\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Generic type 'A' is used as a variadic type parameter; consider changing 'A' to 'A...' in the generic argument list"
+              },
+              {
+                "error": 0,
+                "location": [
+                  1,
+                  21,
+                  1,
+                  25
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 126,
+      "result": {
+        "name": "mismatched_generic_pack_type_param",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type T<A...> = (A) -> ()\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Variadic type parameter 'A...' is used as a regular generic type; consider changing 'A...' to 'A' in the generic argument list"
+              },
+              {
+                "error": 0,
+                "location": [
+                  1,
+                  24,
+                  1,
+                  25
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 140,
+      "result": {
+        "name": "default_type_parameter",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type T<A = number, B = string> = { a: A, b: B }\n        local x: T<string> = { a = \"foo\", b = \"bar\" }\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "x",
+                "equals": "T<string, string>"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 151,
+      "result": {
+        "name": "default_pack_parameter",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type T<A... = (number, string)> = { fn: (A...) -> () }\n        local x: T\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "x",
+                "equals": "T<number, string>"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 162,
+      "result": {
+        "name": "saturate_to_first_type_pack",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type T<A, B, C...> = { fn: (A, B) -> C... }\n        local x: T<string, number, string, boolean>\n        local f = x.fn\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "x",
+                "equals": "T<string, number, string, boolean>"
+              },
+              {
+                "type": "f",
+                "equals": "(string, number) -> (string, boolean)"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 175,
+      "result": {
+        "name": "cyclic_types_of_named_table_fields_do_not_expand_when_stringified",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        type Node = { Parent: Node?; }\n\n        function f(node: Node)\n            node.Parent = 1\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "wantedType": "Node?"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "number"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 194,
+      "result": {
+        "name": "mutually_recursive_aliases",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        type T = { f: number, g: U }\n        type U = { h: number, i: T? }\n        local x: T = { f = 37, g = { h = 5, i = nil } }\n        x.g.i = x\n        local y: T = { f = 3, g = { h = 5, i = nil } }\n        y.g.i = y\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 209,
+      "result": {
+        "name": "generic_aliases",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type T<a> = { v: a }\n        local x: T<number> = { v = 123 }\n        local y: T<string> = { v = \"foo\" }\n        local bad: T<number> = { v = \"foo\" }\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "location": [
+                  4,
+                  37,
+                  4,
+                  42
+                ]
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be 'number', but got 'string'"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 225,
+      "result": {
+        "name": "dependent_generic_aliases",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type T<a> = { v: a }\n        type U<a> = { t: T<a> }\n        local x: U<number> = { t = { v = 123 } }\n        local bad: U<number> = { t = { v = \"foo\" } }\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "location": [
+                  4,
+                  43,
+                  4,
+                  48
+                ]
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be 'number', but got 'string'"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 241,
+      "result": {
+        "name": "mutually_recursive_generic_aliases",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        type T<a> = { f: a, g: U<a> }\n        type U<a> = { h: a, i: T<a>? }\n        local x: T<number> = { f = 37, g = { h = 5, i = nil } }\n        x.g.i = x\n        local y: T<string> = { f = \"hi\", g = { h = \"lo\", i = nil } }\n        y.g.i = y\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 256,
+      "result": {
+        "name": "mutually_recursive_types_errors",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        type T<a> = { f: a, g: U<a> }\n        type U<b> = { h: b, i: T<b>? }\n        local x: T<number> = { f = 37, g = { h = 5, i = nil } }\n        x.g.i = x\n        local y: T<string> = { f = \"hi\", g = { h = 5, i = nil } }\n        y.g.i = y\n    ",
+            "expect": [
+              {
+                "errors": "some"
+              },
+              {
+                "everyError": {
+                  "messageExcludes": "VALUELESS"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 283,
+      "result": {
+        "name": "use_table_name_and_generic_params_in_errors",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type Pair<T, U> = {first: T, second: U}\n        local a: Pair<string, number>\n        local b: Pair<string, string>\n\n        a = b\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "wantedType": "Pair<string, number>"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "Pair<string, string>"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 302,
+      "result": {
+        "name": "dont_stop_typechecking_after_reporting_duplicate_type_definition",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = number\n        type A = string -- Redefinition of type 'A', previously defined at line 1\n        local foo: string = 1 -- \"Type 'number' could not be converted into 'string'\"\n    ",
+            "expect": [
+              {
+                "errors": 2
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 313,
+      "result": {
+        "name": "stringify_type_alias_of_recursive_template_table_type",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type Table<T> = { a: T }\n        type Wrapped = Table<Wrapped>\n        local l: Wrapped = 2\n        ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "wantedType": "Wrapped"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "number"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 330,
+      "result": {
+        "name": "stringify_type_alias_of_recursive_template_table_type2",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type Table<T> = { a: T }\n        type Wrapped = (Table<Wrapped>) -> string\n        local l: Wrapped = 2\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "wantedType": "t1 where t1 = ({ a: t1 }) -> string"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "number"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 347,
+      "result": {
+        "name": "cli_38393_recursive_intersection_oom",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function _(l0:(t0)&((t0)&(((t0)&((t0)->()))->(typeof(_),typeof(# _)))),l39,...):any\n        end\n        type t0<t0> = ((typeof(_))&((t0)&(((typeof(_))&(t0))->typeof(_))),{n163:any,})->(any,typeof(_))\n        _(_)\n    ",
+            "expect": []
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 358,
+      "result": {
+        "name": "type_alias_fwd_declaration_is_precise",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local foo: Id<number> = 1\n        type Id<T> = T\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 368,
+      "result": {
+        "name": "corecursive_types_generic",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A<T> = {v:T, b:B<T>}\n        type B<T> = {v:T, a:A<T>}\n\n        function f(a: A<number>)\n            return a\n        end\n    ",
+            "expect": [
+              {
+                "decoratedSource": "\n        type A<T> = {v:T, b:B<T>}\n        type B<T> = {v:T, a:A<T>}\n\n        function f(a: A<number>): A<number>\n            return a\n        end\n    "
+              },
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 396,
+      "result": {
+        "name": "corecursive_function_types",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = () -> (number, B)\n        type B = () -> (string, A)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "alias": "A",
+                "equals": "t1 where t1 = () -> (number, () -> (string, t1))"
+              },
+              {
+                "alias": "B",
+                "equals": "t1 where t1 = () -> (string, () -> (number, t1))"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 409,
+      "result": {
+        "name": "generic_param_remap",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        -- An example of a forwarded use of a type that has different type arguments than parameters\n        type A<T,U> = {t:T, u:U, next:A<U,T>?}\n        local aa:A<number,string> = { t = 5, u = 'hi', next = { t = 'lo', u = 8 } }\n        local bb = aa\n    ",
+            "expect": [
+              {
+                "decoratedSource": "\n\n        type A<T,U> = {t:T, u:U, next:A<U,T>?}\n        local aa:A<number,string> = { t = 5, u = 'hi', next = { t = 'lo', u = 8 } }\n        local bb:A<number,string>=aa\n    "
+              },
+              {
+                "errors": "some"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 431,
+      "result": {
+        "name": "export_type_and_type_alias_are_duplicates",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        export type Foo = number\n        type Foo = number\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "DuplicateTypeDefinition"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "name": "Foo"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 445,
+      "result": {
+        "name": "reported_location_is_correct_when_type_alias_are_duplicates",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = string\n        type B = number\n        type C = string\n        type B = number\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "DuplicateTypeDefinition"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "name": "B"
+                }
+              },
+              {
+                "error": 0,
+                "fieldLocations": {
+                  "previousLocation": {
+                    "present": true,
+                    "line": 2
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 463,
+      "result": {
+        "name": "stringify_optional_parameterized_alias",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type Node<T> = { value: T, child: Node<T>? }\n\n        local function visitor<T>(node: Node<T>?)\n            local a: Node<T>\n\n            if node then\n                a = node.child -- Observe the output of the error message.\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "Node<T>?"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "wantedType": "Node<T>"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 485,
+      "result": {
+        "name": "general_require_multi_assign",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local Foo, Bar = require(workspace.A), require(workspace.B)\n\n        local a: Foo.myvec2\n        local b: Bar.myvec3\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "a",
+                "module": "workspace/C",
+                "kind": "TableType",
+                "properties": 2
+              },
+              {
+                "type": "b",
+                "module": "workspace/C",
+                "kind": "TableType",
+                "properties": 3
+              }
+            ],
+            "module": "workspace/C",
+            "moduleSources": {
+              "workspace/A": "\n        export type myvec2 = {x: number, y: number}\n        return {}\n    ",
+              "workspace/B": "\n        export type myvec3 = {x: number, y: number, z: number}\n        return {}\n    ",
+              "workspace/C": "\n        local Foo, Bar = require(workspace.A), require(workspace.B)\n\n        local a: Foo.myvec2\n        local b: Bar.myvec3\n    "
+            },
+            "unparsed": {
+              "defect": 879
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 518,
+      "result": {
+        "name": "type_alias_import_mutation",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "type t10<x> = typeof(table)",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "global": "table",
+                "equals": "typeof(table)",
+                "kind": "TableType",
+                "instantiatedTypeParameters": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 533,
+      "result": {
+        "name": "type_alias_local_mutation",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type Cool = { a: number, b: string }\n        local c: Cool = { a = 1, b = \"s\" }\n        type NotCool<x> = Cool\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "c"
+              },
+              {
+                "type": "c",
+                "equals": "Cool"
+              },
+              {
+                "type": "c",
+                "kind": "TableType"
+              },
+              {
+                "type": "c",
+                "instantiatedTypeParameters": 0
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 554,
+      "result": {
+        "name": "type_alias_local_rename",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\ntype Cool = { a: number, b: string }\ntype NotCool = Cool\nlocal c: Cool = { a = 1, b = \"s\" }\nlocal d: NotCool = { a = 1, b = \"s\" }\n",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "c"
+              },
+              {
+                "type": "c",
+                "equals": "Cool"
+              },
+              {
+                "type": "d"
+              },
+              {
+                "type": "d",
+                "equals": "NotCool"
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 575,
+      "result": {
+        "name": "type_alias_local_synthetic_mutation",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\nlocal c = { a = 1, b = \"s\" }\ntype Cool = typeof(c)\n",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "c"
+              },
+              {
+                "type": "c",
+                "kind": "TableType"
+              },
+              {
+                "type": "c",
+                "name": "Cool"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 591,
+      "result": {
+        "name": "type_alias_of_an_imported_recursive_type",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\nexport type X = { a: number, b: X? }\nreturn {}\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "module": "game/A",
+            "moduleSources": {
+              "game/A": "\nexport type X = { a: number, b: X? }\nreturn {}\n    "
+            }
+          },
+          {
+            "source": "\nlocal Import = require(game.A)\ntype X = Import.X\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "importedAlias": [
+                  "Import",
+                  "X"
+                ]
+              },
+              {
+                "alias": "X"
+              },
+              {
+                "importedAlias": [
+                  "Import",
+                  "X"
+                ],
+                "sameAs": {
+                  "alias": "X"
+                }
+              }
+            ],
+            "moduleSources": {
+              "game/A": "\nexport type X = { a: number, b: X? }\nreturn {}\n    "
+            },
+            "unparsed": {
+              "defect": 879
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 617,
+      "result": {
+        "name": "type_alias_of_an_imported_recursive_generic_type",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        export type X<T, U> = { a: T, b: U, C: X<T, U>? }\n        return {}\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "module": "game/A",
+            "moduleSources": {
+              "game/A": "\n        export type X<T, U> = { a: T, b: U, C: X<T, U>? }\n        return {}\n    "
+            }
+          },
+          {
+            "source": "\n        local Import = require(game.A)\n        type X<T, U> = Import.X<T, U>\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "importedAlias": [
+                  "Import",
+                  "X"
+                ]
+              },
+              {
+                "alias": "X"
+              },
+              {
+                "importedAlias": [
+                  "Import",
+                  "X"
+                ],
+                "printedSameAs": {
+                  "alias": "X"
+                },
+                "options": {
+                  "exhaustive": true
+                }
+              }
+            ],
+            "moduleSources": {
+              "game/A": "\n        export type X<T, U> = { a: T, b: U, C: X<T, U>? }\n        return {}\n    "
+            },
+            "unparsed": {
+              "defect": 879
+            }
+          },
+          {
+            "source": "\n        local Import = require(game.A)\n        type X<T, U> = Import.X<U, T>\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "importedAlias": [
+                  "Import",
+                  "X"
+                ],
+                "equals": "t1 where t1 = { C: t1?, a: T, b: U }",
+                "options": {
+                  "exhaustive": true
+                }
+              },
+              {
+                "alias": "X",
+                "equals": "t1 where t1 = { C: t1?, a: U, b: T }",
+                "options": {
+                  "exhaustive": true
+                }
+              }
+            ],
+            "moduleSources": {
+              "game/A": "\n        export type X<T, U> = { a: T, b: U, C: X<T, U>? }\n        return {}\n    "
+            },
+            "unparsed": {
+              "defect": 879
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 666,
+      "result": {
+        "name": "module_export_free_type_leak",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\nfunction get()\n    return function(obj) return true end\nend\n\nexport type f = typeof(get())\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 681,
+      "result": {
+        "name": "module_export_wrapped_free_type_leak",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\nfunction get()\n    return {a = 1, b = function(obj) return true end}\nend\n\nexport type f = typeof(get())\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 697,
+      "result": {
+        "name": "mutually_recursive_types_restriction_ok",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type Tree<T> = { data: T, children: Forest<T> }\n        type Forest<T> = {Tree<T>}\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "unparsed": {
+              "defect": 1370
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 707,
+      "result": {
+        "name": "mutually_recursive_types_restriction_not_ok_1",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        -- OK because forwarded types are used with their parameters.\n        type Tree<T> = { data: T, children: Forest<T> }\n        type Forest<T> = {Tree<{T}>}\n    ",
+            "expect": [
+              {
+                "errors": "some"
+              }
+            ],
+            "unparsed": {
+              "defect": 1370
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 718,
+      "result": {
+        "name": "mutually_recursive_types_restriction_not_ok_2",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        -- Not OK because forwarded types are used with different types than their parameters.\n        type Forest<T> = {Tree<{T}>}\n        type Tree<T> = { data: T, children: Forest<T> }\n    ",
+            "expect": [
+              {
+                "errors": "some"
+              }
+            ],
+            "unparsed": {
+              "defect": 1370
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 729,
+      "result": {
+        "name": "mutually_recursive_types_swapsies_ok",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type Tree1<T,U> = { data: T, children: {Tree2<U,T>} }\n        type Tree2<U,T> = { data: U, children: {Tree1<T,U>} }\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "unparsed": {
+              "defect": 1370
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 739,
+      "result": {
+        "name": "mutually_recursive_types_swapsies_not_ok",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type Tree1<T,U> = { data: T, children: {Tree2<U,T>} }\n        type Tree2<T,U> = { data: U, children: {Tree1<T,U>} }\n    ",
+            "expect": [
+              {
+                "errors": "some"
+              }
+            ],
+            "unparsed": {
+              "defect": 1370
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 749,
+      "result": {
+        "name": "free_variables_from_typeof_in_aliases",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x) return x[1] end\n        -- x has type X? for a free type variable X\n        local x = f ({})\n        type ContainsFree<a> = { this: a, that: typeof(x) }\n        type ContainsContainsFree = { that: ContainsFree<number> }\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 764,
+      "result": {
+        "name": "non_recursive_aliases_that_reuse_a_generic_name",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type Array<T> = { [number]: T }\n        type Tuple<T, V> = Array<T | V>\n\n        local p: Tuple<number, string>\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "p",
+                "equals": "{number | string}",
+                "options": {
+                  "exhaustive": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 786,
+      "result": {
+        "name": "do_not_quantify_unresolved_aliases",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n\n        local KeyPool = {}\n\n        local function newkey(pool: KeyPool, index)\n            return {}\n        end\n\n        function newKeyPool()\n            local pool = {\n                available = {} :: {Key},\n            }\n\n            return setmetatable(pool, KeyPool)\n        end\n\n        export type KeyPool = typeof(newKeyPool())\n        export type Key = typeof(newkey(newKeyPool(), 1))\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 820,
+      "result": {
+        "name": "generic_typevars_are_not_considered_to_escape_their_scope_if_they_are_reused_in_multiple_aliases",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type Array<T> = {T}\n        type Exclude<T, V> = T\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 837,
+      "result": {
+        "name": "forward_declared_alias_is_not_clobbered_by_prior_unification_with_any",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function x()\n            local y: FutureType = {}::any\n            return 1\n        end\n        type FutureType = { foo: typeof(x()) }\n        local d: FutureType = { smth = true } -- missing error, 'd' is resolved to 'any'\n    ",
+            "expect": [
+              {
+                "type": "d",
+                "equals": "{ foo: number }",
+                "options": {
+                  "exhaustive": true
+                }
+              },
+              {
+                "errors": 1
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 856,
+      "result": {
+        "name": "recursive_types_restriction_ok",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type Tree<T> = { data: T, children: {Tree<T>} }\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "unparsed": {
+              "defect": 1370
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 865,
+      "result": {
+        "name": "recursive_types_restriction_not_ok",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        -- this would be an infinite type if we allowed it\n        type Tree<T> = { data: T, children: {Tree<{T}>} }\n    ",
+            "expect": [
+              {
+                "errors": "some"
+              }
+            ],
+            "unparsed": {
+              "defect": 1370
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 875,
+      "result": {
+        "name": "report_shadowed_aliases",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type MyString = string\n        type string = number\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Redefinition of type 'string'"
+              },
+              {
+                "alias": "MyString"
+              },
+              {
+                "alias": "string"
+              },
+              {
+                "alias": "MyString",
+                "kind": "PrimitiveType",
+                "equals": "string"
+              },
+              {
+                "alias": "string",
+                "kind": "PrimitiveType",
+                "equals": "string"
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 899,
+      "result": {
+        "name": "it_is_ok_to_shadow_user_defined_alias",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type T = number\n\n        do\n            type T = string\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 912,
+      "result": {
+        "name": "cannot_create_cyclic_type_with_unknown_module",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type AAA = B.AAA\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Unknown type 'B.AAA'"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 922,
+      "result": {
+        "name": "type_alias_locations",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type T = number\n\n        do\n            type T = string\n            type X = boolean\n        end\n    ",
+            "expect": [
+              {
+                "scopes": {
+                  "minimum": 1,
+                  "aliases": [
+                    {
+                      "scope": 0,
+                      "name": "T",
+                      "location": [
+                        1,
+                        13,
+                        1,
+                        14
+                      ]
+                    },
+                    {
+                      "scopeAt": [
+                        4,
+                        0
+                      ],
+                      "name": "T",
+                      "location": [
+                        4,
+                        17,
+                        4,
+                        18
+                      ]
+                    },
+                    {
+                      "scopeAt": [
+                        4,
+                        0
+                      ],
+                      "name": "X",
+                      "location": [
+                        5,
+                        17,
+                        5,
+                        18
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 959,
+      "result": {
+        "name": "dont_lose_track_of_PendingExpansionTypes_after_substitution",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local RCD = require(script.Parent.Parent.Parent.ReactCurrentDispatcher)\n\n        local function resolveDispatcher(): RCD.Dispatcher\n            return (nil :: any) :: RCD.Dispatcher\n        end\n\n        function useState<S>(\n            initialState: (() -> S) | S\n        ): (S, RCD.Dispatch<RCD.BasicStateAction<S>>)\n            local dispatcher = resolveDispatcher()\n            return dispatcher.useState(initialState)\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "module": "game/React/React/ReactHooks",
+            "moduleSources": {
+              "game/ReactCurrentDispatcher": "\n        export type BasicStateAction<S> = ((S) -> S) | S\n        export type Dispatch<A> = (A) -> ()\n\n        export type Dispatcher = {\n            useState: <S>(initialState: (() -> S) | S) -> (S, Dispatch<BasicStateAction<S>>),\n        }\n\n        return {}\n    ",
+              "game/React/React/ReactHooks": "\n        local RCD = require(script.Parent.Parent.Parent.ReactCurrentDispatcher)\n\n        local function resolveDispatcher(): RCD.Dispatcher\n            return (nil :: any) :: RCD.Dispatcher\n        end\n\n        function useState<S>(\n            initialState: (() -> S) | S\n        ): (S, RCD.Dispatch<RCD.BasicStateAction<S>>)\n            local dispatcher = resolveDispatcher()\n            return dispatcher.useState(initialState)\n        end\n    "
+            },
+            "unparsed": {
+              "defect": 879
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 994,
+      "result": {
+        "name": "another_thing_from_roact",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type Map<K, V> = { [K]: V }\n        type Set<T> = { [T]: boolean }\n\n        type FiberRoot = {\n            pingCache: Map<Wakeable, (Set<any> | Map<Wakeable, Set<any>>)> | nil,\n        }\n\n        type Wakeable = {\n            andThen: (self: Wakeable) -> nil | Wakeable,\n        }\n\n        local function attachPingListener(root: FiberRoot, wakeable: Wakeable, lanes: number)\n            local pingCache: Map<Wakeable, (Set<any> | Map<Wakeable, Set<any>>)> | nil = root.pingCache\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1023,
+      "result": {
+        "name": "alias_expands_to_bare_reference_to_imported_type",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local A = require(script.Parent.A)\n\n        type Object = A.Object\n        type ReadOnly<T> = T\n\n        local function f(): ReadOnly<Object>\n            return nil :: any\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "module": "game/B",
+            "moduleSources": {
+              "game/A": "\n        --!strict\n        export type Object = {[string]: any}\n        return {}\n    ",
+              "game/B": "\n        local A = require(script.Parent.A)\n\n        type Object = A.Object\n        type ReadOnly<T> = T\n\n        local function f(): ReadOnly<Object>\n            return nil :: any\n        end\n    "
+            },
+            "unparsed": {
+              "defect": 879
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1046,
+      "result": {
+        "name": "table_types_record_the_property_locations",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type Table = {\n            create: () -> ()\n        }\n\n        local x: Table\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "alias": "Table",
+                "kind": "TableType",
+                "hasProperty": [
+                  "create"
+                ],
+                "propertyLocations": {
+                  "create": {
+                    "location": null,
+                    "typeLocation": [
+                      2,
+                      12,
+                      2,
+                      18
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1069,
+      "result": {
+        "name": "typeof_is_not_a_valid_alias_name",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type typeof = number\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "typeof cannot be used as an identifier for a type function or alias"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1087,
+      "result": {
+        "name": "fuzzer_bug_doesnt_crash",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\ntype t0 = (t0<t0...>)\n",
+            "expect": [
+              {
+                "errors": "some"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1096,
+      "result": {
+        "name": "recursive_type_alias_warns",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\ntype Foo<T> = Foo<T>\n",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "OccursCheckFailed"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1107,
+      "result": {
+        "name": "recursive_type_alias_bad_pack_use_warns",
+        "fixture": "Fixture",
+        "flags": {
+          "LuauStrictVisitInstantiatedType": true
+        },
+        "checks": [
+          {
+            "source": "\ntype Foo<T> = Foo<T...>\n",
+            "expect": [
+              {
+                "errors": 4
+              },
+              {
+                "anyError": "GenericError"
+              },
+              {
+                "error": 3,
+                "message": "Generic type 'Foo<T>' expects 1 type argument, but none are specified"
+              },
+              {
+                "error": 0,
+                "code": "OccursCheckFailed"
+              },
+              {
+                "error": 1,
+                "code": "SwappedGenericTypeParameter"
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "name": "T"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1128,
+      "result": {
+        "name": "corecursive_aliases",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\ntype Foo<T> = Bar<T>\ntype Bar<T> = Foo<T>\n",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "OccursCheckFailed"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1140,
+      "result": {
+        "name": "should_also_occurs_check",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\ntype Foo<T> = Foo<T> | string\n",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "OccursCheckFailed"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1150,
+      "result": {
+        "name": "type_alias_adds_reduce_constraint_for_type_function",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n    type plus<T> = add<number, T>\n\n    local sum: plus<number> = 10\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1164,
+      "result": {
+        "name": "bound_type_in_alias_segfault",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!nonstrict\n        type Map<T, V> = {[K]: V}\n        function foo:bar(): Config<any, any> end\n        type Config<TSource, TContext> = Map<TSource, TContext> & { fields: FieldConfigMap<any, any>}\n        export type FieldConfig<TSource, TContext, TArgs> = {[string]: any}\n        export type FieldConfigMap<TSource, TContext> = Map<string, FieldConfig<TSource, TContext>>\n    ",
+            "expect": [
+              {
+                "errors": 2
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1180,
+      "result": {
+        "name": "gh1632_no_infinite_recursion_in_normalization",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        type Node<T> = {\n            value: T,\n            next: Node<T>?,\n            -- remove `prev`, solves issue\n            prev: Node<T>?,\n        };\n\n        type List<T> = {\n            head: Node<T>?\n        }\n\n        local function IsFront(list: List<any>, nodeB: Node<any>)\n            -- remove if statement below, solves issue\n            if (list.head == nodeB) then\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1208,
+      "result": {
+        "name": "exported_alias_location_is_accessible_on_module",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        export type Value = string\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "exportedAlias": "Value",
+                "definitionLocation": [
+                  1,
+                  8,
+                  1,
+                  34
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1222,
+      "result": {
+        "name": "exported_type_function_location_is_accessible_on_module",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        export type function Apply()\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "exportedAlias": "Apply",
+                "definitionLocation": [
+                  1,
+                  8,
+                  2,
+                  11
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1241,
+      "result": {
+        "name": "fuzzer_cursed_type_aliases",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        export type t1<t0...> = t4<t0...>\n        export type t4<t2, t0...> = t4<t0...>\n    ",
+            "expect": []
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1251,
+      "result": {
+        "name": "type_alias_dont_crash_on_bad_name",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type typeof = typeof(nil :: any)\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "ReservedIdentifier"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1262,
+      "result": {
+        "name": "type_alias_dont_crash_on_duplicate_with_typeof",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = typeof(nil :: any)\n        type A = typeof(nil :: any)\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "DuplicateTypeDefinition"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1277,
+      "result": {
+        "name": "fuzzer_more_cursed_aliases",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\nexport type t138 = t0<t138>\nexport type t0<t0,t10,t10,t109> = t0\n    ",
+            "expect": []
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1285,
+      "result": {
+        "name": "evaluating_generic_default_type_shouldnt_ice",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\nlocal A = {}\ntype B<T = typeof(A)> = unknown\n",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1301,
+      "result": {
+        "name": "evaluating_generic_default_type_pack_shouldnt_ice",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\nlocal A = {}\ntype B<T... = ...typeof(A)> = unknown\n",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "unparsed": {
+              "defect": 876
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1317,
+      "result": {
+        "name": "evaluating_generic_default_type_for_symbol_before_definition_is_an_error",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\ntype B<T = typeof(A)> = unknown\nlocal A = {}\n",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "anyError": "UnknownSymbol"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1332,
+      "result": {
+        "name": "evaluating_generic_default_type_pack_for_symbol_before_definition_is_an_error",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\ntype B<T... = ...typeof(A)> = unknown\nlocal A = {}\n",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "anyError": "UnknownSymbol"
+              }
+            ],
+            "unparsed": {
+              "defect": 876
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1347,
+      "result": {
+        "name": "dont_allow_redefining_builtin_types",
+        "fixture": "BuiltinsFixture",
+        "flags": {
+          "LuauDisallowRedefiningBuiltinTypes": true
+        },
+        "checks": [
+          {
+            "source": "\n        type number = string\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "anyError": "DuplicateTypeDefinition"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1358,
+      "result": {
+        "name": "only_report_single_error_for_missing_generics_1",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type t0<A> = {[t0]: t0<A>}\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "IncorrectGenericParameterCount"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1370,
+      "result": {
+        "name": "only_report_single_error_for_missing_generics_2",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type Tree<A> = { [string]: Tree }\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "IncorrectGenericParameterCount"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1382,
+      "result": {
+        "name": "cyclic_type_alias_through_generic_does_not_assert",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = B\n        type B = { x: C<any> }\n        type C<T> = A\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "RecursiveRestraintViolation"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1403,
+      "result": {
+        "name": "unpack_doesnt_emplace_typeof_type",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local Obj = {}\n\n        local function g(): number\n            return 42\n        end\n\n        local val: typeof(Obj.Foo.Bar) = g()\n\n        Obj.Foo = {}\n        Obj.Foo.Bar = 42\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1421,
+      "result": {
+        "name": "unused_type_arguments",
+        "fixture": "BuiltinsFixture",
+        "flags": {
+          "LuauInstantiationCheckArguments": true
+        },
+        "checks": [
+          {
+            "source": "\n        type Foo<T> = {}\n        export type Export<T> = {Foo<Foo<T>>}\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "unparsed": {
+              "defect": 1370
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1431,
+      "result": {
+        "name": "type_argument_duplicate_pending_expansions",
+        "fixture": "BuiltinsFixture",
+        "flags": {
+          "LuauInstantiationCheckArguments": true,
+          "LuauInstantiationCheckArgumentsDedup": true
+        },
+        "checks": [
+          {
+            "source": "\ntype Sym<Kind = string> = { text: Kind }\ntype Data<T, U> = { [number]: T, separators: { Sym<U> } }\ntype MT<T, U> = { __iter: (Data<T, U>) -> (({ [number]: T }, number?) -> (number?, T), { T }) }\ntype Combined<T, U> = setmetatable<Data<T, U>, MT<T, U>>\n\ntype Instantiate0 = { typeArguments: Combined<Pack1 | Pack2 | Pack3 | Pack4, \",\"> }\ntype Instantiate1 = { typeArguments: Combined<Pack1 | Pack2 | Pack3 | Pack4, \",\"> }\ntype Instantiate2 = { typeArguments: Combined<Pack1 | Pack2 | Pack3 | Pack4, \",\"> }\ntype Instantiate3 = { typeArguments: Combined<Pack1 | Pack2 | Pack3 | Pack4, \",\"> }\ntype Instantiate4 = { typeArguments: Combined<Pack1 | Pack2 | Pack3 | Pack4, \",\"> }\ntype Instantiate5 = { typeArguments: Combined<Pack1 | Pack2 | Pack3 | Pack4, \",\"> }\ntype Instantiate6 = { typeArguments: Combined<Pack1 | Pack2 | Pack3 | Pack4, \",\"> }\ntype Instantiate7 = { typeArguments: Combined<Pack1 | Pack2 | Pack3 | Pack4, \",\"> }\ntype Instantiate8 = { typeArguments: Combined<Pack1 | Pack2 | Pack3 | Pack4, \",\"> }\ntype Instantiate9 = { typeArguments: Combined<Pack1 | Pack2 | Pack3 | Pack4, \",\"> }\n\ntype Pack1a = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack1b = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack1c = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack1d = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack1e = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack1 = Pack1a | Pack1b | Pack1c | Pack1d | Pack1e\n\ntype Pack2a = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack2b = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack2c = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack2d = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack2e = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack2 = Pack2a | Pack2b | Pack2c | Pack2d | Pack2e\n\ntype Pack3a = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack3b = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack3c = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack3d = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack3e = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack3 = Pack3a | Pack3b | Pack3c | Pack3d | Pack3e\n\ntype Pack4a = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack4b = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack4c = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack4d = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack4e = { a: Sym<\"a\">, b: Sym<\"b\">, c: Sym<\"c\">, d: Sym<\"d\">, e: Sym<\"e\">, f: Sym<\"e\"> }\ntype Pack4 = Pack4a | Pack4b | Pack4c | Pack4d | Pack4e\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "unparsed": {
+              "defect": 1370
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1485,
+      "result": {
+        "name": "blocked_type_alias_do_not_leak_generic_arguments",
+        "fixture": "BuiltinsFixture",
+        "flags": {
+          "LuauBlockingTypeAliasExpansion": true
+        },
+        "checks": [
+          {
+            "source": "\ntype Alias<Generic> = typeof(getmetatable(... :: Generic))\n\ntype Value = { x: number, y: number }\ntype Meta = setmetatable<Value, { __len : (Value) -> number }>\n\nlocal foo: Alias<Meta>\n\nlocal x: number = foo.__len({ x = 1, y = 2})\n\nreturn foo\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    }
+  ]
+}
