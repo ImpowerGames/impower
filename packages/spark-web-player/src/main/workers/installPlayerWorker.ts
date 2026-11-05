@@ -828,7 +828,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       kept && lastScenePoint
         ? { file: kept.file, line: kept.line + lastScenePoint.offset }
         : undefined;
-    if (keptPoint && spansHold(program.sceneSpans, keptPoint)) {
+    if (keptPoint && sceneNameAt(program, keptPoint) === lastScenePoint?.scene) {
       return startPointInScene(program, keptPoint, "last");
     }
     const start = sceneHeaderOf(program, "start");

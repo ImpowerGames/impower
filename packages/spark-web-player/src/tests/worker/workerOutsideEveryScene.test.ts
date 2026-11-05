@@ -259,6 +259,52 @@ end
     }
   }, 120_000);
 
+  it("falls back to the start scene, not the next scene, when the kept scene shrinks past its point", async () => {
+    const source = `style card {
+  background_color = black
+}
+
+scene start
+  Start fallback.
+end
+
+scene kept
+  First kept.
+  Second kept.
+  Third kept.
+  Fourth kept.
+  Fifth kept.
+end
+
+scene following
+  Wrong following.
+end
+`;
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: source }],
+      startFrom: { file: MAIN_URI, line: 13 },
+    });
+    try {
+      await h.compile();
+      await h.select(13);
+      await settle(40);
+      expect(h.overlay.textContent).toContain("Fifth kept.");
+      await h.select(1);
+      await settle(40);
+      expect(h.overlay.textContent).toContain("Fifth kept.");
+      await h.edit([
+        { range: { start: { line: 10, character: 0 }, end: { line: 14, character: 0 } }, text: "" },
+      ]);
+      await h.compile();
+      await h.select(1);
+      await settle(40);
+      expect(h.overlay.textContent).toContain("Start fallback.");
+      expect(h.overlay.textContent).not.toContain("Wrong following.");
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
   it("a function's body, which is not a UI declaration, shows no scene's beat", async () => {
     const h = await createPlayerHarness({
       files: [{ uri: MAIN_URI, text: WITH_UI }],
