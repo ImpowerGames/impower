@@ -10,4 +10,6 @@ style card {
   }
   background = rgb(1, 2, 3)
   border-color = rgb(1; 2; 3)
+  background_image = linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, hsl(0, 0%, 0%) 100%)
+  border_image = linear-gradient(rgba(0, 0, 0, 0) 0%, red
 }

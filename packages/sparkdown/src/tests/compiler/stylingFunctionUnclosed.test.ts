@@ -70,9 +70,17 @@ describe("unclosed styling value function parameter list", () => {
     }
   });
 
+  test("reports an unclosed list whose last argument is a closed color", () => {
+    const diagnostics = diagnose(
+      "style card {\n  background_image = linear-gradient(rgba(0, 0, 0, 0) 0%, hsl(0, 0%, 0%)\n}\n",
+    );
+    expect(diagnostics).toContain(`1:36-37 ${MISSING}`);
+    expect(diagnostics.filter((d) => d.includes(MISSING))).toHaveLength(1);
+  });
+
   test("closed styling functions report nothing", () => {
     const diagnostics = diagnose(
-      "style card {\n  @theme(dark) {\n    color = gray\n  }\n  color = rgb(1, 2, 3)\n  width = calc(min(1px, 2px) + 3px)\n}\n",
+      "style card {\n  @theme(dark) {\n    color = gray\n  }\n  color = rgb(1, 2, 3)\n  width = calc(min(1px, 2px) + 3px)\n  background_image = linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 1) 100%)\n  border_image = linear-gradient(hsla(0, 0%, 0%, 0) 0%, hsl(0, 0%, 0%) 100%)\n}\n",
     );
     expect(diagnostics.filter((d) => d.includes(MISSING))).toEqual([]);
   });
