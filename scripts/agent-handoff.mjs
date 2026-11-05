@@ -1066,7 +1066,7 @@ export function checkCrossVendor(config, root, now = Date.now()) {
   return { usageLimitJournal: evidence, usageLimitRoute: rows[launch].model, usageLimitReason: blocked.reason, usageLimitTime: blocked.time };
 }
 
-export async function probeReviewerRoute(step, args, { cwd, env, timeoutMs = 120000 }) {
+export async function probeReviewerRoute(step, args, { cwd, env, timeoutMs = 120000, onUnconfirmedExit = () => {} }) {
   const codex = isCodexStep(step);
   const probeArgs = [];
   for (let index = 0; index < args.length; index++) {
@@ -1079,15 +1079,32 @@ export async function probeReviewerRoute(step, args, { cwd, env, timeoutMs = 120
   child.stderr.on("data", (chunk) => { text = (text + chunk).slice(-65536); });
   child.stdin.on("error", () => {});
   child.stdin.end(reviewerProbePrompt + "\n");
-  let timedOut = false;
-  const timer = setTimeout(() => { timedOut = true; child.kill("SIGKILL"); }, timeoutMs);
-  const { code, error } = await new Promise((resolve) => {
-    child.once("error", (spawnError) => resolve({ code: null, error: spawnError }));
+  let timedOut = false, error, drainTimer;
+  let timer;
+  const { code, unconfirmed } = await new Promise((resolve) => {
+    child.on("error", (childError) => {
+      error ??= childError;
+      if (!child.pid && !timedOut) resolve({ code: null });
+    });
     child.once("close", (exitCode) => resolve({ code: exitCode }));
+    timer = setTimeout(() => {
+      timedOut = true;
+      drainTimer = setTimeout(() => resolve({ code: null, unconfirmed: true }), 5000);
+      try { child.kill("SIGKILL"); }
+      catch (killError) { error ??= killError; }
+    }, timeoutMs);
   });
   clearTimeout(timer);
+  clearTimeout(drainTimer);
+  if (unconfirmed) {
+    onUnconfirmedExit(child);
+    child.stdout.destroy();
+    child.stderr.destroy();
+    child.unref();
+    throw new Error(`Reviewer route ${step.model} probe child exit unconfirmed (PID ${child.pid}); preserve the worktree lock and confirm exit by hand${error ? `: ${error.message}` : ""}`);
+  }
   const answered = /\bOK\b/i.test(text);
-  if (code === 0 && !timedOut && answered) return;
+  if (code === 0 && !timedOut && !error && answered) return;
   const detail = error ? error.message : timedOut ? `no answer within ${Math.round(timeoutMs / 1000)} seconds` : routeFailure(text) ?? (code === 0 ? `exited 0 without answering OK${text.trim() ? `: ${text.trim().split(/\r?\n/).at(-1).slice(0, 400)}` : " (no output)"}` : text.trim().split(/\r?\n/).at(-1)?.slice(0, 400));
   let version = "";
   if (!codex) {
@@ -1271,10 +1288,10 @@ async function runHandoffWithheld(configFile, config, { slotRoot, identifyProces
         for (const name of authSecrets) delete env[name];
         for (const key of Object.keys(env)) if (/^IMPOWER_REVIEW_EXECUTION_/i.test(key)) delete env[key];
         if (step.role === "review") {
-          await probeReviewerRoute(step, args, { cwd, env, timeoutMs: probeTimeoutMs });
+          await probeReviewerRoute(step, args, { cwd, env, timeoutMs: probeTimeoutMs, onUnconfirmedExit: child => { activeChild = child; } });
           append({event:"route-probed",index,model:step.model});
         }
-      } catch (error) { closeLogs(); discardAuth(); throw error; }
+      } catch (error) { closeLogs(); if (!activeChild) discardAuth(); throw error; }
       try { slot = step.role === "review" ? await reserveWithinBound(slotRoot, slotWaitSeconds, (occupied) => append({event:"waiting",index,slotWaitSeconds,occupied})) : null; }
       catch (error) { closeLogs(); discardAuth(); throw error; }
       if (slot) {

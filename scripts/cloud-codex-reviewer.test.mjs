@@ -4,6 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import childProcess from 'node:child_process';
+import {EventEmitter} from 'node:events';
+import {PassThrough} from 'node:stream';
 import {syncBuiltinESMExports} from 'node:module';
 import {fileURLToPath} from 'node:url';
 import {randomUUID,createHash} from 'node:crypto';
@@ -365,6 +367,7 @@ try {
 let text='';for await(const chunk of process.stdin)text+=chunk;
 if(text.startsWith('Reviewer route probe')){console.log('OK');process.exit(0);}
 const argv=JSON.parse(process.env.FIXTURE_ARGV),slots=process.env.FIXTURE_SLOTS,home=process.env.CODEX_HOME,auth=path.join(home,'auth.json');
+if(process.env.FIXTURE_WRITE_CACHE)fs.writeFileSync(path.join(home,'fixture-cache'),'synthetic session state');
 const start=text.indexOf('handoff-report-'),token=text.slice(start,text.indexOf(String.fromCharCode(96),start)),head=/reviewed head=([a-f0-9]+)/.exec(text)[1];
 const reservations=fs.readdirSync(slots).filter(name=>name.endsWith('.jsonl')).map(name=>fs.readFileSync(path.join(slots,name),'utf8').trim().split('\\n').map(line=>JSON.parse(line).phase));
 fs.writeFileSync(${JSON.stringify(capture)},JSON.stringify({argv,home,reservations,authSha256:createHash('sha256').update(fs.readFileSync(auth)).digest('hex'),authMode:process.platform==='win32'?null:(fs.statSync(auth).mode&0o777),homeFiles:fs.readdirSync(home).sort(),secretVisible:Object.hasOwn(process.env,${JSON.stringify(secretName)}),github:Object.keys(process.env).filter(key=>/^GH_|^GITHUB_TOKEN$/i.test(key))}));
@@ -375,6 +378,7 @@ fs.writeFileSync(argv[argv.indexOf('--output-last-message')+1],'### Adversarial 
 fs.writeFileSync(/Write (.*?) with the editor tool/.exec(text)[1],JSON.stringify({head,next:null,commentIds:[],summary:'Report returned for the coordinator to post'}));
 for(const row of [{type:'thread.started',thread_id:'fixture-thread'},{type:'turn.started'},{type:'item.completed',item:{id:'answer',type:'agent_message',text:'Report returned.'}},{type:'turn.completed',usage:{input_tokens:1,cached_input_tokens:0,output_tokens:2}}])console.log(JSON.stringify(row));
 console.error('diagnostic after terminal result');
+if(process.env.FIXTURE_FAILED_EXIT)process.exitCode=9;
 `);
     fs.writeFileSync(path.join(privateDir,'adjudication.txt'),'later step prompt');
     const external=path.join(scratch,'external');fs.mkdirSync(external);fs.writeFileSync(path.join(external,'keep.txt'),'survives');
@@ -509,16 +513,18 @@ console.error('diagnostic after terminal result');
       console.log('PASS: a validated launcher report survives skipped cleanup while unresolved ownership preserves original scratch');
     }
 
-    const launchCase=async(name,{env={},options={}}={})=>{
+    const launchCase=async(name,{env={},options={},authPermissions=permissions,spawnReviewer,spawnProbe}={})=>{
       const directory=path.join(job,`reviewer-${name}`);fs.mkdirSync(directory);
       const caseReport=path.join(directory,'report.md'),caseJournal=path.join(handoff,`${name}.jsonl`),casePlan=path.join(job,`plan-${name}.json`);
       const swap=value=>value===privateDir?directory:value===report?caseReport:value;
-      fs.writeFileSync(casePlan,JSON.stringify({...plan,journal:caseJournal,steps:{check:{...plan.steps.check,args:fullArgs.map(swap),permissions:{...permissions,cwd:directory}}}}));
+      fs.writeFileSync(casePlan,JSON.stringify({...plan,journal:caseJournal,steps:{check:{...plan.steps.check,args:fullArgs.map(swap),permissions:{...authPermissions,cwd:directory}}}}));
       const planBytes=fs.readFileSync(casePlan,'utf8');
       childProcess.execFileSync=(exe,args,options)=>{if(exe==='gh')throw new Error('fixture: no gh login');if(exe===process.execPath&&args[0]==='--version')return `codex-cli ${minimumFullAccessCodexVersion}`;return originalExec(exe,args,options);};
       childProcess.spawn=(exe,args,options)=>{
         if(exe!==process.execPath||args[0]!=='exec')return originalSpawn(exe,args,options);
-        return originalSpawn(exe,[stand],{...options,env:{...options.env,FIXTURE_ARGV:JSON.stringify(args),FIXTURE_SLOTS:slots,FIXTURE_EXTERNAL:external,...env}});
+        const spawnStandIn=()=>originalSpawn(exe,[stand],{...options,env:{...options.env,FIXTURE_ARGV:JSON.stringify(args),FIXTURE_SLOTS:slots,FIXTURE_EXTERNAL:external,...env}});
+        const spawnFixture=args.includes('--output-last-message')?spawnReviewer:spawnProbe;
+        return spawnFixture?spawnFixture(options.env.CODEX_HOME,spawnStandIn):spawnStandIn();
       };
       syncBuiltinESMExports();
       let failure=null;
@@ -529,6 +535,108 @@ console.error('diagnostic after terminal result');
       assert.equal(fs.readFileSync(casePlan,'utf8'),planBytes,'the launcher plan is kept unchanged');
       return {directory,caseReport,caseJournal,casePlan,planBytes,failure,rows:readRows(),readRows};
     };
+
+    const sourceHome=path.join(scratch,'local-auth');fs.mkdirSync(sourceHome);
+    const sourceAuth=path.join(sourceHome,'auth.json');
+    fs.writeFileSync(sourceAuth,ambient[secretName]);
+    const localAuth={...permissions,codexAuthEnv:undefined,codexHome:sourceHome};
+    {
+      let probeHome,authBeforeClose;
+      const closed=Promise.withResolvers();
+      const {failure,rows}=await launchCase('local-auth-probe-kill-failed',{
+        authPermissions:localAuth,
+        options:{probeTimeoutMs:10},
+        spawnProbe:home=>{
+          probeHome=home;
+          createdHomes.add(home);
+          const child=new EventEmitter();
+          child.pid=12345;
+          child.stdin=new PassThrough();
+          child.stdout=new PassThrough();
+          child.stderr=new PassThrough();
+          child.kill=()=>{
+            child.emit('error',new Error('fixture: probe kill failed'));
+            setImmediate(()=>{
+              authBeforeClose=fs.existsSync(path.join(home,'auth.json'));
+              child.emit('close',1);
+              closed.resolve();
+            });
+            return false;
+          };
+          return child;
+        }
+      });
+      await closed.promise;
+      assert.match(failure?.message??'',/Reviewer route .* unavailable before slot reservation/);
+      assert.equal(rows.at(-1).event,'blocked');
+      assert.equal(authBeforeClose,true,'a failed probe kill must preserve authentication until the probe closes');
+      assert.equal(fs.existsSync(probeHome),false,'confirmed probe close permits cleanup');
+    }
+
+    {
+      let probeHome;
+      const {failure,rows}=await launchCase('local-auth-probe-spawn-failed',{
+        authPermissions:localAuth,
+        spawnProbe:home=>{
+          probeHome=home;
+          createdHomes.add(home);
+          const child=new EventEmitter();
+          child.stdin=new PassThrough();
+          child.stdout=new PassThrough();
+          child.stderr=new PassThrough();
+          queueMicrotask(()=>child.emit('error',new Error('fixture: probe spawn failed')));
+          return child;
+        }
+      });
+      assert.match(failure?.message??'',/probe spawn failed/);
+      assert.equal(rows.at(-1).event,'blocked');
+      assert.equal(fs.existsSync(probeHome),false,'probe spawn failure without a child permits cleanup');
+    }
+
+    for(const [name,exitCode] of [['local-auth',0],['local-auth-failed',9]]) {
+      let homeAtClose,filesAtClose;
+      const {failure,rows,caseReport}=await launchCase(name,{
+        authPermissions:localAuth,
+        env:{FIXTURE_WRITE_CACHE:'1',FIXTURE_FAILED_EXIT:exitCode?'1':''},
+        spawnReviewer:(home,spawnStandIn)=>{
+          createdHomes.add(home);
+          const child=spawnStandIn();
+          child.once('close',()=>{
+            homeAtClose=home;
+            filesAtClose=['auth.json','fixture-cache'].map(file=>fs.existsSync(path.join(home,file)));
+          });
+          return child;
+        }
+      });
+      assert.equal(rows.find(row=>row.event==='exited')?.code,exitCode);
+      if(exitCode)assert.equal(rows.at(-1).event,'blocked');
+      else {
+        assert.ifError(failure);
+        assert.equal(rows.at(-1).event,'report-awaiting-post');
+      }
+      assert.deepEqual(filesAtClose,[true,true],'the auth copy and cache remain through child close');
+      assert.notEqual(homeAtClose,sourceHome);
+      assert.equal(fs.readFileSync(sourceAuth,'utf8'),ambient[secretName],'source credentials are unchanged');
+      assert.ok(fs.existsSync(caseReport),'the review report is retained');
+      assert.equal(fs.existsSync(homeAtClose),false,'the full-access codexHome copy and cache are removed after confirmed exit');
+    }
+
+    {
+      let refusedHome,authAtRefusal;
+      const {failure,rows}=await launchCase('local-auth-refused',{
+        authPermissions:localAuth,
+        spawnReviewer:home=>{
+          refusedHome=home;
+          createdHomes.add(home);
+          authAtRefusal=fs.existsSync(path.join(home,'auth.json'));
+          throw new Error('fixture: reviewer spawn refused');
+        }
+      });
+      assert.match(failure?.message??'',/reviewer spawn refused/);
+      assert.equal(rows.at(-1).event,'blocked');
+      assert.equal(authAtRefusal,true);
+      assert.equal(fs.existsSync(refusedHome),false,'spawn refusal removes the owned auth copy');
+    }
 
     {
       const {directory,failure,rows}=await launchCase('unvalidated',{env:{FIXTURE_NO_TOKEN:'1'}});
@@ -636,6 +744,68 @@ console.error('diagnostic after terminal result');
       const rows3=fs.readFileSync(journal2,'utf8').trim().split('\n').map(line=>JSON.parse(line));
       assert.equal(rows3.at(-1).event,'blocked');assert.match(rows3.at(-1).reason,/EIO on the reservation row/);
       console.log('PASS: a reservation-row failure after the authentication copy was written removes the copy, releases the slot and journals the refusal');
+    }
+    {
+      let retainedHome,terminationRequests=0,unrefed=false,outcome;
+      const realWrite=fs.writeSync;
+      fs.writeSync=(fd,data,...rest)=>{
+        if(typeof data==='string'&&data.includes('"event":"running"'))throw new Error('fixture: running row failed without close');
+        return realWrite(fd,data,...rest);
+      };
+      try {
+        outcome=await launchCase('local-auth-unconfirmed',{
+          authPermissions:localAuth,
+          spawnReviewer:home=>{
+            retainedHome=home;
+            createdHomes.add(home);
+            fs.writeFileSync(path.join(home,'fixture-cache'),'synthetic session state');
+            const child=new EventEmitter();
+            child.stdin=new PassThrough();
+            child.kill=()=>{terminationRequests++;return false;};
+            child.unref=()=>{unrefed=true;};
+            return child;
+          }
+        });
+      } finally {fs.writeSync=realWrite;}
+      assert.match(outcome.failure?.message??'',/child exit unconfirmed/);
+      assert.equal(terminationRequests,2);
+      assert.equal(unrefed,true);
+      assert.equal(outcome.rows.some(row=>row.event==='exited'),false);
+      for(const file of ['auth.json','fixture-cache'])assert.ok(fs.existsSync(path.join(retainedHome,file)),'unconfirmed exit preserves the owned home');
+      assert.equal(fs.readFileSync(sourceAuth,'utf8'),ambient[secretName],'source credentials are unchanged');
+      console.log('PASS: full-access codexHome copies are removed after confirmed success, failure or spawn refusal, and retained when child exit is unconfirmed');
+      const fixtureLock=git('rev-parse','--path-format=absolute','--git-path','agent-handoff.lock').trim();
+      assert.ok(fs.existsSync(fixtureLock),'unconfirmed reviewer exit retains the launcher lock');
+      fs.unlinkSync(fixtureLock);
+    }
+
+    {
+      let probeHome,unrefed=false,reviewerSpawned=false;
+      const {failure,rows}=await launchCase('local-auth-probe-unconfirmed',{
+        authPermissions:localAuth,
+        options:{probeTimeoutMs:10},
+        spawnProbe:home=>{
+          probeHome=home;
+          createdHomes.add(home);
+          const child=new EventEmitter();
+          child.pid=12345;
+          child.stdin=new PassThrough();
+          child.stdout=new PassThrough();
+          child.stderr=new PassThrough();
+          child.kill=()=>{throw new Error('fixture: probe termination threw');};
+          child.unref=()=>{unrefed=true;};
+          return child;
+        },
+        spawnReviewer:()=>{reviewerSpawned=true;throw new Error('fixture: unexpected reviewer spawn');}
+      });
+      assert.match(failure?.message??'',/probe child exit unconfirmed.*probe termination threw/);
+      assert.equal(rows.at(-1).event,'blocked');
+      assert.match(rows.at(-1).reason,/probe child exit unconfirmed/);
+      assert.equal(reviewerSpawned,false);
+      assert.equal(unrefed,true);
+      assert.ok(fs.existsSync(path.join(probeHome,'auth.json')),'unconfirmed probe exit preserves authentication');
+      assert.ok(fs.existsSync(git('rev-parse','--path-format=absolute','--git-path','agent-handoff.lock').trim()),'unconfirmed probe exit retains the launcher lock');
+      console.log('PASS: an unconfirmed probe exit preserves its authentication and launcher ownership');
     }
   } else console.log(`SKIP: the launcher's Codex route runs on Windows and Linux only, not ${process.platform}; the platform refusals ran`);
 } finally {
