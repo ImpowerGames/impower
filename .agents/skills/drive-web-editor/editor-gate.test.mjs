@@ -216,19 +216,23 @@ await check("a page that never mounts a pane is told to re-run, not to switch sc
 const MAIN_URI = "file://local/main.sd";
 const CHAPTER_URI = "file://local/Scripts/chapter_1.sd";
 
-const logicPage = ({ uri = null, hash = "#write", opens = MAIN_URI } = {}) => {
-  const state = { uri, hash, clicks: [] };
+const logicPage = ({ uri = null, hash = "#write", opens = MAIN_URI, inFolder = false } = {}) => {
+  const state = { uri, hash, clicks: [], inFolder };
   const answers = () => state.uri != null && state.hash !== "#scripts";
+  const rootCrumb = (selector) => selector.endsWith('button[aria-label="Scripts"]');
   return {
     state,
     waited: [],
     locator: (selector) => ({
       first: () => ({
+        isVisible: async () => rootCrumb(selector) && state.hash === "#scripts" && state.inFolder,
         waitFor: async () => {
           if (selector === 'section[aria-label="Scripts"]' && state.hash !== "#scripts") throw new Error("timeout");
+          if (selector.includes("Open script Main") && state.inFolder) throw new Error("timeout");
         },
         click: async () => {
           state.clicks.push(selector);
+          if (rootCrumb(selector)) state.inFolder = false;
           if (selector.includes("Open script Main")) {
             state.hash = "#write";
             state.uri = opens;
@@ -295,6 +299,14 @@ await check("--screen main from another script goes to the Scripts page, presses
   assert.deepEqual(already.state.clicks, []);
   const fromScripts = logicPage({ uri: CHAPTER_URI, hash: "#scripts" });
   assert.equal((await switchScreen(fromScripts, "main")).editorView, "main");
+});
+
+await check("--screen main from a Scripts page that remembers a folder presses the Scripts root crumb before the Main row", async () => {
+  const page = logicPage({ uri: CHAPTER_URI, hash: "#scripts", inFolder: true });
+  assert.equal((await switchScreen(page, "main")).editorView, "main");
+  assert.equal(page.state.clicks.length, 2);
+  assert.match(page.state.clicks[0], /button\[aria-label="Scripts"\]$/);
+  assert.match(page.state.clicks[1], /Open script Main/);
 });
 
 await check("--screen main fails when the Main row opens some other document, naming it", async () => {

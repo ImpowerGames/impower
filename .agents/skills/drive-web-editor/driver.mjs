@@ -1966,6 +1966,7 @@ const SURFACES = {
 const SCRIPTS_PAGE_SELECTOR = 'section[aria-label="Scripts"]';
 const MAIN_ROW_SELECTOR = 'button[aria-label="Open script Main"], button[aria-label^="Open script Main,"]';
 const ROW_MENU_SELECTOR = 'button[aria-label^="Options for "]';
+const SCRIPTS_ROOT_SELECTOR = 'section[aria-label="Scripts"] nav[aria-label="Folder path"] button[aria-label="Scripts"]';
 const MAIN_SCRIPT_URI = /^[^:/]+:\/\/[^/]*\/main\.sd$/;
 
 export function editorViewOf(uri) {
@@ -1993,6 +1994,9 @@ async function openMainScript(page, { timeout = 10_000 } = {}) {
   if (!(await showScriptsPage(page, { timeout }))) {
     return { opened: false, reason: `the Scripts page (${SCRIPTS_PAGE_SELECTOR}) did not appear within ${seconds(timeout)} of going to #scripts` };
   }
+  await page.locator(`${MAIN_ROW_SELECTOR}, ${SCRIPTS_ROOT_SELECTOR}`).first().waitFor({ state: "visible", timeout }).catch(() => {});
+  const root = page.locator(SCRIPTS_ROOT_SELECTOR).first();
+  if (await root.isVisible().catch(() => false)) await root.click();
   const row = page.locator(MAIN_ROW_SELECTOR).first();
   try {
     await row.waitFor({ state: "visible", timeout });
