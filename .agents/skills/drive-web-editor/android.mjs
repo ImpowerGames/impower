@@ -290,10 +290,7 @@ export async function acquireDevice(serial, {
       };
     }
     const read = readRecord(file);
-    if (holderGone(file, read, identify, now)) {
-      clearGoneHolder(file, identify, now);
-      continue;
-    }
+    if (holderGone(file, read, identify, now) && clearGoneHolder(file, identify, now)) continue;
     const holder = read.record ? describeHolder(read.record) : "a process whose record is still being written";
     if (now() >= deadline) {
       throw new Error(`timed out after ${Math.round((now() - began) / 1000)} s waiting for Android device ${serial}, held by ${holder}. Wait for it to finish, or pass a longer --device-wait <seconds>; the record is ${file}`);
@@ -390,7 +387,13 @@ export async function openAndroidDevice({
       await shellText(device, `wm density ${appliedDensity}`);
     }
 
-    const ctx = await device.launchBrowser({ ...(colorScheme ? { colorScheme } : {}) });
+    let ctx;
+    try {
+      ctx = await device.launchBrowser({ ...(colorScheme ? { colorScheme } : {}) });
+    } catch (error) {
+      error.message = `Chrome on ${serial} did not open its debugging connection (${String(error.message || error).split("\n")[0]}). This is what a missing "Enable command line on non-rooted devices" flag in chrome://flags looks like; turn it on and relaunch Chrome.\n${ANDROID_SETUP}`;
+      throw error;
+    }
     undo.push({ what: "close Chrome's browser context", run: () => ctx.close() });
 
     let rotation = null;

@@ -389,6 +389,57 @@ await check("a device whose Chrome is too old releases the queue and undoes its 
     assert.ok(!fake.log.some((entry) => entry[0] === "launchBrowser"));
   }));
 
+await check("a Chrome that never opens its debugging connection names the chrome://flags setting and undoes the session", () =>
+  withAdb(async () => {
+    const fake = fakeAndroid();
+    const original = fake.playwright;
+    fake.playwright = async () => {
+      const pw = await original();
+      const [dev] = await pw._android.devices({});
+      dev.launchBrowser = async () => {
+        throw new Error("Timeout 30000ms exceeded while waiting for the devtools socket");
+      };
+      return pw;
+    };
+    await assert.rejects(
+      openAndroidDevice({ record: { url: "http://localhost:38000" }, viewport: { name: "phone", width: 360, height: 780 }, ...fake, ...adbHere }),
+      (e) => /Chrome on emulator-5554 did not open its debugging connection \(Timeout 30000ms exceeded/.test(e.message) && e.message.includes("Enable command line on non-rooted devices"),
+    );
+    assert.deepEqual(fake.log.slice(-4), [["shell", "wm density reset"], ["adb", "-s", "emulator-5554", "reverse", "--remove", "tcp:38000"], ["device.close"], ["release"]]);
+  }));
+
+await check("a waiter whose gone holder is being cleared by another process waits instead of spinning, and still honours its deadline", async () => {
+  const root = path.join(scratch, "locks-guard");
+  fs.mkdirSync(root, { recursive: true });
+  const file = path.join(root, "emulator-5554.json");
+  fs.writeFileSync(file, JSON.stringify({ token: "old", owner: { pid: 999999, start: "1" }, acquiredAt: "2026-11-05T00:00:00.000Z" }));
+  fs.writeFileSync(`${file}.guard`, "");
+  let probes = 0;
+  let clock = 0;
+  const sleeps = [];
+  await assert.rejects(
+    acquireDevice("emulator-5554", {
+      root,
+      owner: { pid: 1, start: "me" },
+      identify: () => {
+        if (++probes > 50) throw new Error(`spinning: ${probes} identity probes without a pause`);
+        return null;
+      },
+      waitSeconds: 5,
+      pollMs: 2_000,
+      now: () => clock,
+      sleep: async (ms) => {
+        sleeps.push(ms);
+        clock += ms;
+      },
+    }),
+    /timed out after 5 s waiting for Android device emulator-5554, held by pid 999999/,
+  );
+  assert.deepEqual(sleeps, [2_000, 2_000, 1_000]);
+  assert.ok(probes <= 8, `identity probed ${probes} times`);
+  fs.rmSync(`${file}.guard`, { force: true });
+});
+
 await check("the editor's ports come from the server record, with the URL's port as a fallback", () => {
   assert.deepEqual(editorPorts({ url: "http://localhost:38000", ports: { editor: 38000, player: 38001, hmr: 38002 } }), [38000, 38001, 38002]);
   assert.deepEqual(editorPorts({ url: "http://localhost:38004" }), [38004]);
