@@ -154,10 +154,10 @@ text.source.sparkdown [0..643]
  ├─ entity.choice.sd [316..340]
  │   ├─ punctuation.whitespace.optional.sd [316..320]: "    "
  │   ├─ keyword.operator.expression.list.sd [320..322]: "* "
- │   ├─ keyword.control.if.luau [322..324]: "if"
- │   ├─ punctuation.whitespace.optional.sd [324..325]: " "
- │   ├─ invalid.illegal.choice-condition.sd [325..326]: "("
- │   └─ string.choice.sd [326..340]
+ │   └─ string.choice.sd [322..340]
+ │       ├─ markup.raw.text.sd [322..324]: "if"
+ │       ├─ markup.raw.space.sd [324..325]: " "
+ │       ├─ markup.raw.punctuation.sd [325..326]: "("
  │       ├─ markup.raw.text.sd [326..333]: "allowed"
  │       ├─ markup.raw.punctuation.sd [333..334]: "("
  │       ├─ markup.raw.space.sd [334..335]: " "
@@ -166,13 +166,12 @@ text.source.sparkdown [0..643]
  ├─ entity.choice.sd [341..370]
  │   ├─ punctuation.whitespace.optional.sd [341..345]: "    "
  │   ├─ keyword.operator.expression.list.sd [345..347]: "* "
- │   ├─ keyword.control.if.luau [347..349]: "if"
- │   ├─ punctuation.whitespace.optional.sd [349..350]: " "
- │   ├─ keyword.operator.logical.luau [350..353]
- │   │   └─ keyword.operator.wordlike.luau [350..353]: "not"
- │   ├─ punctuation.whitespace.optional.sd [353..354]: " "
- │   ├─ invalid.illegal.choice-condition.sd [354..355]: "("
- │   └─ string.choice.sd [355..370]
+ │   └─ string.choice.sd [347..370]
+ │       ├─ markup.raw.text.sd [347..349]: "if"
+ │       ├─ markup.raw.space.sd [349..350]: " "
+ │       ├─ markup.raw.text.sd [350..353]: "not"
+ │       ├─ markup.raw.space.sd [353..354]: " "
+ │       ├─ markup.raw.punctuation.sd [354..355]: "("
  │       ├─ markup.raw.text.sd [355..362]: "allowed"
  │       ├─ markup.raw.punctuation.sd [362..363]: "("
  │       ├─ markup.raw.punctuation.sd [363..364]: ")"
@@ -245,10 +244,10 @@ text.source.sparkdown [0..643]
  ├─ entity.choice.sd [484..520]
  │   ├─ punctuation.whitespace.optional.sd [484..488]: "    "
  │   ├─ keyword.operator.expression.list.sd [488..490]: "* "
- │   ├─ keyword.control.if.luau [490..492]: "if"
- │   ├─ punctuation.whitespace.optional.sd [492..493]: " "
- │   ├─ invalid.illegal.choice-condition.sd [493..494]: "("
- │   └─ string.choice.sd [494..520]
+ │   └─ string.choice.sd [490..520]
+ │       ├─ markup.raw.text.sd [490..492]: "if"
+ │       ├─ markup.raw.space.sd [492..493]: " "
+ │       ├─ markup.raw.punctuation.sd [493..494]: "("
  │       ├─ markup.raw.text.sd [494..497]: "not"
  │       ├─ markup.raw.space.sd [497..498]: " "
  │       ├─ markup.raw.text.sd [498..505]: "allowed"

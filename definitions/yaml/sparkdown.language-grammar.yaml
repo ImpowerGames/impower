@@ -541,12 +541,7 @@ variables:
   CHOICE_CONDITION_METHOD: (?:[:]{{LUAU_IDENTIFIER}})
   CHOICE_CONDITION_CALL: (?:{{CHOICE_CONDITION_METHOD}}?{{CHOICE_CONDITION_PARENS}})
   CHOICE_CONDITION_PATH: (?:{{LUAU_NAME_OR_CONSTANT}}(?:[.]{{LUAU_IDENTIFIER}}|{{CHOICE_CONDITION_CALL}})*)
-  CHOICE_PROSE_PARENS_1: (?:[(][^()\r\n]*[)])
-  CHOICE_PROSE_PARENS_2: (?:[(](?:[^()\r\n]|{{CHOICE_PROSE_PARENS_1}})*[)])
-  CHOICE_PROSE_PARENS_3: (?:[(](?:[^()\r\n]|{{CHOICE_PROSE_PARENS_2}})*[)])
-  CHOICE_PROSE_PARENS: (?:[(](?:[^()\r\n]|{{CHOICE_PROSE_PARENS_3}})*[)])
   CHOICE_UNREADABLE_CONDITION_PATH: (?:{{LUAU_IDENTIFIER}}(?:[.:]{{LUAU_IDENTIFIER}})*)
-  CHOICE_UNREADABLE_CONDITION_GLUED: (?:{{CHOICE_UNREADABLE_CONDITION_PATH}}[(\[])
   # lookaround: `ChoiceWithNoSuppressedText` owns a choice line whose call
   # bracket closes, such as `* if friend(s), we go`: the `Choice` begin
   # declined it for the punctuation after the bracket, and it is prose. Only
@@ -555,16 +550,7 @@ variables:
   # bracket variables are already as tight as a condition allows. The bracket
   # is checked as a condition reads it, so a valid call the bounded reader
   # cannot read still counts as open.
-  CHOICE_UNREADABLE_CONDITION_CALL: (?:{{CHOICE_UNREADABLE_CONDITION_PATH}}(?:[\[]|(?!{{CHOICE_CONDITION_PARENS}})[(]))
-  # lookaround: `ChoiceWithNoSuppressedText` owns a parenthesised choice line
-  # whose group closes, such as `* if (friend(s) don't agree) jump`, and one
-  # whose group holds no call, such as `* if (maybe jump`: both are prose the
-  # `Choice` begin declined. Whether the group closes, and whether a call
-  # follows it on the line, both lie after the `(`, where no reordering,
-  # split or `end:` can look. The group is checked by bracket count alone,
-  # so an apostrophe in prose does not open it.
-  CHOICE_UNREADABLE_CONDITION_GROUP: (?:(?!{{CHOICE_PROSE_PARENS}})[(](?=[^\r\n]*?{{CHOICE_UNREADABLE_CONDITION_GLUED}}))
-  CHOICE_UNREADABLE_CONDITION_OPEN: (?:{{CHOICE_UNREADABLE_CONDITION_GROUP}}|{{CHOICE_UNREADABLE_CONDITION_CALL}})
+  CHOICE_UNREADABLE_CONDITION_OPEN: (?:{{CHOICE_UNREADABLE_CONDITION_PATH}}(?:[\[]|(?!{{CHOICE_CONDITION_PARENS}})[(]))
   LUAU_KEYWORD: (?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while){{LUAU_NAME_END}})
   # lookaround: anywhere else `LuauAccessPath` reads the word as a name; it
   # comes after the alternators in `LuauExpression`.

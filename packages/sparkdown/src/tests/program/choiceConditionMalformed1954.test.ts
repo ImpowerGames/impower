@@ -47,13 +47,6 @@ describe("a choice condition that is clearly code but cannot be read is reported
     ["* (lbl) if allowed( First", "allowed("],
     ["* (lbl)if allowed( First", "allowed("],
     ["* if allowed(", "allowed("],
-    ["* if (allowed( First", "("],
-    ["* if (allowed() First", "("],
-    ["* if not (allowed() First", "("],
-    ["* if (( t:open( First", "("],
-    ["* if (not allowed( First", "("],
-    ["* if (not allowed() First", "("],
-    ["* if (has_key and allowed( First", "("],
   ];
   for (const [line, call] of cases) {
     it(line, () => {
@@ -109,6 +102,22 @@ describe("choice lines starting with if keep their readings (I-1954)", () => {
       expect(result.errors).toEqual([]);
       expect(result.runErrors).toEqual([]);
       expect(result.menu).toEqual(menu);
+    });
+  }
+});
+
+describe("an unclosed group stays choice text, as on main (I-1954)", () => {
+  for (const line of [
+    "* if (allowed( First",
+    "* if (not allowed( First",
+    "* if (has_key and allowed( First",
+    "* if (has_key First",
+  ]) {
+    it(line, () => {
+      const result = run(line);
+      expect(result.errors).toEqual([]);
+      expect(result.runErrors).toEqual([]);
+      expect(result.menu).toEqual([line.slice(2), "Fallback"]);
     });
   }
 });

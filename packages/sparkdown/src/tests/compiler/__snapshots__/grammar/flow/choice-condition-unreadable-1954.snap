@@ -482,20 +482,14 @@ sparkdown [0..643]
  │   │   │   │   ├─ Choice_begin_c6 322
  │   │   │   │   └─ Choice_begin_c7 322
  │   │   │   ├─ Choice_content [322..340]
- │   │   │   │   ├─ ChoiceUnreadableCondition [322..326]
- │   │   │   │   │   ├─ ChoiceUnreadableCondition_c1 [322..324]
- │   │   │   │   │   │   └─ LuauIfKeyword [322..324]: "if"
- │   │   │   │   │   ├─ ChoiceUnreadableCondition_c2 [324..325]
- │   │   │   │   │   │   └─ OptionalWhitespace [324..325]: " "
- │   │   │   │   │   ├─ ChoiceUnreadableCondition_c3 325
- │   │   │   │   │   ├─ ChoiceUnreadableCondition_c4 325
- │   │   │   │   │   └─ ChoiceUnreadableCondition_c5 [325..326]
- │   │   │   │   │       └─ ChoiceUnreadableConditionOpen [325..326]: "("
- │   │   │   │   └─ ChoiceWithNoSuppressedText [326..340]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [326..340]
- │   │   │   │       │   └─ ChoicePlainText [326..340]
- │   │   │   │       │       └─ ChoiceTextContent [326..340]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [326..340]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [322..340]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [322..340]
+ │   │   │   │       │   └─ ChoicePlainText [322..340]
+ │   │   │   │       │       └─ ChoiceTextContent [322..340]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [322..340]
+ │   │   │   │       │               ├─ Word [322..324]: "if"
+ │   │   │   │       │               ├─ Space [324..325]: " "
+ │   │   │   │       │               ├─ Punctuation [325..326]: "("
  │   │   │   │       │               ├─ Word [326..333]: "allowed"
  │   │   │   │       │               ├─ Punctuation [333..334]: "("
  │   │   │   │       │               ├─ Space [334..335]: " "
@@ -517,22 +511,16 @@ sparkdown [0..643]
  │   │   │   │   ├─ Choice_begin_c6 347
  │   │   │   │   └─ Choice_begin_c7 347
  │   │   │   ├─ Choice_content [347..370]
- │   │   │   │   ├─ ChoiceUnreadableCondition [347..355]
- │   │   │   │   │   ├─ ChoiceUnreadableCondition_c1 [347..349]
- │   │   │   │   │   │   └─ LuauIfKeyword [347..349]: "if"
- │   │   │   │   │   ├─ ChoiceUnreadableCondition_c2 [349..350]
- │   │   │   │   │   │   └─ OptionalWhitespace [349..350]: " "
- │   │   │   │   │   ├─ ChoiceUnreadableCondition_c3 [350..353]
- │   │   │   │   │   │   └─ LuauInvalidStatementLogicalKeyword [350..353]: "not"
- │   │   │   │   │   ├─ ChoiceUnreadableCondition_c4 [353..354]
- │   │   │   │   │   │   └─ OptionalWhitespace [353..354]: " "
- │   │   │   │   │   └─ ChoiceUnreadableCondition_c5 [354..355]
- │   │   │   │   │       └─ ChoiceUnreadableConditionOpen [354..355]: "("
- │   │   │   │   └─ ChoiceWithNoSuppressedText [355..370]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [355..370]
- │   │   │   │       │   └─ ChoicePlainText [355..370]
- │   │   │   │       │       └─ ChoiceTextContent [355..370]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [355..370]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [347..370]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [347..370]
+ │   │   │   │       │   └─ ChoicePlainText [347..370]
+ │   │   │   │       │       └─ ChoiceTextContent [347..370]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [347..370]
+ │   │   │   │       │               ├─ Word [347..349]: "if"
+ │   │   │   │       │               ├─ Space [349..350]: " "
+ │   │   │   │       │               ├─ Word [350..353]: "not"
+ │   │   │   │       │               ├─ Space [353..354]: " "
+ │   │   │   │       │               ├─ Punctuation [354..355]: "("
  │   │   │   │       │               ├─ Word [355..362]: "allowed"
  │   │   │   │       │               ├─ Punctuation [362..363]: "("
  │   │   │   │       │               ├─ Punctuation [363..364]: ")"
@@ -720,20 +708,14 @@ sparkdown [0..643]
  │   │   │   │   ├─ Choice_begin_c6 490
  │   │   │   │   └─ Choice_begin_c7 490
  │   │   │   ├─ Choice_content [490..520]
- │   │   │   │   ├─ ChoiceUnreadableCondition [490..494]
- │   │   │   │   │   ├─ ChoiceUnreadableCondition_c1 [490..492]
- │   │   │   │   │   │   └─ LuauIfKeyword [490..492]: "if"
- │   │   │   │   │   ├─ ChoiceUnreadableCondition_c2 [492..493]
- │   │   │   │   │   │   └─ OptionalWhitespace [492..493]: " "
- │   │   │   │   │   ├─ ChoiceUnreadableCondition_c3 493
- │   │   │   │   │   ├─ ChoiceUnreadableCondition_c4 493
- │   │   │   │   │   └─ ChoiceUnreadableCondition_c5 [493..494]
- │   │   │   │   │       └─ ChoiceUnreadableConditionOpen [493..494]: "("
- │   │   │   │   └─ ChoiceWithNoSuppressedText [494..520]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [494..520]
- │   │   │   │       │   └─ ChoicePlainText [494..520]
- │   │   │   │       │       └─ ChoiceTextContent [494..520]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [494..520]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [490..520]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [490..520]
+ │   │   │   │       │   └─ ChoicePlainText [490..520]
+ │   │   │   │       │       └─ ChoiceTextContent [490..520]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [490..520]
+ │   │   │   │       │               ├─ Word [490..492]: "if"
+ │   │   │   │       │               ├─ Space [492..493]: " "
+ │   │   │   │       │               ├─ Punctuation [493..494]: "("
  │   │   │   │       │               ├─ Word [494..497]: "not"
  │   │   │   │       │               ├─ Space [497..498]: " "
  │   │   │   │       │               ├─ Word [498..505]: "allowed"
