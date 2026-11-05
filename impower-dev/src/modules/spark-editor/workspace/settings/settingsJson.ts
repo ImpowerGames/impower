@@ -53,10 +53,11 @@ export const projectSettingsJson = (
   for (const [key, spec] of Object.entries(PROJECT_SETTINGS_SCHEMA)) {
     const value = values[key]!;
     for (const extensionKey of extensionKeysOf(spec)) {
-      if (Object.hasOwn(defaults, extensionKey)) {
-        if (defaults[extensionKey] !== value) {
-          changed[extensionKey] = value;
-        }
+      const defaultValue = Object.hasOwn(defaults, extensionKey)
+        ? defaults[extensionKey]
+        : spec.default;
+      if (defaultValue !== value) {
+        changed[extensionKey] = value;
       }
     }
   }

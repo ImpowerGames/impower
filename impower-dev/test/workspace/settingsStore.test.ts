@@ -37,6 +37,8 @@ import {
 import {
   PROJECT_SETTINGS_SCHEMA,
   type ProjectSettings,
+  type SettingSpec,
+  type SettingValue,
 } from "../../src/modules/spark-editor/workspace/settings/settingsSchema";
 import workspaceSettings, {
   PREFERENCES_STORAGE_KEY,
@@ -56,6 +58,19 @@ const defaultsOf = (): ProjectSettings =>
       spec.default,
     ]),
   ) as ProjectSettings;
+
+const otherThanDefault = (spec: SettingSpec): SettingValue => {
+  if (spec.choices) {
+    return spec.choices.find((choice) => choice !== spec.default)!;
+  }
+  if (typeof spec.default === "boolean") {
+    return !spec.default;
+  }
+  if (typeof spec.default === "number") {
+    return spec.default + 1;
+  }
+  return `${spec.default} changed`;
+};
 
 const reload = (projectId: string) =>
   new WorkspaceSettings(signal(projectId), localStorage);
@@ -368,8 +383,13 @@ const zipEntries = (zip: ArrayBuffer) =>
 describe(".vscode/settings.json", () => {
   const defaults = extensionDefaults(extensionManifest);
 
-  it("names an extension key whose default matches every exported setting's default", () => {
+  it("writes every project setting but branch names, under a key whose extension default is its own", () => {
     expect(projectSettingsJson(defaultsOf(), defaults)).toBeUndefined();
+    expect(
+      Object.entries(PROJECT_SETTINGS_SCHEMA)
+        .filter(([, spec]) => (spec.configurationKeys ?? []).length === 0)
+        .map(([key]) => key),
+    ).toEqual(["screenplayBranchNames"]);
     for (const [key, spec] of Object.entries(PROJECT_SETTINGS_SCHEMA)) {
       for (const path of spec.configurationKeys ?? []) {
         if (Object.hasOwn(defaults, `sparkdown.${path}`)) {
@@ -439,25 +459,18 @@ describe(".vscode/settings.json", () => {
     store.dispose();
   });
 
-  it("round-trips every non-default setting through export and import", async () => {
-    const changed: ProjectSettings = {
-      ...defaultsOf(),
-      scriptFiles: "*.{sd}",
-      screenplayTitlePage: false,
-      screenplaySceneNumbers: "right",
-      screenplayKnotNames: true,
-      screenplayMore: "(more)",
-    };
+  it("round-trips every setting it writes, each changed from its default", async () => {
+    const changed = Object.fromEntries(
+      Object.entries(PROJECT_SETTINGS_SCHEMA)
+        .filter(([, spec]) => (spec.configurationKeys ?? []).length > 0)
+        .map(([key, spec]) => [key, otherThanDefault(spec)]),
+    ) as Partial<ProjectSettings>;
     const harness = zipHarness({ "main.sd": "Hello" });
-    const zip = await harness.readProjectZip(projectSettingsJson(changed, defaults));
+    const zip = await harness.readProjectZip(
+      projectSettingsJson({ ...defaultsOf(), ...changed }, defaults),
+    );
     const imported = await zipHarness({}).writeProjectZip(zip);
-    expect(projectSettingsFromJson(imported!)).toEqual({
-      scriptFiles: "*.{sd}",
-      screenplayTitlePage: false,
-      screenplaySceneNumbers: "right",
-      screenplayKnotNames: true,
-      screenplayMore: "(more)",
-    });
+    expect(projectSettingsFromJson(imported!)).toEqual(changed);
   });
 
   it("is ignored when it is not an object of settings", () => {
