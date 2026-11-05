@@ -1,14 +1,72 @@
 @font-face {
+  font-family: "Folio UI";
+  font-weight: 400;
+  font-display: swap;
+  unicode-range: U+0000-007D, U+007F-10FFFF;
+  src: url("/fonts/open-sans-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Folio UI";
+  font-weight: 600;
+  font-display: swap;
+  unicode-range: U+0000-007D, U+007F-10FFFF;
+  src: url("/fonts/open-sans-600.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Folio UI";
+  font-weight: 700;
+  font-display: swap;
+  unicode-range: U+0000-007D, U+007F-10FFFF;
+  src: url("/fonts/open-sans-700.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Folio UI";
+  font-weight: 400;
+  font-display: swap;
+  unicode-range: U+007E;
+  src: url("/fonts/courier-prime-sans.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Folio UI";
+  font-weight: 600 700;
+  font-display: swap;
+  unicode-range: U+007E;
+  src: url("/fonts/courier-prime-sans-bold.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Folio UI Fallback";
+  src: local("Arial");
+  size-adjust: 105.22%;
+  ascent-override: 101.65%;
+  descent-override: 27.86%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Courier Prime Sans Fallback";
+  src: local("Courier New");
+  size-adjust: 100.16%;
+  ascent-override: 69.27%;
+  descent-override: 31.35%;
+  line-gap-override: 0%;
+}
+
+@font-face {
   font-family: "Courier Prime Sans";
   font-weight: 400;
-  font-display: block;
+  font-display: swap;
   src: url("/fonts/courier-prime-sans.ttf") format("truetype");
 }
 
 @font-face {
   font-family: "Courier Prime Sans";
-  font-weight: 700;
-  font-display: block;
+  font-weight: 600 700;
+  font-display: swap;
   src: url("/fonts/courier-prime-sans-bold.ttf") format("truetype");
 }
 
@@ -16,15 +74,15 @@
   font-family: "Courier Prime Sans";
   font-style: italic;
   font-weight: 400;
-  font-display: block;
+  font-display: swap;
   src: url("/fonts/courier-prime-sans-italic.ttf") format("truetype");
 }
 
 @font-face {
   font-family: "Courier Prime Sans";
   font-style: italic;
-  font-weight: 700;
-  font-display: block;
+  font-weight: 600 700;
+  font-display: swap;
   src: url("/fonts/courier-prime-sans-bold-italic.ttf") format("truetype");
 }
 
@@ -103,9 +161,9 @@ body {
   padding: 0;
   margin: 0;
 
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-    Arial, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-    "Segoe UI Symbol";
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 html {

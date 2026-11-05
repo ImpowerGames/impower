@@ -5,15 +5,6 @@
 @source ".";
 
 @theme {
-  --font-sans:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
-    system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-    "Segoe UI Symbol";
-  --font-mono:
-    "Courier Prime Sans", SFMono-Regular, Consolas, "Liberation Mono", Menlo,
-    monospace;
-  --font-serif: Georgia, "Times New Roman", serif;
-
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
@@ -22,6 +13,27 @@
 }
 
 @theme inline {
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-script);
+  --font-serif: var(--font-display);
+
+  --text-body: 14px;
+  --text-body--line-height: 1.6;
+  --text-button: 14px;
+  --text-button--line-height: 1.4;
+  --text-button--font-weight: 600;
+  --text-caption: 12px;
+  --text-caption--line-height: 1.5;
+  --text-eyebrow: 11px;
+  --text-eyebrow--line-height: 1.5;
+  --text-eyebrow--letter-spacing: 0.12em;
+  --text-eyebrow--font-weight: 700;
+  --text-tag: 11px;
+  --text-tag--line-height: 1.4;
+  --text-tag--font-weight: 600;
+  --text-script: var(--script-size);
+  --text-script--line-height: var(--script-leading);
+
   --color-bg: var(--bg);
   --color-panel: var(--panel);
   --color-paper: var(--paper);
