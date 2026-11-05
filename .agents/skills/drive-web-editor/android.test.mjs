@@ -523,6 +523,46 @@ await check("a live holder makes the waiter time out naming it, and release free
   again.release();
 });
 
+await check("holders that keep letting go while the waiter asks who they are still end the wait at its deadline, and one that lets go once is followed at once", async () => {
+  let clock = 0;
+  let attempts = 0;
+  await assert.rejects(
+    acquireDevice("emulator-5554", {
+      port: 1,
+      waitSeconds: 1,
+      now: () => clock,
+      sleep: async (ms) => {
+        clock += ms;
+      },
+      hold: async () => {
+        if (++attempts > 20) throw new Error(`spinning: ${attempts} binds past the deadline`);
+        clock += 2_000;
+        return null;
+      },
+      ask: async () => ({ gone: true }),
+    }),
+    /timed out after 2 s waiting for Android device emulator-5554, held by a process that let go while this one asked who it was/,
+  );
+  assert.equal(attempts, 1);
+
+  const answers = [{ holder: { pid: 77, serial: "emulator-5554", acquiredAt: "t" } }, { gone: true }];
+  let binds = 0;
+  const lines = [];
+  const sleeps = [];
+  const held = await acquireDevice("emulator-5554", {
+    port: 1,
+    waitSeconds: 60,
+    log: (line) => lines.push(line),
+    sleep: async (ms) => sleeps.push(ms),
+    hold: async () => (++binds === 3 ? { close: () => {} } : null),
+    ask: async () => answers.shift(),
+  });
+  assert.equal(binds, 3);
+  assert.deepEqual(sleeps, [2_000]);
+  assert.deepEqual(lines, ["waiting for Android device emulator-5554: held by pid 77, device emulator-5554, since t; waiting up to 60 s"]);
+  held.release();
+});
+
 await check("a listener that does not say who it is still holds the port, and the timeout says so", async () => {
   const port = await freePort();
   const foreign = net.createServer((socket) => socket.end("hello")).listen({ port, host: "127.0.0.1" });

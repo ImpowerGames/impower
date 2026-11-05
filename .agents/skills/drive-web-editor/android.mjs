@@ -240,6 +240,8 @@ export async function acquireDevice(serial, {
   log = () => {},
   now = Date.now,
   sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  hold = holdPort,
+  ask = askHolder,
 } = {}) {
   const record = { pid: process.pid, serial, session, worktree, command, acquiredAt: null };
   const began = now();
@@ -247,7 +249,7 @@ export async function acquireDevice(serial, {
   let lastHolder = null;
   for (;;) {
     record.acquiredAt = new Date(now()).toISOString();
-    const server = await holdPort(port, record);
+    const server = await hold(port, record);
     if (server) {
       let released = false;
       return {
@@ -261,12 +263,12 @@ export async function acquireDevice(serial, {
         },
       };
     }
-    const answer = await askHolder(port);
-    if (answer.gone) continue;
-    const holder = describeHolder(answer.holder);
+    const answer = await ask(port);
+    const holder = answer.gone ? (lastHolder ?? "a process that let go while this one asked who it was") : describeHolder(answer.holder);
     if (now() >= deadline) {
       throw new Error(`timed out after ${Math.round((now() - began) / 1000)} s waiting for Android device ${serial}, held by ${holder} (the hold is a listener on 127.0.0.1:${port} and ends with that process). Wait for it to finish, or pass a longer --device-wait <seconds>`);
     }
+    if (answer.gone) continue;
     if (holder !== lastHolder) {
       log(`waiting for Android device ${serial}: held by ${holder}; waiting up to ${waitSeconds} s`);
       lastHolder = holder;
