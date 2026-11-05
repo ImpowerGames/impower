@@ -31,6 +31,7 @@ import type * as lsp from "vscode-languageserver-protocol";
 import { LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
 import { convertFromPosition } from "./pos";
+import { noteEmptySuggestions, suggestions } from "./suggestions";
 
 const completionTheme = EditorView.baseTheme({
   "& .cm-tooltip": {
@@ -39,67 +40,6 @@ const completionTheme = EditorView.baseTheme({
     border: "solid 1px var(--edge)",
     borderRadius: "var(--radius)",
     boxShadow: "var(--float-shadow)",
-  },
-  "& .cm-tooltip.cm-tooltip-autocomplete > ul": {
-    padding: "4px",
-    scrollbarGutter: "stable",
-  },
-  "& .cm-tooltip pre": {
-    margin: "4px 8px",
-  },
-  "& .cm-tooltip.cm-tooltip-autocomplete": {
-    minWidth: "min(90vw, 400px)",
-  },
-  "& .cm-tooltip.cm-tooltip-autocomplete > ul > li": {
-    display: "flex",
-    alignItems: "center",
-    padding: "3px 10px 3px 2px",
-    borderRadius: "var(--control-radius)",
-  },
-  "& .cm-tooltip.cm-completionInfo pre": {
-    margin: "0",
-  },
-  "& .cm-tooltip.cm-completionInfo img": {
-    maxWidth: "100%",
-    objectFit: "contain",
-  },
-  "& .cm-tooltip.cm-completionInfo.cm-completionInfo-right": {
-    marginTop: "-1px",
-  },
-  "& .cm-tooltip.cm-completionInfo.cm-completionInfo-left": {
-    marginTop: "-1px",
-  },
-  "& .cm-tooltip.cm-completionInfo.cm-completionInfo-right-above": {
-    marginBottom: "-2px",
-    left: "-1px",
-    width: "calc(100% + 2px)",
-  },
-  "& .cm-tooltip.cm-completionInfo.cm-completionInfo-left-above": {
-    marginBottom: "-2px",
-    top: "-1px",
-    left: "-1px",
-    width: "calc(100% + 2px)",
-  },
-  "& .cm-tooltip.cm-completionInfo.cm-completionInfo-right-below": {
-    marginTop: "-2px",
-    left: "-1px",
-    width: "calc(100% + 2px)",
-  },
-  "& .cm-tooltip.cm-completionInfo.cm-completionInfo-left-below": {
-    marginTop: "-2px",
-    top: "-1px",
-    left: "-1px",
-    width: "calc(100% + 2px)",
-  },
-
-  ".cm-tooltip.cm-tooltip-autocomplete > ul > li:active:not(:disabled)": {
-    backgroundColor: "var(--control-hover)",
-    boxShadow: "inset 0 0 0 100vmax var(--control-hover)",
-  },
-  "@media (hover: hover)": {
-    ".cm-tooltip.cm-tooltip-autocomplete > ul > li:hover:not(:disabled)": {
-      backgroundColor: "var(--control-hover)",
-    },
   },
 });
 
@@ -206,6 +146,7 @@ export function serverCompletions(
   if (config.override) {
     editorExtension = [
       completionTheme,
+      suggestions(),
       autocompletion({
         ...autocompletionConfig,
         override: [serverCompletionSource],
@@ -215,6 +156,7 @@ export function serverCompletions(
     let data = [{ autocomplete: serverCompletionSource }];
     editorExtension = [
       completionTheme,
+      suggestions(),
       autocompletion({ ...autocompletionConfig }),
       EditorState.languageData.of(() => data),
     ];
@@ -281,7 +223,13 @@ export const serverCompletionSource: CompletionSource = (context) => {
   const { state, pos } = context;
   return getCompletions(plugin, pos, serverContext, context).then(
     (result) => {
-      if (!result) return null;
+      const noteEmpty = () => {
+        if (context.explicit && context.view) {
+          noteEmptySuggestions(context.view, pos);
+        }
+        return null;
+      };
+      if (!result) return noteEmpty();
       const items = Array.isArray(result) ? result : result.items;
       const itemDefaults = Array.isArray(result) ? {} : result.itemDefaults;
       items.sort((a, b) => {
@@ -298,7 +246,7 @@ export const serverCompletionSource: CompletionSource = (context) => {
         return 0;
       });
       if (items.length === 0) {
-        return null;
+        return noteEmpty();
       }
       const ranges = items.map((item) =>
         getEditRange(item, itemDefaults, state.doc, pos),
@@ -423,8 +371,9 @@ export function serverCompletionOption(
   if (plugin && item.documentation) {
     option.info = () => renderDocInfo(plugin, item.documentation!);
   } else if (plugin && item.data && canResolveCompletions(plugin)) {
+    let resolving: Promise<lsp.CompletionItem | null> | undefined;
     option.info = () =>
-      resolveCompletionItem(plugin, item).then((resolved) =>
+      (resolving ??= resolveCompletionItem(plugin, item)).then((resolved) =>
         resolved?.documentation
           ? renderDocInfo(plugin, resolved.documentation)
           : null,
