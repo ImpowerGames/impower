@@ -70,6 +70,18 @@ describe("provider · script references (#1009)", () => {
     expect(referencedBy(more, CHAPTER)).toBe(2);
   });
 
+  test("a scene two scripts declare, as after Duplicate, counts a reference for each of them", () => {
+    const COPY = "file:///p/Scripts/epilogue copy.sd";
+    const EPILOGUE = "file:///p/Scripts/epilogue.sd";
+    const sources = {
+      [MAIN]: "scene start\n  -> epilogue\nend\n",
+      [COPY]: "scene epilogue\n  The end.\nend\n",
+      [EPILOGUE]: "scene epilogue\n  The end.\nend\n",
+    };
+    expect(referencedBy(sources, EPILOGUE)).toBe(1);
+    expect(referencedBy(sources, COPY)).toBe(1);
+  });
+
   test("diverts are listed in the order each script reaches them", () => {
     const sources = {
       [MAIN]: "scene start\n  -> loose_scene\n  -> chapter_scene\nend\n",

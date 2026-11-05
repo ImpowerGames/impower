@@ -42,7 +42,7 @@ export const getScriptReferences = (
       : resolved;
   };
 
-  const declaredIn = new Map<string, string>();
+  const declaredIn = new Map<string, string[]>();
   for (const uri of uris) {
     walkReferences(workspace, uri, (r, scopePath) => {
       const reference = r.value!.type;
@@ -51,8 +51,9 @@ export const getScriptReferences = (
       }
       for (const id of reference.symbolIds ?? []) {
         const resolved = resolve(id, reference, scopePath);
-        if (resolved && !declaredIn.has(resolved)) {
-          declaredIn.set(resolved, uri);
+        const declarers = resolved ? (declaredIn.get(resolved) ?? []) : [];
+        if (resolved && !declarers.includes(uri)) {
+          declaredIn.set(resolved, [...declarers, uri]);
         }
       }
     });
@@ -68,16 +69,18 @@ export const getScriptReferences = (
       }
       for (const id of reference.symbolIds ?? []) {
         const resolved = resolve(id, reference, scopePath);
-        const to = resolved ? declaredIn.get(resolved) : undefined;
-        if (!to) {
+        const declarers = resolved ? declaredIn.get(resolved) : undefined;
+        if (!declarers) {
           continue;
         }
-        if (to !== uri) {
+        if (!declarers.includes(uri)) {
           const divert = reference.usage === "divert";
-          const key = `${uri}\n${to}\n${divert}`;
-          if (!seen.has(key)) {
-            seen.add(key);
-            references.push({ from: uri, to, divert });
+          for (const to of declarers) {
+            const key = `${uri}\n${to}\n${divert}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              references.push({ from: uri, to, divert });
+            }
           }
         }
         break;
