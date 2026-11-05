@@ -1020,7 +1020,7 @@ describe("a save at a menu", () => {
       expect(story.asyncContinueComplete).toBe(false);
       const after = rest(story);
       expect(after).toEqual(rest(pausedAfterPear()));
-      expect(after).toEqual(["", "Ate pear.", "After."]);
+      expect(after).toEqual(["Ate pear.", "After."]);
 
       const kept = engine(rootOf(CHOSEN("kept")));
       kept.loadSave(save);

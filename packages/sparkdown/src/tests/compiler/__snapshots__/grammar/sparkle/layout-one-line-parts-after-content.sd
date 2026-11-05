@@ -1,0 +1,4 @@
+layout hud with
+  text "Hi" .a #width=3
+  button @click=go .a "Hi"
+end

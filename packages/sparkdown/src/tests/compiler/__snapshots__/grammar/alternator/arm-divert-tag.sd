@@ -1,0 +1,6 @@
+scene main
+  queue | -> A # tag | b end
+  x .. queue|-> A # tag|b .. z
+  queue | -> A -> B # tag | b end
+  queue | a # tag | b end
+end

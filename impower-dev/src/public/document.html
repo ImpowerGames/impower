@@ -6,14 +6,20 @@
   <meta name="theme-color" content="" data-theme-colors='' />
   <script id="theme-pre-paint">
     (() => {
-      let preference;
+      let stored = {};
       try {
-        preference = JSON.parse(localStorage.getItem("settings/preferences") || "{}").theme;
+        stored = JSON.parse(localStorage.getItem("settings/preferences") || "{}") || {};
       } catch {}
-      const theme = ["charcoal", "chalk", "midnight"].includes(preference)
+      const preference = stored.theme;
+      const theme = ["charcoal", "chalk", "ink", "paper", "graphite", "warm", "midnight", "dusk"].includes(preference)
         ? preference
         : matchMedia("(prefers-color-scheme: light)").matches ? "chalk" : "charcoal";
-      document.documentElement.dataset.theme = theme;
+      const root = document.documentElement;
+      root.dataset.theme = theme;
+      if (theme === "graphite" || theme === "warm") {
+        root.dataset.surfaces = stored.surfaces === "layered" ? "layered" : "unified";
+        root.dataset.syntax = stored.syntaxPalette === "original" ? "original" : "softened";
+      }
       const meta = document.querySelector('meta[name="theme-color"]');
       try {
         meta.content = JSON.parse(meta.dataset.themeColors)[theme] || meta.content;

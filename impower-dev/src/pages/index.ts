@@ -7,7 +7,7 @@ import { applyTheme } from "../modules/spark-editor/workspace/settings/applyThem
 import workspaceSettings from "../modules/spark-editor/workspace/settings/WorkspaceSettings";
 
 const load = async () => {
-  applyTheme(document.documentElement, workspaceSettings.theme);
+  applyTheme(document.documentElement, workspaceSettings.appearance);
   setScriptEditorLanguageServer({
     worker: Workspace.ls.worker,
     connection: Workspace.ls.connection,

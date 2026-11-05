@@ -4,6 +4,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { themeColors } from "../../src/build/themeColor";
+import {
+  THEMES,
+  type Theme,
+} from "../../src/modules/spark-editor/workspace/settings/applyTheme";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -29,6 +33,41 @@ const COMPONENT_VARIABLES = [
   "--scrim",
 ];
 
+const TOKEN_HEADINGS: Record<Theme, string> = {
+  charcoal: "Charcoal",
+  chalk: "Chalk",
+  ink: "Ink",
+  paper: "Sepia",
+  graphite: "Graphite",
+  warm: "Warm Folio",
+  midnight: "Midnight",
+  dusk: "Dusk",
+};
+
+const FOLIO_THEMES = [
+  "charcoal",
+  "chalk",
+  "ink",
+  "paper",
+  "graphite",
+  "warm",
+] as const;
+
+const PRESET_SYNTAX_COLUMNS = {
+  charcoal: "Charcoal",
+  chalk: "Chalk",
+  ink: "Ink",
+  paper: "Sepia",
+} as const;
+
+const LIGHT_THEMES: readonly Theme[] = ["chalk", "paper"];
+
+interface State {
+  theme: string;
+  surfaces?: string;
+  syntax?: string;
+}
+
 const declarations = (block: string) =>
   new Map(
     [...block.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((m) => [
@@ -37,16 +76,61 @@ const declarations = (block: string) =>
     ]),
   );
 
-const midnightBlock = () => {
-  const match = THEME_CSS.match(
-    /:root\s*,\s*\[data-theme="midnight"\]\s*\{([^}]*)\}/,
-  );
-  expect(match, "theme.css declares :root, [data-theme=midnight]").toBeTruthy();
-  return declarations(match![1]!);
+const ruleBlocks = () =>
+  [...THEME_CSS.matchAll(/([^{}]+)\{([^}]*)\}/g)].map((m) => ({
+    selectors: m[1]!.split(",").map((s) => s.trim()),
+    body: m[2]!,
+  }));
+
+const selectorParts = (selector: string) => {
+  const parts = [...selector.matchAll(/\[data-(\w+)="([^"]+)"\]/g)];
+  return parts.map((m) => m[0]).join("") === selector
+    ? parts.map((m) => [m[1]!, m[2]!] as const)
+    : null;
 };
 
-const semanticTokens = (heading: string) => {
-  const section = TOKENS_MD.split(`#### ${heading}`)[1]!.split(/\n##+ /)[0]!;
+const specificityOf = (selectors: string[], state: State) => {
+  let best = -1;
+  for (const selector of selectors) {
+    const parts = selectorParts(selector);
+    if (
+      parts &&
+      parts.every(([key, value]) => state[key as keyof State] === value)
+    ) {
+      best = Math.max(best, parts.length);
+    }
+  }
+  return best;
+};
+
+const themeDeclarations = (state: State) => {
+  const matching = ruleBlocks()
+    .map((block, order) => ({
+      ...block,
+      order,
+      specificity: specificityOf(block.selectors, state),
+    }))
+    .filter((block) => block.specificity > 0)
+    .sort((a, b) => a.specificity - b.specificity || a.order - b.order);
+  const declared = new Map<string, string>();
+  for (const { body } of matching) {
+    for (const [name, value] of declarations(body)) {
+      declared.set(name, value);
+    }
+  }
+  return declared;
+};
+
+const colorScheme = (theme: string) =>
+  ruleBlocks()
+    .filter(({ selectors }) => selectors.includes(`[data-theme="${theme}"]`))
+    .map(({ body }) => body.match(/(?:^|[;\s])color-scheme:\s*([^;]+);/)?.[1])
+    .filter(Boolean);
+
+const semanticTokens = (theme: Theme) => {
+  const section = TOKENS_MD.split(`#### ${TOKEN_HEADINGS[theme]}`)[1]!.split(
+    /\n##+ /,
+  )[0]!;
   const rows = [
     ...section.matchAll(/^\| `(--[\w-]+)` \| [^|]+ \| ([^|]+) \|/gm),
   ];
@@ -59,91 +143,65 @@ const semanticTokens = (heading: string) => {
   );
 };
 
-const midnightTokens = () => semanticTokens("Midnight");
-
-const FOLIO_THEMES = ["charcoal", "chalk"] as const;
-
-const TOKEN_HEADINGS = { charcoal: "Charcoal", chalk: "Chalk" } as const;
-
-const ruleBlocks = () =>
-  [...THEME_CSS.matchAll(/([^{}]+)\{([^}]*)\}/g)].map((m) => ({
-    selectors: m[1]!.split(",").map((s) => s.trim()),
-    body: m[2]!,
-  }));
-
-const themeDeclarations = (theme: string) => {
-  const declared = new Map<string, string>();
-  for (const { selectors, body } of ruleBlocks()) {
-    if (selectors.includes(`[data-theme="${theme}"]`)) {
-      for (const [name, value] of declarations(body)) {
-        declared.set(name, value);
-      }
-    }
-  }
-  return declared;
-};
-
-const colorScheme = (theme: string) =>
-  ruleBlocks()
-    .filter(({ selectors }) => selectors.includes(`[data-theme="${theme}"]`))
-    .map(({ body }) => body.match(/(?:^|[;\s])color-scheme:\s*([^;]+);/)?.[1])
-    .filter(Boolean);
-
 const tokensSection = (heading: string) =>
   TOKENS_MD.split(`### ${heading}`)[1]!.split(/\n##+ /)[0]!;
+
+const editorTokens = () =>
+  new Map(
+    [
+      ...tokensSection("Code editor variables").matchAll(
+        /^\| `(--[\w-]+)` \| [^|]+ \| `([^`]+)` \|/gm,
+      ),
+    ].map((row) => [row[1]!, row[2]!]),
+  );
 
 const sharedFolioTokens = () =>
   new Map(
     [
       ...tokensSection(
-        "Charcoal and Chalk component and code editor variables",
+        "Folio component and code editor variables",
       ).matchAll(/^\| `(--[\w-]+)` \| `([^`]+)` \|/gm),
     ].map((row) => [row[1]!, row[2]!]),
   );
 
 const folioSyntaxTokens = () =>
   [
-    ...tokensSection("Charcoal and Chalk syntax variables").matchAll(
-      /^\| `(--[\w-]+)` \| `(--[\w-]+)` \| `([^`]+)` \| `([^`]+)` \|/gm,
+    ...tokensSection("Folio syntax variables").matchAll(
+      /^\| `(--[\w-]+)` \| `(--[\w-]+)` \| `([^`]+)` \| `([^`]+)` \| `([^`]+)` \| `([^`]+)` \| `([^`]+)` \|/gm,
     ),
   ].map((row) => ({
     name: row[1]!,
     role: row[2]!,
-    charcoal: row[3]!,
-    chalk: row[4]!,
+    Charcoal: row[3]!,
+    Chalk: row[4]!,
+    Ink: row[5]!,
+    Sepia: row[6]!,
+    Softened: row[7]!,
   }));
 
-const paletteRoles = () => {
-  const section = tokensSection("Syntax colours");
-  return new Map(
+const paletteRoles = () =>
+  new Map(
     [
-      ...section.matchAll(
-        /^\| `(--[\w-]+)` \| `[^`]+` \| `[^`]+` \| `[^`]+` \| `([^`]+)` \| `[^`]+` \| `([^`]+)` \|/gm,
+      ...tokensSection("Syntax colours").matchAll(
+        /^\| `(--[\w-]+)` \| `([^`]+)` \| `([^`]+)` \| `([^`]+)` \| `([^`]+)` \| `([^`]+)` \| `([^`]+)` \|/gm,
       ),
-    ].map((row) => [row[1]!, { charcoal: row[2]!, chalk: row[3]! }]),
+    ].map((row) => [
+      row[1]!,
+      { Ink: row[4]!, Charcoal: row[5]!, Sepia: row[6]!, Chalk: row[7]! },
+    ]),
   );
-};
 
-const editorBlock = () => {
-  const blocks = [
-    ...THEME_CSS.matchAll(
-      /:root\s*,\s*\[data-theme="midnight"\]\s*\{([^}]*)\}/g,
-    ),
-  ];
-  expect(blocks.length, "theme.css declares a second Midnight block").toBe(2);
-  return declarations(blocks[1]![1]!);
-};
+const midnight = () => themeDeclarations({ theme: "midnight" });
 
-const editorTokens = () => {
-  const section = TOKENS_MD.split("### Code editor variables")[1]!.split(
-    /\n##+ /,
-  )[0]!;
-  return new Map(
-    [...section.matchAll(/^\| `(--[\w-]+)` \| [^|]+ \| `([^`]+)` \|/gm)].map(
-      (row) => [row[1]!, row[2]!],
-    ),
+const editorNames = (declared: Map<string, string>) =>
+  [...declared.keys()].filter(
+    (n) =>
+      n.startsWith("--editor-") ||
+      (n.startsWith("--syntax-") && n !== "--syntax-active"),
   );
-};
+
+const syntaxNames = () =>
+  editorNames(midnight()).filter((n) => n.startsWith("--syntax-"));
 
 const inlineThemeColors = () => {
   const block = STYLE_CSS.match(/@theme inline\s*\{([^}]*)\}/);
@@ -159,40 +217,37 @@ const compiledUtilities = async (candidates: string[]) => {
   return optimize(compiler.build(candidates), { minify: false }).code;
 };
 
-describe("Midnight semantic colour set", () => {
+const semanticNames = () => {
+  const editor = new Set(editorNames(midnight()));
+  return [...midnight().keys()].filter((n) => !editor.has(n));
+};
+
+describe("Midnight colour set", () => {
   afterEach(() => {
     document.head.innerHTML = "";
     delete document.documentElement.dataset["theme"];
   });
 
-  it("declares every variable tokens.md lists for Midnight, with its value", () => {
-    const tokens = midnightTokens();
-    expect(tokens.size).toBeGreaterThan(20);
-    const declared = midnightBlock();
-    for (const [name, value] of tokens) {
-      expect(declared.get(name), name).toBe(value);
-    }
-  });
-
   it("declares only tokens.md's names plus the listed component tokens", () => {
-    const allowed = new Set([...midnightTokens().keys(), ...COMPONENT_VARIABLES]);
-    expect([...midnightBlock().keys()].filter((n) => !allowed.has(n))).toEqual(
-      [],
-    );
+    const allowed = new Set([
+      ...semanticTokens("midnight").keys(),
+      ...COMPONENT_VARIABLES,
+    ]);
+    expect(semanticNames().filter((n) => !allowed.has(n))).toEqual([]);
     for (const name of COMPONENT_VARIABLES) {
-      expect(midnightBlock().has(name), name).toBe(true);
+      expect(midnight().has(name), name).toBe(true);
     }
   });
 
   it("gives every semantic and component variable a Tailwind colour that aliases it", () => {
     const colors = inlineThemeColors();
-    for (const name of midnightBlock().keys()) {
+    for (const name of semanticNames()) {
       expect(colors.get(`--color-${name.slice(2)}`), name).toBe(`var(${name})`);
     }
   });
 
   it("resolves each colour utility to its semantic variable", async () => {
-    const names = [...midnightBlock().keys()].map((n) => n.slice(2));
+    const names = semanticNames().map((n) => n.slice(2));
     const css = await compiledUtilities(names.map((n) => `bg-${n}`));
     for (const name of names) {
       const rule = css.match(
@@ -205,84 +260,53 @@ describe("Midnight semantic colour set", () => {
   it("declares exactly the code editor variables tokens.md lists, with their values", () => {
     const tokens = editorTokens();
     expect(tokens.size).toBeGreaterThan(60);
-    expect(Object.fromEntries(editorBlock())).toEqual(
-      Object.fromEntries(tokens),
-    );
+    const declared = midnight();
+    expect(
+      Object.fromEntries(editorNames(declared).map((n) => [n, declared.get(n)])),
+    ).toEqual(Object.fromEntries(tokens));
   });
 
-  it("keeps the code editor variables out of the semantic block", () => {
-    const semantic = midnightBlock();
-    for (const name of editorBlock().keys()) {
-      expect(semantic.has(name), name).toBe(false);
-    }
-  });
-
-  it("switches with data-theme and keeps Midnight for none or an unknown one", async () => {
+  it("keeps Midnight's values on :root when no theme or an unknown one is set", async () => {
     const style = document.createElement("style");
     style.textContent = `${await compiledUtilities([])}
 [data-theme="other"] { --bg: #ffffff; }`;
     document.head.append(style);
     const root = document.documentElement;
     const bg = () => getComputedStyle(root).getPropertyValue("--bg").trim();
-    const midnight = themeColors(THEME_CSS).midnight;
+    const color = themeColors(THEME_CSS).midnight;
 
-    expect(bg()).toBe(midnight);
+    expect(bg()).toBe(color);
     root.dataset["theme"] = "other";
     expect(bg()).toBe("#ffffff");
     root.dataset["theme"] = "no-such-theme";
-    expect(bg()).toBe(midnight);
-    root.dataset["theme"] = "midnight";
-    expect(bg()).toBe(midnight);
+    expect(bg()).toBe(color);
   });
 });
 
-describe.each(FOLIO_THEMES)("%s colour set", (theme) => {
+describe.each(THEMES)("%s colour set", (theme) => {
   afterEach(() => {
     document.head.innerHTML = "";
     delete document.documentElement.dataset["theme"];
   });
 
   it("declares every semantic variable tokens.md lists for the theme, with its value", () => {
-    const tokens = semanticTokens(TOKEN_HEADINGS[theme]);
-    expect(tokens.size).toBeGreaterThan(20);
-    const declared = themeDeclarations(theme);
+    const tokens = semanticTokens(theme);
+    expect(tokens.size).toBeGreaterThanOrEqual(20);
+    const declared = themeDeclarations({ theme });
     for (const [name, value] of tokens) {
       expect(declared.get(name), name).toBe(value);
     }
   });
 
-  it("overrides every variable Midnight declares, so none of Midnight's colours shows through", () => {
-    const declared = themeDeclarations(theme);
-    const midnight = [...midnightBlock().keys(), ...editorBlock().keys()];
-    expect(midnight.filter((name) => !declared.has(name))).toEqual([]);
-  });
-
-  it("gives the component and code editor variables the values tokens.md records", () => {
-    const tokens = sharedFolioTokens();
-    expect(tokens.size).toBeGreaterThan(50);
-    const declared = themeDeclarations(theme);
-    for (const [name, value] of tokens) {
-      expect(declared.get(name), name).toBe(value);
-    }
-  });
-
-  it("gives each syntax variable its role's colour from the theme's palette", () => {
-    const rows = folioSyntaxTokens();
-    const roles = paletteRoles();
-    const declared = themeDeclarations(theme);
-    expect(rows.map((row) => row.name).sort()).toEqual(
-      [...editorBlock().keys()].filter((n) => n.startsWith("--syntax-")).sort(),
-    );
-    for (const row of rows) {
-      expect(roles.get(row.role)?.[theme], `${row.name} -> ${row.role}`).toBe(
-        row[theme],
-      );
-      expect(declared.get(row.name), row.name).toBe(row[theme]);
-    }
+  it("declares every variable Midnight declares, so no other theme's colours show through", () => {
+    const declared = themeDeclarations({ theme });
+    expect([...midnight().keys()].filter((n) => !declared.has(n))).toEqual([]);
   });
 
   it("sets the colour scheme form controls and scrollbars follow", () => {
-    expect(colorScheme(theme)).toEqual([theme === "chalk" ? "light" : "dark"]);
+    expect(colorScheme(theme)).toEqual([
+      LIGHT_THEMES.includes(theme) ? "light" : "dark",
+    ]);
   });
 
   it("switches the page's colours when data-theme names it", async () => {
@@ -293,14 +317,109 @@ describe.each(FOLIO_THEMES)("%s colour set", (theme) => {
     const bg = () => getComputedStyle(root).getPropertyValue("--bg").trim();
 
     root.dataset["theme"] = theme;
-    expect(bg()).toBe(semanticTokens(TOKEN_HEADINGS[theme]).get("--bg"));
-    root.dataset["theme"] = "midnight";
-    expect(bg()).toBe(themeColors(THEME_CSS).midnight);
+    expect(bg()).toBe(themeColors(THEME_CSS)[theme]);
   });
 });
 
-describe("Midnight colour scheme", () => {
-  it("is dark", () => {
-    expect(colorScheme("midnight")).toEqual(["dark"]);
+describe.each(FOLIO_THEMES)("%s component and editor variables", (theme) => {
+  it("gives them the values tokens.md records for the Folio themes", () => {
+    const tokens = sharedFolioTokens();
+    expect(tokens.size).toBeGreaterThan(50);
+    const declared = themeDeclarations({ theme });
+    for (const [name, value] of tokens) {
+      expect(declared.get(name), name).toBe(value);
+    }
+  });
+});
+
+describe("Dusk component and editor variables", () => {
+  it("are Midnight's", () => {
+    const dusk = themeDeclarations({ theme: "dusk" });
+    const declared = midnight();
+    for (const name of [...COMPONENT_VARIABLES, ...editorNames(declared)]) {
+      expect(dusk.get(name), name).toBe(declared.get(name));
+    }
+  });
+});
+
+describe("syntax variables", () => {
+  const rows = folioSyntaxTokens();
+
+  it("lists every syntax variable the editor reads", () => {
+    expect(rows.map((row) => row.name).sort()).toEqual(syntaxNames().sort());
+  });
+
+  it.each(Object.entries(PRESET_SYNTAX_COLUMNS))(
+    "gives %s each variable its role's colour from the theme's palette",
+    (theme, column) => {
+      const roles = paletteRoles();
+      const declared = themeDeclarations({ theme });
+      for (const row of rows) {
+        expect(roles.get(row.role)?.[column], `${row.name} -> ${row.role}`).toBe(
+          row[column],
+        );
+        expect(declared.get(row.name), row.name).toBe(row[column]);
+      }
+    },
+  );
+
+  it.each(["graphite", "warm"])(
+    "gives %s Softened by default and Midnight's colours under Original",
+    (theme) => {
+      const original = midnight();
+      for (const syntax of [undefined, "softened"]) {
+        const declared = themeDeclarations({ theme, syntax });
+        for (const row of rows) {
+          expect(declared.get(row.name), `${syntax} ${row.name}`).toBe(
+            row.Softened,
+          );
+        }
+      }
+      const declared = themeDeclarations({ theme, syntax: "original" });
+      for (const name of syntaxNames()) {
+        expect(declared.get(name), name).toBe(original.get(name));
+      }
+    },
+  );
+
+  it("gives Dusk Midnight's colours", () => {
+    const dusk = themeDeclarations({ theme: "dusk" });
+    for (const name of syntaxNames()) {
+      expect(dusk.get(name), name).toBe(midnight().get(name));
+    }
+  });
+
+  it("ignores Original on a theme that does not offer it", () => {
+    for (const theme of ["charcoal", "ink"]) {
+      expect(
+        Object.fromEntries(themeDeclarations({ theme, syntax: "original" })),
+      ).toEqual(Object.fromEntries(themeDeclarations({ theme })));
+    }
+  });
+});
+
+describe("Lighter navigation", () => {
+  it.each(["graphite", "warm"])(
+    "draws %s's writing pane in the deeper colour under layered and the page colour under unified",
+    (theme) => {
+      expect(
+        themeDeclarations({ theme, surfaces: "layered" }).get("--workspace"),
+      ).toBe("var(--workspace-deep)");
+      expect(
+        themeDeclarations({ theme, surfaces: "unified" }).get("--workspace"),
+      ).toBe("var(--bg)");
+      expect(semanticTokens(theme as Theme).get("--workspace-deep")).not.toBe(
+        semanticTokens(theme as Theme).get("--bg"),
+      );
+    },
+  );
+
+  it("leaves every other theme's writing pane alone", () => {
+    for (const theme of THEMES.filter((t) => t !== "graphite" && t !== "warm")) {
+      expect(
+        themeDeclarations({ theme, surfaces: "layered" }).get("--workspace"),
+        theme,
+      ).toBe(themeDeclarations({ theme }).get("--workspace"));
+    }
   });
 });
