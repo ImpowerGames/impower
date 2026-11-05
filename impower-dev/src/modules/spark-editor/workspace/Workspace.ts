@@ -1,3 +1,4 @@
+import workspaceSettings from "./settings/WorkspaceSettings";
 import WorkspaceConfiguration from "./WorkspaceConfiguration";
 import WorkspaceFileSystem from "./WorkspaceFileSystem";
 import WorkspaceLanguageServer from "./WorkspaceLanguageServer";
@@ -7,7 +8,8 @@ import WorkspaceWindow from "./WorkspaceWindow";
 import { registerWorkspaceProtocol } from "./workspaceProtocol";
 
 export namespace Workspace {
-  export const configuration = new WorkspaceConfiguration();
+  export const settings = workspaceSettings;
+  export const configuration = new WorkspaceConfiguration(settings);
   export const window: WorkspaceWindow = new WorkspaceWindow(Workspace);
   export const ls: WorkspaceLanguageServer = new WorkspaceLanguageServer(
     Workspace,

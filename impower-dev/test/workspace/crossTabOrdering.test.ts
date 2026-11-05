@@ -179,7 +179,7 @@ async function load(root: MemoryDirectory) {
   };
   const fs: WorkspaceFileSystemType = new WorkspaceFileSystem(
     ls as never,
-    { settings } as never,
+    { settings, onDidChange: () => () => {} } as never,
   );
   await fs.getFiles(PROJECT);
   await settle();
@@ -357,7 +357,7 @@ describe("the page's first load (I-1893)", () => {
     );
     const fs = new WorkspaceFileSystem(
       { connection: { onRequest() {}, sendNotification() {} }, start: async () => {} } as never,
-      { settings } as never,
+      { settings, onDidChange: () => () => {} } as never,
     );
     await awaitingFolders;
     const finish = async () => {

@@ -6,6 +6,7 @@ import { ChangedEditorRoutePinsMessage } from "@impower/spark-editor-protocol/sr
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPaneMessage";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
+import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
@@ -598,6 +599,44 @@ describe("Animate portraits preference", () => {
           timeout: 15000,
         });
         expect(getComputedStyle(iframe).visibility).toBe("visible");
+      } finally {
+        render(null, container);
+        container.remove();
+        current.window = undefined;
+      }
+    }, 30000);
+
+    it("hears a settings change once it has initialized", async () => {
+      current.window = load();
+      Object.assign(Workspace.fs, {
+        getFiles: async () => ({}),
+        getDirectoryUri: async () => "file://local",
+      });
+      (Workspace as unknown as { configuration: unknown }).configuration = {
+        settings: {},
+      };
+      const container = document.createElement("div");
+      document.body.append(container);
+      const configurations = (posted: unknown[]) =>
+        posted
+          .filter((m) => DidChangeConfigurationMessage.type.is(m))
+          .map((m) => (m as { params: unknown }).params);
+      try {
+        channels.all = [];
+        render(h(PreviewGame, {}), container);
+        container.querySelector("iframe")!.dispatchEvent(new Event("load"));
+        await vi.waitFor(() => expect(channels.all).toHaveLength(1), {
+          timeout: 15000,
+        });
+        const settings = { imageFiles: "*.{png}" };
+        sendProtocolMessage(
+          DidChangeConfigurationMessage.type.notification({ settings }),
+        );
+        await vi.waitFor(() =>
+          expect(configurations(channels.all[0]!.posted)).toEqual([
+            { settings },
+          ]),
+        );
       } finally {
         render(null, container);
         container.remove();

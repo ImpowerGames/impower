@@ -89,6 +89,12 @@ import createTextFile from "./utils/createTextFile";
 import createZipFile from "./utils/createZipFile";
 import { PreviewSaveStore } from "@impower/spark-editor-protocol/src/utils/PreviewSaveStore";
 import { opfsSaveFiles } from "./opfsSaveFiles";
+import {
+  loadExtensionDefaults,
+  projectSettingsFromJson,
+  projectSettingsJson,
+} from "./settings/settingsJson";
+import workspaceSettings from "./settings/WorkspaceSettings";
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
 
 export default class WorkspaceWindow {
@@ -1667,7 +1673,14 @@ export default class WorkspaceWindow {
             status: "exporting",
           },
         });
-        const projectZip = await this._workspace.fs.readProjectZip(projectId);
+        const settingsJson = projectSettingsJson(
+          workspaceSettings.projectSettings.peek(),
+          await loadExtensionDefaults(),
+        );
+        const projectZip = await this._workspace.fs.readProjectZip(
+          projectId,
+          settingsJson,
+        );
         this.update({
           ...this.store,
           sync: {
@@ -1703,10 +1716,16 @@ export default class WorkspaceWindow {
         });
         const extIndex = fileName.indexOf(".");
         const name = extIndex >= 0 ? fileName.slice(0, extIndex) : fileName;
-        await Promise.all([
+        const [settingsJson] = await Promise.all([
           this._workspace.fs.writeProjectZip(projectId, fileBuffer),
           this._workspace.fs.writeProjectMetadata(projectId, "name", name),
         ]);
+        workspaceSettings.replaceProjectSettings(
+          projectId,
+          settingsJson === undefined
+            ? {}
+            : projectSettingsFromJson(settingsJson),
+        );
         this.update({
           ...this.store,
           sync: {

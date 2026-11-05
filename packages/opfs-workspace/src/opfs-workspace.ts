@@ -830,9 +830,9 @@ onmessage = async (e) => {
     }
   }
   if (ZipFilesMessage.type.isRequest(message)) {
-    const { files, directories } = message.params;
+    const { files, directories, entries } = message.params;
     try {
-      const buffer = (await zipFiles(files, directories)) as ArrayBuffer;
+      const buffer = (await zipFiles(files, directories, entries)) as ArrayBuffer;
       const response = ZipFilesMessage.type.response(message.id, buffer);
       respond(response, [buffer]);
     } catch (err: any) {
@@ -1360,6 +1360,7 @@ const readFile = (fileUri: string) =>
 const zipFiles = async (
   files: { uri: string; path?: string }[],
   directories: string[] = [],
+  entries: { path: string; data: ArrayBuffer }[] = [],
 ) => {
   const refs = await Promise.all(
     files.map(async ({ uri, path }) => {
@@ -1369,7 +1370,7 @@ const zipFiles = async (
       return { path: path || fileRef.name, data };
     }),
   );
-  const zipped = zipSync(buildZippable(refs, directories), {
+  const zipped = zipSync(buildZippable([...refs, ...entries], directories), {
     level: 0,
   });
   console.log(

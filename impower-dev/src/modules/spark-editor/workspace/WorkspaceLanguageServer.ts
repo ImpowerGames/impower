@@ -13,6 +13,7 @@ import {
   type PublishDiagnosticsParams,
 } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
+import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import {
   ClientCapabilities,
   ConfigurationParams,
@@ -257,6 +258,14 @@ export default class WorkspaceLanguageServer {
       this.stop();
     });
     this._connection.listen();
+    this._workspace.configuration.onDidChange((params) => {
+      if (this._initializeResult) {
+        this._connection.sendNotification(
+          DidChangeConfigurationMessage.method,
+          params,
+        );
+      }
+    });
   }
 
   async start(
