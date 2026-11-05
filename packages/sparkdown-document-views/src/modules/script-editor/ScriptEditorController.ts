@@ -156,6 +156,7 @@ export class ScriptEditorController {
     | "end"
     | "center";
   protected _initialSelectedRange?: Range;
+  protected _loadSelection?: EditorSelection;
   protected _loaded = false;
   protected _editing = false;
   protected _textDocument?: TextDocumentItem;
@@ -989,6 +990,7 @@ export class ScriptEditorController {
             }
           },
         });
+        this._loadSelection = this._view.state.selection;
       }
     }
     sendProtocolMessage(
@@ -1146,7 +1148,13 @@ export class ScriptEditorController {
   protected handleIdle = () => {
     if (!this._loaded) {
       const initialFocused = this._initialFocused;
-      const initialSelectedRange = this._initialSelectedRange;
+      const untouched =
+        !!this._view &&
+        !!this._loadSelection &&
+        this._view.state.selection.eq(this._loadSelection);
+      const initialSelectedRange = untouched
+        ? this._initialSelectedRange
+        : undefined;
       const initialVisibleRange =
         this._initialVisibleRange == null ||
         typeof this._initialVisibleRange === "string"
@@ -1161,6 +1169,7 @@ export class ScriptEditorController {
         this.selectRange(initialSelectedRange, false);
       }
       const view = this._view;
+      const settled = view?.state.selection;
       if (document.hasFocus() && this._view) {
         clearInterval(this._focusIntervalTimeout);
         this._focusIntervalTimeout = window.setInterval(() => {
@@ -1169,6 +1178,8 @@ export class ScriptEditorController {
             !this._view ||
             this._view.hasFocus ||
             !initialSelectedRange ||
+            !settled ||
+            !this._view.state.selection.eq(settled) ||
             this.isSelectionRangeVisible(initialSelectedRange)
           ) {
             clearInterval(this._focusIntervalTimeout);

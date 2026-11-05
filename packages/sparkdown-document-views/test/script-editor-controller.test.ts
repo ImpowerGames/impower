@@ -330,3 +330,46 @@ describe("ScriptEditorController initial selection", () => {
     expect(view.state.selection.main.head).toBe(view.state.doc.line(2).from + 2);
   });
 });
+
+describe("ScriptEditorController initial selection after newer moves", () => {
+  const loadAt = async (line: number) => {
+    const mounted = mount();
+    const at = { line, character: 0 };
+    await mounted.controller["handleLoadEditor"]({
+      ...LoadEditorMessage.type.request({
+        textDocument: { uri: "file:///main.sd", languageId: "sparkdown", version: 0, text: "" },
+        selectedRange: { start: at, end: at },
+        languageServerInitializeParams: {} as never,
+        languageServerInitializeResult: {} as never,
+      }),
+      id: `load-${nextId++}`,
+    } as LoadEditorMessage.Request);
+    const { view } = created[created.length - 1]!;
+    view.dispatch({
+      changes: { from: view.state.doc.length, insert: "second\nthird\nfourth\n" },
+    });
+    return { ...mounted, view };
+  };
+
+  it("keeps a navigation that arrived before the editor settled", async () => {
+    const { controller, view } = await loadAt(1);
+    controller["handleSelectEditor"](
+      SelectEditorMessage.type.notification({
+        textDocument: { uri: "file:///main.sd" },
+        range: { start: { line: 3, character: 0 }, end: { line: 3, character: 0 } },
+      }),
+    );
+    const moved = view.state.doc.line(4).from;
+    expect(view.state.selection.main.head).toBe(moved);
+    controller["handleIdle"]();
+    expect(view.state.selection.main.head).toBe(moved);
+  });
+
+  it("keeps a selection the author made before the editor settled", async () => {
+    const { controller, view } = await loadAt(1);
+    const clicked = view.state.doc.line(3).from + 1;
+    view.dispatch({ selection: { anchor: clicked }, userEvent: "select.pointer" });
+    controller["handleIdle"]();
+    expect(view.state.selection.main.head).toBe(clicked);
+  });
+});
