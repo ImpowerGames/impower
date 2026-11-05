@@ -59,20 +59,24 @@ export const hitArea = async (element: Element): Promise<HitArea> => {
       return false;
     }
   });
-  const largest = (properties: string[]): number => {
-    let best = 0;
+  const cascaded = (property: string): string | undefined => {
+    let value: string | undefined;
     for (const rule of rules) {
-      for (const property of properties) {
-        const length = resolveLength(rule.style.getPropertyValue(property));
-        if (length !== null && length > best) {
-          best = length;
-        }
+      const declared = rule.style.getPropertyValue(property);
+      if (declared) {
+        value = declared;
       }
     }
-    return best;
+    return value;
+  };
+  const used = (axis: "width" | "height"): number => {
+    const size = resolveLength(cascaded(axis) ?? "") ?? 0;
+    const min = resolveLength(cascaded(`min-${axis}`) ?? "") ?? 0;
+    const max = resolveLength(cascaded(`max-${axis}`) ?? "") ?? Number.POSITIVE_INFINITY;
+    return Math.max(min, Math.min(size, max));
   };
   return {
-    width: largest(["width", "min-width"]),
-    height: largest(["height", "min-height"]),
+    width: used("width"),
+    height: used("height"),
   };
 };

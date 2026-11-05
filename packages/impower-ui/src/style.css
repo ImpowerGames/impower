@@ -134,6 +134,18 @@
   }
 }
 
+@utility focus-within-edge {
+  &:has(:focus-visible) {
+    outline: 1px solid var(--accent);
+    outline-offset: -1px;
+  }
+  @media (forced-colors: active) {
+    &:has(:focus-visible) {
+      outline-color: Highlight;
+    }
+  }
+}
+
 @utility fade-edge {
   overflow: hidden;
   white-space: nowrap;

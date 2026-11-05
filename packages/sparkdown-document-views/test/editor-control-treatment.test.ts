@@ -39,6 +39,35 @@ describe("the code editor's find and go-to-line panels on a coarse pointer", () 
   });
 });
 
+describe("the language-server autocomplete on a coarse pointer", () => {
+  it("gives every suggestion row a 44px minimum", async () => {
+    const { EditorState } = await import("@codemirror/state");
+    const { EditorView } = await import("@codemirror/view");
+    const lsp = await import("@impower/codemirror-vscode-lsp-client/src");
+    const { editorExtension } = lsp.serverCompletions() as { editorExtension: import("@codemirror/state").Extension };
+    const view = new EditorView({
+      state: EditorState.create({ extensions: editorExtension }),
+      parent: document.body.appendChild(document.createElement("div")),
+    });
+    try {
+      const sheets = [
+        ...Array.from(document.styleSheets),
+        ...((document as Document & { adoptedStyleSheets?: CSSStyleSheet[] }).adoptedStyleSheets ?? []),
+      ];
+      const coarseRows = sheets.flatMap((sheet) =>
+        Array.from(sheet.cssRules)
+          .filter((rule): rule is CSSMediaRule => rule instanceof CSSMediaRule && rule.media.mediaText.includes("pointer: coarse"))
+          .flatMap((media) => Array.from(media.cssRules) as CSSStyleRule[])
+          .filter((rule) => rule.selectorText.endsWith(".cm-tooltip.cm-tooltip-autocomplete > ul > li")),
+      );
+      expect(coarseRows.length).toBeGreaterThan(0);
+      expect(coarseRows.some((rule) => px(rule.style.getPropertyValue("min-height")) >= 44)).toBe(true);
+    } finally {
+      view.destroy();
+    }
+  });
+});
+
 describe("the code editor's own scroll containers", () => {
   it("keep a stable gutter on the find fields and the problems list", () => {
     const fields = find["& [contenteditable][name='search'], & [contenteditable][name='replace']"] as Spec;

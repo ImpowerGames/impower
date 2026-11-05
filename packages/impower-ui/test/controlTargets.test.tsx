@@ -54,6 +54,26 @@ it("gives every Button kind a 44px square or taller target", async () => {
   }
 });
 
+it.each([
+  ["a max size", "max-h-6 max-w-6"],
+  ["a later fixed size", "size-6"],
+])("measures a button capped by %s below 44px", async (_label, cap) => {
+  await mount(
+    <Button size="icon" class={cap} aria-label="Close">
+      x
+    </Button>,
+  );
+  const area = await hitArea(host!.querySelector("button")!);
+  expect(area.width).toBe(24);
+  expect(area.height).toBe(24);
+});
+
+it("keeps a min-height above a smaller max-height, as layout does", async () => {
+  await mount(<Button class="max-h-6">Text</Button>);
+  const area = await hitArea(host!.querySelector("button")!);
+  expect(area.height).toBe(44);
+});
+
 it("gives every menu row a 44px tall target", async () => {
   await mount(
     <DropdownRoot defaultOpen>

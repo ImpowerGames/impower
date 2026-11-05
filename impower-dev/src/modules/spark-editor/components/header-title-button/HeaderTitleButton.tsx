@@ -31,7 +31,7 @@ export default function HeaderTitleButton(_p: HeaderTitleButtonProps) {
 
   return (
     <div class="flex w-full flex-row items-center">
-      <div class="relative -mx-1 -my-2 h-11 max-w-[600px] flex-1 overflow-hidden rounded-control px-1 text-foreground control-overlay focus-within:outline focus-within:outline-1 focus-within:-outline-offset-1 focus-within:outline-accent">
+      <div class="relative -mx-1 -my-2 h-11 max-w-[600px] flex-1 overflow-hidden rounded-control px-1 text-foreground control-overlay focus-within-edge">
         <div class="absolute inset-y-0 inset-x-1 flex items-center">
           {ready ? (
             <input

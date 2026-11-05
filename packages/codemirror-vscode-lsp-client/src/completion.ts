@@ -56,6 +56,11 @@ const completionTheme = EditorView.baseTheme({
     padding: "3px 10px 3px 2px",
     borderRadius: "var(--control-radius)",
   },
+  "@media (pointer: coarse)": {
+    ".cm-tooltip.cm-tooltip-autocomplete > ul > li": {
+      minHeight: "44px",
+    },
+  },
   "& .cm-tooltip.cm-completionInfo pre": {
     margin: "0",
   },

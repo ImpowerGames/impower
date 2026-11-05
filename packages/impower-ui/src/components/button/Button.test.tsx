@@ -90,6 +90,12 @@ describe("Button hover, press and focus", () => {
     expect(css).toMatch(/:where\(\.overflow-auto, \.overflow-y-auto, \.overflow-scroll, \.overflow-y-scroll\) \{\s*scrollbar-gutter: stable/);
   });
 
+  it("draws a field wrapper's edge while its input has keyboard focus, in Highlight under forced colours", async () => {
+    const css = await packageCss(["focus-within-edge"]);
+    expect(css).toMatch(/\.focus-within-edge:has\(:focus-visible\) \{\s*outline: 1px solid var\(--accent\);\s*outline-offset: -1px;/);
+    expect(css).toMatch(/@media \(forced-colors: active\) \{\s*\.focus-within-edge:has\(:focus-visible\) \{\s*outline-color: highlight/i);
+  });
+
   it("draws a filled button's focus inside, in its ink", () => {
     expect(buttonVariants({ variant: "primary" })).toContain("focus-inset");
     expect(buttonVariants({ size: "pill" })).toContain("focus-inset");
