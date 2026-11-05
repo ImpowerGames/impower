@@ -872,30 +872,44 @@ fs.unlinkSync(claimFile);
   const held = (label) => assert.throws(() => acquire(label, { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify, guardWaitMs: 100 }), error => error.guardHeld === true, `${label} keeps the guard held`);
 
   let count = recoveredGuards().length;
-  fs.writeFileSync(guardFile, "");
-  age(guardFile);
-  acquireAfterDelayedRecovery("old empty guard", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify }).release();
-  assert.equal(recoveredGuards().length, ++count, "an old empty guard is renamed aside");
+  const claims = recoveredClaims().length;
+  for (const [kind, file, records] of [
+    ["guard", guardFile, [[guardFile, ""]]],
+    ["claim", claimFile, [[guardFile, abandoned], [claimFile, ""]]],
+  ]) {
+    for (const freshness of ["fresh", "old"]) {
+      const label = `${freshness} empty ${kind}`;
+      for (const [recordFile, contents] of records) fs.writeFileSync(recordFile, contents);
+      if (freshness === "old") age(file);
+      const before = fs.statSync(file, { bigint: true });
 
-  for (const [label, claim] of [["an old empty claim", ""], ["a dead recoverer's claim", abandoned]]) {
-    const claims = recoveredClaims().length;
-    fs.writeFileSync(guardFile, abandoned);
-    fs.writeFileSync(claimFile, claim);
-    if (claim === "") age(claimFile);
-    acquireAfterDelayedRecovery(label, { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify }).release();
-    assert.equal(recoveredClaims().length, claims + 1, `${label} is renamed aside`);
-    assert.equal(recoveredGuards().length, ++count, `${label} no longer blocks guard recovery`);
-    assert.deepEqual(strays(), [], `${label}: no claim or takeover is left behind`);
+      held(label);
+      assert.equal(recoveredGuards().length, count, `${label}: no guard was archived`);
+      assert.equal(recoveredClaims().length, claims, `${label}: no claim was archived`);
+      const after = fs.statSync(file, { bigint: true });
+      assert.equal(after.ino, before.ino, `${label}: the original file remains`);
+      assert.equal(after.birthtimeNs, before.birthtimeNs, `${label}: the original generation remains`);
+      for (const [recordFile, contents] of records) {
+        assert.equal(fs.readFileSync(recordFile, "utf8"), contents, `${label}: ${path.basename(recordFile)} is untouched`);
+        fs.unlinkSync(recordFile);
+      }
+    }
   }
 
-  for (const [label, claim] of [["a fresh empty claim", ""], ["a live recoverer's claim", JSON.stringify({ owner: live })]]) {
-    fs.writeFileSync(guardFile, abandoned);
-    fs.writeFileSync(claimFile, claim);
-    held(label);
-    assert.equal(fs.readFileSync(claimFile, "utf8"), claim, `${label} is untouched`);
-    fs.unlinkSync(claimFile);
-    fs.unlinkSync(guardFile);
-  }
+  fs.writeFileSync(guardFile, abandoned);
+  fs.writeFileSync(claimFile, abandoned);
+  acquireAfterDelayedRecovery("a dead recoverer's claim", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify }).release();
+  assert.equal(recoveredClaims().length, claims + 1, "a dead recoverer's claim is renamed aside");
+  assert.equal(recoveredGuards().length, ++count, "a dead recoverer's claim no longer blocks guard recovery");
+  assert.deepEqual(strays(), [], "no claim or takeover is left behind after recovering a dead claim");
+
+  const liveClaim = JSON.stringify({ owner: live });
+  fs.writeFileSync(guardFile, abandoned);
+  fs.writeFileSync(claimFile, liveClaim);
+  held("a live recoverer's claim");
+  assert.equal(fs.readFileSync(claimFile, "utf8"), liveClaim, "a live recoverer's claim is untouched");
+  fs.unlinkSync(claimFile);
+  fs.unlinkSync(guardFile);
 
   fs.writeFileSync(guardFile, abandoned);
   fs.writeFileSync(claimFile, abandoned);
@@ -908,11 +922,6 @@ fs.unlinkSync(claimFile);
   acquireAfterDelayedRecovery("dead takeover holder", { root: lockRoot, slots: 1, memory: plenty, census: () => [], identify }).release();
   assert.equal(recoveredGuards().length, ++count, "a dead takeover holder no longer blocks recovery");
   assert.deepEqual(strays(), [], "no claim or takeover is left behind after nested recovery");
-
-  fs.writeFileSync(guardFile, "");
-  held("a fresh empty guard");
-  assert.equal(fs.readFileSync(guardFile, "utf8"), "", "a guard its creator may still be writing is untouched");
-  fs.unlinkSync(guardFile);
 
   const creating = () => fs.readdirSync(lockRoot).filter(name => /^creating-/.test(name));
   const link = fs.linkSync;
