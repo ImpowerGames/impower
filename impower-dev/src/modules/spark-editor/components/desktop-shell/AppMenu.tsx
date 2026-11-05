@@ -1,19 +1,19 @@
 import {
-  BrandGoogleDrive,
-  Browser,
-  Bug,
+  AccountIcon,
+  BugIcon,
   Button,
-  Download,
+  CloseIcon,
+  ComputerIcon,
+  DownloadIcon,
   DropdownContent,
   DropdownItem,
   DropdownLabel,
   DropdownRoot,
   DropdownSeparator,
   DropdownTrigger,
-  InfoCircle,
-  Sliders,
-  Upload,
-  X,
+  HelpIcon,
+  SettingsIcon,
+  UploadIcon,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useRef } from "preact/hooks";
@@ -75,7 +75,7 @@ export default function AppMenu() {
             class="w-full justify-start gap-2.5 px-2 text-[13px] font-normal text-muted group-data-[sidebar=collapsed]/sidebar:w-11 group-data-[sidebar=collapsed]/sidebar:justify-center group-data-[sidebar=collapsed]/sidebar:px-0"
           >
             <span class="flex size-7 flex-none items-center justify-center rounded-control border border-edge [&_svg]:size-4">
-              <Browser />
+              <ComputerIcon />
             </span>
             <span class="truncate group-data-[sidebar=collapsed]/sidebar:sr-only">
               {label}
@@ -100,7 +100,7 @@ export default function AppMenu() {
               aria-label="Close app menu"
               onClick={() => setOpen(false)}
             >
-              <X />
+              <CloseIcon />
             </Button>
           </DropdownLabel>
           <DropdownItem
@@ -110,13 +110,13 @@ export default function AppMenu() {
               )
             }
           >
-            <BrandGoogleDrive />
+            <AccountIcon />
             {signinLabel}
           </DropdownItem>
           <DropdownItem
             onSelect={() => void withWindow((win) => win.navigateTo("project"))}
           >
-            <Sliders />
+            <SettingsIcon />
             Settings
           </DropdownItem>
           <DropdownSeparator />
@@ -126,14 +126,14 @@ export default function AppMenu() {
                 disabled={offline}
                 onSelect={() => fileInput.current?.click()}
               >
-                <Download />
+                <DownloadIcon />
                 Import Project
               </DropdownItem>
               <DropdownItem
                 disabled={offline}
                 onSelect={() => void downloadProjectZip()}
               >
-                <Upload />
+                <UploadIcon />
                 Export Project
               </DropdownItem>
             </>
@@ -145,7 +145,7 @@ export default function AppMenu() {
               })
             }
           >
-            <InfoCircle />
+            <HelpIcon />
             {"Help & guide"}
           </DropdownItem>
           <DropdownItem
@@ -153,7 +153,7 @@ export default function AppMenu() {
               window.open(REPORT_BUG_URL, "_blank", "noopener,noreferrer")
             }
           >
-            <Bug />
+            <BugIcon />
             Report a bug
           </DropdownItem>
         </DropdownContent>

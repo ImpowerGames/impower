@@ -1,4 +1,10 @@
-import { Book, Photo, Share, Tab, Tabs } from "@impower/impower-ui/components";
+import {
+  ArtIcon,
+  BookIcon,
+  ShareIcon,
+  Tab,
+  Tabs,
+} from "@impower/impower-ui/components";
 import type { PaneType } from "@impower/spark-editor-protocol/src/types";
 import { routeOfPane } from "../../workspace/routes";
 import workspace from "../../workspace/WorkspaceStore";
@@ -29,13 +35,13 @@ export default function ShellRail() {
           iconLayout="beside"
           indicator="none"
         >
-          <Tab value="logic" icon={Book}>
+          <Tab value="logic" icon={BookIcon}>
             Story
           </Tab>
-          <Tab value="assets" icon={Photo}>
+          <Tab value="assets" icon={ArtIcon}>
             Assets
           </Tab>
-          <Tab value="share" icon={Share}>
+          <Tab value="share" icon={ShareIcon}>
             Share
           </Tab>
         </Tabs>

@@ -1,7 +1,7 @@
 import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Book, Photo, Share } from "../icon/icons.generated";
+import { ArtIcon, BookIcon, ShareIcon } from "../icon/icons.generated";
 import Tabs, { Tab, type TabsProps } from "./Tabs";
 
 let host: HTMLDivElement | undefined;
@@ -20,13 +20,13 @@ const mount = async (props: Partial<TabsProps> = {}) => {
   await act(async () =>
     render(
       <Tabs value="logic" onChange={onChange} {...props}>
-        <Tab value="logic" icon={Book}>
+        <Tab value="logic" icon={BookIcon}>
           Story
         </Tab>
-        <Tab value="assets" icon={Photo}>
+        <Tab value="assets" icon={ArtIcon}>
           Assets
         </Tab>
-        <Tab value="share" icon={Share}>
+        <Tab value="share" icon={ShareIcon}>
           Share
         </Tab>
       </Tabs>,
