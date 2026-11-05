@@ -81,7 +81,42 @@ const GRAMMARS = {
   ),
   nested10: nestedGrammar(10),
   nested12: nestedGrammar(12),
+  chain12: chainGrammar(12),
+  repeatedBegin: grammarOf(
+    {
+      Head: { name: "head.mini", begin: "H\\n", end: "(?!)", patterns: [{ include: "#Inner" }] },
+      Inner: {
+        name: "inner.mini",
+        begin: "(?<=\\n)",
+        end: "(?!)",
+        patterns: [{ include: "#Inner" }, { include: "#Tail" }, { include: "#Word" }, { include: "#Gap" }],
+      },
+      Tail: {
+        name: "tail.mini",
+        begin: "(?<=\\n)",
+        end: "(?!)",
+        patterns: [{ include: "#Word" }, { include: "#Gap" }],
+      },
+    },
+    [{ include: "#Head" }, { include: "#Word" }, { include: "#Gap" }],
+  ),
 };
+
+function chainGrammar(length: number) {
+  const repository: Record<string, unknown> = {
+    Head: { name: "head.mini", begin: "H\\n", end: "(?!)", patterns: [{ include: "#C0" }, { include: "#Word" }, { include: "#Gap" }] },
+  };
+  for (let i = 0; i < length; i++) {
+    const next = i + 1 < length ? [{ include: `#C${i + 1}` }] : [];
+    repository[`C${i}`] = {
+      name: `c${i}.mini`,
+      begin: "(?<=\\n)",
+      end: "(?!)",
+      patterns: [...next, { include: "#Word" }, { include: "#Gap" }],
+    };
+  }
+  return grammarOf(repository, [{ include: "#Head" }, { include: "#Word" }, { include: "#Gap" }]);
+}
 
 function nestedGrammar(depth: number) {
   const repository: Record<string, unknown> = {};
@@ -106,6 +141,13 @@ const CASES: [keyof typeof GRAMMARS, string, string, string][] = [
   ["lineStartIsNotTheLineEnd", "Hi\nLabel\n\nLabel\n", "Label", "source.mini line.mini"],
   ["nested10", `${"A".repeat(10)}\nLabel\n`, "Label", "source.mini label.mini"],
   ["nested12", `${"A".repeat(12)}\nLabel\n`, "Label", "source.mini label.mini"],
+  [
+    "chain12",
+    "H\nLabel\n",
+    "Label",
+    `source.mini head.mini ${Array.from({ length: 12 }, (_, i) => `c${i}.mini`).join(" ")} word.mini`,
+  ],
+  ["repeatedBegin", "H\nLabel\n", "Label", "source.mini head.mini inner.mini word.mini"],
 ];
 
 describe("textmate-grammar-tree tries the exhausted end of a line after a match takes its line break, as vscode-textmate does (I-1965)", () => {

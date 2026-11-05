@@ -55,8 +55,6 @@ export interface TokenizerStepResult {
   splitAt?: { at: number; resume: TokenizerResume };
 }
 
-type LineEndRetry = "pushed" | "popped" | null;
-
 type DispatchResult =
   | {
       kind: "scope";
@@ -64,7 +62,10 @@ type DispatchResult =
       matched: Matched;
       chain: number[];
     }
-  | { kind: "leaf"; matched: Matched };
+  | { kind: "leaf"; matched: Matched }
+  | { kind: "repeated" };
+
+const REPEATED: DispatchResult = { kind: "repeated" };
 
 export class ResumableTokenizer {
   declare grammar: Grammar;
@@ -160,13 +161,36 @@ export class ResumableTokenizer {
     }
   }
 
-  protected dispatch(rules: Rule[], pos: number): DispatchResult | null {
+  protected isOpenedAt(rule: ScopedRule, pos: number) {
+    for (let i = this.frames.length - 1; i >= 0; i--) {
+      const frame = this.frames[i]!;
+      if (frame.openedAt !== pos) {
+        return false;
+      }
+      if (frame.rule === rule) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  protected dispatch(
+    rules: Rule[],
+    pos: number,
+    atLineEnd = false,
+  ): DispatchResult | null {
     for (let i = 0; i < rules.length; i++) {
       const rule = rules[i];
       if (!rule) {
         continue;
       }
       if (rule instanceof ScopedRule) {
+        if (atLineEnd && this.isOpenedAt(rule, pos)) {
+          if (rule.beginRule.match(this.state, pos)) {
+            return REPEATED;
+          }
+          continue;
+        }
         if (this.state.possibleStackOverflow(rule.id, pos)) {
           continue;
         }
@@ -184,10 +208,10 @@ export class ResumableTokenizer {
         }
         this.state.enter(rule.id, pos);
         rule.resolve();
-        const inner = this.dispatch(rule.rules ?? [], pos);
+        const inner = this.dispatch(rule.rules ?? [], pos, atLineEnd);
         this.state.exit(rule.id, pos);
         if (inner) {
-          if (rule.emit) {
+          if (rule.emit && inner.kind !== "repeated") {
             if (inner.kind === "leaf") {
               inner.matched = inner.matched.wrap(rule.node, Wrapping.FULL);
             } else {
@@ -309,7 +333,7 @@ export class ResumableTokenizer {
       frame.rule.contentRule.rules ?? [],
       dispatchPos,
     );
-    if (!result) {
+    if (!result || result.kind === "repeated") {
       return false;
     }
     if (result.kind === "leaf") {
@@ -335,11 +359,18 @@ export class ResumableTokenizer {
     return true;
   }
 
-  protected tryTopLevel(out: GrammarToken[]): DispatchResult | null {
+  protected tryTopLevel(
+    out: GrammarToken[],
+    atLineEnd = false,
+  ): DispatchResult | null {
     const dispatchPos = this.pos;
-    const result = this.dispatch(this.grammar.rules ?? [], dispatchPos);
-    if (!result) {
-      return null;
+    const result = this.dispatch(
+      this.grammar.rules ?? [],
+      dispatchPos,
+      atLineEnd,
+    );
+    if (!result || result.kind === "repeated") {
+      return result;
     }
     this.emitBatch(
       out,
@@ -366,50 +397,52 @@ export class ResumableTokenizer {
   protected retryEndAtLineEnd(
     out: GrammarToken[],
     frame: TokenizerFrame,
-  ): LineEndRetry | undefined {
+  ): boolean | null {
     if (frame.openedAt === this.pos) {
-      return frame.rule.endsAt(this.state, this.pos) ? null : undefined;
+      return frame.rule.endsAt(this.state, this.pos) ? false : null;
     }
-    return this.tryEnd(out, false) ? "popped" : undefined;
+    return this.tryEnd(out, false) ? true : null;
   }
 
-  protected retryOnceAtLineEnd(out: GrammarToken[]): LineEndRetry {
+  protected retryOnceAtLineEnd(out: GrammarToken[]): boolean {
     const frame = this.frames[this.frames.length - 1];
     if (!frame) {
-      return this.tryTopLevel(out)?.kind === "scope" ? "pushed" : null;
+      return this.tryTopLevel(out, true)?.kind === "scope";
     }
     const rule = frame.rule;
     if (!rule.applyEndPatternLast) {
       const ended = this.retryEndAtLineEnd(out, frame);
-      if (ended !== undefined) {
+      if (ended != null) {
         return ended;
       }
     }
     rule.contentRule.resolve();
-    const result = this.dispatch(rule.contentRule.rules ?? [], this.pos);
+    const result = this.dispatch(rule.contentRule.rules ?? [], this.pos, true);
+    if (result?.kind === "repeated") {
+      return false;
+    }
     if (result?.kind === "scope") {
       this.emitBatch(out, result.matched.compile(), frame, result.chain);
       this.openFrame(result, this.pos);
-      return "pushed";
+      return true;
     }
     if (result) {
       this.emitBatch(out, result.matched.compile(), frame);
       this.closeWithoutEnd(out, true);
-      return null;
+      return false;
     }
     if (rule.applyEndPatternLast) {
-      return this.retryEndAtLineEnd(out, frame) ?? null;
+      return this.retryEndAtLineEnd(out, frame) ?? false;
     }
-    return null;
+    return false;
   }
 
   protected retryAtLineEnd(out: GrammarToken[]) {
     const pending = this.pending;
     this.state.exhaustLineAt(this.pos);
-    let pushes = 0;
-    let retried = this.retryOnceAtLineEnd(out);
-    while (retried === "popped" || (retried === "pushed" && ++pushes < EMPTY_MATCH_LIMIT)) {
-      retried = this.retryOnceAtLineEnd(out);
+    let retrying = true;
+    while (retrying) {
+      retrying = this.retryOnceAtLineEnd(out);
     }
     this.state.exhaustLineAt(-1);
     if (this.pending !== pending) {
