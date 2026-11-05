@@ -33,6 +33,17 @@ export const renameTheme = EditorView.baseTheme({
       borderColor: "var(--accent)",
     },
   },
+  "@media (forced-colors: active)": {
+    ".cm-lsp-rename-tooltip .cm-lsp-rename-input:focus-visible": {
+      borderColor: "Highlight",
+    },
+  },
+  "@media (pointer: coarse)": {
+    ".cm-lsp-rename-tooltip .cm-lsp-rename-input": {
+      minHeight: "44px",
+      padding: "10px 8px",
+    },
+  },
   ".cm-lsp-rename-submit": {
     background: "var(--editor-rename-submit)",
     color: "var(--ink)",

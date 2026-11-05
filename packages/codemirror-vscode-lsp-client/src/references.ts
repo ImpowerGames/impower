@@ -27,6 +27,11 @@ export const referencesTheme = EditorView.baseTheme({
       "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     fontSize: "13px",
   },
+  "@media (forced-colors: active)": {
+    ".cm-lsp-reference-list .cm-lsp-reference[aria-selected]": {
+      outlineColor: "Highlight",
+    },
+  },
   ".cm-lsp-reference-list": {
     overflowY: "auto",
     scrollbarGutter: "stable",
@@ -57,7 +62,7 @@ export const referencesTheme = EditorView.baseTheme({
     "&[aria-selected]": {
       backgroundColor: "var(--editor-list-selected)",
       color: "var(--ink)",
-      outline: "1px solid var(--editor-focus-edge)",
+      outline: "1px solid var(--accent)",
       outlineOffset: "-1px",
     },
   },
@@ -304,6 +309,7 @@ export class ReferencePanel implements Panel {
           document.createElement("div"),
         );
         header.className = "cm-lsp-reference-file";
+        header.setAttribute("role", "button");
         const collapseIcon = header.appendChild(document.createElement("span"));
         collapseIcon.className = "cm-lsp-collapse-icon";
         header.appendChild(document.createTextNode(fileName));

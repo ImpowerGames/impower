@@ -15,15 +15,23 @@ const ruleFor = (part: string): Spec => {
   return coarse[key!] as Spec;
 };
 
-describe("the code editor's find and go-to-line panels on a coarse pointer", () => {
-  it("give every find button a 44px square", () => {
-    const buttons = ruleFor("cm-search button:not([name='close'])");
-    expect(px(buttons["width"])).toBeGreaterThanOrEqual(44);
-    expect(px(buttons["height"])).toBeGreaterThanOrEqual(44);
-    expect(px(ruleFor("cm-search button[name='close']")["width"])).toBeGreaterThanOrEqual(44);
+const SIZE_KEYS = ["minWidth", "minHeight", "maxWidth", "maxHeight"];
+
+const capsSize = (spec: Spec): string[] =>
+  Object.entries(spec).flatMap(([key, value]) =>
+    SIZE_KEYS.includes(key) && px(value) < 44
+      ? [key]
+      : value && typeof value === "object"
+        ? capsSize(value as Spec).map((inner) => `${key} ${inner}`)
+        : [],
+  );
+
+describe("the code editor's controls on a coarse pointer", () => {
+  it("leaves every button's 44px minimum to the shared coarse-pointer rule: nothing caps a minimum or maximum below it", () => {
+    expect(capsSize(EDITOR_THEME as Spec).filter((path) => /button/i.test(path))).toEqual([]);
   });
 
-  it("give the case, word and regex toggles a 44px square outside the field", () => {
+  it("give the case, word and regex toggles, which are labels, a 44px square outside the field", () => {
     const toggles = ruleFor("cm-search label:has(input[type='checkbox'])");
     expect(px(toggles["width"])).toBeGreaterThanOrEqual(44);
     expect(px(toggles["height"])).toBeGreaterThanOrEqual(44);
@@ -31,43 +39,70 @@ describe("the code editor's find and go-to-line panels on a coarse pointer", () 
     expect(toggles["gridRow"]).toBe("2");
   });
 
-  it("give the find and replace fields and the go-to-line controls 44px", () => {
+  it("raise the find, replace and go-to-line fields, whose own theme sets a 32px minimum, to 44px", () => {
+    expect(px((EDITOR_THEME["& .cm-textfield"] as Spec)["minHeight"])).toBe(32);
     expect(px(ruleFor("cm-search .cm-textfield")["minHeight"])).toBeGreaterThanOrEqual(44);
-    const gotoLine = ruleFor("cm-gotoLine button");
-    expect(px(gotoLine["height"])).toBeGreaterThanOrEqual(44);
-    expect(px(gotoLine["minWidth"])).toBeGreaterThanOrEqual(44);
+    expect(px(ruleFor("cm-gotoLine .cm-textfield")["height"])).toBeGreaterThanOrEqual(44);
   });
 });
 
-describe("the language-server autocomplete on a coarse pointer", () => {
-  it("gives every suggestion row a 44px minimum", async () => {
+describe("the context menu and suggestion rows the shared rule reaches", () => {
+  it("marks the context menu and each of its items with menu roles", async () => {
     const { EditorState } = await import("@codemirror/state");
     const { EditorView } = await import("@codemirror/view");
     const lsp = await import("@impower/codemirror-vscode-lsp-client/src");
-    const { editorExtension } = lsp.serverCompletions() as { editorExtension: import("@codemirror/state").Extension };
     const view = new EditorView({
-      state: EditorState.create({ extensions: editorExtension }),
+      state: EditorState.create({ doc: "scene start", extensions: [lsp.contextMenu()] }),
       parent: document.body.appendChild(document.createElement("div")),
     });
     try {
-      const sheets = [
-        ...Array.from(document.styleSheets),
-        ...((document as Document & { adoptedStyleSheets?: CSSStyleSheet[] }).adoptedStyleSheets ?? []),
-      ];
-      const coarseRows = sheets.flatMap((sheet) =>
-        Array.from(sheet.cssRules)
-          .filter((rule): rule is CSSMediaRule => rule instanceof CSSMediaRule && rule.media.mediaText.includes("pointer: coarse"))
-          .flatMap((media) => Array.from(media.cssRules) as CSSStyleRule[])
-          .filter((rule) => rule.selectorText.endsWith(".cm-tooltip.cm-tooltip-autocomplete > ul > li")),
-      );
-      expect(coarseRows.length).toBeGreaterThan(0);
-      expect(coarseRows.some((rule) => px(rule.style.getPropertyValue("min-height")) >= 44)).toBe(true);
+      lsp.showContextMenu(view, { pos: 0, x: 10, y: 10 });
+      const menu = document.querySelector(".cm-context-menu");
+      expect(menu?.getAttribute("role")).toBe("menu");
+      const items = Array.from(document.querySelectorAll(".cm-context-menu .cm-menu-item"));
+      expect(items.length).toBeGreaterThan(0);
+      expect(items.every((item) => item.getAttribute("role") === "menuitem")).toBe(true);
     } finally {
       view.destroy();
+      document.body.innerHTML = "";
+    }
+  });
+
+  it("renders suggestions as role=option rows", async () => {
+    const { EditorState } = await import("@codemirror/state");
+    const { EditorView } = await import("@codemirror/view");
+    const { autocompletion, startCompletion } = await import("@codemirror/autocomplete");
+    const view = new EditorView({
+      state: EditorState.create({
+        doc: "sc",
+        selection: { anchor: 2 },
+        extensions: [autocompletion({ override: [() => ({ from: 0, options: [{ label: "scene" }, { label: "screen" }] })] })],
+      }),
+      parent: document.body.appendChild(document.createElement("div")),
+    });
+    try {
+      startCompletion(view);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const rows = Array.from(document.querySelectorAll(".cm-tooltip-autocomplete li"));
+      expect(rows.length).toBe(2);
+      expect(rows.every((row) => row.getAttribute("role") === "option")).toBe(true);
+    } finally {
+      view.destroy();
+      document.body.innerHTML = "";
     }
   });
 });
 
+describe("focus drawn outside the shared :focus-visible rule", () => {
+  it("draws the selected problem's edge while the list has keyboard focus, in Highlight under forced colours", () => {
+    expect(EDITOR_THEME["& .cm-panel.cm-panel-lint ul:focus-visible [aria-selected]"]).toEqual({
+      outline: "1px solid var(--accent)",
+      outlineOffset: "-1px",
+    });
+    const forced = EDITOR_THEME["@media (forced-colors: active)"] as Spec;
+    expect((forced[".cm-panel.cm-panel-lint ul:focus-visible [aria-selected]"] as Spec)["outlineColor"]).toBe("Highlight");
+  });
+});
 describe("the code editor's own scroll containers", () => {
   it("keep a stable gutter on the find fields and the problems list", () => {
     const fields = find["& [contenteditable][name='search'], & [contenteditable][name='replace']"] as Spec;

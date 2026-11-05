@@ -59,8 +59,6 @@ const keyboardToolbarTheme = EditorView.theme({
     boxShadow: "none",
     flexShrink: 0,
     whiteSpace: "nowrap",
-    minWidth: "44px",
-    minHeight: "44px",
     alignItems: "center",
     justifyContent: "center",
     borderRadius: "var(--control-radius)",

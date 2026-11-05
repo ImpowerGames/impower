@@ -62,10 +62,6 @@ const contextMenuTheme = EditorView.baseTheme({
   ".cm-context-menu.cm-vertical .cm-menu-item": {
     justifyContent: "space-between",
   },
-  ".cm-context-menu.cm-mobile .cm-menu-item": {
-    minHeight: "44px",
-    minWidth: "44px",
-  },
   ".cm-context-menu.cm-desktop.cm-vertical .cm-menu-item": {
     padding: "7px 26px",
   },
@@ -339,6 +335,7 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
     create(view: EditorView) {
       const dom = document.createElement("div");
       dom.className = "cm-context-menu";
+      dom.setAttribute("role", "menu");
       dom.addEventListener("mousedown", (e) => e.preventDefault());
 
       const currentSpec = (): ContextMenuSpec => {
@@ -381,6 +378,7 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
       if (hasPrev) {
         const backBtn = document.createElement("div");
         backBtn.className = "cm-menu-item cm-menu-back";
+        backBtn.setAttribute("role", "menuitem");
         const icon = document.createElement("span");
         icon.className = "cm-menu-back-icon";
         backBtn.appendChild(icon);
@@ -415,6 +413,7 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
         if ("label" in item) {
           const itemEl = document.createElement("div");
           itemEl.className = "cm-menu-item cm-menu-option";
+          itemEl.setAttribute("role", "menuitem");
 
           const labelSpan = document.createElement("span");
           labelSpan.textContent = view.state.phrase(item.label!);
@@ -469,6 +468,7 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
 
         const moreBtn = document.createElement("div");
         moreBtn.className = "cm-menu-item cm-menu-more";
+        moreBtn.setAttribute("role", "menuitem");
         const icon = document.createElement("span");
         icon.className = "cm-menu-more-icon";
         moreBtn.appendChild(icon);

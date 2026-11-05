@@ -162,14 +162,17 @@ const EDITOR_THEME: {
   "& ul:focus-visible": {
     outline: "none",
   },
+  "& .cm-panel.cm-panel-lint ul:focus-visible [aria-selected]": {
+    outline: "1px solid var(--accent)",
+    outlineOffset: "-1px",
+  },
   "& label:has(input[type='checkbox']:focus-visible)::before": {
     outline: "1px solid var(--accent)",
     outlineOffset: "-1px",
   },
   "@media (pointer: coarse)": {
-    ".cm-panels .cm-panel.cm-gotoLine button, .cm-panels .cm-panel.cm-gotoLine .cm-textfield": {
+    ".cm-panels .cm-panel.cm-gotoLine .cm-textfield": {
       height: "44px",
-      minWidth: "44px",
     },
     ".cm-panels .cm-panel.cm-search": {
       display: "grid",
@@ -205,13 +208,6 @@ const EDITOR_THEME: {
     ".cm-panels .cm-panel.cm-search button[name='replaceAll']": {
       gridArea: "3 / 6",
     },
-    ".cm-panels .cm-panel.cm-search button[name='close']": {
-      width: "44px",
-    },
-    ".cm-panels .cm-panel.cm-search button:not([name='close'])": {
-      width: "44px",
-      height: "44px",
-    },
     ".cm-panels .cm-panel.cm-search label:has(input[type='checkbox'])": {
       position: "relative",
       right: "auto",
@@ -236,7 +232,10 @@ const EDITOR_THEME: {
     },
   },
   "@media (forced-colors: active)": {
-    "button:focus-visible, label:has(input[type='checkbox']:focus-visible)::before, .cm-textfield:focus-visible":
+    ".cm-panel.cm-panel-lint ul:focus-visible [aria-selected]": {
+      outlineColor: "Highlight",
+    },
+    "button:focus-visible, label:has(input[type='checkbox']:focus-visible)::before, .cm-panels .cm-textfield:focus-visible, .cm-tooltip .cm-textfield:focus-visible":
       {
         outlineColor: "Highlight",
         borderColor: "Highlight",

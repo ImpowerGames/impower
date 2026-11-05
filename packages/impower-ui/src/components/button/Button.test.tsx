@@ -83,6 +83,25 @@ describe("Button hover, press and focus", () => {
     expect(css).toMatch(/@media \(forced-colors: active\) \{\s*:focus-visible \{\s*outline-color: highlight/i);
   });
 
+  it("gives every tappable element a 44px minimum on a coarse pointer, at zero specificity", async () => {
+    const css = await packageCss([]);
+    const coarse = css.slice(css.indexOf("@media (pointer: coarse)"));
+    const heightRule = /:where\(([^)]*(?:\([^)]*\)[^)]*)*)\) \{\s*min-height: 44px;/.exec(coarse);
+    expect(heightRule).not.toBeNull();
+    for (const selector of ["button", '[role="button"]', '[role="tab"]', '[role="menuitem"]', '[role="option"]', "summary", "select", "textarea", "input:not("]) {
+      expect(heightRule![1]).toContain(selector);
+    }
+    for (const excluded of ['[type="hidden"]', '[type="checkbox"]', '[type="radio"]']) {
+      expect(heightRule![1]).toContain(excluded);
+    }
+    const widthRule = /:where\(([^)]*)\) \{\s*min-width: 44px;/.exec(coarse);
+    expect(widthRule).not.toBeNull();
+    for (const selector of ["button", '[role="button"]', '[role="tab"]', '[role="menuitem"]']) {
+      expect(widthRule![1]).toContain(selector);
+    }
+    expect(widthRule![1]).not.toContain('[role="option"]');
+  });
+
   it("keeps every scrollbar thin over no track, with no later rule resetting it", async () => {
     const css = await packageCss([]);
     expect(css).toMatch(/\* \{\s*scrollbar-width: thin;\s*scrollbar-color: var\(--scrollbar\) var\(--scrollbar-track\);/);
