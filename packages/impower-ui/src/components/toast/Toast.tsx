@@ -69,7 +69,7 @@ export default function Toast({
       return;
     }
     swipeStart.current = null;
-    if (lift <= -TOAST_SWIPE_DISMISS_PX) {
+    if (open && lift <= -TOAST_SWIPE_DISMISS_PX) {
       onDismiss();
     } else {
       setLift(0);
@@ -84,6 +84,7 @@ export default function Toast({
     >
       <div
         data-toast
+        inert={!open}
         class={cn(toastVariants({ visible: open }), className)}
         style={lift ? { translate: `0 ${lift}px` } : undefined}
         onPointerDown={(event) => {
@@ -105,13 +106,26 @@ export default function Toast({
           <Button
             variant="quiet"
             class="text-accent"
-            onClick={onAction}
+            onClick={() => {
+              if (open) {
+                onAction?.();
+              }
+            }}
           >
             {actionLabel}
           </Button>
         )}
         {!coarse && (
-          <Button variant="quiet" size="icon" aria-label="Dismiss" onClick={onDismiss}>
+          <Button
+            variant="quiet"
+            size="icon"
+            aria-label="Dismiss"
+            onClick={() => {
+              if (open) {
+                onDismiss();
+              }
+            }}
+          >
             <X />
           </Button>
         )}

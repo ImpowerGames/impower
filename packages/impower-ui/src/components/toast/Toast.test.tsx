@@ -94,6 +94,44 @@ describe("Toast", () => {
     expect(toast()).toBeNull();
   });
 
+  it("ignores its action, close and swipe while it leaves, and is inert", async () => {
+    const onAction = vi.fn();
+    const onDismiss = vi.fn();
+    host = document.body.appendChild(document.createElement("div"));
+    const draw = (open: boolean) =>
+      act(async () =>
+        render(
+          <Toast open={open} message="Moved" actionLabel="Undo" onAction={onAction} onDismiss={onDismiss} />,
+          host!,
+        ),
+      );
+    await draw(true);
+    await settle(20);
+    await draw(false);
+    expect(toast()?.hasAttribute("inert")).toBe(true);
+    await act(async () => button("Undo")!.click());
+    await act(async () => button("Dismiss")!.click());
+    const element = toast()!;
+    for (const [type, clientY] of [["pointerdown", 100], ["pointermove", 40], ["pointerup", 40]] as const) {
+      await act(async () => {
+        element.dispatchEvent(new PointerEvent(type, { bubbles: true, clientY, pointerType: "touch" }));
+      });
+    }
+    expect(onAction).not.toHaveBeenCalled();
+    expect(onDismiss).not.toHaveBeenCalled();
+    await settle(TOAST_TRANSITION_MS + 20);
+    expect(toast()).toBeNull();
+  });
+
+  it("fires its action once when it is pressed again during its exit", async () => {
+    const onAction = vi.fn();
+    await mount(onAction);
+    await act(async () => button("Undo")!.click());
+    expect(toast()?.hasAttribute("inert")).toBe(true);
+    await act(async () => button("Undo")!.click());
+    expect(onAction).toHaveBeenCalledTimes(1);
+  });
+
   it("closes from its close button under a fine pointer", async () => {
     await mount();
     await act(async () => button("Dismiss")!.click());

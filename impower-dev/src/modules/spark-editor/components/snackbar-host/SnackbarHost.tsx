@@ -23,6 +23,9 @@ export default function SnackbarHost() {
       wrap={shown.persistent}
       actionLabel={shown.actionLabel}
       onAction={() => {
+        if (snackbar.value !== shown) {
+          return;
+        }
         shown.onAction?.();
         if (!shown.persistent) {
           dismissSnackbar(shown);

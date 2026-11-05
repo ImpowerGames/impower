@@ -50,6 +50,21 @@ describe("SnackbarHost", () => {
     expect(snackbar.value).toBeNull();
   });
 
+  it("runs Undo once when it is pressed twice before the toast leaves, leaving the earlier operation alone", async () => {
+    await mount();
+    const undone: string[] = [];
+    const history = ["first", "second"];
+    showSnackbar({ message: "Moved first", actionLabel: "Undo", onAction: () => undone.push(history.pop()!) });
+    await act(async () => showSnackbar({ message: "Moved second", actionLabel: "Undo", onAction: () => undone.push(history.pop()!) }));
+    await act(async () => {
+      button("Undo")!.click();
+      button("Undo")!.click();
+    });
+    await act(async () => button("Undo")?.click());
+    expect(undone).toEqual(["second"]);
+    expect(history).toEqual(["first"]);
+  });
+
   it("keeps a pinned toast after its action until it is dismissed", async () => {
     await mount();
     const onAction = vi.fn();
