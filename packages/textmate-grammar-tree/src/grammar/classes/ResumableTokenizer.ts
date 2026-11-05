@@ -81,6 +81,8 @@ export class ResumableTokenizer {
 
   protected lastSplitCheckPos = 0;
 
+  protected emittedAtLineStart = -1;
+
   emitSplitSignals = false;
 
   constructor(
@@ -272,10 +274,10 @@ export class ResumableTokenizer {
     return true;
   }
 
-  protected closeWithoutEnd(out: GrammarToken[], atEof: boolean) {
+  protected closeWithoutEnd(out: GrammarToken[], clean: boolean) {
     const frame = this.frames[this.frames.length - 1]!;
     this.closeContentWrapper(frame);
-    if (!atEof) {
+    if (!clean) {
       const incompleteMarker = Matched.create(
         this.grammar.nodes[NodeID.incomplete]!,
         this.pos,
@@ -294,7 +296,7 @@ export class ResumableTokenizer {
     }
     this.state.popScope(this.pos);
     this.popFrame();
-    this.updateParentCounter(out, frame, !atEof);
+    this.updateParentCounter(out, frame, !clean);
   }
 
   protected tryContent(out: GrammarToken[]): boolean {
@@ -331,11 +333,11 @@ export class ResumableTokenizer {
     return true;
   }
 
-  protected tryTopLevel(out: GrammarToken[]): boolean {
+  protected tryTopLevel(out: GrammarToken[]): DispatchResult | null {
     const dispatchPos = this.pos;
     const result = this.dispatch(this.grammar.rules ?? [], dispatchPos);
     if (!result) {
-      return false;
+      return null;
     }
     this.emitBatch(
       out,
@@ -347,7 +349,69 @@ export class ResumableTokenizer {
     if (result.kind === "scope") {
       this.openFrame(result, dispatchPos);
     }
-    return true;
+    return result;
+  }
+
+  protected endsLine(posBefore: number) {
+    if (this.pos <= posBefore) {
+      return false;
+    }
+    const str = this.state.str;
+    const c = str.charCodeAt(this.pos - 1);
+    return c === 10 || (c === 13 && str.charCodeAt(this.pos) !== 10);
+  }
+
+  protected retryEndAtLineEnd(
+    out: GrammarToken[],
+    frame: TokenizerFrame,
+  ): boolean | null {
+    if (frame.openedAt === this.pos) {
+      return frame.rule.endsAt(this.state, this.pos) ? false : null;
+    }
+    return this.tryEnd(out, false) ? true : null;
+  }
+
+  protected retryOnceAtLineEnd(out: GrammarToken[]): boolean {
+    const frame = this.frames[this.frames.length - 1];
+    if (!frame) {
+      return this.tryTopLevel(out)?.kind === "scope";
+    }
+    const rule = frame.rule;
+    if (!rule.applyEndPatternLast) {
+      const ended = this.retryEndAtLineEnd(out, frame);
+      if (ended != null) {
+        return ended;
+      }
+    }
+    rule.contentRule.resolve();
+    const result = this.dispatch(rule.contentRule.rules ?? [], this.pos);
+    if (result?.kind === "scope") {
+      this.emitBatch(out, result.matched.compile(), frame, result.chain);
+      this.openFrame(result, this.pos);
+      return true;
+    }
+    if (result) {
+      this.emitBatch(out, result.matched.compile(), frame);
+      this.closeWithoutEnd(out, true);
+      return false;
+    }
+    if (rule.applyEndPatternLast) {
+      return this.retryEndAtLineEnd(out, frame) ?? false;
+    }
+    return false;
+  }
+
+  protected retryAtLineEnd(out: GrammarToken[]) {
+    const pending = this.pending;
+    this.state.exhaustLineAt(this.pos);
+    let attempts = 0;
+    while (attempts < EMPTY_MATCH_LIMIT && this.retryOnceAtLineEnd(out)) {
+      attempts++;
+    }
+    this.state.exhaustLineAt(-1);
+    if (this.pending !== pending) {
+      this.emittedAtLineStart = this.pos;
+    }
   }
 
   snapshot(): TokenizerResume {
@@ -414,6 +478,15 @@ export class ResumableTokenizer {
   }
 
   step(): TokenizerStepResult {
+    const posBefore = this.pos;
+    const result = this.stepOnce();
+    if (this.endsLine(posBefore)) {
+      this.retryAtLineEnd(this._stepTokens);
+    }
+    return result;
+  }
+
+  protected stepOnce(): TokenizerStepResult {
     const out = this._stepTokens;
     out.length = 0;
     const posBefore = this.pos;
@@ -443,7 +516,8 @@ export class ResumableTokenizer {
         this.lastSplitCheckPos = this.pos;
         if (
           this.emitSplitSignals &&
-          this.state.str.charCodeAt(this.pos - 1) === 10
+          this.state.str.charCodeAt(this.pos - 1) === 10 &&
+          this.pos !== this.emittedAtLineStart
         ) {
           splitAt = { at: this.anchor + this.pos, resume: this.snapshot() };
         }

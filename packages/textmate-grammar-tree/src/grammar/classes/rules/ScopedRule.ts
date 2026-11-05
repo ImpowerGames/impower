@@ -213,13 +213,20 @@ export class ScopedRule implements Rule {
     return beginMatched;
   }
 
-  end(state: GrammarState, from: number) {
-    const begin = state.stack.at(-1);
-    const beginCaptures = begin?.beginCaptures;
+  protected matchEnd(state: GrammarState, from: number) {
+    const beginCaptures = state.stack.at(-1)?.beginCaptures;
     if (beginCaptures) {
       this.endRule.matcher.backReferences = beginCaptures;
     }
-    let endMatched = this.endRule.match(state, from);
+    return this.endRule.match(state, from);
+  }
+
+  endsAt(state: GrammarState, from: number) {
+    return this.matchEnd(state, from) != null;
+  }
+
+  end(state: GrammarState, from: number) {
+    let endMatched = this.matchEnd(state, from);
     if (!endMatched) {
       return null;
     }
