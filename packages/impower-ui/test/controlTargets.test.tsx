@@ -106,3 +106,22 @@ it.each(["above", "beside"] as const)("gives every tab with icons %s its label a
     await expectTarget(tab, ["height"]);
   }
 });
+
+it.each([
+  ["above", "min-h-11"],
+  ["beside", "min-h-12"],
+] as const)("floors every vertical tab with icons %s its label at %s so a basis-0 column cannot collapse it", async (iconLayout, floor) => {
+  await mount(
+    <Tabs value="a" onChange={() => {}} vertical iconLayout={iconLayout}>
+      <Tab value="a">Logic</Tab>
+      <Tab value="b">Assets</Tab>
+    </Tabs>,
+  );
+  const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+  expect(tabs).toHaveLength(2);
+  for (const tab of tabs) {
+    expect(Array.from(tab.classList)).toContain(floor);
+    expect(Array.from(tab.classList).filter((name) => /^h-/.test(name))).toEqual([]);
+    await expectTarget(tab, ["height"]);
+  }
+});
