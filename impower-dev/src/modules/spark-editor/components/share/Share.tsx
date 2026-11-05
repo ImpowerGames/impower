@@ -29,7 +29,7 @@ export default function Share(_props: ShareProps) {
 
   return (
     <>
-      <div class="sticky top-0 z-10 flex-none bg-engine-900">
+      <div class="sticky top-0 z-10 flex-none bg-panel">
         <Tabs
           value={panel}
           onChange={onPanelChange}

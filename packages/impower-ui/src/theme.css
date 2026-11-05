@@ -1,0 +1,31 @@
+:root,
+[data-theme="midnight"] {
+  --bg: hsl(210.7 89.1% 18%);
+  --panel: hsl(210.6 100% 10%);
+  --paper: hsl(210.6 100% 7%);
+  --workspace: var(--workspace-deep);
+  --workspace-deep: hsl(210.6 100% 7%);
+  --preview-mat: var(--panel);
+  --elevated: hsl(210.7 89.1% 18%);
+  --ink: rgb(255 255 255);
+  --muted: rgb(255 255 255 / 0.6);
+  --accent: hsl(207 61% 70% / 1);
+  --accent-ink: hsl(210.6 100% 7%);
+  --tint: rgb(255 255 255 / 0.05);
+  --error: oklch(70.4% 0.191 22.216);
+  --warning: oklch(82.8% 0.189 84.429);
+  --success: oklch(79.2% 0.209 151.711);
+  --edge: rgb(255 255 255 / 0.12);
+  --selection: #264f78;
+  --syntax-active: #0d263d;
+  --scrollbar: rgb(255 255 255 / 0.15);
+  --control-hover: rgb(255 255 255 / 0.06);
+  --button-bg: hsl(210.8 44.9% 34.9%);
+  --sidebar: hsl(210.7 89.1% 12%);
+
+  --popup: rgb(18 18 18);
+  --surface: rgb(37 37 37);
+  --tab-ink: rgb(242 242 242);
+  --tab-muted: hsl(211 26% 48%);
+  --placeholder: hsl(210.8 44.9% 34.9%);
+}

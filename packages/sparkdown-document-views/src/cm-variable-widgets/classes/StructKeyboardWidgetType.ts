@@ -98,7 +98,7 @@ export default class StructKeyboardWidgetType extends WidgetType {
     popup.style.height = "80px";
     popup.style.padding = "0";
     popup.style.whiteSpace = "nowrap";
-    popup.style.backgroundColor = "#052d57";
+    popup.style.backgroundColor = "var(--bg)";
     popup.style.borderRadius = "4px";
     popup.style.overflow = "hidden";
     popup.style.boxShadow =

@@ -169,7 +169,7 @@ export default function TrashPanel() {
       role="presentation"
     >
       <div
-        class={`flex max-h-[80vh] w-full max-w-lg select-none flex-col overflow-hidden rounded-lg bg-engine-800 text-foreground shadow-2xl ring-1 ring-foreground/10 transition-all duration-200 ease-out ${
+        class={`flex max-h-[80vh] w-full max-w-lg select-none flex-col overflow-hidden rounded-lg bg-elevated text-foreground shadow-2xl ring-1 ring-foreground/10 transition-all duration-200 ease-out ${
           visible ? "scale-100 opacity-100" : "scale-95 opacity-0"
         }`}
         role="dialog"

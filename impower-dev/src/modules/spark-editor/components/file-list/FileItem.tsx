@@ -465,7 +465,7 @@ function FileItem({
           bulkSelected || contextMenu
             ? "bg-primary/15"
             : selected
-              ? "bg-engine-800/40 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary before:content-['']"
+              ? "bg-elevated/40 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary before:content-['']"
               : ""
         }`}
         onClick={onRowClick}
@@ -496,7 +496,7 @@ function FileItem({
               class={`mr-3 flex size-10 flex-none items-center justify-center ${
                 isDirectory
                   ? "text-foreground/60"
-                  : `overflow-hidden rounded-lg bg-engine-800/60 ring-1 ring-inset ring-foreground/10 ${iconMuted}`
+                  : `overflow-hidden rounded-lg bg-elevated/60 ring-1 ring-inset ring-foreground/10 ${iconMuted}`
               }`}
             >
               {isDirectory ? (

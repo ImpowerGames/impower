@@ -33,13 +33,13 @@ export const buttonVariants = cva(
         primary:
           `bg-primary text-background ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
         secondary:
-          `bg-engine-700 text-foreground ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
+          `bg-button-bg text-foreground ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
         outline: `border border-foreground bg-transparent text-foreground ${UNFILLED_OVERLAY}`,
         ghost: `bg-transparent text-foreground ${UNFILLED_OVERLAY}`,
         link: "bg-transparent text-primary underline-offset-4 hover:underline",
         destructive:
           `bg-danger-500 text-foreground ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
-        fab: `bg-engine-700 text-white ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
+        fab: `bg-button-bg text-white ${FILLED_OVERLAY} ${FILLED_SHADOW}`,
       },
       size: {
         default: "h-10 px-4 py-2",

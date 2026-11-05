@@ -8,6 +8,7 @@ import path from "path";
 import glob from "tiny-glob";
 import { build, createServer } from "vite";
 import staticallyRenderPage from "./src/build/staticallyRenderPage.js";
+import { withManifestColors, withThemeColor } from "./src/build/themeColor.js";
 import {
   shouldProxyToPlayer,
   stripHopByHopHeaders,
@@ -30,6 +31,7 @@ import {
   publicInDir,
   publicOutDir,
   readEditorGlobalCss,
+  readThemeColor,
   serviceWorkerPaths,
   ssrNoExternal,
   staticallyStylePage,
@@ -65,6 +67,14 @@ const copyPublic = async () => {
   console.log(OUT_COLOR, `    ⤷ ${publicOutDir}`);
   await fs.promises.mkdir(publicOutDir, { recursive: true });
   await fs.promises.cp(publicInDir, publicOutDir, { recursive: true });
+  const manifestPath = `${publicOutDir}/manifest.webmanifest`;
+  await fs.promises.writeFile(
+    manifestPath,
+    withManifestColors(
+      await fs.promises.readFile(manifestPath, "utf-8"),
+      readThemeColor(),
+    ),
+  );
 };
 
 const buildApi = async () => {
@@ -154,9 +164,10 @@ const expandPageComponents = async () => {
 
   console.log("");
   console.log(STEP_COLOR, "Hoisting CSS...");
-  const documentHtml = await fs.promises
-    .readFile(`${publicInDir}/document.html`, "utf-8")
-    .catch(() => "");
+  const documentHtml = withThemeColor(
+    await fs.promises.readFile(`${publicInDir}/document.html`, "utf-8"),
+    readThemeColor(),
+  );
 
   let tailwindCss = "";
   {

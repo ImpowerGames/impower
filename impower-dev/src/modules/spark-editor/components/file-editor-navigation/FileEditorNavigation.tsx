@@ -13,7 +13,7 @@ export default function FileEditorNavigation({
 }: FileEditorNavigationProps) {
   return (
     <>
-      <div class="sticky top-0 z-10 bg-engine-900">
+      <div class="sticky top-0 z-10 bg-panel">
         <div class="relative flex h-12 flex-row items-stretch">
           <Button
             variant="ghost"

@@ -69,7 +69,7 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
             value={draftName}
             aria-label={displayName}
             placeholder={displayName}
-            class={`h-full bg-transparent text-center text-lg font-normal outline-none placeholder:text-engine-700 ${
+            class={`h-full bg-transparent text-center text-lg font-normal outline-none placeholder:text-placeholder ${
               diagnosticColor || "text-foreground"
             }`}
             onInput={(e) =>
