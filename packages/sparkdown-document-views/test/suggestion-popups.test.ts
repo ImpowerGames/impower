@@ -133,6 +133,34 @@ describe("the suggestion list on a fine pointer", () => {
     expect(view.dom.querySelector(".cm-completion-chips")).toBeNull();
   });
 
+  it("opens the preview panel at once and fills it in place when the preview resolves", async () => {
+    const { view, server } = await typeAndSuggest("", "ba", [
+      { label: "bar", kind: 7, data: { name: "bar" } },
+      { label: "baz", kind: 7, data: { name: "baz" } },
+    ]);
+    const panel = () =>
+      view.dom.querySelector<HTMLElement>(
+        ".cm-tooltip.cm-completionInfo .cm-lsp-completion-documentation",
+      );
+    expect(panel()).toBeTruthy();
+    expect(panel()!.innerHTML).toBe("");
+    const opened = panel();
+    for (const resolve of server.pending("completionItem/resolve")) {
+      server.answer(resolve, {
+        label: resolve.params.label,
+        documentation: {
+          kind: "markdown",
+          value: "![bar](data:image/png;base64,iVBORw0KGgo=)",
+        },
+      });
+    }
+    await settle(20);
+    expect(panel()).toBe(opened);
+    expect(panel()?.querySelector("img")?.getAttribute("src")).toBe(
+      "data:image/png;base64,iVBORw0KGgo=",
+    );
+  });
+
   it("adds the highlighted option on Tab", async () => {
     const { view } = await typeAndSuggest("", "MA", CHARACTERS);
     view.contentDOM.dispatchEvent(

@@ -101,6 +101,9 @@ const suggestionsTheme = EditorView.baseTheme({
     color: "var(--ink)",
     font: "400 13px / 1.5 var(--font-ui, inherit)",
   },
+  ".cm-tooltip.cm-completionInfo:has(> .cm-lsp-completion-documentation:empty)": {
+    display: "none",
+  },
   ".cm-tooltip.cm-completionInfo img": {
     display: "block",
     maxWidth: "100%",
@@ -249,28 +252,30 @@ const showsChips = (state: EditorState) =>
   completionStatus(state) === "active" &&
   currentCompletions(state).length > 0;
 
-const thumbnails = new WeakMap<Completion, Promise<string | null>>();
+const completionDocs = new WeakMap<Completion, () => Promise<string | null>>();
+
+export function registerCompletionDocs(
+  completion: Completion,
+  docs: () => Promise<string | null>,
+) {
+  completionDocs.set(completion, docs);
+}
 
 function thumbnailOf(completion: Completion): Promise<string | null> {
-  const known = thumbnails.get(completion);
-  if (known) {
-    return known;
+  const docs = completionDocs.get(completion);
+  if (!docs) {
+    return Promise.resolve(null);
   }
-  const info = completion.info;
-  const found =
-    typeof info === "function"
-      ? Promise.resolve(info(completion))
-          .then((result) => {
-            const node =
-              result && "dom" in result ? result.dom : (result as Node | null);
-            const image =
-              node instanceof Element ? node.querySelector("img") : null;
-            return image?.getAttribute("src") ?? null;
-          })
-          .catch(() => null)
-      : Promise.resolve(null);
-  thumbnails.set(completion, found);
-  return found;
+  return docs()
+    .then((html) => {
+      if (!html) {
+        return null;
+      }
+      const content = document.createElement("template");
+      content.innerHTML = html;
+      return content.content.querySelector("img")?.getAttribute("src") ?? null;
+    })
+    .catch(() => null);
 }
 
 function createChipsPanel(view: EditorView): Panel {

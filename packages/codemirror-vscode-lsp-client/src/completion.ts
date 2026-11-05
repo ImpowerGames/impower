@@ -31,7 +31,11 @@ import type * as lsp from "vscode-languageserver-protocol";
 import { LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
 import { convertFromPosition } from "./pos";
-import { noteEmptySuggestions, suggestions } from "./suggestions";
+import {
+  noteEmptySuggestions,
+  registerCompletionDocs,
+  suggestions,
+} from "./suggestions";
 
 const completionTheme = EditorView.baseTheme({
   "& .cm-tooltip": {
@@ -369,15 +373,30 @@ export function serverCompletionOption(
     command: item.command,
   };
   if (plugin && item.documentation) {
-    option.info = () => renderDocInfo(plugin, item.documentation!);
+    const html = plugin.docToHTML(item.documentation);
+    option.info = () => renderDocInfo(html);
+    registerCompletionDocs(option, () => Promise.resolve(html));
   } else if (plugin && item.data && canResolveCompletions(plugin)) {
-    let resolving: Promise<lsp.CompletionItem | null> | undefined;
-    option.info = () =>
-      (resolving ??= resolveCompletionItem(plugin, item)).then((resolved) =>
-        resolved?.documentation
-          ? renderDocInfo(plugin, resolved.documentation)
-          : null,
-      );
+    let resolving: Promise<string | null> | undefined;
+    const docs = () =>
+      (resolving ??= resolveCompletionItem(plugin, item).then((resolved) => {
+        if (!resolved?.documentation) {
+          resolving = undefined;
+          return null;
+        }
+        return plugin.docToHTML(resolved.documentation);
+      }));
+    registerCompletionDocs(option, docs);
+    option.info = () => {
+      const elt = renderDocInfo("");
+      docs().then((html) => {
+        if (html) {
+          elt.innerHTML = html;
+          plugin.view.requestMeasure();
+        }
+      });
+      return elt;
+    };
   }
   const edit: CompletionEdit = (view, completion, listFrom, listTo) => {
     const from =
@@ -562,10 +581,10 @@ function resolveCompletionItem(
     .catch((): null => null);
 }
 
-function renderDocInfo(plugin: LSPPlugin, doc: string | lsp.MarkupContent) {
-  let elt = document.createElement("div");
+function renderDocInfo(html: string) {
+  const elt = document.createElement("div");
   elt.className = "cm-lsp-documentation cm-lsp-completion-documentation";
-  elt.innerHTML = plugin.docToHTML(doc);
+  elt.innerHTML = html;
   return elt;
 }
 
