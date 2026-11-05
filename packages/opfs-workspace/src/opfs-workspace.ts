@@ -64,7 +64,6 @@ import {
 import { getAllFilesRecursive } from "./utils/getAllFilesRecursive";
 import { getDirectoryHandleFromPath } from "./utils/getDirectoryHandleFromPath";
 import { getFileExtension } from "./utils/getFileExtension";
-import { getFileHandleFromUri } from "./utils/getFileHandleFromUri";
 import { getFileName } from "./utils/getFileName";
 import { getName } from "./utils/getName";
 import { getParentPath } from "./utils/getParentPath";
@@ -1358,10 +1357,9 @@ const zipFiles = async (
   files: { uri: string; path?: string }[],
   directories: string[] = [],
 ) => {
-  const root = await navigator.storage.getDirectory();
   const refs = await Promise.all(
     files.map(async ({ uri, path }) => {
-      const fileHandle = await getFileHandleFromUri(root, uri, false);
+      const fileHandle = await storedFileHandle(uri);
       const fileRef = await fileHandle.getFile();
       const data = await fileRef.arrayBuffer();
       return { path: path || fileRef.name, data };

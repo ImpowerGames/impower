@@ -931,6 +931,24 @@ describe("reads create no directories", () => {
     expect(listMemory(root, "local")).toEqual(["a.sd"]);
   });
 
+  it("creates no parent directory when an exported file's folder is gone by the time the export reads it", async () => {
+    const root = seed({ "a.sd": "A", "gone/b.png": [1, 2] });
+    const h = await worker(root);
+    const listed = await h.enumerate();
+    expect(listed.result.map((f: any) => f.uri)).toContain(uriOf("gone/b.png"));
+    await (root.entries.get("local") as MemoryDirectory).removeEntry("gone", { recursive: true });
+    expect(
+      await h.request("zip", "workspace/zipFiles", {
+        files: [
+          { uri: uriOf("a.sd"), path: "a.sd" },
+          { uri: uriOf("gone/b.png"), path: "gone/b.png" },
+        ],
+      }),
+    ).toHaveProperty("error");
+    expect(entryAt(root, "gone")).toBeUndefined();
+    expect(listMemory(root, "local")).toEqual(["a.sd"]);
+  });
+
   it("creates no parent directory when a listed file's folder is gone by the time it is stated", async () => {
     const root = seed({ "a.sd": "A" });
     const project = root.entries.get("local") as MemoryDirectory;
