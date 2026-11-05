@@ -171,14 +171,25 @@ describe("project zip round-trip (readProjectZip <-> writeProjectZip)", () => {
     expect(dst.opfs.has(u(LAYOUT_MARKER))).toBe(false);
   });
 
-  it("exports a starter script that exists only in memory", async () => {
-    const starter = "scene start\n  \nend\n";
-    const src = makeHarness({ [u("logo.png")]: new Uint8Array([4]) });
-    src.files[u("main.sd")] = makeFileData(u("main.sd"), enc.encode(starter));
-    (src.fs as any)._unstoredUris.add(u("main.sd"));
+  it("exports the starter script of a fresh project that was never saved", async () => {
+    const src = makeHarness({});
+    const fs = src.fs as any;
+    Object.assign(fs, {
+      _files: src.files,
+      withProjectLock: (WorkspaceFileSystem.prototype as any).withProjectLock,
+      openProjectStore: async () => ({ files: [], folders: [] }),
+      purgeExpiredTrash: async () => {},
+      _ls: { connection: { onRequest: () => {} }, start: async () => {} },
+    });
+    URL.createObjectURL ??= () => "blob:starter";
+    await (WorkspaceFileSystem.prototype as any).loadInitialFiles.call(
+      fs,
+      PROJECT,
+    );
+    expect(src.opfs.has(u("main.sd"))).toBe(false);
     const entries = unzipSync(new Uint8Array(await readProjectZip(src)));
-    expect(Object.keys(entries).sort()).toEqual(["logo.png", "main.sd"]);
-    expect(dec.decode(entries["main.sd"])).toBe(starter);
+    expect(Object.keys(entries)).toEqual(["main.sd"]);
+    expect(dec.decode(entries["main.sd"])).toBe("scene start\n  \nend\n");
   });
 
   describe("known gaps on main", () => {
