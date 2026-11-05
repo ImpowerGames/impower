@@ -1,15 +1,8 @@
 import { closeLintPanel } from "@codemirror/lint";
-import { combineConfig, Extension, Facet } from "@codemirror/state";
+import { Extension } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import { closeReferencePanel } from "@impower/codemirror-vscode-lsp-client/src";
 import { closeKeyboardToolbar, openKeyboardToolbar } from "./keyboardToolbar";
-
-const isTouchEnvironment = () =>
-  /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-    navigator.userAgent,
-  ) ||
-  (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) ||
-  navigator.maxTouchPoints > 0;
 
 const viewportTheme = EditorView.baseTheme({
   "&": {
@@ -67,12 +60,6 @@ const viewportPlugin = ViewPlugin.fromClass(
     }
 
     onVisualViewportUpdate = (e?: Event) => {
-      const config = this.view.state.facet(mobileViewportManagerConfig);
-
-      if (!config.isTouchEnvironment()) {
-        return;
-      }
-
       const vv = window.visualViewport;
       if (!vv) return;
 
@@ -180,6 +167,7 @@ const viewportPlugin = ViewPlugin.fromClass(
     destroy() {
       this.destroyed = true;
       this.unbind();
+      this.view.dom.classList.remove("keyboard-open");
       if (this.lockedLayout) {
         document.body.style.height = "";
         document.documentElement.classList.remove("keyboard-open");
@@ -188,39 +176,10 @@ const viewportPlugin = ViewPlugin.fromClass(
   },
 );
 
-export interface MobileViewportManagerOptions {
-  isTouchEnvironment?: () => boolean;
-}
-
-export interface MobileViewportManagerConfig extends MobileViewportManagerOptions {
-  isTouchEnvironment: () => boolean;
-}
-
-const mobileViewportManagerConfig = Facet.define<
-  MobileViewportManagerConfig,
-  MobileViewportManagerConfig
->({
-  combine(configs) {
-    return combineConfig(configs, {});
-  },
-});
-
-export function mobileViewportManager(
-  options: MobileViewportManagerOptions = {},
-): Extension {
-  const config: MobileViewportManagerConfig = {
-    isTouchEnvironment,
-    ...options,
-  };
-
-  if (!config.isTouchEnvironment()) {
-    return [];
-  }
-
+export function mobileViewportManager(): Extension {
   return [
     viewportTheme,
     viewportPlugin,
-    mobileViewportManagerConfig.of(config),
     EditorView.domEventObservers({
       focus: (e, view) => {
         view.plugin(viewportPlugin)?.onVisualViewportUpdate(e);

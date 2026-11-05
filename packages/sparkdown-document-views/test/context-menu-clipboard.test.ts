@@ -36,7 +36,6 @@ afterEach(() => {
   document.body.innerHTML = "";
   vi.restoreAllMocks();
   delete (navigator as { clipboard?: unknown }).clipboard;
-  delete (navigator as { maxTouchPoints?: number }).maxTouchPoints;
 });
 
 function editor(
@@ -343,11 +342,9 @@ describe("the Paste item", () => {
   });
 
   it("is greyed out on the touch toolbar until something is copied", async () => {
-    Object.defineProperty(navigator, "maxTouchPoints", {
-      value: 5,
-      configurable: true,
-    });
-    const v = mount("hello world", EditorSelection.single(11));
+    const v = mount("hello world", EditorSelection.single(11), [
+      lsp.coarsePointer.of(true),
+    ]);
     lsp.showContextMenu(v, { pos: 11, end: 11 });
     expect(menuItem("Paste").classList.contains("cm-menu-disabled")).toBe(true);
     select(v, [0, 5]);

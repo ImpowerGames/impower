@@ -35,3 +35,4 @@ export {
 } from "./tabs/Tabs";
 export * from "./icon/icons.generated";
 export * from "./registry";
+export * from "../layout";

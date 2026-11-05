@@ -21,8 +21,8 @@ import {
 } from "@codemirror/view";
 import {
   closeReferencePanel,
+  coarsePointer,
   forEachReference,
-  isMobile,
   isReferencePanelOpen,
   ReferenceLocation,
   setReferencePanel,
@@ -298,7 +298,7 @@ export class StatusPanel implements Panel {
   }
 
   updateStatus(update: ViewUpdate) {
-    const isContextualView = isMobile() && update.view.hasFocus;
+    const isContextualView = update.state.facet(coarsePointer) && update.view.hasFocus;
 
     if (isReferencePanelOpen(update.state)) {
       this.revealBottomPanelButton.style.display = "";

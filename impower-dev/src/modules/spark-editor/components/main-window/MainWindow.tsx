@@ -52,7 +52,6 @@ export default function MainWindow(_props: MainWindowProps) {
             <SplitPane
               activePanel={previewActive}
               minSize="320px"
-              collapseBelow={960}
               start={
                 <div class="relative flex flex-col w-full h-full">
                   <Router active={pane} mode="zoom">

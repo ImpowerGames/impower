@@ -1,6 +1,7 @@
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
+  coarsePointer,
   contextMenu,
   hideContextMenu,
   isContextMenuOpen,
@@ -45,10 +46,6 @@ const rect = (left: number, top: number, width: number, height: number) =>
 beforeEach(() => {
   scroller = { left: 0, top: 104, right: 384, bottom: 254 };
   scrollOffset = 0;
-  Object.defineProperty(navigator, "maxTouchPoints", {
-    value: 5,
-    configurable: true,
-  });
   Object.defineProperty(window, "innerHeight", {
     value: WINDOW_HEIGHT,
     configurable: true,
@@ -98,7 +95,6 @@ afterEach(() => {
   view = undefined;
   vi.restoreAllMocks();
   vi.useRealTimers();
-  delete (navigator as { maxTouchPoints?: number }).maxTouchPoints;
 });
 
 function mount(doc: string, selection?: EditorSelection) {
@@ -109,12 +105,12 @@ function mount(doc: string, selection?: EditorSelection) {
     selection,
     parent,
     extensions: [
+      coarsePointer.of(true),
       contextMenu(),
       touchInputHandler({
         showContextMenu,
         hideContextMenu,
         isContextMenuOpen,
-        isTouchEnvironment: () => true,
       }),
     ],
   });

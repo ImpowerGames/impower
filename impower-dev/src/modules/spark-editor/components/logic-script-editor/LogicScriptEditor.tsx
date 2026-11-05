@@ -1,3 +1,4 @@
+import { useCoarsePointer } from "@impower/impower-ui/layout";
 import SparkdownScriptEditor from "@impower/sparkdown-document-views/src/modules/script-editor/SparkdownScriptEditor";
 import { useComputed } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
@@ -27,6 +28,8 @@ export default function LogicScriptEditor({
   const textPulledAt = useComputed(
     () => workspace.state.value.sync?.textPulledAt || "",
   ).value;
+
+  const coarsePointer = useCoarsePointer();
 
   const readonly = useComputed(() => {
     const status = workspace.state.value.sync?.status;
@@ -212,7 +215,12 @@ export default function LogicScriptEditor({
 
   return (
     <div class="relative flex flex-1 flex-col min-h-0 bg-engine-950">
-      <SparkdownScriptEditor readonly={readonly} top="0px" bottom="60px" />
+      <SparkdownScriptEditor
+        readonly={readonly}
+        coarsePointer={coarsePointer}
+        top="0px"
+        bottom="60px"
+      />
     </div>
   );
 }

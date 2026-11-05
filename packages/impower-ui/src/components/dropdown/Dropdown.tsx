@@ -9,7 +9,7 @@ import {
 } from "preact";
 import { createPortal } from "preact/compat";
 import { useCallback, useContext, useEffect, useState } from "preact/hooks";
-import { useIsMobile } from "../../hooks/useIsMobile";
+import { useLayout } from "../../hooks/useLayout";
 import { useMountTransition } from "../../hooks/useMountTransition";
 import { cn } from "../../utils/cn";
 import Ripple from "../ripple/Ripple";
@@ -48,7 +48,7 @@ export function DropdownRoot({
   modal,
   children,
 }: RootProps) {
-  const mobile = useIsMobile();
+  const mobile = useLayout() === "phone";
   const [internal, setInternal] = useState(defaultOpen);
   const controlled = openProp !== undefined;
   const open = controlled ? !!openProp : internal;

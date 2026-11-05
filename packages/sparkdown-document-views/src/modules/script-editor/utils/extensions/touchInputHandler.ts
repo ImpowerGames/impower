@@ -18,13 +18,6 @@ const touchInputTheme = EditorView.baseTheme({
   },
 });
 
-const isTouchEnvironment = () =>
-  /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-    navigator.userAgent,
-  ) ||
-  (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) ||
-  navigator.maxTouchPoints > 0;
-
 let startedFocused = false;
 let isDragging = false;
 let isScrolling = false;
@@ -855,16 +848,11 @@ export interface TouchInputHandlerOptions {
   ) => void;
   hideContextMenu?: (view: EditorView) => void;
   isContextMenuOpen?: (view: EditorView) => boolean;
-  isTouchEnvironment?: () => boolean;
-}
-
-export interface TouchInputHandlerConfig extends TouchInputHandlerOptions {
-  isTouchEnvironment: () => boolean;
 }
 
 const touchInputHandlerConfig = Facet.define<
-  TouchInputHandlerConfig,
-  TouchInputHandlerConfig
+  TouchInputHandlerOptions,
+  TouchInputHandlerOptions
 >({
   combine(configs) {
     return combineConfig(configs, {});
@@ -872,17 +860,8 @@ const touchInputHandlerConfig = Facet.define<
 });
 
 export function touchInputHandler(options: TouchInputHandlerOptions = {}) {
-  const config: TouchInputHandlerConfig = {
-    isTouchEnvironment,
-    ...options,
-  };
-
-  if (!config.isTouchEnvironment()) {
-    return [];
-  }
-
   return [
-    touchInputHandlerConfig.of(config),
+    touchInputHandlerConfig.of(options),
     touchInputTheme,
 
     drawSelection(),
