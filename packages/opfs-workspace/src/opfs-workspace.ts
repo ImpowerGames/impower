@@ -1326,41 +1326,35 @@ const storedFileHandle = async (uri: string) => {
   return handle;
 };
 
-const statFile = async (fileUri: string, floor: FileCommit | undefined) => {
-  const version = State.localVersions.get(fileUri);
-  const fileHandle = await storedFileHandle(fileUri);
-  const fileRef = await fileHandle.getFile();
-  if (
-    State.localVersions.get(fileUri) === version &&
-    adoptStoredBytes(fileUri, floor)
-  ) {
-    const before = State.files.get(fileUri);
-    updateFileMetaCache(fileUri, fileRef.size, fileRef.lastModified);
-    announceStoredChange(fileUri, before, floor);
-  }
-};
+const statFile = (fileUri: string, floor: FileCommit | undefined) =>
+  withCommitLock(fileUri, async () => {
+    const fileHandle = await storedFileHandle(fileUri);
+    const fileRef = await fileHandle.getFile();
+    if (adoptStoredBytes(fileUri, floor)) {
+      const before = State.files.get(fileUri);
+      updateFileMetaCache(fileUri, fileRef.size, fileRef.lastModified);
+      announceStoredChange(fileUri, before, floor);
+    }
+  });
 
-const readFile = async (
+const readFile = (
   fileUri: string,
   options?: { floor: FileCommit | undefined },
-) => {
-  const root = await navigator.storage.getDirectory();
-  const floor = options ? options.floor : await readFloor(root);
-  const version = State.localVersions.get(fileUri);
-  const fileHandle = await storedFileHandle(fileUri);
-  const fileRef = await fileHandle.getFile();
-  const buffer = await fileRef.arrayBuffer();
-  if (
-    State.localVersions.get(fileUri) === version &&
-    adoptStoredBytes(fileUri, floor)
-  ) {
-    const before = State.files.get(fileUri);
-    updateFileCache(fileUri, buffer, false, undefined, fileRef.lastModified);
-    await enrichUrlAssetType(fileUri);
-    announceStoredChange(fileUri, before, floor);
-  }
-  return buffer;
-};
+) =>
+  withCommitLock(fileUri, async () => {
+    const root = await navigator.storage.getDirectory();
+    const floor = options ? options.floor : await readFloor(root);
+    const fileHandle = await storedFileHandle(fileUri);
+    const fileRef = await fileHandle.getFile();
+    const buffer = await fileRef.arrayBuffer();
+    if (adoptStoredBytes(fileUri, floor)) {
+      const before = State.files.get(fileUri);
+      updateFileCache(fileUri, buffer, false, undefined, fileRef.lastModified);
+      await enrichUrlAssetType(fileUri);
+      announceStoredChange(fileUri, before, floor);
+    }
+    return buffer;
+  });
 
 const zipFiles = async (
   files: { uri: string; path?: string }[],

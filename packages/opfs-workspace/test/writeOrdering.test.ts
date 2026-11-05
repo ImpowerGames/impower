@@ -911,13 +911,14 @@ describe("reads that see newer storage (I-1893)", () => {
     expect(textAt(root, "a.sd")).toBe("A!");
     await otherTab(root).write("a.sd", "NEWER");
     const listing = h.messages.length;
-    expect((await h.cached("a.sd")).text).toBe("NEWER");
+    await h.request("read", "workspace/readFile", { file: { uri: uriOf("a.sd") } });
     expect(h.writtenTexts("a.sd", listing)).toEqual(["NEWER"]);
     const before = h.messages.length;
     release();
     await vi.advanceTimersByTimeAsync(250);
     expect(h.response("batch")).toMatchObject({ result: { applied: true } });
     expect(h.writtenTexts("a.sd", before)).toEqual([]);
+    expect((await h.cached("a.sd")).text).toBe("NEWER");
   });
 });
 
@@ -1020,13 +1021,89 @@ describe("reads that overlap a settle (I-1893)", () => {
     file.getFile = getFile;
     writeMemoryFile(root, "local/a.sd", enc.encode("NEW"));
     await h.remote("workspace/didWriteFiles", { files: [fileData("a.sd", "IGNORED")] });
-    expect(h.writtenTexts("a.sd").at(-1)).toBe("NEW");
-    const before = h.messages.length;
     release();
     await vi.advanceTimersByTimeAsync(0);
     expect(h.response("old-read")).toHaveProperty("result");
-    expect(h.writtenTexts("a.sd", before)).toEqual([]);
+    expect(h.writtenTexts("a.sd").at(-1)).toBe("NEW");
     expect((await h.cached("a.sd")).text).toBe("NEW");
+  });
+
+  const holdNextRead = (file: MemoryFile) => {
+    const getFile = file.getFile.bind(file);
+    let captured!: () => void;
+    const capturing = new Promise<void>((resolve) => {
+      captured = resolve;
+    });
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    file.getFile = async () => {
+      const snapshot = await getFile();
+      file.getFile = getFile;
+      return {
+        ...snapshot,
+        arrayBuffer: async () => {
+          captured();
+          await held;
+          return snapshot.arrayBuffer();
+        },
+      };
+    };
+    return { capturing, release };
+  };
+
+  it.each([true, false])(
+    "ends on the later of two overlapping reads (file cached first: %s)",
+    async (cachedFirst) => {
+      const root = seed({ "a.sd": "BASE", "b.sd": "B" });
+      const h = await worker(root);
+      if (cachedFirst) {
+        await h.enumerate();
+      }
+      writeMemoryFile(root, "local/a.sd", enc.encode("OLDER"));
+      const first = holdNextRead(fileAt(root, "a.sd")!);
+      h.start("first", "workspace/readFile", { file: { uri: uriOf("a.sd") } });
+      await vi.advanceTimersByTimeAsync(0);
+      await first.capturing;
+      writeMemoryFile(root, "local/a.sd", enc.encode("NEWER"));
+      const second = holdNextRead(fileAt(root, "a.sd")!);
+      h.start("second", "workspace/readFile", { file: { uri: uriOf("a.sd") } });
+      await vi.advanceTimersByTimeAsync(0);
+      const releases = cachedFirst
+        ? [first.release, second.release]
+        : [second.release, first.release];
+      for (const release of releases) {
+        release();
+        await vi.advanceTimersByTimeAsync(0);
+      }
+      expect(dec.decode(h.response("first").result)).toBe("OLDER");
+      expect(dec.decode(h.response("second").result)).toBe("NEWER");
+      expect((await h.cached("a.sd")).text).toBe("NEWER");
+      if (cachedFirst) {
+        expect(h.writtenTexts("a.sd").at(-1)).toBe("NEWER");
+      }
+    },
+  );
+
+  it("ends on a newer read that overlapped a settle of an unstamped notification", async () => {
+    const root = seed({ "a.sd": "BASE", "b.sd": "B" });
+    const h = await worker(root);
+    await h.enumerate();
+    writeMemoryFile(root, "local/a.sd", enc.encode("OLDER"));
+    const settle = holdNextRead(fileAt(root, "a.sd")!);
+    const before = h.messages.length;
+    await h.remote("workspace/didWriteFiles", { files: [fileData("a.sd", "UNTRUSTED")] });
+    await settle.capturing;
+    writeMemoryFile(root, "local/a.sd", enc.encode("NEWER"));
+    h.start("read", "workspace/readFile", { file: { uri: uriOf("a.sd") } });
+    await vi.advanceTimersByTimeAsync(0);
+    settle.release();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(dec.decode(h.response("read").result)).toBe("NEWER");
+    expect(h.writtenTexts("a.sd", before)).not.toContain("UNTRUSTED");
+    expect(h.writtenTexts("a.sd", before).at(-1)).toBe("NEWER");
+    expect((await h.cached("a.sd")).text).toBe("NEWER");
   });
 
   it("does not publish a delayed settle's snapshot after a later save of the same file", async () => {
