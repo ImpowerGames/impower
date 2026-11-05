@@ -150,3 +150,16 @@ describe("TextField's controlled contract", () => {
     expect(owned!.value).toBe("Sounds");
   });
 });
+
+describe("TextField's commit before the restore runs", () => {
+  it("commits the owner's value even when change follows the refused edit in the same task", async () => {
+    const onCommit = vi.fn();
+    const input = await mount(<TextField aria-label="Folder" value="Music" onValueChange={() => {}} onCommit={onCommit} />);
+    await act(async () => {
+      input.value = "Score";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(onCommit.mock.calls).toEqual([["Music"]]);
+  });
+});

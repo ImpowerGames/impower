@@ -116,3 +116,28 @@ describe("Switch and native form reset", () => {
     expect(owned!.checked).toBe(true);
   });
 });
+
+describe("Switch's reset follows its form association", () => {
+  it("brings aria-checked back in step when the form it moved to is reset", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    const view = (form: string) => (
+      <>
+        <form id="first" />
+        <form id="second" />
+        <Switch aria-label="Moved" form={form} defaultChecked />
+      </>
+    );
+    await act(async () => render(view("first"), host!));
+    await act(async () => render(view("second"), host!));
+    const control = host.querySelector<HTMLInputElement>('input[role="switch"]')!;
+    expect(control.form?.id).toBe("second");
+    await act(async () => control.click());
+    expect(control.getAttribute("aria-checked")).toBe("false");
+    await act(async () => {
+      host!.querySelector<HTMLFormElement>("#second")!.reset();
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+    expect(control.checked).toBe(true);
+    expect(control.getAttribute("aria-checked")).toBe("true");
+  });
+});

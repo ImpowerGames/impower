@@ -1,5 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren } from "preact";
+import { useRef } from "preact/hooks";
 import { announce } from "../../hooks/useAnnouncer";
 import { cn } from "../../utils/cn";
 import Button from "../button/Button";
@@ -209,6 +210,22 @@ type RowBase = {
   class?: string;
 };
 
+function useAcceptedAnnouncement<T>(value: T, message: (accepted: T) => string): () => void {
+  const latest = useRef(value);
+  latest.current = value;
+  const describe = useRef(message);
+  describe.current = message;
+  return () => {
+    const before = latest.current;
+    setTimeout(() => {
+      const accepted = latest.current;
+      if (accepted !== before) {
+        announce(describe.current(accepted));
+      }
+    }, 0);
+  };
+}
+
 const labelledBy = (id: string, detail: unknown) => ({
   "aria-labelledby": `${id}-name`,
   ...(detail ? { "aria-describedby": `${id}-detail` } : {}),
@@ -232,6 +249,7 @@ export function SwitchRow({
   class: className,
 }: SwitchRowProps) {
   const text = typeof detail === "object" ? (checked ? detail.on : detail.off) : detail;
+  const announceAccepted = useAcceptedAnnouncement(checked, (on) => `${name} ${on ? "on" : "off"}.`);
   return (
     <SettingsRow
       id={id}
@@ -250,7 +268,7 @@ export function SwitchRow({
           {...labelledBy(id, text)}
           onCheckedChange={(next) => {
             onCheckedChange(next);
-            announce(`${name} ${next ? "on" : "off"}.`);
+            announceAccepted();
           }}
         />
       }
@@ -277,6 +295,10 @@ export function SelectRow<V extends string = string>({
   disabled,
   class: className,
 }: SelectRowProps<V>) {
+  const announceAccepted = useAcceptedAnnouncement(
+    value,
+    (accepted) => `${name}: ${options.find((option) => option.value === accepted)?.label ?? accepted}.`,
+  );
   return (
     <SettingsRow
       id={id}
@@ -298,8 +320,7 @@ export function SelectRow<V extends string = string>({
           {...labelledBy(id, detail)}
           onValueChange={(next) => {
             onValueChange(next);
-            const label = options.find((option) => option.value === next)?.label ?? next;
-            announce(`${name}: ${label}.`);
+            announceAccepted();
           }}
         />
       }
@@ -391,6 +412,10 @@ export function ChoiceRow<V extends string = string>({
   class: className,
 }: ChoiceRowProps<V>) {
   const current = options.find((option) => option.value === value) ?? options[0];
+  const announceAccepted = useAcceptedAnnouncement(
+    value,
+    (accepted) => `${name}: ${options.find((option) => option.value === accepted)?.label ?? accepted}.`,
+  );
   return (
     <SettingsRow
       id={id}
@@ -411,8 +436,7 @@ export function ChoiceRow<V extends string = string>({
           {...labelledBy(id, current?.detail)}
           onValueChange={(next) => {
             onValueChange(next);
-            const label = options.find((option) => option.value === next)?.label ?? next;
-            announce(`${name}: ${label}.`);
+            announceAccepted();
           }}
         />
       }

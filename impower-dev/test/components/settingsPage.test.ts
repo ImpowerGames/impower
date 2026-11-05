@@ -194,6 +194,7 @@ describe("a section composed over the settings store", () => {
     const region = () => host!.querySelector('[role="status"]')!.textContent;
     expect(reset()).toBeNull();
     await act(async () => control().click());
+    await pause(10);
     expect(workspaceSettings.preferences.value.lineNumbers).toBe(false);
     expect(region()).toBe("Line numbers off.");
     expect(reset()).not.toBeNull();
@@ -203,7 +204,9 @@ describe("a section composed over the settings store", () => {
     expect(control().checked).toBe(true);
     expect(reset()).toBeNull();
     await act(async () => control().click());
+    await pause(10);
     await act(async () => control().click());
+    await pause(10);
     expect(region()!.trim()).toBe("Line numbers on.");
   });
 });

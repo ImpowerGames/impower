@@ -54,17 +54,21 @@ const Switch = forwardRef<HTMLInputElement, SwitchProps>(function Switch(
   const own = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    const form = own.current?.form;
-    if (!form) {
+    const doc = own.current?.ownerDocument;
+    if (!doc) {
       return;
     }
-    const onReset = () =>
+    const onReset = (event: Event) => {
+      const input = own.current;
+      if (!input || !input.form || event.target !== input.form) {
+        return;
+      }
       setTimeout(() => {
-        const input = own.current;
-        input?.setAttribute("aria-checked", String(input.checked));
+        input.setAttribute("aria-checked", String(input.checked));
       }, 0);
-    form.addEventListener("reset", onReset);
-    return () => form.removeEventListener("reset", onReset);
+    };
+    doc.addEventListener("reset", onReset, true);
+    return () => doc.removeEventListener("reset", onReset, true);
   }, []);
 
   return (

@@ -24,6 +24,11 @@ const mount = async (node: ComponentChild) => {
   return host;
 };
 
+const settle = () =>
+  act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+
 const region = () => document.querySelector('[role="status"][aria-live="polite"]')!.textContent;
 
 afterEach(async () => {
@@ -78,17 +83,98 @@ describe("Settings row kit", () => {
     expect(host!.querySelector("[data-setting-row]")!.getAttribute("data-reset")).toBe("lineNumbers");
   });
 
-  it("announces a switch as on and off", async () => {
+  it("announces a switch as on and off once its owner accepts, and says nothing when the owner refuses", async () => {
     const onCheckedChange = vi.fn();
+    function Owner({ accept }: { accept: boolean }) {
+      const [on, setOn] = useState(false);
+      return (
+        <SwitchRow
+          id={accept ? "numbers" : "locked"}
+          name={accept ? "Line numbers" : "Locked"}
+          checked={on}
+          onCheckedChange={(next) => {
+            onCheckedChange(next);
+            if (accept) {
+              setOn(next);
+            }
+          }}
+        />
+      );
+    }
     await mount(
       <>
         <LiveRegion />
-        <SwitchRow id="numbers" name="Line numbers" checked={false} onCheckedChange={onCheckedChange} />
+        <Owner accept />
+        <Owner accept={false} />
       </>,
     );
-    await act(async () => host!.querySelector<HTMLInputElement>('input[role="switch"]')!.click());
+    const [numbers, locked] = Array.from(host!.querySelectorAll<HTMLInputElement>('input[role="switch"]'));
+    await act(async () => locked!.click());
+    await settle();
     expect(onCheckedChange).toHaveBeenCalledWith(true);
+    expect(locked!.checked).toBe(false);
+    expect(region()).toBe("");
+    await act(async () => numbers!.click());
+    await settle();
     expect(region()).toBe("Line numbers on.");
+    await act(async () => numbers!.click());
+    await settle();
+    expect(region()).toBe("Line numbers off.");
+  });
+
+  it("announces what a select owner settles on, not the option it was asked for", async () => {
+    const OPTIONS = [
+      { value: "a", label: "A" },
+      { value: "b", label: "B" },
+      { value: "c", label: "C" },
+    ] as const;
+    function Owners() {
+      const [select, setSelect] = useState<string>("a");
+      const [choice, setChoice] = useState<string>("a");
+      const normalize = (next: string) => (next === "b" ? "c" : next);
+      return (
+        <>
+          <SelectRow id="pick" name="Pick" options={OPTIONS} value={select} onValueChange={(next) => setSelect(normalize(next))} />
+          <ChoiceRow id="mode" name="Mode" group="mode" options={OPTIONS} value={choice} onValueChange={(next) => setChoice(normalize(next))} />
+        </>
+      );
+    }
+    await mount(
+      <>
+        <LiveRegion />
+        <Owners />
+      </>,
+    );
+    const select = host!.querySelector("select")!;
+    await act(async () => {
+      select.value = "b";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+    expect(select.value).toBe("c");
+    expect(region()).toBe("Pick: C.");
+  });
+
+  it("announces what a choice owner settles on, not the option it was asked for", async () => {
+    const OPTIONS = [
+      { value: "a", label: "A" },
+      { value: "b", label: "B" },
+      { value: "c", label: "C" },
+    ] as const;
+    function Owner() {
+      const [choice, setChoice] = useState<string>("a");
+      return <ChoiceRow id="mode" name="Mode" group="mode" options={OPTIONS} value={choice} onValueChange={(next) => setChoice(next === "b" ? "c" : next)} />;
+    }
+    await mount(
+      <>
+        <LiveRegion />
+        <Owner />
+      </>,
+    );
+    await act(async () => host!.querySelector<HTMLInputElement>('input[name="mode"][value="b"]')!.click());
+    await settle();
+    expect(host!.querySelector<HTMLInputElement>('input[name="mode"][value="c"]')!.checked).toBe(true);
+    expect(region()).toBe("Mode: C.");
   });
 
   it("makes the whole switch row its label, names the control by the row and swaps an on/off detail", async () => {
@@ -143,6 +229,7 @@ describe("Settings row kit", () => {
       select.value = "left";
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
+    await settle();
     expect(select.value).toBe("left");
     expect(region()).toBe("Scene numbers: Left.");
   });
@@ -173,6 +260,7 @@ describe("Settings row kit", () => {
     expect(host!.querySelector("label[for]")).toBeNull();
     expect(host!.querySelector("#page-detail")!.textContent).toBe("On a sheet.");
     await act(async () => host!.querySelectorAll<HTMLInputElement>('input[type="radio"]')[1]!.click());
+    await settle();
     expect(host!.querySelector("#page-detail")!.textContent).toBe("On the surface.");
     expect(region()).toBe("Page: Plain.");
   });
