@@ -6,7 +6,13 @@ import {
   type ReadonlySignal,
 } from "@preact/signals";
 import workspace from "../WorkspaceStore";
-import { LIGHT_SCHEME_QUERY, resolveTheme, type Theme } from "./applyTheme";
+import {
+  LIGHT_SCHEME_QUERY,
+  resolveAppearance,
+  resolveTheme,
+  type Appearance,
+  type Theme,
+} from "./applyTheme";
 import {
   buildConfiguration,
   isValidSetting,
@@ -96,6 +102,8 @@ export class WorkspaceSettings {
 
   readonly theme: ReadonlySignal<Theme>;
 
+  readonly appearance: ReadonlySignal<Appearance>;
+
   constructor(
     projectId: ReadonlySignal<string>,
     storage: Storage | undefined = typeof localStorage === "undefined"
@@ -128,6 +136,13 @@ export class WorkspaceSettings {
     );
     this.theme = computed(() =>
       resolveTheme(this.preferences.value.theme, this._prefersLight.value),
+    );
+    this.appearance = computed(() =>
+      resolveAppearance(
+        this.theme.value,
+        this.preferences.value.surfaces,
+        this.preferences.value.syntaxPalette,
+      ),
     );
     this._disposeProjectEffect = effect(() => {
       const nextId = projectId.value;

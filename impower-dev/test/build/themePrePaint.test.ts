@@ -7,7 +7,9 @@ import staticallyRenderPage from "../../src/build/staticallyRenderPage";
 import { themeColors, withThemeColor } from "../../src/build/themeColor";
 import {
   LIGHT_SCHEME_QUERY,
+  resolveAppearance,
   resolveTheme,
+  THEMES,
 } from "../../src/modules/spark-editor/workspace/settings/applyTheme";
 import { PREFERENCES_STORAGE_KEY } from "../../src/modules/spark-editor/workspace/settings/WorkspaceSettings";
 import { readThemeColors, staticallyStylePage } from "../../vite.config";
@@ -74,11 +76,15 @@ const STORED: [string, string | null, string][] = [
   ["Automatic", JSON.stringify({ theme: "automatic" }), "automatic"],
   ["Charcoal", JSON.stringify({ theme: "charcoal" }), "charcoal"],
   ["Chalk", JSON.stringify({ theme: "chalk" }), "chalk"],
-  ["Midnight", JSON.stringify({ theme: "midnight" }), "midnight"],
+  ...THEMES.map((theme): [string, string, string] => [
+    theme,
+    JSON.stringify({ theme }),
+    theme,
+  ]),
   [
     "a theme the editor does not offer",
-    JSON.stringify({ theme: "ink" }),
-    "ink",
+    JSON.stringify({ theme: "sepia" }),
+    "sepia",
   ],
   ["malformed preferences", "{", ""],
   ["a non-object", "null", ""],
@@ -103,6 +109,29 @@ describe("the document's theme before first paint", () => {
       });
     }
   }
+
+  it.each([
+    [{ theme: "graphite" }, "unified", "softened"],
+    [{ theme: "warm", surfaces: "layered", syntaxPalette: "original" }, "layered", "original"],
+    [{ theme: "graphite", surfaces: "lighter", syntaxPalette: 3 }, "unified", "softened"],
+    [{ theme: "charcoal", surfaces: "layered", syntaxPalette: "original" }, undefined, undefined],
+    [{ theme: "midnight", surfaces: "layered" }, undefined, undefined],
+  ])(
+    "with %j stored, sets data-surfaces %s and data-syntax %s as the editor does",
+    (stored, surfaces, syntax) => {
+      const root = load(JSON.stringify(stored), false).dom.window.document
+        .documentElement;
+      expect(root.dataset["surfaces"]).toBe(surfaces);
+      expect(root.dataset["syntax"]).toBe(syntax);
+      const appearance = resolveAppearance(
+        resolveTheme(stored.theme, false),
+        stored.surfaces === "layered" ? "layered" : "unified",
+        stored.syntaxPalette === "original" ? "original" : "softened",
+      );
+      expect(appearance.surfaces).toBe(surfaces);
+      expect(appearance.syntax).toBe(syntax);
+    },
+  );
 
   it("reads the preference and sets data-theme before any stylesheet is in the document", () => {
     const { dom, seen } = load(JSON.stringify({ theme: "chalk" }), false);

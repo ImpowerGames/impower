@@ -15,7 +15,16 @@ const read = (relative: string) =>
 const DOCUMENT_HTML = read("../../src/public/document.html");
 const MANIFEST = read("../../src/public/manifest.webmanifest");
 
-const COLORS = { midnight: "#052d57", charcoal: "#202123", chalk: "#ececee" };
+const COLORS = {
+  midnight: "#052d57",
+  dusk: "#0e2d4e",
+  charcoal: "#202123",
+  chalk: "#ececee",
+  ink: "#201d1a",
+  paper: "#efe9dc",
+  graphite: "#202123",
+  warm: "#201d1a",
+};
 
 describe("theme colours written by the build", () => {
   it("are every theme's --bg from impower-ui's theme stylesheet as hex", () => {
