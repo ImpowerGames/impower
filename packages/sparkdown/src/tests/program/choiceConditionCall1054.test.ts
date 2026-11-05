@@ -51,6 +51,7 @@ describe("a choice's own condition may call a function (I-1054)", () => {
     ["if (t:open(--[==[ ( ]==] 1))", "if (t:open([[)]] and 2))"],
     ["if t:open(#[====[) ] ]====] - 3)", "if t:open(--[====[) ] ]====] 2)"],
     ["if t:open(#`{ `)` }`)", "if t:open(#`{ `) ` }`)"],
+    ['if t:open(#`{({x = ")"}).x}`)', 'if t:open(#`{({x = "))"}).x}`)'],
   ];
   for (const [first, second] of cases) {
     it(`${first} / ${second}`, () => {
