@@ -40,6 +40,7 @@
     "packages/spec-component/src/idiomorph/",
     "packages/spark-engine/src/game/core/types/",
     "impower-dev/src/modules/spark-editor/workspace/types/RemoteStorageTypes.ts",
-    "impower-app/"
+    "impower-app/",
+    "admin/"
   ]
 }
