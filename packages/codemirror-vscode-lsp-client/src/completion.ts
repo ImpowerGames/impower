@@ -32,8 +32,8 @@ import { LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
 import { convertFromPosition } from "./pos";
 import {
-  noteEmptySuggestions,
   registerCompletionDocs,
+  trackExplicitRequest,
   suggestions,
 } from "./suggestions";
 
@@ -225,24 +225,14 @@ export const serverCompletionSource: CompletionSource = (context) => {
   const validFor = getValidFor(triggerCharacters);
   const active = context.matchBefore(validFor);
   const { state, pos } = context;
+  const answered =
+    context.explicit && context.view
+      ? trackExplicitRequest(context.view, pos)
+      : () => {};
   return getCompletions(plugin, pos, serverContext, context).then(
     (result) => {
-      const noteEmpty = () => {
-        const view = context.view;
-        if (
-          context.explicit &&
-          view &&
-          view.hasFocus &&
-          !context.aborted &&
-          completionStatus(view.state) === "pending" &&
-          view.state.doc === state.doc &&
-          view.state.selection.main.head === pos
-        ) {
-          noteEmptySuggestions(view, pos);
-        }
-        return null;
-      };
-      if (!result) return noteEmpty();
+      answered();
+      if (!result) return null;
       const items = Array.isArray(result) ? result : result.items;
       const itemDefaults = Array.isArray(result) ? {} : result.itemDefaults;
       items.sort((a, b) => {
@@ -259,17 +249,13 @@ export const serverCompletionSource: CompletionSource = (context) => {
         return 0;
       });
       if (items.length === 0) {
-        return noteEmpty();
+        return null;
       }
       const ranges = items.map((item) =>
         getEditRange(item, itemDefaults, state.doc, pos),
       );
       const first = ranges.find((r) => r != null);
       const range = { from: first?.from ?? active?.from ?? pos, to: pos };
-      const typed = state.sliceDoc(range.from, pos);
-      if (typed && !items.some((item) => strictlyMatches(item.label, typed))) {
-        return noteEmpty();
-      }
       const options = items.map((item, index) =>
         serverCompletionOption(item, index, itemDefaults, validFor, plugin, {
           result: range,
@@ -296,6 +282,7 @@ export const serverCompletionSource: CompletionSource = (context) => {
       return listResult(pos);
     },
     (err): null => {
+      answered();
       if (
         "code" in err &&
         (err as lsp.ResponseError).code == -32800
@@ -305,14 +292,6 @@ export const serverCompletionSource: CompletionSource = (context) => {
     },
   );
 };
-
-function strictlyMatches(label: string, typed: string) {
-  if (label.length < typed.length) {
-    return false;
-  }
-  const start = label.slice(0, typed.length);
-  return start === typed || start.toLowerCase() === typed.toLowerCase();
-}
 
 interface OffsetRange {
   from: number;

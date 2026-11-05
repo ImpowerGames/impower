@@ -13,6 +13,7 @@ import {
   Prec,
   StateEffect,
   StateField,
+  Text,
 } from "@codemirror/state";
 import {
   EditorView,
@@ -22,6 +23,7 @@ import {
   showTooltip,
   Tooltip,
   ViewPlugin,
+  ViewUpdate,
 } from "@codemirror/view";
 import { coarsePointer } from "./pointer";
 
@@ -218,7 +220,12 @@ const emptySuggestions = StateField.define<Tooltip | null>({
         return null;
       }
     }
-    if (value && (tr.docChanged || tr.selection)) {
+    if (
+      value &&
+      (tr.docChanged ||
+        tr.selection ||
+        completionStatus(tr.state) === "active")
+    ) {
       return null;
     }
     return value;
@@ -226,9 +233,59 @@ const emptySuggestions = StateField.define<Tooltip | null>({
   provide: (field) => showTooltip.from(field),
 });
 
-export function noteEmptySuggestions(view: EditorView, pos: number) {
-  view.dispatch({ effects: showEmptySuggestions.of(pos) });
+interface ExplicitRequest {
+  pos: number;
+  doc: Text;
+  answered: boolean;
 }
+
+const explicitRequests = new WeakMap<EditorView, ExplicitRequest>();
+
+export function trackExplicitRequest(view: EditorView, pos: number) {
+  const request: ExplicitRequest = {
+    pos,
+    doc: view.state.doc,
+    answered: false,
+  };
+  explicitRequests.set(view, request);
+  return () => {
+    request.answered = true;
+  };
+}
+
+const explicitRequestOutcome = ViewPlugin.define((view) => ({
+  update(update: ViewUpdate) {
+    const request = explicitRequests.get(view);
+    if (!request) {
+      return;
+    }
+    const { state } = update;
+    const status = completionStatus(state);
+    if (status === "pending") {
+      if (
+        state.doc !== request.doc ||
+        state.selection.main.head !== request.pos ||
+        !view.hasFocus
+      ) {
+        explicitRequests.delete(view);
+      }
+      return;
+    }
+    explicitRequests.delete(view);
+    if (
+      status === null &&
+      request.answered &&
+      currentCompletions(state).length === 0 &&
+      state.doc === request.doc &&
+      state.selection.main.head === request.pos &&
+      view.hasFocus
+    ) {
+      queueMicrotask(() =>
+        view.dispatch({ effects: showEmptySuggestions.of(request.pos) }),
+      );
+    }
+  },
+}));
 
 const dismissEmptySuggestions = (view: EditorView) => {
   if (!view.state.field(emptySuggestions, false)) {
@@ -400,6 +457,7 @@ export function suggestions(): Extension {
     suggestionsTheme,
     emptySuggestions,
     emptySuggestionsDismissal,
+    explicitRequestOutcome,
     chipsShown,
     chipsClass,
     closeListOnScroll,

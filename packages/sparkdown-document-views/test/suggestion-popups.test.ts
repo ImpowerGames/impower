@@ -1,8 +1,10 @@
 import {
+  autocompletion,
   closeCompletion,
   completionStatus,
   currentCompletions,
   startCompletion,
+  type CompletionSource,
 } from "@codemirror/autocomplete";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -11,6 +13,7 @@ import {
   LSPClient,
   serverAutoSync,
   serverCompletions,
+  serverCompletionSource,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type * as lsp from "vscode-languageserver-protocol";
@@ -181,42 +184,76 @@ describe("the suggestion list on a fine pointer", () => {
 });
 
 describe("an empty request for suggestions", () => {
-  it("says there are none when asked for explicitly, until the next edit", async () => {
-    const { view, server } = await mount("zz");
-    view.focus();
-    startCompletion(view);
-    await answerCompletion(server, []);
-    const note = view.dom.querySelector(".cm-suggestions-empty");
-    expect(note?.textContent).toBe("No suggestions here.");
-    expect(note?.getAttribute("role")).toBe("status");
+  const ask = async (doc: string, items: lsp.CompletionItem[], extra: Extension[] = []) => {
+    const mounted = await mount(doc, extra);
+    mounted.view.focus();
+    startCompletion(mounted.view);
+    await answerCompletion(mounted.server, items);
+    return mounted;
+  };
+
+  const note = (view: EditorView) =>
+    view.dom.querySelector(".cm-suggestions-empty");
+
+  it("says there are none when an explicit request's answer is empty, until the next edit", async () => {
+    const { view } = await ask("zz", []);
+    expect(note(view)?.textContent).toBe("No suggestions here.");
+    expect(note(view)?.getAttribute("role")).toBe("status");
     view.dispatch({
       changes: { from: 2, insert: "z" },
       userEvent: "input.type",
     });
-    expect(view.dom.querySelector(".cm-suggestions-empty")).toBeNull();
+    expect(note(view)).toBeNull();
   });
 
   it("closes on Escape", async () => {
-    const { view, server } = await mount("zz");
-    view.focus();
-    startCompletion(view);
-    await answerCompletion(server, []);
-    expect(view.dom.querySelector(".cm-suggestions-empty")).toBeTruthy();
+    const { view } = await ask("zz", []);
+    expect(note(view)).toBeTruthy();
     view.contentDOM.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
     );
-    expect(view.dom.querySelector(".cm-suggestions-empty")).toBeNull();
+    expect(note(view)).toBeNull();
   });
 
-  it("says there are none when asked for explicitly and nothing offered can match what is typed", async () => {
-    const { view, server } = await mount("zz");
-    view.focus();
+  it("says there are none when the list filters away every answered option", async () => {
+    for (const typed of ["zz", "MY"]) {
+      const { view } = await ask(typed, CHARACTERS);
+      expect(completionStatus(view.state), typed).toBeNull();
+      expect(currentCompletions(view.state), typed).toHaveLength(0);
+      expect(note(view)?.textContent, typed).toBe("No suggestions here.");
+    }
+  });
+
+  it("shows the list and no note when the typed text matches an answered option", async () => {
+    const { view } = await ask("MA", CHARACTERS);
+    expect(completionStatus(view.state)).toBe("active");
+    expect(currentCompletions(view.state).map((option) => option.label)).toEqual([
+      "MAYA",
+      "MARCO",
+    ]);
+    expect(note(view)).toBeNull();
+  });
+
+  it("follows the list's own filtering: an answer the list keeps unfiltered shows the list and no note", async () => {
+    const unfiltered: CompletionSource = async (context) => {
+      const result = await serverCompletionSource(context);
+      return result ? { ...result, filter: false } : result;
+    };
+    const { view } = await ask("zz", CHARACTERS, [
+      autocompletion({ override: [unfiltered] }),
+    ]);
+    expect(completionStatus(view.state)).toBe("active");
+    expect(currentCompletions(view.state)).toHaveLength(2);
+    expect(note(view)).toBeNull();
+  });
+
+  it("replaces the note with the list when a later answer has options", async () => {
+    const { view, server } = await ask("", []);
+    expect(note(view)).toBeTruthy();
     startCompletion(view);
     await answerCompletion(server, CHARACTERS);
-    expect(completionStatus(view.state)).toBeNull();
-    expect(view.dom.querySelector(".cm-suggestions-empty")?.textContent).toBe(
-      "No suggestions here.",
-    );
+    expect(completionStatus(view.state)).toBe("active");
+    expect(note(view)).toBeNull();
   });
 
   it("says nothing when an explicit request is closed before its empty answer arrives", async () => {
@@ -235,36 +272,7 @@ describe("an empty request for suggestions", () => {
     expect(request).toBeTruthy();
     server.answer(request!, []);
     await settle(80);
-    expect(view.dom.querySelector(".cm-suggestions-empty")).toBeNull();
-  });
-
-  it("says there are none when asked for explicitly and the answers only hold the typed letters out of order", async () => {
-    const { view, server } = await mount("MY");
-    view.focus();
-    startCompletion(view);
-    await answerCompletion(server, CHARACTERS);
-    expect(completionStatus(view.state)).toBeNull();
-    expect(view.dom.querySelector(".cm-suggestions-empty")?.textContent).toBe(
-      "No suggestions here.",
-    );
-  });
-
-  it("judges a typed prefix by the list's own rule, comparing only the label's start", async () => {
-    const greek = await mount("ΟΣ");
-    greek.view.focus();
-    startCompletion(greek.view);
-    await answerCompletion(greek.server, [{ label: "ΟΣΑ", kind: 6 }]);
-    expect(completionStatus(greek.view.state)).toBe("active");
-    expect(greek.view.dom.querySelector(".cm-suggestions-empty")).toBeNull();
-
-    const turkish = await mount("i");
-    turkish.view.focus();
-    startCompletion(turkish.view);
-    await answerCompletion(turkish.server, [{ label: "İpek", kind: 6 }]);
-    expect(completionStatus(turkish.view.state)).toBeNull();
-    expect(
-      turkish.view.dom.querySelector(".cm-suggestions-empty")?.textContent,
-    ).toBe("No suggestions here.");
+    expect(note(view)).toBeNull();
   });
 
   it("says nothing when the editor loses focus before an explicit request's empty answer arrives", async () => {
@@ -285,7 +293,7 @@ describe("an empty request for suggestions", () => {
     expect(request).toBeTruthy();
     server.answer(request!, []);
     await settle(80);
-    expect(view.dom.querySelector(".cm-suggestions-empty")).toBeNull();
+    expect(note(view)).toBeNull();
   });
 
   it("closes the empty note when the editor scrolls, and when the page is scrolled by the wheel", async () => {
@@ -294,19 +302,16 @@ describe("an empty request for suggestions", () => {
       (view: EditorView) =>
         view.scrollDOM.dispatchEvent(new WheelEvent("wheel", { bubbles: true })),
     ]) {
-      const { view, server } = await mount("zz");
-      view.focus();
-      startCompletion(view);
-      await answerCompletion(server, []);
-      expect(view.dom.querySelector(".cm-suggestions-empty")).toBeTruthy();
+      const { view } = await ask("zz", []);
+      expect(note(view)).toBeTruthy();
       scroll(view);
-      expect(view.dom.querySelector(".cm-suggestions-empty")).toBeNull();
+      expect(note(view)).toBeNull();
     }
   });
 
   it("says nothing when typing finds no suggestions", async () => {
     const { view } = await typeAndSuggest("", "zz", []);
-    expect(view.dom.querySelector(".cm-suggestions-empty")).toBeNull();
+    expect(note(view)).toBeNull();
   });
 });
 
