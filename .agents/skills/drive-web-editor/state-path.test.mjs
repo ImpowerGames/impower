@@ -330,7 +330,7 @@ await check("the browser launch refuses a too-deep or claimed profile before Pla
     let loaded = 0;
     const playwright = async () => {
       loaded++;
-      return { chromium: { executablePath: () => process.execPath, launchPersistentContext: async (dir) => ({ dir }) } };
+      return { chromium: { executablePath: () => process.execPath, launchPersistentContext: async (dir) => ({ dir, addInitScript: async () => {} }) } };
     };
     const deep = path.join(base, "d".repeat(WINDOWS_PATH_LIMIT));
     await assert.rejects(launchEditorBrowser({ headless: true, dir: deep, platform: "win32", playwright }), /too deep/);
@@ -343,7 +343,7 @@ await check("the browser launch refuses a too-deep or claimed profile before Pla
     await assert.rejects(launchEditorBrowser({ headless: true, dir, platform: "linux", playwright }), /cannot be read/);
     assert.equal(loaded, 0, "Playwright loaded for a refused profile");
     fs.rmSync(path.join(dir, PROFILE_CLAIM_FILE));
-    assert.deepEqual(await launchEditorBrowser({ headless: true, dir, platform: "linux", playwright }), { dir });
+    assert.equal((await launchEditorBrowser({ headless: true, dir, platform: "linux", playwright })).dir, dir);
     const claim = JSON.parse(fs.readFileSync(path.join(dir, PROFILE_CLAIM_FILE), "utf8"));
     assert.equal(typeof claim.at, "number");
     assert.deepEqual(fs.readdirSync(dir).sort(), [PROFILE_CLAIM_FILE], "the claim left a temporary or lock file behind");
@@ -359,7 +359,7 @@ await check("the browser launch refuses a too-deep or claimed profile before Pla
     };
     fs.writeFileSync(lock, "first-holder");
     age(PROFILE_LOCK_STALE_MS + 5_000);
-    assert.deepEqual(await launchEditorBrowser({ headless: true, dir, platform: "linux", playwright }), { dir });
+    assert.equal((await launchEditorBrowser({ headless: true, dir, platform: "linux", playwright })).dir, dir);
     assert.deepEqual(fs.readdirSync(dir).sort(), [PROFILE_CLAIM_FILE]);
     fs.rmSync(path.join(dir, PROFILE_CLAIM_FILE));
     fs.writeFileSync(lock, "stale-holder");

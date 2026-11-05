@@ -6,6 +6,7 @@ import {
   type ReadonlySignal,
 } from "@preact/signals";
 import workspace from "../WorkspaceStore";
+import { LIGHT_SCHEME_QUERY, resolveTheme, type Theme } from "./applyTheme";
 import {
   buildConfiguration,
   isValidSetting,
@@ -79,19 +80,35 @@ export class WorkspaceSettings {
 
   protected readonly _disposeProjectEffect: () => void;
 
+  protected readonly _lightScheme: MediaQueryList | undefined;
+
+  protected readonly _prefersLight;
+
+  protected readonly _onSchemeChange = (e: MediaQueryListEvent) => {
+    this._prefersLight.value = e.matches;
+  };
+
   readonly preferences: ReadonlySignal<Preferences>;
 
   readonly projectSettings: ReadonlySignal<ProjectSettings>;
 
   readonly configuration: ReadonlySignal<Record<string, unknown>>;
 
+  readonly theme: ReadonlySignal<Theme>;
+
   constructor(
     projectId: ReadonlySignal<string>,
     storage: Storage | undefined = typeof localStorage === "undefined"
       ? undefined
       : localStorage,
+    lightScheme: MediaQueryList | undefined = typeof matchMedia === "function"
+      ? matchMedia(LIGHT_SCHEME_QUERY)
+      : undefined,
   ) {
     this._storage = storage;
+    this._lightScheme = lightScheme;
+    this._prefersLight = signal(lightScheme?.matches ?? false);
+    lightScheme?.addEventListener("change", this._onSchemeChange);
     this._storedPreferences = signal<StoredSettings>(
       readStored(storage, PREFERENCES_STORAGE_KEY),
     );
@@ -109,6 +126,9 @@ export class WorkspaceSettings {
     this.configuration = computed(() =>
       buildConfiguration(this.preferences.value, this.projectSettings.value),
     );
+    this.theme = computed(() =>
+      resolveTheme(this.preferences.value.theme, this._prefersLight.value),
+    );
     this._disposeProjectEffect = effect(() => {
       const nextId = projectId.value;
       if (nextId !== this._storedProject.peek().id) {
@@ -123,6 +143,7 @@ export class WorkspaceSettings {
 
   dispose() {
     this._disposeProjectEffect();
+    this._lightScheme?.removeEventListener("change", this._onSchemeChange);
     this._listeners.clear();
   }
 

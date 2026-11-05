@@ -1,5 +1,6 @@
 :root,
 [data-theme="midnight"] {
+  color-scheme: dark;
   --bg: hsl(210.7 89.1% 18%);
   --panel: hsl(210.6 100% 10%);
   --paper: hsl(210.6 100% 7%);
@@ -112,4 +113,180 @@
   --syntax-chunk-name-definition: #7c7ca6;
   --syntax-invalid: #f44747;
   --syntax-comment: #6a9955;
+}
+
+[data-theme="charcoal"] {
+  color-scheme: dark;
+  --bg: #202123;
+  --panel: #282a2d;
+  --paper: #232427;
+  --workspace: var(--bg);
+  --workspace-deep: #1d1e20;
+  --preview-mat: var(--workspace);
+  --elevated: #34363a;
+  --ink: #f0efeb;
+  --muted: #b9b9bd;
+  --accent: #edb393;
+  --accent-ink: #302017;
+  --tint: #3b302a;
+  --error: #f2a39c;
+  --warning: #edcc8b;
+  --success: #b4ceb1;
+  --edge: #494b50;
+  --selection: #4a3d35;
+  --syntax-active: #242427;
+  --scrollbar: #73757c;
+  --control-hover: rgb(255 255 255 / 0.06);
+  --stage-full: #0a0a0b;
+
+  --syntax-text: #f0efeb;
+  --syntax-bracket: #94959b;
+  --syntax-string: #e09a84;
+  --syntax-escape: #b59a63;
+  --syntax-type-name: #61c2ad;
+  --syntax-type-name-definition: #61c2ad;
+  --syntax-standard-type: #61c2ad;
+  --syntax-number: #97bd83;
+  --syntax-bool: #7db8ea;
+  --syntax-operator: #94959b;
+  --syntax-special-operator: #94959b;
+  --syntax-break: #f0efeb;
+  --syntax-section-name-accessor: #c0a3fe;
+  --syntax-section-name-definition: #c0a3fe;
+  --syntax-regex: #f2908e;
+  --syntax-transitional: #b29191;
+  --syntax-plain-keyword: #7db8ea;
+  --syntax-module-keyword: #de9ed0;
+  --syntax-control-keyword: #de9ed0;
+  --syntax-builtin: #f296be;
+  --syntax-operator-keyword: #f296be;
+  --syntax-property-name: #aac1d2;
+  --syntax-variable-name: #aac1d2;
+  --syntax-parameter-name: #aac1d2;
+  --syntax-constant-variable-name: #61bbf0;
+  --syntax-attribute-name: #b59a63;
+  --syntax-function-name: #b6b570;
+  --syntax-standard-function: #b6b570;
+  --syntax-class-name: #dfa674;
+  --syntax-chunk-name-definition: #b29191;
+  --syntax-invalid: #fe9e9c;
+  --syntax-comment: #86a07c;
+}
+
+[data-theme="chalk"] {
+  color-scheme: light;
+  --bg: #ececee;
+  --panel: #f5f5f6;
+  --paper: #fafafa;
+  --workspace: #fafafa;
+  --workspace-deep: #ececee;
+  --preview-mat: var(--workspace);
+  --elevated: #e2e2e5;
+  --ink: #202123;
+  --muted: #62636a;
+  --accent: #9c4519;
+  --accent-ink: #fff8ee;
+  --tint: #e0e1e5;
+  --error: #b3261e;
+  --warning: #9a5a00;
+  --success: #33702f;
+  --edge: #d3d3d7;
+  --selection: #dcdde2;
+  --syntax-active: #f0f0f2;
+  --scrollbar: #c0c0c5;
+  --control-hover: rgb(0 0 0 / 0.05);
+  --stage-full: #e6e6e8;
+
+  --syntax-text: #202123;
+  --syntax-bracket: #62636a;
+  --syntax-string: #8c4221;
+  --syntax-escape: #7d5e08;
+  --syntax-type-name: #096354;
+  --syntax-type-name-definition: #096354;
+  --syntax-standard-type: #096354;
+  --syntax-number: #3f6a1f;
+  --syntax-bool: #1d55a3;
+  --syntax-operator: #62636a;
+  --syntax-special-operator: #62636a;
+  --syntax-break: #202123;
+  --syntax-section-name-accessor: #6a3fa2;
+  --syntax-section-name-definition: #6a3fa2;
+  --syntax-regex: #a22b33;
+  --syntax-transitional: #7f595a;
+  --syntax-plain-keyword: #1d55a3;
+  --syntax-module-keyword: #7d3b73;
+  --syntax-control-keyword: #7d3b73;
+  --syntax-builtin: #a1265e;
+  --syntax-operator-keyword: #a1265e;
+  --syntax-property-name: #3f5878;
+  --syntax-variable-name: #3f5878;
+  --syntax-parameter-name: #3f5878;
+  --syntax-constant-variable-name: #006f8e;
+  --syntax-attribute-name: #7d5e08;
+  --syntax-function-name: #6b6200;
+  --syntax-standard-function: #6b6200;
+  --syntax-class-name: #88460c;
+  --syntax-chunk-name-definition: #7f595a;
+  --syntax-invalid: #9c242e;
+  --syntax-comment: #4d6b3e;
+}
+
+[data-theme="charcoal"],
+[data-theme="chalk"] {
+  --button-bg: var(--accent);
+  --sidebar: var(--bg);
+
+  --popup: var(--panel);
+  --surface: var(--panel);
+  --tab-ink: var(--ink);
+  --tab-muted: var(--muted);
+  --placeholder: var(--muted);
+  --primary: var(--accent);
+  --focus-ring: var(--accent);
+  --button-ink: var(--accent-ink);
+  --error-strong: var(--error);
+  --warning-strong: var(--warning);
+
+  --editor-ink: var(--ink);
+  --editor-line-number: var(--muted);
+  --editor-line-number-active: var(--ink);
+  --editor-indent-guide: color-mix(in srgb, var(--muted) 22%, transparent);
+  --editor-indent-guide-active: color-mix(in srgb, var(--accent) 55%, transparent);
+  --editor-field-edge: var(--edge);
+  --editor-field-edge-hover: var(--muted);
+  --editor-button-hover: var(--control-hover);
+  --editor-focus: var(--accent);
+  --editor-focus-edge: var(--accent);
+  --editor-selection-match: color-mix(in srgb, var(--accent) 25%, transparent);
+  --editor-panel-edge: var(--edge);
+  --editor-toolbar-ink: var(--muted);
+  --editor-status-ink: var(--muted);
+  --editor-list-selected: var(--tint);
+  --editor-toggle-on: var(--tint);
+  --editor-toggle-on-edge: var(--accent);
+  --editor-problem-range: color-mix(in srgb, var(--warning) 10%, transparent);
+  --editor-problem-error: var(--error);
+  --editor-problem-warning: var(--warning);
+  --editor-problem-info: var(--muted);
+  --editor-action-ink: var(--accent);
+  --editor-match: var(--accent);
+  --editor-faint: var(--muted);
+  --editor-placeholder: var(--muted);
+  --editor-swatch-edge: var(--muted);
+  --editor-reference-line: var(--muted);
+  --editor-lens-ink: var(--muted);
+  --editor-link: var(--accent);
+  --editor-link-active: var(--accent);
+  --editor-rename-edge: var(--edge);
+  --editor-rename-submit: var(--tint);
+  --editor-sticky-shadow: rgb(0 0 0 / 0.33);
+  --editor-line-highlight: var(--tint);
+  --editor-breakpoint: var(--accent);
+  --editor-pinpoint: var(--accent);
+  --editor-touch-handle: var(--accent);
+  --editor-doc-code: var(--elevated);
+  --editor-doc-keycap: var(--paper);
+  --editor-doc-keycap-edge: var(--edge);
+  --editor-doc-quote-ink: var(--muted);
+  --editor-doc-quote-edge: var(--edge);
 }

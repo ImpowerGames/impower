@@ -10,7 +10,7 @@ import { spawnDetached } from "../../../scripts/detached-launch.mjs";
 import { linuxProcesses, treeSurvivors, windowsProcessTable } from "../../../scripts/process-table.mjs";
 export { linuxProcesses, treeSurvivors, windowsProcessTable } from "../../../scripts/process-table.mjs";
 import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen.mjs";
-import { contextOptions, displayReport, hasDisplayFlags, screenshotPath, takeDisplayFlags } from "./viewport.mjs";
+import { contextOptions, displayReport, hasDisplayFlags, screenshotPath, seedThemePreference, takeDisplayFlags, themeMismatch, themeSeed } from "./viewport.mjs";
 import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, SESSION_VARIABLES, checkoutStateFiles, driverSession, recordCheckoutOwner, sessionDir } from "./session-dir.mjs";
 
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -705,13 +705,21 @@ export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platfor
   const { chromium } = await playwright();
   const executablePath = resolveChromiumExecutablePath(chromium, { headless });
   log(`browser: ${chromiumChoiceLine()}`);
-  if (display.theme) log(`theme: --theme ${display.theme} is accepted and not applied; ${displayReport(display).themeNote}`);
-  return chromium.launchPersistentContext(dir, {
+  log(display.theme ? `theme: ${display.theme}, set as the theme preference before the page loads` : "theme: Automatic, the theme preference is cleared before the page loads");
+  const ctx = await chromium.launchPersistentContext(dir, {
     headless,
     ...contextOptions(display),
     args: ["--autoplay-policy=no-user-gesture-required"],
     ...(executablePath ? { executablePath } : {}),
   });
+  await ctx.addInitScript(seedThemePreference, themeSeed(display));
+  return ctx;
+}
+
+async function renderedThemeProblem(page, result) {
+  if (!DISPLAY.theme) return null;
+  result.display.renderedTheme = await page.evaluate(() => document.documentElement.dataset.theme ?? null);
+  return themeMismatch(DISPLAY, result.display.renderedTheme);
 }
 
 const EDITOR_NAVIGATION = { waitUntil: "domcontentloaded", timeout: 120_000 };
@@ -1698,6 +1706,13 @@ async function verify(args, deps = liveDeps) {
       } catch (err) {
         result.gameMounted = false;
         result.error = `the editor page did not load (${String(err.message || err).split("\n")[0]}). Check \`status\`; the machine may be saturated.`;
+        deps.log(JSON.stringify(result, null, 2));
+        process.exitCode = 1;
+        return result;
+      }
+      const themeProblem = await renderedThemeProblem(page, result);
+      if (themeProblem) {
+        result.error = themeProblem;
         deps.log(JSON.stringify(result, null, 2));
         process.exitCode = 1;
         return result;
@@ -2988,6 +3003,13 @@ async function ui(args, deps = liveDeps) {
         process.exitCode = 1;
         return result;
       }
+      const themeProblem = await renderedThemeProblem(page, result);
+      if (themeProblem) {
+        result.failed = [themeProblem];
+        deps.log(JSON.stringify(result, null, 2));
+        process.exitCode = 1;
+        return result;
+      }
       result.startedOn = await deps.activeScreen(page);
       let gate = (await deps.interruptedSeed(page)) ? interruptedSeedError() : null;
       const expectedAtStart = await deps.editorExpectedHere(page);
@@ -3471,7 +3493,7 @@ switch (cmd) {
         "  --viewport <preset|WxH> desktop 1440x900 | tablet 768x1024 | phone 360x780 | phone-large 430x932, or e.g. 1280x720;",
         "                          phone and phone-large add touch, isMobile and device scale factor 3; without it the page is 1600x1000",
         "  --color-scheme <light|dark>  the prefers-color-scheme the page sees, for checking the Automatic theme",
-        "  --theme <name>          accepted and not applied yet: the editor has no theme mechanism the driver can set",
+        "  --theme <name>          the theme preference the page loads with, such as charcoal or chalk; without it the run starts under Automatic",
         "  The emulator route is the bar for phone widths; the phone presets are quick checks, tablet and desktop are evidence.",
         "",
         "redgreen options:",

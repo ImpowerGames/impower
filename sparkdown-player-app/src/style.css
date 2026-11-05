@@ -1,6 +1,7 @@
 :root {
   --swp-background-color: var(--panel);
-  color: #ffffffde;
+  --swp-toolbar-color: var(--ink);
+  color: color-mix(in srgb, var(--ink) 87%, transparent);
 }
 
 html {

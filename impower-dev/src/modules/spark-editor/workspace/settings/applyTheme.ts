@@ -1,19 +1,21 @@
 import { effect, type ReadonlySignal } from "@preact/signals";
-import type { Preferences } from "./settingsSchema";
 
-const THEMES = ["midnight"] as const;
+export const THEMES = ["charcoal", "chalk", "midnight"] as const;
 
-type Theme = (typeof THEMES)[number];
+export type Theme = (typeof THEMES)[number];
 
-const DEFAULT_THEME: Theme = "midnight";
+export const THEME_PREFERENCES = ["automatic", ...THEMES] as const;
 
-export const resolveTheme = (preference: string): Theme =>
-  THEMES.find((theme) => theme === preference) ?? DEFAULT_THEME;
+export const LIGHT_SCHEME_QUERY = "(prefers-color-scheme: light)";
+
+export const resolveTheme = (preference: string, prefersLight: boolean): Theme =>
+  THEMES.find((theme) => theme === preference) ??
+  (prefersLight ? "chalk" : "charcoal");
 
 export const applyTheme = (
   root: HTMLElement,
-  preferences: ReadonlySignal<Pick<Preferences, "theme">>,
+  theme: ReadonlySignal<Theme>,
 ): (() => void) =>
   effect(() => {
-    root.dataset["theme"] = resolveTheme(preferences.value.theme);
+    root.dataset["theme"] = theme.value;
   });
