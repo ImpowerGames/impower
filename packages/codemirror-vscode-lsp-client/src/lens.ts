@@ -23,7 +23,7 @@ export const codeLensWidgetTheme = EditorView.baseTheme({
   [`.${CODELENS_WRAPPER_CLASS_NAME}`]: {
     display: "flex",
     alignItems: "center",
-    color: "#999999",
+    color: "var(--editor-lens-ink)",
     fontSize: "14px",
     fontFamily: "inherit",
     padding: "0",
@@ -38,7 +38,7 @@ export const codeLensWidgetTheme = EditorView.baseTheme({
   },
   "@media (hover: hover) and (pointer: fine)": {
     [`.${CODELENS_ITEM_CLASS_NAME}:hover`]: {
-      color: "#4e94ce",
+      color: "var(--editor-link)",
     },
   },
   [`.${CODELENS_SEPARATOR_CLASS_NAME}`]: {

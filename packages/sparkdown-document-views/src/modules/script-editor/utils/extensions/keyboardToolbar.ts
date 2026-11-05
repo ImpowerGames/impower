@@ -31,9 +31,9 @@ const FORMAT_SVG_URL = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.o
 
 const keyboardToolbarTheme = EditorView.theme({
   ".cm-keyboard-toolbar": {
-    color: "#cccccc",
+    color: "var(--editor-ink)",
     border: "none",
-    borderTop: "1px rgba(255, 255, 255, 0.1) solid",
+    borderTop: "1px color-mix(in srgb, var(--ink) 10%, transparent) solid",
     padding: "0 8px",
     display: "flex",
     alignItems: "stretch",
@@ -61,7 +61,7 @@ const keyboardToolbarTheme = EditorView.theme({
   },
   ".cm-keyboard-toolbar .cm-button:has(.cm-toolbar-label)": {
     padding: "6px 12px",
-    border: "1px rgba(255, 255, 255, 0.2) solid",
+    border: "1px color-mix(in srgb, var(--ink) 20%, transparent) solid",
     borderRadius: "4px",
   },
   ".cm-keyboard-toolbar .cm-button:has(.cm-toolbar-icon)": {
@@ -81,29 +81,29 @@ const keyboardToolbarTheme = EditorView.theme({
     webkitMaskPosition: "center",
   },
   ".cm-keyboard-toolbar .cm-toolbar-separator": {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "color-mix(in srgb, var(--ink) 20%, transparent)",
     width: "1px",
     flexShrink: 0,
   },
 
   ".cm-keyboard-toolbar .cm-button:active": {
-    color: "#ffffff",
+    color: "var(--ink)",
   },
   ".cm-keyboard-toolbar .cm-button:active::after": {
     content: "''",
     position: "absolute",
     inset: "0",
-    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    backgroundColor: "var(--control-hover)",
   },
   "@media (hover: hover) and (pointer: fine)": {
     ".cm-keyboard-toolbar .cm-button:hover": {
-      color: "#ffffff",
+      color: "var(--ink)",
     },
     ".cm-keyboard-toolbar .cm-button:hover::after": {
       content: "''",
       position: "absolute",
       inset: "0",
-      backgroundColor: "rgba(255, 255, 255, 0.06)",
+      backgroundColor: "var(--control-hover)",
     },
   },
 });

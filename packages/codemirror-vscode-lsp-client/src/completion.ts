@@ -36,7 +36,7 @@ const completionTheme = EditorView.baseTheme({
   "& .cm-tooltip": {
     fontFamily: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto`,
     fontSize: "0.96em",
-    border: `solid 1px #FFFFFF21`,
+    border: "solid 1px color-mix(in srgb, var(--ink) 12.94%, transparent)",
     borderRadius: "4px",
   },
   "& .cm-tooltip pre": {
@@ -87,11 +87,11 @@ const completionTheme = EditorView.baseTheme({
   },
 
   ".cm-tooltip.cm-tooltip-autocomplete > ul > li:active:not(:disabled)": {
-    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    backgroundColor: "var(--control-hover)",
   },
   "@media (hover: hover) and (pointer: fine)": {
     ".cm-tooltip.cm-tooltip-autocomplete > ul > li:hover:not(:disabled)": {
-      backgroundColor: "rgba(255, 255, 255, 0.06)",
+      backgroundColor: "var(--control-hover)",
     },
   },
 });

@@ -58,6 +58,27 @@ const midnightTokens = () => {
   );
 };
 
+const editorBlock = () => {
+  const blocks = [
+    ...THEME_CSS.matchAll(
+      /:root\s*,\s*\[data-theme="midnight"\]\s*\{([^}]*)\}/g,
+    ),
+  ];
+  expect(blocks.length, "theme.css declares a second Midnight block").toBe(2);
+  return declarations(blocks[1]![1]!);
+};
+
+const editorTokens = () => {
+  const section = TOKENS_MD.split("### Code editor variables")[1]!.split(
+    "\n## ",
+  )[0]!;
+  return new Map(
+    [...section.matchAll(/^\| `(--[\w-]+)` \| [^|]+ \| `([^`]+)` \|/gm)].map(
+      (row) => [row[1]!, row[2]!],
+    ),
+  );
+};
+
 const inlineThemeColors = () => {
   const block = STYLE_CSS.match(/@theme inline\s*\{([^}]*)\}/);
   expect(block, "style.css has an @theme inline block").toBeTruthy();
@@ -112,6 +133,21 @@ describe("Midnight semantic colour set", () => {
         new RegExp(`\\.bg-${name}\\s*\\{\\s*background-color:\\s*([^;]+);`),
       );
       expect(rule?.[1], `bg-${name}`).toBe(`var(--${name})`);
+    }
+  });
+
+  it("declares exactly the code editor variables tokens.md lists, with their values", () => {
+    const tokens = editorTokens();
+    expect(tokens.size).toBeGreaterThan(60);
+    expect(Object.fromEntries(editorBlock())).toEqual(
+      Object.fromEntries(tokens),
+    );
+  });
+
+  it("keeps the code editor variables out of the semantic block", () => {
+    const semantic = midnightBlock();
+    for (const name of editorBlock().keys()) {
+      expect(semantic.has(name), name).toBe(false);
     }
   });
 

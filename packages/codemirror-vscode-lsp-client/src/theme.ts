@@ -8,22 +8,22 @@ export const lspTheme: Extension = EditorView.baseTheme({
       margin: "4px 0",
     },
     "& code": {
-      backgroundColor: "#656c7633",
+      backgroundColor: "var(--editor-doc-code)",
       padding: "2px 6px",
       borderRadius: "6px",
     },
     "& kbd": {
-      backgroundColor: "#151b23",
+      backgroundColor: "var(--editor-doc-keycap)",
       padding: "4",
       borderRadius: "6px",
-      border: "solid 1px #3d444db3",
-      boxShadow: "inset 0 -1px 0 #3d444db3",
+      border: "solid 1px var(--editor-doc-keycap-edge)",
+      boxShadow: "inset 0 -1px 0 var(--editor-doc-keycap-edge)",
     },
     "& blockquote": {
       margin: "0",
       padding: "0 1em",
-      color: "#9198a1",
-      borderLeft: "0.25em solid #3d444d",
+      color: "var(--editor-doc-quote-ink)",
+      borderLeft: "0.25em solid var(--editor-doc-quote-edge)",
     },
   },
 

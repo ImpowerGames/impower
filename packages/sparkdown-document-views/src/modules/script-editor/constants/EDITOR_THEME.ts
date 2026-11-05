@@ -1,35 +1,38 @@
 import { StyleSpec } from "style-mod";
-import EDITOR_COLORS from "./EDITOR_COLORS";
+
+const ICON_INK = "#FFFFFF";
+const ICON_MUTED = "#CCCCCC";
+const ICON_CLOSE = "#315881";
 
 const EDITOR_THEME: {
   [selector: string]: StyleSpec;
 } = {
   ".lsp-semantic-token.lsp-type-keyword *": {
-    color: EDITOR_COLORS.sectionNameAccessor,
+    color: "var(--syntax-section-name-accessor)",
   },
   ".lsp-semantic-token.lsp-type-variable *": {
-    color: EDITOR_COLORS.variableName,
+    color: "var(--syntax-variable-name)",
   },
   ".lsp-semantic-token.lsp-type-operator *": {
-    color: EDITOR_COLORS.operator,
+    color: "var(--syntax-operator)",
   },
   ".lsp-semantic-token.lsp-type-function *": {
-    color: EDITOR_COLORS.functionName,
+    color: "var(--syntax-function-name)",
   },
   ".lsp-semantic-token.lsp-type-function.lsp-mod-defaultLibrary *": {
-    color: EDITOR_COLORS.standardFunction,
+    color: "var(--syntax-standard-function)",
   },
   ".lsp-semantic-token.lsp-type-class *": {
-    color: EDITOR_COLORS.sectionNameDefinition,
+    color: "var(--syntax-section-name-definition)",
   },
   ".lsp-semantic-token.lsp-type-namespace *": {
-    color: EDITOR_COLORS.standardType,
+    color: "var(--syntax-standard-type)",
   },
   ".lsp-semantic-token.lsp-type-variable.lsp-mod-readonly *": {
-    color: EDITOR_COLORS.constantVariableName,
+    color: "var(--syntax-constant-variable-name)",
   },
   ".lsp-semantic-token.lsp-type-parameter *": {
-    color: EDITOR_COLORS.parameterName,
+    color: "var(--syntax-parameter-name)",
   },
   "*, *::before, *::after": {
     boxSizing: "border-box",
@@ -43,14 +46,12 @@ const EDITOR_THEME: {
     textIndent: "0",
   },
   "&.cm-editor": {
-    color: EDITOR_COLORS.foreground,
+    color: "var(--syntax-text)",
     backgroundColor: "inherit",
     flex: 1,
     minHeight: "100%",
     lineHeight: "1.4",
     fontSize: "16px",
-    "--indent-marker-bg-color": "#1a293a",
-    "--indent-marker-active-bg-color": "#4d5866",
   },
   "& .cm-scroller": {
     padding: "6px 2px 0 0",
@@ -64,7 +65,7 @@ const EDITOR_THEME: {
   "& .cm-gutters": {
     fontFamily: "Courier Prime Sans",
     backgroundColor: "transparent",
-    color: EDITOR_COLORS.lineNumber,
+    color: "var(--editor-line-number)",
     border: "none",
     opacity: 0.7,
     // workaround(@codemirror/view): ships gutters at z-index 200 with no stacking context, so they rise above host dialogs and toasts (seen with @codemirror/view 6.43.1)
@@ -80,7 +81,7 @@ const EDITOR_THEME: {
     marginLeft: "2px",
   },
   "& .cm-content": {
-    caretColor: "white",
+    caretColor: "var(--ink)",
     minHeight: "100%",
     paddingLeft: "2px",
   },
@@ -88,10 +89,10 @@ const EDITOR_THEME: {
     backgroundColor: "inherit",
   },
   "& .cm-lsp-rename-tooltip": {
-    backgroundColor: EDITOR_COLORS.panel,
+    backgroundColor: "var(--panel)",
   },
   "& .cm-lsp-rename-input": {
-    backgroundColor: EDITOR_COLORS.inputBackground,
+    backgroundColor: "var(--paper)",
   },
   "& .cm-lsp-reference-panel:focus": {
     outline: "none",
@@ -119,29 +120,29 @@ const EDITOR_THEME: {
   },
 
   ".cm-textfield:active": {
-    borderColor: EDITOR_COLORS.borderHover,
+    borderColor: "var(--editor-field-edge-hover)",
   },
   "label:has(input[type='checkbox']):active::before": {
-    backgroundColor: EDITOR_COLORS.buttonHover,
+    backgroundColor: "var(--editor-button-hover)",
   },
   "button:active": {
-    backgroundColor: EDITOR_COLORS.buttonActive,
+    backgroundColor: "color-mix(in srgb, var(--ink) 11%, transparent)",
   },
   ".cm-panel.cm-search button[name='close']:active": {
-    backgroundColor: EDITOR_COLORS.buttonHover,
+    backgroundColor: "var(--editor-button-hover)",
   },
   "@media (hover: hover) and (pointer: fine)": {
     ".cm-textfield:hover": {
-      borderColor: EDITOR_COLORS.borderHover,
+      borderColor: "var(--editor-field-edge-hover)",
     },
     "label:has(input[type='checkbox']):hover::before": {
-      backgroundColor: EDITOR_COLORS.buttonHover,
+      backgroundColor: "var(--editor-button-hover)",
     },
     "button:hover": {
-      backgroundColor: EDITOR_COLORS.buttonHover,
+      backgroundColor: "var(--editor-button-hover)",
     },
     ".cm-panel.cm-search button[name='close']:hover": {
-      backgroundColor: EDITOR_COLORS.buttonHover,
+      backgroundColor: "var(--editor-button-hover)",
     },
   },
 
@@ -149,16 +150,16 @@ const EDITOR_THEME: {
     cursor: "pointer",
   },
   "& button:focus-visible": {
-    outline: `2px solid ${EDITOR_COLORS.focus}`,
+    outline: "2px solid var(--editor-focus)",
   },
   "& ul:focus-visible": {
     outline: "none",
   },
   "& label:has(input[type='checkbox']:focus-visible)::before": {
-    outline: `2px solid ${EDITOR_COLORS.focus}`,
+    outline: "2px solid var(--editor-focus)",
   },
   "& label:has(input[type='checkbox']:focus-visible)::after": {
-    outline: `2px solid ${EDITOR_COLORS.focus}`,
+    outline: "2px solid var(--editor-focus)",
   },
   "& .cm-textfield": {
     minHeight: "32px",
@@ -167,37 +168,37 @@ const EDITOR_THEME: {
     fontSize: "16px",
     borderWidth: "1px",
     borderStyle: "solid",
-    borderColor: EDITOR_COLORS.border,
-    backgroundColor: EDITOR_COLORS.inputBackground,
+    borderColor: "var(--editor-field-edge)",
+    backgroundColor: "var(--paper)",
     "&:focus-visible": {
       outline: "none",
-      borderColor: EDITOR_COLORS.selectedForeground,
+      borderColor: "var(--editor-focus)",
     },
     "&::placeholder, &::after": {
-      color: EDITOR_COLORS.placeholder,
+      color: "color-mix(in srgb, var(--ink) 40%, transparent)",
     },
   },
   "&.cm-focused": {
     outline: "none",
   },
   "&.cm-focused .cm-cursor": {
-    borderLeftColor: "white",
+    borderLeftColor: "var(--ink)",
   },
   "&.cm-focused .cm-matchingBracket": {
-    outline: "solid 1px #FFFFFF66",
+    outline: "solid 1px color-mix(in srgb, var(--ink) 40%, transparent)",
     backgroundColor: "transparent",
   },
   "&.cm-focused .cm-nonmatchingBracket": {
     backgroundColor: "transparent",
   },
   "& .cm-selectionBackground": {
-    backgroundColor: "#264F78",
+    backgroundColor: "var(--selection)",
   },
   "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
-    backgroundColor: "#264F78",
+    backgroundColor: "var(--selection)",
   },
   "& .cm-selectionMatch": {
-    backgroundColor: "#62331599",
+    backgroundColor: "var(--editor-selection-match)",
   },
   "& .cm-snippet .cm-selectionMatch": {
     backgroundColor: "transparent",
@@ -207,7 +208,7 @@ const EDITOR_THEME: {
   },
   "& .cm-activeLineGutter": {
     backgroundColor: "transparent",
-    color: EDITOR_COLORS.activeLineNumber,
+    color: "var(--editor-line-number-active)",
   },
   "& .cm-activeLine": {
     backgroundColor: "transparent",
@@ -216,7 +217,7 @@ const EDITOR_THEME: {
       content: "''",
       position: "absolute",
       inset: "2px",
-      outline: "2px solid #FFFFFF12",
+      outline: "2px solid color-mix(in srgb, var(--ink) 7.06%, transparent)",
       pointerEvents: "none",
     },
   },
@@ -248,7 +249,7 @@ const EDITOR_THEME: {
   "& .cm-foldPlaceholder": {
     backgroundColor: "transparent",
     border: "none",
-    color: "grey",
+    color: "var(--editor-faint)",
     margin: ".1em .2em 0",
   },
   "& .cm-lineWrapping": {
@@ -262,26 +263,26 @@ const EDITOR_THEME: {
     paddingTop: "2px",
   },
   "& .cm-panels": {
-    backgroundColor: EDITOR_COLORS.panel,
+    backgroundColor: "var(--panel)",
     zIndex: "2",
   },
   "& .cm-panels.cm-panels-bottom": {
-    borderTop: `1px solid ${EDITOR_COLORS.panelBorder}`,
+    borderTop: "1px solid var(--editor-panel-edge)",
     display: "flex",
     flexDirection: "column",
   },
   "& .cm-panel.cm-keyboard-toolbar": {
     order: "100",
-    backgroundColor: EDITOR_COLORS.toolbarBackground,
-    color: EDITOR_COLORS.toolbarForeground,
+    backgroundColor: "var(--bg)",
+    color: "var(--editor-toolbar-ink)",
   },
   "& .cm-panel.cm-panel-lint ul": {
     minHeight: "100%",
     maxHeight: "164px",
   },
   "& .cm-panel.cm-panel-lint ul:focus li[aria-selected]": {
-    background: EDITOR_COLORS.selectedBackground,
-    color: EDITOR_COLORS.white,
+    background: "var(--editor-list-selected)",
+    color: "var(--ink)",
   },
   "& .cm-panels.cm-panels-top": {
     zIndex: "30",
@@ -291,7 +292,7 @@ const EDITOR_THEME: {
     },
   },
   "& .cm-panel.cm-gotoLine": {
-    backgroundColor: EDITOR_COLORS.panel,
+    backgroundColor: "var(--panel)",
     padding: "8px",
     display: "flex",
     gap: "8px",
@@ -310,18 +311,14 @@ const EDITOR_THEME: {
       backgroundPosition: "center",
     },
     "& button[name='close']": {
-      backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(
-        EDITOR_COLORS.closeButton,
-      )}" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M 12 12 L 6 6 M 12 12 L 18 6 M 12 12 L 18 18 M 12 12 L 6 18"></path></svg>')`,
+      backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(ICON_CLOSE)}" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M 12 12 L 6 6 M 12 12 L 18 6 M 12 12 L 18 18 M 12 12 L 6 18"></path></svg>')`,
     },
     "& button[name='submit']": {
-      backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(
-        EDITOR_COLORS.white,
-      )}" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-6 6l6-6m-6-6l6 6"/></svg>')`,
+      backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(ICON_INK)}" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-6 6l6-6m-6-6l6 6"/></svg>')`,
     },
   },
   "& .cm-panel.cm-search": {
-    backgroundColor: EDITOR_COLORS.panel,
+    backgroundColor: "var(--panel)",
     padding: "8px 8px 8px 56px",
     float: "right",
     width: "100%",
@@ -335,8 +332,8 @@ const EDITOR_THEME: {
       padding: "0 8px",
       justifyContent: "center",
       alignItems: "center",
-      backgroundColor: EDITOR_COLORS.inputBackground,
-      color: "rgba(255,255,255,0.5)",
+      backgroundColor: "var(--paper)",
+      color: "color-mix(in srgb, var(--ink) 50%, transparent)",
     },
     "& .cm-textfield": {
       margin: "3px 5px 3px 0px",
@@ -375,9 +372,7 @@ const EDITOR_THEME: {
       overflow: "hidden",
       backgroundRepeat: "no-repeat",
       backgroundPosition: "center",
-      backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(
-        EDITOR_COLORS.closeButton,
-      )}" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M 12 12 L 6 6 M 12 12 L 18 6 M 12 12 L 18 18 M 12 12 L 6 18"></path></svg>')`,
+      backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(ICON_CLOSE)}" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M 12 12 L 6 6 M 12 12 L 18 6 M 12 12 L 18 18 M 12 12 L 6 18"></path></svg>')`,
     },
     "& button:not([name='close'])": {
       display: "inline-block",
@@ -393,27 +388,19 @@ const EDITOR_THEME: {
       margin: "0",
     },
     "& button[name='prev']": {
-      backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(
-        EDITOR_COLORS.white,
-      )}" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M12 5v14m6-8l-6-6m-6 6l6-6"/></svg>')`,
+      backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(ICON_INK)}" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M12 5v14m6-8l-6-6m-6 6l6-6"/></svg>')`,
     },
     "& button[name='next']": {
-      backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(
-        EDITOR_COLORS.white,
-      )}" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M12 5v14m6-6l-6 6m-6-6l6 6"/></svg>')`,
+      backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(ICON_INK)}" stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M12 5v14m6-6l-6 6m-6-6l6 6"/></svg>')`,
     },
     "& button[name='select']": {
       display: "none",
     },
     "& button[name='replace']": {
-      backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(
-        EDITOR_COLORS.white,
-      )}"  stroke-width="1" stroke-linecap="round" stroke-linejoin="round" d="M6 18v-6a3 3 0 0 1 3 -3h10l-4 -4m0 8l4 -4" /></svg>')`,
+      backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(ICON_INK)}"  stroke-width="1" stroke-linecap="round" stroke-linejoin="round" d="M6 18v-6a3 3 0 0 1 3 -3h10l-4 -4m0 8l4 -4" /></svg>')`,
     },
     "& button[name='replaceAll']": {
-      backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(
-        EDITOR_COLORS.white,
-      )}" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" d="M4 18v-6a3 3 0 0 1 3 -3h7M10 13l4 -4l-4 -4m5 8l4 -4l-4 -4" /></svg>')`,
+      backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(ICON_INK)}" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" d="M4 18v-6a3 3 0 0 1 3 -3h7M10 13l4 -4l-4 -4m5 8l4 -4l-4 -4" /></svg>')`,
     },
     "& label:has(input[type='checkbox'])": {
       display: "inline-block",
@@ -442,52 +429,40 @@ const EDITOR_THEME: {
       },
     },
     "& label:has(input[type='checkbox']:checked)::before": {
-      backgroundColor: EDITOR_COLORS.checkboxCheckedBackground,
-      border: `1px solid ${EDITOR_COLORS.checkboxCheckedBorder}`,
+      backgroundColor: "var(--editor-toggle-on)",
+      border: "1px solid var(--editor-toggle-on-edge)",
     },
     "& label:has(input[name='case'])": {
       right: "calc(83px + 33px + 33px - 8px)",
       "&::before": {
-        backgroundImage: `url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="${encodeURIComponent(
-          EDITOR_COLORS.foreground,
-        )}"><path d="M8.85352 11.7021H7.85449L7.03809 9.54297H3.77246L3.00439 11.7021H2L4.9541 4H5.88867L8.85352 11.7021ZM6.74268 8.73193L5.53418 5.4502C5.49479 5.34277 5.4554 5.1709 5.41602 4.93457H5.39453C5.35872 5.15299 5.31755 5.32487 5.271 5.4502L4.07324 8.73193H6.74268Z"/><path d="M13.756 11.7021H12.8752V10.8428H12.8537C12.4706 11.5016 11.9066 11.8311 11.1618 11.8311C10.6139 11.8311 10.1843 11.686 9.87273 11.396C9.56479 11.106 9.41082 10.721 9.41082 10.2412C9.41082 9.21354 10.016 8.61556 11.2262 8.44727L12.8752 8.21631C12.8752 7.28174 12.4974 6.81445 11.7419 6.81445C11.0794 6.81445 10.4815 7.04004 9.94793 7.49121V6.58887C10.4886 6.24512 11.1117 6.07324 11.8171 6.07324C13.1097 6.07324 13.756 6.75716 13.756 8.125V11.7021ZM12.8752 8.91992L11.5485 9.10254C11.1403 9.15983 10.8324 9.26188 10.6247 9.40869C10.417 9.55192 10.3132 9.80794 10.3132 10.1768C10.3132 10.4453 10.4081 10.6655 10.5978 10.8374C10.7912 11.0057 11.0472 11.0898 11.3659 11.0898C11.8027 11.0898 12.1626 10.9377 12.4455 10.6333C12.7319 10.3254 12.8752 9.93685 12.8752 9.46777V8.91992Z"/></svg>')`,
+        backgroundImage: `url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="${encodeURIComponent(ICON_MUTED)}"><path d="M8.85352 11.7021H7.85449L7.03809 9.54297H3.77246L3.00439 11.7021H2L4.9541 4H5.88867L8.85352 11.7021ZM6.74268 8.73193L5.53418 5.4502C5.49479 5.34277 5.4554 5.1709 5.41602 4.93457H5.39453C5.35872 5.15299 5.31755 5.32487 5.271 5.4502L4.07324 8.73193H6.74268Z"/><path d="M13.756 11.7021H12.8752V10.8428H12.8537C12.4706 11.5016 11.9066 11.8311 11.1618 11.8311C10.6139 11.8311 10.1843 11.686 9.87273 11.396C9.56479 11.106 9.41082 10.721 9.41082 10.2412C9.41082 9.21354 10.016 8.61556 11.2262 8.44727L12.8752 8.21631C12.8752 7.28174 12.4974 6.81445 11.7419 6.81445C11.0794 6.81445 10.4815 7.04004 9.94793 7.49121V6.58887C10.4886 6.24512 11.1117 6.07324 11.8171 6.07324C13.1097 6.07324 13.756 6.75716 13.756 8.125V11.7021ZM12.8752 8.91992L11.5485 9.10254C11.1403 9.15983 10.8324 9.26188 10.6247 9.40869C10.417 9.55192 10.3132 9.80794 10.3132 10.1768C10.3132 10.4453 10.4081 10.6655 10.5978 10.8374C10.7912 11.0057 11.0472 11.0898 11.3659 11.0898C11.8027 11.0898 12.1626 10.9377 12.4455 10.6333C12.7319 10.3254 12.8752 9.93685 12.8752 9.46777V8.91992Z"/></svg>')`,
       },
     },
     "& label:has(input[name='case']:checked)": {
       "&::before": {
-        backgroundImage: `url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="${encodeURIComponent(
-          EDITOR_COLORS.white,
-        )}"><path d="M8.85352 11.7021H7.85449L7.03809 9.54297H3.77246L3.00439 11.7021H2L4.9541 4H5.88867L8.85352 11.7021ZM6.74268 8.73193L5.53418 5.4502C5.49479 5.34277 5.4554 5.1709 5.41602 4.93457H5.39453C5.35872 5.15299 5.31755 5.32487 5.271 5.4502L4.07324 8.73193H6.74268Z"/><path d="M13.756 11.7021H12.8752V10.8428H12.8537C12.4706 11.5016 11.9066 11.8311 11.1618 11.8311C10.6139 11.8311 10.1843 11.686 9.87273 11.396C9.56479 11.106 9.41082 10.721 9.41082 10.2412C9.41082 9.21354 10.016 8.61556 11.2262 8.44727L12.8752 8.21631C12.8752 7.28174 12.4974 6.81445 11.7419 6.81445C11.0794 6.81445 10.4815 7.04004 9.94793 7.49121V6.58887C10.4886 6.24512 11.1117 6.07324 11.8171 6.07324C13.1097 6.07324 13.756 6.75716 13.756 8.125V11.7021ZM12.8752 8.91992L11.5485 9.10254C11.1403 9.15983 10.8324 9.26188 10.6247 9.40869C10.417 9.55192 10.3132 9.80794 10.3132 10.1768C10.3132 10.4453 10.4081 10.6655 10.5978 10.8374C10.7912 11.0057 11.0472 11.0898 11.3659 11.0898C11.8027 11.0898 12.1626 10.9377 12.4455 10.6333C12.7319 10.3254 12.8752 9.93685 12.8752 9.46777V8.91992Z"/></svg>')`,
+        backgroundImage: `url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="${encodeURIComponent(ICON_INK)}"><path d="M8.85352 11.7021H7.85449L7.03809 9.54297H3.77246L3.00439 11.7021H2L4.9541 4H5.88867L8.85352 11.7021ZM6.74268 8.73193L5.53418 5.4502C5.49479 5.34277 5.4554 5.1709 5.41602 4.93457H5.39453C5.35872 5.15299 5.31755 5.32487 5.271 5.4502L4.07324 8.73193H6.74268Z"/><path d="M13.756 11.7021H12.8752V10.8428H12.8537C12.4706 11.5016 11.9066 11.8311 11.1618 11.8311C10.6139 11.8311 10.1843 11.686 9.87273 11.396C9.56479 11.106 9.41082 10.721 9.41082 10.2412C9.41082 9.21354 10.016 8.61556 11.2262 8.44727L12.8752 8.21631C12.8752 7.28174 12.4974 6.81445 11.7419 6.81445C11.0794 6.81445 10.4815 7.04004 9.94793 7.49121V6.58887C10.4886 6.24512 11.1117 6.07324 11.8171 6.07324C13.1097 6.07324 13.756 6.75716 13.756 8.125V11.7021ZM12.8752 8.91992L11.5485 9.10254C11.1403 9.15983 10.8324 9.26188 10.6247 9.40869C10.417 9.55192 10.3132 9.80794 10.3132 10.1768C10.3132 10.4453 10.4081 10.6655 10.5978 10.8374C10.7912 11.0057 11.0472 11.0898 11.3659 11.0898C11.8027 11.0898 12.1626 10.9377 12.4455 10.6333C12.7319 10.3254 12.8752 9.93685 12.8752 9.46777V8.91992Z"/></svg>')`,
       },
     },
     "& label:has(input[name='word'])": {
       right: "calc(83px + 33px - 4px)",
       "&::before": {
-        backgroundImage: `url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="${encodeURIComponent(
-          EDITOR_COLORS.foreground,
-        )}"><path fill-rule="evenodd" clip-rule="evenodd" d="M0 11H1V13H15V11H16V14H15H1H0V11Z"/><path d="M6.84048 11H5.95963V10.1406H5.93814C5.555 10.7995 4.99104 11.1289 4.24625 11.1289C3.69839 11.1289 3.26871 10.9839 2.95718 10.6938C2.64924 10.4038 2.49527 10.0189 2.49527 9.53906C2.49527 8.51139 3.10041 7.91341 4.3107 7.74512L5.95963 7.51416C5.95963 6.57959 5.58186 6.1123 4.82632 6.1123C4.16389 6.1123 3.56591 6.33789 3.03238 6.78906V5.88672C3.57307 5.54297 4.19612 5.37109 4.90152 5.37109C6.19416 5.37109 6.84048 6.05501 6.84048 7.42285V11ZM5.95963 8.21777L4.63297 8.40039C4.22476 8.45768 3.91682 8.55973 3.70914 8.70654C3.50145 8.84977 3.39761 9.10579 3.39761 9.47461C3.39761 9.74316 3.4925 9.96338 3.68228 10.1353C3.87564 10.3035 4.13166 10.3877 4.45035 10.3877C4.8872 10.3877 5.24706 10.2355 5.52994 9.93115C5.8164 9.62321 5.95963 9.2347 5.95963 8.76562V8.21777Z"/><path d="M9.3475 10.2051H9.32601V11H8.44515V2.85742H9.32601V6.4668H9.3475C9.78076 5.73633 10.4146 5.37109 11.2489 5.37109C11.9543 5.37109 12.5057 5.61816 12.9032 6.1123C13.3042 6.60286 13.5047 7.26172 13.5047 8.08887C13.5047 9.00911 13.2809 9.74674 12.8333 10.3018C12.3857 10.8532 11.7734 11.1289 10.9964 11.1289C10.2695 11.1289 9.71989 10.821 9.3475 10.2051ZM9.32601 7.98682V8.75488C9.32601 9.20964 9.47282 9.59635 9.76644 9.91504C10.0636 10.2301 10.4396 10.3877 10.8944 10.3877C11.4279 10.3877 11.8451 10.1836 12.1458 9.77539C12.4502 9.36719 12.6024 8.79964 12.6024 8.07275C12.6024 7.46045 12.4609 6.98063 12.1781 6.6333C11.8952 6.28597 11.512 6.1123 11.0286 6.1123C10.5166 6.1123 10.1048 6.29134 9.7933 6.64941C9.48177 7.00391 9.32601 7.44971 9.32601 7.98682Z"/></svg>')`,
+        backgroundImage: `url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="${encodeURIComponent(ICON_MUTED)}"><path fill-rule="evenodd" clip-rule="evenodd" d="M0 11H1V13H15V11H16V14H15H1H0V11Z"/><path d="M6.84048 11H5.95963V10.1406H5.93814C5.555 10.7995 4.99104 11.1289 4.24625 11.1289C3.69839 11.1289 3.26871 10.9839 2.95718 10.6938C2.64924 10.4038 2.49527 10.0189 2.49527 9.53906C2.49527 8.51139 3.10041 7.91341 4.3107 7.74512L5.95963 7.51416C5.95963 6.57959 5.58186 6.1123 4.82632 6.1123C4.16389 6.1123 3.56591 6.33789 3.03238 6.78906V5.88672C3.57307 5.54297 4.19612 5.37109 4.90152 5.37109C6.19416 5.37109 6.84048 6.05501 6.84048 7.42285V11ZM5.95963 8.21777L4.63297 8.40039C4.22476 8.45768 3.91682 8.55973 3.70914 8.70654C3.50145 8.84977 3.39761 9.10579 3.39761 9.47461C3.39761 9.74316 3.4925 9.96338 3.68228 10.1353C3.87564 10.3035 4.13166 10.3877 4.45035 10.3877C4.8872 10.3877 5.24706 10.2355 5.52994 9.93115C5.8164 9.62321 5.95963 9.2347 5.95963 8.76562V8.21777Z"/><path d="M9.3475 10.2051H9.32601V11H8.44515V2.85742H9.32601V6.4668H9.3475C9.78076 5.73633 10.4146 5.37109 11.2489 5.37109C11.9543 5.37109 12.5057 5.61816 12.9032 6.1123C13.3042 6.60286 13.5047 7.26172 13.5047 8.08887C13.5047 9.00911 13.2809 9.74674 12.8333 10.3018C12.3857 10.8532 11.7734 11.1289 10.9964 11.1289C10.2695 11.1289 9.71989 10.821 9.3475 10.2051ZM9.32601 7.98682V8.75488C9.32601 9.20964 9.47282 9.59635 9.76644 9.91504C10.0636 10.2301 10.4396 10.3877 10.8944 10.3877C11.4279 10.3877 11.8451 10.1836 12.1458 9.77539C12.4502 9.36719 12.6024 8.79964 12.6024 8.07275C12.6024 7.46045 12.4609 6.98063 12.1781 6.6333C11.8952 6.28597 11.512 6.1123 11.0286 6.1123C10.5166 6.1123 10.1048 6.29134 9.7933 6.64941C9.48177 7.00391 9.32601 7.44971 9.32601 7.98682Z"/></svg>')`,
       },
     },
     "& label:has(input[name='word']:checked)": {
       "&::before": {
-        backgroundImage: `url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="${encodeURIComponent(
-          EDITOR_COLORS.white,
-        )}"><path fill-rule="evenodd" clip-rule="evenodd" d="M0 11H1V13H15V11H16V14H15H1H0V11Z"/><path d="M6.84048 11H5.95963V10.1406H5.93814C5.555 10.7995 4.99104 11.1289 4.24625 11.1289C3.69839 11.1289 3.26871 10.9839 2.95718 10.6938C2.64924 10.4038 2.49527 10.0189 2.49527 9.53906C2.49527 8.51139 3.10041 7.91341 4.3107 7.74512L5.95963 7.51416C5.95963 6.57959 5.58186 6.1123 4.82632 6.1123C4.16389 6.1123 3.56591 6.33789 3.03238 6.78906V5.88672C3.57307 5.54297 4.19612 5.37109 4.90152 5.37109C6.19416 5.37109 6.84048 6.05501 6.84048 7.42285V11ZM5.95963 8.21777L4.63297 8.40039C4.22476 8.45768 3.91682 8.55973 3.70914 8.70654C3.50145 8.84977 3.39761 9.10579 3.39761 9.47461C3.39761 9.74316 3.4925 9.96338 3.68228 10.1353C3.87564 10.3035 4.13166 10.3877 4.45035 10.3877C4.8872 10.3877 5.24706 10.2355 5.52994 9.93115C5.8164 9.62321 5.95963 9.2347 5.95963 8.76562V8.21777Z"/><path d="M9.3475 10.2051H9.32601V11H8.44515V2.85742H9.32601V6.4668H9.3475C9.78076 5.73633 10.4146 5.37109 11.2489 5.37109C11.9543 5.37109 12.5057 5.61816 12.9032 6.1123C13.3042 6.60286 13.5047 7.26172 13.5047 8.08887C13.5047 9.00911 13.2809 9.74674 12.8333 10.3018C12.3857 10.8532 11.7734 11.1289 10.9964 11.1289C10.2695 11.1289 9.71989 10.821 9.3475 10.2051ZM9.32601 7.98682V8.75488C9.32601 9.20964 9.47282 9.59635 9.76644 9.91504C10.0636 10.2301 10.4396 10.3877 10.8944 10.3877C11.4279 10.3877 11.8451 10.1836 12.1458 9.77539C12.4502 9.36719 12.6024 8.79964 12.6024 8.07275C12.6024 7.46045 12.4609 6.98063 12.1781 6.6333C11.8952 6.28597 11.512 6.1123 11.0286 6.1123C10.5166 6.1123 10.1048 6.29134 9.7933 6.64941C9.48177 7.00391 9.32601 7.44971 9.32601 7.98682Z"/></svg>')`,
+        backgroundImage: `url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="${encodeURIComponent(ICON_INK)}"><path fill-rule="evenodd" clip-rule="evenodd" d="M0 11H1V13H15V11H16V14H15H1H0V11Z"/><path d="M6.84048 11H5.95963V10.1406H5.93814C5.555 10.7995 4.99104 11.1289 4.24625 11.1289C3.69839 11.1289 3.26871 10.9839 2.95718 10.6938C2.64924 10.4038 2.49527 10.0189 2.49527 9.53906C2.49527 8.51139 3.10041 7.91341 4.3107 7.74512L5.95963 7.51416C5.95963 6.57959 5.58186 6.1123 4.82632 6.1123C4.16389 6.1123 3.56591 6.33789 3.03238 6.78906V5.88672C3.57307 5.54297 4.19612 5.37109 4.90152 5.37109C6.19416 5.37109 6.84048 6.05501 6.84048 7.42285V11ZM5.95963 8.21777L4.63297 8.40039C4.22476 8.45768 3.91682 8.55973 3.70914 8.70654C3.50145 8.84977 3.39761 9.10579 3.39761 9.47461C3.39761 9.74316 3.4925 9.96338 3.68228 10.1353C3.87564 10.3035 4.13166 10.3877 4.45035 10.3877C4.8872 10.3877 5.24706 10.2355 5.52994 9.93115C5.8164 9.62321 5.95963 9.2347 5.95963 8.76562V8.21777Z"/><path d="M9.3475 10.2051H9.32601V11H8.44515V2.85742H9.32601V6.4668H9.3475C9.78076 5.73633 10.4146 5.37109 11.2489 5.37109C11.9543 5.37109 12.5057 5.61816 12.9032 6.1123C13.3042 6.60286 13.5047 7.26172 13.5047 8.08887C13.5047 9.00911 13.2809 9.74674 12.8333 10.3018C12.3857 10.8532 11.7734 11.1289 10.9964 11.1289C10.2695 11.1289 9.71989 10.821 9.3475 10.2051ZM9.32601 7.98682V8.75488C9.32601 9.20964 9.47282 9.59635 9.76644 9.91504C10.0636 10.2301 10.4396 10.3877 10.8944 10.3877C11.4279 10.3877 11.8451 10.1836 12.1458 9.77539C12.4502 9.36719 12.6024 8.79964 12.6024 8.07275C12.6024 7.46045 12.4609 6.98063 12.1781 6.6333C11.8952 6.28597 11.512 6.1123 11.0286 6.1123C10.5166 6.1123 10.1048 6.29134 9.7933 6.64941C9.48177 7.00391 9.32601 7.44971 9.32601 7.98682Z"/></svg>')`,
       },
     },
     "& label:has(input[name='re'])": {
       right: "83px",
       "&::before": {
-        backgroundImage: `url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="${encodeURIComponent(
-          EDITOR_COLORS.foreground,
-        )}"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.012 2h.976v3.113l2.56-1.557.486.885L11.47 6l2.564 1.559-.485.885-2.561-1.557V10h-.976V6.887l-2.56 1.557-.486-.885L9.53 6 6.966 4.441l.485-.885 2.561 1.557V2zM2 10h4v4H2v-4z"/></svg>')`,
+        backgroundImage: `url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="${encodeURIComponent(ICON_MUTED)}"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.012 2h.976v3.113l2.56-1.557.486.885L11.47 6l2.564 1.559-.485.885-2.561-1.557V10h-.976V6.887l-2.56 1.557-.486-.885L9.53 6 6.966 4.441l.485-.885 2.561 1.557V2zM2 10h4v4H2v-4z"/></svg>')`,
       },
     },
     "& label:has(input[name='re']:checked)": {
       "&::before": {
-        backgroundImage: `url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="${encodeURIComponent(
-          EDITOR_COLORS.white,
-        )}"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.012 2h.976v3.113l2.56-1.557.486.885L11.47 6l2.564 1.559-.485.885-2.561-1.557V10h-.976V6.887l-2.56 1.557-.486-.885L9.53 6 6.966 4.441l.485-.885 2.561 1.557V2zM2 10h4v4H2v-4z"/></svg>')`,
+        backgroundImage: `url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="${encodeURIComponent(ICON_INK)}"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.012 2h.976v3.113l2.56-1.557.486.885L11.47 6l2.564 1.559-.485.885-2.561-1.557V10h-.976V6.887l-2.56 1.557-.486-.885L9.53 6 6.966 4.441l.485-.885 2.561 1.557V2zM2 10h4v4H2v-4z"/></svg>')`,
       },
     },
   },
@@ -497,9 +472,7 @@ const EDITOR_THEME: {
         cursor: "pointer",
       },
       "& [aria-selected]": {
-        background_fallback: "#bdf",
         backgroundColor: "Highlight",
-        color_fallback: "white",
         color: "HighlightText",
       },
     },
@@ -508,7 +481,7 @@ const EDITOR_THEME: {
     },
   },
   "& .cm-lintRange-active": {
-    backgroundColor: "#ffdd991a",
+    backgroundColor: "var(--editor-problem-range)",
   },
   "& .cm-diagnosticText": {
     fontSize: "14px",
@@ -519,7 +492,7 @@ const EDITOR_THEME: {
     backgroundColor: "transparent",
     fontWeight: "600",
     padding: "0",
-    color: "#9CDCFE",
+    color: "var(--editor-action-ink)",
     textTransform: "uppercase",
     fontSize: "0.9375rem",
     marginLeft: "0",
@@ -536,12 +509,12 @@ const EDITOR_THEME: {
     height: "0.8em",
   },
   "& .cm-tooltip": {
-    backgroundColor: EDITOR_COLORS.panel,
+    backgroundColor: "var(--panel)",
     zIndex: "300",
   },
   "& .cm-tooltip-autocomplete ul li[aria-selected]": {
-    background: EDITOR_COLORS.selectedBackground,
-    color: EDITOR_COLORS.white,
+    background: "var(--editor-list-selected)",
+    color: "var(--ink)",
   },
   "& .cm-valueInfo": {
     fontFamily: "monospace",
@@ -551,7 +524,7 @@ const EDITOR_THEME: {
   },
   "& .cm-completionMatchedText": {
     textDecoration: "none",
-    color: EDITOR_COLORS.match,
+    color: "var(--editor-match)",
   },
   "& .cm-completionLabel": {
     flex: 1,
