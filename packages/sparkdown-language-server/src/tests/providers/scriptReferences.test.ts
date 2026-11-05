@@ -7,12 +7,16 @@ const CHAPTER = "file:///p/Scripts/chapter.sd";
 const CAST = "file:///p/Scripts/cast.sd";
 const HELPERS = "file:///p/Scripts/helpers.sd";
 const LOOSE = "file:///p/Scripts/loose.sd";
+const SETTINGS = "file:///p/Scripts/settings.sd";
+
+const CAST_SOURCE = 'define raffles as character with\n  name = "RAFFLES"\nend\n';
+const SETTINGS_SOURCE = "define settings with\n  score = 1\nend\n";
 
 const SOURCES: Record<string, string> = {
   [MAIN]: "scene start\n  -> chapter_scene\nend\n",
   [CHAPTER]:
     "scene chapter_scene\n  raffles: Hello.\n  & helper()\n  -> .part\n  branch part\n    Hi.\n  end\nend\n",
-  [CAST]: 'define raffles as character with\n  name = "RAFFLES"\nend\n',
+  [CAST]: CAST_SOURCE,
   [HELPERS]: "function helper()\n  return 1\nend\n",
   [LOOSE]: "scene loose_scene\n  Nobody comes here.\nend\n",
 };
@@ -36,149 +40,75 @@ function workspaceOf(sources: Record<string, string>) {
   } as Parameters<typeof getScriptReferences>[0];
 }
 
+const referencesOf = (sources: Record<string, string>) =>
+  getScriptReferences(workspaceOf(sources), undefined);
+
 const referencedBy = (sources: Record<string, string>, uri: string) =>
-  new Set(
-    getScriptReferences(workspaceOf(sources), undefined)
-      .filter((r) => r.to === uri)
-      .map((r) => r.from),
-  ).size;
+  new Set(referencesOf(sources).filter((r) => r.to === uri).map((r) => r.from)).size;
 
-describe("provider · script references (#1009)", () => {
-  test("a divert into another script's scene is a divert reference to that script", () => {
-    const references = getScriptReferences(workspaceOf(SOURCES), undefined);
-    expect(references).toContainEqual({ from: MAIN, to: CHAPTER, divert: true });
-  });
-
-  test("using a define or calling a function another script declares references that script", () => {
-    const references = getScriptReferences(workspaceOf(SOURCES), undefined);
-    expect(references).toContainEqual({ from: CHAPTER, to: CAST, divert: false });
-    expect(references).toContainEqual({ from: CHAPTER, to: HELPERS, divert: false });
-  });
-
-  test("a script's references to its own scenes and branches are not counted", () => {
-    const references = getScriptReferences(workspaceOf(SOURCES), undefined);
-    expect(references.filter((r) => r.from === r.to)).toEqual([]);
-    expect(references.filter((r) => r.to === LOOSE)).toEqual([]);
-  });
-
-  test("adding a divert to a script's scene in another script raises its count by one", () => {
-    expect(referencedBy(SOURCES, CHAPTER)).toBe(1);
-    const more = {
+describe("provider · script references counted from whole references (#1009)", () => {
+  test("a divert into another script's scene or branch references that script", () => {
+    const references = referencesOf({
       ...SOURCES,
       [LOOSE]: "scene loose_scene\n  -> chapter_scene.part\nend\n",
-    };
-    expect(referencedBy(more, CHAPTER)).toBe(2);
+    });
+    expect(references).toContainEqual({ from: MAIN, to: CHAPTER, divert: true });
+    expect(references).toContainEqual({ from: LOOSE, to: CHAPTER, divert: true });
   });
 
-  test("using a define in an expression, by name or through a property, references the script that defines it", () => {
-    const SETTINGS = "file:///p/Scripts/settings.sd";
-    const sources = {
-      [MAIN]: "scene start\n  {settings.score}\nend\n",
-      [SETTINGS]: "define settings with\n  score = 1\nend\n",
-      [CAST]: 'define raffles as character with\n  name = "RAFFLES"\nend\n',
-      [CHAPTER]: "scene chapter_scene\n  {character.raffles.name}\nend\n",
-    };
-    const references = getScriptReferences(workspaceOf(sources), undefined);
-    expect(references).toContainEqual({ from: MAIN, to: SETTINGS, divert: false });
+  test("calling a function and cueing a character another script declares references that script", () => {
+    const references = referencesOf(SOURCES);
+    expect(references).toContainEqual({ from: CHAPTER, to: HELPERS, divert: false });
     expect(references).toContainEqual({ from: CHAPTER, to: CAST, divert: false });
   });
 
-  test("a parameter that shadows a define is the function's own, not a use of the define", () => {
-    const SETTINGS = "file:///p/Scripts/settings.sd";
-    const sources = {
-      [SETTINGS]: "define settings with\n  score = 1\nend\n",
-      [HELPERS]: "function show(settings)\n  return settings.score\nend\n",
-    };
-    expect(referencedBy(sources, SETTINGS)).toBe(0);
-  });
-
-  test.each([
-    ["spaces around the dots", "{character . raffles.name}"],
-    ["a space after a dot", "{character. raffles.name}"],
-    ["a string index", '{character["raffles"].name}'],
-    ["a parenthesized root", "{(character).raffles.name}"],
-  ])("a property access written with %s references the define's script", (_, expression) => {
-    const sources = {
-      [CAST]: 'define raffles as character with\n  name = "RAFFLES"\nend\n',
-      [CHAPTER]: `scene chapter_scene\n  ${expression}\nend\n`,
-    };
-    expect(getScriptReferences(workspaceOf(sources), undefined)).toContainEqual({
-      from: CHAPTER,
-      to: CAST,
-      divert: false,
+  test("using a define by its own name references the script that defines it", () => {
+    const references = referencesOf({
+      [MAIN]: "scene start\n  {settings.score}\nend\n",
+      [SETTINGS]: SETTINGS_SOURCE,
     });
-  });
-
-  test("a local hides a define only inside its own function, and only after its declaration", () => {
-    const SETTINGS = "file:///p/Scripts/settings.sd";
-    const settings = "define settings with\n  score = 1\nend\n";
-    const elsewhere = {
-      [SETTINGS]: settings,
-      [HELPERS]:
-        "function local_score()\n  local settings = {score = 9}\n  return settings.score\nend\nfunction global_score()\n  return settings.score\nend\n",
-    };
-    expect(referencedBy(elsewhere, SETTINGS)).toBe(1);
-    const initializer = {
-      [SETTINGS]: settings,
-      [HELPERS]: "function copy()\n  local settings = settings\n  return settings\nend\n",
-    };
-    expect(referencedBy(initializer, SETTINGS)).toBe(1);
-    const onlyLocal = {
-      [SETTINGS]: settings,
-      [HELPERS]: "function local_score()\n  local settings = {score = 9}\n  return settings.score\nend\n",
-    };
-    expect(referencedBy(onlyLocal, SETTINGS)).toBe(0);
-  });
-
-  test.each([
-    ["a call argument", "{tostring(character.raffles.name)}"],
-    ["nested grouping", "{((character)).raffles.name}"],
-    ["a space inside the grouping", "{( character).raffles.name}"],
-    ["a grouped path", "{(character.raffles).name}"],
-  ])("a property access in %s references the define's script", (_, expression) => {
-    const sources = {
-      [CAST]: 'define raffles as character with\n  name = "RAFFLES"\nend\n',
-      [CHAPTER]: `scene chapter_scene\n  ${expression}\nend\n`,
-    };
-    expect(getScriptReferences(workspaceOf(sources), undefined)).toContainEqual({
-      from: CHAPTER,
-      to: CAST,
-      divert: false,
-    });
-  });
-
-  test("a property of a call's result is not read as a property of its argument", () => {
-    const ROCK = "file:///p/Scripts/rock.sd";
-    const PEBBLE = "file:///p/Scripts/pebble.sd";
-    const sources = {
-      [ROCK]: "define rock with\n  hardness = 5\nend\n",
-      [PEBBLE]: "define pebble as rock with\n  size = 1\nend\n",
-      [CHAPTER]: "scene chapter_scene\n  {unrelated(rock).pebble.size}\nend\n",
-    };
-    const references = getScriptReferences(workspaceOf(sources), undefined);
-    expect(references).toContainEqual({ from: CHAPTER, to: ROCK, divert: false });
-    expect(references).not.toContainEqual({ from: CHAPTER, to: PEBBLE, divert: false });
+    expect(references).toContainEqual({ from: MAIN, to: SETTINGS, divert: false });
   });
 
   test("a define of another define's type uses the script that defines that type", () => {
     const ROCK = "file:///p/Scripts/rock.sd";
     const PEBBLE = "file:///p/Scripts/pebble.sd";
-    const sources = {
+    const references = referencesOf({
       [ROCK]: "define rock with\n  hardness = 5\nend\n",
       [PEBBLE]: "define pebble as rock with\n  size = 1\nend\n",
-      [MAIN]: "scene start\n  {rock.pebble.hardness}\nend\n",
-    };
-    const references = getScriptReferences(workspaceOf(sources), undefined);
+    });
     expect(references).toContainEqual({ from: PEBBLE, to: ROCK, divert: false });
-    expect(references).toContainEqual({ from: MAIN, to: PEBBLE, divert: false });
   });
 
-  test("a define's type is not something the defining script declares", () => {
-    const sources = {
-      [CAST]: 'define raffles as character with\n  name = "RAFFLES"\nend\n',
-      [CHAPTER]: "scene chapter_scene\n  {character.someone_else.name}\nend\n",
-    };
-    expect(referencedBy(sources, CAST)).toBe(0);
+  test("references within the declaring script, and a define's own type, are not counted", () => {
+    const references = referencesOf(SOURCES);
+    expect(references.filter((r) => r.from === r.to)).toEqual([]);
+    expect(references.filter((r) => r.to === LOOSE)).toEqual([]);
+    expect(
+      referencedBy(
+        { [CAST]: CAST_SOURCE, [CHAPTER]: "scene chapter_scene\n  {character.someone_else.name}\nend\n" },
+        CAST,
+      ),
+    ).toBe(0);
+  });
+
+  test("a parameter named like a define is the function's own, not a use of the define", () => {
+    expect(
+      referencedBy(
+        {
+          [SETTINGS]: SETTINGS_SOURCE,
+          [HELPERS]: "function show(settings)\n  return settings.score\nend\n",
+        },
+        SETTINGS,
+      ),
+    ).toBe(0);
+  });
+
+  test("adding a divert to a script's scene in another script raises its count by one", () => {
+    expect(referencedBy(SOURCES, CHAPTER)).toBe(1);
+    expect(
+      referencedBy({ ...SOURCES, [LOOSE]: "scene loose_scene\n  -> chapter_scene.part\nend\n" }, CHAPTER),
+    ).toBe(2);
   });
 
   test("a scene two scripts declare, as after Duplicate, counts a reference for each of them", () => {
@@ -199,9 +129,33 @@ describe("provider · script references (#1009)", () => {
       [CHAPTER]: "scene chapter_scene\n  Hi.\nend\n",
       [LOOSE]: "scene loose_scene\n  Hi.\nend\n",
     };
-    const diverts = getScriptReferences(workspaceOf(sources), undefined)
+    const diverts = referencesOf(sources)
       .filter((r) => r.from === MAIN && r.divert)
       .map((r) => r.to);
     expect(diverts).toEqual([LOOSE, CHAPTER]);
+  });
+});
+
+describe("provider · script references not counted until #1969 (#1009)", () => {
+  test.each([
+    ["a property access through the define's type", "{character.raffles.name}"],
+    ["a string index", '{character["raffles"].name}'],
+    ["a parenthesized root", "{(character).raffles.name}"],
+  ])("%s does not count as a use of the define's script", (_, expression) => {
+    expect(
+      referencedBy({ [CAST]: CAST_SOURCE, [CHAPTER]: `scene chapter_scene\n  ${expression}\nend\n` }, CAST),
+    ).toBe(0);
+  });
+
+  test("a use through a local alias does not count as a use of the define's script", () => {
+    expect(
+      referencedBy(
+        {
+          [CAST]: CAST_SOURCE,
+          [HELPERS]: "function cast_name()\n  local cast = character\n  return cast.raffles.name\nend\n",
+        },
+        CAST,
+      ),
+    ).toBe(0);
   });
 });

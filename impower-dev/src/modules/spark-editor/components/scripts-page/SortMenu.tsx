@@ -28,6 +28,9 @@ const FIELD_ICONS: Record<SortIconName, typeof SortIcon> = {
   story: StoryIcon,
 };
 
+const USES_HINT =
+  "Other scripts' diverts, calls and character cues. Uses of a define's properties are not counted yet.";
+
 export type SortMenuProps = {
   value: string | undefined;
   onChange: (key: string) => void;
@@ -60,7 +63,16 @@ export default function SortMenu({ value, onChange }: SortMenuProps) {
             return (
               <DropdownRadioItem key={field.field} value={field.key} indicator="end">
                 <Icon class="text-muted" />
-                {field.label}
+                {field.field === "uses" ? (
+                  <span class="flex min-w-0 flex-col gap-0.5 py-1.5">
+                    <span>{field.label}</span>
+                    <small class="max-w-[200px] text-[11px]/[1.4] font-normal whitespace-normal text-muted">
+                      {USES_HINT}
+                    </small>
+                  </span>
+                ) : (
+                  field.label
+                )}
               </DropdownRadioItem>
             );
           })}
