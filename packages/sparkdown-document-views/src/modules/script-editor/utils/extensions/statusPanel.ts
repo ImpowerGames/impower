@@ -28,11 +28,6 @@ import {
   setReferencePanel,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { iconMasks } from "@impower/impower-ui/icon-masks";
-import {
-  closeCustomGotoLinePanel,
-  customGotoLinePanelOpen,
-  openCustomGotoLinePanel,
-} from "./customSearch";
 
 
 type StatusPanelState = {
@@ -66,10 +61,6 @@ export class StatusPanel implements Panel {
   infosLabel: HTMLSpanElement;
 
   referencesLabel: HTMLSpanElement;
-
-  gotoLineButton: HTMLButtonElement;
-
-  lineColumnLabel: HTMLSpanElement;
 
   diagnosticContextContainer: HTMLDivElement;
 
@@ -197,21 +188,6 @@ export class StatusPanel implements Panel {
       document.createElement("span"),
     );
     nextIcon.className = "cm-statusIcon cm-navRightIcon";
-
-    this.gotoLineButton = this.dom.appendChild(
-      document.createElement("button"),
-    );
-    this.gotoLineButton.className = "cm-button";
-    this.gotoLineButton.name = "problems";
-    this.gotoLineButton.type = "button";
-    this.gotoLineButton.onclick = () => {
-      this.toggleGotoLinePanel(view.state);
-    };
-
-    this.lineColumnLabel = this.gotoLineButton.appendChild(
-      document.createElement("span"),
-    );
-    this.lineColumnLabel.className = "cm-statusLabel cm-lineColumnLabel";
   }
 
   toggleBottomPanel() {
@@ -224,14 +200,6 @@ export class StatusPanel implements Panel {
     } else {
       closeReferencePanel(this.view);
       this.view.focus();
-    }
-  }
-
-  toggleGotoLinePanel(state: EditorState) {
-    if (customGotoLinePanelOpen(state)) {
-      closeCustomGotoLinePanel(this.view);
-    } else {
-      openCustomGotoLinePanel(this.view);
     }
   }
 
@@ -357,7 +325,6 @@ export class StatusPanel implements Panel {
 
       if (isContextualView && activeDiagnostic) {
         this.revealBottomPanelButton.style.display = "none";
-        this.gotoLineButton.style.display = "none";
         this.diagnosticContextContainer.style.display = "flex";
         this.activeDiagnosticMessage.textContent =
           activeDiagnostic.message.split("\n")[0]!;
@@ -390,7 +357,6 @@ export class StatusPanel implements Panel {
           : "none";
       } else {
         this.revealBottomPanelButton.style.display = "";
-        this.gotoLineButton.style.display = "";
         this.diagnosticContextContainer.style.display = "none";
       }
 
@@ -428,58 +394,8 @@ export class StatusPanel implements Panel {
     }
   }
 
-  updateLineColumn(update: ViewUpdate) {
-    const numSelectionRanges = update.state.selection.ranges.length;
-    const numCharactersSelected = update.state.selection.ranges
-      .map((r) => r.to - r.from)
-      .reduce((a, b) => a + b);
-    if (numSelectionRanges > 1) {
-      const selectionsSummary = update.state.phrase(
-        `$1 selections`,
-        numSelectionRanges,
-      );
-      const charactersSelectedSummary =
-        numCharactersSelected > 0
-          ? update.state.phrase(
-              `($1 characters selected)`,
-              numCharactersSelected,
-            )
-          : "";
-      this.lineColumnLabel.textContent = [
-        selectionsSummary,
-        charactersSelectedSummary,
-      ]
-        .join(" ")
-        .trim();
-    } else if (numSelectionRanges === 1) {
-      const cursorPos = update.state.selection.main.from;
-      const cursorLine = update.state.doc.lineAt(cursorPos);
-      const lineNumber = cursorLine.number;
-      const colNumber = cursorPos - cursorLine.from + 1;
-      const selectionsSummary = update.state.phrase(
-        `Ln $1, Col $2`,
-        lineNumber,
-        colNumber,
-      );
-      const charactersSelectedSummary =
-        numCharactersSelected > 0
-          ? update.state.phrase(`($1 selected)`, numCharactersSelected)
-          : "";
-      this.lineColumnLabel.textContent = [
-        selectionsSummary,
-        charactersSelectedSummary,
-      ]
-        .join(" ")
-        .trim();
-    } else {
-      const selectionsSummary = update.state.phrase(`Ln $1, Col $2`, 1, 1);
-      this.lineColumnLabel.textContent = selectionsSummary;
-    }
-  }
-
   update(update: ViewUpdate) {
     this.updateStatus(update);
-    this.updateLineColumn(update);
   }
 }
 

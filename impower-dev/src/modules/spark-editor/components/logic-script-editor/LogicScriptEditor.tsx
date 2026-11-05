@@ -6,6 +6,8 @@ import { debounce } from "../../utils/debounce";
 import { showSnackbar } from "../../utils/snackbar";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import workspace from "../../workspace/WorkspaceStore";
+import ScriptHeader from "../script-header/ScriptHeader";
+import WriterBar from "../writer-bar/WriterBar";
 
 export const propDefaults = {
   filename: "",
@@ -224,14 +226,18 @@ export default function LogicScriptEditor({
 
   return (
     <div class="relative flex flex-1 flex-col min-h-0 bg-workspace">
-      <SparkdownScriptEditor
-        readonly={readonly}
-        coarsePointer={coarsePointer}
-        appearance={appearance}
-        top="0px"
-        bottom="60px"
-        onPasteRefused={showPasteRefused}
-      />
+      <ScriptHeader filename={filename || "main.sd"} />
+      <div class="relative flex flex-1 flex-col min-h-0">
+        <SparkdownScriptEditor
+          readonly={readonly}
+          coarsePointer={coarsePointer}
+          appearance={appearance}
+          top="0px"
+          bottom="60px"
+          onPasteRefused={showPasteRefused}
+        />
+      </div>
+      <WriterBar filename={filename || "main.sd"} />
     </div>
   );
 }

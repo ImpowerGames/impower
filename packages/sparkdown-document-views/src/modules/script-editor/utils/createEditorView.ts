@@ -34,7 +34,6 @@ import {
   InitializeResult,
   MessageConnection,
 } from "@impower/spark-editor-protocol/src/types";
-import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import {
   breakpointMarker,
   breakpointsChanged,
@@ -62,7 +61,6 @@ import {
 } from "../../../cm-route-pins/routePins";
 import { scriptAppearance } from "../../../cm-script-appearance/scriptAppearance";
 import type { ScriptAppearance } from "../../../cm-script-appearance/scriptAppearanceOptions";
-import { variableWidgets } from "../../../cm-variable-widgets/variableWidgets";
 import {
   lineAnchorMoves,
   lineAnchors,
@@ -200,10 +198,6 @@ const createEditorView = (
       ? EditorSelection.fromJSON(defaultState?.selection)
       : { anchor: 0, head: 0 };
 
-  const programContext: {
-    program?: SparkProgram;
-  } = {};
-
   let restoredState: EditorState | undefined;
   if (defaultState?.selection) {
     const selection = defaultState?.selection;
@@ -336,9 +330,6 @@ const createEditorView = (
           serverInitializeParams,
           serverInitializeResult,
           serverWorkspace,
-        }),
-        variableWidgets({
-          programContext,
         }),
         onCompletionPreview ? completionPreview(onCompletionPreview) : [],
         EditorState.changeFilter.of(
