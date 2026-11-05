@@ -4,7 +4,7 @@ import { MessageProtocol, sendProtocolMessage } from "@impower/spark-editor-prot
 import { GameResizedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameResizedMessage";
 import { ResizeGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
 
-const observers: (() => void)[] = [];
+const observers: { targets: Set<Element>; notify: () => void }[] = [];
 
 afterEach(() => {
   observers.length = 0;
@@ -27,11 +27,16 @@ const mount = () => {
   vi.stubGlobal(
     "ResizeObserver",
     class {
-      constructor(private callback: () => void) {}
-      observe() {
-        observers.push(() => this.callback());
+      targets = new Set<Element>();
+      constructor(callback: () => void) {
+        observers.push({ targets: this.targets, notify: callback });
       }
-      disconnect() {}
+      observe(target: Element) {
+        this.targets.add(target);
+      }
+      disconnect() {
+        this.targets.clear();
+      }
     },
   );
   setWorkspace({ gameLink: { detach() {} }, programHeld: async () => {} } as any);
@@ -58,22 +63,25 @@ const mount = () => {
   });
   const controller = new GamePlayerController(host, { viewport, game, toolbar } as any);
   controller.setup();
-  const resize = () => observers.forEach((notify) => notify());
+  const resize = (...changed: Element[]) =>
+    observers
+      .filter(({ targets }) => changed.some((element) => targets.has(element)))
+      .forEach(({ notify }) => notify());
   toolbar.setPointerCapture = () => {};
   toolbar.releasePointerCapture = () => {};
-  return { host, game, toolbar, pane, reports, controller, resize };
+  return { host, viewport, game, toolbar, pane, reports, controller, resize };
 };
 
 it("reports the rendered size and the ratio in effect after every resize", () => {
-  const { host, pane, reports, controller, resize } = mount();
+  const { host, viewport, game, pane, reports, controller, resize } = mount();
   try {
     reports.length = 0;
     pane.width = 960;
     pane.height = 568;
-    resize();
+    resize(viewport, game);
     expect(reports.at(-1)).toEqual({ width: 960, height: 540, aspectRatio: "16:9", fit: "auto" });
     pane.width = 700;
-    resize();
+    resize(viewport, game);
     expect(reports.at(-1)).toEqual({ width: 700, height: 540, aspectRatio: null, fit: "auto" });
   } finally {
     controller.dispose();
@@ -82,7 +90,7 @@ it("reports the rendered size and the ratio in effect after every resize", () =>
 });
 
 it("fits the game to a requested aspect ratio and reports the fitted size", async () => {
-  const { host, game, reports, controller, resize } = mount();
+  const { host, viewport, game, pane, reports, controller, resize } = mount();
   try {
     const request = ResizeGameMessage.type.request({ aspectRatio: "9:16" });
     const answered = new Promise<void>((resolve) => {
@@ -94,17 +102,25 @@ it("fits the game to a requested aspect ratio and reports the fitted size", asyn
     });
     sendProtocolMessage(request);
     await answered;
-    resize();
     const report = reports.at(-1)!;
     expect(report).toMatchObject({ aspectRatio: "9:16", fit: "ratio" });
     expect(report.height).toBe(600);
     expect(report.width).toBeCloseTo((600 * 9) / 16, 5);
     expect(game.getBoundingClientRect().height).toBe(600);
 
+    pane.width = 600;
+    pane.height = 428;
+    resize(viewport);
+    expect(reports.at(-1)).toEqual({ width: 225, height: 400, aspectRatio: "9:16", fit: "ratio" });
+    expect(game.getBoundingClientRect()).toMatchObject({ width: 225, height: 400 });
+    pane.width = 800;
+    pane.height = 628;
+    resize(viewport);
+    expect(reports.at(-1)).toMatchObject({ width: 337.5, height: 600, fit: "ratio" });
+
     const auto = ResizeGameMessage.type.request({ aspectRatio: "auto" });
     sendProtocolMessage(auto);
     await new Promise((resolve) => setTimeout(resolve));
-    resize();
     expect(reports.at(-1)).toEqual({ width: 800, height: 600, aspectRatio: "4:3", fit: "auto" });
   } finally {
     controller.dispose();
