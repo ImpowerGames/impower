@@ -35,14 +35,28 @@ function PaneContent({ pane }: { pane: PaneType }) {
   return <Logic key="logic" />;
 }
 
+const STRIP_HEIGHT_DEFAULT = 280;
+
+const STRIP_CLASS = [
+  "[&>div]:flex-col-reverse!",
+  "[&>div>[data-panel]:first-child]:flex-[1_1_0]!",
+  "[&>div>[data-panel]:last-child]:flex-[0_0_var(--strip-height)]!",
+  "[&>div>[data-separator]]:hidden!",
+].join(" ");
+
 export default function MainWindow(_props: MainWindowProps) {
   useWorkspaceSession();
   const layout = useLayout();
   const isSSR = typeof window === "undefined";
   const desktop = !isSSR && layout === "desktop";
+  const shell = !isSSR && layout !== "phone";
+  const strip = shell && !desktop;
   const pane = workspace.signals.pane.value as PaneType;
   const previewActive = useComputed(() =>
     workspace.state.value.preview?.revealed ? "end" : "start",
+  ).value;
+  const stripHeight = useComputed(
+    () => workspace.state.value.shell?.stripHeight,
   ).value;
 
   const onPaneChange = async (next: string) => {
@@ -51,12 +65,21 @@ export default function MainWindow(_props: MainWindowProps) {
   };
 
   const panes = (
-    <div class="relative flex h-full min-h-0 flex-1">
+    <div
+      class="relative flex h-full min-h-0 flex-1"
+      style={
+        strip
+          ? { "--strip-height": `${stripHeight ?? STRIP_HEIGHT_DEFAULT}px` }
+          : undefined
+      }
+    >
       {!isSSR && (
         <>
           <SplitPane
+            orientation={strip ? "vertical" : "horizontal"}
+            class={strip ? STRIP_CLASS : undefined}
             activePanel={previewActive}
-            defaultSizes={desktop ? [53, 47] : undefined}
+            defaultSizes={[53, 47]}
             minSize={desktop ? ["280px", "336px"] : "320px"}
             start={
               <div class="relative flex h-full w-full flex-col">
@@ -82,7 +105,7 @@ export default function MainWindow(_props: MainWindowProps) {
     </div>
   );
 
-  if (desktop) {
+  if (shell) {
     return (
       <div class="flex h-full w-full min-h-0 flex-col">
         <DesktopShell>{panes}</DesktopShell>
