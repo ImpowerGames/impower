@@ -1,0 +1,14 @@
+style card {
+  @theme(dark {
+    color = white
+  }
+  @has(button {
+    color = red
+  }
+  @theme(dark) {
+    color = black
+  }
+  @has(@has(icon)) {
+    color = blue
+  }
+}

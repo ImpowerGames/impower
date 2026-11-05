@@ -39,7 +39,8 @@ sparkdown [0..119]
  │   │       │   │   │   │               │       ├─ SimpleSelectorFunctionParameters_begin [31..32]
  │   │       │   │   │   │               │       │   ├─ SimpleSelectorFunctionParameters_begin_c1 [31..32]
  │   │       │   │   │   │               │       │   │   └─ PunctuationParenOpen [31..32]: "("
- │   │       │   │   │   │               │       │   └─ SimpleSelectorFunctionParameters_begin_c2 32
+ │   │       │   │   │   │               │       │   ├─ SimpleSelectorFunctionParameters_begin_c2 32
+ │   │       │   │   │   │               │       │   └─ SimpleSelectorFunctionParameters_begin_c3 32
  │   │       │   │   │   │               │       ├─ SimpleSelectorFunctionParameters_content [32..34]
  │   │       │   │   │   │               │       │   └─ ParameterStringIdentifier [32..34]: "sm"
  │   │       │   │   │   │               │       └─ SimpleSelectorFunctionParameters_end [34..35]

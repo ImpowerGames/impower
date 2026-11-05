@@ -4715,12 +4715,15 @@ repository:
 
   RecursiveSelectorFunctionParameters:
     brackets: true
-    begin: ([(])({{WS}}*)
+    begin: (?:([(])(?=[^)]*[)])|([(]))({{WS}}*)
     beginCaptures:
       1:
         patterns:
           - { include: "#PunctuationParenOpen" }
       2:
+        patterns:
+          - { include: "#SelectorFunctionUnclosedParen" }
+      3:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
@@ -4737,14 +4740,22 @@ repository:
         patterns:
           - { include: "#PunctuationParenClose" }
 
+  SelectorFunctionUnclosedParen:
+    tag: invalid
+    name: invalid.illegal.unclosed-paren.sd
+    match: ([(])
+
   SimpleSelectorFunctionParameters:
     brackets: true
-    begin: ([(])({{WS}}*)
+    begin: (?:([(])(?=[^)]*[)])|([(]))({{WS}}*)
     beginCaptures:
       1:
         patterns:
           - { include: "#PunctuationParenOpen" }
       2:
+        patterns:
+          - { include: "#SelectorFunctionUnclosedParen" }
+      3:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:

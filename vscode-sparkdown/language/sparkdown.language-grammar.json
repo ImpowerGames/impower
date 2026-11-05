@@ -7746,7 +7746,7 @@
     },
     "RecursiveSelectorFunctionParameters": {
       "brackets": true,
-      "begin": "([(])((?:[^\\S\\n\\r])*)",
+      "begin": "(?:([(])(?=[^)]*[)])|([(]))((?:[^\\S\\n\\r])*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -7756,6 +7756,13 @@
           ]
         },
         "2": {
+          "patterns": [
+            {
+              "include": "#SelectorFunctionUnclosedParen"
+            }
+          ]
+        },
+        "3": {
           "patterns": [
             {
               "include": "#ExtraWhitespace"
@@ -7795,9 +7802,14 @@
         }
       }
     },
+    "SelectorFunctionUnclosedParen": {
+      "tag": "invalid",
+      "name": "invalid.illegal.unclosed-paren.sd",
+      "match": "([(])"
+    },
     "SimpleSelectorFunctionParameters": {
       "brackets": true,
-      "begin": "([(])((?:[^\\S\\n\\r])*)",
+      "begin": "(?:([(])(?=[^)]*[)])|([(]))((?:[^\\S\\n\\r])*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -7807,6 +7819,13 @@
           ]
         },
         "2": {
+          "patterns": [
+            {
+              "include": "#SelectorFunctionUnclosedParen"
+            }
+          ]
+        },
+        "3": {
           "patterns": [
             {
               "include": "#ExtraWhitespace"

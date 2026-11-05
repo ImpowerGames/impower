@@ -1584,6 +1584,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
+    if (nodeRef.name === "SelectorFunctionUnclosedParen") {
+      annotations.push(
+        SparkdownAnnotation.mark<Diagnostic>({
+          message: "Missing ')' to close the selector's parameter list",
+          severity: "error",
+        }).range(nodeRef.from, nodeRef.to),
+      );
+      return annotations;
+    }
     if (nodeRef.name === "IllegalChar") {
       const context = getContextNames(nodeRef.node);
       if (context.includes("ImageCommand")) {
