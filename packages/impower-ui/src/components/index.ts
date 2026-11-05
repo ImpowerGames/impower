@@ -28,6 +28,13 @@ export {
   DropdownCheckboxItem,
 } from "./dropdown/Dropdown";
 export {
+  default as SparkLogo,
+  MadeWithSparkSplash,
+  sparkLogoVariants,
+  type SparkLogoProps,
+  type MadeWithSparkSplashProps,
+} from "./spark-logo/SparkLogo";
+export {
   default as LoadingBar,
   type LoadingBarProps,
 } from "./loading-bar/LoadingBar";
