@@ -119,6 +119,8 @@ export default class WorkspaceFileSystem {
 
   protected _files?: Record<string, FileData>;
 
+  protected _unstoredUris = new Set<string>();
+
   protected _folders = new Set<string>();
 
   protected _ls: WorkspaceLanguageServer;
@@ -177,6 +179,7 @@ export default class WorkspaceFileSystem {
       const text = ["scene start", "  ", "end", ""].join("\n");
       const encoder = new TextEncoder();
       const encodedText = encoder.encode(text);
+      this._unstoredUris.add(mainScriptUri);
       this._files[mainScriptUri] = {
         name: "main",
         ext: "sd",
@@ -384,6 +387,7 @@ export default class WorkspaceFileSystem {
       fresh.forEach((file) => {
         this._files ??= {};
         this._files[file.uri] = { ...file };
+        this._unstoredUris.delete(file.uri);
       });
       this.noteChanged(fresh.map((f) => f.uri));
       this.addFolderUris(
@@ -557,19 +561,24 @@ export default class WorkspaceFileSystem {
           !isProjectMetadata(this.getRelativePath(projectId, file.uri)) ||
           file.uri === layoutMarkerUri,
       )
-      .map(({ uri }) => ({ uri, path: this.getRelativePath(projectId, uri) }))
+      .map(({ uri, text }) => ({
+        uri,
+        text,
+        path: this.getRelativePath(projectId, uri),
+      }))
       .filter(({ path }) => path !== SETTINGS_JSON_PATH);
-    const entries =
-      settingsJson === undefined
-        ? []
-        : [
-            {
-              path: SETTINGS_JSON_PATH,
-              data: new TextEncoder().encode(settingsJson).buffer as ArrayBuffer,
-            },
-          ];
+    const encode = (text: string) =>
+      new TextEncoder().encode(text).buffer as ArrayBuffer;
+    const entries = files
+      .filter(({ uri }) => this._unstoredUris.has(uri))
+      .map(({ path, text }) => ({ path, data: encode(text ?? "") }));
+    if (settingsJson !== undefined) {
+      entries.push({ path: SETTINGS_JSON_PATH, data: encode(settingsJson) });
+    }
     return this.zipFiles({
-      files,
+      files: files
+        .filter(({ uri }) => !this._unstoredUris.has(uri))
+        .map(({ uri, path }) => ({ uri, path })),
       directories: await this.foldersOutside(projectId, files),
       entries,
     });
