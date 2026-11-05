@@ -83,6 +83,45 @@ describe("provider · script references (#1009)", () => {
     expect(references).toContainEqual({ from: CHAPTER, to: CAST, divert: false });
   });
 
+  test("a parameter that shadows a define is the function's own, not a use of the define", () => {
+    const SETTINGS = "file:///p/Scripts/settings.sd";
+    const sources = {
+      [SETTINGS]: "define settings with\n  score = 1\nend\n",
+      [HELPERS]: "function show(settings)\n  return settings.score\nend\n",
+    };
+    expect(referencedBy(sources, SETTINGS)).toBe(0);
+  });
+
+  test.each([
+    ["spaces around the dots", "{character . raffles.name}"],
+    ["a space after a dot", "{character. raffles.name}"],
+    ["a string index", '{character["raffles"].name}'],
+    ["a parenthesized root", "{(character).raffles.name}"],
+  ])("a property access written with %s references the define's script", (_, expression) => {
+    const sources = {
+      [CAST]: 'define raffles as character with\n  name = "RAFFLES"\nend\n',
+      [CHAPTER]: `scene chapter_scene\n  ${expression}\nend\n`,
+    };
+    expect(getScriptReferences(workspaceOf(sources), undefined)).toContainEqual({
+      from: CHAPTER,
+      to: CAST,
+      divert: false,
+    });
+  });
+
+  test("a define of another define's type uses the script that defines that type", () => {
+    const ROCK = "file:///p/Scripts/rock.sd";
+    const PEBBLE = "file:///p/Scripts/pebble.sd";
+    const sources = {
+      [ROCK]: "define rock with\n  hardness = 5\nend\n",
+      [PEBBLE]: "define pebble as rock with\n  size = 1\nend\n",
+      [MAIN]: "scene start\n  {rock.pebble.hardness}\nend\n",
+    };
+    const references = getScriptReferences(workspaceOf(sources), undefined);
+    expect(references).toContainEqual({ from: PEBBLE, to: ROCK, divert: false });
+    expect(references).toContainEqual({ from: MAIN, to: PEBBLE, divert: false });
+  });
+
   test("a define's type is not something the defining script declares", () => {
     const sources = {
       [CAST]: 'define raffles as character with\n  name = "RAFFLES"\nend\n',

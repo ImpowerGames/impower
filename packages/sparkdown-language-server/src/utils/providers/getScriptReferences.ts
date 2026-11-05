@@ -20,13 +20,36 @@ const DECLARED_BY_SCRIPT = new Set<Reference["declaration"]>([
   "define_variable_name",
 ]);
 
-const ACCESS_PATH = /^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*/;
+const IDENTIFIER = /^[A-Za-z_]\w*/;
+const ACCESS_SEGMENT = /^\s*(?:\.\s*([A-Za-z_]\w*)|\[\s*(["'])([A-Za-z_]\w*)\2\s*\])/;
+const CLOSE_PAREN = /^\s*\)/;
 const MAX_ACCESS_PATH = 256;
 
 type ScriptReferencesWorkspace = Pick<
   SparkdownLanguageServerWorkspace,
   "document" | "annotations" | "uris" | "compilerConfig"
 >;
+
+export const accessPathAt = (text: string, parenthesized: boolean): string => {
+  const root = IDENTIFIER.exec(text);
+  if (!root) {
+    return "";
+  }
+  const parts = [root[0]];
+  let rest = text.slice(root[0].length);
+  if (parenthesized) {
+    const close = CLOSE_PAREN.exec(rest);
+    if (!close) {
+      return root[0];
+    }
+    rest = rest.slice(close[0].length);
+  }
+  for (let segment = ACCESS_SEGMENT.exec(rest); segment; segment = ACCESS_SEGMENT.exec(rest)) {
+    parts.push(segment[1] ?? segment[3]!);
+    rest = rest.slice(segment[0].length);
+  }
+  return parts.join(".");
+};
 
 const prefixesOf = (path: string): string[] => {
   const parts = path.split(".");
@@ -50,33 +73,48 @@ export const getScriptReferences = (
       ? resolveDivertPath(resolved, scopePath)
       : resolved;
   };
+  const resolvedIds = (reference: Reference, scopePath: string) =>
+    (reference.symbolIds ?? [])
+      .map((id) => resolve(id, reference, scopePath))
+      .filter((id): id is string => !!id);
 
-  const declaredIn = new Map<string, string[]>();
+  const typeUseLines = new Map<string, Set<number>>();
   for (const uri of uris) {
     const document = workspace.document(uri);
-    const variableLines = new Set<number>();
+    const lines = new Set<number>();
     walkReferences(workspace, uri, (r) => {
       if (r.value!.type.declaration === "define_variable_name" && document) {
-        variableLines.add(document.positionAt(r.from).line);
+        lines.add(document.positionAt(r.from).line);
       }
     });
+    typeUseLines.set(uri, lines);
+  }
+  const isTypeUse = (uri: string, reference: Reference, from: number) => {
+    const document = workspace.document(uri);
+    return (
+      reference.declaration === "define_type_name" &&
+      !!document &&
+      !!typeUseLines.get(uri)?.has(document.positionAt(from).line)
+    );
+  };
+
+  const declaredIn = new Map<string, string[]>();
+  const boundIn = new Map<string, Set<string>>();
+  for (const uri of uris) {
+    const bound = new Set<string>();
+    boundIn.set(uri, bound);
     walkReferences(workspace, uri, (r, scopePath) => {
       const reference = r.value!.type;
-      if (!DECLARED_BY_SCRIPT.has(reference.declaration)) {
+      if (!reference.declaration || isTypeUse(uri, reference, r.from)) {
         return;
       }
-      if (
-        reference.declaration === "define_type_name" &&
-        document &&
-        variableLines.has(document.positionAt(r.from).line)
-      ) {
-        return;
-      }
-      for (const id of reference.symbolIds ?? []) {
-        const resolved = resolve(id, reference, scopePath);
-        const declarers = resolved ? (declaredIn.get(resolved) ?? []) : [];
-        if (resolved && !declarers.includes(uri)) {
-          declaredIn.set(resolved, [...declarers, uri]);
+      for (const id of resolvedIds(reference, scopePath)) {
+        bound.add(id);
+        if (DECLARED_BY_SCRIPT.has(reference.declaration)) {
+          const declarers = declaredIn.get(id) ?? [];
+          if (!declarers.includes(uri)) {
+            declaredIn.set(id, [...declarers, uri]);
+          }
         }
       }
     });
@@ -86,32 +124,38 @@ export const getScriptReferences = (
   const seen = new Set<string>();
   for (const uri of uris) {
     const document = workspace.document(uri);
+    const bound = boundIn.get(uri)!;
     walkReferences(workspace, uri, (r, scopePath) => {
       const reference = r.value!.type;
-      if (reference.declaration) {
+      if (reference.declaration && !isTypeUse(uri, reference, r.from)) {
+        return;
+      }
+      const ids = resolvedIds(reference, scopePath);
+      if (!reference.declaration && ids.some((id) => bound.has(id))) {
         return;
       }
       const divert = reference.usage === "divert";
       const accessPath =
-        !divert && document
-          ? (document.read(r.from, r.from + MAX_ACCESS_PATH).match(ACCESS_PATH)?.[0] ?? "")
+        !divert && !reference.declaration && document
+          ? accessPathAt(
+              document.read(r.from, r.from + MAX_ACCESS_PATH),
+              r.from > 0 && document.read(r.from - 1, r.from) === "(",
+            )
           : "";
       const candidates = [
         ...(accessPath.includes(".") ? prefixesOf(accessPath) : []),
-        ...(reference.symbolIds ?? []).map((id) => resolve(id, reference, scopePath)),
+        ...ids,
       ];
       for (const candidate of candidates) {
-        const declarers = candidate ? declaredIn.get(candidate) : undefined;
+        const declarers = declaredIn.get(candidate);
         if (!declarers) {
           continue;
         }
-        if (!declarers.includes(uri)) {
-          for (const to of declarers) {
-            const key = `${uri}\n${to}\n${divert}`;
-            if (!seen.has(key)) {
-              seen.add(key);
-              references.push({ from: uri, to, divert });
-            }
+        for (const to of declarers) {
+          const key = `${uri}\n${to}\n${divert}`;
+          if (to !== uri && !seen.has(key)) {
+            seen.add(key);
+            references.push({ from: uri, to, divert });
           }
         }
         break;
