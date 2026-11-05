@@ -1,0 +1,12 @@
+style card {
+  @theme(dark
+  ) {
+    color = gray
+  }
+  color = rgb(1, 2, 3
+  width = calc(min(1px, 2px) + 3px
+  @theme(dark) {
+    color = black
+  }
+  background = rgb(1, 2, 3)
+}

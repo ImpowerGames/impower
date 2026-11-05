@@ -1599,6 +1599,18 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         );
       }
     }
+    if (nodeRef.name === "StylingFunctionParameters") {
+      const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
+      const close = end && childNamed(end, `${nodeRef.name}_end_c2`);
+      if (!close || !childNamed(close, "PunctuationParenClose")) {
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message: "Missing ')' to close the function's parameter list",
+            severity: "error",
+          }).range(nodeRef.from, nodeRef.from + 1),
+        );
+      }
+    }
     if (nodeRef.name === "IllegalChar") {
       const context = getContextNames(nodeRef.node);
       if (context.includes("ImageCommand")) {
