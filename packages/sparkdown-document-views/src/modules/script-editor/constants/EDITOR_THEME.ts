@@ -536,6 +536,9 @@ const EDITOR_THEME: {
   "& .cm-valueInfo": {
     fontFamily: "monospace",
   },
+  "& .cm-snippetField": {
+    backgroundColor: "color-mix(in srgb, var(--ink) 13.33%, transparent)",
+  },
   "& .cm-snippetFieldPosition": {
     border: "none",
   },

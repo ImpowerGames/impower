@@ -89,6 +89,12 @@ describe("the code editor's colours follow the shared colour variables", () => {
 
     expect(computedColor(tip!, "color")).toBe("rgb(7, 8, 9)");
     expect(computedColor(panels!, "color")).toBe("rgb(7, 8, 9)");
+
+    const field = dom.appendChild(document.createElement("span"));
+    field.className = "cm-snippetField";
+    expect(computedColor(field, "background-color")).toBe(
+      "color-mix(in srgb, rgb(7, 8, 9) 13.33%, transparent)",
+    );
   });
 
   it("draws the find and go-to-line icons as masks painted by the icon variables", () => {
