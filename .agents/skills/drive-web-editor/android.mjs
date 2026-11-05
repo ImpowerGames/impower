@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
-import { randomUUID } from "node:crypto";
 import fs from "node:fs";
+import net from "node:net";
 import path from "node:path";
 
 export const DEVICE_KINDS = ["android"];
@@ -10,10 +10,6 @@ export const DEVICE_WAIT_SECONDS = 900;
 export const LONG_PRESS_MS = 750;
 export const SWIPE_MS = 300;
 export const ORIENTATIONS = { portrait: 0, landscape: 1 };
-
-export const deviceLockRoot = process.platform === "win32"
-  ? path.join(process.env.ProgramData || "C:\\ProgramData", "Impower", "android-device")
-  : "/var/tmp/impower-android-device";
 
 export const ANDROID_SETUP = [
   "One-time Android emulator setup (the driver installs nothing; do this once on the machine):",
@@ -171,78 +167,73 @@ export function takeDeviceFlags(argv) {
   return kind == null ? null : { kind, waitSeconds: wait == null ? DEVICE_WAIT_SECONDS : Number(wait) };
 }
 
-const safeName = (serial) => String(serial).replace(/[^A-Za-z0-9._-]/g, "_");
-const sameOwner = (a, b) => Boolean(a && b && a.pid === b.pid && a.start === b.start);
+export const DEVICE_LOCK_PORT_BASE = 36900;
+export const DEVICE_LOCK_PORTS = 100;
+
+export function deviceLockPort(serial) {
+  let hash = 0;
+  for (const ch of String(serial)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return DEVICE_LOCK_PORT_BASE + (hash % DEVICE_LOCK_PORTS);
+}
 
 export function describeHolder(record) {
-  if (!record) return "an unreadable record";
-  const parts = [`pid ${record.owner?.pid ?? "?"}`];
+  if (!record) return "a process that did not say who it is";
+  const parts = [`pid ${record.pid ?? "?"}`];
+  if (record.serial) parts.push(`device ${record.serial}`);
   if (record.session) parts.push(`session ${record.session}`);
   if (record.worktree) parts.push(`worktree ${record.worktree}`);
   if (record.command) parts.push(`running \`${record.command}\``);
   return `${parts.join(", ")}, since ${record.acquiredAt ?? "an unknown time"}`;
 }
 
-function readRecord(file) {
-  try {
-    return { record: JSON.parse(fs.readFileSync(file, "utf8")) };
-  } catch (error) {
-    if (error.code === "ENOENT") return { absent: true };
-    return { unreadable: true };
-  }
+function holdPort(port, record) {
+  const server = net.createServer((socket) => {
+    socket.on("error", () => {});
+    socket.end(JSON.stringify(record));
+  });
+  return new Promise((resolve, reject) => {
+    server.once("error", (error) => (error.code === "EADDRINUSE" ? resolve(null) : reject(error)));
+    server.listen({ port, host: "127.0.0.1", exclusive: true }, () => {
+      server.removeAllListeners("error");
+      server.on("error", () => {});
+      server.unref();
+      resolve(server);
+    });
+  });
 }
 
-const GUARD_STALE_MS = 30_000;
-const UNREADABLE_STALE_MS = 10_000;
-
-function withGuard(file, action, now) {
-  const guard = `${file}.guard`;
-  let fd;
-  try {
-    fd = fs.openSync(guard, "wx");
-  } catch (error) {
-    if (error.code !== "EEXIST") throw error;
-    try {
-      if (now() - fs.statSync(guard).mtimeMs > GUARD_STALE_MS) fs.rmSync(guard, { force: true });
-    } catch {}
-    return false;
-  }
-  try {
-    action();
-    return true;
-  } finally {
-    fs.closeSync(fd);
-    fs.rmSync(guard, { force: true });
-  }
-}
-
-function holderGone(file, read, identify, now) {
-  if (read.absent) return false;
-  if (read.unreadable) {
-    try {
-      return now() - fs.statSync(file).mtimeMs > UNREADABLE_STALE_MS;
-    } catch {
-      return false;
-    }
-  }
-  const owner = read.record.owner;
-  if (!owner || !Number.isSafeInteger(owner.pid)) return true;
-  return !sameOwner(identify(owner.pid), owner);
-}
-
-function clearGoneHolder(file, identify, now) {
-  return withGuard(file, () => {
-    const again = readRecord(file);
-    if (holderGone(file, again, identify, now)) fs.rmSync(file, { force: true });
-  }, now);
+export function askHolder(port, { timeoutMs = 3_000 } = {}) {
+  return new Promise((resolve) => {
+    let text = "";
+    let settled = false;
+    const done = (value) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve(value);
+    };
+    const socket = net.connect({ port, host: "127.0.0.1" });
+    socket.setTimeout(timeoutMs, () => done({ holder: null }));
+    socket.on("data", (chunk) => {
+      text += chunk;
+      if (text.length > 64 * 1024) done({ holder: null });
+    });
+    socket.on("end", () => {
+      try {
+        const record = JSON.parse(text);
+        done({ holder: record && typeof record === "object" && Number.isSafeInteger(record.pid) ? record : null });
+      } catch {
+        done({ holder: null });
+      }
+    });
+    socket.on("error", (error) => done(error.code === "ECONNREFUSED" ? { gone: true } : { holder: null }));
+  });
 }
 
 export async function acquireDevice(serial, {
-  root = deviceLockRoot,
+  port = deviceLockPort(serial),
   waitSeconds = DEVICE_WAIT_SECONDS,
   pollMs = 2_000,
-  identify = null,
-  owner = null,
   session = null,
   worktree = null,
   command = null,
@@ -250,50 +241,31 @@ export async function acquireDevice(serial, {
   now = Date.now,
   sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 } = {}) {
-  identify ??= (await import("../../../scripts/reviewer-slots.mjs")).processIdentity;
-  owner ??= identify(process.pid);
-  if (!owner) throw new Error("this process's identity could not be read, so it cannot hold the Android device");
-  fs.mkdirSync(root, { recursive: true });
-  const file = path.join(root, `${safeName(serial)}.json`);
-  const record = { token: randomUUID(), serial, owner, session, worktree, command, acquiredAt: null };
+  const record = { pid: process.pid, serial, session, worktree, command, acquiredAt: null };
   const began = now();
   const deadline = began + waitSeconds * 1000;
   let lastHolder = null;
   for (;;) {
-    let fd = null;
-    try {
-      fd = fs.openSync(file, "wx");
-    } catch (error) {
-      if (error.code !== "EEXIST") throw error;
-    }
-    if (fd != null) {
-      try {
-        record.acquiredAt = new Date(now()).toISOString();
-        fs.writeSync(fd, JSON.stringify(record));
-      } finally {
-        fs.closeSync(fd);
-      }
-      const release = () => {
-        const current = readRecord(file);
-        if (current.record?.token === record.token) fs.rmSync(file, { force: true });
-      };
-      const onExit = () => release();
-      process.once("exit", onExit);
+    record.acquiredAt = new Date(now()).toISOString();
+    const server = await holdPort(port, record);
+    if (server) {
+      let released = false;
       return {
-        file,
+        port,
         record,
         waitedMs: now() - began,
         release: () => {
-          process.removeListener("exit", onExit);
-          release();
+          if (released) return;
+          released = true;
+          server.close();
         },
       };
     }
-    const read = readRecord(file);
-    if (holderGone(file, read, identify, now) && clearGoneHolder(file, identify, now)) continue;
-    const holder = read.record ? describeHolder(read.record) : "a process whose record is still being written";
+    const answer = await askHolder(port);
+    if (answer.gone) continue;
+    const holder = describeHolder(answer.holder);
     if (now() >= deadline) {
-      throw new Error(`timed out after ${Math.round((now() - began) / 1000)} s waiting for Android device ${serial}, held by ${holder}. Wait for it to finish, or pass a longer --device-wait <seconds>; the record is ${file}`);
+      throw new Error(`timed out after ${Math.round((now() - began) / 1000)} s waiting for Android device ${serial}, held by ${holder} (the hold is a listener on 127.0.0.1:${port} and ends with that process). Wait for it to finish, or pass a longer --device-wait <seconds>`);
     }
     if (holder !== lastHolder) {
       log(`waiting for Android device ${serial}: held by ${holder}; waiting up to ${waitSeconds} s`);
@@ -304,10 +276,10 @@ export async function acquireDevice(serial, {
 }
 
 export function parseReverseList(stdout) {
-  const mapped = new Set();
+  const mapped = new Map();
   for (const line of String(stdout).split(/\r?\n/)) {
-    const match = /\btcp:(\d+)\s+tcp:\d+/.exec(line);
-    if (match) mapped.add(Number(match[1]));
+    const match = /\btcp:(\d+)\s+tcp:(\d+)/.exec(line);
+    if (match) mapped.set(Number(match[1]), Number(match[2]));
   }
   return mapped;
 }
@@ -363,12 +335,21 @@ export async function openAndroidDevice({
   };
   try {
     const { _android } = await playwright();
-    const device = (await _android.devices({ omitDriverInstall: true })).find((candidate) => candidate.serial() === serial);
+    const enumerated = await _android.devices({ omitDriverInstall: true });
+    const device = enumerated.find((candidate) => candidate.serial() === serial);
+    if (device) undo.push({ what: "close the device connection", run: () => device.close() });
+    const others = enumerated.filter((candidate) => candidate !== device);
+    const closed = await Promise.allSettled(others.map((other) => other.close()));
     if (!device) throw new Error(`adb lists ${serial}, and Playwright's Android connection does not; restart the adb server (\`adb kill-server\`) and retry`);
-    undo.push({ what: "close the device connection", run: () => device.close() });
+    const stuck = closed.map((result, index) => (result.status === "rejected" ? `${others[index].serial()}: ${String(result.reason?.message || result.reason).split("\n")[0]}` : null)).filter(Boolean);
+    if (stuck.length) throw new Error(`could not close Playwright's connection to the other attached devices (${stuck.join("; ")})`);
     const chrome = requireChrome(parseChromeVersion(await shellText(device, `dumpsys package ${CHROME_PACKAGE}`)), serial);
 
     const mapped = parseReverseList((await adbOn(["reverse", "--list"])).stdout);
+    const conflicts = editorPorts(record).filter((port) => mapped.has(port) && mapped.get(port) !== port);
+    if (conflicts.length) {
+      throw new Error(`${serial} already forwards ${conflicts.map((port) => `device port ${port} to host port ${mapped.get(port)}`).join(" and ")}, so the device's localhost:${conflicts[0]} would not reach this checkout's editor. Remove ${conflicts.length === 1 ? "that mapping" : "those mappings"} (\`adb -s ${serial} reverse --remove tcp:${conflicts[0]}\`) if nothing still needs ${conflicts.length === 1 ? "it" : "them"}, or run \`up\` again for other ports`);
+    }
     const reversed = [];
     for (const port of editorPorts(record)) {
       if (mapped.has(port)) continue;

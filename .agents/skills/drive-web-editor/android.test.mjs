@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -12,6 +13,7 @@ import {
   adbMissingMessage,
   chooseDevice,
   densityForWidth,
+  deviceLockPort,
   editorPorts,
   findAdb,
   openAndroidDevice,
@@ -24,8 +26,8 @@ import {
   requireChrome,
   takeDeviceFlags,
 } from "./android.mjs";
-import { NAMED_STEPS, TICKETS, parseNamedStep } from "./steps.mjs";
-import { parseScreenshotArgs, parseUiSteps, ui } from "./driver.mjs";
+import { NAMED_STEPS, TICKETS, notBuiltYet, parseNamedStep } from "./steps.mjs";
+import { parseScreenshotArgs, parseUiSteps, ui, verify } from "./driver.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DRIVER = path.join(HERE, "driver.mjs");
@@ -75,7 +77,7 @@ await check("without adb on the path, the driver fails within ten seconds with t
   delete env.ANDROID_SDK_ROOT;
   for (const args of [["--device", "android", "screenshot", "story"], ["ui", "--device", "android", "--step", "focus-project-name"], ["verify", "--device", "android"]]) {
     const began = Date.now();
-    const run = spawnSync(process.execPath, [DRIVER, ...args], { env, encoding: "utf8", timeout: 30_000 });
+    const run = spawnSync(process.execPath, [DRIVER, ...args], { env, encoding: "utf8", timeout: 30_000, windowsHide: true });
     const elapsed = Date.now() - began;
     assert.equal(run.status, 1, `${args.join(" ")}: ${run.stdout}${run.stderr}`);
     assert.ok(elapsed < 10_000, `${args.join(" ")} took ${elapsed} ms`);
@@ -85,7 +87,7 @@ await check("without adb on the path, the driver fails within ten seconds with t
 });
 
 await check("--device is refused for commands that do not drive the editor page", () => {
-  const run = spawnSync(process.execPath, [DRIVER, "status", "--device", "android"], { encoding: "utf8", timeout: 30_000 });
+  const run = spawnSync(process.execPath, [DRIVER, "status", "--device", "android"], { encoding: "utf8", timeout: 30_000, windowsHide: true });
   assert.equal(run.status, 1);
   assert.match(run.stderr, /--device, --viewport, --color-scheme and --theme apply to verify, ui, screenshot only, not status/);
 });
@@ -156,17 +158,6 @@ await check("every named step is accepted by --step in ui and screenshot, and an
   assert.throws(() => parseScreenshotArgs(["story", "--step"], { viewport: null, colorScheme: null, theme: null }), /--step needs a step name/);
 });
 
-await check("each step not built yet names the ticket that builds it", () => {
-  const built = Object.entries(NAMED_STEPS).filter(([, def]) => !def.builtBy).map(([name]) => name);
-  assert.deepEqual(built, ["play"]);
-  for (const [name, def] of Object.entries(NAMED_STEPS)) {
-    if (!def.builtBy) continue;
-    assert.ok(Number.isSafeInteger(def.builtBy) && def.builtBy > 977, `${name} names ${def.builtBy}`);
-    const step = parseNamedStep(def.argument ? `${name}=general` : name);
-    assert.equal(step.step, name);
-  }
-  assert.equal(TICKETS, "ImpowerGames/impower-internal");
-});
 
 await check("touch, rotation and the whole-screen shot need the device; --shot is the device screen on one and the page otherwise", () => {
   for (const args of [["--tap", "1,2"], ["--long-press", "1,2"], ["--swipe", "1,2:3,4"], ["--rotate", "landscape"]]) {
@@ -260,6 +251,36 @@ await check("ui runs a not-built step as a failure naming its ticket, keeps goin
   process.exitCode = 0;
 });
 
+await check("every step not built yet runs through ui as a failure naming the ticket that builds its surface, and play does not", async () => {
+  const expected = {
+    "app-menu": ["open the app menu", 997],
+    dialog: ["open a dialog and dismiss it", 984],
+    drawer: ["open the drawer or rail", 995],
+    "file-menu": ["open a file row's menu", 1009],
+    "asset-inspector": ["open the asset inspector", 1028],
+    "add-menu": ["open the Add menu", 1013],
+    "preview-settings": ["open the preview's settings menu", 1020],
+    problems: ["open the Problems panel", 1022],
+    "settings=appearance": ["open Settings and a named section", 1015],
+    "focus-project-name": ["focus the project name", 995],
+    "focus-script-name": ["focus the script name", 999],
+  };
+  for (const [spec, [does, ticket]] of Object.entries(expected)) {
+    const name = spec.split("=")[0];
+    const { deps } = uiDeps(stubPage(), null);
+    const result = await ui(["--step", spec], deps);
+    assert.equal(result.steps.length, 1, spec);
+    assert.equal(result.steps[0].step, name, spec);
+    assert.equal(result.steps[0].ran, false, spec);
+    assert.equal(result.steps[0].reason, `not built yet: --step ${name} (${does}) gets its body when ImpowerGames/impower-internal#${ticket} builds the surface`, spec);
+    assert.deepEqual(result.failed, [result.steps[0].reason], spec);
+    assert.equal(process.exitCode, 1, spec);
+    process.exitCode = 0;
+  }
+  assert.deepEqual(Object.keys(NAMED_STEPS).filter((name) => !Object.keys(expected).some((spec) => spec.split("=")[0] === name)), ["play"]);
+  assert.equal(notBuiltYet(parseNamedStep("play")), null);
+});
+
 await check("on a device, ui reports the device, sends gestures through it and takes --shot as the whole screen", async () => {
   const page = stubPage();
   const dev = stubDevice();
@@ -281,7 +302,7 @@ await check("on a device, ui reports the device, sends gestures through it and t
   assert.equal(process.exitCode, 0);
 });
 
-function fakeAndroid({ chrome = "versionName=120.0.6099.230", density = "Physical density: 420", reverse = "" } = {}) {
+function fakeAndroid({ chrome = "versionName=120.0.6099.230", density = "Physical density: 420", reverse = "", serials = ["emulator-5554"] } = {}) {
   const log = [];
   const shell = async (command) => {
     log.push(["shell", command]);
@@ -293,8 +314,8 @@ function fakeAndroid({ chrome = "versionName=120.0.6099.230", density = "Physica
     return Buffer.from("");
   };
   const ctx = { close: async () => log.push(["context.close"]) };
-  const dev = {
-    serial: () => "emulator-5554",
+  const makeDevice = (serial, first) => ({
+    serial: () => serial,
     model: () => "sdk_gphone64_x86_64",
     shell,
     screenshot: async ({ path: file }) => log.push(["screenshot", file]),
@@ -302,11 +323,12 @@ function fakeAndroid({ chrome = "versionName=120.0.6099.230", density = "Physica
       log.push(["launchBrowser", options]);
       return ctx;
     },
-    close: async () => log.push(["device.close"]),
-  };
+    close: async () => log.push([first ? "device.close" : `${serial}.close`]),
+  });
+  const devices = serials.map((serial, index) => makeDevice(serial, index === 0));
   const run = async (adb, args) => {
     log.push(["adb", ...args]);
-    if (args[0] === "devices") return { stdout: "List of devices attached\nemulator-5554\tdevice\n" };
+    if (args[0] === "devices") return { stdout: `List of devices attached\n${serials.map((serial) => `${serial}\tdevice`).join("\n")}\n` };
     if (args.includes("--list")) return { stdout: reverse };
     return { stdout: "" };
   };
@@ -318,11 +340,11 @@ function fakeAndroid({ chrome = "versionName=120.0.6099.230", density = "Physica
     _android: {
       devices: async (options) => {
         log.push(["devices", options]);
-        return [dev];
+        return devices;
       },
     },
   });
-  return { log, run, acquire, playwright, ctx };
+  return { log, run, acquire, playwright, ctx, devices };
 }
 
 const adbEnv = { PATH: "/tools", ANDROID_SERIAL: "" };
@@ -371,6 +393,42 @@ await check("opening the device maps only the unmapped editor ports, sets the de
     assert.ok(!fake.log.some((entry) => entry[0] === "shell" && /package (un)?install|pm install/.test(entry[1])));
   }));
 
+await check("with several devices enumerated, the connections to the ones not chosen are closed at once, on success and on failure", () =>
+  withAdb(async () => {
+    const fake = fakeAndroid({ serials: ["emulator-5554", "emulator-5556"] });
+    const env = { ...adbEnv, ANDROID_SERIAL: "emulator-5554" };
+    const session = await openAndroidDevice({ record: { url: "http://localhost:38000" }, ...fake, env, platform: "linux" });
+    const devicesAt = fake.log.findIndex((entry) => entry[0] === "devices");
+    const otherClosedAt = fake.log.findIndex((entry) => entry[0] === "emulator-5556.close");
+    assert.ok(otherClosedAt > devicesAt, JSON.stringify(fake.log));
+    assert.ok(otherClosedAt < fake.log.findIndex((entry) => entry[0] === "launchBrowser"));
+    await session.close();
+    assert.deepEqual(fake.log.filter((entry) => /close$/.test(entry[0])).map((entry) => entry[0]), ["emulator-5556.close", "context.close", "device.close"]);
+
+    const failing = fakeAndroid({ serials: ["emulator-5554", "emulator-5556"], chrome: "versionName=80.0.3987.99" });
+    await assert.rejects(openAndroidDevice({ record: { url: "http://localhost:38000" }, ...failing, env, platform: "linux" }), /Chrome on emulator-5554 is 80/);
+    assert.deepEqual(failing.log.filter((entry) => /close$/.test(entry[0])).map((entry) => entry[0]), ["emulator-5556.close", "device.close"]);
+
+    const missing = fakeAndroid({ serials: ["emulator-5556"] });
+    missing.run = async (adb, args) => (args[0] === "devices" ? { stdout: "List of devices attached\nemulator-5554\tdevice\n" } : { stdout: "" });
+    await assert.rejects(openAndroidDevice({ record: { url: "http://localhost:38000" }, ...missing, ...adbHere }), /adb lists emulator-5554, and Playwright's Android connection does not/);
+    assert.deepEqual(missing.log.filter((entry) => /close$/.test(entry[0])).map((entry) => entry[0]), ["device.close"]);
+    assert.deepEqual(missing.log.at(-1), ["release"]);
+  }));
+
+await check("a reverse mapping of an editor port to some other host port is refused, naming it, and nothing is remapped", () =>
+  withAdb(async () => {
+    const fake = fakeAndroid({ reverse: "UsbFfs tcp:38000 tcp:39999\n" });
+    const record = { url: "http://localhost:38000", ports: { editor: 38000, player: 38001, hmr: 38002 } };
+    await assert.rejects(
+      openAndroidDevice({ record, ...fake, ...adbHere }),
+      /emulator-5554 already forwards device port 38000 to host port 39999, so the device's localhost:38000 would not reach this checkout's editor\. Remove that mapping \(`adb -s emulator-5554 reverse --remove tcp:38000`\)/,
+    );
+    assert.ok(!fake.log.some((entry) => entry[0] === "adb" && entry.includes("reverse") && !entry.includes("--list")));
+    assert.ok(!fake.log.some((entry) => entry[0] === "launchBrowser"));
+    assert.deepEqual(fake.log.slice(-2), [["device.close"], ["release"]]);
+  }));
+
 await check("a density override already set is restored, not reset", () =>
   withAdb(async () => {
     const fake = fakeAndroid({ density: "Physical density: 420\nOverride density: 440\n" });
@@ -392,14 +450,8 @@ await check("a device whose Chrome is too old releases the queue and undoes its 
 await check("a Chrome that never opens its debugging connection names the chrome://flags setting and undoes the session", () =>
   withAdb(async () => {
     const fake = fakeAndroid();
-    const original = fake.playwright;
-    fake.playwright = async () => {
-      const pw = await original();
-      const [dev] = await pw._android.devices({});
-      dev.launchBrowser = async () => {
-        throw new Error("Timeout 30000ms exceeded while waiting for the devtools socket");
-      };
-      return pw;
+    fake.devices[0].launchBrowser = async () => {
+      throw new Error("Timeout 30000ms exceeded while waiting for the devtools socket");
     };
     await assert.rejects(
       openAndroidDevice({ record: { url: "http://localhost:38000" }, viewport: { name: "phone", width: 360, height: 780 }, ...fake, ...adbHere }),
@@ -408,90 +460,125 @@ await check("a Chrome that never opens its debugging connection names the chrome
     assert.deepEqual(fake.log.slice(-4), [["shell", "wm density reset"], ["adb", "-s", "emulator-5554", "reverse", "--remove", "tcp:38000"], ["device.close"], ["release"]]);
   }));
 
-await check("a waiter whose gone holder is being cleared by another process waits instead of spinning, and still honours its deadline", async () => {
-  const root = path.join(scratch, "locks-guard");
-  fs.mkdirSync(root, { recursive: true });
-  const file = path.join(root, "emulator-5554.json");
-  fs.writeFileSync(file, JSON.stringify({ token: "old", owner: { pid: 999999, start: "1" }, acquiredAt: "2026-11-05T00:00:00.000Z" }));
-  fs.writeFileSync(`${file}.guard`, "");
-  let probes = 0;
-  let clock = 0;
-  const sleeps = [];
-  await assert.rejects(
-    acquireDevice("emulator-5554", {
-      root,
-      owner: { pid: 1, start: "me" },
-      identify: () => {
-        if (++probes > 50) throw new Error(`spinning: ${probes} identity probes without a pause`);
-        return null;
-      },
-      waitSeconds: 5,
-      pollMs: 2_000,
-      now: () => clock,
-      sleep: async (ms) => {
-        sleeps.push(ms);
-        clock += ms;
-      },
-    }),
-    /timed out after 5 s waiting for Android device emulator-5554, held by pid 999999/,
-  );
-  assert.deepEqual(sleeps, [2_000, 2_000, 1_000]);
-  assert.ok(probes <= 8, `identity probed ${probes} times`);
-  fs.rmSync(`${file}.guard`, { force: true });
+await check("verify on a device takes its --shot through the device and reports the device", async () => {
+  const page = stubPage();
+  const dev = stubDevice();
+  const shot = path.join(scratch, "verify-screen.png");
+  const deps = {
+    ...uiDeps(page, dev).deps,
+    previewSummary: async () => ({ installed: true }),
+    editorPainted: async () => true,
+    ensureScriptEditor: async () => ({ present: true, settled: true }),
+    waitForGame: async () => ({ mounted: true }),
+    waitForProgram: async () => ({ loaded: true, ms: 1 }),
+    waitForPreviewSettle: async () => ({ settled: true, text: "" }),
+    routeLabel: async () => null,
+    documentLines: async () => [],
+    clickLine: async () => ({ clicked: false, reason: "stub" }),
+  };
+  const result = await verify(["--shot", shot], deps);
+  assert.equal(result.screenshot, shot);
+  assert.equal(result.screenshotOf, "screen");
+  assert.deepEqual(dev.calls, [["screenshot", shot]]);
+  assert.deepEqual(page.shots, []);
+  assert.equal(result.device.serial, "emulator-5554");
+  assert.deepEqual(result.device.page, { width: 360, height: 780, devicePixelRatio: 3 });
+  process.exitCode = 0;
 });
 
-await check("the editor's ports come from the server record, with the URL's port as a fallback", () => {
+await check("the editor's ports come from the server record, with the URL's port as a fallback, and reverse targets are kept", () => {
   assert.deepEqual(editorPorts({ url: "http://localhost:38000", ports: { editor: 38000, player: 38001, hmr: 38002 } }), [38000, 38001, 38002]);
   assert.deepEqual(editorPorts({ url: "http://localhost:38004" }), [38004]);
-  assert.deepEqual([...parseReverseList("emulator-5554 tcp:38000 tcp:38000\nhost-19 tcp:9000 tcp:9001\n")], [38000, 9000]);
+  assert.deepEqual([...parseReverseList("emulator-5554 tcp:38000 tcp:38000\nhost-19 tcp:9000 tcp:9001\n")], [[38000, 38000], [9000, 9001]]);
 });
 
-await check("a holder whose process is gone is cleared, and a live holder makes the waiter time out naming it", async () => {
-  const root = path.join(scratch, "locks-stale");
-  fs.mkdirSync(root, { recursive: true });
-  fs.writeFileSync(path.join(root, "emulator-5554.json"), JSON.stringify({ token: "old", serial: "emulator-5554", owner: { pid: 999999, start: "1" }, session: "gone", acquiredAt: "2026-11-05T00:00:00.000Z" }));
-  const me = { pid: process.pid, start: "me" };
-  const identify = (pid) => (pid === process.pid ? me : null);
-  const held = await acquireDevice("emulator-5554", { root, owner: me, identify, session: "mine", worktree: "/w", command: "screenshot story" });
-  assert.equal(JSON.parse(fs.readFileSync(held.file, "utf8")).session, "mine");
+const freePort = () =>
+  new Promise((resolve) => {
+    const server = net.createServer().listen({ port: 0, host: "127.0.0.1" }, () => {
+      const { port } = server.address();
+      server.close(() => resolve(port));
+    });
+  });
+
+await check("each device gets its own lock port in a fixed range", () => {
+  for (const serial of ["emulator-5554", "emulator-5556", "R5CX12345"]) {
+    const port = deviceLockPort(serial);
+    assert.ok(port >= 36900 && port < 37000, `${serial} → ${port}`);
+    assert.equal(deviceLockPort(serial), port);
+  }
+});
+
+await check("a live holder makes the waiter time out naming it, and release frees the device", async () => {
+  const port = await freePort();
+  const held = await acquireDevice("emulator-5554", { port, session: "mine", worktree: "/w", command: "screenshot story" });
   const lines = [];
   await assert.rejects(
-    acquireDevice("emulator-5554", { root, owner: { pid: 4242, start: "x" }, identify: (pid) => (pid === process.pid ? me : { pid, start: "x" }), waitSeconds: 0, log: (line) => lines.push(line) }),
-    new RegExp(`timed out after 0 s waiting for Android device emulator-5554, held by pid ${process.pid}, session mine, worktree /w, running \`screenshot story\`, since `),
+    acquireDevice("emulator-5554", { port, waitSeconds: 0, log: (line) => lines.push(line) }),
+    new RegExp(`timed out after 0 s waiting for Android device emulator-5554, held by pid ${process.pid}, device emulator-5554, session mine, worktree /w, running \`screenshot story\`, since \\S+ \\(the hold is a listener on 127\\.0\\.0\\.1:${port} and ends with that process\\)`),
   );
   held.release();
-  assert.equal(fs.existsSync(held.file), false);
+  held.release();
+  const again = await acquireDevice("emulator-5554", { port, waitSeconds: 0 });
+  assert.equal(again.waitedMs < 5_000, true);
+  again.release();
+});
+
+await check("a listener that does not say who it is still holds the port, and the timeout says so", async () => {
+  const port = await freePort();
+  const foreign = net.createServer((socket) => socket.end("hello")).listen({ port, host: "127.0.0.1" });
+  await new Promise((resolve) => foreign.once("listening", resolve));
+  try {
+    await assert.rejects(acquireDevice("emulator-5554", { port, waitSeconds: 0 }), /held by a process that did not say who it is \(the hold is a listener on 127\.0\.0\.1:\d+/);
+  } finally {
+    foreign.close();
+  }
+});
+
+const holdScript = path.join(scratch, "hold.mjs");
+fs.writeFileSync(
+  holdScript,
+  [
+    `import { acquireDevice } from ${JSON.stringify(ANDROID)};`,
+    `const [name, port, holdMs] = process.argv.slice(2);`,
+    `const held = await acquireDevice("emulator-5554", { port: Number(port), pollMs: 200, waitSeconds: 60, session: name, worktree: "/w/" + name, command: "screenshot " + name, log: (line) => console.log("LOG " + line) });`,
+    `console.log("ACQUIRED " + name + " " + Date.now());`,
+    `await new Promise((resolve) => setTimeout(resolve, Number(holdMs)));`,
+    `console.log("RELEASED " + name + " " + Date.now());`,
+    `held.release();`,
+  ].join("\n"),
+);
+const startHolder = (name, port, holdMs) => {
+  const child = spawn(process.execPath, [holdScript, name, String(port), String(holdMs)], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+  let out = "";
+  child.stdout.on("data", (chunk) => (out += chunk));
+  child.stderr.on("data", (chunk) => (out += chunk));
+  const closed = new Promise((resolve) => child.on("close", (code) => resolve({ name, pid: child.pid, code, out })));
+  return { child, closed, output: () => out };
+};
+
+await check("a holder that is killed frees the device at once", async () => {
+  const port = await freePort();
+  const holder = startHolder("doomed", port, 600_000);
+  const began = Date.now();
+  while (!/ACQUIRED doomed/.test(holder.output())) {
+    if (Date.now() - began > 30_000) throw new Error(`holder never acquired: ${holder.output()}`);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  holder.child.kill("SIGKILL");
+  await holder.closed;
+  const next = await acquireDevice("emulator-5554", { port, waitSeconds: 5 });
+  assert.ok(next.waitedMs < 5_000, `waited ${next.waitedMs} ms`);
+  next.release();
 });
 
 await check("two processes started together against one device run one after the other, and the second says it is waiting and for whom", async () => {
-  const root = path.join(scratch, "locks-two");
-  const script = path.join(scratch, "hold.mjs");
-  fs.writeFileSync(
-    script,
-    [
-      `import { acquireDevice } from ${JSON.stringify(ANDROID)};`,
-      `const name = process.argv[2];`,
-      `const held = await acquireDevice("emulator-5554", { root: ${JSON.stringify(root)}, pollMs: 200, waitSeconds: 60, session: name, worktree: "/w/" + name, command: "screenshot " + name, log: (line) => console.log("LOG " + line) });`,
-      `console.log("ACQUIRED " + name + " " + Date.now());`,
-      `await new Promise((resolve) => setTimeout(resolve, 2500));`,
-      `console.log("RELEASED " + name + " " + Date.now());`,
-      `held.release();`,
-    ].join("\n"),
-  );
-  const start = (name) =>
-    new Promise((resolve) => {
-      const child = spawn(process.execPath, [script, name], { stdio: ["ignore", "pipe", "pipe"] });
-      let out = "";
-      child.stdout.on("data", (chunk) => (out += chunk));
-      child.stderr.on("data", (chunk) => (out += chunk));
-      child.on("close", (code) => resolve({ name, pid: child.pid, code, out }));
-    });
-  const runs = await Promise.all([start("one"), start("two")]);
+  const port = await freePort();
+  const runs = await Promise.all([startHolder("one", port, 2_500).closed, startHolder("two", port, 2_500).closed]);
   for (const run of runs) assert.equal(run.code, 0, run.out);
   const at = (run, word) => Number(new RegExp(`${word} ${run.name} (\\d+)`).exec(run.out)?.[1]);
   const [first, second] = [...runs].sort((a, b) => at(a, "ACQUIRED") - at(b, "ACQUIRED"));
   assert.ok(at(second, "ACQUIRED") >= at(first, "RELEASED"), `overlap:\n${first.out}\n${second.out}`);
-  assert.match(second.out, new RegExp(`LOG waiting for Android device emulator-5554: held by pid ${first.pid}, session ${first.name}, worktree /w/${first.name}, running \`screenshot ${first.name}\`, since \\S+; waiting up to 60 s`));
+  assert.match(second.out, new RegExp(`LOG waiting for Android device emulator-5554: held by pid ${first.pid}, device emulator-5554, session ${first.name}, worktree /w/${first.name}, running \`screenshot ${first.name}\`, since \\S+; waiting up to 60 s`));
   assert.doesNotMatch(first.out, /waiting for Android device/);
 });
 

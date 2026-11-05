@@ -1706,7 +1706,7 @@ async function verify(args, deps = liveDeps) {
   if (projectPath && !fs.existsSync(path.resolve(projectPath))) deps.die(`--project ${projectPath} does not exist`);
 
   return deps.withEditor(
-    async ({ page, ctx, url, consoleLines, mode, cleanups = [] }) => {
+    async ({ page, ctx, url, consoleLines, mode, cleanups = [], device = null }) => {
       const result = { url, ...(hasDisplayFlags(DISPLAY) ? { display: displayReport(DISPLAY) } : {}) };
       let monitoredWorker;
       if (mode === "cross-origin") {
@@ -1727,6 +1727,7 @@ async function verify(args, deps = liveDeps) {
         process.exitCode = 1;
         return result;
       }
+      if (device) result.device = await deviceReport(page, device);
       if (args.includes("--fresh-sw")) {
         const worker = await deps.reportFreshWorker(page, ctx, reloadEditorPage);
         monitoredWorker = worker;
@@ -1903,7 +1904,10 @@ async function verify(args, deps = liveDeps) {
         if (!(await deps.editorPainted(page, paintBudget))) {
           result.editorPaintWarning = `the script editor had not painted its lines and gutter within ${seconds(paintBudget)} of the screenshot; the editor half of the picture may be blank`;
         }
-        await page.screenshot({ path: out, fullPage: false });
+        if (device) {
+          await device.screenshot(out);
+          result.screenshotOf = "screen";
+        } else await page.screenshot({ path: out, fullPage: false });
         result.screenshot = out;
       }
 
@@ -3013,6 +3017,14 @@ async function screenshot(args, deps = liveDeps) {
   return ui([...parsed.steps.flatMap((step) => ["--step", step]), "--shot", parsed.out, ...(parsed.headed ? ["--headed"] : [])], deps);
 }
 
+async function deviceReport(page, device, display = DISPLAY) {
+  const report = { ...device.report(), page: await page.evaluate(() => ({ width: innerWidth, height: innerHeight, devicePixelRatio })) };
+  if (display.viewport && Math.abs(report.page.width - display.viewport.width) > 1) {
+    report.note = `--viewport ${display.viewport.name} asked for a page ${display.viewport.width} wide and the device's density gives ${report.page.width}`;
+  }
+  return report;
+}
+
 async function deviceGesture(page, device, step, wait) {
   const before = await page.evaluate(() => ({ width: innerWidth, height: innerHeight })).catch(() => null);
   let out;
@@ -3073,12 +3085,7 @@ async function ui(args, deps = liveDeps) {
         process.exitCode = 1;
         return result;
       }
-      if (device) {
-        result.device = { ...device.report(), page: await page.evaluate(() => ({ width: innerWidth, height: innerHeight, devicePixelRatio })) };
-        if (DISPLAY.viewport && Math.abs(result.device.page.width - DISPLAY.viewport.width) > 1) {
-          result.device.note = `--viewport ${DISPLAY.viewport.name} asked for a page ${DISPLAY.viewport.width} wide and the device's density gives ${result.device.page.width}`;
-        }
-      }
+      if (device) result.device = await deviceReport(page, device);
       result.startedOn = await deps.activeScreen(page);
       let gate = (await deps.interruptedSeed(page)) ? interruptedSeedError() : null;
       const expectedAtStart = await deps.editorExpectedHere(page);
