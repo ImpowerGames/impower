@@ -259,7 +259,6 @@ await check("every step not built yet runs through ui as a failure naming the ti
     "file-menu": ["open a file row's menu", 1009],
     "asset-inspector": ["open the asset inspector", 1028],
     "add-menu": ["open the Add menu", 1013],
-    "preview-settings": ["open the preview's settings menu", 1020],
     problems: ["open the Problems panel", 1022],
     "settings=appearance": ["open Settings and a named section", 1015],
     "focus-script-name": ["focus the script name", 999],
@@ -276,8 +275,8 @@ await check("every step not built yet runs through ui as a failure naming the ti
     assert.equal(process.exitCode, 1, spec);
     process.exitCode = 0;
   }
-  assert.deepEqual(Object.keys(NAMED_STEPS).filter((name) => !Object.keys(expected).some((spec) => spec.split("=")[0] === name)), ["drawer", "play", "focus-project-name"]);
-  for (const name of ["drawer", "play", "focus-project-name"]) assert.equal(notBuiltYet(parseNamedStep(name)), null, name);
+  assert.deepEqual(Object.keys(NAMED_STEPS).filter((name) => !Object.keys(expected).some((spec) => spec.split("=")[0] === name)), ["drawer", "preview-settings", "play", "focus-project-name"]);
+  for (const name of ["drawer", "preview-settings", "play", "focus-project-name"]) assert.equal(notBuiltYet(parseNamedStep(name)), null, name);
 });
 
 await check("on a device, ui reports the device, sends gestures through it and takes --shot as the whole screen", async () => {
