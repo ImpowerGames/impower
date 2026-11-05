@@ -1,0 +1,14 @@
+scene start
+  choose
+    * if allowed( First
+    * if allowed[], First
+    * if not t:open( Third
+    + (lbl) if t.check( Fourth -> start
+    * if you're sure
+    * if has_key (aside) Take it
+    * if a or b Then
+    * if you dare, jump
+    * if allowed () First
+    * Fallback
+  end
+end

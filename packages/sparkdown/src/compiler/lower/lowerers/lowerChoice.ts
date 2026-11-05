@@ -12,6 +12,7 @@ import {
 import { ContentList } from "../../../inkjs/compiler/Parser/ParsedHierarchy/ContentList";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
+import { NumberExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NumberExpression";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
@@ -36,6 +37,9 @@ import { lowerTagContent } from "../utils/lowerTagContent";
 import { recordAlternatorSource } from "../utils/statementShape";
 import { statementSource } from "../utils/statementSource";
 import { wrapInWeave } from "../utils/wrapInWeave";
+
+const UNREADABLE_CHOICE_CONDITION_MESSAGE =
+  "This choice's condition could not be read, so the choice is never offered. Close its brackets, or write a condition such as `* if allowed() Text`.";
 
 function isInsideChoose(node: SyntaxNode): boolean {
   let cur: SyntaxNode | null = node.parent;
@@ -151,7 +155,13 @@ export function lowerChoice(
     choice.identifier = identifier;
   }
 
-  const condition = collectChoiceCondition(nodeRef.node, ctx);
+  const unreadableCall = getDescendent(
+    "ChoiceUnreadableConditionCall",
+    nodeRef.node,
+  );
+  const condition = unreadableCall
+    ? new NumberExpression(false, "bool")
+    : collectChoiceCondition(nodeRef.node, ctx);
   if (condition) {
     choice.condition = condition;
   }
@@ -172,6 +182,13 @@ export function lowerChoice(
       source: statementSource(nodeRef.node, ctx),
     });
   }
+  if (unreadableCall) {
+    diagnostics.push({
+      message: UNREADABLE_CHOICE_CONDITION_MESSAGE,
+      severity: ErrorType.Error,
+      source: statementSource(unreadableCall, ctx),
+    });
+  }
   const onlyHasAutoNewline =
     innerContent.content.length === 1 &&
     innerContent.content[0] instanceof Text &&
@@ -180,7 +197,7 @@ export function lowerChoice(
     startContent.content.length === 0 &&
     choiceOnlyContent.content.length === 0 &&
     (innerContent.content.length === 0 || onlyHasAutoNewline);
-  if (allContentEmpty && !divertNode) {
+  if (allContentEmpty && !divertNode && !unreadableCall) {
     diagnostics.push({
       message:
         "Choice is completely empty. Interpreting as a default fallback choice. Add a divert arrow to remove this warning: * ->",
@@ -191,7 +208,8 @@ export function lowerChoice(
   if (
     startContent.content.length === 0 &&
     hasWeaveStyleInlineBrackets &&
-    choiceOnlyContent.content.length === 0
+    choiceOnlyContent.content.length === 0 &&
+    !unreadableCall
   ) {
     diagnostics.push({
       message:

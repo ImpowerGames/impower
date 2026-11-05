@@ -1,0 +1,435 @@
+sparkdown [0..288]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ LuauSparkdownChooseBlock [12..283]
+ │   ├─ LuauSparkdownChooseBlock_begin [12..20]
+ │   │   ├─ LuauSparkdownChooseBlock_begin_c1 [12..14]
+ │   │   │   └─ OptionalWhitespace [12..14]: "  "
+ │   │   ├─ LuauSparkdownChooseBlock_begin_c2 [14..20]
+ │   │   │   └─ LuauChooseKeyword [14..20]: "choose"
+ │   │   └─ LuauSparkdownChooseBlock_begin_c3 20
+ │   │       └─ LuauSparkdownChooseBlock_begin_c3 20
+ │   │           └─ OptionalWhitespace 20
+ │   ├─ LuauSparkdownChooseBlock_content [20..278]
+ │   │   ├─ Newline [20..21]: "\n"
+ │   │   ├─ Choice [21..44]
+ │   │   │   ├─ Choice_begin [21..27]
+ │   │   │   │   ├─ Choice_begin_c1 [21..25]
+ │   │   │   │   │   └─ OptionalWhitespace [21..25]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [25..27]
+ │   │   │   │   │   └─ ChoiceMark [25..27]: "* "
+ │   │   │   │   ├─ Choice_begin_c3 27
+ │   │   │   │   ├─ Choice_begin_c4 27
+ │   │   │   │   ├─ Choice_begin_c5 27
+ │   │   │   │   ├─ Choice_begin_c6 27
+ │   │   │   │   └─ Choice_begin_c7 27
+ │   │   │   ├─ Choice_content [27..44]
+ │   │   │   │   ├─ ChoiceUnreadableCondition [27..38]
+ │   │   │   │   │   ├─ ChoiceUnreadableCondition_c1 [27..29]
+ │   │   │   │   │   │   └─ LuauIfKeyword [27..29]: "if"
+ │   │   │   │   │   ├─ ChoiceUnreadableCondition_c2 [29..30]
+ │   │   │   │   │   │   └─ OptionalWhitespace [29..30]: " "
+ │   │   │   │   │   ├─ ChoiceUnreadableCondition_c3 30
+ │   │   │   │   │   ├─ ChoiceUnreadableCondition_c4 30
+ │   │   │   │   │   └─ ChoiceUnreadableCondition_c5 [30..38]
+ │   │   │   │   │       └─ ChoiceUnreadableConditionCall [30..38]: "allowed("
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [38..44]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [38..44]
+ │   │   │   │       │   └─ ChoicePlainText [38..44]
+ │   │   │   │       │       └─ ChoiceTextContent [38..44]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [38..44]
+ │   │   │   │       │               ├─ Space [38..39]: " "
+ │   │   │   │       │               └─ Word [39..44]: "First"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 44
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 44
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 44
+ │   │   │   └─ Choice_end 44
+ │   │   ├─ Newline [44..45]: "\n"
+ │   │   ├─ Choice [45..70]
+ │   │   │   ├─ Choice_begin [45..51]
+ │   │   │   │   ├─ Choice_begin_c1 [45..49]
+ │   │   │   │   │   └─ OptionalWhitespace [45..49]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [49..51]
+ │   │   │   │   │   └─ ChoiceMark [49..51]: "* "
+ │   │   │   │   ├─ Choice_begin_c3 51
+ │   │   │   │   ├─ Choice_begin_c4 51
+ │   │   │   │   ├─ Choice_begin_c5 51
+ │   │   │   │   ├─ Choice_begin_c6 51
+ │   │   │   │   └─ Choice_begin_c7 51
+ │   │   │   ├─ Choice_content [51..70]
+ │   │   │   │   ├─ ChoiceUnreadableCondition [51..62]
+ │   │   │   │   │   ├─ ChoiceUnreadableCondition_c1 [51..53]
+ │   │   │   │   │   │   └─ LuauIfKeyword [51..53]: "if"
+ │   │   │   │   │   ├─ ChoiceUnreadableCondition_c2 [53..54]
+ │   │   │   │   │   │   └─ OptionalWhitespace [53..54]: " "
+ │   │   │   │   │   ├─ ChoiceUnreadableCondition_c3 54
+ │   │   │   │   │   ├─ ChoiceUnreadableCondition_c4 54
+ │   │   │   │   │   └─ ChoiceUnreadableCondition_c5 [54..62]
+ │   │   │   │   │       └─ ChoiceUnreadableConditionCall [54..62]: "allowed["
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [62..70]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [62..70]
+ │   │   │   │       │   └─ ChoicePlainText [62..70]
+ │   │   │   │       │       └─ ChoiceTextContent [62..70]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [62..70]
+ │   │   │   │       │               ├─ Punctuation [62..63]: "]"
+ │   │   │   │       │               ├─ Punctuation [63..64]: ","
+ │   │   │   │       │               ├─ Space [64..65]: " "
+ │   │   │   │       │               └─ Word [65..70]: "First"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 70
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 70
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 70
+ │   │   │   └─ Choice_end 70
+ │   │   ├─ Newline [70..71]: "\n"
+ │   │   ├─ Choice [71..97]
+ │   │   │   ├─ Choice_begin [71..77]
+ │   │   │   │   ├─ Choice_begin_c1 [71..75]
+ │   │   │   │   │   └─ OptionalWhitespace [71..75]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [75..77]
+ │   │   │   │   │   └─ ChoiceMark [75..77]: "* "
+ │   │   │   │   ├─ Choice_begin_c3 77
+ │   │   │   │   ├─ Choice_begin_c4 77
+ │   │   │   │   ├─ Choice_begin_c5 77
+ │   │   │   │   ├─ Choice_begin_c6 77
+ │   │   │   │   └─ Choice_begin_c7 77
+ │   │   │   ├─ Choice_content [77..97]
+ │   │   │   │   ├─ ChoiceUnreadableCondition [77..91]
+ │   │   │   │   │   ├─ ChoiceUnreadableCondition_c1 [77..79]
+ │   │   │   │   │   │   └─ LuauIfKeyword [77..79]: "if"
+ │   │   │   │   │   ├─ ChoiceUnreadableCondition_c2 [79..80]
+ │   │   │   │   │   │   └─ OptionalWhitespace [79..80]: " "
+ │   │   │   │   │   ├─ ChoiceUnreadableCondition_c3 [80..83]
+ │   │   │   │   │   │   └─ LuauInvalidStatementLogicalKeyword [80..83]: "not"
+ │   │   │   │   │   ├─ ChoiceUnreadableCondition_c4 [83..84]
+ │   │   │   │   │   │   └─ OptionalWhitespace [83..84]: " "
+ │   │   │   │   │   └─ ChoiceUnreadableCondition_c5 [84..91]
+ │   │   │   │   │       └─ ChoiceUnreadableConditionCall [84..91]: "t:open("
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [91..97]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [91..97]
+ │   │   │   │       │   └─ ChoicePlainText [91..97]
+ │   │   │   │       │       └─ ChoiceTextContent [91..97]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [91..97]
+ │   │   │   │       │               ├─ Space [91..92]: " "
+ │   │   │   │       │               └─ Word [92..97]: "Third"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 97
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 97
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 97
+ │   │   │   └─ Choice_end 97
+ │   │   ├─ Newline [97..98]: "\n"
+ │   │   ├─ Choice [98..137]
+ │   │   │   ├─ Choice_begin [98..110]
+ │   │   │   │   ├─ Choice_begin_c1 [98..102]
+ │   │   │   │   │   └─ OptionalWhitespace [98..102]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [102..104]
+ │   │   │   │   │   └─ ChoiceMark [102..104]: "+ "
+ │   │   │   │   ├─ Choice_begin_c3 [104..110]
+ │   │   │   │   │   └─ Label [104..110]
+ │   │   │   │   │       ├─ Label_c1 [104..105]
+ │   │   │   │   │       │   └─ LabelBeginMark [104..105]: "("
+ │   │   │   │   │       ├─ Label_c2 105
+ │   │   │   │   │       ├─ Label_c3 [105..108]
+ │   │   │   │   │       │   └─ LabelDeclarationName [105..108]: "lbl"
+ │   │   │   │   │       ├─ Label_c4 108
+ │   │   │   │   │       ├─ Label_c5 [108..109]
+ │   │   │   │   │       │   └─ LabelEndMark [108..109]: ")"
+ │   │   │   │   │       └─ Label_c6 [109..110]
+ │   │   │   │   │           └─ Label_c6 [109..110]
+ │   │   │   │   │               └─ OptionalWhitespace [109..110]: " "
+ │   │   │   │   ├─ Choice_begin_c4 110
+ │   │   │   │   ├─ Choice_begin_c5 110
+ │   │   │   │   ├─ Choice_begin_c6 110
+ │   │   │   │   └─ Choice_begin_c7 110
+ │   │   │   ├─ Choice_content [110..137]
+ │   │   │   │   ├─ ChoiceUnreadableCondition [110..121]
+ │   │   │   │   │   ├─ ChoiceUnreadableCondition_c1 [110..112]
+ │   │   │   │   │   │   └─ LuauIfKeyword [110..112]: "if"
+ │   │   │   │   │   ├─ ChoiceUnreadableCondition_c2 [112..113]
+ │   │   │   │   │   │   └─ OptionalWhitespace [112..113]: " "
+ │   │   │   │   │   ├─ ChoiceUnreadableCondition_c3 113
+ │   │   │   │   │   ├─ ChoiceUnreadableCondition_c4 113
+ │   │   │   │   │   └─ ChoiceUnreadableCondition_c5 [113..121]
+ │   │   │   │   │       └─ ChoiceUnreadableConditionCall [113..121]: "t.check("
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [121..137]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [121..128]
+ │   │   │   │       │   └─ ChoicePlainText [121..128]
+ │   │   │   │       │       └─ ChoiceTextContent [121..128]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [121..128]
+ │   │   │   │       │               ├─ Space [121..122]: " "
+ │   │   │   │       │               └─ Word [122..128]: "Fourth"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 128
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 [128..129]
+ │   │   │   │       │   └─ RequiredWhitespace [128..129]: " "
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 [129..137]
+ │   │   │   │           └─ Divert [129..137]
+ │   │   │   │               ├─ Divert_begin [129..131]
+ │   │   │   │               │   ├─ Divert_begin_c1 129
+ │   │   │   │               │   │   └─ OptionalWhitespace 129
+ │   │   │   │               │   └─ Divert_begin_c2 [129..131]
+ │   │   │   │               │       └─ DivertMark [129..131]: "->"
+ │   │   │   │               ├─ Divert_content [131..137]
+ │   │   │   │               │   └─ DivertTarget [131..137]
+ │   │   │   │               │       ├─ DivertTarget_begin [131..132]
+ │   │   │   │               │       │   └─ DivertTarget_begin_c1 [131..132]
+ │   │   │   │               │       │       └─ DivertTarget_begin_c1 [131..132]
+ │   │   │   │               │       │           └─ OptionalWhitespace [131..132]: " "
+ │   │   │   │               │       ├─ DivertTarget_content [132..137]
+ │   │   │   │               │       │   └─ DivertPath [132..137]
+ │   │   │   │               │       │       ├─ DivertPath_begin 132
+ │   │   │   │               │       │       ├─ DivertPath_content [132..137]
+ │   │   │   │               │       │       │   └─ DivertPart [132..137]
+ │   │   │   │               │       │       │       └─ DivertPartName [132..137]: "start"
+ │   │   │   │               │       │       └─ DivertPath_end 137
+ │   │   │   │               │       └─ DivertTarget_end 137
+ │   │   │   │               └─ Divert_end 137
+ │   │   │   └─ Choice_end 137
+ │   │   ├─ Newline [137..138]: "\n"
+ │   │   ├─ Choice [138..158]
+ │   │   │   ├─ Choice_begin [138..144]
+ │   │   │   │   ├─ Choice_begin_c1 [138..142]
+ │   │   │   │   │   └─ OptionalWhitespace [138..142]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [142..144]
+ │   │   │   │   │   └─ ChoiceMark [142..144]: "* "
+ │   │   │   │   ├─ Choice_begin_c3 144
+ │   │   │   │   ├─ Choice_begin_c4 144
+ │   │   │   │   ├─ Choice_begin_c5 144
+ │   │   │   │   ├─ Choice_begin_c6 144
+ │   │   │   │   └─ Choice_begin_c7 144
+ │   │   │   ├─ Choice_content [144..158]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [144..158]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [144..158]
+ │   │   │   │       │   └─ ChoicePlainText [144..158]
+ │   │   │   │       │       └─ ChoiceTextContent [144..158]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [144..158]
+ │   │   │   │       │               ├─ Word [144..146]: "if"
+ │   │   │   │       │               ├─ Space [146..147]: " "
+ │   │   │   │       │               ├─ Word [147..150]: "you"
+ │   │   │   │       │               ├─ Punctuation [150..151]: "'"
+ │   │   │   │       │               ├─ Word [151..153]: "re"
+ │   │   │   │       │               ├─ Space [153..154]: " "
+ │   │   │   │       │               └─ Word [154..158]: "sure"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 158
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 158
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 158
+ │   │   │   └─ Choice_end 158
+ │   │   ├─ Newline [158..159]: "\n"
+ │   │   ├─ Choice [159..191]
+ │   │   │   ├─ Choice_begin [159..175]
+ │   │   │   │   ├─ Choice_begin_c1 [159..163]
+ │   │   │   │   │   └─ OptionalWhitespace [159..163]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [163..165]
+ │   │   │   │   │   └─ ChoiceMark [163..165]: "* "
+ │   │   │   │   ├─ Choice_begin_c3 165
+ │   │   │   │   ├─ Choice_begin_c4 [165..167]
+ │   │   │   │   │   └─ LuauIfKeyword [165..167]: "if"
+ │   │   │   │   ├─ Choice_begin_c5 [167..168]
+ │   │   │   │   │   └─ Choice_begin_c5 [167..168]
+ │   │   │   │   │       └─ OptionalWhitespace [167..168]: " "
+ │   │   │   │   ├─ Choice_begin_c6 [168..175]
+ │   │   │   │   │   └─ ChoiceCondition [168..175]
+ │   │   │   │   │       ├─ ChoiceCondition_begin 168
+ │   │   │   │   │       ├─ ChoiceCondition_content [168..175]
+ │   │   │   │   │       │   └─ LuauAccessPath [168..175]
+ │   │   │   │   │       │       ├─ LuauAccessPath_begin 168
+ │   │   │   │   │       │       ├─ LuauAccessPath_content [168..175]
+ │   │   │   │   │       │       │   └─ LuauAccessPart [168..175]
+ │   │   │   │   │       │       │       └─ LuauVariable [168..175]
+ │   │   │   │   │       │       │           └─ LuauVariable_c1 [168..175]
+ │   │   │   │   │       │       │               └─ LuauVariableName [168..175]: "has_key"
+ │   │   │   │   │       │       └─ LuauAccessPath_end 175
+ │   │   │   │   │       │           └─ LuauAccessPath_end_c1 175
+ │   │   │   │   │       └─ ChoiceCondition_end 175
+ │   │   │   │   └─ Choice_begin_c7 175
+ │   │   │   ├─ Choice_content [175..191]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [175..191]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [175..191]
+ │   │   │   │       │   └─ ChoicePlainText [175..191]
+ │   │   │   │       │       └─ ChoiceTextContent [175..191]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [175..191]
+ │   │   │   │       │               ├─ Space [175..176]: " "
+ │   │   │   │       │               ├─ Punctuation [176..177]: "("
+ │   │   │   │       │               ├─ Word [177..182]: "aside"
+ │   │   │   │       │               ├─ Punctuation [182..183]: ")"
+ │   │   │   │       │               ├─ Space [183..184]: " "
+ │   │   │   │       │               ├─ Word [184..188]: "Take"
+ │   │   │   │       │               ├─ Space [188..189]: " "
+ │   │   │   │       │               └─ Word [189..191]: "it"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 191
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 191
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 191
+ │   │   │   └─ Choice_end 191
+ │   │   ├─ Newline [191..192]: "\n"
+ │   │   ├─ Choice [192..212]
+ │   │   │   ├─ Choice_begin [192..202]
+ │   │   │   │   ├─ Choice_begin_c1 [192..196]
+ │   │   │   │   │   └─ OptionalWhitespace [192..196]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [196..198]
+ │   │   │   │   │   └─ ChoiceMark [196..198]: "* "
+ │   │   │   │   ├─ Choice_begin_c3 198
+ │   │   │   │   ├─ Choice_begin_c4 [198..200]
+ │   │   │   │   │   └─ LuauIfKeyword [198..200]: "if"
+ │   │   │   │   ├─ Choice_begin_c5 [200..201]
+ │   │   │   │   │   └─ Choice_begin_c5 [200..201]
+ │   │   │   │   │       └─ OptionalWhitespace [200..201]: " "
+ │   │   │   │   ├─ Choice_begin_c6 [201..202]
+ │   │   │   │   │   └─ ChoiceCondition [201..202]
+ │   │   │   │   │       ├─ ChoiceCondition_begin 201
+ │   │   │   │   │       ├─ ChoiceCondition_content [201..202]
+ │   │   │   │   │       │   └─ LuauAccessPath [201..202]
+ │   │   │   │   │       │       ├─ LuauAccessPath_begin 201
+ │   │   │   │   │       │       ├─ LuauAccessPath_content [201..202]
+ │   │   │   │   │       │       │   └─ LuauAccessPart [201..202]
+ │   │   │   │   │       │       │       └─ LuauVariable [201..202]
+ │   │   │   │   │       │       │           └─ LuauVariable_c1 [201..202]
+ │   │   │   │   │       │       │               └─ LuauVariableName [201..202]: "a"
+ │   │   │   │   │       │       └─ LuauAccessPath_end 202
+ │   │   │   │   │       │           └─ LuauAccessPath_end_c1 202
+ │   │   │   │   │       └─ ChoiceCondition_end 202
+ │   │   │   │   └─ Choice_begin_c7 202
+ │   │   │   ├─ Choice_content [202..212]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [202..212]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [202..212]
+ │   │   │   │       │   └─ ChoicePlainText [202..212]
+ │   │   │   │       │       └─ ChoiceTextContent [202..212]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [202..212]
+ │   │   │   │       │               ├─ Space [202..203]: " "
+ │   │   │   │       │               ├─ Word [203..205]: "or"
+ │   │   │   │       │               ├─ Space [205..206]: " "
+ │   │   │   │       │               ├─ Word [206..207]: "b"
+ │   │   │   │       │               ├─ Space [207..208]: " "
+ │   │   │   │       │               └─ Word [208..212]: "Then"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 212
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 212
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 212
+ │   │   │   └─ Choice_end 212
+ │   │   ├─ Newline [212..213]: "\n"
+ │   │   ├─ Choice [213..236]
+ │   │   │   ├─ Choice_begin [213..225]
+ │   │   │   │   ├─ Choice_begin_c1 [213..217]
+ │   │   │   │   │   └─ OptionalWhitespace [213..217]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [217..219]
+ │   │   │   │   │   └─ ChoiceMark [217..219]: "* "
+ │   │   │   │   ├─ Choice_begin_c3 219
+ │   │   │   │   ├─ Choice_begin_c4 [219..221]
+ │   │   │   │   │   └─ LuauIfKeyword [219..221]: "if"
+ │   │   │   │   ├─ Choice_begin_c5 [221..222]
+ │   │   │   │   │   └─ Choice_begin_c5 [221..222]
+ │   │   │   │   │       └─ OptionalWhitespace [221..222]: " "
+ │   │   │   │   ├─ Choice_begin_c6 [222..225]
+ │   │   │   │   │   └─ ChoiceCondition [222..225]
+ │   │   │   │   │       ├─ ChoiceCondition_begin 222
+ │   │   │   │   │       ├─ ChoiceCondition_content [222..225]
+ │   │   │   │   │       │   └─ LuauAccessPath [222..225]
+ │   │   │   │   │       │       ├─ LuauAccessPath_begin 222
+ │   │   │   │   │       │       ├─ LuauAccessPath_content [222..225]
+ │   │   │   │   │       │       │   └─ LuauAccessPart [222..225]
+ │   │   │   │   │       │       │       └─ LuauVariable [222..225]
+ │   │   │   │   │       │       │           └─ LuauVariable_c1 [222..225]
+ │   │   │   │   │       │       │               └─ LuauVariableName [222..225]: "you"
+ │   │   │   │   │       │       └─ LuauAccessPath_end 225
+ │   │   │   │   │       │           └─ LuauAccessPath_end_c1 225
+ │   │   │   │   │       └─ ChoiceCondition_end 225
+ │   │   │   │   └─ Choice_begin_c7 225
+ │   │   │   ├─ Choice_content [225..236]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [225..236]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [225..236]
+ │   │   │   │       │   └─ ChoicePlainText [225..236]
+ │   │   │   │       │       └─ ChoiceTextContent [225..236]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [225..236]
+ │   │   │   │       │               ├─ Space [225..226]: " "
+ │   │   │   │       │               ├─ Word [226..230]: "dare"
+ │   │   │   │       │               ├─ Punctuation [230..231]: ","
+ │   │   │   │       │               ├─ Space [231..232]: " "
+ │   │   │   │       │               └─ Word [232..236]: "jump"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 236
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 236
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 236
+ │   │   │   └─ Choice_end 236
+ │   │   ├─ Newline [236..237]: "\n"
+ │   │   ├─ Choice [237..262]
+ │   │   │   ├─ Choice_begin [237..253]
+ │   │   │   │   ├─ Choice_begin_c1 [237..241]
+ │   │   │   │   │   └─ OptionalWhitespace [237..241]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [241..243]
+ │   │   │   │   │   └─ ChoiceMark [241..243]: "* "
+ │   │   │   │   ├─ Choice_begin_c3 243
+ │   │   │   │   ├─ Choice_begin_c4 [243..245]
+ │   │   │   │   │   └─ LuauIfKeyword [243..245]: "if"
+ │   │   │   │   ├─ Choice_begin_c5 [245..246]
+ │   │   │   │   │   └─ Choice_begin_c5 [245..246]
+ │   │   │   │   │       └─ OptionalWhitespace [245..246]: " "
+ │   │   │   │   ├─ Choice_begin_c6 [246..253]
+ │   │   │   │   │   └─ ChoiceCondition [246..253]
+ │   │   │   │   │       ├─ ChoiceCondition_begin 246
+ │   │   │   │   │       ├─ ChoiceCondition_content [246..253]
+ │   │   │   │   │       │   └─ LuauAccessPath [246..253]
+ │   │   │   │   │       │       ├─ LuauAccessPath_begin 246
+ │   │   │   │   │       │       ├─ LuauAccessPath_content [246..253]
+ │   │   │   │   │       │       │   └─ LuauAccessPart [246..253]
+ │   │   │   │   │       │       │       └─ LuauVariable [246..253]
+ │   │   │   │   │       │       │           └─ LuauVariable_c1 [246..253]
+ │   │   │   │   │       │       │               └─ LuauVariableName [246..253]: "allowed"
+ │   │   │   │   │       │       └─ LuauAccessPath_end 253
+ │   │   │   │   │       │           └─ LuauAccessPath_end_c1 253
+ │   │   │   │   │       └─ ChoiceCondition_end 253
+ │   │   │   │   └─ Choice_begin_c7 253
+ │   │   │   ├─ Choice_content [253..262]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [253..262]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [253..262]
+ │   │   │   │       │   └─ ChoicePlainText [253..262]
+ │   │   │   │       │       └─ ChoiceTextContent [253..262]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [253..262]
+ │   │   │   │       │               ├─ Space [253..254]: " "
+ │   │   │   │       │               ├─ Punctuation [254..255]: "("
+ │   │   │   │       │               ├─ Punctuation [255..256]: ")"
+ │   │   │   │       │               ├─ Space [256..257]: " "
+ │   │   │   │       │               └─ Word [257..262]: "First"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 262
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 262
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 262
+ │   │   │   └─ Choice_end 262
+ │   │   ├─ Newline [262..263]: "\n"
+ │   │   ├─ Choice [263..277]
+ │   │   │   ├─ Choice_begin [263..269]
+ │   │   │   │   ├─ Choice_begin_c1 [263..267]
+ │   │   │   │   │   └─ OptionalWhitespace [263..267]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [267..269]
+ │   │   │   │   │   └─ ChoiceMark [267..269]: "* "
+ │   │   │   │   ├─ Choice_begin_c3 269
+ │   │   │   │   ├─ Choice_begin_c4 269
+ │   │   │   │   ├─ Choice_begin_c5 269
+ │   │   │   │   ├─ Choice_begin_c6 269
+ │   │   │   │   └─ Choice_begin_c7 269
+ │   │   │   ├─ Choice_content [269..277]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [269..277]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [269..277]
+ │   │   │   │       │   └─ ChoicePlainText [269..277]
+ │   │   │   │       │       └─ ChoiceTextContent [269..277]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [269..277]
+ │   │   │   │       │               └─ Word [269..277]: "Fallback"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 277
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 277
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 277
+ │   │   │   └─ Choice_end 277
+ │   │   └─ Newline [277..278]: "\n"
+ │   └─ LuauSparkdownChooseBlock_end [278..283]
+ │       ├─ LuauSparkdownChooseBlock_end_c1 [278..280]
+ │       │   └─ LuauSparkdownChooseBlock_end_c1 [278..280]
+ │       │       └─ OptionalWhitespace [278..280]: "  "
+ │       ├─ LuauSparkdownChooseBlock_end_c2 [280..283]
+ │       │   └─ LuauEndKeyword [280..283]: "end"
+ │       └─ LuauSparkdownChooseBlock_end_c3 283
+ ├─ Newline [283..284]: "\n"
+ ├─ LuauEndKeyword [284..287]: "end"
+ └─ Newline [287..288]: "\n"

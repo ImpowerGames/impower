@@ -1479,12 +1479,36 @@ repository:
           - { include: "#Newline" }
 
     patterns:
+      - { include: "#ChoiceUnreadableCondition" }
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#ChoiceConditional" }
       - { include: "#ChoiceWithSuppressedText" }
       - { include: "#ChoiceWithNoSuppressedText" }
     end: (?=$)
+
+  ChoiceUnreadableCondition:
+    match: \G(if)\b({{WS}}+)(?:(not)\b({{WS}}+))?({{LUAU_IDENTIFIER}}(?:[.:]{{LUAU_IDENTIFIER}})*[(\[])
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauIfKeyword" }
+      2:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      3:
+        patterns:
+          - { include: "#LuauInvalidStatementLogicalKeyword" }
+      4:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      5:
+        patterns:
+          - { include: "#ChoiceUnreadableConditionCall" }
+
+  ChoiceUnreadableConditionCall:
+    tag: invalid
+    name: invalid.illegal.choice-condition.sd
 
   # lookaround: no rival; `Choice` gives this rule its condition capture, and
   # the rule opens before `LuauExpression` reads the first token so the whole
