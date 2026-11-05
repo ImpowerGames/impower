@@ -1,6 +1,8 @@
 import { computed, signal, type ReadonlySignal } from "@preact/signals";
 import type { WorkspaceCache } from "@impower/spark-editor-protocol/src/types";
 import type { AccountInfo } from "./types/AccountInfo";
+import type { ScriptListing } from "./scriptsListing";
+import type { Reference } from "../utils/fileListModel";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 
 const defaults: WorkspaceCache = {
@@ -102,6 +104,10 @@ class WorkspaceStore {
   );
 
   readonly trashOpen = signal<boolean>(false);
+
+  readonly scriptListing = signal<ScriptListing | null>(null);
+
+  readonly scriptReferences = signal<readonly Reference[]>([]);
 
   readonly animatePortraits = signal<boolean>(true);
 

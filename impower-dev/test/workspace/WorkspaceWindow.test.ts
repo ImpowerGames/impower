@@ -444,9 +444,36 @@ describe("WorkspaceWindow store transitions", () => {
       expect(window.location.hash).toBe("#collection");
       win.openPane("share");
       expect(window.location.hash).toBe("#share");
-      win.openPanel("logic", "scripts");
+      win.openView("logic", "scripts");
       win.openPane("logic");
       expect(window.location.hash).toBe("#scripts");
+    });
+
+    it("opens a script from the Scripts page on write, and Main as the main editor", () => {
+      win.navigateTo("scripts");
+      win.openScript("Scripts/intro.sd");
+      expect(window.location.hash).toBe("#write");
+      const logic = workspace.current.panes.logic;
+      expect(logic.view).toBe("logic-editor");
+      expect(logic.panel).toBe("scripts");
+      expect(logic.panels.scripts?.activeEditor).toMatchObject({
+        open: true,
+        filename: "Scripts/intro.sd",
+      });
+      win.navigateTo("scripts");
+      win.openScript("main.sd");
+      expect(window.location.hash).toBe("#write");
+      expect(workspace.current.panes.logic.view).toBe("list");
+      expect(workspace.current.panes.logic.panel).toBe("main");
+    });
+
+    it("keeps the Scripts page's sort and folder in the project's state", () => {
+      win.setListState({ scriptsSort: "modified-desc" });
+      win.setListState({ scriptsFolder: "Scripts/Drafts" });
+      expect(workspace.current.lists).toEqual({
+        scriptsSort: "modified-desc",
+        scriptsFolder: "Scripts/Drafts",
+      });
     });
 
     it("navigates by pushing a history entry, and follows the hash back", async () => {

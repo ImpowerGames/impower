@@ -134,6 +134,11 @@ export interface ScreenState {
   appMenuOpen?: boolean;
 }
 
+export interface ListsState {
+  scriptsSort?: string;
+  scriptsFolder?: string;
+}
+
 export interface ShellState {
   railWidth?: number;
 }
@@ -153,6 +158,7 @@ export interface DebugState {
 export interface WorkspaceCache extends PanesState<PaneType> {
   project: ProjectState;
   shell?: ShellState;
+  lists?: ListsState;
   screen: ScreenState;
   sync: SyncState;
   debug: DebugState;

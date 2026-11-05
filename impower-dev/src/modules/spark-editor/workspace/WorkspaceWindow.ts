@@ -52,6 +52,7 @@ import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/pro
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import {
   EditorState,
+  ListsState,
   PaneType,
   PanelType,
   PreviewMode,
@@ -187,6 +188,23 @@ export default class WorkspaceWindow {
       window.history.pushState(window.history.state, "", hash);
     }
     transitionRoute(() => this.openRoute(route));
+  }
+
+  setListState(lists: Partial<ListsState>) {
+    this.update({
+      ...this.store,
+      lists: { ...this.store.lists, ...lists },
+    });
+  }
+
+  openScript(filename: string) {
+    const panel = this.getPanelType(filename);
+    if (!panel) {
+      return;
+    }
+    this.openPanel("logic", panel);
+    this.openFileEditor(filename);
+    this.navigateTo("write");
   }
 
   closeSettings() {

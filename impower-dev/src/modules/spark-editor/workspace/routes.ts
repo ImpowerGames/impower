@@ -36,16 +36,14 @@ export const routeOfState = (state: WorkspaceCache): Route => {
   if (state.screen?.settingsOpen) {
     return "project";
   }
-  const logic = state.panes.logic;
-  if (
-    state.pane === "logic" &&
-    logic.panel === "scripts" &&
-    logic.view !== "logic-editor"
-  ) {
+  if (state.pane === "logic" && state.panes.logic.view === SCRIPTS_VIEW) {
     return "scripts";
   }
   return routeOfPane(state.pane);
 };
+
+export const SCRIPTS_VIEW = "scripts";
+export const SCRIPT_EDITOR_VIEW = "logic-editor";
 
 export const stateForRoute = (
   state: WorkspaceCache,
@@ -62,12 +60,21 @@ export const stateForRoute = (
     return { ...state, screen, pane: "share" };
   }
   const logic = state.panes.logic;
-  const scripts = route === "scripts";
-  const panel = scripts
-    ? "scripts"
-    : logic.view === "logic-editor"
-      ? logic.panel
-      : "main";
+  if (route === "scripts") {
+    return {
+      ...state,
+      screen,
+      pane: "logic",
+      panes: { ...state.panes, logic: { ...logic, view: SCRIPTS_VIEW } },
+    };
+  }
+  const scriptEditor = logic.panels.scripts?.activeEditor;
+  const editingScript =
+    logic.view === SCRIPT_EDITOR_VIEW ||
+    (logic.view === SCRIPTS_VIEW &&
+      logic.panel === "scripts" &&
+      !!scriptEditor?.open &&
+      !!scriptEditor.filename);
   return {
     ...state,
     screen,
@@ -76,8 +83,8 @@ export const stateForRoute = (
       ...state.panes,
       logic: {
         ...logic,
-        view: scripts ? "list" : logic.view,
-        panel,
+        view: editingScript ? SCRIPT_EDITOR_VIEW : "list",
+        panel: editingScript ? "scripts" : "main",
       },
     },
   };

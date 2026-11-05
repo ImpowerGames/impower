@@ -3,6 +3,7 @@ import WorkspaceConfiguration from "./WorkspaceConfiguration";
 import WorkspaceFileSystem from "./WorkspaceFileSystem";
 import WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import WorkspacePrint from "./WorkspacePrint";
+import WorkspaceScripts from "./WorkspaceScripts";
 import WorkspaceSync from "./WorkspaceSync";
 import WorkspaceWindow from "./WorkspaceWindow";
 import { registerWorkspaceProtocol } from "./workspaceProtocol";
@@ -18,6 +19,7 @@ export namespace Workspace {
     ls,
     configuration,
   );
+  export const scripts = new WorkspaceScripts({ fs, ls, window });
   export const sync = new WorkspaceSync();
   export const print = new WorkspacePrint();
 }
