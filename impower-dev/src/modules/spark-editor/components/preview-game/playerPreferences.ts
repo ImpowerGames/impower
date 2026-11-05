@@ -66,7 +66,14 @@ export const createPlayerPreferenceSync = (
     );
     post(SetRoutePinsMessage.type.request({ pins: routePins() }));
   };
-  const disposeTheme = effect(() => sendTheme(theme.value));
+  let current = theme.peek();
+  const disposeTheme = effect(() => {
+    const value = theme.value;
+    if (value !== current) {
+      current = value;
+      sendTheme(value);
+    }
+  });
   return {
     dispose: () => disposeTheme(),
     initialized: send,

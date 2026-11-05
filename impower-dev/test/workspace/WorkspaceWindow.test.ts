@@ -552,10 +552,11 @@ describe("Animate portraits preference", () => {
         posted
           .filter((m) => m.method === "preview/setTheme")
           .map((m) => m.params.theme);
+      expect(themes()).toEqual([]);
       sync.received(connected("game"));
       theme.value = "chalk";
       sync.initialized();
-      expect(themes()).toEqual(["charcoal", "charcoal", "chalk", "chalk"]);
+      expect(themes()).toEqual(["charcoal", "chalk", "chalk"]);
       sync.dispose();
       theme.value = "midnight";
       expect(themes().at(-1)).toBe("chalk");
