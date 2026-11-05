@@ -32,7 +32,7 @@ const hoverTheme = EditorView.baseTheme({
     boxSizing: "border-box",
     maxWidth: "min(460px, calc(100vw - 24px))",
     padding: "10px 14px",
-    font: "400 13px / 1.5 var(--ui-font, inherit)",
+    font: "400 13px / 1.5 var(--font-ui, inherit)",
   },
   ".cm-lsp-hover-card.cm-lsp-hover-picture": {
     display: "grid",
@@ -59,7 +59,7 @@ const hoverTheme = EditorView.baseTheme({
     minWidth: "0",
   },
   ".cm-lsp-hover-caption code": {
-    font: "13px / 1.4 var(--script-font, monospace)",
+    font: "13px / 1.4 var(--font-script, monospace)",
     color: "var(--ink)",
     overflowWrap: "anywhere",
   },
