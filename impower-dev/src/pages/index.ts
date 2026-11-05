@@ -3,8 +3,11 @@ import SparkEditor from "../modules/spark-editor/index";
 import { downloadProjectZip } from "../modules/spark-editor/utils/downloadProjectZip";
 import { warnIfStorageNotPersisted } from "../modules/spark-editor/utils/storagePersistence";
 import { Workspace } from "../modules/spark-editor/workspace/Workspace";
+import { applyTheme } from "../modules/spark-editor/workspace/settings/applyTheme";
+import workspaceSettings from "../modules/spark-editor/workspace/settings/WorkspaceSettings";
 
 const load = async () => {
+  applyTheme(document.documentElement, workspaceSettings.preferences);
   setScriptEditorLanguageServer({
     worker: Workspace.ls.worker,
     connection: Workspace.ls.connection,

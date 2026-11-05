@@ -1,9 +1,24 @@
 import * as esbuild from "esbuild";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv, type Plugin } from "vite";
+import { withThemeVariables } from "./src/build/withThemeVariables";
 
 const PRODUCTION = process.env.NODE_ENV === "production";
+
+const IMPOWER_UI_THEME_CSS = fileURLToPath(
+  new URL("../packages/impower-ui/src/theme.css", import.meta.url),
+);
+
+const themeVariablesPlugin = (): Plugin => ({
+  name: "theme-variables",
+  transformIndexHtml: {
+    order: "pre",
+    handler: (html) =>
+      withThemeVariables(html, fs.readFileSync(IMPOWER_UI_THEME_CSS, "utf-8")),
+  },
+});
 
 const rawPlugin = (): esbuild.Plugin => ({
   name: "raw",
@@ -144,6 +159,7 @@ export default defineConfig(({ mode }) => {
     dedupe: ["preact", "preact-custom-element"],
   },
   plugins: [
+    themeVariablesPlugin(),
     viteInlineWorkerPlugin(),
     devServiceWorkerPlugin({
       entry: "src/workers/sw.ts",

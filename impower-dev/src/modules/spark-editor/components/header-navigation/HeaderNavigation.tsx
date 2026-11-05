@@ -91,7 +91,7 @@ export default function HeaderNavigation() {
     <div class="relative z-10">
 
       <button class="absolute inset-0 m-0 border-0 bg-transparent p-0" />
-      <div class="relative z-[2] flex h-14 flex-row items-center justify-center bg-engine-800">
+      <div class="relative z-[2] flex h-14 flex-row items-center justify-center bg-bg">
         <div class="flex w-full flex-row items-center">
           <HeaderMenuButton />
           <div class="flex flex-1 flex-col items-start">

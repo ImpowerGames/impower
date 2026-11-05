@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./theme.css";
 @plugin 'tailwind-scrollbar';
 @source ".";
 
@@ -18,76 +19,46 @@
   --radius-lg: 8px;
 
   --color-background: rgb(0 0 0);
-  --color-foreground: rgb(255 255 255);
-  --color-surface: rgb(37 37 37);
-  --color-surface-border: rgb(255 255 255 / 0.12);
-  --color-divider: rgb(255 255 255 / 0.12);
-  --color-popup: rgb(18 18 18);
-  --color-tab-foreground: rgb(242 242 242);
+}
 
-  --color-engine-50: hsl(210.6 20% 96%);
-  --color-engine-100: hsl(210.6 22% 90%);
-  --color-engine-200: hsl(210.6 24% 80%);
-  --color-engine-300: hsl(210.6 25% 70%);
-  --color-engine-400: hsl(210.6 25% 60%);
-  --color-engine-500: hsl(211 26% 48%);
-  --color-engine-600: hsl(210.7 35% 41%);
-  --color-engine-700: hsl(210.8 44.9% 34.9%);
-  --color-engine-800: hsl(210.7 89.1% 18%);
-  --color-engine-900: hsl(210.6 100% 10%);
-  --color-engine-950: hsl(210.6 100% 7%);
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-paper: var(--paper);
+  --color-workspace: var(--workspace);
+  --color-workspace-deep: var(--workspace-deep);
+  --color-preview-mat: var(--preview-mat);
+  --color-elevated: var(--elevated);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-tint: var(--tint);
+  --color-error: var(--error);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+  --color-edge: var(--edge);
+  --color-selection: var(--selection);
+  --color-syntax-active: var(--syntax-active);
+  --color-scrollbar: var(--scrollbar);
+  --color-control-hover: var(--control-hover);
+  --color-button-bg: var(--button-bg);
+  --color-sidebar: var(--sidebar);
 
-  --color-primary-50: var(--color-sky-50);
-  --color-primary-100: var(--color-sky-100);
-  --color-primary-200: var(--color-sky-200);
-  --color-primary-300: var(--color-sky-300);
-  --color-primary-400: var(--color-sky-400);
-  --color-primary-500: var(--color-sky-500);
-  --color-primary-600: var(--color-sky-600);
-  --color-primary-700: var(--color-sky-700);
-  --color-primary-800: var(--color-sky-800);
-  --color-primary-900: var(--color-sky-900);
-  --color-primary-950: var(--color-sky-950);
-  --color-primary: var(--color-sky-400);
+  --color-popup: var(--popup);
+  --color-surface: var(--surface);
+  --color-tab-ink: var(--tab-ink);
+  --color-tab-muted: var(--tab-muted);
+  --color-placeholder: var(--placeholder);
+  --color-primary: var(--primary);
+  --color-focus-ring: var(--focus-ring);
+  --color-button-ink: var(--button-ink);
+  --color-error-strong: var(--error-strong);
+  --color-warning-strong: var(--warning-strong);
 
-  --color-success-50: var(--color-green-50);
-  --color-success-100: var(--color-green-100);
-  --color-success-200: var(--color-green-200);
-  --color-success-300: var(--color-green-300);
-  --color-success-400: var(--color-green-400);
-  --color-success-500: var(--color-green-500);
-  --color-success-600: var(--color-green-600);
-  --color-success-700: var(--color-green-700);
-  --color-success-800: var(--color-green-800);
-  --color-success-900: var(--color-green-900);
-  --color-success-950: var(--color-green-950);
-  --color-success: var(--color-green-400);
-
-  --color-warning-50: var(--color-amber-50);
-  --color-warning-100: var(--color-amber-100);
-  --color-warning-200: var(--color-amber-200);
-  --color-warning-300: var(--color-amber-300);
-  --color-warning-400: var(--color-amber-400);
-  --color-warning-500: var(--color-amber-500);
-  --color-warning-600: var(--color-amber-600);
-  --color-warning-700: var(--color-amber-700);
-  --color-warning-800: var(--color-amber-800);
-  --color-warning-900: var(--color-amber-900);
-  --color-warning-950: var(--color-amber-950);
-  --color-warning: var(--color-amber-400);
-
-  --color-danger-50: var(--color-red-50);
-  --color-danger-100: var(--color-red-100);
-  --color-danger-200: var(--color-red-200);
-  --color-danger-300: var(--color-red-300);
-  --color-danger-400: var(--color-red-400);
-  --color-danger-500: var(--color-red-500);
-  --color-danger-600: var(--color-red-600);
-  --color-danger-700: var(--color-red-700);
-  --color-danger-800: var(--color-red-800);
-  --color-danger-900: var(--color-red-900);
-  --color-danger-950: var(--color-red-950);
-  --color-danger: var(--color-red-400);
+  --color-foreground: var(--ink);
+  --color-surface-border: var(--edge);
+  --color-danger: var(--error);
 }
 
 @keyframes s-sheen {
@@ -98,10 +69,10 @@
 @utility skeleton-sheen {
   background-image: linear-gradient(
     270deg,
-    color-mix(in oklab, var(--color-foreground) 15%, transparent),
-    color-mix(in oklab, var(--color-foreground) 5%, transparent),
-    color-mix(in oklab, var(--color-foreground) 5%, transparent),
-    color-mix(in oklab, var(--color-foreground) 15%, transparent)
+    color-mix(in oklab, var(--ink) 15%, transparent),
+    color-mix(in oklab, var(--ink) 5%, transparent),
+    color-mix(in oklab, var(--ink) 5%, transparent),
+    color-mix(in oklab, var(--ink) 15%, transparent)
   );
   background-size: 400% 100%;
   animation: s-sheen 8s ease-in-out infinite;

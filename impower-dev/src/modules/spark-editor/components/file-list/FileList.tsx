@@ -1162,7 +1162,7 @@ export default function FileList({
                   data-dir="1"
                   data-path={s.path}
                   aria-label={`Scroll to ${s.name}`}
-                  class={`pointer-events-auto absolute inset-x-0 flex cursor-pointer items-center bg-engine-900 px-5 text-left text-base font-normal text-foreground/80 before:pointer-events-none before:absolute before:inset-0 before:bg-foreground/5 before:opacity-0 before:transition-opacity before:content-[''] hover:before:opacity-100 active:before:bg-foreground/[0.12] active:before:opacity-100 ${
+                  class={`pointer-events-auto absolute inset-x-0 flex cursor-pointer items-center bg-panel px-5 text-left text-base font-normal text-foreground/80 before:pointer-events-none before:absolute before:inset-0 before:bg-foreground/5 before:opacity-0 before:transition-opacity before:content-[''] hover:before:opacity-100 active:before:bg-foreground/[0.12] active:before:opacity-100 ${
                     isLast ? "shadow-[0_2px_4px_rgba(0,0,0,0.3)]" : ""
                   }`}
                   style={{

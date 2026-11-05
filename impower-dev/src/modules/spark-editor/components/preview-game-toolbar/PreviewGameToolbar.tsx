@@ -99,7 +99,7 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
   };
 
   return (
-    <div class="sticky top-0 z-[1] flex h-12 flex-row items-center bg-engine-900">
+    <div class="sticky top-0 z-[1] flex h-12 flex-row items-center bg-panel">
 
       <RunToggle
         loading={loading}

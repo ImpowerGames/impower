@@ -79,7 +79,7 @@ export default function MainWindow(_props: MainWindowProps) {
         )}
       </div>
 
-      <div class="relative flex-none h-[60px] bg-engine-800 text-foreground [&>*]:h-full [.keyboard-open_&]:hidden">
+      <div class="relative flex-none h-[60px] bg-bg text-foreground [&>*]:h-full [.keyboard-open_&]:hidden">
 
         <div class="absolute inset-x-0 top-0 !h-px bg-white/[0.06] z-10" />
         {!isSSR && (

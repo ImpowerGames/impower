@@ -40,7 +40,7 @@ export default function HeaderTitleButton(_p: HeaderTitleButtonProps) {
               type="text"
               aria-label="Project Name"
               value={draft}
-              class="w-full bg-transparent text-lg font-medium text-foreground outline-none placeholder:text-engine-700"
+              class="w-full bg-transparent text-lg font-medium text-foreground outline-none placeholder:text-placeholder"
               onInput={(e) =>
                 setDraft((e.target as HTMLInputElement).value)
               }

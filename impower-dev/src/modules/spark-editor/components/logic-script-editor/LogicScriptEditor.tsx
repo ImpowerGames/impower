@@ -214,7 +214,7 @@ export default function LogicScriptEditor({
   }, [filename, textPulledAt]);
 
   return (
-    <div class="relative flex flex-1 flex-col min-h-0 bg-engine-950">
+    <div class="relative flex flex-1 flex-col min-h-0 bg-workspace">
       <SparkdownScriptEditor
         readonly={readonly}
         coarsePointer={coarsePointer}

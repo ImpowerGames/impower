@@ -64,7 +64,7 @@ function syncStateColor(s: string): string {
     s === "export_error" ||
     s === "sync_error"
   )
-    return "text-danger-500";
-  if (s === "sync_conflict" || s === "offline") return "text-warning-500";
+    return "text-error-strong";
+  if (s === "sync_conflict" || s === "offline") return "text-warning-strong";
   return "text-foreground/60";
 }

@@ -16,8 +16,8 @@ export function useDiagnosticColor(filename?: string): string {
       errors += counts.errors;
       warnings += counts.warnings;
     }
-    if (errors > 0) return "text-danger-500";
-    if (warnings > 0) return "text-warning-500";
+    if (errors > 0) return "text-error-strong";
+    if (warnings > 0) return "text-warning-strong";
     return "";
   }).value;
 }

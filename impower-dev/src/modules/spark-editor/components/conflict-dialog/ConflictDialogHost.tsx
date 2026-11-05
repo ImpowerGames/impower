@@ -55,7 +55,7 @@ export default function ConflictDialogHost() {
       role="presentation"
     >
       <div
-        class={`w-full max-w-sm select-none rounded-lg bg-engine-800 p-5 text-foreground shadow-2xl ring-1 ring-foreground/10 transition-all duration-200 ease-out ${
+        class={`w-full max-w-sm select-none rounded-lg bg-elevated p-5 text-foreground shadow-2xl ring-1 ring-foreground/10 transition-all duration-200 ease-out ${
           visible ? "scale-100 opacity-100" : "scale-95 opacity-0"
         }`}
         role="dialog"
