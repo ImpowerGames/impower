@@ -575,7 +575,13 @@ variables:
   # `end:` once more there, where `$` would close the escape and then the
   # enclosing string's own `$` would close the string, so a backslash that
   # continues a string onto the next line would end it. The `$` still ends the
-  # escape at the start of an empty next line.
+  # escape at the start of an empty next line, where neither the carried nor
+  # the uncarried character test matches; widening the uncarried set would
+  # change `LuauEscapeSkipWhitespace` and the strings' own terminators, which
+  # share it. Reordering cannot help, since the escape has no patterns and the
+  # `$` is the only alternative that matches there; there is no Switch to
+  # split, and the parent's `end:` is the rival itself. The begin consumed the
+  # spot's only characters, so only the anchor with nothing after it marks it.
   LUAU_ESCAPE_LINE_BREAK_TAKEN: (?:\G(?![\s\S]))
   LUAU_KEYWORD: (?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while){{LUAU_NAME_END}})
   # lookaround: anywhere else `LuauAccessPath` reads the word as a name; it
