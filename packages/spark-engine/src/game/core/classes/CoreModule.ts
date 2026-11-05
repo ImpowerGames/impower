@@ -1,7 +1,4 @@
-import {
-  type CoreBuiltins,
-  coreBuiltinDefinitions,
-} from "../coreBuiltinDefinitions";
+import type { CoreBuiltins } from "../types/CoreBuiltins";
 import { Module } from "./Module";
 
 export interface CoreConfig {}
@@ -15,10 +12,6 @@ export class CoreModule extends Module<
   CoreMessageMap,
   CoreBuiltins
 > {
-  override getBuiltins() {
-    return coreBuiltinDefinitions();
-  }
-
   override getStored() {
     return [];
   }

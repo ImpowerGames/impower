@@ -12,10 +12,7 @@ TextInstruction,
 import type { Instructions } from "../../../core/types/Instructions";
 import { getNumberValue } from "../../../core/utils/getNumberValue";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
-import {
-  type InterpreterBuiltins,
-  interpreterBuiltinDefinitions,
-} from "../interpreterBuiltinDefinitions";
+import type { InterpreterBuiltins } from "../types/InterpreterBuiltins";
 import type { Chunk } from "../types/Chunk";
 import type { InstructionOptions } from "../types/InstructionOptions";
 import type { Phrase } from "../types/Phrase";
@@ -140,10 +137,6 @@ export class InterpreterModule extends Module<
       this._matcherCache.set(pattern, matcher);
     }
     return matcher;
-  }
-
-  override getBuiltins() {
-    return interpreterBuiltinDefinitions();
   }
 
   override getStored() {
@@ -719,7 +712,7 @@ export class InterpreterModule extends Module<
 
   protected createImageChunk(imageTagContent: string): Chunk {
     const defaultLayer =
-      this.context?.config?.interpreter?.fallbacks?.layer || "portrait";
+      this.context?.config?.interpreter?.fallbacks?.layer;
     const imageChunk = this.createAssetChunk(
       imageTagContent,
       "image",
@@ -870,7 +863,7 @@ export class InterpreterModule extends Module<
 
   protected createAudioChunk(audioTagContent: string): Chunk {
     const defaultChannel =
-      this.context?.config?.interpreter?.fallbacks?.channel || "sound";
+      this.context?.config?.interpreter?.fallbacks?.channel;
     const audioChunk = this.createAssetChunk(
       audioTagContent,
       "audio",
@@ -896,7 +889,7 @@ export class InterpreterModule extends Module<
     assetTagContent: string,
     tag: string,
     defaultControl: string,
-    defaultTarget: string,
+    defaultTarget: string | undefined,
   ): Chunk {
     let parts = assetTagContent
       .replaceAll("\t", " ")

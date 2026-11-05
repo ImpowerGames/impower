@@ -11,6 +11,7 @@ import { resolveImageSrcs } from "./resolveImageSrcs";
 import {
   applyPreviewHint,
   planPreviewHint,
+  predictDistanceOf,
   type PreviewHintCache,
   type PreviewHintState,
 } from "./previewHint";
@@ -263,6 +264,19 @@ end
     expect(nowhere.cursor).toEqual([]);
     expect(nowhere.near).toEqual([]);
     expect(nowhere.rest).toBeNull();
+  });
+});
+
+describe("predictDistanceOf", () => {
+  const withAssets = (assets: Record<string, unknown> | undefined) =>
+    ({ context: { config: { assets } } }) as unknown as SparkProgram;
+
+  it("reads the compiled program's value, and reads a missing or invalid one as 0, the documented off value", () => {
+    expect(predictDistanceOf(withAssets({ predict_distance: 5 }))).toBe(5);
+    expect(predictDistanceOf(withAssets({}))).toBe(0);
+    expect(predictDistanceOf(withAssets({ predict_distance: -1 }))).toBe(0);
+    expect(predictDistanceOf(withAssets({ predict_distance: "far" }))).toBe(0);
+    expect(predictDistanceOf({} as SparkProgram)).toBe(0);
   });
 });
 

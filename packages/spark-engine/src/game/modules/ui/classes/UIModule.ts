@@ -507,10 +507,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._game.story.onError?.(`${what}: ${detail}`, ErrorType.Error, null);
   }
 
-  override getBuiltins(): UIBuiltins {
-    return this.context as UIBuiltins;
-  }
-
   protected get breakpoints(): Record<string, number> {
     return this.context.config?.ui?.breakpoints ?? builtinBreakpoints;
   }

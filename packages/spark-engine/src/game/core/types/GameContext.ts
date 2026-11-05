@@ -1,5 +1,5 @@
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
-import type { CoreBuiltins } from "../coreBuiltinDefinitions";
+import type { CoreBuiltins } from "./CoreBuiltins";
 import type { SystemConfiguration } from "./SystemConfiguration";
 
 export type GameContext<B = any> = {

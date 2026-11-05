@@ -2,10 +2,7 @@ import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/Noti
 import { getContextEntry } from "@impower/sparkdown/src/compiler/utils/getContextEntry";
 import { Module } from "../../../core/classes/Module";
 import type { AudioInstruction } from "../../../core/types/Instruction";
-import {
-  type AudioBuiltins,
-  audioBuiltinDefinitions,
-} from "../audioBuiltinDefinitions";
+import type { AudioBuiltins } from "../types/AudioBuiltins";
 import type { AudioPlayerUpdate } from "../types/AudioPlayerUpdate";
 import type { ChannelState } from "../types/ChannelState";
 import type { LoadAudioPlayerParams } from "../types/LoadAudioPlayerParams";
@@ -55,10 +52,6 @@ export class AudioModule extends Module<
     if (AudioClockMessage.type.isNotification(msg)) {
       this._outputLatency = msg.params.outputLatency;
     }
-  }
-
-  override getBuiltins() {
-    return audioBuiltinDefinitions();
   }
 
   override getStored() {
@@ -190,9 +183,9 @@ export class AudioModule extends Module<
   }
 
   protected getMixerName(channel: string | undefined): string {
-    const mixer = this.context?.channel?.[channel || "sound"]?.mixer;
+    const mixer = channel ? this.context?.channel?.[channel]?.mixer : undefined;
     const mixerName = (typeof mixer === "string" ? mixer : mixer?.$name) || "";
-    return mixerName || channel || "sound";
+    return mixerName || channel || "";
   }
 
   protected async loadAudio(data: LoadAudioPlayerParams): Promise<void> {
@@ -508,7 +501,8 @@ export class AudioModule extends Module<
       }
       if (event.control === "play") {
         const playBehavior =
-          this.context?.channel?.[channel]?.play_behavior || "replace";
+          this.context?.channel?.[channel]?.play_behavior ||
+          this.context?.channel?.["$default"]?.play_behavior;
         if (playBehavior === "replace") {
           const stopUpdate: AudioPlayerUpdate = {
             control: "stop",

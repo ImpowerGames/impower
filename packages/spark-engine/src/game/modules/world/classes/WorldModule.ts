@@ -1,9 +1,5 @@
 import { Module } from "../../../core/classes/Module";
 import {
-  worldBuiltinDefinitions,
-  type WorldBuiltins,
-} from "../worldBuiltinDefinitions";
-import {
   LoadWorldMessage,
   type LoadWorldMessageMap,
 } from "./messages/LoadWorldMessage";
@@ -16,8 +12,7 @@ export type WorldMessageMap = LoadWorldMessageMap;
 
 export class WorldModule extends Module<
   WorldState,
-  WorldMessageMap,
-  WorldBuiltins
+  WorldMessageMap
 > {
   loadWorld(name: string): Promise<unknown> {
     const src = this.context.world?.[name]?.src;
@@ -25,10 +20,6 @@ export class WorldModule extends Module<
       return this.emit(LoadWorldMessage.type.request({ src }));
     }
     return Promise.resolve();
-  }
-
-  override getBuiltins() {
-    return worldBuiltinDefinitions();
   }
 
   override getStored() {

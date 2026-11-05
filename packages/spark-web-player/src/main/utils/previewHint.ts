@@ -1,4 +1,3 @@
-import { assetsBuiltinDefinitions } from "@impower/spark-engine/src/game/modules/assets/assetsBuiltinDefinitions";
 import { type AssetItem } from "@impower/spark-engine/src/game/modules/assets/types/AssetItem";
 import {
   beatIndexIn,
@@ -33,14 +32,12 @@ export interface PreviewHintCache {
 }
 
 export const predictDistanceOf = (program: SparkProgram): number => {
-  const authored = (program.context as Record<string, any> | undefined)?.[
+  const value = (program.context as Record<string, any> | undefined)?.[
     "config"
   ]?.["assets"]?.["predict_distance"];
-  return typeof authored === "number" &&
-    Number.isFinite(authored) &&
-    authored >= 0
-    ? authored
-    : assetsBuiltinDefinitions().config.assets.predict_distance;
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : 0;
 };
 
 export function planPreviewHint(
