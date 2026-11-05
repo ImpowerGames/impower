@@ -38,7 +38,7 @@ export type ActionSheetProps = {
   class?: string;
 };
 
-export default function ActionSheet({
+export function ActionSheet({
   open,
   onOpenChange,
   title,
@@ -80,3 +80,5 @@ export default function ActionSheet({
     </Sheet>
   );
 }
+
+export default ActionSheet;

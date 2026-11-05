@@ -3,7 +3,11 @@ import { useState } from "preact/hooks";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DIALOG_TRANSITION_MS } from "../dialog/Dialog";
-import ActionSheet, { type ActionSheetItem } from "./ActionSheet";
+import * as components from "../index";
+import ActionSheet, {
+  ActionSheet as NamedActionSheet,
+  type ActionSheetItem,
+} from "./ActionSheet";
 
 let host: HTMLDivElement | undefined;
 
@@ -66,6 +70,13 @@ const mount = async (
   await settle(50);
   return opener;
 };
+
+describe("ActionSheet's exports", () => {
+  it("exports one component by name from its own module and from the package entry", () => {
+    expect(NamedActionSheet).toBe(ActionSheet);
+    expect(components.ActionSheet).toBe(NamedActionSheet);
+  });
+});
 
 describe("ActionSheet under preact/compat", () => {
   it("renders nothing while closed", async () => {

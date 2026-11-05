@@ -1,5 +1,6 @@
 import type { ContextMenuModel } from "@impower/codemirror-vscode-lsp-client/src";
-import ActionSheet, {
+import {
+  ActionSheet,
   type ActionSheetItem,
 } from "@impower/impower-ui/action-sheet";
 import { LoadingBar } from "@impower/impower-ui/loading-bar";
