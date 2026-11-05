@@ -9,6 +9,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "sparkLogoVariants",
   "pointerState",
   "sheetVariants",
+  "sidebarLayoutVariants",
   "toastVariants",
   "useCoarsePointer",
   "useLayout",

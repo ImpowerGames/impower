@@ -7,6 +7,7 @@ import { madeWithSparkSplashGallery } from "./components/made-with-spark-splash/
 import { sparkLogoGallery } from "./components/spark-logo/SparkLogo.gallery";
 import { loadingBarGallery } from "./components/loading-bar/LoadingBar.gallery";
 import { routerGallery } from "./components/router/Router.gallery";
+import { sidebarLayoutGallery } from "./components/sidebar-layout/SidebarLayout.gallery";
 import { splitPaneGallery } from "./components/split-pane/SplitPane.gallery";
 import { tabsGallery } from "./components/tabs/Tabs.gallery";
 import { toastGallery } from "./components/toast/Toast.gallery";
@@ -21,6 +22,7 @@ export const galleryEntries: readonly GalleryEntry[] = [
   madeWithSparkSplashGallery,
   sparkLogoGallery,
   routerGallery,
+  sidebarLayoutGallery,
   splitPaneGallery,
   tabsGallery,
   toastGallery,

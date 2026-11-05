@@ -12,6 +12,7 @@ import {
   DropdownCheckboxItem,
   DropdownContent,
   DropdownItem,
+  DropdownLabel,
   DropdownRoot,
   DropdownSeparator,
   DropdownTrigger,
@@ -22,6 +23,10 @@ function MenuItems() {
   const [minimap, setMinimap] = useState(false);
   return (
     <>
+      <DropdownLabel>
+        <div class="text-sm font-semibold">Heading</div>
+        <div class="text-xs text-muted">A label above the items, not selectable</div>
+      </DropdownLabel>
       <DropdownItem>
         <PencilIcon /> Rename
       </DropdownItem>
@@ -68,7 +73,7 @@ function DropdownDemo() {
           </DropdownContent>
         </DropdownRoot>
       </GalleryRow>
-      <GalleryRow label="Open on load in the menu layout: item, disabled item, separator, checked and unchecked checkbox items">
+      <GalleryRow label="Open on load in the menu layout: label, item, disabled item, separator, checked and unchecked checkbox items">
         <div class="h-64">
           <DropdownRoot open={pinned} onOpenChange={setPinned} modal={false}>
             <DropdownTrigger asChild>
@@ -93,6 +98,7 @@ export const dropdownGallery: GalleryEntry = {
     "DropdownContent",
     "DropdownItem",
     "DropdownCheckboxItem",
+    "DropdownLabel",
   ],
   Demo: DropdownDemo,
 };

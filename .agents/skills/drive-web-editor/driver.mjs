@@ -2053,6 +2053,45 @@ async function waitGameState(request, reached, { timeout, now = Date.now, pause 
   return state;
 }
 
+const RAIL_SELECTOR = 'aside[aria-label="Sidebar"]';
+const DRAWER_BUTTON_SELECTOR = 'button[aria-label="Open Menu"]';
+const PROJECT_NAME_SELECTOR = 'input[aria-label="Project name"], input[aria-label="Project Name"]';
+
+export async function openDrawerOrRail(page, { timeout = 5000 } = {}) {
+  const rail = await page.evaluate((selector) => {
+    const el = document.querySelector(selector);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 ? { x: Math.round(r.x), width: Math.round(r.width), collapsed: el.closest("[data-sidebar]")?.getAttribute("data-sidebar") === "collapsed" } : null;
+  }, RAIL_SELECTOR);
+  if (rail) return { step: "drawer", ran: true, opened: "rail", rail };
+  const button = page.locator(DRAWER_BUTTON_SELECTOR).first();
+  if (!(await button.count())) return { step: "drawer", ran: false, reason: "neither the desktop rail nor the drawer's Open Menu button is on the page" };
+  await button.click();
+  try {
+    await page.waitForFunction(() => {
+      const drawer = document.querySelector('[role="dialog"][aria-label="Menu"]');
+      return !!drawer && !drawer.closest('[aria-hidden="true"]');
+    }, null, { timeout });
+  } catch {
+    return { step: "drawer", ran: false, reason: `the drawer did not open within ${timeout / 1000} s of pressing Open Menu` };
+  }
+  return { step: "drawer", ran: true, opened: "drawer" };
+}
+
+export async function focusProjectName(page, { timeout = 10000 } = {}) {
+  const field = page.locator(PROJECT_NAME_SELECTOR).first();
+  try {
+    await field.waitFor({ state: "visible", timeout });
+  } catch {
+    return { step: "focus-project-name", ran: false, reason: `no project name field on the page within ${timeout / 1000} s` };
+  }
+  await field.click();
+  const state = await field.evaluate((el) => ({ focused: document.activeElement === el, selected: el.selectionStart === 0 && el.selectionEnd === el.value.length, value: el.value }));
+  if (!state.focused) return { step: "focus-project-name", ran: false, value: state.value, reason: "the project name field did not take focus" };
+  return { step: "focus-project-name", ran: true, value: state.value, selected: state.selected };
+}
+
 export async function playPreview(page, action, { request = (method, params) => protocolRequest(page, method, params), timeout = PLAY_BUDGET_MS, now = Date.now, pause = (ms) => page.waitForTimeout(ms) } = {}) {
   const start = action === "start";
   const label = start ? "Play Game" : "Stop Game";
@@ -3273,6 +3312,14 @@ async function ui(args, deps = liveDeps) {
             const stub = notBuiltYet(step);
             if (stub) {
               result.steps.push(stub);
+              continue;
+            }
+            if (step.step === "drawer") {
+              result.steps.push(await openDrawerOrRail(page));
+              continue;
+            }
+            if (step.step === "focus-project-name") {
+              result.steps.push(await focusProjectName(page));
               continue;
             }
             const ready = await requireEditor(page, "PLAY", stepNo);

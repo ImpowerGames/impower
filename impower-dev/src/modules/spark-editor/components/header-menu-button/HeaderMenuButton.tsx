@@ -1,8 +1,6 @@
 import {
   ArrowLeft,
-  BrandVscode,
   Button,
-  ExternalLink,
   SparkLogo,
   Menu,
 } from "@impower/impower-ui/components";
@@ -86,25 +84,6 @@ export default function HeaderMenuButton(_p: HeaderMenuButtonProps) {
               <div class="flex flex-1 flex-col">
                 <Account />
               </div>
-
-              <div class="h-px bg-foreground/[0.12]" />
-              <a
-                href="https://marketplace.visualstudio.com/items?itemName=impowergames.vscode-sparkdown"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="relative flex min-h-11 flex-none flex-row items-center gap-6 px-6 py-3 text-foreground/70 control-overlay"
-              >
-                <BrandVscode class="size-5 flex-none" />
-                <span class="flex min-w-0 flex-1 flex-col">
-                  <span class="text-sm font-medium">
-                    Want to edit files locally?
-                  </span>
-                  <span class="truncate text-xs text-foreground/50">
-                    Open your project in VS Code
-                  </span>
-                </span>
-                <ExternalLink class="size-4 flex-none opacity-50" />
-              </a>
             </div>
           </div>,
           document.body,

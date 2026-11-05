@@ -16,6 +16,10 @@ import { NO_START_SCENE_MESSAGE } from "@impower/sparkdown/src/compiler/utils/st
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const current = vi.hoisted(() => ({ window: undefined as unknown }));
+const downloads = vi.hoisted(() => vi.fn());
+vi.mock("../../src/modules/spark-editor/utils/downloadFile", () => ({
+  downloadFile: downloads,
+}));
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
     fs: {
@@ -121,6 +125,11 @@ import workspace, {
   savedWorkspaceState,
 } from "../../src/modules/spark-editor/workspace/WorkspaceStore";
 import WorkspaceWindow from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
+import { downloadProjectZip } from "../../src/modules/spark-editor/utils/downloadProjectZip";
+
+beforeEach(() => {
+  window.history.replaceState(null, "", window.location.pathname);
+});
 
 describe("WorkspaceWindow store transitions", () => {
   let win: WorkspaceWindow;
@@ -354,6 +363,127 @@ describe("WorkspaceWindow store transitions", () => {
       const changed = await win.finishEditingProjectName("New");
       expect(changed).toBe(true);
       expect(workspace.current.project.name).toBe("New");
+    });
+
+    it("an empty or blank commit restores the previous name without persisting", async () => {
+      const write = vi.mocked(Workspace.fs.writeProjectMetadata);
+      write.mockClear();
+      workspace.current = {
+        ...workspace.current,
+        project: { ...workspace.current.project, name: "My story" },
+      };
+      win.startEditingProjectName();
+      expect(await win.finishEditingProjectName("")).toBe(false);
+      expect(workspace.current.project.name).toBe("My story");
+      expect(await win.finishEditingProjectName("   ")).toBe(false);
+      expect(workspace.current.project.name).toBe("My story");
+      expect(workspace.current.screen.editingName).toBe(false);
+      expect(write).not.toHaveBeenCalled();
+    });
+
+    it("an empty commit on a project with no name yet takes the default name", async () => {
+      vi.spyOn(
+        WorkspaceWindow.prototype,
+        "recordScriptChange",
+      ).mockResolvedValue(undefined as never);
+      workspace.current = {
+        ...workspace.current,
+        project: { ...workspace.current.project, name: undefined },
+      };
+      await win.finishEditingProjectName("");
+      expect(workspace.current.project.name).toBe("Untitled story");
+      expect(WorkspaceConstants.DEFAULT_PROJECT_NAME).toBe("Untitled story");
+    });
+
+    it("a committed name is what Export Project downloads the zip as", async () => {
+      vi.spyOn(
+        WorkspaceWindow.prototype,
+        "recordScriptChange",
+      ).mockResolvedValue(undefined as never);
+      const zip = new Uint8Array([1, 2, 3]);
+      vi.spyOn(win, "exportLocalProject").mockResolvedValue(zip as never);
+      current.window = win;
+      downloads.mockClear();
+      try {
+        await win.finishEditingProjectName("My story");
+        expect(await downloadProjectZip()).toBe(true);
+        expect(downloads).toHaveBeenCalledTimes(1);
+        expect(downloads.mock.calls[0]![0]).toBe("My story.zip");
+        expect(downloads.mock.calls[0]![2]).toBe(zip);
+        await win.finishEditingProjectName("");
+        await downloadProjectZip();
+        expect(downloads.mock.calls[1]![0]).toBe("My story.zip");
+      } finally {
+        current.window = undefined;
+      }
+    });
+  });
+
+  describe("the desktop shell", () => {
+    it("keeps the rail width for the project and resets it to the default", async () => {
+      win.setRailWidth(300);
+      expect(workspace.current.shell?.railWidth).toBe(300);
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      const id = workspace.current.project.id;
+      const cached = JSON.parse(
+        localStorage.getItem(
+          WorkspaceConstants.WORKSPACE_STATE_STORAGE_KEY_PREFIX + id,
+        )!,
+      );
+      expect(cached.shell.railWidth).toBe(300);
+      win.setRailWidth(undefined);
+      expect(workspace.current.shell?.railWidth).toBeUndefined();
+    });
+
+    it("writes the current route into the location hash", () => {
+      win.openView("logic", "list");
+      win.openPanel("logic", "main");
+      win.openPane("logic");
+      expect(window.location.hash).toBe("#write");
+      win.openPane("assets");
+      expect(window.location.hash).toBe("#collection");
+      win.openPane("share");
+      expect(window.location.hash).toBe("#share");
+      win.openPanel("logic", "scripts");
+      win.openPane("logic");
+      expect(window.location.hash).toBe("#scripts");
+    });
+
+    it("navigates by pushing a history entry, and follows the hash back", async () => {
+      const length = window.history.length;
+      win.navigateTo("collection");
+      expect(window.location.hash).toBe("#collection");
+      expect(window.history.length).toBe(length + 1);
+      expect(workspace.current.pane).toBe("assets");
+      window.history.replaceState(null, "", "#share");
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+      expect(workspace.current.pane).toBe("share");
+    });
+
+    it("opens settings on #project over the current pane and returns on close", () => {
+      win.openPane("assets");
+      win.navigateTo("project");
+      expect(workspace.current.screen.settingsOpen).toBe(true);
+      expect(workspace.current.pane).toBe("assets");
+      expect(window.location.hash).toBe("#project");
+      win.closeSettings();
+      expect(workspace.current.screen.settingsOpen).toBe(false);
+      expect(window.location.hash).toBe("#collection");
+    });
+
+    it("leaves the hash alone for a change that does not move the route", () => {
+      window.history.pushState(null, "", "#project");
+      win.setAppMenuOpen(true);
+      win.setAppMenuOpen(false);
+      expect(window.location.hash).toBe("#project");
+    });
+
+    it("opens the route a deep link names, and maps a legacy name onto its route", () => {
+      win.dispose();
+      window.history.replaceState(null, "", "#assets");
+      win = new WorkspaceWindow(Workspace);
+      expect(workspace.current.pane).toBe("assets");
+      expect(window.location.hash).toBe("#collection");
     });
   });
 });

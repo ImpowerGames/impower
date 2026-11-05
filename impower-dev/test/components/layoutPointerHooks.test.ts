@@ -87,9 +87,11 @@ afterEach(async () => {
 describe("useLayout", () => {
   it.each([
     [1440, "desktop"],
-    [960, "desktop"],
-    [959, "phone"],
-    [768, "phone"],
+    [1101, "desktop"],
+    [1100, "compact"],
+    [768, "compact"],
+    [701, "compact"],
+    [700, "phone"],
     [360, "phone"],
   ])("reads %ipx as the %s layout", async (width, expected) => {
     screen.width = width;
@@ -106,6 +108,10 @@ describe("useLayout", () => {
     expect(probe.layout()).toBe("phone");
     expect(document.documentElement.dataset["layout"]).toBe("phone");
 
+    await resize({ width: 900 });
+    expect(probe.layout()).toBe("compact");
+    expect(document.documentElement.dataset["layout"]).toBe("compact");
+
     await resize({ width: 1200 });
     expect(probe.layout()).toBe("desktop");
     expect(document.documentElement.dataset["layout"]).toBe("desktop");
@@ -118,9 +124,10 @@ describe("useLayout", () => {
     const seen: string[] = [];
     const unsubscribe = layoutState.subscribe((layout) => seen.push(layout));
     await resize({ width: 1000 });
+    await resize({ width: 1200 });
     unsubscribe();
     await resize({ width: 500 });
-    expect(seen).toEqual(["desktop"]);
+    expect(seen).toEqual(["compact", "desktop"]);
   });
 });
 

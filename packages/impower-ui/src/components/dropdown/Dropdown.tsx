@@ -38,6 +38,25 @@ export function DropdownSeparator({ class: className }: { class?: string }) {
   );
 }
 
+export function DropdownLabel({
+  class: className,
+  children,
+}: {
+  class?: string;
+  children?: ComponentChildren;
+}) {
+  const ctx = useMenuCtx();
+  const classes = cn("px-3 pt-2 pb-1.5 text-ink", className);
+  if (ctx.mode === "sheet") {
+    return <div class={classes}>{children}</div>;
+  }
+  return (
+    <DropdownMenuPrimitive.Label class={classes}>
+      {children}
+    </DropdownMenuPrimitive.Label>
+  );
+}
+
 type RootProps = {
   open?: boolean;
   defaultOpen?: boolean;

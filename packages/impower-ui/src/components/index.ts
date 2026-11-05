@@ -26,6 +26,7 @@ export {
   DropdownContent,
   DropdownItem,
   DropdownCheckboxItem,
+  DropdownLabel,
 } from "./dropdown/Dropdown";
 export {
   default as SparkLogo,
@@ -42,6 +43,12 @@ export {
 } from "./loading-bar/LoadingBar";
 export { default as Router, type RouterProps } from "./router/Router";
 export {
+  default as SidebarLayout,
+  sidebarLayoutVariants,
+  type SidebarLayoutProps,
+  type SidebarLayoutVariantProps,
+} from "./sidebar-layout/SidebarLayout";
+export {
   default as SplitPane,
   type SplitPaneProps,
 } from "./split-pane/SplitPane";
@@ -55,6 +62,7 @@ export {
   Tab,
   type TabsProps,
   type TabProps,
+  type TabsVariant,
 } from "./tabs/Tabs";
 export { useMountTransition } from "../hooks/useMountTransition";
 export * from "./icon/icons.generated";

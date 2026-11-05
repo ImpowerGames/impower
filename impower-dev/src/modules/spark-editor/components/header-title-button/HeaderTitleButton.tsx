@@ -27,6 +27,7 @@ export default function HeaderTitleButton(_p: HeaderTitleButtonProps) {
     if (value != null) {
       await Workspace.window.finishEditingProjectName(value);
     }
+    setDraft(workspace.state.peek().project?.name || "");
   };
 
   return (
@@ -60,7 +61,7 @@ export default function HeaderTitleButton(_p: HeaderTitleButtonProps) {
             />
           ) : (
             <span class="skeleton-sheen block w-full rounded-full text-lg font-medium leading-[1.2] text-transparent">
-              Untitled Game
+              Untitled story
             </span>
           )}
         </div>

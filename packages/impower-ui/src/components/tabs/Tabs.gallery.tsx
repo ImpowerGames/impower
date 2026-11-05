@@ -82,6 +82,16 @@ function TabsDemo() {
           <IconTabs vertical iconLayout="beside" />
         </div>
       </GalleryRow>
+      <GalleryRow label="Rail variant, vertical, icons beside labels: the accent marks the current tab on a tinted row">
+        <div class="w-[203px] rounded border border-surface-border bg-bg p-2">
+          <IconTabs vertical variant="rail" indicator="none" />
+        </div>
+      </GalleryRow>
+      <GalleryRow label="Rail variant in a 76px rail: below a 140px container the icon stacks over an 11px label">
+        <div class="w-[76px] rounded border border-surface-border bg-bg p-1.5">
+          <IconTabs vertical variant="rail" indicator="none" />
+        </div>
+      </GalleryRow>
       <GalleryRow label="Vertical, labels only">
         <div class="w-56 rounded border border-surface-border bg-surface">
           <LabelTabs vertical />

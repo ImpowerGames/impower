@@ -1,6 +1,8 @@
 import {
   BrandGoogleDrive,
+  BrandVscode,
   Download,
+  ExternalLink,
   Logout,
   Trash,
   Upload,
@@ -8,6 +10,7 @@ import {
 import type { ComponentChildren, JSX } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { downloadProjectZip } from "../../utils/downloadProjectZip";
+import { importProjectFile } from "../../utils/importProjectFile";
 import workspace from "../../workspace/WorkspaceStore";
 
 export const propDefaults = {};
@@ -41,37 +44,8 @@ export default function Account(_p: AccountProps) {
     };
   }, [signoutOpen]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { Workspace } = await import("../../workspace/Workspace");
-      try {
-        const info = await Workspace.sync.google.getCurrentAccount();
-        if (!cancelled) {
-          Workspace.window.setAccount(info);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-      try {
-        await Workspace.window.loadProject();
-      } catch (err) {
-        console.error(err);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const handleImportProjectChange = async (e: Event) => {
-    const target = e.target as HTMLInputElement;
-    const file = target.files?.[0];
-    if (!file) return;
-    const { Workspace } = await import("../../workspace/Workspace");
-    const buffer = await file.arrayBuffer();
-    await Workspace.window.importLocalProject(file.name, buffer);
-    target.value = "";
+    await importProjectFile(e.target as HTMLInputElement);
   };
 
   const handleClearOpfs = async () => {
@@ -96,13 +70,7 @@ export default function Account(_p: AccountProps) {
 
   const handleSignIn = async () => {
     const { Workspace } = await import("../../workspace/Workspace");
-    try {
-      const info = await Workspace.sync.google.signIn();
-      Workspace.window.setAccount(info);
-    } catch (err) {
-      console.error(err);
-      Workspace.window.clearAccount();
-    }
+    await Workspace.window.signInToGoogleDrive();
   };
 
   const handleSignOut = async () => {
@@ -257,6 +225,23 @@ export default function Account(_p: AccountProps) {
           Clear OPFS (dev)
         </Row>
       ) : null}
+
+      <div class="h-px bg-foreground/[0.12]" />
+      <a
+        href="https://marketplace.visualstudio.com/items?itemName=impowergames.vscode-sparkdown"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="relative flex min-h-11 flex-none flex-row items-center gap-6 px-6 py-3 text-foreground/70 control-overlay"
+      >
+        <BrandVscode class="size-5 flex-none" />
+        <span class="flex min-w-0 flex-1 flex-col">
+          <span class="text-sm font-medium">Want to edit files locally?</span>
+          <span class="truncate text-xs text-foreground/50">
+            Open your project in VS Code
+          </span>
+        </span>
+        <ExternalLink class="size-4 flex-none opacity-50" />
+      </a>
     </div>
   );
 }

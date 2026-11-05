@@ -8,6 +8,7 @@ const PORTALED = [
   "DropdownItem",
   "DropdownCheckboxItem",
   "DropdownSeparator",
+  "DropdownLabel",
   "DialogTitle",
   "DialogDescription",
   "DialogActions",

@@ -1,4 +1,6 @@
 import { useComputed } from "@preact/signals";
+import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
+import { saveStatusOf } from "../../workspace/saveStatus";
 import workspace from "../../workspace/WorkspaceStore";
 
 export const propDefaults = {};
@@ -8,63 +10,30 @@ export default function HeaderTitleCaption(_p: HeaderTitleCaptionProps) {
   const name = useComputed(
     () => workspace.state.value.project?.name || "",
   ).value;
-  const syncState = useComputed(
-    () => workspace.state.value.sync?.status || "",
+  const status = useComputed(() =>
+    saveStatusOf(
+      workspace.state.value.sync?.status,
+      workspace.state.value.project?.id === WorkspaceConstants.LOCAL_PROJECT_ID,
+      workspace.importProgress.value,
+    ),
   ).value;
-  const importProgress = useComputed(() => workspace.importProgress.value).value;
 
-  const info = importProgress
-    ? `Importing ${importProgress.loaded} of ${importProgress.total}...`
-    : syncStateInfo(syncState);
-  const color = importProgress ? "text-primary" : syncStateColor(syncState);
-
-  const showSkeleton = !name || !info;
+  const showSkeleton = !name || !status;
 
   return (
     <div
       role="status"
       aria-live="polite"
-      class={`-mt-0.5 mb-0.5 flex flex-row items-center text-sm font-medium select-none ${color}`}
+      data-tone={status?.tone}
+      class="-mt-0.5 mb-0.5 flex flex-row items-center text-sm font-medium select-none text-foreground/60 data-[tone=pending]:text-primary data-[tone=warning]:text-warning-strong data-[tone=error]:text-error-strong"
     >
       {showSkeleton ? (
         <span class="skeleton-sheen rounded-full text-transparent">
-          Saved in cache
+          Draft saved
         </span>
       ) : (
-        info
+        status.text
       )}
     </div>
   );
-}
-
-function syncStateInfo(s: string): string {
-  switch (s) {
-    case "cached": return "Saved in cache";
-    case "loading": return "Loading...";
-    case "importing": return "Importing...";
-    case "exporting": return "Exporting...";
-    case "syncing": return "Syncing...";
-    case "unsynced": return "Unsynced changes";
-    case "synced": return "Synced online ✓";
-    case "offline": return "Cannot sync while offline";
-    case "load_error": return "Error: Could not load project";
-    case "import_error": return "Error: Could not import project";
-    case "export_error": return "Error: Could not export project";
-    case "sync_error": return "Error: Could not sync project";
-    case "sync_conflict": return "Sync conflict detected";
-    default: return "";
-  }
-}
-
-function syncStateColor(s: string): string {
-  if (s === "unsynced") return "text-primary";
-  if (
-    s === "load_error" ||
-    s === "import_error" ||
-    s === "export_error" ||
-    s === "sync_error"
-  )
-    return "text-error-strong";
-  if (s === "sync_conflict" || s === "offline") return "text-warning-strong";
-  return "text-foreground/60";
 }

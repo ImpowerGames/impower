@@ -1,5 +1,5 @@
 import * as RadixTabs from "@radix-ui/react-tabs";
-import { cva } from "class-variance-authority";
+import { cva, type VariantProps } from "class-variance-authority";
 import { type ComponentChildren, type Ref } from "preact";
 import { useContext, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { createContext } from "preact";
@@ -12,8 +12,12 @@ const tabsContainer = cva("relative flex w-full", {
       horizontal: "flex-row items-stretch",
       vertical: "flex-col",
     },
+    variant: {
+      default: "",
+      rail: "@container",
+    },
   },
-  defaultVariants: { orientation: "horizontal" },
+  defaultVariants: { orientation: "horizontal", variant: "default" },
 });
 
 const tabsList = cva("flex w-full", {
@@ -42,18 +46,36 @@ const tabTrigger = cva(
         above: "flex-col min-h-11 py-4",
         beside: "flex-row min-h-12",
       },
+      variant: {
+        default: "",
+        rail: [
+          "flex-none justify-start gap-3 min-h-[46px] px-[13px] py-2.5 rounded-control text-sm font-normal",
+          "data-[state=active]:bg-tint data-[state=active]:font-semibold",
+          "@max-[140px]:flex-col @max-[140px]:justify-center @max-[140px]:gap-1 @max-[140px]:min-h-[66px] @max-[140px]:px-0 @max-[140px]:text-[11px]/[1.35]",
+        ],
+      },
     },
-    defaultVariants: { orientation: "horizontal", iconLayout: "above" },
+    defaultVariants: {
+      orientation: "horizontal",
+      iconLayout: "above",
+      variant: "default",
+    },
   },
 );
 
+export type TabsVariant = NonNullable<
+  VariantProps<typeof tabTrigger>["variant"]
+>;
+
 type TabsContextValue = {
+  variant: TabsVariant;
   indicator: "underline" | "none";
   vertical: boolean;
   iconLayout: "above" | "beside";
   iconSize: number;
 };
 const TabsContext = createContext<TabsContextValue>({
+  variant: "default",
   indicator: "underline",
   vertical: false,
   iconLayout: "above",
@@ -63,6 +85,7 @@ const TabsContext = createContext<TabsContextValue>({
 export type TabsProps = {
   value: string | null;
   onChange: (value: string) => void;
+  variant?: TabsVariant;
   indicator?: "underline" | "none";
   vertical?: boolean;
   iconLayout?: "above" | "beside";
@@ -74,6 +97,7 @@ export type TabsProps = {
 export default function Tabs({
   value,
   onChange,
+  variant = "default",
   indicator = "underline",
   vertical = false,
   iconLayout = "above",
@@ -81,7 +105,7 @@ export default function Tabs({
   containerRef,
   children,
 }: TabsProps) {
-  const iconSize = iconLayout === "above" ? 21 : 16;
+  const iconSize = variant === "rail" ? 18 : iconLayout === "above" ? 21 : 16;
   const listRef = useRef<HTMLDivElement | null>(null);
   const [indicatorRect, setIndicatorRect] = useState<{
     x: number;
@@ -117,7 +141,7 @@ export default function Tabs({
 
   return (
     <TabsContext.Provider
-      value={{ indicator, vertical, iconLayout, iconSize }}
+      value={{ variant, indicator, vertical, iconLayout, iconSize }}
     >
       <RadixTabs.Root
         value={value ?? undefined}
@@ -129,7 +153,10 @@ export default function Tabs({
         <div
           ref={containerRef}
           class={cn(
-            tabsContainer({ orientation: vertical ? "vertical" : "horizontal" }),
+            tabsContainer({
+              orientation: vertical ? "vertical" : "horizontal",
+              variant,
+            }),
             className,
           )}
         >
@@ -194,8 +221,9 @@ export function Tab({
   children,
 }: TabProps) {
   const ctx = useContext(TabsContext);
-  const activeColorClass = "text-tab-ink";
-  const inactiveColor = color || "text-tab-muted";
+  const rail = ctx.variant === "rail";
+  const activeColorClass = rail ? "text-accent" : "text-tab-ink";
+  const inactiveColor = color || (rail ? "text-muted" : "text-tab-muted");
   const activeColor = color || activeColorClass;
   return (
     <RadixTabs.Trigger value={value} disabled={disabled} asChild>
@@ -205,6 +233,7 @@ export function Tab({
           tabTrigger({
             orientation: ctx.vertical ? "vertical" : "horizontal",
             iconLayout: ctx.iconLayout,
+            variant: ctx.variant,
           }),
           className,
         )}
