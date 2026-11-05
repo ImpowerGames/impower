@@ -135,6 +135,23 @@ describe("the context menu on a fine pointer", () => {
     expect(isContextMenuOpen(v)).toBe(false);
   });
 
+  it("moves the caret to a right-click outside the selection, and keeps a selection the right-click is inside", () => {
+    const v = mount(EditorSelection.single(0));
+    const rightClick = (pos: number) => {
+      v.posAtCoords = (() => pos) as EditorView["posAtCoords"];
+      v.contentDOM.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+      );
+    };
+    rightClick(8);
+    expect(v.state.selection.main.head).toBe(8);
+    expect(v.state.selection.main.empty).toBe(true);
+    v.dispatch({ selection: EditorSelection.single(6, 11) });
+    rightClick(8);
+    expect(v.state.selection.main.from).toBe(6);
+    expect(v.state.selection.main.to).toBe(11);
+  });
+
   it("opens on right-click at the pointer", () => {
     const v = mount(EditorSelection.single(8));
     v.posAtCoords = (() => 8) as EditorView["posAtCoords"];

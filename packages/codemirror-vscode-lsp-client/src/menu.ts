@@ -313,7 +313,11 @@ const contextMenuHandlers = EditorView.domEventHandlers({
         },
         false,
       );
+      const inSelection = view.state.selection.ranges.some(
+        (range) => range.from <= pos && pos <= range.to,
+      );
       view.dispatch({
+        selection: inSelection ? undefined : { anchor: pos },
         effects: openContextMenu.of({
           pos,
           x: event.clientX,
