@@ -3,6 +3,7 @@ import { dirname, relative, resolve } from "node:path";
 import { openSearchPanel } from "@codemirror/search";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView, showTooltip } from "@codemirror/view";
+import ts from "typescript";
 import { afterEach, describe, expect, it } from "vitest";
 import EDITOR_THEME from "../src/modules/script-editor/constants/EDITOR_THEME";
 import { customSearchPanel } from "../src/modules/script-editor/utils/extensions/customSearch";
@@ -180,6 +181,11 @@ describe("the code editor decides no colour in JavaScript", () => {
     ).toEqual([]);
     expect(
       colourLiterals(
+        'const mask = `url("${encodeURIComponent(`<svg fill="none" stroke="black">${glyph}</svg>`)}")`; const ink = "#123";',
+      ),
+    ).toEqual(['"#123"']);
+    expect(
+      colourLiterals(
         'const mask = `<svg viewBox="0 0 24 24" fill="#fff">${glyph}</svg>`;',
       ),
     ).toEqual(['`<svg viewBox="0 0 24 24" fill="#fff">${glyph}</svg>`']);
@@ -191,15 +197,31 @@ const SRC = resolve(__dirname, "../src");
 const SVG_MASK_PAINT =
   /(?<=<svg\b[^`<>]*(?:>[^`]*)?)\s(?:fill|stroke)="(?:none|black|currentColor)"/g;
 
-const STRING_LITERAL = /"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/g;
-
 const COLOUR_LITERAL =
   /#[0-9a-f]{3,8}\b|\brgba?\(|\bhsla?\(|\b(white|black)\b(?!-)/i;
 
-const colourLiterals = (source: string) =>
-  (source.replace(SVG_MASK_PAINT, "").match(STRING_LITERAL) ?? []).filter(
-    (literal) => COLOUR_LITERAL.test(literal),
-  );
+const colourLiterals = (source: string) => {
+  const file = ts.createSourceFile("source.ts", source, ts.ScriptTarget.Latest);
+  const found: string[] = [];
+  const visit = (node: ts.Node) => {
+    const pieces = ts.isStringLiteral(node) ||
+      ts.isNoSubstitutionTemplateLiteral(node)
+      ? [node.text]
+      : ts.isTemplateExpression(node)
+        ? [node.head.text, ...node.templateSpans.map((span) => span.literal.text)]
+        : undefined;
+    if (
+      pieces?.some((text) =>
+        COLOUR_LITERAL.test(text.replace(SVG_MASK_PAINT, "")),
+      )
+    ) {
+      found.push(node.getText(file));
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return found;
+};
 
 const editorModules = () => {
   const seen = new Set<string>();
