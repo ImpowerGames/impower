@@ -4,10 +4,13 @@ import * as kit from "../src/components";
 export const NOT_COMPONENTS: readonly string[] = [
   "buttonVariants",
   "componentRegistry",
+  "dialogVariants",
   "layoutState",
   "pointerState",
+  "sheetVariants",
   "useCoarsePointer",
   "useLayout",
+  "useMountTransition",
 ];
 
 export const exported = Object.entries(kit) as [string, unknown][];
