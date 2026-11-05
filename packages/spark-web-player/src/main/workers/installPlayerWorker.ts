@@ -786,7 +786,25 @@ export function installPlayerWorker(connection: MessageConnection) {
       ([first, last]) => first <= point.line && point.line <= last,
     );
 
-  let lastScenePoint: StartPoint | undefined;
+  let lastScenePoint: { scene: string; offset: number } | undefined;
+
+  const sceneHeaderOf = (program: SparkProgram, scene: string) => {
+    const location = program.sceneLocations?.[scene];
+    const file = location ? Object.keys(program.scripts)[location[0]] : undefined;
+    return location && file ? { file, line: location[1] } : undefined;
+  };
+
+  const sceneNameAt = (program: SparkProgram, point: StartPoint) => {
+    const span = (program.sceneSpans?.[point.file] ?? []).find(
+      ([header, last]) => header <= point.line && point.line <= last,
+    );
+    return span
+      ? Object.keys(program.sceneLocations ?? {}).find((scene) => {
+          const header = sceneHeaderOf(program, scene);
+          return header?.file === point.file && header.line === span[0];
+        })
+      : undefined;
+  };
 
   const previewPoint = (
     program: SparkProgram,
@@ -794,20 +812,27 @@ export function installPlayerWorker(connection: MessageConnection) {
   ): { point: StartPoint; beat: "first" | "last" } | undefined => {
     const shown = startPoint(program, point, "last");
     if (shown) {
-      lastScenePoint = point;
+      const scene = sceneNameAt(program, point);
+      const header = scene ? sceneHeaderOf(program, scene) : undefined;
+      lastScenePoint =
+        scene && header ? { scene, offset: point.line - header.line } : undefined;
       return shown;
     }
     if (!spansHold(program.uiSpans, point)) {
       return undefined;
     }
-    if (lastScenePoint && spansHold(program.sceneSpans, lastScenePoint)) {
-      return startPointInScene(program, lastScenePoint, "last");
-    }
-    const start = program.sceneLocations?.["start"];
-    const file = start ? Object.keys(program.scripts)[start[0]] : undefined;
-    return start && file
-      ? startPointInScene(program, { file, line: start[1] }, "last")
+    const kept = lastScenePoint
+      ? sceneHeaderOf(program, lastScenePoint.scene)
       : undefined;
+    const keptPoint =
+      kept && lastScenePoint
+        ? { file: kept.file, line: kept.line + lastScenePoint.offset }
+        : undefined;
+    if (keptPoint && spansHold(program.sceneSpans, keptPoint)) {
+      return startPointInScene(program, keptPoint, "last");
+    }
+    const start = sceneHeaderOf(program, "start");
+    return start ? startPointInScene(program, start, "last") : undefined;
   };
 
   const startPointInScene = (

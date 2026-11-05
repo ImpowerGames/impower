@@ -175,6 +175,52 @@ describe("a line inside a top-level UI declaration", () => {
     expect(outcome.state).toBeUndefined();
   }, 120_000);
 
+  it.each([
+    ["inserting a line", { start: { line: 1, character: 0 }, end: { line: 1, character: 0 } }, "\n", 2, 11, "Last other beat.", "First other beat."],
+    ["deleting a line", { start: { line: 1, character: 0 }, end: { line: 2, character: 0 } }, "", 1, 10, "First other beat.", "Last other beat."],
+  ] as const)(
+    "keeps the same beat after %s inside the UI declaration above the scene",
+    async (_name, range, text, cursor, kept, shown, other) => {
+      const source = `style card {
+  background_color = black
+  color = white
+}
+
+scene start
+  Inside start.
+end
+
+scene other
+  First other beat.
+  Last other beat.
+end
+`;
+      const h = await createPlayerHarness({
+        files: [{ uri: MAIN_URI, text: source }],
+        startFrom: { file: MAIN_URI, line: kept },
+      });
+      try {
+        await h.compile();
+        await h.select(kept);
+        await settle(40);
+        expect(h.overlay.textContent).toContain(shown);
+        expect(h.overlay.textContent).not.toContain(other);
+        await h.select(1);
+        await settle(40);
+        expect(h.overlay.textContent).toContain(shown);
+        await h.edit([{ range, text }]);
+        await h.compile();
+        await h.select(cursor);
+        await settle(40);
+        expect(h.overlay.textContent).toContain(shown);
+        expect(h.overlay.textContent).not.toContain(other);
+      } finally {
+        h.dispose();
+      }
+    },
+    120_000,
+  );
+
   it("a function's body, which is not a UI declaration, shows no scene's beat", async () => {
     const h = await createPlayerHarness({
       files: [{ uri: MAIN_URI, text: WITH_UI }],
