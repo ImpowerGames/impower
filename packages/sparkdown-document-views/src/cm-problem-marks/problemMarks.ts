@@ -1,12 +1,9 @@
-import { type Diagnostic, setDiagnosticsEffect } from "@codemirror/lint";
 import {
-  ChangeDesc,
-  EditorState,
-  Range,
-  RangeSet,
-  StateField,
-  Text,
-} from "@codemirror/state";
+  type Diagnostic,
+  forEachDiagnostic,
+  setDiagnosticsEffect,
+} from "@codemirror/lint";
+import { EditorState, Range, RangeSet, StateField } from "@codemirror/state";
 import {
   Decoration,
   DecorationSet,
@@ -52,85 +49,63 @@ const gutterClasses: Record<ProblemSeverity, ProblemGutterClass> = {
   info: new ProblemGutterClass("info"),
 };
 
-interface Problem {
-  from: number;
-  to: number;
-  severity: ProblemSeverity;
-}
-
 interface ProblemLines {
-  problems: readonly Problem[];
   lines: DecorationSet;
   gutter: RangeSet<GutterMarker>;
 }
 
+const EMPTY_PROBLEM_LINES: ProblemLines = {
+  lines: Decoration.none,
+  gutter: RangeSet.empty,
+};
+
 const getProblemLineSeverities = (
-  doc: Text,
-  problems: readonly Problem[],
+  state: EditorState,
 ): Map<number, ProblemSeverity> => {
   const severities = new Map<number, ProblemSeverity>();
-  for (const { from: at, severity } of problems) {
-    const from = Math.min(Math.max(at, 0), doc.length);
-    const lineNumber = doc.lineAt(from).number;
+  forEachDiagnostic(state, ({ severity }, from) => {
+    if (!isProblemSeverity(severity)) {
+      return;
+    }
+    const lineNumber = state.doc.lineAt(from).number;
     const current = severities.get(lineNumber);
     if (!current || SEVERITY_RANK[severity] > SEVERITY_RANK[current]) {
       severities.set(lineNumber, severity);
     }
-  }
+  });
   return severities;
 };
 
-const buildProblemLines = (
-  state: EditorState,
-  problems: readonly Problem[],
-): ProblemLines => {
-  const lines: Range<Decoration>[] = [];
-  const gutter: Range<GutterMarker>[] = [];
-  const severities = [...getProblemLineSeverities(state.doc, problems)].sort(
+const buildProblemLines = (state: EditorState): ProblemLines => {
+  const severities = [...getProblemLineSeverities(state)].sort(
     ([a], [b]) => a - b,
   );
+  if (severities.length === 0) {
+    return EMPTY_PROBLEM_LINES;
+  }
+  const lines: Range<Decoration>[] = [];
+  const gutter: Range<GutterMarker>[] = [];
   for (const [lineNumber, severity] of severities) {
     const from = state.doc.line(lineNumber).from;
     lines.push(lineMarks[severity].range(from));
     gutter.push(gutterClasses[severity].range(from));
   }
   return {
-    problems,
     lines: Decoration.set(lines),
     gutter: RangeSet.of(gutter),
   };
 };
 
-const toProblems = (diagnostics: readonly Diagnostic[]): Problem[] =>
-  diagnostics.flatMap(({ from, to, severity }) =>
-    isProblemSeverity(severity) ? [{ from, to, severity }] : [],
-  );
-
-const mapProblems = (
-  problems: readonly Problem[],
-  changes: ChangeDesc,
-): Problem[] =>
-  problems.flatMap(({ from, to, severity }) => {
-    const mappedFrom = changes.mapPos(from, 1);
-    const mappedTo = changes.mapPos(to, -1);
-    if (to > from && mappedTo <= mappedFrom) {
-      return [];
-    }
-    return [{ from: mappedFrom, to: Math.max(mappedFrom, mappedTo), severity }];
-  });
-
 const problemLinesField = StateField.define<ProblemLines>({
-  create() {
-    return { problems: [], lines: Decoration.none, gutter: RangeSet.empty };
+  create(state) {
+    return buildProblemLines(state);
   },
   update(value, tr) {
-    for (const effect of tr.effects) {
-      if (effect.is(setDiagnosticsEffect)) {
-        return buildProblemLines(tr.state, toProblems(effect.value));
-      }
-    }
-    if (tr.docChanged && value.problems.length > 0) {
-      return buildProblemLines(tr.state, mapProblems(value.problems, tr.changes));
+    if (
+      tr.docChanged ||
+      tr.effects.some((effect) => effect.is(setDiagnosticsEffect))
+    ) {
+      return buildProblemLines(tr.state);
     }
     return value;
   },

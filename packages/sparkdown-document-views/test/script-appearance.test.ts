@@ -451,6 +451,33 @@ describe("problem marks after a deletion", () => {
     ).toHaveLength(0);
   });
 
+  const markedLines = () =>
+    [...view!.dom.querySelectorAll(".cm-line")].flatMap((el, i) =>
+      el.classList.contains("cm-problem-line") ? [i + 1] : [],
+    );
+
+  it("stay on the line of a point problem when a newline is typed at it", () => {
+    mount(ALL_OFF_APPEARANCE, "good bad");
+    view!.dispatch(
+      setDiagnostics(view!.state, [
+        { from: 5, to: 5, severity: "error", message: "point" },
+      ]),
+    );
+    view!.dispatch({ changes: { from: 5, insert: "\n" } });
+    expect(markedLines()).toEqual([1]);
+  });
+
+  it("keep a problem on a deleted newline where the editor keeps it", () => {
+    mount(ALL_OFF_APPEARANCE, "good\nbad");
+    view!.dispatch(
+      setDiagnostics(view!.state, [
+        { from: 4, to: 5, severity: "warning", message: "newline" },
+      ]),
+    );
+    view!.dispatch({ changes: { from: 4, to: 5 } });
+    expect(markedLines()).toEqual([1]);
+  });
+
   it("stay on a problem whose text is only partly deleted", () => {
     mount(ALL_OFF_APPEARANCE, "good\nbad\ngood");
     view!.dispatch(
