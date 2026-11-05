@@ -3,9 +3,11 @@ import { buttonGallery } from "./components/button/Button.gallery";
 import { dialogGallery } from "./components/dialog/Dialog.gallery";
 import { dropdownGallery } from "./components/dropdown/Dropdown.gallery";
 import { iconGallery } from "./components/icon/Icon.gallery";
+import { listRowGallery } from "./components/list-row/ListRow.gallery";
 import { madeWithSparkSplashGallery } from "./components/made-with-spark-splash/MadeWithSparkSplash.gallery";
 import { sparkLogoGallery } from "./components/spark-logo/SparkLogo.gallery";
 import { loadingBarGallery } from "./components/loading-bar/LoadingBar.gallery";
+import { popoverGallery } from "./components/popover/Popover.gallery";
 import { routerGallery } from "./components/router/Router.gallery";
 import { sidebarLayoutGallery } from "./components/sidebar-layout/SidebarLayout.gallery";
 import { splitPaneGallery } from "./components/split-pane/SplitPane.gallery";
@@ -18,9 +20,11 @@ export const galleryEntries: readonly GalleryEntry[] = [
   dialogGallery,
   dropdownGallery,
   iconGallery,
+  listRowGallery,
   loadingBarGallery,
   madeWithSparkSplashGallery,
   sparkLogoGallery,
+  popoverGallery,
   routerGallery,
   sidebarLayoutGallery,
   splitPaneGallery,

@@ -1,4 +1,15 @@
-import { indentLess, indentMore } from "@codemirror/commands";
+import {
+  copyLineDown,
+  indentLess,
+  indentMore,
+  moveLineDown,
+  moveLineUp,
+  redo,
+  selectAll,
+  selectLine,
+  toggleComment,
+  undo,
+} from "@codemirror/commands";
 import { openLintPanel } from "@codemirror/lint";
 import { openSearchPanel, searchPanelOpen } from "@codemirror/search";
 import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
@@ -7,10 +18,13 @@ import {
   convertFromPosition,
   convertToChangeEvents,
   convertToPosition,
+  findReferences,
   formatDocument,
   getDocumentVersion,
+  jumpToDefinition,
   LSPClient,
   LSPPlugin,
+  renameSymbol,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
@@ -25,6 +39,7 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
 import { FocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
 import { ReadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorMessage";
+import { ReadEditorKeybindingsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorKeybindingsMessage";
 import { DidLoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/DidLoadEditorMessage";
 import {
   HideEditorStatusBarMessage,
@@ -119,6 +134,7 @@ import {
   openCustomGotoLinePanel,
 } from "./utils/extensions/customSearch";
 import { setCoarsePointer } from "./utils/extensions/touchAffordances";
+import { editorKeybindings, shortcutPlatform } from "./utils/editorShortcuts";
 import { setScriptAppearance } from "../../cm-script-appearance/scriptAppearance";
 import type { ScriptAppearance } from "../../cm-script-appearance/scriptAppearanceOptions";
 
@@ -314,6 +330,16 @@ export class ScriptEditorController {
         coordinates,
       });
     }, this.host);
+    p.onRequest(ReadEditorKeybindingsMessage.type, (message) => {
+      const view = this._view;
+      const uri = this._textDocument?.uri;
+      if (!view || (message.params.textDocument && message.params.textDocument.uri !== uri)) return undefined;
+      const platform = shortcutPlatform();
+      return ReadEditorKeybindingsMessage.type.response(message.id, {
+        mac: platform === "mac",
+        commands: editorKeybindings(view.state, platform),
+      });
+    }, this.host);
     p.onRequest(
       LoadEditorMessage.type,
       (m) => this.handleLoadEditor(m),
@@ -473,6 +499,31 @@ export class ScriptEditorController {
         return openLintPanel(view);
       case "search":
         return openSearchPanel(view);
+      case "undo":
+        return undo(view);
+      case "redo":
+        return redo(view);
+      case "selectAll":
+        view.focus();
+        return selectAll(view);
+      case "selectLine":
+        view.focus();
+        return selectLine(view);
+      case "moveLineUp":
+        return moveLineUp(view);
+      case "moveLineDown":
+        return moveLineDown(view);
+      case "duplicateLine":
+        return copyLineDown(view);
+      case "toggleComment":
+        return toggleComment(view);
+      case "rename":
+        view.focus();
+        return renameSymbol(view);
+      case "references":
+        return findReferences(view);
+      case "definition":
+        return jumpToDefinition(view);
     }
   }
 

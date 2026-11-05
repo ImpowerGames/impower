@@ -19,7 +19,6 @@ import { useComputed } from "@preact/signals";
 import { useRef } from "preact/hooks";
 import { downloadProjectZip } from "../../utils/downloadProjectZip";
 import { importProjectFile } from "../../utils/importProjectFile";
-import { showSnackbar } from "../../utils/snackbar";
 import { localSaveLabel } from "../../workspace/saveStatus";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
@@ -52,6 +51,7 @@ export default function AppMenu() {
     () => !!workspace.state.value.screen?.pickingResource,
   ).value;
   const fileInput = useRef<HTMLInputElement | null>(null);
+  const openingGuide = useRef(false);
 
   const setOpen = (next: boolean) =>
     void withWindow((win) => win.setAppMenuOpen(next));
@@ -86,6 +86,12 @@ export default function AppMenu() {
           side="top"
           align="start"
           sideOffset={20}
+          onCloseAutoFocus={(event) => {
+            if (openingGuide.current) {
+              openingGuide.current = false;
+              event.preventDefault();
+            }
+          }}
           class="w-[280px]"
         >
           <DropdownLabel class="flex flex-row items-start gap-1 pr-0">
@@ -139,11 +145,10 @@ export default function AppMenu() {
             </>
           )}
           <DropdownItem
-            onSelect={() =>
-              showSnackbar({
-                message: "Help and guides will be available here.",
-              })
-            }
+            onSelect={() => {
+              openingGuide.current = true;
+              void withWindow((win) => win.openSparkdownGuide());
+            }}
           >
             <HelpIcon />
             {"Help & guide"}

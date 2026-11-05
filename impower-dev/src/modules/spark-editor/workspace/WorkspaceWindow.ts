@@ -20,6 +20,10 @@ import {
   EditorCommand,
   ExecuteEditorCommandMessage,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
+import { ReadEditorKeybindingsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorKeybindingsMessage";
+import { ReadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorMessage";
+import type { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
+import type { ResponseMessage } from "@impower/spark-editor-protocol/src/types/base/ResponseMessage";
 import { SelectEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
 import {
   SelectedEditorMessage,
@@ -61,6 +65,7 @@ import {
   Range,
   SyncStatus,
   WorkspaceCache,
+  WritingToolsView,
 } from "@impower/spark-editor-protocol/src/types";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import type { PublishDiagnosticsParams } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
@@ -88,6 +93,18 @@ import {
 import { showSnackbar } from "../utils/snackbar";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
+import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
+import {
+  definitionOf,
+  isCue,
+  isScriptUri,
+  kindOfDefinition,
+  lineOf,
+  nameRangeAt,
+  textOf,
+  type HighlightLike,
+  type NameAtCaret,
+} from "./nameAtCaret";
 import workspace, {
   cacheableWorkspaceState,
   loadedProjectId,
@@ -122,9 +139,17 @@ export default class WorkspaceWindow {
 
   protected _disposers: (() => void)[] = [];
 
-  protected _workspace: { fs: WorkspaceFileSystem; sync: WorkspaceSync };
+  protected _workspace: {
+    fs: WorkspaceFileSystem;
+    sync: WorkspaceSync;
+    ls?: WorkspaceLanguageServer;
+  };
 
-  constructor(workspace: { fs: WorkspaceFileSystem; sync: WorkspaceSync }) {
+  constructor(workspace: {
+    fs: WorkspaceFileSystem;
+    sync: WorkspaceSync;
+    ls?: WorkspaceLanguageServer;
+  }) {
     this._workspace = workspace;
     this.cacheProjectId(loadedProjectId());
     this.restoreAnimatePortraits();
@@ -217,6 +242,47 @@ export default class WorkspaceWindow {
       ...this.store,
       screen: { ...this.store.screen, appMenuOpen: open },
     });
+  }
+
+  openWritingTools(view: WritingToolsView = "menu") {
+    this.update({
+      ...this.store,
+      screen: {
+        ...this.store.screen,
+        appMenuOpen: false,
+        writingTools: { view, fromMenu: false },
+      },
+    });
+  }
+
+  showWritingToolsView(view: WritingToolsView) {
+    if (!this.store.screen.writingTools) {
+      return;
+    }
+    this.update({
+      ...this.store,
+      screen: {
+        ...this.store.screen,
+        writingTools: { view, fromMenu: view !== "menu" },
+      },
+    });
+  }
+
+  closeWritingTools() {
+    if (!this.store.screen.writingTools) {
+      return;
+    }
+    this.update({
+      ...this.store,
+      screen: { ...this.store.screen, writingTools: undefined },
+    });
+  }
+
+  openSparkdownGuide() {
+    if (this._route !== "write") {
+      this.navigateTo("write");
+    }
+    this.openWritingTools("guide");
   }
 
   setRailWidth(width: number | undefined) {
@@ -899,6 +965,102 @@ export default class WorkspaceWindow {
       );
     }
     return { success: true };
+  }
+
+  protected requestEditor<M extends string, P, R>(
+    type: MessageProtocolRequestType<M, P, R>,
+    params: P,
+    timeout = 3000,
+  ): Promise<R | null> {
+    const request = type.request(params);
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        stop();
+        resolve(null);
+      }, timeout);
+      const stop = onProtocolMessage(
+        {
+          is: (m: unknown): m is ResponseMessage<M, R> =>
+            type.isResponse(m, request.id),
+        },
+        (message) => {
+          clearTimeout(timer);
+          stop();
+          resolve(("result" in message ? message.result : null) ?? null);
+        },
+      );
+      sendProtocolMessage(request);
+    });
+  }
+
+  async readEditorKeybindings(filename: string) {
+    const projectId = this.store.project.id;
+    if (!projectId) {
+      return null;
+    }
+    const uri = this._workspace.fs.getFileUri(projectId, filename);
+    return this.requestEditor(ReadEditorKeybindingsMessage.type, {
+      textDocument: { uri },
+    });
+  }
+
+  async readNameAtCaret(filename: string): Promise<NameAtCaret | null> {
+    const projectId = this.store.project.id;
+    const ls = this._workspace.ls;
+    if (!projectId || !ls) {
+      return null;
+    }
+    const uri = this._workspace.fs.getFileUri(projectId, filename);
+    const editor = await this.requestEditor(ReadEditorMessage.type, {
+      textDocument: { uri },
+    });
+    if (!editor) {
+      return null;
+    }
+    const position = editor.selection.end;
+    const textDocument = { uri };
+    await ls.initialization();
+    const [highlights, definitions] = await Promise.all([
+      ls.connection.sendRequest<HighlightLike[] | null>(
+        "textDocument/documentHighlight",
+        { textDocument, position },
+      ),
+      ls.connection.sendRequest<HighlightLike[] | null>(
+        "textDocument/definition",
+        { textDocument, position },
+      ),
+    ]);
+    const range = nameRangeAt(highlights, position);
+    if (!range) {
+      return null;
+    }
+    const text = editor.textDocument.text;
+    const name = textOf(text, range);
+    if (!name.trim()) {
+      return null;
+    }
+    const definition = definitionOf(definitions);
+    if (!definition) {
+      return {
+        name,
+        kind: isCue(lineOf(text, position.line), name) ? "character" : "name",
+        definition: null,
+      };
+    }
+    const definitionText =
+      definition.uri === uri
+        ? text
+        : isScriptUri(definition.uri)
+          ? await this._workspace.fs.getFileText(definition.uri)
+          : "";
+    return {
+      name,
+      kind: kindOfDefinition(
+        definition.uri,
+        lineOf(definitionText, definition.range.start.line),
+      ),
+      definition,
+    };
   }
 
   executeEditorCommand(filename: string, command: EditorCommand) {
