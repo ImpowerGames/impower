@@ -1,4 +1,5 @@
 import { SCRIPT_FILES_GLOB } from "../../utils/scriptFiles";
+import { THEME_PREFERENCES } from "./applyTheme";
 
 export type SettingValue = boolean | number | string;
 
@@ -24,7 +25,7 @@ const configured = (...configurationKeys: string[]) => ({
 });
 
 export const PREFERENCES_SCHEMA = {
-  theme: setting("automatic"),
+  theme: choice("automatic", THEME_PREFERENCES),
 } as const satisfies Record<string, SettingSpec>;
 
 export const PROJECT_SETTINGS_SCHEMA = {

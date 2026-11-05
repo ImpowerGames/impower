@@ -11,8 +11,9 @@ export const VIEWPORT_PRESETS = {
 
 export const COLOR_SCHEMES = ["light", "dark"];
 
-export const THEME_NOT_APPLIED =
-  "the editor has no theme mechanism the driver can set yet, so this run used the editor's own theme; the screenshot name leaves the theme out";
+export const PREFERENCES_STORAGE_KEY = "settings/preferences";
+
+const THEME_SEEDED_MARKER = "impower-driver-theme-seeded";
 
 const presetList = () => Object.entries(VIEWPORT_PRESETS).map(([name, v]) => `${name} (${v.width}x${v.height})`).join(", ");
 
@@ -78,15 +79,39 @@ export function displayReport(display) {
     touch: Boolean(display.viewport?.touch),
     colorScheme: display.colorScheme,
     theme: display.theme,
-    ...(display.theme ? { themeApplied: false, themeNote: THEME_NOT_APPLIED } : {}),
   };
+}
+
+export function seedThemePreference({ key, theme, marker }) {
+  try {
+    if (window.top !== window || sessionStorage.getItem(marker)) return;
+    sessionStorage.setItem(marker, "1");
+    let stored = {};
+    try {
+      const parsed = JSON.parse(localStorage.getItem(key) ?? "{}");
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) stored = parsed;
+    } catch {}
+    if (theme == null) delete stored.theme;
+    else stored.theme = theme;
+    localStorage.setItem(key, JSON.stringify(stored));
+  } catch {}
+}
+
+export function themeSeed(display) {
+  return { key: PREFERENCES_STORAGE_KEY, theme: display.theme, marker: THEME_SEEDED_MARKER };
+}
+
+export function themeMismatch(display, renderedTheme) {
+  if (!display.theme || renderedTheme === display.theme) return null;
+  if (display.theme === "automatic" && renderedTheme) return null;
+  return `--theme ${display.theme} was set as the theme preference but the editor rendered ${renderedTheme ?? "no theme"}; the editor does not offer that theme`;
 }
 
 export function shotFileName(name, display) {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name ?? "") || name.toLowerCase().endsWith(".png")) {
     throw new Error(`screenshot takes a bare name such as story (letters, digits, . _ -, no .png), got "${name}"`);
   }
-  const parts = [name, display.viewport?.name, display.colorScheme].filter(Boolean);
+  const parts = [name, display.viewport?.name, display.theme, display.colorScheme].filter(Boolean);
   return `${parts.join("-")}.png`;
 }
 

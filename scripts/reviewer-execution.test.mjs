@@ -75,7 +75,7 @@ if(args[0]==="ui") {
  const { launchEditorBrowser } = await import(${JSON.stringify(new URL("../.agents/skills/drive-web-editor/driver.mjs", import.meta.url).href)});
  await launchEditorBrowser({headless:true,dir:fs.mkdtempSync(path.join(${JSON.stringify(scratch)},"browser-profile-")),playwright:async()=>({chromium:{
   executablePath:()=>${JSON.stringify(path.join(scratch, "missing-browser.exe"))},
-  launchPersistentContext:async(dir,options)=>{assert.equal(options.executablePath,${JSON.stringify(cacheExecutable)},"delegated child must select the coordinator's custom browser cache");return {};}
+  launchPersistentContext:async(dir,options)=>{assert.equal(options.executablePath,${JSON.stringify(cacheExecutable)},"delegated child must select the coordinator's custom browser cache");return {addInitScript:async()=>{}};}
  }})});
 }
 for(let i=0;i<args.length;i++) if(args[i]==="--shot" || args[i]==="--shot-of") {

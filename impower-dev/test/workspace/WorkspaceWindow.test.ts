@@ -110,7 +110,11 @@ vi.mock("@impower/jsonrpc/src/browser/classes/Port1MessageConnection", () => ({
 import { h, render } from "preact";
 import PreviewGame from "../../src/modules/spark-editor/components/preview-game/PreviewGame";
 import { Workspace } from "../../src/modules/spark-editor/workspace/Workspace";
-import { createPlayerPreferenceSync } from "../../src/modules/spark-editor/components/preview-game/playerPreferences";
+import { signal } from "@preact/signals";
+import {
+  createPlayerPreferenceSync,
+  playerUrl,
+} from "../../src/modules/spark-editor/components/preview-game/playerPreferences";
 import PreviewGameToolbar from "../../src/modules/spark-editor/components/preview-game-toolbar/PreviewGameToolbar";
 import { WorkspaceConstants } from "../../src/modules/spark-editor/workspace/WorkspaceConstants";
 import workspace, {
@@ -537,6 +541,31 @@ describe("Animate portraits preference", () => {
         forced: true,
         clipped: true,
       });
+    });
+
+    it("hears the editor's resolved theme in its URL, when it connects, and whenever it changes", () => {
+      const theme = signal<string>("charcoal");
+      expect(playerUrl("https://player.test/", theme)).toBe(
+        "https://player.test/#theme=charcoal",
+      );
+      const posted: { method: string; params: any }[] = [];
+      const sync = createPlayerPreferenceSync(
+        (m) => posted.push(m as any),
+        () => [],
+        theme,
+      );
+      const themes = () =>
+        posted
+          .filter((m) => m.method === "preview/setTheme")
+          .map((m) => m.params.theme);
+      expect(themes()).toEqual([]);
+      sync.received(connected("game"));
+      theme.value = "chalk";
+      sync.initialized();
+      expect(themes()).toEqual(["charcoal", "chalk", "chalk"]);
+      sync.dispose();
+      theme.value = "midnight";
+      expect(themes().at(-1)).toBe("chalk");
     });
 
     it("is what the game preview sends each player it connects to", async () => {
@@ -1055,9 +1084,10 @@ describe("The game preview's player bar", () => {
 
   it("asks the player for its skip and step buttons", async () => {
     const { iframe } = await mount();
-    const query = new URLSearchParams(iframe.getAttribute("src")!.split("?")[1]);
-    expect(query.has("skip-buttons")).toBe(true);
-    expect(query.has("step-buttons")).toBe(true);
+    const src = new URL(iframe.getAttribute("src")!, "http://editor.test/");
+    expect(src.searchParams.has("skip-buttons")).toBe(true);
+    expect(src.searchParams.has("step-buttons")).toBe(true);
+    expect(src.hash).toMatch(/^#theme=/);
   }, 30000);
 
   it("answers the bar's skip by moving the caret to the language server's next beat", async () => {

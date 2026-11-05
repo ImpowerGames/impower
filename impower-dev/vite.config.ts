@@ -20,9 +20,10 @@ import { clampThumbnailWidth } from "../packages/sparkdown/src/thumbnails/compos
 import pkg from "./package.json";
 import staticallyRenderPage from "./src/build/staticallyRenderPage.js";
 import {
-  themeColor,
+  themeColors,
   withManifestColors,
   withThemeColor,
+  DEFAULT_DARK_THEME,
 } from "./src/build/themeColor.js";
 
 const indir = "src";
@@ -115,8 +116,10 @@ const impowerUiThemeCss = path.join(
   "src/theme.css",
 );
 
-const readThemeColor = (): string =>
-  themeColor(fs.readFileSync(impowerUiThemeCss, "utf-8"));
+const readThemeColors = (): Record<string, string> =>
+  themeColors(fs.readFileSync(impowerUiThemeCss, "utf-8"));
+
+const readManifestColor = (): string => readThemeColors()[DEFAULT_DARK_THEME]!;
 
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
@@ -638,7 +641,7 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
                 path.join(process.cwd(), publicInDir, "manifest.webmanifest"),
                 "utf-8",
               ),
-              readThemeColor(),
+              readManifestColor(),
             ),
           );
           return;
@@ -694,7 +697,7 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
             path.join(process.cwd(), "src", "public", "document.html"),
             "utf-8",
           ),
-          readThemeColor(),
+          readThemeColors(),
         );
 
         const html = await fs.promises
@@ -749,7 +752,8 @@ export {
   getServiceWorkerDefine,
   staticallyStylePage,
   readEditorGlobalCss,
-  readThemeColor,
+  readThemeColors,
+  readManifestColor,
   viteStaticallyRenderedPagesPlugin,
 };
 

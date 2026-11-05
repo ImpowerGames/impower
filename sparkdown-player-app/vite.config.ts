@@ -1,14 +1,14 @@
 import * as esbuild from "esbuild";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import { withThemeVariables } from "./src/build/withThemeVariables";
 
 const PRODUCTION = process.env.NODE_ENV === "production";
 
-const IMPOWER_UI_THEME_CSS = fileURLToPath(
-  new URL("../packages/impower-ui/src/theme.css", import.meta.url),
+const IMPOWER_UI_THEME_CSS = createRequire(import.meta.url).resolve(
+  "@impower/impower-ui/theme.css",
 );
 
 const themeVariablesPlugin = (): Plugin => ({

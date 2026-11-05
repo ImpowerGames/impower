@@ -1,5 +1,6 @@
 :root {
   --swp-background-color: var(--panel);
+  --swp-toolbar-color: var(--ink);
   --swp-console-border-color: var(--edge);
   --swp-console-hover-color: var(--control-hover);
   --swp-console-active-color: var(--tint);
@@ -8,7 +9,7 @@
   --swp-console-warning-color: var(--warning);
   --swp-console-info-color: var(--accent);
   --swp-console-link-color: var(--accent);
-  color: #ffffffde;
+  color: color-mix(in srgb, var(--ink) 87%, transparent);
 }
 
 html {
@@ -27,4 +28,9 @@ body {
 
 spark-web-player {
   height: 100vh;
+}
+
+spark-web-player .fullscreen #ending-status:not([data-kind="error"]),
+spark-web-player .fullscreen #completion-status {
+  color: color-mix(in srgb, var(--ink) 69.6%, transparent);
 }

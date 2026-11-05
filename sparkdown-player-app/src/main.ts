@@ -15,7 +15,10 @@ import {
 } from "@impower/spark-web-player/src/index.js";
 import { installWorkspaceWorker } from "@impower/spark-web-player/src/main/workers/installWorkspaceWorker";
 import { enableOnsetTap } from "@impower/spark-web-player/src/app/managers/AudioProbe";
+import { followPreviewTheme } from "./previewTheme";
 import "./style.css";
+
+followPreviewTheme(document.documentElement);
 
 const SPARKDOWN_EDITOR_ORIGIN = import.meta.env.VITE_SPARKDOWN_EDITOR_ORIGIN;
 

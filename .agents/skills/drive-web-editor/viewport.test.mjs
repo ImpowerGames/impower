@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { contextOptions, displayReport, parseViewport, screenshotPath, shotFileName, takeDisplayFlags } from "./viewport.mjs";
+import { contextOptions, displayReport, parseViewport, PREFERENCES_STORAGE_KEY, screenshotPath, seedThemePreference, shotFileName, takeDisplayFlags, themeMismatch, themeSeed } from "./viewport.mjs";
 import { launchEditorBrowser, parseScreenshotArgs } from "./driver.mjs";
 
 const DRIVER = path.join(path.dirname(fileURLToPath(import.meta.url)), "driver.mjs");
@@ -74,14 +74,15 @@ await check("phone presets set touch, isMobile and scale factor 3; tablet and co
   });
 });
 
-await check("the launcher hands the display options to the persistent context", async () => {
+await check("the launcher hands the display options to the persistent context and seeds the theme", async () => {
   let seen;
+  const initScripts = [];
   const fake = async () => ({
     chromium: {
       executablePath: () => "",
       launchPersistentContext: async (_dir, options) => {
         seen = options;
-        return {};
+        return { addInitScript: async (fn, arg) => initScripts.push([fn, arg]) };
       },
     },
   });
@@ -89,7 +90,7 @@ await check("the launcher hands the display options to the persistent context", 
   const previous = process.env.IMPOWER_DRIVER_CHROMIUM;
   process.env.IMPOWER_DRIVER_CHROMIUM = process.execPath;
   try {
-    await launchEditorBrowser({ headless: true, dir, platform: "linux", playwright: fake, display: { ...none, viewport: parseViewport("phone"), colorScheme: "dark" } });
+    await launchEditorBrowser({ headless: true, dir, platform: "linux", playwright: fake, display: { ...none, viewport: parseViewport("phone"), colorScheme: "dark", theme: "chalk" } });
   } finally {
     if (previous == null) delete process.env.IMPOWER_DRIVER_CHROMIUM;
     else process.env.IMPOWER_DRIVER_CHROMIUM = previous;
@@ -101,6 +102,7 @@ await check("the launcher hands the display options to the persistent context", 
   assert.equal(seen.isMobile, true);
   assert.equal(seen.deviceScaleFactor, 3);
   assert.equal(seen.colorScheme, "dark");
+  assert.deepEqual(initScripts, [[seedThemePreference, themeSeed({ ...none, theme: "chalk" })]]);
 });
 
 await check("flags on the driver's own command line reach the browser context without being passed in", () => {
@@ -108,7 +110,7 @@ await check("flags on the driver's own command line reach the browser context wi
   const source = [
     `const { launchEditorBrowser } = await import(${JSON.stringify(pathToFileURL(DRIVER).href)});`,
     "let seen;",
-    "const chromium = { executablePath: () => '', launchPersistentContext: async (_dir, options) => { seen = options; return {}; } };",
+    "const chromium = { executablePath: () => '', launchPersistentContext: async (_dir, options) => { seen = options; return { addInitScript: async () => {} }; } };",
     `await launchEditorBrowser({ headless: true, dir: ${JSON.stringify(path.join(dir, "profile"))}, platform: 'linux', playwright: async () => ({ chromium }) });`,
     "console.log('OPTIONS ' + JSON.stringify(seen));",
   ].join("\n");
@@ -139,17 +141,18 @@ await check("flags on the driver's own command line reach the browser context wi
   }
 });
 
-await check("screenshot names carry the viewport and scheme, never an unapplied theme", () => {
+await check("screenshot names carry the viewport, theme and scheme", () => {
   assert.equal(shotFileName("story", none), "story.png");
   assert.equal(shotFileName("story", { ...none, viewport: parseViewport("phone") }), "story-phone.png");
-  assert.equal(shotFileName("story", { viewport: parseViewport("tablet"), colorScheme: "dark", theme: "charcoal" }), "story-tablet-dark.png");
+  assert.equal(shotFileName("story", { viewport: parseViewport("tablet"), colorScheme: "dark", theme: "charcoal" }), "story-tablet-charcoal-dark.png");
+  assert.equal(shotFileName("story", { ...none, colorScheme: "light" }), "story-light.png");
   assert.equal(shotFileName("story", { ...none, viewport: parseViewport("1280x720") }), "story-1280x720.png");
   assert.throws(() => shotFileName("story.png", none), /bare name/);
   assert.throws(() => shotFileName("../story", none), /bare name/);
   assert.equal(screenshotPath("story", none, "out"), path.resolve("out", "story.png"));
 });
 
-await check("the report says a requested theme was not applied", () => {
+await check("the report echoes the requested theme, and a theme the editor did not render is a failure", () => {
   assert.deepEqual(displayReport({ ...none, viewport: parseViewport("tablet") }), {
     viewport: "tablet",
     width: 768,
@@ -160,8 +163,53 @@ await check("the report says a requested theme was not applied", () => {
   });
   const themed = displayReport({ ...none, theme: "charcoal" });
   assert.equal(themed.viewport, "default");
-  assert.equal(themed.themeApplied, false);
-  assert.match(themed.themeNote, /not|no theme/);
+  assert.equal(themed.theme, "charcoal");
+  assert.equal(themeMismatch(none, "charcoal"), null);
+  assert.equal(themeMismatch({ ...none, theme: "chalk" }, "chalk"), null);
+  assert.equal(themeMismatch({ ...none, theme: "automatic", colorScheme: "light" }, "chalk"), null);
+  assert.equal(themeMismatch({ ...none, theme: "automatic", colorScheme: "dark" }, "charcoal"), null);
+  assert.match(themeMismatch({ ...none, theme: "automatic" }, null), /rendered no theme/);
+  assert.match(themeMismatch({ ...none, theme: "ink" }, "charcoal"), /--theme ink .* rendered charcoal/);
+  assert.match(themeMismatch({ ...none, theme: "ink" }, null), /rendered no theme/);
+});
+
+await check("the theme seed sets or clears the preference once per page session and leaves other preferences alone", () => {
+  const store = () => {
+    const map = new Map();
+    return { getItem: (k) => (map.has(k) ? map.get(k) : null), setItem: (k, v) => map.set(k, String(v)) };
+  };
+  const saved = { window: globalThis.window, localStorage: globalThis.localStorage, sessionStorage: globalThis.sessionStorage };
+  const setTop = (value) => Object.defineProperty(globalThis, "top", { value, configurable: true });
+  try {
+    globalThis.window = globalThis;
+    setTop(globalThis);
+    globalThis.localStorage = store();
+    globalThis.sessionStorage = store();
+    localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify({ theme: "midnight", other: 1 }));
+    seedThemePreference(themeSeed({ ...none, theme: "chalk" }));
+    assert.deepEqual(JSON.parse(localStorage.getItem(PREFERENCES_STORAGE_KEY)), { theme: "chalk", other: 1 });
+    localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify({ theme: "charcoal", other: 1 }));
+    seedThemePreference(themeSeed({ ...none, theme: "chalk" }));
+    assert.deepEqual(JSON.parse(localStorage.getItem(PREFERENCES_STORAGE_KEY)), { theme: "charcoal", other: 1 }, "a reload re-seeded the theme");
+    globalThis.sessionStorage = store();
+    seedThemePreference(themeSeed(none));
+    assert.deepEqual(JSON.parse(localStorage.getItem(PREFERENCES_STORAGE_KEY)), { other: 1 });
+    globalThis.sessionStorage = store();
+    localStorage.setItem(PREFERENCES_STORAGE_KEY, "not json");
+    seedThemePreference(themeSeed({ ...none, theme: "charcoal" }));
+    assert.deepEqual(JSON.parse(localStorage.getItem(PREFERENCES_STORAGE_KEY)), { theme: "charcoal" });
+    globalThis.sessionStorage = store();
+    setTop({});
+    localStorage.setItem(PREFERENCES_STORAGE_KEY, "{}");
+    seedThemePreference(themeSeed({ ...none, theme: "chalk" }));
+    assert.equal(localStorage.getItem(PREFERENCES_STORAGE_KEY), "{}", "a frame wrote the editor's preference");
+  } finally {
+    delete globalThis.top;
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete globalThis[k];
+      else globalThis[k] = v;
+    }
+  }
 });
 
 await check("screenshot arguments resolve the derived path and refuse strays", () => {

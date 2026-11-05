@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { showSnackbar } from "../../utils/snackbar";
-import { createPlayerPreferenceSync } from "./playerPreferences";
+import { createPlayerPreferenceSync, playerUrl } from "./playerPreferences";
 import PreviewGameToolbar from "../preview-game-toolbar/PreviewGameToolbar";
 import { installPreviewInspector } from "./previewInspect";
 import { createPreviewBeatSkipper } from "./previewBeatSkipper";
@@ -38,6 +38,7 @@ const STYLE = `
 
 export default function PreviewGame(_props: PreviewGameProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [playerSrc] = useState(() => playerUrl(PLAYER_SRC));
   const previewRef = useRef<HTMLDivElement | null>(null);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -407,6 +408,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
         }
 
         cleanup = () => {
+          preferences.dispose();
           window.removeEventListener(MessageProtocol.event, onProtocol);
           window.removeEventListener("keydown", onKeyDown);
           document.removeEventListener("fullscreenchange", onFullscreenChange);
@@ -435,7 +437,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
         <iframe
           ref={iframeRef}
           id="iframe"
-          src={PLAYER_SRC}
+          src={playerSrc}
           sandbox="allow-scripts allow-forms allow-same-origin"
           allow="autoplay"
           referrerpolicy="no-referrer"

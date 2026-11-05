@@ -28,7 +28,14 @@ Nine choices, stored under the ids in `folio-themes.js:4-14`:
 | Midnight | `midnight` | Original Spark Engine colors | Preset: Original syntax colours; surfaces are its own. |
 | Dusk | `dusk` | Quieter navy · original syntax | Preset: Original syntax colours; surfaces are its own. |
 
-The theme is applied as `data-theme` on `<body>`, with `data-surfaces` and
+The editor stores Automatic under the id `automatic`, its settings default, and applies
+the resolved theme as `data-theme` on `<html>` before first paint. The browser's
+`theme-color` follows the same resolved theme, from first paint and on every change: the
+build writes each theme's `--bg` (as hex) into the meta tag. The web app manifest's
+`theme_color` and `background_color` are static, so they take Charcoal's `--bg`,
+`#202123`, the default dark theme's colour.
+
+The prototype applies the theme as `data-theme` on `<body>`, with `data-surfaces` and
 `data-syntax-palette` beside it (`folio-themes.js:113-128`); the syntax colours are
 written as `--syntax-*` inline properties from `folio-syntax-palette.js`.
 
@@ -414,6 +421,9 @@ Component variables of the editor's own chrome:
 | `--editor-doc-keycap-edge` | Key cap border | `#3d444db3` |
 | `--editor-doc-quote-ink` | Block quote text in documentation | `#9198a1` |
 | `--editor-doc-quote-edge` | Block quote rule | `#3d444d` |
+| `--editor-icon-ink` | Find and go-to-line button icons, a checked find toggle's icon | `#ffffff` |
+| `--editor-icon-muted` | An unchecked find toggle's icon | `#cccccc` |
+| `--editor-icon-close` | The find and go-to-line close icon | `#315881` |
 
 Syntax variables, one per highlight role the editor's `EDITOR_HIGHLIGHTS.ts` and LSP
 semantic-token rules colour today:
@@ -452,6 +462,126 @@ semantic-token rules colour today:
 | `--syntax-chunk-name-definition` | Chunk names | `#7c7ca6` |
 | `--syntax-invalid` | Invalid text | `#f44747` |
 | `--syntax-comment` | Comments | `#6a9955` |
+
+### Charcoal and Chalk component and code editor variables
+
+Charcoal and Chalk give every component and code editor variable a value read from their
+semantic set, so one `[data-theme="charcoal"], [data-theme="chalk"]` block in
+`packages/impower-ui/src/theme.css` serves both. The prototype draws no code editor
+chrome of its own, so each value is the semantic colour the prototype gives the same
+role: the primary button is `--accent` on `--accent-ink` (`app.css:120-123`), the rail
+is `--bg` outside Midnight and Dusk (`folio-themes.css:319-325`), line numbers and the
+info problem colour are `--muted` (`folio-editor.css:39`, `:57`), the indentation guides
+are the derived colours above (`folio-editor.css:71`), and focus, links and the current
+selection's accents are `--accent`. The sticky header shadow takes the one-third black
+of the popovers (`folio-hierarchy.css:918`). The one value the two themes do not share
+is the modal backdrop `--scrim`, declared in each theme's own block from the overlay
+strengths under [Elevation](#elevation): `rgb(0 0 0 / 0.6)` in Charcoal (`app.css:1093-1094`)
+and `rgb(0 0 0 / 0.35)` in Chalk (`folio-themes.css:311-312`).
+
+| Variable | Charcoal and Chalk value | Chosen from |
+|---|---|---|
+| `--button-bg` | `var(--accent)` | Primary button fill, `app.css:121` |
+| `--button-ink` | `var(--accent-ink)` | Primary button ink, `app.css:122` |
+| `--sidebar` | `var(--bg)` | Rail fill, `folio-themes.css:319-322` |
+| `--popup` | `var(--panel)` | Menus and popovers |
+| `--surface` | `var(--panel)` | Panels |
+| `--tab-ink` | `var(--ink)` | Active tab |
+| `--tab-muted` | `var(--muted)` | Inactive tab |
+| `--placeholder` | `var(--muted)` | Secondary text |
+| `--primary` | `var(--accent)` | Active navigation, links |
+| `--focus-ring` | `var(--accent)` | Focus edge |
+| `--error-strong` | `var(--error)` | Problem colour: error |
+| `--warning-strong` | `var(--warning)` | Problem colour: warning |
+| `--editor-ink` | `var(--ink)` | Ink |
+| `--editor-line-number` | `var(--muted)` | `folio-editor.css:39` |
+| `--editor-line-number-active` | `var(--ink)` | Ink |
+| `--editor-indent-guide` | `color-mix(in srgb, var(--muted) 22%, transparent)` | `--guide`, `folio-themes.css:905` |
+| `--editor-indent-guide-active` | `color-mix(in srgb, var(--accent) 55%, transparent)` | `--guide-lit`, `folio-themes.css:906` |
+| `--editor-field-edge` | `var(--edge)` | Divider |
+| `--editor-field-edge-hover` | `var(--muted)` | Muted ink |
+| `--editor-button-hover` | `var(--control-hover)` | Hover overlay |
+| `--editor-focus` | `var(--accent)` | Focus edge |
+| `--editor-focus-edge` | `var(--accent)` | Focus edge |
+| `--editor-selection-match` | `color-mix(in srgb, var(--accent) 25%, transparent)` | Accent wash |
+| `--editor-panel-edge` | `var(--edge)` | Divider |
+| `--editor-toolbar-ink` | `var(--muted)` | Muted ink |
+| `--editor-status-ink` | `var(--muted)` | Muted ink |
+| `--editor-list-selected` | `var(--tint)` | Selected wash |
+| `--editor-toggle-on` | `var(--tint)` | Selected wash |
+| `--editor-toggle-on-edge` | `var(--accent)` | Focus edge |
+| `--editor-problem-range` | `color-mix(in srgb, var(--warning) 10%, transparent)` | Midnight's warning wash at its 10% |
+| `--editor-problem-error` | `var(--error)` | Problem colour: error |
+| `--editor-problem-warning` | `var(--warning)` | Problem colour: warning |
+| `--editor-problem-info` | `var(--muted)` | Problem colour: info, `folio-editor.css:57` |
+| `--editor-action-ink` | `var(--accent)` | Links |
+| `--editor-match` | `var(--accent)` | Accent |
+| `--editor-faint` | `var(--muted)` | Muted ink |
+| `--editor-placeholder` | `var(--muted)` | Muted ink |
+| `--editor-swatch-edge` | `var(--muted)` | Muted ink |
+| `--editor-reference-line` | `var(--muted)` | Muted ink |
+| `--editor-lens-ink` | `var(--muted)` | Muted ink |
+| `--editor-link` | `var(--accent)` | Links |
+| `--editor-link-active` | `var(--accent)` | Links |
+| `--editor-rename-edge` | `var(--edge)` | Divider |
+| `--editor-rename-submit` | `var(--tint)` | Selected wash, under `--ink` text |
+| `--editor-sticky-shadow` | `rgb(0 0 0 / 0.33)` | Popover shadow, `folio-hierarchy.css:918` |
+| `--editor-line-highlight` | `var(--tint)` | Current wash |
+| `--editor-breakpoint` | `var(--accent)` | Accent |
+| `--editor-pinpoint` | `var(--accent)` | Accent |
+| `--editor-touch-handle` | `var(--accent)` | Accent |
+| `--editor-doc-code` | `var(--elevated)` | Raised surface: keycaps |
+| `--editor-doc-keycap` | `var(--paper)` | Inset well |
+| `--editor-doc-keycap-edge` | `var(--edge)` | Divider |
+| `--editor-doc-quote-ink` | `var(--muted)` | Muted ink |
+| `--editor-doc-quote-edge` | `var(--edge)` | Divider |
+| `--editor-icon-ink` | `var(--ink)` | Ink |
+| `--editor-icon-muted` | `var(--muted)` | Muted ink |
+| `--editor-icon-close` | `var(--muted)` | Muted ink |
+
+### Charcoal and Chalk syntax variables
+
+Each editor syntax variable takes the Charcoal or Chalk colour of the syntax role whose
+Original colour it already draws, choosing among roles that share an Original colour by
+meaning; a variable whose Midnight colour no role uses takes the role closest in meaning
+(brackets take punctuation, operator keywords take type keyword, standard library
+functions take function, chunk names take heading, invalid text takes slug, content
+separators take separator).
+
+| Variable | Syntax role | Charcoal | Chalk |
+|---|---|---|---|
+| `--syntax-text` | `--syntax-text` | `#f0efeb` | `#202123` |
+| `--syntax-bracket` | `--syntax-punctuation` | `#94959b` | `#62636a` |
+| `--syntax-string` | `--syntax-string` | `#e09a84` | `#8c4221` |
+| `--syntax-escape` | `--syntax-escape` | `#b59a63` | `#7d5e08` |
+| `--syntax-type-name` | `--syntax-type` | `#61c2ad` | `#096354` |
+| `--syntax-type-name-definition` | `--syntax-declared-type` | `#61c2ad` | `#096354` |
+| `--syntax-standard-type` | `--syntax-type` | `#61c2ad` | `#096354` |
+| `--syntax-number` | `--syntax-number` | `#97bd83` | `#3f6a1f` |
+| `--syntax-bool` | `--syntax-boolean` | `#7db8ea` | `#1d55a3` |
+| `--syntax-operator` | `--syntax-operator` | `#94959b` | `#62636a` |
+| `--syntax-special-operator` | `--syntax-operator` | `#94959b` | `#62636a` |
+| `--syntax-break` | `--syntax-separator` | `#f0efeb` | `#202123` |
+| `--syntax-section-name-accessor` | `--syntax-target` | `#c0a3fe` | `#6a3fa2` |
+| `--syntax-section-name-definition` | `--syntax-declared` | `#c0a3fe` | `#6a3fa2` |
+| `--syntax-regex` | `--syntax-regex` | `#f2908e` | `#a22b33` |
+| `--syntax-transitional` | `--syntax-heading` | `#b29191` | `#7f595a` |
+| `--syntax-plain-keyword` | `--syntax-declaration` | `#7db8ea` | `#1d55a3` |
+| `--syntax-module-keyword` | `--syntax-keyword` | `#de9ed0` | `#7d3b73` |
+| `--syntax-control-keyword` | `--syntax-keyword` | `#de9ed0` | `#7d3b73` |
+| `--syntax-builtin` | `--syntax-type-keyword` | `#f296be` | `#a1265e` |
+| `--syntax-operator-keyword` | `--syntax-type-keyword` | `#f296be` | `#a1265e` |
+| `--syntax-property-name` | `--syntax-property` | `#aac1d2` | `#3f5878` |
+| `--syntax-variable-name` | `--syntax-identifier` | `#aac1d2` | `#3f5878` |
+| `--syntax-parameter-name` | `--syntax-identifier` | `#aac1d2` | `#3f5878` |
+| `--syntax-constant-variable-name` | `--syntax-asset` | `#61bbf0` | `#006f8e` |
+| `--syntax-attribute-name` | `--syntax-modifier` | `#b59a63` | `#7d5e08` |
+| `--syntax-function-name` | `--syntax-function` | `#b6b570` | `#6b6200` |
+| `--syntax-standard-function` | `--syntax-function` | `#b6b570` | `#6b6200` |
+| `--syntax-class-name` | `--syntax-container` | `#dfa674` | `#88460c` |
+| `--syntax-chunk-name-definition` | `--syntax-heading` | `#b29191` | `#7f595a` |
+| `--syntax-invalid` | `--syntax-slug` | `#fe9e9c` | `#9c242e` |
+| `--syntax-comment` | `--syntax-comment` | `#86a07c` | `#4d6b3e` |
 
 ## Type
 

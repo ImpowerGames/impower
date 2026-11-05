@@ -10,7 +10,7 @@ import { spawnDetached } from "../../../scripts/detached-launch.mjs";
 import { linuxProcesses, treeSurvivors, windowsProcessTable } from "../../../scripts/process-table.mjs";
 export { linuxProcesses, treeSurvivors, windowsProcessTable } from "../../../scripts/process-table.mjs";
 import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen.mjs";
-import { contextOptions, displayReport, hasDisplayFlags, screenshotPath, takeDisplayFlags } from "./viewport.mjs";
+import { contextOptions, displayReport, hasDisplayFlags, screenshotPath, seedThemePreference, takeDisplayFlags, themeMismatch, themeSeed } from "./viewport.mjs";
 import { LONG_PRESS_MS, ORIENTATIONS, SWIPE_MS, adbMissingMessage, findAdb, openAndroidDevice, parseGesture, parsePoint, takeDeviceFlags } from "./android.mjs";
 import { notBuiltYet, parseNamedStep } from "./steps.mjs";
 import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, SESSION_VARIABLES, checkoutStateFiles, driverSession, recordCheckoutOwner, sessionDir } from "./session-dir.mjs";
@@ -700,6 +700,9 @@ async function importPlaywright() {
   }
 }
 
+const themeLine = (display) =>
+  display.theme ? `theme: ${display.theme}, set as the theme preference before the page loads` : "theme: Automatic, the theme preference is cleared before the page loads";
+
 export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platform = process.platform, playwright = importPlaywright, display = DISPLAY }) {
   const tooDeep = profilePathProblem(dir, platform);
   if (tooDeep) throw new Error(tooDeep);
@@ -708,13 +711,21 @@ export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platfor
   const { chromium } = await playwright();
   const executablePath = resolveChromiumExecutablePath(chromium, { headless });
   log(`browser: ${chromiumChoiceLine()}`);
-  if (display.theme) log(`theme: --theme ${display.theme} is accepted and not applied; ${displayReport(display).themeNote}`);
-  return chromium.launchPersistentContext(dir, {
+  log(themeLine(display));
+  const ctx = await chromium.launchPersistentContext(dir, {
     headless,
     ...contextOptions(display),
     args: ["--autoplay-policy=no-user-gesture-required"],
     ...(executablePath ? { executablePath } : {}),
   });
+  await ctx.addInitScript(seedThemePreference, themeSeed(display));
+  return ctx;
+}
+
+async function renderedThemeProblem(page, result) {
+  if (!DISPLAY.theme) return null;
+  result.display.renderedTheme = await page.evaluate(() => document.documentElement.dataset.theme ?? null);
+  return themeMismatch(DISPLAY, result.display.renderedTheme);
 }
 
 const EDITOR_NAVIGATION = { waitUntil: "domcontentloaded", timeout: 120_000 };
@@ -736,7 +747,7 @@ export async function grantDurableStorage(ctx, page) {
 }
 
 export async function launchDeviceEditor({ record, display = DISPLAY, device = DEVICE, open = openAndroidDevice, playwright = importPlaywright }) {
-  if (display.theme) log(`theme: --theme ${display.theme} is accepted and not applied; ${displayReport(display).themeNote}`);
+  log(themeLine(display));
   const session = await open({
     record,
     viewport: display.viewport,
@@ -747,6 +758,7 @@ export async function launchDeviceEditor({ record, display = DISPLAY, device = D
     lockOptions: { session: SESSION, worktree: REPO_ROOT, command: process.argv.slice(2).join(" ") },
   });
   log(`device: ${session.device.model} ${session.device.serial}, Chrome ${session.device.chrome}`);
+  await session.ctx.addInitScript(seedThemePreference, themeSeed(display));
   return session;
 }
 
@@ -1723,6 +1735,13 @@ async function verify(args, deps = liveDeps) {
       } catch (err) {
         result.gameMounted = false;
         result.error = `the editor page did not load (${String(err.message || err).split("\n")[0]}). Check \`status\`; the machine may be saturated.`;
+        deps.log(JSON.stringify(result, null, 2));
+        process.exitCode = 1;
+        return result;
+      }
+      const themeProblem = await renderedThemeProblem(page, result);
+      if (themeProblem) {
+        result.error = themeProblem;
         deps.log(JSON.stringify(result, null, 2));
         process.exitCode = 1;
         return result;
@@ -3085,6 +3104,13 @@ async function ui(args, deps = liveDeps) {
         process.exitCode = 1;
         return result;
       }
+      const themeProblem = await renderedThemeProblem(page, result);
+      if (themeProblem) {
+        result.failed = [themeProblem];
+        deps.log(JSON.stringify(result, null, 2));
+        process.exitCode = 1;
+        return result;
+      }
       if (device) result.device = await deviceReport(page, device);
       result.startedOn = await deps.activeScreen(page);
       let gate = (await deps.interruptedSeed(page)) ? interruptedSeedError() : null;
@@ -3600,7 +3626,7 @@ switch (cmd) {
         "                          phone and phone-large add touch, isMobile and device scale factor 3; without it the page is 1600x1000;",
         "                          with --device android it sets the screen density so the page is that wide, restored when the run ends",
         "  --color-scheme <light|dark>  the prefers-color-scheme the page sees, for checking the Automatic theme",
-        "  --theme <name>          accepted and not applied yet: the editor has no theme mechanism the driver can set",
+        "  --theme <name>          the theme preference the page loads with, such as charcoal or chalk; without it the run starts under Automatic",
         "  The emulator route is the bar for phone widths; the phone presets are quick checks, tablet and desktop are evidence.",
         "",
         "redgreen options:",

@@ -261,6 +261,8 @@ spark-web-player {
     rgba(0, 0, 0, 0.5) 25%,
     rgba(0, 0, 0, 1) 100%
   );
+  --swp-toolbar-fullscreen-ink: #ffffffde;
+  --swp-toolbar-fullscreen-control: #fff;
 
   --swp-transition-fast: 0.15s;
   --swp-transition-med: 0.2s ease;
@@ -383,6 +385,8 @@ spark-web-player .fullscreen #toolbar {
   border-color: transparent;
   background-color: transparent;
   background-image: var(--swp-toolbar-fullscreen-gradient);
+  color: var(--swp-toolbar-fullscreen-ink);
+  --swp-toolbar-color: var(--swp-toolbar-fullscreen-control);
   pointer-events: none;
   cursor: default;
 }

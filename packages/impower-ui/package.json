@@ -32,6 +32,7 @@
       "types": "./src/preact/PreactComponent.ts",
       "default": "./src/preact/PreactComponent.ts"
     },
+    "./theme.css": "./src/theme.css",
     "./style.css": {
       "development": "./src/style.css",
       "default": "./dist/impower-ui.css"

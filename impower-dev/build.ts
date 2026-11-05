@@ -31,7 +31,8 @@ import {
   publicInDir,
   publicOutDir,
   readEditorGlobalCss,
-  readThemeColor,
+  readThemeColors,
+  readManifestColor,
   serviceWorkerPaths,
   ssrNoExternal,
   staticallyStylePage,
@@ -72,7 +73,7 @@ const copyPublic = async () => {
     manifestPath,
     withManifestColors(
       await fs.promises.readFile(manifestPath, "utf-8"),
-      readThemeColor(),
+      readManifestColor(),
     ),
   );
 };
@@ -166,7 +167,7 @@ const expandPageComponents = async () => {
   console.log(STEP_COLOR, "Hoisting CSS...");
   const documentHtml = withThemeColor(
     await fs.promises.readFile(`${publicInDir}/document.html`, "utf-8"),
-    readThemeColor(),
+    readThemeColors(),
   );
 
   let tailwindCss = "";
