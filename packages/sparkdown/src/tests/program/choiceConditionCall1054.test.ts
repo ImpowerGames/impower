@@ -84,7 +84,7 @@ describe("a choice line whose condition cannot be read is reported and leaves th
         ]);
       const run = storyRun(new ProgramStory(program.chunks!), []);
       const menu = run.menus[0]?.choices.map((c) => c.text) ?? [];
-      expect(errors).toEqual([[2, 9, 11, expect.stringContaining("could not be read")]]);
+      expect(errors).toEqual([[2, 9, 11, expect.stringContaining("This condition cannot be read here")]]);
       expect(run.errors).toEqual([]);
       expect(menu).toEqual(["Fallback"]);
     });

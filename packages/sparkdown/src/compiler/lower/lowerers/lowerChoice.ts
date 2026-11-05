@@ -39,7 +39,7 @@ import { statementSource } from "../utils/statementSource";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 const UNREADABLE_CHOICE_CONDITION_MESSAGE =
-  "This choice's condition could not be read, so the choice is never offered. Close its brackets, or write a condition such as `* if allowed() Text`.";
+  "This condition cannot be read here, so the choice is never offered. Close any bracket left open, or compute the condition into a variable on an earlier line and test that, as in `* if ready Text`.";
 
 function isInsideChoose(node: SyntaxNode): boolean {
   let cur: SyntaxNode | null = node.parent;

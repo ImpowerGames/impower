@@ -12,6 +12,8 @@ const PRELUDE = [
   "end",
 ];
 const CHOICE_LINE = PRELUDE.length + 2;
+const UNREADABLE =
+  "This condition cannot be read here, so the choice is never offered. Close any bracket left open, or compute the condition into a variable on an earlier line and test that, as in `* if ready Text`.";
 
 const run = (line: string) => {
   const { program } = compileScript(
@@ -59,7 +61,7 @@ describe("a choice condition that is clearly code but cannot be read is reported
           line: CHOICE_LINE,
           from: column,
           to: column + call.length,
-          message: expect.stringContaining("could not be read"),
+          message: UNREADABLE,
         },
       ]);
       expect(menu).toEqual(["Fallback"]);
