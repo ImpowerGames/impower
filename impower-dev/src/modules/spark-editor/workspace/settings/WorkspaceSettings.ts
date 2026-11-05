@@ -95,7 +95,7 @@ export class WorkspaceSettings {
     this._storedPreferences = signal<StoredSettings>(
       readStored(storage, PREFERENCES_STORAGE_KEY),
     );
-    const id = projectId.peek();
+    const id = projectId.value;
     this._storedProject = signal<{ id: string; stored: StoredSettings }>({
       id,
       stored: readStored(storage, projectStorageKey(id)),
