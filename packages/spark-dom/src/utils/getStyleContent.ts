@@ -3,6 +3,7 @@ import {
   ARIA_ATTRIBUTE_ALIASES,
 } from "../../../sparkdown/src/compiler/constants/dataAttributeProps";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
+import type { ThemeVariables } from "../../../sparkle-style-transformer/src/types/themeVariables";
 import { getCssPropertyName } from "../../../sparkle-style-transformer/src/utils/getCssPropertyName";
 import { getCssTokenValue } from "./getCssTokenValue";
 
@@ -200,6 +201,7 @@ export const getStyleContent = (
   options: {
     breakpoints: Record<string, number>;
     scope?: string;
+    theme: ThemeVariables;
   },
 ): string => {
   const scope = options.scope;
@@ -227,7 +229,7 @@ export const getStyleContent = (
             (value != null && String(value) !== "") ||
             getCssPropertyName(k) === "content"
           ) {
-            const cssEntries = getCssEquivalent(k, value);
+            const cssEntries = getCssEquivalent(k, value, options.theme);
             for (const [k, v] of cssEntries) {
               styleContent += `\n${indent}${k}: ${v};`;
             }

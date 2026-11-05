@@ -1,5 +1,6 @@
 import type { Animation as AnimationDefinition } from "../../../spark-engine/src/game/modules/ui/types/Animation";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
+import type { ThemeVariables } from "../../../sparkle-style-transformer/src/types/themeVariables";
 import { getCssTokenValue } from "../utils/getCssTokenValue";
 import { getMilliseconds } from "../utils/getMilliseconds";
 
@@ -16,7 +17,10 @@ export interface AnimationEffect {
 export default class AnimationPlayer {
   protected _instances: AnimationInstance[] = [];
 
-  constructor(effects: AnimationEffect[] = []) {
+  protected _theme: ThemeVariables;
+
+  constructor(theme: ThemeVariables, effects: AnimationEffect[] = []) {
+    this._theme = theme;
     for (const t of effects) {
       this.add(t);
     }
@@ -35,6 +39,7 @@ export default class AnimationPlayer {
               for (const [prop, value] of getCssEquivalent(
                 k,
                 getCssTokenValue(v),
+                this._theme,
               )) {
                 const keyframeProp = prop.startsWith("--")
                   ? prop

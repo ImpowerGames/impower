@@ -5,6 +5,8 @@ import { getCssTokenValue } from "../../../../spark-dom/src/utils/getCssTokenVal
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
 
+const theme: ReadonlySet<string> = new Set(["--theme-color-red"]);
+
 const applyUpdateStyle = (
   element: HTMLElement,
   style: Record<string, string | number | null>,
@@ -18,6 +20,7 @@ const applyUpdateStyle = (
       for (const [cssProp, cssValue] of getCssEquivalent(
         k,
         getCssTokenValue(v),
+        theme,
       )) {
         element.style.setProperty(cssProp, cssValue);
       }

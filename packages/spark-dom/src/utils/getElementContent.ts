@@ -1,4 +1,5 @@
 import type { ElementContent } from "../../../spark-engine/src/game/modules/ui/types/ElementContent";
+import type { ThemeVariables } from "../../../sparkle-style-transformer/src/types/themeVariables";
 import { getAnimationContent } from "./getAnimationContent";
 import { getFontContent } from "./getFontContent";
 import { getStyleContent } from "./getStyleContent";
@@ -8,6 +9,7 @@ export const getElementContent = (
   options: {
     breakpoints: Record<string, number>;
     scope?: string;
+    theme: ThemeVariables;
   },
 ): string => {
   if (typeof content === "string") {
@@ -23,7 +25,7 @@ export const getElementContent = (
     return getFontContent(content.fonts);
   }
   if ("animations" in content) {
-    return getAnimationContent(content.animations);
+    return getAnimationContent(content.animations, options.theme);
   }
   return "";
 };

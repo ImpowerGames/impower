@@ -1,6 +1,10 @@
 import { CSS_ALIASES } from "../constants/CSS_ALIASES.js";
 import { STYLE_ALIASES } from "../constants/STYLE_ALIASES.js";
 import { STYLE_TRANSFORMERS } from "../constants/STYLE_TRANSFORMERS.js";
+import type {
+  StyleTransformer,
+  ThemeVariables,
+} from "../types/themeVariables.js";
 import {
   getCssAnimation,
   getCssColor,
@@ -12,14 +16,15 @@ import {
 export const setVariableAndValue = (
   name: string,
   value: string | null,
-  valueFormatter: (v: string) => string,
+  valueFormatter: StyleTransformer,
+  theme: ThemeVariables,
   styles: Record<string, string> = {},
 ): Record<string, string> => {
   if (!name) {
     return styles;
   }
   const varName = name.startsWith("--_") ? name : `--_${name}`;
-  const formattedValue = value != null ? valueFormatter(value) : value;
+  const formattedValue = value != null ? valueFormatter(value, theme) : value;
   if (!formattedValue) {
     return styles;
   }
@@ -29,7 +34,7 @@ export const setVariableAndValue = (
 
 export const inferTransformer = (
   name: string,
-): ((v: string) => string) | undefined => {
+): StyleTransformer | undefined => {
   if (name === "icon" || name.endsWith("-icon")) {
     const getIcon = (v: string) => getCssIcon(v);
     return getIcon;
@@ -87,7 +92,8 @@ export const setSparkleStyle = (
   propName: string,
   propValue: string,
   attributePrefix: string,
-  styleTransformers: Record<string, (v: string) => string>,
+  styleTransformers: Record<string, StyleTransformer>,
+  theme: ThemeVariables,
   styles: Record<string, string> = {},
 ): Record<string, string> => {
   const normalizedName = getSparklePropName(propName, attributePrefix);
@@ -96,7 +102,7 @@ export const setSparkleStyle = (
     styleTransformers[normalizedName] || inferTransformer(normalizedName);
 
   if (transformer) {
-    setVariableAndValue(normalizedName, propValue, transformer, styles);
+    setVariableAndValue(normalizedName, propValue, transformer, theme, styles);
   }
 
   if (!Number.isNaN(Number(props["value"]))) {
@@ -127,12 +133,12 @@ export const getSparkleAttribute = (
 
 export const generateSparkleAttributesAndStyles = (
   props: Record<string, string>,
-  options?: { attributePrefix?: string },
+  options: { attributePrefix?: string; theme: ThemeVariables },
 ): {
   attributes: Record<string, string>;
   styles: Record<string, string>;
 } => {
-  const { attributePrefix = "" } = options || {};
+  const { attributePrefix = "", theme } = options;
   const styleTransformers = STYLE_TRANSFORMERS;
   const attributes: Record<string, string> = {};
   const styles: Record<string, string> = {};
@@ -145,6 +151,7 @@ export const generateSparkleAttributesAndStyles = (
       propValue,
       attributePrefix,
       styleTransformers,
+      theme,
       styles,
     );
   }

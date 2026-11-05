@@ -57,20 +57,24 @@ import {
   getCssVisible,
   getCssZ,
 } from "../utils/transformers.js";
+import type {
+  StyleTransformer,
+  ThemeVariables,
+} from "../types/themeVariables.js";
 import { getCssWideKeyword } from "../utils/getCssWideKeyword.js";
 
 const get = (v: string) => v;
 
-const keepCssWideKeywords = <
-  T extends Record<string, (value: any, ...rest: any[]) => string>,
->(
+const duration = (v: string) => getCssDuration(v);
+
+const keepCssWideKeywords = <T extends Record<string, StyleTransformer>>(
   transformers: T,
 ): T =>
   Object.fromEntries(
     Object.entries(transformers).map(([name, transform]) => [
       name,
-      (value: any, ...rest: any[]) =>
-        getCssWideKeyword(value) ?? transform(value, ...rest),
+      (value: any, theme: ThemeVariables) =>
+        getCssWideKeyword(value) ?? transform(value, theme),
     ]),
   ) as T;
 
@@ -219,14 +223,14 @@ export const STYLE_TRANSFORMERS = keepCssWideKeywords({
 
   pivot: get,
 
-  "transition-delay": getCssDuration,
-  "transition-duration": getCssDuration,
+  "transition-delay": duration,
+  "transition-duration": duration,
   "transition-easing": getCssEase,
   "transition-property": getCssProperty,
 
   animation: getCssAnimation,
-  "animation-delay": getCssDuration,
-  "animation-duration": getCssDuration,
+  "animation-delay": duration,
+  "animation-duration": duration,
   "animation-easing": getCssEase,
   "animation-iterations": getCssIterations,
   "animation-direction": get,

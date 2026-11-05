@@ -2,6 +2,7 @@ import {
   getCssColor,
   getCssMask,
 } from "../../../../sparkle-style-transformer/src/utils/transformers";
+import { SPARKLE_THEME } from "../../core/sparkle-theme";
 import { SparkleComponent } from "../../core/sparkle-component";
 import spec from "./_input";
 
@@ -55,7 +56,7 @@ export default class Input extends SparkleComponent(
       const ripple = this.refs.ripple;
       if (ripple) {
         if (newValue) {
-          const mask = getCssMask(newValue);
+          const mask = getCssMask(newValue, SPARKLE_THEME);
           ripple.root.style.webkitMask = mask;
           ripple.root.style.mask = mask;
         }

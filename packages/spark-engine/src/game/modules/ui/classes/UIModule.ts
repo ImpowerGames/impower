@@ -873,11 +873,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     const epoch = this._game.connection.epoch;
+    const themeVariables = this.getThemeVariables();
+    this.loadTheme(themeVariables);
     this._root = undefined;
     this._root = this.getOrCreateRootElement();
     this._events = {};
     this._reactive = true;
-    this.constructStyles();
+    this.constructStyles(themeVariables);
     if (this._game.program?.sparkle?.layouts) {
       const fonts = this._game.module.assets?.prepareLayout("main");
       if (fonts) {
@@ -891,7 +893,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       void this._game.module.assets?.prepareLayout("main");
       this.constructLayouts();
     }
-    this.loadTheme();
     const transientTargets = this.getTransientTargets();
     await Promise.all([
       this.text.clearAll(transientTargets),
@@ -1872,7 +1873,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return rootLayoutElement.findChild(uiName);
   }
 
-  constructStyles(): void {
+  protected getThemeVariables(): Record<string, string> {
     const variablesStyle: Record<string, string> = {};
     const images = this.context?.image;
     if (images) {
@@ -1922,6 +1923,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
+    return variablesStyle;
+  }
+
+  constructStyles(variablesStyle: Record<string, string>): void {
     this.constructStyle("variables", {
       styles: {
         "": variablesStyle,
@@ -3491,7 +3496,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  loadTheme(): void {
+  loadTheme(variables: Record<string, string>): void {
     const breakpoints = this.context?.config?.ui?.breakpoints;
     const root_text_size = this.context?.config?.ui?.root_text_size;
     if (breakpoints) {
@@ -3499,6 +3504,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         SetThemeMessage.type.request({
           breakpoints,
           root_text_size,
+          variables: Object.keys(variables),
         }),
       );
     }

@@ -1,18 +1,20 @@
-import Graphic from "./types/graphic";
-import extractAllGraphics from "./utils/extractAllGraphics";
-import generateStyledHtml from "./utils/generateStyledHtml";
+import type Graphic from "./types/graphic.js";
+import type { ThemeVariables } from "./types/themeVariables.js";
+import extractAllGraphics from "./utils/extractAllGraphics.js";
+import generateStyledHtml from "./utils/generateStyledHtml.js";
 
 const transformer = (
   html: string,
   config: {
     patterns?: string[] | undefined;
     icons?: string[] | undefined;
+    theme: ThemeVariables;
   },
 ): string => {
   if (!html) {
     return html;
   }
-  const patternFiles = config?.patterns;
+  const patternFiles = config.patterns;
   const patterns: Record<string, Graphic> = {};
   const icons: Record<string, Graphic> = {};
   if (patternFiles) {
@@ -25,7 +27,7 @@ const transformer = (
       });
     }
   }
-  const iconFiles = config?.icons;
+  const iconFiles = config.icons;
   if (iconFiles) {
     for (let i = 0; i < iconFiles.length; i += 1) {
       const iconFile = iconFiles[i] || "";
@@ -36,6 +38,6 @@ const transformer = (
       );
     }
   }
-  return generateStyledHtml(html, { patterns, icons });
+  return generateStyledHtml(html, { patterns, icons, theme: config.theme });
 };
 export default transformer;

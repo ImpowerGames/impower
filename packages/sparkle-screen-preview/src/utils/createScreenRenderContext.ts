@@ -3,13 +3,15 @@ import type {
   RenderContext,
   SparkleNode,
 } from "../../../sparkle-screen-renderer/src";
+import type { ThemeVariables } from "../../../sparkle-style-transformer/src/types/themeVariables";
 
 export const createScreenRenderContext = (
   components: Record<string, SparkleNode>,
   state: Record<string, any>,
+  theme: ThemeVariables,
   breakpoints?: Record<string, number> | null,
 ): RenderContext => ({
   components,
   state,
-  options: { breakpoints: breakpoints ?? builtinBreakpoints },
+  options: { breakpoints: breakpoints ?? builtinBreakpoints, theme },
 });

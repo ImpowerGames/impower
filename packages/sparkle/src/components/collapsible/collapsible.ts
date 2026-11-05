@@ -2,6 +2,7 @@ import {
   getCssDuration,
   getCssEase,
 } from "../../../../sparkle-style-transformer/src/utils/transformers";
+import { SPARKLE_THEME } from "../../core/sparkle-theme";
 import { getUnitlessValue } from "../../../../spec-component/src/utils/getUnitlessValue";
 import { SparkleComponent } from "../../core/sparkle-component";
 import { animationsComplete } from "../../utils/animationsComplete";
@@ -195,7 +196,11 @@ export default class Collapsible extends SparkleComponent(spec) {
           this.getAttribute("duration"),
           this.transitionDuration || "150ms",
         );
-        const ease = getCssEase(this.transitionEasing, "ease-out");
+        const ease = getCssEase(
+          this.transitionEasing,
+          SPARKLE_THEME,
+          "ease-out",
+        );
         buttonEl.style.setProperty("transition-property", transitionProperty);
         buttonEl.style.setProperty("transition-duration", duration);
         buttonEl.style.setProperty("transition-timing-function", ease);

@@ -28,7 +28,10 @@ export default class SparkdownScreenPreview extends Component(spec) {
       const message = e.detail;
       if (message.method === "load") {
         this._textDocument = message.params.textDocument;
-        const { parsed, render } = loadScreenPreview(message.params);
+        const { parsed, render } = loadScreenPreview({
+          ...message.params,
+          sharedCSS: spec.sharedCSS ?? {},
+        });
         const stateInputEl = this.refs.state as HTMLInputElement;
         const update = throttle(() => {
           const state = JSON.parse(stateInputEl.value || "{}");

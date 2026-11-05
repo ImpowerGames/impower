@@ -1,46 +1,33 @@
 import { SPARKLE_TO_CSS_NAME_MAP } from "../constants/CSS_ALIASES.js";
+import type { ThemeVariables } from "../types/themeVariables.js";
+import {
+  applyEdits,
+  identName,
+  isFunctionNode,
+  isTokenType,
+  parseComponentValues,
+  significant,
+  splitAt,
+  TokenType,
+  type ComponentValue,
+  type FunctionNode,
+  type SourceEdit,
+  type TokenNode,
+} from "./cssSyntax.js";
 
 const WHITESPACE_REGEX = /[\t ]+/;
 const VALUE_UNIT_REGEX = /^(\d+(?:\.\d+)?)([a-z]+)?$/;
-const NATIVE_SIZE_KEYWORDS = new Set([
-  "auto",
-  "min-content",
-  "max-content",
-  "fit-content",
-  "stretch",
-  "thin",
-  "medium",
-  "thick",
-]);
-const GRADIENT_KEYWORDS = new Set([
-  "left",
-  "right",
-  "top",
-  "bottom",
-  "in",
-  "to",
-  "srgb",
-  "srgb-linear",
-  "display-p3",
-  "display-p3-linear",
-  "a98-rgb",
-  "prophoto-rgb",
-  "rec2020",
-  "lab",
-  "oklab",
-  "hsl",
-  "hwb",
-  "lch",
-  "oklch",
-  "shorter",
-  "longer",
-  "increasing",
-  "decreasing",
-  "hue",
-  "xyz",
-  "xyz-d50",
-  "xyz-d65",
-]);
+
+export const getThemeVar = (
+  theme: ThemeVariables,
+  category: string,
+  name: string,
+): string | undefined => {
+  const variable = `--theme-${category}-${name}`;
+  return !name.includes("\\") && theme.has(variable)
+    ? `var(${variable})`
+    : undefined;
+};
 
 // eslint-disable-next-line no-useless-escape
 const SAFE_CSS_VALUE_RE =
@@ -54,68 +41,191 @@ export function validateCss(value: string | null | undefined): boolean {
   return SAFE_CSS_VALUE_RE.test(v);
 }
 
-function transformColors(css: string): string {
-  let result = "";
-  let i = 0;
+const GRADIENT_FUNCTION = /^(?:repeating-)?(?:linear|radial|conic)-gradient$/i;
 
-  while (i < css.length) {
-    if (css[i] === "/" && css[i + 1] === "*") {
-      const end = css.indexOf("*/", i + 2);
-      if (end !== -1) {
-        result += css.slice(i, end + 2);
-        i = end + 2;
-        continue;
-      }
-    }
+const COLOR_FUNCTION = /^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)$/i;
 
-    if (css[i] === '"' || css[i] === "'") {
-      const quote = css[i];
-      let end = i + 1;
-      while (end < css.length && css[end] !== quote) {
-        if (css[end] === "\\") end++;
-        end++;
-      }
-      result += css.slice(i, end + 1);
-      i = end + 1;
+const COLOR_ARGUMENT_FUNCTION = /^(?:drop-shadow|light-dark)$/i;
+
+const GRADIENT_KEYWORDS: ReadonlySet<string> = new Set([
+  "to",
+  "at",
+  "from",
+  "in",
+  "left",
+  "right",
+  "top",
+  "bottom",
+  "center",
+  "circle",
+  "ellipse",
+  "closest-side",
+  "closest-corner",
+  "farthest-side",
+  "farthest-corner",
+  "srgb",
+  "srgb-linear",
+  "display-p3",
+  "display-p3-linear",
+  "a98-rgb",
+  "prophoto-rgb",
+  "rec2020",
+  "lab",
+  "oklab",
+  "xyz",
+  "xyz-d50",
+  "xyz-d65",
+  "hsl",
+  "hwb",
+  "lch",
+  "oklch",
+  "shorter",
+  "longer",
+  "increasing",
+  "decreasing",
+  "hue",
+]);
+
+const NO_KEYWORDS: ReadonlySet<string> = new Set();
+
+const isNumeric = (node: ComponentValue | undefined): boolean =>
+  isTokenType(node, TokenType.Number) ||
+  isTokenType(node, TokenType.Dimension) ||
+  isTokenType(node, TokenType.Percentage);
+
+const resolveColorWords = (
+  css: string,
+  nodes: ComponentValue[],
+  theme: ThemeVariables,
+  edits: SourceEdit[],
+  keywords: ReadonlySet<string> = NO_KEYWORDS,
+): void => {
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]!;
+    if (isFunctionNode(node)) {
+      resolveFunction(css, node, theme, edits, true, keywords);
       continue;
     }
-
-    if (/[a-z]/i.test(css[i]!)) {
-      let identifier = "";
-      const start = i;
-      while (i < css.length && /[%/.a-z0-9_-]/i.test(css[i]!)) {
-        identifier += css[i];
-        i++;
-      }
-
-      if (!GRADIENT_KEYWORDS.has(identifier) && isBoundary(css, start, i)) {
-        result += getCssColor(identifier);
-      } else {
-        result += identifier;
-      }
+    const name = identName(node);
+    if (
+      name === undefined ||
+      (node as TokenNode).value[1] !== name ||
+      name.startsWith("--") ||
+      keywords.has(name.toLowerCase())
+    ) {
       continue;
     }
-
-    result += css[i];
-    i++;
+    const [, , start, end] = (node as TokenNode).value;
+    const slash = nodes[i + 1];
+    const alpha = nodes[i + 2];
+    if (
+      isTokenType(slash, TokenType.Delim) &&
+      slash.value[1] === "/" &&
+      slash.value[2] === end + 1 &&
+      isNumeric(alpha) &&
+      (alpha as TokenNode).value[2] === slash.value[3] + 1
+    ) {
+      const alphaEnd = (alpha as TokenNode).value[3];
+      const origin =
+        getThemeVar(theme, "color", name) ?? css.slice(start, end + 1);
+      const alphaText = css.slice(slash.value[3] + 1, alphaEnd + 1);
+      edits.push({
+        start,
+        end: alphaEnd + 1,
+        text: `rgb(from ${origin} r g b / ${alphaText})`,
+      });
+      i += 2;
+      continue;
+    }
+    const resolved =
+      name === "current" ? "currentColor" : getThemeVar(theme, "color", name);
+    if (resolved !== undefined) {
+      edits.push({ start, end: end + 1, text: resolved });
+    }
   }
+};
 
-  return result;
-}
+const resolveNestedFunctions = (
+  css: string,
+  nodes: ComponentValue[],
+  theme: ThemeVariables,
+  edits: SourceEdit[],
+): void => {
+  for (const node of nodes) {
+    if (isFunctionNode(node)) {
+      resolveFunction(css, node, theme, edits, false, NO_KEYWORDS);
+    }
+  }
+};
 
-function isBoundary(css: string, start: number, end: number): boolean {
-  const prev = css[start - 1];
-  const next = css[end];
+const resolveFunction = (
+  css: string,
+  fn: FunctionNode,
+  theme: ThemeVariables,
+  edits: SourceEdit[],
+  colorPosition: boolean,
+  keywords: ReadonlySet<string>,
+): void => {
+  const name = fn.getName();
+  if (COLOR_FUNCTION.test(name)) {
+    const args = significant(fn.value);
+    if (identName(args[0])?.toLowerCase() === "from" && args[1]) {
+      resolveColorWords(css, [args[1]], theme, edits);
+    }
+    return;
+  }
+  if (GRADIENT_FUNCTION.test(name)) {
+    splitAt(fn.value, TokenType.Comma).forEach((argument, index) => {
+      resolveColorWords(
+        css,
+        argument,
+        theme,
+        edits,
+        index === 0 ? GRADIENT_KEYWORDS : NO_KEYWORDS,
+      );
+    });
+    return;
+  }
+  if (name.toLowerCase() === "color-mix") {
+    splitAt(fn.value, TokenType.Comma).forEach((argument, index) => {
+      if (index === 0) {
+        resolveNestedFunctions(css, argument, theme, edits);
+      } else {
+        resolveColorWords(css, argument, theme, edits);
+      }
+    });
+    return;
+  }
+  if (name.toLowerCase() === "var") {
+    splitAt(fn.value, TokenType.Comma).forEach((argument, index) => {
+      if (index > 0 && colorPosition) {
+        resolveColorWords(css, argument, theme, edits, keywords);
+      } else if (index > 0) {
+        resolveNestedFunctions(css, argument, theme, edits);
+      }
+    });
+    return;
+  }
+  if (COLOR_ARGUMENT_FUNCTION.test(name)) {
+    resolveColorWords(css, fn.value, theme, edits);
+    return;
+  }
+  resolveNestedFunctions(css, fn.value, theme, edits);
+};
 
-  if (prev === "-") return false;
-
-  if (next === "(") return false;
-
-  const delimiters = /[\s,()!:;]/;
-  const isStartOk = !prev || delimiters.test(prev);
-  const isEndOk = !next || delimiters.test(next);
-
-  return isStartOk && isEndOk;
+function transformColors(
+  css: string,
+  theme: ThemeVariables,
+  colorPosition: boolean,
+): string {
+  const edits: SourceEdit[] = [];
+  const values = parseComponentValues(css);
+  if (colorPosition) {
+    resolveColorWords(css, values, theme, edits);
+  } else {
+    resolveNestedFunctions(css, values, theme, edits);
+  }
+  return applyEdits(css, edits);
 }
 
 export const getCssAnchorVisibility = (value: string | boolean): string => {
@@ -134,17 +244,25 @@ export const getCssAnchorVisibility = (value: string | boolean): string => {
   return value;
 };
 
-export const getCssAnimation = (value: string | null, suffix = ""): string => {
-  if (!value || value === "none") {
+export const getCssAnimation = (
+  value: string | null,
+  theme: ThemeVariables,
+  suffix = "",
+): string => {
+  if (!value) {
     return "none";
   }
   if (value.startsWith("var(")) {
     return value;
   }
-  return value
-    .split(" ")
-    .map((v) => `var(--theme-animation-${v}${suffix || ""})`)
-    .join(", ");
+  const names = value.split(" ");
+  const variables = names.map((v) =>
+    getThemeVar(theme, "animation", `${v}${suffix}`),
+  );
+  if (variables.every((v) => v === undefined)) {
+    return value;
+  }
+  return names.map((v, i) => variables[i] ?? v).join(", ");
 };
 
 export const getCssBgAlign = (value: string): string => {
@@ -181,30 +299,8 @@ export const getCssBorderStyle = (value: string): string => {
   return value;
 };
 
-export const getCssColor = (value: string): string => {
-  if (value === "current") {
-    return "currentColor";
-  }
-  if (
-    value === "none" ||
-    value === "transparent" ||
-    value === "black" ||
-    value === "white" ||
-    value === "currentColor" ||
-    value.startsWith("#") ||
-    value.includes("(")
-  ) {
-    return value;
-  }
-  if (!value) {
-    return value;
-  }
-  if (value.includes("/")) {
-    const [color, alpha] = value.split("/");
-    return `rgb(from var(--theme-color-${color}) r g b / ${alpha})`;
-  }
-  return `var(--theme-color-${value})`;
-};
+export const getCssColor = (value: string, theme: ThemeVariables): string =>
+  value ? transformColors(value, theme, true) : value;
 
 export const getCssChildColumns = (columns: string): string => {
   if (isValidNumber(columns)) {
@@ -267,11 +363,11 @@ export const getCssChildAlign = (value: boolean | string): string => {
 
 export const isValidNumber = (v: string) => !Number.isNaN(Number(v));
 
-export const getCssZ = (value: string): string => {
+export const getCssZ = (value: string, theme: ThemeVariables): string => {
   if (isValidNumber(value) || value.startsWith("var(")) {
     return value;
   }
-  return `var(--theme-z-index-${value})`;
+  return getThemeVar(theme, "z-index", value) ?? value;
 };
 
 const withUnitOutsideFunctions = (parts: string[], unit: string): string[] => {
@@ -364,14 +460,17 @@ export const getCssTextDecorationLine = (value: boolean | string): string => {
   return value;
 };
 
-export const getCssTextStroke = (value: string): string => {
+export const getCssTextStroke = (
+  value: string,
+  theme: ThemeVariables,
+): string => {
   const [width, color] = value.trim().split(WHITESPACE_REGEX);
   const widthMatch = width?.match(VALUE_UNIT_REGEX);
   const widthValue = widthMatch?.[1] || "";
   const widthUnit = widthMatch?.[2] || "";
   let r = isValidNumber(widthValue) ? Number(widthValue) : 1;
   let u = widthUnit || "px";
-  let c = getCssColor(color || "black");
+  let c = getCssColor(color || "black", theme);
   if (r === 0) {
     return "none";
   }
@@ -386,49 +485,27 @@ export const getCssTextStroke = (value: string): string => {
   return str;
 };
 
-export const getCssTextSize = (value: string): string => {
+export const getCssTextSize = (
+  value: string,
+  theme: ThemeVariables,
+): string => {
   if (value.startsWith("var(")) {
     return value;
-  }
-  if (
-    value === "2xs" ||
-    value === "xs" ||
-    value === "sm" ||
-    value === "md" ||
-    value === "lg" ||
-    value === "xl" ||
-    value === "2xl" ||
-    value === "3xl" ||
-    value === "4xl" ||
-    value === "5xl" ||
-    value === "6xl" ||
-    value === "7xl" ||
-    value === "8xl" ||
-    value === "9xl"
-  ) {
-    return `var(--theme-text-${value}-font-size)`;
   }
   if (!Number.isNaN(Number(value))) {
     return `${value}px`;
   }
-  return value;
+  return getThemeVar(theme, "text", `${value}-font-size`) ?? value;
 };
 
-export const getCssTextLeading = (value: string): string => {
+export const getCssTextLeading = (
+  value: string,
+  theme: ThemeVariables,
+): string => {
   if (value.startsWith("var(")) {
     return value;
   }
-  if (
-    value === "none" ||
-    value === "xs" ||
-    value === "sm" ||
-    value === "md" ||
-    value === "lg" ||
-    value === "xl"
-  ) {
-    return `var(--theme-text-leading-${value})`;
-  }
-  return value;
+  return getThemeVar(theme, "text-leading", value) ?? value;
 };
 
 export const getCssTextStyle = (value: boolean | string): string => {
@@ -441,14 +518,14 @@ export const getCssTextStyle = (value: boolean | string): string => {
   return value;
 };
 
-export const getCssTextFont = (value: string): string => {
+export const getCssTextFont = (
+  value: string,
+  theme: ThemeVariables,
+): string => {
   if (value.startsWith("var(")) {
     return value;
   }
-  if (value === "sans" || value === "serif" || value === "mono") {
-    return `var(--theme-font-${value})`;
-  }
-  return value;
+  return getThemeVar(theme, "font", value) ?? value;
 };
 
 export const getCssTextAlign = (value: string): string => {
@@ -473,24 +550,27 @@ export const getCssContentVisibility = (size: string): string => {
   return size;
 };
 
-export const getCssCorner = (value: string): string => {
+export const getCssCorner = (value: string, theme: ThemeVariables): string => {
   if (value === "full" || value === "pill") {
     return "9999px";
   }
   if (value === "circle") {
     return "50%";
   }
-  return getCssSize(value);
+  return getCssSize(value, theme);
 };
 
-export const getCssDimension = (value: number | string): string => {
+export const getCssDimension = (
+  value: number | string,
+  theme: ThemeVariables,
+): string => {
   if (value === -1 || value === "") {
     return "100%";
   }
-  if (value === "none" || value === "auto") {
+  if (value === "none") {
     return value;
   }
-  return getCssSize(value, "px");
+  return getCssSize(value, theme);
 };
 
 export const getCssDisplay = (value: string | boolean): string => {
@@ -520,24 +600,13 @@ export const getCssDuration = (
 
 export const getCssEase = (
   value: string | null,
+  theme: ThemeVariables,
   defaultValue = "linear",
 ): string => {
   if (!value) {
     return defaultValue;
   }
-  if (
-    value === "none" ||
-    value === "linear" ||
-    value === "ease" ||
-    value === "ease-in" ||
-    value === "ease-out" ||
-    value === "ease-in-out" ||
-    value === "step-start" ||
-    value === "step-end" ||
-    value.startsWith("var(") ||
-    value.startsWith("cubic-bezier(") ||
-    value.startsWith("steps(")
-  ) {
+  if (value.includes("(")) {
     return value;
   }
   const [ease, outgoing, incoming] = value.split("-");
@@ -552,29 +621,14 @@ export const getCssEase = (
     const x2 = 1 - incomingPercent / 100;
     return `cubic-bezier(${x1}, 0, ${x2}, 1)`;
   }
-  return `var(--theme-ease-${value})`;
+  return getThemeVar(theme, "ease", value) ?? value;
 };
 
-export const getCssFilter = (value: string): string => {
-  if (value === "none") {
-    return value;
+export const getCssFilter = (value: string, theme: ThemeVariables): string => {
+  if (value.includes("(")) {
+    return transformColors(value, theme, false);
   }
-  if (
-    value.startsWith("var(") ||
-    value.startsWith("blur(") ||
-    value.startsWith("brightness(") ||
-    value.startsWith("contrast(") ||
-    value.startsWith("drop-shadow(") ||
-    value.startsWith("grayscale(") ||
-    value.startsWith("hue-rotate(") ||
-    value.startsWith("invert(") ||
-    value.startsWith("opacity(") ||
-    value.startsWith("sepia(") ||
-    value.startsWith("saturate(")
-  ) {
-    return transformColors(value);
-  }
-  return `var(--theme-filter-${value})`;
+  return getThemeVar(theme, "filter", value) ?? value;
 };
 
 export const getCssFlex = (value: boolean | string): string => {
@@ -590,23 +644,17 @@ export const getCssFlex = (value: boolean | string): string => {
   return value;
 };
 
-export const getCssGradient = (value: string): string => {
+export const getCssGradient = (
+  value: string,
+  theme: ThemeVariables,
+): string => {
   if (!value) {
     return "none";
   }
-  if (
-    value === "none" ||
-    value.startsWith("var(") ||
-    value.startsWith("linear-gradient(") ||
-    value.startsWith("radial-gradient(") ||
-    value.startsWith("conic-gradient(") ||
-    value.startsWith("repeating-linear-gradient(") ||
-    value.startsWith("repeating-radial-gradient(") ||
-    value.startsWith("repeating-conic-gradient(")
-  ) {
-    return transformColors(value);
+  if (value.includes("(")) {
+    return transformColors(value, theme, false);
   }
-  return `var(--theme-gradient-${value})`;
+  return getThemeVar(theme, "gradient", value) ?? value;
 };
 
 export const getCssGrow = (value: boolean | string): string => {
@@ -632,24 +680,14 @@ export const getCssIcon = (value: string): string => {
   return `'${value}'`;
 };
 
-export const getCssImage = (value: string): string => {
+export const getCssImage = (value: string, theme: ThemeVariables): string => {
   if (!value) {
     return "none";
   }
-  if (
-    value === "none" ||
-    value.startsWith("var(") ||
-    value.startsWith("url(") ||
-    value.startsWith("linear-gradient(") ||
-    value.startsWith("radial-gradient(") ||
-    value.startsWith("conic-gradient(") ||
-    value.startsWith("repeating-linear-gradient(") ||
-    value.startsWith("repeating-radial-gradient(") ||
-    value.startsWith("repeating-conic-gradient(")
-  ) {
-    return transformColors(value);
+  if (value.includes("(")) {
+    return transformColors(value, theme, false);
   }
-  return `var(--theme-image-${value})`;
+  return getThemeVar(theme, "image", value) ?? value;
 };
 
 export const getCssVisible = (value: boolean | string): string => {
@@ -662,11 +700,11 @@ export const getCssVisible = (value: boolean | string): string => {
   return value;
 };
 
-export const getCssMask = (value: string): string => {
+export const getCssMask = (value: string, theme: ThemeVariables): string => {
   if (value.startsWith("var(")) {
     return value;
   }
-  return `var(--theme-mask-${value})`;
+  return getThemeVar(theme, "mask", value) ?? value;
 };
 
 export const getCssInteractable = (value: boolean | string): string => {
@@ -764,7 +802,7 @@ export const getCssProportion = (
   return Number(v);
 };
 
-export const getCssRatio = (value: string): string => {
+export const getCssRatio = (value: string, theme: ThemeVariables): string => {
   if (value === "") {
     return "1";
   }
@@ -777,7 +815,7 @@ export const getCssRatio = (value: string): string => {
   if (value.startsWith("var(")) {
     return value;
   }
-  return `var(--theme-ratio-${value})`;
+  return getThemeVar(theme, "ratio", value) ?? value;
 };
 
 export const getCssRepeat = (value: boolean | string): string => {
@@ -801,23 +839,25 @@ export const getCssRepeat = (value: boolean | string): string => {
   return value;
 };
 
-export const getCssGlow = (value: string): string => {
+export const getCssGlow = (value: string, theme: ThemeVariables): string => {
   if (value === "none") {
     return value;
   }
   const [width, color] = value.split(WHITESPACE_REGEX);
-  return `0 0 ${getCssSize(width ?? 2)} 0 ${getCssColor(
+  return `0 0 ${getCssSize(width ?? 2, theme)} 0 ${getCssColor(
     color ?? "currentColor",
+    theme,
   )}`;
 };
 
-export const getCssRing = (value: string): string => {
+export const getCssRing = (value: string, theme: ThemeVariables): string => {
   if (value === "none") {
     return value;
   }
   const [width, color] = value.split(WHITESPACE_REGEX);
-  return `0 0 0 ${getCssSize(width ?? 2)} ${getCssColor(
+  return `0 0 0 ${getCssSize(width ?? 2, theme)} ${getCssColor(
     color ?? "currentColor",
+    theme,
   )}`;
 };
 
@@ -861,15 +901,14 @@ export const getCssShadow = (value: string): string => {
   return value;
 };
 
-export const getCssShadowInset = (value: string): string => {
+export const getCssShadowInset = (
+  value: string,
+  theme: ThemeVariables,
+): string => {
   if (value.startsWith("var(")) {
     return value;
   }
-  const isValidNumber = !Number.isNaN(Number(value));
-  if (isValidNumber) {
-    return `var(--theme-shadow-inset-${value})`;
-  }
-  return value;
+  return getThemeVar(theme, "shadow-inset", value) ?? value;
 };
 
 export const getCssShrink = (value: boolean | string): string => {
@@ -898,36 +937,13 @@ export const getCssBasis = (value: boolean | string): string => {
   return value;
 };
 
-export const isNumberChar = (c: string | undefined): boolean =>
-  !Number.isNaN(Number(c));
-
-export const isVariableValue = (
-  value: string | number | undefined,
-): boolean => {
-  if (typeof value === "number") {
-    return false;
-  }
-  if (!value) {
-    return false;
-  }
-  if (value[0] === "-") {
-    return false;
-  }
-  if (isNumberChar(value[0])) {
-    return false;
-  }
-  return !value.includes("(");
-};
-
 export const getCssSize = (
   value: string | number,
+  theme: ThemeVariables,
   defaultUnit: "px" | "rem" = "px",
 ): string => {
   if (value === "none") {
     return "0";
-  }
-  if (typeof value === "string" && NATIVE_SIZE_KEYWORDS.has(value)) {
-    return value;
   }
   if (value === "") {
     return defaultUnit === "px" ? "8px" : "0.5rem";
@@ -941,7 +957,9 @@ export const getCssSize = (
     return value
       .trim()
       .split(WHITESPACE_REGEX)
-      .map((part) => (part === "/" ? part : getCssSize(part, defaultUnit)))
+      .map((part) =>
+        part === "/" ? part : getCssSize(part, theme, defaultUnit),
+      )
       .join(" ");
   }
   if (value === "xs") {
@@ -995,10 +1013,11 @@ export const getCssSize = (
   if (typeof value === "string" && value.startsWith("var(")) {
     return value;
   }
-  if (isVariableValue(value)) {
-    return `var(--theme-size-${value})`;
-  }
-  return getCssValueWithUnit(value, defaultUnit);
+  const themeVar =
+    typeof value === "string" && !isValidNumber(value)
+      ? getThemeVar(theme, "size", value)
+      : undefined;
+  return themeVar ?? getCssValueWithUnit(value, defaultUnit);
 };
 
 export const getCssTextOverflow = (value: string): string => {

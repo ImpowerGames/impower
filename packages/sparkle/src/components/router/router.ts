@@ -1,4 +1,5 @@
 import { getCssAnimation } from "../../../../sparkle-style-transformer/src/utils/transformers";
+import { SPARKLE_THEME } from "../../core/sparkle-theme";
 import { SparkleComponent } from "../../core/sparkle-component";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { cancelAnimations } from "../../utils/cancelAnimations";
@@ -133,9 +134,9 @@ export default class Router extends SparkleComponent(spec) {
       reverseAnimation(this.enterTransformEl, this._enter_transform);
     } else {
       const directionSuffix = direction ? `-${direction}` : "";
-      const enter = getCssAnimation(this.enter, directionSuffix);
+      const enter = getCssAnimation(this.enter, SPARKLE_THEME, directionSuffix);
       this.updateCssVariable("enter", enter);
-      const exit = getCssAnimation(this.exit, directionSuffix);
+      const exit = getCssAnimation(this.exit, SPARKLE_THEME, directionSuffix);
       this.updateCssVariable("exit", exit);
       this.cacheAnimationNames();
       this.playExitTransition();

@@ -1,3 +1,4 @@
+import type { ThemeVariables } from "../../../sparkle-style-transformer/src/types/themeVariables";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { type SparkleNode } from "../parser/parser";
 import { builtins } from "./builtins";
@@ -6,6 +7,7 @@ import { VElement, VNode } from "./vnode";
 
 export interface RendererOptions {
   breakpoints: Record<string, number>;
+  theme: ThemeVariables;
   attrAliases?: Record<string, string>;
   cssAliases?: Record<string, string>;
   interpolate?: (template: string, context: Record<string, any>) => string;
@@ -265,7 +267,7 @@ export function renderVNode(
       };
     }
     if (type === "property" && args?.["key"]) {
-      return sparklePropertyToCssProperty(args?.["key"], args?.["value"], cssAliases);
+      return sparklePropertyToCssProperty(args?.["key"], args?.["value"], ctx.options.theme, cssAliases);
     }
     const selector = sparkleSelectorToCssSelector(type, breakpoints);
     const selfTargetedSelector =
@@ -292,7 +294,7 @@ export function renderVNode(
       };
     }
     if (type === "property" && args?.["key"]) {
-      return sparklePropertyToCssProperty(args?.["key"], args?.["value"], cssAliases);
+      return sparklePropertyToCssProperty(args?.["key"], args?.["value"], ctx.options.theme, cssAliases);
     }
     if (type === "keyframes" && children?.length) {
       const max = children.length - 1;
@@ -375,7 +377,7 @@ export function renderVNode(
       };
     }
     if (type === "property" && args?.["key"]) {
-      return sparklePropertyToCssProperty(args?.["key"], args?.["value"], cssAliases);
+      return sparklePropertyToCssProperty(args?.["key"], args?.["value"], ctx.options.theme, cssAliases);
     }
     const content = (children ?? [])
       .map((c, i) => renderVNode(c, ctx, el, i) as string)
@@ -443,7 +445,7 @@ function renderBuiltinVNode(
 
     const styleEntries: [string, string][] = [];
     for (const [k, v] of Object.entries(spreadProps)) {
-      styleEntries.push(...getCssEquivalent(k, v, false));
+      styleEntries.push(...getCssEquivalent(k, v, ctx.options.theme, false));
     }
 
     if (!Number.isNaN(Number(spreadProps["value"]))) {
@@ -638,10 +640,11 @@ function defaultInterpolate(
 function sparklePropertyToCssProperty(
   key: string,
   value: unknown,
+  theme: ThemeVariables,
   cssAliases?: Record<string, string>,
 ) {
   let aliasedKey = cssAliases?.[key] ?? key;
-  const cssEntries = getCssEquivalent(aliasedKey, value);
+  const cssEntries = getCssEquivalent(aliasedKey, value, theme);
   return cssEntries.map(([k, v]) => `${k}:${v};`).join(" ");
 }
 

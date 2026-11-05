@@ -5,6 +5,7 @@ export type SetThemeMethod = typeof SetThemeMessage.method;
 export interface SetThemeParams {
   breakpoints: Record<string, number>;
   root_text_size?: string;
+  variables: string[];
 }
 
 export class SetThemeMessage {

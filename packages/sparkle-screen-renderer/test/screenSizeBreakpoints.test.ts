@@ -8,7 +8,7 @@ const renderStyle = (selector: string) => {
   return JSON.stringify(
     renderCssVDOM(
       parsed,
-      createScreenRenderContext(getComponents(parsed), {}),
+      createScreenRenderContext(getComponents(parsed), {}, new Set()),
     ),
   );
 };

@@ -95,7 +95,7 @@ layout main {
     expect(block).not.toContain("cursor: progress;");
     expect(block).toContain("&::before");
 
-    expect(block).toContain("--spinner-color: white;");
+    expect(block).toContain("--spinner-color: var(--theme-color-white);");
     expect(block).toContain("margin-right: 0.5rem;");
 
     expect(out).toContain('content: "";');

@@ -1,6 +1,7 @@
 import { CSS_ALIASES } from "../../../sparkle-style-transformer/src/constants/CSS_ALIASES";
 import { STYLE_ALIASES } from "../../../sparkle-style-transformer/src/constants/STYLE_ALIASES";
 import { STYLE_TRANSFORMERS } from "../../../sparkle-style-transformer/src/constants/STYLE_TRANSFORMERS";
+import type { StyleTransformer } from "../../../sparkle-style-transformer/src/types/themeVariables";
 import {
   getCssAnimation,
   getCssColor,
@@ -27,6 +28,7 @@ import { SizeName } from "../types/sizeName";
 import { pointerPress, shouldShowStrongFocus } from "../utils/focus";
 import { isAssignedToSlot } from "../utils/isAssignedToSlot";
 import { updateAttribute } from "../utils/updateAttribute";
+import { SPARKLE_THEME } from "./sparkle-theme";
 
 export const DEFAULT_SPARKLE_ATTRIBUTES = {
   rtl: "rtl",
@@ -66,7 +68,7 @@ export function SparkleComponent<
   T extends CustomElementConstructor,
 >(
   spec: ComponentSpec<Props, Stores, Context, Graphics, Selectors>,
-  transformers: Record<string, (v: string) => string> = {},
+  transformers: Record<string, StyleTransformer> = {},
   Base: T = HTMLElement as T,
 ) {
   const augmentedSpec = {
@@ -84,7 +86,7 @@ export function SparkleComponent<
     Selectors,
     T
   >(augmentedSpec as any, Base) {
-    get transformers(): Record<string, (v: string) => string> {
+    get transformers(): Record<string, StyleTransformer> {
       return { ...DEFAULT_SPARKLE_TRANSFORMERS, ...transformers };
     }
 
@@ -1448,12 +1450,12 @@ export function SparkleComponent<
     updateStyleAttribute(
       name: string,
       newValue: string | null,
-      valueFormatter?: (v: string) => string,
+      valueFormatter?: StyleTransformer,
     ) {
       const varName = `--_${name}`;
       const formattedValue =
         valueFormatter && newValue != null
-          ? valueFormatter(newValue)
+          ? valueFormatter(newValue, SPARKLE_THEME)
           : newValue;
       if (formattedValue) {
         this.updateCssVariable(varName, formattedValue);
