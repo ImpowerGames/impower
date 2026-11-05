@@ -11,6 +11,12 @@ import {
   Sheet,
   type DialogProps,
 } from "./Dialog";
+import {
+  DropdownContent,
+  DropdownItem,
+  DropdownRoot,
+  DropdownTrigger,
+} from "../dropdown/Dropdown";
 
 let phone = false;
 const mediaListeners = new Set<() => void>();
@@ -23,8 +29,10 @@ beforeAll(() => {
       },
       media: query,
       onchange: null,
-      addEventListener: (_type: string, listener: () => void) => mediaListeners.add(listener),
-      removeEventListener: (_type: string, listener: () => void) => mediaListeners.delete(listener),
+      addEventListener: (_type: string, listener: () => void) =>
+        mediaListeners.add(listener),
+      removeEventListener: (_type: string, listener: () => void) =>
+        mediaListeners.delete(listener),
       addListener: () => {},
       removeListener: () => {},
       dispatchEvent: () => false,
@@ -60,16 +68,34 @@ const backdrop = () => dialog()?.parentElement ?? null;
 const pressEscape = () =>
   act(async () => {
     (document.activeElement ?? document.body).dispatchEvent(
-      new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+      new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      }),
     );
   });
 
 const clickBackdrop = () =>
   act(async () => {
     const target = backdrop()!;
-    target.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, cancelable: true, button: 0 }));
-    target.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, cancelable: true, button: 0 }));
-    target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+    target.dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+      }),
+    );
+    target.dispatchEvent(
+      new MouseEvent("pointerup", {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+      }),
+    );
+    target.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }),
+    );
   });
 
 type HarnessProps = Omit<DialogProps, "open" | "onOpenChange"> & {
@@ -78,7 +104,12 @@ type HarnessProps = Omit<DialogProps, "open" | "onOpenChange"> & {
   withInitialFocus?: boolean;
 };
 
-function Harness({ onOpenChange, sheet, withInitialFocus, ...props }: HarnessProps) {
+function Harness({
+  onOpenChange,
+  sheet,
+  withInitialFocus,
+  ...props
+}: HarnessProps) {
   const [open, setOpen] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const change = (next: boolean) => {
@@ -105,7 +136,11 @@ function Harness({ onOpenChange, sheet, withInitialFocus, ...props }: HarnessPro
         Open
       </button>
       {sheet ? (
-        <Sheet open={open} onOpenChange={change} initialFocus={withInitialFocus ? nameRef : undefined}>
+        <Sheet
+          open={open}
+          onOpenChange={change}
+          initialFocus={withInitialFocus ? nameRef : undefined}
+        >
           {body}
         </Sheet>
       ) : (
@@ -143,12 +178,15 @@ describe("Dialog under preact/compat", () => {
     await mount();
     const card = dialog()!;
     expect(card.getAttribute("aria-modal")).toBe("true");
-    const title = document.getElementById(card.getAttribute("aria-labelledby")!);
+    const title = document.getElementById(
+      card.getAttribute("aria-labelledby")!,
+    );
     expect(title?.textContent).toBe("Rename asset");
     expect(title?.tagName).toBe("H2");
-    expect(document.getElementById(card.getAttribute("aria-describedby")!)?.textContent).toBe(
-      "Choose a new name.",
-    );
+    expect(
+      document.getElementById(card.getAttribute("aria-describedby")!)
+        ?.textContent,
+    ).toBe("Choose a new name.");
     expect(card.className).toContain("max-w-sm");
     expect(backdrop()!.className).toContain("bg-scrim");
     expect(document.body.hasAttribute("data-scroll-locked")).toBe(true);
@@ -171,7 +209,9 @@ describe("Dialog under preact/compat", () => {
     await mount({ onOpenChange });
     await act(async () => {
       const card = dialog()!;
-      card.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0 }));
+      card.dispatchEvent(
+        new MouseEvent("pointerdown", { bubbles: true, button: 0 }),
+      );
       card.dispatchEvent(new MouseEvent("click", { bubbles: true, button: 0 }));
     });
     expect(onOpenChange).not.toHaveBeenCalled();
@@ -190,14 +230,20 @@ describe("Dialog under preact/compat", () => {
     await settle(DIALOG_TRANSITION_MS + 50);
     expect(onOpenChange).not.toHaveBeenCalled();
     expect(dialog()).not.toBeNull();
-    await act(async () => Array.from(dialog()!.querySelectorAll("button")).find((b) => b.textContent === "Cancel")!.click());
+    await act(async () =>
+      Array.from(dialog()!.querySelectorAll("button"))
+        .find((b) => b.textContent === "Cancel")!
+        .click(),
+    );
     await settle(DIALOG_TRANSITION_MS + 50);
     expect(dialog()).toBeNull();
   });
 
   it("lets the caller keep the dialog open by preventing an Escape", async () => {
     const onOpenChange = vi.fn();
-    const onEscapeKeyDown = vi.fn((event: KeyboardEvent) => event.preventDefault());
+    const onEscapeKeyDown = vi.fn((event: KeyboardEvent) =>
+      event.preventDefault(),
+    );
     await mount({ onOpenChange, onEscapeKeyDown });
     await pressEscape();
     expect(onEscapeKeyDown).toHaveBeenCalledTimes(1);
@@ -207,7 +253,9 @@ describe("Dialog under preact/compat", () => {
   it("moves focus into the card on open and returns it to the opener on close", async () => {
     const opener = await mount();
     expect(dialog()!.contains(document.activeElement)).toBe(true);
-    expect(document.activeElement?.getAttribute("aria-label")).toBe("first field");
+    expect(document.activeElement?.getAttribute("aria-label")).toBe(
+      "first field",
+    );
     await pressEscape();
     await settle(DIALOG_TRANSITION_MS + 50);
     await settle(10);
@@ -232,10 +280,13 @@ describe("Dialog under preact/compat", () => {
     expect(card.contains(document.activeElement)).toBe(true);
   });
 
-  it.each(["sm", "md", "lg"] as const)("applies the %s width preset", async (size) => {
-    await mount({ size });
-    expect(dialog()!.className).toContain(`max-w-${size}`);
-  });
+  it.each(["sm", "md", "lg"] as const)(
+    "applies the %s width preset",
+    async (size) => {
+      await mount({ size });
+      expect(dialog()!.className).toContain(`max-w-${size}`);
+    },
+  );
 
   it("drops the card padding when flush", async () => {
     await mount({ flush: true });
@@ -246,7 +297,9 @@ describe("Dialog under preact/compat", () => {
   it("gates its motion behind prefers-reduced-motion", async () => {
     await mount();
     for (const element of [dialog()!, backdrop()!]) {
-      const transitions = element.className.split(/\s+/).filter((c) => /transition|duration/.test(c));
+      const transitions = element.className
+        .split(/\s+/)
+        .filter((c) => /transition|duration/.test(c));
       expect(transitions.length).toBeGreaterThan(0);
       expect(transitions.every((c) => c.startsWith("motion-safe:"))).toBe(true);
     }
@@ -285,5 +338,111 @@ describe("Sheet and the responsive Dialog", () => {
     await settle(50);
     expect(dialog()!.className).not.toContain("rounded-t-lg");
     expect(dialog()!.className).toContain("max-w-sm");
+  });
+});
+
+describe("focus return across openers and layout changes", () => {
+  const closeAndSettle = async () => {
+    await pressEscape();
+    await settle(DIALOG_TRANSITION_MS + 50);
+    await settle(10);
+    expect(dialog()).toBeNull();
+  };
+
+  it("keeps the opener when a responsive dialog changes from card to sheet while open", async () => {
+    const opener = await mount({ responsive: true });
+    await setPhone(true);
+    await settle(50);
+    expect(dialog()!.className).toContain("rounded-t-lg");
+    expect(dialog()!.contains(document.activeElement)).toBe(true);
+    await closeAndSettle();
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it("keeps the opener when a responsive dialog changes from sheet to card while open", async () => {
+    await setPhone(true);
+    const opener = await mount({ responsive: true });
+    await setPhone(false);
+    await settle(50);
+    expect(dialog()!.className).toContain("max-w-sm");
+    await closeAndSettle();
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it("keeps the first opener when the dialog reopens during its exit", async () => {
+    const opener = await mount();
+    await pressEscape();
+    await act(async () => host!.querySelector("button")!.click());
+    await settle(50);
+    expect(dialog()!.contains(document.activeElement)).toBe(true);
+    await closeAndSettle();
+    expect(document.activeElement).toBe(opener);
+  });
+
+  function MenuHarness() {
+    const [open, setOpen] = useState(false);
+    return (
+      <>
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <button type="button">More options</button>
+          </DropdownTrigger>
+          <DropdownContent>
+            <DropdownItem onSelect={() => setOpen(true)}>
+              Recycle bin
+            </DropdownItem>
+          </DropdownContent>
+        </DropdownRoot>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTitle>Recycle bin</DialogTitle>
+          <button type="button" onClick={() => setOpen(false)}>
+            Close
+          </button>
+        </Dialog>
+      </>
+    );
+  }
+
+  const mountMenu = async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () => render(<MenuHarness />, host!));
+    const trigger = host.querySelector("button")!;
+    trigger.focus();
+    return trigger;
+  };
+
+  it("returns focus to the menu's trigger when a menu item opened the dialog", async () => {
+    const trigger = await mountMenu();
+    await act(async () => {
+      trigger.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "ArrowDown",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+    await settle(50);
+    const item = document.querySelector<HTMLElement>('[role="menuitem"]')!;
+    item.focus();
+    await act(async () => item.click());
+    await settle(50);
+    expect(dialog()!.contains(document.activeElement)).toBe(true);
+    await closeAndSettle();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("returns focus to the trigger of the phone layout's sheet menu", async () => {
+    await setPhone(true);
+    const trigger = await mountMenu();
+    await act(async () => trigger.click());
+    await settle(50);
+    const item = document.querySelector<HTMLElement>('[role="menuitem"]')!;
+    item.focus();
+    await act(async () => item.click());
+    await settle(300);
+    expect(dialog()!.contains(document.activeElement)).toBe(true);
+    await closeAndSettle();
+    expect(document.activeElement).toBe(trigger);
   });
 });

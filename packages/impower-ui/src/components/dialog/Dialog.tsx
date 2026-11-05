@@ -5,6 +5,7 @@ import { useRef } from "preact/hooks";
 import { useLayout } from "../../hooks/useLayout";
 import { useMountTransition } from "../../hooks/useMountTransition";
 import { cn } from "../../utils/cn";
+import { focusReturnTarget } from "../../utils/focusReturn";
 
 export const DIALOG_TRANSITION_MS = 180;
 
@@ -113,10 +114,14 @@ function Modal({
   card: (visible: boolean) => string;
 }) {
   const { mounted, visible } = useMountTransition(open, DIALOG_TRANSITION_MS);
-  const returnFocus = useRef<HTMLElement | null>(null);
+  const content = useRef<HTMLDivElement | null>(null);
+  const returnFocus = useRef<() => HTMLElement | null>(() => null);
   const wasOpen = useRef(false);
   if (open && !wasOpen.current && typeof document !== "undefined") {
-    returnFocus.current = document.activeElement as HTMLElement | null;
+    const active = document.activeElement;
+    if (!content.current?.contains(active)) {
+      returnFocus.current = focusReturnTarget(active);
+    }
   }
   wasOpen.current = open;
 
@@ -138,6 +143,7 @@ function Modal({
           class={backdropVariants({ placement, visible })}
         >
           <DialogPrimitive.Content
+            ref={content}
             forceMount
             aria-modal="true"
             class={card(visible)}
@@ -150,7 +156,7 @@ function Modal({
             }}
             onCloseAutoFocus={(event: Event) => {
               event.preventDefault();
-              const target = returnFocus.current;
+              const target = returnFocus.current();
               if (target?.isConnected) {
                 target.focus();
               }
@@ -187,16 +193,18 @@ export function Dialog({
   class: className,
   ...rest
 }: DialogProps) {
-  const phone = useLayout() === "phone";
-  if (responsive && phone) {
-    return <Sheet {...rest} flush={flush} class={className} />;
-  }
+  const sheet = useLayout() === "phone" && responsive;
   return (
     <Modal
       {...rest}
-      placement="center"
+      placement={sheet ? "bottom" : "center"}
       card={(visible) =>
-        cn(dialogVariants({ size, flush, visible }), className)
+        cn(
+          sheet
+            ? sheetVariants({ flush, visible })
+            : dialogVariants({ size, flush, visible }),
+          className,
+        )
       }
     />
   );
