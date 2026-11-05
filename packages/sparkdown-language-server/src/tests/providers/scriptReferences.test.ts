@@ -109,6 +109,57 @@ describe("provider · script references (#1009)", () => {
     });
   });
 
+  test("a local hides a define only inside its own function, and only after its declaration", () => {
+    const SETTINGS = "file:///p/Scripts/settings.sd";
+    const settings = "define settings with\n  score = 1\nend\n";
+    const elsewhere = {
+      [SETTINGS]: settings,
+      [HELPERS]:
+        "function local_score()\n  local settings = {score = 9}\n  return settings.score\nend\nfunction global_score()\n  return settings.score\nend\n",
+    };
+    expect(referencedBy(elsewhere, SETTINGS)).toBe(1);
+    const initializer = {
+      [SETTINGS]: settings,
+      [HELPERS]: "function copy()\n  local settings = settings\n  return settings\nend\n",
+    };
+    expect(referencedBy(initializer, SETTINGS)).toBe(1);
+    const onlyLocal = {
+      [SETTINGS]: settings,
+      [HELPERS]: "function local_score()\n  local settings = {score = 9}\n  return settings.score\nend\n",
+    };
+    expect(referencedBy(onlyLocal, SETTINGS)).toBe(0);
+  });
+
+  test.each([
+    ["a call argument", "{tostring(character.raffles.name)}"],
+    ["nested grouping", "{((character)).raffles.name}"],
+    ["a space inside the grouping", "{( character).raffles.name}"],
+    ["a grouped path", "{(character.raffles).name}"],
+  ])("a property access in %s references the define's script", (_, expression) => {
+    const sources = {
+      [CAST]: 'define raffles as character with\n  name = "RAFFLES"\nend\n',
+      [CHAPTER]: `scene chapter_scene\n  ${expression}\nend\n`,
+    };
+    expect(getScriptReferences(workspaceOf(sources), undefined)).toContainEqual({
+      from: CHAPTER,
+      to: CAST,
+      divert: false,
+    });
+  });
+
+  test("a property of a call's result is not read as a property of its argument", () => {
+    const ROCK = "file:///p/Scripts/rock.sd";
+    const PEBBLE = "file:///p/Scripts/pebble.sd";
+    const sources = {
+      [ROCK]: "define rock with\n  hardness = 5\nend\n",
+      [PEBBLE]: "define pebble as rock with\n  size = 1\nend\n",
+      [CHAPTER]: "scene chapter_scene\n  {unrelated(rock).pebble.size}\nend\n",
+    };
+    const references = getScriptReferences(workspaceOf(sources), undefined);
+    expect(references).toContainEqual({ from: CHAPTER, to: ROCK, divert: false });
+    expect(references).not.toContainEqual({ from: CHAPTER, to: PEBBLE, divert: false });
+  });
+
   test("a define of another define's type uses the script that defines that type", () => {
     const ROCK = "file:///p/Scripts/rock.sd";
     const PEBBLE = "file:///p/Scripts/pebble.sd";

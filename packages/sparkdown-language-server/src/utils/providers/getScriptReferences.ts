@@ -23,6 +23,8 @@ const DECLARED_BY_SCRIPT = new Set<Reference["declaration"]>([
 const IDENTIFIER = /^[A-Za-z_]\w*/;
 const ACCESS_SEGMENT = /^\s*(?:\.\s*([A-Za-z_]\w*)|\[\s*(["'])([A-Za-z_]\w*)\2\s*\])/;
 const CLOSE_PAREN = /^\s*\)/;
+const GROUPING_PAREN = /\(\s*$/;
+const CALLABLE_END = /[\w)\]]\s*$/;
 const MAX_ACCESS_PATH = 256;
 
 type ScriptReferencesWorkspace = Pick<
@@ -30,23 +32,40 @@ type ScriptReferencesWorkspace = Pick<
   "document" | "annotations" | "uris" | "compilerConfig"
 >;
 
-export const accessPathAt = (text: string, parenthesized: boolean): string => {
-  const root = IDENTIFIER.exec(text);
+const groupingDepth = (before: string): number => {
+  let depth = 0;
+  let rest = before;
+  for (let open = GROUPING_PAREN.exec(rest); open; open = GROUPING_PAREN.exec(rest)) {
+    rest = rest.slice(0, open.index);
+    if (CALLABLE_END.test(rest)) {
+      break;
+    }
+    depth += 1;
+  }
+  return depth;
+};
+
+export const accessPathAt = (before: string, after: string): string => {
+  const root = IDENTIFIER.exec(after);
   if (!root) {
     return "";
   }
   const parts = [root[0]];
-  let rest = text.slice(root[0].length);
-  if (parenthesized) {
-    const close = CLOSE_PAREN.exec(rest);
-    if (!close) {
-      return root[0];
+  let rest = after.slice(root[0].length);
+  let depth = groupingDepth(before);
+  for (;;) {
+    const segment = ACCESS_SEGMENT.exec(rest);
+    if (segment) {
+      parts.push(segment[1] ?? segment[3]!);
+      rest = rest.slice(segment[0].length);
+      continue;
     }
+    const close = depth > 0 ? CLOSE_PAREN.exec(rest) : null;
+    if (!close) {
+      break;
+    }
+    depth -= 1;
     rest = rest.slice(close[0].length);
-  }
-  for (let segment = ACCESS_SEGMENT.exec(rest); segment; segment = ACCESS_SEGMENT.exec(rest)) {
-    parts.push(segment[1] ?? segment[3]!);
-    rest = rest.slice(segment[0].length);
   }
   return parts.join(".");
 };
@@ -55,6 +74,8 @@ const prefixesOf = (path: string): string[] => {
   const parts = path.split(".");
   return parts.map((_, i) => parts.slice(0, parts.length - i).join("."));
 };
+
+const scopeRootOf = (scopePath: string) => scopePath.split(".")[0] ?? "";
 
 export const getScriptReferences = (
   workspace: ScriptReferencesWorkspace,
@@ -78,38 +99,40 @@ export const getScriptReferences = (
       .map((id) => resolve(id, reference, scopePath))
       .filter((id): id is string => !!id);
 
+  const lineOf = (uri: string, offset: number) =>
+    workspace.document(uri)?.positionAt(offset).line ?? -1;
+
   const typeUseLines = new Map<string, Set<number>>();
   for (const uri of uris) {
-    const document = workspace.document(uri);
     const lines = new Set<number>();
     walkReferences(workspace, uri, (r) => {
-      if (r.value!.type.declaration === "define_variable_name" && document) {
-        lines.add(document.positionAt(r.from).line);
+      if (r.value!.type.declaration === "define_variable_name") {
+        lines.add(lineOf(uri, r.from));
       }
     });
     typeUseLines.set(uri, lines);
   }
-  const isTypeUse = (uri: string, reference: Reference, from: number) => {
-    const document = workspace.document(uri);
-    return (
-      reference.declaration === "define_type_name" &&
-      !!document &&
-      !!typeUseLines.get(uri)?.has(document.positionAt(from).line)
-    );
-  };
+  const isTypeUse = (uri: string, reference: Reference, from: number) =>
+    reference.declaration === "define_type_name" &&
+    !!typeUseLines.get(uri)?.has(lineOf(uri, from));
+  const isFileWide = (reference: Reference, scopePath: string) =>
+    DECLARED_BY_SCRIPT.has(reference.declaration) || !scopePath;
 
   const declaredIn = new Map<string, string[]>();
-  const boundIn = new Map<string, Set<string>>();
+  const fileWideIn = new Map<string, Set<string>>();
   for (const uri of uris) {
-    const bound = new Set<string>();
-    boundIn.set(uri, bound);
+    const fileWide = new Set<string>();
+    fileWideIn.set(uri, fileWide);
     walkReferences(workspace, uri, (r, scopePath) => {
       const reference = r.value!.type;
       if (!reference.declaration || isTypeUse(uri, reference, r.from)) {
         return;
       }
+      if (!isFileWide(reference, scopePath)) {
+        return;
+      }
       for (const id of resolvedIds(reference, scopePath)) {
-        bound.add(id);
+        fileWide.add(id);
         if (DECLARED_BY_SCRIPT.has(reference.declaration)) {
           const declarers = declaredIn.get(id) ?? [];
           if (!declarers.includes(uri)) {
@@ -124,22 +147,36 @@ export const getScriptReferences = (
   const seen = new Set<string>();
   for (const uri of uris) {
     const document = workspace.document(uri);
-    const bound = boundIn.get(uri)!;
+    const fileWide = fileWideIn.get(uri)!;
+    const scoped = new Map<string, { id: string; from: number }[]>();
     walkReferences(workspace, uri, (r, scopePath) => {
       const reference = r.value!.type;
+      const line = lineOf(uri, r.from);
+      const scopeRoot = scopeRootOf(scopePath);
       if (reference.declaration && !isTypeUse(uri, reference, r.from)) {
+        if (!isFileWide(reference, scopePath)) {
+          const bindings = scoped.get(scopeRoot) ?? [];
+          const from = reference.declaration === "param" ? line : line + 1;
+          for (const id of resolvedIds(reference, scopePath)) {
+            bindings.push({ id, from });
+          }
+          scoped.set(scopeRoot, bindings);
+        }
         return;
       }
       const ids = resolvedIds(reference, scopePath);
-      if (!reference.declaration && ids.some((id) => bound.has(id))) {
+      const visible = (id: string) =>
+        fileWide.has(id) ||
+        !!scoped.get(scopeRoot)?.some((b) => b.id === id && b.from <= line);
+      if (!reference.declaration && ids.some(visible)) {
         return;
       }
       const divert = reference.usage === "divert";
       const accessPath =
         !divert && !reference.declaration && document
           ? accessPathAt(
+              document.read(Math.max(0, r.from - MAX_ACCESS_PATH), r.from),
               document.read(r.from, r.from + MAX_ACCESS_PATH),
-              r.from > 0 && document.read(r.from - 1, r.from) === "(",
             )
           : "";
       const candidates = [
