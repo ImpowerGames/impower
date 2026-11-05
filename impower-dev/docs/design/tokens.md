@@ -35,6 +35,13 @@ build writes each theme's `--bg` (as hex) into the meta tag. The web app manifes
 `theme_color` and `background_color` are static, so they take Charcoal's `--bg`,
 `#202123`, the default dark theme's colour.
 
+Graphite and Warm Folio read two more preferences, `surfaces` (`unified`, the default, or
+`layered`) and `syntaxPalette` (`softened`, the default, or `original`), applied as
+`data-surfaces` and `data-syntax` beside `data-theme` before first paint and on every
+change. Every other theme removes both attributes and leaves the two stored preferences
+as they were, so switching back to Graphite or Warm Folio restores them. Midnight and
+Dusk take their Lighter navigation writing pane in their own blocks.
+
 The prototype applies the theme as `data-theme` on `<body>`, with `data-surfaces` and
 `data-syntax-palette` beside it (`folio-themes.js:113-128`); the syntax colours are
 written as `--syntax-*` inline properties from `folio-syntax-palette.js`.
@@ -370,7 +377,7 @@ The script editor's CodeMirror theme blocks (`packages/sparkdown-document-views`
 the same (`--panel`, `--paper`, `--bg`, `--ink`, `--selection`, `--control-hover`, and
 `color-mix(in srgb, var(--ink) N%, transparent)` for white at an opacity) and the
 variables below for the rest. `packages/impower-ui/src/theme.css` declares them in a
-second `:root, [data-theme="midnight"]` block holding the values the editor drew before
+`:root, [data-theme="midnight"], [data-theme="dusk"]` block holding the values the editor drew before
 it read variables, so Midnight renders unchanged. The per-theme palettes, and the
 mapping of the editor's highlight tags onto the syntax roles above, replace the
 `--syntax-*` part of this set.
@@ -463,23 +470,24 @@ semantic-token rules colour today:
 | `--syntax-invalid` | Invalid text | `#f44747` |
 | `--syntax-comment` | Comments | `#6a9955` |
 
-### Charcoal and Chalk component and code editor variables
+### Folio component and code editor variables
 
-Charcoal and Chalk give every component and code editor variable a value read from their
-semantic set, so one `[data-theme="charcoal"], [data-theme="chalk"]` block in
-`packages/impower-ui/src/theme.css` serves both. The prototype draws no code editor
+Charcoal, Chalk, Ink, Sepia, Graphite and Warm Folio give every component and code editor
+variable a value read from their semantic set, so one block listing the six themes in
+`packages/impower-ui/src/theme.css` serves them all. Dusk shares Midnight's component
+and code editor values. The prototype draws no code editor
 chrome of its own, so each value is the semantic colour the prototype gives the same
 role: the primary button is `--accent` on `--accent-ink` (`app.css:120-123`), the rail
 is `--bg` outside Midnight and Dusk (`folio-themes.css:319-325`), line numbers and the
 info problem colour are `--muted` (`folio-editor.css:39`, `:57`), the indentation guides
 are the derived colours above (`folio-editor.css:71`), and focus, links and the current
 selection's accents are `--accent`. The sticky header shadow takes the one-third black
-of the popovers (`folio-hierarchy.css:918`). The one value the two themes do not share
+of the popovers (`folio-hierarchy.css:918`). The one value the themes do not share
 is the modal backdrop `--scrim`, declared in each theme's own block from the overlay
-strengths under [Elevation](#elevation): `rgb(0 0 0 / 0.6)` in Charcoal (`app.css:1093-1094`)
-and `rgb(0 0 0 / 0.35)` in Chalk (`folio-themes.css:311-312`).
+strengths under [Elevation](#elevation): `rgb(0 0 0 / 0.6)` in the dark themes (`app.css:1093-1094`)
+and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
 
-| Variable | Charcoal and Chalk value | Chosen from |
+| Variable | Folio value | Chosen from |
 |---|---|---|
 | `--button-bg` | `var(--accent)` | Primary button fill, `app.css:121` |
 | `--button-ink` | `var(--accent-ink)` | Primary button ink, `app.css:122` |
@@ -539,49 +547,53 @@ and `rgb(0 0 0 / 0.35)` in Chalk (`folio-themes.css:311-312`).
 | `--editor-icon-muted` | `var(--muted)` | Muted ink |
 | `--editor-icon-close` | `var(--muted)` | Muted ink |
 
-### Charcoal and Chalk syntax variables
+### Folio syntax variables
 
-Each editor syntax variable takes the Charcoal or Chalk colour of the syntax role whose
+Each editor syntax variable takes the Charcoal, Chalk, Ink or Sepia colour of the syntax role whose
 Original colour it already draws, choosing among roles that share an Original colour by
 meaning; a variable whose Midnight colour no role uses takes the role closest in meaning
 (brackets take punctuation, operator keywords take type keyword, standard library
 functions take function, chunk names take heading, invalid text takes slug, content
 separators take separator).
 
-| Variable | Syntax role | Charcoal | Chalk |
-|---|---|---|---|
-| `--syntax-text` | `--syntax-text` | `#f0efeb` | `#202123` |
-| `--syntax-bracket` | `--syntax-punctuation` | `#94959b` | `#62636a` |
-| `--syntax-string` | `--syntax-string` | `#e09a84` | `#8c4221` |
-| `--syntax-escape` | `--syntax-escape` | `#b59a63` | `#7d5e08` |
-| `--syntax-type-name` | `--syntax-type` | `#61c2ad` | `#096354` |
-| `--syntax-type-name-definition` | `--syntax-declared-type` | `#61c2ad` | `#096354` |
-| `--syntax-standard-type` | `--syntax-type` | `#61c2ad` | `#096354` |
-| `--syntax-number` | `--syntax-number` | `#97bd83` | `#3f6a1f` |
-| `--syntax-bool` | `--syntax-boolean` | `#7db8ea` | `#1d55a3` |
-| `--syntax-operator` | `--syntax-operator` | `#94959b` | `#62636a` |
-| `--syntax-special-operator` | `--syntax-operator` | `#94959b` | `#62636a` |
-| `--syntax-break` | `--syntax-separator` | `#f0efeb` | `#202123` |
-| `--syntax-section-name-accessor` | `--syntax-target` | `#c0a3fe` | `#6a3fa2` |
-| `--syntax-section-name-definition` | `--syntax-declared` | `#c0a3fe` | `#6a3fa2` |
-| `--syntax-regex` | `--syntax-regex` | `#f2908e` | `#a22b33` |
-| `--syntax-transitional` | `--syntax-heading` | `#b29191` | `#7f595a` |
-| `--syntax-plain-keyword` | `--syntax-declaration` | `#7db8ea` | `#1d55a3` |
-| `--syntax-module-keyword` | `--syntax-keyword` | `#de9ed0` | `#7d3b73` |
-| `--syntax-control-keyword` | `--syntax-keyword` | `#de9ed0` | `#7d3b73` |
-| `--syntax-builtin` | `--syntax-type-keyword` | `#f296be` | `#a1265e` |
-| `--syntax-operator-keyword` | `--syntax-type-keyword` | `#f296be` | `#a1265e` |
-| `--syntax-property-name` | `--syntax-property` | `#aac1d2` | `#3f5878` |
-| `--syntax-variable-name` | `--syntax-identifier` | `#aac1d2` | `#3f5878` |
-| `--syntax-parameter-name` | `--syntax-identifier` | `#aac1d2` | `#3f5878` |
-| `--syntax-constant-variable-name` | `--syntax-asset` | `#61bbf0` | `#006f8e` |
-| `--syntax-attribute-name` | `--syntax-modifier` | `#b59a63` | `#7d5e08` |
-| `--syntax-function-name` | `--syntax-function` | `#b6b570` | `#6b6200` |
-| `--syntax-standard-function` | `--syntax-function` | `#b6b570` | `#6b6200` |
-| `--syntax-class-name` | `--syntax-container` | `#dfa674` | `#88460c` |
-| `--syntax-chunk-name-definition` | `--syntax-heading` | `#b29191` | `#7f595a` |
-| `--syntax-invalid` | `--syntax-slug` | `#fe9e9c` | `#9c242e` |
-| `--syntax-comment` | `--syntax-comment` | `#86a07c` | `#4d6b3e` |
+Graphite and Warm Folio draw Softened by default: each variable's Midnight colour with
+OKLab chroma reduced by 20%, the computation that gives the Softened column above.
+With `data-syntax="original"` they draw Midnight's colours, as Midnight and Dusk do.
+
+| Variable | Syntax role | Charcoal | Chalk | Ink | Sepia | Softened |
+|---|---|---|---|---|---|---|
+| `--syntax-text` | `--syntax-text` | `#f0efeb` | `#202123` | `#f0ebe3` | `#252421` | `#cccccc` |
+| `--syntax-bracket` | `--syntax-punctuation` | `#94959b` | `#62636a` | `#959288` | `#6b6861` | `#f7d85c` |
+| `--syntax-string` | `--syntax-string` | `#e09a84` | `#8c4221` | `#e09a84` | `#8c4221` | `#c69581` |
+| `--syntax-escape` | `--syntax-escape` | `#b59a63` | `#7d5e08` | `#b59a63` | `#7d5e08` | `#d2bb8b` |
+| `--syntax-type-name` | `--syntax-type` | `#61c2ad` | `#096354` | `#61c2ad` | `#096354` | `#6bc5b0` |
+| `--syntax-type-name-definition` | `--syntax-declared-type` | `#61c2ad` | `#096354` | `#61c2ad` | `#096354` | `#6bc5b0` |
+| `--syntax-standard-type` | `--syntax-type` | `#61c2ad` | `#096354` | `#61c2ad` | `#096354` | `#6bc5b0` |
+| `--syntax-number` | `--syntax-number` | `#97bd83` | `#3f6a1f` | `#97bd83` | `#3f6a1f` | `#b8ccae` |
+| `--syntax-bool` | `--syntax-boolean` | `#7db8ea` | `#1d55a3` | `#7db8ea` | `#1d55a3` | `#669bc9` |
+| `--syntax-operator` | `--syntax-operator` | `#94959b` | `#62636a` | `#959288` | `#6b6861` | `#a0a0a0` |
+| `--syntax-special-operator` | `--syntax-operator` | `#94959b` | `#62636a` | `#959288` | `#6b6861` | `#a0a0a0` |
+| `--syntax-break` | `--syntax-separator` | `#f0efeb` | `#202123` | `#f0ebe3` | `#252421` | `#61617a` |
+| `--syntax-section-name-accessor` | `--syntax-target` | `#c0a3fe` | `#6a3fa2` | `#c0a3fe` | `#6a3fa2` | `#d195f0` |
+| `--syntax-section-name-definition` | `--syntax-declared` | `#c0a3fe` | `#6a3fa2` | `#c0a3fe` | `#6a3fa2` | `#d195f0` |
+| `--syntax-regex` | `--syntax-regex` | `#f2908e` | `#a22b33` | `#f2908e` | `#a22b33` | `#f08b89` |
+| `--syntax-transitional` | `--syntax-heading` | `#b29191` | `#7f595a` | `#b29191` | `#7f595a` | `#baa5a4` |
+| `--syntax-plain-keyword` | `--syntax-declaration` | `#7db8ea` | `#1d55a3` | `#7db8ea` | `#1d55a3` | `#669bc9` |
+| `--syntax-module-keyword` | `--syntax-keyword` | `#de9ed0` | `#7d3b73` | `#de9ed0` | `#7d3b73` | `#cb9cd1` |
+| `--syntax-control-keyword` | `--syntax-keyword` | `#de9ed0` | `#7d3b73` | `#de9ed0` | `#7d3b73` | `#cb9cd1` |
+| `--syntax-builtin` | `--syntax-type-keyword` | `#f296be` | `#a1265e` | `#f296be` | `#a1265e` | `#f18cb9` |
+| `--syntax-operator-keyword` | `--syntax-type-keyword` | `#f296be` | `#a1265e` | `#f296be` | `#a1265e` | `#f5afcf` |
+| `--syntax-property-name` | `--syntax-property` | `#aac1d2` | `#3f5878` | `#aac1d2` | `#3f5878` | `#a8daf5` |
+| `--syntax-variable-name` | `--syntax-identifier` | `#aac1d2` | `#3f5878` | `#aac1d2` | `#3f5878` | `#a8daf5` |
+| `--syntax-parameter-name` | `--syntax-identifier` | `#aac1d2` | `#3f5878` | `#aac1d2` | `#3f5878` | `#a8daf5` |
+| `--syntax-constant-variable-name` | `--syntax-asset` | `#61bbf0` | `#006f8e` | `#61bbf0` | `#006f8e` | `#6bbff1` |
+| `--syntax-attribute-name` | `--syntax-modifier` | `#b59a63` | `#7d5e08` | `#b59a63` | `#7d5e08` | `#d2bb8b` |
+| `--syntax-function-name` | `--syntax-function` | `#b6b570` | `#6b6200` | `#b6b570` | `#6b6200` | `#dbdbb4` |
+| `--syntax-standard-function` | `--syntax-function` | `#b6b570` | `#6b6200` | `#b6b570` | `#6b6200` | `#f0b794` |
+| `--syntax-class-name` | `--syntax-container` | `#dfa674` | `#88460c` | `#dfa674` | `#88460c` | `#f5b890` |
+| `--syntax-chunk-name-definition` | `--syntax-heading` | `#b29191` | `#7f595a` | `#b29191` | `#7f595a` | `#7d7d9f` |
+| `--syntax-invalid` | `--syntax-slug` | `#fe9e9c` | `#9c242e` | `#fe9e9c` | `#9c242e` | `#e35d58` |
+| `--syntax-comment` | `--syntax-comment` | `#86a07c` | `#4d6b3e` | `#86a07c` | `#4d6b3e` | `#719661` |
 
 ## Type
 
