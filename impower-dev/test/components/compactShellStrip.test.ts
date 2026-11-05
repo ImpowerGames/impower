@@ -178,6 +178,28 @@ describe("the compact layout", () => {
     expect(railWidth()).toBe("190px");
   });
 
+  it("lets the project choose the 190px rail in a 768px window", async () => {
+    const clientWidth = vi
+      .spyOn(HTMLElement.prototype, "clientWidth", "get")
+      .mockImplementation(() => width);
+    try {
+      await mount(768);
+      expect(railWidth()).toBe("76px");
+      await act(async () => {
+        workspace.current = {
+          ...workspace.current,
+          shell: { railCompactWidth: 190 },
+        };
+      });
+      await settle();
+      expect(railWidth()).toBe("190px");
+      await resize(701);
+      expect(railWidth()).toBe("190px");
+    } finally {
+      clientWidth.mockRestore();
+    }
+  });
+
   it("sizes the strip from the project's height, collapses it to its bar and resets it", async () => {
     await mount(900);
     await act(async () => {
