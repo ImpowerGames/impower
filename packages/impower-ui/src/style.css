@@ -101,7 +101,6 @@
   --color-placeholder: var(--placeholder);
 
   --color-foreground: var(--ink);
-  --color-divider: var(--edge);
   --color-surface-border: var(--edge);
   --color-danger: var(--error);
 }
