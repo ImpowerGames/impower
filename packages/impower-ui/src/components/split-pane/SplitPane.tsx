@@ -1,7 +1,22 @@
 import { type ComponentChildren, type JSX } from "preact";
-import { useRef, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { useLayout } from "../../hooks/useLayout";
 import { cn } from "../../utils/cn";
+import {
+  collapsibleSize,
+  collapsibleSizeAfterKey,
+  type CollapsibleLimits,
+} from "../../utils/collapsibleSize";
+
+export type SplitPanePinned = {
+  panel: "start" | "end";
+  size?: number;
+  defaultSize: number;
+  minSize: number;
+  collapsedSize: number;
+  reserve: number;
+  onSizeChange: (size: number | undefined) => void;
+};
 
 export type SplitPaneProps = {
   orientation?: "horizontal" | "vertical";
@@ -10,6 +25,9 @@ export type SplitPaneProps = {
   defaultSizes?: [number, number];
   minSize?: MinSize | readonly [MinSize, MinSize];
   activePanel?: "start" | "end";
+  reverse?: boolean;
+  pinned?: SplitPanePinned;
+  label?: string;
   class?: string;
 };
 
@@ -37,6 +55,9 @@ function panelStyle(
   return { flexGrow: grow, flexBasis: 0 };
 }
 
+const PINNED_PANEL = "flex-none basis-(--split-pinned-size)";
+const FILL_PANEL = "flex-1 basis-0";
+
 const SEPARATOR_BASE =
   "relative z-10 shrink-0 self-stretch select-none bg-transparent touch-none " +
   "before:content-[''] before:absolute before:pointer-events-none before:bg-edge " +
@@ -62,6 +83,9 @@ export default function SplitPane({
   defaultSizes = [50, 50],
   minSize = 15,
   activePanel = "start",
+  reverse = false,
+  pinned,
+  label,
   class: className,
 }: SplitPaneProps) {
   const collapsed = useLayout() === "phone";
@@ -72,6 +96,52 @@ export default function SplitPane({
   const [size, setSize] = useState(defaultSizes[0]);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const draggingRef = useRef(false);
+
+  const [track, setTrack] = useState(Number.POSITIVE_INFINITY);
+  const [pending, setPending] = useState<number | null>(null);
+  const pinnedDrag = useRef<{ pos: number; size: number; last: number } | null>(
+    null,
+  );
+
+  const pinnedValue = pinned?.size;
+  useEffect(() => {
+    if (!pinnedDrag.current) {
+      setPending(null);
+    }
+  }, [pinnedValue]);
+
+  const tracksPinned = !!pinned;
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!tracksPinned || !el || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const measure = () => {
+      const extent = horizontal ? el.clientWidth : el.clientHeight;
+      setTrack(
+        extent > 0 ? extent - DIVIDER_PX : Number.POSITIVE_INFINITY,
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [tracksPinned, horizontal]);
+
+  const limits: CollapsibleLimits | null = pinned
+    ? {
+        min: pinned.minSize,
+        max: track - pinned.reserve,
+        collapsed: pinned.collapsedSize,
+      }
+    : null;
+  const pinnedSize =
+    pinned && limits
+      ? collapsibleSize(pending ?? pinned.size ?? pinned.defaultSize, limits)
+      : 0;
+  const pinnedCollapsed = !!pinned && pinnedSize === pinned.collapsedSize;
+  const firstPanel = reverse ? "end" : "start";
+  const pinnedSign = pinned?.panel === firstPanel ? 1 : -1;
 
   const [minStart, minEnd] = Array.isArray(minSize)
     ? (minSize as readonly [MinSize, MinSize])
@@ -84,16 +154,34 @@ export default function SplitPane({
     return (horizontal ? r.width : r.height) - DIVIDER_PX;
   };
 
+  const pointerPos = (e: PointerEvent) => (horizontal ? e.clientX : e.clientY);
+
   const onPointerDown = (e: PointerEvent) => {
+    if (e.button !== 0) return;
     e.preventDefault();
     const el = e.currentTarget as HTMLElement;
-    el.setPointerCapture(e.pointerId);
+    el.setPointerCapture?.(e.pointerId);
     draggingRef.current = true;
     el.dataset["separator"] = "active";
+    if (pinned) {
+      el.focus({ preventScroll: true });
+      pinnedDrag.current = {
+        pos: pointerPos(e),
+        size: pinnedSize,
+        last: pointerPos(e),
+      };
+      setPending(pinnedSize);
+    }
   };
 
   const onPointerMove = (e: PointerEvent) => {
     if (!draggingRef.current) return;
+    const drag = pinnedDrag.current;
+    if (pinned && drag) {
+      drag.last = pointerPos(e);
+      setPending(drag.size + pinnedSign * (drag.last - drag.pos));
+      return;
+    }
     const c = containerRef.current;
     if (!c) return;
     const r = c.getBoundingClientRect();
@@ -117,11 +205,49 @@ export default function SplitPane({
     } catch {
     }
     el.dataset["separator"] = "";
+    const drag = pinnedDrag.current;
+    if (pinned && limits && drag) {
+      pinnedDrag.current = null;
+      const end = e.type === "pointerup" ? pointerPos(e) : drag.last;
+      const next = collapsibleSize(
+        drag.size + pinnedSign * (end - drag.pos),
+        limits,
+      );
+      setPending(next);
+      pinned.onSizeChange(next);
+    }
+  };
+
+  const resetPinned = () => {
+    if (!pinned) return;
+    setPending(null);
+    pinned.onSizeChange(undefined);
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
     const dec = horizontal ? "ArrowLeft" : "ArrowUp";
     const inc = horizontal ? "ArrowRight" : "ArrowDown";
+    if (pinned && limits) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        resetPinned();
+        return;
+      }
+      const keys =
+        pinnedSign > 0 ? { grow: inc, shrink: dec } : { grow: dec, shrink: inc };
+      const next = collapsibleSizeAfterKey(
+        e.key,
+        e.shiftKey,
+        pinnedSize,
+        limits,
+        keys,
+      );
+      if (next === null) return;
+      e.preventDefault();
+      setPending(next);
+      pinned.onSizeChange(next);
+      return;
+    }
     if (e.key !== dec && e.key !== inc) return;
     e.preventDefault();
     const track = trackPx();
@@ -136,30 +262,66 @@ export default function SplitPane({
     );
   };
 
+  const panelProps = (panel: "start" | "end", hidden: boolean) => {
+    if (pinned && !collapsed) {
+      return {
+        class: cn(
+          "overflow-hidden min-h-0 min-w-0",
+          pinned.panel === panel ? PINNED_PANEL : FILL_PANEL,
+        ),
+      };
+    }
+    return {
+      class: "overflow-hidden min-h-0 min-w-0",
+      style: panelStyle(
+        hidden,
+        collapsed,
+        panel === "start" ? size : 100 - size,
+      ),
+    };
+  };
+
+  const pinnedStyle = pinned
+    ? ({ "--split-pinned-size": `${pinnedSize}px` } as JSX.CSSProperties)
+    : undefined;
+
+  const valueNow = pinned ? pinnedSize : Math.round(size);
+  const valueMin = pinned ? pinned.collapsedSize : 0;
+  const valueMax = pinned
+    ? Math.round(Math.max(pinned.collapsedSize, limits?.max ?? 0))
+    : 100;
+
   return (
-    <div class={cn("flex flex-col w-full h-full", className)}>
+    <div
+      class={cn("flex flex-col w-full h-full", className)}
+      data-split={pinned ? (pinnedCollapsed ? "collapsed" : "expanded") : undefined}
+    >
       <div
         ref={containerRef}
+        style={pinnedStyle}
         class={cn(
           "flex flex-1 w-full h-full min-h-0 min-w-0",
-          horizontal ? "flex-row" : "flex-col",
+          horizontal
+            ? reverse
+              ? "flex-row-reverse"
+              : "flex-row"
+            : reverse
+              ? "flex-col-reverse"
+              : "flex-col",
         )}
       >
-        <div
-          data-panel
-          class="overflow-hidden min-h-0 min-w-0"
-          style={panelStyle(startHidden, collapsed, size)}
-        >
+        <div data-panel="start" {...panelProps("start", startHidden)}>
           {start}
         </div>
         <div
           data-separator
           data-orientation={orientation}
           role="separator"
+          aria-label={label}
           aria-orientation={horizontal ? "vertical" : "horizontal"}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(size)}
+          aria-valuemin={valueMin}
+          aria-valuemax={valueMax}
+          aria-valuenow={valueNow}
           tabIndex={0}
           class={cn(
             SEPARATOR_BASE,
@@ -170,13 +332,10 @@ export default function SplitPane({
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
+          onDblClick={pinned ? resetPinned : undefined}
           onKeyDown={onKeyDown}
         />
-        <div
-          data-panel
-          class="overflow-hidden min-h-0 min-w-0"
-          style={panelStyle(endHidden, collapsed, 100 - size)}
-        >
+        <div data-panel="end" {...panelProps("end", endHidden)}>
           {end}
         </div>
       </div>

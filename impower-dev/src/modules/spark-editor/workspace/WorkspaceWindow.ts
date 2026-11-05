@@ -226,6 +226,20 @@ export default class WorkspaceWindow {
     });
   }
 
+  setRailCompactWidth(width: number | undefined) {
+    this.update({
+      ...this.store,
+      shell: { ...this.store.shell, railCompactWidth: width },
+    });
+  }
+
+  setStripHeight(height: number | undefined) {
+    this.update({
+      ...this.store,
+      shell: { ...this.store.shell, stripHeight: height },
+    });
+  }
+
   async signInToGoogleDrive() {
     try {
       const info = await this._workspace.sync.google.signIn();
