@@ -129,11 +129,18 @@ describe("WorkspaceWindow.renameScript", () => {
     );
   });
 
-  it("restores an empty or unchanged name without reading the project or toasting", async () => {
+  it("restores an empty name with a toast, without reading the project", async () => {
     open(["scripts/intro.sd"], "scripts/intro.sd");
     await expect(win.renameScript("scripts/intro.sd", "  ")).resolves.toEqual({
       status: "empty",
     });
+    expect(fs.getFiles).not.toHaveBeenCalled();
+    expect(fs.renameFileWithReferences).not.toHaveBeenCalled();
+    expect(snackbar.value?.message).toBe("A script needs a name.");
+  });
+
+  it("keeps an unchanged name quietly, as Escape does", async () => {
+    open(["scripts/intro.sd"], "scripts/intro.sd");
     await expect(win.renameScript("scripts/intro.sd", "intro")).resolves.toEqual({
       status: "unchanged",
     });

@@ -75,31 +75,21 @@ export default function ScriptHeader({
           desktop ? "gap-3" : "h-12 gap-2.5",
         )}
       >
-        {problemColor ? (
-          <Button
-            variant="quiet"
-            size="icon"
-            data-script-status="problems"
-            aria-label="Show problems"
-            title="Show problems"
-            class={cn("-ml-1.5 min-w-9 [&_svg]:size-5", problemColor)}
-            onClick={() =>
-              withWorkspace((w) =>
-                w.window.executeEditorCommand(filename, "problems"),
-              )
-            }
-          >
-            <BookIcon />
-          </Button>
-        ) : (
-          <span
-            data-script-status="clean"
-            aria-hidden="true"
-            class="-ml-1.5 inline-flex min-h-11 min-w-9 flex-none items-center justify-center text-accent [&_svg]:size-5"
-          >
-            <BookIcon />
-          </span>
-        )}
+        <Button
+          variant="quiet"
+          size="icon"
+          data-script-status={problemColor ? "problems" : "clean"}
+          aria-label="Show problems"
+          title="Show problems"
+          class="-ml-1.5 min-w-9 [&_svg]:size-5"
+          onClick={() =>
+            withWorkspace((w) =>
+              w.window.executeEditorCommand(filename, "problems"),
+            )
+          }
+        >
+          <BookIcon class={problemColor || "text-accent"} />
+        </Button>
         <span class={cn("flex min-w-0 flex-1 flex-col", desktop && "gap-0.5")}>
           {filename === MAIN_SCRIPT ? (
             <strong data-script-name class={cn(nameClass, "fade-edge")}>
@@ -138,10 +128,11 @@ export default function ScriptHeader({
         </Button>
       ) : (
         <Button
-          class={cn(
-            "bg-transparent text-[12px] font-normal text-accent",
-            desktop ? "min-w-[62px] px-2.5" : "min-w-[60px] border-transparent px-2",
-          )}
+          class={
+            desktop
+              ? "min-w-[62px] bg-transparent px-2.5 text-[12px] font-normal text-accent"
+              : "min-w-[60px] border-transparent bg-transparent px-2 text-[12px] font-normal text-accent"
+          }
           onClick={() => withWorkspace((w) => w.window.browseScripts())}
         >
           Browse scripts

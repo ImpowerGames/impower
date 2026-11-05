@@ -182,10 +182,14 @@ describe("ScriptHeader rail toggle", () => {
 });
 
 describe("ScriptHeader status and Browse scripts", () => {
-  it("draws a clean script's book in the accent, not as a control", async () => {
+  it("draws a clean script's book in the accent, and it still opens the problems panel", async () => {
     await mount({ filename: "scripts/intro.sd" });
-    expect(host!.querySelector('[data-script-status="clean"]')!.getAttribute("class")).toContain("text-accent");
-    expect(button("Show problems")).toBeUndefined();
+    const status = button("Show problems")!;
+    expect(status.getAttribute("data-script-status")).toBe("clean");
+    expect(status.querySelector("svg")!.getAttribute("class")).toBe("text-accent");
+    await act(async () => status.click());
+    await settle();
+    expect(calls.commands).toEqual([["scripts/intro.sd", "problems"]]);
   });
 
   it("colours the book by the worst problem and opens the problems panel on press", async () => {
@@ -200,7 +204,8 @@ describe("ScriptHeader status and Browse scripts", () => {
     } as typeof workspace.current;
     await mount({ filename: "scripts/intro.sd" });
     const status = button("Show problems")!;
-    expect(status.getAttribute("class")).toContain("text-error-strong");
+    expect(status.getAttribute("data-script-status")).toBe("problems");
+    expect(status.querySelector("svg")!.getAttribute("class")).toBe("text-error-strong");
     await act(async () => status.click());
     await settle();
     expect(calls.commands).toEqual([["scripts/intro.sd", "problems"]]);

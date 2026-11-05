@@ -1119,6 +1119,8 @@ export default class WorkspaceWindow {
     if (draftCheck.status !== "renamed") {
       if (draftCheck.status === "invalid") {
         showSnackbar({ message: "A script name can't contain a slash." });
+      } else if (draftCheck.status === "empty") {
+        showSnackbar({ message: "A script needs a name." });
       }
       return draftCheck;
     }
