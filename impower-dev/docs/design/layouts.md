@@ -174,3 +174,33 @@ stays beside it with an 18px gutter (`folio-scripts.css:128-135`); at 1100px and
 fills the whole workspace and the preview pane is hidden (`folio-scripts.css:144-146`),
 with a 16px gutter (`folio-scripts.css:148-149`). Measured: 636px wide at 1440, 910px
 at 1100, 924px at 1000, 360px at 360.
+
+## Overlays and states
+
+Each surface below was opened in the running prototype by its own control (or its route
+option) and measured as a bounding box at 1440 × 900, 1100 × 900, 768 × 1024 and
+360 × 900, plus 360 × 700 and 430 × 700 for the short-phone cut. "Not opened" means the
+control does not produce the surface at that width.
+
+| Surface | 1440 | 1100 | 768 | 360 | Declared at |
+|---|---|---|---|---|---|
+| Fullscreen player (`?preview=fullscreen`) | Fills the viewport; pads `12px 16px 0`; top bar 48px; bar under the game 62px | Fills the viewport; pads `8px 10px 0`; top bar 48px; bar under the game 52px | as 1100 | as 1100 | `folio-playback.css:1044-1050`, `:1189-1192`; `--folio-bottom-bar-height` |
+| Problems panel open (`?preview=console`) | In the docked preview: 260px tall under the game, section card 10px radius with a 40px head | Opens inside the fullscreen player: 260px tall across the viewport | as 1100 | as 1100 | `folio-playback.css:809`, `:1225-1228` |
+| Writing tools (`?tools=menu`) | Floating panel 360 × 195, 12px left of the script pane's edge and 8px above the writer's bar | Sheet in the keyboard's place across the script column, 264px tall, no radius or shadow | Sheet 692 × 264 | Sheet 360 × 256 | `folio-tools.css:20-24`, `folio-insert.css:10`, `:56` |
+| Add menu (`?insert=blocks`) | Floating panel 340 × 642, 12px from the script pane's right edge, 8px above the writer's bar | Sheet, as Writing tools | Sheet, as Writing tools | Sheet, as Writing tools | `folio-insert.css:10`, `:56` |
+| App menu | 280 × 267 above the rail footer, 12px from the left | as 1440 | as 1440 | 280 × 267 under the top bar, 12px from the right | `folio-hierarchy.css:611-624` |
+| Viewing-mode menu | 340 wide under the preview top bar | Not opened in the strip; in the fullscreen player 340 wide | as 1100 | in the fullscreen player 320 wide | `folio-playback.css:321-327` |
+| Preview cog menu | 340 wide, right-aligned under the top bar | Not opened in the strip; in the fullscreen player as 1440 | as 1100 | in the fullscreen player 320 wide | `folio-playback.css:58-62` |
+| Aspect-ratio menu | 210 wide above the bar under the game, rows 40px | Not opened in the strip; in the fullscreen player as 1440 | as 1100 | as 1100 | `folio-playback.css:302-317`, `:337` |
+| Context menu (right-click in the script) | 250 wide at the pointer, rows 34px | Not opened | Not opened | Not opened | `folio-tools.css:476-499` |
+| Suggestion list (typing) | Panel with a preview side, 612 × 291 under the caret, rows 36px | Chip row, 52px, in the writer's bar's place across the script column | as 1100 | as 1100, 360 wide | `folio-language.css:80-84`, `:110-113` |
+| Expression suggestions (`#suggestions`) | 596 × 240 above the writer's bar, 20px from the pane's sides | 878 × 206, 16px from the column's sides | 660 × 206 | 328 × 206 above the writer's bar, 16px from the sides; at 700px tall it replaces the script, 336 × 180 with 12px margins | `app.css:738-743`, `:1611-1614`, `:2054-2056`, `folio-editor.css:30` |
+| Problem popover (margin mark) | Up to 460 wide, under the line | Up to 460 wide | Up to 460 wide | 336 wide (12px from each side) | `folio-hierarchy.css:907-918` |
+| Hover card (picture name) | 290 wide under the name | Not opened | Not opened | Not opened | `folio-hierarchy.css:907-918` |
+| Scripts menus (sort, row, New) | 196 wide at their button, rows 44px | as 1440 | as 1440 | as 1440 | `folio-scripts.css:99-100` |
+| Dialogs | Centred, 440 wide, 26px padding, 18px radius | Centred, 440 wide, 19px padding | as 1100 | 328 wide (16px from each side), 19px padding | `app.css:1084-1091`, `:1794-1795` |
+| Asset inspector | Over the preview pane, 564 × 824 | Full screen | Full screen | Full screen | `folio-assets.css:76`, `:87` |
+| Toast | 86px from the top, centred | 64px from the top, up to the viewport less 28px | as 1100 | as 1100, 332 wide | `app.css:1069-1078`, `:1790` |
+
+The sweep script and its output (`measure-output.json`) are kept with the writer's
+private artifacts; every cell above comes from that output.

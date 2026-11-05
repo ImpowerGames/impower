@@ -372,9 +372,10 @@ the light-on-dark weight carries over (`folio-themes.css:236-240`).
 
 Named styles, as weight, size / line height and tracking. "Desktop" is above 1100px;
 "Compact" is 1100px and below, where an override exists. Rows marked measured were read
-with `getComputedStyle` on the rendered route at 1440, 768 and 360 wide; the others are
-styles for surfaces that open on demand (dialogs, toasts, menus), read from the cited
-rule. The prototype's stylesheets also style surfaces Folio no longer renders
+with `getComputedStyle` on the rendered route at 1440, 768 and 360 wide; rows for
+surfaces that open on demand (dialogs, toasts, menus, popovers, the suggestion list)
+were measured with the surface open at 360, 768, 1100 and 1440 wide, and the row says
+where a surface does not open at some width. The prototype's stylesheets also style surfaces Folio no longer renders
 (`.writer-header h1`, `.section-heading`, `.asset-row`, `.scene-card`, `.scene-link`,
 `.preview-heading`, `.preview-caption`, `.rail-label`, `.tiny-link`); none of them is
 listed (see inconsistencies).
@@ -402,14 +403,21 @@ listed (see inconsistencies).
 | Tag | `.tag` | 600 11px / 1.4 | same | `folio-type.css:63-67`; measured |
 | Bottom navigation label | `.mobile-nav a` | | 400 12px / 1.4 (phones) | `folio-type.css:433-436`; measured |
 | Add menu title | `.insert-heading h2` | 600 15px / 1.4 | same | `folio-insert.css:12`; measured |
-| Dialog title | `.dialog-heading h2` | 600 22px / 1.25, −0.02em | | `folio-type.css:211-214` |
-| Dialog body | `.tool-dialog p` | 14px / 1.6 | | `folio-type.css:215-218` |
-| Dialog label | `.tool-dialog label` | 13px / 1.5 | | `folio-type.css:219-222` |
-| Dialog field | `.tool-dialog input` | 16px / 1.5 | | `folio-type.css:223-226`; 16px keeps mobile browsers from zooming |
-| Toast | `.toast` | 13px / 1.5 | | `folio-type.css:256-259`; computed 13px |
-| Suggestion list | `.completion` | 13px / 1.4 | | `folio-language.css:80` |
-| Popover | `.problem-popover` | 13px / 1.5 | | `folio-hierarchy.css:918-919` |
-| Context menu | `.context-menu` | 13px / 1.4 | | `folio-tools.css:485-486` |
+| Writing tools title | `#folio-tools h2` | 600 15px / 1.4 | same | `folio-insert.css:12`; measured |
+| App menu title | `.account-menu-heading h2` | 600 15px / 1.4 | same | `folio-hierarchy.css:636`; measured |
+| Dialog title (shared dialogs: Problems to fix, Replace this project?) | `.dialog-heading h2` | 600 22px / 1.25, −0.02em | | `folio-type.css:211-214`; measured on desktop (the dialog opens from the script's problem badge, which is not on screen at 1100px and below) |
+| Dialog title (Scripts and Assets form dialogs: New, Rename, Move, Delete, Add a link) | `.scripts-dialog-form .dialog-heading h2` | 600 20px / 1.25, −0.02em | same | `folio-scripts.css:112`; measured at all four widths |
+| Dialog body (shared dialogs) | `.tool-dialog p` | 400 14px / 1.6 | | `folio-type.css:215-218`; measured on desktop |
+| Dialog context line (form dialogs) | `.scripts-form-context` | 400 12px / 1.6 | same | `folio-scripts.css:113`; measured |
+| Dialog label | `.tool-dialog label` | 400 13px / 1.5 | same | `folio-type.css:219-222`; measured |
+| Dialog field | `.tool-dialog input` | 400 16px / 1.5 | same | `folio-type.css:223-226`, `folio-scripts.css:167`; measured; 16px keeps mobile browsers from zooming |
+| Toast | `.toast` | 400 13px / 1.5 | same | `folio-type.css:256-259`; measured |
+| Suggestion list | `.completion` | 400 13px / 1.4, rows 36px | chip row: chips 15px / 1 in the script's font, 44px tall | `folio-language.css:80`, `:84`, `:113`; measured |
+| Expression suggestion heading | `.suggestion-head` | 600 14px / 1.4 | 600 13px / 1.4 | `folio-type.css:156-159`, `:354-356`; measured |
+| Popover | `.problem-popover` | 400 13px / 1.5 | same | `folio-hierarchy.css:918-919`; measured |
+| Context menu | `.context-menu` | 400 13px / 1.4, rows 34px | does not open on right-click at 1100px and below | `folio-tools.css:485-486`, `:499`; measured |
+| Preview menu rows (viewing mode, aspect ratio) | `.runtime-menu [role="menuitemradio"]` | 400 13px / 1.6; ratio rows 40px | same, in the fullscreen player | `folio-playback.css:332-342`; measured |
+| Scripts menu rows (sort, row menu, New) | `.scripts-menu button` | 400 13px / 1.6, 44px rows | same | `folio-scripts.css:100`; measured |
 
 ## Spacing
 
@@ -441,7 +449,9 @@ nearest step. Named spacing variables:
 | `--folio-rail-gutter` | 14px | 10px on the 190px rail; 5px on the icon rail; phones have no rail | `folio-hierarchy.css:15`, `:745`, `:772`; measured |
 | `--folio-gutter` (script's left gutter) | 56px | 36px | `folio-editor.css:6`, `:29`; measured |
 | `--folio-margin-right` (script's right padding, where problem marks sit) | 30px | 20px | `folio-editor.css:54`, `:65`; measured |
-| `--preview-inline-padding` | 10px docked; 16px in the fullscreen player | 10px, docked and fullscreen | `folio-playback.css:3`, `:1044-1045`, `:1189-1191` (docked; fullscreen; fullscreen at 1100px and below) |
+| `--preview-inline-padding` | 10px docked; 16px in the fullscreen player | 10px, docked and fullscreen | `folio-playback.css:3`, `:1044-1045`, `:1189-1191` (docked; fullscreen; fullscreen at 1100px and below); measured: the fullscreen player pads `12px 16px 0` at 1440 and `8px 10px 0` at 1100, 768 and 360 |
+| Dialog padding | 26px | 19px | `app.css:1091`, `:1794-1795`; measured |
+| Expression suggestion panel padding | 17px | 11px; 8px on a phone 710px tall or less | `app.css:740`, `:1613`, `:2056`; measured |
 | `--scripts-gutter` | 18px (the page always sits beside the preview) | 16px | `folio-scripts.css:129`, `:149`; the 30px base at `folio-scripts.css:2` applies at no width; measured |
 
 ## Shape
@@ -449,18 +459,34 @@ nearest step. Named spacing variables:
 | Token | Value | Declared at |
 |---|---|---|
 | `--control-radius` (buttons, icon buttons, fields, menus' items) | 8px | `app.css:17` |
-| `--radius` (cards, panels, the Add menu, the suggestion list) | 12px | `app.css:16`; the panels write 12px literally (`folio-insert.css:10`, `folio-language.css:80`) |
-| Toast | 10px | `app.css:1080` |
+| `--radius` (cards and panels: the Add menu and Writing tools on desktop, the suggestion list, popovers, the viewing-mode menu, the context menu, the Scripts menus, the app menu) | 12px | `app.css:16`; the panels write 12px literally (`folio-insert.css:10`, `folio-language.css:80`, `folio-hierarchy.css:915`, `folio-playback.css:326`, `folio-tools.css:482`, `folio-scripts.css:99`, `folio-hierarchy.css:621`); measured |
+| Dialogs | 18px | `app.css:1088`; measured at all four widths |
+| Preview cog and aspect-ratio menus, the Problems panel's sections | 10px | `folio-playback.css:310`, `:1228`; measured |
+| Toast | 10px | `app.css:1080`; measured |
+| Expression suggestion panel | 12px; 9px at 1100px and below | `app.css:743`, `:1614`; measured |
+| Sheets (the Add menu and Writing tools at 1100px and below) | 0 | `folio-insert.css:56`; measured |
 | Tags | 5px | `app.css:152` |
 
 ## Elevation
 
 One shadow for everything that floats over the page (menus, popovers, the Add menu,
 the account dialog, the suggestion list): `0 12px 40px #0006`, as on
-`.insert-panel` (`folio-insert.css:10`), `.runtime-settings-menu`
-(`folio-playback.css:64`) and `.runtime-mode-menu` (`folio-playback.css:327`). The
-prototype also writes `0 12px 34px #0005`, `0 12px 40px #0005`, `0 10px 30px #0006` and,
-for the toast, `0 5px 25px #0005` (see inconsistencies). Sepia and Chalk soften the
+`.insert-panel` (`folio-insert.css:10`) and `.runtime-mode-menu`
+(`folio-playback.css:327`). What each floating surface computes with the surface open,
+at every width where it opens:
+
+| Surface | Computed shadow | Winning rule |
+|---|---|---|
+| Add menu and Writing tools (desktop) | `0 12px 40px` black at 40% | `folio-insert.css:10` |
+| Viewing-mode menu | `0 12px 40px` black at 40% | `folio-playback.css:327` |
+| Preview cog menu, aspect-ratio menu | `0 10px 30px` black at 40% | `folio-playback.css:312` (the cog menu also carries `.runtime-menu`; see inconsistencies) |
+| App menu | `0 12px 40px` black at 33% | `folio-hierarchy.css:624` |
+| Popovers, hover cards, context menu, suggestion list (desktop) | `0 12px 34px` black at 33% | `folio-hierarchy.css:918`, `folio-tools.css:485`, `folio-language.css:80` |
+| Scripts menus (sort, row, New) | `0 8px 24px` black at 27% | `folio-scripts.css:99` |
+| Toast | `0 5px 25px` black at 33% | `app.css:1082` |
+| Dialogs, sheets, the suggestion chip row | none | `app.css:1084-1092`, `folio-insert.css:56`, `folio-language.css:110` |
+
+The variants are listed under inconsistencies with the value this reference takes. Sepia and Chalk soften the
 preview frame to `0 10px 30px rgb(0 0 0 / 0.16)` (`folio-themes.css:289`) and give the
 primary button `0 1px 2px` at 0.18 (Sepia, warm) or 0.16 (Chalk, neutral)
 (`folio-themes.css:286`, `:315`).
@@ -469,12 +495,13 @@ Overlay strength under a modal dialog (`.tool-dialog::backdrop`):
 
 | Themes | Value | Declared at |
 |---|---|---|
-| Dark themes | `#0009` (black at 60%) | `app.css:1093-1094` |
-| Sepia | `rgb(40 30 20 / 0.35)` | `folio-themes.css:282-283` |
-| Chalk | `rgb(0 0 0 / 0.35)` | `folio-themes.css:311-312` |
+| Dark themes | `#0009` (black at 60%) | `app.css:1093-1094`; measured in Charcoal |
+| Sepia | `rgb(40 30 20 / 0.35)` | `folio-themes.css:282-283`; measured |
+| Chalk | `rgb(0 0 0 / 0.35)` | `folio-themes.css:311-312`; measured |
 
-The account dialog's backdrop is transparent (`folio-hierarchy.css:626-627`): it reads
-as a menu, not a modal.
+The account dialog's backdrop is transparent (`folio-hierarchy.css:626-627`, measured):
+it reads as a menu, not a modal. The fullscreen player's backdrop is the theme's
+`--stage-full` (measured `#e6e6e8` in Chalk).
 
 ## Interaction
 
@@ -503,7 +530,7 @@ hover)`, never the user agent.
 | Narrow tablet | `min-width: 701px and max-width: 1000px` | The rail opens as the 76px icon rail by default | `folio-hierarchy.css:765-769`, `folio-split.js:42` |
 | Desktop | `min-width: 1101px` | Top bar with the logo, 232px rail, preview docked at the right on every route | `folio-type.css:80`, `folio-playback.css:1103` |
 | Small phone | `max-width: 380px` | Tighter keyboard, header and outline | `app.css:1852`, `folio-hierarchy.css:475` |
-| Short phone | `max-width: 700px and max-height: 710px` | The suggestion panel's preview is hidden; the preview strip shrinks to 91px; the monitor caption clamps to two lines | `folio-editor.css:30`, `app.css:1905-1918`, `folio-type.css:475-479` |
+| Short phone | `max-width: 700px and max-height: 710px` | On the expression-suggestion route the script is hidden and the panel takes the writing pane with 12px margins and 8px padding (measured at 360 × 700 and 430 × 700; at 900 tall it sits under the script with 16px margins and 11px padding); the preview strip shrinks to 91px; the monitor caption clamps to two lines. The suggestion list itself does not change: on phones it is the 52px chip row at any height | `folio-editor.css:30`, `app.css:2054-2056`, `app.css:1905-1918`, `folio-type.css:475-479`; measured |
 | Scripts page | `max-width: 1100px` | The Scripts page takes the whole workspace and the preview pane is hidden | `folio-scripts.css:144-146`; see inconsistencies for the ticket's 1000px |
 
 ## Motion
@@ -559,7 +586,7 @@ takes, and why in one line.
 | Tablet rail | The ticket gives a 190px tablet rail; the prototype opens 190px only from 1001px to 1100px and the 76px icon rail from 701px to 1000px (`folio-split.js:42`) | As the prototype |
 | Current-line band | `folio-editor.css:21` paints it `--tint`; `folio-themes.css:336-338` repaints it `--syntax-active`, which wins | `--syntax-active` |
 | Hover overlay | The ticket gives 6%; Chalk uses black at 5% (`folio-themes.css:203`), the dark themes and Sepia 6% | Per theme, as declared |
-| Floating shadow | `0 12px 40px #0006` (`folio-insert.css:10`, `folio-playback.css:64`, `:327`), `0 12px 40px #0005` (`folio-hierarchy.css:624`), `0 12px 34px #0005` (`folio-hierarchy.css:918`, `folio-language.css:80`, `folio-tools.css:485`), `0 10px 30px #0006` (`folio-hierarchy.css:1018`, `folio-playback.css:312`), `0 5px 25px #0005` (toast, `app.css:1082`) | `0 12px 40px #0006` for every floating surface, the toast included |
+| Floating shadow | `0 12px 40px #0006` (`folio-insert.css:10`, `folio-playback.css:64`, `:327`), `0 12px 40px #0005` (`folio-hierarchy.css:624`), `0 12px 34px #0005` (`folio-hierarchy.css:918`, `folio-language.css:80`, `folio-tools.css:485`), `0 10px 30px #0006` (`folio-hierarchy.css:1018`, `folio-playback.css:312`), `0 8px 24px #0004` (Scripts menus, `folio-scripts.css:99`), `0 5px 25px #0005` (toast, `app.css:1082`); dialogs and sheets have none (all measured open) | `0 12px 40px #0006` for every floating surface, the toast included |
 | Eyebrow | `app.css:137-141` sets `.eyebrow` to 700 at 0.18em; `folio-type.css:57-62` sets 0.12em and loads later | 11px, 700, 0.12em |
 | Compact script header | `folio-hierarchy.css:812-814` sets 48px; `folio-tools.css:96-98` sets 56px and loads later (measured 56px at 768 wide) | 56px |
 | Toast type | `app.css:1079` sets 12px; `folio-type.css` sets 13px / 1.5 (computed 13px) | 13px / 1.5 |
@@ -574,3 +601,7 @@ takes, and why in one line.
 | Compact right margin | `folio-editor.css:64` sets `--folio-margin-right` to 23px at 1100px and below; `folio-editor.css:65` sets 20px under the same query and wins (computed 20px) | 20px |
 | Compact script bottom padding | `folio-editor.css:29` pads the script 45px at the bottom at 1100px and below; `folio-tools.css:134-136` lowers it to 32px while reading (computed 32px reading, 45px editing) | 32px reading, 45px editing |
 | Add button size | `folio-type.css:329-334` sets `.writer-tools .btn` to 12px at 1100px and below; `folio-insert.css:55` sets the Add button (`.writer-tools .insert-trigger`) to 13px and loads later (computed 600 13px at 1100, 768 and 360) | 13px at every width |
+| Preview cog menu | `folio-playback.css:58-64` gives `.runtime-settings-menu` a 12px radius and `0 12px 40px #0006`; the element also carries `.runtime-menu`, whose rule at `folio-playback.css:302-312` comes later and wins (measured 10px and `0 10px 30px` black at 40%) | 10px and `0 10px 30px #0006`, as rendered; the shared shadow above is the target for the component |
+| Dialog title size | The shared dialogs' title is 600 22px (`folio-type.css:211-214`, measured on Problems to fix); the Scripts and Assets form dialogs override it to 20px (`folio-scripts.css:112`, measured at all widths) | Both, per dialog family, as the type table lists; one dialog component would pick one size |
+| Rows under the 44px target | Desktop-only lists draw rows below 44px: context menu 34px (`folio-tools.css:499`), suggestion list 36px (`folio-language.css:84`), aspect-ratio menu 40px (`folio-playback.css:337`), all measured | As rendered on desktop, where they answer a fine pointer; on touch widths the context menu does not open and suggestions become 44px chips (measured) |
+| Expression panel radius | 12px (`app.css:743`) above 1100px and 9px (`app.css:1614`) at 1100px and below, against the 12px panel radius everywhere else (measured) | As rendered |
