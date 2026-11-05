@@ -165,7 +165,7 @@ function ModeMenu({ mode }: { mode: PreviewMode }) {
           variant="quiet"
           aria-label="Viewing mode"
           title="Viewing mode"
-          class="max-w-full min-w-0 gap-1.5 pr-1.5 pl-2.5 text-xs text-muted aria-expanded:bg-tint aria-expanded:text-accent group-data-[running]/bar:@max-[480px]:w-11 group-data-[running]/bar:@max-[480px]:px-0 [&_svg]:size-5"
+          class="max-w-full gap-1.5 pr-1.5 pl-2.5 text-xs text-muted aria-expanded:bg-tint aria-expanded:text-accent group-data-[running]/bar:@max-[480px]:w-11 group-data-[running]/bar:@max-[480px]:px-0 group-data-[running]/bar:@max-[360px]:hidden [&_svg]:size-5"
         >
           <Icon />
           <span class="truncate @max-[470px]:hidden group-data-[running]/bar:@max-[640px]:hidden">
