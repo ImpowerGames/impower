@@ -1,17 +1,45 @@
+// @vitest-environment node
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { JSDOM } from "jsdom";
+import { resolveConfig, type IndexHtmlTransformContext } from "vite";
 import { describe, expect, it } from "vitest";
-import { withThemeVariables } from "../../../sparkdown-player-app/src/build/withThemeVariables";
 
-const PLAYER_HTML = resolve("../sparkdown-player-app/index.html");
-const THEME_CSS = resolve("../packages/impower-ui/src/theme.css");
+const PLAYER_ROOT = resolve("../sparkdown-player-app");
+const PLAYER_HTML = resolve(PLAYER_ROOT, "index.html");
 
-const servedPlayerHtml = () =>
-  withThemeVariables(
-    readFileSync(PLAYER_HTML, "utf8"),
-    readFileSync(THEME_CSS, "utf8"),
+const servedPlayerHtml = async (): Promise<string> => {
+  const config = await resolveConfig(
+    {
+      root: PLAYER_ROOT,
+      configFile: resolve(PLAYER_ROOT, "vite.config.ts"),
+      logLevel: "silent",
+    },
+    "serve",
+    "development",
   );
+  const context = {
+    path: "/index.html",
+    filename: PLAYER_HTML,
+  } as IndexHtmlTransformContext;
+  let html = readFileSync(PLAYER_HTML, "utf8");
+  for (const plugin of config.plugins) {
+    const hook = plugin.transformIndexHtml;
+    if (!hook || typeof hook === "function" || hook.order !== "pre") {
+      continue;
+    }
+    const result = await hook.handler.call(
+      {} as never,
+      html,
+      context,
+    );
+    if (typeof result !== "string") {
+      throw new Error(`${plugin.name} returned tags; this test reads strings`);
+    }
+    html = result;
+  }
+  return html;
+};
 
 const rgba = (color: string, win: Window) => {
   const probe = win.document.createElement("div");
@@ -31,8 +59,8 @@ const substituteVariable = (value: string, element: Element, win: Window) => {
 };
 
 describe("the player's document before its stylesheet and script run", () => {
-  it("paints an opaque dark background on its root", () => {
-    const dom = new JSDOM(servedPlayerHtml());
+  it("paints an opaque dark background on its root", async () => {
+    const dom = new JSDOM(await servedPlayerHtml());
     const win = dom.window as unknown as Window;
     const root = win.document.documentElement;
     const background = substituteVariable(

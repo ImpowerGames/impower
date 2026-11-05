@@ -26,20 +26,12 @@ const collectRules = (rules: CSSRuleList, out: StyleRule[] = []): StyleRule[] =>
   return out;
 };
 
-const themeBlock = (): string => {
-  const source = readFileSync(resolve("../packages/impower-ui/src/style.css"), "utf8");
-  const start = source.indexOf("@theme {");
-  const end = source.indexOf("\n}\n", start);
-  if (start < 0 || end < 0) {
-    throw new Error("@theme block not found in impower-ui style.css");
-  }
-  return source.slice(start, end + 2);
-};
+const IMPOWER_UI_SRC = resolve("../packages/impower-ui/src");
 
 const rulesFor = async (classes: string[]): Promise<StyleRule[]> => {
-  const input = `@import "tailwindcss/theme";\n@import "tailwindcss/utilities";\n${themeBlock()}`;
+  const input = readFileSync(join(IMPOWER_UI_SRC, "style.css"), "utf8");
   const compiler = await compile(input, {
-    base: process.cwd(),
+    base: IMPOWER_UI_SRC,
     onDependency: () => {},
   });
   const css = optimize(compiler.build(classes), { minify: false }).code;

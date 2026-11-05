@@ -20,13 +20,20 @@ describe("theme colour written by the build", () => {
     expect(readThemeColor()).toBe("#052d57");
   });
 
-  it("converts hsl() and hex --bg declarations and refuses others", () => {
+  it("converts any opaque CSS colour --bg declares and refuses the rest", () => {
     expect(themeColor(":root { --bg: hsl(210.7 89.1% 18%); }")).toBe("#052d57");
+    expect(themeColor(":root { --bg: hsl(210.7deg 89.1% 18%); }")).toBe(
+      "#052d57",
+    );
     expect(themeColor(":root, [data-theme=x] { --bg: #ABCDEF; }")).toBe(
       "#abcdef",
     );
+    expect(themeColor(":root { --bg: rgb(5 45 87); }")).toBe("#052d57");
     expect(themeColor(":root { --bg: hsl(0 0% 100%); }")).toBe("#ffffff");
-    expect(() => themeColor(":root { --bg: red; }")).toThrow(/--bg/);
+    expect(() => themeColor(":root { --bg: rgb(5 45 87 / 0.5); }")).toThrow(
+      /--bg/,
+    );
+    expect(() => themeColor(":root { --bg: var(--panel); }")).toThrow(/--bg/);
     expect(() => themeColor(":root { --panel: #000000; }")).toThrow(/--bg/);
   });
 
