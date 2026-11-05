@@ -70,6 +70,27 @@ describe("provider · script references (#1009)", () => {
     expect(referencedBy(more, CHAPTER)).toBe(2);
   });
 
+  test("using a define in an expression, by name or through a property, references the script that defines it", () => {
+    const SETTINGS = "file:///p/Scripts/settings.sd";
+    const sources = {
+      [MAIN]: "scene start\n  {settings.score}\nend\n",
+      [SETTINGS]: "define settings with\n  score = 1\nend\n",
+      [CAST]: 'define raffles as character with\n  name = "RAFFLES"\nend\n',
+      [CHAPTER]: "scene chapter_scene\n  {character.raffles.name}\nend\n",
+    };
+    const references = getScriptReferences(workspaceOf(sources), undefined);
+    expect(references).toContainEqual({ from: MAIN, to: SETTINGS, divert: false });
+    expect(references).toContainEqual({ from: CHAPTER, to: CAST, divert: false });
+  });
+
+  test("a define's type is not something the defining script declares", () => {
+    const sources = {
+      [CAST]: 'define raffles as character with\n  name = "RAFFLES"\nend\n',
+      [CHAPTER]: "scene chapter_scene\n  {character.someone_else.name}\nend\n",
+    };
+    expect(referencedBy(sources, CAST)).toBe(0);
+  });
+
   test("a scene two scripts declare, as after Duplicate, counts a reference for each of them", () => {
     const COPY = "file:///p/Scripts/epilogue copy.sd";
     const EPILOGUE = "file:///p/Scripts/epilogue.sd";

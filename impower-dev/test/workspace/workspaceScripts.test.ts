@@ -167,6 +167,19 @@ describe("Scripts through the workspace", () => {
     expect(await scripts.duplicate("Scripts/intro.sd")).toBe("Scripts/intro copy 2.sd");
   });
 
+  it("duplicates a folder as '<name> copy' with its subfolders and scripts", async () => {
+    const { scripts, files, dirs } = fakeWorkspace(
+      [...PATHS, "Scripts/Drafts/Old/older.sd"],
+      [...FOLDERS, "Scripts/Drafts/Old", "Scripts/Drafts/Empty"],
+    );
+    await scripts.load();
+    expect(await scripts.duplicate("Scripts/Drafts")).toBe("Scripts/Drafts copy");
+    expect(files.get("Scripts/Drafts copy/old.sd")).toBe("text of Scripts/Drafts/old.sd");
+    expect(files.get("Scripts/Drafts copy/Old/older.sd")).toBe("text of Scripts/Drafts/Old/older.sd");
+    expect(dirs.has("Scripts/Drafts copy/Empty")).toBe(true);
+    expect(files.get("Scripts/Drafts/old.sd")).toBe("text of Scripts/Drafts/old.sd");
+  });
+
   it("downloads a script as its file and a folder as a zip", async () => {
     const { scripts, fs } = fakeWorkspace(PATHS, FOLDERS);
     await scripts.load();

@@ -17,12 +17,11 @@ export type RowAction = "rename" | "move" | "duplicate" | "download" | "delete";
 
 export type RowMenuProps = {
   name: string;
-  kind: "file" | "folder";
   main: boolean;
   onAction: (action: RowAction) => void;
 };
 
-export default function RowMenu({ name, kind, main, onAction }: RowMenuProps) {
+export default function RowMenu({ name, main, onAction }: RowMenuProps) {
   return (
     <DropdownRoot>
       <DropdownTrigger asChild>
@@ -48,12 +47,10 @@ export default function RowMenu({ name, kind, main, onAction }: RowMenuProps) {
             Move…
           </DropdownItem>
         )}
-        {kind === "file" && (
-          <DropdownItem onSelect={() => onAction("duplicate")}>
-            <DuplicateIcon class="text-muted" />
-            Duplicate
-          </DropdownItem>
-        )}
+        <DropdownItem onSelect={() => onAction("duplicate")}>
+          <DuplicateIcon class="text-muted" />
+          Duplicate
+        </DropdownItem>
         <DropdownItem onSelect={() => onAction("download")}>
           <DownloadIcon class="text-muted" />
           Download

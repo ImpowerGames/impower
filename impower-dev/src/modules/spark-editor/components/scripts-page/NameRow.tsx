@@ -32,12 +32,13 @@ export default function NameRow({
     input.current?.select();
   }, []);
 
-  const commit = async () => {
+  const commit = async (submitted: boolean) => {
     if (busy.current) {
       return;
     }
     const name = input.current?.value ?? value;
-    if (initial ? name === initial : !name.trim()) {
+    const unchanged = initial ? name === initial : !submitted && !name.trim();
+    if (unchanged) {
       onCancel();
       return;
     }
@@ -74,7 +75,7 @@ export default function NameRow({
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
-                void commit();
+                void commit(true);
               } else if (e.key === "Escape") {
                 e.preventDefault();
                 e.stopPropagation();
@@ -91,7 +92,7 @@ export default function NameRow({
                 return;
               }
               if (!error) {
-                void commit();
+                void commit(false);
               }
             }}
           />

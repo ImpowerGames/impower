@@ -235,13 +235,34 @@ export default class WorkspaceScripts {
   async duplicate(path: string): Promise<string> {
     const projectId = this.projectId!;
     const { fs } = this._workspace;
-    const extension = extensionOf(path);
+    const kind = this.kindOf(path);
+    const extension = kind === "file" ? extensionOf(path) : "";
     const stem = nameOf(path).slice(0, nameOf(path).length - extension.length);
     const folder = parentOf(path);
     const to = joinPath(folder, copyName(stem, this.siblings(folder), extension));
-    const data = await fs.readFile({ file: { uri: fs.getFileUri(projectId, path) } });
-    await fs.createFiles({ files: [{ uri: fs.getFileUri(projectId, to), data }] });
-    await this.changed("file");
+    const listing = this.listing;
+    const sources =
+      kind === "file"
+        ? [path]
+        : Object.keys(listing.files).filter((p) => isInside(p, path));
+    if (kind === "folder") {
+      const folders = listing.folders
+        .filter((f) => isInside(f, path))
+        .map((f) => to + f.slice(path.length));
+      for (const created of folders.includes(to) ? folders : [to, ...folders]) {
+        await fs.createFolder(projectId, created);
+      }
+    }
+    const files = await Promise.all(
+      sources.map(async (source) => ({
+        uri: fs.getFileUri(projectId, to + source.slice(path.length)),
+        data: await fs.readFile({ file: { uri: fs.getFileUri(projectId, source) } }),
+      })),
+    );
+    if (files.length) {
+      await fs.createFiles({ files });
+    }
+    await this.changed(kind);
     return to;
   }
 

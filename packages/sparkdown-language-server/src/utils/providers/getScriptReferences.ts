@@ -16,13 +16,22 @@ const DECLARED_BY_SCRIPT = new Set<Reference["declaration"]>([
   "branch",
   "label",
   "function",
+  "define_type_name",
   "define_variable_name",
 ]);
+
+const ACCESS_PATH = /^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*/;
+const MAX_ACCESS_PATH = 256;
 
 type ScriptReferencesWorkspace = Pick<
   SparkdownLanguageServerWorkspace,
   "document" | "annotations" | "uris" | "compilerConfig"
 >;
+
+const prefixesOf = (path: string): string[] => {
+  const parts = path.split(".");
+  return parts.map((_, i) => parts.slice(0, parts.length - i).join("."));
+};
 
 export const getScriptReferences = (
   workspace: ScriptReferencesWorkspace,
@@ -44,9 +53,23 @@ export const getScriptReferences = (
 
   const declaredIn = new Map<string, string[]>();
   for (const uri of uris) {
+    const document = workspace.document(uri);
+    const variableLines = new Set<number>();
+    walkReferences(workspace, uri, (r) => {
+      if (r.value!.type.declaration === "define_variable_name" && document) {
+        variableLines.add(document.positionAt(r.from).line);
+      }
+    });
     walkReferences(workspace, uri, (r, scopePath) => {
       const reference = r.value!.type;
       if (!DECLARED_BY_SCRIPT.has(reference.declaration)) {
+        return;
+      }
+      if (
+        reference.declaration === "define_type_name" &&
+        document &&
+        variableLines.has(document.positionAt(r.from).line)
+      ) {
         return;
       }
       for (const id of reference.symbolIds ?? []) {
@@ -62,19 +85,27 @@ export const getScriptReferences = (
   const references: ScriptReference[] = [];
   const seen = new Set<string>();
   for (const uri of uris) {
+    const document = workspace.document(uri);
     walkReferences(workspace, uri, (r, scopePath) => {
       const reference = r.value!.type;
       if (reference.declaration) {
         return;
       }
-      for (const id of reference.symbolIds ?? []) {
-        const resolved = resolve(id, reference, scopePath);
-        const declarers = resolved ? declaredIn.get(resolved) : undefined;
+      const divert = reference.usage === "divert";
+      const accessPath =
+        !divert && document
+          ? (document.read(r.from, r.from + MAX_ACCESS_PATH).match(ACCESS_PATH)?.[0] ?? "")
+          : "";
+      const candidates = [
+        ...(accessPath.includes(".") ? prefixesOf(accessPath) : []),
+        ...(reference.symbolIds ?? []).map((id) => resolve(id, reference, scopePath)),
+      ];
+      for (const candidate of candidates) {
+        const declarers = candidate ? declaredIn.get(candidate) : undefined;
         if (!declarers) {
           continue;
         }
         if (!declarers.includes(uri)) {
-          const divert = reference.usage === "divert";
           for (const to of declarers) {
             const key = `${uri}\n${to}\n${divert}`;
             if (!seen.has(key)) {

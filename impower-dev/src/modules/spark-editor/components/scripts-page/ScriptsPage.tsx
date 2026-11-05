@@ -233,7 +233,6 @@ export default function ScriptsPage() {
         actions={
           <RowMenu
             name={row.name}
-            kind={row.kind}
             main={!!row.pinned}
             onAction={(action) => onAction(row, action)}
           />
