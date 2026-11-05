@@ -40,7 +40,7 @@
 
 @font-face {
   font-family: "Folio UI Fallback";
-  src: local("Arial");
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("Arimo");
   size-adjust: 105.22%;
   ascent-override: 101.65%;
   descent-override: 27.86%;
@@ -49,7 +49,7 @@
 
 @font-face {
   font-family: "Courier Prime Sans Fallback";
-  src: local("Courier New");
+  src: local("Courier New"), local("CourierNewPSMT"), local("Liberation Mono"), local("Cousine");
   size-adjust: 100.16%;
   ascent-override: 69.27%;
   descent-override: 31.35%;

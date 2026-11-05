@@ -78,10 +78,19 @@ describe("font stylesheet", () => {
     }
   });
 
-  it("metric-matches a local fallback for both families", () => {
-    for (const name of ["Folio UI Fallback", "Courier Prime Sans Fallback"]) {
+  it("metric-matches a local fallback for both families on Windows, macOS, Linux and ChromeOS", () => {
+    const sources = {
+      "Folio UI Fallback": ["Arial", "ArialMT", "Liberation Sans", "Arimo"],
+      "Courier Prime Sans Fallback": [
+        "Courier New",
+        "CourierNewPSMT",
+        "Liberation Mono",
+        "Cousine",
+      ],
+    };
+    for (const [name, locals] of Object.entries(sources)) {
       const [f] = family(name);
-      expect(f?.["src"], name).toMatch(/^local\(/);
+      expect(f?.["src"], name).toBe(locals.map((l) => `local("${l}")`).join(", "));
       expect(f?.["size-adjust"], name).toMatch(/%$/);
       expect(f?.["ascent-override"], name).toMatch(/%$/);
       expect(f?.["descent-override"], name).toMatch(/%$/);
