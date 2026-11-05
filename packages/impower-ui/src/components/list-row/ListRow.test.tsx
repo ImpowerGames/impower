@@ -80,6 +80,26 @@ describe("ListRow", () => {
     expect(other!.lastElementChild!.className).toContain("bg-edge");
   });
 
+  it("draws a muted-tone row's label muted, in ink when current, and in the accent when it contains the current row", async () => {
+    const root = await mount(
+      <div>
+        <ListRow tone="muted" label="Plain" onClick={() => {}} />
+        <ListRow tone="muted" current="location" label="Here" onClick={() => {}} />
+        <ListRow tone="muted" containsCurrent label="Above" onClick={() => {}} />
+        <ListRow label="Default" onClick={() => {}} />
+      </div>,
+    );
+    const [plain, here, above, ink] = Array.from(root.querySelectorAll("button")).map(
+      (button) => button.parentElement!.className.split(/\s+/),
+    );
+    expect(plain).toContain("text-muted");
+    expect(plain).not.toContain("text-ink");
+    expect(here).toContain("text-ink");
+    expect(here).not.toContain("text-muted");
+    expect(above).toContain("text-accent");
+    expect(ink).toContain("text-ink");
+  });
+
   it("clamps a long label to two lines instead of fading it", async () => {
     const root = await mount(
       <ListRow overflow="clamp" label="A long prompt" onClick={() => {}} />,

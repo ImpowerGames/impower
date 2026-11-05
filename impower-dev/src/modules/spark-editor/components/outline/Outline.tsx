@@ -213,6 +213,7 @@ export default function Outline() {
                 renderItem={(row) => (
                   <ListRow
                     size="compact"
+                    tone="muted"
                     depth={row.depth}
                     current={row.current === "self" ? "location" : false}
                     containsCurrent={row.current === "ancestor"}

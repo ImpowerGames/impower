@@ -212,6 +212,15 @@ describe("the Outline rail", () => {
     expect(
       row("Scene: dock").parentElement!.className.split(/\s+/),
     ).not.toContain("text-accent");
+    expect(row("Scene: dock").parentElement!.className.split(/\s+/)).toContain(
+      "text-muted",
+    );
+    expect(
+      row("Branch: storm").parentElement!.className.split(/\s+/),
+    ).not.toContain("text-muted");
+    expect(
+      row("Scene: harbor").parentElement!.className.split(/\s+/),
+    ).not.toContain("text-muted");
     setCaret(12);
     await act(async () => {});
     expect(row("Scene: dock").getAttribute("aria-current")).toBe("location");
