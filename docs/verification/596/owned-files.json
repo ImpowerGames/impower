@@ -1,0 +1,8 @@
+{
+  "source": [
+    "packages/sparkdown/src/tests/luau-conformance/typecheck/TypeInfer.intersectionTypes.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/typecheck/TypeInfer.operators.test.ts",
+    "packages/sparkdown/src/tests/luau-conformance/typecheck/TypeInfer.unionTypes.test.ts"
+  ],
+  "archivedNativeProbes": []
+}

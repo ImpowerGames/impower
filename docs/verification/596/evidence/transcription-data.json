@@ -1,0 +1,4868 @@
+{
+  "TypeInfer.operators.test.cpp": [
+    {
+      "line": 27,
+      "result": {
+        "name": "or_joins_types",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local s = \"a\" or 10\n        local x:string|number = s\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "s",
+                "equals": "(string & ~(false?)) | number"
+              },
+              {
+                "type": "x",
+                "equals": "number | string"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 48,
+      "result": {
+        "name": "or_joins_types_with_no_extras",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local s = \"a\" or 10\n        local x:number|string = s\n        local y = x or \"s\"\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "s",
+                "equals": "(string & ~(false?)) | number"
+              },
+              {
+                "type": "y",
+                "equals": "number | string"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 70,
+      "result": {
+        "name": "or_joins_types_with_no_superfluous_union",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local s = \"a\" or \"b\"\n        local x:string = s\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "s",
+                "equals": "(string & ~(false?)) | string"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 87,
+      "result": {
+        "name": "and_does_not_always_add_boolean",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local s = \"a\" and 10\n        local x:boolean|number = s\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "s",
+                "equals": "number"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 97,
+      "result": {
+        "name": "and_adds_boolean_no_superfluous_union",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local s = \"a\" and true\n        local x:boolean = s\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "x",
+                "equals": "boolean"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 107,
+      "result": {
+        "name": "and_or_ternary",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local s = (1/2) > 0.5 and \"a\" or 10\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "s",
+                "equals": "number | string"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 116,
+      "result": {
+        "name": "primitive_arith_no_metatable",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        function add(a: number, b: string)\n            return a + (tonumber(b) :: number), tostring(a) .. b\n        end\n        local n, s = add(2,\"3\")\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "add",
+                "path": [
+                  {
+                    "result": 0
+                  }
+                ]
+              },
+              {
+                "type": "add",
+                "path": [
+                  {
+                    "result": 0
+                  }
+                ],
+                "equals": "number"
+              },
+              {
+                "type": "n",
+                "equals": "number"
+              },
+              {
+                "type": "s",
+                "equals": "string"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 137,
+      "result": {
+        "name": "primitive_arith_no_metatable_with_follows",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local PI=3.1415926535897931\n        local SOLAR_MASS=4*PI * PI\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "SOLAR_MASS",
+                "sameAs": {
+                  "builtin": "number"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 148,
+      "result": {
+        "name": "primitive_arith_possible_metatable",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function add(a: number, b: any)\n            return a + b\n        end\n        local t = add(1,2)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "t",
+                "equals": "any"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 162,
+      "result": {
+        "name": "some_primitive_binary_ops",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local a = 4 + 8\n        local b = a + 9\n        local s = 'hotdogs'\n        local t = s .. s\n        local c = b - a\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "a",
+                "equals": "number"
+              },
+              {
+                "type": "b",
+                "equals": "number"
+              },
+              {
+                "type": "s",
+                "equals": "string"
+              },
+              {
+                "type": "t",
+                "equals": "string"
+              },
+              {
+                "type": "c",
+                "equals": "number"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 181,
+      "result": {
+        "name": "floor_division_binary_op",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local a = 4 // 8\n        local b = -4 // 9\n        local c = 9\n        c //= -6.5\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "a",
+                "equals": "number"
+              },
+              {
+                "type": "b",
+                "equals": "number"
+              },
+              {
+                "type": "c",
+                "equals": "number"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 197,
+      "result": {
+        "name": "typecheck_overloaded_multiply_that_is_an_intersection",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local Vec3 = {}\n        Vec3.__index = Vec3\n        function Vec3.new()\n            return setmetatable({x=0, y=0, z=0}, Vec3)\n        end\n\n        export type Vec3 = typeof(Vec3.new())\n\n        local thefun: any = function(self, o) return self end\n\n        local multiply: ((Vec3, Vec3) -> Vec3) & ((Vec3, number) -> Vec3) = thefun\n\n        Vec3.__mul = multiply\n\n        local a = Vec3.new()\n        local b = Vec3.new()\n        local c = a * b\n        local d = a * 2\n        local e = a * 'cabbage'\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "type": "a",
+                "equals": "Vec3"
+              },
+              {
+                "type": "b",
+                "equals": "Vec3"
+              },
+              {
+                "type": "c",
+                "equals": "Vec3"
+              },
+              {
+                "type": "d",
+                "equals": "Vec3"
+              },
+              {
+                "type": "e",
+                "equals": "mul<Vec3, string>"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 236,
+      "result": {
+        "name": "typecheck_overloaded_multiply_that_is_an_intersection_on_rhs",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local Vec3 = {}\n        Vec3.__index = Vec3\n        function Vec3.new()\n            return setmetatable({x=0, y=0, z=0}, Vec3)\n        end\n\n        export type Vec3 = typeof(Vec3.new())\n\n        local thefun: any = function(self, o) return self end\n\n        local multiply: ((Vec3, Vec3) -> Vec3) & ((Vec3, number) -> Vec3) = thefun\n\n        Vec3.__mul = multiply\n\n        local a = Vec3.new()\n        local b = Vec3.new()\n        local c = b * a\n        local d = 2 * a\n        local e = 'cabbage' * a\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "type": "a",
+                "equals": "Vec3"
+              },
+              {
+                "type": "b",
+                "equals": "Vec3"
+              },
+              {
+                "type": "c",
+                "equals": "Vec3"
+              },
+              {
+                "type": "d",
+                "equals": "Vec3"
+              },
+              {
+                "type": "e",
+                "equals": "mul<string, Vec3>"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 275,
+      "result": {
+        "name": "compare_numbers",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local a = 441\n        local b = 0\n        local c = a < b\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 286,
+      "result": {
+        "name": "compare_strings",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local a = '441'\n        local b = '0'\n        local c = a < b\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 297,
+      "result": {
+        "name": "cannot_indirectly_compare_types_that_do_not_have_a_metatable",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local a = {}\n        local b = {}\n        local c = a < b\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "CannotCompareUnrelatedTypes"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 319,
+      "result": {
+        "name": "cannot_indirectly_compare_types_that_do_not_offer_overloaded_ordering_operators",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local M = {}\n        function M.new()\n            return setmetatable({}, M)\n        end\n        type M = typeof(M.new())\n\n        local a = M.new()\n        local b = M.new()\n        local c = a < b\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "CannotCompareUnrelatedTypes"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 348,
+      "result": {
+        "name": "cannot_compare_tables_that_do_not_have_the_same_metatable",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local M = {}\n        function M.new()\n            return setmetatable({}, M)\n        end\n        function M.__lt(left, right) return true end\n\n        local a = M.new()\n        local b = {}\n        local c = a < b -- line 10\n        local d = b < a -- line 11\n    ",
+            "expect": [
+              {
+                "errors": 2
+              },
+              {
+                "error": 0,
+                "location": [
+                  10,
+                  18,
+                  10,
+                  23
+                ]
+              },
+              {
+                "error": 1,
+                "location": [
+                  11,
+                  18,
+                  11,
+                  23
+                ]
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 372,
+      "result": {
+        "name": "produce_the_correct_error_message_when_comparing_a_table_with_a_metatable_with_one_that_does_not",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local M = {}\n        function M.new()\n            return setmetatable({}, M)\n        end\n        function M.__lt(left, right) return true end\n        type M = typeof(M.new())\n\n        local a = M.new()\n        local b = {}\n        local c = a < b -- line 10\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "GenericError"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "message": "Types M and b cannot be compared with < because they do not have the same metatable"
+                }
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 398,
+      "result": {
+        "name": "in_nonstrict_mode_strip_nil_from_intersections_when_considering_relational_operators",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!nonstrict\n\n        function maybe_a_number(): number?\n            return 50\n        end\n\n        local a = maybe_a_number() < maybe_a_number()\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 413,
+      "result": {
+        "name": "compound_assign_basic",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local s = 10\n        s += 20\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "s",
+                "equals": "number"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 423,
+      "result": {
+        "name": "compound_assign_mismatch_op",
+        "fixture": "Fixture",
+        "flags": {
+          "LuauCompoundAssignSeedsAstTypes": true
+        },
+        "checks": [
+          {
+            "source": "\n        local s = 10\n        s += true\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "UninhabitedTypeFunction"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "ty": "add<number, boolean>"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 447,
+      "result": {
+        "name": "compound_assign_reports_invalid_vector_arithmetic",
+        "fixture": "BuiltinsFixture",
+        "flags": {
+          "LuauCompoundAssignSeedsAstTypes": true
+        },
+        "checks": [
+          {
+            "source": "\n        local x = vector.zero\n        x = x + 1\n\n        local y = vector.zero\n        y += 1\n    ",
+            "expect": [
+              {
+                "errors": 2
+              },
+              {
+                "error": 0,
+                "code": "UninhabitedTypeFunction"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "ty": "add<vector, number>"
+                }
+              },
+              {
+                "error": 1,
+                "code": "UninhabitedTypeFunction"
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "ty": "add<vector, number>"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 479,
+      "result": {
+        "name": "compound_assign_mismatch_result",
+        "fixture": "Fixture",
+        "flags": {
+          "LuauCompoundAssignSeedsAstTypes": true
+        },
+        "checks": [
+          {
+            "source": "\n        local s = 'hello'\n        s += 10\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "UninhabitedTypeFunction"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "ty": "add<string, number>"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 504,
+      "result": {
+        "name": "compound_assign_metatable",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        type V2B = { x: number, y: number }\n        local v2b: V2B = { x = 0, y = 0 }\n        local VMT = {}\n\n        VMT.__add = function(a: V2, b: V2): V2\n            return setmetatable({ x = a.x + b.x, y = a.y + b.y }, VMT)\n        end\n\n        type V2 = typeof(setmetatable(v2b, VMT))\n\n        local v1: V2 = setmetatable({ x = 1, y = 2 }, VMT)\n        local v2: V2 = setmetatable({ x = 3, y = 4 }, VMT)\n        v1 += v2\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 526,
+      "result": {
+        "name": "compound_assign_metatable_with_changing_return_type",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        type T = { x: number }\n        local MT = {}\n\n        function MT:__add(other): number\n            return 112\n        end\n\n        local t = setmetatable({x = 2}, MT)\n        local u = t + 3\n        t += 3\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "wantedType": "t"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "number"
+                }
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 554,
+      "result": {
+        "name": "compound_assign_result_must_be_compatible_with_var",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        function __add(left, right)\n            return 123\n        end\n\n        local mt = {\n            __add = __add,\n        }\n\n        local x = setmetatable({}, mt)\n        local v: number\n\n        v += x -- okay: number + x -> number\n        x += v -- not okay: x </: number\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "location": [
+                  13,
+                  8,
+                  13,
+                  14
+                ]
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "wantedType": "x"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "number"
+                }
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 583,
+      "result": {
+        "name": "compound_assign_mismatch_metatable",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        type V2B = { x: number, y: number }\n        local v2b: V2B = { x = 0, y = 0 }\n        local VMT = {}\n        type V2 = typeof(setmetatable(v2b, VMT))\n\n        function VMT.__mod(a: V2, b: V2): number\n            return a.x * b.x + a.y * b.y\n        end\n\n        local v1: V2 = setmetatable({ x = 1, y = 2 }, VMT)\n        local v2: V2 = setmetatable({ x = 3, y = 4 }, VMT)\n        v1 %= v2\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be 'V2', but got 'number'"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 605,
+      "result": {
+        "name": "CallOrOfFunctions",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\nfunction f() return 1; end\nfunction g() return 2; end\n(f or g)()\n",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 617,
+      "result": {
+        "name": "CallAndOrOfFunctions",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\nfunction f() return 1; end\nfunction g() return 2; end\nlocal x = false\n(x and f or g)()\n",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 630,
+      "result": {
+        "name": "typecheck_unary_minus",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local foo\n        local mt = {}\n\n        mt.__unm = function(val): string\n            return tostring(val.value) .. \"test\"\n        end\n\n        foo = setmetatable({\n            value = 10\n        }, mt)\n\n        local a = -foo\n\n        local b = 1+-1\n\n        local bar = {\n            value = 10\n        }\n        local c = -bar -- disallowed\n    ",
+            "expect": [
+              {
+                "type": "a",
+                "equals": "string"
+              },
+              {
+                "type": "b",
+                "equals": "number"
+              },
+              {
+                "errors": 2
+              },
+              {
+                "error": 0,
+                "code": "UninhabitedTypeFunction"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "ty": "unm<bar>"
+                }
+              },
+              {
+                "error": 1,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "givenType": "bar"
+                }
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "wantedType": "number"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 681,
+      "result": {
+        "name": "typecheck_unary_minus_error",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local mt = {}\n\n        mt.__unm = function(val: boolean): string\n            return \"test\"\n        end\n\n        local foo = setmetatable({\n            value = 10\n        }, mt)\n\n        local a = -foo\n    ",
+            "expect": [
+              {
+                "errors": 2
+              },
+              {
+                "type": "a",
+                "equals": "unm<foo>"
+              },
+              {
+                "error": 0,
+                "code": "UninhabitedTypeFunction"
+              },
+              {
+                "error": 1,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "wantedType": "(foo) -> unm<foo>"
+                }
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "givenType": "(boolean) -> string"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 726,
+      "result": {
+        "name": "typecheck_unary_len_error",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local mt = {}\n\n        mt.__len = function(val): string\n            return \"test\"\n        end\n\n        local foo = setmetatable({\n            value = 10,\n        }, mt)\n\n        local a = #foo\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "type": "a",
+                "equals": "number"
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "wantedType": "number"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "string"
+                }
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 757,
+      "result": {
+        "name": "unary_not_is_boolean",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local b = not \"string\"\n        local c = not (math.random() > 0.5 and \"string\" or 7)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "b",
+                "equals": "boolean"
+              },
+              {
+                "type": "c",
+                "equals": "boolean"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 769,
+      "result": {
+        "name": "disallow_string_and_types_without_metatables_from_arithmetic_binary_ops",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local a = \"1.24\" + 123 -- not allowed\n\n        local foo = {\n            value = 10\n        }\n\n        local b = foo + 1 -- not allowed\n\n        local bar = {\n            value = 1\n        }\n\n        local mt = {}\n\n        setmetatable(bar, mt)\n\n        mt.__add = function(a: typeof(bar), b: number): number\n            return a.value + b\n        end\n\n        local c = bar + 1 -- allowed\n\n        local d = bar + foo -- not allowed\n    ",
+            "expect": [
+              {
+                "errors": 3
+              },
+              {
+                "error": 0,
+                "code": "UninhabitedTypeFunction"
+              },
+              {
+                "error": 0,
+                "location": [
+                  2,
+                  18,
+                  2,
+                  30
+                ]
+              },
+              {
+                "error": 1,
+                "code": "UninhabitedTypeFunction"
+              },
+              {
+                "error": 1,
+                "location": [
+                  8,
+                  18,
+                  8,
+                  25
+                ]
+              },
+              {
+                "error": 2,
+                "code": "UninhabitedTypeFunction"
+              },
+              {
+                "error": 2,
+                "location": [
+                  24,
+                  18,
+                  24,
+                  27
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 831,
+      "result": {
+        "name": "unknown_type_in_comparison",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function merge(lower, greater)\n            if lower.y == greater.y then\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 844,
+      "result": {
+        "name": "concat_op_on_free_lhs_and_string_rhs",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f(x)\n            return x .. \"y\"\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "<T>(T) -> concat<T, string>"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 866,
+      "result": {
+        "name": "concat_op_on_string_lhs_and_free_rhs",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f(x)\n            return \"foo\" .. x\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "<T>(T) -> concat<string, T>"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 883,
+      "result": {
+        "name": "strict_binary_op_where_lhs_unknown",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "function foo(a, b)\nlocal _ = a + b\nlocal _ = a - b\nlocal _ = a * b\nlocal _ = a / b\nlocal _ = a % b\nlocal _ = a ^ b\nlocal _ = a .. b\nend",
+            "expect": [
+              {
+                "errors": 7
+              },
+              {
+                "error": 0,
+                "message": "Operator '+' could not be applied to operands of types unknown and unknown; there is no corresponding overload for __add"
+              },
+              {
+                "error": 1,
+                "message": "Operator '-' could not be applied to operands of types unknown and unknown; there is no corresponding overload for __sub"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 917,
+      "result": {
+        "name": "and_binexps_dont_unify",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local t = {}\n        while true and t[1] do\n            print(t[1].test)\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 932,
+      "result": {
+        "name": "error_on_invalid_operand_types_to_relational_operators",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local a: boolean = true\n        local b: boolean = false\n        local foo = a < b\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "GenericError"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "message": "Types 'boolean' and 'boolean' cannot be compared with relational operator <"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 956,
+      "result": {
+        "name": "error_on_invalid_operand_types_to_relational_operators2",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local a: number | string = \"\"\n        local b: number | string = 1\n        local foo = a < b\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "GenericError"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "message": "Types 'number | string' and 'number | string' cannot be compared with relational operator <"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 987,
+      "result": {
+        "name": "cli_38355_recursive_union",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local _\n        _ += _ and _ or _ and _ or _ and _\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Unknown type used in + operation; consider adding a type annotation to '_'"
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 1002,
+      "result": {
+        "name": "UnknownGlobalCompoundAssign",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n            --!strict\n            a += 1\n            print(a)\n        ",
+            "expect": [
+              {
+                "errors": "some"
+              },
+              {
+                "error": 0,
+                "message": "Unknown global 'a'; consider assigning to it first"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1047,
+      "result": {
+        "name": "strip_nil_from_lhs_or_operator",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n--!strict\nlocal a: number? = nil\nlocal b: number = a or 1\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1058,
+      "result": {
+        "name": "strip_nil_from_lhs_or_operator2",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n--!nonstrict\nlocal a: number? = nil\nlocal b: number = a or 1\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1069,
+      "result": {
+        "name": "dont_strip_nil_from_rhs_or_operator",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n--!strict\nlocal a: number? = nil\nlocal b: number = 1 or a\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              },
+              {
+                "diagnosticType": [
+                  0,
+                  "wantedType"
+                ],
+                "sameAs": {
+                  "builtin": "number"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "number?"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1085,
+      "result": {
+        "name": "operator_eq_verifies_types_do_intersect",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type Array<T> = { [number]: T }\n        type Fiber = { id: number }\n        type null = {}\n\n        local fiberStack: Array<Fiber | null> = {}\n        local index = 0\n\n        local function f(fiber: Fiber)\n            local a = fiber ~= fiberStack[index]\n            local b = fiberStack[index] ~= fiber\n        end\n\n        return f\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1106,
+      "result": {
+        "name": "operator_eq_operands_are_not_subtypes_of_each_other_but_has_overlap",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f(a: string | number, b: boolean | number)\n            return a == b\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1121,
+      "result": {
+        "name": "operator_eq_completely_incompatible",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local a: string | number = \"hi\"\n        local b: {x: string}? = {x = \"bye\"}\n\n        local r1 = a == b\n        local r2 = b == a\n    ",
+            "expect": [
+              {
+                "errors": 2
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1134,
+      "result": {
+        "name": "refine_and_or",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local t: {x: number?}? = {x = nil}\n        local u = t and t.x or 5\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "u",
+                "equals": "number"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1146,
+      "result": {
+        "name": "infer_any_in_all_modes_when_lhs_is_unknown",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f(x, y)\n            return x + y\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "<T, U>(T, U) -> add<T, U>"
+              }
+            ],
+            "mode": "strict",
+            "ignoreMissingAnnotations": true
+          },
+          {
+            "source": "\n        local function f(x, y)\n            return x + y\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "mode": "nonstrict",
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1181,
+      "result": {
+        "name": "infer_type_for_generic_subtraction",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f(x, y)\n            return x - y\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "<T, U>(T, U) -> sub<T, U>"
+              }
+            ],
+            "mode": "strict",
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1203,
+      "result": {
+        "name": "infer_type_for_generic_multiplication",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f(x, y)\n            return x * y\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "<T, U>(T, U) -> mul<T, U>"
+              }
+            ],
+            "mode": "strict",
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1225,
+      "result": {
+        "name": "infer_type_for_generic_division",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f(x, y)\n            return x / y\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "<T, U>(T, U) -> div<T, U>"
+              }
+            ],
+            "mode": "strict",
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1247,
+      "result": {
+        "name": "infer_type_for_generic_floor_division",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f(x, y)\n            return x // y\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "<T, U>(T, U) -> idiv<T, U>"
+              }
+            ],
+            "mode": "strict",
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1269,
+      "result": {
+        "name": "infer_type_for_generic_exponentiation",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f(x, y)\n            return x ^ y\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "<T, U>(T, U) -> pow<T, U>"
+              }
+            ],
+            "mode": "strict",
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1291,
+      "result": {
+        "name": "infer_type_for_generic_modulo",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f(x, y)\n            return x % y\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "<T, U>(T, U) -> mod<T, U>"
+              }
+            ],
+            "mode": "strict",
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1313,
+      "result": {
+        "name": "infer_type_for_generic_concat",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f(x, y)\n            return x .. y\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "<T, U>(T, U) -> concat<T, U>"
+              }
+            ],
+            "mode": "strict",
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1335,
+      "result": {
+        "name": "equality_operations_succeed_if_any_union_branch_succeeds",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local mm = {}\n        type Foo = typeof(setmetatable({}, mm))\n        local x: Foo\n        local y: Foo?\n\n        local v1 = x == y\n        local v2 = y == x\n        local v3 = x ~= y\n        local v4 = y ~= x\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          },
+          {
+            "source": "\n        local mm1 = {\n            x = \"foo\",\n        }\n\n        local mm2 = {\n            y = \"bar\",\n        }\n\n        type Foo = typeof(setmetatable({}, mm1))\n        type Bar = typeof(setmetatable({}, mm2))\n\n        local x1: Foo\n        local x2: Foo?\n        local y1: Bar\n        local y2: Bar?\n\n        local v1 = x1 == y1\n        local v2 = x2 == y2\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Types Foo and Bar cannot be compared with == because they do not have the same metatable"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1376,
+      "result": {
+        "name": "expected_types_through_binary_and",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local x: \"a\" | \"b\" | boolean = math.random() > 0.5 and \"a\"\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1385,
+      "result": {
+        "name": "expected_types_through_binary_or",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local x: \"a\" | \"b\" | boolean = math.random() > 0.5 or \"b\"\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1394,
+      "result": {
+        "name": "unrelated_extern_types_cannot_be_compared",
+        "fixture": "ExternTypeFixture",
+        "checks": [
+          {
+            "source": "\n        local a = BaseClass.New()\n        local b = UnrelatedClass.New()\n\n        local c = a == b\n    ",
+            "expect": [
+              {
+                "errors": 1
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1406,
+      "result": {
+        "name": "unrelated_primitives_cannot_be_compared",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local c = 5 == true\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "anyError": "CannotCompareUnrelatedTypes"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1420,
+      "result": {
+        "name": "mm_comparisons_must_return_a_boolean",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "",
+            "expect": []
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1456,
+      "result": {
+        "name": "reworked_and",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\nlocal a: number? = 5\nlocal b: boolean = (a or 1) > 10\nlocal c -- free\n\nlocal x = a and 1\nlocal y = 'a' and 1\nlocal z = b and 1\nlocal w = c and 1\n    ",
+            "expect": [
+              {
+                "type": "x",
+                "equals": "number?"
+              },
+              {
+                "type": "y",
+                "equals": "number"
+              },
+              {
+                "type": "z",
+                "equals": "false | number"
+              },
+              {
+                "type": "w",
+                "equals": "number?"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1482,
+      "result": {
+        "name": "reworked_or",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\nlocal a: number | false = 5\nlocal b: number? = 6\nlocal c: boolean = true\nlocal d: true = true\nlocal e: false = false\nlocal f: nil = false\n\nlocal a1 = a or 'a'\nlocal b1 = b or 4\nlocal c1 = c or 'c'\nlocal d1 = d or 'd'\nlocal e1 = e or 'e'\nlocal f1 = f or 'f'\n    ",
+            "expect": [
+              {
+                "type": "a1",
+                "equals": "number | string"
+              },
+              {
+                "type": "b1",
+                "equals": "number"
+              },
+              {
+                "type": "c1",
+                "equals": "string | true"
+              },
+              {
+                "type": "d1",
+                "equals": "string | true"
+              },
+              {
+                "type": "e1",
+                "equals": "string"
+              },
+              {
+                "type": "f1",
+                "equals": "string"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1516,
+      "result": {
+        "name": "reducing_and",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\ntype Foo = { name: string?, flag: boolean? }\nlocal arr: {Foo} = {}\n\nlocal function foo(arg: {name: string}?)\n    local name = if arg and arg.name then arg.name else nil\n\n    table.insert(arr, {\n        name = name or \"\",\n        flag = name ~= nil and name ~= \"\",\n    })\nend\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1535,
+      "result": {
+        "name": "luau_polyfill_is_array_simplified",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n     --!strict\n     return function(value: any) : boolean\n        if typeof(value) ~= \"number\" then\n           return false\n        end\n        if value % 1 ~= 0 or value < 1 then\n           return false\n        end\n        return true\n     end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1553,
+      "result": {
+        "name": "luau_polyfill_is_array",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n--!strict\nreturn function(value: any): boolean\n    if typeof(value) ~= \"table\" then\n        return false\n    end\n    if next(value) == nil then\n        -- an empty table is an empty array\n        return true\n    end\n\n    local length = #value\n\n    if length == 0 then\n        return false\n    end\n\n    local count = 0\n    local sum = 0\n    for key in pairs(value) do\n        if typeof(key) ~= \"number\" then\n            return false\n        end\n        if key % 1 ~= 0 or key < 1 then\n            return false\n        end\n        count += 1\n        sum += key\n    end\n\n    return sum == (count * (count + 1) / 2)\nend\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1592,
+      "result": {
+        "name": "luau-polyfill.String.slice",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n--!strict\nlocal function slice(str: string, startIndexStr: string | number, lastIndexStr: (string | number)?): string\n\tlocal strLen, invalidBytePosition = utf8.len(str)\n\tassert(strLen ~= nil, (\"string `%s` has an invalid byte at position %s\"):format(str, tostring(invalidBytePosition)))\n    local startIndex = tonumber(startIndexStr)\n\n\n\t-- if no last index length set, go to str length + 1\n\tlocal lastIndex = strLen + 1\n\n\tassert(typeof(lastIndex) == \"number\", \"lastIndexStr should convert to number\")\n\n\tif lastIndex > strLen then\n\t\tlastIndex = strLen + 1\n\tend\n\n\tlocal startIndexByte = utf8.offset(str, startIndex)\n\n\treturn string.sub(str, startIndexByte, startIndexByte)\nend\n\nreturn slice\n\n\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1624,
+      "result": {
+        "name": "luau-polyfill.Array.startswith",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n--!strict\nlocal function startsWith(value: string, substring: string, position: number?): boolean\n\t-- Luau FIXME: we have to use a tmp variable, as Luau doesn't understand the logic below narrow position to `number`\n\tlocal position_\n\tif position == nil or position < 1 then\n\t\tposition_ = 1\n\telse\n\t\tposition_ = position\n\tend\n\n\treturn value:find(substring, position_, true) == position_\nend\n\nreturn startsWith\n\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1649,
+      "result": {
+        "name": "add_type_function_works",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function add(x, y)\n            return x + y\n        end\n\n        local a = add(1, 2)\n        local b = add(\"foo\", \"bar\")\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "type": "a",
+                "equals": "number"
+              },
+              {
+                "type": "b",
+                "equals": "add<string, string>"
+              },
+              {
+                "error": 0,
+                "message": "Operator '+' could not be applied to operands of types string and string; there is no corresponding overload for __add"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1673,
+      "result": {
+        "name": "normalize_strings_comparison",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\nlocal function sortKeysForPrinting(a: any, b)\n\tlocal typeofA = type(a)\n\tlocal typeofB = type(b)\n\t-- strings and numbers are sorted numerically/alphabetically\n\tif typeofA == typeofB and (typeofA == \"number\" or typeofA == \"string\") then\n\t\treturn a < b\n\tend\n\t-- sort the rest by type name\n\treturn typeofA < typeofB\nend\n",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1691,
+      "result": {
+        "name": "compare_singleton_string_to_string",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local function test(a: string, b: string)\n            if a == \"Pet\" and b == \"Pet\" then\n                return true\n            elseif a ~= b then\n                return a < b\n            else\n                return false\n            end\n        end\n",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1712,
+      "result": {
+        "name": "no_infinite_expansion_of_free_type",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local tooltip = {}\n\n        function tooltip:Show()\n            local playerGui = self.Player:FindFirstChild(\"PlayerGui\")\n            for _,c in ipairs(playerGui:GetChildren()) do\n                if c:IsA(\"ScreenGui\") and c.DisplayOrder > self.Gui.DisplayOrder then\n                end\n            end\n        end\n    ",
+            "expect": []
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1730,
+      "result": {
+        "name": "compound_operator_on_upvalue",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local byteCursor: number = 0\n\n        local function advance(bytes: number)\n            byteCursor += bytes\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1743,
+      "result": {
+        "name": "metatable_operator_follow",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\nlocal t1 = {}\nlocal t2 = {}\nlocal mt = {}\n\nmt.__eq = function(a, b)\n    return false\nend\n\nsetmetatable(t1, mt)\nsetmetatable(t2, mt)\n\nif t1 == t2 then\n\nend\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1765,
+      "result": {
+        "name": "overload_concat",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        type classData = {\n            b:buffer;\n            len:number;\n        }\n        local metatable = {\n            __concat = function(self:cls,str:string):cls\n                buffer.writestring(self.b,self.len,str)\n                self.len+=#str\n                return self\n            end;\n        }\n\n        export type cls = typeof(setmetatable({}::classData, metatable))\n\n        --returns a long string\n        local new = function():cls\n            return setmetatable({\n                b = buffer.create(100_000::number);\n                len = 0;\n            }::classData,metatable)::cls\n        end\n        local class = new()\n\n        class ..= \"Hello\"\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1797,
+      "result": {
+        "name": "negated_integer_literal_is_a_constant",
+        "fixture": "BuiltinsFixture",
+        "flags": {
+          "LuauIntegerType2": true
+        },
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local a = -4194626i\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "a",
+                "equals": "integer"
+              }
+            ],
+            "unparsed": {
+              "divergence": "Luau's native 64-bit integers are unsupported"
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1812,
+      "result": {
+        "name": "negating_a_non_literal_integer_is_an_error",
+        "fixture": "BuiltinsFixture",
+        "flags": {
+          "LuauIntegerType2": true
+        },
+        "checks": [
+          {
+            "source": "\n        --!strict\n        local b = 5i\n        local c = -b\n        local d = -(5i)\n    ",
+            "expect": [
+              {
+                "errors": 4
+              }
+            ],
+            "unparsed": {
+              "divergence": "Luau's native 64-bit integers are unsupported"
+            }
+          }
+        ]
+      },
+      "audit": []
+    }
+  ],
+  "TypeInfer.unionTypes.test.cpp": [
+    {
+      "line": 17,
+      "result": {
+        "name": "fuzzer_union_with_one_part_assertion",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\nlocal _ = {},nil\nrepeat\n\n_,_ = if _.number == \"\" or _.number or _._ then\n             _\n      elseif _.__index == _._G then\n            tostring\n      elseif _ then\n             _\n      else\n           ``,_._G\n\nuntil _._\n    ",
+            "expect": []
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 36,
+      "result": {
+        "name": "return_types_can_be_disjoint",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local count = 0\n        function most_of_the_natural_numbers(): number?\n            if count < 10 then\n                count = count + 1\n                return count\n            else\n                return nil\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "most_of_the_natural_numbers",
+                "kind": "FunctionType"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 56,
+      "result": {
+        "name": "return_types_can_be_disjoint_using_compound_assignment",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local count = 0\n        function most_of_the_natural_numbers(): number?\n            if count < 10 then\n                -- count = count + 1\n                count += 1\n                return count\n            else\n                return nil\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "most_of_the_natural_numbers",
+                "kind": "FunctionType"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 77,
+      "result": {
+        "name": "allow_specific_assign",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local a:number|string = 22\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 86,
+      "result": {
+        "name": "allow_more_specific_assign",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(a: number | string, b: (number | string)?)\n            b = a\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 97,
+      "result": {
+        "name": "disallow_less_specific_assign",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(a: number, b: number | string)\n            a = b\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 108,
+      "result": {
+        "name": "optional_arguments",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(a:string, b:string?)\n        end\n        f(\"s\")\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 119,
+      "result": {
+        "name": "optional_arguments_table",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local a:{a:string, b:string?}\n        a = {a=\"ok\"}\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 129,
+      "result": {
+        "name": "optional_arguments_table2",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local a:{a:string, b:string}\n        a = {a=\"\"}\n    ",
+            "expect": [
+              {
+                "errors": "some"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 138,
+      "result": {
+        "name": "error_takes_optional_arguments",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        error(\"message\")\n        error(\"message\", 2)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 148,
+      "result": {
+        "name": "error_optional_argument_enforces_type",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        error(\"message\", \"2\")\n    ",
+            "expect": [
+              {
+                "errors": 1
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 157,
+      "result": {
+        "name": "index_on_a_union_type_with_property_guaranteed_to_exist",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = {x: number}\n        type B = {x: number}\n\n        function f(t: A | B)\n            return t.x\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "(A | B) -> number"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 174,
+      "result": {
+        "name": "index_on_a_union_type_with_mixed_types",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = {x: number}\n        type B = {x: string}\n\n        function f(t: A | B)\n            return t.x\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "(A | B) -> number | string"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 191,
+      "result": {
+        "name": "index_on_a_union_type_works_at_arbitrary_depth",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = {x: {y: {z: {thing: number}}}}\n        type B = {x: {y: {z: {thing: string}}}}\n\n        function f(t: A | B)\n            return t.x.y.z.thing\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "(A | B) -> number | string"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 208,
+      "result": {
+        "name": "index_on_a_union_type_with_one_optional_property",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = {x: number}\n        type B = {x: number?}\n\n        function f(t: A | B)\n            return t.x\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "(A | B) -> number?"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 225,
+      "result": {
+        "name": "index_on_a_union_type_with_missing_property",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = {x: number}\n        type B = {}\n\n        function f(t: A | B)\n            return t.x\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "MissingUnionProperty"
+              },
+              {
+                "error": 0,
+                "message": "Key 'x' is missing from 'B' in the type 'A | B'"
+              },
+              {
+                "type": "f",
+                "equals": "(A | B) -> number"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 250,
+      "result": {
+        "name": "index_on_a_union_type_with_one_property_of_type_any",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = {x: number}\n        type B = {x: any}\n\n        function f(t: A | B)\n            return t.x\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "(A | B) -> any"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 267,
+      "result": {
+        "name": "union_equality_comparisons",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = number | string | nil\n        type B = number | nil\n        type C = number | boolean\n\n        function f(a: A, b: B, c: C)\n            local n = 1\n\n            local x = a == b\n            local y = a == n\n            local z = a == c\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 286,
+      "result": {
+        "name": "optional_union_members",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local a = { a = { x = 1, y = 2 }, b = 3 }\n        type A = typeof(a)\n        function f(b: A?)\n            return b.a.y\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Value of type 'A?' could be nil"
+              },
+              {
+                "type": "f",
+                "equals": "(A?) -> number"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 304,
+      "result": {
+        "name": "optional_union_functions",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local a = {}\n        function a.foo(x:number, y:number) return x + y end\n        type A = typeof(a)\n        function f(b: A?)\n            return b.foo(1, 2)\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Value of type 'A?' could be nil"
+              },
+              {
+                "type": "f",
+                "equals": "(A?) -> number"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 323,
+      "result": {
+        "name": "optional_union_methods",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local a = {}\n        function a:foo(x:number, y:number) return x + y end\n        type A = typeof(a)\n        function f(b: A?)\n            return b:foo(1, 2)\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Value of type 'A?' could be nil"
+              },
+              {
+                "type": "f",
+                "equals": "(A?) -> number"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 342,
+      "result": {
+        "name": "optional_union_follow",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local y: number? = 2\n        local x = y\n        function f(a: number, b: number?, c: number?) return -a end\n        return f()\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "CountMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "expected": 1
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "actual": 0
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "isVariadic": false
+                }
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 362,
+      "result": {
+        "name": "optional_field_access_error",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = { x: number }\n        function f(b: A?)\n            local c = b.x\n            local d = b.y\n        end\n    ",
+            "expect": [
+              {
+                "errors": 3
+              },
+              {
+                "error": 0,
+                "message": "Value of type 'A?' could be nil"
+              },
+              {
+                "error": 1,
+                "message": "Value of type 'A?' could be nil"
+              },
+              {
+                "error": 2,
+                "message": "Key 'y' not found in table 'A'"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 378,
+      "result": {
+        "name": "optional_index_error",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = {number}\n        function f(a: A?)\n            local b = a[1]\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Value of type 'A?' could be nil"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 391,
+      "result": {
+        "name": "optional_call_error",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = (number) -> number\n        function f(a: A?)\n            local b = a(4)\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Value of type '((number) -> number)?' could be nil"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 404,
+      "result": {
+        "name": "optional_assignment_errors",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = { x: number }\n        function f(a: A?)\n            a.x = 2\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Value of type 'A?' could be nil"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 417,
+      "result": {
+        "name": "optional_assignment_errors_2",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = { x: number } & { y: number }\n        function f(a: A?)\n            a.x = 2\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Value of type '({ x: number } & { y: number })?' could be nil"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 431,
+      "result": {
+        "name": "optional_length_error",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = {number}\n        function f(a: A?)\n            local b = #a\n        end\n    ",
+            "expect": [
+              {
+                "errors": 2
+              },
+              {
+                "error": 0,
+                "message": "Operator '#' could not be applied to operand of type A?; there is no corresponding overload for __len"
+              },
+              {
+                "error": 1,
+                "message": "Value of type 'A?' could be nil"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 449,
+      "result": {
+        "name": "optional_missing_key_error_details",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = { x: number, y: number }\n        type B = { x: number, y: number }\n        type C = { x: number }\n        type D = { x: number }\n\n        function f(a: A | B | C | D)\n            local y = a.y\n            local z = a.z\n        end\n\n        function g(c: A | B | C | D | nil)\n            local d = c.y\n        end\n    ",
+            "expect": [
+              {
+                "errors": 4
+              },
+              {
+                "error": 0,
+                "message": "Key 'y' is missing from 'C', 'D' in the type 'A | B | C | D'"
+              },
+              {
+                "error": 1,
+                "message": "Type 'A | B | C | D' does not have key 'z'"
+              },
+              {
+                "error": 2,
+                "message": "Value of type '(A | B | C | D)?' could be nil"
+              },
+              {
+                "error": 3,
+                "message": "Key 'y' is missing from 'C', 'D' in the type 'A | B | C | D'"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 475,
+      "result": {
+        "name": "optional_iteration",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\nfunction foo(values: {number}?)\n    local s = 0\n    for _, value in values do\n        s += value\n    end\nend\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Value of type '{number}?' could be nil"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 490,
+      "result": {
+        "name": "unify_unsealed_table_union_check",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\nlocal x = { x = 3 }\ntype A = number?\ntype B = string?\nlocal y: { x: number, y: A | B }\ny = x\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          },
+          {
+            "source": "\nlocal x = { x = 3 }\n\nlocal a: number? = 2\nlocal y = {}\ny.x = 2\ny.y = a\n\ny = x\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 518,
+      "result": {
+        "name": "unify_sealed_table_union_check",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n -- the difference between this and unify_unsealed_table_union_check is the type annotation on x\nlocal t = { x = 3, y = true }\nlocal x: { x: number } = t\ntype A = number?\ntype B = string?\nlocal y: { x: number, y: A | B }\n-- Shouldn't typecheck!\ny = x\n-- If it does, we can convert any type to any other type\ny.y = 5\nlocal oh : boolean = t.y\n    ",
+            "expect": [
+              {
+                "errors": "some"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 537,
+      "result": {
+        "name": "error_detailed_union_part",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\ntype X = { x: number }\ntype Y = { y: number }\ntype Z = { z: number }\n\ntype XYZ = X | Y | Z\n\nfunction f(a: XYZ)\n    local b: { w: number } = a\nend\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be '{ w: number }', but got 'X | Y | Z'; \nthis is because \n\t * `X` is not a subtype of `{ w: number }`\n\t * `Y` is not a subtype of `{ w: number }`\n\t * `Z` is not a subtype of `{ w: number }`"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 583,
+      "result": {
+        "name": "error_detailed_union_all",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type X = { x: number }\n        type Y = { y: number }\n        type Z = { z: number }\n\n        type XYZ = X | Y | Z\n\n        local a: XYZ = { w = 4 }\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be 'X | Y | Z', but got '{ w: number }'"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 602,
+      "result": {
+        "name": "error_detailed_optional",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\ntype X = { x: number }\n\nlocal a: X? = { w = 4 }\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Table type '{ w: number }' not compatible with type 'X' because the former is missing field 'x'"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 625,
+      "result": {
+        "name": "dont_allow_cyclic_unions_to_be_inferred",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n\n        function f(a, b)\n            a:g(b or {})\n            a:g(b)\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 641,
+      "result": {
+        "name": "indexing_into_a_cyclic_union_doesnt_crash",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x: BadCyclicUnion)\n            return x[0]\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true,
+            "setup": {
+              "cyclicUnion": {
+                "alias": "BadCyclicUnion",
+                "indexer": {
+                  "key": "number",
+                  "result": "number"
+                },
+                "tableState": "sealed"
+              }
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 683,
+      "result": {
+        "name": "table_union_write_indirect",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        type A = { x: number, y: (number) -> string } | { z: number, y: (number) -> string }\n\n        function f(a: A)\n            function a.y(x)\n                return tostring(x * 2)\n            end\n\n            function a.y(x: string): number\n                return tonumber(x) or 0\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be\n\t'((number) -> string) | ((number) -> string)'\nbut got\n\t'(string) -> number'; none of the union options are compatible"
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 712,
+      "result": {
+        "name": "union_true_and_false",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x : boolean)\n            local y1 : (true | false) = x -- OK\n            local y2 : (true | false | (string & number)) = x -- OK\n            local y3 : (true | (string & number) | false) = x -- OK\n            local y4 : (true | (boolean & true) | false) = x -- OK\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 726,
+      "result": {
+        "name": "union_of_functions",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x : (number) -> number?)\n            local y : ((number?) -> number?) | ((number) -> number) = x -- OK\n        end\n     ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 737,
+      "result": {
+        "name": "union_of_generic_functions",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x : <a>(a) -> a?)\n            local y : (<a>(a?) -> a?) | (<b>(b) -> b) = x -- Not OK\n        end\n     ",
+            "expect": [
+              {
+                "errors": "some"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 749,
+      "result": {
+        "name": "union_of_generic_typepack_functions",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x : <a...>(number, a...) -> (number?, a...))\n            local y : (<a...>(number?, a...) -> (number?, a...)) | (<b...>(number, b...) -> (number, b...)) = x -- Not OK\n        end\n     ",
+            "expect": [
+              {
+                "errors": "some"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 761,
+      "result": {
+        "name": "union_of_functions_mentioning_generics",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a,b>()\n            function g(x : (a) -> a?)\n                local y : ((a?) -> nil) | ((a) -> a) = x -- OK\n                local z : ((b?) -> nil) | ((b) -> b) = x -- Not OK\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be '((b) -> b) | ((b?) -> nil)', but got '(a) -> a?'; none of the union options are compatible"
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 781,
+      "result": {
+        "name": "union_of_functions_mentioning_generic_typepacks",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a...>()\n            function g(x : (number, a...) -> (number?, a...))\n                local y : ((number | string, a...) -> (number, a...)) | ((number?, a...) -> (nil, a...)) = x -- OK\n                local z : ((number) -> number) | ((number?, a...) -> (number?, a...)) = x -- Not OK\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be\n\t'((number) -> number) | ((number?, a...) -> (number?, a...))'\nbut got\n\t'(number, a...) -> (number?, a...)'; none of the union options are compatible"
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 804,
+      "result": {
+        "name": "union_of_functions_with_mismatching_arg_arities",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x : (number) -> number?)\n            local y : ((number?) -> number) | ((number | string) -> nil) = x -- OK\n            local z : ((number, string?) -> number) | ((number) -> nil) = x -- Not OK\n        end\n     ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be\n\t'((number) -> nil) | ((number, string?) -> number)'\nbut got\n\t'(number) -> number?'; none of the union options are compatible"
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 825,
+      "result": {
+        "name": "union_of_functions_with_mismatching_result_arities",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x : () -> (number | string))\n            local y : (() -> number) | (() -> string) = x -- OK\n            local z : (() -> number) | (() -> (string, string)) = x -- Not OK\n        end\n     ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be\n\t'(() -> (string, string)) | (() -> number)'\nbut got\n\t'() -> number | string'; none of the union options are compatible"
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 846,
+      "result": {
+        "name": "union_of_functions_with_variadics",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x : (...nil) -> (...number?))\n            local y : ((...string?) -> (...number)) | ((...number?) -> nil) = x -- OK\n            local z : ((...string?) -> (...number)) | ((...string?) -> nil) = x -- OK\n        end\n     ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be\n\t'((...string?) -> (...number)) | ((...string?) -> nil)'\nbut got\n\t'(...nil) -> (...number?)'; none of the union options are compatible"
+              }
+            ],
+            "unparsed": {
+              "defect": 876
+            }
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 867,
+      "result": {
+        "name": "union_of_functions_with_mismatching_arg_variadics",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x : (number) -> ())\n            local y : ((number?) -> ()) | ((...number) -> ()) = x -- OK\n            local z : ((number?) -> ()) | ((...number?) -> ()) = x -- Not OK\n        end\n     ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be\n\t'((...number?) -> ()) | ((number?) -> ())'\nbut got\n\t'(number) -> ()'\n"
+              }
+            ],
+            "unparsed": {
+              "defect": 876
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 899,
+      "result": {
+        "name": "union_of_functions_with_mismatching_result_variadics",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x : () -> (number?, ...number))\n            local y : (() -> (...number)) | (() -> nil) = x -- OK\n            local z : (() -> (...number)) | (() -> number) = x -- OK\n        end\n     ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be\n\t'(() -> (...number)) | (() -> number)'\nbut got\n\t'() -> (number?, ...number)'; none of the union options are compatible"
+              }
+            ],
+            "unparsed": {
+              "defect": 876
+            }
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 920,
+      "result": {
+        "name": "less_greedy_unification_with_union_types",
+        "fixture": "Fixture",
+        "flags": {
+          "LuauIterativeTypeSearcher": true
+        },
+        "checks": [
+          {
+            "source": "\n        local function f(t): { x: number } | { x: string }\n            local x = t.x\n            return t\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "(({ read x: unknown } & { x: number }) | ({ read x: unknown } & { x: string })) -> { x: number } | { x: string }"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 943,
+      "result": {
+        "name": "less_greedy_unification_with_union_types_2",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f(t: { x: number } | { x: string })\n            return t.x\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "({ x: number } | { x: string }) -> number | string"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 961,
+      "result": {
+        "name": "union_table_any_property",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x)\n            -- x : X\n            -- sup : { p : { q : X } }?\n            local sup = if true then { p = { q = x } } else nil\n            local sub : { p : any }\n            sup = nil\n            sup = sub\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 979,
+      "result": {
+        "name": "union_function_any_args",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(sup : ((...any) -> (...any))?, sub : ((number) -> (...any)))\n            sup = sub\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "unparsed": {
+              "defect": 876
+            }
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 992,
+      "result": {
+        "name": "optional_any",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(sup : any?, sub : number)\n            sup = sub\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1003,
+      "result": {
+        "name": "generic_function_with_optional_arg",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<T>(x : T?) : {T}\n            local result = {}\n            if x then\n                result[1] = x\n            end\n            return result\n        end\n        local t : {string} = f(nil)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 1021,
+      "result": {
+        "name": "lookup_prop_of_intersection_containing_unions",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function mergeOptions<T>(options: T & ({} | {}))\n            return options.variables\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "UnknownProperty"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "key": "variables"
+                }
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1039,
+      "result": {
+        "name": "suppress_errors_for_prop_lookup_of_a_union_that_includes_error",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(a: err | Not<nil>)\n            local b = a.foo\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "hiddenTypes": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1054,
+      "result": {
+        "name": "handle_multiple_optionals",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        function f(a: string??)\n            if a then\n                print(a:sub(1,1))\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1068,
+      "result": {
+        "name": "bounds_propagate_into_free_union_bounds",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local function unwrap<T>(a: T?): T\n            if a == nil then\n                error(\"Unexpected nil!\")\n            end\n            return a\n        end\n\n        local b = unwrap(42)\n        local c = unwrap(true)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "b",
+                "equals": "number"
+              },
+              {
+                "type": "c",
+                "equals": "boolean"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1091,
+      "result": {
+        "name": "oss_2134",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function addIndex <A, B, C> (op: ((value: A) -> B, array: {A}) -> {C})\n            return function <K> (idxOp: (key: K, value: A) -> B, tbl: { [K]: A })\n                return {} :: { [K]: C }\n            end\n        end\n\n        local function filter <A, K> (predicate: (value: A) -> boolean, tbl: {[K]: A })\n            return {} :: { A }\n        end\n\n        local function map <A, B, K> (mapper: (value: A) -> B, tbl: {[K]: A })\n            return {} :: { B }\n        end\n\n        local function filterWithIndex(index: string, value: string): boolean\n            return true :: boolean\n        end\n\n        local function mapWithIndex(index: string, value: string): string\n            return \"\" :: string\n        end\n\n        local myArr = {first = \"hi\", second = \"there\", third = \"what\"}\n\n        local filterTest = addIndex(filter)\n        local filterResult = filterTest(filterWithIndex, myArr)\n\n        local mapTest = addIndex(map)\n        local mapResult = mapTest(mapWithIndex, myArr)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true,
+            "unparsed": {
+              "defect": 1378
+            }
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1128,
+      "result": {
+        "name": "oss_2393",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        --!strict\n\n        type Example<T> = {\n            foo: () -> T,\n            bar: (T?) -> ()\n        }\n\n        local ex = {} :: Example<string>\n\n        local function process<T>(ref: Example<T>)\n            return ref\n        end\n\n        process(ex)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1150,
+      "result": {
+        "name": "oss_2025",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        type a = { property: string }\n\n        local foo: {a} = {}\n        local bar: any = {}\n\n        local baz: a? = bar.test\n\n        table.insert(foo, bar)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    }
+  ],
+  "TypeInfer.intersectionTypes.test.cpp": [
+    {
+      "line": 18,
+      "result": {
+        "name": "select_correct_union_fn",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = (number) -> (string)\n        type B = (string) -> (number)\n\n        local function foo(f: A & B)\n            return f(10), f(\"a\")\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "foo",
+                "equals": "(((number) -> string) & ((string) -> number)) -> (string, number)"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 36,
+      "result": {
+        "name": "table_combines",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A={a:number}\n        type B={b:string}\n\n        local c:A & B = {a=10, b=\"s\"}\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 48,
+      "result": {
+        "name": "table_combines_missing",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A={a:number}\n        type B={b:string}\n\n        local c:A & B = {a=10}\n    ",
+            "expect": [
+              {
+                "errors": 1
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 60,
+      "result": {
+        "name": "impossible_type",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local c:number&string = 10\n    ",
+            "expect": [
+              {
+                "errors": 1
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 69,
+      "result": {
+        "name": "table_extra_ok",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A={a:number}\n        type B={b:string}\n\n        local function f(t: A & B): A\n            return t\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 83,
+      "result": {
+        "name": "fx_intersection_as_argument",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = (number) -> (string)\n        type B = (string) -> (number)\n        type C = (A) -> (number)\n\n        local function foo(f: A & B, g: C)\n            return g(f)\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 100,
+      "result": {
+        "name": "fx_union_as_argument_fails",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = (number) -> (string)\n        type B = (string) -> (number)\n        type C = (A) -> (number)\n\n        local function foo(f: A | B, g: C)\n            return g(f)\n        end\n    ",
+            "expect": [
+              {
+                "errors": "some"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 115,
+      "result": {
+        "name": "argument_is_intersection",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = (number | boolean) -> number\n\n        local function foo(f: A)\n            f(5)\n            f(true)\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 129,
+      "result": {
+        "name": "should_still_pick_an_overload_whose_arguments_are_unions",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = (number) -> string\n        type B = (string) -> number\n\n        local function foo(f: A & B)\n            return f(1), f(\"five\")\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "foo",
+                "equals": "(((number) -> string) & ((string) -> number)) -> (string, number)"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 147,
+      "result": {
+        "name": "propagates_name",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A={a:number}\n        type B={b:string}\n\n        local function f(t: A & B)\n            return t\n        end\n    ",
+            "expect": [
+              {
+                "decoratedSource": "\n        type A={a:number}\n        type B={b:string}\n\n        local function f(t: A & B): A&B\n            return t\n        end\n    "
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 170,
+      "result": {
+        "name": "index_on_an_intersection_type_with_property_guaranteed_to_exist",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = {x: {y: number}}\n        type B = {x: {y: number}}\n\n        local function f(t: A & B)\n            return t.x\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "(A & B) -> { y: number }"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 191,
+      "result": {
+        "name": "index_on_an_intersection_type_works_at_arbitrary_depth",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = {x: {y: {z: {thing: string}}}}\n        type B = {x: {y: {z: {thing: string}}}}\n\n        local function f(t: A & B)\n            return t.x.y.z.thing\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "(A & B) -> string"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 212,
+      "result": {
+        "name": "index_on_an_intersection_type_with_mixed_types",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = {x: number}\n        type B = {x: string}\n\n        local function f(t: A & B)\n            return t.x\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "(A & B) -> never"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 233,
+      "result": {
+        "name": "index_on_an_intersection_type_with_one_part_missing_the_property",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = {x: number}\n        type B = {}\n\n        local function f(t: A & B)\n            return t.x\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "(A & B) -> number"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 250,
+      "result": {
+        "name": "index_on_an_intersection_type_with_one_property_of_type_any",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = {y: number}\n        type B = {x: any}\n\n        local function f(t: A & B)\n            return t.x\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "(A & B) -> any"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 267,
+      "result": {
+        "name": "index_on_an_intersection_type_with_all_parts_missing_the_property",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = {}\n        type B = {}\n\n        local function f(t: A & B)\n            local x = t.x\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "UnknownProperty"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "key": "x"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 285,
+      "result": {
+        "name": "table_intersection_write",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type X = { x: number }\n        type XY = X & { y: number }\n\n        function f(t: XY)\n            t.x = 10\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          },
+          {
+            "source": "\n        type X = {}\n        type XY = X & { x: number, y: number }\n\n        function f(t: XY)\n            t.x = 10\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          },
+          {
+            "source": "\n        type X = { x: number }\n        type Y = { y: number }\n        type XY = X & Y\n\n        function f(t: XY)\n            t.x = 10\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          },
+          {
+            "source": "\n        type A = { x: {y: number} }\n        type B = { x: {y: number} }\n\n        function f(t: A & B)\n            t.x = { y = 4 }\n            t.x.y = 40\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 334,
+      "result": {
+        "name": "table_intersection_write_sealed",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type X = { x: number }\n        type Y = { y: number }\n        type XY = X & Y\n\n        function f(t: XY)\n            t.z = 10\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Cannot add property 'z' to table 'X & Y'"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 351,
+      "result": {
+        "name": "table_intersection_write_sealed_indirect",
+        "fixture": "Fixture",
+        "flags": {
+          "LuauCheckFunctionStatementTypes": true
+        },
+        "checks": [
+          {
+            "source": "\n        type X = { x: (number) -> number }\n        type Y = { y: (string) -> string }\n\n        type XY = X & Y\n\n        function f(t: XY)\n            function t.z(a:number) return a * 10 end\n            function t:y(a:number) return a * 10 end\n            function t:w(a:number) return a * 10 end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 4
+              },
+              {
+                "error": 0,
+                "message": "Cannot add property 'z' to table 'X & Y'"
+              },
+              {
+                "error": 1,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "givenType": "number"
+                }
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "wantedType": "string"
+                }
+              },
+              {
+                "error": 2,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 2,
+                "fields": {
+                  "givenType": "(string, number) -> string"
+                }
+              },
+              {
+                "error": 2,
+                "fields": {
+                  "wantedType": "(string) -> string"
+                }
+              },
+              {
+                "error": 3,
+                "message": "Cannot add property 'w' to table 'X & Y'"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 398,
+      "result": {
+        "name": "table_write_sealed_indirect",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n    type XY = { x: (number) -> number, y: (string) -> string }\n\n    local xy : XY = {\n        x = function(a: number) return -a end,\n        y = function(a: string) return a .. \"b\" end\n    }\n    function xy.z(a:number) return a * 10 end\n    function xy:y(a:number) return a * 10 end\n    function xy:w(a:number) return a * 10 end\n    ",
+            "expect": [
+              {
+                "errors": 4
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be\n\t'(string) -> string'\nbut got\n\t'(string, number) -> string'\ncaused by:\n  Argument count mismatch. Function expects 2 arguments, but only 1 is specified"
+              },
+              {
+                "error": 1,
+                "message": "Cannot add property 'z' to table 'XY'"
+              },
+              {
+                "error": 2,
+                "message": "Expected this to be 'string', but got 'number'"
+              },
+              {
+                "error": 3,
+                "message": "Cannot add property 'w' to table 'XY'"
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 428,
+      "result": {
+        "name": "table_intersection_setmetatable",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        function f(t: {} & {})\n            setmetatable(t, {})\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 439,
+      "result": {
+        "name": "error_detailed_intersection_part",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\ntype X = { x: number }\ntype Y = { y: number }\ntype Z = { z: number }\ntype XYZ = X & Y & Z\nlocal a: XYZ = 3\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be 'X & Y & Z', but got 'number'; \nthis is because \n\t * `number` is not a subtype of `X`\n\t * `number` is not a subtype of `Y`\n\t * `number` is not a subtype of `Z`"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 477,
+      "result": {
+        "name": "error_detailed_intersection_all",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\ntype X = { x: number }\ntype Y = { y: number }\ntype Z = { z: number }\ntype XYZ = X & Y & Z\n\nfunction f(a: XYZ): number\n    return a\nend\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be 'number', but got 'X & Y & Z'; \nthis is because \n\t * `X` is not a subtype of `number`\n\t * `Y` is not a subtype of `number`\n\t * `Z` is not a subtype of `number`"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 511,
+      "result": {
+        "name": "overload_is_not_a_function",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n--!nonstrict\nfunction _(...):((typeof(not _))&(typeof(not _)))&((typeof(not _))&(typeof(not _)))\n_(...)(setfenv,_,not _,\"\")[_] = nil\nend\ndo end\n_(...)(...,setfenv,_):_G()\n",
+            "expect": []
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 523,
+      "result": {
+        "name": "no_stack_overflow_from_flattenintersection",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local l0,l0\n        repeat\n        type t0 = ((any)|((any)&((any)|((any)&((any)|(any))))))&(t0)\n        function _(l0):(t0)&(t0)\n            while nil do\n            end\n        end\n        until _(_)(_)._\n    ",
+            "expect": [
+              {
+                "errors": "some"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 539,
+      "result": {
+        "name": "intersect_bool_and_false",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x: boolean & false)\n            local y : false = x -- OK\n            local z : true = x  -- Not OK\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be 'true', but got 'boolean & false'; \nthis is because \n\t * `boolean` is not a subtype of `true`\n\t * `false` is not a subtype of `true`"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 567,
+      "result": {
+        "name": "intersect_false_and_bool_and_false",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x: false & (boolean & false))\n            local y : false = x -- OK\n            local z : true = x  -- Not OK\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be 'true', but got 'boolean & false & false'; \nthis is because \n\t * `boolean` is not a subtype of `true`\n\t * `false` is not a subtype of `true`"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 599,
+      "result": {
+        "name": "intersect_saturate_overloaded_functions",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function foo(x: ((number?) -> number?) & ((string?) -> string?))\n            local y : (nil) -> nil = x -- Not OK (fixed in DCR)\n            local z : (number) -> number = x -- Not OK\n        end\n    ",
+            "expect": [
+              {
+                "error": 0,
+                "message": "Expected this to be\n\t'(nil) -> nil'\nbut got\n\t'((number?) -> number?) & ((string?) -> string?)'; \nthis is because \n\t * Expected the return type to be `nil`, but got `number`\n\t * Expected the return type to be `nil`, but got `string`"
+              },
+              {
+                "error": 1,
+                "message": "Expected this to be\n\t'(number) -> number'\nbut got\n\t'((number?) -> number?) & ((string?) -> string?)'; \nthis is because \n\t * Expected the 1st parameter to be a supertype of `number`, but got `string?`\n\t * Expected the return type to be `number`, but got `nil`\n\t * Expected the return type to be `number`, but got `string`"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 666,
+      "result": {
+        "name": "union_saturate_overloaded_functions",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x: ((number) -> number) & ((string) -> string))\n            local y : ((number | string) -> (number | string)) = x -- OK\n            local z : ((number | boolean) -> (number | boolean)) = x -- Not OK\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be\n\t'(boolean | number) -> boolean | number'\nbut got\n\t'((number) -> number) & ((string) -> string)'; none of the intersection parts are compatible"
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 688,
+      "result": {
+        "name": "intersection_of_tables",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x: { p : number?, q : string? } & { p : number?, q : number?, r : number? })\n            local y : { p : number?, q : nil, r : number? } = x -- OK\n            local z : { p : nil } = x -- Not OK\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be '{ p: nil }', but got '{ p: number?, q: number?, r: number? } & { p: number?, q: string? }'; \nExpected property `p` to be exactly `nil`, but got `number`"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 722,
+      "result": {
+        "name": "intersection_of_tables_with_top_properties",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x : { p : number?, q : any } & { p : unknown, q : string? })\n            local y : { p : number?, q : string? } = x -- OK\n            local z : { p : string?, q : number? } = x -- Not OK\n        end\n    ",
+            "expect": [
+              {
+                "error": 0,
+                "message": "Expected this to be\n\t'{ p: string?, q: number? }'\nbut got\n\t'{ p: number?, q: any } & { p: unknown, q: string? }'; \nthis is because \n\t * Expected property `p` to be exactly `string?`, but got `number`\n\t * Expected property `p` to be exactly `string?`, but got `unknown`\n\t * Expected property `p` to be exactly `string`, but got `number?`\n\t * Expected property `q` to be exactly `number?`, but got `any`\n\t * Expected property `q` to be exactly `number?`, but got `string`\n\t * Expected property `q` to be exactly `number`, but got `string?`"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 775,
+      "result": {
+        "name": "intersection_of_tables_with_never_properties",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x : { p : number?, q : never } & { p : never, q : string? })\n            local y : { p : never, q : never } = x -- OK\n            local z : never = x -- OK\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 787,
+      "result": {
+        "name": "overloaded_functions_returning_intersections",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x : ((number?) -> ({ p : number } & { q : number })) & ((string?) -> ({ p : number } & { r : number })))\n            local y : (nil) -> { p : number, q : number, r : number} = x -- OK\n            local z : (number?) -> { p : number, q : number, r : number} = x -- Not OK\n        end\n    ",
+            "expect": [
+              {
+                "errors": 2
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be\n\t'(nil) -> { p: number, q: number, r: number }'\nbut got\n\t'((number?) -> { p: number } & { q: number }) & ((string?) -> { p: number } & { r: number })'; \nthis is because \n\t * Expected the return type to be `{ p: number, q: number, r: number }`, but got `{ p: number }`\n\t * Expected the return type to be `{ p: number, q: number, r: number }`, but got `{ q: number }`\n\t * Expected the return type to be `{ p: number, q: number, r: number }`, but got `{ r: number }`"
+              },
+              {
+                "error": 1,
+                "message": "Expected this to be\n\t'(number?) -> { p: number, q: number, r: number }'\nbut got\n\t'((number?) -> { p: number } & { q: number }) & ((string?) -> { p: number } & { r: number })'; \nthis is because \n\t * Expected the 1st parameter to be a supertype of `number`, but got `string?`\n\t * Expected the return type to be `{ p: number, q: number, r: number }`, but got `{ p: number }`\n\t * Expected the return type to be `{ p: number, q: number, r: number }`, but got `{ q: number }`\n\t * Expected the return type to be `{ p: number, q: number, r: number }`, but got `{ r: number }`"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 873,
+      "result": {
+        "name": "overloaded_functions_mentioning_generic",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a>()\n            function g(x : ((number?) -> (a | number)) & ((string?) -> (a | string)))\n                local y : (nil) -> a = x -- OK\n                local z : (number?) -> a = x -- Not OK\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 898,
+      "result": {
+        "name": "overloaded_functions_mentioning_generics",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a,b,c>()\n            function g(x : ((a?) -> (a | b)) & ((c?) -> (b | c)))\n                local y : (nil) -> ((a & c) | b) = x -- OK\n                local z : (a?) -> ((a & c) | b) = x -- Not OK\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 925,
+      "result": {
+        "name": "overloaded_functions_mentioning_generic_packs",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a...,b...>()\n            function g(x : ((number?, a...) -> (number?, b...)) & ((string?, a...) -> (string?, b...)))\n                local y : ((nil, a...) -> (nil, b...)) = x -- OK in the old solver, not OK in the new\n                local z : ((nil, b...) -> (nil, a...)) = x -- Not OK\n                local w : ((number?, a...) -> (number?, b...)) = x -- OK in both solvers\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 2
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "wantedType": "(nil, a...) -> (nil, b...)"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "((number?, a...) -> (number?, b...)) & ((string?, a...) -> (string?, b...))"
+                }
+              },
+              {
+                "error": 1,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "wantedType": "(nil, b...) -> (nil, a...)"
+                }
+              },
+              {
+                "error": 1,
+                "fields": {
+                  "givenType": "((number?, a...) -> (number?, b...)) & ((string?, a...) -> (string?, b...))"
+                }
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be\n\t'(nil, a...) -> (nil, b...)'\nbut got\n\t'((number?, a...) -> (number?, b...)) & ((string?, a...) -> (string?, b...))'; \nthis is because \n\t * Expected the 1st return value to be `nil`, but got `number`\n\t * Expected the 1st return value to be `nil`, but got `string`"
+              },
+              {
+                "error": 1,
+                "message": "Expected this to be\n\t'(nil, b...) -> (nil, a...)'\nbut got\n\t'((number?, a...) -> (number?, b...)) & ((string?, a...) -> (string?, b...))'; \nthis is because \n\t * Expected the 1st return value to be `nil`, but got `number`\n\t * Expected the 1st return value to be `nil`, but got `string`\n\t * Expected the parameter type pack tail to be a supertype of `b...`, but got `a...`\n\t * Expected the return type pack tail to be `a...`, but got `b...`"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1017,
+      "result": {
+        "name": "overloadeded_functions_with_unknown_result",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a...,b...>()\n            function g(x : ((number) -> number) & ((nil) -> unknown))\n                local y : (number?) -> unknown = x -- OK\n                local z : (number?) -> number? = x -- Not OK\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be\n\t'(number?) -> number?'\nbut got\n\t'((nil) -> unknown) & ((number) -> number)'; none of the intersection parts are compatible"
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 1041,
+      "result": {
+        "name": "overloadeded_functions_with_unknown_arguments",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a...,b...>()\n            function g(x : ((number) -> number?) & ((unknown) -> string?))\n                local y : (number) -> nil = x -- OK\n                local z : (number?) -> nil = x -- Not OK\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be\n\t'(number?) -> nil'\nbut got\n\t'((number) -> number?) & ((unknown) -> string?)'; none of the intersection parts are compatible"
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 1065,
+      "result": {
+        "name": "overloadeded_functions_with_never_result",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n    function f<a...,b...>()\n        function g(x : ((number) -> number) & ((nil) -> never))\n            local y : (number?) -> number = x -- OK\n            local z : (number?) -> never = x -- Not OK\n        end\n    end\n    ",
+            "expect": [
+              {
+                "error": 0,
+                "message": "Expected this to be\n\t'(number?) -> number'\nbut got\n\t'((nil) -> never) & ((number) -> number)'; \nthis is because \n\t * Expected the 1st parameter to be a supertype of `nil`, but got `number`\n\t * Expected the 1st parameter to be a supertype of `number`, but got `nil`"
+              },
+              {
+                "error": 1,
+                "message": "Expected this to be\n\t'(number?) -> never'\nbut got\n\t'((nil) -> never) & ((number) -> number)'; \nthis is because \n\t * Expected the 1st parameter to be a supertype of `nil`, but got `number`\n\t * Expected the 1st parameter to be a supertype of `number`, but got `nil`\n\t * Expected the return type to be `never`, but got `number`"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1137,
+      "result": {
+        "name": "overloadeded_functions_with_never_arguments",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a...,b...>()\n            function g(x : ((number) -> number?) & ((never) -> string?))\n                local y : (never) -> nil = x -- OK\n                local z : (number?) -> nil = x -- Not OK\n            end\n        end\n    ",
+            "expect": [
+              {
+                "error": 0,
+                "message": "Expected this to be\n\t'(never) -> nil'\nbut got\n\t'((never) -> string?) & ((number) -> number?)'; \nthis is because \n\t * Expected the return type to be `nil`, but got `number`\n\t * Expected the return type to be `nil`, but got `string`"
+              },
+              {
+                "error": 1,
+                "message": "Expected this to be\n\t'(number?) -> nil'\nbut got\n\t'((never) -> string?) & ((number) -> number?)'; \nthis is because \n\t * Expected the 1st parameter to be a supertype of `nil`, but got `never`\n\t * Expected the 1st parameter to be a supertype of `nil`, but got `number`\n\t * Expected the 1st parameter to be a supertype of `number`, but got `never`\n\t * Expected the return type to be `nil`, but got `number`\n\t * Expected the return type to be `nil`, but got `string`"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1217,
+      "result": {
+        "name": "overloadeded_functions_with_overlapping_results_and_variadics",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f(x : ((string?) -> (string | number)) & ((number?) -> ...number))\n            local y : ((nil) -> (number, number?)) = x -- OK\n            local z : ((string | number) -> (number, number?)) = x -- Not OK\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be\n\t'(number | string) -> (number, number?)'\nbut got\n\t'((number?) -> (...number)) & ((string?) -> number | string)'; none of the intersection parts are compatible"
+              }
+            ],
+            "unparsed": {
+              "defect": 876
+            }
+          }
+        ],
+        "skip": {
+          "newSolver": "does not pass on Luau's new solver upstream"
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 1239,
+      "result": {
+        "name": "overloadeded_functions_with_weird_typepacks_1",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a...,b...>()\n            function g(x : (() -> a...) & (() -> b...))\n                local y : (() -> b...) & (() -> a...) = x -- OK\n                local z : () -> () = x -- Not OK\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1264,
+      "result": {
+        "name": "overloadeded_functions_with_weird_typepacks_2",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a...,b...>()\n            function g(x : ((a...) -> ()) & ((b...) -> ()))\n                local y : ((b...) -> ()) & ((a...) -> ()) = x -- OK\n                local z : () -> () = x -- Not OK\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "wantedType": "() -> ()"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "((a...) -> ()) & ((b...) -> ())"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1293,
+      "result": {
+        "name": "overloadeded_functions_with_weird_typepacks_3",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a...>()\n            function g(x : (() -> a...) & (() -> (number?,a...)))\n                local y : (() -> (number?,a...)) & (() -> a...) = x -- OK\n                local z : () -> (number) = x -- Not OK\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "wantedType": "() -> number"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "(() -> (a...)) & (() -> (number?, a...))"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1323,
+      "result": {
+        "name": "overloadeded_functions_with_weird_typepacks_4",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        function f<a...>()\n            function g(x : ((a...) -> ()) & ((number,a...) -> number))\n                local y : ((number,a...) -> number) & ((a...) -> ()) = x -- OK\n                local z : (number?) -> () = x -- Not OK\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 1
+              },
+              {
+                "error": 0,
+                "code": "TypeMismatch"
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "wantedType": "(number?) -> ()"
+                }
+              },
+              {
+                "error": 0,
+                "fields": {
+                  "givenType": "((a...) -> ()) & ((number, a...) -> number)"
+                }
+              },
+              {
+                "error": 0,
+                "message": "Expected this to be\n\t'(number?) -> ()'\nbut got\n\t'((a...) -> ()) & ((number, a...) -> number)'; \nthis is because \n\t * Expected the 1st parameter to be a supertype of `nil`, but got `number`\n\t * Expected the return types to be `()`, but got `number`\n\t * the parameter type pack tail is `a...` and the parameter types are `number?`, and `a...` is not a supertype of `number?`\n\t * the parameter type pack tail is `a...` and the parameters from the 1st onward are `number?`, and `a...` is not a supertype of `number?`"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1386,
+      "result": {
+        "name": "intersect_metatables",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n            function f(a: string?, b: string?)\n                local x = setmetatable({}, { p = 5, q = a })\n                local y = setmetatable({}, { q = b, r = \"hi\" })\n                local z = setmetatable({}, { p = 5, q = nil, r = \"hi\" })\n\n                type X = typeof(x)\n                type Y = typeof(y)\n                type Z = typeof(z)\n\n                function g(xy: X&Y, yx: Y&X): (Z, Z)\n                    return xy, yx\n                end\n\n                g(z, z)\n            end\n        ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ],
+        "skip": {
+          "newSolver": "Upstream returns before checking on the new solver: CLI-117121 intersection aliases are incompatible."
+        }
+      },
+      "audit": []
+    },
+    {
+      "line": 1438,
+      "result": {
+        "name": "intersect_metatable_subtypes",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local x = setmetatable({ a = 5 }, { p = 5 })\n        local y = setmetatable({ b = \"hi\" }, { p = 5, q = \"hi\" })\n        local z = setmetatable({ a = 5, b = \"hi\" }, { p = 5, q = \"hi\" })\n\n        type X = typeof(x)\n        type Y = typeof(y)\n        type Z = typeof(z)\n\n        function f(xy: X&Y, yx: Y&X): (Z, Z)\n            return xy, yx\n        end\n\n        f(z, z)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1459,
+      "result": {
+        "name": "intersect_metatables_with_properties",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local x = setmetatable({ a = 5 }, { p = 5 })\n        local y = setmetatable({ b = \"hi\" }, { q = \"hi\" })\n        local z = setmetatable({ a = 5, b = \"hi\" }, { p = 5, q = \"hi\" })\n\n        type X = typeof(x)\n        type Y = typeof(y)\n        type Z = typeof(z)\n\n        function f(xy: X&Y): Z\n            return xy\n        end\n\n        f(z)\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1480,
+      "result": {
+        "name": "intersect_metatable_with_table",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n            local x = setmetatable({ a = 5 }, { p = 5 })\n            local z = setmetatable({ a = 5, b = \"hi\" }, { p = 5 })\n\n            type X = typeof(x)\n            type Y = { b : string }\n            type Z = typeof(z)\n\n            function f(xy: X&Y, yx: Y&X): (Z, Z)\n                return xy, yx\n            end\n\n            f(z, z)\n        ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1522,
+      "result": {
+        "name": "CLI-44817",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type X = {x: number}\n        type Y = {y: number}\n        type Z = {z: number}\n\n        type XY = {x: number, y: number}\n        type XYZ = {x:number, y: number, z: number}\n\n        function f(xy: XY, xyz: XYZ): (X&Y, X&Y&Z)\n            return xy, xyz\n        end\n\n        local xNy, xNyNz = f({x = 0, y = 0}, {x = 0, y = 0, z = 0})\n\n        local t1: XY = xNy -- Type 'X & Y' could not be converted into 'XY'\n        local t2: XY = xNyNz -- Type 'X & Y & Z' could not be converted into 'XY'\n        local t3: XYZ = xNyNz -- Type 'X & Y & Z' could not be converted into 'XYZ'\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1546,
+      "result": {
+        "name": "less_greedy_unification_with_intersection_types",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f(t): { x: number } & { x: string }\n            local x = t.x\n            return t\n        end\n    ",
+            "expect": [
+              {
+                "errors": 3
+              },
+              {
+                "type": "f",
+                "equals": "(never) -> { x: number } & { x: string }"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1569,
+      "result": {
+        "name": "less_greedy_unification_with_intersection_types_2",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        local function f(t: { x: number } & { x: string })\n            return t.x\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "f",
+                "equals": "({ x: number } & { x: string }) -> never"
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1587,
+      "result": {
+        "name": "index_property_table_intersection_1",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\ntype Foo = {\n\tBar: string,\n} & { Baz: number }\n\nfunction f(x: Foo)\n    return x.Bar\nend\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1604,
+      "result": {
+        "name": "index_property_table_intersection_2",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        type Foo = {\n            Bar: string,\n        } & { Baz: number }\n\n        function f(x: Foo)\n            return x[\"Bar\"]\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ],
+            "ignoreMissingAnnotations": true
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1621,
+      "result": {
+        "name": "cli_80596_simplify_degenerate_intersections",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = {\n            x: number?,\n        }\n\n        type B = {\n            x: number?,\n        }\n\n        type C = A & B\n\n        function f(obj: C): number\n            return obj.x or 3\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1644,
+      "result": {
+        "name": "cli_80596_simplify_more_realistic_intersections",
+        "fixture": "Fixture",
+        "checks": [
+          {
+            "source": "\n        type A = {\n            x: number?,\n            y: string?,\n        }\n\n        type B = {\n            x: number?,\n            z: string?,\n        }\n\n        type C = A & B\n\n        function f(obj: C): number\n            return obj.x or 3\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1669,
+      "result": {
+        "name": "narrow_intersection_nevers",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local function foo(player: Player?)\n            if player and player.Character then\n                print(player.Character)\n            end\n        end\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "typeAt": [
+                  3,
+                  23
+                ],
+                "equals": "Player & { read Character: ~(false?) }"
+              }
+            ],
+            "definitions": [
+              "\n        declare extern type Player with\n            Character: unknown\n        end\n    "
+            ]
+          }
+        ]
+      },
+      "audit": []
+    },
+    {
+      "line": 1689,
+      "result": {
+        "name": "bounds_propagate_into_free_intersection_bounds",
+        "fixture": "BuiltinsFixture",
+        "checks": [
+          {
+            "source": "\n        local function f<T>(a: T & string): T\n            return a\n        end\n\n        local b = f(\"hello\")\n        local c = f((\"world\" :: string))\n    ",
+            "expect": [
+              {
+                "errors": 0
+              },
+              {
+                "type": "b",
+                "equals": "string"
+              },
+              {
+                "type": "c",
+                "equals": "string"
+              }
+            ]
+          }
+        ]
+      },
+      "audit": []
+    }
+  ]
+}
