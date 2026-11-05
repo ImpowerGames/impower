@@ -76,11 +76,11 @@ export function lowerChoice(
 
   if (bracketed) {
     hasWeaveStyleInlineBrackets = true;
-    appendTextFromCapture(bracketed, "ChoiceStartText", ctx, startContent);
+    appendTextFromCapture(bracketed, "ChoiceStartText", ctx, startContent, true);
     appendTextFromCapture(bracketed, "ChoiceOnlyText", ctx, choiceOnlyContent);
     appendTextFromCapture(bracketed, "ChoiceInnerText", ctx, innerContent);
   } else if (unbracketed) {
-    appendTextFromCapture(unbracketed, "ChoicePlainText", ctx, startContent);
+    appendTextFromCapture(unbracketed, "ChoicePlainText", ctx, startContent, true);
   }
 
   const divertNode = getDescendent("Divert", nodeRef.node);
@@ -121,9 +121,9 @@ export function lowerChoice(
     () => {
       const fresh = new ContentList();
       if (bracketed) {
-        appendTextFromCapture(bracketed, "ChoiceStartText", ctx, fresh);
+        appendTextFromCapture(bracketed, "ChoiceStartText", ctx, fresh, true);
       } else if (unbracketed) {
-        appendTextFromCapture(unbracketed, "ChoicePlainText", ctx, fresh);
+        appendTextFromCapture(unbracketed, "ChoicePlainText", ctx, fresh, true);
       }
       return fresh;
     },
@@ -274,6 +274,7 @@ function appendTextFromCapture(
   captureName: string,
   ctx: LowerContext,
   list: ContentList,
+  trimStart = false,
 ): boolean {
   let appended = false;
   const stack: SyntaxNode[] = [parent];
@@ -292,7 +293,7 @@ function appendTextFromCapture(
   }
   matches.sort((a, b) => a.from - b.from);
   for (const node of matches) {
-    if (appendNodeContent(node, ctx, list)) appended = true;
+    if (appendNodeContent(node, ctx, list, trimStart)) appended = true;
   }
   return appended;
 }
@@ -301,6 +302,7 @@ function appendNodeContent(
   captureNode: SyntaxNode,
   ctx: LowerContext,
   list: ContentList,
+  trimStart = false,
 ): boolean {
   type Marker =
     | { kind: "tag"; node: SyntaxNode }
@@ -331,7 +333,11 @@ function appendNodeContent(
   let cursor = captureNode.from;
   const flushText = (to: number): void => {
     if (to > cursor) {
-      const text = ctx.read(cursor, to);
+      const read = ctx.read(cursor, to);
+      const text =
+        trimStart && list.content.length === 0
+          ? read.replace(/^[ \t]+/, "")
+          : read;
       if (text.length > 0) {
         list.AddContent(new Text(text));
         appended = true;
