@@ -183,6 +183,7 @@ describe("the suggestion list on a fine pointer", () => {
 describe("an empty request for suggestions", () => {
   it("says there are none when asked for explicitly, until the next edit", async () => {
     const { view, server } = await mount("zz");
+    view.focus();
     startCompletion(view);
     await answerCompletion(server, []);
     const note = view.dom.querySelector(".cm-suggestions-empty");
@@ -197,6 +198,7 @@ describe("an empty request for suggestions", () => {
 
   it("closes on Escape", async () => {
     const { view, server } = await mount("zz");
+    view.focus();
     startCompletion(view);
     await answerCompletion(server, []);
     expect(view.dom.querySelector(".cm-suggestions-empty")).toBeTruthy();
@@ -208,6 +210,7 @@ describe("an empty request for suggestions", () => {
 
   it("says there are none when asked for explicitly and nothing offered can match what is typed", async () => {
     const { view, server } = await mount("zz");
+    view.focus();
     startCompletion(view);
     await answerCompletion(server, CHARACTERS);
     expect(completionStatus(view.state)).toBeNull();
@@ -218,6 +221,7 @@ describe("an empty request for suggestions", () => {
 
   it("says nothing when an explicit request is closed before its empty answer arrives", async () => {
     const { view, server } = await mount("zz");
+    view.focus();
     startCompletion(view);
     for (
       let i = 0;
@@ -232,6 +236,54 @@ describe("an empty request for suggestions", () => {
     server.answer(request!, []);
     await settle(80);
     expect(view.dom.querySelector(".cm-suggestions-empty")).toBeNull();
+  });
+
+  it("says there are none when asked for explicitly and the answers only hold the typed letters out of order", async () => {
+    const { view, server } = await mount("MY");
+    view.focus();
+    startCompletion(view);
+    await answerCompletion(server, CHARACTERS);
+    expect(completionStatus(view.state)).toBeNull();
+    expect(view.dom.querySelector(".cm-suggestions-empty")?.textContent).toBe(
+      "No suggestions here.",
+    );
+  });
+
+  it("says nothing when the editor loses focus before an explicit request's empty answer arrives", async () => {
+    const { view, server } = await mount("zz");
+    view.focus();
+    startCompletion(view);
+    for (
+      let i = 0;
+      i < 40 && !server.pending("textDocument/completion").length;
+      i++
+    ) {
+      await settle(10);
+    }
+    const elsewhere = document.body.appendChild(document.createElement("button"));
+    elsewhere.focus();
+    expect(view.hasFocus).toBe(false);
+    const [request] = server.pending("textDocument/completion");
+    expect(request).toBeTruthy();
+    server.answer(request!, []);
+    await settle(80);
+    expect(view.dom.querySelector(".cm-suggestions-empty")).toBeNull();
+  });
+
+  it("closes the empty note when the editor scrolls, and when the page is scrolled by the wheel", async () => {
+    for (const scroll of [
+      (view: EditorView) => view.scrollDOM.dispatchEvent(new Event("scroll")),
+      (view: EditorView) =>
+        view.scrollDOM.dispatchEvent(new WheelEvent("wheel", { bubbles: true })),
+    ]) {
+      const { view, server } = await mount("zz");
+      view.focus();
+      startCompletion(view);
+      await answerCompletion(server, []);
+      expect(view.dom.querySelector(".cm-suggestions-empty")).toBeTruthy();
+      scroll(view);
+      expect(view.dom.querySelector(".cm-suggestions-empty")).toBeNull();
+    }
   });
 
   it("says nothing when typing finds no suggestions", async () => {

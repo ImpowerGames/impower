@@ -364,23 +364,33 @@ const chipsClass = EditorView.editorAttributes.of((view) =>
 );
 
 const closeListOnScroll = ViewPlugin.define((view) => {
+  const outsideTooltips = (event: Event) => {
+    const target = event.target;
+    return !(target instanceof Element && target.closest(".cm-tooltip"));
+  };
+  const onAnyScroll = (event: Event) => {
+    if (outsideTooltips(event)) {
+      dismissEmptySuggestions(view);
+    }
+  };
   const onScroll = (event: Event) => {
+    onAnyScroll(event);
     if (
       view.state.facet(coarsePointer) ||
       completionStatus(view.state) !== "active"
     ) {
       return;
     }
-    const target = event.target;
-    if (target instanceof Element && target.closest(".cm-tooltip")) {
-      return;
+    if (outsideTooltips(event)) {
+      closeCompletion(view);
     }
-    closeCompletion(view);
   };
   window.addEventListener("wheel", onScroll, { capture: true, passive: true });
+  window.addEventListener("scroll", onAnyScroll, true);
   return {
     destroy() {
       window.removeEventListener("wheel", onScroll, { capture: true });
+      window.removeEventListener("scroll", onAnyScroll, true);
     },
   };
 });

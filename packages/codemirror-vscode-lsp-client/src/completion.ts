@@ -232,6 +232,7 @@ export const serverCompletionSource: CompletionSource = (context) => {
         if (
           context.explicit &&
           view &&
+          view.hasFocus &&
           !context.aborted &&
           completionStatus(view.state) === "pending" &&
           view.state.doc === state.doc &&
@@ -266,11 +267,10 @@ export const serverCompletionSource: CompletionSource = (context) => {
       const first = ranges.find((r) => r != null);
       const range = { from: first?.from ?? active?.from ?? pos, to: pos };
       const typed = state.sliceDoc(range.from, pos);
+      const folded = typed.toLowerCase();
       if (
         typed &&
-        !items.some((item) =>
-          containsInOrder(item.filterText ?? item.label, typed),
-        )
+        !items.some((item) => item.label.toLowerCase().startsWith(folded))
       ) {
         return noteEmpty();
       }
@@ -309,19 +309,6 @@ export const serverCompletionSource: CompletionSource = (context) => {
     },
   );
 };
-
-function containsInOrder(text: string, typed: string) {
-  const haystack = text.toLowerCase();
-  let at = 0;
-  for (const char of typed.toLowerCase()) {
-    at = haystack.indexOf(char, at);
-    if (at < 0) {
-      return false;
-    }
-    at += char.length;
-  }
-  return true;
-}
 
 interface OffsetRange {
   from: number;
