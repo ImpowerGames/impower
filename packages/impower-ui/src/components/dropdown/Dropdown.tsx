@@ -13,6 +13,7 @@ import { useCallback, useContext, useRef, useState } from "preact/hooks";
 import { useLayout } from "../../hooks/useLayout";
 import { cn } from "../../utils/cn";
 import { registerFocusReturn } from "../../utils/focusReturn";
+import { portalContainer } from "../../utils/portalContainer";
 import { DialogTitle, Sheet } from "../dialog/Dialog";
 import { CheckIcon } from "../icon/icons.generated";
 
@@ -39,32 +40,15 @@ export function DropdownSeparator({ class: className }: { class?: string }) {
   );
 }
 
-export const dropdownLabelVariants = cva("px-3", {
-  variants: {
-    variant: {
-      default: "pt-2 pb-1.5 text-ink",
-      heading:
-        "pt-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-muted",
-    },
-  },
-  defaultVariants: { variant: "default" },
-});
-
-export type DropdownLabelVariant = NonNullable<
-  VariantProps<typeof dropdownLabelVariants>["variant"]
->;
-
 export function DropdownLabel({
   class: className,
-  variant,
   children,
 }: {
   class?: string;
-  variant?: DropdownLabelVariant;
   children?: ComponentChildren;
 }) {
   const ctx = useMenuCtx();
-  const classes = cn(dropdownLabelVariants({ variant }), className);
+  const classes = cn("px-3 pt-2 pb-1.5 text-ink", className);
   if (ctx.mode === "sheet") {
     return <div class={classes}>{children}</div>;
   }
@@ -241,7 +225,7 @@ export function DropdownContent({
     );
   }
   return (
-    <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.Portal container={portalContainer()}>
       <DropdownMenuPrimitive.Content
         ref={owner}
         sideOffset={sideOffset}
