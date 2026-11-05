@@ -469,6 +469,25 @@ describe("touch gestures", () => {
     expect(v.hasFocus).toBe(false);
   });
 
+  it("lets the menu's sheet take focus while the long-press finger is still down", async () => {
+    const v = mount(DOC);
+    v.focus();
+    const point = pointAt(v, 3, "world");
+    touch(v.scrollDOM, "touchstart", point);
+    vi.advanceTimersByTime(600);
+    expect(isContextMenuOpen(v)).toBe(true);
+    expect(presented).not.toBeNull();
+    const sheetButton = document.body.appendChild(
+      document.createElement("button"),
+    );
+    sheetButton.focus();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(v.hasFocus).toBe(false);
+    expect(document.activeElement).toBe(sheetButton);
+    touch(v.scrollDOM, "touchend", point);
+  });
+
   it("a touch in the text lets Chrome's long-press gesture through the handles", () => {
     const v = mount(DOC);
     v.focus();
