@@ -4,6 +4,7 @@ const READING_BAND = "0px 0px -66% 0px";
 const SCROLL_MARGIN = 16;
 const JUMP_HOLD_MS = 400;
 const TRAVEL_HOLD_MS = 160;
+const WRITER_INPUT = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
 
 export const currentSection = signal<string | undefined>(undefined);
 
@@ -85,15 +86,27 @@ export function watchSections(element: HTMLElement, ids: readonly string[]): () 
       hold(TRAVEL_HOLD_MS);
       return;
     }
-    if (atEnd()) {
-      pick();
+    pick();
+  };
+  const onInput = () => {
+    if (!holding) {
+      return;
     }
+    holding = false;
+    clearTimeout(settle);
+    pick();
   };
   element.addEventListener("scroll", onScroll, { passive: true });
+  for (const type of WRITER_INPUT) {
+    element.addEventListener(type, onInput, { passive: true });
+  }
   currentSection.value = ids[0];
   return () => {
     observer?.disconnect();
     element.removeEventListener("scroll", onScroll);
+    for (const type of WRITER_INPUT) {
+      element.removeEventListener(type, onInput);
+    }
     clearTimeout(settle);
     holding = false;
     if (scroller === element) {

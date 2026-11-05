@@ -142,6 +142,34 @@ describe("the Settings page", () => {
     expect(marked()).toEqual(["add-folder-preferences"]);
   });
 
+  it("follows the section being read as soon as the writer scrolls during a jump, with no further observer change", async () => {
+    await mount(h(SettingsPage, null), h(SettingsIndex, null));
+    const rows = host!.querySelectorAll<HTMLButtonElement>('nav [data-index-jump="file-types"]');
+    await act(async () => rows[rows.length - 1]!.click());
+    await intersect([["add-folder-preferences", true]]);
+    expect(marked()).toEqual(["file-types"]);
+    await act(async () => {
+      document.getElementById("settings-page")!.dispatchEvent(new WheelEvent("wheel", { bubbles: true }));
+    });
+    expect(marked()).toEqual(["add-folder-preferences"]);
+  });
+
+  it("keeps a finished jump's row marked until the next scroll, which reads the band again", async () => {
+    await mount(h(SettingsPage, null), h(SettingsIndex, null));
+    const rows = host!.querySelectorAll<HTMLButtonElement>('nav [data-index-jump="file-types"]');
+    await act(async () => rows[rows.length - 1]!.click());
+    const page = document.getElementById("settings-page")!;
+    Object.defineProperty(page, "scrollHeight", { configurable: true, value: 4000 });
+    Object.defineProperty(page, "clientHeight", { configurable: true, value: 800 });
+    await intersect([["story-details", true]]);
+    await pause(450);
+    expect(marked()).toEqual(["file-types"]);
+    await act(async () => {
+      page.dispatchEvent(new Event("scroll"));
+    });
+    expect(marked()).toEqual(["story-details"]);
+  });
+
   it("jumps from the chips line the same way", async () => {
     await mount(h(SettingsPage, null));
     const chip = host!.querySelector<HTMLButtonElement>('#settings-page nav [data-index-jump="screenplay-settings"]')!;
