@@ -1340,5 +1340,5 @@ export function displayCaptionText(
     pos = Math.max(pos, injection.to);
   }
   if (pos < last.to) text += ctx.read(pos, last.to);
-  return text.replace(/\s+/g, " ").trim();
+  return text;
 }

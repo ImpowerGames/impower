@@ -118,7 +118,8 @@ export const getChoiceMenus = (
         optionsEnd = child.from;
         break;
       } else if (!choices.length) {
-        prompt = displayCaptionText(child, source) ?? prompt;
+        const caption = displayCaptionText(child, source);
+        prompt = caption == null ? prompt : oneLine(caption);
       }
     }
     if (optionsEnd === block.to && content) {
