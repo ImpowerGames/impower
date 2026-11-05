@@ -24,11 +24,24 @@ it("lists every exported component in exactly one gallery entry", () => {
 
 it("mounts the gallery with every exported component on the page", async () => {
   host = document.body.appendChild(document.createElement("div"));
-  const { types } = await collectingTypes(() =>
-    act(async () => {
+  const { types } = await collectingTypes(async () => {
+    await act(async () => {
       render(<App />, host!);
-    }),
-  );
+    });
+    expect(document.querySelectorAll('[role="menuitemcheckbox"]').length).toBeGreaterThan(0);
+    const triggers = Array.from(host!.querySelectorAll<HTMLElement>('[aria-haspopup="dialog"]'));
+    expect(triggers.length).toBeGreaterThan(0);
+    for (const trigger of triggers) {
+      await act(async () => trigger.click());
+      const dialog = document.querySelector('[role="dialog"]');
+      expect(dialog).not.toBeNull();
+      const cancel = Array.from(dialog!.querySelectorAll("button")).find((b) => /^(Cancel|Close)$/.test(b.textContent ?? ""));
+      await act(async () => cancel!.click());
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      });
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+    }
+  });
   expect(componentNames.filter((name) => !types.has(exportedValue(name)))).toEqual([]);
-  expect(document.querySelectorAll('[role="menuitemcheckbox"]').length).toBeGreaterThan(0);
 });

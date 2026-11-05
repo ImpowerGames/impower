@@ -1,5 +1,13 @@
-import { ArrowDown, ArrowUp, Button } from "@impower/impower-ui/components";
-import { useEffect, useState } from "preact/hooks";
+import {
+  ArrowDown,
+  ArrowUp,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogDescription,
+  DialogTitle,
+} from "@impower/impower-ui/components";
+import { useState } from "preact/hooks";
 
 export const propDefaults = {};
 export type HeaderSyncConflictToolbarProps = Partial<typeof propDefaults>;
@@ -81,44 +89,26 @@ function ConfirmDialog({
   confirmLabel: string;
   onConfirm: () => void;
 }) {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
-
   return (
-    <div
-      class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/50"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <Dialog
+      open={open}
+      onOpenChange={(next) => !next && onClose()}
+      size="md"
+      class="w-[90vw] bg-popup p-6 shadow-xl ring-0"
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="dlg-title"
-        class="w-[90vw] max-w-md rounded-lg bg-popup p-6 shadow-xl"
-      >
-        <h2 id="dlg-title" class="text-lg font-medium text-foreground">
-          {title}
-        </h2>
-        <p class="mt-3 text-sm text-foreground/80">{body}</p>
-        <div class="mt-1 text-sm text-foreground/60">{warning}</div>
-        <div class="mt-6 flex flex-row justify-end gap-2">
-          <Button variant="ghost" class="px-4" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="primary" class="px-4" onClick={onConfirm}>
-            {confirmLabel}
-          </Button>
-        </div>
-      </div>
-    </div>
+      <DialogTitle class="text-lg font-medium">{title}</DialogTitle>
+      <DialogDescription class="mt-3 text-foreground/80">
+        {body}
+      </DialogDescription>
+      <div class="mt-1 text-sm text-foreground/60">{warning}</div>
+      <DialogActions class="mt-6">
+        <Button variant="ghost" class="px-4" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button variant="primary" class="px-4" onClick={onConfirm}>
+          {confirmLabel}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }

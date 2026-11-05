@@ -1,5 +1,6 @@
 import Button from "./components/button/Button";
 import { buttonGallery } from "./components/button/Button.gallery";
+import { dialogGallery } from "./components/dialog/Dialog.gallery";
 import { dropdownGallery } from "./components/dropdown/Dropdown.gallery";
 import { iconGallery } from "./components/icon/Icon.gallery";
 import { loadingBarGallery } from "./components/loading-bar/LoadingBar.gallery";
@@ -11,6 +12,7 @@ import { GallerySection, type GalleryEntry } from "./gallery/GallerySection";
 
 export const galleryEntries: readonly GalleryEntry[] = [
   buttonGallery,
+  dialogGallery,
   dropdownGallery,
   iconGallery,
   loadingBarGallery,

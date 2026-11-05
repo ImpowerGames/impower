@@ -112,14 +112,13 @@ otherwise.
 ### Motion belongs to the component
 
 The component that moves owns its enter and exit motion; feature code never animates a
-control itself. `DropdownContent` declares its own `data-[state=open]:anim-menu-in` and
-`data-[state=closed]:anim-menu-out`, and `Button` its own colour transition. Motion uses
+control itself. `DropdownContent` declares its own `motion-safe:data-[state=open]:anim-menu-in`
+and `motion-safe:data-[state=closed]:anim-menu-out`, and `Button` its own colour transition. Motion uses
 the durations and easings in the design reference's
 [Motion section](../../impower-dev/docs/design/tokens.md#motion) and is gated so
 `prefers-reduced-motion: reduce` removes it: write it as `motion-safe:` utilities, add a
 `motion-reduce:` override, or declare it inside a `prefers-reduced-motion` media query.
-`Button`'s transition and `Dropdown`'s menu and sheet motion are not gated yet; the slice
-that next changes either one adds the gate.
+`Button`'s transition is not gated yet; the slice that next changes it adds the gate.
 
 ### Pane width is a container query
 

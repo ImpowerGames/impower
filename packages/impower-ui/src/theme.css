@@ -34,6 +34,7 @@
   --button-ink: rgb(255 255 255);
   --error-strong: oklch(63.7% 0.237 25.331);
   --warning-strong: oklch(76.9% 0.188 70.08);
+  --scrim: rgb(0 0 0 / 0.5);
 }
 
 :root,

@@ -140,6 +140,8 @@ function FileItem({
   });
   const inputRef = useRef<HTMLInputElement | null>(null);
   const rowRef = useRef<HTMLDivElement | null>(null);
+  const optionsRef = useRef<HTMLButtonElement | null>(null);
+  const rowFocusTarget = () => optionsRef.current;
 
   const basename = path.split("/").slice(-1)[0] ?? path;
   const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
@@ -594,7 +596,7 @@ function FileItem({
 
       {!selectMode && (
         <div class="absolute inset-y-0 right-0 flex items-center">
-          <FileOptionsButton {...menuItemProps} />
+          <FileOptionsButton {...menuItemProps} buttonRef={optionsRef} />
         </div>
       )}
 
@@ -647,6 +649,7 @@ function FileItem({
       {renameConfirm && (
         <RenameReferencesDialog
           open
+          returnFocus={rowFocusTarget}
           fromName={renameConfirm.fromName}
           toName={renameConfirm.toName}
           referenceCount={renameConfirm.referenceCount}
@@ -667,6 +670,7 @@ function FileItem({
       {usages && (
         <FileUsagesPanel
           open
+          returnFocus={rowFocusTarget}
           assetName={usages.assetName}
           locations={usages.locations}
           onJump={(uri, range) => {

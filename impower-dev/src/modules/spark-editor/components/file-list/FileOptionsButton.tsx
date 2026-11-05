@@ -6,17 +6,23 @@ import {
   DropdownTrigger,
 } from "@impower/impower-ui/components";
 import { useComputed, useSignalEffect } from "@preact/signals";
+import type { Ref } from "preact";
 import { useRef, useState } from "preact/hooks";
 import workspace from "../../workspace/WorkspaceStore";
 import FileMenuItems, { type FileMenuItemsProps } from "./FileMenuItems";
 import { openRowMenu } from "./openRowMenu";
 
-export type FileOptionsButtonProps = FileMenuItemsProps;
+export type FileOptionsButtonProps = FileMenuItemsProps & {
+  buttonRef?: Ref<HTMLButtonElement>;
+};
 
 const TRIGGER_CLASS =
   "mr-3 rounded-full text-foreground/50 hover:text-foreground";
 
-export default function FileOptionsButton(props: FileOptionsButtonProps) {
+export default function FileOptionsButton({
+  buttonRef,
+  ...props
+}: FileOptionsButtonProps) {
   const [armed, setArmed] = useState(false);
   const keyRef = useRef<symbol | null>(null);
   if (!keyRef.current) {
@@ -41,6 +47,7 @@ export default function FileOptionsButton(props: FileOptionsButtonProps) {
   if (!armed) {
     return (
       <Button
+        ref={buttonRef}
         variant="ghost"
         size="icon"
         aria-label="Options"
@@ -74,6 +81,7 @@ export default function FileOptionsButton(props: FileOptionsButtonProps) {
     >
       <DropdownTrigger asChild>
         <Button
+          ref={buttonRef}
           variant="ghost"
           size="icon"
           aria-label="Options"
