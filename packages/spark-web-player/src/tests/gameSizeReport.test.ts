@@ -59,7 +59,9 @@ const mount = () => {
   const controller = new GamePlayerController(host, { viewport, game, toolbar } as any);
   controller.setup();
   const resize = () => observers.forEach((notify) => notify());
-  return { host, game, pane, reports, controller, resize };
+  toolbar.setPointerCapture = () => {};
+  toolbar.releasePointerCapture = () => {};
+  return { host, game, toolbar, pane, reports, controller, resize };
 };
 
 it("reports the rendered size and the ratio in effect after every resize", () => {
@@ -104,6 +106,41 @@ it("fits the game to a requested aspect ratio and reports the fitted size", asyn
     await new Promise((resolve) => setTimeout(resolve));
     resize();
     expect(reports.at(-1)).toEqual({ width: 800, height: 600, aspectRatio: "4:3", fit: "auto" });
+  } finally {
+    controller.dispose();
+    host.remove();
+  }
+});
+
+it("snaps a drag that starts from a ratio fit against the width the game takes once it leaves the fit", async () => {
+  const { host, toolbar, reports, controller } = mount();
+  try {
+    const request = ResizeGameMessage.type.request({ aspectRatio: "9:16" });
+    const answered = new Promise<void>((resolve) => {
+      host.addEventListener(MessageProtocol.event, (event) => {
+        if (ResizeGameMessage.type.isResponse((event as CustomEvent).detail, request.id)) {
+          resolve();
+        }
+      });
+    });
+    sendProtocolMessage(request);
+    await answered;
+    expect(reports.at(-1)).toMatchObject({ width: 337.5, height: 600, fit: "ratio" });
+    vi.stubGlobal(
+      "AudioContext",
+      class {
+        state = "running";
+        resume() {
+          return Promise.resolve();
+        }
+      },
+    );
+    const drag = (type: string, clientY: number) =>
+      toolbar.dispatchEvent(new MouseEvent(type, { clientY, bubbles: true }));
+    drag("pointerdown", 600);
+    drag("pointermove", 340);
+    drag("pointerup", 340);
+    expect(reports.at(-1)).toEqual({ width: 800, height: 343, aspectRatio: "21:9", fit: "height" });
   } finally {
     controller.dispose();
     host.remove();

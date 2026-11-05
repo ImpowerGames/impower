@@ -6,8 +6,6 @@ const HOLD_REPEAT_INTERVAL_MS = 100;
 export const useHoldRepeat = (action: () => void) => {
   const [pressed, setPressed] = useState(false);
   const timer = useRef(0);
-  const held = useRef(false);
-  const swallowClick = useRef(false);
   const latest = useRef(action);
   latest.current = action;
 
@@ -21,16 +19,8 @@ export const useHoldRepeat = (action: () => void) => {
   useEffect(() => clear, []);
 
   const release = () => {
-    held.current = false;
     clear();
     setPressed(false);
-  };
-
-  const abandon = () => {
-    if (held.current) {
-      swallowClick.current = false;
-      release();
-    }
   };
 
   return {
@@ -41,8 +31,6 @@ export const useHoldRepeat = (action: () => void) => {
         return;
       }
       clear();
-      held.current = true;
-      swallowClick.current = true;
       setPressed(true);
       latest.current();
       const repeat = () => {
@@ -52,11 +40,10 @@ export const useHoldRepeat = (action: () => void) => {
       timer.current = window.setTimeout(repeat, HOLD_REPEAT_DELAY_MS);
     },
     onPointerUp: release,
-    onPointerCancel: abandon,
-    onPointerLeave: abandon,
+    onPointerCancel: release,
+    onPointerLeave: release,
     onClick: (e: MouseEvent) => {
-      if (swallowClick.current) {
-        swallowClick.current = false;
+      if (e.detail > 0) {
         e.preventDefault();
         return;
       }

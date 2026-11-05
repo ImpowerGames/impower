@@ -73,6 +73,9 @@ const mount = (props: Partial<PlayerBarProps> & { state: PlayerBarState }) => {
 const pointer = (type: string) =>
   new (window.PointerEvent ?? MouseEvent)(type, { bubbles: true, button: 0 });
 
+const pointerClick = () =>
+  new MouseEvent("click", { bubbles: true, button: 0, detail: 1 });
+
 describe("PlayerBar state", () => {
   it("renders the launch state, position, size and ratio from protocol messages", () => {
     let state = reducePlayerBar(initialPlayerBarState, gameState());
@@ -237,7 +240,7 @@ describe("PlayerBar controls", () => {
     expect(onSkip).toHaveBeenCalledTimes(5);
     act(() => {
       forward.dispatchEvent(pointer("pointerup"));
-      forward.click();
+      forward.dispatchEvent(pointerClick());
     });
     expect(forward.hasAttribute("data-pressed")).toBe(false);
     act(() => {
@@ -266,6 +269,23 @@ describe("PlayerBar controls", () => {
       back.click();
     });
     expect(onSkip).toHaveBeenCalledTimes(2);
+  });
+
+  it("skips once for a press that leaves the button and comes back before release", () => {
+    vi.useFakeTimers();
+    const onSkip = vi.fn();
+    const $ = mount({ state: initialPlayerBarState, controls: { skip: true }, onSkip });
+    const forward = $("[aria-label='Skip forward']")!;
+    act(() => {
+      forward.dispatchEvent(pointer("pointerdown"));
+      forward.dispatchEvent(pointer("pointerleave"));
+      forward.dispatchEvent(pointer("pointerenter"));
+      vi.advanceTimersByTime(200);
+      forward.dispatchEvent(pointer("pointerup"));
+      forward.dispatchEvent(pointerClick());
+      vi.advanceTimersByTime(800);
+    });
+    expect(onSkip.mock.calls).toEqual([[1]]);
   });
 
   it("keeps a skip press from starting the bar's resize drag", () => {

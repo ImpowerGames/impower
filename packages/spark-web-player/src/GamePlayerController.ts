@@ -1190,6 +1190,12 @@ export class GamePlayerController {
     this.setGameSize("ratio", { width, height, minHeight: true });
   }
 
+  protected dragWidth() {
+    return this._fit === "ratio"
+      ? this.refs.viewport.clientWidth
+      : this.refs.game.offsetWidth;
+  }
+
   protected handleResize = () => {
     this.reportSize();
   };
@@ -1209,7 +1215,7 @@ export class GamePlayerController {
 
     document.body.style.cursor = "ns-resize";
 
-    const width = this.refs.game.offsetWidth;
+    const width = this.dragWidth();
     let minDiff = Infinity;
     let snapped = false;
 
@@ -1237,7 +1243,7 @@ export class GamePlayerController {
     const maxHeight = window.innerHeight - this.refs.toolbar.offsetHeight;
     newHeight = Math.max(MIN_HEIGHT, Math.min(maxHeight, newHeight));
 
-    const width = this.refs.game.offsetWidth;
+    const width = this.dragWidth();
     let closestMatch = newHeight;
     let minDiff = Infinity;
     let snapped = false;
