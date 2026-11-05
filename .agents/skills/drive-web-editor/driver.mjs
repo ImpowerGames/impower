@@ -10,6 +10,7 @@ import { spawnDetached } from "../../../scripts/detached-launch.mjs";
 import { linuxProcesses, treeSurvivors, windowsProcessTable } from "../../../scripts/process-table.mjs";
 export { linuxProcesses, treeSurvivors, windowsProcessTable } from "../../../scripts/process-table.mjs";
 import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen.mjs";
+import { contextOptions, displayReport, hasDisplayFlags, screenshotPath, takeDisplayFlags } from "./viewport.mjs";
 import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, SESSION_VARIABLES, checkoutStateFiles, driverSession, recordCheckoutOwner, sessionDir } from "./session-dir.mjs";
 
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -43,6 +44,17 @@ function takeProfileFlag(argv) {
   return path.resolve(dir);
 }
 const PROFILE_DIR = takeProfileFlag(process.argv) ?? (process.env.IMPOWER_DRIVER_PROFILE ? path.resolve(process.env.IMPOWER_DRIVER_PROFILE) : path.join(SESSION_DIR, "profile"));
+
+function takeDisplayFlagsOrExit(argv) {
+  try {
+    return takeDisplayFlags(argv);
+  } catch (err) {
+    console.error("ERROR: " + err.message);
+    process.exit(1);
+  }
+}
+const DISPLAY = takeDisplayFlagsOrExit(process.argv);
+const DISPLAY_COMMANDS = ["verify", "ui", "screenshot"];
 
 export const CACHE_STORAGE_SUFFIX = 139;
 export const WINDOWS_PATH_LIMIT = 259;
@@ -685,7 +697,7 @@ async function importPlaywright() {
   }
 }
 
-export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platform = process.platform, playwright = importPlaywright }) {
+export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platform = process.platform, playwright = importPlaywright, display = DISPLAY }) {
   const tooDeep = profilePathProblem(dir, platform);
   if (tooDeep) throw new Error(tooDeep);
   if (dir === path.join(SESSION_DIR, "profile")) recordCheckoutOwner(REPO_ROOT);
@@ -693,9 +705,10 @@ export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platfor
   const { chromium } = await playwright();
   const executablePath = resolveChromiumExecutablePath(chromium, { headless });
   log(`browser: ${chromiumChoiceLine()}`);
+  if (display.theme) log(`theme: --theme ${display.theme} is accepted and not applied; ${displayReport(display).themeNote}`);
   return chromium.launchPersistentContext(dir, {
     headless,
-    viewport: { width: 1600, height: 1000 },
+    ...contextOptions(display),
     args: ["--autoplay-policy=no-user-gesture-required"],
     ...(executablePath ? { executablePath } : {}),
   });
@@ -1669,7 +1682,7 @@ async function verify(args, deps = liveDeps) {
 
   return deps.withEditor(
     async ({ page, ctx, url, consoleLines, mode, cleanups = [] }) => {
-      const result = { url };
+      const result = { url, ...(hasDisplayFlags(DISPLAY) ? { display: displayReport(DISPLAY) } : {}) };
       let monitoredWorker;
       if (mode === "cross-origin") {
         result.gameMounted = null;
@@ -2913,6 +2926,33 @@ function gatedStep(step, reason) {
   return { ...step, ...gated };
 }
 
+export function parseScreenshotArgs(args, display = DISPLAY) {
+  const [name, ...more] = args;
+  if (name == null || name.startsWith("--")) throw new Error("screenshot needs a name, such as `screenshot story`");
+  let outDir = ".";
+  let headed = false;
+  for (let i = 0; i < more.length; i++) {
+    if (more[i] === "--headed") headed = true;
+    else if (more[i] === "--out-dir") {
+      const v = more[++i];
+      if (v == null || v === "" || v.startsWith("--")) throw new Error("--out-dir needs a directory");
+      outDir = v;
+    } else throw new Error(`screenshot: unknown argument ${more[i]}`);
+  }
+  return { out: screenshotPath(name, display, outDir), headed };
+}
+
+async function screenshot(args, deps = liveDeps) {
+  let parsed;
+  try {
+    parsed = parseScreenshotArgs(args);
+  } catch (e) {
+    deps.die(e.message);
+  }
+  fs.mkdirSync(path.dirname(parsed.out), { recursive: true });
+  return ui(["--shot", parsed.out, ...(parsed.headed ? ["--headed"] : [])], deps);
+}
+
 async function ui(args, deps = liveDeps) {
   const headless = !args.includes("--headed");
   let steps;
@@ -2927,7 +2967,7 @@ async function ui(args, deps = liveDeps) {
 
   return deps.withEditor(
     async ({ page, ctx, url, consoleLines, cleanups = [] }) => {
-      const result = { url, steps: [] };
+      const result = { url, ...(hasDisplayFlags(DISPLAY) ? { display: displayReport(DISPLAY) } : {}), steps: [] };
       let monitoredWorker;
       const finishWorker = async () => {
         if (!monitoredWorker) return;
@@ -3304,6 +3344,9 @@ const runAsCli =
   fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url));
 
 const [cmd, ...rest] = runAsCli ? process.argv.slice(2) : ["__imported__"];
+if (runAsCli && hasDisplayFlags(DISPLAY) && !DISPLAY_COMMANDS.includes(cmd)) {
+  die(`--viewport, --color-scheme and --theme apply to ${DISPLAY_COMMANDS.join(", ")} only, not ${cmd ?? "a missing command"}`);
+}
 switch (cmd) {
   case "__imported__":
     break;
@@ -3324,6 +3367,9 @@ switch (cmd) {
     break;
   case "ui":
     await ui(rest);
+    break;
+  case "screenshot":
+    await screenshot(rest);
     break;
   case "seed":
     await seed(rest);
@@ -3387,6 +3433,7 @@ switch (cmd) {
         "  down [--force]        kill the server tree this session launched (--force: any session's)",
         "  verify [options]      drive the game preview and print a JSON report",
         "  ui [steps]            drive the editor's own panels and screens; print a JSON report",
+        "  screenshot <name> [--out-dir <dir>] [--headed]  load the editor and screenshot the page to <name>[-<viewport>][-<scheme>].png",
         "  seed --project <p>    load a project directory or exported zip into OPFS /local, then reload",
         "  seed --clear          empty OPFS /local (dot entries stay), then reload; with --project, clear first",
         "  redgreen [options]    prove a regression test fails on the base and passes on the fix",
@@ -3419,6 +3466,13 @@ switch (cmd) {
         "  --shot-of <what> <png>  screenshot one surface: find | goto | editor | hover | completion | page",
         "  --probe <file.js>       body of an async fn evaluated in the page; result -> JSON",
         "  --headed                run a visible browser instead of headless",
+        "",
+        "display options (verify, ui and screenshot; any position on the command line):",
+        "  --viewport <preset|WxH> desktop 1440x900 | tablet 768x1024 | phone 360x780 | phone-large 430x932, or e.g. 1280x720;",
+        "                          phone and phone-large add touch, isMobile and device scale factor 3; without it the page is 1600x1000",
+        "  --color-scheme <light|dark>  the prefers-color-scheme the page sees, for checking the Automatic theme",
+        "  --theme <name>          accepted and not applied yet: the editor has no theme mechanism the driver can set",
+        "  The emulator route is the bar for phone widths; the phone presets are quick checks, tablet and desktop are evidence.",
         "",
         "redgreen options:",
         "  --test <command>        the test invocation, run twice from the repo root",

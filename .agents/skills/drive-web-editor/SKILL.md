@@ -22,6 +22,18 @@ Select only the references needed for this run:
 - Before writing a custom browser probe, read [custom probe caveats](references/custom-probes.md). Keep scripts importing driver helpers inside the worktree for dependency resolution and never stage scratch files.
 - For direct requests, notifications or socket clients, read [editor protocol](references/protocol.md).
 
+## Viewport, color scheme and theme
+
+`verify`, `ui` and `screenshot` accept these anywhere on the command line; other commands refuse them:
+
+- `--viewport <preset|WxH>`: `desktop` 1440x900, `tablet` 768x1024, `phone` 360x780, `phone-large` 430x932, or any size such as `1280x720`. `phone` and `phone-large` also turn on touch, `isMobile` and device scale factor 3, so `(pointer: coarse)` and `(hover: none)` match; their screenshots hold three device pixels per page pixel, so a 360x780 page saves as 1080x2340. Without the flag the page stays 1600x1000 with a mouse, so earlier evidence stays comparable.
+- `--color-scheme light|dark`: the `prefers-color-scheme` the page reports, for checking the Automatic theme.
+- `--theme <name>`: accepted and not applied yet. The editor has no theme mechanism the driver can set, so the report's `display.themeApplied` is `false` and the run shows the editor's own theme.
+
+The report's `display` field echoes what was applied. Desktop and tablet presets are evidence widths; at phone widths the presets are quick checks only, and the Android emulator route is the bar.
+
+`screenshot <name> [--out-dir <dir>]` loads the editor and saves the page as `<name>[-<viewport>][-<scheme>].png`, such as `story-tablet-dark.png`, so an evidence folder holds one file per combination. The theme joins the name once `--theme` is applied. `--shot <path>` on `verify` and `ui` writes exactly the path given.
+
 ## Evidence gate
 
 Check that the intended script/project loaded, the game or editor mounted and the requested action completed. Failed setup is not evidence of the product defect. Read the relevant report fields and failures in the selected reference; a plausible route or geometry does not prove rendered correctness.

@@ -18,6 +18,7 @@
 .agents/skills/drive-web-editor/timing.test.mjs
 .agents/skills/drive-web-editor/two-sessions.test.mjs
 .agents/skills/drive-web-editor/ui-steps.test.mjs
+.agents/skills/drive-web-editor/viewport.test.mjs
 .agents/skills/drive-web-editor/worktree-temp.test.mjs
 .agents/skills/filing-effort.test.mjs
 .agents/skills/filing-parent.test.mjs
