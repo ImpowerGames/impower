@@ -558,6 +558,19 @@ variables:
   # string counts as a plain character, so a valid call the bounded reader
   # cannot read still counts as open while a contraction does not.
   CHOICE_UNREADABLE_CONDITION_OPEN: (?:{{CHOICE_UNREADABLE_CONDITION_PATH}}(?:[\[]|(?!{{CHOICE_CLOSURE_PARENS}})[(]))
+  # lookaround: `Choice` and `ChoiceWithNoSuppressedText` both refuse the spot
+  # where a header's begin took its line break and the line's input ends. The
+  # label on the next line owns the choice's remaining text, and vscode-textmate
+  # tries the `end:` and the patterns once more at that spot, where `(?=$)` and
+  # the empty text match would close the choice before the label;
+  # textmate-grammar-tree moves to the next line instead. Reordering cannot help,
+  # since the `end:` and the text rule are the only rules that match there.
+  # Splitting the text rule leaves the `end:`, the enclosing
+  # `LuauSparkdownChooseBlock` and `SparkdownStatement` have no terminator here
+  # to carry, and a begin that left the line break would read the label line as
+  # display text. No consumed character marks the spot, so only
+  # the anchor with nothing after it does.
+  CHOICE_HEADER_LINE_BREAK_TAKEN: (?:\G(?![\s\S]))
   LUAU_KEYWORD: (?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while){{LUAU_NAME_END}})
   # lookaround: anywhere else `LuauAccessPath` reads the word as a name; it
   # comes after the alternators in `LuauExpression`.
@@ -1502,7 +1515,10 @@ repository:
       - { include: "#ChoiceConditional" }
       - { include: "#ChoiceWithSuppressedText" }
       - { include: "#ChoiceWithNoSuppressedText" }
-    end: (?=$)
+    # lookaround: `ChoiceWithNoSuppressedText` owns the label line after a
+    # header whose begin took its line break; `CHOICE_HEADER_LINE_BREAK_TAKEN`
+    # says why only the anchor at the input's end shows that spot.
+    end: (?!{{CHOICE_HEADER_LINE_BREAK_TAKEN}})(?=$)
 
   # lookaround: `ChoiceWithNoSuppressedText` owns the label line that follows
   # a header whose begin read its condition and its newline; `\G` holds at the
@@ -1593,8 +1609,12 @@ repository:
         patterns:
           - { include: "#Divert" }
 
+  # lookaround: the `Choice` stays open for the label line after a header whose
+  # begin took its line break, and this rule's empty match there would close it
+  # in vscode-textmate; `CHOICE_HEADER_LINE_BREAK_TAKEN` says why only the
+  # anchor at the input's end shows that spot.
   ChoiceWithNoSuppressedText:
-    match: (.*?)(?:({{WS}}*)$|({{WS}}*)([-][>].*$))
+    match: (?!{{CHOICE_HEADER_LINE_BREAK_TAKEN}})(.*?)(?:({{WS}}*)$|({{WS}}*)([-][>].*$))
     captures:
       1:
         patterns:

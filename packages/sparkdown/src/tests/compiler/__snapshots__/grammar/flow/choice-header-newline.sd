@@ -1,0 +1,7 @@
+scene start
+  choose
+    * if has_key
+    Next-line label
+    * Fallback
+  end
+end
