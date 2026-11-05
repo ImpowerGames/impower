@@ -1,5 +1,9 @@
+import type { ContextMenuModel } from "@impower/codemirror-vscode-lsp-client/src";
+import ActionSheet, {
+  type ActionSheetItem,
+} from "@impower/impower-ui/action-sheet";
 import { LoadingBar } from "@impower/impower-ui/loading-bar";
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import type { ScriptAppearance } from "../../cm-script-appearance/scriptAppearanceOptions";
 import type {
   ScriptEditorController as ScriptEditorControllerType,
@@ -17,6 +21,7 @@ export const propDefaults = {
 
 export type SparkdownScriptEditorProps = Partial<typeof propDefaults> & {
   appearance: ScriptAppearance;
+  onPasteRefused?: () => void;
 };
 
 let languageServerWorker: Worker | undefined;
@@ -39,7 +44,11 @@ export default function SparkdownScriptEditor({
   scrollMargin,
   top,
   bottom,
+  onPasteRefused,
 }: SparkdownScriptEditorProps) {
+  const [contextMenu, setContextMenu] = useState<ContextMenuModel | null>(null);
+  const onPasteRefusedRef = useRef(onPasteRefused);
+  onPasteRefusedRef.current = onPasteRefused;
   const rootRef = useRef<HTMLDivElement>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -81,6 +90,8 @@ export default function SparkdownScriptEditor({
           readonly: !!readonly,
           coarsePointer: coarsePointerRef.current,
           appearance: appearanceRef.current,
+          onContextMenu: setContextMenu,
+          onPasteRefused: () => onPasteRefusedRef.current?.(),
           scrollMargin: scrollMargin ?? "",
           top: top ?? "",
           bottom: bottom ?? "",
@@ -124,6 +135,27 @@ export default function SparkdownScriptEditor({
         <div class="editor" ref={editorRef} />
         <div class="placeholder" ref={placeholderRef} hidden />
       </div>
+      <ActionSheet
+        open={!!contextMenu}
+        onOpenChange={(open) => {
+          if (!open) {
+            contextMenu?.dismiss();
+          }
+        }}
+        title="Edit"
+        items={
+          contextMenu?.items.map(
+            (item): ActionSheetItem =>
+              "type" in item
+                ? item
+                : {
+                    label: item.label,
+                    disabled: item.disabled,
+                    onSelect: item.run,
+                  },
+          ) ?? []
+        }
+      />
     </div>
   );
 }

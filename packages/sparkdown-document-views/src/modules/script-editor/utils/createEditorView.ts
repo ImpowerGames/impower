@@ -23,7 +23,10 @@ import {
 import {
   completionPreview,
   type CompletionPreviewEvent,
+  type ContextMenuPresenter,
   LSPClient,
+  onPasteRefused,
+  presentContextMenu,
   Workspace,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import {
@@ -115,6 +118,8 @@ interface EditorConfig {
   routePins?: DocumentRoutePin[];
   coarsePointer: boolean;
   appearance: ScriptAppearance;
+  onContextMenu?: ContextMenuPresenter;
+  onPasteRefused?: () => void;
   scrollToLineNumber?: number;
   getEditorState?: () => SerializableEditorState;
   setEditorState?: (value: SerializableEditorState) => void;
@@ -498,6 +503,8 @@ const createEditorView = (
         ),
         selectionClassManager(),
         touchAffordances(config.coarsePointer),
+        config.onContextMenu ? presentContextMenu(config.onContextMenu) : [],
+        config.onPasteRefused ? onPasteRefused(config.onPasteRefused) : [],
         EditorView.theme(EDITOR_THEME, { dark: true }),
       ],
     }),

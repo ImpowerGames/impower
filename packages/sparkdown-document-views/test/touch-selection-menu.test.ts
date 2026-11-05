@@ -4,7 +4,10 @@ import {
   contextMenu,
   hideContextMenu,
   isContextMenuOpen,
+  presentContextMenu,
   showContextMenu,
+  type ContextMenuEntry,
+  type ContextMenuModel,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { touchAffordances } from "../src/modules/script-editor/utils/extensions/touchAffordances";
@@ -16,10 +19,9 @@ const WINDOW_HEIGHT = 693;
 const KEYBOARD_OPEN_HEIGHT = 383;
 const MAX_SCROLL_TOP = 500;
 
-const BAR = { width: 324, height: 41 };
-const LIST = { width: 180, height: 190 };
-
 let view: EditorView | undefined;
+let presented: ContextMenuModel | null = null;
+let presentations: (ContextMenuModel | null)[] = [];
 let scroller = { left: 0, top: 104, right: 384, bottom: 254 };
 let scrollOffset = 0;
 let viewport: EventTarget & {
@@ -43,6 +45,8 @@ const rect = (left: number, top: number, width: number, height: number) =>
   }) as DOMRect;
 
 beforeEach(() => {
+  presented = null;
+  presentations = [];
   scroller = { left: 0, top: 104, right: 384, bottom: 254 };
   scrollOffset = 0;
   Object.defineProperty(window, "innerHeight", {
@@ -73,20 +77,6 @@ beforeEach(() => {
   });
   Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
   Range.prototype.getBoundingClientRect = () => new DOMRect();
-  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
-    function (this: HTMLElement) {
-      if (this.classList.contains("cm-context-menu")) {
-        const size = this.classList.contains("cm-vertical") ? LIST : BAR;
-        return rect(
-          parseFloat(this.style.left) || 0,
-          parseFloat(this.style.top) || 0,
-          size.width,
-          size.height,
-        );
-      }
-      return new DOMRect();
-    },
-  );
 });
 
 afterEach(() => {
@@ -103,7 +93,14 @@ function mount(doc: string, selection?: EditorSelection) {
     doc,
     selection,
     parent,
-    extensions: [contextMenu(), touchAffordances(true)],
+    extensions: [
+      contextMenu(),
+      touchAffordances(true),
+      presentContextMenu((menu) => {
+        presented = menu;
+        presentations.push(menu);
+      }),
+    ],
   });
   const v = view;
   let scrollTop = 0;
@@ -199,39 +196,30 @@ function swipe(v: EditorView, fromY: number, toY: number) {
   touch(v.scrollDOM, "touchend", { x, y: toY });
 }
 
-function menu() {
-  return document.querySelector<HTMLElement>(".cm-context-menu");
-}
+const entries = () =>
+  (presented?.items ?? []).filter(
+    (item): item is ContextMenuEntry => !("type" in item),
+  );
 
 function menuLabels() {
-  return [...(menu()?.querySelectorAll(".cm-menu-item") ?? [])].map(
-    (el) =>
-      el.textContent || (el.classList.contains("cm-menu-more") ? "⋮" : ""),
-  );
+  return entries().map((entry) => entry.label);
 }
 
 function menuItem(label: string) {
-  return [
-    ...(menu()?.querySelectorAll<HTMLElement>(".cm-menu-item") ?? []),
-  ].find(
-    (el) =>
-      (el.textContent || (el.classList.contains("cm-menu-more") ? "⋮" : "")) ===
-      label,
-  )!;
+  const entry = entries().find((item) => item.label === label);
+  if (!entry) {
+    throw new Error(`No "${label}" item in the presented menu`);
+  }
+  return { click: () => entry.run() };
 }
 
 function flushMeasure() {
   (view as unknown as { measure(): void }).measure();
 }
 
-function menuBox() {
-  flushMeasure();
-  const el = menu()!;
-  const left = parseFloat(el.style.left);
-  const top = parseFloat(el.style.top);
-  const size = el.classList.contains("cm-vertical") ? LIST : BAR;
-  return { left, top, right: left + size.width, bottom: top + size.height };
-}
+const TEXT_ITEMS = ["Cut", "Copy", "Paste", "Select all"];
+const NAME_ITEMS = ["Rename", "Find references", "Go to definition"];
+const CARET_ITEMS = ["Paste", "Select all"];
 
 function handleShown(kind: "start" | "end" | "cursor") {
   flushMeasure();
@@ -256,106 +244,7 @@ function selectWord(v: EditorView, lineNumber: number, word: string) {
   return { from, to: from + word.length };
 }
 
-describe("menu placement", () => {
-  it("sits above the selection, outside the editor, when the editor is too short to hold it", () => {
-    const v = mount(DOC);
-    selectWord(v, 1, "world");
-    const box = menuBox();
-    const selectionTop = v.coordsAtPos(v.state.selection.main.from)!.top;
-    expect(box.bottom).toBeLessThanOrEqual(selectionTop);
-    expect(box.top).toBeGreaterThanOrEqual(0);
-  });
-
-  it("goes below the selection, clear of the handles, when there is no room above it in the viewport", () => {
-    scroller = { left: 0, top: 10, right: 384, bottom: 254 };
-    const v = mount(DOC);
-    selectWord(v, 1, "world");
-    const box = menuBox();
-    const selectionBottom = v.coordsAtPos(v.state.selection.main.to)!.bottom;
-    expect(box.top).toBeGreaterThanOrEqual(selectionBottom + 20);
-  });
-
-  it("is centred over the selection", () => {
-    viewport.width = 800;
-    Object.defineProperty(document.documentElement, "clientWidth", {
-      value: 800,
-      configurable: true,
-    });
-    const v = mount("Line 1 hello world alpha beta gamma delta epsilon");
-    const { from, to } = selectWord(v, 1, "gamma");
-    const box = menuBox();
-    const centre = (v.coordsAtPos(from)!.left + v.coordsAtPos(to)!.left) / 2;
-    expect((box.left + box.right) / 2).toBeCloseTo(centre, 0);
-  });
-
-  it("sits beside a caret at a soft wrap, on the line where the caret is drawn", () => {
-    const v = mount(DOC, EditorSelection.single(30));
-    const layout = v.coordsAtPos.bind(v);
-    v.coordsAtPos = (pos: number, side = 1) => {
-      if (pos !== 30) return layout(pos, side);
-      const wrap = layout(pos, side)!;
-      return side < 0
-        ? wrap
-        : { ...wrap, top: wrap.bottom, bottom: wrap.bottom + LINE_HEIGHT };
-    };
-    showContextMenu(v, { pos: 30, end: 30 });
-    const caret = v.coordsAtPos(30, 1)!;
-    const box = menuBox();
-    expect(box.bottom).toBeLessThanOrEqual(caret.top);
-    expect(box.bottom).toBeGreaterThanOrEqual(caret.top - 16);
-  });
-
-  it("is pinned to the top of the viewport while the selection is scrolled out of view", () => {
-    const v = mount(DOC);
-    selectWord(v, 3, "world");
-    scrollOffset = 400;
-    const box = menuBox();
-    expect(box.top).toBeLessThan(scroller.top - BAR.height);
-    expect(box.top).toBeGreaterThanOrEqual(0);
-  });
-
-  it("opens the overflow list where the ⋮ button was", () => {
-    const v = mount(DOC);
-    selectWord(v, 3, "world");
-    const bar = menuBox();
-    menuItem("⋮").click();
-    expect(menuLabels()[0]).toBe("Back");
-    const list = menuBox();
-    expect(list.right).toBeCloseTo(bar.right, 0);
-    expect(list.top).toBeCloseTo(bar.top, 0);
-  });
-
-  it("comes back beside its selection from the overflow list after an edit the user did not make", () => {
-    viewport.width = 800;
-    Object.defineProperty(document.documentElement, "clientWidth", {
-      value: 800,
-      configurable: true,
-    });
-    const v = mount(DOC);
-    const { from } = selectWord(v, 3, "world");
-    v.dispatch({ changes: { from, insert: "x".repeat(20) } });
-    menuItem("⋮").click();
-    menuItem("Back").click();
-    const { from: movedFrom, to: movedTo } = v.state.selection.main;
-    const box = menuBox();
-    const centre =
-      (v.coordsAtPos(movedFrom)!.left + v.coordsAtPos(movedTo)!.left) / 2;
-    expect((box.left + box.right) / 2).toBeCloseTo(centre, 0);
-  });
-});
-
 describe("menu items", () => {
-  it("do not take focus when pressed", () => {
-    const v = mount(DOC);
-    selectWord(v, 3, "world");
-    const press = new MouseEvent("mousedown", {
-      bubbles: true,
-      cancelable: true,
-    });
-    menuItem("Copy").dispatchEvent(press);
-    expect(press.defaultPrevented).toBe(true);
-  });
-
   it("Copy leaves a caret, with its handle, at the end of the copied text", async () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, "clipboard", {
@@ -398,17 +287,39 @@ describe("menu items", () => {
     const v = mount(DOC);
     v.focus();
     selectWord(v, 3, "world");
-    menuItem("Select All").click();
+    menuItem("Select all").click();
     expect(v.state.selection.main.from).toBe(0);
     expect(v.state.selection.main.to).toBe(v.state.doc.length);
     expect(isContextMenuOpen(v)).toBe(true);
+    expect(presented).not.toBeNull();
+    expect(presentations.slice(-2)).toEqual([null, presented]);
     expect(handleShown("start")).toBe(true);
   });
 
   it("leave out Cut and Copy when nothing is selected", () => {
     const v = mount(DOC, EditorSelection.single(20));
     showContextMenu(v, { pos: 20, end: 20 });
-    expect(menuLabels()).toEqual(["Paste", "Select All", "⋮"]);
+    expect(menuLabels()).toEqual([...CARET_ITEMS, ...NAME_ITEMS]);
+  });
+
+  it("go to the host as a model, drawing nothing in the editor, and the host's dismissal closes the menu", () => {
+    const v = mount(DOC);
+    selectWord(v, 3, "world");
+    expect(v.dom.querySelector(".cm-context-menu")).toBeNull();
+    expect(document.querySelector(".cm-context-menu")).toBeNull();
+    expect(menuLabels()).toEqual([...TEXT_ITEMS, ...NAME_ITEMS]);
+    expect(presented!.items.filter((item) => "type" in item)).toHaveLength(1);
+    presented!.dismiss();
+    expect(isContextMenuOpen(v)).toBe(false);
+    expect(presented).toBeNull();
+  });
+
+  it("leave out the name's commands where the caret is not on a name", () => {
+    const v = mount(DOC);
+    const line = v.state.doc.line(4);
+    showContextMenu(v, { pos: line.from, end: line.from });
+    expect(menuLabels()).toEqual(CARET_ITEMS);
+    expect(presented!.items.some((item) => "type" in item)).toBe(false);
   });
 });
 
@@ -431,30 +342,14 @@ describe("closing the menu", () => {
     expect(isContextMenuOpen(v)).toBe(true);
   });
 
-  it("a change the user did not make keeps it beside its selection", () => {
-    const v = mount(DOC);
-    selectWord(v, 3, "world");
-    const before = menuBox();
-    v.dispatch({ changes: { from: 0, insert: "x".repeat(20) } });
-    const after = menuBox();
-    expect(after.top).toBeCloseTo(before.top, 0);
-  });
-
-  it("a change the user did not make at the selection's start keeps it beside the selection", () => {
-    viewport.width = 800;
-    Object.defineProperty(document.documentElement, "clientWidth", {
-      value: 800,
-      configurable: true,
-    });
+  it("a change the user did not make keeps its selection", () => {
     const v = mount(DOC);
     const { from } = selectWord(v, 3, "world");
     v.dispatch({ changes: { from, insert: "x".repeat(20) } });
     const { from: movedFrom, to: movedTo } = v.state.selection.main;
     expect(v.state.sliceDoc(movedFrom, movedTo)).toBe("world");
-    const box = menuBox();
-    const centre =
-      (v.coordsAtPos(movedFrom)!.left + v.coordsAtPos(movedTo)!.left) / 2;
-    expect((box.left + box.right) / 2).toBeCloseTo(centre, 0);
+    expect(isContextMenuOpen(v)).toBe(true);
+    expect(presented).not.toBeNull();
   });
 
   it("closing the keyboard keeps focus, the selection and the menu", () => {
@@ -480,7 +375,7 @@ describe("touch gestures", () => {
     expect(
       v.state.sliceDoc(v.state.selection.main.from, v.state.selection.main.to),
     ).toBe("world");
-    expect(menuLabels()).toEqual(["Cut", "Copy", "Paste", "Select All", "⋮"]);
+    expect(menuLabels()).toEqual([...TEXT_ITEMS, ...NAME_ITEMS]);
   });
 
   it("a long-press past the end of a line places the caret there and opens the insertion menu", () => {
@@ -490,7 +385,7 @@ describe("touch gestures", () => {
     longPress(v, { x: end.left + 100, y: (end.top + end.bottom) / 2 });
     expect(v.state.selection.main.empty).toBe(true);
     expect(v.state.selection.main.head).toBe(line.to);
-    expect(menuLabels()).toEqual(["Paste", "Select All", "⋮"]);
+    expect(menuLabels()).toEqual([...CARET_ITEMS, ...NAME_ITEMS]);
     expect(handleShown("cursor")).toBe(true);
   });
 
@@ -522,7 +417,7 @@ describe("touch gestures", () => {
     longPress(v, { x: end.right + 100, y: (end.top + end.bottom) / 2 });
     expect(v.state.selection.main.empty).toBe(true);
     expect(v.state.selection.main.head).toBe(v.state.doc.length);
-    expect(menuLabels()).toEqual(["Paste", "Select All", "⋮"]);
+    expect(menuLabels()).toEqual([...CARET_ITEMS, ...NAME_ITEMS]);
   });
 
   it("a long-press on a word, below its glyphs but inside its row, selects it", () => {
@@ -542,7 +437,7 @@ describe("touch gestures", () => {
     expect(
       v.state.sliceDoc(v.state.selection.main.from, v.state.selection.main.to),
     ).toBe("world");
-    expect(menuLabels()).toEqual(["Cut", "Copy", "Paste", "Select All", "⋮"]);
+    expect(menuLabels()).toEqual([...TEXT_ITEMS, ...NAME_ITEMS]);
   });
 
   it("a long-press below the text places the caret at its end", () => {
@@ -551,15 +446,14 @@ describe("touch gestures", () => {
     longPress(v, { x: line.left + 8, y: line.bottom + 3 * LINE_HEIGHT });
     expect(v.state.selection.main.empty).toBe(true);
     expect(v.state.selection.main.head).toBe(v.state.doc.length);
-    expect(menuLabels()).toEqual(["Paste", "Select All", "⋮"]);
+    expect(menuLabels()).toEqual([...CARET_ITEMS, ...NAME_ITEMS]);
   });
 
-  it("a press and hold on a handle or the menu keeps the editor's focus", async () => {
+  it("a press and hold on a handle keeps the editor's focus", async () => {
     const v = mount(DOC);
     v.focus();
     longPress(v, pointAt(v, 3, "world"));
     const targets = [
-      () => menuItem("Copy"),
       () => v.dom.querySelector(".cm-touch-selection-handle-end")!,
     ];
     for (const find of targets) {
@@ -597,7 +491,7 @@ describe("touch gestures", () => {
     const start = v.coordsAtPos(line.from)!;
     longPress(v, { x: start.left + 40, y: (start.top + start.bottom) / 2 });
     expect(v.state.selection.main.empty).toBe(true);
-    expect(menuLabels()).toEqual(["Paste", "Select All", "⋮"]);
+    expect(menuLabels()).toEqual(CARET_ITEMS);
     expect(handleShown("cursor")).toBe(true);
   });
 
@@ -644,7 +538,7 @@ describe("touch gestures", () => {
     const point = { x: 0, y: 0 };
     touch(handle, "touchstart", point);
     touch(handle, "touchend", point);
-    expect(menuLabels()).toEqual(["Paste", "Select All", "⋮"]);
+    expect(menuLabels()).toEqual([...CARET_ITEMS, ...NAME_ITEMS]);
     touch(handle, "touchstart", point);
     touch(handle, "touchend", point);
     expect(isContextMenuOpen(v)).toBe(false);

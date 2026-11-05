@@ -1,11 +1,18 @@
 import {
+  EditorState,
   Extension,
   Facet,
   StateEffect,
   StateField,
   Transaction,
 } from "@codemirror/state";
-import { EditorView, showTooltip, Tooltip, ViewPlugin } from "@codemirror/view";
+import {
+  EditorView,
+  showTooltip,
+  Tooltip,
+  ViewPlugin,
+  ViewUpdate,
+} from "@codemirror/view";
 import {
   ContextMenuItem,
   lspContextMenuItems,
@@ -16,136 +23,63 @@ import { coarsePointer } from "./pointer";
 
 const contextMenuTheme = EditorView.baseTheme({
   ".cm-tooltip.cm-context-menu": {
-    fontFamily: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto`,
+    boxSizing: "border-box",
+    width: "250px",
+    maxWidth: "calc(100vw - 24px)",
+    padding: "6px",
+    border: "1px solid var(--edge)",
     borderRadius: "var(--radius)",
+    backgroundColor: "var(--popup)",
+    color: "var(--ink)",
     boxShadow: "var(--float-shadow)",
-    zIndex: "1000",
-  },
-  ".cm-context-menu": {
-    display: "flex",
-    color: "var(--editor-ink)",
+    font: "400 13px / 1.4 var(--font-ui, inherit)",
     userSelect: "none",
     whiteSpace: "nowrap",
     pointerEvents: "auto",
-  },
-  ".cm-context-menu.cm-desktop": {
-    fontSize: "13px",
-    padding: "13px 0",
-  },
-  ".cm-context-menu.cm-mobile": {
-    fontSize: "14px",
-  },
-  ".cm-context-menu.cm-horizontal": {
-    alignItems: "center",
-    fontWeight: "500",
-    padding: "2px 6px",
-    borderRadius: "var(--radius)",
-  },
-  ".cm-context-menu.cm-vertical": {
-    flexDirection: "column",
-    alignItems: "stretch",
-    padding: "6px",
-    minWidth: "180px",
-    borderRadius: "var(--radius)",
+    zIndex: "1000",
+    transformOrigin: "top left",
   },
   ".cm-context-menu .cm-menu-item": {
     position: "relative",
-    cursor: "pointer",
     display: "flex",
     alignItems: "center",
-    borderRadius: "var(--control-radius)",
-  },
-  ".cm-context-menu.cm-vertical .cm-menu-item": {
     justifyContent: "space-between",
-  },
-  ".cm-context-menu.cm-desktop.cm-vertical .cm-menu-item": {
-    padding: "7px 26px",
-  },
-  ".cm-context-menu.cm-mobile.cm-horizontal .cm-menu-item": {
-    padding: "8px 14px",
-  },
-  ".cm-context-menu.cm-mobile.cm-vertical .cm-menu-item": {
-    padding: "6px 16px",
-  },
-  ".cm-context-menu.cm-horizontal .cm-menu-item": {
-    justifyContent: "center",
-  },
-  ".cm-context-menu.cm-vertical .cm-menu-back": {
-    justifyContent: "flex-start",
+    gap: "20px",
+    boxSizing: "border-box",
+    minHeight: "34px",
+    padding: "0 12px",
+    borderRadius: "var(--control-radius)",
+    cursor: "pointer",
   },
   ".cm-context-menu .cm-menu-shortcut": {
-    fontSize: "12px",
-    opacity: "0.5",
-    marginLeft: "20px",
-  },
-  ".cm-context-menu .cm-menu-back-icon": {
-    width: "18px",
-    height: "18px",
-    display: "inline-block",
-    backgroundColor: "var(--ink)",
-    maskRepeat: "no-repeat",
-    webkitMaskRepeat: "no-repeat",
-    maskPosition: "center",
-    webkitMaskPosition: "center",
-  },
-  ".cm-context-menu .cm-menu-more-icon": {
-    width: "18px",
-    height: "18px",
-    display: "inline-block",
-    backgroundColor: "var(--ink)",
-    maskRepeat: "no-repeat",
-    webkitMaskRepeat: "no-repeat",
-    maskPosition: "center",
-    webkitMaskPosition: "center",
+    font: "400 12px / 1 var(--font-ui, inherit)",
+    color: "var(--muted)",
   },
   ".cm-context-menu .cm-menu-item.cm-menu-disabled": {
     opacity: "0.4",
     cursor: "default",
   },
   ".cm-context-menu .cm-menu-separator": {
-    backgroundColor: "color-mix(in srgb, var(--ink) 20%, transparent)",
-    flexShrink: 0,
-  },
-  ".cm-context-menu.cm-vertical .cm-menu-separator": {
-    width: "100%",
     height: "1px",
-    margin: "4px 0",
-  },
-  ".cm-context-menu.cm-horizontal .cm-menu-separator": {
-    width: "1px",
-    height: "18px",
-    margin: "0 2px",
+    margin: "6px 0",
+    backgroundColor: "var(--edge)",
   },
   ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):active": {
-    color: "var(--ink)",
-  },
-  ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):active::after": {
-    content: "''",
-    position: "absolute",
-    inset: "0",
-    borderRadius: "inherit",
     backgroundColor: "var(--control-hover)",
-    boxShadow: "inset 0 0 0 100vmax var(--control-hover)",
   },
-  ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):active .cm-menu-item-shortcut":
-    {
-      color: "var(--ink)",
-    },
   "@media (hover: hover)": {
     ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):hover": {
-      color: "var(--ink)",
-    },
-    ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):hover::after": {
-      content: "''",
-      position: "absolute",
-      inset: "0",
-      borderRadius: "inherit",
       backgroundColor: "var(--control-hover)",
     },
-    ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):hover .cm-menu-item-shortcut":
-      {
-        color: "var(--ink)",
-      },
+  },
+  "@media (prefers-reduced-motion: no-preference)": {
+    ".cm-tooltip.cm-context-menu": {
+      animation: "cm-context-menu-in 150ms ease-out",
+    },
+  },
+  "@keyframes cm-context-menu-in": {
+    from: { opacity: "0", transform: "scale(0.97)" },
+    to: { opacity: "1", transform: "scale(1)" },
   },
 });
 
@@ -154,358 +88,207 @@ export interface ContextMenuSpec {
   y?: number;
   pos: number;
   end?: number;
-  page?: number;
   clip?: boolean;
-  origin?: MenuRect;
 }
 
-export interface MenuRect {
-  left: number;
-  top: number;
-  right: number;
-  bottom: number;
+export interface ContextMenuEntry {
+  label: string;
+  shortcut?: string;
+  disabled: boolean;
+  run: () => void;
 }
 
-const MENU_GAP_ABOVE = 8;
-const MENU_GAP_BELOW = 32;
-const MENU_VIEWPORT_MARGIN = 4;
+export type ContextMenuModelItem = ContextMenuEntry | { type: "separator" };
 
-function placeSelectionMenu(
-  selection: MenuRect | null,
-  menu: { width: number; height: number },
-  viewport: MenuRect,
-): { left: number; top: number } {
-  const minTop = viewport.top + MENU_VIEWPORT_MARGIN;
-  const maxBottom = viewport.bottom - MENU_VIEWPORT_MARGIN;
-  let top = minTop;
-  if (selection) {
-    const above = selection.top - MENU_GAP_ABOVE - menu.height;
-    const below = selection.bottom + MENU_GAP_BELOW;
-    if (above >= minTop) {
-      top = above;
-    } else if (below + menu.height <= maxBottom) {
-      top = below;
-    }
-  }
-  const centre = selection
-    ? (selection.left + selection.right) / 2
-    : (viewport.left + viewport.right) / 2;
-  return { left: clampMenuLeft(centre - menu.width / 2, menu, viewport), top };
+export interface ContextMenuModel {
+  items: ContextMenuModelItem[];
+  dismiss: () => void;
 }
 
-function placeOverflowMenu(
-  origin: MenuRect,
-  menu: { width: number; height: number },
-  viewport: MenuRect,
-): { left: number; top: number } {
-  const minTop = viewport.top + MENU_VIEWPORT_MARGIN;
-  const maxTop = viewport.bottom - MENU_VIEWPORT_MARGIN - menu.height;
-  return {
-    left: clampMenuLeft(origin.right - menu.width, menu, viewport),
-    top: Math.max(minTop, Math.min(origin.top, maxTop)),
-  };
+export type ContextMenuPresenter = (menu: ContextMenuModel | null) => void;
+
+const contextMenuPresenter = Facet.define<
+  ContextMenuPresenter,
+  ContextMenuPresenter | null
+>({
+  combine: (values) => values.at(-1) ?? null,
+});
+
+export function presentContextMenu(presenter: ContextMenuPresenter): Extension {
+  return contextMenuPresenter.of(presenter);
 }
 
-function clampMenuLeft(
-  left: number,
-  menu: { width: number },
-  viewport: MenuRect,
-) {
-  const min = viewport.left + MENU_VIEWPORT_MARGIN;
-  const max = viewport.right - MENU_VIEWPORT_MARGIN - menu.width;
-  return Math.max(min, Math.min(left, max));
-}
-
-function visualViewportRect(): MenuRect {
-  const vv = window.visualViewport;
-  if (!vv) {
-    return {
-      left: 0,
-      top: 0,
-      right: window.innerWidth,
-      bottom: window.innerHeight,
-    };
-  }
-  return {
-    left: vv.offsetLeft,
-    top: vv.offsetTop,
-    right: vv.offsetLeft + vv.width,
-    bottom: vv.offsetTop + vv.height,
-  };
-}
-
-function visibleSelectionRect(
-  view: EditorView,
-  from: number,
-  to: number,
-): MenuRect | null {
-  const scroller = view.scrollDOM.getBoundingClientRect();
-  const content = view.contentDOM.getBoundingClientRect();
-  let start: ReturnType<EditorView["coordsAtPos"]>;
-  let end: ReturnType<EditorView["coordsAtPos"]>;
-  if (from === to) {
-    const main = view.state.selection.main;
-    const side = main.empty && main.head === from ? main.assoc || 1 : 1;
-    start = end = view.coordsAtPos(from, side);
-  } else {
-    start = view.coordsAtPos(from, 1);
-    end = view.coordsAtPos(to, -1);
-  }
-  const top = start
-    ? start.top
-    : from < view.viewport.from
-      ? -Infinity
-      : Infinity;
-  const bottom = end
-    ? end.bottom
-    : to > view.viewport.to
-      ? Infinity
-      : -Infinity;
-  const visibleTop = Math.max(top, scroller.top);
-  const visibleBottom = Math.min(bottom, scroller.bottom);
-  if (visibleTop >= visibleBottom) {
-    return null;
-  }
-  if (start && end && Math.abs(start.top - end.top) < 1) {
-    return {
-      left: start.left,
-      top: visibleTop,
-      right: end.right,
-      bottom: visibleBottom,
-    };
-  }
-  return {
-    left: Math.max(content.left, scroller.left),
-    top: visibleTop,
-    right: scroller.right,
-    bottom: visibleBottom,
-  };
-}
-
-const openMenuRefreshers = new Set<() => void>();
+const hostsMenu = (state: EditorState) =>
+  state.facet(coarsePointer) && state.facet(contextMenuPresenter) != null;
 
 const openContextMenu = StateEffect.define<ContextMenuSpec>();
 const closeContextMenu = StateEffect.define<void>();
 
-const contextMenuState = StateField.define<Tooltip | null>({
+interface OpenMenu {
+  spec: ContextMenuSpec;
+  tooltip: Tooltip | null;
+}
+
+const contextMenuState = StateField.define<OpenMenu | null>({
   create() {
     return null;
   },
   update(value, tr) {
     if (value && tr.docChanged) {
-      const empty = value.end == null || value.end === value.pos;
+      const { spec } = value;
+      const empty = spec.end == null || spec.end === spec.pos;
       value = tr.annotation(Transaction.userEvent)
         ? null
-        : {
-            ...value,
-            pos: tr.changes.mapPos(value.pos, empty ? -1 : 1),
+        : menuFor(tr.state, {
+            ...spec,
+            pos: tr.changes.mapPos(spec.pos, empty ? -1 : 1),
             end:
-              value.end == null ? undefined : tr.changes.mapPos(value.end, -1),
-          };
+              spec.end == null ? undefined : tr.changes.mapPos(spec.end, -1),
+          });
     }
     for (const e of tr.effects) {
       if (e.is(openContextMenu)) {
-        value = createContextMenuTooltip(e.value);
+        value = menuFor(tr.state, e.value);
       } else if (e.is(closeContextMenu)) {
         value = null;
       }
     }
     return value;
   },
-  provide: (f) => showTooltip.from(f),
+  provide: (f) => showTooltip.from(f, (menu) => menu?.tooltip ?? null),
 });
 
+function menuFor(state: EditorState, spec: ContextMenuSpec): OpenMenu {
+  return {
+    spec,
+    tooltip: hostsMenu(state) ? null : createContextMenuTooltip(spec),
+  };
+}
+
+function shownItems(view: EditorView, pos: number): ContextMenuItem[] {
+  const { state } = view;
+  const coarse = state.facet(coarsePointer);
+  const empty = state.selection.main.empty;
+  const items = state.facet(contextMenuConfig).items ?? [];
+  const kept = items.filter(
+    (item) =>
+      !("label" in item) ||
+      ((!item.when || item.when(state, pos)) &&
+        !(coarse && empty && item.needsSelection)),
+  );
+  return kept.filter(
+    (item, index) =>
+      !("type" in item) ||
+      (index > 0 &&
+        index < kept.length - 1 &&
+        !("type" in kept[index - 1]!)),
+  );
+}
+
+function isDisabled(view: EditorView, item: ContextMenuItem) {
+  return (
+    "label" in item &&
+    ((item.needsSelection === true && view.state.selection.main.empty) ||
+      item.disabled?.() === true)
+  );
+}
+
+function runItem(view: EditorView, item: ContextMenuItem) {
+  if (!("label" in item) || isDisabled(view, item)) {
+    return;
+  }
+  view.dispatch({ effects: closeContextMenu.of() });
+  item.command(view);
+  if (view.state.facet(coarsePointer) && item.keepsMenuOpen) {
+    const selection = view.state.selection.main;
+    view.dispatch({
+      selection: view.state.selection,
+      userEvent: "select.touch",
+      effects: openContextMenu.of({ pos: selection.from, end: selection.to }),
+    });
+  }
+}
+
+function menuModel(view: EditorView, spec: ContextMenuSpec): ContextMenuModel {
+  return {
+    items: shownItems(view, spec.pos).map((item) =>
+      "label" in item
+        ? {
+            label: view.state.phrase(item.label!),
+            shortcut: item.shortcut,
+            disabled: isDisabled(view, item),
+            run: () => runItem(view, item),
+          }
+        : { type: "separator" },
+    ),
+    dismiss: () => hideContextMenu(view),
+  };
+}
+
+const openMenuRefreshers = new Set<() => void>();
+
 function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
-  const { x, y, pos, end, origin, clip = false, page = 0 } = spec;
-  const placesItself = (x === undefined || y === undefined) && !clip;
+  const { x, y, pos, end, clip = false } = spec;
   return {
     pos,
     end,
     clip,
     arrow: false,
-    strictSide: placesItself,
     create(view: EditorView) {
       const dom = document.createElement("div");
       dom.className = "cm-context-menu";
       dom.setAttribute("role", "menu");
       dom.addEventListener("mousedown", (e) => e.preventDefault());
 
-      const currentSpec = (): ContextMenuSpec => {
-        const current = view.state.field(contextMenuState, false);
-        return current ? { ...spec, pos: current.pos, end: current.end } : spec;
-      };
-
-      const config = view.state.facet(contextMenuConfig);
-      const items = config.items || [];
-      const moreItems = config.moreItems || [];
-
-      const isDesktop = !view.state.facet(coarsePointer);
-
-      const isVertical = isDesktop || page > 0;
-
-      dom.classList.toggle("cm-desktop", isDesktop);
-      dom.classList.toggle("cm-mobile", !isDesktop);
-      dom.classList.toggle("cm-vertical", isVertical);
-      dom.classList.toggle("cm-horizontal", !isVertical);
-
-      let displayItems: ContextMenuItem[] = [];
-      if (isDesktop) {
-        displayItems = [...items];
-        if (moreItems.length > 0) {
-          displayItems.push({ type: "separator" });
-          displayItems.push(...moreItems);
-        }
-      } else if (page === 0) {
-        const empty = view.state.selection.main.empty;
-        displayItems = items.filter(
-          (item) => !(empty && "needsSelection" in item && item.needsSelection),
-        );
-      } else {
-        displayItems = moreItems;
-      }
-
-      const hasPrev = !isDesktop && page > 0;
-      const hasMore = !isDesktop && page === 0 && moreItems.length > 0;
-
-      if (hasPrev) {
-        const backBtn = document.createElement("div");
-        backBtn.className = "cm-menu-item cm-menu-back";
-        backBtn.setAttribute("role", "menuitem");
-        const icon = document.createElement("span");
-        icon.className = "cm-menu-back-icon";
-        backBtn.appendChild(icon);
-        const label = document.createElement("span");
-        label.style.marginLeft = "8px";
-        label.textContent = "Back";
-        backBtn.appendChild(label);
-
-        backBtn.onclick = (e) => {
-          e.stopPropagation();
-          view.dispatch({
-            effects: [
-              closeContextMenu.of(),
-              openContextMenu.of({
-                ...currentSpec(),
-                page: page - 1,
-                origin: undefined,
-              }),
-            ],
-          });
-        };
-        dom.appendChild(backBtn);
-        const sep = document.createElement("div");
-        sep.className = "cm-menu-separator";
-        dom.appendChild(sep);
-      }
-
+      const coarse = view.state.facet(coarsePointer);
       const refreshers: (() => void)[] = [];
       const refresh = () => refreshers.forEach((f) => f());
       openMenuRefreshers.add(refresh);
-      displayItems.forEach((item) => {
-        if ("label" in item) {
-          const itemEl = document.createElement("div");
-          itemEl.className = "cm-menu-item cm-menu-option";
-          itemEl.setAttribute("role", "menuitem");
 
-          const labelSpan = document.createElement("span");
-          labelSpan.textContent = view.state.phrase(item.label!);
-          itemEl.appendChild(labelSpan);
-
-          if (isDesktop && item.shortcut) {
-            const shortcutSpan = document.createElement("span");
-            shortcutSpan.className = "cm-menu-shortcut";
-            shortcutSpan.textContent = item.shortcut;
-            itemEl.appendChild(shortcutSpan);
-          }
-
-          if (item.disabled) {
-            const isDisabled = item.disabled;
-            const showDisabled = () =>
-              itemEl.classList.toggle("cm-menu-disabled", isDisabled());
-            showDisabled();
-            refreshers.push(showDisabled);
-          }
-
-          itemEl.onclick = (e) => {
-            e.stopPropagation();
-            if (item.disabled?.()) {
-              return;
-            }
-            view.dispatch({ effects: closeContextMenu.of() });
-            item.command(view);
-            if (!isDesktop && item.keepsMenuOpen) {
-              const selection = view.state.selection.main;
-              view.dispatch({
-                selection: view.state.selection,
-                userEvent: "select.touch",
-                effects: openContextMenu.of({
-                  pos: selection.from,
-                  end: selection.to,
-                }),
-              });
-            }
-          };
-          dom.appendChild(itemEl);
-        } else if ("type" in item && item.type === "separator") {
+      shownItems(view, pos).forEach((item) => {
+        if (!("label" in item)) {
           const sep = document.createElement("div");
           sep.className = "cm-menu-separator";
+          sep.setAttribute("role", "separator");
           dom.appendChild(sep);
+          return;
         }
-      });
-
-      if (hasMore) {
-        const sep = document.createElement("div");
-        sep.className = "cm-menu-separator";
-        dom.appendChild(sep);
-
-        const moreBtn = document.createElement("div");
-        moreBtn.className = "cm-menu-item cm-menu-more";
-        moreBtn.setAttribute("role", "menuitem");
-        const icon = document.createElement("span");
-        icon.className = "cm-menu-more-icon";
-        moreBtn.appendChild(icon);
-        moreBtn.onclick = (e) => {
-          e.stopPropagation();
-          const { left, top, right, bottom } = dom.getBoundingClientRect();
-          view.dispatch({
-            effects: [
-              closeContextMenu.of(),
-              openContextMenu.of({
-                ...currentSpec(),
-                page: page + 1,
-                origin: { left, top, right, bottom },
-              }),
-            ],
-          });
+        const itemEl = document.createElement("div");
+        itemEl.className = "cm-menu-item cm-menu-option";
+        itemEl.setAttribute("role", "menuitem");
+        const labelSpan = document.createElement("span");
+        labelSpan.textContent = view.state.phrase(item.label!);
+        itemEl.appendChild(labelSpan);
+        if (!coarse && item.shortcut) {
+          const shortcutSpan = document.createElement("span");
+          shortcutSpan.className = "cm-menu-shortcut";
+          shortcutSpan.textContent = item.shortcut;
+          itemEl.appendChild(shortcutSpan);
+        }
+        const showDisabled = () => {
+          const disabled = isDisabled(view, item);
+          itemEl.classList.toggle("cm-menu-disabled", disabled);
+          itemEl.setAttribute("aria-disabled", String(disabled));
         };
-        dom.appendChild(moreBtn);
-      }
+        showDisabled();
+        refreshers.push(showDisabled);
+        itemEl.onclick = (e) => {
+          e.stopPropagation();
+          runItem(view, item);
+        };
+        dom.appendChild(itemEl);
+      });
 
       return {
         dom,
         overlap: true,
-        resize: !placesItself,
         destroy() {
           openMenuRefreshers.delete(refresh);
         },
         getCoords:
           x !== undefined && y !== undefined
             ? () => ({ left: x, right: x, top: y, bottom: y })
-            : clip
-              ? undefined
-              : (from: number) => {
-                  const to = view.state.field(contextMenuState, false)?.end;
-                  const { width, height } = dom.getBoundingClientRect();
-                  const viewport = visualViewportRect();
-                  const { left, top } = origin
-                    ? placeOverflowMenu(origin, { width, height }, viewport)
-                    : placeSelectionMenu(
-                        visibleSelectionRect(view, from, to ?? from),
-                        { width, height },
-                        viewport,
-                      );
-                  return { left, right: left, top, bottom: top };
-                },
+            : undefined,
       };
     },
   };
@@ -539,6 +322,13 @@ const contextMenuHandlers = EditorView.domEventHandlers({
       });
     }
 
+    return true;
+  },
+  keydown(event, view) {
+    if (event.key !== "Escape" || !isContextMenuOpen(view)) {
+      return false;
+    }
+    hideContextMenu(view);
     return true;
   },
   copy: recordNativeCopy,
@@ -592,10 +382,16 @@ const contextMenuClosePlugin = ViewPlugin.fromClass(
       this.handleEvent = this.handleEvent.bind(this);
       window.addEventListener("click", this.handleEvent, true);
       window.addEventListener("mousedown", this.handleEvent, true);
+      window.addEventListener("wheel", this.handleEvent, {
+        capture: true,
+        passive: true,
+      });
+      window.addEventListener("blur", this.handleEvent);
     }
 
     handleEvent(e: Event) {
-      if (!this.view.state.field(contextMenuState)) return;
+      const open = this.view.state.field(contextMenuState);
+      if (!open?.tooltip) return;
       const path = e.composedPath();
       if (
         path.some(
@@ -610,6 +406,36 @@ const contextMenuClosePlugin = ViewPlugin.fromClass(
     destroy() {
       window.removeEventListener("click", this.handleEvent, true);
       window.removeEventListener("mousedown", this.handleEvent, true);
+      window.removeEventListener("wheel", this.handleEvent, { capture: true });
+      window.removeEventListener("blur", this.handleEvent);
+    }
+  },
+);
+
+const contextMenuHost = ViewPlugin.fromClass(
+  class {
+    hosted = false;
+
+    constructor(public view: EditorView) {}
+
+    update(update: ViewUpdate) {
+      const before = update.startState.field(contextMenuState, false);
+      const after = update.state.field(contextMenuState, false);
+      if (before === after) return;
+      const present = update.state.facet(contextMenuPresenter);
+      if (after && !after.tooltip && present) {
+        this.hosted = true;
+        present(menuModel(this.view, after.spec));
+      } else if (this.hosted) {
+        this.hosted = false;
+        (update.startState.facet(contextMenuPresenter) ?? present)?.(null);
+      }
+    }
+
+    destroy() {
+      if (this.hosted) {
+        this.view.state.facet(contextMenuPresenter)?.(null);
+      }
     }
   },
 );
@@ -619,6 +445,7 @@ export function showContextMenu(view: EditorView, spec: ContextMenuSpec) {
 }
 
 export function hideContextMenu(view: EditorView) {
+  if (!view.state.field(contextMenuState, false)) return;
   view.dispatch({ effects: closeContextMenu.of() });
 }
 
@@ -627,25 +454,26 @@ export function isContextMenuOpen(view: EditorView) {
 }
 
 export function getOpenContextMenu(view: EditorView) {
-  return view.state.field(contextMenuState, false);
+  return view.state.field(contextMenuState, false)?.tooltip ?? null;
 }
 
 export interface ContextMenuConfig {
   items?: ContextMenuItem[];
-  moreItems?: ContextMenuItem[];
 }
 
 const contextMenuConfig = Facet.define<ContextMenuConfig, ContextMenuConfig>({
   combine: (values) => ({
     items: values.flatMap((v) => v?.items || []),
-    moreItems: values.flatMap((v) => v?.moreItems || []),
   }),
 });
 
 export function contextMenu(
   config: ContextMenuConfig = {
-    items: [...textContextMenuItems],
-    moreItems: [...lspContextMenuItems],
+    items: [
+      ...textContextMenuItems,
+      { type: "separator" },
+      ...lspContextMenuItems,
+    ],
   },
 ): Extension {
   return [
@@ -653,7 +481,9 @@ export function contextMenu(
     contextMenuState,
     contextMenuHandlers,
     contextMenuClosePlugin,
+    contextMenuHost,
     defaultContextMenuBlocker,
     contextMenuTheme,
   ];
 }
+
