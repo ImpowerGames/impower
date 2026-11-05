@@ -1,5 +1,3 @@
-@import "../../packages/impower-ui/src/theme.css";
-
 :root {
   --swp-background-color: var(--panel);
   color: #ffffffde;

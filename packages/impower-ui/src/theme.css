@@ -28,4 +28,6 @@
   --tab-ink: rgb(242 242 242);
   --tab-muted: hsl(211 26% 48%);
   --placeholder: hsl(210.8 44.9% 34.9%);
+  --primary: oklch(74.6% 0.16 232.661);
+  --focus-ring: #0c4a6e;
 }

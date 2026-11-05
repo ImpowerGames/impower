@@ -21,6 +21,8 @@ const COMPONENT_VARIABLES = [
   "--tab-ink",
   "--tab-muted",
   "--placeholder",
+  "--primary",
+  "--focus-ring",
 ];
 
 const declarations = (block: string) =>

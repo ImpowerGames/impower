@@ -20,19 +20,6 @@
 
   --color-background: rgb(0 0 0);
 
-  --color-primary-50: var(--color-sky-50);
-  --color-primary-100: var(--color-sky-100);
-  --color-primary-200: var(--color-sky-200);
-  --color-primary-300: var(--color-sky-300);
-  --color-primary-400: var(--color-sky-400);
-  --color-primary-500: var(--color-sky-500);
-  --color-primary-600: var(--color-sky-600);
-  --color-primary-700: var(--color-sky-700);
-  --color-primary-800: var(--color-sky-800);
-  --color-primary-900: var(--color-sky-900);
-  --color-primary-950: var(--color-sky-950);
-  --color-primary: var(--color-sky-400);
-
   --color-success-50: var(--color-green-50);
   --color-success-100: var(--color-green-100);
   --color-success-200: var(--color-green-200);
@@ -99,6 +86,8 @@
   --color-tab-ink: var(--tab-ink);
   --color-tab-muted: var(--tab-muted);
   --color-placeholder: var(--placeholder);
+  --color-primary: var(--primary);
+  --color-focus-ring: var(--focus-ring);
 
   --color-foreground: var(--ink);
   --color-surface-border: var(--edge);

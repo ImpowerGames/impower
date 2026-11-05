@@ -24,7 +24,7 @@ export const buttonVariants = cva(
     "inline-flex items-center justify-center gap-2 whitespace-nowrap [&_svg]:shrink-0",
     "rounded-md text-sm font-medium select-none cursor-pointer",
     "transition-[color,background-color,border-color,box-shadow] duration-100",
-    "outline-none focus-visible:[outline:3px_solid_#0c4a6e] focus-visible:[outline-offset:-3px]",
+    "outline-none focus-visible:[outline:3px_solid_var(--focus-ring)] focus-visible:[outline-offset:-3px]",
     "disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed",
   ],
   {

@@ -397,7 +397,7 @@ export default function AssetInspectorPanel({
                       href={url}
                       target="_blank"
                       rel="noreferrer noopener"
-                      class="min-w-0 flex-1 truncate text-sm text-sky-400 hover:underline"
+                      class="min-w-0 flex-1 truncate text-sm text-primary hover:underline"
                     >
                       {url}
                     </a>
