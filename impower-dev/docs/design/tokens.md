@@ -441,7 +441,7 @@ nearest step. Named spacing variables:
 | `--folio-rail-gutter` | 14px | 10px on the 190px rail; 5px on the icon rail; phones have no rail | `folio-hierarchy.css:15`, `:745`, `:772`; measured |
 | `--folio-gutter` (script's left gutter) | 56px | 36px | `folio-editor.css:6`, `:29`; measured |
 | `--folio-margin-right` (script's right padding, where problem marks sit) | 30px | 20px | `folio-editor.css:54`, `:65`; measured |
-| `--preview-inline-padding` | 10px | 10px; 16px in the fullscreen player | `folio-playback.css:3`, `:1045`, `:1191` |
+| `--preview-inline-padding` | 10px docked; 16px in the fullscreen player | 10px, docked and fullscreen | `folio-playback.css:3`, `:1044-1045`, `:1189-1191` (docked; fullscreen; fullscreen at 1100px and below) |
 | `--scripts-gutter` | 18px (the page always sits beside the preview) | 16px | `folio-scripts.css:129`, `:149`; the 30px base at `folio-scripts.css:2` applies at no width; measured |
 
 ## Shape

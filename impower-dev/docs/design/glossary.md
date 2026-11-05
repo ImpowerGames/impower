@@ -246,6 +246,8 @@ The menu opens in place of the keyboard on phones and above the bar on desktop. 
 | `Enter words to find.` | status | folio-tools.js:128 |  |
 | `Enter words to find first.` | status | folio-tools.js:151, folio-tools.js:160 |  |
 | `Defined here` | tag on the declaring line in a list of uses (references) | folio-tools.js:37 |  |
+| `, where it is defined` | appended to the declaring line's aria-label (`Line ` + number + `: ` + the line's text) | folio-tools.js:37 |  |
+| `No script uses ` | empty references list: this text + the name (or `it`) + ` yet.` | folio-tools.js:30 |  |
 
 ### Rename view
 
@@ -346,6 +348,8 @@ Rename errors raised while renaming a name in the script:
 | --- | --- | --- | --- |
 | `Use letters, numbers and underscores, starting with a letter.` | error | folio-language.js:433 |  |
 | `That is already its name.` | error | folio-language.js:434 |  |
+| `There is already a ` | error when the new name is taken: this text, the kind (`defined name` for a definition, otherwise the symbol's kind such as `scene`), ` called `, the existing name and `.` | folio-language.js:436 |  |
+| ` called ` | piece of that error | folio-language.js:436 |  |
 
 ### Hover cards
 
@@ -438,6 +442,9 @@ The Add menu is a panel: a list of nine blocks, and for Backdrop, Portrait, Musi
 | `What happens next?` | placeholder question of a new choice menu | folio-insert.js:286 |  |
 | `First option` | placeholder option | folio-insert.js:109 |  |
 | `Second option` | placeholder option | folio-insert.js:109 |  |
+| `The first path begins here.` | placeholder line under the first option | folio-insert.js:109 |  |
+| `The second path begins here.` | placeholder line under the second option | folio-insert.js:109 |  |
+| `backdrop_name` | placeholder identifier in a new Backdrop line | folio-insert.js:267 |  |
 | `What do they say?` | placeholder dialogue line | folio-insert.js:288 |  |
 | `sound_name` | placeholder identifier in a new Sound line | folio-insert.js:292 |  |
 | `music_name` | placeholder identifier in a new Music line | folio-insert.js:293 |  |
@@ -1218,6 +1225,23 @@ Each row shows its keys as a chip. Pressing the chip records the next keys.
 | `. Backspace takes the shortcut away; Esc keeps it.` | chip aria-label while recording, end | folio-shortcuts.js:239 |  |
 | ` has no shortcut now.` | status | folio-shortcuts.js:266, folio-shortcuts.js:299 |  |
 | `Hold Ctrl or Alt with the key, or use a function key.` | status | folio-shortcuts.js:272 |  |
+| `. It was ` | status when the keys belonged to another action: the row name, `: `, the keys, this text, the other action's name, then the text below | folio-shortcuts.js:283 |  |
+| `'s, which has no shortcut now.` | end of that status | folio-shortcuts.js:283 |  |
+
+The Keyboard shortcuts sheet under Writing tools lists the rows above with the keys each answers to now, plus these fixed rows (folio-shortcuts.js:312-327):
+
+| String | Role | Source | Note |
+| --- | --- | --- | --- |
+| `Indent` | sheet row | folio-shortcuts.js:315 | keys `Tab` |
+| `Tab` | keys of Indent | folio-shortcuts.js:315 |  |
+| `Dedent` | sheet row | folio-shortcuts.js:316 | keys `Shift Tab` |
+| `Shift Tab` | keys of Dedent | folio-shortcuts.js:316 |  |
+| ` click` | appended to Go to definition's keys after `⌘` or `Ctrl` | folio-shortcuts.js:318 |  |
+| `Fold the block` | sheet row (the Settings row says `Fold a block`) | folio-shortcuts.js:321 |  |
+| `Next or previous match` | sheet row | folio-shortcuts.js:325 |  |
+| `Enter · Shift Enter, in Search` | keys of that row | folio-shortcuts.js:325 |  |
+| `Leave the editor` | sheet row | folio-shortcuts.js:326 | keys `Esc` |
+| `Esc` | keys of Leave the editor | folio-shortcuts.js:326 |  |
 
 ### Preview
 
@@ -1377,6 +1401,40 @@ These controls and notes belong to the design study, not to the product.
 | `What this prototype saves and simulates` | disclosure summary | app.js:2337 |  |
 | `Project settings (Add menu folders and Screenplay) are saved with this draft, so the empty project starts with the usual ones. Themes, syntax highlighting, writing and thumbnail preferences, the preview’s screenplay page, pane sizes and the preview aspect ratio are saved in this browser. Original uses the 17 colors measured in the live engine sample; Softened reduces their intensity without merging distinctions. Midnight and Dusk both use Original, with Dusk slightly reducing the navy backgrounds’ saturation. Recognition uses a prototype highlighter, not the engine grammar; the full syntax showcase is read-only. The Screenplay preview shows the title page, bold headings, scene numbers and printed names; paper size, page breaks and bookmarks apply only to a PDF, which this prototype does not make. Full-project import, backup and sync are not active in this prototype, nor are Close angle brackets, Convert Ink syntax when formatting, the two follow-the-cursor switches and File types, which are saved here; File types are written on export. The phone keyboard is a layout simulation. All pages and assets remain on this machine.` | disclosure body | app.js:2337 | design-study note, not product copy |
 | `This empty-project study has its own saved draft. Your demo project is kept separately.` | caption, empty project only | app.js:2334 | design-study note |
+| `Your demo draft could not be saved.` | caption when saving fails, in place of `Draft saved in this browser.` | app.js:2335 | design-study note |
+
+## Accessible values, announcements and messages
+
+Text read out by assistive technology or shown as a status or error, built in scripts rather than markup.
+
+| String | Role | Source | Note |
+| --- | --- | --- | --- |
+| `Writing ` | live-region announcement on opening Story: this text + the open script's name | app.js:3674 |  |
+| `Choice added to the scene` | live-region announcement on the choice route | app.js:3677 |  |
+| `Script ` | aria-valuetext of the pane divider: this text + the script's percentage + `%, preview ` + the preview's + `%` | folio-split.js:18 |  |
+| `%, preview ` | piece of that value | folio-split.js:18 |  |
+| `Viewing mode: ` | aria-label of the viewing-mode button: this text + the mode's name | folio-playback.js:767 |  |
+| `Game ` | aria-valuetext of the divider above the Problems panel: this text + pixels + ` pixels, panel ` + pixels + ` pixels`, then `, collapsed` when closed | folio-console.js:255 |  |
+| ` pixels, panel ` | piece of that value | folio-console.js:255 |  |
+| ` pixels` | piece of that value | folio-console.js:255 |  |
+| `, collapsed` | piece of that value | folio-console.js:255 |  |
+| ` problems on line ` | aria-label of a line's problem popover with several problems: the count + this text + the line number | folio-problems.js:62 |  |
+| `, line ` | aria-label of a single problem's popover: `Error`, `Warning` or `Note`, `: `, its title, this text, the line number | folio-problems.js:62 |  |
+| `Error` | severity name in that label | folio-problems.js:49 | also `Warning`, `Note` |
+| `, a portrait` | aria-label of the Settings sample's portrait hover card: the reference + this text | folio-themes.js:310 |  |
+| `Zoom 100%` | inspector zoom status at actual size | folio-assets.js:847 |  |
+| `Zoom ` | inspector zoom status when enlarged: this text + the percentage + `%, fit to frame` | folio-assets.js:847 |  |
+| `%, fit to frame` | piece of that status | folio-assets.js:847 |  |
+| ` is larger than 1.5 MB, which is the prototype's limit for files kept in the browser.` | upload error: the file's name + this text | folio-assets.js:2144 | prototype limit |
+| `Choose a ` | Replace error when the new file is another type: this text + the tab's name in lower case (for example `images`) + ` file to replace this one.` | folio-library.js:1215 |  |
+| ` file to replace this one.` | piece of that error | folio-library.js:1215 |  |
+| ` needs a group and an option, like face.happy.` | variants problem: the quoted part name + this text | folio-library.js:133 |  |
+| `Two options are marked default in the ` | variants problem: this text + the group + ` group: ` + the options | folio-library.js:251 |  |
+| ` group: ` | piece of that problem | folio-library.js:251 |  |
+| `The ` | variants problem: this text + the group + the sentence below | folio-library.js:255 |  |
+| ` group has no default, so nothing from it shows until the script chooses.` | piece of that problem | folio-library.js:255 |  |
+| `Another file is also named ` | file problem: this text + the name + the sentence below | folio-library.js:976 |  |
+| `. Rename one so the script can tell them apart.` | piece of that problem | folio-library.js:976 |  |
 
 ## Toasts
 
@@ -1674,3 +1732,4 @@ Live markup wins over the notes. Where the live markup itself uses two wordings,
 - Residual old word: the Scripts file type description reads `Story and logic written in sparkdown.` (folio-settings.js:299), the only place the prototype uses the word logic for the story.
 - Two names for one action: the writing tools row and the right-click menu say `Go to definition` (app.js:1684); the caret context button says `Go to ` + the name (app.js:1609).
 - Export a screenplay: Feature #977 describes the card as live (PDF and HTML, with the settings it will use), but the prototype tags it `Coming soon` like the other three cards (app.js:2215) while also showing the settings summary and `Screenplay settings` (app.js:2216). Taken: the card's title, description, summary and link as quoted; whether it carries the tag is the Share Feature's decision, since the export works today.
+- Replace error article: the Replace error writes `Choose a ` before the tab's name in lower case (folio-library.js:1215), so it reads "Choose a images file to replace this one." and "Choose a audio file…". Taken: the quoted pieces as the prototype has them; the article is the Assets Feature's to correct.
