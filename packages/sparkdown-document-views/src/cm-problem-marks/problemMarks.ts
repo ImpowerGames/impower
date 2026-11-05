@@ -1,5 +1,6 @@
 import { type Diagnostic, setDiagnosticsEffect } from "@codemirror/lint";
 import {
+  ChangeDesc,
   EditorState,
   Range,
   RangeSet,
@@ -53,6 +54,7 @@ const gutterClasses: Record<ProblemSeverity, ProblemGutterClass> = {
 
 interface Problem {
   from: number;
+  to: number;
   severity: ProblemSeverity;
 }
 
@@ -100,9 +102,22 @@ const buildProblemLines = (
 };
 
 const toProblems = (diagnostics: readonly Diagnostic[]): Problem[] =>
-  diagnostics.flatMap(({ from, severity }) =>
-    isProblemSeverity(severity) ? [{ from, severity }] : [],
+  diagnostics.flatMap(({ from, to, severity }) =>
+    isProblemSeverity(severity) ? [{ from, to, severity }] : [],
   );
+
+const mapProblems = (
+  problems: readonly Problem[],
+  changes: ChangeDesc,
+): Problem[] =>
+  problems.flatMap(({ from, to, severity }) => {
+    const mappedFrom = changes.mapPos(from, 1);
+    const mappedTo = changes.mapPos(to, -1);
+    if (to > from && mappedTo <= mappedFrom) {
+      return [];
+    }
+    return [{ from: mappedFrom, to: Math.max(mappedFrom, mappedTo), severity }];
+  });
 
 const problemLinesField = StateField.define<ProblemLines>({
   create() {
@@ -115,13 +130,7 @@ const problemLinesField = StateField.define<ProblemLines>({
       }
     }
     if (tr.docChanged && value.problems.length > 0) {
-      return buildProblemLines(
-        tr.state,
-        value.problems.map(({ from, severity }) => ({
-          from: tr.changes.mapPos(from, 1),
-          severity,
-        })),
-      );
+      return buildProblemLines(tr.state, mapProblems(value.problems, tr.changes));
     }
     return value;
   },

@@ -434,6 +434,36 @@ describe("problem marks after an edit", () => {
   });
 });
 
+describe("problem marks after a deletion", () => {
+  it("leave the surviving text when the diagnosed text is deleted", () => {
+    mount({ ...ALL_OFF_APPEARANCE, lineNumbers: true }, "good\nbad\ngood");
+    view!.dispatch(
+      setDiagnostics(view!.state, [
+        { from: 5, to: 8, severity: "error", message: "e" },
+      ]),
+    );
+    view!.dispatch({ changes: { from: 5, to: 9 } });
+    expect(view!.state.doc.toString()).toBe("good\ngood");
+    expect(view!.dom.querySelectorAll(".cm-lintRange-error")).toHaveLength(0);
+    expect(view!.dom.querySelectorAll(".cm-problem-line")).toHaveLength(0);
+    expect(
+      view!.dom.querySelectorAll(".cm-lineNumbers .cm-problem-gutter-error"),
+    ).toHaveLength(0);
+  });
+
+  it("stay on a problem whose text is only partly deleted", () => {
+    mount(ALL_OFF_APPEARANCE, "good\nbad\ngood");
+    view!.dispatch(
+      setDiagnostics(view!.state, [
+        { from: 5, to: 8, severity: "warning", message: "w" },
+      ]),
+    );
+    view!.dispatch({ changes: { from: 5, to: 6 } });
+    const lines = view!.dom.querySelectorAll(".cm-line");
+    expect(lines[1]!.classList.contains("cm-problem-line-warning")).toBe(true);
+  });
+});
+
 describe("the current block's guide", () => {
   const lit = () =>
     [...view!.dom.querySelectorAll<HTMLElement>(".cm-line")].map((el) =>

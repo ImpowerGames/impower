@@ -325,18 +325,11 @@ const EDITOR_THEME: {
     lineHeight: "calc(var(--script-leading, 1.5) / 0.72)",
     opacity: "0",
     transform: "translateX(-12px)",
+    transition: "opacity .18s ease, transform .18s ease",
   },
   "&.cm-line-numbers .cm-lineNumbers .cm-gutterElement": {
     opacity: "0.65",
     transform: "none",
-  },
-  "@media (prefers-reduced-motion: no-preference)": {
-    "& .cm-lineNumbers .cm-gutterElement": {
-      transition: "opacity .18s ease, transform .18s ease",
-    },
-    "& .cm-foldGutter .cm-fold-arrow": {
-      transition: "opacity .12s ease, transform .15s ease",
-    },
   },
   "& .cm-gutter-lint": {
     width: "1em",
@@ -352,6 +345,7 @@ const EDITOR_THEME: {
     color: "var(--muted)",
     opacity: "0",
     cursor: "pointer",
+    transition: "opacity .12s ease, transform .15s ease",
   },
   "& .cm-foldGutter:hover .cm-fold-arrow, & .cm-activeLineGutter .cm-fold-arrow, & .cm-foldGutter .cm-fold-arrow.cm-fold-closed":
     {
