@@ -4,7 +4,7 @@ import {
   DialogActions,
   DialogDescription,
   DialogTitle,
-  Pencil,
+  PencilIcon,
 } from "@impower/impower-ui/components";
 
 export type RenameReferencesDialogProps = {
@@ -40,7 +40,7 @@ export default function RenameReferencesDialog({
       onOpenChange={(next) => !next && onCancel()}
     >
       <div class="mb-3 flex flex-row items-center gap-2">
-        <Pencil class="size-5 text-foreground/70" />
+        <PencilIcon class="size-5 text-foreground/70" />
         <DialogTitle class="flex-1">Update references?</DialogTitle>
       </div>
       <DialogDescription class="mb-5">

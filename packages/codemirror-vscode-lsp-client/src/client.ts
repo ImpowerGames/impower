@@ -8,6 +8,7 @@ import {
 } from "@codemirror/state";
 import { showDialog } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
+import { LSPClientIcons, lspIconTheme } from "./icons";
 import { LSPPlugin, lspPlugin } from "./plugin";
 import { convertFromPosition, convertToChangeEvents } from "./pos";
 import { lspTheme } from "./theme";
@@ -165,6 +166,7 @@ export type LSPClientConfig = {
     [method: string]: RequestHandler;
   };
   extensions?: readonly (Extension | LSPClientExtension)[];
+  icons?: LSPClientIcons;
 };
 
 export type LSPClientExtension = {
@@ -237,6 +239,7 @@ export class LSPClient {
         else if ((ext as LSPClientExtension).editorExtension)
           this.extensions.push((ext as LSPClientExtension).editorExtension!);
       }
+    if (config.icons) this.extensions.push(lspIconTheme(config.icons));
   }
 
   get connected() {

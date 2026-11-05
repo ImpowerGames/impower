@@ -1,9 +1,9 @@
 import {
   Button,
-  PlayerPauseFill,
-  PlayerPlayFill,
-  PlayerSkipBackwardFill,
-  Repeat,
+  LoopIcon,
+  PauseFillIcon,
+  PreviousIcon,
+  ResumeIcon,
 } from "@impower/impower-ui/components";
 import { useEffect, useRef, useState } from "preact/hooks";
 
@@ -216,7 +216,7 @@ export default function AudioPreview({ src }: AudioPreviewProps) {
             size="icon"
             class="text-muted"
           >
-            <PlayerSkipBackwardFill class="size-4" />
+            <PreviousIcon class="size-4" />
           </Button>
           <Button
             variant="quiet"
@@ -225,9 +225,9 @@ export default function AudioPreview({ src }: AudioPreviewProps) {
             class="size-12 rounded-full p-0 text-ink"
           >
             {playing ? (
-              <PlayerPauseFill class="size-7" />
+              <PauseFillIcon class="size-7" />
             ) : (
-              <PlayerPlayFill class="size-7" />
+              <ResumeIcon class="size-7" />
             )}
           </Button>
           <Button
@@ -238,7 +238,7 @@ export default function AudioPreview({ src }: AudioPreviewProps) {
             size="icon"
             class={looping ? "text-accent" : "text-muted"}
           >
-            <Repeat class="size-4" />
+            <LoopIcon class="size-4" />
           </Button>
         </div>
         <span class="w-10 text-left text-xs tabular-nums text-muted">

@@ -1,5 +1,11 @@
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
-import { Check, Download, Edit, Plus, X } from "../icon/icons.generated";
+import {
+  CheckIcon,
+  CloseIcon,
+  DownloadIcon,
+  PencilIcon,
+  PlusIcon,
+} from "../icon/icons.generated";
 import Button, { type ButtonSize, type ButtonVariant } from "./Button";
 
 const VARIANTS: Record<ButtonVariant, string> = {
@@ -36,13 +42,13 @@ function Cell({
         aria-label={`${VARIANTS[variant]} ${SIZES[size]}`}
         data-gallery-control
       >
-        <Plus />
+        <PlusIcon />
       </Button>
     );
   }
   return (
     <Button variant={variant} size={size} disabled={disabled} data-gallery-control>
-      {size === "pill" ? <Edit /> : <Download />}
+      {size === "pill" ? <PencilIcon /> : <DownloadIcon />}
       {VARIANTS[variant]}
     </Button>
   );
@@ -88,10 +94,10 @@ function ButtonDemo() {
         <div class="flex flex-wrap items-center gap-2">
           <Button variant="quiet">Cancel</Button>
           <Button variant="primary">
-            <Check /> Save
+            <CheckIcon /> Save
           </Button>
           <Button variant="quiet" size="icon" aria-label="Close">
-            <X />
+            <CloseIcon />
           </Button>
         </div>
       </GalleryRow>

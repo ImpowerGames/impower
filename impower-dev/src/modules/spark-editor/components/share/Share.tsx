@@ -1,9 +1,9 @@
 import {
-  Binder,
-  Pacman,
   Router,
+  ScreenplayIcon,
   Tab,
   Tabs,
+  VisualIcon,
 } from "@impower/impower-ui/components";
 import { startTransition } from "preact/compat";
 import workspace from "../../workspace/WorkspaceStore";
@@ -36,10 +36,10 @@ export default function Share(_props: ShareProps) {
           indicator="underline"
           iconLayout="beside"
         >
-          <Tab value="game" icon={Pacman}>
+          <Tab value="game" icon={VisualIcon}>
             Game
           </Tab>
-          <Tab value="screenplay" icon={Binder}>
+          <Tab value="screenplay" icon={ScreenplayIcon}>
             Screenplay
           </Tab>
         </Tabs>

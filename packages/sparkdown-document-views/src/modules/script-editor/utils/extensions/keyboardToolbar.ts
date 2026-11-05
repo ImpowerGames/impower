@@ -16,18 +16,8 @@ import {
 } from "@codemirror/view";
 import { formatDocument } from "@impower/codemirror-vscode-lsp-client/src";
 import { ContextMenuItem } from "@impower/codemirror-vscode-lsp-client/src/context";
+import { iconMasks } from "@impower/impower-ui/icon-masks";
 
-const SEARCH_SVG_URL = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m21 21l-4.34-4.34"/><circle cx="11" cy="11" r="8"/></g></svg>')`;
-
-const UNDO_SVG_URL = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9a9 9 0 0 0-6 2.3L3 13"/></g></svg>')`;
-
-const REDO_SVG_URL = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9a9 9 0 0 1 6 2.3l3 2.7"/></g></svg>')`;
-
-const INDENT_SVG_URL = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right-to-line-icon lucide-arrow-right-to-line"><path d="M17 12H3"/><path d="m11 18 6-6-6-6"/><path d="M21 5v14"/></svg>')`;
-
-const DEDENT_SVG_URL = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left-from-line-icon lucide-arrow-left-from-line"><path d="m9 6-6 6 6 6"/><path d="M3 12h14"/><path d="M21 19V5"/></svg>')`;
-
-const FORMAT_SVG_URL = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-brush-cleaning-icon lucide-brush-cleaning"><path d="m16 22-1-4"/><path d="M19 14a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2h-3a1 1 0 0 1-1-1V4a2 2 0 0 0-4 0v5a1 1 0 0 1-1 1H6a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1"/><path d="M19 14H5l-1.973 6.767A1 1 0 0 0 4 22h16a1 1 0 0 0 .973-1.233z"/><path d="m8 22 1-4"/></svg>')`;
 
 const keyboardToolbarTheme = EditorView.theme({
   ".cm-keyboard-toolbar": {
@@ -79,6 +69,8 @@ const keyboardToolbarTheme = EditorView.theme({
     webkitMaskRepeat: "no-repeat",
     maskPosition: "center",
     webkitMaskPosition: "center",
+    maskSize: "20px 20px",
+    webkitMaskSize: "20px 20px",
   },
   ".cm-keyboard-toolbar .cm-toolbar-separator": {
     backgroundColor: "color-mix(in srgb, var(--ink) 20%, transparent)",
@@ -209,27 +201,27 @@ export function keyboardToolbar(
   config: LSPContextToolbarConfig = {
     items: [
       {
-        icon: SEARCH_SVG_URL,
+        icon: iconMasks["search"],
         command: openSearchPanel,
       },
       {
-        icon: UNDO_SVG_URL,
+        icon: iconMasks["undo"],
         command: undo,
       },
       {
-        icon: REDO_SVG_URL,
+        icon: iconMasks["redo"],
         command: redo,
       },
       {
-        icon: INDENT_SVG_URL,
+        icon: iconMasks["indent"],
         command: indentMore,
       },
       {
-        icon: DEDENT_SVG_URL,
+        icon: iconMasks["dedent"],
         command: indentLess,
       },
       {
-        icon: FORMAT_SVG_URL,
+        icon: iconMasks["format"],
         command: formatDocument,
       },
     ],

@@ -14,10 +14,6 @@ import {
 } from "./context";
 import { coarsePointer } from "./pointer";
 
-const DOTS_VERTICAL_SVG_URL = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>')`;
-
-const CHEVRON_LEFT_SVG_URL = `url('data:image/svg+xml;utf8,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="white"><path d="M9.14601 3.14623L4.64601 7.64623C4.45101 7.84123 4.45101 8.15823 4.64601 8.35323L9.14601 12.8532C9.34101 13.0482 9.65801 13.0482 9.85301 12.8532C10.048 12.6582 10.048 12.3412 9.85301 12.1462L5.70701 8.00023L9.85301 3.85423C10.048 3.65923 10.048 3.34223 9.85301 3.14723C9.65801 2.95223 9.34101 2.95223 9.14601 3.14723V3.14623Z"/></svg>')`;
-
 const contextMenuTheme = EditorView.baseTheme({
   ".cm-tooltip.cm-context-menu": {
     fontFamily: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto`,
@@ -87,8 +83,6 @@ const contextMenuTheme = EditorView.baseTheme({
     height: "18px",
     display: "inline-block",
     backgroundColor: "var(--ink)",
-    maskImage: CHEVRON_LEFT_SVG_URL,
-    webkitMaskImage: CHEVRON_LEFT_SVG_URL,
     maskRepeat: "no-repeat",
     webkitMaskRepeat: "no-repeat",
     maskPosition: "center",
@@ -99,8 +93,6 @@ const contextMenuTheme = EditorView.baseTheme({
     height: "18px",
     display: "inline-block",
     backgroundColor: "var(--ink)",
-    maskImage: DOTS_VERTICAL_SVG_URL,
-    webkitMaskImage: DOTS_VERTICAL_SVG_URL,
     maskRepeat: "no-repeat",
     webkitMaskRepeat: "no-repeat",
     maskPosition: "center",
