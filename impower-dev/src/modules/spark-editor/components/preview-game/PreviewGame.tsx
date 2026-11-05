@@ -39,7 +39,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
   const [playerSrc] = useState(() => playerUrl(PLAYER_SRC));
   const previewRef = useRef<HTMLDivElement | null>(null);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const iframeChannelRef = useRef<any>(null);
   const initializedRef = useRef(false);
   const initializingResolveRef = useRef<(() => void) | null>(null);
