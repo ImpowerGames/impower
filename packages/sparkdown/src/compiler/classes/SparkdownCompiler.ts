@@ -48,6 +48,7 @@ import { VariableAssignment as ParsedVariableAssignment } from "../../inkjs/comp
 import { Divert } from "../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { FlowBase } from "../../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
 import { FunctionCall } from "../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
+import { RunCall } from "../../inkjs/compiler/Parser/ParsedHierarchy/RunCall";
 import { Gather } from "../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { IncludedFile } from "../../inkjs/compiler/Parser/ParsedHierarchy/IncludedFile";
@@ -699,6 +700,7 @@ export class SparkdownCompiler {
     {
       disqualifies: boolean;
       declaredNames: string[];
+      runCalls: RunCall[];
     }
   >;
   protected _censusEntries?: string[];
@@ -1960,6 +1962,7 @@ export class SparkdownCompiler {
     ): {
       disqualifies: boolean;
       declaredNames: string[];
+      runCalls: RunCall[];
     } => {
       let cached = this._chunkReuseScan?.get(block);
       if (cached) {
@@ -1967,9 +1970,12 @@ export class SparkdownCompiler {
       }
       let disqualifies = false;
       const declaredNames: string[] = [];
+      const runCalls: RunCall[] = [];
       const scan = (nodes: ParsedObject[]) => {
         for (const n of nodes) {
-          if (n instanceof ConstantDeclaration) {
+          if (n instanceof RunCall) {
+            runCalls.push(n);
+          } else if (n instanceof ConstantDeclaration) {
             disqualifies = true;
             if (n.constantName) {
               declaredNames.push(`g:${n.constantName}`);
@@ -1996,7 +2002,7 @@ export class SparkdownCompiler {
       if (block?.content) {
         scan(block.content);
       }
-      cached = { disqualifies, declaredNames };
+      cached = { disqualifies, declaredNames, runCalls };
       (this._chunkReuseScan ??= new WeakMap()).set(block, cached);
       return cached;
     };
@@ -2005,9 +2011,12 @@ export class SparkdownCompiler {
       const rootDescriptors: string[] = [];
       for (const rec of chunkRecords) {
         const block = rec.block as any;
-        if (block.run) {
+        for (const run of [
+          ...(block.run ? [block.run] : []),
+          ...scanChunkForReuse(block).runCalls.map((call) => call.operand),
+        ]) {
           rootDescriptors.push(
-            `run:${block.run.quote ? JSON.stringify(block.run.path) : block.run.path}`,
+            `run:${run.quote ? JSON.stringify(run.path) : run.path}`,
           );
         }
         if (chunkFlowKind(block) === "external") {
@@ -2046,6 +2055,9 @@ export class SparkdownCompiler {
       (this._lastRootBlocksByUri ??= new Map()).set(uri, rootDescriptors);
     }
 
+    const holdsRun = (block: any): boolean =>
+      !!block.run || scanChunkForReuse(block).runCalls.length > 0;
+
     const reuseSkipBlocks = new Set<object>();
     type FlowRun = { flow: FlowBase; contentChunks: object[] };
     const runsByFlow = new Map<ParsedObject, FlowRun>();
@@ -2079,7 +2091,7 @@ export class SparkdownCompiler {
           return undefined;
         }
         const cb = chunkRecords[j]!.block as any;
-        if (cb.run || refused(chunkRecords[j]!)) {
+        if (holdsRun(cb) || refused(chunkRecords[j]!)) {
           return undefined;
         }
         if (!cb.content || (k > 0 && isClosedFunctionChunk(cb))) {
@@ -2095,7 +2107,7 @@ export class SparkdownCompiler {
       const takesFollowingChunks = !isClosedFunctionChunk(declBlock);
       for (let m = j; takesFollowingChunks && m < chunkRecords.length; m++) {
         const cb = chunkRecords[m]!.block as any;
-        if (cb.run) {
+        if (holdsRun(cb)) {
           return undefined;
         }
         if (!cb.content || isClosedFunctionChunk(cb) || refused(chunkRecords[m]!)) {
@@ -2204,6 +2216,104 @@ export class SparkdownCompiler {
       }
     };
 
+    const runWrapper = (
+      run: RunOperand,
+      lineNumberOffset: number,
+    ): string | undefined => {
+      let wrapper: string | undefined;
+      const previousParentUri =
+        state.fileResolutionState?.currentParentUri ?? uri;
+      if (state.fileResolutionState) {
+        state.fileResolutionState.currentParentUri = uri;
+      }
+      const resolution = this.resolveRunOperand(run, uri, program);
+      const resolvedFilePath = resolution.uri ?? null;
+      const sourceMetadata: SourceMetadata = {
+        fileName,
+        filePath: uri,
+        startLineNumber: run.source.startLineNumber + lineNumberOffset,
+        endLineNumber: run.source.endLineNumber + lineNumberOffset,
+        startCharacterNumber: run.source.startCharacterNumber,
+        endCharacterNumber: run.source.endCharacterNumber,
+      };
+      if (!resolvedFilePath) {
+        const fixes = resolution.fixes ?? [];
+        onDiagnostic(
+          resolution.message!,
+          ErrorType.Error,
+          sourceMetadata,
+          undefined,
+          fixes.length > 0
+            ? ({ runFixes: fixes } satisfies RunFixData)
+            : undefined,
+        );
+      } else if (
+        state.fileResolutionState?.runStack?.includes(resolvedFilePath)
+      ) {
+        onDiagnostic(
+          `'run' cycle detected: ${[
+            ...(state.fileResolutionState.runStack ?? []),
+            resolvedFilePath,
+          ].join(" -> ")}`,
+          ErrorType.Error,
+          sourceMetadata,
+        );
+      } else {
+        const wrapperName = runWrapperFunctionName(resolvedFilePath);
+        const declared = state.fileResolutionState
+          ? (state.fileResolutionState.runDeclared ??= new Set())
+          : undefined;
+        if (!declared?.has(resolvedFilePath)) {
+          declared?.add(resolvedFilePath);
+          state.fileResolutionState?.runFiles?.set(
+            wrapperName,
+            resolvedFilePath,
+          );
+          const virtualUri = runWrapperUri(resolvedFilePath, wrapperName);
+          const documentText = runDeclarationText(
+            wrapperName,
+            fileHandler.LoadInkFileContents(resolvedFilePath),
+          ).replace(/\r\n|\r/g, "\n");
+          const registered = this.documents.get(virtualUri);
+          if (registered?.getText() !== documentText) {
+            this.documents.add({
+              textDocument: {
+                uri: virtualUri,
+                languageId: "sparkdown",
+                version: (registered?.version ?? 0) + 1,
+                text: documentText,
+              },
+            });
+          }
+          if (state.fileResolutionState) {
+            state.fileResolutionState.runStack ??= [];
+            state.fileResolutionState.runStack.push(resolvedFilePath);
+          }
+          let runStory: Story;
+          try {
+            runStory = this.parseIncrementally(
+              virtualUri,
+              fileHandler,
+              true,
+              state,
+              program,
+              onDiagnostic,
+            );
+          } finally {
+            if (state.fileResolutionState?.runStack) {
+              state.fileResolutionState.runStack.pop();
+            }
+          }
+          topLevelIncludedFileObjs.push(new IncludedFile(runStory));
+        }
+        wrapper = wrapperName;
+      }
+      if (state.fileResolutionState) {
+        state.fileResolutionState.currentParentUri = previousParentUri;
+      }
+      return wrapper;
+    };
+
     for (let chunkIdx = 0; chunkIdx < chunkRecords.length; chunkIdx++) {
       const rec = chunkRecords[chunkIdx]!;
       const {
@@ -2292,104 +2402,21 @@ export class SparkdownCompiler {
         }
       }
       if (run) {
-        const previousParentUri =
-          state.fileResolutionState?.currentParentUri ?? uri;
-        if (state.fileResolutionState) {
-          state.fileResolutionState.currentParentUri = uri;
+        const wrapperName = runWrapper(run, lineNumberOffset);
+        if (wrapperName) {
+      const call = new FunctionCall(new Identifier(wrapperName), []);
+      call.shouldPopReturnedValue = true;
+      const line = new DebugMetadata();
+      line.startLineNumber = run.line.startLineNumber;
+      line.endLineNumber = run.line.endLineNumber;
+      line.startCharacterNumber = run.line.startCharacterNumber;
+      line.endCharacterNumber = run.line.endCharacterNumber;
+      call.debugMetadata = line;
+      content = [new Weave([call])];
         }
-        const resolution = this.resolveRunOperand(run, uri, program);
-        const resolvedFilePath = resolution.uri ?? null;
-        const sourceMetadata: SourceMetadata = {
-          fileName,
-          filePath: uri,
-          startLineNumber: run.source.startLineNumber + lineNumberOffset,
-          endLineNumber: run.source.endLineNumber + lineNumberOffset,
-          startCharacterNumber: run.source.startCharacterNumber,
-          endCharacterNumber: run.source.endCharacterNumber,
-        };
-        if (!resolvedFilePath) {
-          const fixes = resolution.fixes ?? [];
-          onDiagnostic(
-            resolution.message!,
-            ErrorType.Error,
-            sourceMetadata,
-            undefined,
-            fixes.length > 0
-              ? ({ runFixes: fixes } satisfies RunFixData)
-              : undefined,
-          );
-        } else if (
-          state.fileResolutionState?.runStack?.includes(resolvedFilePath)
-        ) {
-          onDiagnostic(
-            `'run' cycle detected: ${[
-              ...(state.fileResolutionState.runStack ?? []),
-              resolvedFilePath,
-            ].join(" -> ")}`,
-            ErrorType.Error,
-            sourceMetadata,
-          );
-        } else {
-          const wrapperName = runWrapperFunctionName(resolvedFilePath);
-          const declared = state.fileResolutionState
-            ? (state.fileResolutionState.runDeclared ??= new Set())
-            : undefined;
-          if (!declared?.has(resolvedFilePath)) {
-            declared?.add(resolvedFilePath);
-            state.fileResolutionState?.runFiles?.set(
-              wrapperName,
-              resolvedFilePath,
-            );
-            const virtualUri = runWrapperUri(resolvedFilePath, wrapperName);
-            const documentText = runDeclarationText(
-              wrapperName,
-              fileHandler.LoadInkFileContents(resolvedFilePath),
-            ).replace(/\r\n|\r/g, "\n");
-            const registered = this.documents.get(virtualUri);
-            if (registered?.getText() !== documentText) {
-              this.documents.add({
-                textDocument: {
-                  uri: virtualUri,
-                  languageId: "sparkdown",
-                  version: (registered?.version ?? 0) + 1,
-                  text: documentText,
-                },
-              });
-            }
-            if (state.fileResolutionState) {
-              state.fileResolutionState.runStack ??= [];
-              state.fileResolutionState.runStack.push(resolvedFilePath);
-            }
-            let runStory: Story;
-            try {
-              runStory = this.parseIncrementally(
-                virtualUri,
-                fileHandler,
-                true,
-                state,
-                program,
-                onDiagnostic,
-              );
-            } finally {
-              if (state.fileResolutionState?.runStack) {
-                state.fileResolutionState.runStack.pop();
-              }
-            }
-            topLevelIncludedFileObjs.push(new IncludedFile(runStory));
-          }
-          const call = new FunctionCall(new Identifier(wrapperName), []);
-          call.shouldPopReturnedValue = true;
-          const line = new DebugMetadata();
-          line.startLineNumber = run.line.startLineNumber;
-          line.endLineNumber = run.line.endLineNumber;
-          line.startCharacterNumber = run.line.startCharacterNumber;
-          line.endCharacterNumber = run.line.endCharacterNumber;
-          call.debugMetadata = line;
-          content = [new Weave([call])];
-        }
-        if (state.fileResolutionState) {
-          state.fileResolutionState.currentParentUri = previousParentUri;
-        }
+      }
+      for (const call of scanChunkForReuse(rec.block).runCalls) {
+        call.target(runWrapper(call.operand, lineNumberOffset) ?? null);
       }
       forwardDiagnostics(diagnostics, lineNumberOffset);
       if (content) {

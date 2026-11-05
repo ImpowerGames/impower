@@ -592,7 +592,12 @@ describe("an edit inside a script other than main", () => {
 });
 
 describe("an edit to main's `run` lines", () => {
-  const runsAsCold = (root: ProgramRoot, texts: Record<string, string>, luau: Record<string, string>) => {
+  const runsAsCold = (
+    root: ProgramRoot,
+    texts: Record<string, string>,
+    luau: Record<string, string>,
+    picks: number[] = [],
+  ) => {
     const cold = quiet(() =>
       programCompiler(texts, {
         seedBuiltinsIntoStory: true,
@@ -600,8 +605,8 @@ describe("an edit to main's `run` lines", () => {
       }).compile(MAIN),
     ).program.chunks!;
     expect(describeRoot(root)).toEqual(describeRoot(cold));
-    const shown = storyRun(new ProgramStory(root)).beats.map((beat) => beat.text);
-    expect(shown).toEqual(storyRun(new ProgramStory(cold)).beats.map((beat) => beat.text));
+    const shown = storyRun(new ProgramStory(root), picks).beats.map((beat) => beat.text);
+    expect(shown).toEqual(storyRun(new ProgramStory(cold), picks).beats.map((beat) => beat.text));
     return shown;
   };
 
@@ -671,6 +676,64 @@ describe("an edit to main's `run` lines", () => {
     s.edit(MAIN, "  run a\n", "");
     s.edit(MAIN, "  Last {log}.", "  run a\n  Last {log}.");
     expect(runsAsCold(s.root, s.texts, letters)).toEqual(["In T .\n", "Then, now, .\n", "Last BA.\n"]);
+  });
+
+  it("runs as a cold compile does after edits around run lines in an if body and a choice body", () => {
+    const s = session(
+      {
+        [MAIN]: lines(
+          'store log = ""',
+          "",
+          "scene start",
+          "  if true then",
+          "    run a",
+          "  end",
+          "  After if {log}.",
+          "  choose",
+          "    + Pick",
+          "      run b",
+          "      In choice {log}.",
+          "  end",
+          "end",
+        ),
+      },
+      letters,
+    );
+    expect(
+      storyRun(new ProgramStory(s.root), [0]).beats.map((beat) => beat.text),
+    ).toEqual(["After if A.\n", "Pick\n", "In choice AB.\n"]);
+    s.edit(MAIN, "  After if {log}.", "  After the if, {log}.");
+    expect(runsAsCold(s.root, s.texts, letters, [0])).toEqual(["After the if, A.\n", "Pick\n", "In choice AB.\n"]);
+    s.edit(MAIN, "    run a\n", "    run c\n    run a\n");
+    expect(runsAsCold(s.root, s.texts, letters, [0])).toEqual(["After the if, CA.\n", "Pick\n", "In choice CAB.\n"]);
+    s.edit(MAIN, "      run b\n", "");
+    expect(runsAsCold(s.root, s.texts, letters, [0])).toEqual(["After the if, CA.\n", "Pick\n", "In choice CA.\n"]);
+  });
+
+  it("runs as a cold compile does after an edit beside an inner block that holds a run line", () => {
+    const s = session(
+      {
+        [MAIN]: lines(
+          'store log = ""',
+          "",
+          "scene start",
+          "  if true then",
+          "    Before {log}.",
+          "    if true then",
+          "      run a",
+          "    end",
+          "  end",
+          "  After {log}.",
+          "end",
+        ),
+      },
+      letters,
+    );
+    expect(runsAsCold(s.root, s.texts, letters)).toEqual(["Before .\n", "After A.\n"]);
+    s.edit(MAIN, "    Before {log}.", "    Before, edited, {log}.");
+    expect(runsAsCold(s.root, s.texts, letters)).toEqual(["Before, edited, .\n", "After A.\n"]);
+    s.edit(MAIN, "    Before, edited, {log}.", "    Before {log}.");
+    expect(runsAsCold(s.root, s.texts, letters)).toEqual(["Before .\n", "After A.\n"]);
   });
 });
 

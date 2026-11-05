@@ -11827,6 +11827,9 @@
     "LuauSparkdownBlockBody": {
       "patterns": [
         {
+          "include": "#Run"
+        },
+        {
           "include": "#LuauSparkdownExplicitStatement"
         },
         {
@@ -15719,6 +15722,9 @@
       },
       "patterns": [
         {
+          "include": "#Run"
+        },
+        {
           "include": "#Choice"
         },
         {
@@ -15818,6 +15824,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#Run"
+        },
         {
           "include": "#LuauSparkdownExplicitStatement"
         },
