@@ -118,4 +118,42 @@ end
     const [scene] = symbolsOf("scene A\n  choose\n  end\nend\n");
     expect(shape(scene?.children)).toEqual([["Enum", "choose"]]);
   });
+
+  test("an explicit action, a line of dialogue or an action block before the options is the prompt", () => {
+    const [scene] = symbolsOf(`scene A
+  choose
+    : Where now?
+    * Go
+  end
+  choose
+    GUIDE: Which way?
+    * Left
+  end
+  choose
+    :
+      Up the stairs
+      or down?
+    * Up
+  end
+end
+`);
+    expect(scene?.children?.map((s) => s.name)).toEqual([
+      "Where now?",
+      "Which way?",
+      "Up the stairs or down?",
+    ]);
+  });
+
+  test("the last paragraph before the options is the prompt, as the menu's caption", () => {
+    const [scene] = symbolsOf(`scene A
+  choose
+    The hall is dark.
+
+    Which door?
+    * Left
+  end
+end
+`);
+    expect(scene?.children?.map((s) => s.name)).toEqual(["Which door?"]);
+  });
 });

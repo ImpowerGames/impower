@@ -21,8 +21,15 @@ const CHOOSE_KEYWORD = "LuauChooseKeyword";
 const CHOICE = "Choice";
 const CHOICE_CONTENT = "Choice_content";
 const THEN_CLAUSE = "LuauSparkdownChooseThenClause";
-const PROMPT_LINE = "ImplicitAction";
-const CONTAINS_BLOCKS = /Block|Clause/;
+const IMPLICIT_ACTION = "ImplicitAction";
+const DISPLAY_LINES = new Set([
+  "InlineAction",
+  "InlineDialogue",
+  "BlockAction",
+  "BlockDialogue",
+]);
+const BLANK_LINE = /\n[ \t]*\r?\n/;
+const CONTAINS_BLOCKS = /(?:Block|Clause)(?:_content)?$/;
 const NOT_PROMPT =
   /^(?:\[\[|\(\(|[$%^:@&]|->|<-|if\b|else\b|elseif\b|label\b|\/\/)/;
 const FALLBACK_NAME = "choose";
@@ -82,6 +89,20 @@ export const getChoiceMenus = (
     return node.to - slice.trimStart().length;
   };
 
+  const displayText = (node: SyntaxNode): string | undefined => {
+    if (node.name === IMPLICIT_ACTION) {
+      const line = oneLine(text.slice(node.from, node.to));
+      return NOT_PROMPT.test(line) ? undefined : line;
+    }
+    if (DISPLAY_LINES.has(node.name)) {
+      const content = node.getChild(`${node.name}_content`);
+      return content
+        ? oneLine(text.slice(content.from, content.to))
+        : undefined;
+    }
+    return undefined;
+  };
+
   const readOption = (
     choice: SyntaxNode,
     boundary: number,
@@ -104,7 +125,8 @@ export const getChoiceMenus = (
     const keywordFrom = keyword?.from ?? trimmedFrom(block);
     const keywordTo = keyword?.to ?? keywordFrom;
     const start = document.positionAt(keywordFrom);
-    const prompt: string[] = [];
+    let prompt: string[] = [];
+    let promptEnd: number | undefined;
     const choices: SyntaxNode[] = [];
     let optionsEnd = block.to;
     const content = block.getChild(CHOOSE_CONTENT);
@@ -114,10 +136,17 @@ export const getChoiceMenus = (
       } else if (child.name === THEN_CLAUSE) {
         optionsEnd = child.from;
         break;
-      } else if (child.name === PROMPT_LINE && !choices.length) {
-        const line = oneLine(text.slice(child.from, child.to));
-        if (line && !NOT_PROMPT.test(line)) {
+      } else if (!choices.length) {
+        const line = displayText(child);
+        if (line) {
+          if (
+            promptEnd != null &&
+            BLANK_LINE.test(text.slice(promptEnd, child.from))
+          ) {
+            prompt = [];
+          }
           prompt.push(line);
+          promptEnd = child.to;
         }
       }
     }

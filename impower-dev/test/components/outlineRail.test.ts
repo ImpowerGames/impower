@@ -107,9 +107,9 @@ const setLayout = (collapsed: string[] | undefined, search = false) => {
   };
 };
 
-const mount = async (diagnostics: Diagnostic[], source = SCRIPT) => {
+const mount = async (diagnostics: Diagnostic[], source = SCRIPT, uri = URI) => {
   workspace.outline.value = {
-    uri: URI,
+    uri,
     symbols: symbolsOf(source),
     diagnostics,
     firstContentLine: 0,
@@ -287,6 +287,39 @@ describe("the Outline rail", () => {
       "Scenes will appear here as you write them.",
     );
     expect(host!.querySelector('[role="listitem"]')).toBeNull();
+  });
+
+  it("names a script whose filename holds a percent sign as it is written", async () => {
+    await mount([STORM_ERROR], SCRIPT, "file://outline/100%.sd");
+    expect(
+      host!.querySelector('[role="list"]')!.getAttribute("aria-label"),
+    ).toBe("Scene outline in 100%");
+    await mount([], SCRIPT, "file://outline/chapter%20one.sd");
+    expect(
+      host!.querySelector('[role="list"]')!.getAttribute("aria-label"),
+    ).toBe("Scene outline in chapter%20one");
+  });
+
+  it("reveals the current row again when another script opens with its current row at the same index", async () => {
+    const many = Array.from(
+      { length: 60 },
+      (_, i) => `scene s${i}\n  Line ${i}.\nend\n`,
+    ).join("");
+    const viewport = vi
+      .spyOn(HTMLElement.prototype, "clientHeight", "get")
+      .mockReturnValue(440);
+    try {
+      setCaret(150);
+      await mount([], many, "file://outline/main.sd");
+      const scroller = () =>
+        host!.querySelector('[role="list"]')!.parentElement as HTMLElement;
+      expect(scroller().scrollTop).toBeGreaterThan(0);
+      scroller().scrollTop = 0;
+      await mount([], many, "file://outline/copy/main.sd");
+      expect(scroller().scrollTop).toBeGreaterThan(0);
+    } finally {
+      viewport.mockRestore();
+    }
   });
 });
 

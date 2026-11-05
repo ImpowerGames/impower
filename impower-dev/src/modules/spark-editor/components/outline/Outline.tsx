@@ -41,8 +41,11 @@ const GLYPHS: Record<OutlineKind, typeof SceneIcon> = {
   branch: BranchIcon,
 };
 
-const scriptName = (uri: string) =>
-  decodeURIComponent(uri.split("/").pop() ?? "").replace(/\.sd$/, "");
+const scriptName = (uri: string) => {
+  const fileName = uri.split("/").pop() ?? "";
+  const dot = fileName.lastIndexOf(".");
+  return dot < 0 ? fileName : fileName.slice(0, dot);
+};
 
 const caretIn = (
   state: WorkspaceCache,
@@ -200,6 +203,7 @@ export default function Outline() {
             />
             {model.rows.length && uri ? (
               <VirtualList
+                key={uri}
                 class="flex-1 pr-[14px] pb-3 pl-[26px]"
                 label={`Scene outline in ${scriptName(uri)}`}
                 size="compact"
