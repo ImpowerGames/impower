@@ -4416,6 +4416,35 @@ export class Game<T extends M = {}> {
     return waiting;
   }
 
+  async previewNothing(
+    send: (message: Message, transfer?: ArrayBuffer[]) => void,
+    superseded: () => boolean,
+  ): Promise<boolean> {
+    this.reset();
+    this._runtimeState = new RuntimeState();
+    this._startAddress = null;
+    this._previewFrom = undefined;
+    this._previewAddress = undefined;
+    this._simulation = undefined;
+    this._simulationFailure = undefined;
+    this.simulateFlow = undefined;
+    this._previewRoute = undefined;
+    this._previewEnding = null;
+    if (this._state === "initial") {
+      this._state = "previewing";
+    }
+    this.markPreviewing();
+    await this.connect(send);
+    if (superseded()) {
+      return false;
+    }
+    this.module.ui.style.update("continue_indicator", { display: "none" });
+    this.module.ui.reveal();
+    this.module.ui.sweepReconcile();
+    this.notifyExecuted();
+    return true;
+  }
+
   protected async displayWhenResident(
     previewAddress: ProgramAddress,
     generation: number,
