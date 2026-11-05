@@ -57,6 +57,14 @@ const TARGETED: Record<string, string> = {
   "include": "include script.sd\n",
   "front-matter": "---\ntitle: Test\n---\n\nAction line.\n",
   "choice": "scene main\n  + a choice -> END\n  + another -> END\nend\n",
+  "choice-header-newline-blank-line":
+    "scene s\n  * if k\n\n  * B\nend\n",
+  "choice-header-newline-suppressed-label":
+    "scene s\n  * if k\n  Go [now] on -> END\n  * B\nend\n",
+  "choice-header-newline-next-choice": "scene s\n  * if k\n  * B\nend\n",
+  "choice-bare-mark-newline": "scene s\n  *\n  Label\nend\n",
+  "choice-header-newline-at-end": "* if k\n",
+  "choice-header-at-end-no-break": "* if k",
   "if-then-block": "if x > 0 then\n  Positive.\nend\n",
   "if-then-blank-lines": "if x > 0 then\n  Positive.\n\n  More.\nend\n",
   "do-block": "do\n  Inside the block.\nend\n",
