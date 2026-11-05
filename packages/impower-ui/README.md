@@ -28,9 +28,10 @@ is the only component that imports `@radix-ui/react-dropdown-menu`; it exports `
 `DropdownTrigger`, `DropdownContent`, `DropdownItem`, `DropdownCheckboxItem` and
 `DropdownSeparator`, and the editor's menus are built from those parts.
 
-No file outside `packages/impower-ui` imports `@radix-ui/*`. The `no-restricted-imports`
-rule in the root `eslint.config.js` refuses it, CI runs it in the Typecheck workflow, and
-inline `eslint-disable` comments cannot lift it. A primitive the editor needs and this
+No file outside `packages/impower-ui` imports `@radix-ui/*`. The root `eslint.config.js`
+refuses a static import, re-export or `import x = require()` (`no-restricted-imports`) and a
+literal `import()`, `require()` or `typeof import()` (`no-restricted-syntax`), CI runs it in the Typecheck workflow, and inline
+`eslint-disable` comments cannot lift it. A primitive the editor needs and this
 package lacks is a new component here, not a direct import.
 
 ### One folder per component
