@@ -9,6 +9,8 @@ export const MIN_CHROME_MAJOR = 87;
 export const DEVICE_WAIT_SECONDS = 900;
 export const LONG_PRESS_MS = 750;
 export const SWIPE_MS = 300;
+export const BIND_STALL_MS = 1_000;
+export const LOOKUP_MS = 3_000;
 export const ORIENTATIONS = { portrait: 0, landscape: 1 };
 
 export const ANDROID_SETUP = [
@@ -248,9 +250,19 @@ export async function acquireDevice(serial, {
   const began = now();
   const deadline = began + waitSeconds * 1000;
   let lastHolder = null;
-  for (;;) {
+  const expired = (holder) =>
+    new Error(`timed out after ${Math.round((now() - began) / 1000)} s waiting for Android device ${serial}, held by ${holder} (the hold is a listener on 127.0.0.1:${port} and ends with that process). Wait for it to finish, or pass a longer --device-wait <seconds>`);
+  const unasked = () => lastHolder ?? "another process (no wait was left to ask which)";
+  for (let attempt = 0; ; attempt++) {
+    if (attempt > 0 && now() >= deadline) throw expired(unasked());
     record.acquiredAt = new Date(now()).toISOString();
-    const server = await hold(port, record);
+    const bindMs = attempt === 0 ? Math.max(BIND_STALL_MS, deadline - now()) : deadline - now();
+    const bound = await settleWithin(hold(port, record), bindMs);
+    if (bound.late) {
+      bound.late.then((server) => server?.close(), () => {});
+      throw new Error(`binding 127.0.0.1:${port} for Android device ${serial} did not finish within ${bindMs} ms`);
+    }
+    const server = bound.value;
     if (server) {
       let released = false;
       return {
@@ -264,18 +276,34 @@ export async function acquireDevice(serial, {
         },
       };
     }
-    const answer = await ask(port, { timeoutMs: Math.max(100, Math.min(3_000, deadline - now())) });
+    const remaining = deadline - now();
+    if (remaining <= 0) throw expired(unasked());
+    const answer = await ask(port, { timeoutMs: Math.min(LOOKUP_MS, remaining) });
     const holder = answer.gone ? (lastHolder ?? "a process that let go while this one asked who it was") : describeHolder(answer.holder);
-    if (now() >= deadline) {
-      throw new Error(`timed out after ${Math.round((now() - began) / 1000)} s waiting for Android device ${serial}, held by ${holder} (the hold is a listener on 127.0.0.1:${port} and ends with that process). Wait for it to finish, or pass a longer --device-wait <seconds>`);
-    }
+    if (now() >= deadline) throw expired(holder);
     if (answer.gone) continue;
     if (holder !== lastHolder) {
       log(`waiting for Android device ${serial}: held by ${holder}; waiting up to ${waitSeconds} s`);
       lastHolder = holder;
     }
-    await sleep(Math.max(0, Math.min(pollMs, deadline - now())));
+    await sleep(Math.min(pollMs, deadline - now()));
   }
+}
+
+function settleWithin(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => resolve({ late: promise }), Math.max(0, ms));
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve({ value });
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }
 
 export function parseReverseList(stdout) {

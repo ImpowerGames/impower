@@ -509,14 +509,16 @@ await check("each device gets its own lock port in a fixed range", () => {
   }
 });
 
-await check("a live holder makes the waiter time out naming it, and release frees the device", async () => {
+await check("a live holder makes the waiter time out naming it, a zero wait tries once without asking, and release frees the device", async () => {
   const port = await freePort();
   const held = await acquireDevice("emulator-5554", { port, session: "mine", worktree: "/w", command: "screenshot story" });
   const lines = [];
   await assert.rejects(
-    acquireDevice("emulator-5554", { port, waitSeconds: 0, log: (line) => lines.push(line) }),
-    new RegExp(`timed out after 0 s waiting for Android device emulator-5554, held by pid ${process.pid}, device emulator-5554, session mine, worktree /w, running \`screenshot story\`, since \\S+ \\(the hold is a listener on 127\\.0\\.0\\.1:${port} and ends with that process\\)`),
+    acquireDevice("emulator-5554", { port, waitSeconds: 1, pollMs: 200, log: (line) => lines.push(line) }),
+    new RegExp(`timed out after 1 s waiting for Android device emulator-5554, held by pid ${process.pid}, device emulator-5554, session mine, worktree /w, running \`screenshot story\`, since \\S+ \\(the hold is a listener on 127\\.0\\.0\\.1:${port} and ends with that process\\)`),
   );
+  assert.equal(lines.length, 1);
+  await assert.rejects(acquireDevice("emulator-5554", { port, waitSeconds: 0 }), /timed out after 0 s waiting for Android device emulator-5554, held by another process \(no wait was left to ask which\)/);
   held.release();
   held.release();
   const again = await acquireDevice("emulator-5554", { port, waitSeconds: 0 });
@@ -524,27 +526,76 @@ await check("a live holder makes the waiter time out naming it, and release free
   again.release();
 });
 
-await check("holders that keep letting go while the waiter asks who they are still end the wait at its deadline, and one that lets go once is followed at once", async () => {
-  let clock = 0;
-  let attempts = 0;
-  await assert.rejects(
-    acquireDevice("emulator-5554", {
-      port: 1,
-      waitSeconds: 1,
-      now: () => clock,
-      sleep: async (ms) => {
-        clock += ms;
-      },
-      hold: async () => {
-        if (++attempts > 20) throw new Error(`spinning: ${attempts} binds past the deadline`);
-        clock += 2_000;
-        return null;
-      },
-      ask: async () => ({ gone: true }),
-    }),
-    /timed out after 2 s waiting for Android device emulator-5554, held by a process that let go while this one asked who it was/,
-  );
-  assert.equal(attempts, 1);
+const fakeQueue = ({ waitSeconds, holds, askAnswer = () => ({ holder: { pid: 77, serial: "emulator-5554", acquiredAt: "t" } }), holdMs = 0, askMs = 0, lateWakeMs = 0, pollMs = 2_000 }) => {
+  const trace = { clock: 0, binds: 0, asks: [], sleeps: [], deadline: waitSeconds * 1000 };
+  const options = {
+    port: 1,
+    waitSeconds,
+    pollMs,
+    now: () => trace.clock,
+    sleep: async (ms) => {
+      trace.sleeps.push({ ms, remaining: trace.deadline - trace.clock });
+      trace.clock += ms + lateWakeMs;
+    },
+    hold: async () => {
+      if (++trace.binds > 50) throw new Error(`spinning: ${trace.binds} binds`);
+      trace.clock += holdMs;
+      return holds(trace.binds);
+    },
+    ask: async (port, { timeoutMs }) => {
+      trace.asks.push({ timeoutMs, remaining: trace.deadline - trace.clock });
+      trace.clock += Math.min(askMs, timeoutMs);
+      return askAnswer(trace.asks.length);
+    },
+  };
+  return { trace, options };
+};
+
+await check("every wait inside the queue loop is capped by what is left of --device-wait, and the loop ends at the deadline", async () => {
+  const { trace, options } = fakeQueue({ waitSeconds: 5, holds: () => null, holdMs: 100, askMs: 300 });
+  await assert.rejects(acquireDevice("emulator-5554", options), /timed out after 5 s waiting for Android device emulator-5554, held by pid 77/);
+  assert.deepEqual(trace.asks, [
+    { timeoutMs: 3_000, remaining: 4_900 },
+    { timeoutMs: 2_500, remaining: 2_500 },
+    { timeoutMs: 100, remaining: 100 },
+  ]);
+  assert.deepEqual(trace.sleeps, [
+    { ms: 2_000, remaining: 4_600 },
+    { ms: 2_000, remaining: 2_200 },
+  ]);
+  assert.equal(trace.binds, 3);
+  assert.equal(trace.clock, 5_000);
+});
+
+await check("a wake that comes late after the deadline does not bind, even when the holder has let go", async () => {
+  const { trace, options } = fakeQueue({ waitSeconds: 1, holds: (n) => (n === 1 ? null : { close: () => {} }), lateWakeMs: 600 });
+  await assert.rejects(acquireDevice("emulator-5554", options), /timed out after 2 s waiting for Android device emulator-5554, held by pid 77/);
+  assert.equal(trace.binds, 1);
+  assert.deepEqual(trace.sleeps, [{ ms: 1_000, remaining: 1_000 }]);
+});
+
+await check("a bind that leaves no wait does not ask who holds the port, and a zero wait binds once", async () => {
+  const late = fakeQueue({ waitSeconds: 1, holds: () => null, holdMs: 1_000 });
+  await assert.rejects(acquireDevice("emulator-5554", late.options), /held by another process \(no wait was left to ask which\)/);
+  assert.deepEqual(late.trace.asks, []);
+  assert.equal(late.trace.binds, 1);
+
+  const zero = fakeQueue({ waitSeconds: 0, holds: () => null });
+  await assert.rejects(acquireDevice("emulator-5554", zero.options), /timed out after 0 s/);
+  assert.deepEqual([zero.trace.binds, zero.trace.asks.length, zero.trace.sleeps.length], [1, 0, 0]);
+
+  const free = fakeQueue({ waitSeconds: 0, holds: () => ({ close: () => {} }) });
+  const held = await acquireDevice("emulator-5554", free.options);
+  assert.equal(free.trace.binds, 1);
+  held.release();
+});
+
+await check("holders that keep letting go while the waiter asks still end the wait at its deadline, and one that lets go once is followed at once", async () => {
+  const cycling = fakeQueue({ waitSeconds: 1, holds: () => null, holdMs: 400, askAnswer: () => ({ gone: true }) });
+  await assert.rejects(acquireDevice("emulator-5554", cycling.options), /timed out after 1 s waiting for Android device emulator-5554, held by another process \(no wait was left to ask which\)/);
+  assert.equal(cycling.trace.binds, 3);
+  assert.deepEqual(cycling.trace.asks, [{ timeoutMs: 600, remaining: 600 }, { timeoutMs: 200, remaining: 200 }]);
+  assert.deepEqual(cycling.trace.sleeps, []);
 
   const answers = [{ holder: { pid: 77, serial: "emulator-5554", acquiredAt: "t" } }, { gone: true }];
   let binds = 0;
@@ -562,6 +613,23 @@ await check("holders that keep letting go while the waiter asks who they are sti
   assert.deepEqual(sleeps, [2_000]);
   assert.deepEqual(lines, ["waiting for Android device emulator-5554: held by pid 77, device emulator-5554, since t; waiting up to 60 s"]);
   held.release();
+});
+
+await check("a bind that never finishes fails after its stall limit, and a server it opens later is closed", async () => {
+  const neverAt = Date.now();
+  let guard;
+  const stalled = acquireDevice("emulator-5554", { port: 1, waitSeconds: 0, hold: () => new Promise(() => {}) });
+  const bounded = Promise.race([stalled, new Promise((_, reject) => (guard = setTimeout(() => reject(new Error("the stalled bind was still pending after 5000 ms")), 5_000)))]);
+  await assert.rejects(bounded.finally(() => clearTimeout(guard)), /binding 127\.0\.0\.1:1 for Android device emulator-5554 did not finish within 1000 ms/);
+  const never = Date.now() - neverAt;
+  assert.ok(never >= 900 && never < 2_000, `stall limit took ${never} ms`);
+  let closed = false;
+  await assert.rejects(
+    acquireDevice("emulator-5554", { port: 1, waitSeconds: 0, hold: () => new Promise((resolve) => setTimeout(() => resolve({ close: () => (closed = true) }), 1_300)) }),
+    /did not finish within 1000 ms/,
+  );
+  await new Promise((resolve) => setTimeout(resolve, 600));
+  assert.equal(closed, true);
 });
 
 await check("a listener that keeps trickling bytes without ending cannot stretch the lookup or the wait past their limits", async () => {
@@ -586,14 +654,14 @@ await check("a listener that keeps trickling bytes without ending cannot stretch
     const askedAt = Date.now();
     assert.deepEqual(await within(askHolder(port, { timeoutMs: 400 }), 1_500, "a 400 ms lookup"), { holder: null });
     const asked = Date.now() - askedAt;
-    assert.ok(asked < 1_500, `lookup took ${asked} ms against a 400 ms limit`);
+    assert.ok(asked >= 350 && asked < 800, `a 400 ms lookup took ${asked} ms`);
     const waitedAt = Date.now();
     await assert.rejects(
-      within(acquireDevice("emulator-5554", { port, waitSeconds: 1, pollMs: 200 }), 3_000, "a 1 s device wait"),
-      /timed out after \d+ s waiting for Android device emulator-5554, held by a process that did not say who it is/,
+      within(acquireDevice("emulator-5554", { port, waitSeconds: 1, pollMs: 200 }), 5_000, "a 1 s device wait"),
+      /timed out after 1 s waiting for Android device emulator-5554, held by a process that did not say who it is/,
     );
     const waited = Date.now() - waitedAt;
-    assert.ok(waited < 3_000, `a 1 s wait took ${waited} ms`);
+    assert.ok(waited >= 900 && waited < 1_400, `a 1 s wait took ${waited} ms`);
   } finally {
     for (const guard of guards) clearTimeout(guard);
     for (const timer of timers) clearInterval(timer);
@@ -607,7 +675,7 @@ await check("a listener that does not say who it is still holds the port, and th
   const foreign = net.createServer((socket) => socket.end("hello")).listen({ port, host: "127.0.0.1" });
   await new Promise((resolve) => foreign.once("listening", resolve));
   try {
-    await assert.rejects(acquireDevice("emulator-5554", { port, waitSeconds: 0 }), /held by a process that did not say who it is \(the hold is a listener on 127\.0\.0\.1:\d+/);
+    await assert.rejects(acquireDevice("emulator-5554", { port, waitSeconds: 1, pollMs: 200 }), /held by a process that did not say who it is \(the hold is a listener on 127\.0\.0\.1:\d+/);
   } finally {
     foreign.close();
   }
