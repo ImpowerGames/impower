@@ -45,6 +45,9 @@ const showKeyboard = async (v: EditorView) => {
   await nextFrame();
 };
 
+const handleCount = (v: EditorView) =>
+  v.dom.querySelectorAll(".cm-touch-selection-handle").length;
+
 const toolbarShown = (v: EditorView) =>
   isKeyboardToolbarOpen(v.state) &&
   v.dom.querySelector(".cm-keyboard-toolbar") !== null;
@@ -77,9 +80,10 @@ afterEach(() => {
 });
 
 describe("the editor's coarse-pointer option", () => {
-  it("shows the keyboard toolbar when the pointer is coarse", async () => {
+  it("shows the keyboard toolbar and touch selection handles when the pointer is coarse", async () => {
     const v = mount(true);
     expect(v.state.facet(coarsePointer)).toBe(true);
+    expect(handleCount(v)).toBe(3);
     await showKeyboard(v);
     expect(toolbarShown(v)).toBe(true);
   });
@@ -94,21 +98,24 @@ describe("the editor's coarse-pointer option", () => {
     expect(v.state.facet(coarsePointer)).toBe(false);
     await showKeyboard(v);
     expect(toolbarShown(v)).toBe(false);
-    expect(v.dom.querySelector(".cm-touch-selection-handle")).toBeNull();
+    expect(handleCount(v)).toBe(0);
   });
 
-  it("switches the toolbar on and off when the option changes", async () => {
+  it("switches the toolbar and touch selection handles on and off when the option changes", async () => {
     const v = mount(false);
     await showKeyboard(v);
     expect(toolbarShown(v)).toBe(false);
+    expect(handleCount(v)).toBe(0);
 
     setCoarsePointer(v, true);
     expect(v.state.facet(coarsePointer)).toBe(true);
+    expect(handleCount(v)).toBe(3);
     await showKeyboard(v);
     expect(toolbarShown(v)).toBe(true);
 
     setCoarsePointer(v, false);
     expect(v.state.facet(coarsePointer)).toBe(false);
+    expect(handleCount(v)).toBe(0);
     expect(toolbarShown(v)).toBe(false);
     expect(v.dom.classList.contains("keyboard-open")).toBe(false);
     await showKeyboard(v);

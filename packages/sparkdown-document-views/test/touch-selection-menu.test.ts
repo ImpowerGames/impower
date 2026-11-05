@@ -1,14 +1,13 @@
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
-  coarsePointer,
   contextMenu,
   hideContextMenu,
   isContextMenuOpen,
   showContextMenu,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { touchInputHandler } from "../src/modules/script-editor/utils/extensions/touchInputHandler";
+import { touchAffordances } from "../src/modules/script-editor/utils/extensions/touchAffordances";
 
 const LINE_HEIGHT = 16;
 const CHAR_WIDTH = 8;
@@ -104,15 +103,7 @@ function mount(doc: string, selection?: EditorSelection) {
     doc,
     selection,
     parent,
-    extensions: [
-      coarsePointer.of(true),
-      contextMenu(),
-      touchInputHandler({
-        showContextMenu,
-        hideContextMenu,
-        isContextMenuOpen,
-      }),
-    ],
+    extensions: [contextMenu(), touchAffordances(true)],
   });
   const v = view;
   let scrollTop = 0;
