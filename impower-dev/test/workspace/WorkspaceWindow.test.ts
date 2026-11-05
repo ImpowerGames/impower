@@ -1286,3 +1286,114 @@ describe("The game preview's player bar", () => {
     );
   }, 30000);
 });
+
+describe("Revealing a script from the bar under the game", () => {
+  let win: WorkspaceWindow;
+  let sent: { method?: string; id?: unknown; params?: any }[];
+  let stopListening: () => void;
+
+  const SHOW_PROBLEMS = "editor/showProblems";
+
+  beforeEach(() => {
+    localStorage.clear();
+    win = new WorkspaceWindow(Workspace);
+    sent = [];
+    const listener = (e: Event) => {
+      const message = (e as CustomEvent).detail;
+      if (message?.method === SHOW_PROBLEMS && "params" in message) {
+        sent.push(message);
+      }
+    };
+    window.addEventListener(MessageProtocol.event, listener);
+    stopListening = () =>
+      window.removeEventListener(MessageProtocol.event, listener);
+  });
+
+  afterEach(() => {
+    stopListening();
+    win.dispose();
+    delete (document as { fullscreenElement?: Element }).fullscreenElement;
+  });
+
+  const uriOf = (path: string) => `file://${workspace.current.project.id}/${path}`;
+
+  it("opens the script on the write route from another route", async () => {
+    win.navigateTo("collection");
+    expect(workspace.current.pane).toBe("assets");
+    const at = { line: 11, character: 0 };
+    await win.revealDocument(uriOf("scripts/intro.sd"), { start: at, end: at });
+    expect(workspace.current.pane).toBe("logic");
+    expect(workspace.current.panes.logic.view).toBe("logic-editor");
+    expect(workspace.current.panes.logic.panel).toBe("scripts");
+    const editor = workspace.current.panes.logic.panels.scripts!.activeEditor;
+    expect(editor?.filename).toBe("scripts/intro.sd");
+    expect(editor?.selectedRange).toEqual({ start: at, end: at });
+    expect(window.location.hash).toBe("#write");
+  });
+
+  it("collapses the phone's revealed preview so the script shows", async () => {
+    win.expandPreviewPane();
+    await win.revealDocument(uriOf("main.sd"));
+    expect(workspace.current.preview.revealed).toBe(false);
+    expect(workspace.current.panes.logic.panels.main!.activeEditor?.filename).toBe(
+      "main.sd",
+    );
+  });
+
+  it("leaves fullscreen first, since the script is outside the fullscreen preview", async () => {
+    const exitFullscreen = vi.fn(async () => {
+      delete (document as { fullscreenElement?: Element }).fullscreenElement;
+    });
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get: () => document.body,
+    });
+    document.exitFullscreen = exitFullscreen;
+    await win.revealDocument(uriOf("main.sd"));
+    expect(exitFullscreen).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks the script's editor for its problems once it is on screen", async () => {
+    win.navigateTo("collection");
+    const uri = uriOf("main.sd");
+    await win.showProblems(uri);
+    expect(workspace.current.pane).toBe("logic");
+    expect(sent.map((m) => m.params.textDocument.uri)).toEqual([uri]);
+    sendProtocolMessage({
+      jsonrpc: "2.0",
+      method: "editor/didLoad",
+      params: { textDocument: { uri: uriOf("other.sd"), version: 1 } },
+    });
+    expect(sent).toHaveLength(1);
+    sendProtocolMessage({
+      jsonrpc: "2.0",
+      method: "editor/didLoad",
+      params: { textDocument: { uri, version: 1 } },
+    });
+    expect(sent.map((m) => m.params.textDocument.uri)).toEqual([uri, uri]);
+    sendProtocolMessage({
+      jsonrpc: "2.0",
+      method: "editor/didLoad",
+      params: { textDocument: { uri, version: 2 } },
+    });
+    expect(sent).toHaveLength(2);
+  });
+
+  it("asks only once when the editor on screen answers", async () => {
+    const uri = uriOf("main.sd");
+    await win.showProblems(uri);
+    expect(sent).toHaveLength(1);
+    sendProtocolMessage({
+      jsonrpc: "2.0",
+      method: SHOW_PROBLEMS,
+      id: sent[0]!.id,
+      result: {},
+    } as never);
+    sendProtocolMessage({
+      jsonrpc: "2.0",
+      method: "editor/didLoad",
+      params: { textDocument: { uri, version: 1 } },
+    });
+    expect(sent).toHaveLength(1);
+  });
+});

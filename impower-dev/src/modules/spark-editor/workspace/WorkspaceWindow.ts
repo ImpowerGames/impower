@@ -17,6 +17,7 @@ import {
   ScrolledEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SearchEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SearchEditorMessage";
+import { DidLoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/DidLoadEditorMessage";
 import { ShowEditorProblemsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ShowEditorProblemsMessage";
 import { SelectEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
 import {
@@ -109,6 +110,8 @@ import {
   type Route,
 } from "./routes";
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
+
+const SHOW_PROBLEMS_WAIT_MS = 10_000;
 
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
@@ -1238,10 +1241,45 @@ export default class WorkspaceWindow {
     });
   }
 
-  showProblems(uri: string) {
-    sendProtocolMessage(
-      ShowEditorProblemsMessage.type.request({ textDocument: { uri } }),
+  async revealDocument(uri: string, range?: Range, takeFocus = true) {
+    if (typeof document !== "undefined" && document.fullscreenElement) {
+      await document.exitFullscreen().catch(() => {});
+    }
+    if (this.store.preview.revealed) {
+      this.collapsePreviewPane();
+    }
+    const result = await this.showDocument(uri, range, takeFocus);
+    if (routeOfState(this.store) !== "write") {
+      this.navigateTo("write");
+    }
+    return result;
+  }
+
+  async showProblems(uri: string) {
+    await this.revealDocument(uri, undefined, false);
+    const request = () =>
+      ShowEditorProblemsMessage.type.request({ textDocument: { uri } });
+    const first = request();
+    const stop = () => {
+      stopAnswer();
+      stopLoad();
+      clearTimeout(timer);
+    };
+    const stopAnswer = onProtocolMessage(
+      {
+        is: (message: unknown): message is ShowEditorProblemsMessage.Response =>
+          ShowEditorProblemsMessage.type.isResponse(message, first.id),
+      },
+      () => stop(),
     );
+    const stopLoad = onProtocolMessage(DidLoadEditorMessage.type, (message) => {
+      if (message.params.textDocument.uri === uri) {
+        stop();
+        sendProtocolMessage(request());
+      }
+    });
+    const timer = setTimeout(stop, SHOW_PROBLEMS_WAIT_MS);
+    sendProtocolMessage(first);
   }
 
   syncGamePaused(paused: boolean) {

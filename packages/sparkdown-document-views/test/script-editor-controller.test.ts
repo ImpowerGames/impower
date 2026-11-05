@@ -285,9 +285,21 @@ describe("ScriptEditorController problems", () => {
 
   it("opens the problems panel for its own document", async () => {
     const { controller, view } = await loadedEditor();
+    controller.reveal();
     expect(view.dom.querySelector(".cm-panel-lint")).toBeNull();
     const response = show(controller, "file:///main.sd");
     expect(response).toMatchObject({ result: {} });
+    expect(view.dom.querySelector(".cm-panel-lint")).not.toBeNull();
+  });
+
+  it("waits for a hidden editor to be revealed before opening the panel", async () => {
+    const { controller, view, host } = await loadedEditor();
+    const editor = host.firstElementChild as HTMLElement;
+    editor.style.visibility = "hidden";
+    expect(show(controller, "file:///main.sd")).toMatchObject({ result: {} });
+    expect(view.dom.querySelector(".cm-panel-lint")).toBeNull();
+    controller.reveal();
+    expect(editor.style.visibility).toBe("visible");
     expect(view.dom.querySelector(".cm-panel-lint")).not.toBeNull();
   });
 

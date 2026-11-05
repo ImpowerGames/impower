@@ -4,7 +4,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 
 const intents = vi.hoisted(() => ({
   showProblems: vi.fn(),
-  showDocument: vi.fn(),
+  revealDocument: vi.fn(),
 }));
 
 vi.mock("../../src/modules/spark-editor/components/preview-game/PreviewGame", () => ({
@@ -17,10 +17,9 @@ vi.mock(
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
     window: {
-      getOpenedDocumentUri: () => "file:///local/main.sd",
       getActiveEditorForPane: () => ({ uri: "file:///local/main.sd" }),
       showProblems: intents.showProblems,
-      showDocument: intents.showDocument,
+      revealDocument: intents.revealDocument,
     },
   },
 }));
@@ -60,7 +59,7 @@ const { default: workspace } = await import(
 const { default: workspaceSettings } = await import(
   "../../src/modules/spark-editor/workspace/settings/WorkspaceSettings"
 );
-const { PROJECT_SETTINGS_STORAGE_KEY_PREFIX } = await import(
+const { PROJECT_SETTINGS_STORAGE_KEY_PREFIX, WorkspaceSettings } = await import(
   "../../src/modules/spark-editor/workspace/settings/WorkspaceSettings"
 );
 const { default: Preview } = await import(
@@ -69,6 +68,13 @@ const { default: Preview } = await import(
 
 const initial = structuredClone(workspace.current);
 let host: HTMLDivElement | undefined;
+
+const reloaded = () => {
+  const fresh = new WorkspaceSettings(workspace.signals.projectId);
+  const values = fresh.projectSettings.value;
+  fresh.dispose();
+  return values;
+};
 
 const stored = () =>
   JSON.parse(
@@ -126,7 +132,7 @@ beforeEach(() => {
   workspaceSettings.setProjectSetting("previewAspectRatio", "auto");
   workspaceSettings.setProjectSetting("previewPanelHeight", 44);
   intents.showProblems.mockClear();
-  intents.showDocument.mockClear();
+  intents.revealDocument.mockClear();
 });
 
 afterEach(async () => {
@@ -198,10 +204,9 @@ describe("the bar under the game", () => {
     expect(readout().textContent).toBe("chapter : 12");
     await act(async () => readout().click());
     await settle();
-    expect(intents.showDocument.mock.calls[0]).toEqual([
+    expect(intents.revealDocument.mock.calls[0]).toEqual([
       "file:///local/chapter.sd",
       { start: { line: 11, character: 0 }, end: { line: 11, character: 0 } },
-      true,
     ]);
   });
 
@@ -239,6 +244,7 @@ describe("the bar under the game", () => {
     await settle(250);
     expect(workspaceSettings.projectSettings.value.previewAspectRatio).toBe("9:16");
     expect(stored().previewAspectRatio).toBe("9:16");
+    expect(reloaded().previewAspectRatio).toBe("9:16");
     expect(ratio().textContent).toBe("9:16");
   });
 
@@ -271,6 +277,7 @@ describe("the divider above the bar", () => {
     await mount();
     await key(divider()!, "ArrowUp");
     await key(divider()!, "ArrowUp");
+    expect(reloaded().previewPanelHeight).toBe(160);
     await unmount();
     await mount();
     expect(divider()!.getAttribute("aria-valuenow")).toBe("160");

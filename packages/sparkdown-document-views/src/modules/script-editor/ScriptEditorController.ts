@@ -180,6 +180,8 @@ export class ScriptEditorController {
   protected _focusIntervalTimeout = 0;
 
   protected _revealTimeout = 0;
+
+  protected _problemsOnReveal: string | undefined;
   protected _protocols = new ProtocolObserver();
 
   constructor(
@@ -461,8 +463,13 @@ export class ScriptEditorController {
     message: RequestMessage<ShowEditorProblemsMethod, ShowEditorProblemsParams>,
   ) => {
     const view = this._view;
-    if (view && message.params.textDocument.uri === this._textDocument?.uri) {
-      openLintPanel(view);
+    const uri = message.params.textDocument.uri;
+    if (view && uri === this._textDocument?.uri) {
+      if (this.refs.editor?.style.visibility === "hidden") {
+        this._problemsOnReveal = uri;
+      } else {
+        openLintPanel(view);
+      }
       return ShowEditorProblemsMessage.type.response(message.id, {});
     }
     return undefined;
@@ -1112,6 +1119,11 @@ export class ScriptEditorController {
     }
     this.refs.editor.style.visibility = "visible";
     this.refs.editor.style.opacity = "1";
+    const problems = this._problemsOnReveal;
+    this._problemsOnReveal = undefined;
+    if (this._view && problems && problems === this._textDocument?.uri) {
+      openLintPanel(this._view);
+    }
   };
 
   protected handleViewportParsed = () => {

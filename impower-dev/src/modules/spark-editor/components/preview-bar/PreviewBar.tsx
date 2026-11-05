@@ -63,9 +63,9 @@ function ProblemsToggle() {
 
   const onClick = async () => {
     const { Workspace } = await import("../../workspace/Workspace");
-    const uri = Workspace.window.getOpenedDocumentUri();
+    const uri = Workspace.window.getActiveEditorForPane("logic")?.uri;
     if (uri) {
-      Workspace.window.showProblems(uri);
+      void Workspace.window.showProblems(uri);
     }
   };
 
@@ -93,7 +93,7 @@ function PositionReadout() {
       position.uri ?? Workspace.window.getActiveEditorForPane("logic")?.uri;
     if (!uri) return;
     const at = { line: position.line, character: 0 };
-    Workspace.window.showDocument(uri, { start: at, end: at }, true);
+    void Workspace.window.revealDocument(uri, { start: at, end: at });
   };
 
   return (
