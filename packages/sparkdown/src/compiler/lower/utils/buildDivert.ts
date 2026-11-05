@@ -41,7 +41,6 @@ function readDivertTarget(targetNode: SyntaxNode): {
     if (
       child.name === "Annotation" ||
       child.name === "Tags" ||
-      child.name === "ArmTag" ||
       child.name === "ExtraWhitespace"
     ) {
       continue;
