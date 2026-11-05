@@ -2404,19 +2404,25 @@ export class SparkdownCompiler {
       if (run) {
         const wrapperName = runWrapper(run, lineNumberOffset);
         if (wrapperName) {
-      const call = new FunctionCall(new Identifier(wrapperName), []);
-      call.shouldPopReturnedValue = true;
-      const line = new DebugMetadata();
-      line.startLineNumber = run.line.startLineNumber;
-      line.endLineNumber = run.line.endLineNumber;
-      line.startCharacterNumber = run.line.startCharacterNumber;
-      line.endCharacterNumber = run.line.endCharacterNumber;
-      call.debugMetadata = line;
-      content = [new Weave([call])];
+          const call = new FunctionCall(new Identifier(wrapperName), []);
+          call.shouldPopReturnedValue = true;
+          const line = new DebugMetadata();
+          line.startLineNumber = run.line.startLineNumber;
+          line.endLineNumber = run.line.endLineNumber;
+          line.startCharacterNumber = run.line.startCharacterNumber;
+          line.endCharacterNumber = run.line.endCharacterNumber;
+          call.debugMetadata = line;
+          content = [new Weave([call])];
         }
       }
+      let retargeted = false;
       for (const call of scanChunkForReuse(rec.block).runCalls) {
-        call.target(runWrapper(call.operand, lineNumberOffset) ?? null);
+        if (call.target(runWrapper(call.operand, lineNumberOffset) ?? null)) {
+          retargeted = true;
+        }
+      }
+      if (retargeted && this._chunkStoreBlocks?.has(compiledBlock)) {
+        this._programResolver?.invalidate();
       }
       forwardDiagnostics(diagnostics, lineNumberOffset);
       if (content) {

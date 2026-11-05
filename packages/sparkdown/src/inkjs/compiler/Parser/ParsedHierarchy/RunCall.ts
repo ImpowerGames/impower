@@ -16,12 +16,13 @@ export class RunCall extends FunctionCall {
     return this._wrapper;
   }
 
-  target(wrapper: string | null): void {
+  target(wrapper: string | null): boolean {
     if (wrapper === this._wrapper) {
-      return;
+      return false;
     }
     this._wrapper = wrapper;
     this.retarget(new Identifier(wrapper ?? ""));
+    return true;
   }
 
   public override PrepareIntoContainer(): void {

@@ -378,6 +378,9 @@ function session(initial: Record<string, string>, luau: Record<string, string> =
         ],
       });
       texts[uri] = text.slice(0, offset) + replace + text.slice(offset + find.length);
+      return this.recompile();
+    },
+    recompile(): ProgramRoot {
       const { warn, error, log } = console;
       const said: string[] = [];
       console.warn = console.error = console.log = (...args: unknown[]) => {
@@ -708,6 +711,23 @@ describe("an edit to main's `run` lines", () => {
     expect(runsAsCold(s.root, s.texts, letters, [0])).toEqual(["After the if, CA.\n", "Pick\n", "In choice CAB.\n"]);
     s.edit(MAIN, "      run b\n", "");
     expect(runsAsCold(s.root, s.texts, letters, [0])).toEqual(["After the if, CA.\n", "Pick\n", "In choice CA.\n"]);
+  });
+
+  it("runs as a cold compile does once the file a block-body run line names is added, and again once it is removed", () => {
+    const A = "file://proj/lib/a.luau";
+    const added = { [A]: letters[A]! };
+    const s = session(
+      {
+        [MAIN]: lines('store log = ""', "", "scene start", "  if true then", "    run a", "  end", "  After {log}.", "end"),
+      },
+      {},
+    );
+    s.compiler.addFile({ file: projectFiles({}, added)[0] } as never);
+    s.recompile();
+    expect(runsAsCold(s.root, s.texts, added)).toEqual(["After A.\n"]);
+    s.compiler.removeFile({ file: { uri: A } } as never);
+    s.recompile();
+    expect(runsAsCold(s.root, s.texts, {})).toEqual(["After .\n"]);
   });
 
   it("runs as a cold compile does after an edit beside an inner block that holds a run line", () => {
