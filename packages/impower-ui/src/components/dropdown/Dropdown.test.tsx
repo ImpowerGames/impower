@@ -259,3 +259,45 @@ describe("Dropdown radio items under preact/compat", () => {
     expect(menu()).toBeNull();
   });
 });
+
+describe("Dropdown in fullscreen", () => {
+  const enterFullscreen = () => {
+    const stage = document.body.appendChild(document.createElement("div"));
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get: () => stage,
+    });
+    return stage;
+  };
+
+  afterEach(() => {
+    delete (document as { fullscreenElement?: Element }).fullscreenElement;
+  });
+
+  it("opens its menu inside the fullscreen element so it stays on screen", async () => {
+    const stage = enterFullscreen();
+    const { trigger } = await mountRadio();
+    await key(trigger, "ArrowDown");
+    await settle(50);
+    expect(menu()).not.toBeNull();
+    expect(stage.contains(menu())).toBe(true);
+  });
+
+  it("opens the phone layout's sheet inside the fullscreen element", async () => {
+    await setPhone(true);
+    const stage = enterFullscreen();
+    const { trigger } = await mountRadio();
+    await act(async () => trigger.click());
+    await settle(300);
+    expect(menu()).not.toBeNull();
+    expect(stage.contains(menu())).toBe(true);
+  });
+
+  it("opens in the document body outside fullscreen", async () => {
+    const { trigger } = await mountRadio();
+    await key(trigger, "ArrowDown");
+    await settle(50);
+    expect(menu()!.closest("body")).toBe(document.body);
+    expect(host!.contains(menu())).toBe(false);
+  });
+});

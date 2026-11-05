@@ -13,6 +13,7 @@ import { useCallback, useContext, useRef, useState } from "preact/hooks";
 import { useLayout } from "../../hooks/useLayout";
 import { cn } from "../../utils/cn";
 import { registerFocusReturn } from "../../utils/focusReturn";
+import { portalContainer } from "../../utils/portalContainer";
 import { DialogTitle, Sheet } from "../dialog/Dialog";
 import { CheckIcon } from "../icon/icons.generated";
 
@@ -224,7 +225,7 @@ export function DropdownContent({
     );
   }
   return (
-    <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.Portal container={portalContainer()}>
       <DropdownMenuPrimitive.Content
         ref={owner}
         sideOffset={sideOffset}
