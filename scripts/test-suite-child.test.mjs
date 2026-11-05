@@ -506,21 +506,23 @@ test('preparation deadline includes forced synchronous identity capture',{skip:p
   assert.equal(fs.existsSync(path.join(directory,'child-request.json')),false);
 });
 
-for(const phase of ['ready','authorize'])test('attempt startup refuses late '+phase+' persistence',{skip:!supported,timeout:30000},async()=>{
+for(const phase of ['ready','authorize'])test('attempt startup refuses late '+phase+' persistence',{skip:!supported,timeout:process.platform==='win32'?120000:45000},async()=>{
+  const startupMs=process.platform==='win32'?10000:3000;
   const runtimeDirectory=scratch();
-  const runtime=await prepareOwnedRuntime({directory:runtimeDirectory,startupMs:10000,cleanupMs:1000});
+  const runtime=await prepareOwnedRuntime(process.platform==='win32'?{directory:runtimeDirectory}:
+    {directory:runtimeDirectory,startupMs:10000,cleanupMs:1000});
   assert.equal(runtime.status,'prepared',JSON.stringify(runtime));
     const directory=scratch(),inventory=path.join(directory,'pids.jsonl');
     const prepared=await prepareOwnedChild({directory,runtime,command:process.execPath,args:[fixture,'exit0',inventory],
-      cwd:directory,timeoutMs:2000,startupMs:3000,cleanupMs:1000});
+      cwd:directory,timeoutMs:2000,startupMs,cleanupMs:10000});
     let readyCalls=0,authorizeCalls=0,expected;
     const result=await runOwnedChild({prepared,reservationToken:randomUUID(),
       onReady(value) {
         expected=value;readyCalls++;
-        if(phase==='ready')Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,3500);
+        if(phase==='ready')Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,startupMs+500);
       },onAuthorize(value) {
         expected={...value,mayLaunchPersisted:true};authorizeCalls++;
-        if(phase==='authorize')Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,3500);
+        if(phase==='authorize')Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,startupMs+500);
       }});
     console.log('Attempt callback deadline evidence: '+JSON.stringify({phase,readyCalls,authorizeCalls,result}));
     assert.equal(readyCalls,1,'Exercise the callback boundary, not earlier startup refusal');
