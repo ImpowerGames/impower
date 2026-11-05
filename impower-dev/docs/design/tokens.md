@@ -396,6 +396,12 @@ listed (see inconsistencies).
 | Scripts page row name | `.scripts-item-name` | 400 14px / 1.5 | same; 13px when the page is 440px wide or less | `folio-scripts.css:61`, `:141`; measured |
 | Preview mode label | `.runtime-mode-label` | 600 12px / 1.4 | same | measured |
 | Problems toggle | `.console-toggle-text` | 600 12px / 1.6 | same | measured |
+| Problems panel position | `.console-position` | 600 11px / 1.4 | same | `folio-playback.css:280-285`; measured |
+| Problems panel section heading | `.console-part-toggle` | 600 11px / 1.4, 0.06em, uppercase; its count `small` 400 11px | same | `folio-playback.css:1243-1253`, `:1285`; measured |
+| Problems panel group heading | `.console-group h3` | 600 12px / 1.4 | same | `folio-playback.css:1359-1364`; measured |
+| Problems panel message | `.console-message strong`, `.console-message span > span` | title 600 13px / 1.4; text 400 12px / 1.5 | same | `folio-playback.css:993-996`; measured |
+| Problems panel line link | `.console-line` | 400 11px / 1.5 | same | `folio-playback.css:957-964`; measured |
+| Problems panel empty state | `.console-empty` | 400 13px / 1.5 | same | `folio-playback.css:1021-1022`; measured |
 | Page title (Share, Settings) | `.page-intro h1` | Georgia 400 40px / 1.12, −0.035em | 32px / 1.15 | `folio-type.css:176-179`, `:368-371`; measured; the one display style |
 | Page and card body | `.page-intro p`, `.feature-card p` | 400 14px / 1.6 | same | `folio-type.css:180-185`; measured |
 | Share card title | `.feature-card h2` | 600 22px / 1.25, −0.02em | same | `folio-type.css:203-206`, `:419-422`; measured |
@@ -405,6 +411,8 @@ listed (see inconsistencies).
 | Add menu title | `.insert-heading h2` | 600 15px / 1.4 | same | `folio-insert.css:12`; measured |
 | Writing tools title | `#folio-tools h2` | 600 15px / 1.4 | same | `folio-insert.css:12`; measured |
 | App menu title | `.account-menu-heading h2` | 600 15px / 1.4 | same | `folio-hierarchy.css:636`; measured |
+| App menu description and items | `.account-menu-heading p`, `.account-menu-item` | description 400 12px / 1.5; items 400 14px / 1.4 | same | `folio-hierarchy.css:639-642`, `:652-660`; measured |
+| Add menu and Writing tools rows | `.insert-block strong`, `.insert-block small` | name 600 14px / 1.4; description 400 12px / 1.5 | same | `folio-insert.css:19-20`; measured |
 | Dialog title (shared dialogs: Problems to fix, Replace this project?) | `.dialog-heading h2` | 600 22px / 1.25, −0.02em | | `folio-type.css:211-214`; measured on desktop (the dialog opens from the script's problem badge, which is not on screen at 1100px and below) |
 | Dialog title (Scripts and Assets form dialogs: New, Rename, Move, Delete, Add a link) | `.scripts-dialog-form .dialog-heading h2` | 600 20px / 1.25, −0.02em | same | `folio-scripts.css:112`; measured at all four widths |
 | Dialog body (shared dialogs) | `.tool-dialog p` | 400 14px / 1.6 | | `folio-type.css:215-218`; measured on desktop |
@@ -412,12 +420,17 @@ listed (see inconsistencies).
 | Dialog label | `.tool-dialog label` | 400 13px / 1.5 | same | `folio-type.css:219-222`; measured |
 | Dialog field | `.tool-dialog input` | 400 16px / 1.5 | same | `folio-type.css:223-226`, `folio-scripts.css:167`; measured; 16px keeps mobile browsers from zooming |
 | Toast | `.toast` | 400 13px / 1.5 | same | `folio-type.css:256-259`; measured |
-| Suggestion list | `.completion` | 400 13px / 1.4, rows 36px | chip row: chips 15px / 1 in the script's font, 44px tall | `folio-language.css:80`, `:84`, `:113`; measured |
+| Suggestion list container | `.completion` | 400 13px / 1.4, rows 36px | chip row 52px, chips 44px (`.completion-chip` 15px / 1, which no text inherits) | `folio-language.css:80`, `:84`, `:113`; measured |
+| Suggestion name | `.completion-label` | 400 14px / 1.3 in the script's font | same, in each chip | `folio-language.css:91`; measured at all four widths |
+| Suggestion detail | `.completion-detail` | 400 12px / 1.4 | not shown in chips | `folio-language.css:93`; measured |
+| Suggestion list footer | `.completion-foot` | 400 11px / 1.4 | not shown | `folio-language.css:96`; measured |
+| Suggestion preview caption | `.hover-caption code`, `.hover-caption span` | reference 400 13px / 1.4 in the script's font; caption 400 12px | not shown | `folio-language.css:66-68`; measured |
 | Expression suggestion heading | `.suggestion-head` | 600 14px / 1.4 | 600 13px / 1.4 | `folio-type.css:156-159`, `:354-356`; measured |
-| Popover | `.problem-popover` | 400 13px / 1.5 | same | `folio-hierarchy.css:918-919`; measured |
-| Context menu | `.context-menu` | 400 13px / 1.4, rows 34px | does not open on right-click at 1100px and below | `folio-tools.css:485-486`, `:499`; measured |
-| Preview menu rows (viewing mode, aspect ratio) | `.runtime-menu [role="menuitemradio"]` | 400 13px / 1.6; ratio rows 40px | same, in the fullscreen player | `folio-playback.css:332-342`; measured |
-| Scripts menu rows (sort, row menu, New) | `.scripts-menu button` | 400 13px / 1.6, 44px rows | same | `folio-scripts.css:100`; measured |
+| Popover | `.problem-popover`, `.problem-title`, `.problem-fix-button` | text 400 13px / 1.5; title 600 13px / 1.5; Fix button 600 12px / 1.4 | same | `folio-hierarchy.css:918-919`, `:963`, `:979-989`; measured |
+| Context menu | `.context-menu-item`, `.context-menu-item kbd` | label 400 13px / 1.4, rows 34px; shortcut 400 12px / 1 | does not open on right-click at 1100px and below | `folio-tools.css:485-486`, `:499`, `:516-518`; measured |
+| Viewing-mode and cog menu rows | `.runtime-mode-menu strong`, `.runtime-settings-menu strong`, their `small` | name 600 14px / 1.4; description 11px / 1.5 (600 on the chosen row) | same, in the fullscreen player | `folio-playback.css:97-100`, `:363-366`; the descriptions' 12px at `:106` and `:369` is overridden by `.runtime-menu small` at `:396`; measured |
+| Aspect-ratio menu rows | `.runtime-menu [role="menuitemradio"]` and its `small` | ratio 400 13px / 1.6 (600 on the chosen row); hint 400 11px; rows 40px | same, in the fullscreen player | `folio-playback.css:332-344`, `:396`; measured |
+| Scripts menu rows (sort, row menu, New) | `.scripts-menu button`, `.scripts-menu-heading` | rows 400 13px / 1.6, 44px; group heading 600 11px, 0.04em, uppercase | same | `folio-scripts.css:100`, `:108`; measured |
 
 ## Spacing
 
@@ -507,7 +520,7 @@ it reads as a menu, not a modal. The fullscreen player's backdrop is the theme's
 
 | Token | Value | Declared at |
 |---|---|---|
-| Touch target | 44px minimum in both directions: `.icon-btn` is 44×44, buttons and links take `min-height: 44px` | `app.css:51-52`, `app.css:129-135`; 50 `44px` minimums across the stylesheets |
+| Touch target | 44px minimum in both directions: `.icon-btn` is 44×44, buttons and links take `min-height: 44px`; the prototype's exceptions are listed under inconsistencies | `app.css:51-52`, `app.css:129-135`; 50 `44px` minimums across the stylesheets |
 | Hover overlay | `--control-hover` drawn as a background image over the control's own fill, only under `@media (hover: hover)`: white at 6% in dark themes, `rgb(60 40 20 / 0.06)` in Sepia, black at 5% in Chalk | `folio-themes.css:855-861`, values at `:3`, `:175`, `:203` |
 | Press | Not modelled by the prototype (no `:active` rule). The components use a 12% overlay of the same colour as the hover, the press value impower-ui uses today | This repository: `packages/impower-ui/src/components/button/Button.tsx:15`, `packages/impower-ui/src/components/ripple/Ripple.tsx:10` |
 | Focus | The control's own edge in the accent: `outline: 1px solid var(--accent); outline-offset: -1px` on `:focus-visible`; a filled accent button draws it inside in `--accent-ink` at `-3px` | `app.css:62-71` |
@@ -603,5 +616,7 @@ takes, and why in one line.
 | Add button size | `folio-type.css:329-334` sets `.writer-tools .btn` to 12px at 1100px and below; `folio-insert.css:55` sets the Add button (`.writer-tools .insert-trigger`) to 13px and loads later (computed 600 13px at 1100, 768 and 360) | 13px at every width |
 | Preview cog menu | `folio-playback.css:58-64` gives `.runtime-settings-menu` a 12px radius and `0 12px 40px #0006`; the element also carries `.runtime-menu`, whose rule at `folio-playback.css:302-312` comes later and wins (measured 10px and `0 10px 30px` black at 40%) | 10px and `0 10px 30px #0006`, as rendered; the shared shadow above is the target for the component |
 | Dialog title size | The shared dialogs' title is 600 22px (`folio-type.css:211-214`, measured on Problems to fix); the Scripts and Assets form dialogs override it to 20px (`folio-scripts.css:112`, measured at all widths) | Both, per dialog family, as the type table lists; one dialog component would pick one size |
-| Rows under the 44px target | Desktop-only lists draw rows below 44px: context menu 34px (`folio-tools.css:499`), suggestion list 36px (`folio-language.css:84`), aspect-ratio menu 40px (`folio-playback.css:337`), all measured | As rendered on desktop, where they answer a fine pointer; on touch widths the context menu does not open and suggestions become 44px chips (measured) |
+| Rows under the 44px target | Desktop-only lists: the context menu (34px rows, `folio-tools.css:499`) and the suggestion panel (36px rows, `folio-language.css:84`) open only above 1100px, where they answer a fine pointer. At every width, touch included: the aspect-ratio menu keeps 40px rows (`folio-playback.css:332-344`), the problem popover's Fix button is 32px tall (`folio-hierarchy.css:979-989`), the Problems panel's line links are 32px (`folio-playback.css:957-961`) and its section action buttons 36px (`folio-playback.css:1300-1304`), all measured at 360 wide with `(hover: none)` and `(pointer: coarse)` and again at 1440 | The desktop-only rows as rendered; on touch widths the aspect-ratio rows, the Fix button, the line links and the section actions take the 44px minimum, which is the rule this reference states, and the prototype's 40px, 36px and 32px are recorded here as below it |
 | Expression panel radius | 12px (`app.css:743`) above 1100px and 9px (`app.css:1614`) at 1100px and below, against the 12px panel radius everywhere else (measured) | As rendered |
+| Preview menu descriptions | `folio-playback.css:106` and `:369` set the cog and viewing-mode menus' descriptions to 12px / 1.5; both menus also carry `.runtime-menu`, whose `small` rule at `folio-playback.css:396` comes later and sets 11px (measured 11px / 1.5 at every width) | 11px / 1.5, as rendered |
+| Suggestion chip font | `.completion-chip` declares 15px / 1 in the script's font (`folio-language.css:113`), but the name inside sets its own 14px / 1.3 (`.completion-label`, `folio-language.css:91`) and the chip shows no other text (measured) | 14px / 1.3 for the name; the chip's own font has no visible effect |
