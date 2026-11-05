@@ -8,13 +8,15 @@ const MINUTE = 60_000;
 
 export default function useSaveStatus(): SaveStatus | null {
   const now = useSignal(Date.now());
+  const syncedAt = workspace.syncedAt.value;
 
   useEffect(() => {
+    now.value = Date.now();
     const tick = window.setInterval(() => {
       now.value = Date.now();
     }, MINUTE);
     return () => window.clearInterval(tick);
-  }, []);
+  }, [syncedAt]);
 
   return useComputed(() =>
     saveStatusOf(

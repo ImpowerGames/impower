@@ -33,7 +33,8 @@ export default function SyncConflictDialog() {
           close();
         }
       }}
-      size="md"
+      size="lg"
+      responsive
     >
       <DialogTitle>This project changed on Google Drive</DialogTitle>
       <DialogDescription class="mt-3">
