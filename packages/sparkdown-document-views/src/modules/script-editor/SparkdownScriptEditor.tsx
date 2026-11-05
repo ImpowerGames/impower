@@ -1,5 +1,6 @@
 import { LoadingBar } from "@impower/impower-ui/loading-bar";
 import { useEffect, useRef } from "preact/hooks";
+import type { ScriptAppearance } from "../../cm-script-appearance/scriptAppearanceOptions";
 import type {
   ScriptEditorController as ScriptEditorControllerType,
   ScriptEditorOptions,
@@ -14,7 +15,9 @@ export const propDefaults = {
   bottom: "",
 };
 
-export type SparkdownScriptEditorProps = Partial<typeof propDefaults>;
+export type SparkdownScriptEditorProps = Partial<typeof propDefaults> & {
+  appearance: ScriptAppearance;
+};
 
 let languageServerWorker: Worker | undefined;
 let languageServerConnection:
@@ -32,6 +35,7 @@ export function setLanguageServer(opts: {
 export default function SparkdownScriptEditor({
   readonly,
   coarsePointer,
+  appearance,
   scrollMargin,
   top,
   bottom,
@@ -44,6 +48,8 @@ export default function SparkdownScriptEditor({
   const controllerRef = useRef<ScriptEditorControllerType | null>(null);
   const coarsePointerRef = useRef(!!coarsePointer);
   coarsePointerRef.current = !!coarsePointer;
+  const appearanceRef = useRef(appearance);
+  appearanceRef.current = appearance;
 
   useEffect(() => {
     const root = rootRef.current;
@@ -74,6 +80,7 @@ export default function SparkdownScriptEditor({
         {
           readonly: !!readonly,
           coarsePointer: coarsePointerRef.current,
+          appearance: appearanceRef.current,
           scrollMargin: scrollMargin ?? "",
           top: top ?? "",
           bottom: bottom ?? "",
@@ -100,6 +107,10 @@ export default function SparkdownScriptEditor({
   useEffect(() => {
     controllerRef.current?.setCoarsePointer(!!coarsePointer);
   }, [coarsePointer]);
+
+  useEffect(() => {
+    controllerRef.current?.setAppearance(appearance);
+  }, [appearance]);
 
   return (
     <div class="sparkdown-script-editor-root" ref={rootRef}>

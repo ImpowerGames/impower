@@ -57,40 +57,34 @@ export interface DocumentFoldingRange {
   kind?: string;
   from: number;
   to: number;
-  collapsedText?: string;
 }
 
 const setFoldingRanges = StateEffect.define<DocumentFoldingRange[]>();
 
+export function foldedLineCount(
+  state: EditorState,
+  range: { from: number; to: number },
+): number {
+  return (
+    state.doc.lineAt(range.to).number - state.doc.lineAt(range.from).number
+  );
+}
+
 export function foldingPlaceholderDOM(
   view: EditorView,
   onclick: (this: GlobalEventHandlers, ev: PointerEvent) => any,
-  _prepared: boolean,
+  hiddenLines: number,
 ) {
-  const { ranges } = view.state.field(foldingRangeField);
-  const match =
-    ranges.find((r) => {
-      try {
-        return (
-          r.from ===
-          view.posAtDOM(
-            view.contentDOM.querySelector(".cm-foldPlaceholder")
-              ?.parentElement || view.contentDOM,
-          )
-        );
-      } catch {
-        return false;
-      }
-    }) ||
-    ranges.find(
-      (r) =>
-        view.state.doc.lineAt(r.from).from ===
-        view.state.doc.lineAt(view.posAtDOM(view.contentDOM)).from,
-    );
-
   const dom = document.createElement("span");
-  dom.textContent = match?.collapsedText || "⋯";
   dom.className = "cm-foldPlaceholder";
+  dom.textContent = String(hiddenLines);
+  dom.title = view.state.phrase("unfold");
+  dom.setAttribute(
+    "aria-label",
+    `${view.state.phrase("unfold")}: ${hiddenLines} ${
+      hiddenLines === 1 ? "line" : "lines"
+    }`,
+  );
   dom.onclick = onclick;
   return dom;
 }
@@ -202,8 +196,7 @@ const sameFoldingRanges = (
     if (
       a.from !== b.from ||
       a.to !== b.to ||
-      a.kind !== b.kind ||
-      a.collapsedText !== b.collapsedText
+      a.kind !== b.kind
     ) {
       return false;
     }
@@ -232,7 +225,6 @@ export function convertFromServerFoldingRanges(
         kind: r.kind,
         from,
         to,
-        collapsedText: r.collapsedText,
       });
     }
   }
@@ -274,11 +266,7 @@ export function serverFolding(): LSPClientExtension {
   return {
     clientCapabilities: {
       textDocument: {
-        foldingRange: {
-          foldingRange: {
-            collapsedText: true,
-          },
-        },
+        foldingRange: {},
       },
     },
     requestHandlers: {
@@ -323,6 +311,7 @@ export function serverFolding(): LSPClientExtension {
       foldingRangesService,
       codeFolding({
         placeholderText: "⋯",
+        preparePlaceholder: foldedLineCount,
         placeholderDOM: foldingPlaceholderDOM,
       }),
       foldGutter({

@@ -2,6 +2,7 @@ import {
   highlightingFor,
   language as languageFacet,
 } from "@codemirror/language";
+import { Facet } from "@codemirror/state";
 import { EditorView, Tooltip, hoverTooltip } from "@codemirror/view";
 import { highlightCode } from "@lezer/highlight";
 import type * as lsp from "vscode-languageserver-protocol";
@@ -15,6 +16,10 @@ const hoverTheme = EditorView.baseTheme({
     maxWidth: "100%",
     objectFit: "contain",
   },
+});
+
+export const hoverPreviews = Facet.define<boolean, boolean>({
+  combine: (values) => values.at(-1) ?? true,
 });
 
 export interface ServerHoversConfig {
@@ -56,7 +61,7 @@ function hoverRequest(plugin: LSPPlugin, pos: number) {
   });
 }
 
-function lspTooltipSource(
+export function lspTooltipSource(
   view: EditorView,
   pos: number,
 ): Promise<Tooltip | null> {
@@ -64,6 +69,10 @@ function lspTooltipSource(
   if (!plugin) return Promise.resolve(null);
   return hoverRequest(plugin, pos).then((result) => {
     if (!result) return null;
+    const html = renderTooltipContent(plugin, result.contents);
+    if (!view.state.facet(hoverPreviews) && /<img[\s>]/i.test(html)) {
+      return null;
+    }
     return {
       pos: result.range
         ? convertFromPosition(view.state.doc, result.range.start)
@@ -74,7 +83,7 @@ function lspTooltipSource(
       create() {
         let elt = document.createElement("div");
         elt.className = "cm-lsp-hover-tooltip cm-lsp-documentation";
-        elt.innerHTML = renderTooltipContent(plugin, result.contents);
+        elt.innerHTML = html;
         return { dom: elt };
       },
       above: true,

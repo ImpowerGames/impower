@@ -4,3 +4,4 @@
 
 export * from "./classes/VSCodeLanguageSupport";
 export * from "./extensions/vscodeLanguage";
+export { autoCloseBrackets } from "./extensions/vscodeCloseBrackets";

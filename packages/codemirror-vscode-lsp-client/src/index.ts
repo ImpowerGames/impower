@@ -54,7 +54,13 @@ export {
   type DocumentFoldingRange,
 } from "./folding";
 export { formatDocument, formatKeymap, serverFormatting } from "./formatting";
-export { serverHovers } from "./hover";
+export {
+  DOCUMENT_HIGHLIGHT_CLASS_NAME,
+  documentHighlights,
+  serverDocumentHighlights,
+  setDocumentHighlights,
+} from "./highlights";
+export { hoverPreviews, lspTooltipSource, serverHovers } from "./hover";
 export {
   convertFromServerCodeLens,
   serverCodeLenses,
@@ -125,6 +131,7 @@ import { serverDefinitions } from "./definition";
 import { serverDiagnostics } from "./diagnostics";
 import { serverFolding } from "./folding";
 import { serverFormatting } from "./formatting";
+import { serverDocumentHighlights } from "./highlights";
 import { serverHovers } from "./hover";
 import { serverCodeLenses } from "./lens";
 import { serverDocumentLinks } from "./link";
@@ -149,6 +156,7 @@ export function languageServerExtensions(): readonly (
     serverDocumentSymbols(),
     serverSemanticHighlighting(),
     serverHovers(),
+    serverDocumentHighlights(),
     serverRenaming(),
     serverReferences(),
     serverFormatting(),

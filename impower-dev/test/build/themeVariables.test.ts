@@ -200,8 +200,53 @@ const editorNames = (declared: Map<string, string>) =>
       (n.startsWith("--syntax-") && n !== "--syntax-active"),
   );
 
+const DERIVED_THEME_NAMES: Record<string, Theme> = {
+  Charcoal: "charcoal",
+  Chalk: "chalk",
+  Ink: "ink",
+  Sepia: "paper",
+  Graphite: "graphite",
+  "Warm Folio": "warm",
+  Midnight: "midnight",
+  Dusk: "dusk",
+};
+
+const derivedSyntaxTokens = () =>
+  [
+    ...tokensSection("Folio syntax variables").matchAll(
+      /^\| `(--[\w-]+)` \| `([^`]+)` \| ([A-Z][^|]+) \|/gm,
+    ),
+  ].map((row) => ({
+    name: row[1]!,
+    value: row[2]!,
+    themes: [...row[3]!.matchAll(/Warm Folio|[A-Z][a-z]+/g)]
+      .map((m) => DERIVED_THEME_NAMES[m[0]])
+      .filter((theme): theme is Theme => Boolean(theme)),
+  }));
+
+const derivedSyntaxNames = () =>
+  new Set(derivedSyntaxTokens().map((row) => row.name));
+
 const syntaxNames = () =>
-  editorNames(midnight()).filter((n) => n.startsWith("--syntax-"));
+  editorNames(midnight()).filter(
+    (n) => n.startsWith("--syntax-") && !derivedSyntaxNames().has(n),
+  );
+
+const srgbToLinear = (c: number) =>
+  c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+
+const oklch = (hex: string) => {
+  const [r, g, b] = [1, 3, 5].map((i) =>
+    srgbToLinear(parseInt(hex.slice(i, i + 2), 16) / 255),
+  ) as [number, number, number];
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  const L = 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s;
+  const A = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s;
+  const B = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s;
+  return { L, A, B, C: Math.hypot(A, B) };
+};
 
 const inlineThemeColors = () => {
   const block = STYLE_CSS.match(/@theme inline\s*\{([^}]*)\}/);
@@ -381,6 +426,39 @@ describe("syntax variables", () => {
       }
     },
   );
+
+  it("softens Original by reducing OKLab chroma by 20% at the same lightness and hue", () => {
+    const original = midnight();
+    for (const row of rows) {
+      const from = oklch(original.get(row.name)!);
+      const to = oklch(row.Softened);
+      expect(to.L, `${row.name} lightness`).toBeCloseTo(from.L, 2);
+      expect(to.C, `${row.name} chroma`).toBeCloseTo(from.C * 0.8, 2);
+      expect(to.A, `${row.name} hue (a)`).toBeCloseTo(from.A * 0.8, 2);
+      expect(to.B, `${row.name} hue (b)`).toBeCloseTo(from.B * 0.8, 2);
+    }
+  });
+
+  it("gives each derived syntax variable the value tokens.md records for each theme", () => {
+    const derived = derivedSyntaxTokens();
+    expect(derived.length).toBeGreaterThan(0);
+    const covered = new Map<string, Set<Theme>>();
+    for (const { name, value, themes } of derived) {
+      expect(themes.length, name).toBeGreaterThan(0);
+      for (const theme of themes) {
+        for (const syntax of [undefined, "original", "softened"]) {
+          expect(
+            themeDeclarations({ theme, syntax }).get(name),
+            `${theme} ${syntax} ${name}`,
+          ).toBe(value);
+        }
+        covered.set(name, (covered.get(name) ?? new Set()).add(theme));
+      }
+    }
+    for (const [name, themes] of covered) {
+      expect([...themes].sort(), name).toEqual([...THEMES].sort());
+    }
+  });
 
   it("gives Dusk Midnight's colours", () => {
     const dusk = themeDeclarations({ theme: "dusk" });

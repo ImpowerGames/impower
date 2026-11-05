@@ -65,8 +65,11 @@ const EDITOR_THEME: {
     fontSize: "inherit",
     lineHeight: "inherit",
     overscrollBehavior: "none",
+    scrollbarWidth: "thin",
+    scrollbarColor: "var(--scrollbar) transparent",
   },
   "& .cm-line": {
+    position: "relative",
     fontFamily:
       'var(--font-script, "Courier Prime Sans", monospace)',
   },
@@ -75,7 +78,8 @@ const EDITOR_THEME: {
     backgroundColor: "transparent",
     color: "var(--editor-line-number)",
     border: "none",
-    opacity: 0.7,
+    minWidth: "var(--script-gutter, 36px)",
+    justifyContent: "flex-end",
     // workaround(@codemirror/view): ships gutters at z-index 200 with no stacking context, so they rise above host dialogs and toasts (seen with @codemirror/view 6.43.1)
     zIndex: "1",
   },
@@ -92,6 +96,7 @@ const EDITOR_THEME: {
     caretColor: "var(--ink)",
     minHeight: "100%",
     paddingLeft: "2px",
+    paddingRight: "var(--script-margin, 20px)",
   },
   "& .cm-panel": {
     backgroundColor: "inherit",
@@ -158,6 +163,13 @@ const EDITOR_THEME: {
     ".cm-panel.cm-search button[name='close']:hover": {
       backgroundColor: "var(--editor-button-hover)",
     },
+    "& .cm-foldGutter .cm-fold-arrow:hover": {
+      color: "var(--ink)",
+    },
+    "& .cm-foldPlaceholder:hover": {
+      color: "var(--ink)",
+      borderColor: "var(--muted)",
+    },
   },
 
   "& label:has(input[type='checkbox'])": {
@@ -214,6 +226,16 @@ const EDITOR_THEME: {
   "& .cm-selectionMatch": {
     backgroundColor: "var(--editor-selection-match)",
   },
+  "& .cm-symbol-highlight": {
+    backgroundColor: "var(--editor-symbol-highlight)",
+    borderRadius: "2px",
+  },
+  "& .cm-searchMatch": {
+    backgroundColor: "var(--editor-search-match)",
+  },
+  "& .cm-searchMatch.cm-searchMatch-selected": {
+    backgroundColor: "var(--editor-search-match-selected)",
+  },
   "& .cm-snippet .cm-selectionMatch": {
     backgroundColor: "transparent",
   },
@@ -224,47 +246,106 @@ const EDITOR_THEME: {
     backgroundColor: "transparent",
     color: "var(--editor-line-number-active)",
   },
-  "& .cm-activeLine": {
-    backgroundColor: "transparent",
-    "&::after": {
-      display: "block",
-      content: "''",
-      position: "absolute",
-      inset: "2px",
-      outline: "2px solid color-mix(in srgb, var(--ink) 7.06%, transparent)",
-      pointerEvents: "none",
-    },
-  },
-  "&.cm-selected .cm-activeLine": {
-    backgroundColor: "transparent",
-    outline: "none",
-  },
   "& .cm-gutterElement *": {
     userSelect: "none",
   },
   "& .cm-lineNumbers .cm-gutterElement": {
-    padding: "0 2px",
+    padding: "0 6px 0 2px",
+    fontSize: "0.72em",
+    lineHeight: "calc(var(--script-leading, 1.5) / 0.72)",
+    opacity: "0",
+    transform: "translateX(-12px)",
+  },
+  "&.cm-line-numbers .cm-lineNumbers .cm-gutterElement": {
+    opacity: "0.65",
+    transform: "none",
+  },
+  "@media (prefers-reduced-motion: no-preference)": {
+    "& .cm-lineNumbers .cm-gutterElement": {
+      transition: "opacity .18s ease, transform .18s ease",
+    },
+    "& .cm-foldGutter .cm-fold-arrow": {
+      transition: "opacity .12s ease, transform .15s ease",
+    },
   },
   "& .cm-gutter-lint": {
     width: "1em",
   },
-  "& .cm-foldGutter": {
-    "& .cm-fold-arrow": {
-      transition: "opacity .25s",
-      opacity: "0",
-    },
-    "&:hover .cm-fold-arrow": {
+  "& .cm-foldGutter .cm-gutterElement": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  "& .cm-foldGutter .cm-fold-arrow": {
+    width: "11px",
+    height: "11px",
+    color: "var(--muted)",
+    opacity: "0",
+    cursor: "pointer",
+  },
+  "& .cm-foldGutter:hover .cm-fold-arrow, & .cm-activeLineGutter .cm-fold-arrow, & .cm-foldGutter .cm-fold-arrow.cm-fold-closed":
+    {
       opacity: "1",
     },
-    "& .cm-fold-arrow.cm-fold-closed": {
-      opacity: "1",
+  "& .cm-foldPlaceholder": {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "4px",
+    height: "18px",
+    margin: "0 0 0 1ch",
+    padding: "0 8px",
+    border: "1px solid var(--edge)",
+    borderRadius: "9px",
+    backgroundColor: "var(--panel)",
+    color: "var(--muted)",
+    font: '500 11px/1 var(--font-ui, "Segoe UI", sans-serif)',
+    letterSpacing: "0",
+    verticalAlign: "0.15em",
+    whiteSpace: "nowrap",
+    cursor: "pointer",
+    userSelect: "none",
+    "&::after": {
+      content: "'⋯'",
     },
   },
-  "& .cm-foldPlaceholder": {
-    backgroundColor: "transparent",
-    border: "none",
-    color: "var(--editor-faint)",
-    margin: ".1em .2em 0",
+  "& .cm-color-swatch": {
+    backgroundColor: "var(--swatch)",
+    color: "lch(from var(--swatch) calc((50 - l) * 1000) 0 0)",
+    borderRadius: "0.28em",
+    padding: "1px 0.25em",
+    margin: "0 -0.25em",
+    boxShadow: "inset 0 0 0 1px var(--editor-swatch-edge)",
+    boxDecorationBreak: "clone",
+    WebkitBoxDecorationBreak: "clone",
+    cursor: "pointer",
+    forcedColorAdjust: "none",
+  },
+  "& .cm-color-swatch *": {
+    color: "inherit",
+  },
+  "& .cm-color-swatch.cm-color-swatch-alpha": {
+    background:
+      "linear-gradient(var(--swatch), var(--swatch)), repeating-conic-gradient(var(--editor-swatch-edge) 0 25%, transparent 0 50%) 0 0 / 8px 8px",
+    color: "var(--ink)",
+  },
+  "& .cm-lintRange": {
+    backgroundImage: "none",
+    paddingBottom: "0",
+    textDecorationLine: "underline",
+    textDecorationStyle: "wavy",
+    textDecorationThickness: "1px",
+    textDecorationSkipInk: "none",
+    textUnderlineOffset: "0.16em",
+  },
+  "& .cm-lintRange-error": {
+    textDecorationColor: "var(--editor-problem-error)",
+  },
+  "& .cm-lintRange-warning": {
+    textDecorationColor: "var(--editor-problem-warning)",
+  },
+  "& .cm-lintRange-info, & .cm-lintRange-hint": {
+    textDecorationStyle: "dotted",
+    textDecorationColor: "var(--editor-problem-info)",
   },
   "& .cm-lineWrapping": {
     overflowWrap: "break-word",
@@ -536,6 +617,9 @@ const EDITOR_THEME: {
   "& .cm-tooltip-autocomplete ul li[aria-selected]": {
     background: "var(--editor-list-selected)",
     color: "var(--ink)",
+  },
+  "& .cm-tooltip-autocomplete-disabled ul li[aria-selected]": {
+    background: "var(--editor-list-disabled)",
   },
   "& .cm-valueInfo": {
     fontFamily: "monospace",
