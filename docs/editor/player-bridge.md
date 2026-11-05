@@ -26,11 +26,11 @@ The player package exports three host-agnostic components: `PlayerBar`, `PlayerC
 
 ### Size report
 
-`game/resized` reports the game's rendered width and height in CSS pixels, `fit`, and `aspectRatio`. `fit` says what decided the size: `auto` (the game fills the pane above the bar), `ratio` (a requested aspect ratio) or `height` (a height the user dragged the bar to, or a `game/resize` height). `aspectRatio` is the requested ratio when `fit` is `ratio`, otherwise the common ratio the size matches (`16:9`, `9:16`, `4:3`, `3:4`, `21:9`, `1:1`) or null. The player sends it when it mounts, on every resize of the game or its pane, and on every drag step, and never sends the same report twice in a row. VS Code keeps `height` as the panel's restored height when `fit` is `height` and forgets it when `fit` is `auto`.
+`game/resized` reports the game's rendered width and height in CSS pixels, `fit`, and `aspectRatio`. `fit` says what decided the size: `auto` (the game fills the pane above the bar), `ratio` (a requested aspect ratio) or `height` (a height the user dragged the bar to, or a `game/resize` height). `aspectRatio` is the common ratio the rendered size matches (`16:9`, `9:16`, `4:3`, `3:4`, `21:9`, `1:1`), or null when it matches none. The player sends it when it mounts, on every resize of the game or its pane, and on every drag step, and never sends the same report twice in a row. VS Code keeps `height` as the panel's restored height when `fit` is `height` and forgets it when `fit` is `auto`.
 
 ### Fill request
 
-`game/resize` with `{aspectRatio: "16:9" | "4:3" | "1:1" | "3:4" | "9:16"}` makes the game the largest box of that ratio that fits the pane above the bar, centred across the pane, and keeps it fitted as the pane resizes. `{aspectRatio: "auto"}` returns the game to filling the pane. `{height}` sets a fixed height. Dragging the bar replaces any of them.
+`game/resize` with `{aspectRatio: "16:9" | "4:3" | "1:1" | "3:4" | "9:16"}` makes the game the largest box of that ratio that fits the pane above the bar, centred across the pane, and keeps it fitted as the pane resizes. `{aspectRatio: "auto"}` returns the game to filling the pane. `{height}` sets a fixed height. Dragging the bar replaces any of them. Fullscreen fills the screen whatever the fit, and the report then gives the full size.
 
 ### Skip by beat
 

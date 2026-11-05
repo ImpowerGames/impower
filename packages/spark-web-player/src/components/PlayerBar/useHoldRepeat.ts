@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 
-export const HOLD_REPEAT_DELAY_MS = 400;
-export const HOLD_REPEAT_INTERVAL_MS = 100;
+const HOLD_REPEAT_DELAY_MS = 400;
+const HOLD_REPEAT_INTERVAL_MS = 100;
 
 export const useHoldRepeat = (action: () => void) => {
   const [pressed, setPressed] = useState(false);

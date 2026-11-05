@@ -16,7 +16,7 @@ export interface ProblemsListProps {
   onJump?: (jump: ConsoleJump) => void;
 }
 
-export const groupProblemsByScript = (problems: readonly Problem[]) => {
+const groupProblemsByScript = (problems: readonly Problem[]) => {
   const groups = new Map<string, Problem[]>();
   for (const problem of problems) {
     const group = groups.get(problem.path);

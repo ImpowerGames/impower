@@ -7,16 +7,12 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
 import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import { GameResizedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameResizedMessage";
-import PlayerBar, {
-  COMPLETION_PREPARING_STATUS_DELAY,
-  type PlayerBarProps,
-} from "./PlayerBar";
+import PlayerBar, { type PlayerBarProps } from "./PlayerBar";
 import {
   initialPlayerBarState,
   reducePlayerBar,
   type PlayerBarState,
 } from "./playerBarState";
-import { HOLD_REPEAT_DELAY_MS, HOLD_REPEAT_INTERVAL_MS } from "./useHoldRepeat";
 
 const WORKSPACE = "file:///project";
 
@@ -152,7 +148,11 @@ describe("PlayerBar state", () => {
     mount({ state: preparing });
     expect($("#completion-status")!.hidden).toBe(true);
     act(() => {
-      vi.advanceTimersByTime(COMPLETION_PREPARING_STATUS_DELAY);
+      vi.advanceTimersByTime(149);
+    });
+    expect($("#completion-status")!.hidden).toBe(true);
+    act(() => {
+      vi.advanceTimersByTime(1);
     });
     expect($("#completion-status")!.hidden).toBe(false);
     expect($("#completion-status")!.textContent).toBe("Preparing suggestion preview…");
@@ -224,7 +224,7 @@ describe("PlayerBar controls", () => {
     expect(onSkip.mock.calls).toEqual([[1]]);
     expect(forward.hasAttribute("data-pressed")).toBe(true);
     act(() => {
-      vi.advanceTimersByTime(HOLD_REPEAT_DELAY_MS - 1);
+      vi.advanceTimersByTime(399);
     });
     expect(onSkip).toHaveBeenCalledTimes(1);
     act(() => {
@@ -232,7 +232,7 @@ describe("PlayerBar controls", () => {
     });
     expect(onSkip).toHaveBeenCalledTimes(2);
     act(() => {
-      vi.advanceTimersByTime(HOLD_REPEAT_INTERVAL_MS * 3);
+      vi.advanceTimersByTime(300);
     });
     expect(onSkip).toHaveBeenCalledTimes(5);
     act(() => {
@@ -241,7 +241,7 @@ describe("PlayerBar controls", () => {
     });
     expect(forward.hasAttribute("data-pressed")).toBe(false);
     act(() => {
-      vi.advanceTimersByTime(HOLD_REPEAT_DELAY_MS * 2);
+      vi.advanceTimersByTime(800);
     });
     expect(onSkip).toHaveBeenCalledTimes(5);
     act(() => {
@@ -259,7 +259,7 @@ describe("PlayerBar controls", () => {
     act(() => {
       back.dispatchEvent(pointer("pointerdown"));
       back.dispatchEvent(pointer("pointerleave"));
-      vi.advanceTimersByTime(HOLD_REPEAT_DELAY_MS * 2);
+      vi.advanceTimersByTime(800);
     });
     expect(onSkip.mock.calls).toEqual([[-1]]);
     act(() => {

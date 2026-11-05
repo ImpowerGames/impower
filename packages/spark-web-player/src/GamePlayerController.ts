@@ -1134,10 +1134,7 @@ export class GamePlayerController {
     const params: GameResizedParams = {
       width: rect.width,
       height: rect.height,
-      aspectRatio:
-        this._fit === "ratio" && this._fitRatio
-          ? this._fitRatio
-          : matchAspectRatio(rect.width, rect.height),
+      aspectRatio: matchAspectRatio(rect.width, rect.height),
       fit: this._fit,
     };
     const last = this._lastSizeReport;

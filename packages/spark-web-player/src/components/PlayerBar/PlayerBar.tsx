@@ -10,7 +10,7 @@ import {
 } from "./playerBarState";
 import { useHoldRepeat } from "./useHoldRepeat";
 
-export const COMPLETION_PREPARING_STATUS_DELAY = 150;
+const COMPLETION_PREPARING_STATUS_DELAY = 150;
 
 export interface PlayerBarControls {
   skip?: boolean;

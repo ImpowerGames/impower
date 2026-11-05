@@ -285,7 +285,9 @@ spark-web-player #game {
 }
 
 spark-web-player .fullscreen #game {
+  width: 100% !important;
   height: 100% !important;
+  align-self: stretch !important;
 }
 
 spark-web-player #game-background {
