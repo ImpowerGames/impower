@@ -3,7 +3,6 @@ import {
   isSimpleBlockNode,
   isTokenNode,
   isWhiteSpaceOrCommentNode,
-  isWhitespaceNode,
   parseListOfComponentValues,
   type ComponentValue,
   type FunctionNode,
@@ -38,33 +37,6 @@ export const identName = (
   isTokenType(node, TokenType.Ident)
     ? (node.value[4] as { value: string }).value
     : undefined;
-
-export const splitWhitespace = (css: string): string[] => {
-  const parts: string[] = [];
-  let start: number | undefined;
-  let end = -1;
-  for (const node of parseComponentValues(css)) {
-    if (isWhitespaceNode(node)) {
-      if (start !== undefined) {
-        parts.push(css.slice(start, end + 1));
-        start = undefined;
-      }
-      continue;
-    }
-    const tokens = node.tokens();
-    start ??= tokens[0]![2];
-    end = tokens[tokens.length - 1]![3];
-  }
-  if (start !== undefined) {
-    parts.push(css.slice(start, end + 1));
-  }
-  return parts;
-};
-
-export const decodeIdentifier = (text: string): string | undefined => {
-  const values = significant(parseComponentValues(text));
-  return values.length === 1 ? identName(values[0]) : undefined;
-};
 
 export const significant = (nodes: ComponentValue[]): ComponentValue[] =>
   nodes.filter((node) => !isWhiteSpaceOrCommentNode(node));

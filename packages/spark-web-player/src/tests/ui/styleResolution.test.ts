@@ -435,7 +435,7 @@ describe("the CSS grammar decides which words are theme colours", () => {
     [
       "background-image",
       "linear-gradient(\\73 ky_60, #fff)",
-      "linear-gradient(var(--theme-color-sky_60), #fff)",
+      "linear-gradient(\\73 ky_60, #fff)",
     ],
     [
       "background-image",
@@ -522,9 +522,9 @@ describe("the CSS grammar decides which words are theme colours", () => {
       "linear-gradient(0 in srgb, sky_60, #fff)",
       "linear-gradient(0 in srgb, var(--theme-color-sky_60), #fff)",
     ],
-    ["color", "brand\\(blue", "var(--theme-color-brand\\(blue)"],
+    ["color", "brand\\(blue", "brand\\(blue"],
     ["color", "rebeccapurple/**/", "rebeccapurple/**/"],
-    ["color", "\\73 ky_60", "var(--theme-color-sky_60)"],
+    ["color", "\\73 ky_60", "\\73 ky_60"],
     ["color", "sky_60/50", "rgb(from var(--theme-color-sky_60) r g b / 50)"],
     ["color", "#ff0000", "#ff0000"],
     ["color", "current", "currentColor"],
@@ -600,47 +600,48 @@ describe("the CSS grammar decides which words are theme colours", () => {
   });
 
   test.each([
-    ["width", "gu\\tter", "var(--theme-size-gutter)"],
-    ["easing", "\\62 ounce", "var(--theme-ease-bounce)"],
-    ["filter", "\\64 im", "var(--theme-filter-dim)"],
+    ["width", "gu\\tter", "gu\\tter"],
+    ["width", "gutter", "var(--theme-size-gutter)"],
+    ["easing", "\\62 ounce", "\\62 ounce"],
+    ["easing", "bounce", "var(--theme-ease-bounce)"],
+    ["filter", "\\64 im", "\\64 im"],
+    ["filter", "dim", "var(--theme-filter-dim)"],
     ["width", "gu\\tters", "gu\\tters"],
-    ["width", "\\67 utter", "var(--theme-size-gutter)"],
-    ["padding", "md \\67 utter", "8px var(--theme-size-gutter)"],
-    ["animation", "\\70 ulse", "var(--theme-animation-pulse)"],
-    [
-      "animation",
-      "\\70 ulse \\70 ulse",
-      "var(--theme-animation-pulse), var(--theme-animation-pulse)",
-    ],
-    ["color", "brand\\\\name", "var(--theme-color-brand\\\\name)"],
+    ["width", "\\67 utter", "\\67 utter"],
+    ["animation", "\\70 ulse", "\\70 ulse"],
+    ["animation", "pulse", "var(--theme-animation-pulse)"],
+    ["color", "\\73 ky_60", "\\73 ky_60"],
+    ["color", "sky_60", "var(--theme-color-sky_60)"],
+    ["color", "\\73 ky_60/50", "\\73 ky_60/50"],
+    ["color", "brand\\name", "brand\\name"],
+    ["color", "brand\\\\name", "brand\\\\name"],
     ["color", "brandname", "var(--theme-color-brandname)"],
     [
       "background-image",
-      "linear-gradient(brand\\\\name, #fff)",
-      "linear-gradient(var(--theme-color-brand\\\\name), #fff)",
+      "linear-gradient(brand\\\\name, \\73 ky_60, sky_60)",
+      "linear-gradient(brand\\\\name, \\73 ky_60, var(--theme-color-sky_60))",
     ],
     [
       "background-image",
-      "linear-gradient(var(--a, brand\\\\name), brand\\\\name)",
-      "linear-gradient(var(--a, var(--theme-color-brand\\\\name)), var(--theme-color-brand\\\\name))",
+      "linear-gradient(var(--a, brand\\name), brandname)",
+      "linear-gradient(var(--a, brand\\name), var(--theme-color-brandname))",
     ],
-  ])(
-    "an escaped %s name %s resolves by its decoded name",
-    (key, value, css) => {
-      const escapedTheme: ReadonlySet<string> = new Set([
-        "--theme-size-gutter",
-        "--theme-ease-bounce",
-        "--theme-filter-dim",
-        "--theme-animation-pulse",
-        "--theme-color-brand\\name",
-        "--theme-color-brandname",
-      ]);
-      const [[, resolved]] = getCssEquivalent(key, value, escapedTheme) as [
-        [string, string],
-      ];
-      expect(resolved).toBe(css);
-    },
-  );
+  ])("an escaped %s name %s is never a theme token", (key, value, css) => {
+    const escapedTheme: ReadonlySet<string> = new Set([
+      "--theme-size-gutter",
+      "--theme-size-gu\\tter",
+      "--theme-ease-bounce",
+      "--theme-filter-dim",
+      "--theme-animation-pulse",
+      "--theme-color-sky_60",
+      "--theme-color-brand\\name",
+      "--theme-color-brandname",
+    ]);
+    const [[, resolved]] = getCssEquivalent(key, value, escapedTheme) as [
+      [string, string],
+    ];
+    expect(resolved).toBe(css);
+  });
 
   test.each([
     [

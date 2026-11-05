@@ -2,14 +2,12 @@ import { SPARKLE_TO_CSS_NAME_MAP } from "../constants/CSS_ALIASES.js";
 import type { ThemeVariables } from "../types/themeVariables.js";
 import {
   applyEdits,
-  decodeIdentifier,
   identName,
   isFunctionNode,
   isTokenType,
   parseComponentValues,
   significant,
   splitAt,
-  splitWhitespace,
   TokenType,
   type ComponentValue,
   type FunctionNode,
@@ -23,40 +21,12 @@ const VALUE_UNIT_REGEX = /^(\d+(?:\.\d+)?)([a-z]+)?$/;
 export const getThemeVar = (
   theme: ThemeVariables,
   category: string,
-  text: string,
-): string | undefined =>
-  getThemeVarForName(
-    theme,
-    category,
-    text.includes("\\") ? (decodeIdentifier(text) ?? text) : text,
-  );
-
-const getThemeVarForName = (
-  theme: ThemeVariables,
-  category: string,
   name: string,
 ): string | undefined => {
   const variable = `--theme-${category}-${name}`;
-  return theme.has(variable)
-    ? `var(--theme-${category}-${serializeNamePart(name)})`
+  return !name.includes("\\") && theme.has(variable)
+    ? `var(${variable})`
     : undefined;
-};
-
-const serializeNamePart = (name: string): string => {
-  let result = "";
-  for (const char of name) {
-    const code = char.codePointAt(0)!;
-    if (code === 0) {
-      result += String.fromCodePoint(0xfffd);
-    } else if (code <= 0x1f || code === 0x7f) {
-      result += `\\${code.toString(16)} `;
-    } else if (code >= 0x80 || /[\w-]/.test(char)) {
-      result += char;
-    } else {
-      result += `\\${char}`;
-    }
-  }
-  return result;
 };
 
 // eslint-disable-next-line no-useless-escape
@@ -139,6 +109,7 @@ const resolveColorWords = (
     const name = identName(node);
     if (
       name === undefined ||
+      (node as TokenNode).value[1] !== name ||
       name.startsWith("--") ||
       keywords.has(name.toLowerCase())
     ) {
@@ -156,7 +127,7 @@ const resolveColorWords = (
     ) {
       const alphaEnd = (alpha as TokenNode).value[3];
       const origin =
-        getThemeVarForName(theme, "color", name) ?? css.slice(start, end + 1);
+        getThemeVar(theme, "color", name) ?? css.slice(start, end + 1);
       const alphaText = css.slice(slash.value[3] + 1, alphaEnd + 1);
       edits.push({
         start,
@@ -167,9 +138,7 @@ const resolveColorWords = (
       continue;
     }
     const resolved =
-      name === "current"
-        ? "currentColor"
-        : getThemeVarForName(theme, "color", name);
+      name === "current" ? "currentColor" : getThemeVar(theme, "color", name);
     if (resolved !== undefined) {
       edits.push({ start, end: end + 1, text: resolved });
     }
@@ -286,7 +255,7 @@ export const getCssAnimation = (
   if (value.startsWith("var(")) {
     return value;
   }
-  const names = splitWhitespace(value);
+  const names = value.split(" ");
   const variables = names.map((v) =>
     getThemeVar(theme, "animation", `${v}${suffix}`),
   );
@@ -495,7 +464,7 @@ export const getCssTextStroke = (
   value: string,
   theme: ThemeVariables,
 ): string => {
-  const [width, color] = splitWhitespace(value.trim());
+  const [width, color] = value.trim().split(WHITESPACE_REGEX);
   const widthMatch = width?.match(VALUE_UNIT_REGEX);
   const widthValue = widthMatch?.[1] || "";
   const widthUnit = widthMatch?.[2] || "";
@@ -874,8 +843,8 @@ export const getCssGlow = (value: string, theme: ThemeVariables): string => {
   if (value === "none") {
     return value;
   }
-  const [width = "", color] = splitWhitespace(value);
-  return `0 0 ${getCssSize(width, theme)} 0 ${getCssColor(
+  const [width, color] = value.split(WHITESPACE_REGEX);
+  return `0 0 ${getCssSize(width ?? 2, theme)} 0 ${getCssColor(
     color ?? "currentColor",
     theme,
   )}`;
@@ -885,8 +854,8 @@ export const getCssRing = (value: string, theme: ThemeVariables): string => {
   if (value === "none") {
     return value;
   }
-  const [width = "", color] = splitWhitespace(value);
-  return `0 0 0 ${getCssSize(width, theme)} ${getCssColor(
+  const [width, color] = value.split(WHITESPACE_REGEX);
+  return `0 0 0 ${getCssSize(width ?? 2, theme)} ${getCssColor(
     color ?? "currentColor",
     theme,
   )}`;
@@ -981,17 +950,17 @@ export const getCssSize = (
   }
   if (
     typeof value === "string" &&
+    WHITESPACE_REGEX.test(value.trim()) &&
     !value.includes("(") &&
     !value.includes(",")
   ) {
-    const parts = splitWhitespace(value.trim());
-    if (parts.length > 1) {
-      return parts
-        .map((part) =>
-          part === "/" ? part : getCssSize(part, theme, defaultUnit),
-        )
-        .join(" ");
-    }
+    return value
+      .trim()
+      .split(WHITESPACE_REGEX)
+      .map((part) =>
+        part === "/" ? part : getCssSize(part, theme, defaultUnit),
+      )
+      .join(" ");
   }
   if (value === "xs") {
     return defaultUnit === "px" ? "2px" : "0.125rem";
