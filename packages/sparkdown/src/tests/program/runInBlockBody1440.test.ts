@@ -20,22 +20,25 @@ const quiet = <T>(run: () => T): T => {
 
 const lines = (...text: string[]) => [...text, ""].join("\n");
 
-const compile = (main: string, helper = 'trail = trail .. "H"') =>
+const compile = (
+  main: string,
+  luau: Record<string, string> = { [HELPER]: 'trail = trail .. "H"' },
+) =>
   quiet(() =>
     programCompiler(
       { [MAIN]: main },
       {
         files: [
           ...scriptFiles({ [MAIN]: main }),
-          {
-            uri: HELPER,
+          ...Object.entries(luau).map(([uri, text]) => ({
+            uri,
             type: "script",
-            name: "helper",
+            name: uri.split("/").at(-1)!.split(".")[0]!,
             ext: "luau",
-            text: helper,
+            text,
             version: 1,
             languageId: "luau",
-          },
+          })),
         ] as never,
       },
     ).compile(MAIN),
@@ -150,5 +153,28 @@ describe("a run line inside a block body of a scene", () => {
     expect(errors).toHaveLength(1);
     expect(errors[0]![0]).toBe(4);
     expect(errors[0]![1]).toMatch(/missing/);
+  });
+
+  it("reports a run of a name two files share at the line, naming both", () => {
+    const program = compile(
+      lines(
+        'store trail = ""',
+        "",
+        "scene start",
+        "  choose",
+        "    + Pick",
+        "      run helper",
+        "  end",
+        "  Trail {trail}.",
+        "end",
+      ),
+      {
+        [HELPER]: 'trail = trail .. "H"',
+        [`${ROOT}lib/helper.luau`]: 'trail = trail .. "L"',
+      },
+    );
+    const errors = errorsOf(program).filter(([, message]) => message.includes("lib/helper"));
+    expect(errors).toHaveLength(1);
+    expect(errors[0]![0]).toBe(5);
   });
 });
