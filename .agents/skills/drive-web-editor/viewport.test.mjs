@@ -115,6 +115,8 @@ await check("flags on the driver's own command line reach the browser context wi
   const run = (...flags) => {
     const child = spawnSync(process.execPath, ["--input-type=module", "-e", source, "--", ...flags], {
       encoding: "utf8",
+      windowsHide: true,
+      timeout: 60_000,
       env: { ...process.env, IMPOWER_DRIVER_CHROMIUM: process.execPath },
     });
     const line = child.stdout.split("\n").find((l) => l.startsWith("OPTIONS "));
@@ -171,7 +173,7 @@ await check("screenshot arguments resolve the derived path and refuse strays", (
 });
 
 await check("the CLI refuses display flags on commands that launch no editor browser, and rejects bad values before any work", () => {
-  const run = (...args) => spawnSync(process.execPath, [DRIVER, ...args], { encoding: "utf8" });
+  const run = (...args) => spawnSync(process.execPath, [DRIVER, ...args], { encoding: "utf8", windowsHide: true, timeout: 60_000 });
   const onStatus = run("--viewport", "tablet", "status");
   assert.equal(onStatus.status, 1);
   assert.match(onStatus.stderr, /apply to verify, ui, screenshot only, not status/);
