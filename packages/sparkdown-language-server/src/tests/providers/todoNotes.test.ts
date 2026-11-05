@@ -60,11 +60,12 @@ describe("provider · todo notes", () => {
     ]);
   });
 
-  test("a block comment, a string, a longer word and a mid-comment todo are not notes", () => {
+  test("a block comment, a string, a longer or shorter word and a mid-comment todo are not notes", () => {
     expect(
       notesOf(
         lines(
           "  // todolist",
+          "  // TOD: fix this",
           "  // not a TODO",
           "  /* TODO block */",
           '  store s = "// TODO no"',
