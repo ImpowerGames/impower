@@ -5,6 +5,7 @@
 .agents/skills/context-loading.test.mjs
 .agents/skills/coordinator-launch.test.mjs
 .agents/skills/drive-vscode-web/driver.test.mjs
+.agents/skills/drive-web-editor/android.test.mjs
 .agents/skills/drive-web-editor/chromium-resolver.test.mjs
 .agents/skills/drive-web-editor/driver-messages.test.mjs
 .agents/skills/drive-web-editor/editor-gate.test.mjs
