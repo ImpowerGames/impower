@@ -29,7 +29,7 @@ const processHelper = /from "\.\/([^"\n]+)"/.exec(fs.readFileSync(launcher, "utf
 if (processHelper) copy(path.join(here, "process-table.mjs"), path.join(repo, "scripts", processHelper));
 copy(path.join(here, "detached-launch.mjs"), path.join(repo, "scripts", "detached-launch.mjs"));
 const driver = path.join(repo, ".agents", "skills", "drive-web-editor", "driver.mjs");
-for (const name of ["driver.mjs", "redgreen.mjs", "session-dir.mjs", "worktree-temp.mjs"]) copy(path.join(skill, name), path.join(path.dirname(driver), name));
+for (const name of fs.readdirSync(skill).filter((n) => n.endsWith(".mjs") && !n.includes(".test."))) copy(path.join(skill, name), path.join(path.dirname(driver), name));
 fs.writeFileSync(path.join(repo, "package.json"), JSON.stringify({ private: true, scripts: { "web:dev": "node scripts/dev-preview.mjs --mode same-origin" } }));
 fs.writeFileSync(path.join(repo, "server.mjs"), [
   'import fs from "node:fs";',
