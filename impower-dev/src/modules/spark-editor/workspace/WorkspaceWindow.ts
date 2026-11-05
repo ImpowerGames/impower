@@ -100,6 +100,7 @@ import {
   hashOfRoute,
   routeOfHash,
   routeOfState,
+  SCRIPT_EDITOR_VIEW,
   stateForRoute,
   transitionRoute,
   type Route,
@@ -195,6 +196,10 @@ export default class WorkspaceWindow {
       ...this.store,
       lists: { ...this.store.lists, ...lists },
     });
+  }
+
+  browseScripts() {
+    this.navigateTo("scripts");
   }
 
   openScript(filename: string) {
@@ -989,6 +994,11 @@ export default class WorkspaceWindow {
   closeFileEditor(filename: string) {
     const pane = this.getPaneType(filename);
     const panel = this.getPanelType(filename);
+    const leavingScriptEditor =
+      pane === "logic" &&
+      panel === "scripts" &&
+      this.store.pane === "logic" &&
+      this.store.panes.logic.view === SCRIPT_EDITOR_VIEW;
     if (pane && panel) {
       this.update({
         ...this.store,
@@ -1009,6 +1019,9 @@ export default class WorkspaceWindow {
           },
         },
       });
+    }
+    if (leavingScriptEditor) {
+      this.browseScripts();
     }
   }
 

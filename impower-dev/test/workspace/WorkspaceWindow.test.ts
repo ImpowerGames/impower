@@ -467,6 +467,24 @@ describe("WorkspaceWindow store transitions", () => {
       expect(workspace.current.panes.logic.panel).toBe("main");
     });
 
+    it("browses the scripts from either editor, and closing a script returns to the Scripts page", () => {
+      win.navigateTo("write");
+      win.browseScripts();
+      expect(window.location.hash).toBe("#scripts");
+      expect(workspace.current.panes.logic.view).toBe("scripts");
+      win.openScript("Scripts/intro.sd");
+      expect(window.location.hash).toBe("#write");
+      win.closeFileEditor("Scripts/intro.sd");
+      expect(window.location.hash).toBe("#scripts");
+      expect(workspace.current.panes.logic.view).toBe("scripts");
+      expect(
+        workspace.current.panes.logic.panels.scripts?.activeEditor?.open,
+      ).toBe(false);
+      win.navigateTo("write");
+      expect(workspace.current.panes.logic.view).toBe("list");
+      expect(workspace.current.panes.logic.panel).toBe("main");
+    });
+
     it("keeps the Scripts page's sort and folder in the project's state", () => {
       win.setListState({ scriptsSort: "modified-desc" });
       win.setListState({ scriptsFolder: "Scripts/Drafts" });
