@@ -7,5 +7,7 @@ scene start
     * if (#(")") == 1) Fifth
     * if t:open(#[=[)]=]) Sixth
     * if t:open(--[[ ) ]] 1) Seventh
+    * if (#[=[a]]=] == 2) ]=]) Eighth
+    * if t:open(#`{ `)` }`) Ninth
   end
 end

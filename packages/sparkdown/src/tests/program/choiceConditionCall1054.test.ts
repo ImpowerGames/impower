@@ -49,10 +49,49 @@ describe("a choice's own condition may call a function (I-1054)", () => {
     ["if t:open(#[=[)]=])", "if t:open(#[=[))]=])"],
     ["if t:open(--[[ ) ]] 1)", "if t:open(--[[ ) ]] 2)"],
     ["if (t:open(--[==[ ( ]==] 1))", "if (t:open([[)]] and 2))"],
+    ["if t:open(#[====[) ] ]====] - 3)", "if t:open(--[====[) ] ]====] 2)"],
+    ["if t:open(#`{ `)` }`)", "if t:open(#`{ `) ` }`)"],
   ];
   for (const [first, second] of cases) {
     it(`${first} / ${second}`, () => {
       expect(menuTexts(first, second)).toEqual(["First"]);
     });
+  }
+});
+
+describe("a choice line whose condition cannot be read stays a choice (I-1054)", () => {
+  for (const region of ["[[x]] ", "--[[x]] "]) {
+    it(`thirty unclosed ${JSON.stringify(region.trim())} regions`, () => {
+      const { program } = compileScript(
+        [
+          "scene start",
+          "  choose",
+          `    * if f(${region.repeat(30)}First`,
+          "    * Fallback",
+          "  end",
+          "end",
+          "",
+        ].join("\n"),
+      );
+      const run = storyRun(new ProgramStory(program.chunks!), []);
+      const menu = run.menus[0]?.choices.map((c) => c.text) ?? [];
+      expect(menu.length).toBe(2);
+      expect(menu[0].startsWith("if f(")).toBe(true);
+      expect(menu[1]).toBe("Fallback");
+    });
+  }
+});
+
+describe("a long string or block comment in a choice's condition ends at its own first close (I-1054)", () => {
+  for (const level of [1, 2, 3, 4]) {
+    const eq = "=".repeat(level);
+    for (const [kind, condition] of [
+      ["string", `(#[${eq}[a]]${eq}] == 2)`],
+      ["comment", `(t:open(1) --[${eq}[a]]${eq}] )`],
+    ]) {
+      it(`level ${level} ${kind}`, () => {
+        expect(menuTexts(`if ${condition} ]${eq}]) Tail`, "if denied()")).toEqual([`]${eq}]) Tail First`]);
+      });
+    }
   }
 });
