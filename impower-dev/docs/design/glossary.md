@@ -51,6 +51,7 @@ The save caption sits under the project name at every width. The sidebar footer 
 
 | String | Role | Source | Note |
 | --- | --- | --- | --- |
+| `Folio · Spark Engine` | document title (the browser tab) | folio.html:2 |  |
 | `Project name` | aria-label (project name field; its tooltip is the name itself) | app.js:866 |  |
 | `Untitled story` | default project name, shown when the story has no title | app.js:350 | also used by folio-project.js |
 | `Draft saved` | caption under the project name (save status) | app.js:614, app.js:866 |  |
@@ -278,6 +279,64 @@ The menu opens in place of the keyboard on phones and above the bar on desktop. 
 | `Shows the option every time.` | description | folio-tools.js:355 |  |
 | `Shows the option only the first time you encounter this choice.` | description | folio-tools.js:355 |  |
 | `Brings the paths back together.` | description | folio-tools.js:355 |  |
+
+## Suggestions and hover cards
+
+The suggestion list opens as you type: a panel with a preview side on desktop, a row of chips in the writer's bar's place on compact widths. Hover cards open over a picture, a color value or a script path.
+
+### Suggestion list
+
+| String | Role | Source | Note |
+| --- | --- | --- | --- |
+| `No suggestions here.` | empty state | folio-language-ui.js:292 |  |
+| `Suggestions` | aria-label of the list (panel and chip row) | folio-language-ui.js:299, folio-language-ui.js:308 |  |
+| `Close suggestions` | aria-label of the chip row's close button | folio-language-ui.js:304 | compact widths only |
+| `Enter or Tab adds it · Esc closes` | footer of the desktop panel | folio-language-ui.js:313 |  |
+| `Backdrop` | preview caption under a picture suggestion | folio-language-ui.js:222 | or `Portrait` |
+| `Portrait` | preview caption under a picture suggestion | folio-language-ui.js:222 |  |
+| `Listen to ` | aria-label of a sound suggestion's play button: this text + the sound's name | folio-language-ui.js:226 |  |
+| `Sound` | preview caption of a sound with no known duration | folio-language-ui.js:226 | otherwise its length as a clock |
+
+Each suggestion's detail line:
+
+| String | Role | Source | Note |
+| --- | --- | --- | --- |
+| `Included` | detail of a script the story already includes | folio-language.js:527 |  |
+| `Script` | detail of any other script | folio-language.js:527 |  |
+| `Branch in this scene` | detail of a branch | folio-language.js:539 |  |
+| `Turns it on` | detail of a switch attribute's on value | folio-language.js:561 |  |
+| `Turns it off` | detail of a switch attribute's off value | folio-language.js:561 |  |
+| ` · default` | appended to an attribute group's name for its default option | folio-language.js:561 |  |
+| `Alternate` | detail of an `@` alternate | folio-language.js:575 |  |
+| `Behind everyone` | detail of the backdrop command | folio-language.js:582, folio-language.js:594 |  |
+| `A character` | detail of the portrait command | folio-language.js:582, folio-language.js:594 |  |
+| `Loops until stopped` | detail of `play music` | folio-language.js:608 |  |
+| `Background sound, loops` | detail of `play ambient` | folio-language.js:608 |  |
+| `Plays once` | detail of any other sound command | folio-language.js:608 |  |
+| `Character` | detail of a character name | folio-language.js:620 |  |
+
+Rename errors raised while renaming a name in the script:
+
+| String | Role | Source | Note |
+| --- | --- | --- | --- |
+| `Use letters, numbers and underscores, starting with a letter.` | error | folio-language.js:433 |  |
+| `That is already its name.` | error | folio-language.js:434 |  |
+
+### Hover cards
+
+| String | Role | Source | Note |
+| --- | --- | --- | --- |
+| `Picture ` | aria-label of a picture's card: this text + its reference | folio-language-ui.js:48 |  |
+| `Color ` | aria-label of a color's card: this text + its value | folio-language-ui.js:50 |  |
+| `Link to ` | aria-label of a path's card: this text + the script's title | folio-language-ui.js:51 |  |
+| `% opacity` | caption under a translucent color: the rounded percentage + this text | folio-language-ui.js:41 |  |
+| `Change` | button on a color's card, opening the Change color view | folio-language-ui.js:41 |  |
+| `line` | caption of a path's card: the path, ` · `, the count, a space, then this word or `lines` | folio-language-ui.js:43 |  |
+| `lines` | as above, for more than one line | folio-language-ui.js:43 |  |
+| `Open` | button on a path's card | folio-language-ui.js:43 |  |
+| `-click the path to open it too.` | hint at the foot of a path's card, after `⌘` on Apple devices or `Ctrl` elsewhere | folio-language-ui.js:43 |  |
+| `⌘` | modifier name on Apple devices | folio-language-ui.js:33 |  |
+| `Ctrl` | modifier name elsewhere | folio-language-ui.js:33 |  |
 
 ## Add menu
 

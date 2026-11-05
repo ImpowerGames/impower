@@ -52,13 +52,16 @@ paths relative to the prototype's `prototype/` directory. Breakpoints and tokens
 | Writer's bar | 62px tall; 44px buttons | `folio-hierarchy.css:6-12` |
 | Pane divider | 8px between script and preview | `folio-split.js:11`, `.pane-divider` |
 | Script : preview split | 53% of the width after the rail and divider; the script keeps at least 280px and the preview 336px | `folio-split.js:7-11` |
-| Preview top bar | 48px tall inside 10px padding | `.runtime-toolbar`, `folio-playback.css:9` |
+| Preview pane padding | 12px top, 10px at the sides, none at the bottom | `folio-playback.css:2-5`; measured |
+| Preview top bar | 48px tall | `.runtime-toolbar`, `folio-playback.css:9` |
 | Game | Fills the rest of the pane, 544 × 694 | `.runtime-stage` |
 | Divider above the bar under the game | 12px hit area | `.preview-height-divider` |
 | Bar under the game (problems toggle, position, ratio, fullscreen) | 62px tall, aligned with the writer's bar | `.runtime-console` |
 
-Wide desktop (1600px and above): script 52%, preview 48% with 30px × 50px padding
-(`app.css:1145-1160`).
+The split holds at every desktop width: at 1700 × 900 the script is 774px (53% of
+the 1460px left after the rail and divider) and the preview 686px. The older 1600px
+rule in `app.css:1145-1160` is overridden (see the inconsistencies in
+[tokens.md](./tokens.md#inconsistencies)).
 
 ### Rail sizes
 

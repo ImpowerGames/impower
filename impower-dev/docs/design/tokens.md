@@ -228,10 +228,12 @@ has no margin left.
 
 | Variable | Role | Value | Computed | Declared at |
 |---|---|---|---|---|
+Midnight always renders with `data-surfaces="layered"` (`folio-themes.js:90-93`), so its writing pane takes `--workspace-deep`.
+
 | `--bg` | Surface: the page, the Scripts page, the bottom navigation | `hsl(210.7 89.1% 18%)` | `rgb(5, 45, 87)` | `folio-themes.css:82` `body[data-theme="midnight"]` |
 | `--panel` | Surface: panels, menus, popovers, the inspector, buttons | `hsl(210.6 100% 10%)` | `rgb(0, 25, 51)` | `folio-themes.css:83` `body[data-theme="midnight"]` |
 | `--paper` | Surface: inset wells (thumbnails, chips, fields) | `hsl(210.6 100% 7%)` | `rgb(0, 17, 36)` | `folio-themes.css:84` `body[data-theme="midnight"]` |
-| `--workspace` | Surface: the writing pane (script, script header, writer's bar) | `hsl(210.6 100% 7%)` (from `var(--bg)`) | `rgb(0, 17, 36)` | `folio-themes.css:17` `body[data-direction="folio"]` |
+| `--workspace` | Surface: the writing pane (script, script header, writer's bar) | `hsl(210.6 100% 7%)` (from `var(--workspace-deep)`) | `rgb(0, 17, 36)` | `folio-themes.css:227` `body[data-surfaces="layered"]` |
 | `--workspace-deep` | Surface: the writing pane under Lighter navigation | `hsl(210.6 100% 7%)` | `rgb(0, 17, 36)` | `folio-themes.css:95` `body[data-theme="midnight"]` |
 | `--preview-mat` | Surface: the mat around the game preview | `hsl(210.6 100% 10%)` (from `var(--panel)`) | `rgb(0, 25, 51)` | `folio-themes.css:96` `body[data-theme="midnight"]` |
 | `--elevated` | Raised surface: tags, keycaps, the checked segment | `hsl(210.7 89.1% 18%)` | `rgb(5, 45, 87)` | `folio-themes.css:85` `body[data-theme="midnight"]` |
@@ -255,10 +257,12 @@ has no margin left.
 
 | Variable | Role | Value | Computed | Declared at |
 |---|---|---|---|---|
+Dusk always renders with `data-surfaces="layered"` (`folio-themes.js:90-93`), so its writing pane takes `--workspace-deep`.
+
 | `--bg` | Surface: the page, the Scripts page, the bottom navigation | `hsl(210.7 70% 18%)` | `rgb(14, 45, 78)` | `folio-themes.css:106` `body[data-theme="dusk"]` |
 | `--panel` | Surface: panels, menus, popovers, the inspector, buttons | `hsl(210.6 80% 10%)` | `rgb(5, 25, 46)` | `folio-themes.css:107` `body[data-theme="dusk"]` |
 | `--paper` | Surface: inset wells (thumbnails, chips, fields) | `hsl(210.6 80% 7%)` | `rgb(4, 18, 32)` | `folio-themes.css:108` `body[data-theme="dusk"]` |
-| `--workspace` | Surface: the writing pane (script, script header, writer's bar) | `hsl(210.6 80% 7%)` (from `var(--bg)`) | `rgb(4, 18, 32)` | `folio-themes.css:17` `body[data-direction="folio"]` |
+| `--workspace` | Surface: the writing pane (script, script header, writer's bar) | `hsl(210.6 80% 7%)` (from `var(--workspace-deep)`) | `rgb(4, 18, 32)` | `folio-themes.css:227` `body[data-surfaces="layered"]` |
 | `--workspace-deep` | Surface: the writing pane under Lighter navigation | `hsl(210.6 80% 7%)` | `rgb(4, 18, 32)` | `folio-themes.css:119` `body[data-theme="dusk"]` |
 | `--preview-mat` | Surface: the mat around the game preview | `hsl(210.6 80% 10%)` (from `var(--panel)`) | `rgb(5, 25, 46)` | `folio-themes.css:120` `body[data-theme="dusk"]` |
 | `--elevated` | Raised surface: tags, keycaps, the checked segment | `hsl(210.7 70% 18%)` | `rgb(14, 45, 78)` | `folio-themes.css:109` `body[data-theme="dusk"]` |
@@ -366,42 +370,46 @@ below (`folio-editor.css:6`, `folio-editor.css:29`), regular weight, kerning off
 synthesis off. In Sepia and Chalk the script takes a 0.2px stroke in its own colour so
 the light-on-dark weight carries over (`folio-themes.css:236-240`).
 
-Named styles, as size / line height and weight. Values are `folio-type.css` unless named;
-the compact column is the `max-width: 1100px` override where one exists
-(`folio-type.css:308-474`), the tablet column the `701px–1100px` override
-(`folio-type.css:286-307`).
+Named styles, as weight, size / line height and tracking. "Desktop" is above 1100px;
+"Compact" is 1100px and below, where an override exists. Rows marked measured were read
+with `getComputedStyle` on the rendered route at 1440, 768 and 360 wide; the others are
+styles for surfaces that open on demand (dialogs, toasts, menus), read from the cited
+rule. The prototype's stylesheets also style surfaces Folio no longer renders
+(`.writer-header h1`, `.section-heading`, `.asset-row`, `.scene-card`, `.scene-link`,
+`.preview-heading`, `.preview-caption`, `.rail-label`, `.tiny-link`); none of them is
+listed (see inconsistencies).
 
-| Style | Selector | Desktop | Tablet | Compact | Notes |
-|---|---|---|---|---|---|
-| Body | `body[data-direction="folio"]` | 14px / 1.6, 400 | | | `folio-type.css:47-51` |
-| Button | `.btn` | 14px / 1.4, 600 | | | |
-| Eyebrow, rail label | `.eyebrow`, `.rail-label` | 11px / 1.5, letter-spacing 0.12em | | | `.eyebrow` is 700 with 0.18em in `app.css:137-141`; see inconsistencies |
-| Tag | `.tag` | 11px / 1.4 | | | |
-| Small link, save caption | `.tiny-link`, `.saved`, `.project-title small` | 12px / 1.5 | | 11px / 1.4 (`.topbar .saved`) | |
-| Project name | `.project-title` | 14px / 1.5 | | 12px / 1.4 | |
-| Navigation link | `.nav-link` | 14px / 1.4 | | | 11px / 1.35 on the icon rail (`folio-hierarchy.css:788-789`) |
-| Outline row | `.scene-link` | 13px / 1.4 | | | |
-| Script title | `.writer-header h1` | 600 22px / 1.25, −0.025em | 20px | 600 18px / 1.3, −0.02em | |
-| Script name in the header | `.script-context > span > strong` | | 16px | | `folio-hierarchy.css:760-763` |
-| Writer's bar button | `.writer-tools .btn` | 13px / 1.4 | 12px | 12px / 1.4 | |
-| Preview heading | `.preview-heading`, `.following` | 13px / 1.4 | | | |
-| Preview caption | `.preview-caption` | 12px / 1.5 | | | |
-| Page title | `.page-intro h1` | Georgia 40px / 1.12, −0.035em | | 32px / 1.15 | The one display style |
-| Page and card body | `.page-intro p`, `.feature-card p` | 14px / 1.6 | | | |
-| Section heading | `.section-heading h2`, `.asset-row h3`, `.scene-card h2` | 600 16px / 1.3 | | 15px (cards), 14px (asset row) | |
-| Card caption | `.section-heading span`, `.asset-row p` | 12px / 1.5 | | 12px / 1.4 (asset row) | |
-| Share card title | `.feature-card h2` | 600 22px / 1.25, −0.02em | | | |
-| Dialog title | `.dialog-heading h2` | 600 22px / 1.25, −0.02em | | | |
-| Dialog body | `.tool-dialog p` | 14px / 1.6 | | | |
-| Dialog label | `.tool-dialog label` | 13px / 1.5 | | | |
-| Dialog field | `.tool-dialog input` | 16px / 1.5 | | | 16px keeps mobile browsers from zooming |
-| Toast | `.toast` | 13px / 1.5 | | | `app.css:1082` sets 12px earlier; `folio-type.css` wins |
-| Bottom navigation label | `.mobile-nav a` | | | 12px / 1.4 | `app.css:1836` sets 10px; `folio-type.css` loads later and wins |
-| Add menu title | `.insert-heading h2` | 600 15px / 1.4 | | | `folio-insert.css:12` |
-| Suggestion list | `.completion` | 13px / 1.4 | | | `folio-language.css:80` |
-| Popover | `.problem-popover` | 13px / 1.5 | | | `folio-hierarchy.css:918-919` |
-| Context menu | `.context-menu` | 13px / 1.4 | | | `folio-tools.css:485-486` |
-| Line numbers | `.folio-line::before` | 0.72em of the script size | | | `folio-editor.css:39` |
+| Style | Selector | Desktop | Compact | Declared at |
+|---|---|---|---|---|
+| Body | `body[data-direction="folio"]` | 400 14px / 1.6 | same | `folio-type.css:47-51`; measured |
+| Project name | `.project-name` | 600 14px / 1.3 | 600 12px / 1.3 | `app.css:396-404`, `folio-type.css:312-315`; measured |
+| Save caption | `.saved`, `.project-title small` | 400 12px / 1.5 | 400 11px / 1.4 | `folio-type.css:68-73`, `:316-320`; measured |
+| Button | `.btn` | 600 14px / 1.4 | | `folio-type.css:52-56` |
+| Writer's bar button | `.writer-tools .btn` | 600 13px / 1.4 | 12px / 1.4 | `folio-type.css:137-140`, `:329-334`; measured on desktop |
+| Navigation link | `.nav-link` | 600 14px / 1.4 | 600 11px / 1.35 on the icon rail | `folio-type.css:117-120`, `folio-hierarchy.css:788-789`; measured |
+| Outline heading | `.rail-heading h2` | 600 14px / 1.4 | | `folio-hierarchy.css:92-94` |
+| Outline row | `.outline-jump` | 400 12px / 1.6 | 11px on the 190px rail | `folio-hierarchy.css:225`, `:754-755`; measured on desktop |
+| Script name in the header | `.script-context > span > strong`, `.script-name-field` | 600 17px / 1.3 | 600 14px / 1.35 | `folio-hierarchy.css:360-365`, `:838-841`; measured |
+| Script | `.folio-input` | 400 18px / 1.5 | 400 16px / 1.5 | `folio-editor.css:6`, `:29`; measured |
+| Line numbers | `.folio-line::before` | 0.72em of the script size | same | `folio-editor.css:39` |
+| Scripts page row name | `.scripts-item-name` | 400 14px / 1.5 | same; 13px when the page is 440px wide or less | `folio-scripts.css:61`, `:141`; measured |
+| Preview mode label | `.runtime-mode-label` | 600 12px / 1.4 | same | measured |
+| Problems toggle | `.console-toggle-text` | 600 12px / 1.6 | same | measured |
+| Page title (Share, Settings) | `.page-intro h1` | Georgia 400 40px / 1.12, −0.035em | 32px / 1.15 | `folio-type.css:176-179`, `:368-371`; measured; the one display style |
+| Page and card body | `.page-intro p`, `.feature-card p` | 400 14px / 1.6 | same | `folio-type.css:180-185`; measured |
+| Share card title | `.feature-card h2` | 600 22px / 1.25, −0.02em | same | `folio-type.css:203-206`, `:419-422`; measured |
+| Eyebrow | `.eyebrow` | 700 11px / 1.5, 0.12em | same | `app.css:137-141`, `folio-type.css:57-62`; measured |
+| Tag | `.tag` | 600 11px / 1.4 | same | `folio-type.css:63-67`; measured |
+| Bottom navigation label | `.mobile-nav a` | | 400 12px / 1.4 (phones) | `folio-type.css:433-436`; measured |
+| Add menu title | `.insert-heading h2` | 600 15px / 1.4 | same | `folio-insert.css:12`; measured |
+| Dialog title | `.dialog-heading h2` | 600 22px / 1.25, −0.02em | | `folio-type.css:211-214` |
+| Dialog body | `.tool-dialog p` | 14px / 1.6 | | `folio-type.css:215-218` |
+| Dialog label | `.tool-dialog label` | 13px / 1.5 | | `folio-type.css:219-222` |
+| Dialog field | `.tool-dialog input` | 16px / 1.5 | | `folio-type.css:223-226`; 16px keeps mobile browsers from zooming |
+| Toast | `.toast` | 13px / 1.5 | | `folio-type.css:256-259`; computed 13px |
+| Suggestion list | `.completion` | 13px / 1.4 | | `folio-language.css:80` |
+| Popover | `.problem-popover` | 13px / 1.5 | | `folio-hierarchy.css:918-919` |
+| Context menu | `.context-menu` | 13px / 1.4 | | `folio-tools.css:485-486` |
 
 ## Spacing
 
@@ -494,7 +502,6 @@ hover)`, never the user agent.
 | Tablet | `min-width: 701px and max-width: 1100px` | 190px rail by default | `folio-hierarchy.css:719`, `folio-split.js:42` |
 | Narrow tablet | `min-width: 701px and max-width: 1000px` | The rail opens as the 76px icon rail by default | `folio-hierarchy.css:765-769`, `folio-split.js:42` |
 | Desktop | `min-width: 1101px` | Top bar with the logo, 232px rail, preview docked at the right on every route | `folio-type.css:80`, `folio-playback.css:1103` |
-| Wide | `min-width: 1600px` | Script 52%, preview 48% with 30px × 50px padding | `app.css:1145-1160` |
 | Small phone | `max-width: 380px` | Tighter keyboard, header and outline | `app.css:1852`, `folio-hierarchy.css:475` |
 | Short phone | `max-width: 700px and max-height: 710px` | The suggestion panel's preview is hidden; the preview strip shrinks to 91px; the monitor caption clamps to two lines | `folio-editor.css:30`, `app.css:1905-1918`, `folio-type.css:475-479` |
 | Scripts page | `max-width: 1100px` | The Scripts page takes the whole workspace and the preview pane is hidden | `folio-scripts.css:144-146`; see inconsistencies for the ticket's 1000px |
@@ -561,3 +568,6 @@ takes, and why in one line.
 | Light layered surfaces | `folio-themes.css:229-232` defines Lighter navigation for Sepia and Chalk, but those themes are presets that force Unified (`folio-themes.js:17-24`, `:90-93`), so the rule never applies | Lighter navigation exists for Graphite and Warm Folio only |
 | Theme id | Sepia is stored as `paper` and the stylesheets' comments still say Paper (`folio-themes.js:9-10`) | The interface word is Sepia; the stored id stays `paper` |
 | Scripts page gutter | `folio-scripts.css:147` sets 22px at 1100px and below; `folio-scripts.css:148-149` sets 16px under the same query and wins | 16px |
+| Wide desktop | `app.css:1145-1160` sets the script to 52% and the preview to 48% with 30px × 50px padding at 1600px and wider; Folio's resizable panes override it at every desktop width (`folio-split.js:7-15` sets the script to 53% of the area after the 8px divider, `folio-playback.css:1103-1117` lets the preview fill the rest, and `folio-playback.css:2-5` pads it 12px top and 10px at the sides) | No separate wide layout; the desktop split holds above 1100px |
+| Script name size | `folio-hierarchy.css:760-763` sets 16px from 701px to 1100px; `folio-hierarchy.css:838-841` sets 14px / 1.35 at 1100px and below and comes later, so it wins (measured 14px at 768 and 360) | 17px / 1.3 above 1100px, 14px / 1.35 at 1100px and below |
+| Unrendered styles | `folio-type.css` styles `.writer-header h1`, `.section-heading`, `.asset-row`, `.scene-card`, `.scene-link`, `.preview-heading`, `.preview-caption`, `.rail-label` and `.tiny-link`, none of which any Folio route renders (none found on any route at 1440, 768 or 360 wide) | Omitted from the type table |
