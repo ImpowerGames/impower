@@ -198,7 +198,7 @@ describe("ScriptHeader status and Browse scripts", () => {
       debug: {
         ...workspace.current.debug,
         diagnosticsSummary: {
-          "file:///local/scripts/intro.sd": { errors: 1, warnings: 2, infos: 0 },
+          "file://local/scripts/intro.sd": { errors: 1, warnings: 2, infos: 0 },
         },
       },
     } as typeof workspace.current;
