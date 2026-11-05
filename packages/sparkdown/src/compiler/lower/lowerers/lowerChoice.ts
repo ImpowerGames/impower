@@ -334,10 +334,9 @@ function appendNodeContent(
   const flushText = (to: number): void => {
     if (to > cursor) {
       const read = ctx.read(cursor, to);
-      const text =
-        trimStart && list.content.length === 0
-          ? read.replace(/^[ \t]+/, "")
-          : read;
+      const leading = trimStart && list.content.length === 0;
+      // value-level: trims the isolated choice-text value's leading inline whitespace.
+      const text = leading ? read.replace(/^[ \t]+/, "") : read;
       if (text.length > 0) {
         list.AddContent(new Text(text));
         appended = true;
