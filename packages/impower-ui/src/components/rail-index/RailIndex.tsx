@@ -26,7 +26,7 @@ export const railIndexJumpVariants = cva(
     variants: {
       depth: {
         top: "font-semibold",
-        nested: "h-10 min-h-10 rounded-l-none pl-0.5",
+        nested: "h-10 min-h-10 rounded-l-none",
       },
     },
     defaultVariants: {
@@ -76,7 +76,7 @@ function Row({
     >
       <button
         type="button"
-        class={railIndexJumpVariants({ depth })}
+        class={cn(railIndexJumpVariants({ depth }))}
         data-index-jump={item.id}
         aria-current={current ? "true" : undefined}
         onClick={() => onJump(item.id)}
@@ -89,7 +89,7 @@ function Row({
 
 export default function RailIndex({ title, label, groups, current, onJump, class: className }: RailIndexProps) {
   return (
-    <div class={cn("flex min-h-0 flex-1 flex-col overflow-hidden", className)}>
+    <div class={cn("flex min-h-0 flex-1 flex-col overflow-hidden pt-3", className)}>
       <div class="flex h-11 flex-none items-center pr-[14px] pl-9">
         <h2 class="m-0 text-[14px]/[1.4] font-semibold text-ink">{title}</h2>
       </div>

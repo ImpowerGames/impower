@@ -226,3 +226,23 @@ describe("Settings row kit", () => {
     expect(host!.querySelector("[data-reset-all]")).toBeNull();
   });
 });
+
+describe("Settings layout variants", () => {
+  it("compiles the phone and compact variants from the root's data-layout, and the narrow-page container query", async () => {
+    const { compile, optimize } = await import("@tailwindcss/node");
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const compiler = await compile(readFileSync(resolve("src/style.css"), "utf8"), {
+      base: resolve("src"),
+      onDependency: () => {},
+    });
+    const css = optimize(compiler.build(["phone:gap-3", "compact:gap-9", "@max-[560px]/page:flex-wrap"]), {
+      minify: false,
+    }).code;
+    expect(css).toContain('phone\\:gap-3:where([data-layout="phone"], [data-layout="phone"] *)');
+    expect(css).toContain('compact\\:gap-9:where([data-layout="compact"], [data-layout="compact"] *)');
+    expect(css).toContain("@container page not (min-width: 560px)");
+    expect(settingsRowVariants({ indent: "sub" })).toContain("phone:pl-[30px]");
+    expect(settingsRowVariants({ wrap: true })).toContain("@max-[560px]/page:flex-wrap");
+  });
+});

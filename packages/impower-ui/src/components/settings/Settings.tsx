@@ -8,8 +8,6 @@ import Select, { type SelectOption } from "../select/Select";
 import Switch from "../switch/Switch";
 import TextField, { type TextFieldFont, type TextFieldWidth } from "../text-field/TextField";
 
-const PHONE = "[[data-layout=phone]_&]";
-const NARROW_PAGE = "@max-[560px]/page";
 
 export type SettingsSectionProps = {
   id: string;
@@ -108,16 +106,16 @@ export function SettingsList({ class: className, children }: SettingsListProps) 
 }
 
 export const settingsRowVariants = cva(
-  ["m-0 flex min-h-[52px] items-center gap-4 px-4 py-2.5", `${PHONE}:gap-3 ${PHONE}:px-3.5`],
+  ["m-0 flex min-h-[52px] items-center gap-4 px-4 py-2.5", "phone:gap-3 phone:px-3.5"],
   {
     variants: {
       indent: {
         none: "",
-        sub: `pl-10 ${PHONE}:pl-[30px]`,
+        sub: "pl-10 phone:pl-[30px]",
       },
       wrap: {
         false: "",
-        true: `${NARROW_PAGE}:flex-wrap`,
+        true: "@max-[560px]/page:flex-wrap",
       },
       interactive: {
         false: "",
@@ -183,8 +181,8 @@ export function SettingsRow({
       <span
         class={cn(
           "min-w-0 flex-[1_1_200px]",
-          `${PHONE}:basis-[140px]`,
-          wrap && `${NARROW_PAGE}:basis-full`,
+          "phone:basis-[140px]",
+          wrap && "@max-[560px]/page:basis-full",
           disabled && "opacity-55",
         )}
       >
@@ -293,7 +291,7 @@ export function SelectRow<V extends string = string>({
       control={
         <Select<V>
           id={`${id}-control`}
-          class={`max-w-[50%] ${PHONE}:max-w-[46%] ${NARROW_PAGE}:ml-auto`}
+          class="max-w-[50%] phone:max-w-[46%] @max-[560px]/page:ml-auto"
           options={options}
           value={value}
           disabled={disabled}
@@ -353,8 +351,8 @@ export function TextRow({
           font={font}
           class={cn(
             wide
-              ? `max-w-[60%] ${NARROW_PAGE}:w-full ${NARROW_PAGE}:max-w-full`
-              : `max-w-[50%] ${width === "short" ? `${PHONE}:w-[118px]` : `${PHONE}:w-32`}`,
+              ? "max-w-[60%] @max-[560px]/page:w-full @max-[560px]/page:max-w-full"
+              : `max-w-[50%] ${width === "short" ? "phone:w-[118px]" : "phone:w-32"}`,
           )}
           value={value}
           placeholder={placeholder}
@@ -405,7 +403,7 @@ export function ChoiceRow<V extends string = string>({
       class={className}
       control={
         <ChoiceGroup<V>
-          class={`${NARROW_PAGE}:ml-auto`}
+          class="@max-[560px]/page:ml-auto"
           name={group}
           options={options}
           value={value}

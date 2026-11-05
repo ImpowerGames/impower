@@ -3,6 +3,9 @@
 @import "./theme.css";
 @source ".";
 
+@custom-variant phone (&:where([data-layout="phone"], [data-layout="phone"] *));
+@custom-variant compact (&:where([data-layout="compact"], [data-layout="compact"] *));
+
 @theme {
   --radius-sm: 4px;
   --radius-md: 6px;

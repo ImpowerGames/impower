@@ -116,6 +116,31 @@ describe("the settings store", () => {
     expect(store.projectSettings.value.screenplayPaperSize).toBe("a4");
   });
 
+  it("resets named preferences to their defaults by forgetting them, keeping the rest and notifying once", () => {
+    const store = open("p1");
+    store.setPreference("lineNumbers", false);
+    store.setPreference("theme", "chalk");
+    const listener = vi.fn();
+    store.onDidChangeConfiguration(listener);
+    store.resetPreferences(["lineNumbers"]);
+    expect(store.preferences.value.lineNumbers).toBe(true);
+    expect(store.preferences.value.theme).toBe("chalk");
+    expect(JSON.parse(localStorage.getItem(PREFERENCES_STORAGE_KEY)!)).toEqual({ theme: "chalk" });
+    expect(listener).toHaveBeenCalledTimes(1);
+    store.resetPreferences(["lineNumbers"]);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("resets named project settings for the open project only", () => {
+    const store = open("p1");
+    store.setProjectSetting("screenplayPaperSize", "a4");
+    store.setProjectSetting("screenplayTitlePage", false);
+    store.resetProjectSettings(["screenplayPaperSize"]);
+    expect(store.projectSettings.value.screenplayPaperSize).toBe("usletter");
+    expect(store.projectSettings.value.screenplayTitlePage).toBe(false);
+    expect(open("p1").projectSettings.value.screenplayPaperSize).toBe("usletter");
+  });
+
   it("reads the default for a stored value of the wrong type or choice", () => {
     localStorage.setItem(
       "settings/project/p1",
