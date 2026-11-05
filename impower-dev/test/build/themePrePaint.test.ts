@@ -4,13 +4,22 @@ import { fileURLToPath } from "node:url";
 import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
 import staticallyRenderPage from "../../src/build/staticallyRenderPage";
-import { withThemeColor } from "../../src/build/themeColor";
+import { themeColors, withThemeColor } from "../../src/build/themeColor";
 import {
   LIGHT_SCHEME_QUERY,
   resolveTheme,
 } from "../../src/modules/spark-editor/workspace/settings/applyTheme";
 import { PREFERENCES_STORAGE_KEY } from "../../src/modules/spark-editor/workspace/settings/WorkspaceSettings";
-import { staticallyStylePage } from "../../vite.config";
+import { readThemeColors, staticallyStylePage } from "../../vite.config";
+
+const THEME_CSS = fs.readFileSync(
+  fileURLToPath(
+    new URL("../../../packages/impower-ui/src/theme.css", import.meta.url),
+  ),
+  "utf-8",
+);
+
+const COLORS = readThemeColors();
 
 const DOCUMENT_HTML = fs.readFileSync(
   fileURLToPath(new URL("../../src/public/document.html", import.meta.url)),
@@ -19,12 +28,21 @@ const DOCUMENT_HTML = fs.readFileSync(
 
 const servedPage = () =>
   staticallyStylePage(
-    staticallyRenderPage(withThemeColor(DOCUMENT_HTML, "#000000"), {
+    staticallyRenderPage(withThemeColor(DOCUMENT_HTML, COLORS), {
       html: '<div id="root"></div>',
       mjsPath: "/src/pages/index.ts",
     }),
-    ':root, [data-theme="midnight"] { --bg: #000000; }',
+    THEME_CSS,
   );
+
+const rootBackground = (dom: JSDOM) => {
+  const { document } = dom.window;
+  const value = dom.window
+    .getComputedStyle(document.documentElement)
+    .getPropertyValue("--bg")
+    .trim();
+  return themeColors(`[data-theme="charcoal"] { --bg: ${value}; }`).charcoal;
+};
 
 const load = (stored: string | null, prefersLight: boolean) => {
   const seen: { stylesheetsWhenRead?: number } = {};
@@ -57,7 +75,11 @@ const STORED: [string, string | null, string][] = [
   ["Charcoal", JSON.stringify({ theme: "charcoal" }), "charcoal"],
   ["Chalk", JSON.stringify({ theme: "chalk" }), "chalk"],
   ["Midnight", JSON.stringify({ theme: "midnight" }), "midnight"],
-  ["a theme the editor does not offer", JSON.stringify({ theme: "ink" }), "ink"],
+  [
+    "a theme the editor does not offer",
+    JSON.stringify({ theme: "ink" }),
+    "ink",
+  ],
   ["malformed preferences", "{", ""],
   ["a non-object", "null", ""],
 ];
@@ -65,11 +87,19 @@ const STORED: [string, string | null, string][] = [
 describe("the document's theme before first paint", () => {
   for (const [label, stored, preference] of STORED) {
     for (const prefersLight of [true, false]) {
-      it(`with ${label} and a ${prefersLight ? "light" : "dark"} device, sets the theme the editor resolves`, () => {
+      it(`with ${label} and a ${prefersLight ? "light" : "dark"} device, sets the theme the editor resolves, its theme-color and its background`, () => {
         const { dom } = load(stored, prefersLight);
-        expect(dom.window.document.documentElement.dataset["theme"]).toBe(
-          resolveTheme(preference, prefersLight),
+        const { document } = dom.window;
+        const theme = resolveTheme(preference, prefersLight);
+        expect(document.documentElement.dataset["theme"]).toBe(theme);
+        expect(
+          document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')!
+            .content,
+        ).toBe(COLORS[theme]);
+        expect(document.body.getAttribute("style")).toBe(
+          "background-color: var(--bg)",
         );
+        expect(rootBackground(dom)).toBe(COLORS[theme]);
       });
     }
   }

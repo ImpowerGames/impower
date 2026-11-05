@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { themeColor } from "../../src/build/themeColor";
+import { themeColors } from "../../src/build/themeColor";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -224,7 +224,7 @@ describe("Midnight semantic colour set", () => {
     document.head.append(style);
     const root = document.documentElement;
     const bg = () => getComputedStyle(root).getPropertyValue("--bg").trim();
-    const midnight = themeColor(THEME_CSS);
+    const midnight = themeColors(THEME_CSS).midnight;
 
     expect(bg()).toBe(midnight);
     root.dataset["theme"] = "other";
@@ -295,7 +295,7 @@ describe.each(FOLIO_THEMES)("%s colour set", (theme) => {
     root.dataset["theme"] = theme;
     expect(bg()).toBe(semanticTokens(TOKEN_HEADINGS[theme]).get("--bg"));
     root.dataset["theme"] = "midnight";
-    expect(bg()).toBe(themeColor(THEME_CSS));
+    expect(bg()).toBe(themeColors(THEME_CSS).midnight);
   });
 });
 

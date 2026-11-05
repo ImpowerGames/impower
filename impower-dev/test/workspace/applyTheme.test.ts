@@ -47,7 +47,10 @@ describe("theme preference resolution", () => {
       ["", false, "charcoal"],
     ];
     for (const [preference, prefersLight, theme] of cases) {
-      expect(resolveTheme(preference, prefersLight), `${preference} ${prefersLight}`).toBe(theme);
+      expect(
+        resolveTheme(preference, prefersLight),
+        `${preference} ${prefersLight}`,
+      ).toBe(theme);
     }
   });
 
@@ -83,9 +86,36 @@ describe("theme on the document root", () => {
     expect(root.dataset["theme"]).toBe("chalk");
   });
 
+  it("keeps the theme-color meta on the build's colour for the applied theme", () => {
+    const meta = document.head.appendChild(document.createElement("meta"));
+    meta.name = "theme-color";
+    meta.content = "#202123";
+    meta.dataset["themeColors"] = JSON.stringify({
+      charcoal: "#202123",
+      chalk: "#ececee",
+      midnight: "#052d57",
+    });
+    const theme = signal<Theme>("chalk");
+    try {
+      const dispose = applyTheme(document.documentElement, theme);
+      expect(meta.content).toBe("#ececee");
+      theme.value = "midnight";
+      expect(meta.content).toBe("#052d57");
+      dispose();
+      theme.value = "charcoal";
+      expect(meta.content).toBe("#052d57");
+    } finally {
+      meta.remove();
+    }
+  });
+
   it("follows the device scheme under Automatic without a reload, and stops listening when disposed", () => {
     const scheme = fakeScheme(false);
-    const settings = new WorkspaceSettings(signal("p"), localStorage, scheme.media);
+    const settings = new WorkspaceSettings(
+      signal("p"),
+      localStorage,
+      scheme.media,
+    );
     const root = document.documentElement;
     const dispose = applyTheme(root, settings.theme);
 
@@ -108,14 +138,30 @@ describe("theme on the document root", () => {
   });
 
   it("reads a stored choice and refuses a theme it does not offer", () => {
-    localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify({ theme: "chalk" }));
-    const dark = new WorkspaceSettings(signal("p"), localStorage, fakeScheme(false).media);
+    localStorage.setItem(
+      PREFERENCES_STORAGE_KEY,
+      JSON.stringify({ theme: "chalk" }),
+    );
+    const dark = new WorkspaceSettings(
+      signal("p"),
+      localStorage,
+      fakeScheme(false).media,
+    );
     expect(dark.theme.value).toBe("chalk");
-    expect(() => dark.setPreference("theme", "ink" as "chalk")).toThrow(/theme/);
+    expect(() => dark.setPreference("theme", "ink" as "chalk")).toThrow(
+      /theme/,
+    );
     dark.dispose();
 
-    localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify({ theme: "ink" }));
-    const light = new WorkspaceSettings(signal("p"), localStorage, fakeScheme(true).media);
+    localStorage.setItem(
+      PREFERENCES_STORAGE_KEY,
+      JSON.stringify({ theme: "ink" }),
+    );
+    const light = new WorkspaceSettings(
+      signal("p"),
+      localStorage,
+      fakeScheme(true).media,
+    );
     expect(light.preferences.value.theme).toBe("automatic");
     expect(light.theme.value).toBe("chalk");
     light.dispose();

@@ -29,7 +29,11 @@ Nine choices, stored under the ids in `folio-themes.js:4-14`:
 | Dusk | `dusk` | Quieter navy · original syntax | Preset: Original syntax colours; surfaces are its own. |
 
 The editor stores Automatic under the id `automatic`, its settings default, and applies
-the resolved theme as `data-theme` on `<html>` before first paint.
+the resolved theme as `data-theme` on `<html>` before first paint. The browser's
+`theme-color` follows the same resolved theme, from first paint and on every change: the
+build writes each theme's `--bg` (as hex) into the meta tag. The web app manifest's
+`theme_color` and `background_color` are static, so they take Charcoal's `--bg`,
+`#202123`, the default dark theme's colour.
 
 The prototype applies the theme as `data-theme` on `<body>`, with `data-surfaces` and
 `data-syntax-palette` beside it (`folio-themes.js:113-128`); the syntax colours are
