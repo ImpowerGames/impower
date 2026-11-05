@@ -2143,13 +2143,13 @@ repository:
   RGBColor:
     tag: string
     name: string.color.rgb.sd
-    match: (rgb)(a)?([(])([^()]*)([)])
+    match: (rgb)(a)?([(])([^()\r\n]*)([)])
     color: true
 
   HSLColor:
     tag: string
     name: string.color.hsl.sd
-    match: (hsl)(a)?([(])([^()]*)([)])
+    match: (hsl)(a)?([(])([^()\r\n]*)([)])
     color: true
 
   FrontMatter:
