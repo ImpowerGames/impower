@@ -492,7 +492,7 @@ const observeExists = (uri: string, commit: FileCommit | undefined) => {
   if (commit) {
     uris.forEach((u) => raiseHeld(u, commit));
   }
-  touch(uris);
+  return touch(uris);
 };
 
 const observeAbsent = (
@@ -519,11 +519,12 @@ const observeAbsent = (
       }
     }
   }
-  touch(changed);
+  return touch(changed);
 };
 
 interface SettledPath {
   uri: string;
+  local: number;
   directory: boolean;
   exists: boolean;
   created: boolean;
@@ -536,17 +537,15 @@ const settlePath = (uri: string, directory: boolean) =>
     const floor = await readFloor(await navigator.storage.getDirectory());
     if (directory) {
       const exists = await isStoredDirectory(uri);
-      if (exists) {
-        observeExists(uri, floor);
-      } else {
-        observeAbsent(uri, floor, true);
-      }
-      return { uri, directory, exists, created: false, floor };
+      const local = exists
+        ? observeExists(uri, floor)
+        : observeAbsent(uri, floor, true);
+      return { uri, local, directory, exists, created: false, floor };
     }
     const handle = await findFileHandle(uri);
     if (!handle) {
-      observeAbsent(uri, floor, false);
-      return { uri, directory, exists: false, created: false, floor };
+      const local = observeAbsent(uri, floor, false);
+      return { uri, local, directory, exists: false, created: false, floor };
     }
     const created = !State.files.has(uri);
     const fileRef = await handle.getFile();
@@ -556,8 +555,8 @@ const settlePath = (uri: string, directory: boolean) =>
     } else {
       updateFileMetaCache(uri, fileRef.size, fileRef.lastModified);
     }
-    observeExists(uri, floor);
-    return { uri, directory, exists: true, created, file: State.files.get(uri), floor };
+    const local = observeExists(uri, floor);
+    return { uri, local, directory, exists: true, created, file: State.files.get(uri), floor };
   });
 
 const settlePaths = async (paths: { uri: string; directory: boolean }[]) => {
@@ -573,9 +572,10 @@ const settlePaths = async (paths: { uri: string; directory: boolean }[]) => {
 };
 
 const announceSettled = (
-  settled: SettledPath[],
+  observed: SettledPath[],
   { local }: { local: boolean },
 ) => {
+  const settled = observed.filter((e) => isLocalLatest(e.uri, e.local));
   const commitsOf = (entries: SettledPath[]): FileCommits =>
     Object.fromEntries(
       entries.flatMap((e) => (e.floor ? [[e.uri, e.floor]] : [])),
@@ -1171,13 +1171,11 @@ const loadConfiguration = (settings: any) => {
 const readDirectoryFiles = async (directoryUri: string) => {
   const root = await navigator.storage.getDirectory();
   const directoryPath = getPathFromUri(directoryUri);
-  const directoryHandle = await getDirectoryHandleFromPath(root, directoryPath);
+  const directoryHandle = await findDirectory(root, directoryPath);
   const floor = await readFloor(root);
-  const directoryEntries = await getAllFilesRecursive(
-    directoryHandle,
-    directoryPath,
-    [TRASH_DIR],
-  );
+  const directoryEntries = directoryHandle
+    ? await getAllFilesRecursive(directoryHandle, directoryPath, [TRASH_DIR])
+    : [];
   const listed = new Set(
     directoryEntries.map((entry) => getUriFromPath(entry.path)),
   );
@@ -1262,7 +1260,10 @@ const adoptStoredBytes = (uri: string, floor: FileCommit | undefined) => {
 const listDirectories = async (directoryUri: string) => {
   const root = await navigator.storage.getDirectory();
   const directoryPath = getPathFromUri(directoryUri);
-  const directoryHandle = await getDirectoryHandleFromPath(root, directoryPath);
+  const directoryHandle = await findDirectory(root, directoryPath);
+  if (!directoryHandle) {
+    return [];
+  }
   const paths = await getAllDirectoriesRecursive(
     directoryHandle,
     directoryPath,
@@ -1326,9 +1327,13 @@ const storedFileHandle = async (uri: string) => {
 };
 
 const statFile = async (fileUri: string, floor: FileCommit | undefined) => {
+  const version = State.localVersions.get(fileUri);
   const fileHandle = await storedFileHandle(fileUri);
   const fileRef = await fileHandle.getFile();
-  if (adoptStoredBytes(fileUri, floor)) {
+  if (
+    State.localVersions.get(fileUri) === version &&
+    adoptStoredBytes(fileUri, floor)
+  ) {
     const before = State.files.get(fileUri);
     updateFileMetaCache(fileUri, fileRef.size, fileRef.lastModified);
     announceStoredChange(fileUri, before, floor);
@@ -1341,10 +1346,14 @@ const readFile = async (
 ) => {
   const root = await navigator.storage.getDirectory();
   const floor = options ? options.floor : await readFloor(root);
+  const version = State.localVersions.get(fileUri);
   const fileHandle = await storedFileHandle(fileUri);
   const fileRef = await fileHandle.getFile();
   const buffer = await fileRef.arrayBuffer();
-  if (adoptStoredBytes(fileUri, floor)) {
+  if (
+    State.localVersions.get(fileUri) === version &&
+    adoptStoredBytes(fileUri, floor)
+  ) {
     const before = State.files.get(fileUri);
     updateFileCache(fileUri, buffer, false, undefined, fileRef.lastModified);
     await enrichUrlAssetType(fileUri);
@@ -1557,10 +1566,10 @@ const generateThumbnail = async (fileUri: string): Promise<void> => {
   const filename = getFileName(relativePath);
   let file: File;
   try {
-    const directoryHandle = await getDirectoryHandleFromPath(
-      root,
-      directoryPath,
-    );
+    const directoryHandle = await findDirectory(root, directoryPath);
+    if (!directoryHandle) {
+      return;
+    }
     const fileHandle = await directoryHandle.getFileHandle(filename, {
       create: false,
     });
@@ -1757,7 +1766,7 @@ const moveFilesToTrash = async (files: { uri: string }[]) => {
 };
 
 const getTrashDirHandle = async (projectId: string) =>
-  getDirectoryHandleFromPath(
+  findDirectory(
     await navigator.storage.getDirectory(),
     `${projectId}/${TRASH_DIR}`,
   );
@@ -1773,6 +1782,9 @@ const evictTrashCache = (uriPrefix: string) => {
 const listTrash = async (projectId: string): Promise<TrashBatch[]> => {
   const trash = await getTrashDirHandle(projectId);
   const batches: TrashBatch[] = [];
+  if (!trash) {
+    return batches;
+  }
   // @ts-ignore - values() exists
   for await (const handle of trash.values()) {
     if (handle.kind !== "directory") {
@@ -1793,7 +1805,7 @@ const listTrash = async (projectId: string): Promise<TrashBatch[]> => {
 const removeTrashBatch = async (projectId: string, batchId: string) => {
   evictTrashCache(getUriFromPath(`${projectId}/${TRASH_DIR}/${batchId}/`));
   const trash = await getTrashDirHandle(projectId);
-  await trash.removeEntry(batchId, { recursive: true }).catch(() => {});
+  await trash?.removeEntry(batchId, { recursive: true }).catch(() => {});
 };
 
 const fileExists = async (uri: string): Promise<boolean> =>
@@ -1821,6 +1833,9 @@ const restoreTrashBatch = async (
   batchId: string,
 ): Promise<WriteResult[]> => {
   const trash = await getTrashDirHandle(projectId);
+  if (!trash) {
+    return [];
+  }
   let batchHandle: FileSystemDirectoryHandle;
   try {
     batchHandle = await trash.getDirectoryHandle(batchId);
@@ -1851,15 +1866,18 @@ const restoreTrashBatch = async (
 
 const emptyTrash = async (projectId: string) => {
   evictTrashCache(getUriFromPath(`${projectId}/${TRASH_DIR}/`));
-  const proj = await getDirectoryHandleFromPath(
+  const proj = await findDirectory(
     await navigator.storage.getDirectory(),
     projectId,
   );
-  await proj.removeEntry(TRASH_DIR, { recursive: true }).catch(() => {});
+  await proj?.removeEntry(TRASH_DIR, { recursive: true }).catch(() => {});
 };
 
 const purgeExpiredTrash = async (projectId: string, retentionMs: number) => {
   const trash = await getTrashDirHandle(projectId);
+  if (!trash) {
+    return;
+  }
   const cutoff = Date.now() - retentionMs;
   const expired: string[] = [];
   // @ts-ignore - values() exists
@@ -1896,10 +1914,13 @@ const removeFile = async (
   const { result: existingFile, commit, local } = await commitChange(
     uri,
     async () => {
-      const directoryHandle = await getDirectoryHandleFromPath(
+      const directoryHandle = await findDirectory(
         root,
         getParentPath(relativePath),
       );
+      if (!directoryHandle) {
+        throw new DOMException(`${uri} was not found`, "NotFoundError");
+      }
       if (unchangedSince) {
         const stored = await (
           await (

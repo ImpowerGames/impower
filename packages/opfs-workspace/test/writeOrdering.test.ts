@@ -960,10 +960,111 @@ describe("reads create no directories", () => {
       yield phantom;
     };
     const h = await worker(root);
+    void (globalThis as any).onmessage({
+      data: {
+        jsonrpc: "2.0",
+        method: "workspace/didChangeConfiguration",
+        params: { settings: { imageFiles: "*.png" } },
+      },
+    });
     await h.enumerate();
     project.values = listed;
     expect(entryAt(root, "ghost")).toBeUndefined();
     expect(listMemory(root, "local")).toEqual(["a.sd"]);
+  });
+
+  it.each([
+    ["readDirectoryFiles", "workspace/readDirectoryFiles", { directory: { uri: "file://local/gone/deeper" } }],
+    ["directories list", "workspace/directories", { action: "list", directory: { uri: "file://local/gone/deeper" } }],
+    ["trash list", "workspace/trashFiles", { projectId: "local", action: "list" }],
+    ["trash purge", "workspace/trashFiles", { projectId: "local", action: "purge", retentionMs: 0 }],
+    ["delete", "workspace/willDeleteFiles", { files: [{ uri: "file://local/gone/deeper/a.sd" }] }],
+  ])("creates no directory for a %s of a missing path", async (_name, method, params) => {
+    const root = seed({ "a.sd": "A" });
+    const h = await worker(root);
+    await h.request("probe", method, params);
+    expect(h.response("probe")).toBeDefined();
+    expect(listMemory(root, "local")).toEqual(["a.sd"]);
+  });
+});
+
+describe("reads that overlap a settle (I-1893)", () => {
+  it("keeps the settled text when a read that started before the settle finishes after it", async () => {
+    const root = seed({ "a.sd": "OLD", "b.sd": "B" });
+    const h = await worker(root);
+    await h.enumerate();
+    const file = fileAt(root, "a.sd")!;
+    const getFile = file.getFile.bind(file);
+    let captured!: () => void;
+    const reading = new Promise<void>((resolve) => {
+      captured = resolve;
+    });
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    file.getFile = async () => {
+      const snapshot = await getFile();
+      return {
+        ...snapshot,
+        arrayBuffer: async () => {
+          captured();
+          await held;
+          return snapshot.arrayBuffer();
+        },
+      };
+    };
+    h.start("old-read", "workspace/readFile", { file: { uri: uriOf("a.sd") } });
+    await vi.advanceTimersByTimeAsync(0);
+    await reading;
+    file.getFile = getFile;
+    writeMemoryFile(root, "local/a.sd", enc.encode("NEW"));
+    await h.remote("workspace/didWriteFiles", { files: [fileData("a.sd", "IGNORED")] });
+    expect(h.writtenTexts("a.sd").at(-1)).toBe("NEW");
+    const before = h.messages.length;
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(h.response("old-read")).toHaveProperty("result");
+    expect(h.writtenTexts("a.sd", before)).toEqual([]);
+    expect((await h.cached("a.sd")).text).toBe("NEW");
+  });
+
+  it("does not publish a delayed settle's snapshot after a later save of the same file", async () => {
+    const root = seed({ "a.sd": "OLD", "b.sd": "B" });
+    const sequence = new MemoryFile(".opfs-workspace-sequence");
+    sequence.createSyncAccessHandle = async () => {
+      throw new DOMException("counter unavailable", "QuotaExceededError");
+    };
+    root.entries.set(sequence.name, sequence);
+    const h = await worker(root);
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    await h.enumerate();
+    const b = fileAt(root, "b.sd")!;
+    const getFile = b.getFile.bind(b);
+    let reached = false;
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    b.getFile = async () => {
+      reached = true;
+      await held;
+      return getFile();
+    };
+    h.start("batch", "workspace/applyWorkspaceEdit", {
+      edit: { documentChanges: [insert("a.sd", 0, "!"), insert("b.sd", 0, "!")] },
+    });
+    await vi.advanceTimersByTimeAsync(250);
+    expect(reached).toBe(true);
+    await h.request("save", "workspace/willWriteFiles", writeOf("a.sd", "NEW", "editor"));
+    expect(h.writtenTexts("a.sd").at(-1)).toBe("NEW");
+    const before = h.messages.length;
+    release();
+    await vi.advanceTimersByTimeAsync(250);
+    expect(h.response("batch")).toMatchObject({ result: { applied: true } });
+    expect(h.writtenTexts("a.sd", before)).toEqual([]);
+    expect((await h.cached("a.sd")).text).toBe("NEW");
+    expect(textAt(root, "a.sd")).toBe("NEW");
   });
 });
 
