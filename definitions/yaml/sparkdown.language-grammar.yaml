@@ -542,15 +542,22 @@ variables:
   CHOICE_CONDITION_CALL: (?:{{CHOICE_CONDITION_METHOD}}?{{CHOICE_CONDITION_PARENS}})
   CHOICE_CONDITION_PATH: (?:{{LUAU_NAME_OR_CONSTANT}}(?:[.]{{LUAU_IDENTIFIER}}|{{CHOICE_CONDITION_CALL}})*)
   CHOICE_UNREADABLE_CONDITION_PATH: (?:{{LUAU_IDENTIFIER}}(?:[.:]{{LUAU_IDENTIFIER}})*)
+  CHOICE_CLOSURE_ATOM: (?:{{CHOICE_CONDITION_ATOM}}|['])
+  CHOICE_CLOSURE_PARENS_1: (?:[(]{{CHOICE_CLOSURE_ATOM}}*[)])
+  CHOICE_CLOSURE_PARENS_2: (?:[(](?:{{CHOICE_CLOSURE_ATOM}}|{{CHOICE_CLOSURE_PARENS_1}})*[)])
+  CHOICE_CLOSURE_PARENS_3: (?:[(](?:{{CHOICE_CLOSURE_ATOM}}|{{CHOICE_CLOSURE_PARENS_2}})*[)])
+  CHOICE_CLOSURE_PARENS: (?:[(](?:{{CHOICE_CLOSURE_ATOM}}|{{CHOICE_CLOSURE_PARENS_3}})*[)])
   # lookaround: `ChoiceWithNoSuppressedText` owns a choice line whose call
-  # bracket closes, such as `* if friend(s), we go`: the `Choice` begin
-  # declined it for the punctuation after the bracket, and it is prose. Only
-  # whether the bracket closes tells the two apart, which nothing before the
-  # bracket shows: reordering, splitting or an `end:` cannot see it, and the
-  # bracket variables are already as tight as a condition allows. The bracket
-  # is checked as a condition reads it, so a valid call the bounded reader
-  # cannot read still counts as open.
-  CHOICE_UNREADABLE_CONDITION_OPEN: (?:{{CHOICE_UNREADABLE_CONDITION_PATH}}(?:[\[]|(?!{{CHOICE_CONDITION_PARENS}})[(]))
+  # bracket closes, such as `* if friend(s), we go` or `* if you(don't mind),
+  # jump`: the `Choice` begin declined it for the punctuation after the
+  # bracket or an apostrophe inside it, and it is prose. Only whether the
+  # bracket closes tells the two apart, which nothing before the bracket
+  # shows: reordering, splitting or an `end:` cannot see it, and the bracket
+  # variables are already as tight as a condition allows. The bracket is
+  # checked as a condition reads it, except that an apostrophe that opens no
+  # string counts as a plain character, so a valid call the bounded reader
+  # cannot read still counts as open while a contraction does not.
+  CHOICE_UNREADABLE_CONDITION_OPEN: (?:{{CHOICE_UNREADABLE_CONDITION_PATH}}(?:[\[]|(?!{{CHOICE_CLOSURE_PARENS}})[(]))
   LUAU_KEYWORD: (?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while){{LUAU_NAME_END}})
   # lookaround: anywhere else `LuauAccessPath` reads the word as a name; it
   # comes after the alternators in `LuauExpression`.

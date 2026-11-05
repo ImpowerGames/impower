@@ -1,4 +1,4 @@
-sparkdown [0..643]
+sparkdown [0..674]
  ├─ Scene [0..11]
  │   ├─ Scene_begin [0..6]
  │   │   ├─ Scene_begin_c1 0
@@ -14,7 +14,7 @@ sparkdown [0..643]
  │   │       └─ SceneWithoutParametersDeclaration_c2 11
  │   └─ Scene_end 11
  ├─ Newline [11..12]: "\n"
- ├─ LuauSparkdownChooseBlock [12..638]
+ ├─ LuauSparkdownChooseBlock [12..669]
  │   ├─ LuauSparkdownChooseBlock_begin [12..20]
  │   │   ├─ LuauSparkdownChooseBlock_begin_c1 [12..14]
  │   │   │   └─ OptionalWhitespace [12..14]: "  "
@@ -23,7 +23,7 @@ sparkdown [0..643]
  │   │   └─ LuauSparkdownChooseBlock_begin_c3 20
  │   │       └─ LuauSparkdownChooseBlock_begin_c3 20
  │   │           └─ OptionalWhitespace 20
- │   ├─ LuauSparkdownChooseBlock_content [20..633]
+ │   ├─ LuauSparkdownChooseBlock_content [20..664]
  │   │   ├─ Newline [20..21]: "\n"
  │   │   ├─ Choice [21..44]
  │   │   │   ├─ Choice_begin [21..27]
@@ -835,7 +835,7 @@ sparkdown [0..643]
  │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 617
  │   │   │   └─ Choice_end 617
  │   │   ├─ Newline [617..618]: "\n"
- │   │   ├─ Choice [618..632]
+ │   │   ├─ Choice [618..648]
  │   │   │   ├─ Choice_begin [618..624]
  │   │   │   │   ├─ Choice_begin_c1 [618..622]
  │   │   │   │   │   └─ OptionalWhitespace [618..622]: "    "
@@ -846,25 +846,60 @@ sparkdown [0..643]
  │   │   │   │   ├─ Choice_begin_c5 624
  │   │   │   │   ├─ Choice_begin_c6 624
  │   │   │   │   └─ Choice_begin_c7 624
- │   │   │   ├─ Choice_content [624..632]
- │   │   │   │   └─ ChoiceWithNoSuppressedText [624..632]
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [624..632]
- │   │   │   │       │   └─ ChoicePlainText [624..632]
- │   │   │   │       │       └─ ChoiceTextContent [624..632]
- │   │   │   │       │           └─ ChoiceTextContent_c1 [624..632]
- │   │   │   │       │               └─ Word [624..632]: "Fallback"
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 632
- │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 632
- │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 632
- │   │   │   └─ Choice_end 632
- │   │   └─ Newline [632..633]: "\n"
- │   └─ LuauSparkdownChooseBlock_end [633..638]
- │       ├─ LuauSparkdownChooseBlock_end_c1 [633..635]
- │       │   └─ LuauSparkdownChooseBlock_end_c1 [633..635]
- │       │       └─ OptionalWhitespace [633..635]: "  "
- │       ├─ LuauSparkdownChooseBlock_end_c2 [635..638]
- │       │   └─ LuauEndKeyword [635..638]: "end"
- │       └─ LuauSparkdownChooseBlock_end_c3 638
- ├─ Newline [638..639]: "\n"
- ├─ LuauEndKeyword [639..642]: "end"
- └─ Newline [642..643]: "\n"
+ │   │   │   ├─ Choice_content [624..648]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [624..648]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [624..648]
+ │   │   │   │       │   └─ ChoicePlainText [624..648]
+ │   │   │   │       │       └─ ChoiceTextContent [624..648]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [624..648]
+ │   │   │   │       │               ├─ Word [624..626]: "if"
+ │   │   │   │       │               ├─ Space [626..627]: " "
+ │   │   │   │       │               ├─ Word [627..630]: "you"
+ │   │   │   │       │               ├─ Punctuation [630..631]: "("
+ │   │   │   │       │               ├─ Word [631..634]: "don"
+ │   │   │   │       │               ├─ Punctuation [634..635]: "'"
+ │   │   │   │       │               ├─ Word [635..636]: "t"
+ │   │   │   │       │               ├─ Space [636..637]: " "
+ │   │   │   │       │               ├─ Word [637..641]: "mind"
+ │   │   │   │       │               ├─ Punctuation [641..642]: ")"
+ │   │   │   │       │               ├─ Punctuation [642..643]: ","
+ │   │   │   │       │               ├─ Space [643..644]: " "
+ │   │   │   │       │               └─ Word [644..648]: "jump"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 648
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 648
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 648
+ │   │   │   └─ Choice_end 648
+ │   │   ├─ Newline [648..649]: "\n"
+ │   │   ├─ Choice [649..663]
+ │   │   │   ├─ Choice_begin [649..655]
+ │   │   │   │   ├─ Choice_begin_c1 [649..653]
+ │   │   │   │   │   └─ OptionalWhitespace [649..653]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [653..655]
+ │   │   │   │   │   └─ ChoiceMark [653..655]: "* "
+ │   │   │   │   ├─ Choice_begin_c3 655
+ │   │   │   │   ├─ Choice_begin_c4 655
+ │   │   │   │   ├─ Choice_begin_c5 655
+ │   │   │   │   ├─ Choice_begin_c6 655
+ │   │   │   │   └─ Choice_begin_c7 655
+ │   │   │   ├─ Choice_content [655..663]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [655..663]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [655..663]
+ │   │   │   │       │   └─ ChoicePlainText [655..663]
+ │   │   │   │       │       └─ ChoiceTextContent [655..663]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [655..663]
+ │   │   │   │       │               └─ Word [655..663]: "Fallback"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 663
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 663
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 663
+ │   │   │   └─ Choice_end 663
+ │   │   └─ Newline [663..664]: "\n"
+ │   └─ LuauSparkdownChooseBlock_end [664..669]
+ │       ├─ LuauSparkdownChooseBlock_end_c1 [664..666]
+ │       │   └─ LuauSparkdownChooseBlock_end_c1 [664..666]
+ │       │       └─ OptionalWhitespace [664..666]: "  "
+ │       ├─ LuauSparkdownChooseBlock_end_c2 [666..669]
+ │       │   └─ LuauEndKeyword [666..669]: "end"
+ │       └─ LuauSparkdownChooseBlock_end_c3 669
+ ├─ Newline [669..670]: "\n"
+ ├─ LuauEndKeyword [670..673]: "end"
+ └─ Newline [673..674]: "\n"

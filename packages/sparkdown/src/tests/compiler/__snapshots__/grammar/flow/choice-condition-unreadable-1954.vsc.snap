@@ -1,4 +1,4 @@
-text.source.sparkdown [0..643]
+text.source.sparkdown [0..674]
  ├─ keyword.control.scene.sd [0..5]: "scene"
  ├─ punctuation.whitespace.required.sd [5..6]: " "
  ├─ keyword.control.section.sd [6..11]: "start"
@@ -312,14 +312,32 @@ text.source.sparkdown [0..643]
  │       ├─ markup.raw.space.sd [614..615]: " "
  │       └─ markup.raw.text.sd [615..617]: "go"
  ├─ Newline [617..618]: "\n"
- ├─ entity.choice.sd [618..632]
+ ├─ entity.choice.sd [618..648]
  │   ├─ punctuation.whitespace.optional.sd [618..622]: "    "
  │   ├─ keyword.operator.expression.list.sd [622..624]: "* "
- │   └─ string.choice.sd [624..632]
- │       └─ markup.raw.text.sd [624..632]: "Fallback"
- ├─ Newline [632..633]: "\n"
- ├─ punctuation.whitespace.optional.sd [633..635]: "  "
- ├─ keyword.control.end.luau [635..638]: "end"
- ├─ Newline [638..639]: "\n"
- ├─ keyword.control.end.luau [639..642]: "end"
- └─ Newline [642..643]: "\n"
+ │   └─ string.choice.sd [624..648]
+ │       ├─ markup.raw.text.sd [624..626]: "if"
+ │       ├─ markup.raw.space.sd [626..627]: " "
+ │       ├─ markup.raw.text.sd [627..630]: "you"
+ │       ├─ markup.raw.punctuation.sd [630..631]: "("
+ │       ├─ markup.raw.text.sd [631..634]: "don"
+ │       ├─ markup.raw.punctuation.sd [634..635]: "'"
+ │       ├─ markup.raw.text.sd [635..636]: "t"
+ │       ├─ markup.raw.space.sd [636..637]: " "
+ │       ├─ markup.raw.text.sd [637..641]: "mind"
+ │       ├─ markup.raw.punctuation.sd [641..642]: ")"
+ │       ├─ markup.raw.punctuation.sd [642..643]: ","
+ │       ├─ markup.raw.space.sd [643..644]: " "
+ │       └─ markup.raw.text.sd [644..648]: "jump"
+ ├─ Newline [648..649]: "\n"
+ ├─ entity.choice.sd [649..663]
+ │   ├─ punctuation.whitespace.optional.sd [649..653]: "    "
+ │   ├─ keyword.operator.expression.list.sd [653..655]: "* "
+ │   └─ string.choice.sd [655..663]
+ │       └─ markup.raw.text.sd [655..663]: "Fallback"
+ ├─ Newline [663..664]: "\n"
+ ├─ punctuation.whitespace.optional.sd [664..666]: "  "
+ ├─ keyword.control.end.luau [666..669]: "end"
+ ├─ Newline [669..670]: "\n"
+ ├─ keyword.control.end.luau [670..673]: "end"
+ └─ Newline [673..674]: "\n"

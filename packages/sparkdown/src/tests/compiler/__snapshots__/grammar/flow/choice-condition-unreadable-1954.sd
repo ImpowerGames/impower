@@ -21,6 +21,7 @@ scene start
     * if (friend(s) agree), jump
     * if (friend(s) don't agree) jump
     * if friend(s), we go
+    * if you(don't mind), jump
     * Fallback
   end
 end
