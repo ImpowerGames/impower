@@ -165,6 +165,22 @@ describe("the code editor decides no colour in JavaScript", () => {
     expect(offenders).toEqual([]);
   });
 
+  it("follows this package's own imports by name and leaves other packages to their own scans", () => {
+    const entry = resolve(SRC, "modules/script-editor/utils/createEditorView.ts");
+    const marks = resolve(SRC, "cm-problem-marks/problemMarks");
+    expect(ownModulePath(entry, "../../../cm-problem-marks/problemMarks")).toBe(
+      marks,
+    );
+    expect(
+      ownModulePath(entry, `${PACKAGE_NAME}/src/cm-problem-marks/problemMarks`),
+    ).toBe(marks);
+    expect(resolveModule(marks)).toBe(`${marks}.ts`);
+    expect(ownModulePath(entry, PACKAGE_NAME)).toBe(PACKAGE_ROOT);
+    expect(resolveModule(PACKAGE_ROOT)).toBeUndefined();
+    expect(ownModulePath(entry, `${PACKAGE_NAME}-extra/src/x`)).toBeUndefined();
+    expect(ownModulePath(entry, "@codemirror/view")).toBeUndefined();
+  });
+
   it("counts an inline colour as a literal and passes only an svg mask's black paint", () => {
     expect(colourLiterals('view.dom.style.color="black";')).toEqual([
       '"black"',
@@ -276,8 +292,20 @@ const colourLiterals = (source: string, fileName = "source.tsx") => {
 
 const SCANNED_MODULE = /\.tsx?$/;
 
-const resolveModule = (from: string, specifier: string) => {
-  const base = resolve(dirname(from), specifier);
+const PACKAGE_ROOT = resolve(__dirname, "..");
+
+const PACKAGE_NAME: string = JSON.parse(
+  readFileSync(resolve(PACKAGE_ROOT, "package.json"), "utf8"),
+).name;
+
+const ownModulePath = (from: string, specifier: string) =>
+  specifier.startsWith(".")
+    ? resolve(dirname(from), specifier)
+    : specifier === PACKAGE_NAME || specifier.startsWith(`${PACKAGE_NAME}/`)
+      ? resolve(PACKAGE_ROOT, `.${specifier.slice(PACKAGE_NAME.length)}`)
+      : undefined;
+
+const resolveModule = (base: string) => {
   return [
     base,
     `${base}.ts`,
@@ -304,8 +332,9 @@ const editorModules = () => {
       true,
     );
     for (const { fileName: specifier } of importedFiles) {
-      if (!specifier.startsWith(".")) continue;
-      const target = resolveModule(file, specifier);
+      const base = ownModulePath(file, specifier);
+      if (!base) continue;
+      const target = resolveModule(base);
       if (target) visit(target);
       else unscanned.push(`${relative(SRC, file)} -> ${specifier}`);
     }
