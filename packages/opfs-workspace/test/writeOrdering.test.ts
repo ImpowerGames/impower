@@ -626,10 +626,18 @@ describe("listing storage after earlier notifications (I-1893)", () => {
     h.start("old-read", "workspace/readFile", { file: { uri: uriOf("a.sd") } });
     await vi.advanceTimersByTimeAsync(0);
     await reading;
-    await otherTab(root).remove("a.sd");
-    expect((await h.enumerate()).result).toEqual([]);
-    release();
+    const removed = navigator.locks.request(
+      `opfs-workspace:commit:${uriOf("a.sd")}`,
+      () => otherTab(root).remove("a.sd"),
+    );
+    h.start("listing", "workspace/readDirectoryFiles", {
+      directory: { uri: "file://local" },
+    });
     await vi.advanceTimersByTimeAsync(0);
+    release();
+    await removed;
+    await vi.advanceTimersByTimeAsync(250);
+    expect(h.response("listing").result).toEqual([]);
     expect(h.response("old-read")).toHaveProperty("result");
     expect(
       await h.request("edit", "workspace/applyWorkspaceEdit", {
@@ -654,6 +662,49 @@ describe("listing storage after earlier notifications (I-1893)", () => {
       commits: { [uriOf("a.sd")]: newer },
     });
     expect(h.writtenTexts("a.sd", before)).toEqual([]);
+  });
+
+  it("keeps a file that a tab on an older build recreated while a listing that found it absent was still running", async () => {
+    const root = seed({ "a.sd": "A", "b.sd": "B" });
+    await otherTab(root).commit();
+    const h = await worker(root);
+    await h.enumerate();
+    await (root.entries.get("local") as MemoryDirectory).removeEntry("a.sd");
+    const b = fileAt(root, "b.sd")!;
+    const getFile = b.getFile.bind(b);
+    let captured!: () => void;
+    const listing = new Promise<void>((resolve) => {
+      captured = resolve;
+    });
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    b.getFile = async () => {
+      b.getFile = getFile;
+      captured();
+      await held;
+      return getFile();
+    };
+    h.start("listing", "workspace/readDirectoryFiles", {
+      directory: { uri: "file://local" },
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    await listing;
+    writeMemoryFile(root, "local/a.sd", enc.encode("BACK"));
+    await h.remote("workspace/didWriteFiles", { files: [fileData("a.sd", "BACK")] });
+    await vi.advanceTimersByTimeAsync(50);
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(
+      h.response("listing").result.map((f: any) => [f.uri, f.text]),
+    ).toContainEqual([uriOf("a.sd"), "BACK"]);
+    expect(
+      await h.request("edit", "workspace/applyWorkspaceEdit", {
+        edit: { documentChanges: [insert("a.sd", 0, "!")] },
+      }),
+    ).toMatchObject({ result: { applied: true } });
+    expect(textAt(root, "a.sd")).toBe("!BACK");
   });
 });
 

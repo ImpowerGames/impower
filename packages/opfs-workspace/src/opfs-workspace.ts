@@ -1182,19 +1182,13 @@ const readDirectoryFiles = async (directoryUri: string) => {
   if (floor) {
     observeCommit(floor);
     raiseDirectoryFloor(directoryUri, floor);
-    for (const uri of [...State.files.keys()]) {
-      if (
-        uri.startsWith(`${directoryUri}/`) &&
-        !uri.includes(`/${TRASH_DIR}/`) &&
-        !listed.has(uri) &&
-        isNotNewer(uri, floor)
-      ) {
-        evictFile(uri);
-        touch([uri]);
-        State.commits.set(uri, floor);
-      }
-    }
   }
+  const unlisted = [...State.files.keys()].filter(
+    (uri) =>
+      uri.startsWith(`${directoryUri}/`) &&
+      !uri.includes(`/${TRASH_DIR}/`) &&
+      !listed.has(uri),
+  );
   const files = await Promise.all(
     directoryEntries.map(async (entry) => {
       const uri = getUriFromPath(entry.path);
@@ -1202,16 +1196,29 @@ const readDirectoryFiles = async (directoryUri: string) => {
         floor != null &&
         isSupersededCommit(State.commits.get(uri) ?? NO_COMMIT, floor);
       if (!State.files.get(uri) || stale) {
-        if (needsTextAtEnumeration(uri)) {
-          await readFile(uri, { floor });
-        } else {
-          await statFile(uri, floor);
+        try {
+          if (needsTextAtEnumeration(uri)) {
+            await readFile(uri);
+          } else {
+            await statFile(uri);
+          }
+        } catch (err) {
+          if (!isMissingEntry(err)) {
+            throw err;
+          }
+          unlisted.push(uri);
+          return undefined;
         }
       }
       return State.files.get(uri);
     }),
   );
-  return files.filter((file): file is FileData => file != null);
+  const settled = await settlePaths(
+    unlisted.map((uri) => ({ uri, directory: false })),
+  );
+  return [...files, ...settled.map((e) => e.file)].filter(
+    (file): file is FileData => file != null,
+  );
 };
 
 const readFloor = async (
@@ -1326,10 +1333,11 @@ const storedFileHandle = async (uri: string) => {
   return handle;
 };
 
-const statFile = (fileUri: string, floor: FileCommit | undefined) =>
+const statFile = (fileUri: string) =>
   withCommitLock(fileUri, async () => {
     const fileHandle = await storedFileHandle(fileUri);
     const fileRef = await fileHandle.getFile();
+    const floor = await readFloor(await navigator.storage.getDirectory());
     if (adoptStoredBytes(fileUri, floor)) {
       const before = State.files.get(fileUri);
       updateFileMetaCache(fileUri, fileRef.size, fileRef.lastModified);
@@ -1337,16 +1345,12 @@ const statFile = (fileUri: string, floor: FileCommit | undefined) =>
     }
   });
 
-const readFile = (
-  fileUri: string,
-  options?: { floor: FileCommit | undefined },
-) =>
+const readFile = (fileUri: string) =>
   withCommitLock(fileUri, async () => {
-    const root = await navigator.storage.getDirectory();
-    const floor = options ? options.floor : await readFloor(root);
     const fileHandle = await storedFileHandle(fileUri);
     const fileRef = await fileHandle.getFile();
     const buffer = await fileRef.arrayBuffer();
+    const floor = await readFloor(await navigator.storage.getDirectory());
     if (adoptStoredBytes(fileUri, floor)) {
       const before = State.files.get(fileUri);
       updateFileCache(fileUri, buffer, false, undefined, fileRef.lastModified);
