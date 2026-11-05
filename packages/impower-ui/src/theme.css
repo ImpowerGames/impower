@@ -142,6 +142,7 @@
   --scrollbar: #73757c;
   --control-hover: rgb(255 255 255 / 0.06);
   --stage-full: #0a0a0b;
+  --scrim: rgb(0 0 0 / 0.6);
 
   --syntax-text: #f0efeb;
   --syntax-bracket: #94959b;
@@ -200,6 +201,7 @@
   --scrollbar: #c0c0c5;
   --control-hover: rgb(0 0 0 / 0.05);
   --stage-full: #e6e6e8;
+  --scrim: rgb(0 0 0 / 0.35);
 
   --syntax-text: #202123;
   --syntax-bracket: #62636a;

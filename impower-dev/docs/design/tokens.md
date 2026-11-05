@@ -470,7 +470,10 @@ is `--bg` outside Midnight and Dusk (`folio-themes.css:319-325`), line numbers a
 info problem colour are `--muted` (`folio-editor.css:39`, `:57`), the indentation guides
 are the derived colours above (`folio-editor.css:71`), and focus, links and the current
 selection's accents are `--accent`. The sticky header shadow takes the one-third black
-of the popovers (`folio-hierarchy.css:918`).
+of the popovers (`folio-hierarchy.css:918`). The one value the two themes do not share
+is the modal backdrop `--scrim`, declared in each theme's own block from the overlay
+strengths under [Elevation](#elevation): `rgb(0 0 0 / 0.6)` in Charcoal (`app.css:1093-1094`)
+and `rgb(0 0 0 / 0.35)` in Chalk (`folio-themes.css:311-312`).
 
 | Variable | Charcoal and Chalk value | Chosen from |
 |---|---|---|

@@ -28,7 +28,7 @@ Select only the references needed for this run:
 
 - `--viewport <preset|WxH>`: `desktop` 1440x900, `tablet` 768x1024, `phone` 360x780, `phone-large` 430x932, or any size such as `1280x720`. `phone` and `phone-large` also turn on touch, `isMobile` and device scale factor 3, so `(pointer: coarse)` and `(hover: none)` match; their screenshots hold three device pixels per page pixel, so a 360x780 page saves as 1080x2340. Without the flag the page stays 1600x1000 with a mouse, so earlier evidence stays comparable.
 - `--color-scheme light|dark`: the `prefers-color-scheme` the page reports, for checking the Automatic theme.
-- `--theme <name>`: the stored theme preference the page loads with, such as `charcoal` or `chalk`. Without it the stored theme is cleared, so the page starts under Automatic and `--color-scheme` picks Chalk or Charcoal. The report's `display.renderedTheme` is the `data-theme` the editor set; a theme it does not offer fails the run.
+- `--theme <name>`: the stored theme preference the page loads with, such as `charcoal`, `chalk` or `automatic`. Without it the stored theme is cleared, so the page starts under Automatic and `--color-scheme` picks Chalk or Charcoal. The report's `display.renderedTheme` is the `data-theme` the editor set; a theme it does not offer fails the run.
 
 The report's `display` field echoes what was applied. Desktop and tablet presets are evidence widths; at phone widths the presets are quick checks only, and the [Android emulator](#android-emulator) route is the bar.
 

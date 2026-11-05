@@ -166,6 +166,9 @@ await check("the report echoes the requested theme, and a theme the editor did n
   assert.equal(themed.theme, "charcoal");
   assert.equal(themeMismatch(none, "charcoal"), null);
   assert.equal(themeMismatch({ ...none, theme: "chalk" }, "chalk"), null);
+  assert.equal(themeMismatch({ ...none, theme: "automatic", colorScheme: "light" }, "chalk"), null);
+  assert.equal(themeMismatch({ ...none, theme: "automatic", colorScheme: "dark" }, "charcoal"), null);
+  assert.match(themeMismatch({ ...none, theme: "automatic" }, null), /rendered no theme/);
   assert.match(themeMismatch({ ...none, theme: "ink" }, "charcoal"), /--theme ink .* rendered charcoal/);
   assert.match(themeMismatch({ ...none, theme: "ink" }, null), /rendered no theme/);
 });

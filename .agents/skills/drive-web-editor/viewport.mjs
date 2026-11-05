@@ -103,6 +103,7 @@ export function themeSeed(display) {
 
 export function themeMismatch(display, renderedTheme) {
   if (!display.theme || renderedTheme === display.theme) return null;
+  if (display.theme === "automatic" && renderedTheme) return null;
   return `--theme ${display.theme} was set as the theme preference but the editor rendered ${renderedTheme ?? "no theme"}; the editor does not offer that theme`;
 }
 
