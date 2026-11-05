@@ -5,6 +5,9 @@ export const NOT_COMPONENTS: readonly string[] = [
   "buttonVariants",
   "componentRegistry",
   "dialogVariants",
+  "dropdownRadioItemVariants",
+  "HOLD_REPEAT_DELAY_MS",
+  "HOLD_REPEAT_INTERVAL_MS",
   "layoutState",
   "sparkLogoVariants",
   "pointerState",
@@ -12,6 +15,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "sidebarLayoutVariants",
   "toastVariants",
   "useCoarsePointer",
+  "useHoldRepeat",
   "useLayout",
   "useMountTransition",
 ];

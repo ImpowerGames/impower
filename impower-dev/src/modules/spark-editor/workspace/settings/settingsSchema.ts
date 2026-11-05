@@ -25,6 +25,10 @@ const configured = (...configurationKeys: string[]) => ({
   configurationKeys,
 });
 
+export const PREVIEW_MODES = ["game", "screenplay"] as const;
+
+export type PreviewMode = (typeof PREVIEW_MODES)[number];
+
 export const PREFERENCES_SCHEMA = {
   theme: choice("automatic", THEME_PREFERENCES),
   surfaces: choice("unified", SURFACES),
@@ -41,6 +45,11 @@ export const PREFERENCES_SCHEMA = {
   indentGuides: choice("block", INDENT_GUIDES),
   autoCloseBrackets: setting(true),
   autoRenameFiles: setting(true),
+  previewMode: choice("game", PREVIEW_MODES),
+  previewFollowsCursor: setting(true),
+  previewIdleAnimations: setting(true),
+  previewTypingPauses: setting(false),
+  previewScreenplaySync: setting(true),
 } as const satisfies Record<string, SettingSpec>;
 
 export const PROJECT_SETTINGS_SCHEMA = {
