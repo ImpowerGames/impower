@@ -5,7 +5,7 @@ import sharp from "sharp";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const publicDir = resolve(root, "src/public");
-const sourceDir = resolve(root, "../packages/impower-ui/src/components/spark-logo/source");
+const componentsDir = resolve(root, "../packages/impower-ui/src/components");
 const themeCss = readFileSync(resolve(root, "../packages/impower-ui/src/theme.css"), "utf8");
 
 const themeValue = (theme, name) => {
@@ -20,7 +20,7 @@ const themeValue = (theme, name) => {
 const background = themeValue("charcoal", "bg");
 const accent = themeValue("charcoal", "accent");
 
-const cutout = readFileSync(resolve(sourceDir, "spark_engine_logo_cutout.svg"), "utf8");
+const cutout = readFileSync(resolve(componentsDir, "spark-logo/source/spark_engine_logo_cutout.svg"), "utf8");
 const sparkyPath = cutout.match(/<path d="([^"]+)"/)?.[1];
 if (!sparkyPath) {
   throw new Error("spark_engine_logo_cutout.svg has no path");
@@ -90,10 +90,8 @@ for (const icon of manifest.icons) {
 
 write("favicon.svg", FAVICON);
 
-const splash = readFileSync(resolve(sourceDir, "made_with_spark_splash.svg"));
-const splashBackground = readFileSync(resolve(sourceDir, "made_with_spark_splash.svg"), "utf8").match(
-  /Background (#[0-9a-fA-F]{6})/,
-)?.[1];
+const splash = readFileSync(resolve(componentsDir, "made-with-spark-splash/source/made_with_spark_splash.svg"));
+const splashBackground = splash.toString("utf8").match(/Background (#[0-9a-fA-F]{6})/)?.[1];
 if (!splashBackground) {
   throw new Error("made_with_spark_splash.svg names no background colour");
 }

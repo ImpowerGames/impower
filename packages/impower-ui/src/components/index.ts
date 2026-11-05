@@ -29,11 +29,13 @@ export {
 } from "./dropdown/Dropdown";
 export {
   default as SparkLogo,
-  MadeWithSparkSplash,
   sparkLogoVariants,
   type SparkLogoProps,
-  type MadeWithSparkSplashProps,
 } from "./spark-logo/SparkLogo";
+export {
+  default as MadeWithSparkSplash,
+  type MadeWithSparkSplashProps,
+} from "./made-with-spark-splash/MadeWithSparkSplash";
 export {
   default as LoadingBar,
   type LoadingBarProps,

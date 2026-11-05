@@ -1,5 +1,5 @@
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
-import SparkLogo, { MadeWithSparkSplash } from "./SparkLogo";
+import SparkLogo from "./SparkLogo";
 
 function SparkLogoDemo() {
   return (
@@ -17,15 +17,12 @@ function SparkLogoDemo() {
           </GalleryRow>
         </div>
       ))}
-      <GalleryRow label="MadeWithSparkSplash">
-        <MadeWithSparkSplash class="max-w-96" />
-      </GalleryRow>
     </div>
   );
 }
 
 export const sparkLogoGallery: GalleryEntry = {
   title: "SparkLogo",
-  exports: ["SparkLogo", "MadeWithSparkSplash"],
+  exports: ["SparkLogo"],
   Demo: SparkLogoDemo,
 };

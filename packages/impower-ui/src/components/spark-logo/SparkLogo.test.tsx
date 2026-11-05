@@ -1,6 +1,8 @@
 import { render as preactRender, type ComponentChild } from "preact";
 import { afterEach, describe, expect, it } from "vitest";
-import SparkLogo, { MadeWithSparkSplash } from "./SparkLogo";
+import SparkLogo from "./SparkLogo";
+import cutoutSvg from "./source/spark_engine_logo_cutout.svg?raw";
+import wordmarkSvg from "./source/spark_engine_wordmark.svg?raw";
 
 const mounted: HTMLElement[] = [];
 
@@ -50,10 +52,15 @@ describe("SparkLogo", () => {
     ]);
   });
 
-  it("renders the Made with Spark splash as an inline svg", () => {
-    const { getByRole } = render(<MadeWithSparkSplash />);
-    const splash = getByRole("img");
-    expect(splash.getAttribute("aria-label")).toBe("Made with Spark");
-    expect(splash.querySelector("svg")).not.toBeNull();
+  it("draws the geometry of the source artwork, so a redrawn source changes the logo", () => {
+    const { container } = render(<SparkLogo />);
+    const sourcePaths = (svg: string) => [...svg.matchAll(/ d="([^"]+)"/g)].map((match) => match[1]);
+    const drawnPaths = (part: string) =>
+      Array.from(container.querySelectorAll(`[data-logo-part="${part}"] path`)).map((path) => path.getAttribute("d"));
+    expect(drawnPaths("mark")).toEqual(sourcePaths(cutoutSvg));
+    expect(drawnPaths("wordmark")).toEqual(sourcePaths(wordmarkSvg));
+    expect(container.querySelector('[data-logo-part="wordmark"]')!.getAttribute("viewBox")).toBe(
+      wordmarkSvg.match(/<svg[^>]* viewBox="([^"]+)"/)![1],
+    );
   });
 });
