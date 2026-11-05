@@ -54,7 +54,6 @@ describe("the preview at a line where the run ends", () => {
     ["a done with nothing left to run", DONE, 2, "Hello.", 3],
     ["the closing end of a flow that nothing follows", DONE, 3, "Hello.", 3],
     ["the closing end at the end of the content", CONTENT, 3, "Goodbye.", 4],
-    ["the blank line after the content", CONTENT, 4, "Goodbye.", 4],
   ])(
     "at %s, shows the last beat without the continue indicator and the ran-out badge",
     async (_name, source, line, shown, after) => {
@@ -106,19 +105,28 @@ describe("the preview at a line where the run ends", () => {
     }
   }, 120_000);
 
-  it("at the blank line after a scene holding an unused branch, matches the scene's closing end", async () => {
-    const h = await open(NESTED);
-    try {
-      const closing = await previewAt(h, 6);
-      expect(closing.text).toContain("Main.");
-      expect(closing.text).not.toContain("Aside.");
-      expect(closing.indicatorHidden).toBe(true);
-      expect(closing.badge).toBe("Story ran out");
-      expect(await previewAt(h, 7)).toEqual(closing);
-    } finally {
-      h.dispose();
-    }
-  }, 120_000);
+  it.each([
+    ["the content", CONTENT, 3, 4, "Goodbye."],
+    ["a scene holding an unused branch", NESTED, 6, 7, "Main."],
+  ] as const)(
+    "at the blank line after %s, shows no beat and no badge once the scene's closing end showed its last beat",
+    async (_name, source, closingLine, blankLine, shown) => {
+      const h = await open(source);
+      try {
+        const closing = await previewAt(h, closingLine);
+        expect(closing.text).toContain(shown);
+        expect(closing.badge).toBe("Story ran out");
+        const blank = await previewAt(h, blankLine);
+        expect(blank.text).not.toContain(shown);
+        expect(blank.text).not.toContain("Aside.");
+        expect(blank.badge).toBeNull();
+        expect(blank.indicatorHidden).toBe(true);
+      } finally {
+        h.dispose();
+      }
+    },
+    120_000,
+  );
 
   it("at a line the engine's call-depth limit stops, shows the last beat and the error badge", async () => {
     const h = await open(DEEP);

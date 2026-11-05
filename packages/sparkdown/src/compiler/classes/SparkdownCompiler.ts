@@ -3572,6 +3572,30 @@ export class SparkdownCompiler {
     return ends;
   }
 
+  sceneSpansOf(
+    uri: string,
+    ends: readonly (readonly [number, number])[],
+  ): [headerLine: number, lastLine: number][] {
+    const doc = this.documents.get(uri);
+    const cur = doc ? this.documents.annotations(uri).declarations.iter() : undefined;
+    if (!doc || !cur) {
+      return [];
+    }
+    const headers: number[] = [];
+    while (cur.value) {
+      if (cur.value.type === "scene") {
+        headers.push(doc.lineAt(cur.from));
+      }
+      cur.next();
+    }
+    const closes = new Map(ends);
+    const lastLine = doc.lineAt(doc.getText().length);
+    return headers.map((header, index) => {
+      const next = headers[index + 1];
+      return [header, closes.get(header) ?? (next !== undefined ? next - 1 : lastLine)];
+    });
+  }
+
   structureOf(uri: string): ScriptStructure {
     const doc = this.documents.get(uri);
     const tree = doc ? this.documents.tree(uri) : undefined;
@@ -3606,6 +3630,11 @@ export class SparkdownCompiler {
       if (ends.length > 0) {
         program.flowEnds ??= {};
         program.flowEnds[uri] = ends;
+      }
+      const spans = this.sceneSpansOf(uri, ends);
+      if (spans.length > 0) {
+        program.sceneSpans ??= {};
+        program.sceneSpans[uri] = spans;
       }
       if (doc) {
         const annotations = this.documents.annotations(uri);

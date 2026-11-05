@@ -1,0 +1,107 @@
+import { describe, expect, it } from "vitest";
+import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarness";
+import { playFrom, previewAt } from "./playFromLine";
+
+const SCENES = `store visits = 0
+
+scene start
+  Inside start.
+end
+
+const limit = 3
+
+scene other
+  Inside other.
+end
+
+`;
+
+const UNCLOSED = `scene start
+  Inside start.
+end
+
+scene other
+  Inside other.
+
+`;
+
+const OUTSIDE = [
+  ["a declaration above the first scene", 0],
+  ["a blank line above the first scene", 1],
+  ["a blank line after a scene's end", 5],
+  ["a declaration between scenes", 6],
+  ["a blank line above the next scene", 7],
+  ["the blank line after the last scene", 11],
+] as const;
+
+const SHOWN = ["Inside start.", "Inside other."];
+
+describe("the preview at a line outside every scene", () => {
+  it.each(OUTSIDE)("at %s, shows no scene's beat", async (_name, line) => {
+    const text = await previewAt(SCENES, line);
+    for (const beat of SHOWN) {
+      expect(text).not.toContain(beat);
+    }
+  }, 120_000);
+
+  it("clears the beat, the continue indicator and the route a scene left on screen when the cursor leaves the scene", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SCENES }],
+      startFrom: { file: MAIN_URI, line: 9 },
+    });
+    h.refs.routeButton = h.refs.leftItems.ownerDocument.createElement("div");
+    const indicatorShown = () => {
+      const indicator = h.overlay.querySelector(".continue_indicator") as HTMLElement | null;
+      return indicator !== null && indicator.style.display !== "none";
+    };
+    try {
+      await h.compile();
+      await h.select(9);
+      await settle(40);
+      expect(h.overlay.textContent).toContain("Inside other.");
+      expect(indicatorShown()).toBe(true);
+      expect(h.refs.routeButton.hidden).toBe(false);
+      const before = h.toRouter.length;
+      await h.select(11);
+      await settle(40);
+      expect(writtenText(h.toRouter.slice(before))).toBe("");
+      expect(h.overlay.textContent).not.toContain("Inside other.");
+      expect(indicatorShown()).toBe(false);
+      expect(h.refs.routeButton.hidden).toBe(true);
+      await h.select(3);
+      await settle(40);
+      expect(h.overlay.textContent).toContain("Inside start.");
+      expect(indicatorShown()).toBe(true);
+      expect(h.refs.routeButton.hidden).toBe(false);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+describe("PLAY from a line outside every scene", () => {
+  it.each(OUTSIDE)("from %s, starts no scene", async (_name, line) => {
+    const outcome = await playFrom(SCENES, line);
+    expect(outcome.started).toBe(false);
+    expect(outcome.state).toBeUndefined();
+    for (const beat of SHOWN) {
+      expect(outcome.text).not.toContain(beat);
+    }
+  }, 120_000);
+});
+
+describe("lines inside a scene", () => {
+  it.each([
+    ["a scene's header", SCENES, 2, "Inside start."],
+    ["a scene's beat", SCENES, 9, "Inside other."],
+    ["a scene's closing end", SCENES, 10, "Inside other."],
+    ["a blank line in a scene that is missing its end", UNCLOSED, 6, "Inside other."],
+  ] as const)("at %s, preview and PLAY show the scene's beat", async (_name, source, line, shown) => {
+    expect(await previewAt(source, line)).toContain(shown);
+    if (source === SCENES) {
+      const outcome = await playFrom(source, line);
+      expect(outcome.started).toBe(true);
+      expect(outcome.text).toContain(shown);
+    }
+  }, 120_000);
+});
