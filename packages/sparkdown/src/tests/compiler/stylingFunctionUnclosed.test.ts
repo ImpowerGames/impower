@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
 const MISSING = "Missing ')' to close the function's parameter list";
+const SEMICOLON = `${MISSING} before ';', which ends the property`;
 
 function diagnose(source: string): string[] {
   const compiler = new SparkdownCompiler();
@@ -56,6 +57,17 @@ describe("unclosed styling value function parameter list", () => {
     );
     expect(diagnostics).toContain(`1:14-15 ${MISSING}`);
     expect(diagnostics.filter((d) => d.includes(MISSING))).toHaveLength(1);
+  });
+
+  test("names the ';' that ends the property before the list closes", () => {
+    for (const source of [
+      "style panel {\n  background-color = rgb(1; 2; 3)\n}\n",
+      "style panel {\n  background-color = rgb(1 ; 2; 3)\n}\n",
+    ]) {
+      const diagnostics = diagnose(source);
+      expect(diagnostics).toContain(`1:24-25 ${SEMICOLON}`);
+      expect(diagnostics.filter((d) => d.endsWith(MISSING))).toEqual([]);
+    }
   });
 
   test("closed styling functions report nothing", () => {

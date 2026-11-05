@@ -1,4 +1,4 @@
-text.source.sparkdown [0..180]
+text.source.sparkdown [0..210]
  ├─ meta.style.luau [0..12]
  │   ├─ keyword.control.style.luau [0..5]: "style"
  │   ├─ punctuation.whitespace.optional.sd [5..6]: " "
@@ -101,6 +101,24 @@ text.source.sparkdown [0..180]
  │   ├─ markup.raw.whitespace.separator.optional.sd [164..165]: " "
  │   └─ string.color.rgb.sd [165..177]: "rgb(1, 2, 3)"
  ├─ Newline [177..178]: "\n"
- ├─ meta.style.luau [178..179]
- │   └─ punctuation.definition.template-expression.end.sd [178..179]: "}"
- └─ Newline [179..180]: "\n"
+ ├─ meta.style.luau [178..207]
+ │   ├─ punctuation.whitespace.sd [178..180]: "  "
+ │   ├─ variable.other.property.define.sd [180..192]: "border-color"
+ │   ├─ markup.raw.whitespace.separator.optional.sd [192..193]: " "
+ │   ├─ keyword.operator.assignment.sd [193..194]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [194..195]: " "
+ │   ├─ entity.name.function.sd [195..198]: "rgb"
+ │   ├─ punctuation.definition.template-expression.begin.sd [198..199]: "("
+ │   ├─ constant.numeric.sd [199..200]: "1"
+ │   ├─ punctuation.separator.semicolon.sd [200..201]: ";"
+ │   ├─ punctuation.whitespace.sd [201..202]: " "
+ │   ├─ constant.numeric.sd [202..203]
+ │   │   └─ constant.numeric.sd [202..203]: "2"
+ │   ├─ punctuation.separator.semicolon.sd [203..204]: ";"
+ │   ├─ punctuation.whitespace.sd [204..205]: " "
+ │   ├─ constant.numeric.sd [205..206]: "3"
+ │   └─ string.unquoted.char.sd [206..207]: ")"
+ ├─ Newline [207..208]: "\n"
+ ├─ meta.style.luau [208..209]
+ │   └─ punctuation.definition.template-expression.end.sd [208..209]: "}"
+ └─ Newline [209..210]: "\n"

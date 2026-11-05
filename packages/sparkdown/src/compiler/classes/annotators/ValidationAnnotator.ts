@@ -1605,7 +1605,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       if (!close || !childNamed(close, "PunctuationParenClose")) {
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({
-            message: "Missing ')' to close the function's parameter list",
+            message: /^[ \t]*;/.test(this.read(nodeRef.to, nodeRef.to + 64))
+              ? "Missing ')' to close the function's parameter list before ';', which ends the property"
+              : "Missing ')' to close the function's parameter list",
             severity: "error",
           }).range(nodeRef.from, nodeRef.from + 1),
         );
