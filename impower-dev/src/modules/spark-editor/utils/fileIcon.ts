@@ -1,67 +1,59 @@
 import {
-  FileCode,
-  FileText,
-  FileTypeCsv,
-  FileTypeHtml,
-  FileTypeJs,
-  FileTypeJsx,
-  FileTypePdf,
-  FileTypeTs,
-  FileTypeXml,
-  FileZip,
-  Folder,
-  FolderOpen,
+  BracketsIcon,
+  FolderIcon,
   type IconComponent,
-  Link,
-  Movie,
-  Music,
-  Photo,
-  Script,
-  WaveSaw,
+  ImageIcon,
+  LinkIcon,
+  MusicIcon,
+  OtherIcon,
+  SoundSpeakerIcon,
+  StoryIcon,
+  TextIcon,
+  VideoIcon,
 } from "@impower/impower-ui/icons";
 
 const ICON_BY_EXT: Record<string, IconComponent> = {
-  sd: Script,
+  sd: StoryIcon,
 
-  txt: FileText,
-  md: FileText,
-  name: FileText,
+  txt: TextIcon,
+  md: TextIcon,
+  name: TextIcon,
 
-  json: FileCode,
-  js: FileTypeJs,
-  ts: FileTypeTs,
-  jsx: FileTypeJsx,
-  tsx: FileTypeJsx,
-  csv: FileTypeCsv,
-  xml: FileTypeXml,
+  json: BracketsIcon,
+  js: BracketsIcon,
+  ts: BracketsIcon,
+  jsx: BracketsIcon,
+  tsx: BracketsIcon,
+  csv: BracketsIcon,
+  xml: BracketsIcon,
 
-  png: Photo,
-  jpg: Photo,
-  jpeg: Photo,
-  gif: Photo,
-  webp: Photo,
-  svg: Photo,
+  png: ImageIcon,
+  jpg: ImageIcon,
+  jpeg: ImageIcon,
+  gif: ImageIcon,
+  webp: ImageIcon,
+  svg: ImageIcon,
 
-  mid: Music,
-  mp3: Music,
-  ogg: Music,
-  wav: Music,
-  m4a: Music,
+  mid: MusicIcon,
+  mp3: MusicIcon,
+  ogg: MusicIcon,
+  wav: MusicIcon,
+  m4a: MusicIcon,
 
-  mp4: Movie,
-  webm: Movie,
-  mov: Movie,
-  m4v: Movie,
-  ogv: Movie,
-  mkv: Movie,
-  avi: Movie,
+  mp4: VideoIcon,
+  webm: VideoIcon,
+  mov: VideoIcon,
+  m4v: VideoIcon,
+  ogv: VideoIcon,
+  mkv: VideoIcon,
+  avi: VideoIcon,
 
-  synth: WaveSaw,
+  synth: SoundSpeakerIcon,
 
-  url: Link,
-  zip: FileZip,
-  pdf: FileTypePdf,
-  html: FileTypeHtml,
+  url: LinkIcon,
+  zip: OtherIcon,
+  pdf: OtherIcon,
+  html: BracketsIcon,
 };
 
 export function extOf(path: string): string {
@@ -117,29 +109,28 @@ export function fileCategory(path: string): FileCategory {
 export function iconForPath(
   path: string,
   isDirectory: boolean,
-  expanded = false,
 ): IconComponent {
   if (isDirectory) {
-    return expanded ? FolderOpen : Folder;
+    return FolderIcon;
   }
-  return ICON_BY_EXT[extOf(path)] ?? FileText;
+  return ICON_BY_EXT[extOf(path)] ?? TextIcon;
 }
 
 export function isImagePath(path: string): boolean {
-  return ICON_BY_EXT[extOf(path)] === Photo;
+  return ICON_BY_EXT[extOf(path)] === ImageIcon;
 }
 
 export function iconForCategory(category: string | undefined): IconComponent {
   switch (category) {
     case "image":
-      return Photo;
+      return ImageIcon;
     case "audio":
-      return Music;
+      return MusicIcon;
     case "video":
-      return Movie;
+      return VideoIcon;
     case "text":
-      return FileText;
+      return TextIcon;
     default:
-      return Link;
+      return LinkIcon;
   }
 }

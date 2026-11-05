@@ -19,6 +19,9 @@ export interface PlayResult {
   refusal?: string;
 }
 
+export const OUTSIDE_EVERY_SCENE_REFUSAL =
+  "This line is outside every scene. Put the cursor in a scene to play from there.";
+
 export class PlayMessage {
   static readonly method = "player/play";
   static readonly type = new MessageProtocolRequestType<

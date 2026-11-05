@@ -1,0 +1,27 @@
+scene start
+  choose
+    * if allowed( First
+    * if allowed[], First
+    * if not t:open( Third
+    + (lbl) if t.check( Fourth -> start
+    * if you're sure
+    * if has_key (aside) Take it
+    * if a or b Then
+    * if you dare, jump
+    * if allowed () First
+    * (lbl)if allowed( Glued label
+    * if allowed(
+    * if (allowed( Group
+    * if not (allowed() Group
+    * if (allowed()) Closed group
+    * if [you dare] jump
+    * if (you're sure) jump
+    * if (you dare), jump
+    * if (not allowed( Negated group
+    * if (friend(s) agree), jump
+    * if (friend(s) don't agree) jump
+    * if friend(s), we go
+    * if you(don't mind), jump
+    * Fallback
+  end
+end

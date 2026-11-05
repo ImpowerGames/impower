@@ -66,5 +66,6 @@ export {
 } from "./tabs/Tabs";
 export { useMountTransition } from "../hooks/useMountTransition";
 export * from "./icon/icons.generated";
+export * from "./icon/icons.aliases";
 export * from "./registry";
 export * from "../layout";

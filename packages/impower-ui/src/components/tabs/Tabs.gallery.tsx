@@ -1,12 +1,9 @@
 import { useState } from "preact/hooks";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import {
-  Bolt,
-  BoltFill,
-  Photo,
-  PhotoFill,
-  Share,
-  ShareFill,
+  ArtIcon,
+  BookIcon,
+  ShareIcon,
 } from "../icon/icons.generated";
 import Tabs, { Tab, type TabsProps } from "./Tabs";
 
@@ -14,13 +11,13 @@ function IconTabs(props: Omit<TabsProps, "value" | "onChange" | "children">) {
   const [value, setValue] = useState("logic");
   return (
     <Tabs value={value} onChange={setValue} {...props}>
-      <Tab value="logic" icon={Bolt} activeIcon={BoltFill}>
+      <Tab value="logic" icon={BookIcon} activeIcon={BookIcon}>
         Logic
       </Tab>
-      <Tab value="assets" icon={Photo} activeIcon={PhotoFill}>
+      <Tab value="assets" icon={ArtIcon} activeIcon={ArtIcon}>
         Assets
       </Tab>
-      <Tab value="share" icon={Share} activeIcon={ShareFill} disabled>
+      <Tab value="share" icon={ShareIcon} activeIcon={ShareIcon} disabled>
         Share (disabled)
       </Tab>
     </Tabs>

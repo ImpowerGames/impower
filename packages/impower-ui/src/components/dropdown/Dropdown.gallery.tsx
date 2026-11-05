@@ -3,7 +3,11 @@ import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import { layoutMinWidths } from "../../layout/breakpoints";
 import { useLayout } from "../../hooks/useLayout";
 import Button from "../button/Button";
-import { DotsVertical, Edit, Trash } from "../icon/icons.generated";
+import {
+  MoreVerticalIcon,
+  PencilIcon,
+  TrashIcon,
+} from "../icon/icons.generated";
 import {
   DropdownCheckboxItem,
   DropdownContent,
@@ -24,10 +28,10 @@ function MenuItems() {
         <div class="text-xs text-muted">A label above the items, not selectable</div>
       </DropdownLabel>
       <DropdownItem>
-        <Edit /> Rename
+        <PencilIcon /> Rename
       </DropdownItem>
       <DropdownItem disabled>
-        <Trash /> Delete (disabled)
+        <TrashIcon /> Delete (disabled)
       </DropdownItem>
       <DropdownSeparator />
       <DropdownCheckboxItem checked={wrap} onCheckedChange={setWrap}>
@@ -61,7 +65,7 @@ function DropdownDemo() {
         <DropdownRoot>
           <DropdownTrigger asChild>
             <Button variant="quiet" size="icon" aria-label="More options">
-              <DotsVertical />
+              <MoreVerticalIcon />
             </Button>
           </DropdownTrigger>
           <DropdownContent align="end">

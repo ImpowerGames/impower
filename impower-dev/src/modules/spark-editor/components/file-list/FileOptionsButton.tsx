@@ -1,9 +1,9 @@
 import {
   Button,
-  DotsVertical,
   DropdownContent,
   DropdownRoot,
   DropdownTrigger,
+  MoreVerticalIcon,
 } from "@impower/impower-ui/components";
 import { useComputed, useSignalEffect } from "@preact/signals";
 import type { Ref } from "preact";
@@ -60,7 +60,7 @@ export default function FileOptionsButton({
           setArmed(true);
         }}
       >
-        <DotsVertical class="size-5" />
+        <MoreVerticalIcon class="size-5" />
       </Button>
     );
   }
@@ -90,7 +90,7 @@ export default function FileOptionsButton({
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
-          <DotsVertical class="size-5" />
+          <MoreVerticalIcon class="size-5" />
         </Button>
       </DropdownTrigger>
       <DropdownContent

@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createPlayerHarness, MAIN_URI, settle, writtenText } from "./playerHarness";
 
-const SOURCE = `-> start
-scene start
+const SOURCE = `scene start
   Hello.
   done
 end
@@ -41,9 +40,8 @@ const playFrom = async (line: number) => {
 
 describe("PLAY from a line that holds no beat", () => {
   it.each([
-    ["the top-level divert", 0],
-    ["the scene's header", 1],
-    ["the scene's first line", 2],
+    ["the scene's header", 0],
+    ["the scene's first line", 1],
   ])("from %s, runs the scene and waits on its first line", async (_name, line) => {
     const outcome = await playFrom(line);
     expect(outcome.started).toBe(true);

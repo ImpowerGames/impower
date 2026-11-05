@@ -93,6 +93,16 @@ const OTHER_LOOP_NODES = nodeNameSet([
   "LuauSparkdownExplicitLoop",
 ]);
 const FUNCTION_BODY_NODES = nodeNameSet(["LuauFunctionBody"]);
+const UI_DECLARATION_NODES = nodeNameSet([
+  "LuauLayout",
+  "LuauScreen",
+  "LuauComponent",
+  "LuauStyle",
+  "LuauAnimation",
+  "LuauTheme",
+]);
+const DEFINE_NODES = nodeNameSet(["LuauDefine"]);
+const UI_DEFINE_TYPES = new Set(["config", "color"]);
 import {
   IDENTIFIER_FIELDS,
   NAME_STRING_FIELDS,
@@ -3605,6 +3615,57 @@ export class SparkdownCompiler {
     return ends;
   }
 
+  sceneSpansOf(
+    uri: string,
+    ends: readonly (readonly [number, number])[],
+  ): [headerLine: number, lastLine: number][] {
+    const doc = this.documents.get(uri);
+    const cur = doc ? this.documents.annotations(uri).declarations.iter() : undefined;
+    if (!doc || !cur) {
+      return [];
+    }
+    const headers: number[] = [];
+    while (cur.value) {
+      if (cur.value.type === "scene") {
+        headers.push(doc.lineAt(cur.from));
+      }
+      cur.next();
+    }
+    const closes = new Map(ends);
+    const lastLine = doc.lineAt(doc.getText().length);
+    return headers.map((header, index) => {
+      const next = headers[index + 1];
+      return [header, closes.get(header) ?? (next !== undefined ? next - 1 : lastLine)];
+    });
+  }
+
+  uiSpansOf(uri: string): [firstLine: number, lastLine: number][] {
+    const doc = this.documents.get(uri);
+    const tree = doc ? this.documents.tree(uri) : undefined;
+    const spans: [number, number][] = [];
+    if (!doc || !tree) {
+      return spans;
+    }
+    const defineType = (define: SyntaxNode) => {
+      const header = getDescendent("LuauDefineNameAndInheritance", define);
+      const type = header ? getDescendent("LuauDefineParentName", header) : undefined;
+      return type ? doc.read(type.from, type.to).trim() : "";
+    };
+    tree.iterate({
+      enter: (node) => {
+        const ui =
+          UI_DECLARATION_NODES.has(node.name) ||
+          (DEFINE_NODES.has(node.name) && UI_DEFINE_TYPES.has(defineType(node.node)));
+        if (!ui) {
+          return undefined;
+        }
+        spans.push([doc.lineAt(node.from), doc.lineAt(Math.max(node.from, node.to - 1))]);
+        return false;
+      },
+    });
+    return spans;
+  }
+
   structureOf(uri: string): ScriptStructure {
     const doc = this.documents.get(uri);
     const tree = doc ? this.documents.tree(uri) : undefined;
@@ -3639,6 +3700,16 @@ export class SparkdownCompiler {
       if (ends.length > 0) {
         program.flowEnds ??= {};
         program.flowEnds[uri] = ends;
+      }
+      const spans = this.sceneSpansOf(uri, ends);
+      if (spans.length > 0) {
+        program.sceneSpans ??= {};
+        program.sceneSpans[uri] = spans;
+      }
+      const ui = this.uiSpansOf(uri);
+      if (ui.length > 0) {
+        program.uiSpans ??= {};
+        program.uiSpans[uri] = ui;
       }
       if (doc) {
         const annotations = this.documents.annotations(uri);

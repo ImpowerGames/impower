@@ -1,14 +1,14 @@
 import {
   Button,
-  Check,
-  ChevronRight,
-  Download,
+  CheckIcon,
+  ChevronIcon,
+  DownloadIcon,
   DropdownContent,
   DropdownItem,
   DropdownRoot,
   DropdownTrigger,
-  FolderFill,
-  Trash,
+  FolderIcon,
+  TrashIcon,
 } from "@impower/impower-ui/components";
 import { useComputed, useSignalEffect } from "@preact/signals";
 import { createPortal, memo } from "preact/compat";
@@ -160,7 +160,7 @@ function FileItem({
 
   const FileIcon = remote
     ? iconForCategory(category)
-    : iconForPath(path, isDirectory, expanded);
+    : iconForPath(path, isDirectory);
   const isImage = remote ? category === "image" : isImagePath(path);
   const showThumb = !isDirectory && !!src && !thumbFailed && isImage;
   const iconMuted = !isDirectory && !showThumb ? "opacity-50" : "";
@@ -489,7 +489,7 @@ function FileItem({
                     : "border-foreground/40"
                 }`}
               >
-                {bulkSelected && <Check class="size-3.5" />}
+                {bulkSelected && <CheckIcon class="size-3.5" />}
               </span>
             </span>
           ) : (
@@ -502,9 +502,9 @@ function FileItem({
             >
               {isDirectory ? (
                 diveMode ? (
-                  <FolderFill class="size-6" />
+                  <FolderIcon class="size-6" />
                 ) : (
-                  <ChevronRight
+                  <ChevronIcon
                     class={`size-5 motion-safe:transition-transform ${expanded ? "rotate-90" : ""} ${
                       hasChildren ? "" : "opacity-40"
                     }`}
@@ -629,11 +629,11 @@ function FileItem({
               {contextMenu.bulk ? (
                 <>
                   <DropdownItem onSelect={() => onDownloadSelected?.()}>
-                    <Download class="size-4" />
+                    <DownloadIcon class="size-4" />
                     Download {selectionCount} items
                   </DropdownItem>
                   <DropdownItem onSelect={() => onDeleteSelected?.()}>
-                    <Trash class="size-4" />
+                    <TrashIcon class="size-4" />
                     Delete {selectionCount} items
                   </DropdownItem>
                 </>

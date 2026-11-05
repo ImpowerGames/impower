@@ -1,4 +1,7 @@
-import { ArrowLeft, Button } from "@impower/impower-ui/components";
+import {
+  BackIcon,
+  Button,
+} from "@impower/impower-ui/components";
 import type { ComponentChildren } from "preact";
 
 export const propDefaults = {};
@@ -22,7 +25,7 @@ export default function FileEditorNavigation({
             aria-label="Back"
             onClick={() => onBack?.()}
           >
-            <ArrowLeft class="size-5" />
+            <BackIcon class="size-5" />
           </Button>
 
           <div class="relative flex flex-1 flex-row items-center justify-center px-4 text-base">

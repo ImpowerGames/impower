@@ -541,6 +541,23 @@ variables:
   CHOICE_CONDITION_METHOD: (?:[:]{{LUAU_IDENTIFIER}})
   CHOICE_CONDITION_CALL: (?:{{CHOICE_CONDITION_METHOD}}?{{CHOICE_CONDITION_PARENS}})
   CHOICE_CONDITION_PATH: (?:{{LUAU_NAME_OR_CONSTANT}}(?:[.]{{LUAU_IDENTIFIER}}|{{CHOICE_CONDITION_CALL}})*)
+  CHOICE_UNREADABLE_CONDITION_PATH: (?:{{LUAU_IDENTIFIER}}(?:[.:]{{LUAU_IDENTIFIER}})*)
+  CHOICE_CLOSURE_ATOM: (?:{{CHOICE_CONDITION_ATOM}}|['])
+  CHOICE_CLOSURE_PARENS_1: (?:[(]{{CHOICE_CLOSURE_ATOM}}*[)])
+  CHOICE_CLOSURE_PARENS_2: (?:[(](?:{{CHOICE_CLOSURE_ATOM}}|{{CHOICE_CLOSURE_PARENS_1}})*[)])
+  CHOICE_CLOSURE_PARENS_3: (?:[(](?:{{CHOICE_CLOSURE_ATOM}}|{{CHOICE_CLOSURE_PARENS_2}})*[)])
+  CHOICE_CLOSURE_PARENS: (?:[(](?:{{CHOICE_CLOSURE_ATOM}}|{{CHOICE_CLOSURE_PARENS_3}})*[)])
+  # lookaround: `ChoiceWithNoSuppressedText` owns a choice line whose call
+  # bracket closes, such as `* if friend(s), we go` or `* if you(don't mind),
+  # jump`: the `Choice` begin declined it for the punctuation after the
+  # bracket or an apostrophe inside it, and it is prose. Only whether the
+  # bracket closes tells the two apart, which nothing before the bracket
+  # shows: reordering, splitting or an `end:` cannot see it, and the bracket
+  # variables are already as tight as a condition allows. The bracket is
+  # checked as a condition reads it, except that an apostrophe that opens no
+  # string counts as a plain character, so a valid call the bounded reader
+  # cannot read still counts as open while a contraction does not.
+  CHOICE_UNREADABLE_CONDITION_OPEN: (?:{{CHOICE_UNREADABLE_CONDITION_PATH}}(?:[\[]|(?!{{CHOICE_CLOSURE_PARENS}})[(]))
   LUAU_KEYWORD: (?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while){{LUAU_NAME_END}})
   # lookaround: anywhere else `LuauAccessPath` reads the word as a name; it
   # comes after the alternators in `LuauExpression`.
@@ -1479,12 +1496,45 @@ repository:
           - { include: "#Newline" }
 
     patterns:
+      - { include: "#ChoiceUnreadableCondition" }
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#ChoiceConditional" }
       - { include: "#ChoiceWithSuppressedText" }
       - { include: "#ChoiceWithNoSuppressedText" }
     end: (?=$)
+
+  # lookaround: `ChoiceWithNoSuppressedText` owns the label line that follows
+  # a header whose begin read its condition and its newline; `\G` holds at the
+  # start of that line as well as at the end of the header, and only the
+  # character before tells them apart. Reordering cannot, since this rule must
+  # precede the text rules on the header line. Moving the shape into the
+  # begin as another alternative of its condition group lets the begin's
+  # optional newline group take the newline after a trailing `(`, making the
+  # next line, often the next choice, this choice's label. The `end:` is
+  # `(?=$)` and carries nothing here, and no variable sees the previous line.
+  ChoiceUnreadableCondition:
+    match: \G(?<={{WS}}|[)])(if)\b({{WS}}+)(?:(not)\b({{WS}}+))?({{CHOICE_UNREADABLE_CONDITION_OPEN}})
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauIfKeyword" }
+      2:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      3:
+        patterns:
+          - { include: "#LuauInvalidStatementLogicalKeyword" }
+      4:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      5:
+        patterns:
+          - { include: "#ChoiceUnreadableConditionOpen" }
+
+  ChoiceUnreadableConditionOpen:
+    tag: invalid
+    name: invalid.illegal.choice-condition.sd
 
   # lookaround: no rival; `Choice` gives this rule its condition capture, and
   # the rule opens before `LuauExpression` reads the first token so the whole
@@ -2143,13 +2193,13 @@ repository:
   RGBColor:
     tag: string
     name: string.color.rgb.sd
-    match: (rgb)(a)?([(])(.*)([)])
+    match: (rgb)(a)?([(])([^()\r\n]*)([)])
     color: true
 
   HSLColor:
     tag: string
     name: string.color.hsl.sd
-    match: (hsl)(a)?([(])(.*)([)])
+    match: (hsl)(a)?([(])([^()\r\n]*)([)])
     color: true
 
   FrontMatter:

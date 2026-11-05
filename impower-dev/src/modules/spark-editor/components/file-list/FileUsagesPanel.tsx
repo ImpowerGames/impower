@@ -1,10 +1,10 @@
 import {
   Button,
-  ChevronRight,
+  ChevronIcon,
+  CloseIcon,
   Dialog,
   DialogTitle,
-  Search,
-  X,
+  SearchIcon,
 } from "@impower/impower-ui/components";
 
 export type UsageLocation = {
@@ -46,7 +46,7 @@ export default function FileUsagesPanel({
       class="max-h-[70vh]"
     >
       <div class="flex flex-none flex-row items-center gap-2 px-4 py-3">
-        <Search class="size-5 flex-none text-foreground/70" />
+        <SearchIcon class="size-5 flex-none text-foreground/70" />
         <DialogTitle class="min-w-0 flex-1 truncate">
           {count === 0
             ? "No usages"
@@ -59,7 +59,7 @@ export default function FileUsagesPanel({
           size="icon"
           class="flex-none text-muted"
         >
-          <X class="size-4" />
+          <CloseIcon class="size-4" />
         </Button>
       </div>
       {count === 0 ? (
@@ -85,7 +85,7 @@ export default function FileUsagesPanel({
               <span class="flex-none text-xs tabular-nums text-foreground/40">
                 :{loc.line}
               </span>
-              <ChevronRight class="size-4 flex-none text-foreground/30" />
+              <ChevronIcon class="size-4 flex-none text-foreground/30" />
             </Button>
           ))}
         </div>

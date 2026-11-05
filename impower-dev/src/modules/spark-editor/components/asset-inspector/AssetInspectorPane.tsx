@@ -1,8 +1,8 @@
 import {
   Button,
-  FileText,
-  Photo,
-  X,
+  CloseIcon,
+  ImageIcon,
+  TextIcon,
 } from "@impower/impower-ui/components";
 import { useState } from "preact/hooks";
 import { inspectAsset, inspectedAsset } from "../../utils/assetInspector";
@@ -50,7 +50,7 @@ export default function AssetInspectorPane() {
           size="icon"
           class="flex-none text-muted"
         >
-          <X class="size-4" />
+          <CloseIcon class="size-4" />
         </Button>
       </div>
 
@@ -112,9 +112,9 @@ function PreviewThumb({ item }: { item: PreviewItem }) {
   return (
     <div class="flex flex-col items-center gap-3 text-muted">
       {kind === "audio" ? (
-        <Photo class="size-16" />
+        <ImageIcon class="size-16" />
       ) : (
-        <FileText class="size-16" />
+        <TextIcon class="size-16" />
       )}
       <span class="text-sm">{name}</span>
     </div>

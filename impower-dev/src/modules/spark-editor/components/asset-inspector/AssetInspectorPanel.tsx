@@ -3,14 +3,14 @@ import { onProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import {
   Button,
-  Check,
-  ChevronRight,
-  Download,
-  Link,
-  Pencil,
-  Repeat,
-  Search,
-  X,
+  CheckIcon,
+  ChevronIcon,
+  CloseIcon,
+  DownloadIcon,
+  LinkIcon,
+  LoopIcon,
+  PencilIcon,
+  SearchIcon,
 } from "@impower/impower-ui/components";
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { PreviewKind } from "../file-preview/FilePreviewOverlay";
@@ -297,7 +297,7 @@ export default function AssetInspectorPanel({
         class="h-11 w-full flex-none justify-start gap-2 rounded-none px-4 text-left font-semibold text-foreground"
         aria-expanded={!collapsed}
       >
-        <ChevronRight
+        <ChevronIcon
           class={`size-4 flex-none text-foreground/50 motion-safe:transition-transform ${
             collapsed ? "" : "rotate-90"
           }`}
@@ -351,7 +351,7 @@ export default function AssetInspectorPanel({
           {url != null && (
             <div class="pb-2 pt-1">
               <div class="flex flex-row items-center gap-2 pb-1 text-xs uppercase tracking-wide text-foreground/40">
-                <Link class="size-3.5 flex-none" />
+                <LinkIcon class="size-3.5 flex-none" />
                 <span>Source URL</span>
               </div>
               {editingUrl != null ? (
@@ -380,7 +380,7 @@ export default function AssetInspectorPanel({
                     size="icon"
                     class="flex-none text-muted"
                   >
-                    <Check class="size-4" />
+                    <CheckIcon class="size-4" />
                   </Button>
                   <Button
                     variant="quiet"
@@ -389,7 +389,7 @@ export default function AssetInspectorPanel({
                     size="icon"
                     class="flex-none text-muted"
                   >
-                    <X class="size-4" />
+                    <CloseIcon class="size-4" />
                   </Button>
                 </div>
               ) : (
@@ -416,7 +416,7 @@ export default function AssetInspectorPanel({
                       size="icon"
                       class="flex-none text-muted"
                     >
-                      <Pencil class="size-4" />
+                      <PencilIcon class="size-4" />
                     </Button>
                   )}
                 </div>
@@ -426,7 +426,7 @@ export default function AssetInspectorPanel({
 
           <div class="pt-2">
             <div class="flex flex-row items-center gap-2 pb-1 text-xs uppercase tracking-wide text-foreground/40">
-              <Search class="size-3.5 flex-none" />
+              <SearchIcon class="size-3.5 flex-none" />
               <span>
                 {usages == null
                   ? "Used in …"
@@ -450,7 +450,7 @@ export default function AssetInspectorPanel({
                     <span class="flex-none text-xs tabular-nums text-foreground/40">
                       :{loc.line}
                     </span>
-                    <ChevronRight class="size-4 flex-none text-foreground/30" />
+                    <ChevronIcon class="size-4 flex-none text-foreground/30" />
                   </Button>
                 ))}
               </div>
@@ -462,7 +462,7 @@ export default function AssetInspectorPanel({
               onClick={onDownload}
               class="flex-none"
             >
-              <Download class="size-4" />
+              <DownloadIcon class="size-4" />
               Download
             </Button>
             {!isUrlAsset && (
@@ -471,7 +471,7 @@ export default function AssetInspectorPanel({
                 disabled={replacing}
                 class="flex-none"
               >
-                <Repeat class="size-4" />
+                <LoopIcon class="size-4" />
                 {replacing ? "Replacing…" : "Replace"}
               </Button>
             )}

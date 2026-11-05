@@ -1,18 +1,18 @@
 // workaround(vite): Vite SSR fails with "exports is not defined" on CJS-only vscode-languageserver-protocol, so the import is deferred (seen with vite 8.0.16)
 import {
   Button,
-  Check,
-  Checkbox,
-  ChevronRight,
-  DotsVertical,
-  Download,
+  CheckIcon,
+  ChevronIcon,
+  CloseIcon,
+  DownloadIcon,
   DropdownContent,
   DropdownItem,
   DropdownRoot,
   DropdownTrigger,
-  FolderPlus,
-  Trash,
-  X,
+  FolderPlusIcon,
+  MoreVerticalIcon,
+  SelectIcon,
+  TrashIcon,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -1037,7 +1037,7 @@ export default function FileList({
                   aria-label="More options"
                   class="mr-2 text-muted"
                 >
-                  <DotsVertical class="size-5" />
+                  <MoreVerticalIcon class="size-5" />
                 </Button>
               </DropdownTrigger>
               <DropdownContent
@@ -1063,13 +1063,13 @@ export default function FileList({
                     void newFolder();
                   }}
                 >
-                  <FolderPlus class="size-4" />
+                  <FolderPlusIcon class="size-4" />
                   New Folder
                 </DropdownItem>
 
                 {diveMode && (
                   <DropdownItem onSelect={() => setSelectMode(true)}>
-                    <Checkbox class="size-4" />
+                    <SelectIcon class="size-4" />
                     Select
                   </DropdownItem>
                 )}
@@ -1078,7 +1078,7 @@ export default function FileList({
                     workspace.trashOpen.value = true;
                   }}
                 >
-                  <Trash class="size-4" />
+                  <TrashIcon class="size-4" />
                   Recycle bin
                 </DropdownItem>
               </DropdownContent>
@@ -1101,7 +1101,7 @@ export default function FileList({
                         : "border-foreground/40"
                     }`}
                   >
-                    {allSelected && <Check class="size-3.5" />}
+                    {allSelected && <CheckIcon class="size-3.5" />}
                   </span>
                 </Button>
                 <span class="text-sm tabular-nums text-foreground/70">
@@ -1113,7 +1113,7 @@ export default function FileList({
                   disabled={selectedPaths.size === 0}
                   onClick={() => void downloadSelected()}
                 >
-                  <Download class="size-4" />
+                  <DownloadIcon class="size-4" />
                   Download
                 </Button>
                 <Button
@@ -1121,7 +1121,7 @@ export default function FileList({
                   disabled={selectedPaths.size === 0}
                   onClick={() => void deleteSelected()}
                 >
-                  <Trash class="size-4" />
+                  <TrashIcon class="size-4" />
                   Delete
                 </Button>
                 <Button
@@ -1131,7 +1131,7 @@ export default function FileList({
                   onClick={exitSelectMode}
                   class="text-muted"
                 >
-                  <X class="size-5" />
+                  <CloseIcon class="size-5" />
                 </Button>
               </div>
             ) : undefined
@@ -1179,7 +1179,7 @@ export default function FileList({
                     style={{ paddingLeft: `${indent}px` }}
                   >
                     <span class="mr-3 flex size-10 flex-none items-center justify-center text-foreground/60">
-                      <ChevronRight class="size-5 rotate-90" />
+                      <ChevronIcon class="size-5 rotate-90" />
                     </span>
                     <span class="fade-edge flex-1 font-semibold">{s.name}</span>
                   </div>

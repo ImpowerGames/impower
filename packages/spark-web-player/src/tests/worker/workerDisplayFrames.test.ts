@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createPlayerHarness, MAIN_URI } from "./playerHarness";
+import { playFrom } from "./playFromLine";
 
 type Step =
   | { select: number }
@@ -247,8 +248,10 @@ describe("the preview displayed from the worker's game", () => {
       "utf8",
     );
     const lines = text.split("\n");
+    const layoutStart = lines.indexOf("layout main {");
+    const layoutEnd = lines.indexOf("scene start") - 1;
     const steps: Step[] = [0.25, 0.5, 0.75, 0.95].map((at) => ({
-      select: Math.floor(lines.length * at),
+      select: layoutStart + Math.floor((layoutEnd - layoutStart) * at),
     }));
     const on = await frames(text, steps);
     expect(on).toHaveLength(steps.length + 1);
@@ -259,5 +262,8 @@ describe("the preview displayed from the worker's game", () => {
         expect(shows(frame, text)).toBe(true);
       }
     }
+    const play = await playFrom(text, layoutStart + 1);
+    expect(play.started).toBe(false);
+    expect(play.state).toBeUndefined();
   }, 120_000);
 });

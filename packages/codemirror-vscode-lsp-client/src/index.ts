@@ -54,6 +54,7 @@ export {
   type DocumentFoldingRange,
 } from "./folding";
 export { formatDocument, formatKeymap, serverFormatting } from "./formatting";
+export { type LSPClientIcons } from "./icons";
 export { serverHovers } from "./hover";
 export {
   convertFromServerCodeLens,

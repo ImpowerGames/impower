@@ -1,21 +1,13 @@
 import {
-  FileCode,
-  FileText,
-  FileTypeCsv,
-  FileTypeHtml,
-  FileTypeJs,
-  FileTypeJsx,
-  FileTypePdf,
-  FileTypeTs,
-  FileTypeXml,
-  FileZip,
-  Folder,
-  FolderOpen,
-  Link,
-  Music,
-  Photo,
-  Script,
-  WaveSaw,
+  BracketsIcon,
+  FolderIcon,
+  ImageIcon,
+  LinkIcon,
+  MusicIcon,
+  OtherIcon,
+  SoundSpeakerIcon,
+  StoryIcon,
+  TextIcon,
 } from "@impower/impower-ui/icons";
 import { describe, expect, it } from "vitest";
 import {
@@ -26,70 +18,67 @@ import {
 } from "../../src/modules/spark-editor/utils/fileIcon";
 
 describe("iconForPath", () => {
-  it("returns a folder glyph for folders (open when expanded), regardless of name", () => {
-    expect(iconForPath("chapters", true)).toBe(Folder);
-    expect(iconForPath("chapters", true, false)).toBe(Folder);
-    expect(iconForPath("chapters", true, true)).toBe(FolderOpen);
-    expect(iconForPath("a/b/deeply/nested", true)).toBe(Folder);
-    expect(iconForPath("weird.png", true)).toBe(Folder);
-    expect(iconForPath("weird.png", true, true)).toBe(FolderOpen);
+  it("returns the folder glyph for folders, regardless of name", () => {
+    expect(iconForPath("chapters", true)).toBe(FolderIcon);
+    expect(iconForPath("a/b/deeply/nested", true)).toBe(FolderIcon);
+    expect(iconForPath("weird.png", true)).toBe(FolderIcon);
   });
 
-  it("maps the screenplay script extension to Script", () => {
-    expect(iconForPath("main.sd", false)).toBe(Script);
-    expect(iconForPath("chapters/intro.sd", false)).toBe(Script);
+  it("maps the script extension to the story glyph", () => {
+    expect(iconForPath("main.sd", false)).toBe(StoryIcon);
+    expect(iconForPath("chapters/intro.sd", false)).toBe(StoryIcon);
   });
 
-  it("maps prose/text extensions to FileText", () => {
-    expect(iconForPath("notes.txt", false)).toBe(FileText);
-    expect(iconForPath("README.md", false)).toBe(FileText);
-    expect(iconForPath("credits.name", false)).toBe(FileText);
+  it("maps prose and text extensions to the text glyph", () => {
+    expect(iconForPath("notes.txt", false)).toBe(TextIcon);
+    expect(iconForPath("README.md", false)).toBe(TextIcon);
+    expect(iconForPath("credits.name", false)).toBe(TextIcon);
   });
 
-  it("maps code/data extensions to their specific glyphs (json → generic)", () => {
-    expect(iconForPath("data.json", false)).toBe(FileCode);
-    expect(iconForPath("script.js", false)).toBe(FileTypeJs);
-    expect(iconForPath("module.ts", false)).toBe(FileTypeTs);
-    expect(iconForPath("view.jsx", false)).toBe(FileTypeJsx);
-    expect(iconForPath("view.tsx", false)).toBe(FileTypeJsx);
-    expect(iconForPath("table.csv", false)).toBe(FileTypeCsv);
-    expect(iconForPath("data.xml", false)).toBe(FileTypeXml);
+  it("maps code and data extensions to the brackets glyph", () => {
+    expect(iconForPath("data.json", false)).toBe(BracketsIcon);
+    expect(iconForPath("script.js", false)).toBe(BracketsIcon);
+    expect(iconForPath("module.ts", false)).toBe(BracketsIcon);
+    expect(iconForPath("view.jsx", false)).toBe(BracketsIcon);
+    expect(iconForPath("view.tsx", false)).toBe(BracketsIcon);
+    expect(iconForPath("table.csv", false)).toBe(BracketsIcon);
+    expect(iconForPath("data.xml", false)).toBe(BracketsIcon);
   });
 
-  it("maps image extensions to Photo", () => {
+  it("maps image extensions to the image glyph", () => {
     for (const ext of ["png", "jpg", "jpeg", "gif", "webp", "svg"]) {
-      expect(iconForPath(`art.${ext}`, false)).toBe(Photo);
+      expect(iconForPath(`art.${ext}`, false)).toBe(ImageIcon);
     }
   });
 
-  it("maps audio extensions to Music", () => {
+  it("maps audio extensions to the music glyph", () => {
     for (const ext of ["mid", "mp3", "ogg", "wav", "m4a"]) {
-      expect(iconForPath(`sound.${ext}`, false)).toBe(Music);
+      expect(iconForPath(`sound.${ext}`, false)).toBe(MusicIcon);
     }
   });
 
   it("maps the remaining typed media to their glyphs", () => {
-    expect(iconForPath("instrument.synth", false)).toBe(WaveSaw);
-    expect(iconForPath("link.url", false)).toBe(Link);
-    expect(iconForPath("bundle.zip", false)).toBe(FileZip);
-    expect(iconForPath("manual.pdf", false)).toBe(FileTypePdf);
-    expect(iconForPath("page.html", false)).toBe(FileTypeHtml);
+    expect(iconForPath("instrument.synth", false)).toBe(SoundSpeakerIcon);
+    expect(iconForPath("link.url", false)).toBe(LinkIcon);
+    expect(iconForPath("bundle.zip", false)).toBe(OtherIcon);
+    expect(iconForPath("manual.pdf", false)).toBe(OtherIcon);
+    expect(iconForPath("page.html", false)).toBe(BracketsIcon);
   });
 
   it("is case-insensitive on the extension", () => {
-    expect(iconForPath("ART.PNG", false)).toBe(Photo);
-    expect(iconForPath("Main.SD", false)).toBe(Script);
+    expect(iconForPath("ART.PNG", false)).toBe(ImageIcon);
+    expect(iconForPath("Main.SD", false)).toBe(StoryIcon);
   });
 
   it("keys off the FINAL extension for multi-dot names", () => {
-    expect(iconForPath("archive.tar.gz", false)).toBe(FileText);
-    expect(iconForPath("scene.backup.png", false)).toBe(Photo);
+    expect(iconForPath("archive.tar.gz", false)).toBe(TextIcon);
+    expect(iconForPath("scene.backup.png", false)).toBe(ImageIcon);
   });
 
-  it("falls back to FileText for unknown / missing extensions", () => {
-    expect(iconForPath("LICENSE", false)).toBe(FileText);
-    expect(iconForPath("weird.xyz", false)).toBe(FileText);
-    expect(iconForPath(".folder", false)).toBe(FileText);
+  it("falls back to the text glyph for unknown / missing extensions", () => {
+    expect(iconForPath("LICENSE", false)).toBe(TextIcon);
+    expect(iconForPath("weird.xyz", false)).toBe(TextIcon);
+    expect(iconForPath(".folder", false)).toBe(TextIcon);
   });
 });
 

@@ -1,12 +1,12 @@
 import {
   Button,
-  Files,
-  Link,
-  Plus,
+  FileIcon,
+  LinkIcon,
+  PlusIcon,
   Router,
   Tab,
   Tabs,
-  Upload,
+  UploadIcon,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { startTransition } from "preact/compat";
@@ -54,10 +54,10 @@ export default function Assets(_props: AssetsProps) {
           indicator="underline"
           iconLayout="beside"
         >
-          <Tab value="files" icon={Files}>
+          <Tab value="files" icon={FileIcon}>
             Files
           </Tab>
-          <Tab value="urls" icon={Link}>
+          <Tab value="urls" icon={LinkIcon}>
             URLs
           </Tab>
         </Tabs>
@@ -74,7 +74,7 @@ export default function Assets(_props: AssetsProps) {
             onScopeChange={setFilesScope}
             emptyState={
               <FileListBorder>
-                <Files class="size-12 m-2" />
+                <FileIcon class="size-12 m-2" />
                 <span class="text-sm">No Files</span>
               </FileListBorder>
             }
@@ -87,7 +87,7 @@ export default function Assets(_props: AssetsProps) {
             onScopeChange={setUrlsScope}
             emptyState={
               <FileListBorder>
-                <Link class="size-12 m-2" />
+                <LinkIcon class="size-12 m-2" />
                 <span class="text-sm">No URLs</span>
               </FileListBorder>
             }
@@ -186,7 +186,7 @@ function AssetsFab({
         size={collapsed ? "icon" : "default"}
         class={collapsed ? "ml-auto" : "w-full"}
       >
-        {panel === "files" ? <Upload /> : <Plus />}
+        {panel === "files" ? <UploadIcon /> : <PlusIcon />}
         <span class={collapsed ? "sr-only" : undefined}>
           {panel === "files" ? "Upload Files" : "Add URL"}
         </span>
