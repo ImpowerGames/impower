@@ -95,7 +95,7 @@ export const scriptAppearance = (appearance: ScriptAppearance): Extension => [
   ),
 ];
 
-export const reconfigureScriptAppearance = (
+const reconfigureScriptAppearance = (
   previous: ScriptAppearance,
   next: ScriptAppearance,
 ): StateEffect<unknown>[] =>

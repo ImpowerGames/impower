@@ -61,7 +61,7 @@ export interface DocumentFoldingRange {
 
 const setFoldingRanges = StateEffect.define<DocumentFoldingRange[]>();
 
-export function foldedLineCount(
+function foldedLineCount(
   state: EditorState,
   range: { from: number; to: number },
 ): number {

@@ -54,12 +54,7 @@ export {
   type DocumentFoldingRange,
 } from "./folding";
 export { formatDocument, formatKeymap, serverFormatting } from "./formatting";
-export {
-  DOCUMENT_HIGHLIGHT_CLASS_NAME,
-  documentHighlights,
-  serverDocumentHighlights,
-  setDocumentHighlights,
-} from "./highlights";
+export { documentHighlights, serverDocumentHighlights } from "./highlights";
 export { hoverPreviews, lspTooltipSource, serverHovers } from "./hover";
 export {
   convertFromServerCodeLens,

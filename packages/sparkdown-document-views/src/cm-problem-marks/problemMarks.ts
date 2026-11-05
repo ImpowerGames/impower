@@ -14,7 +14,7 @@ import {
   gutterLineClass,
 } from "@codemirror/view";
 
-export type ProblemSeverity = "error" | "warning" | "info";
+type ProblemSeverity = "error" | "warning" | "info";
 
 const SEVERITY_RANK: Record<ProblemSeverity, number> = {
   info: 1,
@@ -56,7 +56,7 @@ interface ProblemLines {
   gutter: RangeSet<GutterMarker>;
 }
 
-export const getProblemLineSeverities = (
+const getProblemLineSeverities = (
   doc: Text,
   diagnostics: readonly Diagnostic[],
 ): Map<number, ProblemSeverity> => {
@@ -96,7 +96,7 @@ const buildProblemLines = (
   };
 };
 
-export const problemLinesField = StateField.define<ProblemLines>({
+const problemLinesField = StateField.define<ProblemLines>({
   create() {
     return { lines: Decoration.none, gutter: RangeSet.empty };
   },

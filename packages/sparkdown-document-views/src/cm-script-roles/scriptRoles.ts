@@ -9,18 +9,18 @@ import {
 } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
 
-export interface ScriptRole {
+interface ScriptRole {
   readonly className: string;
   readonly nodes: readonly string[];
   readonly within?: readonly string[];
 }
 
-export const SPEAKER_ROLE: ScriptRole = {
+const SPEAKER_ROLE: ScriptRole = {
   className: "cm-role-speaker",
   nodes: ["DialogueCharacterName"],
 };
 
-export const DIALOGUE_ROLE: ScriptRole = {
+const DIALOGUE_ROLE: ScriptRole = {
   className: "cm-role-dialogue",
   nodes: ["TextChunk"],
   within: ["BlockDialogue", "InlineDialogue"],
@@ -89,7 +89,7 @@ const buildRoleMarks = (view: EditorView): DecorationSet => {
   return Decoration.set(marks, true);
 };
 
-export const scriptRoleMarks = ViewPlugin.fromClass(
+const scriptRoleMarks = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet;
 

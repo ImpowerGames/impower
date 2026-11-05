@@ -14,16 +14,16 @@ export const documentHighlights = Facet.define<boolean, boolean>({
   combine: (values) => values.at(-1) ?? true,
 });
 
-export const DOCUMENT_HIGHLIGHT_CLASS_NAME = "cm-symbol-highlight";
+const DOCUMENT_HIGHLIGHT_CLASS_NAME = "cm-symbol-highlight";
 
 const DOCUMENT_HIGHLIGHT_DELAY = 150;
 
 const highlightMark = Decoration.mark({ class: DOCUMENT_HIGHLIGHT_CLASS_NAME });
 
-export const setDocumentHighlights =
+const setDocumentHighlights =
   StateEffect.define<{ from: number; to: number }[]>();
 
-export const documentHighlightField = StateField.define<DecorationSet>({
+const documentHighlightField = StateField.define<DecorationSet>({
   create() {
     return Decoration.none;
   },

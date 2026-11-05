@@ -1,6 +1,6 @@
 export const INDENT_GUIDES = ["off", "block", "all"] as const;
 
-export type IndentGuides = (typeof INDENT_GUIDES)[number];
+type IndentGuides = (typeof INDENT_GUIDES)[number];
 
 export interface ScriptAppearance {
   readonly boldDeclarationNames: boolean;

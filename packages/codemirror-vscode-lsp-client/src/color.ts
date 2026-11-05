@@ -11,9 +11,9 @@ import { pullInBackground } from "./backgroundPull";
 import { LSPClient, LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
 
-export const COLOR_SWATCH_CLASS_NAME = "cm-color-swatch";
-export const COLOR_SWATCH_ALPHA_CLASS_NAME = "cm-color-swatch-alpha";
-export const COLOR_PICKER_INPUT_CLASS_NAME = "cm-color-picker-input";
+const COLOR_SWATCH_CLASS_NAME = "cm-color-swatch";
+const COLOR_SWATCH_ALPHA_CLASS_NAME = "cm-color-swatch-alpha";
+const COLOR_PICKER_INPUT_CLASS_NAME = "cm-color-picker-input";
 
 const colorSwatchTheme = EditorView.baseTheme({
   [`.${COLOR_PICKER_INPUT_CLASS_NAME}`]: {
@@ -175,7 +175,7 @@ async function changeDocumentColor(
   }
 }
 
-export function openColorPicker(
+function openColorPicker(
   view: EditorView,
   info: DocumentColor,
   anchor: HTMLElement,
@@ -268,7 +268,7 @@ const mapDocumentColors = (colors: DocumentColor[], changes: ChangeDesc) =>
     }))
     .filter((c) => c.from < c.to);
 
-export const documentColorField = StateField.define<DocumentColorSet>({
+const documentColorField = StateField.define<DocumentColorSet>({
   create() {
     return { colors: [], decorations: Decoration.none };
   },
