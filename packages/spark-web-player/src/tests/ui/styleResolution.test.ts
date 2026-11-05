@@ -604,6 +604,26 @@ describe("the CSS grammar decides which words are theme colours", () => {
     ["easing", "\\62 ounce", "var(--theme-ease-bounce)"],
     ["filter", "\\64 im", "var(--theme-filter-dim)"],
     ["width", "gu\\tters", "gu\\tters"],
+    ["width", "\\67 utter", "var(--theme-size-gutter)"],
+    ["padding", "md \\67 utter", "8px var(--theme-size-gutter)"],
+    ["animation", "\\70 ulse", "var(--theme-animation-pulse)"],
+    [
+      "animation",
+      "\\70 ulse \\70 ulse",
+      "var(--theme-animation-pulse), var(--theme-animation-pulse)",
+    ],
+    ["color", "brand\\\\name", "var(--theme-color-brand\\\\name)"],
+    ["color", "brandname", "var(--theme-color-brandname)"],
+    [
+      "background-image",
+      "linear-gradient(brand\\\\name, #fff)",
+      "linear-gradient(var(--theme-color-brand\\\\name), #fff)",
+    ],
+    [
+      "background-image",
+      "linear-gradient(var(--a, brand\\\\name), brand\\\\name)",
+      "linear-gradient(var(--a, var(--theme-color-brand\\\\name)), var(--theme-color-brand\\\\name))",
+    ],
   ])(
     "an escaped %s name %s resolves by its decoded name",
     (key, value, css) => {
@@ -611,6 +631,9 @@ describe("the CSS grammar decides which words are theme colours", () => {
         "--theme-size-gutter",
         "--theme-ease-bounce",
         "--theme-filter-dim",
+        "--theme-animation-pulse",
+        "--theme-color-brand\\name",
+        "--theme-color-brandname",
       ]);
       const [[, resolved]] = getCssEquivalent(key, value, escapedTheme) as [
         [string, string],
@@ -624,6 +647,11 @@ describe("the CSS grammar decides which words are theme colours", () => {
       "an escaped name",
       ":root { --theme-color-brand\\(blue: red; }",
       ["--theme-color-brand(blue"],
+    ],
+    [
+      "an escaped backslash in a name",
+      ":root { --theme-color-brand\\\\name: red; --theme-color-brandname: blue; }",
+      ["--theme-color-brand\\name", "--theme-color-brandname"],
     ],
     [
       "a custom property's block value",
@@ -761,6 +789,15 @@ describe("a gradient's first argument is read like its stops, gradient keywords 
     expect(getCssEquivalent("background-image", value, keywordTheme)).toEqual([
       ["background-image", css],
     ]);
+  });
+});
+
+describe("an empty glow or ring keeps its default width", () => {
+  test.each([
+    ["glow", "0 0 8px 0 currentColor"],
+    ["ring", "0 0 0 8px currentColor"],
+  ])("%s", (key, css) => {
+    expect(getCssEquivalent(key, "", new Set())).toEqual([["box-shadow", css]]);
   });
 });
 
