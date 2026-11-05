@@ -89,8 +89,6 @@ export default function HeaderNavigation() {
 
   return (
     <div class="relative z-10">
-
-      <button class="absolute inset-0 m-0 border-0 bg-transparent p-0" />
       <div class="relative z-[2] flex h-14 flex-row items-center justify-center bg-bg">
         <div class="flex w-full flex-row items-center">
           <HeaderMenuButton />
@@ -103,26 +101,26 @@ export default function HeaderNavigation() {
           {phone && (
             <div class="flex flex-row items-center">
               <Button
-                variant="ghost"
+                variant="quiet"
                 size="icon"
                 aria-label="Undo"
                 onPointerDown={(e) => {
                   e.preventDefault();
                   replayUndoShortcut(false);
                 }}
-                class="rounded-full text-foreground/60 hover:text-foreground"
+                class="text-muted"
               >
                 <ArrowBackUp class="size-5" />
               </Button>
               <Button
-                variant="ghost"
+                variant="quiet"
                 size="icon"
                 aria-label="Redo"
                 onPointerDown={(e) => {
                   e.preventDefault();
                   replayUndoShortcut(true);
                 }}
-                class="rounded-full text-foreground/60 hover:text-foreground"
+                class="text-muted"
               >
                 <ArrowForwardUp class="size-5" />
               </Button>

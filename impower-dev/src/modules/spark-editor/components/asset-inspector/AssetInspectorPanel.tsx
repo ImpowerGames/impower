@@ -292,13 +292,13 @@ export default function AssetInspectorPanel({
       class={`flex flex-col ${fill ? "min-h-0 flex-1" : ""} border-t border-foreground/10`}
     >
       <Button
-        variant="ghost"
+        variant="quiet"
         onClick={() => setCollapsed((c) => !c)}
         class="h-11 w-full flex-none justify-start gap-2 rounded-none px-4 text-left font-semibold text-foreground"
         aria-expanded={!collapsed}
       >
         <ChevronRight
-          class={`size-4 flex-none text-foreground/50 transition-transform ${
+          class={`size-4 flex-none text-foreground/50 motion-safe:transition-transform ${
             collapsed ? "" : "rotate-90"
           }`}
         />
@@ -371,21 +371,23 @@ export default function AssetInspectorPanel({
                         setEditingUrl(null);
                       }
                     }}
-                    class="min-w-0 flex-1 select-text rounded bg-foreground/10 px-2 py-1 text-sm text-foreground outline-none ring-1 ring-foreground/15 focus:ring-foreground/30"
+                    class="min-h-11 min-w-0 flex-1 select-text rounded-control border border-edge bg-transparent px-2 text-sm text-ink"
                   />
                   <Button
-                    variant="ghost"
+                    variant="quiet"
                     aria-label="Save URL"
                     onClick={commitUrl}
-                    class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:text-foreground"
+                    size="icon"
+                    class="flex-none text-muted"
                   >
                     <Check class="size-4" />
                   </Button>
                   <Button
-                    variant="ghost"
+                    variant="quiet"
                     aria-label="Cancel"
                     onClick={() => setEditingUrl(null)}
-                    class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:text-foreground"
+                    size="icon"
+                    class="flex-none text-muted"
                   >
                     <X class="size-4" />
                   </Button>
@@ -408,10 +410,11 @@ export default function AssetInspectorPanel({
                   )}
                   {onEditUrl && (
                     <Button
-                      variant="ghost"
+                      variant="quiet"
                       aria-label="Edit URL"
                       onClick={() => setEditingUrl(url ?? "")}
-                      class="size-7 flex-none rounded-full p-0 text-foreground/50 hover:text-foreground"
+                      size="icon"
+                      class="flex-none text-muted"
                     >
                       <Pencil class="size-4" />
                     </Button>
@@ -437,7 +440,7 @@ export default function AssetInspectorPanel({
                 {usages.map((loc) => (
                   <Button
                     key={`${loc.uri}:${loc.line}:${loc.range.start.character}`}
-                    variant="ghost"
+                    variant="quiet"
                     onClick={() => onJump(loc.uri, loc.range)}
                     class="h-auto w-full justify-start gap-2 rounded-none px-4 py-1.5 text-left font-normal"
                   >
@@ -456,19 +459,17 @@ export default function AssetInspectorPanel({
 
           <div class="flex flex-row gap-2 pt-4">
             <Button
-              variant="outline"
               onClick={onDownload}
-              class="h-9 flex-none gap-2 px-3 text-sm"
+              class="flex-none"
             >
               <Download class="size-4" />
               Download
             </Button>
             {!isUrlAsset && (
               <Button
-                variant="outline"
                 onClick={() => replaceInputRef.current?.click()}
                 disabled={replacing}
-                class="h-9 flex-none gap-2 px-3 text-sm"
+                class="flex-none"
               >
                 <Repeat class="size-4" />
                 {replacing ? "Replacing…" : "Replace"}

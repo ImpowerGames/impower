@@ -44,10 +44,11 @@ export default function AssetInspectorPane() {
           {asset.name}
         </div>
         <Button
-          variant="ghost"
+          variant="quiet"
           aria-label="Close inspector"
           onClick={() => inspectAsset(null)}
-          class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:text-foreground"
+          size="icon"
+          class="flex-none text-muted"
         >
           <X class="size-4" />
         </Button>
@@ -56,11 +57,11 @@ export default function AssetInspectorPane() {
       <button
         type="button"
         onClick={() => setFullscreen(true)}
-        class="group relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black p-4"
+        class="group relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-stage p-4"
         aria-label="Expand preview"
       >
         <PreviewThumb item={item} />
-        <span class="pointer-events-none absolute bottom-2 right-3 rounded bg-black/60 px-2 py-0.5 text-xs text-white/70 opacity-0 transition-opacity group-hover:opacity-100">
+        <span class="pointer-events-none absolute bottom-2 right-3 rounded bg-scrim px-2 py-0.5 text-xs text-muted opacity-0 motion-safe:transition-opacity group-hover:opacity-100">
           Click to expand
         </span>
       </button>
@@ -109,7 +110,7 @@ function PreviewThumb({ item }: { item: PreviewItem }) {
     );
   }
   return (
-    <div class="flex flex-col items-center gap-3 text-white/40">
+    <div class="flex flex-col items-center gap-3 text-muted">
       {kind === "audio" ? (
         <Photo class="size-16" />
       ) : (

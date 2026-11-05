@@ -48,15 +48,15 @@ export default function HeaderSyncToolbar(_p: HeaderSyncToolbarProps) {
 
   return (
     <Button
-      variant="ghost"
-      size="icon-lg"
-      class={`size-14 ${colorClass}`}
+      variant="quiet"
+      size="icon"
+      class={colorClass}
       aria-label="Sync"
       disabled={isBusy}
       onClick={onClick}
     >
       <Refresh
-        class={`size-5 ${isBusy ? "animate-spin" : ""}`}
+        class={isBusy ? "motion-safe:animate-spin" : undefined}
       />
     </Button>
   );

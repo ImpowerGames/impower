@@ -6,7 +6,7 @@ export default function FileListBorder({
   children?: ComponentChildren;
 }) {
   return (
-    <div class="fl-empty-border mx-6 mt-4 flex flex-1 flex-col items-center justify-center rounded-lg border border-solid border-white text-base opacity-70">
+    <div class="fl-empty-border mx-6 mt-4 flex flex-1 flex-col items-center justify-center rounded-lg border border-solid border-edge text-base opacity-70">
       <style>{`
         /* Thin out the empty-state icon stroke. Our SVG components hard-
            code stroke-width="2" on each path; the legacy used <s-icon

@@ -17,7 +17,7 @@ export type FileOptionsButtonProps = FileMenuItemsProps & {
 };
 
 const TRIGGER_CLASS =
-  "mr-3 rounded-full text-foreground/50 hover:text-foreground";
+  "mr-3 text-muted";
 
 export default function FileOptionsButton({
   buttonRef,
@@ -48,7 +48,7 @@ export default function FileOptionsButton({
     return (
       <Button
         ref={buttonRef}
-        variant="ghost"
+        variant="quiet"
         size="icon"
         aria-label="Options"
         class={TRIGGER_CLASS}
@@ -82,7 +82,7 @@ export default function FileOptionsButton({
       <DropdownTrigger asChild>
         <Button
           ref={buttonRef}
-          variant="ghost"
+          variant="quiet"
           size="icon"
           aria-label="Options"
           class={TRIGGER_CLASS}

@@ -13,10 +13,6 @@ html {
   --theme-size-header-nav: 56px;
   --theme-size-footer-nav: 60px;
   --theme-size-panel-nav: 48px;
-
-  --theme-color-scrollbar-thumb: var(--scrollbar);
-  --theme-color-scrollbar-thumb-hover: rgb(255 255 255 / 0.5);
-  --theme-color-scrollbar-track: rgb(0 0 0 / 0.15);
 }
 
 .picker-dialog-bg {

@@ -56,19 +56,19 @@ const keyboardToolbarTheme = EditorView.theme({
     touchAction: "manipulation",
     backgroundImage: "none",
     backgroundColor: "inherit",
+    boxShadow: "none",
     flexShrink: 0,
     whiteSpace: "nowrap",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "var(--control-radius)",
   },
   ".cm-keyboard-toolbar .cm-button:has(.cm-toolbar-label)": {
     padding: "6px 12px",
     border: "1px color-mix(in srgb, var(--ink) 20%, transparent) solid",
-    borderRadius: "4px",
   },
   ".cm-keyboard-toolbar .cm-button:has(.cm-toolbar-icon)": {
     padding: "8px",
-    "&::after": {
-      borderRadius: "100%",
-    },
   },
   ".cm-keyboard-toolbar .cm-button .cm-toolbar-icon": {
     width: "24px",
@@ -93,9 +93,11 @@ const keyboardToolbarTheme = EditorView.theme({
     content: "''",
     position: "absolute",
     inset: "0",
+    borderRadius: "inherit",
     backgroundColor: "var(--control-hover)",
+    boxShadow: "inset 0 0 0 100vmax var(--control-hover)",
   },
-  "@media (hover: hover) and (pointer: fine)": {
+  "@media (hover: hover)": {
     ".cm-keyboard-toolbar .cm-button:hover": {
       color: "var(--ink)",
     },
@@ -103,6 +105,7 @@ const keyboardToolbarTheme = EditorView.theme({
       content: "''",
       position: "absolute",
       inset: "0",
+      borderRadius: "inherit",
       backgroundColor: "var(--control-hover)",
     },
   },

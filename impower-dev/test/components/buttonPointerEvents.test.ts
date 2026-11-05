@@ -33,7 +33,7 @@ const installCss = async (classes: string[]) => {
 };
 
 const renderInWrapper = async (wrapperClass: string, innerClass: string) => {
-  const buttonClass = buttonVariants({ variant: "fab", size: "fab" });
+  const buttonClass = buttonVariants({ variant: "primary" });
   const classFor = await installCss([
     ...splitClasses(wrapperClass),
     ...splitClasses(innerClass),

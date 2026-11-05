@@ -8,7 +8,6 @@ import {
   DropdownRoot,
   DropdownTrigger,
   FolderFill,
-  Ripple,
   Trash,
 } from "@impower/impower-ui/components";
 import { useComputed, useSignalEffect } from "@preact/signals";
@@ -460,14 +459,14 @@ function FileItem({
   return (
     <div ref={rowRef} class="relative">
       <Button
-        variant="ghost"
+        variant="quiet"
         class={`h-16 w-full justify-start gap-0 rounded-none pl-5 text-left text-base font-normal text-foreground/80 ${
           selectMode ? "pr-5" : "pr-14"
         } ${
           bulkSelected || contextMenu
             ? "bg-primary/15"
             : selected
-              ? "bg-elevated/40 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary before:content-['']"
+              ? "bg-elevated/40 shadow-[inset_2px_0_0_var(--accent)]"
               : ""
         }`}
         onClick={onRowClick}
@@ -484,9 +483,9 @@ function FileItem({
           {selectMode ? (
             <span class="mr-3 flex size-10 flex-none items-center justify-center text-foreground/60">
               <span
-                class={`flex size-5 items-center justify-center rounded border-2 transition-colors ${
+                class={`flex size-5 items-center justify-center rounded border-2 motion-safe:transition-colors ${
                   bulkSelected
-                    ? "border-primary bg-primary text-white"
+                    ? "border-accent bg-accent text-accent-ink"
                     : "border-foreground/40"
                 }`}
               >
@@ -506,7 +505,7 @@ function FileItem({
                   <FolderFill class="size-6" />
                 ) : (
                   <ChevronRight
-                    class={`size-5 transition-transform ${expanded ? "rotate-90" : ""} ${
+                    class={`size-5 motion-safe:transition-transform ${expanded ? "rotate-90" : ""} ${
                       hasChildren ? "" : "opacity-40"
                     }`}
                   />
@@ -567,16 +566,15 @@ function FileItem({
                       }
                     }}
                     onClick={(e) => e.stopPropagation()}
-                    class="w-full min-w-0 border-0 bg-transparent p-0 text-base font-semibold text-foreground outline-none [grid-area:1/1]"
+                    class="w-full min-w-0 rounded-control border-0 bg-transparent p-0 text-base font-semibold text-foreground [grid-area:1/1]"
                   />
                 </span>
                 {showExt && (
                   <span class="flex-none font-normal opacity-30">.{ext}</span>
                 )}
-                <Ripple />
               </div>
             ) : (
-              <div class="flex flex-row items-center overflow-hidden text-ellipsis whitespace-nowrap">
+              <div class="flex flex-row items-center fade-edge">
 
                 <span class="font-semibold">
                   {committedName ?? name}
@@ -587,7 +585,7 @@ function FileItem({
               </div>
             )}
             {caption && (
-              <div class="truncate text-xs text-foreground/60">{caption}</div>
+              <div class="fade-edge text-xs text-muted">{caption}</div>
             )}
             </div>
           </DiagnosticsLabel>

@@ -62,7 +62,7 @@ export default function MainWindow(_props: MainWindowProps) {
                 </div>
               }
               end={
-                <div class="relative flex flex-col w-full h-full bg-black">
+                <div class="relative flex flex-col w-full h-full bg-stage">
 
                   <Preview />
                   {pane === "assets" && inspectedAsset.value && (
@@ -81,7 +81,7 @@ export default function MainWindow(_props: MainWindowProps) {
 
       <div class="relative flex-none h-[60px] bg-bg text-foreground [&>*]:h-full [.keyboard-open_&]:hidden">
 
-        <div class="absolute inset-x-0 top-0 !h-px bg-white/[0.06] z-10" />
+        <div class="absolute inset-x-0 top-0 !h-px bg-edge z-10" />
         {!isSSR && (
           <Tabs value={pane} onChange={onPaneChange} indicator="none">
             <Tab value="logic" icon={Bolt} activeIcon={BoltFill}>

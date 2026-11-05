@@ -177,34 +177,18 @@ function AssetsFab({
       ? () => inputRef.current?.click()
       : () => setUrlDialogOpen(true);
 
-  const labelClass = `overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-200 ease-out ${
-    collapsed ? "ml-0 max-w-0 opacity-0" : "ml-2 max-w-[12rem] opacity-100"
-  }`;
   return (
     <div class="mx-4 my-6 flex flex-col">
       <Button
-        variant="fab"
+        variant="primary"
         disabled={disabledSig.value}
         onClick={onClick}
-        class={`ml-auto h-12 overflow-hidden rounded-full text-base font-normal transition-[width,padding] duration-200 ease-out ${
-          collapsed ? "w-12 px-0" : "w-full px-5"
-        }`}
+        size={collapsed ? "icon" : "default"}
+        class={collapsed ? "ml-auto" : "w-full"}
       >
-        <span
-          class={`absolute inset-0 flex flex-row items-center justify-center gap-0 transition-opacity duration-200 ${
-            panel === "files" ? "opacity-100 delay-150" : "opacity-0"
-          }`}
-        >
-          <Upload class="size-5 shrink-0" />
-          <span class={labelClass}>Upload Files</span>
-        </span>
-        <span
-          class={`absolute inset-0 flex flex-row items-center justify-center gap-0 transition-opacity duration-200 ${
-            panel === "urls" ? "opacity-100 delay-150" : "opacity-0"
-          }`}
-        >
-          <Plus class="size-5 shrink-0" />
-          <span class={labelClass}>Add URL</span>
+        {panel === "files" ? <Upload /> : <Plus />}
+        <span class={collapsed ? "sr-only" : undefined}>
+          {panel === "files" ? "Upload Files" : "Add URL"}
         </span>
       </Button>
       <input

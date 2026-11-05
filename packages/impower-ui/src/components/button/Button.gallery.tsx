@@ -1,40 +1,48 @@
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
-import { Download, Plus, X } from "../icon/icons.generated";
+import { Check, Download, Edit, Plus, X } from "../icon/icons.generated";
 import Button, { type ButtonSize, type ButtonVariant } from "./Button";
 
 const VARIANTS: Record<ButtonVariant, string> = {
+  default: "Default",
   primary: "Primary",
-  secondary: "Secondary",
-  outline: "Outline",
-  ghost: "Ghost",
-  link: "Link",
+  quiet: "Quiet",
   destructive: "Destructive",
-  fab: "Fab",
 };
 
 const SIZES: Record<ButtonSize, string> = {
-  default: "Default",
-  sm: "Small",
-  xs: "Extra small",
-  lg: "Large",
-  icon: "Icon",
-  "icon-lg": "Large icon",
-  fab: "Fab",
+  default: "Text button",
+  icon: "Icon button",
+  pill: "Phone pill",
 };
 
 const variants = Object.keys(VARIANTS) as ButtonVariant[];
 const sizes = Object.keys(SIZES) as ButtonSize[];
 
-function Cell({ variant, size }: { variant: ButtonVariant; size: ButtonSize }) {
-  if (size === "icon" || size === "icon-lg") {
+function Cell({
+  variant,
+  size,
+  disabled,
+}: {
+  variant: ButtonVariant;
+  size: ButtonSize;
+  disabled?: boolean;
+}) {
+  if (size === "icon") {
     return (
-      <Button variant={variant} size={size} aria-label={`${VARIANTS[variant]} ${SIZES[size]}`}>
-        <Plus class="size-5" />
+      <Button
+        variant={variant}
+        size={size}
+        disabled={disabled}
+        aria-label={`${VARIANTS[variant]} ${SIZES[size]}`}
+        data-gallery-control
+      >
+        <Plus />
       </Button>
     );
   }
   return (
-    <Button variant={variant} size={size}>
+    <Button variant={variant} size={size} disabled={disabled} data-gallery-control>
+      {size === "pill" ? <Edit /> : <Download />}
       {VARIANTS[variant]}
     </Button>
   );
@@ -43,56 +51,53 @@ function Cell({ variant, size }: { variant: ButtonVariant; size: ButtonSize }) {
 function ButtonDemo() {
   return (
     <div class="space-y-6">
-      <GalleryRow label="Every variant (columns) in every size (rows)">
+      <GalleryRow label="Every variant (columns) in every kind (rows), then disabled">
         <div class="overflow-x-auto">
           <table class="border-separate border-spacing-3">
             <thead>
               <tr>
                 <th />
                 {variants.map((variant) => (
-                  <th key={variant} class="text-left text-xs font-normal text-foreground/60">
+                  <th key={variant} class="text-left text-xs font-normal text-muted">
                     {variant}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {sizes.map((size) => (
-                <tr key={size}>
-                  <th class="text-left text-xs font-normal text-foreground/60">{size}</th>
-                  {variants.map((variant) => (
-                    <td key={variant} class={size === "fab" ? "w-40" : undefined}>
-                      <Cell variant={variant} size={size} />
-                    </td>
-                  ))}
-                </tr>
-              ))}
+              {sizes.flatMap((size) =>
+                [false, true].map((disabled) => (
+                  <tr key={`${size}-${disabled}`}>
+                    <th class="text-left text-xs font-normal text-muted">
+                      {SIZES[size]}
+                      {disabled ? ", disabled" : ""}
+                    </th>
+                    {variants.map((variant) => (
+                      <td key={variant}>
+                        <Cell variant={variant} size={size} disabled={disabled} />
+                      </td>
+                    ))}
+                  </tr>
+                )),
+              )}
             </tbody>
           </table>
         </div>
       </GalleryRow>
-      <GalleryRow label="Disabled, every variant">
-        <div class="flex flex-wrap items-center gap-3">
-          {variants.map((variant) => (
-            <Button key={variant} variant={variant} disabled>
-              {VARIANTS[variant]}
-            </Button>
-          ))}
-        </div>
-      </GalleryRow>
-      <GalleryRow label="Leading icon and icon-only">
-        <div class="flex flex-wrap items-center gap-3">
-          <Button>
-            <Download class="size-4" /> Download
+      <GalleryRow label="A dialog's actions and a panel's close">
+        <div class="flex flex-wrap items-center gap-2">
+          <Button variant="quiet">Cancel</Button>
+          <Button variant="primary">
+            <Check /> Save
           </Button>
-          <Button variant="ghost" size="icon" aria-label="Close">
-            <X class="size-5" />
+          <Button variant="quiet" size="icon" aria-label="Close">
+            <X />
           </Button>
         </div>
       </GalleryRow>
       <GalleryRow label="asChild: the classes land on an anchor">
-        <Button asChild variant="outline">
-          <a href="#Button">Link styled as an outline Button</a>
+        <Button asChild>
+          <a href="#Button">Link drawn as a text button</a>
         </Button>
       </GalleryRow>
     </div>

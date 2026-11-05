@@ -49,7 +49,7 @@ export default function AddUrlDialog({
   };
 
   const inputClass =
-    "h-9 w-full select-text rounded-md bg-foreground/5 px-3 text-sm text-foreground outline-none placeholder:text-foreground/40 focus:bg-foreground/10";
+    "h-11 w-full select-text rounded-control border border-edge bg-transparent px-3 text-sm text-ink placeholder:text-muted";
 
   return (
     <Dialog
@@ -61,10 +61,11 @@ export default function AddUrlDialog({
         <Link class="size-5 text-foreground/70" />
         <DialogTitle class="flex-1">Add URL</DialogTitle>
         <Button
-          variant="ghost"
+          variant="quiet"
           aria-label="Close"
           onClick={onClose}
-          class="size-7 rounded-full p-0 text-foreground/60 hover:text-foreground"
+          size="icon"
+          class="text-muted"
         >
           <X class="size-4" />
         </Button>
@@ -108,9 +109,8 @@ export default function AddUrlDialog({
 
       <DialogActions>
         <Button
-          variant="ghost"
+          variant="quiet"
           onClick={onClose}
-          class="h-9 px-4 text-sm font-normal text-foreground/70 hover:text-foreground"
         >
           Cancel
         </Button>
@@ -118,7 +118,6 @@ export default function AddUrlDialog({
           variant="primary"
           disabled={!canSubmit}
           onClick={submit}
-          class="h-9 px-4 text-sm font-normal"
         >
           Add
         </Button>

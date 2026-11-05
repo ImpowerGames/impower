@@ -53,10 +53,11 @@ export default function FileUsagesPanel({
             : `Used in ${count} place${count === 1 ? "" : "s"}`}
         </DialogTitle>
         <Button
-          variant="ghost"
+          variant="quiet"
           aria-label="Close"
           onClick={onClose}
-          class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:text-foreground"
+          size="icon"
+          class="flex-none text-muted"
         >
           <X class="size-4" />
         </Button>
@@ -71,7 +72,7 @@ export default function FileUsagesPanel({
           {locations.map((loc) => (
             <Button
               key={`${loc.uri}:${loc.line}:${loc.range.start.character}`}
-              variant="ghost"
+              variant="quiet"
               onClick={() => {
                 onJump(loc.uri, loc.range);
                 onClose();

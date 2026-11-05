@@ -2,7 +2,6 @@ import {
   BrandGoogleDrive,
   Download,
   Logout,
-  Ripple,
   Trash,
   Upload,
 } from "@impower/impower-ui/components";
@@ -184,7 +183,7 @@ export default function Account(_p: AccountProps) {
             <button
               type="button"
               onClick={() => setSignoutOpen((v) => !v)}
-              class="relative flex w-full cursor-pointer flex-row items-center gap-6 overflow-hidden bg-button-bg px-6 py-4 text-left text-button-ink outline-none m-px shadow before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12]"
+              class="relative flex w-full cursor-pointer flex-row items-center gap-6 overflow-hidden bg-button-bg px-6 py-4 text-left text-button-ink m-px shadow control-overlay"
             >
               <div class="flex min-w-0 flex-1 flex-col">
                 {account.displayName ? (
@@ -198,7 +197,6 @@ export default function Account(_p: AccountProps) {
                   </div>
                 ) : null}
               </div>
-              <Ripple />
             </button>
             {signoutOpen ? (
               <div
@@ -212,11 +210,10 @@ export default function Account(_p: AccountProps) {
                     setSignoutOpen(false);
                     handleSignOut();
                   }}
-                  class="relative flex h-10 w-full cursor-pointer flex-row items-center gap-2 overflow-hidden bg-transparent px-5 text-left text-sm text-foreground/70 outline-none hover:bg-foreground/5 active:bg-foreground/[0.12]"
+                  class="relative flex h-10 w-full cursor-pointer flex-row items-center gap-2 overflow-hidden bg-transparent px-5 text-left text-sm text-foreground/70 control-overlay"
                 >
                   <Logout class="size-5" />
                   <span>Sign Out</span>
-                  <Ripple />
                 </button>
               </div>
             ) : null}
@@ -280,11 +277,10 @@ function Row({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      class="relative flex w-full cursor-pointer flex-row items-center gap-6 overflow-hidden bg-transparent px-6 py-4 text-left text-white font-medium outline-none transition-colors duration-150 hover:bg-foreground/5 active:bg-foreground/[0.12] disabled:pointer-events-none disabled:opacity-50"
+      class="relative flex w-full cursor-pointer flex-row items-center gap-6 overflow-hidden bg-transparent px-6 py-4 text-left text-ink font-medium control-overlay disabled:pointer-events-none disabled:opacity-40"
     >
       {icon}
       <span class="flex-1 truncate">{children}</span>
-      <Ripple />
     </button>
   );
 }
@@ -302,11 +298,10 @@ function FabRow({
     <button
       type="button"
       onClick={onClick}
-      class="relative flex w-full cursor-pointer flex-row items-center gap-6 overflow-hidden bg-button-bg px-6 py-4 text-left text-button-ink font-medium outline-none shadow m-px before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12]"
+      class="relative flex w-full cursor-pointer flex-row items-center gap-6 overflow-hidden bg-button-bg px-6 py-4 text-left text-button-ink font-medium shadow m-px control-overlay"
     >
       {icon}
       <span class="flex-1 truncate">{children}</span>
-      <Ripple />
     </button>
   );
 }

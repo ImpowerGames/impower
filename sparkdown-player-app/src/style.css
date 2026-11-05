@@ -34,3 +34,28 @@ spark-web-player .fullscreen #ending-status:not([data-kind="error"]),
 spark-web-player .fullscreen #completion-status {
   color: color-mix(in srgb, var(--ink) 69.6%, transparent);
 }
+
+:root spark-web-player {
+  --swp-toolbar-border-color: var(--edge);
+  --swp-toolbar-button-hover-color: var(--control-hover);
+  --swp-toolbar-button-active-color: var(--tint);
+  --swp-toolbar-fullscreen-gradient: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--stage) 50%, transparent) 25%,
+    var(--stage) 100%
+  );
+  --swp-toolbar-fullscreen-ink: color-mix(in srgb, var(--ink) 87%, transparent);
+  --swp-toolbar-fullscreen-control: var(--ink);
+}
+
+:root spark-web-player .fullscreen {
+  --swp-game-background-color: var(--stage);
+}
+
+:root spark-web-player #viewport {
+  --swp-route-field-background-color: var(--control-hover);
+  --swp-route-field-border-color: var(--edge);
+  --swp-route-popup-background-color: var(--panel);
+  --swp-route-popup-border-color: var(--edge);
+}

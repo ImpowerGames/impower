@@ -16,9 +16,9 @@ export default function FileEditorNavigation({
       <div class="sticky top-0 z-10 bg-panel">
         <div class="relative flex h-12 flex-row items-stretch">
           <Button
-            variant="ghost"
-            size="icon-lg"
-            class="text-foreground/50"
+            variant="quiet"
+            size="icon"
+            class="text-muted"
             aria-label="Back"
             onClick={() => onBack?.()}
           >

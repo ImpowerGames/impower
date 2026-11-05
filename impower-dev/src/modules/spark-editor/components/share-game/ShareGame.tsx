@@ -4,7 +4,6 @@ import {
   BrandHtml5,
   Button,
   Gear,
-  Ripple,
   SquareLetterS,
 } from "@impower/impower-ui/components";
 import type { IconComponent } from "@impower/impower-ui/components";
@@ -44,13 +43,12 @@ export default function ShareGame(_props: ShareGameProps) {
                 <button
                   type="button"
                   aria-label="Settings"
-                  class="relative -mr-6 inline-flex size-10 cursor-pointer items-center justify-center overflow-hidden rounded-full text-foreground/50 hover:bg-foreground/5 hover:text-foreground active:bg-foreground/[0.12]"
+                  class="relative -mr-6 inline-flex size-11 cursor-pointer items-center justify-center rounded-control text-muted control-overlay"
                   onClick={(e) => {
                     e.stopPropagation();
                   }}
                 >
                   <Gear class="size-5" />
-                  <Ripple />
                 </button>
               </span>
             </OptionButton>
@@ -58,7 +56,7 @@ export default function ShareGame(_props: ShareGameProps) {
         })}
       </nav>
       <div class="px-6 pt-6">
-        <Button variant="outline" size="lg" class="w-full">
+        <Button class="w-full">
           Publish Online
         </Button>
       </div>

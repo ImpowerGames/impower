@@ -54,15 +54,17 @@ that cannot render on the server, fails the package's tests.
 ### Appearance is `cva` variants
 
 Classes are chosen by `class-variance-authority` variants, not by conditionals in the
-render. `buttonVariants` declares `variant` (`primary`, `secondary`, `outline`, `ghost`,
-`link`, `destructive`, `fab`) and `size` (`default`, `sm`, `xs`, `lg`, `icon`,
-`icon-lg`, `fab`), with `defaultVariants` for both.
+render. `buttonVariants` declares `variant` (`default`, `primary`, `quiet`, `destructive`)
+and `size`, which is the button's kind: `default` (the text button, 44px tall), `icon`
+(a 44px square) and `pill` (the phone's accent pill), with `defaultVariants` for both.
 
-Where a variant must override a size, use `compoundVariants` rather than a special case
-in the component. A `link` Button sizes to its text whatever its size:
+Where a size must override a variant, use `compoundVariants` rather than a special case
+in the component. The `pill` kind is the accent fill whatever its variant:
 
 ```ts
-compoundVariants: [{ variant: "link", class: "size-auto p-0" }],
+compoundVariants: [
+  { size: "pill", class: "border-transparent bg-accent text-accent-ink focus-inset" },
+],
 ```
 
 Export the variants function and the `VariantProps` type so callers can name a variant
@@ -92,7 +94,7 @@ const classes = cn(buttonVariants({ variant, size }), className);
 
 A component's props say what it is (a variant, a size, a state), never how many pixels
 it is. A page sets only what it must: a margin, a width in its own layout, a colour. The
-editor writes `<Button variant="ghost" size="icon" class="ml-2">`, not a `padding` or
+editor writes `<Button variant="quiet" size="icon" class="ml-2">`, not a `padding` or
 `height` prop, and not an inline `style` object for layout.
 
 Colours are semantic utilities (`bg-surface`, `text-foreground`, `border-divider`), never
@@ -113,12 +115,11 @@ otherwise.
 
 The component that moves owns its enter and exit motion; feature code never animates a
 control itself. `DropdownContent` declares its own `motion-safe:data-[state=open]:anim-menu-in`
-and `motion-safe:data-[state=closed]:anim-menu-out`, and `Button` its own colour transition. Motion uses
+and `motion-safe:data-[state=closed]:anim-menu-out`, and `Button` its press overlay through the `control-overlay` utility in `src/style.css`. Motion uses
 the durations and easings in the design reference's
 [Motion section](../../impower-dev/docs/design/tokens.md#motion) and is gated so
 `prefers-reduced-motion: reduce` removes it: write it as `motion-safe:` utilities, add a
 `motion-reduce:` override, or declare it inside a `prefers-reduced-motion` media query.
-`Button`'s transition is not gated yet; the slice that next changes it adds the gate.
 
 ### Pane width is a container query
 
@@ -136,7 +137,7 @@ forwards its ref to the `<button>` and spreads `...rest` onto it:
 
 ```tsx
 <DropdownTrigger asChild>
-  <Button variant="outline">Open menu</Button>
+  <Button>Open menu</Button>
 </DropdownTrigger>
 ```
 

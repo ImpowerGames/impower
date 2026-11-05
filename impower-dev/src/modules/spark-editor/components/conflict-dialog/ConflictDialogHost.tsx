@@ -52,12 +52,12 @@ export default function ConflictDialogHost() {
         <button
           type="button"
           onClick={() => setApplyAll((v) => !v)}
-          class="mb-4 flex w-full flex-row items-center gap-2 text-left text-sm text-foreground/70 hover:text-foreground"
+          class="relative mb-4 flex min-h-11 w-full flex-row items-center gap-2 rounded-control text-left text-sm text-foreground/70 control-overlay"
         >
           <span
-            class={`flex size-5 flex-none items-center justify-center rounded border-2 transition-colors ${
+            class={`flex size-5 flex-none items-center justify-center rounded border-2 motion-safe:transition-colors ${
               applyAll
-                ? "border-primary bg-primary text-white"
+                ? "border-accent bg-accent text-accent-ink"
                 : "border-foreground/40"
             }`}
           >
@@ -69,23 +69,20 @@ export default function ConflictDialogHost() {
 
       <DialogActions class="flex-wrap">
         <Button
-          variant="ghost"
+          variant="quiet"
           onClick={() => choose("skip")}
-          class="h-9 px-3 text-sm font-normal text-foreground/70 hover:text-foreground"
         >
           Skip
         </Button>
         <Button
-          variant="ghost"
+          variant="quiet"
           onClick={() => choose("keepboth")}
-          class="h-9 px-3 text-sm font-normal"
         >
           Keep both
         </Button>
         <Button
           variant="primary"
           onClick={() => choose("replace")}
-          class="h-9 px-4 text-sm font-normal"
         >
           Replace
         </Button>

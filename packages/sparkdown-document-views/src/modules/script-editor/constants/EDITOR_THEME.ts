@@ -137,26 +137,22 @@ const EDITOR_THEME: {
     borderColor: "var(--editor-field-edge-hover)",
   },
   "label:has(input[type='checkbox']):active::before": {
-    backgroundColor: "var(--editor-button-hover)",
+    backgroundColor: "var(--control-hover)",
+    boxShadow: "inset 0 0 0 100vmax var(--control-hover)",
   },
   "button:active": {
-    backgroundColor: "color-mix(in srgb, var(--ink) 11%, transparent)",
+    backgroundColor: "var(--control-hover)",
+    boxShadow: "inset 0 0 0 100vmax var(--control-hover)",
   },
-  ".cm-panel.cm-search button[name='close']:active": {
-    backgroundColor: "var(--editor-button-hover)",
-  },
-  "@media (hover: hover) and (pointer: fine)": {
+  "@media (hover: hover)": {
     ".cm-textfield:hover": {
       borderColor: "var(--editor-field-edge-hover)",
     },
     "label:has(input[type='checkbox']):hover::before": {
-      backgroundColor: "var(--editor-button-hover)",
+      backgroundColor: "var(--control-hover)",
     },
     "button:hover": {
-      backgroundColor: "var(--editor-button-hover)",
-    },
-    ".cm-panel.cm-search button[name='close']:hover": {
-      backgroundColor: "var(--editor-button-hover)",
+      backgroundColor: "var(--control-hover)",
     },
   },
 
@@ -164,21 +160,95 @@ const EDITOR_THEME: {
     cursor: "pointer",
   },
   "& button:focus-visible": {
-    outline: "2px solid var(--editor-focus)",
+    outline: "1px solid var(--accent)",
+    outlineOffset: "-1px",
   },
   "& ul:focus-visible": {
     outline: "none",
   },
-  "& label:has(input[type='checkbox']:focus-visible)::before": {
-    outline: "2px solid var(--editor-focus)",
+  "& .cm-panel.cm-panel-lint ul:focus-visible [aria-selected]": {
+    outline: "1px solid var(--accent)",
+    outlineOffset: "-1px",
   },
-  "& label:has(input[type='checkbox']:focus-visible)::after": {
-    outline: "2px solid var(--editor-focus)",
+  "& label:has(input[type='checkbox']:focus-visible)::before": {
+    outline: "1px solid var(--accent)",
+    outlineOffset: "-1px",
+  },
+  "@media (pointer: coarse)": {
+    ".cm-panels .cm-panel.cm-gotoLine .cm-textfield": {
+      height: "44px",
+    },
+    ".cm-panels .cm-panel.cm-search": {
+      display: "grid",
+      gridTemplateColumns: "44px 44px 44px minmax(0, 1fr) 44px 44px",
+      gap: "4px",
+      alignItems: "center",
+      paddingLeft: "60px",
+    },
+    ".cm-panels .cm-panel.cm-search br, .cm-panels .cm-panel.cm-search button[name='select']": {
+      display: "none",
+    },
+    ".cm-panels .cm-panel.cm-search .cm-textfield": {
+      width: "auto",
+      minHeight: "44px",
+      margin: "0",
+      padding: "10px 8px",
+    },
+    ".cm-panels .cm-panel.cm-search [name='search']": {
+      gridArea: "1 / 1 / 2 / 5",
+    },
+    ".cm-panels .cm-panel.cm-search [name='replace']:not(button)": {
+      gridArea: "3 / 1 / 4 / 5",
+    },
+    ".cm-panels .cm-panel.cm-search button[name='prev']": {
+      gridArea: "1 / 5",
+    },
+    ".cm-panels .cm-panel.cm-search button[name='next']": {
+      gridArea: "1 / 6",
+    },
+    ".cm-panels .cm-panel.cm-search button[name='replace']": {
+      gridArea: "3 / 5",
+    },
+    ".cm-panels .cm-panel.cm-search button[name='replaceAll']": {
+      gridArea: "3 / 6",
+    },
+    ".cm-panels .cm-panel.cm-search label:has(input[type='checkbox'])": {
+      position: "relative",
+      right: "auto",
+      width: "44px",
+      height: "44px",
+      margin: "0",
+      gridRow: "2",
+    },
+    ".cm-panels .cm-panel.cm-search label:has(input[name='case'])": {
+      gridColumn: "1",
+    },
+    ".cm-panels .cm-panel.cm-search label:has(input[name='word'])": {
+      gridColumn: "2",
+    },
+    ".cm-panels .cm-panel.cm-search label:has(input[name='re'])": {
+      gridColumn: "3",
+    },
+    ".cm-panels .cm-panel.cm-search .cm-search-matches": {
+      right: "108px",
+      top: "15px",
+      height: "30px",
+    },
+  },
+  "@media (forced-colors: active)": {
+    ".cm-panel.cm-panel-lint ul:focus-visible [aria-selected]": {
+      outlineColor: "Highlight",
+    },
+    "button:focus-visible, label:has(input[type='checkbox']:focus-visible)::before, .cm-panels .cm-textfield:focus-visible, .cm-tooltip .cm-textfield:focus-visible":
+      {
+        outlineColor: "Highlight",
+        borderColor: "Highlight",
+      },
   },
   "& .cm-textfield": {
     minHeight: "32px",
     width: "225px",
-    borderRadius: "4px",
+    borderRadius: "var(--control-radius)",
     fontSize: "16px",
     borderWidth: "1px",
     borderStyle: "solid",
@@ -186,7 +256,7 @@ const EDITOR_THEME: {
     backgroundColor: "var(--paper)",
     "&:focus-visible": {
       outline: "none",
-      borderColor: "var(--editor-focus)",
+      borderColor: "var(--accent)",
     },
     "&::placeholder, &::after": {
       color: "color-mix(in srgb, var(--ink) 40%, transparent)",
@@ -294,6 +364,7 @@ const EDITOR_THEME: {
   "& .cm-panel.cm-panel-lint ul": {
     minHeight: "100%",
     maxHeight: "164px",
+    scrollbarGutter: "stable",
   },
   "& .cm-panel.cm-panel-lint ul:focus li[aria-selected]": {
     background: "var(--editor-list-selected)",
@@ -319,7 +390,7 @@ const EDITOR_THEME: {
       border: "none",
       height: "32px",
       width: "32px",
-      borderRadius: "4px",
+      borderRadius: "var(--control-radius)",
       textIndent: "-99999em",
       overflow: "hidden",
     },
@@ -374,6 +445,7 @@ const EDITOR_THEME: {
       verticalAlign: "top",
       maxHeight: "132px",
       overflowY: "auto",
+      scrollbarGutter: "stable",
     },
     "& input[name='search'], & [contenteditable][name='search']": {
       paddingRight: "100px",
@@ -386,7 +458,7 @@ const EDITOR_THEME: {
       right: "auto",
       width: "40px",
       margin: "8px",
-      borderRadius: "4px",
+      borderRadius: "var(--control-radius)",
       textIndent: "-99999em",
       overflow: "hidden",
     },
@@ -399,7 +471,7 @@ const EDITOR_THEME: {
       width: "36px",
       height: "36px",
       verticalAlign: "middle",
-      borderRadius: "4px",
+      borderRadius: "var(--control-radius)",
       textIndent: "-99999em",
       overflow: "hidden",
       border: "none",
@@ -429,7 +501,7 @@ const EDITOR_THEME: {
       width: "30px",
       height: "30px",
       verticalAlign: "middle",
-      borderRadius: "4px",
+      borderRadius: "var(--control-radius)",
       textIndent: "-99999em",
       overflow: "hidden",
       position: "absolute",
@@ -445,7 +517,7 @@ const EDITOR_THEME: {
         position: "absolute",
         inset: "2px",
         marginTop: "1.5px",
-        borderRadius: "4px",
+        borderRadius: "var(--control-radius)",
       },
     },
     "& label:has(input[type='checkbox']:checked)::before": {

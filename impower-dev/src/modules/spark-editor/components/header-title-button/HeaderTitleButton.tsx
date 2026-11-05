@@ -1,4 +1,3 @@
-import { Ripple } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import workspace from "../../workspace/WorkspaceStore";
@@ -32,15 +31,15 @@ export default function HeaderTitleButton(_p: HeaderTitleButtonProps) {
 
   return (
     <div class="flex w-full flex-row items-center">
-      <div class="relative -mx-1 h-7 max-w-[600px] flex-1 overflow-hidden rounded px-1 text-foreground hover:bg-foreground/5">
-        <div class="absolute inset-y-0 inset-x-1">
+      <div class="relative -mx-1 -my-2 h-11 max-w-[600px] flex-1 overflow-hidden rounded-control px-1 text-foreground control-overlay focus-within-edge">
+        <div class="absolute inset-y-0 inset-x-1 flex items-center">
           {ready ? (
             <input
               ref={inputRef}
               type="text"
               aria-label="Project Name"
               value={draft}
-              class="w-full bg-transparent text-lg font-medium text-foreground outline-none placeholder:text-placeholder"
+              class="h-full w-full bg-transparent text-lg font-medium text-foreground outline-none placeholder:text-placeholder not-focus:fade-edge"
               onInput={(e) =>
                 setDraft((e.target as HTMLInputElement).value)
               }
@@ -65,8 +64,6 @@ export default function HeaderTitleButton(_p: HeaderTitleButtonProps) {
             </span>
           )}
         </div>
-
-        <Ripple />
       </div>
     </div>
   );
