@@ -25,7 +25,8 @@ Run from the repository root:
 
 A Radix primitive is wrapped once, here, and every caller uses the wrapper. `Dropdown`
 is the only component that imports `@radix-ui/react-dropdown-menu`; it exports `DropdownRoot`,
-`DropdownTrigger`, `DropdownContent`, `DropdownItem`, `DropdownCheckboxItem` and
+`DropdownTrigger`, `DropdownContent`, `DropdownItem`, `DropdownCheckboxItem`,
+`DropdownRadioGroup`, `DropdownRadioItem` and
 `DropdownSeparator`, and the editor's menus are built from those parts.
 
 No file outside `packages/impower-ui` imports `@radix-ui/*`. The root `eslint.config.js`
