@@ -411,6 +411,14 @@ function firstDescendant(node: any, names: Set<string>): any {
   return null;
 }
 
+const PAREN_CLOSED_LISTS = nodeNameSet([
+  "RecursiveSelectorFunctionParameters",
+  "SimpleSelectorFunctionParameters",
+  "StylingFunctionParameters",
+]);
+
+const PAREN_CLOSE = nodeNameSet(["PunctuationParenClose"]);
+
 const PURE_LUAU_BODY_CONTENT = nodeNameSet([
   "LuauDefine_content",
   "LuauMethodDefinition_content",
@@ -1584,30 +1592,18 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    if (
-      nodeRef.name === "RecursiveSelectorFunctionParameters" ||
-      nodeRef.name === "SimpleSelectorFunctionParameters"
-    ) {
+    if (PAREN_CLOSED_LISTS.has(nodeRef.name)) {
       const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
-      const close = end && childNamed(end, `${nodeRef.name}_end_c2`);
-      if (!close || !childNamed(close, "PunctuationParenClose")) {
-        annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({
-            message: "Missing ')' to close the selector's parameter list",
-            severity: "error",
-          }).range(nodeRef.from, nodeRef.from + 1),
-        );
-      }
-    }
-    if (nodeRef.name === "StylingFunctionParameters") {
-      const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
-      const close = end && childNamed(end, `${nodeRef.name}_end_c2`);
-      if (!close || !childNamed(close, "PunctuationParenClose")) {
-        annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({
-            message: /^[ \t]*;/.test(this.read(nodeRef.to, nodeRef.to + 64))
+      if (!end || !firstDescendant(end, PAREN_CLOSE)) {
+        const message =
+          nodeRef.name !== "StylingFunctionParameters"
+            ? "Missing ')' to close the selector's parameter list"
+            : /^[ \t]*;/.test(this.read(nodeRef.to, nodeRef.to + 64))
               ? "Missing ')' to close the function's parameter list before ';', which ends the property"
-              : "Missing ')' to close the function's parameter list",
+              : "Missing ')' to close the function's parameter list";
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message,
             severity: "error",
           }).range(nodeRef.from, nodeRef.from + 1),
         );
