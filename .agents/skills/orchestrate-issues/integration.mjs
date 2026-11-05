@@ -5,7 +5,8 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { readJson } from "../../../scripts/review-job-store.mjs";
 import { readRepos } from "../../repos.mjs";
-import { readRecord, updateRecord, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, closedBeforeRun, writerKnownEnded, HISTORY, takeSnapshot, readIssueScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs, completingTickets, filedActions, mainVerdict, failedJobsOf, MAIN_BRANCH, MAIN_WORKFLOW } from "./issue-run.mjs";
+import { removeJobDir } from "../clean-worktrees/clean-worktrees.mjs";
+import { readRecord, updateRecord, pointerFile, acquire, branchTicket, coordinatorMerges, parseCriteria, verificationGaps, closedBeforeRun, writerKnownEnded, HISTORY, takeSnapshot, readIssueScope, snapshotScope, githubClient, repositoriesOf, closingIn, prRef, qualifyPrs, completingTickets, filedActions, mainVerdict, failedJobsOf, MAIN_BRANCH, MAIN_WORKFLOW } from "./issue-run.mjs";
 import { intent, outcome, ensureSaved, autoCheckpoint, operationText, landing, landingText, fetchState, stateBranch } from "./checkpoint.mjs";
 import { FIRST_CHECKPOINT_ROUND, roundState, readJournals, restore, acceptanceApplies, checkpointEvidence, trustedCoordinators, writersOf, localGit, threadName } from "./review-checkpoint.mjs";
 
@@ -458,6 +459,73 @@ export function closeIssue(file, { coordinator, expectRevision, verification: id
   return { closed: state === "confirmed", operation: op.id, state, evidence, comment, revision: settled.record.revision };
 }
 
+const OPEN_STATES = new Set(["intent", "uncertain"]);
+const within = (child, parent) => { const rel = path.relative(path.resolve(parent), path.resolve(child)); return rel === "" || (Boolean(rel) && !rel.startsWith("..") && !path.isAbsolute(rel)); };
+
+export function retireBlockers(record, snapshot) {
+  const blockers = [];
+  for (const [n, t] of Object.entries(record.tickets ?? {})) {
+    if (t.owner) blockers.push(`#${n} still has a writer; release it first`);
+    if (t.pending) blockers.push(`#${n} has a pending start; settle it first`);
+  }
+  for (const op of record.operations ?? []) if (OPEN_STATES.has(op.state)) blockers.push(`${operationText(op)} (${op.id}) is ${op.state}; settle it with checkpoint.mjs reconcile-operations`);
+  if (snapshot.repository !== record.repository || snapshot.issue?.number !== record.issue) throw new Error("The snapshot is of another repository or parent issue");
+  for (const t of snapshot.tickets ?? []) if (!t.container && t.state !== "closed") blockers.push(`slice #${t.number} is open`);
+  return blockers;
+}
+
+export function retireRun(file, { coordinator, expectRevision, evidence, snapshot, save, removeDir = removeJobDir }) {
+  const record = readRecord(file);
+  if (record.coordinator.session !== coordinator) throw new Error(`Issue #${record.issue} is coordinated by ${record.coordinator.session}; ${coordinator} may not retire its run`);
+  if (!evidence) throw new Error("--evidence must say why the run is finished");
+  const blockers = retireBlockers(record, snapshot);
+  if (blockers.length) throw new Error(`Issue #${record.issue}'s run cannot retire: ${blockers.join("; ")}; nothing was changed`);
+  const dir = path.dirname(path.resolve(file));
+  let owner = null;
+  try { owner = readJson(path.join(dir, "owner.json")); } catch { owner = null; }
+  if (owner?.issue !== record.issue) throw new Error(`${dir} holds no owner.json naming #${record.issue}, so it is not the coordinator's private record folder; nothing was changed`);
+  if (within(record.checkout, dir) || within(dir, record.checkout)) throw new Error(`${dir} overlaps the checkout ${record.checkout}; nothing was changed`);
+  const pointer = pointerFile(record.checkout, repositoriesOf(record).tickets, record.issue);
+  let named = null;
+  try { named = readJson(pointer); } catch (error) { if (error.code !== "ENOENT") throw new Error(`The coordinator pointer ${pointer} is unreadable; preserve it and inspect it`); }
+  if (named && path.resolve(String(named.record)) !== path.resolve(file)) throw new Error(`The coordinator pointer ${pointer} names ${named.record}, not this record; nothing was changed`);
+  let revision = record.revision;
+  if (!record.retired) {
+    if (!named) throw new Error(`The coordinator pointer ${pointer} is missing, so this record no longer coordinates #${record.issue}; nothing was changed`);
+    revision = updateRecord(file, { expectRevision, coordinator }, (r) => {
+      r.retired = { time: new Date().toISOString(), evidence };
+      r.log.push({ time: r.retired.time, event: "retired", evidence });
+    }).record.revision;
+  }
+  const checkpoint = record.checkpoints ? save() : null;
+  if (checkpoint && !checkpoint.saved) throw new Error(`The retirement is recorded at revision ${revision}, but its checkpoint was not saved (${checkpoint.reason}); the pointer and the record folder stay. Run retire again once the remote is reachable`);
+  const releaseRecord = acquire(file);
+  try {
+    const now = readRecord(file);
+    const late = now.retired ? retireBlockers(now, snapshot) : ["the record is no longer marked retired"];
+    if (now.revision !== revision || late.length) throw new Error(`The run record changed during retirement (revision ${now.revision}, retired at ${revision}${late.length ? `; ${late.join("; ")}` : ""}); the pointer and the record folder stay`);
+  } finally { releaseRecord(); }
+  if (named) {
+    const release = acquire(pointer);
+    try {
+      let now = null;
+      try { now = readJson(pointer); } catch (error) { if (error.code !== "ENOENT") throw new Error(`The coordinator pointer ${pointer} became unreadable during retirement; preserve it and inspect it`); }
+      if (now && (path.resolve(String(now.record)) !== path.resolve(file) || now.coordinator !== named.coordinator || now.since !== named.since)) throw new Error(`The coordinator pointer ${pointer} was replaced during retirement and now names ${now.record} (coordinator ${now.coordinator}); it and the record folder stay`);
+      if (now) fs.unlinkSync(pointer);
+    } finally { release(); }
+  }
+  let removed = true, reason = null;
+  try {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === "owner.json") continue;
+      const target = path.join(dir, entry.name);
+      if (entry.isDirectory() && !entry.isSymbolicLink()) removeDir(target);
+      else fs.unlinkSync(target);
+    }
+  } catch (error) { removed = false; reason = `${error.message}; clean-worktrees removes what is left, since no pointer names it`; }
+  return { retired: true, revision, ...(checkpoint && { checkpoint }), pointer, folder: dir, removed, ...(reason && { reason }) };
+}
+
 export const GITHUB_REFUSAL = /GraphQL:|HTTP 4[0-9][0-9]/;
 export const mergeArgs = (repository, pr, head) => ["pr", "merge", String(pr), "--repo", repository, "--merge", "--match-head-commit", head];
 
@@ -552,6 +620,7 @@ export function main(argv, { clientFor = integrationClient, gitFor = integration
   const file = () => abs(o.record, "record");
   const context = () => { const record = readRecord(file()); return { record, client: clientFor(record, record.checkout), git: gitFor(record.checkout), snapshotNow: snapshotFor(record), scopeNow: scopeFor(record) }; };
   const saved = () => ensureSaved(file(), { coordinator: o.coordinator, github });
+  const retireSave = () => autoCheckpoint(file(), { coordinator: o.coordinator, transition: "retiring the run", github });
   const checkpointAfter = (transition) => { const c = autoCheckpoint(file(), { coordinator: o.coordinator, transition, github }); return c ? { checkpoint: c } : {}; };
   switch (command) {
     case "gate": {
@@ -576,9 +645,16 @@ export function main(argv, { clientFor = integrationClient, gitFor = integration
     case "close-issue": {
       const { client, git, snapshotNow, scopeNow } = context();
       const result = closeIssue(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), verification: o.verification, takeSnapshot: snapshotNow, readScope: scopeNow, client, git, afterIntent: saved });
-      return { ...result, ...checkpointAfter(`closing the parent issue (${result.state})`) };
+      const closed = { ...result, ...checkpointAfter(`closing the parent issue (${result.state})`) };
+      if (!result.closed || closed.checkpoint?.saved === false) return closed;
+      try { return { ...closed, retire: retireRun(file(), { coordinator: o.coordinator, expectRevision: result.revision, evidence: closed.evidence, snapshot: snapshotNow(), save: retireSave }) }; }
+      catch (error) { return { ...closed, retire: { retired: false, reason: error.message } }; }
     }
-    default: throw new Error("Usage: integration.mjs gate|merge|criteria|verify-issue|close-issue --option value ...");
+    case "retire": {
+      const { snapshotNow } = context();
+      return retireRun(file(), { coordinator: o.coordinator, expectRevision: int(o.expectRevision, "expect-revision"), evidence: o.evidence, snapshot: snapshotNow(), save: retireSave });
+    }
+    default: throw new Error("Usage: integration.mjs gate|merge|criteria|verify-issue|close-issue|retire --option value ...");
   }
 }
 
@@ -588,6 +664,7 @@ if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import
     console.log(JSON.stringify(output, null, 2));
     if (output?.admitted === false) process.exitCode = 2;
     else if (output?.state && output.state !== "confirmed") process.exitCode = 1;
+    if (output?.retire?.retired === false || output?.retire?.removed === false || output?.removed === false) process.exitCode ||= 1;
     if (output?.checkpoint?.saved === false) { console.error(`The record changed locally, but its checkpoint was not saved: ${output.checkpoint.reason}`); process.exitCode = 3; }
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }

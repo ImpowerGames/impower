@@ -2428,6 +2428,98 @@ await check("a merged review job whose recorded pid was recycled is removed; one
 }
 
 {
+  const scratch = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "impower-clean-layouts-")));
+  console.log(`Scratch session layout parent: ${scratch}`);
+  const mainRoot = path.join(scratch, "repo");
+  const pointers = path.join(mainRoot, ".git", "orchestrate-issues");
+  fs.mkdirSync(pointers, { recursive: true });
+  const desktop = path.join(scratch, "claude", "0123456789abcdef");
+  const foreign = path.join(scratch, "claude", "fedcba9876543210");
+  const cli = sessionScratchRoot(mainRoot, scratch);
+  const make = (root, session, name, owner, files = {}) => {
+    const dir = path.join(root, session, "scratchpad", name);
+    fs.mkdirSync(dir, { recursive: true });
+    if (owner) fs.writeFileSync(path.join(dir, "owner.json"), JSON.stringify(owner));
+    for (const [file, text] of Object.entries(files)) fs.writeFileSync(path.join(dir, file), text);
+    return dir;
+  };
+  const stray = (root, session, name) => {
+    const file = path.join(root, session, "scratchpad", name);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, "left over");
+    return file;
+  };
+  const finished = make(desktop, "session-a", "writer-10-a", { issue: 10, worktree: mainRoot });
+  const finishedNote = stray(desktop, "session-a", "discover.json");
+  const pointed = make(desktop, "session-b", "writer-11-b", { issue: 11, writer: "orchestrator", worktree: mainRoot }, { "run.json": "{}" });
+  const pointedNote = stray(desktop, "session-b", "notes.txt");
+  const launch = make(desktop, "session-b", "launch-13-c", null, { "stdout.log": "out" });
+  const retired = make(desktop, "session-c", "writer-12-d", { issue: 12, writer: "orchestrator", worktree: mainRoot });
+  const retiredNote = stray(desktop, "session-c", "discover.json");
+  const unattributed = stray(desktop, "session-d", "loose.txt");
+  const other = make(foreign, "session-e", "writer-15-e", { issue: 15, worktree: path.join(scratch, "elsewhere") });
+  const mixed = make(desktop, "session-g", "writer-16-g", { issue: 16, writer: "orchestrator", worktree: path.join(scratch, "other-checkout") }, { "run.json": "{}" });
+  const mixedNote = stray(desktop, "session-g", "brief.md");
+  const mixedOurs = make(desktop, "session-g", "writer-17-h", { issue: 17, worktree: mainRoot });
+  const mixedLaunch = make(desktop, "session-g", "launch-16-x", null, { "out.jsonl": "{}" });
+  const lateSession = make(desktop, "session-h", "writer-18-i", { issue: 18, worktree: mainRoot });
+  const lateNote = stray(desktop, "session-h", "brief-19.md");
+  const cliWriter = make(cli, "session-f", "writer-14-f", { issue: 14, worktree: path.join(mainRoot, "..", "repo.worktrees", "feat", "14-x") });
+  fs.writeFileSync(path.join(pointers, "Owner_tickets-11.json"), JSON.stringify({ record: path.join(pointed, "run.json"), coordinator: "local_x" }));
+  const recorded = [];
+  try {
+    await check("session scratch in both the CLI's checkout folder and the desktop app's hashed project folders is listed and cleared, keeping a run record a coordinator pointer names", async () => {
+      const ctx = { mainRoot, processes: { ok: true, list: [] } };
+      const deps = { ...liveDeps, tmpdir: () => scratch, log: () => {}, pid: () => 1, exec: (cmd, args, cwd, timeout) => {
+        if (cmd !== "gh") return liveDeps.exec(cmd, args, cwd, timeout);
+        return { status: 0, out: /\/issues\/19$/.test(args[1]) ? "open" : "closed", err: "" };
+      } };
+      const blind = await cleanWriterArtifacts({ mainRoot, processes: { ok: true, list: [] } }, { ...deps, readEntries: (p) => { if (path.resolve(p) === path.resolve(pointers)) throw Object.assign(new Error("denied"), { code: "EACCES" }); return liveDeps.readEntries(p); } }, false, () => {});
+      assert.ok(blind.rows.every((r) => r.decision === "keep"), "an unlistable pointer folder still let a row go");
+      assert.match(blind.rows.find((r) => r.path === retired).why, /could not be read \(EACCES\)/);
+      const dry = await cleanWriterArtifacts(ctx, deps, false, (r) => recorded.push(r));
+      const row = (rows, p, files = false) => rows.find((r) => r.path === p && Boolean(r.files) === files);
+      const decided = (rows) => Object.fromEntries(rows.map((r) => [path.relative(scratch, r.path) + (r.files ? " files" : ""), r.decision]));
+      const at = (p, files = false) => path.relative(scratch, p) + (files ? " files" : "");
+      assert.deepEqual(decided(dry.rows), {
+        [at(finished)]: "remove",
+        [at(path.dirname(finishedNote), true)]: "remove",
+        [at(pointed)]: "keep",
+        [at(launch)]: "remove",
+        [at(path.dirname(pointedNote), true)]: "keep",
+        [at(retired)]: "remove",
+        [at(path.dirname(retiredNote), true)]: "remove",
+        [at(mixedLaunch)]: "keep",
+        [at(cliWriter)]: "remove",
+        [at(mixed)]: "keep",
+        [at(mixedOurs)]: "remove",
+        [at(path.dirname(mixedNote), true)]: "keep",
+        [at(lateSession)]: "remove",
+        [at(path.dirname(lateNote), true)]: "remove",
+      });
+      assert.match(row(dry.rows, mixed).why, /another checkout's cleanup owns it/);
+      assert.match(row(dry.rows, mixedLaunch).why, /its session also holds an owner.json naming .*other-checkout/);
+      assert.match(row(dry.rows, path.dirname(mixedNote), true).why, /names .*other-checkout, outside this checkout/);
+      assert.match(row(dry.rows, pointed).why, /the coordinator pointer .*Owner_tickets-11\.json names its run record/);
+      assert.match(row(dry.rows, path.dirname(pointedNote), true).why, /a directory in it is kept/);
+      assert.ok(dry.rows.every((r) => r.path !== path.dirname(unattributed)), "a desktop session no owner record attributes to this checkout was listed");
+      assert.ok(dry.rows.every((r) => !r.path.startsWith(foreign)), "a session of another checkout's project folder was listed");
+      assert.ok(dry.rows.every((r) => r.size !== null), "a row has no size");
+      assert.equal(recorded.length, 0, "a dry run recorded rows");
+      const started = path.join(path.dirname(lateSession), "writer-19-j");
+      const run = await cleanWriterArtifacts(ctx, { ...deps, scan: async (p) => { if (p === lateSession) { fs.mkdirSync(started); fs.writeFileSync(path.join(started, "owner.json"), JSON.stringify({ issue: 19, worktree: mainRoot })); } return liveDeps.scan(p); } }, true, (r) => recorded.push(r));
+      assert.equal(run.failed, 0);
+      assert.equal(row(run.rows, path.dirname(lateNote), true).decision, "kept", "loose files went although a writer started in the session during cleanup");
+      assert.ok(fs.existsSync(lateNote) && fs.existsSync(mixed) && fs.existsSync(mixedNote) && fs.existsSync(mixedLaunch), "a file of a live or foreign session was removed");
+      for (const gone of [finished, finishedNote, launch, retired, retiredNote, cliWriter]) assert.equal(fs.existsSync(gone), false, `${gone} survived apply`);
+      for (const kept of [pointed, pointedNote, unattributed, other]) assert.ok(fs.existsSync(kept), `${kept} was removed`);
+    });
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+{
   const dscratch = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "clean-worktrees-detached-")));
   console.log(`Scratch repository for detached worktrees: ${dscratch}`);
   const denv = {

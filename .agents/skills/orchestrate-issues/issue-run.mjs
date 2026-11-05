@@ -255,7 +255,7 @@ function writeAtomic(file, value) {
   fs.renameSync(temp, file);
 }
 
-function acquire(file, identify) {
+export function acquire(file, identify = processIdentity) {
   const lock = `${file}.lock`, token = randomUUID();
   try { writeExclusive(lock, { token, identity: currentIdentity() }); }
   catch (error) {
@@ -275,6 +275,7 @@ export function updateRecord(file, { expectRevision, coordinator }, mutate, { id
   const release = acquire(file, identify);
   try {
     const record = readRecord(file);
+    if (record.retired) throw new Error(`Issue #${record.issue}'s run retired at ${record.retired.time}; its record takes no further changes`);
     if (record.revision !== expectRevision) throw new Error(`The run record is at revision ${record.revision}, not ${expectRevision}; plan again from the current record`);
     if (record.coordinator.session !== coordinator) throw new Error(`Issue #${record.issue} is coordinated by ${record.coordinator.session} on ${record.coordinator.host}; ${coordinator} may not change its run record`);
     let pointer;
