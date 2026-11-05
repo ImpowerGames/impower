@@ -16,7 +16,10 @@ import {
   ScrolledEditorMethod,
   ScrolledEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
-import { SearchEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SearchEditorMessage";
+import {
+  EditorCommand,
+  ExecuteEditorCommandMessage,
+} from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
 import { SelectEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
 import {
   SelectedEditorMessage,
@@ -76,6 +79,13 @@ import { type ShowDocumentResult } from "vscode-languageserver-protocol";
 import { debounce } from "../utils/debounce";
 import { isScriptExtension } from "../utils/scriptFiles";
 import SingletonPromise from "./SingletonPromise";
+import {
+  checkName,
+  joinScriptPath,
+  type NameCheck,
+  splitScriptPath,
+} from "../utils/nameRules";
+import { showSnackbar } from "../utils/snackbar";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
 import workspace, {
@@ -886,9 +896,17 @@ export default class WorkspaceWindow {
     return { success: true };
   }
 
-  search(uri: string) {
+  executeEditorCommand(filename: string, command: EditorCommand) {
+    const projectId = this.store.project.id;
+    if (!projectId) {
+      return;
+    }
+    const uri = this._workspace.fs.getFileUri(projectId, filename);
     sendProtocolMessage(
-      SearchEditorMessage.type.request({ textDocument: { uri } }),
+      ExecuteEditorCommandMessage.type.request({
+        textDocument: { uri },
+        command,
+      }),
     );
   }
 
@@ -920,6 +938,31 @@ export default class WorkspaceWindow {
         [pane]: {
           ...this.store.panes[pane],
           view,
+        },
+      },
+    });
+  }
+
+  browseScripts() {
+    const logic = this.store.panes.logic;
+    const scripts = logic.panels.scripts;
+    this.update({
+      ...this.store,
+      panes: {
+        ...this.store.panes,
+        logic: {
+          ...logic,
+          view: "list",
+          panel: "scripts",
+          panels: {
+            ...logic.panels,
+            scripts: {
+              ...scripts,
+              activeEditor: scripts?.activeEditor
+                ? { ...scripts.activeEditor, open: false }
+                : scripts?.activeEditor,
+            },
+          },
         },
       },
     });
@@ -1040,9 +1083,11 @@ export default class WorkspaceWindow {
     const id = this.store.project.id;
     if (id) {
       const previousName = this.store.project.name;
-      const validName = name.trim()
-        ? name
-        : previousName || WorkspaceConstants.DEFAULT_PROJECT_NAME;
+      const check = checkName(name, previousName || "");
+      const validName =
+        check.status === "empty"
+          ? previousName || WorkspaceConstants.DEFAULT_PROJECT_NAME
+          : name;
       this.update({
         ...this.store,
         project: {
@@ -1062,6 +1107,51 @@ export default class WorkspaceWindow {
       return changedName;
     }
     return false;
+  }
+
+  async renameScript(filename: string, draft: string): Promise<NameCheck> {
+    const projectId = this.store.project.id;
+    const { folder, name, ext } = splitScriptPath(filename);
+    if (!projectId || filename === "main.sd") {
+      return { status: "unchanged" };
+    }
+    const draftCheck = checkName(draft, name);
+    if (draftCheck.status !== "renamed") {
+      if (draftCheck.status === "invalid") {
+        showSnackbar({ message: "A script name can't contain a slash." });
+      }
+      return draftCheck;
+    }
+    const fs = this._workspace.fs;
+    const files = await fs.getFiles(projectId);
+    const taken = Object.keys(files)
+      .map((uri) => fs.getRelativePath(projectId, uri))
+      .filter((path) => path !== filename)
+      .map((path) => splitScriptPath(path))
+      .filter((other) => other.folder === folder && other.ext === ext)
+      .map((other) => other.name);
+    const check = checkName(draft, name, taken);
+    if (check.status === "collision") {
+      showSnackbar({ message: `A script named ${check.name} already exists.` });
+    }
+    if (check.status !== "renamed") {
+      return check;
+    }
+    const newFilename = joinScriptPath(folder, check.name, ext);
+    const { referencesUpdated } = await fs.renameFileWithReferences(
+      projectId,
+      filename,
+      newFilename,
+    );
+    await this.recordScriptChange();
+    this.openFileEditor(newFilename, filename);
+    showSnackbar({
+      message:
+        referencesUpdated > 0
+          ? `Renamed to ${check.name}. Linked includes were updated.`
+          : `Renamed to ${check.name}.`,
+    });
+    return check;
   }
 
   startPickingRemoteProjectResource() {
