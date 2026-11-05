@@ -29,8 +29,6 @@ const ModeContext = createContext<MenuCtx>({
 });
 const useMenuCtx = () => useContext(ModeContext);
 
-export const DropdownPortal = DropdownMenuPrimitive.Portal;
-export const DropdownSub = DropdownMenuPrimitive.Sub;
 export const DropdownSeparator = DropdownMenuPrimitive.Separator;
 
 type RootProps = {

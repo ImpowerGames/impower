@@ -10,8 +10,6 @@ export {
 export {
   DropdownRoot,
   DropdownTrigger,
-  DropdownPortal,
-  DropdownSub,
   DropdownSeparator,
   DropdownContent,
   DropdownItem,

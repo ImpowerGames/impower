@@ -70,6 +70,12 @@ jobs:
       - name: Lint the grammar
         run: npx eslint --max-warnings 0 definitions/yaml/sparkdown.language-grammar.yaml
 
+      - name: Test the Radix import boundary rule
+        run: node --test eslint.config.test.mjs
+
+      - name: Lint the Radix import boundary
+        run: npm run lint:radix-boundary
+
       - name: Test the lowerer conventions scanner
         run: node --test scripts/check-lowerer-conventions.test.mjs
 

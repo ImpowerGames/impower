@@ -10,6 +10,10 @@ The web app at **impower.dev** — the Sparkdown screenplay/game editor. A
 >
 > The Folio redesign's tokens, layouts and interface copy are in
 > [`docs/design/`](./docs/design/README.md).
+>
+> The component library's conventions (one component per Radix primitive, `cva`
+> variants, the gallery and its tests) are in
+> [`packages/impower-ui/README.md`](../packages/impower-ui/README.md).
 
 ## Quick start
 
