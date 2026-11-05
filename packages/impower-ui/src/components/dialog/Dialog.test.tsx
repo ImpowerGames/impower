@@ -445,4 +445,83 @@ describe("focus return across openers and layout changes", () => {
     await closeAndSettle();
     expect(document.activeElement).toBe(trigger);
   });
+
+  it("returns focus to returnFocus when the opener has gone", async () => {
+    function Gone() {
+      const [open, setOpen] = useState(false);
+      const [showOpener, setShowOpener] = useState(true);
+      const fallback = useRef<HTMLButtonElement>(null);
+      return (
+        <>
+          {showOpener && (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(true);
+                setShowOpener(false);
+              }}
+            >
+              Open
+            </button>
+          )}
+          <button type="button" ref={fallback}>
+            Row
+          </button>
+          <Dialog
+            open={open}
+            onOpenChange={setOpen}
+            returnFocus={() => fallback.current}
+          >
+            <DialogTitle>Gone</DialogTitle>
+            <button type="button">Inside</button>
+          </Dialog>
+        </>
+      );
+    }
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () => render(<Gone />, host!));
+    const opener = host.querySelector("button")!;
+    opener.focus();
+    await act(async () => opener.click());
+    await settle(50);
+    expect(dialog()!.contains(document.activeElement)).toBe(true);
+    await closeAndSettle();
+    const row = Array.from(host!.querySelectorAll("button")).find(
+      (button) => button.textContent === "Row",
+    );
+    expect(document.activeElement).toBe(row);
+  });
+});
+
+describe("Dropdown motion", () => {
+  it.each([false, true])(
+    "gates the menu's motion behind prefers-reduced-motion (phone layout: %s)",
+    async (isPhone) => {
+      await setPhone(isPhone);
+      host = document.body.appendChild(document.createElement("div"));
+      await act(async () =>
+        render(
+          <DropdownRoot defaultOpen>
+            <DropdownTrigger asChild>
+              <button type="button">Menu</button>
+            </DropdownTrigger>
+            <DropdownContent>
+              <DropdownItem>Item</DropdownItem>
+            </DropdownContent>
+          </DropdownRoot>,
+          host!,
+        ),
+      );
+      await settle(50);
+      const menu = document.querySelector<HTMLElement>('[role="menu"]')!;
+      const elements = isPhone
+        ? [menu, menu.previousElementSibling as HTMLElement]
+        : [menu];
+      const animated = elements
+        .flatMap((element) => element.className.split(" "))
+        .filter((c) => c.includes("anim"));
+      expect(animated.length).toBeGreaterThan(0);
+      expect(animated.every((c) => c.startsWith("motion-safe:"))).toBe(true);
+    },
+  );
 });

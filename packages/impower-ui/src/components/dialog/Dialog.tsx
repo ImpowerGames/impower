@@ -88,6 +88,7 @@ type ModalProps = {
   dismissable?: boolean;
   flush?: boolean;
   initialFocus?: RefObject<HTMLElement>;
+  returnFocus?: () => HTMLElement | null;
   onEscapeKeyDown?: (event: KeyboardEvent) => void;
   class?: string;
   children?: ComponentChildren;
@@ -105,6 +106,7 @@ function Modal({
   onOpenChange,
   dismissable = true,
   initialFocus,
+  returnFocus: returnTo,
   onEscapeKeyDown,
   placement,
   card,
@@ -156,7 +158,7 @@ function Modal({
             }}
             onCloseAutoFocus={(event: Event) => {
               event.preventDefault();
-              const target = returnFocus.current();
+              const target = returnTo?.() ?? returnFocus.current();
               if (target?.isConnected) {
                 target.focus();
               }

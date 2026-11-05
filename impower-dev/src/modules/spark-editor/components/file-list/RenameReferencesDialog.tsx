@@ -9,6 +9,7 @@ import {
 
 export type RenameReferencesDialogProps = {
   open: boolean;
+  returnFocus?: () => HTMLElement | null;
   fromName: string;
   toName: string;
   referenceCount: number;
@@ -20,6 +21,7 @@ export type RenameReferencesDialogProps = {
 
 export default function RenameReferencesDialog({
   open,
+  returnFocus,
   fromName,
   toName,
   referenceCount,
@@ -32,7 +34,11 @@ export default function RenameReferencesDialog({
   const scripts = `${scriptCount} script${scriptCount === 1 ? "" : "s"}`;
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !next && onCancel()}>
+    <Dialog
+      open={open}
+      returnFocus={returnFocus}
+      onOpenChange={(next) => !next && onCancel()}
+    >
       <div class="mb-3 flex flex-row items-center gap-2">
         <Pencil class="size-5 text-foreground/70" />
         <DialogTitle class="flex-1">Update references?</DialogTitle>

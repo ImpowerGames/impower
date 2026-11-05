@@ -19,6 +19,7 @@ export type UsageLocation = {
 
 export type FileUsagesPanelProps = {
   open: boolean;
+  returnFocus?: () => HTMLElement | null;
   assetName: string;
   locations: UsageLocation[];
   onJump: (uri: string, range: UsageLocation["range"]) => void;
@@ -27,6 +28,7 @@ export type FileUsagesPanelProps = {
 
 export default function FileUsagesPanel({
   open,
+  returnFocus,
   assetName,
   locations,
   onJump,
@@ -37,6 +39,7 @@ export default function FileUsagesPanel({
   return (
     <Dialog
       open={open}
+      returnFocus={returnFocus}
       onOpenChange={(next) => !next && onClose()}
       size="md"
       flush

@@ -137,7 +137,7 @@ const dropdownContent = cva([
   "z-50 min-w-[120px] overflow-hidden rounded-lg",
   "bg-popup py-2 px-0 text-foreground shadow-xl ring-1 ring-foreground/10",
   "origin-[--radix-dropdown-menu-content-transform-origin]",
-  "data-[state=open]:anim-menu-in data-[state=closed]:anim-menu-out",
+  "motion-safe:data-[state=open]:anim-menu-in motion-safe:data-[state=closed]:anim-menu-out",
 ]);
 
 function Sheet({
@@ -182,8 +182,8 @@ function Sheet({
         class={cn(
           "absolute inset-0 bg-black/40",
           open
-            ? "animate-[menu-fade-in_200ms_ease-out]"
-            : "animate-[menu-fade-out_200ms_ease-out_forwards]",
+            ? "motion-safe:animate-[menu-fade-in_200ms_ease-out]"
+            : "motion-safe:animate-[menu-fade-out_200ms_ease-out_forwards] motion-reduce:invisible",
         )}
         onClick={() => setOpen(false)}
         role="presentation"
@@ -195,8 +195,8 @@ function Sheet({
           "absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto",
           "rounded-t-lg bg-popup py-2 text-foreground shadow-2xl will-change-transform",
           open
-            ? "animate-[menu-sheet-up_225ms_cubic-bezier(0,0,0.2,1)]"
-            : "animate-[menu-sheet-down_195ms_cubic-bezier(0.4,0,0.6,1)_forwards]",
+            ? "motion-safe:animate-[menu-sheet-up_225ms_cubic-bezier(0,0,0.2,1)]"
+            : "motion-safe:animate-[menu-sheet-down_195ms_cubic-bezier(0.4,0,0.6,1)_forwards] motion-reduce:invisible",
           className,
         )}
       >
