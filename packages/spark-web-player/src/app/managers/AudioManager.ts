@@ -213,7 +213,7 @@ export default class AudioManager extends Manager {
     if (audioChannel.get(params.key)) {
       return audioChannel.get(params.key)!;
     }
-    const mixerName = params.mixer || params.channel || "sound";
+    const mixerName = params.mixer || params.channel;
     const audioMixer = this.getAudioMixer(mixerName, params.mixerGain ?? 1);
     if (audioBuffer && this.app.audioContext) {
       const audioPlayer = new AudioPlayer(audioBuffer, this.app.audioContext, {

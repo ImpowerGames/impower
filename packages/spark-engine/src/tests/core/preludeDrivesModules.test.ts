@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { newGame } from "../harness/startingValuesGame";
 import { compilePrelude } from "../harness/compilePrelude";
 import { requireChunks } from "../harness/compileProgram";
@@ -82,6 +82,31 @@ describe("the compiled prelude is the only source of the builtin values the modu
     expect(game.context.channel.music.mixer).toBe("sound");
     expect(game.context.metadata.$default.title).toBe("Edited");
     expect(game.context.world.$default.src).toBe("edited.glb");
+  });
+
+  test("a channel the program does not define takes define channel's play behavior from the prelude", () => {
+    const stopsOnReplay = (edit: (prelude: string) => string) => {
+      const audio = gameWithPrelude(edit).module.audio as any;
+      audio._channelsCurrentlyPlaying.set(
+        "undeclared",
+        new Map([["k", { key: "k" }]]),
+      );
+      const setCurrentlyPlaying = vi.spyOn(audio, "setCurrentlyPlaying");
+      audio.schedule("undeclared", [{ control: "play" }]);
+      return setCurrentlyPlaying.mock.calls.filter(
+        (call: any[]) => call[1]?.control === "stop",
+      ).length;
+    };
+    expect(stopsOnReplay((prelude) => prelude)).toBe(1);
+    expect(
+      stopsOnReplay((prelude) =>
+        replaceOnce(
+          prelude,
+          /(define channel with[^]*?play_behavior = )"replace"/,
+          '$1"stack"',
+        ),
+      ),
+    ).toBe(0);
   });
 
   test("a synth with no frequency in the prelude renders silence, not an engine-chosen pitch", () => {
