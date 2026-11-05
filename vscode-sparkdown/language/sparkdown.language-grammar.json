@@ -1543,7 +1543,7 @@
       },
       "patterns": [
         {
-          "include": "#Annotation"
+          "include": "#ArmTag"
         },
         {
           "include": "#ArmTunnel"
@@ -1584,7 +1584,7 @@
       },
       "patterns": [
         {
-          "include": "#Annotation"
+          "include": "#ArmTag"
         },
         {
           "include": "#ArmTunnel"

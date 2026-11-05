@@ -1400,7 +1400,7 @@ repository:
           - { include: "#TunnelMark" }
           - { include: "#DivertMark" }
     patterns:
-      - { include: "#Annotation" }
+      - { include: "#ArmTag" }
       - { include: "#ArmTunnel" }
       - { include: "#DivertLoad" }
       - { include: "#DivertTarget" }
@@ -1419,7 +1419,7 @@ repository:
         patterns:
           - { include: "#DivertMark" }
     patterns:
-      - { include: "#Annotation" }
+      - { include: "#ArmTag" }
       - { include: "#ArmTunnel" }
       - { include: "#DivertLoad" }
       - { include: "#DivertTarget" }
