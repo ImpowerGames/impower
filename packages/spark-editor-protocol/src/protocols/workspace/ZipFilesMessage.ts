@@ -5,6 +5,7 @@ export type ZipFilesMethod = typeof ZipFilesMessage.method;
 export interface ZipFilesParams {
   files: { uri: string; path?: string }[];
   directories?: string[];
+  entries?: { path: string; data: ArrayBuffer }[];
 }
 
 export class ZipFilesMessage {

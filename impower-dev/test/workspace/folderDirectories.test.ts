@@ -94,7 +94,7 @@ async function setup(root: MemoryDirectory) {
     start: async () => {},
   };
   const make = (Ctor: typeof WorkspaceFileSystem = WorkspaceFileSystem) =>
-    new Ctor(ls as never, { settings } as never);
+    new Ctor(ls as never, { settings, onDidChange: () => () => {} } as never);
   return { WorkspaceFileSystem, make };
 }
 

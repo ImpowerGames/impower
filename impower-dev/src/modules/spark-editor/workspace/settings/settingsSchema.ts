@@ -1,0 +1,184 @@
+import { SCRIPT_FILES_GLOB } from "../../utils/scriptFiles";
+
+export type SettingValue = boolean | number | string;
+
+export interface SettingSpec<T extends SettingValue = SettingValue> {
+  readonly default: T;
+  readonly choices?: readonly T[];
+  readonly configurationKeys?: readonly string[];
+}
+
+const setting = <T extends SettingValue>(
+  defaultValue: T,
+  options: Omit<SettingSpec<T>, "default"> = {},
+): SettingSpec<T> => ({ default: defaultValue, ...options });
+
+const choice = <const C extends readonly string[]>(
+  defaultValue: C[number],
+  choices: C,
+  options: Omit<SettingSpec<C[number]>, "default" | "choices"> = {},
+): SettingSpec<C[number]> => ({ default: defaultValue, choices, ...options });
+
+const configured = (...configurationKeys: string[]) => ({
+  configurationKeys,
+});
+
+export const PREFERENCES_SCHEMA = {
+  theme: setting("automatic"),
+} as const satisfies Record<string, SettingSpec>;
+
+export const PROJECT_SETTINGS_SCHEMA = {
+  scriptFiles: setting(SCRIPT_FILES_GLOB, configured("scriptFiles")),
+  imageFiles: setting(
+    "*.{png,apng,jpeg,jpg,gif,bmp,svg,webp}",
+    configured("imageFiles"),
+  ),
+  audioFiles: setting(
+    "*.{mid,wav,mp3,mp2,ogg,aac,opus,flac}",
+    configured("audioFiles"),
+  ),
+  videoFiles: setting(
+    "*.{mp4,webm,mov,m4v,ogv,mkv}",
+    configured("videoFiles"),
+  ),
+  fontFiles: setting("*.{ttf,woff,woff2,otf}", configured("fontFiles")),
+  worldFiles: setting("*.{js}", configured("worldFiles")),
+  addFolderBackdrop: setting("Backdrops"),
+  addFolderPortrait: setting("Portraits"),
+  addFolderMusic: setting("Music"),
+  addFolderSound: setting("Sounds"),
+  screenplayTitlePage: setting(
+    true,
+    configured("screenplay.pages.printTitlePage"),
+  ),
+  screenplayHeadingsBold: setting(
+    true,
+    configured("screenplay.formatting.printHeadingsBold"),
+  ),
+  screenplaySceneNumbers: choice(
+    "none",
+    ["none", "left", "right", "both"],
+    configured("screenplay.numbering.printSceneNumbers"),
+  ),
+  screenplaySectionNumbers: setting(
+    false,
+    configured("screenplay.numbering.printSectionNumbers"),
+  ),
+  screenplaySceneNames: setting(
+    false,
+    configured("screenplay.markup.printSceneIdentifiers"),
+  ),
+  screenplayBranchNames: setting(false),
+  screenplayFunctionNames: setting(
+    false,
+    configured("screenplay.markup.printFunctionIdentifiers"),
+  ),
+  screenplayKnotNames: setting(
+    false,
+    configured(
+      "screenplay.markup.printKnotIdentifiers",
+      "screenplay.markup.printStitchIdentifiers",
+    ),
+  ),
+  screenplayPaperSize: choice(
+    "usletter",
+    ["usletter", "a4"],
+    configured("screenplay.pdf.printPaperSize"),
+  ),
+  screenplayPageNumbers: setting(
+    true,
+    configured("screenplay.pdf.numbering.printPageNumbers"),
+  ),
+  screenplaySplitDialogue: setting(
+    true,
+    configured(
+      "screenplay.pdf.composition.pageBreaks.printDialogueSplitAcrossPages",
+    ),
+  ),
+  screenplayMore: setting(
+    "(MORE)",
+    configured("screenplay.pdf.composition.printDialogueMORE"),
+  ),
+  screenplayContd: setting(
+    "(CONT'D)",
+    configured("screenplay.pdf.composition.printDialogueCONTD"),
+  ),
+  screenplayBookmarks: setting(
+    true,
+    configured("screenplay.pdf.bookmarks.printBookmarks"),
+  ),
+  screenplayHiddenBookmarks: setting(
+    true,
+    configured("screenplay.pdf.bookmarks.printBookmarksForInvisibleHeadings"),
+  ),
+} as const satisfies Record<string, SettingSpec>;
+
+type ValuesOf<S extends Record<string, SettingSpec>> = {
+  -readonly [K in keyof S]: S[K] extends SettingSpec<infer T>
+    ? T extends boolean
+      ? boolean
+      : T
+    : never;
+};
+
+export type Preferences = ValuesOf<typeof PREFERENCES_SCHEMA>;
+export type PreferenceKey = keyof Preferences;
+export type ProjectSettings = ValuesOf<typeof PROJECT_SETTINGS_SCHEMA>;
+export type ProjectSettingKey = keyof ProjectSettings;
+
+export const isValidSetting = (spec: SettingSpec, value: unknown): boolean =>
+  typeof value === typeof spec.default &&
+  (!spec.choices || spec.choices.includes(value as SettingValue));
+
+export const resolveSettings = <S extends Record<string, SettingSpec>>(
+  schema: S,
+  stored: Record<string, unknown>,
+): ValuesOf<S> => {
+  const resolved: Record<string, SettingValue> = {};
+  for (const [key, spec] of Object.entries(schema)) {
+    const value = Object.hasOwn(stored, key) ? stored[key] : undefined;
+    resolved[key] = isValidSetting(spec, value)
+      ? (value as SettingValue)
+      : spec.default;
+  }
+  return resolved as ValuesOf<S>;
+};
+
+const setPath = (
+  target: Record<string, unknown>,
+  path: string,
+  value: unknown,
+) => {
+  const parts = path.split(".");
+  let node = target;
+  for (const part of parts.slice(0, -1)) {
+    const next = node[part];
+    if (next && typeof next === "object") {
+      node = next as Record<string, unknown>;
+    } else {
+      const created: Record<string, unknown> = {};
+      node[part] = created;
+      node = created;
+    }
+  }
+  node[parts[parts.length - 1]!] = value;
+};
+
+export const buildConfiguration = (
+  preferences: Preferences,
+  projectSettings: ProjectSettings,
+): Record<string, unknown> => {
+  const configuration: Record<string, unknown> = {};
+  const scopes: [Record<string, SettingSpec>, Record<string, unknown>][] = [
+    [PREFERENCES_SCHEMA, preferences],
+    [PROJECT_SETTINGS_SCHEMA, projectSettings],
+  ];
+  for (const [schema, values] of scopes) {
+    for (const [key, spec] of Object.entries(schema)) {
+      for (const path of spec.configurationKeys ?? []) {
+        setPath(configuration, path, values[key]);
+      }
+    }
+  }
+  return configuration;
+};
