@@ -1,0 +1,3130 @@
+[
+  {
+    "line": 18,
+    "result": {
+      "name": "math_things_are_defined",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local a00 = math.frexp\n        local a01 = math.ldexp\n        local a02 = math.fmod\n        local a03 = math.modf\n        local a04 = math.pow\n        local a05 = math.exp\n        local a06 = math.floor\n        local a07 = math.abs\n        local a08 = math.sqrt\n        local a09 = math.log\n        local a10 = math.log10\n        local a11 = math.rad\n        local a12 = math.deg\n        local a13 = math.sin\n        local a14 = math.cos\n        local a15 = math.tan\n        local a16 = math.sinh\n        local a17 = math.cosh\n        local a18 = math.tanh\n        local a19 = math.atan\n        local a20 = math.acos\n        local a21 = math.asin\n        local a22 = math.atan2\n        local a23 = math.ceil\n        local a24 = math.min\n        local a25 = math.max\n        local a26 = math.pi\n        local a27 = math.huge\n        local a28 = math.nan\n        local a29 = math.e\n        local a30 = math.phi\n        local a31 = math.sqrt2\n        local a32 = math.tau\n        local a33 = math.randomseed\n        local a34 = math.random\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 61,
+    "result": {
+      "name": "next_iterator_should_infer_types_and_type_check",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local a: string, b: number = next({ 1 })\n\n        local s = \"foo\"\n        local t = { [s] = 1 }\n        local c: string?, d: number = next(t)\n    ",
+          "expect": [
+            {
+              "errors": 1
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 74,
+    "result": {
+      "name": "pairs_iterator_should_infer_types_and_type_check",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        type Map<K, V> = { [K]: V }\n        local map: Map<string, number> = { [\"foo\"] = 1, [\"bar\"] = 2, [\"baz\"] = 3 }\n\n        local it: (Map<string, number>, string | nil) -> (string?, number), t: Map<string, number>, i: nil = pairs(map)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 86,
+    "result": {
+      "name": "ipairs_iterator_should_infer_types_and_type_check",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        type Map<K, V> = { [K]: V }\n        local array: Map<number, string> = { \"foo\", \"bar\", \"baz\" }\n\n        local it: (Map<number, string>, number) -> (number?, string), t: Map<number, string>, i: number = ipairs(array)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 98,
+    "result": {
+      "name": "table_dot_remove_optionally_returns_generic",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local t = { 1 }\n        local n = table.remove(t, 7)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "n",
+              "equals": "number?"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 109,
+    "result": {
+      "name": "table_concat_returns_string",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local r = table.concat({1,2,3,4}, \",\", 2);\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "r",
+              "equals": "string"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 119,
+    "result": {
+      "name": "sort",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local t = {1, 2, 3};\n        table.sort(t)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 129,
+    "result": {
+      "name": "sort_with_predicate",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!strict\n        local t = {1, 2, 3}\n        local function p(a: number, b: number) return a < b end\n        table.sort(t, p)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "ignoreMissingAnnotations": true
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 143,
+    "result": {
+      "name": "sort_with_bad_predicate",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!strict\n        local t = {'one', 'two', 'three'}\n        local function p(a: number, b: number) return a < b end\n        table.sort(t, p)\n    ",
+          "expect": []
+        }
+      ],
+      "skip": {
+        "newSolver": "does not pass on Luau's new solver upstream"
+      }
+    },
+    "audit": []
+  },
+  {
+    "line": 171,
+    "result": {
+      "name": "strings_have_methods",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        local s = (\"RoactHostChangeEvent(%s)\"):format(\"hello\")\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "s",
+              "equals": "string"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 181,
+    "result": {
+      "name": "math_max_variatic",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local n = math.max(1,2,3,4,5,6,7,8,9,0)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "n",
+              "equals": "number"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 191,
+    "result": {
+      "name": "math_max_checks_for_numbers",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local n = math.max(1,2,\"3\")\n    ",
+          "expect": [
+            {
+              "errors": "some"
+            },
+            {
+              "error": 0,
+              "message": "Expected this to be 'number', but got 'string'"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 201,
+    "result": {
+      "name": "builtin_tables_sealed",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local b = bit32\n    ",
+          "expect": [
+            {
+              "type": "b"
+            },
+            {
+              "type": "b",
+              "kind": "TableType"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "comparison",
+        "expr": "CHECK_EQ(bit32t->state, TableState::Sealed)"
+      }
+    ]
+  },
+  {
+    "line": 213,
+    "result": {
+      "name": "lua_51_exported_globals_all_exist",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local v__G = _G\n        local v_string_sub = string.sub\n        local v_string_upper = string.upper\n        local v_string_len = string.len\n        local v_string_rep = string.rep\n        local v_string_find = string.find\n        local v_string_match = string.match\n        local v_string_char = string.char\n        local v_string_gmatch = string.gmatch\n        local v_string_reverse = string.reverse\n        local v_string_byte = string.byte\n        local v_string_format = string.format\n        local v_string_gsub = string.gsub\n        local v_string_lower = string.lower\n\n        local v_xpcall = xpcall\n\n        --local v_package_loadlib = package.loadlib\n        --local v_package_loaders_1_ = package.loaders[1]\n        --local v_package_loaders_2_ = package.loaders[2]\n        --local v_package_loaders_3_ = package.loaders[3]\n        --local v_package_loaders_4_ = package.loaders[4]\n\n        local v_tostring = tostring\n        local v_print = print\n\n        --local v_os_exit = os.exit\n        --local v_os_setlocale = os.setlocale\n        local v_os_date = os.date\n        --local v_os_getenv = os.getenv\n        local v_os_difftime = os.difftime\n        --local v_os_remove = os.remove\n        local v_os_time = os.time\n        --local v_os_clock = os.clock\n        --local v_os_tmpname = os.tmpname\n        --local v_os_rename = os.rename\n        --local v_os_execute = os.execute\n\n        local v_unpack = unpack\n        local v_require = require\n        local v_getfenv = getfenv\n        local v_setmetatable = setmetatable\n        local v_next = next\n        local v_assert = assert\n        local v_tonumber = tonumber\n\n        --local v_io_lines = io.lines\n        --local v_io_write = io.write\n        --local v_io_close = io.close\n        --local v_io_flush = io.flush\n        --local v_io_open = io.open\n        --local v_io_output = io.output\n        --local v_io_type = io.type\n        --local v_io_read = io.read\n        --local v_io_stderr = io.stderr\n        --local v_io_stdin = io.stdin\n        --local v_io_input = io.input\n        --local v_io_stdout = io.stdout\n        --local v_io_popen = io.popen\n        --local v_io_tmpfile = io.tmpfile\n\n        local v_rawequal = rawequal\n        --local v_collectgarbage = collectgarbage\n        local v_getmetatable = getmetatable\n        local v_rawset = rawset\n\n        local v_math_log = math.log\n        local v_math_max = math.max\n        local v_math_acos = math.acos\n        local v_math_huge = math.huge\n        local v_math_ldexp = math.ldexp\n        local v_math_pi = math.pi\n        local v_math_cos = math.cos\n        local v_math_tanh = math.tanh\n        local v_math_pow = math.pow\n        local v_math_deg = math.deg\n        local v_math_tan = math.tan\n        local v_math_cosh = math.cosh\n        local v_math_sinh = math.sinh\n        local v_math_random = math.random\n        local v_math_randomseed = math.randomseed\n        local v_math_frexp = math.frexp\n        local v_math_ceil = math.ceil\n        local v_math_floor = math.floor\n        local v_math_rad = math.rad\n        local v_math_abs = math.abs\n        local v_math_sqrt = math.sqrt\n        local v_math_modf = math.modf\n        local v_math_asin = math.asin\n        local v_math_min = math.min\n        --local v_math_mod = math.mod\n        local v_math_fmod = math.fmod\n        local v_math_log10 = math.log10\n        local v_math_atan2 = math.atan2\n        local v_math_exp = math.exp\n        local v_math_sin = math.sin\n        local v_math_atan = math.atan\n\n        --local v_debug_getupvalue = debug.getupvalue\n        --local v_debug_debug = debug.debug\n        --local v_debug_sethook = debug.sethook\n        --local v_debug_getmetatable = debug.getmetatable\n        --local v_debug_gethook = debug.gethook\n        --local v_debug_setmetatable = debug.setmetatable\n        --local v_debug_setlocal = debug.setlocal\n        --local v_debug_traceback = debug.traceback\n        --local v_debug_setfenv = debug.setfenv\n        --local v_debug_getinfo = debug.getinfo\n        --local v_debug_setupvalue = debug.setupvalue\n        --local v_debug_getlocal = debug.getlocal\n        --local v_debug_getregistry = debug.getregistry\n        --local v_debug_getfenv = debug.getfenv\n\n        local v_pcall = pcall\n\n        --local v_table_setn = table.setn\n        local v_table_insert = table.insert\n        --local v_table_getn = table.getn\n        --local v_table_foreachi = table.foreachi\n        local v_table_maxn = table.maxn\n        --local v_table_foreach = table.foreach\n        local v_table_concat = table.concat\n        local v_table_sort = table.sort\n        local v_table_remove = table.remove\n\n        local v_newproxy = newproxy\n        local v_type = type\n\n        local v_coroutine_resume = coroutine.resume\n        local v_coroutine_yield = coroutine.yield\n        local v_coroutine_status = coroutine.status\n        local v_coroutine_wrap = coroutine.wrap\n        local v_coroutine_create = coroutine.create\n        local v_coroutine_running = coroutine.running\n\n        local v_select = select\n        local v_gcinfo = gcinfo\n        local v_pairs = pairs\n        local v_rawget = rawget\n        local v_loadstring = loadstring\n        local v_ipairs = ipairs\n        local v__VERSION = _VERSION\n        --local v_dofile = dofile\n        local v_setfenv = setfenv\n        --local v_load = load\n        local v_error = error\n        --local v_loadfile = loadfile\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "unparsed": {
+            "defect": 879
+          }
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 370,
+    "result": {
+      "name": "setmetatable_unpacks_arg_types_correctly",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        setmetatable({}, setmetatable({}, {}))\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 378,
+    "result": {
+      "name": "setmetatable_on_union_of_tables",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        type A = {tag: \"A\", x: number}\n        type B = {tag: \"B\", y: string}\n\n        type T = A | B\n\n        type X = typeof(\n            setmetatable({} :: T, {})\n        )\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "alias": "X",
+              "equals": "setmetatable<A, {  }> | setmetatable<B, {  }>"
+            }
+          ],
+          "unparsed": {
+            "defect": 1382
+          }
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 398,
+    "result": {
+      "name": "table_insert_correctly_infers_type_of_array_2_args_overload",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local t = {}\n        table.insert(t, \"foo\")\n        local s = t[1]\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "builtin": "string",
+              "sameAs": {
+                "type": "s"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 410,
+    "result": {
+      "name": "table_insert_correctly_infers_type_of_array_3_args_overload",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local t = {}\n        table.insert(t, 1, \"foo\")\n        local s = t[1]\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "s",
+              "equals": "string"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 422,
+    "result": {
+      "name": "table_pack",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local t = table.pack(1, \"foo\", true)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "t",
+              "equals": "{ [number]: boolean | number | string, n: number }"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 432,
+    "result": {
+      "name": "table_pack_variadic",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n--!strict\nfunction f(): (string, ...number)\n    return \"str\", 2, 3, 4\nend\n\nlocal t = table.pack(f())\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "t",
+              "equals": "{ [number]: number | string, n: number }"
+            }
+          ],
+          "unparsed": {
+            "defect": 876
+          }
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 447,
+    "result": {
+      "name": "table_pack_reduce_1",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local t = table.pack(1, 2, true)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "t",
+              "equals": "{ [number]: boolean | number, n: number }"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 457,
+    "result": {
+      "name": "table_pack_reduce_2",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local t = table.pack(\"a\", \"b\", \"c\")\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "t",
+              "equals": "{ [number]: string | string | string, n: number }"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 483,
+    "result": {
+      "name": "gcinfo",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local n = gcinfo()\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "n",
+              "equals": "number"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 493,
+    "result": {
+      "name": "getfenv",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "getfenv(1)",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 498,
+    "result": {
+      "name": "os_time_takes_optional_date_table",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local n1 = os.time()\n        local n2 = os.time({ year = 2020, month = 4, day = 20 })\n        local n3 = os.time({ year = 2020, month = 4, day = 20, hour = 0, min = 0, sec = 0, isdst = true })\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "n1",
+              "equals": "number"
+            },
+            {
+              "type": "n2",
+              "equals": "number"
+            },
+            {
+              "type": "n3",
+              "equals": "number"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 512,
+    "result": {
+      "name": "thread_is_a_type",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local co = coroutine.create(function() end)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "co",
+              "equals": "thread"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 522,
+    "result": {
+      "name": "buffer_is_a_type",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local b = buffer.create(10)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "b",
+              "equals": "buffer"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 532,
+    "result": {
+      "name": "coroutine_resume_anything_goes",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local function nifty(x, y)\n            print(x, y)\n            local z = coroutine.yield(1, 2)\n            print(z)\n            return 42\n        end\n\n        local co = coroutine.create(nifty)\n        local x, y = coroutine.resume(co, 1, 2)\n        local answer = coroutine.resume(co, 3)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "ignoreMissingAnnotations": true
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 552,
+    "result": {
+      "name": "coroutine_wrap_anything_goes",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        local function nifty(x, y)\n            print(x, y)\n            local z = coroutine.yield(1, 2)\n            print(z)\n            return 42\n        end\n\n        local f = coroutine.wrap(nifty)\n        local x, y = f(1, 2)\n        local answer = f(3)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 571,
+    "result": {
+      "name": "setmetatable_should_not_mutate_persisted_types",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local string = string\n\n        setmetatable(string, {})\n    ",
+          "expect": []
+        }
+      ],
+      "skip": {
+        "newSolver": "Upstream returns before checking when !FFlag::DebugLuauForceOldSolver."
+      }
+    },
+    "audit": []
+  },
+  {
+    "line": 589,
+    "result": {
+      "name": "string_format_arg_types_inference",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!strict\n        function f(a, b, c)\n            return string.format(\"%f %d %s\", a, b, c)\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "f",
+              "equals": "(number, number, string) -> string"
+            }
+          ],
+          "ignoreMissingAnnotations": true
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 604,
+    "result": {
+      "name": "string_format_arg_count_mismatch",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!strict\n        string.format(\"%f %d %s\")\n        string.format(\"%s\", \"hi\", 42)\n        string.format(\"%s\", \"hi\", 42, ...)\n        string.format(\"%s\", \"hi\", ...)\n    ",
+          "expect": [
+            {
+              "errors": 3
+            },
+            {
+              "error": 0,
+              "line": 2
+            },
+            {
+              "error": 1,
+              "line": 3
+            },
+            {
+              "error": 2,
+              "line": 4
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 620,
+    "result": {
+      "name": "string_format_correctly_ordered_types",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!strict\n        string.format(\"%s\", 123)\n    ",
+          "expect": []
+        }
+      ],
+      "skip": {
+        "newSolver": "Upstream returns before checking when !FFlag::DebugLuauForceOldSolver (CLI-115690)."
+      }
+    },
+    "audit": []
+  },
+  {
+    "line": 638,
+    "result": {
+      "name": "string_format_tostring_specifier",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!strict\n        string.format(\"%* %* %* %*\", \"string\", 1, true, function() end)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 648,
+    "result": {
+      "name": "string_format_tostring_specifier_type_constraint",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local function f(x): string\n            local _ = string.format(\"%*\", x)\n            return x\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "f",
+              "equals": "(string) -> string"
+            }
+          ],
+          "ignoreMissingAnnotations": true
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 663,
+    "result": {
+      "name": "xpcall",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!strict\n        local a, b, c = xpcall(\n            function() return 5, true end,\n            function(e) return 0, false end\n        )\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "a",
+              "equals": "boolean"
+            },
+            {
+              "type": "b",
+              "equals": "number"
+            },
+            {
+              "type": "c",
+              "equals": "boolean"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 679,
+    "result": {
+      "name": "pcall_returns_at_least_two_value_but_function_returns_nothing",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local function f(): () end\n        local ok, res = pcall(f)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "ok",
+              "equals": "boolean"
+            },
+            {
+              "type": "res",
+              "equals": "unknown"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 695,
+    "result": {
+      "name": "trivial_select",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local a:number = select(1, 42)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 704,
+    "result": {
+      "name": "see_thru_select",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local a:number, b:boolean = select(2,\"hi\", 10, true)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 713,
+    "result": {
+      "name": "see_thru_select_count",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local a = select(\"#\",\"hi\", 10, true)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 723,
+    "result": {
+      "name": "select_with_decimal_argument_is_rounded_down",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local a: number, b: boolean = select(2.9, \"foo\", 1, true)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 733,
+    "result": {
+      "name": "bad_select_should_not_crash",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        do end\n        local _ = function(l0,...)\n        end\n        local _ = function()\n            _(_);\n            _ += select(_())\n        end\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "location": [
+                6,
+                17,
+                6,
+                23
+              ]
+            },
+            {
+              "error": 0,
+              "code": "CountMismatch"
+            },
+            {
+              "error": 0,
+              "fields": {
+                "expected": 1
+              }
+            },
+            {
+              "error": 0,
+              "fields": {
+                "actual": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 774,
+    "result": {
+      "name": "select_way_out_of_range",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        select(5432598430953240958)\n    ",
+          "expect": []
+        }
+      ],
+      "skip": {
+        "newSolver": "Upstream returns before checking when !FFlag::DebugLuauForceOldSolver (CLI-115720)."
+      }
+    },
+    "audit": []
+  },
+  {
+    "line": 789,
+    "result": {
+      "name": "select_slightly_out_of_range",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        select(3, \"a\", 1)\n    ",
+          "expect": []
+        }
+      ],
+      "skip": {
+        "newSolver": "Upstream returns before checking when !FFlag::DebugLuauForceOldSolver (CLI-115720)."
+      }
+    },
+    "audit": []
+  },
+  {
+    "line": 804,
+    "result": {
+      "name": "select_with_variadic_typepack_tail",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        local function f(...)\n            return ...\n        end\n\n        local foo, bar, baz, quux = select(1, f(\"foo\", true))\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "foo",
+              "equals": "any"
+            },
+            {
+              "type": "bar",
+              "equals": "any"
+            },
+            {
+              "type": "baz",
+              "equals": "any"
+            },
+            {
+              "type": "quux",
+              "equals": "any"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 823,
+    "result": {
+      "name": "select_with_variadic_typepack_tail_and_string_head",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        local function f(...)\n            return ...\n        end\n\n        local foo, bar, baz, quux = select(1, \"foo\", f(\"bar\", true))\n    ",
+          "expect": []
+        }
+      ],
+      "skip": {
+        "newSolver": "Upstream returns before checking when !FFlag::DebugLuauForceOldSolver (CLI-115720)."
+      }
+    },
+    "audit": []
+  },
+  {
+    "line": 846,
+    "result": {
+      "name": "string_format_as_method",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "local _ = ('%s'):format(5)",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "code": "TypeMismatch"
+            },
+            {
+              "diagnosticType": [
+                0,
+                "wantedType"
+              ],
+              "sameAs": {
+                "builtin": "string"
+              }
+            },
+            {
+              "diagnosticType": [
+                0,
+                "givenType"
+              ],
+              "sameAs": {
+                "builtin": "number"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 858,
+    "result": {
+      "name": "string_format_trivial_arity",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        string.format()\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "message": "Argument count mismatch. Function 'string.format' expects at least 1 argument, but none are specified"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 869,
+    "result": {
+      "name": "string_format_use_correct_argument",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        local _ = (\"%s\"):format(\"%d\", \"hello\")\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "message": "Argument count mismatch. Function expects 2 arguments, but 3 are specified"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 880,
+    "result": {
+      "name": "string_format_use_correct_argument2",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        local _ = (\"%s %d\").format(\"%d %s\", \"A type error\", 2)\n    ",
+          "expect": [
+            {
+              "errors": 2
+            },
+            {
+              "error": 0,
+              "message": "Expected this to be 'number', but got 'string'"
+            },
+            {
+              "error": 1,
+              "message": "Expected this to be 'string', but got 'number'"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 892,
+    "result": {
+      "name": "string_format_use_correct_argument3",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local s1 = string.format(\"%d\")\n        local s2 = string.format(\"%d\", 1)\n        local s3 = string.format(\"%d\", 1, 2)\n    ",
+          "expect": [
+            {
+              "errors": 2
+            },
+            {
+              "error": 0,
+              "message": "Argument count mismatch. Function expects 2 arguments, but only 1 is specified"
+            },
+            {
+              "error": 1,
+              "message": "Argument count mismatch. Function expects 2 arguments, but 3 are specified"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 906,
+    "result": {
+      "name": "debug_traceback_is_crazy",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        function f(co: thread)\n            -- debug.traceback takes thread?, message?, level? - yes, all optional!\n            debug.traceback()\n            debug.traceback(nil, 1)\n            debug.traceback(\"msg\")\n            debug.traceback(\"msg\", 1)\n            debug.traceback(co)\n            debug.traceback(co, \"msg\")\n            debug.traceback(co, \"msg\", 1)\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 924,
+    "result": {
+      "name": "debug_info_is_crazy",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        function f(co: thread, f: () -> ())\n            -- debug.info takes thread?, level, options or function, options\n            debug.info(1, \"n\")\n            debug.info(co, 1, \"n\")\n            debug.info(f, \"n\")\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 938,
+    "result": {
+      "name": "aliased_string_format",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local fmt = string.format\n        local s = fmt(\"%d\", \"oops\")\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "message": "Expected this to be 'number', but got 'string'"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 949,
+    "result": {
+      "name": "string_lib_self_noself",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!nonstrict\n        local a1 = string.byte(\"abcdef\", 2)\n        local a2 = string.find(\"abcdef\", \"def\")\n        local a3 = string.gmatch(\"ab ab\", \"%a+\")\n        local a4 = string.gsub(\"abab\", \"ab\", \"cd\")\n        local a5 = string.len(\"abc\")\n        local a6 = string.match(\"12 ab\", \"%d+ %a+\")\n        local a7 = string.rep(\"a\", 10)\n        local a8 = string.sub(\"abcd\", 1, 2)\n        local a9 = string.split(\"a,b,c\", \",\")\n        local a0 = string.packsize(\"ff\")\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 968,
+    "result": {
+      "name": "gmatch_definition",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local a, b, c = (\"hey\"):gmatch(\"(.)(.)(.)\")()\n\n        for c in (\"hey\"):gmatch(\"(.)\") do\n            print(c:upper())\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 981,
+    "result": {
+      "name": "select_on_variadic",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local function f(): (number, ...(boolean | number))\n            return 100, true, 1\n        end\n\n        local a, b, c = select(f())\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "a",
+              "equals": "any"
+            },
+            {
+              "type": "b",
+              "equals": "any"
+            },
+            {
+              "type": "c",
+              "equals": "any"
+            }
+          ],
+          "unparsed": {
+            "defect": 876
+          }
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 997,
+    "result": {
+      "name": "string_format_report_all_type_errors_at_correct_positions",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        (\"%s%d%s\"):format(1, \"hello\", true)\n        string.format(\"%s%d%s\", 1, \"hello\", true)\n    ",
+          "expect": [
+            {
+              "errors": 6
+            },
+            {
+              "error": 0,
+              "location": [
+                1,
+                26,
+                1,
+                27
+              ]
+            },
+            {
+              "error": 1,
+              "location": [
+                1,
+                29,
+                1,
+                36
+              ]
+            },
+            {
+              "error": 2,
+              "location": [
+                1,
+                38,
+                1,
+                42
+              ]
+            },
+            {
+              "error": 3,
+              "location": [
+                2,
+                32,
+                2,
+                33
+              ]
+            },
+            {
+              "error": 4,
+              "location": [
+                2,
+                35,
+                2,
+                42
+              ]
+            },
+            {
+              "error": 5,
+              "location": [
+                2,
+                44,
+                2,
+                48
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "structural TypeErrorData equality",
+        "expr": "CHECK_EQ(TypeErrorData(TypeMismatch{stringType, numberType}), result.errors[0].data)"
+      },
+      {
+        "what": "structural TypeErrorData equality",
+        "expr": "CHECK_EQ(TypeErrorData(TypeMismatch{numberType, stringType}), result.errors[1].data)"
+      },
+      {
+        "what": "structural TypeErrorData equality",
+        "expr": "CHECK_EQ(TypeErrorData(TypeMismatch{stringType, booleanType}), result.errors[2].data)"
+      },
+      {
+        "what": "structural TypeErrorData equality",
+        "expr": "CHECK_EQ(TypeErrorData(TypeMismatch{stringType, numberType}), result.errors[3].data)"
+      },
+      {
+        "what": "structural TypeErrorData equality",
+        "expr": "CHECK_EQ(TypeErrorData(TypeMismatch{numberType, stringType}), result.errors[4].data)"
+      },
+      {
+        "what": "structural TypeErrorData equality",
+        "expr": "CHECK_EQ(TypeErrorData(TypeMismatch{stringType, booleanType}), result.errors[5].data)"
+      }
+    ]
+  },
+  {
+    "line": 1029,
+    "result": {
+      "name": "tonumber_returns_optional_number_type",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!strict\n        local b: number = tonumber('asdf')\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "message": "Expected this to be 'number', but got 'number?'; \n`nil` is not a subtype of `number`"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1059,
+    "result": {
+      "name": "tonumber_returns_optional_number_type2",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!strict\n        local b: number = tonumber('asdf') or 1\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1069,
+    "result": {
+      "name": "dont_add_definitions_to_persistent_types",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local f = math.sin\n        local function g(x) return math.sin(x) end\n        f = g\n    ",
+          "expect": []
+        }
+      ],
+      "skip": {
+        "newSolver": "Upstream returns before checking when !FFlag::DebugLuauForceOldSolver."
+      }
+    },
+    "audit": []
+  },
+  {
+    "line": 1096,
+    "result": {
+      "name": "assert_removes_falsy_types",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local function f(x: (number | boolean)?)\n            return assert(x)\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "f",
+              "equals": "((boolean | number)?) -> number | true"
+            }
+          ],
+          "ignoreMissingAnnotations": true
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1114,
+    "result": {
+      "name": "assert_removes_falsy_types2",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local function f(x: (number | boolean)?): number | true\n            return assert(x)\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "f",
+              "equals": "((boolean | number)?) -> number | true"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1126,
+    "result": {
+      "name": "assert_removes_falsy_types3",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local function f(x: (number | boolean)?)\n            assert(x)\n            return x\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "f",
+              "equals": "((boolean | number)?) -> number | true"
+            }
+          ],
+          "ignoreMissingAnnotations": true
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1144,
+    "result": {
+      "name": "assert_removes_falsy_types_even_from_type_pack_tail_but_only_for_the_first_type",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local function f(...: number?)\n            return assert(...)\n        end\n    ",
+          "expect": []
+        }
+      ],
+      "skip": {
+        "newSolver": "Upstream returns before checking when !FFlag::DebugLuauForceOldSolver."
+      }
+    },
+    "audit": []
+  },
+  {
+    "line": 1159,
+    "result": {
+      "name": "assert_returns_false_and_string_iff_it_knows_the_first_argument_cannot_be_truthy",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local function f(x: nil)\n            return assert(x, \"hmm\")\n        end\n    ",
+          "expect": []
+        }
+      ],
+      "skip": {
+        "newSolver": "Upstream returns before checking when !FFlag::DebugLuauForceOldSolver (CLI-114134)."
+      }
+    },
+    "audit": []
+  },
+  {
+    "line": 1177,
+    "result": {
+      "name": "table_freeze_is_generic",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local t1: {a: number} = {a = 42}\n        local t2: {b: string} = {b = \"hello\"}\n        local t3: {boolean} = {false, true}\n\n        local tf1 = table.freeze(t1)\n        local tf2 = table.freeze(t2)\n        local tf3 = table.freeze(t3)\n\n        local a = tf1.a\n        local b = tf2.b\n        local c = tf3[2]\n\n        local d = tf1.b\n\n        local a2 = t1.a\n        local b2 = t2.b\n        local c2 = t3[2]\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "message": "Key 'b' not found in table '{ read a: number }'"
+            },
+            {
+              "error": 0,
+              "location": [
+                13,
+                18,
+                13,
+                23
+              ]
+            },
+            {
+              "typeAt": [
+                15,
+                19
+              ],
+              "equals": "{ read a: number }"
+            },
+            {
+              "typeAt": [
+                16,
+                19
+              ],
+              "equals": "{ read b: string }"
+            },
+            {
+              "typeAt": [
+                17,
+                19
+              ],
+              "equals": "{boolean}"
+            },
+            {
+              "type": "a",
+              "equals": "number"
+            },
+            {
+              "type": "b",
+              "equals": "string"
+            },
+            {
+              "type": "c",
+              "equals": "boolean"
+            },
+            {
+              "type": "d",
+              "equals": "any"
+            },
+            {
+              "type": "a2",
+              "equals": "number"
+            },
+            {
+              "type": "b2",
+              "equals": "string"
+            },
+            {
+              "type": "c2",
+              "equals": "boolean"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1227,
+    "result": {
+      "name": "table_freeze_does_not_retroactively_block_mutation",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local t1 = {a = 42}\n\n        t1.q = \":3\"\n\n        local tf1 = table.freeze(t1)\n\n        local a = tf1.a\n        local b = t1.a\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "t1",
+              "equals": "{ read a: number, read q: string }",
+              "options": {
+                "exhaustive": true
+              }
+            },
+            {
+              "typeAt": [
+                3,
+                8
+              ],
+              "equals": "{ a: number, q: string }",
+              "options": {
+                "exhaustive": true
+              }
+            },
+            {
+              "typeAt": [
+                8,
+                18
+              ],
+              "equals": "{ read a: number, read q: string }",
+              "options": {
+                "exhaustive": true
+              }
+            },
+            {
+              "type": "a",
+              "equals": "number"
+            },
+            {
+              "type": "b",
+              "equals": "number"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1255,
+    "result": {
+      "name": "table_freeze_no_generic_table",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!strict\n        type k = {\n            read k: string,\n        }\n\n        function _(): k\n            return table.freeze({\n                k = \"\",\n            })\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1275,
+    "result": {
+      "name": "table_freeze_on_metatable",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!strict\n        local meta = {\n            __index = function()\n                return \"foo\"\n            end\n        }\n\n        local myTable = setmetatable({}, meta)\n        table.freeze(myTable)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1292,
+    "result": {
+      "name": "table_freeze_errors_on_no_args",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!strict\n        table.freeze()\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "code": "CountMismatch"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1304,
+    "result": {
+      "name": "table_freeze_errors_on_non_tables",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!strict\n        table.freeze(42)\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "code": "TypeMismatch"
+            },
+            {
+              "diagnosticType": [
+                0,
+                "wantedType"
+              ],
+              "equals": "table"
+            },
+            {
+              "diagnosticType": [
+                0,
+                "givenType"
+              ],
+              "equals": "number"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1323,
+    "result": {
+      "name": "table_freeze_persistent_skip",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        table.freeze(table)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1332,
+    "result": {
+      "name": "table_clone_persistent_skip",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        table.clone(table)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1341,
+    "result": {
+      "name": "table_clone_should_support_variadic_any_in_old_solver",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local A = require(game.A)\n        local _ = table.clone(A())\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "module": "game/B",
+          "moduleSources": {
+            "game/A": "\n        --!nonstrict\n        return function()\n            return {}\n        end\n    ",
+            "game/B": "\n        local A = require(game.A)\n        local _ = table.clone(A())\n    "
+          },
+          "unparsed": {
+            "defect": 879
+          }
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1359,
+    "result": {
+      "name": "set_metatable_needs_arguments",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local a = {b=setmetatable}\n        a.b()\n        a:b()\n        a:b({})\n    ",
+          "expect": []
+        }
+      ],
+      "skip": {
+        "newSolver": "does not pass on Luau's new solver upstream"
+      }
+    },
+    "audit": []
+  },
+  {
+    "line": 1375,
+    "result": {
+      "name": "table_clone_intersection_of_tables",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        type FIRST = {\n            some: string,\n        }\n\n        type SECOND = FIRST & {\n            thing: string,\n        }\n\n        local b: SECOND\n        -- c's type used to be FIRST, but should be the full type of SECOND\n        local c = table.clone(b)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "c",
+              "equals": "{ some: string } & { thing: string }",
+              "options": {
+                "exhaustive": true
+              }
+            },
+            {
+              "type": "c",
+              "equals": "FIRST & { thing: string }"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1397,
+    "result": {
+      "name": "typeof_unresolved_function",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        local function f(a: typeof(f)) end\n        ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "message": "Unknown global 'f'; consider assigning to it first"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1406,
+    "result": {
+      "name": "no_persistent_typelevel_change",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "local a = math.frexp",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": [
+      {
+        "what": "comparison",
+        "expr": "CHECK(ftv->level.level == original.level)"
+      },
+      {
+        "what": "comparison",
+        "expr": "CHECK(ftv->level.subLevel == original.subLevel)"
+      },
+      {
+        "what": "pre-check global object capture",
+        "expr": "TypeId mathTy = requireType(getFrontend().globals.globalScope, \"math\");\n    REQUIRE(mathTy);\n    TableType* ttv = getMutable<TableType>(mathTy);\n    REQUIRE(ttv);\n\n    REQUIRE(ttv->props[\"frexp\"].readTy);\n    const FunctionType* ftv = get<FunctionType>(*ttv->props[\"frexp\"].readTy);\n\n    REQUIRE(ftv);\n    auto original = ftv->level;"
+      }
+    ]
+  },
+  {
+    "line": 1426,
+    "result": {
+      "name": "global_singleton_types_are_sealed",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\nlocal function f(x: string)\n    local p = x:split('a')\n    p = table.pack(table.unpack(p, 1, #p - 1))\n    return p\nend\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "ignoreMissingAnnotations": true
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1441,
+    "result": {
+      "name": "string_match",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        local s: string = \"hello\"\n        local p = s:match(\"foo\")\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "p",
+              "equals": "string?"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1452,
+    "result": {
+      "name": "gmatch_capture_types",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local a, b, c = string.gmatch(\"This is a string\", \"(.()(%a+))\")()\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "a",
+              "equals": "string?"
+            },
+            {
+              "type": "b",
+              "equals": "number?"
+            },
+            {
+              "type": "c",
+              "equals": "string?"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1465,
+    "result": {
+      "name": "gmatch_capture_types2",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        local a, b, c = (\"This is a string\"):gmatch(\"(.()(%a+))\")()\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "a",
+              "equals": "string?"
+            },
+            {
+              "type": "b",
+              "equals": "number?"
+            },
+            {
+              "type": "c",
+              "equals": "string?"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1478,
+    "result": {
+      "name": "gmatch_capture_types_default_capture",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local a, b, c, d = string.gmatch(\"T(his)() is a string\", \".\")()\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "code": "CountMismatch"
+            },
+            {
+              "error": 0,
+              "fields": {
+                "context": "FunctionResult"
+              }
+            },
+            {
+              "error": 0,
+              "fields": {
+                "expected": 1
+              }
+            },
+            {
+              "error": 0,
+              "fields": {
+                "actual": 4
+              }
+            },
+            {
+              "type": "a",
+              "equals": "string?"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1495,
+    "result": {
+      "name": "gmatch_capture_types_balanced_escaped_parens",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local a, b, c, d = string.gmatch(\"T(his) is a string\", \"((.)%b()())\")()\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "code": "CountMismatch"
+            },
+            {
+              "error": 0,
+              "fields": {
+                "context": "FunctionResult"
+              }
+            },
+            {
+              "error": 0,
+              "fields": {
+                "expected": 3
+              }
+            },
+            {
+              "error": 0,
+              "fields": {
+                "actual": 4
+              }
+            },
+            {
+              "type": "a",
+              "equals": "string?"
+            },
+            {
+              "type": "b",
+              "equals": "string?"
+            },
+            {
+              "type": "c",
+              "equals": "number?"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1514,
+    "result": {
+      "name": "gmatch_capture_types_parens_in_sets_are_ignored",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local a, b, c = string.gmatch(\"T(his)() is a string\", \"(T[()])()\")()\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "code": "CountMismatch"
+            },
+            {
+              "error": 0,
+              "fields": {
+                "context": "FunctionResult"
+              }
+            },
+            {
+              "error": 0,
+              "fields": {
+                "expected": 2
+              }
+            },
+            {
+              "error": 0,
+              "fields": {
+                "actual": 3
+              }
+            },
+            {
+              "type": "a",
+              "equals": "string?"
+            },
+            {
+              "type": "b",
+              "equals": "number?"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1532,
+    "result": {
+      "name": "gmatch_capture_types_set_containing_lbracket",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local a, b = string.gmatch(\"[[[\", \"()([[])\")()\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "a",
+              "equals": "number?"
+            },
+            {
+              "type": "b",
+              "equals": "string?"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1544,
+    "result": {
+      "name": "gmatch_capture_types_leading_end_bracket_is_part_of_set",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        -- An immediate right-bracket following a left-bracket is included within the set;\n        -- thus, '[]]'' is the set containing ']', and '[]' is an invalid set missing an enclosing\n        -- right-bracket. We detect an invalid set in this case and fall back to to default gmatch\n        -- typing.\n        local foo = string.gmatch(\"T[hi%]s]]]() is a string\", \"([]s)\")\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "foo",
+              "equals": "() -> (...string)"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1559,
+    "result": {
+      "name": "gmatch_capture_types_invalid_pattern_fallback_to_builtin",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local foo = string.gmatch(\"T(his)() is a string\", \")\")\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "foo",
+              "equals": "() -> (...string)"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1570,
+    "result": {
+      "name": "gmatch_capture_types_invalid_pattern_fallback_to_builtin2",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local foo = string.gmatch(\"T(his)() is a string\", \"[\")\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "foo",
+              "equals": "() -> (...string)"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1581,
+    "result": {
+      "name": "match_capture_types",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local a, b, c = string.match(\"This is a string\", \"(.()(%a+))\")\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "a",
+              "equals": "string?"
+            },
+            {
+              "type": "b",
+              "equals": "number?"
+            },
+            {
+              "type": "c",
+              "equals": "string?"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1594,
+    "result": {
+      "name": "match_capture_types2",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local a, b, c = string.match(\"This is a string\", \"(.()(%a+))\", \"this should be a number\")\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "code": "TypeMismatch"
+            },
+            {
+              "diagnosticType": [
+                0,
+                "wantedType"
+              ],
+              "equals": "number?"
+            },
+            {
+              "diagnosticType": [
+                0,
+                "givenType"
+              ],
+              "equals": "string"
+            },
+            {
+              "type": "a",
+              "equals": "string?"
+            },
+            {
+              "type": "b",
+              "equals": "number?"
+            },
+            {
+              "type": "c",
+              "equals": "string?"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1612,
+    "result": {
+      "name": "find_capture_types",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local d, e, a, b, c = string.find(\"This is a string\", \"(.()(%a+))\")\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "a",
+              "equals": "string?"
+            },
+            {
+              "type": "b",
+              "equals": "number?"
+            },
+            {
+              "type": "c",
+              "equals": "string?"
+            },
+            {
+              "type": "d",
+              "equals": "number?"
+            },
+            {
+              "type": "e",
+              "equals": "number?"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1627,
+    "result": {
+      "name": "find_capture_types2",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local d, e, a, b, c = string.find(\"This is a string\", \"(.()(%a+))\", \"this should be a number\")\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "code": "TypeMismatch"
+            },
+            {
+              "diagnosticType": [
+                0,
+                "wantedType"
+              ],
+              "equals": "number?"
+            },
+            {
+              "diagnosticType": [
+                0,
+                "givenType"
+              ],
+              "equals": "string"
+            },
+            {
+              "type": "a",
+              "equals": "string?"
+            },
+            {
+              "type": "b",
+              "equals": "number?"
+            },
+            {
+              "type": "c",
+              "equals": "string?"
+            },
+            {
+              "type": "d",
+              "equals": "number?"
+            },
+            {
+              "type": "e",
+              "equals": "number?"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1647,
+    "result": {
+      "name": "find_capture_types3",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local d, e, a, b, c = string.find(\"This is a string\", \"(.()(%a+))\", 1, \"this should be a bool\")\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "code": "TypeMismatch"
+            },
+            {
+              "diagnosticType": [
+                0,
+                "wantedType"
+              ],
+              "equals": "boolean?"
+            },
+            {
+              "diagnosticType": [
+                0,
+                "givenType"
+              ],
+              "equals": "string"
+            },
+            {
+              "type": "a",
+              "equals": "string?"
+            },
+            {
+              "type": "b",
+              "equals": "number?"
+            },
+            {
+              "type": "c",
+              "equals": "string?"
+            },
+            {
+              "type": "d",
+              "equals": "number?"
+            },
+            {
+              "type": "e",
+              "equals": "number?"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1667,
+    "result": {
+      "name": "find_capture_types3",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local d, e, a, b = string.find(\"This is a string\", \"(.()(%a+))\", 1, true)\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "code": "CountMismatch"
+            },
+            {
+              "error": 0,
+              "fields": {
+                "context": "FunctionResult"
+              }
+            },
+            {
+              "error": 0,
+              "fields": {
+                "expected": 2
+              }
+            },
+            {
+              "error": 0,
+              "fields": {
+                "actual": 4
+              }
+            },
+            {
+              "type": "d",
+              "equals": "number?"
+            },
+            {
+              "type": "e",
+              "equals": "number?"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1685,
+    "result": {
+      "name": "string_find_should_not_crash",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local function StringSplit(input, separator)\n            string.find(input, separator)\n            if not separator then\n                separator = \"%s+\"\n            end\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "ignoreMissingAnnotations": true
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1701,
+    "result": {
+      "name": "table_dot_clone_type_states",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local t1 = {}\n        t1.x = 5\n        local t2 = table.clone(t1)\n        t2.y = 6\n        t1.z = 3\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "type": "t1",
+              "equals": "{ x: number, z: number }",
+              "options": {
+                "exhaustive": true
+              }
+            },
+            {
+              "type": "t2",
+              "equals": "{ x: number, y: number }",
+              "options": {
+                "exhaustive": true
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1725,
+    "result": {
+      "name": "table_clone_should_not_break",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local Immutable = {}\n\n        function Immutable.Set(dictionary, key, value)\n            local new = table.clone(dictionary)\n\n            new[key] = value\n\n            return new\n        end\n\n        return Immutable\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "ignoreMissingAnnotations": true
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1746,
+    "result": {
+      "name": "table_clone_should_not_break_2",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        function set(dictionary, key, value)\n            local new = table.clone(dictionary)\n\n            new[key] = value\n\n            return new\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "ignoreMissingAnnotations": true
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1763,
+    "result": {
+      "name": "string_format_should_support_any",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local x: any = \"world\"\n        print(string.format(\"Hello, %s!\", x))\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1775,
+    "result": {
+      "name": "string_format_should_support_any_2",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local fmt = \"Hello, %s!\" :: any\n        local x = \"world\" :: any\n        print(string.format(fmt, x))\n        print(string.format(fmt, \"hello\"))\n        print(string.format(fmt, 5)) -- unchecked because the format string is `any`!\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1790,
+    "result": {
+      "name": "string_format_should_support_singleton_types",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local fmt: \"Hello, %s!\" = \"Hello, %s!\"\n        print(string.format(fmt, \"hello\"))\n        print(string.format(fmt, 5)) -- should still produce an error since the expected type is `string`!\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "code": "TypeMismatch"
+            },
+            {
+              "diagnosticType": [
+                0,
+                "wantedType"
+              ],
+              "sameAs": {
+                "builtin": "string"
+              }
+            },
+            {
+              "diagnosticType": [
+                0,
+                "givenType"
+              ],
+              "sameAs": {
+                "builtin": "number"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1807,
+    "result": {
+      "name": "write_only_table_assertion",
+      "fixture": "Fixture",
+      "checks": [
+        {
+          "source": "\n        local function accept(t: { write foo: number })\n        end\n\n        accept({ foo = \"lol\", foo = true })\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1819,
+    "result": {
+      "name": "table_insert_into_any",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\ntable.insert(1::any, 2::any)\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1826,
+    "result": {
+      "name": "table_insert_requires_all_fields",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local function huh(): { { x: number, y: string } }\n            local ret = {}\n            while true do\n                table.insert(ret, { x = 42 })\n            end\n            return ret\n        end\n    ",
+          "expect": [
+            {
+              "errors": "some"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1841,
+    "result": {
+      "name": "read_refinements_on_persistent_tables_known_property_identity",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        if bit32.bnot then\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1850,
+    "result": {
+      "name": "read_refinements_on_persistent_tables_unknown_property",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        if bit32.scrambleEggs then\n        end\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "fields": {
+                "key": "scrambleEggs"
+              }
+            },
+            {
+              "diagnosticType": [
+                0,
+                "table"
+              ],
+              "equals": "typeof(bit32)"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1863,
+    "result": {
+      "name": "read_refinements_on_persistent_tables_known_property_narrow",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local myutf8 = utf8\n        if myutf8.charpattern == \"lol\" then\n            local foobar = myutf8.charpattern\n            local _ = foobar\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "typeAt": [
+                4,
+                23
+              ],
+              "equals": "\"lol\""
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1877,
+    "result": {
+      "name": "next_with_refined_any",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!strict\n        local t: any = {\"hello\", \"world\"}\n        if type(t) == \"table\" and next(t) then\n            local foo, bar = next(t)\n            local _ = foo\n            local _ = bar\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "typeAt": [
+                5,
+                23
+              ],
+              "equals": "unknown?"
+            },
+            {
+              "typeAt": [
+                6,
+                23
+              ],
+              "equals": "unknown"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1897,
+    "result": {
+      "name": "pairs_with_refined_any",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        --!strict\n        local t: any = {\"hello\", \"world\"}\n        if type(t) == \"table\" and pairs(t) then\n\t        local foo, bar, lorem = pairs(t)\n            local _ = foo\n            local _ = bar\n            local _ = lorem\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            },
+            {
+              "typeAt": [
+                5,
+                23
+              ],
+              "equals": "({+ [unknown]: unknown +}, unknown?) -> (unknown?, unknown)"
+            },
+            {
+              "typeAt": [
+                6,
+                23
+              ],
+              "equals": "{+ [unknown]: unknown +}"
+            },
+            {
+              "typeAt": [
+                7,
+                23
+              ],
+              "equals": "nil"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1919,
+    "result": {
+      "name": "vector_lerp_should_not_crash",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local function half(x: number, y: number, z: number): vector\n            return vector.lerp(vector.zero, vector.create(x, y, z), 0.5)\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1928,
+    "result": {
+      "name": "instantiation_works_on_builtins",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local foo = table.create<<string>>(4)\n        local bar = table.unpack<<string>>({})\n        local baz = table.find<<string>>({}, 1) -- should error\n        assert<<string>>(\"asd\", \"lol\")\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "message": "Expected this to be 'string', but got 'number'"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1941,
+    "result": {
+      "name": "table_freeze_on_any_should_not_error",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local function foo(): any\n            return true\n        end\n\n        table.freeze(foo())\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1956,
+    "result": {
+      "name": "table_freeze_with_type_check_should_not_error",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local function maybeFreeze(t: any)\n            if type(t) == \"table\" then\n                table.freeze(t)\n            end\n        end\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1971,
+    "result": {
+      "name": "table_freeze_no_args",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        table.freeze()\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "message": "Argument count mismatch. Function 'table.freeze' expects 1 argument, but none are specified"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1983,
+    "result": {
+      "name": "table_freeze_with_type_pack_should_error",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        table.freeze({x = 5}, {y = \"hello\"})\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "message": "Argument count mismatch. Function 'table.freeze' expects 1 argument, but 2 are specified"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 1995,
+    "result": {
+      "name": "table_freeze_with_variadic_any_should_not_error",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local function bar(): ...any\n            return true\n        end\n\n        table.freeze(bar())\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "unparsed": {
+            "defect": 876
+          }
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 2010,
+    "result": {
+      "name": "table_freeze_with_variadic_non_error_suppressing_should_error",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local function bar(): ...string\n            return\n        end\n\n        table.freeze(bar())\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "message": "Expected this to be 'table', but got 'string'"
+            }
+          ],
+          "unparsed": {
+            "defect": 876
+          }
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 2027,
+    "result": {
+      "name": "variadic_return_to_single_parameter_function",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local function bar(): ...string\n            return\n        end\n\n        local function foo(x: string)\n            print(x) -- nil\n        end\n\n        foo(bar())\n    ",
+          "expect": [
+            {
+              "errors": 0
+            }
+          ],
+          "unparsed": {
+            "defect": 876
+          }
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 2045,
+    "result": {
+      "name": "table_freeze_generic_pack",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local function foo<T...>(...: T...)\n            table.freeze(...)\n        end\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "code": "TypePackMismatch"
+            },
+            {
+              "diagnosticType": [
+                0,
+                "wantedTp"
+              ],
+              "equals": "table"
+            },
+            {
+              "diagnosticType": [
+                0,
+                "givenTp"
+              ],
+              "equals": "T..."
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  },
+  {
+    "line": 2063,
+    "result": {
+      "name": "table_freeze_function",
+      "fixture": "BuiltinsFixture",
+      "checks": [
+        {
+          "source": "\n        local function foo(f: () -> ())\n            table.freeze(f())\n        end\n    ",
+          "expect": [
+            {
+              "errors": 1
+            },
+            {
+              "error": 0,
+              "message": "Argument count mismatch. Function 'table.freeze' expects 1 argument, but none are specified"
+            }
+          ]
+        }
+      ]
+    },
+    "audit": []
+  }
+]
