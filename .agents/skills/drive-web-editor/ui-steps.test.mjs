@@ -8,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { focusProjectName, openDrawerOrRail, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { focusProjectName, focusScriptName, openDrawerOrRail, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 
 let failures = 0;
@@ -906,6 +906,16 @@ await asyncCheck("--step focus-project-name clicks the name field and reports it
   assert.match((await focusProjectName(page({ focused: false, selected: false, value: "x" }))).reason, /did not take focus/);
   const missing = { locator: () => ({ first: () => ({ waitFor: async () => { throw new Error("timeout"); } }) }) };
   assert.match((await focusProjectName(missing, { timeout: 2000 })).reason, /no project name field on the page within 2 s/);
+});
+
+await asyncCheck("--step focus-script-name clicks the open script's name field, or says Main's name is fixed", async () => {
+  const selectors = [];
+  const field = (state) => ({ waitFor: async () => {}, click: async () => {}, evaluate: async () => state });
+  const page = (state) => ({ locator: (selector) => (selectors.push(selector), { first: () => field(state) }) });
+  assert.deepEqual(await focusScriptName(page({ focused: true, selected: true, value: "intro" })), { step: "focus-script-name", ran: true, value: "intro", selected: true });
+  assert.deepEqual(selectors, ["input[data-script-name]"]);
+  const missing = { locator: () => ({ first: () => ({ waitFor: async () => { throw new Error("timeout"); } }) }) };
+  assert.match((await focusScriptName(missing, { timeout: 2000 })).reason, /no script name .*Main's name is fixed.* within 2 s/);
 });
 
 if (failures > 0) {
