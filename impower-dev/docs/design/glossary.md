@@ -52,6 +52,7 @@ The save caption sits under the project name at every width. The sidebar footer 
 | String | Role | Source | Note |
 | --- | --- | --- | --- |
 | `Folio · Spark Engine` | document title (the browser tab) | folio.html:2 |  |
+| `Spark Engine home` | aria-label of the logo link | app.js:180 |  |
 | `Project name` | aria-label (project name field; its tooltip is the name itself) | app.js:866 |  |
 | `Untitled story` | default project name, shown when the story has no title | app.js:350 | also used by folio-project.js |
 | `Draft saved` | caption under the project name (save status) | app.js:614, app.js:866 |  |
@@ -244,6 +245,7 @@ The menu opens in place of the keyboard on phones and above the bar on desktop. 
 | `No matching text in any script. Try another word.` | status | folio-tools.js:128 |  |
 | `Enter words to find.` | status | folio-tools.js:128 |  |
 | `Enter words to find first.` | status | folio-tools.js:151, folio-tools.js:160 |  |
+| `Defined here` | tag on the declaring line in a list of uses (references) | folio-tools.js:37 |  |
 
 ### Rename view
 
@@ -280,6 +282,8 @@ The menu opens in place of the keyboard on phones and above the bar on desktop. 
 | `Shows the option only the first time you encounter this choice.` | description | folio-tools.js:355 |  |
 | `Brings the paths back together.` | description | folio-tools.js:355 |  |
 
+The guide's code examples, each shown above its description: `scene the_rumour`, `IMANI:`, `[[imani:happy]]`, `[[show backdrop sky_night]]`, `choose`, `+ [Your option]`, `* [Your option]`, `then … end` (folio-tools.js:355).
+
 ## Suggestions and hover cards
 
 The suggestion list opens as you type: a panel with a preview side on desktop, a row of chips in the writer's bar's place on compact widths. Hover cards open over a picture, a color value or a script path.
@@ -304,6 +308,10 @@ Each suggestion's detail line:
 | `Included` | detail of a script the story already includes | folio-language.js:527 |  |
 | `Script` | detail of any other script | folio-language.js:527 |  |
 | `Branch in this scene` | detail of a branch | folio-language.js:539 |  |
+| `Scene in ` | detail of a scene: this text + `Main` for main.sd, otherwise the script's name | folio-language.js:542 |  |
+| `Main` | the main script's name in that detail | folio-language.js:542 |  |
+| `image` | detail of a picture | folio-language.js:589 |  |
+| `audio` | detail of a sound | folio-language.js:603 |  |
 | `Turns it on` | detail of a switch attribute's on value | folio-language.js:561 |  |
 | `Turns it off` | detail of a switch attribute's off value | folio-language.js:561 |  |
 | ` · default` | appended to an attribute group's name for its default option | folio-language.js:561 |  |
@@ -314,6 +322,23 @@ Each suggestion's detail line:
 | `Background sound, loops` | detail of `play ambient` | folio-language.js:608 |  |
 | `Plays once` | detail of any other sound command | folio-language.js:608 |  |
 | `Character` | detail of a character name | folio-language.js:620 |  |
+
+### Expression suggestions
+
+A panel above the writer's bar that auditions a portrait's expressions before adding one. It renders on the route `folio.html#suggestions`, which no control links to.
+
+| String | Role | Source | Note |
+| --- | --- | --- | --- |
+| `Expression suggestions` | aria-label of the panel | app.js:2169 |  |
+| `Imani · choose an expression` | heading | app.js:2169 | the demo character's name is part of the literal |
+| `Cancel expression suggestion` | aria-label of the close button | app.js:2169 |  |
+| `happy` | expression button label, shown with its first letter capitalised (`Happy`) | app.js:2169 | also `sad`, `angry` |
+| `sad` | expression button label, shown as `Sad` | app.js:2169 |  |
+| `angry` | expression button label, shown as `Angry` | app.js:2169 |  |
+| `Imani, ` | alt text of an expression's picture: this text + the expression | app.js:2169 |  |
+| ` ✓` | mark after the auditioned expression's label | app.js:2169 |  |
+| `See it first. Add it when it feels right.` | footer caption | app.js:2169 |  |
+| `Use ` | primary button: this text + the auditioned expression | app.js:2169 |  |
 
 Rename errors raised while renaming a name in the script:
 
@@ -1127,6 +1152,24 @@ The Settings page has two halves, Editor preferences and Project preferences, an
 | `Choices & branches` | sample option | folio-themes.js:175 |  |
 | `Syntax showcase` | sample option | folio-themes.js:175 |  |
 | `Read-only syntax sample` | aria-label of the sample | folio-themes.js:175 |  |
+| `Syntax color key` | disclosure summary under the sample, and the key's aria-label | folio-themes.js:175 |  |
+| `Action` | key entry | folio-themes.js:175 |  |
+| `Dialogue / strings` | key entry | folio-themes.js:175 |  |
+| `Control words` | key entry | folio-themes.js:175 |  |
+| `Scene / branch targets` | key entry | folio-themes.js:175 |  |
+| `Syntax / declarations` | key entry | folio-themes.js:175 |  |
+| `Speakers / types` | key entry | folio-themes.js:175 |  |
+| `Assets / attributes` | key entry | folio-themes.js:175 |  |
+| `Variables / properties` | key entry | folio-themes.js:175 |  |
+| `Numbers / units` | key entry | folio-themes.js:175 |  |
+| `Functions / events` | key entry | folio-themes.js:175 |  |
+| `Comments` | key entry | folio-themes.js:175 |  |
+| `Operators / punctuation` | key entry | folio-themes.js:175 |  |
+| `Regex / scene headings` | key entry | folio-themes.js:175 |  |
+| `Escapes / directions` | key entry | folio-themes.js:175 |  |
+| `Transitions` | key entry | folio-themes.js:175 |  |
+| `UI elements / type keyword` | key entry | folio-themes.js:175 |  |
+| `UI containers` | key entry | folio-themes.js:175 |  |
 | `A caret sits on a name, so the indentation guides and Highlight matching names show. Point at a portrait for a hover preview.` | caption | folio-themes.js:175 |  |
 | `Editing assistance` | group legend | folio-themes.js:195 |  |
 | `Suggest autocompletions` | row name | folio-themes.js:67 |  |
@@ -1274,6 +1317,9 @@ Each row shows its keys as a chip. Pressing the chip records the next keys.
 | `Portrait thumbnails` | group legend | app.js:2284 |  |
 | `Choose how much of each portrait to show for portrait thumbnails in the Add menu.` | group note | app.js:2284 |  |
 | `Visible area` | row name | app.js:2285 |  |
+| `Original` | caption of the uncropped example | app.js:2285 |  |
+| `Imani's complete portrait` | alt text of the uncropped example | app.js:2285 |  |
+| `Thumbnail` | caption of the cropped example | app.js:2285 |  |
 | `Top 25%` | scale label at the left of the slider | app.js:2285 |  |
 | `Whole image` | scale label at the right of the slider | app.js:2285, folio-insert.js:139 |  |
 | `Used for thumbnails only. Does not affect the size of the portrait in your game.` | hint | app.js:2285 |  |
@@ -1329,6 +1375,8 @@ These controls and notes belong to the design study, not to the product.
 | `settings.json written on export` | disclosure summary | app.js:2336 |  |
 | `What Export would write for VS Code from this project’s settings: only the values that differ from the usual ones. Branch names and Add menu folders have no VS Code setting yet, so they are left out.` | disclosure text | app.js:2336 |  |
 | `What this prototype saves and simulates` | disclosure summary | app.js:2337 |  |
+| `Project settings (Add menu folders and Screenplay) are saved with this draft, so the empty project starts with the usual ones. Themes, syntax highlighting, writing and thumbnail preferences, the preview’s screenplay page, pane sizes and the preview aspect ratio are saved in this browser. Original uses the 17 colors measured in the live engine sample; Softened reduces their intensity without merging distinctions. Midnight and Dusk both use Original, with Dusk slightly reducing the navy backgrounds’ saturation. Recognition uses a prototype highlighter, not the engine grammar; the full syntax showcase is read-only. The Screenplay preview shows the title page, bold headings, scene numbers and printed names; paper size, page breaks and bookmarks apply only to a PDF, which this prototype does not make. Full-project import, backup and sync are not active in this prototype, nor are Close angle brackets, Convert Ink syntax when formatting, the two follow-the-cursor switches and File types, which are saved here; File types are written on export. The phone keyboard is a layout simulation. All pages and assets remain on this machine.` | disclosure body | app.js:2337 | design-study note, not product copy |
+| `This empty-project study has its own saved draft. Your demo project is kept separately.` | caption, empty project only | app.js:2334 | design-study note |
 
 ## Toasts
 
@@ -1596,13 +1644,14 @@ The body is a context line, the name of the scope, a ` · ` and the counts, then
 | `This folder no longer exists.` | error message | folio-library.js:1161, folio-files.js:39 |  |
 | `A folder cannot be moved inside itself.` | error message | folio-library.js:1164, folio-library.js:1185, folio-files.js:43 |  |
 
-## Absent from the prototype
+## Absent from the prototype, or left out
 
 The ticket names strings that the prototype at c2fe740 does not contain. Searched: folio.html, app.js and every folio-*.js file.
 
 - Saved to Google Drive: no such string, and no string for any Drive sync state (syncing, last synced, offline). The nearest strings are `Sync now` (app.js:872, a hidden button), `Sync with Google Drive` (app.js:3577), `Backup & sync online` (app.js:2325) and `Connect Google Drive` (app.js:2325). Taken: "Saved to Google Drive", the wording Feature #977 and #979 give, as the Drive counterpart of `Saved to this device`; it is the one caption here not quoted from the prototype.
 - Go to line: no such string; Go to line is one of the homes Feature #977 adds for a function the prototype omits. The nearest are the caret readout `Line `, `, Col ` (see Script header and writer's bar) and `Go to definition` (app.js:1684). Taken: "Go to line", the Feature's name.
 - Logic, URL, cache, Untitled Game and the theme name Paper: absent as interface copy (see Old word → new word).
+- Left out on purpose: the welcome page (`folio.html#welcome`, app.js:837-838), which Feature #977 puts out of scope, and the stand-in phone keyboard (app.js:833), which only simulates the device's keyboard.
 - Two dialogs exist in app.js that no control opens: `Find in this script` (app.js:3423, button `Find line`) and `It reads like a story` (app.js:3450). They are left out of Dialogs.
 
 ## Inconsistencies

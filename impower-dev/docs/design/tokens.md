@@ -226,10 +226,10 @@ has no margin left.
 
 #### Midnight (today's impower.dev navy)
 
-| Variable | Role | Value | Computed | Declared at |
-|---|---|---|---|---|
 Midnight always renders with `data-surfaces="layered"` (`folio-themes.js:90-93`), so its writing pane takes `--workspace-deep`.
 
+| Variable | Role | Value | Computed | Declared at |
+|---|---|---|---|---|
 | `--bg` | Surface: the page, the Scripts page, the bottom navigation | `hsl(210.7 89.1% 18%)` | `rgb(5, 45, 87)` | `folio-themes.css:82` `body[data-theme="midnight"]` |
 | `--panel` | Surface: panels, menus, popovers, the inspector, buttons | `hsl(210.6 100% 10%)` | `rgb(0, 25, 51)` | `folio-themes.css:83` `body[data-theme="midnight"]` |
 | `--paper` | Surface: inset wells (thumbnails, chips, fields) | `hsl(210.6 100% 7%)` | `rgb(0, 17, 36)` | `folio-themes.css:84` `body[data-theme="midnight"]` |
@@ -255,10 +255,10 @@ Midnight always renders with `data-surfaces="layered"` (`folio-themes.js:90-93`)
 
 #### Dusk
 
-| Variable | Role | Value | Computed | Declared at |
-|---|---|---|---|---|
 Dusk always renders with `data-surfaces="layered"` (`folio-themes.js:90-93`), so its writing pane takes `--workspace-deep`.
 
+| Variable | Role | Value | Computed | Declared at |
+|---|---|---|---|---|
 | `--bg` | Surface: the page, the Scripts page, the bottom navigation | `hsl(210.7 70% 18%)` | `rgb(14, 45, 78)` | `folio-themes.css:106` `body[data-theme="dusk"]` |
 | `--panel` | Surface: panels, menus, popovers, the inspector, buttons | `hsl(210.6 80% 10%)` | `rgb(5, 25, 46)` | `folio-themes.css:107` `body[data-theme="dusk"]` |
 | `--paper` | Surface: inset wells (thumbnails, chips, fields) | `hsl(210.6 80% 7%)` | `rgb(4, 18, 32)` | `folio-themes.css:108` `body[data-theme="dusk"]` |
@@ -385,7 +385,7 @@ listed (see inconsistencies).
 | Project name | `.project-name` | 600 14px / 1.3 | 600 12px / 1.3 | `app.css:396-404`, `folio-type.css:312-315`; measured |
 | Save caption | `.saved`, `.project-title small` | 400 12px / 1.5 | 400 11px / 1.4 | `folio-type.css:68-73`, `:316-320`; measured |
 | Button | `.btn` | 600 14px / 1.4 | | `folio-type.css:52-56` |
-| Writer's bar button | `.writer-tools .btn` | 600 13px / 1.4 | 12px / 1.4 | `folio-type.css:137-140`, `:329-334`; measured on desktop |
+| Writer's bar text button (Add) | `.writer-tools .insert-trigger` | 600 13px / 1.4 | same | `folio-insert.css:55`, overriding `folio-type.css:137-140` and `:329-334`; measured |
 | Navigation link | `.nav-link` | 600 14px / 1.4 | 600 11px / 1.35 on the icon rail | `folio-type.css:117-120`, `folio-hierarchy.css:788-789`; measured |
 | Outline heading | `.rail-heading h2` | 600 14px / 1.4 | | `folio-hierarchy.css:92-94` |
 | Outline row | `.outline-jump` | 400 12px / 1.6 | 11px on the 190px rail | `folio-hierarchy.css:225`, `:754-755`; measured on desktop |
@@ -436,13 +436,13 @@ nearest step. Named spacing variables:
 
 | Variable | Desktop | ≤1100px | Declared at |
 |---|---|---|---|
-| `--folio-header-inset` | 22px | 16px | `folio-hierarchy.css:4`, `:741` |
-| `--folio-context-gap` | 12px | 9px | `folio-hierarchy.css:5`, `:742` |
-| `--folio-rail-gutter` | 14px | 10px; 5px on the icon rail | `folio-hierarchy.css:15`, `:745`, `:772` |
-| `--folio-gutter` (script's left gutter) | 56px | 36px | `folio-editor.css:6`, `:29` |
-| `--folio-margin-right` (problem marks) | 30px | 30px | `folio-editor.css:54` |
+| `--folio-header-inset` | 22px | 16px from 701px to 1100px; 22px on phones | `folio-hierarchy.css:4`, `:741` (inside `701px–1100px`); measured |
+| `--folio-context-gap` | 12px | 9px from 701px to 1100px; 12px on phones | `folio-hierarchy.css:5`, `:742` (inside `701px–1100px`); measured |
+| `--folio-rail-gutter` | 14px | 10px on the 190px rail; 5px on the icon rail; phones have no rail | `folio-hierarchy.css:15`, `:745`, `:772`; measured |
+| `--folio-gutter` (script's left gutter) | 56px | 36px | `folio-editor.css:6`, `:29`; measured |
+| `--folio-margin-right` (script's right padding, where problem marks sit) | 30px | 20px | `folio-editor.css:54`, `:65`; measured |
 | `--preview-inline-padding` | 10px | 10px; 16px in the fullscreen player | `folio-playback.css:3`, `:1045`, `:1191` |
-| `--scripts-gutter` | 30px; 18px beside the preview | 16px | `folio-scripts.css:2`, `:129`, `:149` |
+| `--scripts-gutter` | 18px (the page always sits beside the preview) | 16px | `folio-scripts.css:129`, `:149`; the 30px base at `folio-scripts.css:2` applies at no width; measured |
 
 ## Shape
 
@@ -571,3 +571,6 @@ takes, and why in one line.
 | Wide desktop | `app.css:1145-1160` sets the script to 52% and the preview to 48% with 30px × 50px padding at 1600px and wider; Folio's resizable panes override it at every desktop width (`folio-split.js:7-15` sets the script to 53% of the area after the 8px divider, `folio-playback.css:1103-1117` lets the preview fill the rest, and `folio-playback.css:2-5` pads it 12px top and 10px at the sides) | No separate wide layout; the desktop split holds above 1100px |
 | Script name size | `folio-hierarchy.css:760-763` sets 16px from 701px to 1100px; `folio-hierarchy.css:838-841` sets 14px / 1.35 at 1100px and below and comes later, so it wins (measured 14px at 768 and 360) | 17px / 1.3 above 1100px, 14px / 1.35 at 1100px and below |
 | Unrendered styles | `folio-type.css` styles `.writer-header h1`, `.section-heading`, `.asset-row`, `.scene-card`, `.scene-link`, `.preview-heading`, `.preview-caption`, `.rail-label` and `.tiny-link`, none of which any Folio route renders (none found on any route at 1440, 768 or 360 wide) | Omitted from the type table |
+| Compact right margin | `folio-editor.css:64` sets `--folio-margin-right` to 23px at 1100px and below; `folio-editor.css:65` sets 20px under the same query and wins (computed 20px) | 20px |
+| Compact script bottom padding | `folio-editor.css:29` pads the script 45px at the bottom at 1100px and below; `folio-tools.css:134-136` lowers it to 32px while reading (computed 32px reading, 45px editing) | 32px reading, 45px editing |
+| Add button size | `folio-type.css:329-334` sets `.writer-tools .btn` to 12px at 1100px and below; `folio-insert.css:55` sets the Add button (`.writer-tools .insert-trigger`) to 13px and loads later (computed 600 13px at 1100, 768 and 360) | 13px at every width |

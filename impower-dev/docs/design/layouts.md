@@ -106,7 +106,7 @@ tools at the left and Add (74 × 44) at the right, and puts Undo, Redo and Done 
 | Rail | 190px; gutter 10px; top padding 16px | `folio-hierarchy.css:739-748` |
 | Preview strip | 104px tall across the script column; the game thumbnail 98 × 83 | `app.css:1467-1472` |
 | Script header | 56px tall; name block 48px | `folio-tools.css:95-98` |
-| Script | 16px type; padding 12px top, 30px right, 45px bottom, 36px gutter | `folio-editor.css:29` |
+| Script | 16px type; padding 12px top, 20px right, 36px gutter; 32px bottom while reading, 45px while editing | `folio-editor.css:29`, `:65`, `folio-tools.css:134-136`; measured at 1100, 768 and 360 |
 | Writer's bar | 52px tall; 44px buttons | `folio-hierarchy.css:807-809` |
 
 At 768 × 1024 the rail is the 76px icon rail (the default at 1000px and below) and the
