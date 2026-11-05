@@ -41,7 +41,7 @@ export const PREFERENCES_SCHEMA = {
   emphasizeMarkup: setting(true),
   highlightMatchingSymbols: setting(true),
   hoverPreviews: setting(true),
-  lineNumbers: setting(true),
+  lineNumbers: setting(false),
   indentGuides: choice("block", INDENT_GUIDES),
   autoCloseBrackets: setting(true),
   autoRenameFiles: setting(true),
