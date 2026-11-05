@@ -17,6 +17,8 @@ import {
 
 const MARKER_THICKNESS = "1px";
 
+const BLOCK_CLOSER = "end";
+
 const indentationGuideTheme = EditorView.baseTheme({
   "&.cm-editor": {
     "--indent-marker-bg-color": "var(--editor-indent-guide)",
@@ -56,6 +58,7 @@ function makeBackgroundCSS(
   indentWidth: number,
   visualLength: number,
   hideFirstIndent: boolean,
+  mode: IndentationGuideMode,
 ) {
   let { level, active, skipCapping } = entry;
 
@@ -69,7 +72,22 @@ function makeBackgroundCSS(
   const startAt = hideFirstIndent ? 1 : 0;
   const backgrounds = [];
 
-  if (active !== undefined && active <= maxLevel && active >= startAt + 1) {
+  if (mode === "block") {
+    if (active !== undefined && active <= maxLevel && active >= startAt + 1) {
+      backgrounds.push(
+        createGradient(
+          "--indent-marker-active-bg-color",
+          indentWidth,
+          active - 1,
+          1,
+        ),
+      );
+    }
+  } else if (
+    active !== undefined &&
+    active <= maxLevel &&
+    active >= startAt + 1
+  ) {
     const guidesBeforeActive = active - startAt - 1;
 
     if (guidesBeforeActive > 0) {
@@ -251,15 +269,20 @@ export class IndentationMap {
   private findAndSetActiveLines(minLine: number, maxLine: number) {
     const currentLine = getCurrentLine(this.state);
     let current = this.getIEntry(currentLine.number);
+    const text = current.line.text.trim();
 
-    if (current.line.number + 1 <= this.state.doc.lines) {
+    if (text && current.line.number + 1 <= this.state.doc.lines) {
       const next = this.getIEntry(current.line.number + 1);
       if (next.level > current.level) {
         current = next;
       }
     }
 
-    if (current.line.number - 1 >= 1) {
+    if (
+      text === BLOCK_CLOSER &&
+      current.line.number === currentLine.number &&
+      current.line.number - 1 >= 1
+    ) {
       const prev = this.getIEntry(current.line.number - 1);
       if (prev.level > current.level) {
         current = prev;
@@ -394,7 +417,7 @@ class IndentGuideClass implements PluginValue {
 
     const lines = getVisibleLines(this.view, state);
     const map = new IndentationMap(lines, state, this.unitWidth);
-    const { hideFirstIndent } = state.facet(indentationGuideConfig);
+    const { hideFirstIndent, mode } = state.facet(indentationGuideConfig);
     const tabSize = state.tabSize;
 
     for (const line of lines) {
@@ -406,6 +429,7 @@ class IndentGuideClass implements PluginValue {
         this.unitWidth,
         visualLength,
         hideFirstIndent,
+        mode,
       );
 
       if (backgrounds.length > 0) {
@@ -426,7 +450,11 @@ class IndentGuideClass implements PluginValue {
   }
 }
 
+export type IndentationGuideMode = "block" | "all";
+
 export interface IndentationGuideConfiguration {
+  mode?: IndentationGuideMode;
+
   highlightActiveBlock?: boolean;
 
   hideFirstIndent?: boolean;
@@ -438,6 +466,7 @@ export const indentationGuideConfig = Facet.define<
 >({
   combine(configs) {
     return combineConfig(configs, {
+      mode: "all",
       highlightActiveBlock: true,
       hideFirstIndent: false,
     });

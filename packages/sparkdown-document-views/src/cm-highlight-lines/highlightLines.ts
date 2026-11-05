@@ -65,12 +65,6 @@ const highlightedLineClass = "cm-highlightedLine";
 
 export const highlightDeco = Decoration.line({ class: highlightedLineClass });
 
-const highlightsTheme = EditorView.baseTheme({
-  [`& .cm-line.${highlightedLineClass}`]: {
-    backgroundColor: "var(--editor-line-highlight)",
-  },
-});
-
 export const highlightsField = StateField.define<DecorationSet>({
   create() {
     return Decoration.none;
@@ -127,11 +121,10 @@ export const highlightsField = StateField.define<DecorationSet>({
 
     return decorations;
   },
-  provide: (f) => EditorView.decorations.from(f),
 });
 
 export function highlightLines(
   config: HighlightsConfiguration = {},
 ): Extension {
-  return [highlightsConfig.of(config), highlightsField, highlightsTheme];
+  return [highlightsConfig.of(config), highlightsField];
 }

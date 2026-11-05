@@ -19,11 +19,6 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.definition(tags.string), color: "var(--syntax-string)" },
 
   { tag: tags.monospace, color: "var(--syntax-escape)" },
-  { tag: tags.quote, fontStyle: "italic" },
-  { tag: tags.emphasis, fontStyle: "italic" },
-  { tag: tags.strong, fontWeight: "bold" },
-  { tag: tags.link, textDecoration: "underline", textUnderlineOffset: "5px" },
-  { tag: tags.strikethrough, textDecoration: "line-through" },
 
   { tag: tags.typeName, color: "var(--syntax-type-name)" },
   { tag: tags.number, color: "var(--syntax-number)" },

@@ -1,3 +1,4 @@
+import { INDENT_GUIDES } from "@impower/sparkdown-document-views/src/cm-script-appearance/scriptAppearanceOptions";
 import { SCRIPT_FILES_GLOB } from "../../utils/scriptFiles";
 import { SURFACES, SYNTAX_PALETTES, THEME_PREFERENCES } from "./applyTheme";
 
@@ -28,6 +29,18 @@ export const PREFERENCES_SCHEMA = {
   theme: choice("automatic", THEME_PREFERENCES),
   surfaces: choice("unified", SURFACES),
   syntaxPalette: choice("softened", SYNTAX_PALETTES),
+  boldDeclarationNames: setting(false),
+  boldSpeakerNames: setting(false),
+  boldContainerNames: setting(false),
+  tintedDialogue: setting(false),
+  italicComments: setting(true),
+  emphasizeMarkup: setting(true),
+  highlightMatchingSymbols: setting(true),
+  hoverPreviews: setting(true),
+  lineNumbers: setting(true),
+  indentGuides: choice("block", INDENT_GUIDES),
+  autoCloseBrackets: setting(true),
+  autoRenameFiles: setting(true),
 } as const satisfies Record<string, SettingSpec>;
 
 export const PROJECT_SETTINGS_SCHEMA = {

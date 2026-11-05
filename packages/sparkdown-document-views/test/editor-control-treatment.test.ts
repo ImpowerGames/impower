@@ -176,8 +176,8 @@ describe("the code editor under prefers-reduced-motion", () => {
   });
 
   it("keeps the fold arrow's fade inside the editor root the rule covers", () => {
-    const fold = (EDITOR_THEME["& .cm-foldGutter"] as Spec)["& .cm-fold-arrow"] as Spec;
-    expect(fold["transition"]).toBe("opacity .25s");
+    const fold = EDITOR_THEME["& .cm-foldGutter .cm-fold-arrow"] as Spec;
+    expect(fold["transition"]).toBe("opacity .12s ease, transform .15s ease");
     expect(css).toMatch(/\.sparkdown-script-editor-root \.editor \{[^}]*transition: opacity 0\.25s;/);
   });
 });

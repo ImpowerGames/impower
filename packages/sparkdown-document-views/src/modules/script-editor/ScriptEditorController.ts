@@ -112,6 +112,8 @@ import createEditorView, {
 } from "./utils/createEditorView";
 import { customGotoLinePanelOpen } from "./utils/extensions/customSearch";
 import { setCoarsePointer } from "./utils/extensions/touchAffordances";
+import { setScriptAppearance } from "../../cm-script-appearance/scriptAppearance";
+import type { ScriptAppearance } from "../../cm-script-appearance/scriptAppearanceOptions";
 
 export interface ScriptEditorRefs {
   editor: HTMLElement;
@@ -123,6 +125,7 @@ export interface ScriptEditorRefs {
 export interface ScriptEditorOptions {
   readonly?: boolean;
   coarsePointer?: boolean;
+  appearance: ScriptAppearance;
   scrollMargin?: string;
   top?: string;
   bottom?: string;
@@ -243,6 +246,14 @@ export class ScriptEditorController {
     this.options.coarsePointer = coarse;
     if (this._view) {
       setCoarsePointer(this._view, coarse);
+    }
+  }
+
+  setAppearance(appearance: ScriptAppearance): void {
+    const previous = this.options.appearance;
+    this.options.appearance = appearance;
+    if (this._view) {
+      setScriptAppearance(this._view, previous, appearance);
     }
   }
 
@@ -636,6 +647,7 @@ export class ScriptEditorController {
         this._bottom = getUnitlessValue(this.options.bottom ?? "", 0);
         [this._view, this._disposable] = createEditorView(editorContainer, {
           coarsePointer: !!this.options.coarsePointer,
+          appearance: this.options.appearance,
           serverWorker: this.options.languageServerWorker,
           serverConnection: this.options.languageServerConnection,
           serverInitializeParams: languageServerInitializeParams,

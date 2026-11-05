@@ -2,6 +2,7 @@ import {
   highlightingFor,
   language as languageFacet,
 } from "@codemirror/language";
+import { Facet } from "@codemirror/state";
 import { EditorView, Tooltip, hoverTooltip } from "@codemirror/view";
 import { highlightCode } from "@lezer/highlight";
 import type * as lsp from "vscode-languageserver-protocol";
@@ -16,6 +17,12 @@ const hoverTheme = EditorView.baseTheme({
     objectFit: "contain",
   },
 });
+
+export const hoverPreviews = Facet.define<boolean, boolean>({
+  combine: (values) => values.at(-1) ?? true,
+});
+
+const pictureTooltips = new WeakSet<Tooltip>();
 
 export interface ServerHoversConfig {
   hoverTime?: number;
@@ -35,7 +42,9 @@ export function serverHovers(
     editorExtension: [
       hoverTheme,
       hoverTooltip(lspTooltipSource, {
-        hideOn: (tr) => tr.docChanged,
+        hideOn: (tr, tooltip) =>
+          tr.docChanged ||
+          (pictureTooltips.has(tooltip) && !tr.state.facet(hoverPreviews)),
         hoverTime: config.hoverTime,
       }),
     ],
@@ -64,7 +73,12 @@ function lspTooltipSource(
   if (!plugin) return Promise.resolve(null);
   return hoverRequest(plugin, pos).then((result) => {
     if (!result) return null;
-    return {
+    const html = renderTooltipContent(plugin, result.contents);
+    const picture = /<img[\s>]/i.test(html);
+    if (picture && !view.state.facet(hoverPreviews)) {
+      return null;
+    }
+    const tooltip: Tooltip = {
       pos: result.range
         ? convertFromPosition(view.state.doc, result.range.start)
         : pos,
@@ -74,11 +88,15 @@ function lspTooltipSource(
       create() {
         let elt = document.createElement("div");
         elt.className = "cm-lsp-hover-tooltip cm-lsp-documentation";
-        elt.innerHTML = renderTooltipContent(plugin, result.contents);
+        elt.innerHTML = html;
         return { dom: elt };
       },
       above: true,
     };
+    if (picture) {
+      pictureTooltips.add(tooltip);
+    }
+    return tooltip;
   });
 }
 

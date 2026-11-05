@@ -57,6 +57,8 @@ import {
   setsRoutePins,
   type DocumentRoutePin,
 } from "../../../cm-route-pins/routePins";
+import { scriptAppearance } from "../../../cm-script-appearance/scriptAppearance";
+import type { ScriptAppearance } from "../../../cm-script-appearance/scriptAppearanceOptions";
 import { variableWidgets } from "../../../cm-variable-widgets/variableWidgets";
 import {
   lineAnchorMoves,
@@ -112,6 +114,7 @@ interface EditorConfig {
   startingValueLines?: number[];
   routePins?: DocumentRoutePin[];
   coarsePointer: boolean;
+  appearance: ScriptAppearance;
   scrollToLineNumber?: number;
   getEditorState?: () => SerializableEditorState;
   setEditorState?: (value: SerializableEditorState) => void;
@@ -257,6 +260,7 @@ const createEditorView = (
       extensions: [
         ...restoredExtensions,
         EDITOR_EXTENSIONS,
+        scriptAppearance(config.appearance),
         customSearchPanel(),
         customGotoLinePanel(),
         statusPanel(),

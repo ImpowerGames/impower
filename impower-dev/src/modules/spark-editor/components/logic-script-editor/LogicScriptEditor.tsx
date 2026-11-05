@@ -3,6 +3,7 @@ import SparkdownScriptEditor from "@impower/sparkdown-document-views/src/modules
 import { useComputed } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import { debounce } from "../../utils/debounce";
+import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import workspace from "../../workspace/WorkspaceStore";
 
 export const propDefaults = {
@@ -30,6 +31,8 @@ export default function LogicScriptEditor({
   ).value;
 
   const coarsePointer = useCoarsePointer();
+
+  const appearance = workspaceSettings.scriptAppearance.value;
 
   const readonly = useComputed(() => {
     const status = workspace.state.value.sync?.status;
@@ -218,6 +221,7 @@ export default function LogicScriptEditor({
       <SparkdownScriptEditor
         readonly={readonly}
         coarsePointer={coarsePointer}
+        appearance={appearance}
         top="0px"
         bottom="60px"
       />

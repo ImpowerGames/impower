@@ -1,47 +1,29 @@
-import { EditorState, StateEffect, TransactionSpec } from "@codemirror/state";
 import {
-  Decoration,
-  DecorationSet,
-  EditorView,
-  ViewPlugin,
-  ViewUpdate,
-  WidgetType,
-} from "@codemirror/view";
+  ChangeDesc,
+  EditorState,
+  StateEffect,
+  StateField,
+  TransactionSpec,
+} from "@codemirror/state";
+import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
 import { pullInBackground } from "./backgroundPull";
 import { LSPClient, LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
 
-export const PICKER_WRAPPER_CLASS_NAME = "cm-color-picker";
-export const PICKER_BACKGROUND_CLASS_NAME = "cm-color-picker-background";
-export const PICKER_INPUT_CLASS_NAME = "cm-color-picker-input";
+const COLOR_SWATCH_CLASS_NAME = "cm-color-swatch";
+const COLOR_SWATCH_ALPHA_CLASS_NAME = "cm-color-swatch-alpha";
+const COLOR_PICKER_INPUT_CLASS_NAME = "cm-color-picker-input";
 
-export const colorPickerWidgetTheme = EditorView.baseTheme({
-  [`.${PICKER_WRAPPER_CLASS_NAME}`]: {
-    display: "inline-block",
-    cursor: "pointer",
-    border: "1px solid var(--editor-swatch-edge)",
-    margin: "0 4px",
-    height: "14px",
-    width: "14px",
-    position: "relative",
-    borderRadius: "2px",
-  },
-  [`.${PICKER_BACKGROUND_CLASS_NAME}`]: {
-    position: "absolute",
-    inset: 0,
-    width: "100%",
-    height: "100%",
-    borderRadius: "1px",
-  },
-  [`.${PICKER_INPUT_CLASS_NAME}`]: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    opacity: 0,
-    width: "100%",
-    height: "100%",
-    cursor: "pointer",
+const colorSwatchTheme = EditorView.baseTheme({
+  [`.${COLOR_PICKER_INPUT_CLASS_NAME}`]: {
+    position: "fixed",
+    width: "1px",
+    height: "1px",
+    padding: "0",
+    border: "none",
+    opacity: "0",
+    pointerEvents: "none",
   },
 });
 
@@ -144,136 +126,89 @@ export function getBestPresentationMatch(
   return looseMatch ?? presentations[0] ?? null;
 }
 
-export default class ColorPickerWidget extends WidgetType {
-  private readonly info: DocumentColor;
+async function changeDocumentColor(
+  view: EditorView,
+  info: DocumentColor,
+  hex: string,
+) {
+  const plugin = LSPPlugin.get(view);
+  if (!plugin) return;
 
-  constructor(info: DocumentColor) {
-    super();
-    this.info = info;
-  }
+  const rgb = hexToRGB(hex);
 
-  override eq(other: ColorPickerWidget) {
-    return (
-      other.info.color.red === this.info.color.red &&
-      other.info.color.green === this.info.color.green &&
-      other.info.color.blue === this.info.color.blue &&
-      other.info.color.alpha === this.info.color.alpha
-    );
-  }
+  const color: lsp.Color = {
+    red: rgb.r / 255,
+    green: rgb.g / 255,
+    blue: rgb.b / 255,
+    alpha: info.color.alpha,
+  };
 
-  override toDOM(view: EditorView) {
-    const wrapper = document.createElement("span");
-    wrapper.className = PICKER_WRAPPER_CLASS_NAME;
+  const text = view.state.doc.sliceString(info.from, info.to).toLowerCase();
 
-    const rgba = colorToRGBA(this.info.color);
+  try {
+    const presentations = await plugin.client.request<
+      lsp.ColorPresentationParams,
+      lsp.ColorPresentation[],
+      string
+    >("textDocument/colorPresentation", {
+      textDocument: { uri: plugin.uri },
+      color,
+      range: {
+        start: plugin.toPosition(info.from),
+        end: plugin.toPosition(info.to),
+      },
+    });
 
-    const backgroundColor = rgbaToCSS(rgba);
+    if (presentations && presentations.length > 0) {
+      const bestMatch = getBestPresentationMatch(presentations, text);
 
-    const backgroundSpan = document.createElement("span");
-    backgroundSpan.className = PICKER_BACKGROUND_CLASS_NAME;
-    backgroundSpan.style.backgroundColor = backgroundColor;
-    wrapper.appendChild(backgroundSpan);
-
-    const picker = document.createElement("input");
-    picker.className = PICKER_INPUT_CLASS_NAME;
-    picker.type = "color";
-    picker.value = rgbaToHex(rgba, false);
-
-    picker.onmousedown = (e) => {
-      e.stopPropagation();
-    };
-
-    picker.oninput = (e) => {
-      const hex = (e.target as HTMLInputElement).value;
-      const rgb = hexToRGB(hex);
-      const backgroundColor = rgbaToCSS({ ...rgb, a: rgba.a });
-      backgroundSpan.style.backgroundColor = backgroundColor;
-    };
-
-    picker.onchange = (e) => {
-      const hex = (e.target as HTMLInputElement).value;
-      const rgb = hexToRGB(hex);
-      const backgroundColor = rgbaToCSS({ ...rgb, a: rgba.a });
-      backgroundSpan.style.backgroundColor = backgroundColor;
-      this.handleColorChange(view, hex, this.info.color.alpha);
-    };
-
-    wrapper.appendChild(picker);
-    return wrapper;
-  }
-
-  override ignoreEvent(event: Event) {
-    if (
-      event.target instanceof HTMLInputElement &&
-      event.target.type === "color"
-    ) {
-      return false;
-    }
-
-    const handledEvents = [
-      "mousedown",
-      "mouseup",
-      "click",
-      "mousemove",
-      "touchstart",
-    ];
-    if (handledEvents.includes(event.type)) {
-      return false;
-    }
-
-    return true;
-  }
-
-  private async handleColorChange(
-    view: EditorView,
-    hex: string,
-    alpha: number,
-  ) {
-    const plugin = LSPPlugin.get(view);
-    if (!plugin) return;
-
-    const rgb = hexToRGB(hex);
-
-    const color: lsp.Color = {
-      red: rgb.r / 255,
-      green: rgb.g / 255,
-      blue: rgb.b / 255,
-      alpha: alpha,
-    };
-
-    const text = view.state.doc
-      .sliceString(this.info.from, this.info.to)
-      .toLowerCase();
-
-    try {
-      const presentations = await plugin.client.request<
-        lsp.ColorPresentationParams,
-        lsp.ColorPresentation[],
-        string
-      >("textDocument/colorPresentation", {
-        textDocument: { uri: plugin.uri },
-        color,
-        range: {
-          start: plugin.toPosition(this.info.from),
-          end: plugin.toPosition(this.info.to),
+      view.dispatch({
+        changes: {
+          from: info.from,
+          to: info.to,
+          insert: bestMatch!.label,
         },
       });
+    }
+  } catch (err) {
+    console.error("LSP Color Presentation Error:", err);
+  }
+}
 
-      if (presentations && presentations.length > 0) {
-        const bestMatch = getBestPresentationMatch(presentations, text);
-
-        view.dispatch({
-          changes: {
-            from: this.info.from,
-            to: this.info.to,
-            insert: bestMatch!.label,
-          },
-        });
-      }
-    } catch (err) {
-      console.error("LSP Color Presentation Error:", err);
+function openColorPicker(
+  view: EditorView,
+  info: DocumentColor,
+  anchor: HTMLElement,
+): HTMLInputElement {
+  view.dom
+    .querySelectorAll(`.${COLOR_PICKER_INPUT_CLASS_NAME}`)
+    .forEach((el) => el.remove());
+  const rect = anchor.getBoundingClientRect();
+  const picker = document.createElement("input");
+  picker.type = "color";
+  picker.className = COLOR_PICKER_INPUT_CLASS_NAME;
+  picker.tabIndex = -1;
+  picker.setAttribute("aria-hidden", "true");
+  picker.value = rgbaToHex(colorToRGBA(info.color), false);
+  picker.style.left = `${rect.left}px`;
+  picker.style.top = `${rect.bottom}px`;
+  picker.onchange = () => {
+    picker.remove();
+    changeDocumentColor(view, info, picker.value);
+  };
+  picker.onblur = () => picker.remove();
+  view.dom.appendChild(picker);
+  if (typeof picker.showPicker === "function") {
+    try {
+      picker.showPicker();
+      return picker;
+    } catch {
+      picker.click();
+      return picker;
     }
   }
+  picker.click();
+  return picker;
 }
 
 const updateColorDecorationEffect = StateEffect.define<DocumentColor[]>({
@@ -310,39 +245,73 @@ export function setDocumentColors(
   return { effects };
 }
 
-const colorPickerPlugin = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet;
+const swatchMark = (info: DocumentColor) =>
+  Decoration.mark({
+    class:
+      info.color.alpha < 1
+        ? `${COLOR_SWATCH_CLASS_NAME} ${COLOR_SWATCH_ALPHA_CLASS_NAME}`
+        : COLOR_SWATCH_CLASS_NAME,
+    attributes: { style: `--swatch: ${rgbaToCSS(colorToRGBA(info.color))}` },
+  });
 
-    constructor() {
-      this.decorations = Decoration.none;
-    }
+interface DocumentColorSet {
+  colors: DocumentColor[];
+  decorations: DecorationSet;
+}
 
-    update(update: ViewUpdate) {
-      for (let tr of update.transactions) {
-        for (let e of tr.effects) {
-          if (e.is(updateColorDecorationEffect)) {
-            this.decorations = Decoration.set(
-              e.value.map((r) =>
-                Decoration.widget({
-                  widget: new ColorPickerWidget(r),
-                  side: 1,
-                }).range(r.from),
-              ),
-            );
-          }
-        }
-      }
+const mapDocumentColors = (colors: DocumentColor[], changes: ChangeDesc) =>
+  colors
+    .map((c) => ({
+      color: c.color,
+      from: changes.mapPos(c.from, 1),
+      to: changes.mapPos(c.to, -1),
+    }))
+    .filter((c) => c.from < c.to);
 
-      if (update.docChanged) {
-        this.decorations = this.decorations.map(update.changes);
-      }
-    }
+const documentColorField = StateField.define<DocumentColorSet>({
+  create() {
+    return { colors: [], decorations: Decoration.none };
   },
-  {
-    decorations: (v) => v.decorations,
+  update(value, tr) {
+    for (const effect of tr.effects) {
+      if (effect.is(updateColorDecorationEffect)) {
+        const colors = effect.value.filter((c) => c.from < c.to);
+        return {
+          colors,
+          decorations: Decoration.set(
+            colors.map((c) => swatchMark(c).range(c.from, c.to)),
+            true,
+          ),
+        };
+      }
+    }
+    if (tr.docChanged) {
+      return {
+        colors: mapDocumentColors(value.colors, tr.changes),
+        decorations: value.decorations.map(tr.changes),
+      };
+    }
+    return value;
   },
-);
+  provide: (f) => EditorView.decorations.from(f, (v) => v.decorations),
+});
+
+const colorSwatchPress = EditorView.domEventHandlers({
+  click(event, view) {
+    if (!(event.target instanceof Element)) return false;
+    const swatch = event.target.closest<HTMLElement>(
+      `.${COLOR_SWATCH_CLASS_NAME}`,
+    );
+    if (!swatch || !view.contentDOM.contains(swatch)) return false;
+    const pos = view.posAtDOM(swatch, 0);
+    const info = view.state
+      .field(documentColorField)
+      .colors.find((c) => c.from <= pos && pos < c.to);
+    if (!info) return false;
+    openColorPicker(view, info, swatch);
+    return false;
+  },
+});
 
 export async function updateDocumentColors(client: LSPClient, uri: string) {
   let file = client.workspace.getFile(uri);
@@ -399,6 +368,6 @@ export function serverColorDecorations(): LSPClientExtension {
         );
       },
     },
-    editorExtension: [colorPickerPlugin, colorPickerWidgetTheme],
+    editorExtension: [documentColorField, colorSwatchPress, colorSwatchTheme],
   };
 }

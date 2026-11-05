@@ -54,8 +54,9 @@ export {
   type DocumentFoldingRange,
 } from "./folding";
 export { formatDocument, formatKeymap, serverFormatting } from "./formatting";
+export { documentHighlights, serverDocumentHighlights } from "./highlights";
 export { type LSPClientIcons } from "./icons";
-export { serverHovers } from "./hover";
+export { hoverPreviews, serverHovers } from "./hover";
 export {
   convertFromServerCodeLens,
   serverCodeLenses,
@@ -126,6 +127,7 @@ import { serverDefinitions } from "./definition";
 import { serverDiagnostics } from "./diagnostics";
 import { serverFolding } from "./folding";
 import { serverFormatting } from "./formatting";
+import { serverDocumentHighlights } from "./highlights";
 import { serverHovers } from "./hover";
 import { serverCodeLenses } from "./lens";
 import { serverDocumentLinks } from "./link";
@@ -150,6 +152,7 @@ export function languageServerExtensions(): readonly (
     serverDocumentSymbols(),
     serverSemanticHighlighting(),
     serverHovers(),
+    serverDocumentHighlights(),
     serverRenaming(),
     serverReferences(),
     serverFormatting(),

@@ -10,6 +10,7 @@ import {
   customSearchPanel,
   openCustomGotoLinePanel,
 } from "../src/modules/script-editor/utils/extensions/customSearch";
+import { ALL_ON_APPEARANCE } from "./fixtures/scriptAppearance";
 
 type Callbacks = {
   onFocus: () => void;
@@ -80,6 +81,7 @@ const mount = () => {
     main: host.appendChild(document.createElement("div")),
   };
   const controller = new TestController(host, refs, {
+    appearance: ALL_ON_APPEARANCE,
     languageServerWorker: {} as Worker,
     languageServerConnection: {} as never,
   });

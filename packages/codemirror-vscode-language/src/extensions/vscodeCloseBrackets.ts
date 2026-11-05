@@ -47,12 +47,17 @@ export const vscodeCloseBracketsConfig = Facet.define<
   },
 });
 
+export const autoCloseBrackets = Facet.define<boolean, boolean>({
+  combine: (values) => values.at(-1) ?? true,
+});
+
 const vscodeCloseBracketsInputHandler = EditorView.inputHandler.of(
   (view, from, to, insert) => {
     const config = view.state.facet(vscodeCloseBracketsConfig);
     if (
       (android ? view.composing : view.compositionStarted) ||
-      view.state.readOnly
+      view.state.readOnly ||
+      !view.state.facet(autoCloseBrackets)
     ) {
       return false;
     }

@@ -1,4 +1,5 @@
 import type { DidChangeConfigurationParams } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
+import type { ScriptAppearance } from "@impower/sparkdown-document-views/src/cm-script-appearance/scriptAppearanceOptions";
 import {
   computed,
   effect,
@@ -104,6 +105,8 @@ export class WorkspaceSettings {
 
   readonly appearance: ReadonlySignal<Appearance>;
 
+  readonly scriptAppearance: ReadonlySignal<ScriptAppearance>;
+
   constructor(
     projectId: ReadonlySignal<string>,
     storage: Storage | undefined = typeof localStorage === "undefined"
@@ -144,6 +147,22 @@ export class WorkspaceSettings {
         this.preferences.value.syntaxPalette,
       ),
     );
+    this.scriptAppearance = computed(() => {
+      const preferences = this.preferences.value;
+      return {
+        boldDeclarationNames: preferences.boldDeclarationNames,
+        boldSpeakerNames: preferences.boldSpeakerNames,
+        boldContainerNames: preferences.boldContainerNames,
+        tintedDialogue: preferences.tintedDialogue,
+        italicComments: preferences.italicComments,
+        emphasizeMarkup: preferences.emphasizeMarkup,
+        highlightMatchingSymbols: preferences.highlightMatchingSymbols,
+        hoverPreviews: preferences.hoverPreviews,
+        lineNumbers: preferences.lineNumbers,
+        indentGuides: preferences.indentGuides,
+        autoCloseBrackets: preferences.autoCloseBrackets,
+      };
+    });
     this._disposeProjectEffect = effect(() => {
       const nextId = projectId.value;
       if (nextId !== this._storedProject.peek().id) {

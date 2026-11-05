@@ -419,7 +419,6 @@ Component variables of the editor's own chrome:
 | `--editor-rename-edge` | Rename field border | `#3c3c3c` |
 | `--editor-rename-submit` | Rename submit button | `#0078d4` |
 | `--editor-sticky-shadow` | Shadow under the sticky scene headers | `rgb(0 0 0 / 0.7)` |
-| `--editor-line-highlight` | A highlighted line | `rgb(0 0 0 / 0.3)` |
 | `--editor-breakpoint` | Breakpoint gutter mark | `#3abff8` |
 | `--editor-pinpoint` | Pinpoint rule | `#66baff` |
 | `--editor-touch-handle` | Touch selection handle | `#1976d2` |
@@ -431,6 +430,10 @@ Component variables of the editor's own chrome:
 | `--editor-icon-ink` | Find and go-to-line button icons, a checked find toggle's icon | `#ffffff` |
 | `--editor-icon-muted` | An unchecked find toggle's icon | `#cccccc` |
 | `--editor-icon-close` | The find and go-to-line close icon | `#315881` |
+| `--editor-symbol-highlight` | The other uses of the name under the caret | `color-mix(in srgb, var(--syntax-section-name-definition) 26%, transparent)` |
+| `--editor-search-match` | A find match | `#00ffff8a` |
+| `--editor-search-match-selected` | The selected find match | `#ff00ff8a` |
+| `--editor-list-disabled` | Selected row of a completion list that cannot be accepted yet | `#444444` |
 
 Syntax variables, one per highlight role the editor's `EDITOR_HIGHLIGHTS.ts` and LSP
 semantic-token rules colour today:
@@ -469,6 +472,9 @@ semantic-token rules colour today:
 | `--syntax-chunk-name-definition` | Chunk names | `#7c7ca6` |
 | `--syntax-invalid` | Invalid text | `#f44747` |
 | `--syntax-comment` | Comments | `#6a9955` |
+| `--syntax-speaker` | Speaker names | `#4ec9b0` |
+| `--syntax-dialogue` | Dialogue under Tinted dialogue | `#ce9178` |
+| `--syntax-dialogue-untinted` | Dialogue without Tinted dialogue | `var(--syntax-dialogue)` |
 
 ### Folio component and code editor variables
 
@@ -534,7 +540,6 @@ and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
 | `--editor-rename-edge` | `var(--edge)` | Divider |
 | `--editor-rename-submit` | `var(--tint)` | Selected wash, under `--ink` text |
 | `--editor-sticky-shadow` | `rgb(0 0 0 / 0.33)` | Popover shadow, `folio-hierarchy.css:918` |
-| `--editor-line-highlight` | `var(--tint)` | Current wash |
 | `--editor-breakpoint` | `var(--accent)` | Accent |
 | `--editor-pinpoint` | `var(--accent)` | Accent |
 | `--editor-touch-handle` | `var(--accent)` | Accent |
@@ -546,6 +551,14 @@ and `rgb(0 0 0 / 0.35)` in Chalk and Sepia (`folio-themes.css:311-312`).
 | `--editor-icon-ink` | `var(--ink)` | Ink |
 | `--editor-icon-muted` | `var(--muted)` | Muted ink |
 | `--editor-icon-close` | `var(--muted)` | Muted ink |
+| `--editor-search-match` | `color-mix(in srgb, var(--accent) 30%, transparent)` | Accent wash |
+| `--editor-search-match-selected` | `color-mix(in srgb, var(--accent) 55%, transparent)` | Accent wash, stronger |
+| `--editor-list-disabled` | `var(--elevated)` | Raised surface |
+
+`--editor-symbol-highlight`, the wash on the other uses of the name under the caret,
+differs between the dark and light themes as the prototype's does
+(`folio-language.css:134-135`): `color-mix(in srgb, var(--syntax-section-name-definition) 26%, transparent)`
+in Charcoal, Ink, Graphite and Warm Folio, and 16% in Chalk and Sepia.
 
 ### Folio syntax variables
 
@@ -594,6 +607,23 @@ With `data-syntax="original"` they draw Midnight's colours, as Midnight and Dusk
 | `--syntax-chunk-name-definition` | `--syntax-heading` | `#b29191` | `#7f595a` | `#b29191` | `#7f595a` | `#7d7d9f` |
 | `--syntax-invalid` | `--syntax-slug` | `#fe9e9c` | `#9c242e` | `#fe9e9c` | `#9c242e` | `#e35d58` |
 | `--syntax-comment` | `--syntax-comment` | `#86a07c` | `#4d6b3e` | `#86a07c` | `#4d6b3e` | `#719661` |
+| `--syntax-speaker` | `--syntax-speaker` | `#edb393` | `#9c4519` | `#edb393` | `#9c4519` | `#6bc5b0` |
+| `--syntax-dialogue` | `--syntax-dialogue` | `#fbddc6` | `#4e2a1a` | `#fbddc6` | `#4e2a1a` | `#c69581` |
+
+The editor tells speaker names and dialogue apart by the grammar rule that matched
+them (`DialogueCharacterName`, and the `TextChunk` inside `BlockDialogue` or
+`InlineDialogue`), so they take their roles' colours rather than the type and text
+colours their highlight tags share with other syntax.
+
+Derived syntax variables:
+
+| Variable | Value | Themes |
+|---|---|---|
+| `--syntax-dialogue-untinted` | `var(--syntax-text)` | Charcoal, Chalk, Ink and Sepia, the themes the prototype's untinted rule names (`folio-themes.css:880`) |
+| `--syntax-dialogue-untinted` | `var(--syntax-dialogue)` | Midnight, Dusk, Graphite and Warm Folio, whose dialogue the prototype always tints, as impower.dev does |
+
+Dialogue takes `--syntax-dialogue` under the Tinted dialogue preference and
+`--syntax-dialogue-untinted` without it.
 
 ## Type
 
