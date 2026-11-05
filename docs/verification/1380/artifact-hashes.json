@@ -1,0 +1,18 @@
+[
+  {
+    "file": "evidence/native-acceptance-contract.md",
+    "sha256": "de965ac31a8636ee6efc830a4d35e5ad91a5280f6b8bbe27fac597aff6992051",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "evidence/progress.md",
+    "sha256": "e87b50dcafbaa1476eec5ef6beecbdd68c526fb1d8c1c0121773d355b358ebc7",
+    "kind": "unaltered historical artifact"
+  },
+  {
+    "file": "historical-probes/nativeAsymmetricAcceptance.test.ts.txt",
+    "original": "packages/sparkdown/src/tests/luau-conformance/nativeAsymmetricAcceptance.test.ts",
+    "sha256": "19dadd026be20b4b2f30bb39eeb7ca12650e2f6ce5bf5a4b526c47a0a449991d",
+    "kind": "unexecuted archive; original local copy retained"
+  }
+]
