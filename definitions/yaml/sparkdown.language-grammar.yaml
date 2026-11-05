@@ -3679,8 +3679,8 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauDefineNameAndInheritance" }
-      - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauPropertyDefinition" }
+      - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauMethodDefinition" }
       - { include: "#LuauBlockBody" }
       - { include: "#LuauStrayCloser" }

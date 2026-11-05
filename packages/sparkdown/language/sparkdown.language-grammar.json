@@ -5842,10 +5842,10 @@
           "include": "#LuauDefineNameAndInheritance"
         },
         {
-          "include": "#LuauFunctionDefinition"
+          "include": "#LuauPropertyDefinition"
         },
         {
-          "include": "#LuauPropertyDefinition"
+          "include": "#LuauFunctionDefinition"
         },
         {
           "include": "#LuauMethodDefinition"
