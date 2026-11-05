@@ -209,11 +209,12 @@ export function askHolder(port, { timeoutMs = 3_000 } = {}) {
     const done = (value) => {
       if (settled) return;
       settled = true;
+      clearTimeout(timer);
       socket.destroy();
       resolve(value);
     };
     const socket = net.connect({ port, host: "127.0.0.1" });
-    socket.setTimeout(timeoutMs, () => done({ holder: null }));
+    const timer = setTimeout(() => done({ holder: null }), timeoutMs);
     socket.on("data", (chunk) => {
       text += chunk;
       if (text.length > 64 * 1024) done({ holder: null });
@@ -263,7 +264,7 @@ export async function acquireDevice(serial, {
         },
       };
     }
-    const answer = await ask(port);
+    const answer = await ask(port, { timeoutMs: Math.max(100, Math.min(3_000, deadline - now())) });
     const holder = answer.gone ? (lastHolder ?? "a process that let go while this one asked who it was") : describeHolder(answer.holder);
     if (now() >= deadline) {
       throw new Error(`timed out after ${Math.round((now() - began) / 1000)} s waiting for Android device ${serial}, held by ${holder} (the hold is a listener on 127.0.0.1:${port} and ends with that process). Wait for it to finish, or pass a longer --device-wait <seconds>`);

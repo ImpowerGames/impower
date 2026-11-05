@@ -10,6 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   ANDROID_SETUP,
   acquireDevice,
+  askHolder,
   adbMissingMessage,
   chooseDevice,
   densityForWidth,
@@ -561,6 +562,44 @@ await check("holders that keep letting go while the waiter asks who they are sti
   assert.deepEqual(sleeps, [2_000]);
   assert.deepEqual(lines, ["waiting for Android device emulator-5554: held by pid 77, device emulator-5554, since t; waiting up to 60 s"]);
   held.release();
+});
+
+await check("a listener that keeps trickling bytes without ending cannot stretch the lookup or the wait past their limits", async () => {
+  const port = await freePort();
+  const timers = new Set();
+  const sockets = new Set();
+  const trickler = net.createServer((socket) => {
+    sockets.add(socket);
+    socket.on("error", () => {});
+    const timer = setInterval(() => socket.write("x"), 50);
+    timers.add(timer);
+    socket.on("close", () => clearInterval(timer));
+  }).listen({ port, host: "127.0.0.1" });
+  await new Promise((resolve) => trickler.once("listening", resolve));
+  const guards = [];
+  const within = (promise, ms, what) =>
+    Promise.race([
+      promise,
+      new Promise((_, reject) => guards.push(setTimeout(() => reject(new Error(`${what} was still pending after ${ms} ms`)), ms))),
+    ]);
+  try {
+    const askedAt = Date.now();
+    assert.deepEqual(await within(askHolder(port, { timeoutMs: 400 }), 1_500, "a 400 ms lookup"), { holder: null });
+    const asked = Date.now() - askedAt;
+    assert.ok(asked < 1_500, `lookup took ${asked} ms against a 400 ms limit`);
+    const waitedAt = Date.now();
+    await assert.rejects(
+      within(acquireDevice("emulator-5554", { port, waitSeconds: 1, pollMs: 200 }), 3_000, "a 1 s device wait"),
+      /timed out after \d+ s waiting for Android device emulator-5554, held by a process that did not say who it is/,
+    );
+    const waited = Date.now() - waitedAt;
+    assert.ok(waited < 3_000, `a 1 s wait took ${waited} ms`);
+  } finally {
+    for (const guard of guards) clearTimeout(guard);
+    for (const timer of timers) clearInterval(timer);
+    for (const socket of sockets) socket.destroy();
+    trickler.close();
+  }
 });
 
 await check("a listener that does not say who it is still holds the port, and the timeout says so", async () => {
