@@ -1,4 +1,8 @@
-import { Button, Download, Gamepad } from "@impower/impower-ui/components";
+import {
+  Button,
+  DownloadIcon,
+  VisualIcon,
+} from "@impower/impower-ui/components";
 import { useRef, useState } from "preact/hooks";
 import { downloadFile } from "../../utils/downloadFile";
 
@@ -54,7 +58,7 @@ export default function PreviewScreenplayToolbar(
         disabled={exporting}
         class="h-11 w-12 flex-col gap-0.5 rounded-full px-0 text-[11px] font-semibold text-primary"
       >
-        <Download class="size-4" />
+        <DownloadIcon class="size-4" />
         PDF
       </Button>
       <div class="flex-1 text-center text-base text-foreground select-none">
@@ -67,7 +71,7 @@ export default function PreviewScreenplayToolbar(
         onClick={onMode}
         class="text-muted"
       >
-        <Gamepad class="size-5" />
+        <VisualIcon class="size-5" />
       </Button>
 
       <div

@@ -60,7 +60,7 @@ describe("a choice's own condition may call a function (I-1054)", () => {
   }
 });
 
-describe("a choice line whose condition cannot be read stays a choice (I-1054)", () => {
+describe("a choice line whose condition cannot be read is reported and leaves the next choice alone (I-1054, I-1954)", () => {
   const lines: [string, string][] = [
     ["thirty unclosed \"[[x]]\" regions", `* if f(${"[[x]] ".repeat(30)}First`],
     ["thirty unclosed \"--[[x]]\" regions", `* if f(${"--[[x]] ".repeat(30)}First`],
@@ -75,13 +75,18 @@ describe("a choice line whose condition cannot be read stays a choice (I-1054)",
       );
       const errors = Object.values(program.diagnostics ?? {})
         .flat()
-        .filter((d) => d.severity === 1);
+        .filter((d) => d.severity === 1)
+        .map((d) => [
+          d.range.start.line,
+          d.range.start.character,
+          d.range.end.character,
+          typeof d.message === "string" ? d.message : d.message.value,
+        ]);
       const run = storyRun(new ProgramStory(program.chunks!), []);
       const menu = run.menus[0]?.choices.map((c) => c.text) ?? [];
-      expect(errors).toEqual([]);
-      expect(menu.length).toBe(2);
-      expect(menu[0]?.startsWith("if f(")).toBe(true);
-      expect(menu[1]).toBe("Fallback");
+      expect(errors).toEqual([[2, 9, 11, expect.stringContaining("This condition cannot be read here")]]);
+      expect(run.errors).toEqual([]);
+      expect(menu).toEqual(["Fallback"]);
     });
   }
 });

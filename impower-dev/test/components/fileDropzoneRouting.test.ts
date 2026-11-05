@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   importDroppedFiles: vi.fn(async () => undefined),
 }));
 
-vi.mock("@impower/impower-ui/components", () => ({ Download: () => null }));
+vi.mock("@impower/impower-ui/components", () => ({ DownloadIcon: () => null }));
 
 vi.mock("../../src/modules/spark-editor/utils/importDroppedFiles", () => ({
   importDroppedFiles: mocks.importDroppedFiles,

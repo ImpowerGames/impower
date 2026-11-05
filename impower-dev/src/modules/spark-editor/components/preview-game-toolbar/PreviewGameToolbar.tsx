@@ -1,26 +1,28 @@
 import {
-  BugOff,
+  BugIcon,
   Button,
-  Check,
+  CheckIcon,
+  CogIcon,
   DropdownCheckboxItem,
   DropdownContent,
   DropdownRoot,
   DropdownTrigger,
-  Eye,
-  EyeClosed,
-  Gear,
-  Notes,
-  PlayerPauseFill,
-  PlayerPlay,
-  PlayerPlayFill,
-  PlayerSkipBackwardFill,
-  PlayerSkipForwardFill,
-  PlayerStop,
-  PlayerTrackNextFill,
-  PlayerTrackPreviousFill,
-  Repeat,
+  FastForwardIcon,
+  FollowIcon,
+  FollowOffIcon,
+  NextIcon,
+  PauseFillIcon,
+  PlayIcon,
+  PreviousIcon,
+  RestartIcon,
+  ResumeIcon,
+  RewindIcon,
+  ScreenplayIcon,
+  StopIcon,
 } from "@impower/impower-ui/components";
-import type { IconComponent } from "@impower/impower-ui/components";
+import type {
+  IconComponent,
+} from "@impower/impower-ui/components";
 import { useEffect, useRef } from "preact/hooks";
 import throttle from "../../utils/throttle";
 import workspace from "../../workspace/WorkspaceStore";
@@ -117,37 +119,37 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
           aria-label="Play Again"
           onClick={loading ? undefined : onPlayAgain}
         >
-          <Repeat />
+          <RestartIcon />
           Play Again
         </Button>
       ) : running ? (
         <div class="flex flex-row items-center">
           <PointerHoldButton
             ariaLabel="Step Backward"
-            icon={PlayerSkipBackwardFill}
+            icon={PreviousIcon}
             onStart={() => startPlayback(-0.01)}
             onStop={stopPlayback}
           />
           <PointerHoldButton
             ariaLabel="Fast Backward"
-            icon={PlayerTrackPreviousFill}
+            icon={RewindIcon}
             onStart={() => startPlayback(-0.1)}
             onStop={stopPlayback}
           />
           <IconButton
             ariaLabel={paused ? "Play" : "Pause"}
-            icon={paused ? PlayerPlayFill : PlayerPauseFill}
+            icon={paused ? ResumeIcon : PauseFillIcon}
             onClick={onPauseToggle}
           />
           <PointerHoldButton
             ariaLabel="Fast Forward"
-            icon={PlayerTrackNextFill}
+            icon={FastForwardIcon}
             onStart={() => startPlayback(0.1)}
             onStop={stopPlayback}
           />
           <PointerHoldButton
             ariaLabel="Step Forward"
-            icon={PlayerSkipForwardFill}
+            icon={NextIcon}
             onStart={() => startPlayback(0.01)}
             onStop={stopPlayback}
           />
@@ -174,9 +176,9 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
         class={animatePortraits ? "text-ink" : "text-muted"}
       >
         {animatePortraits ? (
-          <Eye />
+          <FollowIcon />
         ) : (
-          <EyeClosed />
+          <FollowOffIcon />
         )}
       </Button>
       {running ? (
@@ -188,7 +190,7 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
               aria-label="Settings"
               class="text-muted"
             >
-              <Gear />
+              <CogIcon />
             </Button>
           </DropdownTrigger>
           <DropdownContent>
@@ -197,9 +199,9 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
               onCheckedChange={onDebugChange}
             >
               {debugging ? (
-                <Check class="size-4" />
+                <CheckIcon class="size-4" />
               ) : (
-                <BugOff class="size-4" />
+                <BugIcon class="size-4" />
               )}
               <span>Debugging</span>
             </DropdownCheckboxItem>
@@ -208,7 +210,7 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
       ) : (
         <IconButton
           ariaLabel="Preview Screenplay"
-          icon={Notes}
+          icon={ScreenplayIcon}
           dimmed
           onClick={onModeToggle}
         />
@@ -235,7 +237,7 @@ function RunToggle({
       </div>
     );
   }
-  const Icon = running ? PlayerStop : PlayerPlay;
+  const Icon = running ? StopIcon : PlayIcon;
   const label = running ? "STOP" : "PLAY";
   return (
     <Button

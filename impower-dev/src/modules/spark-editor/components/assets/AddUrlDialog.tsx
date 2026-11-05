@@ -1,10 +1,10 @@
 import {
   Button,
+  CloseIcon,
   Dialog,
   DialogActions,
   DialogTitle,
-  Link,
-  X,
+  LinkIcon,
 } from "@impower/impower-ui/components";
 import { useEffect, useRef, useState } from "preact/hooks";
 
@@ -58,7 +58,7 @@ export default function AddUrlDialog({
       initialFocus={urlRef}
     >
       <div class="mb-4 flex flex-row items-center gap-2">
-        <Link class="size-5 text-foreground/70" />
+        <LinkIcon class="size-5 text-foreground/70" />
         <DialogTitle class="flex-1">Add URL</DialogTitle>
         <Button
           variant="quiet"
@@ -67,7 +67,7 @@ export default function AddUrlDialog({
           size="icon"
           class="text-muted"
         >
-          <X class="size-4" />
+          <CloseIcon class="size-4" />
         </Button>
       </div>
 

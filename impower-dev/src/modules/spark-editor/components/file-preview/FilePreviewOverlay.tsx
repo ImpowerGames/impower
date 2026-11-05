@@ -1,11 +1,11 @@
 import {
   Button,
-  Check,
-  ChevronRight,
-  FileText,
-  Pencil,
+  CheckIcon,
+  ChevronIcon,
+  CloseIcon,
+  PencilIcon,
+  TextIcon,
   useMountTransition,
-  X,
 } from "@impower/impower-ui/components";
 import { createPortal } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
@@ -139,7 +139,7 @@ export default function FilePreviewOverlay({
                   size="icon"
                   class="flex-none text-muted"
                 >
-                  <Check class="size-3.5" />
+                  <CheckIcon class="size-3.5" />
                 </Button>
                 <Button
                   variant="quiet"
@@ -148,7 +148,7 @@ export default function FilePreviewOverlay({
                   size="icon"
                   class="flex-none text-muted"
                 >
-                  <X class="size-3.5" />
+                  <CloseIcon class="size-3.5" />
                 </Button>
               </div>
             ) : (
@@ -162,7 +162,7 @@ export default function FilePreviewOverlay({
                     size="icon"
                     class="flex-none text-muted"
                   >
-                    <Pencil class="size-3.5" />
+                    <PencilIcon class="size-3.5" />
                   </Button>
                 )}
               </div>
@@ -175,7 +175,7 @@ export default function FilePreviewOverlay({
           size="icon"
           class="flex-none text-muted"
         >
-          <X class="size-5" />
+          <CloseIcon class="size-5" />
         </Button>
       </div>
 
@@ -193,7 +193,7 @@ export default function FilePreviewOverlay({
             size="icon"
             class="text-muted"
           >
-            <ChevronRight class="size-5 rotate-180" />
+            <ChevronIcon class="size-5 rotate-180" />
           </Button>
           <span class="select-none text-sm tabular-nums text-muted">
             {index + 1} / {total}
@@ -206,7 +206,7 @@ export default function FilePreviewOverlay({
             size="icon"
             class="text-muted"
           >
-            <ChevronRight class="size-5" />
+            <ChevronIcon class="size-5" />
           </Button>
         </div>
       )}
@@ -258,7 +258,7 @@ function PreviewBody({ item }: { item: PreviewItem }) {
     default:
       return (
         <div class="m-auto flex flex-col items-center gap-4 text-muted">
-          <FileText class="size-16" />
+          <TextIcon class="size-16" />
           <span class="text-sm">No preview available.</span>
         </div>
       );

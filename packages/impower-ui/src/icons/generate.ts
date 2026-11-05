@@ -4,7 +4,8 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const svgDir = resolve(here, "svg");
-const outPath = resolve(here, "../components/icon/icons.generated.tsx");
+const componentsPath = resolve(here, "../components/icon/icons.generated.tsx");
+const masksPath = resolve(here, "../components/icon/icon-masks.generated.ts");
 
 const files = (await readdir(svgDir))
   .filter((f) => extname(f).toLowerCase() === ".svg")
@@ -27,25 +28,41 @@ const parseAttrs = (raw: string): Array<[string, string]> => {
 interface ParsedIcon {
   name: string;
   component: string;
+  svg: string;
   attrs: Array<[string, string]>;
   inner: string;
 }
 
+const problems: string[] = [];
 const parsed: ParsedIcon[] = [];
 for (const file of files) {
   const name = basename(file, ".svg");
-  const svg = (await readFile(resolve(svgDir, file), "utf8")).trim();
-  const m = svg.match(/^<svg\b([^>]*)>([\s\S]*)<\/svg>\s*$/);
-  if (!m) {
-    console.warn(`Skipping ${file}: could not parse <svg>`);
+  if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(name)) {
+    problems.push(`${file}: the name is not kebab-case`);
     continue;
+  }
+  const svg = (await readFile(resolve(svgDir, file), "utf8")).trim();
+  const m = svg.match(/^<svg\b([^>]*)>([\s\S]*)<\/svg>$/);
+  if (!m) {
+    problems.push(`${file}: could not parse <svg>`);
+    continue;
+  }
+  const attrs = parseAttrs(m[1]!);
+  if (!attrs.some(([k, v]) => k === "viewBox" && v === "0 0 24 24")) {
+    problems.push(`${file}: the viewBox is not the 24px grid`);
   }
   parsed.push({
     name,
-    component: pascalCase(name),
-    attrs: parseAttrs(m[1]!),
+    component: `${pascalCase(name)}Icon`,
+    svg,
+    attrs,
     inner: m[2]!.trim(),
   });
+}
+
+if (problems.length > 0) {
+  console.error(problems.join("\n"));
+  process.exit(1);
 }
 
 const renderAttrs = (attrs: Array<[string, string]>): string =>
@@ -61,7 +78,9 @@ const components = parsed
   })
   .join("\n\n");
 
-const out = `import type preact from "preact";
+await writeFile(
+  componentsPath,
+  `import type preact from "preact";
 import type { JSX } from "preact";
 
 export type IconComponent = (
@@ -69,7 +88,26 @@ export type IconComponent = (
 ) => JSX.Element;
 
 ${components}
-`;
+`,
+  "utf8",
+);
 
-await writeFile(outPath, out, "utf8");
-console.log(`Wrote ${parsed.length} icons to ${outPath}`);
+const masks = parsed
+  .map(
+    ({ name, svg }) =>
+      `  ${JSON.stringify(name)}: ${JSON.stringify(`url('data:image/svg+xml,${encodeURIComponent(svg)}')`)},`,
+  )
+  .join("\n");
+
+await writeFile(
+  masksPath,
+  `export const iconMasks = {
+${masks}
+} as const;
+
+export type IconName = keyof typeof iconMasks;
+`,
+  "utf8",
+);
+
+console.log(`Wrote ${parsed.length} icons to ${componentsPath} and ${masksPath}`);

@@ -1,4 +1,8 @@
-import { Button, Edit, Eye } from "@impower/impower-ui/components";
+import {
+  Button,
+  FollowIcon,
+  PencilIcon,
+} from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import workspace from "../../workspace/WorkspaceStore";
 
@@ -19,7 +23,7 @@ export default function PreviewToggleButton(_props: PreviewToggleButtonProps) {
     }
   };
 
-  const Icon = active ? Edit : Eye;
+  const Icon = active ? PencilIcon : FollowIcon;
   const label = active ? "EDIT" : "VIEW";
 
   return (

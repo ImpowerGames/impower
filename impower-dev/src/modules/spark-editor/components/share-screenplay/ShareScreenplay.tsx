@@ -1,10 +1,12 @@
 import {
-  BrandAo3,
-  FileTypeHtml,
-  FileTypePdf,
-  Gear,
+  ComputerIcon,
+  CopyIcon,
+  ScreenplayIcon,
+  SettingsIcon,
 } from "@impower/impower-ui/components";
-import type { IconComponent } from "@impower/impower-ui/components";
+import type {
+  IconComponent,
+} from "@impower/impower-ui/components";
 import { useRef, useState } from "preact/hooks";
 import { downloadFile } from "../../utils/downloadFile";
 import OptionButton from "../option-button/OptionButton";
@@ -21,10 +23,10 @@ type Row = {
 };
 
 const ROWS: Row[] = [
-  { key: "pdf", label: "Screenplay PDF", ext: ".pdf", icon: FileTypePdf },
-  { key: "html", label: "Screenplay HTML", ext: ".html", icon: FileTypeHtml },
-  { key: "copy-text", label: "Copy Work Text", icon: BrandAo3 },
-  { key: "copy-skin", label: "Copy Work Skin", icon: BrandAo3 },
+  { key: "pdf", label: "Screenplay PDF", ext: ".pdf", icon: ScreenplayIcon },
+  { key: "html", label: "Screenplay HTML", ext: ".html", icon: ComputerIcon },
+  { key: "copy-text", label: "Copy Work Text", icon: CopyIcon },
+  { key: "copy-skin", label: "Copy Work Skin", icon: CopyIcon },
 ];
 
 export default function ShareScreenplay(_props: ShareScreenplayProps) {
@@ -113,7 +115,7 @@ export default function ShareScreenplay(_props: ShareScreenplayProps) {
                   class="relative -mr-6 inline-flex size-11 cursor-pointer items-center justify-center rounded-control text-muted control-overlay"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <Gear class="size-5" />
+                  <SettingsIcon class="size-5" />
                 </button>
               </span>
             </OptionButton>

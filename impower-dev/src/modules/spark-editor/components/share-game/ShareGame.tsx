@@ -1,12 +1,13 @@
 import {
-  BrandAndroid,
-  BrandApple,
-  BrandHtml5,
   Button,
-  Gear,
-  SquareLetterS,
+  ComputerIcon,
+  DeviceIcon,
+  SettingsIcon,
+  SparkIcon,
 } from "@impower/impower-ui/components";
-import type { IconComponent } from "@impower/impower-ui/components";
+import type {
+  IconComponent,
+} from "@impower/impower-ui/components";
 import OptionButton from "../option-button/OptionButton";
 
 export const propDefaults = {};
@@ -19,10 +20,10 @@ type Target = {
 };
 
 const TARGETS: Target[] = [
-  { label: "Spark Cartridge", ext: ".s.png", icon: SquareLetterS },
-  { label: "HTML5 App", ext: ".zip", icon: BrandHtml5 },
-  { label: "Android App", ext: ".apk", icon: BrandAndroid },
-  { label: "iOS App", ext: ".ipa", icon: BrandApple },
+  { label: "Spark Cartridge", ext: ".s.png", icon: SparkIcon },
+  { label: "HTML5 App", ext: ".zip", icon: ComputerIcon },
+  { label: "Android App", ext: ".apk", icon: DeviceIcon },
+  { label: "iOS App", ext: ".ipa", icon: DeviceIcon },
 ];
 
 export default function ShareGame(_props: ShareGameProps) {
@@ -48,7 +49,7 @@ export default function ShareGame(_props: ShareGameProps) {
                     e.stopPropagation();
                   }}
                 >
-                  <Gear class="size-5" />
+                  <SettingsIcon class="size-5" />
                 </button>
               </span>
             </OptionButton>

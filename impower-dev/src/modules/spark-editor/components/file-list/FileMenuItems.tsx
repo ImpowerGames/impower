@@ -1,9 +1,9 @@
 import {
-  Download,
+  DownloadIcon,
   DropdownItem,
-  Pencil,
-  Search,
-  Trash,
+  PencilIcon,
+  SearchIcon,
+  TrashIcon,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import workspace from "../../workspace/WorkspaceStore";
@@ -33,23 +33,23 @@ export default function FileMenuItems({
   return (
     <>
       <DropdownItem disabled={disabled} onSelect={() => onRename()}>
-        <Pencil class="size-4" />
+        <PencilIcon class="size-4" />
         Rename
       </DropdownItem>
       {onFindUsages && (
         <DropdownItem disabled={disabled} onSelect={() => onFindUsages()}>
-          <Search class="size-4" />
+          <SearchIcon class="size-4" />
           Find usages
         </DropdownItem>
       )}
       {onDownload && (
         <DropdownItem disabled={disabled} onSelect={() => onDownload()}>
-          <Download class="size-4" />
+          <DownloadIcon class="size-4" />
           Download
         </DropdownItem>
       )}
       <DropdownItem disabled={disabled} onSelect={() => onDelete()}>
-        <Trash class="size-4" />
+        <TrashIcon class="size-4" />
         Delete
       </DropdownItem>
     </>

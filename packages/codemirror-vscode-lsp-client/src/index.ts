@@ -55,6 +55,7 @@ export {
 } from "./folding";
 export { formatDocument, formatKeymap, serverFormatting } from "./formatting";
 export { documentHighlights, serverDocumentHighlights } from "./highlights";
+export { type LSPClientIcons } from "./icons";
 export { hoverPreviews, serverHovers } from "./hover";
 export {
   convertFromServerCodeLens,

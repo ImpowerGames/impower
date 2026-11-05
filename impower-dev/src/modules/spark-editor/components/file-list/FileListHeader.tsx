@@ -1,15 +1,15 @@
 import {
-  ArrowDown,
-  ArrowUp,
   Button,
-  Check,
+  CheckIcon,
+  CloseIcon,
   DropdownContent,
   DropdownItem,
   DropdownRoot,
   DropdownTrigger,
-  Filter,
-  Search,
-  X,
+  FilterIcon,
+  SearchIcon,
+  SortIcon,
+  SortReverseIcon,
 } from "@impower/impower-ui/components";
 import type { ComponentChildren } from "preact";
 
@@ -56,7 +56,7 @@ export default function FileListHeader({
 }: FileListHeaderProps) {
   const sortLabel =
     SORT_OPTIONS.find((o) => o.key === sortKey)?.label ?? "Name";
-  const SortArrow = sortOrder === "asc" ? ArrowUp : ArrowDown;
+  const SortArrow = sortOrder === "asc" ? SortReverseIcon : SortIcon;
   const filterActive = typeFilter !== "";
 
   return (
@@ -64,7 +64,7 @@ export default function FileListHeader({
 
       <div class="flex flex-row items-center gap-2">
         <div class="relative flex min-w-0 flex-1 items-center">
-          <Search class="pointer-events-none absolute left-2.5 size-4 text-muted" />
+          <SearchIcon class="pointer-events-none absolute left-2.5 size-4 text-muted" />
           <input
             value={search}
             onInput={(e) => onSearch((e.target as HTMLInputElement).value)}
@@ -80,7 +80,7 @@ export default function FileListHeader({
               size="icon"
               class="absolute right-0 text-muted"
             >
-              <X class="size-3.5" />
+              <CloseIcon class="size-3.5" />
             </Button>
           )}
         </div>
@@ -97,7 +97,7 @@ export default function FileListHeader({
                 aria-label="Filter by type"
                 class={filterActive ? "mx-1 text-accent" : "mx-1 text-muted"}
               >
-                <Filter class="size-4" />
+                <FilterIcon class="size-4" />
                 {filterActive
                   ? (TYPE_FILTERS.find((f) => f.value === typeFilter)?.label ??
                     "Filter")
@@ -111,7 +111,7 @@ export default function FileListHeader({
                   onSelect={() => onTypeFilter(f.value)}
                 >
                   <span class="flex size-4 items-center justify-center">
-                    {typeFilter === f.value && <Check class="size-4" />}
+                    {typeFilter === f.value && <CheckIcon class="size-4" />}
                   </span>
                   {f.label}
                 </DropdownItem>
