@@ -171,6 +171,69 @@ const EDITOR_THEME: {
       height: "44px",
       minWidth: "44px",
     },
+    ".cm-panels .cm-panel.cm-search": {
+      display: "grid",
+      gridTemplateColumns: "44px 44px 44px minmax(0, 1fr) 44px 44px",
+      gap: "4px",
+      alignItems: "center",
+      paddingLeft: "60px",
+    },
+    ".cm-panels .cm-panel.cm-search br, .cm-panels .cm-panel.cm-search button[name='select']": {
+      display: "none",
+    },
+    ".cm-panels .cm-panel.cm-search .cm-textfield": {
+      width: "auto",
+      minHeight: "44px",
+      margin: "0",
+      padding: "10px 8px",
+    },
+    ".cm-panels .cm-panel.cm-search [name='search']": {
+      gridArea: "1 / 1 / 2 / 5",
+    },
+    ".cm-panels .cm-panel.cm-search [name='replace']:not(button)": {
+      gridArea: "3 / 1 / 4 / 5",
+    },
+    ".cm-panels .cm-panel.cm-search button[name='prev']": {
+      gridArea: "1 / 5",
+    },
+    ".cm-panels .cm-panel.cm-search button[name='next']": {
+      gridArea: "1 / 6",
+    },
+    ".cm-panels .cm-panel.cm-search button[name='replace']": {
+      gridArea: "3 / 5",
+    },
+    ".cm-panels .cm-panel.cm-search button[name='replaceAll']": {
+      gridArea: "3 / 6",
+    },
+    ".cm-panels .cm-panel.cm-search button[name='close']": {
+      width: "44px",
+    },
+    ".cm-panels .cm-panel.cm-search button:not([name='close'])": {
+      width: "44px",
+      height: "44px",
+    },
+    ".cm-panels .cm-panel.cm-search label:has(input[type='checkbox'])": {
+      position: "relative",
+      right: "auto",
+      width: "44px",
+      height: "44px",
+      margin: "0",
+      gridRow: "2",
+    },
+    ".cm-panels .cm-panel.cm-search label:has(input[name='case'])": {
+      gridColumn: "1",
+    },
+    ".cm-panels .cm-panel.cm-search label:has(input[name='word'])": {
+      gridColumn: "2",
+    },
+    ".cm-panels .cm-panel.cm-search label:has(input[name='re'])": {
+      gridColumn: "3",
+    },
+    ".cm-panels .cm-panel.cm-search .cm-search-matches": {
+      right: "108px",
+      top: "15px",
+      height: "30px",
+    },
   },
   "@media (forced-colors: active)": {
     "button:focus-visible, label:has(input[type='checkbox']:focus-visible)::before, .cm-textfield:focus-visible":
@@ -298,6 +361,7 @@ const EDITOR_THEME: {
   "& .cm-panel.cm-panel-lint ul": {
     minHeight: "100%",
     maxHeight: "164px",
+    scrollbarGutter: "stable",
   },
   "& .cm-panel.cm-panel-lint ul:focus li[aria-selected]": {
     background: "var(--editor-list-selected)",
@@ -378,6 +442,7 @@ const EDITOR_THEME: {
       verticalAlign: "top",
       maxHeight: "132px",
       overflowY: "auto",
+      scrollbarGutter: "stable",
     },
     "& input[name='search'], & [contenteditable][name='search']": {
       paddingRight: "100px",

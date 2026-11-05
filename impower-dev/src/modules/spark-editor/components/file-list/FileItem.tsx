@@ -566,7 +566,7 @@ function FileItem({
                       }
                     }}
                     onClick={(e) => e.stopPropagation()}
-                    class="w-full min-w-0 border-0 bg-transparent p-0 text-base font-semibold text-foreground outline-none [grid-area:1/1]"
+                    class="w-full min-w-0 rounded-control border-0 bg-transparent p-0 text-base font-semibold text-foreground [grid-area:1/1]"
                   />
                 </span>
                 {showExt && (

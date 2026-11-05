@@ -130,7 +130,7 @@ export default function FilePreviewOverlay({
                       setEditingUrl(null);
                     }
                   }}
-                  class="min-w-0 flex-1 select-text rounded bg-tint px-1.5 py-0.5 text-xs text-ink outline-none ring-1 ring-edge focus:ring-accent"
+                  class="min-h-11 min-w-0 flex-1 select-text rounded-control border border-edge bg-tint px-2 text-xs text-ink"
                 />
                 <Button
                   variant="quiet"

@@ -42,6 +42,7 @@ const completionTheme = EditorView.baseTheme({
   },
   "& .cm-tooltip.cm-tooltip-autocomplete > ul": {
     padding: "4px",
+    scrollbarGutter: "stable",
   },
   "& .cm-tooltip pre": {
     margin: "4px 8px",

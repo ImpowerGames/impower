@@ -371,7 +371,7 @@ export default function AssetInspectorPanel({
                         setEditingUrl(null);
                       }
                     }}
-                    class="min-w-0 flex-1 select-text rounded bg-foreground/10 px-2 py-1 text-sm text-foreground outline-none ring-1 ring-foreground/15 focus:ring-foreground/30"
+                    class="min-h-11 min-w-0 flex-1 select-text rounded-control border border-edge bg-transparent px-2 text-sm text-ink"
                   />
                   <Button
                     variant="quiet"

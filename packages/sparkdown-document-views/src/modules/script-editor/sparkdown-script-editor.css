@@ -65,6 +65,16 @@ sparkdown-script-editor {
   scrollbar-gutter: stable;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .sparkdown-script-editor-root,
+  .sparkdown-script-editor-root *,
+  .sparkdown-script-editor-root *::before,
+  .sparkdown-script-editor-root *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
 .sparkdown-script-editor-root [hidden] {
   display: none !important;
 }

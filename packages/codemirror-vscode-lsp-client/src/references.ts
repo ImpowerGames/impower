@@ -29,6 +29,7 @@ export const referencesTheme = EditorView.baseTheme({
   },
   ".cm-lsp-reference-list": {
     overflowY: "auto",
+    scrollbarGutter: "stable",
     backgroundColor: "inherit",
     outline: "none",
   },

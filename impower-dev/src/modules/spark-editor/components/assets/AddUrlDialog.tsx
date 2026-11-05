@@ -49,7 +49,7 @@ export default function AddUrlDialog({
   };
 
   const inputClass =
-    "h-9 w-full select-text rounded-md bg-foreground/5 px-3 text-sm text-foreground outline-none placeholder:text-foreground/40 focus:bg-foreground/10";
+    "h-11 w-full select-text rounded-control border border-edge bg-transparent px-3 text-sm text-ink placeholder:text-muted";
 
   return (
     <Dialog

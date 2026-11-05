@@ -21,7 +21,7 @@ export const renameTheme = EditorView.baseTheme({
   ".cm-lsp-rename-input": {
     fontSize: "16px",
     flexGrow: "1",
-    borderRadius: "6px",
+    borderRadius: "var(--control-radius)",
     backgroundColor: "var(--paper)",
     color: "var(--ink)",
     border: "1px solid var(--editor-rename-edge)",
@@ -29,21 +29,21 @@ export const renameTheme = EditorView.baseTheme({
     padding: "4px",
     fontFamily: "inherit",
     minWidth: "150px",
-    "&:focus": {
-      border: "1px solid var(--editor-toggle-on-edge)",
+    "&:focus-visible": {
+      borderColor: "var(--accent)",
     },
   },
   ".cm-lsp-rename-submit": {
     background: "var(--editor-rename-submit)",
     color: "var(--ink)",
     border: "none",
-    borderRadius: "2px",
+    borderRadius: "var(--control-radius)",
     padding: "6px 12px",
     cursor: "pointer",
     whiteSpace: "nowrap",
     "&:disabled": {
-      opacity: "0.5",
-      cursor: "not-allowed",
+      opacity: "0.4",
+      cursor: "default",
     },
   },
 });
