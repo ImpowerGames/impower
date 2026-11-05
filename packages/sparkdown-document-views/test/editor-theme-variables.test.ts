@@ -153,7 +153,7 @@ describe("the code editor's colours follow the shared colour variables", () => {
 });
 
 describe("the code editor decides no colour in JavaScript", () => {
-  it("holds no colour literal in any module the script editor mounts", () => {
+  it("holds no colour literal in any of this package's modules the script editor mounts", () => {
     const modules = editorModules();
     expect(modules.length).toBeGreaterThan(1);
     const offenders = modules.flatMap((file) =>
