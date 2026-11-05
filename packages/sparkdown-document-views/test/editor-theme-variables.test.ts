@@ -153,26 +153,53 @@ describe("the code editor's colours follow the shared colour variables", () => {
 
 describe("the code editor decides no colour in JavaScript", () => {
   it("holds no colour literal in any module the script editor mounts", () => {
-    const offenders = editorModules().flatMap((file) => {
-      const source = readFileSync(file, "utf8");
-      return [...source.matchAll(STRING_LITERAL)]
-        .filter(
-          ({ 0: literal, index }) =>
-            COLOUR_LITERAL.test(literal) &&
-            !(source[index - 1] === "=" && /^"(black|none|currentColor)"$/.test(literal)),
-        )
-        .map(({ 0: literal }) => `${relative(SRC, file)}: ${literal.slice(0, 80)}`);
-    });
+    const modules = editorModules();
+    expect(modules.length).toBeGreaterThan(1);
+    const offenders = modules.flatMap((file) =>
+      colourLiterals(readFileSync(file, "utf8")).map(
+        (literal) => `${relative(SRC, file)}: ${literal.slice(0, 80)}`,
+      ),
+    );
     expect(offenders).toEqual([]);
+  });
+
+  it("counts an inline colour as a literal and passes only an svg mask's black paint", () => {
+    expect(colourLiterals('view.dom.style.color="black";')).toEqual([
+      '"black"',
+    ]);
+    expect(colourLiterals('el.setAttribute("fill", "black");')).toEqual([
+      '"black"',
+    ]);
+    expect(colourLiterals('el.style.fill="black";')).toEqual(['"black"']);
+    expect(colourLiterals('const ICON = "#2B83B7";')).toEqual(['"#2B83B7"']);
+    expect(colourLiterals("root.style.color = 'white';")).toEqual(["'white'"]);
+    expect(
+      colourLiterals(
+        'const mask = `<svg viewBox="0 0 24 24" fill="none" stroke="black">${glyph}</svg>`;',
+      ),
+    ).toEqual([]);
+    expect(
+      colourLiterals(
+        'const mask = `<svg viewBox="0 0 24 24" fill="#fff">${glyph}</svg>`;',
+      ),
+    ).toEqual(['`<svg viewBox="0 0 24 24" fill="#fff">${glyph}</svg>`']);
   });
 });
 
 const SRC = resolve(__dirname, "../src");
 
+const SVG_MASK_PAINT =
+  /(?<=<svg\b[^`<>]*(?:>[^`]*)?)\s(?:fill|stroke)="(?:none|black|currentColor)"/g;
+
 const STRING_LITERAL = /"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/g;
 
 const COLOUR_LITERAL =
   /#[0-9a-f]{3,8}\b|\brgba?\(|\bhsla?\(|\b(white|black)\b(?!-)/i;
+
+const colourLiterals = (source: string) =>
+  (source.replace(SVG_MASK_PAINT, "").match(STRING_LITERAL) ?? []).filter(
+    (literal) => COLOUR_LITERAL.test(literal),
+  );
 
 const editorModules = () => {
   const seen = new Set<string>();
