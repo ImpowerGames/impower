@@ -117,4 +117,45 @@ describe("VirtualList", () => {
     await act(async () => render(list(10), host!));
     expect(scroller!.scrollTop).toBe(10 * rowHeight);
   });
+
+  it("reveals its row once a list mounted hidden gets a viewport", async () => {
+    const rowHeight = VIRTUAL_LIST_ROW_HEIGHT.default;
+    host = document.body.appendChild(document.createElement("div"));
+    let scroller: HTMLDivElement | null = null;
+    let height = 0;
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() {
+        return this === scroller ? height : 0;
+      },
+    });
+    await act(async () =>
+      render(
+        <VirtualList
+          items={ITEMS}
+          getKey={(item) => item}
+          renderItem={(item) => <span>{item}</span>}
+          revealIndex={100}
+          listRef={(element) => {
+            scroller = element;
+          }}
+        />,
+        host!,
+      ),
+    );
+    expect(scroller!.scrollTop).toBe(0);
+    height = rowHeight * 4;
+    await act(async () => {
+      scroller!.dispatchEvent(new Event("scroll"));
+    });
+    expect(scroller!.scrollTop).toBe(101 * rowHeight - rowHeight * 4);
+    await act(async () => {
+      scroller!.dispatchEvent(new Event("scroll"));
+    });
+    expect(
+      Array.from(host!.querySelectorAll('[role="listitem"]')).some(
+        (row) => row.textContent === "row 100",
+      ),
+    ).toBe(true);
+  });
 });
