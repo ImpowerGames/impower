@@ -101,7 +101,7 @@ const UI_DECLARATION_NODES = nodeNameSet([
   "LuauTheme",
 ]);
 const DEFINE_NODES = nodeNameSet(["LuauDefine"]);
-const UI_DEFINE_HEADER = /^\s*define\s+[\w.]+\s+as\s+(config|color)\b/;
+const UI_DEFINE_TYPES = new Set(["config", "color"]);
 import {
   IDENTIFIER_FIELDS,
   NAME_STRING_FIELDS,
@@ -3613,17 +3613,20 @@ export class SparkdownCompiler {
     if (!doc || !tree) {
       return spans;
     }
+    const defineType = (define: SyntaxNode) => {
+      const header = getDescendent("LuauDefineNameAndInheritance", define);
+      const type = header ? getDescendent("LuauDefineParentName", header) : undefined;
+      return type ? doc.read(type.from, type.to).trim() : "";
+    };
     tree.iterate({
       enter: (node) => {
-        const first = doc.lineAt(node.from);
         const ui =
           UI_DECLARATION_NODES.has(node.name) ||
-          (DEFINE_NODES.has(node.name) &&
-            UI_DEFINE_HEADER.test(doc.getLineText(first) ?? ""));
+          (DEFINE_NODES.has(node.name) && UI_DEFINE_TYPES.has(defineType(node.node)));
         if (!ui) {
           return undefined;
         }
-        spans.push([first, doc.lineAt(Math.max(node.from, node.to - 1))]);
+        spans.push([doc.lineAt(node.from), doc.lineAt(Math.max(node.from, node.to - 1))]);
         return false;
       },
     });

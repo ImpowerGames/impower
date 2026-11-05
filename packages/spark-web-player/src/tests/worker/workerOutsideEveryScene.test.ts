@@ -123,12 +123,15 @@ end
 scene other
   Inside other.
 end
+
+define --[[palette]] muted as color with value = "#333c4e" end
 `;
 
 const UI_LINES = [
   ["a define as color", 0],
   ["a style's header", 2],
   ["a style's property", 3],
+  ["a define as color with a comment in its header", 18],
 ] as const;
 
 describe("a line inside a top-level UI declaration", () => {

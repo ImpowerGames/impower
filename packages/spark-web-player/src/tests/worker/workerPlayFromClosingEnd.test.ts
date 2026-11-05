@@ -290,10 +290,15 @@ describe("the preview after the end of a scene whose branches it does not enter"
       await h.select(9);
       await settle(40);
       expect(writtenText(h.toRouter)).not.toContain("Unused");
+      await h.select(1);
+      await settle(40);
+      expect(h.overlay.textContent).toContain("Before.");
       const before = h.toRouter.length;
       await h.select(0, empty);
       await settle(40);
       expect(writtenText(h.toRouter.slice(before))).not.toContain("Other.");
+      expect(h.overlay.textContent).not.toContain("Before.");
+      expect(h.overlay.textContent).not.toContain("Other.");
       const kept = h.toRouter.length;
       await h.select(11);
       await settle(40);
