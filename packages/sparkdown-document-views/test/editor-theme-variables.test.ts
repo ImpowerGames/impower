@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { openSearchPanel } from "@codemirror/search";
 import { EditorState, type Extension } from "@codemirror/state";
@@ -154,10 +154,11 @@ describe("the code editor's colours follow the shared colour variables", () => {
 
 describe("the code editor decides no colour in JavaScript", () => {
   it("holds no colour literal in any of this package's modules the script editor mounts", () => {
-    const modules = editorModules();
+    const { modules, unscanned } = editorModules();
     expect(modules.length).toBeGreaterThan(1);
+    expect(unscanned).toEqual([]);
     const offenders = modules.flatMap((file) =>
-      colourLiterals(readFileSync(file, "utf8")).map(
+      colourLiterals(readFileSync(file, "utf8"), file).map(
         (literal) => `${relative(SRC, file)}: ${literal.slice(0, 80)}`,
       ),
     );
@@ -204,12 +205,32 @@ describe("the code editor decides no colour in JavaScript", () => {
         "const markup = `<svg><path d=\"M0 0\"/></svg> fill=\"black\"`;",
       ),
     ).toHaveLength(1);
+    expect(
+      colourLiterals(
+        "const markup = `<svg fill=\"none\"/><rect fill=\"black\"/></svg>`;",
+      ),
+    ).toHaveLength(1);
+    expect(
+      colourLiterals(
+        "const mask = `<svg><path style=\"fill: black\"/></svg>`;",
+      ),
+    ).toHaveLength(1);
+    expect(
+      colourLiterals("const mask = `<svg><path fill='black'/></svg>`;"),
+    ).toHaveLength(1);
+    expect(
+      colourLiterals('const mask = `<SVG><path fill="black"/></SVG>`;'),
+    ).toHaveLength(1);
+    expect(
+      colourLiterals('const node = <span style={{ color: "black" }} />;'),
+    ).toEqual(['"black"']);
   });
 });
 
 const SRC = resolve(__dirname, "../src");
 
-const SVG_ELEMENT = /<svg\b[\s\S]*?(?:<\/svg>|$)/g;
+const SVG_ELEMENT =
+  /<svg\b(?:"[^"]*"|'[^']*'|[^<>"'])*\/>|<svg\b[\s\S]*?(?:<\/svg>|$)/g;
 
 const SVG_TAG = /<[a-zA-Z][\w:-]*(?:"[^"]*"|'[^']*'|[^<>"'])*>/g;
 
@@ -230,8 +251,8 @@ const withoutMaskPaints = (text: string) =>
 const COLOUR_LITERAL =
   /#[0-9a-f]{3,8}\b|\brgba?\(|\bhsla?\(|\b(white|black)\b(?!-)/i;
 
-const colourLiterals = (source: string) => {
-  const file = ts.createSourceFile("source.ts", source, ts.ScriptTarget.Latest);
+const colourLiterals = (source: string, fileName = "source.tsx") => {
+  const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest);
   const found: string[] = [];
   const visit = (node: ts.Node) => {
     const pieces = ts.isStringLiteral(node) ||
@@ -253,24 +274,44 @@ const colourLiterals = (source: string) => {
   return found;
 };
 
+const SCANNED_MODULE = /\.tsx?$/;
+
+const resolveModule = (from: string, specifier: string) => {
+  const base = resolve(dirname(from), specifier);
+  return [
+    base,
+    `${base}.ts`,
+    `${base}.tsx`,
+    `${base}/index.ts`,
+    `${base}/index.tsx`,
+  ].find(
+    (candidate) =>
+      SCANNED_MODULE.test(candidate) &&
+      existsSync(candidate) &&
+      statSync(candidate).isFile(),
+  );
+};
+
 const editorModules = () => {
   const seen = new Set<string>();
+  const unscanned: string[] = [];
   const visit = (file: string) => {
     if (seen.has(file)) return;
     seen.add(file);
-    const source = readFileSync(file, "utf8");
-    for (const [, specifier] of source.matchAll(
-      /(?:from|import)\s*\(?\s*["'](\.{1,2}\/[^"']+)["']/g,
-    )) {
-      const base = resolve(dirname(file), specifier!);
-      const target = [base, `${base}.ts`, `${base}/index.ts`].find(
-        (candidate) => existsSync(candidate) && candidate.endsWith(".ts"),
-      );
+    const { importedFiles } = ts.preProcessFile(
+      readFileSync(file, "utf8"),
+      true,
+      true,
+    );
+    for (const { fileName: specifier } of importedFiles) {
+      if (!specifier.startsWith(".")) continue;
+      const target = resolveModule(file, specifier);
       if (target) visit(target);
+      else unscanned.push(`${relative(SRC, file)} -> ${specifier}`);
     }
   };
   visit(resolve(SRC, "modules/script-editor/utils/createEditorView.ts"));
-  return [...seen];
+  return { modules: [...seen], unscanned };
 };
 
 const declarations = (
