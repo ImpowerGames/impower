@@ -104,7 +104,7 @@ export default function MainWindow(_props: MainWindowProps) {
 
         <div class="absolute inset-x-0 top-0 !h-px bg-edge z-10" />
         {!isSSR && (
-          <Tabs value={pane} onChange={onPaneChange} indicator="none">
+          <Tabs value={settings ? "" : pane} onChange={onPaneChange} indicator="none">
             <Tab value="logic" icon={Bolt} activeIcon={BoltFill}>
               Logic
             </Tab>
