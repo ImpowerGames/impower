@@ -101,7 +101,7 @@ describe("provider · choice menus in the document symbols", () => {
     expect(lines(top)).toEqual([18, 21, 18]);
   });
 
-  test("a multi-line prompt reads as one line, and a speaker or command line is not part of it", () => {
+  test("only the last display line before the options is the prompt, as the menu's caption, and a command line is not one", () => {
     const [scene] = symbolsOf(`scene A
   choose
     @ GUIDE
@@ -111,7 +111,7 @@ describe("provider · choice menus in the document symbols", () => {
   end
 end
 `);
-    expect(scene?.children?.map((s) => s.name)).toEqual(["Which way?"]);
+    expect(scene?.children?.map((s) => s.name)).toEqual(["way?"]);
   });
 
   test("a menu with no prompt and no options keeps its place under a fallback name", () => {
@@ -155,5 +155,26 @@ end
 end
 `);
     expect(scene?.children?.map((s) => s.name)).toEqual(["Which door?"]);
+  });
+
+  test("of adjacent dialogue or explicit action lines, only the last before the options is the prompt", () => {
+    const [scene] = symbolsOf(`scene A
+  choose
+    GUIDE: The hall is dark.
+    GUIDE: Which door?
+    * Left
+      You go left.
+  end
+  choose
+    : The stairs creak.
+    : Up or down?
+    * Up
+  end
+end
+`);
+    expect(scene?.children?.map((s) => s.name)).toEqual([
+      "Which door?",
+      "Up or down?",
+    ]);
   });
 });

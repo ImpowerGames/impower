@@ -28,7 +28,6 @@ const DISPLAY_LINES = new Set([
   "BlockAction",
   "BlockDialogue",
 ]);
-const BLANK_LINE = /\n[ \t]*\r?\n/;
 const CONTAINS_BLOCKS = /(?:Block|Clause)(?:_content)?$/;
 const NOT_PROMPT =
   /^(?:\[\[|\(\(|[$%^:@&]|->|<-|if\b|else\b|elseif\b|label\b|\/\/)/;
@@ -125,8 +124,7 @@ export const getChoiceMenus = (
     const keywordFrom = keyword?.from ?? trimmedFrom(block);
     const keywordTo = keyword?.to ?? keywordFrom;
     const start = document.positionAt(keywordFrom);
-    let prompt: string[] = [];
-    let promptEnd: number | undefined;
+    let prompt: string | undefined;
     const choices: SyntaxNode[] = [];
     let optionsEnd = block.to;
     const content = block.getChild(CHOOSE_CONTENT);
@@ -137,17 +135,7 @@ export const getChoiceMenus = (
         optionsEnd = child.from;
         break;
       } else if (!choices.length) {
-        const line = displayText(child);
-        if (line) {
-          if (
-            promptEnd != null &&
-            BLANK_LINE.test(text.slice(promptEnd, child.from))
-          ) {
-            prompt = [];
-          }
-          prompt.push(line);
-          promptEnd = child.to;
-        }
+        prompt = displayText(child) || prompt;
       }
     }
     if (optionsEnd === block.to && content) {
@@ -158,7 +146,7 @@ export const getChoiceMenus = (
       return option ? [option] : [];
     });
     return {
-      name: oneLine(prompt.join(" ")) || options[0]?.name || FALLBACK_NAME,
+      name: prompt || options[0]?.name || FALLBACK_NAME,
       range: { start, end: endBefore(block.to, start) },
       selectionRange: { start, end: document.positionAt(keywordTo) },
       options,
