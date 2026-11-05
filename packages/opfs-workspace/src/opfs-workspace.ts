@@ -60,8 +60,8 @@ import {
   deleteEmptyDirectory,
   findDirectory,
   getAllDirectoriesRecursive,
+  getAllFilePathsRecursive,
 } from "./utils/directories";
-import { getAllFilesRecursive } from "./utils/getAllFilesRecursive";
 import { getDirectoryHandleFromPath } from "./utils/getDirectoryHandleFromPath";
 import { getFileExtension } from "./utils/getFileExtension";
 import { getFileName } from "./utils/getFileName";
@@ -1173,12 +1173,10 @@ const readDirectoryFiles = async (directoryUri: string) => {
   const directoryPath = getPathFromUri(directoryUri);
   const directoryHandle = await findDirectory(root, directoryPath);
   const floor = await readFloor(root);
-  const directoryEntries = directoryHandle
-    ? await getAllFilesRecursive(directoryHandle, directoryPath, [TRASH_DIR])
+  const listedPaths = directoryHandle
+    ? await getAllFilePathsRecursive(directoryHandle, directoryPath, [TRASH_DIR])
     : [];
-  const listed = new Set(
-    directoryEntries.map((entry) => getUriFromPath(entry.path)),
-  );
+  const listed = new Set(listedPaths.map(getUriFromPath));
   if (floor) {
     observeCommit(floor);
     raiseDirectoryFloor(directoryUri, floor);
@@ -1190,8 +1188,7 @@ const readDirectoryFiles = async (directoryUri: string) => {
       !listed.has(uri),
   );
   const files = await Promise.all(
-    directoryEntries.map(async (entry) => {
-      const uri = getUriFromPath(entry.path);
+    [...listed].map(async (uri) => {
       const stale =
         floor != null &&
         isSupersededCommit(State.commits.get(uri) ?? NO_COMMIT, floor);

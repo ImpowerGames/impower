@@ -670,6 +670,7 @@ describe("listing storage after earlier notifications (I-1893)", () => {
     const h = await worker(root);
     await h.enumerate();
     await (root.entries.get("local") as MemoryDirectory).removeEntry("a.sd");
+    await otherTab(root).commit();
     const b = fileAt(root, "b.sd")!;
     const getFile = b.getFile.bind(b);
     let captured!: () => void;
@@ -705,6 +706,51 @@ describe("listing storage after earlier notifications (I-1893)", () => {
       }),
     ).toMatchObject({ result: { applied: true } });
     expect(textAt(root, "a.sd")).toBe("!BACK");
+  });
+
+  it("returns the other files when another tab deletes a listed file while the listing runs", async () => {
+    const root = seed({ "a.sd": "A", "b.sd": "B" });
+    await otherTab(root).commit();
+    const h = await worker(root);
+    const a = fileAt(root, "a.sd")!;
+    const getFile = a.getFile.bind(a);
+    let captured!: () => void;
+    const reached = new Promise<void>((resolve) => {
+      captured = resolve;
+    });
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    a.getFile = async () => {
+      a.getFile = getFile;
+      captured();
+      await held;
+      if (fileAt(root, "a.sd") !== a) {
+        throw new DOMException("a.sd was deleted", "NotFoundError");
+      }
+      return getFile();
+    };
+    h.start("listing", "workspace/readDirectoryFiles", {
+      directory: { uri: "file://local" },
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    await reached;
+    const removed = navigator.locks.request(
+      `opfs-workspace:commit:${uriOf("a.sd")}`,
+      () => otherTab(root).remove("a.sd"),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    release();
+    await removed;
+    await vi.advanceTimersByTimeAsync(250);
+    expect(h.response("listing")).not.toHaveProperty("error");
+    expect(h.response("listing").result.map((f: any) => f.uri)).toContain(
+      uriOf("b.sd"),
+    );
+    expect((await h.enumerate()).result.map((f: any) => f.uri)).toEqual([
+      uriOf("b.sd"),
+    ]);
   });
 });
 

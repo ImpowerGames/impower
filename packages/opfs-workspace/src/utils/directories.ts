@@ -6,11 +6,46 @@ const entriesOf = async (
   directoryHandle: FileSystemDirectoryHandle,
 ): Promise<FileSystemHandle[]> => {
   const entries: FileSystemHandle[] = [];
-  // @ts-ignore - values() method should exist
-  for await (const value of directoryHandle.values()) {
-    entries.push(value as FileSystemHandle);
+  try {
+    // @ts-ignore - values() method should exist
+    for await (const value of directoryHandle.values()) {
+      entries.push(value as FileSystemHandle);
+    }
+  } catch (err) {
+    if (isMissingEntry(err)) {
+      return [];
+    }
+    throw err;
   }
   return entries;
+};
+
+const isMissingEntry = (err: unknown) => {
+  const name = (err as DOMException)?.name;
+  return name === "NotFoundError" || name === "TypeMismatchError";
+};
+
+export const getAllFilePathsRecursive = async (
+  directoryHandle: FileSystemDirectoryHandle,
+  directoryPath: string,
+  skipDirNames: string[] = [],
+): Promise<string[]> => {
+  const paths: string[] = [];
+  const traverse = async (
+    handle: FileSystemDirectoryHandle,
+    path: string,
+  ): Promise<void> => {
+    for (const entry of await entriesOf(handle)) {
+      const nestedPath = `${path}/${entry.name}`;
+      if (entry.kind === "file") {
+        paths.push(nestedPath);
+      } else if (!skipDirNames.includes(entry.name)) {
+        await traverse(entry as FileSystemDirectoryHandle, nestedPath);
+      }
+    }
+  };
+  await traverse(directoryHandle, directoryPath);
+  return paths.sort();
 };
 
 export const getAllDirectoriesRecursive = async (
@@ -52,8 +87,7 @@ export const findDirectory = async (
     try {
       handle = await handle.getDirectoryHandle(name, { create: false });
     } catch (err) {
-      const reason = (err as DOMException).name;
-      if (reason === "NotFoundError" || reason === "TypeMismatchError") {
+      if (isMissingEntry(err)) {
         return undefined;
       }
       throw err;

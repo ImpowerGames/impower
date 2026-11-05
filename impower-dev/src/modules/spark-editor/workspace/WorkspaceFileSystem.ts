@@ -189,12 +189,11 @@ export default class WorkspaceFileSystem {
 
   protected async openProjectStore(projectId: string) {
     const directoryUri = this.getDirectoryUri(projectId);
-    const readFiles = async () => {
-      const listed = await this.readDirectoryFiles({
+    const readFiles = () => {
+      this._changedDuringLoad = new Set();
+      return this.readDirectoryFiles({
         directory: { uri: directoryUri },
       });
-      this._changedDuringLoad = new Set();
-      return listed;
     };
     const pathsOf = (list: FileData[]) =>
       list.map((f) => this.getRelativePath(projectId, f.uri));

@@ -294,7 +294,7 @@ describe("the page's file cache across tabs (I-1893)", () => {
 });
 
 describe("the page's first load (I-1893)", () => {
-  const openWithHeldFolders = async () => {
+  const openWithHeld = async (held: "files" | "folders") => {
     vi.resetModules();
     const local = new Map<string, string>();
     vi.stubGlobal("localStorage", {
@@ -306,7 +306,7 @@ describe("the page's first load (I-1893)", () => {
       deliver(data: unknown): void;
       reply(message: any, result: unknown): void;
     };
-    let folders: any;
+    let pending: any;
     let announce!: () => void;
     const awaitingFolders = new Promise<void>((resolve) => {
       announce = resolve;
@@ -326,23 +326,31 @@ describe("the page's first load (I-1893)", () => {
         this.deliver({ jsonrpc: "2.0", id: message.id, method: message.method, result });
       }
       postMessage(message: any) {
-        if (message.method === "workspace/readDirectoryFiles") {
-          queueMicrotask(() =>
-            this.reply(message, [
-              fileData("main.sd", "LISTED"),
-              fileData("gone.sd", "LISTED"),
-              fileData(".layout", "1"),
-              fileData(".folders", "1"),
-            ]),
-          );
-        } else if (message.method === "workspace/directories") {
-          folders = message;
+        const kind =
+          message.method === "workspace/readDirectoryFiles"
+            ? "files"
+            : message.method === "workspace/directories"
+              ? "folders"
+              : undefined;
+        if (kind === held) {
+          pending = message;
           announce();
+        } else if (kind) {
+          queueMicrotask(() => this.reply(message, responses[kind]));
         } else if (message.method === "workspace/trashFiles") {
           queueMicrotask(() => this.reply(message, {}));
         }
       }
     }
+    const responses = {
+      files: [
+        fileData("main.sd", "LISTED"),
+        fileData("gone.sd", "LISTED"),
+        fileData(".layout", "1"),
+        fileData(".folders", "1"),
+      ],
+      folders: { uris: [] },
+    };
     vi.stubGlobal("Worker", HeldWorker);
     const { default: WorkspaceFileSystem } = await import(
       "../../src/modules/spark-editor/workspace/WorkspaceFileSystem"
@@ -353,36 +361,39 @@ describe("the page's first load (I-1893)", () => {
     );
     await awaitingFolders;
     const finish = async () => {
-      worker.reply(folders, { uris: [] });
+      worker.reply(pending, responses[held]);
       return fs.getFiles(PROJECT);
     };
     return { worker, finish };
   };
 
-  it("keeps a newer write and a delete that arrive while the first load is still listing folders", async () => {
-    const { worker, finish } = await openWithHeldFolders();
-    worker.deliver({
-      jsonrpc: "2.0",
-      method: "workspace/didWriteFiles",
-      params: {
-        remote: true,
-        files: [fileData("main.sd", "NEWER")],
-        commits: { [uriOf("main.sd")]: { sequence: 2, writer: "other-tab" } },
-      },
-    });
-    worker.deliver({
-      jsonrpc: "2.0",
-      method: "workspace/didDeleteFiles",
-      params: {
-        remote: true,
-        files: [{ uri: uriOf("gone.sd") }],
-        commits: { [uriOf("gone.sd")]: { sequence: 3, writer: "other-tab" } },
-      },
-    });
-    const files = await finish();
-    expect(files[uriOf("main.sd")]?.text).toBe("NEWER");
-    expect(files[uriOf("gone.sd")]).toBeUndefined();
-  });
+  it.each(["files", "folders"] as const)(
+    "keeps a newer write and a delete that arrive while the first load is still listing %s",
+    async (held) => {
+      const { worker, finish } = await openWithHeld(held);
+      worker.deliver({
+        jsonrpc: "2.0",
+        method: "workspace/didWriteFiles",
+        params: {
+          remote: true,
+          files: [fileData("main.sd", "NEWER")],
+          commits: { [uriOf("main.sd")]: { sequence: 2, writer: "other-tab" } },
+        },
+      });
+      worker.deliver({
+        jsonrpc: "2.0",
+        method: "workspace/didDeleteFiles",
+        params: {
+          remote: true,
+          files: [{ uri: uriOf("gone.sd") }],
+          commits: { [uriOf("gone.sd")]: { sequence: 3, writer: "other-tab" } },
+        },
+      });
+      const files = await finish();
+      expect(files[uriOf("main.sd")]?.text).toBe("NEWER");
+      expect(files[uriOf("gone.sd")]).toBeUndefined();
+    },
+  );
 });
 
 describe("changes whose order cannot be established are settled from storage", () => {
