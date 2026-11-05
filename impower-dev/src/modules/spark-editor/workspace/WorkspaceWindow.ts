@@ -252,9 +252,11 @@ export default class WorkspaceWindow {
       ...this.store,
       screen: { ...this.store.screen, outlineSearch: open },
     });
-    const uri = open ? this.getActiveEditorForPane("logic")?.uri : undefined;
-    if (uri) {
-      this.search(uri);
+    const filename = open
+      ? this.getActiveEditorForPane("logic")?.filename
+      : undefined;
+    if (filename) {
+      this.executeEditorCommand(filename, "search");
     }
   }
 
