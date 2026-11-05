@@ -35,7 +35,7 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
 
   const handleBack = async () => {
     const { Workspace } = await import("../../workspace/Workspace");
-    Workspace.window.closeFileEditor(filename);
+    Workspace.window.browseScripts();
   };
 
   const commitRename = async () => {

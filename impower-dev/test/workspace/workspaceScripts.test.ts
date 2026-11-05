@@ -188,6 +188,74 @@ describe("Scripts through the workspace", () => {
   });
 });
 
+describe("Scripts through the workspace, under concurrent reloads", () => {
+  const switchProject = (id: string) => {
+    workspace.current = {
+      ...workspace.current,
+      project: { ...workspace.current.project, id },
+    };
+  };
+
+  it("follows an open editor to its new path even when a reload lands during the rename", async () => {
+    const { scripts, fs, window, open } = fakeWorkspace(PATHS, FOLDERS);
+    await scripts.load();
+    open.add("Scripts/intro.sd");
+    const move = fs.moveFile.getMockImplementation()!;
+    fs.moveFile.mockImplementation(async (projectId: string, from: string, to: string) => {
+      const result = await move(projectId, from, to);
+      await scripts.load();
+      return result;
+    });
+    await scripts.rename("Scripts/intro.sd", "opening");
+    expect(window.openFileEditor).toHaveBeenCalledWith("Scripts/opening.sd", "Scripts/intro.sd");
+  });
+
+  it("never lets an earlier project's pending load replace the open project's listing", async () => {
+    const a = fakeWorkspace(["main.sd", "Scripts/a.sd"], ["Scripts"]);
+    const b = fakeWorkspace(["main.sd", "Scripts/b.sd"], ["Scripts"]);
+    let finishA!: () => void;
+    const gate = new Promise<void>((resolve) => (finishA = resolve));
+    const filesA = a.fs.getFiles.getMockImplementation()!;
+    a.fs.getFiles.mockImplementation(async () => {
+      await gate;
+      return filesA();
+    });
+    const scripts = new WorkspaceScripts({
+      fs: {
+        ...b.fs,
+        getFiles: (id: string) => (id === "A" ? a.fs.getFiles(id) : b.fs.getFiles(id)),
+        getRelativePath: (_: string, u: string) => u.replace(/^file:\/\/\/p\//, ""),
+      },
+      ls: b.ls,
+      window: b.window,
+    } as never);
+    switchProject("A");
+    const pendingA = scripts.load();
+    switchProject("B");
+    await scripts.load();
+    finishA();
+    await pendingA;
+    expect(workspace.scriptListing.value?.projectId).toBe("B");
+    expect(Object.keys(workspace.scriptListing.value!.files)).toContain("Scripts/b.sd");
+  });
+
+  it("keeps the last references read when the language server request fails, and says so", async () => {
+    const { scripts, ls } = fakeWorkspace(PATHS, FOLDERS);
+    await scripts.load();
+    const before = workspace.scriptReferences.value;
+    expect(before).toHaveLength(1);
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    ls.getScriptReferences.mockRejectedValueOnce(new Error("server not ready"));
+    await scripts.load();
+    expect(workspace.scriptReferences.value).toEqual(before);
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining("sparkdown/scriptReferences failed"),
+      expect.any(Error),
+    );
+    error.mockRestore();
+  });
+});
+
 describe("browsing one folder at a time", () => {
   const listing = {
     files: {

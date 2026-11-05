@@ -58,8 +58,14 @@ const extensionOf = (path: string) => {
 export default class WorkspaceScripts {
   protected readonly _workspace: Deps;
 
+  protected _generation = 0;
+
   constructor(deps: Deps) {
     this._workspace = deps;
+  }
+
+  protected isCurrent(generation: number, projectId: string) {
+    return generation === this._generation && projectId === this.projectId;
   }
 
   protected get projectId() {
@@ -75,6 +81,7 @@ export default class WorkspaceScripts {
     if (!projectId) {
       return null;
     }
+    const generation = ++this._generation;
     const { fs } = this._workspace;
     const all = await fs.getFiles(projectId);
     const files: ScriptListing["files"] = {};
@@ -89,28 +96,33 @@ export default class WorkspaceScripts {
       files,
       folders: await fs.getFolders(projectId),
     };
+    if (!this.isCurrent(generation, projectId)) {
+      return null;
+    }
+    if (workspace.scriptListing.peek()?.projectId !== projectId) {
+      workspace.scriptReferences.value = [];
+    }
     workspace.scriptListing.value = listing;
-    await this.loadReferences();
+    await this.loadReferences(generation, projectId);
     return listing;
   }
 
-  protected async loadReferences() {
-    const projectId = this.projectId;
-    if (!projectId) {
-      return;
-    }
+  protected async loadReferences(generation: number, projectId: string) {
     const { fs, ls } = this._workspace;
     try {
       const references = await ls.getScriptReferences(
         fs.getFileUri(projectId, MAIN_SCRIPT),
       );
+      if (!this.isCurrent(generation, projectId)) {
+        return;
+      }
       workspace.scriptReferences.value = references.map((r) => ({
         from: fs.getRelativePath(projectId, r.from),
         to: fs.getRelativePath(projectId, r.to),
         divert: r.divert,
       }));
-    } catch {
-      workspace.scriptReferences.value = [];
+    } catch (error) {
+      console.error("[WorkspaceScripts] sparkdown/scriptReferences failed; Uses and Story order keep the last references read:", error);
     }
   }
 
@@ -172,16 +184,17 @@ export default class WorkspaceScripts {
     const projectId = this.projectId!;
     const kind = this.kindOf(from);
     const { fs, window } = this._workspace;
+    const openEditors = Object.keys(this.listing.files).filter(
+      (path) => isInside(path, from) && window.getActiveEditorForFile(path)?.open,
+    );
     if (kind === "file") {
       await fs.moveFile(projectId, from, to);
     } else {
       await fs.moveFolder(projectId, from, to);
     }
     recordMove(projectId, from, to, kind === "folder");
-    for (const path of Object.keys(this.listing.files)) {
-      if (isInside(path, from) && window.getActiveEditorForFile(path)?.open) {
-        window.openFileEditor(to + path.slice(from.length), path);
-      }
+    for (const path of openEditors) {
+      window.openFileEditor(to + path.slice(from.length), path);
     }
     await this.changed(kind);
     return to;

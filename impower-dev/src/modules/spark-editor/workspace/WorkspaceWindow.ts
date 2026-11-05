@@ -100,7 +100,6 @@ import {
   hashOfRoute,
   routeOfHash,
   routeOfState,
-  SCRIPT_EDITOR_VIEW,
   stateForRoute,
   transitionRoute,
   type Route,
@@ -372,9 +371,8 @@ export default class WorkspaceWindow {
   ) => {
     const { textDocument, visibleRange } = message.params;
     const uri = textDocument.uri;
-    const filename = uri.split("/").slice(-1).join("");
-    const pane = this.getPaneType(filename);
-    const panel = this.getPanelType(filename);
+    const pane = this.getPaneType(uri);
+    const panel = this.getPanelType(uri);
     if (pane && panel) {
       this.update({
         ...this.store,
@@ -403,9 +401,8 @@ export default class WorkspaceWindow {
   ) => {
     const { textDocument, selectedRange, hasFocus } = message.params;
     const uri = textDocument.uri;
-    const filename = uri.split("/").slice(-1).join("");
-    const pane = this.getPaneType(filename);
-    const panel = this.getPanelType(filename);
+    const pane = this.getPaneType(uri);
+    const panel = this.getPanelType(uri);
     if (pane && panel) {
       this.update({
         ...this.store,
@@ -739,14 +736,13 @@ export default class WorkspaceWindow {
   }
 
   getPanelType(filenameOrUri: string) {
-    const base = filenameOrUri.split("/").pop() ?? "";
-    const dot = base.lastIndexOf(".");
-    const name = dot > 0 ? base.slice(0, dot) : base;
-    const ext = dot > 0 ? base.slice(dot + 1) : "";
-    if (name === "main" && ext === "sd") {
+    const path = filenameOrUri.includes("://")
+      ? this._workspace.fs.getRelativePath(this.store.project.id ?? "", filenameOrUri)
+      : filenameOrUri;
+    if (path === "main.sd") {
       return "main";
     }
-    if (isScriptExtension(ext)) {
+    if (isScriptExtension(this.extOfBasename(path))) {
       return "scripts";
     }
     return null;
@@ -880,6 +876,7 @@ export default class WorkspaceWindow {
               ...this.store.panes[pane].panels[panel],
               activeEditor: {
                 ...this.store.panes[pane].panels[panel]?.activeEditor,
+                open: true,
                 filename: filename,
                 focused:
                   takeFocus ??
@@ -994,11 +991,6 @@ export default class WorkspaceWindow {
   closeFileEditor(filename: string) {
     const pane = this.getPaneType(filename);
     const panel = this.getPanelType(filename);
-    const leavingScriptEditor =
-      pane === "logic" &&
-      panel === "scripts" &&
-      this.store.pane === "logic" &&
-      this.store.panes.logic.view === SCRIPT_EDITOR_VIEW;
     if (pane && panel) {
       this.update({
         ...this.store,
@@ -1019,9 +1011,6 @@ export default class WorkspaceWindow {
           },
         },
       });
-    }
-    if (leavingScriptEditor) {
-      this.browseScripts();
     }
   }
 
