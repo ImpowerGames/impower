@@ -32,7 +32,15 @@
 
 @font-face {
   font-family: "Folio UI";
-  font-weight: 600 700;
+  font-weight: 600;
+  font-display: swap;
+  unicode-range: U+007E;
+  src: url("/fonts/courier-prime-sans-bold.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Folio UI";
+  font-weight: 700;
   font-display: swap;
   unicode-range: U+007E;
   src: url("/fonts/courier-prime-sans-bold.ttf") format("truetype");
