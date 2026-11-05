@@ -16,12 +16,20 @@ afterEach(async () => {
 
 const changes: (number | undefined)[] = [];
 
-function Harness({ initial, reserve }: { initial?: number; reserve?: number }) {
+function Harness({
+  initial,
+  reserve,
+  defaultWidth = 232,
+}: {
+  initial?: number;
+  reserve?: number;
+  defaultWidth?: number;
+}) {
   const [width, setWidth] = useState(initial);
   return (
     <SidebarLayout
       width={width}
-      defaultWidth={232}
+      defaultWidth={defaultWidth}
       minWidth={180}
       maxWidth={420}
       collapsedWidth={76}
@@ -126,5 +134,18 @@ describe("SidebarLayout", () => {
     });
     expect(changes).toEqual([undefined, 248, undefined]);
     expect(root.style.getPropertyValue("--sidebar-width")).toBe("232px");
+  });
+
+  it("follows a new default after a reset with nothing saved", async () => {
+    const { root, separator } = await mount();
+    await act(async () => {
+      separator.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    });
+    expect(changes).toEqual([undefined]);
+    expect(root.style.getPropertyValue("--sidebar-width")).toBe("232px");
+    await act(async () =>
+      render(<Harness defaultWidth={190} />, host!),
+    );
+    expect(root.style.getPropertyValue("--sidebar-width")).toBe("190px");
   });
 });

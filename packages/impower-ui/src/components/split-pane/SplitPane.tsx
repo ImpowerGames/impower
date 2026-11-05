@@ -220,7 +220,7 @@ export default function SplitPane({
 
   const resetPinned = () => {
     if (!pinned) return;
-    setPending(pinned.defaultSize);
+    setPending(null);
     pinned.onSizeChange(undefined);
   };
 
