@@ -73,8 +73,8 @@ describe("a run line inside a block body of a scene", () => {
     ).toEqual(["After if H.\n", "Pick\n", "In choice HH.\n"]);
   });
 
-  it("runs the file in each taken branch of an if, elseif and else, and not in a skipped one", () => {
-    expect(
+  it("runs the file in the taken branch of an if, elseif and else, and not in a skipped one", () => {
+    const branches = (taken: "elseif" | "else") =>
       beatsOf(
         lines(
           'store trail = ""',
@@ -82,7 +82,7 @@ describe("a run line inside a block body of a scene", () => {
           "scene start",
           "  if false then",
           "    run helper",
-          "  elseif true then",
+          `  elseif ${taken === "elseif"} then`,
           "    run helper",
           "    run helper",
           "  else",
@@ -91,8 +91,9 @@ describe("a run line inside a block body of a scene", () => {
           "  Trail {trail}.",
           "end",
         ),
-      ),
-    ).toEqual(["Trail HH.\n"]);
+      );
+    expect(branches("elseif")).toEqual(["Trail HH.\n"]);
+    expect(branches("else")).toEqual(["Trail H.\n"]);
   });
 
   it("runs the file as often as a loop body runs", () => {
