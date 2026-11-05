@@ -56,6 +56,7 @@ const external=path.join(scratch,'external');
 fs.mkdirSync(external);fs.writeFileSync(path.join(external,'keep'),'external proof');
 fs.symlinkSync(external,path.join(directory,'protected','outside'),process.platform==='win32'?'junction':'dir');
 fs.mkdirSync(path.join(directory,'evidence'));fs.writeFileSync(path.join(directory,'evidence','proof.txt'),'named proof');
+writeRows(rows.map(row=>row.event==='launching'?{...row,reviewerHad:['evidence']}:row));
 cleanupFromJournal(journal,{reservationRoot,identifyProcess:()=>null});
 assert.equal(fs.readFileSync(path.join(external,'keep'),'utf8'),'external proof');
 assert.equal(fs.readFileSync(path.join(directory,'evidence','proof.txt'),'utf8'),'named proof');
@@ -239,3 +240,117 @@ for(const [record,state] of [['{}','recorded guard owner PID unknown, start unkn
   removeProbeCheckouts(directory,{reservationRoot});
 }
 console.log('PASS: unknown and unreadable guard owners name preserved scratch without removing guard or probe evidence');
+
+{
+  const workspace=path.join(scratch,'reviewer-scratch');
+  const evidence=path.join(workspace,'evidence','proof.txt');
+  fs.mkdirSync(path.dirname(evidence),{recursive:true});
+  fs.writeFileSync(evidence,'pre-launch proof');
+  const reviewerHad=fs.readdirSync(workspace);
+  const scratchFiles=['npm-cache/_cacache/content','execution-temp/runtime/log.txt','probe/.git/config','scratch.txt'];
+  for(const name of scratchFiles){
+    const file=path.join(workspace,name);
+    fs.mkdirSync(path.dirname(file),{recursive:true});
+    fs.writeFileSync(file,'disposable');
+  }
+  const completion=path.join(workspace,'completion-1676-fixture.json');
+  const report=path.join(workspace,'launcher-report.txt');
+  const lastMessage=path.join(workspace,'final-report.txt');
+  const output=path.join(workspace,'launcher-output.jsonl');
+  const diagnostics=path.join(workspace,'launcher-diagnostics.log');
+  const notes=path.join(workspace,'first-pass.md');
+  const kept=[completion,report,lastMessage,output,diagnostics,notes];
+  for(const file of kept)fs.writeFileSync(file,path.basename(file));
+  writeRows([
+    {event:'launching',index:0,role:'review',reviewerDirectory:workspace,reviewerHad,completion,report,output,diagnostics,args:['exec','--output-last-message',lastMessage]},
+    {event:'exited',index:0,code:0,executionDrained:true},
+    {event:'finished'}
+  ]);
+
+  cleanupFromJournal(journal,{reservationRoot});
+
+  assert.deepEqual(fs.readdirSync(workspace).sort(),['completion-1676-fixture.json','evidence','final-report.txt','first-pass.md','launcher-diagnostics.log','launcher-output.jsonl','launcher-report.txt'],
+    'confirmed journal cleanup must remove the reviewer-created cache, temp tree, checkout and loose file');
+  assert.equal(fs.readFileSync(evidence,'utf8'),'pre-launch proof');
+  for(const file of kept)assert.equal(fs.readFileSync(file,'utf8'),path.basename(file));
+  console.log('PASS: confirmed journal cleanup removes reviewer scratch and preserves recorded artifacts and pre-launch evidence');
+
+  const temp=path.join(workspace,'execution-temp');
+  const runtime=path.join(temp,'nested','impower-suite-direct-aBcd12','runtime');
+  fs.mkdirSync(runtime,{recursive:true});
+  const run=fs.realpathSync.native(path.dirname(runtime));
+  const runJournal=path.join(run,'run.json');
+  const log=path.join(run,'attempt','output.log');
+  fs.mkdirSync(path.dirname(log));fs.writeFileSync(log,'retained runner output');
+  const bytes=JSON.stringify({version:2,directory:run,root:workspace,packageRoot:workspace,files:['fixture.test.ts'],
+    attempts:[{directory:path.dirname(log),status:'passed'}],token:'fixture',owner:coordinator,createdAt:new Date().toISOString(),active:false});
+  fs.writeFileSync(runJournal,bytes);
+  const disposable=path.join(temp,'nested','spare.log');
+  fs.writeFileSync(disposable,'disposable');
+  const link=path.join(temp,'nested','impower-suite-direct-linked');
+  fs.symlinkSync(external,link,process.platform==='win32'?'junction':'dir');
+  const disposableRoot=path.join(temp,'nested','impower-suite-direct-spare');
+  fs.mkdirSync(disposableRoot);fs.writeFileSync(path.join(disposableRoot,'junk'),'not a runner receipt');
+
+  const readdir=fs.readdirSync;
+  fs.readdirSync=(target,...args)=>{
+    if(target===path.dirname(run))throw Object.assign(new Error('receipt ancestry unavailable'),{code:'EACCES'});
+    return readdir(target,...args);
+  };
+  try{assert.throws(()=>cleanupFromJournal(journal,{reservationRoot}),error=>error.message.includes(path.dirname(run))&&error.message.includes('EACCES'));}
+  finally{fs.readdirSync=readdir;}
+  assert.equal(fs.readFileSync(runJournal,'utf8'),bytes,'unreadable receipt ancestry must retain the original proof');
+  assert.ok(fs.existsSync(disposable));
+  assert.ok(fs.lstatSync(link).isSymbolicLink());
+
+  cleanupFromJournal(journal,{reservationRoot});
+  assert.deepEqual(fs.readdirSync(path.dirname(run)),[path.basename(run)]);
+  assert.equal(fs.readFileSync(path.join(external,'keep'),'utf8'),'external proof');
+  const [replay]=cleanupFromJournal(journal,{reservationRoot});
+  assert.equal(replay.files,0);assert.equal(replay.links,0);
+  assert.equal(fs.readFileSync(runJournal,'utf8'),bytes);
+  assert.equal(fs.readFileSync(log,'utf8'),'retained runner output');
+  console.log('PASS: direct runner evidence keeps its original paths and bytes through inventory failure, recovery and replay');
+}
+
+{
+  const workspace=path.join(scratch,'reviewer-automatic');
+  const checkout=path.join(workspace,'probe');
+  fs.mkdirSync(path.join(checkout,'.git'),{recursive:true});
+  const cache=path.join(workspace,'node_modules');
+  const ordinary=path.join(workspace,'ordinary-temp');
+  const roots=[path.join(checkout,'.tmp'),cache,ordinary];
+  const receipts=roots.map((root,index)=>{
+    const runtime=path.join(root,`impower-suite-direct-aBcd1${index}`,'runtime');
+    fs.mkdirSync(runtime,{recursive:true});
+    const directory=fs.realpathSync.native(path.dirname(runtime));
+    const receipt=path.join(directory,'run.json');
+    fs.writeFileSync(receipt,JSON.stringify({version:2,directory,root:checkout,packageRoot:checkout,files:['fixture.test.ts'],
+      attempts:[],token:'fixture',owner:coordinator,createdAt:new Date().toISOString(),active:false}));
+    return {receipt,runtime,bytes:fs.readFileSync(receipt)};
+  });
+  const checkoutFile=path.join(checkout,'scratch.txt');
+  const cacheFile=path.join(cache,'scratch.txt');
+  const loose=path.join(ordinary,'scratch.txt');
+  for(const file of [checkoutFile,cacheFile,loose])fs.writeFileSync(file,'disposable');
+  writeRows([
+    {event:'launching',index:0,role:'review',reviewerDirectory:workspace,reviewerHad:[]},
+    {event:'exited',index:0,code:0},
+    {event:'finished'}
+  ]);
+
+  removeProbeCheckouts(workspace,{reservationRoot});
+  assert.ok(receipts.every(({receipt})=>fs.existsSync(receipt)),'automatic cleanup must retain direct runner receipts at their original paths');
+  assert.equal(fs.existsSync(checkoutFile),false);
+  assert.equal(fs.existsSync(cacheFile),false);
+  assert.equal(fs.readFileSync(loose,'utf8'),'disposable','automatic cleanup retains loose workspace files');
+  cleanupFromJournal(journal,{reservationRoot});
+  assert.equal(fs.existsSync(loose),false);
+  const [replay]=cleanupFromJournal(journal,{reservationRoot});
+  assert.equal(replay.files,0);assert.equal(replay.links,0);
+  for(const {receipt,runtime,bytes} of receipts){
+    assert.deepEqual(fs.readFileSync(receipt),bytes);
+    assert.ok(fs.statSync(runtime).isDirectory());
+  }
+  console.log('PASS: automatic cleanup and journal replay preserve direct runner evidence and remove only their disposable entries');
+}

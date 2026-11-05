@@ -67,13 +67,78 @@ function reservationNaming(file,directory,root) {
   return undefined;
 }
 
-export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reservationRoot,retryDelays=[250,1000,3000]}={}) {
+function optionalStat(file) {
+  try{return fs.lstatSync(file);}
+  catch(error){if(error.code!=='ENOENT')throw error;}
+}
+
+function isDirectRunDirectory(directory,name) {
+  if(!name.startsWith('impower-suite-direct-'))return false;
+  const runtime=optionalStat(path.join(directory,'runtime'));
+  const journal=path.join(directory,'run.json'),stat=optionalStat(journal);
+  if(!runtime&&!stat)return false;
+  if(!runtime?.isDirectory()||(stat&&!stat.isFile()))throw new Error('unverified direct test run evidence');
+  if(!stat)return true;
+  try{
+    const run=JSON.parse(fs.readFileSync(journal,'utf8'));
+    if(run.version===2&&typeof run.directory==='string'&&fold(run.directory)===fold(directory)&&Array.isArray(run.attempts))return true;
+  }catch(error){
+    throw new Error(`unverified direct test run journal: ${error.code??error.message}`);
+  }
+  throw new Error('unverified direct test run journal');
+}
+
+function collectReviewerScratch(root,preserve,kept,targets,unreadable,workspace=true) {
+  const prelaunch=new Set([...preserve].map(fold));
+  const visit=(directory,top)=>{
+    let names;
+    try{names=fs.readdirSync(directory);}
+    catch(error){unreadable.push(`${directory} (${error.code??error.message})`);return true;}
+    let retained=false;
+    for(const name of names){
+      const target=path.join(directory,name);
+      if(top&&prelaunch.has(fold(name))||kept.has(fold(target))){retained=true;continue;}
+      try{
+        const stat=fs.lstatSync(target);
+        if(top&&stat.isFile()&&path.extname(name).toLowerCase()==='.md'){retained=true;continue;}
+        if(stat.isDirectory()&&!stat.isSymbolicLink()&&!(top&&name.startsWith('.probe-cleanup-'))){
+          if(isDirectRunDirectory(target,name)){retained=true;continue;}
+          const firstTarget=targets.length;
+          if(visit(target,false)){retained=true;continue;}
+          targets.length=firstTarget;
+        }
+        targets.push(target);
+      }catch(error){unreadable.push(`${target} (${error.code??error.message})`);retained=true;}
+    }
+    return retained;
+  };
+  return visit(root,workspace);
+}
+
+export function removeProbeCheckouts(directory,options={}) {
+  return removeReviewerEntries(directory,options);
+}
+
+function removeReviewerEntries(directory,{preserve=new Set(),keep=[],reservationRoot,retryDelays=[250,1000,3000]}={},journalCleanup=false) {
   const began=Date.now();
   if(!fs.lstatSync(directory).isDirectory())throw new Error(`Reviewer directory ${directory} is not a directory`);
   const root=fs.realpathSync.native(directory);
+  const namedRoot=path.resolve(directory);
   const kept=new Set();
   for(const file of keep){
-    const stat=fs.lstatSync(file),target=fs.realpathSync.native(file);
+    if(journalCleanup){
+      const absolute=path.resolve(file);
+      const namedInside=isInside(fold(namedRoot),fold(absolute));
+      if(!namedInside&&!isInside(fold(root),fold(absolute)))continue;
+      const expected=namedInside?path.join(root,path.relative(namedRoot,absolute)):absolute;
+      const stat=optionalStat(file);
+      if(!stat)continue;
+      if(!stat.isFile()||fold(fs.realpathSync.native(file))!==fold(expected))throw new Error(`Kept file ${file} is not a regular file at its recorded reviewer path; nothing was removed`);
+      kept.add(fold(expected));
+      continue;
+    }
+    const stat=fs.lstatSync(file);
+    const target=fs.realpathSync.native(file);
     if(!isInside(root,target))continue;
     if(!stat.isFile())throw new Error(`Kept file ${file} is not a regular file; nothing was removed`);
     kept.add(target);
@@ -95,12 +160,19 @@ export function removeProbeCheckouts(directory,{preserve=new Set(),keep=[],reser
         const stat=fs.lstatSync(target);
         if(stat.isSymbolicLink()){targets.push(target);continue;}
         if(!stat.isDirectory())continue;
+        if(isDirectRunDirectory(target,name))continue;
         if(!scratch(target,name,top)||[...kept].some(file=>isInside(target,file))){walked.push(target);visit(target,false);continue;}
+        if(!(top&&name.startsWith('.probe-cleanup-'))){
+          const firstTarget=targets.length;
+          if(collectReviewerScratch(target,preserve,kept,targets,unreadable,false))continue;
+          targets.length=firstTarget;
+        }
         targets.push(target);
       }catch(error){unreadable.push(`${target} (${error.code??error.message})`);}
     }
   };
-  visit(root,true);
+  if(journalCleanup)collectReviewerScratch(root,preserve,kept,targets,unreadable);
+  else visit(root,true);
   const counts={files:0,links:0};
   const stuck=unreadable.map(entry=>`unreadable ${entry}`);
   if(!targets.length&&!walked.length){
@@ -199,16 +271,16 @@ export function cleanupFromJournal(journal,{reservationRoot,identifyProcess=proc
       if(same(child,identifyProcess(child.pid))||same(coordinator,identifyProcess(coordinator.pid)))throw new Error(`Launch ${row.index} still has a running recorded identity; nothing was removed`);
     }
     const flag=Array.isArray(row.args)?row.args.findIndex(arg=>['--output-last-message','-o'].includes(arg)):-1;
-    const report=row.report??(flag>=0?row.args[flag+1]:undefined);
+    const report=flag>=0?row.args[flag+1]:undefined;
     const key=fold(path.resolve(row.reviewerDirectory));
     const entry=directories.get(key)??{directory:row.reviewerDirectory,indexes:[],preserve:new Set(row.reviewerHad),keep:[]};
     entry.indexes.push(row.index);
-    if(report)entry.keep.push(report);
+    entry.keep.push(...[row.report,report,row.completion,row.output,row.diagnostics].filter(file=>typeof file==='string'&&path.isAbsolute(file)));
     directories.set(key,entry);
   });
   if(!directories.size)throw new Error(`${journal} records no review launch with a reviewer directory; nothing was removed`);
   return [...directories.values()].map(({directory,indexes,preserve,keep})=>({indexes,directory,
-    ...removeProbeCheckouts(directory,{preserve,keep:keep.filter(file=>fs.existsSync(file)),reservationRoot})}));
+    ...removeReviewerEntries(directory,{preserve,keep,reservationRoot},true)}));
 }
 
 if(process.argv[1]&&fs.realpathSync(process.argv[1])===fileURLToPath(import.meta.url)){
