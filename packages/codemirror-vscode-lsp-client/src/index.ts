@@ -25,9 +25,6 @@ export {
   defaultContextMenuItems,
   getShortcutLabel,
   historyContextMenuItems,
-  isAndroid,
-  isIOS,
-  isMobile,
   lspContextMenuItems,
   paste,
   textContextMenuItems,
@@ -80,6 +77,7 @@ export {
   type ContextMenuConfig,
   type ContextMenuSpec,
 } from "./menu";
+export { coarsePointer } from "./pointer";
 export { LSPPlugin } from "./plugin";
 export {
   convertFromPosition,

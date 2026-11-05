@@ -1,4 +1,5 @@
 import { useState } from "preact/hooks";
+import { layoutMinWidths } from "./layout/breakpoints";
 import {
   Bolt,
   BoltFill,
@@ -141,7 +142,9 @@ export function App() {
             &lt;SplitPane&gt;
           </code>
         </h2>
-        <Row label="Drag the divider to resize. Resize browser below 768px to test responsive collapse.">
+        <Row
+          label={`Drag the divider to resize. Resize browser below ${layoutMinWidths.compact}px, the phone layout cut, to test responsive collapse.`}
+        >
           <div class="flex items-center gap-3 mb-2">
             <span class="text-xs text-neutral-400">Mobile-active pane:</span>
             <button

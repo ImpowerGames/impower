@@ -1,18 +1,7 @@
-import { cva } from "class-variance-authority";
-import { type ComponentChildren } from "preact";
+import { type ComponentChildren, type JSX } from "preact";
 import { useRef, useState } from "preact/hooks";
+import { useLayout } from "../../hooks/useLayout";
 import { cn } from "../../utils/cn";
-
-const splitPaneRoot = cva("flex flex-col w-full h-full", {
-  variants: {
-    collapseActive: {
-      none: "",
-      start: "swp-collapse-active-start",
-      end: "swp-collapse-active-end",
-    },
-  },
-  defaultVariants: { collapseActive: "none" },
-});
 
 export type SplitPaneProps = {
   orientation?: "horizontal" | "vertical";
@@ -20,7 +9,6 @@ export type SplitPaneProps = {
   end: ComponentChildren;
   defaultSizes?: [number, number];
   minSize?: number | string;
-  collapseBelow?: number | null;
   activePanel?: "start" | "end";
   class?: string;
 };
@@ -35,6 +23,16 @@ function minToPx(minSize: number | string, trackPx: number): number {
   if (s.endsWith("%")) return ((parseFloat(s) || 0) / 100) * trackPx;
   const n = parseFloat(s);
   return Number.isFinite(n) ? (n / 100) * trackPx : 0;
+}
+
+function panelStyle(
+  hidden: boolean,
+  collapsed: boolean,
+  grow: number,
+): JSX.CSSProperties {
+  if (hidden) return { display: "none" };
+  if (collapsed) return { flex: "1 1 100%" };
+  return { flexGrow: grow, flexBasis: 0 };
 }
 
 const SEPARATOR_BASE =
@@ -61,17 +59,12 @@ export default function SplitPane({
   end,
   defaultSizes = [50, 50],
   minSize = 15,
-  collapseBelow = 768,
   activePanel = "start",
   class: className,
 }: SplitPaneProps) {
-  const collapseActive =
-    collapseBelow == null ? "none" : activePanel === "end" ? "end" : "start";
-  const collapseClass =
-    activePanel === "start"
-      ? "swp-collapse-active-start"
-      : "swp-collapse-active-end";
-  const breakpoint = (collapseBelow ?? 0) - 1;
+  const collapsed = useLayout() === "phone";
+  const startHidden = collapsed && activePanel === "end";
+  const endHidden = collapsed && activePanel === "start";
   const horizontal = orientation === "horizontal";
 
   const [size, setSize] = useState(defaultSizes[0]);
@@ -132,26 +125,7 @@ export default function SplitPane({
   };
 
   return (
-    <div class={cn(splitPaneRoot({ collapseActive }), className)}>
-      {collapseBelow != null && (
-        <style>{`
-          @media (max-width: ${breakpoint}px) {
-            .${collapseClass} [data-separator] {
-              display: none !important;
-            }
-            .swp-collapse-active-start [data-panel]:last-child {
-              display: none !important;
-            }
-            .swp-collapse-active-end [data-panel]:first-child {
-              display: none !important;
-            }
-            .swp-collapse-active-start [data-panel]:first-child,
-            .swp-collapse-active-end [data-panel]:last-child {
-              flex: 1 1 100% !important;
-            }
-          }
-        `}</style>
-      )}
+    <div class={cn("flex flex-col w-full h-full", className)}>
       <div
         ref={containerRef}
         class={cn(
@@ -162,7 +136,7 @@ export default function SplitPane({
         <div
           data-panel
           class="overflow-hidden min-h-0 min-w-0"
-          style={{ flexGrow: size, flexBasis: 0 }}
+          style={panelStyle(startHidden, collapsed, size)}
         >
           {start}
         </div>
@@ -178,6 +152,7 @@ export default function SplitPane({
           class={cn(
             SEPARATOR_BASE,
             horizontal ? SEPARATOR_HORIZONTAL : SEPARATOR_VERTICAL,
+            collapsed && "hidden",
           )}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -188,7 +163,7 @@ export default function SplitPane({
         <div
           data-panel
           class="overflow-hidden min-h-0 min-w-0"
-          style={{ flexGrow: 100 - size, flexBasis: 0 }}
+          style={panelStyle(endHidden, collapsed, 100 - size)}
         >
           {end}
         </div>

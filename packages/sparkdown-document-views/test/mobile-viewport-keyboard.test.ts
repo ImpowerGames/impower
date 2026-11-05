@@ -28,7 +28,7 @@ describe("mobile viewport manager keyboard state", () => {
     view = new EditorView({
       state: EditorState.create({
         doc: "Hello",
-        extensions: mobileViewportManager({ isTouchEnvironment: () => true }),
+        extensions: mobileViewportManager(),
       }),
       parent,
     });

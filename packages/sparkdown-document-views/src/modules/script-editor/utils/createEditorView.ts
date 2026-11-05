@@ -18,19 +18,14 @@ import {
   DecorationSet,
   EditorView,
   GutterMarker,
-  panels,
   ViewUpdate,
 } from "@codemirror/view";
 import {
   completionPreview,
   type CompletionPreviewEvent,
-  hideContextMenu,
-  isContextMenuOpen,
   LSPClient,
-  showContextMenu,
   Workspace,
 } from "@impower/codemirror-vscode-lsp-client/src";
-import { isMobile } from "@impower/codemirror-vscode-lsp-client/src/context";
 import {
   InitializeParams,
   InitializeResult,
@@ -81,12 +76,10 @@ import {
   customSearchPanel,
 } from "./extensions/customSearch";
 import { keyboardToolbar } from "./extensions/keyboardToolbar";
-import { mobileViewportManager } from "./extensions/mobileViewportManager";
-import { platformClassManager } from "./extensions/platformClassManager";
 import { selectionClassManager } from "./extensions/selectionClassManager";
 import { sparkdownLanguageExtension } from "./extensions/sparkdownLanguageExtension";
 import { statusPanel } from "./extensions/statusPanel";
-import { touchInputHandler } from "./extensions/touchInputHandler";
+import { touchAffordances } from "./extensions/touchAffordances";
 
 const NEWLINE_REGEX = /\r\n|\r|\n/g;
 
@@ -118,8 +111,7 @@ interface EditorConfig {
   highlightLineNumbers?: number[];
   startingValueLines?: number[];
   routePins?: DocumentRoutePin[];
-  mobileTopContainer?: HTMLElement;
-  mobileBottomContainer?: HTMLElement;
+  coarsePointer: boolean;
   scrollToLineNumber?: number;
   getEditorState?: () => SerializableEditorState;
   setEditorState?: (value: SerializableEditorState) => void;
@@ -174,8 +166,6 @@ const createEditorView = (
   const breakpointLineNumbers = config?.breakpointLineNumbers;
   const pinpointLineNumbers = config?.pinpointLineNumbers;
   const highlightLineNumbers = config?.highlightLineNumbers;
-  const mobileTopContainer = config.mobileTopContainer;
-  const mobileBottomContainer = config.mobileBottomContainer;
   const scrollToLineNumber = config?.scrollToLineNumber;
   const onReady = config?.onReady;
   const onViewUpdate = config?.onViewUpdate;
@@ -267,10 +257,6 @@ const createEditorView = (
       extensions: [
         ...restoredExtensions,
         EDITOR_EXTENSIONS,
-        panels({
-          topContainer: isMobile() ? mobileTopContainer : undefined,
-          bottomContainer: isMobile() ? mobileBottomContainer : undefined,
-        }),
         customSearchPanel(),
         customGotoLinePanel(),
         statusPanel(),
@@ -506,14 +492,8 @@ const createEditorView = (
             bottom: scrollMargin?.bottom,
           })),
         ),
-        platformClassManager(),
         selectionClassManager(),
-        touchInputHandler({
-          showContextMenu,
-          hideContextMenu,
-          isContextMenuOpen,
-        }),
-        mobileViewportManager(),
+        touchAffordances(config.coarsePointer),
         EditorView.theme(EDITOR_THEME, { dark: true }),
       ],
     }),

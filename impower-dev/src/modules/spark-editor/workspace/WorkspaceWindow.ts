@@ -1,3 +1,4 @@
+import { layoutState, type Layout } from "@impower/impower-ui/layout";
 import {
   onProtocolMessage,
   onProtocolRequest,
@@ -104,12 +105,8 @@ export default class WorkspaceWindow {
     this.cacheProjectId(loadedProjectId());
     this.restoreAnimatePortraits();
     this.registerProtocolHandlers();
-    const mediaQuery = window.matchMedia("(min-width: 960px)");
-    mediaQuery.addEventListener("change", this.handleScreenSizeChange);
-    this._disposers.push(() =>
-      mediaQuery.removeEventListener("change", this.handleScreenSizeChange),
-    );
-    this.handleScreenSizeChange(mediaQuery as any as MediaQueryListEvent);
+    this.handleLayoutChange(layoutState.current());
+    this._disposers.push(layoutState.subscribe(this.handleLayoutChange));
   }
 
   dispose() {
@@ -403,8 +400,8 @@ export default class WorkspaceWindow {
       },
     });
   };
-  protected handleScreenSizeChange = (query: MediaQueryListEvent) => {
-    const horizontalLayout = query.matches;
+  protected handleLayoutChange = (layout: Layout) => {
+    const horizontalLayout = layout !== "phone";
     this.update({
       ...this.store,
       screen: {

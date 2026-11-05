@@ -8,11 +8,11 @@ import {
 import { EditorView, showTooltip, Tooltip, ViewPlugin } from "@codemirror/view";
 import {
   ContextMenuItem,
-  isMobile,
   lspContextMenuItems,
   recordMenuClipboard,
   textContextMenuItems,
 } from "./context";
+import { coarsePointer } from "./pointer";
 
 const DOTS_VERTICAL_SVG_URL = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>')`;
 
@@ -344,7 +344,7 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
       const items = config.items || [];
       const moreItems = config.moreItems || [];
 
-      const isDesktop = !isMobile();
+      const isDesktop = !view.state.facet(coarsePointer);
 
       const isVertical = isDesktop || page > 0;
 
@@ -518,7 +518,7 @@ const contextMenuHandlers = EditorView.domEventHandlers({
     event.preventDefault();
     event.stopPropagation();
 
-    if (isMobile()) {
+    if (view.state.facet(coarsePointer)) {
       const from = view.state.selection.main.from;
       const to = view.state.selection.main.to;
       view.dispatch({

@@ -3,6 +3,7 @@ import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { jumpToDefinition, jumpToDefinitionKeymap } from "./definition";
 import { formatDocument, formatKeymap } from "./formatting";
+import { coarsePointer } from "./pointer";
 import { findReferences, findReferencesKeymap } from "./references";
 import { renameKeymap, renameSymbol } from "./rename";
 
@@ -86,7 +87,7 @@ export function copy(view: EditorView) {
     return;
   }
   copySelection(view, pieces);
-  if (isMobile()) {
+  if (view.state.facet(coarsePointer)) {
     view.dispatch({
       selection: EditorSelection.create(
         selection.ranges.map((r) => EditorSelection.cursor(r.to)),
@@ -210,21 +211,3 @@ export const defaultContextMenuItems: ContextMenuItem[] = [
   { type: "separator" },
   ...lspContextMenuItems,
 ];
-
-export function isMobile() {
-  return (
-    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-      navigator.userAgent,
-    ) ||
-    (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) ||
-    navigator.maxTouchPoints > 0
-  );
-}
-
-export function isIOS() {
-  return isMobile() && /iPad|iPhone|iPod/.test(navigator.userAgent);
-}
-
-export function isAndroid() {
-  return isMobile() && !isIOS();
-}

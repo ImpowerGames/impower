@@ -8,6 +8,7 @@ import cssText from "./sparkdown-script-editor.css?raw";
 
 export const propDefaults = {
   readonly: false,
+  coarsePointer: false,
   scrollMargin: "",
   top: "",
   bottom: "",
@@ -30,6 +31,7 @@ export function setLanguageServer(opts: {
 
 export default function SparkdownScriptEditor({
   readonly,
+  coarsePointer,
   scrollMargin,
   top,
   bottom,
@@ -40,6 +42,8 @@ export default function SparkdownScriptEditor({
   const placeholderRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLDivElement>(null);
   const controllerRef = useRef<ScriptEditorControllerType | null>(null);
+  const coarsePointerRef = useRef(!!coarsePointer);
+  coarsePointerRef.current = !!coarsePointer;
 
   useEffect(() => {
     const root = rootRef.current;
@@ -69,6 +73,7 @@ export default function SparkdownScriptEditor({
         { editor, loading, placeholder, main },
         {
           readonly: !!readonly,
+          coarsePointer: coarsePointerRef.current,
           scrollMargin: scrollMargin ?? "",
           top: top ?? "",
           bottom: bottom ?? "",
@@ -91,6 +96,10 @@ export default function SparkdownScriptEditor({
   useEffect(() => {
     controllerRef.current?.setReadonly(!!readonly);
   }, [readonly]);
+
+  useEffect(() => {
+    controllerRef.current?.setCoarsePointer(!!coarsePointer);
+  }, [coarsePointer]);
 
   return (
     <div class="sparkdown-script-editor-root" ref={rootRef}>
