@@ -3,7 +3,6 @@ import {
   FileTypeHtml,
   FileTypePdf,
   Gear,
-  Ripple,
 } from "@impower/impower-ui/components";
 import type { IconComponent } from "@impower/impower-ui/components";
 import { useRef, useState } from "preact/hooks";
@@ -97,7 +96,7 @@ export default function ShareScreenplay(_props: ShareScreenplayProps) {
               {fmt && (
                 <span
                   aria-hidden="true"
-                  class="pointer-events-none absolute inset-0 origin-left bg-primary/15 transition-transform duration-100"
+                  class="pointer-events-none absolute inset-0 origin-left bg-primary/15 motion-safe:transition-transform motion-safe:duration-100"
                   style={{ transform: `scaleX(${pct})` }}
                 />
               )}
@@ -111,11 +110,10 @@ export default function ShareScreenplay(_props: ShareScreenplayProps) {
                 <button
                   type="button"
                   aria-label="Settings"
-                  class="relative -mr-6 inline-flex size-12 cursor-pointer items-center justify-center overflow-hidden rounded-full text-foreground/50 hover:bg-foreground/5 hover:text-foreground active:bg-foreground/[0.12]"
+                  class="relative -mr-6 inline-flex size-11 cursor-pointer items-center justify-center rounded-control text-muted control-overlay"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <Gear class="size-5" />
-                  <Ripple />
                 </button>
               </span>
             </OptionButton>

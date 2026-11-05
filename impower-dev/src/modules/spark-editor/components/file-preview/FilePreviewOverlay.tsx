@@ -100,12 +100,12 @@ export default function FilePreviewOverlay({
 
   return createPortal(
     <div
-      class={`fixed inset-0 z-50 bg-black transition-opacity duration-200 ${
+      class={`fixed inset-0 z-50 bg-stage motion-safe:transition-opacity motion-safe:duration-200 ${
         visible ? "opacity-100" : "opacity-0"
       }`}
     >
       <div
-        class={`absolute inset-0 flex select-none flex-col text-white transition-transform duration-200 ease-out ${
+        class={`absolute inset-0 flex select-none flex-col text-ink motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out ${
           visible ? "translate-y-0" : "translate-y-3"
         }`}
       >
@@ -130,34 +130,37 @@ export default function FilePreviewOverlay({
                       setEditingUrl(null);
                     }
                   }}
-                  class="min-w-0 flex-1 select-text rounded bg-white/10 px-1.5 py-0.5 text-xs text-white outline-none ring-1 ring-white/20 focus:ring-white/40"
+                  class="min-h-11 min-w-0 flex-1 select-text rounded-control border border-edge bg-tint px-2 text-xs text-ink"
                 />
                 <Button
-                  variant="ghost"
+                  variant="quiet"
                   aria-label="Save URL"
                   onClick={commitUrl}
-                  class="size-6 flex-none rounded-full p-0 text-white/70 hover:text-white"
+                  size="icon"
+                  class="flex-none text-muted"
                 >
                   <Check class="size-3.5" />
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="quiet"
                   aria-label="Cancel"
                   onClick={() => setEditingUrl(null)}
-                  class="size-6 flex-none rounded-full p-0 text-white/70 hover:text-white"
+                  size="icon"
+                  class="flex-none text-muted"
                 >
                   <X class="size-3.5" />
                 </Button>
               </div>
             ) : (
               <div class="flex flex-row items-center gap-1">
-                <span class="truncate text-xs text-white/50">{item.url}</span>
+                <span class="truncate text-xs text-muted">{item.url}</span>
                 {onEditUrl && (
                   <Button
-                    variant="ghost"
+                    variant="quiet"
                     aria-label="Edit URL"
                     onClick={() => setEditingUrl(item.url ?? "")}
-                    class="size-6 flex-none rounded-full p-0 text-white/50 hover:text-white"
+                    size="icon"
+                    class="flex-none text-muted"
                   >
                     <Pencil class="size-3.5" />
                   </Button>
@@ -166,10 +169,11 @@ export default function FilePreviewOverlay({
             ))}
         </div>
         <Button
-          variant="ghost"
+          variant="quiet"
           aria-label="Close preview"
           onClick={onClose}
-          class="size-9 flex-none rounded-full p-0 text-white/70 hover:text-white"
+          size="icon"
+          class="flex-none text-muted"
         >
           <X class="size-5" />
         </Button>
@@ -182,23 +186,25 @@ export default function FilePreviewOverlay({
       {total > 1 && (
         <div class="flex flex-none flex-row items-center justify-center gap-5 py-3">
           <Button
-            variant="ghost"
+            variant="quiet"
             aria-label="Previous"
             disabled={index === 0}
             onClick={() => onIndexChange(index - 1)}
-            class="size-9 rounded-full p-0 text-white/70 hover:text-white disabled:opacity-25"
+            size="icon"
+            class="text-muted"
           >
             <ChevronRight class="size-5 rotate-180" />
           </Button>
-          <span class="select-none text-sm tabular-nums text-white/80">
+          <span class="select-none text-sm tabular-nums text-muted">
             {index + 1} / {total}
           </span>
           <Button
-            variant="ghost"
+            variant="quiet"
             aria-label="Next"
             disabled={index === total - 1}
             onClick={() => onIndexChange(index + 1)}
-            class="size-9 rounded-full p-0 text-white/70 hover:text-white disabled:opacity-25"
+            size="icon"
+            class="text-muted"
           >
             <ChevronRight class="size-5" />
           </Button>
@@ -207,7 +213,7 @@ export default function FilePreviewOverlay({
 
 
       {showDetails && (
-      <div class="flex-none text-white">
+      <div class="flex-none text-ink">
         <AssetInspectorPanel
           path={item.path}
           name={item.name}
@@ -230,7 +236,7 @@ function PreviewBody({ item }: { item: PreviewItem }) {
   const { src, kind, name } = item;
   if (!src) {
     return (
-      <div class="m-auto text-sm text-white/50">No preview available.</div>
+      <div class="m-auto text-sm text-muted">No preview available.</div>
     );
   }
   switch (kind) {
@@ -251,7 +257,7 @@ function PreviewBody({ item }: { item: PreviewItem }) {
       return <TextPreview key={item.path} src={src} />;
     default:
       return (
-        <div class="m-auto flex flex-col items-center gap-4 text-white/40">
+        <div class="m-auto flex flex-col items-center gap-4 text-muted">
           <FileText class="size-16" />
           <span class="text-sm">No preview available.</span>
         </div>

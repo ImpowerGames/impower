@@ -13,8 +13,7 @@ function RouterExample({ mode }: { mode: NonNullable<RouterProps["mode"]> }) {
         {PAGES.map((page) => (
           <Button
             key={page}
-            size="xs"
-            variant={page === active ? "primary" : "outline"}
+            variant={page === active ? "primary" : "default"}
             onClick={() => setActive(page)}
           >
             {page}

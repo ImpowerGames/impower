@@ -43,7 +43,7 @@ const rulesFor = async (classes: string[]): Promise<StyleRule[]> => {
 
 const isPseudoElement = (selector: string) => /::?(before|after)\b/.test(selector);
 
-describe.each(["ghost", "outline"] as const)(
+describe.each(["default", "quiet"] as const)(
   "%s Button with a resting tint",
   (variant) => {
     afterEach(() => {
@@ -72,25 +72,26 @@ describe.each(["ghost", "outline"] as const)(
       expect(swaps.map((r) => r.selector)).toEqual([]);
     });
 
-    it("tints hover and press with a currentColor overlay at 0.05 and 0.12", async () => {
+    it("draws hover as one --control-hover layer and press as two", async () => {
       const rules = await rulesFor(classes());
-      const overlay = rules.filter(({ selector }) => /::?after\b/.test(selector));
-      const opacityWhen = (state: "hover" | "active") =>
-        overlay
-          .filter(({ selector }) => selector.includes(`:${state}`))
-          .map(({ style }) => style.getPropertyValue("opacity"))
-          .filter(Boolean)
-          .map(Number);
+      const overlay = rules.filter(({ selector }) => isPseudoElement(selector));
       expect(
-        overlay.some(({ style }) => style.getPropertyValue("background-color").toLowerCase() === "currentcolor"),
+        overlay.some(({ style }) => style.getPropertyValue("background-color") === "var(--control-hover)"),
       ).toBe(true);
-      expect(opacityWhen("hover")).toContain(0.05);
-      expect(opacityWhen("active")).toContain(0.12);
+      const shown = (state: "hover" | "active", layer: RegExp) =>
+        overlay.some(
+          ({ selector, style }) =>
+            selector.includes(`:${state}`) && layer.test(selector) && style.getPropertyValue("opacity") === "1",
+        );
+      expect(shown("hover", /::?before\b/)).toBe(true);
+      expect(shown("hover", /::?after\b/)).toBe(false);
+      expect(shown("active", /::?before\b/)).toBe(true);
+      expect(shown("active", /::?after\b/)).toBe(true);
     });
 
     it("lets pointer events through the overlay to the button's content", async () => {
       const rules = await rulesFor(classes());
-      const overlay = rules.filter(({ selector }) => /::?after\b/.test(selector));
+      const overlay = rules.filter(({ selector }) => isPseudoElement(selector));
       expect(
         overlay.some(({ style }) => style.getPropertyValue("pointer-events") === "none"),
       ).toBe(true);
@@ -100,7 +101,7 @@ describe.each(["ghost", "outline"] as const)(
 
 interface CallSite {
   location: string;
-  variant: "ghost" | "outline";
+  variant: "default" | "quiet";
   label: string;
   classText: string;
   unresolved: string[];
@@ -222,14 +223,16 @@ const unfilledCallSites = (): CallSite[] => {
         (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
         node.tagName.getText(file.source) === "Button"
       ) {
-        const variant = jsxAttribute(file, node, "variant")?.initializer;
-        if (variant && ts.isStringLiteral(variant) && (variant.text === "ghost" || variant.text === "outline")) {
+        const variantInit = jsxAttribute(file, node, "variant")?.initializer;
+        const variant =
+          variantInit === undefined ? "default" : ts.isStringLiteral(variantInit) ? variantInit.text : "";
+        if (variant === "default" || variant === "quiet") {
           const classInit = (jsxAttribute(file, node, "class") ?? jsxAttribute(file, node, "className"))?.initializer;
           const labelInit = jsxAttribute(file, node, "aria-label")?.initializer;
           const sources = classInit ? classSources(file, classInit) : { text: [], unresolved: [] };
           const site: CallSite = {
             location: locationOf(file, node),
-            variant: variant.text,
+            variant,
             label: labelInit && ts.isStringLiteral(labelInit) ? labelInit.text : "",
             classText: sources.text.join(" "),
             unresolved: sources.unresolved,
@@ -271,7 +274,7 @@ const unfilledCallSites = (): CallSite[] => {
   return sites;
 };
 
-describe("ghost and outline Button call sites", () => {
+describe("default and quiet Button call sites", () => {
   afterEach(() => {
     document.head.innerHTML = "";
   });
@@ -287,7 +290,7 @@ describe("ghost and outline Button call sites", () => {
     ).toEqual([]);
     const options = sites.filter(({ location }) => location.includes("FileOptionsButton.tsx"));
     expect(options.length).toBe(2);
-    expect(options.every(({ classText }) => classText.includes("text-foreground/50"))).toBe(true);
+    expect(options.every(({ classText }) => classText.includes("text-muted"))).toBe(true);
     const throughWrapper = sites.filter(({ location }) => location.includes(" via ") && location.includes("OptionButton.tsx"));
     expect(throughWrapper.length).toBeGreaterThan(0);
     expect(throughWrapper.every(({ classText }) => classText.includes("text-foreground/80"))).toBe(true);
@@ -320,6 +323,6 @@ describe("ghost and outline Button call sites", () => {
         style.getPropertyValue("background-color") !== "",
     );
     expect(swaps.map((r) => r.selector)).toEqual([]);
-    expect(rules.some(({ selector }) => /::?after\b/.test(selector) && selector.includes(":hover"))).toBe(true);
+    expect(rules.some(({ selector }) => /::?before\b/.test(selector) && selector.includes(":hover"))).toBe(true);
   });
 });

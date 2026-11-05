@@ -48,7 +48,7 @@ export default function PreviewScreenplayToolbar(
   return (
     <div class="sticky top-0 z-[1] flex h-12 flex-row items-center bg-panel">
       <Button
-        variant="ghost"
+        variant="quiet"
         aria-label="Download PDF"
         onClick={onDownload}
         disabled={exporting}
@@ -61,18 +61,18 @@ export default function PreviewScreenplayToolbar(
         Screenplay Preview
       </div>
       <Button
-        variant="ghost"
-        size="icon-lg"
+        variant="quiet"
+        size="icon"
         aria-label="Preview Game"
         onClick={onMode}
-        class="text-foreground/50 hover:text-foreground"
+        class="text-muted"
       >
         <Gamepad class="size-5" />
       </Button>
 
       <div
         aria-hidden="true"
-        class="pointer-events-none absolute inset-x-0 bottom-0 h-[3px] origin-left bg-primary/70 transition-opacity"
+        class="pointer-events-none absolute inset-x-0 bottom-0 h-[3px] origin-left bg-primary/70 motion-safe:transition-opacity"
         style={{
           opacity: exporting ? 1 : 0,
           transform: `scaleX(${progress})`,

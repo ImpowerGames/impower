@@ -119,6 +119,17 @@ export class FunctionCall extends Expression {
     this.AddContent(this._proxyDivert);
   }
 
+  protected retarget(functionName: Identifier): void {
+    const at = this.content.indexOf(this._proxyDivert);
+    if (at >= 0) {
+      this.content.splice(at, 1);
+    }
+    this.identifier = functionName;
+    this._proxyDivert = new Divert([functionName], []);
+    this._proxyDivert.isFunctionCall = true;
+    this.AddContent(this._proxyDivert);
+  }
+
   override get typeName(): string {
     return "FunctionCall";
   }

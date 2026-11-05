@@ -1,0 +1,17 @@
+scene start
+  if true then
+    run helper
+  elseif false then
+    run "scripts/helper"
+  end
+  for i = 1, 2 do
+    run helper
+  end
+  choose
+    + Pick
+      run helper
+      In choice.
+  then
+    run helper
+  end
+end

@@ -37,9 +37,9 @@ function panelStyle(
 
 const SEPARATOR_BASE =
   "relative z-10 shrink-0 self-stretch select-none bg-transparent touch-none " +
-  "before:content-[''] before:absolute before:pointer-events-none before:bg-white/[0.06] " +
+  "before:content-[''] before:absolute before:pointer-events-none before:bg-edge " +
   "after:content-[''] after:absolute after:pointer-events-none after:bg-primary " +
-  "after:opacity-0 after:transition-opacity after:duration-150 after:ease-in-out " +
+  "after:opacity-0 motion-safe:after:transition-opacity motion-safe:after:duration-150 motion-safe:after:ease-in-out " +
   "hover:after:opacity-100 focus-visible:after:opacity-100 " +
   "data-[separator=active]:after:opacity-100";
 

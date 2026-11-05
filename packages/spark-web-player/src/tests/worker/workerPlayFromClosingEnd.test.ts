@@ -276,7 +276,7 @@ describe("PLAY and the preview at the end of a scene whose branches it does not 
 });
 
 describe("the preview after the end of a scene whose branches it does not enter", () => {
-  it("keeps that point while the cursor is on a line with no address, and shows the next beat selected", async () => {
+  it("shows no beat while the cursor is in a script with no scene, and shows the next beat selected", async () => {
     const empty = "file:///local/empty.sd";
     const h = await createPlayerHarness({
       files: [
@@ -290,10 +290,15 @@ describe("the preview after the end of a scene whose branches it does not enter"
       await h.select(9);
       await settle(40);
       expect(writtenText(h.toRouter)).not.toContain("Unused");
+      await h.select(1);
+      await settle(40);
+      expect(h.overlay.textContent).toContain("Before.");
       const before = h.toRouter.length;
       await h.select(0, empty);
       await settle(40);
       expect(writtenText(h.toRouter.slice(before))).not.toContain("Other.");
+      expect(h.overlay.textContent).not.toContain("Before.");
+      expect(h.overlay.textContent).not.toContain("Other.");
       const kept = h.toRouter.length;
       await h.select(11);
       await settle(40);

@@ -60,19 +60,14 @@ export default function FileAddButton({
     <div class="mx-4 my-6 flex flex-col">
 
       <Button
-        variant="fab"
+        variant="primary"
         disabled={disabledSig.value}
         onClick={onClick}
-        class={`ml-auto h-12 gap-0 overflow-hidden rounded-full text-base font-normal transition-[width,padding] duration-200 ease-out ${
-          collapsed ? "w-12 px-0" : "w-full px-5"
-        }`}
+        size={collapsed ? "icon" : "default"}
+        class={collapsed ? "ml-auto" : "w-full"}
       >
-        <Plus class="size-5 shrink-0" />
-        <span
-          class={`overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-200 ease-out ${
-            collapsed ? "ml-0 max-w-0 opacity-0" : "ml-2 max-w-[12rem] opacity-100"
-          }`}
-        >
+        <Plus />
+        <span class={collapsed ? "sr-only" : undefined}>
           {children}
         </span>
       </Button>

@@ -1,7 +1,11 @@
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
+import { RunCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/RunCall";
 import type { SourceMetadata } from "../../../runtime/Error";
-import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
+import type {
+  CompiledBlock,
+  RunOperand,
+} from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { closeQuoteMessage, quotePathMessage } from "../../utils/runOperand";
 import type { LowerContext } from "../context";
@@ -72,7 +76,12 @@ export function lowerRun(
     startCharacterNumber: ctx.characterNumber(bounds.from) + 1,
     endCharacterNumber: ctx.characterNumber(bounds.to) + 1,
   };
-  return {
-    run: { path, written, quote: quoted ? raw[0]! : "", source, line },
+  const run: RunOperand = {
+    path,
+    written,
+    quote: quoted ? raw[0]! : "",
+    source,
+    line,
   };
+  return nodeRef.node.parent?.type.isTop ? { run } : { content: [new RunCall(run)] };
 }

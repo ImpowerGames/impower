@@ -30,13 +30,13 @@ export default function TextPreview({ src }: TextPreviewProps) {
   }, [src]);
 
   if (error) {
-    return <div class="m-auto text-sm text-white/50">Can't preview this file.</div>;
+    return <div class="m-auto text-sm text-muted">Can't preview this file.</div>;
   }
   if (text == null) {
-    return <div class="m-auto text-sm text-white/50">Loading…</div>;
+    return <div class="m-auto text-sm text-muted">Loading…</div>;
   }
   return (
-    <pre class="size-full select-text overflow-auto whitespace-pre-wrap break-words rounded bg-white p-4 font-mono text-sm text-black">
+    <pre class="size-full select-text overflow-auto whitespace-pre-wrap break-words rounded-control bg-paper p-4 font-mono text-sm text-ink">
       {text}
     </pre>
   );

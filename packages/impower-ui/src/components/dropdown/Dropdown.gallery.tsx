@@ -19,12 +19,12 @@ function MenuItems() {
   return (
     <>
       <DropdownItem>
-        <Edit class="size-4" /> Rename
+        <Edit /> Rename
       </DropdownItem>
       <DropdownItem disabled>
-        <Trash class="size-4" /> Delete (disabled)
+        <Trash /> Delete (disabled)
       </DropdownItem>
-      <DropdownSeparator class="my-2 h-px bg-divider" />
+      <DropdownSeparator />
       <DropdownCheckboxItem checked={wrap} onCheckedChange={setWrap}>
         Word wrap {wrap ? "(checked)" : "(unchecked)"}
       </DropdownCheckboxItem>
@@ -45,7 +45,7 @@ function DropdownDemo() {
       >
         <DropdownRoot>
           <DropdownTrigger asChild>
-            <Button variant="outline">Open menu</Button>
+            <Button>Open menu</Button>
           </DropdownTrigger>
           <DropdownContent align="start">
             <MenuItems />
@@ -55,8 +55,8 @@ function DropdownDemo() {
       <GalleryRow label="Icon trigger, content aligned to the end">
         <DropdownRoot>
           <DropdownTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="More options">
-              <DotsVertical class="size-5" />
+            <Button variant="quiet" size="icon" aria-label="More options">
+              <DotsVertical />
             </Button>
           </DropdownTrigger>
           <DropdownContent align="end">
@@ -68,7 +68,7 @@ function DropdownDemo() {
         <div class="h-64">
           <DropdownRoot open={pinned} onOpenChange={setPinned} modal={false}>
             <DropdownTrigger asChild>
-              <Button variant="secondary">Open on load</Button>
+              <Button>Open on load</Button>
             </DropdownTrigger>
             <DropdownContent align="start" side="bottom">
               <MenuItems />

@@ -351,7 +351,7 @@ export class StatementMemoSession {
     lower: (ctx: LowerContext) => CompiledBlock | undefined,
     to = node.to,
   ): CompiledBlock | undefined {
-    if (TRIVIA.has(node.name)) {
+    if (TRIVIA.has(node.name) || node.name === "Run") {
       return lower(owned);
     }
     const ctx = rawContext(owned);

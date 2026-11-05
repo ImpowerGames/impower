@@ -21,6 +21,7 @@ export const signatureTheme = EditorView.baseTheme({
     maxWidth: "30em",
     maxHeight: "10em",
     overflowY: "scroll",
+    scrollbarGutter: "stable",
     "& .cm-lsp-documentation": {
       padding: "0",
       fontSize: "80%",

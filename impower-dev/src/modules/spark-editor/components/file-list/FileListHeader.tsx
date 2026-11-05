@@ -64,20 +64,21 @@ export default function FileListHeader({
 
       <div class="flex flex-row items-center gap-2">
         <div class="relative flex min-w-0 flex-1 items-center">
-          <Search class="pointer-events-none absolute left-2 size-4 text-foreground/40" />
+          <Search class="pointer-events-none absolute left-2.5 size-4 text-muted" />
           <input
             value={search}
             onInput={(e) => onSearch((e.target as HTMLInputElement).value)}
             placeholder="Search"
             aria-label="Search files"
-            class="h-10 w-full rounded-md bg-foreground/5 pl-8 pr-7 text-sm text-foreground outline-none placeholder:text-foreground/40 focus:bg-foreground/10"
+            class="h-11 w-full rounded-control border border-edge bg-transparent pl-8 pr-11 text-sm text-ink placeholder:text-muted"
           />
           {search && (
             <Button
-              variant="ghost"
+              variant="quiet"
               aria-label="Clear search"
               onClick={() => onSearch("")}
-              class="absolute right-1 size-6 rounded-full p-0 text-foreground/50 hover:text-foreground"
+              size="icon"
+              class="absolute right-0 text-muted"
             >
               <X class="size-3.5" />
             </Button>
@@ -92,13 +93,9 @@ export default function FileListHeader({
           <DropdownRoot>
             <DropdownTrigger asChild>
               <Button
-                variant="ghost"
+                variant="quiet"
                 aria-label="Filter by type"
-                class={`h-8 gap-4 rounded-md px-2 mx-1 text-sm font-normal ${
-                  filterActive
-                    ? "text-primary"
-                    : "text-foreground/60 hover:text-foreground"
-                }`}
+                class={filterActive ? "mx-1 text-accent" : "mx-1 text-muted"}
               >
                 <Filter class="size-4" />
                 {filterActive
@@ -125,9 +122,9 @@ export default function FileListHeader({
           <DropdownRoot>
             <DropdownTrigger asChild>
               <Button
-                variant="ghost"
+                variant="quiet"
                 aria-label="Sort"
-                class="h-8 gap-4 rounded-md px-2 mx-3 text-sm font-normal text-foreground/70 hover:text-foreground"
+                class="mx-3 text-muted"
               >
                 {sortLabel}
                 <SortArrow class="size-4" />

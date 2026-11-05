@@ -635,7 +635,6 @@ const statusPanelTheme = EditorView.baseTheme({
     },
   "& .cm-icon-button": {
     padding: "1px 4px",
-    minWidth: "24px",
     justifyContent: "center",
   },
   "&:not(.keyboard-open) .cm-panels-bottom:has(> :not(.cm-toolbar):focus-within) .cm-revealBottomPanel":
@@ -648,8 +647,14 @@ const statusPanelTheme = EditorView.baseTheme({
     position: "absolute",
     inset: "0",
     backgroundColor: "var(--control-hover)",
+    boxShadow: "inset 0 0 0 100vmax var(--control-hover)",
   },
-  "@media (hover: hover) and (pointer: fine)": {
+  "@media (pointer: coarse)": {
+    ".cm-status": {
+      height: "44px",
+    },
+  },
+  "@media (hover: hover)": {
     ".cm-button:hover::after": {
       content: "''",
       position: "absolute",

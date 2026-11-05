@@ -29,12 +29,12 @@ const backdropVariants = cva(
 );
 
 const surface =
-  "w-full select-none bg-elevated text-ink shadow-2xl ring-1 ring-ink/10 outline-none";
+  "w-full select-none border border-edge bg-panel text-ink outline-none";
 
 export const dialogVariants = cva(
   [
     surface,
-    "rounded-lg",
+    "rounded-dialog",
     "motion-safe:transition-[opacity,scale] motion-safe:duration-180",
   ],
   {
@@ -60,7 +60,7 @@ export const dialogVariants = cva(
 export const sheetVariants = cva(
   [
     surface,
-    "max-h-[80vh] overflow-y-auto rounded-t-lg",
+    "max-h-[80vh] overflow-y-auto rounded-t-card border-b-0",
     "motion-safe:transition-transform motion-safe:duration-180",
   ],
   {

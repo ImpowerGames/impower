@@ -28,20 +28,19 @@ const tabsList = cva("flex w-full", {
 
 const tabTrigger = cva(
   [
-    "group relative flex flex-1 items-center justify-center overflow-hidden",
+    "group relative control-overlay flex flex-1 items-center justify-center overflow-hidden rounded-t-control",
     "gap-x-2 gap-y-0.5 px-5 text-sm font-semibold select-none cursor-pointer",
-    "disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none",
-    "hover:bg-foreground/5 active:bg-foreground/[0.12]",
+    "disabled:opacity-40 disabled:cursor-default disabled:pointer-events-none",
   ],
   {
     variants: {
       orientation: {
         horizontal: "",
-        vertical: "w-full",
+        vertical: "w-full rounded-control",
       },
       iconLayout: {
-        above: "flex-col py-4",
-        beside: "flex-row h-12",
+        above: "flex-col min-h-11 py-4",
+        beside: "flex-row min-h-12",
       },
     },
     defaultVariants: { orientation: "horizontal", iconLayout: "above" },
@@ -149,7 +148,7 @@ export default function Tabs({
                 <div
                   aria-hidden="true"
                   class={cn(
-                    "pointer-events-none absolute bg-tab-ink transition-transform duration-150",
+                    "pointer-events-none absolute bg-tab-ink motion-safe:transition-transform motion-safe:duration-150",
                     vertical
                       ? "left-auto right-0 w-0.5"
                       : "top-auto bottom-0 h-0.5",
@@ -218,7 +217,7 @@ export function Tab({
             {icon ? (
               <span
                 class={cn(
-                  "absolute inset-0 group-data-[state=active]:opacity-0 transition-opacity duration-100",
+                  "absolute inset-0 group-data-[state=active]:opacity-0 motion-safe:transition-opacity motion-safe:duration-100",
                   inactiveColor,
                 )}
               >
@@ -238,7 +237,7 @@ export function Tab({
             {(activeIcon ?? icon) ? (
               <span
                 class={cn(
-                  "absolute inset-0 opacity-0 group-data-[state=active]:opacity-100 transition-opacity duration-100",
+                  "absolute inset-0 opacity-0 group-data-[state=active]:opacity-100 motion-safe:transition-opacity motion-safe:duration-100",
                   activeColor,
                 )}
               >
@@ -259,14 +258,14 @@ export function Tab({
         )}
         <span
           class={cn(
-            "relative inline-block leading-none transition-transform duration-100",
+            "relative inline-block leading-none motion-safe:transition-transform motion-safe:duration-100",
             ctx.iconLayout === "above" &&
               "scale-80 group-data-[state=active]:scale-90",
           )}
         >
           <span
             class={cn(
-              "group-data-[state=active]:opacity-0 transition-opacity duration-100",
+              "group-data-[state=active]:opacity-0 motion-safe:transition-opacity motion-safe:duration-100",
               inactiveColor,
             )}
           >
@@ -274,7 +273,7 @@ export function Tab({
           </span>
           <span
             class={cn(
-              "absolute inset-0 opacity-0 group-data-[state=active]:opacity-100 transition-opacity duration-100",
+              "absolute inset-0 opacity-0 group-data-[state=active]:opacity-100 motion-safe:transition-opacity motion-safe:duration-100",
               activeColor,
             )}
           >

@@ -132,23 +132,50 @@ describe("the player's fullscreen bar", () => {
     stylesheet("../sparkdown-player-app/src/style.css"),
   ].join("\n");
 
+  const STAGES: Record<string, string> = {
+    chalk: "#e6e6e8",
+    charcoal: "#0a0a0b",
+    midnight: "",
+  };
+
   for (const theme of ["chalk", "charcoal", "midnight"]) {
-    it(`keeps light ink on the black fullscreen gradient in ${theme}`, () => {
+    it(`draws the fullscreen bar in the theme's ink over a fade into the theme's stage in ${theme}`, () => {
       const dom = new JSDOM(
         `<!doctype html><html data-theme="${theme}"><head><style>${CSS}</style></head><body><spark-web-player><div id="viewport" class="fullscreen"><div id="toolbar"><span id="ending-status">Story ran out</span></div></div></spark-web-player></body></html>`,
       );
       const win = dom.window as unknown as Window;
+      const root = win.document.documentElement;
       const host = win.document.querySelector("spark-web-player")!;
+      const viewport = win.document.getElementById("viewport")!;
       const toolbar = win.document.getElementById("toolbar")!;
       const resolveVar = (value: string) =>
         value.replace(/^var\((--[\w-]+)\)$/, (_, name: string) =>
           win.getComputedStyle(host).getPropertyValue(name).trim(),
         );
       const toolbarStyle = win.getComputedStyle(toolbar);
-      expect(resolveVar(toolbarStyle.color)).toBe("#ffffffde");
+      expect(resolveVar(toolbarStyle.color)).toBe(
+        "color-mix(in srgb, var(--ink) 87%, transparent)",
+      );
       expect(
         resolveVar(toolbarStyle.getPropertyValue("--swp-toolbar-color").trim()),
-      ).toBe("#fff");
+      ).toBe("var(--ink)");
+      expect(toolbarStyle.backgroundImage).toBe(
+        "var(--swp-toolbar-fullscreen-gradient)",
+      );
+      const gradient = win
+        .getComputedStyle(host)
+        .getPropertyValue("--swp-toolbar-fullscreen-gradient");
+      expect(gradient).toMatch(/var\(--stage\) 100%/);
+      expect(gradient).not.toMatch(/rgba?\(0, ?0, ?0/);
+      expect(
+        win.getComputedStyle(viewport).getPropertyValue("--swp-game-background-color").trim(),
+      ).toBe("var(--stage)");
+      expect(win.getComputedStyle(root).getPropertyValue("--stage").trim()).toBe(
+        "var(--stage-full, rgb(0 0 0))",
+      );
+      expect(win.getComputedStyle(root).getPropertyValue("--stage-full").trim()).toBe(
+        STAGES[theme],
+      );
       const chip = win.document.getElementById("ending-status")!;
       expect(win.getComputedStyle(chip).backgroundColor).toBe(
         "var(--swp-background-color)",

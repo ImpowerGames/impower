@@ -51,6 +51,7 @@ import {
 import { PreviewHintMessage } from "./messages/PreviewHintMessage";
 import { ConnectPlayMessage } from "./messages/ConnectPlayMessage";
 import {
+  OUTSIDE_EVERY_SCENE_REFUSAL,
   PlayMessage,
   type PlayParams,
   type PlayResult,
@@ -550,11 +551,21 @@ export function installPlayerWorker(connection: MessageConnection) {
         updateGameProgram(game, entry.program);
       }
       const touches = gameTouches;
-      const shown = startPoint(
-        entry.program,
-        { file: params.file, line: params.line },
-        "last",
-      );
+      const shown = previewPoint(entry.program, {
+        file: params.file,
+        line: params.line,
+      });
+      if (!shown) {
+        displayedId = entry.id;
+        standing = undefined;
+        lastPath = undefined;
+        releaseUnneeded();
+        const displayed = await game.previewNothing(
+          sendToPage,
+          () => display !== displays || gameState.game !== game,
+        );
+        return { displayed };
+      }
       const route = routeTo(game, entry, shown.point, shown.beat);
       displayedId = entry.id;
       releaseUnneeded();
@@ -576,7 +587,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         address: shown.point.address,
         relocate: (from) =>
           startPoint(entry.program, { file: from.file, line: from.line }, "last")
-            .point,
+            ?.point ?? from,
         speculative: params.speculative,
         checkpoint: route.checkpoint,
         simulationFailure: route.simulationFailure,
@@ -678,6 +689,13 @@ export function installPlayerWorker(connection: MessageConnection) {
     const start = params.startFrom
       ? startPoint(program, params.startFrom, "first")
       : undefined;
+    if (params.startFrom && !start) {
+      return {
+        built: true,
+        compiled: isRunnableProgram(program),
+        refusal: OUTSIDE_EVERY_SCENE_REFUSAL,
+      };
+    }
     const route: RouteReport = start
       ? routeTo(game, entry, start.point, start.beat)
       : {};
@@ -755,6 +773,72 @@ export function installPlayerWorker(connection: MessageConnection) {
     program: SparkProgram,
     point: StartPoint,
     beat: "first" | "last",
+  ): { point: StartPoint; beat: "first" | "last" } | undefined =>
+    spansHold(program.sceneSpans, point)
+      ? startPointInScene(program, point, beat)
+      : undefined;
+
+  const spansHold = (
+    spans: { [uri: string]: [number, number][] } | undefined,
+    point: StartPoint,
+  ) =>
+    (spans?.[point.file] ?? []).some(
+      ([first, last]) => first <= point.line && point.line <= last,
+    );
+
+  let lastScenePoint: { scene: string; offset: number } | undefined;
+
+  const sceneHeaderOf = (program: SparkProgram, scene: string) => {
+    const location = program.sceneLocations?.[scene];
+    const file = location ? Object.keys(program.scripts)[location[0]] : undefined;
+    return location && file ? { file, line: location[1] } : undefined;
+  };
+
+  const sceneNameAt = (program: SparkProgram, point: StartPoint) => {
+    const span = (program.sceneSpans?.[point.file] ?? []).find(
+      ([header, last]) => header <= point.line && point.line <= last,
+    );
+    return span
+      ? Object.keys(program.sceneLocations ?? {}).find((scene) => {
+          const header = sceneHeaderOf(program, scene);
+          return header?.file === point.file && header.line === span[0];
+        })
+      : undefined;
+  };
+
+  const previewPoint = (
+    program: SparkProgram,
+    point: StartPoint,
+  ): { point: StartPoint; beat: "first" | "last" } | undefined => {
+    const shown = startPoint(program, point, "last");
+    if (shown) {
+      const scene = sceneNameAt(program, point);
+      const header = scene ? sceneHeaderOf(program, scene) : undefined;
+      lastScenePoint =
+        scene && header ? { scene, offset: point.line - header.line } : undefined;
+      return shown;
+    }
+    if (!spansHold(program.uiSpans, point)) {
+      return undefined;
+    }
+    const kept = lastScenePoint
+      ? sceneHeaderOf(program, lastScenePoint.scene)
+      : undefined;
+    const keptPoint =
+      kept && lastScenePoint
+        ? { file: kept.file, line: kept.line + lastScenePoint.offset }
+        : undefined;
+    if (keptPoint && sceneNameAt(program, keptPoint) === lastScenePoint?.scene) {
+      return startPointInScene(program, keptPoint, "last");
+    }
+    const start = sceneHeaderOf(program, "start");
+    return start ? startPointInScene(program, start, "last") : undefined;
+  };
+
+  const startPointInScene = (
+    program: SparkProgram,
+    point: StartPoint,
+    beat: "first" | "last",
   ): { point: StartPoint; beat: "first" | "last" } => {
     const locator = programLocator(program);
     const ends = program.flowEnds?.[point.file] ?? [];
@@ -777,7 +861,7 @@ export function installPlayerWorker(connection: MessageConnection) {
             !ends.some(([h, e]) => h < header && end < e),
         );
         if (closedAbove) {
-          return startPoint(program, { file: point.file, line }, "last");
+          return startPointInScene(program, { file: point.file, line }, "last");
         }
         const address = locator.addressAt(point.file, line, { beat: "last" });
         const location = locator.locationOf(address);
@@ -803,7 +887,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         undefined,
       );
       if (first && program.chunks?.bindsParameters(point.file, first[0]) === false) {
-        return startPoint(program, { file: point.file, line: first[1] }, beat);
+        return startPointInScene(program, { file: point.file, line: first[1] }, beat);
       }
     }
     return lineAbove(point.line - 1, -1, []) ?? { point, beat };

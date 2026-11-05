@@ -36,8 +36,13 @@ const completionTheme = EditorView.baseTheme({
   "& .cm-tooltip": {
     fontFamily: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto`,
     fontSize: "0.96em",
-    border: "solid 1px color-mix(in srgb, var(--ink) 12.94%, transparent)",
-    borderRadius: "4px",
+    border: "solid 1px var(--edge)",
+    borderRadius: "var(--radius)",
+    boxShadow: "var(--float-shadow)",
+  },
+  "& .cm-tooltip.cm-tooltip-autocomplete > ul": {
+    padding: "4px",
+    scrollbarGutter: "stable",
   },
   "& .cm-tooltip pre": {
     margin: "4px 8px",
@@ -49,6 +54,7 @@ const completionTheme = EditorView.baseTheme({
     display: "flex",
     alignItems: "center",
     padding: "3px 10px 3px 2px",
+    borderRadius: "var(--control-radius)",
   },
   "& .cm-tooltip.cm-completionInfo pre": {
     margin: "0",
@@ -88,8 +94,9 @@ const completionTheme = EditorView.baseTheme({
 
   ".cm-tooltip.cm-tooltip-autocomplete > ul > li:active:not(:disabled)": {
     backgroundColor: "var(--control-hover)",
+    boxShadow: "inset 0 0 0 100vmax var(--control-hover)",
   },
-  "@media (hover: hover) and (pointer: fine)": {
+  "@media (hover: hover)": {
     ".cm-tooltip.cm-tooltip-autocomplete > ul > li:hover:not(:disabled)": {
       backgroundColor: "var(--control-hover)",
     },

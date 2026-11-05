@@ -35,14 +35,10 @@ export default function FileBreadcrumb({
               />
             )}
             <Button
-              variant="ghost"
+              variant="quiet"
               disabled={isLast}
               onClick={() => onNavigate(crumb.path)}
-              class={`h-auto flex-none gap-1 rounded px-1.5 py-0.5 text-sm disabled:cursor-default disabled:opacity-100 ${
-                isLast
-                  ? "font-medium text-foreground"
-                  : "text-foreground/55 hover:text-foreground"
-              }`}
+              class={`flex-none px-1.5 disabled:opacity-100 ${isLast ? "text-ink" : "text-muted"}`}
             >
               {crumb.name ?? <Folder class="size-4" aria-label="Root" />}
             </Button>

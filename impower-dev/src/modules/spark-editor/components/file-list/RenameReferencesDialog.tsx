@@ -51,16 +51,14 @@ export default function RenameReferencesDialog({
       </DialogDescription>
       <DialogActions>
         <Button
-          variant="ghost"
+          variant="quiet"
           onClick={onRenameOnly}
-          class="h-9 px-3 text-sm font-normal text-foreground/70 hover:text-foreground"
         >
           Rename only
         </Button>
         <Button
           variant="primary"
           onClick={onUpdateAndRename}
-          class="h-9 px-4 text-sm font-normal"
         >
           Update &amp; rename
         </Button>

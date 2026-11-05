@@ -40,12 +40,16 @@ export {
   default as LoadingBar,
   type LoadingBarProps,
 } from "./loading-bar/LoadingBar";
-export { default as Ripple } from "./ripple/Ripple";
 export { default as Router, type RouterProps } from "./router/Router";
 export {
   default as SplitPane,
   type SplitPaneProps,
 } from "./split-pane/SplitPane";
+export {
+  default as Toast,
+  toastVariants,
+  type ToastProps,
+} from "./toast/Toast";
 export {
   default as Tabs,
   Tab,

@@ -28,14 +28,23 @@ const coordinate = (planFile) => spawnSync(process.execPath, [coordinatorWrapper
 const until = (predicate, what) => { const end = Date.now() + 60000; while (!predicate()) { if (Date.now() > end) throw new Error(`Timed out waiting for ${what}`); Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50); } };
 
 const capturedLock = path.join(scratch, "captured-lock.json");
+const capturedChild = path.join(scratch, "captured-child.json");
 const child = path.join(scratch, "kill-coordinator.mjs");
-fs.writeFileSync(child, `import fs from "node:fs"; fs.copyFileSync(process.argv[2], process.argv[3]); process.kill(process.ppid); setTimeout(() => process.exit(0), 500);`);
+fs.writeFileSync(child, `
+import fs from "node:fs";
+import { processIdentity } from ${JSON.stringify(new URL("./reviewer-slots.mjs", import.meta.url).href)};
+for await (const chunk of process.stdin) {}
+fs.writeFileSync(process.argv[4], JSON.stringify(processIdentity(process.pid)));
+fs.copyFileSync(process.argv[2], process.argv[3]);
+process.kill(process.ppid);
+setTimeout(() => process.exit(0), 500);
+`);
 const prompt = path.join(jobDir, "prompt.txt");
 fs.writeFileSync(prompt, "test fixture");
 const plan = (journal) => {
   const file = path.join(jobDir, `${path.basename(journal, ".jsonl")}-plan.json`);
   fs.writeFileSync(file, JSON.stringify({ worktree, pr: 962, completedReviewRound: 0, writer: "writer-test", writerEffort: "medium", reviewer: "reviewer-test", maxSteps: 1, first: "only", journal, steps: {
-    only: { role: "implement", model: "writer-test", executable: process.execPath, args: [child, lock, capturedLock, "--model", "writer-test"], prompt, next: [null] },
+    only: { role: "implement", model: "writer-test", executable: process.execPath, args: [child, lock, capturedLock, capturedChild, "--model", "writer-test"], prompt, next: [null] },
   } }));
   return file;
 };
@@ -45,8 +54,20 @@ const recorded = JSON.parse(fs.readFileSync(capturedLock, "utf8"));
 assert.equal(recorded.host, os.hostname(), "the lock records the host its coordinator runs on");
 assert.equal(fs.readFileSync(lock, "utf8"), fs.readFileSync(capturedLock, "utf8"), "the killed coordinator leaves its lock behind");
 const rows = fs.readFileSync(journal, "utf8").trim().split("\n").map(JSON.parse);
-assert.equal(rows.at(-1).event, "running", "the killed coordinator journals no exit for its child");
-until(() => processIdentity(recorded.pid) === null && processIdentity(rows.at(-1).pid) === null, "the coordinator and its child to exit");
+const running = rows.at(-1);
+assert.equal(running.event, "running", "the killed coordinator journals no exit for its child");
+const startedChild = JSON.parse(fs.readFileSync(capturedChild, "utf8"));
+assert.equal(startedChild?.pid, running.pid, "the captured identity names the journalled child");
+assert.ok(startedChild.start, "the child captured its OS start identity");
+until(() => processIdentity(recorded.pid)?.start !== recorded.processIdentity.start &&
+  processIdentity(startedChild.pid)?.start !== startedChild.start, "the coordinator and its child to exit");
+const { index, step } = running;
+const verifiedAt = new Date().toISOString();
+const exitEvidence = [
+  { event: "identified", index, step, childIdentity: startedChild },
+  { event: "confirmed-absent", index, step, childIdentity: startedChild, coordinatorIdentity: recorded.processIdentity, verifiedAt },
+];
+fs.appendFileSync(journal, exitEvidence.map((row) => JSON.stringify({ time: verifiedAt, ...row }) + "\n").join(""));
 const relaunch = coordinate(plan(path.join(jobDir, "relaunch.jsonl")));
 assert.match(relaunch.stderr, /EEXIST.*recover-lock/, "the lock refusal names the recovery command");
 const recovered = run("recover-lock", worktree);
@@ -93,7 +114,7 @@ refused("a lock without a source host", { ...lockRecord, host: undefined }, null
 refused("a lock still being written", "", null, {}, /empty or unreadable/);
 refused("a lock without an OS start identity", { ...lockRecord, processIdentity: undefined }, null, {}, /no OS start identity/);
 refused("a child with its recorded identity still running", lockRecord, [...launched, { event: "running", index: 0, pid: childIdentity.pid }, { event: "identified", index: 0, childIdentity }], { [childIdentity.pid]: childIdentity }, /child \(PID 4343\) is still running/);
-refused("a child PID in use with no recorded identity", lockRecord, [...launched, { event: "running", index: 0, pid: childIdentity.pid }], { [childIdentity.pid]: { pid: childIdentity.pid, start: "999" } }, /no OS start identity to tell reuse apart/);
+refused("a reused bare child PID", lockRecord, [...launched, { event: "running", index: 0, pid: childIdentity.pid }], { [childIdentity.pid]: { pid: childIdentity.pid, start: "999" } }, /no OS start identity to tell reuse apart/);
 refused("a reserved slot without a running row", lockRecord, [...launched, { event: "route-probed", index: 0 }, { event: "reserved", index: 0 }], {}, /may have spawned a child/);
 refused("a child exit the coordinator reported unconfirmed", lockRecord, [...launched, { event: "running", index: 0, pid: childIdentity.pid }, { event: "confirmed-absent", index: 0 }, { event: "blocked", reason: "child exit unconfirmed (PID 4343)" }], {}, /unconfirmed/);
 refused("a malformed recorded child identity", lockRecord, [...launched, { event: "running", index: 0, pid: childIdentity.pid }, { event: "identified", index: 0, childIdentity: { pid: childIdentity.pid } }], { [childIdentity.pid]: childIdentity }, /malformed OS identity/);

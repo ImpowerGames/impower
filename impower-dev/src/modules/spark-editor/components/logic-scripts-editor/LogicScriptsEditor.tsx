@@ -1,4 +1,3 @@
-import { Ripple } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { useDiagnosticColor } from "../../workspace/useDiagnosticColor";
@@ -62,14 +61,14 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
   return (
     <div class="flex flex-1 flex-col min-h-0">
       <FileEditorNavigation onBack={handleBack}>
-        <div class="relative inline-block h-10 overflow-hidden rounded px-2 text-foreground hover:bg-foreground/5">
+        <div class="relative inline-block h-11 overflow-hidden rounded-control px-2 text-foreground control-overlay focus-within-edge">
           <input
             ref={inputRef}
             type="text"
             value={draftName}
             aria-label={displayName}
             placeholder={displayName}
-            class={`h-full bg-transparent text-center text-lg font-normal outline-none placeholder:text-placeholder ${
+            class={`h-full bg-transparent text-center text-lg font-normal outline-none placeholder:text-placeholder not-focus:fade-edge ${
               diagnosticColor || "text-foreground"
             }`}
             onInput={(e) =>
@@ -85,7 +84,6 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
               }
             }}
           />
-          <Ripple />
         </div>
       </FileEditorNavigation>
       <div class="relative flex flex-1 flex-col min-h-0">

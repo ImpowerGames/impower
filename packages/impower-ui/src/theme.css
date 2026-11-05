@@ -594,3 +594,15 @@
 [data-theme="paper"] {
   --editor-symbol-highlight: color-mix(in srgb, var(--syntax-section-name-definition) 16%, transparent);
 }
+
+:root {
+  --control-radius: 8px;
+  --radius: 12px;
+  --dialog-radius: 18px;
+  --toast-radius: 10px;
+  --float-shadow: 0 12px 40px rgb(0 0 0 / 0.4);
+  --fade: 20px;
+  --scrollbar-track: transparent;
+  --toast-top: 64px;
+  --stage: var(--stage-full, rgb(0 0 0));
+}

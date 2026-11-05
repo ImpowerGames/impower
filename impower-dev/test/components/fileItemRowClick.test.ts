@@ -39,7 +39,6 @@ vi.mock("@impower/impower-ui/components", async () => {
     Download: icon,
     FolderFill: icon,
     Trash: icon,
-    Ripple: icon,
     DropdownContent: pass,
     DropdownItem: ({
       onSelect,

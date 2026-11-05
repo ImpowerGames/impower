@@ -38,9 +38,8 @@ export default function HeaderMenuButton(_p: HeaderMenuButtonProps) {
   return (
     <>
       <Button
-        variant="ghost"
-        size="icon-lg"
-        class="size-14 text-foreground"
+        variant="quiet"
+        size="icon"
         aria-label="Open Menu"
         disabled={pickingResource}
         onClick={() => setOpen(true)}
@@ -51,7 +50,7 @@ export default function HeaderMenuButton(_p: HeaderMenuButtonProps) {
       {typeof document !== "undefined" &&
         createPortal(
           <div
-            class={`fixed inset-0 bg-black/50 transition-opacity duration-200 ${
+            class={`fixed inset-0 bg-scrim motion-safe:transition-opacity motion-safe:duration-200 ${
               open ? "" : "pointer-events-none opacity-0"
             }`}
             aria-hidden={open ? undefined : true}
@@ -66,16 +65,15 @@ export default function HeaderMenuButton(_p: HeaderMenuButtonProps) {
               role="dialog"
               aria-modal="true"
               aria-label="Menu"
-              class={`flex h-full w-[300px] flex-col bg-elevated shadow-xl transition-transform duration-[225ms] ease-out ${
+              class={`flex h-full w-[300px] flex-col bg-elevated shadow-xl motion-safe:transition-transform motion-safe:duration-180 motion-safe:ease-out ${
                 open ? "translate-x-0" : "-translate-x-full"
               }`}
             >
 
               <div class="flex h-14 flex-none flex-row items-center">
                 <Button
-                  variant="ghost"
-                  size="icon-lg"
-                  class="size-14 text-foreground"
+                  variant="quiet"
+                  size="icon"
                   aria-label="Close Menu"
                   onClick={() => setOpen(false)}
                 >
@@ -94,7 +92,7 @@ export default function HeaderMenuButton(_p: HeaderMenuButtonProps) {
                 href="https://marketplace.visualstudio.com/items?itemName=impowergames.vscode-sparkdown"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="flex flex-none flex-row items-center gap-6 px-6 py-3 text-foreground/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
+                class="relative flex min-h-11 flex-none flex-row items-center gap-6 px-6 py-3 text-foreground/70 control-overlay"
               >
                 <BrandVscode class="size-5 flex-none" />
                 <span class="flex min-w-0 flex-1 flex-col">
