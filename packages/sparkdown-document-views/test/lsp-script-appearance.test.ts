@@ -1,4 +1,4 @@
-import { EditorState, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
   documentHighlights,
@@ -9,7 +9,7 @@ import {
   serverDocumentHighlights,
   serverHovers,
 } from "@impower/codemirror-vscode-lsp-client/src";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type * as lsp from "vscode-languageserver-protocol";
 
 const URI = "file:///main.sd";
@@ -41,6 +41,15 @@ class StandInServer {
     this.requests = this.requests.filter((r) => r !== request);
     this.handler!({ jsonrpc: "2.0", id: request.id, result });
   }
+
+  fail(request: PendingRequest, message: string) {
+    this.requests = this.requests.filter((r) => r !== request);
+    this.handler!({
+      jsonrpc: "2.0",
+      id: request.id,
+      error: { code: -32603, message },
+    });
+  }
 }
 
 const settle = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -50,6 +59,7 @@ const views: EditorView[] = [];
 afterEach(() => {
   for (const view of views.splice(0)) view.destroy();
   document.body.innerHTML = "";
+  vi.restoreAllMocks();
 });
 
 const range = (line: number, start: number, end: number): lsp.Range => ({
@@ -126,9 +136,32 @@ describe("Highlight matching symbols", () => {
   });
 });
 
+describe("Highlight matching symbols after a failed request", () => {
+  it("reports the server's error and lights nothing", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { server, view } = await mount(DOC, [documentHighlights.of(true)]);
+    view.dispatch({ selection: { anchor: DOC.indexOf("intro") + 1 } });
+    await settle(200);
+    server.fail(
+      server.pending("textDocument/documentHighlight")[0]!,
+      "highlight provider crashed",
+    );
+    await settle();
+    expect(view.dom.querySelectorAll(".cm-symbol-highlight")).toHaveLength(0);
+    expect(errors).toHaveBeenCalledWith(
+      "LSP document highlight failed:",
+      expect.objectContaining({ message: "highlight provider crashed" }),
+    );
+  });
+});
+
 describe("Hover previews", () => {
+  const previews = new Compartment();
+
   const hover = async (enabled: boolean, value: string) => {
-    const { server, view } = await mount(DOC, [hoverPreviews.of(enabled)]);
+    const { server, view } = await mount(DOC, [
+      previews.of(hoverPreviews.of(enabled)),
+    ]);
     const at = 2;
     view.posAtCoords = (() => at) as EditorView["posAtCoords"];
     view.coordsAtPos = () => ({ left: 0, right: 10, top: 0, bottom: 10 });
@@ -143,20 +176,39 @@ describe("Hover previews", () => {
     expect(request).toBeTruthy();
     server.answer(request!, { contents: { kind: "markdown", value } });
     await settle(50);
-    return view.dom.querySelector(".cm-tooltip-hover");
+    return { view, tooltip: view.dom.querySelector(".cm-tooltip-hover") };
   };
 
   const PICTURE = "![MAYA](data:image/png;base64,iVBORw0KGgo=)";
 
   it("keeps a picture's popup closed while turned off", async () => {
-    expect(await hover(false, PICTURE)).toBeNull();
+    expect((await hover(false, PICTURE)).tooltip).toBeNull();
     const shown = await hover(true, PICTURE);
-    expect(shown?.querySelector("img")).toBeTruthy();
+    expect(shown.tooltip?.querySelector("img")).toBeTruthy();
+  });
+
+  it("closes an open picture popup when turned off, and leaves a text popup open", async () => {
+    const picture = await hover(true, PICTURE);
+    expect(picture.tooltip).toBeTruthy();
+    picture.view.dispatch({
+      effects: previews.reconfigure(hoverPreviews.of(false)),
+    });
+    expect(picture.view.dom.querySelector(".cm-tooltip-hover")).toBeNull();
+
+    const text = await hover(true, "A scene.");
+    text.view.dispatch({
+      effects: previews.reconfigure(hoverPreviews.of(false)),
+    });
+    expect(text.view.dom.querySelector(".cm-tooltip-hover")).toBeTruthy();
   });
 
   it("shows a popup without a picture either way", async () => {
-    expect((await hover(false, "A scene."))?.textContent).toContain("A scene.");
-    expect((await hover(true, "A scene."))?.textContent).toContain("A scene.");
+    expect((await hover(false, "A scene.")).tooltip?.textContent).toContain(
+      "A scene.",
+    );
+    expect((await hover(true, "A scene.")).tooltip?.textContent).toContain(
+      "A scene.",
+    );
   });
 });
 

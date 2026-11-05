@@ -22,6 +22,8 @@ export const hoverPreviews = Facet.define<boolean, boolean>({
   combine: (values) => values.at(-1) ?? true,
 });
 
+const pictureTooltips = new WeakSet<Tooltip>();
+
 export interface ServerHoversConfig {
   hoverTime?: number;
 }
@@ -40,7 +42,9 @@ export function serverHovers(
     editorExtension: [
       hoverTheme,
       hoverTooltip(lspTooltipSource, {
-        hideOn: (tr) => tr.docChanged,
+        hideOn: (tr, tooltip) =>
+          tr.docChanged ||
+          (pictureTooltips.has(tooltip) && !tr.state.facet(hoverPreviews)),
         hoverTime: config.hoverTime,
       }),
     ],
@@ -70,10 +74,11 @@ function lspTooltipSource(
   return hoverRequest(plugin, pos).then((result) => {
     if (!result) return null;
     const html = renderTooltipContent(plugin, result.contents);
-    if (!view.state.facet(hoverPreviews) && /<img[\s>]/i.test(html)) {
+    const picture = /<img[\s>]/i.test(html);
+    if (picture && !view.state.facet(hoverPreviews)) {
       return null;
     }
-    return {
+    const tooltip: Tooltip = {
       pos: result.range
         ? convertFromPosition(view.state.doc, result.range.start)
         : pos,
@@ -88,6 +93,10 @@ function lspTooltipSource(
       },
       above: true,
     };
+    if (picture) {
+      pictureTooltips.add(tooltip);
+    }
+    return tooltip;
   });
 }
 

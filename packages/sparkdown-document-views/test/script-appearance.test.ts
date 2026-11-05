@@ -412,6 +412,70 @@ describe("problem marks", () => {
   });
 });
 
+describe("problem marks after an edit", () => {
+  it("follow their problem onto the line an edit moves it to", () => {
+    mount({ ...ALL_OFF_APPEARANCE, lineNumbers: true }, "good bad");
+    view!.dispatch(
+      setDiagnostics(view!.state, [
+        { from: 5, to: 8, severity: "error", message: "e" },
+      ]),
+    );
+    view!.dispatch({ changes: { from: 5, insert: "\n" } });
+    const lines = view!.dom.querySelectorAll(".cm-line");
+    expect(lines[1]!.querySelector(".cm-lintRange-error")?.textContent).toBe(
+      "bad",
+    );
+    expect(lines[0]!.classList.contains("cm-problem-line")).toBe(false);
+    expect(lines[1]!.classList.contains("cm-problem-line-error")).toBe(true);
+    const numbered = [
+      ...view!.dom.querySelectorAll(".cm-lineNumbers .cm-gutterElement"),
+    ].filter((el) => el.classList.contains("cm-problem-gutter-error"));
+    expect(numbered.map((el) => el.textContent)).toEqual(["2"]);
+  });
+});
+
+describe("the current block's guide", () => {
+  const lit = () =>
+    [...view!.dom.querySelectorAll<HTMLElement>(".cm-line")].map((el) =>
+      (el.getAttribute("style") ?? "").includes(
+        "--indent-marker-active-bg-color",
+      ),
+    );
+
+  it("lights the block the caret is in, not the deeper block above it", () => {
+    const doc = ["scene a", "  MAYA:", "    Hello.", "  Next line.", "end"].join(
+      "\n",
+    );
+    mount({ ...ALL_OFF_APPEARANCE, indentGuides: "block" }, doc);
+    view!.dispatch({ selection: { anchor: doc.indexOf("Next") } });
+    expect(lit()).toEqual([false, true, true, true, false]);
+  });
+
+  it("lights the block a header opens, and the block an end closes", () => {
+    const doc = [
+      "scene a",
+      "  if x",
+      "    one",
+      "    two",
+      "  end",
+      "  after",
+      "end",
+    ].join("\n");
+    mount({ ...ALL_OFF_APPEARANCE, indentGuides: "block" }, doc);
+    view!.dispatch({ selection: { anchor: doc.indexOf("if x") } });
+    expect(lit()).toEqual([false, false, true, true, false, false, false]);
+    view!.dispatch({ selection: { anchor: doc.indexOf("  end") + 2 } });
+    expect(lit()).toEqual([false, false, true, true, false, false, false]);
+  });
+
+  it("runs through a blank line inside the block and stops at one before a dedent", () => {
+    const doc = ["scene a", "  one", "", "  two", "", "end"].join("\n");
+    mount({ ...ALL_OFF_APPEARANCE, indentGuides: "block" }, doc);
+    view!.dispatch({ selection: { anchor: doc.indexOf("one") } });
+    expect(lit()).toEqual([false, true, true, true, false, false]);
+  });
+});
+
 describe("folded blocks", () => {
   it("show a chip with the hidden line count that unfolds on press", () => {
     const doc = ["scene a", "  one", "  two", "  three", "end"].join("\n");

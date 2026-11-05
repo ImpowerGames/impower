@@ -17,6 +17,8 @@ import {
 
 const MARKER_THICKNESS = "1px";
 
+const BLOCK_CLOSER = "end";
+
 const indentationGuideTheme = EditorView.baseTheme({
   "&.cm-editor": {
     "--indent-marker-bg-color": "var(--editor-indent-guide)",
@@ -267,15 +269,20 @@ export class IndentationMap {
   private findAndSetActiveLines(minLine: number, maxLine: number) {
     const currentLine = getCurrentLine(this.state);
     let current = this.getIEntry(currentLine.number);
+    const text = current.line.text.trim();
 
-    if (current.line.number + 1 <= this.state.doc.lines) {
+    if (text && current.line.number + 1 <= this.state.doc.lines) {
       const next = this.getIEntry(current.line.number + 1);
       if (next.level > current.level) {
         current = next;
       }
     }
 
-    if (current.line.number - 1 >= 1) {
+    if (
+      text === BLOCK_CLOSER &&
+      current.line.number === currentLine.number &&
+      current.line.number - 1 >= 1
+    ) {
       const prev = this.getIEntry(current.line.number - 1);
       if (prev.level > current.level) {
         current = prev;

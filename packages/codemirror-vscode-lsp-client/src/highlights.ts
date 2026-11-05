@@ -7,7 +7,7 @@ import {
   ViewUpdate,
 } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
-import { LSPClientExtension } from "./client";
+import { LSPClientExtension, RequestTimeoutError } from "./client";
 import { LSPPlugin } from "./plugin";
 
 export const documentHighlights = Facet.define<boolean, boolean>({
@@ -110,7 +110,10 @@ const documentHighlightPlugin = ViewPlugin.fromClass(
       let result: lsp.DocumentHighlight[] | null = null;
       try {
         result = await requestDocumentHighlights(plugin, selection.head);
-      } catch {
+      } catch (err) {
+        if (!(err instanceof RequestTimeoutError)) {
+          console.error("LSP document highlight failed:", err);
+        }
         result = null;
       }
       if (request !== this.request || this.view.state.doc !== doc) {
