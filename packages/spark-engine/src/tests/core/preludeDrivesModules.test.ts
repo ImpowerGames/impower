@@ -124,5 +124,19 @@ describe("the compiled prelude is the only source of the builtin values the modu
       new SynthBuffer(synth, tones, 44100).soundBuffer.some((v) => v !== 0);
     expect(sounding(unpitched)).toBe(false);
     expect(sounding(game.context.synth.character)).toBe(true);
+    const pitched = parseTones("t0s1b0pA4~t0.075s1b0pA4", "~");
+    expect(
+      new SynthBuffer(unpitched, pitched, 44100).soundBuffer.some(
+        (v) => v !== 0,
+      ),
+    ).toBe(true);
+  });
+
+  test("an audio channel with no name keeps its own mixer instead of borrowing the sound channel's", () => {
+    const audio = gameWithPrelude((prelude) => prelude).module.audio as any;
+    expect(audio.getMixerName("")).toBe("");
+    expect(audio.getMixerName(undefined)).toBe("");
+    expect(audio.getMixerName("music")).toBe("music");
+    expect(audio.getMixerName("undeclared")).toBe("undeclared");
   });
 });
