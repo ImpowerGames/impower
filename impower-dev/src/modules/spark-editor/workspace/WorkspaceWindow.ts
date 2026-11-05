@@ -359,7 +359,7 @@ export default class WorkspaceWindow {
   ) => {
     const { textDocument, visibleRange } = message.params;
     const uri = textDocument.uri;
-    const filename = uri.split("/").slice(-1).join("");
+    const filename = this.relativePathOf(uri);
     const pane = this.getPaneType(filename);
     const panel = this.getPanelType(filename);
     if (pane && panel) {
@@ -390,7 +390,7 @@ export default class WorkspaceWindow {
   ) => {
     const { textDocument, selectedRange, hasFocus } = message.params;
     const uri = textDocument.uri;
-    const filename = uri.split("/").slice(-1).join("");
+    const filename = this.relativePathOf(uri);
     const pane = this.getPaneType(filename);
     const panel = this.getPanelType(filename);
     if (pane && panel) {
@@ -726,17 +726,22 @@ export default class WorkspaceWindow {
   }
 
   getPanelType(filenameOrUri: string) {
-    const base = filenameOrUri.split("/").pop() ?? "";
-    const dot = base.lastIndexOf(".");
-    const name = dot > 0 ? base.slice(0, dot) : base;
-    const ext = dot > 0 ? base.slice(dot + 1) : "";
-    if (name === "main" && ext === "sd") {
+    if (this.relativePathOf(filenameOrUri) === "main.sd") {
       return "main";
     }
-    if (isScriptExtension(ext)) {
+    if (isScriptExtension(this.extOfBasename(filenameOrUri))) {
       return "scripts";
     }
     return null;
+  }
+
+  private relativePathOf(filenameOrUri: string) {
+    return filenameOrUri.includes("://")
+      ? this._workspace.fs.getRelativePath(
+          this.store.project.id ?? "",
+          filenameOrUri,
+        )
+      : filenameOrUri;
   }
 
   private extOfBasename(filenameOrUri: string) {
@@ -1146,7 +1151,7 @@ export default class WorkspaceWindow {
       newFilename,
     );
     await this.recordScriptChange();
-    this.openFileEditor(newFilename, filename);
+    this.followRenamedScript(filename, newFilename);
     showSnackbar({
       message:
         referencesUpdated > 0
@@ -1154,6 +1159,32 @@ export default class WorkspaceWindow {
           : `Renamed to ${check.name}.`,
     });
     return check;
+  }
+
+  private followRenamedScript(from: string, to: string) {
+    const logic = this.store.panes.logic;
+    const scripts = logic.panels.scripts;
+    const editor = scripts?.activeEditor;
+    if (!scripts || !editor || editor.filename !== from) {
+      return;
+    }
+    if (editor.open) {
+      this.openFileEditor(to, from);
+      return;
+    }
+    this.update({
+      ...this.store,
+      panes: {
+        ...this.store.panes,
+        logic: {
+          ...logic,
+          panels: {
+            ...logic.panels,
+            scripts: { ...scripts, activeEditor: { ...editor, filename: to } },
+          },
+        },
+      },
+    });
   }
 
   startPickingRemoteProjectResource() {

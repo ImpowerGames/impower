@@ -158,6 +158,66 @@ describe("WorkspaceWindow.renameScript", () => {
     expect(snackbar.value?.message).toBe("A script name can't contain a slash.");
   });
 
+  it("follows a nested script renamed to main in the scripts editor and leaves Main alone", async () => {
+    open(["main.sd", "scripts/intro.sd"], "scripts/intro.sd");
+    await win.renameScript("scripts/intro.sd", "main");
+    expect(fs.renameFileWithReferences).toHaveBeenCalledWith(
+      "local",
+      "scripts/intro.sd",
+      "scripts/main.sd",
+    );
+    expect(openFilename()).toBe("scripts/main.sd");
+    expect(workspace.current.panes.logic.panels.main?.activeEditor?.filename).toBe(
+      "main.sd",
+    );
+  });
+
+  it("identifies Main by its root path alone, from a filename or a uri", () => {
+    open(["main.sd"], "main.sd");
+    expect(win.getPanelType("main.sd")).toBe("main");
+    expect(win.getPanelType(`${ROOT}main.sd`)).toBe("main");
+    expect(win.getPanelType("scripts/main.sd")).toBe("scripts");
+    expect(win.getPanelType(`${ROOT}scripts/main.sd`)).toBe("scripts");
+  });
+
+  it("keeps the script list when Browse scripts is pressed while the rename is still moving the file", async () => {
+    open(["main.sd", "scripts/intro.sd"], "scripts/intro.sd");
+    let finishMove = () => {};
+    fs.renameFileWithReferences.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishMove = () => resolve({ referencesUpdated: 0, scriptsAffected: 0 });
+        }),
+    );
+    const pending = win.renameScript("scripts/intro.sd", "Opening");
+    await vi.waitFor(() => expect(fs.renameFileWithReferences).toHaveBeenCalled());
+    win.browseScripts();
+    finishMove();
+    await pending;
+    const editor = workspace.current.panes.logic.panels.scripts?.activeEditor;
+    expect(editor?.open).toBe(false);
+    expect(editor?.filename).toBe("scripts/Opening.sd");
+    expect(workspace.current.panes.logic.panel).toBe("scripts");
+  });
+
+  it("leaves another script the writer opened during the rename on screen", async () => {
+    open(["main.sd", "scripts/intro.sd", "scripts/outro.sd"], "scripts/intro.sd");
+    let finishMove = () => {};
+    fs.renameFileWithReferences.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishMove = () => resolve({ referencesUpdated: 0, scriptsAffected: 0 });
+        }),
+    );
+    const pending = win.renameScript("scripts/intro.sd", "Opening");
+    await vi.waitFor(() => expect(fs.renameFileWithReferences).toHaveBeenCalled());
+    win.openFileEditor("scripts/outro.sd");
+    finishMove();
+    await pending;
+    expect(openFilename()).toBe("scripts/outro.sd");
+    expect(workspace.current.panes.logic.panels.scripts?.activeEditor?.open).toBe(true);
+  });
+
   it("never renames Main", async () => {
     open(["main.sd"], "main.sd");
     await expect(win.renameScript("main.sd", "Start")).resolves.toEqual({
