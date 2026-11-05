@@ -26,17 +26,17 @@ const documentLinkTheme = EditorView.baseTheme({
     gap: "4px",
     padding: "5px 9px",
   },
-  ".cm-lsp-link-follow": { color: "#4e94ce", cursor: "pointer" },
-  ".cm-lsp-link-shortcut": { color: "#808080" },
+  ".cm-lsp-link-follow": { color: "var(--editor-link)", cursor: "pointer" },
+  ".cm-lsp-link-shortcut": { color: "var(--editor-faint)" },
 
   ".cm-mod-pressed .cm-lsp-link:active span": {
     cursor: "pointer",
-    color: "#4daafc",
+    color: "var(--editor-link-active)",
   },
   "@media (hover: hover) and (pointer: fine)": {
     ".cm-mod-pressed .cm-lsp-link:hover span": {
       cursor: "pointer",
-      color: "#4daafc",
+      color: "var(--editor-link-active)",
     },
   },
 });

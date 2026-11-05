@@ -66,11 +66,8 @@ const highlightedLineClass = "cm-highlightedLine";
 export const highlightDeco = Decoration.line({ class: highlightedLineClass });
 
 const highlightsTheme = EditorView.baseTheme({
-  [`&light .cm-line.${highlightedLineClass}`]: {
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
-  },
-  [`&dark .cm-line.${highlightedLineClass}`]: {
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
+  [`& .cm-line.${highlightedLineClass}`]: {
+    backgroundColor: "var(--editor-line-highlight)",
   },
 });
 

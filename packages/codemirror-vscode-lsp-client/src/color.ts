@@ -20,7 +20,7 @@ export const colorPickerWidgetTheme = EditorView.baseTheme({
   [`.${PICKER_WRAPPER_CLASS_NAME}`]: {
     display: "inline-block",
     cursor: "pointer",
-    border: "1px solid #888",
+    border: "1px solid var(--editor-swatch-edge)",
     margin: "0 4px",
     height: "14px",
     width: "14px",
