@@ -61,8 +61,20 @@ describe("font stylesheet", () => {
     const tilde = ui.filter((f) => f["unicode-range"] === "U+007E");
     expect(tilde.map((f) => [f["font-weight"], urls(f)[0]])).toEqual([
       ["400", "/fonts/courier-prime-sans.ttf"],
-      ["600 700", "/fonts/courier-prime-sans-bold.ttf"],
+      ["600", "/fonts/courier-prime-sans-bold.ttf"],
+      ["700", "/fonts/courier-prime-sans-bold.ttf"],
     ]);
+  });
+
+  it("declares each interface weight once per face so no range shadows a full-range face", () => {
+    const weights = family("Folio UI").map((f) => f["font-weight"]);
+    expect(weights.every((w) => /^\d+$/.test(w ?? ""))).toBe(true);
+    for (const w of new Set(weights)) {
+      const ranges = family("Folio UI")
+        .filter((f) => f["font-weight"] === w)
+        .map((f) => f["unicode-range"]);
+      expect(ranges, w).toEqual(["U+0000-007D, U+007F-10FFFF", "U+007E"]);
+    }
   });
 
   it("declares the four script faces and swaps every interface and script face", () => {
