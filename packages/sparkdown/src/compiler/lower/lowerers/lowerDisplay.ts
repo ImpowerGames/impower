@@ -14,6 +14,8 @@ import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotato
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
+
+type SourceReader = Pick<LowerContext, "read" | "characterNumber">;
 import {
   FUNCTION_CALL_SHORTHAND_NODES,
   ifClauseValueNodes,
@@ -250,7 +252,7 @@ function splitBodyRangeAtBreaks(
   parent: SyntaxNode,
   bodyStart: number,
   bodyEnd: number,
-  ctx: LowerContext,
+  ctx: SourceReader,
   mode: "inline" | "block",
 ): BeatRange[] {
   const breaks = collectBreaksInRange(parent, bodyStart, bodyEnd);
@@ -309,7 +311,7 @@ function hasBodyContent(
   parent: SyntaxNode,
   from: number,
   to: number,
-  ctx: LowerContext,
+  ctx: SourceReader,
   marks: ReadonlySet<BodyInjection["kind"]> = BODY_MARKS,
 ): boolean {
   let pos = from;
@@ -774,7 +776,7 @@ function startsItsLine(node: SyntaxNode, ctx: LowerContext): boolean {
   return !ctx.read(node.from - column, node.from).trim();
 }
 
-function beginsItsText(node: SyntaxNode, ctx: LowerContext): boolean {
+function beginsItsText(node: SyntaxNode, ctx: SourceReader): boolean {
   const column = ctx.characterNumber(node.from);
   return /^[ \t]*(?:\|[ \t]*)?$/.test(ctx.read(node.from - column, node.from));
 }
@@ -915,7 +917,7 @@ function precedingConstruct(node: SyntaxNode): SyntaxNode | null {
 
 function extractBlockBodyRange(
   nodeRef: SparkdownSyntaxNodeRef,
-  ctx: LowerContext,
+  ctx: SourceReader,
 ): { from: number; to: number } {
   const fullText = ctx.read(nodeRef.from, nodeRef.to);
   const firstNewline = fullText.indexOf("\n");
@@ -1294,4 +1296,49 @@ function findFirstDirectChild(
     scan = scan.nextSibling;
   }
   return null;
+}
+
+export function displayCaptionText(
+  node: SyntaxNode,
+  ctx: SourceReader,
+): string | undefined {
+  if (!Object.hasOwn(DISPLAY_LINE_TYPES, node.name)) return undefined;
+  const nodeRef = {
+    node,
+    name: node.name,
+    from: node.from,
+    to: node.to,
+  } as unknown as SparkdownSyntaxNodeRef;
+  const block = BLOCK_STATEMENTS.has(node.name);
+  let { from, to } =
+    node.name === "ImplicitAction"
+      ? { from: node.from, to: node.to }
+      : block
+        ? extractBlockBodyRange(nodeRef, ctx)
+        : extractInlineBodyRange(nodeRef);
+  if (node.name === "InlineAction") {
+    const glue = leadingGlue(node);
+    if (glue && beginsItsText(glue, ctx)) {
+      if (!hasBodyContent(node, from, to, ctx)) return undefined;
+    } else if (glue) {
+      from = glue.from;
+    }
+  }
+  const ranges = splitBodyRangeAtBreaks(
+    node,
+    from,
+    to,
+    ctx,
+    block ? "block" : "inline",
+  );
+  const last = ranges[ranges.length - 1]!;
+  let text = "";
+  let pos = last.from;
+  for (const injection of collectTopLevelInjections(node, last.from, last.to)) {
+    if (!BODY_MARKS.has(injection.kind)) continue;
+    if (injection.from > pos) text += ctx.read(pos, injection.from);
+    pos = Math.max(pos, injection.to);
+  }
+  if (pos < last.to) text += ctx.read(pos, last.to);
+  return text.replace(/\s+/g, " ").trim();
 }

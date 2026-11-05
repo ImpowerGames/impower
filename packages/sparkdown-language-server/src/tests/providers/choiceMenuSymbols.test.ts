@@ -211,4 +211,24 @@ end
       expect(menuNamed(prompt)).toBe("Which door?");
     },
   );
+
+  test.each([
+    ["a comment after a break", "    : Which door? > // note"],
+    ["a tag after a break", "    : Which door? > # mood=dark"],
+    ["glue after a break", "    : Which door? >.."],
+    [
+      "a comment on the line after a block's break",
+      "    :\n      Which door? >\n      // note",
+    ],
+    [
+      "a tag on the line after a block's break",
+      "    :\n      Which door? >\n      # mood=dark",
+    ],
+  ])("%s is not the prompt", (_form, prompt) => {
+    expect(menuNamed(prompt)).toBe("Which door?");
+  });
+
+  test("a menu whose caption is an empty pause is named by its first option", () => {
+    expect(menuNamed("    : Exposition. > >")).toBe("Left");
+  });
 });

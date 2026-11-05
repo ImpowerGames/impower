@@ -1,5 +1,5 @@
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
-import { DISPLAY_LINE_TYPES } from "@impower/sparkdown/src/compiler/lower/lowerers/lowerDisplay";
+import { displayCaptionText } from "@impower/sparkdown/src/compiler/lower/lowerers/lowerDisplay";
 import { type SyntaxNode, type Tree } from "@lezer/common";
 import { Position, Range } from "vscode-languageserver-textdocument";
 
@@ -22,8 +22,6 @@ const CHOOSE_KEYWORD = "LuauChooseKeyword";
 const CHOICE = "Choice";
 const CHOICE_CONTENT = "Choice_content";
 const THEN_CLAUSE = "LuauSparkdownChooseThenClause";
-const IMPLICIT_ACTION = "ImplicitAction";
-const BREAK = "Break";
 const CONTAINS_BLOCKS = /(?:Block|Clause)(?:_content)?$/;
 const FALLBACK_NAME = "choose";
 
@@ -82,34 +80,9 @@ export const getChoiceMenus = (
     return node.to - slice.trimStart().length;
   };
 
-  const lastBeat = (body: SyntaxNode): string | undefined => {
-    const breaks: SyntaxNode[] = [];
-    const cur = body.cursor();
-    while (cur.next() && cur.from < body.to) {
-      if (cur.name === BREAK) {
-        breaks.push(cur.node);
-      }
-    }
-    let to = body.to;
-    for (const brk of [...breaks].reverse()) {
-      const beat = oneLine(text.slice(brk.to, to));
-      if (beat) {
-        return beat;
-      }
-      to = brk.from;
-    }
-    return oneLine(text.slice(body.from, to)) || undefined;
-  };
-
-  const displayText = (node: SyntaxNode): string | undefined => {
-    if (!Object.hasOwn(DISPLAY_LINE_TYPES, node.name)) {
-      return undefined;
-    }
-    if (node.name === IMPLICIT_ACTION) {
-      return lastBeat(node);
-    }
-    const content = node.getChild(`${node.name}_content`);
-    return content ? lastBeat(content) : undefined;
+  const source = {
+    read: (from: number, to: number) => text.slice(from, to),
+    characterNumber: (pos: number) => document.positionAt(pos).character,
   };
 
   const readOption = (
@@ -145,7 +118,7 @@ export const getChoiceMenus = (
         optionsEnd = child.from;
         break;
       } else if (!choices.length) {
-        prompt = displayText(child) || prompt;
+        prompt = displayCaptionText(child, source) ?? prompt;
       }
     }
     if (optionsEnd === block.to && content) {
