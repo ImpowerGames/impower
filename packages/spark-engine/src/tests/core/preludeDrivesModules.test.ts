@@ -27,6 +27,19 @@ describe("the compiled prelude is the only source of the builtin values the modu
     expect(game.module.assets.config.loading_transition).toBeUndefined();
   });
 
+  test("a removed or invalid assets number reads as 0, the value builtins.sd documents as off", () => {
+    const game = gameWithPrelude((prelude) =>
+      replaceOnce(
+        replaceOnce(prelude, /^\s*beat_timeout = 8\s*$/m, ""),
+        "load_timeout = 30",
+        "load_timeout = -1",
+      ),
+    );
+    expect(game.module.assets.config.beat_timeout).toBe(0);
+    expect(game.module.assets.config.load_timeout).toBe(0);
+    expect(game.module.assets.config.restore_timeout).toBe(2);
+  });
+
   test("a removed interpreter fallback is not restored by the engine", () => {
     const game = gameWithPrelude((prelude) =>
       replaceOnce(

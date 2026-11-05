@@ -1,15 +1,22 @@
 import { describe, expect, it } from "vitest";
 import type { Game } from "../../../core/classes/Game";
+import { preludeContext } from "../../../../tests/harness/compilePrelude";
 import { InterpreterModule } from "./InterpreterModule";
 
 const TARGET = "textbox";
 
+const PRELUDE = preludeContext() as Record<string, any>;
+
 const createModule = () => {
   const game = {
     context: {
+      ...PRELUDE,
       system: {},
       character: {},
-      config: { interpreter: { directives: {} } },
+      config: {
+        ...PRELUDE["config"],
+        interpreter: { ...PRELUDE["config"]["interpreter"], directives: {} },
+      },
     },
   } as unknown as Game;
   const module = new InterpreterModule(game);
