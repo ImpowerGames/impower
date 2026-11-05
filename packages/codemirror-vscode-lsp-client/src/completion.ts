@@ -228,8 +228,16 @@ export const serverCompletionSource: CompletionSource = (context) => {
   return getCompletions(plugin, pos, serverContext, context).then(
     (result) => {
       const noteEmpty = () => {
-        if (context.explicit && context.view) {
-          noteEmptySuggestions(context.view, pos);
+        const view = context.view;
+        if (
+          context.explicit &&
+          view &&
+          !context.aborted &&
+          completionStatus(view.state) === "pending" &&
+          view.state.doc === state.doc &&
+          view.state.selection.main.head === pos
+        ) {
+          noteEmptySuggestions(view, pos);
         }
         return null;
       };
@@ -257,6 +265,15 @@ export const serverCompletionSource: CompletionSource = (context) => {
       );
       const first = ranges.find((r) => r != null);
       const range = { from: first?.from ?? active?.from ?? pos, to: pos };
+      const typed = state.sliceDoc(range.from, pos);
+      if (
+        typed &&
+        !items.some((item) =>
+          containsInOrder(item.filterText ?? item.label, typed),
+        )
+      ) {
+        return noteEmpty();
+      }
       const options = items.map((item, index) =>
         serverCompletionOption(item, index, itemDefaults, validFor, plugin, {
           result: range,
@@ -292,6 +309,19 @@ export const serverCompletionSource: CompletionSource = (context) => {
     },
   );
 };
+
+function containsInOrder(text: string, typed: string) {
+  const haystack = text.toLowerCase();
+  let at = 0;
+  for (const char of typed.toLowerCase()) {
+    at = haystack.indexOf(char, at);
+    if (at < 0) {
+      return false;
+    }
+    at += char.length;
+  }
+  return true;
+}
 
 interface OffsetRange {
   from: number;

@@ -206,6 +206,34 @@ describe("an empty request for suggestions", () => {
     expect(view.dom.querySelector(".cm-suggestions-empty")).toBeNull();
   });
 
+  it("says there are none when asked for explicitly and nothing offered can match what is typed", async () => {
+    const { view, server } = await mount("zz");
+    startCompletion(view);
+    await answerCompletion(server, CHARACTERS);
+    expect(completionStatus(view.state)).toBeNull();
+    expect(view.dom.querySelector(".cm-suggestions-empty")?.textContent).toBe(
+      "No suggestions here.",
+    );
+  });
+
+  it("says nothing when an explicit request is closed before its empty answer arrives", async () => {
+    const { view, server } = await mount("zz");
+    startCompletion(view);
+    for (
+      let i = 0;
+      i < 40 && !server.pending("textDocument/completion").length;
+      i++
+    ) {
+      await settle(10);
+    }
+    closeCompletion(view);
+    const [request] = server.pending("textDocument/completion");
+    expect(request).toBeTruthy();
+    server.answer(request!, []);
+    await settle(80);
+    expect(view.dom.querySelector(".cm-suggestions-empty")).toBeNull();
+  });
+
   it("says nothing when typing finds no suggestions", async () => {
     const { view } = await typeAndSuggest("", "zz", []);
     expect(view.dom.querySelector(".cm-suggestions-empty")).toBeNull();
