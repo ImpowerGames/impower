@@ -103,7 +103,7 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.match(judge("Write", { file_path: at("src/new.mjs"), content: "export {};\n# not a comment in JavaScript\n/** prose doc */\n" }) ?? "", /src\/new\.mjs:3/);
     assert.equal(judge("Write", { file_path: at("src/new.mjs"), content: "/** @type {number} */\nexport const n = 1;\n" }), null);
 
-    for (const rel of ["packages/sparkdown/src/inkjs/engine/Story.ts", "impower-app/src/a.tsx", "impower-dev/src/modules/spark-editor/workspace/types/RemoteStorageTypes.ts", "docs/guide.md"]) {
+    for (const rel of ["packages/sparkdown/src/inkjs/engine/Story.ts", "impower-app/src/a.tsx", "admin/scripts/migrate/doMigrate.ts", "impower-dev/src/modules/spark-editor/workspace/types/RemoteStorageTypes.ts", "docs/guide.md"]) {
       assert.equal(judge("Write", { file_path: at(rel), content: "// upstream prose\nexport {};\n" }), null, `${rel} is never judged`);
     }
     assert.equal(judge("Write", { file_path: path.join(outside, "a.ts"), content: "// prose\n" }), null, "a file outside a checkout carrying the policy is not judged");
@@ -388,6 +388,7 @@ const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name
     assert.equal(kind("// prose", "packages/sparkdown/src/tests/luau-conformance/upstream/ast/luau-ast.cjs"), "exempt");
     assert.equal(kind("/* Copyright (c) 2015 Tobias Nickel */", "packages/sparkdown/src/txml/txml.ts"), "exempt");
     assert.equal(kind("// prose", "packages/sparkdown/vendor/luau-analysis/backend.js"), "exempt");
+    assert.equal(kind("// prose", "admin/scripts/restructure/doWipe.ts"), "exempt");
     assert.equal(kind("// prose", "README.md"), "exempt");
     assert.equal(kind("// SPDX-License-Identifier: MIT"), "licence");
     assert.equal(kind("# SPDX-License-Identifier: Apache-2.0", "scripts/a.sh"), "licence");
