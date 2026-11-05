@@ -1490,3 +1490,89 @@ describe("The preview's top bar", () => {
     );
   });
 });
+
+describe("The preview's top bar in a narrow pane", () => {
+  let win: WorkspaceWindow;
+  let container: HTMLElement;
+
+  const show = (game: Record<string, unknown>) => {
+    workspace.current = {
+      ...workspace.current,
+      preview: {
+        ...workspace.current.preview,
+        modes: { ...workspace.current.preview.modes, game },
+      },
+    };
+    render(h(PreviewTopBar, {}), container);
+  };
+
+  const bar = () =>
+    container.querySelector<HTMLElement>('[aria-label="Playback controls"]')!;
+
+  const modeTrigger = () =>
+    container.querySelector<HTMLElement>('button[aria-label="Viewing mode"]')!;
+
+  beforeEach(() => {
+    resetPreviewPreferences();
+    win = new WorkspaceWindow(Workspace);
+    current.window = win;
+    container = document.createElement("div");
+    document.body.append(container);
+  });
+
+  afterEach(() => {
+    render(null, container);
+    container.remove();
+    current.window = undefined;
+    win.dispose();
+    resetPreviewPreferences();
+  });
+
+  it("marks the bar as running only while a run exists, playing, paused or ended", () => {
+    show({});
+    expect(bar().hasAttribute("data-running")).toBe(false);
+    for (const game of [
+      { running: true },
+      { running: true, paused: true },
+      { running: true, ended: true },
+    ]) {
+      show(game);
+      expect(bar().hasAttribute("data-running")).toBe(true);
+    }
+  });
+
+  it("carries the running bar's narrow-pane rules: content-sized columns under 480px and the mode trigger hidden under 360px", () => {
+    show({ running: true });
+    expect(bar().className.split(/\s+/)).toEqual(
+      expect.arrayContaining([
+        "group/bar",
+        "data-[running]:@max-[480px]:grid-cols-[auto_1fr_auto]",
+        "data-[running]:@max-[480px]:gap-0",
+        "data-[running]:@max-[480px]:px-1",
+      ]),
+    );
+    expect(modeTrigger().className.split(/\s+/)).toEqual(
+      expect.arrayContaining([
+        "group-data-[running]/bar:@max-[480px]:w-11",
+        "group-data-[running]/bar:@max-[360px]:hidden",
+      ]),
+    );
+  });
+
+  it("keeps Button's 44px minimum width on the mode trigger", async () => {
+    show({});
+    const { default: RealButton } = await vi.importActual<
+      typeof import("../../../packages/impower-ui/src/components/button/Button")
+    >("../../../packages/impower-ui/src/components/button/Button");
+    const probe = document.createElement("div");
+    render(
+      h(RealButton, { variant: "quiet", class: modeTrigger().className }),
+      probe,
+    );
+    const classes = probe.querySelector("button")!.className.split(/\s+/);
+    expect(classes).toContain("min-w-11");
+    expect(classes).toContain("min-h-11");
+    expect(classes).not.toContain("min-w-0");
+    render(null, probe);
+  });
+});
