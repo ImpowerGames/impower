@@ -79,7 +79,7 @@ describe("a choice line whose condition cannot be read stays a choice (I-1054)",
       const menu = run.menus[0]?.choices.map((c) => c.text) ?? [];
       expect(errors).toEqual([]);
       expect(menu.length).toBe(2);
-      expect(menu[0].startsWith("if f(")).toBe(true);
+      expect(menu[0]?.startsWith("if f(")).toBe(true);
       expect(menu[1]).toBe("Fallback");
     });
   }
