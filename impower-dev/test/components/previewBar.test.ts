@@ -109,8 +109,13 @@ const settle = (ms = 0) =>
     await new Promise((resolve) => setTimeout(resolve, ms));
   });
 
-const bar = () =>
-  document.querySelector<HTMLElement>('[aria-label="Problems and display"]')!;
+const bar = () => {
+  const element = document.querySelector<HTMLElement>(
+    '[aria-label="Problems and display"]',
+  );
+  expect(element, "the bar under the game").not.toBeNull();
+  return element!;
+};
 const toggle = () => bar().querySelector<HTMLButtonElement>("button")!;
 const ratio = () =>
   bar().querySelector<HTMLButtonElement>('[aria-label="Game aspect ratio"]')!;
@@ -118,6 +123,11 @@ const divider = () =>
   document.querySelector<HTMLElement>(
     '[role="separator"][aria-label="Resize game and panel"]',
   );
+const separator = () => {
+  const element = divider();
+  expect(element, "the divider above the bar").not.toBeNull();
+  return element!;
+};
 
 const key = (target: Element, name: string) =>
   act(async () => {
@@ -262,39 +272,39 @@ describe("the bar under the game", () => {
 describe("the divider above the bar", () => {
   it("starts collapsed to the bar and grows the panel with Up", async () => {
     await mount();
-    const separator = divider()!;
-    expect(separator.getAttribute("aria-valuenow")).toBe("44");
-    await key(separator, "ArrowUp");
-    expect(separator.getAttribute("aria-valuenow")).toBe("144");
+    const handle = separator();
+    expect(handle.getAttribute("aria-valuenow")).toBe("44");
+    await key(handle, "ArrowUp");
+    expect(handle.getAttribute("aria-valuenow")).toBe("144");
     expect(stored().previewPanelHeight).toBe(144);
-    await key(separator, "ArrowUp");
+    await key(handle, "ArrowUp");
     expect(stored().previewPanelHeight).toBe(160);
-    await key(separator, "ArrowDown");
+    await key(handle, "ArrowDown");
     expect(stored().previewPanelHeight).toBe(144);
   });
 
   it("keeps the height across a reload of the project's layout", async () => {
     await mount();
-    await key(divider()!, "ArrowUp");
-    await key(divider()!, "ArrowUp");
+    await key(separator(), "ArrowUp");
+    await key(separator(), "ArrowUp");
     expect(reloaded().previewPanelHeight).toBe(160);
     await unmount();
     await mount();
-    expect(divider()!.getAttribute("aria-valuenow")).toBe("160");
+    expect(separator().getAttribute("aria-valuenow")).toBe("160");
   });
 
   it("resets to the bar on double-click and on Enter", async () => {
     workspaceSettings.setProjectSetting("previewPanelHeight", 300);
     await mount();
-    expect(divider()!.getAttribute("aria-valuenow")).toBe("300");
+    expect(separator().getAttribute("aria-valuenow")).toBe("300");
     await act(async () => {
-      divider()!.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      separator().dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
     });
     expect(stored().previewPanelHeight).toBe(44);
-    expect(divider()!.getAttribute("aria-valuenow")).toBe("44");
+    expect(separator().getAttribute("aria-valuenow")).toBe("44");
     workspaceSettings.setProjectSetting("previewPanelHeight", 300);
     await settle();
-    await key(divider()!, "Enter");
+    await key(separator(), "Enter");
     expect(stored().previewPanelHeight).toBe(44);
   });
 

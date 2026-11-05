@@ -856,6 +856,7 @@ export default class WorkspaceWindow {
               ...this.store.panes[pane].panels[panel],
               activeEditor: {
                 ...this.store.panes[pane].panels[panel]?.activeEditor,
+                open: true,
                 filename: filename,
                 focused:
                   takeFocus ??
@@ -864,7 +865,10 @@ export default class WorkspaceWindow {
                 selectedRange: range
                   ? { ...range }
                   : this.store.panes[pane].panels[panel]?.activeEditor
-                      ?.selectedRange,
+                        ?.filename === filename
+                    ? this.store.panes[pane].panels[panel]?.activeEditor
+                        ?.selectedRange
+                    : undefined,
               },
             },
           },

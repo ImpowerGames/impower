@@ -125,6 +125,7 @@ import workspace, {
   savedWorkspaceState,
 } from "../../src/modules/spark-editor/workspace/WorkspaceStore";
 import WorkspaceWindow from "../../src/modules/spark-editor/workspace/WorkspaceWindow";
+import { barPosition } from "../../src/modules/spark-editor/components/preview-bar/barState";
 import { downloadProjectZip } from "../../src/modules/spark-editor/utils/downloadProjectZip";
 
 beforeEach(() => {
@@ -1329,6 +1330,27 @@ describe("Revealing a script from the bar under the game", () => {
     expect(editor?.filename).toBe("scripts/intro.sd");
     expect(editor?.selectedRange).toEqual({ start: at, end: at });
     expect(window.location.hash).toBe("#write");
+  });
+
+  it("makes an unopened script the active editor, so the stopped readout and the toggle follow it", async () => {
+    const at = { line: 11, character: 0 };
+    await win.revealDocument(uriOf("scripts/chapter.sd"), { start: at, end: at });
+    expect(win.getActiveEditorForPane("logic")?.filename).toBe("scripts/chapter.sd");
+    expect(barPosition(workspace.current)?.label).toBe("chapter : 12");
+  });
+
+  it("does not carry another script's selection onto the one it shows", async () => {
+    const at = { line: 11, character: 0 };
+    await win.revealDocument(uriOf("scripts/chapter.sd"), { start: at, end: at });
+    await win.revealDocument(uriOf("scripts/epilogue.sd"));
+    const editor = workspace.current.panes.logic.panels.scripts!.activeEditor;
+    expect(editor?.filename).toBe("scripts/epilogue.sd");
+    expect(editor?.selectedRange).toBeUndefined();
+    await win.revealDocument(uriOf("scripts/chapter.sd"), { start: at, end: at });
+    await win.revealDocument(uriOf("scripts/chapter.sd"));
+    expect(
+      workspace.current.panes.logic.panels.scripts!.activeEditor?.selectedRange,
+    ).toEqual({ start: at, end: at });
   });
 
   it("collapses the phone's revealed preview so the script shows", async () => {
