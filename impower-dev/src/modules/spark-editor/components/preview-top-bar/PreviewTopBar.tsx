@@ -154,7 +154,7 @@ function SkipButton({ direction }: { direction: -1 | 1 }) {
   );
 }
 
-function ModeMenu({ mode, playing }: { mode: PreviewMode; playing: boolean }) {
+function ModeMenu({ mode }: { mode: PreviewMode }) {
   const menuWidth = useMenuWidth();
   const current = VIEWING_MODES[mode];
   const Icon = current.icon;
@@ -165,19 +165,13 @@ function ModeMenu({ mode, playing }: { mode: PreviewMode; playing: boolean }) {
           variant="quiet"
           aria-label="Viewing mode"
           title="Viewing mode"
-          class="max-w-full min-w-0 gap-1.5 pr-1.5 pl-2.5 text-xs text-muted aria-expanded:bg-tint aria-expanded:text-accent [&_svg]:size-5"
+          class="max-w-full min-w-0 gap-1.5 pr-1.5 pl-2.5 text-xs text-muted aria-expanded:bg-tint aria-expanded:text-accent group-data-[running]/bar:@max-[480px]:w-11 group-data-[running]/bar:@max-[480px]:px-0 [&_svg]:size-5"
         >
           <Icon />
-          <span
-            class={
-              playing
-                ? "truncate @max-[640px]:hidden"
-                : "truncate @max-[470px]:hidden"
-            }
-          >
+          <span class="truncate @max-[470px]:hidden group-data-[running]/bar:@max-[640px]:hidden">
             {current.name}
           </span>
-          <ChevronDownIcon class="!size-3.5" />
+          <ChevronDownIcon class="!size-3.5 group-data-[running]/bar:@max-[480px]:hidden" />
         </Button>
       </DropdownTrigger>
       <DropdownContent
@@ -282,10 +276,11 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
     <div
       role="group"
       aria-label="Playback controls"
-      class="relative z-[1] grid h-[52px] shrink-0 grid-cols-[minmax(44px,1fr)_auto_minmax(44px,1fr)] items-center gap-2 px-2.5 @max-[340px]:gap-1"
+      data-running={playable && running ? "" : undefined}
+      class="group/bar relative z-[1] grid h-[52px] shrink-0 grid-cols-[minmax(44px,1fr)_auto_minmax(44px,1fr)] items-center gap-2 px-2.5 @max-[340px]:gap-1 data-[running]:@max-[480px]:grid-cols-[auto_1fr_auto] data-[running]:@max-[480px]:gap-0 data-[running]:@max-[480px]:px-1"
     >
-      <div class="flex min-w-0 max-w-full items-center gap-1 justify-self-start">
-        <ModeMenu mode={mode} playing={playable && playing} />
+      <div class="flex min-w-0 max-w-full items-center gap-1 justify-self-start group-data-[running]/bar:@max-[480px]:gap-0">
+        <ModeMenu mode={mode} />
         {playable && playing ? (
           <ControlButton
             label={paused ? "Resume" : "Pause"}
@@ -307,7 +302,7 @@ export default function PreviewTopBar(_props: PreviewTopBarProps) {
           />
         ) : null}
       </div>
-      <div class="flex items-center justify-center gap-1 @max-[340px]:gap-0">
+      <div class="flex items-center justify-center gap-1 @max-[340px]:gap-0 group-data-[running]/bar:@max-[480px]:gap-0">
         {playable && playing ? (
           <ControlButton
             label="Step Into"
