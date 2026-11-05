@@ -41,6 +41,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "test": "vitest run",
     "gen:icons": "node --disable-warning=ExperimentalWarning src/icons/generate.ts",
     "typecheck": "node ../../scripts/typecheck.mjs packages/impower-ui/"
   },
@@ -61,12 +62,15 @@
   "devDependencies": {
     "@microsoft/api-extractor": "^7.58.7",
     "@preact/preset-vite": "^2.10.5",
+    "@tailwindcss/node": "^4.3.1",
     "@types/node": "^24.12.2",
+    "jsdom": "^27.0.1",
     "preact-render-to-string": "^6.5.0",
     "tailwind-scrollbar": "^4.0.2",
     "typescript": "~6.0.2",
     "vite": "^8.0.9",
-    "vite-plugin-dts": "^5.0.0"
+    "vite-plugin-dts": "^5.0.0",
+    "vitest": "^2.1.9"
   },
   "peerDependencies": {
     "preact": "^10.29.1",
