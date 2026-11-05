@@ -549,7 +549,7 @@
     "INTEGER": "[0-9]+",
     "NUMBER": "(?:[-]?(?:\\d*[.])?\\d+)",
     "DOUBLE_QUOTED_CHAR": "(?:\\\\.|[^\"\\r\\n])",
-    "SINGLE_QUOTED_CHAR": "(?:\\.|[^'\\r\\n])",
+    "SINGLE_QUOTED_CHAR": "(?:\\\\.|[^'\\r\\n])",
     "IMAGE_COMMAND_CHAR": "(?:\\\\.|[^\\]\\r\\n])",
     "AUDIO_COMMAND_CHAR": "(?:\\\\.|[^)\\r\\n])",
     "QUOTED_STRING": "(?:[\"]{{DOUBLE_QUOTED_CHAR}}*[\"])",
@@ -21822,12 +21822,12 @@
     "LuauElementContentStringSingleQuoted": {
       "tag": "string",
       "name": "string.quoted.single.sd",
-      "match": "(['])((?:\\.|[^'\\r\\n])*)(['])",
+      "match": "(['])((?:\\\\.|[^'\\r\\n])*)(['])",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#PunctuationStringOpen"
+              "include": "#PunctuationStringSingleQuoteOpen"
             }
           ]
         },
@@ -21841,14 +21841,14 @@
         "3": {
           "patterns": [
             {
-              "include": "#PunctuationStringClose"
+              "include": "#PunctuationStringSingleQuoteClose"
             }
           ]
         }
       }
     },
     "PlainStringContentSingleQuoted": {
-      "match": "((?:\\.|[^'\\r\\n])*?)(?=$|')",
+      "match": "((?:\\\\.|[^'\\r\\n])*?)(?=$|')",
       "captures": {
         "1": {
           "patterns": [

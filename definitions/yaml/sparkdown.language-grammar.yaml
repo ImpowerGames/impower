@@ -616,7 +616,7 @@ variables:
   INTEGER: "[0-9]+"
   NUMBER: (?:[-]?(?:\d*[.])?\d+)
   DOUBLE_QUOTED_CHAR: (?:\\.|[^"\r\n])
-  SINGLE_QUOTED_CHAR: (?:\.|[^'\r\n])
+  SINGLE_QUOTED_CHAR: (?:\\.|[^'\r\n])
   IMAGE_COMMAND_CHAR: (?:\\.|[^\]\r\n])
   AUDIO_COMMAND_CHAR: (?:\\.|[^)\r\n])
   QUOTED_STRING: (?:["]{{DOUBLE_QUOTED_CHAR}}*["])
@@ -12335,13 +12335,13 @@ repository:
     captures:
       "1":
         patterns:
-          - include: "#PunctuationStringOpen"
+          - include: "#PunctuationStringSingleQuoteOpen"
       "2":
         patterns:
           - include: "#PlainStringContentSingleQuoted"
       "3":
         patterns:
-          - include: "#PunctuationStringClose"
+          - include: "#PunctuationStringSingleQuoteClose"
 
   PlainStringContentSingleQuoted:
     match: ({{SINGLE_QUOTED_CHAR}}*?)(?=$|')
