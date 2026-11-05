@@ -8,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { focusProjectName, openDrawerOrRail, openSettings, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { focusProjectName, focusScriptName, openDrawerOrRail, openSettings, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 
 let failures = 0;
@@ -932,6 +932,16 @@ await asyncCheck("--step settings=<section> goes to #project?section=<section>, 
     /no Settings section "appearance" took focus within 2 s; the page has: theme-preferences, save-settings/,
   );
   assert.match((await openSettings(page({ focuses: false }), "save-settings", { timeout: 2000 })).reason, /the Settings page did not open within 2 s/);
+});
+
+await asyncCheck("--step focus-script-name clicks the open script's name field, or says Main's name is fixed", async () => {
+  const selectors = [];
+  const field = (state) => ({ waitFor: async () => {}, click: async () => {}, evaluate: async () => state });
+  const page = (state) => ({ locator: (selector) => (selectors.push(selector), { first: () => field(state) }) });
+  assert.deepEqual(await focusScriptName(page({ focused: true, selected: true, value: "intro" })), { step: "focus-script-name", ran: true, value: "intro", selected: true });
+  assert.deepEqual(selectors, ["input[data-script-name]"]);
+  const missing = { locator: () => ({ first: () => ({ waitFor: async () => { throw new Error("timeout"); } }) }) };
+  assert.match((await focusScriptName(missing, { timeout: 2000 })).reason, /no script name .*Main's name is fixed.* within 2 s/);
 });
 
 if (failures > 0) {

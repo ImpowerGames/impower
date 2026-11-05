@@ -35,6 +35,7 @@ import {
   SETTINGS_JSON_PATH,
 } from "../../src/modules/spark-editor/workspace/settings/settingsJson";
 import {
+  PREFERENCES_SCHEMA,
   PROJECT_SETTINGS_SCHEMA,
   type ProjectSettings,
   type SettingSpec,
@@ -118,12 +119,13 @@ describe("the settings store", () => {
 
   it("resets named preferences to their defaults by forgetting them, keeping the rest and notifying once", () => {
     const store = open("p1");
-    store.setPreference("lineNumbers", false);
+    const usual = PREFERENCES_SCHEMA.lineNumbers.default;
+    store.setPreference("lineNumbers", !usual);
     store.setPreference("theme", "chalk");
     const listener = vi.fn();
     store.onDidChangeConfiguration(listener);
     store.resetPreferences(["lineNumbers"]);
-    expect(store.preferences.value.lineNumbers).toBe(true);
+    expect(store.preferences.value.lineNumbers).toBe(usual);
     expect(store.preferences.value.theme).toBe("chalk");
     expect(JSON.parse(localStorage.getItem(PREFERENCES_STORAGE_KEY)!)).toEqual({ theme: "chalk" });
     expect(listener).toHaveBeenCalledTimes(1);

@@ -12,7 +12,7 @@ export const NAMED_STEPS = {
   problems: { does: "open the Problems panel", builtBy: 1022 },
   settings: { does: "open Settings and a named section", argument: "section" },
   "focus-project-name": { does: "focus the project name" },
-  "focus-script-name": { does: "focus the script name", builtBy: 999 },
+  "focus-script-name": { does: "focus the script name" },
 };
 
 const stepList = () => Object.entries(NAMED_STEPS).map(([name, def]) => (def.argument ? `${name}=<${def.argument}>` : name)).join(", ");

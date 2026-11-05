@@ -1,6 +1,10 @@
 import { openSearchPanel } from "@codemirror/search";
 import { EditorState, StateEffect, Transaction } from "@codemirror/state";
 import { EditorView, ViewUpdate } from "@codemirror/view";
+import {
+  EditorCommand,
+  ExecuteEditorCommandMessage,
+} from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
 import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
 import { SelectEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
@@ -272,5 +276,46 @@ describe("ScriptEditorController select", () => {
     select(controller, 0);
     expect(events).toEqual(["select", undefined]);
     expect(view.state.selection.main.head).toBe(0);
+  });
+});
+
+describe("ScriptEditorController commands", () => {
+  const run = (
+    controller: TestController,
+    command: EditorCommand,
+    uri = "file:///main.sd",
+  ) =>
+    controller["handleExecuteEditorCommand"]({
+      ...ExecuteEditorCommandMessage.type.request({
+        textDocument: { uri },
+        command,
+      }),
+      id: `command-${nextId++}`,
+    });
+
+  it("indents and dedents the caret's line for the writer's bar", async () => {
+    const { controller, view } = await loadedEditor();
+    expect(run(controller, "indent")).toMatchObject({ result: { ran: true } });
+    expect(view.state.doc.line(1).text).toMatch(/^\s+hello world$/);
+    expect(run(controller, "dedent")).toMatchObject({ result: { ran: true } });
+    expect(view.state.doc.line(1).text).toBe("hello world");
+  });
+
+  it("opens Go to line, find and the problems panel inside the editor", async () => {
+    const { controller, host } = await loadedEditor();
+    run(controller, "gotoLine");
+    expect(host.querySelector(".cm-gotoLine")).not.toBeNull();
+    run(controller, "search");
+    expect(host.querySelector(".cm-search")).not.toBeNull();
+    run(controller, "problems");
+    expect(host.querySelector(".cm-panel-lint")).not.toBeNull();
+  });
+
+  it("leaves a command for another document to that document's editor", async () => {
+    const { controller, view, host } = await loadedEditor();
+    expect(run(controller, "indent", "file:///other.sd")).toBeUndefined();
+    expect(run(controller, "gotoLine", "file:///other.sd")).toBeUndefined();
+    expect(view.state.doc.line(1).text).toBe("hello world");
+    expect(host.querySelector(".cm-gotoLine")).toBeNull();
   });
 });

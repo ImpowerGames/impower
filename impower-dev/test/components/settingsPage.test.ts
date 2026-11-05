@@ -43,6 +43,7 @@ const { LiveRegion, SettingsList, SettingsSection, SwitchRow } = await import("@
 const { SettingsIndex, SettingsPage, SETTINGS_SECTION_IDS, useSectionReset } = await import(
   "../../src/modules/spark-editor/components/settings"
 );
+const { PREFERENCES_SCHEMA } = await import("../../src/modules/spark-editor/workspace/settings/settingsSchema");
 const { default: workspaceSettings, PREFERENCES_STORAGE_KEY } = await import(
   "../../src/modules/spark-editor/workspace/settings/WorkspaceSettings"
 );
@@ -220,21 +221,23 @@ describe("a section composed over the settings store", () => {
     const reset = () => host!.querySelector<HTMLButtonElement>("[data-reset-all]");
     const control = () => host!.querySelector<HTMLInputElement>('input[role="switch"]')!;
     const region = () => host!.querySelector('[role="status"]')!.textContent;
+    const usual = PREFERENCES_SCHEMA.lineNumbers.default;
+    const said = (on: boolean) => `Line numbers ${on ? "on" : "off"}.`;
     expect(reset()).toBeNull();
     await act(async () => control().click());
     await pause(10);
-    expect(workspaceSettings.preferences.value.lineNumbers).toBe(false);
-    expect(region()).toBe("Line numbers off.");
+    expect(workspaceSettings.preferences.value.lineNumbers).toBe(!usual);
+    expect(region()).toBe(said(!usual));
     expect(reset()).not.toBeNull();
     await act(async () => reset()!.click());
-    expect(workspaceSettings.preferences.value.lineNumbers).toBe(true);
+    expect(workspaceSettings.preferences.value.lineNumbers).toBe(usual);
     expect(JSON.parse(localStorage.getItem(PREFERENCES_STORAGE_KEY) ?? "{}")).not.toHaveProperty("lineNumbers");
-    expect(control().checked).toBe(true);
+    expect(control().checked).toBe(usual);
     expect(reset()).toBeNull();
     await act(async () => control().click());
     await pause(10);
     await act(async () => control().click());
     await pause(10);
-    expect(region()!.trim()).toBe("Line numbers on.");
+    expect(region()!.trim()).toBe(said(usual));
   });
 });
