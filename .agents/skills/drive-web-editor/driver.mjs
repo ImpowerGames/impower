@@ -2056,6 +2056,7 @@ async function waitGameState(request, reached, { timeout, now = Date.now, pause 
 const RAIL_SELECTOR = 'aside[aria-label="Sidebar"]';
 const DRAWER_BUTTON_SELECTOR = 'button[aria-label="Open Menu"]';
 const PROJECT_NAME_SELECTOR = 'input[aria-label="Project name"], input[aria-label="Project Name"]';
+const SCRIPT_NAME_SELECTOR = 'input[data-script-name]';
 
 export async function openDrawerOrRail(page, { timeout = 5000 } = {}) {
   const rail = await page.evaluate((selector) => {
@@ -2079,17 +2080,25 @@ export async function openDrawerOrRail(page, { timeout = 5000 } = {}) {
   return { step: "drawer", ran: true, opened: "drawer" };
 }
 
-export async function focusProjectName(page, { timeout = 10000 } = {}) {
-  const field = page.locator(PROJECT_NAME_SELECTOR).first();
+async function focusNameField(page, step, selector, label, timeout) {
+  const field = page.locator(selector).first();
   try {
     await field.waitFor({ state: "visible", timeout });
   } catch {
-    return { step: "focus-project-name", ran: false, reason: `no project name field on the page within ${timeout / 1000} s` };
+    return { step, ran: false, reason: `no ${label} field on the page within ${timeout / 1000} s` };
   }
   await field.click();
   const state = await field.evaluate((el) => ({ focused: document.activeElement === el, selected: el.selectionStart === 0 && el.selectionEnd === el.value.length, value: el.value }));
-  if (!state.focused) return { step: "focus-project-name", ran: false, value: state.value, reason: "the project name field did not take focus" };
-  return { step: "focus-project-name", ran: true, value: state.value, selected: state.selected };
+  if (!state.focused) return { step, ran: false, value: state.value, reason: `the ${label} field did not take focus` };
+  return { step, ran: true, value: state.value, selected: state.selected };
+}
+
+export function focusProjectName(page, { timeout = 10000 } = {}) {
+  return focusNameField(page, "focus-project-name", PROJECT_NAME_SELECTOR, "project name", timeout);
+}
+
+export function focusScriptName(page, { timeout = 10000 } = {}) {
+  return focusNameField(page, "focus-script-name", SCRIPT_NAME_SELECTOR, "script name (Main's name is fixed, so open another script first)", timeout);
 }
 
 export async function playPreview(page, action, { request = (method, params) => protocolRequest(page, method, params), timeout = PLAY_BUDGET_MS, now = Date.now, pause = (ms) => page.waitForTimeout(ms) } = {}) {
@@ -3320,6 +3329,10 @@ async function ui(args, deps = liveDeps) {
             }
             if (step.step === "focus-project-name") {
               result.steps.push(await focusProjectName(page));
+              continue;
+            }
+            if (step.step === "focus-script-name") {
+              result.steps.push(await focusScriptName(page));
               continue;
             }
             const ready = await requireEditor(page, "PLAY", stepNo);
