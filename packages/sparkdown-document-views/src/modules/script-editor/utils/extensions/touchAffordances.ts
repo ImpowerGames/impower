@@ -34,6 +34,9 @@ export function setCoarsePointer(view: EditorView, coarse: boolean): void {
   if (view.state.facet(coarsePointer) === coarse) {
     return;
   }
+  if (isContextMenuOpen(view)) {
+    hideContextMenu(view);
+  }
   view.dispatch({
     effects: [
       touchAffordancesConfig.reconfigure(affordances(coarse)),

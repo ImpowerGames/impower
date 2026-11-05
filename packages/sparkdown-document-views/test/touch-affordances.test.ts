@@ -1,6 +1,11 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { coarsePointer } from "@impower/codemirror-vscode-lsp-client/src";
+import {
+  coarsePointer,
+  contextMenu,
+  isContextMenuOpen,
+  showContextMenu,
+} from "@impower/codemirror-vscode-lsp-client/src";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   isKeyboardToolbarOpen,
@@ -25,7 +30,7 @@ const mount = (coarse: boolean) => {
   view = new EditorView({
     state: EditorState.create({
       doc: "Hello",
-      extensions: [keyboardToolbar(), touchAffordances(coarse)],
+      extensions: [contextMenu(), keyboardToolbar(), touchAffordances(coarse)],
     }),
     parent,
   });
@@ -109,4 +114,23 @@ describe("the editor's coarse-pointer option", () => {
     await showKeyboard(v);
     expect(toolbarShown(v)).toBe(false);
   });
+
+  it.each([
+    [false, "cm-desktop"],
+    [true, "cm-mobile"],
+  ])(
+    "closes a context menu opened for one pointer when the pointer changes (coarse: %s)",
+    (coarse, openedAs) => {
+      const v = mount(coarse);
+      showContextMenu(v, { pos: 0, end: 5, x: 10, y: 10 });
+      expect(isContextMenuOpen(v)).toBe(true);
+      expect(
+        document.querySelector(`.cm-context-menu.${openedAs}`),
+      ).not.toBeNull();
+
+      setCoarsePointer(v, !coarse);
+      expect(isContextMenuOpen(v)).toBe(false);
+      expect(document.querySelector(".cm-context-menu")).toBeNull();
+    },
+  );
 });
