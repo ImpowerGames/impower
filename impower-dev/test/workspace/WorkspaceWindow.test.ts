@@ -436,6 +436,28 @@ describe("WorkspaceWindow store transitions", () => {
       expect(workspace.current.shell?.railWidth).toBeUndefined();
     });
 
+    it("keeps the strip height and the compact rail for the project and resets them", async () => {
+      win.setStripHeight(320);
+      win.setRailCompactWidth(76);
+      expect(workspace.current.shell?.stripHeight).toBe(320);
+      expect(workspace.current.shell?.railCompactWidth).toBe(76);
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      const id = workspace.current.project.id;
+      const cached = JSON.parse(
+        localStorage.getItem(
+          WorkspaceConstants.WORKSPACE_STATE_STORAGE_KEY_PREFIX + id,
+        )!,
+      );
+      expect(cached.shell.stripHeight).toBe(320);
+      expect(cached.shell.railCompactWidth).toBe(76);
+      win.setStripHeight(48);
+      expect(workspace.current.shell?.stripHeight).toBe(48);
+      win.setStripHeight(undefined);
+      win.setRailCompactWidth(undefined);
+      expect(workspace.current.shell?.stripHeight).toBeUndefined();
+      expect(workspace.current.shell?.railCompactWidth).toBeUndefined();
+    });
+
     it("writes the current route into the location hash", () => {
       win.openView("logic", "list");
       win.openPanel("logic", "main");
@@ -1293,7 +1315,7 @@ describe("Revealing a script from the bar under the game", () => {
   let sent: { method?: string; id?: unknown; params?: any }[];
   let stopListening: () => void;
 
-  const SHOW_PROBLEMS = "editor/showProblems";
+  const SHOW_PROBLEMS = "editor/executeCommand";
 
   beforeEach(() => {
     localStorage.clear();
@@ -1301,7 +1323,10 @@ describe("Revealing a script from the bar under the game", () => {
     sent = [];
     const listener = (e: Event) => {
       const message = (e as CustomEvent).detail;
-      if (message?.method === SHOW_PROBLEMS && "params" in message) {
+      if (
+        message?.method === SHOW_PROBLEMS &&
+        message.params?.command === "problems"
+      ) {
         sent.push(message);
       }
     };

@@ -50,10 +50,13 @@ const mount = (options?: { resizable?: boolean }) => {
   const pane = { width: 800, height: 628 };
   sized(viewport, () => pane);
   sized(toolbar, () => ({ width: pane.width, height: 28 }));
-  sized(game, () => ({
-    width: parseFloat(game.style.width) || pane.width,
-    height: parseFloat(game.style.height) || pane.height - 28,
-  }));
+  sized(game, () => {
+    const scale = Number(/scale\(([^)]+)\)/.exec(game.style.transform)?.[1] ?? 1);
+    return {
+      width: (parseFloat(game.style.width) || pane.width) * scale,
+      height: (parseFloat(game.style.height) || pane.height - 28) * scale,
+    };
+  });
   const reports: GameResizedMessage.Notification["params"][] = [];
   host.addEventListener(MessageProtocol.event, (event) => {
     const message = (event as CustomEvent).detail;
@@ -122,6 +125,54 @@ it("fits the game to a requested aspect ratio and reports the fitted size", asyn
     sendProtocolMessage(auto);
     await new Promise((resolve) => setTimeout(resolve));
     expect(reports.at(-1)).toEqual({ width: 800, height: 600, aspectRatio: "4:3", fit: "auto" });
+  } finally {
+    controller.dispose();
+    host.remove();
+  }
+});
+
+it("scales a letterbox shorter than the reference height and reports the letterbox", async () => {
+  const { host, viewport, game, pane, reports, controller, resize } = mount();
+  try {
+    pane.width = 600;
+    pane.height = 232;
+    const request = ResizeGameMessage.type.request({ aspectRatio: "16:9" });
+    const answered = new Promise<void>((resolve) => {
+      host.addEventListener(MessageProtocol.event, (event) => {
+        if (ResizeGameMessage.type.isResponse((event as CustomEvent).detail, request.id)) {
+          resolve();
+        }
+      });
+    });
+    sendProtocolMessage(request);
+    await answered;
+    const scale = 204 / 720;
+    expect(game.style.width).toBe(`${(204 * 16) / 9 / scale}px`);
+    expect(parseFloat(game.style.width)).toBeCloseTo(1280, 5);
+    expect(game.style.height).toBe(`${204 / scale}px`);
+    expect(game.style.transform).toBe(`scale(${scale})`);
+    expect(game.style.transformOrigin).toMatch(/^0(px)? 0(px)?$/);
+    expect(parseFloat(game.style.marginRight)).toBeCloseTo(-(1280 - (204 * 16) / 9), 5);
+    expect(parseFloat(game.style.marginBottom)).toBeCloseTo(-(720 - 204), 5);
+    const short = reports.at(-1)!;
+    expect(short).toMatchObject({ aspectRatio: "16:9", fit: "ratio" });
+    expect(short.width).toBeCloseTo((204 * 16) / 9, 5);
+    expect(short.height).toBeCloseTo(204, 5);
+
+    pane.width = 1400;
+    pane.height = 928;
+    resize(viewport);
+    expect(game.style.transform).toBe("");
+    expect(game.style.marginRight).toBe("");
+    expect(game.style.marginBottom).toBe("");
+    expect(game.style.height).toBe(`${(1400 * 9) / 16}px`);
+    expect(reports.at(-1)).toEqual({ width: 1400, height: 787.5, aspectRatio: "16:9", fit: "ratio" });
+
+    const auto = ResizeGameMessage.type.request({ aspectRatio: "auto" });
+    sendProtocolMessage(auto);
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(game.style.transform).toBe("");
+    expect(game.style.width).toBe("");
   } finally {
     controller.dispose();
     host.remove();

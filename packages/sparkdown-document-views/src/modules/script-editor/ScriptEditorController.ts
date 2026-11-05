@@ -1,3 +1,4 @@
+import { indentLess, indentMore } from "@codemirror/commands";
 import { openLintPanel } from "@codemirror/lint";
 import { openSearchPanel, searchPanelOpen } from "@codemirror/search";
 import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
@@ -6,6 +7,7 @@ import {
   convertFromPosition,
   convertToChangeEvents,
   convertToPosition,
+  formatDocument,
   getDocumentVersion,
   LSPClient,
   LSPPlugin,
@@ -15,6 +17,12 @@ import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/
 import { ChangedEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHighlightsMessage";
 import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage";
 import { ConnectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ConnectedEditorMessage";
+import {
+  EditorCommand,
+  ExecuteEditorCommandMessage,
+  ExecuteEditorCommandMethod,
+  ExecuteEditorCommandParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
 import { FocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
 import { ReadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ReadEditorMessage";
 import { DidLoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/DidLoadEditorMessage";
@@ -30,16 +38,6 @@ import {
   LoadEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
-import {
-  SearchEditorMessage,
-  SearchEditorMethod,
-  SearchEditorParams,
-} from "@impower/spark-editor-protocol/src/protocols/editor/SearchEditorMessage";
-import {
-  ShowEditorProblemsMessage,
-  ShowEditorProblemsMethod,
-  ShowEditorProblemsParams,
-} from "@impower/spark-editor-protocol/src/protocols/editor/ShowEditorProblemsMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import {
   SelectEditorMessage,
@@ -116,7 +114,10 @@ import createEditorView, {
   editableConfig,
   readOnlyConfig,
 } from "./utils/createEditorView";
-import { customGotoLinePanelOpen } from "./utils/extensions/customSearch";
+import {
+  customGotoLinePanelOpen,
+  openCustomGotoLinePanel,
+} from "./utils/extensions/customSearch";
 import { setCoarsePointer } from "./utils/extensions/touchAffordances";
 import { setScriptAppearance } from "../../cm-script-appearance/scriptAppearance";
 import type { ScriptAppearance } from "../../cm-script-appearance/scriptAppearanceOptions";
@@ -322,13 +323,8 @@ export class ScriptEditorController {
       this.host,
     );
     p.onRequest(
-      SearchEditorMessage.type,
-      (m) => this.handleSearchEditor(m),
-      this.host,
-    );
-    p.onRequest(
-      ShowEditorProblemsMessage.type,
-      (m) => this.handleShowEditorProblems(m),
+      ExecuteEditorCommandMessage.type,
+      (m) => this.handleExecuteEditorCommand(m),
       this.host,
     );
     p.onRequest(
@@ -448,33 +444,44 @@ export class ScriptEditorController {
     }
   };
 
-  protected handleSearchEditor = (
-    message: RequestMessage<SearchEditorMethod, SearchEditorParams>,
+
+  protected handleExecuteEditorCommand = (
+    message: RequestMessage<
+      ExecuteEditorCommandMethod,
+      ExecuteEditorCommandParams
+    >,
   ) => {
-    const params = message.params;
-    const textDocument = params.textDocument;
-    if (textDocument.uri === this._textDocument?.uri) {
-      this.openSearchPanel();
-      return SearchEditorMessage.type.response(message.id, {});
+    const { textDocument, command } = message.params;
+    const view = this._view;
+    if (!view || textDocument.uri !== this._textDocument?.uri) {
+      return undefined;
     }
-    return undefined;
+    if (command === "problems" && this.refs.editor?.style.visibility === "hidden") {
+      this._problemsOnReveal = textDocument.uri;
+      return ExecuteEditorCommandMessage.type.response(message.id, { ran: true });
+    }
+    const ran = this.executeCommand(view, command);
+    return ExecuteEditorCommandMessage.type.response(message.id, { ran });
   };
 
-  protected handleShowEditorProblems = (
-    message: RequestMessage<ShowEditorProblemsMethod, ShowEditorProblemsParams>,
-  ) => {
-    const view = this._view;
-    const uri = message.params.textDocument.uri;
-    if (view && uri === this._textDocument?.uri) {
-      if (this.refs.editor?.style.visibility === "hidden") {
-        this._problemsOnReveal = uri;
-      } else {
-        openLintPanel(view);
-      }
-      return ShowEditorProblemsMessage.type.response(message.id, {});
+  protected executeCommand(view: EditorView, command: EditorCommand) {
+    switch (command) {
+      case "indent":
+        view.focus();
+        return indentMore(view);
+      case "dedent":
+        view.focus();
+        return indentLess(view);
+      case "format":
+        return formatDocument(view);
+      case "gotoLine":
+        return openCustomGotoLinePanel(view);
+      case "problems":
+        return openLintPanel(view);
+      case "search":
+        return openSearchPanel(view);
     }
-    return undefined;
-  };
+  }
 
   protected handleShowEditorStatusBar = (
     message: RequestMessage<
@@ -1099,13 +1106,6 @@ export class ScriptEditorController {
       return !isAbove && !isBelow;
     }
     return false;
-  }
-
-  protected openSearchPanel() {
-    const view = this._view;
-    if (view) {
-      openSearchPanel(view);
-    }
   }
 
   protected revealEditor = () => {

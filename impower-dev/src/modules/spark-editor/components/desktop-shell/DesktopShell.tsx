@@ -1,4 +1,5 @@
 import { SidebarLayout } from "@impower/impower-ui/components";
+import { useLayout, useRailDefault } from "@impower/impower-ui/layout";
 import { useComputed } from "@preact/signals";
 import type { ComponentChildren } from "preact";
 import workspace from "../../workspace/WorkspaceStore";
@@ -13,28 +14,52 @@ const RAIL_WIDTH = {
   reserve: 624,
 } as const;
 
+const RAIL_COMPACT_WIDTH = {
+  full: 190,
+  collapsed: 76,
+  reserve: 280,
+} as const;
+
 export default function DesktopShell({
   children,
 }: {
   children: ComponentChildren;
 }) {
-  const railWidth = useComputed(
-    () => workspace.state.value.shell?.railWidth,
-  ).value;
+  const compact = useLayout() === "compact";
+  const railDefault = useRailDefault();
+  const shell = useComputed(() => workspace.state.value.shell).value;
+  const railWidth = compact ? shell?.railCompactWidth : shell?.railWidth;
 
   const onWidthChange = async (width: number | undefined) => {
     const { Workspace } = await import("../../workspace/Workspace");
-    Workspace.window.setRailWidth(width);
+    if (compact) {
+      Workspace.window.setRailCompactWidth(width);
+    } else {
+      Workspace.window.setRailWidth(width);
+    }
   };
+
+  const limits = compact
+    ? {
+        default:
+          railDefault === "full"
+            ? RAIL_COMPACT_WIDTH.full
+            : RAIL_COMPACT_WIDTH.collapsed,
+        min: RAIL_COMPACT_WIDTH.full,
+        max: RAIL_COMPACT_WIDTH.full,
+        collapsed: RAIL_COMPACT_WIDTH.collapsed,
+        reserve: RAIL_COMPACT_WIDTH.reserve,
+      }
+    : RAIL_WIDTH;
 
   return (
     <SidebarLayout
-      width={railWidth}
-      defaultWidth={RAIL_WIDTH.default}
-      minWidth={RAIL_WIDTH.min}
-      maxWidth={RAIL_WIDTH.max}
-      collapsedWidth={RAIL_WIDTH.collapsed}
-      reserve={RAIL_WIDTH.reserve}
+      width={railWidth ?? limits.default}
+      defaultWidth={limits.default}
+      minWidth={limits.min}
+      maxWidth={limits.max}
+      collapsedWidth={limits.collapsed}
+      reserve={limits.reserve}
       onWidthChange={onWidthChange}
       resizeLabel="Resize sidebar"
       header={<TopBar />}

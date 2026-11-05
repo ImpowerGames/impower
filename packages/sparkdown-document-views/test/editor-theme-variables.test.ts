@@ -1,6 +1,9 @@
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { dirname, relative, resolve } from "node:path";
 import { openSearchPanel } from "@codemirror/search";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView, showTooltip } from "@codemirror/view";
+import ts from "typescript";
 import { afterEach, describe, expect, it } from "vitest";
 import EDITOR_THEME from "../src/modules/script-editor/constants/EDITOR_THEME";
 import { customSearchPanel } from "../src/modules/script-editor/utils/extensions/customSearch";
@@ -148,6 +151,197 @@ describe("the code editor's colours follow the shared colour variables", () => {
     }
   });
 });
+
+describe("the code editor decides no colour in JavaScript", () => {
+  it("holds no colour literal in any of this package's modules the script editor mounts", () => {
+    const { modules, unscanned } = editorModules();
+    expect(modules.length).toBeGreaterThan(1);
+    expect(unscanned).toEqual([]);
+    const offenders = modules.flatMap((file) =>
+      colourLiterals(readFileSync(file, "utf8"), file).map(
+        (literal) => `${relative(SRC, file)}: ${literal.slice(0, 80)}`,
+      ),
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it("follows this package's own imports by name and leaves other packages to their own scans", () => {
+    const entry = resolve(SRC, "modules/script-editor/utils/createEditorView.ts");
+    const marks = resolve(SRC, "cm-problem-marks/problemMarks");
+    expect(ownModulePath(entry, "../../../cm-problem-marks/problemMarks")).toBe(
+      marks,
+    );
+    expect(
+      ownModulePath(entry, `${PACKAGE_NAME}/src/cm-problem-marks/problemMarks`),
+    ).toBe(marks);
+    expect(resolveModule(marks)).toBe(`${marks}.ts`);
+    expect(ownModulePath(entry, PACKAGE_NAME)).toBe(PACKAGE_ROOT);
+    expect(resolveModule(PACKAGE_ROOT)).toBeUndefined();
+    expect(ownModulePath(entry, `${PACKAGE_NAME}-extra/src/x`)).toBeUndefined();
+    expect(ownModulePath(entry, "@codemirror/view")).toBeUndefined();
+  });
+
+  it("counts an inline colour as a literal and passes only an svg mask's black paint", () => {
+    expect(colourLiterals('view.dom.style.color="black";')).toEqual([
+      '"black"',
+    ]);
+    expect(colourLiterals('el.setAttribute("fill", "black");')).toEqual([
+      '"black"',
+    ]);
+    expect(colourLiterals('el.style.fill="black";')).toEqual(['"black"']);
+    expect(colourLiterals('const ICON = "#2B83B7";')).toEqual(['"#2B83B7"']);
+    expect(colourLiterals("root.style.color = 'white';")).toEqual(["'white'"]);
+    expect(
+      colourLiterals(
+        'const mask = `<svg viewBox="0 0 24 24" fill="none" stroke="black">${glyph}</svg>`;',
+      ),
+    ).toEqual([]);
+    expect(
+      colourLiterals(
+        'const mask = `url("${encodeURIComponent(`<svg fill="none" stroke="black">${glyph}</svg>`)}")`; const ink = "#123";',
+      ),
+    ).toEqual(['"#123"']);
+    expect(
+      colourLiterals(
+        'const mask = `<svg viewBox="0 0 24 24" fill="#fff">${glyph}</svg>`;',
+      ),
+    ).toEqual(['`<svg viewBox="0 0 24 24" fill="#fff">${glyph}</svg>`']);
+    expect(
+      colourLiterals(
+        "const markup = `<svg></svg><button onclick='let fill=\"black\";this.style.color=fill'>Apply</button>`;",
+      ),
+    ).toHaveLength(1);
+    expect(
+      colourLiterals(
+        "const markup = `<svg onload='let stroke=\"black\";this.style.stroke=stroke'></svg>`;",
+      ),
+    ).toHaveLength(1);
+    expect(
+      colourLiterals(
+        "const markup = `<svg><path d=\"M0 0\"/></svg> fill=\"black\"`;",
+      ),
+    ).toHaveLength(1);
+    expect(
+      colourLiterals(
+        "const markup = `<svg fill=\"none\"/><rect fill=\"black\"/></svg>`;",
+      ),
+    ).toHaveLength(1);
+    expect(
+      colourLiterals(
+        "const mask = `<svg><path style=\"fill: black\"/></svg>`;",
+      ),
+    ).toHaveLength(1);
+    expect(
+      colourLiterals("const mask = `<svg><path fill='black'/></svg>`;"),
+    ).toHaveLength(1);
+    expect(
+      colourLiterals('const mask = `<SVG><path fill="black"/></SVG>`;'),
+    ).toHaveLength(1);
+    expect(
+      colourLiterals('const node = <span style={{ color: "black" }} />;'),
+    ).toEqual(['"black"']);
+  });
+});
+
+const SRC = resolve(__dirname, "../src");
+
+const SVG_ELEMENT =
+  /<svg\b(?:"[^"]*"|'[^']*'|[^<>"'])*\/>|<svg\b[\s\S]*?(?:<\/svg>|$)/g;
+
+const SVG_TAG = /<[a-zA-Z][\w:-]*(?:"[^"]*"|'[^']*'|[^<>"'])*>/g;
+
+const TAG_ATTRIBUTE = /\s([\w:-]+)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s"'>]+))?/g;
+
+const withoutMaskPaints = (text: string) =>
+  text.replace(SVG_ELEMENT, (svg) =>
+    svg.replace(SVG_TAG, (tag) =>
+      tag.replace(TAG_ATTRIBUTE, (attribute, name: string, value?: string) =>
+        /^(fill|stroke)$/.test(name) &&
+        /^"(none|black|currentColor)"$/.test(value ?? "")
+          ? ""
+          : attribute,
+      ),
+    ),
+  );
+
+const COLOUR_LITERAL =
+  /#[0-9a-f]{3,8}\b|\brgba?\(|\bhsla?\(|\b(white|black)\b(?!-)/i;
+
+const colourLiterals = (source: string, fileName = "source.tsx") => {
+  const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest);
+  const found: string[] = [];
+  const visit = (node: ts.Node) => {
+    const pieces = ts.isStringLiteral(node) ||
+      ts.isNoSubstitutionTemplateLiteral(node)
+      ? [node.text]
+      : ts.isTemplateExpression(node)
+        ? [node.head.text, ...node.templateSpans.map((span) => span.literal.text)]
+        : undefined;
+    if (
+      pieces?.some((text) =>
+        COLOUR_LITERAL.test(withoutMaskPaints(text)),
+      )
+    ) {
+      found.push(node.getText(file));
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return found;
+};
+
+const SCANNED_MODULE = /\.tsx?$/;
+
+const PACKAGE_ROOT = resolve(__dirname, "..");
+
+const PACKAGE_NAME: string = JSON.parse(
+  readFileSync(resolve(PACKAGE_ROOT, "package.json"), "utf8"),
+).name;
+
+const ownModulePath = (from: string, specifier: string) =>
+  specifier.startsWith(".")
+    ? resolve(dirname(from), specifier)
+    : specifier === PACKAGE_NAME || specifier.startsWith(`${PACKAGE_NAME}/`)
+      ? resolve(PACKAGE_ROOT, `.${specifier.slice(PACKAGE_NAME.length)}`)
+      : undefined;
+
+const resolveModule = (base: string) => {
+  return [
+    base,
+    `${base}.ts`,
+    `${base}.tsx`,
+    `${base}/index.ts`,
+    `${base}/index.tsx`,
+  ].find(
+    (candidate) =>
+      SCANNED_MODULE.test(candidate) &&
+      existsSync(candidate) &&
+      statSync(candidate).isFile(),
+  );
+};
+
+const editorModules = () => {
+  const seen = new Set<string>();
+  const unscanned: string[] = [];
+  const visit = (file: string) => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    const { importedFiles } = ts.preProcessFile(
+      readFileSync(file, "utf8"),
+      true,
+      true,
+    );
+    for (const { fileName: specifier } of importedFiles) {
+      const base = ownModulePath(file, specifier);
+      if (!base) continue;
+      const target = resolveModule(base);
+      if (target) visit(target);
+      else unscanned.push(`${relative(SRC, file)} -> ${specifier}`);
+    }
+  };
+  visit(resolve(SRC, "modules/script-editor/utils/createEditorView.ts"));
+  return { modules: [...seen], unscanned };
+};
 
 const declarations = (
   theme: Record<string, unknown>,

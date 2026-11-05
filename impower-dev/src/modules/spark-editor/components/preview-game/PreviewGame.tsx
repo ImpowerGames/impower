@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
+import { previewAspectRatioFor } from "../../workspace/previewAspectRatio";
 import { createAspectRatioSync } from "./aspectRatioSync";
 import { showSnackbar } from "../../utils/snackbar";
 import { createPlayerPreferenceSync, playerUrl } from "./playerPreferences";
@@ -150,7 +151,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
         );
 
         const aspectRatioSync = createAspectRatioSync(
-          workspaceSettings.projectSettings,
+          previewAspectRatioFor(workspaceSettings.projectSettings),
           (ratio) =>
             void iframeChannelRef.current?.sendRequest(ResizeGameMessage.type, {
               aspectRatio: ratio,
