@@ -9,6 +9,7 @@ export interface SelectEditorParams {
   range: Range;
   scrollIntoView?: "nearest" | "start" | "end" | "center" | false;
   takeFocus?: boolean;
+  userEvent?: boolean;
 }
 
 export class SelectEditorMessage {

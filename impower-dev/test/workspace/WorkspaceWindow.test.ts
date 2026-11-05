@@ -6,6 +6,8 @@ import { ChangedEditorRoutePinsMessage } from "@impower/spark-editor-protocol/sr
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPaneMessage";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
+import { DidChangeGameStateMessage } from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
+import { SkipBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SkipBeatMessage";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
@@ -69,6 +71,7 @@ vi.mock("@impower/impower-ui/components", async () => {
 const channels = vi.hoisted(() => ({
   all: [] as {
     posted: unknown[];
+    responses: [unknown, unknown][];
     listeners: ((e: { data: unknown }) => void)[];
     receive: (message: unknown) => void;
   }[],
@@ -79,6 +82,7 @@ vi.mock("@impower/jsonrpc/src/browser/classes/IFrameMessageConnection", () => ({
 vi.mock("@impower/jsonrpc/src/browser/classes/Port1MessageConnection", () => ({
   Port1MessageConnection: class {
     posted: unknown[] = [];
+    responses: [unknown, unknown][] = [];
     listeners: ((e: { data: unknown }) => void)[] = [];
     constructor() {
       channels.all.push(this);
@@ -97,7 +101,9 @@ vi.mock("@impower/jsonrpc/src/browser/classes/Port1MessageConnection", () => ({
     async sendRequest() {
       return {};
     }
-    sendResponse() {}
+    sendResponse(message: unknown, result: unknown) {
+      this.responses.push([message, result]);
+    }
   },
 }));
 
@@ -1036,4 +1042,116 @@ describe("PLAY for a story with no start scene", () => {
     );
     expect(game().running).toBe(true);
   });
+});
+
+describe("The game preview's player bar", () => {
+  const MAIN = "file://a/main.sd";
+  let win: WorkspaceWindow;
+  let container: HTMLElement;
+
+  const mount = async () => {
+    localStorage.clear();
+    localStorage.setItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY, "a");
+    workspace.current = savedWorkspaceState();
+    win = new WorkspaceWindow(Workspace);
+    current.window = win;
+    Object.assign(Workspace.fs, {
+      getFiles: async () => ({}),
+      getDirectoryUri: async () => "file://a",
+    });
+    (Workspace as unknown as { configuration: unknown }).configuration = {
+      settings: {},
+    };
+    container = document.createElement("div");
+    document.body.append(container);
+    channels.all = [];
+    render(h(PreviewGame, {}), container);
+    const iframe = container.querySelector("iframe")!;
+    iframe.dispatchEvent(new Event("load"));
+    await vi.waitFor(() => expect(channels.all).toHaveLength(1), {
+      timeout: 15000,
+    });
+    return { iframe, channel: channels.all[0]! };
+  };
+
+  afterEach(() => {
+    render(null, container);
+    container.remove();
+    win.dispose();
+    current.window = undefined;
+    delete (Workspace as unknown as { ls?: unknown }).ls;
+  });
+
+  it("asks the player for its skip and step buttons", async () => {
+    const { iframe } = await mount();
+    const query = new URLSearchParams(iframe.getAttribute("src")!.split("?")[1]);
+    expect(query.has("skip-buttons")).toBe(true);
+    expect(query.has("step-buttons")).toBe(true);
+  }, 30000);
+
+  it("answers the bar's skip by moving the caret to the language server's next beat", async () => {
+    const getOffsetSourceLocation = vi.fn(
+      async (uri: string, line: number, offset: number) => ({
+        file: uri,
+        line: line + 3 * offset,
+      }),
+    );
+    (Workspace as unknown as { ls: unknown }).ls = { getOffsetSourceLocation };
+    const { channel } = await mount();
+    win.openFileEditor("main.sd");
+    await win.showDocument(MAIN, {
+      start: { line: 4, character: 0 },
+      end: { line: 4, character: 0 },
+    });
+    const selects: unknown[] = [];
+    const hear = (e: Event) => {
+      const message = (e as CustomEvent).detail;
+      if (message?.method === "editor/select") selects.push(message.params);
+    };
+    window.addEventListener(MessageProtocol.event, hear);
+    const request = SkipBeatMessage.type.request({ direction: 1 });
+    channel.receive(request);
+    await vi.waitFor(() => expect(channel.responses).toHaveLength(1));
+    const [answered, result] = channel.responses[0]!;
+    expect(answered).toEqual(request);
+    expect(await (result as () => Promise<unknown>)()).toEqual({ moved: true });
+    expect(getOffsetSourceLocation).toHaveBeenCalledWith(MAIN, 4, 1);
+    expect(win.getActiveEditorForPane("logic")?.selectedRange?.start.line).toBe(7);
+    window.removeEventListener(MessageProtocol.event, hear);
+    expect(selects.at(-1)).toMatchObject({
+      textDocument: { uri: MAIN },
+      range: { start: { line: 7, character: 0 } },
+      userEvent: true,
+    });
+  }, 30000);
+
+  it("follows the paused state the player reports while the game runs", async () => {
+    await mount();
+    const report = (paused: boolean) =>
+      sendProtocolMessage(
+        DidChangeGameStateMessage.type.notification({
+          mounted: true,
+          programLoaded: true,
+          programVersion: 1,
+          launchState: paused ? "pause" : "play",
+          paused,
+          stepping: false,
+          run: 1,
+          position: null,
+          completion: null,
+          ending: null,
+        }),
+      );
+    report(true);
+    expect(workspace.current.preview.modes.game.paused).toBeFalsy();
+    win.startGame();
+    report(true);
+    await vi.waitFor(() =>
+      expect(workspace.current.preview.modes.game.paused).toBe(true),
+    );
+    report(false);
+    await vi.waitFor(() =>
+      expect(workspace.current.preview.modes.game.paused).toBe(false),
+    );
+  }, 30000);
 });

@@ -160,15 +160,12 @@ function player(
   const refusals: Record<string, string> = { ...(options.refusals ?? {}) };
   const host = document.createElement("div");
   const viewport = document.createElement("div");
-  const leftItems = document.createElement("div");
-  const locationItems = document.createElement("div");
   const routeButton = document.createElement("div");
   const routeList = document.createElement("div");
   const savesButton = document.createElement("div");
   const savesMenu = document.createElement("div");
   const saveNote = document.createElement("div");
-  leftItems.append(routeButton, locationItems);
-  viewport.append(leftItems, routeList, savesButton, savesMenu, saveNote);
+  viewport.append(routeButton, routeList, savesButton, savesMenu, saveNote);
   host.append(viewport);
   document.body.append(host);
   const sent: any[] = [];
@@ -177,12 +174,6 @@ function player(
   });
   const controller = new GamePlayerController(host, {
     viewport,
-    leftItems,
-    locationItems,
-    launchLabel: document.createElement("span"),
-    connectionLabel: document.createElement("span"),
-    executedLabel: document.createElement("span"),
-    executionInfo: document.createElement("div"),
     routeButton,
     routeList,
     savesButton,

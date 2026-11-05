@@ -3,14 +3,16 @@ import { showSnackbar } from "../../utils/snackbar";
 import { createPlayerPreferenceSync, playerUrl } from "./playerPreferences";
 import PreviewGameToolbar from "../preview-game-toolbar/PreviewGameToolbar";
 import { installPreviewInspector } from "./previewInspect";
+import { createPreviewBeatSkipper } from "./previewBeatSkipper";
 
 const SPARKDOWN_PLAYER_ORIGIN =
   import.meta.env.VITE_SPARKDOWN_PLAYER_ORIGIN || "";
 
 const SAME_ORIGIN_PREVIEW = !!import.meta.env.VITE_SAME_ORIGIN_PREVIEW;
+const PLAYER_CONTROLS = "?skip-buttons&step-buttons";
 const PLAYER_SRC = SAME_ORIGIN_PREVIEW
-  ? "/__player/"
-  : `${SPARKDOWN_PLAYER_ORIGIN}/`;
+  ? `/__player/${PLAYER_CONTROLS}`
+  : `${SPARKDOWN_PLAYER_ORIGIN}/${PLAYER_CONTROLS}`;
 const PLAYER_TARGET_ORIGIN = SAME_ORIGIN_PREVIEW
   ? typeof window !== "undefined"
     ? window.location.origin
@@ -76,6 +78,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
       import("@impower/spark-editor-protocol/src/protocols/preview/WriteSaveMessage"),
       import("@impower/spark-editor-protocol/src/protocols/preview/RenameSaveMessage"),
       import("@impower/spark-editor-protocol/src/protocols/preview/DeleteSavesMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/preview/SkipBeatMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/EnterGameFullscreenModeMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/ExitGameFullscreenModeMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/FetchGameAssetMessage"),
@@ -107,6 +110,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { WriteSaveMessage },
         { RenameSaveMessage },
         { DeleteSavesMessage },
+        { SkipBeatMessage },
         { EnterGameFullscreenModeMessage },
         { ExitGameFullscreenModeMessage },
         { FetchGameAssetMessage },
@@ -135,6 +139,11 @@ export default function PreviewGame(_props: PreviewGameProps) {
             startingValues: Workspace.window.startingValues,
           };
         };
+
+        const skipBeat = createPreviewBeatSkipper({
+          window: Workspace.window,
+          ls: Workspace.ls,
+        });
 
         const preferences = createPlayerPreferenceSync(
           (message) => iframeChannelRef.current?.postMessage(message),
@@ -182,6 +191,12 @@ export default function PreviewGame(_props: PreviewGameProps) {
               await Workspace.window.previewSaves.delete(message.params.ids);
               return {};
             });
+            return;
+          }
+          if (SkipBeatMessage.type.isRequest(message)) {
+            iframeChannelRef.current?.sendResponse(message, async () => ({
+              moved: await skipBeat(message.params.direction),
+            }));
             return;
           }
           if (ExecuteCommandMessage.type.is(message)) {
@@ -325,7 +340,8 @@ export default function PreviewGame(_props: PreviewGameProps) {
             Workspace.window.syncGameEnded(true);
           }
           if (DidChangeGameStateMessage.type.is(message)) {
-            const { launchState } = message.params;
+            const { launchState, paused } = message.params;
+            Workspace.window.syncGamePaused(paused);
             if (launchState === "ended") {
               Workspace.window.syncGameEnded(true);
             } else if (launchState === "play" || launchState === "pause") {
@@ -375,27 +391,9 @@ export default function PreviewGame(_props: PreviewGameProps) {
           }
         };
 
-        const onKeyDown = async (e: KeyboardEvent) => {
-          const editor = Workspace.window.getActiveEditorForPane("logic");
-          if (!editor) return;
+        const onKeyDown = (e: KeyboardEvent) => {
           if (e.key !== "PageUp" && e.key !== "PageDown") return;
-          const { uri, selectedRange } = editor;
-          const currLine = selectedRange?.start.line ?? 0;
-          const target = await Workspace.ls.getOffsetSourceLocation(
-            uri,
-            currLine,
-            e.key === "PageUp" ? -1 : 1,
-          );
-          if (target && target.file === uri) {
-            Workspace.window.showDocument(
-              uri,
-              {
-                start: { line: target.line, character: 0 },
-                end: { line: target.line, character: 0 },
-              },
-              true,
-            );
-          }
+          void skipBeat(e.key === "PageUp" ? -1 : 1);
         };
 
         window.addEventListener(MessageProtocol.event, onProtocol);

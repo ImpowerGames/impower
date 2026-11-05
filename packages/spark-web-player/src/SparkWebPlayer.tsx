@@ -1,11 +1,21 @@
-import { useEffect, useRef } from "preact/hooks";
-import type { GamePlayerController as GamePlayerControllerType } from "./GamePlayerController";
+import { useEffect, useRef, useState } from "preact/hooks";
+import type {
+  GamePlayerController as GamePlayerControllerType,
+  PlayerBarView,
+} from "./GamePlayerController";
+import PlayerBar from "./components/PlayerBar/PlayerBar";
+import {
+  initialPlayerBarState,
+  type PlayerBarState,
+} from "./components/PlayerBar/playerBarState";
 
 export const propDefaults = {
   playLabel: "PLAY",
   playButton: false,
   toolbar: false,
   fullscreenButton: false,
+  skipButtons: false,
+  stepButtons: false,
 };
 
 export type SparkWebPlayerProps = Partial<typeof propDefaults>;
@@ -18,6 +28,8 @@ export default function SparkWebPlayer({
   playButton,
   toolbar,
   fullscreenButton,
+  skipButtons,
+  stepButtons,
 }: SparkWebPlayerProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<HTMLDivElement>(null);
@@ -26,19 +38,6 @@ export default function SparkWebPlayer({
   const gameUIRef = useRef<HTMLDivElement>(null);
   const playButtonRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
-  const leftItemsRef = useRef<HTMLDivElement>(null);
-  const locationItemsRef = useRef<HTMLDivElement>(null);
-  const launchInfoRef = useRef<HTMLDivElement>(null);
-  const launchStateIconRef = useRef<HTMLSpanElement>(null);
-  const launchLabelRef = useRef<HTMLSpanElement>(null);
-  const executionInfoRef = useRef<HTMLDivElement>(null);
-  const connectionLabelRef = useRef<HTMLSpanElement>(null);
-  const executedLabelRef = useRef<HTMLSpanElement>(null);
-  const aspectRatioLabelRef = useRef<HTMLDivElement>(null);
-  const sizeLabelRef = useRef<HTMLDivElement>(null);
-  const fullscreenButtonRef = useRef<HTMLDivElement>(null);
-  const completionStatusRef = useRef<HTMLSpanElement>(null);
-  const endingStatusRef = useRef<HTMLSpanElement>(null);
   const routeButtonRef = useRef<HTMLDivElement>(null);
   const routeListRef = useRef<HTMLDivElement>(null);
   const savesButtonRef = useRef<HTMLDivElement>(null);
@@ -46,6 +45,13 @@ export default function SparkWebPlayer({
   const saveNoteRef = useRef<HTMLDivElement>(null);
 
   const controllerRef = useRef<GamePlayerControllerType | null>(null);
+  const [bar, setBar] = useState<{
+    state: PlayerBarState;
+    view: PlayerBarView;
+  }>({
+    state: initialPlayerBarState,
+    view: { routeShown: false, snapping: false },
+  });
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -56,6 +62,7 @@ export default function SparkWebPlayer({
     if (!viewport || !game || !gameBackground || !gameView || !gameUI) return;
 
     let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
 
     import("./GamePlayerController").then(({ GamePlayerController }) => {
       if (cancelled) return;
@@ -73,32 +80,22 @@ export default function SparkWebPlayer({
         gameUI,
         playButton: playButtonRef.current,
         toolbar: toolbarRef.current,
-        leftItems: leftItemsRef.current,
-        locationItems: locationItemsRef.current,
-        launchInfo: launchInfoRef.current,
-        launchStateIcon: launchStateIconRef.current,
-        launchLabel: launchLabelRef.current,
-        executionInfo: executionInfoRef.current,
-        connectionLabel: connectionLabelRef.current,
-        executedLabel: executedLabelRef.current,
-        aspectRatioLabel: aspectRatioLabelRef.current,
-        sizeLabel: sizeLabelRef.current,
-        resetButton: null,
-        fullscreenButton: fullscreenButtonRef.current,
-        completionStatus: completionStatusRef.current,
-        endingStatus: endingStatusRef.current,
         routeButton: routeButtonRef.current,
         routeList: routeListRef.current,
         savesButton: savesButtonRef.current,
         savesMenu: savesMenuRef.current,
         saveNote: saveNoteRef.current,
       });
+      unsubscribe = controller.subscribeBar((state, view) =>
+        setBar({ state, view }),
+      );
       controller.setup();
       controllerRef.current = controller;
     });
 
     return () => {
       cancelled = true;
+      unsubscribe?.();
       controllerRef.current?.dispose();
       controllerRef.current = null;
     };
@@ -131,50 +128,25 @@ export default function SparkWebPlayer({
         ) : null}
       </div>
       {flag(toolbar) ? (
-        <div id="toolbar" ref={toolbarRef}>
-          <div id="resize-handle" />
-          <div id="left-items" ref={leftItemsRef} hidden>
-            <div id="route-button" ref={routeButtonRef} hidden />
-            <div id="location-items" ref={locationItemsRef}>
-              <div id="launch-info" ref={launchInfoRef}>
-                <span id="launch-state-icon" ref={launchStateIconRef} />
-                <span id="launch-label" ref={launchLabelRef} />
-              </div>
-              <div id="execution-info" ref={executionInfoRef}>
-                <span id="connection-label" ref={connectionLabelRef} />
-                <span id="executed-label" ref={executedLabelRef} />
-              </div>
-            </div>
-          </div>
-          <div id="middle-items">
-            <span
-              id="completion-status"
-              ref={completionStatusRef}
-              role="status"
-              hidden
-            />
-            <span
-              id="ending-status"
-              ref={endingStatusRef}
-              role="status"
-              hidden
-            />
-          </div>
-          <div id="right-items">
-            <div id="saves-button" ref={savesButtonRef} />
-            <div id="aspect-ratio-label" ref={aspectRatioLabelRef} />
-            <div id="size-label" ref={sizeLabelRef} />
-            {flag(fullscreenButton) ? (
-              <div
-                id="fullscreen-button"
-                class="toolbar-button"
-                ref={fullscreenButtonRef}
-              >
-                <div id="fullscreen-icon" />
-              </div>
-            ) : null}
-          </div>
-        </div>
+        <PlayerBar
+          state={bar.state}
+          controls={{
+            skip: flag(skipButtons),
+            step: flag(stepButtons),
+            fullscreen: flag(fullscreenButton),
+          }}
+          workspace={bar.view.workspace}
+          routeShown={bar.view.routeShown}
+          snapping={bar.view.snapping}
+          toolbarRef={toolbarRef}
+          routeButtonRef={routeButtonRef}
+          savesButtonRef={savesButtonRef}
+          onSkip={(direction) => void controllerRef.current?.skipBeat(direction)}
+          onPause={() => void controllerRef.current?.pauseGame()}
+          onResume={() => void controllerRef.current?.resumeGame()}
+          onStep={(traversal) => void controllerRef.current?.stepGame(traversal)}
+          onToggleFullscreen={() => controllerRef.current?.toggleFullscreen()}
+        />
       ) : null}
       {flag(toolbar) ? (
         <div id="route-list" ref={routeListRef} hidden />

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { GamePlayerController } from "../GamePlayerController";
+import { mountPlayerBar } from "./playerBarHarness";
 import {
   describeSimulationFailure,
   SIMULATION_FAILURE_MESSAGES,
@@ -65,22 +66,8 @@ describe("the sentence chosen for each cause", () => {
 
 function statusRow() {
   const host = document.createElement("div");
-  const leftItems = document.createElement("div");
-  const locationItems = document.createElement("div");
-  const launchLabel = document.createElement("span");
-  const connectionLabel = document.createElement("span");
-  const executedLabel = document.createElement("span");
-  const executionInfo = document.createElement("div");
-  leftItems.appendChild(locationItems);
-  const refs = {
-    leftItems,
-    locationItems,
-    launchLabel,
-    connectionLabel,
-    executedLabel,
-    executionInfo,
-  } as any;
-  const controller = new GamePlayerController(host, refs);
+  const controller = new GamePlayerController(host, {} as any);
+  const locationItems = mountPlayerBar(controller)("#location-items");
   (controller as any)._workerGame = {};
   (controller as any)._program = {
     uri: "file://proj/main.sd",
@@ -140,7 +127,7 @@ describe("the row itself", () => {
     controller.updateExecutionLabels(executedParams({ simulation: "success" }));
 
     expect(locationItems.classList.contains("error")).toBe(false);
-    expect(locationItems.hasAttribute("title")).toBe(false);
+    expect(locationItems.title).toBe("");
     expect(locationItems.hasAttribute("aria-label")).toBe(false);
   });
 });

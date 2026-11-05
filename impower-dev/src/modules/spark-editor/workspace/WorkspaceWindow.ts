@@ -720,6 +720,7 @@ export default class WorkspaceWindow {
     uri: string,
     range?: Range,
     takeFocus?: boolean,
+    userEvent?: boolean,
   ): Promise<ShowDocumentResult> {
     const filename = this._workspace.fs.getRelativePath(
       this.store.project.id ?? "",
@@ -766,6 +767,7 @@ export default class WorkspaceWindow {
           range,
           scrollIntoView: "center",
           takeFocus,
+          userEvent,
         }),
       );
     }
@@ -1091,6 +1093,23 @@ export default class WorkspaceWindow {
       });
       sendProtocolMessage(UnpauseGameMessage.type.request({}));
     }
+  }
+
+  syncGamePaused(paused: boolean) {
+    const game = this.store.preview.modes.game;
+    if (!game.running || Boolean(game.paused) === paused) {
+      return;
+    }
+    this.update({
+      ...this.store,
+      preview: {
+        ...this.store.preview,
+        modes: {
+          ...this.store.preview.modes,
+          game: { ...game, paused },
+        },
+      },
+    });
   }
 
   stepGameClock(seconds: number) {

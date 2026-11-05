@@ -1,6 +1,14 @@
 :root {
   --swp-background-color: var(--panel);
   --swp-toolbar-color: var(--ink);
+  --swp-console-border-color: var(--edge);
+  --swp-console-hover-color: var(--control-hover);
+  --swp-console-active-color: var(--tint);
+  --swp-console-muted-color: var(--muted);
+  --swp-console-error-color: var(--error);
+  --swp-console-warning-color: var(--warning);
+  --swp-console-info-color: var(--accent);
+  --swp-console-link-color: var(--accent);
   color: color-mix(in srgb, var(--ink) 87%, transparent);
 }
 

@@ -1,17 +1,30 @@
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
+import type { Location } from "../../types";
 
 export interface GameState {
   mounted: boolean;
   programLoaded: boolean;
   programVersion: number | null;
   launchState: "pause" | "play" | "ended" | "preview" | null;
+  paused: boolean;
+  stepping: boolean;
   run?: number | null;
   position: { uri: string; line: number } | null;
   completion: {
     request: number;
     status: CompletionPreviewStatus;
   } | null;
+  ending: GameStateEnding | null;
+}
+
+export interface GameStateEnding {
+  kind: "fin" | "out" | "error";
+  location: Location | null;
+  error?: {
+    message: string;
+    location: Location;
+  };
 }
 
 export type CompletionPreviewStatus =

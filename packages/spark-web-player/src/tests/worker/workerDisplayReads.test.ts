@@ -46,12 +46,12 @@ async function reads() {
   try {
     const compiled = await h.compile();
     const labels = () => ({
-      failed: h.refs.locationItems.classList.contains("error"),
-      title: h.refs.locationItems.getAttribute("title"),
-      launch: h.refs.launchLabel.textContent,
-      connection: h.refs.connectionLabel.textContent,
-      executed: h.refs.executedLabel.textContent,
-      executionShown: !h.refs.executionInfo.hidden,
+      failed: h.bar("#location-items").classList.contains("error"),
+      title: h.bar("#location-items").getAttribute("title"),
+      launch: h.bar("#launch-label").textContent,
+      connection: h.bar("#connection-label").textContent,
+      executed: h.bar("#executed-label").textContent,
+      executionShown: !h.bar("#execution-info").hidden,
     });
     const executedSent = () =>
       h.toEditor

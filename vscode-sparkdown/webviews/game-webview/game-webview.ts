@@ -63,9 +63,12 @@ window.addEventListener(MessageProtocol.event, (e) => {
       }
     }
     if (GameResizedMessage.type.isNotification(message)) {
-      const { height } = message.params;
-      state.canvasHeight = height;
-      vscode.setState(state);
+      const { height, fit } = message.params;
+      const canvasHeight = fit === "height" ? height : undefined;
+      if (canvasHeight !== state.canvasHeight) {
+        state.canvasHeight = canvasHeight;
+        vscode.setState(state);
+      }
     }
   }
 });
