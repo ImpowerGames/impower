@@ -551,11 +551,10 @@ export function installPlayerWorker(connection: MessageConnection) {
         updateGameProgram(game, entry.program);
       }
       const touches = gameTouches;
-      const shown = startPoint(
-        entry.program,
-        { file: params.file, line: params.line },
-        "last",
-      );
+      const shown = previewPoint(entry.program, {
+        file: params.file,
+        line: params.line,
+      });
       if (!shown) {
         displayedId = entry.id;
         standing = undefined;
@@ -775,11 +774,41 @@ export function installPlayerWorker(connection: MessageConnection) {
     point: StartPoint,
     beat: "first" | "last",
   ): { point: StartPoint; beat: "first" | "last" } | undefined =>
-    (program.sceneSpans?.[point.file] ?? []).some(
-      ([header, last]) => header <= point.line && point.line <= last,
-    )
+    spansHold(program.sceneSpans, point)
       ? startPointInScene(program, point, beat)
       : undefined;
+
+  const spansHold = (
+    spans: { [uri: string]: [number, number][] } | undefined,
+    point: StartPoint,
+  ) =>
+    (spans?.[point.file] ?? []).some(
+      ([first, last]) => first <= point.line && point.line <= last,
+    );
+
+  let lastScenePoint: StartPoint | undefined;
+
+  const previewPoint = (
+    program: SparkProgram,
+    point: StartPoint,
+  ): { point: StartPoint; beat: "first" | "last" } | undefined => {
+    const shown = startPoint(program, point, "last");
+    if (shown) {
+      lastScenePoint = point;
+      return shown;
+    }
+    if (!spansHold(program.uiSpans, point)) {
+      return undefined;
+    }
+    if (lastScenePoint && spansHold(program.sceneSpans, lastScenePoint)) {
+      return startPointInScene(program, lastScenePoint, "last");
+    }
+    const start = program.sceneLocations?.["start"];
+    const file = start ? Object.keys(program.scripts)[start[0]] : undefined;
+    return start && file
+      ? startPointInScene(program, { file, line: start[1] }, "last")
+      : undefined;
+  };
 
   const startPointInScene = (
     program: SparkProgram,

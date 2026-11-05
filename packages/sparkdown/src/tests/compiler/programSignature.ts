@@ -8,6 +8,7 @@ export const PROGRAM_FIELDS = [
   "labelLocations",
   "flowEnds",
   "sceneSpans",
+  "uiSpans",
   "context",
   "diagnostics",
   "ui",

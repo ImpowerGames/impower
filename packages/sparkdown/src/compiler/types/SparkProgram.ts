@@ -65,6 +65,9 @@ export interface SparkProgram {
   sceneSpans?: {
     [uri: string]: [headerLine: number, lastLine: number][];
   };
+  uiSpans?: {
+    [uri: string]: [firstLine: number, lastLine: number][];
+  };
   labelLocations?: {
     [name: string]: ScriptLocation;
   };

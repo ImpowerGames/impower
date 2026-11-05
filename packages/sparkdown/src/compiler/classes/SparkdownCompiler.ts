@@ -92,6 +92,16 @@ const OTHER_LOOP_NODES = nodeNameSet([
   "LuauSparkdownExplicitLoop",
 ]);
 const FUNCTION_BODY_NODES = nodeNameSet(["LuauFunctionBody"]);
+const UI_DECLARATION_NODES = nodeNameSet([
+  "LuauLayout",
+  "LuauScreen",
+  "LuauComponent",
+  "LuauStyle",
+  "LuauAnimation",
+  "LuauTheme",
+]);
+const DEFINE_NODES = nodeNameSet(["LuauDefine"]);
+const UI_DEFINE_HEADER = /^\s*define\s+[\w.]+\s+as\s+(config|color)\b/;
 import {
   IDENTIFIER_FIELDS,
   NAME_STRING_FIELDS,
@@ -3596,6 +3606,30 @@ export class SparkdownCompiler {
     });
   }
 
+  uiSpansOf(uri: string): [firstLine: number, lastLine: number][] {
+    const doc = this.documents.get(uri);
+    const tree = doc ? this.documents.tree(uri) : undefined;
+    const spans: [number, number][] = [];
+    if (!doc || !tree) {
+      return spans;
+    }
+    tree.iterate({
+      enter: (node) => {
+        const first = doc.lineAt(node.from);
+        const ui =
+          UI_DECLARATION_NODES.has(node.name) ||
+          (DEFINE_NODES.has(node.name) &&
+            UI_DEFINE_HEADER.test(doc.getLineText(first) ?? ""));
+        if (!ui) {
+          return undefined;
+        }
+        spans.push([first, doc.lineAt(Math.max(node.from, node.to - 1))]);
+        return false;
+      },
+    });
+    return spans;
+  }
+
   structureOf(uri: string): ScriptStructure {
     const doc = this.documents.get(uri);
     const tree = doc ? this.documents.tree(uri) : undefined;
@@ -3635,6 +3669,11 @@ export class SparkdownCompiler {
       if (spans.length > 0) {
         program.sceneSpans ??= {};
         program.sceneSpans[uri] = spans;
+      }
+      const ui = this.uiSpansOf(uri);
+      if (ui.length > 0) {
+        program.uiSpans ??= {};
+        program.uiSpans[uri] = ui;
       }
       if (doc) {
         const annotations = this.documents.annotations(uri);

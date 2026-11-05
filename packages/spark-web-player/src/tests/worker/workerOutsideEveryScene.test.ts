@@ -105,3 +105,89 @@ describe("lines inside a scene", () => {
     }
   }, 120_000);
 });
+
+const WITH_UI = `define accent as color with value = "#13171f" end
+
+style card {
+  background_color = black
+}
+
+function bump(n)
+  return n + 1
+end
+
+scene start
+  Inside start.
+end
+
+scene other
+  Inside other.
+end
+`;
+
+const UI_LINES = [
+  ["a define as color", 0],
+  ["a style's header", 2],
+  ["a style's property", 3],
+] as const;
+
+describe("a line inside a top-level UI declaration", () => {
+  it.each(UI_LINES)(
+    "at %s, keeps showing the last previewed scene's beat",
+    async (_name, line) => {
+      const h = await createPlayerHarness({
+        files: [{ uri: MAIN_URI, text: WITH_UI }],
+        startFrom: { file: MAIN_URI, line: 15 },
+      });
+      h.refs.routeButton = h.refs.leftItems.ownerDocument.createElement("div");
+      try {
+        await h.compile();
+        await h.select(15);
+        await settle(40);
+        expect(h.overlay.textContent).toContain("Inside other.");
+        await h.select(line);
+        await settle(40);
+        expect(h.overlay.textContent).toContain("Inside other.");
+        expect(h.refs.routeButton.hidden).toBe(false);
+      } finally {
+        h.dispose();
+      }
+    },
+    120_000,
+  );
+
+  it.each(UI_LINES)(
+    "at %s with no scene previewed yet, shows the start scene's first beat",
+    async (_name, line) => {
+      const text = await previewAt(WITH_UI, line);
+      expect(text).toContain("Inside start.");
+      expect(text).not.toContain("Inside other.");
+    },
+    120_000,
+  );
+
+  it.each(UI_LINES)("PLAY from %s starts no scene", async (_name, line) => {
+    const outcome = await playFrom(WITH_UI, line);
+    expect(outcome.started).toBe(false);
+    expect(outcome.state).toBeUndefined();
+  }, 120_000);
+
+  it("a function's body, which is not a UI declaration, shows no scene's beat", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: WITH_UI }],
+      startFrom: { file: MAIN_URI, line: 15 },
+    });
+    try {
+      await h.compile();
+      await h.select(15);
+      await settle(40);
+      expect(h.overlay.textContent).toContain("Inside other.");
+      await h.select(7);
+      await settle(40);
+      expect(h.overlay.textContent).not.toContain("Inside other.");
+      expect(h.overlay.textContent).not.toContain("Inside start.");
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+});
