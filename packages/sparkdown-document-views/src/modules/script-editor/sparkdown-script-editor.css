@@ -65,6 +65,25 @@ sparkdown-script-editor {
   scrollbar-gutter: stable;
 }
 
+@media (forced-colors: active) {
+  .sparkdown-script-editor-root .cm-panel.cm-search button::after,
+  .sparkdown-script-editor-root .cm-panel.cm-search label::after,
+  .sparkdown-script-editor-root .cm-panel.cm-gotoLine button::after,
+  .sparkdown-script-editor-root .codicon::after,
+  .sparkdown-script-editor-root .cm-activeDiagnosticIcon,
+  .sparkdown-script-editor-root .cm-navLeftIcon,
+  .sparkdown-script-editor-root .cm-navRightIcon,
+  .sparkdown-script-editor-root .cm-problemsToggleIcon,
+  .sparkdown-script-editor-root .cm-toolbar-icon,
+  .sparkdown-script-editor-root .cm-menu-back-icon,
+  .sparkdown-script-editor-root .cm-menu-more-icon,
+  .sparkdown-script-editor-root .cm-fold-arrow,
+  .sparkdown-script-editor-root .cm-lsp-collapse-icon {
+    forced-color-adjust: none;
+    background-color: CanvasText !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sparkdown-script-editor-root,
   .sparkdown-script-editor-root *,

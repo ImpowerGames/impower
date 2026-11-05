@@ -113,10 +113,54 @@ describe("the code editor's own scroll containers", () => {
 });
 
 describe("the code editor's focus edge", () => {
-  it("draws the accent on a control's own edge and Highlight under forced colours", () => {
+  const forced = EDITOR_THEME["@media (forced-colors: active)"] as Spec;
+  const forcedRuleFor = (selector: string): Spec => {
+    const key = Object.keys(forced).find((selectors) => selectors.split(/\s*,\s*/).includes(selector));
+    expect(key, `a forced-colours rule naming ${selector}`).toBeDefined();
+    return forced[key!] as Spec;
+  };
+
+  it("draws the accent on a button's own edge, and Highlight under forced colours", () => {
     expect(EDITOR_THEME["& button:focus-visible"]).toEqual({ outline: "1px solid var(--accent)", outlineOffset: "-1px" });
-    const forced = EDITOR_THEME["@media (forced-colors: active)"] as Spec;
-    expect(Object.values(forced).some((rule) => (rule as Spec)["outlineColor"] === "Highlight")).toBe(true);
+    expect(forcedRuleFor("button:focus-visible")["outlineColor"]).toBe("Highlight");
+  });
+
+  it("draws a find toggle's edge in the accent, and Highlight under forced colours", () => {
+    expect(EDITOR_THEME["& label:has(input[type='checkbox']:focus-visible)::before"]).toEqual({
+      outline: "1px solid var(--accent)",
+      outlineOffset: "-1px",
+    });
+    expect(forcedRuleFor("label:has(input[type='checkbox']:focus-visible)::before")["outlineColor"]).toBe("Highlight");
+  });
+
+  it("draws a field's edge as its border in the accent, and Highlight under forced colours in panels and tooltips", () => {
+    expect(((EDITOR_THEME["& .cm-textfield"] as Spec)["&:focus-visible"] as Spec)["borderColor"]).toBe("var(--accent)");
+    expect(forcedRuleFor(".cm-panels .cm-textfield:focus-visible")["borderColor"]).toBe("Highlight");
+    expect(forcedRuleFor(".cm-tooltip .cm-textfield:focus-visible")["borderColor"]).toBe("Highlight");
+  });
+});
+
+describe("the code editor's icons under forced colours", () => {
+  const css = readFileSync(resolve(__dirname, "../src/modules/script-editor/sparkdown-script-editor.css"), "utf8");
+  const block = css.slice(css.indexOf("@media (forced-colors: active)"), css.indexOf("@media (prefers-reduced-motion: reduce)"));
+
+  it.each([
+    ".cm-panel.cm-search button::after",
+    ".cm-panel.cm-search label::after",
+    ".cm-panel.cm-gotoLine button::after",
+    ".codicon::after",
+    ".cm-activeDiagnosticIcon",
+    ".cm-navLeftIcon",
+    ".cm-navRightIcon",
+    ".cm-problemsToggleIcon",
+    ".cm-toolbar-icon",
+    ".cm-menu-back-icon",
+    ".cm-menu-more-icon",
+    ".cm-fold-arrow",
+    ".cm-lsp-collapse-icon",
+  ])("keeps the masked icon %s painted in CanvasText", (selector) => {
+    expect(block).toContain(`.sparkdown-script-editor-root ${selector}`);
+    expect(block).toMatch(/forced-color-adjust: none;\s*background-color: CanvasText !important;/);
   });
 });
 
