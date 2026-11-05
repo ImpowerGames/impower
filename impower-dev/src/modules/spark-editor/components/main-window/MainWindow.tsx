@@ -37,7 +37,7 @@ function PaneContent({ pane }: { pane: PaneType }) {
 
 const STRIP_HEIGHT = {
   default: 280,
-  min: 160,
+  min: 200,
   collapsed: 48,
   reserve: 240,
 } as const;
