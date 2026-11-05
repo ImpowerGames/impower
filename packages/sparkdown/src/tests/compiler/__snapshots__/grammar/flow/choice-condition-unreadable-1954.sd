@@ -9,6 +9,8 @@ scene start
     * if a or b Then
     * if you dare, jump
     * if allowed () First
+    * (lbl)if allowed( Glued label
+    * if allowed(
     * Fallback
   end
 end

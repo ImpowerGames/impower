@@ -1487,8 +1487,17 @@ repository:
       - { include: "#ChoiceWithNoSuppressedText" }
     end: (?=$)
 
+  # lookaround: `ChoiceWithNoSuppressedText` owns the label line that follows
+  # a header whose begin read its condition and its newline; `\G` holds at the
+  # start of that line as well as at the end of the header, and only the
+  # character before tells them apart. Reordering cannot, since this rule must
+  # precede the text rules on the header line. Moving the shape into the
+  # begin as another alternative of its condition group lets the begin's
+  # optional newline group take the newline after a trailing `(`, making the
+  # next line, often the next choice, this choice's label. The `end:` is
+  # `(?=$)` and carries nothing here, and no variable sees the previous line.
   ChoiceUnreadableCondition:
-    match: \G(if)\b({{WS}}+)(?:(not)\b({{WS}}+))?({{LUAU_IDENTIFIER}}(?:[.:]{{LUAU_IDENTIFIER}})*[(\[])
+    match: \G(?<={{WS}}|[)])(if)\b({{WS}}+)(?:(not)\b({{WS}}+))?({{LUAU_IDENTIFIER}}(?:[.:]{{LUAU_IDENTIFIER}})*[(\[])
     captures:
       1:
         patterns:

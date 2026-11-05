@@ -43,6 +43,8 @@ describe("a choice condition that is clearly code but cannot be read is reported
     ["* if t:open( First", "t:open("],
     ["+ if allowed( First", "allowed("],
     ["* (lbl) if allowed( First", "allowed("],
+    ["* (lbl)if allowed( First", "allowed("],
+    ["* if allowed(", "allowed("],
   ];
   for (const [line, call] of cases) {
     it(line, () => {
@@ -57,6 +59,17 @@ describe("a choice condition that is clearly code but cannot be read is reported
         },
       ]);
       expect(menu).toEqual(["Fallback"]);
+    });
+  }
+});
+
+describe("a label on the line after a readable condition stays text (I-1954)", () => {
+  for (const indent of ["", "      "]) {
+    it(`indent ${JSON.stringify(indent)}`, () => {
+      const result = run(`* if has_key\n${indent}if allowed( First`);
+      expect(result.errors).toEqual([]);
+      expect(result.runErrors).toEqual([]);
+      expect(result.menu).toEqual(["if allowed( First", "Fallback"]);
     });
   }
 });

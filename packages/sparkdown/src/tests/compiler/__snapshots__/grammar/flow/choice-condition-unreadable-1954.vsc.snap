@@ -1,4 +1,4 @@
-text.source.sparkdown [0..288]
+text.source.sparkdown [0..341]
  ├─ keyword.control.scene.sd [0..5]: "scene"
  ├─ punctuation.whitespace.required.sd [5..6]: " "
  ├─ keyword.control.section.sd [6..11]: "start"
@@ -129,14 +129,36 @@ text.source.sparkdown [0..288]
  │       ├─ markup.raw.space.sd [256..257]: " "
  │       └─ markup.raw.text.sd [257..262]: "First"
  ├─ Newline [262..263]: "\n"
- ├─ entity.choice.sd [263..277]
+ ├─ entity.choice.sd [263..297]
  │   ├─ punctuation.whitespace.optional.sd [263..267]: "    "
  │   ├─ keyword.operator.expression.list.sd [267..269]: "* "
- │   └─ string.choice.sd [269..277]
- │       └─ markup.raw.text.sd [269..277]: "Fallback"
- ├─ Newline [277..278]: "\n"
- ├─ punctuation.whitespace.optional.sd [278..280]: "  "
- ├─ keyword.control.end.luau [280..283]: "end"
- ├─ Newline [283..284]: "\n"
- ├─ keyword.control.end.luau [284..287]: "end"
- └─ Newline [287..288]: "\n"
+ │   ├─ keyword.flow.label.sd [269..270]: "("
+ │   ├─ keyword.control.section.sd [270..273]: "lbl"
+ │   ├─ keyword.flow.label.sd [273..274]: ")"
+ │   ├─ keyword.control.if.luau [274..276]: "if"
+ │   ├─ punctuation.whitespace.optional.sd [276..277]: " "
+ │   ├─ invalid.illegal.choice-condition.sd [277..285]: "allowed("
+ │   └─ string.choice.sd [285..297]
+ │       ├─ markup.raw.space.sd [285..286]: " "
+ │       ├─ markup.raw.text.sd [286..291]: "Glued"
+ │       ├─ markup.raw.space.sd [291..292]: " "
+ │       └─ markup.raw.text.sd [292..297]: "label"
+ ├─ Newline [297..298]: "\n"
+ ├─ entity.choice.sd [298..315]
+ │   ├─ punctuation.whitespace.optional.sd [298..302]: "    "
+ │   ├─ keyword.operator.expression.list.sd [302..304]: "* "
+ │   ├─ keyword.control.if.luau [304..306]: "if"
+ │   ├─ punctuation.whitespace.optional.sd [306..307]: " "
+ │   └─ invalid.illegal.choice-condition.sd [307..315]: "allowed("
+ ├─ Newline [315..316]: "\n"
+ ├─ entity.choice.sd [316..330]
+ │   ├─ punctuation.whitespace.optional.sd [316..320]: "    "
+ │   ├─ keyword.operator.expression.list.sd [320..322]: "* "
+ │   └─ string.choice.sd [322..330]
+ │       └─ markup.raw.text.sd [322..330]: "Fallback"
+ ├─ Newline [330..331]: "\n"
+ ├─ punctuation.whitespace.optional.sd [331..333]: "  "
+ ├─ keyword.control.end.luau [333..336]: "end"
+ ├─ Newline [336..337]: "\n"
+ ├─ keyword.control.end.luau [337..340]: "end"
+ └─ Newline [340..341]: "\n"
