@@ -31,11 +31,7 @@ const servedPlayerHtml = async (): Promise<string> => {
     if (!hook || typeof hook === "function" || hook.order !== "pre") {
       continue;
     }
-    const result = await hook.handler.call(
-      {} as never,
-      html,
-      context,
-    );
+    const result = await hook.handler.call({} as never, html, context);
     if (typeof result !== "string") {
       throw new Error(`${plugin.name} returned tags; this test reads strings`);
     }
@@ -94,7 +90,9 @@ describe("the player's theme", () => {
       win,
     );
     const { r, g, b } = rgba(background, win);
-    expect((0.2126 * r! + 0.7152 * g! + 0.0722 * b!) / 255).toBeGreaterThan(0.8);
+    expect((0.2126 * r! + 0.7152 * g! + 0.0722 * b!) / 255).toBeGreaterThan(
+      0.8,
+    );
   });
 
   it("stays Midnight when its URL names none", async () => {
@@ -102,7 +100,9 @@ describe("the player's theme", () => {
       url: "http://localhost/",
       runScripts: "dangerously",
     });
-    expect(dom.window.document.documentElement.dataset["theme"]).toBeUndefined();
+    expect(
+      dom.window.document.documentElement.dataset["theme"],
+    ).toBeUndefined();
   });
 
   it("follows the editor's theme messages until it stops listening", () => {
@@ -122,4 +122,38 @@ describe("the player's theme", () => {
     );
     expect(root.dataset["theme"]).toBe("charcoal");
   });
+});
+
+describe("the player's fullscreen bar", () => {
+  const stylesheet = (path: string) => readFileSync(resolve(path), "utf8");
+  const CSS = [
+    stylesheet("../packages/impower-ui/src/theme.css"),
+    stylesheet("../packages/spark-web-player/src/spark-web-player.css"),
+    stylesheet("../sparkdown-player-app/src/style.css"),
+  ].join("\n");
+
+  for (const theme of ["chalk", "charcoal", "midnight"]) {
+    it(`keeps light ink on the black fullscreen gradient in ${theme}`, () => {
+      const dom = new JSDOM(
+        `<!doctype html><html data-theme="${theme}"><head><style>${CSS}</style></head><body><spark-web-player><div id="viewport" class="fullscreen"><div id="toolbar"><span id="ending-status">Story ran out</span></div></div></spark-web-player></body></html>`,
+      );
+      const win = dom.window as unknown as Window;
+      const host = win.document.querySelector("spark-web-player")!;
+      const toolbar = win.document.getElementById("toolbar")!;
+      const resolveVar = (value: string) =>
+        value.replace(/^var\((--[\w-]+)\)$/, (_, name: string) =>
+          win.getComputedStyle(host).getPropertyValue(name).trim(),
+        );
+      const toolbarStyle = win.getComputedStyle(toolbar);
+      expect(resolveVar(toolbarStyle.color)).toBe("#ffffffde");
+      expect(
+        resolveVar(toolbarStyle.getPropertyValue("--swp-toolbar-color").trim()),
+      ).toBe("#fff");
+      const chip = win.document.getElementById("ending-status")!;
+      expect(win.getComputedStyle(chip).backgroundColor).toBe(
+        "var(--swp-background-color)",
+      );
+      expect(win.getComputedStyle(chip).color).toMatch(/var\(--ink\)/);
+    });
+  }
 });

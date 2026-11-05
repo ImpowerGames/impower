@@ -1084,9 +1084,10 @@ describe("The game preview's player bar", () => {
 
   it("asks the player for its skip and step buttons", async () => {
     const { iframe } = await mount();
-    const query = new URLSearchParams(iframe.getAttribute("src")!.split("?")[1]);
-    expect(query.has("skip-buttons")).toBe(true);
-    expect(query.has("step-buttons")).toBe(true);
+    const src = new URL(iframe.getAttribute("src")!, "http://editor.test/");
+    expect(src.searchParams.has("skip-buttons")).toBe(true);
+    expect(src.searchParams.has("step-buttons")).toBe(true);
+    expect(src.hash).toMatch(/^#theme=/);
   }, 30000);
 
   it("answers the bar's skip by moving the caret to the language server's next beat", async () => {

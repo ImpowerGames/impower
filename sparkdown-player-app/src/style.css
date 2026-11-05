@@ -29,3 +29,8 @@ body {
 spark-web-player {
   height: 100vh;
 }
+
+spark-web-player .fullscreen #ending-status:not([data-kind="error"]),
+spark-web-player .fullscreen #completion-status {
+  color: color-mix(in srgb, var(--ink) 69.6%, transparent);
+}
