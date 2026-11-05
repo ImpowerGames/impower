@@ -15,7 +15,7 @@ const { default: workspace } =
   await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 const { default: WorkspaceWindow } =
   await import("../../src/modules/spark-editor/workspace/WorkspaceWindow");
-const { SyncConflictDialog, SyncStatusLine } =
+const { SyncButton, SyncConflictDialog, SyncStatusLine } =
   await import("../../src/modules/spark-editor/components/drive-sync");
 
 const fakeWorkspace = {
@@ -27,6 +27,7 @@ const win = new WorkspaceWindow(fakeWorkspace);
 current.window = win;
 const push = vi.spyOn(win, "resolveConflictWithPush").mockResolvedValue();
 const pull = vi.spyOn(win, "resolveConflictWithPull").mockResolvedValue();
+const sync = vi.spyOn(win, "syncProject").mockResolvedValue();
 
 const setStatus = (status: "sync_conflict" | "syncing" | "synced") =>
   act(() => {
@@ -60,7 +61,13 @@ const mount = async () => {
   hosts.push(host);
   await act(async () => {
     render(
-      h("div", null, h(SyncStatusLine, null), h(SyncConflictDialog, null)),
+      h(
+        "div",
+        null,
+        h(SyncStatusLine, null),
+        h(SyncButton, null),
+        h(SyncConflictDialog, null),
+      ),
       host,
     );
   });
@@ -70,6 +77,7 @@ const mount = async () => {
 beforeEach(async () => {
   push.mockClear();
   pull.mockClear();
+  sync.mockClear();
   await setStatus("synced");
   workspace.syncConflictOpen.value = false;
 });
@@ -122,6 +130,24 @@ describe("the sync conflict dialog", () => {
     await act(async () => caption.click());
     await settle();
     expect(dialog()).not.toBeNull();
+  });
+
+  it("reopens from the sync button while the conflict stands, without syncing", async () => {
+    const host = await mount();
+    await setStatus("sync_conflict");
+    await settle();
+    await act(async () => button("Cancel")!.click());
+    await settle(250);
+    expect(dialog()).toBeNull();
+
+    const resolve = host.querySelector<HTMLButtonElement>(
+      'button[aria-label="Resolve sync conflict"]',
+    )!;
+    expect(host.querySelector('button[aria-label="Sync now"]')).toBeNull();
+    await act(async () => resolve.click());
+    await settle();
+    expect(dialog()).not.toBeNull();
+    expect(sync).not.toHaveBeenCalled();
   });
 
   it("closes on Escape without resolving", async () => {

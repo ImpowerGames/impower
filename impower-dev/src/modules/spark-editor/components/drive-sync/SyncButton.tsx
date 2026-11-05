@@ -1,4 +1,9 @@
-import { Button, CloudIcon, RefreshIcon } from "@impower/impower-ui/components";
+import {
+  Button,
+  CloudIcon,
+  RefreshIcon,
+  WarningIcon,
+} from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
@@ -16,6 +21,24 @@ export default function SyncButton() {
 
   const onDrive =
     !!projectId && projectId !== WorkspaceConstants.LOCAL_PROJECT_ID;
+
+  if (onDrive && syncStatus === "sync_conflict") {
+    return (
+      <Button
+        variant="quiet"
+        size="icon"
+        class="text-warning"
+        aria-label="Resolve sync conflict"
+        title="Resolve sync conflict"
+        onClick={async () => {
+          const { Workspace } = await import("../../workspace/Workspace");
+          Workspace.window.openSyncConflict();
+        }}
+      >
+        <WarningIcon />
+      </Button>
+    );
+  }
 
   if (onDrive) {
     const busy = BUSY.has(syncStatus);
