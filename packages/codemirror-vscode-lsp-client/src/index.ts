@@ -55,7 +55,7 @@ export {
 } from "./folding";
 export { formatDocument, formatKeymap, serverFormatting } from "./formatting";
 export { documentHighlights, serverDocumentHighlights } from "./highlights";
-export { hoverPreviews, lspTooltipSource, serverHovers } from "./hover";
+export { hoverPreviews, serverHovers } from "./hover";
 export {
   convertFromServerCodeLens,
   serverCodeLenses,

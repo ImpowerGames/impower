@@ -61,7 +61,7 @@ function hoverRequest(plugin: LSPPlugin, pos: number) {
   });
 }
 
-export function lspTooltipSource(
+function lspTooltipSource(
   view: EditorView,
   pos: number,
 ): Promise<Tooltip | null> {

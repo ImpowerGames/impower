@@ -4,7 +4,6 @@ import {
   documentHighlights,
   hoverPreviews,
   LSPClient,
-  lspTooltipSource,
   serverAutoSync,
   serverColorDecorations,
   serverDocumentHighlights,
@@ -130,24 +129,34 @@ describe("Highlight matching symbols", () => {
 describe("Hover previews", () => {
   const hover = async (enabled: boolean, value: string) => {
     const { server, view } = await mount(DOC, [hoverPreviews.of(enabled)]);
-    const pending = lspTooltipSource(view, 2);
-    await settle();
+    const at = 2;
+    view.posAtCoords = (() => at) as EditorView["posAtCoords"];
+    view.coordsAtPos = () => ({ left: 0, right: 10, top: 0, bottom: 10 });
+    const target = view.contentDOM.querySelector(".cm-line")!;
+    target.dispatchEvent(
+      new MouseEvent("mousemove", { bubbles: true, clientX: 5, clientY: 5 }),
+    );
+    for (let i = 0; i < 20 && !server.pending("textDocument/hover").length; i++) {
+      await settle(25);
+    }
     const [request] = server.pending("textDocument/hover");
     expect(request).toBeTruthy();
     server.answer(request!, { contents: { kind: "markdown", value } });
-    return pending;
+    await settle(50);
+    return view.dom.querySelector(".cm-tooltip-hover");
   };
 
   const PICTURE = "![MAYA](data:image/png;base64,iVBORw0KGgo=)";
 
   it("keeps a picture's popup closed while turned off", async () => {
     expect(await hover(false, PICTURE)).toBeNull();
-    expect(await hover(true, PICTURE)).not.toBeNull();
+    const shown = await hover(true, PICTURE);
+    expect(shown?.querySelector("img")).toBeTruthy();
   });
 
   it("shows a popup without a picture either way", async () => {
-    expect(await hover(false, "A scene.")).not.toBeNull();
-    expect(await hover(true, "A scene.")).not.toBeNull();
+    expect((await hover(false, "A scene."))?.textContent).toContain("A scene.");
+    expect((await hover(true, "A scene."))?.textContent).toContain("A scene.");
   });
 });
 

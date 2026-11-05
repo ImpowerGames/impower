@@ -279,6 +279,34 @@ describe("each appearance option toggles its rendering", () => {
     expect(facets()).toEqual({ highlights: true, hovers: true, close: true });
   });
 
+  it("Auto-close brackets closes a typed bracket only while turned on", () => {
+    const type = (text: string) => {
+      const { from, to } = view!.state.selection.main;
+      const insert = () =>
+        view!.state.update({
+          changes: { from, to, insert: text },
+          selection: { anchor: from + text.length },
+        });
+      const handled = view!.state
+        .facet(EditorView.inputHandler)
+        .some((handler) => handler(view!, from, to, text, insert));
+      if (!handled) view!.dispatch(insert());
+    };
+    mount(ALL_OFF_APPEARANCE, "scene a\n  \nend");
+    const at = view!.state.doc.line(2).to;
+    view!.dispatch({ selection: { anchor: at } });
+    type("(");
+    expect(view!.state.doc.line(2).text).toBe("  (");
+
+    toggle(ALL_OFF_APPEARANCE, { autoCloseBrackets: true });
+    view!.dispatch({
+      changes: { from: at, to: at + 1 },
+      selection: { anchor: at },
+    });
+    type("(");
+    expect(view!.state.doc.line(2).text).toBe("  ()");
+  });
+
   it("reconfigures only the options that changed", () => {
     mount(ALL_ON_APPEARANCE);
     let dispatched = 0;
