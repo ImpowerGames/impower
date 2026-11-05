@@ -237,11 +237,11 @@ describe("an incremental parse restores the `\\G` anchor (I-1813)", () => {
   };
 
   test("matches a cold parse for a second edit inside the block", () => {
-    const first = insert(TEXT, BLOCK + 4, parser.parse(TEXT));
     const restore = vi.spyOn(ResumableTokenizer.prototype, "restore");
     const mismatches: number[] = [];
     try {
-      for (let at = BLOCK + 90; at < first.next.length; at += 7) {
+      for (let at = BLOCK + 90; at <= TEXT.length; at += 7) {
+        const first = insert(TEXT, BLOCK + 4, parser.parse(TEXT));
         const second = insert(first.next, at, first.tree);
         if (printTree(second.tree, second.next) !== printTree(parser.parse(second.next), second.next)) {
           mismatches.push(at);
