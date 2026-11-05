@@ -7,8 +7,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { hitArea } from "../../../test/hitArea";
 import Button, { buttonVariants, type ButtonSize, type ButtonVariant } from "./Button";
 
-const VARIANTS = ["default", "primary", "quiet", "destructive"] as const satisfies readonly ButtonVariant[];
-const SIZES = ["default", "icon", "compact", "pill"] as const satisfies readonly ButtonSize[];
+const VARIANTS = ["default", "primary", "quiet", "destructive", "disclosure"] as const satisfies readonly ButtonVariant[];
+const SIZES = ["default", "icon", "compact", "glyph", "pill"] as const satisfies readonly ButtonSize[];
 
 const mount = async (node: ComponentChild): Promise<HTMLDivElement> => {
   const host = document.body.appendChild(document.createElement("div"));
@@ -43,6 +43,15 @@ describe("Button kinds", () => {
       expect(area.height).toBeGreaterThanOrEqual(44);
     },
   );
+
+  it("turns a disclosure glyph and takes the accent only while pressed, gating the turn on motion", async () => {
+    const classes = buttonVariants({ variant: "disclosure", size: "glyph" });
+    expect(classes).toContain("aria-pressed:[&_svg]:rotate-180");
+    expect(classes).toContain("aria-pressed:text-accent");
+    expect(classes).toContain("[&_svg]:motion-safe:transition-transform");
+    const css = await packageCss(classes.split(/\s+/));
+    expect(css).toMatch(/prefers-reduced-motion: no-preference[\s\S]*transition-property: transform/);
+  });
 
   it("draws every kind with the one control radius except the phone pill", () => {
     for (const variant of VARIANTS) {

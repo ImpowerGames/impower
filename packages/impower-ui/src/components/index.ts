@@ -77,6 +77,7 @@ export {
 export {
   default as SplitPane,
   type SplitPaneProps,
+  type SplitPanePinned,
 } from "./split-pane/SplitPane";
 export {
   default as Toast,

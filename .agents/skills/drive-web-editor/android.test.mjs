@@ -242,8 +242,8 @@ await check("ui runs a not-built step as a failure naming its ticket, keeps goin
   const page = stubPage();
   const { deps } = uiDeps(page, null);
   const shot = path.join(scratch, "page.png");
-  const result = await ui(["--step", "focus-script-name", "--step", "settings=appearance", "--shot", shot], deps);
-  assert.deepEqual(result.steps[0], { step: "focus-script-name", ran: false, reason: `not built yet: --step focus-script-name (focus the script name) gets its body when ${TICKETS}#999 builds the surface` });
+  const result = await ui(["--step", "add-menu", "--step", "settings=appearance", "--shot", shot], deps);
+  assert.deepEqual(result.steps[0], { step: "add-menu", ran: false, reason: `not built yet: --step add-menu (open the Add menu) gets its body when ${TICKETS}#1013 builds the surface` });
   assert.deepEqual(result.steps[1], { step: "settings", section: "appearance", ran: false, reason: `not built yet: --step settings (open Settings and a named section) gets its body when ${TICKETS}#1015 builds the surface` });
   assert.deepEqual(result.steps[2], { of: "page", screenshot: shot });
   assert.deepEqual(page.shots, [shot]);
@@ -261,7 +261,6 @@ await check("every step not built yet runs through ui as a failure naming the ti
     "preview-settings": ["open the preview's settings menu", 1020],
     problems: ["open the Problems panel", 1022],
     "settings=appearance": ["open Settings and a named section", 1015],
-    "focus-script-name": ["focus the script name", 999],
   };
   for (const [spec, [does, ticket]] of Object.entries(expected)) {
     const name = spec.split("=")[0];
@@ -275,8 +274,8 @@ await check("every step not built yet runs through ui as a failure naming the ti
     assert.equal(process.exitCode, 1, spec);
     process.exitCode = 0;
   }
-  assert.deepEqual(Object.keys(NAMED_STEPS).filter((name) => !Object.keys(expected).some((spec) => spec.split("=")[0] === name)), ["drawer", "file-menu", "play", "focus-project-name"]);
-  for (const name of ["drawer", "file-menu", "play", "focus-project-name"]) assert.equal(notBuiltYet(parseNamedStep(name)), null, name);
+  assert.deepEqual(Object.keys(NAMED_STEPS).filter((name) => !Object.keys(expected).some((spec) => spec.split("=")[0] === name)), ["drawer", "file-menu", "play", "focus-project-name", "focus-script-name"]);
+  for (const name of ["drawer", "file-menu", "play", "focus-project-name", "focus-script-name"]) assert.equal(notBuiltYet(parseNamedStep(name)), null, name);
 });
 
 await check("on a device, ui reports the device, sends gestures through it and takes --shot as the whole screen", async () => {

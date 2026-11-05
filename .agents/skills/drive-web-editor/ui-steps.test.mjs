@@ -8,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { focusProjectName, openDrawerOrRail, openFileMenu, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { focusProjectName, focusScriptName, openDrawerOrRail, openFileMenu, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, pressInEditor, playPreview, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 
 let failures = 0;
@@ -961,6 +961,16 @@ await asyncCheck("--step file-menu fails by name when the Scripts page, a row me
   assert.deepEqual(await openFileMenu(noRows, { timeout: 2000 }), { step: "file-menu", ran: false, reason: "no row menu button (Options for …) on the Scripts page within 2 s" });
   const stuck = scriptsPageStub({ menuOpens: false });
   assert.deepEqual(await openFileMenu(stuck, { timeout: 1000 }), { step: "file-menu", ran: false, row: "Definitions", reason: "the menu for Definitions did not open within 1 s of pressing Options for Definitions" });
+});
+
+await asyncCheck("--step focus-script-name clicks the open script's name field, or says Main's name is fixed", async () => {
+  const selectors = [];
+  const field = (state) => ({ waitFor: async () => {}, click: async () => {}, evaluate: async () => state });
+  const page = (state) => ({ locator: (selector) => (selectors.push(selector), { first: () => field(state) }) });
+  assert.deepEqual(await focusScriptName(page({ focused: true, selected: true, value: "intro" })), { step: "focus-script-name", ran: true, value: "intro", selected: true });
+  assert.deepEqual(selectors, ["input[data-script-name]"]);
+  const missing = { locator: () => ({ first: () => ({ waitFor: async () => { throw new Error("timeout"); } }) }) };
+  assert.match((await focusScriptName(missing, { timeout: 2000 })).reason, /no script name .*Main's name is fixed.* within 2 s/);
 });
 
 if (failures > 0) {

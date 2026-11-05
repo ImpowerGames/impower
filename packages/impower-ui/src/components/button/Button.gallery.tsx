@@ -1,6 +1,7 @@
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import {
   CheckIcon,
+  ChevronLeftIcon,
   CloseIcon,
   DownloadIcon,
   PencilIcon,
@@ -13,12 +14,14 @@ const VARIANTS: Record<ButtonVariant, string> = {
   primary: "Primary",
   quiet: "Quiet",
   destructive: "Destructive",
+  disclosure: "Disclosure",
 };
 
 const SIZES: Record<ButtonSize, string> = {
   default: "Text button",
   icon: "Icon button",
   compact: "Compact text button",
+  glyph: "Small glyph button",
   pill: "Phone pill",
 };
 
@@ -34,7 +37,7 @@ function Cell({
   size: ButtonSize;
   disabled?: boolean;
 }) {
-  if (size === "icon") {
+  if (size === "icon" || size === "glyph") {
     return (
       <Button
         variant={variant}
@@ -43,7 +46,7 @@ function Cell({
         aria-label={`${VARIANTS[variant]} ${SIZES[size]}`}
         data-gallery-control
       >
-        <PlusIcon />
+        {size === "glyph" ? <ChevronLeftIcon /> : <PlusIcon />}
       </Button>
     );
   }
@@ -99,6 +102,16 @@ function ButtonDemo() {
           </Button>
           <Button variant="quiet" size="icon" aria-label="Close">
             <CloseIcon />
+          </Button>
+        </div>
+      </GalleryRow>
+      <GalleryRow label="A disclosure toggle, released and pressed">
+        <div class="flex flex-wrap items-center gap-2">
+          <Button variant="disclosure" size="glyph" aria-label="Show line numbers" aria-pressed={false}>
+            <ChevronLeftIcon />
+          </Button>
+          <Button variant="disclosure" size="glyph" aria-label="Hide line numbers" aria-pressed={true}>
+            <ChevronLeftIcon />
           </Button>
         </div>
       </GalleryRow>

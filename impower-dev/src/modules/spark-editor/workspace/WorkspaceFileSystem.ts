@@ -172,7 +172,7 @@ export default class WorkspaceFileSystem {
     });
     const mainScriptUri = this.getFileUri(projectId, "main.sd");
     if (
-      !files.some((f) => f.name === "main" && f.ext === "sd") &&
+      !files.some((f) => f.uri === mainScriptUri) &&
       !this._files[mainScriptUri]
     ) {
       this._files ??= {};

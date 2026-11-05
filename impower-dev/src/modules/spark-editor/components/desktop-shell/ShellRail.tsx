@@ -25,7 +25,7 @@ export default function ShellRail() {
     >
       <nav
         aria-label="Story, Assets and Share"
-        class="flex-none border-b border-edge px-[14px] pt-[22px] pb-5 group-data-[sidebar=collapsed]/sidebar:px-1.5 group-data-[sidebar=collapsed]/sidebar:pt-3.5"
+        class="flex-none border-b border-edge px-[14px] pt-[22px] pb-5 in-data-[layout=compact]:px-[10px] in-data-[layout=compact]:pt-4 group-data-[sidebar=collapsed]/sidebar:px-1.5 group-data-[sidebar=collapsed]/sidebar:pt-3.5"
       >
         <Tabs
           value={pane}
