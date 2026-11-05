@@ -5,6 +5,13 @@ style card {
   @has(button {
     color = red
   }
+  @has(@has(icon) {
+    color = green
+  }
+  @theme(dark
+  ) {
+    color = gray
+  }
   @theme(dark) {
     color = black
   }

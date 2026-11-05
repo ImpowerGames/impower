@@ -47,6 +47,14 @@ describe("unclosed selector function parameter list", () => {
     ).toContain(`1:6-7 ${MISSING}`);
   });
 
+  test("reports the unclosed outer list of a nested selector", () => {
+    const diagnostics = diagnose(
+      "style card {\n  @has(@has(icon) {\n    color = red\n  }\n}\n",
+    );
+    expect(diagnostics).toContain(`1:6-7 ${MISSING}`);
+    expect(diagnostics.filter((d) => d.includes(MISSING))).toHaveLength(1);
+  });
+
   test("closed selector functions report nothing", () => {
     const diagnostics = diagnose(
       "style card {\n  @theme(dark) {\n    color = white\n  }\n  @has(button) {\n    color = red\n  }\n  @has(@has(icon)) {\n    color = blue\n  }\n}\n",
