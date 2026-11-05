@@ -460,9 +460,16 @@ export class GamePlayerController {
 
   protected _protocols = new ProtocolObserver(profileMessageHandling);
 
-  constructor(host: HTMLElement, refs: GamePlayerRefs) {
+  protected readonly _resizable: boolean;
+
+  constructor(
+    host: HTMLElement,
+    refs: GamePlayerRefs,
+    options: { resizable?: boolean } = {},
+  ) {
     this.host = host;
     this.refs = refs;
+    this._resizable = options.resizable ?? true;
   }
 
   setup(): void {
@@ -478,18 +485,20 @@ export class GamePlayerController {
     window.addEventListener("pointerdown", this.handleUserInteraction, true);
     window.addEventListener("keydown", this.handleUserInteraction, true);
     this.refs.playButton?.addEventListener("click", this.handleClickPlayButton);
-    this.refs.toolbar?.addEventListener(
-      "pointerdown",
-      this.handlePointerDownToolbar,
-    );
-    this.refs.toolbar?.addEventListener(
-      "pointermove",
-      this.handlePointerMoveToolbar,
-    );
-    this.refs.toolbar?.addEventListener(
-      "pointerup",
-      this.handlePointerUpToolbar,
-    );
+    if (this._resizable) {
+      this.refs.toolbar?.addEventListener(
+        "pointerdown",
+        this.handlePointerDownToolbar,
+      );
+      this.refs.toolbar?.addEventListener(
+        "pointermove",
+        this.handlePointerMoveToolbar,
+      );
+      this.refs.toolbar?.addEventListener(
+        "pointerup",
+        this.handlePointerUpToolbar,
+      );
+    }
     this._gameResizeObserver = new ResizeObserver(this.handleResize);
     this._gameResizeObserver.observe(this.refs.game);
     this._gameResizeObserver.observe(this.refs.viewport);

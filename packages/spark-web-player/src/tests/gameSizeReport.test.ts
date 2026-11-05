@@ -23,7 +23,7 @@ const sized = (element: HTMLElement, size: () => { width: number; height: number
   Object.defineProperty(element, "offsetHeight", { get: () => size().height });
 };
 
-const mount = () => {
+const mount = (options?: { resizable?: boolean }) => {
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -61,7 +61,7 @@ const mount = () => {
       reports.push(message.params);
     }
   });
-  const controller = new GamePlayerController(host, { viewport, game, toolbar } as any);
+  const controller = new GamePlayerController(host, { viewport, game, toolbar } as any, options);
   controller.setup();
   const resize = (...changed: Element[]) =>
     observers
@@ -157,6 +157,33 @@ it("snaps a drag that starts from a ratio fit against the width the game takes o
     drag("pointermove", 340);
     drag("pointerup", 340);
     expect(reports.at(-1)).toEqual({ width: 800, height: 343, aspectRatio: "21:9", fit: "height" });
+  } finally {
+    controller.dispose();
+    host.remove();
+  }
+});
+
+it("leaves the game's size alone when the toolbar is dragged in a host that owns the display", async () => {
+  const { host, toolbar, reports, controller } = mount({ resizable: false });
+  try {
+    const request = ResizeGameMessage.type.request({ aspectRatio: "9:16" });
+    const answered = new Promise<void>((resolve) => {
+      host.addEventListener(MessageProtocol.event, (event) => {
+        if (ResizeGameMessage.type.isResponse((event as CustomEvent).detail, request.id)) {
+          resolve();
+        }
+      });
+    });
+    sendProtocolMessage(request);
+    await answered;
+    const fitted = reports.at(-1);
+    expect(fitted).toMatchObject({ width: 337.5, height: 600, fit: "ratio" });
+    const drag = (type: string, clientY: number) =>
+      toolbar.dispatchEvent(new MouseEvent(type, { clientY, bubbles: true }));
+    drag("pointerdown", 600);
+    drag("pointermove", 340);
+    drag("pointerup", 340);
+    expect(reports.at(-1)).toEqual(fitted);
   } finally {
     controller.dispose();
     host.remove();
