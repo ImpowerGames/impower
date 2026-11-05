@@ -10,7 +10,7 @@ const shownFrame = (h: any) => {
   const copy = h.overlay.cloneNode(true) as HTMLElement;
   copy.querySelectorAll("style").forEach((style) => style.remove());
   const indicator = h.overlay.querySelector(".continue_indicator") as HTMLElement | null;
-  const badge = h.refs.endingStatus as HTMLElement;
+  const badge = h.bar("#ending-status");
   return {
     text: copy.textContent ?? "",
     indicatorHidden: indicator?.style.display === "none",
@@ -29,8 +29,6 @@ const playFrom = async (source: string, line: number) => {
   const win = doc.defaultView as any;
   win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
   h.refs.toolbar = doc.createElement("div");
-  h.refs.endingStatus = doc.createElement("span");
-  h.refs.endingStatus.hidden = true;
   await h.compile();
   await h.select(line);
   await settle(40);

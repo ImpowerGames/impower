@@ -22,8 +22,6 @@ const start = async (source: string, line: number, host: Host = "editor") => {
   win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
   if (host === "editor") {
     h.refs.toolbar = doc.createElement("div");
-    h.refs.endingStatus = doc.createElement("span");
-    h.refs.endingStatus.hidden = true;
   } else {
     h.refs.playButton = doc.createElement("div");
     h.refs.playButton.getAnimations = () => [];
@@ -84,16 +82,16 @@ describe("PLAY in the worker reaching the end of the story", () => {
         expect(sent(h, "game/exited")).toEqual([]);
         expect(h.controller.playing).toBe(true);
         expect(h.workerState.gameState.running).toBeTruthy();
-        expect(h.refs.endingStatus.hidden).toBe(false);
-        expect(h.refs.endingStatus.textContent).toBe(badge);
-        expect(h.refs.endingStatus.getAttribute("kind")).toBe(kind);
+        expect(h.bar("#ending-status").hidden).toBe(false);
+        expect(h.bar("#ending-status").textContent).toBe(badge);
+        expect(h.bar("#ending-status").getAttribute("data-kind")).toBe(kind);
         if (kind === "out") {
-          expect(h.refs.endingStatus.title).toMatch(
+          expect(h.bar("#ending-status").title).toMatch(
             /^Nothing runs after line \d+\. End the story with fin to show the ending screen\.$/,
           );
         }
         if (kind === "error") {
-          expect(h.refs.endingStatus.title).toMatch(/boom.*\(line 4\)$/);
+          expect(h.bar("#ending-status").title).toMatch(/boom.*\(line 4\)$/);
         }
         await click(h);
         expect(sent(h, "game/ended")).toHaveLength(1);
@@ -114,7 +112,7 @@ describe("PLAY in the worker reaching the end of the story", () => {
           expect.objectContaining({ kind: "fin" }),
         ]);
         expect(launchStates(h).at(-1)).toBe("ended");
-        expect(h.refs.endingStatus.textContent).toBe("End of story");
+        expect(h.bar("#ending-status").textContent).toBe("End of story");
         expect(sent(h, "game/exited")).toEqual([]);
       } finally {
         await h.controller.destroyGameAndApp();
@@ -167,14 +165,14 @@ describe("PLAY in the worker reaching the end of the story", () => {
     const { h } = await start(RAN_OUT, HELLO);
     try {
       await click(h);
-      expect(h.refs.endingStatus.hidden).toBe(false);
+      expect(h.bar("#ending-status").hidden).toBe(false);
       await h.select(1);
       await settle(20);
       expect(await h.controller.startGameAndApp()).toBe(true);
       await settle(40);
       expect(launchStates(h).at(-1)).toBe("play");
-      expect(h.refs.endingStatus.hidden).toBe(true);
-      expect(h.refs.endingStatus.textContent).toBe("");
+      expect(h.bar("#ending-status").hidden).toBe(true);
+      expect(h.bar("#ending-status").textContent).toBe("");
     } finally {
       await h.controller.destroyGameAndApp();
       h.dispose();
@@ -197,7 +195,7 @@ describe("PLAY in the worker reaching the end of the story", () => {
         { file: MAIN_URI, line: HELLO },
       ]);
       expect(launchStates(h).at(-1)).toBe("play");
-      expect(h.refs.endingStatus.hidden).toBe(true);
+      expect(h.bar("#ending-status").hidden).toBe(true);
       const text = writtenText(h.toRouter.slice(before));
       expect(text).toContain("Hello.");
       expect(text).not.toContain("First.");
@@ -224,8 +222,8 @@ describe("PLAY in the worker reaching the end of the story", () => {
       ]);
       expect(launchStates(h).at(-1)).toBe("preview");
       expect(h.controller.playing).toBe(false);
-      expect(h.refs.endingStatus.hidden).toBe(false);
-      expect(h.refs.endingStatus.textContent).toBe("Story ran out");
+      expect(h.bar("#ending-status").hidden).toBe(false);
+      expect(h.bar("#ending-status").textContent).toBe("Story ran out");
       expect(h.workspace.selections.map((s: any) => s.selectedRange.start.line)).toEqual([
         ended.location.range.start.line,
       ]);

@@ -3,6 +3,7 @@ import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/Me
 import { SetRouteTogglesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetRouteTogglesMessage";
 import type { PreviewRoute } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
 import { GamePlayerController } from "../GamePlayerController";
+import { mountPlayerBar } from "./playerBarHarness";
 import { SIMULATION_FAILURE_MESSAGES } from "../utils/describeSimulationFailure";
 
 const URI = "file://proj/main.sd";
@@ -30,12 +31,9 @@ const controllers: GamePlayerController[] = [];
 function player() {
   const host = document.createElement("div");
   const viewport = document.createElement("div");
-  const leftItems = document.createElement("div");
-  const locationItems = document.createElement("div");
   const routeButton = document.createElement("div");
   const routeList = document.createElement("div");
-  leftItems.append(routeButton, locationItems);
-  viewport.append(leftItems, routeList);
+  viewport.append(routeButton, routeList);
   host.append(viewport);
   document.body.append(host);
   const sent: any[] = [];
@@ -44,18 +42,13 @@ function player() {
   });
   const controller = new GamePlayerController(host, {
     viewport,
-    leftItems,
-    locationItems,
-    launchLabel: document.createElement("span"),
-    connectionLabel: document.createElement("span"),
-    executedLabel: document.createElement("span"),
-    executionInfo: document.createElement("div"),
     routeButton,
     routeList,
   } as any);
   (controller as any)._workerGame = {};
   (controller as any)._options = { workspace: "file://proj" };
   controllers.push(controller);
+  const bar = mountPlayerBar(controller);
   const report = (extra: Record<string, unknown>) =>
     (controller as any).updateExecutionLabels({
       conditions: [],
@@ -83,7 +76,7 @@ function player() {
     viewport,
     routeButton,
     routeList,
-    locationItems,
+    bar,
     sent,
     report,
     button,
@@ -108,8 +101,8 @@ describe("the route button", () => {
   test("names the scene, its first line and the target line, with the detour for a forced branch", () => {
     const p = player();
     p.report({ route: exampleRoute() });
-    expect(p.routeButton.hidden).toBe(false);
-    expect(p.locationItems.hidden).toBe(true);
+    expect(p.bar("#route-button").hidden).toBe(false);
+    expect(p.bar("#location-items").hidden).toBe(true);
     expect(p.button()!.textContent).toBe("interrogation (4 → 21)");
     const icons = [...p.button()!.querySelectorAll(".route-icon")];
     expect(icons.map((i) => i.getAttribute("data-icon"))).toEqual(["forced"]);

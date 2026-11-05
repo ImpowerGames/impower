@@ -25,7 +25,7 @@ const previewAt = async (line: number, values?: StartingValues) => {
     files: [{ uri: MAIN_URI, text: ENTERED }],
     startFrom: { file: MAIN_URI, line },
   });
-  h.refs.routeButton = h.refs.leftItems.ownerDocument.createElement("div");
+  h.refs.routeButton = h.overlay.ownerDocument.createElement("div");
   await h.compile();
   if (values) {
     await (h.controller as any).applyStartingValues(values);

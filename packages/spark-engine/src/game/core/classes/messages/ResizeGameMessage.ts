@@ -4,9 +4,15 @@ import type { ResponseMessage } from "@impower/jsonrpc/src/common/types/Response
 
 export type ResizeGameMethod = typeof ResizeGameMessage.method;
 
-export interface ResizeGameParams {
-  height: number;
-}
+export const GAME_ASPECT_RATIOS = ["16:9", "4:3", "1:1", "3:4", "9:16"] as const;
+
+export type GameAspectRatio = (typeof GAME_ASPECT_RATIOS)[number];
+
+export type GameFit = "auto" | "ratio" | "height";
+
+export type ResizeGameParams =
+  | { height: number; aspectRatio?: never }
+  | { aspectRatio: GameAspectRatio | "auto"; height?: never };
 
 export interface ResizeGameResult {}
 

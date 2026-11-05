@@ -37,8 +37,8 @@ describe("after PLAY and STOP", () => {
         return {
           game: h.controller._workerGame != null,
           dom: h.snapshotDOM(),
-          executed: h.refs.executedLabel.textContent,
-          location: h.refs.locationItems.textContent,
+          executed: h.bar("#executed-label").textContent,
+          location: h.bar("#location-items").textContent,
         };
       } finally {
         h.dispose();

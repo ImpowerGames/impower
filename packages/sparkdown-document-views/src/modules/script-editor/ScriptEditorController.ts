@@ -391,7 +391,7 @@ export class ScriptEditorController {
     const scrollIntoView = params.scrollIntoView;
     const takeFocus = params.takeFocus;
     if (textDocument.uri === this._textDocument?.uri) {
-      this.selectRange(range, scrollIntoView ?? false, takeFocus);
+      this.selectRange(range, scrollIntoView ?? false, takeFocus, params.userEvent);
     }
   };
 
@@ -1091,6 +1091,7 @@ export class ScriptEditorController {
     range: Range,
     scrollIntoView: "nearest" | "start" | "end" | "center" | false,
     takeFocus?: boolean,
+    userEvent?: boolean,
   ) {
     const view = this._view;
     if (view) {
@@ -1110,6 +1111,7 @@ export class ScriptEditorController {
           : EditorView.scrollIntoView(EditorSelection.range(anchor, head), {
               y: scrollIntoView,
             }),
+        userEvent: userEvent ? "select" : undefined,
       });
     }
   }

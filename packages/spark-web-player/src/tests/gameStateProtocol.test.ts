@@ -15,7 +15,6 @@ it("reports mounted, loaded, paused and disposed states from the player lifecycl
   document.body.append(host);
   const refs: any = { game: host, viewport: host };
   const controller: any = new GamePlayerController(host, refs);
-  controller.updateSizeAndAspectRatioDisplay = () => {};
   expect(controller.getGameState().mounted).toBe(false);
   controller.setup();
   try {

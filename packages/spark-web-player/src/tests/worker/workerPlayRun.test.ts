@@ -30,8 +30,6 @@ const start = async () => {
   const win = doc.defaultView as any;
   win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
   h.refs.toolbar = doc.createElement("div");
-  h.refs.endingStatus = doc.createElement("span");
-  h.refs.endingStatus.hidden = true;
   await h.compile();
   await h.select(HELLO);
   await settle(40);

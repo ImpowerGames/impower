@@ -45,7 +45,10 @@ import { GameEndedMessage } from "@impower/spark-engine/src/game/core/classes/me
 import { GameHitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameHitBreakpointMessage";
 import { GamePreviewedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GamePreviewedMessage";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
-import { GameResizedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameResizedMessage";
+import {
+  GameResizedMessage,
+  type GameResizedParams,
+} from "@impower/spark-engine/src/game/core/classes/messages/GameResizedMessage";
 import { GameStartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage";
 import { GameStartedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedThreadMessage";
 import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
@@ -57,7 +60,21 @@ import { GetGameStackTraceMessage } from "@impower/spark-engine/src/game/core/cl
 import { GetGameThreadsMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameThreadsMessage";
 import { GetGameVariablesMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameVariablesMessage";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
-import { ResizeGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
+import {
+  ResizeGameMessage,
+  type GameAspectRatio,
+  type GameFit,
+} from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
+import { SkipBeatMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SkipBeatMessage";
+import {
+  clearPlayerBarExecution,
+  COMMON_ASPECT_RATIOS,
+  initialPlayerBarState,
+  matchAspectRatio,
+  reducePlayerBar,
+  relativeScriptPath,
+  type PlayerBarState,
+} from "./components/PlayerBar/playerBarState";
 import { SetAnimatePortraitsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetAnimatePortraitsMessage";
 import { RestartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
 import { SetGameBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameBreakpointsMessage";
@@ -147,15 +164,6 @@ import type { StartingValuesEvents } from "./route/StartingValuesViews";
 import { SavesController } from "./saves/SavesController";
 import { renderSavesViews } from "./saves/renderSavesViews";
 
-const COMMON_ASPECT_RATIOS = [
-  [16, 9],
-  [9, 16],
-  [4, 3],
-  [3, 4],
-  [21, 9],
-  [1, 1],
-] as const;
-
 const MIN_HEIGHT = 100;
 
 const profileMessageHandling =
@@ -196,8 +204,6 @@ export const completionKey = (
     params.contentChanges,
   ]);
 
-const COMPLETION_PREPARING_STATUS_DELAY = 150;
-
 const PROGRAM_AFTER_RESTART_WAIT_MS = 60_000;
 
 let workspace: (SparkdownWorkspace & WorkerDisplayWorkspace) | undefined;
@@ -224,27 +230,6 @@ const reportUnlessRestarted = (e: unknown) => {
   }
 };
 
-const endingStatusText = (ending: GameEnding): string =>
-  ending.kind === "fin"
-    ? "End of story"
-    : ending.kind === "error"
-      ? "Stopped by an error"
-      : "Story ran out";
-
-const endingStatusHover = (ending: GameEnding): string => {
-  if (ending.kind === "error") {
-    const at = ending.error?.location ?? ending.location;
-    const message = ending.error?.message ?? "";
-    return at ? `${message} (line ${at.range.start.line + 1})` : message;
-  }
-  if (ending.kind === "out") {
-    const after = ending.location
-      ? `Nothing runs after line ${ending.location.range.start.line + 1}.`
-      : "Nothing runs after this.";
-    return `${after} End the story with fin to show the ending screen.`;
-  }
-  return "";
-};
 
 interface PlayOutcome {
   started: boolean;
@@ -266,6 +251,12 @@ interface WorkerPlay {
   save?: string;
 }
 
+export interface PlayerBarView {
+  routeShown: boolean;
+  snapping: boolean;
+  workspace?: string;
+}
+
 export interface GamePlayerRefs {
   viewport: HTMLElement;
   gameBackground: HTMLElement;
@@ -274,20 +265,6 @@ export interface GamePlayerRefs {
   game: HTMLElement;
   playButton: HTMLElement | null;
   toolbar: HTMLElement | null;
-  leftItems: HTMLElement | null;
-  locationItems: HTMLElement | null;
-  launchStateIcon: HTMLElement | null;
-  launchInfo: HTMLElement | null;
-  launchLabel: HTMLElement | null;
-  executionInfo: HTMLElement | null;
-  connectionLabel: HTMLElement | null;
-  executedLabel: HTMLElement | null;
-  sizeLabel: HTMLElement | null;
-  aspectRatioLabel: HTMLElement | null;
-  resetButton: HTMLElement | null;
-  fullscreenButton: HTMLElement | null;
-  completionStatus?: HTMLElement | null;
-  endingStatus?: HTMLElement | null;
   routeButton?: HTMLElement | null;
   routeList?: HTMLElement | null;
   savesButton?: HTMLElement | null;
@@ -430,7 +407,6 @@ export class GamePlayerController {
   _completionPending: CompletionEvaluation | null = null;
   _completionShown: ShownCompletion | null = null;
   _completionStatus: CompletionPreviewStatus | null = null;
-  _completionStatusTimer = 0;
   _completionPrograms = 0;
   _completionAccepted: { uri: string; version: number } | null = null;
   _completionProgramSet = new WeakSet<SparkProgram>();
@@ -472,6 +448,15 @@ export class GamePlayerController {
   _resizeStartY = 0;
   _resizeStartHeight = 0;
   _gameResizeObserver?: ResizeObserver;
+  _fit: GameFit = "auto";
+  _fitRatio: GameAspectRatio | null = null;
+  _stepping = false;
+  _ending: GameEnding | null = null;
+  protected _bar: PlayerBarState = initialPlayerBarState;
+  protected _barView: PlayerBarView = { routeShown: false, snapping: false };
+  protected _barListeners = new Set<
+    (state: PlayerBarState, view: PlayerBarView) => void
+  >();
 
   protected _protocols = new ProtocolObserver(profileMessageHandling);
 
@@ -505,21 +490,10 @@ export class GamePlayerController {
       "pointerup",
       this.handlePointerUpToolbar,
     );
-    this.refs.fullscreenButton?.addEventListener(
-      "pointerdown",
-      this.handlePointerDownFullscreenButton,
-    );
-    this.refs.fullscreenButton?.addEventListener(
-      "pointerup",
-      this.handlePointerUpFullscreenButton,
-    );
-    this.refs.fullscreenButton?.addEventListener(
-      "click",
-      this.handleClickFullscreenButton,
-    );
     this._gameResizeObserver = new ResizeObserver(this.handleResize);
     this._gameResizeObserver.observe(this.refs.game);
-    this.updateSizeAndAspectRatioDisplay();
+    this._gameResizeObserver.observe(this.refs.viewport);
+    this.reportSize();
     window.addEventListener("pointerdown", this.handleSavesPointerDown, true);
     window.addEventListener("keydown", this.handleSavesKeyDown, true);
     this.renderSaves();
@@ -532,10 +506,6 @@ export class GamePlayerController {
   }
 
   dispose(): void {
-    if (this._completionStatusTimer) {
-      clearTimeout(this._completionStatusTimer);
-      this._completionStatusTimer = 0;
-    }
     this._mounted = false;
     this._disposed = true;
     this._stops += 1;
@@ -574,19 +544,39 @@ export class GamePlayerController {
       "pointerup",
       this.handlePointerUpToolbar,
     );
-    this.refs.fullscreenButton?.removeEventListener(
-      "pointerdown",
-      this.handlePointerDownFullscreenButton,
-    );
-    this.refs.fullscreenButton?.removeEventListener(
-      "pointerup",
-      this.handlePointerUpFullscreenButton,
-    );
-    this.refs.fullscreenButton?.removeEventListener(
-      "click",
-      this.handleClickFullscreenButton,
-    );
     this._gameResizeObserver?.disconnect();
+    this._barListeners.clear();
+  }
+
+  subscribeBar(
+    listener: (state: PlayerBarState, view: PlayerBarView) => void,
+  ): () => void {
+    this._barListeners.add(listener);
+    listener(this._bar, this._barView);
+    return () => {
+      this._barListeners.delete(listener);
+    };
+  }
+
+  protected updateBar(state: PlayerBarState, view = this._barView) {
+    if (state === this._bar && view === this._barView) {
+      return;
+    }
+    this._bar = state;
+    this._barView = view;
+    for (const listener of this._barListeners) {
+      listener(state, view);
+    }
+  }
+
+  protected updateBarView(patch: Partial<PlayerBarView>) {
+    const view = this._barView;
+    const changed = (Object.keys(patch) as (keyof PlayerBarView)[]).some(
+      (key) => patch[key] !== view[key],
+    );
+    if (changed) {
+      this.updateBar(this._bar, { ...view, ...patch });
+    }
   }
 
   protected _playButtonShows = 0;
@@ -637,29 +627,20 @@ export class GamePlayerController {
     if (!path) {
       return path;
     }
-    const ws = this._options?.workspace;
-    const relativePath =
-      ws && path.startsWith(ws) ? path.slice(ws.length + 1) : path;
-    const extIndex = relativePath.lastIndexOf(".");
-    if (extIndex < 0) {
-      return relativePath;
-    }
-    return relativePath.slice(0, extIndex);
+    return relativeScriptPath(path, this._options?.workspace);
   }
 
   protected updateLaunchStateIcon() {
     if (this._disposed) {
       return;
     }
-    const icon = this._workerPlay?.ended
+    this._launchState = this._workerPlay?.ended
       ? "ended"
       : this._app?.paused
         ? "pause"
         : this._workerPlay?.state === "running"
           ? "play"
           : "preview";
-    this.refs.launchStateIcon?.setAttribute("icon", icon);
-    this._launchState = icon;
     this.publishGameState();
   }
 
@@ -669,133 +650,34 @@ export class GamePlayerController {
       programLoaded: this._mounted && this._program != null && this._launchState != null,
       programVersion: this._program?.version ?? null,
       launchState: this._launchState,
+      paused: !!this.controlledApp?.paused,
+      stepping: this._stepping,
       run: this._workerPlay?.run ?? null,
       position: this._previewPosition,
       completion: this._completionStatus
         ? { request: this._completionRequest, status: this._completionStatus }
         : null,
+      ending: this._ending,
     };
   }
 
   private publishGameState() {
-    sendProtocolMessage(DidChangeGameStateMessage.type.notification(this.getGameState()), this.host);
+    const notification = DidChangeGameStateMessage.type.notification(
+      this.getGameState(),
+    );
+    this.updateBar(reducePlayerBar(this._bar, notification));
+    sendProtocolMessage(notification, this.host);
   }
 
   protected updateExecutionLabels(params?: GameExecutedParams) {
-    if (!this.refs.locationItems || !this.refs.leftItems) {
-      return;
-    }
-    if (this.updateRoute(params)) {
-      return;
-    }
-    this.refs.locationItems.classList.toggle(
-      "error",
-      params?.simulation === "fail",
-    );
-    const failureMessage = describeSimulationFailure(
-      params?.simulation,
-      params?.simulationFailure,
-    );
-    if (failureMessage) {
-      this.refs.locationItems.title = failureMessage;
-      this.refs.locationItems.setAttribute("aria-label", failureMessage);
-    } else {
-      this.refs.locationItems.removeAttribute("title");
-      this.refs.locationItems.removeAttribute("aria-label");
-    }
-    const firstExecutedLocation = params?.firstLocation;
-    const lastExecutedLocation = params?.lastLocation;
+    this.updateRoute(params);
     if (!params || (!this._workerGame && !this._workerPlay)) {
-      this.refs.leftItems.hidden = true;
+      this.updateBar(clearPlayerBarExecution(this._bar));
       return;
     }
-    this.refs.leftItems.hidden = false;
-    if (
-      (this._program || params.simulateLocation) &&
-      params.simulateFlow != null &&
-      params.simulation === "fail"
-    ) {
-      const simulateFromLocation = params.simulateLocation;
-      if (simulateFromLocation) {
-        const filePath = this.getRelativeFilePath(simulateFromLocation.uri);
-        const lineNumber = simulateFromLocation.range.start.line + 1;
-        if (this.refs.launchLabel) {
-          this.refs.launchLabel.textContent = `${filePath} : ${lineNumber}`;
-        }
-      } else if (this.refs.launchLabel) {
-        this.refs.launchLabel.textContent = "";
-      }
-    } else if (firstExecutedLocation) {
-      const filePath = this.getRelativeFilePath(firstExecutedLocation.uri);
-      const lineNumber = firstExecutedLocation.range.start.line + 1;
-      if (this.refs.launchLabel) {
-        this.refs.launchLabel.textContent = `${filePath} : ${lineNumber}`;
-      }
-    } else if (this.refs.launchLabel) {
-      this.refs.launchLabel.textContent = "";
-    }
-    if (
-      (this._program || params.startLocation) &&
-      params.startLocation != null &&
-      params.simulation === "fail"
-    ) {
-      const startFromLocation = params.startLocation;
-      if (startFromLocation && this.refs.connectionLabel) {
-        const filePath = this.getRelativeFilePath(startFromLocation.uri);
-        const lineNumber = startFromLocation.range.end.line + 1;
-        this.refs.connectionLabel.replaceChildren();
-        this.refs.connectionLabel.appendChild(document.createTextNode("→"));
-        if (params.choices.length > 0) {
-          params.choices.forEach((choice) => {
-            const choiceEl = document.createElement("div");
-            choiceEl.textContent = `  [ ${choice.selected + 1} ]  `;
-            this.refs.connectionLabel!.appendChild(choiceEl);
-            this.refs.connectionLabel!.appendChild(
-              document.createTextNode("→"),
-            );
-          });
-        }
-        this.refs.connectionLabel.appendChild(document.createTextNode(" 🞪 →"));
-        if (this.refs.executedLabel) {
-          this.refs.executedLabel.textContent = `${filePath} : ${lineNumber}`;
-        }
-        if (this.refs.executionInfo) {
-          this.refs.executionInfo.hidden = false;
-        }
-      } else if (this.refs.executionInfo) {
-        this.refs.executionInfo.hidden = true;
-      }
-    } else if (
-      lastExecutedLocation &&
-      (firstExecutedLocation?.uri !== lastExecutedLocation.uri ||
-        firstExecutedLocation?.range.start.line !==
-          lastExecutedLocation.range.end.line)
-    ) {
-      const filePath = this.getRelativeFilePath(lastExecutedLocation.uri);
-      const lineNumber = lastExecutedLocation.range.end.line + 1;
-      if (this.refs.connectionLabel) {
-        this.refs.connectionLabel.replaceChildren();
-        this.refs.connectionLabel.appendChild(document.createTextNode("→"));
-        if (params.choices.length > 0) {
-          params.choices.forEach((choice) => {
-            const choiceEl = document.createElement("div");
-            choiceEl.textContent = `  [ ${choice.selected + 1} ]  `;
-            this.refs.connectionLabel!.appendChild(choiceEl);
-            this.refs.connectionLabel!.appendChild(
-              document.createTextNode("→"),
-            );
-          });
-        }
-      }
-      if (this.refs.executedLabel) {
-        this.refs.executedLabel.textContent = `${filePath} : ${lineNumber}`;
-      }
-      if (this.refs.executionInfo) {
-        this.refs.executionInfo.hidden = false;
-      }
-    } else if (this.refs.executionInfo) {
-      this.refs.executionInfo.hidden = true;
-    }
+    this.updateBar(
+      reducePlayerBar(this._bar, GameExecutedMessage.type.notification(params)),
+    );
   }
 
   protected updateRoute(params?: GameExecutedParams): boolean {
@@ -811,10 +693,7 @@ export class GamePlayerController {
       this._workerGame != null &&
       (params.route != null || failed);
     if (!shows) {
-      if (button) {
-        button.hidden = true;
-      }
-      this.refs.locationItems!.hidden = false;
+      this.updateBarView({ routeShown: false });
       this._routeState = {
         ...this._routeState,
         route: undefined,
@@ -824,9 +703,7 @@ export class GamePlayerController {
       this.renderRoute();
       return false;
     }
-    this.refs.leftItems!.hidden = false;
-    this.refs.locationItems!.hidden = true;
-    button.hidden = false;
+    this.updateBarView({ routeShown: true });
     const flow = params.simulateFlow;
     const target = params.startLocation;
     this._routeState = {
@@ -1249,33 +1126,75 @@ export class GamePlayerController {
     );
   };
 
-  getAspectRatio(width: number, height: number) {
-    for (const [w, h] of COMMON_ASPECT_RATIOS) {
-      const expectedHeight = (width * h) / w;
-      if (Math.round(height) === Math.round(expectedHeight)) {
-        return `${w}:${h}`;
-      }
+  protected _lastSizeReport?: GameResizedParams;
+
+  reportSize() {
+    this.fitToRatio();
+    const rect = this.refs.game.getBoundingClientRect();
+    const params: GameResizedParams = {
+      width: rect.width,
+      height: rect.height,
+      aspectRatio:
+        this._fit === "ratio" && this._fitRatio
+          ? this._fitRatio
+          : matchAspectRatio(rect.width, rect.height),
+      fit: this._fit,
+    };
+    const last = this._lastSizeReport;
+    if (
+      last &&
+      last.width === params.width &&
+      last.height === params.height &&
+      last.aspectRatio === params.aspectRatio &&
+      last.fit === params.fit
+    ) {
+      return;
     }
-    return null;
+    this._lastSizeReport = params;
+    const notification = GameResizedMessage.type.notification(params);
+    this.updateBar(reducePlayerBar(this._bar, notification));
+    sendProtocolMessage(notification, this.host);
   }
 
-  updateSizeAndAspectRatioDisplay() {
-    const rect = this.refs.game.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
-    const ratio = this.getAspectRatio(width, height);
-    const sizeLabel = `${Math.round(width)} × ${Math.round(height)}`;
-    const aspectRatioLabel = ratio ? `(${ratio})` : "";
-    if (this.refs.sizeLabel) {
-      this.refs.sizeLabel.textContent = sizeLabel;
+  protected setGameSize(
+    fit: GameFit,
+    size?: { width?: number; height: number; minHeight?: boolean },
+  ) {
+    this._fit = fit;
+    if (fit !== "ratio") {
+      this._fitRatio = null;
     }
-    if (this.refs.aspectRatioLabel) {
-      this.refs.aspectRatioLabel.textContent = aspectRatioLabel;
+    const style = this.refs.game.style;
+    style.width = size?.width != null ? `${size.width}px` : "";
+    style.height = size ? `${size.height}px` : "";
+    style.minHeight = size?.minHeight ? `${size.height}px` : "";
+    style.alignSelf = size?.width != null ? "center" : "";
+  }
+
+  protected fitToRatio() {
+    const ratio = this._fitRatio;
+    if (this._fit !== "ratio" || !ratio) {
+      return;
     }
+    const [w, h] = ratio.split(":").map(Number) as [number, number];
+    const availableWidth = this.refs.viewport.clientWidth;
+    const availableHeight =
+      this.refs.viewport.clientHeight - (this.refs.toolbar?.offsetHeight ?? 0);
+    const width = Math.max(0, Math.min(availableWidth, (availableHeight * w) / h));
+    const height = (width * h) / w;
+    const style = this.refs.game.style;
+    if (
+      style.width === `${width}px` &&
+      style.height === `${height}px` &&
+      style.alignSelf === "center"
+    ) {
+      return;
+    }
+    this.setGameSize("ratio", { width, height, minHeight: true });
   }
 
   protected handleResize = () => {
-    this.updateSizeAndAspectRatioDisplay();
+    this.reportSize();
   };
 
   protected handleContextMenu = (e: Event) => {
@@ -1306,7 +1225,7 @@ export class GamePlayerController {
       }
     }
 
-    this.refs.toolbar?.classList.toggle("snapping", snapped);
+    this.updateBarView({ snapping: snapped });
 
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
@@ -1337,27 +1256,20 @@ export class GamePlayerController {
     }
 
     if (closestMatch === maxHeight) {
-      this.refs.game.style.height = "";
-      this.refs.game.style.minHeight = "";
+      this.setGameSize("auto");
     } else {
-      this.refs.game.style.height = `${closestMatch}px`;
-      this.refs.game.style.minHeight = `${closestMatch}px`;
+      this.setGameSize("height", { height: closestMatch, minHeight: true });
     }
 
-    this.refs.toolbar.classList.toggle("snapping", snapped);
+    this.updateBarView({ snapping: snapped });
 
-    this.updateSizeAndAspectRatioDisplay();
-
-    sendProtocolMessage(
-      GameResizedMessage.type.notification({ width, height: closestMatch }),
-      this.host,
-    );
+    this.reportSize();
   };
 
   protected handlePointerUpToolbar = (e: PointerEvent) => {
     this._isResizing = false;
     document.body.style.cursor = "";
-    this.refs.toolbar?.classList.remove("snapping");
+    this.updateBarView({ snapping: false });
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
   };
 
@@ -1406,16 +1318,7 @@ export class GamePlayerController {
     sendProtocolMessage(GameStartedMessage.type.notification({}), this.host);
   };
 
-  protected handlePointerDownFullscreenButton = (e: PointerEvent) => {
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    e.stopPropagation();
-  };
-
-  protected handlePointerUpFullscreenButton = (e: PointerEvent) => {
-    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-  };
-
-  protected handleClickFullscreenButton = async () => {
+  toggleFullscreen = () => {
     sendProtocolMessage(
       GameToggledFullscreenModeMessage.type.notification({}),
       this.host,
@@ -1883,55 +1786,12 @@ export class GamePlayerController {
   }
 
   setCompletionStatus(status: CompletionPreviewStatus | null) {
-    if (this._completionStatusTimer) {
-      clearTimeout(this._completionStatusTimer);
-      this._completionStatusTimer = 0;
-    }
-    const changed = status !== this._completionStatus;
-    this._completionStatus = status;
-    const element = this.refs.completionStatus;
-    if (element) {
-      const write = () => {
-        const text = this.completionStatusText(status);
-        element.textContent = text;
-        element.hidden = !text;
-        if (status) {
-          element.setAttribute("state", status);
-        } else {
-          element.removeAttribute("state");
-        }
-      };
-      if (status === "preparing" && element.hidden) {
-        this._completionStatusTimer = window.setTimeout(() => {
-          this._completionStatusTimer = 0;
-          write();
-        }, COMPLETION_PREPARING_STATUS_DELAY);
-      } else {
-        write();
-      }
-    }
-    if (changed) {
+    if (status !== this._completionStatus) {
+      this._completionStatus = status;
       this.publishGameState();
     }
   }
 
-  completionStatusText(status: CompletionPreviewStatus | null) {
-    const hasFrame = this._workerGame != null || this._workerPlay != null;
-    switch (status) {
-      case "preparing":
-        return "Preparing suggestion preview…";
-      case "showing":
-        return "Previewing suggestion";
-      case "unavailable":
-        return hasFrame
-          ? "Cannot preview this suggestion yet — showing the last valid preview"
-          : "Cannot preview this suggestion yet";
-      case "stale":
-        return "Cannot preview the current document — showing the last valid preview";
-      default:
-        return "";
-    }
-  }
 
   protected handleCompiledProgram = async (
     message: CompiledProgramMessage.Notification,
@@ -1940,8 +1800,16 @@ export class GamePlayerController {
   };
 
   protected handleResizeGame = async (message: ResizeGameMessage.Request) => {
-    const { height } = message.params;
-    this.refs.game.style.height = `${height}px`;
+    const { params } = message;
+    if (params.aspectRatio === undefined) {
+      this.setGameSize("height", { height: params.height });
+    } else if (params.aspectRatio === "auto") {
+      this.setGameSize("auto");
+    } else {
+      this._fitRatio = params.aspectRatio;
+      this._fit = "ratio";
+    }
+    this.reportSize();
     return ResizeGameMessage.type.response(message.id, {});
   };
 
@@ -2379,10 +2247,13 @@ export class GamePlayerController {
     const { traversal } = message.params;
     const run = this._workerPlay?.run ?? null;
     let answer: { done: boolean } | undefined;
+    this.setStepping(true);
     try {
       answer = await this.askWorkerGame(StepGameMessage.type, { traversal });
     } catch (e) {
       return StepGameMessage.type.error(message.id, toResponseError(e));
+    } finally {
+      this.setStepping(false);
     }
     if (answer) {
       return StepGameMessage.type.response(message.id, { ...answer, run });
@@ -2392,6 +2263,34 @@ export class GamePlayerController {
       message: "no game loaded",
     });
   };
+
+  protected setStepping(stepping: boolean) {
+    if (stepping !== this._stepping && !this._disposed) {
+      this._stepping = stepping;
+      this.publishGameState();
+    }
+  }
+
+  pauseGame() {
+    return this.handlePauseGame(PauseGameMessage.type.request({}));
+  }
+
+  resumeGame() {
+    return this.handleUnpauseGame(UnpauseGameMessage.type.request({}));
+  }
+
+  stepGame(traversal: "in" | "out") {
+    return this.handleStepGame(StepGameMessage.type.request({ traversal }));
+  }
+
+  skipBeat(direction: -1 | 1) {
+    return this.requestHost(SkipBeatMessage.type, { direction }).catch(
+      (e: unknown) => {
+        console.error(e);
+        return { moved: false };
+      },
+    );
+  }
 
   protected handleContinueGame = async (
     message: ContinueGameMessage.Request,
@@ -2551,6 +2450,7 @@ export class GamePlayerController {
         this._options ??= {};
         this._options.startFrom ??= program.startFrom;
         this._options.workspace ??= program.workspace;
+        this.updateBarView({ workspace: this._options.workspace });
         if (this.completionPreviewHoldsScreen(program)) {
           void this.refreshCompletionFiles().catch(console.error);
         } else if (this._options.startFrom) {
@@ -2974,17 +2874,9 @@ export class GamePlayerController {
   }
 
   protected setEndingStatus(ending: GameEnding | null) {
-    const element = this.refs.endingStatus;
-    if (!element) {
-      return;
-    }
-    element.textContent = ending ? endingStatusText(ending) : "";
-    element.title = ending ? endingStatusHover(ending) : "";
-    element.hidden = !ending;
-    if (ending) {
-      element.setAttribute("kind", ending.kind);
-    } else {
-      element.removeAttribute("kind");
+    if (ending !== this._ending) {
+      this._ending = ending;
+      this.publishGameState();
     }
   }
 
