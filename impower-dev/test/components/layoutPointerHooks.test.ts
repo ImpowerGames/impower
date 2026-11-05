@@ -81,6 +81,7 @@ afterEach(async () => {
   }
   delete document.documentElement.dataset["layout"];
   delete document.documentElement.dataset["pointer"];
+  delete document.documentElement.dataset["rail"];
   vi.unstubAllGlobals();
 });
 
@@ -128,6 +129,42 @@ describe("useLayout", () => {
     unsubscribe();
     await resize({ width: 500 });
     expect(seen).toEqual(["compact", "desktop"]);
+  });
+});
+
+describe("useRailDefault", () => {
+  it.each([
+    [1440, "full"],
+    [1101, "full"],
+    [1100, "full"],
+    [1001, "full"],
+    [1000, "icons"],
+    [768, "icons"],
+    [701, "icons"],
+  ])("reads %ipx as the %s rail", async (width, expected) => {
+    screen.width = width;
+    const { useRailDefault } = await loadLayout();
+    const Probe = () => h("output", { "data-rail-value": useRailDefault() });
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () => {
+      render(h(Probe, null), host!);
+    });
+    expect(host.querySelector("output")!.getAttribute("data-rail-value")).toBe(
+      expected,
+    );
+    expect(document.documentElement.dataset["rail"]).toBe(expected);
+  });
+
+  it("follows the window across 1000px", async () => {
+    screen.width = 1050;
+    const { railState } = await loadLayout();
+    expect(railState.current()).toBe("full");
+    const seen: string[] = [];
+    const unsubscribe = railState.subscribe((rail) => seen.push(rail));
+    await resize({ width: 1000 });
+    await resize({ width: 1001 });
+    unsubscribe();
+    expect(seen).toEqual(["icons", "full"]);
   });
 });
 

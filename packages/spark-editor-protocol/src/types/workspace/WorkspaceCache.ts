@@ -144,6 +144,8 @@ export interface WritingToolsState {
 
 export interface ShellState {
   railWidth?: number;
+  railCompactWidth?: number;
+  stripHeight?: number;
 }
 
 export interface DebugState {
