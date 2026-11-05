@@ -661,6 +661,11 @@
             "default": "*.{mid,wav,mp3,mp2,ogg,aac,opus,flac}",
             "description": "Recognized filename patterns for audio files"
           },
+          "sparkdown.videoFiles": {
+            "type": "string",
+            "default": "*.{mp4,webm,mov,m4v,ogv,mkv}",
+            "description": "Recognized filename patterns for video files"
+          },
           "sparkdown.fontFiles": {
             "type": "string",
             "default": "*.{ttf,woff,woff2,otf}",
@@ -670,6 +675,26 @@
             "type": "string",
             "default": "*.{js}",
             "description": "Recognized filename patterns for world files"
+          },
+          "sparkdown.addMenu.folderBackdrop": {
+            "type": "string",
+            "default": "Backdrops",
+            "description": "Folder the web editor's Add menu puts new backdrops in"
+          },
+          "sparkdown.addMenu.folderPortrait": {
+            "type": "string",
+            "default": "Portraits",
+            "description": "Folder the web editor's Add menu puts new portraits in"
+          },
+          "sparkdown.addMenu.folderMusic": {
+            "type": "string",
+            "default": "Music",
+            "description": "Folder the web editor's Add menu puts new music in"
+          },
+          "sparkdown.addMenu.folderSound": {
+            "type": "string",
+            "default": "Sounds",
+            "description": "Folder the web editor's Add menu puts new sounds in"
           }
         }
       },
