@@ -1,0 +1,421 @@
+sparkdown [0..185]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ LuauSparkdownChooseBlock [12..180]
+ │   ├─ LuauSparkdownChooseBlock_begin [12..20]
+ │   │   ├─ LuauSparkdownChooseBlock_begin_c1 [12..14]
+ │   │   │   └─ OptionalWhitespace [12..14]: "  "
+ │   │   ├─ LuauSparkdownChooseBlock_begin_c2 [14..20]
+ │   │   │   └─ LuauChooseKeyword [14..20]: "choose"
+ │   │   └─ LuauSparkdownChooseBlock_begin_c3 20
+ │   │       └─ LuauSparkdownChooseBlock_begin_c3 20
+ │   │           └─ OptionalWhitespace 20
+ │   ├─ LuauSparkdownChooseBlock_content [20..175]
+ │   │   ├─ Newline [20..21]: "\n"
+ │   │   ├─ Choice [21..45]
+ │   │   │   ├─ Choice_begin [21..39]
+ │   │   │   │   ├─ Choice_begin_c1 [21..25]
+ │   │   │   │   │   └─ OptionalWhitespace [21..25]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [25..27]
+ │   │   │   │   │   └─ ChoiceMark [25..27]: "* "
+ │   │   │   │   ├─ Choice_begin_c3 27
+ │   │   │   │   ├─ Choice_begin_c4 [27..29]
+ │   │   │   │   │   └─ LuauIfKeyword [27..29]: "if"
+ │   │   │   │   ├─ Choice_begin_c5 [29..30]
+ │   │   │   │   │   └─ Choice_begin_c5 [29..30]
+ │   │   │   │   │       └─ OptionalWhitespace [29..30]: " "
+ │   │   │   │   ├─ Choice_begin_c6 [30..39]
+ │   │   │   │   │   └─ ChoiceCondition [30..39]
+ │   │   │   │   │       ├─ ChoiceCondition_begin 30
+ │   │   │   │   │       ├─ ChoiceCondition_content [30..39]
+ │   │   │   │   │       │   └─ LuauAccessPath [30..39]
+ │   │   │   │   │       │       ├─ LuauAccessPath_begin 30
+ │   │   │   │   │       │       ├─ LuauAccessPath_content [30..39]
+ │   │   │   │   │       │       │   └─ LuauAccessPart [30..39]
+ │   │   │   │   │       │       │       └─ LuauFunctionCall [30..39]
+ │   │   │   │   │       │       │           ├─ LuauFunctionCall_begin [30..37]
+ │   │   │   │   │       │       │           │   ├─ LuauFunctionCall_begin_c1 [30..37]
+ │   │   │   │   │       │       │           │   │   └─ LuauFunctionName [30..37]: "allowed"
+ │   │   │   │   │       │       │           │   └─ LuauFunctionCall_begin_c2 37
+ │   │   │   │   │       │       │           ├─ LuauFunctionCall_content [37..39]
+ │   │   │   │   │       │       │           │   └─ LuauFunctionCallParameters [37..39]
+ │   │   │   │   │       │       │           │       ├─ LuauFunctionCallParameters_begin [37..38]
+ │   │   │   │   │       │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [37..38]
+ │   │   │   │   │       │       │           │       │       └─ PunctuationParenOpen [37..38]: "("
+ │   │   │   │   │       │       │           │       └─ LuauFunctionCallParameters_end [38..39]
+ │   │   │   │   │       │       │           │           └─ LuauFunctionCallParameters_end_c1 [38..39]
+ │   │   │   │   │       │       │           │               └─ PunctuationParenClose [38..39]: ")"
+ │   │   │   │   │       │       │           └─ LuauFunctionCall_end 39
+ │   │   │   │   │       │       └─ LuauAccessPath_end 39
+ │   │   │   │   │       │           └─ LuauAccessPath_end_c1 39
+ │   │   │   │   │       └─ ChoiceCondition_end 39
+ │   │   │   │   └─ Choice_begin_c7 39
+ │   │   │   ├─ Choice_content [39..45]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [39..45]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [39..45]
+ │   │   │   │       │   └─ ChoicePlainText [39..45]
+ │   │   │   │       │       └─ ChoiceTextContent [39..45]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [39..45]
+ │   │   │   │       │               ├─ Space [39..40]: " "
+ │   │   │   │       │               └─ Word [40..45]: "First"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 45
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 45
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 45
+ │   │   │   └─ Choice_end 45
+ │   │   ├─ Newline [45..46]: "\n"
+ │   │   ├─ Choice [46..73]
+ │   │   │   ├─ Choice_begin [46..66]
+ │   │   │   │   ├─ Choice_begin_c1 [46..50]
+ │   │   │   │   │   └─ OptionalWhitespace [46..50]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [50..52]
+ │   │   │   │   │   └─ ChoiceMark [50..52]: "* "
+ │   │   │   │   ├─ Choice_begin_c3 52
+ │   │   │   │   ├─ Choice_begin_c4 [52..54]
+ │   │   │   │   │   └─ LuauIfKeyword [52..54]: "if"
+ │   │   │   │   ├─ Choice_begin_c5 [54..55]
+ │   │   │   │   │   └─ Choice_begin_c5 [54..55]
+ │   │   │   │   │       └─ OptionalWhitespace [54..55]: " "
+ │   │   │   │   ├─ Choice_begin_c6 [55..66]
+ │   │   │   │   │   └─ ChoiceCondition [55..66]
+ │   │   │   │   │       ├─ ChoiceCondition_begin 55
+ │   │   │   │   │       ├─ ChoiceCondition_content [55..66]
+ │   │   │   │   │       │   └─ LuauParenthetical [55..66]
+ │   │   │   │   │       │       ├─ LuauParenthetical_begin [55..56]
+ │   │   │   │   │       │       │   └─ LuauParenthetical_begin_c1 [55..56]
+ │   │   │   │   │       │       │       └─ PunctuationParenOpen [55..56]: "("
+ │   │   │   │   │       │       ├─ LuauParenthetical_content [56..65]
+ │   │   │   │   │       │       │   └─ LuauAccessPath [56..65]
+ │   │   │   │   │       │       │       ├─ LuauAccessPath_begin 56
+ │   │   │   │   │       │       │       ├─ LuauAccessPath_content [56..65]
+ │   │   │   │   │       │       │       │   └─ LuauAccessPart [56..65]
+ │   │   │   │   │       │       │       │       └─ LuauFunctionCall [56..65]
+ │   │   │   │   │       │       │       │           ├─ LuauFunctionCall_begin [56..63]
+ │   │   │   │   │       │       │       │           │   ├─ LuauFunctionCall_begin_c1 [56..63]
+ │   │   │   │   │       │       │       │           │   │   └─ LuauFunctionName [56..63]: "allowed"
+ │   │   │   │   │       │       │       │           │   └─ LuauFunctionCall_begin_c2 63
+ │   │   │   │   │       │       │       │           ├─ LuauFunctionCall_content [63..65]
+ │   │   │   │   │       │       │       │           │   └─ LuauFunctionCallParameters [63..65]
+ │   │   │   │   │       │       │       │           │       ├─ LuauFunctionCallParameters_begin [63..64]
+ │   │   │   │   │       │       │       │           │       │   └─ LuauFunctionCallParameters_begin_c1 [63..64]
+ │   │   │   │   │       │       │       │           │       │       └─ PunctuationParenOpen [63..64]: "("
+ │   │   │   │   │       │       │       │           │       └─ LuauFunctionCallParameters_end [64..65]
+ │   │   │   │   │       │       │       │           │           └─ LuauFunctionCallParameters_end_c1 [64..65]
+ │   │   │   │   │       │       │       │           │               └─ PunctuationParenClose [64..65]: ")"
+ │   │   │   │   │       │       │       │           └─ LuauFunctionCall_end 65
+ │   │   │   │   │       │       │       └─ LuauAccessPath_end 65
+ │   │   │   │   │       │       │           └─ LuauAccessPath_end_c1 65
+ │   │   │   │   │       │       └─ LuauParenthetical_end [65..66]
+ │   │   │   │   │       │           ├─ LuauParenthetical_end_c1 [65..66]
+ │   │   │   │   │       │           │   └─ PunctuationParenClose [65..66]: ")"
+ │   │   │   │   │       │           └─ LuauParenthetical_end_c2 66
+ │   │   │   │   │       └─ ChoiceCondition_end 66
+ │   │   │   │   └─ Choice_begin_c7 66
+ │   │   │   ├─ Choice_content [66..73]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [66..73]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [66..73]
+ │   │   │   │       │   └─ ChoicePlainText [66..73]
+ │   │   │   │       │       └─ ChoiceTextContent [66..73]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [66..73]
+ │   │   │   │       │               ├─ Space [66..67]: " "
+ │   │   │   │       │               └─ Word [67..73]: "Second"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 73
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 73
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 73
+ │   │   │   └─ Choice_end 73
+ │   │   ├─ Newline [73..74]: "\n"
+ │   │   ├─ Choice [74..108]
+ │   │   │   ├─ Choice_begin [74..102]
+ │   │   │   │   ├─ Choice_begin_c1 [74..78]
+ │   │   │   │   │   └─ OptionalWhitespace [74..78]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [78..80]
+ │   │   │   │   │   └─ ChoiceMark [78..80]: "* "
+ │   │   │   │   ├─ Choice_begin_c3 80
+ │   │   │   │   ├─ Choice_begin_c4 [80..82]
+ │   │   │   │   │   └─ LuauIfKeyword [80..82]: "if"
+ │   │   │   │   ├─ Choice_begin_c5 [82..83]
+ │   │   │   │   │   └─ Choice_begin_c5 [82..83]
+ │   │   │   │   │       └─ OptionalWhitespace [82..83]: " "
+ │   │   │   │   ├─ Choice_begin_c6 [83..102]
+ │   │   │   │   │   └─ ChoiceCondition [83..102]
+ │   │   │   │   │       ├─ ChoiceCondition_begin 83
+ │   │   │   │   │       ├─ ChoiceCondition_content [83..102]
+ │   │   │   │   │       │   └─ LuauLogicalOperation [83..102]
+ │   │   │   │   │       │       ├─ LuauLogicalOperation_begin 83
+ │   │   │   │   │       │       │   └─ LuauLogicalOperation_begin_c1 83
+ │   │   │   │   │       │       ├─ LuauLogicalOperation_content [83..102]
+ │   │   │   │   │       │       │   ├─ LuauLogicalOperator [83..87]
+ │   │   │   │   │       │       │   │   ├─ LuauLogicalOperator_begin [83..87]
+ │   │   │   │   │       │       │   │   │   ├─ LuauLogicalOperator_begin_c1 83
+ │   │   │   │   │       │       │   │   │   │   └─ OptionalWhitespace 83
+ │   │   │   │   │       │       │   │   │   ├─ LuauLogicalOperator_begin_c2 [83..86]: "not"
+ │   │   │   │   │       │       │   │   │   └─ LuauLogicalOperator_begin_c3 [86..87]
+ │   │   │   │   │       │       │   │   │       └─ LuauLogicalOperator_begin_c3 [86..87]
+ │   │   │   │   │       │       │   │   │           └─ OptionalWhitespace [86..87]: " "
+ │   │   │   │   │       │       │   │   └─ LuauLogicalOperator_end 87
+ │   │   │   │   │       │       │   ├─ LuauAccessPath [87..94]
+ │   │   │   │   │       │       │   │   ├─ LuauAccessPath_begin 87
+ │   │   │   │   │       │       │   │   ├─ LuauAccessPath_content [87..94]
+ │   │   │   │   │       │       │   │   │   ├─ LuauAccessPart [87..88]
+ │   │   │   │   │       │       │   │   │   │   └─ LuauVariable [87..88]
+ │   │   │   │   │       │       │   │   │   │       └─ LuauVariable_c1 [87..88]
+ │   │   │   │   │       │       │   │   │   │           └─ LuauVariableName [87..88]: "t"
+ │   │   │   │   │       │       │   │   │   └─ LuauAccessPart [88..94]
+ │   │   │   │   │       │       │   │   │       └─ LuauFunctionAccessor [88..94]
+ │   │   │   │   │       │       │   │   │           ├─ LuauFunctionAccessor_c1 88
+ │   │   │   │   │       │       │   │   │           ├─ LuauFunctionAccessor_c2 [88..89]
+ │   │   │   │   │       │       │   │   │           │   └─ LuauAccessorOperator [88..89]: "."
+ │   │   │   │   │       │       │   │   │           ├─ LuauFunctionAccessor_c3 89
+ │   │   │   │   │       │       │   │   │           ├─ LuauFunctionAccessor_c4 [89..94]
+ │   │   │   │   │       │       │   │   │           │   └─ LuauFunctionName [89..94]: "check"
+ │   │   │   │   │       │       │   │   │           └─ LuauFunctionAccessor_c5 94
+ │   │   │   │   │       │       │   │   └─ LuauAccessPath_end 94
+ │   │   │   │   │       │       │   │       └─ LuauAccessPath_end_c1 94
+ │   │   │   │   │       │       │   └─ LuauParenthetical [94..102]
+ │   │   │   │   │       │       │       ├─ LuauParenthetical_begin [94..95]
+ │   │   │   │   │       │       │       │   └─ LuauParenthetical_begin_c1 [94..95]
+ │   │   │   │   │       │       │       │       └─ PunctuationParenOpen [94..95]: "("
+ │   │   │   │   │       │       │       ├─ LuauParenthetical_content [95..101]
+ │   │   │   │   │       │       │       │   ├─ LuauNumericDecimal [95..96]
+ │   │   │   │   │       │       │       │   │   ├─ LuauNumericDecimal_c1 [95..96]: "1"
+ │   │   │   │   │       │       │       │   │   └─ LuauNumericDecimal_c2 96
+ │   │   │   │   │       │       │       │   ├─ LuauCommaSeparator [96..98]
+ │   │   │   │   │       │       │       │   │   ├─ LuauCommaSeparator_c1 96
+ │   │   │   │   │       │       │       │   │   ├─ LuauCommaSeparator_c2 [96..97]: ","
+ │   │   │   │   │       │       │       │   │   └─ LuauCommaSeparator_c3 [97..98]
+ │   │   │   │   │       │       │       │   │       └─ LuauCommaSeparator_c3 [97..98]
+ │   │   │   │   │       │       │       │   │           └─ OptionalWhitespace [97..98]: " "
+ │   │   │   │   │       │       │       │   └─ LuauParenthetical [98..101]
+ │   │   │   │   │       │       │       │       ├─ LuauParenthetical_begin [98..99]
+ │   │   │   │   │       │       │       │       │   └─ LuauParenthetical_begin_c1 [98..99]
+ │   │   │   │   │       │       │       │       │       └─ PunctuationParenOpen [98..99]: "("
+ │   │   │   │   │       │       │       │       ├─ LuauParenthetical_content [99..100]
+ │   │   │   │   │       │       │       │       │   └─ LuauNumericDecimal [99..100]
+ │   │   │   │   │       │       │       │       │       ├─ LuauNumericDecimal_c1 [99..100]: "2"
+ │   │   │   │   │       │       │       │       │       └─ LuauNumericDecimal_c2 100
+ │   │   │   │   │       │       │       │       └─ LuauParenthetical_end [100..101]
+ │   │   │   │   │       │       │       │           ├─ LuauParenthetical_end_c1 [100..101]
+ │   │   │   │   │       │       │       │           │   └─ PunctuationParenClose [100..101]: ")"
+ │   │   │   │   │       │       │       │           └─ LuauParenthetical_end_c2 101
+ │   │   │   │   │       │       │       └─ LuauParenthetical_end [101..102]
+ │   │   │   │   │       │       │           ├─ LuauParenthetical_end_c1 [101..102]
+ │   │   │   │   │       │       │           │   └─ PunctuationParenClose [101..102]: ")"
+ │   │   │   │   │       │       │           └─ LuauParenthetical_end_c2 102
+ │   │   │   │   │       │       └─ LuauLogicalOperation_end 102
+ │   │   │   │   │       └─ ChoiceCondition_end 102
+ │   │   │   │   └─ Choice_begin_c7 102
+ │   │   │   ├─ Choice_content [102..108]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [102..108]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [102..108]
+ │   │   │   │       │   └─ ChoicePlainText [102..108]
+ │   │   │   │       │       └─ ChoiceTextContent [102..108]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [102..108]
+ │   │   │   │       │               ├─ Space [102..103]: " "
+ │   │   │   │       │               └─ Word [103..108]: "Third"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 108
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 108
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 108
+ │   │   │   └─ Choice_end 108
+ │   │   ├─ Newline [108..109]: "\n"
+ │   │   ├─ Choice [109..145]
+ │   │   │   ├─ Choice_begin [109..127]
+ │   │   │   │   ├─ Choice_begin_c1 [109..113]
+ │   │   │   │   │   └─ OptionalWhitespace [109..113]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [113..115]
+ │   │   │   │   │   └─ ChoiceMark [113..115]: "* "
+ │   │   │   │   ├─ Choice_begin_c3 115
+ │   │   │   │   ├─ Choice_begin_c4 [115..117]
+ │   │   │   │   │   └─ LuauIfKeyword [115..117]: "if"
+ │   │   │   │   ├─ Choice_begin_c5 [117..118]
+ │   │   │   │   │   └─ Choice_begin_c5 [117..118]
+ │   │   │   │   │       └─ OptionalWhitespace [117..118]: " "
+ │   │   │   │   ├─ Choice_begin_c6 [118..127]
+ │   │   │   │   │   └─ ChoiceCondition [118..127]
+ │   │   │   │   │       ├─ ChoiceCondition_begin 118
+ │   │   │   │   │       ├─ ChoiceCondition_content [118..127]
+ │   │   │   │   │       │   ├─ LuauAccessPath [118..124]
+ │   │   │   │   │       │   │   ├─ LuauAccessPath_begin 118
+ │   │   │   │   │       │   │   ├─ LuauAccessPath_content [118..124]
+ │   │   │   │   │       │   │   │   ├─ LuauAccessPart [118..119]
+ │   │   │   │   │       │   │   │   │   └─ LuauVariable [118..119]
+ │   │   │   │   │       │   │   │   │       └─ LuauVariable_c1 [118..119]
+ │   │   │   │   │       │   │   │   │           └─ LuauVariableName [118..119]: "t"
+ │   │   │   │   │       │   │   │   └─ LuauAccessPart [119..124]
+ │   │   │   │   │       │   │   │       └─ LuauFunctionAccessor [119..124]
+ │   │   │   │   │       │   │   │           ├─ LuauFunctionAccessor_c1 119
+ │   │   │   │   │       │   │   │           ├─ LuauFunctionAccessor_c2 [119..120]
+ │   │   │   │   │       │   │   │           │   └─ LuauAccessorOperator [119..120]: ":"
+ │   │   │   │   │       │   │   │           ├─ LuauFunctionAccessor_c3 120
+ │   │   │   │   │       │   │   │           ├─ LuauFunctionAccessor_c4 [120..124]
+ │   │   │   │   │       │   │   │           │   └─ LuauFunctionName [120..124]: "open"
+ │   │   │   │   │       │   │   │           └─ LuauFunctionAccessor_c5 124
+ │   │   │   │   │       │   │   └─ LuauAccessPath_end 124
+ │   │   │   │   │       │   │       └─ LuauAccessPath_end_c1 124
+ │   │   │   │   │       │   └─ LuauParenthetical [124..127]
+ │   │   │   │   │       │       ├─ LuauParenthetical_begin [124..125]
+ │   │   │   │   │       │       │   └─ LuauParenthetical_begin_c1 [124..125]
+ │   │   │   │   │       │       │       └─ PunctuationParenOpen [124..125]: "("
+ │   │   │   │   │       │       ├─ LuauParenthetical_content [125..126]
+ │   │   │   │   │       │       │   └─ LuauNumericDecimal [125..126]
+ │   │   │   │   │       │       │       ├─ LuauNumericDecimal_c1 [125..126]: "1"
+ │   │   │   │   │       │       │       └─ LuauNumericDecimal_c2 126
+ │   │   │   │   │       │       └─ LuauParenthetical_end [126..127]
+ │   │   │   │   │       │           ├─ LuauParenthetical_end_c1 [126..127]
+ │   │   │   │   │       │           │   └─ PunctuationParenClose [126..127]: ")"
+ │   │   │   │   │       │           └─ LuauParenthetical_end_c2 127
+ │   │   │   │   │       └─ ChoiceCondition_end 127
+ │   │   │   │   └─ Choice_begin_c7 127
+ │   │   │   ├─ Choice_content [127..145]
+ │   │   │   │   └─ ChoiceWithSuppressedText [127..145]
+ │   │   │   │       ├─ ChoiceWithSuppressedText_c1 [127..128]
+ │   │   │   │       │   └─ ChoiceStartText [127..128]
+ │   │   │   │       │       └─ ChoiceTextContent [127..128]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [127..128]
+ │   │   │   │       │               └─ Space [127..128]: " "
+ │   │   │   │       ├─ ChoiceWithSuppressedText_c2 [128..129]: "["
+ │   │   │   │       ├─ ChoiceWithSuppressedText_c3 [129..135]
+ │   │   │   │       │   └─ ChoiceOnlyText [129..135]
+ │   │   │   │       │       └─ ChoiceTextContent [129..135]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [129..135]
+ │   │   │   │       │               └─ Word [129..135]: "Fourth"
+ │   │   │   │       ├─ ChoiceWithSuppressedText_c4 [135..136]: "]"
+ │   │   │   │       ├─ ChoiceWithSuppressedText_c5 136
+ │   │   │   │       ├─ ChoiceWithSuppressedText_c6 136
+ │   │   │   │       ├─ ChoiceWithSuppressedText_c7 [136..137]
+ │   │   │   │       │   └─ RequiredWhitespace [136..137]: " "
+ │   │   │   │       └─ ChoiceWithSuppressedText_c8 [137..145]
+ │   │   │   │           └─ Divert [137..145]
+ │   │   │   │               ├─ Divert_begin [137..139]
+ │   │   │   │               │   ├─ Divert_begin_c1 137
+ │   │   │   │               │   │   └─ OptionalWhitespace 137
+ │   │   │   │               │   └─ Divert_begin_c2 [137..139]
+ │   │   │   │               │       └─ DivertMark [137..139]: "->"
+ │   │   │   │               ├─ Divert_content [139..145]
+ │   │   │   │               │   └─ DivertTarget [139..145]
+ │   │   │   │               │       ├─ DivertTarget_begin [139..140]
+ │   │   │   │               │       │   └─ DivertTarget_begin_c1 [139..140]
+ │   │   │   │               │       │       └─ DivertTarget_begin_c1 [139..140]
+ │   │   │   │               │       │           └─ OptionalWhitespace [139..140]: " "
+ │   │   │   │               │       ├─ DivertTarget_content [140..145]
+ │   │   │   │               │       │   └─ DivertPath [140..145]
+ │   │   │   │               │       │       ├─ DivertPath_begin 140
+ │   │   │   │               │       │       ├─ DivertPath_content [140..145]
+ │   │   │   │               │       │       │   └─ DivertPart [140..145]
+ │   │   │   │               │       │       │       └─ DivertPartName [140..145]: "start"
+ │   │   │   │               │       │       └─ DivertPath_end 145
+ │   │   │   │               │       └─ DivertTarget_end 145
+ │   │   │   │               └─ Divert_end 145
+ │   │   │   └─ Choice_end 145
+ │   │   ├─ Newline [145..146]: "\n"
+ │   │   ├─ Choice [146..174]
+ │   │   │   ├─ Choice_begin [146..168]
+ │   │   │   │   ├─ Choice_begin_c1 [146..150]
+ │   │   │   │   │   └─ OptionalWhitespace [146..150]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [150..152]
+ │   │   │   │   │   └─ ChoiceMark [150..152]: "* "
+ │   │   │   │   ├─ Choice_begin_c3 152
+ │   │   │   │   ├─ Choice_begin_c4 [152..154]
+ │   │   │   │   │   └─ LuauIfKeyword [152..154]: "if"
+ │   │   │   │   ├─ Choice_begin_c5 [154..155]
+ │   │   │   │   │   └─ Choice_begin_c5 [154..155]
+ │   │   │   │   │       └─ OptionalWhitespace [154..155]: " "
+ │   │   │   │   ├─ Choice_begin_c6 [155..168]
+ │   │   │   │   │   └─ ChoiceCondition [155..168]
+ │   │   │   │   │       ├─ ChoiceCondition_begin 155
+ │   │   │   │   │       ├─ ChoiceCondition_content [155..168]
+ │   │   │   │   │       │   └─ LuauParenthetical [155..168]
+ │   │   │   │   │       │       ├─ LuauParenthetical_begin [155..156]
+ │   │   │   │   │       │       │   └─ LuauParenthetical_begin_c1 [155..156]
+ │   │   │   │   │       │       │       └─ PunctuationParenOpen [155..156]: "("
+ │   │   │   │   │       │       ├─ LuauParenthetical_content [156..167]
+ │   │   │   │   │       │       │   └─ LuauLengthOperation [156..167]
+ │   │   │   │   │       │       │       ├─ LuauLengthOperation_begin 156
+ │   │   │   │   │       │       │       │   └─ LuauLengthOperation_begin_c1 156
+ │   │   │   │   │       │       │       ├─ LuauLengthOperation_content [156..167]
+ │   │   │   │   │       │       │       │   ├─ LuauLengthOperator [156..157]
+ │   │   │   │   │       │       │       │   │   ├─ LuauLengthOperator_begin [156..157]
+ │   │   │   │   │       │       │       │   │   │   ├─ LuauLengthOperator_begin_c1 156
+ │   │   │   │   │       │       │       │   │   │   │   └─ OptionalWhitespace 156
+ │   │   │   │   │       │       │       │   │   │   ├─ LuauLengthOperator_begin_c2 [156..157]: "#"
+ │   │   │   │   │       │       │       │   │   │   └─ LuauLengthOperator_begin_c3 157
+ │   │   │   │   │       │       │       │   │   └─ LuauLengthOperator_end 157
+ │   │   │   │   │       │       │       │   ├─ LuauParenthetical [157..163]
+ │   │   │   │   │       │       │       │   │   ├─ LuauParenthetical_begin [157..158]
+ │   │   │   │   │       │       │       │   │   │   └─ LuauParenthetical_begin_c1 [157..158]
+ │   │   │   │   │       │       │       │   │   │       └─ PunctuationParenOpen [157..158]: "("
+ │   │   │   │   │       │       │       │   │   ├─ LuauParenthetical_content [158..161]
+ │   │   │   │   │       │       │       │   │   │   └─ LuauDoubleQuotedString [158..161]
+ │   │   │   │   │       │       │       │   │   │       ├─ LuauDoubleQuotedString_begin [158..159]
+ │   │   │   │   │       │       │       │   │   │       │   └─ LuauDoubleQuotedString_begin_c1 [158..159]
+ │   │   │   │   │       │       │       │   │   │       │       └─ PunctuationStringDoubleQuoteOpen [158..159]: "\""
+ │   │   │   │   │       │       │       │   │   │       ├─ LuauDoubleQuotedString_content [159..160]
+ │   │   │   │   │       │       │       │   │   │       │   └─ Punctuation [159..160]: ")"
+ │   │   │   │   │       │       │       │   │   │       └─ LuauDoubleQuotedString_end [160..161]
+ │   │   │   │   │       │       │       │   │   │           ├─ LuauDoubleQuotedString_end_c1 [160..161]
+ │   │   │   │   │       │       │       │   │   │           │   └─ PunctuationStringDoubleQuoteClose [160..161]: "\""
+ │   │   │   │   │       │       │       │   │   │           └─ LuauDoubleQuotedString_end_c2 161
+ │   │   │   │   │       │       │       │   │   └─ LuauParenthetical_end [161..163]
+ │   │   │   │   │       │       │       │   │       ├─ LuauParenthetical_end_c1 [161..162]
+ │   │   │   │   │       │       │       │   │       │   └─ PunctuationParenClose [161..162]: ")"
+ │   │   │   │   │       │       │       │   │       └─ LuauParenthetical_end_c2 [162..163]
+ │   │   │   │   │       │       │       │   │           └─ LuauParenthetical_end_c2 [162..163]
+ │   │   │   │   │       │       │       │   │               └─ OptionalWhitespace [162..163]: " "
+ │   │   │   │   │       │       │       │   └─ LuauCompareOperation [163..167]
+ │   │   │   │   │       │       │       │       ├─ LuauCompareOperation_begin 163
+ │   │   │   │   │       │       │       │       │   └─ LuauCompareOperation_begin_c1 163
+ │   │   │   │   │       │       │       │       ├─ LuauCompareOperation_content [163..167]
+ │   │   │   │   │       │       │       │       │   ├─ LuauCompareOperator [163..166]
+ │   │   │   │   │       │       │       │       │   │   ├─ LuauCompareOperator_begin [163..166]
+ │   │   │   │   │       │       │       │       │   │   │   ├─ LuauCompareOperator_begin_c1 163
+ │   │   │   │   │       │       │       │       │   │   │   │   └─ OptionalWhitespace 163
+ │   │   │   │   │       │       │       │       │   │   │   ├─ LuauCompareOperator_begin_c2 [163..165]: "=="
+ │   │   │   │   │       │       │       │       │   │   │   └─ LuauCompareOperator_begin_c3 [165..166]
+ │   │   │   │   │       │       │       │       │   │   │       └─ LuauCompareOperator_begin_c3 [165..166]
+ │   │   │   │   │       │       │       │       │   │   │           └─ OptionalWhitespace [165..166]: " "
+ │   │   │   │   │       │       │       │       │   │   └─ LuauCompareOperator_end 166
+ │   │   │   │   │       │       │       │       │   └─ LuauNumericDecimal [166..167]
+ │   │   │   │   │       │       │       │       │       ├─ LuauNumericDecimal_c1 [166..167]: "1"
+ │   │   │   │   │       │       │       │       │       └─ LuauNumericDecimal_c2 167
+ │   │   │   │   │       │       │       │       └─ LuauCompareOperation_end 167
+ │   │   │   │   │       │       │       └─ LuauLengthOperation_end 167
+ │   │   │   │   │       │       └─ LuauParenthetical_end [167..168]
+ │   │   │   │   │       │           ├─ LuauParenthetical_end_c1 [167..168]
+ │   │   │   │   │       │           │   └─ PunctuationParenClose [167..168]: ")"
+ │   │   │   │   │       │           └─ LuauParenthetical_end_c2 168
+ │   │   │   │   │       └─ ChoiceCondition_end 168
+ │   │   │   │   └─ Choice_begin_c7 168
+ │   │   │   ├─ Choice_content [168..174]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [168..174]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [168..174]
+ │   │   │   │       │   └─ ChoicePlainText [168..174]
+ │   │   │   │       │       └─ ChoiceTextContent [168..174]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [168..174]
+ │   │   │   │       │               ├─ Space [168..169]: " "
+ │   │   │   │       │               └─ Word [169..174]: "Fifth"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 174
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 174
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 174
+ │   │   │   └─ Choice_end 174
+ │   │   └─ Newline [174..175]: "\n"
+ │   └─ LuauSparkdownChooseBlock_end [175..180]
+ │       ├─ LuauSparkdownChooseBlock_end_c1 [175..177]
+ │       │   └─ LuauSparkdownChooseBlock_end_c1 [175..177]
+ │       │       └─ OptionalWhitespace [175..177]: "  "
+ │       ├─ LuauSparkdownChooseBlock_end_c2 [177..180]
+ │       │   └─ LuauEndKeyword [177..180]: "end"
+ │       └─ LuauSparkdownChooseBlock_end_c3 180
+ ├─ Newline [180..181]: "\n"
+ ├─ LuauEndKeyword [181..184]: "end"
+ └─ Newline [184..185]: "\n"

@@ -521,6 +521,13 @@ variables:
   LUAU_SINGLE_EQUALS: =(?!=)
   LUAU_WORD: (?:[a-zA-Z_][a-zA-Z0-9_]*{{LUAU_NAME_END}})
   LUAU_NAME_OR_CONSTANT: (?:(?:nil|true|false){{LUAU_NAME_END}}|{{LUAU_IDENTIFIER}})
+  CHOICE_CONDITION_STRING: (?:"(?:[^"\\\r\n]|\\.)*"|'(?:[^'\\\r\n]|\\.)*'|`(?:[^`\\\r\n]|\\.)*`)
+  CHOICE_CONDITION_ATOM: (?:{{CHOICE_CONDITION_STRING}}|[^()"'`\r\n])
+  CHOICE_CONDITION_PARENS_1: (?:[(]{{CHOICE_CONDITION_ATOM}}*[)])
+  CHOICE_CONDITION_PARENS_2: (?:[(](?:{{CHOICE_CONDITION_ATOM}}|{{CHOICE_CONDITION_PARENS_1}})*[)])
+  CHOICE_CONDITION_PARENS_3: (?:[(](?:{{CHOICE_CONDITION_ATOM}}|{{CHOICE_CONDITION_PARENS_2}})*[)])
+  CHOICE_CONDITION_PARENS: (?:[(](?:{{CHOICE_CONDITION_ATOM}}|{{CHOICE_CONDITION_PARENS_3}})*[)])
+  CHOICE_CONDITION_PATH: (?:{{LUAU_NAME_OR_CONSTANT}}(?:[.]{{LUAU_IDENTIFIER}}|[:]{{LUAU_IDENTIFIER}}{{CHOICE_CONDITION_PARENS}}|{{CHOICE_CONDITION_PARENS}})*)
   LUAU_KEYWORD: (?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while){{LUAU_NAME_END}})
   # lookaround: anywhere else `LuauAccessPath` reads the word as a name; it
   # comes after the alternators in `LuauExpression`.
@@ -1433,7 +1440,7 @@ repository:
 
   Choice:
     name: entity.choice.sd
-    begin: ({{WS}}*)((?:[*]{{EOK}})+|(?:[+]{{EOK}})+)([(][^()\r\n]*[)]{{WS}}*)?(?:(if)\b({{WS}}+)((?:not\b{{WS}}+)?(?:[(][^()\r\n]*[)]|{{LUAU_NAME_OR_CONSTANT}}(?:[.]{{LUAU_IDENTIFIER}})*))(?={{WS}}|$))?(\r\n|\r|\n)?
+    begin: ({{WS}}*)((?:[*]{{EOK}})+|(?:[+]{{EOK}})+)([(][^()\r\n]*[)]{{WS}}*)?(?:(if)\b({{WS}}+)((?:not\b{{WS}}+)?(?:{{CHOICE_CONDITION_PARENS}}|{{CHOICE_CONDITION_PATH}}))(?={{WS}}|$))?(\r\n|\r|\n)?
     beginCaptures:
       1:
         patterns:
@@ -1467,9 +1474,10 @@ repository:
     end: (?=$)
 
   ChoiceCondition:
-    emit: true
+    begin: (?=\S)
     patterns:
       - { include: "#LuauExpression" }
+    end: $
 
   ChoiceConditional:
     name: entity.choice.sd

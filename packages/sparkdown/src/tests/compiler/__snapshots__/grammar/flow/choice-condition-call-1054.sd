@@ -1,0 +1,9 @@
+scene start
+  choose
+    * if allowed() First
+    * if (allowed()) Second
+    * if not t.check(1, (2)) Third
+    * if t:open(1) [Fourth] -> start
+    * if (#(")") == 1) Fifth
+  end
+end
