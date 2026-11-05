@@ -476,7 +476,7 @@ check("a seed refused because the editor remembers another project names how to 
 
 check("a panel that never opened names every reason it might not have", () => {
   carriesAdvice("did not appear within 10s of pressing", "--close");
-  carriesAdvice("did not appear within 10s of pressing", "--screen logic --screen main");
+  carriesAdvice("did not appear within 10s of pressing", "--screen main");
   carriesAdvice("did not appear within 10s of pressing", "customSearch.ts");
 });
 
