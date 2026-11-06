@@ -8,13 +8,16 @@
     "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
     "@impower/spark-engine": "file:../spark-engine",
     "@vscode/debugadapter": "^1.68.0",
-    "@vscode/debugprotocol": "^1.68.0"
+    "@vscode/debugprotocol": "^1.68.0",
+    "events": "^3.3.0",
+    "url": "^0.11.4"
   },
   "scripts": {
     "test": "vitest run",
     "typecheck": "node ../../scripts/typecheck.mjs packages/spark-debug-adapter/"
   },
   "devDependencies": {
+    "esbuild": "^0.18.10",
     "jsdom": "^27.0.1",
     "vitest": "^2.1.9"
   }
