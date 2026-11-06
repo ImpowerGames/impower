@@ -46,6 +46,7 @@ export interface SearchSnapshot {
   replacement: string;
   options: FindOptions;
   groups: SearchGroup[];
+  resultsFor?: string;
   total: number;
   error?: string;
   status: string;

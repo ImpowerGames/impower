@@ -2,6 +2,7 @@ import type { WorkspaceEdit } from "@impower/spark-editor-protocol/src/protocols
 import type {
   FindTextParams,
   FindTextResult,
+  FindTextScript,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/FindTextMessage";
 import { effect } from "@preact/signals";
 import type {
@@ -205,6 +206,10 @@ export default class WorkspaceSearch {
 
   protected _request = 0;
 
+  protected _refreshing: Promise<void> = Promise.resolve();
+
+  protected _exclusive: Promise<unknown> = Promise.resolve();
+
   protected _matchedUri: string | undefined;
 
   protected _published = "";
@@ -309,11 +314,23 @@ export default class WorkspaceSearch {
     };
   }
 
-  async refresh() {
+  protected queryKey() {
+    const { term, options } = this.snapshot;
+    return JSON.stringify([term, options]);
+  }
+
+  refresh() {
+    const refreshing = this.runRefresh();
+    this._refreshing = refreshing;
+    return refreshing;
+  }
+
+  protected async runRefresh() {
     const request = ++this._request;
     const term = this.snapshot.term;
+    const resultsFor = this.queryKey();
     if (!term) {
-      this.update({ groups: [], total: 0, error: undefined });
+      this.update({ groups: [], total: 0, error: undefined, resultsFor });
       this.publishMatches();
       return;
     }
@@ -322,7 +339,7 @@ export default class WorkspaceSearch {
       return;
     }
     if ("error" in result) {
-      this.update({ groups: [], total: 0, error: result.error });
+      this.update({ groups: [], total: 0, error: result.error, resultsFor });
     } else {
       const groups = result.scripts
         .map((script) => ({
@@ -334,9 +351,47 @@ export default class WorkspaceSearch {
           })),
         }))
         .sort((a, b) => compareScripts(a.uri, b.uri));
-      this.update({ groups, total: result.total, error: undefined });
+      this.update({ groups, total: result.total, error: undefined, resultsFor });
     }
     this.publishMatches();
+  }
+
+  protected async currentResults() {
+    while (this.snapshot.resultsFor !== this.queryKey()) {
+      const refreshing = this._refreshing;
+      await refreshing;
+      if (refreshing === this._refreshing && this.snapshot.resultsFor !== this.queryKey()) {
+        await this.refresh();
+      }
+    }
+  }
+
+  protected exclusive<T>(run: () => Promise<T>): Promise<T> {
+    const next = this._exclusive.then(run, run);
+    this._exclusive = next.catch(() => undefined);
+    return next;
+  }
+
+  protected async unchangedSince(scripts: readonly FindTextScript[]) {
+    const opened = this._sources.openedUri();
+    for (const script of scripts) {
+      if (script.uri === opened) {
+        continue;
+      }
+      const text = await this._sources.fileText(script.uri).catch(() => null);
+      if (
+        text == null ||
+        script.matches.some((m) => lineOf(text, m.range.start.line) !== m.lineText)
+      ) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  protected async refuseChanged() {
+    this.say("A script changed while replacing. Nothing was replaced; try again.", "error");
+    await this.refresh();
   }
 
   protected publishMatches() {
@@ -372,9 +427,13 @@ export default class WorkspaceSearch {
   }
 
   async step(backward = false, from?: Range) {
+    if (!this.snapshot.term) {
+      this.say("Enter words to find.");
+      return;
+    }
+    await this.currentResults();
     const { term, error, groups } = this.snapshot;
     if (!term) {
-      this.say("Enter words to find.");
       return;
     }
     if (error) {
@@ -394,12 +453,17 @@ export default class WorkspaceSearch {
     await this._sources.showMatch(target.uri, target.range);
   }
 
-  async replaceOne() {
-    const { term, replacement, groups } = this.snapshot;
-    if (!term) {
+  replaceOne() {
+    return this.exclusive(() => this.runReplaceOne());
+  }
+
+  protected async runReplaceOne() {
+    if (!this.snapshot.term) {
       this.say("Enter words to find first.");
       return;
     }
+    await this.currentResults();
+    const { term, replacement, groups } = this.snapshot;
     const uri = this._sources.openedUri();
     const on = matchAt(groups, uri, this._sources.selection());
     if (!on || !uri) {
@@ -442,7 +506,11 @@ export default class WorkspaceSearch {
     }
   }
 
-  async replaceAll() {
+  replaceAll() {
+    return this.exclusive(() => this.runReplaceAll());
+  }
+
+  protected async runReplaceAll() {
     const { term, replacement } = this.snapshot;
     if (!term) {
       this.say("Enter words to find first.");
@@ -454,6 +522,10 @@ export default class WorkspaceSearch {
     }
     if (!result.total) {
       this.say("No matches in any script.");
+      return;
+    }
+    if (!(await this.unchangedSince(result.scripts))) {
+      await this.refuseChanged();
       return;
     }
     const outcome = await this._sources.applyEdit(
@@ -588,13 +660,36 @@ export default class WorkspaceSearch {
     this.update({ renameName, status: "", statusTone: "info" });
   }
 
-  async rename() {
+  rename() {
+    return this.exclusive(() => this.runRename());
+  }
+
+  protected async nameStillAt(subject: NameSubject) {
+    if (!subject.uri || !subject.position) {
+      return false;
+    }
+    const range = await this._sources.prepareRename(subject.uri, subject.position);
+    if (!range || range.start.line !== range.end.line) {
+      return false;
+    }
+    const text = await this._sources.fileText(subject.uri).catch(() => "");
+    return (
+      lineOf(text, range.start.line).slice(range.start.character, range.end.character) ===
+      subject.name
+    );
+  }
+
+  protected async runRename() {
     const { subject, renameName } = this.snapshot;
     const newName = renameName.trim();
     if (!subject?.uri || !subject.position) {
       return false;
     }
     if (newName === subject.name) {
+      return false;
+    }
+    if (!(await this.nameStillAt(subject))) {
+      this.say(`The script changed and ${subject.name} is no longer there. Open Rename again.`, "error");
       return false;
     }
     let edit: WorkspaceEdit | null;

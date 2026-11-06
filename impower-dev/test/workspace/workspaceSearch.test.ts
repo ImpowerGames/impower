@@ -383,6 +383,85 @@ describe("Rename", () => {
   });
 });
 
+describe("edits and steps never act on stale results", () => {
+  it("runs two Replace alls one after the other and refuses the second when the server's ranges are stale", async () => {
+    const { search, sources } = make(MAIN);
+    const files: Record<string, string> = { [CHAPTER]: "rumour!" };
+    sources.findText.mockImplementation(async (params: FindTextParams) => ({
+      total: 1,
+      scripts: [
+        {
+          uri: CHAPTER,
+          matches: [
+            {
+              range: range(0, 0, 6),
+              lineText: "rumour!",
+              ...(params.replacement != null ? { replacement: params.replacement } : {}),
+            },
+          ],
+        },
+      ],
+    }));
+    sources.fileText.mockImplementation(async (uri: string) => files[uri] ?? "");
+    sources.applyEdit.mockImplementation(async (edit: unknown) => {
+      const [change] = (edit as { documentChanges: { textDocument: { uri: string }; edits: { range: Range; newText: string }[] }[] }).documentChanges;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      const { uri } = change!.textDocument;
+      const text = files[uri]!;
+      const [e] = change!.edits;
+      files[uri] = text.slice(0, e!.range.start.character) + e!.newText + text.slice(e!.range.end.character);
+      return { applied: true };
+    });
+    search.open("find");
+    await search.setTerm("rumour");
+    search.setReplacement("x");
+    await Promise.all([search.replaceAll(), search.replaceAll()]);
+    expect(files[CHAPTER]).toBe("x!");
+    expect(sources.applyEdit).toHaveBeenCalledTimes(1);
+    expect(workspace.search.value).toMatchObject({
+      status: "A script changed while replacing. Nothing was replaced; try again.",
+      statusTone: "error",
+    });
+  });
+
+  it("steps with the results of the words in the field, waiting for them", async () => {
+    const { search, sources } = make(MAIN);
+    search.open("find");
+    await search.setTerm("another");
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const real = sources.findText.getMockImplementation()!;
+    sources.findText.mockImplementation(async (params: FindTextParams) => {
+      if (params.query === "rumour") {
+        await gate;
+      }
+      return real(params);
+    });
+    void search.setTerm("rumour");
+    const stepping = search.step();
+    release();
+    await stepping;
+    expect(sources.showMatch).toHaveBeenLastCalledWith(MAIN, range(1, 6, 12));
+    expect(sources.showMatch).not.toHaveBeenCalledWith(CHAPTER, range(1, 12, 19));
+  });
+
+  it("refuses a rename whose name is no longer at its place", async () => {
+    const { search, sources } = make(MAIN);
+    await search.openRename();
+    sources.fileText.mockImplementation(async () =>
+      ["scene start", "  The zadie spread.", "end"].join(NEWLINE),
+    );
+    search.setRenameName("amara");
+    expect(await search.rename()).toBe(false);
+    expect(sources.renameEdits).not.toHaveBeenCalled();
+    expect(workspace.search.value.status).toBe(
+      "The script changed and imani is no longer there. Open Rename again.",
+    );
+  });
+});
+
 describe("Auto-rename files", () => {
   it("reaches the language server's configuration as editor.autoRenameFiles", () => {
     const defaults = (schema: Record<string, { default: unknown }>) =>
