@@ -97,7 +97,7 @@ describe("the Appearance section", () => {
     expect(radio("editor-theme", "automatic").checked).toBe(true);
   });
 
-  it("writes the chosen theme, which the editor's appearance follows, and describes each choice under the grid", async () => {
+  it("writes the chosen theme, which the editor's appearance follows, and notes Automatic and each preset theme under the grid, while Graphite and Warm Folio show their own rows instead", async () => {
     await mountAppearance();
     const device = workspaceSettings.theme.value === "chalk" ? "Chalk" : "Charcoal";
     expect(note()).toBe(`Follows your device’s light or dark setting. Right now that is ${device}.`);
@@ -109,6 +109,10 @@ describe("the Appearance section", () => {
     expect(note()).toBe("The default dark theme. Ink’s syntax colors and accent on neutral charcoal.");
     await click(radio("editor-theme", "graphite"));
     expect(host!.querySelector("[data-theme-note]")).toBeNull();
+    expect(customRows().hidden).toBe(false);
+    await click(radio("editor-theme", "warm"));
+    expect(host!.querySelector("[data-theme-note]")).toBeNull();
+    expect(customRows().hidden).toBe(false);
   });
 
   it("shows Surfaces and Syntax colors for Graphite and Warm Folio only, and writes them", async () => {
