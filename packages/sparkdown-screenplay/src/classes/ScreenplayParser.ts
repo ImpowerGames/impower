@@ -2,6 +2,7 @@ import { type SyntaxNode, Tree } from "@lezer/common";
 import GRAMMAR_DEFINITION from "../../../sparkdown/language/sparkdown.language-grammar.json";
 import type { SparkdownNodeName } from "../../../sparkdown/src/compiler/types/SparkdownNodeName";
 import { TextmateGrammarParser } from "../../../textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
+import { getDescendent } from "../../../textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ScreenplayToken } from "../types/ScreenplayToken";
 import { MetadataTokenType } from "../types/ScreenplayTokenType";
 
@@ -80,9 +81,8 @@ export default class ScreenplayParser {
       ) {
         return false;
       }
-      const modifier = definition.firstChild?.getChild(
-        "LuauFunctionDefinition_begin_c2",
-      );
+      const begin = definition.getChild("LuauFunctionDefinition_begin");
+      const modifier = begin && getDescendent("LuauScopeModifier", begin);
       return !modifier || read(modifier.from, modifier.to) !== "local";
     };
 
