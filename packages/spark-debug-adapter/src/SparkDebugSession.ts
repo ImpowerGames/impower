@@ -21,10 +21,16 @@ import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/
 import { GetGameEvaluationContextMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameEvaluationContextMessage";
 import { GetGamePossibleBreakpointLocationsMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGamePossibleBreakpointLocationsMessage";
 import { GetGameScriptsMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameScriptsMessage";
-import { GetGameStackTraceMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameStackTraceMessage";
+import {
+  GetGameStackTraceMessage,
+  type GetGameStackTraceResult,
+} from "@impower/spark-engine/src/game/core/classes/messages/GetGameStackTraceMessage";
 import { GetGameThreadsMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameThreadsMessage";
 import { GetGameVariablesMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameVariablesMessage";
-import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
+import {
+  PauseGameMessage,
+  type PauseGameResult,
+} from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
 import {
   RestartGameMessage,
   RestartGameParams,
@@ -111,6 +117,8 @@ export class SparkDebugSession extends LoggingDebugSession {
   private _firstRead: Promise<void> | undefined;
 
   private _endStop: { run: number | null | undefined } | undefined;
+
+  private _continueAdvances = true;
 
   private _finishFirstRead: (() => void) | undefined;
 
@@ -322,6 +330,7 @@ export class SparkDebugSession extends LoggingDebugSession {
       this._endStop = { run };
     }
     const { threads } = answer;
+    this._continueAdvances = reason !== "pause";
     for (const thread of threads) {
       this._stoppedReason.set(thread.id, reason);
       this.sendEvent(new StoppedEvent(reason, thread.id));
@@ -441,15 +450,19 @@ export class SparkDebugSession extends LoggingDebugSession {
         ),
       );
     } catch (e) {
-      this.sendErrorResponse(response, {
-        id: 2002,
-        format: (e as { message?: string })?.message ?? String(e),
-        showUser: true,
-      });
+      this.sendRefusal(response, e);
       return;
     }
 
     this.sendResponse(response);
+  }
+
+  protected sendRefusal(response: DebugProtocol.Response, error: unknown) {
+    this.sendErrorResponse(response, {
+      id: 2002,
+      format: (error as { message?: string })?.message ?? String(error),
+      showUser: true,
+    });
   }
 
   protected override async launchRequest(
@@ -479,7 +492,13 @@ export class SparkDebugSession extends LoggingDebugSession {
     if (await this.answerEnded(response)) {
       return;
     }
-    const answer = await this._connection.emit(PauseGameMessage.type.request({}));
+    let answer: PauseGameResult;
+    try {
+      answer = await this._connection.emit(PauseGameMessage.type.request({}));
+    } catch (e) {
+      this.sendRefusal(response, e);
+      return;
+    }
     this.sendResponse(response);
     if (this.answersRun(answer.run, run)) {
       await this.sendStoppedEvent("pause", run);
@@ -493,10 +512,15 @@ export class SparkDebugSession extends LoggingDebugSession {
     if (await this.answerEnded(response)) {
       return;
     }
-    await this._connection.emit(UnpauseGameMessage.type.request({}));
-    await this._connection.emit(
-      ContinueGameMessage.type.request({}),
-    );
+    try {
+      await this._connection.emit(UnpauseGameMessage.type.request({}));
+      if (this._continueAdvances) {
+        await this._connection.emit(ContinueGameMessage.type.request({}));
+      }
+    } catch (e) {
+      this.sendRefusal(response, e);
+      return;
+    }
     this.sendResponse(response);
   }
 
@@ -520,44 +544,36 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.NextResponse,
     _args: DebugProtocol.NextArguments,
   ) {
-    if (await this.answerEnded(response)) {
-      return;
-    }
-    await this._connection.emit(
-      StepGameMessage.type.request({
-        traversal: "over",
-      }),
-    );
-    this.sendResponse(response);
+    await this.step(response, "over");
   }
 
   protected override async stepInRequest(
     response: DebugProtocol.StepInResponse,
     _args: DebugProtocol.StepInArguments,
   ) {
-    if (await this.answerEnded(response)) {
-      return;
-    }
-    await this._connection.emit(
-      StepGameMessage.type.request({
-        traversal: "in",
-      }),
-    );
-    this.sendResponse(response);
+    await this.step(response, "in");
   }
 
   protected override async stepOutRequest(
     response: DebugProtocol.StepOutResponse,
     _args: DebugProtocol.StepOutArguments,
   ) {
+    await this.step(response, "out");
+  }
+
+  protected async step(
+    response: DebugProtocol.Response,
+    traversal: "over" | "in" | "out",
+  ) {
     if (await this.answerEnded(response)) {
       return;
     }
-    await this._connection.emit(
-      StepGameMessage.type.request({
-        traversal: "out",
-      }),
-    );
+    try {
+      await this._connection.emit(StepGameMessage.type.request({ traversal }));
+    } catch (e) {
+      this.sendRefusal(response, e);
+      return;
+    }
     this.sendResponse(response);
   }
 
@@ -783,13 +799,20 @@ export class SparkDebugSession extends LoggingDebugSession {
     this._variableHandles.reset();
     const reason = this._stoppedReason.get(args.threadId);
     this._stoppedReason.delete(args.threadId);
-    const { stackFrames, totalFrames } = await this._connection.emit(
-      GetGameStackTraceMessage.type.request({
-        threadId: args.threadId,
-        startFrame: args.startFrame,
-        levels: args.levels,
-      }),
-    );
+    let trace: GetGameStackTraceResult;
+    try {
+      trace = await this._connection.emit(
+        GetGameStackTraceMessage.type.request({
+          threadId: args.threadId,
+          startFrame: args.startFrame,
+          levels: args.levels,
+        }),
+      );
+    } catch (e) {
+      this.sendRefusal(response, e);
+      return;
+    }
+    const { stackFrames, totalFrames } = trace;
     const clientStackFrames: StackFrame[] = [];
     for (const stackFrame of stackFrames) {
       const clientStackFrame: StackFrame =

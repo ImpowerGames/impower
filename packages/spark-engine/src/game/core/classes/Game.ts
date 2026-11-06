@@ -3473,6 +3473,7 @@ export class Game<T extends M = {}> {
     this.connection.emit(
       GameAwaitingInteractionMessage.type.notification({
         location: this.getDocumentLocation(location),
+        choices: this._shownChoices.length > 0,
       }),
     );
   }

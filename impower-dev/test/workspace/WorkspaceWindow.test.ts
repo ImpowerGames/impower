@@ -45,6 +45,14 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   },
 }));
 
+const layoutMock = vi.hoisted(() => ({
+  value: "desktop" as "phone" | "compact" | "desktop",
+}));
+vi.mock("@impower/impower-ui/layout", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@impower/impower-ui/layout")>()),
+  useLayout: () => layoutMock.value,
+}));
+
 vi.mock("@impower/impower-ui/components", async () => {
   const { h, createContext } = await import("preact");
   const { useContext } = await import("preact/hooks");
@@ -66,6 +74,7 @@ vi.mock("@impower/impower-ui/components", async () => {
     "ScreenplayIcon",
     "StepIntoIcon",
     "StepOutIcon",
+    "StepOverIcon",
     "StopIcon",
     "VisualIcon",
   ];
@@ -74,6 +83,12 @@ vi.mock("@impower/impower-ui/components", async () => {
     DropdownRoot: element("div"),
     DropdownTrigger: element("div"),
     DropdownContent: element("div"),
+    DropdownItem: ({ disabled, onSelect, children, ...props }: any) =>
+      h(
+        "button",
+        { ...props, role: "menuitem", disabled, onClick: () => onSelect?.(new Event("select")) },
+        children,
+      ),
     DropdownCheckboxItem: ({ checked, onCheckedChange, onSelect: _s, children, ...props }: any) =>
       h(
         "button",
@@ -1702,34 +1717,131 @@ describe("The preview's top bar", () => {
     ]);
   });
 
-  it("adds Pause and the Step buttons while playing, the Steps usable only while paused", async () => {
-    show({ running: true });
-    expect(labels()).toEqual([
-      "Viewing mode",
-      "Pause",
-      "Step Into",
-      "Skip back",
-      "Stop",
-      "Skip forward",
-      "Step Out",
-      "Preview settings",
-    ]);
-    expect(control("Step Into")?.disabled).toBe(true);
-    control("Pause")!.click();
-    await vi.waitFor(() =>
-      expect(workspace.current.preview.modes.game.paused).toBe(true),
-    );
-    expect(requests).toContain("game/pause");
-    show(workspace.current.preview.modes.game);
-    expect(control("Resume")?.getAttribute("aria-pressed")).toBe("true");
-    expect(control("Step Into")?.disabled).toBe(false);
-    control("Step Out")!.click();
-    await vi.waitFor(() => expect(requests).toContain("game/step"));
-    control("Resume")!.click();
-    await vi.waitFor(() =>
-      expect(workspace.current.preview.modes.game.paused).toBe(false),
-    );
-    expect(requests).toContain("game/unpause");
+  it("pauses, steps and resumes through the debug client while playing, each step's refusal on its button", async () => {
+    const uri = "file://local/main.sd";
+    let depth = 1;
+    const player = (e: Event) => {
+      const message = (e as CustomEvent).detail;
+      if (!message || !("id" in message) || !("params" in message)) {
+        return;
+      }
+      if (!message.method.startsWith("game/") && message.method !== "preview/gameState") {
+        return;
+      }
+      const at = { start: { line: depth === 1 ? 3 : 9, character: 2 }, end: { line: 3, character: 9 } };
+      const results: Record<string, unknown> = {
+        "preview/gameState": { launchState: "play", paused: false, run: 1 },
+        "game/threads": { threads: [{ id: 0, name: "main" }], run: 1 },
+        "game/stackTrace": {
+          stackFrames: [{ id: 0, name: "main", location: { uri, range: at } }],
+          totalFrames: depth,
+        },
+        "game/pause": { run: 1 },
+        "game/step": { done: true, run: 1 },
+      };
+      queueMicrotask(() =>
+        sendProtocolMessage({
+          jsonrpc: "2.0",
+          method: message.method,
+          id: message.id,
+          result: results[message.method] ?? {},
+        } as never),
+      );
+    };
+    window.addEventListener(MessageProtocol.event, player);
+    try {
+      win.startGame();
+      show(workspace.current.preview.modes.game);
+      expect(labels()).toEqual([
+        "Viewing mode",
+        "Pause",
+        "Step Over",
+        "Step Into",
+        "Skip back",
+        "Stop",
+        "Skip forward",
+        "Step Out",
+        "Preview settings",
+      ]);
+      for (const step of ["Step Over", "Step Into", "Step Out"]) {
+        expect(control(step)?.getAttribute("aria-disabled")).toBe("true");
+        expect(control(step)?.title).toBe("Pause the story to step through it");
+      }
+      control("Pause")!.click();
+      await vi.waitFor(() =>
+        expect(workspace.current.preview.modes.game.paused).toBe(true),
+      );
+      expect(requests).toContain("game/pause");
+      await vi.waitFor(() =>
+        expect(workspace.debugSession.value.stackTrace?.totalFrames).toBe(1),
+      );
+      expect(workspace.current.preview.modes.game.position).toEqual({ uri, line: 3 });
+      show(workspace.current.preview.modes.game);
+      expect(control("Resume")?.getAttribute("aria-pressed")).toBe("true");
+      expect(control("Step Over")?.hasAttribute("aria-disabled")).toBe(false);
+      expect(control("Step Into")?.hasAttribute("aria-disabled")).toBe(false);
+      expect(control("Step Out")?.getAttribute("aria-disabled")).toBe("true");
+      expect(control("Step Out")?.title).toBe(
+        "Nothing is calling, so there is nothing to step out of.",
+      );
+      control("Step Into")!.click();
+      await vi.waitFor(() => expect(requests).toContain("game/step"));
+      depth = 2;
+      sendProtocolMessage({
+        jsonrpc: "2.0",
+        method: "game/stepped",
+        params: { location: { uri, range: {} }, run: 1 },
+      } as never);
+      await vi.waitFor(() =>
+        expect(workspace.debugSession.value.stackTrace?.totalFrames).toBe(2),
+      );
+      expect(workspace.current.preview.modes.game.position).toEqual({ uri, line: 9 });
+      show(workspace.current.preview.modes.game);
+      expect(control("Step Out")?.hasAttribute("aria-disabled")).toBe(false);
+      control("Step Out")!.click();
+      await vi.waitFor(() =>
+        expect(requests.filter((method) => method === "game/step")).toHaveLength(2),
+      );
+      control("Resume")!.click();
+      await vi.waitFor(() =>
+        expect(workspace.current.preview.modes.game.paused).toBe(false),
+      );
+      expect(requests).toContain("game/unpause");
+    } finally {
+      window.removeEventListener(MessageProtocol.event, player);
+    }
+  });
+
+  it("puts the steps in one Step menu on phones, each with its refusal", async () => {
+    layoutMock.value = "phone";
+    try {
+      show({ running: true, paused: true });
+      expect(labels()).toEqual([
+        "Viewing mode",
+        "Resume",
+        "Step",
+        "Skip back",
+        "Stop",
+        "Skip forward",
+        "Preview settings",
+      ]);
+      expect(
+        rows("menuitem").map((row) => [
+          row.querySelector("strong")?.textContent,
+          row.querySelector("small")?.textContent ?? null,
+          (row as HTMLButtonElement).disabled,
+        ]),
+      ).toEqual([
+        ["Step Over", null, false],
+        ["Step Into", null, false],
+        ["Step Out", "Nothing is calling, so there is nothing to step out of.", true],
+      ]);
+      const stepGame = vi.spyOn(win, "stepGame").mockResolvedValue(true);
+      rows("menuitem")[0]!.click();
+      await vi.waitFor(() => expect(stepGame).toHaveBeenCalledWith("over"));
+    } finally {
+      layoutMock.value = "desktop";
+    }
   });
 
   it("offers Play Again instead of Pause and the Steps once the story has ended", () => {
