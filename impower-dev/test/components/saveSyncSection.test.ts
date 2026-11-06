@@ -121,10 +121,13 @@ describe("the Save & sync section", () => {
     await act(async () => {
       workspace.current = { ...workspace.current, screen: { ...workspace.current.screen, appMenuOpen: true } };
     });
-    await mount(h(AppMenu, null));
-    expect(document.body.textContent).toContain("Not saved locally");
-    expect(document.body.textContent).not.toContain("Import Project");
-    expect(document.body.textContent).not.toContain("Export Project");
+    const menuHost = await mount(h(AppMenu, null));
+    const menu = document.querySelector<HTMLElement>('[role="menu"]')!;
+    expect(section().contains(menu)).toBe(false);
+    expect(menuHost.querySelector("button")!.textContent).toContain("Not saved locally");
+    expect(menu.textContent).toContain("Not saved locally");
+    expect(menu.textContent).not.toContain("Import Project");
+    expect(menu.textContent).not.toContain("Export Project");
   });
 
   it("downloads the project as <project>.zip from Download .zip", async () => {

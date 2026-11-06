@@ -1,4 +1,6 @@
+import { isProjectMetadata } from "../utils/fileTree";
 import { isScriptPath } from "../utils/scriptFiles";
+import { SETTINGS_JSON_PATH } from "./settings/settingsJson";
 
 export type ReplaceProjectRequest = {
   readonly fileName: string;
@@ -10,7 +12,9 @@ export type ReplaceProjectRequest = {
 export const countProjectFiles = (
   relativePaths: readonly string[],
 ): { scripts: number; assets: number } => {
-  const authored = relativePaths.filter((path) => !path.startsWith("."));
+  const authored = relativePaths.filter(
+    (path) => !isProjectMetadata(path) && path !== SETTINGS_JSON_PATH,
+  );
   const scripts = authored.filter(isScriptPath).length;
   return { scripts, assets: authored.length - scripts };
 };

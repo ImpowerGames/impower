@@ -557,6 +557,9 @@ describe("WorkspaceWindow store transitions", () => {
             "scripts/util.luau",
             "images/cover.png",
             "audio/theme.mp3",
+            ".layout",
+            ".drafts/scene.sd",
+            ".images/cover.png",
           ].map((path) => [`file://${id}/${path}`, { uri: `file://${id}/${path}` }]),
         ),
       );
@@ -568,7 +571,7 @@ describe("WorkspaceWindow store transitions", () => {
       workspace.current = { ...workspace.current, project };
     });
 
-    it("asks before importing, with the project's script and asset counts", async () => {
+    it("asks before importing, counting every script and asset the replace removes, dot folders included", async () => {
       const importing = vi
         .spyOn(win, "importLocalProject")
         .mockResolvedValue(undefined);
@@ -576,8 +579,8 @@ describe("WorkspaceWindow store transitions", () => {
       expect(workspace.replaceProject.value).toEqual({
         fileName: "backup.zip",
         projectName: "Raffles",
-        scripts: 3,
-        assets: 2,
+        scripts: 4,
+        assets: 3,
       });
       expect(importing).not.toHaveBeenCalled();
     });
