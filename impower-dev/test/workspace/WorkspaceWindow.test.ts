@@ -471,6 +471,32 @@ describe("WorkspaceWindow store transitions", () => {
       expect(workspace.current.shell?.railWidth).toBeUndefined();
     });
 
+    it("keeps each script's collapsed outline scenes across a reload, and the outline's search swap only for the session", async () => {
+      const uri = "file://outline/main.sd";
+      win.setOutlineSceneCollapsed(uri, "harbor#0", true);
+      win.setOutlineSceneCollapsed(uri, "harbor#0", true);
+      win.setOutlineSceneCollapsed("file://outline/other.sd", "dock#0", true);
+      expect(workspace.current.outline?.collapsed?.[uri]).toEqual(["harbor#0"]);
+      win.setOutlineSearch(true);
+      expect(workspace.current.screen.outlineSearch).toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      localStorage.setItem(
+        WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY,
+        workspace.current.project.id ?? "",
+      );
+      const reloaded = savedWorkspaceState();
+      expect(reloaded.outline?.collapsed).toEqual({
+        [uri]: ["harbor#0"],
+        "file://outline/other.sd": ["dock#0"],
+      });
+      expect(reloaded.screen.outlineSearch).toBeUndefined();
+      win.setOutlineSearch(false);
+      win.setOutlineSceneCollapsed(uri, "harbor#0", false);
+      expect(workspace.current.outline?.collapsed).toEqual({
+        "file://outline/other.sd": ["dock#0"],
+      });
+    });
+
     it("keeps the strip height and the compact rail for the project and resets them", async () => {
       win.setStripHeight(320);
       win.setRailCompactWidth(76);

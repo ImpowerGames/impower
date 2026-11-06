@@ -129,6 +129,7 @@ export interface ScreenState {
   settingsOpen?: boolean;
   appMenuOpen?: boolean;
   writingTools?: WritingToolsState;
+  outlineSearch?: boolean;
 }
 
 export type WritingToolsView = "menu" | "guide" | "shortcuts";
@@ -142,6 +143,10 @@ export interface ShellState {
   railWidth?: number;
   railCompactWidth?: number;
   stripHeight?: number;
+}
+
+export interface OutlineState {
+  collapsed?: Record<string, string[]>;
 }
 
 export interface DebugState {
@@ -159,6 +164,7 @@ export interface DebugState {
 export interface WorkspaceCache extends PanesState<PaneType> {
   project: ProjectState;
   shell?: ShellState;
+  outline?: OutlineState;
   screen: ScreenState;
   sync: SyncState;
   debug: DebugState;

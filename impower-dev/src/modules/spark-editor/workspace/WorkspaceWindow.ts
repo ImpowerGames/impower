@@ -298,6 +298,47 @@ export default class WorkspaceWindow {
     });
   }
 
+  setOutlineSceneCollapsed(uri: string, scene: string, collapsed: boolean) {
+    const current = this.store.outline?.collapsed?.[uri] ?? [];
+    if (current.includes(scene) === collapsed) {
+      return;
+    }
+    const scenes = collapsed
+      ? [...current, scene]
+      : current.filter((key) => key !== scene);
+    const { [uri]: _previous, ...others } = this.store.outline?.collapsed ?? {};
+    this.update({
+      ...this.store,
+      outline: {
+        ...this.store.outline,
+        collapsed: scenes.length ? { ...others, [uri]: scenes } : others,
+      },
+    });
+  }
+
+  setOutlineSearch(open: boolean) {
+    if (!!this.store.screen.outlineSearch === open) {
+      return;
+    }
+    this.update({
+      ...this.store,
+      screen: { ...this.store.screen, outlineSearch: open },
+    });
+    const filename = open
+      ? this.getActiveEditorForPane("logic")?.filename
+      : undefined;
+    if (filename) {
+      this.executeEditorCommand(filename, "search");
+    }
+  }
+
+  async openOutlineLocation(uri: string, range: Range) {
+    if (this.store.pane !== "logic" || this.store.screen.settingsOpen) {
+      this.navigateTo("write");
+    }
+    await this.showDocument(uri, range, true, true);
+  }
+
   setRailCompactWidth(width: number | undefined) {
     this.update({
       ...this.store,

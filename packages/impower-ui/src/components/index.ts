@@ -50,6 +50,14 @@ export {
   type ListRowLabelOverflow,
 } from "./list-row/ListRow";
 export {
+  default as VirtualList,
+  virtualListVariants,
+  virtualListSlotVariants,
+  VIRTUAL_LIST_ROW_HEIGHT,
+  type VirtualListProps,
+  type VirtualListSize,
+} from "./virtual-list/VirtualList";
+export {
   default as SparkLogo,
   sparkLogoVariants,
   type SparkLogoProps,
@@ -124,7 +132,14 @@ export {
   type ChoiceGroupProps,
   type ChoiceOption,
   type ChoiceGroupSize,
+  type ChoiceGroupVariant,
 } from "./choice-group/ChoiceGroup";
+export {
+  default as ThemeSwatch,
+  themeSwatchVariants,
+  type ThemeSwatchProps,
+  type ThemeSwatchSize,
+} from "./theme-swatch/ThemeSwatch";
 export {
   SettingsSection,
   SettingsGroup,

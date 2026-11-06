@@ -1,4 +1,5 @@
 import type { SparkDiagnostic } from "@impower/sparkdown/src/compiler/types/SparkDiagnostic";
+import type { DocumentSymbol } from "vscode-languageserver-protocol";
 import { DiagnosticTag } from "@impower/spark-editor-protocol/src/enums/DiagnosticTag";
 import {
   InitializeMessage,
@@ -351,6 +352,16 @@ export default class WorkspaceLanguageServer {
       (await this._connection.sendRequest<SparkDiagnostic[]>(
         "sparkdown/fileDiagnostics",
         { uri },
+      )) ?? []
+    );
+  }
+
+  async getDocumentSymbols(uri: string): Promise<DocumentSymbol[]> {
+    await this.initialization();
+    return (
+      (await this._connection.sendRequest<DocumentSymbol[] | null>(
+        "textDocument/documentSymbol",
+        { textDocument: { uri } },
       )) ?? []
     );
   }

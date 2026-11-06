@@ -1,10 +1,14 @@
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { describe, expect, test } from "vitest";
+import { SymbolKind, type DocumentSymbol } from "vscode-languageserver";
 import { getDocumentSymbols } from "../../utils/providers/getDocumentSymbols";
 import { getFoldingRanges } from "../../utils/providers/getFoldingRanges";
 
 const URI = "file:///outline.sd";
+
+const declarationNames = (symbols: DocumentSymbol[] | undefined) =>
+  symbols?.filter((s) => s.kind !== SymbolKind.Enum).map((s) => s.name);
 
 const CLOSED_BRANCH = `scene A
   choose
@@ -51,14 +55,14 @@ describe("provider · outline and folding after a closed branch", () => {
     const [scene, ...rest] = getDocumentSymbols(document, annotations, tree);
     expect(rest).toEqual([]);
     expect(scene?.name).toBe("A");
-    expect(scene?.children?.map((s) => s.name)).toEqual([
+    expect(declarationNames(scene?.children)).toEqual([
       "first",
       "x",
       "after",
       "y",
     ]);
     const x = scene?.children?.find((s) => s.name === "x");
-    expect(x?.children?.map((s) => s.name)).toEqual(["inside"]);
+    expect(declarationNames(x?.children)).toEqual(["inside"]);
   });
 
   test("the outline ends each scene and branch at its end", () => {
@@ -111,10 +115,10 @@ describe("provider · outline and folding around a nested function", () => {
   test("a function inside a branch is nested there and ends at its own end", () => {
     const { document, annotations, tree } = setup(NESTED_FUNCTION);
     const symbols = getDocumentSymbols(document, annotations, tree);
-    expect(symbols.map((s) => s.name)).toEqual(["A", "toplabel"]);
+    expect(declarationNames(symbols)).toEqual(["A", "toplabel"]);
     const [scene] = symbols;
     expect([scene?.range.start.line, scene?.range.end.line]).toEqual([0, 12]);
-    expect(scene?.children?.map((s) => s.name)).toEqual(["x", "after"]);
+    expect(declarationNames(scene?.children)).toEqual(["x", "after"]);
     const x = scene?.children?.[0];
     expect([x?.range.start.line, x?.range.end.line]).toEqual([1, 5]);
     expect(x?.children?.map((s) => s.name)).toEqual(["helper"]);
