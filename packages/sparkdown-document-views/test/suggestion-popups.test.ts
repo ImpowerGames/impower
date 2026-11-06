@@ -47,6 +47,15 @@ class StandInServer {
     this.requests = this.requests.filter((r) => r !== request);
     this.handler!({ jsonrpc: "2.0", id: request.id, result });
   }
+
+  fail(request: PendingRequest, message: string) {
+    this.requests = this.requests.filter((r) => r !== request);
+    this.handler!({
+      jsonrpc: "2.0",
+      id: request.id,
+      error: { code: -32603, message },
+    });
+  }
 }
 
 const settle = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -272,6 +281,27 @@ describe("an empty request for suggestions", () => {
     expect(request).toBeTruthy();
     server.answer(request!, []);
     await settle(80);
+    expect(note(view)).toBeNull();
+  });
+
+  it("says nothing when an explicit request fails instead of answering", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { view, server } = await mount("MA");
+    view.focus();
+    startCompletion(view);
+    for (
+      let i = 0;
+      i < 40 && !server.pending("textDocument/completion").length;
+      i++
+    ) {
+      await settle(10);
+    }
+    const [request] = server.pending("textDocument/completion");
+    expect(request).toBeTruthy();
+    server.fail(request!, "completion provider crashed");
+    await vi.waitFor(() => expect(logged).toHaveBeenCalled(), { timeout: 2000 });
+    await settle(80);
+    expect(completionStatus(view.state)).toBeNull();
     expect(note(view)).toBeNull();
   });
 

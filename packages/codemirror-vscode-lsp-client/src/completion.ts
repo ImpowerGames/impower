@@ -282,7 +282,6 @@ export const serverCompletionSource: CompletionSource = (context) => {
       return listResult(pos);
     },
     (err): null => {
-      answered();
       if (
         "code" in err &&
         (err as lsp.ResponseError).code == -32800
