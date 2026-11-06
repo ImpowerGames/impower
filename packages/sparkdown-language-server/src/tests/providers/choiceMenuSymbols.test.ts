@@ -228,6 +228,16 @@ end
     expect(menuNamed(prompt)).toBe("Which door?");
   });
 
+  test.each([
+    ["an inline action", "    : Which\\ door?"],
+    ["an action block", "    :\n      Which\\ door?"],
+  ])(
+    "a line-break escape in %s reads as the break it displays",
+    (_form, prompt) => {
+      expect(menuNamed(prompt)).toBe("Which door?");
+    },
+  );
+
   test("a menu whose caption is an empty pause is named by its first option", () => {
     expect(menuNamed("    : Exposition. > >")).toBe("Left");
   });

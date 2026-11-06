@@ -1336,9 +1336,11 @@ export function displayCaptionText(
   let pos = last.from;
   for (const injection of collectTopLevelInjections(node, last.from, last.to)) {
     if (!BODY_MARKS.has(injection.kind)) continue;
-    if (injection.from > pos) text += ctx.read(pos, injection.from);
+    if (injection.from > pos) {
+      text += applyDisplayEscapes(ctx.read(pos, injection.from));
+    }
     pos = Math.max(pos, injection.to);
   }
-  if (pos < last.to) text += ctx.read(pos, last.to);
+  if (pos < last.to) text += applyDisplayEscapes(ctx.read(pos, last.to));
   return text;
 }
