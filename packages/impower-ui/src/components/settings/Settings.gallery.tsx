@@ -121,6 +121,17 @@ function RowKit({ theme }: { theme: (typeof THEMES)[number] }) {
                 onCheckedChange={(next) => set(indent === "none" ? "bookmarks" : "hidden", next)}
               />
             ))}
+            <SwitchRow
+              id={`${theme}-rich-detail`}
+              name="Emphasize markup"
+              detail={
+                <>
+                  Show <i>italic</i> and <b>bold</b> as the reader sees them.
+                </>
+              }
+              checked={values.bookmarks}
+              onCheckedChange={(next) => set("bookmarks", next)}
+            />
             <SettingsRow id={`${theme}-plain`} name="A row with only copy" detail="Its control is a button." control={<Button>Open</Button>} />
           </SettingsList>
         </SettingsGroup>

@@ -21,6 +21,7 @@ import {
   type AddMenuKind,
 } from "../../utils/addMenuFolders";
 import { useProjectFiles } from "./useProjectFiles";
+import type { SettingsSectionInfo } from "./sections";
 import { useSectionReset } from "./useSectionReset";
 
 const ROWS: Record<AddMenuKind, { readonly name: string; readonly unit: string }> = {
@@ -73,7 +74,8 @@ function FolderRow({ kind, count }: { kind: AddMenuKind; count: number }) {
   );
 }
 
-export default function AddMenuSection({ id, title, detail }: { id: string; title: string; detail?: string }) {
+export default function AddMenuSection({ section }: { section: SettingsSectionInfo }) {
+  const { id, title, detail } = section;
   const { preferences, projectSettings, setPreference } = useSettings();
   const files = useProjectFiles();
   const folders = addMenuFolders(projectSettings);

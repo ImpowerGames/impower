@@ -39,6 +39,8 @@ export const PREVIEW_MODES = ["game", "screenplay"] as const;
 
 export type PreviewMode = (typeof PREVIEW_MODES)[number];
 
+export const SCREENPLAY_PAPERS = ["paper", "theme"] as const;
+
 export const PREFERENCES_SCHEMA = {
   theme: choice("automatic", THEME_PREFERENCES),
   surfaces: choice("unified", SURFACES),
@@ -54,12 +56,15 @@ export const PREFERENCES_SCHEMA = {
   lineNumbers: setting(false),
   indentGuides: choice("block", INDENT_GUIDES),
   autoCloseBrackets: setting(true),
-  autoRenameFiles: setting(true),
+  autoRenameFiles: setting(true, configured("editor.autoRenameFiles")),
+  suggestAutocompletions: setting(true),
   previewMode: choice("game", PREVIEW_MODES),
   previewFollowsCursor: setting(true),
   previewIdleAnimations: setting(true),
   previewTypingPauses: setting(false),
   previewScreenplaySync: setting(true),
+  screenplayPaper: choice("paper", SCREENPLAY_PAPERS),
+  screenplayPaperTexture: setting(false),
   portraitCrop: setting(PORTRAIT_CROP.default, { choices: PORTRAIT_CROPS }),
 } as const satisfies Record<string, SettingSpec>;
 

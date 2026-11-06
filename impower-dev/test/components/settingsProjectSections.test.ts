@@ -126,7 +126,7 @@ describe("Project metadata", () => {
     workspace.storyFrontMatter.value = frontMatterOf(
       ["---", "title:", "  _The Long Road_", "  Home", 'author: "Ada Lovelace"', "---", "", "Hello."].join("\n") + "\n",
     );
-    await mount(h(MetadataSection, { id: "story-details", title: "Project metadata" }));
+    await mount(h(MetadataSection, { section: { id: "story-details", label: "Metadata", title: "Project metadata" } }));
     expect(facts()).toEqual([
       ["Title", "The Long Road\nHome"],
       ["Author", "Ada Lovelace"],
@@ -135,7 +135,7 @@ describe("Project metadata", () => {
 
   it("reads Title and Author in any case, as the screenplay title page does", async () => {
     workspace.storyFrontMatter.value = frontMatterOf(["---", "Title: River Story", "AUTHOR: Ada", "---", ""].join("\n") + "\n");
-    await mount(h(MetadataSection, { id: "story-details", title: "Project metadata" }));
+    await mount(h(MetadataSection, { section: { id: "story-details", label: "Metadata", title: "Project metadata" } }));
     expect(facts()).toEqual([
       ["Title", "River Story"],
       ["Author", "Ada"],
@@ -144,7 +144,7 @@ describe("Project metadata", () => {
 
   it("shows Untitled story and Not set without a front matter block, and follows the next compile", async () => {
     workspace.storyFrontMatter.value = frontMatterOf("Hello.\n");
-    await mount(h(MetadataSection, { id: "story-details", title: "Project metadata" }));
+    await mount(h(MetadataSection, { section: { id: "story-details", label: "Metadata", title: "Project metadata" } }));
     expect(facts()).toEqual([
       ["Title", "Untitled story"],
       ["Author", "Not set"],
@@ -156,7 +156,7 @@ describe("Project metadata", () => {
   });
 
   it("opens main at its first line from Edit in Main", async () => {
-    await mount(h(MetadataSection, { id: "story-details", title: "Project metadata" }));
+    await mount(h(MetadataSection, { section: { id: "story-details", label: "Metadata", title: "Project metadata" } }));
     await act(async () => host!.querySelector<HTMLButtonElement>("[data-edit-main]")!.click());
     await settle();
     expect(fake.edits).toEqual([0]);
@@ -164,7 +164,7 @@ describe("Project metadata", () => {
 });
 
 describe("Add menu", () => {
-  const mountAddMenu = () => mount(h(AddMenuSection, { id: "add-folder-preferences", title: "Add menu" }));
+  const mountAddMenu = () => mount(h(AddMenuSection, { section: { id: "add-folder-preferences", label: "Add menu", title: "Add menu" } }));
 
   beforeEach(() => {
     file("assets/Backdrops/beach.png", "image");
@@ -266,7 +266,7 @@ describe("Add menu", () => {
     await act(async () => render(null, host!));
     file("assets/Portraits/imani.png", "image");
     await act(async () =>
-      render(h("div", null, h(LiveRegion, null), h(AddMenuSection, { id: "add-folder-preferences", title: "Add menu" })), host!),
+      render(h("div", null, h(LiveRegion, null), h(AddMenuSection, { section: { id: "add-folder-preferences", label: "Add menu", title: "Add menu" } })), host!),
     );
     await settle();
     expect(thumbnails().map((t) => t.querySelector("img")?.getAttribute("src"))).toEqual([
@@ -281,7 +281,7 @@ describe("File types", () => {
   const defaults = extensionDefaults(extensionManifest);
 
   it("shows each type's endings, keeps them as typed and saves the pattern as they change", async () => {
-    await mount(h(FileTypesSection, { id: "file-types", title: "File types" }));
+    await mount(h(FileTypesSection, { section: { id: "file-types", label: "File types", title: "File types" } }));
     expect(input("file-type-images").value).toBe("png, apng, jpeg, jpg, gif, bmp, svg, webp");
     expect(input("file-type-scripts").value).toBe("sd, luau");
     await type("file-type-images", "png, apng, jpeg, jpg, gif, bmp, svg, webp, AVIF, ");
@@ -297,7 +297,7 @@ describe("File types", () => {
   });
 
   it("makes the editor classify files of an added ending as their type, until Reset", async () => {
-    await mount(h(FileTypesSection, { id: "file-types", title: "File types" }));
+    await mount(h(FileTypesSection, { section: { id: "file-types", label: "File types", title: "File types" } }));
     expect(fileCategory("assets/lighthouse.avif")).toBe("other");
     expect(isScriptPath("scripts/chapter.story")).toBe(false);
     await type("file-type-images", "png, avif");
@@ -312,7 +312,7 @@ describe("File types", () => {
   });
 
   it("falls back to the default endings when none are left", async () => {
-    await mount(h(FileTypesSection, { id: "file-types", title: "File types" }));
+    await mount(h(FileTypesSection, { section: { id: "file-types", label: "File types", title: "File types" } }));
     await type("file-type-fonts", " , ");
     expect(workspaceSettings.projectSettings.value.fontFiles).toBe(PROJECT_SETTINGS_SCHEMA.fontFiles.default);
     await commit("file-type-fonts");
@@ -321,7 +321,7 @@ describe("File types", () => {
   });
 
   it("writes each of the four keys to settings.json only when it differs from the default", async () => {
-    await mount(h(FileTypesSection, { id: "file-types", title: "File types" }));
+    await mount(h(FileTypesSection, { section: { id: "file-types", label: "File types", title: "File types" } }));
     for (const [id, typed] of [
       ["scripts", "sd"],
       ["audio", "ogg"],

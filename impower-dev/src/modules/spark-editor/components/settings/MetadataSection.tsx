@@ -7,6 +7,7 @@ import {
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import workspace from "../../workspace/WorkspaceStore";
+import type { SettingsSectionInfo } from "./sections";
 import { storyMetadata } from "./storyMetadata";
 
 const editMain = async () => {
@@ -14,7 +15,8 @@ const editMain = async () => {
   await Workspace.window.editMainAt(0);
 };
 
-export default function MetadataSection({ id, title, detail }: { id: string; title: string; detail?: string }) {
+export default function MetadataSection({ section }: { section: SettingsSectionInfo }) {
+  const { id, title, detail } = section;
   const metadata = useComputed(() => storyMetadata(workspace.storyFrontMatter.value)).value;
   return (
     <SettingsSection

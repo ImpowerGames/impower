@@ -3,6 +3,7 @@ import { useState } from "preact/hooks";
 import { endingsText, typedPattern } from "../../workspace/settings/fileEndings";
 import { PROJECT_SETTINGS_SCHEMA } from "../../workspace/settings/settingsSchema";
 import { useSettings } from "../../workspace/settings/useSettings";
+import type { SettingsSectionInfo } from "./sections";
 import { useSectionReset } from "./useSectionReset";
 
 const FILE_TYPES = [
@@ -49,7 +50,8 @@ function FileTypeRow({ type }: { type: (typeof FILE_TYPES)[number] }) {
   );
 }
 
-export default function FileTypesSection({ id, title, detail }: { id: string; title: string; detail?: string }) {
+export default function FileTypesSection({ section }: { section: SettingsSectionInfo }) {
+  const { id, title, detail } = section;
   const reset = useSectionReset({ project: PROJECT_KEYS });
   return (
     <SettingsSection id={id} title={title} detail={detail} changed={reset.changed} onReset={reset.onReset}>
