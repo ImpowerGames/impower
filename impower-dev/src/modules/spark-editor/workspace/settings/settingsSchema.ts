@@ -98,10 +98,6 @@ export const PROJECT_SETTINGS_SCHEMA = {
     configured("screenplay.markup.printSceneIdentifiers"),
   ),
   screenplayBranchNames: setting(false),
-  screenplayFunctionNames: setting(
-    false,
-    configured("screenplay.markup.printFunctionIdentifiers"),
-  ),
   screenplayKnotNames: setting(
     false,
     configured(

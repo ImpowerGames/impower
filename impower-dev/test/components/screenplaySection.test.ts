@@ -78,7 +78,6 @@ describe("the Screenplay section", () => {
       "screenplaySceneNumbers",
       "screenplaySceneNames",
       "screenplayBranchNames",
-      "screenplayFunctionNames",
       "screenplayPaperSize",
       "screenplayPageNumbers",
       "screenplaySplitDialogue",

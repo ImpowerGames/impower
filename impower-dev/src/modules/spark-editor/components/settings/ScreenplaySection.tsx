@@ -109,7 +109,6 @@ export default function ScreenplaySection({
           />
           {on("screenplaySceneNames", "Scene names", "Print scene names where they are declared.")}
           {on("screenplayBranchNames", "Branch names", "Print branch names where they are declared.")}
-          {on("screenplayFunctionNames", "Function names", "Print function names where they are declared.")}
         </SettingsList>
       </SettingsGroup>
       <SettingsGroup legend="Printed when exporting to PDF" note="These settings do not affect the in-engine preview.">
