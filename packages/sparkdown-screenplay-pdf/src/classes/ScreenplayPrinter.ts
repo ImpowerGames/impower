@@ -7,6 +7,7 @@ import { PrintProfile } from "@impower/sparkdown-screenplay/src/types/PrintProfi
 import { ScreenplayConfig } from "@impower/sparkdown-screenplay/src/types/ScreenplayConfig";
 import { ScreenplayPrintData } from "@impower/sparkdown-screenplay/src/types/ScreenplayPrintData";
 import { ScreenplayTokenType } from "@impower/sparkdown-screenplay/src/types/ScreenplayTokenType";
+import { isHiddenIdentifier } from "@impower/sparkdown-screenplay/src/utils/isHiddenIdentifier";
 import { FormattedText } from "../textbox-for-pdfkit/src/types/FormattedText";
 import { TextOptions } from "../textbox-for-pdfkit/src/types/TextOptions";
 import { getHeightOfTextbox } from "../textbox-for-pdfkit/src/utils/getHeightOfTextbox";
@@ -351,17 +352,7 @@ export default class ScreenplayPrinter {
           ? (this._profile?.settings?.[span.tag]?.level_indent ?? 0)
           : 0;
         feed += span.level * levelIndent;
-        const invisible =
-          (span.tag === "function" &&
-            !this._config?.screenplay_print_function_identifiers) ||
-          (span.tag === "scene" &&
-            !this._config?.screenplay_print_scene_identifiers) ||
-          (span.tag === "branch" &&
-            !this._config?.screenplay_print_branch_identifiers) ||
-          (span.tag === "knot" &&
-            !this._config?.screenplay_print_knot_identifiers) ||
-          (span.tag === "stitch" &&
-            !this._config?.screenplay_print_stitch_identifiers);
+        const invisible = isHiddenIdentifier(span.tag, this._config);
         if (invisible) {
           content = [];
         }
