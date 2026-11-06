@@ -762,3 +762,71 @@ describe("music still loading when its beat is left", () => {
     expect(musicStarts(from)).toHaveLength(1);
   });
 });
+
+describe("a replacement track still loading when its beat is left", () => {
+  for (const quiet of [true, false]) {
+    test(`leaves the track the player still hears ${quiet ? "stopped on an earlier silent beat" : "playing on its own beat"}`, async () => {
+      const h = createHarness(
+        [
+          "define theme as audio with",
+          '  src = "https://example.com/theme.wav"',
+          "end",
+          "define other as audio with",
+          '  src = "https://example.com/other.wav"',
+          "end",
+          "scene start",
+          ...(quiet ? ["  Quiet."] : []),
+          "  ((play music theme))",
+          "  First.",
+          "  ((play music other))",
+          "  Second.",
+          "  Third.",
+          "end",
+        ].join("\n"),
+      );
+      await h.ready;
+      h.jumpToFlow("start");
+      const releases: (() => void)[] = [];
+      (h.game.module.audio as any).loadAllAudio = async (data: any[]) => {
+        if (data.some((d) => d.key === "audio.other")) {
+          await new Promise<void>((resolve) => releases.push(resolve));
+        }
+      };
+      const updates = () =>
+        h.messages
+          .filter((m) => m.method === "audio/update" && m.params.channel === "music")
+          .flatMap((m) => m.params.updates);
+      h.game.start();
+      if (quiet) {
+        h.game.continue();
+      }
+      await flushMicrotasks(40);
+      (h.game as any)._coordinator?.onUpdate({ deltaMS: 1000 });
+      await flushMicrotasks(40);
+      expect(
+        updates().filter((u: any) => u.control === "start" && u.key === "audio.theme"),
+      ).toHaveLength(1);
+      h.game.continue();
+      h.game.continue();
+      expect(h.game.story.currentText?.trim()).toBe("Third.");
+      expect(releases.length).toBeGreaterThan(0);
+      expect(updates().filter((u: any) => u.control === "stop")).toEqual([]);
+      const rolled = await h.game.rollBack("choice");
+      await flushMicrotasks(40);
+      releases.forEach((release) => release());
+      await flushMicrotasks(40);
+      expect(rolled.moved && rolled.restored.loops).toEqual(
+        quiet ? [] : [{ channel: "music", key: "audio.theme", play: "continue" }],
+      );
+      if (quiet) {
+        expect(
+          updates().filter((u: any) => u.control === "stop" && u.key === "audio.theme"),
+        ).toHaveLength(1);
+      } else {
+        expect(
+          updates().filter((u: any) => u.control === "start" && u.key === "audio.theme"),
+        ).toHaveLength(1);
+      }
+    });
+  }
+});

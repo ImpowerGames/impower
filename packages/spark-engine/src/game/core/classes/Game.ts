@@ -140,7 +140,7 @@ import type {
   SettledBeat,
 } from "../types/RunHistory";
 import { HISTORY_REASONS } from "../constants/HISTORY_REASONS";
-import { imageParts } from "../utils/imageParts";
+import { imageParts, valueParts } from "../utils/imageParts";
 import { SceneTracker } from "./SceneTracker";
 import type { GameSave, SaveListed, SaveSource } from "../types/GameSave";
 import type { SaveData } from "../types/SaveData";
@@ -767,6 +767,7 @@ export class Game<T extends M = {}> {
         snapshotRuntime: () => this._runtimeState.snapshotFull(),
         drainRuntime: () => this._runtimeState.drainDeltas(),
         imageParts: (image) => imageParts(image as ProgramImage),
+        valueParts,
       },
       { baseInterval: options?.checkpointBaseInterval ?? 50 },
     );

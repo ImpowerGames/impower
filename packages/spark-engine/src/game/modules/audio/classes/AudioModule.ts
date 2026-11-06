@@ -62,11 +62,11 @@ export class AudioModule extends Module<
     return [];
   }
 
-  protected _starting = new Map<string, Set<string>>();
+  protected _audible = new Map<string, Map<string, number | undefined>>();
 
   override onReset() {
     this._channelsCurrentlyPlaying = new Map();
-    this._starting = new Map();
+    this._audible = new Map();
   }
 
   protected _pagePlaying?: Map<string, Map<string, LoadAudioPlayerParams>>;
@@ -145,13 +145,9 @@ export class AudioModule extends Module<
   }
 
   loopsPlaying(): Map<string, Map<string, number | undefined>> {
-    const playing = this.loopsHeld();
-    for (const [channel, keys] of this._starting) {
-      for (const key of keys) {
-        playing.get(channel)?.delete(key);
-      }
-    }
-    return playing;
+    return new Map(
+      [...this._audible].map(([channel, keys]) => [channel, new Map(keys)]),
+    );
   }
 
   settleLoops(
@@ -159,7 +155,6 @@ export class AudioModule extends Module<
   ): { loops: SettledLoop[]; stoppedLoops: StoppedLoop[] } {
     const held = this.loopsHeld();
     this._channelsCurrentlyPlaying = this.playingFromState();
-    this._starting = new Map();
     const loops: SettledLoop[] = [];
     const stoppedLoops: StoppedLoop[] = [];
     for (const [channel, keys] of before) {
@@ -193,7 +188,6 @@ export class AudioModule extends Module<
         this.update(channel, fades);
       }
       if (starts.size > 0) {
-        this._starting.set(channel, starts);
         void this.restoreChannel(channel, starts);
       }
     }
@@ -201,8 +195,12 @@ export class AudioModule extends Module<
   }
 
   restartPending(): void {
-    for (const [channel, keys] of this._starting) {
-      void this.restoreChannel(channel, keys);
+    for (const [channel, keys] of this.loopsHeld()) {
+      const audible = this._audible.get(channel);
+      const silent = new Set([...keys.keys()].filter((key) => !audible?.has(key)));
+      if (silent.size > 0) {
+        void this.restoreChannel(channel, silent);
+      }
     }
   }
 
@@ -254,9 +252,30 @@ export class AudioModule extends Module<
         )
         .map(({ update }) => update),
     );
-    const starting = this._starting.get(channel);
-    for (const key of only ?? []) {
-      starting?.delete(key);
+  }
+
+  protected hear(channel: string, updates: AudioPlayerUpdate[]): void {
+    let audible = this._audible.get(channel);
+    for (const update of updates) {
+      if (update.control === "stop") {
+        if (update.key) {
+          audible?.delete(update.key);
+        } else {
+          audible?.clear();
+        }
+      } else if (update.control === "start" && update.loop && update.key) {
+        if (!audible) {
+          audible = new Map();
+          this._audible.set(channel, audible);
+        }
+        audible.set(update.key, update.to);
+      } else if (update.control === "fade") {
+        for (const key of update.key ? [update.key] : [...(audible?.keys() ?? [])]) {
+          if (audible?.has(key)) {
+            audible.set(key, update.to);
+          }
+        }
+      }
     }
   }
 
@@ -265,6 +284,7 @@ export class AudioModule extends Module<
     updates: AudioPlayerUpdate[],
     time?: number,
   ) {
+    this.hear(channel, updates);
     this.emitSettled(
       UpdateAudioPlayersMessage.type.request({
         channel,
@@ -638,27 +658,8 @@ export class AudioModule extends Module<
       this.enableTrigger(id);
       return id;
     }
-    const starts: string[] = [];
-    for (const update of updates) {
-      if (update.control === "stop") {
-        if (update.key) {
-          this._starting.get(channel)?.delete(update.key);
-        } else {
-          this._starting.delete(channel);
-        }
-      } else if (update.control === "start" && update.loop && update.key) {
-        starts.push(update.key);
-      }
-    }
-    if (starts.length > 0) {
-      const starting = this._starting.get(channel) ?? new Set<string>();
-      this._starting.set(channel, starting);
-      starts.forEach((key) => starting.add(key));
-    }
     const trigger = (time?: number) => {
       this.update(channel, updates, time);
-      const starting = this._starting.get(channel);
-      starts.forEach((key) => starting?.delete(key));
     };
     this.loadAllAudio(Array.from(audioToLoad)).then(() => {
       this.enableTrigger(id, trigger);

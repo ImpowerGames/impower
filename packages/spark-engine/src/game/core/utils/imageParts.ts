@@ -5,7 +5,7 @@ import {
   StringValue,
   VariablePointerValue,
 } from "@impower/sparkdown/src/runtime/Value";
-import type { ImageParts } from "../classes/CheckpointStore";
+import type { ImageParts, ValueParts } from "../classes/CheckpointStore";
 
 const OBJECT_BYTES = 64;
 const ENTRY_BYTES = 32;
@@ -13,61 +13,71 @@ const SLOT_BYTES = 8;
 
 type ThreadCopy = PositionalCopy["threads"][number];
 
+const LEAF: readonly unknown[] = [];
+
+export const valueParts = (value: unknown): ValueParts => {
+  if (typeof value === "string") {
+    return { bytes: value.length * 2, children: LEAF };
+  }
+  if (value instanceof StringValue) {
+    return {
+      bytes: OBJECT_BYTES + (value.value?.length ?? 0) * 2,
+      children: LEAF,
+    };
+  }
+  if (value instanceof ObjectValue) {
+    const entries = value.value;
+    const children: unknown[] = [];
+    for (const [key, entry] of entries ?? []) {
+      children.push(key, entry);
+    }
+    if (value.metatable) {
+      children.push(value.metatable);
+    }
+    return {
+      bytes: OBJECT_BYTES + ENTRY_BYTES * (entries?.size ?? 0),
+      children,
+    };
+  }
+  if (value instanceof VariablePointerValue) {
+    return {
+      bytes: OBJECT_BYTES,
+      children: value.isClosed ? [value.closedValue] : LEAF,
+    };
+  }
+  const values = (value as { values?: unknown }).values;
+  return {
+    bytes: OBJECT_BYTES,
+    children: Array.isArray(values) ? values : LEAF,
+  };
+};
+
 export const imageParts = (image: ProgramImage): ImageParts => {
-  const shared = new Map<unknown, number>();
-  const pending: unknown[] = [];
+  const roots = new Set<unknown>();
   let bytes = OBJECT_BYTES;
-  const share = (value: unknown) => {
-    if (value && typeof value === "object" && !shared.has(value)) {
-      shared.set(value, OBJECT_BYTES);
-      pending.push(value);
+  const hold = (value: unknown) => {
+    if (value && (typeof value === "object" || typeof value === "string")) {
+      roots.add(value);
     }
   };
-  const shareKeys = (keys: Iterable<string>): number => {
+  const holdEntries = (entries: Iterable<[string, unknown]>): number => {
     let count = 0;
-    for (const key of keys) {
+    for (const [key, value] of entries) {
       count += 1;
-      if (!shared.has(key)) {
-        shared.set(key, key.length * 2);
-      }
+      hold(key);
+      hold(value);
     }
     return ENTRY_BYTES * count;
-  };
-  const walk = () => {
-    while (pending.length > 0) {
-      const value = pending.pop();
-      if (value instanceof StringValue) {
-        shared.set(value, OBJECT_BYTES + (value.value?.length ?? 0) * 2);
-      } else if (value instanceof ObjectValue) {
-        const entries = value.value;
-        shared.set(value, OBJECT_BYTES + shareKeys(entries?.keys() ?? []));
-        for (const entry of entries?.values() ?? []) {
-          share(entry);
-        }
-        share(value.metatable);
-      } else if (value instanceof VariablePointerValue) {
-        if (value.isClosed) {
-          share(value.closedValue);
-        }
-      } else if (Array.isArray((value as { values?: unknown }).values)) {
-        for (const inner of (value as { values: unknown[] }).values) {
-          share(inner);
-        }
-      }
-    }
   };
   const thread = (copy: ThreadCopy) => {
     bytes += OBJECT_BYTES * (1 + copy.elements.length);
     for (const element of copy.elements) {
       for (const scope of element.scopes) {
-        bytes += OBJECT_BYTES + shareKeys(scope.keys());
-        for (const value of scope.values()) {
-          share(value);
-        }
+        bytes += OBJECT_BYTES + holdEntries(scope);
       }
       bytes += SLOT_BYTES * (element.open.length + element.borrowed.length);
-      element.open.forEach(share);
-      element.borrowed.forEach(share);
+      element.open.forEach(hold);
+      element.borrowed.forEach(hold);
     }
   };
   bytes += image.visits?.byteLength ?? 0;
@@ -77,19 +87,16 @@ export const imageParts = (image: ProgramImage): ImageParts => {
   bytes += image.countTurns?.byteLength ?? 0;
   bytes += ENTRY_BYTES * (image.globals.size + image.cells.size);
   for (const value of image.globals.values()) {
-    share(value);
+    hold(value);
   }
   for (const [cell, copy] of image.cells) {
-    share(cell);
-    share(copy.value);
+    hold(cell);
+    hold(copy.value);
   }
   for (const [table, copy] of image.tables) {
-    bytes += OBJECT_BYTES + shareKeys(copy.entries?.keys() ?? []);
-    share(table);
-    for (const value of copy.entries?.values() ?? []) {
-      share(value);
-    }
-    share(copy.metatable);
+    bytes += OBJECT_BYTES + holdEntries(copy.entries ?? []);
+    hold(table);
+    hold(copy.metatable);
   }
   const positional = image.positional;
   const carried = positional.carried?.output ?? [];
@@ -100,16 +107,15 @@ export const imageParts = (image: ProgramImage): ImageParts => {
         positional.output.length +
         carried.length +
         positional.heldAddresses.length);
-  positional.evaluationStack.forEach(share);
-  positional.output.forEach(share);
-  carried.forEach(share);
+  positional.evaluationStack.forEach(hold);
+  positional.output.forEach(hold);
+  carried.forEach(hold);
   positional.threads.forEach(thread);
   for (const choice of positional.choices) {
     bytes +=
       OBJECT_BYTES + choice.text.length * 2 + choice.sourcePath.length * 2;
     thread(choice.thread);
   }
-  walk();
   const refs: unknown[] = [];
   if (image.parent) {
     refs.push(image.parent);
@@ -120,5 +126,5 @@ export const imageParts = (image: ProgramImage): ImageParts => {
   if (image.afterChoice) {
     refs.push(image.afterChoice.menu);
   }
-  return { bytes, shared, refs };
+  return { bytes, roots: [...roots], refs };
 };

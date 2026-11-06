@@ -405,3 +405,71 @@ describe("the count of the run record", () => {
     }
   });
 });
+
+describe("the count of values that change after their checkpoint", () => {
+  test("still covers what a table an old checkpoint holds keeps after the checkpoints that changed it fold", () => {
+    const size = 1_500_000;
+    const source = [
+      "store payload = {}",
+      "scene start",
+      "  Begin.",
+      `  payload.extra = string.reverse(string.rep("x", ${size}))`,
+      "  Filled.",
+      "  payload = {}",
+      ...Array.from({ length: 20 }, (_, i) => `  Beat ${i}.`),
+      "end",
+    ].join("\n");
+    const game = startGame(compileSource(source), {
+      checkpointBaseInterval: 1,
+      checkpointByteBudget: 2_000_000,
+    });
+    for (let i = 0; i < 21; i += 1) {
+      game.clickedToContinue();
+    }
+    expect((game.story.currentText ?? "").trim()).toBe("Beat 19.");
+    expect(game.checkpoints.stats.folded).toBeGreaterThan(0);
+    const held = new Set<string>();
+    for (const image of liveImages(game) as any[]) {
+      for (const value of image.globals.values()) {
+        if (value?.value instanceof Map) {
+          const text = value.value.get("extra")?.value;
+          if (typeof text === "string" && text.length >= size) {
+            held.add(text);
+          }
+        }
+      }
+    }
+    const bytes = [...held].reduce((sum, text) => sum + text.length * 2, 0);
+    expect(bytes).toBeGreaterThanOrEqual(size * 2);
+    expect(
+      game.checkpoints.bytes,
+      `the store counts ${game.checkpoints.bytes} bytes while a table its checkpoints hold keeps ${bytes}`,
+    ).toBeGreaterThanOrEqual(bytes);
+  });
+
+  test("returns to zero once every checkpoint is gone, after tables grew and folded", () => {
+    const source = [
+      "store payload = {}",
+      "scene start",
+      "  Begin.",
+      "  payload = {}",
+      "  Empty.",
+      '  payload.extra = string.reverse(string.rep("x", 1500000))',
+      "  Filled.",
+      "  payload = {}",
+      ...Array.from({ length: 20 }, (_, i) => `  Beat ${i}.`),
+      "end",
+    ].join("\n");
+    const game = startGame(compileSource(source), {
+      checkpointBaseInterval: 1,
+      checkpointByteBudget: 2_000_000,
+    });
+    for (let i = 0; i < 22; i += 1) {
+      game.clickedToContinue();
+    }
+    expect((game.story.currentText ?? "").trim()).toBe("Beat 19.");
+    expect(game.checkpoints.stats.folded).toBeGreaterThan(0);
+    game.checkpoints.truncate(0);
+    expect(game.checkpoints.bytes).toBe(0);
+  });
+});
