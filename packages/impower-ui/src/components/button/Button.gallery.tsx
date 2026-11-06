@@ -15,6 +15,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
   quiet: "Quiet",
   destructive: "Destructive",
   disclosure: "Disclosure",
+  toggle: "Toggle",
 };
 
 const SIZES: Record<ButtonSize, string> = {
@@ -111,6 +112,19 @@ function ButtonDemo() {
           </Button>
           <Button variant="disclosure" size="glyph" aria-label="Hide line numbers" aria-pressed={true}>
             <ChevronLeftIcon />
+          </Button>
+        </div>
+      </GalleryRow>
+      <GalleryRow label="A toggle, released and pressed">
+        <div class="flex flex-wrap items-center gap-2">
+          <Button variant="toggle" size="glyph" aria-label="Match case" aria-pressed={false}>
+            Aa
+          </Button>
+          <Button variant="toggle" size="glyph" aria-label="Whole words" aria-pressed={true}>
+            <u>ab</u>
+          </Button>
+          <Button variant="toggle" size="glyph" aria-label="Regular expression" aria-pressed={false}>
+            .*
           </Button>
         </div>
       </GalleryRow>
