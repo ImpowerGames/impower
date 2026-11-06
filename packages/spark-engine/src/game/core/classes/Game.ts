@@ -2653,6 +2653,7 @@ export class Game<T extends M = {}> {
     this._ending = null;
     this._errorEnding = null;
     this._coordinator = null;
+    this.clearChoices();
     this._run.moveTo(target);
     this._executingLocation =
       this.lastExecutedScriptLocation() ?? this._executingLocation;

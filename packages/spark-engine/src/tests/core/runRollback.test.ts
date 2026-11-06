@@ -657,3 +657,39 @@ describe("the stage of a restored beat", () => {
     expect(writes.map((m) => m.params.instructions)).toEqual([[]]);
   });
 });
+
+describe("the menu a roll leaves", () => {
+  test("stops listening for its options' clicks", async () => {
+    const h = createHarness(
+      [
+        "scene start",
+        "  Before the menu.",
+        "  choose",
+        "    * [Stay.]",
+        "      Stayed.",
+        "    * [Leave.]",
+        "      Left.",
+        "  end",
+        "end",
+      ].join("\n"),
+    );
+    await h.ready;
+    h.jumpToFlow("start");
+    h.game.start();
+    await flushMicrotasks(30);
+    (h.game as any)._coordinator?.onUpdate({ deltaMS: 1000 });
+    await flushMicrotasks(30);
+    h.game.clickedToContinue();
+    await flushMicrotasks(30);
+    (h.game as any)._coordinator?.onUpdate({ deltaMS: 1000 });
+    await flushMicrotasks(30);
+    const clicks = () =>
+      Object.keys((h.game.module.ui as any)._events?.click ?? {}).length;
+    expect(h.game.story.currentChoices).toHaveLength(2);
+    expect(clicks()).toBeGreaterThan(0);
+    expect((await h.game.rollBack("beat")).moved).toBe(true);
+    await flushMicrotasks(30);
+    expect(h.game.story.currentText?.trim()).toBe("Before the menu.");
+    expect(clicks()).toBe(0);
+  });
+});
