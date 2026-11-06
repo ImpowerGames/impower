@@ -39,6 +39,8 @@ export class GrammarState {
 
   protected _lineStrLength = -1;
 
+  protected _exhaustedAt = -1;
+
   constructor(
     str: string,
     next?: (absolutePos: number) => string,
@@ -66,8 +68,13 @@ export class GrammarState {
     this.str += next;
   }
 
-  line(from: number) {
+  exhaustLineAt(at: number) {
+    this._exhaustedAt = at;
+  }
+
+  line(at: number) {
     const str = this.str;
+    const from = at === this._exhaustedAt ? at - 1 : at;
     if (
       from >= this._lineStart &&
       (from < this._lineEnd ||
@@ -140,7 +147,7 @@ export class GrammarState {
       node,
       beginCaptures,
       this.anchor,
-      to > from && to === this._lineEnd && endsWithBreak(this._lineText),
+      to === this._lineEnd && endsWithBreak(this._lineText),
     );
     this.anchor = to;
   }

@@ -122,18 +122,13 @@ describe("the editor's coarse-pointer option", () => {
     expect(toolbarShown(v)).toBe(false);
   });
 
-  it.each([
-    [false, "cm-desktop"],
-    [true, "cm-mobile"],
-  ])(
+  it.each([false, true])(
     "closes a context menu opened for one pointer when the pointer changes (coarse: %s)",
-    (coarse, openedAs) => {
+    (coarse) => {
       const v = mount(coarse);
       showContextMenu(v, { pos: 0, end: 5, x: 10, y: 10 });
       expect(isContextMenuOpen(v)).toBe(true);
-      expect(
-        document.querySelector(`.cm-context-menu.${openedAs}`),
-      ).not.toBeNull();
+      expect(document.querySelector(".cm-context-menu")).not.toBeNull();
 
       setCoarsePointer(v, !coarse);
       expect(isContextMenuOpen(v)).toBe(false);

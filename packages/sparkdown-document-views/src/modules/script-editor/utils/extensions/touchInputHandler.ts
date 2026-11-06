@@ -565,7 +565,10 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       if (
         this.touchesOnView === 0 ||
         !this.focusedAtTouch ||
-        (next instanceof Node && this.view.dom.contains(next))
+        (next instanceof Node && this.view.dom.contains(next)) ||
+        this.view.state.facet(touchInputHandlerConfig).isContextMenuOpen?.(
+          this.view,
+        )
       ) {
         return;
       }
