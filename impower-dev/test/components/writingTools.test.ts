@@ -320,6 +320,30 @@ describe("Writing tools focus", () => {
     expect(document.activeElement).not.toBe(input);
   });
 
+  it("on a phone, gives focus back on Escape but not when the backdrop closes the sheet", async () => {
+    layout.value = "phone";
+    layout.coarse = true;
+    await mount();
+    const input = field();
+    await open();
+    expect(panel()!.contains(document.activeElement)).toBe(true);
+    await key(document.activeElement!, "Escape");
+    await until(() => !panel());
+    await settle(50);
+    expect(document.activeElement).toBe(input);
+
+    await open();
+    const backdrop = panel()!.parentElement!;
+    await act(async () => {
+      backdrop.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0 }));
+      backdrop.click();
+    });
+    await until(() => !panel());
+    await settle(50);
+    expect(workspace.current.screen.writingTools).toBeUndefined();
+    expect(document.activeElement).not.toBe(input);
+  });
+
   it("stays open when the writer's bar is pressed", async () => {
     await mount();
     await open();

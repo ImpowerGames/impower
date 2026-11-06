@@ -165,6 +165,13 @@ export function ToolPanel({
     reason.current = why;
     onClose(why);
   };
+  const takeCloseReason = () => {
+    const why = reason.current;
+    reason.current = "dismiss";
+    return why;
+  };
+  const restoresFocus = (why: ToolPanelCloseReason) =>
+    why === "close" || why === "escape";
   const body = (
     <>
       <Heading title={title} onBack={onBack} onClose={() => close("close")} />
@@ -180,7 +187,11 @@ export function ToolPanel({
         }}
         dismissable={closeOnOutside}
         flush
-        returnFocus={returnFocus}
+        returnFocus={() =>
+          restoresFocus(takeCloseReason())
+            ? (returnFocus?.() ?? null)
+            : document.body
+        }
         onEscapeKeyDown={(event) => {
           event.preventDefault();
           close("escape");
@@ -214,17 +225,11 @@ export function ToolPanel({
       }}
       onFocusOutside={(event) => event.preventDefault()}
       onCloseAutoFocus={(event) => {
-        const why = reason.current;
-        reason.current = "dismiss";
-        if (why === "close" || why === "escape") {
-          const target = returnFocus?.();
-          if (target?.isConnected) {
-            event.preventDefault();
-            target.focus({ preventScroll: true });
-          }
-          return;
-        }
+        const restore = restoresFocus(takeCloseReason());
+        const target = restore ? returnFocus?.() : null;
+        if (restore && !target?.isConnected) return;
         event.preventDefault();
+        target?.focus({ preventScroll: true });
       }}
     >
       {body}

@@ -67,9 +67,9 @@ export const kindOfDefinition = (
   const line = definitionLine.trim();
   if (/^scene\b/.test(line)) return "scene";
   if (/^branch\b/.test(line)) return "branch";
-  if (/^define\b.*:\s*character\b/.test(line)) return "character";
+  if (/^define\s+\S+\s+as\s+character\b/.test(line)) return "character";
   if (/^define\b/.test(line)) return "define";
-  if (/^(store|var|temp|const|local)\b/.test(line)) return "variable";
+  if (/^(store|const|local|global)\b/.test(line)) return "variable";
   return "name";
 };
 

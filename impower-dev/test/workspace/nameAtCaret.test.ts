@@ -34,9 +34,10 @@ describe("the name under the caret", () => {
   it("takes its kind from the line that defines it, or the file it names", () => {
     expect(kindOfDefinition("file://local/main.sd", "scene the_rumour")).toBe("scene");
     expect(kindOfDefinition("file://local/main.sd", "  branch notebook")).toBe("branch");
-    expect(kindOfDefinition("file://local/main.sd", "define imani: character")).toBe("character");
-    expect(kindOfDefinition("file://local/main.sd", "define sky: Theme")).toBe("define");
+    expect(kindOfDefinition("file://local/main.sd", "define imani as character with")).toBe("character");
+    expect(kindOfDefinition("file://local/main.sd", "define night as filtered_image with")).toBe("define");
     expect(kindOfDefinition("file://local/main.sd", "store score = 0")).toBe("variable");
+    expect(kindOfDefinition("file://local/main.sd", "global chapter = 1")).toBe("variable");
     expect(kindOfDefinition("file://local/sky_night.png", "")).toBe("picture");
     expect(kindOfDefinition("file://local/door_chime.mp3", "")).toBe("sound");
     expect(kindOfDefinition("file://local/notes.txt", "")).toBe("file");
