@@ -126,6 +126,7 @@ function stubGlobals(storage, { remembered = null } = {}) {
   const protocol = {
     async send({ method, params }) {
       if (method === "window/loadedProjectId") return { id: remembered || "local" };
+      if (method === "editor/read") return { textDocument: { uri: `file://${remembered || "local"}/main.sd` } };
       if (method === "workspace/unzipFiles") return JSON.parse(Buffer.from(params.data).toString()).map(([filename, encoded]) => ({ filename, data: Uint8Array.from(Buffer.from(encoded, "base64")).buffer }));
       if (method === "workspace/readFile") return (await (await fileHandle(params.file.uri, false)).file.getFile()).arrayBuffer();
       if (method === "workspace/willDeleteFiles") {
@@ -151,7 +152,6 @@ function stubGlobals(storage, { remembered = null } = {}) {
   return {
     navigator: { storage: { getDirectory: async () => storage.root } },
     localStorage: { getItem: (key) => (key === "project" ? remembered : null) },
-    document: { querySelector: (selector) => (selector.includes("-trigger-main") ? {} : null) },
     window: { __editorProtocol: protocol },
     crypto,
     TextEncoder,
@@ -1175,11 +1175,14 @@ await check("withEditor hands the callback the URL and the mode from how the ser
 });
 
 await check("verify and a ui --sd step run the real mount wait with the run's own ensureScriptEditor, so switchedToLogic comes from the recovery reload's click", async () => {
-  const fresh = () => {
+  const fresh = (openUri = null) => {
     const globals = stubGlobals(stubStorage({}));
     const page = stubPage(globals);
     const original = globals.window.__editorProtocol.send;
-    globals.window.__editorProtocol.send = (message) => message.method === "preview/gameState" ? Promise.resolve({ mounted: page.reloads >= 2 }) : original(message);
+    globals.window.__editorProtocol.send = (message) =>
+      message.method === "preview/gameState" ? Promise.resolve({ mounted: page.reloads >= 2 })
+        : message.method === "editor/read" && openUri ? Promise.resolve({ textDocument: { uri: openUri } })
+          : original(message);
     globals.window.__editorProtocol.subscribe = () => () => {};
     const mounted = { page };
     return {
@@ -1197,6 +1200,8 @@ await check("verify and a ui --sd step run the real mount wait with the run's ow
     assert.equal(result.gameMounted, true);
     assert.equal(result.neededReload, true);
     assert.equal(result.switchedToLogic, true);
+    assert.equal(result.editorView, "main");
+    assert.equal(result.editorWarning, undefined);
     assert.equal(page.reloads, 2);
     assert.deepEqual(page.screenshots, [shot]);
     assert.equal(process.exitCode, 0);
@@ -1207,8 +1212,23 @@ await check("verify and a ui --sd step run the real mount wait with the run's ow
     assert.deepEqual(result.failed, []);
     assert.equal(result.steps[0].neededReload, true);
     assert.equal(result.steps[0].switchedToLogic, true);
+    assert.equal(result.steps[0].editorView, "main");
     assert.equal(result.steps[0].programLoaded, true);
     assert.equal(page.reloads, 2);
+  }
+  {
+    const { deps } = fresh("file://local/Scripts/chapter_1.sd");
+    const result = await verify(["--sd", repro], deps);
+    assert.equal(result.editorView, "scripts-view");
+    assert.match(result.editorWarning, /^another script \(file:\/\/local\/Scripts\/chapter_1\.sd\) is open in the script editor and switching back to main\.sd did not take, so the file on screen is not the main\.sd --sd wrote/);
+    process.exitCode = 0;
+  }
+  {
+    const { deps } = fresh("file://local/Scripts/chapter_1.sd");
+    const result = await ui(["--sd", repro], deps);
+    assert.equal(result.steps[0].editorView, "scripts-view");
+    assert.match(result.steps[0].reason, /another script \(file:\/\/local\/Scripts\/chapter_1\.sd\) is open in the script editor; --sd wrote main\.sd, which is not the file on screen\. Put --screen main before this step and re-run$/);
+    process.exitCode = 0;
   }
 });
 const assetsOnly2 = writeTree(path.join(scratch, "assets-only-2"), { "assets/a.png": "a" });

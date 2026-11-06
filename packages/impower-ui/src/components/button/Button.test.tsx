@@ -8,7 +8,7 @@ import { hitArea } from "../../../test/hitArea";
 import Button, { buttonVariants, type ButtonSize, type ButtonVariant } from "./Button";
 
 const VARIANTS = ["default", "primary", "quiet", "destructive", "disclosure"] as const satisfies readonly ButtonVariant[];
-const SIZES = ["default", "icon", "glyph", "pill"] as const satisfies readonly ButtonSize[];
+const SIZES = ["default", "icon", "compact", "glyph", "pill"] as const satisfies readonly ButtonSize[];
 
 const mount = async (node: ComponentChild): Promise<HTMLDivElement> => {
   const host = document.body.appendChild(document.createElement("div"));

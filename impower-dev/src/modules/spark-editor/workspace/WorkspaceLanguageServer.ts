@@ -376,6 +376,17 @@ export default class WorkspaceLanguageServer {
     );
   }
 
+  async getScriptReferences(
+    uri: string,
+  ): Promise<{ from: string; to: string; divert: boolean }[]> {
+    await this.initialization();
+    return (
+      (await this._connection.sendRequest<
+        { from: string; to: string; divert: boolean }[]
+      >("sparkdown/scriptReferences", { uri })) ?? []
+    );
+  }
+
   async getFileRenameEdits(
     oldUri: string,
     newName: string,

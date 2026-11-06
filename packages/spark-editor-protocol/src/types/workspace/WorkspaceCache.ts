@@ -145,6 +145,11 @@ export interface ScreenState {
   outlineSearch?: boolean;
 }
 
+export interface ListsState {
+  scriptsSort?: string;
+  scriptsFolder?: string;
+}
+
 export type WritingToolsView = "menu" | "guide" | "shortcuts";
 
 export interface WritingToolsState {
@@ -177,6 +182,7 @@ export interface DebugState {
 export interface WorkspaceCache extends PanesState<PaneType> {
   project: ProjectState;
   shell?: ShellState;
+  lists?: ListsState;
   outline?: OutlineState;
   screen: ScreenState;
   sync: SyncState;

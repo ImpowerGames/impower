@@ -63,6 +63,7 @@ import {
   GamePosition,
   GameSize,
   GameState,
+  ListsState,
   PaneType,
   PanelType,
   Range,
@@ -235,6 +236,27 @@ export default class WorkspaceWindow {
       window.history.pushState(window.history.state, "", hash);
     }
     transitionRoute(() => this.openRoute(route));
+  }
+
+  setListState(lists: Partial<ListsState>) {
+    this.update({
+      ...this.store,
+      lists: { ...this.store.lists, ...lists },
+    });
+  }
+
+  browseScripts() {
+    this.navigateTo("scripts");
+  }
+
+  openScript(filename: string) {
+    const panel = this.getPanelType(filename);
+    if (!panel) {
+      return;
+    }
+    this.openPanel("logic", panel);
+    this.openFileEditor(filename);
+    this.navigateTo("write");
   }
 
   closeSettings() {
@@ -1258,31 +1280,6 @@ export default class WorkspaceWindow {
         [pane]: {
           ...this.store.panes[pane],
           view,
-        },
-      },
-    });
-  }
-
-  browseScripts() {
-    const logic = this.store.panes.logic;
-    const scripts = logic.panels.scripts;
-    this.update({
-      ...this.store,
-      panes: {
-        ...this.store.panes,
-        logic: {
-          ...logic,
-          view: "list",
-          panel: "scripts",
-          panels: {
-            ...logic.panels,
-            scripts: {
-              ...scripts,
-              activeEditor: scripts?.activeEditor
-                ? { ...scripts.activeEditor, open: false }
-                : scripts?.activeEditor,
-            },
-          },
         },
       },
     });

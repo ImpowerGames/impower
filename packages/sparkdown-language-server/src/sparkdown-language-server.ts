@@ -34,6 +34,7 @@ import { applyTextEdits } from "./utils/providers/getFormatDirtyRange";
 import { getDocumentLinks } from "./utils/providers/getDocumentLinks";
 import { getDocumentSymbols } from "./utils/providers/getDocumentSymbols";
 import { getFileReferences } from "./utils/providers/getFileReferences";
+import { getScriptReferences } from "./utils/providers/getScriptReferences";
 import { getFileRenameEdits } from "./utils/providers/getFileRenameEdits";
 import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
 import { getHover } from "./utils/providers/getHover";
@@ -390,6 +391,16 @@ try {
       const mainUri = workspace.getMainScriptUri(params.uri);
       const program = workspace.program(mainUri ?? params.uri);
       return getFileReferences(workspace, program, params.uri)?.references ?? [];
+    },
+  );
+  connection.onRequest(
+    "sparkdown/scriptReferences",
+    (params: { uri: string }) => {
+      const mainUri = workspace.getMainScriptUri(params.uri);
+      return getScriptReferences(
+        workspace,
+        workspace.program(mainUri ?? params.uri),
+      );
     },
   );
   connection.onRequest(

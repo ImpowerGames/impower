@@ -4,6 +4,7 @@ import WorkspaceFileSystem from "./WorkspaceFileSystem";
 import WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import WorkspaceOutline from "./WorkspaceOutline";
 import WorkspacePrint from "./WorkspacePrint";
+import WorkspaceScripts from "./WorkspaceScripts";
 import workspace from "./WorkspaceStore";
 import WorkspaceSync from "./WorkspaceSync";
 import WorkspaceWindow from "./WorkspaceWindow";
@@ -20,6 +21,7 @@ export namespace Workspace {
     ls,
     configuration,
   );
+  export const scripts = new WorkspaceScripts({ fs, ls, window });
   export const sync = new WorkspaceSync();
   export const print = new WorkspacePrint();
   export const outline = new WorkspaceOutline({

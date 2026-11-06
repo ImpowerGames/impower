@@ -8,6 +8,8 @@ import type {
   DocumentSymbol,
 } from "vscode-languageserver-protocol";
 import type { AccountInfo } from "./types/AccountInfo";
+import type { ScriptListing } from "./scriptsListing";
+import type { Reference } from "../utils/fileListModel";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 
 export interface OutlineSnapshot {
@@ -115,6 +117,10 @@ class WorkspaceStore {
   );
 
   readonly trashOpen = signal<boolean>(false);
+
+  readonly scriptListing = signal<ScriptListing | null>(null);
+
+  readonly scriptReferences = signal<readonly Reference[]>([]);
 
   readonly outline = signal<OutlineSnapshot | null>(null);
 

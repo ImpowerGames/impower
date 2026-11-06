@@ -264,6 +264,28 @@ describe("WorkspaceWindow store transitions", () => {
     expect(editor?.filename).toBe("scripts/intro.sd");
   });
 
+  it("showDocument opens the script it shows, so going to a definition in an unopened script renders it", () => {
+    const projectId = workspace.current.project.id;
+    win.openRoute("write");
+    win.closeFileEditor("Scripts/never-opened.sd");
+    expect(workspace.current.panes.logic.panels.scripts?.activeEditor?.open).toBe(false);
+    void win.showDocument(`file://${projectId}/Scripts/never-opened.sd`);
+    const logic = workspace.current.panes.logic;
+    expect(logic.view).toBe("logic-editor");
+    expect(logic.panels.scripts?.activeEditor).toMatchObject({
+      open: true,
+      filename: "Scripts/never-opened.sd",
+    });
+  });
+
+  it("treats only the project-root main.sd as Main, by path or uri", () => {
+    const projectId = workspace.current.project.id;
+    expect(win.getPanelType("main.sd")).toBe("main");
+    expect(win.getPanelType(`file://${projectId}/main.sd`)).toBe("main");
+    expect(win.getPanelType("Scripts/main.sd")).toBe("scripts");
+    expect(win.getPanelType(`file://${projectId}/Scripts/main.sd`)).toBe("scripts");
+  });
+
   it("showDocument keeps main.sd in the logic/main panel", () => {
     const projectId = workspace.current.project.id;
     void win.showDocument(`file://${projectId}/main.sd`);
@@ -549,9 +571,65 @@ describe("WorkspaceWindow store transitions", () => {
       expect(window.location.hash).toBe("#collection");
       win.openPane("share");
       expect(window.location.hash).toBe("#share");
-      win.openPanel("logic", "scripts");
+      win.openView("logic", "scripts");
       win.openPane("logic");
       expect(window.location.hash).toBe("#scripts");
+    });
+
+    it("opens a script from the Scripts page on write, and Main as the main editor", () => {
+      win.navigateTo("scripts");
+      win.openScript("Scripts/intro.sd");
+      expect(window.location.hash).toBe("#write");
+      const logic = workspace.current.panes.logic;
+      expect(logic.view).toBe("logic-editor");
+      expect(logic.panel).toBe("scripts");
+      expect(logic.panels.scripts?.activeEditor).toMatchObject({
+        open: true,
+        filename: "Scripts/intro.sd",
+      });
+      win.navigateTo("scripts");
+      win.openScript("main.sd");
+      expect(window.location.hash).toBe("#write");
+      expect(workspace.current.panes.logic.view).toBe("list");
+      expect(workspace.current.panes.logic.panel).toBe("main");
+    });
+
+    it("browses the scripts from either editor; a script's Back returns to the Scripts page and Back to story to that script", () => {
+      win.navigateTo("write");
+      win.browseScripts();
+      expect(window.location.hash).toBe("#scripts");
+      expect(workspace.current.panes.logic.view).toBe("scripts");
+      win.openScript("Scripts/intro.sd");
+      expect(window.location.hash).toBe("#write");
+      win.browseScripts();
+      expect(window.location.hash).toBe("#scripts");
+      expect(workspace.current.panes.logic.view).toBe("scripts");
+      win.navigateTo("write");
+      expect(workspace.current.panes.logic.view).toBe("logic-editor");
+      expect(workspace.current.panes.logic.panel).toBe("scripts");
+      expect(workspace.current.panes.logic.panels.scripts?.activeEditor).toMatchObject({
+        open: true,
+        filename: "Scripts/intro.sd",
+      });
+    });
+
+    it("opens a nested script named main.sd as a script, not as the entry script", () => {
+      win.navigateTo("scripts");
+      win.openScript("Scripts/main.sd");
+      expect(workspace.current.panes.logic.view).toBe("logic-editor");
+      expect(workspace.current.panes.logic.panel).toBe("scripts");
+      expect(workspace.current.panes.logic.panels.scripts?.activeEditor?.filename).toBe(
+        "Scripts/main.sd",
+      );
+    });
+
+    it("keeps the Scripts page's sort and folder in the project's state", () => {
+      win.setListState({ scriptsSort: "modified-desc" });
+      win.setListState({ scriptsFolder: "Scripts/Drafts" });
+      expect(workspace.current.lists).toEqual({
+        scriptsSort: "modified-desc",
+        scriptsFolder: "Scripts/Drafts",
+      });
     });
 
     it("navigates by pushing a history entry, and follows the hash back", async () => {
