@@ -1233,7 +1233,9 @@ export class ScriptEditorController {
         typeof this._initialVisibleRange === "string"
           ? this._initialVisibleRange
           : undefined;
-      this.scrollToRange(initialVisibleRange, scrollStrategy);
+      if (!this._selectionMoved) {
+        this.scrollToRange(initialVisibleRange, scrollStrategy);
+      }
       if (initialSelectedRange) {
         this.settleSelection(initialSelectedRange, false);
       }

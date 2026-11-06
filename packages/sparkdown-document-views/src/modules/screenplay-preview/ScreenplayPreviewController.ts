@@ -277,18 +277,23 @@ export class ScreenplayPreviewController {
   protected handleScrolledEditor = (
     message: NotificationMessage<ScrolledEditorMethod, ScrolledEditorParams>,
   ) => {
-    if (this._loaded) {
-      this._userInitiatedScroll = false;
-      const params = message.params;
-      const textDocument = params.textDocument;
-      const range = params.visibleRange;
-      const target = params.target;
-      if (textDocument.uri === this._textDocument?.uri) {
-        this.cacheVisibleRange(range);
-        if (target === "element") {
-          this.scrollToRange(range);
-        }
+    const params = message.params;
+    const textDocument = params.textDocument;
+    const range = params.visibleRange;
+    const target = params.target;
+    if (textDocument.uri !== this._textDocument?.uri) {
+      return;
+    }
+    if (!this._loaded) {
+      if (target === "element") {
+        this._initialVisibleRange = range;
       }
+      return;
+    }
+    this._userInitiatedScroll = false;
+    this.cacheVisibleRange(range);
+    if (target === "element") {
+      this.scrollToRange(range);
     }
   };
 
@@ -302,6 +307,9 @@ export class ScreenplayPreviewController {
     const userEvent = params.userEvent;
     if (textDocument.uri === this._textDocument?.uri) {
       if (!docChanged && userEvent) {
+        if (!this._loaded) {
+          this._initialSelectedRange = selectedRange;
+        }
         this.selectRange(selectedRange, false);
       }
     }

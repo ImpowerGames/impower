@@ -60,6 +60,14 @@ if (!Range.prototype.getClientRects) {
 
 class TestController extends ScriptEditorController {
   loaded: string[] = [];
+  scrolls: unknown[] = [];
+
+  protected override scrollToRange(
+    ...args: Parameters<InstanceType<typeof ScriptEditorController>["scrollToRange"]>
+  ) {
+    this.scrolls.push(args[0]);
+    super.scrollToRange(...args);
+  }
 
   override loadTextDocument(
     params: LoadEditorMessage.Request["params"],
@@ -405,6 +413,94 @@ describe("ScriptEditorController initial selection after newer moves", () => {
     view.dispatch({ selection: { anchor: clicked }, userEvent: "select.pointer" });
     controller["handleIdle"]();
     expect(view.state.selection.main.head).toBe(clicked);
+  });
+});
+
+describe("ScriptEditorController load handover", () => {
+  const at = (line: number) => ({
+    start: { line, character: 0 },
+    end: { line, character: 0 },
+  });
+
+  const loadAt = async (line: number, visibleRange?: ReturnType<typeof at>) => {
+    const mounted = mount();
+    await mounted.controller["handleLoadEditor"]({
+      ...LoadEditorMessage.type.request({
+        textDocument: { uri: "file:///main.sd", languageId: "sparkdown", version: 0, text: "" },
+        selectedRange: at(line),
+        visibleRange,
+        languageServerInitializeParams: {} as never,
+        languageServerInitializeResult: {} as never,
+      }),
+      id: `load-${nextId++}`,
+    } as LoadEditorMessage.Request);
+    const { view } = created[created.length - 1]!;
+    view.dispatch({
+      changes: { from: view.state.doc.length, insert: "second\nthird\nfourth\n" },
+    });
+    return { ...mounted, view };
+  };
+
+  const jump = (controller: TestController, line: number) =>
+    controller["handleSelectEditor"](
+      SelectEditorMessage.type.notification({
+        textDocument: { uri: "file:///main.sd" },
+        range: at(line),
+        scrollIntoView: "center",
+      }),
+    );
+
+  it("keeps a jump that arrived while the editor waited for its fonts", async () => {
+    const fonts = Object.getOwnPropertyDescriptor(document, "fonts");
+    let ready: () => void = () => {};
+    Object.defineProperty(document, "fonts", {
+      configurable: true,
+      value: { status: "loading", ready: new Promise<void>((resolve) => (ready = resolve)) },
+    });
+    try {
+      const { controller, view } = await loadAt(1);
+      controller["handleViewportParsed"]();
+      jump(controller, 3);
+      ready();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(controller["_loaded"]).toBe(true);
+      expect(view.state.selection.main.head).toBe(view.state.doc.line(4).from);
+    } finally {
+      if (fonts) Object.defineProperty(document, "fonts", fonts);
+      else delete (document as { fonts?: unknown }).fonts;
+    }
+  });
+
+  it("keeps the scroll of a jump that arrived before the editor settled", async () => {
+    const { controller, view } = await loadAt(1, at(1));
+    jump(controller, 3);
+    controller["handleIdle"]();
+    expect(controller.scrolls).toEqual([]);
+    expect(view.state.selection.main.head).toBe(view.state.doc.line(4).from);
+  });
+
+  it("still scrolls to the visible range it loaded with when nothing moved", async () => {
+    const { controller } = await loadAt(1, at(2));
+    controller["handleIdle"]();
+    expect(controller.scrolls).toEqual([at(2)]);
+  });
+
+  it("stops putting the caret back once the author moves it after the editor settled", async () => {
+    const hasFocus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    const { controller, view } = await loadAt(1);
+    try {
+      controller["handleIdle"]();
+      expect(controller["_focusIntervalTimeout"]).not.toBe(0);
+      expect(view.state.selection.main.head).toBe(view.state.doc.line(2).from);
+      const clicked = view.state.doc.line(3).from;
+      view.dispatch({ selection: { anchor: clicked }, userEvent: "select.pointer" });
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      expect(view.state.selection.main.head).toBe(clicked);
+    } finally {
+      hasFocus.mockRestore();
+      clearInterval(controller["_focusIntervalTimeout"]);
+    }
   });
 });
 
