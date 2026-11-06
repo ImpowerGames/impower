@@ -44,6 +44,8 @@ export interface SearchSources {
     label: string,
   ) => Promise<{ applied: boolean; failureReason?: string }>;
   showMatch: (uri: string, range: Range) => Promise<void>;
+  openLocation: (uri: string, range: Range) => Promise<void>;
+  openAsset: (uri: string) => Promise<void>;
   setMatches: (uri: string, ranges: Range[]) => void;
   autoRenameFiles: () => boolean;
   onTextChanged: (listener: () => void) => () => void;
@@ -65,6 +67,11 @@ const comparePositions = (a: Position, b: Position) =>
 const sameRange = (a: Range, b: Range) =>
   comparePositions(a.start, b.start) === 0 &&
   comparePositions(a.end, b.end) === 0;
+
+const DOCUMENT_START: Range = {
+  start: { line: 0, character: 0 },
+  end: { line: 0, character: 0 },
+};
 
 export interface MatchTarget {
   uri: string;
@@ -101,11 +108,12 @@ export const nextMatch = (
   if (!all.length) {
     return undefined;
   }
-  if (uri && from) {
+  if (uri) {
     const here = all.filter((m) => m.uri === uri);
+    const at = from ?? DOCUMENT_START;
     const found = backward
-      ? here.filter((m) => comparePositions(m.range.end, from.start) <= 0).at(-1)
-      : here.find((m) => comparePositions(m.range.start, from.end) >= 0);
+      ? here.filter((m) => comparePositions(m.range.end, at.start) <= 0).at(-1)
+      : here.find((m) => comparePositions(m.range.start, at.end) >= 0);
     if (found) {
       return found;
     }
@@ -209,6 +217,17 @@ export default class WorkspaceSearch {
         void workspace.search.value.open;
         this.publishMatches();
       }),
+      effect(() => {
+        const snapshot = workspace.search.value;
+        const uri = sources.openedUri();
+        const selection = sources.selection();
+        const position = findCount(snapshot, uri, selection);
+        const current = matchAt(snapshot.groups, uri, selection);
+        workspace.searchPosition.value = {
+          ...position,
+          ...(current ? { current: { uri: current.uri, range: current.range } } : {}),
+        };
+      }),
       sources.onEditorLoaded(() => {
         this._published = "";
         this.publishMatches();
@@ -245,9 +264,22 @@ export default class WorkspaceSearch {
     this.update({ open: false, status: "" });
   }
 
-  async openFind(term?: string) {
-    if (term != null && term !== this.snapshot.term) {
-      this.update({ term });
+  async openFindFromSelection() {
+    const uri = this._sources.openedUri();
+    const selection = this._sources.selection();
+    if (
+      uri &&
+      selection &&
+      selection.start.line === selection.end.line &&
+      selection.start.character !== selection.end.character
+    ) {
+      const line = lineOf(await this._sources.fileText(uri), selection.start.line);
+      const from = Math.min(selection.start.character, selection.end.character);
+      const to = Math.max(selection.start.character, selection.end.character);
+      const term = line.slice(from, to);
+      if (term.trim()) {
+        this.update({ term });
+      }
     }
     this.open("find");
   }
@@ -544,19 +576,16 @@ export default class WorkspaceSearch {
     this.update({ references, files });
   }
 
-  setRenameName(renameName: string) {
-    this.update({ renameName, status: "", statusTone: "info" });
+  async openUse(use: { uri: string; range: Range }) {
+    await this._sources.openLocation(use.uri, use.range);
   }
 
-  renameSummary() {
-    const { subject, references, files } = this.snapshot;
-    const uses = references.reduce((n, g) => n + g.uses.length, 0);
-    return renameNote(
-      subject,
-      uses,
-      references.length,
-      this._sources.autoRenameFiles() ? files.length : 0,
-    );
+  async openAsset(uri: string) {
+    await this._sources.openAsset(uri);
+  }
+
+  setRenameName(renameName: string) {
+    this.update({ renameName, status: "", statusTone: "info" });
   }
 
   async rename() {

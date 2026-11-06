@@ -26,6 +26,19 @@ export interface NameSubject {
   character: boolean;
 }
 
+export interface SearchPosition {
+  index: number;
+  total: number;
+  scripts: number;
+  current?: { uri: string; range: Range };
+}
+
+export const INITIAL_SEARCH_POSITION: SearchPosition = {
+  index: 0,
+  total: 0,
+  scripts: 0,
+};
+
 export interface SearchSnapshot {
   open: boolean;
   view: SearchView;

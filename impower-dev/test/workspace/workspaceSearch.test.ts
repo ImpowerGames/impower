@@ -10,7 +10,7 @@ vi.stubGlobal("localStorage", {
   removeItem: (key: string) => void storage.delete(key),
 });
 
-const { default: WorkspaceSearch } = await import(
+const { default: WorkspaceSearch, renameNote } = await import(
   "../../src/modules/spark-editor/workspace/WorkspaceSearch"
 );
 const { INITIAL_SEARCH } = await import(
@@ -112,6 +112,8 @@ const setup = (opened: string | undefined = MAIN) => {
         : (TEXTS[uri] ?? ""),
     ),
     applyEdit: vi.fn(async () => ({ applied: true })),
+    openLocation: vi.fn(async () => {}),
+    openAsset: vi.fn(async () => {}),
     showMatch: vi.fn(async (uri: string, r: Range) => {
       openedUri.value = uri;
       selection.value = r;
@@ -157,6 +159,14 @@ describe("Find across every script", () => {
       [CHAPTER, 2],
     ]);
     expect(snapshot.total).toBe(3);
+    expect(search.count()).toEqual({ index: 1, total: 3, scripts: 2 });
+  });
+
+  it("counts from the top of the open script before the editor has reported a caret", async () => {
+    const { search, selection } = make(MAIN);
+    selection.value = undefined;
+    search.open("find");
+    await search.setTerm("rumour");
     expect(search.count()).toEqual({ index: 1, total: 3, scripts: 2 });
   });
 
@@ -325,15 +335,20 @@ describe("References", () => {
 });
 
 describe("Rename", () => {
-  it("says what it will change, counting files only while Auto-rename files is on", async () => {
-    const { search, autoRenameFiles } = make(MAIN);
+  it("gathers what a rename will change: the uses, their scripts, the files and whether it is a character", async () => {
+    const { search } = make(MAIN);
     await search.openRename();
-    expect(search.renameSummary()).toBe(
+    const { subject, references, files, renameName } = workspace.search.value;
+    expect(renameName).toBe("imani");
+    const uses = references.reduce((n, g) => n + g.uses.length, 0);
+    expect(renameNote(subject, uses, references.length, files.length)).toBe(
       "Changes 3 uses in 3 scripts and renames 1 file in your assets. The same word in dialogue and action stays as it is. Cues keep their capitals.",
     );
-    autoRenameFiles.value = false;
-    expect(search.renameSummary()).toBe(
+    expect(renameNote(subject, uses, references.length, 0)).toBe(
       "Changes 3 uses in 3 scripts. The same word in dialogue and action stays as it is. Cues keep their capitals.",
+    );
+    expect(renameNote({ name: "start", character: false }, 1, 1, 0)).toBe(
+      "Changes 1 use in 1 script. The same word in dialogue and action stays as it is.",
     );
   });
 

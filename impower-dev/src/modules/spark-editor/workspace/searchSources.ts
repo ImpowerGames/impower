@@ -17,6 +17,8 @@ import type WorkspaceWindow from "./WorkspaceWindow";
 
 const TEXT_CHANGE_DELAY = 300;
 
+const MAIN_SCRIPT = "main.sd";
+
 export const searchSources = (parts: {
   window: WorkspaceWindow;
   ls: WorkspaceLanguageServer;
@@ -27,6 +29,21 @@ export const searchSources = (parts: {
   const logicEditor = () => {
     void workspace.state.value;
     return window.getActiveEditorForPane("logic");
+  };
+  const revealScript = (uri: string) => {
+    const projectId = workspace.signals.projectId.peek();
+    if (!projectId) {
+      return;
+    }
+    const filename = fs.getRelativePath(projectId, uri);
+    if (filename !== MAIN_SCRIPT) {
+      window.openFileEditor(filename);
+      return;
+    }
+    const scripts = workspace.state.peek().panes.logic.panels.scripts?.activeEditor;
+    if (scripts?.open && scripts.filename) {
+      window.closeFileEditor(scripts.filename);
+    }
   };
   return {
     openedUri: () => logicEditor()?.uri,
@@ -62,7 +79,23 @@ export const searchSources = (parts: {
       return outcome;
     },
     showMatch: async (uri, range) => {
+      revealScript(uri);
       await window.showDocument(uri, range, false, true);
+    },
+    openLocation: async (uri, range) => {
+      if (workspace.state.peek().pane !== "logic") {
+        window.navigateTo("write");
+      }
+      revealScript(uri);
+      await window.showDocument(uri, range, true, true);
+    },
+    openAsset: async (uri) => {
+      const projectId = workspace.signals.projectId.peek();
+      if (!projectId) {
+        return;
+      }
+      window.navigateTo("collection");
+      window.openFileEditor(fs.getRelativePath(projectId, uri));
     },
     setMatches: (uri, ranges) => {
       sendProtocolMessage(
