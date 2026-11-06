@@ -35,12 +35,18 @@ export type ProjectMetadataField =
   | "zipRevisionId"
   | "zipSynced";
 
+export interface GamePick {
+  choose: number;
+  lines: number[];
+}
+
 export interface GameState {
   loading?: boolean;
   running?: boolean;
   ended?: boolean;
   paused?: boolean;
   choosing?: boolean;
+  picks?: Record<string, GamePick[]>;
   compiling?: boolean;
   playRefusal?: string;
 }

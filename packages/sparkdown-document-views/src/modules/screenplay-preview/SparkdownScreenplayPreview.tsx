@@ -6,6 +6,7 @@ import type {
   ScreenplayPreviewController as ScreenplayPreviewControllerType,
   ScreenplayPreviewOptions,
 } from "./ScreenplayPreviewController";
+import type { ScreenplayPick } from "./utils/screenplaySettings";
 import cssText from "./sparkdown-screenplay-preview.css?raw";
 
 export const propDefaults = {
@@ -18,7 +19,7 @@ export type SparkdownScreenplayPreviewProps = Partial<typeof propDefaults> & {
   texture?: boolean;
   syncScroll?: boolean;
   playing?: boolean;
-  executedLines?: Record<string, readonly number[]>;
+  picks?: Record<string, readonly ScreenplayPick[]>;
 };
 
 export default function SparkdownScreenplayPreview({
@@ -28,14 +29,14 @@ export default function SparkdownScreenplayPreview({
   texture,
   syncScroll = true,
   playing = false,
-  executedLines,
+  picks,
 }: SparkdownScreenplayPreviewProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const controllerRef = useRef<ScreenplayPreviewControllerType>();
   const optionsRef = useRef<ScreenplayPreviewOptions>({});
-  optionsRef.current = { config, syncScroll, playing, executedLines };
+  optionsRef.current = { config, syncScroll, playing, picks };
 
   useEffect(() => {
     const root = rootRef.current;
@@ -77,8 +78,8 @@ export default function SparkdownScreenplayPreview({
   }, [config]);
 
   useEffect(() => {
-    controllerRef.current?.setExecutedLines(executedLines);
-  }, [executedLines]);
+    controllerRef.current?.setPicks(picks);
+  }, [picks]);
 
   useEffect(() => {
     controllerRef.current?.setSyncScroll(syncScroll);

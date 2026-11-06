@@ -208,7 +208,7 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
           texture={preferences.screenplayPaperTexture}
           syncScroll={preferences.previewScreenplaySync}
           playing={playing}
-          executedLines={workspace.state.value.debug?.highlights}
+          picks={game?.picks}
         />
       </div>
     </div>

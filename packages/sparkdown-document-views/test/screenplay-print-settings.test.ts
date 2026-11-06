@@ -4,7 +4,7 @@ import type { ScreenplayConfig } from "../../sparkdown-screenplay/src/types/Scre
 import createEditorView from "../src/modules/screenplay-preview/utils/createEditorView";
 import {
   setScreenplayConfig,
-  setScreenplayExecutedLines,
+  setScreenplayPicks,
 } from "../src/modules/screenplay-preview/utils/screenplaySettings";
 import { settleParse } from "./helpers/parseSettle";
 
@@ -37,12 +37,23 @@ const FIXTURE = [
 
 const views: EditorView[] = [];
 
-const render = (settings?: ScreenplayConfig) => {
+const BODYLESS = [
+  "scene start",
+  "  choose",
+  "    + [Run]",
+  "    + [Hide]",
+  "  end",
+  "  After choice.",
+  "end",
+  "",
+].join("\n");
+
+const render = (settings?: ScreenplayConfig, text = FIXTURE) => {
   const config = { screenplay_print_title_page: false, ...settings };
   const parent = document.body.appendChild(document.createElement("div"));
   parent.style.width = "800px";
   const view = createEditorView(parent, {
-    textDocument: { uri: "file:///main.sd", version: 1, text: FIXTURE },
+    textDocument: { uri: "file:///main.sd", version: 1, text },
     config,
   });
   settleParse(view);
@@ -52,6 +63,26 @@ const render = (settings?: ScreenplayConfig) => {
 
 const headings = (view: EditorView) =>
   Array.from(view.dom.querySelectorAll<HTMLElement>(".sp-heading"));
+
+const marginNumbers = (heading: HTMLElement) => {
+  const found: { margin: string; content: string; position: string }[] = [];
+  for (const sheet of Array.from(heading.ownerDocument.styleSheets)) {
+    for (const rule of Array.from(sheet.cssRules)) {
+      if (!(rule instanceof CSSStyleRule)) continue;
+      for (const selector of rule.selectorText.split(",")) {
+        const pseudo = selector.trim().match(/^(.*)::(before|after)$/);
+        if (!pseudo || !heading.matches(pseudo[1]!)) continue;
+        if (!rule.style.getPropertyValue("content")) continue;
+        found.push({
+          margin: rule.style.getPropertyValue("right") ? "left" : "right",
+          content: rule.style.getPropertyValue("content"),
+          position: rule.style.getPropertyValue("position"),
+        });
+      }
+    }
+  }
+  return found.sort((a, b) => a.margin.localeCompare(b.margin));
+};
 
 const lineIndexOf = (text: string) =>
   FIXTURE.split("\n").findIndex((line) => line.includes(text));
@@ -76,12 +107,24 @@ describe("screenplay preview follows the print settings", () => {
         "EXT. STREET - DAY",
       ]);
       expect(found.map((h) => h.dataset["sceneNumber"])).toEqual(["1", "2"]);
+      const margins = marginNumbers(found[0]!);
+      expect(margins.map((m) => m.margin)).toEqual(
+        { left: ["left"], right: ["right"], both: ["left", "right"], none: [] }[side],
+      );
+      for (const margin of margins) {
+        expect(margin.content).toBe("attr(data-scene-number)");
+        expect(margin.position).toBe("absolute");
+      }
     },
   );
 
   it("prints headings bold only when the setting is on", () => {
-    expect(render({ screenplay_print_headings_bold: true }).dom.dataset["headingsBold"]).toBe("on");
-    expect(render({ screenplay_print_headings_bold: false }).dom.dataset["headingsBold"]).toBe("off");
+    const bold = render({ screenplay_print_headings_bold: true });
+    expect(bold.dom.dataset["headingsBold"]).toBe("on");
+    expect(headings(bold).map((h) => getComputedStyle(h).fontWeight)).toEqual(["bold", "bold"]);
+    const plain = render({ screenplay_print_headings_bold: false });
+    expect(plain.dom.dataset["headingsBold"]).toBe("off");
+    expect(headings(plain).map((h) => getComputedStyle(h).fontWeight)).not.toContain("bold");
   });
 
   it("lays the page out at the paper size's proportions", () => {
@@ -123,13 +166,28 @@ describe("screenplay preview follows the print settings", () => {
     expect(options().map((o) => o.textContent?.replace(/[+[\]\s]/g, ""))).toEqual(["Run", "Hide"]);
     expect(options().some((o) => o.classList.contains("sp-chosen"))).toBe(false);
     const chosen = () => options().map((o) => o.classList.contains("sp-chosen"));
-    view.dispatch({ effects: setScreenplayExecutedLines.of([lineIndexOf("+ [Run]"), lineIndexOf("+ [Hide]")]) });
-    expect(chosen()).toEqual([false, false]);
+    const choose = lineIndexOf("  choose");
     view.dispatch({
-      effects: setScreenplayExecutedLines.of([lineIndexOf("+ [Run]"), lineIndexOf("+ [Hide]"), lineIndexOf("Bunny hides.")]),
+      effects: setScreenplayPicks.of([{ choose, lines: [choose, lineIndexOf("+ [Hide]"), lineIndexOf("Bunny hides.")] }]),
     });
     expect(chosen()).toEqual([false, true]);
-    view.dispatch({ effects: setScreenplayExecutedLines.of([lineIndexOf("+ [Run]"), lineIndexOf("Bunny runs.")]) });
+    view.dispatch({
+      effects: setScreenplayPicks.of([
+        { choose, lines: [lineIndexOf("+ [Hide]")] },
+        { choose, lines: [lineIndexOf("+ [Run]")] },
+      ]),
+    });
+    expect(chosen()).toEqual([true, true]);
+    view.dispatch({ effects: setScreenplayPicks.of([{ choose: choose + 100, lines: [lineIndexOf("+ [Run]")] }]) });
+    expect(chosen()).toEqual([false, false]);
+  });
+
+  it("marks a picked option that has no body", () => {
+    const view = render({}, BODYLESS);
+    const chosen = () =>
+      Array.from(view.dom.querySelectorAll<HTMLElement>(".sp-option")).map((o) => o.classList.contains("sp-chosen"));
+    expect(chosen()).toEqual([false, false]);
+    view.dispatch({ effects: setScreenplayPicks.of([{ choose: 1, lines: [1, 2, 5] }]) });
     expect(chosen()).toEqual([true, false]);
   });
 });

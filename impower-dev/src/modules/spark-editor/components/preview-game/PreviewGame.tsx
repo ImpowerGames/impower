@@ -359,6 +359,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
               executedMap[uri] = expandLineRanges(lines.ranges);
             }
             Workspace.window.setHighlights(executedMap);
+            Workspace.window.recordGamePick(executedMap);
             if (state === "running" && !restarted) {
               const editor = Workspace.window.getActiveEditorForPane("logic");
               if (editor) {
@@ -378,10 +379,14 @@ export default function PreviewGame(_props: PreviewGameProps) {
             }
           }
           if (GameAwaitingInteractionMessage.type.isNotification(message)) {
-            Workspace.window.syncGameChoosing(!!message.params.choices);
+            const { choices, location } = message.params;
+            Workspace.window.syncGameChoosing(!!choices, {
+              uri: location.uri,
+              line: location.range.start.line,
+            });
           }
           if (GameChosePathToContinueMessage.type.isNotification(message)) {
-            Workspace.window.syncGameChoosing(false);
+            Workspace.window.syncGameChose();
           }
           if (GameEndedMessage.type.is(message)) {
             Workspace.window.syncGameEnded(true);

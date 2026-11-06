@@ -4,7 +4,7 @@ import type { ScreenplayConfig } from "../../../../../sparkdown-screenplay/src/t
 import PREVIEW_THEME from "../constants/PREVIEW_THEME";
 import screenplayFormatting from "./screenplayFormatting";
 import { litBlockWidgets } from "./litBlockWidgets";
-import { screenplaySettings } from "./screenplaySettings";
+import { screenplaySettings, type ScreenplayPick } from "./screenplaySettings";
 
 interface EditorConfig {
   textDocument: { uri: string; version: number; text: string };
@@ -16,7 +16,7 @@ interface EditorConfig {
   };
   scrollToLineNumber?: number;
   config?: ScreenplayConfig;
-  executedLines?: readonly number[];
+  picks?: readonly ScreenplayPick[];
   onUpdate?: (update: ViewUpdate) => void;
 }
 
@@ -40,7 +40,7 @@ const createEditorView = (
       EditorView.updateListener.of((u) => {
         onUpdate?.(u);
       }),
-      screenplaySettings(config?.config, config?.executedLines),
+      screenplaySettings(config?.config, config?.picks),
       screenplayFormatting(),
       highlightActiveLine(),
       litBlockWidgets,

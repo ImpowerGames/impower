@@ -69,7 +69,8 @@ import type { ScreenplayConfig } from "../../../../sparkdown-screenplay/src/type
 import createEditorView from "./utils/createEditorView";
 import {
   setScreenplayConfig,
-  setScreenplayExecutedLines,
+  setScreenplayPicks,
+  type ScreenplayPick,
 } from "./utils/screenplaySettings";
 
 const CONTENT_PADDING_TOP = 68;
@@ -84,7 +85,7 @@ export interface ScreenplayPreviewOptions {
   config?: ScreenplayConfig;
   syncScroll?: boolean;
   playing?: boolean;
-  executedLines?: Record<string, readonly number[]>;
+  picks?: Record<string, readonly ScreenplayPick[]>;
 }
 
 export class ScreenplayPreviewController {
@@ -149,12 +150,12 @@ export class ScreenplayPreviewController {
     this._view?.dispatch({ effects: setScreenplayConfig.of(config) });
   }
 
-  setExecutedLines(
-    executedLines: Record<string, readonly number[]> | undefined,
+  setPicks(
+    picks: Record<string, readonly ScreenplayPick[]> | undefined,
   ): void {
-    this.options.executedLines = executedLines;
+    this.options.picks = picks;
     this._view?.dispatch({
-      effects: setScreenplayExecutedLines.of(this.executedLinesFor()),
+      effects: setScreenplayPicks.of(this.picksFor()),
     });
   }
 
@@ -166,9 +167,9 @@ export class ScreenplayPreviewController {
     this.options.playing = playing;
   }
 
-  protected executedLinesFor(): readonly number[] {
+  protected picksFor(): readonly ScreenplayPick[] {
     const uri = this._textDocument?.uri;
-    return (uri && this.options.executedLines?.[uri]) || [];
+    return (uri && this.options.picks?.[uri]) || [];
   }
 
   protected get syncScroll(): boolean {
@@ -380,7 +381,7 @@ export class ScreenplayPreviewController {
             ? (visibleRange?.start.line ?? 0) + 1
             : undefined,
         config: this.options.config,
-        executedLines: this.executedLinesFor(),
+        picks: this.picksFor(),
         onUpdate: (u) => {
           if (!syntaxParserRunning(u.view)) {
             this.onIdle();

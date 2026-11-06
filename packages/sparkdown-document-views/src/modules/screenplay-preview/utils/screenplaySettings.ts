@@ -3,9 +3,14 @@ import { EditorView } from "@codemirror/view";
 import { PRINT_PROFILES } from "../../../../../sparkdown-screenplay/src/constants/PRINT_PROFILES";
 import type { ScreenplayConfig } from "../../../../../sparkdown-screenplay/src/types/ScreenplayConfig";
 
+export interface ScreenplayPick {
+  readonly choose: number;
+  readonly lines: readonly number[];
+}
+
 export const setScreenplayConfig = StateEffect.define<ScreenplayConfig | undefined>();
 
-export const setScreenplayExecutedLines = StateEffect.define<readonly number[]>();
+export const setScreenplayPicks = StateEffect.define<readonly ScreenplayPick[]>();
 
 export const screenplayConfigField = StateField.define<ScreenplayConfig | undefined>({
   create: () => undefined,
@@ -19,12 +24,12 @@ export const screenplayConfigField = StateField.define<ScreenplayConfig | undefi
   },
 });
 
-export const screenplayExecutedLinesField = StateField.define<ReadonlySet<number>>({
-  create: () => new Set(),
+export const screenplayPicksField = StateField.define<readonly ScreenplayPick[]>({
+  create: () => [],
   update(value, transaction) {
     for (const effect of transaction.effects) {
-      if (effect.is(setScreenplayExecutedLines)) {
-        value = new Set(effect.value);
+      if (effect.is(setScreenplayPicks)) {
+        value = effect.value;
       }
     }
     return value;
@@ -55,8 +60,8 @@ const screenplayPageAttributes = EditorView.editorAttributes.compute(
   },
 );
 
-export const screenplaySettings = (config?: ScreenplayConfig, executedLines: readonly number[] = []) => [
+export const screenplaySettings = (config?: ScreenplayConfig, picks: readonly ScreenplayPick[] = []) => [
   screenplayConfigField.init(() => config),
-  screenplayExecutedLinesField.init(() => new Set(executedLines)),
+  screenplayPicksField.init(() => picks),
   screenplayPageAttributes,
 ];

@@ -1320,6 +1320,37 @@ describe("Choosing during a Screenplay play-through", () => {
     expect(workspace.current.preview.modes.game.running).toBe(true);
     expect(stopped).toEqual([]);
   }, 30000);
+
+  it("keeps each pick for the rest of the run, whatever executes after it, and forgets them when the run stops", async () => {
+    render(h(Preview, {}), container);
+    container.querySelector("iframe")!.dispatchEvent(new Event("load"));
+    await vi.waitFor(() => expect(channels.all).toHaveLength(1), { timeout: 15000 });
+    const channel = channels.all[0]!;
+    win.startGame();
+    const uri = "file://a/main.sd";
+    const at = (line: number) => ({ uri, range: { start: { line, character: 2 }, end: { line, character: 2 } } });
+    const executed = (ranges: number[]) => ({
+      jsonrpc: "2.0",
+      method: "game/executed",
+      params: { executedLines: { [uri]: { ranges, last: ranges.at(-1) } }, state: "running", conditions: [], choices: [] },
+    });
+
+    channel.receive({ jsonrpc: "2.0", method: "game/awaitingInteraction", params: { location: at(1), choices: true } });
+    channel.receive(executed([1, 2, 4, 4]));
+    channel.receive({ jsonrpc: "2.0", method: "game/chosePathToContinue", params: { location: at(1) } });
+    channel.receive(executed([4, 5]));
+    await vi.waitFor(() =>
+      expect(workspace.current.preview.modes.game.picks).toEqual({ [uri]: [{ choose: 1, lines: [4, 5] }] }),
+    );
+
+    channel.receive({ jsonrpc: "2.0", method: "game/awaitingInteraction", params: { location: at(7), choices: false } });
+    channel.receive(executed([1, 2, 7, 7]));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(workspace.current.preview.modes.game.picks).toEqual({ [uri]: [{ choose: 1, lines: [4, 5] }] });
+
+    win.stopGame();
+    expect(workspace.current.preview.modes.game.picks).toEqual({});
+  }, 30000);
 });
 
 describe("The game preview's player bar", () => {
@@ -1769,16 +1800,16 @@ describe("The Screenplay viewing mode", () => {
     expect(page()).toMatchObject({ paper: "theme", texture: true, syncScroll: false });
   });
 
-  it("plays through the page: a click or Enter continues the story, and the played lines mark the chosen options", async () => {
+  it("plays through the page: a click or Enter continues the story, and the run's picks reach the page", async () => {
     expect(page()["playing"]).toBe(false);
     region().click();
     region().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     await new Promise((resolve) => setTimeout(resolve));
     expect(requests).not.toContain("game/continue");
 
-    setGame({ running: true });
-    win.setHighlights({ "file:///main.sd": [3, 7] });
-    expect(page()).toMatchObject({ playing: true, executedLines: { "file:///main.sd": [3, 7] } });
+    const picks = { "file:///main.sd": [{ choose: 1, lines: [3, 4] }] };
+    setGame({ running: true, picks });
+    expect(page()).toMatchObject({ playing: true, picks });
     region().click();
     await vi.waitFor(() => expect(requests.filter((m) => m === "game/continue")).toHaveLength(1));
     region().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));

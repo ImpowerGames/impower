@@ -26,7 +26,7 @@ import { ReplaceSpec } from "../types/ReplaceSpec";
 import { RevealSpec } from "../types/RevealSpec";
 import {
   screenplayConfigField,
-  screenplayExecutedLinesField,
+  screenplayPicksField,
 } from "./screenplaySettings";
 
 const DIALOGUE_WIDTH = "60%";
@@ -254,7 +254,7 @@ export const decorate = (
   const decorations: Range<Decoration>[] = [];
   const doc = state.doc;
   const config = state.field(screenplayConfigField, false);
-  const executedLines = state.field(screenplayExecutedLinesField, false);
+  const picks = state.field(screenplayPicksField, false);
   let sceneNumber = 0;
   const chooseOptions: number[][] = [];
 
@@ -713,13 +713,15 @@ export const decorate = (
         }
       } else if (name === "LuauSparkdownChooseBlock_content") {
         const options = chooseOptions.pop() ?? [];
-        const lastLine = doc.lineAt(Math.max(from, to - 1)).number;
-        options.forEach((optionLine, index) => {
-          const bodyEnd = (options[index + 1] ?? lastLine + 1) - 1;
-          let chosen = false;
-          for (let line = optionLine + 1; line <= bodyEnd && !chosen; line++) {
-            chosen = executedLines?.has(line - 1) ?? false;
-          }
+        const chooseLine =
+          doc.lineAt(nodeRef.node.parent?.from ?? from).number - 1;
+        const picked = new Set(
+          (picks ?? [])
+            .filter((pick) => pick.choose === chooseLine)
+            .flatMap((pick) => pick.lines),
+        );
+        options.forEach((optionLine) => {
+          const chosen = picked.has(optionLine - 1);
           decorations.push(
             Decoration.line({
               class: chosen ? "sp-option sp-chosen" : "sp-option",
@@ -825,8 +827,8 @@ const replaceDecorations = StateField.define<DecorationSet>({
         syntaxTree(startState) === syntaxTree(state) &&
         startState.field(screenplayConfigField, false) ===
           state.field(screenplayConfigField, false) &&
-        startState.field(screenplayExecutedLinesField, false) ===
-          state.field(screenplayExecutedLinesField, false);
+        startState.field(screenplayPicksField, false) ===
+          state.field(screenplayPicksField, false);
       if (unchanged) return decorations;
     }
     const ranges = decorate(transaction.state);
