@@ -9,7 +9,11 @@ LoadInstruction,
 LayoutInstruction,
 TextInstruction,
 } from "../../../core/types/Instruction";
-import type { Instructions } from "../../../core/types/Instructions";
+import type {
+  BeatKind,
+  Instructions,
+} from "../../../core/types/Instructions";
+import type { ScriptLocation } from "../../../core/types/ScriptLocation";
 import { getNumberValue } from "../../../core/utils/getNumberValue";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
 import type { InterpreterBuiltins } from "../types/InterpreterBuiltins";
@@ -321,6 +325,45 @@ export class InterpreterModule extends Module<
     return null;
   }
 
+  protected beatKind(target: string): BeatKind | undefined {
+    switch (target) {
+      case "action":
+      case "dialogue":
+      case "title":
+      case "heading":
+        return target;
+      case "transitional":
+        return "transition";
+      default:
+        return undefined;
+    }
+  }
+
+  protected describeBeat(
+    beat: Instructions,
+    target: string,
+    cue: Cue | undefined,
+    source: ScriptLocation | undefined,
+  ): void {
+    const kind = this.beatKind(target);
+    if (kind) {
+      beat.kind = kind;
+    } else {
+      delete beat.kind;
+    }
+    if (cue?.name) {
+      beat.speaker = { name: cue.name, parenthetical: cue.parenthetical };
+      if (cue.character) beat.speaker.character = cue.character;
+    } else {
+      delete beat.speaker;
+    }
+    if (source) {
+      beat.source = source;
+    } else {
+      delete beat.source;
+    }
+  }
+
   protected appendBeat(
     target: string,
     characterDeclaration: string | undefined,
@@ -328,6 +371,7 @@ export class InterpreterModule extends Module<
     choices: string[],
     pause = false,
     extend?: { spaces: string },
+    source?: ScriptLocation,
   ): void {
     this._state.buffer ??= [];
     const defaultTarget = this._targetPrefixMap?.[""] || "";
@@ -455,7 +499,9 @@ export class InterpreterModule extends Module<
           } else {
             delete lastTextbox.extended;
           }
+          this.describeBeat(lastTextbox, textTarget, cue, source);
         } else {
+          this.describeBeat(contentInstructions, textTarget, cue, source);
           this._state.buffer.push(contentInstructions);
         }
       }
@@ -488,8 +534,11 @@ export class InterpreterModule extends Module<
       let lastTextbox = this._state.buffer?.at(-1);
       if (!lastTextbox) {
         lastTextbox = { end: 0 };
+        if (source) lastTextbox.source = source;
         this._state.buffer.push(lastTextbox);
       }
+      lastTextbox.kind ??= "choice";
+      lastTextbox.options = [...(lastTextbox.options ?? []), ...choices];
       for (let i = 0; i < choices.length; i += 1) {
         const choice = choices[i]!;
         const choiceInstructions = this.parse(choice, `choice ${i}`, {
@@ -502,7 +551,12 @@ export class InterpreterModule extends Module<
     }
   }
 
-  queue(tables: ObjectValue[], choices: string[], content: string): void {
+  queue(
+    tables: ObjectValue[],
+    choices: string[],
+    content: string,
+    source?: ScriptLocation,
+  ): void {
     const read = (table: ObjectValue | undefined, key: string): unknown =>
       (table?.value?.get(key) as { value?: unknown } | undefined)?.value;
     if (tables.some((table) => typeof read(table, "load") === "string")) {
@@ -516,7 +570,7 @@ export class InterpreterModule extends Module<
       const flush = () => {
         const text = before.map(tableText).join("");
         if (load === null) {
-          if (before.length > 0) this.queue(before, [], text);
+          if (before.length > 0) this.queue(before, [], text, source);
         } else {
           const loadInstructions: LoadInstruction[] = `${load}${text}`
             .split(this.WHITESPACE_REGEX)
@@ -537,7 +591,7 @@ export class InterpreterModule extends Module<
       }
       flush();
       if (choices.length > 0) {
-        this.appendBeat("", undefined, "", choices);
+        this.appendBeat("", undefined, "", choices, false, undefined, source);
       }
       return;
     }
@@ -590,6 +644,7 @@ export class InterpreterModule extends Module<
                 : "",
           }
         : undefined,
+      source,
     );
   }
 
