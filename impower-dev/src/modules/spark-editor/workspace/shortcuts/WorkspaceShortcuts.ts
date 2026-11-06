@@ -6,6 +6,7 @@ import {
 import {
   activeCombos,
   assignShortcut,
+  fixedHolder,
   resolveShortcuts,
   restoreShortcut,
   shortcutMatches,
@@ -98,7 +99,12 @@ export class WorkspaceShortcuts {
   }
 
   record(id: ShortcutId, combo: string): ShortcutChange {
-    return this.commit(assignShortcut(this.combos.peek(), id, combo, this.platform));
+    const current = this.combos.peek();
+    const refused = combo && combo !== this.usual(id) ? fixedHolder(combo, this.platform) : undefined;
+    if (refused) {
+      return { combos: current, refused };
+    }
+    return this.commit(assignShortcut(current, id, combo, this.platform));
   }
 
   clear(id: ShortcutId): ShortcutChange {

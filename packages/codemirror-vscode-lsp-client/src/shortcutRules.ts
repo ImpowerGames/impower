@@ -4,7 +4,13 @@ import {
   normalizeCombo,
   type ShortcutPlatform,
 } from "./shortcutCombo";
-import { platformKeys, type ShortcutRow } from "./shortcutTable";
+import {
+  EDITOR_SHORTCUTS,
+  isShortcutRow,
+  platformKeys,
+  type ShortcutEntry,
+  type ShortcutRow,
+} from "./shortcutTable";
 
 export type ShortcutCombos = Readonly<Record<string, string>>;
 
@@ -69,6 +75,33 @@ export function activeCombos(
 export interface ShortcutChange {
   readonly combos: ShortcutCombos;
   readonly displaced?: string;
+  readonly refused?: string;
+}
+
+export function fixedHolder(
+  combo: string,
+  platform: ShortcutPlatform,
+): string | undefined {
+  const wanted = normalizeCombo(combo, platform);
+  if (!wanted) {
+    return undefined;
+  }
+  for (const entry of EDITOR_SHORTCUTS as readonly ShortcutEntry[]) {
+    if (isShortcutRow(entry)) {
+      continue;
+    }
+    const keys = platformKeys(entry.keys, platform);
+    if (!keys) {
+      continue;
+    }
+    const held = [keys, ...(entry.shift ? [`Shift+${keys}`] : [])].map((candidate) =>
+      normalizeCombo(candidate, platform),
+    );
+    if (held.includes(wanted)) {
+      return entry.id;
+    }
+  }
+  return undefined;
 }
 
 export function assignShortcut(

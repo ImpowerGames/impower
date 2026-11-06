@@ -96,7 +96,11 @@ function ShortcutKeysRow({
       announce(refusedNote());
       return;
     }
-    const { displaced } = shortcuts.record(id, next);
+    const { displaced, refused } = shortcuts.record(id, next);
+    if (refused) {
+      announce(`${spoken(next)} belongs to the editor itself. Choose other keys.`);
+      return;
+    }
     onStop();
     announce(
       displaced

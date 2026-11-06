@@ -173,6 +173,17 @@ describe("Keyboard shortcuts section", () => {
     expect(stored()).toEqual({ shortcutUndo: "" });
   });
 
+  it("refuses keys the editor itself owns and keeps recording", async () => {
+    await mount();
+    await record("rename");
+    await press("rename", { key: "c", code: "KeyC", ctrlKey: true });
+    expect(region()).toBe("Ctrl+C belongs to the editor itself. Choose other keys.");
+    expect(chip("rename").textContent).toBe("Press keys…");
+    await press("rename", { key: "Escape", code: "Escape" });
+    expect(keysOf("rename")).toEqual(["F2"]);
+    expect(stored()).toEqual({});
+  });
+
   it("records punctuation as typed on the key, whatever Shift makes it", async () => {
     await mount();
     await record("toggleComment");

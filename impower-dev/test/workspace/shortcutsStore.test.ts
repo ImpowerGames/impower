@@ -78,6 +78,23 @@ describe("the shortcuts store", () => {
     expect(JSON.parse(storage.getItem(PREFERENCES_STORAGE_KEY)!)).toEqual({});
   });
 
+  it("refuses a combo a fixed editor key owns, and keeps every command as it was", () => {
+    const storage = memoryStorage();
+    const shortcuts = macShortcuts(storage);
+    const before = shortcuts.combos.peek();
+    expect(shortcuts.record("rename", "Mod+C")).toEqual({ combos: before, refused: "copy" });
+    expect(shortcuts.record("search", "Ctrl+F")).toEqual({ combos: before, refused: "macCharRight" });
+    expect(storage.getItem(PREFERENCES_STORAGE_KEY)).toBeNull();
+    expect(shortcuts.combo("rename")).toBe("F2");
+  });
+
+  it("matches a letter by the key the layout types", () => {
+    const shortcuts = macShortcuts();
+    shortcuts.record("search", "Mod+Y");
+    expect(shortcuts.matches(keydown({ key: "y", code: "KeyZ", metaKey: true }), "search")).toBe(true);
+    expect(shortcuts.matches(keydown({ key: "y", code: "KeyZ", metaKey: true }), "undo")).toBe(false);
+  });
+
   it("ignores saved keys that are not a shortcut and settles saved collisions in table order", () => {
     const storage = memoryStorage();
     storage.setItem(

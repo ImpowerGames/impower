@@ -17,6 +17,7 @@ import {
 import {
   activeCombos,
   assignShortcut,
+  fixedHolder,
   resolveShortcuts,
   restoreShortcut,
 } from "../src/shortcutRules";
@@ -29,7 +30,12 @@ import {
   EDITOR_SHORTCUT_COMMANDS,
   type ShortcutCommands,
 } from "../src/shortcuts";
-import { EDITOR_SHORTCUT_ROWS, type ShortcutRow } from "../src/shortcutTable";
+import {
+  EDITOR_SHORTCUT_ROWS,
+  EDITOR_SHORTCUTS,
+  type ShortcutEntry,
+  type ShortcutRow,
+} from "../src/shortcutTable";
 
 const PLATFORMS: readonly ShortcutPlatform[] = ["mac", "win", "linux"];
 
@@ -86,6 +92,13 @@ describe("recording a combo from a key event", () => {
     expect(comboFromEvent({ code: "Space", key: " ", ctrlKey: true }, "mac")).toBe("Ctrl+Space");
     expect(comboFromEvent({ code: "Space", key: " ", ctrlKey: true }, "win")).toBe("Mod+Space");
     expect(comboFromEvent({ code: "KeyF", key: "f", metaKey: true }, "win")).toBe("");
+  });
+
+  it("reads a letter as the layout types it, and from its key position only when the layout has no Latin letter there", () => {
+    expect(comboFromEvent({ code: "KeyZ", key: "y", ctrlKey: true }, "win")).toBe("Mod+Y");
+    expect(comboFromEvent({ code: "KeyQ", key: "a", ctrlKey: true }, "win")).toBe("Mod+A");
+    expect(comboFromEvent({ code: "KeyZ", key: "я", ctrlKey: true }, "linux")).toBe("Mod+Z");
+    expect(comboFromEvent({ code: "KeyA", key: "å", altKey: true }, "mac")).toBe("Alt+A");
   });
 
   it("finds no key in a modifier on its own or an unprintable key", () => {
@@ -186,6 +199,25 @@ describe("one combo, one action", () => {
     expect(activeCombos(rowOf("format"), displaced, "win")).toEqual([]);
     const cleared = assignShortcut(defaults("mac"), "redo", "", "mac").combos;
     expect(activeCombos(rowOf("redo"), cleared, "mac")).toEqual([]);
+  });
+
+  it("names the fixed editor key that already owns a combo, Shift variants included", () => {
+    expect(fixedHolder("Mod+C", "win")).toBe("copy");
+    expect(fixedHolder("Mod+Left", "win")).toBe("cursorGroupLeft");
+    expect(fixedHolder("Shift+Mod+Left", "win")).toBe("cursorGroupLeft");
+    expect(fixedHolder("Ctrl+F", "mac")).toBe("macCharRight");
+    expect(fixedHolder("Mod+F", "mac")).toBeUndefined();
+    expect(fixedHolder("Mod+Shift+X", "win")).toBeUndefined();
+  });
+
+  it("marks exactly the fixed entries whose command also runs with Shift", () => {
+    for (const entry of EDITOR_SHORTCUTS as readonly ShortcutEntry[]) {
+      if ("fixed" in entry) {
+        const command = EDITOR_SHORTCUT_COMMANDS[entry.id as keyof typeof EDITOR_SHORTCUT_COMMANDS];
+        const shifts = !!command && typeof command !== "function" && !!command.shift;
+        expect(!!entry.shift, entry.id).toBe(shifts);
+      }
+    }
   });
 
   it("stops an alias working once another command takes it", () => {
@@ -328,6 +360,28 @@ describe("the generated keymaps", () => {
     expect(shortcutLabelFor(view.state, "format")).toBeUndefined();
     expect(shortcutLabelFor(view.state, "references")).toBe("Shift+F12");
     expect(shortcutLabelFor(view.state, "copy")).toBe("Ctrl+C");
+  });
+
+  it("runs the recorded command on the key a QWERTZ writer recorded, not the command of its key position", () => {
+    const search = vi.fn(() => true);
+    const redo = vi.fn(() => true);
+    const qwertzY = { key: "y", code: "KeyZ", keyCode: 89, ctrlKey: true };
+    const combo = comboFromEvent(qwertzY, "linux");
+    expect(combo).toBe("Mod+Y");
+    const combos = assignShortcut(defaults("linux"), "search", combo, "linux").combos;
+    const view = mountEditor({ combos, platform: "linux", commands: { search, redo } });
+    press(view, qwertzY);
+    expect(search).toHaveBeenCalledTimes(1);
+    expect(redo).not.toHaveBeenCalled();
+  });
+
+  it("runs the command recorded from the key position on a Cyrillic layout", () => {
+    const undo = vi.fn(() => true);
+    const cyrillicZ = { key: "я", code: "KeyZ", keyCode: 90, ctrlKey: true };
+    expect(comboFromEvent(cyrillicZ, "linux")).toBe("Mod+Z");
+    const view = mountEditor({ platform: "linux", commands: { undo } });
+    press(view, cyrillicZ);
+    expect(undo).toHaveBeenCalledTimes(1);
   });
 
   it("binds no key, aliases included, for a command left without a shortcut", () => {

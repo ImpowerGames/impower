@@ -139,6 +139,10 @@ interface ShortcutKeyEvent {
 
 export function keyOfEvent(event: ShortcutKeyEvent): string {
   const code = event.code || "";
+  const key = event.key || "";
+  if (/^[a-z]$/i.test(key)) {
+    return key.toUpperCase();
+  }
   if (/^Key[A-Z]$/.test(code)) {
     return code.slice(3);
   }
@@ -153,10 +157,6 @@ export function keyOfEvent(event: ShortcutKeyEvent): string {
   }
   if (code) {
     return "";
-  }
-  const key = event.key || "";
-  if (/^[a-z]$/i.test(key)) {
-    return key.toUpperCase();
   }
   if (/^\d$/.test(key) || isFunctionKey(key)) {
     return key;
@@ -202,13 +202,8 @@ export function eventMatchesCombo(
   }
   const wanted = forPlatform(parsed, platform);
   const held = eventModifiers(event, platform);
-  const key = keyOfEvent(event);
-  const sameKey =
-    key === wanted.key ||
-    (/^[A-Z]$/.test(wanted.key) &&
-      (event.key || "").toUpperCase() === wanted.key);
   return (
-    sameKey &&
+    keyOfEvent(event) === wanted.key &&
     held.mod === wanted.mod &&
     held.ctrl === wanted.ctrl &&
     !!event.shiftKey === wanted.shift &&
