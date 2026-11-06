@@ -3,19 +3,27 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { expect, it } from "vitest";
 
+type Rule = { selector: string; style: CSSStyleDeclaration; media: string[] };
+
 const styleRules = (
   rules: CSSRuleList,
   media: string[] = [],
-  out: { rule: CSSStyleRule; media: string[] }[] = [],
+  parent = "",
+  out: Rule[] = [],
 ) => {
   for (const rule of Array.from(rules)) {
     if (rule instanceof CSSStyleRule) {
-      out.push({ rule, media });
-      if (rule.cssRules) styleRules(rule.cssRules, media, out);
+      const selector = parent
+        ? rule.selectorText.includes("&")
+          ? rule.selectorText.replace(/&/g, parent)
+          : `${parent} ${rule.selectorText}`
+        : rule.selectorText;
+      out.push({ selector, style: rule.style, media });
+      if (rule.cssRules) styleRules(rule.cssRules, media, selector, out);
     } else if (rule instanceof CSSMediaRule) {
-      styleRules(rule.cssRules, [...media, rule.conditionText], out);
+      styleRules(rule.cssRules, [...media, rule.conditionText], parent, out);
     } else if ("cssRules" in rule) {
-      styleRules((rule as CSSGroupingRule).cssRules, media, out);
+      styleRules((rule as CSSGroupingRule).cssRules, media, parent, out);
     }
   }
   return out;
@@ -36,27 +44,52 @@ const compiled = async (classes: string[]) => {
   return rules;
 };
 
-it("centres a 44px coarse-pointer input over a smaller inline-hit box", async () => {
+const matching = (rules: Rule[], element: Element) =>
+  rules.filter(({ selector }) => {
+    try {
+      return element.matches(selector);
+    } catch {
+      return false;
+    }
+  });
+
+const declaring = (rules: Rule[], property: string) =>
+  rules
+    .filter(({ style }) => style.getPropertyValue(property))
+    .map(({ style, media }) => ({
+      value: style.getPropertyValue(property),
+      coarse: media.some((m) => m.includes("pointer: coarse")),
+    }));
+
+it("centres an inline-hit box's input so the coarse-pointer 44px target overflows it evenly", async () => {
+  const box = document.createElement("span");
+  box.className = "inline-hit";
+  const input = box.appendChild(document.createElement("input"));
+  input.type = "text";
+  document.body.append(box);
+
   const rules = await compiled(["inline-hit"]);
-  const box = rules.find(
-    ({ rule }) => rule.selectorText === ".inline-hit",
-  )!.rule;
-  expect(box.style.getPropertyValue("display")).toBe("flex");
-  expect(box.style.getPropertyValue("align-items")).toBe("center");
-  expect(box.style.getPropertyValue("position")).toBe("relative");
+  const onBox = matching(rules, box);
+  expect(declaring(onBox, "display")).toContainEqual({
+    value: "flex",
+    coarse: false,
+  });
+  expect(declaring(onBox, "align-items")).toContainEqual({
+    value: "center",
+    coarse: false,
+  });
 
-  const input = rules.find(({ rule }) =>
-    /^(\.inline-hit\s*>\s*input|&\s*>\s*input)$/.test(rule.selectorText),
-  )!.rule;
-  expect(input.style.getPropertyValue("height")).toBe("100%");
-  expect(input.style.getPropertyValue("flex")).toMatch(/^none|0 0 auto$/);
-  expect(input.style.getPropertyValue("max-width")).toBe("100%");
+  const onInput = matching(rules, input);
+  expect(declaring(onInput, "height")).toEqual([
+    { value: "100%", coarse: false },
+  ]);
+  expect(declaring(onInput, "flex").map(({ value }) => value)).toEqual([
+    expect.stringMatching(/^(none|0 0 auto)$/),
+  ]);
+  expect(declaring(onInput, "min-height")).toEqual([
+    { value: "44px", coarse: true },
+  ]);
+  expect(declaring(onInput, "max-height")).toEqual([]);
 
-  const target = rules.find(
-    ({ rule, media }) =>
-      media.some((m) => m.includes("pointer: coarse")) &&
-      rule.style.getPropertyValue("min-height") === "44px" &&
-      rule.selectorText.includes("input:not("),
-  );
-  expect(target).toBeDefined();
+  box.remove();
 });
