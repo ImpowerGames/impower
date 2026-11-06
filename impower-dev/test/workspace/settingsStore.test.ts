@@ -46,6 +46,7 @@ import workspaceSettings, {
   WorkspaceSettings,
 } from "../../src/modules/spark-editor/workspace/settings/WorkspaceSettings";
 import { useSettings } from "../../src/modules/spark-editor/workspace/settings/useSettings";
+import { typedPattern } from "../../src/modules/spark-editor/workspace/settings/fileEndings";
 import WorkspaceConfiguration from "../../src/modules/spark-editor/workspace/WorkspaceConfiguration";
 import WorkspaceFileSystem from "../../src/modules/spark-editor/workspace/WorkspaceFileSystem";
 import WorkspaceLanguageServer from "../../src/modules/spark-editor/workspace/WorkspaceLanguageServer";
@@ -298,6 +299,27 @@ describe("the change notification", () => {
         params: { settings: expected },
       }),
     ]);
+  });
+
+  it("carries the endings typed under File types to the language server and the worker as a pattern", async () => {
+    const ls = new WorkspaceLanguageServer({
+      configuration,
+      window: { getOpenedDocumentUri: () => undefined } as never,
+    });
+    new WorkspaceFileSystem(ls, configuration);
+    await ls.start("file://p1", []);
+
+    store.setProjectSetting(
+      "imageFiles",
+      typedPattern("png, jpg, avif", PROJECT_SETTINGS_SCHEMA.imageFiles.default),
+    );
+
+    const imageFiles = (messages: unknown[]) =>
+      messages
+        .filter((m) => (m as { method?: string }).method === DID_CHANGE_CONFIGURATION)
+        .map((m) => (m as { params: { settings: { imageFiles?: string } } }).params.settings.imageFiles);
+    expect(imageFiles(connection.notifications)).toEqual(["*.{png,jpg,avif}"]);
+    expect(imageFiles(posted)).toEqual(["*.{png,jpg,avif}"]);
   });
 
   it("is what the language server and the worker read when they ask for the sparkdown section", () => {

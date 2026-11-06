@@ -179,6 +179,7 @@ describe("the Settings page", () => {
   });
 
   it("draws the frame: intro, both scopes in order and every section as a placeholder until its slice lands", async () => {
+    const landed = ["story-details", "add-folder-preferences", "file-types"];
     await mount(h(SettingsPage, null));
     expect(host!.querySelector("h1")!.textContent).toBe("Settings");
     expect([...host!.querySelectorAll("#settings-page h2")].map((el) => el.textContent)).toEqual([
@@ -186,7 +187,9 @@ describe("the Settings page", () => {
       "Project preferences",
     ]);
     expect([...host!.querySelectorAll("[data-settings-section]")].map((el) => el.id)).toEqual([...SETTINGS_SECTION_IDS]);
-    expect(host!.querySelectorAll("[data-settings-placeholder]").length).toBe(SETTINGS_SECTION_IDS.length);
+    expect([...host!.querySelectorAll("[data-settings-placeholder]")].map((el) => el.closest("[data-settings-section]")!.id)).toEqual(
+      SETTINGS_SECTION_IDS.filter((id) => !landed.includes(id)),
+    );
     expect(document.getElementById("save-settings")!.textContent).toContain("Import Project");
     const back = [...host!.querySelectorAll("button")].find((button) => button.textContent?.includes("Back to story"))!;
     await act(async () => back.click());

@@ -3,6 +3,13 @@ import { INDENT_GUIDES } from "@impower/sparkdown-document-views/src/cm-script-a
 import { SCRIPT_FILES_GLOB } from "../../utils/scriptFiles";
 import { SURFACES, SYNTAX_PALETTES, THEME_PREFERENCES } from "./applyTheme";
 
+export const PORTRAIT_CROP = { min: 25, max: 100, step: 5, default: 50 } as const;
+
+const PORTRAIT_CROPS: readonly number[] = Array.from(
+  { length: (PORTRAIT_CROP.max - PORTRAIT_CROP.min) / PORTRAIT_CROP.step + 1 },
+  (_, index) => PORTRAIT_CROP.min + index * PORTRAIT_CROP.step,
+);
+
 export type SettingValue = boolean | number | string;
 
 export interface SettingSpec<T extends SettingValue = SettingValue> {
@@ -11,10 +18,12 @@ export interface SettingSpec<T extends SettingValue = SettingValue> {
   readonly configurationKeys?: readonly string[];
 }
 
-const setting = <T extends SettingValue>(
-  defaultValue: T,
-  options: Omit<SettingSpec<T>, "default"> = {},
-): SettingSpec<T> => ({ default: defaultValue, ...options });
+function setting(defaultValue: string, options?: Omit<SettingSpec<string>, "default">): SettingSpec<string>;
+function setting(defaultValue: number, options?: Omit<SettingSpec<number>, "default">): SettingSpec<number>;
+function setting(defaultValue: boolean, options?: Omit<SettingSpec<boolean>, "default">): SettingSpec<boolean>;
+function setting(defaultValue: SettingValue, options: Omit<SettingSpec, "default"> = {}): SettingSpec {
+  return { default: defaultValue, ...options };
+}
 
 const choice = <const C extends readonly string[]>(
   defaultValue: C[number],
@@ -42,6 +51,7 @@ export const PREFERENCES_SCHEMA = {
   indentGuides: choice("block", INDENT_GUIDES),
   autoCloseBrackets: setting(true),
   autoRenameFiles: setting(true),
+  portraitCrop: setting(PORTRAIT_CROP.default, { choices: PORTRAIT_CROPS }),
 } as const satisfies Record<string, SettingSpec>;
 
 export const PROJECT_SETTINGS_SCHEMA = {

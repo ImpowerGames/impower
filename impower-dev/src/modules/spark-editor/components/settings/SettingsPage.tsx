@@ -5,11 +5,28 @@ import {
   SettingsPlaceholder,
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
+import type { FunctionComponent } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import { sectionOfHash } from "../../workspace/routes";
 import Account from "../account/Account";
-import { SETTINGS_INDEX, SETTINGS_SCOPES, SETTINGS_SECTION_IDS } from "./sections";
+import AddMenuSection from "./AddMenuSection";
+import FileTypesSection from "./FileTypesSection";
+import MetadataSection from "./MetadataSection";
+import {
+  SETTINGS_INDEX,
+  SETTINGS_SCOPES,
+  SETTINGS_SECTION_IDS,
+  type SettingsSectionId,
+} from "./sections";
 import { jumpToSection, watchSections } from "./settingsNavigation";
+
+type SectionProps = { id: string; title: string; detail?: string };
+
+const SECTIONS: Partial<Record<SettingsSectionId, FunctionComponent<SectionProps>>> = {
+  "story-details": MetadataSection,
+  "add-folder-preferences": AddMenuSection,
+  "file-types": FileTypesSection,
+};
 
 
 const backToStory = async () => {
@@ -102,12 +119,17 @@ export default function SettingsPage() {
                 {scope.label}
               </h2>
             </header>,
-            ...scope.sections.map((section) => (
+            ...scope.sections.map((section) => {
+              const Section = SECTIONS[section.id];
+              const detail = "detail" in section ? section.detail : undefined;
+              return Section ? (
+                <Section key={section.id} id={section.id} title={section.title} detail={detail} />
+              ) : (
               <SettingsPlaceholder
                 key={section.id}
                 id={section.id}
                 title={section.title}
-                detail={"detail" in section ? section.detail : undefined}
+                detail={detail}
               >
                 {section.id === "save-settings" && (
                   <div class="mt-3 overflow-hidden rounded-[10px] border border-solid border-edge bg-panel">
@@ -115,7 +137,8 @@ export default function SettingsPage() {
                   </div>
                 )}
               </SettingsPlaceholder>
-            )),
+              );
+            }),
           ])}
         </div>
       </div>

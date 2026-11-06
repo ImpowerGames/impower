@@ -112,6 +112,8 @@ class WorkspaceStore {
 
   readonly syncedAt = signal<number | null>(null);
 
+  readonly storyFrontMatter = signal<Readonly<Record<string, readonly string[]>>>({});
+
   readonly signals = {
     pane: computed(() => this.state.value.pane ?? "logic"),
     previewMode: computed(() => this.state.value.preview?.mode ?? "game"),
