@@ -272,6 +272,28 @@ describe("the bar under the game", () => {
     expect(link.getAttribute("href")).toBe("#project?section=screenplay");
     expect(bar().querySelector('[aria-label="Game aspect ratio"]')).toBeNull();
   });
+
+  it("leaves fullscreen before the paper-size link opens the settings", async () => {
+    workspaceSettings.setPreference("previewMode", "screenplay");
+    await mount();
+    const exitFullscreen = vi.fn(async () => {});
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get: () => document.body,
+    });
+    document.exitFullscreen = exitFullscreen;
+    try {
+      const link = bar().querySelector<HTMLAnchorElement>("a")!;
+      const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+      await act(async () => {
+        link.dispatchEvent(click);
+      });
+      expect(exitFullscreen).toHaveBeenCalledTimes(1);
+      expect(click.defaultPrevented).toBe(false);
+    } finally {
+      delete (document as { fullscreenElement?: Element }).fullscreenElement;
+    }
+  });
 });
 
 describe("the divider above the bar", () => {

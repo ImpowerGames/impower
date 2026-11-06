@@ -1429,6 +1429,21 @@ describe("Revealing a script from the bar under the game", () => {
     ).toEqual({ start: at, end: at });
   });
 
+  it("closes an open script's editor when it reveals Main, so Main is the one on screen", async () => {
+    const at = { line: 2, character: 0 };
+    await win.revealDocument(uriOf("scripts/chapter.sd"), { start: at, end: at });
+    expect(workspace.current.panes.logic.panels.scripts!.activeEditor?.open).toBe(true);
+    win.navigateTo("collection");
+    await win.revealDocument(uriOf("main.sd"), { start: at, end: at });
+    expect(workspace.current.panes.logic.panel).toBe("main");
+    expect(workspace.current.panes.logic.panels.scripts!.activeEditor?.open).toBe(false);
+    expect(workspace.current.panes.logic.panels.scripts!.activeEditor?.filename).toBe(
+      "scripts/chapter.sd",
+    );
+    expect(win.getActiveEditorForPane("logic")?.filename).toBe("main.sd");
+    expect(window.location.hash).toBe("#write");
+  });
+
   it("collapses the phone's revealed preview so the script shows", async () => {
     win.expandPreviewPane();
     await win.revealDocument(uriOf("main.sd"));

@@ -957,6 +957,19 @@ export default class WorkspaceWindow {
     if (!pane || !panel) {
       return { success: false };
     }
+    const panels = this.store.panes[pane].panels;
+    const scripts = (
+      panels as Record<string, { activeEditor?: EditorState } | undefined>
+    )["scripts"];
+    const coveringEditor =
+      panel === "main" && scripts?.activeEditor?.open
+        ? {
+            scripts: {
+              ...scripts,
+              activeEditor: { ...scripts.activeEditor, open: false },
+            },
+          }
+        : {};
     this.update({
       ...this.store,
       panes: {
@@ -966,7 +979,8 @@ export default class WorkspaceWindow {
           view: panel === "main" ? "list" : "logic-editor",
           panel: panel,
           panels: {
-            ...this.store.panes[pane].panels,
+            ...panels,
+            ...coveringEditor,
             [panel]: {
               ...this.store.panes[pane].panels[panel],
               activeEditor: {

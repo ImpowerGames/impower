@@ -169,6 +169,11 @@ function PaperSizeLink() {
         href="#project?section=screenplay"
         aria-label="Screenplay settings"
         title="Screenplay settings"
+        onClick={() => {
+          if (document.fullscreenElement) {
+            void document.exitFullscreen();
+          }
+        }}
       >
         <SettingsIcon />
         <span>{PAPER_SIZE_LABELS[paper]}</span>
