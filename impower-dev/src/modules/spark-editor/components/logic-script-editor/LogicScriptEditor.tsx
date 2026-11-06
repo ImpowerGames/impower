@@ -5,6 +5,7 @@ import { useEffect, useRef } from "preact/hooks";
 import { debounce } from "../../utils/debounce";
 import { showSnackbar } from "../../utils/snackbar";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
+import { useScriptReadonly } from "../../workspace/useActiveEditor";
 import workspace from "../../workspace/WorkspaceStore";
 import ScriptHeader from "../script-header/ScriptHeader";
 import WriterBar from "../writer-bar/WriterBar";
@@ -42,15 +43,7 @@ export default function LogicScriptEditor({
 
   const appearance = workspaceSettings.scriptAppearance.value;
 
-  const readonly = useComputed(() => {
-    const status = workspace.state.value.sync?.status;
-    return (
-      status === "syncing" ||
-      status === "loading" ||
-      status === "importing" ||
-      status === "exporting"
-    );
-  }).value;
+  const readonly = useScriptReadonly();
 
   useEffect(() => {
     let disposed = false;
@@ -237,7 +230,7 @@ export default function LogicScriptEditor({
           onPasteRefused={showPasteRefused}
         />
       </div>
-      <WriterBar filename={filename || "main.sd"} />
+      <WriterBar filename={filename || "main.sd"} canEdit={!readonly} />
     </div>
   );
 }

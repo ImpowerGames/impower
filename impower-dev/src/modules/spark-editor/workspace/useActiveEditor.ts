@@ -18,6 +18,18 @@ export function useCaretPosition(filename: string) {
   }).value;
 }
 
+export function useScriptReadonly() {
+  return useComputed(() => {
+    const status = workspace.state.value.sync?.status;
+    return (
+      status === "syncing" ||
+      status === "loading" ||
+      status === "importing" ||
+      status === "exporting"
+    );
+  }).value;
+}
+
 export function useEditorScrolled(filename: string) {
   return useComputed(() => {
     const range = activeEditorOf(filename)?.visibleRange;

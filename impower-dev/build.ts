@@ -7,6 +7,7 @@ import https from "node:https";
 import path from "path";
 import glob from "tiny-glob";
 import { build, createServer } from "vite";
+import { markdownHtmlPlugin } from "./src/build/markdownHtml";
 import staticallyRenderPage from "./src/build/staticallyRenderPage.js";
 import { withManifestColors, withThemeColor } from "./src/build/themeColor.js";
 import {
@@ -142,7 +143,7 @@ const buildPages = async () => {
     configFile: false,
     resolve: { alias, dedupe },
     define: browserEnvDefine,
-    plugins: [tailwindcss()],
+    plugins: [markdownHtmlPlugin(), tailwindcss()],
     build: {
       outDir: publicOutDir,
       emptyOutDir: false,
@@ -348,6 +349,7 @@ const serve = async () => {
     },
     ssr: { noExternal: ssrNoExternal },
     plugins: [
+      markdownHtmlPlugin(),
       preact(),
       viteStaticallyRenderedPagesPlugin(),
       tailwindcss(),

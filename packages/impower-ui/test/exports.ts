@@ -31,6 +31,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "layoutState",
   "sparkLogoVariants",
   "pointerState",
+  "popoverVariants",
   "railState",
   "sheetVariants",
   "sidebarLayoutVariants",
