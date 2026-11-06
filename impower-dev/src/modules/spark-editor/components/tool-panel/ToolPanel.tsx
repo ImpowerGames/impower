@@ -93,9 +93,12 @@ export function ToolPanelTrigger({ children }: { children?: ComponentChildren })
   });
 }
 
+export type ToolPanelChrome = "heading" | "none";
+
 export type ToolPanelProps = {
   open: boolean;
   title: string;
+  chrome?: ToolPanelChrome;
   onClose: (reason: ToolPanelCloseReason) => void;
   onBack?: () => void;
   closeOnOutside?: boolean;
@@ -152,6 +155,7 @@ function Heading({
 export function ToolPanel({
   open,
   title,
+  chrome = "heading",
   onClose,
   onBack,
   closeOnOutside = true,
@@ -174,7 +178,11 @@ export function ToolPanel({
     why === "close" || why === "escape";
   const body = (
     <>
-      <Heading title={title} onBack={onBack} onClose={() => close("close")} />
+      {chrome === "heading" ? (
+        <Heading title={title} onBack={onBack} onClose={() => close("close")} />
+      ) : (
+        sheet && <DialogTitle class="sr-only">{title}</DialogTitle>
+      )}
       <div class="min-h-0 flex-1 overflow-y-auto">{children}</div>
     </>
   );

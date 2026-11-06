@@ -3,6 +3,7 @@ export {
   ToolPanelAnchor,
   ToolPanelRoot,
   ToolPanelTrigger,
+  type ToolPanelChrome,
   type ToolPanelCloseReason,
   type ToolPanelPresentation,
   type ToolPanelProps,
