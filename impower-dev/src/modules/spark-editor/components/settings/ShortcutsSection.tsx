@@ -1,6 +1,7 @@
 import {
   comboFromEvent,
   isShortcutCombo,
+  typesOnMac,
 } from "@impower/codemirror-vscode-lsp-client/src/shortcutCombo";
 import type { ShortcutRow } from "@impower/codemirror-vscode-lsp-client/src/shortcutTable";
 import {
@@ -92,8 +93,12 @@ function ShortcutKeysRow({
       return;
     }
     const next = comboFromEvent(event, shortcuts.platform);
-    if (!isShortcutCombo(next)) {
-      announce(refusedNote());
+    if (!isShortcutCombo(next, shortcuts.platform)) {
+      announce(
+        shortcuts.platform === "mac" && typesOnMac(next)
+          ? "On a Mac, Option with a key types a character; hold Command or Control too."
+          : refusedNote(),
+      );
       return;
     }
     const { displaced, refused } = shortcuts.record(id, next);

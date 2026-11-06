@@ -34,7 +34,7 @@ export function resolveShortcuts(
     const combo =
       saved === ""
         ? ""
-        : isShortcutCombo(saved)
+        : isShortcutCombo(saved, platform)
           ? normalizeCombo(saved, platform)
           : usualCombo(row, platform);
     if (combo && held.has(combo)) {

@@ -101,6 +101,32 @@ describe("recording a combo from a key event", () => {
     expect(comboFromEvent({ code: "KeyA", key: "å", altKey: true }, "mac")).toBe("Alt+A");
   });
 
+  it("names punctuation as CodeMirror does: the typed character, or its key's unshifted character when Shift changes it", () => {
+    expect(comboFromEvent({ key: "-", code: "Slash", keyCode: 189, ctrlKey: true }, "win")).toBe("Mod+-");
+    expect(comboFromEvent({ key: "_", code: "Slash", keyCode: 189, ctrlKey: true, shiftKey: true }, "win")).toBe(
+      "Mod+Shift+-",
+    );
+    expect(comboFromEvent({ key: "?", code: "Slash", keyCode: 191, ctrlKey: true, shiftKey: true }, "win")).toBe(
+      "Mod+Shift+/",
+    );
+    expect(comboFromEvent({ key: "!", code: "Digit1", keyCode: 49, altKey: true, shiftKey: true }, "win")).toBe(
+      "Shift+Alt+1",
+    );
+    expect(comboFromEvent({ key: "ArrowUp", code: "ArrowUp", keyCode: 38, altKey: true }, "win")).toBe("Alt+Up");
+  });
+
+  it("refuses Option with a printing key on a Mac, which types a character there", () => {
+    expect(comboFromEvent({ key: "å", code: "KeyA", keyCode: 65, altKey: true }, "mac")).toBe("Alt+A");
+    expect(isShortcutCombo("Alt+A", "mac")).toBe(false);
+    expect(isShortcutCombo("Shift+Alt+/", "mac")).toBe(false);
+    expect(isShortcutCombo("Alt+Space", "mac")).toBe(false);
+    expect(isShortcutCombo("Alt+A", "win")).toBe(true);
+    expect(isShortcutCombo("Alt+Up", "mac")).toBe(true);
+    expect(isShortcutCombo("Alt+F5", "mac")).toBe(true);
+    expect(isShortcutCombo("Mod+Alt+A", "mac")).toBe(true);
+    expect(isShortcutCombo("Ctrl+Alt+A", "mac")).toBe(true);
+  });
+
   it("finds no key in a modifier on its own or an unprintable key", () => {
     expect(comboFromEvent({ code: "ShiftLeft", key: "Shift", shiftKey: true }, "win")).toBe("");
     expect(comboFromEvent({ code: "ControlLeft", key: "Control", ctrlKey: true }, "win")).toBe("");
@@ -373,6 +399,18 @@ describe("the generated keymaps", () => {
     press(view, qwertzY);
     expect(search).toHaveBeenCalledTimes(1);
     expect(redo).not.toHaveBeenCalled();
+  });
+
+  it("runs the command recorded on a German keyboard's minus key, which sits where US keyboards put the slash", () => {
+    const search = vi.fn(() => true);
+    const germanMinus = { key: "-", code: "Slash", keyCode: 189, ctrlKey: true };
+    const combo = comboFromEvent(germanMinus, "linux");
+    expect(combo).toBe("Mod+-");
+    const combos = assignShortcut(defaults("linux"), "search", combo, "linux").combos;
+    const view = mountEditor({ combos, platform: "linux", commands: { search } });
+    const event = press(view, germanMinus);
+    expect(search).toHaveBeenCalledTimes(1);
+    expect(event.defaultPrevented).toBe(true);
   });
 
   it("runs the command recorded from the key position on a Cyrillic layout", () => {

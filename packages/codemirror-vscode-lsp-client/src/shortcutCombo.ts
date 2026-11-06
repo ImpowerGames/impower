@@ -1,3 +1,5 @@
+import { base as keyCodeBase } from "w3c-keyname";
+
 export type ShortcutPlatform = "mac" | "win" | "linux";
 
 export const shortcutPlatform = (): ShortcutPlatform => {
@@ -118,18 +120,37 @@ export function normalizeCombo(
   return parsed ? formatCombo(forPlatform(parsed, platform)) : "";
 }
 
-export function isShortcutCombo(combo: unknown): boolean {
+const PUNCTUATION = new Set(
+  [...RECORDABLE_KEYS].filter((key) => key.length === 1),
+);
+
+const typesCharacter = (key: string) =>
+  /^[A-Z]$/.test(key) || /^\d$/.test(key) || key === "Space" || PUNCTUATION.has(key);
+
+export function typesOnMac(combo: unknown): boolean {
+  const parsed = parseCombo(combo);
+  return (
+    !!parsed && parsed.alt && !parsed.mod && !parsed.ctrl && typesCharacter(parsed.key)
+  );
+}
+
+export function isShortcutCombo(
+  combo: unknown,
+  platform?: ShortcutPlatform,
+): boolean {
   const parsed = parseCombo(combo);
   return (
     !!parsed &&
     isRecordableKey(parsed.key) &&
-    (parsed.mod || parsed.ctrl || parsed.alt || isFunctionKey(parsed.key))
+    (parsed.mod || parsed.ctrl || parsed.alt || isFunctionKey(parsed.key)) &&
+    !(platform === "mac" && typesOnMac(combo))
   );
 }
 
 interface ShortcutKeyEvent {
   readonly code?: string;
   readonly key?: string;
+  readonly keyCode?: number;
   readonly ctrlKey?: boolean;
   readonly metaKey?: boolean;
   readonly shiftKey?: boolean;
@@ -137,11 +158,32 @@ interface ShortcutKeyEvent {
   readonly isComposing?: boolean;
 }
 
+const keyOfName = (name: string | undefined) => {
+  if (!name) {
+    return "";
+  }
+  if (/^[a-z]$/i.test(name)) {
+    return name.toUpperCase();
+  }
+  return /^\d$/.test(name) || PUNCTUATION.has(name) ? name : "";
+};
+
 export function keyOfEvent(event: ShortcutKeyEvent): string {
   const code = event.code || "";
   const key = event.key || "";
-  if (/^[a-z]$/i.test(key)) {
-    return key.toUpperCase();
+  const typed = keyOfName(key);
+  if (typed) {
+    return typed;
+  }
+  if (isFunctionKey(key)) {
+    return key;
+  }
+  const named = KEYS_BY_CODE[code];
+  if (named && !PUNCTUATION.has(named)) {
+    return named;
+  }
+  if (event.keyCode) {
+    return keyOfName(keyCodeBase[event.keyCode]);
   }
   if (/^Key[A-Z]$/.test(code)) {
     return code.slice(3);
