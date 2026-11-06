@@ -74,8 +74,8 @@ const lineOf = (text: string): number => {
   return line;
 };
 
-const playedBeats = (): Instructions[] => {
-  const { program } = compileSrc(SOURCE);
+const playedBeats = (source = SOURCE): Instructions[] => {
+  const { program } = compileSrc(source);
   const game = new Game({
     program: program as any,
     now: () => 0,
@@ -187,5 +187,45 @@ describe("the beat as data (#1988)", () => {
       line,
       text.length,
     ]);
+  });
+});
+
+const MENU_AFTER_PICTURE = `define BG as image with
+  src = "https://example.com/bg.png"
+end
+
+layout main {
+  stage {
+    backdrop {
+      image
+    }
+  }
+  choice.0 {
+    text
+  }
+  choice.1 {
+    text
+  }
+}
+
+-> start
+
+scene start
+  [[show backdrop BG]]
+  choose
+    + (a) Stay
+      -> DONE
+    + (b) Go
+      -> DONE
+  end
+end
+`;
+
+describe("a choice menu after a line with only a picture (#1988)", () => {
+  it("is a choice beat, since it has no line of its own", () => {
+    const menu = playedBeats(MENU_AFTER_PICTURE).find((beat) => beat.choices);
+    expect(menu?.image?.["backdrop"]).toBeDefined();
+    expect(menu?.kind).toBe("choice");
+    expect(menu?.options).toEqual(["Stay", "Go"]);
   });
 });

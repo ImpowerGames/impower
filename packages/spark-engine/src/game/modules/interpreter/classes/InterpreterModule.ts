@@ -537,7 +537,7 @@ export class InterpreterModule extends Module<
         if (source) lastTextbox.source = source;
         this._state.buffer.push(lastTextbox);
       }
-      lastTextbox.kind ??= "choice";
+      if (!lastTextbox.text) lastTextbox.kind = "choice";
       lastTextbox.options = [...(lastTextbox.options ?? []), ...choices];
       for (let i = 0; i < choices.length; i += 1) {
         const choice = choices[i]!;
