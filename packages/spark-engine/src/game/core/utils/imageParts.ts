@@ -1,21 +1,41 @@
 import type { ProgramImage } from "@impower/sparkdown/src/program/ProgramImages";
-import { StringValue } from "@impower/sparkdown/src/runtime/Value";
+import { ObjectValue, StringValue } from "@impower/sparkdown/src/runtime/Value";
 import type { ImageParts } from "../classes/CheckpointStore";
 
 const OBJECT_BYTES = 64;
 const ENTRY_BYTES = 32;
 const SLOT_BYTES = 8;
 
-const valueBytes = (value: object): number =>
-  value instanceof StringValue
-    ? OBJECT_BYTES + (value.value?.length ?? 0) * 2
-    : OBJECT_BYTES;
+const entriesBytes = (entries: ReadonlyMap<string, unknown> | null): number => {
+  let bytes = 0;
+  for (const key of entries?.keys() ?? []) {
+    bytes += ENTRY_BYTES + key.length * 2;
+  }
+  return bytes;
+};
 
 export const imageParts = (image: ProgramImage): ImageParts => {
   const shared = new Map<object, number>();
+  const pending: unknown[] = [];
   const share = (value: unknown) => {
     if (value && typeof value === "object" && !shared.has(value)) {
-      shared.set(value, valueBytes(value));
+      pending.push(value);
+      shared.set(value, OBJECT_BYTES);
+    }
+  };
+  const walk = () => {
+    while (pending.length > 0) {
+      const value = pending.pop();
+      if (value instanceof StringValue) {
+        shared.set(value, OBJECT_BYTES + (value.value?.length ?? 0) * 2);
+      } else if (value instanceof ObjectValue) {
+        const entries = value.value;
+        shared.set(value, OBJECT_BYTES + entriesBytes(entries));
+        for (const entry of entries?.values() ?? []) {
+          share(entry);
+        }
+        share(value.metatable);
+      }
     }
   };
   let bytes = OBJECT_BYTES;
@@ -31,11 +51,13 @@ export const imageParts = (image: ProgramImage): ImageParts => {
   for (const copy of image.cells.values()) {
     share(copy.value);
   }
-  for (const copy of image.tables.values()) {
+  for (const [table, copy] of image.tables) {
     bytes += OBJECT_BYTES + ENTRY_BYTES * (copy.entries?.size ?? 0);
+    share(table);
     for (const value of copy.entries?.values() ?? []) {
       share(value);
     }
+    share(copy.metatable);
   }
   const positional = image.positional;
   bytes +=
@@ -54,6 +76,7 @@ export const imageParts = (image: ProgramImage): ImageParts => {
     bytes +=
       OBJECT_BYTES + choice.text.length * 2 + choice.sourcePath.length * 2;
   }
+  walk();
   const refs: unknown[] = [];
   if (image.parent) {
     refs.push(image.parent);

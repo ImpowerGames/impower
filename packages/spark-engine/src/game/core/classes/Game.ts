@@ -111,6 +111,8 @@ import type {
 } from "@impower/sparkdown/src/runtime/VariablesState";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { beatIndexIn } from "../../modules/assets/utils/previewWindow";
+import type { UIState } from "../../modules/ui/classes/UIModule";
+import type { RecursiveReadonly } from "../types/RecursiveReadonly";
 import { ErrorType } from "../enums/ErrorType";
 import type { Breakpoint } from "../types/Breakpoint";
 import type { DocumentLocation } from "../types/DocumentLocation";
@@ -238,6 +240,42 @@ const sameLocation = (
     return !a && !b;
   }
   return a.length === b.length && a.every((value, i) => value === b[i]);
+};
+
+interface Stage {
+  text: string[];
+  image: string[];
+  style: Map<string, string[]>;
+  attributes: Map<string, string[]>;
+  layout: string[];
+}
+
+const stageOf = (state: RecursiveReadonly<UIState>): Stage => ({
+  text: Object.keys(state.text ?? {}),
+  image: Object.keys(state.image ?? {}),
+  style: new Map(
+    Object.entries(state.style ?? {}).map(([target, set]) => [
+      target,
+      Object.keys(set ?? {}),
+    ]),
+  ),
+  attributes: new Map(
+    Object.entries(state.attributes ?? {}).map(([target, set]) => [
+      target,
+      Object.keys(set ?? {}),
+    ]),
+  ),
+  layout: (state.layout ?? []).map((layout) => layout.name),
+});
+
+const unsetKeys = (
+  keys: string[],
+  kept: Readonly<Record<string, string | null>> | undefined,
+): Record<string, null> | null => {
+  const unset = keys.filter((key) => kept?.[key] == null);
+  return unset.length > 0
+    ? Object.fromEntries(unset.map((key) => [key, null]))
+    : null;
 };
 
 export class Game<T extends M = {}> {
@@ -2598,7 +2636,9 @@ export class Game<T extends M = {}> {
   protected async rollTo(target: number): Promise<RollResult> {
     const beat = this._run.beats[target]!;
     const audio = this.module.audio;
-    const before = audio.loopsHeld();
+    const ui = this.module.ui;
+    const before = audio.loopsPlaying();
+    const stage = stageOf(ui.state);
     if (!this.restoreCheckpoint(beat.checkpoint)) {
       throw new Error("This beat can no longer be restored.");
     }
@@ -2637,7 +2677,8 @@ export class Game<T extends M = {}> {
     this._rollsDrawing += 1;
     try {
       await Promise.all([
-        this.module.ui.onRestore(),
+        ...this.clearStageBeyond(stage),
+        ui.onRestore(),
         this.module.assets.onRestore(),
       ]);
     } finally {
@@ -2656,9 +2697,44 @@ export class Game<T extends M = {}> {
     return { moved: true, restored, history };
   }
 
+  protected clearStageBeyond(stage: Stage): Promise<void>[] {
+    const ui = this.module.ui;
+    const now = ui.state;
+    const cleared: Promise<void>[] = [];
+    for (const target of stage.text) {
+      if (!now.text?.[target]) {
+        cleared.push(ui.text.clear(target));
+      }
+    }
+    for (const target of stage.image) {
+      if (!now.image?.[target]) {
+        cleared.push(ui.image.clear(target));
+      }
+    }
+    for (const [target, keys] of stage.style) {
+      const unset = unsetKeys(keys, now.style?.[target]);
+      if (unset) {
+        cleared.push(ui.style.update(target, unset));
+      }
+    }
+    for (const [target, keys] of stage.attributes) {
+      const unset = unsetKeys(keys, now.attributes?.[target]);
+      if (unset) {
+        cleared.push(ui.attributes.update(target, unset));
+      }
+    }
+    for (const name of stage.layout) {
+      if (!now.layout?.some((layout) => layout.name === name)) {
+        cleared.push(ui.closeLayout(name, undefined, true));
+      }
+    }
+    return cleared;
+  }
+
   protected supersedeRolls(): void {
     if (this._rollsDrawing > 0) {
       this._connection.beginEpoch();
+      this.module.audio.restartPending();
     }
     this._rolls += 1;
   }

@@ -62,8 +62,11 @@ export class AudioModule extends Module<
     return [];
   }
 
+  protected _starting = new Map<string, Set<string>>();
+
   override onReset() {
     this._channelsCurrentlyPlaying = new Map();
+    this._starting = new Map();
   }
 
   protected _pagePlaying?: Map<string, Map<string, LoadAudioPlayerParams>>;
@@ -141,11 +144,22 @@ export class AudioModule extends Module<
     return held;
   }
 
+  loopsPlaying(): Map<string, Map<string, number | undefined>> {
+    const playing = this.loopsHeld();
+    for (const [channel, keys] of this._starting) {
+      for (const key of keys) {
+        playing.get(channel)?.delete(key);
+      }
+    }
+    return playing;
+  }
+
   settleLoops(
     before: ReadonlyMap<string, ReadonlyMap<string, number | undefined>>,
   ): { loops: SettledLoop[]; stoppedLoops: StoppedLoop[] } {
     const held = this.loopsHeld();
     this._channelsCurrentlyPlaying = this.playingFromState();
+    this._starting = new Map();
     const loops: SettledLoop[] = [];
     const stoppedLoops: StoppedLoop[] = [];
     for (const [channel, keys] of before) {
@@ -167,8 +181,8 @@ export class AudioModule extends Module<
       for (const [key, to] of keys) {
         if (was?.has(key)) {
           loops.push({ channel, key, play: "continue" });
-          if (to != null && was.get(key) !== to) {
-            fades.push({ control: "fade", key, to, now: true });
+          if ((to ?? 1) !== (was.get(key) ?? 1)) {
+            fades.push({ control: "fade", key, to: to ?? 1, now: true });
           }
         } else {
           loops.push({ channel, key, play: "start" });
@@ -179,10 +193,17 @@ export class AudioModule extends Module<
         this.update(channel, fades);
       }
       if (starts.size > 0) {
+        this._starting.set(channel, starts);
         void this.restoreChannel(channel, starts);
       }
     }
     return { loops, stoppedLoops };
+  }
+
+  restartPending(): void {
+    for (const [channel, keys] of this._starting) {
+      void this.restoreChannel(channel, keys);
+    }
   }
 
   protected async restoreChannel(channel: string, only?: ReadonlySet<string>) {
@@ -201,7 +222,7 @@ export class AudioModule extends Module<
         const update: AudioPlayerUpdate = {
           control: "start",
           key: state.key,
-          to: state.to,
+          to: state.to ?? 1,
           loop: true,
           now: true,
         };
@@ -233,6 +254,10 @@ export class AudioModule extends Module<
         )
         .map(({ update }) => update),
     );
+    const starting = this._starting.get(channel);
+    for (const key of only ?? []) {
+      starting?.delete(key);
+    }
   }
 
   protected update(

@@ -9,6 +9,7 @@ import { RollBackGameMessage } from "../../game/core/classes/messages/RollBackGa
 import { RollForwardGameMessage } from "../../game/core/classes/messages/RollForwardGameMessage";
 import { StepGameMessage } from "../../game/core/classes/messages/StepGameMessage";
 import { installGameWorker } from "../../worker/installGameWorker";
+import { createHarness, flushMicrotasks } from "../ui/harness/uiTestHarness";
 
 const MAIN = "file:///local/main.sd";
 
@@ -544,5 +545,115 @@ describe("a roll superseded while it draws", () => {
     expect(rolled).toEqual([0]);
     expect(h.text()).toBe("The first beat.");
     expect(history(h).canRollBack).toBe(false);
+  });
+});
+
+const MUSIC = [
+  "define theme as audio with",
+  '  src = "https://example.com/theme.wav"',
+  "end",
+  "",
+  "scene start",
+  "  ((play music theme))",
+  "  First.",
+  "  Second.",
+  "  ((stop music))",
+  "  Third.",
+  "end",
+].join("\n");
+
+const musicUpdates = (emitted: Recorded[], from: number) =>
+  emitted
+    .slice(from)
+    .filter((m) => m.method === "audio/update" && m.params?.channel === "music")
+    .flatMap((m) => m.params.updates ?? []);
+
+describe("the loops of a restored beat, as the player hears them", () => {
+  test("a loop faded since the restored beat returns to its default level", async () => {
+    const h = play(MUSIC);
+    h.game.start();
+    expect(h.text()).toBe("First.");
+    h.game.module.audio.fadeChannel("music", 0.2);
+    h.tap();
+    expect(h.game.module.audio.state.channels?.["music"]?.looping?.[0]?.to).toBe(0.2);
+    await settle();
+    const from = h.emitted.length;
+    const back = await h.game.rollBack("beat");
+    expect(back.moved && back.restored.loops).toEqual([
+      { channel: "music", key: "audio.theme", play: "continue" },
+    ]);
+    expect(musicUpdates(h.emitted, from)).toContainEqual(
+      expect.objectContaining({ control: "fade", key: "audio.theme", to: 1 }),
+    );
+  });
+
+  test("a second roll before a restored loop has loaded still starts it", async () => {
+    const h = play(MUSIC);
+    playTo(h, "Third.");
+    expect(h.looping("music")).toEqual([]);
+    const audio = h.game.module.audio as any;
+    const releases: (() => void)[] = [];
+    audio.loadAllAudio = async (data: unknown[]) => {
+      if (data.length > 0) {
+        await new Promise<void>((resolve) => releases.push(resolve));
+      }
+    };
+    const from = h.emitted.length;
+    const back = await h.game.rollBack("beat");
+    expect(back.moved && back.restored.loops).toEqual([
+      { channel: "music", key: "audio.theme", play: "start" },
+    ]);
+    const earlier = await h.game.rollBack("beat");
+    expect(earlier.moved && earlier.restored.loops).toEqual([
+      { channel: "music", key: "audio.theme", play: "start" },
+    ]);
+    for (const release of releases) {
+      release();
+    }
+    await settle();
+    const starts = musicUpdates(h.emitted, from).filter(
+      (u) => u.control === "start" && u.key === "audio.theme",
+    );
+    expect(starts).toHaveLength(1);
+  });
+});
+
+describe("the stage of a restored beat", () => {
+  test("a persistent layer shown after the restored beat is cleared", async () => {
+    const h = createHarness(
+      [
+        "define sky as image with",
+        '  src = "https://example.com/sky.png"',
+        "end",
+        "scene start",
+        "  Before the sky.",
+        "  [[show backdrop sky]]",
+        "  Under the sky.",
+        "end",
+      ].join("\n"),
+    );
+    await h.ready;
+    h.jumpToFlow("start");
+    h.game.start();
+    await flushMicrotasks(30);
+    (h.game as any)._coordinator?.onUpdate({ deltaMS: 1000 });
+    await flushMicrotasks(30);
+    expect(h.game.story.currentText?.trim()).toBe("Before the sky.");
+    expect(h.game.module.ui.state.image?.["backdrop"]).toBeUndefined();
+    h.game.clickedToContinue();
+    await flushMicrotasks(30);
+    (h.game as any)._coordinator?.onUpdate({ deltaMS: 1000 });
+    await flushMicrotasks(30);
+    expect(h.game.module.ui.state.image?.["backdrop"]?.[0]?.assets).toEqual([
+      "sky",
+    ]);
+    h.reset();
+    expect((await h.game.rollBack("beat")).moved).toBe(true);
+    await flushMicrotasks(30);
+    expect(h.game.module.ui.state.image?.["backdrop"]).toBeUndefined();
+    const writes = h.messages.filter(
+      (m) => m.method === "ui/write-image" && m.params.target === "backdrop",
+    );
+    expect(writes.map((m) => m.params.instructions)).toEqual([[]]);
   });
 });

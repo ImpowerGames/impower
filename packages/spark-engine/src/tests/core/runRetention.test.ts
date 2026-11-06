@@ -7,7 +7,7 @@ const MAIN = "file:///local/main.sd";
 
 const BEATS = 2000;
 
-const BYTES_PER_1000_BEATS = 1_750_000;
+const BYTES_PER_1000_BEATS = 2_200_000;
 
 function longRun(beats: number): SparkProgram {
   const lines = ["store count = 0", "", "scene start"];
@@ -175,7 +175,7 @@ const menus = (n: number) =>
 
 describe("the store's count and its folding", () => {
   test("past the budget the oldest keyframes fold too, keeping the run's start", async () => {
-    const budget = 150_000;
+    const budget = 600_000;
     const { game, text, count } = playAll(longRun(BEATS), budget);
     expect(
       game.checkpoints.bytes,
@@ -248,5 +248,56 @@ describe("the store's count and its folding", () => {
     expect(
       folded.filter((i) => held.has(images[i]) && !live.has(images[i])),
     ).toEqual([]);
+  });
+});
+
+describe("the count of tables a checkpoint holds", () => {
+  test("covers the keys and values of tables held only through the story's globals", () => {
+    const size = 50_000;
+    const beats = 30;
+    const budget = 2_000_000;
+    const source = [
+      "store payload = {}",
+      "scene start",
+      ...Array.from({ length: beats }, (_, i) => [
+        `  payload = {[string.reverse(string.rep(tostring(${i}), ${size}))] = ${i}}`,
+        `  Beat ${i}.`,
+      ]).flat(),
+      "end",
+    ].join("\n");
+    const game = startGame(compileSource(source), {
+      checkpointByteBudget: budget,
+      checkpointBaseInterval: 5,
+    });
+    for (let i = 1; i < beats; i += 1) {
+      game.clickedToContinue();
+    }
+    expect((game.story.currentText ?? "").trim()).toBe(`Beat ${beats - 1}.`);
+    const keys = new Set<string>();
+    for (const image of reachableImages(liveImages(game))) {
+      for (const copy of image.tables.values()) {
+        for (const key of copy.entries?.keys() ?? []) {
+          if (key.length >= size) {
+            keys.add(key);
+          }
+        }
+      }
+      for (const value of image.globals.values()) {
+        if (value?.value instanceof Map) {
+          for (const key of value.value.keys()) {
+            if (typeof key === "string" && key.length >= size) {
+              keys.add(key);
+            }
+          }
+        }
+      }
+    }
+    const characters = [...keys].reduce((sum, key) => sum + key.length, 0);
+    expect(characters).toBeGreaterThan(size);
+    expect(
+      game.checkpoints.bytes,
+      `the store counts ${game.checkpoints.bytes} bytes while its checkpoints hold ${characters} characters of table keys`,
+    ).toBeGreaterThanOrEqual(characters * 2);
+    expect(game.checkpoints.bytes).toBeLessThanOrEqual(budget);
   });
 });
