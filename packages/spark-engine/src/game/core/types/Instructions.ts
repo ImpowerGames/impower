@@ -6,8 +6,27 @@ LoadInstruction,
 LayoutInstruction,
 TextInstruction,
 } from "./Instruction";
+import type { ScriptLocation } from "./ScriptLocation";
+
+export type BeatKind =
+  | "action"
+  | "dialogue"
+  | "title"
+  | "heading"
+  | "transition"
+  | "choice";
+
+export interface BeatSpeaker {
+  name: string;
+  parenthetical: string;
+  character?: string;
+}
 
 export interface Instructions {
+  kind?: BeatKind;
+  speaker?: BeatSpeaker;
+  options?: string[];
+  source?: ScriptLocation;
   load?: LoadInstruction[];
   /** `[[play NAME]]` cutscenes. The interpreter queues each one as a beat of
    *  its own, so a beat the Coordinator runs holds at most one. */
