@@ -1,0 +1,146 @@
+import {
+  comboLabel,
+  comboParts,
+  keyEventInit,
+  type ShortcutPlatform,
+} from "@impower/codemirror-vscode-lsp-client/src/shortcutCombo";
+import {
+  activeCombos,
+  assignShortcut,
+  resolveShortcuts,
+  restoreShortcut,
+  shortcutMatches,
+  usualCombo,
+  type ShortcutChange,
+  type ShortcutCombos,
+} from "@impower/codemirror-vscode-lsp-client/src/shortcutRules";
+import type { ShortcutRow } from "@impower/codemirror-vscode-lsp-client/src/shortcutTable";
+import { batch, computed, type ReadonlySignal } from "@preact/signals";
+import workspaceSettings, {
+  type WorkspaceSettings,
+} from "../settings/WorkspaceSettings";
+import {
+  SHORTCUT_PLATFORM,
+  SHORTCUT_PREFERENCE_KEYS,
+  SHORTCUT_PREFERENCES,
+  SHORTCUT_ROWS,
+  shortcutPreferenceKey,
+  type ShortcutId,
+} from "./shortcutTable";
+
+type KeyEventLike = Parameters<typeof shortcutMatches>[0];
+
+export class WorkspaceShortcuts {
+  readonly combos: ReadonlySignal<ShortcutCombos>;
+
+  constructor(
+    protected readonly settings: WorkspaceSettings,
+    readonly platform: ShortcutPlatform = SHORTCUT_PLATFORM,
+    protected readonly rows: readonly ShortcutRow[] = SHORTCUT_ROWS,
+  ) {
+    let previous: ShortcutCombos | undefined;
+    this.combos = computed(() => {
+      const preferences = settings.preferences.value as Readonly<
+        Record<string, unknown>
+      >;
+      const overrides: Record<string, unknown> = {};
+      for (const row of rows) {
+        const key = shortcutPreferenceKey(row.id);
+        if (preferences[key] !== SHORTCUT_PREFERENCES[key]?.default) {
+          overrides[row.id] = preferences[key];
+        }
+      }
+      const next = resolveShortcuts(rows, overrides, platform);
+      if (!previous || rows.some((row) => previous![row.id] !== next[row.id])) {
+        previous = next;
+      }
+      return previous;
+    });
+  }
+
+  row(id: ShortcutId): ShortcutRow | undefined {
+    return this.rows.find((row) => row.id === id);
+  }
+
+  usual(id: ShortcutId): string {
+    const row = this.row(id);
+    return row ? usualCombo(row, this.platform) : "";
+  }
+
+  combo(id: ShortcutId): string {
+    return this.combos.value[id] ?? "";
+  }
+
+  changed(id: ShortcutId): boolean {
+    return this.combo(id) !== this.usual(id);
+  }
+
+  label(combo: string): string {
+    return comboLabel(combo, this.platform);
+  }
+
+  parts(combo: string): string[] {
+    return comboParts(combo, this.platform);
+  }
+
+  active(id: ShortcutId): string[] {
+    const row = this.row(id);
+    return row ? activeCombos(row, this.combos.value, this.platform) : [];
+  }
+
+  title(id: ShortcutId, name: string): string {
+    const combo = this.active(id)[0];
+    return combo ? `${name} (${this.label(combo)})` : name;
+  }
+
+  eventInit(id: ShortcutId): KeyboardEventInit | null {
+    const combo = this.active(id)[0];
+    return combo ? keyEventInit(combo, this.platform) : null;
+  }
+
+  matches(event: KeyEventLike, id: ShortcutId): boolean {
+    const row = this.row(id);
+    return !!row && shortcutMatches(event, row, this.combos.peek(), this.platform);
+  }
+
+  record(id: ShortcutId, combo: string): ShortcutChange {
+    return this.commit(assignShortcut(this.combos.peek(), id, combo, this.platform));
+  }
+
+  clear(id: ShortcutId): ShortcutChange {
+    return this.record(id, "");
+  }
+
+  restore(id: ShortcutId): ShortcutChange {
+    return this.commit(
+      restoreShortcut(this.rows, this.combos.peek(), id, this.platform),
+    );
+  }
+
+  resetAll(): void {
+    this.settings.resetPreferences(SHORTCUT_PREFERENCE_KEYS);
+  }
+
+  protected commit(change: ShortcutChange): ShortcutChange {
+    const current = this.combos.peek();
+    batch(() => {
+      for (const row of this.rows) {
+        const next = change.combos[row.id] ?? "";
+        if (next === current[row.id]) {
+          continue;
+        }
+        const key = shortcutPreferenceKey(row.id);
+        if (next === usualCombo(row, this.platform)) {
+          this.settings.resetPreferences([key]);
+        } else {
+          this.settings.setPreference(key, next);
+        }
+      }
+    });
+    return change;
+  }
+}
+
+const workspaceShortcuts = new WorkspaceShortcuts(workspaceSettings);
+
+export default workspaceShortcuts;

@@ -1,6 +1,7 @@
 import { GAME_ASPECT_RATIOS } from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
 import { INDENT_GUIDES } from "@impower/sparkdown-document-views/src/cm-script-appearance/scriptAppearanceOptions";
 import { SCRIPT_FILES_GLOB } from "../../utils/scriptFiles";
+import { SHORTCUT_PREFERENCES } from "../shortcuts/shortcutTable";
 import { SURFACES, SYNTAX_PALETTES, THEME_PREFERENCES } from "./applyTheme";
 
 export type SettingValue = boolean | number | string;
@@ -51,6 +52,7 @@ export const PREFERENCES_SCHEMA = {
   previewIdleAnimations: setting(true),
   previewTypingPauses: setting(false),
   previewScreenplaySync: setting(true),
+  ...SHORTCUT_PREFERENCES,
 } as const satisfies Record<string, SettingSpec>;
 
 export const PROJECT_SETTINGS_SCHEMA = {

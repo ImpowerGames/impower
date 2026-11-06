@@ -12,6 +12,7 @@ import {
   coarsePointer,
   LSPClient,
   serverAutoSync,
+  editorShortcuts,
   serverCompletions,
   serverCompletionSource,
 } from "@impower/codemirror-vscode-lsp-client/src";
@@ -82,7 +83,7 @@ async function mount(doc: string, extra: Extension[] = []) {
     state: EditorState.create({
       doc,
       selection: { anchor: doc.length },
-      extensions: [client.plugin({ uri: URI, version: 0 }), ...extra],
+      extensions: [client.plugin({ uri: URI, version: 0 }), editorShortcuts(), ...extra],
     }),
     parent: document.body,
   });

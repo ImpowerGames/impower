@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
+import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import { previewAspectRatioFor } from "../../workspace/previewAspectRatio";
 import { createAspectRatioSync } from "./aspectRatioSync";
 import { showSnackbar } from "../../utils/snackbar";
@@ -429,8 +430,11 @@ export default function PreviewGame(_props: PreviewGameProps) {
         };
 
         const onKeyDown = (e: KeyboardEvent) => {
-          if (e.key !== "PageUp" && e.key !== "PageDown") return;
-          void skipBeat(e.key === "PageUp" ? -1 : 1);
+          if (workspaceShortcuts.matches(e, "previousBeat")) {
+            void skipBeat(-1);
+          } else if (workspaceShortcuts.matches(e, "nextBeat")) {
+            void skipBeat(1);
+          }
         };
 
         window.addEventListener(MessageProtocol.event, onProtocol);

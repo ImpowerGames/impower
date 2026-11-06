@@ -10,28 +10,17 @@ import HeaderTitleButton from "../header-title-button/HeaderTitleButton";
 import HeaderTitleCaption from "../header-title-caption/HeaderTitleCaption";
 import ImportProgressBar from "../import-progress-bar/ImportProgressBar";
 import PreviewToggleButton from "../preview-toggle-button/PreviewToggleButton";
-
-const IS_MAC =
-  typeof navigator !== "undefined" &&
-  /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent || "");
+import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 
 function replayUndoShortcut(isRedo: boolean): void {
   let el: Element | null = document.activeElement;
   while (el && el.shadowRoot && el.shadowRoot.activeElement) {
     el = el.shadowRoot.activeElement;
   }
-  const redoByY = isRedo && !IS_MAC;
-  const init: KeyboardEventInit = {
-    key: redoByY ? "y" : "z",
-    code: redoByY ? "KeyY" : "KeyZ",
-    shiftKey: isRedo && IS_MAC,
-    metaKey: IS_MAC,
-    ctrlKey: !IS_MAC,
-    bubbles: true,
-    composed: true,
-    cancelable: true,
-  };
-  (el ?? document.body).dispatchEvent(new KeyboardEvent("keydown", init));
+  const init = workspaceShortcuts.eventInit(isRedo ? "redo" : "undo");
+  if (init) {
+    (el ?? document.body).dispatchEvent(new KeyboardEvent("keydown", init));
+  }
 }
 
 export default function HeaderNavigation() {

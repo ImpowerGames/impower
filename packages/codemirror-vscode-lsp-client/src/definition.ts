@@ -1,4 +1,4 @@
-import { Command, EditorView, KeyBinding, keymap } from "@codemirror/view";
+import { Command, EditorView } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
 import { LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
@@ -95,10 +95,6 @@ export const jumpToImplementation: Command = (view) =>
     capability: "implementationProvider",
   });
 
-export const jumpToDefinitionKeymap: readonly KeyBinding[] = [
-  { key: "F12", run: jumpToDefinition, preventDefault: true },
-];
-
 export function serverDefinitions(): LSPClientExtension {
   return {
     clientCapabilities: {
@@ -110,6 +106,5 @@ export function serverDefinitions(): LSPClientExtension {
       },
     },
 
-    editorExtension: [keymap.of([...jumpToDefinitionKeymap])],
   };
 }

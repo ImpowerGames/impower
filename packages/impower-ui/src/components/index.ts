@@ -104,6 +104,12 @@ export {
   type ChoiceGroupSize,
 } from "./choice-group/ChoiceGroup";
 export {
+  default as KeysChip,
+  keysChipVariants,
+  type KeysChipProps,
+  type KeysChipState,
+} from "./keys-chip/KeysChip";
+export {
   SettingsSection,
   SettingsGroup,
   SettingsList,

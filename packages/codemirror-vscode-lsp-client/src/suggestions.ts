@@ -10,14 +10,12 @@ import {
 import {
   EditorState,
   Extension,
-  Prec,
   StateEffect,
   StateField,
   Text,
 } from "@codemirror/state";
 import {
   EditorView,
-  keymap,
   Panel,
   showPanel,
   showTooltip,
@@ -461,6 +459,5 @@ export function suggestions(): Extension {
     chipsShown,
     chipsClass,
     closeListOnScroll,
-    Prec.highest(keymap.of([{ key: "Tab", run: acceptCompletion }])),
   ];
 }
