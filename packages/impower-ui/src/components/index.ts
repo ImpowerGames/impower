@@ -25,6 +25,14 @@ export {
   type DialogSize,
 } from "./dialog/Dialog";
 export {
+  default as Disclosure,
+  disclosureVariants,
+  disclosureSummaryVariants,
+  type DisclosureProps,
+  type DisclosureSize,
+  type DisclosureEdge,
+} from "./disclosure/Disclosure";
+export {
   DropdownRoot,
   DropdownTrigger,
   DropdownSeparator,
