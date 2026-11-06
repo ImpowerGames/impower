@@ -172,6 +172,16 @@ export {
   type FeatureCardSize,
 } from "./feature-card/FeatureCard";
 export {
+  default as PageFrame,
+  pageFrameVariants,
+  pageFrameInnerVariants,
+  pageFrameIntroVariants,
+  pageFrameTitleVariants,
+  pageFrameBackVariants,
+  type PageFrameProps,
+  type PageFrameSize,
+} from "./page-frame/PageFrame";
+export {
   default as JumpChips,
   jumpChipVariants,
   type JumpChipsProps,
