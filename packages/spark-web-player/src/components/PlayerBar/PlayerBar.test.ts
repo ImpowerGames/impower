@@ -89,7 +89,7 @@ describe("PlayerBar state", () => {
         fit: "auto",
       }),
     );
-    const $ = mount({ state });
+    const $ = mount({ state, controls: { resize: true } });
     expect($("#left-items")!.hidden).toBe(false);
     expect($("#launch-state-icon")!.getAttribute("data-state")).toBe("preview");
     expect($("#launch-label")!.textContent).toBe("main : 3");
@@ -191,6 +191,26 @@ describe("PlayerBar controls", () => {
     expect($("[aria-label='Pause']")).toBeNull();
     mount({ state: initialPlayerBarState, controls: { fullscreen: true } });
     expect($("#fullscreen-button")).not.toBeNull();
+  });
+
+  it("leaves the resize handle and the size readout to a host that owns the display", () => {
+    const resized = reducePlayerBar(
+      initialPlayerBarState,
+      GameResizedMessage.type.notification({
+        width: 960,
+        height: 540,
+        aspectRatio: "16:9",
+        fit: "auto",
+      }),
+    );
+    const $ = mount({ state: resized, controls: { resize: true } });
+    expect($("#resize-handle")).not.toBeNull();
+    expect($("#size-label")!.textContent).toBe("960 × 540");
+    mount({ state: resized, controls: {} });
+    expect($("#resize-handle")).toBeNull();
+    expect($("#size-label")).toBeNull();
+    expect($("#aspect-ratio-label")).toBeNull();
+    expect($("#fullscreen-button")).toBeNull();
   });
 
   it("emits pause, resume, step and fullscreen events", () => {

@@ -113,11 +113,13 @@ export default function LogicScriptEditor({
         versionRef.current = version;
         textRef.current = text;
 
+        const latest = Workspace.window.getActiveEditorForFile(fn);
+        const current = latest?.uri === uri ? latest : editor;
         const detail = LoadEditorMessage.type.request({
           textDocument: { uri, languageId, version, text },
-          focused: editor.focused,
-          visibleRange: editor.visibleRange,
-          selectedRange: editor.selectedRange,
+          focused: current.focused,
+          visibleRange: current.visibleRange,
+          selectedRange: current.selectedRange,
           breakpointLines: editor.breakpointLines,
           pinpointLines: editor.pinpointLines,
           highlightLines: editor.highlightLines,

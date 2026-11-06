@@ -40,7 +40,20 @@ export interface GamePick {
   lines: number[];
 }
 
+export interface GameSize {
+  width: number;
+  height: number;
+  aspectRatio: string | null;
+}
+
+export interface GamePosition {
+  uri: string;
+  line: number;
+}
+
 export interface GameState {
+  size?: GameSize;
+  position?: GamePosition;
   loading?: boolean;
   running?: boolean;
   ended?: boolean;

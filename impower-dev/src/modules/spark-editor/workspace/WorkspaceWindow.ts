@@ -16,6 +16,7 @@ import {
   ScrolledEditorMethod,
   ScrolledEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
+import { DidLoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/DidLoadEditorMessage";
 import {
   EditorCommand,
   ExecuteEditorCommandMessage,
@@ -59,6 +60,9 @@ import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/pro
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import {
   EditorState,
+  GamePosition,
+  GameSize,
+  GameState,
   PaneType,
   PanelType,
   Range,
@@ -66,6 +70,7 @@ import {
   WorkspaceCache,
   WritingToolsView,
 } from "@impower/spark-editor-protocol/src/types";
+import { countDiagnostics } from "./problemCounts";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import type { PublishDiagnosticsParams } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
 import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
@@ -137,6 +142,8 @@ import {
   type Route,
 } from "./routes";
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
+
+const SHOW_PROBLEMS_WAIT_MS = 10_000;
 
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
@@ -544,7 +551,7 @@ export default class WorkspaceWindow {
     message: ShowDocumentMessage.Request,
   ) => {
     const { uri, selection, takeFocus } = message.params;
-    const result = await this.showDocument(uri, selection, takeFocus);
+    const result = await this.revealDocument(uri, selection, takeFocus ?? true);
     return ShowDocumentMessage.type.response(message.id, result);
   };
 
@@ -691,16 +698,7 @@ export default class WorkspaceWindow {
   recordPublishedDiagnostics({ uri, diagnostics }: PublishDiagnosticsParams) {
     const summary = { ...this.store.debug.diagnosticsSummary };
     delete summary[uri];
-    const counts = { errors: 0, warnings: 0, infos: 0 };
-    for (const d of diagnostics) {
-      if (d.severity === 1) {
-        counts.errors++;
-      } else if (d.severity === 2) {
-        counts.warnings++;
-      } else {
-        counts.infos++;
-      }
-    }
+    const counts = countDiagnostics(diagnostics);
     this.update({
       ...this.store,
       debug: {
@@ -1064,6 +1062,19 @@ export default class WorkspaceWindow {
     if (!pane || !panel) {
       return { success: false };
     }
+    const panels = this.store.panes[pane].panels;
+    const scripts = (
+      panels as Record<string, { activeEditor?: EditorState } | undefined>
+    )["scripts"];
+    const coveringEditor =
+      panel === "main" && scripts?.activeEditor?.open
+        ? {
+            scripts: {
+              ...scripts,
+              activeEditor: { ...scripts.activeEditor, open: false },
+            },
+          }
+        : {};
     this.update({
       ...this.store,
       panes: {
@@ -1073,11 +1084,13 @@ export default class WorkspaceWindow {
           view: panel === "main" ? "list" : "logic-editor",
           panel: panel,
           panels: {
-            ...this.store.panes[pane].panels,
+            ...panels,
+            ...coveringEditor,
             [panel]: {
               ...this.store.panes[pane].panels[panel],
               activeEditor: {
                 ...this.store.panes[pane].panels[panel]?.activeEditor,
+                open: true,
                 filename: filename,
                 focused:
                   takeFocus ??
@@ -1086,7 +1099,10 @@ export default class WorkspaceWindow {
                 selectedRange: range
                   ? { ...range }
                   : this.store.panes[pane].panels[panel]?.activeEditor
-                      ?.selectedRange,
+                        ?.filename === filename
+                    ? this.store.panes[pane].panels[panel]?.activeEditor
+                        ?.selectedRange
+                    : undefined,
               },
             },
           },
@@ -1643,6 +1659,39 @@ export default class WorkspaceWindow {
     }
   }
 
+  syncGameSize(size: GameSize) {
+    const game = this.store.preview.modes.game;
+    const last = game.size;
+    if (
+      last &&
+      last.width === size.width &&
+      last.height === size.height &&
+      last.aspectRatio === size.aspectRatio
+    ) {
+      return;
+    }
+    this.updateGame({ ...game, size });
+  }
+
+  syncGamePosition(position: GamePosition) {
+    const game = this.store.preview.modes.game;
+    const last = game.position;
+    if (last?.uri === position.uri && last.line === position.line) {
+      return;
+    }
+    this.updateGame({ ...game, position });
+  }
+
+  protected updateGame(game: GameState) {
+    this.update({
+      ...this.store,
+      preview: {
+        ...this.store.preview,
+        modes: { ...this.store.preview.modes, game },
+      },
+    });
+  }
+
   syncGameChose() {
     this._pendingPick = this._choiceAt;
     this._choiceAt = undefined;
@@ -1657,23 +1706,14 @@ export default class WorkspaceWindow {
       return;
     }
     const picks = game.picks ?? {};
-    this.update({
-      ...this.store,
-      preview: {
-        ...this.store.preview,
-        modes: {
-          ...this.store.preview.modes,
-          game: {
-            ...game,
-            picks: {
-              ...picks,
-              [pending.uri]: [
-                ...(picks[pending.uri] ?? []),
-                { choose: pending.line, lines: executedLines[pending.uri] ?? [] },
-              ],
-            },
-          },
-        },
+    this.updateGame({
+      ...game,
+      picks: {
+        ...picks,
+        [pending.uri]: [
+          ...(picks[pending.uri] ?? []),
+          { choose: pending.line, lines: executedLines[pending.uri] ?? [] },
+        ],
       },
     });
   }
@@ -1686,16 +1726,51 @@ export default class WorkspaceWindow {
     if (Boolean(game.choosing) === choosing || (choosing && !game.running)) {
       return;
     }
-    this.update({
-      ...this.store,
-      preview: {
-        ...this.store.preview,
-        modes: {
-          ...this.store.preview.modes,
-          game: { ...game, choosing },
-        },
+    this.updateGame({ ...game, choosing });
+  }
+
+  async revealDocument(uri: string, range?: Range, takeFocus = true) {
+    if (typeof document !== "undefined" && document.fullscreenElement) {
+      await document.exitFullscreen().catch(() => {});
+    }
+    if (this.store.preview.revealed) {
+      this.collapsePreviewPane();
+    }
+    const result = await this.showDocument(uri, range, takeFocus);
+    if (routeOfState(this.store) !== "write") {
+      this.navigateTo("write");
+    }
+    return result;
+  }
+
+  async showProblems(uri: string) {
+    await this.revealDocument(uri, undefined, false);
+    const request = () =>
+      ExecuteEditorCommandMessage.type.request({
+        textDocument: { uri },
+        command: "problems",
+      });
+    const first = request();
+    const stop = () => {
+      stopAnswer();
+      stopLoad();
+      clearTimeout(timer);
+    };
+    const stopAnswer = onProtocolMessage(
+      {
+        is: (message: unknown): message is ExecuteEditorCommandMessage.Response =>
+          ExecuteEditorCommandMessage.type.isResponse(message, first.id),
       },
+      () => stop(),
+    );
+    const stopLoad = onProtocolMessage(DidLoadEditorMessage.type, (message) => {
+      if (message.params.textDocument.uri === uri) {
+        stop();
+        sendProtocolMessage(request());
+      }
     });
+    const timer = setTimeout(stop, SHOW_PROBLEMS_WAIT_MS);
+    sendProtocolMessage(first);
   }
 
   syncGamePaused(paused: boolean) {

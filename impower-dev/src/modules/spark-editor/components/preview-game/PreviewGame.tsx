@@ -10,9 +10,10 @@ const SPARKDOWN_PLAYER_ORIGIN =
   import.meta.env.VITE_SPARKDOWN_PLAYER_ORIGIN || "";
 
 const SAME_ORIGIN_PREVIEW = !!import.meta.env.VITE_SAME_ORIGIN_PREVIEW;
+const PLAYER_CONTROLS = "?host-display";
 const PLAYER_SRC = SAME_ORIGIN_PREVIEW
-  ? `/__player/`
-  : `${SPARKDOWN_PLAYER_ORIGIN}/`;
+  ? `/__player/${PLAYER_CONTROLS}`
+  : `${SPARKDOWN_PLAYER_ORIGIN}/${PLAYER_CONTROLS}`;
 const PLAYER_TARGET_ORIGIN = SAME_ORIGIN_PREVIEW
   ? typeof window !== "undefined"
     ? window.location.origin
@@ -39,7 +40,6 @@ const STYLE = `
 export default function PreviewGame(_props: PreviewGameProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [playerSrc] = useState(() => playerUrl(PLAYER_SRC));
-  const previewRef = useRef<HTMLDivElement | null>(null);
 
   const iframeChannelRef = useRef<any>(null);
   const initializedRef = useRef(false);
@@ -81,14 +81,12 @@ export default function PreviewGame(_props: PreviewGameProps) {
       import("@impower/spark-editor-protocol/src/protocols/textDocument/DidSelectTextDocumentMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/StartGameMessage"),
       import("@preact/signals"),
-      import("@impower/spark-engine/src/game/core/classes/messages/EnterGameFullscreenModeMessage"),
-      import("@impower/spark-engine/src/game/core/classes/messages/ExitGameFullscreenModeMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/FetchGameAssetMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameEndedMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage"),
+      import("@impower/spark-engine/src/game/core/classes/messages/GameResizedMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage"),
-      import("@impower/spark-engine/src/game/core/classes/messages/GameToggledFullscreenModeMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameAwaitingInteractionMessage"),
@@ -119,14 +117,12 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { DidSelectTextDocumentMessage },
         { StartGameMessage },
         { effect },
-        { EnterGameFullscreenModeMessage },
-        { ExitGameFullscreenModeMessage },
         { FetchGameAssetMessage },
         { GameExecutedMessage },
         { GameEndedMessage },
         { GameExitedMessage },
+        { GameResizedMessage },
         { GameStartedMessage },
-        { GameToggledFullscreenModeMessage },
         { GameWorkerRestartedMessage },
         { ResizeGameMessage },
         { GameAwaitingInteractionMessage },
@@ -345,15 +341,19 @@ export default function PreviewGame(_props: PreviewGameProps) {
           if (GameStartedMessage.type.is(message)) {
             Workspace.window.startGame();
           }
-          if (GameToggledFullscreenModeMessage.type.is(message)) {
-            if (document.fullscreenElement) {
-              document.exitFullscreen();
-            } else {
-              previewRef.current?.requestFullscreen();
-            }
+          if (GameResizedMessage.type.isNotification(message)) {
+            const { width, height, aspectRatio } = message.params;
+            Workspace.window.syncGameSize({ width, height, aspectRatio });
           }
           if (GameExecutedMessage.type.is(message)) {
             const { executedLines, state, restarted } = message.params;
+            const last = message.params.lastLocation;
+            if (last) {
+              Workspace.window.syncGamePosition({
+                uri: last.uri,
+                line: last.range.end.line,
+              });
+            }
             const executedMap: Record<string, number[]> = {};
             for (const [uri, lines] of Object.entries(executedLines ?? {})) {
               executedMap[uri] = expandLineRanges(lines.ranges);
@@ -412,10 +412,9 @@ export default function PreviewGame(_props: PreviewGameProps) {
                 ? {
                     actionLabel: "Show line",
                     onAction: () => {
-                      Workspace.window.showDocument(
+                      void Workspace.window.revealDocument(
                         location.uri,
                         location.range,
-                        true,
                       );
                     },
                   }
@@ -428,21 +427,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
           }
         };
 
-        const onFullscreenChange = async () => {
-          if (!initializedRef.current) return;
-          if (document.fullscreenElement) {
-            await iframeChannelRef.current?.sendRequest(
-              EnterGameFullscreenModeMessage.type,
-              {},
-            );
-          } else {
-            await iframeChannelRef.current?.sendRequest(
-              ExitGameFullscreenModeMessage.type,
-              {},
-            );
-          }
-        };
-
         const onKeyDown = (e: KeyboardEvent) => {
           if (e.key !== "PageUp" && e.key !== "PageDown") return;
           void skipBeat(e.key === "PageUp" ? -1 : 1);
@@ -450,7 +434,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
 
         window.addEventListener(MessageProtocol.event, onProtocol);
         window.addEventListener("keydown", onKeyDown);
-        document.addEventListener("fullscreenchange", onFullscreenChange);
 
         onLoadRef.current = onLoad;
         iframeRef.current?.addEventListener("load", onLoad);
@@ -465,7 +448,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
           aspectRatioSync.dispose();
           window.removeEventListener(MessageProtocol.event, onProtocol);
           window.removeEventListener("keydown", onKeyDown);
-          document.removeEventListener("fullscreenchange", onFullscreenChange);
           iframeRef.current?.removeEventListener("load", onLoad);
           onLoadRef.current = null;
           iframeChannelRef.current?.removeEventListener?.(
@@ -486,7 +468,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
   return (
     <>
       <style>{STYLE}</style>
-      <div ref={previewRef} class="pg-iframe-wrap" id="preview">
+      <div class="pg-iframe-wrap">
         <iframe
           ref={iframeRef}
           id="iframe"
